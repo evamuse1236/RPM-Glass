@@ -1,0 +1,717 @@
+<!DOCTYPE html><html class="dark" lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><title>RPM System - Life Vision</title><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{width:100vw;margin:0;padding:0;background-color:#0d0c1f;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "background": "#121125", "on-tertiary-container": "#ae3035", "primary-container": "#00f0ff", "inverse-primary": "#006970", "on-primary-container": "#006970", "secondary-fixed-dim": "#ddb7ff", "surface-dim": "#121125", "on-primary-fixed-variant": "#004f54", "on-secondary": "#490080", "surface-container": "#1f1d31", "outline": "#849495", "inverse-surface": "#e3dffb", "outline-variant": "#3b494b", "primary-fixed-dim": "#00dbe9", "primary": "#dbfcff", "on-primary-fixed": "#002022", "primary-fixed": "#7df4ff", "surface-container-highest": "#343248", "tertiary-fixed": "#ffdad8", "surface-container-lowest": "#0d0c1f", "on-secondary-fixed": "#2c0051", "on-secondary-fixed-variant": "#6900b3", "on-error-container": "#ffdad6", "on-surface-variant": "#b9cacb", "surface-tint": "#00dbe9", "tertiary-container": "#ffcecb", "tertiary": "#fff3f2", "inverse-on-surface": "#302e43", "surface-variant": "#343248", "secondary-fixed": "#f0dbff", "on-tertiary": "#68000f", "secondary-container": "#6f00be", "on-secondary-container": "#d6a9ff", "on-surface": "#e3dffb", "surface": "#121125", "surface-container-high": "#29283c", "surface-bright": "#38374c", "on-tertiary-fixed-variant": "#8c1520", "on-background": "#e3dffb", "error": "#ffb4ab", "secondary": "#ddb7ff", "tertiary-fixed-dim": "#ffb3b0", "on-primary": "#00363a", "on-error": "#690005", "error-container": "#93000a", "surface-container-low": "#1a192d", "on-tertiary-fixed": "#410006" }, borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, spacing: { "space-md": "1rem", "gutter": "0.75rem", "margin": "1rem", "space-lg": "1.5rem", "space-xl": "2rem", "space-sm": "0.5rem", "space-xs": "0.25rem" }, fontFamily: { "headline-sm": ["Plus Jakarta Sans"], "title-md": ["Plus Jakarta Sans"], "headline-lg-mobile": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "chrono-numeric": ["Plus Jakarta Sans"], "body-lg": ["Plus Jakarta Sans"], "body-md": ["Plus Jakarta Sans"], "title-sm": ["Plus Jakarta Sans"], "body-sm": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"], "headline-md": ["Plus Jakarta Sans"] }, fontSize: { "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }], "title-md": ["16px", { "lineHeight": "24px", "fontWeight": "600" }], "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }], "label-sm": ["10px", { "lineHeight": "12px", "fontWeight": "700" }], "label-md": ["12px", { "lineHeight": "16px", "fontWeight": "600" }], "chrono-numeric": ["15px", { "lineHeight": "20px", "fontWeight": "500" }], "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }], "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "title-sm": ["14px", { "lineHeight": "20px", "fontWeight": "600" }], "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }], "headline-lg": ["36px", { "lineHeight": "44px", "fontWeight": "700" }], "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }] } } } };</script><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+    @keyframes ambientDrift1 {
+      0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.35; }
+      50% { transform: translate(30px, 45px) scale(1.15); opacity: 0.55; }
+    }
+    @keyframes ambientDrift2 {
+      0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+      50% { transform: translate(-35px, -30px) scale(1.2); opacity: 0.5; }
+    }
+    @keyframes shimmerMove {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(200%); }
+    }
+    @keyframes radarPulse {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.03); opacity: 1; filter: drop-shadow(0 0 10px rgba(0,240,255,0.9)); }
+    }
+    @keyframes nodePing {
+      0% { transform: scale(1); opacity: 0.9; }
+      70% { transform: scale(2.4); opacity: 0; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+    .radar-polygon-active {
+      animation: radarPulse 3s ease-in-out infinite;
+      transform-origin: 60px 60px;
+    }
+    .shimmer-effect {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.4) 50%, transparent 100%);
+      animation: shimmerMove 2.6s infinite ease-in-out;
+    }
+    .collapsible-content {
+      transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin 0.3s ease;
+      overflow: hidden;
+    }
+    .collapsible-content.collapsed {
+      max-height: 0 !important;
+      opacity: 0 !important;
+      margin-top: 0 !important;
+      margin-bottom: 0 !important;
+      pointer-events: none;
+    }
+  </style>
+</head><body class="bg-surface-container-lowest font-body-md text-on-surface min-h-screen flex flex-col antialiased selection:bg-primary-container selection:text-on-primary-fixed relative overflow-x-hidden">
+<!-- Ambient Glassmorphism Floating Glow Orbs -->
+<div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+<div class="absolute top-10 -left-20 w-80 h-80 rounded-full bg-primary-container/15 blur-[90px]" style="animation: ambientDrift1 12s ease-in-out infinite;"></div>
+<div class="absolute top-1/3 -right-24 w-96 h-96 rounded-full bg-secondary-container/25 blur-[100px]" style="animation: ambientDrift2 16s ease-in-out infinite;"></div>
+<div class="absolute -bottom-10 left-1/4 w-80 h-80 rounded-full bg-primary-fixed-dim/10 blur-[90px]" style="animation: ambientDrift1 14s ease-in-out infinite reverse;"></div>
+</div>
+<header class="fixed top-0 inset-x-0 z-50 pt-safe bg-surface/50 backdrop-blur-2xl border-b border-outline-variant/10"><div class="h-14 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><div class="w-2 h-2 rounded-full bg-primary-container shadow-[0_0_10px_rgba(0,240,255,0.85)] animate-pulse"></div><span class="font-title-sm text-title-sm tracking-wide text-on-surface">Life Vision</span></div><button aria-label="Profile Avatar" class="w-8 h-8 rounded-full bg-primary flex items-center justify-center transition-transform duration-200 active:scale-90 hover:shadow-[0_0_12px_rgba(0,240,255,0.4)]"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></button></div></header>
+<main class="flex-1 flex flex-col relative w-full pt-14 pb-28 px-margin bg-transparent overflow-y-auto z-10"><div class="flex flex-col w-full gap-space-lg">
+<!-- Scope Horizon Switcher Tabs -->
+<section class="relative p-1 bg-surface-container/60 backdrop-blur-xl rounded-full shadow-lg border border-outline-variant/20">
+<div class="absolute top-1 bottom-1 rounded-full bg-primary-container shadow-[0_0_14px_rgba(0,240,255,0.5)] transition-all duration-300 ease-out z-0" id="tabIndicator"></div>
+<div class="relative flex items-center justify-between z-10">
+<button class="tab-btn flex-1 py-2 px-space-xs rounded-full font-label-md text-label-md text-on-primary font-semibold transition-colors duration-200" data-horizon="yearly" type="button">Yearly Vision</button>
+<button class="tab-btn flex-1 py-2 px-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors duration-200" data-horizon="q4" type="button">Q4 Focus</button>
+<button class="tab-btn flex-1 py-2 px-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors duration-200" data-horizon="monthly" type="button">Monthly</button>
+<button class="tab-btn flex-1 py-2 px-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors duration-200" data-horizon="values" type="button">Core Values</button>
+</div>
+</section>
+<!-- Master Life Wheel & Alignment Index -->
+<section class="relative overflow-hidden rounded-xl bg-surface-container-low/70 backdrop-blur-2xl p-space-lg shadow-xl border border-outline-variant/20 transition-all duration-300 hover:border-primary-container/30">
+<div class="absolute -top-16 -right-16 w-44 h-44 rounded-full bg-primary-container/10 blur-3xl pointer-events-none"></div>
+<div class="absolute -bottom-16 -left-16 w-44 h-44 rounded-full bg-secondary-container/20 blur-3xl pointer-events-none"></div>
+<div class="flex items-center justify-between gap-space-md relative z-10">
+<div class="flex flex-col gap-space-xs min-w-0 flex-1">
+<button class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary-container/10 hover:bg-primary-container/20 transition-colors text-primary font-label-sm text-label-sm w-fit group cursor-pointer text-left" id="resetRadarBtn" title="Tap to view overall life score">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container shadow-[0_0_8px_#00f0ff] animate-pulse"></span>
+<span id="dimensionBadgeText">WHEEL OF LIFE</span>
+<span class="material-symbols-outlined text-[12px] opacity-0 group-hover:opacity-100 transition-opacity">restart_alt</span>
+</button>
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface tracking-tight mt-1 transition-all duration-300" id="mainScoreHeading">8.2<span class="text-primary-container font-title-sm text-title-sm align-top font-semibold">/10</span></h2>
+<div class="flex items-center gap-1 text-primary-fixed">
+<span class="material-symbols-outlined text-[16px]">insights</span>
+<p class="font-label-md text-label-md transition-all duration-300" id="mainScoreSubtext">82% Life Balance Index</p>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2 mt-1 transition-all duration-300" id="mainDescription">5 core dimensions active. Harmonized across Vitality, Career, Wealth, Mind &amp; Bonds.</p>
+</div>
+<!-- Interactive SVG Radar -->
+<div class="relative w-32 h-32 shrink-0 flex items-center justify-center select-none" id="radarContainer">
+<svg class="w-full h-full overflow-visible" viewBox="0 0 120 120">
+<defs>
+<radialGradient cx="50%" cy="50%" id="radarRadialGlow" r="50%">
+<stop offset="0%" stop-color="#00f0ff" stop-opacity="0.32"></stop>
+<stop offset="70%" stop-color="#ddb7ff" stop-opacity="0.14"></stop>
+<stop offset="100%" stop-color="#000" stop-opacity="0"></stop>
+</radialGradient>
+</defs>
+<!-- Web Guides -->
+<polygon fill="none" opacity="0.45" points="60,18 99,47 84,94 36,94 21,47" stroke="#343248" stroke-width="1"></polygon>
+<polygon fill="none" opacity="0.35" points="60,32 86,51 76,82 44,82 34,51" stroke="#343248" stroke-width="1"></polygon>
+<polygon fill="none" opacity="0.25" points="60,46 73,56 68,71 52,71 47,56" stroke="#343248" stroke-width="1"></polygon>
+<!-- Spokes -->
+<line stroke="#343248" stroke-dasharray="2,2" stroke-width="1" x1="60" x2="60" y1="60" y2="14"></line>
+<line stroke="#343248" stroke-dasharray="2,2" stroke-width="1" x1="60" x2="104" y1="60" y2="46"></line>
+<line stroke="#343248" stroke-dasharray="2,2" stroke-width="1" x1="60" x2="87" y1="60" y2="98"></line>
+<line stroke="#343248" stroke-dasharray="2,2" stroke-width="1" x1="60" x2="33" y1="60" y2="98"></line>
+<line stroke="#343248" stroke-dasharray="2,2" stroke-width="1" x1="60" x2="16" y1="60" y2="46"></line>
+<!-- Active Radar Shape with glow pulse -->
+<polygon class="radar-polygon-active drop-shadow-[0_0_8px_rgba(0,240,255,0.7)] transition-all duration-500 ease-out" fill="url(#radarRadialGlow)" id="radarPolygon" points="60,20.8 94.3,49.1 82.2,90.6 37.9,88.7 24.8,47.3" stroke="#00f0ff" stroke-width="2"></polygon>
+<!-- Interactive Radar Pulse Ring for Highlight -->
+<circle class="pointer-events-none transition-all duration-300" cx="60" cy="20.8" fill="none" id="radarHighlightRing" opacity="0" r="7" stroke="#00f0ff" stroke-width="1.5"></circle>
+<!-- Radar Nodes -->
+<circle class="radar-node cursor-pointer hover:r-[5] transition-all duration-200" cx="60" cy="20.8" data-dimension="vitality" fill="#00f0ff" r="3.5"></circle>
+<circle class="radar-node cursor-pointer hover:r-[5] transition-all duration-200" cx="94.3" cy="49.1" data-dimension="career" fill="#ddb7ff" r="3.5"></circle>
+<circle class="radar-node cursor-pointer hover:r-[5] transition-all duration-200" cx="82.2" cy="90.6" data-dimension="wealth" fill="#fbbf24" r="3.5"></circle>
+<circle class="radar-node cursor-pointer hover:r-[5] transition-all duration-200" cx="37.9" cy="88.7" data-dimension="bonds" fill="#ffb3b0" r="3.5"></circle>
+<circle class="radar-node cursor-pointer hover:r-[5] transition-all duration-200" cx="24.8" cy="47.3" data-dimension="mind" fill="#00dbe9" r="3.5"></circle>
+</svg>
+</div>
+</div>
+<!-- Dimension Filter Chips -->
+<div class="flex items-center gap-2 mt-space-md pt-space-sm overflow-x-auto no-scrollbar" id="dimensionChips">
+<button class="dim-chip inline-flex items-center gap-1 text-[11px] font-label-sm text-primary px-2.5 py-1 rounded-full bg-surface-container-high/60 border border-transparent hover:border-primary-container/40 transition-all duration-200 whitespace-nowrap active:scale-95" data-dimension="vitality">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container shadow-[0_0_6px_#00f0ff]"></span> Vitality 8.5
+    </button>
+<button class="dim-chip inline-flex items-center gap-1 text-[11px] font-label-sm text-secondary px-2.5 py-1 rounded-full bg-surface-container-high/60 border border-transparent hover:border-secondary/40 transition-all duration-200 whitespace-nowrap active:scale-95" data-dimension="career">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary shadow-[0_0_6px_#ddb7ff]"></span> Career 7.8
+    </button>
+<button class="dim-chip inline-flex items-center gap-1 text-[11px] font-label-sm text-amber-200 px-2.5 py-1 rounded-full bg-surface-container-high/60 border border-transparent hover:border-amber-300/40 transition-all duration-200 whitespace-nowrap active:scale-95" data-dimension="wealth">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-300 shadow-[0_0_6px_#fbbf24]"></span> Wealth 8.2
+    </button>
+<button class="dim-chip inline-flex items-center gap-1 text-[11px] font-label-sm text-primary px-2.5 py-1 rounded-full bg-surface-container-high/60 border border-transparent hover:border-primary-fixed-dim/40 transition-all duration-200 whitespace-nowrap active:scale-95" data-dimension="mind">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-fixed-dim shadow-[0_0_6px_#00dbe9]"></span> Mind 9.0
+    </button>
+<button class="dim-chip inline-flex items-center gap-1 text-[11px] font-label-sm text-tertiary-fixed-dim px-2.5 py-1 rounded-full bg-surface-container-high/60 border border-transparent hover:border-tertiary-fixed-dim/40 transition-all duration-200 whitespace-nowrap active:scale-95" data-dimension="bonds">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary-fixed-dim shadow-[0_0_6px_#ffb3b0]"></span> Bonds 7.0
+    </button>
+</div>
+</section>
+<!-- Primary Life Areas Grid/List -->
+<section class="flex flex-col gap-space-md" id="categoriesSection">
+<div class="flex items-center justify-between px-space-xs">
+<h3 class="font-title-md text-title-md text-on-surface flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary-container text-[18px]">verified</span>
+      Core Life Categories
+    </h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant" id="activeCountBadge">5 OF 5 ACTIVATED</span>
+</div>
+<!-- Area 1: Vitality & Energy -->
+<article class="category-card relative rounded-xl bg-surface-container/60 backdrop-blur-xl p-space-md flex flex-col gap-space-sm shadow-md transition-all duration-300 border border-outline-variant/20 hover:border-primary-container/40" data-category="vitality">
+<div class="card-header cursor-pointer select-none flex items-start justify-between gap-space-sm group" role="button" tabindex="0">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-primary-container/10 flex items-center justify-center text-primary-container shadow-[0_0_12px_rgba(0,240,255,0.3)] shrink-0 transition-transform duration-300 group-hover:scale-105">
+<span class="material-symbols-outlined text-[20px]">fitness_center</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<h4 class="font-title-sm text-title-sm text-on-surface group-hover:text-primary transition-colors">Physical Vitality &amp; Peak Energy</h4>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform duration-300 chevron-icon">expand_less</span>
+</div>
+<span class="font-label-sm text-label-sm text-primary-fixed">Identity &amp; Physical Vehicle</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-title-sm text-title-sm text-primary-container font-semibold">85%</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Optimal</span>
+</div>
+</div>
+<!-- Collapsible Nested Area Details -->
+<div class="collapsible-content flex flex-col gap-space-sm max-h-[600px] opacity-100">
+<div class="rounded-lg bg-surface-container-lowest/60 p-space-sm border border-outline-variant/10">
+<p class="font-body-sm text-body-sm text-primary italic leading-relaxed">“An athletic, tireless, high-energy vessel capable of relentless focus and sustained joy.”</p>
+</div>
+<div class="flex flex-col gap-1.5 mt-0.5">
+<div class="goal-item flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest/40 border border-outline-variant/30 transition-all duration-150 hover:bg-surface-container-lowest/80 active:scale-[0.99] cursor-pointer" data-goal-type="yearly">
+<span class="px-1.5 py-0.5 rounded bg-primary-container/15 text-primary-container font-label-sm text-[10px] uppercase font-bold shrink-0">Yearly</span>
+<span class="font-body-sm text-body-sm text-on-surface truncate">Sub-3:45 Marathon &amp; Optimal HRV &gt; 70ms</span>
+</div>
+<div class="goal-item flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest/40 border border-outline-variant/20 transition-all duration-150 hover:bg-surface-container-lowest/80 active:scale-[0.99] cursor-pointer" data-goal-type="q4">
+<span class="px-1.5 py-0.5 rounded bg-secondary-container/20 text-secondary-fixed font-label-sm text-[10px] uppercase font-bold shrink-0">Q4 Goal</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">28km Long Run &amp; Aerobic Base</span>
+</div>
+<div class="goal-item flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest/40 border border-outline-variant/10 transition-all duration-150 hover:bg-surface-container-lowest/80 active:scale-[0.99] cursor-pointer" data-goal-type="monthly">
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface font-label-sm text-[10px] uppercase font-bold shrink-0">Monthly</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Nov: 180km Mileage &amp; 20m Daily Mobility</span>
+</div>
+</div>
+<div class="project-card flex items-center justify-between mt-space-xs p-2.5 rounded-lg bg-surface-container-highest/40 border border-outline-variant/15 hover:border-primary-container/30 transition-all duration-150 cursor-pointer active:scale-[0.98]">
+<div class="flex items-center gap-2 min-w-0">
+<span class="material-symbols-outlined text-[16px] text-primary-container">folder_open</span>
+<p class="font-body-sm text-body-sm text-on-surface truncate">Marathon Conditioning Protocol</p>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-primary-container/20 text-primary-fixed shrink-0">1 Active Project</span>
+</div>
+</div>
+<!-- Progress Bar with shimmer animation -->
+<div class="w-full bg-surface-container-highest/60 rounded-full h-1.5 overflow-hidden mt-1 relative">
+<div class="bg-gradient-to-r from-primary-fixed-dim to-primary-container h-full rounded-full w-[85%] shadow-[0_0_8px_#00f0ff] relative overflow-hidden transition-all duration-1000 ease-out">
+<div class="shimmer-effect"></div>
+</div>
+</div>
+</article>
+<!-- Area 2: Career & Creative Mastery -->
+<article class="category-card relative rounded-xl bg-surface-container/60 backdrop-blur-xl p-space-md flex flex-col gap-space-sm shadow-md transition-all duration-300 border border-outline-variant/20 hover:border-secondary/40" data-category="career">
+<div class="card-header cursor-pointer select-none flex items-start justify-between gap-space-sm group" role="button" tabindex="0">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-secondary-container/30 flex items-center justify-center text-secondary-fixed-dim shadow-[0_0_12px_rgba(221,183,255,0.3)] shrink-0 transition-transform duration-300 group-hover:scale-105">
+<span class="material-symbols-outlined text-[20px]">auto_awesome</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<h4 class="font-title-sm text-title-sm text-on-surface group-hover:text-secondary transition-colors">Career &amp; Creative Mastery</h4>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform duration-300 chevron-icon">expand_less</span>
+</div>
+<span class="font-label-sm text-label-sm text-secondary-fixed">Mission &amp; Purpose</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-title-sm text-title-sm text-secondary font-semibold">78%</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Advancing</span>
+</div>
+</div>
+<div class="collapsible-content flex flex-col gap-space-sm max-h-[600px] opacity-100">
+<div class="rounded-lg bg-surface-container-lowest/60 p-space-sm border border-outline-variant/10">
+<p class="font-body-sm text-body-sm text-secondary-fixed italic leading-relaxed">“Pioneering the frontier of AI-native creative software; building products millions love.”</p>
+</div>
+<div class="flex flex-col gap-1.5 mt-0.5">
+<div class="goal-item flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest/40 border border-outline-variant/30 transition-all duration-150 hover:bg-surface-container-lowest/80 active:scale-[0.99] cursor-pointer" data-goal-type="yearly">
+<span class="px-1.5 py-0.5 rounded bg-secondary-container/30 text-secondary-fixed-dim font-label-sm text-[10px] uppercase font-bold shrink-0">Yearly</span>
+<span class="font-body-sm text-body-sm text-on-surface truncate">AI Assistant v2.0 Global &amp; Seed Series A</span>
+</div>
+<div class="goal-item flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest/40 border border-outline-variant/20 transition-all duration-150 hover:bg-surface-container-lowest/80 active:scale-[0.99] cursor-pointer" data-goal-type="q4">
+<span class="px-1.5 py-0.5 rounded bg-primary-container/15 text-primary-fixed font-label-sm text-[10px] uppercase font-bold shrink-0">Q4 Goal</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Beta Architecture &amp; 10k Dev Keynote</span>
+</div>
+<div class="goal-item flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest/40 border border-outline-variant/10 transition-all duration-150 hover:bg-surface-container-lowest/80 active:scale-[0.99] cursor-pointer" data-goal-type="monthly">
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface font-label-sm text-[10px] uppercase font-bold shrink-0">Monthly</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Nov: Closed Beta Demo to 500 Engineers</span>
+</div>
+</div>
+<div class="project-card flex items-center justify-between mt-space-xs p-2.5 rounded-lg bg-surface-container-highest/40 border border-outline-variant/15 hover:border-secondary/30 transition-all duration-150 cursor-pointer active:scale-[0.98]">
+<div class="flex items-center gap-2 min-w-0">
+<span class="material-symbols-outlined text-[16px] text-secondary">folder_open</span>
+<p class="font-body-sm text-body-sm text-on-surface truncate">AI Design Assistant 2.0 Launch</p>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary-fixed shrink-0">2 Active Projects</span>
+</div>
+</div>
+<div class="w-full bg-surface-container-highest/60 rounded-full h-1.5 overflow-hidden mt-1 relative">
+<div class="bg-gradient-to-r from-secondary to-secondary-fixed h-full rounded-full w-[78%] shadow-[0_0_8px_#ddb7ff] relative overflow-hidden transition-all duration-1000 ease-out">
+<div class="shimmer-effect"></div>
+</div>
+</div>
+</article>
+<!-- Area 3: Wealth & Financial Freedom -->
+<article class="category-card relative rounded-xl bg-surface-container/60 backdrop-blur-xl p-space-md flex flex-col gap-space-sm shadow-md transition-all duration-300 border border-outline-variant/20 hover:border-amber-300/40" data-category="wealth">
+<div class="card-header cursor-pointer select-none flex items-start justify-between gap-space-sm group" role="button" tabindex="0">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-amber-400/10 flex items-center justify-center text-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.3)] shrink-0 transition-transform duration-300 group-hover:scale-105">
+<span class="material-symbols-outlined text-[20px]">account_balance</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<h4 class="font-title-sm text-title-sm text-on-surface group-hover:text-amber-300 transition-colors">Wealth &amp; Financial Freedom</h4>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform duration-300 chevron-icon">expand_less</span>
+</div>
+<span class="font-label-sm text-label-sm text-amber-200">Abundance &amp; Asset Defense</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-title-sm text-title-sm text-amber-300 font-semibold">82%</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Strong</span>
+</div>
+</div>
+<div class="collapsible-content flex flex-col gap-space-sm max-h-[600px] opacity-100">
+<div class="rounded-lg bg-surface-container-lowest/60 p-space-sm border border-outline-variant/10">
+<p class="font-body-sm text-body-sm text-amber-100 italic leading-relaxed">“Unconditional financial abundance and automated asset allocation for generational freedom.”</p>
+</div>
+<div class="flex flex-col gap-1.5 mt-0.5">
+<div class="goal-item flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest/40 border border-outline-variant/30 transition-all duration-150 hover:bg-surface-container-lowest/80 active:scale-[0.99] cursor-pointer" data-goal-type="yearly">
+<span class="px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300 font-label-sm text-[10px] uppercase font-bold shrink-0">Yearly</span>
+<span class="font-body-sm text-body-sm text-on-surface truncate">Max Index Contributions &amp; Passive Streams</span>
+</div>
+<div class="goal-item flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest/40 border border-outline-variant/20 transition-all duration-150 hover:bg-surface-container-lowest/80 active:scale-[0.99] cursor-pointer" data-goal-type="q4">
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-amber-200 font-label-sm text-[10px] uppercase font-bold shrink-0">Q4 Goal</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Automated Multi-Entity Asset Vault</span>
+</div>
+<div class="goal-item flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest/40 border border-outline-variant/10 transition-all duration-150 hover:bg-surface-container-lowest/80 active:scale-[0.99] cursor-pointer" data-goal-type="monthly">
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface font-label-sm text-[10px] uppercase font-bold shrink-0">Monthly</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Nov: Rebalance Portfolio &amp; Tax-Loss Harvest</span>
+</div>
+</div>
+<div class="project-card flex items-center justify-between mt-space-xs p-2.5 rounded-lg bg-surface-container-highest/40 border border-outline-variant/15 hover:border-amber-300/30 transition-all duration-150 cursor-pointer active:scale-[0.98]">
+<div class="flex items-center gap-2 min-w-0">
+<span class="material-symbols-outlined text-[16px] text-amber-300">folder_open</span>
+<p class="font-body-sm text-body-sm text-on-surface truncate">Automated Index Asset Allocation</p>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-300 shrink-0">1 Active Project</span>
+</div>
+</div>
+<div class="w-full bg-surface-container-highest/60 rounded-full h-1.5 overflow-hidden mt-1 relative">
+<div class="bg-gradient-to-r from-amber-500 to-amber-300 h-full rounded-full w-[82%] shadow-[0_0_8px_rgba(251,191,36,0.5)] relative overflow-hidden transition-all duration-1000 ease-out">
+<div class="shimmer-effect"></div>
+</div>
+</div>
+</article>
+<!-- Area 4: Emotional Mastery & Mindfulness -->
+<article class="category-card relative rounded-xl bg-surface-container/60 backdrop-blur-xl p-space-md flex flex-col gap-space-sm shadow-md transition-all duration-300 border border-outline-variant/20 hover:border-primary/40" data-category="mind">
+<div class="card-header cursor-pointer select-none flex items-start justify-between gap-space-sm group" role="button" tabindex="0">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-primary-container/10 flex items-center justify-center text-primary shadow-[0_0_12px_rgba(0,240,255,0.2)] shrink-0 transition-transform duration-300 group-hover:scale-105">
+<span class="material-symbols-outlined text-[20px]">psychology</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<h4 class="font-title-sm text-title-sm text-on-surface group-hover:text-primary transition-colors">Emotional Mastery &amp; Mindfulness</h4>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform duration-300 chevron-icon">expand_less</span>
+</div>
+<span class="font-label-sm text-label-sm text-primary">Beautiful Inner State</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-title-sm text-title-sm text-primary-container font-semibold">90%</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Peak</span>
+</div>
+</div>
+<div class="collapsible-content flex flex-col gap-space-sm max-h-[600px] opacity-100">
+<div class="rounded-lg bg-surface-container-lowest/60 p-space-sm border border-outline-variant/10">
+<p class="font-body-sm text-body-sm text-primary italic leading-relaxed">“Living in a beautiful state regardless of circumstance, with clarity, presence, and gratitude.”</p>
+</div>
+<div class="flex flex-col gap-1.5 mt-0.5">
+<div class="goal-item flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest/40 border border-outline-variant/30 transition-all duration-150 hover:bg-surface-container-lowest/80 active:scale-[0.99] cursor-pointer" data-goal-type="yearly">
+<span class="px-1.5 py-0.5 rounded bg-primary-container/15 text-primary-container font-label-sm text-[10px] uppercase font-bold shrink-0">Yearly</span>
+<span class="font-body-sm text-body-sm text-on-surface truncate">Unshakable Equanimity &amp; 2 Silent Retreats</span>
+</div>
+<div class="goal-item flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest/40 border border-outline-variant/20 transition-all duration-150 hover:bg-surface-container-lowest/80 active:scale-[0.99] cursor-pointer" data-goal-type="q4">
+<span class="px-1.5 py-0.5 rounded bg-primary-container/10 text-primary font-label-sm text-[10px] uppercase font-bold shrink-0">Q4 Goal</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">10-Day Vipassana &amp; Daily Breathwork</span>
+</div>
+<div class="goal-item flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest/40 border border-outline-variant/10 transition-all duration-150 hover:bg-surface-container-lowest/80 active:scale-[0.99] cursor-pointer" data-goal-type="monthly">
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface font-label-sm text-[10px] uppercase font-bold shrink-0">Monthly</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Nov: 20-min Morning Priming Streak</span>
+</div>
+</div>
+<div class="project-card flex items-center justify-between mt-space-xs p-2.5 rounded-lg bg-surface-container-highest/40 border border-outline-variant/15 hover:border-primary/30 transition-all duration-150 cursor-pointer active:scale-[0.98]">
+<div class="flex items-center gap-2 min-w-0">
+<span class="material-symbols-outlined text-[16px] text-primary-container">folder_open</span>
+<p class="font-body-sm text-body-sm text-on-surface truncate">Morning Priming &amp; Silent Retreat Immersion</p>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-primary-container/20 text-primary-fixed shrink-0">1 Active Project</span>
+</div>
+</div>
+<div class="w-full bg-surface-container-highest/60 rounded-full h-1.5 overflow-hidden mt-1 relative">
+<div class="bg-gradient-to-r from-primary-fixed-dim to-primary-container h-full rounded-full w-[90%] shadow-[0_0_8px_#00f0ff] relative overflow-hidden transition-all duration-1000 ease-out">
+<div class="shimmer-effect"></div>
+</div>
+</div>
+</article>
+<!-- Area 5: Relationships & Community -->
+<article class="category-card relative rounded-xl bg-surface-container/60 backdrop-blur-xl p-space-md flex flex-col gap-space-sm shadow-md transition-all duration-300 border border-outline-variant/20 hover:border-tertiary-fixed-dim/40" data-category="bonds">
+<div class="card-header cursor-pointer select-none flex items-start justify-between gap-space-sm group" role="button" tabindex="0">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-tertiary-fixed-dim/20 flex items-center justify-center text-tertiary-fixed-dim shadow-[0_0_12px_rgba(255,179,176,0.3)] shrink-0 transition-transform duration-300 group-hover:scale-105">
+<span class="material-symbols-outlined text-[20px]">groups</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<h4 class="font-title-sm text-title-sm text-on-surface group-hover:text-tertiary-fixed-dim transition-colors">Relationships &amp; Community</h4>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform duration-300 chevron-icon">expand_less</span>
+</div>
+<span class="font-label-sm text-label-sm text-tertiary-fixed-dim">Kinship &amp; Contribution</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-title-sm text-title-sm text-tertiary-fixed-dim font-semibold">70%</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Nurturing</span>
+</div>
+</div>
+<div class="collapsible-content flex flex-col gap-space-sm max-h-[600px] opacity-100">
+<div class="rounded-lg bg-surface-container-lowest/60 p-space-sm border border-outline-variant/10">
+<p class="font-body-sm text-body-sm text-tertiary italic leading-relaxed">“Deep, authentic connection with family, inspiring peers, and lifelong mentors.”</p>
+</div>
+<div class="flex flex-col gap-1.5 mt-0.5">
+<div class="goal-item flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest/40 border border-outline-variant/30 transition-all duration-150 hover:bg-surface-container-lowest/80 active:scale-[0.99] cursor-pointer" data-goal-type="yearly">
+<span class="px-1.5 py-0.5 rounded bg-tertiary-fixed-dim/20 text-tertiary-fixed-dim font-label-sm text-[10px] uppercase font-bold shrink-0">Yearly</span>
+<span class="font-body-sm text-body-sm text-on-surface truncate">Weekly Uninterrupted Dates &amp; Mentorship</span>
+</div>
+<div class="goal-item flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest/40 border border-outline-variant/20 transition-all duration-150 hover:bg-surface-container-lowest/80 active:scale-[0.99] cursor-pointer" data-goal-type="q4">
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-tertiary-fixed-dim font-label-sm text-[10px] uppercase font-bold shrink-0">Q4 Goal</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Monthly Founders Dinner &amp; Family Trip</span>
+</div>
+<div class="goal-item flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest/40 border border-outline-variant/10 transition-all duration-150 hover:bg-surface-container-lowest/80 active:scale-[0.99] cursor-pointer" data-goal-type="monthly">
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface font-label-sm text-[10px] uppercase font-bold shrink-0">Monthly</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Nov: 4 Date Evenings &amp; 1 Peer Summit</span>
+</div>
+</div>
+<div class="project-card flex items-center justify-between mt-space-xs p-2.5 rounded-lg bg-surface-container-highest/40 border border-outline-variant/15 hover:border-tertiary-fixed-dim/30 transition-all duration-150 cursor-pointer active:scale-[0.98]">
+<div class="flex items-center gap-2 min-w-0">
+<span class="material-symbols-outlined text-[16px] text-tertiary-fixed-dim">folder_open</span>
+<p class="font-body-sm text-body-sm text-on-surface truncate">Community &amp; Inner Circle Dinners</p>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-tertiary-fixed-dim/20 text-tertiary-fixed-dim shrink-0">1 Active Project</span>
+</div>
+</div>
+<div class="w-full bg-surface-container-highest/60 rounded-full h-1.5 overflow-hidden mt-1 relative">
+<div class="bg-gradient-to-r from-on-tertiary-container to-tertiary-fixed-dim h-full rounded-full w-[70%] shadow-[0_0_8px_rgba(255,179,176,0.4)] relative overflow-hidden transition-all duration-1000 ease-out">
+<div class="shimmer-effect"></div>
+</div>
+</div>
+</article>
+</section>
+</div>
+</main>
+<!-- Floating Toast Notification Feedback -->
+<div class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-surface-container-highest/90 border border-primary-container/40 text-on-surface font-label-md text-label-md shadow-2xl backdrop-blur-xl flex items-center gap-2 opacity-0 pointer-events-none transition-all duration-300 scale-90" id="quickToast">
+<span class="material-symbols-outlined text-primary-container text-[16px]">check_circle</span>
+<span id="toastMessage">Action recorded</span>
+</div>
+<!-- Floating Action Buttons -->
+<aside class="fixed right-margin bottom-28 z-50 flex flex-col items-center gap-space-sm pb-safe">
+<!-- Search Button with magnetic ripple -->
+<button aria-label="Search System" class="relative w-11 h-11 rounded-full bg-surface-container/70 backdrop-blur-xl flex items-center justify-center text-on-surface-variant hover:text-primary-container shadow-[0_8px_20px_rgba(0,0,0,0.4)] transition-all duration-200 active:scale-90 hover:scale-105 border border-outline-variant/30 group" id="searchButton" type="button">
+<span class="material-symbols-outlined text-[20px] transition-transform duration-200 group-hover:scale-110">search</span>
+</button>
+<!-- FAB with modal rotation animation -->
+<button aria-label="Quick Add RPM Block" class="relative w-14 h-14 rounded-full bg-gradient-to-br from-primary-container to-secondary-container flex items-center justify-center text-surface-container-lowest shadow-[0_0_24px_rgba(0,240,255,0.45)] transition-all duration-300 active:scale-90 hover:scale-105 hover:shadow-[0_0_32px_rgba(0,240,255,0.7)] group overflow-hidden" id="quickAddFab" type="button">
+<span class="material-symbols-outlined text-[28px] font-bold transition-transform duration-300 ease-out" id="fabIcon">add</span>
+<span class="absolute inset-0 rounded-full bg-white/20 opacity-0 group-active:opacity-100 transition-opacity"></span>
+</button>
+</aside>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 inset-x-0 z-40 pb-safe bg-surface-container-lowest/80 backdrop-blur-2xl shadow-[0_-8px_32px_rgba(0,0,0,0.6)] border-t border-outline-variant/10" data-active-classes="text-primary-container">
+<div class="flex justify-around items-center h-16 px-space-xs">
+<a class="flex flex-col items-center justify-center min-w-[48px] h-12 text-on-surface-variant transition-all hover:text-on-surface active:scale-95" data-path="daily-calendar" href="#">
+<span class="material-symbols-outlined text-[22px]">calendar_today</span>
+<span class="font-label-sm text-label-sm mt-1">Calendar</span>
+</a>
+<a class="flex flex-col items-center justify-center min-w-[48px] h-12 text-on-surface-variant transition-all hover:text-on-surface active:scale-95" data-path="rpm-blocks" href="#">
+<span class="material-symbols-outlined text-[22px]">functions</span>
+<span class="font-label-sm text-label-sm mt-1">Blocks</span>
+</a>
+<a class="flex flex-col items-center justify-center min-w-[48px] h-12 text-on-surface-variant transition-all hover:text-on-surface active:scale-95" data-path="projects" href="#">
+<span class="material-symbols-outlined text-[22px]">layers</span>
+<span class="font-label-sm text-label-sm mt-1">Projects</span>
+</a>
+<a aria-current="page" class="flex flex-col items-center justify-center min-w-[48px] h-12 transition-all text-primary-container active:scale-95" data-path="life-vision" href="#">
+<span class="material-symbols-outlined text-[22px] drop-shadow-[0_0_8px_rgba(0,240,255,0.6)]">spa</span>
+<span class="font-label-sm text-label-sm mt-1 font-semibold">Life</span>
+</a>
+<a class="flex flex-col items-center justify-center min-w-[48px] h-12 text-on-surface-variant transition-all hover:text-on-surface active:scale-95" data-path="settings" href="#">
+<span class="material-symbols-outlined text-[22px]">settings</span>
+<span class="font-label-sm text-label-sm mt-1">Settings</span>
+</a>
+</div>
+</nav>
+<!-- JavaScript Interactions -->
+<script>
+  // 1. Sliding Tab Indicator & Filter Interactions
+  const tabIndicator = document.getElementById('tabIndicator');
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const goalItems = document.querySelectorAll('.goal-item');
+
+  function updateIndicator(activeBtn) {
+    if (!activeBtn) return;
+    const parentRect = activeBtn.parentElement.getBoundingClientRect();
+    const btnRect = activeBtn.getBoundingClientRect();
+    tabIndicator.style.left = (btnRect.left - parentRect.left) + 'px';
+    tabIndicator.style.width = btnRect.width + 'px';
+  }
+
+  // Initial indicator position
+  window.addEventListener('load', () => {
+    updateIndicator(tabBtns[0]);
+  });
+  window.addEventListener('resize', () => {
+    const active = document.querySelector('.tab-btn.text-on-primary');
+    if (active) updateIndicator(active);
+  });
+
+  tabBtns.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabBtns.forEach(t => {
+        t.classList.remove('text-on-primary', 'font-semibold');
+        t.classList.add('text-on-surface-variant');
+      });
+      tab.classList.add('text-on-primary', 'font-semibold');
+      tab.classList.remove('text-on-surface-variant');
+      updateIndicator(tab);
+
+      const horizon = tab.getAttribute('data-horizon');
+      showToast(`Filtered horizon: ${tab.textContent.trim()}`);
+
+      // Filter/Highlight Goal Items in categories
+      goalItems.forEach(item => {
+        const itemType = item.getAttribute('data-goal-type');
+        if (horizon === 'yearly' && itemType === 'yearly') {
+          item.classList.add('border-primary-container/60', 'bg-primary-container/10');
+        } else if (horizon === 'q4' && itemType === 'q4') {
+          item.classList.add('border-secondary-container/60', 'bg-secondary-container/10');
+        } else if (horizon === 'monthly' && itemType === 'monthly') {
+          item.classList.add('border-primary-fixed/60', 'bg-primary-fixed/10');
+        } else {
+          item.classList.remove('border-primary-container/60', 'bg-primary-container/10', 'border-secondary-container/60', 'bg-secondary-container/10', 'border-primary-fixed/60', 'bg-primary-fixed/10');
+        }
+      });
+    });
+  });
+
+  // 2. Wheel of Life Radar Node & Chip Interactive Dimension State
+  const dimensionData = {
+    vitality: {
+      name: 'PHYSICAL VITALITY',
+      score: '8.5',
+      sub: 'Optimal Peak State',
+      desc: 'Sub-3:45 Marathon goal on track. High HRV & daily somatic energy protocols active.',
+      coords: { cx: 60, cy: 20.8 },
+      color: '#00f0ff'
+    },
+    career: {
+      name: 'CAREER & CREATIVE',
+      score: '7.8',
+      sub: 'Advancing Frontier',
+      desc: 'AI Assistant v2.0 Global rollout on course with 500 engineering closed betas.',
+      coords: { cx: 94.3, cy: 49.1 },
+      color: '#ddb7ff'
+    },
+    wealth: {
+      name: 'WEALTH FREEDOM',
+      score: '8.2',
+      sub: 'Strong Accumulation',
+      desc: 'Automated index allocations running smoothly. Passive stream defense verified.',
+      coords: { cx: 82.2, cy: 90.6 },
+      color: '#fbbf24'
+    },
+    bonds: {
+      name: 'BONDS & COMMUNITY',
+      score: '7.0',
+      sub: 'Nurturing Bonds',
+      desc: 'Weekly uninterrupted date nights preserved. Monthly peer founders dinner set.',
+      coords: { cx: 37.9, cy: 88.7 },
+      color: '#ffb3b0'
+    },
+    mind: {
+      name: 'EMOTIONAL MASTERY',
+      score: '9.0',
+      sub: 'Peak Equanimity',
+      desc: '20-day morning priming streak unlocked. Vipassana immersion scheduled.',
+      coords: { cx: 24.8, cy: 47.3 },
+      color: '#00dbe9'
+    }
+  };
+
+  const badgeText = document.getElementById('dimensionBadgeText');
+  const mainScoreHeading = document.getElementById('mainScoreHeading');
+  const mainScoreSubtext = document.getElementById('mainScoreSubtext');
+  const mainDescription = document.getElementById('mainDescription');
+  const highlightRing = document.getElementById('radarHighlightRing');
+  const dimChips = document.querySelectorAll('.dim-chip');
+  const radarNodes = document.querySelectorAll('.radar-node');
+  const categoryCards = document.querySelectorAll('.category-card');
+
+  function selectDimension(dimKey) {
+    const data = dimensionData[dimKey];
+    if (!data) return;
+
+    // Highlight node ring
+    highlightRing.setAttribute('cx', data.coords.cx);
+    highlightRing.setAttribute('cy', data.coords.cy);
+    highlightRing.setAttribute('stroke', data.color);
+    highlightRing.setAttribute('opacity', '1');
+    highlightRing.classList.remove('scale-100');
+    highlightRing.style.transformOrigin = `${data.coords.cx}px ${data.coords.cy}px`;
+    highlightRing.style.animation = 'none';
+    void highlightRing.offsetWidth; // reflow
+    highlightRing.style.animation = 'nodePing 1.6s infinite ease-out';
+
+    // Update scoreboard
+    badgeText.textContent = data.name;
+    mainScoreHeading.innerHTML = `${data.score}<span class="text-primary-container font-title-sm text-title-sm align-top font-semibold">/10</span>`;
+    mainScoreSubtext.textContent = data.sub;
+    mainDescription.textContent = data.desc;
+
+    // Highlight corresponding card
+    categoryCards.forEach(card => {
+      const match = card.getAttribute('data-category') === dimKey;
+      card.style.transition = 'all 0.35s ease';
+      if (match) {
+        card.classList.add('ring-2', 'ring-primary-container/80', 'bg-surface-container/90');
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else {
+        card.classList.remove('ring-2', 'ring-primary-container/80', 'bg-surface-container/90');
+      }
+    });
+
+    // Update chip styling
+    dimChips.forEach(chip => {
+      if (chip.getAttribute('data-dimension') === dimKey) {
+        chip.classList.add('ring-1', 'ring-primary-container', 'bg-surface-container-highest');
+      } else {
+        chip.classList.remove('ring-1', 'ring-primary-container', 'bg-surface-container-highest');
+      }
+    });
+  }
+
+  function resetDimensionOverview() {
+    highlightRing.setAttribute('opacity', '0');
+    highlightRing.style.animation = 'none';
+    badgeText.textContent = 'WHEEL OF LIFE';
+    mainScoreHeading.innerHTML = `8.2<span class="text-primary-container font-title-sm text-title-sm align-top font-semibold">/10</span>`;
+    mainScoreSubtext.textContent = '82% Life Balance Index';
+    mainDescription.textContent = '5 core dimensions active. Harmonized across Vitality, Career, Wealth, Mind & Bonds.';
+    
+    categoryCards.forEach(card => {
+      card.classList.remove('ring-2', 'ring-primary-container/80', 'bg-surface-container/90');
+    });
+    dimChips.forEach(chip => {
+      chip.classList.remove('ring-1', 'ring-primary-container', 'bg-surface-container-highest');
+    });
+    showToast('Overview mode restored');
+  }
+
+  radarNodes.forEach(node => {
+    node.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectDimension(node.getAttribute('data-dimension'));
+    });
+  });
+
+  dimChips.forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectDimension(chip.getAttribute('data-dimension'));
+    });
+  });
+
+  document.getElementById('resetRadarBtn').addEventListener('click', resetDimensionOverview);
+
+  // 3. Category Accordion Expansion/Collapse
+  const cardHeaders = document.querySelectorAll('.card-header');
+  cardHeaders.forEach(header => {
+    header.addEventListener('click', () => {
+      const card = header.closest('.category-card');
+      const content = card.querySelector('.collapsible-content');
+      const chevron = header.querySelector('.chevron-icon');
+      const isCollapsed = content.classList.contains('collapsed');
+
+      if (isCollapsed) {
+        content.classList.remove('collapsed');
+        chevron.style.transform = 'rotate(0deg)';
+      } else {
+        content.classList.add('collapsed');
+        chevron.style.transform = 'rotate(-180deg)';
+      }
+    });
+
+    // Keyboard support
+    header.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        header.click();
+      }
+    });
+  });
+
+  // 4. Quick Toast Micro-Feedback
+  const quickToast = document.getElementById('quickToast');
+  const toastMessage = document.getElementById('toastMessage');
+  let toastTimer = null;
+
+  function showToast(msg) {
+    if (toastTimer) clearTimeout(toastTimer);
+    toastMessage.textContent = msg;
+    quickToast.classList.remove('opacity-0', 'pointer-events-none', 'scale-90');
+    quickToast.classList.add('opacity-100', 'scale-100');
+
+    toastTimer = setTimeout(() => {
+      quickToast.classList.add('opacity-0', 'pointer-events-none', 'scale-90');
+      quickToast.classList.remove('opacity-100', 'scale-100');
+    }, 2200);
+  }
+
+  // Goal & Project Tap feedback
+  document.querySelectorAll('.project-card').forEach(item => {
+    item.addEventListener('click', () => {
+      const title = item.querySelector('p').textContent.trim();
+      showToast(`Opening Project: ${title}`);
+    });
+  });
+
+  goalItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const text = item.querySelector('span:last-child').textContent.trim();
+      showToast(`Goal inspected: ${text.slice(0, 26)}...`);
+    });
+  });
+
+  // 5. FAB and Search Micro-Interactions
+  const quickAddFab = document.getElementById('quickAddFab');
+  const fabIcon = document.getElementById('fabIcon');
+  let fabActive = false;
+
+  quickAddFab.addEventListener('click', () => {
+    fabActive = !fabActive;
+    if (fabActive) {
+      fabIcon.style.transform = 'rotate(45deg)';
+      showToast('Quick-Add Modal Ready: Select Horizon or RPM Block');
+    } else {
+      fabIcon.style.transform = 'rotate(0deg)';
+    }
+  });
+
+  const searchBtn = document.getElementById('searchButton');
+  searchBtn.addEventListener('click', () => {
+    showToast('Search RPM System: Type keywords or categories');
+  });
+</script>
+</body></html>

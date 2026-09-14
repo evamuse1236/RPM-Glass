@@ -1,0 +1,28 @@
+{
+  "name": "rpm-cloud-sync",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:cloud": "convex dev",
+    "deploy:cloud": "convex deploy",
+    "test:cloud": "vitest run",
+    "typecheck:cloud": "tsc --noEmit",
+    "cli": "node cli/rpm.mjs",
+    "chat": "node chat-prototype/companion-server.mjs",
+    "test:chat": "node --test chat-prototype/*.test.mjs",
+    "test:cli": "node --test cli/*.test.mjs",
+    "build:android-assets": "node scripts/build-companion-assets.mjs"
+  },
+  "dependencies": {
+    "chrono-node": "2.10.1",
+    "convex": "1.45.0"
+  },
+  "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
+    "convex-test": "^0.0.54",
+    "esbuild": "0.27.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.0"
+  }
+}

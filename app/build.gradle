@@ -1,0 +1,26 @@
+plugins { id "com.android.application" }
+android {
+    namespace "com.rpm.prototype"
+    compileSdk 36
+    defaultConfig {
+        applicationId "com.rpm.prototype"
+        minSdk 26
+        targetSdk 36
+        versionCode 10
+        versionName "0.10-stitch"
+        testInstrumentationRunner "com.rpm.prototype.OfflineTests"
+    }
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+dependencies { coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5' }
+tasks.register('bundleCompanion', Exec) {
+    workingDir rootProject.projectDir
+    commandLine 'node', 'scripts/build-companion-assets.mjs'
+    inputs.files(fileTree('../android-companion'), fileTree('../chat-prototype'), fileTree('../cli'), file('../scripts/build-companion-assets.mjs'))
+    outputs.dir('src/main/assets/companion')
+}
+tasks.named('preBuild').configure { dependsOn 'bundleCompanion' }

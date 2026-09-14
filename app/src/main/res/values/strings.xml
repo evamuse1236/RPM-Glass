@@ -1,0 +1,2 @@
+<resources><string name="app_name">RPM</string><string name="widget_description">A compact bar for check-ins, thoughts, reminders and alarms.</string>
+<string name="widget_checkin">Check in</string><string name="widget_capture">Capture</string><string name="widget_remind">Remind</string><string name="widget_open">Open app</string><string name="convex_default_url">https://neat-emu-821.convex.site</string></resources>

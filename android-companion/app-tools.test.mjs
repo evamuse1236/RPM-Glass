@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {freshStore} from '../chat-prototype/companion-state.mjs';
+import {appCommand,createAppTools} from './app-tools.mjs';
+import {editPlan} from './planner-state.mjs';
+const raw='Open the project and set transparency to 40 percent',meta={raw};
+const args=overrides=>({action:'open',view:'projects',id:null,date:null,value:null,evidence:[raw],...overrides});
+test('navigation effects validate current IDs and do not mutate the plan',()=>{const d=freshStore(),id=editPlan(d,{type:'saveEntity',collection:'projects',fields:{title:'A'}}),before=structuredClone(d);assert.deepEqual(appCommand(d,args({id}),meta),{action:'planner',payload:{view:'projects',id,date:null}});assert.deepEqual(d,before);assert.throws(()=>appCommand(d,args({id:'missing'}),meta),/IDs/);});
+test('app controls reject arbitrary native actions, extra fields and unsupported values',()=>{const d=freshStore();assert.throws(()=>appCommand(d,args({action:'shell'}),meta));assert.throws(()=>appCommand(d,args({action:'transparency',view:null,value:99}),meta));assert.throws(()=>appCommand(d,args({action:'transparency',view:null,value:40,secret:true}),meta));assert.throws(()=>appCommand(d,args({evidence:['invented permission']}),meta));});
+test('navigation stays a deferred intent; actual settings changes await the native result',async()=>{const d=freshStore(),calls=[],tool=createAppTools({native:async(action,payload)=>{calls.push({action,payload});return {message:'Saved transparency'};}})[1];const opening=await tool.run(d,args(),meta);assert.equal(calls.length,0);assert.equal(opening.appEffect.action,'planner');const setting=await tool.run(d,args({action:'transparency',view:null,value:40}),meta);assert.equal(setting.text,'Saved transparency');assert.deepEqual(calls,[{action:'appControl',payload:{action:'transparency',value:40}}]);});
+test('sound changes open system-controlled selection and never invent a file path',()=>{assert.deepEqual(appCommand(freshStore(),args({view:'alarm_sound'}),meta),{action:'settings',payload:{section:'alarm_sound'}});});

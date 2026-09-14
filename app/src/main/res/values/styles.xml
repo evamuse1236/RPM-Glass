@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="BaseAppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorBackground">#FAF9FC</item>
+        <item name="android:windowBackground">#FAF9FC</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">#FAF9FC</item>
+        <item name="android:navigationBarColor">#FAF9FC</item>
+        <item name="android:colorAccent">#65558F</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+    <style name="AppTheme" parent="BaseAppTheme" />
+    <style name="CompanionSettingsTheme" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:colorBackground">#121821</item>
+        <item name="android:windowBackground">#121821</item>
+        <item name="android:colorAccent">#7DD3FC</item>
+        <item name="android:textColorPrimary">#F4F7FA</item>
+        <item name="android:textColorSecondary">#B4C0CE</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#121821</item>
+        <item name="android:navigationBarColor">#121821</item>
+    </style>
+    <style name="CompanionTheme" parent="CaptureTheme">
+        <item name="android:windowCloseOnTouchOutside">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+    <style name="CaptureTheme" parent="AppTheme">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.24</item>
+        <item name="android:windowCloseOnTouchOutside">false</item>
+    </style>
+</resources>

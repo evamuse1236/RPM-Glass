@@ -1,0 +1,28 @@
+.gradle/
+.tooling/
+**/build/
+local.properties
+*.iml
+.idea/
+
+node_modules/
+.env*
+!.env.example
+.convex/
+
+# Local releases and experiments stay available outside source history.
+/prototypes
+/output/
+/releases/
+/testing/
+/cli/experiments/
+/chat-prototype/experiments/
+*.apk
+*.aab
+*.jks
+*.keystore
+*.log
+__pycache__/
+
+# Generated verification captures and rendered outputs remain local.
+/docs/testing/

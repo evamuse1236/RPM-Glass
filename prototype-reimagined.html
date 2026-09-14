@@ -1,0 +1,4347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!--
+    Clean-sheet Plan Ribbon prototype. Current prototype intentionally left unchanged.
+  -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><rect width=%2224%22 height=%2224%22 rx=%224%22 fill=%22%233A5F8A%22/><path d=%22M4 12h16M8 8v8M16 8v8%22 stroke=%22white%22 stroke-width=%221.6%22 fill=%22none%22/></svg>">
+  <title>RPM Plan Ribbon</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --canvas: #F4F6F8;
+      --surface: #FFFFFF;
+      --ink: #1B2430;
+      --steel: #3A5F8A;
+      --steel-strong: #2E4D70;
+      --open: #B8D4CE;
+      --open-soft: color-mix(in srgb, #B8D4CE 42%, #FFFFFF);
+      --signal: #C9842F;
+      --brand-accent: #A95755;
+      --brand-accent-soft: #F8E8E6;
+      --brand-accent-ink: #873C3A;
+      --divider: #E2E7ED;
+      --mute: #5C6B7A;
+      --soft: #E8ECF1;
+      --edge-launch: #3A5F8A;
+      --edge-deep: #3D7A74;
+      --edge-life: #8A6B2E;
+      --edge-none: #7A8794;
+      --fill-launch: color-mix(in srgb, #3A5F8A 12%, #FFFFFF);
+      --fill-deep: color-mix(in srgb, #3D7A74 14%, #FFFFFF);
+      --fill-life: color-mix(in srgb, #C9842F 12%, #FFFFFF);
+      --fill-none: color-mix(in srgb, #7A8794 10%, #FFFFFF);
+      --nav-h: 64px;
+      --hour-h: 64px;
+      --ribbon-day-w: 128px;
+      --ribbon-track-h: 72px;
+      --radius: 14px;
+      --radius-sm: 10px;
+      --font: "Roboto", "Segoe UI", system-ui, -apple-system, sans-serif;
+      --mono: "Roboto Mono", ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+      --ease: cubic-bezier(.2, .8, .2, 1);
+      --shadow: 0 1px 2px rgba(27, 36, 48, .04), 0 6px 18px rgba(27, 36, 48, .05);
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #d8dde3;
+      color: var(--ink);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.45;
+      font-weight: 400;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input, textarea, select { font: inherit; color: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    strong, b { font-weight: 600; }
+    svg {
+      width: 22px;
+      height: 22px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    :focus-visible {
+      outline: 2px solid var(--steel);
+      outline-offset: 2px;
+    }
+
+    .phone {
+      width: min(100%, 430px);
+      min-height: 100dvh;
+      margin: 0 auto;
+      background: var(--canvas);
+      position: relative;
+      overflow-x: hidden;
+      box-shadow: 0 0 0 1px rgba(27, 36, 48, .06);
+    }
+    .app {
+      min-height: 100dvh;
+      padding-bottom: calc(var(--nav-h) + 20px + env(safe-area-inset-bottom));
+    }
+    @keyframes view-in {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: none; }
+    }
+    .app > .content,
+    .app > section.content {
+      animation: view-in .22s var(--ease);
+    }
+
+    /* —— App bar —— */
+    .appbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      padding: 12px 16px 6px;
+      background: color-mix(in srgb, var(--canvas) 90%, transparent);
+      backdrop-filter: blur(14px);
+    }
+    .appbar-row {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .appbar h1 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.15;
+      letter-spacing: -0.4px;
+      font-weight: 500;
+      flex: 1;
+    }
+    .appbar .subtitle {
+      display: block;
+      margin-top: 2px;
+      color: var(--mute);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 400;
+      letter-spacing: 0.02px;
+    }
+    .icon-button, .back-button {
+      width: 48px;
+      height: 48px;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--ink);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      flex: none;
+    }
+    .icon-button:hover, .back-button:hover { background: var(--soft); }
+    .text-button, .tonal-button, .chip, .segment button {
+      min-height: 40px;
+      border: 0;
+      border-radius: 999px;
+      padding: 0 14px;
+      font-weight: 500;
+      letter-spacing: 0.1px;
+      background: var(--soft);
+      cursor: pointer;
+      transition: background .15s var(--ease), color .15s var(--ease);
+    }
+    .tonal-button {
+      color: var(--steel-strong);
+      background: color-mix(in srgb, var(--steel) 14%, var(--surface));
+    }
+    .text-button {
+      background: transparent;
+      color: var(--steel-strong);
+    }
+    .content { padding: 2px 16px 28px; }
+    .content.content-today {
+      padding: 0 12px 28px;
+    }
+
+    /* —— Today date heading —— */
+    .today-appbar {
+      padding: 14px 16px 2px;
+      background: transparent;
+      backdrop-filter: none;
+    }
+    .today-appbar .appbar-row { min-height: 44px; align-items: flex-start; }
+    .today-heading {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.15;
+      letter-spacing: -0.6px;
+      font-weight: 600;
+      color: var(--ink);
+      display: flex;
+      align-items: baseline;
+      gap: 2px;
+      flex-wrap: wrap;
+    }
+    .today-heading .year {
+      color: color-mix(in srgb, var(--steel) 55%, var(--mute));
+      font-weight: 500;
+    }
+    .today-heading .chev {
+      display: inline-grid;
+      place-items: center;
+      color: var(--mute);
+      margin-left: 2px;
+      transform: translateY(1px);
+    }
+    .today-heading .chev svg {
+      width: 18px;
+      height: 18px;
+      transform: rotate(-90deg);
+    }
+
+    /* —— Date chips (Today) —— */
+    .date-strip {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 0;
+      margin: 6px 4px 14px;
+      padding: 2px 0 4px;
+    }
+    .date-button {
+      min-width: 0;
+      min-height: 64px;
+      border: 0;
+      border-radius: 16px;
+      background: transparent;
+      display: grid;
+      place-content: start center;
+      gap: 6px;
+      padding: 4px 0 2px;
+      cursor: pointer;
+      color: var(--ink);
+    }
+    .date-button .dow {
+      font-size: 11px;
+      color: var(--mute);
+      font-weight: 400;
+      letter-spacing: 0.1px;
+      text-transform: none;
+    }
+    .date-button .date {
+      width: 34px;
+      height: 34px;
+      margin: 0 auto;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1;
+      transition: background .15s var(--ease), color .15s var(--ease);
+    }
+    .date-button.selected .dow {
+      color: var(--ink);
+      font-weight: 500;
+    }
+    .date-button.selected .date {
+      background: var(--ink);
+      color: #fff;
+      font-weight: 600;
+    }
+    /* —— Unscheduled tray —— */
+    .tray {
+      width: 100%;
+      min-height: 44px;
+      padding: 0 12px;
+      border: 1px solid var(--divider);
+      border-radius: 14px;
+      background: var(--surface);
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-align: left;
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: 0 1px 2px rgba(27, 36, 48, .03);
+    }
+    .tray .label { flex: 1; }
+    .tray .count {
+      min-width: 24px;
+      height: 24px;
+      padding: 0 7px;
+      border-radius: 99px;
+      display: grid;
+      place-items: center;
+      background: var(--soft);
+      color: var(--steel-strong);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .tray .chev {
+      color: var(--mute);
+      display: grid;
+      transition: transform .18s var(--ease);
+    }
+    .tray .chev svg { width: 18px; height: 18px; }
+    .tray[aria-expanded="true"] .chev { transform: rotate(180deg); }
+    .tray-list {
+      margin: 8px 0 12px;
+      display: grid;
+      gap: 6px;
+    }
+    .tray-item {
+      min-height: 48px;
+      border: 1px solid var(--divider);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .tray-item .rail {
+      width: 3px;
+      height: 22px;
+      border-radius: 99px;
+      background: var(--edge-none);
+      flex: none;
+    }
+    .tray-item .rail.edge-launch { background: var(--edge-launch); }
+    .tray-item .rail.edge-deep { background: var(--edge-deep); }
+    .tray-item .rail.edge-life { background: var(--edge-life); }
+    .tray-item b { font-weight: 500; flex: 1; }
+    .tray-item small {
+      font-family: var(--mono);
+      color: var(--mute);
+      font-size: 12px;
+    }
+    .empty {
+      padding: 16px 8px;
+      color: var(--mute);
+      font-size: 13.5px;
+      text-align: center;
+    }
+
+    /* —— Today milestone timeline —— */
+    .timeline-wrap {
+      margin-top: 12px;
+      border-radius: 28px;
+      background: var(--surface);
+      border: 1px solid color-mix(in srgb, var(--divider) 80%, transparent);
+      overflow: hidden;
+      position: relative;
+      box-shadow:
+        0 1px 2px rgba(27, 36, 48, .03),
+        0 10px 28px rgba(27, 36, 48, .05);
+    }
+    .timeline-handle {
+      width: 36px;
+      height: 4px;
+      border-radius: 99px;
+      background: color-mix(in srgb, var(--mute) 22%, var(--soft));
+      margin: 10px auto 4px;
+      flex: none;
+    }
+    .timeline {
+      --hour-h: 64px;
+      --rail-w: 44px;
+      --node-w: 48px;
+      height: calc(17 * var(--hour-h));
+      position: relative;
+      margin: 4px 8px 12px 0;
+      margin-left: var(--rail-w);
+      touch-action: pan-y;
+    }
+    .timeline-spine {
+      position: absolute;
+      left: calc(var(--node-w) / 2 - 1px);
+      top: 8px;
+      bottom: 12px;
+      width: 0;
+      border-left: 2px dotted color-mix(in srgb, var(--mute) 28%, var(--divider));
+      z-index: 1;
+      pointer-events: none;
+    }
+    .hour-row {
+      position: absolute;
+      left: calc(-1 * var(--rail-w));
+      right: 0;
+      height: var(--hour-h);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .hour-row span {
+      position: absolute;
+      left: 0;
+      top: -6px;
+      width: calc(var(--rail-w) - 4px);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 400;
+      color: color-mix(in srgb, var(--mute) 88%, var(--ink));
+      text-align: right;
+      padding-right: 4px;
+    }
+    /* Subtle rail-only “now” cue — no full-width rule across task content */
+    .current-line {
+      position: absolute;
+      left: calc(var(--node-w) / 2 - 4px);
+      width: 8px;
+      height: 8px;
+      right: auto;
+      border-radius: 50%;
+      z-index: 6;
+      pointer-events: none;
+      background: var(--steel);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--steel) 14%, #fff);
+    }
+    .current-line::after {
+      content: "";
+      position: absolute;
+      left: 8px;
+      top: 3px;
+      width: 11px;
+      height: 2px;
+      border-radius: 2px;
+      background: color-mix(in srgb, var(--steel) 48%, transparent);
+    }
+
+    .timeline-gap {
+      position: absolute;
+      left: calc(var(--node-w) + 6px);
+      right: 10px;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 8px;
+      padding: 4px 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .gap-msg {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: color-mix(in srgb, var(--mute) 92%, var(--ink));
+      font-size: 12.5px;
+      line-height: 1.35;
+      max-width: 100%;
+    }
+    .gap-msg .gap-icon {
+      flex: none;
+      color: color-mix(in srgb, var(--mute) 80%, var(--steel));
+      display: grid;
+    }
+    .gap-msg .gap-icon svg { width: 14px; height: 14px; }
+    .gap-msg strong {
+      color: var(--steel-strong);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .gap-add {
+      pointer-events: auto;
+      min-height: 32px;
+      border: 0;
+      border-radius: 999px;
+      padding: 0 12px 0 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: color-mix(in srgb, var(--steel) 10%, var(--soft));
+      color: var(--steel-strong);
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .gap-add:hover {
+      background: color-mix(in srgb, var(--steel) 16%, var(--soft));
+    }
+    .gap-add svg { width: 14px; height: 14px; }
+
+    .task-card {
+      position: absolute;
+      z-index: 8;
+      left: 0;
+      right: 4px;
+      min-height: 48px;
+      border: 0;
+      border-radius: 0;
+      padding: 0;
+      background: transparent;
+      overflow: visible;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      display: grid;
+      grid-template-columns: var(--node-w) minmax(0, 1fr) 36px;
+      gap: 8px;
+      align-items: start;
+    }
+    /*
+      Concurrent tasks (compact conflict):
+      — Both nodes stay on the vertical rail (staggered by start time).
+      — Bodies split into left/right columns so text and complete controls never collide.
+    */
+    .task-card.is-conflict {
+      display: block;
+      min-height: 44px;
+      left: 0;
+      right: 4px;
+    }
+    .task-card.is-conflict .task-node {
+      position: absolute;
+      left: calc((var(--node-w) - 34px) / 2);
+      top: 4px;
+      width: 34px;
+      height: 34px;
+      min-height: 34px;
+      border-radius: 50%;
+      z-index: 2;
+    }
+    .task-card.is-conflict .task-node svg {
+      width: 15px;
+      height: 15px;
+    }
+    .task-card.is-conflict .task-body {
+      position: absolute;
+      top: 2px;
+      padding: 2px 0;
+      min-width: 0;
+    }
+    .task-card.is-conflict .task-meta {
+      font-size: 10px;
+    }
+    .task-card.is-conflict .task-title {
+      font-size: 13px;
+      line-height: 1.2;
+      white-space: normal;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .task-card.is-conflict .task-complete {
+      position: absolute;
+      top: 6px;
+      width: 24px;
+      height: 24px;
+      margin: 0;
+    }
+    .task-card.is-conflict .task-complete svg { width: 12px; height: 12px; }
+    .task-card.is-conflict.lane-left {
+      z-index: 9;
+    }
+    .task-card.is-conflict.lane-left .task-body {
+      left: var(--node-w);
+      width: calc(50% - var(--node-w) - 30px);
+    }
+    .task-card.is-conflict.lane-left .task-complete {
+      left: calc(50% - 28px);
+    }
+    .task-card.is-conflict.lane-right {
+      z-index: 10;
+    }
+    .task-card.is-conflict.lane-right .task-body {
+      left: calc(50% + 2px);
+      width: calc(50% - 34px);
+    }
+    .task-card.is-conflict.lane-right .task-complete {
+      right: 2px;
+    }
+    /* Non-conflict legacy lanes (week ribbon shares class names on segs only) */
+    .task-card.lane-left:not(.is-conflict) { right: 46%; }
+    .task-card.lane-right:not(.is-conflict) {
+      left: calc(var(--node-w) * 0.45);
+      grid-template-columns: calc(var(--node-w) * 0.85) minmax(0, 1fr) 36px;
+    }
+    .task-card.edge-launch,
+    .task-card.edge-deep,
+    .task-card.edge-life,
+    .task-card.edge-none {
+      background: transparent;
+      border-left-color: transparent;
+    }
+    .task-card.selected {
+      outline: none;
+      z-index: 12;
+      overflow: visible;
+    }
+    .task-card.selected .task-body {
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--steel) 55%, transparent);
+      background: color-mix(in srgb, var(--steel) 6%, var(--surface));
+    }
+    .task-card.complete { opacity: 1; }
+    .task-card.complete .task-title {
+      text-decoration: line-through;
+      color: var(--mute);
+    }
+    .task-card.complete .task-node {
+      opacity: .72;
+    }
+
+    .task-node {
+      position: relative;
+      z-index: 2;
+      width: var(--node-w);
+      height: 100%;
+      min-height: 48px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: color-mix(in srgb, var(--soft) 70%, #fff);
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--divider) 90%, transparent),
+        0 1px 2px rgba(27, 36, 48, .04);
+      color: var(--mute);
+      pointer-events: none;
+    }
+    .task-node svg { width: 22px; height: 22px; }
+    .task-card.edge-launch .task-node {
+      color: var(--edge-launch);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--edge-launch) 10%, #fff), color-mix(in srgb, var(--soft) 55%, #fff));
+    }
+    .task-card.edge-deep .task-node {
+      color: var(--edge-deep);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--edge-deep) 12%, #fff), color-mix(in srgb, var(--soft) 55%, #fff));
+    }
+    .task-card.edge-life .task-node {
+      color: var(--edge-life);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--signal) 14%, #fff), color-mix(in srgb, var(--soft) 55%, #fff));
+    }
+    .task-card.edge-none .task-node {
+      color: var(--edge-none);
+    }
+    .task-card.tall-node .task-node {
+      border-radius: 22px;
+    }
+
+    .task-body {
+      min-width: 0;
+      padding: 6px 4px 4px 0;
+      border-radius: 12px;
+      transition: box-shadow .15s var(--ease), background .15s var(--ease);
+    }
+    .task-meta {
+      margin: 0 0 2px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--mute);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .task-meta .must-mark {
+      color: var(--signal);
+      font-size: 11px;
+      line-height: 1;
+    }
+    .task-title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.15px;
+      line-height: 1.25;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--ink);
+    }
+    .task-complete {
+      width: 28px;
+      height: 28px;
+      margin-top: 8px;
+      margin-right: 2px;
+      border: 1.5px solid color-mix(in srgb, var(--mute) 42%, var(--divider));
+      border-radius: 50%;
+      background: transparent;
+      color: var(--steel-strong);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      flex: none;
+      padding: 0;
+      font-size: 13px;
+      line-height: 1;
+      justify-self: end;
+    }
+    .task-complete:hover {
+      border-color: var(--steel);
+      background: color-mix(in srgb, var(--steel) 8%, #fff);
+    }
+    .task-complete.is-done {
+      background: color-mix(in srgb, var(--steel) 14%, #fff);
+      border-color: var(--steel);
+      color: var(--steel-strong);
+      font-weight: 600;
+    }
+    .task-complete svg { width: 14px; height: 14px; }
+
+    .resize-handle {
+      display: none;
+      position: absolute;
+      left: 50%;
+      bottom: -18px;
+      width: 72px;
+      height: 44px;
+      transform: translateX(-50%);
+      border: 0;
+      background: transparent;
+      cursor: ns-resize;
+      z-index: 4;
+    }
+    .resize-handle::after {
+      content: "";
+      position: absolute;
+      left: 20px;
+      right: 20px;
+      top: 18px;
+      height: 4px;
+      border-radius: 99px;
+      background: var(--steel);
+      box-shadow: 0 0 0 3px var(--surface);
+    }
+    .task-card.selected .resize-handle { display: block; }
+
+    /* —— RPM segment rail —— */
+    .section-label {
+      margin: 18px 2px 8px;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.55px;
+      color: var(--mute);
+      text-transform: uppercase;
+    }
+    .block-list { display: grid; gap: 10px; }
+    .block {
+      border: 1px solid var(--divider);
+      border-radius: var(--radius);
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .block.open {
+      box-shadow: var(--shadow);
+      border-color: color-mix(in srgb, var(--steel) 22%, var(--divider));
+    }
+    .block-stub {
+      width: 100%;
+      min-height: 52px;
+      padding: 12px 12px 12px 0;
+      border: 0;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      text-align: left;
+      cursor: pointer;
+    }
+    .seg-rail {
+      width: 4px;
+      align-self: stretch;
+      min-height: 28px;
+      margin: 0 12px 0 0;
+      border-radius: 0 3px 3px 0;
+      background: var(--edge-launch);
+      flex: none;
+    }
+    .seg-rail.deep { background: var(--edge-deep); }
+    .seg-rail.life { background: var(--edge-life); }
+    .block-stub-copy { flex: 1; min-width: 0; }
+    .block-stub-copy strong {
+      display: block;
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: -0.1px;
+    }
+    .block-stub-copy small {
+      display: block;
+      margin-top: 2px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--mute);
+    }
+    .block-body { padding: 0 14px 14px 16px; }
+    .rp-stack { margin: 0 0 10px; }
+    .rp-result {
+      font-size: 15.5px;
+      font-weight: 500;
+      letter-spacing: -0.15px;
+      line-height: 1.3;
+      margin: 0 0 4px;
+    }
+    .rp-purpose {
+      margin: 0;
+      font-size: 13px;
+      color: var(--mute);
+      line-height: 1.4;
+    }
+    .rp-purpose b {
+      font-weight: 500;
+      color: var(--mute);
+      margin-right: 4px;
+    }
+    .meta-line {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--mute);
+      margin: 0 0 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--divider);
+    }
+    .segment {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 3px;
+      border-radius: 999px;
+      background: var(--soft);
+      margin-bottom: 10px;
+    }
+    .segment button {
+      min-height: 36px;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--mute);
+      font-weight: 500;
+    }
+    .segment button.selected {
+      background: var(--steel);
+      color: #fff;
+    }
+    .rpm-task-list { display: grid; gap: 2px; }
+    .rpm-task {
+      min-height: 48px;
+      display: grid;
+      grid-template-columns: 40px 22px 22px 1fr auto;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 0;
+      border-bottom: 1px solid color-mix(in srgb, var(--divider) 70%, transparent);
+    }
+    .rpm-task:last-child { border-bottom: 0; }
+    .rpm-task.done .rpm-title {
+      text-decoration: line-through;
+      color: var(--mute);
+    }
+    .check-button {
+      width: 40px;
+      height: 40px;
+      border: 0;
+      background: transparent;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      border-radius: 50%;
+    }
+    .check-circle {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1.5px solid color-mix(in srgb, var(--steel) 45%, var(--divider));
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      color: var(--steel-strong);
+      background: var(--surface);
+    }
+    .rpm-task.done .check-circle,
+    .check-circle.selected {
+      background: var(--steel);
+      border-color: var(--steel);
+      color: #fff;
+    }
+    .rpm-task .must {
+      text-align: center;
+      color: var(--signal);
+      font-size: 13px;
+    }
+    .rpm-task .priority {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--mute);
+      text-align: center;
+    }
+    .rpm-title {
+      font-size: 14px;
+      font-weight: 400;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .rpm-task .duration {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--mute);
+      padding-right: 2px;
+    }
+    .block-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .block-actions .tonal-button { width: 100%; }
+    .selection-bar {
+      position: sticky;
+      bottom: calc(var(--nav-h) + 12px + env(safe-area-inset-bottom));
+      z-index: 20;
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--ink);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: var(--shadow);
+    }
+    .selection-bar b {
+      flex: 1;
+      font-weight: 500;
+      font-size: 13.5px;
+      font-family: var(--mono);
+    }
+    .selection-bar button {
+      min-height: 40px;
+      border: 0;
+      border-radius: 999px;
+      padding: 0 16px;
+      background: var(--open);
+      color: var(--ink);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .selection-bar button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    /* —— Projects lattice cards —— */
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .chip {
+      color: var(--mute);
+      background: var(--surface);
+      box-shadow: inset 0 0 0 1px var(--divider);
+    }
+    .chip.selected {
+      background: var(--steel);
+      color: #fff;
+      box-shadow: none;
+    }
+    .project-list { display: grid; gap: 12px; }
+    .project-card {
+      border: 1px solid var(--divider);
+      border-radius: var(--radius);
+      background: var(--surface);
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(27, 36, 48, .03);
+    }
+    .project-top {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      padding: 14px 14px 0;
+      text-align: left;
+      cursor: pointer;
+    }
+    .project-title-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .project-title-row strong {
+      flex: 1;
+      font-size: 16px;
+      font-weight: 500;
+      letter-spacing: -0.15px;
+      min-width: 0;
+    }
+    .days-left {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--mute);
+      flex: none;
+    }
+    .days-left.pressure { color: var(--signal); }
+    .deadline-sub {
+      margin-top: 3px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--mute);
+    }
+    .lattice {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      margin: 12px 0 0;
+      border-top: 1px solid var(--divider);
+      border-bottom: 1px solid var(--divider);
+    }
+    .lattice-cell {
+      padding: 10px 8px;
+      text-align: center;
+      min-width: 0;
+    }
+    .lattice-cell + .lattice-cell {
+      border-left: 1px solid var(--divider);
+    }
+    .lattice-cell b {
+      display: block;
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: -0.1px;
+    }
+    .lattice-cell span {
+      display: block;
+      margin-top: 2px;
+      font-size: 11px;
+      color: var(--mute);
+    }
+    .edge-progress {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px 0;
+    }
+    .edge-track {
+      flex: 1;
+      height: 3px;
+      border-radius: 99px;
+      background: var(--divider);
+      overflow: hidden;
+    }
+    .edge-track > span {
+      display: block;
+      height: 100%;
+      background: var(--steel);
+      border-radius: inherit;
+    }
+    .edge-pct {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--mute);
+      flex: none;
+    }
+    .next-row {
+      width: 100%;
+      min-height: 48px;
+      margin-top: 8px;
+      padding: 10px 14px 12px;
+      border: 0;
+      border-top: 1px solid var(--divider);
+      background: transparent;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
+      cursor: pointer;
+    }
+    .next-check {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid color-mix(in srgb, var(--steel) 40%, var(--divider));
+      flex: none;
+    }
+    .next-copy {
+      flex: 1;
+      min-width: 0;
+      font-size: 13.5px;
+    }
+    .next-copy small {
+      display: block;
+      font-size: 11px;
+      color: var(--mute);
+      margin-bottom: 1px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .next-copy b {
+      font-weight: 500;
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Project detail */
+    .detail-card {
+      border: 1px solid var(--divider);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 16px;
+    }
+    .detail-card h2 {
+      margin: 0 0 6px;
+      font-size: 20px;
+      font-weight: 500;
+      letter-spacing: -0.2px;
+    }
+    .detail-card > p {
+      margin: 0 0 12px;
+      color: var(--mute);
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .detail-stat {
+      border: 1px solid var(--divider);
+      border-radius: 10px;
+      padding: 10px;
+    }
+    .detail-stat small {
+      display: block;
+      color: var(--mute);
+      font-size: 11px;
+      margin-bottom: 2px;
+    }
+    .detail-stat strong {
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    /* —— Week ribbon (hero) —— */
+    .ribbon-shell {
+      margin: 4px -16px 12px;
+      padding: 0 0 2px;
+    }
+    .ribbon-scroll {
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scroll-snap-type: x proximity;
+      padding: 0 16px 4px;
+      scrollbar-width: thin;
+    }
+    .ribbon-track {
+      display: flex;
+      width: calc(7 * var(--ribbon-day-w));
+      min-width: calc(7 * var(--ribbon-day-w));
+      gap: 0;
+    }
+    .day-band {
+      width: var(--ribbon-day-w);
+      flex: none;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+      scroll-snap-align: start;
+      position: relative;
+    }
+    .day-band + .day-band .band-body {
+      border-left: 1px solid var(--divider);
+    }
+    .band-label {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 0 8px 6px;
+      min-height: 28px;
+    }
+    .band-label .dow {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--mute);
+    }
+    .band-label .num {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--ink);
+    }
+    .day-band.selected .band-label .dow,
+    .day-band.selected .band-label .num {
+      color: var(--steel-strong);
+      font-weight: 600;
+    }
+    .band-body {
+      height: var(--ribbon-track-h);
+      margin: 0 4px;
+      border-radius: 8px;
+      background:
+        linear-gradient(180deg, var(--open-soft), color-mix(in srgb, var(--open) 28%, var(--surface)));
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--open) 35%, var(--divider));
+    }
+    .day-band.selected .band-body {
+      box-shadow:
+        inset 0 0 0 1.5px var(--steel),
+        0 0 0 1px color-mix(in srgb, var(--steel) 18%, transparent);
+    }
+    .day-band.selected .band-label {
+      border-bottom: 2px solid var(--steel);
+      margin: 0 4px 4px;
+      padding-left: 4px;
+      padding-right: 4px;
+    }
+    .day-band.over .band-body {
+      background:
+        repeating-linear-gradient(
+          -45deg,
+          color-mix(in srgb, var(--signal) 10%, var(--surface)),
+          color-mix(in srgb, var(--signal) 10%, var(--surface)) 4px,
+          color-mix(in srgb, var(--signal) 18%, var(--surface)) 4px,
+          color-mix(in srgb, var(--signal) 18%, var(--surface)) 8px
+        );
+    }
+    .ribbon-seg {
+      position: absolute;
+      left: 4px;
+      right: 4px;
+      border-radius: 4px;
+      border-left: 2px solid var(--edge-none);
+      background: color-mix(in srgb, var(--steel) 72%, #fff);
+      min-height: 3px;
+      opacity: .92;
+      pointer-events: none;
+    }
+    .ribbon-seg.edge-launch {
+      border-left-color: var(--edge-launch);
+      background: color-mix(in srgb, var(--steel) 78%, #fff);
+    }
+    .ribbon-seg.edge-deep {
+      border-left-color: var(--edge-deep);
+      background: color-mix(in srgb, var(--edge-deep) 70%, #fff);
+    }
+    .ribbon-seg.edge-life {
+      border-left-color: var(--edge-life);
+      background: color-mix(in srgb, var(--edge-life) 65%, #fff);
+    }
+    .ribbon-seg.lane-left { right: 52%; }
+    .ribbon-seg.lane-right { left: 52%; }
+    .band-caption {
+      display: flex;
+      justify-content: space-between;
+      gap: 4px;
+      padding: 6px 8px 0;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--mute);
+      min-height: 22px;
+    }
+    .day-band.selected .band-caption { color: var(--steel-strong); }
+    .day-band.over .band-caption .warn {
+      color: var(--signal);
+      font-weight: 600;
+    }
+
+    .agenda-list { display: grid; gap: 8px; margin-top: 4px; }
+    .agenda-heading {
+      margin: 14px 0 8px;
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: -0.1px;
+    }
+    .agenda-row {
+      min-height: 56px;
+      border: 1px solid var(--divider);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      padding: 10px 12px;
+      display: grid;
+      grid-template-columns: 64px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      cursor: pointer;
+    }
+    .agenda-row.complete { opacity: .55; }
+    .agenda-row.complete .agenda-copy strong { text-decoration: line-through; }
+    .agenda-time {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--mute);
+      line-height: 1.3;
+    }
+    .agenda-copy strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .agenda-copy small {
+      display: block;
+      margin-top: 2px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--mute);
+    }
+    .agenda-icons {
+      color: var(--signal);
+      font-size: 13px;
+      text-align: right;
+    }
+
+    /* —— Fixed Material bottom nav (not floating pill) —— */
+    .bottom-nav {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      transform: translateX(-50%);
+      width: min(100%, 430px);
+      height: calc(var(--nav-h) + env(safe-area-inset-bottom));
+      padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      background: var(--surface);
+      border-top: 1px solid var(--divider);
+      z-index: 40;
+    }
+    .nav-item {
+      min-height: 48px;
+      border: 0;
+      background: transparent;
+      color: var(--mute);
+      display: grid;
+      place-items: center;
+      gap: 2px;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.15px;
+      cursor: pointer;
+      border-radius: 12px;
+      padding: 4px 2px;
+    }
+    .nav-item .nav-icon {
+      width: 36px;
+      height: 24px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+    }
+    .nav-item.selected {
+      color: var(--steel-strong);
+    }
+    .nav-item.selected .nav-icon {
+      background: color-mix(in srgb, var(--steel) 16%, var(--surface));
+      color: var(--steel);
+    }
+    .nav-item svg {
+      width: 20px;
+      height: 20px;
+      stroke-width: 1.9;
+    }
+
+    /* —— FAB —— */
+    .fab {
+      position: fixed;
+      right: max(16px, calc(50% - 215px + 16px));
+      bottom: calc(var(--nav-h) + 14px + env(safe-area-inset-bottom));
+      width: 56px;
+      height: 56px;
+      border: 0;
+      border-radius: 16px;
+      background: var(--steel);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      z-index: 35;
+      box-shadow: 0 3px 8px rgba(27, 36, 48, .16), 0 8px 20px rgba(58, 95, 138, .22);
+    }
+    .fab svg { width: 24px; height: 24px; }
+
+    /* —— Capture —— */
+    .capture {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(var(--nav-h) + 12px + env(safe-area-inset-bottom));
+      width: min(calc(100% - 24px), 400px);
+      display: flex;
+      gap: 8px;
+      padding: 10px;
+      background: var(--surface);
+      border: 1px solid var(--divider);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      z-index: 45;
+    }
+    .capture input {
+      flex: 1;
+      min-height: 44px;
+      border: 1px solid var(--divider);
+      border-radius: 10px;
+      padding: 0 12px;
+      background: var(--canvas);
+    }
+    .capture button {
+      min-height: 44px;
+      min-width: 72px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--brand-accent);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* —— Sheets —— */
+    .scrim {
+      position: fixed;
+      inset: 0;
+      background: rgba(27, 36, 48, .36);
+      z-index: 50;
+    }
+    .sheet {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      transform: translateX(-50%);
+      width: min(100%, 430px);
+      max-height: min(90dvh, 760px);
+      overflow: auto;
+      background: #f8f7f8;
+      border: 1px solid color-mix(in srgb, var(--brand-accent) 10%, var(--divider));
+      border-bottom: 0;
+      border-radius: 28px 28px 0 0;
+      padding: 8px 18px calc(20px + env(safe-area-inset-bottom));
+      z-index: 55;
+      box-shadow: 0 -14px 40px rgba(27, 36, 48, .16);
+    }
+    .sheet-handle {
+      width: 42px;
+      height: 4px;
+      border-radius: 99px;
+      background: color-mix(in srgb, var(--brand-accent) 20%, var(--divider));
+      margin: 4px auto 14px;
+    }
+    .sheet h2 {
+      margin: 0 0 12px;
+      font-size: 22px;
+      font-weight: 650;
+      letter-spacing: -.4px;
+    }
+    .task-sheet-heading {
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr) 40px;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .task-sheet-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--brand-accent-soft);
+      color: var(--brand-accent-ink);
+    }
+    .task-sheet-icon svg {
+      width: 25px;
+      height: 25px;
+    }
+    .task-sheet-heading h2 {
+      margin: 0;
+    }
+    .task-sheet-heading p {
+      margin: 2px 0 0;
+      color: var(--mute);
+      font-size: 12px;
+    }
+    .task-sheet-close {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border: 1px solid var(--divider);
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--surface);
+      color: var(--mute);
+      cursor: pointer;
+    }
+    .task-sheet-close svg {
+      width: 18px;
+      height: 18px;
+    }
+    .field { margin-bottom: 12px; }
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: color-mix(in srgb, var(--brand-accent-ink) 78%, var(--mute));
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      min-height: 48px;
+      border: 1px solid color-mix(in srgb, var(--brand-accent) 10%, var(--divider));
+      border-radius: 14px;
+      padding: 10px 13px;
+      background: var(--surface);
+      box-shadow: 0 3px 12px rgba(27, 36, 48, .035);
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      outline: 0;
+      border-color: color-mix(in srgb, var(--brand-accent) 60%, var(--divider));
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-accent-soft) 76%, transparent);
+    }
+    .field textarea { min-height: 84px; resize: vertical; }
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .toggle-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      min-height: 48px;
+      margin-bottom: 8px;
+      padding: 11px 13px;
+      border: 1px solid color-mix(in srgb, var(--brand-accent) 8%, var(--divider));
+      border-radius: 16px;
+      background: var(--surface);
+      cursor: pointer;
+    }
+    .toggle-row input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--brand-accent); }
+    .sheet-actions {
+      display: flex;
+      gap: 10px;
+      position: sticky;
+      bottom: calc(-20px - env(safe-area-inset-bottom));
+      margin: 10px -18px 0;
+      padding: 12px 18px calc(20px + env(safe-area-inset-bottom));
+      background: linear-gradient(to bottom, rgba(248, 247, 248, .82), #f8f7f8 28%);
+      z-index: 2;
+    }
+    .sheet-actions .delete {
+      min-height: 50px;
+      flex: 1;
+      border: 1px solid color-mix(in srgb, var(--brand-accent) 18%, var(--divider));
+      border-radius: 16px;
+      background: var(--surface);
+      color: var(--brand-accent-ink);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .sheet-actions .save {
+      min-height: 50px;
+      flex: 1.4;
+      border: 0;
+      border-radius: 16px;
+      background: var(--brand-accent);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .schedule-list {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      color: var(--mute);
+      line-height: 1.6;
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      background: var(--canvas);
+      border-radius: 10px;
+      border: 1px solid var(--divider);
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(var(--nav-h) + 72px + env(safe-area-inset-bottom));
+      max-width: min(360px, calc(100% - 32px));
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: var(--ink);
+      color: #fff;
+      font-size: 13px;
+      z-index: 60;
+      box-shadow: var(--shadow);
+    }
+    .state-panel {
+      margin-top: 24px;
+      border: 1px dashed var(--divider);
+      border-radius: 10px;
+      padding: 8px 10px;
+      color: var(--mute);
+      font-size: 12px;
+    }
+    .state-panel pre {
+      margin: 8px 0 0;
+      font-family: var(--mono);
+      font-size: 11px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      border: 0;
+    }
+
+    /* Reference-led Today view: large milestones on an editorial day rail. */
+    .phone.view-today {
+      --nav-h: 76px;
+      background: #f8f7f8;
+    }
+    .phone.view-today .app {
+      padding-bottom: calc(var(--nav-h) + 24px + env(safe-area-inset-bottom));
+    }
+    .phone.view-today .today-appbar {
+      position: relative;
+      padding: 16px 20px 8px;
+      background: transparent;
+      backdrop-filter: none;
+    }
+    .phone.view-today .today-appbar .appbar-row {
+      min-height: 54px;
+    }
+    .phone.view-today .today-heading {
+      font-size: 32px;
+      font-weight: 650;
+      letter-spacing: -1px;
+      gap: 5px;
+    }
+    .phone.view-today .today-heading .year,
+    .phone.view-today .today-heading .chev {
+      color: var(--brand-accent);
+    }
+    .phone.view-today .content-today {
+      padding: 0 0 20px;
+    }
+    .phone.view-today .date-strip {
+      margin: 2px 14px 6px;
+      padding: 0;
+    }
+    .phone.view-today .date-button {
+      min-height: 54px;
+      gap: 2px;
+      padding: 2px 0 0;
+    }
+    .phone.view-today .date-button .dow {
+      font-size: 12px;
+    }
+    .phone.view-today .date-button .date {
+      width: 38px;
+      height: 38px;
+      font-size: 17px;
+      font-weight: 600;
+    }
+    .phone.view-today .today-unscheduled {
+      position: absolute;
+      z-index: 32;
+      top: 24px;
+      right: 20px;
+      width: 38px;
+      height: 38px;
+      min-height: 38px;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: var(--surface);
+      color: var(--ink);
+      display: grid;
+      align-items: center;
+      place-items: center;
+      box-shadow: 0 2px 10px rgba(27, 36, 48, .07);
+      cursor: pointer;
+    }
+    .phone.view-today .today-unscheduled > span:first-child,
+    .phone.view-today .today-unscheduled > span:last-child {
+      display: none;
+    }
+    .phone.view-today .today-unscheduled .count {
+      min-width: 22px;
+      height: 22px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: var(--brand-accent-soft);
+      color: var(--brand-accent-ink);
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .phone.view-today .today-unscheduled svg {
+      width: 16px;
+      height: 16px;
+    }
+    .phone.view-today .today-unscheduled-list {
+      margin: 4px 16px 10px;
+    }
+    .phone.view-today .timeline-wrap {
+      margin: 0 8px;
+      border: 1px solid color-mix(in srgb, var(--brand-accent) 8%, var(--divider));
+      border-radius: 24px 24px 0 0;
+      box-shadow: 0 -1px 0 rgba(27, 36, 48, .02), 0 10px 30px rgba(27, 36, 48, .05);
+    }
+    .phone.view-today .timeline-handle {
+      width: 44px;
+      height: 5px;
+      margin: 11px auto 7px;
+    }
+    .phone.view-today .timeline {
+      --hour-h: 76px;
+      --rail-w: 44px;
+      --node-w: 56px;
+      margin: 6px 10px 18px var(--rail-w);
+    }
+    .phone.view-today .timeline-spine {
+      left: calc(var(--node-w) / 2 - 1px);
+      border-left-width: 2px;
+      border-left-style: dashed;
+      border-left-color: color-mix(in srgb, var(--mute) 20%, var(--divider));
+    }
+    .phone.view-today .hour-row span {
+      top: -8px;
+      width: calc(var(--rail-w) - 4px);
+      padding-right: 5px;
+      font-family: var(--font);
+      font-size: 11px;
+      color: color-mix(in srgb, var(--mute) 84%, var(--ink));
+    }
+    .phone.view-today .timeline-gap {
+      left: calc(var(--node-w) + 16px);
+      right: 16px;
+      gap: 10px;
+      padding: 8px 0;
+    }
+    .phone.view-today .gap-msg {
+      gap: 8px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .phone.view-today .gap-msg .gap-icon svg {
+      width: 17px;
+      height: 17px;
+    }
+    .phone.view-today .gap-msg strong {
+      color: var(--brand-accent);
+      font-weight: 600;
+    }
+    .phone.view-today .gap-add {
+      min-height: 38px;
+      padding: 0 15px 0 10px;
+      gap: 6px;
+      font-size: 14px;
+      background: color-mix(in srgb, var(--brand-accent) 10%, var(--soft));
+      color: var(--brand-accent-ink);
+    }
+    .phone.view-today .gap-add svg {
+      width: 17px;
+      height: 17px;
+    }
+    .phone.view-today .task-card {
+      min-height: 56px;
+      right: 6px;
+      grid-template-columns: var(--node-w) minmax(0, 1fr) 42px;
+      gap: 12px;
+    }
+    .phone.view-today .task-node {
+      min-height: 56px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--soft) 76%, #fff);
+      box-shadow: none;
+    }
+    .phone.view-today .task-card.tall-node .task-node {
+      border-radius: 30px;
+    }
+    .phone.view-today .task-node svg {
+      width: 25px;
+      height: 25px;
+    }
+    .phone.view-today .task-body {
+      padding: 7px 0 4px;
+    }
+    .phone.view-today .task-meta {
+      margin-bottom: 3px;
+      font-family: var(--font);
+      font-size: 13px;
+      letter-spacing: 0;
+    }
+    .phone.view-today .task-title {
+      font-size: 19px;
+      font-weight: 650;
+      letter-spacing: -0.35px;
+      line-height: 1.18;
+    }
+    .phone.view-today .task-complete {
+      width: 34px;
+      height: 34px;
+      margin-top: 10px;
+      border-width: 2px;
+    }
+    .phone.view-today .task-card.is-conflict {
+      display: grid;
+      grid-template-columns: var(--node-w) minmax(0, 1fr) 42px;
+      gap: 12px;
+      min-height: 48px;
+    }
+    .phone.view-today .task-card.is-conflict.lane-left,
+    .phone.view-today .task-card.is-conflict.lane-right {
+      left: 0;
+      right: 6px;
+    }
+    .phone.view-today .task-card.is-conflict.lane-right {
+      transform: translateY(46px);
+    }
+    .phone.view-today .task-card.is-conflict .task-node,
+    .phone.view-today .task-card.is-conflict .task-body,
+    .phone.view-today .task-card.is-conflict .task-complete {
+      position: relative;
+      inset: auto;
+    }
+    .phone.view-today .task-card.is-conflict .task-node {
+      width: var(--node-w);
+      height: 48px;
+      min-height: 48px;
+      border-radius: 50%;
+    }
+    .phone.view-today .task-card.is-conflict .task-body {
+      width: auto;
+      padding: 4px 0;
+    }
+    .phone.view-today .task-card.is-conflict .task-meta {
+      font-size: 12px;
+    }
+    .phone.view-today .task-card.is-conflict .task-title {
+      font-size: 17px;
+      white-space: nowrap;
+      display: block;
+    }
+    .phone.view-today .task-card.is-conflict .task-complete {
+      width: 32px;
+      height: 32px;
+      margin: 8px 0 0 auto;
+    }
+    .phone.view-today .current-line {
+      width: 9px;
+      height: 9px;
+      left: calc(var(--node-w) / 2 - 4.5px);
+    }
+    .phone.view-today .current-line::after {
+      display: none;
+    }
+    .phone.view-today .bottom-nav {
+      left: 50%;
+      bottom: 10px;
+      width: min(calc(100% - 24px), 406px);
+      height: 64px;
+      padding: 4px 8px;
+      border: 0;
+      border-radius: 22px;
+      box-shadow: 0 6px 24px rgba(27, 36, 48, .10);
+    }
+    .phone.view-today .nav-item {
+      min-height: 56px;
+      font-size: 10.5px;
+      color: var(--ink);
+    }
+    .phone.view-today .nav-item.selected {
+      color: var(--steel-strong);
+    }
+    .phone.view-today .nav-item.selected .nav-icon {
+      background: color-mix(in srgb, var(--steel) 12%, #fff);
+    }
+    .phone.view-today .fab {
+      right: max(16px, calc(50% - 215px + 16px));
+      bottom: calc(var(--nav-h) - 8px + env(safe-area-inset-bottom));
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--steel);
+    }
+
+    /* Reference-led RPM view: one large working block with a visible process rail. */
+    .phone.view-rpm {
+      --nav-h: 76px;
+      --rpm-accent: #a95755;
+      --rpm-accent-soft: #f8e8e6;
+      --rpm-accent-ink: #873c3a;
+      background: #f8f7f8;
+    }
+    .phone.view-rpm .app {
+      padding-bottom: calc(var(--nav-h) + 26px + env(safe-area-inset-bottom));
+    }
+    .phone.view-rpm .appbar {
+      position: relative;
+      padding: 16px 20px 8px;
+      background: transparent;
+      backdrop-filter: none;
+    }
+    .phone.view-rpm .appbar-row {
+      min-height: 54px;
+    }
+    .phone.view-rpm .appbar h1 {
+      font-size: 32px;
+      font-weight: 650;
+      letter-spacing: -1px;
+    }
+    .phone.view-rpm .appbar .tonal-button {
+      min-height: 48px;
+      padding: 0 18px;
+      border: 1px solid color-mix(in srgb, var(--rpm-accent) 24%, var(--divider));
+      background: color-mix(in srgb, var(--rpm-accent-soft) 72%, #fff);
+      color: var(--rpm-accent-ink);
+      font-size: 15px;
+      box-shadow: 0 4px 16px rgba(169, 87, 85, .08);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .phone.view-rpm .appbar .tonal-button svg {
+      width: 20px;
+      height: 20px;
+    }
+    .phone.view-rpm .content {
+      padding: 0 18px 32px;
+    }
+    .phone.view-rpm .content > .tray {
+      min-height: 56px;
+      padding: 0 16px 0 18px;
+      border: 1px solid color-mix(in srgb, var(--divider) 88%, transparent);
+      border-radius: 22px;
+      font-size: 17px;
+      font-weight: 500;
+      box-shadow: 0 5px 18px rgba(27, 36, 48, .06);
+    }
+    .phone.view-rpm .content > .tray .count {
+      min-width: 36px;
+      height: 36px;
+      background: var(--rpm-accent-soft);
+      color: var(--rpm-accent-ink);
+      font-size: 16px;
+    }
+    .phone.view-rpm .section-label {
+      margin: 20px 4px 9px;
+      font-size: 13px;
+      letter-spacing: .7px;
+    }
+    .phone.view-rpm .block-list {
+      gap: 14px;
+    }
+    .phone.view-rpm .block {
+      position: relative;
+      overflow: hidden;
+      border-radius: 24px;
+      border-color: color-mix(in srgb, var(--rpm-accent) 10%, var(--divider));
+      box-shadow: 0 5px 20px rgba(27, 36, 48, .055);
+      transition: border-color .22s var(--ease), box-shadow .22s var(--ease);
+    }
+    .phone.view-rpm .block.open {
+      border-color: color-mix(in srgb, var(--rpm-accent) 16%, var(--divider));
+      box-shadow: 0 8px 28px rgba(27, 36, 48, .07);
+    }
+    .phone.view-rpm .block::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 20px;
+      width: 7px;
+      height: 52px;
+      border-radius: 0 7px 7px 0;
+      background: var(--rpm-accent);
+      opacity: .72;
+      z-index: 3;
+    }
+    .phone.view-rpm .block > .block-stub {
+      min-height: 104px;
+      padding: 14px 16px 14px 24px;
+      gap: 14px;
+    }
+    .phone.view-rpm .block > .block-stub .seg-rail {
+      display: none;
+    }
+    .phone.view-rpm .rpm-block-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--rpm-accent-soft);
+      color: var(--rpm-accent-ink);
+      flex: none;
+    }
+    .phone.view-rpm .rpm-block-icon svg {
+      width: 27px;
+      height: 27px;
+    }
+    .phone.view-rpm .block-stub-copy {
+      min-width: 0;
+      gap: 0;
+    }
+    .phone.view-rpm .block-stub-copy strong {
+      font-size: 21px;
+      font-weight: 650;
+      letter-spacing: -.45px;
+    }
+    .phone.view-rpm .rpm-card-result {
+      display: block;
+      margin-top: 2px;
+      overflow: hidden;
+      color: var(--mute);
+      font-size: 14px;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .phone.view-rpm .rpm-card-state {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      margin-top: 6px;
+      font-family: var(--font);
+      font-size: 12.5px;
+      line-height: 1.2;
+      color: color-mix(in srgb, var(--mute) 88%, var(--ink));
+      white-space: nowrap;
+    }
+    .phone.view-rpm .rpm-card-state-text {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .phone.view-rpm .rpm-card-state::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      margin-right: 6px;
+      border-radius: 50%;
+      background: var(--rpm-accent);
+      flex: none;
+    }
+    .phone.view-rpm .rpm-chevron {
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--divider);
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: var(--mute);
+      flex: none;
+      transition: transform .22s var(--ease), background .22s var(--ease), color .22s var(--ease);
+    }
+    .phone.view-rpm .rpm-chevron svg {
+      width: 19px;
+      height: 19px;
+    }
+    .phone.view-rpm .block.open .rpm-chevron {
+      transform: rotate(180deg);
+      background: var(--rpm-accent-soft);
+      color: var(--rpm-accent-ink);
+    }
+    .phone.view-rpm .block-body {
+      position: relative;
+      padding: 0 18px 16px;
+      transform-origin: top center;
+      animation: rpm-body-reveal .24s var(--ease) both;
+    }
+    .phone.view-rpm .block-body::before {
+      content: "";
+      position: absolute;
+      left: 52px;
+      top: -6px;
+      bottom: 76px;
+      border-left: 2px dashed color-mix(in srgb, var(--mute) 16%, var(--divider));
+      pointer-events: none;
+    }
+    .phone.view-rpm .rp-stack,
+    .phone.view-rpm .meta-line,
+    .phone.view-rpm .segment {
+      margin-left: 64px;
+    }
+    .phone.view-rpm .rp-stack {
+      position: relative;
+      margin-bottom: 14px;
+    }
+    .phone.view-rpm .rp-stack::before {
+      content: "";
+      position: absolute;
+      left: -41px;
+      top: 8px;
+      width: 10px;
+      height: 10px;
+      border: 2px solid color-mix(in srgb, var(--mute) 34%, var(--divider));
+      border-radius: 50%;
+      background: var(--surface);
+    }
+    .phone.view-rpm .rp-result {
+      margin-bottom: 7px;
+      font-size: 21px;
+      font-weight: 600;
+      letter-spacing: -.45px;
+      line-height: 1.22;
+    }
+    .phone.view-rpm .rp-purpose {
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    .phone.view-rpm .rp-purpose b {
+      color: var(--rpm-accent);
+      font-weight: 600;
+      margin-right: 8px;
+    }
+    .phone.view-rpm .meta-line {
+      min-height: 36px;
+      margin-bottom: 12px;
+      padding: 0;
+      border: 0;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-family: var(--font);
+      font-size: 13px;
+      color: var(--mute);
+    }
+    .phone.view-rpm .meta-line svg {
+      width: 20px;
+      height: 20px;
+      flex: none;
+    }
+    .phone.view-rpm .segment {
+      margin-bottom: 12px;
+      padding: 4px;
+      gap: 0;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--soft) 78%, #fff);
+    }
+    .phone.view-rpm .segment button {
+      min-height: 40px;
+      font-size: 14px;
+    }
+    .phone.view-rpm .segment button.selected {
+      background: var(--rpm-accent);
+      color: #fff;
+      box-shadow: 0 3px 10px rgba(169, 87, 85, .18);
+    }
+    .phone.view-rpm .rpm-task-list {
+      position: relative;
+      z-index: 2;
+      gap: 0;
+    }
+    .phone.view-rpm .rpm-task {
+      min-height: 48px;
+      grid-template-columns: 60px 24px 26px minmax(0, 1fr) auto;
+      gap: 4px;
+      padding: 5px 0;
+    }
+    .phone.view-rpm .check-button {
+      width: 36px;
+      height: 36px;
+      justify-self: center;
+    }
+    .phone.view-rpm .check-circle {
+      width: 26px;
+      height: 26px;
+      border-width: 2px;
+      border-color: color-mix(in srgb, var(--rpm-accent) 58%, var(--divider));
+      color: var(--rpm-accent-ink);
+    }
+    .phone.view-rpm .rpm-task.done .check-circle,
+    .phone.view-rpm .check-circle.selected {
+      background: var(--rpm-accent);
+      border-color: var(--rpm-accent);
+      color: #fff;
+    }
+    .phone.view-rpm .rpm-task .must {
+      font-size: 17px;
+    }
+    .phone.view-rpm .rpm-task .priority {
+      font-family: var(--font);
+      font-size: 13px;
+    }
+    .phone.view-rpm .rpm-title {
+      font-size: 15px;
+    }
+    .phone.view-rpm .rpm-task .duration {
+      padding-right: 4px;
+      font-family: var(--font);
+      font-size: 13px;
+    }
+    .phone.view-rpm .block-actions {
+      gap: 10px;
+      margin: 14px 2px 0;
+    }
+    .phone.view-rpm .block-actions .tonal-button {
+      min-height: 48px;
+      border: 1px solid var(--divider);
+      background: color-mix(in srgb, var(--soft) 62%, #fff);
+      color: var(--steel-strong);
+      font-size: 15px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .phone.view-rpm .block-actions .tonal-button svg {
+      width: 20px;
+      height: 20px;
+    }
+    .phone.view-rpm .block-actions .tonal-button:first-child {
+      border-color: color-mix(in srgb, var(--rpm-accent) 24%, var(--divider));
+      background: color-mix(in srgb, var(--rpm-accent-soft) 72%, #fff);
+      color: var(--rpm-accent-ink);
+    }
+    .phone.view-rpm .bottom-nav {
+      bottom: 10px;
+      width: min(calc(100% - 24px), 406px);
+      height: 64px;
+      padding: 4px 8px;
+      border: 0;
+      border-radius: 22px;
+      box-shadow: 0 7px 26px rgba(27, 36, 48, .10);
+    }
+    .phone.view-rpm .nav-item {
+      min-height: 56px;
+      font-size: 10.5px;
+    }
+    .phone.view-rpm .nav-item.selected {
+      color: var(--rpm-accent-ink);
+    }
+    .phone.view-rpm .nav-item.selected .nav-icon {
+      background: var(--rpm-accent-soft);
+    }
+    .phone.view-rpm .fab {
+      right: max(16px, calc(50% - 215px + 16px));
+      bottom: calc(var(--nav-h) - 8px + env(safe-area-inset-bottom));
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--rpm-accent);
+      box-shadow: 0 8px 22px rgba(169, 87, 85, .24);
+    }
+    @keyframes rpm-body-reveal {
+      from { opacity: 0; transform: translateY(-8px) scaleY(.98); }
+      to { opacity: 1; transform: translateY(0) scaleY(1); }
+    }
+    ::view-transition-group(rpm-launch),
+    ::view-transition-group(rpm-deep),
+    ::view-transition-group(rpm-life) {
+      animation-duration: .32s;
+      animation-timing-function: var(--ease);
+    }
+    ::view-transition-old(rpm-launch),
+    ::view-transition-new(rpm-launch),
+    ::view-transition-old(rpm-deep),
+    ::view-transition-new(rpm-deep),
+    ::view-transition-old(rpm-life),
+    ::view-transition-new(rpm-life) {
+      mix-blend-mode: normal;
+    }
+
+    /* Reference-led Projects page */
+    .phone.view-projects {
+      --projects-accent: #a95755;
+      --projects-accent-soft: #f8e8e6;
+      background: #f8f7f8;
+    }
+    .phone.view-projects .app {
+      padding-bottom: calc(82px + env(safe-area-inset-bottom));
+    }
+    .phone.view-projects .appbar {
+      position: relative;
+      padding: 16px 20px 8px;
+      background: transparent;
+      backdrop-filter: none;
+    }
+    .phone.view-projects .appbar-row {
+      min-height: 54px;
+    }
+    .phone.view-projects .appbar h1 {
+      font-size: 32px;
+      font-weight: 650;
+      letter-spacing: -1px;
+    }
+    .phone.view-projects .appbar .tonal-button {
+      min-height: 46px;
+      padding: 0 17px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: #a84f50;
+      background: #f9e9e8;
+      box-shadow: inset 0 0 0 1px rgba(168, 79, 80, .08);
+    }
+    .phone.view-projects .appbar .tonal-button svg {
+      width: 19px;
+      height: 19px;
+    }
+    .phone.view-projects .content {
+      padding: 4px 18px 30px;
+    }
+    .phone.view-projects .filter-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0;
+      margin: 0 0 16px;
+      padding: 4px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--soft) 78%, #fff);
+    }
+    .phone.view-projects .filter-row .chip {
+      min-width: 0;
+      min-height: 40px;
+      padding: 0 10px;
+      border: 0;
+      background: transparent;
+      color: var(--mute);
+      box-shadow: none;
+      font-size: 14px;
+    }
+    .phone.view-projects .filter-row .chip.selected {
+      border-color: transparent;
+      background: var(--projects-accent);
+      color: #fff;
+      box-shadow: 0 3px 10px rgba(169, 87, 85, .16);
+    }
+    .phone.view-projects .project-list {
+      gap: 14px;
+    }
+    .phone.view-projects .project-card {
+      --project-accent: #a95755;
+      --project-accent-ink: #873c3a;
+      --project-soft: #f8e8e6;
+      position: relative;
+      border: 1px solid color-mix(in srgb, var(--project-accent) 14%, var(--divider));
+      border-radius: 24px;
+      background: rgba(255, 255, 255, .96);
+      overflow: hidden;
+      box-shadow: 0 8px 28px rgba(27, 36, 48, .07);
+    }
+    .phone.view-projects .project-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 22px;
+      width: 6px;
+      height: 48px;
+      border-radius: 0 6px 6px 0;
+      background: var(--project-accent);
+      opacity: .72;
+      z-index: 2;
+    }
+    .phone.view-projects .project-reference-main {
+      width: 100%;
+      padding: 14px 16px 15px 20px;
+      border: 0;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+    .phone.view-projects .project-reference-head {
+      display: grid;
+      grid-template-columns: 52px minmax(0, 1fr) 36px;
+      align-items: center;
+      gap: 12px;
+    }
+    .phone.view-projects .project-reference-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: var(--project-accent-ink);
+      background: var(--project-soft);
+    }
+    .phone.view-projects .project-reference-icon svg {
+      width: 26px;
+      height: 26px;
+      stroke-width: 1.55;
+    }
+    .phone.view-projects .project-reference-title {
+      min-width: 0;
+    }
+    .phone.view-projects .project-reference-title strong {
+      display: block;
+      overflow: hidden;
+      color: #19213c;
+      font-size: 18px;
+      font-weight: 650;
+      letter-spacing: -.25px;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .phone.view-projects .project-reference-title small {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 5px;
+      color: #68718e;
+      font-size: 13px;
+    }
+    .phone.view-projects .project-reference-title svg {
+      width: 17px;
+      height: 17px;
+    }
+    .phone.view-projects .project-more {
+      width: 36px;
+      height: 36px;
+      border: 1px solid #ececf3;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #5e6780;
+      background: #fff;
+      font-size: 17px;
+      letter-spacing: 2px;
+      box-shadow: 0 3px 12px rgba(45, 54, 80, .05);
+    }
+    .phone.view-projects .project-progress-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      margin-top: 13px;
+    }
+    .phone.view-projects .project-progress-track {
+      height: 4px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--project-accent) 13%, #fff);
+    }
+    .phone.view-projects .project-progress-track i {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--project-accent);
+    }
+    .phone.view-projects .project-progress-row b {
+      min-width: 34px;
+      color: var(--project-accent-ink);
+      font-size: 14px;
+      font-weight: 600;
+      text-align: right;
+    }
+    .phone.view-projects .project-metrics {
+      display: grid;
+      grid-template-columns: .85fr 1.1fr 1fr;
+      margin-top: 12px;
+    }
+    .phone.view-projects .project-metric {
+      min-width: 0;
+      padding: 0 10px;
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr);
+      column-gap: 7px;
+      align-content: start;
+      color: #65708c;
+    }
+    .phone.view-projects .project-metric:first-child { padding-left: 2px; }
+    .phone.view-projects .project-metric + .project-metric {
+      border-left: 1px solid #ececf3;
+    }
+    .phone.view-projects .project-metric svg {
+      grid-row: 1 / span 2;
+      width: 18px;
+      height: 18px;
+      color: var(--project-accent);
+    }
+    .phone.view-projects .project-metric b,
+    .phone.view-projects .project-metric em {
+      overflow: hidden;
+      font-style: normal;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .phone.view-projects .project-metric b {
+      color: #222c49;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .phone.view-projects .project-metric em {
+      margin-top: 2px;
+      color: #78819a;
+      font-size: 10.5px;
+    }
+    .phone.view-projects .project-next-panel {
+      min-height: 46px;
+      margin-top: 12px;
+      padding: 6px 7px 6px 11px;
+      border-radius: 15px;
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr) 34px;
+      align-items: center;
+      gap: 8px;
+      color: #283253;
+      background: color-mix(in srgb, var(--project-soft) 72%, #fff);
+    }
+    .phone.view-projects .project-next-spark {
+      color: var(--project-accent);
+      font-size: 19px;
+      line-height: 1;
+    }
+    .phone.view-projects .project-next-copy {
+      overflow: hidden;
+      font-size: 13.5px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .phone.view-projects .project-next-copy b {
+      font-weight: 600;
+    }
+    .phone.view-projects .project-next-arrow {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: var(--project-accent-ink);
+      background: rgba(255, 255, 255, .86);
+    }
+    .phone.view-projects .project-next-arrow svg {
+      width: 17px;
+      height: 17px;
+    }
+    .phone.view-projects .project-detail-header {
+      padding: 16px 20px 10px;
+    }
+    .phone.view-projects .project-detail-title-row {
+      display: grid;
+      grid-template-columns: 42px 50px minmax(0, 1fr);
+      align-items: center;
+      gap: 11px;
+    }
+    .phone.view-projects .project-detail-back {
+      width: 42px;
+      height: 42px;
+      padding: 0;
+      border: 1px solid var(--divider);
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--surface);
+      color: var(--brand-accent-ink);
+      cursor: pointer;
+    }
+    .phone.view-projects .project-detail-header-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: var(--brand-accent-ink);
+      background: var(--brand-accent-soft);
+    }
+    .phone.view-projects .project-detail-title-copy {
+      min-width: 0;
+    }
+    .phone.view-projects .project-detail-title-copy small {
+      display: block;
+      color: var(--brand-accent-ink);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .7px;
+      text-transform: uppercase;
+    }
+    .phone.view-projects .project-detail-title-copy h1 {
+      margin: 1px 0 0;
+      overflow: hidden;
+      font-size: 25px;
+      font-weight: 650;
+      letter-spacing: -.7px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .phone.view-projects .project-detail-content {
+      padding: 0 18px 112px;
+    }
+    .phone.view-projects .project-detail-hero,
+    .phone.view-projects .project-detail-section {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--brand-accent) 12%, var(--divider));
+      border-radius: 24px;
+      background: rgba(255, 255, 255, .96);
+      box-shadow: 0 8px 28px rgba(27, 36, 48, .065);
+    }
+    .phone.view-projects .project-detail-hero {
+      padding: 18px 18px 17px 20px;
+    }
+    .phone.view-projects .project-detail-hero::before,
+    .phone.view-projects .project-detail-section::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 22px;
+      width: 6px;
+      height: 48px;
+      border-radius: 0 6px 6px 0;
+      background: var(--brand-accent);
+      opacity: .72;
+    }
+    .phone.view-projects .project-detail-outcome {
+      display: grid;
+      grid-template-columns: 52px minmax(0, 1fr);
+      align-items: center;
+      gap: 12px;
+    }
+    .phone.view-projects .project-detail-outcome .project-reference-icon {
+      width: 52px;
+      height: 52px;
+    }
+    .phone.view-projects .project-detail-outcome h2 {
+      margin: 0;
+      color: var(--brand-accent-ink);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .6px;
+      text-transform: uppercase;
+    }
+    .phone.view-projects .project-detail-outcome p {
+      margin: 3px 0 0;
+      color: #222c49;
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1.3;
+    }
+    .phone.view-projects .project-detail-hero .project-progress-row {
+      margin-top: 16px;
+    }
+    .phone.view-projects .project-detail-hero .project-metrics {
+      margin-top: 15px;
+      padding-top: 14px;
+      border-top: 1px solid #ececf3;
+    }
+    .phone.view-projects .project-detail-hero .project-next-panel {
+      width: 100%;
+      border: 0;
+      text-align: left;
+      cursor: pointer;
+    }
+    .phone.view-projects .project-detail-section {
+      margin-top: 14px;
+      padding: 16px 16px 16px 20px;
+    }
+    .phone.view-projects .project-detail-section-heading {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr);
+      align-items: center;
+      gap: 11px;
+      margin-bottom: 12px;
+    }
+    .phone.view-projects .project-detail-section-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: var(--brand-accent-ink);
+      background: var(--brand-accent-soft);
+    }
+    .phone.view-projects .project-detail-section-heading h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 650;
+    }
+    .phone.view-projects .project-detail-section-heading p {
+      margin: 1px 0 0;
+      color: var(--mute);
+      font-size: 12px;
+    }
+    .phone.view-projects .project-detail-rpm,
+    .phone.view-projects .project-detail-task {
+      width: 100%;
+      min-height: 64px;
+      padding: 9px 10px;
+      border: 1px solid color-mix(in srgb, var(--brand-accent) 9%, var(--divider));
+      border-radius: 17px;
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) 30px;
+      align-items: center;
+      gap: 10px;
+      background: color-mix(in srgb, var(--brand-accent-soft) 32%, #fff);
+      text-align: left;
+      cursor: pointer;
+    }
+    .phone.view-projects .project-detail-rpm > span:first-child,
+    .phone.view-projects .project-detail-task > span:first-child {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: var(--brand-accent-ink);
+      background: var(--surface);
+    }
+    .phone.view-projects .project-detail-item-copy {
+      min-width: 0;
+    }
+    .phone.view-projects .project-detail-item-copy strong,
+    .phone.view-projects .project-detail-item-copy small {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .phone.view-projects .project-detail-item-copy strong {
+      color: #222c49;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .phone.view-projects .project-detail-item-copy small {
+      margin-top: 2px;
+      color: var(--mute);
+      font-size: 11.5px;
+    }
+    .phone.view-projects .project-detail-rpm > svg,
+    .phone.view-projects .project-detail-task > svg {
+      width: 18px;
+      height: 18px;
+      color: var(--brand-accent-ink);
+    }
+    .phone.view-projects .project-detail-schedule {
+      width: 100%;
+      min-height: 48px;
+      margin-top: 10px;
+      border: 0;
+      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--brand-accent);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .phone.view-projects .bottom-nav {
+      bottom: 10px;
+      width: min(calc(100% - 24px), 406px);
+      height: 64px;
+      padding: 4px 8px;
+      border: 0;
+      border-radius: 22px;
+      box-shadow: 0 8px 28px rgba(39, 47, 74, .12);
+    }
+    .phone.view-projects .nav-item {
+      min-height: 56px;
+      font-size: 10.5px;
+    }
+    .phone.view-projects .nav-item.selected {
+      color: #873c3a;
+    }
+    .phone.view-projects .nav-item.selected .nav-icon {
+      background: var(--projects-accent-soft);
+    }
+
+    /* Reference-led Week view: workload overview above a soft day agenda. */
+    .phone.view-week {
+      --nav-h: 76px;
+      --week-accent: #a95755;
+      --week-accent-soft: #f8e8e6;
+      --week-accent-ink: #873c3a;
+      background: #f8f7f8;
+    }
+    .phone.view-week .app {
+      padding-bottom: calc(var(--nav-h) + 28px + env(safe-area-inset-bottom));
+    }
+    .week-header {
+      padding: 16px 20px 8px;
+    }
+    .week-title-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .week-title-copy {
+      flex: 1;
+      min-width: 0;
+    }
+    .week-title-copy h1 {
+      margin: 0;
+      font-size: 32px;
+      font-weight: 650;
+      line-height: 1.14;
+      letter-spacing: -1px;
+    }
+    .week-title-copy p {
+      margin: 5px 0 0;
+      color: var(--mute);
+      font-size: 14px;
+    }
+    .week-calendar-button {
+      width: 46px;
+      height: 46px;
+      border: 1px solid color-mix(in srgb, var(--week-accent) 18%, var(--divider));
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: var(--week-accent-ink);
+      background: color-mix(in srgb, var(--week-accent-soft) 70%, #fff);
+      cursor: pointer;
+    }
+    .week-calendar-button svg {
+      width: 21px;
+      height: 21px;
+    }
+    .week-range {
+      width: 218px;
+      min-height: 42px;
+      margin: 15px auto 0;
+      padding: 0 14px;
+      border: 1px solid color-mix(in srgb, var(--divider) 84%, transparent);
+      border-radius: 999px;
+      display: grid;
+      grid-template-columns: 24px 1fr 24px;
+      align-items: center;
+      gap: 8px;
+      color: var(--week-accent-ink);
+      background: rgba(255, 255, 255, .78);
+      box-shadow: 0 5px 18px rgba(27, 36, 48, .05);
+      cursor: pointer;
+    }
+    .week-range span {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .week-range svg {
+      width: 18px;
+      height: 18px;
+    }
+    .week-range svg:last-child {
+      justify-self: end;
+    }
+    .phone.view-week .week-content {
+      padding: 4px 18px 34px;
+    }
+    .week-hours-card {
+      padding: 16px 14px 14px;
+      border: 1px solid color-mix(in srgb, var(--divider) 88%, transparent);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, .94);
+      box-shadow: 0 8px 28px rgba(27, 36, 48, .07);
+    }
+    .week-hours-heading {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 0 2px;
+    }
+    .week-hours-heading h2 {
+      flex: 1;
+      margin: 0;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -.2px;
+    }
+    .week-hours-heading strong {
+      color: var(--week-accent-ink);
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .week-hours-heading span {
+      color: var(--mute);
+      font-size: 11px;
+    }
+    .week-chart {
+      height: 178px;
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 4px;
+    }
+    .week-bar {
+      min-width: 0;
+      padding: 0 1px;
+      border: 0;
+      border-radius: 14px;
+      display: grid;
+      grid-template-rows: 20px 1fr 18px 18px;
+      align-items: end;
+      justify-items: center;
+      background: transparent;
+      cursor: pointer;
+    }
+    .week-bar .bar-hours {
+      align-self: center;
+      color: #566071;
+      font-size: 10px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .week-bar .bar-well {
+      width: 100%;
+      height: 108px;
+      min-height: 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      border-bottom: 1px solid #e7e7ed;
+    }
+    .week-bar .bar-fill {
+      width: min(22px, 68%);
+      height: var(--bar);
+      min-height: 5px;
+      border-radius: 9px 9px 4px 4px;
+      background: color-mix(in srgb, var(--week-accent) 42%, #fff);
+      transition: height .22s var(--ease), background .15s var(--ease);
+    }
+    .week-bar.selected {
+      background: color-mix(in srgb, var(--week-accent-soft) 58%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--week-accent) 24%, transparent);
+    }
+    .week-bar.selected .bar-fill {
+      background: var(--week-accent);
+    }
+    .week-bar.over .bar-fill {
+      background: var(--week-accent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--week-accent-ink) 34%, transparent);
+    }
+    .week-bar .bar-day {
+      align-self: end;
+      color: var(--mute);
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .week-bar .bar-date {
+      align-self: start;
+      width: 24px;
+      height: 18px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      color: var(--ink);
+      font-size: 11px;
+    }
+    .week-bar.selected .bar-day,
+    .week-bar.selected .bar-date {
+      color: var(--week-accent-ink);
+      font-weight: 600;
+    }
+    .week-bar.selected .bar-date {
+      background: #fff;
+    }
+    .week-unscheduled {
+      width: 100%;
+      min-height: 66px;
+      margin-top: 14px;
+      padding: 8px 14px;
+      border: 1px solid color-mix(in srgb, var(--divider) 88%, transparent);
+      border-radius: 22px;
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) 28px;
+      align-items: center;
+      gap: 12px;
+      text-align: left;
+      background: rgba(255, 255, 255, .92);
+      box-shadow: 0 5px 18px rgba(27, 36, 48, .05);
+      cursor: pointer;
+    }
+    .week-unscheduled-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: var(--week-accent-ink);
+      background: var(--week-accent-soft);
+    }
+    .week-unscheduled-icon svg {
+      width: 21px;
+      height: 21px;
+    }
+    .week-unscheduled-copy strong,
+    .week-unscheduled-copy small {
+      display: block;
+    }
+    .week-unscheduled-copy strong {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .week-unscheduled-copy small {
+      margin-top: 2px;
+      color: var(--mute);
+      font-size: 12px;
+    }
+    .week-unscheduled .chev {
+      display: grid;
+      place-items: center;
+      color: var(--mute);
+    }
+    .week-unscheduled .chev svg {
+      width: 20px;
+      height: 20px;
+      transform: rotate(-90deg);
+    }
+    .phone.view-week .week-tray-list {
+      margin: 7px 2px 0;
+    }
+    .week-day-heading {
+      margin: 18px 4px 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--week-accent-ink);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -.1px;
+    }
+    .week-day-heading::after {
+      content: "";
+      width: 26px;
+      height: 5px;
+      border-top: 1px solid var(--week-accent);
+      border-bottom: 1px solid color-mix(in srgb, var(--week-accent) 50%, transparent);
+      border-radius: 50%;
+      transform: rotate(-4deg);
+      opacity: .75;
+    }
+    .phone.view-week .agenda-list {
+      gap: 10px;
+      margin-top: 0;
+    }
+    .phone.view-week .agenda-row {
+      min-height: 70px;
+      padding: 9px 12px;
+      border: 0;
+      border-radius: 20px;
+      grid-template-columns: 46px minmax(0, 1fr) auto;
+      gap: 12px;
+      background: color-mix(in srgb, var(--week-accent-soft) 36%, #fff);
+      box-shadow: inset 0 0 0 1px rgba(169, 87, 85, .035);
+    }
+    .phone.view-week .agenda-row.edge-deep {
+      background: color-mix(in srgb, var(--fill-deep) 76%, #fff);
+    }
+    .phone.view-week .agenda-row.edge-life {
+      background: color-mix(in srgb, var(--fill-life) 76%, #fff);
+    }
+    .phone.view-week .agenda-row.edge-none {
+      background: color-mix(in srgb, var(--fill-none) 70%, #fff);
+    }
+    .phone.view-week .agenda-row.complete {
+      opacity: .58;
+    }
+    .phone.view-week .agenda-glyph {
+      width: 46px;
+      height: 46px;
+      border: 1.5px solid color-mix(in srgb, var(--week-accent) 66%, var(--divider));
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: var(--week-accent-ink);
+      background: rgba(255, 255, 255, .72);
+    }
+    .phone.view-week .agenda-glyph svg {
+      width: 23px;
+      height: 23px;
+    }
+    .phone.view-week .agenda-copy strong {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .phone.view-week .agenda-copy small {
+      margin-top: 4px;
+      font-family: var(--font);
+      font-size: 12px;
+    }
+    .phone.view-week .agenda-duration {
+      min-width: 38px;
+      color: var(--week-accent-ink);
+      font-size: 12px;
+      font-weight: 600;
+      text-align: right;
+    }
+    .phone.view-week .agenda-duration .must-symbol {
+      display: block;
+      margin-bottom: 2px;
+      color: #8a6518;
+      font-size: 15px;
+    }
+    .phone.view-week .bottom-nav {
+      bottom: 10px;
+      width: min(calc(100% - 24px), 406px);
+      height: 64px;
+      padding: 4px 8px;
+      border: 0;
+      border-radius: 22px;
+      box-shadow: 0 7px 26px rgba(27, 36, 48, .10);
+    }
+    .phone.view-week .nav-item {
+      min-height: 56px;
+      font-size: 10.5px;
+    }
+    .phone.view-week .nav-item.selected {
+      color: var(--week-accent-ink);
+    }
+    .phone.view-week .nav-item.selected .nav-icon {
+      background: var(--week-accent-soft);
+    }
+    .phone.view-week .fab {
+      right: max(16px, calc(50% - 215px + 16px));
+      bottom: calc(var(--nav-h) - 8px + env(safe-area-inset-bottom));
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--week-accent);
+      box-shadow: 0 8px 22px rgba(169, 87, 85, .24);
+    }
+
+    /* Shared app chrome from the four-screen design review. */
+    .phone.view-projects {
+      --nav-h: 76px;
+    }
+    .phone.view-today .bottom-nav,
+    .phone.view-rpm .bottom-nav,
+    .phone.view-projects .bottom-nav,
+    .phone.view-week .bottom-nav {
+      bottom: 10px;
+      width: min(calc(100% - 24px), 406px);
+      height: 64px;
+      padding: 4px 8px;
+      border: 0;
+      border-radius: 22px;
+      box-shadow: 0 7px 26px rgba(27, 36, 48, .10);
+    }
+    .phone.view-today .nav-item,
+    .phone.view-rpm .nav-item,
+    .phone.view-projects .nav-item,
+    .phone.view-week .nav-item {
+      min-height: 56px;
+      color: var(--ink);
+      font-size: 10.5px;
+    }
+    .phone.view-today .nav-item.selected,
+    .phone.view-rpm .nav-item.selected,
+    .phone.view-projects .nav-item.selected,
+    .phone.view-week .nav-item.selected {
+      color: var(--brand-accent-ink);
+    }
+    .phone.view-today .nav-item.selected .nav-icon,
+    .phone.view-rpm .nav-item.selected .nav-icon,
+    .phone.view-projects .nav-item.selected .nav-icon,
+    .phone.view-week .nav-item.selected .nav-icon {
+      background: var(--brand-accent-soft);
+      color: var(--brand-accent-ink);
+    }
+    .phone.view-today .fab,
+    .phone.view-rpm .fab,
+    .phone.view-projects .fab,
+    .phone.view-week .fab {
+      right: max(16px, calc(50% - 215px + 16px));
+      bottom: calc(var(--nav-h) - 4px + env(safe-area-inset-bottom));
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: var(--brand-accent);
+      box-shadow: 0 8px 22px rgba(169, 87, 85, .24);
+    }
+    .phone.view-today .fab svg,
+    .phone.view-rpm .fab svg,
+    .phone.view-projects .fab svg,
+    .phone.view-week .fab svg {
+      width: 22px;
+      height: 22px;
+    }
+    .ribbon-scroll {
+      scrollbar-width: none;
+    }
+    .ribbon-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .app > .content,
+      .app > section.content,
+      .tray .chev,
+      .fab,
+      .toast,
+      .scrim,
+      .sheet,
+      .phone.view-rpm .block-body {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="phone" id="phone"></main>
+
+  <script>
+    /* Clean-sheet Plan Ribbon prototype. Current prototype intentionally left unchanged. */
+
+    const DAYS = [
+      { dow: 'Mon', date: 10, label: 'Monday 10' },
+      { dow: 'Tue', date: 11, label: 'Tuesday 11' },
+      { dow: 'Wed', date: 12, label: 'Wednesday 12' },
+      { dow: 'Thu', date: 13, label: 'Thursday 13' },
+      { dow: 'Fri', date: 14, label: 'Friday 14' },
+      { dow: 'Sat', date: 15, label: 'Saturday 15' },
+      { dow: 'Sun', date: 16, label: 'Sunday 16' }
+    ];
+
+    const DAY_START = 420;   // 7 AM
+    const DAY_END = 1440;    // midnight
+    const TODAY_HOUR_H = 76;
+    const WEEK_PLAN_MINUTES = [150, 345, 240, 510, 195, 90, 120];
+    const FOCUS_BUDGET = 8 * 60; // overload above 8h scheduled
+    const NOW_MIN = 620; // 10:20 AM demo now
+
+    const state = {
+      view: 'today',
+      selectedDay: 1,
+      unscheduledOpen: false,
+      captureOpen: false,
+      selectedTask: null,
+      taskSheetOpen: false,
+      scheduleOpen: false,
+      rpmOpen: 'launch',
+      rpmFilter: 'all',
+      rpmSelecting: false,
+      selectedRpmTasks: [],
+      projectFilter: 'active',
+      projectOpen: null,
+      toast: '',
+      toastTimer: null,
+      didInitialScroll: false,
+      tasks: [
+        { id: 1, title: 'Plan the day', day: 1, start: 480, duration: 30, rpm: 'Life admin', color: 'life', must: true, priority: 2, notes: '', complete: true },
+        { id: 2, title: 'Deep work', day: 1, start: 540, duration: 120, rpm: 'Launch sprint', color: 'launch', must: true, priority: 1, notes: 'Focus on the final copy and page flow.', complete: false },
+        { id: 3, title: 'Client call', day: 1, start: 690, duration: 45, rpm: 'Launch sprint', color: 'launch', must: false, priority: 3, notes: 'Confirm next steps.', complete: false, lane: 'left' },
+        { id: 4, title: 'Reply to partner', day: 1, start: 705, duration: 30, rpm: '', color: 'none', must: false, priority: 5, notes: '', complete: false, lane: 'right' },
+        { id: 5, title: 'Project review', day: 1, start: 780, duration: 90, rpm: 'Launch sprint', color: 'launch', must: true, priority: 4, notes: '', complete: false },
+        { id: 6, title: 'Wrap up', day: 1, start: 1020, duration: 30, rpm: 'Life admin', color: 'life', must: false, priority: 6, notes: '', complete: false },
+        { id: 7, title: 'Buy printer paper', day: 1, start: null, duration: 30, rpm: 'Life admin', color: 'life', must: false, priority: 7, notes: '', complete: false },
+        { id: 8, title: 'Review launch notes', day: 1, start: null, duration: 45, rpm: 'Launch sprint', color: 'launch', must: true, priority: 2, notes: '', complete: false },
+        { id: 9, title: 'Book dentist', day: 1, start: null, duration: 15, rpm: '', color: 'none', must: false, priority: 8, notes: '', complete: false },
+        { id: 10, title: 'Draft research plan', day: 2, start: 600, duration: 90, rpm: 'Deep work', color: 'deep', must: true, priority: 1, notes: '', complete: false }
+      ],
+      rpmTasks: [
+        { id: 'r1', title: 'Finalize key pages', duration: 60, must: true, priority: 1, complete: false },
+        { id: 'r2', title: 'Write launch copy', duration: 45, must: true, priority: 2, complete: false },
+        { id: 'r3', title: 'Review onboarding', duration: 30, must: false, priority: 3, complete: true },
+        { id: 'r4', title: 'QA and testing', duration: 45, must: false, priority: 4, complete: false }
+      ]
+    };
+
+    const projects = [
+      { id: 'website', status: 'active', name: 'Website redesign', progress: 62, deadline: 'May 20', daysLeft: 9, remaining: '8h', tasks: 12, next: 'Write homepage copy', blocks: 3, goal: 'Make the main offer clear and easy to act on.' },
+      { id: 'launch', status: 'active', name: 'Product launch', progress: 48, deadline: 'May 28', daysLeft: 17, remaining: '11h', tasks: 9, next: 'Test onboarding flow', blocks: 2, goal: 'Release a clear first version with a smooth first-use path.' },
+      { id: 'growth', status: 'active', name: 'Personal growth', progress: 30, deadline: 'No deadline', daysLeft: null, remaining: '4h', tasks: 5, next: 'Read chapter 4', blocks: 1, goal: 'Build a steady reading and reflection practice.' },
+      { id: 'archive', status: 'onhold', name: 'Course notes', progress: 35, deadline: 'Paused', daysLeft: null, remaining: '6h', tasks: 8, next: 'Sort lesson notes', blocks: 1, goal: 'Turn course notes into a useful reference.' },
+      { id: 'tax', status: 'complete', name: 'Tax filing', progress: 100, deadline: 'Complete', daysLeft: 0, remaining: '0h', tasks: 7, next: 'None', blocks: 1, goal: 'File the annual return.' }
+    ];
+
+    const RPM_BLOCKS = [
+      { id: 'launch', title: 'Launch sprint', result: 'Ship a clear launch story', purpose: 'Make the next step obvious', rail: 'launch' },
+      { id: 'deep', title: 'Deep work', result: 'Protect focused thinking time', purpose: 'Guard long uninterrupted blocks', rail: 'deep', remaining: '2h', tasks: 4 },
+      { id: 'life', title: 'Life admin', result: 'Keep small obligations controlled', purpose: 'Clear friction without drift', rail: 'life', remaining: '1h 30m', tasks: 5 }
+    ];
+
+    function icon(name) {
+      const paths = {
+        calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
+        target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>',
+        folder: '<path d="M3 6h7l2 2h9v11H3z"/>',
+        week: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18M8 9v12M16 9v12"/>',
+        plus: '<path d="M12 5v14M5 12h14"/>',
+        down: '<path d="m6 9 6 6 6-6"/>',
+        back: '<path d="m15 18-6-6 6-6"/>',
+        clock: '<circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/>',
+        check: '<path d="m5 12 5 5L20 7"/>',
+        sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+        moon: '<path d="M20 14.5A7.5 7.5 0 0 1 9.5 4 7.5 7.5 0 1 0 20 14.5z"/>',
+        briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/>',
+        mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 8 9 6 9-6"/>',
+        phone: '<path d="M6.5 3.5 9 6l-1.8 1.8a12 12 0 0 0 5.5 5.5L15 11.5l2.5 2.5-1 1c-1.2 1.2-3.1 1-4.7.3A16 16 0 0 1 4.2 8.2c-.7-1.6-.9-3.5.3-4.7z"/>',
+        spark: '<path d="M12 3v4M12 17v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M3 12h4M17 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/>',
+        list: '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
+        layers: '<path d="m12 3 8 4.5-8 4.5-8-4.5zM4 12l8 4.5 8-4.5M4 16.5l8 4.5 8-4.5"/>',
+        flag: '<path d="M5 21V4m0 1h11l-2 3 2 3H5"/>',
+        arrow: '<path d="m9 18 6-6-6-6"/>',
+        close: '<path d="M6 6l12 12M18 6 6 18"/>',
+        window: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18M15 16h3"/>',
+        leaf: '<path d="M19 3c-7 .2-12 3.5-12 9 0 3 2 5 5 5 5.5 0 8.8-5 9-12-2.2.1-4.2.5-6 1.2M5 21c2-5 5.2-8.8 10-11"/>',
+        navToday: '<rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 9h18"/><circle cx="12" cy="15" r="2.2"/>',
+        navRpm: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/>',
+        navProjects: '<path d="M3 7.5h7l2-2h3.5l2 2H21v11.5H3z"/><path d="M7 12h10"/>',
+        navWeek: '<path d="M4 20V11M10 20V5M16 20v-7M22 20V8"/><path d="M2 20h22"/>'
+      };
+      return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || ''}</svg>`;
+    }
+
+    function taskGlyph(task) {
+      const title = (task.title || '').toLowerCase();
+      if (title.includes('email') || title.includes('reply') || title.includes('mail')) return 'mail';
+      if (title.includes('call') || title.includes('phone')) return 'phone';
+      if (title.includes('shop') || title.includes('buy')) return 'briefcase';
+      if (title.includes('wrap') || title.includes('wind') || title.includes('sleep')) return 'moon';
+      if (title.includes('plan') || title.includes('rise') || title.includes('morning')) return 'sun';
+      if (task.rpm === 'Launch sprint' || task.color === 'launch') return 'target';
+      if (task.rpm === 'Deep work' || task.color === 'deep') return 'spark';
+      if (task.rpm === 'Life admin' || task.color === 'life') return 'list';
+      return 'clock';
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    }
+
+    function formatTime(minutes) {
+      const h24 = Math.floor(minutes / 60);
+      const min = minutes % 60;
+      const suffix = h24 >= 12 && h24 < 24 ? 'PM' : 'AM';
+      const h = h24 % 12 || 12;
+      return `${h}:${String(min).padStart(2, '0')} ${suffix}`;
+    }
+
+    function formatHourLabel(minutes) {
+      if (minutes >= 1440) return '12 AM';
+      return formatTime(minutes).replace(':00 ', ' ');
+    }
+
+    function formatDuration(minutes) {
+      if (minutes < 60) return `${minutes}m`;
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      return m ? `${h}h ${m}m` : `${h}h`;
+    }
+
+    function formatHoursShort(minutes) {
+      const h = minutes / 60;
+      if (h === 0) return '0h';
+      if (Number.isInteger(h)) return `${h}h`;
+      return `${Math.round(h * 10) / 10}h`;
+    }
+
+    function edgeClass(task) {
+      if (task.rpm === 'Launch sprint' || task.color === 'launch' || task.color === 'blue') return 'edge-launch';
+      if (task.rpm === 'Deep work' || task.color === 'deep' || task.color === 'cyan') return 'edge-deep';
+      if (task.rpm === 'Life admin' || task.color === 'life' || task.color === 'yellow') return 'edge-life';
+      return 'edge-none';
+    }
+
+    function edgeFromRpm(rpm) {
+      if (rpm === 'Launch sprint') return 'launch';
+      if (rpm === 'Deep work') return 'deep';
+      if (rpm === 'Life admin') return 'life';
+      return 'none';
+    }
+
+    function appbar(title, action = '') {
+      return `<header class="appbar"><div class="appbar-row">
+        ${state.projectOpen ? `<button class="back-button" data-action="project-back" aria-label="Back">${icon('back')}</button>` : ''}
+        <div style="flex:1"><h1>${title}</h1>${state.view === 'week' ? '<span class="subtitle">Aug 10–16</span>' : ''}</div>${action}
+      </div></header>`;
+    }
+
+    function dateStrip() {
+      return `<div class="date-strip" aria-label="Week dates">${DAYS.map((d, i) =>
+        `<button class="date-button ${state.selectedDay === i ? 'selected' : ''}" data-day="${i}" aria-label="${d.label}" aria-pressed="${state.selectedDay === i}">
+          <span class="dow">${d.dow}</span><span class="date">${d.date}</span>
+        </button>`
+      ).join('')}</div>`;
+    }
+
+    function unscheduledTray() {
+      const tasks = state.tasks.filter(t => t.day === state.selectedDay && t.start == null);
+      return `<button class="tray" data-action="toggle-unscheduled" aria-expanded="${state.unscheduledOpen}" aria-label="Unscheduled tasks, ${tasks.length}">
+          <span class="label">Unscheduled</span>
+          <span class="count">${tasks.length}</span>
+          <span class="chev" aria-hidden="true">${icon('down')}</span>
+        </button>
+        ${state.unscheduledOpen ? `<div class="tray-list">${tasks.length
+          ? tasks.map(t => `<button class="tray-item" data-task="${t.id}"><span class="rail ${edgeClass(t)}"></span><b>${escapeHtml(t.title)}</b><small>${formatDuration(t.duration)}</small></button>`).join('')
+          : '<div class="empty">No unscheduled tasks for this day.</div>'}</div>` : ''}`;
+    }
+
+    function todayUnscheduledControl() {
+      const tasks = state.tasks.filter(t => t.day === state.selectedDay && t.start == null);
+      return `<button class="today-unscheduled" data-action="toggle-unscheduled" aria-expanded="${state.unscheduledOpen}" aria-label="Unscheduled tasks, ${tasks.length}">
+          <span>Unscheduled</span><span class="count">${tasks.length}</span><span aria-hidden="true">${icon('down')}</span>
+        </button>
+        ${state.unscheduledOpen ? `<div class="today-unscheduled-list tray-list">${tasks.length
+          ? tasks.map(t => `<button class="tray-item" data-task="${t.id}"><span class="rail ${edgeClass(t)}"></span><b>${escapeHtml(t.title)}</b><small>${formatDuration(t.duration)}</small></button>`).join('')
+          : '<div class="empty">No unscheduled tasks for this day.</div>'}</div>` : ''}`;
+    }
+
+    function tasksTimeOverlap(a, b) {
+      return a.start != null && b.start != null
+        && a.start < b.start + b.duration
+        && b.start < a.start + a.duration;
+    }
+
+    function assignLanes(dayTasks) {
+      // Ensure overlapping tasks get distinct left/right lanes when not already set
+      const sorted = [...dayTasks].sort((a, b) => a.start - b.start || b.duration - a.duration);
+      sorted.forEach(t => {
+        const overlaps = sorted.filter(o => o !== t && tasksTimeOverlap(t, o));
+        if (!overlaps.length) return;
+        if (t.lane) return;
+        if (overlaps.some(o => o.lane === 'left')) t.lane = 'right';
+        else if (overlaps.some(o => o.lane === 'right')) t.lane = 'left';
+        else t.lane = 'left';
+      });
+      // Resolve same-lane collisions among overlaps
+      sorted.forEach(t => {
+        const overlaps = sorted.filter(o => o !== t && tasksTimeOverlap(t, o));
+        if (!overlaps.length) return;
+        if (!t.lane) t.lane = 'left';
+        if (overlaps.some(o => o.lane === t.lane && (o.start < t.start || (o.start === t.start && o.id < t.id)))) {
+          t.lane = t.lane === 'left' ? 'right' : 'left';
+        }
+      });
+    }
+
+    /** Visual end minute for a card (min height can extend past duration). */
+    function visualTaskEnd(t, minPx = 56) {
+      const minMinutes = Math.ceil((minPx / TODAY_HOUR_H) * 60);
+      return t.start + Math.max(t.duration, minMinutes);
+    }
+
+    function formatTimeRange(start, duration) {
+      const end = start + duration;
+      if (duration <= 15) return `${formatTime(start)} · ${formatDuration(duration)}`;
+      return `${formatTime(start)} – ${formatTime(end)} (${formatDuration(duration)})`;
+    }
+
+    function gapMessage(minutes, index) {
+      const label = formatDuration(minutes);
+      const variants = [
+        `Use <strong>${label}</strong> wisely. Create away!`,
+        `You have <strong>${label}</strong>. Plan it.`,
+        `<strong>${label}</strong> open. Shape it.`
+      ];
+      return variants[index % variants.length];
+    }
+
+    function buildGaps(dayTasks, conflictIds = new Set()) {
+      // Free gaps use visual card bottoms so prompts never sit under min-height overflow
+      const sorted = [...dayTasks].sort((a, b) => a.start - b.start || a.duration - b.duration);
+      const gaps = [];
+      let cursor = DAY_START;
+      let gapIndex = 0;
+      sorted.forEach(t => {
+        if (t.start > cursor + 20) {
+          const minutes = t.start - cursor;
+          gaps.push({ start: cursor, end: t.start, minutes, index: gapIndex++ });
+        }
+        const minPx = conflictIds.has(t.id) ? 48 : 56;
+        cursor = Math.max(cursor, t.start + t.duration, visualTaskEnd(t, minPx));
+      });
+      if (cursor < DAY_END - 20) {
+        gaps.push({ start: cursor, end: DAY_END, minutes: DAY_END - cursor, index: gapIndex++ });
+      }
+      return gaps;
+    }
+
+    function timeline(day = state.selectedDay) {
+      const dayTasks = state.tasks.filter(t => t.day === day && t.start != null);
+      assignLanes(dayTasks);
+
+      const taskStarts = dayTasks.map(t => t.start);
+      const markerMinutes = new Set([DAY_START, DAY_END, ...taskStarts]);
+      dayTasks.forEach(t => {
+        const end = Math.min(DAY_END, t.start + t.duration);
+        const nextStartIsTooClose = taskStarts.some(start => start > end && start - end < 30);
+        if (!nextStartIsTooClose) markerMinutes.add(end);
+      });
+      const hourRows = [...markerMinutes]
+        .sort((a, b) => a - b)
+        .map(minute => {
+          const top = ((minute - DAY_START) / 60) * TODAY_HOUR_H;
+          const label = formatTime(minute).replace(' AM', '').replace(' PM', '');
+          return `<div class="hour-row" style="top:${top}px"><span>${label}</span></div>`;
+        }).join('');
+
+      const conflictIds = new Set();
+      dayTasks.forEach(t => {
+        if (dayTasks.some(o => o !== t && tasksTimeOverlap(t, o))) conflictIds.add(t.id);
+      });
+      // Ensure conflict pairs always have opposing lanes
+      dayTasks.forEach(t => {
+        if (!conflictIds.has(t.id)) return;
+        if (!t.lane) t.lane = 'left';
+      });
+
+      const cards = dayTasks.map(t => {
+        const isConflict = conflictIds.has(t.id);
+        const top = ((t.start - DAY_START) / 60) * TODAY_HOUR_H;
+        const minH = isConflict ? 48 : 56;
+        const height = Math.max(minH, (t.duration / 60) * TODAY_HOUR_H);
+        const lane = t.lane ? `lane-${t.lane}` : '';
+        const conflictCls = isConflict ? 'is-conflict' : '';
+        const tall = t.duration >= 60 && !isConflict ? 'tall-node' : '';
+        const glyph = taskGlyph(t);
+        const completeLabel = t.complete ? 'Mark incomplete' : 'Mark complete';
+        const meta = isConflict
+          ? `${formatTime(t.start)} – ${formatTime(t.start + t.duration)}`
+          : formatTimeRange(t.start, t.duration);
+        return `<article class="task-card ${edgeClass(t)} ${lane} ${conflictCls} ${tall} ${state.selectedTask === t.id ? 'selected' : ''} ${t.complete ? 'complete' : ''}"
+          data-task="${t.id}" tabindex="0" role="button"
+          style="top:${top}px;height:${height}px"
+          aria-label="${escapeHtml(t.title)}, ${formatTime(t.start)}, ${formatDuration(t.duration)}${t.must ? ', must' : ''}${t.complete ? ', complete' : ''}">
+          <div class="task-node" aria-hidden="true">${icon(glyph)}</div>
+          <div class="task-body">
+            <div class="task-meta">
+              <span>${meta}</span>
+              ${t.must ? '<span class="must-mark" title="Must task">★</span>' : ''}
+            </div>
+            <div class="task-title">${escapeHtml(t.title)}</div>
+          </div>
+          <button class="task-complete ${t.complete ? 'is-done' : ''}" data-action="toggle-complete" data-id="${t.id}"
+            aria-label="${completeLabel}: ${escapeHtml(t.title)}" title="${completeLabel}">
+            ${t.complete ? icon('check') : ''}
+          </button>
+          <button class="resize-handle" data-resize="${t.id}" aria-label="Resize ${escapeHtml(t.title)}"></button>
+        </article>`;
+      }).join('');
+
+      const gaps = buildGaps(dayTasks, conflictIds).map(g => {
+        const top = ((g.start - DAY_START) / 60) * TODAY_HOUR_H;
+        const height = ((g.end - g.start) / 60) * TODAY_HOUR_H;
+        // Only show prompt when message + Add task fit without spilling into tasks
+        if (height < 56) return '';
+        return `<div class="timeline-gap" style="top:${top}px;height:${height}px">
+          <div class="gap-msg"><span class="gap-icon">${icon('clock')}</span><span>${gapMessage(g.minutes, g.index)}</span></div>
+          <button class="gap-add" data-action="add-at" data-start="${g.start}" data-day="${day}" aria-label="Add task at ${formatTime(g.start)}">
+            ${icon('plus')} Add task
+          </button>
+        </div>`;
+      }).join('');
+
+      const nowTop = ((NOW_MIN - DAY_START) / 60) * TODAY_HOUR_H;
+      const showNow = day === 1; // demo "now" on Tuesday sample day
+      return `<div class="timeline-wrap">
+        <div class="timeline-handle" aria-hidden="true"></div>
+        <div class="timeline" data-timeline="${day}" tabindex="0" aria-label="Day timeline from 7 AM to midnight. Click empty time to create a task.">
+          ${hourRows}
+          <div class="timeline-spine" aria-hidden="true"></div>
+          ${showNow ? `<div class="current-line" style="top:${nowTop}px" aria-hidden="true"></div>` : ''}
+          ${gaps}
+          ${cards}
+        </div>
+      </div>`;
+    }
+
+    function todayHeading() {
+      const d = DAYS[state.selectedDay];
+      const month = 'August';
+      return `<button class="icon-button" data-action="calendar" aria-label="Open calendar for ${month} ${d.date}, 2026" style="width:auto;height:auto;border-radius:12px;padding:4px 2px;justify-self:start">
+        <h1 class="today-heading">${month} ${d.date}, <span class="year">2026</span><span class="chev" aria-hidden="true">${icon('down')}</span></h1>
+      </button>`;
+    }
+
+    function todayView() {
+      return `<header class="appbar today-appbar"><div class="appbar-row">${todayHeading()}</div></header>
+        <section class="content content-today">${dateStrip()}${todayUnscheduledControl()}${timeline()}</section>`;
+    }
+
+    function rpmTaskRow(t) {
+      const selectable = state.rpmSelecting;
+      const selected = state.selectedRpmTasks.includes(t.id);
+      return `<div class="rpm-task ${t.complete ? 'done' : ''}" data-rpm-row="${t.id}">
+        <button class="check-button" data-action="${selectable ? 'select-rpm-task' : 'complete-rpm-task'}" data-id="${t.id}"
+          aria-label="${selectable ? 'Select' : 'Complete'} ${escapeHtml(t.title)}">
+          <span class="check-circle ${selectable && selected ? 'selected' : ''}">${selectable ? (selected ? '✓' : '') : (t.complete ? '✓' : '')}</span>
+        </button>
+        <span class="must" title="${t.must ? 'Must task' : 'Optional'}">${t.must ? '★' : '☆'}</span>
+        <span class="priority">${t.priority}</span>
+        <span class="rpm-title">${escapeHtml(t.title)}</span>
+        <span class="duration">${formatDuration(t.duration)}</span>
+      </div>`;
+    }
+
+    function rpmView() {
+      const shown = state.rpmTasks.filter(t => state.rpmFilter === 'all' || t.must);
+      const allTime = state.rpmTasks.reduce((sum, t) => sum + t.duration, 0);
+      const allRemaining = state.rpmTasks.filter(t => !t.complete).reduce((sum, t) => sum + t.duration, 0);
+      const mustTime = state.rpmTasks.filter(t => t.must).reduce((sum, t) => sum + t.duration, 0);
+      const mustRemaining = state.rpmTasks.filter(t => t.must && !t.complete).reduce((sum, t) => sum + t.duration, 0);
+      const timeSummary = state.rpmFilter === 'must'
+        ? `Must time ${formatDuration(mustTime)} · Must remaining ${formatDuration(mustRemaining)}`
+        : `All time ${formatDuration(allTime)} · Remaining ${formatDuration(allRemaining)}`;
+      const selectedTime = state.rpmTasks.filter(t => state.selectedRpmTasks.includes(t.id)).reduce((n, t) => n + t.duration, 0);
+
+      const launchOpen = state.rpmOpen === 'launch';
+      const launchBody = launchOpen ? `<div class="block-body">
+          <div class="rp-stack">
+            <p class="rp-purpose"><b>Purpose</b>${escapeHtml(RPM_BLOCKS[0].purpose)}</p>
+          </div>
+          <div class="meta-line">${icon('clock')}<span>${timeSummary}</span></div>
+          <div class="segment" role="tablist" aria-label="Task filter">
+            <button class="${state.rpmFilter === 'all' ? 'selected' : ''}" data-rpm-filter="all">All</button>
+            <button class="${state.rpmFilter === 'must' ? 'selected' : ''}" data-rpm-filter="must">Must only</button>
+          </div>
+          <div class="rpm-task-list">${shown.map(rpmTaskRow).join('')}</div>
+          <div class="block-actions">
+            <button class="tonal-button" data-action="add-rpm-task">${icon('plus')}<span>Add task</span></button>
+            <button class="tonal-button" data-action="rpm-select-mode">${icon('calendar')}<span>${state.rpmSelecting ? 'Cancel' : 'Schedule'}</span></button>
+          </div>
+        </div>` : '';
+
+      const blockIcons = { launch: 'target', deep: 'spark', life: 'list' };
+      const blockCards = RPM_BLOCKS.map(b => {
+        const open = b.id === 'launch' && launchOpen;
+        const remaining = b.id === 'launch' ? formatDuration(allRemaining) : b.remaining;
+        const taskCount = b.id === 'launch' ? state.rpmTasks.length : b.tasks;
+        const action = b.id === 'launch' ? 'toggle-rpm' : 'toast-block';
+        const expandState = b.id === 'launch' ? ` aria-expanded="${open}"` : '';
+        const trailingIcon = b.id === 'launch' ? 'down' : 'arrow';
+        return `<article class="block ${open ? 'open' : ''}" style="view-transition-name: rpm-${b.id}">
+          <button class="block-stub" data-action="${action}" data-id="${b.id}"${expandState}>
+            <span class="rpm-block-icon" aria-hidden="true">${icon(blockIcons[b.id])}</span>
+            <span class="block-stub-copy">
+              <strong>${escapeHtml(b.title)}</strong>
+              <span class="rpm-card-result">${escapeHtml(b.result)}</span>
+              <span class="rpm-card-state"><span class="rpm-card-state-text">${open ? 'Open' : 'Ready'} · ${remaining} · ${taskCount} tasks</span></span>
+            </span>
+            <span class="rpm-chevron" aria-hidden="true">${icon(trailingIcon)}</span>
+          </button>
+          ${open ? launchBody : ''}
+        </article>`;
+      }).join('');
+
+      return `${appbar('RPM', `<button class="tonal-button" data-action="new-block">${icon('plus')}<span>New block</span></button>`)}
+        <section class="content">
+          <button class="tray" data-action="toast-unassigned" aria-expanded="false">
+            <span class="label">Unassigned tasks</span>
+            <span class="count">4</span>
+            <span class="chev" aria-hidden="true">${icon('down')}</span>
+          </button>
+          <h2 class="section-label">RPM blocks</h2>
+          <div class="block-list">${blockCards}</div>
+          ${state.rpmSelecting ? `<div class="selection-bar"><b>${state.selectedRpmTasks.length} selected · ${formatDuration(selectedTime)}</b>
+            <button data-action="schedule-selection" ${!state.selectedRpmTasks.length ? 'disabled' : ''}>Schedule</button></div>` : ''}
+        </section>`;
+    }
+
+    function projectCard(p) {
+      const glyphs = {
+        website: 'window',
+        launch: 'target',
+        growth: 'leaf'
+      };
+      const glyph = glyphs[p.id] || 'folder';
+      const deadlineMeta = p.status === 'complete'
+        ? 'Done'
+        : p.status === 'onhold'
+          ? 'On hold'
+          : p.deadline === 'No deadline'
+            ? 'Flexible'
+            : 'Deadline';
+      return `<article class="project-card">
+        <button class="project-reference-main" data-project="${p.id}" aria-label="Open ${escapeHtml(p.name)}">
+          <div class="project-reference-head">
+            <span class="project-reference-icon" aria-hidden="true">${icon(glyph)}</span>
+            <span class="project-reference-title">
+              <strong>${escapeHtml(p.name)}</strong>
+              <small>${icon('calendar')}${escapeHtml(p.deadline)}</small>
+            </span>
+            <span class="project-more" aria-hidden="true">•••</span>
+          </div>
+          <div class="project-progress-row" aria-label="${p.progress}% complete">
+            <span class="project-progress-track" aria-hidden="true"><i style="width:${p.progress}%"></i></span>
+            <b>${p.progress}%</b>
+          </div>
+          <div class="project-metrics" aria-label="Project metrics">
+            <span class="project-metric">${icon('clock')}<b>${escapeHtml(p.remaining)}</b><em>remaining</em></span>
+            <span class="project-metric">${icon('layers')}<b>${p.tasks} tasks</b><em>${p.blocks} RPM ${p.blocks === 1 ? 'block' : 'blocks'}</em></span>
+            <span class="project-metric">${icon('flag')}<b>${escapeHtml(p.deadline)}</b><em>${escapeHtml(deadlineMeta)}</em></span>
+          </div>
+          <span class="project-next-panel">
+            <span class="project-next-spark" aria-hidden="true">✦</span>
+            <span class="project-next-copy"><b>Next task</b> · ${escapeHtml(p.next)}</span>
+            <span class="project-next-arrow" aria-hidden="true">${icon('arrow')}</span>
+          </span>
+        </button>
+      </article>`;
+    }
+
+    function projectDetail(p) {
+      const glyphs = { website: 'window', launch: 'target', growth: 'leaf' };
+      const glyph = glyphs[p.id] || 'folder';
+      const deadlineMeta = p.deadline === 'No deadline' ? 'Flexible' : 'Deadline';
+      return `<header class="project-detail-header">
+          <div class="project-detail-title-row">
+            <button class="project-detail-back" data-action="project-back" aria-label="Back to projects">${icon('back')}</button>
+            <span class="project-detail-header-icon" aria-hidden="true">${icon(glyph)}</span>
+            <div class="project-detail-title-copy"><small>Project</small><h1>${escapeHtml(p.name)}</h1></div>
+          </div>
+        </header>
+        <section class="content project-detail-content">
+          <article class="project-detail-hero">
+            <div class="project-detail-outcome">
+              <span class="project-reference-icon" aria-hidden="true">${icon(glyph)}</span>
+              <div><h2>Outcome</h2><p>${escapeHtml(p.goal)}</p></div>
+            </div>
+            <div class="project-progress-row" aria-label="${p.progress}% complete">
+              <span class="project-progress-track" aria-hidden="true"><i style="width:${p.progress}%"></i></span>
+              <b>${p.progress}%</b>
+            </div>
+            <div class="project-metrics" aria-label="Project metrics">
+              <span class="project-metric">${icon('clock')}<b>${escapeHtml(p.remaining)}</b><em>remaining</em></span>
+              <span class="project-metric">${icon('layers')}<b>${p.tasks} tasks</b><em>${p.blocks} RPM ${p.blocks === 1 ? 'block' : 'blocks'}</em></span>
+              <span class="project-metric">${icon('flag')}<b>${escapeHtml(p.deadline)}</b><em>${deadlineMeta}</em></span>
+            </div>
+            <button class="project-next-panel" data-action="project-schedule">
+              <span class="project-next-spark" aria-hidden="true">✦</span>
+              <span class="project-next-copy"><b>Next task</b> · ${escapeHtml(p.next)}</span>
+              <span class="project-next-arrow" aria-hidden="true">${icon('arrow')}</span>
+            </button>
+          </article>
+
+          <article class="project-detail-section">
+            <div class="project-detail-section-heading">
+              <span class="project-detail-section-icon" aria-hidden="true">${icon('target')}</span>
+              <div><h2>RPM blocks</h2><p>${p.blocks} connected to this project</p></div>
+            </div>
+            <button class="project-detail-rpm" data-action="toast-block">
+              <span aria-hidden="true">${icon('target')}</span>
+              <span class="project-detail-item-copy"><strong>Launch sprint</strong><small>Ship a clear launch story · 3h · 4 tasks</small></span>
+              ${icon('arrow')}
+            </button>
+          </article>
+
+          <article class="project-detail-section">
+            <div class="project-detail-section-heading">
+              <span class="project-detail-section-icon" aria-hidden="true">${icon('list')}</span>
+              <div><h2>Unassigned tasks</h2><p>Tasks not yet in an RPM block</p></div>
+            </div>
+            <button class="project-detail-task" data-action="project-schedule">
+              <span aria-hidden="true">${icon('list')}</span>
+              <span class="project-detail-item-copy"><strong>Check project notes</strong><small>30m · Ready to schedule</small></span>
+              ${icon('arrow')}
+            </button>
+            <button class="project-detail-schedule" data-action="project-schedule">${icon('calendar')}<span>Schedule project tasks</span></button>
+          </article>
+        </section>`;
+    }
+
+    function projectsView() {
+      if (state.projectOpen) {
+        const p = projects.find(x => x.id === state.projectOpen);
+        if (p) return projectDetail(p);
+      }
+      const filtered = projects.filter(p => p.status === state.projectFilter);
+      return `${appbar('Projects', `<button class="tonal-button" data-action="new-project">${icon('plus')}<span>New project</span></button>`)}
+        <section class="content">
+          <div class="filter-row" role="tablist" aria-label="Project filters">
+            ${[['active','Active'],['onhold','On hold'],['complete','Complete']].map(([id, label]) =>
+              `<button class="chip ${state.projectFilter === id ? 'selected' : ''}" data-project-filter="${id}">${label}</button>`
+            ).join('')}
+          </div>
+          <div class="project-list">
+            ${filtered.map(projectCard).join('') || '<div class="empty">No projects in this group.</div>'}
+          </div>
+        </section>`;
+    }
+
+    function weekWorkloadCard() {
+      const maxMinutes = Math.max(...WEEK_PLAN_MINUTES, 60);
+      const totalMinutes = WEEK_PLAN_MINUTES.reduce((sum, minutes) => sum + minutes, 0);
+      const bars = DAYS.map((d, i) => {
+        const minutes = WEEK_PLAN_MINUTES[i];
+        const over = minutes > FOCUS_BUDGET;
+        const selected = state.selectedDay === i;
+        const height = Math.max(5, Math.round((minutes / maxMinutes) * 100));
+        return `<button type="button" class="week-bar ${selected ? 'selected' : ''} ${over ? 'over' : ''}"
+          data-day="${i}" style="--bar:${height}%"
+          aria-label="${d.label}, ${formatHoursShort(minutes)} planned${over ? ', overload' : ''}"
+          aria-pressed="${selected}">
+          <span class="bar-hours">${over ? '⚠ ' : ''}${formatHoursShort(minutes)}</span>
+          <span class="bar-well" aria-hidden="true"><i class="bar-fill"></i></span>
+          <span class="bar-day">${d.dow.slice(0, 1)}</span>
+          <span class="bar-date">${d.date}</span>
+        </button>`;
+      }).join('');
+
+      return `<article class="week-hours-card">
+        <div class="week-hours-heading">
+          <h2>Planned hours</h2>
+          <strong>${formatHoursShort(totalMinutes)}</strong><span>total</span>
+        </div>
+        <div class="week-chart" aria-label="Planned workload by day">${bars}</div>
+      </article>`;
+    }
+
+    function weekUnscheduledTray() {
+      const tasks = state.tasks.filter(t => t.day === state.selectedDay && t.start == null);
+      return `<button class="week-unscheduled" data-action="toggle-unscheduled" aria-expanded="${state.unscheduledOpen}" aria-label="Unscheduled tasks, ${tasks.length}">
+          <span class="week-unscheduled-icon" aria-hidden="true">${icon('list')}</span>
+          <span class="week-unscheduled-copy"><strong>Unscheduled tasks</strong><small>${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'}</small></span>
+          <span class="chev" aria-hidden="true">${icon('down')}</span>
+        </button>
+        ${state.unscheduledOpen ? `<div class="tray-list week-tray-list">${tasks.length
+          ? tasks.map(t => `<button class="tray-item" data-task="${t.id}"><span class="rail ${edgeClass(t)}"></span><b>${escapeHtml(t.title)}</b><small>${formatDuration(t.duration)}</small></button>`).join('')
+          : '<div class="empty">No unscheduled tasks for this day.</div>'}</div>` : ''}`;
+    }
+
+    function agendaRow(t) {
+      const glyph = t.complete ? 'check' : taskGlyph(t);
+      return `<article class="agenda-row ${edgeClass(t)} ${t.complete ? 'complete' : ''}" data-task="${t.id}" tabindex="0" role="button"
+        aria-label="${escapeHtml(t.title)}, ${formatTime(t.start)}, ${formatDuration(t.duration)}${t.must ? ', must' : ''}${t.complete ? ', complete' : ''}">
+        <span class="agenda-glyph" aria-hidden="true">${icon(glyph)}</span>
+        <div class="agenda-copy">
+          <strong>${escapeHtml(t.title)}</strong>
+          <small>${formatTime(t.start)} – ${formatTime(t.start + t.duration)}${t.rpm ? ` · ${escapeHtml(t.rpm)}` : ''}</small>
+        </div>
+        <span class="agenda-duration">${t.must ? '<span class="must-symbol" title="Must task">★</span>' : ''}${formatDuration(t.duration)}</span>
+      </article>`;
+    }
+
+    function weekView() {
+      const dayTasks = state.tasks
+        .filter(t => t.day === state.selectedDay && t.start != null)
+        .sort((a, b) => a.start - b.start);
+      const selectedDay = DAYS[state.selectedDay];
+      const agendaLabel = state.selectedDay === 1
+        ? `Today, Aug ${selectedDay.date}`
+        : `${selectedDay.dow}, Aug ${selectedDay.date}`;
+      return `<header class="week-header">
+          <div class="week-title-row">
+            <div class="week-title-copy"><h1>Week</h1><p>Shape a calm, intentional week.</p></div>
+            <button class="week-calendar-button" data-action="calendar" aria-label="Open calendar">${icon('calendar')}</button>
+          </div>
+          <button class="week-range" data-action="calendar" aria-label="Choose week, August 10 to 16">
+            ${icon('back')}<span>Aug 10 – 16</span>${icon('arrow')}
+          </button>
+        </header>
+        <section class="content week-content">
+          ${weekWorkloadCard()}
+          ${weekUnscheduledTray()}
+          <h2 class="week-day-heading">${agendaLabel}</h2>
+          <div class="agenda-list">
+            ${dayTasks.length
+              ? dayTasks.map(agendaRow).join('')
+              : '<div class="empty">Nothing is scheduled. Use + to capture a task.</div>'}
+          </div>
+        </section>`;
+    }
+
+    function statePanel() {
+      const visible = {
+        view: state.view,
+        day: DAYS[state.selectedDay].label,
+        selectedTask: state.selectedTask,
+        rpmFilter: state.rpmFilter,
+        rpmSelecting: state.rpmSelecting,
+        selectedRpmTasks: state.selectedRpmTasks,
+        projectFilter: state.projectFilter,
+        projectOpen: state.projectOpen
+      };
+      return `<details class="state-panel"><summary>Prototype state</summary><pre>${JSON.stringify(visible, null, 2)}</pre></details>`;
+    }
+
+    function bottomNav() {
+      const items = [
+        ['today', 'navToday', 'Today'],
+        ['rpm', 'navRpm', 'RPM'],
+        ['projects', 'navProjects', 'Projects'],
+        ['week', 'navWeek', 'Week']
+      ];
+      return `<nav class="bottom-nav" aria-label="Main navigation">${items.map(([id, ic, label]) =>
+        `<button class="nav-item ${state.view === id ? 'selected' : ''}" data-view="${id}" aria-current="${state.view === id ? 'page' : 'false'}">
+          <span class="nav-icon">${icon(ic)}</span><span>${label}</span>
+        </button>`
+      ).join('')}</nav>`;
+    }
+
+    function captureUI() {
+      if (!state.captureOpen) return '';
+      return `<div class="capture">
+        <label class="sr-only" for="capture-input">Task title</label>
+        <input id="capture-input" autocomplete="off" placeholder="Add a task…">
+        <button data-action="capture-done">Done</button>
+      </div>`;
+    }
+
+    function taskSheet() {
+      if (!state.taskSheetOpen || state.selectedTask == null) return '';
+      const t = state.tasks.find(task => task.id === state.selectedTask);
+      if (!t) return '';
+      return `<div class="scrim" data-action="close-sheet"></div>
+        <section class="sheet task-sheet" role="dialog" aria-modal="true" aria-label="Task details">
+          <div class="sheet-handle"></div>
+          <div class="task-sheet-heading">
+            <span class="task-sheet-icon" aria-hidden="true">${icon(taskGlyph(t))}</span>
+            <div><h2>Task details</h2><p>Edit the task and its schedule.</p></div>
+            <button class="task-sheet-close" data-action="close-sheet" aria-label="Close task details">${icon('close')}</button>
+          </div>
+          <div class="field"><label for="task-title">Title</label><input id="task-title" value="${escapeHtml(t.title)}"></div>
+          <div class="field"><label for="task-notes">Notes</label><textarea id="task-notes" placeholder="Plain notes">${escapeHtml(t.notes || '')}</textarea></div>
+          <div class="field-row">
+            <div class="field"><label for="task-date">Day</label>
+              <select id="task-date">${DAYS.map((d, i) => `<option value="${i}" ${t.day === i ? 'selected' : ''}>${d.label}</option>`).join('')}</select>
+            </div>
+            <div class="field"><label for="task-time">Start time</label>
+              <input id="task-time" type="time" step="900" value="${t.start == null ? '' : `${String(Math.floor(t.start / 60)).padStart(2, '0')}:${String(t.start % 60).padStart(2, '0')}`}">
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label for="task-duration">Duration</label>
+              <select id="task-duration">${[15, 30, 45, 60, 90, 120, 180].map(n =>
+                `<option value="${n}" ${t.duration === n ? 'selected' : ''}>${formatDuration(n)}</option>`
+              ).join('')}</select>
+            </div>
+            <div class="field"><label for="task-priority">Priority number</label>
+              <input id="task-priority" type="number" min="1" max="99" value="${t.priority || 1}">
+            </div>
+          </div>
+          <div class="field"><label for="task-rpm">RPM block</label>
+            <select id="task-rpm">
+              <option value="">No RPM block</option>
+              ${['Launch sprint', 'Deep work', 'Life admin'].map(v =>
+                `<option ${t.rpm === v ? 'selected' : ''}>${v}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <label class="toggle-row"><input id="task-must" type="checkbox" ${t.must ? 'checked' : ''}><span><b>Must task</b><br><small style="color:var(--mute)">Priority number stays separate.</small></span></label>
+          <label class="toggle-row"><input id="task-complete" type="checkbox" ${t.complete ? 'checked' : ''}><span><b>Complete</b></span></label>
+          <div class="sheet-actions">
+            <button class="delete" data-action="delete-task">Delete</button>
+            <button class="save" data-action="save-task">Save task</button>
+          </div>
+        </section>`;
+    }
+
+    function scheduleSheet() {
+      if (!state.scheduleOpen) return '';
+      const chosen = state.rpmTasks.filter(t => state.selectedRpmTasks.includes(t.id));
+      const total = chosen.reduce((n, t) => n + t.duration, 0);
+      return `<div class="scrim" data-action="close-schedule"></div>
+        <section class="sheet" role="dialog" aria-modal="true" aria-label="Schedule selected tasks">
+          <div class="sheet-handle"></div>
+          <h2>Schedule selected tasks</h2>
+          <p style="margin:0 0 8px;color:var(--mute)">${chosen.length} tasks · ${formatDuration(total)}</p>
+          <div class="schedule-list">${chosen.map(t =>
+            `${t.must ? '★' : '☆'} ${t.priority}. ${escapeHtml(t.title)} · ${formatDuration(t.duration)}`
+          ).join('<br>')}</div>
+          <div class="field-row">
+            <div class="field"><label for="schedule-day">Day</label>
+              <select id="schedule-day">${DAYS.map((d, i) =>
+                `<option value="${i}" ${i === 1 ? 'selected' : ''}>${d.label}</option>`
+              ).join('')}</select>
+            </div>
+            <div class="field"><label for="schedule-time">Start at</label>
+              <input id="schedule-time" type="time" value="09:00" step="900">
+            </div>
+          </div>
+          <div class="field"><label for="schedule-placement">Placement</label>
+            <select id="schedule-placement">
+              <option value="separate">Separate tasks</option>
+              <option value="block">One large RPM block</option>
+            </select>
+          </div>
+          <div class="sheet-actions">
+            <button class="text-button" data-action="close-schedule">Cancel</button>
+            <button class="save" data-action="confirm-schedule">Place on timeline</button>
+          </div>
+        </section>`;
+    }
+
+    function render() {
+      const views = { today: todayView, rpm: rpmView, projects: projectsView, week: weekView };
+      const showFab = !state.captureOpen
+        && !state.scheduleOpen
+        && !(state.view === 'rpm' && state.rpmSelecting);
+
+      document.getElementById('phone').className = `phone view-${state.view}`;
+      document.getElementById('phone').innerHTML =
+        `<div class="app">${views[state.view]()}</div>`
+        + (showFab ? `<button class="fab" data-action="capture" aria-label="Capture task">${icon('plus')}</button>` : '')
+        + captureUI()
+        + bottomNav()
+        + taskSheet()
+        + scheduleSheet()
+        + (state.toast ? `<div class="toast" role="status">${escapeHtml(state.toast)}</div>` : '');
+
+      if (state.captureOpen) requestAnimationFrame(() => document.getElementById('capture-input')?.focus());
+      if (state.taskSheetOpen) requestAnimationFrame(() => document.getElementById('task-title')?.focus());
+      if (state.scheduleOpen) requestAnimationFrame(() => document.getElementById('schedule-day')?.focus());
+
+      // Today opens at scrollY 0 so the large date heading stays visible (no auto-scroll).
+
+    }
+
+    function toast(message) {
+      state.toast = message;
+      render();
+      clearTimeout(state.toastTimer);
+      state.toastTimer = setTimeout(() => { state.toast = ''; render(); }, 1800);
+    }
+
+    function openTask(id) {
+      state.selectedTask = Number(id);
+      state.taskSheetOpen = true;
+      state.captureOpen = false;
+      render();
+    }
+
+    function captureTask() {
+      const input = document.getElementById('capture-input');
+      const title = input?.value.trim();
+      if (!title) return;
+      const rpm = state.view === 'rpm' && state.rpmOpen === 'launch' ? 'Launch sprint' : '';
+      state.tasks.push({
+        id: Date.now(),
+        title,
+        day: state.selectedDay,
+        start: null,
+        duration: 30,
+        rpm,
+        color: edgeFromRpm(rpm),
+        must: false,
+        priority: state.tasks.length + 1,
+        notes: '',
+        complete: false
+      });
+      input.value = '';
+      toast(`Added “${title}” to ${state.view === 'rpm' ? 'Launch sprint' : DAYS[state.selectedDay].label}`);
+      state.captureOpen = true;
+    }
+
+    function saveTask() {
+      const t = state.tasks.find(task => task.id === state.selectedTask);
+      if (!t) return;
+      t.title = document.getElementById('task-title').value.trim() || 'Untitled task';
+      t.notes = document.getElementById('task-notes').value;
+      t.day = Number(document.getElementById('task-date').value);
+      const time = document.getElementById('task-time').value;
+      t.start = time ? Number(time.split(':')[0]) * 60 + Number(time.split(':')[1]) : null;
+      t.duration = Number(document.getElementById('task-duration').value);
+      t.priority = Number(document.getElementById('task-priority').value) || 1;
+      t.rpm = document.getElementById('task-rpm').value;
+      t.color = edgeFromRpm(t.rpm);
+      t.must = document.getElementById('task-must').checked;
+      t.complete = document.getElementById('task-complete').checked;
+      state.taskSheetOpen = false;
+      state.selectedDay = t.day;
+      toast('Task saved');
+    }
+
+    function confirmSchedule() {
+      const day = Number(document.getElementById('schedule-day').value);
+      const [h, m] = document.getElementById('schedule-time').value.split(':').map(Number);
+      const placement = document.getElementById('schedule-placement').value;
+      let cursor = h * 60 + m;
+      const chosen = state.rpmTasks.filter(t => state.selectedRpmTasks.includes(t.id));
+      if (placement === 'block') {
+        state.tasks.push({
+          id: Date.now(),
+          title: 'Launch sprint block',
+          day,
+          start: cursor,
+          duration: chosen.reduce((n, t) => n + t.duration, 0),
+          rpm: 'Launch sprint',
+          color: 'launch',
+          must: chosen.some(t => t.must),
+          priority: 1,
+          notes: chosen.map(t => t.title).join('\n'),
+          complete: false
+        });
+      } else {
+        chosen.forEach((t, i) => {
+          state.tasks.push({
+            id: Date.now() + i,
+            title: t.title,
+            day,
+            start: cursor,
+            duration: t.duration,
+            rpm: 'Launch sprint',
+            color: 'launch',
+            must: t.must,
+            priority: t.priority,
+            notes: '',
+            complete: false
+          });
+          cursor += t.duration;
+        });
+      }
+      state.scheduleOpen = false;
+      state.rpmSelecting = false;
+      state.selectedRpmTasks = [];
+      state.view = 'today';
+      state.selectedDay = day;
+      toast('Tasks placed on the timeline');
+    }
+
+    function createScheduledTask(day, start, duration = 30) {
+      const id = Date.now();
+      state.tasks.push({
+        id,
+        title: 'New scheduled task',
+        day,
+        start,
+        duration,
+        rpm: '',
+        color: 'none',
+        must: false,
+        priority: state.tasks.length + 1,
+        notes: '',
+        complete: false
+      });
+      state.selectedTask = id;
+      state.taskSheetOpen = true;
+      render();
+    }
+
+    document.addEventListener('click', event => {
+      const closedCapture = state.captureOpen && !event.target.closest('.capture, [data-action="capture"]');
+      if (closedCapture) state.captureOpen = false;
+
+      const interactiveInTimeline = event.target.closest(
+        '[data-task], [data-action], button, .gap-add, .task-complete, .resize-handle, .timeline-gap'
+      );
+      const emptyTimeline = event.target.closest('.timeline');
+      if (emptyTimeline && !interactiveInTimeline) {
+        const rect = emptyTimeline.getBoundingClientRect();
+        const start = Math.max(
+          DAY_START,
+          Math.min(1425, DAY_START + Math.round(((event.clientY - rect.top) / TODAY_HOUR_H * 60) / 15) * 15)
+        );
+        createScheduledTask(Number(emptyTimeline.dataset.timeline), start);
+        return;
+      }
+
+      const target = event.target.closest('button, [data-action], [data-task], [data-project], .agenda-row');
+      if (!target) {
+        if (closedCapture) render();
+        return;
+      }
+
+      if (target.dataset.view) {
+        state.view = target.dataset.view;
+        state.captureOpen = false;
+        state.taskSheetOpen = false;
+        state.projectOpen = null;
+        window.scrollTo(0, 0);
+        render();
+        return;
+      }
+      if (target.dataset.day != null) {
+        state.selectedDay = Number(target.dataset.day);
+        state.unscheduledOpen = false;
+        render();
+        return;
+      }
+
+      const action = target.dataset.action;
+      if (action === 'toggle-complete') {
+        event.stopPropagation();
+        const t = state.tasks.find(x => x.id === Number(target.dataset.id));
+        if (t) {
+          t.complete = !t.complete;
+          toast(t.complete ? 'Task completed' : 'Task reopened');
+        }
+        return;
+      }
+      if (action === 'add-at') {
+        event.stopPropagation();
+        const day = Number(target.dataset.day);
+        const start = Number(target.dataset.start);
+        createScheduledTask(day, start);
+        return;
+      }
+
+      if (target.dataset.task) {
+        openTask(target.dataset.task);
+        return;
+      }
+      if (target.dataset.project) {
+        state.projectOpen = target.dataset.project;
+        window.scrollTo(0, 0);
+        render();
+        return;
+      }
+      if (target.dataset.rpmFilter) {
+        state.rpmFilter = target.dataset.rpmFilter;
+        render();
+        return;
+      }
+      if (target.dataset.projectFilter) {
+        state.projectFilter = target.dataset.projectFilter;
+        render();
+        return;
+      }
+
+      if (!action) {
+        if (closedCapture) render();
+        return;
+      }
+      if (action === 'capture') { state.captureOpen = true; render(); }
+      if (action === 'capture-done') { state.captureOpen = false; render(); }
+      if (action === 'toggle-unscheduled') { state.unscheduledOpen = !state.unscheduledOpen; render(); }
+      if (action === 'close-sheet') { state.taskSheetOpen = false; render(); }
+      if (action === 'project-back') { state.projectOpen = null; render(); }
+      if (action === 'toggle-rpm') {
+        const updateRpm = () => {
+          state.rpmOpen = state.rpmOpen === target.dataset.id ? null : target.dataset.id;
+          render();
+        };
+        if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          document.startViewTransition(updateRpm);
+        } else {
+          updateRpm();
+        }
+      }
+      if (action === 'rpm-select-mode') {
+        state.rpmSelecting = !state.rpmSelecting;
+        state.selectedRpmTasks = [];
+        render();
+      }
+      if (action === 'select-rpm-task') {
+        const id = target.dataset.id;
+        state.selectedRpmTasks = state.selectedRpmTasks.includes(id)
+          ? state.selectedRpmTasks.filter(x => x !== id)
+          : [...state.selectedRpmTasks, id];
+        render();
+      }
+      if (action === 'complete-rpm-task') {
+        const t = state.rpmTasks.find(x => x.id === target.dataset.id);
+        if (t) t.complete = !t.complete;
+        render();
+      }
+      if (action === 'schedule-selection' && state.selectedRpmTasks.length) {
+        state.scheduleOpen = true;
+        render();
+      }
+      if (action === 'close-schedule') { state.scheduleOpen = false; render(); }
+      if (action === 'confirm-schedule') { confirmSchedule(); }
+      if (action === 'save-task') { saveTask(); }
+      if (action === 'delete-task') {
+        state.tasks = state.tasks.filter(t => t.id !== state.selectedTask);
+        state.taskSheetOpen = false;
+        state.selectedTask = null;
+        toast('Task deleted');
+      }
+      if (action === 'new-project') toast('Prototype: new project flow starts here.');
+      if (action === 'new-block') toast('Prototype: new RPM block flow starts here.');
+      if (action === 'add-rpm-task') { state.captureOpen = true; render(); }
+      if (action === 'toast-unassigned') toast('Unassigned tasks would open here.');
+      if (action === 'toast-block') toast('This block is collapsed in the prototype.');
+      if (action === 'project-schedule') toast('Select project tasks, then place them in Week or Today.');
+      if (action === 'calendar') toast('Choose another date from the date strip.');
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && event.target.id === 'capture-input') {
+        event.preventDefault();
+        captureTask();
+      }
+      if ((event.key === 'Enter' || event.key === ' ') && event.target.matches('.task-card[data-task], .agenda-row[data-task]')) {
+        event.preventDefault();
+        openTask(event.target.dataset.task);
+      }
+      if (event.key === 'Enter' && event.target.matches('.timeline')) {
+        event.preventDefault();
+        const id = Date.now();
+        const day = Number(event.target.dataset.timeline);
+        state.tasks.push({
+          id,
+          title: 'New scheduled task',
+          day,
+          start: 540,
+          duration: 30,
+          rpm: '',
+          color: 'none',
+          must: false,
+          priority: state.tasks.length + 1,
+          notes: '',
+          complete: false
+        });
+        state.selectedTask = id;
+        state.taskSheetOpen = true;
+        render();
+      }
+      if (event.key === 'Escape') {
+        state.captureOpen = false;
+        state.taskSheetOpen = false;
+        state.scheduleOpen = false;
+        render();
+      }
+    });
+
+    let gesture = null;
+    document.addEventListener('pointerdown', event => {
+      if (event.target.closest('.task-complete, .gap-add, [data-action="toggle-complete"], [data-action="add-at"]')) {
+        return;
+      }
+      const card = event.target.closest('.task-card');
+      if (!card) return;
+      const id = Number(card.dataset.task);
+      const task = state.tasks.find(t => t.id === id);
+      if (!task) return;
+      const resize = Boolean(event.target.closest('[data-resize]'));
+      gesture = {
+        id,
+        startY: event.clientY,
+        originalStart: task.start,
+        originalDuration: task.duration,
+        resize,
+        ready: resize,
+        moved: false
+      };
+      if (!resize) {
+        gesture.timer = setTimeout(() => {
+          if (gesture?.id === id) gesture.ready = true;
+        }, 180);
+      }
+      card.setPointerCapture?.(event.pointerId);
+      event.preventDefault();
+    });
+
+    document.addEventListener('pointermove', event => {
+      if (!gesture || !gesture.ready) return;
+      const dy = event.clientY - gesture.startY;
+      if (Math.abs(dy) < 5) return;
+      gesture.moved = true;
+      const delta = Math.round((dy / TODAY_HOUR_H * 60) / 15) * 15;
+      const task = state.tasks.find(t => t.id === gesture.id);
+      if (!task) return;
+      if (gesture.resize) {
+        task.duration = Math.max(15, Math.min(360, gesture.originalDuration + delta));
+      } else {
+        task.start = Math.max(DAY_START, Math.min(1425, gesture.originalStart + delta));
+      }
+      render();
+    });
+
+    document.addEventListener('pointerup', () => {
+      if (!gesture) return;
+      clearTimeout(gesture.timer);
+      const wasMoved = gesture.moved;
+      const id = gesture.id;
+      gesture = null;
+      if (wasMoved) {
+        state.selectedTask = id;
+        toast('Time updated in 15-minute steps');
+      } else {
+        openTask(id);
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>

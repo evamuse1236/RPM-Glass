@@ -1,0 +1,553 @@
+<!DOCTYPE html><html class="dark" lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><title>RPM System</title><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{width:100vw;margin:0;padding:0;background-color:#0d0c1f;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}
+/* Custom Fluid Micro-Animations & Glow Effects */
+@keyframes staggerFadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 16px rgba(0, 240, 255, 0.4), 0 0 32px rgba(111, 0, 190, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(0, 240, 255, 0.75), 0 0 45px rgba(111, 0, 190, 0.45);
+  }
+}
+
+@keyframes pillPulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(0, 240, 255, 0.65);
+  }
+}
+
+@keyframes shimmerSweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes checkPop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes iconBounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  40% { transform: translateY(-4px) scale(1.15); }
+  75% { transform: translateY(1px) scale(0.98); }
+}
+
+.animate-entrance {
+  animation: staggerFadeUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.shimmer-effect::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+  transform: translateX(-100%);
+  animation: shimmerSweep 2.6s infinite ease-in-out;
+}
+
+.accordion-grid {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accordion-grid.open {
+  grid-template-rows: 1fr;
+}
+
+.accordion-inner {
+  overflow: hidden;
+}
+
+.active-pill-glow {
+  animation: pillPulse 3s infinite ease-in-out;
+}
+
+.fab-pulse {
+  animation: pulseGlow 3s infinite ease-in-out;
+}
+
+.tab-icon-bounce {
+  animation: iconBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "background": "#121125", "on-tertiary-container": "#ae3035", "primary-container": "#00f0ff", "inverse-primary": "#006970", "on-primary-container": "#006970", "secondary-fixed-dim": "#ddb7ff", "surface-dim": "#121125", "on-primary-fixed-variant": "#004f54", "on-secondary": "#490080", "surface-container": "#1f1d31", "outline": "#849495", "inverse-surface": "#e3dffb", "outline-variant": "#3b494b", "primary-fixed-dim": "#00dbe9", "primary": "#dbfcff", "on-primary-fixed": "#002022", "primary-fixed": "#7df4ff", "surface-container-highest": "#343248", "tertiary-fixed": "#ffdad8", "surface-container-lowest": "#0d0c1f", "on-secondary-fixed": "#2c0051", "on-secondary-fixed-variant": "#6900b3", "on-error-container": "#ffdad6", "on-surface-variant": "#b9cacb", "surface-tint": "#00dbe9", "tertiary-container": "#ffcecb", "tertiary": "#fff3f2", "inverse-on-surface": "#302e43", "surface-variant": "#343248", "secondary-fixed": "#f0dbff", "on-tertiary": "#68000f", "secondary-container": "#6f00be", "on-secondary-container": "#d6a9ff", "on-surface": "#e3dffb", "surface": "#121125", "surface-container-high": "#29283c", "surface-bright": "#38374c", "on-tertiary-fixed-variant": "#8c1520", "on-background": "#e3dffb", "error": "#ffb4ab", "secondary": "#ddb7ff", "tertiary-fixed-dim": "#ffb3b0", "on-primary": "#00363a", "on-error": "#690005", "error-container": "#93000a", "surface-container-low": "#1a192d", "on-tertiary-fixed": "#410006" }, borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, spacing: { "space-md": "1rem", "gutter": "0.75rem", "margin": "1rem", "space-lg": "1.5rem", "space-xl": "2rem", "space-sm": "0.5rem", "space-xs": "0.25rem" }, fontFamily: { "headline-sm": ["Plus Jakarta Sans"], "title-md": ["Plus Jakarta Sans"], "headline-lg-mobile": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "chrono-numeric": ["Plus Jakarta Sans"], "body-lg": ["Plus Jakarta Sans"], "body-md": ["Plus Jakarta Sans"], "title-sm": ["Plus Jakarta Sans"], "body-sm": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"], "headline-md": ["Plus Jakarta Sans"] }, fontSize: { "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }], "title-md": ["16px", { "lineHeight": "24px", "fontWeight": "600" }], "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }], "label-sm": ["10px", { "lineHeight": "12px", "fontWeight": "700" }], "label-md": ["12px", { "lineHeight": "16px", "fontWeight": "600" }], "chrono-numeric": ["15px", { "lineHeight": "20px", "fontWeight": "500" }], "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }], "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "title-sm": ["14px", { "lineHeight": "20px", "fontWeight": "600" }], "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }], "headline-lg": ["36px", { "lineHeight": "44px", "fontWeight": "700" }], "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }] } } } };</script></head><body class="bg-surface-container-lowest font-body-md text-on-surface min-h-screen flex flex-col antialiased selection:bg-primary-container selection:text-on-primary-fixed"><header class="fixed top-0 inset-x-0 z-50 pt-safe bg-surface/40 backdrop-blur-2xl transition-all duration-300"><div class="h-14 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><div class="w-2 h-2 rounded-full bg-primary-container shadow-[0_0_10px_rgba(0,240,255,0.7)] animate-pulse"></div><span class="font-title-sm text-title-sm tracking-wide text-on-surface">Projects</span></div><button class="w-8 h-8 rounded-full bg-primary flex items-center justify-center transition-transform duration-200 active:scale-90 hover:shadow-[0_0_12px_rgba(219,252,255,0.5)]"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></button></div></header><main class="flex-1 flex flex-col relative w-full pt-14 pb-28 px-margin bg-surface-container-lowest overflow-y-auto"><div class="flex flex-col w-full space-y-space-md">
+<!-- Category Filter Pills (Horizontal Scroll) -->
+<div class="animate-entrance flex items-center gap-2 overflow-x-auto pb-2 -mx-margin px-margin scrollbar-none" style="animation-delay: 0.05s;">
+<button class="filter-pill active active-pill-glow px-3.5 py-1.5 rounded-full bg-primary-container text-on-primary-fixed font-label-md text-label-md shadow-[0_0_12px_rgba(0,240,255,0.35)] transition-all duration-200 active:scale-95 whitespace-nowrap">
+      All Outcomes (4)
+    </button>
+<button class="filter-pill px-3.5 py-1.5 rounded-full bg-surface-container/60 backdrop-blur-xl text-on-surface-variant font-label-md text-label-md transition-all duration-200 active:scale-95 whitespace-nowrap hover:text-on-surface hover:bg-surface-container-high/70">
+      Q4 Business
+    </button>
+<button class="filter-pill px-3.5 py-1.5 rounded-full bg-surface-container/60 backdrop-blur-xl text-on-surface-variant font-label-md text-label-md transition-all duration-200 active:scale-95 whitespace-nowrap hover:text-on-surface hover:bg-surface-container-high/70">
+      Health &amp; Vitality
+    </button>
+<button class="filter-pill px-3.5 py-1.5 rounded-full bg-surface-container/60 backdrop-blur-xl text-on-surface-variant font-label-md text-label-md transition-all duration-200 active:scale-95 whitespace-nowrap hover:text-on-surface hover:bg-surface-container-high/70">
+      Personal Growth
+    </button>
+</div>
+<!-- High-Level Outcomes Radial Glass Banner -->
+<div class="animate-entrance relative overflow-hidden rounded-xl bg-surface-container/40 backdrop-blur-xl p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition-all duration-300 hover:shadow-[0_12px_32px_rgba(0,0,0,0.5)] border border-surface-container-high/30" style="animation-delay: 0.12s;">
+<!-- Ambient specular aura overlay -->
+<div class="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-primary-container/15 blur-2xl pointer-events-none transition-all duration-700"></div>
+<div class="absolute -bottom-10 -left-10 w-28 h-28 rounded-full bg-secondary-container/25 blur-2xl pointer-events-none"></div>
+<div class="relative flex items-center justify-between gap-4">
+<!-- Left: Titles & Meta chips -->
+<div class="flex-1 min-w-0">
+<h2 class="font-title-md text-title-md text-on-surface truncate">Multi-Block Outcomes</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Results-focused purpose mastery</p>
+<!-- Stats row -->
+<div class="flex items-center gap-2 mt-2.5 flex-wrap">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container-high/70 text-on-surface font-label-sm text-label-sm transition-transform duration-200 hover:scale-105">
+<span class="material-symbols-outlined text-[12px] text-primary-container">layers</span>
+            14 Blocks Total
+          </span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary-fixed-dim font-label-sm text-label-sm transition-transform duration-200 hover:scale-105">
+<span class="material-symbols-outlined text-[12px] text-secondary-fixed-dim">schedule</span>
+            3 Due This Week
+          </span>
+</div>
+</div>
+<!-- Right: Radial Progress Ring with Backlight Glow -->
+<div class="relative flex items-center justify-center w-16 h-16 shrink-0 group">
+<div class="absolute inset-0 rounded-full bg-primary-container/20 blur-md group-hover:bg-primary-container/30 transition-all duration-500"></div>
+<svg class="relative w-16 h-16 -rotate-90" viewBox="0 0 48 48">
+<circle cx="24" cy="24" fill="none" r="19" stroke="rgba(255,255,255,0.08)" stroke-width="4"></circle>
+<circle class="pace-progress-circle transition-all duration-1000 ease-out" cx="24" cy="24" data-offset="38.2" fill="none" r="19" stroke="url(#cyanPurpleGrad)" stroke-dasharray="119.38" stroke-dashoffset="119.38" stroke-linecap="round" stroke-width="4"></circle>
+<defs>
+<linearGradient id="cyanPurpleGrad" x1="0%" x2="100%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#00f0ff"></stop>
+<stop offset="100%" stop-color="#a855f7"></stop>
+</linearGradient>
+</defs>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+<span class="font-chrono-numeric text-chrono-numeric font-bold text-on-surface leading-none">68<span class="text-primary-container text-[11px]">%</span></span>
+<span class="font-label-sm text-[8px] uppercase tracking-wider text-on-surface-variant leading-tight mt-0.5">PACE</span>
+</div>
+</div>
+</div>
+</div>
+<!-- PROJECT CARD 1: AI Design Assistant 2.0 Launch -->
+<article class="animate-entrance project-card relative rounded-xl bg-surface-container/50 backdrop-blur-xl p-4 shadow-[0_12px_28px_rgba(0,0,0,0.4)] transition-all duration-300 hover:shadow-[0_16px_36px_rgba(0,0,0,0.5)] border border-surface-container-high/20" style="animation-delay: 0.2s;">
+<div class="flex items-start justify-between gap-2 mb-2.5">
+<!-- Category Badge -->
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary-container/15 text-primary-container font-label-sm text-label-sm tracking-wide uppercase shadow-[0_0_10px_rgba(0,240,255,0.2)]">
+<span class="material-symbols-outlined text-[12px]">neurology</span>
+        Business &amp; Tech
+      </span>
+<!-- Deadline with Urgency -->
+<div class="flex items-center gap-1 text-tertiary-fixed-dim font-label-md text-label-md bg-tertiary-container/20 px-2 py-0.5 rounded-full transition-transform duration-200 hover:scale-105">
+<span class="material-symbols-outlined text-[13px] text-tertiary-fixed-dim animate-pulse">hourglass_bottom</span>
+<span class="">Oct 28 (12d left)</span>
+</div>
+</div>
+<!-- Title & Purpose with Inline Edit Interaction -->
+<div class="title-container group flex items-center justify-between gap-2 mb-2">
+<div class="flex-1 flex items-center gap-2 min-w-0">
+<h3 class="project-title font-headline-sm text-headline-sm text-on-surface rounded outline-none transition-all duration-200 px-1 -mx-1">AI Design Assistant 2.0 Launch</h3>
+<button aria-label="Edit title" class="edit-btn p-1 text-on-surface-variant/60 hover:text-primary-container active:scale-90 transition-all select-none cursor-pointer shrink-0 rounded-full hover:bg-surface-container-high" title="Edit project title" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button aria-label="Save title" class="save-btn hidden p-1 text-on-primary-fixed bg-primary-container rounded-full shadow-[0_0_10px_rgba(0,240,255,0.5)] active:scale-90 transition-all select-none cursor-pointer shrink-0 animate-[checkPop_0.25s_ease-out]" title="Save title" type="button">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</button>
+</div>
+<span class="saved-indicator hidden text-[11px] font-label-sm text-primary-container animate-pulse whitespace-nowrap shrink-0">Saved ✓</span>
+</div>
+<div class="flex items-start gap-1.5 text-on-surface-variant mb-3">
+<span class="material-symbols-outlined text-[15px] text-primary-container shrink-0 mt-0.5">target</span>
+<p class="font-body-sm text-body-sm leading-snug">
+<span class="text-primary-container font-medium">Result:</span> Establish market leadership with frictionless beta release to 500 early adopters.
+      </p>
+</div>
+<!-- Progress Tracker with Shimmer Bar -->
+<div class="space-y-1.5 mb-3">
+<div class="flex justify-between items-center text-label-sm font-label-sm">
+<span class="text-on-surface-variant font-medium">Progress • 4 of 6 RPM Blocks finished</span>
+<span class="text-primary-container font-chrono-numeric">65%</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container-highest overflow-hidden">
+<div class="progress-bar relative h-full rounded-full bg-gradient-to-r from-primary-container via-primary-fixed-dim to-secondary-container shadow-[0_0_8px_rgba(0,240,255,0.5)] shimmer-effect transition-all duration-1000 ease-out" data-target-width="65%" style="width: 0%;"></div>
+</div>
+</div>
+<!-- Active RPM Blocks Drawer / Accordion Trigger -->
+<div class="mt-2">
+<button aria-expanded="true" class="rpm-toggle w-full flex items-center justify-between py-1 text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors group" data-target="blocks-1" type="button">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary-container transition-transform duration-200 group-hover:scale-110">account_tree</span>
+          RPM Blocks Breakdown (2 active)
+        </span>
+<span class="material-symbols-outlined text-[18px] transition-transform duration-300 ease-out rotate-180 toggle-icon">expand_more</span>
+</button>
+<!-- Expandable Content with Smooth CSS Grid Height Transition -->
+<div class="accordion-grid open" id="blocks-1">
+<div class="accordion-inner">
+<div class="space-y-2 pt-2">
+<div class="task-block cursor-pointer p-2.5 rounded-lg bg-surface-container-low/70 hover:bg-surface-container-high/80 transition-all duration-200 active:scale-[0.99] border border-transparent hover:border-primary-container/20">
+<div class="flex items-center justify-between text-label-sm">
+<span class="task-name text-on-surface font-medium truncate transition-colors">Core Engine &amp; Low Latency Fallback</span>
+<span class="task-status px-2 py-0.5 rounded text-primary-container bg-primary-container/10 shrink-0 font-chrono-numeric transition-all duration-200 flex items-center gap-1">2 of 3 Done</span>
+</div>
+<div class="flex items-center gap-1.5 mt-1 text-on-surface-variant font-body-sm text-[11px]">
+<span class="indicator-dot w-1.5 h-1.5 rounded-full bg-primary-container shrink-0 transition-colors"></span>
+<span class="truncate">Next: Finalize WebGL fallback</span>
+</div>
+</div>
+<div class="task-block cursor-pointer p-2.5 rounded-lg bg-surface-container-low/70 hover:bg-surface-container-high/80 transition-all duration-200 active:scale-[0.99] border border-transparent hover:border-secondary-container/30">
+<div class="flex items-center justify-between text-label-sm">
+<span class="task-name text-on-surface font-medium truncate transition-colors">Beta Onboarding &amp; Telemetry</span>
+<span class="task-status px-2 py-0.5 rounded text-secondary-fixed-dim bg-secondary-container/20 shrink-0 font-chrono-numeric transition-all duration-200 flex items-center gap-1">3 of 4 Done</span>
+</div>
+<div class="flex items-center gap-1.5 mt-1 text-on-surface-variant font-body-sm text-[11px]">
+<span class="indicator-dot w-1.5 h-1.5 rounded-full bg-secondary-fixed-dim shrink-0 transition-colors"></span>
+<span class="truncate">Next: Deploy staging &amp; execute 1k user smoke test</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</article>
+<!-- PROJECT CARD 2: Marathon Sub-3:45 Conditioning -->
+<article class="animate-entrance project-card relative rounded-xl bg-surface-container/50 backdrop-blur-xl p-4 shadow-[0_12px_28px_rgba(0,0,0,0.4)] transition-all duration-300 hover:shadow-[0_16px_36px_rgba(0,0,0,0.5)] border border-surface-container-high/20" style="animation-delay: 0.28s;">
+<div class="flex items-start justify-between gap-2 mb-2.5">
+<!-- Category Badge -->
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary-fixed-dim/20 text-primary-fixed font-label-sm text-label-sm tracking-wide uppercase shadow-[0_0_10px_rgba(0,219,233,0.2)]">
+<span class="material-symbols-outlined text-[12px]">directions_run</span>
+        Health &amp; Longevity
+      </span>
+<!-- Deadline -->
+<div class="flex items-center gap-1 text-on-surface-variant font-label-md text-label-md bg-surface-container-high/60 px-2 py-0.5 rounded-full transition-transform duration-200 hover:scale-105">
+<span class="material-symbols-outlined text-[13px]">calendar_today</span>
+<span class="">Nov 15 (30d left)</span>
+</div>
+</div>
+<!-- Title & Purpose with Inline Edit Interaction -->
+<div class="title-container group flex items-center justify-between gap-2 mb-2">
+<div class="flex-1 flex items-center gap-2 min-w-0">
+<h3 class="project-title font-headline-sm text-headline-sm text-on-surface rounded outline-none transition-all duration-200 px-1 -mx-1">Marathon Sub-3:45 Conditioning</h3>
+<button aria-label="Edit title" class="edit-btn p-1 text-on-surface-variant/60 hover:text-primary-fixed active:scale-90 transition-all select-none cursor-pointer shrink-0 rounded-full hover:bg-surface-container-high" title="Edit project title" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button aria-label="Save title" class="save-btn hidden p-1 text-on-primary-fixed bg-primary-fixed-dim rounded-full shadow-[0_0_10px_rgba(0,219,233,0.5)] active:scale-90 transition-all select-none cursor-pointer shrink-0 animate-[checkPop_0.25s_ease-out]" title="Save title" type="button">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</button>
+</div>
+<span class="saved-indicator hidden text-[11px] font-label-sm text-primary-fixed animate-pulse whitespace-nowrap shrink-0">Saved ✓</span>
+</div>
+<div class="flex items-start gap-1.5 text-on-surface-variant mb-3">
+<span class="material-symbols-outlined text-[15px] text-primary-fixed shrink-0 mt-0.5">favorite</span>
+<p class="font-body-sm text-body-sm leading-snug">
+<span class="text-primary-fixed font-medium">Result:</span> Build aerobic endurance base and peak VO2 max for marathon qualification.
+      </p>
+</div>
+<!-- Progress Tracker with Shimmer Bar -->
+<div class="space-y-1.5 mb-3">
+<div class="flex justify-between items-center text-label-sm font-label-sm">
+<span class="text-on-surface-variant font-medium">Progress • 3 of 7 RPM Blocks finished</span>
+<span class="text-primary-fixed font-chrono-numeric">42%</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container-highest overflow-hidden">
+<div class="progress-bar relative h-full rounded-full bg-gradient-to-r from-primary-fixed via-primary-container to-secondary-container shadow-[0_0_8px_rgba(0,240,255,0.4)] shimmer-effect transition-all duration-1000 ease-out" data-target-width="42%" style="width: 0%;"></div>
+</div>
+</div>
+<!-- Active RPM Blocks Drawer / Accordion Trigger -->
+<div class="mt-2">
+<button aria-expanded="false" class="rpm-toggle w-full flex items-center justify-between py-1 text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors group" data-target="blocks-2" type="button">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary-fixed transition-transform duration-200 group-hover:scale-110">account_tree</span>
+          RPM Blocks Breakdown (2 active)
+        </span>
+<span class="material-symbols-outlined text-[18px] transition-transform duration-300 ease-out toggle-icon">expand_more</span>
+</button>
+<!-- Expandable Content with Smooth CSS Grid Height Transition -->
+<div class="accordion-grid" id="blocks-2">
+<div class="accordion-inner">
+<div class="space-y-2 pt-2">
+<div class="task-block cursor-pointer p-2.5 rounded-lg bg-surface-container-low/70 hover:bg-surface-container-high/80 transition-all duration-200 active:scale-[0.99] border border-transparent hover:border-primary-fixed/20">
+<div class="flex items-center justify-between text-label-sm">
+<span class="task-name text-on-surface font-medium truncate transition-colors">Weekly Progressive Tempo &amp; Threshold Runs</span>
+<span class="task-status px-2 py-0.5 rounded text-primary-fixed bg-primary-fixed-dim/20 shrink-0 font-chrono-numeric transition-all duration-200 flex items-center gap-1">1 of 3 Done</span>
+</div>
+<div class="flex items-center gap-1.5 mt-1 text-on-surface-variant font-body-sm text-[11px]">
+<span class="indicator-dot w-1.5 h-1.5 rounded-full bg-primary-fixed shrink-0 transition-colors"></span>
+<span class="truncate">Next: 14km progressive tempo run (Tomorrow 6:30 AM)</span>
+</div>
+</div>
+<div class="task-block cursor-pointer p-2.5 rounded-lg bg-surface-container-low/70 hover:bg-surface-container-high/80 transition-all duration-200 active:scale-[0.99] border border-transparent hover:border-secondary-container/30">
+<div class="flex items-center justify-between text-label-sm">
+<span class="task-name text-on-surface font-medium truncate transition-colors">Mobility, Recovery &amp; Myofascial Release</span>
+<span class="task-status px-2 py-0.5 rounded text-secondary-fixed-dim bg-secondary-container/20 shrink-0 font-chrono-numeric transition-all duration-200 flex items-center gap-1">2 of 2 Ready</span>
+</div>
+<div class="flex items-center gap-1.5 mt-1 text-on-surface-variant font-body-sm text-[11px]">
+<span class="indicator-dot w-1.5 h-1.5 rounded-full bg-secondary-fixed-dim shrink-0 transition-colors"></span>
+<span class="truncate">Next: 20m dynamic hip activation</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</article>
+<!-- PROJECT CARD 3: Keynote: Future of Generative UI -->
+<article class="animate-entrance project-card relative rounded-xl bg-surface-container/50 backdrop-blur-xl p-4 shadow-[0_12px_28px_rgba(0,0,0,0.4)] transition-all duration-300 hover:shadow-[0_16px_36px_rgba(0,0,0,0.5)] border border-surface-container-high/20" style="animation-delay: 0.36s;">
+<div class="flex items-start justify-between gap-2 mb-2.5">
+<!-- Category Badge -->
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-secondary-container/30 text-secondary-fixed font-label-sm text-label-sm tracking-wide uppercase shadow-[0_0_10px_rgba(168,85,247,0.2)]">
+<span class="material-symbols-outlined text-[12px]">mic</span>
+        Thought Leadership
+      </span>
+<!-- Deadline -->
+<div class="flex items-center gap-1 text-on-surface-variant font-label-md text-label-md bg-surface-container-high/60 px-2 py-0.5 rounded-full transition-transform duration-200 hover:scale-105">
+<span class="material-symbols-outlined text-[13px]">event</span>
+<span class="">Nov 04 (19d left)</span>
+</div>
+</div>
+<!-- Title & Purpose with Inline Edit Interaction -->
+<div class="title-container group flex items-center justify-between gap-2 mb-2">
+<div class="flex-1 flex items-center gap-2 min-w-0">
+<h3 class="project-title font-headline-sm text-headline-sm text-on-surface rounded outline-none transition-all duration-200 px-1 -mx-1">Keynote: Future of Generative UI</h3>
+<button aria-label="Edit title" class="edit-btn p-1 text-on-surface-variant/60 hover:text-secondary-fixed active:scale-90 transition-all select-none cursor-pointer shrink-0 rounded-full hover:bg-surface-container-high" title="Edit project title" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button aria-label="Save title" class="save-btn hidden p-1 text-surface-container-lowest bg-secondary-fixed-dim rounded-full shadow-[0_0_10px_rgba(221,183,255,0.5)] active:scale-90 transition-all select-none cursor-pointer shrink-0 animate-[checkPop_0.25s_ease-out]" title="Save title" type="button">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</button>
+</div>
+<span class="saved-indicator hidden text-[11px] font-label-sm text-secondary-fixed animate-pulse whitespace-nowrap shrink-0">Saved ✓</span>
+</div>
+<div class="flex items-start gap-1.5 text-on-surface-variant mb-3">
+<span class="material-symbols-outlined text-[15px] text-secondary-fixed shrink-0 mt-0.5">auto_awesome</span>
+<p class="font-body-sm text-body-sm leading-snug">
+<span class="text-secondary-fixed font-medium">Result:</span> Inspire next-gen software architects with live generative design prototype.
+      </p>
+</div>
+<!-- Progress Tracker with Shimmer Bar -->
+<div class="space-y-1.5 mb-3">
+<div class="flex justify-between items-center text-label-sm font-label-sm">
+<span class="text-on-surface-variant font-medium">Progress • 1 of 4 RPM Blocks</span>
+<span class="text-secondary-fixed font-chrono-numeric">25%</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container-highest overflow-hidden">
+<div class="progress-bar relative h-full rounded-full bg-gradient-to-r from-secondary-container to-secondary-fixed shadow-[0_0_8px_rgba(221,183,255,0.4)] shimmer-effect transition-all duration-1000 ease-out" data-target-width="25%" style="width: 0%;"></div>
+</div>
+</div>
+<!-- Active RPM Blocks Drawer / Accordion Trigger -->
+<div class="mt-2">
+<button aria-expanded="false" class="rpm-toggle w-full flex items-center justify-between py-1 text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors group" data-target="blocks-3" type="button">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-secondary-fixed transition-transform duration-200 group-hover:scale-110">account_tree</span>
+          RPM Blocks Breakdown (1 active)
+        </span>
+<span class="material-symbols-outlined text-[18px] transition-transform duration-300 ease-out toggle-icon">expand_more</span>
+</button>
+<!-- Expandable Content with Smooth CSS Grid Height Transition -->
+<div class="accordion-grid" id="blocks-3">
+<div class="accordion-inner">
+<div class="space-y-2 pt-2">
+<div class="task-block cursor-pointer p-2.5 rounded-lg bg-surface-container-low/70 hover:bg-surface-container-high/80 transition-all duration-200 active:scale-[0.99] border border-transparent hover:border-secondary-container/30">
+<div class="flex items-center justify-between text-label-sm">
+<span class="task-name text-on-surface font-medium truncate transition-colors">Keynote Visual Architecture &amp; Script</span>
+<span class="task-status px-2 py-0.5 rounded text-secondary-fixed bg-secondary-container/20 shrink-0 font-chrono-numeric transition-all duration-200 flex items-center gap-1">1 of 4 Done</span>
+</div>
+<div class="flex items-center gap-1.5 mt-1 text-on-surface-variant font-body-sm text-[11px]">
+<span class="indicator-dot w-1.5 h-1.5 rounded-full bg-secondary-fixed shrink-0 transition-colors"></span>
+<span class="truncate">Next: Code dynamic shader canvas live demo</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</article>
+</div>
+<script>
+  // Page Mount Transitions (Progress bars & SVG Gauge)
+  window.addEventListener('DOMContentLoaded', () => {
+    // Animate Pace Circular Ring
+    const circle = document.querySelector('.pace-progress-circle');
+    if (circle) {
+      setTimeout(() => {
+        const offset = circle.getAttribute('data-offset');
+        circle.style.strokeDashoffset = offset;
+      }, 250);
+    }
+
+    // Animate Progress Bars smoothly to target widths
+    const progressBars = document.querySelectorAll('.progress-bar');
+    progressBars.forEach((bar, index) => {
+      setTimeout(() => {
+        const target = bar.getAttribute('data-target-width');
+        bar.style.width = target;
+      }, 300 + index * 150);
+    });
+  });
+
+  // Accordion drawer toggle functionality with CSS Grid height animation
+  document.querySelectorAll('.rpm-toggle').forEach(button => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-target');
+      const targetEl = document.getElementById(targetId);
+      const icon = button.querySelector('.toggle-icon');
+
+      if (targetEl) {
+        const isOpen = targetEl.classList.contains('open');
+        if (isOpen) {
+          targetEl.classList.remove('open');
+          icon.classList.remove('rotate-180');
+          button.setAttribute('aria-expanded', 'false');
+        } else {
+          targetEl.classList.add('open');
+          icon.classList.add('rotate-180');
+          button.setAttribute('aria-expanded', 'true');
+        }
+      }
+    });
+  });
+
+  // Filter Pill state toggles with smooth glow active pill
+  document.querySelectorAll('.filter-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('.filter-pill').forEach(p => {
+        p.classList.remove('active', 'active-pill-glow', 'bg-primary-container', 'text-on-primary-fixed', 'shadow-[0_0_12px_rgba(0,240,255,0.35)]');
+        p.classList.add('bg-surface-container/60', 'text-on-surface-variant');
+      });
+      pill.classList.remove('bg-surface-container/60', 'text-on-surface-variant');
+      pill.classList.add('active', 'active-pill-glow', 'bg-primary-container', 'text-on-primary-fixed', 'shadow-[0_0_12px_rgba(0,240,255,0.35)]');
+    });
+  });
+
+  // Inline Project Title Editing Micro-interaction
+  document.querySelectorAll('.title-container').forEach(container => {
+    const title = container.querySelector('.project-title');
+    const editBtn = container.querySelector('.edit-btn');
+    const saveBtn = container.querySelector('.save-btn');
+    const savedIndicator = container.querySelector('.saved-indicator');
+
+    function enableEdit() {
+      title.contentEditable = 'true';
+      title.classList.add('bg-surface-container-high/90', 'ring-2', 'ring-primary-container', 'shadow-[0_0_16px_rgba(0,240,255,0.3)]');
+      title.focus();
+      // Place cursor at the end
+      const range = document.createRange();
+      range.selectNodeContents(title);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+
+      editBtn.classList.add('hidden');
+      saveBtn.classList.remove('hidden');
+    }
+
+    function saveEdit() {
+      title.contentEditable = 'false';
+      title.classList.remove('bg-surface-container-high/90', 'ring-2', 'ring-primary-container', 'shadow-[0_0_16px_rgba(0,240,255,0.3)]');
+      saveBtn.classList.add('hidden');
+      editBtn.classList.remove('hidden');
+
+      if (savedIndicator) {
+        savedIndicator.classList.remove('hidden');
+        setTimeout(() => {
+          savedIndicator.classList.add('hidden');
+        }, 1800);
+      }
+    }
+
+    editBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      enableEdit();
+    });
+
+    saveBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      saveEdit();
+    });
+
+    title?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveEdit();
+      } else if (e.key === 'Escape') {
+        saveEdit();
+      }
+    });
+
+    title?.addEventListener('blur', () => {
+      saveEdit();
+    });
+  });
+
+  // Task check / completion micro-interaction inside blocks
+  document.querySelectorAll('.task-block').forEach(block => {
+    block.addEventListener('click', () => {
+      const statusEl = block.querySelector('.task-status');
+      const dot = block.querySelector('.indicator-dot');
+      const isCompleted = block.getAttribute('data-done') === 'true';
+
+      if (!isCompleted) {
+        block.setAttribute('data-done', 'true');
+        block.classList.add('bg-primary-container/10');
+        statusEl.innerHTML = '<span class="material-symbols-outlined text-[13px] animate-[checkPop_0.2s_ease-out]">check_circle</span> Complete';
+        statusEl.classList.remove('text-on-surface-variant', 'bg-surface-container-highest');
+        statusEl.classList.add('text-primary-container', 'bg-primary-container/20', 'shadow-[0_0_8px_rgba(0,240,255,0.3)]');
+        if (dot) dot.classList.add('shadow-[0_0_8px_rgba(0,240,255,0.8)]');
+      } else {
+        block.setAttribute('data-done', 'false');
+        block.classList.remove('bg-primary-container/10');
+        statusEl.innerHTML = 'Active';
+        statusEl.classList.remove('shadow-[0_0_8px_rgba(0,240,255,0.3)]');
+      }
+    });
+  });
+
+  // Bottom Navigation Dock micro-bounce interaction
+  document.querySelectorAll('nav a').forEach(navItem => {
+    navItem.addEventListener('click', (e) => {
+      const icon = navItem.querySelector('.material-symbols-outlined');
+      if (icon) {
+        icon.classList.remove('tab-icon-bounce');
+        void icon.offsetWidth; // Trigger reflow
+        icon.classList.add('tab-icon-bounce');
+      }
+      document.querySelectorAll('nav a').forEach(item => {
+        item.classList.remove('text-primary-container');
+        item.classList.add('text-on-surface-variant');
+        item.removeAttribute('aria-current');
+      });
+      navItem.classList.remove('text-on-surface-variant');
+      navItem.classList.add('text-primary-container');
+      navItem.setAttribute('aria-current', 'page');
+    });
+  });
+</script></main><aside class="fixed right-margin bottom-28 z-50 flex flex-col items-center gap-space-sm pb-safe"><button aria-label="Search System" class="w-11 h-11 rounded-full bg-surface-container/70 backdrop-blur-xl flex items-center justify-center text-on-surface-variant hover:text-primary-container hover:shadow-[0_0_16px_rgba(0,240,255,0.3)] shadow-[0_8px_20px_rgba(0,0,0,0.4)] transition-all duration-200 active:scale-90" type="button"><span class="material-symbols-outlined text-[20px] transition-transform duration-200 hover:rotate-12">search</span></button><button aria-label="Quick Add RPM Block" class="fab-pulse w-14 h-14 rounded-full bg-gradient-to-br from-primary-container to-secondary-container flex items-center justify-center text-surface-container-lowest shadow-[0_0_24px_rgba(0,240,255,0.45)] transition-all duration-200 active:scale-90 hover:scale-105" type="button"><span class="material-symbols-outlined text-[28px] font-bold transition-transform duration-300 hover:rotate-90">add</span></button></aside><nav class="fixed bottom-0 inset-x-0 z-40 pb-safe bg-surface-container-lowest/80 backdrop-blur-2xl shadow-[0_-8px_32px_rgba(0,0,0,0.6)]" data-active-classes="text-primary-container"><div class="flex justify-around items-center h-16 px-space-xs"><a class="flex flex-col items-center justify-center min-w-[48px] h-12 text-on-surface-variant transition-colors hover:text-on-surface active:scale-95" data-path="daily-calendar" href="#"><span class="material-symbols-outlined text-[22px]">calendar_today</span><span class="font-label-sm text-label-sm mt-1">Calendar</span></a><a class="flex flex-col items-center justify-center min-w-[48px] h-12 text-on-surface-variant transition-colors hover:text-on-surface active:scale-95" data-path="rpm-blocks" href="#"><span class="material-symbols-outlined text-[22px]">functions</span><span class="font-label-sm text-label-sm mt-1">Blocks</span></a><a aria-current="page" class="flex flex-col items-center justify-center min-w-[48px] h-12 transition-colors text-primary-container active:scale-95" data-path="projects" href="#"><span class="material-symbols-outlined text-[22px]">layers</span><span class="font-label-sm text-label-sm mt-1">Projects</span></a><a class="flex flex-col items-center justify-center min-w-[48px] h-12 text-on-surface-variant transition-colors hover:text-on-surface active:scale-95" data-path="life-vision" href="#"><span class="material-symbols-outlined text-[22px]">spa</span><span class="font-label-sm text-label-sm mt-1">Life</span></a><a class="flex flex-col items-center justify-center min-w-[48px] h-12 text-on-surface-variant transition-colors hover:text-on-surface active:scale-95" data-path="settings" href="#"><span class="material-symbols-outlined text-[22px]">settings</span><span class="font-label-sm text-label-sm mt-1">Settings</span></a></div></nav>
+</body></html>
