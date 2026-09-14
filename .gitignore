@@ -26,3 +26,6 @@ __pycache__/
 
 # Generated verification captures and rendered outputs remain local.
 /docs/testing/
+
+.impeccable/hook.cache.json
+.impeccable/review/
