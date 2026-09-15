@@ -6,6 +6,7 @@ import {editPlan} from './planner-state.mjs';
 import {phoneProposal,checkSchedule,scheduleSchema,repeatSuggestion} from './planner-chat.mjs';
 import {createPlannerTools,plannerSummary,plannerInstruction,planningFocus} from './planner-tools.mjs';
 import {createAppTools} from './app-tools.mjs';
+import {executeCaptureAction,goalDraftAction} from './capture-actions.mjs';
 
 // Android's WebView is updateable independently of the OS; support older engines.
 if(!Array.prototype.toReversed)Object.defineProperty(Array.prototype,'toReversed',{value:function(){return this.slice().reverse();}});
@@ -61,6 +62,8 @@ window.RPM_PLATFORM.openPlans=()=>native('planner');
 window.RPM_PLATFORM.goalIdeas=()=>native('planner',{view:'ideas'});
 window.RPM_PLATFORM.planningFocus=()=>planningFocus(data,captureFocus());
 window.RPM_PLATFORM.clearPlanningFocus=()=>localStorage.removeItem('rpm-capture-context');
+window.RPM_PLATFORM.captureAction=action=>executeCaptureAction(data,action,native);
+window.RPM_PLATFORM.suggestionAction=(suggestion,sourceRaw,at)=>goalDraftAction(suggestion,sourceRaw,at?new Date(at):new Date());
 window.rpmPhoneRefresh=async()=>{await ready;if(!busy){const latest=await native('load');phone=latest.phone;if(latest.data&&latest.data.version!==data.version){data=latest.data;window.dispatchEvent(new Event('rpm-data-refresh'));}}window.dispatchEvent(new Event('rpm-phone-status'));};
 await ready;
 if(isPlanner){

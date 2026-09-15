@@ -1,5 +1,6 @@
 import {ENDPOINT} from '../cli/openrouter.mjs';
 import {tools,schemas,validate,readContext,initialContext,propose} from './companion-tools.mjs';
+import {bindSuggestionActions} from '../android-companion/capture-actions.mjs';
 
 // Prototype-only choice. Keep the separately configured CLI model untouched.
 export const MODEL='openai/gpt-5.6-luna';
@@ -10,6 +11,8 @@ const toolExamples=`Tool conventions (IDs here are illustrative; use actual cont
 * User: "move the run to 6am and walk to either 7am or 7pm" -> TWO operations in the SAME proposal: update Run with fields {"time":"6am"}, AND update Walk with fields {"time":null}. Set question="For the walk, 7 AM or 7 PM?" and provide both choice bubbles. The null is an unresolved slot while a question is open; the entire proposal is held. Never omit the ambiguous activity, and never omit the already clear activity.
 * Reply: "7pm for the walk" -> continuation=true, BOTH original operations, Run time="6am" AND Walk time="7pm", question=null. Only then can the whole transaction commit.
 Every field not requested is omitted, not an empty string or null. Null without a question means an explicit request to clear a value.`;
+const androidSuggestionSchema={type:'object',properties:{label:{type:'string',maxLength:60},text:{type:'string',maxLength:800},action:{type:['string','null'],enum:['goal_draft',null]},title:{type:['string','null'],maxLength:200}},required:['label','text'],additionalProperties:false};
+const androidRespondSchema={type:'object',properties:{message:{type:'string',minLength:1,maxLength:4000},suggestions:{type:'array',items:androidSuggestionSchema,maxItems:4}},required:['message','suggestions'],additionalProperties:false};
 
 const instruction=`You are RPM, a conversational personal assistant, not a coach. Talk naturally and briefly. You have tools for the user's persistent LOCAL TEST COPY of RPM plans, check-ins, preferences, and history. No real alerts ring and no calendar or external app is changed.
 Use tools, not a one-command extractor. Current saved entries are authoritative; historical statements are receipts, not current schedules. All unarchived history is available through read_context, with pagination. Read older history when it matters; don't claim lack of access just because it isn't in the initial summary. Imported CLI data is a test copy, never the live CLI store.
@@ -26,11 +29,12 @@ export function createCompanionAgent({apiKey,fetchImpl=fetch,timeoutMs=18000,max
     const context=initialContext(data,conversationId);
     if(appContext)context.app=await appContext(data,{raw,conversationId,now});
     if(platform==='android'&&phoneStatus)context.phone={notifications:phoneStatus.notifications,exactAlarms:phoneStatus.exact,delivery:Object.fromEntries(context.entries.map(e=>[e.id,phoneStatus.delivery?.[e.id]??{status:'not_scheduled'}]))};
-    const availableTools=scheduleCheck?[...tools,{type:'function',function:{name:'check_schedule',description:'Check RPM and read-only local calendar conflicts and alternative times. Use when scheduling. Saving checks again. Never treat unavailable calendar data as free time.',strict:false,parameters:scheduleSchema}}]:tools;
-    const availableSchemas=scheduleCheck?{...schemas,check_schedule:scheduleSchema}:schemas;
+    const platformTools=platform==='android'?tools.map(tool=>tool.function.name==='respond'?{...tool,function:{...tool.function,parameters:androidRespondSchema}}:tool):tools;
+    const availableTools=scheduleCheck?[...platformTools,{type:'function',function:{name:'check_schedule',description:'Check RPM and read-only local calendar conflicts and alternative times. Use when scheduling. Saving checks again. Never treat unavailable calendar data as free time.',strict:false,parameters:scheduleSchema}}]:platformTools;
+    const availableSchemas=scheduleCheck?{...schemas,...(platform==='android'?{respond:androidRespondSchema}:{}),check_schedule:scheduleSchema}:{...schemas,...(platform==='android'?{respond:androidRespondSchema}:{})};
     const toolList=[...availableTools,...appTools.map(t=>({type:'function',function:{name:t.name,description:t.description,parameters:t.schema,strict:false}}))];
     const schemaMap={...availableSchemas,...Object.fromEntries(appTools.map(t=>[t.name,t.schema]))};
-    const messages=[{role:'system',content:platformInstruction+'\n'+toolExamples+(platform==='android'?'\nSuggestion labels must normally be one word, two at most; answer text carries the full meaning. Repeated tasks may warrant a Recurring? suggestion, but never change recurrence without the user asking. Done on a recurring task completes the next occurrence, not the entire series.':'')+(scheduleCheck?'\ncheck_schedule is read-only and may precede another tool. Calendar and RPM conflicts are checked again on propose_changes.':'')+'\n'+appInstruction},{role:'user',content:JSON.stringify({reference:now.toISOString(),referenceLocal:now.toLocaleString('en-CA',{hour12:false}),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,context,currentMessage:raw})}];
+    const messages=[{role:'system',content:platformInstruction+'\n'+toolExamples+(platform==='android'?'\nSuggestion labels must normally be one word, two at most; answer text carries the full meaning. Repeated tasks may warrant a Recurring? suggestion, but never change recurrence without the user asking. Done on a recurring task completes the next occurrence, not the entire series. When the current message could usefully become a goal, a respond suggestion may set action="goal_draft" and title to one concise editable goal. Keep text as a plain-language fallback. The app attaches every original word and opens the draft locally; never ask the user to rewrite the message. Do not use this action for generic goal-idea exploration.':'')+(scheduleCheck?'\ncheck_schedule is read-only and may precede another tool. Calendar and RPM conflicts are checked again on propose_changes.':'')+'\n'+appInstruction},{role:'user',content:JSON.stringify({reference:now.toISOString(),referenceLocal:now.toLocaleString('en-CA',{hour12:false}),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,context,currentMessage:raw})}];
     const started=Date.now();const calls=[];let repairs=0;
     for(let step=0;step<maxSteps;step++){
       try{
@@ -60,7 +64,7 @@ export function createCompanionAgent({apiKey,fetchImpl=fetch,timeoutMs=18000,max
             messages.push({role:'tool',tool_call_id:call.id,content:JSON.stringify(result)});continue;
           }
           if(name==='check_schedule'){messages.push({role:'tool',tool_call_id:call.id,content:JSON.stringify(await scheduleCheck(data,args))});continue;}
-          if(name==='respond')return {text:args.message,suggestions:args.suggestions,calls};
+          if(name==='respond')return {text:args.message,suggestions:platform==='android'?bindSuggestionActions(args.suggestions,raw,now):args.suggestions,calls};
           return {...await proposeImpl(data,args,{raw,conversationId,now}),calls};
         }catch(error){
           if(++repairs>2)throw new Error('validation_failed');

@@ -12,6 +12,7 @@ import android.widget.ImageView;
 /** User-started, visible and recoverably dismissible. Never auto-enables at boot. */
 public final class ButterflyService extends Service {
     private static ButterflyService running;private static boolean ownAppVisible;
+    static boolean isRunning(){return running!=null;}
     static void appVisible(boolean visible){ownAppVisible=visible;ButterflyService s=running;if(s!=null&&s.butterfly!=null)s.butterfly.setVisibility(visible?View.GONE:View.VISIBLE);}
     private WindowManager wm;private ImageView butterfly;private WindowManager.LayoutParams params;
     @Override public IBinder onBind(Intent i){return null;}
