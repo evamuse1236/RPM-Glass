@@ -1,6 +1,8 @@
 # RPM usability update — 16 September 2026
 
-Status: implementation in progress. User requested phased work, Sol high implementation, Luna medium research, and emulator verification.
+Status: all four phases completed and verified. Sol high agents implemented the changes; a Luna medium agent researched official design guidance. Independent visual review verdict: **ship**.
+
+Installable update: [RPM 0.11](../releases/rpm-0.11-usability.apk). [Verification and limits](usability-verification-2026-09-16.md) · [Design contract](usability/DESIGN.md).
 
 ## Problems and direction
 
@@ -14,25 +16,25 @@ Maintain Frosted Night navy, pale text, cyan selection and the existing offline 
 
 ## Phases
 
-### 1 — reliable capture actions
+### 1 — reliable capture actions · complete
 - Direct, validated navigation actions tied to saved IDs and source messages.
 - Goal suggestion opens a goal form with an editable result and preserved original ramble; optional purpose/area/year must not require rewriting.
 - Structured, lighter italic saved title with a distinct status label; safe legacy-message handling.
 - Gate: regression checks exercise real capture results and routing, including no provider request for Open, multiple changes, missing/deleted targets, drafts and cancellation.
 
-### 2 — simple interactions and integrated settings
+### 2 — simple interactions and integrated settings · complete
 - Remove planner task drag/drop, reorder grips and timeline drag/resize handlers; explicit controls retain equivalent editing.
 - Settings is a planner destination. Preserve existing sounds, permissions, key, imports/exports, recovery and launcher controls.
 - Persist widget text size (80–160% relative to Android system font scale), show a preview, apply it on return and after restart. Planning text continues honoring system font scale.
 - Gate: same PlannerActivity while switching Settings, Back restores planning; widget setting persists and changes capture text; ordinary scrolling never edits tasks.
 
-### 3 — coherent hierarchy
+### 3 — coherent hierarchy · complete
 - Review official source notes, then use RPM overview as representative flow before extending shared components.
 - Distinct result sections with clear title, optional purpose, task rows and compact metadata; purpose remains available when long.
 - Consistent labeled navigation, grouped settings, forms, focus/pressed/selected/disabled states and useful empty/error states.
 - Gate: rendered normal/narrow/landscape/large-text views with long content, saved receipts and keyboard; readable contrast and Android 48dp controls.
 
-### 4 — verify and package
+### 4 — verify and package · complete
 - JavaScript suites, Android build/lint/instrumentation and emulator journeys with isolated QA data and backups.
 - Preserve original emulator store and preferences; remove QA fixtures from release assets.
 - Signed versioned APK, evidence and concise handoff with physical-device/live-provider limitations.

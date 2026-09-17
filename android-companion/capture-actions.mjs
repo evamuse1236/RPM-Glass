@@ -53,6 +53,26 @@ export function plannerReceipts(data,changes,entryView){
   });
 }
 
+export function receiptsForMessage(data,message,entryView){
+  if(Array.isArray(message?.plannerReceipts))return message.plannerReceipts;
+  let changes=Array.isArray(message?.plannerChanges)?message.plannerChanges:null;
+  if(!changes?.length&&Array.isArray(message?.entryIds))changes=message.entryIds.flatMap(id=>{
+    const historical=message.receipts?.find(receipt=>receipt.id===id),current=data.entries.find(entry=>entry.id===id);
+    if((historical?.kind??current?.kind??'plan')!=='plan')return [];
+    return [{type:'save',collection:'tasks',id,title:historical?.title??current?.title??''}];
+  });
+  changes=(changes??[]).filter(change=>change&&collectionMeta[change.collection]&&change.id!=null).map(change=>{
+    if(typeof change.title==='string'&&change.title.trim())return change;
+    const current=change.collection==='tasks'?data.entries.find(entry=>entry.id===change.id):planner(data)[change.collection].find(row=>row.id===change.id);
+    return {...change,title:current?.title??change.collection};
+  });
+  if(!changes.length)return [];
+  return plannerReceipts(data,changes,entryView).map(receipt=>{
+    const historical=receipt.collection==='tasks'?message.receipts?.find(entry=>entry.id===receipt.id):null;
+    return historical?{...receipt,entry:structuredClone(historical)}:receipt;
+  });
+}
+
 export function resolveCaptureAction(data,action){
   if(!action||typeof action!=='object')throw new Error('That action is no longer available.');
   if(action.kind==='open_goal_draft'){

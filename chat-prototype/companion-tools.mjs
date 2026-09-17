@@ -17,7 +17,7 @@ export const schemas={
 };
 // Sparse patches distinguish omitted fields (leave unchanged) from null (clear).
 // Explicit non-strict mode prevents Responses-backed routes requiring every field.
-export const tools=Object.entries(schemas).map(([name,parameters])=>({type:'function',function:{name,parameters,strict:false,description:{read_context:'Read/search ANY unarchived RPM data, including original words and older chats. Paginated; use nextCursor until done. Archived data is excluded.',propose_changes:'Apply an entire requested transaction, or hold all of it for one clarification. Include every requested operation. Set continuation=true only to resolve/replace the entire open proposal. A question holds ALL changes. Use choices as full-text answers to the missing detail. Times are natural phrases, never guessed timestamps.',respond:'Reply conversationally without changing records, optionally showing up to four helpful suggestion bubbles. Never claim changes without propose_changes. No coaching.'}[name]}}));
+export const tools=Object.entries(schemas).map(([name,parameters])=>({type:'function',function:{name,parameters,strict:false,description:{read_context:'Read/search ANY unarchived RPM data, including original words and older chats. Paginated; use nextCursor until done. Archived data is excluded.',propose_changes:'Apply an entire requested transaction, or hold all of it for one clarification. Include every requested operation. Set continuation=true only to resolve/replace the entire open proposal. A question holds ALL changes. Use choices as full-text answers to the missing detail. Times are natural phrases, never guessed timestamps.',respond:'Reply conversationally without changing records, optionally showing up to four helpful suggestion bubbles. Never claim changes without propose_changes. Offer brief coaching when invited; do not turn feelings into tasks.'}[name]}}));
 export function validate(value,schema){
   const types=[schema.type].flat();
   if(!types.some(t=>t==='null'?value===null:t==='array'?Array.isArray(value):t==='object'?value!==null&&typeof value==='object'&&!Array.isArray(value):t==='integer'?Number.isInteger(value):typeof value===t))throw new Error('invalid_tool_arguments');
@@ -133,7 +133,7 @@ export function propose(data,args,{raw,conversationId,now=new Date()}={}){
   data.pending=null;
   const ids=[...new Set(changed)];
   const text=remembered.length?'Remembered. You can inspect or change this in Context.':args.operations.every(o=>o.type==='archive')?'Archived from active context. The original is kept.':args.operations.every(o=>o.type==='restore')?'Restored to active context.':ids.length===1?'All set.':`All set — ${ids.length} entries updated together.`;
-  return {text,entryIds:ids,receipts:ids.map(id=>entryView(data.entries.find(e=>e.id===id))),memories:remembered.map(id=>data.memories.find(m=>m.id===id)),undoId:data.undo.id,suggestions:ids.length?[{label:'Change time',text:`Change the time for ${ids.map(id=>'#'+id).join(' and ')}.`},{label:'Add a note',text:`Add a purpose to #${ids[0]}.`}]:[]};
+  return {text,entryIds:ids,receipts:ids.map(id=>entryView(data.entries.find(e=>e.id===id))),memories:remembered.map(id=>data.memories.find(m=>m.id===id)),undoId:data.undo.id,suggestions:ids.length?[{label:'Change time',text:`Change the time for ${ids.map(id=>'#'+id).join(' and ')}.`},{label:'Add purpose',text:`Add a purpose to #${ids[0]}.`}]:[]};
 }
 export function undo(data,id){
   if(!data.undo||data.undo.id!==id)throw new Error('Only the latest change can be undone.');

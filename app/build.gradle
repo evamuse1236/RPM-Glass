@@ -6,8 +6,8 @@ android {
         applicationId "com.rpm.prototype"
         minSdk 26
         targetSdk 36
-        versionCode 11
-        versionName "0.11-usability"
+        versionCode 12
+        versionName "0.12-clarity-glass"
         testInstrumentationRunner "com.rpm.prototype.OfflineTests"
     }
     compileOptions {
@@ -20,7 +20,7 @@ dependencies { coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5' 
 tasks.register('bundleCompanion', Exec) {
     workingDir rootProject.projectDir
     commandLine 'node', 'scripts/build-companion-assets.mjs'
-    inputs.files(fileTree('../android-companion'), fileTree('../chat-prototype'), fileTree('../cli'), file('../scripts/build-companion-assets.mjs'))
+    inputs.files(fileTree('../android-companion'), fileTree('../chat-prototype'), fileTree('../cli'), fileTree('../intent-v2/src'), fileTree('../intent-v2/adapters'), fileTree('../intent-v2/prompts'), file('../scripts/build-companion-assets.mjs'))
     outputs.dir('src/main/assets/companion')
 }
 tasks.named('preBuild').configure { dependsOn 'bundleCompanion' }

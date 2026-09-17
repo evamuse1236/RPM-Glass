@@ -1,0 +1,5 @@
+{
+  "name": "rpm-intent-harness-pilot", "version": "0.1.0", "private": true,
+  "type": "module", "engines": {"node": ">=20"},
+  "scripts": {"test": "node --test test/*.test.mjs", "demo": "node scripts/serve.mjs", "eval:live": "node evals/run-live.mjs", "hotfix:check": "node patches/apply-hotfixes.mjs --check"}
+}

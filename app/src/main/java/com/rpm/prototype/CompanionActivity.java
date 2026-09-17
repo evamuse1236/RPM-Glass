@@ -22,6 +22,7 @@ public class CompanionActivity extends Activity {
     private CompanionSettingsController settingsController;
     private FrameLayout root;private int insetTop=0,insetBottom=0,insetLeft=0,insetRight=0;
     private final ExecutorService work=Executors.newFixedThreadPool(2);
+    private final ModelRequests modelRequests=new ModelRequests();
     private static final Set<String> ASSETS=Set.of("index.html","planner.html","planner-stitch.css","runtime.js","night.css","butterfly.png","jakarta-regular.ttf","jakarta-semibold.ttf","space-semibold.ttf");
     private static final String CSP="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
     @Override public void onCreate(Bundle saved){super.onCreate(saved);expanded=saved!=null&&saved.getBoolean("expanded")||effectiveFontScale()>1.3f;getWindow().setBackgroundDrawableResource(android.R.color.transparent);getWindow().setDimAmount(.12f);getWindow().addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE|WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
@@ -47,8 +48,8 @@ public class CompanionActivity extends Activity {
     private float effectiveFontScale(){return getResources().getConfiguration().fontScale*(planning()?1f:CompanionControls.widgetTextScale(this)/100f);}
     private void applyTextScale(){if(web!=null)web.getSettings().setTextZoom(Math.round(effectiveFontScale()*100));}
     private JSONObject phoneStatus()throws JSONException{return CompanionAlerts.status(this,!planning());}
-    private void settingsChanged(){if(closing||web==null)return;applyAppearance();applyTextScale();web.evaluateJavascript("window.rpmPhoneRefresh?.()",null);web.evaluateJavascript("window.dispatchEvent(new Event('rpm-settings-refresh'))",null);}
-    private void openIntegratedSettings(String section){if(web==null)return;if(planning())web.evaluateJavascript("window.rpmOpenSettings?.("+JSONObject.quote(section)+")",null);else{JSONObject target=new JSONObject();try{target.put("view","settings").put("section",section);}catch(JSONException ignored){}startActivity(new Intent(this,PlannerActivity.class).putExtra("plannerTarget",target.toString()));}}
+    private void settingsChanged(){if(closing||web==null)return;applyAppearance();applyTextScale();if(!planning()&&!expanded&&effectiveFontScale()>1.3f){expanded=true;size();}web.evaluateJavascript("window.rpmPhoneRefresh?.()",null);web.evaluateJavascript("window.dispatchEvent(new Event('rpm-settings-refresh'))",null);}
+    private void openIntegratedSettings(String section){if(web==null)return;if(section==null||section.isBlank())section="settings";String destination=section;if(planning())web.evaluateJavascript("window.rpmOpenSettings?.("+JSONObject.quote(destination)+")",null);else{JSONObject target=new JSONObject();try{target.put("view",destination);}catch(JSONException ignored){}startActivity(new Intent(this,PlannerActivity.class).putExtra("plannerTarget",target.toString()));}}
     private void handleBack(){if(web==null){finish();return;}web.evaluateJavascript("window.rpmHandleBack?.() ?? false",handled->{if(!"true".equals(handled))finish();});}
     @android.annotation.SuppressLint("GestureBackNavigation") // API 26–32 fallback only; API 33+ registers OnBackInvokedCallback above.
     @Override public void onBackPressed(){if(Build.VERSION.SDK_INT<33)handleBack();}
@@ -56,14 +57,21 @@ public class CompanionActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle out){out.putBoolean("expanded",expanded);super.onSaveInstanceState(out);}
     @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);if(intent.getBooleanExtra("reload",false))web.reload();}
     @Override protected void onResume(){super.onResume();applyAppearance();applyTextScale();if(settingsController!=null)settingsController.onResume();work.execute(()->{try{JSONObject d=CompanionStore.read(this);if(d!=null)CompanionAlerts.reconcile(this,d,false);}catch(Exception ignored){}runOnUiThread(this::settingsChanged);});}
+    @Override protected void onPause(){if(settingsController!=null)settingsController.onPause();super.onPause();}
     @Override public void onConfigurationChanged(android.content.res.Configuration c){super.onConfigurationChanged(c);size();applyTextScale();settingsChanged();}
     @Override protected void onActivityResult(int request,int result,Intent intent){super.onActivityResult(request,result,intent);if(settingsController!=null)settingsController.onActivityResult(request,result,intent);}
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){super.onRequestPermissionsResult(request,permissions,results);if(settingsController!=null)settingsController.onRequestPermissionsResult(request);settingsChanged();}
-    @Override protected void onDestroy(){closing=true;if(settingsController!=null){settingsController.destroy();settingsController=null;}if(web!=null){web.removeJavascriptInterface("RpmNative");web.destroy();web=null;}work.shutdown();super.onDestroy();}
+    @Override protected void onDestroy(){closing=true;modelRequests.cancelAll();if(settingsController!=null){settingsController.destroy();settingsController=null;}if(web!=null){web.removeJavascriptInterface("RpmNative");web.destroy();web=null;}work.shutdown();super.onDestroy();}
     private void reply(String id,Object value,String error){runOnUiThread(()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmBridgeResult("+JSONObject.quote(id)+","+(value==null?"null":value.toString())+","+(error==null?"null":JSONObject.quote(error))+")",null);});}
     final class Bridge {
         @JavascriptInterface public void invoke(String id,String action,String payload){if(closing||id==null||!id.matches("[a-f0-9-]{36}:[0-9]{1,12}")||payload==null||payload.length()>16*1024*1024)return;
-            work.execute(()->{try{JSONObject p=new JSONObject(payload);Object result;
+            final JSONObject p;final String modelId;final ModelRequests.Request request;
+            try{p=new JSONObject(payload);
+                if("cancelModel".equals(action)){reply(id,new JSONObject().put("cancelled",modelRequests.cancel(p.getString("requestId"))),null);return;}
+                modelId=p.optString("requestId",id);
+                request="model".equals(action)?modelRequests.register(modelId):null;
+            }catch(Exception e){reply(id,null,e.getMessage());return;}
+            work.execute(()->{try{Object result;
                 switch(action){
                     case "load":result=new JSONObject().put("data",Optional.ofNullable(CompanionStore.read(CompanionActivity.this)).orElse(null)).put("phone",phoneStatus());break;
                     case "save":CompanionStore.write(CompanionActivity.this,p.getJSONObject("data"),p.getInt("expected"));result=phoneStatus();break;
@@ -75,7 +83,7 @@ public class CompanionActivity extends Activity {
                     case "calendarRead":result=PlannerCalendar.read(CompanionActivity.this,p.optLong("anchor",System.currentTimeMillis()));break;
                     case "calendarSelect":PlannerCalendar.select(CompanionActivity.this,p.getJSONArray("ids"));result=new JSONObject();break;
                     case "calendarPermission":runOnUiThread(()->requestPermissions(new String[]{android.Manifest.permission.READ_CALENDAR},301));result=new JSONObject();break;
-                    case "model":result=model(p.getJSONObject("body"));break;
+                    case "model":result=model(p.getJSONObject("body"),request);break;
                     case "arm":CompanionAlerts.arm(CompanionActivity.this,p.getLong("id"));result=new JSONObject();break;
                     case "settings":String settingsSection=p.optString("section","settings");runOnUiThread(()->openIntegratedSettings(settingsSection));result=new JSONObject();break;
                     case "planner":String plannerTarget=p.toString();runOnUiThread(()->startActivity(new Intent(CompanionActivity.this,PlannerActivity.class).putExtra("plannerTarget",plannerTarget)));result=new JSONObject();break;
@@ -84,12 +92,13 @@ public class CompanionActivity extends Activity {
                     case "expand":runOnUiThread(()->{expanded=!expanded;size();});result=new JSONObject();break;
                     default:throw new IllegalArgumentException("Unsupported phone action.");
                 }reply(id,result,null);
-            }catch(Exception e){String message=action.equals("model")?"The AI connection failed. Check your key and internet connection.":e.getMessage();reply(id,null,message==null?"The phone could not finish that action.":message);}});
+            }catch(Exception e){String message=action.equals("model")?"The AI connection failed. Check your key and internet connection.":e.getMessage();reply(id,null,message==null?"The phone could not finish that action.":message);}finally{if(request!=null)modelRequests.finish(modelId,request);}});
         }
     }
-    private JSONObject model(JSONObject body)throws Exception{
+    private JSONObject model(JSONObject body,ModelRequests.Request request)throws Exception{
+        request.check();
         if(!body.optString("model").equals("openai/gpt-5.6-luna")||body.toString().length()>2000000||body.optInt("max_tokens")>3500)throw new IllegalArgumentException("Unsupported AI request.");String key=CompanionKey.get(this);if(key==null)throw new IllegalStateException("Connect an OpenRouter key in Settings.");
         HttpsURLConnection connection=(HttpsURLConnection)new URL("https://openrouter.ai/api/v1/chat/completions").openConnection();connection.setConnectTimeout(8000);connection.setReadTimeout(18000);connection.setInstanceFollowRedirects(false);connection.setRequestMethod("POST");connection.setRequestProperty("Authorization","Bearer "+key);connection.setRequestProperty("Content-Type","application/json");connection.setDoOutput(true);
-        try{try(OutputStream out=connection.getOutputStream()){out.write(body.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));}int code=connection.getResponseCode();if(code<200||code>=300)return new JSONObject().put("status",code).put("body",new JSONObject());try(InputStream in=connection.getInputStream()){return new JSONObject().put("status",code).put("body",new JSONObject(CompanionStore.readText(in)));}}finally{connection.disconnect();}
+        try{request.attach(connection);request.check();try(OutputStream out=connection.getOutputStream()){out.write(body.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));}int code=connection.getResponseCode();request.check();if(code<200||code>=300)return new JSONObject().put("status",code).put("body",new JSONObject());try(InputStream in=connection.getInputStream()){return new JSONObject().put("status",code).put("body",new JSONObject(CompanionStore.readText(in)));}}finally{connection.disconnect();}
     }
 }

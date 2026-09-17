@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-16T01:09:52+05:30",
+  "title": "Design System: RPM Android Usability",
+  "extensions": {
+    "scope": "Active Android capture receipts, goal prefill, planner task interactions, RPM block hierarchy, integrated Settings, and widget text scaling.",
+    "parentReferences": [
+      "DESIGN.md",
+      "docs/planner-stitch/DESIGN.md"
+    ],
+    "sources": [
+      "android-companion/night.css",
+      "android-companion/planner-stitch.css",
+      "android-companion/capture-actions.mjs",
+      "android-companion/planner.mjs",
+      "android-companion/settings.mjs",
+      "app/src/main/java/com/rpm/prototype/CompanionActivity.java",
+      "app/src/main/java/com/rpm/prototype/CompanionControls.java"
+    ],
+    "verification": {
+      "status": "See ../usability-verification-2026-09-16.md for checks and limits",
+      "sourceUiPostFixCapture": "Running",
+      "reviewScore": "To follow",
+      "reviewImages": "Synthetic QA scenes only; not production data"
+    },
+    "colorMeta": {
+      "planner-ground": {"role":"neutral","displayName":"Planner Ground","canonical":"#121125","tonalRamp":["oklch(15% 0.040 284.2)","oklch(25% 0.040 284.2)","oklch(35% 0.040 284.2)","oklch(50% 0.040 284.2)","oklch(65% 0.040 284.2)","oklch(78% 0.040 284.2)","oklch(88% 0.040 284.2)","oklch(95% 0.040 284.2)"]},
+      "planner-surface": {"role":"neutral","displayName":"Planner Surface","canonical":"#1f1d31","tonalRamp":["oklch(15% 0.038 287.8)","oklch(25% 0.038 287.8)","oklch(35% 0.038 287.8)","oklch(50% 0.038 287.8)","oklch(65% 0.038 287.8)","oklch(78% 0.038 287.8)","oklch(88% 0.038 287.8)","oklch(95% 0.038 287.8)"]},
+      "planner-section": {"role":"neutral","displayName":"Planner Section","canonical":"#1b192c","tonalRamp":["oklch(15% 0.037 287.9)","oklch(25% 0.037 287.9)","oklch(35% 0.037 287.9)","oklch(50% 0.037 287.9)","oklch(65% 0.037 287.9)","oklch(78% 0.037 287.9)","oklch(88% 0.037 287.9)","oklch(95% 0.037 287.9)"]},
+      "planner-raised": {"role":"neutral","displayName":"Planner Raised","canonical":"#29283c","tonalRamp":["oklch(15% 0.036 286.2)","oklch(25% 0.036 286.2)","oklch(35% 0.036 286.2)","oklch(50% 0.036 286.2)","oklch(65% 0.036 286.2)","oklch(78% 0.036 286.2)","oklch(88% 0.036 286.2)","oklch(95% 0.036 286.2)"]},
+      "planner-ink": {"role":"neutral","displayName":"Planner Ink","canonical":"#e3dffb","tonalRamp":["oklch(15% 0.038 292.2)","oklch(25% 0.038 292.2)","oklch(35% 0.038 292.2)","oklch(50% 0.038 292.2)","oklch(65% 0.038 292.2)","oklch(78% 0.038 292.2)","oklch(88% 0.038 292.2)","oklch(95% 0.038 292.2)"]},
+      "planner-muted": {"role":"neutral","displayName":"Planner Muted","canonical":"#b9bacd","tonalRamp":["oklch(15% 0.027 283.4)","oklch(25% 0.027 283.4)","oklch(35% 0.027 283.4)","oklch(50% 0.027 283.4)","oklch(65% 0.027 283.4)","oklch(78% 0.027 283.4)","oklch(88% 0.027 283.4)","oklch(95% 0.027 283.4)"]},
+      "capture-glass-base": {"role":"neutral","displayName":"Capture Glass Base","canonical":"#121821","tonalRamp":["oklch(15% 0.020 258.3)","oklch(25% 0.020 258.3)","oklch(35% 0.020 258.3)","oklch(50% 0.020 258.3)","oklch(65% 0.020 258.3)","oklch(78% 0.020 258.3)","oklch(88% 0.020 258.3)","oklch(95% 0.020 258.3)"]},
+      "capture-ink": {"role":"neutral","displayName":"Capture Ink","canonical":"#f4f7fa","tonalRamp":["oklch(15% 0.005 247.9)","oklch(25% 0.005 247.9)","oklch(35% 0.005 247.9)","oklch(50% 0.005 247.9)","oklch(65% 0.005 247.9)","oklch(78% 0.005 247.9)","oklch(88% 0.005 247.9)","oklch(95% 0.005 247.9)"]},
+      "capture-muted": {"role":"neutral","displayName":"Capture Muted","canonical":"#b4c0ce","tonalRamp":["oklch(15% 0.024 252.2)","oklch(25% 0.024 252.2)","oklch(35% 0.024 252.2)","oklch(50% 0.024 252.2)","oklch(65% 0.024 252.2)","oklch(78% 0.024 252.2)","oklch(88% 0.024 252.2)","oklch(95% 0.024 252.2)"]},
+      "action-cyan": {"role":"primary","displayName":"Action Cyan","canonical":"#00f0ff","tonalRamp":["oklch(15% 0.148 202.9)","oklch(25% 0.148 202.9)","oklch(35% 0.148 202.9)","oklch(50% 0.148 202.9)","oklch(65% 0.148 202.9)","oklch(78% 0.148 202.9)","oklch(88% 0.148 202.9)","oklch(95% 0.148 202.9)"]},
+      "selection-cyan": {"role":"primary","displayName":"Selection Cyan Tint","canonical":"#00f0ff1f","tonalRamp":["#00f0ff1f","#00f0ff2b","#00f0ff33","#00f0ff40","#00f0ff4d","#00f0ff55","#00f0ff66","#00f0ffa6"]},
+      "receipt-success": {"role":"tertiary","displayName":"Receipt Success","canonical":"#9ee8d1","tonalRamp":["oklch(15% 0.080 172.9)","oklch(25% 0.080 172.9)","oklch(35% 0.080 172.9)","oklch(50% 0.080 172.9)","oklch(65% 0.080 172.9)","oklch(78% 0.080 172.9)","oklch(88% 0.080 172.9)","oklch(95% 0.080 172.9)"]},
+      "receipt-title": {"role":"neutral","displayName":"Receipt Title","canonical":"#d9e3ec","tonalRamp":["oklch(15% 0.016 245.1)","oklch(25% 0.016 245.1)","oklch(35% 0.016 245.1)","oklch(50% 0.016 245.1)","oklch(65% 0.016 245.1)","oklch(78% 0.016 245.1)","oklch(88% 0.016 245.1)","oklch(95% 0.016 245.1)"]},
+      "purpose-coral": {"role":"tertiary","displayName":"Purpose Coral","canonical":"#ffcecb","tonalRamp":["oklch(15% 0.056 22.3)","oklch(25% 0.056 22.3)","oklch(35% 0.056 22.3)","oklch(50% 0.056 22.3)","oklch(65% 0.056 22.3)","oklch(78% 0.056 22.3)","oklch(88% 0.056 22.3)","oklch(95% 0.056 22.3)"]},
+      "outcome-violet": {"role":"secondary","displayName":"Outcome Violet","canonical":"#ddb7ff","tonalRamp":["oklch(15% 0.106 308.3)","oklch(25% 0.106 308.3)","oklch(35% 0.106 308.3)","oklch(50% 0.106 308.3)","oklch(65% 0.106 308.3)","oklch(78% 0.106 308.3)","oklch(88% 0.106 308.3)","oklch(95% 0.106 308.3)"]},
+      "outcome-mint": {"role":"secondary","displayName":"Outcome Mint","canonical":"#5ee9b5","tonalRamp":["oklch(15% 0.143 165.2)","oklch(25% 0.143 165.2)","oklch(35% 0.143 165.2)","oklch(50% 0.143 165.2)","oklch(65% 0.143 165.2)","oklch(78% 0.143 165.2)","oklch(88% 0.143 165.2)","oklch(95% 0.143 165.2)"]},
+      "must-amber": {"role":"tertiary","displayName":"Must Amber","canonical":"#fcd34d","tonalRamp":["oklch(15% 0.153 91.6)","oklch(25% 0.153 91.6)","oklch(35% 0.153 91.6)","oklch(50% 0.153 91.6)","oklch(65% 0.153 91.6)","oklch(78% 0.153 91.6)","oklch(88% 0.153 91.6)","oklch(95% 0.153 91.6)"]},
+      "outcome-coral": {"role":"tertiary","displayName":"Outcome Coral","canonical":"#ffb3b0","tonalRamp":["oklch(15% 0.089 21.7)","oklch(25% 0.089 21.7)","oklch(35% 0.089 21.7)","oklch(50% 0.089 21.7)","oklch(65% 0.089 21.7)","oklch(78% 0.089 21.7)","oklch(88% 0.089 21.7)","oklch(95% 0.089 21.7)"]},
+      "danger": {"role":"tertiary","displayName":"Danger","canonical":"#ffb4ab","tonalRamp":["oklch(15% 0.089 26.8)","oklch(25% 0.089 26.8)","oklch(35% 0.089 26.8)","oklch(50% 0.089 26.8)","oklch(65% 0.089 26.8)","oklch(78% 0.089 26.8)","oklch(88% 0.089 26.8)","oklch(95% 0.089 26.8)"]},
+      "notice-surface": {"role":"neutral","displayName":"Notice Surface","canonical":"#343248f5","tonalRamp":["oklch(15% 0.039 288.2)","oklch(25% 0.039 288.2)","oklch(35% 0.039 288.2)","oklch(50% 0.039 288.2)","oklch(65% 0.039 288.2)","oklch(78% 0.039 288.2)","oklch(88% 0.039 288.2)","oklch(95% 0.039 288.2)"]},
+      "notice-ink": {"role":"neutral","displayName":"Notice Ink","canonical":"#f3ecff","tonalRamp":["oklch(15% 0.026 302.6)","oklch(25% 0.026 302.6)","oklch(35% 0.026 302.6)","oklch(50% 0.026 302.6)","oklch(65% 0.026 302.6)","oklch(78% 0.026 302.6)","oklch(88% 0.026 302.6)","oklch(95% 0.026 302.6)"]}
+    },
+    "typographyMeta": {
+      "headline": {"displayName":"Planner Headline","purpose":"Planner and Settings page titles."},
+      "result-title": {"displayName":"RPM Result","purpose":"Primary result heading inside an RPM block."},
+      "body": {"displayName":"Planning Body","purpose":"Task titles, fields, descriptions, and settings copy."},
+      "supporting": {"displayName":"Supporting Text","purpose":"Purpose, metadata, totals, explanations, and status notes."},
+      "receipt-title": {"displayName":"Saved Receipt Title","purpose":"Regular-weight italic title beneath the saved-change status."},
+      "compact-label": {"displayName":"Capture Label","purpose":"Short capture identity labels only."}
+    },
+    "shadows": [
+      {"name":"planner-glass","value":"0 8px 24px #0005, inset 0 1px 1px #ffffff10","purpose":"Floating and timed planner surfaces."},
+      {"name":"planner-navigation","value":"0 10px 32px #0007, inset 0 1px 0 #ffffff0d","purpose":"Five-destination navigation."},
+      {"name":"capture-glass","value":"0 20px 40px -10px #03071299, inset 0 1px 1px #ffffff1f","purpose":"Assistant card over the host app."},
+      {"name":"bottom-sheet","value":"0 -8px 48px #0007, 0 0 0 100vmax #05030bc4","purpose":"Planner editor and goal draft sheet."}
+    ],
+    "motion": [
+      {"name":"planner-state","value":"150ms","purpose":"Background, color, and shadow state transitions when motion is allowed."},
+      {"name":"planner-sheet","value":"220ms cubic-bezier(.16,1,.3,1)","purpose":"Editor sheet entry when motion is allowed."},
+      {"name":"reduced-motion","value":"prefers-reduced-motion: reduce","purpose":"Remove animations, transitions, and smooth scrolling."}
+    ],
+    "breakpoints": [
+      {"name":"planner-narrow","value":"370px","purpose":"Compact page padding and horizontally scrolling day cells."},
+      {"name":"planner-wide","value":"700px","purpose":"Wider cards and task spacing within the 680px canvas."},
+      {"name":"planner-short","value":"440px height","purpose":"Left-positioned navigation, adjacent actions, and full-height sheets."},
+      {"name":"planner-large-text","value":"Android font scale 1.5 or greater","purpose":"Horizontally scrolling 88px navigation tiles, full-width block metadata, wrapped tasks, wider day cells, and full-height editors."}
+    ],
+    "native": {
+      "minimumActionCssPx": 48,
+      "widgetTextScalePercent": {"minimum":80,"default":100,"maximum":160},
+      "widgetScaleFormula": "Android system font scale multiplied by widget text scale percentage",
+      "plannerScaleFormula": "Android system font scale",
+      "largeTextRefresh": "Phone-status changes update the large-text presentation in place without rebuilding navigation state.",
+      "selectedNavigation": "The selected large-text tile scrolls into the nearest visible position after rendering.",
+      "keyboard": "Native IME insets resize the WebView; editor actions remain outside the scrolling field body."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Action",
+      "kind": "button",
+      "refersTo": "primary-action",
+      "description": "Cyan planner action with a fixed readable touch target.",
+      "html": "<button class=\"ds-primary\">Save</button>",
+      "css": ".ds-primary{min-width:48px;min-height:48px;padding:10px 12px;border:0;border-radius:12px;background:#00f0ff;color:#002022;font:600 14px/1.5 Jakarta,system-ui,sans-serif}.ds-primary:active{background:#00f0ff}.ds-primary:hover{background:#7df4ff}.ds-primary:focus-visible{outline:2px solid #00f0ff;outline-offset:2px}.ds-primary:disabled{opacity:.45;cursor:default}"
+    },
+    {
+      "name": "Saved Receipt",
+      "kind": "card",
+      "refersTo": "capture-receipt",
+      "description": "Saved state with a distinct status, italic title, direct Open action, and receipt-preserving footer error.",
+      "html": "<div class=\"ds-capture-state\"><article class=\"ds-receipt\"><div><p class=\"ds-receipt-status\">Task created</p><p class=\"ds-receipt-title\">Prepare the project brief</p></div><button>Open</button></article><p class=\"ds-footer-error\" role=\"alert\">That saved item no longer exists.</p></div>",
+      "css": ".ds-capture-state{color:#f4f7fa;font-family:Jakarta,system-ui,sans-serif}.ds-receipt{display:flex;align-items:flex-start;gap:8px;padding:10px 0;margin:8px 0;border-top:1px solid #354152;background:transparent}.ds-receipt>div{flex:1;min-width:0}.ds-receipt-status{margin:0 0 3px;color:#9ee8d1;font-size:12px;font-weight:600}.ds-receipt-title{margin:0;color:#d9e3ec;font-size:16px;font-style:italic;font-weight:400;line-height:1.45;overflow-wrap:anywhere}.ds-receipt button{min-width:48px;min-height:48px;padding:4px 0;border:0;background:transparent;color:#b9e6fb;text-decoration:underline;text-underline-offset:3px;font:13px Jakarta,system-ui,sans-serif}.ds-receipt button:hover{color:#f4f7fa}.ds-receipt button:focus-visible{outline:2px solid #7dd3fc;outline-offset:-3px}.ds-footer-error{padding:0 22px 14px;margin:0;color:#ffc2b9;font-size:12px;line-height:1.4}"
+    },
+    {
+      "name": "Five-Destination Navigation",
+      "kind": "nav",
+      "refersTo": "planner-navigation-selected",
+      "description": "One labeled planner navigation with Settings as the fifth destination.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Planning\"><button><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M5 5h14v16H5zM7 3v4m10-4v4M5 10h14\"/></svg><span>Daily</span></button><button aria-current=\"page\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M19 4H5l7 8-7 8h14\"/></svg><span>RPM</span></button><button><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 7V5h6l2 2h10v13H3V7Z\"/></svg><span>Projects</span></button><button><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 21V11m0 5C4 16 3 9 3 5c7 0 9 4 9 9m0-3c0-5 4-8 9-8 0 7-3 11-9 11\"/></svg><span>Life</span></button><button><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 7h16M4 17h16M8 4v6M16 14v6\"/></svg><span>Settings</span></button></nav>",
+      "css": ".ds-nav{width:min(420px,calc(100% - 24px));height:76px;display:grid;grid-template-columns:repeat(5,minmax(52px,1fr));align-items:center;padding:6px;border:1px solid #ffffff1c;border-radius:18px;background:#1f1d31f2;color:#c7c4d7;box-shadow:0 10px 32px #0007,inset 0 1px 0 #ffffff0d;backdrop-filter:blur(24px)}.ds-nav button{width:100%;height:62px;min-height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:7px 2px 6px;border:0;border-radius:12px;background:transparent;color:inherit;font:500 9px/1.2 Jakarta,system-ui,sans-serif}.ds-nav svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.ds-nav button[aria-current=page]{border:1px solid #00f0ff66;background:#00f0ff1f;color:#00f0ff;font-weight:700;box-shadow:0 0 18px #00f0ff2b,inset 0 0 12px #00f0ff18}.ds-nav button:hover{background-color:#ffffff08}.ds-nav button:focus-visible{outline:2px solid #00f0ff;outline-offset:2px}.ds-nav[data-large-text=true]{display:flex;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;touch-action:pan-x;scroll-snap-type:x proximity}.ds-nav[data-large-text=true] button{flex:0 0 88px;width:88px;scroll-snap-align:center}"
+    },
+    {
+      "name": "RPM Result Block",
+      "kind": "card",
+      "refersTo": "rpm-block",
+      "description": "One result boundary containing its purpose and flat action list.",
+      "html": "<section class=\"ds-rpm-block\"><p class=\"ds-category\">Independent outcome</p><h2>Finish the project brief</h2><div class=\"ds-purpose\"><small>Purpose &amp; emotional fuel</small><p>Make the decision easy to review.</p></div><p class=\"ds-map\">Massive Action Plan</p><div class=\"ds-task\">Draft the summary</div><div class=\"ds-task\">Check the evidence</div></section>",
+      "css": ".ds-rpm-block{padding:15px 14px 12px;margin-bottom:20px;border:1px solid #ffffff1f;border-top:2px solid #00f0ff;border-radius:14px;background:#1b192c;color:#e3dffb;box-shadow:0 10px 24px #0004,inset 0 1px 0 #ffffff0b;font:14px/1.5 Jakarta,system-ui,sans-serif}.ds-category{display:inline-block;margin:0;padding:5px 9px;border:1px solid #00f0ff38;border-radius:999px;background:#00f0ff1a;color:#00f0ff;font-size:10px;font-weight:600}.ds-rpm-block h2{margin:8px 0 6px;font-size:21px;line-height:1.3;letter-spacing:-.025em}.ds-purpose{padding:7px 0 12px;margin:0 0 10px;border-bottom:1px solid #ffffff12}.ds-purpose small{color:#ffcecb;font-size:11px;font-weight:600}.ds-purpose p{margin:3px 0 0;color:#e6e1ef;font-size:13px}.ds-map{margin:0 0 3px;color:#b9bacd;font-size:11px;font-weight:600}.ds-task{min-height:58px;padding:18px 6px 4px;border-top:1px solid #ffffff10}.ds-rpm-block:focus-within{border-color:#00f0ff55}"
+    },
+    {
+      "name": "Explicit Task Row",
+      "kind": "custom",
+      "refersTo": "task-row",
+      "description": "Flat task row with completion, must, details, and labeled priority controls.",
+      "html": "<div class=\"ds-task-row\"><button class=\"ds-time\" role=\"checkbox\" aria-checked=\"false\"><strong>30</strong><small>MIN</small></button><button class=\"ds-title\">Draft the summary</button><button class=\"ds-must\" aria-pressed=\"false\">Must</button><button class=\"ds-priority\"><small>Priority</small><strong>1</strong></button></div>",
+      "css": ".ds-task-row{display:flex;align-items:center;gap:4px;min-height:58px;padding:4px 0;border-top:1px solid #ffffff10;background:transparent;color:#e3dffb;font:14px/1.4 Jakarta,system-ui,sans-serif}.ds-task-row button{min-width:48px;min-height:48px;border:0;background:transparent;color:inherit}.ds-time{display:flex;flex:0 0 48px;flex-direction:column;align-items:center;justify-content:center;padding:5px 2px;border:1px solid #00f0ff38!important;border-radius:7px!important;background:#00f0ff1a!important;color:#00f0ff!important}.ds-time strong{font-size:20px}.ds-time small,.ds-priority small{font-size:8px;color:#b9bacd}.ds-title{flex:1;min-width:0;padding:4px 6px;text-align:left}.ds-must{color:#fcd34d!important}.ds-priority{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px;border-radius:10px!important}.ds-priority strong{font-size:14px}.ds-task-row button:hover{background-color:#ffffff08}.ds-task-row button:focus-visible{outline:2px solid #00f0ff;outline-offset:2px}"
+    },
+    {
+      "name": "Goal Draft and Original Capture",
+      "kind": "input",
+      "refersTo": "goal-draft-field",
+      "description": "Editable goal result with the complete captured source retained nearby.",
+      "html": "<div class=\"ds-goal-draft\"><label><span>Result</span><textarea>Prepare a clear project brief</textarea></label><details><summary>Original capture</summary><p>I want to turn this thought into a goal and keep all of my original words.</p></details></div>",
+      "css": ".ds-goal-draft{padding:16px 20px;background:#18162a;color:#e3dffb;font:14px/1.5 Jakarta,system-ui,sans-serif}.ds-goal-draft label{display:flex;flex-direction:column;gap:7px;margin-bottom:16px}.ds-goal-draft label span{font-size:12px;color:#b9bacd}.ds-goal-draft textarea{width:100%;min-height:96px;padding:11px 12px;border:1px solid #ffffff25;border-radius:12px;background:#0d0c1f99;color:#e3dffb;font:17px/1.45 Jakarta,system-ui,sans-serif}.ds-goal-draft textarea:focus-visible{outline:2px solid #00f0ff;outline-offset:2px}.ds-goal-draft details{padding:0 14px;border:1px solid #ffffff18;border-radius:12px;background:#111020}.ds-goal-draft summary{min-height:48px;color:#ffcecb;font-size:13px;font-weight:600}.ds-goal-draft details p{padding:0 0 14px;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}"
+    },
+    {
+      "name": "Settings Row",
+      "kind": "button",
+      "refersTo": "settings-row",
+      "description": "Integrated setting with label, explanation, and current value.",
+      "html": "<button class=\"ds-setting\"><span><strong>Alarm sound</strong><small>Ringing alarms use alarm volume</small></span><output>Gentle</output></button>",
+      "css": ".ds-setting{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:9px 2px;text-align:left;border:0;border-top:1px solid #ffffff0d;border-radius:0;background:transparent;color:#e3dffb;font-family:Jakarta,system-ui,sans-serif}.ds-setting>span{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}.ds-setting strong{font-size:14px;line-height:1.4;font-weight:600}.ds-setting small{font-size:12px;line-height:1.5;color:#b9bacd}.ds-setting output{max-width:38%;color:#00f0ff;font-size:12px;line-height:1.35;text-align:right}.ds-setting:hover{background:#ffffff08}.ds-setting:focus-visible{outline:2px solid #00f0ff;outline-offset:2px}.ds-setting:disabled{opacity:.45;cursor:default}"
+    },
+    {
+      "name": "Widget Text Scale",
+      "kind": "input",
+      "refersTo": "widget-scale",
+      "description": "Persisted 80–160% widget multiplier with a live text preview.",
+      "html": "<div class=\"ds-scale\"><div><label for=\"ds-range\">Widget text size</label><output>120%</output></div><input id=\"ds-range\" type=\"range\" min=\"80\" max=\"160\" value=\"120\"><small>Relative to your Android system font size. The planner keeps its system size.</small><p style=\"font-size:1.2em\">A clear next action</p></div>",
+      "css": ".ds-scale{padding:14px 2px;border-top:1px solid #ffffff0d;color:#e3dffb;font:14px/1.5 Jakarta,system-ui,sans-serif}.ds-scale>div{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}.ds-scale label{font-weight:600}.ds-scale output{color:#00f0ff;font-size:12px}.ds-scale input{width:100%;min-height:48px;padding:0;border:0;background:transparent;accent-color:#00f0ff}.ds-scale input:focus-visible{outline:2px solid #00f0ff;outline-offset:2px}.ds-scale small{color:#b9bacd;font-size:12px}.ds-scale p{margin:10px 0 0;padding:12px 14px;border:1px solid #ffffff18;border-radius:12px;background:#111020;color:#f4f0ff;line-height:1.45}"
+    },
+    {
+      "name": "Planner Notice",
+      "kind": "custom",
+      "refersTo": "planner-notice",
+      "description": "Transient saved feedback placed clear of navigation, Search, and Add.",
+      "html": "<aside class=\"ds-notice\" role=\"status\"><span>Saved on this phone</span><button>Undo</button></aside>",
+      "css": ".ds-notice{position:fixed;z-index:40;bottom:100px;left:16px;right:88px;max-width:568px;margin:auto;display:flex;align-items:center;gap:10px;padding:8px 14px;border:1px solid #00f0ff44;border-radius:16px;background:#343248f5;color:#f3ecff;box-shadow:0 8px 24px #0006;font:12px/1.5 Jakarta,system-ui,sans-serif}.ds-notice span{flex:1;overflow-wrap:anywhere}.ds-notice button{min-width:48px;min-height:48px;border:0;background:transparent;color:#00f0ff;font-weight:600}.ds-notice button:hover{background:#ffffff08}.ds-notice button:focus-visible{outline:2px solid #00f0ff;outline-offset:2px}@media(max-height:440px){.ds-notice{bottom:76px;left:16px;right:16px}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Readable Night Plan",
+    "overview": "This scoped usability layer keeps Frosted Night calm and dark while making structure visible through spacing, type, boundaries, and direct labels. Each RPM result reads as a section; saved changes read as receipts; Settings reads as part of planning; tasks expose deliberate controls instead of hidden manipulation gestures.",
+    "keyCharacteristics": [
+      "Dark navy and violet-black surfaces with pale lavender text",
+      "Cyan selection and primary actions, with semantic outcome tones",
+      "One visible boundary per RPM result and quiet dividers between its tasks",
+      "Direct saved-item navigation and editable goal drafts that retain source words",
+      "Five labeled planning destinations, including integrated Settings",
+      "Large-text navigation and metadata that reflow without hiding the current destination",
+      "Widget text scaling layered on Android system font scaling"
+    ],
+    "rules": [
+      {"name":"The Semantic Cyan Rule","body":"Cyan marks an available primary action, current destination, focus, or live selection; it is not a general decoration.","section":"colors"},
+      {"name":"The Saved Receipt Rule","body":"Use green for the creation status and lighter neutral text for the saved title so the receipt is distinguishable from a suggestion and from conversational prose.","section":"colors"},
+      {"name":"The System Times Widget Rule","body":"The widget preference ranges from 80% to 160% and multiplies Android's system font scale; planning text follows the system scale without the widget multiplier.","section":"typography"},
+      {"name":"The Readable Lightness Rule","body":"Make secondary saved text lighter through color and italic styling while retaining regular weight.","section":"typography"},
+      {"name":"The One Result, One Boundary Rule","body":"Each RPM result uses one section boundary; purpose and task rows stay inside it.","section":"layout"},
+      {"name":"The Five Destinations Rule","body":"Daily, RPM, Projects, Life, and Settings share one labeled navigation renderer and expose the current page beyond color alone.","section":"layout"},
+      {"name":"The Floating Controls Clearance Rule","body":"Notices remain readable without covering Search, Add, or the navigation in portrait and short landscape.","section":"layout"},
+      {"name":"The Flat Task Rule","body":"Task rows stay flat inside an RPM block; the block carries the boundary and depth.","section":"elevation"},
+      {"name":"The Saved Means Specific Rule","body":"Open resolves the saved collection and ID against current data; a title or model guess never chooses the destination.","section":"components"},
+      {"name":"The Explicit Task Movement Rule","body":"Tasks move or change priority through labeled controls; planner task rows do not drag, drop, resize, or swipe to mutate.","section":"components"},
+      {"name":"The Receipt-Preserving Error Rule","body":"A local Open failure appears once in the capture footer as an alert and does not replace the saved receipt.","section":"components"}
+    ],
+    "dos": [
+      "Do keep each RPM result visually distinct through one surface, top boundary, spacing, and title hierarchy.",
+      "Do keep purpose visible as supporting text and preserve long purpose content.",
+      "Do show saved changes as a status, italic lighter title, Open, and Undo where available.",
+      "Do preserve source words in goal drafts and let the user edit before Save.",
+      "Do keep Daily, RPM, Projects, Life, and Settings in one shared labeled navigation.",
+      "Do keep the selected large-text navigation tile in view and give block metadata full-width wrapping when needed.",
+      "Do place planner notices clear of the floating navigation, Search, and Add controls.",
+      "Do apply widget text scaling on top of Android system scaling and keep planner scaling system-controlled."
+    ],
+    "donts": [
+      "Don't add task drag handles, drop targets, timeline resize handles, or mutation swipes.",
+      "Don't send Open or goal-draft routing back through the model.",
+      "Don't turn purpose into a competing nested card or turn every task into its own card.",
+      "Don't copy the root browser palette or its stale Android pixel-garden guidance into this scoped Frosted Night surface.",
+      "Don't use synthetic QA screenshots as production data, personal context, or reusable sample content."
+    ]
+  }
+}

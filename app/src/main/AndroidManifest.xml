@@ -14,11 +14,11 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <application android:name=".RpmApplication" android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules" android:label="RPM" android:icon="@drawable/butterfly" android:supportsRtl="true" android:theme="@style/AppTheme" android:usesCleartextTraffic="false">
-        <activity android:name=".CompanionActivity" android:exported="true" android:launchMode="singleTask" android:theme="@style/CompanionTheme" android:configChanges="orientation|screenSize|keyboardHidden" android:windowSoftInputMode="adjustResize">
+        <activity android:name=".CompanionActivity" android:exported="true" android:launchMode="singleTask" android:theme="@style/CompanionTheme" android:configChanges="orientation|screenSize|keyboardHidden|fontScale" android:windowSoftInputMode="adjustResize">
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity>
         <activity android:name=".MainActivity" android:exported="false" android:launchMode="singleTop" />
-        <activity android:name=".PlannerActivity" android:exported="false" android:theme="@style/CompanionSettingsTheme" android:configChanges="orientation|screenSize|keyboardHidden" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".PlannerActivity" android:exported="false" android:theme="@style/CompanionSettingsTheme" android:configChanges="orientation|screenSize|keyboardHidden|fontScale" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".CompanionSettingsActivity" android:exported="false" android:theme="@style/CompanionSettingsTheme" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".CompanionRingingActivity" android:exported="false" android:launchMode="singleTop" />
         <service android:name=".ButterflyService" android:exported="false" android:foregroundServiceType="specialUse"><property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="User-enabled draggable butterfly assistant launcher, visible over other apps, with a persistent notification to hide it." /></service>

@@ -1,6 +1,6 @@
 # RPM · personal Android app
 
-Latest Android planning update: [v0.10 Stitch planner](docs/planner-stitch-surface.md), with the installable APK at `releases/rpm-0.10-stitch.apk`. The older prototype descriptions below are retained for historical context.
+Latest Android planning update: [v0.12 Clarity and Glass](docs/clarity-glass-verification-2026-09-16.md), with the installable APK at `releases/rpm-0.12-clarity-glass.apk`. Clarity improves the planner's agenda, appearance and controls; optional Glass capture saves original words first and requires review before changing plans. Enable it in Settings → Thought capture. The older prototype descriptions below are retained for historical context.
 
 ## Delivering updates
 

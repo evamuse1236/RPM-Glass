@@ -1,0 +1,29 @@
+{
+  "name": "RPM-Glass intent harness pilot",
+  "version": "0.1.0",
+  "prepared": "2026-09-16",
+  "auditedRepository": "evamuse1236/RPM-Glass",
+  "auditedCommit": "22604e683362e7edd3cbf6e0297ce4dd55a4ce73",
+  "implementationType": "standalone reference harness with dependency-injected repository adapter and source hotfix installer",
+  "requiresNode": ">=20",
+  "defaultLiveModel": null,
+  "liveCallsMade": 0,
+  "repoModified": false,
+  "apkBuilt": false,
+  "deterministicTests": {
+    "passed": 86,
+    "failed": 0,
+    "skipped": 0
+  },
+  "syntheticEvaluationCases": 66,
+  "productionFlagDefault": false,
+  "criticalRemainingGates": [
+    "actual-repository integration tests",
+    "shared state ownership",
+    "native model configuration and cancellation",
+    "exact date preview and stale time refresh",
+    "physical-device accessibility and lifecycle",
+    "retention/deletion and storage growth",
+    "live model accuracy and latency measurement"
+  ]
+}

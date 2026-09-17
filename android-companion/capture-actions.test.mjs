@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {entryView} from '../chat-prototype/companion-tools.mjs';
 import {editPlan} from './planner-state.mjs';
-import {bindSuggestionActions,executeCaptureAction,goalDraftAction,plannerReceipts,resolveCaptureAction} from './capture-actions.mjs';
+import {bindSuggestionActions,executeCaptureAction,goalDraftAction,plannerReceipts,receiptsForMessage,resolveCaptureAction} from './capture-actions.mjs';
 
 test('saved receipts route each current planner record directly without a model request',async()=>{
   const data=freshStore(),modelCalls=[];
@@ -23,6 +23,17 @@ test('an old receipt cannot open a deleted or missing target',()=>{
   editPlan(data,{type:'removeEntity',collection:'blocks',id});
   assert.throws(()=>resolveCaptureAction(data,action),/no longer exists/);
   assert.throws(()=>resolveCaptureAction(data,{...action,id:'missing'}),/no longer exists/);
+});
+
+test('legacy saved messages hydrate every actual change or entry ID into separate direct actions',()=>{
+  const data=freshStore(),projectId=editPlan(data,{type:'saveEntity',collection:'projects',fields:{title:'Learning',purpose:'',notes:'',goalId:null}}),taskId=editPlan(data,{type:'saveTask',fields:{title:'Read slowly'}});
+  const oldPlanner={text:'Created Learning · Created Read slowly.',plannerChanges:[{type:'create',collection:'projects',id:projectId,title:'Learning'},{type:'create',collection:'tasks',id:taskId,title:'Read slowly'}],receipts:[entryView(data.entries[0])],suggestions:[{label:'Open',text:'Open the plan I just changed.'}]};
+  const historical=oldPlanner.receipts[0];editPlan(data,{type:'saveTask',id:taskId,fields:{title:'Read carefully'}});
+  const hydrated=receiptsForMessage(data,oldPlanner,entryView);assert.deepEqual(hydrated.map(r=>r.action.id),[projectId,taskId]);assert.equal(hydrated[1].entry.title,historical.title);assert.equal(data.entries[0].title,'Read carefully');
+  const olderEntry={entryIds:[taskId],receipts:[entryView(data.entries[0])],suggestions:[{label:'Open',text:'Open the plan I just changed.'}]};
+  assert.deepEqual(receiptsForMessage(data,olderEntry,entryView).map(r=>r.action),[{kind:'open_saved',collection:'tasks',id:taskId}]);
+  assert.deepEqual(receiptsForMessage(data,{entryIds:[7],receipts:[{id:7,kind:'checkin',title:'Felt tired'}]},entryView),[]);
+  assert.deepEqual(receiptsForMessage(data,{plannerChanges:[{collection:'old-format',id:1}]},entryView),[]);
 });
 
 test('typed goal drafts preserve a long source while respecting title and notes limits',()=>{

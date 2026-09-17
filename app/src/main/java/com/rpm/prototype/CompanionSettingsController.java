@@ -26,7 +26,7 @@ import java.util.concurrent.*;
 final class CompanionSettingsController {
     static final int IMPORT_CONTEXT=71,EXPORT_CONTEXT=72,PICK_TONE=73,PICK_AUDIO=74,NOTIFICATIONS=32;
     private static final Set<String> ACTIONS=Set.of(
-        "set_transparency","set_widget_text_scale","choose_alarm","preview_alarm","reminder_sound",
+        "set_transparency","set_widget_text_scale","choose_alarm","preview_alarm","stop_preview","reminder_sound",
         "show_butterfly","hide_butterfly","overlay_permission","notifications","exact_alarms",
         "full_screen_alarms","check_alerts","connect_key","remove_key","import_context",
         "export_context","restore_backup","earlier_screens"
@@ -37,6 +37,7 @@ final class CompanionSettingsController {
     private final Handler ui=new Handler(Looper.getMainLooper());
     private volatile boolean destroyed=false,working=false,previewing=false;
     private MediaPlayer preview;
+    private final Runnable stopPreviewLater=()->{stopPreview();notifyChanged();};
 
     CompanionSettingsController(Activity activity,Runnable changed){this.activity=activity;this.changed=changed;}
 
@@ -45,10 +46,18 @@ final class CompanionSettingsController {
     }
 
     JSONObject apply(JSONObject payload)throws Exception{
+        return perform(validate(payload),payload);
+    }
+
+    static String validate(JSONObject payload){
         String action=payload.optString("action","");
         if(!ACTIONS.contains(action))throw new IllegalArgumentException("Unsupported settings action.");
         Set<String> allowed=action.startsWith("set_")?Set.of("action","value"):Set.of("action");
         for(Iterator<String> keys=payload.keys();keys.hasNext();)if(!allowed.contains(keys.next()))throw new IllegalArgumentException("Unsupported settings value.");
+        return action;
+    }
+
+    private JSONObject perform(String action,JSONObject payload)throws Exception{
         String message;
         switch(action){
             case "set_transparency":
@@ -59,6 +68,7 @@ final class CompanionSettingsController {
                 notifyChanged();break;
             case "choose_alarm":runUi(this::chooseAlarm);message="Choose an alarm sound on your phone.";break;
             case "preview_alarm":runUi(this::togglePreview);message=previewing?"Playing the alarm sound for 5 seconds.":"Alarm preview stopped.";break;
+            case "stop_preview":runUi(()->{stopPreview();notifyChanged();});message="Alarm preview stopped.";break;
             case "reminder_sound":runUi(()->launch(AlertSounds.reminderSettings(activity,CompanionAlerts.REMINDERS)));message="Opening Android reminder sound settings.";break;
             case "show_butterfly":message=CompanionControls.apply(activity,new JSONObject().put("action","show_butterfly")).getString("message");ui.postDelayed(this::notifyChanged,300);break;
             case "hide_butterfly":message=CompanionControls.apply(activity,new JSONObject().put("action","hide_butterfly")).getString("message");notifyChanged();break;
@@ -66,7 +76,7 @@ final class CompanionSettingsController {
             case "notifications":runUi(this::openNotifications);message="Opening Android notification controls.";break;
             case "exact_alarms":runUi(()->{if(Build.VERSION.SDK_INT>=31)launch(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,Uri.parse("package:"+activity.getPackageName())));});message=Build.VERSION.SDK_INT>=31?"Opening Android exact alarm permission.":"Exact alarms are already available on this Android version.";break;
             case "full_screen_alarms":runUi(()->{if(Build.VERSION.SDK_INT>=34)launch(new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,Uri.parse("package:"+activity.getPackageName())));});message=Build.VERSION.SDK_INT>=34?"Opening Android lock-screen alarm controls.":"Lock-screen alarm permission is managed automatically on this Android version.";break;
-            case "check_alerts":CompanionAlerts.restore(activity);message="Saved alert schedules checked.";notifyChanged();break;
+            case "check_alerts":JSONObject data=CompanionStore.read(activity);if(data!=null)CompanionAlerts.reconcile(activity,data,true);message="Saved alert schedules checked.";notifyChanged();break;
             case "connect_key":runUi(this::keyDialog);message="Enter the key in the secure Android dialog.";break;
             case "remove_key":runUi(this::removeKeyDialog);message="Review the secure removal confirmation.";break;
             case "import_context":runUi(this::importDialog);message="Review the backup notice, then choose a context file.";break;
@@ -79,6 +89,7 @@ final class CompanionSettingsController {
     }
 
     void onResume(){notifyChanged();}
+    void onPause(){if(previewing)stopPreview();}
     void onRequestPermissionsResult(int request){if(request==NOTIFICATIONS)notifyChanged();}
     void onActivityResult(int request,int result,Intent intent){
         if(result!=Activity.RESULT_OK||intent==null){notifyChanged();return;}
@@ -93,7 +104,7 @@ final class CompanionSettingsController {
         if(request==EXPORT_CONTEXT)background(()->{JSONObject data=CompanionStore.read(activity);if(data==null)throw new IOException("No saved context to export.");try(OutputStream out=activity.getContentResolver().openOutputStream(uri)){if(out==null)throw new IOException("Could not open that file.");out.write(data.toString(2).getBytes(StandardCharsets.UTF_8));}},"Context exported. Keep this personal file private.",false);
     }
 
-    void destroy(){destroyed=true;ui.removeCallbacksAndMessages(null);stopPreview();io.shutdown();}
+    void destroy(){destroyed=true;ui.removeCallbacks(stopPreviewLater);stopPreview();io.shutdown();}
 
     private void chooseAlarm(){
         stopPreview();
@@ -108,9 +119,9 @@ final class CompanionSettingsController {
         if(previewing){stopPreview();notifyChanged();return;}
         previewing=true;
         preview=AlertSounds.playAlarm(activity,new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build(),()->ui.post(()->{stopPreview();notifyChanged();error("Sound could not play. Choose another alarm sound.");}));
-        notifyChanged();ui.postDelayed(()->{stopPreview();notifyChanged();},5000);
+        notifyChanged();ui.postDelayed(stopPreviewLater,5000);
     }
-    private void stopPreview(){ui.removeCallbacksAndMessages(null);if(preview!=null){preview.release();preview=null;}previewing=false;}
+    private void stopPreview(){ui.removeCallbacks(stopPreviewLater);if(preview!=null){preview.release();preview=null;}previewing=false;}
 
     private void openNotifications(){
         if(Build.VERSION.SDK_INT>=33&&activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)activity.requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},NOTIFICATIONS);
