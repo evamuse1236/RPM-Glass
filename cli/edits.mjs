@@ -144,7 +144,10 @@ export function editPatch(entry,edit,now){
       let parsed=interpretTime(c.value,now);
       if(parsed.assumptions.some(a=>a.startsWith("AM/PM wasn't specified")))return need(index,'AM or PM? Include the day if it is changing.');
       if(parsed.status==='date_only'&&/\b(?:morning|afternoon|evening|night|lunch)\b/i.test(c.value))return need(index,'What time? For example, 7pm.');
-      if(parsed.assumptions.includes('No day specified; using the next occurrence.')&&entry.plannedDate)parsed=interpretTime(entry.plannedDate+' '+c.value,now);
+      // A clock-only correction normally keeps the task's saved day. Once that
+      // day is in the past, retaining it makes every future clock look invalid;
+      // use the parser's next occurrence instead.
+      if(parsed.assumptions.includes('No day specified; using the next occurrence.')&&entry.plannedDate&&entry.plannedDate>=localDate(now))parsed=interpretTime(entry.plannedDate+' '+c.value,now);
       else if(parsed.status==='date_only'&&entry.planned){
         const old=new Date(entry.planned);
         parsed=interpretTime(parsed.plannedDate+' at '+String(old.getHours()).padStart(2,'0')+':'+String(old.getMinutes()).padStart(2,'0'),now);

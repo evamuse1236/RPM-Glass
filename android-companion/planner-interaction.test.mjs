@@ -32,7 +32,7 @@ test('saved planner targets dispatch UUID entities by collection and numeric tas
 });
 
 test('planner has no task drag, swipe mutation or timeline resize affordances',async()=>{
-  const [source,css,night]=await Promise.all([readFile(new URL('./planner.mjs',import.meta.url),'utf8'),readFile(new URL('./planner-stitch.css',import.meta.url),'utf8'),readFile(new URL('./night.css',import.meta.url),'utf8')]);
+  const [source,css,night,chat]=await Promise.all([readFile(new URL('./planner.mjs',import.meta.url),'utf8'),readFile(new URL('./planner-stitch.css',import.meta.url),'utf8'),readFile(new URL('./night.css',import.meta.url),'utf8'),readFile(new URL('../chat-prototype/app.js',import.meta.url),'utf8')]);
   for(const removed of ['installResize','installOrder','installTaskSwipe','drag-handle','drop-zone','gesture-hint']){
     assert.equal(source.includes(removed),false,`${removed} remains in planner source`);
     assert.equal(css.includes(removed),false,`${removed} remains in planner CSS`);
@@ -52,4 +52,6 @@ test('planner has no task drag, swipe mutation or timeline resize affordances',a
   assert.equal(night.includes('.panel[data-view=chat] .content{display:flex;flex-direction:column;justify-content:flex-start}'),true);
   assert.equal(night.includes('.panel[data-view=chat] .status.error{display:block}'),true);
   assert.equal(night.includes('.panel[data-view=chat] .content{display:flex;flex-direction:column;justify-content:center}'),false);
+  assert.equal(chat.includes("m.error==='missing_key'&&platform.native"),true);
+  assert.equal(chat.includes("section:'ai_connection'"),true);
 });

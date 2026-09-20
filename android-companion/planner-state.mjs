@@ -88,6 +88,22 @@ export function editPlan(data,op,now=new Date()){
   }else if(op.type==='reorder'){
     const rows=blockTasks(next,op.blockId);if(!Array.isArray(op.ids)||op.ids.length!==rows.length||new Set(op.ids).size!==rows.length||op.ids.some(id=>!rows.some(e=>e.id===id)))throw new Error('Task order changed. Try again.');
     op.ids.forEach((id,i)=>{one(next.entries,id).priority=i+1;});
+  }else if(op.type==='sortExisting'){
+    if(!Array.isArray(op.assignments)||!op.assignments.length||op.assignments.length>12)throw new Error('Choose existing RPM blocks for this grouping.');
+    const assigned=new Set(),groups=[];
+    for(const assignment of op.assignments){
+      const blockId=one(p.blocks,assignment.blockId).id;
+      if(!Array.isArray(assignment.taskIds)||!assignment.taskIds.length||assignment.taskIds.length>60)throw new Error('Choose open unsorted tasks for this grouping.');
+      const selected=[];
+      for(const id of assignment.taskIds){
+        if(assigned.has(id))throw new Error('A task cannot be grouped twice.');
+        const task=one(tasks(next),id);if(task.done||task.blockId!=null)throw new Error('Only open unsorted tasks can be grouped.');
+        assigned.add(id);selected.push(task);
+      }
+      groups.push({blockId,selected,existing:blockTasks(next,blockId)});
+    }
+    for(const group of groups){const start=group.existing.length;group.selected.forEach((task,index)=>{task.blockId=group.blockId;task.priority=start+index+1;});}
+    result=assigned.size;
   }else if(op.type==='aiDraft'){
     if(!Array.isArray(op.blocks)||!op.blocks.length||op.blocks.length>12)throw new Error('The AI returned an invalid set of blocks.');
     const assigned=new Set(),ids=[];

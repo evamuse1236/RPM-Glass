@@ -6,8 +6,8 @@ android {
         applicationId "com.rpm.prototype"
         minSdk 26
         targetSdk 36
-        versionCode 12
-        versionName "0.12-clarity-glass"
+        versionCode 13
+        versionName "0.13-jev-sort"
         testInstrumentationRunner "com.rpm.prototype.OfflineTests"
     }
     compileOptions {
