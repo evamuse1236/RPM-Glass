@@ -25,6 +25,7 @@ public class CompanionActivity extends Activity {
     private final ModelRequests modelRequests=new ModelRequests();
     private static final Set<String> ASSETS=Set.of("index.html","planner.html","planner-stitch.css","runtime.js","night.css","butterfly.png","jakarta-regular.ttf","jakarta-semibold.ttf","space-semibold.ttf");
     private static final String CSP="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
+    private static final String CHAT_ENDPOINT="https://openrouter.ai/api/v1/chat/completions",DECISION_ENDPOINT="https://openrouter.ai/api/alpha/decisions";
     @Override public void onCreate(Bundle saved){super.onCreate(saved);expanded=saved!=null&&saved.getBoolean("expanded")||effectiveFontScale()>1.3f;getWindow().setBackgroundDrawableResource(android.R.color.transparent);getWindow().setDimAmount(.12f);getWindow().addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE|WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
         if(planning()){expanded=true;getWindow().setDimAmount(0);getWindow().setBackgroundDrawableResource(android.R.color.black);}
         web=new WebView(this);web.setBackgroundColor(planning()?Color.rgb(14,20,29):Color.TRANSPARENT);WebSettings s=web.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setAllowFileAccess(false);s.setAllowContentAccess(false);s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);s.setMediaPlaybackRequiresUserGesture(true);s.setSupportMultipleWindows(false);s.setJavaScriptCanOpenWindowsAutomatically(false);s.setSafeBrowsingEnabled(true);applyTextScale();
@@ -69,7 +70,7 @@ public class CompanionActivity extends Activity {
             try{p=new JSONObject(payload);
                 if("cancelModel".equals(action)){reply(id,new JSONObject().put("cancelled",modelRequests.cancel(p.getString("requestId"))),null);return;}
                 modelId=p.optString("requestId",id);
-                request="model".equals(action)?modelRequests.register(modelId):null;
+                request=("model".equals(action)||"decision".equals(action))?modelRequests.register(modelId):null;
             }catch(Exception e){reply(id,null,e.getMessage());return;}
             work.execute(()->{try{Object result;
                 switch(action){
@@ -84,6 +85,7 @@ public class CompanionActivity extends Activity {
                     case "calendarSelect":PlannerCalendar.select(CompanionActivity.this,p.getJSONArray("ids"));result=new JSONObject();break;
                     case "calendarPermission":runOnUiThread(()->requestPermissions(new String[]{android.Manifest.permission.READ_CALENDAR},301));result=new JSONObject();break;
                     case "model":result=model(p.getJSONObject("body"),request);break;
+                    case "decision":result=decision(p.getJSONObject("body"),request);break;
                     case "arm":CompanionAlerts.arm(CompanionActivity.this,p.getLong("id"));result=new JSONObject();break;
                     case "settings":String settingsSection=p.optString("section","settings");runOnUiThread(()->openIntegratedSettings(settingsSection));result=new JSONObject();break;
                     case "planner":String plannerTarget=p.toString();runOnUiThread(()->startActivity(new Intent(CompanionActivity.this,PlannerActivity.class).putExtra("plannerTarget",plannerTarget)));result=new JSONObject();break;
@@ -92,13 +94,28 @@ public class CompanionActivity extends Activity {
                     case "expand":runOnUiThread(()->{expanded=!expanded;size();});result=new JSONObject();break;
                     default:throw new IllegalArgumentException("Unsupported phone action.");
                 }reply(id,result,null);
-            }catch(Exception e){String message=action.equals("model")?"The AI connection failed. Check your key and internet connection.":e.getMessage();reply(id,null,message==null?"The phone could not finish that action.":message);}finally{if(request!=null)modelRequests.finish(modelId,request);}});
+            }catch(Exception e){String message=(action.equals("model")||action.equals("decision"))?"The OpenRouter connection failed. Check your key and internet connection.":e.getMessage();reply(id,null,message==null?"The phone could not finish that action.":message);}finally{if(request!=null)modelRequests.finish(modelId,request);}});
         }
     }
     private JSONObject model(JSONObject body,ModelRequests.Request request)throws Exception{
         request.check();
-        if(!body.optString("model").equals("openai/gpt-5.6-luna")||body.toString().length()>2000000||body.optInt("max_tokens")>3500)throw new IllegalArgumentException("Unsupported AI request.");String key=CompanionKey.get(this);if(key==null)throw new IllegalStateException("Connect an OpenRouter key in Settings.");
-        HttpsURLConnection connection=(HttpsURLConnection)new URL("https://openrouter.ai/api/v1/chat/completions").openConnection();connection.setConnectTimeout(8000);connection.setReadTimeout(18000);connection.setInstanceFollowRedirects(false);connection.setRequestMethod("POST");connection.setRequestProperty("Authorization","Bearer "+key);connection.setRequestProperty("Content-Type","application/json");connection.setDoOutput(true);
+        if(!body.optString("model").equals("openai/gpt-5.6-luna")||body.toString().length()>2000000||body.optInt("max_tokens")>3500)throw new IllegalArgumentException("Unsupported AI request.");return postOpenRouter(CHAT_ENDPOINT,body,request,18000);
+    }
+    private JSONObject decision(JSONObject body,ModelRequests.Request request)throws Exception{
+        request.check();validateDecision(body);return postOpenRouter(DECISION_ENDPOINT,body,request,12000);
+    }
+    private static void validateDecision(JSONObject body)throws Exception{
+        if(!body.optString("model").equals("typesafe/jev-1.13")||body.toString().length()>500000)throw new IllegalArgumentException("Unsupported Jev request.");
+        Set<String> top=Set.of("model","state","questions");for(Iterator<String> keys=body.keys();keys.hasNext();)if(!top.contains(keys.next()))throw new IllegalArgumentException("Unsupported Jev request field.");
+        JSONObject state=body.getJSONObject("state"),questions=body.getJSONObject("questions");JSONArray tasks=state.getJSONArray("tasks"),blocks=state.getJSONArray("blocks");if(tasks.length()<1||tasks.length()>24||blocks.length()<1||blocks.length()>12||questions.length()!=tasks.length())throw new IllegalArgumentException("Unsupported Jev grouping size.");
+        for(Iterator<String> keys=state.keys();keys.hasNext();)if(!Set.of("tasks","blocks").contains(keys.next()))throw new IllegalArgumentException("Unsupported Jev state field.");
+        for(int i=0;i<tasks.length();i++){JSONObject task=tasks.getJSONObject(i);for(Iterator<String> keys=task.keys();keys.hasNext();)if(!Set.of("id","title").contains(keys.next()))throw new IllegalArgumentException("Unsupported Jev task field.");if(task.getLong("id")<=0||task.getString("title").isBlank()||task.getString("title").length()>200)throw new IllegalArgumentException("Unsupported Jev task.");if(!questions.has("assignment_"+i))throw new IllegalArgumentException("Missing Jev task decision.");}
+        for(int i=0;i<blocks.length();i++){JSONObject block=blocks.getJSONObject(i);for(Iterator<String> keys=block.keys();keys.hasNext();)if(!Set.of("id","title","purpose","projectTitle").contains(keys.next()))throw new IllegalArgumentException("Unsupported Jev block field.");if(block.getString("id").isBlank()||block.getString("id").length()>160||block.getString("title").isBlank()||block.getString("title").length()>200||block.getString("purpose").length()>2000||block.getString("projectTitle").length()>200)throw new IllegalArgumentException("Unsupported Jev block.");}
+        for(Iterator<String> ids=questions.keys();ids.hasNext();){String id=ids.next();if(!id.matches("assignment_[0-9]{1,2}"))throw new IllegalArgumentException("Unsupported Jev question.");JSONObject question=questions.getJSONObject(id);for(Iterator<String> keys=question.keys();keys.hasNext();)if(!Set.of("type","instructions","criteria").contains(keys.next()))throw new IllegalArgumentException("Unsupported Jev question field.");if(!"choice".equals(question.optString("type"))||question.optString("instructions").length()<20||question.optString("instructions").length()>1000)throw new IllegalArgumentException("Unsupported Jev question type.");JSONObject criteria=question.getJSONObject("criteria");if(criteria.length()!=blocks.length()+1||!criteria.has("keep_unsorted"))throw new IllegalArgumentException("Unsupported Jev choices.");for(int i=0;i<blocks.length();i++)if(!criteria.has("block_"+i))throw new IllegalArgumentException("Missing Jev block choice.");for(Iterator<String> choices=criteria.keys();choices.hasNext();){String choice=choices.next();if(!choice.equals("keep_unsorted")&&!choice.matches("block_[0-9]{1,2}"))throw new IllegalArgumentException("Unsupported Jev choice.");String description=criteria.getString(choice);if(description.isBlank()||description.length()>1000)throw new IllegalArgumentException("Unsupported Jev choice description.");}}
+    }
+    private JSONObject postOpenRouter(String endpoint,JSONObject body,ModelRequests.Request request,int readTimeout)throws Exception{
+        String key=CompanionKey.get(this);if(key==null)throw new IllegalStateException("Connect an OpenRouter key in Settings.");
+        HttpsURLConnection connection=(HttpsURLConnection)new URL(endpoint).openConnection();connection.setConnectTimeout(8000);connection.setReadTimeout(readTimeout);connection.setInstanceFollowRedirects(false);connection.setRequestMethod("POST");connection.setRequestProperty("Authorization","Bearer "+key);connection.setRequestProperty("Content-Type","application/json");connection.setDoOutput(true);
         try{request.attach(connection);request.check();try(OutputStream out=connection.getOutputStream()){out.write(body.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));}int code=connection.getResponseCode();request.check();if(code<200||code>=300)return new JSONObject().put("status",code).put("body",new JSONObject());try(InputStream in=connection.getInputStream()){return new JSONObject().put("status",code).put("body",new JSONObject(CompanionStore.readText(in)));}}finally{connection.disconnect();}
     }
 }

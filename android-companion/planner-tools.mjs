@@ -38,13 +38,16 @@ function hold(data,args,meta,question,choices=args.choices,token=null){
 /** One validated transaction; every operation either saves together or stays a draft. */
 export async function changePlanner(data,args,meta,readCalendar=async()=>({status:'not_selected',events:[]})){
  validate(args,changePlannerSchema);meta={...meta,now:meta.now??new Date()};const pending=data.pending;
- if(pending&&(!args.continuation||pending.kind!=='planner'))throw new Error('Resolve or cancel the pending request first.');
+ // A concrete, independent create must not be blocked by an older unresolved
+ // edit. Apply it atomically while retaining the old proposal for later review.
+ const independentCreate=!!pending&&!args.continuation&&args.operations.length>0&&args.operations.every(op=>op.type==='create');
+ if(pending&&!independentCreate&&(!args.continuation||pending.kind!=='planner'))throw new Error('Resolve or cancel the pending request first.');
  if(args.continuation&&!pending)throw new Error('There is no planning proposal to continue.');
- if(pending&&pending.operations.some(old=>!args.operations.some(op=>op.type===old.type&&op.collection===old.collection&&op.id===old.id&&op.ref===old.ref)))throw new Error('Include every operation from the pending request.');
+ if(args.continuation&&pending.operations.some(old=>!args.operations.some(op=>op.type===old.type&&op.collection===old.collection&&op.id===old.id&&op.ref===old.ref)))throw new Error('Include every operation from the pending request.');
  if(!args.operations.length)throw new Error('Supply a planning change, or respond without changing anything.');
  const evidence=[...(args.continuation?pending.raws:[]),meta.raw].join('\n');
  for(const op of args.operations){if(!op.evidence.length||op.evidence.some(s=>!s.trim()||!evidence.includes(s)))throw new Error('Changes need exact supporting words from the request.');if(Object.keys(op.fields).some(k=>!allowed[op.collection].includes(k)))throw new Error('That field does not belong to '+op.collection);}
- if(args.question)return hold(data,args,meta,args.question);
+ if(args.question){if(independentCreate)throw new Error('This new item still needs an answer. Finish or dismiss the open proposal first.');return hold(data,args,meta,args.question);}
  const copy=structuredClone(data);copy.pending=null;const refs=new Map(),changes=[];
  const resolve=value=>typeof value==='string'&&value.startsWith('$')?(refs.has(value)?refs.get(value):(()=>{throw new Error('Unknown new-item reference '+value);})()):value;
  for(const op of args.operations){let targetId=resolve(op.id),f={...op.fields};for(const k of ['blockId','projectId','goalId','areaId'])if(k in f)f[k]=resolve(f[k]);
@@ -59,7 +62,7 @@ export async function changePlanner(data,args,meta,readCalendar=async()=>({statu
     if('recurrence'in f)f.repeatAfterDays=null;else if('repeatAfterDays'in f)f.recurrence=null;
     // Apply scheduling first so a new recurring task is never temporarily invalid.
     if('time'in op.fields){const resolved=resolvePlannerTime(copy,{id:old?.id??null,title:f.title??old?.title,time,evidence:op.evidence},{...meta,raw:evidence});
-     if(resolved.status==='review')return hold(data,args,meta,resolved.question,resolved.choices);
+     if(resolved.status==='review'){if(independentCreate)throw new Error('This new item needs a scheduling answer. Finish or dismiss the open proposal first.');return hold(data,args,meta,resolved.question,resolved.choices);}
      f.planned=resolved.planned;f.plannedDate=resolved.plannedDate;
     }
     targetId=editPlan(copy,{type:'saveTask',id:targetId,fields:f},meta.now);
@@ -75,8 +78,8 @@ export async function changePlanner(data,args,meta,readCalendar=async()=>({statu
   changes.push({type:op.type,collection:op.collection,id:targetId,title:op.fields.title??(op.collection==='tasks'?copy.entries:planner(data)[op.collection]).find(r=>r.id===targetId)?.title??''});
  }
  validatePlanner(copy);const checks=await scheduleChecks(data,copy,readCalendar,meta.now),token=JSON.stringify(checks.map(({alternatives,...c})=>c));
- if(checks.length&&!(args.continuation&&pending.scheduleReview===token&&meta.raw.trim().toLowerCase()==='save anyway')){const c=checks[0],question=c.warning??`${c.title} overlaps ${c.conflicts.slice(0,3).map(x=>x.title).join(', ')}. Save anyway, or choose another time?`;const choices=c.alternatives.map(at=>({label:new Date(at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}),text:`Move ${c.title} to ${new Date(at).toLocaleString('en-CA',{hour12:true})}. Keep all other requested changes.`}));choices.push({label:'Save anyway',text:'Save anyway'});return hold(data,args,meta,question,choices,token);}
- copy.planner.undo={entries:structuredClone(data.entries),planner:structuredClone({...planner(data),undo:null})};copy.undo={id:randomUUID(),at:meta.now.toISOString(),before:recordSnapshot(data)};copy.pending=null;Object.assign(data,copy);
+ if(checks.length&&!(args.continuation&&pending.scheduleReview===token&&meta.raw.trim().toLowerCase()==='save anyway')){if(independentCreate)throw new Error('This new item needs a schedule review. Finish or dismiss the open proposal first.');const c=checks[0],question=c.warning??`${c.title} overlaps ${c.conflicts.slice(0,3).map(x=>x.title).join(', ')}. Save anyway, or choose another time?`;const choices=c.alternatives.map(at=>({label:new Date(at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}),text:`Move ${c.title} to ${new Date(at).toLocaleString('en-CA',{hour12:true})}. Keep all other requested changes.`}));choices.push({label:'Save anyway',text:'Save anyway'});return hold(data,args,meta,question,choices,token);}
+ copy.planner.undo={entries:structuredClone(data.entries),planner:structuredClone({...planner(data),undo:null})};copy.undo={id:randomUUID(),at:meta.now.toISOString(),before:recordSnapshot(data)};copy.pending=independentCreate?structuredClone(pending):null;Object.assign(data,copy);
  const entryIds=[...new Set(changes.filter(c=>c.collection==='tasks').map(c=>c.id))];
  return {text:'Saved.',entryIds,receipts:[],plannerReceipts:plannerReceipts(data,changes,entryView),plannerChanges:changes,undoId:data.undo.id,suggestions:[]};
 }

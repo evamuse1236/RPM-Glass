@@ -53,7 +53,7 @@ export function mountSettings(api,host,options={}){
     capture.append(el('p','settings-note','A failed Glass interpretation keeps the captured thought for Retry. It does not switch to Classic automatically. Use Classic for check-ins and the older app actions while Glass focuses on reviewed planner changes.'));page.append(capture);
 
     const ai=section('AI connection','ai');
-    settingRow(ai,state.aiConnected?'Replace AI key':'Connect AI key','OpenRouter · stored securely on this phone',state.aiConnected?'Connected':'Not connected','connect_key');
+    settingRow(ai,state.aiConnected?'Replace AI key':'Connect AI key','OpenRouter · Luna chat + review-only Jev sorting',state.aiConnected?'Connected':'Not connected','connect_key');
     if(state.aiConnected)settingRow(ai,'Remove AI key','Plans and conversations stay on this phone','','remove_key');page.append(ai);
 
     const context=section('Context & history','context-history');

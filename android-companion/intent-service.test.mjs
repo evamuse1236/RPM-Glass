@@ -37,6 +37,14 @@ test('stored sort preview is isolated, revision checked and accepted as one undo
  editPlan(data,{type:'undo'});assert.equal(data.entries[0].blockId,undefined);assert.equal(data.planner.blocks.length,0);
 });
 
+test('stored Jev sort can link only existing blocks and never creates a draft block',async()=>{
+ const seed=freshStore(),blockId=editPlan(seed,{type:'saveEntity',collection:'blocks',fields:{title:'Lesson ready'}});editPlan(seed,{type:'saveTask',fields:{title:'Choose example',minutes:null}});editPlan(seed,{type:'saveTask',fields:{title:'Make questions',minutes:null}});seed.planner.undo=null;
+ const {backend,service}=serviceFor(async()=>turn(),seed),input={id:'jev-sort-1',selectedTaskIds:[1,2],blocks:[{blockId,title:'Lesson ready',projectId:null,taskIds:[1]}],leftUnsorted:[2],existingOnly:true};
+ const created=await service.sort.create(input);let data=await backend.load();assert.equal(created.preview.existingOnly,true);assert.equal(data.entries[0].blockId,undefined);assert.equal(data.planner.blocks.length,1);
+ const accepted=await service.sort.accept('jev-sort-1',{revision:1});data=await backend.load();assert.equal(accepted.changed,true);assert.equal(data.entries[0].blockId,blockId);assert.equal(data.entries[1].blockId,undefined);assert.equal(data.planner.blocks.length,1);assert.equal(data.planner.drafts.length,0);
+ editPlan(data,{type:'undo'});assert.equal(data.entries[0].blockId,undefined);assert.equal(data.planner.blocks.length,1);
+});
+
 test('definite store rejection stays definite while raw capture remains from earlier writes',async()=>{
  const seed=freshStore(),base=createMemoryBackend(seed);let reject=false;const backend={load:base.load,save:async(expected,next)=>{if(reject)throw new Error('Context exceeds 16 MB; original preserved. Export a backup before reducing history.');return base.save(expected,next);}};
  const service=createIntentService({backend,model:async()=>turn(),changePlanner,undo,readCalendar:calendar,editPlan});const conversationId=seed.conversations[0].id;
