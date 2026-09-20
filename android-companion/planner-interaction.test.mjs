@@ -31,7 +31,7 @@ test('saved planner targets dispatch UUID entities by collection and numeric tas
   assert.equal(savedPlannerTarget({view:'day',collection:'tasks',id:uuid}),null);
 });
 
-test('planner has no task drag, swipe mutation or timeline resize affordances',async()=>{
+test('planner keeps explicit actions alongside swipe and priority controls',async()=>{
   const [source,css,night]=await Promise.all([readFile(new URL('./planner.mjs',import.meta.url),'utf8'),readFile(new URL('./planner-stitch.css',import.meta.url),'utf8'),readFile(new URL('./night.css',import.meta.url),'utf8')]);
   for(const removed of ['installResize','installOrder','installTaskSwipe','drag-handle','drop-zone','gesture-hint']){
     assert.equal(source.includes(removed),false,`${removed} remains in planner source`);

@@ -9,7 +9,7 @@ import {readApiKey} from '../cli/openrouter.mjs';
 import {MODEL,createCompanionAgent} from './companion-agent.mjs';
 
 const directory=path.dirname(fileURLToPath(import.meta.url));
-const files=new Map([['/',['index.html','text/html; charset=utf-8']],['/app.js',['app.js','text/javascript; charset=utf-8']],['/style.css',['style.css','text/css; charset=utf-8']]]);
+const files=new Map([['/reply-format.mjs',['reply-format.mjs','text/javascript; charset=utf-8']],['/',['index.html','text/html; charset=utf-8']],['/app.js',['app.js','text/javascript; charset=utf-8']],['/style.css',['style.css','text/css; charset=utf-8']]]);
 export function createCompanionServer({store=openStore(),agent=createCompanionAgent(),aiEnabled=false,now=()=>new Date()}={}){
   let busy=false;const csrf=randomBytes(24).toString('hex');
   const view=()=>({version:store.data.version,busy,csrf,aiEnabled,model:MODEL,entries:store.data.entries.map(entryView),memories:store.data.memories,history:store.data.history,conversations:store.data.conversations,pending:store.data.pending,undoId:store.data.undo?.id??null,imported:store.data.imported});

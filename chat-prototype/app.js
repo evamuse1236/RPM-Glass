@@ -1,3 +1,4 @@
+import {formattedReply} from './reply-format.mjs';
 const $=id=>document.getElementById(id);
 const platform=window.RPM_PLATFORM??{};
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
@@ -63,7 +64,7 @@ function messageReceipts(m){return m.plannerReceipts??platform.receiptsForMessag
 function messageSuggestions(m,receipts=messageReceipts(m)){return (m.suggestions??[]).filter(s=>!receipts.length||!(s.label?.trim().toLowerCase()==='open'&&s.text?.trim()==='Open the plan I just changed.'));}
 function currentConversation(){return state.conversations.find(c=>c.id===conversationId)??state.conversations.find(c=>!c.archived)??state.conversations[0];}
 function message(m){
-  const row=el('section','message '+m.role);if(m.role==='user'){row.append(el('div','user-text',m.text));return row;}const plannerReceipts=messageReceipts(m);row.append(el('p','assistant-text',plannerReceipts.length&&m.text!=='Saved.'?'Saved.':m.text));for(const r of plannerReceipts)row.append(plannerReceipt(r));if(!plannerReceipts.length)for(const e of m.receipts??[])row.append(card(e,{receipt:true}));
+  const row=el('section','message '+m.role);if(m.role==='user'){row.append(el('div','user-text',m.text));return row;}const plannerReceipts=messageReceipts(m);row.append(formattedReply(plannerReceipts.length&&m.text!=='Saved.'?'Saved.':m.text));for(const r of plannerReceipts)row.append(plannerReceipt(r));if(!plannerReceipts.length)for(const e of m.receipts??[])row.append(card(e,{receipt:true}));
   for(const memory of m.memories??[]){const box=el('div','entry');box.append(el('p','entry-title','Remembered'),el('p','entry-meta',memory.text));row.append(box);}
   if(m.proposal){const finished=state.pending?.id!==m.proposal.id;row.append(el('small','superseded',finished?'Earlier proposal · no longer open':'Proposal · nothing changed yet'));if(finished){const past=el('div','actions');for(const s of m.proposal.choices??[])past.append(el('span','choice',s.label));row.append(past);}}else if(!platform.native)row.append(suggestions(messageSuggestions(m,plannerReceipts),messageOrigin(m)));
   if(m.undoId&&m.undoId===state.undoId)row.append(button('Undo this change',()=>turn({type:'undo',undoId:m.undoId}),'quiet'));

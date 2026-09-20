@@ -10,7 +10,7 @@ import {createOpenRouter,readApiKey,MODEL} from '../cli/openrouter.mjs';
 import {chatContext,sendChat} from './conversation.mjs';
 
 const directory=path.dirname(fileURLToPath(import.meta.url));
-const files=new Map([['/',['index.html','text/html; charset=utf-8']],['/app.js',['app.js','text/javascript; charset=utf-8']],['/style.css',['style.css','text/css; charset=utf-8']]]);
+const files=new Map([['/reply-format.mjs',['reply-format.mjs','text/javascript; charset=utf-8']],['/',['index.html','text/html; charset=utf-8']],['/app.js',['app.js','text/javascript; charset=utf-8']],['/style.css',['style.css','text/css; charset=utf-8']]]);
 const token=()=>randomBytes(24).toString('hex');
 const moods=['Low','Uneasy','Okay','Good','Great'];
 const energies=['Low','Medium','High'];

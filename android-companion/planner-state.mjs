@@ -77,8 +77,8 @@ export function editPlan(data,op,now=new Date()){
     const e=one(tasks(next),op.id),occurrence=op.occurrence??e.completions?.at(-1)?.occurrence;if(occurrence){const hit=(e.completions??[]).find(c=>c.occurrence===occurrence);if(!hit)throw new Error('That completion no longer exists.');if(e.repeatAfterDays)e.planned=occurrence;e.completedOccurrences=(e.completedOccurrences??[]).filter(k=>k!==occurrence);e.completions=e.completions.filter(c=>c!==hit);}e.done=false;e.state='active';result=e.id;
   }else if(op.type==='archiveTask'||op.type==='restoreTask'){
     const e=one(next.entries,op.id);if((e.kind??'plan')!=='plan')throw new Error('Choose a task.');
-    e.archived=op.type==='archiveTask';if(e.blockId&&!p.blocks.some(b=>b.id===e.blockId))e.blockId=null;
-    e.revisions??=[];e.revisions.push({at,reason:e.archived?'Deleted from planner (recoverable)':'Restored in planner',snapshot:{archived:e.archived}});e.revisions=e.revisions.slice(-100);result=e.id;
+    e.archived=op.type==='archiveTask';e.archiveDisposition=e.archived?(op.disposition==='archive'?'archive':'trash'):null;if(e.blockId&&!p.blocks.some(b=>b.id===e.blockId))e.blockId=null;
+    e.revisions??=[];e.revisions.push({at,reason:e.archived?(e.archiveDisposition==='archive'?'Archived from planner':'Deleted from planner (recoverable)'):'Restored in planner',snapshot:{archived:e.archived}});e.revisions=e.revisions.slice(-100);result=e.id;
   }else if(op.type==='moveTask'){
     const e=one(tasks(next),op.id),target=link(p.blocks,op.blockId),oldBlock=e.blockId??null;
     const rows=blockTasks(next,target).filter(t=>t.id!==e.id);const index=op.beforeId==null?rows.length:rows.findIndex(t=>t.id===op.beforeId);

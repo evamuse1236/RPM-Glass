@@ -1,3 +1,4 @@
+import {automationPreview} from './automation-preview-ui.mjs';
 const el=(tag,cls='',text='')=>{const node=document.createElement(tag);node.className=cls;node.textContent=text;return node;};
 const button=(label,detail,value,action)=>{const node=el('button','settings-row');node.type='button';node.dataset.action=action;const copy=el('span','settings-copy');copy.append(el('strong','',label));if(detail)copy.append(el('small','',detail));node.append(copy,el('span','settings-value',value??''));return node;};
 const section=(title,id)=>{const node=el('section','settings-group');node.dataset.section=id;const heading=el('h2','',title);node.append(heading);return node;};
@@ -61,6 +62,7 @@ export function mountSettings(api,host,options={}){
     settingRow(context,'Restore a backup','Pre-import copies saved privately on this phone',state.backupCount?String(state.backupCount):'None','restore_backup');
     settingRow(context,'Earlier RPM screens','Open the original planner','','earlier_screens');context.append(el('p','settings-note','Saved on this phone. Relevant context goes to OpenRouter only when you chat.'));page.append(context);
 
+    page.append(automationPreview());
     if(state.working)page.querySelectorAll('button,input').forEach(node=>node.disabled=true);
     host.replaceChildren(page);host.scrollTop=scroll;if(focus)host.querySelector(`[data-action="${focus}"]`)?.focus({preventScroll:true});
     const sectionName=options.section==='import_export'?'context-history':options.section;

@@ -3703,17 +3703,17 @@ var init_companion_tools = __esm({
 // android-companion/planner-recurrence.mjs
 function occurrences(e, start, end) {
   if (!e.planned || e.done || e.archived || e.state === "cancelled") return [];
-  const base = new Date(e.planned), minutes = e.minutes ?? 30, rows = [];
+  const base = new Date(e.planned), minutes2 = e.minutes ?? 30, rows = [];
   if (!Number.isFinite(+base)) return rows;
   const add = (d2) => {
     const key2 = d2.toISOString();
-    if (+d2 < end && +d2 + minutes * 6e4 > start && !(e.completedOccurrences ?? []).includes(key2)) rows.push({ ...e, occurrence: key2, start: +d2, end: +d2 + minutes * 6e4, source: "rpm" });
+    if (+d2 < end && +d2 + minutes2 * 6e4 > start && !(e.completedOccurrences ?? []).includes(key2)) rows.push({ ...e, occurrence: key2, start: +d2, end: +d2 + minutes2 * 6e4, source: "rpm" });
   };
   if (!fixed.has(e.recurrence)) {
     add(base);
     return rows;
   }
-  const from = new Date(start - minutes * 6e4), step = e.recurrence === "weekly" ? 7 : 1;
+  const from = new Date(start - minutes2 * 6e4), step = e.recurrence === "weekly" ? 7 : 1;
   const days = Math.floor((Date.UTC(from.getFullYear(), from.getMonth(), from.getDate()) - Date.UTC(base.getFullYear(), base.getMonth(), base.getDate())) / 864e5);
   const d = new Date(base);
   d.setDate(d.getDate() + Math.max(0, Math.floor(days / step)) * step);
@@ -3924,9 +3924,10 @@ function editPlan(data2, op, now2 = /* @__PURE__ */ new Date()) {
     const e = one(next.entries, op.id);
     if ((e.kind ?? "plan") !== "plan") throw new Error("Choose a task.");
     e.archived = op.type === "archiveTask";
+    e.archiveDisposition = e.archived ? op.disposition === "archive" ? "archive" : "trash" : null;
     if (e.blockId && !p.blocks.some((b) => b.id === e.blockId)) e.blockId = null;
     e.revisions ??= [];
-    e.revisions.push({ at: at2, reason: e.archived ? "Deleted from planner (recoverable)" : "Restored in planner", snapshot: { archived: e.archived } });
+    e.revisions.push({ at: at2, reason: e.archived ? e.archiveDisposition === "archive" ? "Archived from planner" : "Deleted from planner (recoverable)" : "Restored in planner", snapshot: { archived: e.archived } });
     e.revisions = e.revisions.slice(-100);
     result = e.id;
   } else if (op.type === "moveTask") {
@@ -4011,19 +4012,19 @@ function dayRange(day) {
   end.setHours(1);
   return { start: +start, end: +end };
 }
-function conflicts(data2, start, minutes, calendar = [], excludeId = null) {
-  const a = +new Date(start), b = a + minutes * 6e4;
-  if (!Number.isFinite(a) || !Number.isFinite(b) || minutes <= 0) throw new Error("Choose a valid time and duration.");
+function conflicts(data2, start, minutes2, calendar = [], excludeId = null) {
+  const a = +new Date(start), b = a + minutes2 * 6e4;
+  if (!Number.isFinite(a) || !Number.isFinite(b) || minutes2 <= 0) throw new Error("Choose a valid time and duration.");
   return [...tasks(data2).filter((e) => e.id !== excludeId).flatMap((e) => occurrences(e, a, b)), ...calendar.filter((e) => e.busy !== false).map((e) => ({ ...e, source: "calendar" }))].filter((e) => a < +e.end && b > +e.start);
 }
-function alternatives(data2, start, minutes, calendar = [], excludeId = null) {
+function alternatives(data2, start, minutes2, calendar = [], excludeId = null) {
   const slots = [], anchor = new Date(start);
   let t = Math.ceil(+anchor / 9e5) * 9e5;
   for (let i = 0; i < 192 && slots.length < 3; i++, t += 9e5) {
     const d = new Date(t), limit = new Date(t);
     limit.setHours(23, 0, 0, 0);
-    if (d.getHours() < 6 || t + minutes * 6e4 > +limit) continue;
-    if (!conflicts(data2, t, minutes, calendar, excludeId).length) slots.push(new Date(t).toISOString());
+    if (d.getHours() < 6 || t + minutes2 * 6e4 > +limit) continue;
+    if (!conflicts(data2, t, minutes2, calendar, excludeId).length) slots.push(new Date(t).toISOString());
   }
   return slots;
 }
@@ -4105,6 +4106,129 @@ var init_planner_calendar = __esm({
   }
 });
 
+// android-companion/priority-menu.mjs
+function openPriorityMenu(anchor, { count, current, onSelect, onClose = () => {
+} }) {
+  const menu = document.createElement("div");
+  menu.className = "priority-menu";
+  menu.setAttribute("role", "menu");
+  menu.setAttribute("aria-label", "Choose priority");
+  anchor.setAttribute("aria-expanded", "true");
+  let closed = false;
+  const close = (focus = true) => {
+    if (closed) return;
+    closed = true;
+    menu.remove();
+    anchor.setAttribute("aria-expanded", "false");
+    document.removeEventListener("pointerdown", outside, true);
+    window.removeEventListener("keydown", keys, true);
+    window.removeEventListener("resize", dismiss);
+    document.removeEventListener("scroll", scrolled, true);
+    if (focus && anchor.isConnected) anchor.focus({ preventScroll: true });
+    onClose();
+  };
+  const outside = (e) => {
+    if (!menu.contains(e.target) && !anchor.contains(e.target)) close(false);
+  };
+  const dismiss = () => close(false), scrolled = (e) => {
+    if (e.target !== menu) close(false);
+  };
+  const keys = (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      close();
+    }
+    if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
+      e.preventDefault();
+      const choices = [...menu.children], i = choices.indexOf(document.activeElement), next = e.key === "Home" ? 0 : e.key === "End" ? count - 1 : (i + (e.key === "ArrowDown" ? 1 : -1) + count) % count;
+      choices[next].focus();
+    }
+  };
+  for (let i = 1; i <= count; i++) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = "Priority " + i;
+    b.setAttribute("role", "menuitemradio");
+    b.setAttribute("aria-checked", String(i === current));
+    b.addEventListener("click", () => {
+      close();
+      if (i !== current) onSelect(i);
+    });
+    menu.append(b);
+  }
+  document.body.append(menu);
+  const r = anchor.getBoundingClientRect(), height = Math.min(menu.scrollHeight, 320, window.innerHeight - 24), width = menu.getBoundingClientRect().width;
+  menu.style.maxHeight = height + "px";
+  menu.style.left = Math.max(12, Math.min(r.right - width, window.innerWidth - width - 12)) + "px";
+  menu.style.top = Math.max(12, Math.min(window.innerHeight - height - 12, r.bottom + height + 8 < window.innerHeight ? r.bottom + 4 : r.top - height - 4)) + "px";
+  menu.scrollTop = Math.max(0, (menu.children[current - 1]?.offsetTop ?? 0) - height / 2);
+  document.addEventListener("pointerdown", outside, true);
+  window.addEventListener("keydown", keys, true);
+  window.addEventListener("resize", dismiss);
+  document.addEventListener("scroll", scrolled, true);
+  menu.children[current - 1]?.focus({ preventScroll: true });
+  return close;
+}
+var init_priority_menu = __esm({
+  "android-companion/priority-menu.mjs"() {
+    "use strict";
+  }
+});
+
+// android-companion/task-swipe.mjs
+function swipeAction(dx, dy) {
+  return Math.abs(dx) >= 90 && Math.abs(dx) > Math.abs(dy) * 1.5 ? dx > 0 ? "archive" : "remove" : null;
+}
+function attachTaskSwipe(row, actions) {
+  let start = null, dragged = false;
+  const reset = () => {
+    start = null;
+    row.style.removeProperty("--swipe-offset");
+    delete row.dataset.swipe;
+  };
+  row.addEventListener("pointerdown", (e) => {
+    if (e.isPrimary === false || e.button > 0 || e.target.closest("select,input,textarea")) return;
+    start = { x: e.clientX, y: e.clientY };
+    dragged = false;
+  });
+  row.addEventListener("pointermove", (e) => {
+    if (!start) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y;
+    if (Math.abs(dy) > 16 && Math.abs(dy) > Math.abs(dx)) {
+      reset();
+      return;
+    }
+    if (Math.abs(dx) > 16 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      dragged = true;
+      row.setPointerCapture?.(e.pointerId);
+      row.dataset.swipe = dx > 0 ? "Archive" : "Delete";
+      row.style.setProperty("--swipe-offset", Math.max(-110, Math.min(110, dx)) + "px");
+    }
+  });
+  row.addEventListener("pointerup", (e) => {
+    const action = start && swipeAction(e.clientX - start.x, e.clientY - start.y);
+    reset();
+    if (action) {
+      dragged = true;
+      actions[action]();
+    }
+    setTimeout(() => dragged = false, 0);
+  });
+  row.addEventListener("pointercancel", reset);
+  row.addEventListener("click", (e) => {
+    if (dragged) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
+  }, true);
+}
+var init_task_swipe = __esm({
+  "android-companion/task-swipe.mjs"() {
+    "use strict";
+  }
+});
+
 // android-companion/planner-ai.mjs
 function planningContext(data2, action, blockId = null) {
   const p = planner(data2);
@@ -4152,6 +4276,167 @@ var init_planner_ai = __esm({
   }
 });
 
+// android-companion/automation-preview.mjs
+function inFocusHours(time, start, end) {
+  const t = minutes(time), a = minutes(start), b = minutes(end);
+  if (a === b) return false;
+  return a < b ? t >= a && t < b : t >= a || t < b;
+}
+function focusDecision({ time, start, end, packageName = "", url = "", urgent = false }) {
+  const active = inFocusHours(time, start, end);
+  let host = "";
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+  }
+  const twitter = packageName === "com.twitter.android" || ["x.com", "twitter.com"].some((domain) => host === domain || host.endsWith("." + domain));
+  return { active, notification: active && !urgent ? "batch" : "show", app: active && twitter ? "block" : "allow", mock: true };
+}
+function createFocusPreview() {
+  const queued = /* @__PURE__ */ new Map();
+  return {
+    receive(notification, schedule) {
+      const decision = focusDecision(schedule);
+      if (decision.notification === "batch") queued.set(notification.id, { ...notification });
+      return { ...decision, queued: queued.size };
+    },
+    release() {
+      const digest = [...queued.values()];
+      queued.clear();
+      return digest;
+    },
+    count: () => queued.size
+  };
+}
+function createMockUpdateAdapters() {
+  const calls = [];
+  return { calls, hermes: { async prepare(input) {
+    calls.push({ service: "hermes", ...input });
+    return { status: "prepared", artifact: "mock://rpm/" + input.releaseId + ".apk" };
+  } }, whatsapp: { async send(input) {
+    calls.push({ service: "whatsapp", ...input });
+    return { status: "simulated", requestId: input.requestId };
+  } } };
+}
+function createUpdatePreview({ threshold, hermes, whatsapp }) {
+  if (!Number.isInteger(threshold) || threshold < 1) throw new Error("Choose at least one verified feature.");
+  const features = /* @__PURE__ */ new Map(), finished = /* @__PURE__ */ new Map();
+  let running = false;
+  return {
+    add(feature) {
+      if (!feature?.id || feature.verified !== true) throw new Error("Only verified features count toward an update.");
+      features.set(feature.id, { ...feature });
+      return features.size;
+    },
+    async run({ releaseId, recipient }) {
+      if (!releaseId || !recipient) throw new Error("Choose a release and recipient for the preview.");
+      if (finished.has(releaseId)) return finished.get(releaseId);
+      if (running) throw new Error("An update preview is already running.");
+      if (features.size < threshold) return { status: "waiting", count: features.size, threshold, mock: true };
+      running = true;
+      try {
+        const batch = [...features.values()];
+        const prepared = await hermes.prepare({ releaseId, features: batch, mock: true });
+        if (prepared.status !== "prepared" || !prepared.artifact?.startsWith("mock://")) throw new Error("Preview requires a mock artifact.");
+        const sent = await whatsapp.send({ recipient, artifact: prepared.artifact, requestId: "rpm-update:" + releaseId, mock: true });
+        if (sent.status !== "simulated") throw new Error("Preview delivery was not confirmed.");
+        const result = { status: "simulated", featureCount: batch.length, requestId: sent.requestId, mock: true };
+        finished.set(releaseId, result);
+        batch.forEach((f) => features.delete(f.id));
+        return result;
+      } finally {
+        running = false;
+      }
+    }
+  };
+}
+var minutes;
+var init_automation_preview = __esm({
+  "android-companion/automation-preview.mjs"() {
+    "use strict";
+    minutes = (value2) => {
+      if (!/^\d{2}:\d{2}$/.test(value2)) throw new Error("Choose a valid time.");
+      const [h, m] = value2.split(":").map(Number);
+      if (h > 23 || m > 59) throw new Error("Choose a valid time.");
+      return h * 60 + m;
+    };
+  }
+});
+
+// android-companion/automation-preview-ui.mjs
+function automationPreview() {
+  const section2 = el("section", "", "settings-group");
+  section2.dataset.section = "automation-preview";
+  section2.append(el("h2", "Automation previews"), el("p", "Try sample events. These previews do not hide real notifications, block apps, build updates or send messages.", "settings-note"));
+  function field(label, value2, type) {
+    const wrap = el("label", "", "field"), input = el("input");
+    input.type = type;
+    input.value = value2;
+    wrap.append(el("span", label), input);
+    section2.append(wrap);
+    return input;
+  }
+  const start = field("Focus starts", "09:00", "time"), end = field("Focus ends", "11:00", "time"), time = field("Sample event time", "09:30", "time");
+  const out = el("p", "", "settings-note");
+  out.setAttribute("role", "status");
+  const focus = createFocusPreview();
+  let sequence = 0;
+  function action(label, fn) {
+    const b = el("button", label, "menu-action link");
+    b.type = "button";
+    b.addEventListener("click", async () => {
+      b.disabled = true;
+      try {
+        await fn();
+      } catch (e) {
+        out.textContent = e.message;
+      } finally {
+        b.disabled = false;
+      }
+    });
+    section2.append(b);
+  }
+  const schedule = () => ({ start: start.value, end: end.value, time: time.value });
+  action("Preview notification batch", () => {
+    const result = focus.receive({ id: String(++sequence), title: "Sample notification" }, schedule());
+    out.textContent = result.notification === "batch" ? `${result.queued} sample notifications held out of view until release.` : "Outside focus hours: the sample notification appears normally.";
+  });
+  action("Release sample batch", () => {
+    const digest = focus.release();
+    out.textContent = digest.length ? `Sample digest: ${digest.length} notifications ready to review.` : "No sample notifications waiting.";
+  });
+  action("Preview opening X / Twitter", () => {
+    out.textContent = focusDecision({ ...schedule(), url: "https://x.com/home" }).app === "block" ? "X / Twitter would be blocked during these focus hours." : "X / Twitter would be available outside these focus hours.";
+  });
+  section2.append(el("h3", "Update handoff"));
+  const threshold = field("Verified features per update (sample)", "3", "number");
+  threshold.min = "1";
+  threshold.max = "100";
+  action("Preview Hermes \u2192 WhatsApp update", async () => {
+    const count = Number(threshold.value);
+    if (!Number.isInteger(count) || count < 1 || count > 100) throw new Error("Choose 1 to 100 sample features.");
+    const adapters = createMockUpdateAdapters(), flow = createUpdatePreview({ threshold: count, ...adapters });
+    for (let i = 1; i <= count; i++) flow.add({ id: "sample-" + i, title: "Sample feature " + i, verified: true });
+    const result = await flow.run({ releaseId: "sample-release", recipient: "sample-recipient" });
+    out.textContent = `Simulated: Hermes prepared ${result.featureCount} sample features; WhatsApp attachment handoff recorded. Nothing was built or sent.`;
+  });
+  section2.append(out);
+  return section2;
+}
+var el;
+var init_automation_preview_ui = __esm({
+  "android-companion/automation-preview-ui.mjs"() {
+    "use strict";
+    init_automation_preview();
+    el = (tag, text5 = "", cls = "") => {
+      const n = document.createElement(tag);
+      n.textContent = text5;
+      n.className = cls;
+      return n;
+    };
+  }
+});
+
 // android-companion/settings.mjs
 function mountSettings(api, host, options = {}) {
   const native2 = typeof api === "function" ? api : (action, payload = {}) => api.native(action, payload);
@@ -4180,22 +4465,22 @@ function mountSettings(api, host, options = {}) {
     return row;
   }
   function slider(group, label, detail, value2, min, max, action, preview = false) {
-    const wrap = el("div", "settings-slider");
+    const wrap = el2("div", "settings-slider");
     wrap.dataset.action = action;
-    const head = el("div", "settings-slider-head");
-    head.append(el("label", "", label), el("output", "settings-value", value2 + "%"));
-    const input = el("input");
+    const head = el2("div", "settings-slider-head");
+    head.append(el2("label", "", label), el2("output", "settings-value", value2 + "%"));
+    const input = el2("input");
     input.type = "range";
     input.min = String(min);
     input.max = String(max);
     input.step = "1";
     input.value = String(value2);
     input.setAttribute("aria-label", label);
-    const note = el("small", "", detail);
+    const note = el2("small", "", detail);
     wrap.append(head, input, note);
     let sample = null;
     if (preview) {
-      sample = el("p", "widget-text-preview", "A clear next action");
+      sample = el2("p", "widget-text-preview", "A clear next action");
       sample.style.fontSize = value2 / 100 + "em";
       sample.setAttribute("aria-label", "Widget text size preview");
       wrap.append(sample);
@@ -4210,12 +4495,12 @@ function mountSettings(api, host, options = {}) {
   function render2() {
     if (destroyed || !state2) return;
     const scroll = host.scrollTop, focus = document.activeElement?.dataset?.action;
-    const page = el("div", "settings-page");
+    const page = el2("div", "settings-page");
     page.setAttribute("aria-label", "Settings");
-    const header = el("header", "settings-header");
-    header.append(el("h1", "", "Settings"), el("p", "muted", "Sounds, widget appearance, alerts, connection and private backups."));
+    const header = el2("header", "settings-header");
+    header.append(el2("h1", "", "Settings"), el2("p", "muted", "Sounds, widget appearance, alerts, connection and private backups."));
     page.append(header);
-    const notice = el("p", "settings-notice", noticeText);
+    const notice = el2("p", "settings-notice", noticeText);
     notice.setAttribute("role", "status");
     notice.setAttribute("aria-live", "polite");
     notice.hidden = !noticeText;
@@ -4240,12 +4525,12 @@ function mountSettings(api, host, options = {}) {
     settingRow(alerts, "Exact alarms", "Required for alarms at the chosen time", state2.exactAlarmsAllowed ? "Allowed" : "Permission needed", "exact_alarms");
     if (state2.fullScreenSupported) settingRow(alerts, "Lock-screen alarms", "Controls full-screen ringing alerts", state2.fullScreenAllowed ? "Allowed" : "Permission needed", "full_screen_alarms");
     settingRow(alerts, "Check saved alerts", "Retry scheduling after permission changes", "", "check_alerts");
-    alerts.append(el("p", "settings-note", "Android battery restrictions can delay reminders. Keep RPM installed for saved alarms to ring."));
+    alerts.append(el2("p", "settings-note", "Android battery restrictions can delay reminders. Keep RPM installed for saved alarms to ring."));
     page.append(alerts);
     const capture = section("Thought capture", "thought-capture"), captureMode2 = captureModeSetting(localStorage);
     settingRow(capture, "Classic assistant", "Default \xB7 includes check-ins and app actions", captureMode2 === "classic" ? "Selected" : "", "capture_classic");
     settingRow(capture, "Glass review pilot", "Planner changes save only after your review", captureMode2 === "glass" ? "Selected" : "", "capture_glass");
-    capture.append(el("p", "settings-note", "A failed Glass interpretation keeps the captured thought for Retry. It does not switch to Classic automatically. Use Classic for check-ins and the older app actions while Glass focuses on reviewed planner changes."));
+    capture.append(el2("p", "settings-note", "A failed Glass interpretation keeps the captured thought for Retry. It does not switch to Classic automatically. Use Classic for check-ins and the older app actions while Glass focuses on reviewed planner changes."));
     page.append(capture);
     const ai = section("AI connection", "ai");
     settingRow(ai, state2.aiConnected ? "Replace AI key" : "Connect AI key", "OpenRouter \xB7 stored securely on this phone", state2.aiConnected ? "Connected" : "Not connected", "connect_key");
@@ -4256,8 +4541,9 @@ function mountSettings(api, host, options = {}) {
     settingRow(context, "Export context", "Save conversations and plans as a personal JSON file", "", "export_context");
     settingRow(context, "Restore a backup", "Pre-import copies saved privately on this phone", state2.backupCount ? String(state2.backupCount) : "None", "restore_backup");
     settingRow(context, "Earlier RPM screens", "Open the original planner", "", "earlier_screens");
-    context.append(el("p", "settings-note", "Saved on this phone. Relevant context goes to OpenRouter only when you chat."));
+    context.append(el2("p", "settings-note", "Saved on this phone. Relevant context goes to OpenRouter only when you chat."));
     page.append(context);
+    page.append(automationPreview());
     if (state2.working) page.querySelectorAll("button,input").forEach((node) => node.disabled = true);
     host.replaceChildren(page);
     host.scrollTop = scroll;
@@ -4266,14 +4552,14 @@ function mountSettings(api, host, options = {}) {
     if (sectionName && !settingsSectionAction(sectionName)) host.querySelector(`[data-section="${sectionName}"]`)?.scrollIntoView({ block: "start" });
   }
   function loadError(message2) {
-    const page = el("div", "settings-page"), header = el("header", "settings-header");
-    header.append(el("h1", "", "Settings"));
-    const problem = el("div", "settings-load-error");
+    const page = el2("div", "settings-page"), header = el2("header", "settings-header");
+    header.append(el2("h1", "", "Settings"));
+    const problem = el2("div", "settings-load-error");
     problem.setAttribute("role", "alert");
-    problem.append(el("h2", "", "Settings unavailable"), el("p", "error", message2), el("button", "secondary", "Try again"));
+    problem.append(el2("h2", "", "Settings unavailable"), el2("p", "error", message2), el2("button", "secondary", "Try again"));
     problem.querySelector("button").type = "button";
     problem.querySelector("button").addEventListener("click", () => {
-      host.replaceChildren(el("p", "settings-loading muted", "Loading settings\u2026"));
+      host.replaceChildren(el2("p", "settings-loading muted", "Loading settings\u2026"));
       refresh();
     });
     page.append(header, problem);
@@ -4340,36 +4626,37 @@ function mountSettings(api, host, options = {}) {
     });
     host.replaceChildren();
   }
-  host.replaceChildren(el("p", "settings-loading muted", "Loading settings\u2026"));
+  host.replaceChildren(el2("p", "settings-loading muted", "Loading settings\u2026"));
   window.addEventListener("rpm-settings-refresh", onRefresh);
   window.addEventListener("keydown", onKey);
   refresh();
   return { refresh, destroy, handleBack };
 }
-var el, button, section, safeScale, settingsSectionAction, captureModeSetting;
+var el2, button, section, safeScale, settingsSectionAction, captureModeSetting;
 var init_settings = __esm({
   "android-companion/settings.mjs"() {
     "use strict";
-    el = (tag, cls = "", text5 = "") => {
+    init_automation_preview_ui();
+    el2 = (tag, cls = "", text5 = "") => {
       const node = document.createElement(tag);
       node.className = cls;
       node.textContent = text5;
       return node;
     };
     button = (label, detail, value2, action) => {
-      const node = el("button", "settings-row");
+      const node = el2("button", "settings-row");
       node.type = "button";
       node.dataset.action = action;
-      const copy = el("span", "settings-copy");
-      copy.append(el("strong", "", label));
-      if (detail) copy.append(el("small", "", detail));
-      node.append(copy, el("span", "settings-value", value2 ?? ""));
+      const copy = el2("span", "settings-copy");
+      copy.append(el2("strong", "", label));
+      if (detail) copy.append(el2("small", "", detail));
+      node.append(copy, el2("span", "settings-value", value2 ?? ""));
       return node;
     };
     section = (title2, id2) => {
-      const node = el("section", "settings-group");
+      const node = el2("section", "settings-group");
       node.dataset.section = id2;
-      const heading2 = el("h2", "", title2);
+      const heading2 = el2("h2", "", title2);
       node.append(heading2);
       return node;
     };
@@ -4528,9 +4815,10 @@ function savedPlannerTarget(target) {
   return null;
 }
 function mountPlanner(api) {
-  const $2 = (id2) => document.getElementById(id2), work = $2("workspace"), editor = $2("editor");
+  const $2 = (id2) => document.getElementById(id2), work = $2("workspace"), scrollHost = $2("planner-scroll"), editor = $2("editor");
   let day = localDay(), level = 0, projectId = null, focusedBlockId = null, focusedTaskId = null, year = (/* @__PURE__ */ new Date()).getFullYear(), saving = false, calendar = [], calendarState = "Checking\u2026", noticeTimer, returnFocus, calendarSerial = 0, lastRenderedKey = null, suppressClick = false;
   const clarity = applyClarityPreferences(clarityPreferences());
+  let closePriorityMenu = null;
   let settingsController = null, claritySettingsController = null, settingsReturnLevel = 0, settingsSection = "settings", lastNavLevel = null;
   const positions = /* @__PURE__ */ new Map(), positionKey = () => `${level}:${level === 0 ? day : level === 2 ? projectId : level === 3 ? year : "blocks"}`;
   let reviewToken = null, scheduleWorking = false, editorVersion = null, draftKey = null, draftValues = {}, dayAsList = api.getPhone().fontScale >= 1.5 || clarity.dayLayout === "agenda";
@@ -4565,7 +4853,7 @@ function mountPlanner(api) {
   function notice(message2, canUndo = false) {
     const n = $2("notice");
     clearTimeout(noticeTimer);
-    n.replaceChildren(el2("span", "", message2));
+    n.replaceChildren(el3("span", "", message2));
     if (canUndo) n.append(button2("Undo", async () => {
       try {
         await api.commit({ type: "undo" });
@@ -4608,6 +4896,7 @@ function mountPlanner(api) {
     returnFocus?.focus({ preventScroll: true });
   }
   function openEditor(title2, key2 = null, seed = null) {
+    closePriorityMenu?.(false);
     editorVersion = data2().version;
     draftKey = key2;
     draftValues = { ...seed ?? {} };
@@ -4622,43 +4911,43 @@ function mountPlanner(api) {
     editor.setAttribute("aria-label", title2);
     editor.replaceChildren();
     $2("planner").inert = true;
-    const header = el2("header", "toolbar");
+    const header = el3("header", "toolbar");
     const back = icon("close", "Back to planner", closeEditor);
-    header.append(el2("h2", "", title2), back);
-    const body = el2("div", "edit-body"), actions = el2("div", "edit-actions");
+    header.append(el3("h2", "", title2), back);
+    const body = el3("div", "edit-body"), actions = el3("div", "edit-actions");
     editor.append(header, body, actions);
-    if (key2 && !seed && Object.keys(draftValues).length) body.append(el2("p", "muted small", "Draft restored. Review the details before saving."));
+    if (key2 && !seed && Object.keys(draftValues).length) body.append(el3("p", "muted small", "Draft restored. Review the details before saving."));
     back.focus({ preventScroll: true });
     return { body, actions };
   }
   function field(body, label, value2, type = "text") {
-    const wrap = el2("label", "field"), n = document.createElement(type === "textarea" ? "textarea" : "input");
+    const wrap = el3("label", "field"), n = document.createElement(type === "textarea" ? "textarea" : "input");
     if (type !== "textarea") n.type = type;
     n.value = value2 ?? "";
     rememberField(label, n);
-    wrap.append(el2("span", "", label), n);
+    wrap.append(el3("span", "", label), n);
     body.append(wrap);
     return n;
   }
   function select(body, label, value2, options) {
-    const wrap = el2("label", "field"), n = el2("select");
+    const wrap = el3("label", "field"), n = el3("select");
     for (const [v, t] of options) {
-      const o = el2("option", "", t);
+      const o = el3("option", "", t);
       o.value = v;
       n.append(o);
     }
     n.value = value2 ?? "";
     rememberField(label, n);
-    wrap.append(el2("span", "", label), n);
+    wrap.append(el3("span", "", label), n);
     body.append(wrap);
     return n;
   }
   function checkbox(body, label, value2) {
-    const wrap = el2("label", "check-field"), n = el2("input");
+    const wrap = el3("label", "check-field"), n = el3("input");
     n.type = "checkbox";
     n.checked = !!value2;
     rememberField(label, n);
-    wrap.append(n, el2("span", "", label));
+    wrap.append(n, el3("span", "", label));
     body.append(wrap);
     return n;
   }
@@ -4718,7 +5007,7 @@ function mountPlanner(api) {
   function swipe(node, vertical = false) {
     let start;
     node.addEventListener("pointerdown", (e) => {
-      if (e.target.closest("input,textarea,select,.task-row,.filter-strip")) return;
+      if (e.target.closest("input,textarea,select,.task-row,[data-task-id],.filter-strip")) return;
       start = { x: e.clientX, y: e.clientY };
     });
     node.addEventListener("pointerup", (e) => {
@@ -4771,7 +5060,7 @@ function mountPlanner(api) {
       const tab = icon(name, label, () => i === 4 ? showSettings() : i === level && i === 0 ? datePicker() : changeLevel(i));
       tab.title = label;
       tab.setAttribute("aria-current", level === i ? "page" : "false");
-      tab.append(el2("span", "nav-label", label));
+      tab.append(el3("span", "nav-label", label));
       nav.append(tab);
     }
     if (lastNavLevel !== level) revealSelectedTab();
@@ -4782,22 +5071,22 @@ function mountPlanner(api) {
     if (level !== 4) {
       f.append(icon("search", "Search plans", searchPlans), icon("plus", "Add or capture", quickAdd));
       f.lastChild.classList.add("primary");
-      f.lastChild.append(el2("span", "add-label", "Add"));
+      f.lastChild.append(el3("span", "add-label", "Add"));
     }
     const header = $2("view-header");
     header.replaceChildren();
     header.className = level === 0 ? "daily-header" : "";
     header.hidden = level === 4;
     if (level > 0 && level < 4) {
-      const title2 = el2("div", "view-title");
-      title2.append(el2("span", "status-dot"), el2("h1", "", ["Daily", "RPM", "Projects", "Life Vision"][level]));
+      const title2 = el3("div", "view-title");
+      title2.append(el3("span", "status-dot"), el3("h1", "", ["Daily", "RPM", "Projects", "Life Vision"][level]));
       header.append(title2);
     }
     if (level === 0) {
-      const selected = /* @__PURE__ */ new Date(day + "T12:00"), today2 = day === localDay(), summary = el2("div", "daily-summary"), copy = el2("div", "view-title"), dateLabel = selected.toLocaleDateString("en", { weekday: "long", day: "numeric", month: "long" }), dateButton = button2(dateLabel, datePicker, "daily-date-trigger muted");
+      const selected = /* @__PURE__ */ new Date(day + "T12:00"), today2 = day === localDay(), summary = el3("div", "daily-summary"), copy = el3("div", "view-title"), dateLabel = selected.toLocaleDateString("en", { weekday: "long", day: "numeric", month: "long" }), dateButton = button2(dateLabel, datePicker, "daily-date-trigger muted");
       dateButton.setAttribute("aria-label", "Choose date: " + dateLabel);
-      copy.append(el2("h1", "", today2 ? "Today" : "Daily"), dateButton);
-      const layouts = el2("div", "day-layout-toggle");
+      copy.append(el3("h1", "", today2 ? "Today" : "Daily"), dateButton);
+      const layouts = el3("div", "day-layout-toggle");
       layouts.setAttribute("role", "group");
       layouts.setAttribute("aria-label", "Day layout");
       for (const [value2, label] of [["agenda", "Agenda"], ["timeline", "Timeline"]]) {
@@ -4807,7 +5096,7 @@ function mountPlanner(api) {
       }
       summary.append(copy, layouts);
       header.append(summary);
-      const strip = el2("div", "week-strip"), monday = shiftDay(day, -((selected.getDay() + 6) % 7));
+      const strip = el3("div", "week-strip"), monday = shiftDay(day, -((selected.getDay() + 6) % 7));
       for (let i = 0; i < 7; i++) {
         const key2 = shiftDay(monday, i), date = /* @__PURE__ */ new Date(key2 + "T12:00"), b = button2("", () => {
           if (key2 === day) datePicker();
@@ -4818,10 +5107,10 @@ function mountPlanner(api) {
         }, "week-day");
         b.setAttribute("aria-label", date.toLocaleDateString("en", { weekday: "long", day: "numeric", month: "long", year: "numeric" }));
         b.setAttribute("aria-pressed", String(key2 === day));
-        b.append(el2("small", "", date.toLocaleDateString("en", { weekday: "short" }).toUpperCase()), el2("span", "numeric", String(date.getDate())));
-        const dots = el2("span", "day-dots");
+        b.append(el3("small", "", date.toLocaleDateString("en", { weekday: "short" }).toUpperCase()), el3("span", "numeric", String(date.getDate())));
+        const dots = el3("span", "day-dots");
         for (const e of timelineItems(data2(), key2, calendar).slice(0, 3)) {
-          const dot = el2("i");
+          const dot = el3("i");
           dot.dataset.tone = e.source === "calendar" ? "cyan" : toneFor(e.blockId ?? e.id);
           dots.append(dot);
         }
@@ -4849,11 +5138,11 @@ function mountPlanner(api) {
     body.append(button2(["Add a task", "New RPM block", "New project", "New goal"][level], () => level === 0 ? taskEditor(null, { plannedDate: day }) : entityEditor(["", "blocks", "projects", "goals"][level]), "menu-action link"), button2("Capture with AI", capture, "menu-action link"));
     if (level !== 0) body.append(button2("Add a task", () => taskEditor(null), "menu-action link"));
     if (level === 0) body.append(button2(`Unscheduled tasks \xB7 ${tasks(data2()).filter((e) => !e.planned && !e.done).length}`, showUnscheduled, "menu-action link"), button2("Choose date or calendar", datePicker, "menu-action link"));
-    if (level === 1) body.append(button2("Sort into RPM blocks", () => aiAction("sort"), "menu-action link"), button2("Examples", examples, "menu-action link"), button2("Trash", showTrash, "menu-action link"));
+    if (level === 1) body.append(button2("Sort into RPM blocks", () => aiAction("sort"), "menu-action link"), button2("Examples", examples, "menu-action link"), button2("Archive", () => showTrash(true), "link"), button2("Trash", () => showTrash(false), "menu-action link"));
     if (level === 3) body.append(button2("Manage life areas", areaPicker, "menu-action link"), button2("Goal ideas", () => aiAction("ideas"), "menu-action link"), button2("Goals and vision", contextEditor, "menu-action link"));
   }
   function searchPlans() {
-    const { body } = openEditor("Search plans"), input = field(body, "Search tasks, blocks, projects and goals", "", "search"), results = el2("div", "search-results");
+    const { body } = openEditor("Search plans"), input = field(body, "Search tasks, blocks, projects and goals", "", "search"), results = el3("div", "search-results");
     body.append(results);
     const draw = () => {
       results.replaceChildren();
@@ -4873,11 +5162,11 @@ function mountPlanner(api) {
       let count = 0;
       for (const [label, items, open2] of groups) for (const item of items.filter((e) => (e.title + " " + (e.purpose ?? "")).toLocaleLowerCase().includes(q)).slice(0, 30)) {
         const b = button2("", () => open2(item), "menu-action search-result");
-        b.append(el2("small", "muted", label), el2("span", "", item.title));
+        b.append(el3("small", "muted", label), el3("span", "", item.title));
         results.append(b);
         count++;
       }
-      if (!count) results.append(el2("p", "empty", "No matching plans. Try another word."));
+      if (!count) results.append(el3("p", "empty", "No matching plans. Try another word."));
     };
     input.addEventListener("input", draw);
     draw();
@@ -4902,8 +5191,9 @@ function mountPlanner(api) {
     }, "primary"));
   }
   function render2(reset = false, direction = "") {
+    closePriorityMenu?.(false);
     if (level === 2 && !p().projects.some((pr) => pr.id === projectId)) projectId = p().projects[0]?.id ?? null;
-    const changedView = lastRenderedKey !== positionKey(), scroll = work.scrollTop;
+    const changedView = lastRenderedKey !== positionKey(), scroll = scrollHost.scrollTop;
     if (lastRenderedKey) positions.set(lastRenderedKey, scroll);
     lastRenderedKey = positionKey();
     navigation();
@@ -4914,12 +5204,12 @@ function mountPlanner(api) {
     else if (level === 2) renderProjects();
     else if (level === 3) renderLife();
     else renderSettings();
-    work.scrollTop = reset ? positions.get(lastRenderedKey) ?? (level === 0 && !dayAsList ? 8 * hourSize() - 12 : 0) : scroll;
+    scrollHost.scrollTop = reset ? positions.get(lastRenderedKey) ?? (level === 0 && !dayAsList ? $2("view-header").offsetHeight + 8 * hourSize() - 12 : 0) : scroll;
     if (level === 0 && changedView) refreshCalendar();
   }
   function renderSettings() {
     destroySettings();
-    const loading = el2("p", "settings-loading muted", "Loading settings\u2026");
+    const loading = el3("p", "settings-loading muted", "Loading settings\u2026");
     loading.setAttribute("role", "status");
     work.append(loading);
     try {
@@ -4943,11 +5233,12 @@ function mountPlanner(api) {
     const range = dayRange(day), allDay = calendar.filter((e) => e.allDay && e.start < range.end - 36e5 && e.end > range.start);
     const dated = tasks(data2()).filter((e) => !e.done && !e.planned && e.plannedDate === day);
     if (dayAsList) {
-      const list2 = el2("div", "scroll-page day-list");
+      const list2 = el3("div", "scroll-page day-list");
       for (const e of timelineItems(data2(), day, calendar)) {
         const b = button2("", () => e.source === "calendar" ? calendarDetails(e) : taskDetails(e.id, e.occurrence), "agenda-item");
         b.dataset.tone = e.source === "calendar" ? "cyan" : toneFor(e.blockId ?? e.id);
-        b.append(el2("small", "event-meta", e.allDay ? "All day" : clock2(e.start) + " \xB7 " + duration(Math.round((e.end - e.start) / 6e4))), el2("span", "", e.title));
+        b.append(el3("small", "event-meta", e.allDay ? "All day" : clock2(e.start) + " \xB7 " + duration(Math.round((e.end - e.start) / 6e4))), el3("span", "", e.title));
+        if (e.source !== "calendar") taskGesture(b, tasks(data2()).find((t) => t.id === e.id));
         list2.append(b);
       }
       for (const e of dated) list2.append(taskRow(e));
@@ -4955,17 +5246,17 @@ function mountPlanner(api) {
       work.append(list2);
       return;
     }
-    const canvas = el2("div", "timeline");
+    const canvas = el3("div", "timeline");
     work.append(canvas);
     for (let h = 0; h <= 24; h++) {
-      const line = el2("div", "hour-line");
+      const line = el3("div", "hour-line");
       line.style.top = `${h * hourSize()}px`;
-      line.append(el2("span", "hour-label", String(h % 24).padStart(2, "0") + ":00"));
+      line.append(el3("span", "hour-label", String(h % 24).padStart(2, "0") + ":00"));
       canvas.append(line);
     }
     const rows = timelineItems(data2(), day, calendar.filter((e) => !e.allDay), 48 / hourSize() * 60);
     for (const e of rows) {
-      const n = el2("article", "timed" + (e.source === "calendar" ? " external" : "")), top = Math.max(0, (e.start - range.start) / 36e5) * hourSize(), height = Math.max(48, (Math.min(e.end, range.end) - Math.max(e.start, range.start)) / 36e5 * hourSize());
+      const n = el3("article", "timed" + (e.source === "calendar" ? " external" : "")), top = Math.max(0, (e.start - range.start) / 36e5) * hourSize(), height = Math.max(48, (Math.min(e.end, range.end) - Math.max(e.start, range.start)) / 36e5 * hourSize());
       n.dataset.tone = e.source === "calendar" ? "cyan" : e.must ? "amber" : toneFor(e.blockId ?? e.id);
       n.style.top = top + "px";
       n.style.height = height + "px";
@@ -4973,10 +5264,11 @@ function mountPlanner(api) {
       n.style.width = `calc((100% - 54px) / ${e.lanes} - 4px)`;
       const open2 = button2("", () => e.source === "calendar" ? calendarDetails(e) : taskDetails(e.id, e.occurrence), "open-event");
       open2.setAttribute("aria-label", `${e.title}, ${clock2(e.start)}, ${duration(Math.round((e.end - e.start) / 6e4))}`);
-      open2.append(el2("div", "event-meta", `${clock2(e.start)} \u2013 ${clock2(e.end)}`), el2("h3", "", e.title));
+      open2.append(el3("div", "event-meta", `${clock2(e.start)} \u2013 ${clock2(e.end)}`), el3("h3", "", e.title));
       const block = p().blocks.find((b) => b.id === e.blockId);
-      open2.append(el2("div", "block-name", e.source === "calendar" ? "Calendar commitment" : block?.title ?? (e.must ? "Must do" : "Personal task")));
+      open2.append(el3("div", "block-name", e.source === "calendar" ? "Calendar commitment" : block?.title ?? (e.must ? "Must do" : "Personal task")));
       n.append(open2);
+      if (e.source !== "calendar") taskGesture(n, tasks(data2()).find((t) => t.id === e.id));
       canvas.append(n);
       fitTimelineCard(n);
     }
@@ -4988,13 +5280,13 @@ function mountPlanner(api) {
     }
     const now2 = /* @__PURE__ */ new Date();
     if (localDay(now2) === day) {
-      const line = el2("div", "now-line");
+      const line = el3("div", "now-line");
       line.style.top = (+now2 - range.start) / 36e5 * hourSize() + "px";
-      line.append(el2("span", "now-time", clock2(now2)));
+      line.append(el3("span", "now-time", clock2(now2)));
       canvas.append(line);
     }
     if (allDay.length || dated.length) {
-      const tray = el2("div", "day-tray");
+      const tray = el3("div", "day-tray");
       tray.append(button2(`${allDay.length + dated.length} without a time`, () => {
         const { body } = openEditor("Today \xB7 without a time");
         allDay.forEach((e) => body.append(button2(e.title, () => calendarDetails(e), "menu-action link")));
@@ -5004,8 +5296,8 @@ function mountPlanner(api) {
     }
   }
   function emptyState(title2, description, action, label) {
-    const empty = el2("div", "empty");
-    empty.append(el2("h2", "", title2), el2("p", "", description));
+    const empty = el3("div", "empty");
+    empty.append(el3("h2", "", title2), el3("p", "", description));
     if (action) empty.append(button2(label, action, "secondary"));
     return empty;
   }
@@ -5021,18 +5313,18 @@ function mountPlanner(api) {
   async function checkedScheduleSave(id2, fields3, allow = false) {
     if (saving) return;
     const existing = id2 ? tasks(data2()).find((e) => e.id === id2) : null, candidate = { ...existing, ...fields3 };
-    const planned = candidate.planned, minutes = candidate.minutes ?? 30;
+    const planned = candidate.planned, minutes2 = candidate.minutes ?? 30;
     let clashes = [], risk = null, anchor = planned;
     if (planned) {
       anchor = repeats(candidate) ? nextOccurrence(candidate) : planned;
       const copy = await api.native("calendarRead", { anchor: Date.parse(anchor) });
       calendar = calendarRows(copy);
       calendarState = calendarLabel(copy);
-      risk = calendarRisk(copy, Date.parse(anchor), Date.parse(anchor) + minutes * 6e4);
+      risk = calendarRisk(copy, Date.parse(anchor), Date.parse(anchor) + minutes2 * 6e4);
       const occurrencesToCheck = occurrences(candidate, Date.parse(anchor), Date.parse(anchor) + (repeats(candidate) ? 21 * 864e5 : 1));
-      clashes = occurrencesToCheck.flatMap((o) => conflicts(data2(), o.start, minutes, calendar, id2)).filter((e, i, a) => a.findIndex((x) => x.id === e.id && x.start === e.start) === i);
+      clashes = occurrencesToCheck.flatMap((o) => conflicts(data2(), o.start, minutes2, calendar, id2)).filter((e, i, a) => a.findIndex((x) => x.id === e.id && x.start === e.start) === i);
     }
-    const token = JSON.stringify({ id: id2, planned, minutes, recurrence: candidate.recurrence ?? null, repeatAfterDays: candidate.repeatAfterDays ?? null, clashes: clashes.map((e) => [e.id, e.start, e.end]), risk });
+    const token = JSON.stringify({ id: id2, planned, minutes: minutes2, recurrence: candidate.recurrence ?? null, repeatAfterDays: candidate.repeatAfterDays ?? null, clashes: clashes.map((e) => [e.id, e.start, e.end]), risk });
     if ((clashes.length || risk) && (!allow || reviewToken !== token)) {
       reviewToken = token;
       taskEditor(id2, fields3, clashes, risk);
@@ -5051,17 +5343,17 @@ function mountPlanner(api) {
     focusedBlockId = e.blockId ?? null;
     const when = occurrence ?? (repeats(e) ? nextOccurrence(e) : e.planned);
     const { body, actions } = openEditor("Task");
-    body.append(el2("h2", "detail-result", e.title), el2("p", "muted numeric", `${when ? clock2(when) + " \xB7 " + new Date(when).toLocaleDateString() : "Unscheduled"} \xB7 ${duration(e.minutes)}`));
-    if (repeats(e)) body.append(el2("p", "muted", e.repeatAfterDays ? `Repeats ${e.repeatAfterDays} days after completion. Done schedules the next task.` : `Repeats ${e.recurrence}. Done completes only this occurrence. Editing changes the series.`));
+    body.append(el3("h2", "detail-result", e.title), el3("p", "muted numeric", `${when ? clock2(when) + " \xB7 " + new Date(when).toLocaleDateString() : "Unscheduled"} \xB7 ${duration(e.minutes)}`));
+    if (repeats(e)) body.append(el3("p", "muted", e.repeatAfterDays ? `Repeats ${e.repeatAfterDays} days after completion. Done schedules the next task.` : `Repeats ${e.recurrence}. Done completes only this occurrence. Editing changes the series.`));
     const block = p().blocks.find((b) => b.id === e.blockId);
     for (const [label, value2] of [["Result", block?.title], ["Purpose", e.purpose || block?.purpose], ["How / notes", e.notes], ["Leverage", e.leverage], ["Original capture", e.raw]]) if (value2) {
-      const s = el2("section", "detail-section");
-      s.append(el2("h3", "", label), el2("p", "", value2));
+      const s = el3("section", "detail-section");
+      s.append(el3("h3", "", label), el3("p", "", value2));
       body.append(s);
     }
     if (block) body.append(button2("Open RPM block", () => openBlock(block.id), "link"));
-    const tools2 = el2("div", "row");
-    tools2.append(button2("Ask AI", capture, "link"), button2("Move", () => movePicker(e), "link"), button2("Delete task", () => deleteTask(e), "danger"));
+    const tools2 = el3("div", "row");
+    tools2.append(button2("Ask AI", capture, "link"), button2("Move", () => movePicker(e), "link"), button2("Archive", () => archiveTask(e), "link"), button2("Delete task", () => deleteTask(e), "danger"));
     body.append(tools2);
     actions.append(button2(e.done ? "Reopen" : repeats(e) ? "Done this time" : "Done", () => toggleDone(e, when), "secondary"), button2("Edit task", () => taskEditor(id2), "primary"));
   }
@@ -5071,10 +5363,10 @@ function mountPlanner(api) {
     const v = { ...e, ...overrides }, { body, actions } = openEditor(id2 ? "Edit task" : "New task", "task:" + (id2 ?? "new"));
     if (Object.keys(overrides).length || clashes.length || risk) draftValues = {};
     if (clashes.length || risk) {
-      const alert2 = el2("div", "conflict");
-      if (clashes.length) alert2.append(el2("p", "", `Overlaps ${clashes.slice(0, 6).map((x) => x.title + " \xB7 " + new Date(x.start).toLocaleDateString([], { month: "short", day: "numeric" }) + " " + clock2(x.start)).join(", ")}`));
-      if (risk) alert2.append(el2("p", "", risk));
-      const row = el2("div", "row");
+      const alert2 = el3("div", "conflict");
+      if (clashes.length) alert2.append(el3("p", "", `Overlaps ${clashes.slice(0, 6).map((x) => x.title + " \xB7 " + new Date(x.start).toLocaleDateString([], { month: "short", day: "numeric" }) + " " + clock2(x.start)).join(", ")}`));
+      if (risk) alert2.append(el3("p", "", risk));
+      const row = el3("div", "row");
       for (const t of clashes.length ? alternatives(data2(), repeats(v) ? nextOccurrence(v) : v.planned, v.minutes ?? 30, calendar, id2) : []) row.append(button2(`${localDay(t) === localDay(v.planned) ? "" : new Date(t).toLocaleDateString([], { weekday: "short" }) + " "}${clock2(t)}`, () => taskEditor(id2, { ...v, planned: t }), "secondary"));
       alert2.append(row);
       body.append(alert2);
@@ -5087,9 +5379,9 @@ function mountPlanner(api) {
     interval.max = "365";
     interval.parentElement.hidden = repeat.value !== "after";
     repeat.onchange = () => interval.parentElement.hidden = repeat.value !== "after";
-    body.append(el2("p", "muted small", "Repeating-task edits apply to the series. Nearby conflicts are checked for 21 days; later dates can change."));
+    body.append(el3("p", "muted small", "Repeating-task edits apply to the series. Nearby conflicts are checked for 21 days; later dates can change."));
     const block = select(body, "RPM block", v.blockId, [["", "Unsorted"], ...p().blocks.map((b) => [b.id, b.title])]), must = checkbox(body, "Must do", v.must), purpose = field(body, "Purpose", v.purpose, "textarea"), notes = field(body, "How / details", v.notes, "textarea"), leverage = field(body, "Leverage \xB7 person, tool or approach", v.leverage, "textarea"), alert = select(body, "Alert", Object.hasOwn(overrides, "alert") ? overrides.alert : v.alertIntent?.type ?? "off", [["off", "No alert"], ["reminder", "Reminder"], ["alarm", "Ringing alarm"]]);
-    const err = el2("p", "edit-error error");
+    const err = el3("p", "edit-error error");
     body.append(err);
     const save2 = async (allow) => {
       try {
@@ -5111,7 +5403,7 @@ function mountPlanner(api) {
     });
   }
   function taskRow(e, index = null) {
-    const row = el2("div", "task-row" + (e.must ? " must" : "") + (e.done ? " done" : ""));
+    const row = el3("div", "task-row" + (e.must ? " must" : "") + (e.done ? " done" : ""));
     row.dataset.taskId = e.id;
     const check = button2("", () => toggleDone(e), "task-check");
     check.setAttribute("aria-label", (e.done ? "Reopen: " : "Complete: ") + e.title);
@@ -5120,10 +5412,10 @@ function mountPlanner(api) {
     if (e.done) check.append(mark("check"));
     row.append(check);
     const name = button2("", () => taskDetails(e.id), "task-title");
-    name.append(el2("span", "", e.title), el2("small", "task-estimate", e.minutes == null ? "No estimate" : `${e.minutes} min estimate`));
-    if (e.planned) name.append(el2("small", "task-schedule", clock2(repeats(e) ? nextOccurrence(e) : e.planned) + (repeats(e) ? " \xB7 Repeats" : "")));
-    else if (e.plannedDate) name.append(el2("small", "task-schedule", (/* @__PURE__ */ new Date(e.plannedDate + "T12:00")).toLocaleDateString("en", { day: "numeric", month: "short" })));
-    if (e.must) name.append(el2("small", "must-label", "Must do"));
+    name.append(el3("span", "", e.title), el3("small", "task-estimate", e.minutes == null ? "No estimate" : `${e.minutes} min estimate`));
+    if (e.planned) name.append(el3("small", "task-schedule", clock2(repeats(e) ? nextOccurrence(e) : e.planned) + (repeats(e) ? " \xB7 Repeats" : "")));
+    else if (e.plannedDate) name.append(el3("small", "task-schedule", (/* @__PURE__ */ new Date(e.plannedDate + "T12:00")).toLocaleDateString("en", { day: "numeric", month: "short" })));
+    if (e.must) name.append(el3("small", "must-label", "Must do"));
     row.append(name);
     const star = icon("star", e.must ? "Unmark must: " + e.title : "Mark must: " + e.title, () => commit({ type: "saveTask", id: e.id, fields: { must: !e.must } }, true).catch(() => {
     }));
@@ -5131,16 +5423,29 @@ function mountPlanner(api) {
     star.setAttribute("aria-pressed", String(!!e.must));
     row.append(star);
     if (index !== null) {
-      const priority = button2("", () => priorityEditor(e), "priority-control numeric");
-      priority.append(el2("small", "", "Priority"), el2("strong", "", String(index + 1)));
+      const priority = button2("", () => {
+        closePriorityMenu?.(false);
+        closePriorityMenu = openPriorityMenu(priority, { count: blockTasks(data2(), e.blockId).length, current: index + 1, onClose: () => closePriorityMenu = null, onSelect: (value2) => commit({ type: "saveTask", id: e.id, fields: { priority: value2 } }).catch(() => {
+        }) });
+      }, "priority-control numeric");
+      priority.append(el3("small", "", "Priority"), el3("strong", "", String(index + 1)), mark("down"));
       priority.setAttribute("aria-label", `Priority ${index + 1}: change priority for ${e.title}`);
+      priority.setAttribute("aria-haspopup", "menu");
+      priority.setAttribute("aria-expanded", "false");
       row.append(priority);
     } else row.append(icon("more", "More actions: " + e.title, () => taskActions(e)));
+    taskGesture(row, e);
     return row;
+  }
+  function taskGesture(node, e) {
+    if (!e) return;
+    node.dataset.taskId = e.id;
+    node.classList.add("swipe-task");
+    attachTaskSwipe(node, { archive: () => archiveTask(e), remove: () => deleteTask(e) });
   }
   function priorityEditor(e) {
     const rows = blockTasks(data2(), e.blockId), i = rows.findIndex((t) => t.id === e.id), { body, actions } = openEditor("Priority");
-    body.append(el2("h2", "detail-result", e.title), el2("p", "muted", "Move to change priority. This does not change the scheduled time."));
+    body.append(el3("h2", "detail-result", e.title), el3("p", "muted", "Move to change priority. This does not change the scheduled time."));
     const move = (delta) => {
       const ids = rows.map((t) => t.id), j = i + delta;
       if (j < 0 || j >= ids.length) return;
@@ -5157,13 +5462,13 @@ function mountPlanner(api) {
     focusedTaskId = e.id;
     focusedBlockId = e.blockId ?? null;
     const { body } = openEditor("Task actions");
-    body.append(el2("h2", "detail-result", e.title), button2("Edit task", () => taskEditor(e.id), "menu-action link"), button2("Move to RPM block", () => movePicker(e), "menu-action link"), button2("Change priority", () => priorityEditor(e), "menu-action link"), button2("Ask AI", capture, "menu-action link"), button2("Delete task", () => deleteTask(e), "menu-action danger"));
+    body.append(el3("h2", "detail-result", e.title), button2("Edit task", () => taskEditor(e.id), "menu-action link"), button2("Move to RPM block", () => movePicker(e), "menu-action link"), button2("Change priority", () => priorityEditor(e), "menu-action link"), button2("Ask AI", capture, "menu-action link"), button2("Archive task", () => archiveTask(e), "menu-action link"), button2("Delete task", () => deleteTask(e), "menu-action danger"));
     if (e.completions?.length && repeats(e)) body.append(button2("Undo last completion", () => commit({ type: "reopenTask", id: e.id }).catch(() => {
     }), "menu-action link"));
   }
   function movePicker(e) {
     const { body } = openEditor("Move task");
-    body.append(el2("h2", "detail-result", e.title), el2("p", "muted", "Choose its RPM block. Moving keeps the task, its schedule and its details."));
+    body.append(el3("h2", "detail-result", e.title), el3("p", "muted", "Choose its RPM block. Moving keeps the task, its schedule and its details."));
     for (const b of [...p().blocks, { id: null, title: "Unsorted" }]) {
       const choice = button2(b.title, () => commit({ type: "moveTask", id: e.id, blockId: b.id }).catch(() => {
       }), "menu-action link");
@@ -5171,19 +5476,23 @@ function mountPlanner(api) {
       body.append(choice);
     }
   }
+  function archiveTask(e) {
+    return commit({ type: "archiveTask", id: e.id, disposition: "archive" }).then(() => notice("Archived. Restore it from Archive in RPM.", true)).catch(() => {
+    });
+  }
   function deleteTask(e) {
     const { body, actions } = openEditor("Delete task?");
-    body.append(el2("h2", "detail-result", e.title), el2("p", "muted", "This removes the task from your plan and stops its alerts. You can restore it from Trash in RPM."));
+    body.append(el3("h2", "detail-result", e.title), el3("p", "muted", "This removes the task from your plan and stops its alerts. You can restore it from Trash in RPM."));
     actions.append(button2("Keep", () => taskDetails(e.id), "secondary"), button2("Delete task", () => commit({ type: "archiveTask", id: e.id }).then(() => notice("Moved to Trash", true)).catch(() => {
     }), "danger"));
   }
-  function showTrash() {
-    const { body } = openEditor("Trash");
-    const rows = data2().entries.filter((e) => e.archived && (e.kind ?? "plan") === "plan");
-    if (!rows.length) body.append(el2("p", "empty", "No deleted tasks."));
+  function showTrash(archive = false) {
+    const { body } = openEditor(archive ? "Archive" : "Trash");
+    const rows = data2().entries.filter((e) => e.archived && (e.kind ?? "plan") === "plan" && e.archiveDisposition === "archive" === archive);
+    if (!rows.length) body.append(el3("p", "empty", archive ? "No archived tasks." : "No deleted tasks."));
     for (const e of rows) {
-      const row = el2("div", "list-row");
-      row.append(el2("span", "grow", e.title), button2("Restore", () => commit({ type: "restoreTask", id: e.id }).catch(() => {
+      const row = el3("div", "list-row");
+      row.append(el3("span", "grow", e.title), button2("Restore", () => commit({ type: "restoreTask", id: e.id }).catch(() => {
       }), "link"));
       body.append(row);
     }
@@ -5191,13 +5500,13 @@ function mountPlanner(api) {
   function showUnscheduled() {
     const { body, actions } = openEditor("Unscheduled");
     const rows = tasks(data2()).filter((e) => !e.planned && !e.done);
-    if (!rows.length) body.append(el2("p", "empty", "Everything with a time is on your day. New captures can stay here until you plan them."));
+    if (!rows.length) body.append(el3("p", "empty", "Everything with a time is on your day. New captures can stay here until you plan them."));
     for (const e of rows) body.append(taskRow(e));
     actions.append(button2("Add task", () => taskEditor(null), "primary"));
   }
   function calendarDetails(e) {
     const { body } = openEditor("Calendar commitment");
-    body.append(el2("h2", "detail-result", e.title), el2("p", "numeric", `${clock2(e.start)} \u2013 ${clock2(e.end)}`), el2("p", "read-only", "Read-only calendar event. Make changes in your calendar app."));
+    body.append(el3("h2", "detail-result", e.title), el3("p", "numeric", `${clock2(e.start)} \u2013 ${clock2(e.end)}`), el3("p", "read-only", "Read-only calendar event. Make changes in your calendar app."));
   }
   async function refreshCalendar() {
     const serial2 = ++calendarSerial;
@@ -5214,12 +5523,12 @@ function mountPlanner(api) {
   }
   async function calendarEditor() {
     const { body, actions } = openEditor("Calendar");
-    body.append(el2("p", "muted", "Read-only calendars already synced on this phone. RPM keeps a limited local copy (3 days back, 22 ahead). It never adds or edits Google events. Sync freshness depends on Android and your calendar account."));
+    body.append(el3("p", "muted", "Read-only calendars already synced on this phone. RPM keeps a limited local copy (3 days back, 22 ahead). It never adds or edits Google events. Sync freshness depends on Android and your calendar account."));
     try {
       const result = await api.native("calendarList");
       if (!body.isConnected) return;
       if (!result.permitted) {
-        body.append(el2("p", "", "Allow read access to choose calendars. Capture and RPM reminders work without it."));
+        body.append(el3("p", "", "Allow read access to choose calendars. Capture and RPM reminders work without it."));
         actions.append(button2("Allow access", async () => {
           try {
             await api.native("calendarPermission");
@@ -5229,7 +5538,7 @@ function mountPlanner(api) {
         }, "primary"), button2("Refresh", calendarEditor, "secondary"));
         return;
       }
-      if (!result.calendars.length) body.append(el2("p", "empty", "No synced calendars found. Add your Google account in Android Settings and enable Calendar sync, then return here."));
+      if (!result.calendars.length) body.append(el3("p", "empty", "No synced calendars found. Add your Google account in Android Settings and enable Calendar sync, then return here."));
       const rows = result.calendars.map((c) => ({ id: c.id, input: checkbox(body, c.title + (c.google ? " \xB7 Google" : ""), result.selected.includes(c.id)) }));
       actions.append(button2("Save selection", async () => {
         try {
@@ -5242,7 +5551,7 @@ function mountPlanner(api) {
         }
       }, "primary"));
     } catch (e) {
-      body.append(el2("p", "error", e.message));
+      body.append(el3("p", "error", e.message));
       actions.append(button2("Retry", calendarEditor, "secondary"));
     }
   }
@@ -5266,22 +5575,22 @@ function mountPlanner(api) {
     return p().areas.find((a) => a.id === goal?.areaId);
   }
   function progressBar(stats, label) {
-    const wrap = el2("div", "progress-block"), line = el2("div", "row spread");
-    line.append(el2("small", "muted", label ?? `${stats.done} of ${stats.total} actions completed`), el2("small", "accent numeric", stats.total ? stats.percent + "%" : "\u2014"));
-    const track = el2("div", "progress-track");
+    const wrap = el3("div", "progress-block"), line = el3("div", "row spread");
+    line.append(el3("small", "muted", label ?? `${stats.done} of ${stats.total} actions completed`), el3("small", "accent numeric", stats.total ? stats.percent + "%" : "\u2014"));
+    const track = el3("div", "progress-track");
     track.setAttribute("role", "progressbar");
     track.setAttribute("aria-label", label ?? "Completed actions");
     track.setAttribute("aria-valuemin", "0");
     track.setAttribute("aria-valuemax", "100");
     track.setAttribute("aria-valuenow", String(stats.percent));
-    const fill = el2("div");
+    const fill = el3("div");
     fill.style.width = stats.percent + "%";
     track.append(fill);
     wrap.append(line, track);
     return wrap;
   }
   function renderRPM() {
-    const page = el2("div", "scroll-page rpm-page"), filters = el2("div", "filter-strip");
+    const page = el3("div", "scroll-page rpm-page"), filters = el3("div", "filter-strip");
     work.append(page);
     filters.append(chip("All Blocks", rpmFilter === null, () => {
       rpmFilter = null;
@@ -5295,8 +5604,8 @@ function mountPlanner(api) {
     page.append(filters);
     const draft2 = p().drafts.findLast((d) => d.status === "unreviewed");
     if (draft2) {
-      const review = el2("div", "conflict legacy-arrangement");
-      review.append(el2("p", "", "This earlier AI arrangement is already applied. Choose whether RPM may learn from it."), button2("Use as an example", () => commit({ type: "acceptDraft", id: draft2.id }, true).catch(() => {
+      const review = el3("div", "conflict legacy-arrangement");
+      review.append(el3("p", "", "This earlier AI arrangement is already applied. Choose whether RPM may learn from it."), button2("Use as an example", () => commit({ type: "acceptDraft", id: draft2.id }, true).catch(() => {
       }), "secondary"), button2("Don't learn", () => commit({ type: "dismissDraft", id: draft2.id }, true).catch(() => {
       }), "link"));
       page.append(review);
@@ -5304,7 +5613,7 @@ function mountPlanner(api) {
     if (!p().blocks.length) page.append(emptyState("Start with a result", "Give your actions an outcome and a reason that matters to you.", () => entityEditor("blocks"), "New RPM block"));
     const blocks = rpmFilter ? p().blocks.filter((b) => b.projectId === rpmFilter) : [...p().blocks, { id: null, title: "Unsorted" }];
     for (const b of blocks) {
-      const section2 = el2("section", "rpm-block");
+      const section2 = el3("section", "rpm-block");
       section2.dataset.blockId = b.id ?? "";
       section2.dataset.tone = toneFor(b.id);
       section2.classList.toggle("focused-block", b.id === focusedBlockId && !!b.id);
@@ -5312,7 +5621,7 @@ function mountPlanner(api) {
         focusedBlockId = b.id;
         focusedTaskId = null;
       });
-      const project = p().projects.find((pr) => pr.id === b.projectId), rows = blockTasks(data2(), b.id), t = totals(rows), only = mustOnly.has(b.id), meta = el2("div", "row spread block-meta");
+      const project = p().projects.find((pr) => pr.id === b.projectId), rows = blockTasks(data2(), b.id), t = totals(rows), only = mustOnly.has(b.id), meta = el3("div", "row spread block-meta");
       meta.append(button2(project?.title ?? (b.id ? "Independent outcome" : "Captured actions"), () => project ? showProject(project.id) : b.id ? entityEditor("blocks", b.id) : showUnscheduled(), "category-chip"));
       const time = button2("", () => {
         only ? mustOnly.delete(b.id) : mustOnly.add(b.id);
@@ -5320,35 +5629,36 @@ function mountPlanner(api) {
       }, "time-toggle");
       time.setAttribute("aria-label", `${only ? "Must do" : "All actions"}: ${duration(only ? t.must : t.all)}. Toggle must-only view`);
       time.setAttribute("aria-pressed", String(only));
-      time.append(mark("clock"), el2("span", "numeric", duration(only ? t.must : t.all)));
-      if (only) time.append(el2("small", "", "MUST"));
+      time.append(mark("clock"), el3("span", "numeric", duration(only ? t.must : t.all)));
+      if (only) time.append(el3("small", "", "MUST"));
       meta.append(time);
       section2.append(meta);
-      const heading2 = el2("div", "row title-row");
-      heading2.append(el2("h2", "grow", b.title));
+      const heading2 = el3("div", "row title-row");
+      heading2.append(el3("h2", "grow", b.title));
       if (b.id) heading2.append(icon("edit", "Edit RPM block: " + b.title, () => entityEditor("blocks", b.id)));
       section2.append(heading2);
       if (b.id) {
         const purpose = button2("", () => b.purpose ? entityEditor("blocks", b.id) : aiAction("purpose", b.id), "purpose-callout");
-        purpose.append(el2("small", "", "Why it matters"), el2("p", "", b.purpose || "Add your reason for this result"));
+        purpose.append(el3("small", "", "Why it matters"), el3("p", "", b.purpose || "Add your reason for this result"));
         section2.append(purpose);
       }
-      const stats = doneStats(rows), caption = el2("div", "row spread map-caption");
-      caption.append(el2("span", "", "Action plan"), el2("span", "accent", `${stats.done} of ${stats.total} done`));
+      const stats = doneStats(rows), caption = el3("div", "row spread map-caption");
+      caption.append(el3("span", "", "Action plan"), el3("span", "accent", `${stats.done} of ${stats.total} done`));
       section2.append(caption);
-      const list2 = el2("div", "task-list");
+      const list2 = el3("div", "task-list");
       rows.forEach((e, i) => {
         if (!only || e.must) list2.append(taskRow(e, i));
       });
-      if (!list2.children.length) list2.append(el2("p", "task-list-empty", only ? "No must-do actions. Tap the time to show all." : "No actions yet. Add the first action below."));
+      if (!list2.children.length) list2.append(el3("p", "task-list-empty", only ? "No must-do actions. Tap the time to show all." : "No actions yet. Add the first action below."));
       section2.append(list2);
-      const summary = el2("div", "totals");
-      summary.append(el2("span", "", `Musts ${duration(t.must)}`), el2("span", "", `All ${duration(t.all)}${t.unknown ? " \xB7 " + t.unknown + " unestimated" : ""}`));
+      const summary = el3("div", "totals");
+      summary.append(el3("span", "", `Musts ${duration(t.must)}`), el3("span", "", `All ${duration(t.all)}${t.unknown ? " \xB7 " + t.unknown + " unestimated" : ""}`));
       section2.append(summary, button2("Add action", () => taskEditor(null, { blockId: b.id }), "block-add"));
       page.append(section2);
     }
-    const footer = el2("div", "row");
-    footer.append(button2("Sort with AI", () => aiAction("sort"), "link"), button2("Examples", examples, "link"), button2("Trash", showTrash, "link"));
+    page.append(el3("p", "muted small", "Swipe right to archive \xB7 left to delete. Both can be restored."));
+    const footer = el3("div", "row");
+    footer.append(button2("Sort with AI", () => aiAction("sort"), "link"), button2("Examples", examples, "link"), button2("Archive", () => showTrash(true), "link"), button2("Trash", () => showTrash(false), "link"));
     page.append(footer);
   }
   function showProject(id2) {
@@ -5361,7 +5671,7 @@ function mountPlanner(api) {
     [...work.querySelectorAll("[data-project-id]")].find((n) => n.dataset.projectId === id2)?.scrollIntoView({ block: "start" });
   }
   function renderProjects() {
-    const page = el2("div", "scroll-page projects-page"), filters = el2("div", "filter-strip");
+    const page = el3("div", "scroll-page projects-page"), filters = el3("div", "filter-strip");
     work.append(page);
     filters.append(chip(`All Outcomes (${p().projects.length})`, projectFilter === null, () => {
       projectFilter = null;
@@ -5372,13 +5682,13 @@ function mountPlanner(api) {
       render2(true);
     }));
     page.append(filters);
-    const projects = p().projects.filter((pr) => !projectFilter || projectArea(pr)?.id === projectFilter), blockIds = new Set(p().blocks.filter((b) => projects.some((pr) => pr.id === b.projectId)).map((b) => b.id)), rows = tasks(data2()).filter((e) => blockIds.has(e.blockId)), stats = doneStats(rows), summary = el2("section", "overview-panel"), copy = el2("div");
-    copy.append(el2("h2", "", "Meaningful progress"), el2("p", "muted small", `${projects.length} projects \xB7 ${blockIds.size} RPM blocks`), el2("p", "accent small", `${stats.done} of ${stats.total} actions completed`));
+    const projects = p().projects.filter((pr) => !projectFilter || projectArea(pr)?.id === projectFilter), blockIds = new Set(p().blocks.filter((b) => projects.some((pr) => pr.id === b.projectId)).map((b) => b.id)), rows = tasks(data2()).filter((e) => blockIds.has(e.blockId)), stats = doneStats(rows), summary = el3("section", "overview-panel"), copy = el3("div");
+    copy.append(el3("h2", "", "Meaningful progress"), el3("p", "muted small", `${projects.length} projects \xB7 ${blockIds.size} RPM blocks`), el3("p", "accent small", `${stats.done} of ${stats.total} actions completed`));
     summary.append(copy, progressRing(stats));
     page.append(summary);
     if (!projects.length) page.append(emptyState("Make room for a bigger outcome", "Connect related RPM blocks in a project.", () => entityEditor("projects"), "New project"));
     for (const pr of projects) {
-      const card2 = el2("article", "project-card");
+      const card2 = el3("article", "project-card");
       card2.dataset.projectId = pr.id;
       card2.dataset.tone = toneFor(pr.id);
       card2.addEventListener("pointerdown", () => {
@@ -5386,8 +5696,8 @@ function mountPlanner(api) {
         focusedTaskId = null;
         focusedBlockId = null;
       });
-      const area = projectArea(pr), goal = p().goals.find((g) => g.id === pr.goalId), blocks = p().blocks.filter((b) => b.projectId === pr.id), meta = el2("div", "row spread");
-      meta.append(el2("span", "category-chip", area?.title ?? "Personal project"));
+      const area = projectArea(pr), goal = p().goals.find((g) => g.id === pr.goalId), blocks = p().blocks.filter((b) => b.projectId === pr.id), meta = el3("div", "row spread");
+      meta.append(el3("span", "category-chip", area?.title ?? "Personal project"));
       if (goal) meta.append(button2(String(goal.year), () => {
         year = goal.year;
         lifeFilter = goal.areaId ?? null;
@@ -5396,15 +5706,15 @@ function mountPlanner(api) {
         changeLevel(3);
       }, "goal-link"));
       card2.append(meta);
-      const title2 = el2("div", "row title-row");
-      title2.append(el2("h2", "grow", pr.title), icon("edit", "Edit project: " + pr.title, () => {
+      const title2 = el3("div", "row title-row");
+      title2.append(el3("h2", "grow", pr.title), icon("edit", "Edit project: " + pr.title, () => {
         projectId = pr.id;
         entityEditor("projects", pr.id);
       }));
       card2.append(title2);
       if (pr.purpose) {
-        const purpose = el2("p", "project-purpose");
-        purpose.append(mark("target"), el2("span", "", pr.purpose));
+        const purpose = el3("p", "project-purpose");
+        purpose.append(mark("target"), el3("span", "", pr.purpose));
         card2.append(purpose);
       }
       card2.append(progressBar(doneStats(tasks(data2()).filter((e) => blocks.some((b) => b.id === e.blockId)))));
@@ -5413,17 +5723,17 @@ function mountPlanner(api) {
         render2(false);
       }, "accordion-toggle");
       toggle.setAttribute("aria-expanded", String(open2));
-      toggle.append(mark("layers"), el2("span", "grow", `RPM Blocks Breakdown (${blocks.length})`), mark(open2 ? "up" : "down"));
+      toggle.append(mark("layers"), el3("span", "grow", `RPM Blocks Breakdown (${blocks.length})`), mark(open2 ? "up" : "down"));
       card2.append(toggle);
-      const contents = el2("div", "project-blocks");
+      const contents = el3("div", "project-blocks");
       contents.hidden = !open2;
       for (const b of blocks) {
-        const items = blockTasks(data2(), b.id), s = doneStats(items), next = items.find((e) => !e.done), entry = button2("", () => openBlock(b.id), "block-summary"), line = el2("div", "row spread");
-        line.append(el2("strong", "grow", b.title), el2("small", "block-count", `${s.done} of ${s.total} done`));
-        entry.append(line, el2("small", "muted", next ? "Next: " + next.title : items.length ? "All actions completed" : "Add the first action"));
+        const items = blockTasks(data2(), b.id), s = doneStats(items), next = items.find((e) => !e.done), entry = button2("", () => openBlock(b.id), "block-summary"), line = el3("div", "row spread");
+        line.append(el3("strong", "grow", b.title), el3("small", "block-count", `${s.done} of ${s.total} done`));
+        entry.append(line, el3("small", "muted", next ? "Next: " + next.title : items.length ? "All actions completed" : "Add the first action"));
         contents.append(entry);
       }
-      if (!blocks.length) contents.append(el2("p", "muted small", "No RPM blocks yet."));
+      if (!blocks.length) contents.append(el3("p", "muted small", "No RPM blocks yet."));
       contents.append(button2("Add RPM block", () => {
         projectId = pr.id;
         entityEditor("blocks");
@@ -5433,41 +5743,41 @@ function mountPlanner(api) {
     }
   }
   function progressRing(stats) {
-    const ring = el2("div", "progress-ring");
+    const ring = el3("div", "progress-ring");
     ring.style.setProperty("--progress", stats.percent + "%");
-    const inside = el2("div");
-    inside.append(el2("strong", "numeric", stats.total ? stats.percent + "%" : "\u2014"), el2("small", "", "Completed"));
+    const inside = el3("div");
+    inside.append(el3("strong", "numeric", stats.total ? stats.percent + "%" : "\u2014"), el3("small", "", "Completed"));
     ring.append(inside);
     return ring;
   }
   function renderLife() {
-    const page = el2("div", "scroll-page life-page"), tabs = el2("div", "horizon-tabs");
+    const page = el3("div", "scroll-page life-page"), tabs = el3("div", "horizon-tabs");
     work.append(page);
     for (const [key2, label] of [["yearly", "Yearly Vision"], ["quarterly", "Q" + Math.ceil(period / 3) + " Focus"], ["monthly", "Monthly"], ["values", "Core Values"]]) tabs.append(chip(label, horizon === key2, () => {
       horizon = key2;
       render2(true);
     }));
     page.append(tabs);
-    const periodRow = el2("div", "row period-row");
-    periodRow.append(icon("back", "Previous period", () => shiftLifePeriod(-1)), el2("span", "grow numeric", horizon === "monthly" ? new Date(year, period - 1, 1).toLocaleDateString("en", { month: "long", year: "numeric" }) : horizon === "quarterly" ? `Q${Math.ceil(period / 3)} \xB7 ${year}` : String(year)), icon("next", "Next period", () => shiftLifePeriod(1)));
+    const periodRow = el3("div", "row period-row");
+    periodRow.append(icon("back", "Previous period", () => shiftLifePeriod(-1)), el3("span", "grow numeric", horizon === "monthly" ? new Date(year, period - 1, 1).toLocaleDateString("en", { month: "long", year: "numeric" }) : horizon === "quarterly" ? `Q${Math.ceil(period / 3)} \xB7 ${year}` : String(year)), icon("next", "Next period", () => shiftLifePeriod(1)));
     if (horizon !== "values") page.append(periodRow);
     if (horizon === "values") {
-      const vision = el2("section", "life-card");
-      vision.append(el2("h2", "", "Core values"), el2("p", "context-copy", p().context.coreValues || "Keep the principles you want your plans to reflect."), button2("Edit values and vision", contextEditor, "link"));
-      if (p().context.vision) vision.append(el2("h3", "", "Life vision"), el2("p", "context-copy", p().context.vision));
+      const vision = el3("section", "life-card");
+      vision.append(el3("h2", "", "Core values"), el3("p", "context-copy", p().context.coreValues || "Keep the principles you want your plans to reflect."), button2("Edit values and vision", contextEditor, "link"));
+      if (p().context.vision) vision.append(el3("h3", "", "Life vision"), el3("p", "context-copy", p().context.vision));
       page.append(vision);
       return;
     }
-    const areas = p().areas, rated = areas.filter((a) => a.rating != null), selected = areas.find((a) => a.id === lifeFilter), score = selected?.rating ?? (lifeFilter ? null : rated.length ? rated.reduce((s, a) => s + a.rating, 0) / rated.length : null), wheel = el2("section", "wheel-panel"), top = el2("div", "wheel-top"), copy = el2("div", "grow");
+    const areas = p().areas, rated = areas.filter((a) => a.rating != null), selected = areas.find((a) => a.id === lifeFilter), score = selected?.rating ?? (lifeFilter ? null : rated.length ? rated.reduce((s, a) => s + a.rating, 0) / rated.length : null), wheel = el3("section", "wheel-panel"), top = el3("div", "wheel-top"), copy = el3("div", "grow");
     copy.append(button2(selected?.title ?? "Wheel of Life", () => {
       lifeFilter = null;
       render2(false);
-    }, "wheel-label"), el2("h2", "wheel-score numeric", score == null ? "\u2014" : score.toFixed(1)));
-    copy.querySelector("h2").append(el2("small", "", "/10"));
-    copy.append(el2("p", "accent small", selected ? "Your rating" : "Your average rating"), el2("p", "muted small", selected ? selected.purpose || "Tap the area below to update your rating." : `${rated.length} of ${areas.length} life areas rated`));
+    }, "wheel-label"), el3("h2", "wheel-score numeric", score == null ? "\u2014" : score.toFixed(1)));
+    copy.querySelector("h2").append(el3("small", "", "/10"));
+    copy.append(el3("p", "accent small", selected ? "Your rating" : "Your average rating"), el3("p", "muted small", selected ? selected.purpose || "Tap the area below to update your rating." : `${rated.length} of ${areas.length} life areas rated`));
     top.append(copy, lifeWheel(areas));
     wheel.append(top);
-    const chips = el2("div", "filter-strip dimension-chips");
+    const chips = el3("div", "filter-strip dimension-chips");
     for (const a of areas) {
       const b = chip(`${a.title} ${a.rating ?? "\u2014"}`, lifeFilter === a.id, () => {
         lifeFilter = lifeFilter === a.id ? null : a.id;
@@ -5479,41 +5789,41 @@ function mountPlanner(api) {
     wheel.append(chips);
     if (!areas.length) wheel.append(button2("Add your first life area", areaPicker, "link"));
     page.append(wheel);
-    const heading2 = el2("div", "row spread life-section-heading");
-    heading2.append(el2("h2", "", "Your life areas"), icon("plus", "New life area", () => entityEditor("areas")));
+    const heading2 = el3("div", "row spread life-section-heading");
+    heading2.append(el3("h2", "", "Your life areas"), icon("plus", "New life area", () => entityEditor("areas")));
     page.append(heading2);
     const goals = p().goals.filter((g) => g.year === year && (g.horizon ?? "yearly") === horizon && (horizon === "yearly" || g.period === (horizon === "monthly" ? period : Math.ceil(period / 3))));
     for (const area of [...areas, { id: null, title: "Unassigned" }]) {
       if (lifeFilter && area.id !== lifeFilter) continue;
       const grouped = goals.filter((g) => (g.areaId ?? null) === area.id);
       if (!area.id && !grouped.length) continue;
-      const card2 = el2("section", "life-card");
+      const card2 = el3("section", "life-card");
       card2.dataset.tone = toneFor(area.id);
       const title2 = button2("", () => {
         collapsedAreas.has(area.id) ? collapsedAreas.delete(area.id) : collapsedAreas.add(area.id);
         render2(false);
       }, "area-heading");
       title2.setAttribute("aria-expanded", String(!collapsedAreas.has(area.id)));
-      title2.append(mark("life"), el2("h3", "grow", area.title), el2("span", "area-score numeric", area.rating == null ? "\u2014" : area.rating + "/10"), mark(collapsedAreas.has(area.id) ? "down" : "up"));
+      title2.append(mark("life"), el3("h3", "grow", area.title), el3("span", "area-score numeric", area.rating == null ? "\u2014" : area.rating + "/10"), mark(collapsedAreas.has(area.id) ? "down" : "up"));
       card2.append(title2);
-      const content = el2("div", "area-content");
+      const content = el3("div", "area-content");
       content.hidden = collapsedAreas.has(area.id);
-      if (area.purpose) content.append(el2("p", "area-purpose", area.purpose));
+      if (area.purpose) content.append(el3("p", "area-purpose", area.purpose));
       if (area.id) content.append(button2(area.rating == null ? "Rate this life area" : "Edit area & rating", () => entityEditor("areas", area.id), "link small"));
       for (const g of grouped) {
         const goal = button2("", () => entityEditor("goals", g.id), "goal-item");
-        goal.append(el2("span", "goal-period", horizon === "yearly" ? String(g.year) : horizon === "quarterly" ? "Q" + g.period : new Date(g.year, g.period - 1).toLocaleDateString("en", { month: "short" })), el2("span", "grow", g.title), mark("next"));
+        goal.append(el3("span", "goal-period", horizon === "yearly" ? String(g.year) : horizon === "quarterly" ? "Q" + g.period : new Date(g.year, g.period - 1).toLocaleDateString("en", { month: "short" })), el3("span", "grow", g.title), mark("next"));
         content.append(goal);
-        if (g.purpose) content.append(el2("p", "goal-purpose", g.purpose));
+        if (g.purpose) content.append(el3("p", "goal-purpose", g.purpose));
         for (const pr of p().projects.filter((pr2) => pr2.goalId === g.id)) content.append(button2(pr.title, () => showProject(pr.id), "linked-project"));
       }
-      if (!grouped.length) content.append(el2("p", "muted small", "No goals in this period yet."));
+      if (!grouped.length) content.append(el3("p", "muted small", "No goals in this period yet."));
       content.append(button2("Add goal", () => entityEditor("goals", null, { areaId: area.id }), "block-add"));
       card2.append(content);
       page.append(card2);
     }
     if (!areas.length && !goals.length) page.append(emptyState("What matters to you?", "Create a life area, then add a goal for this period.", () => entityEditor("areas"), "New life area"));
-    const tools2 = el2("div", "row");
+    const tools2 = el3("div", "row");
     tools2.append(button2("Goal ideas", () => aiAction("ideas"), "link"), button2("Goals and vision", contextEditor, "link"));
     page.append(tools2);
   }
@@ -5548,7 +5858,7 @@ function mountPlanner(api) {
       rating.min = "0";
       rating.max = "10";
       rating.step = "0.1";
-      body.append(el2("p", "muted small", "Your own reflection on this area, independent of task completion."));
+      body.append(el3("p", "muted small", "Your own reflection on this area, independent of task completion."));
     }
     if (collection === "goals") {
       goalYear = field(body, "Year", r.year ?? year, "number");
@@ -5562,7 +5872,7 @@ function mountPlanner(api) {
         goalPeriod.replaceChildren();
         const count = goalHorizon.value === "quarterly" ? 4 : 12;
         for (let i = 1; i <= count; i++) {
-          const o = el2("option", "", goalHorizon.value === "quarterly" ? "Quarter " + i : new Date(2e3, i - 1).toLocaleDateString("en", { month: "long" }));
+          const o = el3("option", "", goalHorizon.value === "quarterly" ? "Quarter " + i : new Date(2e3, i - 1).toLocaleDateString("en", { month: "long" }));
           o.value = String(i);
           goalPeriod.append(o);
         }
@@ -5572,16 +5882,16 @@ function mountPlanner(api) {
       updatePeriods(true);
       goalHorizon.addEventListener("change", () => updatePeriods());
     }
-    const notes = field(body, "Notes", r.notes, "textarea"), err = el2("p", "edit-error error");
+    const notes = field(body, "Notes", r.notes, "textarea"), err = el3("p", "edit-error error");
     if (draftMeta) {
-      const source = el2("details", "original-capture");
-      source.append(el2("summary", "", "Original capture"), el2("p", "", draftValues.__sourceRaw ?? draftMeta.sourceRaw));
+      const source = el3("details", "original-capture");
+      source.append(el3("summary", "", "Original capture"), el3("p", "", draftValues.__sourceRaw ?? draftMeta.sourceRaw));
       body.append(source);
     }
     body.append(err);
     if (id2) body.append(button2("Remove " + names[collection], () => {
-      const confirm = el2("div", "conflict");
-      confirm.append(el2("p", "", `Remove this ${names[collection]}? Its contents will be kept unassigned. You can undo.`), button2("Keep", () => confirm.remove()), button2("Remove", () => commit({ type: "removeEntity", collection, id: id2 }).catch(() => {
+      const confirm = el3("div", "conflict");
+      confirm.append(el3("p", "", `Remove this ${names[collection]}? Its contents will be kept unassigned. You can undo.`), button2("Keep", () => confirm.remove()), button2("Remove", () => commit({ type: "removeEntity", collection, id: id2 }).catch(() => {
       }), "danger"));
       body.append(confirm);
       confirm.scrollIntoView({ block: "nearest" });
@@ -5621,7 +5931,7 @@ function mountPlanner(api) {
   function projectPicker() {
     const { body, actions } = openEditor("Projects");
     for (const pr of p().projects) {
-      const row = el2("div", "list-row");
+      const row = el3("div", "list-row");
       row.append(button2(pr.title, () => {
         projectId = pr.id;
         level = 2;
@@ -5640,23 +5950,23 @@ function mountPlanner(api) {
   function areaPicker() {
     const { body, actions } = openEditor("Life areas");
     for (const a of p().areas) body.append(button2(a.title, () => entityEditor("areas", a.id), "link"));
-    if (!p().areas.length) body.append(el2("p", "empty", "Choose your own life areas\u2014for example, relationships or learning. These are examples, not a preset profile."));
+    if (!p().areas.length) body.append(el3("p", "empty", "Choose your own life areas\u2014for example, relationships or learning. These are examples, not a preset profile."));
     actions.append(button2("New area", () => entityEditor("areas"), "primary"));
   }
   function showSortPreview(preview, body, actions, explanation = "Proposed arrangement. Nothing has moved yet.") {
-    body.replaceChildren(el2("p", "sort-preview-intro", explanation));
+    body.replaceChildren(el3("p", "sort-preview-intro", explanation));
     const byId = new Map(tasks(data2()).map((task) => [task.id, task]));
     for (const block of preview.blocks) {
-      const section2 = el2("section", "sort-preview-block");
-      section2.append(el2("h3", "", block.title));
-      if (block.purpose) section2.append(el2("p", "muted small", block.purpose));
-      for (const id2 of block.taskIds ?? []) section2.append(el2("p", "sort-preview-task", byId.get(id2)?.title ?? "Unavailable task"));
+      const section2 = el3("section", "sort-preview-block");
+      section2.append(el3("h3", "", block.title));
+      if (block.purpose) section2.append(el3("p", "muted small", block.purpose));
+      for (const id2 of block.taskIds ?? []) section2.append(el3("p", "sort-preview-task", byId.get(id2)?.title ?? "Unavailable task"));
       body.append(section2);
     }
     if (preview.leftUnsorted?.length) {
-      const section2 = el2("section", "sort-preview-block sort-preview-unsorted");
-      section2.append(el2("h3", "", "Kept unsorted"));
-      for (const id2 of preview.leftUnsorted) section2.append(el2("p", "sort-preview-task", byId.get(id2)?.title ?? "Unavailable task"));
+      const section2 = el3("section", "sort-preview-block sort-preview-unsorted");
+      section2.append(el3("h3", "", "Kept unsorted"));
+      for (const id2 of preview.leftUnsorted) section2.append(el3("p", "sort-preview-task", byId.get(id2)?.title ?? "Unavailable task"));
       body.append(section2);
     }
     actions.replaceChildren(button2("Dismiss", async () => {
@@ -5681,7 +5991,7 @@ function mountPlanner(api) {
   }
   async function aiAction(action, blockId = null) {
     const startVersion = data2().version, { body, actions } = openEditor(action === "sort" ? "Sort into RPM blocks" : action === "purpose" ? "Purpose suggestion" : "Goal ideas");
-    const status2 = el2("p", "muted", "Preparing a suggestion\u2026");
+    const status2 = el3("p", "muted", "Preparing a suggestion\u2026");
     status2.setAttribute("role", "status");
     body.append(status2);
     if (!api.getPhone().hasKey) {
@@ -5728,23 +6038,27 @@ function mountPlanner(api) {
   }
   function contextEditor() {
     const { body, actions } = openEditor("Goals and vision", "context");
-    body.append(el2("p", "muted", "Only reviewed text is used for purpose and goal ideas. Sorting does not receive these documents."));
+    body.append(el3("p", "muted", "Only reviewed text is used for purpose and goal ideas. Sorting does not receive these documents."));
     const vision = field(body, "Life vision", p().context.vision, "textarea"), goals = field(body, "Goals and interests", p().context.goals, "textarea"), values = field(body, "Core values", p().context.coreValues, "textarea"), approved = checkbox(body, "I reviewed this context; use it for suggestions", p().context.approved);
-    body.append(el2("p", "edit-error error"));
+    body.append(el3("p", "edit-error error"));
     actions.append(button2("Save", () => commit({ type: "context", vision: vision.value, goals: goals.value, coreValues: values.value, approved: approved.checked }).catch(() => {
     }), "primary"));
   }
   function examples() {
     const { body } = openEditor("Example RPM blocks");
-    body.append(el2("p", "muted", "Illustrations only. These are not saved goals or assumptions about you."));
+    body.append(el3("p", "muted", "Illustrations only. These are not saved goals or assumptions about you."));
     for (const [r, why, actions] of [["Explain a chapter clearly", "Feel prepared to contribute", "Read key sections; write three points; discuss one question"], ["Have the home ready for the week", "Make everyday life easier", "Buy essentials; prepare meals; clear the workspace"]]) {
-      const s = el2("section", "detail-section");
-      s.append(el2("h2", "detail-result", r), el2("p", "", why), el2("p", "muted", actions));
+      const s = el3("section", "detail-section");
+      s.append(el3("h2", "detail-result", r), el3("p", "", why), el3("p", "muted", actions));
       body.append(s);
     }
   }
   window.rpmOpenSettings = showSettings;
   window.rpmHandleBack = () => {
+    if (closePriorityMenu) {
+      closePriorityMenu();
+      return true;
+    }
     if (!editor.hidden) {
       closeEditor();
       return true;
@@ -5877,10 +6191,12 @@ function mountPlanner(api) {
   }
   return { render: render2, taskEditor, goalIdeas: () => aiAction("ideas"), contextEditor, openView };
 }
-var paths, el2, button2, icon, clock2, duration, datetime, svgNode, mark, palette, toneFor, doneStats, stableKey;
+var paths, el3, button2, icon, clock2, duration, datetime, svgNode, mark, palette, toneFor, doneStats, stableKey;
 var init_planner = __esm({
   "android-companion/planner.mjs"() {
     "use strict";
+    init_priority_menu();
+    init_task_swipe();
     init_planner_state();
     init_planner_ai();
     init_planner_recurrence();
@@ -5888,14 +6204,14 @@ var init_planner = __esm({
     init_settings();
     init_planner_clarity();
     paths = { back: "m14 5-7 7 7 7", next: "m9 5 7 7-7 7", up: "m5 14 7-7 7 7", down: "m5 9 7 7 7-7", plus: "M12 5v14M5 12h14", close: "m6 6 12 12M18 6 6 18", star: "m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z", check: "m5 12 4 4L19 6", settings: "M4 7h16M4 17h16M8 4v6M16 14v6" };
-    el2 = (tag, cls = "", text5 = "") => {
+    el3 = (tag, cls = "", text5 = "") => {
       const n = document.createElement(tag);
       n.className = cls;
       n.textContent = text5;
       return n;
     };
     button2 = (label, fn, cls = "") => {
-      const n = el2("button", cls, label);
+      const n = el3("button", cls, label);
       n.type = "button";
       n.addEventListener("click", fn);
       return n;
@@ -5945,10 +6261,95 @@ var init_planner = __esm({
   }
 });
 
+// chat-prototype/reply-format.mjs
+function replyBlocks(text5 = "") {
+  const blocks = [];
+  let paragraph = [], list2 = null, code = null;
+  const flush = () => {
+    if (paragraph.length) {
+      blocks.push({ type: "p", text: paragraph.join("\n") });
+      paragraph = [];
+    }
+    list2 = null;
+  };
+  for (const line of String(text5).replace(/\r\n?/g, "\n").split("\n")) {
+    if (/^\s*```/.test(line)) {
+      flush();
+      if (code) {
+        blocks.push({ type: "pre", text: code.join("\n") });
+        code = null;
+      } else code = [];
+      continue;
+    }
+    if (code) {
+      code.push(line);
+      continue;
+    }
+    if (!line.trim()) {
+      flush();
+      continue;
+    }
+    const heading2 = line.match(/^#{1,6}\s+(.+)$/), item = line.match(/^\s*(?:([-*])|\d+[.)])\s+(.+)$/);
+    if (heading2) {
+      flush();
+      blocks.push({ type: "h3", text: heading2[1] });
+    } else if (item) {
+      if (paragraph.length) flush();
+      const type = item[1] ? "ul" : "ol";
+      if (!list2 || list2.type !== type) {
+        list2 = { type, items: [] };
+        blocks.push(list2);
+      }
+      list2.items.push(item[2]);
+    } else {
+      list2 = null;
+      paragraph.push(line);
+    }
+  }
+  if (code) blocks.push({ type: "pre", text: code.join("\n") });
+  flush();
+  return blocks;
+}
+function formattedReply(text5, doc = document) {
+  const root = doc.createElement("div");
+  root.className = "assistant-text formatted-reply";
+  function inline(node, value2) {
+    const pieces = value2.split(/(\*\*[^*\n]+\*\*|`[^`\n]+`)/g);
+    for (const part of pieces) {
+      const bold = part.startsWith("**") && part.endsWith("**"), code = part.startsWith("`") && part.endsWith("`");
+      if (bold || code) {
+        const span = doc.createElement(bold ? "strong" : "code");
+        span.textContent = part.slice(bold ? 2 : 1, bold ? -2 : -1);
+        node.append(span);
+      } else node.append(doc.createTextNode(part));
+    }
+  }
+  for (const block of replyBlocks(text5)) {
+    const node = doc.createElement(block.type);
+    if (block.items) for (const item of block.items) {
+      const li = doc.createElement("li");
+      inline(li, item);
+      node.append(li);
+    }
+    else if (block.type === "pre") {
+      const code = doc.createElement("code");
+      code.textContent = block.text;
+      node.append(code);
+    } else inline(node, block.text);
+    root.append(node);
+  }
+  return root;
+}
+var init_reply_format = __esm({
+  "chat-prototype/reply-format.mjs"() {
+    "use strict";
+  }
+});
+
 // chat-prototype/app.js
 var app_exports = {};
 function button3(text5, fn, cls = "choice") {
-  const b = el3("button", cls, text5);
+  const b = el4("button", cls, text5);
   b.type = "button";
   b.disabled = busy;
   b.addEventListener("click", fn);
@@ -5959,7 +6360,7 @@ function status(text5, error = false, { replaceContent = true } = {}) {
   node.textContent = text5;
   node.classList.toggle("error", error);
   node.setAttribute("role", error ? "alert" : "status");
-  if (replaceContent && platform.compactReply && error && view === "chat") $("content").replaceChildren(el3("p", "assistant-text", text5));
+  if (replaceContent && platform.compactReply && error && view === "chat") $("content").replaceChildren(el4("p", "assistant-text", text5));
 }
 function controls() {
   document.querySelectorAll("#panel button").forEach((b) => b.disabled = busy && !["home", "close", "expand", "chat-view", "plans-view", "context-view", "history-view", "about"].includes(b.id));
@@ -5990,7 +6391,7 @@ function draft(text5) {
   $("message").focus();
 }
 function suggestions2(items, origin = {}) {
-  const row = el3("div", "actions");
+  const row = el4("div", "actions");
   for (const s of items ?? []) {
     const label = s.label.trim();
     const action = s.captureAction ?? platform.suggestionAction?.(s, origin.sourceRaw, origin.at);
@@ -6010,21 +6411,21 @@ async function captureAction(action) {
   }
 }
 function card(e, { receipt = false, receiptInfo = null } = {}) {
-  const n = el3("article", receiptInfo ? "entry receipt capture-receipt" : receipt ? "entry receipt" : "entry");
-  const head = el3("div", "entry-head");
-  const main = el3("div", "entry-main");
-  if (receiptInfo) main.append(el3("p", "receipt-status", receiptInfo.status), el3("p", "receipt-title", receiptInfo.title));
-  else main.append(el3("p", "entry-title", e.title));
-  main.append(el3("p", "entry-meta", e.when ?? (e.kind === "checkin" ? "Check-in" : "Time not set")));
+  const n = el4("article", receiptInfo ? "entry receipt capture-receipt" : receipt ? "entry receipt" : "entry");
+  const head = el4("div", "entry-head");
+  const main = el4("div", "entry-main");
+  if (receiptInfo) main.append(el4("p", "receipt-status", receiptInfo.status), el4("p", "receipt-title", receiptInfo.title));
+  else main.append(el4("p", "entry-title", e.title));
+  main.append(el4("p", "entry-meta", e.when ?? (e.kind === "checkin" ? "Check-in" : "Time not set")));
   const meta = [e.done ? e.state === "cancelled" ? "Cancelled" : "Done" : null, e.minutes !== null ? `${e.minutes} min ${e.kind === "checkin" ? "reported" : e.durationSource === "default_estimate" ? "estimate \xB7 default" : "estimate"}` : null, e.recurrence ? `Repeats ${e.recurrence}` : null, e.alert ? `${e.alert}${platform.native ? "" : " \xB7 preview"}` : null];
-  main.append(el3("p", "entry-meta", meta.filter(Boolean).join(" \xB7 ")));
-  if (e.mood || e.energy) main.append(el3("p", "entry-meta", [e.mood, e.energy ? e.energy + " energy" : null].filter(Boolean).join(" \xB7 ")));
+  main.append(el4("p", "entry-meta", meta.filter(Boolean).join(" \xB7 ")));
+  if (e.mood || e.energy) main.append(el4("p", "entry-meta", [e.mood, e.energy ? e.energy + " energy" : null].filter(Boolean).join(" \xB7 ")));
   head.append(main);
   n.append(head);
-  if (e.purpose) n.append(el3("p", "entry-meta", "Purpose: " + e.purpose));
+  if (e.purpose) n.append(el4("p", "entry-meta", "Purpose: " + e.purpose));
   if (platform.native && e.alert) {
     const delivery = platform.delivery(e.id);
-    n.append(el3("p", "delivery", (receipt ? "Phone now: " : "") + (delivery?.label ?? "Not scheduled")));
+    n.append(el4("p", "delivery", (receipt ? "Phone now: " : "") + (delivery?.label ?? "Not scheduled")));
     if (!receipt && delivery?.status === "imported_not_armed") n.append(button3("Enable on phone", async () => {
       try {
         await platform.action("arm", { id: e.id });
@@ -6037,8 +6438,8 @@ function card(e, { receipt = false, receiptInfo = null } = {}) {
   }
   const current = state.entries.find((x) => x.id === e.id);
   const stale = receipt && (!current || current.archived || JSON.stringify(current) !== JSON.stringify(e));
-  if (stale) n.prepend(el3("span", "superseded", current?.archived ? "Archived \xB7 earlier state" : "Earlier state \xB7 changed since this message"));
-  const row = el3("div", "actions");
+  if (stale) n.prepend(el4("span", "superseded", current?.archived ? "Archived \xB7 earlier state" : "Earlier state \xB7 changed since this message"));
+  const row = el4("div", "actions");
   if (!receipt && e.kind === "checkin") {
     row.append(button3("Edit check-in", () => draft(`Update check-in #${e.id} (${e.title}): `)), button3("Archive", () => turn({ type: "archive", collection: "entries", id: e.id })));
   } else if (!receipt) {
@@ -6046,15 +6447,15 @@ function card(e, { receipt = false, receiptInfo = null } = {}) {
   } else if (receiptInfo?.action) head.append(button3("Open", () => captureAction(receiptInfo.action), "quiet"));
   else head.append(button3("Current", () => setView("plans"), "quiet"));
   if (!receipt) n.append(row);
-  const original = el3("details");
-  original.append(el3("summary", "", "Original words"), el3("p", "", e.raw ?? ""));
+  const original = el4("details");
+  original.append(el4("summary", "", "Original words"), el4("p", "", e.raw ?? ""));
   n.append(original);
   return n;
 }
 function plannerReceipt(r) {
   if (r.entry) return card(r.entry, { receipt: true, receiptInfo: r });
-  const n = el3("article", "entry receipt capture-receipt"), main = el3("div", "entry-main");
-  main.append(el3("p", "receipt-status", r.status), el3("p", "receipt-title", r.title));
+  const n = el4("article", "entry receipt capture-receipt"), main = el4("div", "entry-main");
+  main.append(el4("p", "receipt-status", r.status), el4("p", "receipt-title", r.title));
   n.append(main);
   if (r.action) n.append(suggestions2([{ label: "Open", text: "", captureAction: r.action }]));
   return n;
@@ -6093,11 +6494,11 @@ function fieldText(field) {
   return `${label}: ${value2} \xB7 ${marker}`;
 }
 function intentOperation(op) {
-  const box = el3("div", "intent-operation");
+  const box = el4("div", "intent-operation");
   const title2 = op.fields.find((f) => f.name === "title" && f.op === "set")?.value ?? op.targetTitle;
-  box.append(el3("p", "intent-operation-title", title2 ?? `${op.kind} ${op.entity}`));
+  box.append(el4("p", "intent-operation-title", title2 ?? `${op.kind} ${op.entity}`));
   const detail = [op.kind !== "create" ? op.kind : null, ...op.fields.filter((f) => f.name !== "title").map(fieldText)].filter(Boolean).join(" \xB7 ");
-  if (detail) box.append(el3("p", "entry-meta", detail));
+  if (detail) box.append(el4("p", "entry-meta", detail));
   return box;
 }
 function actionId(action) {
@@ -6120,49 +6521,49 @@ async function runIntentAction(action) {
   if (action.draftId === focusedDraftId && !intentCaptures().some((c) => c.draft?.id === focusedDraftId && ["draft", "review"].includes(c.draft.status))) setFocusedDraft(null);
 }
 function intentCaptureCard(capture) {
-  const row = el3("section", "message assistant intent-review");
+  const row = el4("section", "message assistant intent-review");
   row.dataset.messageId = capture.messageId;
-  const source = el3("div", "intent-source");
-  source.append(el3("small", "intent-kicker", "Your words \xB7 saved first"), el3("p", "user-text", capture.raw));
+  const source = el4("div", "intent-source");
+  source.append(el4("small", "intent-kicker", "Your words \xB7 saved first"), el4("p", "user-text", capture.raw));
   row.append(source);
   const draft2 = capture.draft;
-  if (capture.reply) row.append(el3("p", "assistant-text dialogue", capture.reply));
+  if (capture.reply) row.append(el4("p", "assistant-text dialogue", capture.reply));
   if (capture.status === "captured") {
     const text5 = capture.lastError?.message ? "I kept this thought, but could not prepare a review." : "Your words are safe. The review is not ready yet.";
-    row.append(el3("p", capture.lastError ? "intent-state error" : "intent-state", text5));
+    row.append(el4("p", capture.lastError ? "intent-state error" : "intent-state", text5));
     row.append(button3("Retry this thought", () => turn({ type: "intentRetry", messageId: capture.messageId }), "quiet"));
     return row;
   }
   if (!draft2) {
-    row.append(el3("p", "intent-state", "Captured. No plan change was proposed."));
+    row.append(el4("p", "intent-state", "Captured. No plan change was proposed."));
     return row;
   }
-  const review = el3("section", "intent-draft");
-  review.append(el3("small", "intent-kicker", draft2.status === "committed" ? "Saved plan" : draft2.status === "undone" ? "Undone" : draft2.status === "parked" ? "Draft left for later" : "Review before saving"));
+  const review = el4("section", "intent-draft");
+  review.append(el4("small", "intent-kicker", draft2.status === "committed" ? "Saved plan" : draft2.status === "undone" ? "Undone" : draft2.status === "parked" ? "Draft left for later" : "Review before saving"));
   for (const op of draft2.operations) review.append(intentOperation(op));
   if (draft2.schedulePreview?.items?.length) {
-    const schedule = el3("div", "intent-schedule");
-    schedule.append(el3("small", "intent-kicker", "Local date and time preview"));
+    const schedule = el4("div", "intent-schedule");
+    schedule.append(el4("small", "intent-kicker", "Local date and time preview"));
     for (const item of draft2.schedulePreview.items) {
       const resolved = item.label ?? item.reason ?? "Needs review";
-      schedule.append(el3("p", "intent-schedule-row", `${item.source} \u2192 ${resolved}`));
-      for (const assumption of item.assumptions ?? []) schedule.append(el3("p", "entry-meta", assumption));
+      schedule.append(el4("p", "intent-schedule-row", `${item.source} \u2192 ${resolved}`));
+      for (const assumption of item.assumptions ?? []) schedule.append(el4("p", "entry-meta", assumption));
     }
     review.append(schedule);
   }
-  if (draft2.question) review.append(el3("p", "intent-question", draft2.question.prompt));
-  if (draft2.review) review.append(el3("p", "intent-question", draft2.review.question));
-  const actions = el3("div", "actions intent-actions");
+  if (draft2.question) review.append(el4("p", "intent-question", draft2.question.prompt));
+  if (draft2.review) review.append(el4("p", "intent-question", draft2.review.question));
+  const actions = el4("div", "actions intent-actions");
   for (const item of draft2.actions ?? []) actions.append(button3(item.label, () => runIntentAction(item.action), item.action.kind === "commit" ? "primary" : "choice"));
   review.append(actions);
   if (draft2.status === "parked") review.append(button3("Review this draft", () => turn({ type: "intentResume", draftId: draft2.id, actionId: `resume:${draft2.id}:${draft2.revision}` }), "quiet"));
   if (draft2.status === "committed") {
-    review.append(el3("p", "receipt-status", "Saved on this phone. Alert delivery is shown in the plan."));
+    review.append(el4("p", "receipt-status", "Saved on this phone. Alert delivery is shown in the plan."));
     const opens = (draft2.receipt?.plannerReceipts ?? []).filter((r) => r.action);
     for (const receipt of opens) review.append(button3(`Open ${receipt.title || receipt.status}`, () => captureAction(receipt.action), "quiet"));
     if (draft2.receipt?.undoId && draft2.receipt.undoId === state.undoId) review.append(button3("Undo this save", () => turn({ type: "intentUndo", draftId: draft2.id, actionId: `undo:${draft2.id}:${draft2.revision}` }), "quiet"));
   }
-  if (draft2.id === focusedDraftId && ["draft", "review"].includes(draft2.status)) review.prepend(el3("p", "intent-editing", "Editing this draft \xB7 your next message will revise it."));
+  if (draft2.id === focusedDraftId && ["draft", "review"].includes(draft2.status)) review.prepend(el4("p", "intent-editing", "Editing this draft \xB7 your next message will revise it."));
   row.append(review);
   return row;
 }
@@ -6182,26 +6583,26 @@ function currentConversation() {
   return state.conversations.find((c) => c.id === conversationId) ?? state.conversations.find((c) => !c.archived) ?? state.conversations[0];
 }
 function message(m) {
-  const row = el3("section", "message " + m.role);
+  const row = el4("section", "message " + m.role);
   if (m.role === "user") {
-    row.append(el3("div", "user-text", m.text));
+    row.append(el4("div", "user-text", m.text));
     return row;
   }
   const plannerReceipts2 = messageReceipts(m);
-  row.append(el3("p", "assistant-text", plannerReceipts2.length && m.text !== "Saved." ? "Saved." : m.text));
+  row.append(formattedReply(plannerReceipts2.length && m.text !== "Saved." ? "Saved." : m.text));
   for (const r of plannerReceipts2) row.append(plannerReceipt(r));
   if (!plannerReceipts2.length) for (const e of m.receipts ?? []) row.append(card(e, { receipt: true }));
   for (const memory of m.memories ?? []) {
-    const box = el3("div", "entry");
-    box.append(el3("p", "entry-title", "Remembered"), el3("p", "entry-meta", memory.text));
+    const box = el4("div", "entry");
+    box.append(el4("p", "entry-title", "Remembered"), el4("p", "entry-meta", memory.text));
     row.append(box);
   }
   if (m.proposal) {
     const finished = state.pending?.id !== m.proposal.id;
-    row.append(el3("small", "superseded", finished ? "Earlier proposal \xB7 no longer open" : "Proposal \xB7 nothing changed yet"));
+    row.append(el4("small", "superseded", finished ? "Earlier proposal \xB7 no longer open" : "Proposal \xB7 nothing changed yet"));
     if (finished) {
-      const past = el3("div", "actions");
-      for (const s of m.proposal.choices ?? []) past.append(el3("span", "choice", s.label));
+      const past = el4("div", "actions");
+      for (const s of m.proposal.choices ?? []) past.append(el4("span", "choice", s.label));
       row.append(past);
     }
   } else if (!platform.native) row.append(suggestions2(messageSuggestions(m, plannerReceipts2), messageOrigin(m)));
@@ -6214,15 +6615,15 @@ function message(m) {
   return row;
 }
 function legacyPending(glass = false) {
-  const p = el3("section", "pending");
-  p.append(el3("h3", "", glass ? "Classic proposal waiting" : "Changes in progress"));
+  const p = el4("section", "pending");
+  p.append(el4("h3", "", glass ? "Classic proposal waiting" : "Changes in progress"));
   for (const op of state.pending.operations) {
     const name = op.fields.title ?? state.entries.find((e) => e.id === op.id)?.title ?? op.fields.preference ?? op.collection;
     const changes = Object.entries(op.fields).filter(([k]) => !["title", "kind"].includes(k)).map(([k, v]) => `${k}: ${v ?? "clear"}`).join(" \xB7 ");
-    p.append(el3("div", "proposal-row", `${name}${changes ? " \u2014 " + changes : ""}`));
+    p.append(el4("div", "proposal-row", `${name}${changes ? " \u2014 " + changes : ""}`));
   }
-  p.append(el3("p", "", state.pending.question));
-  if (glass) p.append(el3("p", "view-description", "This proposal came from Classic and blocks a separate Glass save until you resolve or leave it."), button3("Continue in Classic", () => platform.setCaptureMode?.("classic"), "choice"));
+  p.append(el4("p", "", state.pending.question));
+  if (glass) p.append(el4("p", "view-description", "This proposal came from Classic and blocks a separate Glass save until you resolve or leave it."), button3("Continue in Classic", () => platform.setCaptureMode?.("classic"), "choice"));
   p.append(button3("Leave this proposal", () => turn({ type: "cancel" }), "quiet"));
   return p;
 }
@@ -6234,13 +6635,13 @@ function renderChat(content) {
     const page = intentPage(), captures = page.captures ?? [], savedFocus = localStorage.getItem(focusKey(c.id));
     if (!focusedDraftId && savedFocus) focusedDraftId = savedFocus;
     if (focusedDraftId && !openDraftAvailable(focusedDraftId)) setFocusedDraft(null);
-    if (!captures.length) content.append(el3("p", "assistant-text dialogue", "What\u2019s on your mind? Your words will be saved before I prepare any plan."));
+    if (!captures.length) content.append(el4("p", "assistant-text dialogue", "What\u2019s on your mind? Your words will be saved before I prepare any plan."));
     else {
       content.append(intentCaptureCard(captures[0]));
       if (captures.length > 1) {
-        const earlier = el3("details", "chat-history");
+        const earlier = el4("details", "chat-history");
         earlier.open = intentHistoryLimit > 20;
-        earlier.append(el3("summary", "", `Earlier captured thoughts \xB7 ${captures.length - 1}${page.hasMore ? " of " + (page.totalCaptures - 1) : ""}`));
+        earlier.append(el4("summary", "", `Earlier captured thoughts \xB7 ${captures.length - 1}${page.hasMore ? " of " + (page.totalCaptures - 1) : ""}`));
         for (const capture of captures.slice(1)) earlier.append(intentCaptureCard(capture));
         if (page.hasMore) earlier.append(button3("Show older captured thoughts", () => {
           intentHistoryLimit += 20;
@@ -6251,17 +6652,17 @@ function renderChat(content) {
     }
     if (state.pending) content.append(legacyPending(true));
     if (c.messages.length) {
-      const classic = el3("details", "chat-history classic-history");
-      classic.append(el3("summary", "", `Earlier Classic conversation \xB7 ${c.messages.length}`));
+      const classic = el4("details", "chat-history classic-history");
+      classic.append(el4("summary", "", `Earlier Classic conversation \xB7 ${c.messages.length}`));
       for (const m of c.messages) classic.append(message(m));
       content.append(classic);
     }
-    if (c.archived) content.prepend(el3("p", "view-description", "Archived conversation. Restore it from History before replying."));
+    if (c.archived) content.prepend(el4("p", "view-description", "Archived conversation. Restore it from History before replying."));
     return;
   }
   if (platform.compactReply) {
     const latest = c.messages.findLast((m) => m.role === "assistant");
-    if (!latest) content.append(el3("p", "assistant-text dialogue", "What\u2019s on your mind?"));
+    if (!latest) content.append(el4("p", "assistant-text dialogue", "What\u2019s on your mind?"));
     else {
       const rendered = message(latest);
       rendered.querySelector(".assistant-text")?.classList.add("dialogue");
@@ -6271,30 +6672,30 @@ function renderChat(content) {
     return;
   }
   if (!c.messages.length) {
-    const welcome = el3("section", "welcome");
-    welcome.append(el3("h2", "", "What\u2019s on your mind?"), el3("p", "", "A plan, a change of mind, or something you want me to remember. We can work it out here."));
+    const welcome = el4("section", "welcome");
+    welcome.append(el4("h2", "", "What\u2019s on your mind?"), el4("p", "", "A plan, a change of mind, or something you want me to remember. We can work it out here."));
     if (!platform.native) welcome.append(suggestions2([{ label: "What\u2019s planned?", text: "What do I have planned?" }, { label: "Plan something", text: "Help me put a plan together." }, { label: "What do you remember?", text: "What do you remember about my preferences?" }]));
     content.append(welcome);
   }
-  const log = el3("div");
+  const log = el4("div");
   log.setAttribute("role", "log");
   log.setAttribute("aria-label", "Chat messages");
   let previous;
   if (platform.compactReply && c.messages.length > 1) {
-    previous = el3("details", "chat-history");
-    previous.append(el3("summary", "", `Earlier messages \xB7 ${c.messages.length - 1}`));
+    previous = el4("details", "chat-history");
+    previous.append(el4("summary", "", `Earlier messages \xB7 ${c.messages.length - 1}`));
     for (const m of c.messages.slice(0, -1)) previous.append(message(m));
   }
   for (const m of platform.compactReply ? c.messages.slice(-1) : c.messages) log.append(message(m));
   if (previous) log.append(previous);
   content.append(log);
-  if (c.archived) content.prepend(el3("p", "view-description", "Archived conversation. Restore it from History before replying."));
+  if (c.archived) content.prepend(el4("p", "view-description", "Archived conversation. Restore it from History before replying."));
   if (state.pending) content.append(legacyPending());
 }
 function heading(content, title2, description) {
-  const head = el3("div", "view-heading");
-  head.append(el3("h2", "", title2));
-  content.append(head, el3("p", "view-description", description));
+  const head = el4("div", "view-heading");
+  head.append(el4("h2", "", title2));
+  content.append(head, el4("p", "view-description", description));
   return head;
 }
 function recordActions(row, collection, item) {
@@ -6309,7 +6710,7 @@ function render() {
   if (view === "plans") {
     heading(frag, "Current plans", platform.plansDescription ?? "The latest saved state. Changes affect this test copy only.");
     const entries = state.entries.filter((e) => !e.archived);
-    if (!entries.length) frag.append(el3("p", "empty", "No entries yet. Tell me what you have in mind."));
+    if (!entries.length) frag.append(el4("p", "empty", "No entries yet. Tell me what you have in mind."));
     for (const e of entries.toReversed()) frag.append(card(e));
   }
   if (view === "context") {
@@ -6317,27 +6718,27 @@ function render() {
     frag.append(button3(showArchived ? "Hide archived" : "Show archived", () => {
       showArchived = !showArchived;
       render();
-    }, "quiet"), el3("h3", "", "Remembered preferences"));
+    }, "quiet"), el4("h3", "", "Remembered preferences"));
     for (const m of state.memories.filter((m2) => showArchived || !m2.archived)) {
-      const row = el3("div", "record" + (m.archived ? " archived" : ""));
-      row.append(el3("p", "", m.text), el3("small", "", m.archived ? "Archived \xB7 excluded from AI context" : "Explicitly stated"), button3("Edit", () => draft(`Change my remembered preference "${m.text}" to `), "quiet"));
+      const row = el4("div", "record" + (m.archived ? " archived" : ""));
+      row.append(el4("p", "", m.text), el4("small", "", m.archived ? "Archived \xB7 excluded from AI context" : "Explicitly stated"), button3("Edit", () => draft(`Change my remembered preference "${m.text}" to `), "quiet"));
       recordActions(row, "memories", m);
       frag.append(row);
     }
-    if (!state.memories.length) frag.append(el3("p", "empty", "Nothing remembered yet. Tell me a preference and I\u2019ll keep it here."));
+    if (!state.memories.length) frag.append(el4("p", "empty", "Nothing remembered yet. Tell me a preference and I\u2019ll keep it here."));
     if (showArchived) {
-      frag.append(el3("h3", "", "Archived entries"));
+      frag.append(el4("h3", "", "Archived entries"));
       for (const e of state.entries.filter((e2) => e2.archived)) {
-        const row = el3("div", "record");
-        row.append(el3("p", "", e.title));
+        const row = el4("div", "record");
+        row.append(el4("p", "", e.title));
         recordActions(row, "entries", e);
         frag.append(row);
       }
     }
-    frag.append(el3("h3", "", "Original history"));
+    frag.append(el4("h3", "", "Original history"));
     for (const h of state.history.filter((h2) => showArchived || !h2.archived).toReversed()) {
-      const row = el3("div", "record" + (h.archived ? " archived" : ""));
-      row.append(el3("p", "", h.raw), el3("small", "", `${h.source === "cli-import" ? "Imported CLI" : "Conversation"} \xB7 ${h.archived ? "archived" : new Date(h.at).toLocaleDateString()}`));
+      const row = el4("div", "record" + (h.archived ? " archived" : ""));
+      row.append(el4("p", "", h.raw), el4("small", "", `${h.source === "cli-import" ? "Imported CLI" : "Conversation"} \xB7 ${h.archived ? "archived" : new Date(h.at).toLocaleDateString()}`));
       recordActions(row, "history", h);
       frag.append(row);
     }
@@ -6346,26 +6747,26 @@ function render() {
     const head = heading(frag, "Conversations", "New conversations keep your plans and memory. Older chats stay available to the AI unless archived.");
     head.append(button3("New chat", () => turn({ type: "new" }), "new-chat"));
     for (const c of state.conversations.toReversed()) {
-      const row = el3("div", "record" + (c.archived ? " archived" : "")), glassCount = platform.intentForConversation?.(c.id, { limit: 0 }).totalCaptures ?? 0, total = c.messages.length + glassCount;
+      const row = el4("div", "record" + (c.archived ? " archived" : "")), glassCount = platform.intentForConversation?.(c.id, { limit: 0 }).totalCaptures ?? 0, total = c.messages.length + glassCount;
       row.append(button3(c.title, () => {
         conversationId = c.id;
         intentHistoryLimit = 20;
         setView("chat");
-      }, "conversation-link"), el3("small", "", `${total} messages${c.archived ? " \xB7 archived" : ""}`));
+      }, "conversation-link"), el4("small", "", `${total} messages${c.archived ? " \xB7 archived" : ""}`));
       if (c.id !== conversationId || c.archived) recordActions(row, "conversations", c);
       frag.append(row);
     }
   }
   if (view === "about") {
     heading(frag, "About this prototype", "A local assistant, with a recoverable test copy of your data.");
-    const copy = el3("div", "about-copy");
-    for (const p of ["Your messages, relevant RPM records and explicit preferences go to the existing OpenRouter AI. It can search all unarchived prototype history through tools. Longer history is retrieved when needed, not all sent on every turn.", "Imported CLI plans and history are copies. This assistant cannot write to your CLI store or run its alerts. Separate synthetic test datasets are not imported.", "Plans, conversations, pending changes and memory survive restarts in private local storage. Archive excludes a record from active AI context; restore brings it back.", "Reminder and recurrence cards describe saved settings only. No alarms ring and no external calendars are changed.", "The assistant can make mistakes. Inspect current plans, keep original words, and use Undo for the latest change."]) copy.append(el3("p", "", p));
+    const copy = el4("div", "about-copy");
+    for (const p of ["Your messages, relevant RPM records and explicit preferences go to the existing OpenRouter AI. It can search all unarchived prototype history through tools. Longer history is retrieved when needed, not all sent on every turn.", "Imported CLI plans and history are copies. This assistant cannot write to your CLI store or run its alerts. Separate synthetic test datasets are not imported.", "Plans, conversations, pending changes and memory survive restarts in private local storage. Archive excludes a record from active AI context; restore brings it back.", "Reminder and recurrence cards describe saved settings only. No alarms ring and no external calendars are changed.", "The assistant can make mistakes. Inspect current plans, keep original words, and use Undo for the latest change."]) copy.append(el4("p", "", p));
     frag.append(copy);
   }
   if (view === "about" && platform.native) {
     frag.replaceChildren();
     heading(frag, "Your pocket assistant", "Private phone storage \xB7 OpenRouter AI");
-    for (const p of platform.about) frag.append(el3("p", "about-copy", p));
+    for (const p of platform.about) frag.append(el4("p", "about-copy", p));
     frag.append(button3("Phone settings", () => platform.action("settings")));
   }
   if (platform.native) {
@@ -6438,13 +6839,14 @@ async function turn(payload) {
     status(e.message === "Failed to fetch" ? "The local server is unavailable. Your draft is kept; reconnect and retry." : e.message, true, { replaceContent: state?.captureMode !== "glass" });
   }
 }
-var $, platform, el3, state, busy, view, conversationId, showArchived, focusedDraftId, pendingMessage, intentHistoryLimit, intentActionIds, focusKey;
+var $, platform, el4, state, busy, view, conversationId, showArchived, focusedDraftId, pendingMessage, intentHistoryLimit, intentActionIds, focusKey;
 var init_app = __esm({
   "chat-prototype/app.js"() {
     "use strict";
+    init_reply_format();
     $ = (id2) => document.getElementById(id2);
     platform = window.RPM_PLATFORM ?? {};
-    el3 = (tag, cls, text5) => {
+    el4 = (tag, cls, text5) => {
       const n = document.createElement(tag);
       if (cls) n.className = cls;
       if (text5 !== void 0) n.textContent = text5;

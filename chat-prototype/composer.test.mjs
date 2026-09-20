@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import {formattedReply} from './reply-format.mjs';
 import fs from 'node:fs';
 import {randomUUID} from 'node:crypto';
 
@@ -12,6 +13,7 @@ test('Glass composer sends exact source and focused draft, retaining its message
     return nodes.get(id);
   };
   const context=vm.createContext({
+    formattedReply,
     window:{RPM_PLATFORM:{native:true,compactReply:true},addEventListener(){}},
     document:{getElementById:node,querySelectorAll:()=>[]},
     localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value)},
@@ -22,7 +24,7 @@ test('Glass composer sends exact source and focused draft, retaining its message
       return Promise.reject(new Error('Failed to fetch'));
     },
   });
-  vm.runInContext(fs.readFileSync(new URL('./app.js',import.meta.url),'utf8'),context);
+  vm.runInContext(fs.readFileSync(new URL('./app.js',import.meta.url),'utf8').replace(/^import .*;\n/,''),context);
   vm.runInContext("state={captureMode:'glass',version:7,csrf:'test'}; conversationId='conversation-1'; focusedDraftId='draft-1';",context);
   const raw='  Print the worksheets, twenty minutes.  ';
   const submit=async()=>{node('message').value=raw;node('composer').listeners.submit({preventDefault(){}});await new Promise(resolve=>setImmediate(resolve));};
