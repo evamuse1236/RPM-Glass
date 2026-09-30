@@ -46,3 +46,11 @@ test('explicit reminder and no alert override event inference',()=>{const w=make
 test('time changes reschedule and disabling survives time changes',()=>{const w=make();w.send('meeting tomorrow at 9am');w.send('/time tomorrow at 10am');assert.equal(new Date(w.get().alert.at).getHours(),9);assert.equal(new Date(w.get().alert.at).getMinutes(),50);w.send('/alert off');w.send('/time tomorrow at 11am');assert.equal(w.get().alert,null);});
 test('too late for alarm lead does not silently ring at event time',()=>{const w=make();w.send('meeting in 5 minutes');assert.equal(w.get().alert.status,'needs_time');assert.equal(dueAlerts(w.data,new Date(2026,8,8,14,6)).length,0);});
 test('due reminders fire once and completed tasks are excluded',()=>{const w=make();w.send('walk in 1 minute');w.now=()=>new Date(2026,8,8,14,2);const calls=[];const runtime=startAlerts(w,{report:()=>{},spawnProcess:(...args)=>{calls.push(args);return new EventEmitter();}});try{runtime.tick();assert.equal(calls.length,1);assert.equal(w.get().alert.status,'fired');}finally{runtime.stop();}w.send('walk in 1 minute');w.send('/done');assert.equal(dueAlerts(w.data,new Date(2026,8,8,15)).length,0);});
+
+test('offline capture and time correction preserve range duration',()=>{
+ const w=make();w.send('Read tomorrow 2pm-3pm');assert.equal(w.get().minutes,60);assert.equal(w.get().durationSource,'user_words');w.send('/time');w.send('tomorrow 4pm-6pm');assert.equal(w.get().minutes,120);assert.equal(new Date(w.get().planned).getHours(),16);
+});
+
+test('range entered during alert setup changes duration only after confirmation',()=>{
+ const w=make();w.send('Read');w.send('/alert');w.send('2');w.send('tomorrow 2pm-4pm');assert.equal(w.get().minutes,30);assert.equal(w.get().alert,null);w.send('yes');assert.equal(w.get().minutes,120);assert.equal(new Date(w.get().planned).getHours(),14);assert.equal(w.get().alert.type,'alarm');
+});

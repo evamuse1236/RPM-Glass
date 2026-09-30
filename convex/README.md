@@ -28,3 +28,7 @@ Incomplete drafts and authentication credentials are not part of synced records.
 
 Do not call `admin:revokeDevice` except for an installation you intend to disconnect.
 A new pairing for the same installation rotates its token while keeping its data.
+
+## Diagnostic logging
+
+The independent `/v1/diagnostics` endpoint stores console and operation records with 14-day retention. Reads and pairing-code creation are internal administrator functions. Existing paired device credentials are accepted without modifying planner records; diagnostic-only pairing cannot authorize `/v1/sync`. See [diagnostic logging](../docs/diagnostic-logging.md) for phone controls, queries, limits and verification.

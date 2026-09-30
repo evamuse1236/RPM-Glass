@@ -2,14 +2,13 @@ import {planner,tasks} from './planner-state.mjs';
 import {validate} from '../chat-prototype/companion-tools.mjs';
 const object=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
 export const appViews=['day','rpm','projects','life','settings','calendar','vision','ideas','alarm_sound','reminder_sound','ai_connection','notifications','exact_alarms','import_export'];
-export const controlAppSchema=object({action:{type:'string',enum:['open','transparency','show_butterfly','hide_butterfly']},view:{type:['string','null'],enum:[...appViews,null]},id:{type:['string','integer','null']},date:{type:['string','null']},value:{type:['integer','null'],minimum:0,maximum:70},evidence:{type:'array',items:{type:'string'},minItems:1,maxItems:5}});
+export const controlAppSchema=object({action:{type:'string',enum:['open','show_butterfly','hide_butterfly']},view:{type:['string','null'],enum:[...appViews,null]},id:{type:['string','integer','null']},date:{type:['string','null']},value:{type:['integer','null'],minimum:0,maximum:70},evidence:{type:'array',items:{type:'string'},minItems:1,maxItems:5}});
 export function appCommand(data,args,meta){
  validate(args,controlAppSchema);
  if(args.evidence.some(s=>!s.trim()||!meta.raw.includes(s)))throw new Error('Use exact words from the current request.');
  if(args.action!=='open'){
   if(args.view!==null||args.id!==null||args.date!==null)throw new Error('Setting controls do not take a view or record ID.');
-  if(args.action==='transparency'&&!Number.isInteger(args.value))throw new Error('Choose a transparency from 0 to 70 percent.');
-  if(args.action!=='transparency'&&args.value!==null)throw new Error('This control does not take a value.');
+  if(args.value!==null)throw new Error('This control does not take a value.');
   return {action:'appControl',payload:{action:args.action,value:args.value}};
  }
  if(!appViews.includes(args.view)||args.value!==null)throw new Error('Choose a supported app destination.');
@@ -20,5 +19,5 @@ export function appCommand(data,args,meta){
 }
 export function createAppTools({native}){return [
  {name:'read_app',description:'Read safe phone settings and permission status, never keys. Use before explaining or changing settings.',schema:object({}),run:()=>native('appSettings')},
- {name:'control_app',description:'Open app views, a specific task/block/project/goal, calendar or sound/settings controls; or set widget transparency (0–70), show/hide butterfly. System permissions and pickers require the user. Does not change plans.',schema:controlAppSchema,terminal:true,run:async(data,args,meta)=>{const effect=appCommand(data,args,meta);if(effect.action==='appControl'){const result=await native(effect.action,effect.payload);return {text:result.message,suggestions:[]};}return {text:'Opening '+args.view.replaceAll('_',' ')+'…',appEffect:effect,suggestions:[]};}}
+ {name:'control_app',description:'Open app views, a specific task/block/project/goal, calendar or sound/settings controls; or show/hide the butterfly. Capture uses a solid background. System permissions and pickers require the user. Does not change plans.',schema:controlAppSchema,terminal:true,run:async(data,args,meta)=>{const effect=appCommand(data,args,meta);if(effect.action==='appControl'){const result=await native(effect.action,effect.payload);return {text:result.message,suggestions:[]};}return {text:'Opening '+args.view.replaceAll('_',' ')+'…',appEffect:effect,suggestions:[]};}}
  ];}

@@ -8,8 +8,8 @@ const storage=entries=>{
 };
 
 test('Clarity preferences default safely and reject unknown stored values',()=>{
-  assert.deepEqual(clarityPreferences(storage()),{appearance:'system',dayLayout:'agenda',solidNavigation:false});
-  assert.deepEqual(clarityPreferences(storage([['rpm-clarity:appearance','sepia'],['rpm-clarity:day-layout','board'],['rpm-clarity:solid-navigation','yes']])),{appearance:'system',dayLayout:'agenda',solidNavigation:false});
+  assert.deepEqual(clarityPreferences(storage()),{appearance:'system',dayLayout:'agenda',solidNavigation:true});
+  assert.deepEqual(clarityPreferences(storage([['rpm-clarity:appearance','sepia'],['rpm-clarity:day-layout','board'],['rpm-clarity:solid-navigation','yes']])),{appearance:'system',dayLayout:'agenda',solidNavigation:true});
 });
 
 test('appearance and navigation preferences update semantic root state',()=>{
@@ -39,10 +39,11 @@ test('planner integrates Clarity without inline script or canonical sort writes'
   assert.equal(source.includes("check.setAttribute('role','checkbox')"),true);
   assert.equal(source.includes("mountClaritySettings(work)"),true);
   assert.equal(source.includes("clarity.dayLayout==='agenda'"),true);
-  assert.equal(css.includes(':root[data-appearance=dark]'),true);
-  assert.equal(css.includes('@media(prefers-color-scheme:dark)'),true);
+  const tokens=await readFile(new URL('./planner-tokens.css',import.meta.url),'utf8');
+  assert.equal(tokens.includes(':root[data-appearance=dark]'),true);
+  assert.equal(tokens.includes('@media(prefers-color-scheme:dark)'),true);
   assert.equal(css.includes('@media(forced-colors:active)'),true);
-  assert.equal(css.includes(':root[data-large-text=true] .week-strip{display:none}'),true);
+  assert.equal(css.includes('.week-strip{display:none}'),false);
   assert.equal(html.includes('<script type="module" src="/runtime.js"></script>'),true);
   assert.equal(html.includes('<script>'),false);
 });

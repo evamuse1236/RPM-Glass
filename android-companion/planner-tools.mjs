@@ -14,12 +14,12 @@ export const changePlannerSchema=object({operations:{type:'array',items:operatio
 const allowed={tasks:['title','purpose','notes','leverage','time','minutes','blockId','must','priority','recurrence','repeatAfterDays','alert'],blocks:['title','purpose','notes','projectId'],projects:['title','purpose','notes','goalId'],goals:['title','purpose','notes','areaId','year'],areas:['title','purpose','notes']};
 const compactTask=e=>({id:e.id,title:e.title,blockId:e.blockId??null,minutes:e.minutes,planned:e.planned,done:e.done,must:e.must,priority:e.priority,recurrence:e.recurrence,repeatAfterDays:e.repeatAfterDays,notes:e.notes,leverage:e.leverage});
 /** Resolve one task time with the exact canonical parser/update semantics, on a clone. */
-export function resolvePlannerTime(data,{id=null,title,time,evidence=[]},{raw,conversationId,now=new Date()}={}){
+export function resolvePlannerTime(data,{id=null,title,time,minutes,evidence=[]},{raw,conversationId,now=new Date()}={}){
  const old=id==null?null:data.entries.find(e=>e.id===id&&(e.kind??'plan')==='plan');if(id!=null&&!old)throw new Error('Task not found. Read current planning context.');
- const timeData=structuredClone(data),base={title:title??old?.title,kind:'plan',time};if(old)delete base.kind;
+ const timeData=structuredClone(data),base={title:title??old?.title,kind:'plan',time};if(old)delete base.kind;if(minutes!=null)base.duration=minutes;
  const result=propose(timeData,{operations:[{type:old?'update':'create',collection:'entries',id:old?.id??null,fields:base,evidence}],continuation:false,question:null,choices:[]},{raw,conversationId,now});
  if(timeData.pending)return {status:'review',question:timeData.pending.question,choices:timeData.pending.choices??[]};
- const timed=timeData.entries.find(e=>e.id===result.entryIds[0]);return {status:timed.planned?'parsed':'date_only',planned:timed.planned,plannedDate:timed.planned?null:timed.plannedDate??null};
+ const timed=timeData.entries.find(e=>e.id===result.entryIds[0]);return {status:timed.planned?'parsed':'date_only',planned:timed.planned,plannedDate:timed.planned?null:timed.plannedDate??null,minutes:timed.interpretation?.minutes??null,end:timed.interpretation?.end??null,assumptions:timed.interpretation?.assumptions??[]};
 }
 export function planningFocus(data,focus={}){
  const p=planner(data),task=tasks(data).find(e=>e.id===focus.taskId),block=p.blocks.find(b=>b.id===(task?.blockId??focus.blockId)),project=p.projects.find(pr=>pr.id===(block?.projectId??focus.projectId));
@@ -61,9 +61,9 @@ export async function changePlanner(data,args,meta,readCalendar=async()=>({statu
     const time=f.time;delete f.time;
     if('recurrence'in f)f.repeatAfterDays=null;else if('repeatAfterDays'in f)f.recurrence=null;
     // Apply scheduling first so a new recurring task is never temporarily invalid.
-    if('time'in op.fields){const resolved=resolvePlannerTime(copy,{id:old?.id??null,title:f.title??old?.title,time,evidence:op.evidence},{...meta,raw:evidence});
+    if('time'in op.fields){const resolved=resolvePlannerTime(copy,{id:old?.id??null,title:f.title??old?.title,time,minutes:f.minutes,evidence:op.evidence},{...meta,raw:evidence});
      if(resolved.status==='review'){if(independentCreate)throw new Error('This new item needs a scheduling answer. Finish or dismiss the open proposal first.');return hold(data,args,meta,resolved.question,resolved.choices);}
-     f.planned=resolved.planned;f.plannedDate=resolved.plannedDate;
+     f.planned=resolved.planned;f.plannedDate=resolved.plannedDate;if(resolved.minutes!==null)f.minutes=resolved.minutes;
     }
     targetId=editPlan(copy,{type:'saveTask',id:targetId,fields:f},meta.now);
     const saved=copy.entries.find(e=>e.id===targetId);if(!old){saved.raw=meta.raw;saved.source='conversation';}

@@ -13,7 +13,7 @@ final class CompanionControls {
     static JSONObject read(Context c)throws JSONException {
         NotificationManager notifications=c.getSystemService(NotificationManager.class);
         boolean fullScreenSupported=android.os.Build.VERSION.SDK_INT>=34;
-        return new JSONObject().put("transparency",c.getSharedPreferences(APPEARANCE,0).getInt("transparency",28))
+        return new JSONObject().put("captureBackground","Glass")
             .put("widgetTextScale",widgetTextScale(c))
             .put("alarmSound",AlertSounds.alarmName(c)).put("reminderSound",AlertSounds.reminderName(c,CompanionAlerts.REMINDERS))
             .put("aiConnected",CompanionKey.has(c)).put("notificationsAllowed",CompanionAlerts.notifications(c,CompanionAlerts.REMINDERS))
@@ -28,10 +28,7 @@ final class CompanionControls {
     static JSONObject apply(Context c,JSONObject p)throws Exception {
         String action=p.getString("action"),message;
         switch(action){
-            case "transparency":
-                Object value=p.opt("value");if(!(value instanceof Integer)||((Integer)value)<0||((Integer)value)>70)throw new IllegalArgumentException("Transparency must be between 0 and 70 percent.");
-                if(!c.getSharedPreferences(APPEARANCE,0).edit().putInt("transparency",(Integer)value).commit())throw new IllegalStateException("The appearance could not be saved.");
-                message="Widget transparency set to "+value+"%.";break;
+            case "transparency":throw new IllegalArgumentException("Capture uses a solid background; transparency is no longer available.");
             case "widget_text_scale":
                 Object scale=p.opt("value");if(!(scale instanceof Integer)||((Integer)scale)<MIN_TEXT_SCALE||((Integer)scale)>MAX_TEXT_SCALE)throw new IllegalArgumentException("Widget text size must be between 80 and 160 percent.");
                 if(!c.getSharedPreferences(APPEARANCE,0).edit().putInt("widget-text-scale",(Integer)scale).commit())throw new IllegalStateException("The text size could not be saved.");

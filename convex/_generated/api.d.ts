@@ -9,6 +9,9 @@
  */
 
 import type * as admin from "../admin.js";
+import type * as crons from "../crons.js";
+import type * as diagnosticRedaction from "../diagnosticRedaction.js";
+import type * as diagnostics from "../diagnostics.js";
 import type * as functions from "../functions.js";
 import type * as http from "../http.js";
 import type * as security from "../security.js";
@@ -22,6 +25,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
+  crons: typeof crons;
+  diagnosticRedaction: typeof diagnosticRedaction;
+  diagnostics: typeof diagnostics;
   functions: typeof functions;
   http: typeof http;
   security: typeof security;

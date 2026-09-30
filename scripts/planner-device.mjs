@@ -3,7 +3,7 @@ import fs from 'node:fs';
 let pages;
 for(let attempt=0;attempt<20;attempt++){try{pages=await(await fetch('http://127.0.0.1:9229/json/list',{signal:AbortSignal.timeout(1000)})).json();if(pages.length)break;}catch(error){if(attempt===19)throw error;}await new Promise(r=>setTimeout(r,250));}
 const visible=pages.filter(p=>JSON.parse(p.description||'{}').visible);
-const page=visible.find(p=>p.url.includes('/planner.html'))??visible[0];
+const page=visible.find(p=>p.url.includes(process.env.RPM_QA_SURFACE==='capture'?'/index.html':'/planner.html'))??visible[0];
 if(!page)throw new Error('No emulator WebView found.');
 const socket=new WebSocket(page.webSocketDebuggerUrl);await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=reject;});
 let serial=0;const pending=new Map();socket.onmessage=event=>{const r=JSON.parse(event.data);if(r.id){pending.get(r.id)?.(r);pending.delete(r.id);}};

@@ -6,8 +6,8 @@ android {
         applicationId "com.rpm.prototype"
         minSdk 26
         targetSdk 36
-        versionCode 14
-        versionName "0.14-task-controls"
+        versionCode 23
+        versionName "0.23-readable-capture"
         testInstrumentationRunner "com.rpm.prototype.OfflineTests"
     }
     compileOptions {

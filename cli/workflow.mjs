@@ -81,7 +81,7 @@ export class Workflow {
     const checkin = this.mode === 'checkin';
     const interpretation=this.modelPending?{source:'openrouter',status:'pending',assumptions:[],planned:null,plannedDate:null}:checkin?null:interpretTime(text,this.now());
     const planned=interpretation?.planned??null;
-    const estimate=durationFromText(text);
+    const estimate=interpretation?.minutes??durationFromText(text);
     const feelings=checkin&&!this.modelPending?inferFeelings(text):null;
     const intent=checkin||this.modelPending?null:inferAlert(text);
     const e = {interpretation,plannedDate:interpretation?.plannedDate??null,planned,id,kind:checkin?'checkin':'plan',raw:text,title:text,created:this.now().toISOString(),minutes:checkin?estimate:(estimate??30),durationSource:estimate!==null?'user_words':checkin?'unknown':'default_estimate',mood:feelings?.mood??null,energy:feelings?.energy??null,feelings,alertIntent:intent,purpose:'',result:null,done:false,alert:planned&&intent?.type?scheduledAlert(intent.type,planned,this.now()):null,revisions:[]};
@@ -126,7 +126,7 @@ export class Workflow {
         // explicit edit before activating an alert from a weaker interpretation.
         const interpretation=initial.kind==='plan'?interpretTime(text,reference):null;
         const feelings=initial.kind==='checkin'?inferFeelings(text):null;
-        Object.assign(initial,{interpretation,planned:interpretation?.planned??null,plannedDate:interpretation?.plannedDate??null,feelings,mood:feelings?.mood??null,energy:feelings?.energy??null,alert:null,alertIntent:initial.kind==='plan'?inferAlert(text):null,ai:result.metadata});
+        Object.assign(initial,{...(interpretation?.minutes!=null?{minutes:interpretation.minutes,durationSource:'user_words'}:{}),interpretation,planned:interpretation?.planned??null,plannedDate:interpretation?.plannedDate??null,feelings,mood:feelings?.mood??null,energy:feelings?.energy??null,alert:null,alertIntent:initial.kind==='plan'?inferAlert(text):null,ai:result.metadata});
         this.revision(initial,'Local rules fallback; automatic alert withheld');
         savedIds.push(id);
       }else{
@@ -238,7 +238,7 @@ export class Workflow {
     this.quick=[];
     return this.ask(kind,e.id,bubble(`Time for #${e.id} · ${e.title}`,[e.interpretation?.reason??'Choose a day and time.',...chips(options.map((v,i)=>({number:i+1,label:formatTime(v)})),this.columns()),'[0 Write your own] · or type a time directly · /cancel'],{width:this.columns()}), {...extra,options});
   }
-  confirmAlert(e,type,at){return this.ask('confirm_alert',e.id,`${type==='alarm'?'Ringing alarm':'Notification reminder'} for #${e.id} “${e.title}”\nEvent: ${formatTime(at)} · alert: ${formatTime(scheduledAlert(type,at,this.now()).at)}\n1 Set alert  2 Change time  3 Cancel · or reply yes/no`,{type,at});}
+  confirmAlert(e,type,at,interpretation=null){return this.ask('confirm_alert',e.id,`${type==='alarm'?'Ringing alarm':'Notification reminder'} for #${e.id} “${e.title}”\nEvent: ${formatTime(at)} · alert: ${formatTime(scheduledAlert(type,at,this.now()).at)}\n1 Set alert  2 Change time  3 Cancel · or reply yes/no`,{type,at,interpretation});}
 
   alert(e) {
     if (!e || e.kind !== 'plan') return 'Choose a plan first. Capture one, or use /show ID.';
@@ -323,14 +323,14 @@ export class Workflow {
       }
       const at=chosen??parsed.planned;
       if(!at)return 'What day and time? Choose a number, or write tomorrow at 7am. /cancel leaves it unchanged.';
-      if(p.kind==='time')return this.confirmAlert(e,p.type,at);
-      this.update(e.id,{planned:at,plannedDate:parsed.plannedDate,interpretation:{...parsed,planned:at,choiceText:text},alert:(e.alert?.type??e.alertIntent?.type)?scheduledAlert(e.alert?.type??e.alertIntent.type,at,this.now()):null},'Time changed by user');this.pending=null;
+      if(p.kind==='time')return this.confirmAlert(e,p.type,at,parsed);
+      this.update(e.id,{...(parsed.minutes!=null?{minutes:parsed.minutes,durationSource:'user_words'}:{}),planned:at,plannedDate:parsed.plannedDate,interpretation:{...parsed,planned:at,choiceText:text},alert:(e.alert?.type??e.alertIntent?.type)?scheduledAlert(e.alert?.type??e.alertIntent.type,at,this.now()):null},'Time changed by user');this.pending=null;
       return `#${e.id}: ${formatTime(at)}.\n`+this.menu(e);
     }
     if(p.kind==='confirm_alert') {
       if(['yes','y','1'].includes(lower)) {
         if(new Date(scheduledAlert(p.type,p.at,this.now()).at)<=this.now())return this.ask('time',e.id,'That time has passed. Choose a future date and time.',{type:p.type});
-        this.update(e.id,{planned:p.at,plannedDate:localDate(new Date(p.at)),alertIntent:{type:p.type,reason:'Chosen by you.'},alert:scheduledAlert(p.type,p.at,this.now())},'Alert confirmed');this.pending=null;return `Scheduled ${p.type} for #${e.id} at ${formatTime(this.get(e.id).alert.at)}. Keep the CLI open.`;
+        this.update(e.id,{...(p.interpretation?.minutes!=null?{minutes:p.interpretation.minutes,durationSource:'user_words',interpretation:p.interpretation}:{}),planned:p.at,plannedDate:localDate(new Date(p.at)),alertIntent:{type:p.type,reason:'Chosen by you.'},alert:scheduledAlert(p.type,p.at,this.now())},'Alert confirmed');this.pending=null;return `Scheduled ${p.type} for #${e.id} at ${formatTime(this.get(e.id).alert.at)}. Keep the CLI open.`;
       }
       if(text==='2')return this.timeQuestion(e,'time',{type:p.type});
       if(['no','n','3'].includes(lower)){this.pending=null;return 'Change canceled. The entry is still saved.';}
