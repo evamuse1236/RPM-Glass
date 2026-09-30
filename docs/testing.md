@@ -1,5 +1,21 @@
 # Verification and phone testing
 
+The current **0.23-readable-capture** build is [verified and installed on the physical phone](capture-motion-fit-verification-2026-09-28.md). It includes the composited motion repair and the correction to the user’s keyboard-open frame: a complete readable update card, compact estimate, and no empty starter or duplicate instruction row. Current checks: 428 JavaScript tests, 272 native Capture assertions across 31 layouts, 22 focused fit/save/Undo checks, 28 motion checks, build/lint, physical screenshot inspection, exact installed APK verification and lossless app/draft preservation.
+
+The **0.21-fluid-motion** build is [verified and installed on the physical Galaxy S24 FE over Wi-Fi](motion-verification-2026-09-28.md). It removes unchanged-view rebuilds and Capture compositor blanking, and adds interruptible navigation, sheet and panel motion. Verification includes 428 JavaScript tests, 272 Capture layout/journey assertions, 27 motion checks, 113 Android checks, cold recovery and 29 physical checks. Phone records remained byte-identical.
+
+The **0.20-adaptive-capture** release is [verified and installed on the physical Galaxy S24 FE over Wi-Fi](capture-response-verification-2026-09-28.md). It includes the adaptive Capture cards, recent-follow-up safeguards, 423 JavaScript tests, 272 native UI assertions, 113 Android integration checks, 10 process-recovery checks, 15 physical UI checks and 4 successful live model cases. Canonical phone data remained byte-identical. Earlier records below describe their own historical verification scope.
+
+The 0.18 model split and parser safeguards are recorded in [routing verification](parser-2026-09-27/routing-implementation.md): 401 JavaScript tests, 101 native checks, 28 Capture Save/Undo checks, successful completion of all 73 live fixture cases after fixes/retries, and byte-matched restoration of 65 emulator files after reboot. The report distinguishes the tested APK from concurrent diagnostics work and records Jev's remaining omissions. Physical-phone installation remains separate.
+
+The 0.17 Capture glass redesign is recorded in [Capture verification](capture-glass-verification-2026-09-27.md): 398 JavaScript tests, 73 Capture UI fixture assertions, native save/Undo and Android checks, reviewed dark/light and enlarged-text renders, signed APK, and byte-verified emulator restoration. Physical-phone installation remains separate.
+
+The 0.16 time-range repair is documented in [parser verification](parser-2026-09-27/verification.md): 353 JavaScript tests including 1,728 generated ranges, 63 native companion checks, 28 Capture checks at normal/doubled text, and the requested small live model comparison. The APK was verified on the owned emulator; physical-phone installation remains separate.
+
+## Current purpose-first Android planner and Capture
+
+Version 0.15-purpose-first implementation evidence is recorded in [the 26 September 2026 verification report](ux-2026-09-26/verification.md). That report covers 313 JavaScript tests, 63 companion checks, the retained 38 offline and 23 parser checks, 58 emulator UI assertions, 16 layout reports, the final 51-image matrix, migration on a two-entry emulator copy, byte-matched restoration of all 61 pre-QA private files, Android build/lint, and the signed APK artifact. Physical-phone installation, TalkBack, live model and speech quality, audible delivery, and external integration activation remain outside that verification.
+
 Version 0.4 redesign checks are recorded in [redesign verification](design/redesign/verification.md). The following is the retained version 0.3 functional baseline, verified on 8 September 2026. All emulator records are synthetic and upload to the separate development deployment. The production deployment is reserved for your phone.
 
 ## Automated checks
@@ -59,3 +75,7 @@ Implementation uses Android's [inexact alarm guidance](https://developer.android
 Galaxy/One UI installation, audible alarm volume, locked-screen full-screen presentation, Samsung power saving, keyboard dictation, and TalkBack interaction have not been verified on physical hardware. Ten-minute timeout and simultaneous ringing alarms are implemented but have not had full wall-clock/device acceptance tests. Sync uploads automatically but does not restore a new phone or apply cloud edits. Production data will begin arriving only after your phone is paired.
 
 Final APK SHA-256: `63a0ca4ef720658ce549a250b2e6441ec2db4e9240522a5bb67b1e3e91651765`.
+
+## Capture and diagnostic logging — 2026-09-27
+
+The combined `0.19-glass-diagnostics` APK and deployed diagnostic backend are verified in [diagnostic-logging-verification-2026-09-27.md](diagnostic-logging-verification-2026-09-27.md). The original Capture design matrix remains in [capture-glass-verification-2026-09-27.md](capture-glass-verification-2026-09-27.md). Query and activation instructions are in [diagnostic-logging.md](diagnostic-logging.md). Live checks use synthetic content and an explicitly identified emulator; the physical phone is not installed by these checks.

@@ -102,3 +102,95 @@ test('draft projection resolves hierarchy references to human titles',async()=>{
  const raw='Create Study project, Exam readiness block, and Read task',op=(opId,entity,fields)=>({opId,sourceId:'s0',kind:'create',entity,targetId:null,fields}),output=turn(raw,[op('project1','project',[field('title','Study','Study project')]),op('block1','block',[field('title','Exam readiness','Exam readiness block'),field('projectId','$project1','Exam readiness block')]),op('task1','task',[field('title','Read','Read task'),field('blockId','$block1','Read task')])]);
  const {backend,service}=serviceFor(async()=>output),conversationId=(await backend.load()).conversations[0].id,draft=(await service.capture({messageId:'message-labels',conversationId,text:raw})).intent.captures[0].draft,blockLink=draft.operations.find(op=>op.opId==='block1').fields.find(f=>f.name==='projectId'),taskLink=draft.operations.find(op=>op.opId==='task1').fields.find(f=>f.name==='blockId');assert.deepEqual([blockLink.displayLabel,blockLink.displayValue],['Project','Study']);assert.deepEqual([taskLink.displayLabel,taskLink.displayValue],['RPM block','Exam readiness']);
 });
+
+test('screenshot range previews and saves sixty minutes with exact raw words and Undo',async()=>{
+ const now=new Date(2026,8,27,12,1),raw='Finish one WID assessment today from 2 pm to 3 pm',output=turn(raw,[operation([field('title','Finish one WID assessment','Finish one WID assessment'),field('time','today from 2 pm to 3 pm','today from 2 pm to 3 pm')])]);
+ const {backend,service}=serviceFor(async()=>output,freshStore(),{clock:()=>new Date(now)}),conversationId=(await backend.load()).conversations[0].id;
+ const result=await service.capture({messageId:'range-source',conversationId,text:raw}),draft=result.intent.captures[0].draft,preview=draft.schedulePreview.items[0];
+ assert.equal(preview.status,'parsed');assert.equal(preview.minutes,60);assert.match(preview.label,/60 min/);assert.equal((await backend.load()).entries.length,0);
+ await service.act(draft.actions.find(a=>a.action.kind==='commit').action,{actionId:'range-save'});let data=await backend.load();assert.equal(data.entries[0].planned,preview.planned);assert.equal(data.entries[0].minutes,60);assert.equal(data.entries[0].durationSource,'user_words');assert.equal(data.entries[0].raw,raw);
+ await service.undo({draftId:draft.id,conversationId,actionId:'range-undo'});data=await backend.load();assert.equal(data.entries.length,0);assert.equal(data.intentV2.captures['range-source'].raw,raw);
+});
+
+test('unresolved time blocks Add and forged commit; field correction refreshes preview',async()=>{
+ const now=new Date(2026,8,27,12,1),raw='Read today from 2 to 3',output=turn(raw,[operation([field('title','Read','Read'),field('time','today from 2 to 3','today from 2 to 3')])]);
+ const {backend,service}=serviceFor(async()=>output,freshStore(),{clock:()=>new Date(now)}),conversationId=(await backend.load()).conversations[0].id;
+ let result=await service.capture({messageId:'ambiguous-source',conversationId,text:raw}),draft=result.intent.captures[0].draft;
+ assert.equal(draft.schedulePreview.items[0].status,'review');assert.equal(draft.actions.some(a=>a.action.kind==='commit'),false);
+ const identity={conversationId,draftId:draft.id,revision:draft.revision};await assert.rejects(service.act({...identity,kind:'commit'},{actionId:'forged-save'}),/time|schedule/i);assert.equal((await backend.load()).entries.length,0);
+ result=await service.act({...identity,kind:'set-field',opId:'task1',field:'time',value:'today 2pm-3pm'},{actionId:'correct-range'});draft=result.intent.captures[0].draft;assert.equal(draft.schedulePreview.items[0].status,'parsed');assert.equal(draft.schedulePreview.items[0].minutes,60);assert.equal(draft.actions[0].action.kind,'commit');
+ await service.act(draft.actions[0].action,{actionId:'corrected-save'});assert.equal((await backend.load()).entries[0].minutes,60);
+});
+
+test('conflicting duration is reviewed and a duration edit regenerates time preview',async()=>{
+ const now=new Date(2026,8,27,12,1),raw='Read today 2pm-3pm for 30 minutes',output=turn(raw,[operation([field('title','Read','Read'),field('time','today 2pm-3pm','today 2pm-3pm'),field('minutes',30,'30 minutes')])]);
+ const {backend,service}=serviceFor(async()=>output,freshStore(),{clock:()=>new Date(now)}),conversationId=(await backend.load()).conversations[0].id;
+ let result=await service.capture({messageId:'conflict-source',conversationId,text:raw}),draft=result.intent.captures[0].draft;assert.equal(draft.schedulePreview.items[0].status,'review');assert.equal(draft.actions.some(a=>a.action.kind==='commit'),false);
+ result=await service.act({conversationId,draftId:draft.id,revision:draft.revision,kind:'set-field',opId:'task1',field:'minutes',value:60},{actionId:'correct-minutes'});draft=result.intent.captures[0].draft;assert.equal(draft.schedulePreview.items[0].status,'parsed');await service.act(draft.actions[0].action,{actionId:'save-minutes'});assert.equal((await backend.load()).entries[0].minutes,60);
+});
+
+test('clock-only range edit keeps the saved future day and replaces its old duration',async()=>{
+ const now=new Date(2026,8,27,12,1),seed=freshStore();editPlan(seed,{type:'saveTask',fields:{title:'Read',planned:new Date(2026,8,30,9).toISOString(),minutes:30}});seed.planner.undo=null;seed.undo=null;
+ const raw='Move Read to 2pm-3pm',output=turn(raw,[operation([field('time','2pm-3pm','2pm-3pm')],{kind:'update',targetId:'1'})]);const {backend,service}=serviceFor(async()=>output,seed,{clock:()=>new Date(now)}),conversationId=seed.conversations[0].id;
+ const result=await service.capture({messageId:'range-edit',conversationId,text:raw}),draft=result.intent.captures[0].draft,preview=draft.schedulePreview.items[0];assert.equal(new Date(preview.planned).getDate(),30);assert.equal(preview.minutes,60);
+ await service.act(draft.actions[0].action,{actionId:'range-update-save'});const e=(await backend.load()).entries[0];assert.equal(e.planned,preview.planned);assert.equal(e.minutes,60);
+});
+
+test('ranged task conflict checks use the derived endpoint and stay atomic',async()=>{
+ const now=new Date(2026,8,27,12,1),raw='Read today 2pm-3pm',output=turn(raw,[operation([field('title','Read','Read'),field('time','today 2pm-3pm','today 2pm-3pm')])]);
+ const readCalendar=async()=>({status:'ready',start:+new Date(2026,8,27),end:+new Date(2026,8,28),events:[{id:'meeting',title:'Meeting',start:+new Date(2026,8,27,14,45),end:+new Date(2026,8,27,15,30),busy:true}]});
+ const {backend,service}=serviceFor(async()=>output,freshStore(),{clock:()=>new Date(now),readCalendar}),conversationId=(await backend.load()).conversations[0].id;
+ let result=await service.capture({messageId:'overlap-range',conversationId,text:raw}),draft=result.intent.captures[0].draft;result=await service.act(draft.actions[0].action,{actionId:'overlap-save'});assert.equal(result.status,'review');assert.equal((await backend.load()).entries.length,0);
+ draft=result.intent.captures[0].draft;result=await service.act(draft.actions[0].action,{actionId:'overlap-approve'});assert.equal(result.status,'committed');assert.equal((await backend.load()).entries[0].minutes,60);
+});
+test('Jev evidence version is rechecked inside the preview transaction',async()=>{
+ const seed=freshStore(),blockId=editPlan(seed,{type:'saveEntity',collection:'blocks',fields:{title:'Lesson ready'}});editPlan(seed,{type:'saveTask',fields:{title:'Print worksheet'}});
+ const {backend,service}=serviceFor(async()=>turn(),seed),version=(await backend.load()).version;
+ await service.repository.transact('change-before-preview',{},d=>{d.entries[0].title='Changed task';return {};});
+ await assert.rejects(service.sort.create({id:'stale-jev',sourceVersion:version,selectedTaskIds:[1],blocks:[{blockId,title:'Lesson ready',projectId:null,taskIds:[1]}],leftUnsorted:[],existingOnly:true}),/plans changed/);
+ assert.equal((await service.sort.list()).length,0);assert.equal((await backend.load()).entries[0].blockId,undefined);
+});
+test('saved-date correction reply is derived from the same preview that is committed',async()=>{
+ const raw='Move my run to 6 am',seed=freshStore();editPlan(seed,{type:'saveTask',fields:{title:'Run',plannedDate:'2026-09-18',minutes:null}});
+ const output=turn(raw,[operation([field('time','6 am','6 am')],{kind:'update',targetId:'1'})],{reply:'Which day should I use?'});
+ const {backend,service}=serviceFor(async()=>output,seed,{clock:()=>new Date(2026,8,16,8)}),conversationId=seed.conversations[0].id;
+ const r=await service.capture({messageId:'date-correction',conversationId,text:raw}),draft=r.intent.captures[0].draft;
+ assert.ok(!draft.reply.includes('Which day'));assert.ok(draft.reply.includes(draft.schedulePreview.items[0].label));assert.equal(new Date(draft.schedulePreview.items[0].planned).getDate(),18);
+});
+test('Hinglish source meaning survives extraction, local preview, review, save and Undo',async()=>{
+ const raw='Kal subah 8 baje worksheet print karna hai.',output=turn(raw,[operation([field('title','Print worksheet','worksheet print'),field('time','Kal subah 8 baje','Kal subah 8 baje')])]);
+ const seed=freshStore(),{backend,service}=serviceFor(async()=>output,seed,{clock:()=>new Date(2026,8,16,8)}),conversationId=seed.conversations[0].id;
+ let r=await service.capture({messageId:'hinglish',conversationId,text:raw}),draft=r.intent.captures[0].draft;
+ assert.equal(draft.schedulePreview.items[0].status,'parsed');assert.equal(new Date(draft.schedulePreview.items[0].planned).getHours(),8);assert.equal(new Date(draft.schedulePreview.items[0].planned).getDate(),17);
+ r=await service.act(draft.actions.find(a=>a.action.kind==='commit').action,{actionId:'save-hinglish'});
+ if(r.status==='review'){draft=r.intent.captures[0].draft;r=await service.act(draft.actions[0].action,{actionId:'confirm-hinglish'});}
+ assert.equal(r.status,'committed');assert.equal((await backend.load()).entries[0].raw,raw);
+ await service.undo({draftId:draft.id,conversationId,actionId:'undo-hinglish'});assert.equal((await backend.load()).entries.length,0);
+});
+test('editing a time keeps Capture reply, draft reply and preview in agreement',async()=>{
+ const raw='Read tomorrow at 2pm',output=turn(raw,[operation([field('title','Read','Read'),field('time','tomorrow at 2pm','tomorrow at 2pm')])]);
+ const seed=freshStore(),{service}=serviceFor(async()=>output,seed,{clock:()=>new Date(2026,8,16,8)}),conversationId=seed.conversations[0].id;
+ const r=await service.capture({messageId:'edit-reply',conversationId,text:raw}),draft=r.intent.captures[0].draft;
+ const edited=await service.act({kind:'set-field',draftId:draft.id,conversationId,revision:draft.revision,opId:'task1',field:'time',value:'tomorrow at 4pm'},{actionId:'edit-clock'}),capture=edited.intent.captures[0];
+ assert.equal(capture.reply,capture.draft.reply);assert.ok(capture.reply.includes(capture.draft.schedulePreview.items[0].label));assert.notEqual(capture.reply,r.intent.captures[0].reply);
+});
+test('model cannot borrow a saved PM or another task AM to resolve an ambiguous clock',async()=>{
+ const raw='Move my run to 6am and my walk to 7',seed=freshStore();editPlan(seed,{type:'saveTask',fields:{title:'Run',planned:'2026-09-17T03:30:00Z'}});editPlan(seed,{type:'saveTask',fields:{title:'Walk',planned:'2026-09-17T13:30:00Z'}});const efforts=[];
+ const model=async(i,o)=>{efforts.push(o.route.effort);const fixed=!!i.repair;return turn(raw,[operation([field('time','6am','6am')],{opId:'run',kind:'update',targetId:'1'}),operation([fixed?field('time',null,null,'stated','unknown'):field('time','7pm','my walk to 7')],{opId:'walk',kind:'update',targetId:'2'})],{question:fixed?{opId:'walk',field:'time',prompt:'7 AM or 7 PM for the walk?',options:[{label:'7 AM',value:'7am'},{label:'7 PM',value:'7pm'}]}:null});};
+ const {service,backend}=serviceFor(model,seed,{clock:()=>new Date(2026,8,16,8)}),conversationId=seed.conversations[0].id,result=await service.capture({messageId:'period-guard',conversationId,text:raw});
+ const draft=result.intent.captures[0].draft;assert.deepEqual(efforts,['none','high']);assert.equal(draft.operations[1].fields[0].op,'unknown');assert.equal(draft.actions.some(a=>a.action.kind==='commit'),false);assert.equal((await backend.load()).entries[1].planned,'2026-09-17T13:30:00Z');
+});
+test('a focused duration amendment preserves the time anchor and original temporal evidence',async()=>{
+ const original='Kal subah 8 baje worksheet print karna hai.',next='Make it 20 minutes',seed=freshStore();let now=new Date(2026,8,16,8);
+ const model=async input=>input.activeDraft?turn(next,[operation([field('minutes',20,'20 minutes')])],{draftMode:'amend'}):turn(original,[operation([field('title','Print worksheet','worksheet print'),field('time','Kal subah 8 baje','Kal subah 8 baje')])]);
+ const {service}=serviceFor(model,seed,{clock:()=>new Date(now)}),conversationId=seed.conversations[0].id;
+ const first=await service.capture({messageId:'first-local',conversationId,text:original}),draft=first.intent.captures[0].draft;
+ now=new Date(+now+60000);const second=await service.capture({messageId:'amend-local',conversationId,text:next,focusDraftId:draft.id}),updated=second.intent.captures[0].draft;
+ assert.equal(updated.timeAnchorAt,draft.timeAnchorAt);assert.equal(updated.schedulePreview.items[0].planned,draft.schedulePreview.items[0].planned);assert.equal(updated.schedulePreview.items[0].status,'parsed');
+});
+test('an explicitly supplied 6am and an existing future day do not need a redundant AM/PM question',async()=>{
+ const raw='Move Read chapter to 6am; keep its duration.',seed=freshStore();editPlan(seed,{type:'saveTask',fields:{title:'Read chapter',planned:'2026-09-20T15:30:00.000Z',minutes:45}});let calls=0;
+ const output=turn(raw,[operation([field('time',null,'6am','stated','unknown')],{kind:'update',targetId:'1'})],{reply:'Did you mean 6am or 6pm?',question:{opId:'task1',field:'time',prompt:'Did you mean 6am or 6pm?',options:[{label:'6am',value:'6am'},{label:'6pm',value:'6pm'}]}});
+ const {service}=serviceFor(async()=>{calls++;return output;},seed,{clock:()=>new Date(2026,8,16,8)}),result=await service.capture({messageId:'explicit-clock',conversationId:seed.conversations[0].id,text:raw}),draft=result.intent.captures[0].draft;
+ assert.equal(draft.question,null);assert.equal(draft.schedulePreview.items[0].planned,'2026-09-20T00:30:00.000Z');assert.ok(!draft.reply.includes('Did you mean'));assert.equal(calls,1);
+});

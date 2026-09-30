@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {interpretTime} from './interpret.mjs';
+const now=new Date(2026,8,27,12);
+for(const phrase of ['Kal subah 8 baje worksheet print karna hai.','udya sakali 8 vajta worksheet print karaychi aahe.'])test(`explicit local clock: ${phrase}`,()=>{const p=interpretTime(phrase,now);assert.equal(p.status,'parsed');assert.equal(p.plannedDate,'2026-09-28');assert.equal(new Date(p.planned).getHours(),8);});
+for(const phrase of ['kal subah 8 baje','kal subah 8 baje print kiya tha','kal subah 8 baje print karna hai, kiya tha'])test(`ambiguous or past kal stays in review: ${phrase}`,()=>{const p=interpretTime(phrase,now);assert.equal(p.status,'review');assert.equal(p.planned,null);});
+test('a clock fragment can use preserved current-source evidence for kal',()=>{assert.equal(interpretTime('Kal subah 8 baje',now,{evidence:'Kal subah 8 baje worksheet print karna hai.'}).status,'parsed');});
+test('vague Marathi morning preserves the day without inventing a clock',()=>{const p=interpretTime('Mala udya sakali worksheet print karaychi aahe.',now);assert.equal(p.status,'date_only');assert.equal(p.plannedDate,'2026-09-28');assert.equal(p.planned,null);});
+test('task quantities do not become clocks',()=>{const p=interpretTime('udya sakali print 8 worksheets',now);assert.equal(p.planned,null);});
+for(const phrase of ['udya sakali 12 vajta','udya sakali 14 vajta','udya sakali 8 vajta pm','udya sakali 8:70 vajta'])test(`conflicting morning stays in review: ${phrase}`,()=>{const p=interpretTime(phrase,now);assert.equal(p.status,'review');assert.equal(p.planned,null);});
+test('Kal as a person name is not changed into a date',()=>assert.equal(interpretTime('Meet Kal tomorrow at 8am',now).status,'parsed'));

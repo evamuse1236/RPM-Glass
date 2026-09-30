@@ -7,7 +7,7 @@ test('direct settings destinations map only to native person-controlled flows',(
   for(const section of ['settings','import_export','unknown','__proto__'])assert.equal(settingsSectionAction(section),null);
 });
 
-test('Classic is the safe default and Glass remains explicitly selectable',()=>{
+test('Capture always requires review even for an old Classic preference',()=>{
  const values=new Map();const storage={getItem:key=>values.get(key)??null};
- assert.equal(captureModeSetting(storage),'classic');values.set('rpm-capture-mode','glass');assert.equal(captureModeSetting(storage),'glass');values.set('rpm-capture-mode','unexpected');assert.equal(captureModeSetting(storage),'classic');
+ assert.equal(captureModeSetting(storage),'glass');values.set('rpm-capture-mode','glass');assert.equal(captureModeSetting(storage),'glass');values.set('rpm-capture-mode','unexpected');assert.equal(captureModeSetting(storage),'glass');
 });

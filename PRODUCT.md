@@ -6,43 +6,104 @@
 
 android
 
+A desktop HTML companion and CLI remain separately scoped tools.
+
 ## Stack
 
-The Android companion packages the shared conversational JavaScript/tool engine in a trusted offline WebView. Java owns private storage, Keystore credentials, HTTPS AI requests, floating overlays, notifications and ringing alarms. The desktop HTML companion remains available through Node.js with its existing visual design and preview-only alerts. Legacy Android screens and their separate SQLite/cloud data remain available, not migrated implicitly.
+The Android app packages the planner and Capture as trusted offline WebViews. Java owns private storage, Keystore credentials, HTTPS model requests, system insets, the floating butterfly, home-screen widget, notifications, ringing alarms, speech-recognizer handoff, export, and Android settings. The planner reads the shared companion store and uses the existing Java bridge; generated WebView assets must match their source files.
+
+The desktop browser companion runs through Node.js with its own visual system and preview-only delivery behavior. Legacy Android screens and their separate SQLite/cloud data remain available; this release does not migrate them implicitly or combine them with the companion store.
 
 ## Users and purpose
 
-A personal planning and check-in tool for the user. Write naturally, see what was understood, then choose a bubble or ask for a change. Optional details must not become a questionnaire. The user removed microphone input from this first prototype's scope.
+RPM is a personal planning and check-in tool that keeps the reason for work visible while the user acts. A task belongs to a Result, the Result has a Purpose, and its ordered tasks form the Plan. The product should help the user move between today's actions, Blocks, Projects, Goals, and Areas without turning planning into a questionnaire or treating completed actions as proof that an outcome was achieved.
 
-## Confirmed scope
+Capture turns messy thoughts into tasks and Blocks. The assistant may interpret, ask, and propose, but the user's wording is saved first and canonical planning changes require review.
 
-The user confirmed an assistant, not a coach, with a compact floating browser panel based on their phone reference: ivory surface, green accents, expandable conversation, saved-state cards and contextual bubbles. Import CLI history into a private persistent editable test copy; never write back. Nothing is published. The key stays server-side. The companion uses the user-selected openai/gpt-5.6-luna through OpenRouter; the separate CLI model remains unchanged.
+## Current Android scope (confirmed 2026-09-27)
+
+### Planner
+
+- Four solid, persistent destinations move outward through **Today · Blocks · Projects · Life**. Settings is a pushed screen, not a fifth tab.
+- Today keeps each task's Result visible. Now & next also shows the inherited Purpose. Agenda and proportional Timeline provide two views of the same day.
+- Blocks present **Result · Purpose · Plan**. Summary cards stay simple; Block detail holds Purpose, ordered Plan tasks, Must, and editing.
+- Projects summarize linked Blocks without nested card stacks. Life contains Vision, Quarter, Month, and Values, with Areas, Goals, Projects, ratings, and a labelled Wheel of Life.
+- Task detail and Quick add keep frequent actions near the keyboard and thumb. Original capture appears when it differs from the task title.
+- The vocabulary is binding in UI text: **Area, Goal, Project, Block, Result, Purpose, Plan, Task, Must, No block, Inbox**.
+
+### Capture
+
+- Capture is a scoped lit-glass overlay inside a full transparent Android host. Its cyan-violet-blue light stays inside a tinted translucent shell; the current response uses a lightly lifted card, the composer and recovery use stronger surfaces, and the options menu is opaque. Original words stay in Details; previous responses stay in History. Planner keeps its solid palette and hierarchy.
+- The Capture panel grows upward inside a stable native WebView to fit the current response at up to 372dp wide, then shrinks for shorter responses. It uses available width for enlarged text and available height on Expand, retaining 24dp top clearance. Overflow is downward from the response beginning, with actions above the composer. Native system-bar and IME insets keep the composer above the actual keyboard. Android Back closes the menu before the surface.
+- The native Appearance control calls this mode **Glass**. There is no Capture opacity setting and no guarantee of blur from apps behind the transparent host.
+- The empty unfocused composer uses one row. Focus, entered text or enlarged text places the full-width growing field above its controls. The visible More label uses `width: max-content` with an 80dp minimum so enlarged or doubled text fits.
+- More and a 380ms Send hold open the same menu. Movement beyond 12px cancels the hold, releasing after activation never sends, and a short tap sends only nonempty text while no request is in flight. More stays usable while a reply is pending.
+- The menu keeps About, Assistant settings, Context, and History in a scrollable group and pins Open planner nearest the invoking controls. Capture preserves the exact draft before menu navigation and restores it after the Planner round trip; opening either route never sends it.
+- The empty view explains the job and offers three complete starter choices. The greeting and starters disappear while waiting and during failure recovery, then return only when Capture is truly empty.
+- Voice input uses Android's speech-recognizer handoff when available. There is no continuous recording or hidden microphone access.
+- Assistant output uses reviewed proposals with **Add, Edit, Dismiss, and Add all**. Nothing is written to the Plan without confirmation.
+- Idle light drifts over 16s; waiting uses a 6s aurora drift and a 2.4s contained band. Complete responses are immediately available and reveal once within 220ms. Unchanged phone updates retain existing content and input. Navigation and sheets use short, interruptible transitions; Capture content height animates over 220ms. Reduced motion removes drift, sweep, pulse, scale, lift, and stagger.
+- Clear clock ranges show their start, end and locally derived duration before saving. Unresolved ranges, conflicting durations and ambiguous clock changes keep the draft unsaved; editing refreshes the preview. Clock-only corrections retain a saved future day.
+- There is no separate importance control or navigation-opacity control. Capture resynchronizes enlarged-text behavior from the effective font scale whenever phone status changes.
+
+### Native companion surfaces
+
+- The generated butterfly remains a 64dp, user-started, draggable launcher over other apps. It hides over RPM's own screens and can be hidden by long press or the visible service notification.
+- The native home-screen widget remains a separate four-action surface for Check in, Capture, Remind, and Open app. Its visual contract does not set planner colors or layout.
+- RPM reminders use Android notifications. Ringing alarms use Android scheduling with snooze and dismiss. Permission, battery, DND, and OEM behavior remain Android-controlled.
 
 ## Product principles
 
-- Keep original words and distinguish planned minutes from reported actual minutes.
-- Use short, familiar language: plan, check-in, time, minutes, mood, energy, purpose, reminder, alarm.
-- Let the user tap a choice or type a change in the same conversation.
-- Ask which entry when a name matches more than one.
-- Clearly label prototype-only behavior.
-- Keep follow-up questions and their answers connected to the selected entry.
-- All unarchived plans, imported history, conversations and explicit preferences are tool-accessible. Supply recent relevant context initially; search/page older context when needed.
-- Clear edits apply immediately with Undo. Compound changes are atomic: retain all operations while asking for one missing detail through choice bubbles or typing.
-- Remember explicit preferences visibly, not inferred facts. Inspect, correct, archive and restore context; preserve original data.
-- Historical cards are snapshots with superseded labels. Current plans shows authoritative latest state.
+- Keep original words, interpretations, receipts, and revisions. Distinguish planned minutes from reported actual minutes.
+- Show Purpose and Result where the user acts; do not bury them in a detail-only metadata block.
+- Keep list screens scannable and place full controls one level down. Never nest cards inside cards.
+- Use one term for each concept and one visual meaning for each color.
+- Use one **Must** flag. Plan position is the task's priority; do not expose a second priority or importance control.
+- Let clear edits apply atomically with Undo. Retain all operations while asking for one missing detail.
+- Ask which entry when a name matches more than one. Never invent time, recurrence, evidence, or success.
+- Preserve raw capture before model work. A proposal, preview, or completion event does not establish that a Result was achieved.
+- Remember only explicit preferences and make them inspectable, correctable, archivable, and restorable.
+- Make offline and permission limits visible. A saved task and an externally delivered alert are separate facts.
+
+## Data and compatibility
+
+The shared companion store retains original captures, revisions, conversations, reviewed context, Plans, Blocks, Projects, Goals, Areas, and recovery history. `priority` remains the persisted and API field for a task's order in the Plan so existing Capture, sync, and tool contracts remain compatible; it is not a separate importance level.
+
+The purpose-first migration is lossless and idempotent:
+
+- legacy star or must state becomes the single `must` flag;
+- existing priority determines Plan order before time breaks ties;
+- a task-level Purpose assigned to a Block moves to Notes so the Block remains the Purpose authority;
+- an unassigned task's Purpose remains its optional Why;
+- raw wording, schedules, revisions, alerts, and Undo history remain intact;
+- `Area.colorIndex` persists identity across sessions and themes;
+- existing Area ratings remain; new ratings accept 0–10 in half steps.
+
+## External services and safety boundary
+
+The APK contains no API key or personal history. The user enters an OpenRouter key on the phone, stored with Android Keystore protection. Model requests are bounded, HTTPS-only, and use the selected planning paths; no live model call is required for local planning. Calendar access is read-only and permission-based. Calendar writes, Samsung Clock writes, automatic background imports, and silent plan mutation are outside the current scope.
+
+Desktop companion data can be imported only through the existing explicit backup/review flow; imported alerts stay disarmed until reviewed. The phone companion store does not enter the old Convex outbox. Diagnostic logging is separately connected to the private RPM Convex database. It uploads full app console output (which may include capture content), errors, and operation records, with credential redaction and 14-day retention. Settings provides pause/disconnect controls; diagnostic pairing does not enqueue planner data. See `docs/diagnostic-logging.md` for activation and inspection.
+
+## Separate and historical surfaces
+
+The desktop browser prototype keeps its warm ivory-and-green floating conversation and private test-copy boundary. The native home widget and butterfly launcher keep their own contracts.
+
+The earlier Android pixel-garden panel and Frosted Night composition remain historical references. The approved Capture work restores their glass character through a new scoped token system and different bottom interaction; those older layouts must not override [DESIGN.md](DESIGN.md), [planner-surface-contract.md](docs/planner-surface-contract.md), or the [current Capture contract](docs/capture-response-plan-2026-09-28.md).
 
 ## Test boundary
 
-The desktop assistant writes only its private persistent test copy. New chats retain plans, memory and older conversations. Desktop reminders and recurrence are settings previews, not real delivery or calendar writes. CLI originals and runtime remain untouched. No microphone is used.
+Planner evidence is recorded in [docs/ux-2026-09-26/verification.md](docs/ux-2026-09-26/verification.md). Capture Glass evidence is recorded separately in [docs/capture-glass-verification-2026-09-27.md](docs/capture-glass-verification-2026-09-27.md) and the current [finish review](output/capture-glass-2026-09-27/finish-review.md). The later [Capture response verification](docs/capture-response-verification-2026-09-28.md) records version 0.20 installation on the physical Galaxy S24 FE, native UI checks, data preservation and four live follow-up replays. The [motion verification](docs/motion-verification-2026-09-28.md) records the subsequent 0.21 phone installation and refresh/animation checks. These scoped checks do not imply final human design approval, audible delivery, TalkBack interaction, or live speech quality.
 
-## Android scope (confirmed 2026-09-11)
-
-An installable APK with a draggable butterfly over other apps. The user's Frosted Night HTML now defines the Android UI: one dark assistant card, separate suggestion chips and separate input pill with white circular Send. Long press Send opens labeled menu icons; blank Send and the info icon are non-gesture alternatives. No visible tab bar or pixel-art header. Plus Jakarta Sans and Space Grotesk are bundled offline. Compact maximum is 372 × 370dp; expand for records or large system text. Measured Android insets keep input above the keyboard. Original butterfly remains the launcher; old pixel-garden styling is retired. Reference and acceptance: docs/android-night-plan.md.
-
-RPM reminders use Android notifications; ringing alarms use AlarmManager at the saved plan time, with snooze/dismiss and recurrence. Every current card exposes the native delivery state. User grants notification, overlay, exact-alarm and full-screen permissions through Android. No automatic permission grants, wallpaper changes, microphone, Calendar or Samsung Clock writes.
-
-The APK does not require a desktop server and contains no API key or personal history. The user enters their OpenRouter key on the phone (Keystore encrypted). Desktop companion JSON can be imported explicitly after backup; imported alerts are disarmed until reviewed/enabled. The phone companion store never enters the old Convex outbox. See `docs/android-companion-plan.md` for the surface contract.
+No source commit, remote push, publication, personal-phone install, or external integration activation is implied by a built APK.
 
 ## Evidence
 
-`cli/` contains the tested capture/edit workflow and real synthetic API examples. `docs/product-context.md` preserves the earlier product rationale; Android-specific implementation statements there do not describe this web prototype.
+- [Purpose-first brief](docs/ux-2026-09-26/brief.md)
+- [Implementation record](docs/ux-2026-09-26/implementation.md)
+- [Verification record](docs/ux-2026-09-26/verification.md)
+- [Current planner surface contract](docs/planner-surface-contract.md)
+- [Current Capture response contract](docs/capture-response-plan-2026-09-28.md)
+- [Approved Capture Glass plan](docs/capture-glass-plan-2026-09-27.md)
+- `cli/` retains the tested capture/edit workflow and synthetic API examples.
+- `docs/product-context.md` preserves earlier rationale; conflicting Android implementation statements there are historical.

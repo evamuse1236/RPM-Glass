@@ -122,7 +122,7 @@ export function editPatch(entry,edit,now){
       if(!edit.changes.some(c=>c.field!=='time'&&c.op!=='clear'&&!c.value))edit.clarification=null;
     }
   }
-  const patch={};
+  const patch={};let rangeMinutes=null;
   const need=(index,prompt)=>({need:{index,field:edit.changes[index].field,prompt}});
   if(edit.clarification){
     const missing=edit.changes.findIndex(c=>c.op!=='clear'&&!c.value);
@@ -141,19 +141,21 @@ export function editPatch(entry,edit,now){
         Object.assign(patch,{planned:date.toISOString(),plannedDate:localDate(date),interpretation:{source:'edit',status:'parsed',assumptions:[],planned:date.toISOString(),plannedDate:localDate(date),shiftFrom:entry.planned,shiftText:c.value}});
         continue;
       }
-      let parsed=interpretTime(c.value,now);
+      let parsed=interpretTime(c.value,now,{evidence:(c.evidence??[c.value]).join('\n')});
       if(parsed.assumptions.some(a=>a.startsWith("AM/PM wasn't specified")))return need(index,'AM or PM? Include the day if it is changing.');
-      if(parsed.status==='date_only'&&/\b(?:morning|afternoon|evening|night|lunch)\b/i.test(c.value))return need(index,'What time? For example, 7pm.');
+      if(parsed.status==='date_only'&&/\b(?:morning|afternoon|evening|night|lunch)\b/i.test(parsed.normalized??c.value))return need(index,'What time? For example, 7pm.');
       // A clock-only correction normally keeps the task's saved day. Once that
       // day is in the past, retaining it makes every future clock look invalid;
       // use the parser's next occurrence instead.
-      if(parsed.assumptions.includes('No day specified; using the next occurrence.')&&entry.plannedDate&&entry.plannedDate>=localDate(now))parsed=interpretTime(entry.plannedDate+' '+c.value,now);
+      const savedDay=entry.planned?localDate(new Date(entry.planned)):entry.plannedDate;
+      if(parsed.assumptions.includes('No day specified; using the next occurrence.')&&savedDay&&savedDay>=localDate(now))parsed=interpretTime(savedDay+' '+c.value,now);
       else if(parsed.status==='date_only'&&entry.planned){
         const old=new Date(entry.planned);
         parsed=interpretTime(parsed.plannedDate+' at '+String(old.getHours()).padStart(2,'0')+':'+String(old.getMinutes()).padStart(2,'0'),now);
       }
       if(!parsed.planned&&parsed.status!=='date_only')return need(index,parsed.reason||'What day and time should I use?');
       Object.assign(patch,{planned:parsed.planned,plannedDate:parsed.plannedDate,interpretation:{...parsed,source:'edit',choiceText:c.value}});
+      rangeMinutes=parsed.minutes??null;
     }else if(c.field==='duration'){
       const value=c.op==='clear'?null:editDuration(c.value);
       if(value===null&&c.op!=='clear')return need(index,'How many minutes? You can write 20 minutes or one hour.');
@@ -169,6 +171,10 @@ export function editPatch(entry,edit,now){
       if(!c.value?.trim()||c.value.length>300)return need(index,'What short title should I use?');
       patch.title=c.value;
     }else patch[c.field]=c.op==='clear'?(c.field==='purpose'?'':null):c.value;
+  }
+  if(rangeMinutes!==null){
+    if(patch.minutes!=null&&patch.minutes!==rangeMinutes)return need(edit.changes.findIndex(c=>c.field==='duration'),`The time range is ${rangeMinutes} minutes, but the stated duration is ${patch.minutes}. Choose which to keep.`);
+    Object.assign(patch,{minutes:rangeMinutes,durationSource:'user_words'});
   }
   const changedTime=Object.hasOwn(patch,'planned');
   const changedAlert=Object.hasOwn(patch,'alertIntent');

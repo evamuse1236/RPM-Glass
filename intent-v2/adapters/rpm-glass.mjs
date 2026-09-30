@@ -43,7 +43,7 @@ export function createRpmPlanAdapter({changePlanner,readCalendar,undo,maxTimeDra
   // Retain genuine original words, not the adapter's approval protocol, as task raw text.
   for(const [i,compiled] of operations.entries())if(compiled.type==='create'&&compiled.collection==='tasks'){
    const changed=result.plannerChanges?.[i],entry=working.entries.find(e=>e.id===changed?.id);
-   if(entry){entry.raw=originals;entry.source='intent-v2';entry.intentApproval={draftId:draft.id,revision:draft.revision,actionId:approval.actionId};if(compiled.fields.minutes===null)entry.durationSource='unknown';}
+   if(entry){entry.raw=originals;entry.source='intent-v2';entry.intentApproval={draftId:draft.id,revision:draft.revision,actionId:approval.actionId};if(compiled.fields.minutes===null&&entry.minutes===null)entry.durationSource='unknown';}
   }
   // Receipt snapshots must also show genuine source words and estimate provenance.
   for(const r of result.plannerReceipts??[]){const e=working.entries.find(e=>e.id===r.entry?.id);if(e&&r.entry){r.entry.raw=e.raw;r.entry.durationSource=e.durationSource;}}

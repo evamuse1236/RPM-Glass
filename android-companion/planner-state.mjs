@@ -32,12 +32,17 @@ export function editPlan(data,op,now=new Date()){
     const restored=p.undo;next.entries=restored.entries;next.planner=restored.planner;next.planner.undo=null;next.undo=null;
     validatePlanner(next);Object.assign(data,next);return null;
   }
-  if(op.type==='saveEntity'){
+  if(op.type==='rateAreas'){
+    for(const rating of op.ratings){const a=one(p.areas,rating.id);if(typeof rating.rating!=='number'||rating.rating<0||rating.rating>10||rating.rating*2%1)throw new Error('Choose a whole or half-step rating.');a.rating=rating.rating;}
+  }else if(op.type==='archiveBlock'){
+    one(p.blocks,op.id).archived=op.archived!==false;result=op.id;
+  }else if(op.type==='saveEntity'){
     if(!['projects','blocks','areas','goals'].includes(op.collection))throw new Error('Unknown planning group.');
     let r=op.id?one(p[op.collection],op.id):{id:randomUUID(),created:at};
     r.title=title(op.fields.title);r.purpose=text(op.fields.purpose??'');r.notes=text(op.fields.notes??'',8000);
     if(op.collection==='blocks')r.projectId=link(p.projects,op.fields.projectId);
     if(op.collection==='projects')r.goalId=link(p.goals,op.fields.goalId);
+    if(op.collection==='areas')r.colorIndex??=p.areas.length%8;
     if(op.collection==='areas'&&'rating' in op.fields){const value=op.fields.rating;if(value!==null&&(typeof value!=='number'||!Number.isFinite(value)||value<0||value>10))throw new Error('Choose a life area rating from 0 to 10.');r.rating=value==null?null:Math.round(value*10)/10;}
     if(op.collection==='goals'){r.areaId=link(p.areas,op.fields.areaId);r.year=integer(op.fields.year,2000,2200);if('horizon' in op.fields)r.horizon=op.fields.horizon;if('period' in op.fields)r.period=op.fields.period;if(r.horizon==='yearly')r.period=null;}
     if(!op.id)p[op.collection].push(r);result=r.id;
@@ -52,7 +57,7 @@ export function editPlan(data,op,now=new Date()){
     const f=op.fields;let e=op.id?one(tasks(next),op.id):{id:Math.max(0,...next.entries.map(e=>e.id))+1,kind:'plan',raw:title(f.title),created:at,state:'active',done:false,archived:false,minutes:30,durationSource:'default_estimate',planned:null,plannedDate:null,alertIntent:{type:null},recurrence:null,revisions:[],source:'planner'};
     const {revisions:ignoredRevisions,...oldFields}=e;const old=structuredClone(oldFields);
     if('title'in f)e.title=title(f.title);
-    for(const k of ['purpose','notes','leverage'])if(k in f)e[k]=text(f[k]??'',k==='notes'?8000:2000);
+    for(const k of ['purpose','notes','leverage'])if(k in f)e[k]=text(f[k]??'',k==='notes'?16000:2000);
     if('minutes'in f){e.minutes=f.minutes==null?null:integer(f.minutes,1,1440);e.durationSource='user_words';}
     if('planned'in f){if(f.planned!==null&&(typeof f.planned!=='string'||!Number.isFinite(Date.parse(f.planned))))throw new Error('Choose a valid date and time.');e.planned=f.planned;e.plannedDate=null;}
     if('plannedDate'in f){if(f.plannedDate!==null&&(typeof f.plannedDate!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(f.plannedDate)||!Number.isFinite(Date.parse(f.plannedDate+'T12:00'))))throw new Error('Choose a valid day.');if(e.planned&&f.plannedDate)throw new Error('Use either a scheduled time or a day without a time.');e.plannedDate=f.plannedDate;}
@@ -118,6 +123,7 @@ export function editPlan(data,op,now=new Date()){
   }else if(op.type==='context'){
     if(typeof op.approved!=='boolean')throw new Error('Review state is required.');p.context={...p.context,vision:text(op.vision,10000),goals:text(op.goals,10000),coreValues:text(op.coreValues??p.context.coreValues??'',10000),approved:op.approved,updated:at};
   }else throw new Error('Unknown planning action.');
+  for(const task of next.entries){if(task.blockId&&task.purpose){task.revisions??=[];task.revisions.push({at,reason:'Task purpose retained in notes',before:{purpose:task.purpose,notes:task.notes??''}});task.notes=[task.notes,'Previous task purpose: '+task.purpose].filter(Boolean).join('\n\n');task.purpose='';}}
   validatePlanner(next);p.events.push({id:randomUUID(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=before;next.undo=null;
   Object.assign(data,next);return result;
 }

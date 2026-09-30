@@ -4,6 +4,59 @@ export const formatTime = value => new Date(value).toLocaleString(undefined,{wee
 const hasDay = c => ['day','weekday','month','year'].some(k=>c.isCertain(k));
 const clock = c => c.isCertain('hour');
 
+// Local DST gaps and repeated wall clocks need a timezone/offset decision.
+function clockProblem(component) {
+  if(component.isCertain('timezoneOffset'))return null;
+  const d=component.date();
+  if(d.getHours()!==component.get('hour')||d.getMinutes()!==component.get('minute'))return 'That local clock time falls in a clock-change gap.';
+  for(const delta of [-120,-60,-30,30,60,120]){
+    const other=new Date(+d+delta*60000);
+    if(localDate(other)===localDate(d)&&other.getHours()===d.getHours()&&other.getMinutes()===d.getMinutes())return 'That local clock time occurs twice during a clock change. Include a timezone offset.';
+  }
+  return null;
+}
+function rangeTime(result,base,text,now) {
+  const {start,end}=result,review=reason=>({...base,status:'review',reason});
+  if(!clock(start)||!clock(end))return review('Choose a single day and a start and end clock time.');
+  // A shared AM/PM suffix is conventional (2–3pm). Two bare clocks are not.
+  if(!start.isCertain('meridiem')&&!end.isCertain('meridiem')&&!(result.text.match(/\b\d{1,2}:\d{2}\b/g)?.length>=2))return review('AM or PM? Include it in the range, or use 24-hour times.');
+  const problem=clockProblem(start)||clockProblem(end);if(problem)return review(problem);
+  const from=start.date(),to=end.date(),minutes=(to-from)/60000;
+  if(from<=now)return review('That start time is in the past. Choose a future start time.');
+  if(!Number.isInteger(minutes)||minutes<1||minutes>1440)return review('Choose an end after the start, with a duration of 1–1440 minutes.');
+  // Chrono rolls a reversed clock to tomorrow. Accept normal overnight clocks,
+  // but never silently interpret 3pm–2pm as a 23-hour task.
+  const explicitEndDay=/\b(?:to|until|through|-)\s*(?:tomorrow|today|next|\d{4}-\d{2}-\d{2}|(?:mon|tues|wednes|thurs|fri|satur|sun)day)\b/i.test(result.text);
+  if(localDate(from)!==localDate(to)&&minutes>12*60&&!explicitEndDay)return review('Does this range end on the following day? Include the end date.');
+  const statedDuration=durationFromText(text);
+  if(statedDuration===null&&/\bfor\s+[-+\d.]+\s*(?:minutes?|mins?|hours?|hrs?)\b/i.test(text))return review('Use a duration of 1–1440 whole minutes.');
+  if(statedDuration!==null&&statedDuration!==minutes)return review(`The time range is ${minutes} minutes, but the stated duration is ${statedDuration}. Choose which to keep.`);
+  if(!hasDay(start))base.assumptions.push('No day specified; using the next occurrence.');
+  if(start.isCertain('meridiem')!==end.isCertain('meridiem'))base.assumptions.push('Using the shared AM/PM marker for the range.');
+  if(localDate(from)!==localDate(to))base.assumptions.push('The range ends on the following day.');
+  return {...base,status:'parsed',planned:from.toISOString(),plannedDate:localDate(from),end:to.toISOString(),minutes};
+}
+
+/** Small, explicit transliteration vocabulary; untouched source stays in the journal. */
+export function normalizeLocalTime(raw,{evidence=raw}={}){
+ let text=raw,reason=null;
+ if(/^(?:\s*kal)\b|\bkal\s+(?:subah|sakali|shaam|raat|\d)/i.test(text)){
+  const future=/\b(?:karna hai|karni hai|karne hain|karunga|karungi|karo|remind me|schedule|tomorrow)\b/i.test(evidence);
+  const past=/\b(?:kiya|ki thi|kiya tha|gaya|gayi|tha|thi|yesterday)\b/i.test(evidence);
+  if(!future||past)reason='Does “kal” mean tomorrow or yesterday? Use an explicit day.';
+  else text=text.replace(/\bkal\b/gi,'tomorrow');
+ }
+ text=text.replace(/\budya\b/gi,'tomorrow').replace(/\baaj\b/gi,'today');
+ const morning=text.match(/\b(?:subah|sakali)\s+(\d{1,2})(?::(\d{2}))?\s*(?:baje|vajta|vajata|am|a\.m\.?)\b/i);
+ if(morning&&(Number(morning[1])<1||Number(morning[1])>=12||Number(morning[2]??0)>59||/\bpm\b/i.test(text)))reason='The morning clock is unclear. Use an explicit time such as 8 AM.';
+ text=text.replace(/\b(subah|sakali)\s+(\d{1,2}(?::\d{2})?)\s*(?:baje|vajta|vajata)\b/gi,(_,period,h)=>`at ${h}am`)
+  .replace(/\b(subah|sakali)\s+(\d{1,2}(?::\d{2})?)\s*(?:am|a\.m\.?)\b/gi,(_,period,h)=>`at ${h}am`)
+  .replace(/\b(subah|sakali)\b/gi,'morning');
+ // Never let a leftover explicit clock silently degrade to a date-only result.
+ if(/\b(?:baje|vajta|vajata)\b/i.test(text))text=text.replace(/\b(\d{1,2}(?::\d{2})?)\s*(?:baje|vajta|vajata)\b/gi,'at $1');
+ return {text,reason};
+}
+
 /** Explicit calendar choices only; an implied day from "afternoon" is not one. */
 export function statedDays(raw,now=new Date()) {
   const text=raw.replace(/\bday after tomorrow\b/gi,'in 2 days');
@@ -11,33 +64,41 @@ export function statedDays(raw,now=new Date()) {
 }
 
 /** Keep the parser's evidence and assumptions alongside the untouched input. */
-export function interpretTime(raw, now = new Date()) {
-  const base={parser:'chrono-node',reference:now.toISOString(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,matched:[],assumptions:[],candidates:[],planned:null,plannedDate:null,status:'none'};
+export function interpretTime(raw, now = new Date(), options = {}) {
+  const base={parser:'chrono-node',reference:now.toISOString(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,matched:[],assumptions:[],candidates:[],planned:null,plannedDate:null,end:null,minutes:null,status:'none'};
+  const localized=normalizeLocalTime(raw,options);
+  if(localized.reason)return {...base,status:'review',reason:localized.reason,normalized:localized.text};
   // "for 20 minutes" is a duration, while "in 20 minutes" is a start time.
-  const normalized=raw.replace(/\b(?:the\s+)?day after tomorrow\b/gi, "in 2 days").replace(/\b(?:the\s+)?day after tmrw\b/gi,"in 2 days").replace(/\b(?:tmrw|tmr)\b/gi,"tomorrow").replace(/\b(\d{1,2})\.(\d{2})\s*([ap]\.?m\.?)/gi,"$1:$2 $3");
+  const normalized=localized.text.replace(/\b(?:the\s+)?day after tomorrow\b/gi, "in 2 days").replace(/\b(?:the\s+)?day after tmrw\b/gi,"in 2 days").replace(/\b(?:tmrw|tmr)\b/gi,"tomorrow").replace(/\b(\d{1,2})\.(\d{2})\s*([ap]\.?m\.?)/gi,"$1:$2 $3");
   const spoken={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12};
   const clockText=normalized.replace(/\b(half past|quarter past|quarter to)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/gi,(_,part,h)=>`${part.toLowerCase()==='quarter to'?(spoken[h.toLowerCase()]+10)%12+1:spoken[h.toLowerCase()]}:${part.toLowerCase()==='half past'?'30':part.toLowerCase()==='quarter to'?'45':'15'}`).replace(/\bat\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/gi,(_,h)=>'at '+spoken[h.toLowerCase()]).replace(/(\d(?::\d{2})?)\s*(?:o'clock\s*)?in the (morning|afternoon|evening)\b/gi,(_,h,p)=>h+(p.toLowerCase()==='morning'?'am':'pm'));
-  base.normalized=clockText;
-  const text=clockText.replace(/\bfor\s+(?:(?:\d+(?:\.\d+)?|one|two|three|ten|fifteen|twenty|thirty|forty[- ]five|sixty|half an?)\s+)(?:minutes?|mins?|m\b|hours?|hrs?|h\b)/gi,m=>' '.repeat(m.length));
+  // Normalize spoken clocks only beside a time marker; task counts stay intact.
+  const rangeText=clockText.replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(?=[ap]\.?m\.?\b)/gi,(_,word)=>String(spoken[word.toLowerCase()]))
+    .replace(/\b(from|between)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(to|and)\s+/gi,(_,prefix,word,join)=>`${prefix} ${spoken[word.toLowerCase()]} ${join} `)
+    .replace(/\bbetween\s+([\d: .apm]+)\s+and\s+([\d: .apm]+)/gi,'from $1 to $2');
+  base.normalized=rangeText;
+  const text=rangeText.replace(/\bfor\s+(?:(?:\d+(?:\.\d+)?|one|two|three|ten|fifteen|twenty|thirty|forty[- ]five|sixty|half an?)\s+)(?:minutes?|mins?|m\b|hours?|hrs?|h\b)/gi,m=>' '.repeat(m.length));
   const results=chrono.parse(text,now,{forwardDate:true});
-  base.matched=results.map(r=>({text:clockText.slice(r.index,r.index+r.text.length),index:r.index,known:{...r.start.knownValues},implied:{...r.start.impliedValues}}));
+  base.matched=results.map(r=>({text:rangeText.slice(r.index,r.index+r.text.length),index:r.index,known:{...r.start.knownValues},implied:{...r.start.impliedValues},...(r.end?{end:{known:{...r.end.knownValues},implied:{...r.end.impliedValues}}}:{})}));
   if(!results.length){if(/\b(today|tomorrow|at\s+\d|\d{4}-\d{2}-\d{2})\b|\d\s*[ap]\.?m\.?/i.test(text)){base.status='review';base.reason='I could not resolve that date or time.';}return base;}
-  if(/\b(every|daily|weekly|monthly)\b/i.test(text)){return {...base,status:'review',reason:'This sounds recurring. Recurrence is not implemented yet.'};}
-  let start=results[0].start, explicitDay=hasDay(start), source=results[0].text;
-  if(results.some(r=>r.end))return {...base,status:'review',reason:'This contains a time range. Choose a start time.'};
+  if(/\b(every|daily|weekly|monthly)\b/i.test(text)){return {...base,status:'review',reason:'This sounds recurring. Choose a single date and time, then set repetition separately.'};}
+  let result=results[0],start=result.start,explicitDay=hasDay(start),source=result.text;
   if(results.length>1){
     const dates=results.filter(r=>hasDay(r.start)&&!clock(r.start));
     const times=results.filter(r=>clock(r.start)&&!hasDay(r.start));
     if(results.length===2&&dates.length===1&&times.length===1){
-      const d=dates[0].start.date(),t=times[0].start;
+      const d=dates[0].start.date();
       const combined=chrono.parse(`${localDate(d)} ${times[0].text}`,now,{forwardDate:true});
       if(combined.length!==1||!clock(combined[0].start))return {...base,status:'review',reason:'The date and time need clarification.'};
-      start=combined[0].start;explicitDay=true;source=times[0].text;
+      result=combined[0];start=result.start;explicitDay=true;source=times[0].text;
     }else{
       base.candidates=results.filter(r=>clock(r.start)&&r.start.date()>now).map(r=>({at:r.start.date().toISOString(),label:formatTime(r.start.date()),source:r.text}));
       return {...base,status:'review',reason:'There is more than one possible date or time.'};
     }
   }
+  if(result.end)return rangeTime(result,base,rangeText,now);
+  // A partially parsed range must not silently become a single-time task.
+  if(/\b(?:from|between)\s+\d|\d\s*(?:[ap]\.?m\.?)?\s*(?:to|until|through|[–—])(?:\s|$)|\d(?:[ap]m)\s*-\s*(?:\d|$)/i.test(text))return {...base,status:'review',reason:'I could not resolve both ends of that time range. Include a valid start and end time.'};
   if(!clock(start)){
     // Do not turn Chrono's implied noon into a time the user chose.
     base.plannedDate=localDate(start.date());base.status='date_only';
@@ -56,7 +117,7 @@ export function interpretTime(raw, now = new Date()) {
   if(!explicitDay)base.assumptions.push('No day specified; using the next occurrence.');
   if(d<=now)return {...base,status:'review',reason:'That explicit time is in the past. I kept it in your original text instead of moving it silently.'};
   // Reject a clock silently rolled through a DST gap in the machine's local zone.
-  if(!start.isCertain('timezoneOffset')&&!bareClock&&(d.getHours()!==start.get('hour')||d.getMinutes()!==start.get('minute')))return {...base,status:'review',reason:'That local clock time falls in a clock-change gap.'};
+  const problem=!bareClock&&clockProblem(start);if(problem)return {...base,status:'review',reason:problem};
   return {...base,planned:d.toISOString(),plannedDate:localDate(d),status:'parsed'};
 }
 export function parseTime(raw,now=new Date()){return interpretTime(raw,now).planned;}

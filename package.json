@@ -12,7 +12,8 @@
     "chat": "node chat-prototype/companion-server.mjs",
     "test:chat": "node --test chat-prototype/*.test.mjs",
     "test:cli": "node --test cli/*.test.mjs",
-    "build:android-assets": "node scripts/build-companion-assets.mjs"
+    "build:android-assets": "node scripts/build-companion-assets.mjs",
+    "check:ux": "node scripts/check-ux-tokens.mjs"
   },
   "dependencies": {
     "chrono-node": "2.10.1",

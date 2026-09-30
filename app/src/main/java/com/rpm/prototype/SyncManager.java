@@ -71,9 +71,9 @@ final class SyncManager {
     }
     static void disconnect(Context c){prefs(c).edit().clear().commit();c.getSystemService(JobScheduler.class).cancel(ON_CHANGE);c.getSystemService(JobScheduler.class).cancel(PERIODIC);}
     private static void status(Context c,String text,boolean success){if(!configured(c))return;SharedPreferences.Editor edit=prefs(c).edit().putString("status",text);if(success)edit.putLong("last_success",System.currentTimeMillis());edit.apply();}
-    private static final class Unauthorized extends IOException{}
-    private static final class Rejected extends IOException{}
-    private static JSONObject post(String url,JSONObject payload,String token)throws Exception{
+    static final class Unauthorized extends IOException{}
+    static final class Rejected extends IOException{}
+    static JSONObject post(String url,JSONObject payload,String token)throws Exception{
         HttpURLConnection connection=(HttpURLConnection)new URL(url).openConnection();
         try{
             connection.setInstanceFollowRedirects(false);connection.setConnectTimeout(10000);connection.setReadTimeout(10000);connection.setRequestMethod("POST");connection.setDoOutput(true);connection.setRequestProperty("Content-Type","application/json");
@@ -92,10 +92,10 @@ final class SyncManager {
         KeyGenerator generator=KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES,"AndroidKeyStore");
         generator.init(new KeyGenParameterSpec.Builder("rpm-convex-token",KeyProperties.PURPOSE_ENCRYPT|KeyProperties.PURPOSE_DECRYPT).setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build());return generator.generateKey();
     }
-    private static String encrypt(String token)throws Exception{
+    static String encrypt(String token)throws Exception{
         Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.ENCRYPT_MODE,key());return Base64.encodeToString(cipher.getIV(),Base64.NO_WRAP)+":"+Base64.encodeToString(cipher.doFinal(token.getBytes(StandardCharsets.UTF_8)),Base64.NO_WRAP);
     }
-    private static String decrypt(String encrypted)throws Exception{
+    static String decrypt(String encrypted)throws Exception{
         String[] parts=encrypted.split(":");if(parts.length!=2)throw new IOException("Connection needs pairing");Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.DECRYPT_MODE,key(),new GCMParameterSpec(128,Base64.decode(parts[0],Base64.NO_WRAP)));return new String(cipher.doFinal(Base64.decode(parts[1],Base64.NO_WRAP)),StandardCharsets.UTF_8);
     }
 }

@@ -17,6 +17,7 @@ public final class OfflineTests extends Instrumentation {
     private void check(boolean truth,String why){checks++;if(!truth)throw new AssertionError(why);}
     @Override public void onCreate(Bundle args){super.onCreate(args);options=args;start();}
     @Override public void onStart(){
+        if(options!=null&&options.containsKey("diagnostics")){DiagnosticChecks.run(this,options);return;}
         if(options!=null&&options.containsKey("companion")){CompanionChecks.run(this,options);return;}
         Bundle result=new Bundle();Context c=getTargetContext();String db="rpm-integration-test.db";
         try {

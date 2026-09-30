@@ -146,3 +146,9 @@ test('piped input and EOF drain in order before releasing the isolated store loc
     fs.mkdirSync(file+'.lock');const blocked=spawnSync(process.execPath,['cli/rpm.mjs','--data',file],{input:'/quit\n',encoding:'utf8'});assert.equal(blocked.status,1);assert.equal(fs.existsSync(file+'.lock'),true);assert.deepEqual(load(file),saved);
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('AI extraction uses local range duration and rejects a conflicting explicit duration',()=>{
+ const raw='Read tomorrow 2pm-3pm for 30 minutes',base=item({title:'Read',evidence:['Read'],time:{text:'tomorrow 2pm-3pm',evidence:['tomorrow 2pm-3pm'],uncertain:false,clarification:null},durationMinutes:null,durationEvidence:null});
+ const [valid]=normalizeExtraction(extraction([base]),raw,now());assert.equal(valid.minutes,60);assert.equal(valid.interpretation.status,'parsed');
+ const [conflict]=normalizeExtraction(extraction([{...base,durationMinutes:30,durationEvidence:'30 minutes'}]),raw,now());assert.equal(conflict.planned,null);assert.equal(conflict.alert,null);assert.equal(conflict.interpretation.status,'review');
+});

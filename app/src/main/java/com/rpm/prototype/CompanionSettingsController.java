@@ -26,10 +26,10 @@ import java.util.concurrent.*;
 final class CompanionSettingsController {
     static final int IMPORT_CONTEXT=71,EXPORT_CONTEXT=72,PICK_TONE=73,PICK_AUDIO=74,NOTIFICATIONS=32;
     private static final Set<String> ACTIONS=Set.of(
-        "set_transparency","set_widget_text_scale","choose_alarm","preview_alarm","stop_preview","reminder_sound",
+        "set_widget_text_scale","choose_alarm","preview_alarm","stop_preview","reminder_sound",
         "show_butterfly","hide_butterfly","overlay_permission","notifications","exact_alarms",
         "full_screen_alarms","check_alerts","connect_key","remove_key","import_context",
-        "export_context","restore_backup","earlier_screens"
+        "export_context","restore_backup","earlier_screens","diagnostics_connect","diagnostics_pause","diagnostics_resume","diagnostics_disconnect","diagnostics_upload"
     );
     private final Activity activity;
     private final Runnable changed;
@@ -42,7 +42,7 @@ final class CompanionSettingsController {
     CompanionSettingsController(Activity activity,Runnable changed){this.activity=activity;this.changed=changed;}
 
     JSONObject read()throws JSONException{
-        return CompanionControls.read(activity).put("previewing",previewing).put("working",working);
+        return CompanionControls.read(activity).put("previewing",previewing).put("working",working).put("diagnostics",Diagnostics.status(activity));
     }
 
     JSONObject apply(JSONObject payload)throws Exception{
@@ -60,9 +60,6 @@ final class CompanionSettingsController {
     private JSONObject perform(String action,JSONObject payload)throws Exception{
         String message;
         switch(action){
-            case "set_transparency":
-                message=CompanionControls.apply(activity,new JSONObject().put("action","transparency").put("value",payload.opt("value"))).getString("message");
-                notifyChanged();break;
             case "set_widget_text_scale":
                 message=CompanionControls.apply(activity,new JSONObject().put("action","widget_text_scale").put("value",payload.opt("value"))).getString("message");
                 notifyChanged();break;
@@ -77,6 +74,11 @@ final class CompanionSettingsController {
             case "exact_alarms":runUi(()->{if(Build.VERSION.SDK_INT>=31)launch(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,Uri.parse("package:"+activity.getPackageName())));});message=Build.VERSION.SDK_INT>=31?"Opening Android exact alarm permission.":"Exact alarms are already available on this Android version.";break;
             case "full_screen_alarms":runUi(()->{if(Build.VERSION.SDK_INT>=34)launch(new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,Uri.parse("package:"+activity.getPackageName())));});message=Build.VERSION.SDK_INT>=34?"Opening Android lock-screen alarm controls.":"Lock-screen alarm permission is managed automatically on this Android version.";break;
             case "check_alerts":JSONObject data=CompanionStore.read(activity);if(data!=null)CompanionAlerts.reconcile(activity,data,true);message="Saved alert schedules checked.";notifyChanged();break;
+            case "diagnostics_connect":runUi(this::diagnosticDialog);message="Enter a diagnostic pairing code.";break;
+            case "diagnostics_pause":Diagnostics.pause(activity,true);message="Diagnostic capture and upload paused. An upload already in progress may finish.";break;
+            case "diagnostics_resume":Diagnostics.pause(activity,false);message="Full console capture and upload resumed.";break;
+            case "diagnostics_disconnect":Diagnostics.disconnect(activity);message="Disconnected; queued logs cleared. Uploaded logs expire after 14 days.";break;
+            case "diagnostics_upload":Diagnostics.uploadNow(activity);message="Upload requested. Reopen Settings to refresh delivery status.";break;
             case "connect_key":runUi(this::keyDialog);message="Enter the key in the secure Android dialog.";break;
             case "remove_key":runUi(this::removeKeyDialog);message="Review the secure removal confirmation.";break;
             case "import_context":runUi(this::importDialog);message="Review the backup notice, then choose a context file.";break;
@@ -126,6 +128,13 @@ final class CompanionSettingsController {
     private void openNotifications(){
         if(Build.VERSION.SDK_INT>=33&&activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)activity.requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},NOTIFICATIONS);
         else launch(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE,activity.getPackageName()));
+    }
+
+    private void diagnosticDialog(){
+        EditText code=new EditText(activity);code.setSingleLine(true);code.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);code.setHint("32-character diagnostic pairing code");code.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);code.setPadding(30,20,30,20);
+        AlertDialog dialog=new AlertDialog.Builder(activity).setTitle("Connect diagnostics").setMessage("Full app console output and errors may contain your captures. They upload to your private RPM database for 14 days. Credentials are redacted. You can pause or disconnect at any time.").setView(code).setNegativeButton("Cancel",null).setPositiveButton("Connect",null).create();
+        dialog.setOnShowListener(d->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{String value=code.getText().toString().trim();if(!value.matches("[a-f0-9]{32}")){code.setError("Enter the 32-character code.");return;}code.setText("");dialog.dismiss();background(()->Diagnostics.pair(activity,value),"Diagnostic uploads connected.",false);}));
+        dialog.setOnDismissListener(d->code.setText(""));dialog.show();dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
     }
 
     private void keyDialog(){

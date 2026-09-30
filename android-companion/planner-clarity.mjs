@@ -11,7 +11,7 @@ export function clarityPreferences(storage=defaultStorage()){
   return {
     appearance:APPEARANCES.has(appearance)?appearance:'system',
     dayLayout:DAY_LAYOUTS.has(dayLayout)?dayLayout:'agenda',
-    solidNavigation:read(storage,'solid-navigation','false')==='true'
+    solidNavigation:true
   };
 }
 
@@ -19,7 +19,7 @@ export function applyClarityPreferences(preferences=clarityPreferences(),root=gl
   if(!root)return preferences;
   if(preferences.appearance==='system')delete root.dataset.appearance;
   else root.dataset.appearance=preferences.appearance;
-  root.dataset.solidNavigation=String(!!preferences.solidNavigation);
+  root.dataset.solidNavigation='true';
   return preferences;
 }
 
@@ -27,7 +27,7 @@ export function setClarityPreference(name,value,{storage=defaultStorage(),root=g
   const current=clarityPreferences(storage),next={...current};
   if(name==='appearance')next.appearance=APPEARANCES.has(value)?value:'system';
   else if(name==='day-layout')next.dayLayout=DAY_LAYOUTS.has(value)?value:'agenda';
-  else if(name==='solid-navigation')next.solidNavigation=!!value;
+  else if(name==='solid-navigation')next.solidNavigation=true;
   else return current;
   write(storage,name,name==='solid-navigation'?String(next.solidNavigation):next[name==='day-layout'?'dayLayout':'appearance']);
   applyClarityPreferences(next,root);
@@ -44,18 +44,9 @@ export function mountClaritySettings(host,{storage=defaultStorage(),root=globalT
     if(!page||page.querySelector('[data-section="planner-appearance"]'))return;
     let preferences=applyClarityPreferences(clarityPreferences(storage),root);
     const section=element(document,'section','settings-group clarity-settings');section.dataset.section='planner-appearance';
-    section.append(element(document,'h2','','Planner appearance'));
-    const fieldset=element(document,'fieldset','clarity-choice-group'),legend=element(document,'legend','','Color appearance');fieldset.append(legend);
-    for(const [value,label,detail] of [['system','System','Match Android'],['light','Light','Always light'],['dark','Dark','Always dark']]){
-      const choice=element(document,'label','clarity-choice'),input=element(document,'input'),copy=element(document,'span','settings-copy');
-      input.type='radio';input.name='rpm-planner-appearance';input.value=value;input.checked=preferences.appearance===value;
-      copy.append(element(document,'strong','',label),element(document,'small','',detail));choice.append(input,copy);
-      input.addEventListener('change',()=>{if(input.checked)preferences=setClarityPreference('appearance',value,{storage,root});});fieldset.append(choice);
-    }
-    section.append(fieldset);
-    const solid=element(document,'label','clarity-choice clarity-solid-choice'),control=element(document,'input'),copy=element(document,'span','settings-copy');
-    control.type='checkbox';control.checked=preferences.solidNavigation;copy.append(element(document,'strong','','Solid navigation'),element(document,'small','','Remove transparency from the bottom bar'));solid.append(control,copy);
-    control.addEventListener('change',()=>{preferences=setClarityPreference('solid-navigation',control.checked,{storage,root});});section.append(solid);
+    section.append(element(document,'h2','','Appearance'));
+    const choice=element(document,'button','settings-row'),copy=element(document,'span','settings-copy');choice.type='button';copy.append(element(document,'strong','','Theme'),element(document,'small','',preferences.appearance[0].toUpperCase()+preferences.appearance.slice(1)));choice.append(copy);section.append(choice);
+    choice.addEventListener('click',()=>{const dialog=element(document,'dialog','theme-dialog');dialog.append(element(document,'h2','','Theme'));for(const value of ['system','light','dark']){const row=element(document,'label','clarity-choice'),radio=element(document,'input');radio.type='radio';radio.name='appearance';radio.checked=value===preferences.appearance;row.append(radio,element(document,'span','',value[0].toUpperCase()+value.slice(1)));radio.addEventListener('change',()=>{preferences=setClarityPreference('appearance',value,{storage,root});copy.querySelector('small').textContent=value[0].toUpperCase()+value.slice(1);dialog.close();});dialog.append(row);}const close=element(document,'button','secondary','Close');close.addEventListener('click',()=>dialog.close());dialog.append(close);dialog.addEventListener('close',()=>dialog.remove());document.body.append(dialog);dialog.showModal();});
     const notice=page.querySelector('.settings-notice');(notice??page.querySelector('.settings-header'))?.after(section);
   };
   const observer=new MutationObserver(()=>queueMicrotask(render));observer.observe(host,{childList:true,subtree:true});render();

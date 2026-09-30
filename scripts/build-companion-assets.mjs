@@ -9,7 +9,7 @@ await build({absWorkingDir:root,entryPoints:['android-companion/runtime.mjs'],ou
   b.onResolve({filter:/cli\/openrouter\.mjs$/},()=>({path:'openrouter',namespace:'native'}));
   b.onLoad({filter:/.*/,namespace:'native'},args=>({contents:args.path==='crypto'?'export const randomUUID=()=>globalThis.crypto.randomUUID();':"export const ENDPOINT='https://openrouter.ai/api/v1/chat/completions';"}));
 }}]});
-for(const file of ['index.html','night.css','planner.html','planner-stitch.css'])fs.copyFileSync(path.join(root,'android-companion',file),path.join(out,file));
+for(const file of ['index.html','night.css','capture-tokens.css','planner.html','planner-stitch.css','planner-tokens.css'])fs.copyFileSync(path.join(root,'android-companion',file),path.join(out,file));
 fs.copyFileSync(path.join(root,'android-companion/assets/butterfly.png'),path.join(out,'butterfly.png'));
 for(const file of fs.readdirSync(path.join(root,'android-companion/assets/fonts')))fs.copyFileSync(path.join(root,'android-companion/assets/fonts',file),path.join(out,file));
 // Retired generated bundle files only; source/reference artwork is preserved.

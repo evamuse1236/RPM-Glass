@@ -1,0 +1,20 @@
+# Motion and refresh repair
+
+The v20 physical-phone baseline replaced the current Capture stage five times for five unchanged phone-status refreshes. Capture also changes native height immediately. Planner rebuilds navigation on every render, calendar completion renders even when identical, and opening/closing sheets has no motion. Existing shift-direction classes have no animation definitions.
+
+The repair keeps still content still. Resume/status updates compare presentation data; overlapping refreshes share one load. Calendar and settings refreshes do not rebuild identical content. Persistent navigation retains its buttons. No data schema or canonical planning behavior changes.
+
+Motion uses one calm, interruptible language: 220ms navigation with a short directional offset, 240ms sheet entry and 160ms exit, 180–220ms response/notice feedback, 180ms composited Capture size changes. Buttons acknowledge presses; selection, disclosures and completion receive local feedback. Menus move as one surface instead of staggering each item. Initial app load is the only loading entrance; returning from Planner does not replay the response. Pending capture/saving does not collapse a tall sheet and immediately expand it again.
+
+Capture sizing measures layout dimensions, excluding visual transforms. Android keeps the WebView viewport stable; the visible Capture panel changes height inside it. Native IME insets change available page height once and animate separate surface/control transforms, keeping Planner's toolbar fixed and its sheet above the keyboard. Screen clamping and top-anchored responses remain. Reduced-motion preferences disable JS, CSS and native content motion. Rapid navigation or dismissal cancels superseded animation and cannot hide a newer sheet.
+
+Acceptance: retain DOM identity/disclosures/scroll/input through unchanged refreshes; prove animations run on navigation, sheets, response and panel height changes; prove no animation on silent refresh; rapid-tap/cancel and reduced-motion checks; all four Planner destinations, settings, Details, Save/Undo and editor drafts; native phone + emulator at normal/200% text and IME open/closed. Preserve and hash real phone records before/after the update. Do not create synthetic personal records.
+
+Interactive controls use touch-action manipulation. An Android WebView trace found a 351ms tap-to-click delay on Details before this change; scrolling and pinch zoom remain available. The opening panel waits for its first content measurement, avoiding an interim 300px loading window.
+
+Physical recording caught a blank compositor frame when the native WebView itself changed height, despite retaining DOM nodes. The final implementation therefore keeps its native frame fixed during Capture resizing as well as keyboard movement; only composited surface and content transforms animate. Tapping the transparent area above Capture closes it, preserving the previous outside-dismiss interaction.
+
+
+The physical v21 follow-up exposed per-frame CSS height layout and expensive GPU raster work. Capture and keyboard geometry now use FLIP: read current/final rectangles once, apply final layout once, translate text and controls without scaling glyphs, and scale the separate decorative shell. Superseding transitions begin at the current visual pose. A rectangular content clip reveals expansion; reduced motion cancels all layout effects. The aurora texture has a stable viewport-sized height and bounded layers, rather than three changing layers four times the panel area. This retained the glass while removing the measured GPU stalls. Menu placement uses layout offsets rather than transient animated rectangles.
+
+All four hook findings were corrected: Capture height, Planner keyboard height, progress width and FAB max-width/padding. Progress uses scaleX with unchanged semantics; the FAB switches layout once and fades the label. No ignore entries were added. The phone-frame correction adds Strong response cards, compact estimates, a single update heading and zero space for empty starter rows.

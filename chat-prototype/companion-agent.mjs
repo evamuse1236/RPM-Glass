@@ -1,9 +1,10 @@
+import {LUNA_MODEL} from '../intent-v2/src/model-policy.mjs';
 import {ENDPOINT} from '../cli/openrouter.mjs';
 import {tools,schemas,validate,readContext,initialContext,propose} from './companion-tools.mjs';
 import {bindSuggestionActions} from '../android-companion/capture-actions.mjs';
 
 // Prototype-only choice. Keep the separately configured CLI model untouched.
-export const MODEL='openai/gpt-5.6-luna';
+export const MODEL=LUNA_MODEL;
 
 const toolExamples=`Tool conventions (IDs here are illustrative; use actual context IDs):
 * User: "run at 8a" -> create fields {"title":"Run","kind":"plan","time":"8am"}. Do NOT add today, tomorrow, a weekday or a calendar date when the user did not give one. The local parser selects the next occurrence.
@@ -22,7 +23,7 @@ Every operation needs exact evidence substrings from the CURRENT user's words, o
 If any part of a compound request is unclear, put ALL intended operations into propose_changes, set question to one short necessary question, and supply choice bubbles with full-text answers. No part will be applied yet. On a reply to the pending proposal, set continuation=true and resubmit ALL its operations, merging the answer. Do not lose already requested changes. If the user's new message is unrelated to the pending proposal, respond conversationally or ask whether to leave it; never force that message into an old question. The user can cancel the pending proposal locally.
 For greetings, questions, acknowledgments, and conversation use respond. You may provide 0-4 genuinely useful suggestions (label, text). Suggestion text is what the user will send; don't invent personal facts in suggestions. Don't claim a save/edit/remember/undo without a successful mutating tool result. Return exactly ONE tool call per response. read_context can be followed by another tool; propose_changes and respond finish the turn. A tool error is correctable: fix the arguments based on its message, not repeat the same call. Never ask to do only one target at a time.`;
 
-export function createCompanionAgent({apiKey,fetchImpl=fetch,timeoutMs=18000,maxSteps=7,platform='web',proposeImpl=propose,scheduleCheck=null,scheduleSchema=null,appTools=[],appContext=null,appInstruction=''}={}){
+export function createCompanionAgent({apiKey,fetchImpl=fetch,timeoutMs=30000,maxSteps=7,platform='web',proposeImpl=propose,scheduleCheck=null,scheduleSchema=null,appTools=[],appContext=null,appInstruction=''}={}){
   return async function run(data,raw,{conversationId,now=new Date(),phoneStatus}={}){
     if(!apiKey)return {text:'AI is not connected. Your words are saved; nothing changed. You can still inspect plans and context.',error:'missing_key',suggestions:[]};
     const platformInstruction=platform==='android'?instruction.replace('LOCAL TEST COPY','ON-DEVICE COPY').replace('No real alerts ring and no calendar or external app is changed.','Android schedules real RPM notifications and ringing alarms for saved alert settings, subject to phone permissions. Never claim delivery or successful scheduling: the native delivery status on the card is authoritative. No external calendar or other reminders app is changed.').replace('Recurrence is preview-only.','Android supports daily, weekly and weekday recurrence.'):instruction;
@@ -39,7 +40,7 @@ export function createCompanionAgent({apiKey,fetchImpl=fetch,timeoutMs=18000,max
     for(let step=0;step<maxSteps;step++){
       try{
         const remaining=45000-(Date.now()-started);if(remaining<=0)throw new Error('timeout');
-        const r=await fetchImpl(ENDPOINT,{method:'POST',redirect:'error',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,messages,tools:toolList,tool_choice:'required',max_tokens:3500,reasoning:{effort:'medium',exclude:true},provider:{require_parameters:true}}),signal:AbortSignal.timeout(Math.min(timeoutMs,remaining))});
+        const r=await fetchImpl(ENDPOINT,{method:'POST',redirect:'error',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,messages,tools:toolList,tool_choice:'required',max_tokens:3500,reasoning:{effort:'high',exclude:true},provider:{require_parameters:true,allow_fallbacks:false,only:['OpenAI']}}),signal:AbortSignal.timeout(Math.min(timeoutMs,remaining))});
         if(!r.ok)throw new Error(r.status===429?'rate_limit':'provider_unavailable');
         const body=await r.json();if(body.model!==MODEL)throw new Error('unexpected_model');
         const choice=body.choices?.[0];const reply=choice?.message;

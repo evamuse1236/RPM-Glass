@@ -89,16 +89,17 @@ export function normalizeExtraction(extraction, raw, now=new Date()) {
     const kind=item.state==='completed'?'checkin':item.kind;
     let interpretation=interpretTime(item.time.text??'',now);
     if(item.time.text&&interpretation.status==='none')interpretation={...interpretation,status:'review',reason:'What day and time should I use?'};
+    if(interpretation.minutes!==null&&item.durationMinutes!==null&&interpretation.minutes!==item.durationMinutes)interpretation={...interpretation,planned:null,plannedDate:null,end:null,minutes:null,status:'review',reason:'The time range and stated duration disagree. Choose which to keep.'};
     const timeSource=item.time.evidence.join(' ');
     // Relative-date arithmetic is local; invented absolute dates cannot bypass it.
     const inventedDate=[...(item.time.text??'').matchAll(/\b\d{4}-\d{2}-\d{2}\b/g)].some(m=>!timeSource.includes(m[0]));
     const uncertain=item.time.uncertain||inventedDate||interpretation.assumptions.some(a=>a.startsWith("AM/PM wasn't specified"));
-    if(uncertain)interpretation={...interpretation,planned:null,plannedDate:interpretation.status==='date_only'&&!inventedDate?interpretation.plannedDate:null,status:'review',assumptions:[],reason:item.time.clarification||'What day and time should I use?'};
-    if(kind==='checkin'||item.state==='cancelled')interpretation={...interpretation,planned:null,plannedDate:null,status:'not_scheduled'};
+    if(uncertain)interpretation={...interpretation,planned:null,end:null,minutes:null,plannedDate:interpretation.status==='date_only'&&!inventedDate?interpretation.plannedDate:null,status:'review',assumptions:[],reason:item.time.clarification||'What day and time should I use?'};
+    if(kind==='checkin'||item.state==='cancelled')interpretation={...interpretation,planned:null,plannedDate:null,end:null,minutes:null,status:'not_scheduled'};
     interpretation={...interpretation,source:'openrouter',timeEvidence:item.time.evidence,normalizedPhrase:item.time.text,uncertain};
     const planned=interpretation.planned;
     const alertType=kind==='plan'&&item.state==='active'?item.alert:null;
-    return {title:item.title,kind,state:item.state,done:item.state!=='active',minutes:item.durationMinutes??(kind==='plan'?30:null),durationSource:item.durationMinutes!==null?'user_words':kind==='plan'?'default_estimate':'unknown',purpose:item.purpose??'',planned,plannedDate:interpretation.plannedDate,interpretation,alertIntent:{type:alertType,reason:'Interpreted from this capture; editable with /alert.'},alert:planned&&alertType?scheduledAlert(alertType,planned,now):null,evidence:item.evidence,extracted:structuredClone(item)};
+    return {title:item.title,kind,state:item.state,done:item.state!=='active',minutes:interpretation.minutes??item.durationMinutes??(kind==='plan'?30:null),durationSource:interpretation.minutes!=null||item.durationMinutes!==null?'user_words':kind==='plan'?'default_estimate':'unknown',purpose:item.purpose??'',planned,plannedDate:interpretation.plannedDate,interpretation,alertIntent:{type:alertType,reason:'Interpreted from this capture; editable with /alert.'},alert:planned&&alertType?scheduledAlert(alertType,planned,now):null,evidence:item.evidence,extracted:structuredClone(item)};
   });
 }
 

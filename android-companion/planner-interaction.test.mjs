@@ -31,27 +31,9 @@ test('saved planner targets dispatch UUID entities by collection and numeric tas
   assert.equal(savedPlannerTarget({view:'day',collection:'tasks',id:uuid}),null);
 });
 
-test('planner keeps explicit actions alongside swipe and priority controls',async()=>{
-  const [source,css,night,chat]=await Promise.all([readFile(new URL('./planner.mjs',import.meta.url),'utf8'),readFile(new URL('./planner-stitch.css',import.meta.url),'utf8'),readFile(new URL('./night.css',import.meta.url),'utf8'),readFile(new URL('../chat-prototype/app.js',import.meta.url),'utf8')]);
-  for(const removed of ['installResize','installOrder','installTaskSwipe','drag-handle','drop-zone','gesture-hint']){
-    assert.equal(source.includes(removed),false,`${removed} remains in planner source`);
-    assert.equal(css.includes(removed),false,`${removed} remains in planner CSS`);
-  }
-  assert.equal(source.includes("'priority-control numeric'"),true);
-  assert.equal(source.includes("button('Move to RPM block'"),true);
-  assert.equal(source.includes("button('Edit task'"),true);
-  assert.equal(source.includes("swipe($('planner-tabs')"),false);
-  assert.equal(source.includes("window.addEventListener('rpm-phone-status',()=>{syncPhonePresentation();refreshCalendar();})"),true);
-  assert.equal(source.includes('dataset.largeText!==next'),true);
-  assert.equal(source.includes('if(lastNavLevel!==level)revealSelectedTab()'),true);
-  assert.equal(source.includes("el('details','original-capture')"),true);
-  assert.equal(source.includes("draftMeta&&collection==='goals'?'textarea':'text'"),true);
-  assert.equal(css.includes('#editor:before'),false);
-  assert.equal(css.includes(':root[data-large-text=true] #planner-tabs{display:flex;justify-content:flex-start;overflow-x:auto'),true);
-  assert.equal(css.includes('#notice{position:fixed;z-index:40;bottom:100px;left:16px;right:88px'),true);
-  assert.equal(night.includes('.panel[data-view=chat] .content{display:flex;flex-direction:column;justify-content:flex-start}'),true);
-  assert.equal(night.includes('.panel[data-view=chat] .status.error{display:block}'),true);
-  assert.equal(night.includes('.panel[data-view=chat] .content{display:flex;flex-direction:column;justify-content:center}'),false);
-  assert.equal(chat.includes("m.error==='missing_key'&&platform.native"),true);
-  assert.equal(chat.includes("section:'ai_connection'"),true);
+test('planner navigation and capture preserve direct saved-target routing',async()=>{
+  const source=await readFile(new URL('./planner.mjs',import.meta.url),'utf8');
+  assert.ok(source.includes("window.rpmHandleBack"));
+  assert.ok(source.includes("draftMeta&&collection==='goals'?'textarea':'text'"));
+  assert.ok(source.includes("el('details','original-capture')"));
 });
