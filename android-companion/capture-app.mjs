@@ -492,8 +492,10 @@ export function mountCapture(platform){
  };
  window.addEventListener('pagehide',rememberDraft);
  window.addEventListener('rpm-phone-status',async()=>{
+  if(s.busy||!s.state)return;
+  let next;
+  try{next=await(await fetch('/api/state')).json();}catch{return;}
   if(s.busy)return;
-  const next=await(await fetch('/api/state')).json();
   s.state=next;
   if(captureRenderKey({...next,intent:intentPage()})!==s.lastKey)render();
  });

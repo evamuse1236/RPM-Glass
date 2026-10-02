@@ -1,5 +1,7 @@
 # Capture: one readable response
 
+> 2 October 2026: the Material redesign replaces the glass material, aurora motion and the visible More label. Behaviour below still applies; the current visual and interaction contract is the Capture section of [PRODUCT.md](../PRODUCT.md).
+
 This contract follows the user's two phone screenshots and the completed Claude Opus 5.5 medium Batch consultation in `output/capture-response-2026-09-28/batch-review/advice.md`. It supersedes the fixed-height and transcript portions of the 27 September Capture Glass plan. The approved glass material, menu and planning data model remain in force. Routing keeps Luna none/high, with referential follow-ups upgraded to high after the recent-chat investigation.
 
 Capture presents the latest response. A proposal uses a kind label, 17/24 semibold title, compact schedule, meaningful changes and any unanswered question. Same-day ranges show one date and one time range: **28 Sept / 2 pm to 3 pm · 1 hr**. Original words and schedule assumptions stay in an explicit Details disclosure. Titles and warnings are never ellipsized. A successful save replaces the proposal with a receipt, Undo and Open in Planner. The composer returns to “Capture a thought…”.

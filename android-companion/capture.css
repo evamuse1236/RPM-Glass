@@ -140,7 +140,7 @@ button.chip:active::before{opacity:.12}
 .panel:not([data-has-text=true]) .send:not(.is-holding){display:none}
 .hint{display:flex;align-items:center;gap:6px;margin:0;padding:8px 8px 0;font:var(--body-small);color:var(--on-surface-variant)}
 .hint .ms{font-size:var(--cap-icon-tiny)}
-:root[data-large-text=true] .hint,:root[data-large-text=true] .welcome-text{display:none}
+:root[data-large-text=true] .hint,:root[data-large-text=true] .welcome-text,:root[data-large-text=true] .shimmer{display:none}
 .panel[data-has-text=true] .content:has(>.welcome:only-child){display:none}
 
 /* ---------- shared card parts ---------- */
@@ -185,7 +185,7 @@ details.details>:not(summary){margin:4px 4px 0}
 
 /* ---------- pending: saved first, then sorted ---------- */
 .saved-words.is-saving .saved-title{color:var(--on-surface-variant)}
-.spinner{flex:none;width:20px;height:20px;margin:2px;border-radius:50%;border:2.5px solid var(--secondary-container);border-top-color:var(--primary)}
+.spinner{flex:none;width:calc(var(--cap-icon) - 4px);height:calc(var(--cap-icon) - 4px);margin:2px;border-radius:50%;border:2.5px solid var(--secondary-container);border-top-color:var(--primary)}
 .sorting{display:flex;flex-direction:column;gap:10px;padding:4px 4px 0}
 .sorting-label{margin:0;font:var(--body-medium);color:var(--on-surface-variant)}
 .linear{position:relative;height:4px;border-radius:2px;background:var(--secondary-container);overflow:hidden}
