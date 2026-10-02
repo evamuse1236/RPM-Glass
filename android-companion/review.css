@@ -1,0 +1,176 @@
+/* Weekly review: Material 3 on theme.css tokens. Full-height route with a small top app bar,
+   a four-part progress indicator, a scrolling body of tonal cards and a pinned button footer. */
+.wr{display:flex;flex-direction:column;height:100%;min-height:0;background:var(--surface);color:var(--on-surface);font:var(--body-medium)}
+.wr h1,.wr h2,.wr h3,.wr p{margin:0}
+.wr button{-webkit-appearance:none;appearance:none;cursor:pointer;
+  --state:transparent;background-image:linear-gradient(var(--state),var(--state))}
+@media (hover:hover){.wr button:hover{--state:color-mix(in srgb,currentColor 8%,transparent)}}
+.wr button:active{--state:color-mix(in srgb,currentColor 12%,transparent)}
+.wr button:disabled{cursor:default;opacity:.38;--state:transparent}
+.wr .wr-title:focus{outline:none}
+
+/* Top app bar */
+.wr-bar{display:flex;align-items:center;gap:4px;min-height:64px;padding:0 4px}
+.wr-bar-title{flex:1;min-width:0;font:var(--title-large)}
+.wr-bar-count{font:var(--body-medium);color:var(--on-surface-variant);padding-inline:8px 16px;white-space:nowrap}
+.wr-icon-btn{flex:none;width:48px;height:48px;display:grid;place-items:center;border:0;border-radius:50%;background-color:transparent;color:var(--on-surface-variant)}
+
+/* Segmented progress: 4dp bars, 48dp tall touch areas */
+.wr-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:0 20px}
+.wr-step{position:relative;height:16px;border:0;padding:0;background-color:transparent;display:flex;align-items:center}
+.wr-step::after{content:"";position:absolute;inset:-16px 0}
+.wr-step i{display:block;width:100%;height:4px;border-radius:2px;background:var(--surface-container-highest);transition:background-color var(--dur-medium) var(--ease-standard)}
+.wr-step.on i{background:var(--primary)}
+.wr .wr-step{background-image:none}
+
+/* Body */
+.wr-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:20px 16px 24px}
+.wr-content{display:flex;flex-direction:column;gap:12px}
+.wr-enter{animation:wr-in var(--dur-long) var(--ease-emphasized) both}
+@keyframes wr-in{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+:root[data-reduce-motion=true] .wr-enter{animation:none}
+.wr-title{font:var(--headline-small);padding:0 4px;text-wrap:balance}
+.wr-sub{text-wrap:pretty;font:var(--body-medium);color:var(--on-surface-variant);padding:0 4px;margin:-4px 0 8px!important}
+.wr-section{font:var(--title-small);color:var(--on-surface-variant);padding:12px 4px 0}
+.wr-error{font:var(--body-medium);color:var(--on-error-container);background:var(--error-container);border-radius:var(--shape-md);padding:12px 16px}
+
+/* Cards */
+.wr-card{background:var(--surface-container);border-radius:20px;padding:16px}
+.wr-card-title{display:block;font:var(--title-medium);overflow-wrap:anywhere}
+.wr-card-purpose{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font:var(--body-medium);color:var(--on-surface-variant);margin-top:2px!important}
+.wr-card-meta{display:block;font:var(--body-small);color:var(--on-surface-variant);margin:4px 0 12px!important}
+.wr-card-note{font:var(--body-small);color:var(--on-surface-variant);margin-top:12px!important}
+
+/* Segmented button (single select) */
+.wr-seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--outline);border-radius:var(--shape-full);overflow:hidden}
+.wr-seg-btn{position:relative;min-height:40px;border:0;background-color:transparent;color:var(--on-surface);font:var(--label-large);display:flex;align-items:center;justify-content:center;gap:6px;padding:0 8px}
+.wr-seg-btn+.wr-seg-btn{border-left:1px solid var(--outline)}
+.wr-seg-btn .ms{font-size:18px}
+.wr-seg-btn.sel{background-color:var(--secondary-container);color:var(--on-secondary-container)}
+.wr-seg-btn::after{content:"";position:absolute;inset:-4px 0}
+
+/* Evidence and form fields: outlined text field */
+.wr-field{display:flex;flex-direction:column;gap:4px;margin-top:16px}
+.wr-field-label{font:var(--label-medium);color:var(--on-surface-variant);padding-left:4px}
+.wr-input{width:100%;min-height:48px;border:1px solid var(--outline);border-radius:var(--shape-sm);background:transparent;padding:10px 14px;font:var(--body-large);color:var(--on-surface)}
+.wr-input::placeholder{color:var(--on-surface-variant);opacity:.8}
+.wr-input:focus{outline:none;border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
+
+/* Unfinished tasks with Carry / Defer / Drop */
+.wr-left{margin-top:12px;padding-top:4px;border-top:1px solid var(--outline-variant)}
+.wr-left-head{font:var(--label-medium);color:var(--on-surface-variant);padding:8px 0 0}
+.wr-left-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-height:48px;padding:4px 0}
+.wr-left-title{flex:1 1 120px;min-width:0;font:var(--body-medium);overflow-wrap:anywhere}
+.wr-left-title.dropped{color:var(--on-surface-variant);text-decoration:line-through}
+.wr-chips{display:flex;gap:6px;flex:none;margin-left:auto}
+
+/* Chips */
+.wr-chip{position:relative;flex:none;display:inline-flex;align-items:center;gap:6px;min-height:32px;max-width:220px;padding:0 12px;border:1px solid var(--outline-variant);border-radius:var(--shape-sm);background-color:transparent;color:var(--on-surface-variant);font:var(--label-large)}
+.wr-chip::after{content:"";position:absolute;inset:-8px -3px}
+.wr-chip .ms{font-size:18px;margin-left:-4px}
+.wr-chip .wr-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wr-chip.sel{background-color:var(--secondary-container);border-color:var(--secondary-container);color:var(--on-secondary-container)}
+.wr-group .wr-card-title{font:var(--body-large)}
+
+/* Step 3: Block select and inline picker */
+.wr-select{display:flex;align-items:center;gap:8px;width:100%;min-height:48px;margin-top:12px;padding:0 12px 0 14px;border:1px solid var(--outline);border-radius:var(--shape-sm);background-color:transparent;color:var(--on-surface);font:var(--label-large);text-align:left}
+.wr-select .ms{font-size:20px;color:var(--on-surface-variant)}
+.wr-select .wr-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wr-select.set{background-color:var(--secondary-container);border-color:var(--secondary-container);color:var(--on-secondary-container)}
+.wr-select.set .ms{color:var(--on-secondary-container)}
+.wr-picker{display:flex;flex-direction:column;margin:8px -8px 0;padding:4px 0;border-radius:var(--shape-lg);background:var(--surface-container-high)}
+.wr-option{display:flex;align-items:flex-start;gap:12px;min-height:48px;padding:12px 16px;border:0;background-color:transparent;color:var(--on-surface);text-align:left;font:inherit}
+.wr-option .ms{font-size:20px;color:var(--on-surface-variant);margin-top:2px}
+.wr-option.sel .ms{color:var(--primary)}
+.wr-option-text{display:flex;flex-direction:column;min-width:0}
+.wr-option-label{font:var(--body-large);overflow-wrap:anywhere}
+.wr-option-detail{font:var(--body-small);color:var(--on-surface-variant);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1;overflow:hidden}
+.wr-picker-add{display:flex;align-items:center;gap:12px;min-height:48px;padding:0 16px;border:0;border-top:1px solid var(--outline-variant);background-color:transparent;color:var(--primary);font:var(--label-large);text-align:left}
+.wr-picker-add .ms{font-size:20px}
+
+/* Celebration */
+.wr-celebrate{display:flex;gap:12px;align-items:flex-start;background:var(--tertiary-container);color:var(--on-tertiary-container);border-radius:20px;padding:16px;font:var(--body-medium)}
+.wr-celebrate .ms{color:var(--on-tertiary-container)}
+
+/* Step 2: Inbox count and list */
+.wr-hero{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 16px;background:var(--secondary-container);color:var(--on-secondary-container);border-radius:var(--card-radius);padding:20px}
+.wr-hero-count{display:flex;align-items:baseline;gap:8px;min-width:0}
+.wr-hero-number{font:var(--display-small)}
+.wr-hero-unit{font:var(--title-medium)}
+.wr-hero .wr-btn-tonal{background-color:var(--primary);color:var(--on-primary)}
+.wr-list{list-style:none;margin:0;padding:4px 0;background:var(--surface-container);border-radius:20px}
+.wr-list-item{display:flex;align-items:center;gap:16px;min-height:52px;padding:8px 16px;font:var(--body-large)}
+.wr-list-item+.wr-list-item{border-top:1px solid var(--outline-variant)}
+.wr-list-item .ms{font-size:20px;color:var(--on-surface-variant)}
+.wr-list-title{min-width:0;overflow-wrap:anywhere}
+
+/* Buttons */
+.wr-btn-filled,.wr-btn-tonal,.wr-btn-outlined,.wr-btn-text{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:var(--shape-full);font:var(--label-large);text-align:center}
+.wr-btn-filled{min-height:48px;padding:8px 24px;background-color:var(--primary);color:var(--on-primary);font-weight:600}
+.wr-btn-tonal{min-height:40px;padding:6px 20px;background-color:var(--secondary-container);color:var(--on-secondary-container)}
+.wr-btn-outlined{min-height:40px;padding:6px 20px 6px 16px;background-color:transparent;border:1px solid var(--outline);color:var(--primary);align-self:flex-start}
+.wr-btn-text{min-height:40px;padding:6px 12px;background-color:transparent;color:var(--primary)}
+.wr-btn-tonal::after,.wr-btn-outlined::after,.wr-btn-text::after{content:"";position:absolute;inset:-4px 0}
+.wr-btn-filled .ms,.wr-btn-tonal .ms,.wr-btn-outlined .ms,.wr-btn-text .ms{font-size:18px}
+.wr-btn-tonal .ms,.wr-btn-outlined .ms{margin-left:-4px}
+
+/* New Block inline form */
+.wr-new{margin-top:4px;padding-top:4px;border-top:1px solid var(--outline-variant)}
+.wr-new-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:16px}
+
+/* Step 4: capacity and selectable Result cards */
+.wr-capacity-pin{position:sticky;top:-20px;z-index:1;margin:-8px 0;padding:8px 0;background:var(--surface)}
+.wr-capacity{background:var(--surface-container-high);border-radius:20px;padding:14px 16px}
+.wr-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.wr-stat{display:flex;flex-direction:column;min-width:0}
+.wr-stat-value{font:var(--title-large);white-space:nowrap}
+.wr-stat-label{font:var(--body-small);color:var(--on-surface-variant)}
+.wr-capacity-note{font:var(--body-small);color:var(--on-surface-variant);margin-top:8px!important}
+.wr-pick{padding:0;transition:background-color var(--dur-short) var(--ease-standard)}
+.wr-pick.sel{background:var(--secondary-container);color:var(--on-secondary-container)}
+.wr-pick-head{width:100%;display:flex;align-items:flex-start;gap:12px;padding:16px;border:0;border-radius:20px;background-color:transparent;color:inherit;text-align:left;font:inherit}
+.wr-pick-head>.ms{color:var(--on-surface-variant);margin-top:0}
+.wr-pick.sel .wr-pick-head>.ms{color:var(--primary)}
+.wr-pick-text{flex:1;min-width:0;display:flex;flex-direction:column}
+.wr-pick .wr-card-meta{margin-bottom:0!important}
+.wr-pick.sel .wr-card-purpose,.wr-pick.sel .wr-card-meta,.wr-pick.sel .wr-card-note,.wr-pick.sel .wr-must-min{color:var(--on-secondary-container)}
+.wr-tag{align-self:flex-start;margin-top:8px;font:var(--label-medium);background:var(--tertiary-container);color:var(--on-tertiary-container);border-radius:var(--shape-sm);padding:2px 8px}
+.wr-musts{padding:0 8px 8px 4px;margin:0 8px 0 44px;border-top:1px solid color-mix(in srgb,currentColor 16%,transparent)}
+.wr-must-row{display:flex;align-items:center;gap:4px;min-height:48px}
+.wr-must-title{flex:1;min-width:0;font:var(--body-medium);overflow-wrap:anywhere}
+.wr-must-min{font:var(--body-small);color:var(--on-surface-variant);white-space:nowrap}
+.wr-star{margin-left:-12px}
+.wr-star.on{color:var(--must)}
+.wr-pick.sel .wr-star:not(.on){color:var(--on-secondary-container)}
+.wr-open-block{margin:4px 0 0 -12px}
+
+/* Empty states */
+.wr-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:32px 24px}
+.wr-empty-icon{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:var(--surface-container-high);color:var(--on-surface-variant);margin-bottom:8px}
+.wr-empty-icon .ms{font-size:32px}
+.wr-empty-title{font:var(--title-medium)}
+.wr-empty-body{font:var(--body-medium);color:var(--on-surface-variant);max-width:32ch;text-wrap:pretty}
+
+/* Footer: pinned actions over a short fade */
+.wr-foot{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 16px 16px;background:var(--surface)}
+.wr-foot::before{content:"";position:absolute;left:0;right:0;bottom:100%;height:24px;background:linear-gradient(to top,var(--surface),transparent);pointer-events:none}
+.wr-next{flex:1 1 200px}
+.wr-back{flex:none}
+
+.wr-short{display:none}
+
+/* Enlarged text (Android font scale >= 1.5): stack controls that would otherwise squeeze */
+:root[data-large-text=true] .wr-bar-count{display:none}
+:root[data-large-text=true] .wr-bar-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+:root[data-large-text=true] .wr-long{display:none}
+:root[data-large-text=true] .wr-short{display:inline}
+:root[data-large-text=true] .wr-title{font:var(--title-large)}
+:root[data-large-text=true] .wr-seg{grid-template-columns:1fr;border-radius:20px}
+:root[data-large-text=true] .wr-seg-btn+.wr-seg-btn{border-left:0;border-top:1px solid var(--outline)}
+:root[data-large-text=true] .wr-seg-btn{min-height:48px}
+:root[data-large-text=true] .wr-stats{grid-template-columns:1fr;gap:4px}
+:root[data-large-text=true] .wr-stat{flex-direction:row;align-items:baseline;justify-content:space-between;gap:8px}
+:root[data-large-text=true] .wr-musts{margin-left:8px}
+:root[data-large-text=true] .wr-chips{margin-left:0;flex-wrap:wrap}
+:root[data-large-text=true] .wr-left-row{padding:8px 0}
+:root[data-large-text=true] .wr-capacity-pin{position:static}

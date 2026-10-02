@@ -173,7 +173,13 @@ export function focusCandidates(data, week, chosen = weekFocus(data, week)) {
     .filter(b => !b.archived && (picked.has(b.id) || b.achieved !== true))
     .map((b, index) => ({block: b, index, rank: rank(b)}))
     .sort((a, b) => a.rank - b.rank || b.index - a.index)
-    .map(({block, rank}) => ({blockId: block.id, title: block.title, purpose: block.purpose ?? '', carried: rank === 1 || carried.has(block.id), ...resultStatus(data, block.id)}));
+    .map(({block}) => ({
+      blockId: block.id,
+      title: block.title,
+      purpose: block.purpose ?? '',
+      carried: carried.has(block.id),
+      ...resultStatus(data, block.id),
+    }));
 }
 
 /** Where the user is in this week's review. A finished review starts again from step 1, with its decisions kept. */
