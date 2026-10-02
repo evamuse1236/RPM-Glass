@@ -4,16 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "npm run test:js && npm run test:cloud && npm run typecheck:cloud && npm run test:java",
+    "test:js": "node --import ./scripts/test-tz.mjs --test android-companion/*.test.mjs cli/*.test.mjs chat-prototype/*.test.mjs intent-v2/test/*.test.mjs",
+    "test:java": "bash scripts/test-parser.sh",
     "dev:cloud": "convex dev",
     "deploy:cloud": "convex deploy",
     "test:cloud": "vitest run",
     "typecheck:cloud": "tsc --noEmit",
     "cli": "node cli/rpm.mjs",
     "chat": "node chat-prototype/companion-server.mjs",
-    "test:chat": "node --test chat-prototype/*.test.mjs",
-    "test:cli": "node --test cli/*.test.mjs",
-    "build:android-assets": "node scripts/build-companion-assets.mjs",
-    "check:ux": "node scripts/check-ux-tokens.mjs"
+    "build:android-assets": "node scripts/build-companion-assets.mjs"
   },
   "dependencies": {
     "chrono-node": "2.10.1",

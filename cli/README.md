@@ -78,7 +78,7 @@ npm run cli -- --data /tmp/rpm-experiment.json
 
 Writes use a private file and atomic replacement. A lock prevents concurrent sessions on the same data file. Original capture text and revision snapshots survive corrections. This store is separate from Android and Convex records.
 
-Run checks with `npm run test:cli` (81 tests). Tests make no live API calls. They cover captures, edits, name matching, short replies, choices tied to the right entry, unchanged original words, alert timing, failed saves, API failures and private key handling. See [conversation checks](experiments/openrouter-conversation-findings.md) for the synthetic live calls and terminal checks, and [earlier OpenRouter smoke findings](experiments/openrouter-findings.md) for the first capture tests. The separate HTML test chat now has opt-in conversation context; the CLI still sends only the current message.
+Run checks with `npm test` (or `npm run test:js` for the JavaScript tests only). Tests make no live API calls. They cover captures, edits, name matching, short replies, choices tied to the right entry, unchanged original words, alert timing, failed saves, API failures and private key handling. See [conversation checks](experiments/openrouter-conversation-findings.md) for the synthetic live calls and terminal checks, and [earlier OpenRouter smoke findings](experiments/openrouter-findings.md) for the first capture tests. The separate HTML test chat now has opt-in conversation context; the CLI still sends only the current message.
 
 What to refine next through use: how little the CLI should ask after a save, whether switching between plans/check-ins feels natural, and which follow-ups are worth keeping. There is no requirement to redesign the app until this interaction feels right.
 

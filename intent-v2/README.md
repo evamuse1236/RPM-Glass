@@ -5,5 +5,4 @@ Capture interpretation used by the Android app. It turns a captured thought into
 - `src/`: the harness, context building, schema validation, follow-up questions, Jev sort previews and model policy. Bundled into the Android runtime.
 - `adapters/rpm-glass.mjs` and `adapters/transport.mjs`: the planner adapter and the native model transport. Also bundled.
 - `prompts/intent-system.mjs`: the system prompt. Also bundled.
-- `evals/`: synthetic evaluation cases and evaluators. The tests here and some device scripts in `../scripts/` import them. They do not ship.
 - `test/`: deterministic tests. Run `node --test intent-v2/test/*.test.mjs` from the repository root.

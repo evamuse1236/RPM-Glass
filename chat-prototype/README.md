@@ -44,7 +44,7 @@ After the requested switch to Luna, a seven-turn **live OpenRouter** check passe
 
 The live check exposed and fixed two integration issues: explicit `strict:false` keeps patch fields optional rather than forcing null/empty values, and clock shorthand normalization no longer rewrites calendar years. Local schema validation remains mandatory. A small set of tool examples clarifies full-batch proposals and delegates clock-only date selection to the deterministic local parser.
 
-`npm run test:cli` and `npm run test:chat` run deterministic offline tests. `companion.test.mjs` covers two-plan shorthand edits, atomic clarification, dropped-operation rejection, Undo, memory corrections, archive exclusion, historical retrieval, persistence, key boundaries, tool repair, timeout handling and HTTP guards.
+`npm test` runs these deterministic offline tests with the rest of the suite (`npm run test:js` for the JavaScript tests only). `companion.test.mjs` covers two-plan shorthand edits, atomic clarification, dropped-operation rejection, Undo, memory corrections, archive exclusion, historical retrieval, persistence, key boundaries, tool repair, timeout handling and HTTP guards.
 
 `node chat-prototype/experiments/interface-fixture.mjs` serves a clearly labeled synthetic interaction fixture on 4320, without importing personal data or calling AI. It exercises proposal bubbles, receipts and Undo in the real browser UI.
 
