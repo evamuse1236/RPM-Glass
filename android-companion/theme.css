@@ -1,7 +1,7 @@
 /* RPM theme: Material 3 roles in the style of Google's own apps (Google blue baseline).
    One source of colour, type, shape and motion for the planner, Capture and weekly review.
    CSS px map to Android dp in the WebView; WebSettings textZoom applies the system font scale.
-   Native surfaces (widget, settings) mirror these values in res/values*/colors.xml. */
+   Native surfaces (widget, settings) mirror these values in res/values/colors.xml and res/values-night/colors.xml. */
 @font-face{font-family:"Google Sans Flex";src:url('/google-sans-flex.woff2') format('woff2');font-weight:100 1000;font-display:block}
 @font-face{font-family:"Material Symbols Rounded";src:url('/material-symbols-rounded.woff2') format('woff2');font-weight:400;font-display:block}
 
