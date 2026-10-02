@@ -3,6 +3,7 @@
 // behave exactly like any other planner edit. Review progress (where the user is in the flow) is
 // the only thing saved without Undo, because rewinding it would not restore anything the user made.
 import {planner, tasks, blockTasks, totals, editPlan, shiftDay, localDay, migrateReviewData} from './planner-state.mjs';
+export {migrateReviewData};
 import {repeats} from './planner-recurrence.mjs';
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;

@@ -1,0 +1,53 @@
+import {localDay, shiftDay} from '../planner-state.mjs';
+
+export const plural = (count, one, many = one + 's') => `${count} ${count === 1 ? one : many}`;
+
+export function clock(value) {
+  return new Date(value).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+}
+
+/** "30 min", "1 h", "1 h 50 min". */
+export function duration(minutes) {
+  if (minutes == null) return 'No estimate';
+  if (minutes < 60) return `${minutes} min`;
+  const rest = minutes % 60;
+  return `${Math.floor(minutes / 60)} h${rest ? ` ${rest} min` : ''}`;
+}
+
+export function dateText(value) {
+  return new Date(value).toLocaleDateString([], {weekday: 'short', month: 'short', day: 'numeric'});
+}
+
+export function longDate(day) {
+  return new Date(day + 'T12:00').toLocaleDateString([], {weekday: 'long', day: 'numeric', month: 'long'});
+}
+
+/** Today / Tomorrow / Yesterday, otherwise a short date. */
+export function relativeDay(day) {
+  const today = localDay();
+  if (day === today) return 'Today';
+  if (day === shiftDay(today, 1)) return 'Tomorrow';
+  if (day === shiftDay(today, -1)) return 'Yesterday';
+  return dateText(day + 'T12:00');
+}
+
+/** Local value for an <input type=time>. */
+export function timeValue(value) {
+  const date = new Date(value);
+  return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+}
+
+export function doneStats(rows) {
+  const done = rows.filter(task => task.done).length;
+  return {done, total: rows.length, percent: rows.length ? Math.round(done / rows.length * 100) : 0};
+}
+
+/** FNV-1a: stable keys for captured drafts. */
+export function stableKey(value) {
+  let hash = 2166136261;
+  for (const char of value) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
