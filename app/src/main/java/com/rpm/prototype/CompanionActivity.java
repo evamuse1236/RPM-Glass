@@ -51,19 +51,24 @@ public class CompanionActivity extends Activity {
         root=new FrameLayout(this);root.setBackgroundColor(planning()?getColor(R.color.rpm_surface):Color.TRANSPARENT);root.addView(web);root.setOnClickListener(v->finish());setContentView(root);
         getWindow().setLayout(WindowManager.LayoutParams.MATCH_PARENT,WindowManager.LayoutParams.MATCH_PARENT);
         if(Build.VERSION.SDK_INT>=30)getWindow().setDecorFitsSystemWindows(false);
-        if(planning())paintPlannerBars();
+        if(planning())paintPlannerBars(systemNight());
         root.setOnApplyWindowInsetsListener((v,insets)->{if(Build.VERSION.SDK_INT>=30){android.graphics.Insets i=insets.getInsets(WindowInsets.Type.systemBars()|WindowInsets.Type.ime());insetTop=i.top;insetBottom=i.bottom;insetLeft=i.left;insetRight=i.right;systemBottom=insets.getInsets(WindowInsets.Type.systemBars()).bottom;web.evaluateJavascript("window.rpmCaptureKeyboard?.("+insets.isVisible(WindowInsets.Type.ime())+")",null);}else{insetTop=insets.getSystemWindowInsetTop();insetBottom=insets.getSystemWindowInsetBottom();insetLeft=insets.getSystemWindowInsetLeft();insetRight=insets.getSystemWindowInsetRight();}size();syncSurfaceInsets();return insets;});
         root.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{if(r-l!=or-ol||b-t!=ob-ot)size();});size();if(Build.VERSION.SDK_INT>=33)getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,this::handleBack);String target=getIntent().getStringExtra("plannerTarget");web.loadUrl(planning()?"https://rpm.local/planner.html"+(target!=null?"#open="+Uri.encode(target):"ideas".equals(getIntent().getStringExtra("plannerAction"))?"#ideas":""):"https://rpm.local/index.html");
     }
-    // Keep the WebView stable. Animate the visible content within its viewport,
-    // so resizing cannot discard the Android WebView compositor's current frame.
-    // The planner draws edge to edge on the Material surface: transparent bars with icons that follow the system theme.
-    @SuppressWarnings("deprecation") private void paintPlannerBars(){
-        boolean night=(getResources().getConfiguration().uiMode&android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_YES;
+    // The planner draws edge to edge on the Material surface: transparent bars, and a surface colour and
+    // bar icons that follow the planner's effective theme (system, or pinned in Settings via "surface").
+    @SuppressWarnings("deprecation") private void paintPlannerBars(boolean night){
+        android.content.res.Configuration conf=new android.content.res.Configuration(getResources().getConfiguration());
+        conf.uiMode=(conf.uiMode&~android.content.res.Configuration.UI_MODE_NIGHT_MASK)|(night?android.content.res.Configuration.UI_MODE_NIGHT_YES:android.content.res.Configuration.UI_MODE_NIGHT_NO);
+        int surface=createConfigurationContext(conf).getColor(R.color.rpm_surface);
+        getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(surface));if(root!=null)root.setBackgroundColor(surface);if(web!=null)web.setBackgroundColor(surface);
         getWindow().setStatusBarColor(Color.TRANSPARENT);getWindow().setNavigationBarColor(Color.TRANSPARENT);
         if(Build.VERSION.SDK_INT>=30){int light=WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;getWindow().getInsetsController().setSystemBarsAppearance(night?0:light,light);}
-        else if(!night)getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|(Build.VERSION.SDK_INT>=27?View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR:0));
+        else getWindow().getDecorView().setSystemUiVisibility(night?0:View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|(Build.VERSION.SDK_INT>=27?View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR:0));
     }
+    private boolean systemNight(){return (getResources().getConfiguration().uiMode&android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_YES;}
+    // Keep the WebView stable. Animate the visible content within its viewport,
+    // so resizing cannot discard the Android WebView compositor's current frame.
     private void syncSurfaceInsets(){if(Build.VERSION.SDK_INT>=30&&web!=null)web.evaluateJavascript("window.rpmSurfaceInsetsValue={bottom:"+Math.max(0,insetBottom-systemBottom)+",width:"+web.getWidth()+",animate:"+ValueAnimator.areAnimatorsEnabled()+"};window.rpmSurfaceInsets?.(window.rpmSurfaceInsetsValue)",null);}
     private void size(){
         if(root==null||web==null)return;
@@ -133,6 +138,7 @@ public class CompanionActivity extends Activity {
                     case "load":result=new JSONObject().put("data",Optional.ofNullable(CompanionStore.read(CompanionActivity.this)).orElse(null)).put("phone",phoneStatus());break;
                     case "save":CompanionStore.write(CompanionActivity.this,p.getJSONObject("data"),p.getInt("expected"));result=phoneStatus();break;
                     case "status":result=phoneStatus();break;
+                    case "surface":if(!planning())throw new IllegalArgumentException("Unsupported phone action.");boolean dark=p.getBoolean("dark");runOnUiThread(()->{if(!closing&&web!=null)paintPlannerBars(dark);});result=new JSONObject();break;
                     case "legacyEntries":result=LegacyImport.read(CompanionActivity.this);break;
                     case "legacyImported":LegacyImport.markDone(CompanionActivity.this);result=new JSONObject();break;
                     case "dictate":runOnUiThread(()->{if(voiceRequest!=null){reply(id,null,"Voice input is already open.");return;}voiceRequest=id;try{Intent voice=new Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM).putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT,"Capture your thought");startActivityForResult(voice,302);}catch(ActivityNotFoundException error){voiceRequest=null;reply(id,null,"Voice input is unavailable on this device. You can use keyboard dictation.");}});return;
@@ -155,7 +161,7 @@ public class CompanionActivity extends Activity {
                     case "expand":runOnUiThread(()->{expanded=!expanded;size();});result=new JSONObject();break;
                     default:throw new IllegalArgumentException("Unsupported phone action.");
                 }if(result instanceof JSONObject&&((JSONObject)result).optInt("status",200)>=400){diagnosticOutcome="error";diagnosticPayload.put("statusCode",((JSONObject)result).optInt("status"));}if(Set.of("planner","capture","settings","minimize","expand").contains(action))diagnosticOutcome="dispatched";reply(id,result,null);
-            }catch(Exception e){diagnosticOutcome=e instanceof java.util.concurrent.CancellationException?"cancelled":"error";try{diagnosticPayload.put("error",new JSONObject().put("type",e.getClass().getSimpleName()).put("message",e.getMessage()).put("stack",android.util.Log.getStackTraceString(e)));}catch(JSONException ignored){}String message=(action.equals("model")||action.equals("decision"))?"The OpenRouter connection failed. Check your key and internet connection.":e.getMessage();reply(id,null,message==null?"The phone could not finish that action.":message);}finally{if(!Set.of("haptic","keyboard","status","appSettings","load").contains(action))try{diagnosticPayload.put("durationMs",SystemClock.elapsedRealtime()-diagnosticStart);JSONObject event=Diagnostics.event("operation",diagnosticOutcome.equals("error")?"error":"info","native."+action,diagnosticOutcome,diagnosticPayload).put("sessionId",id.substring(0,36)).put("operationId",modelId);Diagnostics.record(CompanionActivity.this,event);}catch(JSONException ignored){}if(request!=null)modelRequests.finish(modelId,request);}});
+            }catch(Exception e){diagnosticOutcome=e instanceof java.util.concurrent.CancellationException?"cancelled":"error";try{diagnosticPayload.put("error",new JSONObject().put("type",e.getClass().getSimpleName()).put("message",e.getMessage()).put("stack",android.util.Log.getStackTraceString(e)));}catch(JSONException ignored){}String message=(action.equals("model")||action.equals("decision"))?"The OpenRouter connection failed. Check your key and internet connection.":e.getMessage();reply(id,null,message==null?"The phone could not finish that action.":message);}finally{if(!Set.of("haptic","keyboard","status","surface","appSettings","load").contains(action))try{diagnosticPayload.put("durationMs",SystemClock.elapsedRealtime()-diagnosticStart);JSONObject event=Diagnostics.event("operation",diagnosticOutcome.equals("error")?"error":"info","native."+action,diagnosticOutcome,diagnosticPayload).put("sessionId",id.substring(0,36)).put("operationId",modelId);Diagnostics.record(CompanionActivity.this,event);}catch(JSONException ignored){}if(request!=null)modelRequests.finish(modelId,request);}});
         }
     }
     private JSONObject model(JSONObject body,ModelRequests.Request request)throws Exception{

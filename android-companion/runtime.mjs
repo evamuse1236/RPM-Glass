@@ -81,6 +81,9 @@ applyClarityPreferences();
 const syncTextScale=()=>{document.documentElement.dataset.reduceMotion=String(!!phone.reducedMotion);document.documentElement.dataset.largeText=String((phone.effectiveFontScale??phone.fontScale)>=1.5);};
 syncTextScale();window.addEventListener('rpm-phone-status',syncTextScale);
 if(isPlanner){
+  // Native paints the window edges and system-bar icons; keep them on the planner's effective theme.
+  const systemDark=matchMedia('(prefers-color-scheme: dark)'),syncSurface=()=>{const pinned=document.documentElement.dataset.appearance;native('surface',{dark:pinned?pinned==='dark':systemDark.matches}).catch(()=>{});};
+  syncSurface();new MutationObserver(syncSurface).observe(document.documentElement,{attributes:true,attributeFilter:['data-appearance']});systemDark.addEventListener?.('change',syncSurface);
   const {mountPlanner}=await import('./planner.mjs');
   const withSort=async run=>{if(busy)throw new Error('Wait for the current save.');busy=true;try{return await run();}finally{busy=false;}};
   const sortPreview={create:(input,options)=>withSort(()=>intentService.sort.create(input,options)),accept:(id,options)=>withSort(()=>intentService.sort.accept(id,options)),dismiss:(id,options)=>withSort(()=>intentService.sort.dismiss(id,options)),get:id=>intentService.sort.get(id),list:options=>intentService.sort.list(options)};
