@@ -1,8 +1,7 @@
-import {coalesceRefresh,captureRenderKey} from './surface-refresh.mjs';
-import {captureCard} from './capture-card.mjs';
+import {coalesceRefresh} from './surface-refresh.mjs';
 import {installDiagnostics} from './diagnostics.mjs';
 import {applyClarityPreferences} from './planner-clarity.mjs';
-import {installWidgetMenu} from './widget-menu.mjs';
+import {describeLink} from './capture-context.mjs';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {entryView,propose,undo} from '../chat-prototype/companion-tools.mjs';
 import {MODEL} from '../chat-prototype/companion-agent.mjs';
@@ -61,8 +60,7 @@ window.fetch=async(url,options={})=>{
   }catch(e){if(!busy)data=before;busy=false;return response({error:e.message,state:view()},500);}
 };
 const isPlanner=location.pathname==='/planner.html';
-const widgetMenu=isPlanner?{onRender(){}}:installWidgetMenu();
-window.RPM_PLATFORM={captureRenderKey,captureCard,native:true,menuSend:true,compactReply:true,onRender:widgetMenu.onRender,captureUI:widgetMenu.captureUI,action:native,delivery:id=>phone.delivery?.[String(id)],plansDescription:'Saved on this phone. Alert status below comes from Android.',about:['Capture saves your exact words, then asks before changing tasks or blocks. Older conversations and records remain in History.','Your recent chat, relevant entries and explicit preferences go to OpenRouter when you send a message. Older unarchived history is available through tools. Capture uses '+MODEL+' with no reasoning for extraction and high reasoning for planning, contextual questions and one repair attempt. Jev is used only when you choose Sort with Jev: it suggests matches to existing blocks, then waits for your review.','Chat, plans and context are stored privately on this phone. The AI key is encrypted with Android Keystore, not included in this APK. When diagnostics are connected, full app console output, errors and operation records upload to the private diagnostic database and expire after 14 days. Console output may include capture content. Pause or disconnect in Settings. No desktop server is needed.','RPM reminders use Android notifications. Ringing alarms use Android AlarmManager and alarm audio, at the planned time. They are not entries in Samsung Clock or Google Calendar. Phone permissions and notification settings must allow delivery.','Imported context is a copy. Imported alerts start disarmed, so old plans cannot unexpectedly ring. Review an entry and tap Enable on phone. Archive or Undo updates the phone schedule too.','You can hide the floating butterfly from its notification. Microphone input opens Android voice typing only when you tap the microphone. The older RPM screens remain separate in Settings.']};
+window.RPM_PLATFORM={native:true,action:native,delivery:id=>phone.delivery?.[String(id)],plansDescription:'Saved on this phone. Alert status below comes from Android.',about:['Capture saves your exact words, then asks before changing tasks or Blocks. Older conversations and records remain in History.','Your recent chat, relevant entries and explicit preferences go to OpenRouter when you send a message. Older unarchived history is available through tools. Capture uses '+MODEL+' with no reasoning for extraction and high reasoning for planning, contextual questions and one repair attempt. Jev is used only when you choose Sort with Jev: it suggests matches to existing Blocks, then waits for your review.','Chat, plans and context are stored privately on this phone. The AI key is encrypted with Android Keystore, not included in this APK. When diagnostics are connected, full app console output, errors and operation records upload to the private diagnostic database and expire after 14 days. Console output may include capture content. Pause or disconnect in Settings. No desktop server is needed.','RPM reminders use Android notifications. Ringing alarms use Android AlarmManager and alarm audio, at the planned time. They are not entries in Samsung Clock or Google Calendar. Phone permissions and notification settings must allow delivery.','Imported context is a copy. Imported alerts start disarmed, so old plans cannot unexpectedly ring. Review an entry and tap Enable on phone. Archive or Undo updates the phone schedule too.','You can hide the floating butterfly from its notification. Microphone input opens Android voice typing only when you tap the microphone. The older RPM screens remain separate in Settings.']};
 // Refresh delivery outcomes/permissions without losing the current draft.
 window.RPM_PLATFORM.openPlans=()=>native('planner');
 window.RPM_PLATFORM.intentForConversation=(conversationId,options={})=>intentViewFromData(data,{conversationId,...options});
@@ -71,6 +69,7 @@ window.RPM_PLATFORM.clearPlanningFocus=()=>localStorage.removeItem('rpm-capture-
 window.RPM_PLATFORM.captureAction=async action=>{const latest=await native('load');phone=latest.phone;if(latest.data)data=latest.data;return executeCaptureAction(data,action,native);};
 window.RPM_PLATFORM.suggestionAction=(suggestion,sourceRaw,at)=>goalDraftAction(suggestion,sourceRaw,at?new Date(at):new Date());
 window.RPM_PLATFORM.receiptsForMessage=message=>receiptsForMessage(data,message,entryView);
+window.RPM_PLATFORM.describeLink=(field,value)=>describeLink(data,field,value);
 window.rpmPhoneRefresh=coalesceRefresh(async()=>{await ready;if(!busy){const latest=await native('load');phone=latest.phone;if(latest.data&&latest.data.version!==data.version){data=latest.data;window.dispatchEvent(new Event('rpm-data-refresh'));}}window.dispatchEvent(new Event('rpm-phone-status'));});
 await ready;
 applyClarityPreferences();
@@ -84,8 +83,16 @@ if(isPlanner){
   if(location.hash==='#ideas')ui.goalIdeas();
   else if(location.hash.startsWith('#open='))try{ui.openView(JSON.parse(decodeURIComponent(location.hash.slice(6))));}catch{}
 }else {
-  const kept=await native('captureDraft');if(kept.present)localStorage.setItem('rpm-native-draft',kept.text);
+  // Capture: the unsent draft is written through Android's ordered private
+  // store; WebView localStorage is only a compatibility mirror.
+  const kept=await native('captureDraft');
+  if(kept.present)localStorage.setItem('rpm-native-draft',kept.text);
   let lastText=kept.present?kept.text:null;
-  window.RPM_PLATFORM.saveComposerDraft=text=>{if(text===lastText)return Promise.resolve();lastText=text;return native('captureDraft',{text}).catch(error=>{lastText=null;throw error;});};
-  await import('../chat-prototype/app.js');
+  window.RPM_PLATFORM.saveComposerDraft=text=>{
+    if(text===lastText)return Promise.resolve();
+    lastText=text;
+    return native('captureDraft',{text}).catch(error=>{lastText=null;throw error;});
+  };
+  const {mountCapture}=await import('./capture-app.mjs');
+  mountCapture(window.RPM_PLATFORM);
 }
