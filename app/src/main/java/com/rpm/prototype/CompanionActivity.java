@@ -125,6 +125,8 @@ public class CompanionActivity extends Activity {
                     case "load":result=new JSONObject().put("data",Optional.ofNullable(CompanionStore.read(CompanionActivity.this)).orElse(null)).put("phone",phoneStatus());break;
                     case "save":CompanionStore.write(CompanionActivity.this,p.getJSONObject("data"),p.getInt("expected"));result=phoneStatus();break;
                     case "status":result=phoneStatus();break;
+                    case "legacyEntries":result=LegacyImport.read(CompanionActivity.this);break;
+                    case "legacyImported":LegacyImport.markDone(CompanionActivity.this);result=new JSONObject();break;
                     case "dictate":runOnUiThread(()->{if(voiceRequest!=null){reply(id,null,"Voice input is already open.");return;}voiceRequest=id;try{Intent voice=new Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM).putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT,"Capture your thought");startActivityForResult(voice,302);}catch(ActivityNotFoundException error){voiceRequest=null;reply(id,null,"Voice input is unavailable on this device. You can use keyboard dictation.");}});return;
                     case "haptic":runOnUiThread(()->web.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK));result=new JSONObject();break;
                     case "keyboard":runOnUiThread(()->{web.requestFocus();((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(web,android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);});result=new JSONObject();break;
