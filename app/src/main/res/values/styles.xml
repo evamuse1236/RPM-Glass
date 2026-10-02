@@ -11,15 +11,16 @@
         <item name="android:windowActionModeOverlay">true</item>
     </style>
     <style name="AppTheme" parent="BaseAppTheme" />
-    <style name="CompanionSettingsTheme" parent="android:style/Theme.Material.NoActionBar">
-        <item name="android:colorBackground">#121821</item>
-        <item name="android:windowBackground">#121821</item>
-        <item name="android:colorAccent">#7DD3FC</item>
-        <item name="android:textColorPrimary">#F4F7FA</item>
-        <item name="android:textColorSecondary">#B4C0CE</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:statusBarColor">#121821</item>
-        <item name="android:navigationBarColor">#121821</item>
+    <!-- The full-screen planner (PlannerActivity): Material surface before the WebView paints. -->
+    <style name="CompanionSettingsTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:colorBackground">@color/rpm_surface</item>
+        <item name="android:windowBackground">@color/rpm_surface</item>
+        <item name="android:colorAccent">@color/rpm_primary</item>
+        <item name="android:textColorPrimary">@color/rpm_on_surface</item>
+        <item name="android:textColorSecondary">@color/rpm_on_surface_variant</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
     <style name="CompanionTheme" parent="CaptureTheme">
         <item name="android:windowCloseOnTouchOutside">false</item>

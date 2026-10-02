@@ -33,8 +33,8 @@ public class CompanionActivity extends Activity {
     private static final String CSP="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
     private static final String CHAT_ENDPOINT="https://openrouter.ai/api/v1/chat/completions",DECISION_ENDPOINT="https://openrouter.ai/api/alpha/decisions";
     @Override public void onCreate(Bundle saved){super.onCreate(saved);expanded=saved!=null&&saved.getBoolean("expanded");getWindow().setBackgroundDrawableResource(android.R.color.transparent);getWindow().setDimAmount(.12f);getWindow().addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE|WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
-        if(planning()){expanded=true;getWindow().setDimAmount(0);getWindow().setBackgroundDrawableResource(android.R.color.black);}
-        web=new WebView(this);if(!planning())web.setAlpha(0);web.setBackgroundColor(planning()?Color.rgb(14,20,29):Color.TRANSPARENT);WebSettings s=web.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setAllowFileAccess(false);s.setAllowContentAccess(false);s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);s.setMediaPlaybackRequiresUserGesture(true);s.setSupportMultipleWindows(false);s.setJavaScriptCanOpenWindowsAutomatically(false);s.setSafeBrowsingEnabled(true);applyTextScale();
+        if(planning()){expanded=true;getWindow().setDimAmount(0);getWindow().setBackgroundDrawableResource(R.color.rpm_surface);}
+        web=new WebView(this);if(!planning())web.setAlpha(0);web.setBackgroundColor(planning()?getColor(R.color.rpm_surface):Color.TRANSPARENT);WebSettings s=web.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setAllowFileAccess(false);s.setAllowContentAccess(false);s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);s.setMediaPlaybackRequiresUserGesture(true);s.setSupportMultipleWindows(false);s.setJavaScriptCanOpenWindowsAutomatically(false);s.setSafeBrowsingEnabled(true);applyTextScale();
         settingsController=new CompanionSettingsController(this,this::settingsChanged);
         web.setWebChromeClient(new WebChromeClient(){@Override public boolean onConsoleMessage(ConsoleMessage message){if(!diagnosticReady)Diagnostics.chrome(CompanionActivity.this,message);return false;}});
         web.addJavascriptInterface(new Bridge(),"RpmNative");web.setWebViewClient(new WebViewClient(){
@@ -48,14 +48,22 @@ public class CompanionActivity extends Activity {
         });
         // A full transparent host lets Android deliver reliable IME/system insets.
         // Only the small child panel is painted; it stays entirely above the keyboard.
-        root=new FrameLayout(this);root.setBackgroundColor(planning()?Color.rgb(14,20,29):Color.TRANSPARENT);root.addView(web);root.setOnClickListener(v->finish());setContentView(root);
+        root=new FrameLayout(this);root.setBackgroundColor(planning()?getColor(R.color.rpm_surface):Color.TRANSPARENT);root.addView(web);root.setOnClickListener(v->finish());setContentView(root);
         getWindow().setLayout(WindowManager.LayoutParams.MATCH_PARENT,WindowManager.LayoutParams.MATCH_PARENT);
         if(Build.VERSION.SDK_INT>=30)getWindow().setDecorFitsSystemWindows(false);
+        if(planning())paintPlannerBars();
         root.setOnApplyWindowInsetsListener((v,insets)->{if(Build.VERSION.SDK_INT>=30){android.graphics.Insets i=insets.getInsets(WindowInsets.Type.systemBars()|WindowInsets.Type.ime());insetTop=i.top;insetBottom=i.bottom;insetLeft=i.left;insetRight=i.right;systemBottom=insets.getInsets(WindowInsets.Type.systemBars()).bottom;web.evaluateJavascript("window.rpmCaptureKeyboard?.("+insets.isVisible(WindowInsets.Type.ime())+")",null);}else{insetTop=insets.getSystemWindowInsetTop();insetBottom=insets.getSystemWindowInsetBottom();insetLeft=insets.getSystemWindowInsetLeft();insetRight=insets.getSystemWindowInsetRight();}size();syncSurfaceInsets();return insets;});
         root.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{if(r-l!=or-ol||b-t!=ob-ot)size();});size();if(Build.VERSION.SDK_INT>=33)getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,this::handleBack);String target=getIntent().getStringExtra("plannerTarget");web.loadUrl(planning()?"https://rpm.local/planner.html"+(target!=null?"#open="+Uri.encode(target):"ideas".equals(getIntent().getStringExtra("plannerAction"))?"#ideas":""):"https://rpm.local/index.html");
     }
     // Keep the WebView stable. Animate the visible content within its viewport,
     // so resizing cannot discard the Android WebView compositor's current frame.
+    // The planner draws edge to edge on the Material surface: transparent bars with icons that follow the system theme.
+    @SuppressWarnings("deprecation") private void paintPlannerBars(){
+        boolean night=(getResources().getConfiguration().uiMode&android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        getWindow().setStatusBarColor(Color.TRANSPARENT);getWindow().setNavigationBarColor(Color.TRANSPARENT);
+        if(Build.VERSION.SDK_INT>=30){int light=WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;getWindow().getInsetsController().setSystemBarsAppearance(night?0:light,light);}
+        else if(!night)getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|(Build.VERSION.SDK_INT>=27?View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR:0));
+    }
     private void syncSurfaceInsets(){if(Build.VERSION.SDK_INT>=30&&web!=null)web.evaluateJavascript("window.rpmSurfaceInsetsValue={bottom:"+Math.max(0,insetBottom-systemBottom)+",width:"+web.getWidth()+",animate:"+ValueAnimator.areAnimatorsEnabled()+"};window.rpmSurfaceInsets?.(window.rpmSurfaceInsetsValue)",null);}
     private void size(){
         if(root==null||web==null)return;

@@ -6,4 +6,11 @@
 <item name="android:colorBackground">#14151C</item><item name="android:windowBackground">#14151C</item>
 <item name="android:windowActionModeOverlay">true</item>
 </style>
+<style name="CompanionSettingsTheme" parent="android:style/Theme.Material.NoActionBar">
+<item name="android:colorBackground">@color/rpm_surface</item><item name="android:windowBackground">@color/rpm_surface</item>
+<item name="android:colorAccent">@color/rpm_primary</item>
+<item name="android:textColorPrimary">@color/rpm_on_surface</item><item name="android:textColorSecondary">@color/rpm_on_surface_variant</item>
+<item name="android:windowLightStatusBar">false</item>
+<item name="android:statusBarColor">@android:color/transparent</item><item name="android:navigationBarColor">@android:color/transparent</item>
+</style>
 </resources>
