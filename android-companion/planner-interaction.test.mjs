@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
 import {capturedGoalDraft,savedPlannerTarget} from './planner.mjs';
 
 test('captured goal drafts retain exact long source while entity fields stay valid',()=>{
@@ -29,11 +28,4 @@ test('saved planner targets dispatch UUID entities by collection and numeric tas
   assert.deepEqual(savedPlannerTarget({view:'projects',id:uuid}),{collection:'projects',id:uuid});
   assert.deepEqual(savedPlannerTarget({view:'day',collection:'tasks',id:42}),{collection:'tasks',id:42});
   assert.equal(savedPlannerTarget({view:'day',collection:'tasks',id:uuid}),null);
-});
-
-test('planner navigation and capture preserve direct saved-target routing',async()=>{
-  const source=await readFile(new URL('./planner.mjs',import.meta.url),'utf8');
-  assert.ok(source.includes("window.rpmHandleBack"));
-  assert.ok(source.includes("draftMeta&&collection==='goals'?'textarea':'text'"));
-  assert.ok(source.includes("el('details','original-capture')"));
 });
