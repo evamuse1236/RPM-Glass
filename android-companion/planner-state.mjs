@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto';
-import {occurrences,completeTask} from './planner-recurrence.mjs';
+import {occurrences,completeTask,repeats} from './planner-recurrence.mjs';
 
-export const freshPlanner=()=>({schema:1,projects:[],blocks:[],areas:[],goals:[],events:[],drafts:[],context:{vision:'',goals:'',approved:false},undo:null});
+export const freshPlanner=()=>({schema:1,projects:[],blocks:[],areas:[],goals:[],events:[],drafts:[],context:{vision:'',goals:'',approved:false},undo:null,reviewVersion:REVIEW_VERSION,weeks:{},reviews:{}});
 export function planner(data){return data.planner??freshPlanner();}
 export const tasks=data=>data.entries.filter(e=>!e.archived&&(e.kind??'plan')==='plan');
 export const blockTasks=(data,id)=>tasks(data).filter(e=>(e.blockId??null)===(id??null)).sort((a,b)=>(a.priority??Infinity)-(b.priority??Infinity)||a.id-b.id);
@@ -21,15 +21,18 @@ export function validatePlanner(data){
   for(const g of p.goals){link(p.areas,g.areaId);integer(g.year,2000,2200);if(!['yearly','quarterly','monthly'].includes(g.horizon??'yearly'))throw new Error('Choose a valid goal horizon.');if(g.horizon==='quarterly'||g.horizon==='monthly')integer(g.period,1,g.horizon==='quarterly'?4:12);}
   for(const pr of p.projects)link(p.goals,pr.goalId);
   for(const e of tasks(data)){link(p.blocks,e.blockId);if(e.minutes!=null)integer(e.minutes,1,1440);if(e.priority!=null)integer(e.priority,0,100000);}
+  validateReviewData(p);
   return data;
 }
 
 /** Validate on a copy, commit once, keep a single complete undo plus compact receipts. */
 export function editPlan(data,op,now=new Date()){
-  const next=structuredClone(data);next.planner??=freshPlanner();const p=next.planner,before=snap(data),at=now.toISOString();let result;
+  const next=structuredClone(data);next.planner??=freshPlanner();migrateReviewData(next);const p=next.planner,before=snap(data),at=now.toISOString();let result;
   if(op.type==='undo'){
     if(!p.undo)throw new Error('No planning change to undo.');
     const restored=p.undo;next.entries=restored.entries;next.planner=restored.planner;next.planner.undo=null;next.undo=null;
+    // Review progress is where the user is in the flow, not a plan change: Undo never rewinds it.
+    migrateReviewData(next);next.planner.reviews=p.reviews;
     validatePlanner(next);Object.assign(data,next);return null;
   }
   if(op.type==='rateAreas'){
@@ -49,7 +52,7 @@ export function editPlan(data,op,now=new Date()){
   }else if(op.type==='removeEntity'){
     if(!['projects','blocks','areas','goals'].includes(op.collection))throw new Error('Unknown planning group.');one(p[op.collection],op.id);
     p[op.collection]=p[op.collection].filter(x=>x.id!==op.id);
-    if(op.collection==='blocks')for(const e of next.entries)if(e.blockId===op.id)e.blockId=null;
+    if(op.collection==='blocks'){for(const e of next.entries)if(e.blockId===op.id)e.blockId=null;forgetBlockInWeeks(p,op.id);}
     if(op.collection==='projects')for(const b of p.blocks)if(b.projectId===op.id)b.projectId=null;
     if(op.collection==='areas')for(const g of p.goals)if(g.areaId===op.id)g.areaId=null;
     if(op.collection==='goals')for(const pr of p.projects)if(pr.goalId===op.id)pr.goalId=null;
@@ -64,14 +67,14 @@ export function editPlan(data,op,now=new Date()){
     if('blockId'in f)e.blockId=link(p.blocks,f.blockId);
     if('priority'in f)e.priority=integer(f.priority,1,100000);
     if('must'in f){if(typeof f.must!=='boolean')throw new Error('Must must be on or off.');e.must=f.must;}
-    if('done'in f){if(typeof f.done!=='boolean')throw new Error('Invalid completion.');e.done=f.done;e.state=f.done?'done':'active';}
+    if('done'in f){if(typeof f.done!=='boolean')throw new Error('Invalid completion.');e.done=f.done;e.state=f.done?'done':'active';if(!f.done)e.completedAt=null;}
     if('alert'in f){if(!['alarm','reminder','off',null].includes(f.alert))throw new Error('Invalid alert.');e.alertIntent={type:f.alert};}
     if('recurrence'in f){if(![null,'daily','weekly','weekdays'].includes(f.recurrence))throw new Error('Invalid recurrence.');e.recurrence=f.recurrence;}
     if('repeatAfterDays'in f)e.repeatAfterDays=f.repeatAfterDays==null?null:integer(f.repeatAfterDays,1,365);
     if(e.repeatAfterDays&&e.recurrence)throw new Error('Choose one repeat pattern.');
     if((e.recurrence||e.repeatAfterDays)&&!e.planned)throw new Error('Add the first date and time for a repeating task.');
     if('planned'in f&&f.planned!==old.planned||'recurrence'in f&&f.recurrence!==old.recurrence)e.completedOccurrences=[];
-    if(f.done===true){e.done=false;e.state='active';completeTask(e,op.occurrence,now);}
+    if(f.done===true){e.done=false;e.state='active';completeTask(e,op.occurrence,now);keepCompletionTime(e,old,at);}
     e.revisions.push({at,reason:'Edited in planner',before:old,snapshot:{title:e.title,planned:e.planned,minutes:e.minutes,blockId:e.blockId,must:e.must,done:e.done}});
     e.revisions=e.revisions.slice(-100);
     if(!op.id)next.entries.push(e);
@@ -79,7 +82,7 @@ export function editPlan(data,op,now=new Date()){
     if(!op.id||oldBlock!==newBlock||'priority'in f){const rows=blockTasks(next,newBlock).filter(t=>t.id!==e.id),index='priority'in f?Math.min(rows.length,f.priority-1):rows.length;rows.splice(index,0,e);rows.forEach((t,i)=>{t.priority=i+1;});if(oldBlock!==newBlock)blockTasks(next,oldBlock).forEach((t,i)=>{t.priority=i+1;});}
     result=e.id;
   }else if(op.type==='reopenTask'){
-    const e=one(tasks(next),op.id),occurrence=op.occurrence??e.completions?.at(-1)?.occurrence;if(occurrence){const hit=(e.completions??[]).find(c=>c.occurrence===occurrence);if(!hit)throw new Error('That completion no longer exists.');if(e.repeatAfterDays)e.planned=occurrence;e.completedOccurrences=(e.completedOccurrences??[]).filter(k=>k!==occurrence);e.completions=e.completions.filter(c=>c!==hit);}e.done=false;e.state='active';result=e.id;
+    const e=one(tasks(next),op.id),occurrence=op.occurrence??e.completions?.at(-1)?.occurrence;if(occurrence){const hit=(e.completions??[]).find(c=>c.occurrence===occurrence);if(!hit)throw new Error('That completion no longer exists.');if(e.repeatAfterDays)e.planned=occurrence;e.completedOccurrences=(e.completedOccurrences??[]).filter(k=>k!==occurrence);e.completions=e.completions.filter(c=>c!==hit);}e.done=false;e.state='active';if(!repeats(e))e.completedAt=null;result=e.id;
   }else if(op.type==='archiveTask'||op.type==='restoreTask'){
     const e=one(next.entries,op.id);if((e.kind??'plan')!=='plan')throw new Error('Choose a task.');
     e.archived=op.type==='archiveTask';e.archiveDisposition=e.archived?(op.disposition==='archive'?'archive':'trash'):null;if(e.blockId&&!p.blocks.some(b=>b.id===e.blockId))e.blockId=null;
@@ -122,6 +125,8 @@ export function editPlan(data,op,now=new Date()){
     const draft=one(p.drafts,op.id);draft.status='dismissed';draft.final=null;
   }else if(op.type==='context'){
     if(typeof op.approved!=='boolean')throw new Error('Review state is required.');p.context={...p.context,vision:text(op.vision,10000),goals:text(op.goals,10000),coreValues:text(op.coreValues??p.context.coreValues??'',10000),approved:op.approved,updated:at};
+  }else if(REVIEW_OPS[op.type]){
+    result=REVIEW_OPS[op.type](next,op,at);
   }else throw new Error('Unknown planning action.');
   for(const task of next.entries){if(task.blockId&&task.purpose){task.revisions??=[];task.revisions.push({at,reason:'Task purpose retained in notes',before:{purpose:task.purpose,notes:task.notes??''}});task.notes=[task.notes,'Previous task purpose: '+task.purpose].filter(Boolean).join('\n\n');task.purpose='';}}
   validatePlanner(next);p.events.push({id:randomUUID(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=before;next.undo=null;
@@ -152,3 +157,157 @@ export function timelineItems(data,day,calendar=[],minimumVisualMinutes=0){
   let group=[],until=-Infinity;const finish=()=>{const ends=[];for(const e of group){let lane=ends.findIndex(t=>t<=e.start);if(lane<0)lane=ends.length;ends[lane]=visualEnd(e);e.lane=lane;}for(const e of group)e.lanes=ends.length;group=[];};
   for(const e of rows){if(e.start>=until){finish();until=visualEnd(e);}else until=Math.max(until,visualEnd(e));group.push(e);}finish();return rows;
 }
+
+/* ---------- Weekly review data (reviewVersion 1) ----------
+   Block:   achieved (boolean, only ever set by the user), achievedAt (ISO or null), evidence (the user's words).
+   Task:    completedAt (ISO) stamped when a one-time task is completed from now on; never back-filled.
+            reviewChoice {week, choice:'carry'|'defer'|'drop', at, cleared?} records a review decision.
+   Planner: weeks[week] = {focus:[blockId…≤5], verdicts:{blockId:'achieved'|'partly'|'notyet'}}  (plan data, undoable)
+            reviews[week] = {step, startedAt, updatedAt, finishedAt, focusDraft, inboxIds}      (progress, kept on Undo) */
+export const REVIEW_VERSION = 1;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const VERDICTS = ['achieved', 'partly', 'notyet'];
+const CHOICES = ['carry', 'defer', 'drop'];
+
+function upgradePlannerForReview(p) {
+  if (!p || typeof p !== 'object') return false;
+  if (p.reviewVersion >= REVIEW_VERSION && p.weeks && p.reviews) return false;
+  for (const block of p.blocks ?? []) {
+    block.achieved = block.achieved === true;
+    block.achievedAt ??= null;
+    if (typeof block.evidence !== 'string') block.evidence = '';
+  }
+  p.weeks ??= {};
+  p.reviews ??= {};
+  p.reviewVersion = REVIEW_VERSION;
+  return true;
+}
+
+/** Lossless and idempotent: adds review defaults to the store and to the Undo snapshot. Tasks are untouched. */
+export function migrateReviewData(data) {
+  if (!data?.planner) return false;
+  const changed = upgradePlannerForReview(data.planner);
+  const undoChanged = upgradePlannerForReview(data.planner.undo?.planner);
+  return changed || undoChanged;
+}
+
+function validateReviewData(p) {
+  for (const b of p.blocks) {
+    if (b.achieved != null && typeof b.achieved !== 'boolean') throw new Error('Invalid Result status.');
+    if (b.achievedAt != null && !Number.isFinite(Date.parse(b.achievedAt))) throw new Error('Invalid Result status.');
+    if (b.evidence != null) text(b.evidence, 2000);
+  }
+  for (const [week, record] of Object.entries(p.weeks ?? {})) {
+    if (!DAY.test(week) || !record || typeof record !== 'object') throw new Error('Invalid week plan.');
+    const focus = record.focus ?? [];
+    if (!Array.isArray(focus) || focus.length > 5 || new Set(focus).size !== focus.length) throw new Error('Choose up to five Results for a week.');
+    for (const verdict of Object.values(record.verdicts ?? {})) if (!VERDICTS.includes(verdict)) throw new Error('Invalid Result status.');
+  }
+}
+
+function forgetBlockInWeeks(p, blockId) {
+  for (const record of Object.values(p.weeks ?? {})) {
+    if (Array.isArray(record.focus)) record.focus = record.focus.filter(id => id !== blockId);
+    if (record.verdicts) delete record.verdicts[blockId];
+  }
+}
+
+/** Stamp completion time once, when a one-time task actually becomes done; editing a done task keeps its stamp. */
+function keepCompletionTime(e, old, at) {
+  if (repeats(e) || !e.done) return;
+  if (!old.done) {
+    e.completedAt = at;
+    return;
+  }
+  if ('completedAt' in old) e.completedAt = old.completedAt;
+  else delete e.completedAt;
+}
+
+function weekRecord(p, week) {
+  if (typeof week !== 'string' || !DAY.test(week)) throw new Error('Choose a valid week.');
+  p.weeks[week] ??= {focus: [], verdicts: {}};
+  p.weeks[week].focus ??= [];
+  p.weeks[week].verdicts ??= {};
+  return p.weeks[week];
+}
+
+function markAchievedOp(next, op, at) {
+  const p = next.planner;
+  const block = one(p.blocks, op.id);
+  if (typeof op.achieved !== 'boolean') throw new Error('Choose whether the Result was achieved.');
+  if (op.evidence != null) block.evidence = text(op.evidence, 2000);
+  if (op.achieved && !block.achieved) block.achievedAt = at;
+  if (!op.achieved) block.achievedAt = null;
+  block.achieved = op.achieved;
+  if (op.week != null) {
+    const verdict = op.verdict ?? (op.achieved ? 'achieved' : 'notyet');
+    if (!VERDICTS.includes(verdict) || (verdict === 'achieved') !== op.achieved) throw new Error('Invalid Result status.');
+    weekRecord(p, op.week).verdicts[block.id] = verdict;
+  }
+  return block.id;
+}
+
+function setWeekFocusOp(next, op) {
+  const p = next.planner;
+  if (!Array.isArray(op.ids) || op.ids.length > 5 || new Set(op.ids).size !== op.ids.length) throw new Error('Choose up to five Results for a week.');
+  for (const id of op.ids) one(p.blocks, id);
+  weekRecord(p, op.week).focus = [...op.ids];
+  return op.week;
+}
+
+function isBefore(task, week) {
+  const day = task.planned ? localDay(task.planned) : task.plannedDate;
+  return !!day && day < week;
+}
+
+function reviewTaskOp(next, op, at) {
+  const p = next.planner;
+  if (!CHOICES.includes(op.choice)) throw new Error('Choose carry, defer or drop.');
+  const e = one(next.entries, op.id);
+  if ((e.kind ?? 'plan') !== 'plan' || e.done) throw new Error('Choose an open task.');
+  const previous = e.reviewChoice?.week === op.week ? e.reviewChoice : null;
+  const before = {archived: !!e.archived, planned: e.planned ?? null, plannedDate: e.plannedDate ?? null, choice: previous?.choice ?? null};
+  weekRecord(p, op.week);
+  if (e.archived && op.choice !== 'drop') {
+    e.archived = false;
+    e.archiveDisposition = null;
+    if (e.blockId && !p.blocks.some(b => b.id === e.blockId)) e.blockId = null;
+  }
+  if (previous?.cleared && op.choice !== 'defer') Object.assign(e, previous.cleared);
+  const choice = {week: op.week, choice: op.choice, at};
+  if (op.choice === 'defer' && !repeats(e) && isBefore(e, op.week)) {
+    choice.cleared = {planned: e.planned ?? null, plannedDate: e.plannedDate ?? null};
+    e.planned = null;
+    e.plannedDate = null;
+  }
+  if (op.choice === 'drop') {
+    e.archived = true;
+    e.archiveDisposition = 'archive';
+  }
+  e.reviewChoice = choice;
+  e.revisions ??= [];
+  e.revisions.push({at, reason: 'Weekly review: ' + op.choice, before});
+  e.revisions = e.revisions.slice(-100);
+  return e.id;
+}
+
+function groupTaskOp(next, op, at) {
+  const p = next.planner;
+  const e = one(tasks(next), op.id);
+  let target = op.blockId ?? null;
+  if (op.newBlock) {
+    const block = {id: randomUUID(), created: at, title: title(op.newBlock.title), purpose: text(op.newBlock.purpose ?? ''), notes: '', projectId: link(p.projects, op.newBlock.projectId), achieved: false, achievedAt: null, evidence: ''};
+    p.blocks.push(block);
+    target = block.id;
+  } else target = link(p.blocks, target);
+  const oldBlock = e.blockId ?? null;
+  if (oldBlock === target) return target;
+  e.blockId = target;
+  const rows = blockTasks(next, target).filter(t => t.id !== e.id);
+  rows.push(e);
+  rows.forEach((t, i) => { t.priority = i + 1; });
+  blockTasks(next, oldBlock).forEach((t, i) => { t.priority = i + 1; });
+  return target;
+}
+
+const REVIEW_OPS = {markAchieved: markAchievedOp, setWeekFocus: setWeekFocusOp, reviewTask: reviewTaskOp, groupTask: groupTaskOp};
