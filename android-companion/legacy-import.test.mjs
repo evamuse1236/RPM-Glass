@@ -50,3 +50,12 @@ test('nothing to copy leaves the store untouched',()=>{
   assert.equal(importLegacyEntries(d,{done:false,entries:[],projects:[],revisions:[]}),0);
   assert.equal(importLegacyEntries(d,null),0);assert.deepEqual(d,before);
 });
+
+test('undoing an earlier planner change keeps the copied entries',()=>{
+  const d=freshStore();editPlan(d,{type:'saveTask',fields:{title:'Before import'}});const later=editPlan(d,{type:'saveTask',fields:{title:'Undo me'}});
+  assert.ok(d.planner.undo);importLegacyEntries(d,legacy());
+  const ids=d.entries.map(e=>e.id);assert.equal(new Set(ids).size,ids.length);
+  editPlan(d,{type:'undo'});
+  assert.equal(d.entries.some(e=>e.id===later),false);
+  assert.deepEqual(d.entries.filter(e=>e.legacyId).map(e=>e.legacyId).sort(),[1,2,3]);
+});
