@@ -45,7 +45,10 @@ The previous `prototype-reimagined.html` is preserved for reference. Its former 
 
 Use JDK 17 and an Android SDK with platform 36 and Build Tools 36.0.0. Set `JAVA_HOME` and `ANDROID_HOME`, or put `sdk.dir=...` in a local `local.properties` file. Local tooling downloaded during development lives in ignored `.tooling/` and `/home/darax/.cache/rpm-android/sdk`.
 
+Run `npm ci` once (and after dependency changes) before building. Gradle's `preBuild` runs `node scripts/build-companion-assets.mjs`, which needs esbuild and chrono-node from `node_modules` and regenerates the untracked WebView assets in `app/src/main/assets/companion/`.
+
 ```bash
+npm ci
 ./scripts/test-parser.sh
 ./scripts/build-debug.sh
 ```
