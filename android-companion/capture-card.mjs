@@ -1,73 +1,241 @@
-import {captureSchedule,captureDuration} from './capture-content.mjs';
-import {formattedReply} from '../chat-prototype/reply-format.mjs';
+// The current Capture response: proposals, one question, or a receipt.
+// Every change still goes through the existing typed draft actions.
+import {captureSchedule,captureDuration,captureWeekday,scheduleChips} from './capture-content.mjs';
+import {actionPresentation} from './capture-session.mjs';
+import {el,icon,button,iconButton,chip,details} from './capture-dom.mjs';
+import {keptCard,dialogueCard,receiptCard,receiptActions,parkedCard,undoneCard,originalWords,warning} from './capture-states.mjs';
 
-/** Render one current capture. All mutations remain with the existing actions. */
-export function captureCard(capture,{document:doc=document,focused=false,history=false,canUndo=false,onAction,onRetry,onEditWords,onResume,onUndo,onOpen,onOpenPlanner,delivery}={}){
- const el=(tag,cls,text)=>{const n=doc.createElement(tag);n.className=cls??'';if(text!==undefined)n.textContent=text;return n;};
- const button=(text,fn,cls='quiet')=>{const b=el('button',cls,text);b.type='button';b.addEventListener('click',fn);return b;};
- const icon=(name)=>{const svg=doc.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');const path=doc.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',name==='check'?'m5 12 4 4L19 6':name==='calendar'?'M5 5h14v15H5zM8 3v4m8-4v4M5 10h14':'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 4v5l3 2');svg.append(path);return svg;};
- const source=()=>{const d=el('details','cap-details');d.append(el('summary','','Details'),el('p','cap-field-label','Original words'),el('p','cap-original',capture.raw));for(const a of capture.draft?.schedulePreview?.items?.flatMap(i=>i.assumptions??[])??[])d.append(el('p','cap-detail-note',a));return d;};
- const row=el('section','message assistant intent-review cap-response');row.dataset.messageId=capture.messageId;
- const draft=capture.draft;row.dataset.replyKey=JSON.stringify([capture.messageId,capture.reply,draft?.revision,draft?.status,capture.lastError?.message]);
+const ENTITY={task:'task',block:'Block',project:'Project',goal:'Goal',area:'Area'};
+const FIELD_LABEL={purpose:'Purpose',notes:'Notes',projectId:'Project',goalId:'Goal',areaId:'Area',year:'Year',priority:'Position in Plan',recurrence:'Repeats',repeatAfterDays:'Days between repeats',alert:'Alert'};
+const CHANGE={update:'Change',complete:'Mark as done',archive:'Archive'};
+const deviceZone=()=>Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+export function opTitle(op){
+ const set=op.fields.find(f=>f.name==='title'&&f.op==='set');
+ const entity=ENTITY[op.entity]??'item';
+ return set?.value??op.targetTitle??entity[0].toUpperCase()+entity.slice(1);
+}
+const actionBase=draft=>({conversationId:draft.conversationId,draftId:draft.id,revision:draft.revision});
+
+function fieldValue(field){
+ if(field.op==='unknown')return 'Needs your answer';
+ if(field.op==='clear')return 'Remove';
+ if(field.name==='minutes')return captureDuration(field.value);
+ if(field.displayValue!==undefined)return field.displayValue;
+ if(typeof field.value==='boolean')return field.value?'Yes':'No';
+ return String(field.value);
+}
+
+function destination(op){
+ if(op.entity!=='task')return null;
+ const block=op.fields.find(f=>f.name==='blockId');
+ const row=el('p','prop-dest');
+ if(block?.op==='set'){
+  row.append(icon('subdirectory_arrow_right'),el('span','','Block '),el('b','',block.displayValue??'Unavailable Block'));
+  return row;
+ }
+ if(block?.op==='clear'||op.kind==='create'){
+  row.append(icon('inbox'),el('b','','Inbox'),el('span','',' · No block'));
+  return row;
+ }
+ return null;
+}
+
+function scheduleRow(op,draft,ctx,{active,title}){
+ const preview=draft.schedulePreview?.items?.find(p=>p.opId===op.opId);
+ const timeZone=draft.schedulePreview?.timezone??deviceZone();
+ const schedule=captureSchedule(preview,{timeZone,reference:new Date()});
+ const row=el('div','prop-chips');
+ const change=active?()=>ctx.on.prefill(`Change the time of “${title}” to `,draft):null;
+ for(const item of scheduleChips(schedule,captureWeekday(preview,{timeZone}))){
+  row.append(chip(item.label,{iconName:item.icon,onClick:change,cls:item.muted?'muted':'',ariaLabel:change?`${item.label}. Change date and time`:null}));
+ }
+ const minutes=op.fields.find(f=>f.name==='minutes'&&f.op==='set'&&Number.isFinite(f.value));
+ if(minutes&&!schedule?.duration)row.append(chip(captureDuration(minutes.value)+' estimate',{iconName:'timer'}));
+ const nodes=[];
+ if(row.childElementCount)nodes.push(row);
+ if(schedule?.review&&!draft.question)nodes.push(el('p','needs-answer',schedule.review.replace(`For ${title}: `,'')));
+ if(schedule&&!schedule.review&&timeZone!==deviceZone()){
+  const zone=new Intl.DateTimeFormat('en-GB',{timeZone,timeZoneName:'short'}).formatToParts(new Date(preview.planned??Date.now())).find(p=>p.type==='timeZoneName')?.value;
+  if(zone)nodes.push(el('p','detail-note','Times in '+zone));
+ }
+ return {nodes,hasDuration:!!schedule?.duration};
+}
+
+function otherFields(op,draft,{active,hasDuration}){
+ const nodes=[];
+ for(const f of op.fields){
+  if(['title','time','blockId','must'].includes(f.name))continue;
+  if(f.name==='minutes'&&(hasDuration||f.op==='set'))continue;
+  if(f.op==='unknown'&&draft.question?.opId===op.opId&&draft.question.field===f.name)continue;
+  const line=el('p','prop-field');
+  line.append(el('span','field-label',f.name==='minutes'?'Estimate':FIELD_LABEL[f.name]??f.displayLabel??f.name),el('span','',fieldValue(f)));
+  if(active&&f.origin==='suggested')line.append(el('span','tag','Suggested'));
+  nodes.push(line);
+ }
+ return nodes;
+}
+
+function mustToggle(op,draft,ctx,active){
+ if(op.entity!=='task'||!['create','update'].includes(op.kind))return null;
+ const must=op.fields.find(f=>f.name==='must'&&f.op==='set')?.value===true;
+ if(!active&&!must)return null;
+ const toggle=()=>ctx.on.action({...actionBase(draft),kind:'set-field',opId:op.opId,field:'must',value:!must});
+ const star=iconButton('star',`Must: ${opTitle(op)}`,active?toggle:null,{cls:'star',fill:must,pressed:must});
+ if(!active)star.disabled=true;
+ return star;
+}
+
+function itemMenu(op,draft,ctx){
+ const title=opTitle(op);
+ return iconButton('more_vert',`More for ${title}`,e=>ctx.on.itemMenu(e.currentTarget,[
+  {label:'Edit',icon:'edit',run:()=>ctx.on.prefill(`For “${title}”: `,draft)},
+  {label:'Remove',icon:'remove_circle_outline',run:()=>ctx.on.prefill(`Remove “${title}” from this draft.`,draft)},
+ ]),{cls:'prop-more'});
+}
+
+function proposalItem(op,draft,ctx,{multi,active}){
+ const title=opTitle(op);
+ const item=el('article','prop');
+ item.dataset.opId=op.opId;
+ const top=el('div','prop-top'),heading=el('div','prop-heading');
+ const kind=op.entity!=='task'?(op.kind==='create'?'New ':'')+ENTITY[op.entity]:null;
+ const change=op.kind!=='create'?CHANGE[op.kind]??op.kind:null;
+ const eyebrow=[change,kind].filter(Boolean).join(' · ');
+ if(eyebrow)heading.append(el('p','prop-kind',eyebrow));
+ heading.append(el('h3','prop-title',title));
+ const titleField=op.fields.find(f=>f.name==='title'&&f.op==='set');
+ if(active&&titleField?.origin==='suggested')heading.append(el('span','tag','Suggested title'));
+ top.append(heading);
+ const star=mustToggle(op,draft,ctx,active);
+ if(star)top.append(star);
+ if(multi&&active)top.append(itemMenu(op,draft,ctx));
+ item.append(top);
+ const dest=destination(op);
+ if(dest)item.append(dest);
+ const schedule=scheduleRow(op,draft,ctx,{active,title});
+ item.append(...schedule.nodes,...otherFields(op,draft,{active,hasDuration:schedule.hasDuration}));
+ return item;
+}
+
+function draftKicker(draft,{focused}){
+ const ops=draft.operations,n=ops.length;
+ if(draft.validationNotice)return 'Check this draft';
+ if(draft.question)return 'One thing to check';
+ if(draft.review)return 'Check the time';
+ if(focused)return 'Editing this draft';
+ if(n>1)return ops.every(op=>op.entity==='task'&&op.kind==='create')?`${n} tasks from your note`:`${n} proposed changes`;
+ const op=ops[0];
+ if(op?.kind==='update')return `Change to a ${ENTITY[op.entity]??'record'}`;
+ if(op?.kind!=='create')return 'Proposed change';
+ return `Proposed ${ENTITY[op?.entity]??'task'}`;
+}
+
+function questionBlock(draft,ctx){
+ const box=el('div','question');
+ box.append(el('p','question-prompt',draft.question.prompt));
+ const others=draft.operations.length-1;
+ if(others>0)box.append(el('p','question-sub',`The other ${others===1?'one is':others+' are'} ready and will wait.`));
+ const list=el('div','choices');
+ list.setAttribute('role','group');
+ list.setAttribute('aria-label','Answers');
+ for(const item of draft.actions.filter(a=>a.action.kind==='answer')){
+  const info=ctx.describe?.(item.action.field,item.action.value);
+  const row=el('button','choice');
+  row.type='button';
+  if(info?.tone){const dot=el('span','dot');dot.style.background=`var(--${info.tone})`;row.append(dot);}
+  else row.append(icon(item.action.field==='time'?'schedule':'radio_button_unchecked'));
+  const text=el('span','choice-text');
+  text.append(el('span','choice-title',info?.title??item.label));
+  if(info?.subtitle)text.append(el('span','choice-sub',info.subtitle));
+  row.append(text);
+  row.addEventListener('click',()=>ctx.on.action(item.action));
+  list.append(row);
+ }
+ const asked=draft.operations.find(op=>op.opId===draft.question.opId);
+ if(draft.question.field==='blockId'&&asked?.entity==='task'){
+  // Leaving the Block unset is always a valid answer: the task stays in the Inbox.
+  const row=el('button','choice');
+  row.type='button';
+  row.append(icon('inbox',{cls:'inbox'}));
+  const text=el('span','choice-text');
+  text.append(el('span','choice-title','Keep it in the Inbox'),el('span','choice-sub','No block for now'));
+  row.append(text);
+  row.addEventListener('click',()=>ctx.on.action({...actionBase(draft),kind:'set-field',opId:asked.opId,field:'blockId',clear:true}));
+  list.append(row);
+ }
+ box.append(list);
+ return box;
+}
+
+function draftActions(draft,{multi}){
+ const items=(draft.actions??[]).filter(a=>a.action.kind!=='answer');
+ const hasCommit=items.some(a=>a.action.kind==='commit');
+ return items
+  .filter(a=>!(multi&&hasCommit&&a.action.kind==='open'))
+  .map(item=>({item,...actionPresentation(item,draft)}))
+  .sort((a,b)=>a.order-b.order);
+}
+
+function activeDraft(capture,ctx){
+ const draft=capture.draft,multi=draft.operations.length>1;
+ const card=el('section','state-card proposal-card');
+ card.dataset.status=draft.status;
+ const kicker=el('p','kicker');
+ if(draft.validationNotice)kicker.append(icon('error',{cls:'warning-icon'}));
+ kicker.append(el('span','',draftKicker(draft,ctx)));
+ card.append(kicker);
+ if(draft.mode==='plan'&&capture.reply){
+  const lead=el('p','reply-lead',capture.reply);
+  card.append(lead);
+ }
+ if(draft.validationNotice)card.append(warning('Check this draft',draft.validationNotice));
+ if(draft.review)card.append(el('p','needs-answer',draft.review.question));
+ const items=el('div','props');
+ for(const op of draft.operations)items.append(proposalItem(op,draft,ctx,{multi,active:true}));
+ if(draft.question){
+  card.append(questionBlock(draft,ctx),details(multi?`Show all ${draft.operations.length} proposals`:'Show the proposal',[items],'details props-details'));
+ }else card.append(items);
+ const notes=draft.schedulePreview?.items?.flatMap(i=>i.assumptions??[])??[];
+ card.append(originalWords(capture.raw,notes));
+ const actions=draftActions(draft,{multi}).map(a=>button(a.label,()=>ctx.on.action(a.item.action),{role:a.role,iconName:a.icon}));
+ return {node:card,actions};
+}
+
+/**
+ * Render one capture. Returns the scrollable card and the actions that belong
+ * in the dock above the composer.
+ */
+export function renderResponse(capture,ctx){
+ const draft=capture.draft;
  if(capture.status==='captured'){
-  const box=el('section','cap-response-card');box.append(el('h2','cap-card-title','Your thought is kept'),el('p',capture.lastError?'intent-state error':'intent-state',capture.lastError?'Couldn’t prepare a draft. You can retry or edit your words.':'The review is not ready yet.'));
-  const actions=el('div','actions intent-actions cap-card-actions');actions.append(button('Retry',()=>onRetry(capture.messageId),'primary'),button('Edit',e=>onEditWords(capture.raw,e)));box.append(actions,source());row.append(box);return row;
+  const actions=[button('Edit',e=>ctx.on.editWords(capture.raw,e.currentTarget),{role:'text'})];
+  const retry=()=>ctx.on.retry(capture.messageId);
+  if(ctx.aiEnabled)actions.push(button('Retry',retry,{role:'filled',iconName:'refresh'}));
+  else actions.push(button('Retry',retry,{role:'text'}),button('Connect AI',ctx.on.connectAI,{role:'filled',iconName:'key'}));
+  return {node:keptCard(capture,ctx),actions,kind:'kept'};
  }
- if(!draft){
-  const box=el('section','cap-response-card cap-dialogue');box.append(formattedReply(capture.reply||'Thought kept.',doc),source());row.append(box);return row;
+ if(!draft)return {node:dialogueCard(capture),actions:[],kind:'dialogue'};
+ if(draft.status==='committed'){
+  return {node:receiptCard(capture,ctx),actions:receiptActions(capture,ctx),kind:'receipt'};
  }
- const allTasks=draft.operations.every(op=>op.entity==='task');
- const saved=draft.status==='committed',parked=draft.status==='parked',undone=draft.status==='undone',active=['draft','review'].includes(draft.status);
- const box=el('section','intent-draft cap-response-card');box.dataset.status=draft.status;
- const only=draft.operations.length===1?draft.operations[0]:null,updateLabel=only?.kind==='update'?`Review ${only.entity==='area'?'life area':only.entity} changes`:null;
- const heading=el('div','cap-state');if(saved)heading.append(icon('check'));heading.append(el('span','',saved?(history?'Saved earlier':'Saved to Planner'):parked?'Draft kept':undone?'Save undone':draft.validationNotice?'Check this draft':updateLabel?updateLabel:focused?'Editing draft':draft.question?'Needs an answer':draft.operations.length>1?`${draft.operations.length} ${allTasks?'proposed tasks':'proposals'}`:'Proposed '+({block:'Block',project:'project',goal:'goal',area:'life area'}[draft.operations[0]?.entity]??'task')));box.append(heading);
- if(active&&draft.mode==='plan'&&capture.reply){const lead=el('details','cap-reply-details'),summary=el('summary','');summary.append(el('span','cap-reply-lead',capture.reply),el('span','cap-reply-toggle','Show full reply'));lead.append(summary,formattedReply(capture.reply,doc));box.append(lead);}
- const items=el('div','cap-items');
- for(const op of draft.operations){
-  const titleField=op.fields.find(f=>f.name==='title'&&f.op==='set'),title=titleField?.value??op.targetTitle??({task:'Task',block:'Block',project:'Project',goal:'Goal',area:'Life area'}[op.entity]??'Item');
-  const item=el('article','intent-operation cap-item');item.dataset.opId=op.opId;
-  if(!allTasks&&(draft.operations.length>1||op.entity!=='task'))item.append(el('p','cap-item-kind',({task:'Task',block:'Block',project:'Project',goal:'Goal',area:'Life area'}[op.entity]??'Item')));
-  item.append(el('h3','intent-operation-title cap-card-title',title));
-  if(!saved&&!undone&&op.kind!=='create'&&!(op.kind==='update'&&only))item.append(el('p','cap-change',({update:`Update ${op.entity==='area'?'life area':op.entity}`,complete:'Mark as done',archive:'Archive this item'}[op.kind]??op.kind)));
-  if(active&&titleField?.origin==='suggested')item.append(el('span','cap-suggested','Suggested'));
-  const preview=draft.schedulePreview?.items?.find(p=>p.opId===op.opId),schedule=captureSchedule(preview,{timeZone:draft.schedulePreview?.timezone,reference:new Date()});
-  if(schedule&&!schedule.review){
-   const when=el('div','intent-schedule cap-schedule');
-   if(schedule.crossDay){for(const label of [schedule.startLabel,'to '+schedule.endLabel]){const line=el('p','cap-when',label);when.append(line);}}
-   else {const date=el('p','cap-date');date.append(icon('calendar'),el('span','',schedule.date));when.append(date);const time=el('p','cap-time');time.append(icon('clock'),el('span','',schedule.time));when.append(time);}
-   if(schedule.duration){const line=when.querySelector('.cap-time')??when.lastElementChild;line.append(el('span','cap-duration','· '+schedule.duration));}item.append(when);
-   const zone=draft.schedulePreview?.timezone;if(zone){const format=new Intl.DateTimeFormat('en-GB',{timeZone:zone,timeZoneName:'short'});if(format.resolvedOptions().timeZone!==Intl.DateTimeFormat().resolvedOptions().timeZone)item.append(el('p','cap-detail-note',format.formatToParts(new Date(preview.planned??Date.now())).find(p=>p.type==='timeZoneName').value));}
-  }
-  if(schedule?.review&&!draft.question)item.append(el('p','cap-needs-answer',schedule.review.replace(`For ${title}: `,'')));
-  const labels={purpose:'Purpose',notes:'Notes',blockId:'Block',projectId:'Project',goalId:'Goal',areaId:'Life area',year:'Year',must:'Must do',priority:'Position in plan',recurrence:'Repeats',repeatAfterDays:'Days between repeats',alert:'Alert'};
-  for(const f of op.fields){
-   if(saved||undone)continue;
-   if(f.name==='title'||f.name==='time'||f.name==='minutes'&&schedule?.duration)continue;
-   if(f.op==='unknown'&&draft.question?.opId===op.opId&&draft.question.field===f.name)continue;
-   const label=f.name==='minutes'?'Estimate':labels[f.name]??f.displayLabel??f.name;
-   const value=f.op==='unknown'?'Needs your answer':f.op==='clear'?'Remove':f.name==='minutes'?captureDuration(f.value):f.displayValue??(typeof f.value==='boolean'?(f.value?'Yes':'No'):String(f.value));
-   if(f.name==='minutes'&&f.op==='set'&&Number.isFinite(f.value)){const estimate=el('p','cap-estimate');estimate.append(icon('clock'),el('span','',value),el('span','cap-field-label','estimate'));if(active&&f.origin==='suggested')estimate.append(el('span','cap-suggested','Suggested'));item.append(estimate);continue;}
-   const detail=el('p','cap-field');detail.append(el('span','cap-field-label',label),el('span','',value));if(active&&f.origin==='suggested')detail.append(el('span','cap-suggested','Suggested'));item.append(detail);
-  }
-  items.append(item);
+ if(draft.status==='parked'){
+  return {node:parkedCard(capture),actions:[button('Review draft',()=>ctx.on.resume(draft),{role:'tonal'})],kind:'parked'};
  }
- box.append(items);
- if(active&&draft.validationNotice)box.append(el('p','cap-needs-answer',draft.validationNotice));
- if(active&&draft.question)box.append(el('p','intent-question cap-question',draft.question.prompt));
- if(active&&draft.review)box.append(el('p','intent-question cap-question',draft.review.question));
- const actions=el('div','actions intent-actions cap-card-actions');actions.dataset.answers=String(!!draft.question);
- const ordered=[...(draft.actions??[])];if(!draft.question)ordered.sort((a,b)=>({dismiss:0,open:1,commit:3}[a.action.kind]??2)-({dismiss:0,open:1,commit:3}[b.action.kind]??2));
- for(const item of ordered){
-  const kind=item.action.kind,label=kind==='commit'&&!draft.review?(draft.operations.every(op=>op.kind==='create')?(draft.operations.length>1?'Add all':'Add'):'Save changes'):kind==='open'?'Edit':kind==='dismiss'?'Dismiss':item.label;
-  actions.append(button(label,()=>onAction(item.action),kind==='commit'?'primary':kind==='answer'||kind==='open'?'choice':'quiet'));
+ if(draft.status==='undone')return {node:undoneCard(capture),actions:[],kind:'undone'};
+ const {node,actions}=activeDraft(capture,ctx);
+ return {node,actions,kind:draft.question?'question':'proposal'};
+}
+
+/** A History card keeps its own actions inline, so older drafts stay recoverable. */
+export function historyCard(capture,ctx){
+ const canUndo=!!capture.draft?.receipt?.undoId&&capture.draft.receipt.undoId===ctx.undoId;
+ const {node,actions}=renderResponse(capture,{...ctx,history:true,canUndo});
+ node.classList.add('history-card');
+ if(actions.length){
+  const row=el('div','card-actions');
+  row.append(...actions);
+  node.append(row);
  }
- if(parked)actions.append(button('Review draft',()=>onResume(draft),'choice'));
- if(saved){
-  const receipts=(draft.receipt?.plannerReceipts??[]).filter(r=>r.action);
-  for(const receipt of receipts)if(receipt.entry?.alert){const status=delivery?.(receipt.entry.id);box.append(el('p','cap-delivery',status?.label??'Check alert delivery in Planner.'));}
-  if(canUndo)actions.append(button('Undo',()=>onUndo(draft),'cap-undo quiet'));
-  else if(draft.receipt?.undoId)box.append(el('p','cap-detail-note','Undo is no longer available.'));
-  if(receipts.length)actions.append(button('Open in Planner',()=>receipts.length===1?onOpen(receipts[0].action):onOpenPlanner(),'choice'));
- }
- if(actions.childElementCount)box.append(actions);box.append(source());row.append(box);return row;
+ return node;
 }

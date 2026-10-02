@@ -1,0 +1,510 @@
+// Capture: the floating quick-capture panel. Words are saved before any
+// assistant work, and nothing changes the plan until the user adds it.
+import {captureRenderKey} from './surface-refresh.mjs';
+import {renderResponse} from './capture-card.mjs';
+import {pendingCard,failureCard,warning} from './capture-states.mjs';
+import {renderHistory,renderConversation,renderContext,renderAbout} from './capture-views.mjs';
+import {installCaptureMenu} from './widget-menu.mjs';
+import {installCapturePresentation,createRevealTracker,enter} from './capture-presentation.mjs';
+import {installComposer,listeningCard} from './capture-composer.mjs';
+import {createSendIdentity,draftToKeep,startersFor} from './capture-session.mjs';
+import {el,icon,button,chip} from './capture-dom.mjs';
+
+const TITLES={listening:'Voice input',chat:'Capture',history:'History',conversation:'Conversation',context:'Context',about:'About'};
+const ACTIVE=new Set(['draft','review']);
+const AUTO_CLOSE_MS=6000;
+const SLOW_MS=8000;
+const KEEP_ENABLED=new Set(['close','expand','back','menu-toggle','about','settings','context-view','history-view','plans-view']);
+
+const storage={
+ get(key){try{return localStorage.getItem(key);}catch{return null;}},
+ set(key,value){try{localStorage.setItem(key,value);return true;}catch{return false;}},
+ remove(key){try{localStorage.removeItem(key);}catch{}},
+};
+const focusKey=id=>`rpm-intent-focus:${id}`;
+
+export function mountCapture(platform){
+ const $=id=>document.getElementById(id);
+ const panel=$('panel'),content=$('content'),dock=$('capture-actions'),message=$('message');
+ const s={state:null,busy:false,view:'chat',conversationId:storage.get('rpm-conversation'),focusedDraftId:null,
+  historyLimit:20,showArchived:false,lastKey:null,request:null,failure:null,listening:false,autoClose:null,slowTimer:null};
+ const identity=createSendIdentity();
+ const reveal=createRevealTracker();
+ const actionIds=new Map();
+ let itemPopover=null;
+
+ // ---- drafts -------------------------------------------------------------
+ function rememberComposer(text){
+  const kept=draftToKeep(text,{busy:s.busy,pendingText:identity.pending?.text});
+  storage.set('rpm-native-draft',kept);
+  platform.saveComposerDraft?.(kept).catch(()=>status('Couldn’t keep your unsent draft on this phone. Keep this window open and copy your words.',true));
+ }
+ const rememberDraft=()=>storage.set('rpm-native-draft',message.value);
+
+ function status(text,error=false){
+  const node=$('status');
+  node.textContent=text;
+  node.classList.toggle('error',error);
+  node.setAttribute('role',error?'alert':'status');
+ }
+
+ // ---- data views ---------------------------------------------------------
+ const conversation=()=>s.state.conversations.find(c=>c.id===s.conversationId)??s.state.conversations.find(c=>!c.archived)??s.state.conversations[0];
+ function intentPage(){
+  const id=conversation().id;
+  const first=platform.intentForConversation(id,{offset:0,limit:Math.min(s.historyLimit,100)});
+  const captures=[...(first.captures??[])];
+  for(let offset=100;offset<s.historyLimit&&offset<first.totalCaptures;offset+=100){
+   captures.push(...platform.intentForConversation(id,{offset,limit:Math.min(100,s.historyLimit-offset)}).captures);
+  }
+  return {...first,captures,hasMore:captures.length<first.totalCaptures};
+ }
+ const captures=()=>intentPage().captures?.filter(c=>c.conversationId===conversation().id)??[];
+ function draftIsOpen(id){
+  if(!id)return false;
+  const open=c=>c.draft?.id===id&&ACTIVE.has(c.draft.status);
+  const convo=conversation().id,total=platform.intentForConversation(convo,{limit:0}).totalCaptures??0;
+  for(let offset=0;offset<total;offset+=100){
+   if(platform.intentForConversation(convo,{offset,limit:100}).captures.some(open))return true;
+  }
+  return false;
+ }
+ function setFocusedDraft(id){
+  s.focusedDraftId=id??null;
+  const key=focusKey(conversation().id);
+  if(id)storage.set(key,id);else storage.remove(key);
+ }
+ /** A question's draft takes the next message as its answer. */
+ function answerDraft(){
+  const latest=s.view==='chat'?captures()[0]:null;
+  return latest?.draft&&ACTIVE.has(latest.draft.status)&&latest.draft.question?latest.draft.id:null;
+ }
+ const focusForSend=()=>s.focusedDraftId??answerDraft();
+
+ // ---- requests -----------------------------------------------------------
+ function actionId(action){
+  const key=JSON.stringify(action);
+  if(!actionIds.has(key))actionIds.set(key,crypto.randomUUID());
+  return actionIds.get(key);
+ }
+ function rawFor(messageId){
+  return captures().find(c=>c.messageId===messageId)?.raw??'';
+ }
+ function beginRequest(payload){
+  const pendingCardRequest=payload.type==='message'||payload.type==='intentRetry';
+  s.request={payload,card:pendingCardRequest,phase:payload.type==='intentRetry'?'sorting':'saving',attempt:0,slow:false,
+   text:payload.text??rawFor(payload.messageId)};
+  if(pendingCardRequest){
+   s.view='chat';
+   reveal.begin();
+   s.slowTimer=setTimeout(()=>{if(s.request?.card){s.request.slow=true;refreshPending();}},SLOW_MS);
+  }
+ }
+ async function post(payload){
+  const body={...payload,version:s.state.version,conversationId:s.conversationId};
+  const response=await fetch('/api/turn',{method:'POST',headers:{'Content-Type':'application/json','X-RPM-Token':s.state.csrf},body:JSON.stringify(body)});
+  const data=await response.json();
+  if(!response.ok){
+   if(data.state)s.state=data.state;
+   throw new Error(data.error??'Could not finish the request.');
+  }
+  return data;
+ }
+ async function turn(payload){
+  if(s.busy||!s.state)return null;
+  const draftText=message.value;
+  cancelAutoClose();closeItemMenu();
+  if(payload.type==='message'){
+   const pending=identity.forText(payload.text,focusForSend());
+   payload={...payload,messageId:pending.messageId,focusDraftId:pending.focusDraftId};
+  }
+  s.busy=true;s.failure=null;
+  beginRequest(payload);
+  if(payload.type==='message'&&message.value===payload.text){
+   composer.set('',{focus:false});
+   rememberComposer('');
+   message.focus({preventScroll:true});
+  }
+  render();
+  try{
+   const data=await post(payload);
+   s.state=data;
+   if(payload.type==='new'){s.conversationId=data.conversations.at(-1).id;s.view='chat';}
+   if(payload.type==='message')identity.settle();
+   const request=endRequest();
+   render();
+   settleReveal(request);
+   return data;
+  }catch(error){
+   const request=endRequest();
+   const saved=request?.card&&request.phase==='sorting';
+   if(payload.type==='message'&&!saved&&!message.value&&draftText===payload.text){
+    composer.set(draftText,{focus:false});
+    rememberComposer(draftText);
+   }
+   const text=error.message==='Failed to fetch'?'The phone did not respond. Your words are kept.':error.message;
+   s.failure={payload,saved,text:request?.text,error:text,actionFailed:!request?.card,inBox:!!request?.text&&message.value===request.text};
+   reveal.settle(null,{failed:true});
+   render();
+   return null;
+  }
+ }
+ function endRequest(){
+  clearTimeout(s.slowTimer);
+  const request=s.request;
+  s.busy=false;s.request=null;
+  return request;
+ }
+ function refreshPending(){
+  if(!s.request?.card||s.view!=='chat')return;
+  const node=content.querySelector('.pending-card');
+  if(node)node.replaceWith(pendingCard(s.request));
+ }
+ // Real request events from the intent service: the raw words are committed
+ // ("captured") before the assistant is asked anything.
+ window.addEventListener('rpm-intent-event',e=>{
+  const event=e.detail??{},request=s.request;
+  if(!request?.card||event.messageId!==request.payload.messageId)return;
+  if(event.type==='captured')request.phase='sorting';
+  if(event.type==='interpreting'){request.phase='sorting';request.attempt=event.attempt??0;}
+  refreshPending();
+ });
+
+ async function runIntentAction(action){
+  if(action.kind==='open'){
+   setFocusedDraft(action.draftId);
+   await turn({type:'intentAction',action,actionId:actionId(action)});
+   if(draftIsOpen(action.draftId))message.focus({preventScroll:true});
+   else setFocusedDraft(null);
+   render();
+   return;
+  }
+  const result=await turn({type:'intentAction',action,actionId:actionId(action)});
+  if(action.draftId===s.focusedDraftId&&!draftIsOpen(action.draftId)){setFocusedDraft(null);render();}
+  const latest=captures()[0];
+  if(result&&action.kind==='commit'&&latest?.draft?.id===action.draftId&&latest.draft.status==='committed')scheduleAutoClose();
+ }
+ async function prefill(text,draft){
+  if(ACTIVE.has(draft.status)&&s.focusedDraftId!==draft.id){
+   await runIntentAction({conversationId:draft.conversationId,draftId:draft.id,revision:draft.revision,kind:'open'});
+  }
+  if(!message.value.trim())composer.set(text);
+  else message.focus({preventScroll:true});
+ }
+ function editWords(text,origin){
+  if(!message.value||message.value===text){composer.set(text);return;}
+  const holder=origin?.closest('.action-dock,.state-card')??content;
+  if(document.querySelector('.replace-confirm'))return;
+  const confirm=el('div','replace-confirm');
+  confirm.append(el('p','','Replace the draft you’re writing?'));
+  const row=el('div','card-actions');
+  row.append(button('Keep current draft',()=>confirm.remove(),{role:'text'}),button('Replace draft',()=>{confirm.remove();composer.set(text);},{role:'tonal'}));
+  confirm.append(row);
+  (holder===dock?content:holder).append(confirm);
+ }
+ async function captureAction(action){
+  if(s.busy)return;
+  try{await platform.captureAction(action);}
+  catch(error){status(error.message,true);}
+ }
+
+ // ---- auto close after Add -----------------------------------------------
+ function scheduleAutoClose(){
+  cancelAutoClose();
+  if(message.value.trim())return;
+  panel.dataset.autoClose='true';
+  s.autoClose=setTimeout(()=>{
+   s.autoClose=null;panel.dataset.autoClose='false';
+   if(!message.value.trim()&&s.view==='chat'&&!s.busy&&!menu.isOpen())platform.action('minimize').catch(()=>{});
+  },AUTO_CLOSE_MS);
+ }
+ function cancelAutoClose(){
+  if(s.autoClose)clearTimeout(s.autoClose);
+  s.autoClose=null;panel.dataset.autoClose='false';
+ }
+ for(const type of ['pointerdown','keydown','input','wheel'])panel.addEventListener(type,cancelAutoClose,{capture:true,passive:true});
+
+ // ---- item overflow menu -------------------------------------------------
+ function openItemMenu(anchor,items){
+  closeItemMenu();
+  const pop=el('div','popover');
+  pop.setAttribute('role','menu');
+  for(const item of items){
+   const row=el('button','popover-item');
+   row.type='button';row.setAttribute('role','menuitem');
+   row.append(icon(item.icon),el('span','',item.label));
+   row.addEventListener('click',()=>{closeItemMenu();item.run();});
+   pop.append(row);
+  }
+  panel.append(pop);
+  const a=anchor.getBoundingClientRect(),p=panel.getBoundingClientRect();
+  const below=a.bottom-p.top+4,height=pop.offsetHeight;
+  pop.style.right=Math.max(8,p.right-a.right)+'px';
+  pop.style.top=(below+height<p.height-8?below:Math.max(8,a.top-p.top-height-4))+'px';
+  itemPopover={node:pop,anchor};
+  pop.querySelector('button')?.focus({preventScroll:true});
+ }
+ function closeItemMenu(){
+  if(!itemPopover)return false;
+  itemPopover.node.remove();
+  itemPopover=null;
+  return true;
+ }
+ document.addEventListener('pointerdown',e=>{if(itemPopover&&!itemPopover.node.contains(e.target)&&!itemPopover.anchor.contains(e.target))closeItemMenu();});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&itemPopover){e.preventDefault();const anchor=itemPopover.anchor;closeItemMenu();anchor.focus();}});
+ content.addEventListener('scroll',closeItemMenu,{passive:true});
+
+ // ---- rendering ----------------------------------------------------------
+ const cardContext=()=>({
+  focused:false,history:false,aiEnabled:!!s.state.aiEnabled,delivery:platform.delivery,describe:platform.describeLink,
+  on:{
+   action:runIntentAction,
+   retry:messageId=>turn({type:'intentRetry',messageId}),
+   editWords,
+   resume:d=>turn({type:'intentResume',draftId:d.id,actionId:`resume:${d.id}:${d.revision}`}),
+   undo:d=>turn({type:'intentUndo',draftId:d.id,actionId:`undo:${d.id}:${d.revision}`}),
+   open:captureAction,
+   openPlanner:()=>platform.openPlans(),
+   prefill,
+   connectAI:()=>platform.action('settings',{section:'ai_connection'}),
+   itemMenu:openItemMenu,
+  },
+ });
+ const responseKey=c=>c?JSON.stringify([c.messageId,c.reply,c.draft?.revision,c.draft?.status,c.lastError?.message]):null;
+
+ function welcome(frag){
+  const box=el('section','welcome');
+  box.append(el('h2','welcome-title','What’s on your mind?'),el('p','welcome-text','Capture a thought, a task or a plan. Your words are saved first, and nothing changes your plan until you add it.'));
+  const c=conversation();
+  const starters=startersFor({view:s.view,busy:s.busy,archived:c.archived,captureCount:0,recovering:!!s.failure});
+  if(starters.length){
+   const row=el('div','starters');
+   row.setAttribute('aria-label','Starter ideas');
+   for(const item of starters){
+    const node=chip(item.label,{iconName:item.icon,onClick:()=>turn({type:'message',text:item.text}),cls:'suggestion'});
+    node.addEventListener('pointerdown',e=>{if(document.activeElement===message)e.preventDefault();});
+    row.append(node);
+   }
+   box.append(row);
+  }
+  if(!s.state.aiEnabled){
+   const note=el('div','note');
+   note.append(icon('key'),el('p','','Without an AI key, Capture saves your words but can’t sort them.'),button('Connect',()=>platform.action('settings',{section:'ai_connection'}),{role:'text'}));
+   box.append(note);
+  }
+  frag.append(box);
+ }
+
+ function legacyPending(frag){
+  const box=el('section','state-card');
+  box.append(warning('An earlier draft needs review','Leave it before saving a new plan. Your original words stay in History.'));
+  for(const op of s.state.pending.operations){
+   const name=op.fields.title??s.state.entries.find(e=>e.id===op.id)?.title??op.fields.preference??op.collection;
+   box.append(el('p','prop-field',name));
+  }
+  if(s.state.pending.question)box.append(el('p','detail-note',s.state.pending.question));
+  const row=el('div','card-actions');
+  row.append(button('Leave this proposal',()=>turn({type:'cancel'}),{role:'tonal'}));
+  box.append(row);
+  frag.append(box);
+ }
+
+ function failureActions(failure){
+  const retry=()=>turn(failure.payload);
+  if(failure.actionFailed)return [button('Retry',retry,{role:'filled',iconName:'refresh'})];
+  const actions=[];
+  if(failure.text&&message.value!==failure.text)actions.push(button('Edit',e=>editWords(failure.text,e.currentTarget),{role:'text'}));
+  actions.push(button('Retry',retry,{role:'filled',iconName:'refresh'}));
+  return actions;
+ }
+
+ function renderChat(frag){
+  const c=conversation();
+  s.conversationId=c.id;
+  storage.set('rpm-conversation',c.id);
+  if(!s.focusedDraftId){const saved=storage.get(focusKey(c.id));if(saved)setFocusedDraft(saved);}
+  if(s.focusedDraftId&&!draftIsOpen(s.focusedDraftId))setFocusedDraft(null);
+  if(c.archived)frag.append(el('p','view-intro','Archived conversation. Restore it from History before capturing here.'));
+  if(s.listening){frag.append(listeningCard(el,icon));return [];}
+  if(s.request?.card){frag.append(pendingCard(s.request));return [];}
+  let actions=[];
+  if(s.failure&&!s.failure.actionFailed){
+   frag.append(failureCard(s.failure));
+   return failureActions(s.failure);
+  }
+  if(s.failure?.actionFailed)frag.append(failureCard(s.failure));
+  const latest=captures()[0];
+  if(!latest)welcome(frag);
+  else{
+   const ctx=cardContext();
+   ctx.focused=latest.draft?.id===s.focusedDraftId;
+   ctx.canUndo=!!latest.draft?.receipt?.undoId&&latest.draft.receipt.undoId===s.state.undoId;
+   const response=renderResponse(latest,ctx);
+   response.node.dataset.replyKey=responseKey(latest);
+   response.node.dataset.messageId=latest.messageId;
+   frag.append(response.node);
+   actions=response.actions;
+   if(s.failure?.actionFailed)actions=actions.filter(a=>!a.classList.contains('btn-filled')).concat(failureActions(s.failure));
+  }
+  if(s.state.pending)legacyPending(frag);
+  return actions;
+ }
+
+ function renderView(frag){
+  const turnFn=payload=>turn(payload);
+  if(s.view==='chat')return renderChat(frag);
+  if(s.view==='history'){
+   renderHistory(frag,{state:s.state,conversationId:conversation().id,
+    countFor:id=>platform.intentForConversation(id,{limit:0}).totalCaptures??0,
+    openConversation:id=>{s.conversationId=id;s.historyLimit=20;setView('conversation');},turn:turnFn});
+  }
+  if(s.view==='conversation'){
+   const ctx=cardContext();
+   ctx.undoId=s.state.undoId;
+   renderConversation(frag,{state:s.state,conversation:conversation(),page:intentPage(),cardContext:ctx,
+    showMore:()=>{s.historyLimit+=20;render();},receiptsFor:m=>m.plannerReceipts??platform.receiptsForMessage?.(m)??[],turn:turnFn});
+  }
+  if(s.view==='context'){
+   renderContext(frag,{state:s.state,showArchived:s.showArchived,toggleArchived:()=>{s.showArchived=!s.showArchived;render();},
+    editMemory:m=>{setView('chat');composer.set(`Change my remembered preference "${m.text}" to `);},turn:turnFn});
+  }
+  if(s.view==='about')renderAbout(frag,{paragraphs:platform.about,openSettings:()=>platform.action('settings')});
+  return [];
+ }
+
+ function renderChrome(latestKind){
+  panel.dataset.view=s.view;
+  panel.dataset.busy=String(s.busy);
+  panel.dataset.state=s.listening?'listening':s.request?.card?'pending':s.failure?'error':latestKind??'idle';
+  $('view-label').textContent=TITLES[s.listening&&s.view==='chat'?'listening':s.view];
+  $('back').hidden=s.view==='chat';
+  for(const name of ['context','history'])$(name+'-view').setAttribute('aria-pressed',String(s.view===name||(name==='history'&&s.view==='conversation')));
+  const focus=platform.planningFocus?.();
+  const name=focus?.task?.title??focus?.block?.title??focus?.project?.title??null;
+  $('focus-line').hidden=!name||s.view!=='chat';
+  $('focus-label').textContent=name?'For: '+name:'';
+  $('progress').hidden=!(s.busy&&!s.request?.card);
+  content.setAttribute('aria-busy',String(s.busy));
+  const answering=!!answerDraft();
+  message.placeholder=answering?'Or answer in your own words':s.focusedDraftId?'Tell me what to change':'Capture a thought';
+  const showHint=s.view==='chat'&&!s.busy&&!s.listening&&!s.failure&&(!captures().length||!!message.value.trim())&&!answering;
+  $('composer-hint').hidden=!showHint;
+ }
+
+ function controls(){
+  for(const b of panel.querySelectorAll('button')){
+   if(KEEP_ENABLED.has(b.id)||b.closest('#quick-menu')||b.tagName==='SUMMARY')continue;
+   b.disabled=s.busy||(b.id==='dictate'&&s.listening);
+  }
+  const canSend=!s.busy&&!!message.value.trim();
+  $('send').dataset.canSend=String(canSend);
+  $('send').setAttribute('aria-description',s.busy?'Working on your capture. Hold for planner and more.':'Hold for planner and more.');
+ }
+
+ function render(){
+  if(!s.state)return;
+  s.lastKey=captureRenderKey({...s.state,intent:intentPage()});
+  const before={top:content.scrollTop,key:content.querySelector('[data-reply-key]')?.dataset.replyKey??null,view:s.view,
+   open:[...content.querySelectorAll('details[open]')].map(d=>d.className)};
+  closeItemMenu();
+  const frag=document.createDocumentFragment();
+  const actions=renderView(frag);
+  content.replaceChildren(frag);
+  dock.replaceChildren(...actions);
+  dock.hidden=!actions.length;
+  const latest=s.view==='chat'?content.querySelector('[data-reply-key]'):null;
+  renderChrome(latest?captures()[0]?.draft?.question?'question':captures()[0]?.draft?.status??'response':null);
+  controls();
+  const same=before.key===(latest?.dataset.replyKey??null)&&before.view===s.view;
+  if(same)for(const d of content.querySelectorAll('details'))if(before.open.includes(d.className))d.open=true;
+  content.scrollTop=same?before.top:0;
+  presentation.updateOverflow();
+  if(!s.busy&&s.view==='chat')reveal.observe(latest?.dataset.replyKey);
+ }
+
+ function settleReveal(request){
+  if(!request?.card||s.view!=='chat')return;
+  const latest=content.querySelector('[data-reply-key]');
+  if(reveal.settle(latest?.dataset.replyKey??null)){
+   enter(latest);
+   if(!dock.hidden)enter(dock,{distance:4,duration:180});
+  }
+ }
+
+ function setView(next){
+  if(next==='plans'){platform.openPlans();return;}
+  if(next===s.view)return;
+  s.view=next;
+  render();
+  enter(content,{distance:0,duration:150});
+ }
+
+ // ---- voice ----------------------------------------------------------------
+ async function voice(){
+  if(s.listening||s.busy)return;
+  s.listening=true;render();
+  try{
+   const result=await platform.action('dictate');
+   s.listening=false;render();
+   if(result?.text){composer.append(result.text);status('Check your words, then send.');}
+  }catch(error){
+   s.listening=false;render();
+   status(error.message,true);
+  }
+ }
+
+ // ---- wiring ---------------------------------------------------------------
+ const presentation=installCapturePresentation({action:platform.action});
+ const menu=installCaptureMenu({rememberDraft,canSend:()=>!!message.value.trim()&&!s.busy});
+ const composer=installComposer({
+  onSubmit:text=>{if(!s.busy)turn({type:'message',text});},
+  onInput:text=>{
+   rememberComposer(text);
+   if(!s.state)return;
+   if(s.failure&&!s.failure.actionFailed&&!text)return;
+   status('');
+   controls();
+   renderChrome(panel.dataset.state);
+  },
+  onVoice:voice,
+ });
+ $('close').addEventListener('click',()=>platform.action('minimize'));
+ $('expand').addEventListener('click',()=>{
+  const full=panel.classList.toggle('expanded');
+  $('expand').setAttribute('aria-pressed',String(full));
+  $('expand').setAttribute('aria-label',full?'Make Capture smaller':'Expand Capture');
+  $('expand').querySelector('.ms').textContent=full?'close_fullscreen':'open_in_full';
+  platform.action('expand').catch(()=>{});
+ });
+ $('back').addEventListener('click',()=>setView(s.view==='conversation'?'history':'chat'));
+ $('settings').addEventListener('click',()=>platform.action('settings'));
+ $('about').addEventListener('click',()=>setView('about'));
+ $('context-view').addEventListener('click',()=>setView('context'));
+ $('history-view').addEventListener('click',()=>setView('history'));
+ $('plans-view').addEventListener('click',()=>setView('plans'));
+ $('focus-clear').addEventListener('click',()=>{platform.clearPlanningFocus();render();});
+ window.rpmHandleBack=()=>{
+  if(closeItemMenu())return true;
+  if(menu.dismiss())return true;
+  if(s.view==='conversation'){setView('history');return true;}
+  if(s.view!=='chat'){setView('chat');return true;}
+  return false;
+ };
+ window.addEventListener('pagehide',rememberDraft);
+ window.addEventListener('rpm-phone-status',async()=>{
+  if(s.busy)return;
+  const next=await(await fetch('/api/state')).json();
+  s.state=next;
+  if(captureRenderKey({...next,intent:intentPage()})!==s.lastKey)render();
+ });
+
+ composer.set(storage.get('rpm-native-draft')??'',{focus:false});
+ fetch('/api/state').then(async r=>{
+  if(!r.ok)throw new Error();
+  s.state=await r.json();
+  s.conversationId=conversation().id;
+  render();
+  content.scrollTop=0;
+ }).catch(()=>status('Capture could not open your saved data. Close and open it again.',true));
+ return {render,turn};
+}
