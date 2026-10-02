@@ -20,7 +20,7 @@ Acceptance: original functionality still works, pending compound edits are revie
 
 ## Phase B — integrate the deterministic pilot behind a flag
 
-Keep the kit in `intent-v2/`, not at repository root. Put legacy and pilot writes behind one shared state owner or explicitly serialize/reload both; do not leave a stale closure. Inject actual `changePlanner`, `undo` and native load/save/calendar calls. Run `node intent-v2/scripts/test-in-repo.mjs .` and add real-module integration tests for multiple linked creates, conflict review, imported alerts and Undo.
+Keep the kit in `intent-v2/`, not at repository root. Put legacy and pilot writes behind one shared state owner or explicitly serialize/reload both; do not leave a stale closure. Inject actual `changePlanner`, `undo` and native load/save/calendar calls. Add real-module integration tests for multiple linked creates, conflict review, imported alerts and Undo.
 
 Route new free text through `capture()` with stable message IDs. Route chip answers, edits and commits through `act()` with stable action IDs and current revisions. Make retry call `interpret()` on the original message. Reconcile durable receipts after uncertain acknowledgements. Keep legacy pending transactions explicit and do not auto-migrate them.
 
