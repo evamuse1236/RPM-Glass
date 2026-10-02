@@ -465,7 +465,13 @@ button.list-item:active { background: var(--row-press); }
 .must-btn { margin-top: 4px; color: var(--outline); }
 .must-btn[aria-pressed=true] { color: var(--must); }
 .drag-handle { margin-top: 4px; color: var(--on-surface-variant); touch-action: none; }
-.task-row.current { background: color-mix(in srgb, var(--primary-container) 55%, transparent); border-radius: var(--shape-lg); }
+/* The Now row: a soft primary tint, lighter in dark so it does not shout. */
+:root { --current-row: color-mix(in srgb, var(--primary-container) 55%, transparent); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-appearance=light]) { --current-row: color-mix(in srgb, var(--primary-container) 38%, transparent); }
+}
+:root[data-appearance=dark] { --current-row: color-mix(in srgb, var(--primary-container) 38%, transparent); }
+.task-row.current { background: var(--current-row); border-radius: var(--shape-lg); }
 .task-row.dragging {
   z-index: 2;
   transform: translateY(var(--drag-y, 0));
@@ -723,7 +729,8 @@ button.result-head:active { background: var(--row-press); }
   overflow: hidden;
 }
 .timed-meta { font: var(--body-small); color: var(--on-surface-variant); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.now-line { left: calc(var(--ruler) - 6px); right: 0; height: 2px; background: var(--now); z-index: 0; }
+/* Behind event cards so it never reads as a strikethrough; the dot marks now in the gutter. */
+.now-line { left: calc(var(--ruler) - 6px); right: 0; height: 2px; background: var(--now); z-index: 0; pointer-events: none; }
 .now-dot { position: absolute; left: 0; top: -5px; width: 12px; height: 12px; border-radius: 50%; background: var(--now); }
 
 /* Blocks and Projects cards */
