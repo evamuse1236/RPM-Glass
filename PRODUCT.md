@@ -12,7 +12,7 @@ A desktop HTML companion and CLI remain separately scoped tools.
 
 The Android app packages the planner and Capture as trusted offline WebViews. Java owns private storage, Keystore credentials, HTTPS model requests, system insets, the floating butterfly, home-screen widget, notifications, ringing alarms, speech-recognizer handoff, export, and Android settings. The planner reads the shared companion store and uses the existing Java bridge; the WebView assets are generated from `android-companion/` at build time and are not tracked in Git.
 
-The desktop browser companion runs through Node.js with its own visual system and preview-only delivery behavior. Legacy Android screens and their separate SQLite/cloud data remain available; this release does not migrate them implicitly or combine them with the companion store.
+The desktop browser companion runs through Node.js with its own visual system and preview-only delivery behavior. Legacy Android screens and their separate SQLite/cloud data remain available under Settings → Earlier RPM screens. Once, on first load, the entries they hold (including everything the old widget saved) are copied into the companion store with their original words, times, Purpose, check-in details and edit reasons; the SQLite file itself is never changed, and its reminders and alarms keep ringing from there rather than being armed twice. Earlier screens entries made after that copy stay in SQLite.
 
 ## Users and purpose
 
@@ -52,7 +52,7 @@ Capture turns messy thoughts into tasks and Blocks. The assistant may interpret,
 ### Native companion surfaces
 
 - The generated butterfly remains a 64dp, user-started, draggable launcher over other apps. It hides over RPM's own screens and can be hidden by long press or the visible service notification.
-- The native home-screen widget remains a separate four-action surface for Check in, Capture, Remind, and Open app. Its visual contract does not set planner colors or layout.
+- The native home-screen widget is a four-action Material bar for Check in, Capture, Remind and Open app. Check in, Capture and Remind open the Capture panel; Open app opens the planner. Its colours mirror theme.css in `res/values*/colors.xml`.
 - RPM reminders use Android notifications. Ringing alarms use Android scheduling with snooze and dismiss. Permission, battery, DND, and OEM behavior remain Android-controlled.
 
 ## Product principles
@@ -90,7 +90,7 @@ Desktop companion data can be imported only through the existing explicit backup
 
 ## Separate and historical surfaces
 
-The desktop browser prototype keeps its warm ivory-and-green floating conversation and private test-copy boundary. The native home widget and butterfly launcher keep their own contracts.
+The desktop browser prototype keeps its warm ivory-and-green floating conversation and private test-copy boundary. The butterfly launcher keeps its own contract.
 
 The earlier pixel-garden panel, Frosted Night composition and Capture Glass are historical. The Material redesign (October 2026) replaced them; [DESIGN.md](DESIGN.md) is the visual authority, and the older plans and verification notes under `docs/` describe earlier versions.
 

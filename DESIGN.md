@@ -143,4 +143,8 @@ The full behaviour is in [PRODUCT.md](PRODUCT.md#capture). Visually, the panel h
 
 ## Not yet redesigned
 
-The native home-screen widget, the butterfly launcher, the native Settings screen (which still names its appearance option "Glass") and the desktop browser prototype keep their older styles until they are redesigned. The widget's colours live in `res/values*/colors.xml` and should be moved onto these roles.
+The butterfly launcher and the desktop browser prototype keep their older styles until they are redesigned.
+
+## Home-screen widget
+
+The widget is a RemoteViews bar, so it uses native resources instead of theme.css. `res/values/colors.xml` and `res/values-night/colors.xml` mirror the theme.css roles as `rpm_*` colours; change both files together. The bar is `surface-container` with the launcher's widget corner radius on Android 12+ (28dp before). Capture is the main action in `primary-container`; Check in, Remind and Open app rest on the surface with `on-surface-variant` icons and an M3 pressed state. Labels are label-medium (12sp medium) and wrap to two lines at large text. Custom fonts are not available in RemoteViews, so the widget uses the system sans-serif.
