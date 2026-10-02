@@ -1,8 +1,9 @@
 import {randomUUID} from 'node:crypto';
-import {planner,tasks,editPlan,validatePlanner} from './planner-state.mjs';
+import {planner,tasks,editPlan,validatePlanner,conflicts,alternatives} from './planner-state.mjs';
 import {recordSnapshot} from '../chat-prototype/companion-state.mjs';
 import {propose,entryView,validate} from '../chat-prototype/companion-tools.mjs';
-import {scheduleChecks} from './planner-chat.mjs';
+import {calendarRisk,calendarRows} from './planner-calendar.mjs';
+import {repeats,nextOccurrence,occurrences} from './planner-recurrence.mjs';
 import {plannerReceipts} from './capture-actions.mjs';
 
 const object=(properties,required=Object.keys(properties))=>({type:'object',properties,required,additionalProperties:false});
@@ -12,7 +13,6 @@ const fields=object({title:{type:'string',maxLength:200},purpose:text,notes:{typ
 const operation=object({type:{type:'string',enum:['create','update','delete','restore','complete','reopen']},collection:{type:'string',enum:collections},id,ref:{type:['string','null'],maxLength:50},fields,evidence:{type:'array',items:text,maxItems:8}});
 export const changePlannerSchema=object({operations:{type:'array',items:operation,maxItems:30},continuation:{type:'boolean'},question:{type:['string','null'],maxLength:500},choices:{type:'array',items:object({label:{type:'string',maxLength:30},text:{type:'string',maxLength:800}}),maxItems:4}});
 const allowed={tasks:['title','purpose','notes','leverage','time','minutes','blockId','must','priority','recurrence','repeatAfterDays','alert'],blocks:['title','purpose','notes','projectId'],projects:['title','purpose','notes','goalId'],goals:['title','purpose','notes','areaId','year'],areas:['title','purpose','notes']};
-const compactTask=e=>({id:e.id,title:e.title,blockId:e.blockId??null,minutes:e.minutes,planned:e.planned,done:e.done,must:e.must,priority:e.priority,recurrence:e.recurrence,repeatAfterDays:e.repeatAfterDays,notes:e.notes,leverage:e.leverage});
 /** Resolve one task time with the exact canonical parser/update semantics, on a clone. */
 export function resolvePlannerTime(data,{id=null,title,time,minutes,evidence=[]},{raw,conversationId,now=new Date()}={}){
  const old=id==null?null:data.entries.find(e=>e.id===id&&(e.kind??'plan')==='plan');if(id!=null&&!old)throw new Error('Task not found. Read current planning context.');
@@ -25,15 +25,18 @@ export function planningFocus(data,focus={}){
  const p=planner(data),task=tasks(data).find(e=>e.id===focus.taskId),block=p.blocks.find(b=>b.id===(task?.blockId??focus.blockId)),project=p.projects.find(pr=>pr.id===(block?.projectId??focus.projectId));
  return {view:['day','rpm','projects','life'].includes(focus.view)?focus.view:'day',date:/^\d{4}-\d{2}-\d{2}$/.test(focus.date??focus.day??'')?(focus.date??focus.day):null,task:task?{id:task.id,title:task.title}:null,block:block?{id:block.id,title:block.title}:null,project:project?{id:project.id,title:project.title}:null};
 }
-export function plannerSummary(data,focus){const p=planner(data);return {focus:planningFocus(data,focus),counts:Object.fromEntries(['blocks','projects','areas','goals'].map(k=>[k,p[k].length])),blocks:p.blocks.slice(-25).map(({id,title,projectId})=>({id,title,projectId})),projects:p.projects.slice(-20).map(({id,title,goalId})=>({id,title,goalId})),readMore:'read_planner; supports search and pagination. Personal vision is not included automatically.'};}
-export function readPlanner(data,{collection,query='',cursor=0}){
- const p=planner(data);let rows=collection==='tasks'?tasks(data).map(compactTask):collection==='trash'?data.entries.filter(e=>e.archived&&(e.kind??'plan')==='plan').map(compactTask):p[collection].map(r=>({...r}));
- const terms=query.trim().toLowerCase().split(/\s+/).filter(Boolean);rows=rows.filter(r=>terms.every(t=>JSON.stringify(r).toLowerCase().includes(t)));
- return {items:rows.slice(cursor,cursor+20),total:rows.length,nextCursor:cursor+20<rows.length?cursor+20:null};
-}
 function hold(data,args,meta,question,choices=args.choices,token=null){
  data.pending={id:data.pending?.id??randomUUID(),kind:'planner',conversationId:meta.conversationId,operations:args.operations,raws:[...(args.continuation?data.pending?.raws??[]:[]),meta.raw],question,choices,created:meta.now.toISOString(),scheduleReview:token};
  return {text:question,proposal:structuredClone(data.pending),suggestions:choices};
+}
+async function scheduleChecks(data,copy,readCalendar,now=new Date()){
+  const changed=copy.entries.filter(e=>e.planned&&!e.done&&!e.archived&&e.state!=='cancelled'&&(()=>{const old=data.entries.find(x=>x.id===e.id);return !old||e.planned!==old.planned||e.minutes!==old.minutes||e.recurrence!==old.recurrence||old.done||old.archived;})());
+  const checks=[];
+  for(const e of changed){const anchor=repeats(e)?nextOccurrence(e,now):e.planned,copyCalendar=await readCalendar(Date.parse(anchor)),rows=calendarRows(copyCalendar),window=occurrences(e,Date.parse(anchor),Date.parse(anchor)+(repeats(e)?21*86400000:1));
+    const overlaps=window.flatMap(o=>conflicts(copy,o.start,e.minutes??30,rows,e.id));
+    const warning=calendarRisk(copyCalendar,Date.parse(anchor),Date.parse(anchor)+(e.minutes??30)*60000);
+    if(overlaps.length||warning)checks.push({id:e.id,title:e.title,planned:e.planned,minutes:e.minutes,recurrence:e.recurrence??null,warning,conflicts:overlaps.map(x=>({id:x.id,title:x.title,start:x.start,end:x.end})),alternatives:alternatives(copy,anchor,e.minutes??30,rows,e.id)});
+  }return checks;
 }
 /** One validated transaction; every operation either saves together or stays a draft. */
 export async function changePlanner(data,args,meta,readCalendar=async()=>({status:'not_selected',events:[]})){
@@ -83,8 +86,3 @@ export async function changePlanner(data,args,meta,readCalendar=async()=>({statu
  const entryIds=[...new Set(changes.filter(c=>c.collection==='tasks').map(c=>c.id))];
  return {text:'Saved.',entryIds,receipts:[],plannerReceipts:plannerReceipts(data,changes,entryView),plannerChanges:changes,undoId:data.undo.id,suggestions:[]};
 }
-export const plannerInstruction=`This phone has a full planner. The app tools override the earlier propose_changes-only restriction: use change_planner for any tasks/RPM blocks/projects/life areas/yearly goals request, including compound creates and moves. Use propose_changes for check-ins, history and explicit memories. Never claim planner tools are unavailable. Read/search current IDs with read_planner; use context.app.focus when "here" or "this block/project" clearly refers to it, otherwise ask. A new project's ref "project1" can be used as projectId "$project1" in a later block operation; a new block's ref "block1" can be used as blockId "$block1" on a task in the SAME transaction. Sparse fields preserve everything not requested. New rows use id null. A block has a result title and optional purpose and belongs to a project; a project belongs to a goal. Tasks use natural-language time, not guessed timestamps. Delete tasks is recoverable; deleting groups leaves their contents unassigned. Completion-relative repeats use repeatAfterDays. Questions hold every operation. Continue pending kind planner only through change_planner with ALL operations. For an existing legacy pending proposal with no kind field, continue through propose_changes with ALL operations; never switch its tool midway. Read tools may precede changes; change_planner finishes the turn with a saved receipt. Navigation and setting controls are available through app tools; system file pickers/permissions still require the person. Never read or expose a key.`;
-export function createPlannerTools({readCalendar}={}){return [
- {name:'read_planner',description:'Read/search tasks, RPM blocks, projects, life areas, yearly goals or deleted tasks. Paginated current data; use IDs, never infer them.',schema:object({collection:{type:'string',enum:[...collections,'trash']},query:{type:'string',maxLength:300},cursor:{type:'integer',minimum:0}}),run:readPlanner},
- {name:'change_planner',description:'Create/edit/link/move/complete/delete planning records in ONE validated, undoable transaction. Exact request evidence required. Question holds all changes. Can create a project, block and tasks together using $ref links.',schema:changePlannerSchema,terminal:true,run:(d,args,meta)=>changePlanner(d,args,meta,readCalendar)}
- ];}

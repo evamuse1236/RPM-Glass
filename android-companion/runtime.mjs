@@ -5,12 +5,10 @@ import {applyClarityPreferences} from './planner-clarity.mjs';
 import {installWidgetMenu} from './widget-menu.mjs';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {entryView,propose,undo} from '../chat-prototype/companion-tools.mjs';
-import {createCompanionAgent,MODEL} from '../chat-prototype/companion-agent.mjs';
+import {MODEL} from '../chat-prototype/companion-agent.mjs';
 import {migratePlannerUX} from './planner-ux.mjs';
 import {editPlan} from './planner-state.mjs';
-import {phoneProposal,checkSchedule,scheduleSchema,repeatSuggestion} from './planner-chat.mjs';
-import {createPlannerTools,plannerSummary,plannerInstruction,planningFocus,changePlanner} from './planner-tools.mjs';
-import {createAppTools} from './app-tools.mjs';
+import {planningFocus,changePlanner} from './planner-tools.mjs';
 import {executeCaptureAction,goalDraftAction,receiptsForMessage} from './capture-actions.mjs';
 import {createIntentService,intentViewFromData} from './intent-service.mjs';
 
@@ -29,8 +27,7 @@ ready.catch(error=>{diagnostics.emit('exception','error',{error},{operation:'app
 async function save(){const expected=data.version;const next={...data,version:expected+1};const result=await native('save',{expected,data:next});data=next;phone=result;}
 const intentBackend={load:async()=>{const latest=await native('load');phone=latest.phone;if(latest.data)data=latest.data;return structuredClone(data);},save:async(expected,next)=>{if(data.version!==expected){const error=new Error('Version conflict');error.code='VERSION_CONFLICT';throw error;}const result=await native('save',{expected,data:next});data=structuredClone(next);phone=result;}};
 const intentService=createIntentService({backend:intentBackend,native,changePlanner,undo,readCalendar:anchor=>native('calendarRead',{anchor}),editPlan,onEvent:event=>{window.dispatchEvent(new CustomEvent('rpm-intent-event',{detail:event}));diagnostics.emit('intent',event.error?'error':'info',event,{operation:'intent.'+event.type,operationId:event.messageId??event.draftId??'',outcome:event.error?'error':''});}});
-const captureMode=()=> 'glass';
-const view=()=>({version:data.version,csrf:'native-local',busy,aiEnabled:phone.hasKey,model:MODEL,captureMode:captureMode(),intent:intentViewFromData(data),entries:data.entries.map(entryView),memories:data.memories,history:data.history,conversations:data.conversations,pending:data.pending,undoId:data.undo?.id??null,imported:data.imported,phone});
+const view=()=>({version:data.version,csrf:'native-local',busy,aiEnabled:phone.hasKey,model:MODEL,captureMode:'glass',intent:intentViewFromData(data),entries:data.entries.map(entryView),memories:data.memories,history:data.history,conversations:data.conversations,pending:data.pending,undoId:data.undo?.id??null,imported:data.imported,phone});
 const response=(value,status=200)=>({ok:status<400,status,json:async()=>value});
 const captureFocus=()=>{let f={};try{f=JSON.parse(localStorage.getItem('rpm-capture-context')??'{}');}catch{}return f;};
 window.fetch=async(url,options={})=>{
@@ -55,22 +52,9 @@ window.fetch=async(url,options={})=>{
       busy=true;await intentService.undo({draftId:b.draftId,conversationId:cid,actionId:b.actionId});busy=false;return response(view());
     }else if(b.type==='intentResume'){
       busy=true;await intentService.resume(b.draftId,{conversationId:cid,actionId:b.actionId});busy=false;return response(view());
-    }else if(b.type==='message'&&captureMode()==='glass'){
-      if(c.archived||typeof b.text!=='string'||!b.text.trim()||b.text.length>12000)throw new Error('Write a message in an active conversation.');
-      busy=true;await diagnostics.track('capture',{operationId:b.messageId,conversationId:cid,inputCharacters:b.text.length},()=>intentService.capture({messageId:b.messageId,conversationId:cid,text:b.text,focusDraftId:b.focusDraftId??null}));busy=false;return response(view());
     }else if(b.type==='message'){
       if(c.archived||typeof b.text!=='string'||!b.text.trim()||b.text.length>12000)throw new Error('Write a message in an active conversation.');
-      busy=true;const raw=b.text.trim();c.messages.push({role:'user',text:raw,id:crypto.randomUUID(),at:at()});if(c.messages.length===1)c.title=raw.slice(0,60);data.inFlight={conversationId:cid};await save();
-      const draft=structuredClone(data);
-      const readCalendar=anchor=>native('calendarRead',{anchor});
-      const agent=createCompanionAgent({apiKey:phone.hasKey?'native-bridge':null,platform:'android',appTools:[...createPlannerTools({readCalendar}),...createAppTools({native})],appContext:d=>plannerSummary(d,captureFocus()),appInstruction:plannerInstruction,proposeImpl:(d,args,meta)=>phoneProposal(d,args,meta,readCalendar),scheduleCheck:(d,args)=>checkSchedule(d,args,readCalendar),scheduleSchema,fetchImpl:async(_,o)=>{const requestId='classic:'+crypto.randomUUID(),cancel=()=>native('cancelModel',{requestId}).catch(()=>{});if(o.signal?.aborted)throw new DOMException('Cancelled','AbortError');o.signal?.addEventListener('abort',cancel,{once:true});try{const r=await native('model',{requestId,body:JSON.parse(o.body)});if(o.signal?.aborted)throw new DOMException('Cancelled','AbortError');return response(r.body,r.status);}finally{o.signal?.removeEventListener('abort',cancel);}}});
-      const result=await agent(draft,raw,{conversationId:cid,phoneStatus:phone});draft.inFlight=null;draft.conversations.find(x=>x.id===cid).messages.push({role:'assistant',id:crypto.randomUUID(),at:at(),...result});draft.history.push({id:crypto.randomUUID(),at:at(),raw,response:result.text,source:'conversation',conversationId:cid,entryIds:result.entryIds??[],archived:false});
-      if(!draft.pending&&!result.error){const suggestion=repeatSuggestion(draft);if(suggestion)draft.conversations.find(x=>x.id===cid).messages.at(-1).suggestions=[suggestion,...(result.suggestions??[]).slice(0,3)];}
-      const journal=data;data=draft;try{await save();}catch(e){data=journal;throw e;}busy=false;
-      // Navigation only after the receipt is durable and the chat has rendered.
-      // It is never replayed on load, so returning from a picker cannot loop.
-      if(result.appEffect)setTimeout(()=>native(result.appEffect.action,result.appEffect.payload).catch(error=>{const content=document.getElementById('content'),problem=document.createElement('p');problem.className='error';problem.setAttribute('role','alert');problem.textContent='Could not open that control: '+error.message;content?.prepend(problem);}),200);
-      return response(view());
+      busy=true;await diagnostics.track('capture',{operationId:b.messageId,conversationId:cid,inputCharacters:b.text.length},()=>intentService.capture({messageId:b.messageId,conversationId:cid,text:b.text,focusDraftId:b.focusDraftId??null}));busy=false;return response(view());
     }else throw new Error('Unknown action.');
     if(data.planner&&['archive','restore','undo'].includes(b.type))data.planner.undo=null;
     await save();return response(view());
@@ -78,11 +62,10 @@ window.fetch=async(url,options={})=>{
 };
 const isPlanner=location.pathname==='/planner.html';
 const widgetMenu=isPlanner?{onRender(){}}:installWidgetMenu();
-window.RPM_PLATFORM={captureRenderKey,captureCard,native:true,menuSend:true,compactReply:true,onRender:widgetMenu.onRender,captureUI:widgetMenu.captureUI,action:native,delivery:id=>phone.delivery?.[String(id)],captureMode:()=>captureMode(),setCaptureMode:mode=>{if(!['glass','classic'].includes(mode))throw new Error('Unknown capture mode');localStorage.setItem('rpm-capture-mode',mode);window.dispatchEvent(new Event('rpm-capture-mode'));},plansDescription:'Saved on this phone. Alert status below comes from Android.',about:['Capture saves your exact words, then asks before changing tasks or blocks. Older conversations and records remain in History.','Your recent chat, relevant entries and explicit preferences go to OpenRouter when you send a message. Older unarchived history is available through tools. Capture uses '+MODEL+' with no reasoning for extraction and high reasoning for planning, contextual questions and one repair attempt. Classic chat uses high reasoning. Jev is used only when you choose Sort with Jev: it suggests matches to existing blocks, then waits for your review.','Chat, plans and context are stored privately on this phone. The AI key is encrypted with Android Keystore, not included in this APK. When diagnostics are connected, full app console output, errors and operation records upload to the private diagnostic database and expire after 14 days. Console output may include capture content. Pause or disconnect in Settings. No desktop server is needed.','RPM reminders use Android notifications. Ringing alarms use Android AlarmManager and alarm audio, at the planned time. They are not entries in Samsung Clock or Google Calendar. Phone permissions and notification settings must allow delivery.','Imported context is a copy. Imported alerts start disarmed, so old plans cannot unexpectedly ring. Review an entry and tap Enable on phone. Archive or Undo updates the phone schedule too.','You can hide the floating butterfly from its notification. Microphone input opens Android voice typing only when you tap the microphone. The older RPM screens remain separate in Settings.']};
+window.RPM_PLATFORM={captureRenderKey,captureCard,native:true,menuSend:true,compactReply:true,onRender:widgetMenu.onRender,captureUI:widgetMenu.captureUI,action:native,delivery:id=>phone.delivery?.[String(id)],plansDescription:'Saved on this phone. Alert status below comes from Android.',about:['Capture saves your exact words, then asks before changing tasks or blocks. Older conversations and records remain in History.','Your recent chat, relevant entries and explicit preferences go to OpenRouter when you send a message. Older unarchived history is available through tools. Capture uses '+MODEL+' with no reasoning for extraction and high reasoning for planning, contextual questions and one repair attempt. Jev is used only when you choose Sort with Jev: it suggests matches to existing blocks, then waits for your review.','Chat, plans and context are stored privately on this phone. The AI key is encrypted with Android Keystore, not included in this APK. When diagnostics are connected, full app console output, errors and operation records upload to the private diagnostic database and expire after 14 days. Console output may include capture content. Pause or disconnect in Settings. No desktop server is needed.','RPM reminders use Android notifications. Ringing alarms use Android AlarmManager and alarm audio, at the planned time. They are not entries in Samsung Clock or Google Calendar. Phone permissions and notification settings must allow delivery.','Imported context is a copy. Imported alerts start disarmed, so old plans cannot unexpectedly ring. Review an entry and tap Enable on phone. Archive or Undo updates the phone schedule too.','You can hide the floating butterfly from its notification. Microphone input opens Android voice typing only when you tap the microphone. The older RPM screens remain separate in Settings.']};
 // Refresh delivery outcomes/permissions without losing the current draft.
 window.RPM_PLATFORM.openPlans=()=>native('planner');
 window.RPM_PLATFORM.intentForConversation=(conversationId,options={})=>intentViewFromData(data,{conversationId,...options});
-window.RPM_PLATFORM.goalIdeas=()=>native('planner',{view:'ideas'});
 window.RPM_PLATFORM.planningFocus=()=>planningFocus(data,captureFocus());
 window.RPM_PLATFORM.clearPlanningFocus=()=>localStorage.removeItem('rpm-capture-context');
 window.RPM_PLATFORM.captureAction=async action=>{const latest=await native('load');phone=latest.phone;if(latest.data)data=latest.data;return executeCaptureAction(data,action,native);};
