@@ -24,8 +24,10 @@ Capture turns messy thoughts into tasks and Blocks. The assistant may interpret,
 
 ### Planner
 
-- Four solid, persistent destinations move outward through **Today · Blocks · Projects · Life**. Settings is a pushed screen, not a fifth tab.
-- Today keeps each task's Result visible. Now & next also shows the inherited Purpose. Agenda and proportional Timeline provide two views of the same day.
+- The planner follows Material 3 as Google's own apps use it (see [DESIGN.md](DESIGN.md)). Four persistent destinations move outward through **Today · Blocks · Projects · Life**. Settings, Search and the weekly review are pushed screens, not extra tabs.
+- Today opens with a "This week" card showing the Results chosen in the weekly review and their progress, or "Plan your week" when none are chosen. The day's tasks are grouped by Result with the Purpose under each title; tasks with no Block sit under No block. The proportional Timeline is a second view of the same day.
+- The weekly review is a four-step route reached from the This week card and the overflow menu: how last week's Results went (Achieved, Partly or Not yet, with Carry, Defer or Drop for unfinished tasks), empty your head into Capture, group Inbox tasks into Blocks, and pick 3 to 5 Results for this week with Must time against planned time. Every step can be skipped, progress is kept, and every change can be undone.
+- Only the user marks a Result achieved, from the review or Block detail, with an optional line of evidence. Completing every task does not mark it.
 - Blocks present **Result · Purpose · Plan**. Summary cards stay simple; Block detail holds Purpose, ordered Plan tasks, Must, and editing.
 - Projects summarize linked Blocks without nested card stacks. Life contains Vision, Quarter, Month, and Values, with Areas, Goals, Projects, ratings, and a labelled Wheel of Life.
 - Task detail and Quick add keep frequent actions near the keyboard and thumb. Original capture appears when it differs from the task title.
@@ -34,7 +36,7 @@ Capture turns messy thoughts into tasks and Blocks. The assistant may interpret,
 ### Capture
 
 - Capture is a Material floating panel (surface container, 28dp corners, elevation, drag handle) over whatever app is open, in the style of Google's assistant overlay. It uses the same theme tokens as the planner in light and dark; there is no glass or aurora light. Original words stay in Details; previous responses stay in History.
-- The Capture panel grows upward inside a stable native WebView to fit the current response at up to 372dp wide, then shrinks for shorter responses. It uses available width for enlarged text and available height on Expand, retaining 24dp top clearance. Overflow is downward from the response beginning, with actions above the composer. Native system-bar and IME insets keep the composer above the actual keyboard. Android Back closes the topmost menu before the view, and the view before the surface. Dragging the handle down closes the panel.
+- The Capture panel spans the screen width with 4dp margins and grows upward inside a stable native WebView to fit the current response, then shrinks for shorter responses. Expand uses the available height. Overflow is downward from the response beginning, with actions above the composer. Native system-bar and IME insets keep the composer above the actual keyboard. Android Back closes the topmost menu before the view, and the view before the surface. Dragging the handle down closes the panel.
 - The composer is a filled pill field: one line when empty, growing with text. An accessibly labelled More icon button sits at its start; the microphone becomes a filled Send button as soon as there is text.
 - More and a 380ms Send hold open the same menu. Movement beyond 12px cancels the hold, releasing after activation never sends, and a short tap sends only nonempty text while no request is in flight. More stays usable while a reply is pending.
 - The menu keeps About, Assistant settings, Context, and History in a scrollable group and pins Open planner nearest the invoking controls. Capture preserves the exact draft before menu navigation and restores it after the Planner round trip; opening either route never sends it.
@@ -90,11 +92,11 @@ Desktop companion data can be imported only through the existing explicit backup
 
 The desktop browser prototype keeps its warm ivory-and-green floating conversation and private test-copy boundary. The native home widget and butterfly launcher keep their own contracts.
 
-The earlier Android pixel-garden panel and Frosted Night composition remain historical references. The approved Capture work restores their glass character through a new scoped token system and different bottom interaction; those older layouts must not override [DESIGN.md](DESIGN.md), [planner-surface-contract.md](docs/planner-surface-contract.md), or the [current Capture contract](docs/capture-response-plan-2026-09-28.md).
+The earlier pixel-garden panel, Frosted Night composition and Capture Glass are historical. The Material redesign (October 2026) replaced them; [DESIGN.md](DESIGN.md) is the visual authority, and the older plans and verification notes under `docs/` describe earlier versions.
 
 ## Test boundary
 
-Planner evidence is recorded in [docs/ux-2026-09-26/verification.md](docs/ux-2026-09-26/verification.md). Capture Glass evidence is recorded separately in [docs/capture-glass-verification-2026-09-27.md](docs/capture-glass-verification-2026-09-27.md) and a finish review kept outside Git in `output/capture-glass-2026-09-27/`. The later [Capture response verification](docs/capture-response-verification-2026-09-28.md) records version 0.20 installation on the physical Galaxy S24 FE, native UI checks, data preservation and four live follow-up replays. The [motion verification](docs/motion-verification-2026-09-28.md) records the subsequent 0.21 phone installation and refresh/animation checks. These scoped checks do not imply final human design approval, audible delivery, TalkBack interaction, or live speech quality.
+Planner evidence is recorded in [docs/ux-2026-09-26/verification.md](docs/ux-2026-09-26/verification.md). Capture Glass evidence is recorded separately in [docs/capture-glass-verification-2026-09-27.md](docs/capture-glass-verification-2026-09-27.md) and a finish review kept outside Git in `output/capture-glass-2026-09-27/`. The later [Capture response verification](docs/capture-response-verification-2026-09-28.md) records version 0.20 installation on the physical Galaxy S24 FE, native UI checks, data preservation and four live follow-up replays. The [motion verification](docs/motion-verification-2026-09-28.md) records the subsequent 0.21 phone installation and refresh/animation checks. These scoped checks do not imply final human design approval, audible delivery, TalkBack interaction, or live speech quality. Those checks predate the Material redesign, which so far has been checked only in a browser at phone size (light, dark and 200% text) and needs a fresh phone installation check.
 
 No source commit, remote push, publication, personal-phone install, or external integration activation is implied by a built APK.
 
@@ -105,6 +107,6 @@ No source commit, remote push, publication, personal-phone install, or external 
 - [Verification record](docs/ux-2026-09-26/verification.md)
 - [Current planner surface contract](docs/planner-surface-contract.md)
 - [Current Capture response contract](docs/capture-response-plan-2026-09-28.md)
-- [Approved Capture Glass plan](docs/capture-glass-plan-2026-09-27.md)
+- [Earlier Capture Glass plan](docs/capture-glass-plan-2026-09-27.md) (superseded by the Material redesign)
 - `cli/` retains the tested capture/edit workflow and synthetic API examples.
 - `docs/product-context.md` preserves earlier rationale; conflicting Android implementation statements there are historical.
