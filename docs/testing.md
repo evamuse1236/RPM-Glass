@@ -1,5 +1,19 @@
 # Verification and phone testing
 
+## How to run the tests
+
+Run `npm ci` once, then `npm test`. It needs Node 22 and a JDK 17 (`java` and `javac` on `PATH`, or `JAVA_HOME` set). The same command runs in CI on every push and pull request (`.github/workflows/test.yml`).
+
+`npm test` runs, and stops at the first failure:
+
+- `test:js`: every `node:test` file in `android-companion/`, `cli/`, `chat-prototype/` and `intent-v2/test/`. `scripts/test-tz.mjs` is preloaded and sets the timezone to Asia/Kolkata, so local-time tests give the same result on any machine.
+- `test:cloud` and `typecheck:cloud`: the Convex sync and diagnostics tests (vitest) and `tsc --noEmit`.
+- `test:java`: `scripts/test-parser.sh`, which compiles and runs the plain-JVM host tests in `tests/` (`CaptureParserTest`, `ModelRequestsTest`).
+
+The device checks in `app/src/androidTest/` are not part of `npm test`. They need an emulator or phone and are run by hand before a phone release with `./gradlew connectedDebugAndroidTest`. `scripts/build-debug.sh` builds the debug APK, runs lint and assembles the test APK.
+
+## Verification history
+
 The current **0.23-readable-capture** build is [verified and installed on the physical phone](capture-motion-fit-verification-2026-09-28.md). It includes the composited motion repair and the correction to the user’s keyboard-open frame: a complete readable update card, compact estimate, and no empty starter or duplicate instruction row. Current checks: 428 JavaScript tests, 272 native Capture assertions across 31 layouts, 22 focused fit/save/Undo checks, 28 motion checks, build/lint, physical screenshot inspection, exact installed APK verification and lossless app/draft preservation.
 
 The **0.21-fluid-motion** build is [verified and installed on the physical Galaxy S24 FE over Wi-Fi](motion-verification-2026-09-28.md). It removes unchanged-view rebuilds and Capture compositor blanking, and adds interruptible navigation, sheet and panel motion. Verification includes 428 JavaScript tests, 272 Capture layout/journey assertions, 27 motion checks, 113 Android checks, cold recovery and 29 physical checks. Phone records remained byte-identical.
