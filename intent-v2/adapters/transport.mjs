@@ -15,14 +15,6 @@ export function readStructuredResponse(body,{model,providerNames=[]}={}){
  const result=JSON.parse(choice.message.content);validate(result,TURN_SCHEMA);return result;
  }catch(error){error.code='INVALID_MODEL_RESPONSE';throw error;}
 }
-export function openRouterTransport({apiKey,model,prompt,fetchImpl=fetch,providerNames=[],effort}={}){
- if(!apiKey)throw new Error('Set OPENROUTER_API_KEY on the server');
- return async(input,{signal}={})=>{
-  const r=await fetchImpl('https://openrouter.ai/api/v1/chat/completions',{method:'POST',redirect:'error',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},body:JSON.stringify(structuredRequest({model,prompt,input,providerNames,effort})),signal});
-  if(!r.ok)throw new Error(`Model request failed (${r.status}); capture is retained`);
-  return readStructuredResponse(await r.json(),{model,providerNames});
- };
-}
 export function nativeModelTransport({native,model,prompt,providerNames=[],effort,requestIdFactory=()=>`intent-model:${crypto.randomUUID()}`}={}){
  return async(input,{signal,route}={})=>{
   const selectedEffort=route?.effort??effort;

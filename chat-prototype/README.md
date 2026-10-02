@@ -6,6 +6,8 @@ npm run chat -- --key-file /home/darax/.config/rpm/openrouter-20260910.env
 
 Open [RPM](http://127.0.0.1:4318). `--port` selects another loopback port. The key remains server-side. Without it, saved records remain inspectable and archival/Undo work, but conversational changes need AI.
 
+`companion-server.mjs` is the desktop server. The earlier first-generation chat server and its one-time legacy-chat import utility were removed; Git history keeps them. `app.js`, `companion-state.mjs`, `companion-tools.mjs`, `companion-agent.mjs` and `reply-format.mjs` are also bundled into the Android app by `scripts/build-companion-assets.mjs`.
+
 ## Conversation and tools
 
 The companion uses the user-selected `openai/gpt-5.6-luna` through OpenRouter, with medium reasoning and required native tool calls. The separate CLI retains its existing model. Native tool calling replaces the old one-entry extraction contract. Tool definitions and local validation are in `companion-tools.mjs`; the bounded agent loop and prototype-only model are in `companion-agent.mjs`.
@@ -26,8 +28,6 @@ On the first start only, import the default CLI `rpm-cli/data.json`, or the sour
 
 Conversations share one local context store. New chat keeps plans, memory and older conversations; closing/restarting does not clear them. Archive/restore is recoverable and controls active AI context. Archived conversation content is excluded from both transcript and interaction-history retrieval. Undo restores the latest data change while preserving subsequent chat history.
 
-The one-time `import-legacy.mjs` utility imported the prior visible browser chat into the user's private test copy. Only fields exposed by the old API were available: current cards, original words, revision counts, and messages. Missing historical revision snapshots were not fabricated. Its private snapshot is retained outside the repository.
-
 ## Safety and limitations
 
 Localhost-only server, same-origin checks, per-process request token, strict CSP, no arbitrary file serving, no browser key access, and optimistic version checks across tabs. Only one mutation request runs at a time. Every model batch runs against a clone and is committed with its response atomically.
@@ -44,7 +44,7 @@ After the requested switch to Luna, a seven-turn **live OpenRouter** check passe
 
 The live check exposed and fixed two integration issues: explicit `strict:false` keeps patch fields optional rather than forcing null/empty values, and clock shorthand normalization no longer rewrites calendar years. Local schema validation remains mandatory. A small set of tool examples clarifies full-batch proposals and delegates clock-only date selection to the deterministic local parser.
 
-`npm run test:cli` and `npm run test:chat` run deterministic offline tests. `companion.test.mjs` covers two-plan shorthand edits, atomic clarification, dropped-operation rejection, Undo, memory corrections, archive exclusion, historical retrieval, persistence, key boundaries, tool repair, timeout handling and HTTP guards.
+`npm test` runs these deterministic offline tests with the rest of the suite (`npm run test:js` for the JavaScript tests only). `companion.test.mjs` covers two-plan shorthand edits, atomic clarification, dropped-operation rejection, Undo, memory corrections, archive exclusion, historical retrieval, persistence, key boundaries, tool repair, timeout handling and HTTP guards.
 
 `node chat-prototype/experiments/interface-fixture.mjs` serves a clearly labeled synthetic interaction fixture on 4320, without importing personal data or calling AI. It exercises proposal bubbles, receipts and Undo in the real browser UI.
 

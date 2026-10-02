@@ -1,4 +1,4 @@
-import {localDay, tasks, planner, blockTasks, timelineItems, shiftDay} from './planner-state.mjs';
+import {localDay, tasks, planner, timelineItems, shiftDay} from './planner-state.mjs';
 
 /** Idempotent, lossless upgrade. Legacy priority remains the storage/API ordering field. */
 export function migratePlannerUX(data) {

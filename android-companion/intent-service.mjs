@@ -75,9 +75,3 @@ export function createIntentService({backend,native,model,changePlanner,undo,rea
  };
  return {repository,harness,capture,retry,act,undo:undoDraft,resume,view,sort};
 }
-
-// Named wrappers keep the planner integration easy to test without exposing the
-// repository or allowing direct canonical mutation.
-export const createStoredSortPreview=(service,input,options)=>service.sort.create(input,options);
-export const dismissStoredSortPreview=(service,id,options)=>service.sort.dismiss(id,options);
-export const acceptStoredSortPreview=(service,id,options)=>service.sort.accept(id,options);
