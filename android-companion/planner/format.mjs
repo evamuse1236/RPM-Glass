@@ -7,12 +7,18 @@ export function clock(value) {
   return new Date(value).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}).replace(/ /g, '\u00a0');
 }
 
-/** "30 min", "1 h", "1 h 50 min"; a number never wraps away from its unit. */
+/** "30 min", "1 h", "1 h 50 min"; one unbreakable phrase, so it never wraps mid-duration. */
 export function duration(minutes) {
   if (minutes == null) return 'No estimate';
   if (minutes < 60) return `${minutes}\u00a0min`;
   const rest = minutes % 60;
-  return `${Math.floor(minutes / 60)}\u00a0h${rest ? ` ${rest}\u00a0min` : ''}`;
+  return `${Math.floor(minutes / 60)}\u00a0h${rest ? `\u00a0${rest}\u00a0min` : ''}`;
+}
+
+/** "9:00 – 11:00 AM", "11:30 AM – 1:30 PM", as Calendar writes a range. */
+export function timeRange(start, end) {
+  const a = clock(start), b = clock(end), suffix = b.match(/\s?[^\d\s:.]+$/)?.[0];
+  return `${suffix && a.endsWith(suffix) ? a.slice(0, -suffix.length) : a} – ${b}`;
 }
 
 export function dateText(value) {

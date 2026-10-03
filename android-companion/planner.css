@@ -596,31 +596,36 @@ input[type=range] { width: 100%; accent-color: var(--primary); min-height: var(-
 .week-day.is-today .week-number { color: var(--primary); font-weight: 700; }
 .week-day[aria-pressed=true] .week-number { background: var(--primary); color: var(--on-primary); }
 .week-day:active .week-number { background: var(--row-press); }
+.day-marks { display: flex; align-items: center; justify-content: center; gap: 2px; min-height: 14px; margin-top: -4px; }
 .day-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--outline); }
-/* A day holding a Result's deadline: the same hourglass as Due soon, so the mark explains itself. */
-.day-due { font-size: 14px; line-height: 14px; height: 14px; margin-top: -4px; color: var(--on-surface-variant); }
+/* A day holding a Result's deadline: the same hourglass as Due soon; a clash day: the clash mark in the error colour. */
+.day-due, .day-clash { font-size: 14px; line-height: 1; width: 1em; overflow: hidden; color: var(--on-surface-variant); }
+.day-clash { color: var(--error); }
 .week-day[aria-pressed=true] .day-due { color: var(--primary); }
 
-/* A plain row with one trailing action: the planning row and each risk. */
-.today-row { display: flex; align-items: center; gap: var(--s1); padding-right: var(--s4); }
-.today-row-main {
-  flex: 1;
-  min-width: 0;
-  min-height: 56px;
-  display: flex;
+/* A row with one action (each risk and the planning row): the headline gets the full width; the supporting text
+   shares the second line with a tonal button. The row itself is one button underneath, so the whole row opens. */
+.today-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  column-gap: var(--s4);
   align-items: center;
-  gap: var(--s4);
-  padding: var(--s2) 0 var(--s2) var(--gutter);
-  border-radius: 0 var(--shape-lg) var(--shape-lg) 0;
+  min-height: 72px;
+  padding: var(--s2) var(--s4) var(--s2) var(--gutter);
 }
+.today-row-main { position: absolute; inset: 0 var(--s2) 0 0; border-radius: 0 var(--shape-lg) var(--shape-lg) 0; }
 .today-row-main:active { background: var(--row-press); }
-.today-row-main .leading { color: var(--on-surface-variant); }
-.today-row-headline { font: var(--body-large); overflow-wrap: anywhere; }
-.today-row > button:last-child:not(.today-row-main) { flex: none; }
-.filled-btn.compact { padding: 0 var(--s4); }
-.plan-row .leading { color: var(--primary); }
+.today-row > .leading, .today-row-headline, .today-row-supporting { position: relative; pointer-events: none; }
+.today-row > .leading { grid-row: 1 / span 2; color: var(--on-surface-variant); }
+.today-row-headline { grid-column: 2 / 4; font: var(--body-large); overflow-wrap: anywhere; text-wrap: pretty; }
+.today-row-supporting { grid-column: 2; font: var(--body-medium); color: var(--on-surface-variant); overflow-wrap: anywhere; }
+.today-row-action { grid-column: 3; grid-row: 2; position: relative; margin-block: -6px; }
+/* Facts that would wrap mid-phrase beside the button stack instead, one per line. */
+.today-row .phrase { display: block; }
+.plan-row > .leading { color: var(--primary); }
 .risk-section { margin-top: var(--s2); }
-.risk-row .leading, .risk-lead { color: var(--error); }
+.risk-row > .leading, .risk-lead { color: var(--error); }
 .risk-lead { font-weight: 600; }
 
 /* A Result group: tonal container with the Result as title and Purpose underneath */
@@ -643,50 +648,66 @@ input[type=range] { width: 100%; accent-color: var(--primary); min-height: var(-
 button.result-head:active { background: var(--row-press); }
 .result-icon { font-size: 20px; color: var(--on-surface-variant); margin-top: 1px; }
 .result-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.result-title { font: var(--title-medium); overflow-wrap: anywhere; }
-.result-purpose { font: var(--body-medium); color: var(--on-surface-variant); overflow-wrap: anywhere; }
-/* Facts line: Area (hue beside its name), tasks done, deadline with its countdown. */
+.result-title { font: var(--title-medium); overflow-wrap: anywhere; text-wrap: pretty; }
+.result-purpose { font: var(--body-medium); color: var(--on-surface-variant); overflow-wrap: anywhere; text-wrap: pretty; }
+/* Facts line: the deadline with its countdown, tasks done. */
 .result-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; margin-top: 2px; font: var(--label-medium); color: var(--on-surface-variant); }
 .result-meta .area-dot { width: 8px; height: 8px; }
 .result-meta .is-overdue { color: var(--error); }
+.result-meta .phrase { white-space: nowrap; }
 .result-group .task-row { padding-left: var(--s1); }
 .anytime-group .result-icon { color: var(--primary); }
 
-/* Do next: the first card, task first. "Do next" is its one emphasis; Result · Purpose sits under the task title. */
-.next-card { margin-top: var(--s2); }
-.next-label { display: flex; align-items: center; gap: var(--s2); padding: var(--s3) var(--s4) 0 var(--s5); color: var(--now); font: var(--label-large); }
+/* The lead card: "Do next" or "Free until", then the Result as its header, then the task. */
+.next-card { margin-top: var(--s2); padding-bottom: var(--s2); }
+.next-card .result-head { padding-top: var(--s1); padding-bottom: 0; }
+.next-label { display: flex; align-items: center; gap: var(--s2); padding: var(--s3) var(--s4) 0; color: var(--now); font: var(--label-large); }
 [data-live] { white-space: nowrap; }
 .now-pin { width: 8px; height: 8px; border-radius: 50%; background: var(--now); flex: none; }
-.next-why {
+.next-why { padding: 0 var(--s4) var(--s2) 60px; font: var(--body-medium); color: var(--on-surface-variant); }
+.next-action { margin: var(--s1) var(--s4) var(--s2) 60px; }
+
+/* The agenda: tasks and calendar events in time order on the page, never more cards. Every text starts at 56dp. */
+.plain-section .task-row { padding-left: var(--s1); }
+.agenda-event {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  column-gap: var(--s1);
+  align-items: center;
+  padding: var(--s1) var(--s4) var(--s1) var(--gutter);
+  text-align: left;
+}
+.agenda-event > .leading { justify-self: center; }
+.task-result { font: var(--body-medium); color: var(--on-surface-variant); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* An event is a fixed block, as in Calendar: a tonal shape whose text lines up with the task titles. */
+.event-block {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  width: 100%;
-  margin-top: calc(-1 * var(--s1));
-  padding: 0 var(--s4) var(--s3) 56px;
-  text-align: left;
-  font: var(--body-medium);
-}
-button.next-why:active { background: var(--row-press); }
-.next-result { color: var(--on-surface); font-weight: 500; }
-.next-purpose, .next-why.static { color: var(--on-surface-variant); }
-.next-divider { border: 0; border-top: 1px solid var(--outline-variant); margin: 0 var(--s4) var(--s1) 56px; }
-
-/* Plain sections (Calendar, Also today, Due soon): lists on the page, never more cards. */
-.plain-section .task-row { padding-left: var(--s1); }
-.event-row {
-  width: 100%;
   min-height: 48px;
-  display: grid;
-  grid-template-columns: 24px 1fr auto;
-  align-items: center;
-  column-gap: var(--s4);
-  padding: var(--s2) var(--s4) var(--s2) var(--gutter);
+  justify-content: center;
+  padding: 6px var(--s3);
+  border-radius: var(--shape-md);
+  background: var(--surface-container-high);
 }
-.event-row:active { background: var(--row-press); }
-.event-bar { grid-row: 1 / span 2; width: 4px; min-height: 24px; align-self: stretch; border-radius: 2px; background: var(--outline); justify-self: center; }
+.agenda-event:active .event-block { background: var(--surface-container-highest); }
 .event-title { font: var(--body-large); min-width: 0; overflow-wrap: anywhere; }
-.event-time { font: var(--body-medium); color: var(--on-surface-variant); white-space: nowrap; }
+.event-time { font: var(--body-medium); color: var(--on-surface-variant); }
+/* Free time between fixed things: one quiet line on a dotted rail where the checkboxes sit. */
+.agenda-free {
+  position: relative;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--s4) 0 56px;
+  font: var(--label-medium);
+  color: var(--on-surface-variant);
+}
+.agenda-free::before { content: ''; position: absolute; left: 27px; top: 4px; bottom: 4px; border-left: 2px dotted var(--outline-variant); }
+/* Resolve clash sheet: the overlapping items, each task with its choices under its text. */
+.clash-list { margin: 0 calc(-1 * var(--s2)); }
+.clash-item { display: flex; align-items: center; gap: var(--s4); min-height: 56px; padding: var(--s2); }
+.clash-actions { display: flex; flex-wrap: wrap; gap: var(--s2); padding: 0 var(--s2) var(--s2) 48px; }
 .inbox-row { margin-top: var(--s2); }
 .inbox-row .trailing-value { margin-right: calc(-1 * var(--s2)); }
 
@@ -1303,20 +1324,18 @@ button.fact-row:active { background: var(--row-press); }
 .error { color: var(--error); }
 
 /* ---------- 7. Large text (200%) and reduced motion ---------- */
-:root[data-large-text=true] .week-strip { padding-inline: 0; }
 :root[data-large-text=true] .week-number { min-width: 1.6em; height: 1.6em; font-size: 15px; }
 :root[data-large-text=true] #nav-bar { grid-template-columns: 1fr 1fr 1.3fr .9fr; padding-inline: 0; }
 :root[data-large-text=true] .nav-pill { min-width: 56px; }
-:root[data-large-text=true] .event-row { grid-template-columns: 24px 1fr; }
-:root[data-large-text=true] .event-time { grid-column: 2; }
 /* Large text: a row's action moves under its words instead of squeezing them. */
-:root[data-large-text=true] .today-row { flex-wrap: wrap; padding-bottom: var(--s2); }
-:root[data-large-text=true] .today-row-main { flex-basis: 100%; }
-:root[data-large-text=true] .today-row > button.text-btn:last-child:not(.today-row-main) { margin-left: 44px; }
+:root[data-large-text=true] .today-row { grid-template-columns: auto 1fr; }
+:root[data-large-text=true] .today-row-headline { grid-column: 2; }
+:root[data-large-text=true] .today-row-action { grid-column: 2; grid-row: 3; justify-self: start; margin-top: var(--s1); }
+:root[data-large-text=true] .next-card .result-purpose, :root[data-large-text=true] .next-card .result-meta { display: none; }
+:root[data-large-text=true] .next-card .result-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 :root[data-large-text=true] .soon-row { grid-template-columns: 1fr; padding-left: 56px; }
 :root[data-large-text=true] .soon-day { flex-direction: row; align-items: baseline; gap: var(--s2); }
 :root[data-large-text=true] .soon-day:empty { display: none; }
-:root[data-large-text=true] .today-row > button:last-child:not(.today-row-main) { margin-left: 56px; }
 :root[data-large-text=true] .result-count, :root[data-large-text=true] .eyebrow span:last-child { display: none; }
 :root[data-large-text=true] .detail-head .crumb .eyebrow span:last-child { display: inline; }
 :root[data-large-text=true] .card-top .eyebrow { display: none; }

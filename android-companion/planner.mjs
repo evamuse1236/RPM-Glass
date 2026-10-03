@@ -10,7 +10,7 @@ import {setDayLayout} from './planner/today.mjs';
 import {openTask, taskEditor, movePicker, planOrder, archiveTask, deleteTask, showTrash, showInbox}
   from './planner/task-sheets.mjs';
 import {entityEditor, contextEditor, detailMenu} from './planner/entities.mjs';
-import {refreshCalendar, calendarDetails, calendarEditor, datePicker} from './planner/calendar-ui.mjs';
+import {refreshCalendar, calendarDetails, calendarEditor, datePicker, resolveClash} from './planner/calendar-ui.mjs';
 import {aiAction, examples} from './planner/jev.mjs';
 import {searchBar} from './planner/search.mjs';
 import {componentGallery} from './planner/gallery.mjs';
@@ -72,6 +72,7 @@ function installActions(app) {
     detailMenu: top => detailMenu(app, top),
     calendar: () => calendarEditor(app),
     calendarDetails: event => calendarDetails(app, event),
+    resolveClash: items => resolveClash(app, items),
     datePicker: () => datePicker(app),
     setDayLayout: value => setDayLayout(app, value),
     jevSort: () => aiAction(app, 'sort'),
