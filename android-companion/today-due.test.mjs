@@ -106,4 +106,6 @@ test('Free time runs from the next quarter hour to the next fixed thing and take
   assert.equal(short.end.toISOString(), '2026-10-03T05:30:00.000Z', 'a busy event ends the gap');
   assert.deepEqual(fillGap(risk, short).map(slot => slot.task.title), ['Check the upload format'], 'only what fits');
   assert.equal(freeGap(d, {now: new Date('2026-10-03T11:30:00+05:30'), calendar: [lecture]}), null, 'nothing is free during the lecture');
+  assert.equal(freeGap(d, {now: new Date('2026-10-03T06:07:00+05:30')}).start.toISOString(), '2026-10-03T02:30:00.000Z',
+    'free time starts at 8 AM, as in the weekly review');
 });

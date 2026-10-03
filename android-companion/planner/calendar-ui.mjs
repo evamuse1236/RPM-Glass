@@ -1,5 +1,5 @@
 /** Read-only calendar: the day's copy, the calendar chooser, event details and clash choices; plus the date picker. */
-import {localDay, tasks, conflicts} from '../planner-state.mjs';
+import {localDay, tasks, conflicts, blockDue} from '../planner-state.mjs';
 import {repeats} from '../planner-recurrence.mjs';
 import {calendarLabel, calendarRows} from '../planner-calendar.mjs';
 import {el, icon, button, labelButton} from './dom.mjs';
@@ -71,7 +71,9 @@ export function resolveClash(app, items) {
     const choices = el('div', 'clash-actions');
     const minutes = (item.end - item.start) / 60000;
     const before = Math.min(...items.filter(other => other !== item).map(other => other.start)) - minutes * 60000;
-    if (!repeats(task) && before > Date.now() && !conflicts(data, before, minutes, state.calendar ?? [], task.id).length) {
+    // The task that sets its Result's deadline is not moved with one tap: that would move the deadline too.
+    const setsDeadline = task.blockId != null && blockDue(data, task.blockId)?.task.id === task.id;
+    if (!repeats(task) && !setsDeadline && before > Date.now() && !conflicts(data, before, minutes, state.calendar ?? [], task.id).length) {
       choices.append(button(`Move to ${clock(before)}`, () => app.commit({type: 'saveTask', id: task.id,
         fields: {planned: new Date(before).toISOString()}}, {label: `${task.title} moved to ${clock(before)}`}).catch(() => {}),
       'tonal-btn'));

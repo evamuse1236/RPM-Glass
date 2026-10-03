@@ -104,11 +104,12 @@ export function atRisk(data, {calendar = [], now = new Date()} = {}) {
  * is on now or when less than half an hour is left.
  */
 export function freeGap(data, {calendar = [], now = new Date()} = {}) {
-  const day = localDay(now), dayStart = +new Date(day + 'T00:00'), close = +new Date(day + 'T22:00');
+  // Same waking window as the weekly review's free time (8 AM-10 PM).
+  const day = localDay(now), open = +new Date(day + 'T08:00'), close = +new Date(day + 'T22:00');
   const fixed = [...dayTasks(data, day, +now).active.filter(task => task.start),
-    ...calendar.filter(event => !event.allDay && event.busy !== false && event.end > dayStart && event.start < close)];
+    ...calendar.filter(event => !event.allDay && event.busy !== false && event.end > open && event.start < close)];
   if (fixed.some(item => item.start <= +now && item.end > +now)) return null;
-  const start = Math.ceil(+now / 9e5) * 9e5;
+  const start = Math.max(open, Math.ceil(+now / 9e5) * 9e5);
   const end = Math.min(close, ...fixed.filter(item => item.start > +now).map(item => item.start));
   return end - start >= GAP_MINUTES * 60000 ? {start: new Date(start), end: new Date(end)} : null;
 }
