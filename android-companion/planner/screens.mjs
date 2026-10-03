@@ -50,6 +50,7 @@ function mountReview(app, host) {
     openBlock: id => app.openBlock(id),
     openCapture: () => app.capture(),
     sortInbox: () => app.actions.jevSort(),
+    readCalendar: anchor => app.api.native('calendarRead', {anchor}),
     now: () => new Date(),
     day: () => localDay(),
   };

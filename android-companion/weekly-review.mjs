@@ -1,27 +1,32 @@
 // Weekly review: last week's Results → capture → group into Blocks → this week's Results.
 // Renders into the container the planner gives it and talks to the app only through `ctx`
-// (getData, commit, close, openBlock, openCapture, now, day; optional sortInbox).
+// (getData, commit, close, openBlock, openCapture, now, day; optional sortInbox, readCalendar).
 // Plan changes go through ctx.commit with a label, so they save, re-render and offer Undo.
 // Review progress (step, draft choice of Results) is saved with ctx.commit(mutator, null):
 // a null label means "save quietly"; it changes no plan data and keeps the last Undo intact.
 import {
   REVIEW_STEPS, reviewWeek, reviewSummary, markAchieved, decideLeftover, leftoverChoice, inboxTasks,
   groupTasks, addInboxTask, taskDate, setMust, focusCandidates, weekFocus, reviewProgress, saveReviewProgress, finishReview,
+  weekCapacity, calendarClashes,
 } from './review-state.mjs';
-import {blockTasks} from './planner-state.mjs';
-import {dueInfo} from './planner/format.mjs';
+import {planner, blockTasks, shiftDay} from './planner-state.mjs';
+import {areaTone} from './planner-ux.mjs';
+import {calendarRows} from './planner-calendar.mjs';
+import {dueInfo, clock} from './planner/format.mjs';
+import {areaDot} from './planner/dom.mjs';
 
 const STEPS = [
-  {name: "Last week's Results", next: 'Next: capture this week'},
-  {name: 'Capture', next: 'Next: group into Blocks'},
+  {name: "Last week's Results", next: 'Next: empty your head'},
+  {name: 'Empty your head', next: 'Next: group into Blocks'},
   {name: 'Group into Blocks', next: "Next: this week's Results"},
-  {name: "This week's Results", next: 'Finish review'},
+  {name: "This week's Results"},
 ];
 const VERDICTS = [['achieved', 'Achieved'], ['partly', 'Partly'], ['notyet', 'Not yet']];
 const VERDICT_RECEIPTS = {achieved: 'Result achieved', partly: 'Marked partly achieved', notyet: 'Marked not achieved yet'};
 const CHOICES = [['carry', 'Carry'], ['defer', 'Defer'], ['drop', 'Drop']];
 const MAX_FOCUS = 5;
-const AIM = 3;
+/** Calendar states that come with events; any other state means free time can't be counted. */
+const READABLE = new Set(['ready', 'stale', 'incomplete']);
 
 /* ---------- small DOM helpers (same conventions as planner.mjs) ---------- */
 function el(tag, cls = '', text = '') {
@@ -59,7 +64,9 @@ function weekLabel(day) {
   const date = new Date(day + 'T12:00:00');
   return 'Week of ' + date.toLocaleDateString(undefined, {day: 'numeric', month: 'long'});
 }
+const dayName = day => new Date(day + 'T12:00').toLocaleDateString(undefined, {weekday: 'short', day: 'numeric', month: 'short'});
 const plural = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
+const capital = text => text[0].toUpperCase() + text.slice(1);
 
 /** A Result's deadline as a chip: "Due tomorrow 11:00 PM", stronger when close, in error colour when past. */
 function dueChip(value, now) {
@@ -74,8 +81,7 @@ function whenText(task, now) {
   const value = taskDate(task);
   const info = value && dueInfo(value, now);
   if (!info) return null;
-  const text = info.overdue ? 'Overdue' : info.label.replace(/^Due /, '');
-  return {text: text[0].toUpperCase() + text.slice(1), overdue: info.overdue, soon: info.soon};
+  return {text: capital(info.overdue ? 'Overdue' : info.label.replace(/^Due /, '')), overdue: info.overdue, soon: info.soon};
 }
 
 /* ---------- mount ---------- */
@@ -89,10 +95,13 @@ export function mountWeeklyReview(container, ctx) {
     focusHint: '',
     inboxIds: saved.inboxIds,
     selected: [],
-    chunk: false,
-    pickerFor: null,
+    sheet: null, // step 3: 'add' (pick a Result) or 'new' (new Result with its Purpose)
     newBlock: {title: '', purpose: ''},
     draft: '',
+    lens: null,
+    expanded: null, // step 4: the picked Result whose tasks are listed with Must stars
+    showIdle: false,
+    calendar: undefined, // undefined while reading; then the read-only calendar copy as native returns it
     hint: '',
     busy: false,
     seen: ctx.getData(),
@@ -113,12 +122,19 @@ export function mountWeeklyReview(container, ctx) {
   const timer = setInterval(refreshIfChanged, 600);
   window.addEventListener('rpm-data-refresh', refreshIfChanged);
   render();
+  // The calendar copy spans 3 days back and 22 ahead of the anchor, so a midweek anchor covers today and the whole week.
+  Promise.resolve(ctx.readCalendar?.(+new Date(week + 'T12:00')) ?? {status: 'unavailable'})
+    .catch(() => ({status: 'unavailable'}))
+    .then(value => {
+      ui.calendar = value ?? {status: 'unavailable'};
+      if (!ui.destroyed) render();
+    });
 
   return {
     refresh: render,
-    /** Android Back: closes an open picker or form, then a selection; returns true when it handled the press. */
+    /** Android Back: closes an open sheet, then a selection; returns true when it handled the press. */
     back() {
-      if (ui.chunk || ui.pickerFor != null) Object.assign(ui, {chunk: false, pickerFor: null});
+      if (ui.sheet) ui.sheet = null;
       else if (ui.selected.length) ui.selected = [];
       else return false;
       render();
@@ -161,7 +177,7 @@ function createActions(ctx, week, ui, render) {
   };
   function goTo(step) {
     if (step < 1 || step > REVIEW_STEPS || step === ui.step) return;
-    Object.assign(ui, {inboxIds: groupList().map(t => t.id), step, selected: [], chunk: false, pickerFor: null,
+    Object.assign(ui, {inboxIds: groupList().map(t => t.id), step, selected: [], sheet: null,
       focusBase: null, hint: '', focusHint: '', stepChanged: true});
     render();
     saveProgress({finishedAt: null});
@@ -180,7 +196,9 @@ function createActions(ctx, week, ui, render) {
     await saveProgress();
     ctx.openBlock(blockId);
   }
-  return {data, week, ui, run, goTo, close, finish, render, groupList, openBlock, now: () => ctx.now()};
+  /** The calendar's events once it is readable, else null (not connected, unavailable, or still reading). */
+  const events = () => (ui.calendar && READABLE.has(ui.calendar.status) ? calendarRows(ui.calendar) : null);
+  return {data, week, ui, run, goTo, close, finish, render, groupList, openBlock, events, now: () => ctx.now()};
 }
 
 function renderReview(root, api, ctx) {
@@ -193,8 +211,10 @@ function renderReview(root, api, ctx) {
   content.append(...stepContent(api, ctx));
   body.append(content);
   const active = root.contains(document.activeElement) ? document.activeElement.dataset.key : null;
-  const foot = footer(api, api.finish);
+  const selecting = ui.step === 3 && ui.selected.length > 0;
+  const foot = selecting ? selectionBar(api) : footer(api);
   root.replaceChildren(topBar(api), progressBar(ui.step, api.goTo), body, foot);
+  if (selecting && ui.sheet) root.append(sheetLayer(api));
   body.scrollTop = keepScroll;
   // A hairline over the footer only while content continues underneath it (no fade over the last card).
   const edge = () => foot.classList.toggle('edge', body.scrollTop + body.clientHeight < body.scrollHeight - 2);
@@ -211,11 +231,9 @@ function renderReview(root, api, ctx) {
 
 /* ---------- frame: top bar, progress, footer ---------- */
 function topBar(api) {
-  const {ui} = api, step = ui.step;
-  if (step === 3 && ui.selected.length && !ui.chunk) return selectionBar(api);
   const bar = el('header', 'wr-bar');
   bar.append(iconButton('close', 'Close review', api.close), el('h1', 'wr-bar-title', 'Weekly review'));
-  const count = el('span', 'wr-bar-count tnum', `${step} of ${REVIEW_STEPS}`);
+  const count = el('span', 'wr-bar-count tnum', `${api.ui.step} of ${REVIEW_STEPS}`);
   count.setAttribute('aria-hidden', 'true');
   bar.append(count);
   return bar;
@@ -235,41 +253,18 @@ function progressBar(step, goTo) {
   return nav;
 }
 
-/**
- * Every step can be skipped, so Next and Finish are never disabled. Until the step's job is done the
- * button is tonal and a short line says what is left; it turns filled once the step is complete.
- */
-function stepGuide(api) {
-  const {ui} = api;
-  if (ui.step === 1) {
-    const left = reviewSummary(api.data(), api.week).results.filter(r => !r.verdict).length;
-    return left ? `${plural(left, 'Result')} still to decide. You can come back to ${left === 1 ? 'it' : 'them'}.` : '';
-  }
-  if (ui.step === REVIEW_STEPS && ui.focus.length < AIM) {
-    const more = AIM - ui.focus.length;
-    return ui.focus.length ? `Pick ${more} more for a full week, or finish with fewer.` : 'Pick 3 to 5 Results, or finish without.';
-  }
-  return '';
-}
-
-function footer(api, finish) {
+/** Every step can be skipped, so Next and Finish are always the one filled button; the step's own counts guide. */
+function footer(api) {
   const {ui} = api;
   const foot = el('footer', 'wr-foot');
-  const guide = stepGuide(api);
-  if (guide) foot.append(el('p', 'wr-foot-hint', guide));
   if (ui.step > 1) foot.append(button('Back', () => api.goTo(ui.step - 1), 'wr-btn-text wr-back', 'arrow_back'));
   const last = ui.step === REVIEW_STEPS;
-  const label = last ? finishLabel(ui.focus.length) : STEPS[ui.step - 1].next;
-  const next = button('', last ? finish : () => api.goTo(ui.step + 1), 'wr-btn-filled wr-next' + (guide ? ' soft' : ''));
-  const short = last ? 'Finish' : 'Next';
-  next.append(el('span', 'wr-label wr-long', label), el('span', 'wr-label wr-short', short), icon(last ? 'check' : 'arrow_forward'));
+  const label = last ? (ui.focus.length ? `Finish with ${plural(ui.focus.length, 'Result')}` : 'Finish review') : STEPS[ui.step - 1].next;
+  const next = button('', last ? api.finish : () => api.goTo(ui.step + 1), 'wr-btn-filled wr-next');
+  next.append(el('span', 'wr-label wr-long', label), el('span', 'wr-label wr-short', last ? 'Finish' : 'Next'), icon(last ? 'check' : 'arrow_forward'));
   next.setAttribute('aria-label', label);
   foot.append(next);
   return foot;
-}
-function finishLabel(n) {
-  if (!n) return 'Finish review';
-  return `Finish with ${plural(n, 'Result')}`;
 }
 
 function heading(title, sub) {
@@ -280,9 +275,8 @@ function heading(title, sub) {
 
 function stepContent(api, ctx) {
   const parts = [stepOne, stepTwo, stepThree, stepFour][api.ui.step - 1](api, ctx);
-  for (const message of [api.ui.step < REVIEW_STEPS ? api.ui.focusHint : '', api.ui.hint]) {
-    if (!message) continue;
-    const hint = el('p', 'wr-error', message);
+  if (api.ui.hint) {
+    const hint = el('p', 'wr-error', api.ui.hint);
     hint.setAttribute('role', 'alert');
     parts.push(hint);
   }
@@ -307,32 +301,44 @@ function sectionHead(title, count, action = null) {
   return row;
 }
 
+/** Overlapping calendar events between now and the end of the planned week: the week's most consequential problem. */
+function clashNotes(api) {
+  const events = api.events();
+  if (!events) return [];
+  const end = new Date(shiftDay(api.week, 7) + 'T00:00');
+  return calendarClashes(events, api.now(), end).slice(0, 2).map(({day, a, b}) => {
+    const row = el('div', 'wr-clash');
+    row.setAttribute('role', 'note');
+    const text = el('div', 'wr-clash-text');
+    text.append(el('p', 'wr-clash-title', `Calendar clash ${dayName(day)}`),
+      el('p', 'wr-clash-detail tnum', `${a.title} (${clock(a.start)}–${clock(a.end)}) overlaps ${b.title} (${clock(b.start)}–${clock(b.end)}). Settle it in your calendar.`));
+    row.append(icon('event_busy'), text);
+    return row;
+  });
+}
+
 /* ---------- step 1: last week's Results ---------- */
 function stepOne(api) {
-  const summary = reviewSummary(api.data(), api.week);
-  const n = summary.results.length;
-  const sub = n
-    ? `${weekLabel(summary.lastWeek)}. Ticking every task doesn't mean the Result happened, so decide for each.`
-    : `${weekLabel(summary.lastWeek)}.`;
-  const parts = heading("How did last week's Results go?", sub);
-  if (!n) {
+  const summary = reviewSummary(api.data(), api.week, api.now());
+  const judged = summary.results.filter(r => !r.running);
+  const running = summary.results.filter(r => r.running);
+  const parts = heading("How did last week's Results go?", `${weekLabel(summary.lastWeek)}. Ticked tasks don't decide it; you do.`);
+  if (!summary.results.length) {
     const body = "Once you choose this week's Results in step 4, next week's review starts here.";
     parts.push(emptyState('history', 'Nothing to look back on yet', body));
     return parts;
   }
-  const decided = summary.results.filter(r => r.verdict).length;
-  const wins = summary.results.filter(r => r.verdict === 'achieved');
-  const tally = el('p', 'wr-tally tnum');
-  tally.setAttribute('aria-live', 'polite');
-  tally.append(el('span', '', decided === n ? `All ${n} decided` : `${decided} of ${n} decided`));
-  if (wins.length) {
-    const won = el('span', 'wr-tally-win');
-    won.append(icon('emoji_events', true), el('span', '', plural(wins.length, 'win')));
-    tally.append(won);
+  if (judged.length) {
+    const decided = judged.filter(r => r.verdict).length;
+    const wins = judged.filter(r => r.verdict === 'achieved');
+    const tally = el('p', 'wr-tally tnum');
+    tally.setAttribute('aria-live', 'polite');
+    tally.append(el('span', '', decided === judged.length ? `All ${judged.length} decided` : `${decided} of ${judged.length} decided`));
+    parts.push(tally);
+    for (const result of judged) parts.push(resultCard(api, summary, result));
+    if (wins.length) parts.push(winsCard(wins));
   }
-  parts.push(tally);
-  for (const result of summary.results) parts.push(resultCard(api, summary, result));
-  if (wins.length) parts.push(winsCard(wins));
+  if (running.length) parts.push(...runningList(api, running));
   return parts;
 }
 
@@ -354,7 +360,7 @@ function resultCard(api, summary, result) {
   }
   card.append(verdictControl(api, summary, result));
   if (win) card.append(evidenceField(api, summary, result));
-  if (result.verdict === 'partly' || result.verdict === 'notyet') card.append(carryResult(api, result), leftoverList(api, result));
+  if (result.verdict === 'partly' || result.verdict === 'notyet') card.append(carryRow(api, result), leftoverList(api, result));
   else if (win && result.leftovers.length) {
     card.append(el('p', 'wr-card-note', `${plural(result.leftovers.length, 'open task')} stay in this Block.`));
   }
@@ -378,8 +384,9 @@ function progressMeta(result, due, now) {
   return row;
 }
 
+/** One segmented button per Result: a single decision, not three loose chips. The chosen verdict carries colour and a word. */
 function verdictControl(api, summary, result) {
-  const group = el('div', 'wr-chips wr-verdicts');
+  const group = el('div', 'wr-seg wr-verdicts');
   group.setAttribute('role', 'radiogroup');
   group.setAttribute('aria-label', `Did "${result.title}" happen?`);
   for (const [value, label] of VERDICTS) {
@@ -388,11 +395,11 @@ function verdictControl(api, summary, result) {
       if (selected) return;
       const achieved = value === 'achieved';
       api.run(d => markAchieved(d, result.blockId, {achieved, week: summary.lastWeek, verdict: value}), VERDICT_RECEIPTS[value]);
-    }, 'wr-chip' + (selected ? ' sel' : '') + (selected && value === 'achieved' ? ' win' : ''));
+    }, `wr-seg-btn ${value}` + (selected ? ' sel' : ''));
     option.setAttribute('role', 'radio');
     option.setAttribute('aria-checked', String(selected));
     option.dataset.key = `verdict:${result.blockId}:${value}`;
-    if (selected) option.append(icon('check'));
+    if (selected) option.append(icon(value === 'achieved' ? 'emoji_events' : 'check', true));
     option.append(el('span', 'wr-label', label));
     group.append(option);
   }
@@ -420,17 +427,41 @@ function evidenceField(api, summary, result) {
   return wrap;
 }
 
-/** A Result that is still live can go straight into this week: it is pre-picked in step 4 (a draft, not plan data). */
-function carryResult(api, result) {
+/** Carrying pre-picks the Result in step 4 (a draft, not plan data). */
+function carryChip(api, result, short = false) {
   const on = api.ui.focus.includes(result.blockId);
-  const row = el('div', 'wr-carry');
-  const chip = button(on ? "In this week's Results" : 'Carry into this week', () => toggleFocus(api, result.blockId),
-    'wr-chip' + (on ? ' sel' : ''), on ? 'check' : 'redo');
+  const label = on ? (short ? 'Carried' : "In this week's Results") : (short ? 'Carry' : 'Carry into this week');
+  const chip = button(label, () => toggleFocus(api, result.blockId), 'wr-chip' + (on ? ' sel' : ''), on ? 'check' : 'redo');
   chip.setAttribute('aria-pressed', String(on));
+  if (short) chip.setAttribute('aria-label', `Carry "${result.title}" into this week`);
   chip.dataset.key = 'carry:' + result.blockId;
-  row.append(chip);
-  if (on) row.append(el('span', 'wr-carry-note', 'Picked for step 4'));
+  return chip;
+}
+function carryRow(api, result) {
+  const row = el('div', 'wr-carry');
+  row.append(carryChip(api, result));
   return row;
+}
+
+/** Results whose deadline is still ahead: nothing to judge yet, so the only question is whether to carry them. */
+function runningList(api, running) {
+  const now = api.now();
+  const list = el('ul', 'wr-list wr-running');
+  list.setAttribute('aria-label', 'Still running');
+  for (const r of running) {
+    const item = el('li', 'wr-run');
+    const text = el('div', 'wr-run-text');
+    text.append(el('span', 'wr-run-title', r.title));
+    const meta = el('span', 'wr-run-meta tnum');
+    const chip = dueChip(r.due, now);
+    if (chip) meta.append(chip);
+    meta.append(el('span', '', r.mustMinutes ? `${formatMinutes(r.mustMinutes)} of Must left` : 'No Must set'));
+    text.append(meta);
+    item.append(text, carryChip(api, r, true));
+    list.append(item);
+  }
+  return [sectionHead('Still running', running.length),
+    el('p', 'wr-section-note', "Their deadlines haven't come yet, so there's nothing to judge. Carry them into this week."), list];
 }
 
 function leftoverList(api, result) {
@@ -451,20 +482,20 @@ function leftoverRow(api, task) {
   const row = el('div', 'wr-left-row');
   const current = leftoverChoice(task, api.week);
   row.append(el('span', 'wr-left-title' + (current === 'drop' ? ' dropped' : ''), task.title ?? task.raw ?? 'Task'));
-  const chips = el('div', 'wr-chips');
-  chips.setAttribute('role', 'radiogroup');
-  chips.setAttribute('aria-label', `What to do with "${task.title}"`);
+  const seg = el('div', 'wr-seg sm');
+  seg.setAttribute('role', 'radiogroup');
+  seg.setAttribute('aria-label', `What to do with "${task.title}"`);
   for (const [value, label] of CHOICES) {
     const selected = current === value;
-    const chip = button(label, () => {
+    const option = button(label, () => {
       if (!selected) api.run(d => decideLeftover(d, task.id, value, api.week), decisionLabel(value));
-    }, 'wr-chip' + (selected ? ' sel' : ''));
-    chip.setAttribute('role', 'radio');
-    chip.setAttribute('aria-checked', String(selected));
-    chip.dataset.key = `left:${task.id}:${value}`;
-    chips.append(chip);
+    }, 'wr-seg-btn' + (selected ? ' sel' : ''));
+    option.setAttribute('role', 'radio');
+    option.setAttribute('aria-checked', String(selected));
+    option.dataset.key = `left:${task.id}:${value}`;
+    seg.append(option);
   }
-  row.append(chips);
+  row.append(seg);
   return row;
 }
 const decisionLabel = value => ({carry: 'Carried into this week', defer: 'Deferred', drop: 'Dropped. It stays in Archive'})[value];
@@ -490,8 +521,8 @@ function winsCard(wins) {
 function stepTwo(api, ctx) {
   const inbox = inboxTasks(api.data());
   const now = api.now();
-  const parts = heading('Empty your head', 'Get every idea, want and to-do out, in your own words. Sorting comes next.');
-  parts.push(quickAdd(api));
+  const parts = heading('Empty your head', 'Every idea, want and to-do, in your own words. Sorting comes next.');
+  parts.push(quickAdd(api), ...lenses(api));
   parts.push(sectionHead('Inbox', inbox.length, button('Open Capture', () => ctx.openCapture(), 'wr-btn-text', 'edit_note')));
   if (!inbox.length) {
     parts.push(el('p', 'wr-quiet', 'Nothing in the Inbox. Type anything still on your mind above.'));
@@ -506,12 +537,12 @@ function stepTwo(api, ctx) {
     const when = whenText(task, now);
     if (when || task.must) {
       const meta = el('span', 'wr-list-meta');
-      if (when) meta.append(el('span', when.overdue ? 'overdue' : when.soon ? 'soon' : '', when.text));
       if (task.must) {
         const must = el('span', 'wr-must-tag');
         must.append(icon('star', true), el('span', '', 'Must'));
         meta.append(must);
       }
+      if (when) meta.append(el('span', when.overdue ? 'overdue' : when.soon ? 'soon' : '', when.text));
       text.append(meta);
     }
     item.append(text);
@@ -529,11 +560,11 @@ function quickAdd(api) {
   const input = el('input', 'wr-add-input');
   input.type = 'text';
   input.maxLength = 200;
-  input.placeholder = 'Add a task to the Inbox';
+  input.placeholder = ui.lens ? `Anything for ${ui.lens}?` : 'Ideas, wants, to-dos';
   input.value = ui.draft;
   input.enterKeyHint = 'enter';
   input.dataset.key = 'quick-add';
-  input.setAttribute('aria-label', 'New Inbox task');
+  input.setAttribute('aria-label', 'Add to the Inbox');
   const send = iconButton('arrow_upward', 'Add to Inbox', null, 'wr-icon-btn wr-add-send');
   send.type = 'submit';
   const sync = () => { send.disabled = !input.value.trim(); };
@@ -552,189 +583,185 @@ function quickAdd(api) {
   return form;
 }
 
+/** RPM's lenses: walking through each Area surfaces what a blank field doesn't. A tap only changes the prompt. */
+function lenses(api) {
+  const {ui} = api;
+  const areas = planner(api.data()).areas.filter(a => !a.archived);
+  if (!areas.length) return [];
+  const row = el('div', 'wr-lenses');
+  row.setAttribute('role', 'group');
+  row.setAttribute('aria-label', 'Think through an Area');
+  for (const area of areas) {
+    const on = ui.lens === area.title;
+    const chip = button('', () => {
+      ui.lens = on ? null : area.title;
+      api.render();
+      document.querySelector('.wr-add-input')?.focus({preventScroll: true});
+    }, 'wr-chip wr-lens' + (on ? ' sel' : ''));
+    chip.setAttribute('aria-pressed', String(on));
+    chip.dataset.key = 'lens:' + area.id;
+    chip.append(areaDot(areaTone(area, planner(api.data()).areas)), el('span', 'wr-label', area.title));
+    row.append(chip);
+  }
+  return [el('p', 'wr-lens-head', 'Stuck? Think through each Area'), row];
+}
+
 /* ---------- step 3: group into Blocks ---------- */
 function stepThree(api, ctx) {
   const {ui} = api;
   const rows = api.groupList();
   const loose = rows.filter(t => (t.blockId ?? null) === null);
   ui.selected = ui.selected.filter(id => loose.some(t => t.id === id));
-  if (!ui.selected.length) ui.chunk = false;
+  if (!ui.selected.length) ui.sheet = null;
   const parts = heading('Group into Blocks', 'Select tasks that serve one Result, then add them to it or start a new one. Errands can stay in the Inbox.');
-  if (ctx.sortInbox && loose.length) {
-    parts.push(button('Sort with Jev', () => ctx.sortInbox(), 'wr-btn-outlined wr-sort', 'auto_awesome'));
-  }
+  parts.push(...clashNotes(api));
   if (!rows.length) {
     parts.push(emptyState('done_all', 'Nothing to group', 'Your Inbox is empty, so every task already has a home.'));
     return parts;
   }
-  const targets = focusCandidates(api.data(), api.week, weekFocus(api.data(), api.week));
-  const now = api.now();
-
+  if (ctx.sortInbox && loose.length) {
+    const jev = el('div', 'wr-jev');
+    jev.append(button('Suggest Blocks with Jev', () => ctx.sortInbox(), 'wr-chip wr-assist', 'auto_awesome'),
+      el('span', 'wr-jev-note', 'Jev proposes; nothing moves until you confirm.'));
+    parts.push(jev);
+  }
   parts.push(sectionHead('Inbox', loose.length));
   if (loose.length) {
     const list = el('ul', 'wr-list wr-group-list');
     list.setAttribute('aria-label', 'Inbox tasks to group');
-    for (const task of loose) list.append(...taskRow(api, task, targets, false));
+    for (const task of loose) list.append(selectRow(api, task));
     parts.push(list);
   } else parts.push(el('p', 'wr-quiet', 'Inbox is clear. Every task here has a Result.'));
-  if (ui.chunk) parts.push(chunkForm(api, loose.filter(t => ui.selected.includes(t.id))));
 
-  const picking = ui.selected.length > 0 && !ui.chunk;
-  parts.push(sectionHead('Your Results', null));
-  if (picking) parts.push(el('p', 'wr-section-note', `Tap a Result below to add ${ui.selected.length === 1 ? 'the selected task' : `the ${ui.selected.length} selected tasks`}, or start a New Result.`));
-  const list = el('ul', 'wr-list wr-targets');
-  list.setAttribute('aria-label', 'Your Results');
-  for (const c of targets) {
-    list.append(targetRow(api, c, picking, now));
-    for (const task of rows.filter(t => t.blockId === c.blockId)) list.append(...taskRow(api, task, targets, true));
+  // Blocks forming: the Results that received tasks during this step, each with what it received.
+  const grouped = rows.filter(t => t.blockId);
+  if (grouped.length) {
+    const now = api.now();
+    parts.push(sectionHead('Grouped', null));
+    const list = el('ul', 'wr-list wr-formed');
+    list.setAttribute('aria-label', 'Grouped into Results');
+    for (const c of focusCandidates(api.data(), api.week).filter(c => grouped.some(t => t.blockId === c.blockId))) {
+      const head = el('li', 'wr-formed-head');
+      head.append(el('span', 'wr-target-title', c.title));
+      if (c.purpose) head.append(el('span', 'wr-target-purpose', c.purpose));
+      const chip = c.due && dueChip(c.due, now);
+      if (chip) head.append(chip);
+      list.append(head);
+      for (const task of grouped.filter(t => t.blockId === c.blockId)) list.append(groupedRow(api, task));
+    }
+    parts.push(list);
   }
-  parts.push(list);
   return parts;
 }
 
-/** One line per task: a checkbox to select it for grouping (Inbox only) and a small Move chip. */
-function taskRow(api, task, targets, grouped) {
+/** One line per Inbox task: the whole row selects it, as in Gmail and Google Tasks. */
+function selectRow(api, task) {
   const {ui} = api;
-  const item = el('li', 'wr-row' + (grouped ? ' sub' : ''));
-  const name = task.title ?? task.raw;
-  if (grouped) {
-    item.append(icon('subdirectory_arrow_right'), el('span', 'wr-row-title', name));
-  } else {
-    const on = ui.selected.includes(task.id);
-    const check = button('', () => {
-      ui.selected = on ? ui.selected.filter(id => id !== task.id) : [...ui.selected, task.id];
-      ui.pickerFor = null;
-      api.render();
-    }, 'wr-row-check' + (on ? ' on' : ''));
-    check.setAttribute('role', 'checkbox');
-    check.setAttribute('aria-checked', String(on));
-    check.dataset.key = 'check:' + task.id;
-    check.append(icon(on ? 'check_box' : 'check_box_outline_blank', on), el('span', 'wr-row-title', name));
-    item.append(check);
-  }
-  const open = ui.pickerFor === task.id;
-  const move = iconButton(open ? 'expand_less' : 'drive_file_move', `Move "${name}" to a Result or the Inbox`, () => {
-    ui.pickerFor = open ? null : task.id;
-    ui.chunk = false;
+  const item = el('li', 'wr-row');
+  const on = ui.selected.includes(task.id);
+  const check = button('', () => {
+    ui.selected = on ? ui.selected.filter(id => id !== task.id) : [...ui.selected, task.id];
     api.render();
-  }, 'wr-icon-btn wr-move' + (open ? ' on' : ''));
-  move.setAttribute('aria-expanded', String(open));
-  move.dataset.key = 'move:' + task.id;
-  item.append(move);
-  if (!open) return [item];
-  const picker = el('li', 'wr-row-picker');
-  picker.append(blockPicker(api, task, targets));
-  return [item, picker];
+  }, 'wr-row-check' + (on ? ' on' : ''));
+  check.setAttribute('role', 'checkbox');
+  check.setAttribute('aria-checked', String(on));
+  check.dataset.key = 'check:' + task.id;
+  check.append(icon(on ? 'check_box' : 'check_box_outline_blank', on), el('span', 'wr-row-title', task.title ?? task.raw));
+  item.append(check);
+  return item;
 }
 
-function targetRow(api, c, picking, now) {
-  const {ui} = api;
-  const row = el('li', 'wr-target');
-  const body = el(picking ? 'button' : 'div', 'wr-target-body');
-  const text = el('span', 'wr-target-text');
-  text.append(el('span', 'wr-target-title', c.title));
-  if (c.purpose) text.append(el('span', 'wr-target-purpose', c.purpose));
-  const meta = el('span', 'wr-target-meta tnum');
-  const open = c.total - c.done;
-  meta.append(el('span', '', open ? plural(open, 'open task') : 'No open tasks'));
-  const chip = c.due && dueChip(c.due, now);
-  if (chip) meta.append(chip);
-  text.append(meta);
-  body.append(text);
-  if (picking) {
-    body.type = 'button';
-    body.dataset.key = 'target:' + c.blockId;
-    body.setAttribute('aria-label', `Add ${plural(ui.selected.length, 'task')} to ${c.title}`);
-    const add = el('span', 'wr-add-here');
-    add.append(icon('add'), el('span', '', 'Add'));
-    body.append(add);
-    body.addEventListener('click', () => {
-      const ids = ui.selected;
-      ui.selected = [];
-      api.run(d => groupTasks(d, ids, c.blockId), ids.length === 1 ? 'Added to ' + c.title : `${ids.length} tasks added to ${c.title}`);
-    });
-  }
-  row.append(body);
-  return row;
+function groupedRow(api, task) {
+  const item = el('li', 'wr-row sub');
+  const name = task.title ?? task.raw;
+  item.append(icon('subdirectory_arrow_right'), el('span', 'wr-row-title', name));
+  const back = iconButton('close', `Move "${name}" back to the Inbox`,
+    () => api.run(d => groupTasks(d, [task.id], null), 'Moved to Inbox'), 'wr-icon-btn wr-unmove');
+  back.dataset.key = 'unmove:' + task.id;
+  item.append(back);
+  return item;
 }
 
-/** While tasks are selected the top bar becomes a selection bar (as in Gmail): Clear, how many, and New Result. */
+/** While tasks are selected the footer becomes a contextual action bar: how many, New Result, Add to… */
 function selectionBar(api) {
   const {ui} = api;
-  const bar = el('header', 'wr-bar wr-selbar');
-  const clear = iconButton('close', 'Clear selection', () => { ui.selected = []; api.render(); });
-  const count = el('h1', 'wr-bar-title tnum', `${ui.selected.length} selected`);
+  const bar = el('footer', 'wr-foot wr-selbar');
+  const clear = iconButton('close', 'Clear selection', () => { Object.assign(ui, {selected: [], sheet: null}); api.render(); });
+  const count = el('span', 'wr-sel-count tnum', `${ui.selected.length} selected`);
   count.setAttribute('aria-live', 'polite');
-  const fresh = button('New Result', () => openChunk(api), 'wr-btn-tonal', 'add');
-  fresh.dataset.key = 'chunk';
-  fresh.setAttribute('aria-label', `New Result from ${plural(ui.selected.length, 'selected task')}`);
-  bar.append(clear, count, fresh);
+  const open = sheet => () => {
+    Object.assign(ui, {sheet, newBlock: sheet === 'new' ? {title: '', purpose: ''} : ui.newBlock});
+    api.render();
+    document.querySelector(sheet === 'new' ? '.wr-sheet input' : '.wr-sheet .wr-sheet-title')?.focus({preventScroll: true});
+  };
+  const fresh = button('New Result', open('new'), 'wr-btn-tonal');
+  fresh.dataset.key = 'sel:new';
+  const add = button(`Add to…`, open('add'), 'wr-btn-filled wr-sel-add');
+  add.dataset.key = 'sel:add';
+  add.setAttribute('aria-label', `Add ${plural(ui.selected.length, 'task')} to a Result`);
+  bar.append(clear, count, fresh, add);
   return bar;
 }
 
-function openChunk(api) {
-  api.ui.chunk = true;
-  api.ui.pickerFor = null;
-  api.ui.newBlock = {title: '', purpose: ''};
-  api.render();
-  const field = document.querySelector('.wr-new input');
-  field?.focus({preventScroll: true});
-  field?.closest('.wr-new')?.scrollIntoView({block: 'nearest'});
-}
-
-/** Inline single-choice list (no overlay, so Back and TalkBack stay simple). */
-function blockPicker(api, task, targets) {
+/** A bottom sheet over the step: pick the Result to add the selection to, or name a new one with its Purpose. */
+function sheetLayer(api) {
   const {ui} = api;
-  const current = task.blockId ?? null;
-  const list = el('div', 'wr-picker');
-  list.setAttribute('role', 'radiogroup');
-  list.setAttribute('aria-label', `Block for "${task.title}"`);
-  const choose = (target, label) => {
-    ui.pickerFor = null;
-    if (target === current) return api.render();
-    ui.selected = ui.selected.filter(id => id !== task.id);
-    api.run(d => groupTasks(d, [task.id], target), label);
-  };
-  list.append(pickerOption('Leave in Inbox', 'Standalone errands can stay here', !current, () => choose(null, 'Moved to Inbox'), `pick:${task.id}:inbox`));
-  for (const c of targets) {
-    list.append(pickerOption(c.title, c.purpose, current === c.blockId, () => choose(c.blockId, 'Added to ' + c.title), `pick:${task.id}:${c.blockId}`));
-  }
-  const add = button('New Result', () => {
-    ui.selected = [task.id];
-    openChunk(api);
-  }, 'wr-picker-add', 'add');
-  add.dataset.key = 'new:' + task.id;
-  list.append(add);
-  return list;
+  const layer = el('div', 'wr-layer');
+  const scrim = el('div', 'wr-scrim');
+  scrim.addEventListener('click', () => { ui.sheet = null; api.render(); });
+  const sheet = el('section', 'wr-sheet');
+  sheet.setAttribute('role', 'dialog');
+  sheet.setAttribute('aria-modal', 'true');
+  const chosen = api.groupList().filter(t => ui.selected.includes(t.id));
+  sheet.append(el('div', 'wr-handle'), ...(ui.sheet === 'new' ? newResultForm(api, chosen) : resultChooser(api, chosen)));
+  sheet.setAttribute('aria-label', sheet.querySelector('.wr-sheet-title').textContent);
+  layer.append(scrim, sheet);
+  return layer;
 }
 
-function pickerOption(label, detail, selected, onClick, key) {
-  const option = el('button', 'wr-option' + (selected ? ' sel' : ''));
-  option.type = 'button';
-  option.dataset.key = key;
-  option.setAttribute('role', 'radio');
-  option.setAttribute('aria-checked', String(selected));
-  option.append(icon(selected ? 'radio_button_checked' : 'radio_button_unchecked', selected));
-  const text = el('span', 'wr-option-text');
-  text.append(el('span', 'wr-option-label', label));
-  if (detail) text.append(el('span', 'wr-option-detail', detail));
-  option.append(text);
-  option.addEventListener('click', onClick);
-  return option;
+function sheetTitle(text) {
+  const h = el('h2', 'wr-sheet-title', text);
+  h.tabIndex = -1;
+  return h;
+}
+
+function resultChooser(api, chosen) {
+  const {ui} = api;
+  const now = api.now();
+  const n = chosen.length;
+  const list = el('div', 'wr-picker');
+  const fresh = button('New Result', () => { Object.assign(ui, {sheet: 'new', newBlock: {title: '', purpose: ''}}); api.render(); }, 'wr-option wr-option-new', 'add');
+  fresh.dataset.key = 'sheet:new';
+  list.append(fresh);
+  for (const c of focusCandidates(api.data(), api.week, [])) {
+    const option = el('button', 'wr-option');
+    option.type = 'button';
+    option.dataset.key = 'sheet:' + c.blockId;
+    const text = el('span', 'wr-option-text');
+    text.append(el('span', 'wr-option-label', c.title));
+    const detail = c.due ? dueInfo(c.due, now)?.label : c.purpose;
+    if (detail) text.append(el('span', 'wr-option-detail', detail));
+    option.append(icon('stacks'), text);
+    option.addEventListener('click', () => {
+      const ids = chosen.map(t => t.id);
+      Object.assign(ui, {selected: [], sheet: null});
+      api.run(d => groupTasks(d, ids, c.blockId), n === 1 ? 'Added to ' + c.title : `${n} tasks added to ${c.title}`);
+    });
+    list.append(option);
+  }
+  return [sheetTitle(`Add ${plural(n, 'task')} to…`), list];
 }
 
 /** RPM chunking: the selected tasks become one new Block with its Result and its Purpose, in one undoable change. */
-function chunkForm(api, chosen) {
+function newResultForm(api, chosen) {
   const {ui} = api;
-  const form = el('form', 'wr-card wr-new');
+  const form = el('form', 'wr-new');
   form.noValidate = true;
-  form.append(el('h3', 'wr-card-title', `New Result from ${plural(chosen.length, 'task')}`));
-  form.append(el('p', 'wr-card-purpose', chosen.map(t => t.title ?? t.raw).join(' · ')));
   const result = textField("What's the Result?", 'What will be true when it is done', ui.newBlock.title, 'chunk:title', v => { ui.newBlock.title = v; sync(); });
   const purpose = textField('Why does it matter?', 'The Purpose that keeps you going', ui.newBlock.purpose, 'chunk:purpose', v => { ui.newBlock.purpose = v; sync(); });
   const actions = el('div', 'wr-new-actions');
-  const cancel = button('Cancel', () => { ui.chunk = false; api.render(); }, 'wr-btn-text');
-  const create = el('button', 'wr-btn-tonal');
+  const cancel = button('Cancel', () => { ui.sheet = null; api.render(); }, 'wr-btn-text');
+  const create = el('button', 'wr-btn-filled');
   create.type = 'submit';
   create.textContent = 'Create Result';
   const sync = () => { create.disabled = !ui.newBlock.title.trim() || !ui.newBlock.purpose.trim(); };
@@ -745,11 +772,11 @@ function chunkForm(api, chosen) {
     const fields = {title: ui.newBlock.title.trim(), purpose: ui.newBlock.purpose.trim()};
     if (!fields.title || !fields.purpose) return;
     const ids = chosen.map(t => t.id);
-    Object.assign(ui, {chunk: false, selected: []});
+    Object.assign(ui, {sheet: null, selected: []});
     api.run(d => groupTasks(d, ids, fields), 'New Result: ' + fields.title);
   });
   form.append(result, purpose, actions);
-  return form;
+  return [sheetTitle('New Result'), el('p', 'wr-sheet-sub', chosen.map(t => t.title ?? t.raw).join(' · ')), form];
 }
 
 function textField(label, placeholder, value, key, onInput) {
@@ -769,54 +796,103 @@ function textField(label, placeholder, value, key, onInput) {
 /* ---------- step 4: this week's Results ---------- */
 function stepFour(api) {
   const {ui} = api;
-  const data = api.data();
   const now = api.now();
   ui.focusBase ??= [...ui.focus];
-  const candidates = focusCandidates(data, api.week, ui.focusBase);
+  const candidates = focusCandidates(api.data(), api.week, ui.focusBase);
   ui.focus = ui.focus.filter(id => candidates.some(c => c.blockId === id));
-  const parts = heading("Pick this week's Results", 'Choose 3 to 5. The nearest deadlines come first.');
+  const parts = heading("Pick this week's Results", 'Choose 3 to 5. Nearest deadline first.');
+  parts.push(...clashNotes(api));
   if (!candidates.length) {
     parts.push(emptyState('stacks', 'No Blocks yet', 'Go back a step to group tasks into a new Block, then choose it here.'));
     return parts;
   }
-  parts.push(weekSummary(candidates.filter(c => ui.focus.includes(c.blockId)), ui, now));
-  for (const c of candidates) parts.push(focusCard(api, c, now));
+  parts.push(capacityCard(api, candidates.filter(c => ui.focus.includes(c.blockId))));
+  // Results with nothing left to do wait behind one row, so they don't compete with the urgent ones.
+  const idle = candidates.filter(c => c.total === c.done && !ui.focusBase.includes(c.blockId));
+  for (const c of candidates.filter(c => !idle.includes(c))) parts.push(focusCard(api, c, now));
+  if (idle.length) {
+    const toggle = button('', () => { ui.showIdle = !ui.showIdle; api.render(); }, 'wr-idle-toggle');
+    toggle.setAttribute('aria-expanded', String(ui.showIdle));
+    toggle.dataset.key = 'idle';
+    toggle.append(el('span', 'wr-label', `${plural(idle.length, 'Result')} with no open tasks`), icon(ui.showIdle ? 'expand_less' : 'expand_more'));
+    parts.push(toggle);
+    if (ui.showIdle) for (const c of idle) parts.push(focusCard(api, c, now));
+  }
   return parts;
 }
 
 /**
- * What the picked Results ask of the week: Must and planned time, and how much Must work has to happen
- * before each deadline. There is no calendar here, so it never claims the time fits.
+ * What the picked Results ask of the week, against the time there is: each deadline's Must time due by then beside
+ * the free time until then (8 AM–10 PM minus calendar events), and a day strip with deadlines and clashes.
+ * Without a readable calendar it says so and still shows the Must time.
  */
-function weekSummary(chosen, ui, now) {
-  const box = el('div', 'wr-summary');
-  box.setAttribute('aria-live', 'polite');
-  const n = chosen.length;
+function capacityCard(api, chosen) {
+  const {ui} = api;
+  const now = api.now();
+  const events = api.events();
+  const cap = weekCapacity(chosen, events, api.week, now);
+  const box = el('section', 'wr-summary');
+  box.setAttribute('aria-label', 'This week at a glance');
   const head = el('p', 'wr-summary-head');
-  head.append(el('span', 'wr-summary-count tnum', `${n} picked`), el('span', 'wr-summary-aim', ' · aim for 3–5'));
-  box.append(head);
-  if (!n) {
-    box.append(el('p', 'wr-summary-line', 'Tap a Result to pick it. Its Must time and deadline add up here.'));
-  } else {
-    const must = chosen.reduce((s, c) => s + c.mustMinutes, 0);
-    const planned = chosen.reduce((s, c) => s + c.plannedMinutes, 0);
-    box.append(el('p', 'wr-summary-line tnum', `Must ${formatMinutes(must)} · Planned ${formatMinutes(planned)}`));
-    const dated = chosen.filter(c => c.due).map(c => ({c, info: dueInfo(c.due, now)})).sort((a, b) => a.info.at - b.info.at);
+  head.setAttribute('aria-live', 'polite');
+  head.append(el('span', 'wr-summary-count tnum', `${chosen.length} picked`), el('span', 'wr-summary-aim', ' · aim for 3–5'));
+  box.append(head, dayStrip(cap.days, events != null, now));
+  if (chosen.length) {
     const ladder = el('ul', 'wr-ladder');
-    let sum = 0;
-    for (const [i, {c, info}] of dated.entries()) {
-      sum += c.mustMinutes;
-      if (dated[i + 1] && dated[i + 1].info.at - info.at < 6 * 36e5) continue; // same evening: one line
-      const item = el('li', info.overdue ? 'overdue' : info.soon ? 'soon' : '');
-      item.append(icon(info.overdue ? 'error' : 'event'), el('span', 'wr-ladder-when', info.label),
-        el('span', 'wr-ladder-must tnum', `${formatMinutes(sum)} Must by then`));
+    for (const c of cap.checkpoints.slice(0, 4)) {
+      const info = c.value ? dueInfo(c.value, now) : null;
+      const state = info?.overdue || c.over ? 'over' : c.tight ? 'tight' : events ? 'fits' : '';
+      const item = el('li', state);
+      const when = info ? capital(info.overdue ? 'Overdue' : info.label.replace(/^Due /, '')) : 'By the end of the week';
+      const text = el('span', 'wr-ladder-text');
+      text.append(el('span', 'wr-ladder-when', when),
+        el('span', 'wr-ladder-must tnum', `${formatMinutes(c.must)} of Must` + (c.free != null ? ` · ${formatMinutes(c.free)} free` : ' by then')));
+      item.append(icon(c.value ? 'hourglass_bottom' : 'date_range', true), text);
+      if (state === 'over') item.append(el('span', 'wr-ladder-state', c.free != null ? `Short ${formatMinutes(c.must - c.free)}` : 'Overdue'));
+      else if (state === 'tight') item.append(el('span', 'wr-ladder-state', 'Tight'));
+      else if (state === 'fits') item.append(el('span', 'wr-ladder-state', 'Fits'));
       ladder.append(item);
-      if (ladder.children.length === 3) break;
     }
-    if (ladder.children.length) box.append(ladder, el('p', 'wr-summary-note', 'From your Must estimates. Your calendar is not checked.'));
+    box.append(ladder);
+  } else {
+    box.append(el('p', 'wr-summary-line', 'Pick a Result to see whether its Must time fits before its deadline.'));
   }
-  if (ui.focusHint) box.append(el('p', 'wr-summary-note', ui.focusHint));
+  box.append(el('p', 'wr-summary-note', calendarNote(ui.calendar)));
+  if (ui.focusHint) box.append(el('p', 'wr-summary-note wr-summary-warn', ui.focusHint));
   return box;
+}
+
+function calendarNote(calendar) {
+  if (calendar === undefined) return 'Reading your calendar…';
+  const status = calendar?.status;
+  if (status === 'ready') return 'Free time counts 8 AM–10 PM, minus your calendar.';
+  if (READABLE.has(status)) return 'Free time counts 8 AM–10 PM, minus your calendar. The calendar copy may be incomplete.';
+  if (status === 'not_selected' || status === 'permission_needed') return "Calendar not connected, so free time isn't counted. Connect it from Today's menu.";
+  return "Calendar unavailable, so free time isn't counted.";
+}
+
+/** Today to Sunday as Calendar-style day cells: free hours, an hourglass on deadline days, a warning on clash days. */
+function dayStrip(days, counted, now) {
+  const strip = el('ol', 'wr-strip');
+  strip.setAttribute('aria-label', 'Days until the end of the week');
+  const today = days[0]?.day;
+  for (const d of days) {
+    const date = new Date(d.day + 'T12:00');
+    const cell = el('li', 'wr-strip-day' + (d.day === today ? ' today' : '') + (date.getDay() === 1 ? ' monday' : '') + (d.over ? ' over' : ''));
+    const said = [dayName(d.day)];
+    cell.append(el('span', 'wr-strip-letter', date.toLocaleDateString(undefined, {weekday: 'narrow'})), el('span', 'wr-strip-num tnum', String(date.getDate())));
+    if (counted) {
+      cell.append(el('span', 'wr-strip-free tnum', `${Math.round(d.free / 60)}h`));
+      said.push(`${formatMinutes(d.free)} free`);
+    }
+    const marks = el('span', 'wr-strip-marks');
+    if (d.deadlines) { marks.append(icon('hourglass_bottom', true)); said.push(d.over ? 'deadline, Must time does not fit' : 'deadline'); }
+    if (d.clash) { marks.append(Object.assign(icon('warning', true), {className: 'ms fill clash'})); said.push('calendar clash'); }
+    cell.append(marks);
+    cell.setAttribute('aria-label', said.join(', '));
+    strip.append(cell);
+  }
+  return strip;
 }
 
 function focusCard(api, c, now) {
@@ -834,24 +910,32 @@ function focusCard(api, c, now) {
   if (c.purpose) text.append(el('span', 'wr-card-purpose', c.purpose));
   const open = c.total - c.done;
   const info = c.due ? dueInfo(c.due, now) : null;
-  const tags = el('span', 'wr-tags');
+  // One facts line: the deadline, the Must time left (or why there is none), and Carried when it came from step 1.
+  const facts = el('span', 'wr-tags tnum');
   const chip = c.due && dueChip(c.due, now);
-  if (chip) tags.append(chip);
-  if (info && (info.soon || info.overdue) && open && !c.mustMinutes) {
+  if (chip) facts.append(chip);
+  if (!c.total) facts.append(el('span', 'wr-fact', 'No tasks yet'));
+  else if (!open) facts.append(el('span', 'wr-fact', 'All tasks done'));
+  else if (c.mustMinutes) facts.append(el('span', 'wr-fact', `${formatMinutes(c.mustMinutes)} Must`));
+  else if (info && (info.soon || info.overdue)) {
     const warn = el('span', 'wr-warn');
     warn.append(icon('star'), el('span', '', 'No Must set'));
-    tags.append(warn);
-  }
-  if (c.carried) tags.append(el('span', 'wr-tag', 'Carried over'));
-  if (tags.children.length) text.append(tags);
-  const must = c.mustMinutes ? `Must ${formatMinutes(c.mustMinutes)}` : 'No Must yet';
-  const meta = !c.total ? 'No tasks yet'
-    : open ? `${must} · Planned ${formatMinutes(c.plannedMinutes)} · ${c.done} of ${c.total} done` : `All ${c.total} tasks done`;
-  text.append(el('span', 'wr-card-meta tnum', meta));
+    facts.append(warn);
+  } else facts.append(el('span', 'wr-fact', 'No Must yet'));
+  if (c.carried) facts.append(el('span', 'wr-tag', 'Carried'));
+  text.append(facts);
   head.append(text);
   head.addEventListener('click', () => toggleFocus(api, c.blockId));
   card.append(head);
-  if (selected) card.append(mustList(api, c.blockId, now));
+  // Only the Result picked last lists its tasks with Must stars; the others fold to one line, so the stack stays short.
+  if (selected && ui.expanded === c.blockId) card.append(mustList(api, c.blockId, now));
+  else if (selected) {
+    const musts = blockTasks(api.data(), c.blockId).filter(t => !t.done && t.must).length;
+    const more = button(`${plural(open, 'open task')} · ${plural(musts, 'Must')}`, () => { ui.expanded = c.blockId; api.render(); }, 'wr-musts-more', 'expand_more');
+    more.setAttribute('aria-expanded', 'false');
+    more.dataset.key = 'more:' + c.blockId;
+    card.append(more);
+  }
   return card;
 }
 
@@ -860,17 +944,19 @@ function toggleFocus(api, blockId) {
   ui.focusHint = '';
   if (ui.focus.includes(blockId)) ui.focus = ui.focus.filter(id => id !== blockId);
   else if (ui.focus.length >= MAX_FOCUS) ui.focusHint = 'Five is the most for one week. Unpick one to swap it.';
-  else ui.focus = [...ui.focus, blockId];
+  else Object.assign(ui, {focus: [...ui.focus, blockId], expanded: blockId});
   api.render();
   api.run(d => saveReviewProgress(d, api.week, {focusDraft: ui.focus}), null);
 }
 
+/** Inline Must stars for a picked Result's open tasks: the Must time above updates as they change. */
 function mustList(api, blockId, now) {
   const open = blockTasks(api.data(), blockId).filter(t => !t.done);
   const box = el('div', 'wr-musts');
-  if (!open.length) {
-    box.append(el('p', 'wr-card-note', 'No open tasks. Add the next step from the Block.'));
-  } else box.append(el('p', 'wr-musts-head', 'Star the tasks that must happen'));
+  const head = el('div', 'wr-musts-head');
+  head.append(el('span', '', open.length ? 'Star what must happen' : 'No open tasks. Add the next step in the Block.'),
+    button('Open Block', () => api.openBlock(blockId), 'wr-btn-text wr-open-block'));
+  box.append(head);
   for (const task of open) {
     const row = el('div', 'wr-must-row');
     const label = task.must ? 'Must. Tap to unmark' : 'Mark as Must';
@@ -879,14 +965,12 @@ function mustList(api, blockId, now) {
     star.setAttribute('aria-pressed', String(!!task.must));
     star.dataset.key = 'must:' + task.id;
     if (task.must) star.querySelector('.ms').classList.add('fill');
-    const text = el('span', 'wr-must-text');
-    text.append(el('span', 'wr-must-title', task.title ?? task.raw));
+    // One line per task: the star, the title and its time; a date only when the task has one.
     const when = whenText(task, now);
-    const minutes = task.minutes == null ? 'No time' : formatMinutes(task.minutes);
-    text.append(el('span', 'wr-must-min tnum' + (when?.overdue ? ' overdue' : ''), when ? `${when.text} · ${minutes}` : minutes));
-    row.append(star, text);
+    const title = el('span', 'wr-must-title', task.title ?? task.raw);
+    if (when) title.append(el('span', 'wr-must-when' + (when.overdue ? ' overdue' : ''), ' · ' + when.text));
+    row.append(star, title, el('span', 'wr-must-min tnum', task.minutes == null ? '–' : formatMinutes(task.minutes)));
     box.append(row);
   }
-  box.append(button('Open Block', () => api.openBlock(blockId), 'wr-btn-text wr-open-block', 'open_in_new'));
   return box;
 }

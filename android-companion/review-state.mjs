@@ -42,6 +42,8 @@ export function taskDate(task) {
   return DAY.test(task.plannedDate ?? '') ? task.plannedDate : null;
 }
 const dateKey = value => (value.length > 10 ? value : value + 'T23:59');
+/** A deadline value as a Date: an untimed day ends at 11:59 PM, as in dueInfo. */
+const dueAt = value => new Date(dateKey(value));
 
 /** Achievement is the user's call; task counts are activity only. */
 export function resultStatus(data, blockId) {
@@ -129,12 +131,18 @@ export function leftoverTasks(data, blockId, week) {
   return [...open, ...dropped];
 }
 
-export function reviewSummary(data, week) {
+/**
+ * Last week's Results. A Result whose deadline is still ahead (and has no verdict yet) is `running`:
+ * its window hasn't closed, so the review offers to carry it rather than asking whether it happened.
+ */
+export function reviewSummary(data, week, now = new Date()) {
   checkDay(week);
   const lastWeek = shiftDay(week, -7);
   const results = lastWeekBlocks(data, lastWeek, week).map(blockId => {
     const block = blockById(data, blockId);
     const status = resultStatus(data, blockId);
+    const due = blockDue(data, blockId)?.value ?? null;
+    const verdict = weekVerdict(data, lastWeek, blockId) ?? (status.achieved ? 'achieved' : null);
     return {
       blockId,
       title: block.title,
@@ -142,8 +150,10 @@ export function reviewSummary(data, week) {
       done: status.done,
       total: status.total,
       achieved: status.achieved,
-      due: blockDue(data, blockId)?.value ?? null,
-      verdict: weekVerdict(data, lastWeek, blockId) ?? (status.achieved ? 'achieved' : null),
+      due,
+      running: !verdict && !!due && dueAt(due) > now,
+      mustMinutes: status.mustMinutes,
+      verdict,
       evidence: status.evidence,
       leftovers: leftoverTasks(data, blockId, week).map(t => t.id),
     };
@@ -263,4 +273,75 @@ export function finishReview(data, week, focusIds, now = new Date()) {
   const receipt = setWeekFocus(data, week, focusIds);
   saveReviewProgress(data, week, {step: REVIEW_STEPS, finishedAt: now.toISOString(), focusDraft: null}, now);
   return receipt;
+}
+
+/* ---------- capacity: Must time against free time (read-only calendar) ---------- */
+/** Waking hours assumed when counting free time: 8 AM to 10 PM. The review states this wherever it shows free time. */
+export const WAKING = [8, 22];
+const busyEvents = events => (events ?? []).filter(e => e.busy !== false && !e.allDay && +e.end > +e.start);
+const dayStart = time => { const d = new Date(time); d.setHours(0, 0, 0, 0); return d; };
+
+/** Free minutes in [from, to): waking hours minus busy calendar events, overlaps counted once. */
+export function freeMinutes(events, from, to, waking = WAKING) {
+  const busy = busyEvents(events).map(e => [+e.start, +e.end]).sort((a, b) => a[0] - b[0]);
+  let total = 0;
+  for (let day = dayStart(from); day < to; day.setDate(day.getDate() + 1)) {
+    const open = new Date(day).setHours(waking[0]), close = new Date(day).setHours(waking[1]);
+    const a = Math.max(+from, open), b = Math.min(+to, close);
+    if (b <= a) continue;
+    let free = b - a, edge = a;
+    for (const [s, e] of busy) {
+      const start = Math.max(s, edge), end = Math.min(e, b);
+      if (end > start) { free -= end - start; edge = end; }
+    }
+    total += free;
+  }
+  return Math.round(total / 60000);
+}
+
+/** Busy calendar events that overlap each other within [from, to): {day, a, b}, earliest first. */
+export function calendarClashes(events, from, to) {
+  const rows = busyEvents(events).filter(e => +e.end > +from && +e.start < +to).sort((x, y) => x.start - y.start || x.end - y.end);
+  const clashes = [];
+  rows.forEach((a, i) => {
+    for (const b of rows.slice(i + 1)) if (+b.start < +a.end) clashes.push({day: localDay(new Date(+b.start)), a, b});
+  });
+  return clashes;
+}
+
+/**
+ * Whether the picked Results' Must work fits. Each checkpoint is a deadline (deadlines within 6 hours share one),
+ * or the end of the week for Results without one this week, and compares the Must time due by then with the free
+ * time from now until then. `events` is null when the calendar isn't connected: Must time is still shown, free time isn't.
+ * `days` runs from today to the week's Sunday, with each day's free time, deadlines and clashes.
+ */
+export function weekCapacity(chosen, events, week, now = new Date()) {
+  const end = new Date(shiftDay(checkDay(week), 7) + 'T00:00');
+  const points = chosen.map(c => {
+    const at = c.due ? dueAt(c.due) : null;
+    return at && at < end ? {at, value: c.due, must: c.mustMinutes} : {at: end, value: null, must: c.mustMinutes};
+  }).sort((a, b) => a.at - b.at);
+  const checkpoints = [];
+  let must = 0;
+  points.forEach((p, i) => {
+    must += p.must;
+    const next = points[i + 1];
+    if (next && next.at - p.at < 6 * 36e5 && (next.value || !p.value)) return;
+    const free = events ? (p.at > now ? freeMinutes(events, now, p.at) : 0) : null;
+    checkpoints.push({at: p.at, value: p.value, must, free, over: free != null && must > free, tight: free != null && must > free / 2});
+  });
+  const clashes = events ? calendarClashes(events, now, end) : [];
+  const days = [];
+  for (let day = localDay(now); day < shiftDay(week, 7); day = shiftDay(day, 1)) {
+    const from = new Date(day + 'T00:00'), to = new Date(shiftDay(day, 1) + 'T00:00');
+    const here = checkpoints.filter(c => c.value && c.at >= from && c.at < to);
+    days.push({
+      day,
+      free: events ? freeMinutes(events, new Date(Math.max(+now, +from)), to) : null,
+      deadlines: here.length,
+      over: here.some(c => c.over),
+      clash: clashes.some(c => c.day === day),
+    });
+  }
+  return {checkpoints, days, clashes};
 }
