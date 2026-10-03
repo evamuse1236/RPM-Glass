@@ -136,12 +136,12 @@ export function openTask(app, id, occurrence, {focus = null} = {}) {
     move: () => group.open(blockRow),
     helper: () => { leverage.closest('.detail-row').hidden = false; leverage.focus(); },
     schedule: () => scheduleMenu(app, live() ?? task, more, {occurrence}),
-    afterRemove: fromInbox ? () => showInbox(app) : null,
+    afterRemove: fromInbox ? () => showInbox(app, {motion: 'back'}) : null,
   })));
   header.querySelector('.sheet-close').before(more);
   const goBack = () => {
     if (body.contains(document.activeElement)) document.activeElement.blur();
-    showInbox(app);
+    showInbox(app, {motion: 'back'});
     // Focus returns to the row the task was opened from.
     app.dom.sheet.querySelector(`.task-row[data-task-id="${id}"] .task-main`)?.focus({preventScroll: true});
   };
@@ -678,8 +678,8 @@ function inboxShowing(app) {
 }
 
 /** Inbox: open tasks that are not in a Block yet. Rows swipe as everywhere; a save updates the rows in place. */
-export function showInbox(app) {
-  const {body, actions} = openSheet(app, 'Inbox');
+export function showInbox(app, {motion = 'forward'} = {}) {
+  const {body, actions} = openSheet(app, 'Inbox', {motion});
   app.sheet.inboxBody = body;
   const draw = () => {
     const rows = blockTasks(app.data(), null).filter(task => !task.done);
