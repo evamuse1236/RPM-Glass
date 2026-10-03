@@ -449,8 +449,8 @@ export function syncSheet(app) {
 
 export function mountPlanner(api) {
   // After every save, Undo or outside change the shell re-renders; an open task sheet then updates its rows in place.
-  const shell = app => {
-    renderShell(app);
+  const shell = (app, options) => {
+    renderShell(app, options);
     syncSheet(app);
   };
   const app = createApp(api, {shell, screen: renderScreen, defaultScroll, refreshCalendar, searchBar});

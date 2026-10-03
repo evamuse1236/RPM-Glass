@@ -111,6 +111,15 @@ export function notice(app, message, options = {}) {
   const {undo = false} = options;
   const node = app.dom.snackbar;
   const showing = !node.hidden;
+  // The same words on a bar that is showing and staying: the bar stays still and only its time restarts (its Undo
+  // already undoes the latest change).
+  const same = showing && app.dom.planner.dataset.snackbar === 'true' && node.querySelector(':scope > .snackbar-text')?.textContent === message
+    && !!node.querySelector(':scope > .snackbar-action') === !!undo && !node.querySelector(':scope > .snackbar-ghost');
+  if (same) {
+    app.dom.planner.dataset.snackbar = 'true';
+    arm(app, undo ? 6000 : 4000);
+    return;
+  }
   ++leaving;
   const content = [el('span', 'snackbar-text', message)];
   if (undo) {

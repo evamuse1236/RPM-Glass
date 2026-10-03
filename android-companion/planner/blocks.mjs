@@ -196,6 +196,10 @@ export function renderBlocks(app, page) {
 }
 
 /** A Google Tasks detail row: a 24dp icon in the check column, then text aligned with the task titles. */
+/** What a field's or button's handlers act on: a save that leaves the record as it was keeps the very node (focus,
+ * caret and all); any change to the record rebuilds it (see `data-keep` and `__closure` in animateRerender). */
+const stampOf = (collection, record) => `${collection}:${record.id}:${JSON.stringify(record)}`;
+
 export function factRow(symbol, {onClick = null, cls = ''} = {}) {
   const row = onClick ? button('', onClick, 'fact-row ' + cls) : el('div', 'fact-row ' + cls);
   row.append(typeof symbol === 'string' ? icon(symbol, {cls: 'leading'}) : symbol);
@@ -225,6 +229,7 @@ export function purposePanel(app, collection, record, noun = 'Purpose') {
     onSave: words => saveEntity(app, collection, record, {purpose: words}, words ? 'Purpose saved' : 'Purpose cleared')});
   copy.append(editLabel(noun), text);
   row.addEventListener('click', event => { if (event.target !== text) focusField(text); });
+  row.dataset.keep = 'purpose:' + stampOf(collection, record);
   return row;
 }
 
@@ -261,6 +266,7 @@ export function titleField(app, collection, record, label) {
   heading.append(inlineText(app, {key: `${collection}:${record.id}:title`, value: record.title, label, required: true,
     placeholder: label, cls: 'title-edit', emptyNotice: `A ${label} needs words. Kept “${record.title}”.`,
     onSave: words => saveEntity(app, collection, record, {title: words}, `${label} renamed`)}));
+  heading.dataset.keep = 'title:' + stampOf(collection, record);
   return heading;
 }
 
@@ -302,6 +308,7 @@ function achievedControl(app, block, status) {
       el('span', 'list-supporting', 'Ticked tasks don’t decide it'));
     const mark = button('Mark achieved', () => achievedSheet(app, block), 'outlined-btn');
     mark.setAttribute('aria-label', 'Mark Result achieved');
+    mark.__closure = stampOf('blocks', block);
     row.append(mark);
     return row;
   }
@@ -351,15 +358,14 @@ function inlineAdd(app, block) {
     const op = {type: 'saveTask', fields: {title, blockId: block.id}};
     const pending = {op};
     app.pending.push(pending);
-    // The field's hint and its + wait until the row has opened above it, so the two never overlap; the caret stays
-    // lit meanwhile and while the next words are typed.
+    // The caret stays lit while the row opens and the next words are typed.
     const landing = form.__landing = {};
-    form.dataset.landing = form.dataset.steady = 'true';
-    waitMotion(80).then(() => { if (form.__landing === landing) delete form.dataset.landing; });
+    form.dataset.steady = 'true';
     waitMotion(DURATION.medium4 * 2).then(() => { if (form.__landing === landing) delete form.dataset.steady; });
     app.render();
     try {
-      await persist(app, op, {label: 'Task added', pending});
+      // The screen already shows the saved result: no second re-render (it would cut the row's opening short).
+      await persist(app, op, {label: 'Task added', pending, render: false});
     } catch {
       // Not saved: the row leaves and the words come back to the field (unless new words are already there).
       app.pending = app.pending.filter(p => p !== pending);
@@ -377,6 +383,9 @@ function inlineAdd(app, block) {
 function statusRow(status, due) {
   const label = status.total ? `${status.done} of ${plural(status.total, 'task')} done` : 'No tasks in the Plan yet';
   const {row, copy} = factRow(progressRing(status.done, status.total, label), {cls: 'status-row'});
+  // The same row whatever it says: a new task changes its words in place (they settle in, with no copy of the old).
+  row.dataset.key = 'status';
+  row.dataset.fade = 'in';
   row.classList.toggle('tight', !!due?.tight);
   const must = mustLeft(status);
   const left = !must && status.plannedMinutes ? el('span', 'nowrap', duration(status.plannedMinutes) + ' left') : null;
@@ -456,6 +465,7 @@ function projectLine(app, block, project) {
     items.push({label: 'No project', icon: block.projectId ? NO_ICON : 'check', onClick: move(null)});
     openMenu(crumb, items, 'Project');
   });
+  crumb.__closure = stampOf('blocks', block) + JSON.stringify(project ?? null);
   return crumb;
 }
 

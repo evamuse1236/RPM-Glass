@@ -566,6 +566,12 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
   for (const [key, look] of looks) {
     const next = after.rows.get(key)?.node;
     if (!next?.isConnected || next.textContent === look.text || inSwap(next) || next.contains(document.activeElement)) continue;
+    // A row marked `data-fade="in"` keeps its node and only lets its new words settle in (no copy of the old ones is
+    // made, so nothing is thrown away).
+    if (next.dataset.fade === 'in') {
+      animations.push(next.animate([{opacity: .4}, {opacity: 1}], {duration: DURATION.short4, easing: EASE.standardDecelerate}));
+      continue;
+    }
     fades.push({...look, rect: before.rows.get(key).rect, node: next});
   }
   for (const node of ghosts) {
@@ -577,17 +583,18 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
   }
   let landed = null;
   if (landing && landing.until < performance.now()) landing = null;
-  // Typed in place: the words stay put at full opacity; only the box opens (the content overflows it meanwhile, over
-  // the field that is sliding down and still hidden).
+  // Typed in place: the row sits at its final place at full opacity and its box opens from the top (200ms), so the
+  // field below slides down by exactly the room it takes and the two never share space.
   const land = node => {
     if (!landing?.match(node)) return false;
     landed = {...landing, node};
     landing = null;
     animated.add(node);
+    clip(node);
     const style = getComputedStyle(node);
     animations.push(node.animate([
-      {height: '0px', minHeight: '0px', marginBottom: '0px', overflow: 'visible'},
-      {height: node.getBoundingClientRect().height + 'px', minHeight: '0px', marginBottom: style.marginBottom, overflow: 'visible'}],
+      {height: '0px', minHeight: '0px', marginBottom: '0px'},
+      {height: node.getBoundingClientRect().height + 'px', minHeight: '0px', marginBottom: style.marginBottom}],
     {duration: DURATION.short4, easing: EASE.standard}));
     return true;
   };

@@ -1059,11 +1059,6 @@ button.fact-row:active { background: var(--row-press); }
 }
 .inline-add input::placeholder { color: var(--primary); opacity: 1; }
 .inline-add input:focus::placeholder { color: var(--on-surface-variant); }
-/* Just after Enter the new row's words are still over the field as it slides down: its hint returns once clear. */
-.inline-add input::placeholder { transition: color 120ms var(--ease-standard); }
-.inline-add .icon-btn { transition: opacity 120ms var(--ease-standard); }
-.inline-add[data-landing] input::placeholder { color: transparent; transition: none; }
-.inline-add[data-landing] .icon-btn { opacity: 0; transition: none; }
 /* While the words go on to the Plan and the next are typed, the caret stays lit (as Android's does while typing). */
 .inline-add[data-steady] input { caret-animation: manual; }
 .screen-blocks .completed-group, .screen-blocks .plan-list { margin: 0 var(--s1); }

@@ -254,7 +254,7 @@ export function render(app, {reset = false, direction = ''} = {}) {
   const kind = top?.kind ?? app.state.tab;
 
   if (!previousKey || (!changed && !direction)) {
-    app.renderers.shell(app);
+    app.renderers.shell(app, {keep: !!previousKey && !changed});
     if (app.mounted && app.mounted.key === key) return;
     if (!previousKey) {
       buildScreen(app, kind, top);
