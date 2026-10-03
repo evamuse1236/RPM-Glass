@@ -1,10 +1,10 @@
 /** Task rows in the style of Google Tasks: circle check, title, supporting time and duration, Must star. */
-import {blockTasks, localDay} from '../planner-state.mjs';
+import {blockTasks, localDay, shiftDay} from '../planner-state.mjs';
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
 import {reorderTask} from '../planner-ux.mjs';
 import {attachTaskSwipe} from '../task-swipe.mjs';
 import {el, icon, button, iconButton} from './dom.mjs';
-import {clock, duration} from './format.mjs';
+import {clock, duration, dateText} from './format.mjs';
 
 const REPEAT_NAMES = {daily: 'Daily', weekdays: 'Weekdays', weekly: 'Weekly'};
 
@@ -21,17 +21,31 @@ export function isOverdue(task, when = taskWhen(task)) {
   return !!task.plannedDate && task.plannedDate < localDay();
 }
 
-/** Supporting line: "Now · 30 min", "15:10 · 30 min · Daily", "Overdue · …". */
+/** "Today" (only when asked), "Tomorrow", "Sun" within the week ahead, else a short date. */
+export function dayName(day, {today: sayToday = false} = {}) {
+  const today = localDay();
+  if (day === today) return sayToday ? 'Today' : '';
+  if (day === shiftDay(today, 1)) return 'Tomorrow';
+  if (day > today && day <= shiftDay(today, 6)) return new Date(day + 'T12:00').toLocaleDateString([], {weekday: 'short'});
+  return dateText(day + 'T12:00');
+}
+
+/** Supporting line: "Now · 30 min", "Must · Sun 9:00 PM · 20 min", "Overdue · …". Times carry their day unless it is today. */
 function supportingLine(task, options) {
   const when = taskWhen(task);
   const line = el('span', 'task-supporting tnum');
   const parts = [];
-  let lead = null;
-  if (options.current) lead = ['now', 'Now'];
-  else if (isOverdue(task, when)) lead = ['overdue', 'Overdue'];
-  else if (options.next) lead = ['next', 'Next'];
-  if (lead) line.append(el('b', 'lead-' + lead[0], lead[1]));
-  if (when && !options.current) parts.push(clock(when));
+  const leads = [];
+  if (options.current) leads.push(['now', 'Now']);
+  else if (isOverdue(task, when)) leads.push(['overdue', 'Overdue']);
+  else if (options.next) leads.push(['next', 'Next']);
+  if (task.must && !task.done) leads.push(['must', 'Must']);
+  leads.forEach(([cls, text], i) => line.append(...(i ? [' · '] : []), el('b', 'lead-' + cls, text)));
+  const lead = leads.length > 0;
+  const day = when ? dayName(localDay(new Date(when)), {today: options.days})
+    : task.plannedDate ? dayName(task.plannedDate, {today: options.days}) : '';
+  if (when && !options.current) parts.push([day, clock(when)].filter(Boolean).join(' '));
+  else if (day) parts.push(day);
   else if (!when && options.anytime) parts.push('Anytime');
   if (task.minutes != null) parts.push(duration(task.minutes));
   const rule = task.repeatAfterDays ? 'After completion' : REPEAT_NAMES[task.recurrence];
@@ -65,8 +79,8 @@ export function mustButton(app, task) {
 }
 
 /**
- * options: current, next, anytime, context (text), plan (true in a Block's Plan: star + drag handle),
- * swipe (archive/delete gestures).
+ * options: current, next, anytime, days (say "Today" too), context (text), plan (true in a Block's Plan: star),
+ * reorder (Plan in reorder mode: drag handle), swipe (archive/delete gestures).
  */
 export function taskRow(app, task, options = {}) {
   const row = el('div', 'task-row');
@@ -86,7 +100,7 @@ export function taskRow(app, task, options = {}) {
 
   if (options.plan) {
     row.append(mustButton(app, task));
-    if (!task.done) {
+    if (options.reorder && !task.done) {
       const handle = iconButton('drag_indicator', 'Reorder ' + task.title, () => app.actions.planOrder(task),
         {cls: 'drag-handle'});
       installOrder(app, handle, row, task);
