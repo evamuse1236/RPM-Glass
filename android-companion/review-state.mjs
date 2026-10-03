@@ -244,10 +244,13 @@ export function reviewProgress(data, week) {
     finishedAt: saved?.finishedAt ?? null,
     focusDraft: Array.isArray(saved?.focusDraft) ? saved.focusDraft.filter(id => blockById(data, id)) : null,
     inboxIds: Array.isArray(saved?.inboxIds) ? saved.inboxIds : [],
+    // Step 3: Inbox tasks the user chose to leave there (errands). Step 4: clashes decided ('a'|'b') or left 'later'.
+    keptIds: Array.isArray(saved?.keptIds) ? saved.keptIds : [],
+    clashes: saved?.clashes && typeof saved.clashes === 'object' ? saved.clashes : {},
   };
 }
 
-const PROGRESS_KEYS = ['step', 'finishedAt', 'focusDraft', 'inboxIds'];
+const PROGRESS_KEYS = ['step', 'finishedAt', 'focusDraft', 'inboxIds', 'keptIds', 'clashes'];
 
 /** Saves progress without touching Undo: the last plan change stays undoable. Keeps the 12 most recent reviews. */
 export function saveReviewProgress(data, week, patch, now = new Date()) {
@@ -263,6 +266,10 @@ export function saveReviewProgress(data, week, patch, now = new Date()) {
   }
   if (record.focusDraft != null && (!Array.isArray(record.focusDraft) || record.focusDraft.length > 5)) {
     throw new Error('Choose up to five Results for a week.');
+  }
+  if (record.keptIds != null && !Array.isArray(record.keptIds)) throw new Error('Invalid review progress.');
+  if (record.clashes != null && (typeof record.clashes !== 'object' || Object.values(record.clashes).some(v => !['a', 'b', 'later'].includes(v)))) {
+    throw new Error('Invalid review progress.');
   }
   record.updatedAt = at;
   reviews[week] = record;
@@ -421,19 +428,33 @@ export function rankResults(data, task, candidates) {
   return {ranked: order, suggested: top?.named && top.score >= 4 && top.score >= 1.5 * (next?.score ?? 0) ? top : null};
 }
 
-/* ---------- calendar clash: the review can't move events, but it can put sorting it out on Today ---------- */
+/* ---------- calendar clash: the review can't move events, so the decision becomes a task on Today ---------- */
 const clashDay = day => new Date(day + 'T12:00').toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'});
-export const clashTitle = ({day, a, b}) => `Sort out the ${clashDay(day)} clash: ${a.title} and ${b.title}`;
-/** An open task that already deals with the clash: the one Add to Today made, or one naming "clash" and both events. */
+/** A stable key for a clash, for remembering the decision in review progress. */
+export const clashKey = ({day, a, b}) => `${day}|${a.title}|${b.title}`;
+const sides = (clash, keep) => (keep === 'b' ? [clash.b, clash.a] : [clash.a, clash.b]);
+/** "Keep DAD exam; move or skip GWBC session": what the decision leaves to do. */
+export const clashDecision = (clash, keep) => { const [stays, other] = sides(clash, keep); return `keep ${stays.title}, move or skip ${other.title}`; };
+export const clashTitle = (clash, keep = 'a') => `${clashDay(clash.day)} clash: ${clashDecision(clash, keep)}`;
+const DECIDED = 'Decided in the weekly review: ';
+/** An open task that already deals with the clash: one the review wrote, or one naming "clash" and both events. */
 export function clashTask(data, clash) {
   const first = title => String(title).toLowerCase().split(/\s+/)[0];
-  return tasks(data).find(t => !t.done && (t.title === clashTitle(clash)
+  return tasks(data).find(t => !t.done && (t.title === clashTitle(clash, 'a') || t.title === clashTitle(clash, 'b')
     || (/clash/i.test(t.title ?? '') && [clash.a.title, clash.b.title].every(x => (t.title ?? '').toLowerCase().includes(first(x)))))) ?? null;
 }
-/** Adds "Sort out the … clash" to Today, or puts the task that already names it on Today. */
-export function planClash(data, clash, now = new Date()) {
+/**
+ * Records which event stays (`keep` 'a' or 'b') as a task on Today, since calendars are read-only: the user's own
+ * task that names the clash keeps its words and gains the decision in its notes; otherwise a new 15-minute task says it.
+ */
+export function decideClash(data, clash, keep, now = new Date()) {
   const existing = clashTask(data, clash);
-  const fields = {plannedDate: localDay(now)};
-  editPlan(data, existing ? {type: 'saveTask', id: existing.id, fields} : {type: 'saveTask', fields: {...fields, title: clashTitle(clash), minutes: 15}}, now);
-  return existing ? 'Moved to Today' : 'Added to Today';
+  const note = DECIDED + clashDecision(clash, keep) + '.';
+  const notes = [...String(existing?.notes ?? '').split('\n\n').filter(p => p && !p.startsWith(DECIDED)), note].join('\n\n');
+  const fields = {notes};
+  if (!existing || !taskDate(existing)) fields.plannedDate = localDay(now);
+  if (!existing) Object.assign(fields, {title: clashTitle(clash, keep), minutes: 15});
+  else if (existing.title === clashTitle(clash, keep === 'b' ? 'a' : 'b')) fields.title = clashTitle(clash, keep);
+  editPlan(data, existing ? {type: 'saveTask', id: existing.id, fields} : {type: 'saveTask', fields}, now);
+  return 'Decision added to Today';
 }

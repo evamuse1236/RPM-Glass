@@ -6,7 +6,7 @@ import {
   weekStart, reviewWeek, resultStatus, markAchieved, weekFocus, setWeekFocus, weekVerdict, reviewSummary,
   inboxTasks, activeInRange, leftoverTasks, decideLeftover, leftoverChoice, groupTask, setMust,
   focusCandidates, reviewProgress, saveReviewProgress, finishReview, taskDate, groupTasks, addInboxTask,
-  freeMinutes, calendarClashes, weekCapacity, placedMusts, mustPlacements, placeMusts, rankResults, clashTitle, clashTask, planClash,
+  freeMinutes, calendarClashes, weekCapacity, placedMusts, mustPlacements, placeMusts, rankResults, clashTitle, clashTask, decideClash, clashKey,
 } from './review-state.mjs';
 
 // Tests run in Asia/Kolkata (scripts/test-tz.mjs). Week of 28 Sep 2026 is the review week; 21 Sep is last week.
@@ -337,7 +337,7 @@ test('addInboxTask saves the exact words as a new Inbox task with Undo', () => {
 
 test('review progress resumes, survives Undo, never consumes the Undo slot, and restarts once finished', () => {
   const {d, home, rest} = seed();
-  assert.deepEqual(reviewProgress(d, WEEK), {step: 1, startedAt: null, updatedAt: null, finishedAt: null, focusDraft: null, inboxIds: []});
+  assert.deepEqual(reviewProgress(d, WEEK), {step: 1, startedAt: null, updatedAt: null, finishedAt: null, focusDraft: null, inboxIds: [], keptIds: [], clashes: {}});
   markAchieved(d, rest, {achieved: true});
   const undoBefore = JSON.stringify(planner(d).undo);
   saveReviewProgress(d, WEEK, {step: 3, focusDraft: [home], inboxIds: [7]}, at('2026-09-27T10:00:00Z'));
@@ -465,19 +465,28 @@ test('rankResults suggests a Result only when the words clearly point to one', (
   assert.equal(towels.ranked[0].title, 'Have home ready for the week', 'but the chooser still lists the likeliest first');
 });
 
-test('a calendar clash goes on Today as a task, reusing one that already names it', () => {
+test('a calendar clash is decided as a task on Today, reusing one that already names it', () => {
   const now = new Date('2026-10-03T09:00:00');
   const clash = {day: '2026-10-05', a: {title: 'DAD exam'}, b: {title: 'GWBC session'}};
   let {d} = seed();
   assert.equal(clashTask(d, clash), null);
-  assert.equal(planClash(d, clash, now), 'Added to Today');
+  assert.equal(decideClash(d, clash, 'a', now), 'Decision added to Today');
   const added = clashTask(d, clash);
-  assert.deepEqual([added.title, added.plannedDate], [clashTitle(clash), '2026-10-03']);
+  assert.deepEqual([added.title, added.plannedDate, added.minutes], [clashTitle(clash, 'a'), '2026-10-03', 15]);
+  assert.match(added.title, /keep DAD exam, move or skip GWBC session$/);
+  decideClash(d, clash, 'b', now);
+  assert.equal(clashTask(d, clash).id, added.id, 'changing the decision rewrites the same task');
+  assert.match(clashTask(d, clash).title, /keep GWBC session, move or skip DAD exam$/);
+  assert.equal(clashTask(d, clash).notes, 'Decided in the weekly review: keep GWBC session, move or skip DAD exam.');
   ({d} = seed());
-  const mine = task(d, {title: 'Clear 5 Oct morning clash: DAD exam vs GWBC'});
+  const mine = task(d, {title: 'Clear 5 Oct morning clash: DAD exam vs GWBC', notes: 'Ask Ms Rao first'});
   assert.equal(clashTask(d, clash).id, mine);
-  assert.equal(planClash(d, clash, now), 'Moved to Today');
-  assert.equal(entry(d, mine).plannedDate, '2026-10-03');
+  decideClash(d, clash, 'a', now);
+  assert.deepEqual([entry(d, mine).title, entry(d, mine).plannedDate], ['Clear 5 Oct morning clash: DAD exam vs GWBC', '2026-10-03'],
+    'the user\'s own words stay');
+  assert.equal(entry(d, mine).notes, 'Ask Ms Rao first\n\nDecided in the weekly review: keep DAD exam, move or skip GWBC session.');
+  assert.equal(d.entries.filter(t => /clash/i.test(t.title ?? '')).length, 1, 'no second task');
   editPlan(d, {type: 'undo'});
-  assert.equal(entry(d, mine).plannedDate ?? null, null);
+  assert.deepEqual([entry(d, mine).plannedDate ?? null, entry(d, mine).notes], [null, 'Ask Ms Rao first']);
+  assert.equal(clashKey(clash), '2026-10-05|DAD exam|GWBC session');
 });

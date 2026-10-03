@@ -69,7 +69,7 @@ const scenes = {
       async 1() {
         await shot(page, 'review-1');
         await click(page, page.getByRole('radiogroup', {name: /All five RM readings/}).getByRole('radio', {name: 'Achieved'}));
-        for (const name of [/Carry "RM critical review/, /Carry "PMDL post work/]) await click(page, page.getByRole('button', {name}));
+        await click(page, page.getByRole('button', {name: 'Carry both'}));
         await page.waitForTimeout(6000); // let the Undo snackbar time out
         await scroll(page, 900); await rest(); await shot(page, 'review-1-scrolled');
       },
@@ -85,7 +85,8 @@ const scenes = {
       async 4() {
         await click(page, page.getByRole('checkbox', {name: /DAD Excel workbook/}));
         await scroll(page, -2000); await rest(); await shot(page, 'review-4');
-        await scroll(page, 900); await rest(); await shot(page, 'review-4-scrolled');
+        await scroll(page, 900); await click(page, page.getByRole('button', {name: /^Mon, /})); // the strip's day detail
+        await rest(); await shot(page, 'review-4-scrolled');
       },
     };
     for (let step = 1; step <= 4; step++) {

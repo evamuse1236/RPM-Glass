@@ -166,7 +166,7 @@ export function timelineItems(data,day,calendar=[],minimumVisualMinutes=0){
    Task:    completedAt (ISO) stamped when a one-time task is completed from now on; never back-filled.
             reviewChoice {week, choice:'carry'|'defer'|'drop', at, cleared?} records a review decision.
    Planner: weeks[week] = {focus:[blockId…≤5], verdicts:{blockId:'achieved'|'partly'|'notyet'}}  (plan data, undoable)
-            reviews[week] = {step, startedAt, updatedAt, finishedAt, focusDraft, inboxIds}      (progress, kept on Undo) */
+            reviews[week] = {step, startedAt, updatedAt, finishedAt, focusDraft, inboxIds, keptIds, clashes}  (progress, kept on Undo) */
 export const REVIEW_VERSION = 1;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const VERDICTS = ['achieved', 'partly', 'notyet'];
