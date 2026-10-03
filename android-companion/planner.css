@@ -195,6 +195,18 @@ h1, h2, h3, p { margin: 0; }
 /* The review pins its own button footer, so the snackbar sits above it. */
 #planner[data-view=review] ~ #snackbar { bottom: calc(var(--s4) + 72px); }
 .snackbar-text { flex: 1; padding: var(--s2) 0; }
+/* The old words on an opaque copy of the bar, fading out over the new ones (the bar itself never goes see-through). */
+.snackbar-ghost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: inherit;
+  border-radius: inherit;
+  background: var(--inverse-surface);
+  pointer-events: none;
+}
 .snackbar-action {
   min-height: var(--touch);
   padding: 0 var(--s3);
@@ -1137,7 +1149,8 @@ button.fact-row:active { background: var(--row-press); }
   transform-origin: 50% 100%;
 }
 .sheet.expanded { height: 92%; }
-/* Content swap: the old content fades out on top while the sheet's height morphs to the new content. */
+/* Content swap on the shared X axis: the old content slides out over the new one (both see-through, so the sheet
+   is never empty) while the sheet's height morphs to the new content. The handle stays put. */
 .sheet.morphing { overflow: hidden; }
 .sheet-ghost {
   position: absolute;
@@ -1149,10 +1162,9 @@ button.fact-row:active { background: var(--row-press); }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: inherit;
-  background: var(--sheet-bg);
   pointer-events: none;
 }
+.sheet-ghost-spacer { visibility: hidden; }
 .sheet-header { touch-action: none; }
 .sheet-handle {
   flex: none;
@@ -1554,7 +1566,9 @@ button.fact-row:active { background: var(--row-press); }
   pointer-events: none;
 }
 .motion-ghost-inner { transform: translateY(var(--ghost-scroll, 0px)); }
-.motion-ghost-bar { height: 100%; }
+.motion-ghost-bar, .motion-ghost-nav { height: 100%; }
+.motion-ghost-nav #nav-bar { height: 100%; }
+.motion-ghost-fab { display: grid; place-items: center; }
 /* A removed row collapsing in place, and a new row opening. */
 .motion-ghost { overflow: hidden; pointer-events: none; }
 .motion-clip { overflow: hidden; }

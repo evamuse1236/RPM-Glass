@@ -241,7 +241,12 @@ function renderReview(root, api, ctx) {
     content.replaceChildren(...stepContent(api, ctx));
     body.scrollTop = 0;
   } else {
-    animateRerender(content, body, () => content.replaceChildren(...stepContent(api, ctx)));
+    // Built off-document and reconciled in: unchanged rows stay the same nodes, changed ones slide or resize.
+    animateRerender(content, body, () => {
+      const stage = document.createElement('div');
+      stage.append(...stepContent(api, ctx));
+      return stage;
+    });
   }
   if (sheetKey) {
     const layer = sheetLayer(api);

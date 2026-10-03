@@ -1,11 +1,13 @@
 /** Planner state, navigation and the save path shared by every screen module. */
-import {animateRerender, settleRerender, sharedAxis, fadeThrough, ghost, reducedMotion} from '../surface-motion.mjs';
+import {animateRerender, settleRerender, sharedAxis, fadeThrough, ghost, reducedMotion, snapshotRows, landRows, playMotion,
+  EASE, DURATION, MOTION} from '../surface-motion.mjs';
 import {planner, localDay} from '../planner-state.mjs';
 import {taskContext, areaTone} from '../planner-ux.mjs';
 import {clarityPreferences, applyClarityPreferences} from '../planner-clarity.mjs';
 import {notice} from './snackbar.mjs';
 import {closeSheet, discardDraft, isSheetOpen} from './sheet.mjs';
 import {closeMenu} from './menu.mjs';
+import {carryFocus} from './inline-edit.mjs';
 
 export const TABS = ['today', 'blocks', 'projects', 'life'];
 /** Names Capture uses for the planning focus (see planner-tools planningFocus). */
@@ -74,6 +76,14 @@ export function createApp(api, renderers) {
   app.render = options => render(app, options);
   app.commit = (op, options) => commit(app, op, options);
   app.closeSheet = () => closeSheet(app);
+  // While a sheet is open the page behind it re-renders at once (nothing moves under the scrim); when the sheet
+  // closes, the rows changed meanwhile slide from where the user last saw them to their new places.
+  app.backdrop = null;
+  app.onSheetClose = () => {
+    const snapshot = app.backdrop;
+    app.backdrop = null;
+    if (snapshot) landRows(app.dom.work, app.dom.scroll, snapshot, {delay: MOTION.fadeOut});
+  };
   installNavigation(app);
   return app;
 }
@@ -158,10 +168,12 @@ function unmount(app) {
   app.mounted = null;
 }
 
-/** How the screen changes between two routes: shared axis X for sibling and parent/child moves, fade through otherwise. */
+/** How the screen changes between two routes: shared axis X for sibling and parent/child moves, shared axis Y into
+ * and out of the weekly review (a step down in hierarchy), fade through otherwise. */
 function transitionFor(previousKey, key, direction) {
-  if (direction === 'right') return {kind: 'axis', back: false};
-  if (direction === 'left') return {kind: 'axis', back: true};
+  const review = [previousKey, key].some(k => k?.startsWith('review:'));
+  if (direction === 'right') return {kind: 'axis', back: false, axis: review ? 'y' : 'x'};
+  if (direction === 'left') return {kind: 'axis', back: true, axis: review ? 'y' : 'x'};
   const days = [previousKey, key].map(k => /^today:(\d{4}-\d{2}-\d{2}):/.exec(k)?.[1]);
   if (days[0] && days[1] && days[0] !== days[1]) return {kind: 'axis', back: days[1] < days[0]};
   return {kind: 'fade'};
@@ -171,6 +183,46 @@ function buildScreen(app, kind, top) {
   app.dom.work.replaceChildren();
   app.dom.work.className = 'screen screen-' + kind;
   app.renderers.screen(app, kind, top);
+}
+
+/** Build the screen off-document, for animateRerender to reconcile into the live one (unchanged rows stay put). */
+function stageScreen(app, kind, top) {
+  const live = app.dom.work;
+  const stage = document.createElement('section');
+  stage.className = 'screen screen-' + kind;
+  app.dom.work = stage;
+  try {
+    app.renderers.screen(app, kind, top);
+  } finally {
+    app.dom.work = live;
+  }
+  return stage;
+}
+
+/** The FAB and the navigation bar leave and arrive with the page instead of snapping. */
+function shellBefore(app) {
+  const {fab, nav, planner} = app.dom;
+  const button = !fab.hidden && fab.firstElementChild;
+  return {fab: button ? {node: button.cloneNode(true), rect: button.getBoundingClientRect(),
+    label: button.getAttribute('aria-label')} : null,
+  nav: nav.hidden ? null : {rect: nav.getBoundingClientRect(), node: nav.cloneNode(true)}, host: planner};
+}
+
+function shellAfter(app, before, motion, outgoing, incoming) {
+  const {fab, nav} = app.dom;
+  const button = !fab.hidden && fab.firstElementChild;
+  if (!motion) return;
+  if (before.fab && !button) {
+    const layer = ghost([before.fab.node], before.fab.rect, before.host, {cls: 'motion-ghost-fab'});
+    layer.animate([{opacity: 1, transform: 'none'}, {opacity: 0, transform: 'scale(.6)'}],
+      {duration: DURATION.short3, easing: EASE.emphasizedAccelerate, fill: 'forwards'}).finished
+      .then(() => layer.remove(), () => layer.remove());
+  } else if (button && !before.fab) {
+    playMotion(button, [{opacity: 0, transform: 'scale(.6)'}, {opacity: 1, transform: 'none'}],
+      {duration: DURATION.medium1, delay: MOTION.fadeInDelay, easing: EASE.emphasizedDecelerate});
+  }
+  if (before.nav && nav.hidden) outgoing.push(ghost([before.nav.node], before.nav.rect, before.host, {cls: 'motion-ghost-nav'}));
+  else if (!before.nav && !nav.hidden) incoming.push(nav);
 }
 
 /**
@@ -199,7 +251,11 @@ export function render(app, {reset = false, direction = ''} = {}) {
       buildScreen(app, kind, top);
       scroll.scrollTop = app.positions.get(key) ?? app.renderers.defaultScroll(app, kind);
     } else {
-      animateRerender(work, scroll, () => buildScreen(app, kind, top));
+      const covered = isSheetOpen(app);
+      if (covered && !app.backdrop && !reducedMotion()) app.backdrop = snapshotRows(work, scroll);
+      animateRerender(work, scroll, () => stageScreen(app, kind, top), {enabled: !covered});
+      // A field the user was in that had to be rebuilt hands its focus, caret and unsaved words to its twin.
+      carryFocus(work);
     }
     if (changed && kind === 'today') app.renderers.refreshCalendar(app);
     return;
@@ -215,6 +271,8 @@ export function render(app, {reset = false, direction = ''} = {}) {
   const oldBar = motion && barRect ? [...topBar.childNodes] : [];
   const oldWorkClass = work.className;
   const oldBarClass = topBar.className;
+  const shell = shellBefore(app);
+  app.backdrop = null;
   if (changed) unmount(app);
   app.renderers.shell(app);
   const keepMounted = app.mounted && app.mounted.key === key;
@@ -225,8 +283,9 @@ export function render(app, {reset = false, direction = ''} = {}) {
   const outgoing = [ghost(oldPage, pageRect, planner, {cls: oldWorkClass + ' motion-ghost-page', scrollTop})];
   if (oldBar.length) outgoing.push(ghost(oldBar, barRect, planner, {cls: oldBarClass + ' motion-ghost-bar'}));
   const incoming = [work, topBar.hidden ? null : topBar];
+  shellAfter(app, shell, motion, outgoing, incoming);
   const plan = transitionFor(previousKey, key, direction);
-  if (plan.kind === 'axis') sharedAxis(outgoing, incoming, {back: plan.back});
+  if (plan.kind === 'axis') sharedAxis(outgoing, incoming, {back: plan.back, axis: plan.axis});
   else fadeThrough(outgoing, incoming);
 }
 

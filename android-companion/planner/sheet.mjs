@@ -34,8 +34,9 @@ export function isSheetOpen(app) {
 
 /* ---------- Motion ----------
  * One sheet and one scrim. The sheet rises from the bottom edge and leaves by sliding down; the scrim's opacity
- * follows it. Opening while a sheet is showing replaces its content in place: the height morphs and the content
- * cross-fades, with no second entrance. Every move starts from the pose on screen, so taps redirect it. */
+ * follows it (fading evenly on the way out). Opening while a sheet is showing replaces its content in place: the
+ * height morphs and the content moves on the shared X axis (forward, or back with `motion: 'back'`), with no second
+ * entrance. Every move starts from the pose on screen, so taps redirect it. */
 const sheetMotion = new WeakMap();
 
 function scrimFor(app) {
@@ -67,15 +68,14 @@ function currentPose(node, scrim) {
 const offscreen = node => `translateY(${Math.ceil(node.getBoundingClientRect().height) + 24}px)`;
 
 /** Move sheet and scrim together from `from` to `to`. Resolves true when it reached `to`. */
-function moveSheet(node, scrim, from, to, {duration, easing}) {
+function moveSheet(node, scrim, from, to, {duration, easing, scrimEasing = easing}) {
   cancelSheetMotion(node);
   node.style.removeProperty('transform');
   scrim.style.removeProperty('opacity');
   if (reducedMotion()) return Promise.resolve(true);
-  const options = {duration, easing, fill: 'forwards'};
   const animations = [
-    node.animate([{transform: from.transform}, {transform: to.transform}], options),
-    scrim.animate([{opacity: from.opacity}, {opacity: to.opacity}], options),
+    node.animate([{transform: from.transform}, {transform: to.transform}], {duration, easing, fill: 'forwards'}),
+    scrim.animate([{opacity: from.opacity}, {opacity: to.opacity}], {duration, easing: scrimEasing, fill: 'forwards'}),
   ];
   sheetMotion.set(node, animations);
   return Promise.all(animations.map(a => a.finished)).then(() => {
@@ -99,8 +99,9 @@ export function closeSheet(app) {
   node.inert = true;
   scrim.classList.add('leaving');
   app.dom.planner.inert = false;
+  // The scrim fades evenly (linear) while the sheet accelerates away, so it never hangs dark and then drops.
   moveSheet(node, scrim, from, {transform: offscreen(node), opacity: 0},
-    {duration: MOTION.exit, easing: EASE.emphasizedAccelerate}).then(() => {
+    {duration: MOTION.exit, easing: EASE.emphasizedAccelerate, scrimEasing: 'linear'}).then(() => {
     if (epoch !== app.sheet.epoch) return;
     cancelSheetMotion(node);
     node.style.removeProperty('transform');
@@ -112,6 +113,7 @@ export function closeSheet(app) {
     node.classList.remove('expanded');
     app.sheet.returnFocus?.focus?.({preventScroll: true});
   });
+  app.onSheetClose?.();
 }
 
 /** Ask before throwing away typed changes; otherwise close. Returns true when the sheet is closing. */
@@ -192,23 +194,31 @@ function installDrag(app, zone) {
   });
 }
 
-/** Content swap inside an open sheet: the old content fades out on top while the new fades in and the height morphs. */
-function replaceContent(node, oldHeight, oldChildren) {
+/** Content swap inside an open sheet, on the shared X axis: the old content slides out and fades while the new slides
+ * in and fades in over it (both visible, so the sheet is never empty), and the height morphs. */
+function replaceContent(node, oldHeight, oldChildren, back) {
   if (reducedMotion() || !oldChildren.length) return;
+  const shift = (back ? -1 : 1) * MOTION.axis;
   const ghostLayer = el('div', 'sheet-ghost');
   ghostLayer.setAttribute('aria-hidden', 'true');
   ghostLayer.inert = true;
   ghostLayer.style.setProperty('--ghost-height', oldHeight + 'px');
-  ghostLayer.append(...oldChildren);
+  // The handle stays where it is: only the content moves.
+  ghostLayer.append(el('div', 'sheet-handle'), ...oldChildren.filter(n => !n.classList.contains('sheet-handle')));
+  ghostLayer.firstChild.classList.add('sheet-ghost-spacer');
   node.append(ghostLayer);
   const newHeight = node.getBoundingClientRect().height;
   const done = [];
+  done.push(ghostLayer.animate([{transform: 'none'}, {transform: `translateX(${-shift}px)`}],
+    {duration: MOTION.navigate, easing: EASE.emphasized, fill: 'forwards'}));
   done.push(ghostLayer.animate([{opacity: 1}, {opacity: 0}],
     {duration: MOTION.fadeOut, easing: EASE.standardAccelerate, fill: 'forwards'}));
   for (const part of node.children) {
     if (part === ghostLayer || part.classList.contains('sheet-handle')) continue;
+    done.push(part.animate([{transform: `translateX(${shift}px)`}, {transform: 'none'}],
+      {duration: MOTION.navigate, easing: EASE.emphasized}));
     done.push(part.animate([{opacity: 0}, {opacity: 1}],
-      {duration: DURATION.short4, delay: MOTION.fadeOut, easing: EASE.standardDecelerate, fill: 'backwards'}));
+      {duration: MOTION.fadeIn, delay: MOTION.fadeInDelay, easing: EASE.standardDecelerate, fill: 'backwards'}));
   }
   if (Math.abs(newHeight - oldHeight) > 1) {
     node.classList.add('morphing');
@@ -243,7 +253,8 @@ export function sheetBackCancel(app) {
  * Open (or replace) the bottom sheet. `draftKey` makes every field remember its value
  * in localStorage until saved or discarded; `seed` pre-fills a draft from Capture.
  */
-export function openSheet(app, title, {draftKey = null, seed = null, variant = 'detail', showTitle = true} = {}) {
+export function openSheet(app, title, {draftKey = null, seed = null, variant = 'detail', showTitle = true,
+  motion = 'forward'} = {}) {
   const node = app.dom.sheet;
   const scrim = scrimFor(app);
   // Showing (open, or still on its way out): keep sheet and scrim, swap the content.
@@ -298,7 +309,7 @@ export function openSheet(app, title, {draftKey = null, seed = null, variant = '
   const begin = () => {
     if (epoch !== app.sheet.epoch) return;
     if (showing) {
-      replaceContent(node, oldHeight, oldChildren);
+      replaceContent(node, oldHeight, oldChildren, motion === 'back');
       if (pose.transform !== 'translateY(0px)' || pose.opacity < 1) {
         moveSheet(node, scrim, pose, {transform: 'translateY(0px)', opacity: 1},
           {duration: MOTION.navigate, easing: EASE.emphasizedDecelerate}).then(settled);
@@ -309,20 +320,15 @@ export function openSheet(app, title, {draftKey = null, seed = null, variant = '
     }
   };
   if (showing) {
-    // Hold the old pose and height for this frame so nothing snaps before the content is in.
+    // Hold the old pose until the new content is in (the callers fill it before this microtask runs). The height is
+    // not held: the new content measures (and may pin) its own height, and replaceContent morphs to it.
     if (!reducedMotion()) {
       cancelSheetMotion(node);
       node.style.transform = pose.transform;
       scrim.style.opacity = String(pose.opacity);
-      if (oldChildren.length) {
-        node.classList.add('morphing');
-        node.style.setProperty('height', oldHeight + 'px');
-      }
+      if (oldChildren.length) node.classList.add('morphing');
     }
-    queueMicrotask(() => {
-      node.style.removeProperty('height');
-      begin();
-    });
+    queueMicrotask(begin);
   } else {
     if (!reducedMotion()) {
       node.style.transform = 'translateY(100vh)';

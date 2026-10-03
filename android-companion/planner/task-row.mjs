@@ -3,7 +3,7 @@ import {blockTasks, localDay} from '../planner-state.mjs';
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
 import {reorderTask} from '../planner-ux.mjs';
 import {attachTaskSwipe} from '../task-swipe.mjs';
-import {reducedMotion} from '../surface-motion.mjs';
+import {reducedMotion, waitMotion} from '../surface-motion.mjs';
 import {el, icon, button} from './dom.mjs';
 import {clock, duration, dayName} from './format.mjs';
 export {dayName};
@@ -94,6 +94,11 @@ export function taskRow(app, task, options = {}) {
   if (task.must) row.append(mustMark());
   if (options.plan && !task.done) installOrder(app, row, task);
   if (!options.plan && options.swipe !== false && !task.done) attachSwipe(app, row, task);
+  // What the row's handlers act on: a re-render may keep this very node (and its running animations) in place of an
+  // identical rebuilt row only when this matches (see animateRerender).
+  row.__closure = JSON.stringify([task.id, task.title, !!task.done, task.occurrence ?? null, task.planned ?? null,
+    task.plannedDate ?? null, task.recurrence ?? null, task.repeatAfterDays ?? null, task.blockId ?? null, !!task.must]);
+  row.__options = options;
   return row;
 }
 
@@ -260,21 +265,33 @@ function installOrder(app, row, task) {
   });
 }
 
-const SETTLE_MS = 900;
+/** The row starts collapsing into Completed while its tick is still landing, so it is gone by about 370ms. */
+const COLLAPSE_AFTER = 120;
 
-/** The ring fills with a short pop and the title strikes through on the row now on screen. */
-function markRow(app, id, done) {
-  for (const row of app.dom.work.querySelectorAll(`.task-row[data-task-id="${id}"]`)) {
-    row.classList.toggle('done', done);
-    row.classList.toggle('just-done', done);
-    row.querySelector('.task-check')?.setAttribute('aria-checked', String(done));
+/**
+ * The row on screen becomes the completed row at once: the ring fills with a short pop and the title strikes
+ * through (150ms). It is built exactly as the saved re-render will build it, so that re-render keeps this node and
+ * the pop is never replayed. Anything the screen added to the row (its Result line) comes along.
+ */
+function markRow(app, task, done) {
+  for (const row of app.dom.work.querySelectorAll(`.task-row[data-task-id="${task.id}"]`)) {
+    if (row.closest('.motion-ghost')) continue;
+    // A completed one-time task has no occurrence of its own (as the saved task will be rebuilt).
+    const {occurrence, ...saved} = task;
+    const fresh = taskRow(app, done ? {...saved, done} : {...task, done}, row.__options ?? {});
+    const extras = [...(row.querySelector('.task-main')?.children ?? [])].slice(2);
+    fresh.querySelector('.task-main').append(...extras.map(node => node.cloneNode(true)));
+    if (done) fresh.classList.add('just-done');
+    const focused = row.contains(document.activeElement);
+    row.replaceWith(fresh);
+    if (focused) fresh.querySelector('.task-check')?.focus({preventScroll: true});
   }
 }
 
 /**
  * One tap completes; recurring tasks complete one occurrence. Undo is always offered.
- * The row stays where it is, ticked, for a moment; then it collapses into Completed while the rows below slide up
- * (the re-render animates both). Undo brings it back the same way.
+ * The ring pops and the title strikes through at once; from 120ms the row collapses where it is (250ms) while the
+ * rows below slide up, so it is gone by about 370ms and waits under Completed. Undo reopens it in place.
  */
 export async function toggleDone(app, task, when) {
   if (app.saving) return;
@@ -284,21 +301,22 @@ export async function toggleDone(app, task, when) {
     ? {type: 'reopenTask', id: task.id, occurrence: when ?? task.occurrence}
     : {type: 'saveTask', id: task.id, fields: {done: true}, occurrence};
   const linger = completing && !repeats(task);
+  // Timed on the animation clock from the tap, so the collapse overlaps the tick whatever the save takes.
+  const collapse = linger ? waitMotion(COLLAPSE_AFTER) : null;
   if (linger) app.recentlyCompleted.set(task.id, true);
-  if (completing) markRow(app, task.id, true);
+  if (linger) markRow(app, task, true);
   try {
     await app.commit(op, {label: completing ? 'Task completed' : 'Task marked incomplete', keepSheet: false});
-    if (completing) markRow(app, task.id, true);
     if (linger) {
-      setTimeout(() => {
+      collapse.then(() => {
         if (!app.recentlyCompleted.delete(task.id)) return;
         if (app.dom.sheet.hidden) app.render();
-      }, SETTLE_MS);
+      });
     }
     app.api.native('haptic').catch(() => {});
   } catch {
     if (linger) app.recentlyCompleted.delete(task.id);
-    if (completing) markRow(app, task.id, false);
+    if (linger) markRow(app, task, false);
   }
 }
 
