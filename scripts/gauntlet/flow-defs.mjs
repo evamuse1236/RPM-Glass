@@ -8,6 +8,8 @@ const find = (store, start) => store.entries.find(e => e.title?.startsWith(start
 const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toLocaleDateString('en-CA'); };
 const ok = (cond, what) => (cond ? 'ok' : 'NOT DONE: ' + what);
 const sheet = page => page.locator('#sheet');
+// The seeded Plan of "RM critical review drafted with my group" ends with this task (see seed.mjs).
+const LAST_RM_TASK = 'Submit the critical';
 
 export const flows = {
   'task-date': {
@@ -76,10 +78,9 @@ export const flows = {
       const {page} = h;
       await h.tap('blocks tab', page.getByRole('button', {name: 'Blocks', exact: true}));
       await h.tap('open block', page.getByText('District demographic profile ready').first());
-      await h.tap('edit', page.getByRole('button', {name: 'Edit Block'}));
-      await h.tap('purpose field', sheet(page).getByLabel('Purpose'));
-      await h.type('purpose', sheet(page).getByLabel('Purpose'), 'We present real 2021 census data');
-      await h.tap('save', sheet(page).getByRole('button', {name: 'Save', exact: true}));
+      // Purpose edits where it is: tap the words, type; moving on to "Add a task" saves it (with Undo).
+      await h.tap('purpose', page.getByRole('textbox', {name: 'Purpose'}));
+      await h.type('purpose', page.getByRole('textbox', {name: 'Purpose'}), 'We present real 2021 census data');
       await h.tap('add a task', page.getByLabel('Add a task to the Plan'));
       await h.type('task 1', page.getByLabel('Add a task to the Plan'), 'Pick the district');
       await h.key('enter', 'Enter');
@@ -87,6 +88,41 @@ export const flows = {
       await h.key('enter', 'Enter');
     },
     check: s => { const b = s.planner.blocks.find(x => x.title.startsWith('District')); const n = s.entries.filter(e => e.blockId === b?.id && /Pick the district|Pull the census/.test(e.title)).length; return ok(b?.purpose === 'We present real 2021 census data' && n === 2, 'Purpose and two tasks'); },
+  },
+  'plan-reorder': {
+    job: 'Open the Block "RM critical review drafted with my group" and move the last task in its Plan to the top.',
+    reset: {},
+    async run(h) {
+      const {page} = h;
+      await h.tap('blocks tab', page.getByRole('button', {name: 'Blocks', exact: true}));
+      await h.tap('open block', page.getByText('RM critical review drafted with my group').first());
+      const rows = page.locator('.plan-list > .task-row');
+      const count = await rows.count();
+      const first = await rows.nth(0).boundingBox();
+      const last = await rows.nth(count - 1).boundingBox();
+      await h.drag('hold the last task and drag it to the top', rows.nth(count - 1), first.y - last.y - 6);
+    },
+    check: s => {
+      const b = s.planner.blocks.find(x => x.title.startsWith('RM critical review'));
+      const open = s.entries.filter(e => e.blockId === b?.id && !e.done && !e.archived).sort((x, y) => x.priority - y.priority);
+      return ok(open.length > 1 && open[0].title.startsWith(LAST_RM_TASK), 'last Plan task now first');
+    },
+  },
+  'area-edit': {
+    job: 'In Life, open the Area "Health", give it the Purpose "Energy for everything else" and rate it 7.',
+    async run(h) {
+      const {page} = h;
+      await h.tap('life tab', page.getByRole('button', {name: 'Life', exact: true}));
+      await h.tap('open area', page.getByRole('button', {name: /^Health, rating/}));
+      await h.tap('purpose', page.getByRole('textbox', {name: 'Purpose'}));
+      await h.type('purpose', page.getByRole('textbox', {name: 'Purpose'}), 'Energy for everything else');
+      await h.key('enter (saves)', 'Enter');
+      // The unrated slider rests at 5: drag its thumb two steps' worth to the right, to 7.
+      const slider = page.getByRole('slider', {name: /Health rating/});
+      const box = await slider.boundingBox();
+      await h.swipe('drag the rating to 7', slider, (box.width - 16) * 0.2);
+    },
+    check: s => { const a = s.planner.areas.find(x => x.title === 'Health'); return ok(a?.purpose === 'Energy for everything else' && a.rating === 7, 'Purpose and rating 7'); },
   },
   'complete-task': {
     job: 'On Today, complete "Finish my section of the critical review" (watch how the row finishes and leaves).',

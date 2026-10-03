@@ -1,9 +1,11 @@
 /** Life: Vision / Quarter / Month / Values, the Wheel of Life (labelled bars, radar optional), Areas and Goals. */
-import {el, button, iconButton, labelButton, emptyState, listItem, sectionHeader} from './dom.mjs';
+import {el, icon, button, iconButton, labelButton, emptyState, listItem, sectionHeader} from './dom.mjs';
 import {plural} from './format.mjs';
 import {openSheet} from './sheet.mjs';
-import {breadcrumbs} from './projects.mjs';
-import {purposePanel} from './blocks.mjs';
+import {openMenu} from './menu.mjs';
+import {breadcrumbs, parentMenu} from './projects.mjs';
+import {purposePanel, notesPanel, titleField, finishDetail} from './blocks.mjs';
+import {persist, saveEntity, NO_ICON} from './inline-edit.mjs';
 
 const HORIZONS = [['yearly', 'Vision'], ['quarterly', 'Quarter'], ['monthly', 'Month'], ['values', 'Values']];
 const svg = (tag, attrs) => {
@@ -187,21 +189,49 @@ export function renderLife(app, page) {
   }
 }
 
+/** The Area's rating as a slider on the page: drag or arrow keys, saved when let go, with Undo. */
+function ratingSlider(app, area) {
+  const row = el('div', 'rating-row');
+  row.dataset.tone = app.tone(area);
+  const label = el('span', 'overline', 'Your rating');
+  const output = el('strong', 'tnum', area.rating == null ? 'Not rated' : `${area.rating} / 10`);
+  const input = el('input', 'rating-slider');
+  input.type = 'range';
+  input.min = 0;
+  input.max = 10;
+  input.step = 0.5;
+  input.value = area.rating ?? 5;
+  input.classList.toggle('unrated', area.rating == null);
+  input.setAttribute('aria-label', `${area.title} rating, 0 to 10`);
+  input.setAttribute('aria-valuetext', area.rating == null ? 'Not rated' : `${area.rating} of 10`);
+  const paint = () => input.style.setProperty('--value', String(Number(input.value) / 10));
+  paint();
+  input.addEventListener('input', () => {
+    input.classList.remove('unrated');
+    output.textContent = `${input.value} / 10`;
+    input.setAttribute('aria-valuetext', `${input.value} of 10`);
+    paint();
+  });
+  input.addEventListener('change', () => {
+    const rating = Number(input.value);
+    if (rating === area.rating) return;
+    persist(app, {type: 'rateAreas', ratings: [{id: area.id, rating}]}, {label: `${area.title} rated ${rating}`})
+      .catch(() => {});
+  });
+  row.append(label, output, input, el('span', 'rating-note', 'How it feels right now, not how many tasks are done'));
+  return row;
+}
+
 export function renderAreaDetail(app, page, area) {
   const head = el('div', 'area-head');
-  head.append(initialAvatar(app, area), el('h2', 'detail-title-text', area.title));
+  head.append(initialAvatar(app, area), titleField(app, 'areas', area, 'Area'));
   page.append(head);
-  if (area.purpose) page.append(el('p', 'detail-lede', area.purpose));
-  const rating = button('', () => rateAreas(app, area.id), 'rating-row');
-  rating.dataset.tone = app.tone(area);
-  const track = el('div', 'wheel-track');
-  const fill = el('span');
-  fill.style.setProperty('--value', String((area.rating ?? 0) / 10));
-  track.append(fill);
-  rating.append(el('span', 'overline', 'Your rating'),
-    el('strong', 'tnum', area.rating == null ? 'Not rated' : `${area.rating} / 10`), track);
-  rating.setAttribute('aria-label', `Rating ${area.rating ?? 'not set'} of 10. Change rating`);
-  page.append(rating);
+  const facts = el('div', 'block-facts');
+  facts.append(purposePanel(app, 'areas', area));
+  const notes = notesPanel(app, 'areas', area);
+  if (notes) facts.append(notes);
+  page.append(facts);
+  page.append(ratingSlider(app, area));
   page.append(sectionHeader(`Goals · ${app.state.year}`));
   const goals = app.p().goals.filter(g => g.areaId === area.id && g.year === app.state.year);
   const list = el('div', 'list');
@@ -215,16 +245,56 @@ export function renderAreaDetail(app, page, area) {
   page.append(list);
   if (!goals.length) page.append(el('p', 'quiet', `No Goals for ${app.state.year} yet.`));
   page.append(labelButton('add', 'Add Goal', () => app.actions.newEntity('goals', {areaId: area.id}), 'outlined-btn wide'));
+  finishDetail(app, page);
+}
+
+const monthName = period => new Date(2000, (period ?? 1) - 1, 1).toLocaleDateString([], {month: 'long'});
+export const horizonLabel = goal => ({quarterly: `Quarter ${goal.period}`, monthly: monthName(goal.period)}[goal.horizon]
+  ?? 'Yearly goal');
+
+/** When a Goal is for: its stretch (year, quarter or month) and its year, each an anchored menu that saves in one tap. */
+function goalWhen(app, goal) {
+  const line = el('div', 'goal-when');
+  const save = (patch, label) => saveEntity(app, 'goals', goal, patch, label).catch(() => {});
+  const chip = (text, name, items) => {
+    const node = button('', null, 'assist-chip goal-when-chip');
+    node.append(el('span', '', text), icon('arrow_drop_down', {cls: 'crumb-drop'}));
+    node.setAttribute('aria-haspopup', 'menu');
+    node.setAttribute('aria-label', `${name}: ${text}. Change`);
+    node.addEventListener('click', () => openMenu(node, items(), name));
+    return node;
+  };
+  const is = (horizon, period = null) => (goal.horizon ?? 'yearly') === horizon && (horizon === 'yearly' || goal.period === period);
+  const option = (label, horizon, period = null) => ({label, icon: is(horizon, period) ? 'check' : NO_ICON,
+    onClick: () => { if (!is(horizon, period)) save({horizon, period}, `Goal moved to ${label}`); }});
+  line.append(chip(horizonLabel(goal), 'Goal for', () => [
+    option('The whole year', 'yearly'),
+    {divider: true},
+    ...[1, 2, 3, 4].map(q => option(`Quarter ${q}`, 'quarterly', q)),
+    {divider: true},
+    ...Array.from({length: 12}, (_, i) => option(monthName(i + 1), 'monthly', i + 1)),
+  ]));
+  line.append(chip(String(goal.year), 'Year', () => [-1, 0, 1, 2].map(delta => goal.year + delta).map(year => ({
+    label: String(year), icon: year === goal.year ? 'check' : NO_ICON,
+    onClick: () => { if (year !== goal.year) save({year}, `Goal moved to ${year}`); }}))));
+  return line;
 }
 
 export function renderGoalDetail(app, page, goal) {
   const area = app.p().areas.find(a => a.id === goal.areaId);
-  page.append(breadcrumbs(app, [[area?.title, 'areas', area?.id, 'spa']]));
-  const horizon = {quarterly: `Quarter ${goal.period}`, monthly: new Date(goal.year, (goal.period ?? 1) - 1, 1)
-    .toLocaleDateString([], {month: 'long'})}[goal.horizon] ?? 'Yearly goal';
-  page.append(el('span', 'overline goal-horizon', `${horizon} · ${goal.year}`));
-  page.append(el('h2', 'detail-title-text', goal.title));
-  page.append(purposePanel(goal.purpose, () => app.actions.editEntity('goals', goal.id)));
+  const areaMenu = () => parentMenu({current: area?.id ?? null, currentLabel: area?.title, none: 'No area',
+    options: app.p().areas.map(a => [a.id, a.title]), open: () => app.openArea(area.id),
+    choose: (areaId, label) => saveEntity(app, 'goals', goal, {areaId},
+      areaId ? `Moved to ${label}` : 'Moved out of its Area').catch(() => {})});
+  const crumbs = breadcrumbs(app, [{label: area?.title ?? 'Choose an Area', icon: 'spa', menu: areaMenu}]);
+  crumbs.append(...goalWhen(app, goal).children);
+  page.append(crumbs);
+  page.append(titleField(app, 'goals', goal, 'Goal'));
+  const facts = el('div', 'block-facts');
+  facts.append(purposePanel(app, 'goals', goal));
+  const notes = notesPanel(app, 'goals', goal);
+  if (notes) facts.append(notes);
+  page.append(facts);
   page.append(sectionHeader('Projects'));
   const list = el('div', 'list');
   for (const project of app.p().projects.filter(pr => pr.goalId === goal.id)) {
@@ -234,6 +304,7 @@ export function renderGoalDetail(app, page, goal) {
   page.append(list);
   page.append(labelButton('add', 'Add Project', () => app.actions.newEntity('projects', {goalId: goal.id}),
     'outlined-btn wide'));
+  finishDetail(app, page);
 }
 
 /** Reflective 0–10 ratings in half steps; untouched sliders are not saved. */

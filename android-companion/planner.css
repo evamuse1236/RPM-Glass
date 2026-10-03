@@ -474,7 +474,6 @@ button.list-item:active { background: var(--row-press); }
 @keyframes check-in { from { opacity: 0; transform: scale(.4); } }
 @keyframes strike-in { from { text-decoration-color: transparent; color: var(--on-surface); } }
 .must-mark { color: var(--must); margin: 16px var(--s3) 0 var(--s1); }
-.drag-handle { margin-top: 4px; color: var(--on-surface-variant); touch-action: none; }
 /* The Now row: a soft primary tint, lighter in dark so it does not shout. */
 :root { --current-row: color-mix(in srgb, var(--primary-container) 55%, transparent); }
 @media (prefers-color-scheme: dark) {
@@ -482,14 +481,27 @@ button.list-item:active { background: var(--row-press); }
 }
 :root[data-appearance=dark] { --current-row: color-mix(in srgb, var(--primary-container) 38%, transparent); }
 .task-row.current { background: var(--current-row); border-radius: var(--shape-lg); }
-.task-row.dragging {
+/* Plan order by long-press and drag (Google Tasks): the held row lifts, the rows it passes slide out of its way. */
+.plan-list .task-row { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.plan-list.sorting > .task-row:not(.lifted) {
+  translate: 0 var(--shift, 0px);
+  transition: translate var(--dur-medium) var(--ease-standard);
+}
+.task-row.lifted {
   z-index: 2;
-  transform: translateY(var(--drag-y, 0));
-  background: var(--surface-container-highest);
+  translate: 0 var(--drag-y, 0px);
+  scale: 1.02;
+  background: var(--surface-container-high);
   border-radius: var(--shape-md);
   box-shadow: var(--elev-3);
+  transition: scale var(--dur-short) var(--ease-standard), box-shadow var(--dur-short) var(--ease-standard),
+    background-color var(--dur-short) var(--ease-standard);
 }
-.task-row.drop-target { box-shadow: inset 0 2px 0 var(--primary); }
+.task-row.lifted.settling {
+  scale: 1;
+  box-shadow: var(--elev-1);
+  transition: translate 200ms var(--ease-standard), scale 200ms var(--ease-standard), box-shadow 200ms var(--ease-standard);
+}
 .swipe-task { touch-action: pan-y; }
 .swipe-task > * { transform: translateX(var(--swipe-offset)); }
 .swipe-task[data-swipe]::before {
@@ -899,6 +911,35 @@ button.result-head:active { background: var(--row-press); }
   overflow-wrap: anywhere;
 }
 .detail-lede { padding: 0 var(--gutter) var(--s3); font: var(--body-large); color: var(--on-surface-variant); }
+/* Edit in place: words look like words until tapped; focus adds a soft tonal field and the M3 active indicator. */
+.inline-edit {
+  display: block;
+  margin: 0 calc(-1 * var(--s1));
+  padding: 0 var(--s1);
+  border-radius: var(--shape-xs) var(--shape-xs) 0 0;
+  outline: none;
+  cursor: text;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  caret-color: var(--primary);
+  transition: background-color var(--dur-short) var(--ease-standard), box-shadow var(--dur-short) var(--ease-standard);
+}
+.inline-edit:focus {
+  background: var(--surface-container-high);
+  box-shadow: inset 0 -2px 0 var(--primary);
+}
+.inline-edit.is-empty::before, .inline-edit:empty::before {
+  content: attr(data-placeholder);
+  color: var(--on-surface-variant);
+  pointer-events: none;
+}
+.title-edit { text-wrap: balance; }
+.title-edit:focus { text-wrap: wrap; }
+.editable-row { cursor: text; }
+.notes-text { font: var(--body-large); }
+.crumb-drop { font-size: 20px; color: var(--on-surface-variant); margin-left: -2px; }
+.project-picker { padding-right: var(--s1); }
+.goal-when-chip { padding-right: var(--s1); }
 .detail-title-text + .block-facts { margin-top: calc(-1 * var(--s2)); }
 /* Google Tasks detail rows: the 24dp icon centred on the Plan's check column, the text on the task titles. */
 .fact-row {
@@ -918,7 +959,6 @@ button.fact-row:active { background: var(--row-press); }
 .fact-row .outlined-btn { flex: none; padding: 0 var(--s4); }
 .fact-label { font: var(--label-medium); color: var(--on-surface-variant); }
 .purpose-text { font: var(--body-large); overflow-wrap: anywhere; }
-.purpose-row.empty .purpose-text { color: var(--on-surface-variant); font-style: italic; }
 .due-when { font-weight: 500; }
 .status-row.tight .due-when { color: var(--error); }
 .must-legend { font-size: 16px; color: var(--must); vertical-align: -3px; margin-right: 2px; }
@@ -1036,21 +1076,23 @@ button.fact-row:active { background: var(--row-press); }
 }
 .values-card p { font: var(--body-large); }
 .area-head { display: flex; align-items: center; gap: var(--s1); padding: var(--s3) 0 0 var(--gutter); }
-.area-head .detail-title-text { padding-left: var(--s2); }
+.area-head .detail-title-text { flex: 1; min-width: 0; padding-left: var(--s2); }
 .rating-row {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
-  gap: var(--s1) var(--s2);
+  gap: 0 var(--s2);
   width: calc(100% - 2 * var(--gutter));
-  margin: 0 var(--gutter);
-  padding: var(--s4);
+  margin: var(--s2) var(--gutter) 0;
+  padding: var(--s4) var(--s4) var(--s3);
   border-radius: 20px;
   background: var(--surface-container-low);
 }
 .rating-row strong { font: var(--title-medium); }
-.rating-row .wheel-track { grid-column: 1 / -1; }
-.goal-horizon { padding: var(--s3) var(--gutter) 0; }
+.rating-slider { grid-column: 1 / -1; accent-color: var(--tone, var(--primary)); }
+.rating-slider.unrated { accent-color: var(--outline); }
+.rating-note { grid-column: 1 / -1; font: var(--body-medium); color: var(--on-surface-variant); }
+
 
 /* Search */
 .search-input {
@@ -1496,6 +1538,7 @@ button.fact-row:active { background: var(--row-press); }
 :root[data-large-text=true] .top-title { font-size: 24px; }
 @media (prefers-reduced-motion: reduce) {
   .progress > span, .wheel-track > span, #fab-host, .fab { transition: none; }
+  .plan-list .task-row, .task-row.lifted, .inline-edit { transition: none; scale: none; }
 }
 
 /* ---------- Motion helpers (surface-motion.mjs) ---------- */
@@ -1521,3 +1564,4 @@ button.fact-row:active { background: var(--row-press); }
 :root[data-reduce-motion=true] .progress > span, :root[data-reduce-motion=true] #fab-host, :root[data-reduce-motion=true] .fab { transition: none; }
 @media (prefers-reduced-motion: reduce) { .field-fold, .field-fold.open { transition: none; } }
 :root[data-reduce-motion=true] .field-fold, :root[data-reduce-motion=true] .field-fold.open { transition: none; }
+:root[data-reduce-motion=true] :is(.plan-list .task-row, .task-row.lifted, .inline-edit) { transition: none; scale: none; }

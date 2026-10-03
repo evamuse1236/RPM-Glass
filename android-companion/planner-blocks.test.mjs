@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import {deadline, byDeadline, planByTime} from './planner/blocks.mjs';
 import {timeLeft, clock} from './planner/format.mjs';
 import {blockDue} from './planner-state.mjs';
+import {dropIndex} from './planner/task-row.mjs';
+import {entityFields} from './planner/inline-edit.mjs';
+import {newFields} from './planner/entities.mjs';
 
 const now = new Date('2026-10-03T12:00');
 const data = {entries: [
@@ -44,4 +47,36 @@ test('Sort by time puts the dated open tasks in time order and leaves undated an
     {id: 7, title: 'Print', plannedDate: '2026-10-03'},
   ];
   assert.deepEqual(planByTime(rows), [1, 2, 5, 4, 6, 7, 3]);
+});
+
+test('a lifted Plan row takes a slot once its leading edge passes that row’s middle, tall or short', () => {
+  const centers = [30, 90, 150, 210, 282];
+  assert.equal(dropIndex(centers, 4, 300, 360), 4);
+  assert.equal(dropIndex(centers, 4, 205, 289), 3);
+  assert.equal(dropIndex(centers, 4, 24, 108), 0);
+  assert.equal(dropIndex(centers, 0, 0, 60), 0);
+  assert.equal(dropIndex(centers, 0, 40, 100), 1);
+  assert.equal(dropIndex(centers, 0, 200, 260), 3);
+  assert.equal(dropIndex(centers, 0, 240, 300), 4);
+});
+
+test('editing one field in place sends every field saveEntity needs, so nothing else is wiped', () => {
+  const block = {id: 'b', title: 'Census ready', purpose: 'Real data', notes: 'Site list', projectId: 'p'};
+  assert.deepEqual(entityFields('blocks', block, {purpose: 'We present 2021 data'}),
+    {title: 'Census ready', purpose: 'We present 2021 data', notes: 'Site list', projectId: 'p'});
+  const goal = {id: 'g', title: 'Run', year: 2026, horizon: 'quarterly', period: 4, areaId: 'a'};
+  assert.deepEqual(entityFields('goals', goal, {horizon: 'yearly', period: 2}),
+    {title: 'Run', purpose: '', notes: '', areaId: 'a', year: 2026, horizon: 'yearly', period: null});
+  assert.deepEqual(entityFields('projects', {id: 'p', title: 'Term 1'}), {title: 'Term 1', purpose: '', notes: '', goalId: null});
+});
+
+test('a new record starts from where it was made: the Project page, the Blocks filter, the Life period', () => {
+  const state = {blockFilter: 'f', horizon: 'quarterly', period: 11, year: 2026, lifeFilter: 'a'};
+  assert.equal(newFields('blocks', {}, state, {kind: 'projects', id: 'p'}).projectId, 'p');
+  assert.equal(newFields('blocks', {}, state, null).projectId, 'f');
+  assert.equal(newFields('blocks', {projectId: 'x'}, state, null).projectId, 'x');
+  assert.equal(newFields('blocks', {}, state, null).title, 'New Result');
+  assert.deepEqual(newFields('goals', {}, state), {title: 'New Goal', purpose: '', notes: '', areaId: 'a', year: 2026,
+    horizon: 'quarterly', period: 4});
+  assert.equal(newFields('goals', {}, {...state, horizon: 'values'}).period, null);
 });
