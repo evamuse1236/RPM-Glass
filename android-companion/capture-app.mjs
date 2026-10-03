@@ -27,7 +27,7 @@ export function mountCapture(platform){
  const $=id=>document.getElementById(id);
  const panel=$('panel'),content=$('content'),dock=$('capture-actions'),message=$('message');
  const s={state:null,busy:false,view:'chat',conversationId:storage.get('rpm-conversation'),focusedDraftId:null,
-  historyLimit:20,showArchived:false,lastKey:null,request:null,failure:null,listening:false,autoClose:null,slowTimer:null};
+  historyLimit:20,showArchived:false,lastKey:null,request:null,failure:null,listening:false,autoClose:null,slowTimer:null,draftSaved:false};
  const identity=createSendIdentity();
  const reveal=createRevealTracker();
  const actionIds=new Map();
@@ -36,8 +36,14 @@ export function mountCapture(platform){
  // ---- drafts -------------------------------------------------------------
  function rememberComposer(text){
   const kept=draftToKeep(text,{busy:s.busy,pendingText:identity.pending?.text});
-  storage.set('rpm-native-draft',kept);
-  platform.saveComposerDraft?.(kept).catch(()=>status('Couldn’t keep your unsent draft on this phone. Keep this window open and copy your words.',true));
+  const local=storage.set('rpm-native-draft',kept);
+  // "Draft saved" appears only once the phone confirms these exact words.
+  const saved=()=>{if(message.value===text){s.draftSaved=true;syncHint();}};
+  if(!platform.saveComposerDraft){if(local)saved();return;}
+  platform.saveComposerDraft(kept).then(saved,()=>{
+   s.draftSaved=false;syncHint();
+   status('Couldn’t keep your unsent draft on this phone. Keep this window open and copy your words.',true);
+  });
  }
  const rememberDraft=()=>storage.set('rpm-native-draft',message.value);
 
@@ -225,24 +231,43 @@ export function mountCapture(platform){
  for(const type of ['pointerdown','keydown','input','wheel'])panel.addEventListener(type,cancelAutoClose,{capture:true,passive:true});
 
  // ---- item overflow menu -------------------------------------------------
- function openItemMenu(anchor,items){
+ function openItemMenu(anchor,items,{wide=false}={}){
   closeItemMenu();
-  const pop=el('div','popover');
+  const pop=el('div','popover'+(wide?' wide':''));
   pop.setAttribute('role','menu');
   for(const item of items){
    const row=el('button','popover-item');
-   row.type='button';row.setAttribute('role','menuitem');
-   row.append(icon(item.icon),el('span','',item.label));
+   row.type='button';row.setAttribute('role',item.checked===undefined?'menuitem':'menuitemradio');
+   if(item.checked!==undefined)row.setAttribute('aria-checked',String(item.checked));
+   if(item.tone!==undefined){const dot=el('span','dot');if(item.tone)dot.style.background=`var(--${item.tone})`;row.append(dot);}
+   else row.append(icon(item.icon));
+   const text=el('span','popover-text');
+   text.append(el('span','',item.label));
+   if(item.sub)text.append(el('span','popover-sub'+(item.alert?' overdue':''),item.sub));
+   row.append(text);
+   if(item.checked)row.append(icon('check',{cls:'popover-check'}));
    row.addEventListener('click',()=>{closeItemMenu();item.run();});
    pop.append(row);
   }
   panel.append(pop);
   const a=anchor.getBoundingClientRect(),p=panel.getBoundingClientRect();
+  pop.style.maxHeight=Math.max(160,p.height-16)+'px';
   const below=a.bottom-p.top+4,height=pop.offsetHeight;
-  pop.style.right=Math.max(8,p.right-a.right)+'px';
-  pop.style.top=(below+height<p.height-8?below:Math.max(8,a.top-p.top-height-4))+'px';
+  if(wide)pop.style.left='8px';
+  pop.style.right=wide?'8px':Math.max(8,p.right-a.right)+'px';
+  pop.style.top=(below+height<p.height-8?below:Math.max(8,Math.min(a.top-p.top-height-4,p.height-height-8)))+'px';
   itemPopover={node:pop,anchor};
-  pop.querySelector('button')?.focus({preventScroll:true});
+  (pop.querySelector('[aria-checked=true]')??pop.querySelector('button'))?.focus({preventScroll:true});
+ }
+ /** Move one proposal to another Block, or to the Inbox, before it is added. */
+ function pickBlock(anchor,op,draft){
+  const current=op.fields.find(f=>f.name==='blockId'&&f.op==='set')?.value??null;
+  const set=value=>runIntentAction({conversationId:draft.conversationId,draftId:draft.id,revision:draft.revision,kind:'set-field',opId:op.opId,field:'blockId',...(value==null?{clear:true}:{value})});
+  const items=[{label:'Inbox',sub:'No block for now',icon:'inbox',checked:current==null,run:()=>set(null)}];
+  for(const b of platform.blockChoices?.()??[]){
+   items.push({label:b.title,sub:b.due?.label??b.subtitle,alert:b.due?.overdue,tone:b.tone,checked:String(b.id)===String(current),run:()=>set(b.id)});
+  }
+  openItemMenu(anchor,items,{wide:true});
  }
  function closeItemMenu(){
   if(!itemPopover)return false;
@@ -268,13 +293,15 @@ export function mountCapture(platform){
    prefill,
    connectAI:()=>platform.action('settings',{section:'ai_connection'}),
    itemMenu:openItemMenu,
+   pickBlock,
   },
+  blockDue:platform.blockDue,
  });
  const responseKey=c=>c?JSON.stringify([c.messageId,c.reply,c.draft?.revision,c.draft?.status,c.lastError?.message]):null;
 
  function welcome(frag){
   const box=el('section','welcome');
-  box.append(el('h2','welcome-title','What’s on your mind?'),el('p','welcome-text','Capture a thought, a task or a plan. Your words are saved first, and nothing changes your plan until you add it.'));
+  box.append(el('h2','welcome-title','What’s on your mind?'),el('p','welcome-text','Saved as you type. Added only when you confirm.'));
   const c=conversation();
   const starters=startersFor({view:s.view,busy:s.busy,archived:c.archived,captureCount:0,recovering:!!s.failure});
   if(starters.length){
@@ -387,8 +414,10 @@ export function mountCapture(platform){
   content.setAttribute('aria-busy',String(s.busy));
   const answering=!!answerDraft();
   message.placeholder=answering?'Or answer in your own words':s.focusedDraftId?'Tell me what to change':'Capture a thought';
-  const showHint=s.view==='chat'&&!s.busy&&!s.listening&&!s.failure&&(!captures().length||!!message.value.trim())&&!answering;
-  $('composer-hint').hidden=!showHint;
+  syncHint();
+ }
+ function syncHint(){
+  $('composer-hint').hidden=!(s.view==='chat'&&!s.busy&&!s.listening&&s.draftSaved&&!!message.value.trim());
  }
 
  function controls(){

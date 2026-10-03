@@ -1,9 +1,9 @@
 // The current Capture response: proposals, one question, or a receipt.
 // Every change still goes through the existing typed draft actions.
-import {captureSchedule,captureDuration,captureWeekday,scheduleChips} from './capture-content.mjs';
+import {captureSchedule,captureDuration,captureWeekday,scheduleChips as scheduleChipLabels} from './capture-content.mjs';
 import {actionPresentation} from './capture-session.mjs';
 import {el,icon,button,iconButton,chip,details} from './capture-dom.mjs';
-import {keptCard,dialogueCard,receiptCard,receiptActions,parkedCard,undoneCard,originalWords,warning} from './capture-states.mjs';
+import {keptCard,dialogueCard,receiptCard,receiptActions,parkedCard,undoneCard,wordsToggle,warning} from './capture-states.mjs';
 
 const ENTITY={task:'task',block:'Block',project:'Project',goal:'Goal',area:'Area'};
 const FIELD_LABEL={purpose:'Purpose',notes:'Notes',projectId:'Project',goalId:'Goal',areaId:'Area',year:'Year',priority:'Position in Plan',recurrence:'Repeats',repeatAfterDays:'Days between repeats',alert:'Alert'};
@@ -26,40 +26,75 @@ function fieldValue(field){
  return String(field.value);
 }
 
-function destination(op){
+/** Where a task goes: its Block (with the Result's deadline) or Inbox · No block. */
+function destination(op,ctx,{active,draft}){
  if(op.entity!=='task')return null;
  const block=op.fields.find(f=>f.name==='blockId');
- const row=el('p','prop-dest');
- if(block?.op==='set'){
-  row.append(icon('subdirectory_arrow_right'),el('span','','Block '),el('b','',block.displayValue??'Unavailable Block'));
-  return row;
+ const inbox=block?.op==='clear'||!block&&op.kind==='create';
+ if(block?.op!=='set'&&!inbox)return null;
+ const pick=active?e=>ctx.on.pickBlock(e.currentTarget,op,draft):null;
+ const name=inbox?'Inbox · No block':block.displayValue??'Unavailable Block';
+ const node=chip(name,{onClick:pick,cls:'dest-chip',iconName:inbox?'inbox':null,
+  ariaLabel:pick?`${inbox?'In the Inbox, no Block':'Block: '+name}. Change Block`:null});
+ if(!inbox){
+  const info=ctx.describe?.('blockId',block.value);
+  const dot=el('span','dot');
+  if(info?.tone)dot.style.background=`var(--${info.tone})`;
+  node.prepend(dot);
+  // The Result's deadline sits under the Block name, so urgency is visible before Add.
+  const due=ctx.blockDue?.(block.value);
+  if(due){
+   node.querySelector('.chip-label').append(el('span','chip-due'+(due.overdue?' overdue':''),due.label));
+   if(pick)node.setAttribute('aria-label',`Block: ${name}, ${due.label}. Change Block`);
+  }
  }
- if(block?.op==='clear'||op.kind==='create'){
-  row.append(icon('inbox'),el('b','','Inbox'),el('span','',' · No block'));
-  return row;
- }
- return null;
+ if(pick)node.append(icon('arrow_drop_down',{cls:'chip-trail'}));
+ return node;
 }
 
-function scheduleRow(op,draft,ctx,{active,title}){
+function scheduleChips(op,draft,ctx,{active,title}){
  const preview=draft.schedulePreview?.items?.find(p=>p.opId===op.opId);
  const timeZone=draft.schedulePreview?.timezone??deviceZone();
  const schedule=captureSchedule(preview,{timeZone,reference:new Date()});
- const row=el('div','prop-chips');
+ const chips=[],notes=[];
  const change=active?()=>ctx.on.prefill(`Change the time of “${title}” to `,draft):null;
- for(const item of scheduleChips(schedule,captureWeekday(preview,{timeZone}))){
-  row.append(chip(item.label,{iconName:item.icon,onClick:change,cls:item.muted?'muted':'',ariaLabel:change?`${item.label}. Change date and time`:null}));
+ for(const item of scheduleChipLabels(schedule,captureWeekday(preview,{timeZone}))){
+  chips.push(chip(item.label,{iconName:item.icon,onClick:change,cls:item.muted?'muted':'',ariaLabel:change?`${item.label}. Change date and time`:null}));
  }
  const minutes=op.fields.find(f=>f.name==='minutes'&&f.op==='set'&&Number.isFinite(f.value));
- if(minutes&&!schedule?.duration)row.append(chip(captureDuration(minutes.value)+' estimate',{iconName:'timer'}));
- const nodes=[];
- if(row.childElementCount)nodes.push(row);
- if(schedule?.review&&!draft.question)nodes.push(el('p','needs-answer',schedule.review.replace(`For ${title}: `,'')));
+ if(minutes&&!schedule?.duration)chips.push(chip(captureDuration(minutes.value)+' estimate',{iconName:'timer'}));
+ // A new task with no date can be given one before it is added.
+ if(active&&!schedule&&op.entity==='task'&&op.kind==='create'){
+  chips.push(chip('No date',{iconName:'event',cls:'muted',ariaLabel:'No date. Add a date',onClick:()=>ctx.on.prefill(`Schedule “${title}” for `,draft)}));
+ }
+ if(schedule?.review&&!draft.question)notes.push(el('p','needs-answer',schedule.review.replace(`For ${title}: `,'')));
  if(schedule&&!schedule.review&&timeZone!==deviceZone()){
   const zone=new Intl.DateTimeFormat('en-GB',{timeZone,timeZoneName:'short'}).formatToParts(new Date(preview.planned??Date.now())).find(p=>p.type==='timeZoneName')?.value;
-  if(zone)nodes.push(el('p','detail-note','Times in '+zone));
+  if(zone)notes.push(el('p','detail-note','Times in '+zone));
  }
- return {nodes,hasDuration:!!schedule?.duration};
+ return {chips,notes,hasDuration:!!schedule?.duration};
+}
+
+/** Must keeps the Google Tasks star and says its name, so it is never read as "starred". */
+function mustChip(op,draft,ctx,active){
+ if(op.entity!=='task'||!['create','update'].includes(op.kind))return null;
+ const must=op.fields.find(f=>f.name==='must'&&f.op==='set')?.value===true;
+ if(!active&&!must)return null;
+ const toggle=active?()=>ctx.on.action({...actionBase(draft),kind:'set-field',opId:op.opId,field:'must',value:!must}):null;
+ const node=chip('Must',{iconName:'star',onClick:toggle,cls:'must-chip'+(must?' selected':'')});
+ if(must)node.querySelector('.ms').classList.add('fill');
+ if(toggle){node.setAttribute('aria-pressed',String(must));node.setAttribute('aria-label',`Must: ${opTitle(op)}`);}
+ return node;
+}
+
+/** One row of readable chips: Block, date, time and Must. Tappable while the draft is open. */
+function metaRow(op,draft,ctx,{active,title}){
+ const row=el('div','prop-chips');
+ const dest=destination(op,ctx,{active,draft});
+ const schedule=scheduleChips(op,draft,ctx,{active,title});
+ const must=mustChip(op,draft,ctx,active);
+ row.append(...[dest,...schedule.chips,must].filter(Boolean));
+ return {nodes:[row.childElementCount?row:null,...schedule.notes].filter(Boolean),hasDuration:schedule.hasDuration};
 }
 
 function otherFields(op,draft,{active,hasDuration}){
@@ -74,16 +109,6 @@ function otherFields(op,draft,{active,hasDuration}){
   nodes.push(line);
  }
  return nodes;
-}
-
-function mustToggle(op,draft,ctx,active){
- if(op.entity!=='task'||!['create','update'].includes(op.kind))return null;
- const must=op.fields.find(f=>f.name==='must'&&f.op==='set')?.value===true;
- if(!active&&!must)return null;
- const toggle=()=>ctx.on.action({...actionBase(draft),kind:'set-field',opId:op.opId,field:'must',value:!must});
- const star=iconButton('star',`Must: ${opTitle(op)}`,active?toggle:null,{cls:'star',fill:must,pressed:must});
- if(!active)star.disabled=true;
- return star;
 }
 
 function itemMenu(op,draft,ctx){
@@ -107,14 +132,10 @@ function proposalItem(op,draft,ctx,{multi,active}){
  const titleField=op.fields.find(f=>f.name==='title'&&f.op==='set');
  if(active&&titleField?.origin==='suggested')heading.append(el('span','tag','Suggested title'));
  top.append(heading);
- const star=mustToggle(op,draft,ctx,active);
- if(star)top.append(star);
  if(multi&&active)top.append(itemMenu(op,draft,ctx));
  item.append(top);
- const dest=destination(op);
- if(dest)item.append(dest);
- const schedule=scheduleRow(op,draft,ctx,{active,title});
- item.append(...schedule.nodes,...otherFields(op,draft,{active,hasDuration:schedule.hasDuration}));
+ const meta=metaRow(op,draft,ctx,{active,title});
+ item.append(...meta.nodes,...otherFields(op,draft,{active,hasDuration:meta.hasDuration}));
  return item;
 }
 
@@ -181,10 +202,14 @@ function activeDraft(capture,ctx){
  const draft=capture.draft,multi=draft.operations.length>1;
  const card=el('section','state-card proposal-card');
  card.dataset.status=draft.status;
- const kicker=el('p','kicker');
+ // The header names what is proposed; the original words open right under it.
+ const notes=draft.schedulePreview?.items?.flatMap(i=>i.assumptions??[])??[];
+ const words=wordsToggle(capture,notes);
+ const head=el('div','card-head'),kicker=el('p','kicker');
  if(draft.validationNotice)kicker.append(icon('error',{cls:'warning-icon'}));
  kicker.append(el('span','',draftKicker(draft,ctx)));
- card.append(kicker);
+ head.append(kicker,words.toggle);
+ card.append(head,words.region);
  if(draft.mode==='plan'&&capture.reply){
   const lead=el('p','reply-lead',capture.reply);
   card.append(lead);
@@ -196,10 +221,19 @@ function activeDraft(capture,ctx){
  if(draft.question){
   card.append(questionBlock(draft,ctx),details(multi?`Show all ${draft.operations.length} proposals`:'Show the proposal',[items],'details props-details'));
  }else card.append(items);
- const notes=draft.schedulePreview?.items?.flatMap(i=>i.assumptions??[])??[];
- card.append(originalWords(capture.raw,notes));
  const actions=draftActions(draft,{multi}).map(a=>button(a.label,()=>ctx.on.action(a.item.action),{role:a.role,iconName:a.icon}));
  return {node:card,actions};
+}
+
+/** The tasks a committed draft created, each with its Block, date and Must. */
+function addedTasks(draft,ctx){
+ const ops=draft.operations??[];
+ if(!ops.length||ops.some(op=>op.kind!=='create'||op.entity!=='task'))return [];
+ return ops.map(op=>{
+  const title=opTitle(op),row=el('li','receipt-item');
+  row.append(el('p','receipt-title',title),...metaRow(op,draft,ctx,{active:false,title}).nodes);
+  return row;
+ });
 }
 
 /**
@@ -217,7 +251,7 @@ export function renderResponse(capture,ctx){
  }
  if(!draft)return {node:dialogueCard(capture),actions:[],kind:'dialogue'};
  if(draft.status==='committed'){
-  return {node:receiptCard(capture,ctx),actions:receiptActions(capture,ctx),kind:'receipt'};
+  return {node:receiptCard(capture,ctx,addedTasks(draft,ctx)),actions:receiptActions(capture,ctx),kind:'receipt'};
  }
  if(draft.status==='parked'){
   return {node:parkedCard(capture),actions:[button('Review draft',()=>ctx.on.resume(draft),{role:'tonal'})],kind:'parked'};

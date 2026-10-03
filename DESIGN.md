@@ -126,7 +126,7 @@ Every step can be skipped, leaving keeps progress, and every change goes through
 
 ### Capture
 
-The full behaviour is in [PRODUCT.md](PRODUCT.md#capture). Visually, the panel has a header (RPM mark, title, Expand, Close) and a content area that shows one current state at a time: empty with starter chips, listening, saving, saved and sorting, proposals, one question, or a receipt with Undo. At the bottom is a filled pill composer with More at the start and the microphone, which becomes a filled Send button once there is text. Proposals are cards with the title, destination (Block, or Inbox · No block), date and time chips and a Must star.
+The full behaviour is in [PRODUCT.md](PRODUCT.md#capture). Visually, the panel has a header (RPM mark, title, Expand, Close) and a content area that shows one current state at a time: empty with starter chips, listening, saving, saved and sorting, proposals, one question, or a receipt with Undo. At the bottom is a filled pill composer with More at the start and the microphone, which becomes a filled Send button once there is text; it turns into a quieter outlined field while a decision is pending. Proposals are cards with the title and one row of chips: the Block (Area dot, name and the Result's due line) or Inbox · No block, date, time and a Must filter chip that keeps the amber star and says "Must". "Your words" is a text toggle beside the card header. The receipt lists the added tasks with the same chips, read-only.
 
 ## Do
 

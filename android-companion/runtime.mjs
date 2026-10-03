@@ -1,7 +1,8 @@
 import {coalesceRefresh} from './surface-refresh.mjs';
 import {installDiagnostics} from './diagnostics.mjs';
 import {applyClarityPreferences} from './planner-clarity.mjs';
-import {describeLink} from './capture-context.mjs';
+import {describeLink,blockChoices} from './capture-context.mjs';
+import {dueInfo} from './planner/format.mjs';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {entryView,propose,undo} from '../chat-prototype/companion-tools.mjs';
 import {MODEL} from '../chat-prototype/companion-agent.mjs';
@@ -75,6 +76,9 @@ window.RPM_PLATFORM.captureAction=async action=>{const latest=await native('load
 window.RPM_PLATFORM.suggestionAction=(suggestion,sourceRaw,at)=>goalDraftAction(suggestion,sourceRaw,at?new Date(at):new Date());
 window.RPM_PLATFORM.receiptsForMessage=message=>receiptsForMessage(data,message,entryView);
 window.RPM_PLATFORM.describeLink=(field,value)=>describeLink(data,field,value);
+// A Block's Result deadline for Capture's proposals and Block picker: dueInfo() or null.
+window.RPM_PLATFORM.blockDue=id=>dueInfo(data.planner?.blocks?.find(b=>String(b.id)===String(id))?.due);
+window.RPM_PLATFORM.blockChoices=()=>blockChoices(data,window.RPM_PLATFORM.blockDue);
 window.rpmPhoneRefresh=coalesceRefresh(async()=>{await ready;if(!busy){const latest=await native('load');phone=latest.phone;if(latest.data&&latest.data.version!==data.version){data=latest.data;window.dispatchEvent(new Event('rpm-data-refresh'));}}window.dispatchEvent(new Event('rpm-phone-status'));});
 await ready;
 applyClarityPreferences();
