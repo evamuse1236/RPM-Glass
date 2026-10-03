@@ -1,9 +1,9 @@
 // The current Capture response: proposals, one question, or a receipt.
 // Every change still goes through the existing typed draft actions.
 import {captureSchedule,captureDuration,scheduleText,dueText} from './capture-content.mjs';
-import {duration} from './planner/format.mjs';
+import {duration,clock} from './planner/format.mjs';
 import {actionPresentation} from './capture-session.mjs';
-import {el,icon,button,iconButton,chip,details} from './capture-dom.mjs';
+import {el,icon,button,iconButton,details} from './capture-dom.mjs';
 import {keptCard,dialogueCard,receiptCard,receiptActions,parkedCard,undoneCard,wordsToggle,warning} from './capture-states.mjs';
 
 const ENTITY={task:'task',block:'Block',project:'Project',goal:'Goal',area:'Area'};
@@ -39,7 +39,7 @@ function destination(op,ctx){
 /**
  * The facts every proposal row shows in the same order: destination, date
  * and time (or "No date"), Must, the Result's deadline and what else holds that
- * day. The receipt reuses it, so what was added reads exactly as proposed.
+ * day. The receipt reuses it, so what was added reads in the same words.
  */
 function summary(op,draft,ctx){
  const preview=draft.schedulePreview?.items?.find(p=>p.opId===op.opId);
@@ -55,47 +55,79 @@ function summary(op,draft,ctx){
   const zone=new Intl.DateTimeFormat('en-GB',{timeZone,timeZoneName:'short'}).formatToParts(new Date(preview.planned??Date.now())).find(p=>p.type==='timeZoneName')?.value;
   if(zone)notes.push(el('p','detail-note','Times in '+zone));
  }
- const load=preview?.planned&&timeZone===deviceZone()?ctx.dayLoad?.({start:preview.planned,minutes,blockId:dest?.id})??[]:[];
+ const load=preview?.planned&&timeZone===deviceZone()?ctx.dayLoad?.({start:preview.planned,minutes,blockId:dest?.id,due:dest?.due?.value})??[]:[];
  const dated=op.entity==='task'&&op.kind==='create'||!!when;
  return {dest,when,estimate,must,notes,load,dated,day:preview?.planned?new Date(preview.planned):null,hasMinutes:minutes!=null};
 }
 
-/** The destination as a two-line list item: the Block (or Inbox) and its Result's deadline. */
-function destinationLine(op,draft,ctx,dest,active){
- const line=el(active?'button':'div','prop-dest');
- line.append(icon(dest.inbox?'inbox':'stacks',{cls:'prop-icon'}));
- const text=el('span','prop-dest-text'),due=dueText(dest.due);
- text.append(el('span','prop-dest-name',dest.name));
- if(due)text.append(el('span','prop-due'+(dest.due.overdue?' overdue':''),due));
- line.append(text);
- if(active){
-  line.type='button';
-  line.setAttribute('aria-haspopup','menu');
-  line.setAttribute('aria-label',`${dest.inbox?'Inbox, no block':'Block: '+dest.name}${due?', '+due:''}. Move ${opTitle(op)}`);
-  line.append(icon('arrow_drop_down',{cls:'prop-drop'}));
-  line.addEventListener('click',e=>ctx.on.pickBlock(e.currentTarget,op,draft));
- }
- return line;
+/**
+ * One meta line under a proposal's title, as in a Google Tasks detail page: an
+ * icon on the title's edge, the words beside it, an optional second line.
+ * Interactive lines are full-width buttons.
+ */
+function metaRow(iconName,lines,{onClick=null,ariaLabel=null,cls='',trailing=null}={}){
+ const row=el(onClick?'button':'div','prop-row'+(cls?' '+cls:''));
+ if(onClick){row.type='button';row.addEventListener('click',onClick);}
+ if(ariaLabel)row.setAttribute('aria-label',ariaLabel);
+ row.append(icon(iconName,{cls:'prop-icon'}));
+ const text=el('span','prop-row-text');
+ for(const line of lines.filter(Boolean))text.append(typeof line==='string'?el('span','prop-row-main',line):line);
+ row.append(text);
+ if(trailing)row.append(icon(trailing,{cls:'prop-drop'}));
+ return row;
 }
 
-/** Date and time as an assist chip; a task with none says "No date" rather than leaving a blank. */
-function dateChip(op,draft,ctx,sum,active){
- const title=opTitle(op),label=sum.when?[sum.when,sum.estimate].filter(Boolean).join(' · '):sum.estimate?'No date · '+sum.estimate:'No date';
- const run=active&&op.kind==='create'?()=>ctx.on.prefill(sum.when?`Change the time of “${title}” to `:`Schedule “${title}” for `,draft):null;
- return chip(label,{iconName:sum.when||!run?'event':'calendar_add_on',onClick:run,cls:'prop-date'+(sum.when?'':' muted'),
-  ariaLabel:run?`${sum.when?sum.when:'No date'}. ${sum.when?'Change the time of':'Add a date to'} ${title}`:null});
+/** Where it goes: "Block · <Result>" with that Result's deadline under it, or "Inbox". Tapping opens Move to. */
+function destinationRow(op,draft,ctx,dest){
+ const due=dueText(dest.due),name=el('span','prop-row-main');
+ if(dest.inbox)name.textContent='Inbox';
+ else name.append(el('span','prop-label','Block · '),dest.name);
+ const sub=due?el('span','prop-row-sub'+(dest.due.overdue?' overdue':''),due):null;
+ return metaRow(dest.inbox?'inbox':'stacks',[name,sub],{
+  onClick:e=>ctx.on.pickBlock(e.currentTarget,op,draft),trailing:'arrow_drop_down',cls:'prop-dest',
+  ariaLabel:`${dest.inbox?'Inbox, no block':'Block: '+dest.name}${due?', '+due:''}. Move ${opTitle(op)}`});
 }
 
-/** What else holds that day, in one quiet line; a calendar overlap is said separately, in the error colour. */
-// A Result named in a note keeps its first three words ("RM critical review…"), so the note stays one glance.
-const short=text=>{const words=text.split(' ');return words.length>3?words.slice(0,3).join(' ')+'…':text;};
-function loadNotes(sum){
+/** Date and time, or an explicit "No date"; tapping starts a change in Dara's own words. */
+function dateRow(op,draft,ctx,sum){
+ const title=opTitle(op),label=[sum.when??'No date',sum.estimate].filter(Boolean).join(' · ');
+ const run=op.kind==='create'?()=>ctx.on.prefill(sum.when?`Change the time of “${title}” to `:`Schedule “${title}” for `,draft):null;
+ return metaRow(sum.when?'event':'calendar_add_on',[label],{onClick:run,cls:'prop-date'+(sum.when?'':' muted'),
+  ariaLabel:run?`${sum.when??'No date'}. ${sum.when?'Change the time of':'Add a date to'} ${title}`:null});
+}
+
+// Which proposals have their day details open, so a re-render keeps them open.
+const loadOpen=new Set();
+const weekday=at=>new Date(at).toLocaleDateString('en-GB',{weekday:'short'});
+const count=(n,one,many)=>`${n} ${n===1?one:many}`;
+/**
+ * What else bears on the proposed time. A calendar overlap is its own line in
+ * the error colour. Other deadlines that day and a busy morning before the
+ * Result is due fold into one counted disclosure ("Sun: 2 other deadlines" over
+ * "Mon: 2 events before it's due") that opens to each item with its time, never cut mid-title.
+ */
+function loadNotes(sum,key){
  if(!sum.load.length)return [];
  const today=new Date().toDateString()===sum.day.toDateString();
- const day=today?'Today':sum.day.toLocaleDateString('en-GB',{weekday:'short'});
- const nodes=[],clashes=sum.load.filter(i=>i.clash),others=sum.load.filter(i=>!i.clash);
- if(clashes.length)nodes.push(el('p','prop-load clash','Clashes with '+clashes.map(i=>i.text).join(', ')));
- if(others.length)nodes.push(el('p','prop-load',`${day} also due: `+others.map(i=>[short(i.title),i.time].filter(Boolean).join(' ')).join(', ')));
+ const day=today?'Today':weekday(sum.day);
+ const nodes=[],clashes=sum.load.filter(i=>i.kind==='clash'),deadlines=sum.load.filter(i=>i.kind==='deadline'),before=sum.load.filter(i=>i.kind==='before');
+ const range=i=>`${clock(i.start)}–${clock(i.end)}`;
+ for(const c of clashes)nodes.push(metaRow('event_busy',[`Clashes with ${c.title}, ${range(c)}`],{cls:'prop-clash'}));
+ if(!deadlines.length&&!before.length)return nodes;
+ // Each counted line, and once opened the items under it: time first, so a long title wraps on its own.
+ const keep=text=>text.replace(/ /g,' ');
+ const groups=[];
+ if(deadlines.length)groups.push([`${day}: ${count(deadlines.length,'other deadline','other deadlines')}`,deadlines.map(i=>[i.time?keep(i.time):'Due',i.title])]);
+ if(before.length)groups.push([`${weekday(before[0].start)}: ${count(before.length,'event','events')} before it’s due`,before.map(i=>[keep(range(i)),i.title])]);
+ const details=[],lines=groups.flatMap(([head,items])=>[head,...items.map(([when,title])=>{
+  const line=el('span','prop-detail',`${when} · ${title}`);
+  details.push(line);
+  return line;
+ })]);
+ const toggle=metaRow('hourglass_bottom',lines,{cls:'prop-context',trailing:'expand_more',onClick:()=>set(details[0].hidden)});
+ const set=open=>{for(const d of details)d.hidden=!open;toggle.setAttribute('aria-expanded',String(open));if(open)loadOpen.add(key);else loadOpen.delete(key);};
+ set(loadOpen.has(key));
+ nodes.push(toggle);
  return nodes;
 }
 
@@ -113,50 +145,69 @@ function otherFields(op,draft,{active,hasMinutes}){
  return nodes;
 }
 
+/** A filled amber star marks a Must, as everywhere in RPM; other proposals show none. */
+function mustMark(){
+ const star=icon('star',{fill:true,cls:'must-mark'});
+ star.removeAttribute('aria-hidden');star.setAttribute('role','img');star.setAttribute('aria-label','Must');
+ return star;
+}
+
 /**
- * One proposal row, the same structure in every state: a leading include box
- * (a success check once added), the title with the Must star, the destination
- * with its deadline, the date chip, then any note about that day.
+ * One proposal row, the same structure in every state: the title with the Must
+ * star and, when there is more than one, a quiet Leave out control at the end;
+ * then icon lines for the destination with its deadline, the date, and what
+ * else bears on that time. A left-out row fades and offers Put back.
  */
-function proposalItem(op,draft,ctx,{active,added=false,skipped=new Set()}){
- const title=opTitle(op);
- const item=el(added?'li':'article','prop');
+function proposalItem(op,draft,ctx,{skipped=new Set()}){
+ const title=opTitle(op),included=!skipped.has(op.opId);
+ const item=el('article','prop'+(included?'':' skipped'));
  item.dataset.opId=op.opId;
- const included=!skipped.has(op.opId);
- if(active){
-  const box=iconButton(included?'check_box':'check_box_outline_blank',`Include ${title}`,()=>ctx.on.toggleInclude(draft,op.opId),{cls:'prop-check',fill:included});
-  box.setAttribute('role','checkbox');
-  box.removeAttribute('aria-pressed');
-  box.setAttribute('aria-checked',String(included));
-  item.append(box);
-  if(!included)item.classList.add('skipped');
- }else item.append(icon(added?'check_circle':'radio_button_unchecked',{cls:'prop-lead'+(added?' added':''),fill:added}));
- const body=el('div','prop-body');
  const top=el('div','prop-top'),heading=el('div','prop-heading');
  const kind=op.entity!=='task'?(op.kind==='create'?'New ':'')+ENTITY[op.entity]:null;
  const change=op.kind!=='create'?CHANGE[op.kind]??op.kind:null;
  const eyebrow=[change,kind].filter(Boolean).join(' · ');
  if(eyebrow)heading.append(el('p','prop-kind',eyebrow));
- const name=el(active?'button':'h3','prop-title',title);
- if(active){
-  // Tapping the title starts a change in Dara's own words; the composer takes it from there.
-  name.type='button';
-  name.setAttribute('aria-label',`${title}. Change it in your words`);
-  name.addEventListener('click',()=>ctx.on.prefill(`For “${title}”: `,draft));
- }
+ // Tapping the title starts a change in Dara's own words; the composer takes it from there.
+ const name=el('button','prop-title',title);
+ name.type='button';
+ name.setAttribute('aria-label',`${title}. Change it in your words`);
+ name.addEventListener('click',()=>ctx.on.prefill(`For “${title}”: `,draft));
  heading.append(name);
  const titleField=op.fields.find(f=>f.name==='title'&&f.op==='set');
- if(active&&titleField?.origin==='suggested')heading.append(el('span','tag','Suggested title'));
+ if(included&&titleField?.origin==='suggested')heading.append(el('span','tag','Suggested title'));
+ if(!included)heading.append(el('p','prop-left-out','Left out · kept in History'));
  top.append(heading);
  const sum=summary(op,draft,ctx);
- // A filled star marks a Must, as everywhere in RPM; other proposals show none. Must changes in words or later in the task sheet.
- if(sum.must){const star=icon('star',{fill:true,cls:'must-mark'});star.removeAttribute('aria-hidden');star.setAttribute('role','img');star.setAttribute('aria-label','Must');top.append(star);}
- body.append(top);
- if(sum.dest)body.append(destinationLine(op,draft,ctx,sum.dest,active));
- if(sum.dated){const row=el('div','prop-chips');row.append(dateChip(op,draft,ctx,sum,active));body.append(row);}
- body.append(...loadNotes(sum),...sum.notes,...otherFields(op,draft,{active,hasMinutes:sum.hasMinutes}));
- item.append(body);
+ // Must changes in words or later in the task sheet, never by tapping the star.
+ if(sum.must)top.append(mustMark());
+ if(draft.operations.length>1){
+  const toggle=()=>ctx.on.toggleInclude(draft,op.opId);
+  top.append(included?iconButton('close',`Leave out “${title}”`,toggle,{cls:'prop-skip'})
+   :button('Put back',toggle,{role:'text',cls:'prop-back',ariaLabel:`Put back “${title}”`}));
+ }
+ item.append(top);
+ // A left-out row keeps its place and height, faded, so nothing under the thumb moves.
+ const body=el('div','prop-body');
+ body.inert=!included;
+ if(sum.dest)body.append(destinationRow(op,draft,ctx,sum.dest));
+ if(sum.dated)body.append(dateRow(op,draft,ctx,sum));
+ body.append(...loadNotes(sum,`${draft.id}:${op.opId}`),...sum.notes,...otherFields(op,draft,{active:true,hasMinutes:sum.hasMinutes}));
+ if(body.childElementCount)item.append(body);
  return item;
+}
+
+/** One added task in the receipt: its title with the Must star, then when and where in one quiet line. */
+function receiptRow(op,draft,ctx){
+ const sum=summary(op,draft,ctx),row=el('li','receipt-row');
+ const top=el('p','receipt-name');
+ top.append(el('span','',opTitle(op)));
+ if(sum.must)top.append(mustMark());
+ // When and where wrap as whole phrases, never mid-name.
+ const parts=[sum.dated?sum.when??'No date':null,sum.dest?sum.dest.inbox?'Inbox':sum.dest.name:null].filter(Boolean);
+ const meta=el('p','receipt-meta');
+ parts.forEach((part,i)=>meta.append(...(i?[' ']:[]),el('span','',i<parts.length-1?part+' ·':part)));
+ row.append(top,meta);
+ return row;
 }
 
 function draftKicker(draft,{focused}){
@@ -220,7 +271,7 @@ function draftActions(draft,{multi,selected}){
 
 function activeDraft(capture,ctx){
  const draft=capture.draft,multi=draft.operations.length>1;
- // Proposals Dara unticked stay in the draft but are left out of Add.
+ // Proposals Dara left out stay in the draft but are not added.
  const skipped=ctx.skippedFor?.(draft)??new Set(),selected=draft.operations.length-skipped.size;
  const card=el('section','state-card proposal-card');
  card.dataset.status=draft.status;
@@ -239,7 +290,7 @@ function activeDraft(capture,ctx){
  if(draft.validationNotice)card.append(warning('Check this draft',draft.validationNotice));
  if(draft.review)card.append(el('p','needs-answer',draft.review.question));
  const items=el('div','props');
- for(const op of draft.operations)items.append(proposalItem(op,draft,ctx,{active:true,skipped}));
+ for(const op of draft.operations)items.append(proposalItem(op,draft,ctx,{skipped}));
  if(draft.question){
   card.append(questionBlock(draft,ctx),details(multi?`Show all ${draft.operations.length} proposals`:'Show the proposal',[items],'details props-details'));
  }else card.append(items);
@@ -252,11 +303,11 @@ function activeDraft(capture,ctx){
  return {node:card,actions};
 }
 
-/** The tasks a committed draft created, in the same rows as their proposals. */
+/** The tasks a committed draft created, one compact line each, so the receipt never looks like the proposals. */
 function addedTasks(draft,ctx){
  const ops=draft.operations??[],skipped=new Set(draft.skipped??[]);
  if(!ops.length||ops.some(op=>op.kind!=='create'||op.entity!=='task'))return [];
- return ops.filter(op=>!skipped.has(op.opId)).map(op=>proposalItem(op,draft,ctx,{active:false,added:true}));
+ return ops.filter(op=>!skipped.has(op.opId)).map(op=>receiptRow(op,draft,ctx));
 }
 
 /**

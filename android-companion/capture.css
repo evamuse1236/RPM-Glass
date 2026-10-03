@@ -124,16 +124,13 @@ button.chip:active::before{opacity:.12}
 .status{margin:0;padding:0 8px 8px;font:var(--body-small);color:var(--on-surface-variant)}
 .status:empty{display:none}
 .status.error{color:var(--error)}
-.composer{display:flex;align-items:center;min-height:56px;padding:4px;border-radius:28px;background:var(--cap-field);transition:border-radius var(--dur-short) var(--ease-standard),box-shadow var(--dur-short) linear}
-/* One filled field in every state. While Capture is empty or being typed in, focus draws the M3 focus
-   ring so the field shows it is ready; while a decision waits, the ring stays off so the decision leads. */
-.panel[data-state=idle] .composer:focus-within{box-shadow:inset 0 0 0 2px var(--primary)}
+/* One filled pill in every state, as Gemini's: no outline, no focus ring; the caret and the keyboard show focus.
+   More lives in the header, so the field holds only the words and, at its end, the microphone or Send,
+   which stays on the last line as the words grow. */
+.composer{display:flex;align-items:flex-end;min-height:56px;padding:4px;border-radius:28px;background:var(--cap-field);transition:border-radius var(--dur-short) var(--ease-standard)}
 .composer .icon-btn{color:var(--on-surface-variant)}
-/* Past one line the words take the full width and the buttons sit in a row underneath (Gemini). */
-.composer[data-lines=many]{flex-wrap:wrap;border-radius:24px}
-.composer[data-lines=many] #message{order:-1;flex:1 0 100%;padding-left:12px;padding-right:12px}
-.composer[data-lines=many] #menu-toggle{margin-right:auto}
-#message{flex:1;min-width:0;min-height:48px;margin:0;padding:12px 4px;border:0;outline:none;resize:none;background:transparent;color:var(--on-surface);font:var(--body-large);overflow-y:hidden;caret-color:var(--primary)}
+.composer[data-lines=many]{border-radius:24px}
+#message{flex:1;min-width:0;min-height:48px;margin:0;padding:12px 8px 12px 16px;border:0;outline:none;resize:none;background:transparent;color:var(--on-surface);font:var(--body-large);overflow-y:hidden;caret-color:var(--primary)}
 #message::placeholder{color:var(--on-surface-variant);opacity:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .send{position:relative;flex:none;width:48px;height:48px;padding:0;border:0;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--on-primary)}
 .send::before{content:'';position:absolute;inset:4px;border-radius:50%;background:var(--primary);transition:transform var(--dur-short) var(--ease-standard)}
@@ -177,7 +174,14 @@ button.chip:active::before{opacity:.12}
 .saved-quote::before{content:open-quote}
 .saved-quote::after{content:close-quote}
 .receipt-summary{color:var(--on-surface-variant)}
-.receipt-list{list-style:none;margin:0;padding:0}
+.receipt-title{margin:0;padding:4px 4px 0;font:var(--title-medium);color:var(--on-surface)}
+.receipt-list{list-style:none;margin:0;padding:0 4px;display:flex;flex-direction:column;gap:12px}
+.receipt-name{display:flex;align-items:flex-start;gap:8px;margin:0;font:var(--body-large);color:var(--on-surface);overflow-wrap:anywhere;text-wrap:pretty}
+.receipt-name>span{min-width:0}
+.receipt-name .must-mark{margin:0;font-size:var(--cap-icon-small);line-height:24px}
+.receipt-meta{margin:0;font:var(--body-medium);color:var(--on-surface-variant);overflow-wrap:anywhere;text-wrap:pretty}
+.receipt-meta:empty{display:none}
+.receipt-meta>span{display:inline-block}
 .close-countdown{margin-right:auto;font:var(--body-small);color:var(--on-surface-variant);font-variant-numeric:tabular-nums}
 .delivery{margin:0;padding:0 4px;font:var(--body-small);color:var(--on-surface-variant)}
 
@@ -201,62 +205,75 @@ details.details>:not(summary){margin:4px 4px 0}
 .original::after{content:close-quote}
 .props-details>.props{margin:8px 0 0}
 
-/* ---------- pending: saved first, then sorted ---------- */
-.saved-words.is-saving .saved-title{color:var(--on-surface-variant)}
+/* ---------- pending: saved first, then sorted ----------
+   The saved words fold to one line (Dara has just typed them); the progress line is the M3
+   indeterminate indicator, a primary bar that is always partly in view on its track. */
+.pending-line{display:flex;align-items:center;gap:12px;min-height:40px;padding:0 4px;font:var(--title-small);color:var(--on-surface)}
+.pending-line.is-saving{color:var(--on-surface-variant)}
+.words-line{position:relative;align-self:flex-start;margin:0 0 0 -8px;padding:0 8px;border:0;border-radius:var(--shape-full);background:transparent;text-align:start;cursor:pointer}
+.words-line::before{content:'';position:absolute;inset:0;border-radius:inherit;background:var(--on-surface);opacity:0;transition:opacity var(--dur-short) linear}
+.words-line:hover::before{opacity:.06}
+.words-line:active::before{opacity:.1}
+.words-line::after{content:'';position:absolute;left:0;right:0;top:-4px;bottom:-4px}
+.words-line .chev{font-size:var(--cap-icon-small);color:var(--on-surface-variant);margin-left:-6px;transition:transform var(--dur-short) var(--ease-standard)}
+.words-line[aria-expanded=true] .chev{transform:rotate(180deg)}
+.words-line .saved-icon{margin:0}
+.pending-card>.words-region{margin:0}
 .spinner{flex:none;width:calc(var(--cap-icon) - 4px);height:calc(var(--cap-icon) - 4px);margin:2px;border-radius:50%;border:2.5px solid var(--secondary-container);border-top-color:var(--primary)}
-.sorting{display:flex;flex-direction:column;gap:10px;padding:2px 4px 0}
-.sorting-label{margin:0;font:var(--body-small);color:var(--on-surface-variant)}
+.sorting{display:flex;flex-direction:column;gap:12px;padding:4px 4px 0}
+.sorting-label{margin:0;font:var(--body-medium);color:var(--on-surface-variant)}
 .linear{position:relative;height:4px;border-radius:2px;background:var(--secondary-container);overflow:hidden}
-.linear i{position:absolute;top:0;bottom:0;left:0;width:40%;border-radius:2px;background:var(--primary)}
+.linear i{position:absolute;top:0;bottom:0;left:0;width:45%;border-radius:2px;background:var(--primary)}
 .linear.top{flex:none;margin:0 var(--cap-gutter) 4px}
 @media (prefers-reduced-motion:no-preference){
   .panel:not([data-motion=reduced]) .spinner{animation:cap-spin 900ms linear infinite}
-  .panel:not([data-motion=reduced]) .linear i{animation:cap-linear 1.6s var(--ease-standard) infinite}
+  .panel:not([data-motion=reduced]) .linear i{animation:cap-linear 1.5s var(--ease-standard) infinite}
 }
 @keyframes cap-spin{to{transform:rotate(360deg)}}
-@keyframes cap-linear{0%{left:-40%;width:40%}60%{left:60%;width:50%}100%{left:100%;width:30%}}
+@keyframes cap-linear{0%{left:-15%;width:20%}50%{left:30%;width:55%}100%{left:95%;width:20%}}
 
 /* ---------- proposals: one outlined list, one row per proposal ----------
-   Every row has the same structure in every state: a 48dp leading slot (the
-   include box, or a success check once added), the title with the Must star,
-   the destination with its Result's deadline, the date chip, then a note on
-   what else holds that day. Text starts at one edge so the rows scan as a list. */
+   Every row has the same structure: the title (with the Must star and, among several,
+   a quiet Leave out at the end), then icon lines in the order of a Google Tasks detail
+   page: where it goes, when, and what else bears on that time. Every icon sits on the
+   title's edge and every line's words start at one column, 8dp apart. */
 .props{display:flex;flex-direction:column;border-radius:var(--shape-lg);background:var(--cap-card);border:1px solid var(--outline-variant);overflow:hidden}
-.prop{display:flex;align-items:flex-start;gap:0;padding:4px 0 10px 0}
+.prop{display:flex;flex-direction:column;padding:0 4px 10px 16px}
 .prop+.prop{border-top:1px solid var(--outline-variant)}
-.prop-check,.prop-lead{flex:none;margin:0 0 0 4px}
-.prop-check{color:var(--primary)}
-.prop-check[aria-checked=false]{color:var(--on-surface-variant)}
-.prop-lead{width:48px;height:48px;display:grid;place-items:center;color:var(--on-surface-variant)}
-.prop-lead.added{color:var(--success)}
-.prop-body{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding-right:4px}
-.prop-top{align-self:stretch;display:flex;align-items:flex-start;gap:4px}
-.prop-heading{flex:1;min-width:0;padding:12px 0 0}
+.prop-top{display:flex;align-items:flex-start;gap:4px}
+.prop-heading{flex:1;min-width:0;padding:12px 8px 2px 0}
 .prop-kind{margin:0;font:var(--label-medium);color:var(--on-surface-variant)}
-.prop-title{display:block;margin:0;padding:0;border:0;background:none;font:var(--body-large);color:var(--on-surface);text-align:start;overflow-wrap:anywhere;text-wrap:pretty}
-button.prop-title{cursor:text}
-.prop.skipped .prop-body>:not(.prop-top),.prop.skipped .prop-title{opacity:.5}
-.must-mark{color:var(--must)}
-.must-mark{margin:12px 12px 0}
-/* The destination reads like a Block picker row: the name, its deadline under it. */
-.prop-dest{position:relative;display:flex;align-items:flex-start;gap:8px;min-height:40px;margin:0 0 0 -8px;padding:4px 8px;border:0;border-radius:var(--shape-sm);background:transparent;color:var(--on-surface);font:var(--body-medium);text-align:start;max-width:calc(100% + 8px)}
-button.prop-dest{cursor:pointer}
-button.prop-dest::after{content:'';position:absolute;left:0;right:0;top:-4px;bottom:-4px}
-button.prop-dest::before{content:'';position:absolute;inset:0;border-radius:inherit;background:var(--on-surface);opacity:0;transition:opacity var(--dur-short) linear}
-button.prop-dest:hover::before{opacity:.06}
-button.prop-dest:active::before{opacity:.1}
-.prop-icon{font-size:var(--cap-icon-small)!important;color:var(--on-surface-variant);margin-top:1px}
-.prop-drop{font-size:var(--cap-icon-small)!important;color:var(--on-surface-variant);margin:1px -4px 0 -4px}
-.prop-dest-text{min-width:0;display:flex;flex-direction:column;overflow-wrap:anywhere}
-.prop-dest-name{color:var(--on-surface)}
-.prop-due{color:var(--on-surface-variant)}
-.prop-due.overdue,.popover-sub.overdue{color:var(--error)}
-.prop-chips{display:flex;flex-wrap:wrap;gap:8px}
-.prop-date .ms{color:var(--on-surface-variant)}
-.prop-load{margin:0;padding-right:12px;font:var(--body-medium);color:var(--on-surface-variant);overflow-wrap:anywhere;text-wrap:pretty}
-.prop-load.clash{color:var(--error)}
-.prop-body>.needs-answer,.prop-body>.detail-note{margin:2px 12px 2px 0}
-.prop-field{margin:0;padding-right:16px;font:var(--body-medium);color:var(--on-surface);overflow-wrap:anywhere}
+.prop-title{display:block;margin:0;padding:0;border:0;background:none;font:var(--body-large);color:var(--on-surface);text-align:start;overflow-wrap:anywhere;text-wrap:pretty;cursor:text}
+.must-mark{flex:none;color:var(--must);margin:12px 0 0}
+.prop-top .must-mark:last-child{margin-right:12px}
+.prop-skip{color:var(--on-surface-variant)}
+.prop-skip .ms{font-size:var(--cap-icon-small)}
+.prop-back{flex:none;margin:4px 0 0}
+.prop-left-out{margin:2px 0 0;font:var(--body-medium);color:var(--on-surface-variant)}
+.prop.skipped .prop-title{color:var(--on-surface-variant)}
+.prop.skipped .prop-body,.prop.skipped .must-mark{opacity:.38}
+.prop-body{display:flex;flex-direction:column;align-items:stretch;padding-right:8px}
+.prop-row{position:relative;display:flex;align-items:flex-start;gap:12px;min-height:40px;margin:0 0 0 -8px;padding:8px;border:0;border-radius:var(--shape-sm);background:transparent;color:var(--on-surface);font:var(--body-medium);text-align:start}
+button.prop-row{cursor:pointer}
+button.prop-row::after{content:'';position:absolute;left:0;right:0;top:-4px;bottom:-4px}
+button.prop-row::before{content:'';position:absolute;inset:0;border-radius:inherit;background:var(--on-surface);opacity:0;transition:opacity var(--dur-short) linear}
+button.prop-row:hover::before{opacity:.06}
+button.prop-row:active::before{opacity:.1}
+.prop-icon{flex:none;font-size:var(--cap-icon-small)!important;line-height:20px;width:var(--cap-icon-small);color:var(--on-surface-variant);margin-top:1px}
+.prop-drop{flex:none;font-size:var(--cap-icon-small)!important;color:var(--on-surface-variant);margin:1px 0 0 -4px;transition:transform var(--dur-short) var(--ease-standard)}
+.prop-row-text{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;overflow-wrap:anywhere;text-wrap:pretty}
+.prop-row-main{color:var(--on-surface)}
+.prop-row-text>.prop-row-main~.prop-row-main{margin-top:2px}
+.prop-label{color:var(--on-surface-variant)}
+.prop-row-sub{color:var(--on-surface-variant)}
+.prop-row-sub.overdue,.popover-sub.overdue{color:var(--error)}
+.prop-date.muted .prop-row-main{color:var(--on-surface-variant)}
+.prop-clash,.prop-clash .prop-row-main,.prop-clash .prop-icon{color:var(--error)}
+.prop-context[aria-expanded=true] .prop-drop{transform:rotate(180deg)}
+.prop-detail{display:block;margin:2px 0 4px;color:var(--on-surface-variant)}
+.prop-context[aria-expanded=true] .prop-detail+.prop-row-main{margin-top:8px}
+.prop-body>.needs-answer,.prop-body>.detail-note{margin:4px 12px 4px 0}
+.prop-field{margin:4px 0 0;padding-right:16px;font:var(--body-medium);color:var(--on-surface);overflow-wrap:anywhere}
 .prop-field .field-label{margin-right:8px}
 .reply-lead{margin:0;padding:0 4px;font:var(--body-medium);color:var(--on-surface-variant);display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 
@@ -309,6 +326,10 @@ button.prop-dest:active::before{opacity:.1}
 .menu,.popover{position:absolute;z-index:10;display:flex;flex-direction:column;padding:8px 0;border-radius:16px;background:var(--cap-menu);color:var(--on-surface);box-shadow:var(--elev-3)}
 .menu{left:var(--cap-gutter);bottom:var(--menu-bottom,80px);width:max-content;min-width:min(240px,calc(100% - 2 * var(--cap-gutter)));max-width:calc(100% - 2 * var(--cap-gutter));max-height:var(--menu-max,60vh);opacity:0;transform:scale(.96) translateY(4px);transform-origin:bottom left;transition:opacity var(--dur-short) linear,transform var(--dur-short) var(--ease-emphasized)}
 .menu.is-open{opacity:1;transform:none}
+/* Opened from More in the header: the menu drops from it, Open planner first, nearest the button. */
+.panel[data-menu-from=top] .menu{top:var(--menu-top,52px);bottom:auto;left:auto;right:8px;transform:scale(.96) translateY(-4px);transform-origin:top right}
+.panel[data-menu-from=top] .menu.is-open{transform:none}
+.panel[data-menu-from=top] .menu-pinned{order:-1;margin:0 0 8px;border-top:0!important;border-bottom:1px solid var(--outline-variant);padding:0 16px 8px!important}
 .panel[data-motion=reduced] .menu{transition:none}
 .menu-items{display:flex;flex-direction:column;min-height:0;overflow-y:auto}
 .menu button,.popover-item{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:0 16px;border:0;background:transparent;color:var(--on-surface);font:var(--body-large);text-align:start;cursor:pointer}

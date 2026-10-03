@@ -1,4 +1,4 @@
-// The Capture options menu. More and a held Send open the same menu; a held
+// The Capture options menu. More (in the header) and a held Send open the same menu; a held
 // gesture can never submit, and the exact draft is kept before any route opens.
 
 export function createHoldGesture(open,{delay=380,setTimer=setTimeout,clearTimer=clearTimeout}={}){
@@ -79,8 +79,17 @@ export function installCaptureMenu({rememberDraft,canSend,onChange=()=>{}}){
  const items=()=>[...menu.querySelectorAll('[role=menuitem]')].filter(n=>!n.disabled&&!n.hidden);
  const reduced=()=>panel.dataset.motion==='reduced';
 
+ // More in the header drops the menu below it; a held Send opens it above the composer.
+ const fromHeader=()=>panel.dataset.menuFrom==='top';
  function place(){
-  const composer=$('composer').getBoundingClientRect(),box=panel.getBoundingClientRect();
+  const box=panel.getBoundingClientRect();
+  if(fromHeader()){
+   const top=Math.ceil(toggle.getBoundingClientRect().bottom-box.top);
+   panel.style.setProperty('--menu-top',top+'px');
+   panel.style.setProperty('--menu-max',Math.max(0,box.height-top-8)+'px');
+   return;
+  }
+  const composer=$('composer').getBoundingClientRect();
   const geometry=menuGeometry({bottom:box.bottom,height:box.height},{top:composer.top});
   panel.style.setProperty('--menu-bottom',geometry.bottom+'px');
   panel.style.setProperty('--menu-max',geometry.maxHeight+'px');
@@ -101,9 +110,11 @@ export function installCaptureMenu({rememberDraft,canSend,onChange=()=>{}}){
   returnFocus=origin;restoreInput=document.activeElement===message;opened=true;
   $('planner-draft-note').hidden=!(rememberDraft()&&message.value.length);
   menu.hidden=false;menu.inert=false;panel.dataset.menuOpen='true';
-  // Grow a short panel so the whole menu fits above the composer.
+  panel.dataset.menuFrom=origin===toggle?'top':'bottom';
+  // Grow a short panel so the whole menu fits under the header or above the composer.
   const composerArea=$('composer').closest('.composer-area')??$('composer');
-  panel.style.minHeight=Math.ceil(menu.scrollHeight+composerArea.offsetHeight+16)+'px';
+  const above=fromHeader()?toggle.getBoundingClientRect().bottom-panel.getBoundingClientRect().top:composerArea.offsetHeight;
+  panel.style.minHeight=Math.ceil(menu.scrollHeight+above+16)+'px';
   onChange(true);place();
   void menu.offsetHeight;
   menu.classList.add('is-open');

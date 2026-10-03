@@ -35,16 +35,6 @@ export function iconButton(name,label,onClick,{cls='',fill=false,pressed=null}={
  return node;
 }
 
-/** An M3 assist chip. Interactive when given a handler. */
-export function chip(label,{iconName=null,onClick=null,ariaLabel=null,cls=''}={}){
- const node=el(onClick?'button':'span',['chip',cls].filter(Boolean).join(' '));
- if(onClick){node.type='button';node.addEventListener('click',onClick);}
- if(iconName)node.append(icon(iconName));
- node.append(el('span','chip-label',label));
- if(ariaLabel)node.setAttribute('aria-label',ariaLabel);
- return node;
-}
-
 /** The disclosure that keeps original words out of the way but one tap away. */
 export function details(summary,children,cls='details'){
  const node=el('details',cls);

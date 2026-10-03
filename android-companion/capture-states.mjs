@@ -47,26 +47,38 @@ export function wordsToggle(capture,notes=[]){
  return {toggle,region};
 }
 
+// Which in-flight captures have their words open, so a phase change keeps them open.
+const pendingOpen=new Set();
+
 /**
  * While a message is in flight. `phase` comes from real request events:
- * saving (no confirmation yet), sorting (raw words committed), slow.
+ * saving (no confirmation yet), sorting (raw words committed), slow. The saved
+ * words fold to one line that opens to the exact text; Dara has just typed them.
  */
 export function pendingCard({text,phase='saving',attempt=0,slow=false}){
  const card=el('section','state-card pending-card');
  card.setAttribute('aria-busy','true');
  if(phase==='saving'){
-  const row=el('div','saved-words is-saving');
-  row.append(el('span','spinner'));
-  const body=el('div','saved-body');
-  body.append(el('p','saved-title','Saving your words…'),el('q','saved-quote',text));
-  row.append(body);card.append(row);
+  const row=el('div','pending-line is-saving');
+  row.append(el('span','spinner'),el('span','pending-text','Saving your words…'));
+  card.append(row);
   return card;
  }
- card.append(savedWords(text));
- // One slim progress line and one plain sentence: no skeletons, no invented steps.
+ const toggle=el('button','pending-line words-line');
+ toggle.type='button';
+ toggle.append(icon('check',{cls:'saved-icon'}),el('span','pending-text','Your words are saved'),icon('expand_more',{cls:'chev'}));
+ const quote=el('p','original words-region',text);
+ quote.id='pending-words';
+ toggle.setAttribute('aria-controls',quote.id);
+ const set=open=>{quote.hidden=!open;toggle.setAttribute('aria-expanded',String(open));if(open)pendingOpen.add(text);else pendingOpen.delete(text);};
+ toggle.addEventListener('click',()=>set(quote.hidden));
+ set(pendingOpen.has(text));
+ card.append(toggle,quote);
+ // One visible progress line and one plain sentence: no skeletons, no invented steps.
  const sorting=el('div','sorting');
- const label=slow?'Still working. You can close Capture; your words stay saved.':attempt>0?'Taking a closer look. You can close Capture now.':'Finding tasks and Blocks. You can close Capture now.';
+ const label=slow?'Still sorting. You can close this; your words stay saved.':attempt>0?'Taking a closer look… You can close this.':'Sorting into your plan… You can close this.';
  const bar=el('div','linear');bar.append(el('i'));
+ bar.setAttribute('role','progressbar');bar.setAttribute('aria-label','Sorting');
  const status=el('p','sorting-label',label);
  status.setAttribute('role','status');
  sorting.append(bar,status);
@@ -104,7 +116,7 @@ export function warning(title,body){
 export function keptCard(capture,{aiEnabled}){
  const card=el('section','state-card');
  card.append(savedWords(capture.raw));
- let note='Not sorted yet. Retry to find tasks and Blocks.';
+ let note='Not sorted yet. Retry to sort it into your plan.';
  if(!aiEnabled)note='Connect an AI key to sort this into tasks. Your words stay saved either way.';
  else if(capture.lastError)note='Couldn’t sort this yet. Retry, or edit your words.';
  card.append(el('p','state-note',note));
@@ -119,25 +131,23 @@ export function dialogueCard(capture){
  return card;
 }
 
-/** After Add: the added tasks in the same rows as their proposals, with alert delivery as Android reports it. */
+/**
+ * After Add: a short summary, not a copy of the proposals, so a glance tells
+ * that it is done. Each added task is one line (title, Must star, when · where),
+ * with alert delivery as Android reports it.
+ */
 export function receiptCard(capture,{history,canUndo,delivery},added=[]){
  const draft=capture.draft;
  const card=el('section','state-card receipt-card');
  const total=added.length+(draft.skipped?.length??0);
  if(added.length){
-  // Named tasks read exactly as they were proposed; a left-out proposal is counted, not listed.
+  // A left-out proposal is counted, not listed; it stays in the draft's record and History.
   const title=history?'Added earlier':added.length===total?(added.length===1?'Task added':`${added.length} tasks added`):`${added.length} of ${total} tasks added`;
-  const head=el('div','card-head');
-  head.append(el('p','kicker',title));
-  const list=el('ul','props receipt-list');
+  const list=el('ul','receipt-list');
   list.append(...added);
-  card.append(head,list);
+  card.append(el('p','receipt-title',title),list);
  }else{
-  const head=el('div','receipt-head');
-  head.append(icon('check_circle',{fill:true,cls:'saved-icon'}));
-  const body=el('div','saved-body');
-  body.append(el('p','saved-title',history?'Added earlier':'Added to your plan'),el('p','receipt-summary',addedSummary(draft.operations)));
-  head.append(body);card.append(head);
+  card.append(el('p','receipt-title',history?'Added earlier':'Added to your plan'),el('p','receipt-summary',addedSummary(draft.operations)));
  }
  const receipts=(draft.receipt?.plannerReceipts??[]).filter(r=>r.action);
  for(const receipt of receipts){

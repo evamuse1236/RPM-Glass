@@ -32,7 +32,7 @@ export function mountCapture(platform){
  const identity=createSendIdentity();
  const reveal=createRevealTracker();
  const actionIds=new Map();
- // Proposals Dara unticked, per draft. Local until Add, which sends them as `skip`.
+ // Proposals Dara left out, per draft. Local until Add, which sends them as `skip`.
  const skippedOps=new Map();
  let itemPopover=null;
 
