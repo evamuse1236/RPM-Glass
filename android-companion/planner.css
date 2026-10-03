@@ -155,6 +155,8 @@ h1, h2, h3, p { margin: 0; }
 }
 #planner[data-detail=true] #fab-host { display: none; }
 #planner[data-snackbar=true] #fab-host { transform: translateY(-64px); }
+.fab { transition: transform var(--dur-medium) var(--ease-emphasized), opacity var(--dur-short) var(--ease-standard); }
+#planner[data-fab-aside=true] .fab { transform: scale(.4); opacity: 0; pointer-events: none; }
 .fab {
   width: var(--fab-size);
   height: var(--fab-size);
@@ -555,9 +557,9 @@ button.list-item:active { background: var(--row-press); }
 input[type=range] { width: 100%; accent-color: var(--primary); min-height: var(--touch); }
 
 /* ---------- 4. Screens ---------- */
-/* Today */
+/* Today. One left edge: every row's text starts at 56dp (16dp margin + 24dp leading + 16dp gap), as in Google Tasks. */
 .day-header { padding: 0 0 var(--s1); }
-.date-line { display: flex; align-items: center; gap: var(--s2); padding: 0 var(--s3) 0 var(--s3); }
+.date-line { display: flex; align-items: center; gap: var(--s2); padding: 0 var(--s3); }
 .date-button {
   display: inline-flex;
   align-items: center;
@@ -568,20 +570,14 @@ input[type=range] { width: 100%; accent-color: var(--primary); min-height: var(-
   color: var(--on-surface-variant);
 }
 .date-button .ms { color: var(--on-surface-variant); }
-.week-strip {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  padding: var(--s1) var(--s2) 0;
-  scrollbar-width: none;
-}
-.week-strip::-webkit-scrollbar { display: none; }
+.week-strip { display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 var(--s2); }
 .week-day {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  min-height: 64px;
-  padding: var(--s1) 0;
+  min-height: 56px;
+  padding: 2px 0 var(--s1);
 }
 .week-letter { font: var(--label-small); color: var(--on-surface-variant); }
 .week-number {
@@ -591,9 +587,10 @@ input[type=range] { width: 100%; accent-color: var(--primary); min-height: var(-
   display: grid;
   place-items: center;
   font: var(--title-medium);
-  font-weight: 500;
   color: var(--on-surface);
 }
+/* Days already gone step back, so today and the days ahead read first. */
+.week-day.is-past .week-number { color: var(--on-surface-variant); font-weight: 400; }
 .week-day.is-today .week-number { color: var(--primary); font-weight: 700; }
 .week-day[aria-pressed=true] .week-number { background: var(--primary); color: var(--on-primary); }
 .week-day:active .week-number { background: var(--row-press); }
@@ -602,36 +599,33 @@ input[type=range] { width: 100%; accent-color: var(--primary); min-height: var(-
 .day-due { font-size: 14px; line-height: 14px; height: 14px; margin-top: -4px; color: var(--on-surface-variant); }
 .week-day[aria-pressed=true] .day-due { color: var(--primary); }
 
-.week-card {
+/* A plain row with one trailing action: the planning row and each risk. */
+.today-row { display: flex; align-items: center; gap: var(--s1); padding-right: var(--s4); }
+.today-row-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 56px;
   display: flex;
   align-items: center;
-  gap: var(--s3);
-  width: calc(100% - 2 * var(--gutter));
-  margin: var(--s3) var(--gutter) var(--s1);
-  padding: var(--s3) var(--s2) var(--s3) var(--s4);
-  border-radius: 20px;
-  background: var(--secondary-container);
-  color: var(--on-secondary-container);
+  gap: var(--s4);
+  padding: var(--s2) 0 var(--s2) var(--gutter);
+  border-radius: 0 var(--shape-lg) var(--shape-lg) 0;
 }
-.week-card-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font: var(--body-medium); }
-.week-card-copy strong { font: var(--title-medium); font-weight: 500; }
-/* Friday to Sunday: the coming week still needs a plan. The screen's one filled button. */
-.plan-card { flex-wrap: wrap; align-items: flex-start; padding: var(--s4) var(--s3) var(--s3) var(--s4); row-gap: var(--s2); }
-.plan-card .week-card-copy { flex-basis: calc(100% - 40px); }
-.plan-card > .ms { margin-top: 2px; }
-.plan-card .filled-btn { flex: none; margin-left: auto; }
-.week-card-action {
-  font: var(--label-large);
-  padding: var(--s2) var(--s3);
-  border-radius: var(--shape-full);
-  white-space: nowrap;
-}
+.today-row-main:active { background: var(--row-press); }
+.today-row-main .leading { color: var(--on-surface-variant); }
+.today-row-headline { font: var(--body-large); overflow-wrap: anywhere; }
+.today-row > button:last-child:not(.today-row-main) { flex: none; }
+.filled-btn.compact { padding: 0 var(--s4); }
+.plan-row .leading { color: var(--primary); }
+.risk-section { margin-top: var(--s2); }
+.risk-row .leading, .risk-lead { color: var(--error); }
+.risk-lead { font-weight: 600; }
 
 /* A Result group: tonal container with the Result as title and Purpose underneath */
 .result-group {
   overflow: hidden;
   margin: var(--s3) var(--gutter) 0;
-  padding: var(--s1) 0 var(--s1);
+  padding: var(--s1) 0;
   border-radius: var(--card-radius);
   background: var(--surface-container-low);
   border: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
@@ -649,72 +643,66 @@ button.result-head:active { background: var(--row-press); }
 .result-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .result-title { font: var(--title-medium); overflow-wrap: anywhere; }
 .result-purpose { font: var(--body-medium); color: var(--on-surface-variant); overflow-wrap: anywhere; }
-/* Facts line: Area (hue beside its name), tasks done, deadline. */
-.result-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s2); margin-top: 2px; font: var(--label-medium); color: var(--on-surface-variant); }
-.result-meta { gap: 0 6px; }
+/* Facts line: Area (hue beside its name), tasks done, deadline with its countdown. */
+.result-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; margin-top: 2px; font: var(--label-medium); color: var(--on-surface-variant); }
 .result-meta .area-dot { width: 8px; height: 8px; }
 .result-meta .is-overdue { color: var(--error); }
 .result-group .task-row { padding-left: var(--s1); }
-.result-group .task-row.current { margin: 0 var(--s1); padding-left: 0; }
-.calendar-group .result-icon, .anytime-group .result-icon { color: var(--primary); }
+.anytime-group .result-icon { color: var(--primary); }
+
+/* Do next: the first card, task first. "Do next" is its one emphasis; Result · Purpose sits under the task title. */
+.next-card { margin-top: var(--s2); }
+.next-label { display: flex; align-items: center; gap: var(--s2); padding: var(--s3) var(--s4) 0 var(--s5); color: var(--now); font: var(--label-large); }
+[data-live] { white-space: nowrap; }
+.now-pin { width: 8px; height: 8px; border-radius: 50%; background: var(--now); flex: none; }
+.next-why {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  margin-top: calc(-1 * var(--s1));
+  padding: 0 var(--s4) var(--s3) 56px;
+  text-align: left;
+  font: var(--body-medium);
+}
+button.next-why:active { background: var(--row-press); }
+.next-result { color: var(--on-surface); font-weight: 500; }
+.next-purpose, .next-why.static { color: var(--on-surface-variant); }
+.next-divider { border: 0; border-top: 1px solid var(--outline-variant); margin: 0 var(--s4) var(--s1) 56px; }
+
+/* Plain sections (Calendar, Also today, Due soon): lists on the page, never more cards. */
+.plain-section .task-row { padding-left: var(--s1); }
 .event-row {
   width: 100%;
   min-height: 48px;
   display: grid;
-  grid-template-columns: 14px 1fr auto;
+  grid-template-columns: 24px 1fr auto;
   align-items: center;
-  column-gap: var(--s3);
-  padding: var(--s2) var(--s4);
+  column-gap: var(--s4);
+  padding: var(--s2) var(--s4) var(--s2) var(--gutter);
 }
-.event-bar {
-  grid-row: 1 / span 2;
-  width: 4px;
-  align-self: stretch;
-  border-radius: 2px;
-  background: var(--outline-variant);
-  margin-left: 10px;
-}
-.event-title { flex: 1; font: var(--body-large); min-width: 0; overflow-wrap: anywhere; }
+.event-row:active { background: var(--row-press); }
+.event-bar { grid-row: 1 / span 2; width: 4px; min-height: 24px; align-self: stretch; border-radius: 2px; background: var(--outline); justify-self: center; }
+.event-title { font: var(--body-large); min-width: 0; overflow-wrap: anywhere; }
 .event-time { font: var(--body-medium); color: var(--on-surface-variant); white-space: nowrap; }
-.inbox-row { margin-top: var(--s3); }
+.inbox-row { margin-top: var(--s2); }
 .inbox-row .trailing-value { margin-right: calc(-1 * var(--s2)); }
 
-/* Due soon: Results whose deadline is within three days, like Calendar's schedule (day once, then items). */
-.due-section { margin: var(--s4) var(--gutter) 0; }
-.due-head { display: flex; align-items: center; gap: var(--s2); min-height: 32px; padding: 0 var(--s1) var(--s1); }
-.due-head .ms { font-size: 18px; color: var(--on-surface-variant); }
-.due-head h2 { flex: 1; font: var(--title-small); }
-.due-head small { font: var(--label-medium); color: var(--on-surface-variant); }
-.due-list { border-radius: var(--card-radius); background: var(--surface-container-low); border: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent); padding: var(--s1) 0; overflow: hidden; }
-.due-row {
+/* Due soon: Calendar's schedule. A fixed date gutter on every row, the date shown once per day. */
+.soon-row {
   width: 100%;
-  min-height: 64px;
+  min-height: 56px;
   display: grid;
-  grid-template-columns: 40px 1fr;
-  align-items: center;
-  column-gap: var(--s3);
-  padding: var(--s2) var(--s4) var(--s2) var(--s3);
+  grid-template-columns: 32px 1fr;
+  column-gap: var(--s2);
+  align-items: start;
+  padding: var(--s2) var(--s4) var(--s2) var(--gutter);
 }
-.due-row:active { background: var(--row-press); }
-.due-day { display: flex; flex-direction: column; align-items: center; align-self: start; padding-top: 2px; }
-.due-weekday { font: var(--label-medium); color: var(--on-surface-variant); }
-.due-date { font: var(--title-large); line-height: 26px; }
-.due-day.is-today .due-weekday, .due-day.is-today .due-date { color: var(--primary); }
-.due-copy { min-width: 0; display: flex; flex-direction: column; }
-.due-title { font: var(--body-large); overflow-wrap: anywhere; }
-.due-meta { font: var(--body-medium); color: var(--on-surface-variant); }
-.due-overdue { color: var(--error); font-weight: 600; }
-
-/* Now line (Calendar): sits above the Next or current task and says how long until it starts or ends. */
-.now-marker { display: flex; align-items: center; gap: var(--s2); margin: var(--s1) var(--s4) 0 var(--s4); color: var(--now); font: var(--label-medium); }
-.now-marker::after { content: ""; flex: 1; height: 2px; border-radius: 1px; background: var(--now); }
-.now-pin { width: 10px; height: 10px; border-radius: 50%; background: var(--now); flex: none; }
-.now-text { white-space: nowrap; }
-
-/* Also today: dated tasks with no Block, as a plain list under a quiet label. */
-.also-today { margin: var(--s4) var(--gutter) 0; }
-.also-head { font: var(--title-small); color: var(--on-surface-variant); padding: var(--s2) var(--s1) 0; }
-.also-today .task-row { padding-left: 0; margin-left: calc(-1 * var(--s1)); }
+.soon-row:active { background: var(--row-press); }
+.soon-day { display: flex; flex-direction: column; align-items: center; }
+.soon-weekday { font: var(--label-medium); color: var(--on-surface-variant); }
+.soon-date { font: var(--title-large); line-height: 24px; }
+.soon-day.is-today .soon-weekday, .soon-day.is-today .soon-date { color: var(--primary); }
 .screen-today .completed-group { margin: var(--s3) var(--gutter) 0; }
 .screen-today .completed-group .completed-toggle { padding-left: var(--s2); }
 
@@ -1319,17 +1307,22 @@ button.result-head:active { background: var(--row-press); }
 :root[data-large-text=true] .week-number { min-width: 1.6em; height: 1.6em; font-size: 15px; }
 :root[data-large-text=true] #nav-bar { grid-template-columns: 1fr 1fr 1.3fr .9fr; padding-inline: 0; }
 :root[data-large-text=true] .nav-pill { min-width: 56px; }
-:root[data-large-text=true] .event-row { grid-template-columns: 14px 1fr; }
+:root[data-large-text=true] .event-row { grid-template-columns: 24px 1fr; }
 :root[data-large-text=true] .event-time { grid-column: 2; }
-:root[data-large-text=true] .week-card { flex-wrap: wrap; }
-:root[data-large-text=true] .week-card-copy { flex-basis: calc(100% - 64px); }
-:root[data-large-text=true] .week-card-action { margin-left: auto; }
+/* Large text: a row's action moves under its words instead of squeezing them. */
+:root[data-large-text=true] .today-row { flex-wrap: wrap; padding-bottom: var(--s2); }
+:root[data-large-text=true] .today-row-main { flex-basis: 100%; }
+:root[data-large-text=true] .today-row > button.text-btn:last-child:not(.today-row-main) { margin-left: 44px; }
+:root[data-large-text=true] .soon-row { grid-template-columns: 1fr; padding-left: 56px; }
+:root[data-large-text=true] .soon-day { flex-direction: row; align-items: baseline; gap: var(--s2); }
+:root[data-large-text=true] .soon-day:empty { display: none; }
+:root[data-large-text=true] .today-row > button:last-child:not(.today-row-main) { margin-left: 56px; }
 :root[data-large-text=true] .result-count, :root[data-large-text=true] .eyebrow span:last-child { display: none; }
 :root[data-large-text=true] .detail-head .crumb .eyebrow span:last-child { display: inline; }
 :root[data-large-text=true] .settings-row { flex-wrap: wrap; }
 :root[data-large-text=true] .settings-value { max-width: none; text-align: left; }
 :root[data-large-text=true] .top-title { font-size: 24px; }
 @media (prefers-reduced-motion: reduce) {
-  .progress > span, .wheel-track > span, #fab-host { transition: none; }
+  .progress > span, .wheel-track > span, #fab-host, .fab { transition: none; }
 }
-:root[data-reduce-motion=true] .progress > span, :root[data-reduce-motion=true] #fab-host { transition: none; }
+:root[data-reduce-motion=true] .progress > span, :root[data-reduce-motion=true] #fab-host, :root[data-reduce-motion=true] .fab { transition: none; }

@@ -18,7 +18,12 @@ function rootMenu(app, anchor) {
     {label: 'Weekly review', icon: 'event_repeat', onClick: () => app.openReview()},
     {label: 'Inbox', icon: 'inbox', onClick: actions.inbox},
   ];
-  if (state.tab === 'today') items.push({label: 'Calendars', icon: 'calendar_month', onClick: actions.calendar});
+  if (state.tab === 'today') {
+    const timeline = state.dayLayout === 'timeline' && !app.largeText();
+    items.push({label: timeline ? 'Show agenda' : 'Show timeline', icon: timeline ? 'view_agenda' : 'schedule',
+      onClick: () => actions.setDayLayout(timeline ? 'agenda' : 'timeline')});
+    items.push({label: 'Calendars', icon: 'calendar_month', onClick: actions.calendar});
+  }
   if (state.tab === 'blocks') {
     items.push({label: 'Sort Inbox with Jev', icon: 'auto_awesome', onClick: actions.jevSort});
     items.push({label: 'Result, Purpose, Plan', icon: 'lightbulb', onClick: actions.examples});
@@ -40,12 +45,8 @@ function rootBar(app, bar) {
   const tools = el('div', 'top-actions');
   tools.append(iconButton('search', 'Search', () => app.openSearch()));
   tools.append(iconButton('mic', 'Capture', () => app.capture()));
-  if (state.tab === 'today' && !app.largeText()) {
-    const timeline = state.dayLayout === 'timeline';
-    const toggle = iconButton(timeline ? 'view_agenda' : 'schedule',
-      timeline ? 'Show agenda' : 'Show timeline', () => app.actions.setDayLayout(timeline ? 'agenda' : 'timeline'));
-    tools.append(toggle);
-  }
+  // Today adds from the bar, beside Capture, so nothing floats over the day; Timeline lives in More options.
+  if (state.tab === 'today') tools.append(iconButton('add_task', 'Add task', () => app.actions.addTask({plannedDate: state.day})));
   const more = iconButton('more_vert', 'More options', () => rootMenu(app, more));
   tools.append(more);
   bar.append(tools);
@@ -89,7 +90,7 @@ function navigationBar(app) {
 function fab(app) {
   const host = app.dom.fab;
   host.replaceChildren();
-  const spec = app.current() ? null : app.actions.fabFor(app.state.tab);
+  const spec = app.current() || app.state.tab === 'today' ? null : app.actions.fabFor(app.state.tab);
   host.hidden = !spec;
   app.dom.planner.dataset.fab = String(!!spec);
   if (!spec) return;

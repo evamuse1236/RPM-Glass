@@ -2,7 +2,7 @@
 import {blockTasks, blockDue, localDay} from '../planner-state.mjs';
 import {weekStart, weekFocus, resultStatus, markAchieved} from '../review-state.mjs';
 import {el, icon, button, iconButton, labelButton, emptyState, progress, areaDot, sectionHeader} from './dom.mjs';
-import {duration, plural, dateText, dueInfo} from './format.mjs';
+import {duration, plural, dateText, dueInfo, timeLeft as left} from './format.mjs';
 import {taskRow, completedSection, toggleDone} from './task-row.mjs';
 import {openSheet, field} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
@@ -17,13 +17,8 @@ export function timeSummary(status) {
   return parts.join(' · ');
 }
 
-/** "31 h left", "3 days left". */
-export function timeLeft(at, now = new Date()) {
-  const minutes = Math.max(0, Math.floor((at - now) / 60000));
-  if (minutes < 60) return `${minutes} min left`;
-  if (minutes < 48 * 60) return `${Math.floor(minutes / 60)} h left`;
-  return plural(Math.floor(minutes / 1440), 'day') + ' left';
-}
+/** "31 h left", "3 days left" (format.mjs counts, so Today and Blocks always agree). */
+export const timeLeft = (at, now = new Date()) => `${left(at, now) ?? '0 min'} left`;
 
 /** Deadline with its countdown; `tight` when the open Musts need a quarter or more of the clock time left. */
 export function deadline(data, block, status, now = new Date()) {

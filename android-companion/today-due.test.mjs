@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {editPlan} from './planner-state.mjs';
-import {dueSoon, countdown, timeLeft} from './planner/today.mjs';
+import {dueSoon, atRisk} from './planner/today.mjs';
+import {countdown, timeLeft} from './planner/format.mjs';
 import {blockDue} from './planner-state.mjs';
 
 // Tests run in Asia/Kolkata (scripts/test-tz.mjs). "Now" is Saturday 3 Oct 2026, 10:00.
@@ -39,10 +40,33 @@ test('Due soon lists open Results due by the end of the third day, soonest first
   assert.deepEqual(dueSoon(d, NOW).map(row => row.block.id), [quiz]);
 });
 
-test('countdowns stay coarse and say Overdue in words once passed', () => {
+test('countdowns stay coarse, never round up, and say Overdue in words once passed', () => {
   assert.equal(countdown(new Date(+NOW + 40 * 60000), NOW), 'in 40 min');
   assert.equal(countdown(new Date(+NOW + 35 * 3600000), NOW), 'in 35 h');
-  assert.equal(countdown(new Date(+NOW + 60 * 3600000), NOW), 'in 3 days');
+  assert.equal(countdown(new Date(+NOW + 60 * 3600000), NOW), 'in 2 days');
   assert.equal(countdown(new Date(+NOW - 60000), NOW), 'Overdue');
   assert.equal(timeLeft(new Date(+NOW - 60000), NOW), null);
+});
+
+test('At risk: one line per clash cluster, mirrored events are not clashes, and idle Results due by tomorrow', () => {
+  const {d, review} = seed();
+  const pmdl = block(d, {title: 'PMDL post work', purpose: 'Show what changed'});
+  const check = task(d, {title: 'Check the upload format', blockId: pmdl});
+  task(d, {title: 'Upload the post work', blockId: pmdl, planned: '2026-10-04T18:29:00.000Z'});
+  task(d, {title: 'Upload the workbook', minutes: 15, planned: '2026-10-05T05:00:00.000Z'});
+  task(d, {title: 'Sit RM Quiz I', minutes: 60, planned: '2026-10-06T06:00:00.000Z'});
+  const at = (iso, hours) => ({start: Date.parse(iso), end: Date.parse(iso) + hours * 3600000});
+  const calendar = [
+    {id: 'exam', title: 'DAD exam', busy: true, ...at('2026-10-05T03:30:00Z', 1)},
+    {id: 'gwbc', title: 'GWBC session', busy: true, ...at('2026-10-05T03:30:00Z', 2)},
+    {id: 'quiz', title: 'RM Quiz I in class', busy: true, ...at('2026-10-06T06:00:00Z', 2)},
+    {id: 'free', title: 'Library open', busy: false, ...at('2026-10-05T03:30:00Z', 8)},
+  ];
+  const risks = atRisk(d, {calendar, now: NOW});
+  assert.deepEqual(risks.map(r => r.kind), ['unplanned', 'clash']);
+  assert.equal(risks[0].block.id, pmdl, 'the review has a task today, so only PMDL is idle');
+  assert.equal(risks[0].task.id, check, '"Plan today" dates the first undated task, never the deadline task');
+  assert.deepEqual(risks[1].items.map(item => item.title), ['DAD exam', 'GWBC session', 'Upload the workbook']);
+  assert.ok(!risks.some(r => r.block?.id === review));
+  assert.deepEqual(atRisk(d, {now: NOW}).map(r => r.kind), ['unplanned'], 'without calendar access only the data speaks');
 });
