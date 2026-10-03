@@ -89,7 +89,7 @@ h1, h2, h3, p { margin: 0; }
 }
 /* Detail titles live in the page; the bar shows them once the page scrolls. */
 .detail-bar .top-title { opacity: 0; transition: opacity var(--dur-short) var(--ease-standard); }
-#planner[data-scrolled=true] .detail-bar .top-title,
+#planner[data-title-out=true] .detail-bar .top-title,
 #planner[data-view=settings] .detail-bar .top-title { opacity: 1; }
 .top-actions { display: flex; align-items: center; flex: none; }
 
@@ -856,6 +856,34 @@ button.result-head:active { background: var(--row-press); }
 .achieved-date { font: var(--body-small); }
 .achieved-panel p { margin-top: var(--s2); font: var(--body-medium); }
 .achieved-panel .text-btn { color: inherit; padding-left: 0; }
+/* Result deadline: a Calendar-style row under the title; error colour (with words) when overdue or tight. */
+.due-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s4);
+  width: 100%;
+  min-height: 56px;
+  margin-top: calc(-1 * var(--s2));
+  padding: var(--s1) var(--gutter) var(--s3);
+  text-align: left;
+}
+.due-row:active { background: var(--row-press); }
+.due-row .leading { color: var(--on-surface-variant); margin-top: 2px; }
+.due-when { font: var(--title-medium); color: var(--on-surface); }
+.due-row .list-supporting { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.due-row.tight .leading, .due-row.tight .due-when { color: var(--error); }
+.card-due { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s1); font: var(--label-large); color: var(--on-surface); }
+.card-due .ms { font-size: 18px; color: var(--on-surface-variant); }
+.card-due.tight, .card-due.tight .ms { color: var(--error); }
+.progress-summary .progress-labels { align-items: center; margin-top: var(--s1); }
+.progress-count { font: var(--body-medium); color: var(--on-surface); }
+.time-left { display: flex; align-items: flex-start; gap: var(--s1); font: var(--body-small); color: var(--on-surface-variant); }
+.time-left .ms { font-size: 16px; }
+.time-left.tight { color: var(--error); }
+.achieve-btn { flex: none; margin-left: auto; padding: 0 var(--s4); }
+.screen-blocks .achieved-panel { margin-top: var(--s3); }
+.section-header:has(.reorder-btn) { align-items: center; padding-top: var(--s3); padding-bottom: 0; padding-right: var(--s2); }
+.lead-must { color: var(--on-surface-variant); }
 
 /* Life */
 .tabs {
@@ -1252,6 +1280,7 @@ button.result-head:active { background: var(--row-press); }
 :root[data-large-text=true] .week-card-copy { flex-basis: calc(100% - 64px); }
 :root[data-large-text=true] .week-card-action { margin-left: auto; }
 :root[data-large-text=true] .result-count, :root[data-large-text=true] .eyebrow span:last-child { display: none; }
+:root[data-large-text=true] .detail-head .crumb .eyebrow span:last-child { display: inline; }
 :root[data-large-text=true] .settings-row { flex-wrap: wrap; }
 :root[data-large-text=true] .settings-value { max-width: none; text-align: left; }
 :root[data-large-text=true] .top-title { font-size: 24px; }

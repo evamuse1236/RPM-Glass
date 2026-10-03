@@ -3,7 +3,7 @@ import {tasks} from '../planner-state.mjs';
 import {el, icon, button, labelButton, emptyState, progress, areaDot, sectionHeader} from './dom.mjs';
 import {plural, doneStats} from './format.mjs';
 import {openMenu} from './menu.mjs';
-import {blockCard, purposePanel} from './blocks.mjs';
+import {blockCard, purposePanel, byDeadline} from './blocks.mjs';
 
 function projectTasks(app, project) {
   const blocks = app.activeBlocks().filter(block => block.projectId === project.id);
@@ -85,7 +85,7 @@ export function renderProjectDetail(app, page, project) {
     page.append(summary);
   }
   page.append(sectionHeader('Blocks', el('small', '', blocks.length ? String(blocks.length) : '')));
-  for (const block of blocks) page.append(blockCard(app, block));
+  for (const block of byDeadline(app.data(), blocks)) page.append(blockCard(app, block));
   if (!blocks.length) page.append(el('p', 'quiet', 'No Blocks in this Project yet.'));
   page.append(labelButton('add', 'Add Block', () => app.actions.newEntity('blocks', {projectId: project.id}),
     'outlined-btn wide'));
