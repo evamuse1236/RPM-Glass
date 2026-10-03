@@ -99,6 +99,31 @@ export function hashToken(text, caret = String(text ?? '').length) {
   return {query: found[1], start, end: caret};
 }
 
+/**
+ * A `#word` in the title that names exactly one Block strongly enough to choose it without a tap: at least two
+ * letters, starting a word of that Block's title, and matching no other Block at all. The last such word wins.
+ * Returns {block, query, start, end, match} or null; with several matches the sheet offers chips instead.
+ */
+export function hashTag(text, blocks) {
+  const value = String(text ?? '');
+  const found = [...value.matchAll(/(^|\s)#([^\s#]+)/g)];
+  for (const m of found.reverse()) {
+    const query = m[2].toLowerCase();
+    if (query.length < 2) continue;
+    const matches = blockMatches(blocks, query, 2);
+    if (matches.length !== 1) continue;
+    if (!matches[0].title.toLowerCase().split(/[^a-z0-9]+/i).some(w => w.startsWith(query))) continue;
+    const start = m.index + m[1].length;
+    return {block: matches[0], query, start, end: start + m[2].length + 1, match: '#' + m[2]};
+  }
+  return null;
+}
+
+/** The title without a `#word` (at start..end), spaces tidied. */
+export function withoutTag(text, {start, end}) {
+  return (text.slice(0, start) + text.slice(end)).replace(/\s{2,}/g, ' ').trim();
+}
+
 const longDay = day => new Date(day + 'T12:00').toLocaleDateString([], {weekday: 'long', month: 'long', day: 'numeric'});
 
 /** Time presets with the task's own time folded in, in clock order. */

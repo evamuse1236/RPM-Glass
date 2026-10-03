@@ -15,7 +15,7 @@ import {openMenu, closeMenu} from './menu.mjs';
 import {taskRow, toggleDone} from './task-row.mjs';
 import {
   whenOf, whenFields, whenLabel, clockOf, dayPresets, timePresets, repeatValue, repeatLabel, parseWhen,
-  schedulePresets, blockMatches, hashToken,
+  schedulePresets, blockMatches, hashToken, hashTag, withoutTag,
   foldGroup, fold, foldFor, fieldRow, choiceChip, markChips, chipRow,
   dateChooser, durationChooser, repeatChooser, alertChooser, blockChooser, recentBlock, rememberBlock,
 } from './task-fields.mjs';
@@ -128,6 +128,7 @@ export function openTask(app, id, occurrence, {focus = null} = {}) {
   const when = t => (repeats(t) ? (occurrence && t.planned === anchor ? occurrence : nextOccurrence(t)) : t.planned);
   const {body, actions, header, sheet} = openSheet(app, 'Task', {variant: 'detail sheet-task'});
   sheet.style.removeProperty('--sheet-pin');
+  sheet.style.removeProperty('height'); // a leaving sheet's frozen height (planner.mjs) is not this one's
   const save = saver(app);
   const commit = (fields, label) => save({type: 'saveTask', id, fields}, label);
   const group = foldGroup(body);
@@ -142,8 +143,11 @@ export function openTask(app, id, occurrence, {focus = null} = {}) {
   const goBack = () => {
     if (body.contains(document.activeElement)) document.activeElement.blur();
     showInbox(app, {motion: 'back'});
-    // Focus returns to the row the task was opened from.
-    app.dom.sheet.querySelector(`.task-row[data-task-id="${id}"] .task-main`)?.focus({preventScroll: true});
+    // Focus returns to the row the task was opened from, which shows a soft rounded highlight that fades (a keyboard
+    // user gets the focus ring instead).
+    const row = app.dom.sheet.querySelector(`.task-row[data-task-id="${id}"]`);
+    row?.querySelector('.task-main')?.focus({preventScroll: true});
+    row?.classList.add('returned');
   };
   if (fromInbox) header.prepend(iconButton('arrow_back', 'Back to Inbox', goBack, {cls: 'sheet-back'}));
 
@@ -165,6 +169,17 @@ export function openTask(app, id, occurrence, {focus = null} = {}) {
   };
   title.grow = grow;
   title.addEventListener('input', grow);
+  // The first tap into the title puts the caret at the end of the words (to add to them or rename), not wherever the
+  // finger landed mid-word; later taps place it normally.
+  let caretPlaced = false;
+  title.addEventListener('mousedown', event => {
+    if (caretPlaced || event.button > 0 || document.activeElement === title) return;
+    caretPlaced = true;
+    event.preventDefault();
+    title.focus({preventScroll: true});
+    title.setSelectionRange(title.value.length, title.value.length);
+  });
+  title.addEventListener('focus', () => { caretPlaced = true; });
   title.addEventListener('keydown', event => {
     if (event.key === 'Enter') {
       // Next goes on to the details (the title saves as it loses focus); Enter in the details is a new line.
@@ -360,12 +375,24 @@ export function openTask(app, id, occurrence, {focus = null} = {}) {
   blockRow.wrap.insertBefore(face, blockRow.node);
   face.append(blockRow.head, panelSlot, suggestSlot);
   let panelKey = null;
-  let faceMotion = null;
+  let faceMotion = [];
+  // Choosing a Block is one continuous change, a container transform: the face's box grows from the row's height to
+  // the card's (250ms emphasized) and the card's fill opens from the row's box, while the content fades through (the
+  // row's words out in 90ms, then the card's in over 160ms, so the two never overlap). Removing the Block runs the
+  // same the other way.
   const paintBlock = t => {
     const context = app.context(t);
     const key = context.block ? `${context.block.id}|${context.block.title}|${context.block.purpose}` : '';
-    const animate = panelKey !== null && key !== panelKey && !reducedMotion() && face.isConnected;
+    const animate = panelKey !== null && key !== panelKey && !reducedMotion() && face.isConnected
+      && !!face.getClientRects().length;
     const from = animate ? face.getBoundingClientRect().height : 0;
+    let ghost = null;
+    if (animate) {
+      ghost = el('div', 'block-face-ghost');
+      ghost.setAttribute('aria-hidden', 'true');
+      ghost.inert = true;
+      for (const part of face.children) if (!part.classList.contains('block-face-ghost')) ghost.append(part.cloneNode(true));
+    }
     blockRow.head.hidden = !!context.block && !blockRow.isOpen;
     blockRow.set(context.block ? context.block.title : 'No block · Choose a Block', {aria: context.block ? context.block.title : 'No block'});
     if (key !== panelKey) {
@@ -377,27 +404,49 @@ export function openTask(app, id, occurrence, {focus = null} = {}) {
       }
     }
     const suggested = context.block ? null : suggestBlock(app, t);
-    suggestSlot.replaceChildren();
-    if (suggested) {
-      const chip = button('', () => pickBlock(suggested.id, suggested.title), 'assist-chip suggest-chip');
-      chip.append(icon('auto_awesome'), el('span', 'chip-label', suggested.title));
-      chip.setAttribute('aria-label', `Suggested Block ${suggested.title}`);
-      suggestSlot.append(chip);
-    }
-    if (animate) {
-      // The card grows (or shrinks) to its height while its content fades in, together with any fold closing below.
-      faceMotion?.cancel();
-      const to = face.getBoundingClientRect().height;
-      if (Math.abs(to - from) > 1) {
-        face.classList.add('resizing');
-        faceMotion = face.animate([{height: from + 'px'}, {height: to + 'px'}], {duration: DURATION.medium1, easing: EASE.emphasized});
-        const end = () => face.classList.remove('resizing');
-        faceMotion.finished.then(end, end);
-      }
-      for (const part of [panelSlot, suggestSlot]) {
-        if (part.childElementCount) part.animate([{opacity: 0}, {opacity: 1}], {duration: DURATION.short4, easing: EASE.standard});
+    const suggestKey = suggested?.id ?? '';
+    if (suggestSlot.dataset.key !== suggestKey) {
+      suggestSlot.dataset.key = suggestKey;
+      suggestSlot.replaceChildren();
+      if (suggested) {
+        const chip = button('', () => pickBlock(suggested.id, suggested.title), 'assist-chip suggest-chip');
+        chip.append(icon('auto_awesome'), el('span', 'chip-label', suggested.title));
+        chip.setAttribute('aria-label', `Suggested Block ${suggested.title}`);
+        suggestSlot.append(chip);
       }
     }
+    if (!animate) return;
+    for (const motion of faceMotion) motion.cancel();
+    face.querySelectorAll(':scope > .block-face-ghost').forEach(n => n.remove());
+    const to = face.getBoundingClientRect().height;
+    face.append(ghost);
+    face.classList.add('resizing');
+    face.dataset.toHeight = String(to);
+    const motions = [
+      face.animate([{height: from + 'px'}, {height: to + 'px'}], {duration: DURATION.medium1, easing: EASE.emphasized}),
+      ghost.animate([{opacity: 1}, {opacity: 0}], {duration: 90, easing: EASE.standardAccelerate, fill: 'forwards'}),
+    ];
+    const card = panelSlot.querySelector('.part-of');
+    const fresh = card ? [...card.children, panelSlot.querySelector('.part-change')]
+      : [blockRow.head, suggestSlot].filter(n => !n.hidden && n.getClientRects().length);
+    for (const part of fresh.filter(Boolean)) {
+      motions.push(part.animate([{opacity: 0}, {opacity: 1}],
+        {duration: 160, delay: 90, easing: EASE.standardDecelerate, fill: 'backwards'}));
+    }
+    if (card) {
+      const top = card.getBoundingClientRect().top - face.getBoundingClientRect().top;
+      const hidden = Math.max(0, card.offsetHeight - Math.max(0, from - top));
+      motions.push(card.animate([{clipPath: `inset(0 0 ${hidden}px 0 round 20px)`}, {clipPath: 'inset(0 0 0 0 round 20px)'}],
+        {duration: DURATION.medium1, easing: EASE.emphasized}));
+    }
+    faceMotion = motions;
+    const end = () => {
+      if (faceMotion !== motions) return;
+      ghost.remove();
+      face.classList.remove('resizing');
+      delete face.dataset.toHeight;
+    };
+    Promise.all(motions.map(m => m.finished)).then(end, end);
   };
 
   body.append(dateRow.wrap, clash.node, durationRow.wrap, repeatRow.wrap, alertRow.wrap, must, blockRow.wrap);
@@ -681,29 +730,32 @@ function inboxShowing(app) {
 export function showInbox(app, {motion = 'forward'} = {}) {
   const {body, actions} = openSheet(app, 'Inbox', {motion});
   app.sheet.inboxBody = body;
-  const draw = () => {
+  // Fills a host with the rows: the body itself at first, then a detached copy that animateRerender reconciles in by
+  // key (it needs the new content returned as an element, so unchanged rows stay and the changed ones move).
+  const draw = (host = el('div')) => {
     const rows = blockTasks(app.data(), null).filter(task => !task.done);
-    body.replaceChildren();
+    host.replaceChildren();
     if (!rows.length) {
-      body.append(emptyState({symbol: 'inbox', title: 'Inbox is empty',
+      host.append(emptyState({symbol: 'inbox', title: 'Inbox is empty',
         body: 'New captures land here until you give them a Block.'}));
     } else {
       const note = el('p', 'sheet-note', 'Tasks not in a Block yet. Give each one a Result, or keep it here.');
       note.dataset.key = 'inbox-note';
       const jev = labelButton('auto_awesome', 'Sort with Jev', () => app.actions.jevSort(), 'tonal-btn');
       jev.dataset.key = 'inbox-jev';
-      body.append(note, jev);
+      host.append(note, jev);
     }
-    for (const task of rows) body.append(taskRow(app, task));
+    for (const task of rows) host.append(taskRow(app, task));
+    return host;
   };
-  draw();
+  draw(body);
   actions.append(labelButton('mic', 'Capture', () => app.capture(), 'text-btn'),
     labelButton('add', 'Add task', () => taskEditor(app, null), 'filled-btn'));
   app.sheet.live = () => body.isConnected && isSheetOpen(app);
   app.sheet.sync = () => {
     if (!inboxShowing(app) || app.sheet.inboxBody !== body) return false;
     app.sheet.version = app.data().version;
-    animateRerender(body, body, draw);
+    animateRerender(body, body, () => draw());
     return true;
   };
   app.sheet.onBack = () => false;
@@ -756,6 +808,10 @@ function quickAdd(app, overrides = {}) {
   // What the title said about the day, shown before it is used, with Remove.
   const parsedFold = fold('parsed-fold');
   let parsed = null, dismissed = null, before = null;
+  // A #word naming exactly one Block chooses it as typed (shown with Remove, the Block chip marked); the #word leaves
+  // the title when the task is added. Several matches offer chips under the title instead.
+  const tagFold = fold('parsed-fold tag-fold');
+  let tag = null, tagDismissed = null, tagBefore = null;
   const readTitle = () => {
     const found = parseWhen(name.value);
     if (found && found.match.toLowerCase() !== dismissed) {
@@ -767,10 +823,23 @@ function quickAdd(app, overrides = {}) {
       Object.assign(s, before);
       parsed = null;
     }
+    const named = hashTag(name.value, app.activeBlocks());
+    if (named && named.match.toLowerCase() !== tagDismissed) {
+      if (!tag) tagBefore = s.blockId;
+      tag = named;
+      s.blockId = named.block.id;
+    } else if (tag) {
+      s.blockId = tagBefore;
+      tag = null;
+    }
   };
   const forgetParse = () => {
     if (parsed) dismissed = parsed.match.toLowerCase();
     parsed = null;
+  };
+  const forgetTag = () => {
+    if (tag) tagDismissed = tag.match.toLowerCase();
+    tag = null;
   };
 
   // Day chips, and the full day and time choices under the time chip
@@ -800,10 +869,11 @@ function quickAdd(app, overrides = {}) {
   }));
 
   // Block chips: the chosen one, the one the words point to, the recent one, No block, then the full list.
-  const blockChips = chipRow('quick-row');
+  const blockChips = chipRow('quick-row block-chips');
   const listChip = button('', null, 'assist-chip list-chip');
   listChip.append(icon('stacks'), el('span', 'chip-label', 'Choose Block'));
   const pickBlock = id => {
+    forgetTag();
     s.blockId = id || null;
     group.close();
     changed();
@@ -891,10 +961,13 @@ function quickAdd(app, overrides = {}) {
   hashFold.inner.append(hashChips);
   let hashKey = null;
   const paintHash = () => {
+    if (!body.isConnected || !isSheetOpen(app)) return;
     const token = document.activeElement === name ? hashToken(name.value, name.selectionStart ?? name.value.length) : null;
     const recent = recentBlock();
     const blocks = app.activeBlocks().slice().sort((a, b) => (b.id === recent) - (a.id === recent));
-    const matches = token ? blockMatches(blocks, token.query) : [];
+    // The #word already chose its Block (shown above, with Remove): no chips for it.
+    const chosen = token && tag && token.start === tag.start;
+    const matches = token && !chosen ? blockMatches(blocks, token.query) : [];
     const key = token ? token.query + '|' + matches.map(b => b.id).join(',') : null;
     if (key === hashKey) return;
     hashKey = key;
@@ -923,9 +996,11 @@ function quickAdd(app, overrides = {}) {
 
   const parsedLine = el('div', 'parsed-line');
   parsedFold.inner.append(parsedLine);
+  const tagLine = el('div', 'parsed-line');
+  tagFold.inner.append(tagLine);
   const error = el('p', 'sheet-error');
   error.setAttribute('role', 'alert');
-  body.append(nameWrap, hashFold.node, parsedFold.node, whenChips, whenFold.node, blockChips, blockFold.node, moreChips,
+  body.append(nameWrap, hashFold.node, parsedFold.node, tagFold.node, whenChips, whenFold.node, blockChips, blockFold.node, moreChips,
     durationFold.node, repeatFold.node, detailsFold.node, error);
 
   const paint = () => {
@@ -957,6 +1032,16 @@ function quickAdd(app, overrides = {}) {
       remove.setAttribute('aria-label', `Remove the date read from “${parsed.match}”`);
       parsedLine.replaceChildren(icon('auto_awesome'),
         el('span', '', `${whenLabel(s)} · from “${parsed.match}”`), remove);
+    }
+    tagFold.node.setOpen(!!tag);
+    if (tag) {
+      const remove = button('Remove', () => {
+        forgetTag();
+        s.blockId = tagBefore;
+        changed();
+      }, 'text-btn');
+      remove.setAttribute('aria-label', `Remove the Block read from “${tag.match}”`);
+      tagLine.replaceChildren(icon('stacks'), el('span', '', `${tag.block.title} · from “${tag.match}”`), remove);
     }
     paintHash();
     group.current?.refresh();
@@ -994,8 +1079,10 @@ function quickAdd(app, overrides = {}) {
   });
 
   let adding = false;
+  let leaving = false;
   const submit = async ({keepOpen = false} = {}) => {
-    const title = name.value.trim();
+    const named = tag && s.blockId === tag.block.id ? hashTag(name.value, app.activeBlocks()) : null;
+    const title = (named && named.block.id === s.blockId ? withoutTag(name.value, named) : name.value).trim();
     if (!title || adding) return;
     if (s.repeat && !(s.day && s.time)) {
       error.textContent = NEEDS_TIME + ' Choose a day and a time.';
@@ -1017,9 +1104,12 @@ function quickAdd(app, overrides = {}) {
     }
     const block = app.activeBlocks().find(b => b.id === s.blockId);
     const where = [s.day ? whenLabel(s) : '', block?.title ?? ''].filter(Boolean);
+    // Add closes the sheet: from here nothing in it changes (no chips redrawn by the save), so it leaves as it was.
+    leaving = !keepOpen;
     const saved = await save({type: 'saveTask', fields}, (where.length ? 'Added to ' + where.join(' · ') : 'Added to Inbox') + clash);
     adding = false;
     if (saved === undefined) {
+      leaving = false;
       add.disabled = !name.value.trim();
       return;
     }
@@ -1031,8 +1121,11 @@ function quickAdd(app, overrides = {}) {
     }
     // Ready for the next task: the day (as it was before any words set it) and the Block stay.
     if (parsed) Object.assign(s, before);
+    if (tag) s.blockId = tagBefore;
     parsed = null;
     dismissed = null;
+    tag = null;
+    tagDismissed = null;
     Object.assign(s, {must: false, repeat: '', every: 1, notes: '', why: '', alert: 'off'});
     name.value = '';
     group.close();
@@ -1048,7 +1141,7 @@ function quickAdd(app, overrides = {}) {
   app.sheet.sync = () => {
     if (!app.sheet.live()) return false;
     app.sheet.version = app.data().version;
-    paint();
+    if (!leaving) paint();
     return true;
   };
   app.sheet.onBack = () => app.sheet.live() && group.onBack();

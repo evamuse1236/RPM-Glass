@@ -67,3 +67,21 @@ test('A #word in Quick add matches Blocks by word start first, and is found just
   assert.equal(hashToken('Email #qui room'), null, 'the caret has moved past the word');
   assert.equal(hashToken('Room#4'), null, 'a # inside a word is not a Block');
 });
+
+test('A #word naming exactly one Block chooses it; several matches, one letter or a mid-word hit do not', async () => {
+  const {hashTag, withoutTag} = await import('./planner/task-fields.mjs');
+  const blocks = [{id: 'q', title: 'Confident for RM Quiz I'}, {id: 'c', title: 'RM critical review drafted with my group'},
+    {id: 'd', title: 'DAD Excel workbook submitted'}, {id: 'p', title: 'PMDL post work ready to submit'}];
+  const text = 'Email the TA about the quiz room tomorrow #quiz';
+  const tag = hashTag(text, blocks);
+  assert.equal(tag.block.id, 'q');
+  assert.equal(tag.match, '#quiz');
+  assert.equal(withoutTag(text, tag), 'Email the TA about the quiz room tomorrow');
+  assert.equal(withoutTag('#quiz revise flash cards', hashTag('#quiz revise flash cards', blocks)), 'revise flash cards');
+  assert.equal(hashTag('Ask about #rm', blocks), null, 'two Blocks start with RM: chips, not a guess');
+  assert.equal(hashTag('Plan #q', blocks), null, 'one letter is not enough');
+  assert.equal(hashTag('Plan #ubmit', blocks), null, 'a hit inside a word is not strong');
+  assert.equal(hashTag('Plan #sub', blocks), null, 'two Blocks say submit');
+  assert.equal(hashTag('Draft #crit then #excel', blocks).block.id, 'd', 'the last strong #word wins');
+  assert.equal(hashTag('No tags here', blocks), null);
+});

@@ -1,5 +1,5 @@
 /** Planner entry: wires the per-screen modules in ./planner/ and the native hooks. */
-import {animateLayout} from './surface-motion.mjs';
+import {animateLayout, reducedMotion} from './surface-motion.mjs';
 import {createApp, TABS} from './planner/app.mjs';
 import {renderShell} from './planner/shell.mjs';
 import {renderScreen, defaultScroll, installSwipe} from './planner/screens.mjs';
@@ -122,6 +122,21 @@ function installBack(app) {
   };
 }
 
+/**
+ * Focus rings are for keyboard navigation. Focus handed back by the app (Back to the Inbox, a closed sheet returning
+ * to its row) after a touch, or after Android Back (Escape in the harness), would otherwise draw a hard ring on a
+ * touch screen; Tab and the arrow keys turn rings on, a touch turns them off (planner.css).
+ */
+function installFocusModality() {
+  const root = document.documentElement;
+  document.addEventListener('keydown', event => {
+    if (/^(Tab|Arrow|Home|End|PageUp|PageDown)/.test(event.key) && root.dataset.keyboardNav !== 'true') root.dataset.keyboardNav = 'true';
+  }, true);
+  document.addEventListener('pointerdown', () => {
+    if (root.dataset.keyboardNav !== 'false') root.dataset.keyboardNav = 'false';
+  }, true);
+}
+
 function installNativeHooks(app) {
   const root = document.documentElement;
   const syncPhone = () => {
@@ -241,39 +256,175 @@ function openView(app, target) {
   return undefined;
 }
 
+/* ---------- The snackbar docked over an open sheet ----------
+ * The bar sits just above the sheet's action bar and the body's bottom margin grows to make room (planner.css). Rows
+ * that end up below the body's new edge are clipped, not covered; the row the user just tapped (or is typing in) and
+ * the row after it, where the eye goes next, are scrolled into view in the same motion. Everything is measured
+ * where it will be once the choices folding away or opening (and a Part of card growing) have finished. */
+const DOCK_GAP = 20; // the bar's 8dp above the action bar plus the content's 12dp above the bar (planner.css)
+const DOCK_FADE = 16; // the faded edge of the content (planner.css)
+const DOCK_ROWS = '.detail-title-row, .field-row, .date-quick, .must-row, .block-face, .detail-field, .original-capture, '
+  + '.task-row, .quick-title, .quick-row, .field-fold.open, .choice-row';
+
+/** The row a tapped or focused node belongs to inside the sheet body. */
+export function dockRow(node, body) {
+  const row = node?.closest?.(DOCK_ROWS);
+  return row && body.contains(row) && row !== body ? row : null;
+}
+
+/** Where `node` will be once the boxes in `changing` ([{node, delta}]) reach their final heights. */
+export function settledBox(node, changing) {
+  const rect = node.getBoundingClientRect();
+  let {top, bottom} = rect;
+  for (const {node: box, delta} of changing) {
+    if (box === node || node.contains(box)) bottom += delta;
+    else if (box.contains(node)) continue;
+    else if (box.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING) {
+      top += delta;
+      bottom += delta;
+    }
+  }
+  return {top, bottom};
+}
+
+/** How far to scroll so the rows fit above `visibleBottom`, never moving `first` past `visibleTop`, within `room`. */
+export function dockScroll({rows, first, visibleTop, visibleBottom, room}) {
+  const want = Math.max(...rows.map(r => r.bottom));
+  const delta = Math.min(want - visibleBottom, first.top - visibleTop, room);
+  return delta >= 1 ? Math.ceil(delta) : 0;
+}
+
+function changingBoxes(body) {
+  const out = [];
+  for (const box of body.querySelectorAll('.field-fold, [data-to-height]')) {
+    if (!box.getClientRects().length && !box.classList.contains('open')) continue;
+    const height = box.getBoundingClientRect().height;
+    const to = box.dataset.toHeight ? Number(box.dataset.toHeight)
+      : box.classList.contains('open') ? box.firstElementChild?.scrollHeight ?? height : 0;
+    if (Math.abs(to - height) > 0.5) out.push({node: box, delta: to - height});
+  }
+  return out;
+}
+
+function revealAboveSnackbar(app, from) {
+  const {sheet, snackbar} = app.dom;
+  const body = sheet.querySelector(':scope > .sheet-body');
+  if (!body || !from?.isConnected || !body.contains(from)) return;
+  const changing = changingBoxes(body);
+  const all = [...body.querySelectorAll(DOCK_ROWS)].filter(n => n.getClientRects().length);
+  const next = [];
+  for (const row of all) {
+    if (next.length === 1) break;
+    if (row.contains(from) || from.contains(row) || next.some(n => n.contains(row))) continue;
+    if (from.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING) next.push(row);
+  }
+  const margin = parseFloat(getComputedStyle(body).marginBottom) || 0;
+  const finalMargin = snackbar.getBoundingClientRect().height + DOCK_GAP;
+  const frame = body.getBoundingClientRect();
+  const grow = changing.reduce((sum, c) => sum + c.delta, 0);
+  const finalClient = body.clientHeight + margin - finalMargin;
+  // The content's own height (scrollHeight never reads less than the box, so it cannot tell how much is missing).
+  let end = frame.top;
+  for (const child of body.children) {
+    if (child.getClientRects().length) end = Math.max(end, child.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(child).marginBottom) || 0));
+  }
+  const content = end - frame.top + body.scrollTop + (parseFloat(getComputedStyle(body).paddingBottom) || 0);
+  const first = settledBox(from, changing);
+  const delta = dockScroll({
+    rows: [first, ...next.map(n => settledBox(n, changing))], first,
+    visibleTop: frame.top + 8,
+    visibleBottom: frame.bottom + margin - finalMargin - DOCK_FADE,
+    room: content + grow - finalClient - body.scrollTop,
+  });
+  if (!delta) return;
+  // While the margin is still growing the body cannot yet scroll that far; a little extra room at its end lets the
+  // smooth scroll run to its target at once, and goes again once there.
+  const room = content - body.clientHeight - body.scrollTop;
+  if (room < delta) {
+    body.style.paddingBottom = `calc(var(--s4) + ${Math.ceil(delta - room)}px)`;
+    setTimeout(() => body.style.removeProperty('padding-bottom'), 600);
+  }
+  body.scrollBy({top: delta, behavior: reducedMotion() ? 'auto' : 'smooth'});
+}
+
 /**
- * The snackbar docks above an open sheet's action bar and the sheet's content makes room for it (planner.css); this
- * keeps the two heights it needs current as sheets, their actions and the snackbar's words change.
+ * Keeps the two heights the docking needs current as sheets, their actions and the snackbar's words change; reveals
+ * the row just used when the bar arrives; and freezes a leaving sheet's layout, so nothing in it grows or reflows on
+ * its way out (a save's snackbar arriving as Add closes the sheet used to lift it 25px first).
  */
 function installSnackbarDock(app) {
   const root = document.documentElement;
-  const {sheet, snackbar} = app.dom;
+  const {sheet, snackbar, planner} = app.dom;
   let watched = null;
+  let lastTap = null;
   const measure = () => {
     const actions = sheet.hidden ? null : sheet.querySelector(':scope > .sheet-actions');
     const height = actions?.getClientRects().length ? actions.getBoundingClientRect().height : 0;
-    root.style.setProperty('--sheet-actions-h', height + 'px');
+    if (!sheet.inert) root.style.setProperty('--sheet-actions-h', height + 'px');
     if (!snackbar.hidden) root.style.setProperty('--snackbar-h', snackbar.getBoundingClientRect().height + 'px');
+  };
+  const freeze = () => {
+    const body = sheet.querySelector(':scope > .sheet-body');
+    if (sheet.inert && !sheet.hidden) {
+      if (sheet.style.height) return;
+      sheet.style.height = sheet.getBoundingClientRect().height + 'px';
+      if (body) {
+        body.style.marginBottom = getComputedStyle(body).marginBottom;
+        body.style.transition = 'none';
+      }
+    } else sheet.style.removeProperty('height');
   };
   const sizes = new ResizeObserver(measure);
   sizes.observe(snackbar);
-  new MutationObserver(() => {
+  new MutationObserver(records => {
     const actions = sheet.querySelector(':scope > .sheet-actions');
     if (actions !== watched) {
       if (watched) sizes.unobserve(watched);
       watched = actions;
       if (actions) sizes.observe(actions);
     }
+    if (records.some(r => r.attributeName === 'inert' || r.attributeName === 'hidden')) freeze();
     measure();
-  }).observe(sheet, {childList: true, attributes: true, attributeFilter: ['hidden']});
-  new MutationObserver(measure).observe(snackbar, {childList: true, attributes: true, attributeFilter: ['hidden']});
+  }).observe(sheet, {childList: true, attributes: true, attributeFilter: ['hidden', 'inert']});
+  sheet.addEventListener('pointerdown', event => {
+    const body = sheet.querySelector(':scope > .sheet-body');
+    const row = body && dockRow(event.target, body);
+    lastTap = row ? {row, at: performance.now()} : null;
+  }, true);
+  const arrived = records => {
+    measure();
+    // Only a new message counts (not its words' cross-fade copy coming and going).
+    if (!records.some(r => r.type === 'attributes' || [...r.addedNodes].some(n => n.classList?.contains('snackbar-text')))) return;
+    if (snackbar.hidden || sheet.hidden || sheet.inert || planner.dataset.snackbar !== 'true') return;
+    const body = sheet.querySelector(':scope > .sheet-body');
+    if (!body) return;
+    const recent = lastTap && performance.now() - lastTap.at < 1500 && lastTap.row.isConnected ? lastTap.row : null;
+    const from = recent ?? (body.contains(document.activeElement) ? dockRow(document.activeElement, body) : null);
+    if (from) revealAboveSnackbar(app, from);
+  };
+  new MutationObserver(arrived).observe(snackbar, {childList: true, attributes: true, attributeFilter: ['hidden']});
+}
+
+/**
+ * After a save the open sheet updates its rows in place. That refresh runs inside the save, after the data is already
+ * written, so it must never fail the save: a sheet whose body was just swapped (Back to the Inbox while a field's
+ * blur-save is still on its way) could otherwise throw into the snackbar in place of Undo. A failed refresh is logged
+ * and the sheet keeps what it shows; the next change or reopening draws it again.
+ */
+export function syncSheet(app) {
+  try {
+    return app.sheet.sync?.() ?? false;
+  } catch (error) {
+    console.error('Sheet refresh skipped:', error);
+    return false;
+  }
 }
 
 export function mountPlanner(api) {
   // After every save, Undo or outside change the shell re-renders; an open task sheet then updates its rows in place.
   const shell = app => {
     renderShell(app);
-    app.sheet.sync?.();
+    syncSheet(app);
   };
   const app = createApp(api, {shell, screen: renderScreen, defaultScroll, refreshCalendar, searchBar});
   installActions(app);
@@ -282,6 +433,7 @@ export function mountPlanner(api) {
   installNativeHooks(app);
   installSwipe(app);
   installSnackbarDock(app);
+  installFocusModality();
   app.render({reset: true});
   return {
     render: () => app.render(),

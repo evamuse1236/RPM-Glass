@@ -191,8 +191,9 @@ export function renderLife(app, page) {
 
 /**
  * The Area's rating as a slider on the page: drag or arrow keys, saved when let go, with Undo. It moves in whole
- * points (a half point saved earlier shows as it is until touched). Unrated, it is an empty track with no thumb, so
- * nothing reads as a 5; the first touch puts the thumb where the finger is.
+ * points (a half point saved earlier shows as it is until touched). Unrated, the track shows its eleven points as faint
+ * ticks and a hollow handle waits at its start, so it reads as something to drag but never as a value ("Not rated"
+ * says so); the first touch puts the handle where the finger is, filled.
  */
 function ratingSlider(app, area) {
   const row = el('div', 'rating-row');
@@ -204,8 +205,11 @@ function ratingSlider(app, area) {
   input.min = 0;
   input.max = 10;
   input.step = area.rating == null || Number.isInteger(area.rating) ? 1 : 0.5;
-  input.value = area.rating ?? 5;
+  input.value = area.rating ?? 0;
   input.classList.toggle('unrated', area.rating == null);
+  const ticks = el('span', 'rating-ticks');
+  ticks.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i <= 10; i++) ticks.append(el('i'));
   input.setAttribute('aria-label', `${area.title} rating, 0 to 10`);
   input.setAttribute('aria-valuetext', area.rating == null ? 'Not rated' : `${area.rating} of 10`);
   const paint = () => input.style.setProperty('--value', String(Number(input.value) / 10));
@@ -220,13 +224,19 @@ function ratingSlider(app, area) {
     input.setAttribute('aria-valuetext', `${input.value} of 10`);
     paint();
   });
+  // Touching the hollow handle where it waits (0) changes no value, so it would send no input: rate it 0 then.
+  input.addEventListener('pointerup', () => {
+    if (!input.classList.contains('unrated')) return;
+    input.dispatchEvent(new Event('input'));
+    input.dispatchEvent(new Event('change'));
+  });
   input.addEventListener('change', () => {
     const rating = Number(input.value);
     if (rating === area.rating) return;
     persist(app, {type: 'rateAreas', ratings: [{id: area.id, rating}]}, {label: `${area.title} rated ${rating}`})
       .catch(() => {});
   });
-  row.append(label, output, input, el('span', 'rating-note', 'How it feels right now, not how many tasks are done'));
+  row.append(label, output, input, ticks, el('span', 'rating-note', 'How it feels right now, not how many tasks are done'));
   return row;
 }
 
