@@ -15,7 +15,7 @@ import {calendarRows} from './planner-calendar.mjs';
 import {dueInfo, clock, duration, plural, timeRange} from './planner/format.mjs';
 import {areaDot} from './planner/dom.mjs';
 import {attachTaskSwipe} from './task-swipe.mjs';
-import {animateRerender, sharedAxis, ghost, reducedMotion, releaseTail} from './surface-motion.mjs';
+import {animateRerender, sharedAxis, ghost, reducedMotion, releaseTail, waitMotion, MOTION, DURATION, EASE} from './surface-motion.mjs';
 
 const STEPS = [
   {name: "Last week's Results", next: 'Next: empty your head'},
@@ -226,13 +226,37 @@ function renderReview(root, api, ctx) {
   const bodyRect = stepChange ? body.getBoundingClientRect() : null;
   const oldScroll = body.scrollTop;
   const oldContent = stepChange && !reducedMotion() ? [...content.childNodes] : [];
-  const foot = footer(api, root.querySelector(':scope > .wr-foot'));
+  // On a step change the frame's words (step count, progress, footer label and Back) switch at the 90ms crossover,
+  // when the old body has faded out and the new one starts to fade in, not ahead of the body.
+  // (A save during those 90ms waits for the same switch.)
+  const deferFrame = (stepChange || ui.framePending) && !reducedMotion() && !!root.querySelector(':scope > .wr-foot');
+  const foot = deferFrame ? root.querySelector(':scope > .wr-foot') : footer(api, root.querySelector(':scope > .wr-foot'));
   const sheetKey = ui.step === 3 && ui.sheet ? `${ui.sheet.kind}:${ui.sheet.taskId}` : null;
   const sheetWasOpen = sheetKey && root.querySelector(':scope > .wr-layer')?.dataset.sheet === sheetKey;
   root.querySelector(':scope > .wr-layer')?.remove();
   // The frame (bar, progress, footer) stays the same nodes from step to step; only the step body moves.
-  const bar = topBar(api, root.querySelector(':scope > .wr-bar'));
-  const progress = progressBar(ui.step, api.goTo, root.querySelector(':scope > .wr-steps'));
+  const bar = deferFrame ? root.querySelector(':scope > .wr-bar') : topBar(api, root.querySelector(':scope > .wr-bar'));
+  const progress = deferFrame ? root.querySelector(':scope > .wr-steps')
+    : progressBar(ui.step, api.goTo, root.querySelector(':scope > .wr-steps'));
+  if (deferFrame && stepChange) {
+    const token = ui.frameToken = (ui.frameToken ?? 0) + 1;
+    ui.framePending = true;
+    waitMotion(MOTION.fadeOut).then(() => {
+      if (ui.frameToken !== token) return;
+      ui.framePending = false;
+      if (!root.isConnected) return;
+      topBar(api, bar);
+      progressBar(api.ui.step, api.goTo, progress);
+      const hadBack = !!foot.querySelector(':scope > .wr-back');
+      footer(api, foot);
+      const back = foot.querySelector(':scope > .wr-back');
+      if (back && !hadBack) back.animate([{opacity: 0}, {opacity: 1}], {duration: DURATION.short3, easing: EASE.standardDecelerate});
+      document.documentElement.style.setProperty('--wr-foot', foot.offsetHeight + 'px');
+    });
+  } else if (!deferFrame) {
+    ui.frameToken = (ui.frameToken ?? 0) + 1;
+    ui.framePending = false;
+  }
   if (first) root.replaceChildren(bar, progress, body, foot);
   if (first || ui.stepChanged) {
     releaseTail(content);

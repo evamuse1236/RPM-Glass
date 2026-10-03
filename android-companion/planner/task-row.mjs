@@ -3,7 +3,7 @@ import {blockTasks, localDay} from '../planner-state.mjs';
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
 import {reorderTask} from '../planner-ux.mjs';
 import {attachTaskSwipe} from '../task-swipe.mjs';
-import {reducedMotion, waitMotion} from '../surface-motion.mjs';
+import {reducedMotion, waitMotion, collapseRow} from '../surface-motion.mjs';
 import {el, icon, button} from './dom.mjs';
 import {commitInPlace} from './inline-edit.mjs';
 import {clock, duration, dayName} from './format.mjs';
@@ -318,9 +318,9 @@ function markRow(app, task, done) {
 /**
  * One tap completes; recurring tasks complete one occurrence. Undo is always offered.
  * The ring pops and the title strikes through at once and the row holds, struck, for 300ms; then it collapses where it
- * is (250ms) while the rows below slide up, so it is gone by about 550ms and waits under Completed. The rest of the
- * page (a lead card, Coming up, the free time) changes in that same re-render, so everything that follows from the
- * tick moves once, together. Undo reopens it in place.
+ * is (250ms, its words fading with its space) while the rows below follow it up, so it is gone by about 550ms and
+ * waits under Completed. Only then does the rest of the page (a lead card, Coming up, the free time) move to what the
+ * tick changed, in one re-render, so nothing reorders while the row is leaving. Undo reopens it in place.
  */
 export async function toggleDone(app, task, when) {
   if (app.saving) return;
@@ -340,7 +340,24 @@ export async function toggleDone(app, task, when) {
     await app.commit(op, {label: completing ? 'Task completed' : 'Task marked incomplete', keepSheet: false,
       render: !fromList});
     if (linger) {
-      collapse.then(() => {
+      collapse.then(async () => {
+        if (!app.recentlyCompleted.has(task.id)) return;
+        // The row collapses first, on its own (the rows below follow it up); only once it is gone does the rest of the
+        // page (the lead card, Coming up, free time, Completed) move to what the tick changed, so nothing reorders
+        // while the row is still leaving.
+        if (fromList) {
+          const rows = [...app.dom.work.querySelectorAll(`.task-row[data-task-id="${task.id}"]`)].filter(r => !r.closest('.motion-ghost'));
+          // The page keeps its length while the row leaves, so scrolled to the end nothing above it moves (the
+          // re-render that follows gives the spare space back as the user scrolls up).
+          const work = app.dom.work;
+          work.style.minHeight = Math.max(parseFloat(work.style.minHeight) || 0, work.getBoundingClientRect().height) + 'px';
+          const ends = await Promise.all(rows.map(row => collapseRow(row)));
+          if (!app.recentlyCompleted.has(task.id)) {
+            ends.forEach(end => end && end.cancel());
+            return;
+          }
+          rows.forEach(row => row.remove());
+        }
         if (!app.recentlyCompleted.delete(task.id)) return;
         if (fromList || app.dom.sheet.hidden) app.render();
       });

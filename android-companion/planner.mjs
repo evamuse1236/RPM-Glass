@@ -1,5 +1,5 @@
 /** Planner entry: wires the per-screen modules in ./planner/ and the native hooks. */
-import {animateLayout, reducedMotion} from './surface-motion.mjs';
+import {animateLayout, reducedMotion, slideScroll, EASE, DURATION} from './surface-motion.mjs';
 import {createApp, TABS} from './planner/app.mjs';
 import {renderShell} from './planner/shell.mjs';
 import {renderScreen, defaultScroll, installSwipe} from './planner/screens.mjs';
@@ -257,14 +257,18 @@ function openView(app, target) {
 }
 
 /* ---------- The snackbar docked over an open sheet ----------
- * The bar sits just above the sheet's action bar and the body's bottom margin grows to make room (planner.css). Rows
- * that end up below the body's new edge are clipped, not covered; the row the user just tapped (or is typing in) and
- * the row after it, where the eye goes next, are scrolled into view in the same motion. Everything is measured
- * where it will be once the choices folding away or opening (and a Part of card growing) have finished. */
+ * The bar sits just above the sheet's action bar and the body's bottom margin grows to make room (planner.css). The
+ * task sheet reserves that room when it opens, so the bar usually arrives without anything moving. Only when the row
+ * the user just tapped (or is typing in) would end up under the bar does the sheet make room: first by growing
+ * taller (its height animates on the bar's timing), and only if it is already as tall as it may be by scrolling,
+ * animated (250ms standard) and never so far that the task's title leaves the top. Everything is measured where it
+ * will be once the choices folding away or opening (and a Part of card growing) have finished. */
 const DOCK_GAP = 20; // the bar's 8dp above the action bar plus the content's 12dp above the bar (planner.css)
 const DOCK_FADE = 16; // the faded edge of the content (planner.css)
 const DOCK_ROWS = '.detail-title-row, .field-row, .date-quick, .must-row, .block-face, .detail-field, .original-capture, '
   + '.task-row, .quick-title, .quick-row, .field-fold.open, .choice-row';
+/** The room a docked one-line snackbar takes from a sheet's body (its 48dp plus the gaps). */
+export const DOCK_ROOM = 48 + DOCK_GAP;
 
 /** The row a tapped or focused node belongs to inside the sheet body. */
 export function dockRow(node, body) {
@@ -287,11 +291,25 @@ export function settledBox(node, changing) {
   return {top, bottom};
 }
 
-/** How far to scroll so the rows fit above `visibleBottom`, never moving `first` past `visibleTop`, within `room`. */
+/** How far the rows must rise to fit above `visibleBottom`, never moving `first` past `visibleTop`, within `room`. */
 export function dockScroll({rows, first, visibleTop, visibleBottom, room}) {
   const want = Math.max(...rows.map(r => r.bottom));
   const delta = Math.min(want - visibleBottom, first.top - visibleTop, room);
   return delta >= 1 ? Math.ceil(delta) : 0;
+}
+
+/** Split the rise a docked bar needs between growing the sheet (up to `spare`) and scrolling the rest, which may not
+ * take the title (whose top is `titleTop` above the body's visible top) out of view. */
+export function dockRoom({need, spare, titleTop = Infinity}) {
+  const grow = Math.max(0, Math.min(need, Math.floor(spare)));
+  const scroll = Math.max(0, Math.min(need - grow, titleTop));
+  return {grow, scroll: scroll >= 1 ? Math.ceil(scroll) : 0};
+}
+
+/** The tallest a sheet may grow (planner.css: 92% of the screen, or of the space above the keyboard). */
+function sheetCap(sheet) {
+  const visual = parseFloat(document.documentElement.style.getPropertyValue('--visual-height')) || innerHeight;
+  return Math.min(sheet.parentElement.getBoundingClientRect().height * 0.92 || innerHeight * 0.92, visual);
 }
 
 function changingBoxes(body) {
@@ -311,13 +329,6 @@ function revealAboveSnackbar(app, from) {
   const body = sheet.querySelector(':scope > .sheet-body');
   if (!body || !from?.isConnected || !body.contains(from)) return;
   const changing = changingBoxes(body);
-  const all = [...body.querySelectorAll(DOCK_ROWS)].filter(n => n.getClientRects().length);
-  const next = [];
-  for (const row of all) {
-    if (next.length === 1) break;
-    if (row.contains(from) || from.contains(row) || next.some(n => n.contains(row))) continue;
-    if (from.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING) next.push(row);
-  }
   const margin = parseFloat(getComputedStyle(body).marginBottom) || 0;
   const finalMargin = snackbar.getBoundingClientRect().height + DOCK_GAP;
   const frame = body.getBoundingClientRect();
@@ -330,21 +341,37 @@ function revealAboveSnackbar(app, from) {
   }
   const content = end - frame.top + body.scrollTop + (parseFloat(getComputedStyle(body).paddingBottom) || 0);
   const first = settledBox(from, changing);
-  const delta = dockScroll({
-    rows: [first, ...next.map(n => settledBox(n, changing))], first,
+  const need = dockScroll({
+    rows: [first], first,
     visibleTop: frame.top + 8,
     visibleBottom: frame.bottom + margin - finalMargin - DOCK_FADE,
     room: content + grow - finalClient - body.scrollTop,
   });
-  if (!delta) return;
+  if (!need) return;
+  // A pinned sheet (the task sheet keeps its height) grows instead, as far as it may; an unpinned one already grows
+  // with its margin until it reaches its cap.
+  const pinned = parseFloat(sheet.style.getPropertyValue('--sheet-pin')) || 0;
+  const height = sheet.getBoundingClientRect().height;
+  const title = body.querySelector('.detail-title-row, .quick-title');
+  const titleTop = title ? Math.max(0, title.getBoundingClientRect().top - frame.top) : Infinity;
+  const plan = dockRoom({need, spare: pinned ? sheetCap(sheet) - height : 0, titleTop});
+  if (plan.grow) {
+    sheet.style.setProperty('--sheet-pin', height + plan.grow + 'px');
+    if (!reducedMotion()) {
+      sheet.animate([{height: height + 'px'}, {height: height + plan.grow + 'px'}],
+        {duration: DURATION.short3, easing: EASE.standardDecelerate});
+    }
+  }
+  if (!plan.scroll) return;
+  const delta = plan.scroll;
   // While the margin is still growing the body cannot yet scroll that far; a little extra room at its end lets the
-  // smooth scroll run to its target at once, and goes again once there.
+  // scroll reach its target at once, and goes again once there.
   const room = content - body.clientHeight - body.scrollTop;
   if (room < delta) {
     body.style.paddingBottom = `calc(var(--s4) + ${Math.ceil(delta - room)}px)`;
     setTimeout(() => body.style.removeProperty('padding-bottom'), 600);
   }
-  body.scrollBy({top: delta, behavior: reducedMotion() ? 'auto' : 'smooth'});
+  slideScroll(body, delta);
 }
 
 /**

@@ -1,6 +1,6 @@
 /** One snackbar at a time, with an optional Undo that reverts the last planner change.
- * It rises from the bottom and always leaves downward (150ms). A new message while one shows keeps the bar opaque
- * and cross-fades only its words (old out and new in over the same 150ms). A message raised while a sheet is leaving
+ * It opens upward, opaque, and always leaves downward (150ms). A new message while one shows keeps the bar opaque
+ * and swaps only its words as a vertical ticker (old up and out by 90ms, new in from below over 90–240ms). A message raised while a sheet is leaving
  * waits until the sheet is gone. It stays 6s with Undo (4s without), and never times out while the user is typing:
  * the timer pauses while a text field has focus and resumes when it is left. */
 import {playMotion, stopMotion, reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
@@ -72,8 +72,8 @@ export function hideSnackbar(app, {instant = false} = {}) {
   });
 }
 
-/** The old words, stacked on the new ones in the same opaque bar, fade out while the new ones fade in (150ms each,
- * together), so the bar never dips to empty. */
+/** A vertical ticker inside the one opaque bar: the old words slide up and fade out (0–90ms), then the new ones slide
+ * in from below and fade in (90–240ms), so the two are never legible together and the bar itself never fades. */
 function swapWords(node, oldParts, content) {
   node.querySelectorAll(':scope > .snackbar-ghost').forEach(n => n.remove());
   if (reducedMotion() || !oldParts.length) return;
@@ -82,10 +82,23 @@ function swapWords(node, oldParts, content) {
   cover.inert = true;
   cover.append(...oldParts);
   node.append(cover);
-  playMotion(cover, [{opacity: 1}, {opacity: 0}], {duration: DURATION.short3, easing: EASE.standard, fill: 'forwards'})
-    .then(() => cover.remove());
+  playMotion(cover, [{opacity: 1, transform: 'none'}, {opacity: 0, transform: 'translateY(-12px)'}],
+    {duration: 90, easing: EASE.standardAccelerate, fill: 'forwards'}).then(() => cover.remove());
   for (const part of content) {
-    playMotion(part, [{opacity: 0}, {opacity: 1}], {duration: DURATION.short3, easing: EASE.standard});
+    playMotion(part, [{opacity: 0, transform: 'translateY(12px)'}, {opacity: 1, transform: 'none'}],
+      {duration: DURATION.short3, delay: 90, easing: EASE.standardDecelerate, fill: 'backwards'});
+  }
+}
+
+/** A new bar arrives opaque: its surface opens upward from its bottom edge as it rises a little (250ms emphasized
+ * decelerate), and its words fade in over the opaque surface once it is mostly open (from 0, never through a
+ * see-through bar). */
+function enter(node, content) {
+  playMotion(node, [{clipPath: 'inset(100% 0 0 0 round 4px)', transform: 'translateY(8px)'},
+    {clipPath: 'inset(0 0 0 0 round 4px)', transform: 'none'}],
+  {duration: DURATION.medium1, easing: EASE.emphasizedDecelerate});
+  for (const part of content) {
+    playMotion(part, [{opacity: 0}, {opacity: 1}], {duration: DURATION.short3, delay: 60, easing: EASE.standardDecelerate, fill: 'backwards'});
   }
 }
 
@@ -131,8 +144,7 @@ export function notice(app, message, options = {}) {
     } else stopMotion(node);
     swapWords(node, oldParts, content);
   } else {
-    playMotion(node, [{opacity: 0, transform: 'translateY(24px)'}, {opacity: 1, transform: 'none'}],
-      {duration: DURATION.medium1, easing: EASE.emphasizedDecelerate});
+    if (!reducedMotion()) enter(node, content);
   }
   arm(app, undo ? 6000 : 4000);
 }

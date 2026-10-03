@@ -6,7 +6,7 @@ import {duration, plural, dateText, dueInfo, timeLeft} from './format.mjs';
 import {taskRow, completedSection, toggleDone, taskWhen} from './task-row.mjs';
 import {openSheet, field} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
-import {playMotion, DURATION, EASE} from '../surface-motion.mjs';
+import {playMotion, landInPlace, DURATION, EASE} from '../surface-motion.mjs';
 import {inlineText, focusField, selectAll, carryFocus, backHandler, persist, saveEntity, NO_ICON} from './inline-edit.mjs';
 
 const thisWeek = app => weekFocus(app.data(), weekStart(localDay()));
@@ -204,6 +204,16 @@ export function factRow(symbol, {onClick = null, cls = ''} = {}) {
   return {row, copy};
 }
 
+/** A field's label with a quiet edit glyph beside it (Google Contacts, Calendar): it says the words take a tap, at
+ * rest, without outlining them. The glyph goes while the field is being edited. */
+function editLabel(text) {
+  const label = el('span', 'fact-label');
+  const glyph = icon('edit', {cls: 'label-edit'});
+  glyph.setAttribute('aria-hidden', 'true');
+  label.append(text, glyph);
+  return label;
+}
+
 /**
  * Purpose as a labelled detail row (Block, Project, Goal, Area) that edits where it is: tap anywhere on the row
  * and the caret lands in the words; Enter or leaving saves, with Undo.
@@ -213,7 +223,7 @@ export function purposePanel(app, collection, record, noun = 'Purpose') {
   const text = inlineText(app, {key: `${collection}:${record.id}:purpose`, value: record.purpose ?? '', label: noun,
     placeholder: 'Add why this matters to you', multiline: false, maxLength: 2000, cls: 'purpose-text',
     onSave: words => saveEntity(app, collection, record, {purpose: words}, words ? 'Purpose saved' : 'Purpose cleared')});
-  copy.append(el('span', 'fact-label', noun), text);
+  copy.append(editLabel(noun), text);
   row.addEventListener('click', event => { if (event.target !== text) focusField(text); });
   return row;
 }
@@ -232,7 +242,7 @@ export function notesPanel(app, collection, record) {
       row.remove();
     }
   });
-  copy.append(el('span', 'fact-label', 'Notes'), text);
+  copy.append(editLabel('Notes'), text);
   row.addEventListener('click', event => { if (event.target !== text) focusField(text); });
   return row;
 }
@@ -328,15 +338,26 @@ function inlineAdd(app, block) {
   form.addEventListener('submit', async event => {
     event.preventDefault();
     const title = input.value;
-    if (!title.trim()) return;
-    // Clear at once so the next task can be typed while this one saves; the field keeps focus (Enter adds).
-    input.value = '';
+    if (!title.trim() || form.dataset.adding) return;
+    // The words stay in the field until the new row takes their place (no empty gap): the row lands where they were
+    // at full opacity and only the now-empty field below slides down. The field keeps focus (Enter adds the next).
+    form.dataset.adding = 'true';
+    input.__inline = {saved: title}; // these words are the new row's, not unsaved typing for the rebuilt field
+    // (The first task arrives with the Plan list itself.)
+    const words = title.trim();
+    const isRow = node => node.matches('.plan-list > .task-row') && node.querySelector('.task-title')?.textContent === words;
+    landInPlace(node => isRow(node) || (node.matches('.plan-list') && node.children.length === 1 && isRow(node.firstElementChild)),
+      {follow: '.inline-add > *'});
     try {
       const id = await persist(app, {type: 'saveTask', fields: {title, blockId: block.id}}, {label: 'Task added'});
+      if (input.isConnected) input.value = '';
       const add = app.dom.work.querySelector('.inline-add input');
       if (add && document.activeElement !== add) focusField(add);
     } catch {
       if (!input.value) input.value = title;
+    } finally {
+      delete form.dataset.adding;
+      delete input.__inline;
     }
   });
   return form;

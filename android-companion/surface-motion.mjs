@@ -26,12 +26,27 @@ export const MOTION = Object.freeze({
   ease: EASE.standard,
 });
 
+/** Scroll `body` by `delta` as one 250ms standard motion the animation clock can slow down: the scroll position
+ * changes at once and the content slides from where it was (so it is never a one-frame jump). */
+export function slideScroll(body, delta) {
+  const before = body.scrollTop;
+  body.scrollTop = before + delta;
+  const moved = body.scrollTop - before;
+  if (!moved || reducedMotion()) return;
+  for (const child of body.children) {
+    if (!child.getClientRects().length) continue;
+    child.animate([{transform: `translateY(${moved}px)`}, {transform: 'none'}],
+      {duration: DURATION.medium1, easing: EASE.standard, composite: 'add'});
+  }
+}
+
 /** Resolves after `ms` on the animation clock (so it slows down with the animations it orders), at once with
  * reduced motion. */
 export function waitMotion(ms) {
-  const root = globalThis.document?.documentElement;
-  if (!root?.animate || reducedMotion()) return Promise.resolve();
-  return root.animate([{}, {}], {duration: ms}).finished.then(() => {}, () => {});
+  // A detached timer node: nothing on the page is animated (it is not a crossfade of the page), only the clock runs.
+  const timer = globalThis.document?.createElement?.('i');
+  if (!timer?.animate || reducedMotion()) return Promise.resolve();
+  return timer.animate([{}, {}], {duration: ms}).finished.then(() => {}, () => {});
 }
 
 export const reducedMotion = () => globalThis.document?.documentElement.dataset.reduceMotion === 'true'
@@ -395,7 +410,31 @@ function boxFrames(node, open, from = null) {
   const none = {height: '0px', minHeight: '0px', opacity: 0, marginTop: '0px', marginBottom: '0px', paddingTop: '0px',
     paddingBottom: '0px'};
   if (from) return [{...full, ...from}, full];
-  return open ? [none, {...full, opacity: 0, offset: .35}, full] : [full, {...full, opacity: 0, offset: .4}, none];
+  // Opening, the words wait until there is room for them; closing, they fade with the space (both leave together).
+  return open ? [none, {...full, opacity: 0, offset: .35}, full] : [full, none];
+}
+
+/** Collapse `node` where it is (250ms emphasized): its words fade with its space, so both leave together, and the
+ * rows below follow it up in the layout. Resolves true when it ran to the end (the node is then 0 high). */
+export function collapseRow(node) {
+  if (!node?.isConnected || reducedMotion()) return Promise.resolve(true);
+  node.classList.add('motion-clip');
+  const animation = node.animate(boxFrames(node, false), {duration: MOTION.resize, easing: EASE.emphasized, fill: 'forwards'});
+  return animation.finished.then(() => true, () => false).then(done => {
+    node.classList.remove('motion-clip');
+    return done ? animation : (animation.cancel(), false);
+  });
+}
+
+/** A new row the user just typed lands where its words were. */
+let landing = null;
+/**
+ * The next re-render shows the new row matching `match(node)` where the user typed it: at full opacity at once, its
+ * words where they were, while its box opens so only what follows (the now-empty field, `follow` selects it, which
+ * fades in once it has moved) slides down. No fade, no blink. One-shot; it expires after `ms`.
+ */
+export function landInPlace(match, {follow = '', ms = 2000} = {}) {
+  landing = {match, follow, until: performance.now() + ms};
 }
 
 /**
@@ -438,7 +477,7 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
     scroller.scrollTop = scrollTop;
     const after = captureRows(root, scroller);
     restoreFocus(focus, oldKeys, after.rows);
-    holdAnchor(scroller, anchors, after.rows);
+    holdAnchor(scroller, anchors, after.rows, root);
     return fadeThrough([layer], [root], {scale: false});
   }
 
@@ -458,7 +497,7 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
   const after = captureRows(root, scroller);
   restoreFocus(focus, oldKeys, after.rows);
   if (!motion) {
-    holdAnchor(scroller, anchors, after.rows);
+    holdAnchor(scroller, anchors, after.rows, root);
     return Promise.resolve(true);
   }
 
@@ -475,10 +514,18 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
   // A swapped card is one unit: its parts neither open nor slide on their own.
   const swapped = new Set(plan.swaps.map(([, next]) => next));
   const inSwap = node => { for (let n = node.parentElement; n && n !== root; n = n.parentElement) if (swapped.has(n)) return true; return false; };
+  // Above the reading position means before the row that holds it, in the new layout (rows above may have grown,
+  // so the old line's coordinates no longer tell); without such a row, above the old line.
+  const holder = anchors.map(([key]) => after.rows.get(key)?.node)
+    .find(node => node?.isConnected && !node.classList.contains('motion-ghost'));
+  const above = (node, rect) => (holder
+    ? node !== holder && !node.contains(holder) && !holder.contains(node)
+      && !!(node.compareDocumentPosition(holder) & Node.DOCUMENT_POSITION_FOLLOWING)
+    : rect.bottom <= line + 1);
   for (const [key, row] of after.rows) {
     if (before.rows.has(key) || !row.visible || inSwap(row.node)) continue;
     if (row.parent && !keptNew.has(row.parent)) continue;
-    if (row.rect.bottom <= line + 1) continue;
+    if (above(row.node, row.rect)) continue;
     added.push(row);
   }
   const clip = node => { node.classList.add('motion-clip'); clipped.push(node); };
@@ -519,7 +566,24 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
     animated.add(node);
     animations.push(node.animate(boxFrames(node, false), {duration: MOTION.resize, easing: EASE.emphasized, fill: 'forwards'}));
   }
+  let landed = null;
+  if (landing && landing.until < performance.now()) landing = null;
+  // Typed in place: the words stay put at full opacity; only the box opens (the content overflows it meanwhile, over
+  // the field that is sliding down and still hidden).
+  const land = node => {
+    if (!landing?.match(node)) return false;
+    landed = {...landing, node};
+    landing = null;
+    animated.add(node);
+    const style = getComputedStyle(node);
+    animations.push(node.animate([
+      {height: '0px', minHeight: '0px', marginBottom: '0px', overflow: 'visible'},
+      {height: node.getBoundingClientRect().height + 'px', minHeight: '0px', marginBottom: style.marginBottom, overflow: 'visible'}],
+    {duration: MOTION.resize, easing: EASE.emphasized}));
+    return true;
+  };
   for (const row of added) {
+    if (land(row.node)) continue;
     clip(row.node);
     animated.add(row.node);
     animations.push(row.node.animate(boxFrames(row.node, true), {duration: MOTION.resize, easing: EASE.emphasized}));
@@ -528,7 +592,8 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
   for (const node of plan.fresh) {
     if (!node.isConnected || node.closest('.motion-clip')) continue;
     const rect = node.getBoundingClientRect();
-    if (!rect.height || !visible(rect) || rect.bottom <= line + 1) continue;
+    if (!rect.height || !visible(rect) || above(node, rect)) continue;
+    if (land(node) || (landing && [...node.querySelectorAll(KEYED)].some(land))) continue;
     if (rect.height > 48) {
       clip(node);
       animated.add(node);
@@ -559,7 +624,7 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
   }
   // Layout at the first frame (ghosts full, new rows closed, resized rows at their old size): rows that still differ
   // from before really moved, and slide.
-  holdAnchor(scroller, anchors, after.rows);
+  holdAnchor(scroller, anchors, after.rows, root);
   const start = new Map(kept.map(([, next]) => [next.node, next.node.getBoundingClientRect()]));
   const shift = new Map();
   for (const [old, next] of kept) {
@@ -578,7 +643,15 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
     animations.push(next.node.animate([{translate: `${dx}px ${dy}px`}, {translate: '0px 0px'}],
       {duration: MOTION.layout, easing: EASE.emphasized}));
   }
+  // A row typed in place is not a change of words: it never fades.
+  if (landed) for (let i = fades.length - 1; i >= 0; i--) if (landed.node.contains(fades[i].node) || fades[i].node.contains(landed.node)) fades.splice(i, 1);
   const layer = fades.length ? fadeWords(fades, scroller, view, start, animations) : null;
+  if (landed?.follow) {
+    for (const node of root.querySelectorAll(landed.follow)) {
+      animations.push(node.animate([{opacity: 0}, {opacity: 1}],
+        {duration: DURATION.short3, delay: DURATION.short3, easing: EASE.standardDecelerate, fill: 'backwards'}));
+    }
+  }
   return track(root, animations, () => {
     ghosts.forEach(node => node.remove());
     layer?.remove();
@@ -643,12 +716,15 @@ function fadeWords(fades, scroller, view, start, animations) {
   return layer;
 }
 
-/** The rows on screen, innermost first in reading order: the first one that survives a change holds the position. */
+/** The rows on screen, innermost first in reading order: the first one that survives a change holds the position.
+ * A row cut off by the top edge comes after the rows wholly in view, so a change to that sliver (a row above growing)
+ * happens above the reading position at once instead of pushing everything in view down. */
 function anchorRows(before) {
   const {view} = before;
   const onScreen = [...before.rows].filter(([, row]) => row.rect.bottom > view.top + 1 && row.rect.top < view.bottom);
   const leaves = onScreen.filter(([, row]) => !row.node.querySelector(KEYED));
-  return [...leaves, ...onScreen.filter(entry => !leaves.includes(entry))];
+  const whole = leaves.filter(([, row]) => row.rect.top >= view.top - 1);
+  return [...whole, ...leaves.filter(entry => !whole.includes(entry)), ...onScreen.filter(entry => !leaves.includes(entry))];
 }
 
 /* Scrolled to the end, a page that gets shorter would pull everything down to fill the screen. Instead the page keeps
@@ -664,6 +740,11 @@ function pinTail(root, scroller, scrollTop, ghosts) {
   if (scrollTop - max <= 1) return;
   root.style.minHeight = natural + scrollTop - max + 'px';
   root.__tail = {natural, max};
+  watchTail(root, scroller);
+}
+
+/** Gives a pinned page's spare length back as the user scrolls up. */
+function watchTail(root, scroller) {
   if (tails.has(scroller)) return;
   tails.add(scroller);
   scroller.addEventListener('scroll', () => {
@@ -704,12 +785,23 @@ function track(root, animations, cleanup) {
   });
 }
 
-function holdAnchor(scroller, anchors, rows) {
+function holdAnchor(scroller, anchors, rows, root = null) {
   for (const [key, old] of anchors) {
     const now = rows.get(key)?.node;
     if (!now?.isConnected || now.classList.contains('motion-ghost')) continue;
     const delta = now.getBoundingClientRect().top - old.rect.top;
-    if (Math.abs(delta) >= 1) scroller.scrollTop += delta;
+    if (Math.abs(delta) < 1) return;
+    // Scrolled to the end, the page may be too short to scroll that far (rows above grew while the end is pinned):
+    // it keeps a little more length, given back as the user scrolls up, rather than pulling the screen down.
+    const max = scroller.scrollHeight - scroller.clientHeight;
+    const want = scroller.scrollTop + delta;
+    if (root && root !== scroller && want > max + 0.5) {
+      const tail = root.__tail ?? {natural: root.getBoundingClientRect().height, max};
+      root.style.minHeight = root.getBoundingClientRect().height + (want - max) + 'px';
+      root.__tail = tail;
+      watchTail(root, scroller);
+    }
+    scroller.scrollTop = want;
     return;
   }
 }

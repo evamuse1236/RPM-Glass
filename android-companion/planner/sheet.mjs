@@ -196,10 +196,10 @@ function installDrag(app, zone) {
   });
 }
 
-/** Content swap inside an open sheet, one motion in M3's shared-axis order: the old content leaves first (it fades out
- * by 90ms as it starts to slide), then the sheet's height morphs to the new content while that content slides the
- * rest of the way in and fades in (90–300ms). The sheet keeps its old height until the old content is gone, so it
- * never moves while the old words are still on it. */
+/** Content swap inside an open sheet, one container motion in M3's shared-axis order: the sheet's height morphs to the
+ * new content on the same 300ms emphasized curve as the content's slide, from the first frame (so a tall sheet never
+ * lingers as an empty slab); the old content fades out by 90ms as it starts to slide, then the new content slides
+ * the rest of the way in and fades in (90–300ms). */
 function replaceContent(node, oldHeight, oldChildren, back) {
   if (reducedMotion() || !oldChildren.length) return;
   const shift = (back ? -1 : 1) * MOTION.axis;
@@ -227,7 +227,7 @@ function replaceContent(node, oldHeight, oldChildren, back) {
   if (Math.abs(newHeight - oldHeight) > 1) {
     node.classList.add('morphing');
     done.push(node.animate([{height: oldHeight + 'px'}, {height: newHeight + 'px'}],
-      {duration: MOTION.fadeIn, delay: MOTION.fadeInDelay, easing: EASE.emphasized, fill: 'backwards'}));
+      {duration: MOTION.navigate, easing: EASE.emphasized}));
   }
   Promise.all(done.map(a => a.finished.catch(() => {}))).then(() => {
     ghostLayer.remove();

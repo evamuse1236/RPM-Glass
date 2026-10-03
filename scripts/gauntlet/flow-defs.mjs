@@ -28,8 +28,7 @@ export const flows = {
       const {page} = h;
       await h.tap('open inbox', page.getByRole('button', {name: /^Inbox/}));
       await h.tap('open task', sheet(page).getByText('Send the RI budget to Mariyam'));
-      await h.tap('estimate row', sheet(page).getByRole('button', {name: /^Estimate: /}));
-      await h.tap('15 min (saved)', sheet(page).getByRole('button', {name: '15 min', exact: true}));
+      await h.tap('15 min chip on the estimate row (saved)', sheet(page).getByRole('button', {name: 'Estimate 15 min', exact: true}));
       await h.tap('must (toggles in place)', sheet(page).getByRole('button', {name: 'Must', exact: true}));
     },
     check: s => { const t = find(s, 'Send the RI budget'); return ok(t?.minutes === 15 && t.must, '15 min and Must'); },

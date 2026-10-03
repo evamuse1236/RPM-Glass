@@ -9,7 +9,7 @@ import {calendarLabel, calendarRisk, calendarRows} from '../planner-calendar.mjs
 import {rankResults} from '../review-state.mjs';
 import {el, icon, button, iconButton, labelButton, emptyState} from './dom.mjs';
 import {clock, duration, timeRange, dateText} from './format.mjs';
-import {animateRerender, reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
+import {animateRerender, reducedMotion, slideScroll, EASE, DURATION} from '../surface-motion.mjs';
 import {openSheet, isSheetOpen, discardDraft, rememberValue} from './sheet.mjs';
 import {openMenu, closeMenu} from './menu.mjs';
 import {taskRow, toggleDone} from './task-row.mjs';
@@ -22,6 +22,7 @@ import {
 
 const findTask = (app, id) => tasks(app.data()).find(task => task.id === id);
 const NEEDS_TIME = 'A repeating task needs a date and time.';
+const SNACKBAR_ROOM = 68; // a docked one-line snackbar: 48dp, 8dp above the actions, 12dp above the content
 
 /** Saves one after another, so a choice made while another save is still in flight is never dropped. */
 function saver(app) {
@@ -147,7 +148,16 @@ export function openTask(app, id, occurrence, {focus = null} = {}) {
     // user gets the focus ring instead).
     const row = app.dom.sheet.querySelector(`.task-row[data-task-id="${id}"]`);
     row?.querySelector('.task-main')?.focus({preventScroll: true});
-    row?.classList.add('returned');
+    if (row) {
+      // It holds while the Inbox slides back in (300ms), then fades out over 200ms (standard), never snapping off.
+      row.classList.add('returned');
+      const clear = () => row.classList.remove('returned');
+      if (reducedMotion()) setTimeout(clear, 600);
+      else {
+        row.animate([{opacity: 1}, {opacity: 1, offset: .6, easing: EASE.standard}, {opacity: 0}],
+          {duration: 500, pseudoElement: '::after', fill: 'forwards'}).finished.then(clear, clear);
+      }
+    }
   };
   if (fromInbox) header.prepend(iconButton('arrow_back', 'Back to Inbox', goBack, {cls: 'sheet-back'}));
 
@@ -186,7 +196,10 @@ export function openTask(app, id, occurrence, {focus = null} = {}) {
       event.preventDefault();
       notes.focus({preventScroll: true});
       notes.setSelectionRange(notes.value.length, notes.value.length);
-      notes.closest('.detail-row')?.scrollIntoView({block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth'});
+      // Only if the details would be out of sight does the body move, and then as one short slide.
+      const row = notes.closest('.detail-row');
+      const hidden = row ? row.getBoundingClientRect().bottom - body.getBoundingClientRect().bottom + 8 : 0;
+      if (hidden > 0) slideScroll(body, Math.ceil(hidden));
     }
   });
   requestAnimationFrame(grow);
@@ -303,15 +316,25 @@ export function openTask(app, id, occurrence, {focus = null} = {}) {
   dateRow.wrap.insertBefore(quickDays, dateRow.node);
   dateRow.wrap.insertBefore(times.node, dateRow.node);
 
+  const pickMinutes = minutes => {
+    durationRow.set(duration(minutes), {muted: minutes == null});
+    markChips(quickMinutes, minutes == null ? '' : String(minutes));
+    group.close();
+    commit({minutes}, minutes == null ? 'Estimate removed' : 'Estimate ' + duration(minutes))
+      .then(saved => { if (saved !== undefined && live()?.planned) recheck(); });
+  };
   const durationRow = fieldRow(group, {symbol: 'timer', label: 'Estimate', build: inner => durationChooser(inner, {
     get: () => live()?.minutes ?? null,
-    pick: minutes => {
-      durationRow.set(duration(minutes), {muted: minutes == null});
-      group.close();
-      commit({minutes}, minutes == null ? 'Estimate removed' : 'Estimate ' + duration(minutes))
-        .then(saved => { if (saved !== undefined && live()?.planned) recheck(); });
-    },
+    pick: pickMinutes,
   })});
+  // As on the date row, the likeliest estimates sit on the row itself (one tap saves); the row's tap unfolds the rest.
+  const quickMinutes = chipRow('date-quick estimate-quick');
+  quickMinutes.setAttribute('role', 'group');
+  quickMinutes.setAttribute('aria-label', 'Estimate');
+  for (const n of [15, 30, 60]) {
+    quickMinutes.append(choiceChip(duration(n), String(n), value => pickMinutes(Number(value)), {aria: 'Estimate ' + duration(n)}));
+  }
+  durationRow.wrap.insertBefore(quickMinutes, durationRow.node);
 
   const repeatRow = fieldRow(group, {symbol: 'repeat', label: 'Repeat', build: inner => repeatChooser(inner, {
     get: () => ({value: repeatValue(live()), every: live()?.repeatAfterDays}),
@@ -470,6 +493,7 @@ export function openTask(app, id, occurrence, {focus = null} = {}) {
     const value = whenOf(t, when(t));
     dateRow.set(whenLabel(value), {muted: !value.day});
     durationRow.set(duration(t.minutes), {muted: t.minutes == null});
+    markChips(quickMinutes, t.minutes == null ? '' : String(t.minutes));
     repeatRow.set(repeatLabel(t), {muted: !repeats(t)});
     const alert = t.alertIntent?.type ?? 'off';
     alertRow.wrap.hidden = !t.planned && alert === 'off';
@@ -492,7 +516,10 @@ export function openTask(app, id, occurrence, {focus = null} = {}) {
   // The sheet keeps the height it opened at: a row's choices unfold downward inside it, so the row tapped and
   // everything above it stay where they are.
   for (const field of [title, notes, why, leverage]) field.grow();
-  sheet.style.setProperty('--sheet-pin', sheet.offsetHeight + 'px');
+  // It also keeps room under its rows for the snackbar a save raises (48dp and its gaps), so the bar docks without
+  // moving anything.
+  const cap = Math.min(innerHeight * 0.92, parseFloat(document.documentElement.style.getPropertyValue('--visual-height')) || innerHeight);
+  sheet.style.setProperty('--sheet-pin', Math.min(cap, sheet.offsetHeight + SNACKBAR_ROOM) + 'px');
 
   // Saves, Undo and outside changes re-render the shell, which calls sync: the rows update where they are.
   app.sheet.live = () => body.isConnected && isSheetOpen(app);

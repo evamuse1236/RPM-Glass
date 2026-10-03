@@ -190,6 +190,7 @@ h1, h2, h3, p { margin: 0; }
   color: var(--inverse-on-surface);
   box-shadow: var(--elev-3);
   font: var(--body-medium);
+  overflow: hidden; /* the ticker's words slide inside the bar */
 }
 #planner[data-view=settings] ~ #snackbar, #planner[data-view=search] ~ #snackbar { bottom: var(--s4); }
 /* The review pins its own button footer, so the snackbar sits above it. */
@@ -212,8 +213,7 @@ h1, h2, h3, p { margin: 0; }
   mask-image: linear-gradient(to top, transparent, #000 var(--s4));
 }
 .snackbar-text { flex: 1; padding: var(--s2) 0; }
-/* The old words stacked on the new ones in the same bar, fading out while the new ones fade in (the bar itself stays
-   opaque). */
+/* The old words, stacked on the new ones in the same opaque bar, slide up and out before the new ones slide in. */
 .snackbar-ghost {
   position: absolute;
   inset: 0;
@@ -521,10 +521,8 @@ button.list-item:active { background: var(--row-press); }
   border-radius: var(--shape-md);
   background: var(--row-press);
   pointer-events: none;
-  opacity: 0;
-  animation: returned-fade var(--dur-medium4) var(--ease-standard) var(--dur-short3) backwards;
+  /* task-sheets.mjs holds it while the Inbox slides back, then fades it out over 200ms */
 }
-@keyframes returned-fade { from { opacity: 1; } }
 /* Plan order by long-press and drag (Google Tasks): the held row lifts, the rows it passes slide out of its way. */
 .plan-list .task-row { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .plan-list.sorting > .task-row:not(.lifted) {
@@ -1028,6 +1026,10 @@ button.fact-row:active { background: var(--row-press); }
 .verdict-row { align-items: center; }
 .fact-row .outlined-btn { flex: none; padding: 0 var(--s4); }
 .fact-label { font: var(--label-medium); color: var(--on-surface-variant); }
+/* The resting hint that a detail field edits in place: a small pencil after its label, gone while editing. */
+.fact-label .label-edit { font-size: 14px; width: 14px; height: 14px; line-height: 14px; margin-left: var(--s1); vertical-align: -2px;
+  opacity: .72; transition: opacity var(--dur-short3) var(--ease-standard); }
+.editable-row:focus-within .label-edit { opacity: 0; }
 .purpose-text { font: var(--body-large); overflow-wrap: anywhere; }
 .due-when { font-weight: 500; }
 .status-row.tight .due-when { color: var(--error); }
