@@ -20,6 +20,20 @@ async function open(path, {dark = false, reset = {}} = {}) {
   return page;
 }
 const shot = async (page, name, full = false) => { await page.waitForTimeout(350); await page.screenshot({path: `${out}/${name}.png`, fullPage: full}); };
+// Android applies the system font scale through WebSettings.setTextZoom, which multiplies every font size and
+// line height (px included) and nothing else. Chromium has no switch for that, so scale those declarations in place.
+const textZoom = (page, factor) => page.evaluate(factor => {
+  const type = /^(font-size|line-height|--(display|headline|title|body|label)-[a-z]+)$/;
+  const visit = rules => { for (const rule of rules) {
+    if (rule.cssRules) visit(rule.cssRules);
+    for (const name of rule.style ? [...rule.style] : []) {
+      const value = rule.style.getPropertyValue(name);
+      if (type.test(name) && value.includes('px')) rule.style.setProperty(name,
+        value.replace(/(\d*\.?\d+)px/g, (_, n) => `${+n * factor}px`), rule.style.getPropertyPriority(name));
+    }
+  } };
+  for (const sheet of document.styleSheets) visit(sheet.cssRules);
+}, factor);
 const scroll = async (page, dy) => { await page.mouse.move(206, 500); await page.mouse.wheel(0, dy); await page.waitForTimeout(300); };
 const click = async (page, locator) => { await locator.first().click(); await page.waitForTimeout(400); };
 
@@ -32,7 +46,7 @@ const scenes = {
       await page.close();
     }
     const big = await open('/planner.html', {reset: {fontScale: 2}});
-    await big.evaluate(() => { document.documentElement.style.fontSize = '200%'; document.body.style.zoom = '1'; });
+    await textZoom(big, 2);
     await shot(big, 'today-large-text'); await big.close();
   },
   async block() {
