@@ -2,7 +2,7 @@
 # python3 pack-flows.py <dirX> <dirY> <outDir> <seed> flow…
 #   -> outDir/<flow>/{A,B}-steps.png (one frame per step), {A,B}-motion-NN.png (slowed frames of each moving step),
 #      outDir/<flow>/metrics.json (taps, surfaces, elements thrown away, motion log for A and B)
-#   The key (which of A/B is dirX) goes to outDir-keys/keys.json, never into the packet.
+#   The key (the letter that is dirX, the FIRST dir) goes to outDir-keys/keys.json, never into the packet.
 import json, os, random, sys
 from PIL import Image, ImageDraw
 
