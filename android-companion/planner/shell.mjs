@@ -67,8 +67,8 @@ function detailBar(app, bar, top) {
   }
   bar.append(title);
   if (!DETAIL_NAMES[top.kind]) return;
+  // Everything on a detail page edits where it is, so the bar has no Edit pencil; More keeps Delete.
   const tools = el('div', 'top-actions');
-  tools.append(iconButton('edit', 'Edit ' + DETAIL_NAMES[top.kind], () => app.actions.editEntity(top.kind, top.id)));
   const more = iconButton('more_vert', 'More options', () => openMenu(more, app.actions.detailMenu(top)));
   tools.append(more);
   bar.append(tools);

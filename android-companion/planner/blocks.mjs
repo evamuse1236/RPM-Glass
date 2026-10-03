@@ -6,6 +6,8 @@ import {duration, plural, dateText, dueInfo, timeLeft} from './format.mjs';
 import {taskRow, completedSection, toggleDone, taskWhen} from './task-row.mjs';
 import {openSheet, field} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
+import {reducedMotion} from '../surface-motion.mjs';
+import {inlineText, focusField, selectAll, carryFocus, backHandler, persist, saveEntity, NO_ICON} from './inline-edit.mjs';
 
 const thisWeek = app => weekFocus(app.data(), weekStart(localDay()));
 
@@ -136,7 +138,7 @@ function filterChip(app, label, value, options, onSelect) {
   chip.append(el('span', '', current && value != null ? current[1] : label), icon('arrow_drop_down'));
   chip.setAttribute('aria-label', `${label}: ${current?.[1] ?? 'All'}`);
   chip.addEventListener('click', () => openMenu(chip, options.map(([v, text]) => ({
-    label: text, icon: v === value ? 'check' : '', onClick: () => onSelect(v),
+    label: text, icon: v === value ? 'check' : NO_ICON, onClick: () => onSelect(v),
   })), label));
   return chip;
 }
@@ -202,13 +204,72 @@ export function factRow(symbol, {onClick = null, cls = ''} = {}) {
   return {row, copy};
 }
 
-/** Purpose as a labelled detail row (Block, Project and Goal); tap to edit. */
-export function purposePanel(purpose, onEdit) {
-  const {row, copy} = factRow('favorite', {onClick: onEdit, cls: 'purpose-row'});
-  copy.append(el('span', 'fact-label', 'Purpose'), el('span', 'purpose-text', purpose || 'Add why this matters to you'));
-  row.classList.toggle('empty', !purpose);
-  row.setAttribute('aria-label', `Purpose: ${purpose || 'not set'}. Edit`);
+/**
+ * Purpose as a labelled detail row (Block, Project, Goal, Area) that edits where it is: tap anywhere on the row
+ * and the caret lands in the words; Enter or leaving saves, with Undo.
+ */
+export function purposePanel(app, collection, record, noun = 'Purpose') {
+  const {row, copy} = factRow('favorite', {cls: 'purpose-row editable-row'});
+  const text = inlineText(app, {key: `${collection}:${record.id}:purpose`, value: record.purpose ?? '', label: noun,
+    placeholder: 'Add why this matters to you', multiline: false, maxLength: 2000, cls: 'purpose-text',
+    onSave: words => saveEntity(app, collection, record, {purpose: words}, words ? 'Purpose saved' : 'Purpose cleared')});
+  copy.append(el('span', 'fact-label', noun), text);
+  row.addEventListener('click', event => { if (event.target !== text) focusField(text); });
   return row;
+}
+
+/** Notes, shown once there are some (or once "Add notes" asks for them); multi-line, saved on leaving. */
+export function notesPanel(app, collection, record) {
+  const key = `${collection}:${record.id}:notes`;
+  if (!record.notes && openNotes !== key) return null;
+  const {row, copy} = factRow('notes', {cls: 'notes-row editable-row'});
+  const text = inlineText(app, {key, value: record.notes ?? '', label: 'Notes', placeholder: 'Add notes',
+    multiline: true, maxLength: 8000, cls: 'notes-text',
+    onSave: words => saveEntity(app, collection, record, {notes: words}, words ? 'Notes saved' : 'Notes cleared')});
+  text.addEventListener('blur', () => {
+    if (!text.textContent.trim() && !record.notes) {
+      openNotes = null;
+      row.remove();
+    }
+  });
+  copy.append(el('span', 'fact-label', 'Notes'), text);
+  row.addEventListener('click', event => { if (event.target !== text) focusField(text); });
+  return row;
+}
+
+let openNotes = null;
+/** "Add notes" from a detail page's More menu: show the Notes row and put the caret in it. */
+export function revealNotes(app, collection, id) {
+  openNotes = `${collection}:${id}:notes`;
+  app.render();
+  focusField(app.dom.work.querySelector(`[data-edit-key="${openNotes}"]`));
+}
+
+/** The detail page's large title, edited in place. An empty title is never saved. */
+export function titleField(app, collection, record, label) {
+  const heading = el('h2', 'detail-title-text');
+  heading.append(inlineText(app, {key: `${collection}:${record.id}:title`, value: record.title, label, required: true,
+    placeholder: label, cls: 'title-edit', emptyNotice: `A ${label} needs words. Kept “${record.title}”.`,
+    onSave: words => saveEntity(app, collection, record, {title: words}, `${label} renamed`)}));
+  return heading;
+}
+
+/** Called at the end of every detail render: Back reverts an open edit, and focus survives the re-render. */
+export function finishDetail(app, page) {
+  backHandler(app);
+  carryFocus(page);
+  if (pendingTitle) {
+    const node = page.querySelector(`[data-edit-key="${pendingTitle}"]`);
+    pendingTitle = null;
+    if (node) node.dataset.nextKey = node.dataset.editKey.replace(/:title$/, ':purpose');
+    selectAll(node);
+  }
+}
+
+let pendingTitle = null;
+/** A newly created Block, Project, Goal or Area opens with its placeholder title selected, ready to be typed over. */
+export function focusTitleOnOpen(collection, id) {
+  pendingTitle = `${collection}:${id}:title`;
 }
 
 function achievedSheet(app, block) {
@@ -252,18 +313,44 @@ function inlineAdd(app, block) {
   const input = el('input');
   input.placeholder = 'Add a task';
   input.maxLength = 200;
+  input.enterKeyHint = 'enter';
+  input.dataset.editKey = `plan-add:${block.id}`;
   input.setAttribute('aria-label', 'Add a task to the Plan');
+  input.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !input.value) return;
+    event.preventDefault();
+    event.stopPropagation();
+    input.value = '';
+    input.blur();
+  });
   const submit = iconButton('add', 'Add task to the Plan', () => form.requestSubmit());
   form.append(submit, input);
   form.addEventListener('submit', async event => {
     event.preventDefault();
-    if (!input.value.trim()) return;
+    const title = input.value;
+    if (!title.trim()) return;
+    // Clear at once so the next task can be typed while this one saves; the field keeps focus (Enter adds).
+    input.value = '';
     try {
-      await app.commit({type: 'saveTask', fields: {title: input.value, blockId: block.id}}, {label: 'Task added'});
-      app.dom.work.querySelector('.inline-add input')?.focus();
-    } catch {}
+      const id = await persist(app, {type: 'saveTask', fields: {title, blockId: block.id}}, {label: 'Task added'});
+      const add = app.dom.work.querySelector('.inline-add input');
+      if (add && document.activeElement !== add) focusField(add);
+      const row = app.dom.work.querySelector(`.plan-list .task-row[data-task-id="${id}"]`);
+      if (row) growIn(row);
+    } catch {
+      if (!input.value) input.value = title;
+    }
   });
   return form;
+}
+
+/** A new Plan row opens its own space (rows below slide down) and fades in; reduced motion skips it. */
+function growIn(row) {
+  if (reducedMotion() || !row.animate) return;
+  const height = row.offsetHeight;
+  row.animate([{height: '0px', minHeight: '0px', opacity: 0, overflow: 'hidden'},
+    {height: height + 'px', minHeight: '0px', opacity: 1, overflow: 'hidden'}],
+    {duration: 250, easing: 'cubic-bezier(.05,.7,.1,1)'});
 }
 
 /**
@@ -288,28 +375,41 @@ function statusRow(status, due) {
 }
 
 function planHeader(app, block, rows, open) {
-  const actions = el('div', 'plan-actions');
-  const reordering = app.state.reorderBlock === block.id && open.length > 1;
-  if (open.length > 1 && !reordering) {
+  let action = null;
+  if (open.length > 1) {
     const ids = planByTime(rows);
     if (ids.some((id, i) => id !== rows[i].id)) {
-      actions.append(button('Sort by time', () => app.commit({type: 'reorder', blockId: block.id, ids},
-        {label: 'Plan sorted by time'}).catch(() => {}), 'text-btn'));
+      action = button('Sort by time', () => app.commit({type: 'reorder', blockId: block.id, ids},
+        {label: 'Plan sorted by time'}).catch(() => {}), 'text-btn');
     }
   }
-  if (open.length > 1) {
-    const toggle = reordering ? labelButton('check', 'Done', null, 'text-btn')
-      : button('Reorder', null, 'text-btn');
-    toggle.addEventListener('click', () => {
-      app.state.reorderBlock = reordering ? null : block.id;
-      app.render();
-    });
-    toggle.setAttribute('aria-pressed', String(reordering));
-    actions.append(toggle);
-  }
-  const header = sectionHeader('Plan', actions.children.length ? actions : null);
+  const header = sectionHeader('Plan', action);
   header.classList.add('plan-header');
-  return {header, reordering};
+  return header;
+}
+
+/** The Area · Project line: one tap opens the Projects as a menu that moves the Block in one more tap. */
+function projectLine(app, block, project) {
+  const crumb = button('', null, 'crumb crumb-link project-picker');
+  crumb.append(eyebrow(app, block), icon('arrow_drop_down', {cls: 'crumb-drop'}));
+  crumb.setAttribute('aria-haspopup', 'menu');
+  crumb.setAttribute('aria-label', `Project: ${project?.title ?? 'No project'}. Change Project`);
+  crumb.addEventListener('click', () => {
+    const move = (projectId, name) => () => {
+      if ((block.projectId ?? null) === projectId) return;
+      saveEntity(app, 'blocks', block, {projectId}, projectId ? `Moved to ${name}` : 'Moved out of its Project')
+        .catch(() => {});
+    };
+    const items = [];
+    if (project) items.push({label: 'Open ' + project.title, icon: 'folder_open', onClick: () => app.openProject(project.id)},
+      {divider: true});
+    for (const pr of app.p().projects) {
+      items.push({label: pr.title, icon: pr.id === block.projectId ? 'check' : NO_ICON, onClick: move(pr.id, pr.title)});
+    }
+    items.push({label: 'No project', icon: block.projectId ? NO_ICON : 'check', onClick: move(null)});
+    openMenu(crumb, items, 'Project');
+  });
+  return crumb;
 }
 
 export function renderBlockDetail(app, page, block) {
@@ -318,34 +418,33 @@ export function renderBlockDetail(app, page, block) {
   const rows = blockTasks(app.data(), block.id);
   const open = rows.filter(t => !t.done);
   const head = el('div', 'detail-head');
-  const crumb = button('', () => (project ? app.openProject(project.id) : app.actions.editEntity('blocks', block.id)),
-    'crumb crumb-link');
-  crumb.append(eyebrow(app, block));
-  head.append(crumb);
+  head.append(projectLine(app, block, project));
   page.append(head);
-  page.append(el('h2', 'detail-title-text', block.title));
+  page.append(titleField(app, 'blocks', block, 'Result'));
   // As on its card: the Result, its Purpose, then where it stands, then your verdict, then the Plan.
   const facts = el('div', 'block-facts');
-  facts.append(purposePanel(block.purpose, () => app.actions.editEntity('blocks', block.id)));
+  facts.append(purposePanel(app, 'blocks', block));
+  const notes = notesPanel(app, 'blocks', block);
+  if (notes) facts.append(notes);
   facts.append(statusRow(status, deadline(app.data(), block, status)));
   facts.append(achievedControl(app, block, status));
   page.append(facts);
 
-  const {header, reordering} = planHeader(app, block, rows, open);
-  page.append(header);
+  page.append(planHeader(app, block, rows, open));
   const list = el('div', 'plan-list');
-  list.classList.toggle('reordering', reordering);
-  for (const task of open) list.append(taskRow(app, task, {plan: true, days: true, reorder: reordering}));
+  for (const task of open) list.append(taskRow(app, task, {plan: true, days: true}));
   page.append(list, inlineAdd(app, block));
   completedSection(app, page, rows.filter(t => t.done), {plan: true, days: true});
+  finishDetail(app, page);
 }
 
 export function blockMenu(app, block) {
-  return [
-    {label: 'Edit Block', icon: 'edit', onClick: () => app.actions.editEntity('blocks', block.id)},
-    {label: 'Move to Project', icon: 'drive_file_move', onClick: () => app.actions.editEntity('blocks', block.id)},
+  const items = [];
+  if (!block.notes) items.push({label: 'Add notes', icon: 'notes', onClick: () => revealNotes(app, 'blocks', block.id)});
+  items.push(
     {label: 'Suggest a Purpose', icon: 'auto_awesome', onClick: () => app.actions.purposeIdea(block.id)},
     {label: 'Archive Block', icon: 'archive', onClick: () => app.commit({type: 'archiveBlock', id: block.id},
       {label: 'Block archived'}).then(() => app.back()).catch(() => {})},
-  ];
+  );
+  return items;
 }

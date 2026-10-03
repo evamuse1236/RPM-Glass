@@ -119,6 +119,16 @@ async function runFlow(browser, name, flow) {
       for (let i = 1; i <= 8; i++) await page.mouse.move(x + dx * i / 8, y);
       await page.mouse.up();
     }); },
+    // Long-press (held still for `hold` ms) then a vertical drag by dy px, as a finger reorders a list: 1 interaction.
+    drag: (label, locator, dy, hold = 450) => { record.taps++; return step(label, 'drag', async () => {
+      const box = await locator.first().boundingBox();
+      const y = box.y + box.height / 2, x = box.x + box.width / 2;
+      await page.mouse.move(x, y); await page.mouse.down();
+      await page.waitForTimeout(hold);
+      for (let i = 1; i <= 16; i++) { await page.mouse.move(x, y + dy * i / 16); await page.waitForTimeout(30); }
+      await page.waitForTimeout(120);
+      await page.mouse.up();
+    }); },
     look: label => snapshot(label).then(shot => record.steps.push({label, kind: 'look', ...shot})),
     wait: ms => page.waitForTimeout(ms),
   };

@@ -3,7 +3,8 @@ import {blockTasks, localDay} from '../planner-state.mjs';
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
 import {reorderTask} from '../planner-ux.mjs';
 import {attachTaskSwipe} from '../task-swipe.mjs';
-import {el, icon, button, iconButton} from './dom.mjs';
+import {reducedMotion} from '../surface-motion.mjs';
+import {el, icon, button} from './dom.mjs';
 import {clock, duration, dayName} from './format.mjs';
 export {dayName};
 
@@ -72,7 +73,7 @@ function mustMark() {
 
 /**
  * options: current, next, anytime, days (say "Today" too), context (text), plan (true in a Block's Plan),
- * reorder (Plan in reorder mode: drag handle), swipe (archive/delete gestures).
+ * swipe (archive/delete gestures). Open Plan rows reorder by long-press and drag.
  */
 export function taskRow(app, task, options = {}) {
   const row = el('div', 'task-row');
@@ -91,12 +92,7 @@ export function taskRow(app, task, options = {}) {
   row.append(main);
 
   if (task.must) row.append(mustMark());
-  if (options.plan && options.reorder && !task.done) {
-    const handle = iconButton('drag_indicator', 'Reorder ' + task.title, () => app.actions.planOrder(task),
-      {cls: 'drag-handle'});
-    installOrder(app, handle, row, task);
-    row.append(handle);
-  }
+  if (options.plan && !task.done) installOrder(app, row, task);
   if (!options.plan && options.swipe !== false && !task.done) attachSwipe(app, row, task);
   return row;
 }
@@ -109,64 +105,158 @@ function attachSwipe(app, row, task) {
   });
 }
 
-/** Drag the handle to reorder within the Plan; arrow keys move one step. */
-function installOrder(app, handle, row, task) {
-  let start = null;
-  let target = null;
-  let moved = false;
-  const clear = () => row.parentElement?.querySelectorAll('.drop-target').forEach(n => n.classList.remove('drop-target'));
-  handle.addEventListener('pointerdown', event => {
-    start = {y: event.clientY};
-    target = null;
-    moved = false;
-    handle.setPointerCapture?.(event.pointerId);
-  });
-  handle.addEventListener('pointermove', event => {
-    if (!start || (Math.abs(event.clientY - start.y) < 8 && !moved)) return;
-    moved = true;
-    row.classList.add('dragging');
-    row.style.setProperty('--drag-y', event.clientY - start.y + 'px');
-    const hit = document.elementsFromPoint(event.clientX, event.clientY)
-      .find(node => node !== row && node.classList?.contains('task-row'));
-    if (hit && hit.parentElement === row.parentElement) {
-      clear();
-      target = Number(hit.dataset.taskId);
-      hit.classList.add('drop-target');
-    }
-  });
-  const finish = () => {
-    if (!start) return;
-    start = null;
-    row.classList.remove('dragging');
-    row.style.removeProperty('--drag-y');
-    clear();
-    if (moved && target != null && target !== task.id) {
-      const ids = blockTasks(app.data(), task.blockId).map(t => t.id);
-      app.commit({type: 'reorder', blockId: task.blockId, ids: reorderTask(ids, task.id, target)},
-        {label: 'Plan order changed'}).catch(() => {});
+const LONG_PRESS = 350;
+const SLOP = 8;
+
+/**
+ * Where a lifted row lands: it takes a row's slot once its leading edge passes that row's middle (its top going up,
+ * its bottom going down), so short and tall rows swap alike. `centers` are the rows' resting centres.
+ */
+export function dropIndex(centers, from, top, bottom) {
+  let to = from;
+  for (let i = from + 1; i < centers.length; i++) if (bottom > centers[i]) to = i;
+  for (let i = from - 1; i >= 0; i--) if (top < centers[i]) to = i;
+  return to;
+}
+
+/**
+ * Plan order by touch, as in Google Tasks: hold a Plan row still for 350 ms and it lifts; drag it and the rows it
+ * passes slide out of its way; let go and it settles into the gap and the order is saved, with Undo. Moving before
+ * the hold completes is a scroll and releasing early is a tap, so neither conflicts. Alt or Ctrl with the arrow keys
+ * moves a row one step; "Change Plan order" in the task menu stays the accessible path.
+ */
+function installOrder(app, row, task) {
+  let press = null;
+  let drag = null;
+  let swallowClick = false;
+  const scroller = () => app.dom.scroll;
+  const cancelPress = () => {
+    if (press) clearTimeout(press.timer);
+    press = null;
+  };
+  const save = targetId => {
+    const ids = blockTasks(app.data(), task.blockId).map(t => t.id);
+    const next = reorderTask(ids, task.id, targetId);
+    if (next.every((id, i) => id === ids[i])) return Promise.resolve();
+    return app.commit({type: 'reorder', blockId: task.blockId, ids: next}, {label: 'Plan order changed'});
+  };
+  const shift = () => {
+    const {peers, from, to, gap} = drag;
+    peers.forEach((peer, i) => {
+      if (peer === row) return;
+      const by = from < to && i > from && i <= to ? -gap : to < from && i >= to && i < from ? gap : 0;
+      peer.style.setProperty('--shift', by + 'px');
+    });
+  };
+  const follow = clientY => {
+    const scrolled = scroller().scrollTop - drag.scroll;
+    const dy = clientY - drag.startY + scrolled;
+    row.style.setProperty('--drag-y', dy + 'px');
+    const to = dropIndex(drag.centers, drag.from, drag.top + dy, drag.top + drag.gap + dy);
+    if (to !== drag.to) {
+      drag.to = to;
+      shift();
     }
   };
-  handle.addEventListener('pointerup', finish);
-  handle.addEventListener('pointercancel', () => {
-    start = null;
-    row.classList.remove('dragging');
+  // Near the top or bottom edge of the page, the page scrolls under the lifted row.
+  const edgeScroll = () => {
+    if (!drag) return;
+    const box = scroller().getBoundingClientRect();
+    const edge = 64;
+    const speed = drag.y > box.bottom - edge ? (drag.y - (box.bottom - edge)) / 4
+      : drag.y < box.top + edge ? -((box.top + edge) - drag.y) / 4 : 0;
+    if (speed) {
+      scroller().scrollTop += speed;
+      follow(drag.y);
+    }
+    drag.frame = requestAnimationFrame(edgeScroll);
+  };
+  const lift = () => {
+    const list = row.parentElement;
+    if (!press || !list) return;
+    const peers = [...list.querySelectorAll(':scope > .task-row')];
+    if (peers.length < 2) { cancelPress(); return; }
+    drag = {pointerId: press.id, startY: press.y, y: press.y, peers, from: peers.indexOf(row), scroll: scroller().scrollTop,
+      gap: row.offsetHeight, top: row.getBoundingClientRect().top, centers: peers.map(peer => { const r = peer.getBoundingClientRect(); return r.top + r.height / 2; })};
+    drag.to = drag.from;
+    press = null;
+    swallowClick = true;
+    try { row.setPointerCapture(drag.pointerId); } catch {}
+    list.classList.add('sorting');
+    row.classList.add('lifted');
+    row.style.setProperty('--drag-y', '0px');
+    app.api.native('haptic').catch(() => {});
+    drag.frame = requestAnimationFrame(edgeScroll);
+  };
+  const reset = list => {
+    row.classList.remove('lifted', 'settling');
     row.style.removeProperty('--drag-y');
-    clear();
+    list?.classList.remove('sorting');
+    list?.querySelectorAll(':scope > .task-row').forEach(peer => peer.style.removeProperty('--shift'));
+  };
+  const drop = keep => {
+    if (!drag) return;
+    const {peers, from, to, frame} = drag;
+    cancelAnimationFrame(frame);
+    drag = null;
+    const list = row.parentElement;
+    const moved = keep && to !== from;
+    // Settle into the gap: the slot is the sum of the heights of the rows it passed.
+    const span = moved ? peers.slice(Math.min(from, to) + (to > from ? 1 : 0), Math.max(from, to) + (to > from ? 1 : 0))
+      .reduce((sum, peer) => sum + peer.offsetHeight, 0) * (to > from ? 1 : -1) : 0;
+    if (!moved) peers.forEach(peer => peer.style.setProperty('--shift', '0px'));
+    row.classList.add('settling');
+    row.style.setProperty('--drag-y', span + 'px');
+    const finish = () => {
+      if (!moved) return reset(list);
+      // The saved order re-renders the Plan in its new order, exactly where the rows now sit.
+      return save(Number(peers[to].dataset.taskId)).catch(() => {}).finally(() => { if (row.isConnected) reset(list); });
+    };
+    if (reducedMotion()) finish();
+    else setTimeout(finish, 200);
+  };
+
+  row.addEventListener('pointerdown', event => {
+    if (event.button > 0 || drag || app.saving) return;
+    cancelPress();
+    press = {id: event.pointerId, x: event.clientX, y: event.clientY, timer: setTimeout(lift, LONG_PRESS)};
   });
-  handle.addEventListener('click', event => {
-    if (!moved) return;
+  row.addEventListener('pointermove', event => {
+    if (press && event.pointerId === press.id) {
+      if (Math.hypot(event.clientX - press.x, event.clientY - press.y) > SLOP) cancelPress();
+      return;
+    }
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    event.preventDefault();
+    drag.y = event.clientY;
+    follow(event.clientY);
+  });
+  row.addEventListener('pointerup', event => {
+    cancelPress();
+    if (drag && event.pointerId === drag.pointerId) drop(true);
+  });
+  row.addEventListener('pointercancel', () => {
+    cancelPress();
+    drop(false);
+  });
+  // Once lifted, a finger moving is a drag, not a page scroll; the long-press menu and text selection stay away.
+  row.addEventListener('touchmove', event => { if (drag && event.cancelable) event.preventDefault(); }, {passive: false});
+  row.addEventListener('contextmenu', event => { if (press || drag || swallowClick) event.preventDefault(); });
+  row.addEventListener('click', event => {
+    if (!swallowClick) return;
+    swallowClick = false;
     event.preventDefault();
     event.stopImmediatePropagation();
-    moved = false;
   }, true);
-  handle.addEventListener('keydown', event => {
-    if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+  row.addEventListener('pointerdown', () => { if (!drag) swallowClick = false; }, true);
+  row.addEventListener('keydown', event => {
+    if (!['ArrowUp', 'ArrowDown'].includes(event.key) || !(event.altKey || event.ctrlKey)) return;
     event.preventDefault();
-    const ids = blockTasks(app.data(), task.blockId).map(t => t.id);
-    const index = ids.indexOf(task.id) + (event.key === 'ArrowUp' ? -1 : 1);
-    if (index < 0 || index >= ids.length) return;
-    app.commit({type: 'reorder', blockId: task.blockId, ids: reorderTask(ids, task.id, ids[index])},
-      {label: 'Plan order changed'}).catch(() => {});
+    const open = blockTasks(app.data(), task.blockId).filter(t => !t.done).map(t => t.id);
+    const target = open[open.indexOf(task.id) + (event.key === 'ArrowUp' ? -1 : 1)];
+    if (target == null) return;
+    save(target).then(() => app.dom.work.querySelector(`.plan-list .task-row[data-task-id="${task.id}"] .task-main`)
+      ?.focus({preventScroll: true})).catch(() => {});
   });
 }
 
