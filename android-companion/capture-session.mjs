@@ -25,24 +25,21 @@ export function draftToKeep(composerText,{busy=false,pendingText=null}={}){
  return composerText;
 }
 
-/** Starter choices appear only when Capture is truly empty. */
+/** Planning starters, offered in More; each sends its own words. */
 export const STARTERS=Object.freeze([
  {label:'What’s planned today?',text:'What’s planned today?',icon:'today'},
  {label:'Plan a Result',text:'Help me plan a Result',icon:'flag'},
 ]);
-export function startersFor({view,busy,archived,captureCount,recovering}){
- if(view!=='chat'||busy||archived||recovering||captureCount>0)return [];
- return STARTERS;
-}
 
 /** Button roles for draft actions, in increasing emphasis. */
-export function actionPresentation(item,draft){
+export function actionPresentation(item,draft,{selected=draft.operations.length}={}){
  const kind=item.action.kind;
  const allCreate=draft.operations.every(op=>op.kind==='create');
  if(kind==='commit'){
   if(draft.review)return {label:item.label,role:'filled',order:3};
-  const label=allCreate?(draft.operations.length>1?`Add all ${draft.operations.length}`:'Add'):'Save changes';
-  return {label,role:'filled',order:3,icon:draft.operations.length>1&&allCreate?'done_all':null};
+  // The count follows the ticked proposals: "Add 2", "Add 1", or a plain "Add" for one proposal or none.
+  const label=allCreate?(draft.operations.length>1&&selected>0?`Add ${selected}`:'Add'):'Save changes';
+  return {label,role:'filled',order:3};
  }
  if(kind==='open')return {label:'Edit',role:'tonal',order:1};
  // Dismiss only parks the draft; the words and proposals stay in History.
