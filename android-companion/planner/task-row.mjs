@@ -30,7 +30,8 @@ export function dayName(day, {today: sayToday = false} = {}) {
   return dateText(day + 'T12:00');
 }
 
-/** Supporting line: "Now · 30 min", "Must · Sun 9:00 PM · 20 min", "Overdue · …". Times carry their day unless it is today. */
+/** Supporting line: "Now · 30 min", "Sun 9:00 PM · 20 min", "Overdue · …". Times carry their day unless it is today.
+ * Must is the star alone (with its accessible name), never the word as well. */
 function supportingLine(task, options) {
   const when = taskWhen(task);
   const line = el('span', 'task-supporting tnum');
@@ -39,7 +40,6 @@ function supportingLine(task, options) {
   if (options.current) leads.push(['now', 'Now']);
   else if (isOverdue(task, when)) leads.push(['overdue', 'Overdue']);
   else if (options.next) leads.push(['next', 'Next']);
-  if (task.must && !task.done) leads.push(['must', 'Must']);
   leads.forEach(([cls, text], i) => line.append(...(i ? [' · '] : []), el('b', 'lead-' + cls, text)));
   const lead = leads.length > 0;
   const day = when ? dayName(localDay(new Date(when)), {today: options.days})

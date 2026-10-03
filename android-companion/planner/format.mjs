@@ -63,3 +63,12 @@ export function dueInfo(value, now = new Date()) {
   return {at, overdue, soon: !overdue && at - now < 3 * 864e5,
     label: overdue ? 'Overdue since ' + (day === today ? clock(at) : dateText(day + 'T12:00')) : `Due ${when}${timed ? ' ' + clock(at) : ''}`};
 }
+
+/** Time left until `at`, coarse enough to read at a glance: "40 min", "37 h", "3 days"; null once it has passed. */
+export function timeLeft(at, now = new Date()) {
+  const minutes = Math.round((at - now) / 60000);
+  if (minutes < 0) return null;
+  if (minutes < 60) return `${Math.max(1, minutes)} min`;
+  const hours = Math.round(minutes / 60);
+  return hours < 48 ? `${hours} h` : `${Math.round(hours / 24)} days`;
+}

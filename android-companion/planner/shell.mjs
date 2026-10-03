@@ -89,7 +89,10 @@ function navigationBar(app) {
 function fab(app) {
   const host = app.dom.fab;
   host.replaceChildren();
-  const spec = app.current() ? null : app.actions.fabFor(app.state.tab);
+  const top = app.current();
+  // Block detail keeps Add a task one tap away however long the Plan is, as Google Tasks' FAB does.
+  const spec = top?.kind === 'blocks' ? {label: 'Add a task to the Plan', onClick: () => app.actions.addTask({blockId: top.id})}
+    : top ? null : app.actions.fabFor(app.state.tab);
   host.hidden = !spec;
   app.dom.planner.dataset.fab = String(!!spec);
   if (!spec) return;
