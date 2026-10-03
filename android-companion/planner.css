@@ -491,16 +491,19 @@ button.list-item:active { background: var(--row-press); }
   z-index: 2;
   translate: 0 var(--drag-y, 0px);
   scale: 1.02;
+  /* Opaque from the first frame, so the rows it passes never show through it. */
   background: var(--surface-container-high);
   border-radius: var(--shape-md);
   box-shadow: var(--elev-3);
-  transition: scale var(--dur-short) var(--ease-standard), box-shadow var(--dur-short) var(--ease-standard),
-    background-color var(--dur-short) var(--ease-standard);
+  transition: scale var(--dur-short3) var(--ease-standard), box-shadow var(--dur-short3) var(--ease-standard);
 }
+/* Let go: it glides into its exact slot and lands flat, then the page takes the new order with no further motion. */
 .task-row.lifted.settling {
   scale: 1;
-  box-shadow: var(--elev-1);
-  transition: translate 200ms var(--ease-standard), scale 200ms var(--ease-standard), box-shadow 200ms var(--ease-standard);
+  box-shadow: none;
+  background-color: transparent;
+  transition: translate var(--dur-short4) var(--ease-standard), scale var(--dur-short4) var(--ease-standard),
+    box-shadow var(--dur-short4) var(--ease-standard), background-color var(--dur-short4) var(--ease-standard);
 }
 .swipe-task { touch-action: pan-y; }
 .swipe-task > * { transform: translateX(var(--swipe-offset)); }
@@ -962,7 +965,8 @@ button.fact-row:active { background: var(--row-press); }
 .due-when { font-weight: 500; }
 .status-row.tight .due-when { color: var(--error); }
 .must-legend { font-size: 16px; color: var(--must); vertical-align: -3px; margin-right: 2px; }
-.plan-header { align-items: center; padding: var(--s2) var(--s1) 0 var(--gutter); min-height: 48px; }
+/* Tall enough for Sort by time (a 48dp text button) whether it shows or not, so it never pushes the Plan. */
+.plan-header { align-items: center; padding: var(--s2) var(--s1) 0 var(--gutter); min-height: calc(var(--touch) + var(--s2)); }
 .plan-actions { display: flex; align-items: center; }
 .plan-list { padding: 0 var(--s1); }
 .plan-list .task-row { padding-left: var(--s1); }
@@ -1089,8 +1093,47 @@ button.fact-row:active { background: var(--row-press); }
   background: var(--surface-container-low);
 }
 .rating-row strong { font: var(--title-medium); }
-.rating-slider { grid-column: 1 / -1; accent-color: var(--tone, var(--primary)); }
-.rating-slider.unrated { accent-color: var(--outline); }
+/* M3 slider in the Area's colour: one active-track colour whether resting or dragged, a 20dp handle, 48dp target.
+   Unrated: the whole track is inactive and there is no handle until the first touch. */
+.rating-slider {
+  grid-column: 1 / -1;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: var(--touch);
+  margin: 0;
+  background: transparent;
+  --active: var(--tone, var(--primary));
+  --inactive: var(--surface-container-highest);
+  --fill: calc(10px + (100% - 20px) * var(--value, 0));
+}
+.rating-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--active) 0 var(--fill), var(--inactive) var(--fill) 100%);
+}
+.rating-slider::-moz-range-track { height: 4px; border-radius: 2px; background: var(--inactive); }
+.rating-slider::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--active); }
+.rating-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--active);
+  transition: box-shadow var(--dur-short3) var(--ease-standard);
+}
+.rating-slider::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: var(--active); }
+.rating-slider:active::-webkit-slider-thumb, .rating-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 10px color-mix(in srgb, var(--active) 14%, transparent);
+}
+.rating-slider:focus-visible { outline: none; }
+.rating-slider.unrated::-webkit-slider-runnable-track { background: var(--inactive); }
+.rating-slider.unrated::-moz-range-progress { background: transparent; }
+.rating-slider.unrated::-webkit-slider-thumb { opacity: 0; box-shadow: none; }
+.rating-slider.unrated::-moz-range-thumb { opacity: 0; }
+.rating-slider.unrated:focus-visible { outline: 2px solid var(--primary); outline-offset: -8px; border-radius: var(--shape-xs); }
 .rating-note { grid-column: 1 / -1; font: var(--body-medium); color: var(--on-surface-variant); }
 
 
@@ -1539,6 +1582,7 @@ button.fact-row:active { background: var(--row-press); }
 @media (prefers-reduced-motion: reduce) {
   .progress > span, .wheel-track > span, #fab-host, .fab { transition: none; }
   .plan-list .task-row, .task-row.lifted, .inline-edit { transition: none; scale: none; }
+  .rating-slider::-webkit-slider-thumb { transition: none; }
 }
 
 /* ---------- Motion helpers (surface-motion.mjs) ---------- */
@@ -1565,3 +1609,4 @@ button.fact-row:active { background: var(--row-press); }
 @media (prefers-reduced-motion: reduce) { .field-fold, .field-fold.open { transition: none; } }
 :root[data-reduce-motion=true] .field-fold, :root[data-reduce-motion=true] .field-fold.open { transition: none; }
 :root[data-reduce-motion=true] :is(.plan-list .task-row, .task-row.lifted, .inline-edit) { transition: none; scale: none; }
+:root[data-reduce-motion=true] .rating-slider::-webkit-slider-thumb { transition: none; }

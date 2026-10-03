@@ -6,7 +6,7 @@ import {duration, plural, dateText, dueInfo, timeLeft} from './format.mjs';
 import {taskRow, completedSection, toggleDone, taskWhen} from './task-row.mjs';
 import {openSheet, field} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
-import {reducedMotion} from '../surface-motion.mjs';
+import {playMotion, DURATION, EASE} from '../surface-motion.mjs';
 import {inlineText, focusField, selectAll, carryFocus, backHandler, persist, saveEntity, NO_ICON} from './inline-edit.mjs';
 
 const thisWeek = app => weekFocus(app.data(), weekStart(localDay()));
@@ -335,22 +335,11 @@ function inlineAdd(app, block) {
       const id = await persist(app, {type: 'saveTask', fields: {title, blockId: block.id}}, {label: 'Task added'});
       const add = app.dom.work.querySelector('.inline-add input');
       if (add && document.activeElement !== add) focusField(add);
-      const row = app.dom.work.querySelector(`.plan-list .task-row[data-task-id="${id}"]`);
-      if (row) growIn(row);
     } catch {
       if (!input.value) input.value = title;
     }
   });
   return form;
-}
-
-/** A new Plan row opens its own space (rows below slide down) and fades in; reduced motion skips it. */
-function growIn(row) {
-  if (reducedMotion() || !row.animate) return;
-  const height = row.offsetHeight;
-  row.animate([{height: '0px', minHeight: '0px', opacity: 0, overflow: 'hidden'},
-    {height: height + 'px', minHeight: '0px', opacity: 1, overflow: 'hidden'}],
-    {duration: 250, easing: 'cubic-bezier(.05,.7,.1,1)'});
 }
 
 /**
@@ -366,6 +355,11 @@ function statusRow(status, due) {
   const parts = [due ? el('span', 'nowrap', status.total ? `${status.done} of ${status.total} done` : label) : null,
     must, left].filter(Boolean);
   copy.append(el('span', 'list-headline due-when tnum', due ? due.text : label));
+  // Always two lines, so the first task added changes the words, never the height (nothing below jumps).
+  if (!parts.length) {
+    parts.push(el('span', '', !status.total ? 'Add the first step below'
+      : status.done === status.total ? 'Every task ticked' : 'No time estimates yet'));
+  }
   if (parts.length) {
     const line = el('span', 'list-supporting tnum');
     parts.forEach((part, i) => line.append(...(i ? [' · ', part] : [part])));
@@ -374,18 +368,41 @@ function statusRow(status, due) {
   return row;
 }
 
-function planHeader(app, block, rows, open) {
-  let action = null;
-  if (open.length > 1) {
-    const ids = planByTime(rows);
-    if (ids.some((id, i) => id !== rows[i].id)) {
-      action = button('Sort by time', () => app.commit({type: 'reorder', blockId: block.id, ids},
-        {label: 'Plan sorted by time'}).catch(() => {}), 'text-btn');
-    }
-  }
-  const header = sectionHeader('Plan', action);
+/** Sort by time shows only while the open dated tasks are out of time order. */
+function sortByTime(app, block) {
+  const rows = blockTasks(app.data(), block.id);
+  if (rows.filter(t => !t.done).length < 2) return null;
+  const ids = planByTime(rows);
+  if (ids.every((id, i) => id === rows[i].id)) return null;
+  // The order is read when tapped, so a link kept across an in-place reorder never sorts a stale Plan.
+  return button('Sort by time', () => app.commit({type: 'reorder', blockId: block.id,
+    ids: planByTime(blockTasks(app.data(), block.id))}, {label: 'Plan sorted by time'}).catch(() => {}), 'text-btn');
+}
+
+/** The Plan header keeps the link's height whether it shows or not, so it never pushes the Plan down. */
+function planHeader(app, block) {
+  const header = sectionHeader('Plan', sortByTime(app, block));
   header.classList.add('plan-header');
   return header;
+}
+
+/** After a reorder saved in place: Sort by time fades in or out where it stands (150ms). */
+function refreshPlanHeader(app, block, header) {
+  if (!header.isConnected) return;
+  const shown = header.querySelector('.text-btn');
+  const wanted = sortByTime(app, block);
+  if (!!shown === !!wanted) {
+    if (shown && wanted) shown.replaceWith(wanted);
+    return;
+  }
+  if (wanted) {
+    header.append(wanted);
+    playMotion(wanted, [{opacity: 0}, {opacity: 1}], {duration: DURATION.short3, easing: EASE.standard});
+  } else {
+    shown.inert = true;
+    playMotion(shown, [{opacity: 1}, {opacity: 0}], {duration: DURATION.short3, easing: EASE.standardAccelerate,
+      fill: 'forwards'}).then(() => shown.remove());
+  }
 }
 
 /** The Area · Project line: one tap opens the Projects as a menu that moves the Block in one more tap. */
@@ -430,9 +447,13 @@ export function renderBlockDetail(app, page, block) {
   facts.append(achievedControl(app, block, status));
   page.append(facts);
 
-  page.append(planHeader(app, block, rows, open));
+  const header = planHeader(app, block);
+  page.append(header);
+  // A stable key: the Plan stays the same list whatever its first task is, so a re-render moves its rows, never it.
   const list = el('div', 'plan-list');
-  for (const task of open) list.append(taskRow(app, task, {plan: true, days: true}));
+  list.dataset.key = 'plan';
+  const onReorder = () => refreshPlanHeader(app, block, header);
+  for (const task of open) list.append(taskRow(app, task, {plan: true, days: true, onReorder}));
   page.append(list, inlineAdd(app, block));
   completedSection(app, page, rows.filter(t => t.done), {plan: true, days: true});
   finishDetail(app, page);

@@ -5,6 +5,7 @@
  * keeps its focus, its words and its caret.
  */
 import {el} from './dom.mjs';
+import {reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
 
 /** A blank icon slot, so a menu's unchecked choices line up with the checked one. */
 export const NO_ICON = '\u00a0';
@@ -76,6 +77,25 @@ export function carryFocus(page) {
   focusField(twin);
 }
 
+/**
+ * Save a change the page already shows (a Plan row dropped into its new slot): the commit keeps its snackbar and
+ * Undo, but the screen is not rebuilt, so nothing on it moves again. render() leaves a screen alone while a
+ * mounted controller holds its key; the detail page's own controller (Back reverts an edit) stays in charge.
+ * If the save does not happen, the page is rebuilt from the saved data.
+ */
+export async function commitInPlace(app, op, options) {
+  const held = app.mounted;
+  const key = app.lastKey;
+  const before = app.data();
+  app.mounted = {key, controller: held?.controller ?? {}};
+  try {
+    return await persist(app, op, options);
+  } finally {
+    if (app.mounted?.key === key) app.mounted = held;
+    if (app.data() === before) app.render();
+  }
+}
+
 /** Retry a commit that met another save in flight (app.commit returns undefined while one runs). */
 export async function persist(app, op, options) {
   for (let i = 0; i < 20; i++) {
@@ -105,6 +125,7 @@ export function inlineText(app, {key, value = '', label, placeholder = '', multi
   node.setAttribute('enterkeyhint', multiline ? 'enter' : 'done');
   node.spellcheck = true;
   node.__inline = {saved: value ?? '', reverting: false};
+  smoothHeight(node);
   // Selecting words by dragging is not a page swipe (Project detail steps between Projects on a swipe).
   node.addEventListener('pointerdown', event => event.stopPropagation());
   const clean = text => (multiline ? text.replace(/\r/g, '') : text.replace(/\s*\n\s*/g, ' '));
@@ -159,6 +180,30 @@ export function inlineText(app, {key, value = '', label, placeholder = '', multi
     });
   });
   return node;
+}
+
+/**
+ * When the words wrap onto more or fewer lines, what follows the field slides to its new place instead of jumping:
+ * the field's bottom margin takes up the difference and eases back to zero (200ms, standard). The field's own size
+ * never animates, so its text and caret stay exact; a new change starts from where the slide is now.
+ */
+function smoothHeight(node) {
+  if (typeof ResizeObserver === 'undefined') return;
+  let last = null;
+  let slide = null;
+  new ResizeObserver(entries => {
+    const height = entries[entries.length - 1].borderBoxSize?.[0]?.blockSize ?? node.offsetHeight;
+    const before = last;
+    last = height;
+    if (before == null || !node.isConnected || !height) return;
+    const delta = before - height;
+    if (Math.abs(delta) < 1 || reducedMotion() || !node.animate) return;
+    const now = slide ? parseFloat(getComputedStyle(node).marginBottom) || 0 : 0;
+    slide?.cancel();
+    slide = node.animate([{marginBottom: `${now + delta}px`}, {marginBottom: '0px'}],
+      {duration: DURATION.short4, easing: EASE.standard});
+    slide.onfinish = () => { slide = null; };
+  }).observe(node);
 }
 
 /** Escape / Back while editing: put the saved words back and leave the field. Returns whether it did. */
