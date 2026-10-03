@@ -5,7 +5,7 @@ import {editPlan, migrateReviewData, planner, blockTasks, REVIEW_VERSION} from '
 import {
   weekStart, reviewWeek, resultStatus, markAchieved, weekFocus, setWeekFocus, weekVerdict, reviewSummary,
   inboxTasks, activeInRange, leftoverTasks, decideLeftover, leftoverChoice, groupTask, setMust,
-  focusCandidates, reviewProgress, saveReviewProgress, finishReview,
+  focusCandidates, reviewProgress, saveReviewProgress, finishReview, resultDue, taskDate, groupTasks, addInboxTask,
 } from './review-state.mjs';
 
 // Tests run in Asia/Kolkata (scripts/test-tz.mjs). Week of 28 Sep 2026 is the review week; 21 Sep is last week.
@@ -288,6 +288,49 @@ test('focusCandidates puts chosen, then carried, then active Blocks first and sk
   assert.deepEqual(ids.slice(0, 2).sort(), [idle, won].sort(), 'chosen ones lead, even when achieved');
   const first = focusCandidates(d, WEEK)[0];
   assert.deepEqual([first.mustMinutes, first.plannedMinutes, first.purpose], [60, 135, 'Calm Mondays']);
+});
+
+test("a Result's deadline is its latest open, dated, one-time task, and step 4 puts the nearest first", () => {
+  const {d, rest, home, laundry, kitchen} = seed();
+  assert.deepEqual(resultDue(d, home), {value: '2026-09-30', task: entry(d, laundry)});
+  assert.equal(resultDue(d, rest), null, 'no dated task, no deadline: nothing is invented');
+  task(d, {title: 'Weekly reset', blockId: home, planned: '2026-10-09T04:00:00.000Z', recurrence: 'weekly'});
+  editPlan(d, {type: 'saveTask', id: laundry, fields: {done: true}});
+  assert.equal(resultDue(d, home).value, '2026-09-24T18:00', 'a timed task in local time; routines and done tasks never count');
+  assert.equal(taskDate(entry(d, kitchen)), '2026-09-24T18:00');
+
+  const exam = block(d, {title: 'Ready for the exam'});
+  task(d, {title: 'Sit the exam', blockId: exam, planned: '2026-09-23T04:00:00.000Z'});
+  const ids = focusCandidates(d, WEEK).map(c => c.blockId);
+  assert.deepEqual(ids, [exam, home, rest]);
+  assert.equal(focusCandidates(d, WEEK)[0].due, '2026-09-23T09:30');
+  assert.deepEqual(focusCandidates(d, WEEK, [rest]).map(c => c.blockId), [rest, exam, home], 'the choice at step entry still leads');
+});
+
+test('groupTasks moves several tasks, or starts a new Result from them, as one Undo step', () => {
+  const {d, home, inbox} = seed();
+  const other = task(d, {title: 'Ask for a new card'});
+  const blocksBefore = planner(d).blocks.length;
+  assert.equal(groupTasks(d, [inbox, other], {title: 'Sort out banking', purpose: 'So bills stop surprising me'}), 'New Result: Sort out banking');
+  const created = planner(d).blocks.at(-1);
+  assert.deepEqual(blockTasks(d, created.id).map(t => t.id), [inbox, other]);
+  editPlan(d, {type: 'undo'});
+  assert.equal(planner(d).blocks.length, blocksBefore, 'one Undo removes the new Block');
+  assert.deepEqual([entry(d, inbox).blockId ?? null, entry(d, other).blockId ?? null], [null, null], 'and returns both tasks to the Inbox');
+  assert.equal(groupTasks(d, [inbox, other], home), '2 tasks added to Have home ready for the week');
+  editPlan(d, {type: 'undo'});
+  assert.deepEqual([entry(d, inbox).blockId ?? null, entry(d, other).blockId ?? null], [null, null]);
+  assert.throws(() => groupTasks(d, [], home), /Choose a task/);
+});
+
+test('addInboxTask saves the exact words as a new Inbox task with Undo', () => {
+  const {d} = seed();
+  const id = addInboxTask(d, 'Book the GWBC room', at('2026-09-27T10:00:00Z'));
+  assert.deepEqual([entry(d, id).raw, entry(d, id).title, entry(d, id).blockId ?? null], ['Book the GWBC room', 'Book the GWBC room', null]);
+  assert.ok(inboxTasks(d).some(t => t.id === id));
+  editPlan(d, {type: 'undo'});
+  assert.equal(entry(d, id), undefined);
+  assert.throws(() => addInboxTask(d, '   '), /title/);
 });
 
 test('review progress resumes, survives Undo, never consumes the Undo slot, and restarts once finished', () => {

@@ -93,7 +93,7 @@ Material Symbols Rounded is bundled as a ligature font: `<span class="ms">add</s
 - **Planner:** a 64dp top app bar with a large page title that collapses into the bar on scroll. Below it is an 80dp navigation bar with four destinations (Today, Blocks, Projects, Life), each with an icon and label and a pill indicator on the current one. The primary-container FAB is a 56dp rounded square above the navigation bar. Pages use 16dp side margins and stop at 720dp wide.
 - Detail screens (Block, Project, Goal, Area), Settings, Search and the weekly review are pushed above the four destinations and honour Android Back. The navigation bar is hidden on Settings, Search and the review.
 - **Today:** the "This week" card comes first (this week's Results and their progress, or "Plan your week"). Then come the day's tasks grouped by Result, each group a tonal card with the Result as title and the Purpose underneath. Tasks with no Block sit under No block. The Timeline is a secondary view of the same day.
-- **Weekly review:** a full-height route with a close button, a 4-segment progress bar, a scrolling body and a pinned footer (Back, Next). See the flow below.
+- **Weekly review:** a full-height route with a close button, a 4-segment progress bar, a scrolling body and a pinned footer (Back, Next, and a hint line while a step is unfinished). See the flow below.
 - **Capture:** a floating panel over whatever app is open, in the style of Google's assistant overlay. It has `surface-container-low`, 28dp corners, light elevation and a drag handle, sits 4dp from the screen edges, and grows upward to fit its content above the keyboard. Expand fills the available height.
 
 Content never nests more than one card level.
@@ -117,12 +117,12 @@ Motion uses the M3 emphasized and standard easing curves at 150, 250 and 400ms. 
 
 ### Weekly review
 
-1. **How did last week's Results go?** Each Result shows tasks done/total and a segmented Achieved / Partly / Not yet choice, with optional evidence. Unfinished tasks get Carry, Defer or Drop chips. Drop archives the task and can be undone. A green banner celebrates an achieved Result.
-2. **Empty your head.** The Inbox count, an Open Capture button and the Inbox list.
-3. **Group into Blocks.** Each Inbox task gets a Block picker (an existing Block, a new Block with Result and Purpose, or stays in the Inbox). Sort with Jev appears when the assistant is set up.
-4. **Pick this week's Results.** Choose 3 to 5 Results, with Must time against planned time per Result and in total, and Must stars on their tasks. Finishing saves the week's focus and returns to Today.
+1. **How did last week's Results go?** A counter says how many are decided. Each Result shows tasks done/total with a thin bar, its deadline if it has one, and Achieved / Partly / Not yet filter chips; a Result with every task ticked asks "Did the Result happen?". Achieved turns the card tertiary green as a win, with an optional "What made it work?" line (saved as the Result's evidence), and a short Wins card closes the step. Partly and Not yet offer "Carry into this week", which pre-picks the Result in step 4, and Carry, Defer or Drop chips for unfinished tasks. Drop archives the task and can be undone.
+2. **Empty your head.** An inline field adds what is typed to the Inbox on Enter (saved in the user's words, with Undo) without leaving the step. Below it is the Inbox with its count, Open Capture as a text button, and each task's date or Must where it has one.
+3. **Group into Blocks.** Inbox tasks are one-line rows with a checkbox and a Move button. Selecting tasks turns the top bar into a selection bar (count, New Result); tapping a Result under "Your Results" adds them there, and New Result asks "What's the Result?" and "Why does it matter?" (both needed). Tasks grouped during the review appear under their Result, so Blocks visibly form. Move opens an inline picker (Inbox, a Result, New Result). Sort with Jev appears when the assistant is set up.
+4. **Pick this week's Results.** Results are ordered by deadline. A Result's deadline is its latest open, dated, one-time task; nothing else is assumed. A summary shows how many are picked ("aim for 3–5"), Must and planned time, and how much Must work falls before each deadline; there is no calendar here, so it never claims the time fits. A near Result with no Must says "No Must set". Picked Results list their open tasks with Must stars and dates. Finishing saves the week's focus and returns to Today.
 
-Every step can be skipped, leaving keeps progress, and every change goes through the same Undo path as the planner.
+Every step can be skipped, leaving keeps progress, and every change goes through the same Undo path as the planner. Next and Finish are never disabled: until a step's job is done (every Result decided, at least 3 picked) the button is tonal with a one-line hint, then it turns filled. The footer has no fade; a hairline shows while content continues underneath.
 
 ### Capture
 
