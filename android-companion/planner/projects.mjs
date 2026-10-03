@@ -3,7 +3,7 @@ import {tasks} from '../planner-state.mjs';
 import {el, icon, button, labelButton, emptyState, progress, areaDot, sectionHeader} from './dom.mjs';
 import {plural, doneStats} from './format.mjs';
 import {openMenu} from './menu.mjs';
-import {blockCard, purposePanel, byDeadline} from './blocks.mjs';
+import {blockCard, purposePanel, byDeadline, factRow, progressRing} from './blocks.mjs';
 
 function projectTasks(app, project) {
   const blocks = app.activeBlocks().filter(block => block.projectId === project.id);
@@ -73,19 +73,19 @@ export function renderProjectDetail(app, page, project) {
   const area = app.projectArea(project);
   page.append(breadcrumbs(app, [[area?.title, 'areas', area?.id, 'spa'], [goal?.title, 'goals', goal?.id, 'flag']]));
   page.append(el('h2', 'detail-title-text', project.title));
-  page.append(purposePanel(project.purpose, () => app.actions.editEntity('projects', project.id)));
+  const facts = el('div', 'block-facts');
+  facts.append(purposePanel(project.purpose, () => app.actions.editEntity('projects', project.id)));
   const {blocks, stats} = projectTasks(app, project);
   if (stats.total) {
-    const summary = el('div', 'progress-summary');
-    summary.append(progress(stats.done, stats.total, `${stats.done} of ${stats.total} tasks done`));
-    const labels = el('div', 'progress-labels tnum');
-    labels.append(el('span', '', `${stats.done} of ${plural(stats.total, 'task')} done`),
-      el('span', '', plural(blocks.length, 'Block')));
-    summary.append(labels);
-    page.append(summary);
+    const count = `${stats.done} of ${plural(stats.total, 'task')} done`;
+    const {row, copy} = factRow(progressRing(stats.done, stats.total, count), {cls: 'progress-row'});
+    copy.append(el('span', 'list-headline tnum', count), el('span', 'list-supporting', plural(blocks.length, 'Block')));
+    facts.append(row);
   }
+  page.append(facts);
   page.append(sectionHeader('Blocks', el('small', '', blocks.length ? String(blocks.length) : '')));
-  for (const block of byDeadline(app.data(), blocks)) page.append(blockCard(app, block));
+  // The page already names the Project, so its Block cards leave that line out.
+  for (const block of byDeadline(app.data(), blocks)) page.append(blockCard(app, block, {project: false}));
   if (!blocks.length) page.append(el('p', 'quiet', 'No Blocks in this Project yet.'));
   page.append(labelButton('add', 'Add Block', () => app.actions.newEntity('blocks', {projectId: project.id}),
     'outlined-btn wide'));

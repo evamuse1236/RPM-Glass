@@ -153,7 +153,6 @@ h1, h2, h3, p { margin: 0; }
   z-index: 10;
   transition: transform var(--dur-medium) var(--ease-emphasized);
 }
-#planner[data-detail=true] #fab-host { display: none; }
 #planner[data-snackbar=true] #fab-host { transform: translateY(-64px); }
 .fab {
   width: var(--fab-size);
@@ -455,7 +454,7 @@ button.list-item:active { background: var(--row-press); }
   justify-content: center;
   padding: var(--s2) var(--s2) var(--s2) var(--s1);
 }
-.task-title { font: var(--body-large); color: var(--on-surface); overflow-wrap: anywhere; }
+.task-title { font: var(--body-large); color: var(--on-surface); overflow-wrap: anywhere; text-wrap: pretty; }
 .task-supporting { font: var(--body-medium); color: var(--on-surface-variant); }
 .task-supporting b { font-weight: 600; }
 .lead-now, .lead-next { color: var(--now); }
@@ -797,9 +796,9 @@ button.result-head:active { background: var(--row-press); }
   display: flex;
   flex-direction: column;
   gap: var(--s1);
-  padding: var(--s4) var(--s4) var(--s4);
+  padding: var(--s4) var(--s4) var(--s3);
 }
-.card-main { width: 100%; }
+.card-main { width: 100%; gap: 2px; }
 .card-main:active, .project-card:active { background: var(--row-press); }
 .card-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
 .eyebrow {
@@ -811,7 +810,7 @@ button.result-head:active { background: var(--row-press); }
   color: var(--on-surface-variant);
 }
 .eyebrow span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.card-title { font: var(--title-medium); font-size: 17px; line-height: 23px; overflow-wrap: anywhere; margin-top: 2px; }
+.card-title { font: var(--title-medium); font-size: 17px; line-height: 23px; overflow-wrap: anywhere; text-wrap: pretty; }
 .card-purpose {
   font: var(--body-medium);
   color: var(--on-surface-variant);
@@ -820,8 +819,17 @@ button.result-head:active { background: var(--row-press); }
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
-.card-main .progress, .project-card .progress { margin-top: var(--s3); }
+.project-card .progress { margin-top: var(--s3); }
 .card-meta { font: var(--body-small); color: var(--on-surface-variant); margin-top: 2px; }
+/* One facts line on a Block card: progress ring, deadline, tasks done. */
+.card-facts { display: flex; align-items: flex-start; gap: var(--s2); margin-top: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
+.card-facts .ring { width: 18px; height: 18px; margin-top: 1px; }
+.card-due { font-weight: 500; color: var(--on-surface); }
+.card-due.tight { color: var(--error); }
+.ring { flex: none; width: 24px; height: 24px; }
+.ring circle { fill: none; stroke-width: 3; }
+.ring-track { stroke: var(--surface-container-highest); }
+.ring-value { stroke: var(--primary); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
 .next-task {
   display: flex;
   align-items: center;
@@ -846,6 +854,10 @@ button.result-head:active { background: var(--row-press); }
 .detail-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s2); padding: 0 var(--gutter); }
 .detail-head .crumb { margin: var(--s2) 0; }
 .detail-head .crumb .eyebrow { font: var(--label-large); color: var(--on-surface-variant); }
+/* Block detail: the Project as a plain link line, not a chip. */
+.crumb-link { display: flex; align-items: center; min-height: var(--touch); max-width: 100%; border-radius: var(--shape-sm); }
+.detail-head .crumb-link { margin: 0; }
+.crumb-link:active { background: var(--row-press); }
 .detail-title-text {
   padding: var(--s3) var(--gutter) var(--s4);
   font: var(--headline-medium);
@@ -856,21 +868,33 @@ button.result-head:active { background: var(--row-press); }
   overflow-wrap: anywhere;
 }
 .detail-lede { padding: 0 var(--gutter) var(--s3); font: var(--body-large); color: var(--on-surface-variant); }
-.purpose-panel {
+.detail-title-text + .block-facts { margin-top: calc(-1 * var(--s2)); }
+/* Google Tasks detail rows: the 24dp icon centred on the Plan's check column, the text on the task titles. */
+.fact-row {
   display: flex;
-  flex-direction: column;
-  gap: var(--s1);
-  width: calc(100% - 2 * var(--gutter));
-  margin: 0 var(--gutter);
-  padding: var(--s4);
-  border-radius: 20px;
-  background: var(--tertiary-container);
-  color: var(--on-tertiary-container);
+  align-items: flex-start;
+  gap: var(--s4);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--s2) var(--gutter) var(--s2) 24px;
+  text-align: left;
+  color: var(--on-surface);
 }
-.purpose-panel .overline { color: inherit; opacity: .85; }
-.purpose-panel p { font: var(--body-large); font-size: 15.5px; line-height: 22px; overflow-wrap: anywhere; }
-.purpose-panel.empty p { opacity: .8; font-style: italic; }
-.purpose-panel:active { filter: brightness(.96); }
+button.fact-row:active { background: var(--row-press); }
+.fact-row > .leading, .fact-row > .ring { color: var(--on-surface-variant); flex: none; }
+.fact-row .text-btn { align-self: center; flex: none; margin: calc(-1 * var(--s2)) calc(-1 * var(--s2)) calc(-1 * var(--s2)) 0; }
+.verdict-row { align-items: center; }
+.fact-label { font: var(--label-medium); color: var(--on-surface-variant); }
+.purpose-text { font: var(--body-large); overflow-wrap: anywhere; }
+.purpose-row.empty .purpose-text { color: var(--on-surface-variant); font-style: italic; }
+.due-when { font: var(--body-large); font-weight: 500; }
+.due-fact .list-supporting { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.due-fact.tight > .leading, .due-fact.tight .due-when { color: var(--error); }
+.time-left { display: block; }
+.time-left.tight { color: var(--error); }
+.must-legend { font-size: 16px; color: var(--must); vertical-align: -3px; margin-right: 4px; }
+.plan-header { align-items: center; padding: var(--s2) var(--s1) 0 var(--gutter); min-height: 48px; }
+.plan-actions { display: flex; align-items: center; }
 .plan-list { padding: 0 var(--s1); }
 .plan-list .task-row { padding-left: var(--s1); }
 .inline-add {
@@ -905,34 +929,7 @@ button.result-head:active { background: var(--row-press); }
 .achieved-date { font: var(--body-small); }
 .achieved-panel p { margin-top: var(--s2); font: var(--body-medium); }
 .achieved-panel .text-btn { color: inherit; padding-left: 0; }
-/* Result deadline: a Calendar-style row under the title; error colour (with words) when overdue or tight. */
-.due-row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--s4);
-  width: 100%;
-  min-height: 56px;
-  margin-top: calc(-1 * var(--s2));
-  padding: var(--s1) var(--gutter) var(--s3);
-  text-align: left;
-}
-.due-row:active { background: var(--row-press); }
-.due-row .leading { color: var(--on-surface-variant); margin-top: 2px; }
-.due-when { font: var(--title-medium); color: var(--on-surface); }
-.due-row .list-supporting { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-.due-row.tight .leading, .due-row.tight .due-when { color: var(--error); }
-.card-due { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s1); font: var(--label-large); color: var(--on-surface); }
-.card-due .ms { font-size: 18px; color: var(--on-surface-variant); }
-.card-due.tight, .card-due.tight .ms { color: var(--error); }
-.progress-summary .progress-labels { align-items: center; margin-top: var(--s1); }
-.progress-count { font: var(--body-medium); color: var(--on-surface); }
-.time-left { display: flex; align-items: flex-start; gap: var(--s1); font: var(--body-small); color: var(--on-surface-variant); }
-.time-left .ms { font-size: 16px; }
-.time-left.tight { color: var(--error); }
-.achieve-btn { flex: none; margin-left: auto; padding: 0 var(--s4); }
-.screen-blocks .achieved-panel { margin-top: var(--s3); }
-.section-header:has(.reorder-btn) { align-items: center; padding-top: var(--s3); padding-bottom: 0; padding-right: var(--s2); }
-.lead-must { color: var(--on-surface-variant); }
+.block-facts .achieved-panel { margin: var(--s2) var(--gutter); }
 
 /* Life */
 .tabs {
@@ -1326,6 +1323,9 @@ button.result-head:active { background: var(--row-press); }
 :root[data-large-text=true] .week-card-action { margin-left: auto; }
 :root[data-large-text=true] .result-count, :root[data-large-text=true] .eyebrow span:last-child { display: none; }
 :root[data-large-text=true] .detail-head .crumb .eyebrow span:last-child { display: inline; }
+:root[data-large-text=true] .card-top .eyebrow { display: none; }
+:root[data-large-text=true] .verdict-row { flex-wrap: wrap; }
+:root[data-large-text=true] .verdict-row .text-btn { margin-left: 40px; }
 :root[data-large-text=true] .settings-row { flex-wrap: wrap; }
 :root[data-large-text=true] .settings-value { max-width: none; text-align: left; }
 :root[data-large-text=true] .top-title { font-size: 24px; }

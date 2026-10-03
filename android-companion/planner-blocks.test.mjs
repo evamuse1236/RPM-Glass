@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {deadline, byDeadline, timeLeft} from './planner/blocks.mjs';
+import {deadline, byDeadline, planByTime} from './planner/blocks.mjs';
+import {timeLeft} from './planner/format.mjs';
 import {blockDue} from './planner-state.mjs';
 
 const now = new Date('2026-10-03T12:00');
@@ -26,10 +27,21 @@ test('the deadline counts down and turns tight when the Musts need a quarter of 
   assert.equal(due.tight, false);
   assert.equal(deadline(data, {id: 'd'}, status(300), now).tight, true);
   assert.equal(deadline(data, {id: 'a'}, {...status(140), achieved: true}, now), null);
-  assert.equal(timeLeft(new Date('2026-10-08T12:00'), now), '5 days left');
+  assert.equal(timeLeft(new Date('2026-10-08T12:00'), now), '5 days');
 });
 
 test('Blocks sort by urgency: due this week first, then this week’s Results, then the rest', () => {
   const blocks = ['c', 'a', 'b', 'd', 'e'].map(id => ({id}));
   assert.deepEqual(byDeadline(data, blocks, new Set(['e']), now).map(b => b.id), ['d', 'a', 'b', 'e', 'c']);
+});
+
+test('Sort by time puts the dated open tasks in time order and leaves undated and completed ones in place', () => {
+  const at = hm => new Date(`2026-10-03T${hm}`).toISOString();
+  const rows = [
+    {id: 1, title: 'Draft'}, {id: 2, title: 'Old', done: true, planned: at('08:00')},
+    {id: 3, title: 'Submit', planned: new Date('2026-10-04T23:00').toISOString()}, {id: 4, title: 'Notes'},
+    {id: 5, title: 'Finish', planned: at('10:00')}, {id: 6, title: 'Call', planned: at('16:00')},
+    {id: 7, title: 'Print', plannedDate: '2026-10-03'},
+  ];
+  assert.deepEqual(planByTime(rows), [1, 2, 5, 4, 6, 7, 3]);
 });
