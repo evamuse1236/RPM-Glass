@@ -31,3 +31,8 @@ test('DST gaps and repeated wall clocks require clarification, fixed offsets rem
  const p=interpretTime('2026-11-01 01:15-02:15 EST',new Date('2026-01-01T00:00:00Z'));assert.equal(p.status,'parsed');assert.equal(p.minutes,60);
  }finally{if(previous===undefined)delete process.env.TZ;else process.env.TZ=previous;}
 });
+test('"before" a day lands on the day before it, "by" on the day itself',()=>{
+ assert.equal(interpretTime('before the 30th',now).plannedDate,'2026-09-29');
+ assert.equal(interpretTime('by the 30th',now).plannedDate,'2026-09-30');
+ assert.equal(interpretTime('before tomorrow',now).plannedDate,'2026-09-27');
+});

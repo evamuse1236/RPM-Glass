@@ -379,9 +379,8 @@ button.prop-row:active::before{opacity:.1}
 
 /* ---------- proposal chips, inline needs and "Also heard" (2026-10 capture gauntlet) ----------
    One wrapping line of assist chips under a title, as Google Tasks' quick add shows its date chip. */
-.pchips{display:flex;flex-wrap:nowrap;gap:8px;padding:6px 8px 4px 0;min-width:0}
-.pchips>.pchip{flex:none}
-.pchips>.pchip-dest{flex:0 1 auto;min-width:72px}
+.pchips{display:flex;flex-wrap:wrap;gap:8px;padding:6px 8px 4px 0;min-width:0}
+.pchips>.pchip{flex:0 1 auto;min-width:0}
 .pchip{position:relative;display:inline-flex;align-items:center;gap:6px;max-width:100%;min-height:32px;padding:0 12px 0 8px;border-radius:var(--shape-sm);border:1px solid var(--outline-variant);background:transparent;color:var(--on-surface-variant);font:var(--label-large);text-align:start}
 button.pchip{cursor:pointer}
 button.pchip::after{content:'';position:absolute;left:0;right:0;top:-8px;bottom:-8px}
@@ -392,7 +391,10 @@ button.pchip:active::before{opacity:.1}
 .pchip-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pchip-muted .pchip-icon{color:var(--on-surface-variant)}
 .pchip-flat{border-color:transparent;padding-left:0}
+.pchip-guess{border-style:dashed;border-color:var(--outline)}
+.pchip-tag{flex:none;color:var(--on-surface-variant);font:var(--label-medium)}
 .pchip-flat .pchip-icon{color:var(--tertiary)}
+.prop-was{margin:2px 12px 0 0;font:var(--body-medium);color:var(--on-surface-variant)}
 .prop-title.done{text-decoration:line-through;text-decoration-color:var(--on-surface-variant)}
 .prop-warn{margin:4px 12px 0 0;font:var(--body-medium);color:var(--error)}
 .prop.waiting .pchips{opacity:.72}

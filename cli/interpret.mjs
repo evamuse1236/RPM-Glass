@@ -118,6 +118,11 @@ export function interpretTime(raw, now = new Date(), options = {}) {
   if(!clock(start)){
     // Do not turn Chrono's implied noon into a time the user chose.
     base.plannedDate=localDate(start.date());base.status='date_only';
+    // "before the 16th" is due the day before it, never on it (and never before today).
+    if(/\bbefore\s+(?:the\s+)?$/i.test(text.slice(0,result.index))){
+      const day=start.date();day.setDate(day.getDate()-1);
+      if(localDate(day)>=localDate(now)){base.plannedDate=localDate(day);base.assumptions.push(`Due before ${result.text}; using the day before.`);}
+    }
     if(/\bat\s+\d|\d+:\d+/.test(text)){base.reason='The date was recognized, but the clock time needs correction.';base.status='review';}
     return base;
   }

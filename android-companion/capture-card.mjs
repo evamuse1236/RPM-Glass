@@ -10,6 +10,10 @@ const FIELD_LABEL={purpose:'Why',notes:'Notes',projectId:'Project',goalId:'Goal'
 const REPEATS={daily:'Every day',weekly:'Every week',weekdays:'Every weekday'};
 const deviceZone=()=>Intl.DateTimeFormat().resolvedOptions().timeZone;
 // A day said with a part of day keeps that word beside the date, since no clock was chosen ("Sun 4 Oct · evening").
+// The hours a part of day covers, for what else already sits in it (an exam on "Monday morning").
+const WINDOW={tonight:[18,23],evening:[17,21],afternoon:[12,17],morning:[6,12]};
+// A window that names no day, kept in the task's notes in Dara's words and shown where the date would be.
+const VAGUE=/\b(?:this|next|coming)\s+(?:week|weekend|month)\b|\bsome\s?(?:day|time)\b|\bsoon\b|\beventually\b/i;
 const PART=[[/\b(?:tonight|raat|night)\b/i,'tonight'],[/\b(?:evening|shaam|sham)\b/i,'evening'],[/\b(?:afternoon|after lunch|dopahar)\b/i,'afternoon'],[/\b(?:morning|subah|sakali)\b/i,'morning']];
 
 export function opTitle(op){
@@ -54,11 +58,20 @@ function summary(op,draft,ctx){
  const minutes=preview?.minutes??field(op,'minutes')?.value;
  const must=op.entity==='task'&&field(op,'must')?.op==='set'&&field(op,'must').value===true;
  const estimate=Number.isFinite(minutes)&&minutes>0&&!preview?.end?duration(minutes):null;
- const load=preview?.planned&&timeZone===deviceZone()?ctx.dayLoad?.({start:preview.planned,minutes,blockId:dest?.id,due:dest?.due?.value})??[]:[];
+ let load=preview?.planned&&timeZone===deviceZone()?ctx.dayLoad?.({start:preview.planned,minutes,blockId:dest?.id,due:dest?.due?.value})??[]:[];
+ if(part&&preview.plannedDate&&timeZone===deviceZone()){
+  // A day with a part of day: anything busy in those hours, and other Results due then.
+  const [from,to]=WINDOW[part],start=new Date(`${preview.plannedDate}T${String(from).padStart(2,'0')}:00`);
+  load=(ctx.dayLoad?.({start:start.toISOString(),minutes:(to-from)*60,blockId:dest?.id,due:dest?.due?.value})??[])
+   .filter(i=>i.kind==='clash'||i.kind==='deadline'&&i.time&&i.at>=+start&&i.at<+start+(to-from)*36e5).map(i=>({...i,window:part}));
+ }
  const dated=op.entity==='task'&&op.kind!=='complete'&&op.kind!=='archive'&&(op.kind==='create'||!!field(op,'time'));
  const alert=field(op,'alert')?.op==='set'&&field(op,'alert').value!=='off'?field(op,'alert').value:null;
  const repeats=field(op,'recurrence')?.op==='set'?REPEATS[field(op,'recurrence').value]:null;
- return {dest,when,estimate,must,load,dated,alert,repeats,preview,day:preview?.planned?new Date(preview.planned):null};
+ const notes=field(op,'notes')?.op==='set'?String(field(op,'notes').value):'';
+ const vague=!when&&notes.length<=40&&VAGUE.test(notes)?notes:null;
+ const guess=field(op,'time')?.op==='set'&&field(op,'time').origin==='suggested';
+ return {dest,when,estimate,must,load,dated,alert,repeats,preview,vague,guess,day:preview?.planned?new Date(preview.planned):null};
 }
 
 /** The saved task's current day and time, for an update's "from" side. */
@@ -71,12 +84,13 @@ function beforeText(op){
 }
 
 /** One assist chip: an icon and a short label; tappable chips open their change. */
-function chip(iconName,label,{onClick=null,ariaLabel=null,cls='',title=null}={}){
+function chip(iconName,label,{onClick=null,ariaLabel=null,cls='',title=null,tag=null}={}){
  const node=el(onClick?'button':'span','pchip'+(cls?' '+cls:''));
  if(onClick){node.type='button';node.addEventListener('click',onClick);}
  if(ariaLabel)node.setAttribute('aria-label',ariaLabel);
  if(title)node.title=title;
  node.append(icon(iconName,{cls:'pchip-icon'}),el('span','pchip-label',label));
+ if(tag)node.append(el('span','pchip-tag',tag));
  return node;
 }
 
@@ -101,13 +115,15 @@ function chips(op,draft,ctx,sum,need){
   destChip=(chip(sum.dest.inbox?'inbox':'stacks',sum.dest.name,{onClick:move,cls:'pchip-dest',title:sum.dest.name,
    ariaLabel:`${sum.dest.inbox?'Inbox, no Block':'Block: '+sum.dest.name}${sum.dest.due?', '+dueText(sum.dest.due):''}. Move ${title}`}));
  }
- // The day comes first and never shrinks; a long Block name gives way with an ellipsis (Move to shows it whole).
+ // The day comes first; chips wrap to a second line rather than cut a name short. A day the assistant
+ // suggested (Dara named none) is dashed and says so; a window with no day ("sometime this week") shows as said.
  if(sum.dated&&need?.kind!=='time'&&!(need?.kind==='question'&&draft.question.field==='time')){
   const change=op.kind==='create'?()=>ctx.on.prefill(sum.when?`Change the time of “${title}” to `:`Schedule “${title}” for `,draft):null;
   const before=op.kind==='update'&&field(op,'time')?beforeText(op):null;
-  const label=before&&before!==sum.when?`${before} → ${sum.when??'No date'}`:sum.when??'No date';
-  row.append(chip(sum.when?'event':'calendar_add_on',label,{onClick:change,cls:sum.when?'':'pchip-muted',
-   ariaLabel:change?`${sum.when??'No date'}. ${sum.when?'Change the time of':'Add a date to'} ${title}`:null}));
+  const shown=sum.when??sum.vague??'No date';
+  const label=before&&before!==shown?`${before} → ${shown}`:shown;
+  row.append(chip(sum.when?'event':'calendar_add_on',label,{onClick:change,cls:(sum.when?'':'pchip-muted')+(sum.when&&sum.guess?' pchip-guess':''),tag:sum.when&&sum.guess?'Suggested':null,
+   ariaLabel:change?`${shown}${sum.guess?', suggested':''}. ${sum.when?'Change the time of':'Add a date to'} ${title}`:null}));
  }
  if(destChip)row.append(destChip);
  if(sum.estimate)row.append(chip('timer',sum.estimate));
@@ -120,13 +136,30 @@ function chips(op,draft,ctx,sum,need){
  return row.childElementCount?row:null;
 }
 
-/** A calendar overlap at the proposed time, and a date that lands after its Result's deadline: the only warnings. */
+/**
+ * A calendar overlap at the proposed time (or in the part of day said), another Result due in that part of
+ * day, and a date that lands after its Result's deadline: the only warnings.
+ */
 function warnings(sum){
  const nodes=[];
- for(const c of sum.load.filter(i=>i.kind==='clash'))nodes.push(el('p','prop-warn',`Clashes with ${c.title}, ${clock(c.start)}–${clock(c.end)}`));
+ const windowed=sum.load.filter(i=>i.window);
+ if(windowed.length){
+  // The first two, briefly ("DAD exam 9–10 AM"); the rest as a count.
+  const items=windowed.slice(0,2).map(i=>i.kind==='clash'?`${i.title} ${span(i.start,i.end)}`:`${i.title} due ${short(i.at)}`);
+  const more=windowed.length>2?`, +${windowed.length-2} more`:'';
+  nodes.push(el('p','prop-warn',`That ${windowed[0].window==='tonight'?'night':windowed[0].window} also has ${items.join(', ')}${more}`));
+ }
+ for(const c of sum.load.filter(i=>i.kind==='clash'&&!i.window))nodes.push(el('p','prop-warn',`Clashes with ${c.title}, ${clock(c.start)}–${clock(c.end)}`));
  const due=sum.dest?.due,at=sum.preview?.planned?Date.parse(sum.preview.planned):NaN;
  if(due?.value&&Number.isFinite(at)&&due.value.length>10&&at>Date.parse(due.value))nodes.push(el('p','prop-warn',`After this Result is ${dueText(due).replace(/^Due/,'due')}`));
  return nodes;
+}
+
+// "9 AM", "10:30 AM", and "9–10 AM" when both ends share AM or PM.
+const short=at=>clock(at).replace(/:00(?=\s|\u00a0)/,'');
+function span(start,end){
+ const a=short(start),b=short(end),[, am]=a.split(/\s|\u00a0/),[, bm]=b.split(/\s|\u00a0/);
+ return am===bm?`${a.replace(/(?:\s|\u00a0)[AP]M$/i,'')}–${b}`:`${a}–${b}`;
 }
 
 /** Fields with no chip of their own (a new Block's Purpose, notes, a Project link). */
@@ -134,6 +167,7 @@ function otherFields(op){
  const nodes=[];
  for(const f of op.fields){
   if(['title','time','blockId','must','minutes','alert','recurrence'].includes(f.name)||f.op==='unknown')continue;
+  if(f.name==='notes'&&f.op==='set'&&VAGUE.test(String(f.value))&&String(f.value).length<=40)continue;
   const line=el('p','prop-field');
   line.append(el('span','field-label',FIELD_LABEL[f.name]??f.displayLabel??f.name),el('span','',f.op==='clear'?'Remove':f.displayValue??String(f.value)));
   nodes.push(line);
@@ -183,7 +217,7 @@ function needBlock(op,draft,ctx,need){
  * star and a quiet Leave out control; one line of chips; any warning; and,
  * inside the row, whatever it still needs from Dara.
  */
-function proposalItem(op,draft,ctx,{skipped,multi}){
+function proposalItem(op,draft,ctx,{skipped}){
  const title=opTitle(op),included=!skipped.has(op.opId),need=openNeed(op,draft);
  const item=el('article','prop'+(included?'':' skipped')+(need&&included?' waiting':''));
  item.dataset.opId=op.opId;
@@ -196,16 +230,18 @@ function proposalItem(op,draft,ctx,{skipped,multi}){
  name.setAttribute('aria-label',`${title}. Change it in your words`);
  name.addEventListener('click',()=>ctx.on.prefill(`For “${title}”: `,draft));
  heading.append(name);
+ // A renamed saved task says what it was, so a retitle never reads as a new task.
+ const renamed=op.kind==='update'&&field(op,'title')?.op==='set'&&op.targetTitle&&op.targetTitle!==title;
+ if(renamed)heading.append(el('p','prop-was',`Was “${op.targetTitle}”`));
  if(!included)heading.append(el('p','prop-left-out','Left out · kept in History'));
  top.append(heading);
  const sum=summary(op,draft,ctx);
  // Must changes in words or later in the task sheet, never by tapping the star.
  if(sum.must)top.append(mustMark());
- if(multi){
-  const toggle=()=>ctx.on.toggleInclude(draft,op.opId);
-  top.append(included?iconButton('close',`Leave out “${title}”`,toggle,{cls:'prop-skip'})
-   :button('Put back',toggle,{role:'text',cls:'prop-back',ariaLabel:`Put back “${title}”`}));
- }
+ // Every card can be left out, even a lone one (Save then has nothing to add).
+ const toggle=()=>ctx.on.toggleInclude(draft,op.opId);
+ top.append(included?iconButton('close',`Leave out “${title}”`,toggle,{cls:'prop-skip'})
+  :button('Put back',toggle,{role:'text',cls:'prop-back',ariaLabel:`Put back “${title}”`}));
  item.append(top);
  // A left-out row keeps its place and height, faded, so nothing under the thumb moves.
  const body=el('div','prop-body');
@@ -232,22 +268,18 @@ function receiptRow(op,draft,ctx){
  return row;
 }
 
-/** One plain line naming what the draft holds: "2 new tasks · 1 change · 1 to answer", or "Suggested plan · 3 steps". */
+/** One plain line naming what the draft holds, the same in every mode, adding up to the cards: "3 new · 1 change · 1 to answer". */
 function draftKicker(draft,waiting){
  const ops=draft.operations;
  if(draft.validationNotice)return 'Check this draft';
  const parts=[];
- const steps=ops.filter(o=>o.kind==='create'&&o.entity==='task').length,edits=ops.length-steps;
- if(draft.mode==='plan')parts.push('Suggested plan',...(steps?[plural(steps,'step')]:[]),...(edits?[plural(edits,'change')]:[]));
- else{
-  const tasks=ops.filter(o=>o.kind==='create'&&o.entity==='task').length,others=ops.filter(o=>o.kind==='create'&&o.entity!=='task').length;
-  const changes=ops.filter(o=>o.kind==='update').length,ticks=ops.filter(o=>o.kind==='complete').length,archives=ops.filter(o=>o.kind==='archive').length;
-  if(tasks)parts.push(plural(tasks,'new task'));
-  if(others)parts.push(plural(others,'new Block'));
-  if(changes)parts.push(plural(changes,'change'));
-  if(ticks)parts.push(plural(ticks,'to tick off','to tick off'));
-  if(archives)parts.push(plural(archives,'to archive','to archive'));
- }
+ const created=ops.filter(o=>o.kind==='create').length,changes=ops.filter(o=>o.kind==='update').length;
+ const ticks=ops.filter(o=>o.kind==='complete').length,archives=ops.filter(o=>o.kind==='archive').length;
+ const onlyTasks=ops.every(o=>o.kind!=='create'||o.entity==='task');
+ if(created)parts.push(onlyTasks?plural(created,'new task'):`${created} new`);
+ if(changes)parts.push(plural(changes,'change'));
+ if(ticks)parts.push(`${ticks} to tick off`);
+ if(archives)parts.push(`${archives} to archive`);
  if(waiting)parts.push(`${waiting} to answer`);
  return parts.join(' · ')||'Nothing to add';
 }
@@ -300,7 +332,7 @@ function draftFooter(draft,{excluded,ready}){
 }
 
 function activeDraft(capture,ctx){
- const draft=capture.draft,multi=draft.operations.length>1;
+ const draft=capture.draft;
  // Proposals Dara left out stay in the draft but are not added; so do those still waiting for an answer.
  const skipped=ctx.skippedFor?.(draft)??new Set();
  const waiting=draft.operations.filter(op=>!skipped.has(op.opId)&&openNeed(op,draft)).map(op=>op.opId);
@@ -319,7 +351,7 @@ function activeDraft(capture,ctx){
  if(draft.validationNotice)card.append(warning('Check this draft',draft.validationNotice));
  if(draft.review)card.append(el('p','review-note',draft.review.question));
  const items=el('div','props');
- for(const op of draft.operations)items.append(proposalItem(op,draft,ctx,{skipped,multi}));
+ for(const op of draft.operations)items.append(proposalItem(op,draft,ctx,{skipped}));
  card.append(items);
  const also=alsoHeard(capture,ctx);
  if(also)card.append(also);

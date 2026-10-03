@@ -38,11 +38,14 @@ export function refreshSchedulePreview({data,draft,anchor=new Date()}={}){
 function projectDraft(data,draft,now){if(!draft)return null;const validationNotice=draftFollowUpProblem(data,draft)?FOLLOW_UP_NOTICE:null;const raw=structuredClone(draft.operations),byId=new Map(raw.map(op=>[op.opId,op])),links={blockId:['block','RPM block'],projectId:['project','Project'],goalId:['goal','Goal'],areaId:['area','Life area']};const target=op=>op.targetId===null?null:findEntity(data,op.entity,op.targetId);
  // An update shows what it changes from, so the saved task's current day, time and Block travel with it.
  const operations=raw.map(op=>({...op,targetTitle:target(op)?.title??null,...(op.entity==='task'&&target(op)?{targetBefore:{planned:target(op).planned??null,plannedDate:target(op).plannedDate??null,blockId:target(op).blockId??null,done:!!target(op).done}}:{}),fields:op.fields.map(field=>{const link=links[field.name];if(!link||field.op!=='set')return field;const value=String(field.value),created=value.startsWith('$')?byId.get(value.slice(1)):null,title=created?.fields.find(f=>f.name==='title'&&f.op==='set')?.value??findEntity(data,link[0],field.value)?.title??null;return {...field,displayLabel:link[1],displayValue:title??'Unavailable link'};})}));return {id:draft.id,conversationId:draft.conversationId,revision:draft.revision,status:draft.status,mode:draft.mode??'capture',created:draft.created,updated:draft.updated,reply:draft.reply??'',question:draft.question??null,review:draft.review??null,timeAnchorAt:draft.timeAnchorAt??null,schedulePreview:structuredClone(draft.schedulePreview??null),operations,receipt:structuredClone(draft.receipt??null),skipped:draft.skipped??[],validationNotice,actions:draftActions(draft,{now}).filter(a=>!validationNotice||a.action.kind!=='commit')};}
-/** What was heard but not proposed ("Also heard"): each non-action unit's note, and the Inbox task it became if Dara kept it. */
+/**
+ * What was heard but not proposed ("Also heard"): each unit's note, and the Inbox task it became if Dara kept it.
+ * An action unit's note names a saved item it also mentioned, so it shows as already on the list, never keepable.
+ */
 function captureNotes(data,capture){
- return (capture.decisions??[]).filter(d=>d.disposition!=='action'&&typeof d.note==='string'&&d.note.trim()).map(d=>{
+ return (capture.decisions??[]).filter(d=>typeof d.note==='string'&&d.note.trim()).map(d=>{
   const id=capture.keptNotes?.[d.sourceId]??null,task=id==null?null:(data.entries??[]).find(e=>e.id===id&&!e.archived);
-  return {sourceId:d.sourceId,disposition:d.disposition,note:d.note.trim(),keptTaskId:task?id:null};
+  return {sourceId:d.sourceId,disposition:d.disposition==='action'?'existing':d.disposition,note:d.note.trim(),keptTaskId:task?id:null};
  });
 }
 function projectCapture(data,state,capture,now){const draft=capture.draftId?state.drafts[capture.draftId]:null;return {messageId:capture.messageId,conversationId:capture.conversationId,raw:capture.raw,at:capture.at,status:capture.status,reply:draft?.reply??capture.reply??'',lastError:capture.lastError??null,draft:projectDraft(data,draft,now),notes:captureNotes(data,capture),memoryCandidates:structuredClone(capture.memoryCandidates??[])};}
