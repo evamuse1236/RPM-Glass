@@ -2,6 +2,7 @@
 import {el, icon, iconButton, button} from './dom.mjs';
 import {openMenu} from './menu.mjs';
 import {FULL_SCREENS} from './app.mjs';
+import {blockSubtitle} from './blocks.mjs';
 
 const DESTINATIONS = [
   ['today', 'today', 'Today'],
@@ -58,6 +59,12 @@ function detailBar(app, bar, top) {
   const record = DETAIL_NAMES[top.kind] ? app.p()[top.kind]?.find(item => item.id === top.id) : null;
   const title = el('h1', 'top-title small', top.kind === 'settings' ? 'Settings' : record?.title ?? '');
   if (DETAIL_NAMES[top.kind]) title.setAttribute('aria-label', `${DETAIL_NAMES[top.kind]}: ${record?.title ?? ''}`);
+  // A Block keeps its deadline in view once its title has collapsed into the bar.
+  const sub = top.kind === 'blocks' && record ? blockSubtitle(app, record) : '';
+  if (sub) {
+    title.replaceChildren(el('span', 'top-title-text', record.title), el('span', 'top-subtitle tnum', sub));
+    title.classList.add('with-subtitle');
+  }
   bar.append(title);
   if (!DETAIL_NAMES[top.kind]) return;
   const tools = el('div', 'top-actions');
@@ -91,10 +98,9 @@ function fab(app) {
   const host = app.dom.fab;
   host.replaceChildren();
   const top = app.current();
-  // Block detail keeps Add a task one tap away however long the Plan is, as Google Tasks' FAB does.
-  // Today has no FAB: Add task sits in its top bar so nothing covers the next task.
-  const spec = top?.kind === 'blocks' ? {label: 'Add a task to the Plan', onClick: () => app.actions.addTask({blockId: top.id})}
-    : top || app.state.tab === 'today' ? null : app.actions.fabFor(app.state.tab);
+  // Detail pages and Today have no FAB, so nothing floats over a task's Must star: Today adds from its top bar
+  // and Block detail from the inline "Add a task" row under its Plan.
+  const spec = top || app.state.tab === 'today' ? null : app.actions.fabFor(app.state.tab);
   host.hidden = !spec;
   app.dom.planner.dataset.fab = String(!!spec);
   if (!spec) return;

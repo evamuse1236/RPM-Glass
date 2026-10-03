@@ -154,10 +154,10 @@ function installNativeHooks(app) {
     }
     const scrolled = String(top > 4);
     if (app.dom.planner.dataset.scrolled !== scrolled) app.dom.planner.dataset.scrolled = scrolled;
-    // A detail page's large title hands over to the bar only once it has scrolled fully out of view.
+    // A detail page's large title hands over to the bar only once its text has scrolled fully out of view.
     const big = app.dom.work.querySelector('.detail-title-text');
-    const out = String(big ? big.getBoundingClientRect().bottom <= app.dom.scroll.getBoundingClientRect().top
-      : scrolled === 'true');
+    const out = String(big ? big.getBoundingClientRect().bottom - parseFloat(getComputedStyle(big).paddingBottom)
+      <= app.dom.scroll.getBoundingClientRect().top : scrolled === 'true');
     if (app.dom.planner.dataset.titleOut !== out) app.dom.planner.dataset.titleOut = out;
   }, {passive: true});
   new ResizeObserver(() => {
