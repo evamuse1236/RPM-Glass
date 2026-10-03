@@ -1,10 +1,11 @@
 /** Task rows in the style of Google Tasks: circle check, title, supporting time and duration, Must star. */
-import {blockTasks, localDay, shiftDay} from '../planner-state.mjs';
+import {blockTasks, localDay} from '../planner-state.mjs';
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
 import {reorderTask} from '../planner-ux.mjs';
 import {attachTaskSwipe} from '../task-swipe.mjs';
 import {el, icon, button, iconButton} from './dom.mjs';
-import {clock, duration, dateText} from './format.mjs';
+import {clock, duration, dayName} from './format.mjs';
+export {dayName};
 
 const REPEAT_NAMES = {daily: 'Daily', weekdays: 'Weekdays', weekly: 'Weekly'};
 
@@ -19,15 +20,6 @@ export function isOverdue(task, when = taskWhen(task)) {
   if (task.done) return false;
   if (when) return when + (task.minutes ?? 30) * 60000 < Date.now();
   return !!task.plannedDate && task.plannedDate < localDay();
-}
-
-/** "Today" (only when asked), "Tomorrow", "Sun" within the week ahead, else a short date. */
-export function dayName(day, {today: sayToday = false} = {}) {
-  const today = localDay();
-  if (day === today) return sayToday ? 'Today' : '';
-  if (day === shiftDay(today, 1)) return 'Tomorrow';
-  if (day > today && day <= shiftDay(today, 6)) return new Date(day + 'T12:00').toLocaleDateString([], {weekday: 'short'});
-  return dateText(day + 'T12:00');
 }
 
 /** Supporting line: "Now · 30 min", "Must · Sun 9:00 PM · 20 min", "Overdue · …". Times carry their day unless it is today. */

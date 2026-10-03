@@ -1,4 +1,7 @@
 // Presentation of already-resolved dates only. This module never parses input.
+import {clock,dayName} from './planner/format.mjs';
+import {localDay} from './planner-state.mjs';
+
 export function captureDuration(minutes){
  if(!Number.isFinite(minutes)||minutes<=0)return null;
  const hours=Math.floor(minutes/60),rest=minutes%60;
@@ -65,6 +68,26 @@ export function scheduleChips(schedule,weekday=null){
  chips.push({icon:'schedule',label:time,kind:'time',muted:unset});
  if(unset&&schedule.duration)chips.push({icon:'timer',label:schedule.duration,kind:'estimate'});
  return chips;
+}
+
+/**
+ * One proposal's date and time in the planner's own words ("Tomorrow 9:00 AM",
+ * "Mon 2:00 PM–3:00 PM"), or null without one. Another timezone, an overnight
+ * range or a time still to check keeps the explicit labels from scheduleChips.
+ */
+export function scheduleText(item,{timeZone,deviceZone=Intl.DateTimeFormat().resolvedOptions().timeZone,reference=new Date()}={}){
+ if(!item||item.status==='review')return null;
+ const zone=timeZone??deviceZone;
+ if(zone===deviceZone){
+  const start=item.planned?new Date(item.planned):null,end=item.end?new Date(item.end):null;
+  if(start&&Number.isFinite(+start)&&(!end||Number.isFinite(+end)&&+end>+start&&localDay(end)===localDay(start))){
+   const day=dayName(localDay(start),{today:true});
+   return `${day} ${clock(start)}${end?'–'+clock(end):''}`;
+  }
+  if(!start&&/^\d{4}-\d{2}-\d{2}$/.test(item.plannedDate??''))return dayName(item.plannedDate,{today:true});
+ }
+ const labels=scheduleChips(captureSchedule(item,{timeZone:zone,reference}),captureWeekday(item,{timeZone:zone})).map(c=>c.label);
+ return labels.length?labels.join(', '):null;
 }
 
 const plural=(n,word)=>`${n} ${word}${n===1?'':'s'}`;

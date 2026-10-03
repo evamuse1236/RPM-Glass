@@ -1,8 +1,9 @@
 // The current Capture response: proposals, one question, or a receipt.
 // Every change still goes through the existing typed draft actions.
-import {captureSchedule,captureDuration,captureWeekday,scheduleChips as scheduleChipLabels} from './capture-content.mjs';
+import {captureSchedule,captureDuration,scheduleText} from './capture-content.mjs';
+import {duration} from './planner/format.mjs';
 import {actionPresentation} from './capture-session.mjs';
-import {el,icon,button,iconButton,chip,details} from './capture-dom.mjs';
+import {el,icon,button,iconButton,details} from './capture-dom.mjs';
 import {keptCard,dialogueCard,receiptCard,receiptActions,parkedCard,undoneCard,wordsToggle,warning} from './capture-states.mjs';
 
 const ENTITY={task:'task',block:'Block',project:'Project',goal:'Goal',area:'Area'};
@@ -26,82 +27,63 @@ function fieldValue(field){
  return String(field.value);
 }
 
-/** Where a task goes: its Block (with the Result's deadline) or Inbox · No block. */
-function destination(op,ctx,{active,draft}){
+/** Where a task goes, said plainly: "Block: …" with the Result's deadline, or "Inbox · No block". */
+function destination(op,ctx){
  if(op.entity!=='task')return null;
  const block=op.fields.find(f=>f.name==='blockId');
- const inbox=block?.op==='clear'||!block&&op.kind==='create';
- if(block?.op!=='set'&&!inbox)return null;
- const pick=active?e=>ctx.on.pickBlock(e.currentTarget,op,draft):null;
- const name=inbox?'Inbox · No block':block.displayValue??'Unavailable Block';
- const node=chip(name,{onClick:pick,cls:'dest-chip',iconName:inbox?'inbox':null,
-  ariaLabel:pick?`${inbox?'In the Inbox, no Block':'Block: '+name}. Change Block`:null});
- if(!inbox){
-  const info=ctx.describe?.('blockId',block.value);
-  const dot=el('span','dot');
-  if(info?.tone)dot.style.background=`var(--${info.tone})`;
-  node.prepend(dot);
-  // The Result's deadline sits under the Block name, so urgency is visible before Add.
-  const due=ctx.blockDue?.(block.value);
-  if(due){
-   node.querySelector('.chip-label').append(el('span','chip-due'+(due.overdue?' overdue':''),due.label));
-   if(pick)node.setAttribute('aria-label',`Block: ${name}, ${due.label}. Change Block`);
-  }
- }
- if(pick)node.append(icon('arrow_drop_down',{cls:'chip-trail'}));
- return node;
+ if(block?.op==='clear'||!block&&op.kind==='create')return {text:'Inbox · No block',inbox:true};
+ if(block?.op!=='set')return null;
+ const name=block.displayValue??'Unavailable Block';
+ return {text:'Block: '+name,name,due:ctx.blockDue?.(block.value)??null};
 }
 
-function scheduleChips(op,draft,ctx,{active,title}){
+/**
+ * One quiet line per proposal: destination · date and time · estimate · Must.
+ * The receipt reuses it, so what was added reads exactly as what was proposed.
+ */
+function summary(op,draft,ctx){
  const preview=draft.schedulePreview?.items?.find(p=>p.opId===op.opId);
  const timeZone=draft.schedulePreview?.timezone??deviceZone();
+ const title=opTitle(op),dest=destination(op,ctx),notes=[];
+ const when=scheduleText(preview,{timeZone});
  const schedule=captureSchedule(preview,{timeZone,reference:new Date()});
- const chips=[],notes=[];
- const change=active?()=>ctx.on.prefill(`Change the time of “${title}” to `,draft):null;
- for(const item of scheduleChipLabels(schedule,captureWeekday(preview,{timeZone}))){
-  chips.push(chip(item.label,{iconName:item.icon,onClick:change,cls:item.muted?'muted':'',ariaLabel:change?`${item.label}. Change date and time`:null}));
- }
- const minutes=op.fields.find(f=>f.name==='minutes'&&f.op==='set'&&Number.isFinite(f.value));
- if(minutes&&!schedule?.duration)chips.push(chip(captureDuration(minutes.value)+' estimate',{iconName:'timer'}));
- // A new task with no date can be given one before it is added.
- if(active&&!schedule&&op.entity==='task'&&op.kind==='create'){
-  chips.push(chip('No date',{iconName:'event',cls:'muted',ariaLabel:'No date. Add a date',onClick:()=>ctx.on.prefill(`Schedule “${title}” for `,draft)}));
- }
+ const minutes=preview?.minutes??op.fields.find(f=>f.name==='minutes'&&f.op==='set'&&Number.isFinite(f.value))?.value;
+ const must=op.entity==='task'&&op.fields.find(f=>f.name==='must'&&f.op==='set')?.value===true;
+ const estimate=Number.isFinite(minutes)&&minutes>0?duration(minutes):null;
+ const parts=[dest?.text,when,estimate,must?'Must':null].filter(Boolean);
  if(schedule?.review&&!draft.question)notes.push(el('p','needs-answer',schedule.review.replace(`For ${title}: `,'')));
- if(schedule&&!schedule.review&&timeZone!==deviceZone()){
+ if(when&&!schedule?.review&&timeZone!==deviceZone()){
   const zone=new Intl.DateTimeFormat('en-GB',{timeZone,timeZoneName:'short'}).formatToParts(new Date(preview.planned??Date.now())).find(p=>p.type==='timeZoneName')?.value;
   if(zone)notes.push(el('p','detail-note','Times in '+zone));
  }
- return {chips,notes,hasDuration:!!schedule?.duration};
+ return {parts,dest,when,must,notes,hasMinutes:minutes!=null};
 }
 
-/** Must keeps the Google Tasks star and says its name, so it is never read as "starred". */
-function mustChip(op,draft,ctx,active){
- if(op.entity!=='task'||!['create','update'].includes(op.kind))return null;
- const must=op.fields.find(f=>f.name==='must'&&f.op==='set')?.value===true;
- if(!active&&!must)return null;
- const toggle=active?()=>ctx.on.action({...actionBase(draft),kind:'set-field',opId:op.opId,field:'must',value:!must}):null;
- const node=chip('Must',{iconName:'star',onClick:toggle,cls:'must-chip'+(must?' selected':'')});
- if(must)node.querySelector('.ms').classList.add('fill');
- if(toggle){node.setAttribute('aria-pressed',String(must));node.setAttribute('aria-label',`Must: ${opTitle(op)}`);}
- return node;
+function summaryLine(parts,cls='prop-summary-line'){
+ return el('span',cls,parts.join(' · '));
 }
 
-/** One row of readable chips: Block, date, time and Must. Tappable while the draft is open. */
-function metaRow(op,draft,ctx,{active,title}){
- const row=el('div','prop-chips');
- const dest=destination(op,ctx,{active,draft});
- const schedule=scheduleChips(op,draft,ctx,{active,title});
- const must=mustChip(op,draft,ctx,active);
- row.append(...[dest,...schedule.chips,must].filter(Boolean));
- return {nodes:[row.childElementCount?row:null,...schedule.notes].filter(Boolean),hasDuration:schedule.hasDuration};
+/** Must keeps the Google Tasks star; the summary line says the word. */
+function mustStar(op,draft,ctx,must){
+ return iconButton('star',`Must: ${opTitle(op)}`,()=>ctx.on.action({...actionBase(draft),kind:'set-field',opId:op.opId,field:'must',value:!must}),{cls:'must-star',fill:must,pressed:must});
 }
 
-function otherFields(op,draft,{active,hasDuration}){
+/** Tapping the summary opens editing: Block, date and time, wording, removal. */
+function editMenu(anchor,op,draft,ctx,{dest,when,multi}){
+ const title=opTitle(op),items=[];
+ if(dest)items.push({label:dest.inbox?'Choose a Block':'Move to another Block',sub:dest.inbox?'In the Inbox now':dest.name,icon:'stacks',run:()=>ctx.on.pickBlock(anchor,op,draft)});
+ if(op.entity==='task'&&op.kind==='create')items.push({label:when?'Change date and time':'Add a date',sub:when??'No date',icon:'event',
+  run:()=>ctx.on.prefill(when?`Change the time of “${title}” to `:`Schedule “${title}” for `,draft)});
+ items.push({label:'Change in your words',icon:'edit',run:()=>ctx.on.prefill(`For “${title}”: `,draft)});
+ if(multi)items.push({label:'Remove from this draft',icon:'remove_circle_outline',run:()=>ctx.on.prefill(`Remove “${title}” from this draft.`,draft)});
+ ctx.on.itemMenu(anchor,items);
+}
+
+function otherFields(op,draft,{active,hasMinutes}){
  const nodes=[];
  for(const f of op.fields){
   if(['title','time','blockId','must'].includes(f.name))continue;
-  if(f.name==='minutes'&&(hasDuration||f.op==='set'))continue;
+  if(f.name==='minutes'&&(hasMinutes||f.op==='set'))continue;
   if(f.op==='unknown'&&draft.question?.opId===op.opId&&draft.question.field===f.name)continue;
   const line=el('p','prop-field');
   line.append(el('span','field-label',f.name==='minutes'?'Estimate':FIELD_LABEL[f.name]??f.displayLabel??f.name),el('span','',fieldValue(f)));
@@ -109,14 +91,6 @@ function otherFields(op,draft,{active,hasDuration}){
   nodes.push(line);
  }
  return nodes;
-}
-
-function itemMenu(op,draft,ctx){
- const title=opTitle(op);
- return iconButton('more_vert',`More for ${title}`,e=>ctx.on.itemMenu(e.currentTarget,[
-  {label:'Edit',icon:'edit',run:()=>ctx.on.prefill(`For “${title}”: `,draft)},
-  {label:'Remove',icon:'remove_circle_outline',run:()=>ctx.on.prefill(`Remove “${title}” from this draft.`,draft)},
- ]),{cls:'prop-more'});
 }
 
 function proposalItem(op,draft,ctx,{multi,active}){
@@ -132,10 +106,26 @@ function proposalItem(op,draft,ctx,{multi,active}){
  const titleField=op.fields.find(f=>f.name==='title'&&f.op==='set');
  if(active&&titleField?.origin==='suggested')heading.append(el('span','tag','Suggested title'));
  top.append(heading);
- if(multi&&active)top.append(itemMenu(op,draft,ctx));
+ const sum=summary(op,draft,ctx);
+ const canMust=op.entity==='task'&&['create','update'].includes(op.kind);
+ if(active&&canMust)top.append(mustStar(op,draft,ctx,sum.must));
  item.append(top);
- const meta=metaRow(op,draft,ctx,{active,title});
- item.append(...meta.nodes,...otherFields(op,draft,{active,hasDuration:meta.hasDuration}));
+ const editable=active&&(sum.parts.length||multi);
+ const line=el(editable?'button':'div','prop-summary');
+ if(editable){
+  line.type='button';
+  line.setAttribute('aria-haspopup','menu');
+  line.addEventListener('click',e=>editMenu(e.currentTarget,op,draft,ctx,{...sum,multi}));
+ }
+ const due=sum.dest?.due?'Block '+sum.dest.due.label[0].toLowerCase()+sum.dest.due.label.slice(1):null;
+ if(editable)line.setAttribute('aria-label',`${[...sum.parts,due].filter(Boolean).join(', ')||'Edit'}. Change ${title}`);
+ const text=el('span','prop-summary-text');
+ if(sum.parts.length)text.append(summaryLine(sum.parts));
+ if(due)text.append(el('span','prop-due'+(sum.dest.due.overdue?' overdue':''),due));
+ if(text.childElementCount)line.append(text);
+ if(editable)line.append(icon(sum.parts.length?'edit':'more_horiz',{cls:'prop-summary-icon'}));
+ if(line.childElementCount)item.append(line);
+ item.append(...sum.notes,...otherFields(op,draft,{active,hasMinutes:sum.hasMinutes}));
  return item;
 }
 
@@ -225,13 +215,13 @@ function activeDraft(capture,ctx){
  return {node:card,actions};
 }
 
-/** The tasks a committed draft created, each with its Block, date and Must. */
+/** The tasks a committed draft created, each with the same summary line as its proposal. */
 function addedTasks(draft,ctx){
  const ops=draft.operations??[];
  if(!ops.length||ops.some(op=>op.kind!=='create'||op.entity!=='task'))return [];
  return ops.map(op=>{
-  const title=opTitle(op),row=el('li','receipt-item');
-  row.append(el('p','receipt-title',title),...metaRow(op,draft,ctx,{active:false,title}).nodes);
+  const row=el('li','receipt-item');
+  row.append(el('p','receipt-title',opTitle(op)),summaryLine(summary(op,draft,ctx).parts,'receipt-line'));
   return row;
  });
 }

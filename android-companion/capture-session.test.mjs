@@ -20,13 +20,13 @@ test('words awaiting a send result stay recoverable as the draft',()=>{
 });
 test('starters appear only when Capture is truly empty',()=>{
  const empty={view:'chat',busy:false,archived:false,captureCount:0,recovering:false};
- assert.equal(startersFor(empty).length,3);
+ assert.equal(startersFor(empty).length,2);
  for(const change of [{busy:true},{captureCount:1},{recovering:true},{view:'history'},{archived:true}])assert.deepEqual(startersFor({...empty,...change}),[]);
 });
-test('draft actions read Keep for later, Edit, Add in increasing emphasis',()=>{
+test('draft actions read Keep as draft, Edit, Add in increasing emphasis',()=>{
  const draft={operations:[{kind:'create'},{kind:'create'}],question:null,review:null};
  const roles=['dismiss','open','commit'].map(kind=>actionPresentation({action:{kind}},draft));
- assert.deepEqual(roles.map(r=>r.label),['Keep for later','Edit','Add all 2']);
+ assert.deepEqual(roles.map(r=>r.label),['Keep as draft','Edit','Add all 2']);
  assert.ok(roles[0].order<roles[1].order&&roles[1].order<roles[2].order);
  assert.equal(actionPresentation({action:{kind:'commit'}},{operations:[{kind:'update'}]}).label,'Save changes');
 });

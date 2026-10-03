@@ -50,3 +50,15 @@ test('added summary says where each new task went',()=>{
  assert.equal(addedSummary([task(null)]),'1 task added to Inbox');
  assert.equal(addedSummary([{kind:'update',entity:'task',fields:[]}]),'Change saved');
 });
+test('proposal times read like the planner in the phone timezone and stay explicit elsewhere',async()=>{
+ const {scheduleText}=await import('./capture-content.mjs');
+ const {clock}=await import('./planner/format.mjs');
+ const zone=Intl.DateTimeFormat().resolvedOptions().timeZone;
+ const at=new Date();at.setDate(at.getDate()+1);at.setHours(9,0,0,0);
+ assert.equal(scheduleText({planned:at.toISOString()},{timeZone:zone}),'Tomorrow '+clock(at));
+ const end=new Date(at);end.setHours(10);
+ assert.equal(scheduleText({planned:at.toISOString(),end:end.toISOString(),minutes:60},{timeZone:zone}),`Tomorrow ${clock(at)}–${clock(end)}`);
+ assert.equal(scheduleText({planned:'2026-09-28T08:30:00Z'},{...options,deviceZone:'Europe/London'}),'Mon 28 Sept, 2 pm');
+ assert.equal(scheduleText({status:'review',reason:'AM or PM?'},options),null);
+ assert.equal(scheduleText(null),null);
+});

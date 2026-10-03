@@ -63,13 +63,14 @@ export function pendingCard({text,phase='saving',attempt=0,slow=false}){
   return card;
  }
  card.append(savedWords(text));
+ // One slim progress line and one plain sentence: no skeletons, no invented steps.
  const sorting=el('div','sorting');
- const label=slow?'Still working…':attempt>0?'Taking a closer look…':'Finding tasks and Blocks…';
+ const label=slow?'Still working. You can close Capture; your words stay saved.':attempt>0?'Taking a closer look. You can close Capture now.':'Finding tasks and Blocks. You can close Capture now.';
+ const bar=el('div','linear');bar.append(el('i'));
  const status=el('p','sorting-label',label);
  status.setAttribute('role','status');
- const bar=el('div','linear');bar.append(el('i'));
- sorting.append(status,bar,el('div','shimmer'),el('div','shimmer short'));
- card.append(sorting,el('p','state-hint','You can close Capture now. Your words stay saved.'));
+ sorting.append(bar,status);
+ card.append(sorting);
  return card;
 }
 
@@ -125,8 +126,9 @@ export function receiptCard(capture,{history,canUndo,delivery},added=[]){
  const head=el('div','receipt-head');
  head.append(icon('check_circle',{fill:true,cls:'saved-icon'}));
  const body=el('div','saved-body');
- body.append(el('p','saved-title',history?'Added earlier':'Added to your plan'));
- // Named tasks say what went where; other changes keep the one-line summary.
+ // Named tasks say what went where in the proposal's own words; other changes keep the one-line summary.
+ const title=history?'Added earlier':added.length?(added.length===1?'Task added':`${added.length} tasks added`):'Added to your plan';
+ body.append(el('p','saved-title',title));
  if(added.length){
   const list=el('ul','receipt-list');
   list.append(...added);
@@ -139,7 +141,12 @@ export function receiptCard(capture,{history,canUndo,delivery},added=[]){
   const status=delivery?.(receipt.entry.id);
   card.append(el('p','delivery',status?.label??'Check alert delivery in Planner.'));
  }
- if(canUndo&&!history)card.append(el('p','detail-note','You can undo this until your next change.'));
+ if(canUndo&&!history){
+  const note=el('p','detail-note undo-window','Undo works until your next change.');
+  // Shown only while the panel is about to close itself (see capture.css).
+  note.append(el('span','auto-close-note',' Capture closes by itself in a few seconds unless you touch it.'));
+  card.append(note);
+ }
  if(!canUndo&&draft.receipt?.undoId)card.append(el('p','detail-note','Undo is no longer available for this one.'));
  return card;
 }

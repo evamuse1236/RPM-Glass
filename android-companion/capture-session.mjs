@@ -28,8 +28,7 @@ export function draftToKeep(composerText,{busy=false,pendingText=null}={}){
 /** Starter choices appear only when Capture is truly empty. */
 export const STARTERS=Object.freeze([
  {label:'What’s planned today?',text:'What’s planned today?',icon:'today'},
- {label:'Help me plan a Result',text:'Help me plan a Result',icon:'flag'},
- {label:'Empty my head',text:'I want to capture everything on my mind',icon:'neurology'},
+ {label:'Plan a Result',text:'Help me plan a Result',icon:'flag'},
 ]);
 export function startersFor({view,busy,archived,captureCount,recovering}){
  if(view!=='chat'||busy||archived||recovering||captureCount>0)return [];
@@ -47,7 +46,7 @@ export function actionPresentation(item,draft){
  }
  if(kind==='open')return {label:'Edit',role:'tonal',order:1};
  // Dismiss only parks the draft; the words and proposals stay in History.
- if(kind==='dismiss')return {label:'Keep for later',role:'text',order:0};
+ if(kind==='dismiss')return {label:'Keep as draft',role:'text',order:0};
  if(kind==='refresh-time')return {label:'Refresh times',role:'filled',order:2,icon:'refresh'};
  return {label:item.label,role:'tonal',order:2};
 }

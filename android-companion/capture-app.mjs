@@ -5,7 +5,7 @@ import {renderResponse} from './capture-card.mjs';
 import {pendingCard,failureCard,warning} from './capture-states.mjs';
 import {renderHistory,renderConversation,renderContext,renderAbout} from './capture-views.mjs';
 import {installCaptureMenu} from './widget-menu.mjs';
-import {installCapturePresentation,createRevealTracker,enter} from './capture-presentation.mjs';
+import {installCapturePresentation,createRevealTracker,enter,reducedMotion} from './capture-presentation.mjs';
 import {installComposer,listeningCard} from './capture-composer.mjs';
 import {createSendIdentity,draftToKeep,startersFor} from './capture-session.mjs';
 import {el,icon,button,chip} from './capture-dom.mjs';
@@ -239,8 +239,7 @@ export function mountCapture(platform){
    const row=el('button','popover-item');
    row.type='button';row.setAttribute('role',item.checked===undefined?'menuitem':'menuitemradio');
    if(item.checked!==undefined)row.setAttribute('aria-checked',String(item.checked));
-   if(item.tone!==undefined){const dot=el('span','dot');if(item.tone)dot.style.background=`var(--${item.tone})`;row.append(dot);}
-   else row.append(icon(item.icon));
+   if(item.icon)row.append(icon(item.icon));
    const text=el('span','popover-text');
    text.append(el('span','',item.label));
    if(item.sub)text.append(el('span','popover-sub'+(item.alert?' overdue':''),item.sub));
@@ -263,9 +262,10 @@ export function mountCapture(platform){
  function pickBlock(anchor,op,draft){
   const current=op.fields.find(f=>f.name==='blockId'&&f.op==='set')?.value??null;
   const set=value=>runIntentAction({conversationId:draft.conversationId,draftId:draft.id,revision:draft.revision,kind:'set-field',opId:op.opId,field:'blockId',...(value==null?{clear:true}:{value})});
-  const items=[{label:'Inbox',sub:'No block for now',icon:'inbox',checked:current==null,run:()=>set(null)}];
+  // A plain list like Google Tasks' "Move to": names, their deadline or Project, and a check.
+  const items=[{label:'Inbox',sub:'No block for now',checked:current==null,run:()=>set(null)}];
   for(const b of platform.blockChoices?.()??[]){
-   items.push({label:b.title,sub:b.due?.label??b.subtitle,alert:b.due?.overdue,tone:b.tone,checked:String(b.id)===String(current),run:()=>set(b.id)});
+   items.push({label:b.title,sub:b.due?.label??b.subtitle,alert:b.due?.overdue,checked:String(b.id)===String(current),run:()=>set(b.id)});
   }
   openItemMenu(anchor,items,{wide:true});
  }
@@ -299,9 +299,9 @@ export function mountCapture(platform){
  });
  const responseKey=c=>c?JSON.stringify([c.messageId,c.reply,c.draft?.revision,c.draft?.status,c.lastError?.message]):null;
 
+ // Field-first: only starters sit above the composer; the trust line lives under it (see syncHint).
  function welcome(frag){
   const box=el('section','welcome');
-  box.append(el('h2','welcome-title','What’s on your mind?'),el('p','welcome-text','Saved as you type. Added only when you confirm.'));
   const c=conversation();
   const starters=startersFor({view:s.view,busy:s.busy,archived:c.archived,captureCount:0,recovering:!!s.failure});
   if(starters.length){
@@ -416,8 +416,13 @@ export function mountCapture(platform){
   message.placeholder=answering?'Or answer in your own words':s.focusedDraftId?'Tell me what to change':'Capture a thought';
   syncHint();
  }
+ /** One line under the field: the promise while empty, then "Draft saved" once the phone confirms. */
  function syncHint(){
-  $('composer-hint').hidden=!(s.view==='chat'&&!s.busy&&!s.listening&&s.draftSaved&&!!message.value.trim());
+  const hint=$('composer-hint'),text=!!message.value.trim(),chat=s.view==='chat'&&!s.busy&&!s.listening;
+  const saved=chat&&s.draftSaved&&text,promise=chat&&!saved&&!!content.querySelector('.welcome');
+  hint.hidden=!saved&&!promise;
+  hint.dataset.kind=saved?'saved':'promise';
+  $('hint-text').textContent=saved?'Draft saved':'Saved as you type. Added only when you confirm.';
  }
 
  function controls(){
@@ -430,8 +435,24 @@ export function mountCapture(platform){
   $('send').setAttribute('aria-description',s.busy?'Working on your capture. Hold for planner and more.':'Hold for planner and more.');
  }
 
+ // Within one capture the panel only grows, so the composer and the main action
+ // never jump under the thumb; it settles back when Capture is empty again.
+ let floor=0;
+ function holdHeight(before){
+  panel.style.minHeight='';
+  const cycle=s.view==='chat'&&!panel.classList.contains('expanded')&&panel.dataset.state!=='idle';
+  if(!cycle){floor=0;return;}
+  const natural=panel.offsetHeight,limit=parseFloat(getComputedStyle(panel).maxHeight)||Infinity;
+  floor=Math.min(limit,Math.max(floor,before,natural));
+  panel.style.minHeight=floor+'px';
+  if(before&&floor>before+1&&!reducedMotion()&&panel.animate){
+   panel.animate([{height:before+'px'},{height:floor+'px'}],{duration:250,easing:'cubic-bezier(.05,.7,.1,1)'});
+  }
+ }
+
  function render(){
   if(!s.state)return;
+  const height=panel.offsetHeight;
   s.lastKey=captureRenderKey({...s.state,intent:intentPage()});
   const before={top:content.scrollTop,key:content.querySelector('[data-reply-key]')?.dataset.replyKey??null,view:s.view,
    open:[...content.querySelectorAll('details[open]')].map(d=>d.className)};
@@ -447,6 +468,7 @@ export function mountCapture(platform){
   const same=before.key===(latest?.dataset.replyKey??null)&&before.view===s.view;
   if(same)for(const d of content.querySelectorAll('details'))if(before.open.includes(d.className))d.open=true;
   content.scrollTop=same?before.top:0;
+  holdHeight(height);
   presentation.updateOverflow();
   if(!s.busy&&s.view==='chat')reveal.observe(latest?.dataset.replyKey);
  }
@@ -502,7 +524,7 @@ export function mountCapture(platform){
   const full=panel.classList.toggle('expanded');
   $('expand').setAttribute('aria-pressed',String(full));
   $('expand').setAttribute('aria-label',full?'Make Capture smaller':'Expand Capture');
-  $('expand').querySelector('.ms').textContent=full?'close_fullscreen':'open_in_full';
+  $('expand').querySelector('.ms').textContent=full?'collapse_content':'expand_content';
   platform.action('expand').catch(()=>{});
  });
  $('back').addEventListener('click',()=>setView(s.view==='conversation'?'history':'chat'));

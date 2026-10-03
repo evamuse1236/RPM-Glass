@@ -31,6 +31,15 @@ export function relativeDay(day) {
   return dateText(day + 'T12:00');
 }
 
+/** "Today" (only when asked), "Tomorrow", "Sun" within the week ahead, else a short date. */
+export function dayName(day, {today: sayToday = false} = {}) {
+  const today = localDay();
+  if (day === today) return sayToday ? 'Today' : '';
+  if (day === shiftDay(today, 1)) return 'Tomorrow';
+  if (day > today && day <= shiftDay(today, 6)) return new Date(day + 'T12:00').toLocaleDateString([], {weekday: 'short'});
+  return dateText(day + 'T12:00');
+}
+
 /** Local value for an <input type=time>. */
 export function timeValue(value) {
   const date = new Date(value);

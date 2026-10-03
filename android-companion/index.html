@@ -17,7 +17,7 @@
     <button id="back" class="icon-btn" type="button" aria-label="Back" hidden><span class="ms" aria-hidden="true">arrow_back</span></button>
     <span class="brand" aria-hidden="true"><img src="/butterfly.png" alt=""></span>
     <h1 id="view-label" class="panel-title">Capture</h1>
-    <button id="expand" class="icon-btn" type="button" aria-label="Expand Capture" aria-pressed="false"><span class="ms" aria-hidden="true">open_in_full</span></button>
+    <button id="expand" class="icon-btn" type="button" aria-label="Expand Capture" aria-pressed="false"><span class="ms" aria-hidden="true">expand_content</span></button>
     <button id="close" class="icon-btn" type="button" aria-label="Close Capture"><span class="ms" aria-hidden="true">close</span></button>
   </header>
   <div id="focus-line" class="focus-line" hidden>
@@ -36,7 +36,7 @@
       <button id="dictate" class="icon-btn mic" type="button" aria-label="Voice input"><span class="ms" aria-hidden="true">mic</span></button>
       <button id="send" class="send" type="submit" aria-label="Send" aria-describedby="hold-hint" aria-haspopup="menu" aria-expanded="false" aria-controls="quick-menu"><span class="ms" aria-hidden="true">arrow_upward</span></button>
     </form>
-    <p id="composer-hint" class="hint" hidden><span class="ms" aria-hidden="true">check</span>Draft saved</p>
+    <p id="composer-hint" class="hint" hidden><span class="ms" aria-hidden="true">check</span><span id="hint-text">Draft saved</span></p>
     <span id="hold-hint" class="sr-only">Hold for planner and more.</span>
   </footer>
   <nav id="quick-menu" class="menu" aria-label="Capture options" role="menu" hidden inert>
