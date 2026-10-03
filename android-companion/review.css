@@ -274,7 +274,7 @@
 .wr-risk .wr-btn-text{flex:none;margin:-4px -8px 0 0}
 .wr-ask-small{font:var(--body-small);color:var(--on-surface);margin-top:6px}
 .wr-choices{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-.wr-flag{font:var(--body-medium);color:var(--error)}
+.wr-flag{font:var(--body-medium);color:var(--tertiary)}
 .wr .wr-choice{color:var(--on-surface);border-color:var(--outline)}
 .wr-idle-toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:0 12px 0 16px;border:0;border-radius:var(--shape-full);background-color:transparent;color:var(--on-surface-variant);font:var(--label-large);text-align:left}
 /* Results: one quiet list; a checkbox picks, the row opens the Purpose and tasks. No outlines or tints for picked. */
