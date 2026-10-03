@@ -148,16 +148,10 @@ export function openTask(app, id, occurrence, {focus = null} = {}) {
     // user gets the focus ring instead).
     const row = app.dom.sheet.querySelector(`.task-row[data-task-id="${id}"]`);
     row?.querySelector('.task-main')?.focus({preventScroll: true});
-    if (row) {
-      // It holds while the Inbox slides back in (300ms), then fades out over 200ms (standard), never snapping off.
-      row.classList.add('returned');
-      const clear = () => row.classList.remove('returned');
-      if (reducedMotion()) setTimeout(clear, 600);
-      else {
-        row.animate([{opacity: 1}, {opacity: 1, offset: .6, easing: EASE.standard}, {opacity: 0}],
-          {duration: 500, pseudoElement: '::after', fill: 'forwards'}).finished.then(clear, clear);
-      }
-    }
+    // A clock on the animation timeline, so a redraw continues the fade from where it is on screen.
+    const clock = reducedMotion() ? null : document.createElement('i').animate([{}, {}], {duration: 500});
+    app.sheet.returned = {id, elapsed: () => (clock ? Number(clock.currentTime ?? 500) : 500)};
+    if (row) markReturned(row, 0);
   };
   if (fromInbox) header.prepend(iconButton('arrow_back', 'Back to Inbox', goBack, {cls: 'sheet-back'}));
 
@@ -772,7 +766,13 @@ export function showInbox(app, {motion = 'forward'} = {}) {
       jev.dataset.key = 'inbox-jev';
       host.append(note, jev);
     }
-    for (const task of rows) host.append(taskRow(app, task));
+    const back = app.sheet.returned;
+    for (const task of rows) {
+      const row = taskRow(app, task);
+      // A redraw while the returned highlight is still fading carries it on (from where it was).
+      if (back?.id === task.id && host !== body) markReturned(row, back.elapsed());
+      host.append(row);
+    }
     return host;
   };
   draw(body);
@@ -789,6 +789,24 @@ export function showInbox(app, {motion = 'forward'} = {}) {
 }
 
 const DRAFT = 'task:new';
+
+/** The Inbox row a task was opened from, on the way back: a soft highlight that holds while the Inbox slides back in
+ * (300ms), then fades out over 200ms (standard), never snapping off. `elapsed` continues it on a rebuilt row (a save
+ * landing just after Back redraws the Inbox). */
+function markReturned(row, elapsed) {
+  const total = 500;
+  if (elapsed >= total) return;
+  row.classList.add('returned');
+  const clear = () => row.classList.remove('returned');
+  if (reducedMotion()) {
+    setTimeout(clear, total - elapsed);
+    return;
+  }
+  const fade = row.animate([{opacity: 1}, {opacity: 1, offset: .6, easing: EASE.standard}, {opacity: 0}],
+    {duration: total, pseudoElement: '::after', fill: 'forwards'});
+  fade.currentTime = elapsed;
+  fade.finished.then(clear, clear);
+}
 
 
 /** A chip's accessible name, with `extra` added while what it shows was read from the typed words. */
