@@ -598,6 +598,9 @@ input[type=range] { width: 100%; accent-color: var(--primary); min-height: var(-
 .week-day[aria-pressed=true] .week-number { background: var(--primary); color: var(--on-primary); }
 .week-day:active .week-number { background: var(--row-press); }
 .day-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--outline); }
+/* A day holding a Result's deadline: the same hourglass as Due soon, so the mark explains itself. */
+.day-due { font-size: 14px; line-height: 14px; height: 14px; margin-top: -4px; color: var(--on-surface-variant); }
+.week-day[aria-pressed=true] .day-due { color: var(--primary); }
 
 .week-card {
   display: flex;
@@ -610,8 +613,13 @@ input[type=range] { width: 100%; accent-color: var(--primary); min-height: var(-
   background: var(--secondary-container);
   color: var(--on-secondary-container);
 }
-.week-card-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; font: var(--body-medium); }
-.week-card-copy strong { font: var(--title-small); font-size: 15px; }
+.week-card-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font: var(--body-medium); }
+.week-card-copy strong { font: var(--title-medium); font-weight: 500; }
+/* Friday to Sunday: the coming week still needs a plan. The screen's one filled button. */
+.plan-card { flex-wrap: wrap; align-items: flex-start; padding: var(--s4) var(--s3) var(--s3) var(--s4); row-gap: var(--s2); }
+.plan-card .week-card-copy { flex-basis: calc(100% - 40px); }
+.plan-card > .ms { margin-top: 2px; }
+.plan-card .filled-btn { flex: none; margin-left: auto; }
 .week-card-action {
   font: var(--label-large);
   padding: var(--s2) var(--s3);
@@ -637,12 +645,15 @@ input[type=range] { width: 100%; accent-color: var(--primary); min-height: var(-
   border-radius: var(--card-radius) var(--card-radius) 0 0;
 }
 button.result-head:active { background: var(--row-press); }
-.result-head .area-dot { margin-top: 7px; }
 .result-icon { font-size: 20px; color: var(--on-surface-variant); margin-top: 1px; }
 .result-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.result-title { font: var(--title-medium); font-size: 16.5px; line-height: 22px; overflow-wrap: anywhere; }
+.result-title { font: var(--title-medium); overflow-wrap: anywhere; }
 .result-purpose { font: var(--body-medium); color: var(--on-surface-variant); overflow-wrap: anywhere; }
-.result-count { font: var(--label-medium); color: var(--on-surface-variant); margin-top: 3px; }
+/* Facts line: Area (hue beside its name), tasks done, deadline. */
+.result-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s2); margin-top: 2px; font: var(--label-medium); color: var(--on-surface-variant); }
+.result-meta { gap: 0 6px; }
+.result-meta .area-dot { width: 8px; height: 8px; }
+.result-meta .is-overdue { color: var(--error); }
 .result-group .task-row { padding-left: var(--s1); }
 .result-group .task-row.current { margin: 0 var(--s1); padding-left: 0; }
 .calendar-group .result-icon, .anytime-group .result-icon { color: var(--primary); }
@@ -666,6 +677,44 @@ button.result-head:active { background: var(--row-press); }
 .event-title { flex: 1; font: var(--body-large); min-width: 0; overflow-wrap: anywhere; }
 .event-time { font: var(--body-medium); color: var(--on-surface-variant); white-space: nowrap; }
 .inbox-row { margin-top: var(--s3); }
+.inbox-row .trailing-value { margin-right: calc(-1 * var(--s2)); }
+
+/* Due soon: Results whose deadline is within three days, like Calendar's schedule (day once, then items). */
+.due-section { margin: var(--s4) var(--gutter) 0; }
+.due-head { display: flex; align-items: center; gap: var(--s2); min-height: 32px; padding: 0 var(--s1) var(--s1); }
+.due-head .ms { font-size: 18px; color: var(--on-surface-variant); }
+.due-head h2 { flex: 1; font: var(--title-small); }
+.due-head small { font: var(--label-medium); color: var(--on-surface-variant); }
+.due-list { border-radius: var(--card-radius); background: var(--surface-container-low); border: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent); padding: var(--s1) 0; overflow: hidden; }
+.due-row {
+  width: 100%;
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  align-items: center;
+  column-gap: var(--s3);
+  padding: var(--s2) var(--s4) var(--s2) var(--s3);
+}
+.due-row:active { background: var(--row-press); }
+.due-day { display: flex; flex-direction: column; align-items: center; align-self: start; padding-top: 2px; }
+.due-weekday { font: var(--label-medium); color: var(--on-surface-variant); }
+.due-date { font: var(--title-large); line-height: 26px; }
+.due-day.is-today .due-weekday, .due-day.is-today .due-date { color: var(--primary); }
+.due-copy { min-width: 0; display: flex; flex-direction: column; }
+.due-title { font: var(--body-large); overflow-wrap: anywhere; }
+.due-meta { font: var(--body-medium); color: var(--on-surface-variant); }
+.due-overdue { color: var(--error); font-weight: 600; }
+
+/* Now line (Calendar): sits above the Next or current task and says how long until it starts or ends. */
+.now-marker { display: flex; align-items: center; gap: var(--s2); margin: var(--s1) var(--s4) 0 var(--s4); color: var(--now); font: var(--label-medium); }
+.now-marker::after { content: ""; flex: 1; height: 2px; border-radius: 1px; background: var(--now); }
+.now-pin { width: 10px; height: 10px; border-radius: 50%; background: var(--now); flex: none; }
+.now-text { white-space: nowrap; }
+
+/* Also today: dated tasks with no Block, as a plain list under a quiet label. */
+.also-today { margin: var(--s4) var(--gutter) 0; }
+.also-head { font: var(--title-small); color: var(--on-surface-variant); padding: var(--s2) var(--s1) 0; }
+.also-today .task-row { padding-left: 0; margin-left: calc(-1 * var(--s1)); }
 .screen-today .completed-group { margin: var(--s3) var(--gutter) 0; }
 .screen-today .completed-group .completed-toggle { padding-left: var(--s2); }
 
@@ -1238,12 +1287,8 @@ button.result-head:active { background: var(--row-press); }
 .error { color: var(--error); }
 
 /* ---------- 7. Large text (200%) and reduced motion ---------- */
-:root[data-large-text=true] .week-strip {
-  display: flex;
-  overflow-x: auto;
-  scroll-snap-type: x proximity;
-}
-:root[data-large-text=true] .week-day { flex: 0 0 auto; min-width: 72px; scroll-snap-align: center; }
+:root[data-large-text=true] .week-strip { padding-inline: 0; }
+:root[data-large-text=true] .week-number { min-width: 1.6em; height: 1.6em; font-size: 15px; }
 :root[data-large-text=true] #nav-bar { grid-template-columns: 1fr 1fr 1.3fr .9fr; padding-inline: 0; }
 :root[data-large-text=true] .nav-pill { min-width: 56px; }
 :root[data-large-text=true] .event-row { grid-template-columns: 14px 1fr; }

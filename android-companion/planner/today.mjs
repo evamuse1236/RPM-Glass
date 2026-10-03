@@ -1,10 +1,11 @@
-/** Today: compact date header with a 7-day strip, the "This week" card, and the day grouped by Result. */
-import {localDay, shiftDay, tasks, blockTasks, timelineItems} from '../planner-state.mjs';
+/** Today: date header with a 7-day strip, the week card, what is due soon, and the day grouped by Result. */
+import {localDay, shiftDay, planner, blockTasks, timelineItems} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
 import {setClarityPreference} from '../planner-clarity.mjs';
-import {weekStart, weekFocus, resultStatus} from '../review-state.mjs';
+import {repeats} from '../planner-recurrence.mjs';
+import {weekStart, reviewWeek, weekFocus, resultStatus, inboxTasks} from '../review-state.mjs';
 import {el, icon, button, emptyState, areaDot, labelButton} from './dom.mjs';
-import {clock, longDate, plural, dateText} from './format.mjs';
+import {clock, longDate, plural, dateText, dueInfo, timeValue} from './format.mjs';
 import {taskRow, completedSection, taskWhen} from './task-row.mjs';
 import {renderTimeline} from './timeline.mjs';
 
@@ -23,6 +24,61 @@ export function selectDay(app, day, direction = '') {
   app.render({reset: true, direction});
 }
 
+const DUE_DAYS = 3;
+
+/** A Result's deadline: its latest open, dated, one-time task ('YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM'), or null. */
+export function resultDue(data, blockId) {
+  let best = null;
+  for (const task of blockTasks(data, blockId)) {
+    if (task.done || repeats(task) || !(task.planned || task.plannedDate)) continue;
+    const value = task.planned ? `${localDay(task.planned)}T${timeValue(task.planned)}` : task.plannedDate;
+    if (!best || dueInfo(value).at > dueInfo(best).at) best = value;
+  }
+  return best;
+}
+
+/** Open Results whose deadline falls before the end of the third day from today (or has passed), soonest first. */
+export function dueSoon(data, now = new Date()) {
+  const until = new Date(shiftDay(localDay(now), DUE_DAYS + 1) + 'T00:00');
+  return planner(data).blocks.filter(block => !block.archived && block.achieved !== true)
+    .map(block => ({block, due: dueInfo(resultDue(data, block.id), now)}))
+    .filter(({due}) => due && due.at < until)
+    .sort((a, b) => a.due.at - b.due.at);
+}
+
+/** Time left until `at`, coarse enough to read at a glance: "40 min", "37 h", "3 days"; null once it has passed. */
+export function timeLeft(at, now = new Date()) {
+  const minutes = Math.round((at - now) / 60000);
+  if (minutes < 0) return null;
+  if (minutes < 60) return `${Math.max(1, minutes)} min`;
+  const hours = Math.round(minutes / 60);
+  return hours < 48 ? `${hours} h` : `${Math.round(hours / 24)} days`;
+}
+export const countdown = (at, now = new Date()) => (timeLeft(at, now) ? 'in ' + timeLeft(at, now) : 'Overdue');
+
+/** Relative labels stay true while Today is open: each node names its own instant and kind. */
+const LIVE = {
+  timed: at => `${clock(at)} · ${countdown(at)}`,
+  day: at => `End of day · ${countdown(at)}`,
+  next: at => `Now ${clock(Date.now())} · ` + (timeLeft(at) ? `next starts in ${timeLeft(at)}` : 'next has started'),
+  current: at => `Now ${clock(Date.now())} · ` + (timeLeft(at) ? `${timeLeft(at)} left` : 'time is up'),
+};
+function live(node, kind, at) {
+  node.dataset.live = kind;
+  node.dataset.at = String(+at);
+  node.textContent = LIVE[kind](+at);
+  tick();
+  return node;
+}
+let ticking = false;
+function tick() {
+  if (ticking) return;
+  ticking = true;
+  setInterval(() => {
+    for (const node of document.querySelectorAll('[data-live]')) node.textContent = LIVE[node.dataset.live](+node.dataset.at);
+  }, 30000);
+}
+
 function weekStrip(app) {
   const {day} = app.state;
   const strip = el('div', 'week-strip');
@@ -30,16 +86,24 @@ function weekStrip(app) {
   strip.setAttribute('aria-label', 'Week');
   const monday = weekStart(day);
   const today = localDay();
+  const data = app.data();
+  // Days that hold a Result's deadline get a flag; other days with tasks keep the quiet dot.
+  const dues = new Map();
+  for (const block of planner(data).blocks.filter(b => !b.archived && b.achieved !== true)) {
+    const value = resultDue(data, block.id);
+    if (value) dues.set(value.slice(0, 10), (dues.get(value.slice(0, 10)) ?? 0) + 1);
+  }
   for (let i = 0; i < 7; i++) {
     const key = shiftDay(monday, i);
     const date = new Date(key + 'T12:00');
     const cell = button('', () => selectDay(app, key), 'week-day');
     cell.classList.toggle('is-today', key === today);
-    cell.setAttribute('aria-label', dateText(date) + (key === today ? ', today' : ''));
+    const due = dues.get(key) ?? 0;
+    cell.setAttribute('aria-label', dateText(date) + (key === today ? ', today' : '') + (due ? `, ${plural(due, 'Result')} due` : ''));
     cell.setAttribute('aria-pressed', String(key === day));
-    const model = dayTasks(app.data(), key);
-    const dot = el('span', 'day-dot');
-    dot.hidden = !model.active.length && !model.completed.length;
+    const model = dayTasks(data, key);
+    const dot = due ? icon('hourglass_bottom', {fill: true, cls: 'day-due'}) : el('span', 'day-dot');
+    dot.hidden = !due && !model.active.length && !model.completed.length;
     cell.append(
       el('span', 'week-letter', date.toLocaleDateString([], {weekday: 'narrow'})),
       el('span', 'week-number tnum', String(date.getDate())),
@@ -79,33 +143,88 @@ function dateHeader(app) {
   return header;
 }
 
-/** "This week" card: the week's chosen Results, or an invitation to plan the week. */
+const weekName = (week, month = 'long') => 'week of ' + new Date(week + 'T12:00').toLocaleDateString([], {month, day: 'numeric'});
+const capital = text => text[0].toUpperCase() + text.slice(1);
+
+/**
+ * The week card. Monday to Thursday it shows this week's Results (or invites planning them); Friday to Sunday,
+ * when the review plans the coming week, it asks for that plan until it exists. Progress never reads as "all is well":
+ * only Results the user marked achieved count.
+ */
 function weekCard(app) {
-  const week = weekStart(app.state.day);
-  if (week !== weekStart(localDay())) return null;
+  const today = localDay();
+  const week = weekStart(today);
+  if (weekStart(app.state.day) !== week) return null;
   const data = app.data();
   const focus = weekFocus(data, week);
+  const next = reviewWeek(today);
+  if (next !== week) {
+    const planned = weekFocus(data, next);
+    if (!planned.length) {
+      const card = el('section', 'week-card plan-card');
+      const copy = el('span', 'week-card-copy');
+      const title = `${capital(weekName(next, 'short'))} isn't planned`;
+      copy.append(el('strong', '', title), el('span', '', 'Review this week, then pick 3 to 5 Results'));
+      const plan = button('Plan now', () => app.openReview(), 'filled-btn');
+      plan.setAttribute('aria-label', 'Plan now: start the weekly review for the ' + weekName(next));
+      card.setAttribute('aria-label', title);
+      card.append(icon('event_upcoming'), copy, plan);
+      return card;
+    }
+    return weekButton(app, 'event_available', `${plural(planned.length, 'Result')} planned for next week`,
+      capital(weekName(next)), 'Review');
+  }
+  if (!focus.length) return weekButton(app, 'event_upcoming', 'Plan your week', 'Choose 3 to 5 Results that matter most', 'Start');
+  const achieved = focus.filter(id => resultStatus(data, id).achieved).length;
+  const headline = achieved ? `${achieved} of ${plural(focus.length, 'Result')} achieved this week` : `${plural(focus.length, 'Result')} this week`;
+  return weekButton(app, 'flag', headline, achieved ? weekName(week) : 'None marked achieved yet', 'Review');
+}
+
+function weekButton(app, symbol, headline, supporting, action) {
   const card = button('', () => app.openReview(), 'week-card');
   const copy = el('span', 'week-card-copy');
-  const weekLabel = 'Week of ' + new Date(week + 'T12:00').toLocaleDateString([], {day: 'numeric', month: 'long'});
-  if (!focus.length) {
-    card.append(icon('flag'));
-    copy.append(el('strong', '', 'Plan your week'), el('span', '', 'Choose 3 to 5 Results that matter most'));
-    card.append(copy, el('span', 'week-card-action', 'Start'));
-    card.setAttribute('aria-label', 'Plan your week. Start the weekly review');
-    return card;
-  }
-  const statuses = focus.map(id => resultStatus(data, id));
-  const achieved = statuses.filter(status => status.achieved).length;
-  const moving = statuses.filter(status => status.achieved || status.done > 0).length;
-  const headline = achieved
-    ? `${achieved} of ${plural(focus.length, 'weekly Result')} achieved`
-    : `${moving} of ${plural(focus.length, 'weekly Result')} moving`;
-  card.append(icon('flag', {fill: true}));
-  copy.append(el('strong', '', headline), el('span', '', weekLabel));
-  card.append(copy, el('span', 'week-card-action', 'Review'));
-  card.setAttribute('aria-label', `${headline}, ${weekLabel}. Open weekly review`);
+  copy.append(el('strong', '', headline), el('span', '', supporting));
+  card.append(icon(symbol), copy, el('span', 'week-card-action', action));
+  card.setAttribute('aria-label', `${headline}. ${supporting}. Open weekly review`);
   return card;
+}
+
+/** Results due in the next three days, Calendar-schedule style: the day once, then each Result with its countdown. */
+function dueSection(app, now = new Date()) {
+  const data = app.data();
+  const rows = dueSoon(data, now);
+  if (!rows.length) return null;
+  const section = el('section', 'due-section');
+  const head = el('div', 'due-head');
+  head.append(icon('hourglass_bottom', {fill: true}), el('h2', '', 'Due soon'), el('small', '', 'Next 3 days'));
+  const list = el('div', 'due-list');
+  let lastDay = null;
+  for (const {block, due} of rows) {
+    const day = localDay(due.at);
+    const status = resultStatus(data, block.id);
+    const left = status.total - status.done;
+    const row = button('', () => app.openBlock(block.id), 'due-row');
+    row.classList.toggle('overdue', due.overdue);
+    const badge = el('span', 'due-day');
+    if (day !== lastDay) {
+      const date = new Date(day + 'T12:00');
+      badge.append(el('span', 'due-weekday', date.toLocaleDateString([], {weekday: 'short'})),
+        el('span', 'due-date tnum', String(date.getDate())));
+      badge.classList.toggle('is-today', day === localDay(now));
+    }
+    lastDay = day;
+    const copy = el('span', 'due-copy');
+    const timed = resultDue(data, block.id).includes('T');
+    const meta = el('span', 'due-meta tnum');
+    meta.append(due.overdue ? el('b', 'due-overdue', 'Overdue') : live(el('span'), timed ? 'timed' : 'day', due.at),
+      ` · ${plural(left, 'task')} left`);
+    copy.append(el('span', 'due-title', block.title), meta);
+    row.append(badge, copy);
+    row.setAttribute('aria-label', `${block.title}. ${due.label}, ${countdown(due.at, now)}. ${plural(left, 'task')} left. Open Block`);
+    list.append(row);
+  }
+  section.append(head, list);
+  return section;
 }
 
 /** Group the day's open tasks by Block; groups ordered by their first time, No block last. */
@@ -133,23 +252,36 @@ function groupByResult(app, active, focusId) {
   });
 }
 
+/** Result title, then Purpose, then one line of facts: Area, tasks done, and the deadline when there is one. */
 function resultHeader(app, group) {
-  const head = button('', () => (group.block ? app.openBlock(group.block.id) : app.actions.inbox()), 'result-head');
-  if (group.block) {
-    const rows = blockTasks(app.data(), group.block.id);
-    head.append(areaDot(app.tone(app.blockArea(group.block))));
-    const copy = el('span', 'result-copy');
-    copy.append(el('span', 'result-title', group.block.title));
-    if (group.block.purpose) copy.append(el('span', 'result-purpose', group.block.purpose));
-    head.append(copy, el('span', 'result-count tnum', `${rows.filter(t => t.done).length}/${rows.length}`));
-    head.setAttribute('aria-label', `Result: ${group.block.title}. Purpose: ${group.block.purpose || 'none yet'}. Open Block`);
-  } else {
-    head.append(icon('inbox', {cls: 'result-icon'}));
-    const copy = el('span', 'result-copy');
-    copy.append(el('span', 'result-title', 'No block'), el('span', 'result-purpose', 'Tasks not in a Block yet'));
-    head.append(copy);
-  }
+  const {block} = group;
+  const data = app.data();
+  const head = button('', () => app.openBlock(block.id), 'result-head');
+  const status = resultStatus(data, block.id);
+  const area = app.blockArea(block);
+  const due = dueInfo(resultDue(data, block.id));
+  const copy = el('span', 'result-copy');
+  copy.append(el('span', 'result-title', block.title));
+  if (block.purpose) copy.append(el('span', 'result-purpose', block.purpose));
+  const meta = el('span', 'result-meta tnum');
+  const facts = [el('span', '', `${status.done} of ${plural(status.total, 'task')} done`)];
+  if (area) facts.unshift(el('span', '', area.title));
+  if (due) facts.push(el('span', due.overdue ? 'is-overdue' : '', due.label));
+  if (area) meta.append(areaDot(app.tone(area)));
+  facts.forEach((fact, i) => meta.append(...(i ? [el('span', 'sep', '·'), fact] : [fact])));
+  copy.append(meta);
+  head.append(copy);
+  head.setAttribute('aria-label', `Result: ${block.title}. Purpose: ${block.purpose || 'none yet'}. `
+    + `${status.done} of ${plural(status.total, 'task')} done${due ? '. ' + due.label : ''}. Open Block`);
   return head;
+}
+
+/** Calendar's now line, placed above the Next (or current) task with how long until it starts or ends. */
+function nowMarker(task, now) {
+  const marker = el('div', 'now-marker');
+  const current = task.start <= now;
+  marker.append(el('span', 'now-pin'), live(el('span', 'now-text tnum'), current ? 'current' : 'next', current ? task.end : task.start));
+  return marker;
 }
 
 function calendarGroup(app, events) {
@@ -175,37 +307,42 @@ function renderAgenda(app, page, model, events) {
   // A task completed a moment ago stays in its group briefly, so the list doesn't jump under the thumb.
   const recent = model.completed.filter(task => app.recentlyCompleted.has(task.id));
   const active = [...model.active, ...recent];
-  let calendarShown = false;
-  for (const group of groupByResult(app, active, focus?.id)) {
-    if (!group.block && events.length) {
-      page.append(calendarGroup(app, events));
-      calendarShown = true;
-    }
+  const rowFor = (parent, task) => {
+    const isFocus = task.id === focus?.id;
+    if (isFocus) parent.append(nowMarker(task, now));
+    parent.append(taskRow(app, task, {current: isFocus && task.start <= now, next: isFocus && task.start > now, anytime: true}));
+  };
+  const groups = groupByResult(app, active, focus?.id);
+  for (const group of groups.filter(g => g.block)) {
     const section = el('section', 'result-group');
-    if (group.block) section.dataset.tone = app.tone(app.blockArea(group.block));
+    section.dataset.tone = app.tone(app.blockArea(group.block));
     section.append(resultHeader(app, group));
-    for (const task of group.rows) {
-      const isFocus = task.id === focus?.id;
-      section.append(taskRow(app, task, {
-        current: isFocus && task.start <= now,
-        next: isFocus && task.start > now,
-        anytime: true,
-      }));
-    }
+    for (const task of group.rows) rowFor(section, task);
     page.append(section);
   }
-  if (events.length && !calendarShown) page.append(calendarGroup(app, events));
+  if (events.length) page.append(calendarGroup(app, events));
+  // Today's tasks with no Block: a quiet list, not a second Inbox. The Inbox row below holds the whole backlog.
+  const loose = groups.find(g => !g.block);
+  if (loose) {
+    const section = el('section', 'also-today');
+    const head = el('h2', 'also-head', 'Also today');
+    section.append(head);
+    for (const task of loose.rows) rowFor(section, task);
+    page.append(section);
+  }
   completedSection(app, page, model.completed.filter(task => !app.recentlyCompleted.has(task.id)));
 }
 
 function inboxRow(app) {
-  const count = tasks(app.data()).filter(task => !task.done && !task.blockId).length;
+  const count = inboxTasks(app.data()).length;
   const row = button('', () => app.actions.inbox(), 'list-item inbox-row');
   row.append(icon('inbox', {cls: 'leading'}));
   const copy = el('span', 'list-copy');
-  copy.append(el('span', 'list-headline', 'Inbox'),
-    el('span', 'list-supporting', count ? plural(count, 'task') + ' not in a Block' : 'Empty'));
-  row.append(copy, icon('chevron_right', {cls: 'trailing'}));
+  copy.append(el('span', 'list-headline', 'Inbox'), el('span', 'list-supporting', count ? 'Not in a Block yet' : 'Empty'));
+  row.append(copy);
+  if (count) row.append(el('span', 'trailing-value tnum', String(count)));
+  row.append(icon('chevron_right', {cls: 'trailing'}));
+  row.setAttribute('aria-label', `Inbox, ${count ? plural(count, 'task') + ' not in a Block yet' : 'empty'}`);
   return row;
 }
 
@@ -216,6 +353,8 @@ export function renderToday(app, page) {
   page.append(dateHeader(app));
   const card = weekCard(app);
   if (card) page.append(card);
+  const due = day === localDay() ? dueSection(app) : null;
+  if (due) page.append(due);
   const events = timelineItems(data, day, calendar).filter(item => item.source === 'calendar');
   const empty = !model.active.length && !model.completed.length && !events.length;
   if (app.state.dayLayout === 'timeline' && !app.largeText()) {
