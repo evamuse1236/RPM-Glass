@@ -1,5 +1,6 @@
 /** Material 3 dropdown menu anchored to the button that opened it. */
 import {el, button, icon} from './dom.mjs';
+import {reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
 
 let current = null;
 
@@ -8,7 +9,12 @@ export function closeMenu() {
   const {scrim, menu, anchor} = current;
   current = null;
   scrim.remove();
-  menu.remove();
+  // It leaves with a short fade (100ms, accelerating), never a cut; it cannot be tapped meanwhile.
+  menu.inert = true;
+  const gone = () => menu.remove();
+  if (reducedMotion() || !menu.animate) gone();
+  else menu.animate([{opacity: 1}, {opacity: 0}], {duration: DURATION.short2, easing: EASE.standardAccelerate, fill: 'forwards'})
+    .finished.then(gone, gone);
   anchor?.focus?.({preventScroll: true});
   return true;
 }

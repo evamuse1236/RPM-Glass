@@ -1,5 +1,5 @@
 /** One snackbar at a time, with an optional Undo that reverts the last planner change.
- * It opens upward, opaque, and always leaves downward (150ms). A new message while one shows keeps the bar opaque
+ * It enters as one piece, bar and words together (150ms), and always leaves downward (150ms). A new message while one shows keeps the bar opaque
  * and swaps only its words as a vertical ticker (old up and out by 90ms, new in from below over 90–240ms). A message raised while a sheet is leaving
  * waits until the sheet is gone. It stays 6s with Undo (4s without), and never times out while the user is typing:
  * the timer pauses while a text field has focus and resumes when it is left. */
@@ -90,16 +90,11 @@ function swapWords(node, oldParts, content) {
   }
 }
 
-/** A new bar arrives opaque: its surface opens upward from its bottom edge as it rises a little (250ms emphasized
- * decelerate), and its words fade in over the opaque surface once it is mostly open (from 0, never through a
- * see-through bar). */
-function enter(node, content) {
-  playMotion(node, [{clipPath: 'inset(100% 0 0 0 round 4px)', transform: 'translateY(8px)'},
-    {clipPath: 'inset(0 0 0 0 round 4px)', transform: 'none'}],
-  {duration: DURATION.medium1, easing: EASE.emphasizedDecelerate});
-  for (const part of content) {
-    playMotion(part, [{opacity: 0}, {opacity: 1}], {duration: DURATION.short3, delay: 60, easing: EASE.standardDecelerate, fill: 'backwards'});
-  }
+/** A new bar arrives as one piece: the surface and its words together (the words are in it at full strength from the
+ * first frame it shows, never an empty bar), fading in as it rises and grows a little (150ms emphasized decelerate). */
+function enter(node) {
+  playMotion(node, [{opacity: 0, transform: 'translateY(12px) scale(.96)'}, {opacity: 1, transform: 'none'}],
+    {duration: DURATION.short3, easing: EASE.emphasizedDecelerate});
 }
 
 /** The latest message waiting for a leaving sheet. */
@@ -144,7 +139,7 @@ export function notice(app, message, options = {}) {
     } else stopMotion(node);
     swapWords(node, oldParts, content);
   } else {
-    if (!reducedMotion()) enter(node, content);
+    if (!reducedMotion()) enter(node);
   }
   arm(app, undo ? 6000 : 4000);
 }

@@ -149,8 +149,9 @@ export function openTask(app, id, occurrence, {focus = null} = {}) {
     const row = app.dom.sheet.querySelector(`.task-row[data-task-id="${id}"]`);
     row?.querySelector('.task-main')?.focus({preventScroll: true});
     // A clock on the animation timeline, so a redraw continues the fade from where it is on screen.
-    const clock = reducedMotion() ? null : document.createElement('i').animate([{}, {}], {duration: 500});
-    app.sheet.returned = {id, elapsed: () => (clock ? Number(clock.currentTime ?? 500) : 500)};
+    const total = RETURN_HOLD + RETURN_FADE;
+    const clock = reducedMotion() ? null : document.createElement('i').animate([{}, {}], {duration: total});
+    app.sheet.returned = {id, elapsed: () => (clock ? Number(clock.currentTime ?? total) : total)};
     if (row) markReturned(row, 0);
   };
   if (fromInbox) header.prepend(iconButton('arrow_back', 'Back to Inbox', goBack, {cls: 'sheet-back'}));
@@ -608,8 +609,9 @@ export function closeSchedule({restoreFocus = true} = {}) {
   menu.inert = true;
   const gone = () => menu.remove();
   if (reducedMotion()) gone();
-  else menu.animate([{opacity: 1}, {opacity: 0}], {duration: DURATION.short2, easing: EASE.standardAccelerate, fill: 'forwards'})
-    .finished.then(gone, gone);
+  // Opaque until it goes: it folds a little toward its anchor and its fade lasts only the last 50ms.
+  else menu.animate([{opacity: 1, transform: 'none'}, {opacity: 1, offset: .5}, {opacity: 0, transform: 'scale(.96, .9)'}],
+    {duration: DURATION.short2, easing: EASE.standardAccelerate, fill: 'forwards'}).finished.then(gone, gone);
   if (restoreFocus && returnTo?.isConnected) returnTo.focus({preventScroll: true});
   return true;
 }
@@ -790,11 +792,13 @@ export function showInbox(app, {motion = 'forward'} = {}) {
 
 const DRAFT = 'task:new';
 
+const RETURN_HOLD = DURATION.short3;
+const RETURN_FADE = DURATION.medium2;
 /** The Inbox row a task was opened from, on the way back: a soft highlight that holds while the Inbox slides back in
- * (300ms), then fades out over 200ms (standard), never snapping off. `elapsed` continues it on a rebuilt row (a save
- * landing just after Back redraws the Inbox). */
+ * (150ms), then fades out over 300ms (standard easing), never snapping off. `elapsed` continues it on a rebuilt row (a
+ * save landing just after Back redraws the Inbox). */
 function markReturned(row, elapsed) {
-  const total = 500;
+  const total = RETURN_HOLD + RETURN_FADE;
   if (elapsed >= total) return;
   row.classList.add('returned');
   const clear = () => row.classList.remove('returned');
@@ -802,8 +806,8 @@ function markReturned(row, elapsed) {
     setTimeout(clear, total - elapsed);
     return;
   }
-  const fade = row.animate([{opacity: 1}, {opacity: 1, offset: .6, easing: EASE.standard}, {opacity: 0}],
-    {duration: total, pseudoElement: '::after', fill: 'forwards'});
+  const fade = row.animate([{opacity: 1}, {opacity: 0}],
+    {duration: RETURN_FADE, delay: RETURN_HOLD, easing: EASE.standard, pseudoElement: '::after', fill: 'both'});
   fade.currentTime = elapsed;
   fade.finished.then(clear, clear);
 }
@@ -869,10 +873,17 @@ function quickAdd(app, overrides = {}) {
     name.style.height = to + 'px';
     // A new line opens smoothly (the sheet's top follows), never in one jump.
     if (lastHeight && Math.abs(to - lastHeight) > 1 && !reducedMotion() && name.isConnected) {
-      name.animate([{height: lastHeight + 'px'}, {height: to + 'px'}], {duration: DURATION.short3, easing: EASE.standard});
+      // The first line stays where it is while the field opens below it: the field would otherwise scroll to the caret
+      // on the new line while it is still one line high, clipping the line above for a few frames.
+      const growing = name.animate([{height: lastHeight + 'px'}, {height: to + 'px'}],
+        {duration: DURATION.short3, easing: EASE.standard});
+      name.scrollTop = 0;
+      name.dataset.growing = 'true';
+      growing.finished.then(() => {}, () => {}).then(() => { delete name.dataset.growing; });
     }
     lastHeight = to;
   };
+  name.addEventListener('scroll', () => { if (name.dataset.growing) name.scrollTop = 0; });
 
   // A day written in the title is used as the date: its chip is marked and its words highlighted; tapping the marked
   // chip removes it (the words stay).

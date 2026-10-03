@@ -202,7 +202,7 @@ const CONTAINERS = '.plan-list,.chip-row,.day-header,.detail-head';
 /** Cards whose content changes as a whole (the lead card on Today becomes another task): the card is replaced in one
  * fade through while its height morphs, instead of its parts collapsing and opening one by one. */
 const SWAP = '.next-card';
-/** Fields hold the user's words and their own save closures: always taken from the new render. */
+/** Fields hold the user's words and their own save closures: always taken from the new render (unless `data-keep`). */
 const EDITABLE = 'input,select,textarea,[contenteditable],[data-edit-key]';
 /** Classes that only motion adds; two nodes that differ only by these are the same row. */
 const CONTROLLED = /(^|\s)(?:just-done|motion-clip|motion-ghost)(?=\s|$)/g;
@@ -314,6 +314,13 @@ function planChildren(oldParent, newParent, plan) {
   for (const child of [...newParent.childNodes]) {
     if (child.nodeType !== 1) { result.push(child); continue; }
     const old = pool.get(matchKey(child))?.shift();
+    // A field that must never blink (the Plan's add row: a fast typist keeps typing through the save) is kept as is
+    // while its twin has the same `data-keep`: its handlers read only what the key names.
+    if (old && old.dataset.keep && old.dataset.keep === child.dataset.keep) {
+      result.push(old);
+      used.add(old);
+      continue;
+    }
     if (old && reusable(old, child)) {
       result.push(old);
       used.add(old);
@@ -552,7 +559,9 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
   // A card replaced as a whole, and a row on screen whose words changed in place, fade through.
   for (const [old, next] of plan.swaps) {
     const was = before.rows.get(oldKeys.get(old));
-    if (was?.visible && next.isConnected) fades.push({copy: old, chain: chainOf(next.parentElement, root), rect: was.rect, node: next});
+    // Only a card actually on screen: a copy of one just off it would slide into view with its new place.
+    const onScreen = was && was.rect.bottom > view.top && was.rect.top < view.bottom;
+    if (onScreen && next.isConnected) fades.push({copy: old, chain: chainOf(next.parentElement, root), rect: was.rect, node: next});
   }
   for (const [key, look] of looks) {
     const next = after.rows.get(key)?.node;
@@ -579,7 +588,7 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
     animations.push(node.animate([
       {height: '0px', minHeight: '0px', marginBottom: '0px', overflow: 'visible'},
       {height: node.getBoundingClientRect().height + 'px', minHeight: '0px', marginBottom: style.marginBottom, overflow: 'visible'}],
-    {duration: MOTION.resize, easing: EASE.emphasized}));
+    {duration: DURATION.short4, easing: EASE.standard}));
     return true;
   };
   for (const row of added) {
@@ -630,6 +639,10 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
   for (const [old, next] of kept) {
     if ((!old.visible && !next.visible) || inSwap(next.node)) continue;
     const now = start.get(next.node);
+    // Wholly off screen above the reading position, before and after: it changes at once (a card there that grew
+    // would otherwise slide its new bottom down into view).
+    const onScreen = r => r.bottom > view.top && r.top < view.bottom;
+    if (!onScreen(old.rect) && !onScreen(now) && above(next.node, now)) { shift.set(next.node, [0, 0]); continue; }
     let dx = old.rect.left - now.left;
     let dy = old.rect.top - now.top;
     const parent = next.parent && shift.has(next.parent) ? shift.get(next.parent) : null;
@@ -642,6 +655,24 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
     }
     animations.push(next.node.animate([{translate: `${dx}px ${dy}px`}, {translate: '0px 0px'}],
       {duration: MOTION.layout, easing: EASE.emphasized}));
+  }
+  // A row on screen above the reading position (one cut off by the top edge included) whose slot another row took,
+  // as when Coming up's first Result changes: it changes at once in the layout, but its words fade through in the
+  // same beat as everything else, never a hard cut.
+  const taken = new Set(fades.map(fade => fade.node));
+  for (const [key, row] of before.rows) {
+    if (stageKeys.has(key) || row.node.isConnected || row.node.querySelector(KEYED)) continue;
+    if (row.rect.bottom <= view.top || row.rect.top >= view.bottom) continue;
+    const cls = String(row.node.className).split(/\s+/)[0];
+    for (const [newKey, next] of after.rows) {
+      if (before.rows.has(newKey) || taken.has(next.node) || animated.has(next.node) || !next.node.isConnected) continue;
+      if (String(next.node.className).split(/\s+/)[0] !== cls) continue;
+      const now = start.get(next.node) ?? next.node.getBoundingClientRect();
+      if (Math.abs(now.top - row.rect.top) > 2) continue;
+      taken.add(next.node);
+      fades.push({copy: row.node, chain: chainOf(next.node.parentElement, root), rect: row.rect, node: next.node});
+      break;
+    }
   }
   // A row typed in place is not a change of words: it never fades.
   if (landed) for (let i = fades.length - 1; i >= 0; i--) if (landed.node.contains(fades[i].node) || fades[i].node.contains(landed.node)) fades.splice(i, 1);

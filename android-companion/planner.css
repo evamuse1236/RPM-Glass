@@ -521,7 +521,7 @@ button.list-item:active { background: var(--row-press); }
   border-radius: var(--shape-md);
   background: var(--row-press);
   pointer-events: none;
-  /* task-sheets.mjs holds it while the Inbox slides back, then fades it out over 200ms */
+  /* task-sheets.mjs holds it while the Inbox slides back, then fades it out over 300ms (standard easing) */
 }
 /* Plan order by long-press and drag (Google Tasks): the held row lifts, the rows it passes slide out of its way. */
 .plan-list .task-row { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
@@ -1059,6 +1059,13 @@ button.fact-row:active { background: var(--row-press); }
 }
 .inline-add input::placeholder { color: var(--primary); opacity: 1; }
 .inline-add input:focus::placeholder { color: var(--on-surface-variant); }
+/* Just after Enter the new row's words are still over the field as it slides down: its hint returns once clear. */
+.inline-add input::placeholder { transition: color 120ms var(--ease-standard); }
+.inline-add .icon-btn { transition: opacity 120ms var(--ease-standard); }
+.inline-add[data-landing] input::placeholder { color: transparent; transition: none; }
+.inline-add[data-landing] .icon-btn { opacity: 0; transition: none; }
+/* While the words go on to the Plan and the next are typed, the caret stays lit (as Android's does while typing). */
+.inline-add[data-steady] input { caret-animation: manual; }
 .screen-blocks .completed-group, .screen-blocks .plan-list { margin: 0 var(--s1); }
 .achieved-panel {
   margin: var(--s4) var(--gutter);
@@ -1744,7 +1751,9 @@ button.fact-row:active { background: var(--row-press); }
 .motion-clip { overflow: hidden; }
 /* Menus open from their anchor. */
 .menu { animation: menu-in var(--dur-short3) var(--ease-emphasized-decelerate); transform-origin: top right; }
-@keyframes menu-in { from { opacity: 0; transform: scale(.9, .7); } }
+/* The surface is opaque within 50ms (no see-through menu) while it grows from its anchor over 150ms; its items come
+   in with it. */
+@keyframes menu-in { 0% { opacity: 0; transform: scale(.9, .7); } 33% { opacity: 1; } 100% { opacity: 1; transform: none; } }
 :root[data-reduce-motion=true] .progress > span, :root[data-reduce-motion=true] #fab-host, :root[data-reduce-motion=true] .fab { transition: none; }
 @media (prefers-reduced-motion: reduce) { .field-fold, .field-fold.open { transition: none; } }
 :root[data-reduce-motion=true] .field-fold, :root[data-reduce-motion=true] .field-fold.open { transition: none; }

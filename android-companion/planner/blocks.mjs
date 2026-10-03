@@ -6,7 +6,7 @@ import {duration, plural, dateText, dueInfo, timeLeft} from './format.mjs';
 import {taskRow, completedSection, toggleDone, taskWhen} from './task-row.mjs';
 import {openSheet, field} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
-import {playMotion, landInPlace, DURATION, EASE} from '../surface-motion.mjs';
+import {playMotion, landInPlace, waitMotion, DURATION, EASE} from '../surface-motion.mjs';
 import {inlineText, focusField, selectAll, carryFocus, backHandler, persist, saveEntity, NO_ICON} from './inline-edit.mjs';
 
 const thisWeek = app => weekFocus(app.data(), weekStart(localDay()));
@@ -320,6 +320,8 @@ function achievedControl(app, block, status) {
 
 function inlineAdd(app, block) {
   const form = el('form', 'inline-add');
+  // The same node for the life of the page: never rebuilt by a save, so focus, caret and typing carry straight on.
+  form.dataset.keep = `plan-add:${block.id}`;
   const input = el('input');
   input.placeholder = 'Add a task';
   input.maxLength = 200;
@@ -338,26 +340,31 @@ function inlineAdd(app, block) {
   form.addEventListener('submit', async event => {
     event.preventDefault();
     const title = input.value;
-    if (!title.trim() || form.dataset.adding) return;
-    // The words stay in the field until the new row takes their place (no empty gap): the row lands where they were
-    // at full opacity and only the now-empty field below slides down. The field keeps focus (Enter adds the next).
-    form.dataset.adding = 'true';
-    input.__inline = {saved: title}; // these words are the new row's, not unsaved typing for the rebuilt field
-    // (The first task arrives with the Plan list itself.)
+    if (!title.trim()) return;
+    // One frame: the words become the new Plan row above the field (full opacity, where they were typed) and the
+    // field empties, keeping its focus and caret, so the next words typed (however fast) go to the next task. The
+    // row is shown from a copy of the data while the save runs; only the field's place moves, as the row opens.
+    input.value = '';
     const words = title.trim();
     const isRow = node => node.matches('.plan-list > .task-row') && node.querySelector('.task-title')?.textContent === words;
-    landInPlace(node => isRow(node) || (node.matches('.plan-list') && node.children.length === 1 && isRow(node.firstElementChild)),
-      {follow: '.inline-add > *'});
+    landInPlace(isRow);
+    const op = {type: 'saveTask', fields: {title, blockId: block.id}};
+    const pending = {op};
+    app.pending.push(pending);
+    // The field's hint and its + wait until the row has opened above it, so the two never overlap; the caret stays
+    // lit meanwhile and while the next words are typed.
+    const landing = form.__landing = {};
+    form.dataset.landing = form.dataset.steady = 'true';
+    waitMotion(80).then(() => { if (form.__landing === landing) delete form.dataset.landing; });
+    waitMotion(DURATION.medium4 * 2).then(() => { if (form.__landing === landing) delete form.dataset.steady; });
+    app.render();
     try {
-      const id = await persist(app, {type: 'saveTask', fields: {title, blockId: block.id}}, {label: 'Task added'});
-      if (input.isConnected) input.value = '';
-      const add = app.dom.work.querySelector('.inline-add input');
-      if (add && document.activeElement !== add) focusField(add);
+      await persist(app, op, {label: 'Task added', pending});
     } catch {
-      if (!input.value) input.value = title;
-    } finally {
-      delete form.dataset.adding;
-      delete input.__inline;
+      // Not saved: the row leaves and the words come back to the field (unless new words are already there).
+      app.pending = app.pending.filter(p => p !== pending);
+      app.render();
+      if (input.isConnected && !input.value) input.value = title;
     }
   });
   return form;
@@ -407,7 +414,7 @@ function planHeader(app, block) {
   return header;
 }
 
-/** After a reorder saved in place: Sort by time fades in or out where it stands (150ms). */
+/** After a reorder saved in place: Sort by time fades in (200ms) or out (150ms) where it stands. */
 function refreshPlanHeader(app, block, header) {
   if (!header.isConnected) return;
   const shown = header.querySelector('.text-btn');
@@ -418,8 +425,9 @@ function refreshPlanHeader(app, block, header) {
   }
   if (wanted) {
     header.append(wanted);
-    // An even fade (linear alpha, 150ms), so it reads as appearing, never as a pop.
-    playMotion(wanted, [{opacity: 0}, {opacity: 1}], {duration: DURATION.short3, easing: 'linear'});
+    // A fade (200ms, decelerating) that starts faint, so it reads as appearing, never as a pop.
+    playMotion(wanted, [{opacity: 0}, {opacity: 1}], {duration: DURATION.short4, easing: EASE.standardDecelerate,
+      fill: 'backwards'});
   } else {
     shown.inert = true;
     playMotion(shown, [{opacity: 1}, {opacity: 0}], {duration: DURATION.short3, easing: EASE.standardAccelerate,

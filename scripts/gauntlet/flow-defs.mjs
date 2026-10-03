@@ -105,11 +105,12 @@ export const flows = {
       await h.type('purpose', page.getByRole('textbox', {name: 'Purpose'}), 'We present real 2021 census data');
       await h.tap('add a task', page.getByLabel('Add a task to the Plan'));
       await h.type('task 1', page.getByLabel('Add a task to the Plan'), 'Pick the district');
-      await h.key('enter', 'Enter');
-      await h.type('task 2', page.getByLabel('Add a task to the Plan'), 'Pull the census tables');
+      // Enter adds the row and the field stays focused and empty in the same frame: the next task is typed at once,
+      // with no wait, and none of its letters are lost.
+      await h.enterThenType('enter, then type task 2 at once', 'Pull the census tables');
       await h.key('enter', 'Enter');
     },
-    check: s => { const b = s.planner.blocks.find(x => x.title.startsWith('District')); const n = s.entries.filter(e => e.blockId === b?.id && /Pick the district|Pull the census/.test(e.title)).length; return ok(b?.purpose === 'We present real 2021 census data' && n === 2, 'Purpose and two tasks'); },
+    check: s => { const b = s.planner.blocks.find(x => x.title.startsWith('District')); const n = s.entries.filter(e => e.blockId === b?.id && /^(Pick the district|Pull the census tables)$/.test(e.title)).length; return ok(b?.purpose === 'We present real 2021 census data' && n === 2, 'Purpose and two tasks'); },
   },
   'plan-reorder': {
     job: 'Open the Block "RM critical review drafted with my group" and move the last task in its Plan to the top.',

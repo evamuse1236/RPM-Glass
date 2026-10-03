@@ -115,6 +115,10 @@ async function runFlow(browser, name, flow) {
     type: (label, locator, text) => { record.typed.push(text); return step(label, 'type', () => locator.first().fill(text)); },
     // The keyboard's Enter and Android Back (Escape) are taps too.
     key: (label, key) => { record.keys++; if (key === 'Enter' || key === 'Escape') record.taps++; return step(label, 'key', () => page.keyboard.press(key)); },
+    // Enter, then the next words typed straight after it with no wait (real key presses, as a fast typist does):
+    // proves a field that adds on Enter never drops what is typed while it saves.
+    enterThenType: (label, text) => { record.keys++; record.taps++; record.typed.push(text); return step(label, 'key',
+      async () => { await page.keyboard.press('Enter'); await page.keyboard.type(text); }); },
     swipe: (label, locator, dx) => { record.taps++; return step(label, 'swipe', async () => {
       const box = await locator.first().boundingBox();
       const y = box.y + box.height / 2, x = box.x + box.width / 2;

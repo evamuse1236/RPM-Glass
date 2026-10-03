@@ -1,7 +1,7 @@
 /** Planner state, navigation and the save path shared by every screen module. */
 import {animateRerender, settleRerender, sharedAxis, fadeThrough, ghost, reducedMotion, snapshotRows, landRows,
   releaseTail, MOTION} from '../surface-motion.mjs';
-import {planner, localDay} from '../planner-state.mjs';
+import {planner, localDay, editPlan} from '../planner-state.mjs';
 import {taskContext, areaTone} from '../planner-ux.mjs';
 import {clarityPreferences, applyClarityPreferences} from '../planner-clarity.mjs';
 import {notice} from './snackbar.mjs';
@@ -60,7 +60,20 @@ export function createApp(api, renderers) {
     saving: false,
   };
 
-  app.data = () => api.getData();
+  // Ops typed faster than the bridge saves (the Plan's add row): the screen shows them at once, on a copy of the
+  // saved data, and each leaves this list the moment its save lands (or fails).
+  app.pending = [];
+  const preview = {base: null, ops: null, data: null};
+  app.data = () => {
+    const base = api.getData();
+    if (!app.pending.length) return base;
+    if (preview.base !== base || preview.ops?.length !== app.pending.length || preview.ops.some((p, i) => p !== app.pending[i])) {
+      const copy = structuredClone(base);
+      for (const p of app.pending) { try { editPlan(copy, p.op); } catch {} }
+      Object.assign(preview, {base, ops: [...app.pending], data: copy});
+    }
+    return preview.data;
+  };
   app.p = () => planner(app.data());
   app.context = task => taskContext(app.data(), task);
   app.tone = area => areaTone(area, app.p().areas);
@@ -290,14 +303,16 @@ export function render(app, {reset = false, direction = ''} = {}) {
  * to the caller (a completed row re-renders the page once its tick has been seen). A sheet that closes after the save
  * leaves first; the snackbar follows once it is gone, never over the leaving sheet.
  */
-export async function commit(app, op, {keepSheet = false, label = 'Saved', undo = true, render: redraw = true} = {}) {
+export async function commit(app, op, {keepSheet = false, label = 'Saved', undo = true, render: redraw = true,
+  pending = null} = {}) {
   if (app.saving) return undefined;
   app.saving = true;
   try {
     if (isSheetOpen(app) && app.sheet.version !== app.data().version) {
       throw new Error('Saved data changed while editing. Close this sheet and reopen it to review.');
     }
-    const id = await app.api.commit(op);
+    let id;
+    try { id = await app.api.commit(op); } finally { if (pending) app.pending = app.pending.filter(p => p !== pending); }
     app.sheet.version = app.data().version;
     const closing = !keepSheet && !app.dom.sheet.hidden;
     if (!keepSheet) {
