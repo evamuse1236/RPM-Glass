@@ -44,6 +44,10 @@ export function buildContext(data,{raw,messageId=null,conversationId,focus={},no
   if(score>0)candidates.push({entity,row,score});
  }
  for(const {entity,row} of candidates.sort((a,b)=>b.score-a.score).slice(0,16))add('entities',contextEntity(entity,row,timezone));
+ // A task belongs to a Block: offer the Blocks of related tasks too, so a new
+ // thought can be filed beside its neighbours instead of falling to the Inbox.
+ const parents=[...new Set(result.entities.filter(e=>e.entity==='task'&&e.blockId).map(e=>e.blockId))].filter(id=>!result.entities.some(e=>e.entity==='block'&&e.id===id));
+ for(const id of parents.slice(0,6)){const row=findEntity(data,'block',id);if(row&&!row.archived)add('entities',contextEntity('block',row,timezone));}
  const memories=[...(data.memories??[]).filter(m=>!m.archived&&m.text).map(m=>({...m,approved:true})),...(data.intentV2?.approvedMemories??[])];
  for(const m of memories.filter(m=>m.approved&&!m.archived&&!m.supersededBy&&(!m.expiresAt||Date.parse(m.expiresAt)>at)).map(m=>({m,score:relevance(m.text??'',raw)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,5))add('memories',{id:m.m.id,text:m.m.text,source:m.m.source??m.m.evidence??null});
  // Context values remain data, not instructions. Zero-match passages are excluded.

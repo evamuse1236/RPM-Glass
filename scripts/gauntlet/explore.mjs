@@ -1,0 +1,15 @@
+import {createRequire} from 'node:module';
+const require = createRequire(import.meta.url);
+const {chromium} = require(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
+const out = process.argv[2] ?? '.';
+const base = 'http://localhost:4173';
+const browser = await chromium.launch();
+const page = await browser.newPage({viewport: {width: 412, height: 915}, deviceScaleFactor: 2, colorScheme: 'light'});
+page.on('console', m => { if (m.type() === 'error') console.log('console:', m.text()); });
+page.on('pageerror', e => console.log('pageerror:', e.message));
+await fetch(base + '/__reset', {method: 'POST', body: '{}'});
+await page.goto(base + '/planner.html');
+await page.waitForTimeout(1500);
+await page.screenshot({path: out + '/today.png'});
+console.log(await page.locator('body').innerText().then(t => t.slice(0, 1500)));
+await browser.close();

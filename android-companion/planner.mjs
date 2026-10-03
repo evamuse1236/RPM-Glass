@@ -10,7 +10,7 @@ import {setDayLayout} from './planner/today.mjs';
 import {openTask, taskEditor, movePicker, planOrder, archiveTask, deleteTask, showTrash, showInbox}
   from './planner/task-sheets.mjs';
 import {entityEditor, contextEditor, detailMenu} from './planner/entities.mjs';
-import {refreshCalendar, calendarDetails, calendarEditor, datePicker} from './planner/calendar-ui.mjs';
+import {refreshCalendar, calendarDetails, calendarEditor, datePicker, resolveClash} from './planner/calendar-ui.mjs';
 import {aiAction, examples} from './planner/jev.mjs';
 import {searchBar} from './planner/search.mjs';
 import {componentGallery} from './planner/gallery.mjs';
@@ -54,7 +54,6 @@ const VIEW_TABS = {day: 'today', rpm: 'blocks', projects: 'projects', life: 'lif
 
 function installActions(app) {
   const fabs = {
-    today: {label: 'Add task', onClick: () => taskEditor(app, null, {plannedDate: app.state.day})},
     blocks: {label: 'New Block', onClick: () => entityEditor(app, 'blocks')},
     projects: {label: 'New Project', onClick: () => entityEditor(app, 'projects')},
   };
@@ -73,6 +72,7 @@ function installActions(app) {
     detailMenu: top => detailMenu(app, top),
     calendar: () => calendarEditor(app),
     calendarDetails: event => calendarDetails(app, event),
+    resolveClash: items => resolveClash(app, items),
     datePicker: () => datePicker(app),
     setDayLayout: value => setDayLayout(app, value),
     jevSort: () => aiAction(app, 'sort'),
@@ -144,9 +144,22 @@ function installNativeHooks(app) {
     window.visualViewport.addEventListener('resize', sync);
     sync();
   }
+  let lastTop = 0;
   app.dom.scroll.addEventListener('scroll', () => {
-    const scrolled = String(app.dom.scroll.scrollTop > 4);
+    const top = app.dom.scroll.scrollTop;
+    // The FAB steps aside while reading down and returns on the way back up, so it never sits on what is read.
+    if (Math.abs(top - lastTop) > 8 || top < 8) {
+      const hide = String(top > lastTop && top > 64);
+      if (app.dom.planner.dataset.fabAside !== hide) app.dom.planner.dataset.fabAside = hide;
+      lastTop = top;
+    }
+    const scrolled = String(top > 4);
     if (app.dom.planner.dataset.scrolled !== scrolled) app.dom.planner.dataset.scrolled = scrolled;
+    // A detail page's large title hands over to the bar only once its text has scrolled fully out of view.
+    const big = app.dom.work.querySelector('.detail-title-text');
+    const out = String(big ? big.getBoundingClientRect().bottom - parseFloat(getComputedStyle(big).paddingBottom)
+      <= app.dom.scroll.getBoundingClientRect().top : scrolled === 'true');
+    if (app.dom.planner.dataset.titleOut !== out) app.dom.planner.dataset.titleOut = out;
   }, {passive: true});
   new ResizeObserver(() => {
     if (!app.dom.nav.hidden) root.style.setProperty('--nav-measured', app.dom.nav.getBoundingClientRect().height + 'px');

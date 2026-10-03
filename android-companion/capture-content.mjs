@@ -1,4 +1,7 @@
 // Presentation of already-resolved dates only. This module never parses input.
+import {clock} from './planner/format.mjs';
+import {localDay} from './planner-state.mjs';
+
 export function captureDuration(minutes){
  if(!Number.isFinite(minutes)||minutes<=0)return null;
  const hours=Math.floor(minutes/60),rest=minutes%60;
@@ -65,6 +68,41 @@ export function scheduleChips(schedule,weekday=null){
  chips.push({icon:'schedule',label:time,kind:'time',muted:unset});
  if(unset&&schedule.duration)chips.push({icon:'timer',label:schedule.duration,kind:'estimate'});
  return chips;
+}
+
+/** "Today", otherwise an absolute day such as "Sun 4 Oct" (with the year when it differs), never "Tomorrow" beside a weekday. */
+export function absoluteDay(day,today=localDay()){
+ if(day===today)return 'Today';
+ // Built from parts: engines differ on the commas en-GB puts between them.
+ const parts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}).formatToParts(new Date(day+'T12:00')).map(p=>[p.type,p.value]));
+ return [parts.weekday,parts.day,parts.month,day.slice(0,4)!==today.slice(0,4)?parts.year:null].filter(Boolean).join(' ');
+}
+
+/**
+ * One proposal's date and time as an absolute day ("Sun 4 Oct, 9:00 AM",
+ * "Today, 2:00 PM–3:00 PM"), or null without one. Another timezone, an
+ * overnight range or a time still to check keeps the explicit labels from scheduleChips.
+ */
+export function scheduleText(item,{timeZone,deviceZone=Intl.DateTimeFormat().resolvedOptions().timeZone,reference=new Date()}={}){
+ if(!item||item.status==='review')return null;
+ const zone=timeZone??deviceZone;
+ if(zone===deviceZone){
+  const start=item.planned?new Date(item.planned):null,end=item.end?new Date(item.end):null;
+  if(start&&Number.isFinite(+start)&&(!end||Number.isFinite(+end)&&+end>+start&&localDay(end)===localDay(start))){
+   return `${absoluteDay(localDay(start),localDay(reference))}, ${clock(start)}${end?'–'+clock(end):''}`;
+  }
+  if(!start&&/^\d{4}-\d{2}-\d{2}$/.test(item.plannedDate??''))return absoluteDay(item.plannedDate,localDay(reference));
+ }
+ const labels=scheduleChips(captureSchedule(item,{timeZone:zone,reference}),captureWeekday(item,{timeZone:zone})).map(c=>c.label);
+ return labels.length?labels.join(', '):null;
+}
+
+/** A Result's deadline from dueInfo() plus its stored value, in the same absolute words: "Due Mon 5 Oct, 10:30 AM". */
+export function dueText(due,today=localDay()){
+ if(!due)return null;
+ if(due.overdue||!due.value)return due.label;
+ const day=absoluteDay(due.value.slice(0,10),today);
+ return `Due ${day==='Today'?'today':day}${due.value.length>10?', '+clock(due.at):''}`;
 }
 
 const plural=(n,word)=>`${n} ${word}${n===1?'':'s'}`;

@@ -1,14 +1,16 @@
 import {coalesceRefresh} from './surface-refresh.mjs';
 import {installDiagnostics} from './diagnostics.mjs';
 import {applyClarityPreferences} from './planner-clarity.mjs';
-import {describeLink} from './capture-context.mjs';
+import {describeLink,blockChoices,dayLoad} from './capture-context.mjs';
+import {calendarRows} from './planner-calendar.mjs';
+import {dueInfo} from './planner/format.mjs';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {entryView,propose,undo} from '../chat-prototype/companion-tools.mjs';
 import {MODEL} from '../chat-prototype/companion-agent.mjs';
 import {migratePlannerUX} from './planner-ux.mjs';
 import {importLegacyEntries} from './legacy-import.mjs';
 import * as reviewState from './review-state.mjs';
-import {editPlan} from './planner-state.mjs';
+import {editPlan,blockDue} from './planner-state.mjs';
 import {planningFocus,changePlanner} from './planner-tools.mjs';
 import {executeCaptureAction,goalDraftAction,receiptsForMessage} from './capture-actions.mjs';
 import {createIntentService,intentViewFromData} from './intent-service.mjs';
@@ -75,6 +77,9 @@ window.RPM_PLATFORM.captureAction=async action=>{const latest=await native('load
 window.RPM_PLATFORM.suggestionAction=(suggestion,sourceRaw,at)=>goalDraftAction(suggestion,sourceRaw,at?new Date(at):new Date());
 window.RPM_PLATFORM.receiptsForMessage=message=>receiptsForMessage(data,message,entryView);
 window.RPM_PLATFORM.describeLink=(field,value)=>describeLink(data,field,value);
+// A Block's Result deadline for Capture's proposals and Block picker: dueInfo() with its stored value, or null.
+window.RPM_PLATFORM.blockDue=id=>{const due=blockDue(data,id);return due&&{...dueInfo(due.value),value:due.value};};
+window.RPM_PLATFORM.blockChoices=()=>blockChoices(data,window.RPM_PLATFORM.blockDue);
 window.rpmPhoneRefresh=coalesceRefresh(async()=>{await ready;if(!busy){const latest=await native('load');phone=latest.phone;if(latest.data&&latest.data.version!==data.version){data=latest.data;window.dispatchEvent(new Event('rpm-data-refresh'));}}window.dispatchEvent(new Event('rpm-phone-status'));});
 await ready;
 applyClarityPreferences();
@@ -101,6 +106,12 @@ if(isPlanner){
     lastText=text;
     return native('captureDraft',{text}).catch(error=>{lastText=null;throw error;});
   };
+  // A read-only copy of the selected calendars, so a proposal can say what else holds its day.
+  // Without permission or a selected calendar there are simply no events.
+  let calendar=null;
+  const readCalendar=()=>native('calendarRead',{anchor:Date.now()}).then(value=>{calendar=value?.status==='ready'?calendarRows(value):null;window.dispatchEvent(new Event('rpm-calendar-ready'));},()=>{});
+  readCalendar();window.addEventListener('rpm-phone-status',readCalendar);
+  window.RPM_PLATFORM.dayLoad=options=>dayLoad(data,{...options,events:calendar??[],deadline:id=>blockDue(data,id)});
   const {mountCapture}=await import('./capture-app.mjs');
   mountCapture(window.RPM_PLATFORM);
 }

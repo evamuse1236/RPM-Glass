@@ -49,7 +49,11 @@ function mountReview(app, host) {
     },
     openBlock: id => app.openBlock(id),
     openCapture: () => app.capture(),
+    openTask: id => app.actions.openTask(id),
+    archiveTask: task => app.actions.archiveTask(task),
+    deleteTask: task => app.actions.deleteTask(task),
     sortInbox: () => app.actions.jevSort(),
+    readCalendar: anchor => app.api.native('calendarRead', {anchor}),
     now: () => new Date(),
     day: () => localDay(),
   };

@@ -5,6 +5,9 @@ export const freshPlanner=()=>({schema:1,projects:[],blocks:[],areas:[],goals:[]
 export function planner(data){return data.planner??freshPlanner();}
 export const tasks=data=>data.entries.filter(e=>!e.archived&&(e.kind??'plan')==='plan');
 export const blockTasks=(data,id)=>tasks(data).filter(e=>(e.blockId??null)===(id??null)).sort((a,b)=>(a.priority??Infinity)-(b.priority??Infinity)||a.id-b.id);
+/** A Result's deadline is derived, never stored: its latest open, dated, one-time task ({value: local 'YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM', task}). */
+export function blockDue(data,id){let best=null;for(const t of blockTasks(data,id)){if(t.done||t.recurrence||t.repeatAfterDays)continue;const value=t.planned?localStamp(t.planned):t.plannedDate;if(!value)continue;const at=Date.parse(value.length===10?value+'T23:59':value);if(!best||at>best.at)best={at,value,task:t};}return best&&{value:best.value,task:best.task};}
+const localStamp=iso=>{const d=new Date(iso);return localDay(d)+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
 export function totals(rows){return {all:rows.filter(e=>!e.done).reduce((s,e)=>s+(e.minutes??0),0),must:rows.filter(e=>e.must&&!e.done).reduce((s,e)=>s+(e.minutes??0),0),unknown:rows.filter(e=>!e.done&&e.minutes==null).length};}
 const text=(v,max=2000)=>{if(typeof v!=='string'||v.length>max)throw new Error('Text is too long or invalid.');return v.trim();};
 const title=v=>{const s=text(v,200);if(!s)throw new Error('Add a title.');return s;};
@@ -163,7 +166,7 @@ export function timelineItems(data,day,calendar=[],minimumVisualMinutes=0){
    Task:    completedAt (ISO) stamped when a one-time task is completed from now on; never back-filled.
             reviewChoice {week, choice:'carry'|'defer'|'drop', at, cleared?} records a review decision.
    Planner: weeks[week] = {focus:[blockId…≤5], verdicts:{blockId:'achieved'|'partly'|'notyet'}}  (plan data, undoable)
-            reviews[week] = {step, startedAt, updatedAt, finishedAt, focusDraft, inboxIds}      (progress, kept on Undo) */
+            reviews[week] = {step, startedAt, updatedAt, finishedAt, focusDraft, inboxIds, keptIds, clashes}  (progress, kept on Undo) */
 export const REVIEW_VERSION = 1;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const VERDICTS = ['achieved', 'partly', 'notyet'];

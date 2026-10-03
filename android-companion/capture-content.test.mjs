@@ -50,3 +50,22 @@ test('added summary says where each new task went',()=>{
  assert.equal(addedSummary([task(null)]),'1 task added to Inbox');
  assert.equal(addedSummary([{kind:'update',entity:'task',fields:[]}]),'Change saved');
 });
+test('proposal times and Result deadlines are absolute days, never Tomorrow beside a weekday',async()=>{
+ const {scheduleText,dueText,absoluteDay}=await import('./capture-content.mjs');
+ const {clock}=await import('./planner/format.mjs');
+ const zone=Intl.DateTimeFormat().resolvedOptions().timeZone;
+ const reference=new Date('2026-10-03T06:00:00');
+ const at=new Date('2026-10-04T09:00:00'),end=new Date('2026-10-04T10:00:00');
+ assert.equal(scheduleText({planned:at.toISOString()},{timeZone:zone,reference}),'Sun 4 Oct, '+clock(at));
+ assert.equal(scheduleText({planned:at.toISOString(),end:end.toISOString(),minutes:60},{timeZone:zone,reference}),`Sun 4 Oct, ${clock(at)}–${clock(end)}`);
+ assert.equal(scheduleText({plannedDate:'2026-10-03'},{timeZone:zone,reference}),'Today');
+ assert.equal(absoluteDay('2027-01-02','2026-10-03'),'Sat 2 Jan 2027');
+ assert.equal(scheduleText({planned:'2026-09-28T08:30:00Z'},{...options,deviceZone:'Europe/London'}),'Mon 28 Sept, 2 pm');
+ assert.equal(scheduleText({status:'review',reason:'AM or PM?'},options),null);
+ assert.equal(scheduleText(null),null);
+ const due=new Date('2026-10-05T10:30:00');
+ assert.equal(dueText({at:due,value:'2026-10-05T10:30',overdue:false},'2026-10-03'),'Due Mon 5 Oct, '+clock(due));
+ assert.equal(dueText({at:due,value:'2026-10-03',overdue:false},'2026-10-03'),'Due today');
+ assert.equal(dueText({label:'Overdue since Fri, Oct 2',overdue:true}),'Overdue since Fri, Oct 2');
+ assert.equal(dueText(null),null);
+});

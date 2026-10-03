@@ -2,16 +2,23 @@ import {localDay, shiftDay} from '../planner-state.mjs';
 
 export const plural = (count, one, many = one + 's') => `${count} ${count === 1 ? one : many}`;
 
+/** "11:00 PM", kept on one line so a wrap never strands "PM". */
 export function clock(value) {
-  return new Date(value).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+  return new Date(value).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}).replace(/ /g, '\u00a0');
 }
 
-/** "30 min", "1 h", "1 h 50 min". */
+/** "30 min", "1 h", "1 h 50 min"; one unbreakable phrase, so it never wraps mid-duration. */
 export function duration(minutes) {
   if (minutes == null) return 'No estimate';
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 60) return `${minutes}\u00a0min`;
   const rest = minutes % 60;
-  return `${Math.floor(minutes / 60)} h${rest ? ` ${rest} min` : ''}`;
+  return `${Math.floor(minutes / 60)}\u00a0h${rest ? `\u00a0${rest}\u00a0min` : ''}`;
+}
+
+/** "9:00 – 11:00 AM", "11:30 AM – 1:30 PM", as Calendar writes a range. */
+export function timeRange(start, end) {
+  const a = clock(start), b = clock(end), suffix = b.match(/\s?[^\d\s:.]+$/)?.[0];
+  return `${suffix && a.endsWith(suffix) ? a.slice(0, -suffix.length) : a} – ${b}`;
 }
 
 export function dateText(value) {
@@ -28,6 +35,15 @@ export function relativeDay(day) {
   if (day === today) return 'Today';
   if (day === shiftDay(today, 1)) return 'Tomorrow';
   if (day === shiftDay(today, -1)) return 'Yesterday';
+  return dateText(day + 'T12:00');
+}
+
+/** "Today" (only when asked), "Tomorrow", "Sun" within the week ahead, else a short date. */
+export function dayName(day, {today: sayToday = false} = {}) {
+  const today = localDay();
+  if (day === today) return sayToday ? 'Today' : '';
+  if (day === shiftDay(today, 1)) return 'Tomorrow';
+  if (day > today && day <= shiftDay(today, 6)) return new Date(day + 'T12:00').toLocaleDateString([], {weekday: 'short'});
   return dateText(day + 'T12:00');
 }
 
@@ -51,3 +67,24 @@ export function stableKey(value) {
   }
   return (hash >>> 0).toString(36);
 }
+
+/** When a Result's derived deadline (`blockDue(data, id).value`) falls: {at, label, soon, overdue}, or null without one. */
+export function dueInfo(value, now = new Date()) {
+  if (!value) return null;
+  const timed = value.length > 10, at = new Date(timed ? value : value + 'T23:59');
+  const day = value.slice(0, 10), today = localDay(now);
+  const when = day === today ? 'today' : day === shiftDay(today, 1) ? 'tomorrow'
+    : at - now < 6 * 864e5 && at > now ? at.toLocaleDateString([], {weekday: 'short'}) : dateText(day + 'T12:00');
+  const overdue = at < now;
+  return {at, overdue, soon: !overdue && at - now < 3 * 864e5,
+    label: overdue ? 'Overdue since ' + (day === today ? clock(at) : dateText(day + 'T12:00')) : `Due ${when}${timed ? ' ' + clock(at) : ''}`};
+}
+
+/** Time left until `at`, coarse and never rounded up: "40 min", "33 h", "5 days"; null once it has passed. */
+export function timeLeft(at, now = new Date()) {
+  const minutes = Math.floor((at - now) / 60000);
+  if (minutes < 0) return null;
+  if (minutes < 60) return `${Math.max(1, minutes)} min`;
+  return minutes < 48 * 60 ? `${Math.floor(minutes / 60)} h` : `${Math.floor(minutes / 1440)} days`;
+}
+export const countdown = (at, now = new Date()) => (timeLeft(at, now) ? 'in ' + timeLeft(at, now) : 'Overdue');

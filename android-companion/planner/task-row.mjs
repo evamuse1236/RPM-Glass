@@ -1,10 +1,11 @@
-/** Task rows in the style of Google Tasks: circle check, title, supporting time and duration, Must star. */
+/** Task rows in the style of Google Tasks: circle check, title, supporting time and duration, a star on Musts only. */
 import {blockTasks, localDay} from '../planner-state.mjs';
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
 import {reorderTask} from '../planner-ux.mjs';
 import {attachTaskSwipe} from '../task-swipe.mjs';
 import {el, icon, button, iconButton} from './dom.mjs';
-import {clock, duration} from './format.mjs';
+import {clock, duration, dayName} from './format.mjs';
+export {dayName};
 
 const REPEAT_NAMES = {daily: 'Daily', weekdays: 'Weekdays', weekly: 'Weekly'};
 
@@ -21,17 +22,22 @@ export function isOverdue(task, when = taskWhen(task)) {
   return !!task.plannedDate && task.plannedDate < localDay();
 }
 
-/** Supporting line: "Now · 30 min", "15:10 · 30 min · Daily", "Overdue · …". */
+/** Supporting line: "Now · 30 min", "Sun 9:00 PM · 20 min", "Overdue · …". Times carry their day unless it is today.
+ * Must is the star alone (with its accessible name), never the word as well. */
 function supportingLine(task, options) {
   const when = taskWhen(task);
   const line = el('span', 'task-supporting tnum');
   const parts = [];
-  let lead = null;
-  if (options.current) lead = ['now', 'Now'];
-  else if (isOverdue(task, when)) lead = ['overdue', 'Overdue'];
-  else if (options.next) lead = ['next', 'Next'];
-  if (lead) line.append(el('b', 'lead-' + lead[0], lead[1]));
-  if (when && !options.current) parts.push(clock(when));
+  const leads = [];
+  if (options.current) leads.push(['now', 'Now']);
+  else if (isOverdue(task, when)) leads.push(['overdue', 'Overdue']);
+  else if (options.next) leads.push(['next', 'Next']);
+  leads.forEach(([cls, text], i) => line.append(...(i ? [' · '] : []), el('b', 'lead-' + cls, text)));
+  const lead = leads.length > 0;
+  const day = when ? dayName(localDay(new Date(when)), {today: options.days})
+    : task.plannedDate ? dayName(task.plannedDate, {today: options.days}) : '';
+  if (when && !options.current) parts.push([day, clock(when)].filter(Boolean).join(' '));
+  else if (day) parts.push(day);
   else if (!when && options.anytime) parts.push('Anytime');
   if (task.minutes != null) parts.push(duration(task.minutes));
   const rule = task.repeatAfterDays ? 'After completion' : REPEAT_NAMES[task.recurrence];
@@ -55,18 +61,18 @@ function checkButton(app, task) {
   return check;
 }
 
-export function mustButton(app, task) {
-  const label = `${task.must ? 'Unmark' : 'Mark'} Must: ${task.title}`;
-  const star = iconButton('star', label, () => app.commit({type: 'saveTask', id: task.id, fields: {must: !task.must}},
-    {keepSheet: true, label: task.must ? 'Must removed' : 'Marked Must'}).catch(() => {}),
-  {fill: !!task.must, cls: 'must-btn'});
-  star.setAttribute('aria-pressed', String(!!task.must));
+/** The filled star marks a Must; other rows show nothing there. Must is set from the task sheet, never by a stray tap. */
+function mustMark() {
+  const star = icon('star', {fill: true, cls: 'must-mark'});
+  star.removeAttribute('aria-hidden');
+  star.setAttribute('role', 'img');
+  star.setAttribute('aria-label', 'Must');
   return star;
 }
 
 /**
- * options: current, next, anytime, context (text), plan (true in a Block's Plan: star + drag handle),
- * swipe (archive/delete gestures).
+ * options: current, next, anytime, days (say "Today" too), context (text), plan (true in a Block's Plan),
+ * reorder (Plan in reorder mode: drag handle), swipe (archive/delete gestures).
  */
 export function taskRow(app, task, options = {}) {
   const row = el('div', 'task-row');
@@ -84,24 +90,14 @@ export function taskRow(app, task, options = {}) {
     task.must ? 'Must' : '', task.done ? 'completed' : ''].filter(Boolean).join(', '));
   row.append(main);
 
-  if (options.plan) {
-    row.append(mustButton(app, task));
-    if (!task.done) {
-      const handle = iconButton('drag_indicator', 'Reorder ' + task.title, () => app.actions.planOrder(task),
-        {cls: 'drag-handle'});
-      installOrder(app, handle, row, task);
-      row.append(handle);
-    }
-  } else {
-    if (task.must) {
-      const star = icon('star', {fill: true, cls: 'must-mark'});
-      star.removeAttribute('aria-hidden');
-      star.setAttribute('role', 'img');
-      star.setAttribute('aria-label', 'Must');
-      row.append(star);
-    }
-    if (options.swipe !== false && !task.done) attachSwipe(app, row, task);
+  if (task.must) row.append(mustMark());
+  if (options.plan && options.reorder && !task.done) {
+    const handle = iconButton('drag_indicator', 'Reorder ' + task.title, () => app.actions.planOrder(task),
+      {cls: 'drag-handle'});
+    installOrder(app, handle, row, task);
+    row.append(handle);
   }
+  if (!options.plan && options.swipe !== false && !task.done) attachSwipe(app, row, task);
   return row;
 }
 

@@ -5,10 +5,11 @@ import {renderResponse} from './capture-card.mjs';
 import {pendingCard,failureCard,warning} from './capture-states.mjs';
 import {renderHistory,renderConversation,renderContext,renderAbout} from './capture-views.mjs';
 import {installCaptureMenu} from './widget-menu.mjs';
-import {installCapturePresentation,createRevealTracker,enter} from './capture-presentation.mjs';
+import {installCapturePresentation,createRevealTracker,enter,reducedMotion} from './capture-presentation.mjs';
 import {installComposer,listeningCard} from './capture-composer.mjs';
-import {createSendIdentity,draftToKeep,startersFor} from './capture-session.mjs';
-import {el,icon,button,chip} from './capture-dom.mjs';
+import {createSendIdentity,draftToKeep,STARTERS} from './capture-session.mjs';
+import {dueText} from './capture-content.mjs';
+import {el,icon,button} from './capture-dom.mjs';
 
 const TITLES={listening:'Voice input',chat:'Capture',history:'History',conversation:'Conversation',context:'Context',about:'About'};
 const ACTIVE=new Set(['draft','review']);
@@ -27,17 +28,25 @@ export function mountCapture(platform){
  const $=id=>document.getElementById(id);
  const panel=$('panel'),content=$('content'),dock=$('capture-actions'),message=$('message');
  const s={state:null,busy:false,view:'chat',conversationId:storage.get('rpm-conversation'),focusedDraftId:null,
-  historyLimit:20,showArchived:false,lastKey:null,request:null,failure:null,listening:false,autoClose:null,slowTimer:null};
+  historyLimit:20,showArchived:false,lastKey:null,request:null,failure:null,listening:false,autoClose:null,slowTimer:null,draftSaved:false};
  const identity=createSendIdentity();
  const reveal=createRevealTracker();
  const actionIds=new Map();
+ // Proposals Dara left out, per draft. Local until Add, which sends them as `skip`.
+ const skippedOps=new Map();
  let itemPopover=null;
 
  // ---- drafts -------------------------------------------------------------
  function rememberComposer(text){
   const kept=draftToKeep(text,{busy:s.busy,pendingText:identity.pending?.text});
-  storage.set('rpm-native-draft',kept);
-  platform.saveComposerDraft?.(kept).catch(()=>status('Couldn’t keep your unsent draft on this phone. Keep this window open and copy your words.',true));
+  const local=storage.set('rpm-native-draft',kept);
+  // "Draft saved" appears only once the phone confirms these exact words.
+  const saved=()=>{if(message.value===text){s.draftSaved=true;syncHint();}};
+  if(!platform.saveComposerDraft){if(local)saved();return;}
+  platform.saveComposerDraft(kept).then(saved,()=>{
+   s.draftSaved=false;syncHint();
+   status('Couldn’t keep your unsent draft on this phone. Keep this window open and copy your words.',true);
+  });
  }
  const rememberDraft=()=>storage.set('rpm-native-draft',message.value);
 
@@ -213,36 +222,65 @@ export function mountCapture(platform){
   cancelAutoClose();
   if(message.value.trim())return;
   panel.dataset.autoClose='true';
+  // The receipt counts down the seconds left before Capture closes itself; any touch stops it.
+  const ends=Date.now()+AUTO_CLOSE_MS;
+  const tick=()=>{
+   const line=dock.querySelector('.close-countdown'),left=Math.ceil((ends-Date.now())/1000);
+   if(line)line.textContent=left>0?`Closing in ${left}s`:'';
+  };
+  tick();s.countdown=setInterval(tick,250);
   s.autoClose=setTimeout(()=>{
-   s.autoClose=null;panel.dataset.autoClose='false';
+   cancelAutoClose();
    if(!message.value.trim()&&s.view==='chat'&&!s.busy&&!menu.isOpen())platform.action('minimize').catch(()=>{});
   },AUTO_CLOSE_MS);
  }
  function cancelAutoClose(){
   if(s.autoClose)clearTimeout(s.autoClose);
-  s.autoClose=null;panel.dataset.autoClose='false';
+  clearInterval(s.countdown);
+  s.autoClose=null;s.countdown=null;panel.dataset.autoClose='false';
+  const line=dock.querySelector('.close-countdown');
+  if(line)line.textContent='';
  }
  for(const type of ['pointerdown','keydown','input','wheel'])panel.addEventListener(type,cancelAutoClose,{capture:true,passive:true});
 
  // ---- item overflow menu -------------------------------------------------
- function openItemMenu(anchor,items){
+ function openItemMenu(anchor,items,{wide=false}={}){
   closeItemMenu();
-  const pop=el('div','popover');
+  const pop=el('div','popover'+(wide?' wide':''));
   pop.setAttribute('role','menu');
   for(const item of items){
    const row=el('button','popover-item');
-   row.type='button';row.setAttribute('role','menuitem');
-   row.append(icon(item.icon),el('span','',item.label));
+   row.type='button';row.setAttribute('role',item.checked===undefined?'menuitem':'menuitemradio');
+   if(item.checked!==undefined)row.setAttribute('aria-checked',String(item.checked));
+   if(item.icon)row.append(icon(item.icon));
+   const text=el('span','popover-text');
+   text.append(el('span','',item.label));
+   if(item.sub)text.append(el('span','popover-sub'+(item.alert?' overdue':''),item.sub));
+   row.append(text);
+   if(item.checked)row.append(icon('check',{cls:'popover-check'}));
    row.addEventListener('click',()=>{closeItemMenu();item.run();});
    pop.append(row);
   }
   panel.append(pop);
   const a=anchor.getBoundingClientRect(),p=panel.getBoundingClientRect();
+  pop.style.maxHeight=Math.max(160,p.height-16)+'px';
   const below=a.bottom-p.top+4,height=pop.offsetHeight;
-  pop.style.right=Math.max(8,p.right-a.right)+'px';
-  pop.style.top=(below+height<p.height-8?below:Math.max(8,a.top-p.top-height-4))+'px';
+  if(wide)pop.style.left='8px';
+  pop.style.right=wide?'8px':Math.max(8,p.right-a.right)+'px';
+  pop.style.top=(below+height<p.height-8?below:Math.max(8,Math.min(a.top-p.top-height-4,p.height-height-8)))+'px';
   itemPopover={node:pop,anchor};
-  pop.querySelector('button')?.focus({preventScroll:true});
+  (pop.querySelector('[aria-checked=true]')??pop.querySelector('button'))?.focus({preventScroll:true});
+ }
+ /** Move one proposal to another Block, or to the Inbox, before it is added. */
+ function pickBlock(anchor,op,draft){
+  const current=op.fields.find(f=>f.name==='blockId'&&f.op==='set')?.value??null;
+  const set=value=>runIntentAction({conversationId:draft.conversationId,draftId:draft.id,revision:draft.revision,kind:'set-field',opId:op.opId,field:'blockId',...(value==null?{clear:true}:{value})});
+  // A plain list like Google Tasks' "Move to": names, their deadline or Project, and a check.
+  const items=[{label:'Inbox',sub:'No block for now',checked:current==null,run:()=>set(null)}];
+  for(const b of platform.blockChoices?.()??[]){
+   items.push({label:b.title,sub:dueText(b.due)??b.subtitle,alert:b.due?.overdue,checked:String(b.id)===String(current),run:()=>set(b.id)});
+  }
+  openItemMenu(anchor,items,{wide:true});
  }
  function closeItemMenu(){
   if(!itemPopover)return false;
@@ -268,25 +306,28 @@ export function mountCapture(platform){
    prefill,
    connectAI:()=>platform.action('settings',{section:'ai_connection'}),
    itemMenu:openItemMenu,
+   pickBlock,
+   toggleInclude:(draft,opId)=>{
+    const set=skippedOps.get(draft.id)??new Set();
+    if(!set.delete(opId))set.add(opId);
+    skippedOps.set(draft.id,set);
+    render();
+   },
+  },
+  blockDue:platform.blockDue,
+  dayLoad:platform.dayLoad,
+  skippedFor:draft=>{
+   const set=skippedOps.get(draft.id)??new Set();
+   for(const id of set)if(!draft.operations.some(op=>op.opId===id))set.delete(id);
+   return set;
   },
  });
  const responseKey=c=>c?JSON.stringify([c.messageId,c.reply,c.draft?.revision,c.draft?.status,c.lastError?.message]):null;
 
+  // Field-first: nothing sits above the composer. The trust line lives under it (see syncHint)
+ // and the planning starters live in More.
  function welcome(frag){
   const box=el('section','welcome');
-  box.append(el('h2','welcome-title','What’s on your mind?'),el('p','welcome-text','Capture a thought, a task or a plan. Your words are saved first, and nothing changes your plan until you add it.'));
-  const c=conversation();
-  const starters=startersFor({view:s.view,busy:s.busy,archived:c.archived,captureCount:0,recovering:!!s.failure});
-  if(starters.length){
-   const row=el('div','starters');
-   row.setAttribute('aria-label','Starter ideas');
-   for(const item of starters){
-    const node=chip(item.label,{iconName:item.icon,onClick:()=>turn({type:'message',text:item.text}),cls:'suggestion'});
-    node.addEventListener('pointerdown',e=>{if(document.activeElement===message)e.preventDefault();});
-    row.append(node);
-   }
-   box.append(row);
-  }
   if(!s.state.aiEnabled){
    const note=el('div','note');
    note.append(icon('key'),el('p','','Without an AI key, Capture saves your words but can’t sort them.'),button('Connect',()=>platform.action('settings',{section:'ai_connection'}),{role:'text'}));
@@ -387,8 +428,15 @@ export function mountCapture(platform){
   content.setAttribute('aria-busy',String(s.busy));
   const answering=!!answerDraft();
   message.placeholder=answering?'Or answer in your own words':s.focusedDraftId?'Tell me what to change':'Capture a thought';
-  const showHint=s.view==='chat'&&!s.busy&&!s.listening&&!s.failure&&(!captures().length||!!message.value.trim())&&!answering;
-  $('composer-hint').hidden=!showHint;
+  syncHint();
+ }
+ /** One line under the field: the promise while empty, then "Draft saved" once the phone confirms. */
+ function syncHint(){
+  const hint=$('composer-hint'),text=!!message.value.trim(),chat=s.view==='chat'&&!s.busy&&!s.listening;
+  const saved=chat&&s.draftSaved&&text,promise=chat&&!saved&&!!content.querySelector('.welcome');
+  hint.hidden=!saved&&!promise;
+  hint.dataset.kind=saved?'saved':'promise';
+  $('hint-text').textContent=saved?'Draft saved':'Saved as you type. Added only when you confirm.';
  }
 
  function controls(){
@@ -401,8 +449,34 @@ export function mountCapture(platform){
   $('send').setAttribute('aria-description',s.busy?'Working on your capture. Hold for planner and more.':'Hold for planner and more.');
  }
 
+ // Within one capture the panel only grows, so the composer and the main action
+ // never jump under the thumb; it settles back when Capture is empty again. The
+ // receipt also settles to its own height (the panel is anchored at the bottom,
+ // so Undo takes Add's place and nothing under the thumb moves), leaving no empty band.
+ let floor=0;
+ function holdHeight(before){
+  panel.style.minHeight='';
+  const receipt=panel.dataset.state==='committed';
+  const cycle=s.view==='chat'&&!panel.classList.contains('expanded')&&panel.dataset.state!=='idle'&&!receipt;
+  if(!cycle){
+   floor=0;
+   const natural=panel.offsetHeight;
+   if(receipt&&before>natural+1&&!reducedMotion()&&panel.animate){
+    panel.animate([{height:before+'px'},{height:natural+'px'}],{duration:250,easing:'cubic-bezier(.2,0,0,1)'});
+   }
+   return;
+  }
+  const natural=panel.offsetHeight,limit=parseFloat(getComputedStyle(panel).maxHeight)||Infinity;
+  floor=Math.min(limit,Math.max(floor,before,natural));
+  panel.style.minHeight=floor+'px';
+  if(before&&floor>before+1&&!reducedMotion()&&panel.animate){
+   panel.animate([{height:before+'px'},{height:floor+'px'}],{duration:250,easing:'cubic-bezier(.05,.7,.1,1)'});
+  }
+ }
+
  function render(){
   if(!s.state)return;
+  const height=panel.offsetHeight;
   s.lastKey=captureRenderKey({...s.state,intent:intentPage()});
   const before={top:content.scrollTop,key:content.querySelector('[data-reply-key]')?.dataset.replyKey??null,view:s.view,
    open:[...content.querySelectorAll('details[open]')].map(d=>d.className)};
@@ -418,6 +492,7 @@ export function mountCapture(platform){
   const same=before.key===(latest?.dataset.replyKey??null)&&before.view===s.view;
   if(same)for(const d of content.querySelectorAll('details'))if(before.open.includes(d.className))d.open=true;
   content.scrollTop=same?before.top:0;
+  holdHeight(height);
   presentation.updateOverflow();
   if(!s.busy&&s.view==='chat')reveal.observe(latest?.dataset.replyKey);
  }
@@ -473,7 +548,7 @@ export function mountCapture(platform){
   const full=panel.classList.toggle('expanded');
   $('expand').setAttribute('aria-pressed',String(full));
   $('expand').setAttribute('aria-label',full?'Make Capture smaller':'Expand Capture');
-  $('expand').querySelector('.ms').textContent=full?'close_fullscreen':'open_in_full';
+  $('expand').querySelector('.ms').textContent=full?'collapse_content':'expand_content';
   platform.action('expand').catch(()=>{});
  });
  $('back').addEventListener('click',()=>setView(s.view==='conversation'?'history':'chat'));
@@ -483,6 +558,10 @@ export function mountCapture(platform){
  $('history-view').addEventListener('click',()=>setView('history'));
  $('plans-view').addEventListener('click',()=>setView('plans'));
  $('focus-clear').addEventListener('click',()=>{platform.clearPlanningFocus();render();});
+ // The planning starters wait in More so the field leads; each sends its own words.
+ STARTERS.forEach((item,i)=>$('starter-'+i).addEventListener('click',()=>{setView('chat');turn({type:'message',text:item.text});}));
+ // The calendar copy arrives after the first paint; proposals then name what else holds their day.
+ window.addEventListener('rpm-calendar-ready',()=>{if(s.state&&!s.busy&&s.view==='chat'&&content.querySelector('.proposal-card'))render();});
  window.rpmHandleBack=()=>{
   if(closeItemMenu())return true;
   if(menu.dismiss())return true;
@@ -507,6 +586,8 @@ export function mountCapture(platform){
   s.conversationId=conversation().id;
   render();
   content.scrollTop=0;
+  // Capture opens ready to type: the field has focus unless a decision is waiting.
+  if(s.view==='chat'&&!content.querySelector('.proposal-card,.question'))message.focus({preventScroll:true});
  }).catch(()=>status('Capture could not open your saved data. Close and open it again.',true));
  return {render,turn};
 }
