@@ -61,18 +61,18 @@ export function resolveClash(app, items) {
   const list = el('div', 'clash-list');
   for (const item of items) {
     const task = item.source === 'rpm' ? tasks(data).find(t => t.id === item.id) : null;
+    // The task that sets its Result's deadline is not moved with one tap: that would move the deadline too.
+    const setsDeadline = task?.blockId != null && blockDue(data, task.blockId)?.task.id === task.id;
     const row = el('div', 'clash-item');
     const copy = el('span', 'list-copy');
-    copy.append(el('span', 'list-headline', item.title),
-      el('span', 'list-supporting tnum', `${timeRange(item.start, item.end)} · ${task ? 'Task' : 'Calendar event'}`));
+    copy.append(el('span', 'list-headline', item.title), el('span', 'list-supporting tnum',
+      `${timeRange(item.start, item.end)} · ${task ? (setsDeadline ? 'Task, sets its Result\'s deadline' : 'Task') : 'Calendar event'}`));
     row.append(icon(task ? 'task_alt' : 'event', {cls: 'leading'}), copy);
     list.append(row);
     if (!task) continue;
     const choices = el('div', 'clash-actions');
     const minutes = (item.end - item.start) / 60000;
     const before = Math.min(...items.filter(other => other !== item).map(other => other.start)) - minutes * 60000;
-    // The task that sets its Result's deadline is not moved with one tap: that would move the deadline too.
-    const setsDeadline = task.blockId != null && blockDue(data, task.blockId)?.task.id === task.id;
     if (!repeats(task) && !setsDeadline && before > Date.now() && !conflicts(data, before, minutes, state.calendar ?? [], task.id).length) {
       choices.append(button(`Move to ${clock(before)}`, () => app.commit({type: 'saveTask', id: task.id,
         fields: {planned: new Date(before).toISOString()}}, {label: `${task.title} moved to ${clock(before)}`}).catch(() => {}),
