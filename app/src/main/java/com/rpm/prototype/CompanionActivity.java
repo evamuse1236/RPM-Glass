@@ -42,7 +42,7 @@ public class CompanionActivity extends Activity {
                 try{Diagnostics.recordNow(CompanionActivity.this,Diagnostics.event("crash","error","webview.renderer","error",new JSONObject().put("didCrash",detail.didCrash()).put("priority",detail.rendererPriorityAtExit())));}catch(Exception ignored){}
                 return false;
             }
-            @Override public void onPageFinished(WebView v,String url){if("https://rpm.local/index.html".equals(url)){openKeyboard();}syncSurfaceInsets();}
+            @Override public void onPageFinished(WebView v,String url){if("https://rpm.local/index.html".equals(url)){arrive();}syncSurfaceInsets();}
             @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return true;}
             @Override public WebResourceResponse shouldInterceptRequest(WebView v,WebResourceRequest r){Uri u=r.getUrl();String asset=u.getPath()==null?"":u.getPath().substring(1);if("https".equals(u.getScheme())&&"rpm.local".equals(u.getHost())&&u.getPort()==-1&&u.getQuery()==null&&ASSETS.contains(asset)&&r.getMethod().equals("GET"))try{String type=asset.endsWith(".html")?"text/html":asset.endsWith(".css")?"text/css":asset.endsWith(".png")?"image/png":asset.endsWith(".woff2")?"font/woff2":"text/javascript";return new WebResourceResponse(type,"UTF-8",200,"OK",Map.of("Content-Security-Policy",CSP,"X-Content-Type-Options","nosniff","Cache-Control","no-store"),getAssets().open("companion/"+asset));}catch(IOException ignored){}return new WebResourceResponse("text/plain","UTF-8",403,"Blocked",Map.of(),new ByteArrayInputStream(new byte[0]));}
         });
@@ -100,7 +100,9 @@ public class CompanionActivity extends Activity {
     @Override public void onBackPressed(){if(Build.VERSION.SDK_INT<33)handleBack();}
     int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
     @Override protected void onSaveInstanceState(Bundle out){out.putBoolean("expanded",expanded);super.onSaveInstanceState(out);}
-    @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);if(intent.getBooleanExtra("reload",false))web.reload();else if(!planning())openKeyboard();}
+    @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);if(intent.getBooleanExtra("reload",false))web.reload();else if(!planning())arrive();}
+    // The widget's mic opens Capture already listening (once: a reload afterwards only focuses the field); anything else opens the keyboard.
+    private void arrive(){if(web==null)return;if(!"com.rpm.widget.voice".equals(getIntent().getAction())){openKeyboard();return;}getIntent().setAction("com.rpm.widget.capture");web.post(()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmStartVoice?window.rpmStartVoice():(window.rpmPendingVoice=true)",null);});}
     @Override protected void onResume(){super.onResume();applyTextScale();if(settingsController!=null)settingsController.onResume();work.execute(()->{try{JSONObject d=CompanionStore.read(this);if(d!=null)CompanionAlerts.reconcile(this,d,false);}catch(Exception ignored){}runOnUiThread(this::settingsChanged);});}
     @Override protected void onPause(){if(settingsController!=null)settingsController.onPause();super.onPause();}
     @Override public void onConfigurationChanged(android.content.res.Configuration c){super.onConfigurationChanged(c);size();applyTextScale();settingsChanged();}

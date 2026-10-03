@@ -15,15 +15,23 @@ export function sourceUnits(raw){
 export function entityRows(data,entity){return entity==='task'?(data.entries??[]).filter(e=>!e.archived&&(e.kind??'plan')==='plan'):(data.planner?.[{block:'blocks',project:'projects',goal:'goals',area:'areas'}[entity]]??[]);}
 export function findEntity(data,entity,id){return entityRows(data,entity).find(x=>String(x.id)===String(id));}
 export function stable(value){if(Array.isArray(value))return '['+value.map(stable).join(',')+']';if(value&&typeof value==='object')return '{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+stable(value[k])).join(',')+'}';return JSON.stringify(value);}
-function relevance(text,query){const words=[...new Set(query.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu)??[])];return words.reduce((s,w)=>s+(text.toLowerCase().includes(w)?1:0),0);}
+// Function words match every title, which crowds the context with unrelated tasks; they carry no topic.
+const STOP=new Set('the and for with that this from have has had was were are but not you your our their them they then than into onto out off about after before again also just really need needs want wants will would should could can its it’s it\'s get got make made like some any all one two own very too more most much many still even ever every each other others what when where which who why how hai aur bhi kar karna nahi'.split(' '));
+function relevance(text,query){const words=[...new Set(query.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu)??[])].filter(w=>!STOP.has(w));return words.reduce((s,w)=>s+(text.toLowerCase().includes(w)?1:0),0);}
+/** A Result's deadline: its latest open, dated, one-time task (the planner's blockDue), as a local stamp. */
+function blockDue(data,id,timezone){
+ const due=(data.entries??[]).filter(e=>e.blockId===id&&!e.done&&!e.archived&&e.state!=='cancelled'&&!e.recurrence&&!e.repeatAfterDays&&(e.planned||e.plannedDate))
+  .map(e=>e.planned?localStamp(e.planned,timezone):e.plannedDate).sort().at(-1);
+ return due??null;
+}
 export function localStamp(value,timezone){
  if(!value||!Number.isFinite(Date.parse(value)))return null;
  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(value)).map(p=>[p.type,p.value]));
  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
 }
-export function contextEntity(entity,row,timezone){
+export function contextEntity(entity,row,timezone,data=null){
  const startLocal=localStamp(row.planned,timezone),minutes=Number.isInteger(row.minutes)&&row.minutes>0?row.minutes:null;
- return {entity,id:String(row.id),title:row.title,purpose:row.purpose??null,planned:row.planned??null,plannedDate:row.plannedDate??null,savedLocalDate:startLocal?.slice(0,10)??row.plannedDate??null,startLocal,endLocal:startLocal&&minutes?localStamp(new Date(Date.parse(row.planned)+minutes*60000).toISOString(),timezone):null,minutes,blockId:row.blockId??null,projectId:row.projectId??null,goalId:row.goalId??null,done:!!row.done};
+ return {entity,id:String(row.id),title:row.title,purpose:row.purpose??null,planned:row.planned??null,plannedDate:row.plannedDate??null,savedLocalDate:startLocal?.slice(0,10)??row.plannedDate??null,startLocal,endLocal:startLocal&&minutes?localStamp(new Date(Date.parse(row.planned)+minutes*60000).toISOString(),timezone):null,minutes,blockId:row.blockId??null,projectId:row.projectId??null,goalId:row.goalId??null,done:!!row.done,...(entity==='block'&&data?{dueLocal:blockDue(data,row.id,timezone)}:{})};
 }
 export function buildContext(data,{raw,messageId=null,conversationId,focus={},now=new Date(),maxChars=14000,timezone=Intl.DateTimeFormat().resolvedOptions().timeZone}={}){
  const at=+now,result={timezone,now:now.toISOString(),nowLocal:localStamp(now.toISOString(),timezone),scheduleCoverage:{records:'retrieved subset of saved RPM records',calendar:'not read',canAssertFreeTime:false},focus,entities:[],memories:[],recentMessages:[]};
@@ -43,11 +51,15 @@ export function buildContext(data,{raw,messageId=null,conversationId,focus={},no
   const score=(String(focusId??'')===String(row.id)?100:0)+relevance(row.title??'',raw)*10+(entity==='task'&&!row.done&&row.state!=='cancelled'?2:0);
   if(score>0)candidates.push({entity,row,score});
  }
- for(const {entity,row} of candidates.sort((a,b)=>b.score-a.score).slice(0,16))add('entities',contextEntity(entity,row,timezone));
+ for(const {entity,row} of candidates.sort((a,b)=>b.score-a.score).slice(0,16))add('entities',contextEntity(entity,row,timezone,data));
+ // Every open Block, with its Purpose and deadline, so a new task can be filed under the Result it serves
+ // even when the words share none of the Block's title ("the excel" belongs to the DAD workbook).
+ for(const row of entityRows(data,'block').filter(b=>!b.archived&&!b.achieved).slice(0,24))
+  if(!result.entities.some(e=>e.entity==='block'&&e.id===String(row.id)))add('entities',contextEntity('block',row,timezone,data));
  // A task belongs to a Block: offer the Blocks of related tasks too, so a new
  // thought can be filed beside its neighbours instead of falling to the Inbox.
  const parents=[...new Set(result.entities.filter(e=>e.entity==='task'&&e.blockId).map(e=>e.blockId))].filter(id=>!result.entities.some(e=>e.entity==='block'&&e.id===id));
- for(const id of parents.slice(0,6)){const row=findEntity(data,'block',id);if(row&&!row.archived)add('entities',contextEntity('block',row,timezone));}
+ for(const id of parents.slice(0,6)){const row=findEntity(data,'block',id);if(row&&!row.archived)add('entities',contextEntity('block',row,timezone,data));}
  const memories=[...(data.memories??[]).filter(m=>!m.archived&&m.text).map(m=>({...m,approved:true})),...(data.intentV2?.approvedMemories??[])];
  for(const m of memories.filter(m=>m.approved&&!m.archived&&!m.supersededBy&&(!m.expiresAt||Date.parse(m.expiresAt)>at)).map(m=>({m,score:relevance(m.text??'',raw)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,5))add('memories',{id:m.m.id,text:m.m.text,source:m.m.source??m.m.evidence??null});
  // Context values remain data, not instructions. Zero-match passages are excluded.

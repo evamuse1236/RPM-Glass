@@ -1,15 +1,20 @@
-// The current Capture response: proposals, one question, or a receipt.
-// Every change still goes through the existing typed draft actions.
+// The current Capture response: proposals with any question inline, what else
+// was heard, or a receipt. Every change still goes through the typed draft actions.
 import {captureSchedule,captureDuration,scheduleText,dueText} from './capture-content.mjs';
 import {duration,clock} from './planner/format.mjs';
-import {actionPresentation} from './capture-session.mjs';
-import {el,icon,button,iconButton,details} from './capture-dom.mjs';
+import {el,icon,button,iconButton} from './capture-dom.mjs';
 import {keptCard,dialogueCard,receiptCard,receiptActions,parkedCard,undoneCard,wordsToggle,warning} from './capture-states.mjs';
 
 const ENTITY={task:'task',block:'Block',project:'Project',goal:'Goal',area:'Area'};
-const FIELD_LABEL={purpose:'Purpose',notes:'Notes',projectId:'Project',goalId:'Goal',areaId:'Area',year:'Year',priority:'Position in Plan',recurrence:'Repeats',repeatAfterDays:'Days between repeats',alert:'Alert'};
-const CHANGE={update:'Change',complete:'Mark as done',archive:'Archive'};
+const FIELD_LABEL={purpose:'Why',notes:'Notes',projectId:'Project',goalId:'Goal',areaId:'Area',year:'Year',priority:'Position in Plan',recurrence:'Repeats',repeatAfterDays:'Repeats every',alert:'Alert'};
+const REPEATS={daily:'Every day',weekly:'Every week',weekdays:'Every weekday'};
 const deviceZone=()=>Intl.DateTimeFormat().resolvedOptions().timeZone;
+// A day said with a part of day keeps that word beside the date, since no clock was chosen ("Sun 4 Oct · evening").
+// The hours a part of day covers, for what else already sits in it (an exam on "Monday morning").
+const WINDOW={tonight:[18,23],evening:[17,21],afternoon:[12,17],morning:[6,12]};
+// A window that names no day, kept in the task's notes in Dara's words and shown where the date would be.
+const VAGUE=/\b(?:this|next|coming)\s+(?:week|weekend|month)\b|\bsome\s?(?:day|time)\b|\bsoon\b|\beventually\b/i;
+const PART=[[/\b(?:tonight|raat|night)\b/i,'tonight'],[/\b(?:evening|shaam|sham)\b/i,'evening'],[/\b(?:afternoon|after lunch|dopahar)\b/i,'afternoon'],[/\b(?:morning|subah|sakali)\b/i,'morning']];
 
 export function opTitle(op){
  const set=op.fields.find(f=>f.name==='title'&&f.op==='set');
@@ -17,132 +22,76 @@ export function opTitle(op){
  return set?.value??op.targetTitle??entity[0].toUpperCase()+entity.slice(1);
 }
 const actionBase=draft=>({conversationId:draft.conversationId,draftId:draft.id,revision:draft.revision});
-
-function fieldValue(field){
- if(field.op==='unknown')return 'Needs your answer';
- if(field.op==='clear')return 'Remove';
- if(field.name==='minutes')return captureDuration(field.value);
- if(field.displayValue!==undefined)return field.displayValue;
- if(typeof field.value==='boolean')return field.value?'Yes':'No';
- return String(field.value);
-}
+const field=(op,name)=>op.fields.find(f=>f.name===name);
+const plural=(n,one,many=one+'s')=>`${n} ${n===1?one:many}`;
 
 /** Where a task goes: its Block with the Result's deadline, or the Inbox. */
 function destination(op,ctx){
  if(op.entity!=='task')return null;
- const block=op.fields.find(f=>f.name==='blockId');
+ const block=field(op,'blockId');
  if(block?.op==='clear'||!block&&op.kind==='create')return {name:'Inbox',inbox:true};
  if(block?.op!=='set')return null;
  return {name:block.displayValue??'Unavailable Block',id:block.value,due:ctx.blockDue?.(block.value)??null};
 }
 
+/** What a proposal still needs from Dara before it can be added: an open question, an unknown field or a time to check. */
+function openNeed(op,draft){
+ if(draft.question?.opId===op.opId)return {kind:'question'};
+ const preview=draft.schedulePreview?.items?.find(p=>p.opId===op.opId);
+ if(preview?.status==='review')return {kind:'time',reason:preview.reason};
+ const unknown=op.fields.find(f=>f.op==='unknown');
+ if(unknown)return {kind:'unknown',field:unknown.name};
+ return null;
+}
+
 /**
- * The facts every proposal row shows in the same order: destination, date
- * and time (or "No date"), Must, the Result's deadline and what else holds that
- * day. The receipt reuses it, so what was added reads in the same words.
+ * The facts a proposal shows: destination, date and time (with a stated part of
+ * day), Must, estimate, and what else bears on that time. The receipt reuses it.
  */
 function summary(op,draft,ctx){
  const preview=draft.schedulePreview?.items?.find(p=>p.opId===op.opId);
  const timeZone=draft.schedulePreview?.timezone??deviceZone();
- const title=opTitle(op),dest=destination(op,ctx),notes=[];
- const when=scheduleText(preview,{timeZone});
- const schedule=captureSchedule(preview,{timeZone,reference:new Date()});
- const minutes=preview?.minutes??op.fields.find(f=>f.name==='minutes'&&f.op==='set'&&Number.isFinite(f.value))?.value;
- const must=op.entity==='task'&&op.fields.find(f=>f.name==='must'&&f.op==='set')?.value===true;
- const estimate=Number.isFinite(minutes)&&minutes>0?duration(minutes):null;
- if(schedule?.review&&!draft.question)notes.push(el('p','needs-answer',schedule.review.replace(`For ${title}: `,'')));
- if(when&&!schedule?.review&&timeZone!==deviceZone()){
-  const zone=new Intl.DateTimeFormat('en-GB',{timeZone,timeZoneName:'short'}).formatToParts(new Date(preview.planned??Date.now())).find(p=>p.type==='timeZoneName')?.value;
-  if(zone)notes.push(el('p','detail-note','Times in '+zone));
+ const dest=destination(op,ctx);
+ let when=scheduleText(preview,{timeZone});
+ const part=preview&&!preview.planned&&preview.plannedDate?PART.find(([re])=>re.test(preview.source??''))?.[1]:null;
+ if(when&&part)when=when==='Today'?{tonight:'Tonight',evening:'This evening',afternoon:'This afternoon',morning:'This morning'}[part]:`${when}, ${part}`;
+ const minutes=preview?.minutes??field(op,'minutes')?.value;
+ const must=op.entity==='task'&&field(op,'must')?.op==='set'&&field(op,'must').value===true;
+ const estimate=Number.isFinite(minutes)&&minutes>0&&!preview?.end?duration(minutes):null;
+ let load=preview?.planned&&timeZone===deviceZone()?ctx.dayLoad?.({start:preview.planned,minutes,blockId:dest?.id,due:dest?.due?.value})??[]:[];
+ if(part&&preview.plannedDate&&timeZone===deviceZone()){
+  // A day with a part of day: anything busy in those hours, and other Results due then.
+  const [from,to]=WINDOW[part],start=new Date(`${preview.plannedDate}T${String(from).padStart(2,'0')}:00`);
+  load=(ctx.dayLoad?.({start:start.toISOString(),minutes:(to-from)*60,blockId:dest?.id,due:dest?.due?.value})??[])
+   .filter(i=>i.kind==='clash'||i.kind==='deadline'&&i.time&&i.at>=+start&&i.at<+start+(to-from)*36e5).map(i=>({...i,window:part}));
  }
- const load=preview?.planned&&timeZone===deviceZone()?ctx.dayLoad?.({start:preview.planned,minutes,blockId:dest?.id,due:dest?.due?.value})??[]:[];
- const dated=op.entity==='task'&&op.kind==='create'||!!when;
- return {dest,when,estimate,must,notes,load,dated,day:preview?.planned?new Date(preview.planned):null,hasMinutes:minutes!=null};
+ const dated=op.entity==='task'&&op.kind!=='complete'&&op.kind!=='archive'&&(op.kind==='create'||!!field(op,'time'));
+ const alert=field(op,'alert')?.op==='set'&&field(op,'alert').value!=='off'?field(op,'alert').value:null;
+ const repeats=field(op,'recurrence')?.op==='set'?REPEATS[field(op,'recurrence').value]:null;
+ const notes=field(op,'notes')?.op==='set'?String(field(op,'notes').value):'';
+ const vague=!when&&notes.length<=40&&VAGUE.test(notes)?notes:null;
+ const guess=field(op,'time')?.op==='set'&&field(op,'time').origin==='suggested';
+ return {dest,when,estimate,must,load,dated,alert,repeats,preview,vague,guess,day:preview?.planned?new Date(preview.planned):null};
 }
 
-/**
- * One meta line under a proposal's title, as in a Google Tasks detail page: an
- * icon on the title's edge, the words beside it, an optional second line.
- * Interactive lines are full-width buttons.
- */
-function metaRow(iconName,lines,{onClick=null,ariaLabel=null,cls='',trailing=null}={}){
- const row=el(onClick?'button':'div','prop-row'+(cls?' '+cls:''));
- if(onClick){row.type='button';row.addEventListener('click',onClick);}
- if(ariaLabel)row.setAttribute('aria-label',ariaLabel);
- row.append(icon(iconName,{cls:'prop-icon'}));
- const text=el('span','prop-row-text');
- for(const line of lines.filter(Boolean))text.append(typeof line==='string'?el('span','prop-row-main',line):line);
- row.append(text);
- if(trailing)row.append(icon(trailing,{cls:'prop-drop'}));
- return row;
+/** The saved task's current day and time, for an update's "from" side. */
+function beforeText(op){
+ const b=op.targetBefore;
+ if(!b)return null;
+ if(b.planned)return scheduleText({planned:b.planned},{});
+ if(b.plannedDate)return scheduleText({plannedDate:b.plannedDate},{});
+ return 'No date';
 }
 
-/** Where it goes: "Block · <Result>" with that Result's deadline under it, or "Inbox". Tapping opens Move to. */
-function destinationRow(op,draft,ctx,dest){
- const due=dueText(dest.due),name=el('span','prop-row-main');
- if(dest.inbox)name.textContent='Inbox';
- else name.append(el('span','prop-label','Block · '),dest.name);
- const sub=due?el('span','prop-row-sub'+(dest.due.overdue?' overdue':''),due):null;
- return metaRow(dest.inbox?'inbox':'stacks',[name,sub],{
-  onClick:e=>ctx.on.pickBlock(e.currentTarget,op,draft),trailing:'arrow_drop_down',cls:'prop-dest',
-  ariaLabel:`${dest.inbox?'Inbox, no block':'Block: '+dest.name}${due?', '+due:''}. Move ${opTitle(op)}`});
-}
-
-/** Date and time, or an explicit "No date"; tapping starts a change in Dara's own words. */
-function dateRow(op,draft,ctx,sum){
- const title=opTitle(op),label=[sum.when??'No date',sum.estimate].filter(Boolean).join(' · ');
- const run=op.kind==='create'?()=>ctx.on.prefill(sum.when?`Change the time of “${title}” to `:`Schedule “${title}” for `,draft):null;
- return metaRow(sum.when?'event':'calendar_add_on',[label],{onClick:run,cls:'prop-date'+(sum.when?'':' muted'),
-  ariaLabel:run?`${sum.when??'No date'}. ${sum.when?'Change the time of':'Add a date to'} ${title}`:null});
-}
-
-// Which proposals have their day details open, so a re-render keeps them open.
-const loadOpen=new Set();
-const weekday=at=>new Date(at).toLocaleDateString('en-GB',{weekday:'short'});
-const count=(n,one,many)=>`${n} ${n===1?one:many}`;
-/**
- * What else bears on the proposed time. A calendar overlap is its own line in
- * the error colour. Other deadlines that day and a busy morning before the
- * Result is due fold into one counted disclosure ("Sun: 2 other deadlines" over
- * "Mon: 2 events before it's due") that opens to each item with its time, never cut mid-title.
- */
-function loadNotes(sum,key){
- if(!sum.load.length)return [];
- const today=new Date().toDateString()===sum.day.toDateString();
- const day=today?'Today':weekday(sum.day);
- const nodes=[],clashes=sum.load.filter(i=>i.kind==='clash'),deadlines=sum.load.filter(i=>i.kind==='deadline'),before=sum.load.filter(i=>i.kind==='before');
- const range=i=>`${clock(i.start)}–${clock(i.end)}`;
- for(const c of clashes)nodes.push(metaRow('event_busy',[`Clashes with ${c.title}, ${range(c)}`],{cls:'prop-clash'}));
- if(!deadlines.length&&!before.length)return nodes;
- // Each counted line, and once opened the items under it: time first, so a long title wraps on its own.
- const keep=text=>text.replace(/ /g,' ');
- const groups=[];
- if(deadlines.length)groups.push([`${day}: ${count(deadlines.length,'other deadline','other deadlines')}`,deadlines.map(i=>[i.time?keep(i.time):'Due',i.title])]);
- if(before.length)groups.push([`${weekday(before[0].start)}: ${count(before.length,'event','events')} before it’s due`,before.map(i=>[keep(range(i)),i.title])]);
- const details=[],lines=groups.flatMap(([head,items])=>[head,...items.map(([when,title])=>{
-  const line=el('span','prop-detail',`${when} · ${title}`);
-  details.push(line);
-  return line;
- })]);
- const toggle=metaRow('hourglass_bottom',lines,{cls:'prop-context',trailing:'expand_more',onClick:()=>set(details[0].hidden)});
- const set=open=>{for(const d of details)d.hidden=!open;toggle.setAttribute('aria-expanded',String(open));if(open)loadOpen.add(key);else loadOpen.delete(key);};
- set(loadOpen.has(key));
- nodes.push(toggle);
- return nodes;
-}
-
-function otherFields(op,draft,{active,hasMinutes}){
- const nodes=[];
- for(const f of op.fields){
-  if(['title','time','blockId','must'].includes(f.name))continue;
-  if(f.name==='minutes'&&(hasMinutes||f.op==='set'))continue;
-  if(f.op==='unknown'&&draft.question?.opId===op.opId&&draft.question.field===f.name)continue;
-  const line=el('p','prop-field');
-  line.append(el('span','field-label',f.name==='minutes'?'Estimate':FIELD_LABEL[f.name]??f.displayLabel??f.name),el('span','',fieldValue(f)));
-  if(active&&f.origin==='suggested')line.append(el('span','tag','Suggested'));
-  nodes.push(line);
- }
- return nodes;
+/** One assist chip: an icon and a short label; tappable chips open their change. */
+function chip(iconName,label,{onClick=null,ariaLabel=null,cls='',title=null,tag=null}={}){
+ const node=el(onClick?'button':'span','pchip'+(cls?' '+cls:''));
+ if(onClick){node.type='button';node.addEventListener('click',onClick);}
+ if(ariaLabel)node.setAttribute('aria-label',ariaLabel);
+ if(title)node.title=title;
+ node.append(icon(iconName,{cls:'pchip-icon'}),el('span','pchip-label',label));
+ if(tag)node.append(el('span','pchip-tag',tag));
+ return node;
 }
 
 /** A filled amber star marks a Must, as everywhere in RPM; other proposals show none. */
@@ -153,45 +102,156 @@ function mustMark(){
 }
 
 /**
- * One proposal row, the same structure in every state: the title with the Must
- * star and, when there is more than one, a quiet Leave out control at the end;
- * then icon lines for the destination with its deadline, the date, and what
- * else bears on that time. A left-out row fades and offers Put back.
+ * The chips under a proposal's title, one wrapping line as in Google Tasks' quick add: where it goes (tap
+ * to move), when (tap to change in words), then estimate, reminder and repeat. An update shows "from → to".
  */
-function proposalItem(op,draft,ctx,{skipped=new Set()}){
- const title=opTitle(op),included=!skipped.has(op.opId);
- const item=el('article','prop'+(included?'':' skipped'));
+function chips(op,draft,ctx,sum,need){
+ const row=el('div','pchips'),title=opTitle(op);
+ if(op.kind==='complete'){row.append(chip('task_alt','Tick off',{cls:'pchip-flat'}));return row;}
+ if(op.kind==='archive'){row.append(chip('archive','Archive',{cls:'pchip-flat'}));return row;}
+ let destChip=null;
+ if(sum.dest){
+  const move=e=>ctx.on.pickBlock(e.currentTarget,op,draft);
+  destChip=(chip(sum.dest.inbox?'inbox':'stacks',sum.dest.name,{onClick:move,cls:'pchip-dest',title:sum.dest.name,
+   ariaLabel:`${sum.dest.inbox?'Inbox, no Block':'Block: '+sum.dest.name}${sum.dest.due?', '+dueText(sum.dest.due):''}. Move ${title}`}));
+ }
+ // The day comes first; chips wrap to a second line rather than cut a name short. A day the assistant
+ // suggested (Dara named none) is dashed and says so; a window with no day ("sometime this week") shows as said.
+ if(sum.dated&&need?.kind!=='time'&&!(need?.kind==='question'&&draft.question.field==='time')){
+  const change=op.kind==='create'?()=>ctx.on.prefill(sum.when?`Change the time of “${title}” to `:`Schedule “${title}” for `,draft):null;
+  const before=op.kind==='update'&&field(op,'time')?beforeText(op):null;
+  const shown=sum.when??sum.vague??'No date';
+  const label=before&&before!==shown?`${before} → ${shown}`:shown;
+  row.append(chip(sum.when?'event':'calendar_add_on',label,{onClick:change,cls:(sum.when?'':'pchip-muted')+(sum.when&&sum.guess?' pchip-guess':''),tag:sum.when&&sum.guess?'Suggested':null,
+   ariaLabel:change?`${shown}${sum.guess?', suggested':''}. ${sum.when?'Change the time of':'Add a date to'} ${title}`:null}));
+ }
+ if(destChip)row.append(destChip);
+ if(sum.estimate)row.append(chip('timer',sum.estimate));
+ if(sum.alert)row.append(chip(sum.alert==='alarm'?'alarm':'notifications',sum.alert==='alarm'?'Alarm':'Reminder'));
+ if(sum.repeats)row.append(chip('repeat',sum.repeats));
+ if(op.kind==='update'&&field(op,'blockId')&&op.targetBefore){
+  // A move into a Block reads as one: the chip above already names where it goes.
+  row.querySelector('.pchip-dest')?.classList.add('pchip-changed');
+ }
+ return row.childElementCount?row:null;
+}
+
+/**
+ * A calendar overlap at the proposed time (or in the part of day said), another Result due in that part of
+ * day, and a date that lands after its Result's deadline: the only warnings.
+ */
+function warnings(sum){
+ const nodes=[];
+ const windowed=sum.load.filter(i=>i.window);
+ if(windowed.length){
+  // The first two, briefly ("DAD exam 9–10 AM"); the rest as a count.
+  // Deadlines first: a submission due in those hours matters more than a busy event.
+  windowed.sort((a,b)=>(a.kind==='deadline'?0:1)-(b.kind==='deadline'?0:1)||a.at-b.at);
+  const items=windowed.slice(0,2).map(i=>i.kind==='clash'?`${i.title} ${span(i.start,i.end)}`:`${i.title} due ${short(i.at)}`);
+  const more=windowed.length>2?`, +${windowed.length-2} more`:'';
+  nodes.push(el('p','prop-warn',`That ${windowed[0].window==='tonight'?'night':windowed[0].window} also has ${items.join(', ')}${more}`));
+ }
+ for(const c of sum.load.filter(i=>i.kind==='clash'&&!i.window))nodes.push(el('p','prop-warn',`Clashes with ${c.title}, ${clock(c.start)}–${clock(c.end)}`));
+ const due=sum.dest?.due,at=sum.preview?.planned?Date.parse(sum.preview.planned):NaN;
+ if(due?.value&&Number.isFinite(at)&&due.value.length>10&&at>Date.parse(due.value))nodes.push(el('p','prop-warn',`After this Result is ${dueText(due).replace(/^Due/,'due')}`));
+ return nodes;
+}
+
+// "9 AM", "10:30 AM", and "9–10 AM" when both ends share AM or PM.
+const short=at=>clock(at).replace(/:00(?=\s|\u00a0)/,'');
+function span(start,end){
+ const a=short(start),b=short(end),[, am]=a.split(/\s|\u00a0/),[, bm]=b.split(/\s|\u00a0/);
+ return am===bm?`${a.replace(/(?:\s|\u00a0)[AP]M$/i,'')}–${b}`:`${a}–${b}`;
+}
+
+/** Fields with no chip of their own (a new Block's Purpose, notes, a Project link). */
+function otherFields(op){
+ const nodes=[];
+ for(const f of op.fields){
+  if(['title','time','blockId','must','minutes','alert','recurrence'].includes(f.name)||f.op==='unknown')continue;
+  if(f.name==='notes'&&f.op==='set'&&VAGUE.test(String(f.value))&&String(f.value).length<=40)continue;
+  const line=el('p','prop-field');
+  line.append(el('span','field-label',FIELD_LABEL[f.name]??f.displayLabel??f.name),el('span','',f.op==='clear'?'Remove':f.displayValue??String(f.value)));
+  nodes.push(line);
+ }
+ return nodes;
+}
+
+/**
+ * What a proposal needs, asked inside its own row: the assistant's question with
+ * its answers as chips, or a time that couldn't be read, with "No date" and
+ * "Type a time". Until it's answered the row is not added; the others still are.
+ */
+function needBlock(op,draft,ctx,need){
+ const box=el('div','prop-need'),title=opTitle(op);
+ const answers=el('div','need-chips');
+ answers.setAttribute('role','group');
+ const answer=(label,run,{iconName=null,sub=null}={})=>{
+  const node=el('button','need-chip');node.type='button';
+  if(iconName)node.append(icon(iconName,{cls:'need-chip-icon'}));
+  node.append(el('span','',label));
+  if(sub)node.append(el('span','need-chip-sub',sub));
+  node.addEventListener('click',run);answers.append(node);
+ };
+ if(need.kind==='question'){
+  const q=draft.question;
+  box.append(el('p','need-prompt',q.prompt));
+  answers.setAttribute('aria-label',q.prompt);
+  for(const item of draft.actions.filter(a=>a.action.kind==='answer')){
+   const info=ctx.describe?.(item.action.field,item.action.value);
+   answer(info?.title??item.label,()=>ctx.on.action(item.action),{iconName:item.action.field==='time'?'schedule':item.action.field==='blockId'?'stacks':null,sub:info?.subtitle??null});
+  }
+  if(q.field==='blockId'&&op.entity==='task')answer('Inbox',()=>ctx.on.action({...actionBase(draft),kind:'set-field',opId:op.opId,field:'blockId',clear:true}),{iconName:'inbox'});
+  if(q.field==='time'&&op.kind==='create')answer('No date',()=>ctx.on.action({...actionBase(draft),kind:'set-field',opId:op.opId,field:'time',clear:true}),{iconName:'event_busy'});
+ }else{
+  const said=need.kind==='time'?field(op,'time')?.value:null;
+  box.append(el('p','need-prompt',need.kind==='time'?(said?`When is “${said}”?`:'When should this be?'):`What should the ${FIELD_LABEL[need.field]??need.field} be?`));
+  if(need.kind==='time'&&need.reason)box.append(el('p','need-sub',need.reason.replace(`For ${title}: `,'')));
+  if(need.kind==='time'&&op.kind==='create')answer('No date',()=>ctx.on.action({...actionBase(draft),kind:'set-field',opId:op.opId,field:'time',clear:true}),{iconName:'event_busy'});
+  answer('Type it',()=>ctx.on.prefill(`For “${title}”: `,draft),{iconName:'edit'});
+ }
+ box.append(answers);
+ return box;
+}
+
+/**
+ * One proposal row, the same structure in every state: the title with the Must
+ * star and a quiet Leave out control; one line of chips; any warning; and,
+ * inside the row, whatever it still needs from Dara.
+ */
+function proposalItem(op,draft,ctx,{skipped}){
+ const title=opTitle(op),included=!skipped.has(op.opId),need=openNeed(op,draft);
+ const item=el('article','prop'+(included?'':' skipped')+(need&&included?' waiting':''));
  item.dataset.opId=op.opId;
  const top=el('div','prop-top'),heading=el('div','prop-heading');
- const kind=op.entity!=='task'?(op.kind==='create'?'New ':'')+ENTITY[op.entity]:null;
- const change=op.kind!=='create'?CHANGE[op.kind]??op.kind:null;
- const eyebrow=[change,kind].filter(Boolean).join(' · ');
- if(eyebrow)heading.append(el('p','prop-kind',eyebrow));
+ if(op.entity!=='task')heading.append(el('p','prop-kind',(op.kind==='create'?'New ':'Change ')+ENTITY[op.entity]));
+ else if(op.kind==='update')heading.append(el('p','prop-kind','Change'));
  // Tapping the title starts a change in Dara's own words; the composer takes it from there.
- const name=el('button','prop-title',title);
+ const name=el('button','prop-title'+(op.kind==='complete'?' done':''),title);
  name.type='button';
  name.setAttribute('aria-label',`${title}. Change it in your words`);
  name.addEventListener('click',()=>ctx.on.prefill(`For “${title}”: `,draft));
  heading.append(name);
- const titleField=op.fields.find(f=>f.name==='title'&&f.op==='set');
- if(included&&titleField?.origin==='suggested')heading.append(el('span','tag','Suggested title'));
+ // A renamed saved task says what it was, so a retitle never reads as a new task.
+ const renamed=op.kind==='update'&&field(op,'title')?.op==='set'&&op.targetTitle&&op.targetTitle!==title;
+ if(renamed)heading.append(el('p','prop-was',`Was “${op.targetTitle}”`));
  if(!included)heading.append(el('p','prop-left-out','Left out · kept in History'));
  top.append(heading);
  const sum=summary(op,draft,ctx);
  // Must changes in words or later in the task sheet, never by tapping the star.
  if(sum.must)top.append(mustMark());
- if(draft.operations.length>1){
-  const toggle=()=>ctx.on.toggleInclude(draft,op.opId);
-  top.append(included?iconButton('close',`Leave out “${title}”`,toggle,{cls:'prop-skip'})
-   :button('Put back',toggle,{role:'text',cls:'prop-back',ariaLabel:`Put back “${title}”`}));
- }
+ // Every card can be left out, even a lone one (Save then has nothing to add).
+ const toggle=()=>ctx.on.toggleInclude(draft,op.opId);
+ top.append(included?iconButton('close',`Leave out “${title}”`,toggle,{cls:'prop-skip'})
+  :button('Put back',toggle,{role:'text',cls:'prop-back',ariaLabel:`Put back “${title}”`}));
  item.append(top);
  // A left-out row keeps its place and height, faded, so nothing under the thumb moves.
  const body=el('div','prop-body');
  body.inert=!included;
- if(sum.dest)body.append(destinationRow(op,draft,ctx,sum.dest));
- if(sum.dated)body.append(dateRow(op,draft,ctx,sum));
- body.append(...loadNotes(sum,`${draft.id}:${op.opId}`),...sum.notes,...otherFields(op,draft,{active:true,hasMinutes:sum.hasMinutes}));
+ const line=chips(op,draft,ctx,sum,need);
+ if(line)body.append(line);
+ body.append(...warnings(sum),...otherFields(op));
+ if(need&&included)body.append(needBlock(op,draft,ctx,need));
  if(body.childElementCount)item.append(body);
  return item;
 }
@@ -210,69 +270,76 @@ function receiptRow(op,draft,ctx){
  return row;
 }
 
-function draftKicker(draft,{focused}){
- const ops=draft.operations,n=ops.length;
+/** One plain line naming what the draft holds, the same in every mode, adding up to the cards: "3 new · 1 change · 1 to answer". */
+function draftKicker(draft,waiting){
+ const ops=draft.operations;
  if(draft.validationNotice)return 'Check this draft';
- if(draft.question)return 'One thing to check';
- if(draft.review)return 'Check the time';
- if(focused)return 'Editing this draft';
- if(n>1)return ops.every(op=>op.entity==='task'&&op.kind==='create')?`${n} tasks from your note`:`${n} proposed changes`;
- const op=ops[0];
- if(op?.kind==='update')return `Change to a ${ENTITY[op.entity]??'record'}`;
- if(op?.kind!=='create')return 'Proposed change';
- return `Proposed ${ENTITY[op?.entity]??'task'}`;
+ const parts=[];
+ const created=ops.filter(o=>o.kind==='create').length,changes=ops.filter(o=>o.kind==='update').length;
+ const ticks=ops.filter(o=>o.kind==='complete').length,archives=ops.filter(o=>o.kind==='archive').length;
+ const onlyTasks=ops.every(o=>o.kind!=='create'||o.entity==='task');
+ if(created)parts.push(onlyTasks?plural(created,'new task'):`${created} new`);
+ if(changes)parts.push(plural(changes,'change'));
+ if(ticks)parts.push(`${ticks} to tick off`);
+ if(archives)parts.push(`${archives} to archive`);
+ if(waiting)parts.push(`${waiting} to answer`);
+ return parts.join(' · ')||'Nothing to add';
 }
 
-function questionBlock(draft,ctx){
- const box=el('div','question');
- box.append(el('p','question-prompt',draft.question.prompt));
- const others=draft.operations.length-1;
- if(others>0)box.append(el('p','question-sub',`The other ${others===1?'one is':others+' are'} ready and will wait.`));
- const list=el('div','choices');
- list.setAttribute('role','group');
- list.setAttribute('aria-label','Answers');
- for(const item of draft.actions.filter(a=>a.action.kind==='answer')){
-  const info=ctx.describe?.(item.action.field,item.action.value);
-  const row=el('button','choice');
-  row.type='button';
-  if(info?.tone){const dot=el('span','dot');dot.style.background=`var(--${info.tone})`;row.append(dot);}
-  else row.append(icon(item.action.field==='time'?'schedule':'radio_button_unchecked'));
-  const text=el('span','choice-text');
-  text.append(el('span','choice-title',info?.title??item.label));
-  if(info?.subtitle)text.append(el('span','choice-sub',info.subtitle));
+/** "Also heard": what Dara said that isn't a proposal, each kept one tap away (or already saved). */
+const KEEPABLE=new Set(['idea','preference','question']);
+const NOTE_ICON={idea:'lightbulb',reflection:'chat',preference:'tune',question:'help',reference:'info',existing:'check_circle'};
+export function alsoHeard(capture,ctx){
+ const notes=capture.notes??[];
+ if(!notes.length)return null;
+ const box=el('section','also');
+ const head=el('p','also-head','Also heard');
+ head.append(el('span','also-fate',' · kept with your words in History'));
+ box.append(head);
+ const list=el('ul','also-list');
+ for(const n of notes){
+  const row=el('li','also-row'+(n.disposition==='existing'?' existing':''));
+  row.append(icon(NOTE_ICON[n.disposition]??'info',{cls:'also-icon'}));
+  const text=el('span','also-text');
+  text.append(el('span','also-note',n.note));
+  if(n.keptTaskId!=null)text.append(el('span','also-sub','Added to your Inbox'));
   row.append(text);
-  row.addEventListener('click',()=>ctx.on.action(item.action));
-  list.append(row);
- }
- const asked=draft.operations.find(op=>op.opId===draft.question.opId);
- if(draft.question.field==='blockId'&&asked?.entity==='task'){
-  // Leaving the Block unset is always a valid answer: the task stays in the Inbox.
-  const row=el('button','choice');
-  row.type='button';
-  row.append(icon('inbox',{cls:'inbox'}));
-  const text=el('span','choice-text');
-  text.append(el('span','choice-title','Keep it in the Inbox'),el('span','choice-sub','No block for now'));
-  row.append(text);
-  row.addEventListener('click',()=>ctx.on.action({...actionBase(draft),kind:'set-field',opId:asked.opId,field:'blockId',clear:true}));
+  // An idea or an intention can become an Inbox task in one tap; a feeling or a fact is only acknowledged.
+  if(KEEPABLE.has(n.disposition)&&!ctx.history){
+   row.append(n.keptTaskId!=null
+    ?button('Undo',()=>ctx.on.keepNote(capture,n,false),{role:'text',ariaLabel:`Take “${n.note}” out of the Inbox`})
+    :button('Add to Inbox',()=>ctx.on.keepNote(capture,n,true),{role:'text',ariaLabel:`Add “${n.note}” to the Inbox`}));
+  }
   list.append(row);
  }
  box.append(list);
  return box;
 }
 
-function draftActions(draft,{multi,selected}){
- const items=(draft.actions??[]).filter(a=>a.action.kind!=='answer');
- const hasCommit=items.some(a=>a.action.kind==='commit');
- return items
-  .filter(a=>!(multi&&hasCommit&&a.action.kind==='open'))
-  .map(item=>({item,...actionPresentation(item,draft,{selected})}))
-  .sort((a,b)=>a.order-b.order);
+/**
+ * The footer: Not now, and one filled button that adds the proposals that are
+ * ready (included and needing nothing), so an open question never blocks the rest.
+ */
+function draftFooter(draft,{excluded,ready}){
+ const actions=draft.actions??[],out=[];
+ const dismiss=actions.find(a=>a.action.kind==='dismiss')?.action??{...actionBase(draft),kind:'dismiss'};
+ out.push({label:'Not now',role:'text',action:dismiss});
+ const refresh=actions.find(a=>a.action.kind==='refresh-time');
+ if(refresh){out.push({label:'Refresh times',role:'filled',icon:'refresh',action:refresh.action});return out;}
+ const reviewCommit=draft.review?actions.find(a=>a.action.kind==='commit'):null;
+ if(reviewCommit){out.push({label:reviewCommit.label,role:'filled',action:reviewCommit.action});return out;}
+ // One label everywhere: "Save", or "Save 2" when there is more than one card.
+ const label=draft.operations.length>1&&ready>0?`Save ${ready}`:'Save';
+ out.push({label,role:'filled',disabled:!ready,action:{...actionBase(draft),kind:'commit',...(excluded.size?{skip:[...excluded]}:{})}});
+ return out;
 }
 
 function activeDraft(capture,ctx){
- const draft=capture.draft,multi=draft.operations.length>1;
- // Proposals Dara left out stay in the draft but are not added.
- const skipped=ctx.skippedFor?.(draft)??new Set(),selected=draft.operations.length-skipped.size;
+ const draft=capture.draft;
+ // Proposals Dara left out stay in the draft but are not added; so do those still waiting for an answer.
+ const skipped=ctx.skippedFor?.(draft)??new Set();
+ const waiting=draft.operations.filter(op=>!skipped.has(op.opId)&&openNeed(op,draft)).map(op=>op.opId);
+ const excluded=new Set([...skipped,...waiting]),ready=draft.operations.length-excluded.size;
  const card=el('section','state-card proposal-card');
  card.dataset.status=draft.status;
  // The header names what is proposed; the original words open right under it.
@@ -280,24 +347,20 @@ function activeDraft(capture,ctx){
  const words=wordsToggle(capture,notes);
  const head=el('div','card-head'),kicker=el('p','kicker');
  if(draft.validationNotice)kicker.append(icon('error',{cls:'warning-icon'}));
- kicker.append(el('span','',draftKicker(draft,ctx)));
+ kicker.append(el('span','',draftKicker(draft,waiting.length)));
  head.append(kicker,words.toggle);
  card.append(head,words.region);
- if(draft.mode==='plan'&&capture.reply){
-  const lead=el('p','reply-lead',capture.reply);
-  card.append(lead);
- }
+ if(['plan','query'].includes(draft.mode)&&capture.reply)card.append(el('p','reply-lead',capture.reply));
  if(draft.validationNotice)card.append(warning('Check this draft',draft.validationNotice));
- if(draft.review)card.append(el('p','needs-answer',draft.review.question));
+ if(draft.review)card.append(el('p','review-note',draft.review.question));
  const items=el('div','props');
  for(const op of draft.operations)items.append(proposalItem(op,draft,ctx,{skipped}));
- if(draft.question){
-  card.append(questionBlock(draft,ctx),details(multi?`Show all ${draft.operations.length} proposals`:'Show the proposal',[items],'details props-details'));
- }else card.append(items);
- const actions=draftActions(draft,{multi,selected}).map(a=>{
-  const commit=a.item.action.kind==='commit',action=commit&&skipped.size?{...a.item.action,skip:[...skipped]}:a.item.action;
-  const node=button(a.label,()=>ctx.on.action(action),{role:a.role,iconName:a.icon});
-  if(commit&&!selected)node.disabled=true;
+ card.append(items);
+ const also=alsoHeard(capture,ctx);
+ if(also)card.append(also);
+ const actions=draftFooter(draft,{excluded,ready}).map(a=>{
+  const node=button(a.label,()=>ctx.on.action(a.action),{role:a.role,iconName:a.icon});
+  if(a.disabled)node.disabled=true;
   return node;
  });
  return {node:card,actions};
@@ -323,12 +386,18 @@ export function renderResponse(capture,ctx){
   else actions.push(button('Retry',retry,{role:'text'}),button('Connect AI',ctx.on.connectAI,{role:'filled',iconName:'key'}));
   return {node:keptCard(capture,ctx),actions,kind:'kept'};
  }
- if(!draft)return {node:dialogueCard(capture),actions:[],kind:'dialogue'};
+ if(!draft){
+  const node=dialogueCard(capture),also=alsoHeard(capture,ctx);
+  if(also)node.append(also);
+  return {node,actions:[],kind:'dialogue'};
+ }
  if(draft.status==='committed'){
-  return {node:receiptCard(capture,ctx,addedTasks(draft,ctx)),actions:receiptActions(capture,ctx),kind:'receipt'};
+  const node=receiptCard(capture,ctx,addedTasks(draft,ctx)),also=alsoHeard(capture,ctx);
+  if(also)node.append(also);
+  return {node,actions:receiptActions(capture,ctx),kind:'receipt'};
  }
  if(draft.status==='parked'){
-  return {node:parkedCard(capture),actions:[button('Review draft',()=>ctx.on.resume(draft),{role:'tonal'})],kind:'parked'};
+  return {node:parkedCard(capture),actions:[button('Review again',()=>ctx.on.resume(draft),{role:'tonal'})],kind:'parked'};
  }
  if(draft.status==='undone')return {node:undoneCard(capture),actions:[],kind:'undone'};
  const {node,actions}=activeDraft(capture,ctx);

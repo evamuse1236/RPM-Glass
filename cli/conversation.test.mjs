@@ -96,7 +96,8 @@ test('a short answer keeps the requested new day, including evening from the sta
   }
 });
 test('an approximate period does not silently retain the old morning clock',()=>{
-  const w=setup(null);assert.ok(editPatch(w.get(),edit(null,[change('time','Friday evening')]),now()).need);
+  const w=setup(null),result=editPatch(w.get(),edit(null,[change('time','Friday evening')]),now());
+  assert.equal(result.need,undefined);assert.equal(result.patch.planned,null);assert.equal(new Date(result.patch.plannedDate+'T12:00').getDay(),5);
 });
 test('a reminder can ask for a missing start time and keep the selected type',()=>{
   const w=new Workflow(emptyData(),{now});w.send('Buy milk');

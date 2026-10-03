@@ -101,7 +101,7 @@ export class IntentHarness {
      parsed.reply=this.normalizeReply?.({parsed,schedulePreview})??parsed.reply;
      state.drafts[draftId]={id:draftId,conversationId:capture.conversationId,revision:(previous?.revision??0)+1,status:'draft',created:previous?.created??capture.at,updated:this.clock().toISOString(),operations:parsed.operations,guards:{...newGuards,...previous?.guards},question:parsed.question??safeQuestion(parsed.operations),mode:parsed.mode,review:null,sourceMessageIds:[...new Set([...(previous?.sourceMessageIds??[]),messageId])],reply:parsed.reply,timeAnchorAt,schedulePreview};
     }
-    saved.status='interpreted';saved.draftId=draftId;saved.decisions=parsed.decisions;saved.reply=parsed.reply;saved.memoryCandidates=parsed.memoryCandidates;saved.calls=calls;if(modelRuns.length)saved.modelRuns=modelRuns;delete saved.lastError;
+    saved.status='interpreted';saved.draftId=draftId;saved.decisions=withNotes(parsed.decisions,units);saved.reply=parsed.reply;saved.memoryCandidates=parsed.memoryCandidates;saved.calls=calls;if(modelRuns.length)saved.modelRuns=modelRuns;delete saved.lastError;
     return {messageId,draftId,status:'interpreted',calls};
    });
    this.emit({type:'ready',...result});return result;
@@ -168,4 +168,10 @@ export class IntentHarness {
   if(!this.undoPlan)throw new Error('Undo adapter is not installed');
   return this.repository.transact(`undo:${ident(actionId)}`,{draftId,conversationId},async data=>{conversation(data,conversationId);const d=intentState(data).drafts[draftId];if(!d||d.conversationId!==conversationId||d.status!=='committed')throw new Error('Committed draft not found');const receipt=await this.undoPlan({data,receipt:d.receipt});d.status='undone';d.revision++;return {status:'undone',draftId,receipt};});
  }
+}
+
+// Nothing said may vanish: a non-action unit the model left without a note shows in Dara's own words.
+function withNotes(decisions,units){
+ const text=new Map(units.map(u=>[u.id,u.text]));
+ return decisions.map(d=>d.disposition==='action'||d.note?.trim()?d:{...d,note:(text.get(d.sourceId)??'').trim().replace(/[.,;]+$/,'').slice(0,140)||null});
 }

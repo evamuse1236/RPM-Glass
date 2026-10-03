@@ -275,7 +275,7 @@ button.prop-row:active::before{opacity:.1}
 .prop-body>.needs-answer,.prop-body>.detail-note{margin:4px 12px 4px 0}
 .prop-field{margin:4px 0 0;padding-right:16px;font:var(--body-medium);color:var(--on-surface);overflow-wrap:anywhere}
 .prop-field .field-label{margin-right:8px}
-.reply-lead{margin:0;padding:0 4px;font:var(--body-medium);color:var(--on-surface-variant);display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.reply-lead{margin:0;padding:0 4px;font:var(--body-large);color:var(--on-surface);text-wrap:pretty}
 
 /* ---------- one question ---------- */
 .question{display:flex;flex-direction:column;gap:4px}
@@ -376,3 +376,47 @@ button.prop-row:active::before{opacity:.1}
 
 /* ---------- motion ---------- */
 .panel[data-motion=reduced] *{transition:none!important;animation:none!important}
+
+/* ---------- proposal chips, inline needs and "Also heard" (2026-10 capture gauntlet) ----------
+   One wrapping line of assist chips under a title, as Google Tasks' quick add shows its date chip. */
+.pchips{display:flex;flex-wrap:wrap;gap:8px;padding:6px 8px 4px 0;min-width:0}
+.pchips>.pchip{flex:0 1 auto;min-width:0}
+.pchip{position:relative;display:inline-flex;align-items:center;gap:6px;max-width:100%;min-height:32px;padding:0 12px 0 8px;border-radius:var(--shape-sm);border:1px solid var(--outline-variant);background:transparent;color:var(--on-surface-variant);font:var(--label-large);text-align:start}
+button.pchip{cursor:pointer}
+button.pchip::after{content:'';position:absolute;left:0;right:0;top:-8px;bottom:-8px}
+button.pchip::before{content:'';position:absolute;inset:0;border-radius:inherit;background:var(--on-surface);opacity:0;transition:opacity var(--dur-short) linear}
+button.pchip:hover::before{opacity:.06}
+button.pchip:active::before{opacity:.1}
+.pchip-icon{flex:none;font-size:18px!important;color:var(--primary)}
+.pchip-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pchip-muted .pchip-icon{color:var(--on-surface-variant)}
+.pchip-flat{border-color:transparent;padding-left:0}
+.pchip-guess{border-style:dashed;border-color:var(--outline)}
+.pchip-tag{flex:none;color:var(--on-surface-variant);font:var(--label-medium)}
+.pchip-flat .pchip-icon{color:var(--tertiary)}
+.also-fate{font:var(--body-small);color:var(--on-surface-variant)}
+.prop-was{margin:2px 12px 0 0;font:var(--body-medium);color:var(--on-surface-variant)}
+.prop-title.done{text-decoration:line-through;text-decoration-color:var(--on-surface-variant)}
+.prop-warn{margin:4px 12px 0 0;font:var(--body-medium);color:var(--error)}
+.prop.waiting .pchips{opacity:.72}
+.prop-need{margin:8px 12px 2px 0;padding:12px;border-radius:var(--shape-md);background:var(--surface-container-high)}
+.need-prompt{margin:0;font:var(--title-small);color:var(--on-surface)}
+.need-sub{margin:2px 0 0;font:var(--body-medium);color:var(--on-surface-variant)}
+.need-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.need-chip{position:relative;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 16px 0 12px;border-radius:var(--shape-sm);border:1px solid var(--outline);background:var(--cap-card);color:var(--on-surface);font:var(--label-large);cursor:pointer}
+.need-chip::after{content:'';position:absolute;left:0;right:0;top:-4px;bottom:-4px}
+.need-chip::before{content:'';position:absolute;inset:0;border-radius:inherit;background:var(--on-surface);opacity:0;transition:opacity var(--dur-short) linear}
+.need-chip:hover::before{opacity:.06}
+.need-chip:active::before{opacity:.1}
+.need-chip-icon{font-size:18px!important;color:var(--on-surface-variant)}
+.need-chip-sub{font:var(--body-small);color:var(--on-surface-variant)}
+.review-note{margin:0;padding:0 4px;font:var(--body-medium);color:var(--on-surface)}
+.also{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.also-head{margin:0;padding:0 4px;font:var(--label-large);color:var(--on-surface-variant)}
+.also-list{list-style:none;margin:0;padding:0}
+.also-row{display:flex;align-items:center;gap:12px;min-height:48px;padding:0 0 0 4px}
+.also-icon{flex:none;font-size:20px!important;color:var(--on-surface-variant)}
+.also-text{flex:1;min-width:0;display:flex;flex-direction:column;font:var(--body-medium);color:var(--on-surface);overflow-wrap:anywhere;text-wrap:pretty}
+.also-sub{font:var(--body-small);color:var(--on-surface-variant)}
+.also-row.existing .also-note{color:var(--on-surface-variant)}
+.also-row .btn{flex:none}

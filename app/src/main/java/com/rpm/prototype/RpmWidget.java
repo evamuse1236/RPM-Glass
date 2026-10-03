@@ -4,7 +4,7 @@ import android.appwidget.*;
 import android.content.*;
 import android.widget.RemoteViews;
 
-/** Check in, Capture and Remind all open the Material Capture panel; Open app opens the planner.
+/** A capture bar: the pill opens Capture ready to type, the mic opens it already listening, the icon opens the planner.
  *  The legacy SQLite CaptureActivity is no longer reachable from here (its entries are copied by LegacyImport). */
 public final class RpmWidget extends AppWidgetProvider {
     // Capture and the planner share a task. Without CLEAR_TOP, a tap that matches the task's root intent
@@ -20,11 +20,19 @@ public final class RpmWidget extends AppWidgetProvider {
     @Override public void onUpdate(Context c,AppWidgetManager manager,int[] ids) {
         for(int id:ids) {
             RemoteViews v=new RemoteViews(c.getPackageName(),R.layout.widget);
-            capture(c,v,R.id.checkin,"checkin",1);capture(c,v,R.id.capture,"capture",2);capture(c,v,R.id.remind,"remind",3);
+            v.setTextViewText(R.id.capture_label,c.getString(fits(c,manager,id)?R.string.widget_capture:R.string.widget_capture_short));
+            capture(c,v,R.id.capture,"capture",2);capture(c,v,R.id.voice,"voice",3);
             Intent open=new Intent(c,PlannerActivity.class).setAction("com.rpm.widget.open").addFlags(SHOW);
             v.setOnClickPendingIntent(R.id.open,PendingIntent.getActivity(c,4,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
             manager.updateAppWidget(id,v);
         }
+    }
+    // "Capture a thought" needs about 150dp at 16sp; larger text or a narrow bar gets "Capture" instead of an ellipsis.
+    // The pill's text has the bar's width minus padding, the planner icon and the mic (about 132dp).
+    private static boolean fits(Context c,AppWidgetManager manager,int id){
+        int width=manager.getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,0);
+        float scale=c.getResources().getConfiguration().fontScale;
+        return width==0||150*scale<=width-132;
     }
     private void capture(Context c,RemoteViews v,int view,String source,int request) {
         // A distinct action keeps each PendingIntent separate.

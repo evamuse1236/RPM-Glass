@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Material home-screen widget: a surface-container bar with four actions.
-     Capture is the main action (primary container); the others rest on the surface.
-     Colours come from res/values*/colors.xml, which mirror android-companion/theme.css. -->
+<!-- Material home-screen widget, a capture bar like Google Keep's: the app icon opens the planner, the pill
+     opens Capture ready to type, and the mic opens Capture already listening. Check-ins and reminders are just
+     said in Capture. Colours come from res/values*/colors.xml, which mirror android-companion/theme.css. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@android:id/background"
     android:layout_width="match_parent"
@@ -14,23 +14,25 @@
     android:clipToOutline="true"
     android:background="@drawable/widget_bg">
 
-    <LinearLayout android:id="@+id/checkin" style="@style/WidgetAction" android:contentDescription="@string/widget_checkin">
-        <ImageView style="@style/WidgetIcon" android:src="@drawable/ic_checkin" android:tint="@color/rpm_on_surface_variant"/>
-        <TextView style="@style/WidgetLabel" android:text="@string/widget_checkin"/>
-    </LinearLayout>
+    <FrameLayout android:id="@+id/open" android:layout_width="48dp" android:layout_height="48dp"
+        android:background="@drawable/widget_action" android:contentDescription="@string/widget_open">
+        <ImageView android:layout_width="32dp" android:layout_height="32dp" android:layout_gravity="center"
+            android:src="@drawable/butterfly" android:importantForAccessibility="no"/>
+    </FrameLayout>
 
-    <LinearLayout android:id="@+id/capture" style="@style/WidgetAction" android:background="@drawable/widget_capture" android:contentDescription="@string/widget_capture">
-        <ImageView style="@style/WidgetIcon" android:src="@drawable/ic_capture" android:tint="@color/rpm_on_primary_container"/>
-        <TextView style="@style/WidgetLabel" android:text="@string/widget_capture" android:textColor="@color/rpm_on_primary_container"/>
-    </LinearLayout>
-
-    <LinearLayout android:id="@+id/remind" style="@style/WidgetAction" android:contentDescription="@string/widget_remind">
-        <ImageView style="@style/WidgetIcon" android:src="@drawable/ic_remind" android:tint="@color/rpm_on_surface_variant"/>
-        <TextView style="@style/WidgetLabel" android:text="@string/widget_remind"/>
-    </LinearLayout>
-
-    <LinearLayout android:id="@+id/open" style="@style/WidgetAction" android:contentDescription="@string/widget_open">
-        <ImageView style="@style/WidgetIcon" android:src="@drawable/ic_open" android:tint="@color/rpm_on_surface_variant"/>
-        <TextView style="@style/WidgetLabel" android:text="@string/widget_open"/>
+    <LinearLayout android:id="@+id/capture" android:layout_width="0dp" android:layout_weight="1"
+        android:layout_height="48dp" android:layout_marginStart="8dp"
+        android:gravity="center_vertical" android:orientation="horizontal"
+        android:paddingStart="16dp" android:paddingEnd="4dp"
+        android:background="@drawable/widget_pill" android:contentDescription="@string/widget_capture">
+        <TextView android:id="@+id/capture_label" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="@string/widget_capture" android:maxLines="1" android:ellipsize="end"
+            android:fontFamily="sans-serif" android:textSize="16sp" android:includeFontPadding="false"
+            android:textColor="@color/rpm_on_surface_variant" android:importantForAccessibility="no"/>
+        <FrameLayout android:id="@+id/voice" android:layout_width="40dp" android:layout_height="40dp"
+            android:background="@drawable/widget_round" android:contentDescription="@string/widget_voice">
+            <ImageView style="@style/WidgetIcon" android:layout_gravity="center"
+                android:src="@drawable/ic_mic" android:tint="@color/rpm_on_primary_container"/>
+        </FrameLayout>
     </LinearLayout>
 </LinearLayout>

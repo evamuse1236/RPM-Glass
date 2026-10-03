@@ -143,13 +143,15 @@ export function editPatch(entry,edit,now){
       }
       let parsed=interpretTime(c.value,now,{evidence:(c.evidence??[c.value]).join('\n')});
       if(parsed.assumptions.some(a=>a.startsWith("AM/PM wasn't specified")))return need(index,'AM or PM? Include the day if it is changing.');
-      if(parsed.status==='date_only'&&/\b(?:morning|afternoon|evening|night|lunch)\b/i.test(parsed.normalized??c.value))return need(index,'What time? For example, 7pm.');
+      // A day with a part of day ("Sunday evening", "kal shaam") saves the day without a clock; no clock is invented
+      // and none is demanded. Capture shows the part of day beside the date.
       // A clock-only correction normally keeps the task's saved day. Once that
       // day is in the past, retaining it makes every future clock look invalid;
       // use the parser's next occurrence instead.
       const savedDay=entry.planned?localDate(new Date(entry.planned)):entry.plannedDate;
       if(parsed.assumptions.includes('No day specified; using the next occurrence.')&&savedDay&&savedDay>=localDate(now))parsed=interpretTime(savedDay+' '+c.value,now);
-      else if(parsed.status==='date_only'&&entry.planned){
+      // A new part of day replaces the old clock rather than keeping a morning clock for "Friday evening".
+      else if(parsed.status==='date_only'&&entry.planned&&!/\b(?:morning|afternoon|evening|night|lunch)\b/i.test(parsed.normalized??c.value)){
         const old=new Date(entry.planned);
         parsed=interpretTime(parsed.plannedDate+' at '+String(old.getHours()).padStart(2,'0')+':'+String(old.getMinutes()).padStart(2,'0'),now);
       }

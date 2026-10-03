@@ -35,8 +35,20 @@ export function refreshSchedulePreview({data,draft,anchor=new Date()}={}){
  }
  return {anchorAt:atDate.toISOString(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,items};
 }
-function projectDraft(data,draft,now){if(!draft)return null;const validationNotice=draftFollowUpProblem(data,draft)?FOLLOW_UP_NOTICE:null;const raw=structuredClone(draft.operations),byId=new Map(raw.map(op=>[op.opId,op])),links={blockId:['block','RPM block'],projectId:['project','Project'],goalId:['goal','Goal'],areaId:['area','Life area']};const operations=raw.map(op=>({...op,targetTitle:op.targetId===null?null:findEntity(data,op.entity,op.targetId)?.title??null,fields:op.fields.map(field=>{const link=links[field.name];if(!link||field.op!=='set')return field;const value=String(field.value),created=value.startsWith('$')?byId.get(value.slice(1)):null,title=created?.fields.find(f=>f.name==='title'&&f.op==='set')?.value??findEntity(data,link[0],field.value)?.title??null;return {...field,displayLabel:link[1],displayValue:title??'Unavailable link'};})}));return {id:draft.id,conversationId:draft.conversationId,revision:draft.revision,status:draft.status,mode:draft.mode??'capture',created:draft.created,updated:draft.updated,reply:draft.reply??'',question:draft.question??null,review:draft.review??null,timeAnchorAt:draft.timeAnchorAt??null,schedulePreview:structuredClone(draft.schedulePreview??null),operations,receipt:structuredClone(draft.receipt??null),skipped:draft.skipped??[],validationNotice,actions:draftActions(draft,{now}).filter(a=>!validationNotice||a.action.kind!=='commit')};}
-function projectCapture(data,state,capture,now){const draft=capture.draftId?state.drafts[capture.draftId]:null;return {messageId:capture.messageId,conversationId:capture.conversationId,raw:capture.raw,at:capture.at,status:capture.status,reply:draft?.reply??capture.reply??'',lastError:capture.lastError??null,draft:projectDraft(data,draft,now),memoryCandidates:structuredClone(capture.memoryCandidates??[])};}
+function projectDraft(data,draft,now){if(!draft)return null;const validationNotice=draftFollowUpProblem(data,draft)?FOLLOW_UP_NOTICE:null;const raw=structuredClone(draft.operations),byId=new Map(raw.map(op=>[op.opId,op])),links={blockId:['block','RPM block'],projectId:['project','Project'],goalId:['goal','Goal'],areaId:['area','Life area']};const target=op=>op.targetId===null?null:findEntity(data,op.entity,op.targetId);
+ // An update shows what it changes from, so the saved task's current day, time and Block travel with it.
+ const operations=raw.map(op=>({...op,targetTitle:target(op)?.title??null,...(op.entity==='task'&&target(op)?{targetBefore:{planned:target(op).planned??null,plannedDate:target(op).plannedDate??null,blockId:target(op).blockId??null,done:!!target(op).done}}:{}),fields:op.fields.map(field=>{const link=links[field.name];if(!link||field.op!=='set')return field;const value=String(field.value),created=value.startsWith('$')?byId.get(value.slice(1)):null,title=created?.fields.find(f=>f.name==='title'&&f.op==='set')?.value??findEntity(data,link[0],field.value)?.title??null;return {...field,displayLabel:link[1],displayValue:title??'Unavailable link'};})}));return {id:draft.id,conversationId:draft.conversationId,revision:draft.revision,status:draft.status,mode:draft.mode??'capture',created:draft.created,updated:draft.updated,reply:draft.reply??'',question:draft.question??null,review:draft.review??null,timeAnchorAt:draft.timeAnchorAt??null,schedulePreview:structuredClone(draft.schedulePreview??null),operations,receipt:structuredClone(draft.receipt??null),skipped:draft.skipped??[],validationNotice,actions:draftActions(draft,{now}).filter(a=>!validationNotice||a.action.kind!=='commit')};}
+/**
+ * What was heard but not proposed ("Also heard"): each unit's note, and the Inbox task it became if Dara kept it.
+ * An action unit's note names a saved item it also mentioned, so it shows as already on the list, never keepable.
+ */
+function captureNotes(data,capture){
+ return (capture.decisions??[]).filter(d=>typeof d.note==='string'&&d.note.trim()).map(d=>{
+  const id=capture.keptNotes?.[d.sourceId]??null,task=id==null?null:(data.entries??[]).find(e=>e.id===id&&!e.archived);
+  return {sourceId:d.sourceId,disposition:d.disposition==='action'?'existing':d.disposition,note:d.note.trim(),keptTaskId:task?id:null};
+ });
+}
+function projectCapture(data,state,capture,now){const draft=capture.draftId?state.drafts[capture.draftId]:null;return {messageId:capture.messageId,conversationId:capture.conversationId,raw:capture.raw,at:capture.at,status:capture.status,reply:draft?.reply??capture.reply??'',lastError:capture.lastError??null,draft:projectDraft(data,draft,now),notes:captureNotes(data,capture),memoryCandidates:structuredClone(capture.memoryCandidates??[])};}
 export function intentViewFromData(data,{conversationId=null,offset=0,limit=20,now=new Date()}={}){const state=ensureIntent(data),all=Object.values(state.captures).filter(c=>!conversationId||c.conversationId===conversationId).sort((a,b)=>at(b.at)-at(a.at)),start=Number.isInteger(offset)&&offset>=0?offset:0,count=Number.isInteger(limit)&&limit>=0?Math.min(limit,100):20,captures=all.slice(start,start+count);return {captures:captures.map(c=>projectCapture(data,state,c,now)),totalCaptures:all.length,hasMore:start+captures.length<all.length,nextOffset:start+captures.length,storage:{...storageUse(state),limits:INTENT_LIMITS}};}
 
 /**
@@ -73,5 +85,27 @@ export function createIntentService({backend,native,model,changePlanner,undo,rea
   async get(id){validId(id,'Preview ID');const data=await repository.load();return structuredClone(ensureIntent(data).sortPreviews[id]??null);},
   async list({status='preview'}={}){const data=await repository.load();return Object.values(ensureIntent(data).sortPreviews).filter(p=>status==null||p.status===status).sort((a,b)=>at(b.updatedAt)-at(a.updatedAt)).map(p=>structuredClone(p));}
  };
- return {repository,harness,capture,retry,act,undo:undoDraft,resume,view,sort};
+ /**
+  * Keep one "Also heard" note as an Inbox task, in the note's words, or take it back out. Dara's tap is the
+  * approval; the capture's original words stay the task's raw text. Never for a note that repeats a saved task.
+  */
+ async function keepNote({messageId,sourceId,keep=true,actionId}={}){
+  validId(messageId,'Message ID');validId(actionId,'Action ID');
+  const result=await repository.transact(`note:${actionId}`,{messageId,sourceId,keep},data=>{
+   const capture=ensureIntent(data).captures[messageId],decision=capture?.decisions?.find(d=>d.sourceId===sourceId);
+   if(!decision||decision.disposition==='action'||decision.disposition==='existing'||!decision.note?.trim())throw new Error('This note can’t be kept as a task');
+   capture.keptNotes??={};
+   const kept=capture.keptNotes[sourceId];
+   if(keep){
+    if(kept!=null&&(data.entries??[]).some(e=>e.id===kept&&!e.archived))return {status:'kept',taskId:kept};
+    const id=editPlan(data,{type:'saveTask',fields:{title:decision.note.trim().slice(0,200)}},clock());
+    const entry=data.entries.find(e=>e.id===id);if(entry){entry.raw=capture.raw;entry.source='intent-v2-note';}
+    capture.keptNotes[sourceId]=id;return {status:'kept',taskId:id};
+   }
+   if(kept!=null&&(data.entries??[]).some(e=>e.id===kept&&!e.archived))editPlan(data,{type:'archiveTask',id:kept},clock());
+   delete capture.keptNotes[sourceId];return {status:'unkept'};
+  });
+  return {...result,intent:await view({conversationId:ensureIntent(await repository.load()).captures[messageId]?.conversationId})};
+ }
+ return {repository,harness,capture,retry,act,undo:undoDraft,resume,view,sort,keepNote};
 }
