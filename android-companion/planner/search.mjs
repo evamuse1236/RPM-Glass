@@ -57,7 +57,7 @@ function drawResults(app, host) {
   if (found.length) {
     host.append(sectionHeader('Tasks'));
     for (const task of found) {
-      host.append(taskRow(app, task, {swipe: false, context: app.context(task).block?.title ?? 'No block'}));
+      host.append(taskRow(app, task, {context: app.context(task).block?.title ?? 'No block'}));
     }
     count += found.length;
   }

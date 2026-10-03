@@ -7,8 +7,8 @@ import {stableKey} from './planner/format.mjs';
 import {dismissSheet, installSheetKeys} from './planner/sheet.mjs';
 import {closeMenu} from './planner/menu.mjs';
 import {setDayLayout} from './planner/today.mjs';
-import {openTask, taskEditor, movePicker, planOrder, archiveTask, deleteTask, showTrash, showInbox}
-  from './planner/task-sheets.mjs';
+import {openTask, taskEditor, movePicker, planOrder, archiveTask, deleteTask, showTrash, showInbox, scheduleMenu,
+  closeSchedule} from './planner/task-sheets.mjs';
 import {entityEditor, contextEditor, detailMenu} from './planner/entities.mjs';
 import {refreshCalendar, calendarDetails, calendarEditor, datePicker, resolveClash} from './planner/calendar-ui.mjs';
 import {aiAction, examples} from './planner/jev.mjs';
@@ -64,6 +64,7 @@ function installActions(app) {
     movePicker: task => movePicker(app, task),
     archiveTask: task => archiveTask(app, task),
     deleteTask: task => deleteTask(app, task),
+    scheduleTask: (task, anchor) => scheduleMenu(app, task, anchor, {occurrence: task.occurrence}),
     trash: archive => showTrash(app, archive),
     inbox: () => showInbox(app),
     newEntity: (collection, defaults = {}) => entityEditor(app, collection, null, defaults),
@@ -104,6 +105,7 @@ function installBack(app) {
   });
   window.rpmOpenSettings = section => app.openSettings(section);
   window.rpmHandleBack = () => {
+    if (closeSchedule()) return true;
     if (closeMenu()) return true;
     if (!app.dom.sheet.hidden) {
       // An open inline chooser is the topmost layer: Back closes it before the sheet.
@@ -239,6 +241,34 @@ function openView(app, target) {
   return undefined;
 }
 
+/**
+ * The snackbar docks above an open sheet's action bar and the sheet's content makes room for it (planner.css); this
+ * keeps the two heights it needs current as sheets, their actions and the snackbar's words change.
+ */
+function installSnackbarDock(app) {
+  const root = document.documentElement;
+  const {sheet, snackbar} = app.dom;
+  let watched = null;
+  const measure = () => {
+    const actions = sheet.hidden ? null : sheet.querySelector(':scope > .sheet-actions');
+    const height = actions?.getClientRects().length ? actions.getBoundingClientRect().height : 0;
+    root.style.setProperty('--sheet-actions-h', height + 'px');
+    if (!snackbar.hidden) root.style.setProperty('--snackbar-h', snackbar.getBoundingClientRect().height + 'px');
+  };
+  const sizes = new ResizeObserver(measure);
+  sizes.observe(snackbar);
+  new MutationObserver(() => {
+    const actions = sheet.querySelector(':scope > .sheet-actions');
+    if (actions !== watched) {
+      if (watched) sizes.unobserve(watched);
+      watched = actions;
+      if (actions) sizes.observe(actions);
+    }
+    measure();
+  }).observe(sheet, {childList: true, attributes: true, attributeFilter: ['hidden']});
+  new MutationObserver(measure).observe(snackbar, {childList: true, attributes: true, attributeFilter: ['hidden']});
+}
+
 export function mountPlanner(api) {
   // After every save, Undo or outside change the shell re-renders; an open task sheet then updates its rows in place.
   const shell = app => {
@@ -251,6 +281,7 @@ export function mountPlanner(api) {
   installBack(app);
   installNativeHooks(app);
   installSwipe(app);
+  installSnackbarDock(app);
   app.render({reset: true});
   return {
     render: () => app.render(),

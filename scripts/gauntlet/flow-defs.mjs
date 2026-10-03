@@ -17,9 +17,8 @@ export const flows = {
     async run(h) {
       const {page} = h;
       await h.tap('open task', page.getByText('Group call: merge sections'));
-      await h.tap('date row (unfolds in place)', sheet(page).getByRole('button', {name: /^Date: Today, 4:00/}));
-      await h.tap('tomorrow (saved, time kept)', sheet(page).getByRole('button', {name: /^Tomorrow, /}));
-      await h.tap('9:00 AM (saved, folds away)', sheet(page).getByRole('button', {name: /^9:00\sAM$/}));
+      await h.tap('tomorrow chip on the date row (saved, time chips unfold)', sheet(page).locator('.date-quick').getByRole('button', {name: /^Tomorrow, /}));
+      await h.tap('9:00 AM (saved, folds away)', sheet(page).locator('.time-chips').getByRole('button', {name: /^9:00\sAM$/}));
     },
     check: s => { const t = find(s, 'Group call'); return ok(t?.planned && new Date(t.planned).toLocaleDateString('en-CA') === tomorrow() && new Date(t.planned).getHours() === 9, 'planned tomorrow 9:00'); },
   },
@@ -53,9 +52,9 @@ export const flows = {
       await h.tap('open task', sheet(page).getByText('Call home on Sunday'));
       await h.tap('title', sheet(page).getByLabel('Task title'));
       await h.type('rename', sheet(page).getByLabel('Task title'), 'Call home Sunday evening');
-      await h.tap('notes (title saves)', sheet(page).getByLabel('Add details'));
+      await h.key('next (title saves, caret moves to the details)', 'Enter');
       await h.type('note', sheet(page).getByLabel('Add details'), 'Ask about Diwali plans');
-      await h.key('back (note saves, sheet closes)', 'Escape');
+      await h.key('back (note saves, back to the Inbox)', 'Escape');
     },
     check: s => { const t = find(s, 'Call home Sunday evening'); return ok(t?.notes === 'Ask about Diwali plans', 'renamed with the note'); },
   },
@@ -67,10 +66,33 @@ export const flows = {
       await h.type('title', sheet(page).getByLabel('Task'), 'Email the TA about the quiz room');
       await h.tap('tomorrow chip', sheet(page).getByRole('button', {name: /^Tomorrow, /}));
       await h.tap('suggested Block chip', sheet(page).getByRole('button', {name: /Suggested Block Confident for RM Quiz I/}));
-      await h.tap('add (sheet stays for the next)', sheet(page).getByRole('button', {name: /^Add$/}));
-      await h.key('back (closes the sheet)', 'Escape');
+      await h.tap('add (adds and closes)', sheet(page).getByRole('button', {name: /^Add$/}));
     },
     check: s => { const t = find(s, 'Email the TA'); const b = s.planner.blocks.find(x => x.title.startsWith('Confident')); return ok(t?.blockId === b?.id && (t.plannedDate === tomorrow() || t.planned?.startsWith?.(tomorrow())), 'tomorrow in the quiz Block'); },
+  },
+  'swipe-schedule': {
+    job: 'From Today, move "Group call: merge sections" (today 4:00 PM) to tomorrow at 9:00 AM, the fastest way.',
+    async run(h) {
+      const {page} = h;
+      const row = page.locator('.task-row', {hasText: 'Group call: merge sections'}).first();
+      await row.scrollIntoViewIfNeeded();
+      await h.swipe('swipe the row right (Schedule)', row, 150);
+      await h.tap('tomorrow morning (saved, with Undo)', page.getByRole('menuitemradio', {name: /^Tomorrow morning/}));
+    },
+    check: s => { const t = find(s, 'Group call'); return ok(t?.planned && new Date(t.planned).toLocaleDateString('en-CA') === tomorrow() && new Date(t.planned).getHours() === 9, 'planned tomorrow 9:00'); },
+  },
+  'inbox-back': {
+    job: 'Open the Inbox, open "Call home on Sunday", then go Back: you are in the Inbox again, nothing changed.',
+    async run(h) {
+      const {page} = h;
+      await h.tap('open inbox', page.getByRole('button', {name: /^Inbox/}));
+      await h.tap('open task', sheet(page).getByText('Call home on Sunday'));
+      await h.key('back (returns to the Inbox)', 'Escape');
+    },
+    check: s => {
+      const t = find(s, 'Call home on Sunday');
+      return ok(t && !t.blockId && !t.planned && !t.plannedDate && !t.done && !t.notes, 'task unchanged');
+    },
   },
   'block-edit': {
     job: 'Open the Block "District demographic profile ready", change its Purpose to "We present real 2021 census data" and add two Plan tasks: "Pick the district" and "Pull the census tables".',
@@ -153,7 +175,8 @@ export const flows = {
       await h.key('back (closes the task)', 'Escape');
       await h.tap('open inbox', page.getByRole('button', {name: /^Inbox/}));
       await h.tap('open task', sheet(page).getByText('Call home on Sunday'));
-      await h.key('back (closes the sheet)', 'Escape');
+      await h.key('back (back to the Inbox)', 'Escape');
+      await h.key('back (closes the Inbox)', 'Escape');
     },
     check: s => ok(!!find(s, 'Call home on Sunday'), 'nothing changed'),
   },

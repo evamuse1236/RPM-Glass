@@ -73,7 +73,7 @@ function mustMark() {
 
 /**
  * options: current, next, anytime, days (say "Today" too), context (text), plan (true in a Block's Plan),
- * swipe (archive/delete gestures). Open Plan rows reorder by long-press and drag.
+ * swipe (schedule/delete gestures; on unless false). Open Plan rows reorder by long-press and drag.
  */
 export function taskRow(app, task, options = {}) {
   const row = el('div', 'task-row');
@@ -97,10 +97,11 @@ export function taskRow(app, task, options = {}) {
   return row;
 }
 
+/** Swipe right schedules (one-tap date choices anchored to the row); swipe left deletes, with Undo. */
 function attachSwipe(app, row, task) {
   row.classList.add('swipe-task');
   attachTaskSwipe(row, {
-    archive: () => app.actions.archiveTask(task),
+    schedule: () => app.actions.scheduleTask(task, row),
     remove: () => app.actions.deleteTask(task),
   });
 }

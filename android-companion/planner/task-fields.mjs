@@ -50,6 +50,55 @@ export function dayPresets(today = localDay()) {
   return presets.map(([label, day]) => [label, day, `${label}, ${longDay(day)}`]);
 }
 
+/**
+ * One-tap reschedules for a swiped row (Things' When, Todoist's Schedule): each is a whole date and time, so one tap
+ * saves. Today and Tomorrow keep the task's time; Tonight (until 7 PM), Tomorrow morning at 9; the weekend or next
+ * week; No date for a dated task. A repeating task keeps a date and a time, so it gets no date-only choice.
+ * Returns [{key, label, hint, icon, value: {day, time}, current}].
+ */
+export function schedulePresets({day = '', time = ''} = {}, now = new Date(), {repeating = false} = {}) {
+  const today = localDay(now);
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const tomorrow = shiftDay(today, 1);
+  const weekday = d => new Date(d + 'T12:00').toLocaleDateString([], {weekday: 'short'});
+  const at = (d, t) => (t ? clockOf(d, t) : '');
+  const out = [];
+  const add = (key, label, symbol, value, hint) => {
+    if (repeating && !(value.day && value.time)) return;
+    out.push({key, label, icon: symbol, value, hint, current: value.day === day && value.time === time});
+  };
+  add('today', 'Today', 'today', {day: today, time}, at(today, time));
+  if (minutes < 19 * 60 && time !== '19:00') add('tonight', 'Tonight', 'bedtime', {day: today, time: '19:00'}, at(today, '19:00'));
+  add('tomorrow', 'Tomorrow', 'event', {day: tomorrow, time}, at(tomorrow, time) || weekday(tomorrow));
+  if (time !== '09:00') add('morning', 'Tomorrow morning', 'wb_sunny', {day: tomorrow, time: '09:00'}, at(tomorrow, '09:00'));
+  const [label, later] = dayPresets(today)[2];
+  add('later', label, 'date_range', {day: later, time}, [weekday(later), at(later, time)].filter(Boolean).join(' '));
+  if (day) add('none', 'No date', 'event_busy', {day: '', time: ''}, '');
+  return out;
+}
+
+/**
+ * Blocks for a `#word` typed in Quick add: titles with a word starting with it first, then titles containing it.
+ * Returns up to `limit` Blocks; a bare "#" offers the first ones (the caller puts the recent Block first).
+ */
+export function blockMatches(blocks, query, limit = 4) {
+  const q = String(query ?? '').toLowerCase();
+  if (!q) return blocks.slice(0, limit);
+  const words = b => b.title.toLowerCase().split(/[^a-z0-9]+/i);
+  const starts = blocks.filter(b => words(b).some(w => w.startsWith(q)));
+  const contains = blocks.filter(b => !starts.includes(b) && b.title.toLowerCase().includes(q));
+  return [...starts, ...contains].slice(0, limit);
+}
+
+/** The `#word` being typed just before the caret: {query, start, end} or null. */
+export function hashToken(text, caret = String(text ?? '').length) {
+  const before = String(text ?? '').slice(0, caret);
+  const found = before.match(/(?:^|\s)#([^\s#]*)$/);
+  if (!found) return null;
+  const start = caret - found[1].length - 1;
+  return {query: found[1], start, end: caret};
+}
+
 const longDay = day => new Date(day + 'T12:00').toLocaleDateString([], {weekday: 'long', month: 'long', day: 'numeric'});
 
 /** Time presets with the task's own time folded in, in clock order. */
@@ -234,12 +283,10 @@ export const overline = text => el('h3', 'overline fold-label', text);
  * Days: presets (Quick add shows its own above), the next seven days as a strip, any other date. Times: presets,
  * No time, an exact time.
  */
-export function dateChooser(host, {get, pickDay, pickTime, today = localDay(), presets = true}) {
+export function dateChooser(host, {get, pickDay, pickTime, today = localDay(), presets = true, noDate = presets}) {
   const days = chipRow('day-chips');
-  if (presets) {
-    for (const [label, day, aria] of dayPresets(today)) days.append(choiceChip(label, day, pickDay, {aria}));
-    days.append(choiceChip('No date', '', pickDay));
-  }
+  if (presets) for (const [label, day, aria] of dayPresets(today)) days.append(choiceChip(label, day, pickDay, {aria}));
+  if (noDate) days.append(choiceChip('No date', '', pickDay));
 
   const strip = el('div', 'week-strip fold-strip');
   strip.setAttribute('role', 'group');
@@ -283,7 +330,7 @@ export function dateChooser(host, {get, pickDay, pickTime, today = localDay(), p
       choiceChip('No time', '', pickTime), exact);
     markChips(times, time);
   };
-  host.append(overline('Day'), days, strip, overline('Time'), times);
+  host.append(...(presets ? [overline('Day')] : []), days, strip, overline('Time'), times);
   const refresh = () => {
     const {day, time} = get();
     markChips(days, day);
