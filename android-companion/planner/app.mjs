@@ -1,5 +1,5 @@
 /** Planner state, navigation and the save path shared by every screen module. */
-import {enterSurface} from '../surface-motion.mjs';
+import {animateRerender, settleRerender, sharedAxis, fadeThrough, ghost, reducedMotion} from '../surface-motion.mjs';
 import {planner, localDay} from '../planner-state.mjs';
 import {taskContext, areaTone} from '../planner-ux.mjs';
 import {clarityPreferences, applyClarityPreferences} from '../planner-clarity.mjs';
@@ -158,32 +158,76 @@ function unmount(app) {
   app.mounted = null;
 }
 
+/** How the screen changes between two routes: shared axis X for sibling and parent/child moves, fade through otherwise. */
+function transitionFor(previousKey, key, direction) {
+  if (direction === 'right') return {kind: 'axis', back: false};
+  if (direction === 'left') return {kind: 'axis', back: true};
+  const days = [previousKey, key].map(k => /^today:(\d{4}-\d{2}-\d{2}):/.exec(k)?.[1]);
+  if (days[0] && days[1] && days[0] !== days[1]) return {kind: 'axis', back: days[1] < days[0]};
+  return {kind: 'fade'};
+}
+
+function buildScreen(app, kind, top) {
+  app.dom.work.replaceChildren();
+  app.dom.work.className = 'screen screen-' + kind;
+  app.renderers.screen(app, kind, top);
+}
+
 /**
- * Re-render the shell and the current screen. Ordinary rerenders keep scroll;
+ * Re-render the shell and the current screen.
+ * - A commit (no options) rebuilds in place: surviving rows slide, removed rows collapse, new rows open, scroll and
+ *   focus stay (animateRerender).
+ * - A route change runs one transition: shared axis X for push/pop and day to day (reversed on Back), fade through
+ *   for tabs. Outgoing and incoming are both visible; the top bar moves with its page.
  * `reset` restores the position last seen on that screen.
  */
 export function render(app, {reset = false, direction = ''} = {}) {
   const key = screenKey(app);
-  const changed = app.lastKey !== key;
-  const scroll = app.dom.scroll.scrollTop;
-  if (app.lastKey) app.positions.set(app.lastKey, scroll);
+  const previousKey = app.lastKey;
+  const changed = previousKey !== key;
+  const {work, scroll, topBar, planner} = app.dom;
+  const scrollTop = scroll.scrollTop;
+  if (previousKey) app.positions.set(previousKey, scrollTop);
   app.lastKey = key;
-  if (changed) unmount(app);
-  app.renderers.shell(app);
-
   const top = app.current();
   const kind = top?.kind ?? app.state.tab;
-  const keepMounted = app.mounted && app.mounted.key === key;
-  if (!keepMounted) {
-    app.dom.work.replaceChildren();
-    app.dom.work.className = 'screen screen-' + kind;
-    app.renderers.screen(app, kind, top);
+
+  if (!previousKey || (!changed && !direction)) {
+    app.renderers.shell(app);
+    if (app.mounted && app.mounted.key === key) return;
+    if (!previousKey) {
+      buildScreen(app, kind, top);
+      scroll.scrollTop = app.positions.get(key) ?? app.renderers.defaultScroll(app, kind);
+    } else {
+      animateRerender(work, scroll, () => buildScreen(app, kind, top));
+    }
+    if (changed && kind === 'today') app.renderers.refreshCalendar(app);
+    return;
   }
-  app.dom.scroll.scrollTop = reset || changed
-    ? (app.positions.get(key) ?? app.renderers.defaultScroll(app, kind))
-    : scroll;
-  if (reset || direction || changed) enterSurface(app.dom.work, direction || 'fade');
+
+  // Route change: freeze what is on screen, build the new screen, then move one into the other.
+  settleRerender(work);
+  const motion = !reducedMotion();
+  const pageRect = scroll.getBoundingClientRect();
+  const barRect = topBar.hidden ? null : topBar.getBoundingClientRect();
+  const mountedBefore = !!app.mounted;
+  const oldPage = motion ? [...work.childNodes].map(n => (mountedBefore ? n.cloneNode(true) : n)) : [];
+  const oldBar = motion && barRect ? [...topBar.childNodes] : [];
+  const oldWorkClass = work.className;
+  const oldBarClass = topBar.className;
+  if (changed) unmount(app);
+  app.renderers.shell(app);
+  const keepMounted = app.mounted && app.mounted.key === key;
+  if (!keepMounted) buildScreen(app, kind, top);
+  scroll.scrollTop = reset || changed ? (app.positions.get(key) ?? app.renderers.defaultScroll(app, kind)) : scrollTop;
   if (changed && kind === 'today') app.renderers.refreshCalendar(app);
+  if (!motion) return;
+  const outgoing = [ghost(oldPage, pageRect, planner, {cls: oldWorkClass + ' motion-ghost-page', scrollTop})];
+  if (oldBar.length) outgoing.push(ghost(oldBar, barRect, planner, {cls: oldBarClass + ' motion-ghost-bar'}));
+  const incoming = [work, topBar.hidden ? null : topBar];
+  const plan = transitionFor(previousKey, key, direction);
+  if (plan.kind === 'axis') sharedAxis(outgoing, incoming, {back: plan.back});
+  else fadeThrough(outgoing, incoming);
 }
 
 /** Apply a planner op (or a review mutator function) through the native save path. */
@@ -198,7 +242,10 @@ export async function commit(app, op, {keepSheet = false, label = 'Saved', undo 
     app.sheet.version = app.data().version;
     if (!keepSheet) {
       discardDraft(app);
-      closeSheet(app);
+      // Close after the caller's follow-up: a caller that opens the next sheet right away replaces this one in
+      // place (one motion), instead of the sheet sliding away and rising again.
+      const epoch = app.sheet.epoch;
+      setTimeout(() => { if (epoch === app.sheet.epoch) closeSheet(app); }, 0);
     }
     render(app);
     if (label) notice(app, label, {undo});

@@ -30,9 +30,9 @@
 /* Body */
 .wr-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:20px 16px 24px}
 .wr-content{display:flex;flex-direction:column;gap:12px}
-.wr-enter{animation:wr-in var(--dur-long) var(--ease-emphasized) both}
-@keyframes wr-in{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
-:root[data-reduce-motion=true] .wr-enter{animation:none}
+/* Step to step: weekly-review.mjs moves the old and new content on the shared X axis; this copy of the old content
+   keeps the body's padding while it slides out. */
+.wr-ghost-body{padding:20px 16px 24px;background:var(--surface)}
 .wr-title{font:var(--headline-small);padding:0 4px;text-wrap:balance}
 .wr-sub{text-wrap:pretty;font:var(--body-medium);color:var(--on-surface-variant);padding:0 4px;margin:-4px 0 4px!important}
 .wr-section-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 8px;min-height:48px;padding:4px 4px 0;margin-bottom:-8px}
@@ -174,9 +174,13 @@
 /* Step 3: the bottom sheet that chooses a task's Result */
 .wr-layer{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:flex-end}
 .wr-scrim{position:absolute;inset:0;background:var(--scrim);opacity:.32}
-.wr-sheet{position:relative;max-height:min(80%,640px);overflow-y:auto;overscroll-behavior:contain;padding:0 16px 24px;border-radius:28px 28px 0 0;background:var(--surface-container-low);box-shadow:var(--elev-3);animation:wr-up var(--dur-medium) var(--ease-emphasized) both}
-@keyframes wr-up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
-:root[data-reduce-motion=true] .wr-sheet{animation:none}
+.wr-sheet{position:relative;max-height:min(80%,640px);overflow-y:auto;overscroll-behavior:contain;padding:0 16px 24px;border-radius:28px 28px 0 0;background:var(--surface-container-low);box-shadow:var(--elev-3);animation:wr-up var(--dur-medium3) var(--ease-emphasized-decelerate) both}
+/* The sheet rises from the bottom edge and its scrim fades with it, once: re-renders while it is open don't replay it. */
+.wr-scrim{animation:wr-scrim var(--dur-medium3) var(--ease-emphasized-decelerate) both}
+@keyframes wr-up{from{transform:translateY(100%)}to{transform:none}}
+@keyframes wr-scrim{from{opacity:0}}
+.wr-layer.static .wr-sheet,.wr-layer.static .wr-scrim{animation:none}
+:root[data-reduce-motion=true] .wr-sheet,:root[data-reduce-motion=true] .wr-scrim{animation:none}
 .wr-handle{width:32px;height:4px;border-radius:2px;background:var(--outline);opacity:.4;margin:16px auto 12px}
 .wr-sheet-title{font:var(--title-large);padding:4px 8px 0}
 .wr-sheet-title:focus{outline:none}

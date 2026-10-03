@@ -15,6 +15,7 @@ import {calendarRows} from './planner-calendar.mjs';
 import {dueInfo, clock, duration, plural, timeRange} from './planner/format.mjs';
 import {areaDot} from './planner/dom.mjs';
 import {attachTaskSwipe} from './task-swipe.mjs';
+import {animateRerender, sharedAxis, ghost, reducedMotion} from './surface-motion.mjs';
 
 const STEPS = [
   {name: "Last week's Results", next: 'Next: empty your head'},
@@ -175,7 +176,7 @@ function createActions(ctx, week, ui, render) {
   };
   function goTo(step) {
     if (step < 1 || step > REVIEW_STEPS || step === ui.step) return;
-    Object.assign(ui, {inboxIds: groupList().map(t => t.id), step, sheet: null,
+    Object.assign(ui, {inboxIds: groupList().map(t => t.id), stepBack: step < ui.step, step, sheet: null,
       focusBase: null, hint: '', focusHint: '', stepChanged: true});
     render();
     saveProgress({finishedAt: null});
@@ -204,30 +205,67 @@ function createActions(ctx, week, ui, render) {
   return {data, week, ui, run, goTo, close, finish, render, groupList, openBlock, events, clashes, saveProgress, now: () => ctx.now()};
 }
 
+/**
+ * The body and its content column live across renders. A step change moves old and new content on the shared X axis
+ * (reversed going back); a change inside a step rebuilds the content in place, so rows slide or collapse instead of
+ * the step replaying its entrance, and the scroll position holds.
+ */
 function renderReview(root, api, ctx) {
   const {ui} = api;
   ui.seen = api.data();
-  const scroller = root.querySelector('.wr-body');
-  const keepScroll = !ui.stepChanged && scroller ? scroller.scrollTop : 0;
-  const body = el('div', 'wr-body');
-  const content = el('div', 'wr-content' + (ui.stepChanged ? ' wr-enter' : ''));
-  content.append(...stepContent(api, ctx));
-  body.append(content);
+  let body = root.querySelector(':scope > .wr-body');
+  let content = body?.querySelector(':scope > .wr-content');
+  const first = !body;
+  if (first) {
+    body = el('div', 'wr-body');
+    content = el('div', 'wr-content');
+    body.append(content);
+  }
   const active = root.contains(document.activeElement) ? document.activeElement.dataset.key : null;
+  const stepChange = ui.stepChanged && !first;
+  const bodyRect = stepChange ? body.getBoundingClientRect() : null;
+  const oldScroll = body.scrollTop;
+  const oldContent = stepChange && !reducedMotion() ? [...content.childNodes] : [];
   const foot = footer(api);
-  root.replaceChildren(topBar(api), progressBar(ui.step, api.goTo), body, foot);
-  if (ui.step === 3 && ui.sheet) root.append(sheetLayer(api));
-  body.scrollTop = keepScroll;
+  const sheetKey = ui.step === 3 && ui.sheet ? `${ui.sheet.kind}:${ui.sheet.taskId}` : null;
+  const sheetWasOpen = sheetKey && root.querySelector(':scope > .wr-layer')?.dataset.sheet === sheetKey;
+  root.querySelector(':scope > .wr-layer')?.remove();
+  const bar = topBar(api);
+  const progress = progressBar(ui.step, api.goTo, root.querySelector(':scope > .wr-steps'));
+  if (first) root.replaceChildren(bar, progress, body, foot);
+  else {
+    root.querySelector(':scope > .wr-bar')?.replaceWith(bar);
+    root.querySelector(':scope > .wr-foot')?.replaceWith(foot);
+  }
+  if (first || ui.stepChanged) {
+    content.replaceChildren(...stepContent(api, ctx));
+    body.scrollTop = 0;
+  } else {
+    animateRerender(content, body, () => content.replaceChildren(...stepContent(api, ctx)));
+  }
+  if (sheetKey) {
+    const layer = sheetLayer(api);
+    layer.dataset.sheet = sheetKey;
+    layer.classList.toggle('static', !!sheetWasOpen);
+    root.append(layer);
+  }
+  if (stepChange && oldContent.length) {
+    const column = el('div', 'wr-content');
+    column.append(...oldContent);
+    const outgoing = ghost([column], bodyRect, root, {cls: 'wr-ghost-body', scrollTop: oldScroll});
+    sharedAxis([outgoing], [content], {back: !!ui.stepBack});
+  }
   // A hairline over the footer only while content continues underneath it (no fade over the last card).
   const edge = () => foot.classList.toggle('edge', body.scrollTop + body.clientHeight < body.scrollHeight - 2);
-  body.addEventListener('scroll', edge, {passive: true});
+  body.onscroll = edge;
   edge();
   document.documentElement.style.setProperty('--wr-foot', foot.offsetHeight + 'px');
   if (ui.stepChanged) {
     ui.stepChanged = false;
-    root.querySelector('.wr-title')?.focus({preventScroll: true});
-  } else if (active) {
-    root.querySelector(`[data-key="${CSS.escape(active)}"]`)?.focus({preventScroll: true});
+    root.querySelector('.wr-body .wr-title')?.focus({preventScroll: true});
+  } else if (active && !root.contains(document.activeElement)) {
+    root.querySelector(`.wr-body [data-key="${CSS.escape(active)}"], .wr-foot [data-key="${CSS.escape(active)}"]`)
+      ?.focus({preventScroll: true});
   }
 }
 
@@ -241,7 +279,16 @@ function topBar(api) {
   return bar;
 }
 
-function progressBar(step, goTo) {
+/** The same segments stay on screen from step to step, so the newly reached one fills in rather than reappearing. */
+function progressBar(step, goTo, existing = null) {
+  if (existing?.children.length === STEPS.length) {
+    [...existing.children].forEach((seg, i) => {
+      seg.classList.toggle('on', i + 1 <= step);
+      if (i + 1 === step) seg.setAttribute('aria-current', 'step');
+      else seg.removeAttribute('aria-current');
+    });
+    return existing;
+  }
   const nav = el('nav', 'wr-steps');
   nav.setAttribute('aria-label', 'Review steps');
   STEPS.forEach((s, i) => {

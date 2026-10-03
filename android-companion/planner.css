@@ -154,9 +154,10 @@ h1, h2, h3, p { margin: 0; }
   right: var(--s4);
   bottom: calc(var(--nav-measured, var(--nav)) + var(--s4));
   z-index: 10;
-  transition: transform var(--dur-medium) var(--ease-emphasized);
+  /* The FAB makes room for the snackbar on the snackbar's own timing: in with it, out with it. */
+  transition: transform var(--dur-short3) var(--ease-emphasized-accelerate);
 }
-#planner[data-snackbar=true] #fab-host { transform: translateY(-64px); }
+#planner[data-snackbar=true] #fab-host { transform: translateY(-64px); transition: transform var(--dur-medium1) var(--ease-emphasized-decelerate); }
 .fab { transition: transform var(--dur-medium) var(--ease-emphasized), opacity var(--dur-short) var(--ease-standard); }
 #planner[data-fab-aside=true] .fab { transform: scale(.4); opacity: 0; pointer-events: none; }
 .fab {
@@ -465,6 +466,13 @@ button.list-item:active { background: var(--row-press); }
 .lead-now, .lead-next { color: var(--now); }
 .lead-overdue { color: var(--error); }
 .task-row.done .task-title { color: var(--on-surface-variant); text-decoration: line-through; }
+/* Completing: the ring pops once and the line draws in (both 150ms); then the row collapses into Completed. */
+.task-row.just-done .check-ring { animation: check-pop var(--dur-short3) var(--ease-standard); }
+.task-row.just-done .check-ring .ms { animation: check-in var(--dur-short3) var(--ease-emphasized-decelerate); }
+.task-row.just-done .task-title { animation: strike-in var(--dur-short3) var(--ease-standard); }
+@keyframes check-pop { 0% { transform: scale(.85); } 55% { transform: scale(1.15); } 100% { transform: none; } }
+@keyframes check-in { from { opacity: 0; transform: scale(.4); } }
+@keyframes strike-in { from { text-decoration-color: transparent; color: var(--on-surface); } }
 .must-mark { color: var(--must); margin: 16px var(--s3) 0 var(--s1); }
 .drag-handle { margin-top: 4px; color: var(--on-surface-variant); touch-action: none; }
 /* The Now row: a soft primary tint, lighter in dark so it does not shout. */
@@ -1067,6 +1075,7 @@ button.fact-row:active { background: var(--row-press); }
   background: var(--scrim);
 }
 .menu-scrim { background: transparent; z-index: 49; }
+.sheet-scrim.leaving { pointer-events: none; }
 .sheet {
   --sheet-bg: var(--surface-container-low);
   position: fixed;
@@ -1083,15 +1092,37 @@ button.fact-row:active { background: var(--row-press); }
   color: var(--on-surface);
   border-radius: var(--shape-xl) var(--shape-xl) 0 0;
   box-shadow: var(--elev-1);
+  transform-origin: 50% 100%;
 }
 .sheet.expanded { height: 92%; }
+/* Content swap: the old content fades out on top while the sheet's height morphs to the new content. */
+.sheet.morphing { overflow: hidden; }
+.sheet-ghost {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--ghost-height);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--sheet-bg);
+  pointer-events: none;
+}
+.sheet-header { touch-action: none; }
 .sheet-handle {
   flex: none;
   height: 22px;
   display: grid;
   place-items: center;
   touch-action: none;
+  position: relative;
+  cursor: grab;
 }
+/* The handle's grab area is 48dp tall, wider than the pill. */
+.sheet-handle::after { content: ""; position: absolute; inset: -4px 30% -22px; }
 .sheet-handle::before { content: ""; width: 32px; height: 4px; border-radius: 2px; background: var(--on-surface-variant); opacity: .4; }
 .sheet-header { flex: none; display: flex; align-items: center; gap: var(--s1); padding: 0 var(--s2) 0 var(--s6); }
 .sheet-header h2 { flex: 1; min-width: 0; font: var(--title-large); }
@@ -1363,4 +1394,25 @@ button.fact-row:active { background: var(--row-press); }
 @media (prefers-reduced-motion: reduce) {
   .progress > span, .wheel-track > span, #fab-host, .fab { transition: none; }
 }
+
+/* ---------- Motion helpers (surface-motion.mjs) ---------- */
+/* A frozen copy of the outgoing screen or top bar during a transition; never focusable or tappable. */
+.motion-ghost-layer {
+  position: absolute;
+  z-index: 5;
+  top: var(--ghost-top);
+  left: var(--ghost-left);
+  width: var(--ghost-width);
+  height: var(--ghost-height);
+  overflow: hidden;
+  pointer-events: none;
+}
+.motion-ghost-inner { transform: translateY(var(--ghost-scroll, 0px)); }
+.motion-ghost-bar { height: 100%; }
+/* A removed row collapsing in place, and a new row opening. */
+.motion-ghost { overflow: hidden; pointer-events: none; }
+.motion-clip { overflow: hidden; }
+/* Menus open from their anchor. */
+.menu { animation: menu-in var(--dur-short3) var(--ease-emphasized-decelerate); transform-origin: top right; }
+@keyframes menu-in { from { opacity: 0; transform: scale(.9, .7); } }
 :root[data-reduce-motion=true] .progress > span, :root[data-reduce-motion=true] #fab-host, :root[data-reduce-motion=true] .fab { transition: none; }

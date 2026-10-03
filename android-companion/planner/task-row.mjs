@@ -170,7 +170,22 @@ function installOrder(app, handle, row, task) {
   });
 }
 
-/** One tap completes; recurring tasks complete one occurrence. Undo is always offered. */
+const SETTLE_MS = 900;
+
+/** The ring fills with a short pop and the title strikes through on the row now on screen. */
+function markRow(app, id, done) {
+  for (const row of app.dom.work.querySelectorAll(`.task-row[data-task-id="${id}"]`)) {
+    row.classList.toggle('done', done);
+    row.classList.toggle('just-done', done);
+    row.querySelector('.task-check')?.setAttribute('aria-checked', String(done));
+  }
+}
+
+/**
+ * One tap completes; recurring tasks complete one occurrence. Undo is always offered.
+ * The row stays where it is, ticked, for a moment; then it collapses into Completed while the rows below slide up
+ * (the re-render animates both). Undo brings it back the same way.
+ */
 export async function toggleDone(app, task, when) {
   if (app.saving) return;
   const completing = !task.done;
@@ -178,17 +193,23 @@ export async function toggleDone(app, task, when) {
   const op = task.done
     ? {type: 'reopenTask', id: task.id, occurrence: when ?? task.occurrence}
     : {type: 'saveTask', id: task.id, fields: {done: true}, occurrence};
+  const linger = completing && !repeats(task);
+  if (linger) app.recentlyCompleted.set(task.id, true);
+  if (completing) markRow(app, task.id, true);
   try {
     await app.commit(op, {label: completing ? 'Task completed' : 'Task marked incomplete', keepSheet: false});
-    if (completing && !repeats(task)) {
-      app.recentlyCompleted.set(task.id, true);
-      app.render();
+    if (completing) markRow(app, task.id, true);
+    if (linger) {
       setTimeout(() => {
-        if (app.recentlyCompleted.delete(task.id) && app.dom.sheet.hidden) app.render();
-      }, 1500);
+        if (!app.recentlyCompleted.delete(task.id)) return;
+        if (app.dom.sheet.hidden) app.render();
+      }, SETTLE_MS);
     }
     app.api.native('haptic').catch(() => {});
-  } catch {}
+  } catch {
+    if (linger) app.recentlyCompleted.delete(task.id);
+    if (completing) markRow(app, task.id, false);
+  }
 }
 
 /** "Completed (n)" disclosure; tasks completed a moment ago stay in place first. */
@@ -198,6 +219,7 @@ export function completedSection(app, host, rows, options = {}) {
   for (const task of rows.filter(t => app.recentlyCompleted.has(t.id))) host.append(taskRow(app, task, options));
   if (!rest.length) return;
   const group = el('section', 'completed-group');
+  group.dataset.key = 'completed';
   const open = app.state.completedOpen;
   const toggle = button('', () => {
     app.state.completedOpen = !app.state.completedOpen;

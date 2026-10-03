@@ -115,6 +115,30 @@ export const flows = {
       await h.tap('life tab', page.getByRole('button', {name: 'Life', exact: true}));
     },
   },
+  'sheet-motion': {
+    job: 'Open a task, open its More menu, close it, close the task; then open the Inbox, open a task from it and go back (watch the sheets).',
+    async run(h) {
+      const {page} = h;
+      await h.tap('open task', page.getByText('Weekly review', {exact: true}));
+      await h.tap('more menu', sheet(page).getByRole('button', {name: 'More task options'}));
+      await h.key('back (closes the menu)', 'Escape');
+      await h.key('back (closes the task)', 'Escape');
+      await h.tap('open inbox', page.getByRole('button', {name: /^Inbox/}));
+      await h.tap('open task', sheet(page).getByText('Call home on Sunday'));
+      await h.key('back (closes the sheet)', 'Escape');
+    },
+    check: s => ok(!!find(s, 'Call home on Sunday'), 'nothing changed'),
+  },
+  'review-steps': {
+    job: 'Start the weekly review, go Next, Next, then Back (watch the steps move).',
+    async run(h) {
+      const {page} = h;
+      await h.tap('open review', page.getByRole('button', {name: /isn't planned|review/i}).first());
+      await h.tap('next', page.locator('.wr-next'));
+      await h.tap('next', page.locator('.wr-next'));
+      await h.tap('back', page.locator('.wr-back'));
+    },
+  },
 };
 
 if (import.meta.url === `file://${process.argv[1]}`) await runFlows(flows);

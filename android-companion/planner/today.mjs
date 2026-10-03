@@ -536,7 +536,10 @@ export function renderToday(app, page) {
   const isToday = day === localDay(now);
   const model = dayTasks(data, day);
   // A task completed a moment ago stays in place briefly, so the list doesn't jump under the thumb.
-  const recent = model.completed.filter(task => app.recentlyCompleted.has(task.id));
+  // It keeps its time so it stays in its own slot, not at the end of the list.
+  const recent = model.completed.filter(task => app.recentlyCompleted.has(task.id))
+    .map(task => (task.start || !task.planned ? task
+      : {...task, start: Date.parse(task.planned), end: Date.parse(task.planned) + (task.minutes ?? 30) * 60000}));
   const active = [...model.active, ...recent];
   const dayEvents = timelineItems(data, day, calendar).filter(item => item.source === 'calendar');
   const timeline = app.state.dayLayout === 'timeline' && !app.largeText();

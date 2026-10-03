@@ -104,7 +104,13 @@ Cards use 24dp corners (`--card-radius`). Sheets and the Capture panel use 28dp,
 
 ## Motion
 
-Motion uses the M3 emphasized and standard easing curves at 150, 250 and 400ms. It is short, interruptible and only shows real state changes: a sheet rising, a task completing, Capture moving from saving to sorting to proposals. Reduced motion removes all of it (see the end of `theme.css`).
+Motion uses the M3 tokens (emphasized, emphasized decelerate/accelerate, standard; 50–400ms), kept in `theme.css` and mirrored in `surface-motion.mjs`. It is short, interruptible (every move starts from the pose on screen, and taps go through mid-transition) and one motion per change:
+- **Sheets** rise from the bottom edge (emphasized decelerate, 350ms) and leave by sliding down (emphasized accelerate, 200ms); one scrim whose opacity moves with the sheet. A sheet opened over a sheet replaces its content in place: the height morphs and the content fades through, with no second entrance. The handle (and the header's empty space) drags the sheet with the finger; release far or fast to dismiss, otherwise it springs back. Native predictive back can drive it (`rpmBackProgress`/`rpmBackCancel`).
+- **Saving** rebuilds the screen without jumps: rows that stay slide to their new place, a removed row collapses where it was while the rows below follow, a new row opens from zero height, and scroll and focus hold. Changes above the first row on screen happen at once so the reading position stays still.
+- **Navigation:** push and pop use shared axis X (30dp, 300ms, both screens visible, reversed on Back) with the top bar moving with its page; day to day too. Navigation bar tabs fade through (out 90ms, in 210ms from 92%). Weekly review steps use shared axis X; changes inside a step never replay it.
+- **Completing a task:** the ring pops and the title strikes through (150ms), the row stays in place for under a second, then collapses into Completed. Undo reopens it in place.
+- **Snackbar** rises from the bottom and leaves downward; the FAB moves with it on the same timing. Menus open from their anchor (150ms).
+Reduced motion (the system setting or Android's Remove animations) removes movement: changes are instant (see the end of `theme.css`).
 
 ## Components
 
