@@ -61,7 +61,7 @@ const scenes = {
   async review() {
     const page = await open('/planner.html');
     await click(page, page.getByRole('button', {name: /start the weekly review|Open weekly review/}));
-    // A real pass: one win and both still-running Results carried in step 1, two Inbox tasks selected in step 3,
+    // A real pass: one win and both still-running Results carried in step 1, one suggested Result accepted in step 3,
     // a third Result picked in step 4. The pointer parks on the title so no hover tint lands in a shot.
     const rest = () => page.mouse.move(260, 32);
     const steps = {
@@ -73,11 +73,13 @@ const scenes = {
         await scroll(page, 900); await rest(); await shot(page, 'review-1-scrolled');
       },
       async 3() {
-        for (const name of [/Check the LMS/, /Ask the group which district/]) await click(page, page.getByRole('checkbox', {name}));
+        // One suggestion accepted, then the chooser opened for a task with no clear match.
+        await click(page, page.getByRole('button', {name: /^Add "Check the LMS/}));
+        await page.waitForTimeout(6000); // let the Undo snackbar time out
         await rest(); await shot(page, 'review-3');
-        await click(page, page.getByRole('button', {name: /^Add 2 tasks to/}));
+        await click(page, page.getByRole('button', {name: /^Choose a Result for "Buy a new notebook/}));
         await rest(); await shot(page, 'review-3-scrolled');
-        await page.mouse.click(206, 120); await click(page, page.getByRole('button', {name: 'Clear selection'}));
+        await page.mouse.click(206, 120);
       },
       async 4() {
         await click(page, page.getByRole('checkbox', {name: /DAD Excel workbook/}));
