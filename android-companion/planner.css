@@ -594,37 +594,63 @@ input[type=range] { width: 100%; accent-color: var(--primary); min-height: var(-
 .week-day.is-today .week-number { color: var(--primary); font-weight: 700; }
 .week-day[aria-pressed=true] .week-number { background: var(--primary); color: var(--on-primary); }
 .week-day:active .week-number { background: var(--row-press); }
-.day-marks { display: flex; align-items: center; justify-content: center; gap: 2px; min-height: 14px; margin-top: -4px; }
+.day-marks { display: flex; align-items: center; justify-content: center; gap: 1px; min-height: 16px; margin-top: -4px; }
 .day-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--outline); }
-/* A day holding a Result's deadline: the same hourglass as Due soon; a clash day: the clash mark in the error colour. */
-.day-due, .day-clash { font-size: 14px; line-height: 1; width: 1em; overflow: hidden; color: var(--on-surface-variant); }
+/* A day holding deadlines: the hourglass, with their count when more than one; a clash day: the clash mark in error. */
+.day-due, .day-clash { font-size: 16px; line-height: 1; width: 1em; overflow: hidden; color: var(--on-surface-variant); }
+.day-count { font: var(--label-small); color: var(--on-surface-variant); margin-right: 2px; }
 .day-clash { color: var(--error); }
-.week-day[aria-pressed=true] .day-due { color: var(--primary); }
+.week-day[aria-pressed=true] .day-due, .week-day[aria-pressed=true] .day-count { color: var(--primary); }
+/* Where the week's plan stands: one quiet line under the strip that opens the weekly review. */
+.week-line {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  column-gap: var(--s4);
+  align-items: center;
+  min-height: var(--touch);
+  padding: 0 var(--s3) 0 var(--gutter);
+  text-align: left;
+  font: var(--body-medium);
+  color: var(--on-surface-variant);
+}
+.week-line:active { background: var(--row-press); }
+.week-line .ms { color: var(--on-surface-variant); }
+.week-line-lead { color: var(--on-surface); }
+.week-line .phrase { white-space: nowrap; }
 
-/* A row with one action (each risk and the planning row): the headline gets the full width; the supporting text
-   shares the second line with a tonal button. The row itself is one button underneath, so the whole row opens. */
+/* A list row with at most one text button: the headline gets the full width; the supporting lines share the rest of
+   the row with the button. The row itself is one button underneath, so the whole row opens. */
 .today-row {
   position: relative;
   display: grid;
   grid-template-columns: 24px 1fr auto;
   column-gap: var(--s4);
   align-items: center;
-  min-height: 72px;
-  padding: var(--s2) var(--s4) var(--s2) var(--gutter);
+  min-height: 64px;
+  padding: var(--s2) var(--s2) var(--s2) var(--gutter);
 }
 .today-row-main { position: absolute; inset: 0 var(--s2) 0 0; border-radius: 0 var(--shape-lg) var(--shape-lg) 0; }
 .today-row-main:active { background: var(--row-press); }
 .today-row > .leading, .today-row-headline, .today-row-supporting { position: relative; pointer-events: none; }
-.today-row > .leading { grid-row: 1 / span 2; color: var(--on-surface-variant); }
-.today-row-headline { grid-column: 2 / 4; font: var(--body-large); overflow-wrap: anywhere; text-wrap: pretty; }
-.today-row-supporting { grid-column: 2; font: var(--body-medium); color: var(--on-surface-variant); overflow-wrap: anywhere; }
-.today-row-action { grid-column: 3; grid-row: 2; position: relative; margin-block: -6px; }
-/* Facts that would wrap mid-phrase beside the button stack instead, one per line. */
-.today-row .phrase { display: block; }
-.plan-row > .leading { color: var(--primary); }
-.risk-section { margin-top: var(--s2); }
-.risk-row > .leading, .risk-lead { color: var(--error); }
+.today-row > .leading { grid-row: 1; align-self: start; color: var(--on-surface-variant); }
+.today-row-headline { grid-column: 2 / 4; padding-right: var(--s2); font: var(--body-large); overflow-wrap: anywhere; text-wrap: pretty; }
+.today-row-supporting { grid-column: 2; display: grid; grid-template-columns: auto 1fr; column-gap: var(--s2); font: var(--body-medium); color: var(--on-surface-variant); }
+.today-row-line { grid-column: 1 / -1; overflow-wrap: anywhere; }
+.today-row .phrase { white-space: nowrap; }
+.today-row-action { grid-column: 3; grid-row: 2; position: relative; align-self: center; margin-block: -4px; }
+.today-row.action-top .today-row-headline { grid-column: 2; }
+.today-row.action-top .today-row-supporting { grid-column: 2 / 4; padding-right: var(--s2); }
+.today-row.action-top .today-row-action { grid-row: 1; }
+.today-row.is-alert > .leading, .risk-lead { color: var(--error); }
 .risk-lead { font-weight: 600; }
+/* A clash: one line per overlapping item, its time span in a column so the titles line up. */
+.today-row-line.is-clash-item { display: contents; }
+.clash-time { white-space: nowrap; }
+.clash-title { min-width: 0; overflow-wrap: anywhere; text-wrap: pretty; }
+.upcoming { padding-bottom: var(--s1); }
+.upcoming .section-header { padding-top: var(--s3); }
+.upcoming:not(:has(.section-header)) { margin-top: var(--s2); }
 
 /* A Result group: tonal container with the Result as title and Purpose underneath */
 .result-group {
@@ -649,7 +675,7 @@ button.result-head:active { background: var(--row-press); }
 .result-title { font: var(--title-medium); overflow-wrap: anywhere; text-wrap: pretty; }
 .result-purpose { font: var(--body-medium); color: var(--on-surface-variant); overflow-wrap: anywhere; text-wrap: pretty; }
 /* Facts line: the deadline with its countdown, tasks done. */
-.result-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; margin-top: 2px; font: var(--label-medium); color: var(--on-surface-variant); }
+.result-meta { margin-top: 2px; font: var(--label-medium); color: var(--on-surface-variant); }
 .result-meta .area-dot { width: 8px; height: 8px; }
 .result-meta .is-overdue { color: var(--error); }
 .result-meta .phrase { white-space: nowrap; }
@@ -709,21 +735,6 @@ button.result-head:active { background: var(--row-press); }
 .inbox-row { margin-top: var(--s2); }
 .inbox-row .trailing-value { margin-right: calc(-1 * var(--s2)); }
 
-/* Due soon: Calendar's schedule. A fixed date gutter on every row, the date shown once per day. */
-.soon-row {
-  width: 100%;
-  min-height: 56px;
-  display: grid;
-  grid-template-columns: 32px 1fr;
-  column-gap: var(--s2);
-  align-items: start;
-  padding: var(--s2) var(--s4) var(--s2) var(--gutter);
-}
-.soon-row:active { background: var(--row-press); }
-.soon-day { display: flex; flex-direction: column; align-items: center; }
-.soon-weekday { font: var(--label-medium); color: var(--on-surface-variant); }
-.soon-date { font: var(--title-large); line-height: 24px; }
-.soon-day.is-today .soon-weekday, .soon-day.is-today .soon-date { color: var(--primary); }
 .screen-today .completed-group { margin: var(--s3) var(--gutter) 0; }
 .screen-today .completed-group .completed-toggle { padding-left: var(--s2); }
 
@@ -1328,12 +1339,17 @@ button.fact-row:active { background: var(--row-press); }
 /* Large text: a row's action moves under its words instead of squeezing them. */
 :root[data-large-text=true] .today-row { grid-template-columns: auto 1fr; }
 :root[data-large-text=true] .today-row-headline { grid-column: 2; }
-:root[data-large-text=true] .today-row-action { grid-column: 2; grid-row: 3; justify-self: start; margin-top: var(--s1); }
-:root[data-large-text=true] .next-card .result-purpose, :root[data-large-text=true] .next-card .result-meta { display: none; }
-:root[data-large-text=true] .next-card .result-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-:root[data-large-text=true] .soon-row { grid-template-columns: 1fr; padding-left: 56px; }
-:root[data-large-text=true] .soon-day { flex-direction: row; align-items: baseline; gap: var(--s2); }
-:root[data-large-text=true] .soon-day:empty { display: none; }
+:root[data-large-text=true] .today-row-action { grid-column: 2; grid-row: 3; justify-self: start; margin: 0 0 0 calc(-1 * var(--s3)); }
+:root[data-large-text=true] .today-row-line.is-clash-item { display: block; }
+:root[data-large-text=true] :is(.today-row-line, .week-line) .phrase { display: block; }
+:root[data-large-text=true] :is(.today-row, .week-line) .sep { display: none; }
+:root[data-large-text=true] .today-row.action-top .today-row-action { grid-row: 3; }
+:root[data-large-text=true] .screen-today .week-strip, :root[data-large-text=true] .next-label .label-extra,
+:root[data-large-text=true] .next-card .meta-extra, :root[data-large-text=true] .upcoming .section-header,
+:root[data-large-text=true] .gap-card .task-supporting { display: none; }
+:root[data-large-text=true] .next-action { margin-left: var(--s4); white-space: nowrap; }
+:root[data-large-text=true] .week-line { grid-template-columns: auto 1fr auto; padding-block: var(--s2); }
+:root[data-large-text=true] .clash-time::after { content: ' · '; }
 :root[data-large-text=true] .result-count, :root[data-large-text=true] .eyebrow span:last-child { display: none; }
 :root[data-large-text=true] .detail-head .crumb .eyebrow span:last-child { display: inline; }
 :root[data-large-text=true] .card-top .eyebrow { display: none; }

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {editPlan} from './planner-state.mjs';
-import {dueSoon, atRisk, freeGap, fillGap} from './planner/today.mjs';
+import {dueSoon, atRisk, upcoming, freeGap, fillGap, gapResult} from './planner/today.mjs';
 import {countdown, timeLeft} from './planner/format.mjs';
 import {blockDue} from './planner-state.mjs';
 
@@ -108,4 +108,28 @@ test('Free time runs from the next quarter hour to the next fixed thing and take
   assert.equal(freeGap(d, {now: new Date('2026-10-03T11:30:00+05:30'), calendar: [lecture]}), null, 'nothing is free during the lecture');
   assert.equal(freeGap(d, {now: new Date('2026-10-03T06:07:00+05:30')}).start.toISOString(), '2026-10-03T02:30:00.000Z',
     'free time starts at 8 AM, as in the weekly review');
+});
+
+test('Free time goes to the nearest deadline with unscheduled work that fits; Coming up lists every other deadline once', () => {
+  const d = freshStore();
+  const review = block(d, {title: 'Critical review', purpose: 'A calm Sunday'});
+  task(d, {title: 'Draft my section', blockId: review, minutes: 120});
+  task(d, {title: 'Group call', blockId: review, minutes: 45, planned: '2026-10-03T10:30:00.000Z'});
+  task(d, {title: 'Submit', blockId: review, planned: '2026-10-04T17:30:00.000Z'});
+  const pmdl = block(d, {title: 'PMDL post work', purpose: 'Show what changed'});
+  task(d, {title: 'Check the upload format', blockId: pmdl, minutes: 10});
+  task(d, {title: 'Upload the post work', blockId: pmdl, planned: '2026-10-04T18:29:00.000Z'});
+  const quiz = block(d, {title: 'Ready for the quiz', purpose: 'Walk in confident'});
+  task(d, {title: 'Re-read Reading 1', blockId: quiz, minutes: 45});
+  task(d, {title: 'Sit the quiz', blockId: quiz, planned: '2026-10-06T06:00:00.000Z'});
+  const now = new Date('2026-10-03T06:20:00+05:30');
+  const gap = freeGap(d, {now});
+  const fill = gapResult(d, gap, now);
+  assert.equal(fill.block.id, review, 'the review is due first, though its group call is already planned');
+  assert.deepEqual(fill.slots.map(slot => [slot.task.title, slot.start.toISOString()]), [['Draft my section', '2026-10-03T02:30:00.000Z']]);
+  const items = upcoming(d, {now});
+  assert.deepEqual(items.map(item => [item.kind, item.block.id]), [['due', review], ['unplanned', pmdl], ['due', quiz]],
+    'every deadline in the next three days, soonest first, each once');
+  const short = {start: gap.start, end: new Date(+gap.start + 30 * 60000)};
+  assert.equal(gapResult(d, short, now).block.id, pmdl, 'when the draft does not fit, the next deadline gets the gap');
 });

@@ -1,9 +1,10 @@
 /**
- * Today, top to bottom: the date and the next seven days; one lead card for now (the next task with its Result and
- * Purpose, or free time filled with the most urgent unplanned Result); what is at risk, soonest first; one planning row;
- * the rest of the day as one time-ordered agenda (tasks, calendar events and the free time between); Due soon; the Inbox.
+ * Today, top to bottom: the date, the next seven days and one line on the week's plan; one lead card for now (free time
+ * filled with the nearest deadline's unscheduled tasks, or the next task, under its Result and Purpose); what is coming
+ * up in the next three days, soonest first (every other deadline and calendar clash); the rest of the day as one
+ * time-ordered agenda (tasks, calendar events and the free time between); the Inbox.
  */
-import {localDay, shiftDay, planner, editPlan, blockTasks, blockDue, timelineItems, conflicts} from '../planner-state.mjs';
+import {localDay, shiftDay, planner, editPlan, tasks, blockTasks, blockDue, timelineItems, conflicts} from '../planner-state.mjs';
 import {repeats} from '../planner-recurrence.mjs';
 import {dayTasks} from '../planner-ux.mjs';
 import {setClarityPreference} from '../planner-clarity.mjs';
@@ -70,13 +71,16 @@ export function clashes(data, calendar, from, until) {
 
 /** The day a dated task is planned for; a repeating task always counts as planned. */
 const plannedDay = task => (repeats(task) ? '9999-12-31' : task.planned ? localDay(task.planned) : task.plannedDate);
+/** A Result's open tasks with no day yet, in Plan order. */
+const undatedTasks = (data, blockId) => blockTasks(data, blockId)
+  .filter(task => !task.done && !task.planned && !task.plannedDate && !repeats(task));
 
 /**
  * What could go wrong soon, from the data only (never guessed), soonest first:
  * - clash: busy calendar events, or timed tasks and events, overlapping in the next three days (`items`, by start);
  * - unplanned: a Result due by the end of the day after tomorrow with open tasks and nothing planned from today until
  *   its deadline other than the task that sets it (`undated` lists its undated open tasks in Plan order; `task` is
- *   the first, the one "Plan today" dates);
+ *   the first, the one "Add to today" dates);
  * - overdue: a Result whose deadline passed with tasks still open.
  */
 export function atRisk(data, {calendar = [], now = new Date()} = {}) {
@@ -91,11 +95,23 @@ export function atRisk(data, {calendar = [], now = new Date()} = {}) {
     if (!open.length) continue;
     if (due.overdue) { risks.push({kind: 'overdue', at: due.at, block, due, left: open.length}); continue; }
     const ahead = open.some(task => task.id !== deadline.task.id && plannedDay(task) >= day);
-    const undated = open.filter(task => !task.planned && !task.plannedDate && !repeats(task));
+    const undated = undatedTasks(data, block.id);
     if (today.has(block.id) || ahead || !undated.length) continue;
     risks.push({kind: 'unplanned', at: due.at, block, due, left: open.length, undated, task: undated[0]});
   }
   return risks.sort((a, b) => a.at - b.at);
+}
+
+/**
+ * The next three days in one list, soonest first: every risk, then every other Result due in that window
+ * (`kind: 'due'`), so each deadline appears once and the list is complete.
+ */
+export function upcoming(data, {calendar = [], now = new Date()} = {}) {
+  const risks = atRisk(data, {calendar, now});
+  const flagged = new Set(risks.map(risk => risk.block?.id));
+  const due = dueSoon(data, now).filter(row => !flagged.has(row.block.id))
+    .map(({block, due}) => ({kind: 'due', at: due.at, block, due}));
+  return [...risks, ...due].sort((a, b) => a.at - b.at);
 }
 
 /**
@@ -114,17 +130,31 @@ export function freeGap(data, {calendar = [], now = new Date()} = {}) {
   return end - start >= GAP_MINUTES * 60000 ? {start: new Date(start), end: new Date(end)} : null;
 }
 
-/** The undated tasks of an unplanned risk that fit the gap back to back, in Plan order: [{task, start, end}]. */
-export function fillGap(risk, gap) {
+/** The undated tasks (`{undated}`) that fit the gap back to back, in Plan order: [{task, start, end}]. */
+export function fillGap({undated}, gap) {
   const slots = [];
   let at = +gap.start;
-  for (const task of risk.undated) {
+  for (const task of undated) {
     const end = at + (task.minutes ?? 30) * 60000;
     if (end > +gap.end) break;
     slots.push({task, start: new Date(at), end: new Date(end)});
     at = end;
   }
   return slots;
+}
+
+/**
+ * Who gets the free time: the nearest deadline (overdue first, then due by the end of the day after tomorrow) whose
+ * unscheduled tasks fit the gap, whether or not other work for it is planned. {block, due, slots} or null.
+ */
+export function gapResult(data, gap, now = new Date()) {
+  const until = dayEnd(now, RISK_DAYS);
+  for (const {block, due} of dueSoon(data, now)) {
+    if (due.at >= until) break;
+    const slots = fillGap({undated: undatedTasks(data, block.id)}, gap);
+    if (slots.length) return {block, due, slots};
+  }
+  return null;
 }
 
 /** Relative labels stay true while Today is open: each node names its own instant and kind. */
@@ -150,10 +180,12 @@ function tick() {
 }
 
 const dayGap = (from, to) => Math.round((Date.parse(to + 'T12:00') - Date.parse(from + 'T12:00')) / 864e5);
+const dueDay = (data, block) => blockDue(data, block.id)?.value?.slice(0, 10);
 
 /**
- * Seven days running forward from today, as far ahead as Dara plans; swiping steps a week. A day holding a Result's
- * deadline shows the Due soon hourglass, a day with a calendar clash the clash mark, other days with tasks a dot.
+ * Seven days running forward from today, as far ahead as Dara plans; swiping steps a week. A day holding Results'
+ * deadlines shows the hourglass with their count when more than one, a day with a calendar clash the clash mark, other
+ * days with tasks a dot. Tapping a day opens it, and its deadlines and clash are listed at the top.
  */
 function weekStrip(app) {
   const {day, calendar} = app.state;
@@ -165,7 +197,7 @@ function weekStrip(app) {
   const data = app.data();
   const dues = new Map();
   for (const block of openResults(data)) {
-    const value = blockDue(data, block.id)?.value?.slice(0, 10);
+    const value = dueDay(data, block);
     if (value) dues.set(value, (dues.get(value) ?? 0) + 1);
   }
   const from = new Date(Math.max(Date.now(), +new Date(first + 'T00:00')));
@@ -183,6 +215,7 @@ function weekStrip(app) {
     cell.setAttribute('aria-pressed', String(key === day));
     const marks = el('span', 'day-marks');
     if (due) marks.append(icon('hourglass_bottom', {fill: true, cls: 'day-due'}));
+    if (due > 1) marks.append(el('span', 'day-count tnum', String(due)));
     if (clash) marks.append(icon('event_busy', {cls: 'day-clash'}));
     if (!due && !clash) {
       const model = dayTasks(data, key);
@@ -206,7 +239,7 @@ function weekStrip(app) {
   return strip;
 }
 
-function dateHeader(app) {
+function dateHeader(app, week) {
   const {day} = app.state;
   const header = el('div', 'day-header');
   const line = el('div', 'date-line');
@@ -216,164 +249,182 @@ function dateHeader(app) {
   line.append(picker);
   if (day !== localDay()) line.append(labelButton('today', 'Today', () => selectDay(app, localDay()), 'tonal-btn small'));
   header.append(line, weekStrip(app));
+  if (week) header.append(week);
   return header;
-}
-
-/**
- * A Material list row with one action: leading icon, the headline on its own full-width line, then the supporting
- * text beside the action button, so a title never wraps to make room for it. The whole row opens; the button acts.
- * Every risk and the planning row use the same tonal button; `strong` makes it the screen's one filled button.
- */
-function actionRow({symbol, headline, supporting, action, onAction, open, label, cls = '', strong = false}) {
-  const row = el('div', 'today-row ' + cls);
-  const main = button('', open ?? onAction, 'today-row-main');
-  const words = value => [value ?? ''].flat().map(part => part.textContent ?? part).join(' ').replace(/\s+/g, ' ');
-  main.setAttribute('aria-label', label ?? `${words(headline)}. ${words(supporting)}`);
-  const text = (cls, value) => { const node = el('span', cls); node.append(...[value].flat()); return node; };
-  const lead = icon(symbol, {cls: 'leading'});
-  const title = text('today-row-headline', headline);
-  const copy = text('today-row-supporting', supporting ?? '');
-  for (const node of [lead, title, copy]) node.setAttribute('aria-hidden', 'true');
-  row.append(main, lead, title, copy);
-  if (action) row.append(button(action, onAction, (strong ? 'filled-btn' : 'tonal-btn') + ' today-row-action'));
-  return row;
 }
 
 const weekName = (week, month = 'long') => 'week of ' + new Date(week + 'T12:00').toLocaleDateString([], {month, day: 'numeric'});
 const capital = text => text[0].toUpperCase() + text.slice(1);
-/** The user's own recurring "Weekly review" task today, folded into the planning row while the week needs a plan. */
-const reviewTask = (active) => active.find(task => !task.blockId && task.title.trim().toLowerCase() === 'weekly review');
+/** The user's own "Weekly review" task today, named on the week line while the coming week needs a plan. */
+const reviewTask = active => active.find(task => !task.blockId && task.title.trim().toLowerCase() === 'weekly review');
 
 /**
- * The one planning row. Monday to Thursday it shows this week's Results (only those the user marked achieved count);
- * Friday to Sunday, until the coming week has Results, it says so and offers Plan now. Risks outrank it, so its button
- * is filled only when nothing is at risk and the lead card has no action of its own.
+ * One line under the strip on where the week's plan stands; the whole line opens the weekly review. Monday to Thursday
+ * it counts this week's Results (only those the user marked achieved count); Friday to Sunday, until the coming week has
+ * Results, it says that week isn't planned and when the user's own review is.
  */
-function weekRow(app, active, strong) {
-  const today = localDay();
-  const week = weekStart(today);
-  if (weekStart(app.state.day) !== week) return null;
+function weekLine(app, active) {
+  const today = localDay(), week = weekStart(today), next = reviewWeek(today);
   const data = app.data();
-  const open = () => app.openReview();
-  const next = reviewWeek(today);
+  let lead, rest;
   if (next !== week) {
     const planned = weekFocus(data, next);
-    if (planned.length) {
-      return actionRow({symbol: 'event_available', headline: `${plural(planned.length, 'Result')} planned for next week`,
-        supporting: capital(weekName(next)), action: 'Review', onAction: open});
-    }
-    const ritual = reviewTask(active);
-    const when = ritual && taskWhen(ritual);
-    const title = `${capital(weekName(next, 'short'))} isn't planned`;
-    return actionRow({symbol: 'event_upcoming', headline: title, cls: 'plan-row', strong,
-      supporting: ritual ? `Weekly review ${when ? clock(when) : 'today'}` : 'Pick 3 to 5 Results',
-      action: 'Plan now', onAction: open, label: `${title}. Plan now: start the weekly review for the ${weekName(next)}`});
+    const ritual = reviewTask(active), when = ritual && taskWhen(ritual);
+    lead = planned.length ? `${plural(planned.length, 'Result')} planned for next week` : `${capital(weekName(next, 'short'))} isn't planned`;
+    rest = planned.length ? '' : ritual ? `review ${when ? clock(when) : 'today'}` : 'pick 3 to 5 Results';
+  } else {
+    const focus = weekFocus(data, week);
+    const achieved = focus.filter(id => resultStatus(data, id).achieved).length;
+    lead = focus.length ? `${plural(focus.length, 'Result')} this week` : "This week isn't planned";
+    rest = !focus.length ? 'pick 3 to 5 Results' : achieved ? `${achieved} achieved` : 'none marked achieved yet';
   }
-  const focus = weekFocus(data, week);
-  if (!focus.length) return actionRow({symbol: 'event_upcoming', headline: 'Plan your week', strong,
-    supporting: 'Pick 3 to 5 Results', action: 'Start', onAction: open});
-  const achieved = focus.filter(id => resultStatus(data, id).achieved).length;
-  return actionRow({symbol: 'flag', onAction: open, action: 'Review',
-    headline: achieved ? `${achieved} of ${plural(focus.length, 'Result')} achieved` : `${plural(focus.length, 'Result')} this week`,
-    supporting: achieved ? capital(weekName(week)) : 'None marked achieved yet'});
+  const row = button('', () => app.openReview(), 'week-line');
+  const copy = el('span', 'week-line-text');
+  copy.append(el('span', 'week-line-lead', lead));
+  if (rest) copy.append(sep(), phrase(rest));
+  row.append(icon('event_upcoming', {cls: 'leading'}), copy, icon('chevron_right', {cls: 'trailing'}));
+  row.setAttribute('aria-label', `${lead}${rest ? ', ' + rest : ''}. Open weekly review`);
+  return row;
 }
 
-/** "Mon 9:00 AM", "Today 4:00 PM". */
-const when = at => `${relativeDay(localDay(at)).replace(/,.*$/, '')} ${clock(at)}`;
-
-/** One row per risk, soonest first: an error-coloured icon and lead words, and one tonal action (the first may be filled). */
-function riskRows(app, risks, strong) {
-  const today = localDay();
-  return risks.slice(0, 3).map((risk, i) => {
-    const first = strong && i === 0;
-    if (risk.kind === 'clash') {
-      const titles = risk.items.map(item => item.title);
-      const supporting = titles.length === 2 ? `${titles[0]} and ${titles[1]}`
-        : `${titles.slice(0, -1).join(', ')} and ${titles.at(-1)}`;
-      const resolve = () => app.actions.resolveClash(risk.items);
-      return actionRow({symbol: 'event_busy', cls: 'risk-row', strong: first, open: resolve,
-        headline: [el('b', 'risk-lead', 'Clash'), ` · ${when(risk.at)}`], supporting, action: 'Resolve', onAction: resolve,
-        label: `Clash ${when(risk.at)}: ${supporting} overlap. Resolve`});
-    }
-    const {block, due} = risk;
-    const open = () => app.openBlock(block.id);
-    if (risk.kind === 'overdue') return actionRow({symbol: 'hourglass_bottom', cls: 'risk-row', headline: block.title,
-      strong: first, supporting: [el('b', 'risk-lead phrase', due.label), el('span', 'phrase', `${plural(risk.left, 'task')} left`)],
-      action: 'Open', onAction: open});
-    return actionRow({symbol: 'hourglass_bottom', cls: 'risk-row', headline: block.title, open, strong: first,
-      supporting: [el('b', 'risk-lead phrase', 'Nothing planned'), el('span', 'phrase', due.label)],
-      action: 'Plan today', label: `${block.title}: nothing planned. ${due.label}. ${plural(risk.left, 'task')} left. Open Block`,
-      onAction: () => app.commit({type: 'saveTask', id: risk.task.id, fields: {plannedDate: today}},
-        {label: `${risk.task.title} added to Today`}).catch(() => {})});
-  });
+/**
+ * A Material list row: leading icon, the headline on its own full-width line, then supporting lines beside at most
+ * one trailing text button, so a title never wraps to make room for it (`top` puts the button beside a short headline
+ * instead, so the lines get the full width). The whole row opens; the button acts.
+ */
+function listRow({symbol, alert = false, headline, lines = [], action, onAction, open, label, top = false}) {
+  const row = el('div', 'today-row' + (alert ? ' is-alert' : '') + (top ? ' action-top' : ''));
+  const main = button('', open ?? onAction, 'today-row-main');
+  const lead = icon(symbol, {cls: 'leading'});
+  const title = el('span', 'today-row-headline');
+  title.append(...[headline].flat());
+  const copy = el('span', 'today-row-supporting');
+  for (const line of lines) {
+    const node = el('span', 'today-row-line');
+    node.append(...[line].flat());
+    node.classList.toggle('is-clash-item', !!node.querySelector('.clash-time'));
+    copy.append(node);
+  }
+  main.setAttribute('aria-label', label ?? [title, ...copy.children].map(node => node.textContent).join('. '));
+  for (const node of [lead, title, copy]) node.setAttribute('aria-hidden', 'true');
+  row.append(main, lead, title, copy);
+  if (action) row.append(button(action, onAction, 'text-btn today-row-action'));
+  return row;
 }
 
-/** Results due in the next three days that are not already the lead or a risk, Calendar-schedule style: the day once per day. */
-function dueSection(app, rows, now = new Date()) {
-  if (!rows.length) return null;
+/** "Mon", "Tomorrow", "Today": the day word of a clash. */
+const dayWord = at => relativeDay(localDay(at)).replace(/,.*$/, '');
+const phrase = (text, cls = '') => el('span', 'phrase' + (cls ? ' ' + cls : ''), text);
+/** " · " between phrases; with large text each phrase takes its own line instead. */
+const sep = () => el('span', 'sep', ' · ');
+
+/** One deadline format everywhere on Today: "Due tomorrow 11:59 PM · in 41 h" (the countdown stays live). */
+function dueFacts(due) {
+  if (due.overdue) return [phrase(due.label, 'risk-lead')];
+  return [phrase(due.label), sep(), live(phrase(''), 'left', due.at)];
+}
+/** Glue a number to its unit in the user's own words, so "10 PM" never breaks across lines. */
+const glue = text => text.replace(/(\d)\s+(AM|PM|am|pm|min|h)\b/g, '$1\u00a0$2');
+const tasksLeft = (data, block) => {
+  const status = resultStatus(data, block.id);
+  return plural(status.total - status.done, 'task') + ' left';
+};
+
+/**
+ * A clash, one line per item with its time span, so it is clear what overlaps. Calendar events are fixed; a task says
+ * it can move, except the one that sets a Result's deadline, which shows that deadline (Resolve never moves it in one tap).
+ */
+function clashRow(app, items) {
   const data = app.data();
-  const section = el('section', 'soon-section');
+  // "9 – 10 AM", as Calendar writes a span in a list; minutes stay when they say something.
+  const span = ({start, end}) => timeRange(start, end).replace(/:00(?=[\s\u00a0]|$)/g, '');
+  const start = Math.min(...items.map(item => item.start)), end = Math.max(...items.map(item => item.end));
+  const when = `${dayWord(start)} ${span({start, end})}`;
+  const lines = items.map(item => {
+    const task = item.source === 'rpm' ? tasks(data).find(t => t.id === item.id) : null;
+    // The task that sets a Result's deadline starts at that deadline: say so in its place, since that is what's at stake.
+    const due = task?.blockId != null && blockDue(data, task.blockId)?.task.id === task.id;
+    return [el('span', 'clash-time tnum', due ? `Due ${clock(item.start)}` : span(item)),
+      el('span', 'clash-title', item.title + (task && !due ? ' · can move' : ''))];
+  });
+  const resolve = () => app.actions.resolveClash(items);
+  return listRow({symbol: 'event_busy', alert: true, headline: [el('b', 'risk-lead', 'Clash'), ' · ', phrase(when)], lines,
+    action: 'Resolve', onAction: resolve, open: resolve, top: true,
+    label: `Clash ${when}: ${items.map(item => `${item.title} ${timeRange(item.start, item.end)}`).join(', ')}. Resolve`});
+}
+
+/** A Result with a deadline: its title, the deadline, and what is left; "Add to today" when nothing is scheduled. */
+function resultRow(app, item) {
+  const data = app.data(), {block, due} = item;
+  const open = () => app.openBlock(block.id);
+  const left = tasksLeft(data, block);
+  const status = item.kind === 'unplanned' ? [phrase(left), sep(), phrase('not scheduled yet')] : [phrase(left)];
+  const row = {symbol: 'hourglass_bottom', alert: due.overdue, headline: block.title, lines: [dueFacts(due), status], open};
+  if (item.kind !== 'unplanned') return listRow(row);
+  return listRow({...row, action: 'Add to today',
+    label: `${block.title}. ${due.label}, ${countdown(due.at)}. ${left}, not scheduled yet. Open Block`,
+    onAction: () => app.commit({type: 'saveTask', id: item.task.id, fields: {plannedDate: localDay()}},
+      {label: `${item.task.title} added to Today`}).catch(() => {})});
+}
+
+const upcomingRow = (app, item) => (item.kind === 'clash' ? clashRow(app, item.items) : resultRow(app, item));
+
+/** The next three days after the lead card: every other deadline and clash, soonest first. */
+function upcomingSection(app, items) {
+  if (!items.length) return null;
+  const section = el('section', 'upcoming');
   const head = el('div', 'section-header');
-  head.append(el('h2', '', 'Due soon'), el('small', '', 'Next 3 days'));
-  section.append(head);
-  let lastDay = null;
-  for (const {block, due} of rows) {
-    const day = localDay(due.at);
-    const status = resultStatus(data, block.id);
-    const left = status.total - status.done;
-    const row = button('', () => app.openBlock(block.id), 'soon-row');
-    const gutter = el('span', 'soon-day');
-    if (day !== lastDay) {
-      const date = new Date(day + 'T12:00');
-      gutter.append(el('span', 'soon-weekday', date.toLocaleDateString([], {weekday: 'short'})),
-        el('span', 'soon-date tnum', String(date.getDate())));
-      gutter.classList.toggle('is-today', day === localDay(now));
-    }
-    lastDay = day;
-    const copy = el('span', 'list-copy');
-    const meta = el('span', 'list-supporting tnum');
-    const timed = blockDue(data, block.id)?.value?.includes('T');
-    meta.append(due.overdue ? el('b', 'risk-lead', 'Overdue') : timed ? clock(due.at) + ' · ' : 'End of day · ');
-    if (!due.overdue) meta.append(live(el('span'), 'left', due.at));
-    meta.append(` · ${plural(left, 'task')} left`);
-    copy.append(el('span', 'list-headline', block.title), meta);
-    row.append(gutter, copy);
-    row.setAttribute('aria-label', `${block.title}. ${due.label}, ${countdown(due.at, now)}. ${plural(left, 'task')} left. Open Block`);
-    section.append(row);
-  }
+  head.append(el('h2', '', 'Coming up'), el('small', '', 'Next 3 days'));
+  section.append(head, ...items.map(item => upcomingRow(app, item)));
+  return section;
+}
+
+/** Another day opened from the strip: what its marks mean, the Results due and any clash, before its agenda. */
+function dayMarksSection(app, day) {
+  const data = app.data(), now = new Date();
+  const from = new Date(Math.max(+now, +new Date(day + 'T00:00'))), until = new Date(shiftDay(day, 1) + 'T00:00');
+  const items = [
+    ...openResults(data).filter(block => dueDay(data, block) === day)
+      .map(block => { const due = dueInfo(blockDue(data, block.id).value, now); return {kind: 'due', at: due.at, block, due}; }),
+    ...(from < until ? clashes(data, app.state.calendar ?? [], from, until) : [])
+      .map(({items}) => ({kind: 'clash', items, at: new Date(items[1].start)})),
+  ].sort((a, b) => a.at - b.at);
+  if (!items.length) return null;
+  const section = el('section', 'upcoming');
+  section.setAttribute('aria-label', 'Deadlines and clashes');
+  section.append(...items.map(item => upcomingRow(app, item)));
   return section;
 }
 
 /**
- * The Result first, as a short header (title, then its Purpose on its own quieter line, then one facts line), so the
- * Result frames the task under it. With large text only the title stays, on one line; the rest is a tap away.
+ * The Result first, as a short header (title, then its Purpose on its own quieter line, then one facts line: the
+ * deadline with its countdown and the tasks left), so the Result frames the task under it.
  */
-function resultHead(app, block, lead = null) {
+function resultHead(app, block) {
   const data = app.data();
   const head = button('', () => app.openBlock(block.id), 'result-head');
   const copy = el('span', 'result-copy');
-  copy.append(el('span', 'result-title', block.title));
-  if (block.purpose) copy.append(el('span', 'result-purpose', block.purpose));
-  const status = resultStatus(data, block.id);
+  copy.append(el('span', 'result-title', glue(block.title)));
+  if (block.purpose) copy.append(el('span', 'result-purpose', glue(block.purpose)));
   const due = dueInfo(blockDue(data, block.id)?.value);
-  const meta = el('span', 'result-meta tnum');
-  const facts = [];
-  if (lead) facts.push(el('b', 'risk-lead', lead));
-  if (due) facts.push(el('span', 'phrase' + (due.overdue ? ' is-overdue' : ''), due.label));
-  if (due?.soon) facts.push(live(el('span', 'phrase'), 'left', due.at));
-  if (!lead) facts.push(el('span', '', `${status.done} of ${plural(status.total, 'task')} done`));
-  facts.forEach((fact, i) => meta.append(...(i ? [el('span', 'sep', '·'), fact] : [fact])));
+  const left = tasksLeft(data, block);
+  // With large text the deadline stays and the countdown and count give way.
+  const meta = el('span', 'result-meta tnum'), extra = el('span', 'meta-extra');
+  if (due) meta.append(...(due.overdue ? dueFacts(due) : [phrase(due.label)]));
+  if (due?.soon) extra.append(' · ', live(phrase(''), 'left', due.at));
+  extra.append(due ? ' · ' : '', phrase(left));
+  meta.append(extra);
   copy.append(meta);
   head.append(copy);
   head.setAttribute('aria-label', `Result: ${block.title}. Purpose: ${block.purpose || 'none yet'}. `
-    + `${lead ? lead + '. ' : ''}${due ? due.label + '. ' : ''}${status.done} of ${plural(status.total, 'task')} done. Open Block`);
+    + `${due ? due.label + '. ' : ''}${left}. Open Block`);
   return head;
 }
 
 function cardLabel(text, liveKind = null, at = null) {
   const label = el('div', 'next-label');
   const words = el('span', '', text);
-  if (liveKind) words.append(' · ', live(el('span'), liveKind, at));
+  if (liveKind) words.append(el('span', 'label-extra', ' · '), live(el('span', 'label-extra'), liveKind, at));
   label.append(el('span', 'now-pin'), words);
   return label;
 }
@@ -394,24 +445,28 @@ function nextCard(app, focus, now) {
 }
 
 /**
- * Free now: the gap until the next fixed thing, filled with the most urgent Result that has nothing planned. Its
- * tasks can be ticked straight away, and one tap schedules them back to back into the gap (with Undo).
+ * Free time: the gap until the next fixed thing, given to the nearest deadline's unscheduled tasks. The label says
+ * when the gap starts relative to now; the tasks can be ticked straight away, and the screen's one filled button
+ * schedules them back to back into the gap (with Undo).
  */
-function gapCard(app, gap, {risk, slots}) {
-  const card = el('section', 'result-group next-card');
-  card.dataset.tone = app.tone(app.blockArea(risk.block));
-  card.append(cardLabel(`Free until ${clock(gap.end)}`), resultHead(app, risk.block, 'Nothing planned'));
-  for (const {task} of slots) card.append(taskRow(app, task, {anytime: true}));
+function gapCard(app, gap, {block, slots}, now) {
+  const card = el('section', 'result-group next-card gap-card');
+  card.dataset.tone = app.tone(app.blockArea(block));
+  const later = +gap.start - now > 15 * 60000;
+  card.append(later ? cardLabel(`Free ${timeRange(gap.start, gap.end)}`, 'next', gap.start) : cardLabel(`Free until ${clock(gap.end)}`),
+    resultHead(app, block));
+  for (const {task} of slots) card.append(taskRow(app, task));
   const range = timeRange(slots[0].start, slots.at(-1).end);
-  const plan = button(`Plan ${range}`, () => app.commit(data => {
+  const words = `Schedule ${slots.length > 1 ? 'from' : 'at'} ${clock(slots[0].start)}`;
+  const plan = button(words, () => app.commit(data => {
     let undo = null;
     for (const {task, start} of slots) {
       editPlan(data, {type: 'saveTask', id: task.id, fields: {planned: start.toISOString()}});
       undo ??= planner(data).undo;
     }
     data.planner.undo = undo;
-  }, {label: `Planned ${range}`}).catch(() => {}), 'filled-btn next-action');
-  plan.setAttribute('aria-label', `Plan ${slots.map(s => s.task.title).join(' and ')} for ${range}`);
+  }, {label: `Scheduled ${range}`}).catch(() => {}), 'filled-btn next-action');
+  plan.setAttribute('aria-label', `Schedule ${slots.map(s => s.task.title).join(' and ')} for ${range}`);
   card.append(plan);
   return card;
 }
@@ -433,7 +488,7 @@ const freeRow = minutes => el('div', 'agenda-free tnum', `${duration(minutes)} f
  * The rest of the day in time order, as Calendar's schedule shows it: tasks (each naming its Result) and calendar
  * events interleaved, the free time between them stated, then the tasks with no time.
  */
-function agenda(app, page, {tasks, events, from, title, ritual = null}) {
+function agenda(app, page, {tasks, events, from, title}) {
   const section = el('section', 'plain-section agenda');
   if (title) {
     const head = el('div', 'section-header');
@@ -448,18 +503,17 @@ function agenda(app, page, {tasks, events, from, title, ritual = null}) {
     return node;
   };
   const timed = [...tasks.filter(task => task.start).map(task => ({task, start: task.start, end: task.end})),
-    ...events.filter(event => !event.allDay).map(event => ({event, start: event.start, end: event.end})),
-    ...(ritual ? [{node: ritual.row, start: ritual.task.start, end: ritual.task.end}] : [])]
+    ...events.filter(event => !event.allDay).map(event => ({event, start: event.start, end: event.end}))]
     .sort((a, b) => a.start - b.start || a.end - b.end);
   for (const event of events.filter(e => e.allDay)) section.append(eventRow(app, event));
   let cursor = from;
   for (const item of timed) {
     if (cursor != null && item.start - cursor >= GAP_MINUTES * 60000) section.append(freeRow(Math.round((item.start - cursor) / 60000)));
-    section.append(item.node ?? (item.task ? row(item.task) : eventRow(app, item.event)));
+    section.append(item.task ? row(item.task) : eventRow(app, item.event));
     cursor = Math.max(cursor ?? 0, item.end);
   }
   for (const task of tasks.filter(task => !task.start)) section.append(row(task));
-  if (section.querySelector('.task-row, .agenda-event, .today-row')) page.append(section);
+  if (section.querySelector('.task-row, .agenda-event')) page.append(section);
 }
 
 function inboxRow(app) {
@@ -485,30 +539,24 @@ export function renderToday(app, page) {
   const recent = model.completed.filter(task => app.recentlyCompleted.has(task.id));
   const active = [...model.active, ...recent];
   const dayEvents = timelineItems(data, day, calendar).filter(item => item.source === 'calendar');
-  const risks = isToday ? atRisk(data, {calendar, now}) : [];
   const timeline = app.state.dayLayout === 'timeline' && !app.largeText();
 
-  // The lead: free time worth filling first, otherwise the next task.
+  // The lead: free time given to the nearest deadline's unscheduled tasks, otherwise the next task.
   const gap = isToday && !timeline ? freeGap(data, {calendar, now}) : null;
-  const fill = gap ? risks.filter(r => r.kind === 'unplanned').map(risk => ({risk, slots: fillGap(risk, gap)}))
-    .find(f => f.slots.length) : null;
+  const fill = gap ? gapResult(data, gap, now) : null;
   const focus = !fill && !timeline ? model.focus : null;
-  const shownRisks = risks.filter(r => r !== fill?.risk);
-  const ritual = weekRow(app, active, !fill && !shownRisks.length);
-  // A timed "Weekly review" task today becomes the planning row, placed at its time in the agenda.
-  const folded = ritual?.classList.contains('plan-row') ? reviewTask(model.active) : null;
-  const inAgenda = folded?.start && !timeline;
+  const leadId = fill?.block.id ?? focus?.blockId;
 
-  page.append(dateHeader(app));
-  if (fill) page.append(gapCard(app, gap, fill));
+  // With large text the strip gives way and the week line follows what is coming up, so the first risk stays in view.
+  const big = app.largeText(), week = isToday ? weekLine(app, model.active) : null;
+  page.append(dateHeader(app, big ? null : week));
+  if (fill) page.append(gapCard(app, gap, fill, +now));
   else if (focus) page.append(nextCard(app, focus, +now));
-  if (shownRisks.length) {
-    const section = el('section', 'risk-section');
-    section.setAttribute('aria-label', 'At risk');
-    section.append(...riskRows(app, shownRisks, !fill));
-    page.append(section);
-  }
-  if (ritual && !inAgenda) page.append(ritual);
+  // Each Result once: the lead's Result is not repeated below.
+  const marks = isToday ? upcomingSection(app, upcoming(data, {calendar, now}).filter(item => !item.block || item.block.id !== leadId))
+    : dayMarksSection(app, day);
+  if (marks) page.append(marks);
+  if (big && week) page.append(week);
 
   const empty = !model.active.length && !model.completed.length && !dayEvents.length;
   if (timeline) {
@@ -527,19 +575,12 @@ export function renderToday(app, page) {
     const lead = fill ? +gap.end : focus ? Math.max(+now, focus.end) : isToday ? +now : null;
     agenda(app, page, {
       // A task belongs to the day it starts on, even when it runs past midnight.
-      tasks: active.filter(task => task !== folded && task.id !== focus?.id && (!task.start || localDay(task.start) === day)),
+      tasks: active.filter(task => task.id !== focus?.id && (!task.start || localDay(task.start) === day)),
       events: isToday ? dayEvents.filter(event => event.end > +now) : dayEvents,
       from: lead,
       title: isToday ? (fill || focus ? 'Later today' : 'Today') : relativeDay(day),
-      ritual: inAgenda ? {row: ritual, task: folded} : null,
     });
     completedSection(app, page, model.completed.filter(task => !app.recentlyCompleted.has(task.id)));
-  }
-  if (isToday) {
-    // Each Result once: Due soon skips the lead's Result and the risks.
-    const shown = new Set([fill?.risk.block.id, focus?.blockId, ...risks.map(r => r.block?.id)]);
-    const due = dueSection(app, dueSoon(data, now).filter(row => !shown.has(row.block.id)), now);
-    if (due) page.append(due);
   }
   page.append(inboxRow(app));
 }
