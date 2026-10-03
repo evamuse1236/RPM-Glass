@@ -150,14 +150,16 @@ export function receiptCard(capture,{history,canUndo,delivery},added=[]){
 }
 
 /** Undo is the receipt's main action; Open in Planner stays a quiet text button. */
-export function receiptActions(capture,{canUndo,on}){
+export function receiptActions(capture,{canUndo,history,on}){
  const draft=capture.draft,row=[];
  const receipts=(draft.receipt?.plannerReceipts??[]).filter(r=>r.action);
  if(receipts.length){
   const open=()=>receipts.length===1?on.open(receipts[0].action):on.openPlanner();
   row.push(button('Open in Planner',open,{role:'text'}));
  }
- // While Capture is about to close itself, the Undo label counts down the seconds (see capture-app).
+ // While Capture is about to close itself, this line counts down the seconds (see capture-app). Undo itself never
+ // expires with the panel, so the countdown is not on Undo.
+ if(canUndo&&!history)row.unshift(el('span','close-countdown tnum',''));
  if(canUndo)row.push(button('Undo',()=>on.undo(draft),{role:'tonal',iconName:'undo',cls:'undo-action'}));
  return row;
 }

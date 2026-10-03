@@ -222,11 +222,11 @@ export function mountCapture(platform){
   cancelAutoClose();
   if(message.value.trim())return;
   panel.dataset.autoClose='true';
-  // Undo counts down the seconds left before Capture closes itself; any touch stops it.
+  // The receipt counts down the seconds left before Capture closes itself; any touch stops it.
   const ends=Date.now()+AUTO_CLOSE_MS;
   const tick=()=>{
-   const label=dock.querySelector('.undo-action .btn-label'),left=Math.ceil((ends-Date.now())/1000);
-   if(label)label.textContent=left>0?`Undo · ${left}s`:'Undo';
+   const line=dock.querySelector('.close-countdown'),left=Math.ceil((ends-Date.now())/1000);
+   if(line)line.textContent=left>0?`Closing in ${left}s`:'';
   };
   tick();s.countdown=setInterval(tick,250);
   s.autoClose=setTimeout(()=>{
@@ -238,8 +238,8 @@ export function mountCapture(platform){
   if(s.autoClose)clearTimeout(s.autoClose);
   clearInterval(s.countdown);
   s.autoClose=null;s.countdown=null;panel.dataset.autoClose='false';
-  const label=dock.querySelector('.undo-action .btn-label');
-  if(label)label.textContent='Undo';
+  const line=dock.querySelector('.close-countdown');
+  if(line)line.textContent='';
  }
  for(const type of ['pointerdown','keydown','input','wheel'])panel.addEventListener(type,cancelAutoClose,{capture:true,passive:true});
 
