@@ -48,24 +48,16 @@
 
 /* Cards */
 .wr-card{background:var(--surface-container);border-radius:20px;padding:16px}
-.wr-card-title{display:block;font:var(--title-medium);overflow-wrap:anywhere}
-.wr-card-purpose{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font:var(--body-medium);color:var(--on-surface-variant);margin-top:2px!important}
+.wr-card-title{display:block;font:var(--title-medium);overflow-wrap:anywhere;text-wrap:pretty}
+.wr-card-purpose{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font:var(--body-medium);color:var(--on-surface-variant);margin-top:2px!important;text-wrap:pretty}
 .wr-card-note{font:var(--body-small);color:var(--on-surface-variant);margin-top:12px!important}
 
-/* Step 1: a judged Result. Achieved turns the card into a win (tertiary = success). */
-.wr-result{transition:background-color var(--dur-medium) var(--ease-standard)}
-.wr-result.win{background:var(--tertiary-container);color:var(--on-tertiary-container)}
-.wr-result.win .wr-card-purpose,.wr-result.win .wr-progress-text,.wr-result.win .wr-card-note,.wr-result.win .wr-field-label{color:var(--on-tertiary-container)}
-.wr-win-badge{display:flex;align-items:center;gap:6px;font:var(--label-large);margin-bottom:6px!important}
-.wr-win-badge .ms{font-size:20px}
+/* Step 1: a judged Result. Only the chosen segment carries colour; the Wins card is the one celebration. */
 .wr-progress-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:10px 0 12px}
 .wr-mini-bar{flex:none;width:56px;height:4px;border-radius:2px;background:var(--surface-container-highest);overflow:hidden}
 .wr-mini-bar>span{display:block;height:100%;background:var(--primary);transform-origin:left;transform:scaleX(var(--value,0))}
-.wr-result.win .wr-mini-bar{background:color-mix(in srgb,var(--on-tertiary-container) 18%,transparent)}
-.wr-result.win .wr-mini-bar>span{background:var(--tertiary)}
 .wr-progress-text{font:var(--body-small);color:var(--on-surface-variant)}
-.wr-ask{display:flex;align-items:center;gap:8px;margin:-4px 0 12px!important;font:var(--label-large);color:var(--primary)}
-.wr-ask .ms{font-size:20px}
+.wr-ask{margin:-4px 0 12px!important;font:var(--body-medium);color:var(--on-surface-variant);text-wrap:pretty}
 /* Segmented buttons (M3): one decision per row. Achieved selected is tertiary (success); other choices secondary. */
 .wr-seg{display:grid;grid-auto-columns:1fr;grid-auto-flow:column;border:1px solid var(--outline);border-radius:var(--shape-full);overflow:hidden}
 .wr-seg-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:0;min-height:40px;padding:0 10px;border:0;background-color:transparent;color:var(--on-surface);font:var(--label-large)}
@@ -77,16 +69,13 @@
 .wr-seg.sm{flex:none;margin-left:auto}
 .wr-seg.sm .wr-seg-btn{min-height:32px;padding:0 12px}
 .wr-seg.sm .wr-seg-btn::after{content:"";position:absolute;inset:-8px 0}
-.wr-result.win .wr-seg{border-color:color-mix(in srgb,var(--on-tertiary-container) 40%,transparent)}
-.wr-result.win .wr-seg-btn:not(.sel){color:var(--on-tertiary-container)}
-.wr-result.win .wr-seg-btn+.wr-seg-btn{border-left-color:color-mix(in srgb,var(--on-tertiary-container) 40%,transparent)}
 .wr-carry{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-top:12px}
 
 /* Step 1: Results still running (deadline ahead), one row each with Carry */
 .wr-run{display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 12px 10px 16px}
 .wr-run+.wr-run{border-top:1px solid var(--outline-variant)}
 .wr-run-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.wr-run-title{font:var(--body-large);overflow-wrap:anywhere}
+.wr-run-title{font:var(--body-large);overflow-wrap:anywhere;text-wrap:pretty}
 .wr-run-meta{display:flex;flex-wrap:wrap;gap:2px 10px;font:var(--body-small);color:var(--on-surface-variant)}
 
 /* Deadline chip: a Result's latest dated task. Close ones are stronger; past ones use error with words. */
@@ -100,7 +89,6 @@
 .wr-field{display:flex;flex-direction:column;gap:4px;margin-top:16px}
 .wr-field-label{font:var(--label-medium);color:var(--on-surface-variant);padding-left:4px}
 .wr-input{width:100%;min-height:48px;border:1px solid var(--outline);border-radius:var(--shape-sm);background:transparent;padding:10px 14px;font:var(--body-large);color:var(--on-surface)}
-.wr-result.win .wr-input{border-color:color-mix(in srgb,var(--on-tertiary-container) 45%,transparent);color:var(--on-tertiary-container)}
 .wr-input::placeholder{color:var(--on-surface-variant);opacity:.8}
 .wr-input:focus{outline:none;border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
 
@@ -147,48 +135,45 @@
 .wr-list-item{display:flex;align-items:center;gap:16px;min-height:52px;padding:10px 16px;font:var(--body-large)}
 .wr-list-item+.wr-list-item{border-top:1px solid var(--outline-variant)}
 .wr-list-text{display:flex;flex-direction:column;min-width:0}
-.wr-list-title{min-width:0;overflow-wrap:anywhere}
+.wr-list-title{min-width:0;overflow-wrap:anywhere;text-wrap:pretty}
+.wr-nowrap{white-space:nowrap}
 .wr-list-meta{display:flex;flex-wrap:wrap;gap:4px 12px;font:var(--body-small);color:var(--on-surface-variant)}
 .wr-list-meta .soon{color:var(--on-surface);font-weight:600}
 .wr-must-tag{display:inline-flex;align-items:center;gap:2px;color:var(--on-surface-variant)}
 .wr-must-tag .ms{font-size:16px;color:var(--must)}
 
-/* Step 3: one-line task rows, Result targets and the selection bar */
+/* Step 3: one row per Inbox task, a suggested Result chip under its words and Choose at the end */
+.wr-sort{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:0 4px;min-height:56px;padding:8px 4px 8px 16px}
+.wr-sort+.wr-sort{border-top:1px solid var(--outline-variant)}
+.wr-sort>.wr-row-title{padding:8px 0}
+.wr-sort>.wr-suggest{grid-column:1/-1;justify-self:start;margin:0 8px 8px -4px}
+.wr-row-title{flex:1;min-width:0;overflow-wrap:anywhere;font:var(--body-large);text-wrap:pretty}
+.wr .wr-suggest{max-width:calc(100% - 4px);border-color:var(--outline);color:var(--on-surface)}
+.wr-suggest .ms{color:var(--primary)}
+.wr-choose{flex:none}
 .wr-row{display:flex;align-items:center;gap:4px;min-height:48px;padding:0 4px}
-.wr-row+.wr-row{border-top:1px solid var(--outline-variant)}
-.wr-row-check{flex:1;min-width:0;display:flex;align-items:center;gap:12px;min-height:48px;padding:6px 8px 6px 12px;border:0;border-radius:var(--shape-md);background-color:transparent;color:var(--on-surface);text-align:left;font:var(--body-large)}
-.wr-row-check .ms{color:var(--on-surface-variant)}
-.wr-row-check.on .ms{color:var(--primary)}
-.wr-row-title{flex:1;min-width:0;overflow-wrap:anywhere;font:var(--body-large)}
-.wr-row.sub{padding-left:20px;border-top:0;min-height:44px}
+.wr-row.sub{padding-left:20px;min-height:44px}
 .wr-row.sub>.ms{font-size:18px;color:var(--on-surface-variant);margin-right:8px}
 .wr-row.sub .wr-row-title{font:var(--body-medium);padding:6px 0}
 .wr-formed-head{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 16px 4px}
-.wr-formed-head+.wr-row,.wr-row+.wr-formed-head{border-top:0}
 .wr-row.sub+.wr-formed-head{border-top:1px solid var(--outline-variant);margin-top:4px}
 .wr-target-title{font:var(--title-small);overflow-wrap:anywhere}
 .wr-target-purpose{font:var(--body-small);color:var(--on-surface-variant);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1;overflow:hidden}
 
-/* Step 3: contextual action bar (replaces the footer while tasks are selected) and the bottom sheet */
-.wr-selbar{flex-wrap:nowrap;gap:4px;padding:8px 16px 16px 4px;background:var(--surface-container)}
-.wr-sel-count{flex:1;min-width:0;font:var(--title-medium);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wr-selbar .wr-btn-tonal,.wr-selbar .wr-btn-filled{min-height:40px;padding:6px 16px;flex:none}
+/* Step 3: the bottom sheet that chooses a task's Result */
 .wr-layer{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:flex-end}
 .wr-scrim{position:absolute;inset:0;background:var(--scrim);opacity:.32}
 .wr-sheet{position:relative;max-height:min(80%,640px);overflow-y:auto;overscroll-behavior:contain;padding:0 16px 24px;border-radius:28px 28px 0 0;background:var(--surface-container-low);box-shadow:var(--elev-3);animation:wr-up var(--dur-medium) var(--ease-emphasized) both}
 @keyframes wr-up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
 :root[data-reduce-motion=true] .wr-sheet{animation:none}
 .wr-handle{width:32px;height:4px;border-radius:2px;background:var(--outline);opacity:.4;margin:16px auto 12px}
-.wr-sheet-title{font:var(--title-large);padding:4px 8px 8px}
+.wr-sheet-title{font:var(--title-large);padding:4px 8px 0}
 .wr-sheet-title:focus{outline:none}
-.wr-sheet-sub{font:var(--body-medium);color:var(--on-surface-variant);padding:0 8px 4px}
-
-/* Step 3: inline picker and the new Result form */
+.wr-sheet-sub{font:var(--body-medium);color:var(--on-surface-variant);padding:2px 8px 8px;text-wrap:pretty}
 .wr-picker{display:flex;flex-direction:column}
-.wr-option{display:flex;align-items:center;gap:16px;min-height:56px;padding:8px 8px;border:0;border-radius:var(--shape-lg);background-color:transparent;color:var(--on-surface);text-align:left;font:inherit}
-.wr-option>.ms{flex:none;font-size:24px;color:var(--on-surface-variant)}
-.wr-option-new{color:var(--primary);font:var(--label-large)}
-.wr-option-new>.ms{color:var(--primary)}
+.wr-option{display:flex;align-items:center;gap:16px;min-height:56px;padding:8px 8px 8px 48px;border:0;border-radius:var(--shape-lg);background-color:transparent;color:var(--on-surface);text-align:left;font:inherit}
+.wr-option-new{padding-left:8px;color:var(--primary);font:var(--label-large)}
+.wr-option-new>.ms{flex:none;font-size:24px;color:var(--primary)}
 .wr-option-text{display:flex;flex-direction:column;min-width:0}
 .wr-option-label{font:var(--body-large);overflow-wrap:anywhere}
 .wr-option-detail{font:var(--body-small);color:var(--on-surface-variant);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1;overflow:hidden}
@@ -200,74 +185,92 @@
 .wr-btn-filled{min-height:48px;padding:8px 24px;background-color:var(--primary);color:var(--on-primary);font-weight:600;transition:background-color var(--dur-medium) var(--ease-standard),color var(--dur-medium) var(--ease-standard)}
 .wr-btn-tonal{min-height:40px;padding:6px 20px;background-color:var(--secondary-container);color:var(--on-secondary-container)}
 .wr-btn-text{min-height:40px;padding:6px 12px;background-color:transparent;color:var(--primary)}
-.wr-btn-tonal::after,.wr-btn-text::after,.wr-new .wr-btn-filled::after,.wr-selbar .wr-btn-filled::after{content:"";position:absolute;inset:-4px 0}
+.wr-btn-tonal::after,.wr-btn-text::after,.wr-new .wr-btn-filled::after{content:"";position:absolute;inset:-4px 0}
 .wr-btn-filled .ms,.wr-btn-tonal .ms,.wr-btn-text .ms{font-size:18px}
 .wr-btn-tonal .ms{margin-left:-4px}
 
-/* Step 4: what the week asks, and selectable Result cards */
-.wr-summary{border:1px solid var(--outline-variant);border-radius:20px;padding:14px 16px 12px}
-.wr-summary-head{font:var(--title-medium)}
-.wr-summary-aim{color:var(--on-surface-variant);font:var(--body-medium)}
-.wr-summary-line{font:var(--body-medium);color:var(--on-surface-variant);margin-top:8px!important}
-.wr-summary-note{font:var(--body-small);color:var(--on-surface-variant);margin-top:8px!important}
+/* Step 4: the week at a glance (strip, one summary line that opens per Result), what to look at, then Result cards */
+.wr-summary{border:1px solid var(--outline-variant);border-radius:20px;padding:6px 16px 4px}
+.wr-summary-line{font:var(--body-medium);color:var(--on-surface-variant);padding:4px 0 12px}
+.wr-summary-note{font:var(--body-small);color:var(--on-surface-variant);padding:0 0 12px}
 .wr-summary-warn{color:var(--error)}
 /* Day strip: today to Sunday, Calendar-style; Monday starts the planned week */
-.wr-strip{list-style:none;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;padding:0;margin:12px -6px 0!important}
-.wr-strip-day{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 0 4px;border-radius:var(--shape-md)}
-.wr-strip-day{position:relative}
+.wr-strip{list-style:none;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;padding:0;margin:4px -10px 0!important}
+.wr-strip-day{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 0 4px;border-radius:var(--shape-md)}
 .wr-strip-day.monday::before{content:"";position:absolute;left:-2px;top:6px;bottom:6px;width:1px;background:var(--outline-variant)}
 .wr-strip-letter{font:var(--label-small);color:var(--on-surface-variant)}
 .wr-strip-num{width:28px;height:28px;display:grid;place-items:center;border-radius:50%;font:var(--title-small)}
 .wr-strip-day.today .wr-strip-num{background:var(--primary);color:var(--on-primary)}
 .wr-strip-free{font:var(--label-small);color:var(--on-surface-variant)}
+.wr-strip-must{display:flex;align-items:center;min-height:16px;font:var(--label-small);color:var(--on-surface)}
+.wr-strip-must .ms{font-size:13px;line-height:16px}
 .wr-strip-marks{display:flex;gap:1px;min-height:16px;color:var(--on-surface-variant)}
 .wr-strip-marks .ms{font-size:15px;line-height:16px}
 .wr-strip-marks .clash{color:var(--error)}
+.wr .ms.must{color:var(--must)}
 .wr-strip-day.over{background:var(--error-container);color:var(--on-error-container)}
 .wr-strip-day.over .wr-strip-free,.wr-strip-day.over .wr-strip-marks{color:var(--on-error-container)}
-/* Must due by each deadline against the free time until then; words carry the verdict, colour backs it */
-.wr-ladder{list-style:none;padding:4px 0 0;margin-top:12px!important;border-top:1px solid var(--outline-variant)}
-.wr-ladder li{display:flex;align-items:center;gap:12px;min-height:48px;padding:4px 0}
-.wr-ladder .ms{flex:none;font-size:20px;color:var(--on-surface-variant)}
+.wr-strip-note{font:var(--body-small);color:var(--on-surface-variant);padding:4px 0 10px;text-wrap:pretty}
+.wr-strip-note .ms{font-size:14px;vertical-align:-2px}
+/* The one summary line: Must time and whether it fits; it opens to a row per Result */
+.wr-week-toggle{width:calc(100% + 24px);display:flex;align-items:center;gap:12px;min-height:56px;margin:0 -12px;padding:6px 12px;border:0;border-top:1px solid var(--outline-variant);border-radius:0;background-color:transparent;color:var(--on-surface);text-align:left;font:inherit}
+.wr-week-toggle>.ms{flex:none;color:var(--on-surface-variant)}
+.wr-week-text{flex:1;min-width:0;display:flex;flex-direction:column}
+.wr-week-head{font:var(--title-small)}
+.wr-week-sub{font:var(--body-small);color:var(--on-surface-variant);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wr-week-toggle.over .wr-week-head{color:var(--error)}
+/* One row per picked Result: its deadline and Must time as its card says them; words carry the verdict */
+.wr-ladder{list-style:none;padding:0 0 8px}
+.wr-ladder li{display:flex;align-items:center;gap:12px;min-height:48px;padding:6px 0}
 .wr-ladder-text{flex:1;min-width:0;display:flex;flex-direction:column}
-.wr-ladder-when{font:var(--title-small)}
-.wr-ladder-must{font:var(--body-small);color:var(--on-surface-variant)}
+.wr-ladder-when{font:var(--body-medium);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wr-ladder-must{font:var(--body-small);color:var(--on-surface-variant);text-wrap:pretty}
 .wr-ladder-state{flex:none;font:var(--label-medium);border-radius:var(--shape-sm);padding:4px 10px}
 .wr-ladder .fits .wr-ladder-state{background:var(--tertiary-container);color:var(--on-tertiary-container)}
 .wr-ladder .tight .wr-ladder-state{background:var(--surface-container-highest);color:var(--on-surface);font-weight:600}
-.wr-ladder .over .wr-ladder-when,.wr-ladder .over .ms{color:var(--error)}
+.wr-ladder .over .wr-ladder-must{color:var(--error)}
 .wr-ladder .over .wr-ladder-state{background:var(--error-container);color:var(--on-error-container)}
-/* Calendar clash: the week's most consequential fact, so it leads steps 3 and 4 */
-.wr-clash{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-radius:16px;background:var(--error-container);color:var(--on-error-container)}
-.wr-clash>.ms{font-size:20px;margin-top:1px}
-.wr-clash-text{flex:1;min-width:0}
-.wr-clash-title{font:var(--title-small)}
-.wr-clash-detail{font:var(--body-small);margin-top:2px!important}
+/* Musts with no day: the proposal, written only on the tap */
+.wr-place{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:8px 0 12px;border-top:1px solid var(--outline-variant)}
+.wr-place-head{font:var(--label-medium);color:var(--on-surface-variant)}
+.wr-place-list{list-style:none;padding:0;align-self:stretch}
+.wr-place-list li{display:flex;align-items:center;gap:8px;min-height:36px;font:var(--body-medium)}
+.wr-place-list .ms{flex:none;font-size:18px}
+.wr-place-title{flex:1;min-width:0;padding:6px 0;text-wrap:pretty}
+.wr-place-day{flex:none;font:var(--label-large)}
+.wr-place .wr-btn-tonal{margin-top:4px}
+/* Before you finish: plain rows, error-coloured lead words, one action each (as Today's At risk) */
+.wr-risks{list-style:none;padding:0;margin:-4px 0!important}
+.wr-risk{display:flex;align-items:center;gap:16px;min-height:56px;padding:4px 0 4px 4px}
+.wr-risk>.ms{flex:none;color:var(--error)}
+.wr-risk-text{flex:1;min-width:0;display:flex;flex-direction:column;font:var(--body-medium)}
+.wr-risk-lead{color:var(--error);font-weight:600}
+.wr-risk-sub{color:var(--on-surface-variant);font:var(--body-small);overflow-wrap:anywhere;text-wrap:pretty}
+.wr-risk .wr-btn-text{flex:none;margin-right:-8px}
 .wr-idle-toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:0 12px 0 16px;border:0;border-radius:var(--shape-full);background-color:transparent;color:var(--on-surface-variant);font:var(--label-large);text-align:left}
+/* A Result card: picked shows a filled check and a primary outline; the card's tone stays, so picks never stack into a wall of colour */
 .wr-fact{color:var(--on-surface-variant);font:var(--label-medium)}
-.wr-pick.sel .wr-fact{color:var(--on-secondary-container)}
-.wr-pick{padding:0;transition:background-color var(--dur-short) var(--ease-standard)}
-.wr-pick.sel{background:var(--secondary-container);color:var(--on-secondary-container)}
+.wr-pick{padding:0;box-shadow:inset 0 0 0 1px transparent;transition:box-shadow var(--dur-short) var(--ease-standard)}
+.wr-pick.sel{box-shadow:inset 0 0 0 2px var(--primary)}
 .wr-pick-head{width:100%;display:flex;align-items:flex-start;gap:12px;padding:16px;border:0;border-radius:20px;background-color:transparent;color:inherit;text-align:left;font:inherit}
-.wr-pick-head>.ms{color:var(--on-surface-variant);margin-top:0}
+.wr-pick-head>.ms{color:var(--on-surface-variant)}
 .wr-pick.sel .wr-pick-head>.ms{color:var(--primary)}
 .wr-pick-text{flex:1;min-width:0;display:flex;flex-direction:column}
-.wr-pick.sel .wr-card-purpose,.wr-pick.sel .wr-card-note,.wr-pick.sel .wr-must-min,.wr-pick.sel .wr-must-when:not(.overdue),.wr-pick.sel .wr-due:not(.overdue),.wr-pick.sel .wr-musts-head{color:var(--on-secondary-container)}
 .wr-tags{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-top:6px}
 .wr-tag{font:var(--label-medium);background:var(--surface-container-highest);color:var(--on-surface);border-radius:var(--shape-sm);padding:2px 8px}
 .wr-warn{display:inline-flex;align-items:center;gap:4px;font:var(--label-medium);color:var(--error)}
 .wr-warn .ms{font-size:16px}
-.wr-musts{padding:0 8px 8px 4px;margin:0 8px 0 44px;border-top:1px solid color-mix(in srgb,currentColor 16%,transparent)}
+.wr-musts{padding:0 8px 8px 4px;margin:0 8px 0 44px;border-top:1px solid var(--outline-variant)}
 .wr-musts-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font:var(--label-medium);color:var(--on-surface-variant);padding:4px 0 0}
 .wr-must-row{display:flex;align-items:center;gap:4px;min-height:48px}
-.wr-must-title{flex:1;min-width:0;padding:4px 0;font:var(--body-medium);overflow-wrap:anywhere}
-.wr-must-when{color:var(--on-surface-variant)}
+.wr-must-text{flex:1;min-width:0;display:flex;flex-direction:column;padding:4px 0}
+.wr-must-title{font:var(--body-medium);overflow-wrap:anywhere;text-wrap:pretty}
+.wr-must-when{font:var(--body-small);color:var(--on-surface-variant)}
 .wr-must-min{flex:none;font:var(--body-small);color:var(--on-surface-variant)}
 .wr-star{margin-left:-12px}
 .wr-star.on{color:var(--must)}
-.wr-pick.sel .wr-star:not(.on){color:var(--on-secondary-container)}
-.wr-open-block{margin-right:-12px}
-.wr-musts-more{display:flex;align-items:center;gap:8px;min-height:48px;margin:-8px 0 0 40px;padding:0 12px 4px;border:0;border-radius:var(--shape-full);background-color:transparent;color:var(--on-secondary-container);font:var(--label-large)}
+.wr-open-block{flex:none;margin-right:-12px;white-space:nowrap}
+.wr-musts-more{display:flex;align-items:center;gap:8px;min-height:48px;margin:-8px 0 0 40px;padding:0 12px 4px;border:0;border-radius:var(--shape-full);background-color:transparent;color:var(--on-surface-variant);font:var(--label-large)}
 .wr-musts-more .ms{order:1;font-size:20px}
 
 /* Empty states */
@@ -297,7 +300,11 @@
 :root[data-large-text=true] .wr-verdicts .wr-seg-btn+.wr-seg-btn{border-left:0;border-top:1px solid var(--outline)}
 :root[data-large-text=true] .wr-seg.sm{flex-basis:100%}
 :root[data-large-text=true] .wr-strip{display:none}
-:root[data-large-text=true] .wr-run,:root[data-large-text=true] .wr-selbar{flex-wrap:wrap}
+:root[data-large-text=true] .wr-run,:root[data-large-text=true] .wr-risk{flex-wrap:wrap}
+:root[data-large-text=true] .wr-week-sub,:root[data-large-text=true] .wr-ladder-when{white-space:normal}
+:root[data-large-text=true] .wr-strip-note.legend{display:none}
+:root[data-large-text=true] .wr-suggest .wr-label{white-space:normal;text-align:left;padding:4px 0}
+:root[data-large-text=true] .wr-nowrap{white-space:normal}
 :root[data-large-text=true] .wr-left-row{padding:8px 0}
 :root[data-large-text=true] .wr-row{flex-wrap:wrap;padding-bottom:8px}
 

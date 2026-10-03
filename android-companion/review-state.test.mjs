@@ -6,7 +6,7 @@ import {
   weekStart, reviewWeek, resultStatus, markAchieved, weekFocus, setWeekFocus, weekVerdict, reviewSummary,
   inboxTasks, activeInRange, leftoverTasks, decideLeftover, leftoverChoice, groupTask, setMust,
   focusCandidates, reviewProgress, saveReviewProgress, finishReview, taskDate, groupTasks, addInboxTask,
-  freeMinutes, calendarClashes, weekCapacity,
+  freeMinutes, calendarClashes, weekCapacity, placedMusts, mustPlacements, placeMusts, rankResults, clashTitle, clashTask, planClash,
 } from './review-state.mjs';
 
 // Tests run in Asia/Kolkata (scripts/test-tz.mjs). Week of 28 Sep 2026 is the review week; 21 Sep is last week.
@@ -250,7 +250,7 @@ test('groupTask moves an Inbox task to a Block, a new Block, or back, each as on
   assert.equal(entry(d, inbox).blockId, null);
 
   const blocksBefore = planner(d).blocks.length;
-  assert.equal(groupTask(d, inbox, {title: 'Sort out banking', purpose: 'So bills stop surprising me'}), 'New Block created');
+  assert.equal(groupTask(d, inbox, {title: 'Sort out banking', purpose: 'So bills stop surprising me'}), 'New Result created');
   const created = planner(d).blocks.at(-1);
   assert.equal(planner(d).blocks.length, blocksBefore + 1);
   assert.deepEqual([created.title, created.purpose, created.achieved, created.evidence], ['Sort out banking', 'So bills stop surprising me', false, '']);
@@ -276,7 +276,7 @@ test('setMust marks a task with Undo', () => {
   assert.equal(setMust(d, kitchen, false), 'No longer a Must');
 });
 
-test('focusCandidates puts chosen, then carried, then active Blocks first and skips achieved ones', () => {
+test('focusCandidates puts deadlines first, then chosen, carried and active Blocks, and skips achieved ones', () => {
   const {d, rest, home, meals} = seed();
   const idle = block(d, {title: 'Someday Result'});
   const won = block(d, {title: 'Already won'});
@@ -286,7 +286,8 @@ test('focusCandidates puts chosen, then carried, then active Blocks first and sk
   assert.deepEqual(ids, [home, rest, idle]);
   assert.equal(focusCandidates(d, WEEK)[0].carried, true);
   ids = focusCandidates(d, WEEK, [idle, won]).map(c => c.blockId);
-  assert.deepEqual(ids.slice(0, 2).sort(), [idle, won].sort(), 'chosen ones lead, even when achieved');
+  assert.equal(ids[0], home, 'a deadline leads, picked or not');
+  assert.deepEqual(ids.slice(1, 3).sort(), [idle, won].sort(), 'then chosen ones, even when achieved');
   const first = focusCandidates(d, WEEK)[0];
   assert.deepEqual([first.mustMinutes, first.plannedMinutes, first.purpose], [60, 135, 'Calm Mondays']);
 });
@@ -305,7 +306,7 @@ test("a Result's deadline is its latest open, dated, one-time task, and step 4 p
   const ids = focusCandidates(d, WEEK).map(c => c.blockId);
   assert.deepEqual(ids, [exam, home, rest]);
   assert.equal(focusCandidates(d, WEEK)[0].due, '2026-09-23T09:30');
-  assert.deepEqual(focusCandidates(d, WEEK, [rest]).map(c => c.blockId), [rest, exam, home], 'the choice at step entry still leads');
+  assert.deepEqual(focusCandidates(d, WEEK, [rest]).map(c => c.blockId), [exam, home, rest], 'a pick never jumps a deadline');
 });
 
 test('groupTasks moves several tasks, or starts a new Result from them, as one Undo step', () => {
@@ -403,24 +404,80 @@ test('free time is waking hours minus busy events; clashes are overlapping busy 
   assert.deepEqual(clashes.map(c => [c.day, c.a.title, c.b.title]), [['2026-10-05', 'Exam', 'Session']]);
 });
 
-test('weekCapacity compares Must due by each deadline with the free time until then, and degrades without a calendar', () => {
+test('weekCapacity checks each picked Result against its own deadline, with its own Must time, and degrades without a calendar', () => {
   const now = new Date('2026-10-03T20:00:00');
   const chosen = [
-    {due: '2026-10-04T23:00', mustMinutes: 240}, {due: '2026-10-04T23:59', mustMinutes: 30},
-    {due: '2026-10-05T10:30', mustMinutes: 600}, {due: null, mustMinutes: 60}];
+    {blockId: 'b', title: 'B', due: '2026-10-04T23:59', mustMinutes: 30}, {blockId: 'a', title: 'A', due: '2026-10-04T23:00', mustMinutes: 240},
+    {blockId: 'c', title: 'C', due: '2026-10-05T10:30', mustMinutes: 600}, {blockId: 'd', title: 'D', due: null, mustMinutes: 60}];
   const busy = [{start: +new Date('2026-10-05T09:00:00'), end: +new Date('2026-10-05T11:00:00'), title: 'Exam'},
     {start: +new Date('2026-10-05T09:30:00'), end: +new Date('2026-10-05T10:00:00'), title: 'Session'}];
-  const cap = weekCapacity(chosen, busy, '2026-10-05', now);
-  assert.deepEqual(cap.checkpoints.map(c => [c.value, c.must, c.free, c.over]), [
-    ['2026-10-04T23:59', 270, 120 + 840, false], // same evening: one checkpoint
-    ['2026-10-05T10:30', 870, 120 + 840 + 60, false],
-    [null, 930, 120 + 840 + 720 + 6 * 840, false]]);
-  assert.deepEqual(cap.checkpoints.map(c => c.tight), [false, true, false], 'tight once Must needs over half the free time');
-  assert.equal(weekCapacity([{due: '2026-10-04T10:00', mustMinutes: 300}], busy, '2026-10-05', now).checkpoints[0].over, true);
+  const cap = weekCapacity(chosen, busy, '2026-10-05', now, [{day: '2026-10-04', minutes: 20}]);
+  assert.deepEqual(cap.rows.map(r => [r.blockId, r.value, r.must, r.need, r.free, r.over, r.tight]), [
+    ['a', '2026-10-04T23:00', 240, 240, 120 + 840, false, false], // its own 11 PM deadline, not the later one that evening
+    ['b', '2026-10-04T23:59', 30, 270, 120 + 840, false, false],
+    ['c', '2026-10-05T10:30', 600, 870, 120 + 840 + 60, false, true], // tight once Must needs over half the free time
+    ['d', null, 60, 930, 120 + 840 + 720 + 6 * 840, false, false]]);
+  assert.equal(cap.must, 930);
+  assert.equal(weekCapacity([{due: '2026-10-04T10:00', mustMinutes: 300}], busy, '2026-10-05', now).rows[0].over, true);
+  const late = weekCapacity([{due: '2026-10-03T10:00', mustMinutes: 30}], busy, '2026-10-05', now).rows[0];
+  assert.deepEqual([late.overdue, late.over, late.free], [true, true, 0]);
   assert.equal(cap.days.length, 9, 'Saturday to the planned week\'s Sunday');
-  assert.deepEqual(cap.days.slice(0, 3).map(x => [x.day, x.free, x.deadlines, x.clash]),
-    [['2026-10-03', 120, 0, false], ['2026-10-04', 840, 1, false], ['2026-10-05', 720, 1, true]]);
+  assert.deepEqual(cap.days.slice(0, 3).map(x => [x.day, x.free, x.must, x.deadlines, x.clash]),
+    [['2026-10-03', 120, 0, 0, false], ['2026-10-04', 840, 20, 2, false], ['2026-10-05', 720, 0, 1, true]]);
   const blind = weekCapacity(chosen, null, '2026-10-05', now);
-  assert.deepEqual(blind.checkpoints.map(c => [c.must, c.free, c.over]), [[270, null, false], [870, null, false], [930, null, false]]);
+  assert.deepEqual(blind.rows.map(r => [r.must, r.free, r.over]), [[240, null, false], [30, null, false], [600, null, false], [60, null, false]]);
   assert.deepEqual([blind.days[0].free, blind.clashes.length], [null, 0]);
+});
+
+test('undated Musts are proposed on the freest day before their deadline, and placed only on request, with Undo', () => {
+  const {d} = seed();
+  const exam = block(d, {title: 'Ready for the exam'});
+  task(d, {title: 'Sit the exam', blockId: exam, minutes: 60, planned: '2026-10-07T04:00:00.000Z'});
+  const one = task(d, {title: 'Revise chapter 1', blockId: exam, minutes: 120, must: true});
+  const two = task(d, {title: 'Revise chapter 2', blockId: exam, minutes: 60, must: true});
+  const loose = block(d, {title: 'No deadline yet'});
+  task(d, {title: 'Someday Must', blockId: loose, minutes: 30, must: true});
+  task(d, {title: 'Dated Must', blockId: exam, minutes: 15, must: true, plannedDate: '2026-10-05'});
+  const now = new Date('2026-10-03T20:00:00');
+  const sunday = [{start: +new Date('2026-10-04T08:00:00'), end: +new Date('2026-10-04T22:00:00'), title: 'Away'}];
+  assert.deepEqual(placedMusts(d, [exam, loose]).map(p => [p.day, p.minutes]), [['2026-10-05', 15]]);
+  const plan = mustPlacements(d, [exam, loose], sunday, '2026-10-05', now);
+  assert.deepEqual(plan.map(p => [p.taskId, p.day]), [[one, '2026-10-06'], [two, '2026-10-05']],
+    'Mon already holds 15 min, so chapter 1 goes to Tue; then Mon is freest; never on or after Wednesday\'s deadline');
+  assert.equal(placeMusts(d, plan), '2 Musts given a day');
+  assert.deepEqual([entry(d, one).plannedDate, entry(d, two).plannedDate], ['2026-10-06', '2026-10-05']);
+  assert.equal(blockDue(d, exam).value, '2026-10-07T09:30', 'the deadline stays the deadline');
+  editPlan(d, {type: 'undo'});
+  assert.deepEqual([entry(d, one).plannedDate ?? null, entry(d, two).plannedDate ?? null], [null, null], 'one Undo puts both back');
+});
+
+test('rankResults suggests a Result only when the words clearly point to one', () => {
+  const {d, inbox} = seed();
+  const exam = block(d, {title: 'Ready for the exam', purpose: 'Walk in calm'});
+  const candidates = focusCandidates(d, WEEK, []);
+  const room = task(d, {title: 'Book the exam room'});
+  assert.equal(rankResults(d, entry(d, room), candidates).suggested?.blockId, exam);
+  assert.equal(rankResults(d, entry(d, inbox), candidates).suggested, null, 'no shared words, no guess');
+  const calm = rankResults(d, entry(d, task(d, {title: 'Walk somewhere calm'})), candidates);
+  assert.equal(calm.suggested, null, 'words shared only with a Purpose or tasks are not enough');
+  const towels = rankResults(d, entry(d, task(d, {title: 'Buy kitchen towels'})), candidates);
+  assert.equal(towels.suggested, null, 'one word shared with a task is not enough to suggest');
+  assert.equal(towels.ranked[0].title, 'Have home ready for the week', 'but the chooser still lists the likeliest first');
+});
+
+test('a calendar clash goes on Today as a task, reusing one that already names it', () => {
+  const now = new Date('2026-10-03T09:00:00');
+  const clash = {day: '2026-10-05', a: {title: 'DAD exam'}, b: {title: 'GWBC session'}};
+  let {d} = seed();
+  assert.equal(clashTask(d, clash), null);
+  assert.equal(planClash(d, clash, now), 'Added to Today');
+  const added = clashTask(d, clash);
+  assert.deepEqual([added.title, added.plannedDate], [clashTitle(clash), '2026-10-03']);
+  ({d} = seed());
+  const mine = task(d, {title: 'Clear 5 Oct morning clash: DAD exam vs GWBC'});
+  assert.equal(clashTask(d, clash).id, mine);
+  assert.equal(planClash(d, clash, now), 'Moved to Today');
+  assert.equal(entry(d, mine).plannedDate, '2026-10-03');
+  editPlan(d, {type: 'undo'});
+  assert.equal(entry(d, mine).plannedDate ?? null, null);
 });
