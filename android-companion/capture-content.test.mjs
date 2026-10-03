@@ -27,3 +27,45 @@ test('unresolved or malformed times never become a plausible schedule',()=>{
  assert.equal(captureSchedule({plannedDate:'2026-02-30'},options),null);
  assert.equal(captureDuration(null),null);assert.equal(captureDuration(0),null);
 });
+import {captureWeekday,scheduleChips,addedSummary} from './capture-content.mjs';
+test('chips give a weekday date and one time chip with the duration',()=>{
+ const item={planned:'2026-10-03T09:00:00Z',end:'2026-10-03T09:30:00Z',minutes:30};
+ const s=captureSchedule(item,options),chips=scheduleChips(s,captureWeekday(item,options));
+ assert.deepEqual(chips.map(c=>c.label),['Sat 3 Oct','2:30 pm to 3 pm · 30 min']);
+});
+test('date-only chips say Time not set and never All day',()=>{
+ const item={plannedDate:'2026-10-03',minutes:45};
+ const chips=scheduleChips(captureSchedule(item,options),captureWeekday(item,options));
+ assert.deepEqual(chips.map(c=>c.label),['Sat 3 Oct','Time not set','45 min']);
+ assert.equal(chips[1].muted,true);
+});
+test('overnight chips keep both ends and unresolved times have no chips',()=>{
+ const s=captureSchedule({planned:'2026-09-28T17:30:00Z',end:'2026-09-28T19:30:00Z',minutes:120},options);
+ assert.deepEqual(scheduleChips(s).map(c=>c.label),['28 Sept · 11 pm','29 Sept · 1 am']);
+ assert.deepEqual(scheduleChips(captureSchedule({status:'review',reason:'AM or PM?'},options)),[]);
+});
+test('added summary says where each new task went',()=>{
+ const task=(block)=>({kind:'create',entity:'task',fields:block?[{name:'blockId',op:'set',value:'b1',displayValue:block}]:[]});
+ assert.equal(addedSummary([task('Explain the chapter'),task('Explain the chapter'),task(null)]),'3 tasks added · 2 to Explain the chapter, 1 to Inbox');
+ assert.equal(addedSummary([task(null)]),'1 task added to Inbox');
+ assert.equal(addedSummary([{kind:'update',entity:'task',fields:[]}]),'Change saved');
+});
+test('proposal times and Result deadlines are absolute days, never Tomorrow beside a weekday',async()=>{
+ const {scheduleText,dueText,absoluteDay}=await import('./capture-content.mjs');
+ const {clock}=await import('./planner/format.mjs');
+ const zone=Intl.DateTimeFormat().resolvedOptions().timeZone;
+ const reference=new Date('2026-10-03T06:00:00');
+ const at=new Date('2026-10-04T09:00:00'),end=new Date('2026-10-04T10:00:00');
+ assert.equal(scheduleText({planned:at.toISOString()},{timeZone:zone,reference}),'Sun 4 Oct, '+clock(at));
+ assert.equal(scheduleText({planned:at.toISOString(),end:end.toISOString(),minutes:60},{timeZone:zone,reference}),`Sun 4 Oct, ${clock(at)}–${clock(end)}`);
+ assert.equal(scheduleText({plannedDate:'2026-10-03'},{timeZone:zone,reference}),'Today');
+ assert.equal(absoluteDay('2027-01-02','2026-10-03'),'Sat 2 Jan 2027');
+ assert.equal(scheduleText({planned:'2026-09-28T08:30:00Z'},{...options,deviceZone:'Europe/London'}),'Mon 28 Sept, 2 pm');
+ assert.equal(scheduleText({status:'review',reason:'AM or PM?'},options),null);
+ assert.equal(scheduleText(null),null);
+ const due=new Date('2026-10-05T10:30:00');
+ assert.equal(dueText({at:due,value:'2026-10-05T10:30',overdue:false},'2026-10-03'),'Due Mon 5 Oct, '+clock(due));
+ assert.equal(dueText({at:due,value:'2026-10-03',overdue:false},'2026-10-03'),'Due today');
+ assert.equal(dueText({label:'Overdue since Fri, Oct 2',overdue:true}),'Overdue since Fri, Oct 2');
+ assert.equal(dueText(null),null);
+});

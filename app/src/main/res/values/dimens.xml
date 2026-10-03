@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the launcher's widget corners on Android 12+ (values-v31); theme.css xl before. -->
+    <dimen name="rpm_widget_radius">28dp</dimen>
+    <!-- Concentric with the outer corner across the 8dp padding. -->
+    <dimen name="rpm_widget_inner_radius">20dp</dimen>
+</resources>

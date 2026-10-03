@@ -9,6 +9,15 @@ const ident=value=>{if(typeof value!=='string'||!value||value.length>100)throw n
 const activeStatus=d=>d&&['draft','review'].includes(d.status);
 function conversation(data,id){const row=(data.conversations??[]).find(c=>c.id===id&&!c.archived);if(!row)throw new Error('Open an active conversation');return row;}
 function fieldPatch(op,field){const fields=new Map(op.fields.map(f=>[f.name,f]));fields.set(field.name,field);op.fields=[...fields.values()];}
+/** Proposals left out of a commit: known, not all of them, and never the new parent of a kept one. */
+function skippedOps(draft,action){
+ if(action.skip===undefined)return new Set();
+ if(!Array.isArray(action.skip)||action.skip.some(id=>!draft.operations.some(o=>o.opId===id)))throw new Error('Unknown operation');
+ const skip=new Set(action.skip);
+ if(skip.size>=draft.operations.length)throw new Error('Choose at least one proposal to add');
+ for(const op of draft.operations)if(!skip.has(op.opId)&&op.fields.some(f=>f.op==='set'&&typeof f.value==='string'&&f.value.startsWith('$')&&skip.has(f.value.slice(1))))throw new Error('Keep the new Block or Project that another proposal belongs to');
+ return skip;
+}
 function safeQuestion(operations){for(const op of operations){const field=op.fields.find(f=>f.op==='unknown');if(field)return {opId:op.opId,field:field.name,prompt:`What should ${field.name} be for ${op.fields.find(f=>f.name==='title')?.value??op.entity}?`,options:[]};}return null;}
 /** Orchestration only. The model never receives a mutating function or persistence key. */
 export class IntentHarness {
@@ -126,15 +135,17 @@ export class IntentHarness {
     if(this.refreshSchedule){draft.schedulePreview=this.refreshSchedule({data,draft:structuredClone(draft),anchor:new Date(draft.timeAnchorAt??draft.created)});draft.reply=this.normalizeReply?.({parsed:draft,schedulePreview:draft.schedulePreview})??draft.reply;}
     return {status:'draft',draftId:draft.id,revision:draft.revision};
    }
-   if(draft.operations.some(o=>o.fields.some(f=>f.op==='unknown')))throw new Error('An unresolved field remains; edit it or leave the draft');
-   if(draft.schedulePreview?.items?.some(item=>item.status==='review'))throw new Error('The time needs review. Edit the draft before saving.');
-   const followUpIssue=draftFollowUpProblem(data,draft);if(followUpIssue)throw new Error(followUpIssue);
+   // The user may leave some proposals out; only the ones they kept are checked and applied.
+   const skipped=skippedOps(draft,action),kept=skipped.size?{...draft,operations:draft.operations.filter(o=>!skipped.has(o.opId)),schedulePreview:draft.schedulePreview&&{...draft.schedulePreview,items:(draft.schedulePreview.items??[]).filter(i=>!skipped.has(i.opId))}}:draft;
+   if(kept.operations.some(o=>o.fields.some(f=>f.op==='unknown')))throw new Error('An unresolved field remains; edit it or leave the draft');
+   if(kept.schedulePreview?.items?.some(item=>item.status==='review'))throw new Error('The time needs review. Edit the draft before saving.');
+   const followUpIssue=draftFollowUpProblem(data,kept);if(followUpIssue)throw new Error(followUpIssue);
    checkGuards(data,draft.guards);
    if(draft.review&&action.reviewToken!==draft.review.token)throw new Error('The current schedule warning needs an explicit decision');
-   const applied=await this.applyPlan({data,draft:structuredClone(draft),approval:{actionId,reviewToken:action.reviewToken??null,at:this.clock().toISOString()}});
+   const applied=await this.applyPlan({data,draft:structuredClone(kept),approval:{actionId,reviewToken:action.reviewToken??null,at:this.clock().toISOString()}});
    if(applied.status==='review'){draft.review=applied.review;draft.question=null;draft.status='review';draft.revision++;return {status:'review',draftId:draft.id,revision:draft.revision};}
    if(applied.status!=='committed')throw new Error('Plan adapter did not confirm a commit candidate');
-   draft.status='committed';draft.revision++;draft.receipt=applied.receipt;draft.approvedAt=this.clock().toISOString();
+   draft.status='committed';draft.revision++;draft.receipt=applied.receipt;if(skipped.size)draft.skipped=[...skipped];draft.approvedAt=this.clock().toISOString();
    return {status:'committed',draftId:draft.id,receipt:applied.receipt};
   });
   this.emit({type:result.status,...result});return result;

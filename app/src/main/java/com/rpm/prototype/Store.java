@@ -104,7 +104,7 @@ public final class Store extends SQLiteOpenHelper {
     }
     public List<JSONObject> projects(){return query("SELECT * FROM projects ORDER BY _id DESC",null);}
     public List<JSONObject> query(String sql,String[] args){return rows(getReadableDatabase(),sql,args);}
-    private static List<JSONObject> rows(SQLiteDatabase db,String sql,String[] args){
+    static List<JSONObject> rows(SQLiteDatabase db,String sql,String[] args){
         ArrayList<JSONObject> result=new ArrayList<>();
         try(Cursor c=db.rawQuery(sql,args)){
             while(c.moveToNext()){

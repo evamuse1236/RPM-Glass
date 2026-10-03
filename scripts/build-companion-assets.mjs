@@ -10,7 +10,8 @@ await build({absWorkingDir:root,entryPoints:['android-companion/runtime.mjs'],ou
   b.onResolve({filter:/cli\/openrouter\.mjs$/},()=>({path:'openrouter',namespace:'native'}));
   b.onLoad({filter:/.*/,namespace:'native'},args=>({contents:args.path==='crypto'?'export const randomUUID=()=>globalThis.crypto.randomUUID();':"export const ENDPOINT='https://openrouter.ai/api/v1/chat/completions';"}));
 }}]});
-for(const file of ['index.html','night.css','capture-tokens.css','planner.html','planner-stitch.css','planner-tokens.css'])fs.copyFileSync(path.join(root,'android-companion',file),path.join(out,file));
+// Every page and stylesheet in android-companion/ ships; CompanionActivity.ASSETS must list the same names.
+for(const file of fs.readdirSync(path.join(root,'android-companion')).filter(f=>/\.(html|css)$/.test(f)))fs.copyFileSync(path.join(root,'android-companion',file),path.join(out,file));
 fs.copyFileSync(path.join(root,'android-companion/assets/butterfly.png'),path.join(out,'butterfly.png'));
 for(const file of fs.readdirSync(path.join(root,'android-companion/assets/fonts')))fs.copyFileSync(path.join(root,'android-companion/assets/fonts',file),path.join(out,file));
 console.log('Bundled offline Android companion assets (no credentials or personal data).');

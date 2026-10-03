@@ -1,0 +1,84 @@
+// Read-only descriptions of planner records for Capture choices. Never writes.
+import {localDay} from './planner-state.mjs';
+import {clock} from './planner/format.mjs';
+
+const COLLECTION={blockId:'blocks',projectId:'projects',goalId:'goals',areaId:'areas'};
+
+function plannerRows(data,collection){
+ return data?.planner?.[collection]??[];
+}
+
+/** Area colour token, matching the planner: an explicit colour, else list order. */
+export function areaTone(area,areas=[]){
+ if(!area)return null;
+ const index=area.colorIndex??Math.max(0,areas.findIndex(a=>a.id===area.id));
+ return `area-${index%8}`;
+}
+
+function chainFrom(data,collection,row){
+ const projects=plannerRows(data,'projects'),goals=plannerRows(data,'goals'),areas=plannerRows(data,'areas');
+ const project=collection==='blocks'?projects.find(p=>p.id===row.projectId):collection==='projects'?row:null;
+ const goal=collection==='goals'?row:goals.find(g=>g.id===project?.goalId);
+ const area=collection==='areas'?row:areas.find(a=>a.id===goal?.areaId);
+ return {project,goal,area,areas};
+}
+
+/**
+ * Describe a planner link value offered as an answer, e.g. a Block id, as
+ * {title, subtitle, tone}. Unknown fields or ids return null so the caller
+ * shows the option's own label unchanged.
+ */
+export function describeLink(data,field,value){
+ const collection=COLLECTION[field];
+ if(!collection||value==null)return null;
+ const row=plannerRows(data,collection).find(r=>String(r.id)===String(value));
+ if(!row)return null;
+ const {project,area,areas}=chainFrom(data,collection,row);
+ const parts=[];
+ if(area&&collection!=='areas')parts.push(area.title);
+ if(project&&collection==='blocks')parts.push(project.title);
+ if(!parts.length&&row.purpose)parts.push(row.purpose);
+ return {title:row.title,subtitle:parts.join(' · '),tone:areaTone(area,areas)};
+}
+
+/**
+ * Blocks a proposal can be moved to: open Results only, the closest deadline
+ * first, then by title. `deadline(id)` returns dueInfo() or null.
+ */
+export function blockChoices(data,deadline=()=>null){
+ return plannerRows(data,'blocks').filter(b=>!b.archived&&!b.achieved)
+  .map(b=>({id:b.id,...describeLink(data,'blockId',b.id),due:deadline(b.id)}))
+  .sort((a,b)=>(a.due?.at??Infinity)-(b.due?.at??Infinity)||a.title.localeCompare(b.title));
+}
+
+/**
+ * What else bears on a proposal's time, from the planner and the read-only
+ * calendar only, in time order:
+ * - `deadline`: another Result due the same day ({title, time});
+ * - `clash`: a busy event overlapping the proposed time ({title, start, end});
+ * - `before`: a busy event on the destination Result's own due day, before it is
+ *   due, when the proposal is on an earlier day ({title, start, end}), so a
+ *   morning taken by an exam shows before the deadline that follows it.
+ * The destination Block's own deadline is left out; its due line already says it.
+ * `deadline(id)` returns {value} as blockDue() does, or null; `due` is the destination's value.
+ */
+export function dayLoad(data,{start,minutes=null,blockId=null,due=null,events=[],deadline=()=>null}){
+ const from=Date.parse(start);
+ if(!Number.isFinite(from))return [];
+ const day=localDay(new Date(from)),to=from+Math.max(1,minutes??0)*60000,items=[];
+ for(const b of plannerRows(data,'blocks')){
+  if(b.archived||b.achieved||String(b.id)===String(blockId))continue;
+  const value=deadline(b.id)?.value;
+  if(value?.slice(0,10)!==day)continue;
+  const timed=value.length>10,at=new Date(timed?value:value+'T23:59');
+  items.push({kind:'deadline',at:+at,title:b.title,time:timed?clock(at):null});
+ }
+ const dueAt=due?.length>10?Date.parse(due):NaN,dueDay=Number.isFinite(dueAt)?localDay(new Date(dueAt)):null;
+ for(const e of events){
+  if(e.busy===false||e.allDay)continue;
+  const event={at:e.start,title:e.title,start:e.start,end:e.end};
+  if(e.start<to&&e.end>from)items.push({kind:'clash',...event});
+  else if(dueDay&&dueDay>day&&localDay(new Date(e.start))===dueDay&&e.start<dueAt)items.push({kind:'before',...event});
+ }
+ return items.sort((a,b)=>a.at-b.at);
+}

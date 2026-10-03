@@ -13,7 +13,7 @@ final class CompanionControls {
     static JSONObject read(Context c)throws JSONException {
         NotificationManager notifications=c.getSystemService(NotificationManager.class);
         boolean fullScreenSupported=android.os.Build.VERSION.SDK_INT>=34;
-        return new JSONObject().put("captureBackground","Glass")
+        return new JSONObject().put("captureBackground","Material")
             .put("widgetTextScale",widgetTextScale(c))
             .put("alarmSound",AlertSounds.alarmName(c)).put("reminderSound",AlertSounds.reminderName(c,CompanionAlerts.REMINDERS))
             .put("aiConnected",CompanionKey.has(c)).put("notificationsAllowed",CompanionAlerts.notifications(c,CompanionAlerts.REMINDERS))

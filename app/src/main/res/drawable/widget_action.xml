@@ -1,0 +1,9 @@
+<!-- Secondary actions rest on the widget surface and show an M3 state layer when pressed. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/rpm_ripple">
+    <item android:id="@android:id/mask">
+        <shape>
+            <solid android:color="@android:color/white"/>
+            <corners android:radius="@dimen/rpm_widget_inner_radius"/>
+        </shape>
+    </item>
+</ripple>

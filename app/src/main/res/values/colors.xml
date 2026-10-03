@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mirrors the light roles in android-companion/theme.css. Change both together. -->
+<resources>
+    <color name="rpm_primary">#0B57D0</color>
+    <color name="rpm_on_primary">#FFFFFF</color>
+    <color name="rpm_primary_container">#D3E3FD</color>
+    <color name="rpm_on_primary_container">#041E49</color>
+    <color name="rpm_secondary_container">#C2E7FF</color>
+    <color name="rpm_on_secondary_container">#001D35</color>
+    <color name="rpm_tertiary">#146C2E</color>
+    <color name="rpm_tertiary_container">#C4EED0</color>
+    <color name="rpm_error">#B3261E</color>
+    <color name="rpm_surface">#FFFFFF</color>
+    <color name="rpm_on_surface">#1F1F1F</color>
+    <color name="rpm_on_surface_variant">#444746</color>
+    <color name="rpm_surface_container_low">#F8FAFD</color>
+    <color name="rpm_surface_container">#F0F4F9</color>
+    <color name="rpm_surface_container_high">#E9EEF6</color>
+    <color name="rpm_surface_container_highest">#DDE3EA</color>
+    <color name="rpm_outline">#747775</color>
+    <color name="rpm_outline_variant">#C4C7C5</color>
+    <color name="rpm_must">#B06000</color>
+    <!-- M3 state layers: on-surface and on-primary-container at 10% for pressed ripples. -->
+    <color name="rpm_ripple">#1A1F1F1F</color>
+    <color name="rpm_ripple_primary">#1A041E49</color>
+</resources>
