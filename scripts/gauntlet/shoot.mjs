@@ -47,9 +47,33 @@ const scenes = {
   async review() {
     const page = await open('/planner.html');
     await click(page, page.getByRole('button', {name: /start the weekly review|Open weekly review/}));
+    // A real pass: one win and both still-running Results carried in step 1, two Inbox tasks selected in step 3,
+    // a third Result picked in step 4. The pointer parks on the title so no hover tint lands in a shot.
+    const rest = () => page.mouse.move(260, 32);
+    const steps = {
+      async 1() {
+        await shot(page, 'review-1');
+        await click(page, page.getByRole('radiogroup', {name: /All five RM readings/}).getByRole('radio', {name: 'Achieved'}));
+        for (const name of [/Carry "RM critical review/, /Carry "PMDL post work/]) await click(page, page.getByRole('button', {name}));
+        await page.waitForTimeout(6000); // let the Undo snackbar time out
+        await scroll(page, 900); await rest(); await shot(page, 'review-1-scrolled');
+      },
+      async 3() {
+        for (const name of [/Check the LMS/, /Ask the group which district/]) await click(page, page.getByRole('checkbox', {name}));
+        await rest(); await shot(page, 'review-3');
+        await click(page, page.getByRole('button', {name: /^Add 2 tasks to/}));
+        await rest(); await shot(page, 'review-3-scrolled');
+        await page.mouse.click(206, 120); await click(page, page.getByRole('button', {name: 'Clear selection'}));
+      },
+      async 4() {
+        await click(page, page.getByRole('checkbox', {name: /DAD Excel workbook/}));
+        await scroll(page, -2000); await rest(); await shot(page, 'review-4');
+        await scroll(page, 900); await rest(); await shot(page, 'review-4-scrolled');
+      },
+    };
     for (let step = 1; step <= 4; step++) {
-      await shot(page, `review-${step}`);
-      await scroll(page, 900); await shot(page, `review-${step}-scrolled`);
+      if (steps[step]) await steps[step]();
+      else { await shot(page, `review-${step}`); await scroll(page, 900); await rest(); await shot(page, `review-${step}-scrolled`); }
       await scroll(page, -2000);
       if (step < 4) await click(page, page.getByRole('button', {name: /^Next/}));
     }

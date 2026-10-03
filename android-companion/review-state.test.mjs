@@ -6,6 +6,7 @@ import {
   weekStart, reviewWeek, resultStatus, markAchieved, weekFocus, setWeekFocus, weekVerdict, reviewSummary,
   inboxTasks, activeInRange, leftoverTasks, decideLeftover, leftoverChoice, groupTask, setMust,
   focusCandidates, reviewProgress, saveReviewProgress, finishReview, taskDate, groupTasks, addInboxTask,
+  freeMinutes, calendarClashes, weekCapacity,
 } from './review-state.mjs';
 
 // Tests run in Asia/Kolkata (scripts/test-tz.mjs). Week of 28 Sep 2026 is the review week; 21 Sep is last week.
@@ -376,4 +377,50 @@ test('review data survives JSON round trips and validation', () => {
   assert.equal(resultStatus(copy, rest).evidence, 'Slept 8h');
   copy.planner.weeks[WEEK].verdicts[home] = 'maybe';
   assert.throws(() => editPlan(copy, {type: 'saveEntity', collection: 'areas', fields: {title: 'Work'}}), /Result status/);
+});
+
+test('a Result whose deadline is still ahead is running, not judged; a verdict or a passed deadline closes it', () => {
+  const {d, home} = seed();
+  setWeekFocus(d, LAST, [home]);
+  const now = at('2026-09-27T12:00:00+05:30');
+  let [r] = reviewSummary(d, WEEK, now).results;
+  assert.deepEqual([r.due, r.running, r.mustMinutes], ['2026-09-30', true, 60]);
+  assert.equal(reviewSummary(d, WEEK, at('2026-10-01T09:00:00+05:30')).results[0].running, false, 'deadline passed');
+  markAchieved(d, home, {achieved: false, week: LAST, verdict: 'partly'});
+  [r] = reviewSummary(d, WEEK, now).results;
+  assert.equal(r.running, false, 'a verdict already given stays a verdict');
+});
+
+test('free time is waking hours minus busy events; clashes are overlapping busy events', () => {
+  const ev = (a, b, title, extra = {}) => ({start: +new Date(`2026-10-05T${a}:00`), end: +new Date(`2026-10-05T${b}:00`), title, ...extra});
+  const events = [ev('09:00', '10:00', 'Exam'), ev('09:00', '11:00', 'Session'), ev('21:00', '23:30', 'Late'),
+    ev('12:00', '13:00', 'Free lunch', {busy: false})];
+  const from = new Date('2026-10-05T00:00:00'), to = new Date('2026-10-06T00:00:00');
+  assert.equal(freeMinutes([], from, to), 14 * 60, '8 AM to 10 PM');
+  assert.equal(freeMinutes(events, from, to), 14 * 60 - 120 - 60, 'overlaps counted once, past 10 PM ignored, free events ignored');
+  assert.equal(freeMinutes(events, new Date('2026-10-05T10:30:00'), to), 14 * 60 - 150 - 30 - 60);
+  const clashes = calendarClashes(events, from, to);
+  assert.deepEqual(clashes.map(c => [c.day, c.a.title, c.b.title]), [['2026-10-05', 'Exam', 'Session']]);
+});
+
+test('weekCapacity compares Must due by each deadline with the free time until then, and degrades without a calendar', () => {
+  const now = new Date('2026-10-03T20:00:00');
+  const chosen = [
+    {due: '2026-10-04T23:00', mustMinutes: 240}, {due: '2026-10-04T23:59', mustMinutes: 30},
+    {due: '2026-10-05T10:30', mustMinutes: 600}, {due: null, mustMinutes: 60}];
+  const busy = [{start: +new Date('2026-10-05T09:00:00'), end: +new Date('2026-10-05T11:00:00'), title: 'Exam'},
+    {start: +new Date('2026-10-05T09:30:00'), end: +new Date('2026-10-05T10:00:00'), title: 'Session'}];
+  const cap = weekCapacity(chosen, busy, '2026-10-05', now);
+  assert.deepEqual(cap.checkpoints.map(c => [c.value, c.must, c.free, c.over]), [
+    ['2026-10-04T23:59', 270, 120 + 840, false], // same evening: one checkpoint
+    ['2026-10-05T10:30', 870, 120 + 840 + 60, false],
+    [null, 930, 120 + 840 + 720 + 6 * 840, false]]);
+  assert.deepEqual(cap.checkpoints.map(c => c.tight), [false, true, false], 'tight once Must needs over half the free time');
+  assert.equal(weekCapacity([{due: '2026-10-04T10:00', mustMinutes: 300}], busy, '2026-10-05', now).checkpoints[0].over, true);
+  assert.equal(cap.days.length, 9, 'Saturday to the planned week\'s Sunday');
+  assert.deepEqual(cap.days.slice(0, 3).map(x => [x.day, x.free, x.deadlines, x.clash]),
+    [['2026-10-03', 120, 0, false], ['2026-10-04', 840, 1, false], ['2026-10-05', 720, 1, true]]);
+  const blind = weekCapacity(chosen, null, '2026-10-05', now);
+  assert.deepEqual(blind.checkpoints.map(c => [c.must, c.free, c.over]), [[270, null, false], [870, null, false], [930, null, false]]);
+  assert.deepEqual([blind.days[0].free, blind.clashes.length], [null, 0]);
 });
