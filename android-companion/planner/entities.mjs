@@ -1,7 +1,8 @@
 /** Create and edit Blocks, Projects, Areas and Goals; the reviewed life context; detail overflow menus. */
 import {el, button} from './dom.mjs';
 import {openSheet, field, select, checkbox} from './sheet.mjs';
-import {blockMenu} from './blocks.mjs';
+import {blockMenu, revealNotes, focusTitleOnOpen} from './blocks.mjs';
+import {persist} from './inline-edit.mjs';
 
 export const NAMES = {projects: 'Project', blocks: 'Block', areas: 'Area', goals: 'Goal'};
 /** Draft slot names stay stable so drafts saved by earlier versions (and Capture seeds) restore. */
@@ -57,8 +58,44 @@ function removeControl(app, body, collection, id) {
   }, 'text-btn danger');
 }
 
+const UNTITLED = {blocks: 'New Result', projects: 'New Project', areas: 'New Area', goals: 'New Goal'};
+
+/** The fields a new record starts with: its context (the Project page it came from, the Life period on screen). */
+export function newFields(collection, defaults, state, current = null) {
+  const fields = {title: UNTITLED[collection], purpose: '', notes: ''};
+  if (collection === 'blocks') {
+    fields.projectId = defaults.projectId ?? (current?.kind === 'projects' ? current.id : current ? null : state.blockFilter ?? null);
+  }
+  if (collection === 'projects') fields.goalId = defaults.goalId ?? null;
+  if (collection === 'goals') {
+    const horizon = defaults.horizon ?? (state.horizon === 'values' ? 'yearly' : state.horizon);
+    fields.areaId = defaults.areaId ?? state.lifeFilter ?? null;
+    fields.year = defaults.year ?? state.year;
+    fields.horizon = horizon;
+    fields.period = horizon === 'yearly' ? null : horizon === 'quarterly' ? Math.ceil(state.period / 3) : state.period;
+  }
+  return fields;
+}
+
+/**
+ * New Block, Project, Goal or Area: made at once and opened on its own page with the placeholder title selected,
+ * so typing names it and everything else edits in place from birth (Things-style). Creating it offers Undo.
+ */
+export async function createInPlace(app, collection, defaults = {}) {
+  try {
+    const id = await persist(app, {type: 'saveEntity', collection, id: null,
+      fields: newFields(collection, defaults, app.state, app.current())}, {label: NAMES[collection] + ' created'});
+    if (!id) return;
+    focusTitleOnOpen(collection, id);
+    if (collection === 'blocks') app.openBlock(id);
+    else app.push(collection, id);
+  } catch {}
+}
+
 /** draftMeta: {key, sourceRaw} for a Goal drafted by Capture; its original words stay visible. */
 export function entityEditor(app, collection, id = null, defaults = {}, draftMeta = null) {
+  // Only a Capture draft (with its original words to review) still uses the form; everything else is in place.
+  if (!id && !draftMeta) return createInPlace(app, collection, defaults);
   const record = id ? app.p()[collection].find(item => item.id === id) : defaults;
   if (!record) return;
   const seed = draftMeta ? {
@@ -158,8 +195,8 @@ export function detailMenu(app, top) {
   const record = app.p()[top.kind]?.find(item => item.id === top.id);
   if (!record) return [];
   const items = top.kind === 'blocks' ? blockMenu(app, record)
-    : [{label: 'Edit ' + NAMES[top.kind], icon: 'edit', onClick: () => entityEditor(app, top.kind, top.id)}];
-  items.push({divider: true},
-    {label: 'Delete', icon: 'delete', danger: true, onClick: () => deleteEntity(app, top.kind, top.id)});
+    : record.notes ? [] : [{label: 'Add notes', icon: 'notes', onClick: () => revealNotes(app, top.kind, top.id)}];
+  if (items.length) items.push({divider: true});
+  items.push({label: 'Delete', icon: 'delete', danger: true, onClick: () => deleteEntity(app, top.kind, top.id)});
   return items;
 }

@@ -1,6 +1,6 @@
 // Weekly review: last week's Results → capture → sort the Inbox into Results → this week's Results.
 // Renders into the container the planner gives it and talks to the app only through `ctx`
-// (getData, commit, close, openBlock, openCapture, now, day; optional sortInbox, readCalendar, openTask, archiveTask, deleteTask).
+// (getData, commit, close, openBlock, openCapture, now, day; optional sortInbox, readCalendar, openTask, archiveTask, deleteTask, scheduleTask).
 // Plan changes go through ctx.commit with a label, so they save, re-render and offer Undo.
 // Review progress (step, draft choice of Results) is saved with ctx.commit(mutator, null):
 // a null label means "save quietly"; it changes no plan data and keeps the last Undo intact.
@@ -15,6 +15,7 @@ import {calendarRows} from './planner-calendar.mjs';
 import {dueInfo, clock, duration, plural, timeRange} from './planner/format.mjs';
 import {areaDot} from './planner/dom.mjs';
 import {attachTaskSwipe} from './task-swipe.mjs';
+import {animateRerender, sharedAxis, ghost, reducedMotion, releaseTail, waitMotion, MOTION, DURATION, EASE} from './surface-motion.mjs';
 
 const STEPS = [
   {name: "Last week's Results", next: 'Next: empty your head'},
@@ -175,7 +176,7 @@ function createActions(ctx, week, ui, render) {
   };
   function goTo(step) {
     if (step < 1 || step > REVIEW_STEPS || step === ui.step) return;
-    Object.assign(ui, {inboxIds: groupList().map(t => t.id), step, sheet: null,
+    Object.assign(ui, {inboxIds: groupList().map(t => t.id), stepBack: step < ui.step, step, sheet: null,
       focusBase: null, hint: '', focusHint: '', stepChanged: true});
     render();
     saveProgress({finishedAt: null});
@@ -204,35 +205,106 @@ function createActions(ctx, week, ui, render) {
   return {data, week, ui, run, goTo, close, finish, render, groupList, openBlock, events, clashes, saveProgress, now: () => ctx.now()};
 }
 
+/**
+ * The body and its content column live across renders. A step change moves old and new content on the shared X axis
+ * (reversed going back); a change inside a step rebuilds the content in place, so rows slide or collapse instead of
+ * the step replaying its entrance, and the scroll position holds.
+ */
 function renderReview(root, api, ctx) {
   const {ui} = api;
   ui.seen = api.data();
-  const scroller = root.querySelector('.wr-body');
-  const keepScroll = !ui.stepChanged && scroller ? scroller.scrollTop : 0;
-  const body = el('div', 'wr-body');
-  const content = el('div', 'wr-content' + (ui.stepChanged ? ' wr-enter' : ''));
-  content.append(...stepContent(api, ctx));
-  body.append(content);
+  let body = root.querySelector(':scope > .wr-body');
+  let content = body?.querySelector(':scope > .wr-content');
+  const first = !body;
+  if (first) {
+    body = el('div', 'wr-body');
+    content = el('div', 'wr-content');
+    body.append(content);
+  }
   const active = root.contains(document.activeElement) ? document.activeElement.dataset.key : null;
-  const foot = footer(api);
-  root.replaceChildren(topBar(api), progressBar(ui.step, api.goTo), body, foot);
-  if (ui.step === 3 && ui.sheet) root.append(sheetLayer(api));
-  body.scrollTop = keepScroll;
+  const stepChange = ui.stepChanged && !first;
+  const bodyRect = stepChange ? body.getBoundingClientRect() : null;
+  const oldScroll = body.scrollTop;
+  const oldContent = stepChange && !reducedMotion() ? [...content.childNodes] : [];
+  // On a step change the frame's words (step count, progress, footer label and Back) switch at the 90ms crossover,
+  // when the old body has faded out and the new one starts to fade in, not ahead of the body.
+  // (A save during those 90ms waits for the same switch.)
+  const deferFrame = (stepChange || ui.framePending) && !reducedMotion() && !!root.querySelector(':scope > .wr-foot');
+  const foot = deferFrame ? root.querySelector(':scope > .wr-foot') : footer(api, root.querySelector(':scope > .wr-foot'));
+  const sheetKey = ui.step === 3 && ui.sheet ? `${ui.sheet.kind}:${ui.sheet.taskId}` : null;
+  const sheetWasOpen = sheetKey && root.querySelector(':scope > .wr-layer')?.dataset.sheet === sheetKey;
+  root.querySelector(':scope > .wr-layer')?.remove();
+  // The frame (bar, progress, footer) stays the same nodes from step to step; only the step body moves.
+  const bar = deferFrame ? root.querySelector(':scope > .wr-bar') : topBar(api, root.querySelector(':scope > .wr-bar'));
+  const progress = deferFrame ? root.querySelector(':scope > .wr-steps')
+    : progressBar(ui.step, api.goTo, root.querySelector(':scope > .wr-steps'));
+  if (deferFrame && stepChange) {
+    const token = ui.frameToken = (ui.frameToken ?? 0) + 1;
+    ui.framePending = true;
+    waitMotion(MOTION.fadeOut).then(() => {
+      if (ui.frameToken !== token) return;
+      ui.framePending = false;
+      if (!root.isConnected) return;
+      topBar(api, bar);
+      progressBar(api.ui.step, api.goTo, progress);
+      const hadBack = !!foot.querySelector(':scope > .wr-back');
+      footer(api, foot);
+      const back = foot.querySelector(':scope > .wr-back');
+      if (back && !hadBack) back.animate([{opacity: 0}, {opacity: 1}], {duration: DURATION.short3, easing: EASE.standardDecelerate});
+      document.documentElement.style.setProperty('--wr-foot', foot.offsetHeight + 'px');
+    });
+  } else if (!deferFrame) {
+    ui.frameToken = (ui.frameToken ?? 0) + 1;
+    ui.framePending = false;
+  }
+  if (first) root.replaceChildren(bar, progress, body, foot);
+  if (first || ui.stepChanged) {
+    releaseTail(content);
+    content.replaceChildren(...stepContent(api, ctx));
+    body.scrollTop = 0;
+  } else {
+    // Built off-document and reconciled in: unchanged rows stay the same nodes, changed ones slide or resize.
+    animateRerender(content, body, () => {
+      const stage = document.createElement('div');
+      stage.append(...stepContent(api, ctx));
+      return stage;
+    });
+  }
+  if (sheetKey) {
+    const layer = sheetLayer(api);
+    layer.dataset.sheet = sheetKey;
+    layer.classList.toggle('static', !!sheetWasOpen);
+    root.append(layer);
+  }
+  if (stepChange && oldContent.length) {
+    const column = el('div', 'wr-content');
+    column.append(...oldContent);
+    const outgoing = ghost([column], bodyRect, root, {cls: 'wr-ghost-body', scrollTop: oldScroll});
+    sharedAxis([outgoing], [content], {back: !!ui.stepBack});
+  }
   // A hairline over the footer only while content continues underneath it (no fade over the last card).
   const edge = () => foot.classList.toggle('edge', body.scrollTop + body.clientHeight < body.scrollHeight - 2);
-  body.addEventListener('scroll', edge, {passive: true});
+  body.onscroll = edge;
   edge();
   document.documentElement.style.setProperty('--wr-foot', foot.offsetHeight + 'px');
   if (ui.stepChanged) {
     ui.stepChanged = false;
-    root.querySelector('.wr-title')?.focus({preventScroll: true});
-  } else if (active) {
-    root.querySelector(`[data-key="${CSS.escape(active)}"]`)?.focus({preventScroll: true});
+    root.querySelector('.wr-body .wr-title')?.focus({preventScroll: true});
+  } else if (active && !root.contains(document.activeElement)) {
+    root.querySelector(`.wr-body [data-key="${CSS.escape(active)}"], .wr-foot [data-key="${CSS.escape(active)}"]`)
+      ?.focus({preventScroll: true});
   }
 }
 
-/* ---------- frame: top bar, progress, footer ---------- */
-function topBar(api) {
+/* ---------- frame: top bar, progress, footer ----------
+ * Built once and updated in place, so they never flash or replay while the step body changes under them. */
+function topBar(api, existing = null) {
+  if (existing) {
+    const count = existing.querySelector('.wr-bar-count');
+    const text = `${api.ui.step} of ${REVIEW_STEPS}`;
+    if (count && count.textContent !== text) count.textContent = text;
+    return existing;
+  }
   const bar = el('header', 'wr-bar');
   bar.append(iconButton('close', 'Close review', api.close), el('h1', 'wr-bar-title', 'Weekly review'));
   const count = el('span', 'wr-bar-count tnum', `${api.ui.step} of ${REVIEW_STEPS}`);
@@ -241,7 +313,16 @@ function topBar(api) {
   return bar;
 }
 
-function progressBar(step, goTo) {
+/** The same segments stay on screen from step to step, so the newly reached one fills in rather than reappearing. */
+function progressBar(step, goTo, existing = null) {
+  if (existing?.children.length === STEPS.length) {
+    [...existing.children].forEach((seg, i) => {
+      seg.classList.toggle('on', i + 1 <= step);
+      if (i + 1 === step) seg.setAttribute('aria-current', 'step');
+      else seg.removeAttribute('aria-current');
+    });
+    return existing;
+  }
   const nav = el('nav', 'wr-steps');
   nav.setAttribute('aria-label', 'Review steps');
   STEPS.forEach((s, i) => {
@@ -256,16 +337,29 @@ function progressBar(step, goTo) {
 }
 
 /** Every step can be skipped, so Next and Finish are always the one filled button; the step's own counts guide. */
-function footer(api) {
+function footer(api, existing = null) {
   const {ui} = api;
-  const foot = el('footer', 'wr-foot');
-  if (ui.step > 1) foot.append(button('Back', () => api.goTo(ui.step - 1), 'wr-btn-text wr-back', 'arrow_back'));
+  const foot = existing ?? el('footer', 'wr-foot');
+  // The handlers read the step when tapped, so the same buttons serve every step.
+  let back = foot.querySelector(':scope > .wr-back');
+  if (ui.step > 1 && !back) {
+    back = button('Back', () => api.goTo(api.ui.step - 1), 'wr-btn-text wr-back', 'arrow_back');
+    foot.prepend(back);
+  } else if (ui.step <= 1 && back) back.remove();
   const last = ui.step === REVIEW_STEPS;
   const label = last ? (ui.focus.length ? `Finish with ${plural(ui.focus.length, 'Result')}` : 'Finish review') : STEPS[ui.step - 1].next;
-  const next = button('', last ? api.finish : () => api.goTo(ui.step + 1), 'wr-btn-filled wr-next');
-  next.append(el('span', 'wr-label wr-long', label), el('span', 'wr-label wr-short', last ? 'Finish' : 'Next'), icon(last ? 'check' : 'arrow_forward'));
+  let next = foot.querySelector(':scope > .wr-next');
+  if (!next) {
+    next = button('', () => (api.ui.step === REVIEW_STEPS ? api.finish() : api.goTo(api.ui.step + 1)), 'wr-btn-filled wr-next');
+    next.append(el('span', 'wr-label wr-long'), el('span', 'wr-label wr-short'), icon('arrow_forward'));
+    foot.append(next);
+  }
+  const [long, short, mark] = next.children;
+  const set = (node, text) => { if (node.textContent !== text) node.textContent = text; };
+  set(long, label);
+  set(short, last ? 'Finish' : 'Next');
+  set(mark, last ? 'check' : 'arrow_forward');
   next.setAttribute('aria-label', label);
-  foot.append(next);
   return foot;
 }
 
@@ -557,14 +651,14 @@ function stepTwo(api, ctx) {
       text.append(meta);
     }
     item.append(text);
-    if (ctx.archiveTask && ctx.deleteTask) {
+    if (ctx.deleteTask) {
       item.classList.add('swipe-task');
-      attachTaskSwipe(item, {archive: () => ctx.archiveTask(task), remove: () => ctx.deleteTask(task)});
+      attachTaskSwipe(item, {schedule: ctx.scheduleTask ? () => ctx.scheduleTask(task, item) : null, remove: () => ctx.deleteTask(task)});
     }
     list.append(item);
   }
   parts.push(list);
-  if (ctx.openTask) parts.push(el('p', 'wr-section-note wr-hint', 'Tap a task to edit it. Swipe to archive or delete.'));
+  if (ctx.openTask) parts.push(el('p', 'wr-section-note wr-hint', 'Tap a task to edit it. Swipe right to schedule it, left to delete it.'));
   return parts;
 }
 

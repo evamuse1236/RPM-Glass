@@ -348,9 +348,12 @@ function clashRow(app, items) {
       el('span', 'clash-title', item.title + (task && !due ? ' · can move' : ''))];
   });
   const resolve = () => app.actions.resolveClash(items);
-  return listRow({symbol: 'event_busy', alert: true, headline: [el('b', 'risk-lead', 'Clash'), ' · ', phrase(when)], lines,
+  const row = listRow({symbol: 'event_busy', alert: true, headline: [el('b', 'risk-lead', 'Clash'), ' · ', phrase(when)], lines,
     action: 'Resolve', onAction: resolve, open: resolve, top: true,
     label: `Clash ${when}: ${items.map(item => `${item.title} ${timeRange(item.start, item.end)}`).join(', ')}. Resolve`});
+  // Keyed by what clashes, so the row stays the same row (and animates) when its words change.
+  row.dataset.key = 'clash:' + items.map(item => `${item.source}:${item.id ?? item.title}`).sort().join('+');
+  return row;
 }
 
 /** A Result with a deadline: its title, the deadline, and what is left; "Add to today" when nothing is scheduled. */
@@ -360,20 +363,23 @@ function resultRow(app, item) {
   const left = tasksLeft(data, block);
   const status = item.kind === 'unplanned' ? [phrase(left), sep(), phrase('not scheduled yet')] : [phrase(left)];
   const row = {symbol: 'hourglass_bottom', alert: due.overdue, headline: block.title, lines: [dueFacts(due), status], open};
-  if (item.kind !== 'unplanned') return listRow(row);
-  return listRow({...row, action: 'Add to today',
+  if (item.kind !== 'unplanned') return keyed(listRow(row), 'due:' + block.id);
+  return keyed(listRow({...row, action: 'Add to today',
     label: `${block.title}. ${due.label}, ${countdown(due.at)}. ${left}, not scheduled yet. Open Block`,
     onAction: () => app.commit({type: 'saveTask', id: item.task.id, fields: {plannedDate: localDay()}},
-      {label: `${item.task.title} added to Today`}).catch(() => {})});
+      {label: `${item.task.title} added to Today`}).catch(() => {})}), 'due:' + block.id);
 }
+
+/** A stable data-key: the row is the same row from render to render (surface-motion animates it by this key). */
+const keyed = (node, key) => { node.dataset.key = key; return node; };
 
 const upcomingRow = (app, item) => (item.kind === 'clash' ? clashRow(app, item.items) : resultRow(app, item));
 
 /** The next three days after the lead card: every other deadline and clash, soonest first. */
 function upcomingSection(app, items) {
   if (!items.length) return null;
-  const section = el('section', 'upcoming');
-  const head = el('div', 'section-header');
+  const section = keyed(el('section', 'upcoming'), 'upcoming');
+  const head = keyed(el('div', 'section-header'), 'upcoming-head');
   head.append(el('h2', '', 'Coming up'), el('small', '', 'Next 3 days'));
   section.append(head, ...items.map(item => upcomingRow(app, item)));
   return section;
@@ -390,7 +396,7 @@ function dayMarksSection(app, day) {
       .map(({items}) => ({kind: 'clash', items, at: new Date(items[1].start)})),
   ].sort((a, b) => a.at - b.at);
   if (!items.length) return null;
-  const section = el('section', 'upcoming');
+  const section = keyed(el('section', 'upcoming'), 'upcoming');
   section.setAttribute('aria-label', 'Deadlines and clashes');
   section.append(...items.map(item => upcomingRow(app, item)));
   return section;
@@ -431,7 +437,7 @@ function cardLabel(text, liveKind = null, at = null) {
 
 /** Do next: the label, the task's Result as the header, then the task itself. */
 function nextCard(app, focus, now) {
-  const card = el('section', 'result-group next-card');
+  const card = keyed(el('section', 'result-group next-card'), 'lead');
   const current = focus.start <= now;
   card.append(current ? cardLabel('Now', 'current', focus.end) : cardLabel('Do next', 'next', focus.start));
   const block = app.p().blocks.find(b => b.id === focus.blockId);
@@ -450,7 +456,7 @@ function nextCard(app, focus, now) {
  * schedules them back to back into the gap (with Undo).
  */
 function gapCard(app, gap, {block, slots}, now) {
-  const card = el('section', 'result-group next-card gap-card');
+  const card = keyed(el('section', 'result-group next-card gap-card'), 'lead');
   card.dataset.tone = app.tone(app.blockArea(block));
   const later = +gap.start - now > 15 * 60000;
   card.append(later ? cardLabel(`Free ${timeRange(gap.start, gap.end)}`, 'next', gap.start) : cardLabel(`Free until ${clock(gap.end)}`),
@@ -473,7 +479,7 @@ function gapCard(app, gap, {block, slots}, now) {
 
 /** Calendar events as fixed blocks, the way Calendar's schedule draws them. */
 function eventRow(app, event) {
-  const row = button('', () => app.actions.calendarDetails(event), 'agenda-event');
+  const row = keyed(button('', () => app.actions.calendarDetails(event), 'agenda-event'), eventKey(event));
   const block = el('span', 'event-block');
   block.append(el('span', 'event-title', event.title),
     el('span', 'event-time tnum', event.allDay ? 'All day' : timeRange(event.start, event.end)));
@@ -482,7 +488,12 @@ function eventRow(app, event) {
   return row;
 }
 
-const freeRow = minutes => el('div', 'agenda-free tnum', `${duration(minutes)} free`);
+const eventKey = event => 'event:' + (event.id ?? `${event.title}@${+event.start}`);
+/** Free time is keyed by what it follows (or the start of the agenda): when the item after a gap leaves, the gap
+ * before it stays where it is and its words change in place (fade through), while the leaving item and the gap after
+ * it close below; nothing new slides in. */
+const itemKey = item => (item ? (item.task ? 'task:' + item.task.id : eventKey(item.event)) : 'start');
+const freeRow = (minutes, prev) => keyed(el('div', 'agenda-free tnum', `${duration(minutes)} free`), 'free:after:' + itemKey(prev));
 
 /**
  * The rest of the day in time order, as Calendar's schedule shows it: tasks (each naming its Result) and calendar
@@ -491,7 +502,7 @@ const freeRow = minutes => el('div', 'agenda-free tnum', `${duration(minutes)} f
 function agenda(app, page, {tasks, events, from, title}) {
   const section = el('section', 'plain-section agenda');
   if (title) {
-    const head = el('div', 'section-header');
+    const head = keyed(el('div', 'section-header'), 'agenda-head');
     head.append(el('h2', '', title));
     section.append(head);
   }
@@ -507,9 +518,11 @@ function agenda(app, page, {tasks, events, from, title}) {
     .sort((a, b) => a.start - b.start || a.end - b.end);
   for (const event of events.filter(e => e.allDay)) section.append(eventRow(app, event));
   let cursor = from;
+  let last = null; // the item whose end the free time starts from
   for (const item of timed) {
-    if (cursor != null && item.start - cursor >= GAP_MINUTES * 60000) section.append(freeRow(Math.round((item.start - cursor) / 60000)));
+    if (cursor != null && item.start - cursor >= GAP_MINUTES * 60000) section.append(freeRow(Math.round((item.start - cursor) / 60000), last));
     section.append(item.task ? row(item.task) : eventRow(app, item.event));
+    if (cursor == null || item.end >= cursor) last = item;
     cursor = Math.max(cursor ?? 0, item.end);
   }
   for (const task of tasks.filter(task => !task.start)) section.append(row(task));
@@ -536,7 +549,10 @@ export function renderToday(app, page) {
   const isToday = day === localDay(now);
   const model = dayTasks(data, day);
   // A task completed a moment ago stays in place briefly, so the list doesn't jump under the thumb.
-  const recent = model.completed.filter(task => app.recentlyCompleted.has(task.id));
+  // It keeps its time so it stays in its own slot, not at the end of the list.
+  const recent = model.completed.filter(task => app.recentlyCompleted.has(task.id))
+    .map(task => (task.start || !task.planned ? task
+      : {...task, start: Date.parse(task.planned), end: Date.parse(task.planned) + (task.minutes ?? 30) * 60000}));
   const active = [...model.active, ...recent];
   const dayEvents = timelineItems(data, day, calendar).filter(item => item.source === 'calendar');
   const timeline = app.state.dayLayout === 'timeline' && !app.largeText();

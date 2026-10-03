@@ -3,7 +3,9 @@ import {blockTasks, localDay} from '../planner-state.mjs';
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
 import {reorderTask} from '../planner-ux.mjs';
 import {attachTaskSwipe} from '../task-swipe.mjs';
-import {el, icon, button, iconButton} from './dom.mjs';
+import {reducedMotion, waitMotion} from '../surface-motion.mjs';
+import {el, icon, button} from './dom.mjs';
+import {commitInPlace} from './inline-edit.mjs';
 import {clock, duration, dayName} from './format.mjs';
 export {dayName};
 
@@ -72,7 +74,7 @@ function mustMark() {
 
 /**
  * options: current, next, anytime, days (say "Today" too), context (text), plan (true in a Block's Plan),
- * reorder (Plan in reorder mode: drag handle), swipe (archive/delete gestures).
+ * swipe (schedule/delete gestures; on unless false). Open Plan rows reorder by long-press and drag.
  */
 export function taskRow(app, task, options = {}) {
   const row = el('div', 'task-row');
@@ -91,86 +93,235 @@ export function taskRow(app, task, options = {}) {
   row.append(main);
 
   if (task.must) row.append(mustMark());
-  if (options.plan && options.reorder && !task.done) {
-    const handle = iconButton('drag_indicator', 'Reorder ' + task.title, () => app.actions.planOrder(task),
-      {cls: 'drag-handle'});
-    installOrder(app, handle, row, task);
-    row.append(handle);
-  }
+  if (options.plan && !task.done) installOrder(app, row, task, options.onReorder);
   if (!options.plan && options.swipe !== false && !task.done) attachSwipe(app, row, task);
+  // What the row's handlers act on: a re-render may keep this very node (and its running animations) in place of an
+  // identical rebuilt row only when this matches (see animateRerender).
+  row.__closure = JSON.stringify([task.id, task.title, !!task.done, task.occurrence ?? null, task.planned ?? null,
+    task.plannedDate ?? null, task.recurrence ?? null, task.repeatAfterDays ?? null, task.blockId ?? null, !!task.must]);
+  row.__options = options;
   return row;
 }
 
+/** Swipe right schedules (one-tap date choices anchored to the row); swipe left deletes, with Undo. */
 function attachSwipe(app, row, task) {
   row.classList.add('swipe-task');
   attachTaskSwipe(row, {
-    archive: () => app.actions.archiveTask(task),
+    schedule: () => app.actions.scheduleTask(task, row),
     remove: () => app.actions.deleteTask(task),
   });
 }
 
-/** Drag the handle to reorder within the Plan; arrow keys move one step. */
-function installOrder(app, handle, row, task) {
-  let start = null;
-  let target = null;
-  let moved = false;
-  const clear = () => row.parentElement?.querySelectorAll('.drop-target').forEach(n => n.classList.remove('drop-target'));
-  handle.addEventListener('pointerdown', event => {
-    start = {y: event.clientY};
-    target = null;
-    moved = false;
-    handle.setPointerCapture?.(event.pointerId);
-  });
-  handle.addEventListener('pointermove', event => {
-    if (!start || (Math.abs(event.clientY - start.y) < 8 && !moved)) return;
-    moved = true;
-    row.classList.add('dragging');
-    row.style.setProperty('--drag-y', event.clientY - start.y + 'px');
-    const hit = document.elementsFromPoint(event.clientX, event.clientY)
-      .find(node => node !== row && node.classList?.contains('task-row'));
-    if (hit && hit.parentElement === row.parentElement) {
-      clear();
-      target = Number(hit.dataset.taskId);
-      hit.classList.add('drop-target');
-    }
-  });
-  const finish = () => {
-    if (!start) return;
-    start = null;
-    row.classList.remove('dragging');
-    row.style.removeProperty('--drag-y');
-    clear();
-    if (moved && target != null && target !== task.id) {
-      const ids = blockTasks(app.data(), task.blockId).map(t => t.id);
-      app.commit({type: 'reorder', blockId: task.blockId, ids: reorderTask(ids, task.id, target)},
-        {label: 'Plan order changed'}).catch(() => {});
+const LONG_PRESS = 350;
+const SLOP = 8;
+
+/**
+ * Where a lifted row lands: it takes a row's slot once its leading edge passes that row's middle (its top going up,
+ * its bottom going down), so short and tall rows swap alike. `centers` are the rows' resting centres.
+ */
+export function dropIndex(centers, from, top, bottom) {
+  let to = from;
+  for (let i = from + 1; i < centers.length; i++) if (bottom > centers[i]) to = i;
+  for (let i = from - 1; i >= 0; i--) if (top < centers[i]) to = i;
+  return to;
+}
+
+/** Where the lifted row comes to rest, as an offset from its own resting top: the slot it takes is the one `to` held. */
+export function slotOffset(rests, from, to) {
+  if (to === from) return 0;
+  const own = rests[from].bottom - rests[from].top;
+  return to < from ? rests[to].top - rests[from].top : rests[to].bottom - own - rests[from].top;
+}
+
+const SETTLE = 200;
+
+/**
+ * Plan order by touch, as in Google Tasks: hold a Plan row still for 350 ms and it lifts; drag it and the rows it
+ * passes slide out of its way; let go and it settles into its exact slot and lands flat. Only then is the row moved
+ * in the page and the order saved (with Undo), without rebuilding the Plan, so nothing moves twice. Moving before
+ * the hold completes is a scroll and releasing early is a tap, so neither conflicts. Alt or Ctrl with the arrow keys
+ * moves a row one step; "Change Plan order" in the task menu stays the accessible path.
+ */
+function installOrder(app, row, task, onReorder) {
+  let press = null;
+  let drag = null;
+  let swallowClick = false;
+  const scroller = () => app.dom.scroll;
+  const cancelPress = () => {
+    if (press) clearTimeout(press.timer);
+    press = null;
+  };
+  const saveOp = targetId => ({type: 'reorder', blockId: task.blockId,
+    ids: reorderTask(blockTasks(app.data(), task.blockId).map(t => t.id), task.id, targetId)});
+  const save = targetId => {
+    const op = saveOp(targetId);
+    const ids = blockTasks(app.data(), task.blockId).map(t => t.id);
+    if (op.ids.every((id, i) => id === ids[i])) return Promise.resolve();
+    return app.commit(op, {label: 'Plan order changed'});
+  };
+  const shift = () => {
+    const {peers, from, to, gap} = drag;
+    peers.forEach((peer, i) => {
+      if (peer === row) return;
+      const by = from < to && i > from && i <= to ? -gap : to < from && i >= to && i < from ? gap : 0;
+      peer.style.setProperty('--shift', by + 'px');
+    });
+  };
+  const follow = clientY => {
+    const scrolled = scroller().scrollTop - drag.scroll;
+    const dy = clientY - drag.startY + scrolled;
+    row.style.setProperty('--drag-y', dy + 'px');
+    const to = dropIndex(drag.centers, drag.from, drag.top + dy, drag.top + drag.gap + dy);
+    if (to !== drag.to) {
+      drag.to = to;
+      shift();
     }
   };
-  handle.addEventListener('pointerup', finish);
-  handle.addEventListener('pointercancel', () => {
-    start = null;
-    row.classList.remove('dragging');
+  // Near the top or bottom edge of the page, the page scrolls under the lifted row.
+  const edgeScroll = () => {
+    if (!drag) return;
+    const box = scroller().getBoundingClientRect();
+    const edge = 64;
+    const speed = drag.y > box.bottom - edge ? (drag.y - (box.bottom - edge)) / 4
+      : drag.y < box.top + edge ? -((box.top + edge) - drag.y) / 4 : 0;
+    if (speed) {
+      scroller().scrollTop += speed;
+      follow(drag.y);
+    }
+    drag.frame = requestAnimationFrame(edgeScroll);
+  };
+  const lift = () => {
+    const list = row.parentElement;
+    if (!press || !list) return;
+    const peers = [...list.querySelectorAll(':scope > .task-row')];
+    if (peers.length < 2) { cancelPress(); return; }
+    const rests = peers.map(peer => { const r = peer.getBoundingClientRect(); return {top: r.top, bottom: r.bottom}; });
+    const from = peers.indexOf(row);
+    drag = {pointerId: press.id, startY: press.y, y: press.y, peers, rests, from, scroll: scroller().scrollTop,
+      gap: rests[from].bottom - rests[from].top, top: rests[from].top, centers: rests.map(r => (r.top + r.bottom) / 2)};
+    drag.to = drag.from;
+    press = null;
+    swallowClick = true;
+    try { row.setPointerCapture(drag.pointerId); } catch {}
+    list.classList.add('sorting');
+    row.classList.add('lifted');
+    row.style.setProperty('--drag-y', '0px');
+    app.api.native('haptic').catch(() => {});
+    drag.frame = requestAnimationFrame(edgeScroll);
+  };
+  // Clears every drag style in one style change: transitions belong to the classes removed, so nothing animates.
+  const reset = list => {
+    row.classList.remove('lifted', 'settling');
     row.style.removeProperty('--drag-y');
-    clear();
+    list?.classList.remove('sorting');
+    list?.querySelectorAll(':scope > .task-row').forEach(peer => peer.style.removeProperty('--shift'));
+  };
+  const drop = keep => {
+    if (!drag) return;
+    const {peers, rests, from, to, frame} = drag;
+    cancelAnimationFrame(frame);
+    drag = null;
+    const list = row.parentElement;
+    const moved = keep && to !== from;
+    if (!moved) peers.forEach(peer => peer.style.setProperty('--shift', '0px'));
+    // Settle: the row glides into its exact slot while it comes down flat (scale, shadow and fill together).
+    row.classList.add('settling');
+    row.style.setProperty('--drag-y', (moved ? slotOffset(rests, from, to) : 0) + 'px');
+    const finish = () => {
+      if (!moved || !list || row.parentElement !== list) return reset(list);
+      // The row now sits, flat, exactly where the new order puts it: move it there in the page, clear the offsets
+      // in the same frame (nothing visible changes), then save without rebuilding the Plan.
+      const target = peers[to];
+      if (to < from) target.before(row);
+      else target.after(row);
+      reset(list);
+      return commitInPlace(app, saveOp(Number(target.dataset.taskId)), {label: 'Plan order changed'})
+        .then(() => onReorder?.()).catch(() => {});
+    };
+    if (reducedMotion() || !row.getAnimations) return finish();
+    // Wait for the glide and for the rows still sliding out of the way (their transitions, on the page's clock).
+    getComputedStyle(row).translate;
+    const moving = [row, ...peers].flatMap(node => node.getAnimations());
+    let done = false;
+    const once = () => { if (!done) { done = true; finish(); } };
+    Promise.all(moving.map(a => a.finished.catch(() => {}))).then(once);
+    setTimeout(once, SETTLE * 6);
+  };
+
+  row.addEventListener('pointerdown', event => {
+    if (event.button > 0 || drag || app.saving) return;
+    cancelPress();
+    press = {id: event.pointerId, x: event.clientX, y: event.clientY, timer: setTimeout(lift, LONG_PRESS)};
   });
-  handle.addEventListener('click', event => {
-    if (!moved) return;
+  row.addEventListener('pointermove', event => {
+    if (press && event.pointerId === press.id) {
+      if (Math.hypot(event.clientX - press.x, event.clientY - press.y) > SLOP) cancelPress();
+      return;
+    }
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    event.preventDefault();
+    drag.y = event.clientY;
+    follow(event.clientY);
+  });
+  row.addEventListener('pointerup', event => {
+    cancelPress();
+    if (drag && event.pointerId === drag.pointerId) drop(true);
+  });
+  row.addEventListener('pointercancel', () => {
+    cancelPress();
+    drop(false);
+  });
+  // Once lifted, a finger moving is a drag, not a page scroll; the long-press menu and text selection stay away.
+  row.addEventListener('touchmove', event => { if (drag && event.cancelable) event.preventDefault(); }, {passive: false});
+  row.addEventListener('contextmenu', event => { if (press || drag || swallowClick) event.preventDefault(); });
+  row.addEventListener('click', event => {
+    if (!swallowClick) return;
+    swallowClick = false;
     event.preventDefault();
     event.stopImmediatePropagation();
-    moved = false;
   }, true);
-  handle.addEventListener('keydown', event => {
-    if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+  row.addEventListener('pointerdown', () => { if (!drag) swallowClick = false; }, true);
+  row.addEventListener('keydown', event => {
+    if (!['ArrowUp', 'ArrowDown'].includes(event.key) || !(event.altKey || event.ctrlKey)) return;
     event.preventDefault();
-    const ids = blockTasks(app.data(), task.blockId).map(t => t.id);
-    const index = ids.indexOf(task.id) + (event.key === 'ArrowUp' ? -1 : 1);
-    if (index < 0 || index >= ids.length) return;
-    app.commit({type: 'reorder', blockId: task.blockId, ids: reorderTask(ids, task.id, ids[index])},
-      {label: 'Plan order changed'}).catch(() => {});
+    const open = blockTasks(app.data(), task.blockId).filter(t => !t.done).map(t => t.id);
+    const target = open[open.indexOf(task.id) + (event.key === 'ArrowUp' ? -1 : 1)];
+    if (target == null) return;
+    save(target).then(() => app.dom.work.querySelector(`.plan-list .task-row[data-task-id="${task.id}"] .task-main`)
+      ?.focus({preventScroll: true})).catch(() => {});
   });
 }
 
-/** One tap completes; recurring tasks complete one occurrence. Undo is always offered. */
+/** The struck row holds for 300ms, so "done" can be read, then collapses into Completed (250ms): gone by about 550ms. */
+const COLLAPSE_AFTER = 300;
+
+/**
+ * The row on screen becomes the completed row at once: the ring fills with a short pop and the title strikes
+ * through (150ms). It is built exactly as the saved re-render will build it, so that re-render keeps this node and
+ * the pop is never replayed. Anything the screen added to the row (its Result line) comes along.
+ */
+function markRow(app, task, done) {
+  for (const row of app.dom.work.querySelectorAll(`.task-row[data-task-id="${task.id}"]`)) {
+    if (row.closest('.motion-ghost')) continue;
+    // A completed one-time task has no occurrence of its own (as the saved task will be rebuilt).
+    const {occurrence, ...saved} = task;
+    const fresh = taskRow(app, done ? {...saved, done} : {...task, done}, row.__options ?? {});
+    const extras = [...(row.querySelector('.task-main')?.children ?? [])].slice(2);
+    fresh.querySelector('.task-main').append(...extras.map(node => node.cloneNode(true)));
+    if (done) fresh.classList.add('just-done');
+    const focused = row.contains(document.activeElement);
+    row.replaceWith(fresh);
+    if (focused) fresh.querySelector('.task-check')?.focus({preventScroll: true});
+  }
+}
+
+/**
+ * One tap completes; recurring tasks complete one occurrence. Undo is always offered.
+ * The ring pops and the title strikes through at once and the row holds, struck, for 300ms; then, in one re-render, it
+ * collapses where it is (250ms, its words fading with its space) while Completed opens and whatever the tick changed
+ * (a lead card, Coming up, the free time) fades through in the same 250ms, so it is all still by about 550ms and
+ * nothing moves after. Undo reopens it in place.
+ */
 export async function toggleDone(app, task, when) {
   if (app.saving) return;
   const completing = !task.done;
@@ -178,17 +329,32 @@ export async function toggleDone(app, task, when) {
   const op = task.done
     ? {type: 'reopenTask', id: task.id, occurrence: when ?? task.occurrence}
     : {type: 'saveTask', id: task.id, fields: {done: true}, occurrence};
+  const linger = completing && !repeats(task);
+  // Timed on the animation clock from the tap, so the collapse overlaps the tick whatever the save takes.
+  const collapse = linger ? waitMotion(COLLAPSE_AFTER) : null;
+  if (linger) app.recentlyCompleted.set(task.id, true);
+  if (linger) markRow(app, task, true);
+  // From the list, the page waits for the collapse; from a sheet, the page behind it updates under the scrim as usual.
+  const fromList = linger && app.dom.sheet.hidden;
   try {
-    await app.commit(op, {label: completing ? 'Task completed' : 'Task marked incomplete', keepSheet: false});
-    if (completing && !repeats(task)) {
-      app.recentlyCompleted.set(task.id, true);
-      app.render();
-      setTimeout(() => {
-        if (app.recentlyCompleted.delete(task.id) && app.dom.sheet.hidden) app.render();
-      }, 1500);
+    await app.commit(op, {label: completing ? 'Task completed' : 'Task marked incomplete', keepSheet: false,
+      render: !fromList});
+    if (linger) {
+      collapse.then(() => {
+        // One beat after the hold: a single re-render by key in which the row collapses where it is (its words fading
+        // with its space), Completed opens, and whatever the tick changed above (Coming up, the lead card, free time)
+        // fades through, all in the same 250ms, so the net shift is one motion and nothing moves after it.
+        if (!app.recentlyCompleted.delete(task.id)) return;
+        // The pop has played: a row the re-render moves (to collapse where it was) must not replay it.
+        for (const row of app.dom.work.querySelectorAll(`.task-row[data-task-id="${task.id}"].just-done`)) row.classList.remove('just-done');
+        if (fromList || app.dom.sheet.hidden) app.render();
+      });
     }
     app.api.native('haptic').catch(() => {});
-  } catch {}
+  } catch {
+    if (linger) app.recentlyCompleted.delete(task.id);
+    if (linger) markRow(app, task, false);
+  }
 }
 
 /** "Completed (n)" disclosure; tasks completed a moment ago stay in place first. */
@@ -198,6 +364,7 @@ export function completedSection(app, host, rows, options = {}) {
   for (const task of rows.filter(t => app.recentlyCompleted.has(t.id))) host.append(taskRow(app, task, options));
   if (!rest.length) return;
   const group = el('section', 'completed-group');
+  group.dataset.key = 'completed';
   const open = app.state.completedOpen;
   const toggle = button('', () => {
     app.state.completedOpen = !app.state.completedOpen;

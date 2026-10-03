@@ -1,45 +1,43 @@
-/** Task detail, quick add / edit, and the task-level actions (move, order, archive, delete, restore). */
-import {tasks, blockTasks, localDay, shiftDay, conflicts} from '../planner-state.mjs';
+/**
+ * The task sheet edits in place: every row unfolds its choices under itself and a choice saves at once (Undo in the
+ * snackbar), so there is no separate editor. Quick add uses the same choices. Also the task-level actions (move,
+ * order, duplicate, archive, delete, restore) and the Inbox.
+ */
+import {tasks, blockTasks, localDay, conflicts} from '../planner-state.mjs';
 import {repeats, nextOccurrence, occurrences} from '../planner-recurrence.mjs';
 import {calendarLabel, calendarRisk, calendarRows} from '../planner-calendar.mjs';
+import {rankResults} from '../review-state.mjs';
 import {el, icon, button, iconButton, labelButton, emptyState} from './dom.mjs';
-import {clock, duration, dateText, relativeDay, timeValue} from './format.mjs';
-import {openSheet, field, select, rememberValue} from './sheet.mjs';
-import {openMenu} from './menu.mjs';
+import {clock, duration, timeRange, dateText} from './format.mjs';
+import {animateRerender, reducedMotion, slideScroll, EASE, DURATION, MOTION} from '../surface-motion.mjs';
+import {openSheet, isSheetOpen, discardDraft, rememberValue} from './sheet.mjs';
+import {openMenu, closeMenu} from './menu.mjs';
 import {taskRow, toggleDone} from './task-row.mjs';
-
-const REPEAT_LABELS = {daily: 'Daily', weekdays: 'Every weekday', weekly: 'Weekly'};
+import {
+  whenOf, whenFields, whenLabel, clockOf, dayPresets, timePresets, repeatValue, repeatLabel, parseWhen,
+  schedulePresets, blockMatches, hashToken, hashTag, withoutTag,
+  foldGroup, fold, foldFor, fieldRow, choiceChip, markChips, chipRow,
+  dateChooser, durationChooser, repeatChooser, alertChooser, blockChooser, recentBlock, rememberBlock,
+} from './task-fields.mjs';
 
 const findTask = (app, id) => tasks(app.data()).find(task => task.id === id);
+const NEEDS_TIME = 'A repeating task needs a date and time.';
+const SNACKBAR_ROOM = 68; // a docked one-line snackbar: 48dp, 8dp above the actions, 12dp above the content
 
-function repeatText(task) {
-  if (task.repeatAfterDays) return `${task.repeatAfterDays} days after completion`;
-  return REPEAT_LABELS[task.recurrence] ?? "Doesn't repeat";
+/** Saves one after another, so a choice made while another save is still in flight is never dropped. */
+function saver(app) {
+  let chain = Promise.resolve();
+  const idle = async () => { while (app.saving) await new Promise(done => setTimeout(done, 16)); };
+  return (op, label) => {
+    const run = chain.then(idle).then(() => app.commit(op, {keepSheet: true, label}));
+    chain = run.catch(() => {});
+    return run.catch(() => undefined);
+  };
 }
 
-function detailRow(symbol, text, onClick, {fill = false, cls = ''} = {}) {
-  const row = button('', onClick, 'detail-row ' + cls);
-  row.append(icon(symbol, {fill}), el('span', 'detail-text', text));
-  return row;
-}
-
-function partOf(app, task) {
-  const context = app.context(task);
-  if (!context.block) {
-    return detailRow('stacks', 'No block · Choose a Block', () => movePicker(app, task));
-  }
-  const panel = button('', () => app.openBlock(context.block.id), 'part-of');
-  panel.dataset.tone = app.tone(context.area);
-  panel.append(el('span', 'overline', 'Part of'), el('strong', 'part-result', context.block.title));
-  panel.append(el('span', 'part-purpose', context.block.purpose || 'Add a Purpose to this Block'));
-  const crumbs = [context.area?.title, context.project?.title].filter(Boolean).join(' › ');
-  if (crumbs) panel.append(el('span', 'part-crumbs', crumbs));
-  panel.setAttribute('aria-label', `Part of ${context.block.title}. Purpose: ${context.block.purpose || 'none yet'}. Open Block`);
-  return panel;
-}
-
-function inlineText(app, body, symbol, label, value, onSave) {
-  const wrap = el('label', 'detail-row detail-field');
+/** A borderless field that grows with its text and saves when it loses focus. */
+function inlineText(host, symbol, label, value, onSave, cls = '') {
+  const wrap = el('label', 'detail-row detail-field ' + cls);
   const input = el('textarea');
   input.rows = 1;
   input.placeholder = label;
@@ -52,89 +50,515 @@ function inlineText(app, body, symbol, label, value, onSave) {
   input.addEventListener('input', grow);
   requestAnimationFrame(grow);
   input.addEventListener('change', () => onSave(input.value));
+  input.grow = grow;
   wrap.append(icon(symbol), input);
-  body.append(wrap);
+  host.append(wrap);
   return input;
 }
 
-/** Task detail sheet: completion, editable title, schedule rows, Part of, notes. */
-export function openTask(app, id, occurrence) {
+/** Put a saved value back into a text field, unless the user is typing in it. */
+function syncText(input, value) {
+  if (document.activeElement === input || input.value === (value ?? '')) return;
+  input.value = value ?? '';
+  input.grow?.();
+}
+
+/** The Block this task's words point to (the weekly review's suggestion), or null. */
+function suggestBlock(app, task, exclude = null) {
+  if (!task?.title?.trim()) return null;
+  const candidates = app.activeBlocks().filter(b => b.id !== exclude).map(b => ({...b, blockId: b.id}));
+  if (!candidates.length) return null;
+  return rankResults(app.data(), task, candidates).suggested;
+}
+
+/** Calendar and Plan clashes for a task's time. Never blocks a save: the sheet says it in words. */
+async function scheduleCheck(app, id, fields) {
+  const existing = id ? findTask(app, id) : null;
+  const candidate = {...existing, ...fields};
+  const planned = candidate.planned;
+  const minutes = candidate.minutes ?? 30;
+  if (!planned) return {clashes: [], risk: null};
+  const anchor = repeats(candidate) ? nextOccurrence(candidate) : planned;
+  const copy = await app.api.native('calendarRead', {anchor: Date.parse(anchor)});
+  app.state.calendar = calendarRows(copy);
+  app.state.calendarState = calendarLabel(copy);
+  const start = Date.parse(anchor);
+  const risk = calendarRisk(copy, start, start + minutes * 60000);
+  const window = start + (repeats(candidate) ? 21 * 86400000 : 1);
+  const clashes = occurrences(candidate, start, window)
+    .flatMap(o => conflicts(app.data(), o.start, minutes, app.state.calendar, id))
+    .filter((e, i, all) => all.findIndex(x => x.id === e.id && x.start === e.start) === i);
+  return {clashes, risk};
+}
+
+function clashText(clashes) {
+  const names = clashes.slice(0, 2).map(c => `${c.title} (${dateText(c.start)}, ${timeRange(c.start, c.end)})`);
+  const more = clashes.length > 2 ? ` and ${clashes.length - 2} more` : '';
+  return `Clashes with ${names.join(' and ')}${more}`;
+}
+
+/** The task's place in the plan: its Result and Purpose, opening the Block. */
+function partOf(app, task) {
+  const context = app.context(task);
+  const panel = button('', () => app.openBlock(context.block.id), 'part-of');
+  panel.dataset.tone = app.tone(context.area);
+  panel.append(el('span', 'overline', 'Part of'), el('strong', 'part-result', context.block.title));
+  panel.append(el('span', 'part-purpose', context.block.purpose || 'Add a Purpose to this Block'));
+  const crumbs = [context.area?.title, context.project?.title].filter(Boolean).join(' › ');
+  if (crumbs) panel.append(el('span', 'part-crumbs', crumbs));
+  panel.setAttribute('aria-label', `Part of ${context.block.title}. Purpose: ${context.block.purpose || 'none yet'}. Open Block`);
+  return panel;
+}
+
+/**
+ * Task sheet. Title, date and time, estimate, repeat, alert, Must, Block, notes: each edits where it is and saves
+ * at once. `occurrence` is the repeat being looked at; `focus` opens one row's choices ('date', 'block').
+ */
+export function openTask(app, id, occurrence, {focus = null} = {}) {
   const task = findTask(app, id);
   if (!task) {
     app.notice('This task is no longer available.');
     return;
   }
+  // Opened from the Inbox: Back (the arrow, Android Back, Escape) returns to it; X closes everything.
+  const fromInbox = inboxShowing(app);
   app.state.focusedTaskId = id;
   app.state.focusedBlockId = task.blockId ?? null;
-  const when = occurrence ?? (repeats(task) ? nextOccurrence(task) : task.planned);
-  const {body, actions, header} = openSheet(app, 'Task', {variant: 'detail'});
-  const save = (fields, label = 'Task updated') =>
-    app.commit({type: 'saveTask', id, fields}, {keepSheet: true, label}).catch(() => {});
+  const anchor = task.planned;
+  const live = () => findTask(app, id);
+  const when = t => (repeats(t) ? (occurrence && t.planned === anchor ? occurrence : nextOccurrence(t)) : t.planned);
+  const {body, actions, header, sheet} = openSheet(app, 'Task', {variant: 'detail sheet-task'});
+  sheet.style.removeProperty('--sheet-pin');
+  sheet.style.removeProperty('height'); // a leaving sheet's frozen height (planner.mjs) is not this one's
+  const save = saver(app);
+  const commit = (fields, label) => save({type: 'saveTask', id, fields}, label);
+  const group = foldGroup(body);
 
-  const more = iconButton('more_vert', 'More task options', () => openMenu(more, taskMenu(app, task)));
+  const more = iconButton('more_vert', 'More task options', () => openMenu(more, taskMenu(app, live() ?? task, {
+    move: () => group.open(blockRow),
+    helper: () => { leverage.closest('.detail-row').hidden = false; leverage.focus(); },
+    schedule: () => scheduleMenu(app, live() ?? task, more, {occurrence}),
+    afterRemove: fromInbox ? () => showInbox(app, {motion: 'back'}) : null,
+  })));
   header.querySelector('.sheet-close').before(more);
+  const goBack = () => {
+    if (body.contains(document.activeElement)) document.activeElement.blur();
+    showInbox(app, {motion: 'back'});
+    // Focus returns to the row the task was opened from, which shows a soft rounded highlight that fades (a keyboard
+    // user gets the focus ring instead).
+    const row = app.dom.sheet.querySelector(`.task-row[data-task-id="${id}"]`);
+    row?.querySelector('.task-main')?.focus({preventScroll: true});
+    // A clock on the animation timeline, so a redraw continues the fade from where it is on screen.
+    const total = RETURN_HOLD + RETURN_FADE;
+    const clock = reducedMotion() ? null : document.createElement('i').animate([{}, {}], {duration: total});
+    app.sheet.returned = {id, elapsed: () => (clock ? Number(clock.currentTime ?? total) : total)};
+    if (row) markReturned(row, 0);
+  };
+  if (fromInbox) header.prepend(iconButton('arrow_back', 'Back to Inbox', goBack, {cls: 'sheet-back'}));
 
+  // Title and completion
   const titleRow = el('div', 'detail-title-row');
-  const check = button('', () => toggleDone(app, task, when), 'task-check large');
+  const check = button('', () => toggleDone(app, live() ?? task, when(live() ?? task)), 'task-check large');
   check.setAttribute('role', 'checkbox');
-  check.setAttribute('aria-checked', String(!!task.done));
-  check.setAttribute('aria-label', `Mark ${task.title} ${task.done ? 'incomplete' : 'complete'}`);
   const ring = el('span', 'check-ring');
-  if (task.done) ring.append(icon('check'));
   check.append(ring);
   const title = el('textarea', 'detail-title');
   title.rows = 1;
   title.value = task.title;
+  title.maxLength = 200;
   title.setAttribute('aria-label', 'Task title');
+  title.enterKeyHint = 'next';
   const grow = () => {
     title.style.height = 'auto';
     title.style.height = title.scrollHeight + 'px';
   };
+  title.grow = grow;
   title.addEventListener('input', grow);
+  // The first tap into the title puts the caret at the end of the words (to add to them or rename), not wherever the
+  // finger landed mid-word; later taps place it normally.
+  let caretPlaced = false;
+  title.addEventListener('mousedown', event => {
+    if (caretPlaced || event.button > 0 || document.activeElement === title) return;
+    caretPlaced = true;
+    event.preventDefault();
+    title.focus({preventScroll: true});
+    title.setSelectionRange(title.value.length, title.value.length);
+  });
+  title.addEventListener('focus', () => { caretPlaced = true; });
+  title.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      // Next goes on to the details (the title saves as it loses focus); Enter in the details is a new line.
+      event.preventDefault();
+      notes.focus({preventScroll: true});
+      notes.setSelectionRange(notes.value.length, notes.value.length);
+      // Only if the details would be out of sight does the body move, and then as one short slide.
+      const row = notes.closest('.detail-row');
+      const hidden = row ? row.getBoundingClientRect().bottom - body.getBoundingClientRect().bottom + 8 : 0;
+      if (hidden > 0) slideScroll(body, Math.ceil(hidden));
+    }
+  });
   requestAnimationFrame(grow);
-  title.addEventListener('change', () => save({title: title.value}));
+  title.addEventListener('change', () => {
+    const value = title.value.trim();
+    if (!value) {
+      title.value = live()?.title ?? task.title;
+      return;
+    }
+    if (value !== live()?.title) commit({title: value}, 'Title saved');
+  });
   titleRow.append(check, title);
   body.append(titleRow);
 
-  const dateLabel = when
-    ? `${relativeDay(localDayOf(when))}, ${clock(when)}`
-    : task.plannedDate ? relativeDay(task.plannedDate) : 'No date';
-  body.append(
-    detailRow('schedule', dateLabel, () => taskEditor(app, id, {}, [], null, 'date')),
-    detailRow('timer', task.minutes == null ? 'No estimate' : duration(task.minutes),
-      () => taskEditor(app, id, {}, [], null, 'duration')),
-    detailRow('repeat', repeatText(task), () => taskEditor(app, id, {}, [], null, 'repeat')),
-  );
-  const must = detailRow('star', task.must ? 'Must' : 'Mark as Must',
-    () => app.commit({type: 'saveTask', id, fields: {must: !task.must}}, {keepSheet: true,
-      label: task.must ? 'Must removed' : 'Marked Must'}).then(() => openTask(app, id, occurrence)).catch(() => {}),
-    {fill: !!task.must, cls: task.must ? 'must-on' : ''});
-  must.setAttribute('aria-pressed', String(!!task.must));
-  body.append(must, partOf(app, task));
+  // Date and time, with any clash said under it
+  const error = (row, message) => {
+    let slot = row.inner.querySelector('.field-error');
+    if (!slot) {
+      slot = el('p', 'field-error');
+      slot.setAttribute('role', 'alert');
+      row.inner.prepend(slot);
+    }
+    slot.textContent = message;
+  };
+  const clearError = row => row.inner.querySelector('.field-error')?.remove();
+  const clash = fold('clash-fold');
+  const clashLine = el('p', 'field-alert');
+  clash.inner.append(clashLine);
+  let checkToken = 0;
+  let checkedSlot = null;
+  const recheck = async () => {
+    const token = ++checkToken;
+    try {
+      const t = live();
+      checkedSlot = t && `${t.planned}|${t.minutes}|${t.recurrence}|${t.repeatAfterDays}`;
+      const {clashes, risk} = t?.planned ? await scheduleCheck(app, id, {}) : {clashes: [], risk: null};
+      if (token !== checkToken || !body.isConnected) return;
+      clashLine.replaceChildren(icon(clashes.length ? 'event_busy' : 'info'),
+        el('span', '', clashes.length ? clashText(clashes) : risk ?? ''));
+      clashLine.classList.toggle('is-clash', !!clashes.length);
+      clash.node.setOpen(!!(clashes.length || risk));
+    } catch {}
+  };
+  const setWhen = (value, label, {close = false} = {}) => {
+    const t = live();
+    if (!t) return;
+    if (repeats(t) && !(value.day && value.time)) {
+      error(dateRow, NEEDS_TIME + ' Turn off Repeat first.');
+      return;
+    }
+    clearError(dateRow);
+    dateRow.set(whenLabel(value), {muted: !value.day});
+    if (close) group.close();
+    commit(whenFields(value), label).then(saved => { if (saved !== undefined) recheck(); });
+  };
+  const dateRow = fieldRow(group, {symbol: 'schedule', label: 'Date', cls: 'date-field', build: inner => dateChooser(inner, {
+    presets: false,
+    noDate: true,
+    get: () => whenOf(live() ?? task, when(live() ?? task)),
+    pickDay: day => {
+      const current = whenOf(live(), when(live()));
+      if (!day) return setWhen({day: '', time: ''}, 'Date removed', {close: true});
+      const value = {day, time: current.time};
+      // A day keeps the chooser open for the time; one already set stays, as most planners keep it.
+      setWhen(value, 'Moved to ' + whenLabel(value), {close: false});
+      dateRow.refresh();
+    },
+    pickTime,
+  })});
 
-  inlineText(app, body, 'notes', 'Add details', task.notes, value => save({notes: value}));
-  if (!app.context(task).block) {
-    inlineText(app, body, 'favorite', 'Why? (optional)', task.purpose, value => save({purpose: value}));
+  // The likeliest days sit on the date row itself: one tap saves the day (keeping its time), then the time chips
+  // unfold in place for an optional second tap. The row's own tap still unfolds every choice.
+  const pickTime = time => {
+    const current = whenOf(live(), when(live()));
+    const value = {day: current.day || localDay(), time};
+    setWhen(value, time ? 'Moved to ' + whenLabel(value) : 'Time removed', {close: true});
+  };
+  const quickDays = chipRow('date-quick');
+  quickDays.setAttribute('role', 'group');
+  quickDays.setAttribute('aria-label', 'Day');
+  for (const [label, day, aria] of dayPresets()) {
+    quickDays.append(choiceChip(label, day, () => {
+      const t = live();
+      if (!t) return;
+      const value = {day, time: whenOf(t, when(t)).time};
+      setWhen(value, 'Moved to ' + whenLabel(value));
+      group.open(timesRow);
+      timesRow.refresh();
+    }, {aria}));
   }
-  if (task.leverage) body.append(detailRow('group', task.leverage, () => taskEditor(app, id, {}, [], null, 'more')));
+  const times = fold('time-fold');
+  const timeChips = chipRow('time-chips');
+  timeChips.setAttribute('role', 'group');
+  timeChips.setAttribute('aria-label', 'Time');
+  times.inner.append(timeChips);
+  const drawTimes = () => {
+    const t = live() ?? task;
+    const {day, time} = whenOf(t, when(t));
+    timeChips.replaceChildren(...timePresets(time).map(value => choiceChip(clockOf(day, value), value, pickTime)),
+      ...(repeats(t) ? [] : [choiceChip('No time', '', pickTime)]));
+    markChips(timeChips, time);
+  };
+  const timesRow = {
+    node: times.node, inner: times.inner,
+    get isOpen() { return times.node.classList.contains('open'); },
+    open() { drawTimes(); times.node.setOpen(true); },
+    close() {
+      const hadFocus = times.node.contains(document.activeElement);
+      times.node.setOpen(false);
+      if (hadFocus) dateRow.head.focus({preventScroll: true});
+    },
+    refresh: drawTimes,
+  };
+  dateRow.wrap.insertBefore(quickDays, dateRow.node);
+  dateRow.wrap.insertBefore(times.node, dateRow.node);
+
+  const pickMinutes = minutes => {
+    durationRow.set(duration(minutes), {muted: minutes == null});
+    markChips(quickMinutes, minutes == null ? '' : String(minutes));
+    group.close();
+    commit({minutes}, minutes == null ? 'Estimate removed' : 'Estimate ' + duration(minutes))
+      .then(saved => { if (saved !== undefined && live()?.planned) recheck(); });
+  };
+  const durationRow = fieldRow(group, {symbol: 'timer', label: 'Estimate', build: inner => durationChooser(inner, {
+    get: () => live()?.minutes ?? null,
+    pick: pickMinutes,
+  })});
+  // As on the date row, the likeliest estimates sit on the row itself (one tap saves); the row's tap unfolds the rest.
+  const quickMinutes = chipRow('date-quick estimate-quick');
+  quickMinutes.setAttribute('role', 'group');
+  quickMinutes.setAttribute('aria-label', 'Estimate');
+  for (const n of [15, 30, 60]) {
+    quickMinutes.append(choiceChip(duration(n), String(n), value => pickMinutes(Number(value)), {aria: 'Estimate ' + duration(n)}));
+  }
+  durationRow.wrap.insertBefore(quickMinutes, durationRow.node);
+
+  const repeatRow = fieldRow(group, {symbol: 'repeat', label: 'Repeat', build: inner => repeatChooser(inner, {
+    get: () => ({value: repeatValue(live()), every: live()?.repeatAfterDays}),
+    pick: (value, every) => {
+      const t = live();
+      if (value && !t?.planned) {
+        error(repeatRow, NEEDS_TIME + ' Choose them above first.');
+        return;
+      }
+      clearError(repeatRow);
+      const fields = {recurrence: value === 'after' ? null : value || null, repeatAfterDays: value === 'after' ? every : null};
+      repeatRow.set(repeatLabel(fields), {muted: !value});
+      if (value !== 'after') group.close();
+      commit(fields, value ? 'Repeats: ' + repeatLabel(fields).toLowerCase() : 'Repeat turned off');
+    },
+  })});
+
+  const alertRow = fieldRow(group, {symbol: 'notifications', label: 'Alert', build: inner => alertChooser(inner, {
+    get: () => live()?.alertIntent?.type ?? 'off',
+    pick: value => {
+      alertRow.set(alertText(value, live()), {muted: value === 'off'});
+      group.close();
+      commit({alert: value}, value === 'off' ? 'Alert off' : alertText(value, live()) + ' set');
+    },
+  })});
+
+  const must = button('', () => {
+    const on = !(live() ?? task).must;
+    paintMust(on);
+    commit({must: on}, on ? 'Marked Must' : 'Must removed');
+  }, 'detail-row must-row');
+  const mustIcon = icon('star');
+  const mustText = el('span', 'detail-text');
+  must.append(mustIcon, mustText);
+  const paintMust = on => {
+    must.classList.toggle('must-on', on);
+    mustIcon.classList.toggle('fill', on);
+    mustText.textContent = on ? 'Must' : 'Mark as Must';
+    must.setAttribute('aria-pressed', String(on));
+    must.setAttribute('aria-label', 'Must');
+  };
+
+  // Block: the Part of panel when there is one (its Change button unfolds the list), otherwise a row with the
+  // suggested Block one tap away.
+  const pickBlock = (blockId, blockTitle) => {
+    group.close();
+    rememberBlock(blockId);
+    save({type: 'moveTask', id, blockId}, blockId ? 'Moved to ' + blockTitle : 'Moved to No block');
+  };
+  const blockRow = fieldRow(group, {symbol: 'stacks', label: 'Block', cls: 'block-field', build: inner => blockChooser(inner, {
+    blocks: () => app.activeBlocks(),
+    get: () => live()?.blockId ?? null,
+    pick: pickBlock,
+    recent: recentBlock(),
+    suggested: suggestBlock(app, live(), live()?.blockId)?.id ?? null,
+  })});
+  const panelSlot = el('div', 'part-of-slot');
+  const suggestSlot = el('div', 'suggest-slot');
+  // The row, the Part of card and the suggestion share one face, whose height animates when the Block changes.
+  const face = el('div', 'block-face');
+  blockRow.wrap.insertBefore(face, blockRow.node);
+  face.append(blockRow.head, panelSlot, suggestSlot);
+  let panelKey = null;
+  let faceMotion = [];
+  // Choosing a Block is one continuous change, a container transform: the face's box grows from the row's height to
+  // the card's (250ms emphasized) and the card's fill opens from the row's box, while the content fades through (the
+  // row's words out in 90ms, then the card's in over 160ms, so the two never overlap). Removing the Block runs the
+  // same the other way.
+  const paintBlock = t => {
+    const context = app.context(t);
+    const key = context.block ? `${context.block.id}|${context.block.title}|${context.block.purpose}` : '';
+    const animate = panelKey !== null && key !== panelKey && !reducedMotion() && face.isConnected
+      && !!face.getClientRects().length;
+    const from = animate ? face.getBoundingClientRect().height : 0;
+    let ghost = null;
+    if (animate) {
+      ghost = el('div', 'block-face-ghost');
+      ghost.setAttribute('aria-hidden', 'true');
+      ghost.inert = true;
+      for (const part of face.children) if (!part.classList.contains('block-face-ghost')) ghost.append(part.cloneNode(true));
+    }
+    blockRow.head.hidden = !!context.block && !blockRow.isOpen;
+    blockRow.set(context.block ? context.block.title : 'No block · Choose a Block', {aria: context.block ? context.block.title : 'No block'});
+    if (key !== panelKey) {
+      panelKey = key;
+      panelSlot.replaceChildren();
+      if (context.block) {
+        const change = iconButton('edit', 'Change Block', () => group.toggle(blockRow), {cls: 'part-change'});
+        panelSlot.append(partOf(app, t), change);
+      }
+    }
+    const suggested = context.block ? null : suggestBlock(app, t);
+    const suggestKey = suggested?.id ?? '';
+    if (suggestSlot.dataset.key !== suggestKey) {
+      suggestSlot.dataset.key = suggestKey;
+      suggestSlot.replaceChildren();
+      if (suggested) {
+        const chip = button('', () => pickBlock(suggested.id, suggested.title), 'assist-chip suggest-chip');
+        chip.append(icon('auto_awesome'), el('span', 'chip-label', suggested.title));
+        chip.setAttribute('aria-label', `Suggested Block ${suggested.title}`);
+        suggestSlot.append(chip);
+      }
+    }
+    if (!animate) return;
+    for (const motion of faceMotion) motion.cancel();
+    face.querySelectorAll(':scope > .block-face-ghost').forEach(n => n.remove());
+    const to = face.getBoundingClientRect().height;
+    face.append(ghost);
+    face.classList.add('resizing');
+    face.dataset.toHeight = String(to);
+    const motions = [
+      face.animate([{height: from + 'px'}, {height: to + 'px'}], {duration: DURATION.medium1, easing: EASE.emphasized}),
+      ghost.animate([{opacity: 1}, {opacity: 0}], {duration: 90, easing: EASE.standardAccelerate, fill: 'forwards'}),
+    ];
+    const card = panelSlot.querySelector('.part-of');
+    const fresh = card ? [...card.children, panelSlot.querySelector('.part-change')]
+      : [blockRow.head, suggestSlot].filter(n => !n.hidden && n.getClientRects().length);
+    for (const part of fresh.filter(Boolean)) {
+      motions.push(part.animate([{opacity: 0}, {opacity: 1}],
+        {duration: 160, delay: 90, easing: EASE.standardDecelerate, fill: 'backwards'}));
+    }
+    if (card) {
+      const top = card.getBoundingClientRect().top - face.getBoundingClientRect().top;
+      const hidden = Math.max(0, card.offsetHeight - Math.max(0, from - top));
+      motions.push(card.animate([{clipPath: `inset(0 0 ${hidden}px 0 round 20px)`}, {clipPath: 'inset(0 0 0 0 round 20px)'}],
+        {duration: DURATION.medium1, easing: EASE.emphasized}));
+    }
+    faceMotion = motions;
+    const end = () => {
+      if (faceMotion !== motions) return;
+      ghost.remove();
+      face.classList.remove('resizing');
+      delete face.dataset.toHeight;
+    };
+    Promise.all(motions.map(m => m.finished)).then(end, end);
+  };
+
+  body.append(dateRow.wrap, clash.node, durationRow.wrap, repeatRow.wrap, alertRow.wrap, must, blockRow.wrap);
+  const notes = inlineText(body, 'notes', 'Add details', task.notes, value => commit({notes: value}, 'Details saved'));
+  const why = inlineText(body, 'favorite', 'Why? (optional)', task.purpose, value => commit({purpose: value}, 'Why saved'));
+  const leverage = inlineText(body, 'group', 'Who or what could help? (optional)', task.leverage,
+    value => commit({leverage: value}, 'Saved'));
   if (task.raw && task.raw !== task.title) {
     const raw = el('details', 'original-capture');
     raw.append(el('summary', '', 'Original capture'), el('p', '', task.raw));
     body.append(raw);
   }
-  actions.append(labelButton(task.done ? 'undo' : 'check', task.done ? 'Mark incomplete' : 'Mark complete',
-    () => toggleDone(app, task, when), 'filled-btn grow'));
+  const done = labelButton('check', 'Mark complete', () => toggleDone(app, live() ?? task, when(live() ?? task)), 'filled-btn grow');
+  actions.append(done);
+
+  const paint = t => {
+    syncText(title, t.title);
+    check.setAttribute('aria-checked', String(!!t.done));
+    check.setAttribute('aria-label', `Mark ${t.title} ${t.done ? 'incomplete' : 'complete'}`);
+    ring.replaceChildren(...(t.done ? [icon('check')] : []));
+    const value = whenOf(t, when(t));
+    dateRow.set(whenLabel(value), {muted: !value.day});
+    durationRow.set(duration(t.minutes), {muted: t.minutes == null});
+    markChips(quickMinutes, t.minutes == null ? '' : String(t.minutes));
+    repeatRow.set(repeatLabel(t), {muted: !repeats(t)});
+    const alert = t.alertIntent?.type ?? 'off';
+    alertRow.wrap.hidden = !t.planned && alert === 'off';
+    alertRow.set(alertText(alert, t), {muted: alert === 'off'});
+    paintMust(!!t.must);
+    markChips(quickDays, value.day);
+    paintBlock(t);
+    syncText(notes, t.notes);
+    syncText(why, t.purpose);
+    why.closest('.detail-row').hidden = !!app.context(t).block;
+    syncText(leverage, t.leverage);
+    if (t.leverage) leverage.closest('.detail-row').hidden = false;
+    if (done.dataset.done !== String(!!t.done)) {
+      done.dataset.done = String(!!t.done);
+      done.replaceChildren(icon(t.done ? 'undo' : 'check'), el('span', '', t.done ? 'Mark incomplete' : 'Mark complete'));
+    }
+  };
+  leverage.closest('.detail-row').hidden = !task.leverage;
+  paint(task);
+  // The sheet keeps the height it opened at: a row's choices unfold downward inside it, so the row tapped and
+  // everything above it stay where they are.
+  for (const field of [title, notes, why, leverage]) field.grow();
+  // It also keeps room under its rows for the snackbar a save raises (48dp and its gaps), so the bar docks without
+  // moving anything.
+  const cap = Math.min(innerHeight * 0.92, parseFloat(document.documentElement.style.getPropertyValue('--visual-height')) || innerHeight);
+  sheet.style.setProperty('--sheet-pin', Math.min(cap, sheet.offsetHeight + SNACKBAR_ROOM) + 'px');
+
+  // Saves, Undo and outside changes re-render the shell, which calls sync: the rows update where they are.
+  app.sheet.live = () => body.isConnected && isSheetOpen(app);
+  app.sheet.sync = () => {
+    if (!app.sheet.live()) return false;
+    const t = live();
+    if (!t) return false;
+    app.sheet.version = app.data().version;
+    paint(t);
+    group.current?.refresh();
+    // A clash shown for a time that Undo (or another change) has replaced is checked again.
+    const slot = `${t.planned}|${t.minutes}|${t.recurrence}|${t.repeatAfterDays}`;
+    if (slot !== checkedSlot && clash.node.classList.contains('open')) recheck();
+    return true;
+  };
+  // Back closes an open chooser first; otherwise typing in a field is saved before the sheet goes.
+  app.sheet.onBack = () => {
+    if (!app.sheet.live()) return false;
+    if (group.onBack()) return true;
+    if (fromInbox) {
+      goBack();
+      return true;
+    }
+    if (body.contains(document.activeElement)) document.activeElement.blur();
+    return false;
+  };
+  if (focus === 'date') group.open(dateRow);
+  else if (focus === 'block') group.open(blockRow);
 }
 
-function localDayOf(value) {
-  return localDay(new Date(value));
+function alertText(type, task) {
+  const at = task?.planned ? ' at ' + clock(task.planned) : '';
+  if (type === 'reminder') return 'Reminder' + at;
+  if (type === 'alarm') return 'Ringing alarm' + at;
+  return 'No alert';
 }
 
-function taskMenu(app, task) {
+function taskMenu(app, task, inline = {}) {
   const items = [
+    {label: 'Schedule', icon: 'event_upcoming', onClick: () => (inline.schedule ? inline.schedule() : scheduleMenu(app, task, null))},
     {label: 'Ask Capture', icon: 'mic', onClick: () => app.capture()},
-    {label: 'Move to Block', icon: 'drive_file_move', onClick: () => movePicker(app, task)},
+    {label: 'Move to Block', icon: 'drive_file_move', onClick: () => (inline.move ? inline.move() : movePicker(app, task))},
   ];
+  if (inline.helper && !task.leverage) items.push({label: 'Add who could help', icon: 'group', onClick: inline.helper});
   if (task.blockId != null || blockTasks(app.data(), null).length > 1) {
     items.push({label: 'Change Plan order', icon: 'swap_vert', onClick: () => planOrder(app, task)});
   }
@@ -143,8 +567,10 @@ function taskMenu(app, task) {
     items.push({label: 'Undo last completion', icon: 'undo', onClick: () =>
       app.commit({type: 'reopenTask', id: task.id}, {label: 'Completion undone'}).catch(() => {})});
   }
-  items.push({label: 'Archive', icon: 'archive', onClick: () => archiveTask(app, task)});
-  items.push({divider: true}, {label: 'Delete', icon: 'delete', danger: true, onClick: () => deleteTask(app, task)});
+  const after = ok => { if (ok && inline.afterRemove) inline.afterRemove(); };
+  items.push({label: 'Archive', icon: 'archive', onClick: () => archiveTask(app, task).then(after)});
+  items.push({divider: true}, {label: 'Delete', icon: 'delete', danger: true,
+    onClick: () => deleteTask(app, task, {keepSheet: false}).then(after)});
   return items;
 }
 
@@ -156,18 +582,104 @@ function duplicate(app, task) {
   app.commit({type: 'saveTask', fields}, {label: 'Task duplicated'}).catch(() => {});
 }
 
+/** Resolves true once archived. */
 export function archiveTask(app, task) {
   return app.commit({type: 'archiveTask', id: task.id, disposition: 'archive'},
-    {label: 'Archived. Restore it from Archive.'}).catch(() => {});
+    {label: 'Archived. Restore it from Archive.'}).then(() => true, () => false);
 }
 
-export function deleteTask(app, task) {
-  const {body, actions} = openSheet(app, 'Delete task?', {variant: 'dialog'});
-  body.append(el('p', 'sheet-lead', task.title),
-    el('p', 'sheet-note', 'This removes the task from your plan and stops its alerts. You can restore it from Trash.'));
-  actions.append(button('Keep', () => openTask(app, task.id), 'text-btn'),
-    button('Delete task', () => app.commit({type: 'archiveTask', id: task.id}, {label: 'Moved to Trash'})
-      .catch(() => {}), 'filled-btn danger'));
+/**
+ * Delete at once, with Undo (and Trash keeps it): no confirmation for something that can be undone. A row swiped in
+ * the Inbox leaves the Inbox open. Resolves true once deleted.
+ */
+export function deleteTask(app, task, {keepSheet = inboxShowing(app)} = {}) {
+  return app.commit({type: 'archiveTask', id: task.id}, {label: 'Moved to Trash', keepSheet}).then(() => true, () => false);
+}
+
+/* ---------- Schedule: the swipe-right choices ---------- */
+
+let scheduling = null;
+
+/** Closes the schedule choices; true when they were open (Android Back closes them first). */
+export function closeSchedule({restoreFocus = true} = {}) {
+  if (!scheduling) return false;
+  const {menu, scrim, returnTo} = scheduling;
+  scheduling = null;
+  scrim.remove();
+  menu.inert = true;
+  const gone = () => menu.remove();
+  if (reducedMotion()) gone();
+  // Opaque until it goes: it folds a little toward its anchor and its fade lasts only the last 50ms.
+  else menu.animate([{opacity: 1, transform: 'none'}, {opacity: 1, offset: .5}, {opacity: 0, transform: 'scale(.96, .9)'}],
+    {duration: DURATION.short2, easing: EASE.standardAccelerate, fill: 'forwards'}).finished.then(gone, gone);
+  if (restoreFocus && returnTo?.isConnected) returnTo.focus({preventScroll: true});
+  return true;
+}
+
+/**
+ * One-tap reschedules anchored to the swiped row (or the task sheet's More button): each choice is a whole date and
+ * time and saves at once with Undo. "Pick a date…" opens the task sheet with its date choices unfolded.
+ */
+export function scheduleMenu(app, task, anchor, {occurrence = null} = {}) {
+  closeMenu();
+  closeSchedule({restoreFocus: false});
+  const t = findTask(app, task.id) ?? task;
+  const at = repeats(t) ? (occurrence ?? nextOccurrence(t)) : t.planned;
+  const presets = schedulePresets(whenOf(t, at), new Date(), {repeating: repeats(t)});
+  const scrim = button('', () => closeSchedule(), 'menu-scrim');
+  scrim.setAttribute('aria-label', 'Close');
+  const menu = el('div', 'menu schedule-menu');
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', 'Schedule ' + t.title);
+  const heading = el('p', 'schedule-title');
+  heading.append(icon('event_upcoming'), el('span', '', t.title));
+  menu.append(heading);
+  const pick = value => {
+    closeSchedule();
+    const label = value.day ? 'Moved to ' + whenLabel(value) : 'Date removed';
+    app.commit({type: 'saveTask', id: t.id, fields: whenFields(value)}, {label, keepSheet: isSheetOpen(app)}).catch(() => {});
+  };
+  for (const preset of presets) {
+    const row = button('', () => pick(preset.value), 'menu-item schedule-item');
+    row.setAttribute('role', 'menuitemradio');
+    row.setAttribute('aria-checked', String(preset.current));
+    row.setAttribute('aria-label', [preset.label, preset.hint, preset.current ? 'current' : ''].filter(Boolean).join(', '));
+    row.append(icon(preset.icon), el('span', 'schedule-label', preset.label));
+    if (preset.current) row.append(icon('check', {cls: 'schedule-check'}));
+    else if (preset.hint) row.append(el('span', 'schedule-hint tnum', preset.hint));
+    menu.append(row);
+  }
+  menu.append(el('hr', 'menu-divider'));
+  const other = button('', () => { closeSchedule({restoreFocus: false}); openTask(app, t.id, occurrence, {focus: 'date'}); },
+    'menu-item schedule-item');
+  other.setAttribute('role', 'menuitem');
+  other.append(icon('calendar_month'), el('span', 'schedule-label', 'Pick a date…'));
+  menu.append(other);
+  menu.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      closeSchedule();
+    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const items = [...menu.querySelectorAll('.menu-item')];
+      const next = items.indexOf(document.activeElement) + (event.key === 'ArrowDown' ? 1 : -1);
+      items[(next + items.length) % items.length]?.focus();
+    }
+  });
+  document.body.append(scrim, menu);
+  // Anchored to the row: under it when it fits, otherwise above it; a narrow anchor (a button) aligns its right edge.
+  const box = (anchor?.isConnected ? anchor : app.dom.sheet).getBoundingClientRect();
+  const width = menu.offsetWidth, height = menu.offsetHeight;
+  const narrow = box.width < 160;
+  const left = Math.max(8, Math.min(innerWidth - width - 8, narrow ? box.right - width : box.left + 16));
+  const above = box.bottom + 4 + height > innerHeight - 8 && box.top - height - 4 >= 8;
+  const top = above ? box.top - height - 4 : Math.max(8, Math.min(innerHeight - height - 8, box.bottom + 4));
+  menu.style.setProperty('--menu-left', left + 'px');
+  menu.style.setProperty('--menu-top', top + 'px');
+  menu.style.transformOrigin = `${narrow ? 'right' : 'left'} ${above ? 'bottom' : 'top'}`;
+  scheduling = {menu, scrim, returnTo: anchor?.querySelector?.('.task-main') ?? anchor};
+  menu.querySelector('.schedule-item')?.focus({preventScroll: true});
 }
 
 export function movePicker(app, task) {
@@ -231,313 +743,506 @@ export function showTrash(app, archive = false) {
   }
 }
 
-/** Inbox: open tasks that are not in a Block yet. */
-export function showInbox(app) {
-  const {body, actions} = openSheet(app, 'Inbox');
-  const rows = blockTasks(app.data(), null).filter(task => !task.done);
-  if (!rows.length) {
-    body.append(emptyState({symbol: 'inbox', title: 'Inbox is empty',
-      body: 'New captures land here until you give them a Block.'}));
-  } else {
-    body.append(el('p', 'sheet-note', 'Tasks not in a Block yet. Give each one a Result, or keep it here.'));
-    body.append(labelButton('auto_awesome', 'Sort with Jev', () => app.actions.jevSort(), 'tonal-btn'));
-  }
-  for (const task of rows) body.append(taskRow(app, task, {swipe: false}));
+/** True while the Inbox sheet is the one showing (not on its way out or being replaced). */
+function inboxShowing(app) {
+  const body = app.sheet.inboxBody;
+  return isSheetOpen(app) && !!body?.isConnected && !body.closest('.sheet-ghost');
+}
+
+/** Inbox: open tasks that are not in a Block yet. Rows swipe as everywhere; a save updates the rows in place. */
+export function showInbox(app, {motion = 'forward'} = {}) {
+  const {body, actions} = openSheet(app, 'Inbox', {motion});
+  app.sheet.inboxBody = body;
+  // Fills a host with the rows: the body itself at first, then a detached copy that animateRerender reconciles in by
+  // key (it needs the new content returned as an element, so unchanged rows stay and the changed ones move).
+  const draw = (host = el('div')) => {
+    const rows = blockTasks(app.data(), null).filter(task => !task.done);
+    host.replaceChildren();
+    if (!rows.length) {
+      host.append(emptyState({symbol: 'inbox', title: 'Inbox is empty',
+        body: 'New captures land here until you give them a Block.'}));
+    } else {
+      const note = el('p', 'sheet-note', 'Tasks not in a Block yet. Give each one a Result, or keep it here.');
+      note.dataset.key = 'inbox-note';
+      const jev = labelButton('auto_awesome', 'Sort with Jev', () => app.actions.jevSort(), 'tonal-btn');
+      jev.dataset.key = 'inbox-jev';
+      host.append(note, jev);
+    }
+    const back = app.sheet.returned;
+    for (const task of rows) {
+      const row = taskRow(app, task);
+      // A redraw while the returned highlight is still fading carries it on (from where it was).
+      if (back?.id === task.id && host !== body) markReturned(row, back.elapsed());
+      host.append(row);
+    }
+    return host;
+  };
+  draw(body);
   actions.append(labelButton('mic', 'Capture', () => app.capture(), 'text-btn'),
     labelButton('add', 'Add task', () => taskEditor(app, null), 'filled-btn'));
+  app.sheet.live = () => body.isConnected && isSheetOpen(app);
+  app.sheet.sync = () => {
+    if (!inboxShowing(app) || app.sheet.inboxBody !== body) return false;
+    app.sheet.version = app.data().version;
+    animateRerender(body, body, () => draw());
+    return true;
+  };
+  app.sheet.onBack = () => false;
 }
 
-async function scheduleCheck(app, id, fields) {
-  const existing = id ? findTask(app, id) : null;
-  const candidate = {...existing, ...fields};
-  const planned = candidate.planned;
-  const minutes = candidate.minutes ?? 30;
-  if (!planned) return {clashes: [], risk: null, candidate, minutes};
-  const anchor = repeats(candidate) ? nextOccurrence(candidate) : planned;
-  const copy = await app.api.native('calendarRead', {anchor: Date.parse(anchor)});
-  app.state.calendar = calendarRows(copy);
-  app.state.calendarState = calendarLabel(copy);
-  const start = Date.parse(anchor);
-  const risk = calendarRisk(copy, start, start + minutes * 60000);
-  const window = start + (repeats(candidate) ? 21 * 86400000 : 1);
-  const clashes = occurrences(candidate, start, window)
-    .flatMap(o => conflicts(app.data(), o.start, minutes, app.state.calendar, id))
-    .filter((e, i, all) => all.findIndex(x => x.id === e.id && x.start === e.start) === i);
-  return {clashes, risk, candidate, minutes};
-}
+const DRAFT = 'task:new';
 
-let reviewToken = null;
-let scheduleWorking = false;
-
-/** Save a task after checking calendar and plan conflicts; conflicts reopen the editor for review. */
-async function scheduleSave(app, id, fields, allow, label) {
-  if (scheduleWorking || app.saving) return undefined;
-  scheduleWorking = true;
-  try {
-    const {clashes, risk, candidate, minutes} = await scheduleCheck(app, id, fields);
-    const token = JSON.stringify({id, planned: candidate.planned, minutes, recurrence: candidate.recurrence ?? null,
-      repeatAfterDays: candidate.repeatAfterDays ?? null, clashes: clashes.map(e => [e.id, e.start, e.end]), risk});
-    if ((clashes.length || risk) && (!allow || reviewToken !== token)) {
-      reviewToken = token;
-      taskEditor(app, id, fields, clashes, risk);
-      return undefined;
-    }
-    const saved = await app.commit({type: 'saveTask', id, fields}, {label});
-    reviewToken = null;
-    return saved;
-  } finally {
-    scheduleWorking = false;
+const RETURN_HOLD = DURATION.short3;
+const RETURN_FADE = DURATION.medium2;
+/** The Inbox row a task was opened from, on the way back: a soft highlight that holds while the Inbox slides back in
+ * (150ms), then fades out over 300ms (standard easing), never snapping off. `elapsed` continues it on a rebuilt row (a
+ * save landing just after Back redraws the Inbox). */
+function markReturned(row, elapsed) {
+  const total = RETURN_HOLD + RETURN_FADE;
+  if (elapsed >= total) return;
+  row.classList.add('returned');
+  const clear = () => row.classList.remove('returned');
+  if (reducedMotion()) {
+    setTimeout(clear, total - elapsed);
+    return;
   }
+  const fade = row.animate([{opacity: 1}, {opacity: 0}],
+    {duration: RETURN_FADE, delay: RETURN_HOLD, easing: EASE.standard, pseudoElement: '::after', fill: 'both'});
+  fade.currentTime = elapsed;
+  fade.finished.then(clear, clear);
 }
 
-function optionPanels(body, focusOption) {
-  const host = el('div', 'option-panels');
-  body.append(host);
-  const panels = new Map();
-  const add = (key, label) => {
-    const panel = el('section', 'option-panel');
-    panel.hidden = focusOption !== key;
-    panel.append(el('h3', 'overline', label));
-    panels.set(key, panel);
-    host.append(panel);
-    return panel;
-  };
-  const show = key => {
-    for (const [name, panel] of panels) panel.hidden = name !== key || !panel.hidden;
-  };
-  return {add, show};
+
+/** A chip's accessible name, with `extra` added while what it shows was read from the typed words. */
+function readLabel(chip, extra) {
+  chip.dataset.aria ??= chip.getAttribute('aria-label') ?? '';
+  const base = chip.dataset.aria;
+  if (extra) chip.setAttribute('aria-label', (base || chip.querySelector('.chip-label')?.textContent || '') + extra);
+  else if (base) chip.setAttribute('aria-label', base);
+  else chip.removeAttribute('aria-label');
 }
 
-function chip(symbol, onClick) {
-  const node = button('', onClick, 'assist-chip');
-  node.append(icon(symbol), el('span', 'chip-label'));
-  node.setLabel = text => { node.querySelector('.chip-label').textContent = text; };
-  return node;
+/** Quick add (no id) or, for an existing task, the task sheet itself: there is no separate editor. */
+export function taskEditor(app, id, overrides = {}) {
+  if (id) return openTask(app, id);
+  return quickAdd(app, overrides);
 }
 
 /**
- * Quick add (id null) or task options. Date, duration, Block, Must, repeat and More are optional chips.
- * Conflicts from scheduleSave come back here with a warning and "Save anyway".
+ * Quick add: the title first, then the likeliest choices as chips that need no opening (Today, Tomorrow, the next
+ * weekend or week; the suggested and recent Block; Must), the rest unfolding under their chip. A day written in the
+ * title ("tomorrow", "fri 9am") is read into the date and shown, removable. Add keeps the sheet open, with the day
+ * and Block kept for the next task.
  */
-function datePanel(app, panels, v, update) {
-  const panel = panels.add('date', 'Date and time');
-  const presets = el('div', 'chip-row wrap');
-  panel.append(presets);
-  const date = field(app, panel, 'Date', v.planned ? localDay(new Date(v.planned)) : v.plannedDate ?? '', 'date');
-  const time = field(app, panel, 'Time', v.planned ? timeValue(v.planned) : '', 'time');
-  const today = localDay();
-  for (const [label, value] of [['Today', today], ['Tomorrow', shiftDay(today, 1)], ['No date', '']]) {
-    presets.append(button(label, () => {
-      date.value = value;
-      if (!value) time.value = '';
-      date.dispatchEvent(new Event('input'));
-      time.dispatchEvent(new Event('input'));
-      update();
-    }, 'filter-chip'));
-  }
-  return {date, time};
-}
+function quickAdd(app, overrides = {}) {
+  const {body, actions, sheet} = openSheet(app, 'New task', {draftKey: DRAFT, variant: 'form sheet-quick', enter: MOTION.navigate});
+  const draft = app.sheet.draftValues;
+  const planned = overrides.planned ? whenOf({}, overrides.planned) : null;
+  const s = {
+    day: draft.Date ?? planned?.day ?? overrides.plannedDate ?? '',
+    time: draft.Time ?? planned?.time ?? '',
+    minutes: draft.Minutes ?? overrides.minutes ?? null, // null keeps the planner's default estimate
+    blockId: draft.Block ?? overrides.blockId ?? null,
+    must: !!draft.Must,
+    repeat: draft.Repeat ?? '',
+    every: draft.Every ?? 1,
+    notes: draft.Notes ?? '',
+    why: draft.Why ?? '',
+    alert: draft.Alert ?? 'off',
+  };
+  const save = saver(app);
+  const group = foldGroup(body);
 
-function durationPanel(app, panels, v, update) {
-  const panel = panels.add('duration', 'Duration');
-  const durations = el('div', 'chip-row wrap');
-  panel.append(durations);
-  const minutes = field(app, panel, 'Minutes', v.minutes ?? 30, 'number');
-  minutes.min = 1;
-  minutes.max = 1440;
-  for (const n of [15, 30, 45, 60, 90]) {
-    durations.append(button(duration(n), () => {
-      minutes.value = n;
-      minutes.dispatchEvent(new Event('input'));
-      update();
-    }, 'filter-chip'));
-  }
-  return minutes;
-}
+  // The title wraps onto as many lines as the words need, so the user's words are always all in view. The words the
+  // sheet read (a day, a #Block) are highlighted where they are, by a copy of the text drawn behind the field.
+  const name = el('textarea', 'quick-input');
+  name.rows = 1;
+  name.maxLength = 200;
+  name.placeholder = 'New task';
+  name.enterKeyHint = 'done';
+  name.value = draft.Task ?? '';
+  name.setAttribute('aria-label', 'Task');
+  const mirror = el('div', 'quick-mirror');
+  mirror.setAttribute('aria-hidden', 'true');
+  const nameWrap = el('label', 'quick-title');
+  nameWrap.append(mirror, name);
+  let lastHeight = 0;
+  const grow = () => {
+    name.style.height = 'auto';
+    const to = name.scrollHeight;
+    name.style.height = to + 'px';
+    // A new line opens smoothly (the sheet's top follows), never in one jump.
+    if (lastHeight && Math.abs(to - lastHeight) > 1 && !reducedMotion() && name.isConnected) {
+      // The first line stays where it is while the field opens below it: the field would otherwise scroll to the caret
+      // on the new line while it is still one line high, clipping the line above for a few frames.
+      const growing = name.animate([{height: lastHeight + 'px'}, {height: to + 'px'}],
+        {duration: DURATION.short3, easing: EASE.standard});
+      name.scrollTop = 0;
+      name.dataset.growing = 'true';
+      growing.finished.then(() => {}, () => {}).then(() => { delete name.dataset.growing; });
+    }
+    lastHeight = to;
+  };
+  name.addEventListener('scroll', () => { if (name.dataset.growing) name.scrollTop = 0; });
 
-/** Block choice: a searchable list (recent Block first) backed by a hidden select that keeps the draft. */
-function blockPanel(app, panels, v, update) {
-  const panel = panels.add('block', 'Block');
-  const search = field(app, panel, 'Search Blocks', '', 'search', {key: 'Search blocks'});
-  const block = select(app, panel, 'Block', v.blockId,
-    [['', 'No block'], ...app.activeBlocks().map(b => [b.id, b.title])]);
-  block.parentElement.hidden = true;
-  const list = el('div', 'choice-list');
-  panel.append(list);
-  const draw = () => {
-    list.replaceChildren();
-    let recent = null;
-    try { recent = localStorage.getItem('rpm-recent-block'); } catch {}
-    const ordered = app.activeBlocks().slice().sort((a, b) => Number(b.id === recent) - Number(a.id === recent));
-    const query = search.value.toLowerCase();
-    for (const [value, title] of [['', 'No block'], ...ordered.map(b => [b.id, b.title])]) {
-      if (!title.toLowerCase().includes(query)) continue;
-      const row = button('', () => {
-        block.value = value;
-        block.dispatchEvent(new Event('change'));
-        update();
-        panels.show('block');
-      }, 'choice-row');
-      row.setAttribute('aria-pressed', String(block.value === value));
-      row.append(icon(value ? 'stacks' : 'inbox'), el('span', '', title));
-      if (block.value === value) row.append(icon('check', {cls: 'trailing'}));
-      list.append(row);
+  // A day written in the title is used as the date: its chip is marked and its words highlighted; tapping the marked
+  // chip removes it (the words stay).
+  let parsed = null, dismissed = null, before = null;
+  // A #word naming exactly one Block chooses it as typed (the Block chip marked, the #word highlighted); the #word
+  // leaves the title when the task is added. Several matches offer chips under the title instead.
+  let tag = null, tagDismissed = null, tagBefore = null;
+  const paintMirror = () => {
+    const value = name.value;
+    const marks = [parsed, tag].filter(Boolean).filter(m => value.slice(m.start, m.end).toLowerCase() === m.match.toLowerCase())
+      .sort((a, b) => a.start - b.start);
+    const parts = [];
+    let at = 0;
+    for (const m of marks) {
+      if (m.start < at) continue;
+      parts.push(value.slice(at, m.start), el('mark', '', value.slice(m.start, m.end)));
+      at = m.end;
+    }
+    parts.push(value.slice(at) + '\u200b');
+    mirror.replaceChildren(...parts);
+  };
+  const readTitle = () => {
+    const found = parseWhen(name.value);
+    if (found && found.match.toLowerCase() !== dismissed) {
+      if (!parsed) before = {day: s.day, time: s.time};
+      parsed = found;
+      s.day = found.day;
+      s.time = found.time;
+    } else if (parsed) {
+      Object.assign(s, before);
+      parsed = null;
+    }
+    const named = hashTag(name.value, app.activeBlocks());
+    if (named && named.match.toLowerCase() !== tagDismissed) {
+      if (!tag) tagBefore = s.blockId;
+      tag = named;
+      s.blockId = named.block.id;
+    } else if (tag) {
+      s.blockId = tagBefore;
+      tag = null;
     }
   };
-  search.addEventListener('input', draw);
-  draw();
-  return block;
-}
-
-function repeatPanel(app, panels, v) {
-  const panel = panels.add('repeat', 'Repeat');
-  const repeat = select(app, panel, 'Repeat', v.repeatAfterDays ? 'after' : v.recurrence ?? '', [
-    ['', "Doesn't repeat"], ['daily', 'Daily'], ['weekdays', 'Every weekday'], ['weekly', 'Weekly'],
-    ['after', 'After completion'],
-  ]);
-  const interval = field(app, panel, 'Days after completion', v.repeatAfterDays ?? 1, 'number');
-  interval.min = 1;
-  interval.max = 365;
-  interval.parentElement.hidden = repeat.value !== 'after';
-  repeat.addEventListener('change', () => { interval.parentElement.hidden = repeat.value !== 'after'; });
-  return {repeat, interval};
-}
-
-function morePanel(app, panels, v) {
-  const panel = panels.add('more', 'More');
-  return {
-    notes: field(app, panel, 'Notes', v.notes, 'textarea'),
-    why: field(app, panel, 'Why? (optional)', v.purpose, 'textarea'),
-    leverage: field(app, panel, 'Leverage', v.leverage, 'textarea', {helper: 'Who or what could help with this'}),
-    alert: select(app, panel, 'Alert', v.alertIntent?.type ?? 'off',
-      [['off', 'No alert'], ['reminder', 'Reminder'], ['alarm', 'Ringing alarm']]),
+  const forgetParse = () => {
+    if (parsed) dismissed = parsed.match.toLowerCase();
+    parsed = null;
   };
-}
-
-/** The chip row under the title; each chip opens its option panel and shows the current choice. */
-function editorChips(app, chips, panels, f) {
-  const c = {
-    date: chip('event', () => panels.show('date')),
-    duration: chip('timer', () => panels.show('duration')),
-    block: chip('stacks', () => panels.show('block')),
-    must: chip('star', () => {
-      f.mustOn = !f.mustOn;
-      rememberValue(app, 'Must', f.mustOn);
-      f.update();
-    }),
-    repeat: chip('repeat', () => panels.show('repeat')),
-    more: chip('tune', () => panels.show('more')),
+  const forgetTag = () => {
+    if (tag) tagDismissed = tag.match.toLowerCase();
+    tag = null;
   };
-  c.must.setAttribute('aria-label', 'Must');
-  chips.append(c.date, c.duration, c.block, c.must, c.repeat, c.more);
-  return () => {
-    const day = f.date.value;
-    c.date.setLabel(day ? relativeDay(day) + (f.time.value ? ' · ' + f.time.value : '') : 'No date');
-    c.date.classList.toggle('on', !!day);
-    c.duration.setLabel(f.minutes.value ? duration(Number(f.minutes.value)) : 'No estimate');
-    c.block.setLabel(f.block.selectedOptions[0]?.textContent ?? 'No block');
-    c.block.classList.toggle('on', !!f.block.value);
-    c.must.setLabel('Must');
-    c.must.setAttribute('aria-pressed', String(f.mustOn));
-    c.must.classList.toggle('on', f.mustOn);
-    c.must.querySelector('.ms').classList.toggle('fill', f.mustOn);
-    c.repeat.setLabel(f.repeat.value ? 'Repeats' : 'Repeat');
-    c.repeat.classList.toggle('on', !!f.repeat.value);
-    f.why.parentElement.hidden = !!f.block.value;
-  };
-}
 
-function editorFields(f) {
-  const {date, time, minutes, block, repeat} = f;
-  if (time.value && !date.value) throw new Error('Choose a date for this time.');
-  return {
-    title: f.name.value,
-    planned: date.value && time.value ? new Date(date.value + 'T' + time.value).toISOString() : null,
-    plannedDate: date.value && !time.value ? date.value : null,
-    minutes: minutes.value ? Number(minutes.value) : null,
-    blockId: block.value || null,
-    must: f.mustOn,
-    notes: f.notes.value,
-    purpose: block.value ? '' : f.why.value,
-    leverage: f.leverage.value,
-    alert: f.alert.value,
-    recurrence: repeat.value === 'after' ? null : repeat.value || null,
-    repeatAfterDays: repeat.value === 'after' ? Number(f.interval.value) : null,
+  // Day chips, and the full day and time choices under the time chip
+  const pickDay = (day, exact = false) => {
+    forgetParse();
+    if (!exact && s.day === day) Object.assign(s, {day: '', time: ''});
+    else s.day = day;
+    if (!s.day) s.time = '';
+    changed();
   };
-}
+  const whenChips = chipRow('quick-row');
+  for (const [label, day, aria] of dayPresets()) whenChips.append(choiceChip(label, day, value => pickDay(value), {aria}));
+  const timeChip = button('', null, 'assist-chip');
+  timeChip.append(icon('schedule'), el('span', 'chip-label'));
+  whenChips.append(timeChip);
+  const whenFold = foldFor(group, timeChip, inner => dateChooser(inner, {
+    presets: false,
+    noDate: true,
+    get: () => ({day: s.day, time: s.time}),
+    pickDay: day => { pickDay(day, true); whenFold.refresh(); },
+    pickTime: time => {
+      forgetParse();
+      s.time = time;
+      if (time && !s.day) s.day = localDay();
+      group.close();
+      changed();
+    },
+  }));
 
-function saveButton(app, id, f, conflicted, error) {
-  const save = button(conflicted ? 'Save anyway' : id ? 'Save' : 'Add', async () => {
-    if (app.saving) return;
-    save.disabled = true;
-    try {
-      const fields = editorFields(f);
-      const label = id ? 'Task saved'
-        : fields.plannedDate === localDay() ? 'Added to Today' : fields.planned ? 'Task scheduled' : 'Task added';
-      const saved = await scheduleSave(app, id, fields, conflicted, label);
-      if (saved === undefined) return;
-      if (fields.blockId) {
-        try { localStorage.setItem('rpm-recent-block', fields.blockId); } catch {}
-      }
-      if (id) openTask(app, id);
-      else taskEditor(app, null, {plannedDate: fields.plannedDate, blockId: fields.blockId, minutes: fields.minutes});
-    } catch (problem) {
-      error.textContent = problem.message;
-    } finally {
-      save.disabled = !f.name.value.trim();
+  // Block chips: the chosen one, the one the words point to, the recent one, No block, then the full list.
+  const blockChips = chipRow('quick-row block-chips');
+  const listChip = button('', null, 'assist-chip list-chip');
+  listChip.append(icon('stacks'), el('span', 'chip-label', 'Choose Block'));
+  const pickBlock = id => {
+    forgetTag();
+    // Tapping the marked Block chip again takes the task out of it (as the day chips do).
+    s.blockId = id && id === s.blockId && !blockFold.isOpen ? null : id || null;
+    group.close();
+    changed();
+  };
+  const blockFold = foldFor(group, listChip, inner => blockChooser(inner, {
+    blocks: () => app.activeBlocks(),
+    get: () => s.blockId,
+    pick: pickBlock,
+    recent: recentBlock(),
+    suggested: suggestBlock(app, {title: name.value})?.id ?? null,
+  }));
+  let blockKey = null;
+  const paintBlocks = () => {
+    const blocks = app.activeBlocks();
+    const byId = id => blocks.find(b => b.id === id);
+    const suggested = suggestBlock(app, {title: name.value});
+    const ids = [...new Set([s.blockId, suggested?.id, recentBlock()].filter(id => id && byId(id)))].slice(0, 2);
+    const key = ids.join('|') + '|' + (suggested?.id ?? '');
+    if (key !== blockKey) {
+      blockKey = key;
+      blockChips.replaceChildren(...ids.map(id => {
+        const chip = choiceChip(byId(id).title, id, pickBlock);
+        if (id === suggested?.id) {
+          chip.prepend(icon('auto_awesome', {cls: 'chip-lead'}));
+          chip.setAttribute('aria-label', `Suggested Block ${byId(id).title}`);
+        }
+        return chip;
+      }), choiceChip('No block', '', pickBlock), listChip);
+      // With a Block chip showing, the full list needs only its icon, so the row stays on one line.
+      listChip.classList.toggle('icon-only', ids.length > 0);
+      listChip.setAttribute('aria-label', 'Choose a Block');
     }
-  }, 'filled-btn');
-  save.disabled = !f.name.value.trim();
-  f.name.addEventListener('input', () => { save.disabled = !f.name.value.trim(); });
-  return save;
-}
+    markChips(blockChips, s.blockId ?? '');
+  };
 
-function conflictBanner(clashes, risk) {
-  const warning = el('div', 'banner warning');
-  warning.append(icon('warning'), el('span', '', clashes.length
-    ? 'Clashes with ' + clashes.map(c => `${c.title} on ${dateText(c.start)}`).join(', ')
-    : risk));
-  return warning;
-}
+  // Estimate, Must, Repeat, Details
+  const moreChips = chipRow('quick-row');
+  const durationChip = button('', null, 'assist-chip');
+  durationChip.append(icon('timer'), el('span', 'chip-label'));
+  const mustChip = button('', () => { s.must = !s.must; changed(); }, 'assist-chip must-chip');
+  mustChip.append(icon('star'), el('span', 'chip-label', 'Must'));
+  const repeatChip = button('', null, 'assist-chip');
+  repeatChip.append(icon('repeat'), el('span', 'chip-label'));
+  const detailsChip = button('', null, 'assist-chip');
+  detailsChip.append(icon('notes'), el('span', 'chip-label', 'Details'));
+  moreChips.append(durationChip, mustChip, repeatChip, detailsChip);
+  const durationFold = foldFor(group, durationChip, inner => durationChooser(inner, {
+    get: () => s.minutes,
+    pick: minutes => { s.minutes = minutes; group.close(); changed(); },
+  }));
+  const repeatFold = foldFor(group, repeatChip, inner => repeatChooser(inner, {
+    get: () => ({value: s.repeat, every: s.every}),
+    pick: (value, every) => {
+      Object.assign(s, {repeat: value, every});
+      if (value !== 'after') group.close();
+      changed();
+    },
+  }));
+  let notes, why, alertRow;
+  const detailsFold = foldFor(group, detailsChip, inner => {
+    notes = inlineText(inner, 'notes', 'Add details', s.notes, () => {});
+    notes.addEventListener('input', () => { s.notes = notes.value; remember(); });
+    why = inlineText(inner, 'favorite', 'Why? (optional)', s.why, () => {});
+    why.addEventListener('input', () => { s.why = why.value; remember(); });
+    alertRow = el('div', 'alert-choices');
+    alertChooser(alertRow, {get: () => s.alert, pick: value => { s.alert = value; changed(); }});
+    inner.append(alertRow);
+    const refresh = () => {
+      syncText(notes, s.notes);
+      syncText(why, s.why);
+      why.closest('.detail-row').hidden = !!s.blockId;
+      alertRow.hidden = !s.time;
+      markChips(alertRow, s.alert);
+    };
+    refresh();
+    return refresh;
+  });
 
-/** Quick add (new task) and the full editor share one sheet: title, choice chips, option panels. */
-export function taskEditor(app, id, overrides = {}, clashes = [], risk = null, focusOption = null) {
-  const existing = id ? findTask(app, id) : {};
-  if (!existing) return;
-  const v = {...existing, ...overrides};
-  const {body, actions} = openSheet(app, id ? 'Edit task' : 'New task', {draftKey: 'task:' + (id ?? 'new'),
-    variant: id ? 'form' : 'form sheet-quick'});
-  const conflicted = !!(clashes.length || risk);
-  if (conflicted) {
-    app.sheet.draftValues = {};
-    body.append(conflictBanner(clashes, risk));
-  }
-  const f = {mustOn: false, update: () => {}};
-  const update = () => f.update();
-  f.name = field(app, body, 'Task', v.title, 'text');
-  f.name.placeholder = 'New task';
-  f.name.maxLength = 200;
-  f.name.parentElement.classList.add('quick-title');
-  const chips = el('div', 'chip-row');
-  body.append(chips);
-  const panels = optionPanels(body, focusOption);
-  Object.assign(f, datePanel(app, panels, v, update));
-  f.minutes = durationPanel(app, panels, v, update);
-  f.block = blockPanel(app, panels, v, update);
-  Object.assign(f, repeatPanel(app, panels, v), morePanel(app, panels, v));
-  f.mustOn = !!(app.sheet.draftValues.Must ?? v.must);
-  f.update = editorChips(app, chips, panels, f);
-  for (const control of [f.date, f.time, f.minutes, f.block, f.repeat]) control.addEventListener('change', update);
-  update();
+  // "#" and part of a Block's name offers the matching Blocks as chips; choosing one takes the "#word" out of the
+  // title. Not choosing leaves the words as typed.
+  const hashFold = fold('hash-fold');
+  const hashChips = chipRow('quick-row hash-chips');
+  hashChips.setAttribute('role', 'group');
+  hashChips.setAttribute('aria-label', 'Blocks matching what you typed');
+  hashFold.inner.append(hashChips);
+  let hashKey = null;
+  const paintHash = () => {
+    if (!body.isConnected || !isSheetOpen(app)) return;
+    const token = document.activeElement === name ? hashToken(name.value, name.selectionStart ?? name.value.length) : null;
+    const recent = recentBlock();
+    const blocks = app.activeBlocks().slice().sort((a, b) => (b.id === recent) - (a.id === recent));
+    // The #word already chose its Block (shown above, with Remove): no chips for it.
+    const chosen = token && tag && token.start === tag.start;
+    const matches = token && !chosen ? blockMatches(blocks, token.query) : [];
+    const key = token ? token.query + '|' + matches.map(b => b.id).join(',') : null;
+    if (key === hashKey) return;
+    hashKey = key;
+    hashFold.node.setOpen(matches.length > 0);
+    if (!matches.length) return;
+    hashChips.replaceChildren(...matches.map(block => {
+      const chip = button('', () => {
+        const at = hashToken(name.value, name.selectionStart ?? name.value.length) ?? token;
+        const rest = (name.value.slice(0, at.start) + name.value.slice(at.end)).replace(/\s{2,}/g, ' ');
+        name.value = at.start === 0 ? rest.trimStart() : rest;
+        const caret = Math.min(at.start, name.value.length);
+        name.setSelectionRange(caret, caret);
+        s.blockId = block.id;
+        hashKey = null;
+        readTitle();
+        changed();
+        grow();
+        name.focus({preventScroll: true});
+      }, 'assist-chip hash-chip');
+      // Keep the keyboard up: the title keeps focus while a chip is tapped.
+      chip.addEventListener('pointerdown', event => event.preventDefault());
+      chip.append(icon('stacks'), el('span', 'chip-label', block.title));
+      chip.setAttribute('aria-label', 'Put in Block ' + block.title);
+      return chip;
+    }));
+  };
 
   const error = el('p', 'sheet-error');
   error.setAttribute('role', 'alert');
-  body.append(error);
-  const save = saveButton(app, id, f, conflicted, error);
-  actions.append(labelButton('mic', 'Capture', () => app.capture(), 'text-btn'), el('span', 'spacer'), save);
+  body.append(nameWrap, hashFold.node, whenChips, whenFold.node, blockChips, blockFold.node, moreChips,
+    durationFold.node, repeatFold.node, detailsFold.node, error);
+
+  const paint = () => {
+    markChips(whenChips, s.day);
+    const preset = dayPresets().some(([, day]) => day === s.day);
+    timeChip.querySelector('.chip-label').textContent = s.day && !preset ? whenLabel(s) : s.time ? clockOf(s.day, s.time) : 'Time';
+    timeChip.classList.toggle('on', !!s.time || (!!s.day && !preset));
+    timeChip.classList.toggle('icon-only', !timeChip.classList.contains('on'));
+    timeChip.setAttribute('aria-label', timeChip.classList.contains('on') ? 'Time: ' + timeChip.textContent.trim() : 'Time');
+    paintBlocks();
+    durationChip.querySelector('.chip-label').textContent = s.minutes == null ? 'Estimate' : duration(s.minutes);
+    durationChip.classList.toggle('on', s.minutes != null);
+    mustChip.classList.toggle('on', s.must);
+    mustChip.setAttribute('aria-pressed', String(s.must));
+    mustChip.querySelector('.ms').classList.toggle('fill', s.must);
+    repeatChip.querySelector('.chip-label').textContent = s.repeat ? repeatLabel(s.repeat === 'after'
+      ? {repeatAfterDays: s.every} : {recurrence: s.repeat}) : 'Repeat';
+    repeatChip.classList.toggle('on', !!s.repeat);
+    repeatChip.classList.toggle('icon-only', !s.repeat);
+    repeatChip.setAttribute('aria-label', s.repeat ? 'Repeat: ' + repeatChip.textContent.trim() : 'Repeat');
+    detailsChip.classList.toggle('on', !!(s.notes || s.why || s.alert !== 'off'));
+    // What the words set says so on its chip (marked, and named as read from the words), once.
+    for (const chip of whenChips.querySelectorAll('.choice-chip')) {
+      const read = !!parsed && chip.dataset.value === s.day;
+      chip.classList.toggle('from-words', read);
+      readLabel(chip, read && `, read from “${parsed.match}”. Tap to remove`);
+    }
+    if (parsed && !whenChips.querySelector('.from-words')) {
+      timeChip.setAttribute('aria-label', `${timeChip.getAttribute('aria-label')}, read from “${parsed.match}”`);
+    }
+    for (const chip of blockChips.querySelectorAll('.choice-chip')) {
+      const read = !!tag && chip.dataset.value === String(tag.block.id) && s.blockId === tag.block.id;
+      chip.classList.toggle('from-words', read);
+      readLabel(chip, read && `, read from “${tag.match}”. Tap to remove`);
+    }
+    paintMirror();
+    paintHash();
+    group.current?.refresh();
+    add.disabled = !name.value.trim();
+  };
+
+  const remember = () => {
+    if (!name.value.trim()) {
+      discardDraft(app);
+      app.sheet.draftKey = DRAFT;
+    } else {
+      Object.assign(app.sheet.draftValues, {Task: name.value, Date: s.day, Time: s.time, Minutes: s.minutes,
+        Block: s.blockId, Must: s.must, Repeat: s.repeat, Every: s.every, Notes: s.notes, Why: s.why, Alert: s.alert});
+      rememberValue(app, 'Task', name.value);
+    }
+    setTimeout(() => { sheet.dataset.dirty = String(!!name.value.trim()); });
+  };
+  const changed = () => {
+    error.textContent = '';
+    remember();
+    paint();
+  };
+  name.addEventListener('input', () => {
+    // One line of words: a pasted line break becomes a space (Enter adds the task).
+    if (/[\r\n]/.test(name.value)) {
+      const caret = name.selectionStart;
+      name.value = name.value.replace(/[\r\n]+/g, ' ');
+      name.setSelectionRange(caret, caret);
+    }
+    readTitle();
+    changed();
+    grow();
+  });
+  name.addEventListener('scroll', () => { mirror.scrollTop = name.scrollTop; });
+  name.addEventListener('keyup', event => { if (event.key.startsWith('Arrow') || event.key === 'Home' || event.key === 'End') paintHash(); });
+  name.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== name) paintHash(); }));
+  // The keyboard's Done adds and keeps the sheet for the next task; the Add button adds and closes.
+  name.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      submit({keepOpen: true});
+    }
+  });
+
+  let adding = false;
+  let leaving = false;
+  const submit = async ({keepOpen = false} = {}) => {
+    const named = tag && s.blockId === tag.block.id ? hashTag(name.value, app.activeBlocks()) : null;
+    const title = (named && named.block.id === s.blockId ? withoutTag(name.value, named) : name.value).trim();
+    if (!title || adding) return;
+    if (s.repeat && !(s.day && s.time)) {
+      error.textContent = NEEDS_TIME + ' Choose a day and a time.';
+      return;
+    }
+    adding = true;
+    add.disabled = true;
+    const fields = {title, ...whenFields(s), blockId: s.blockId, must: s.must, notes: s.notes,
+      purpose: s.blockId ? '' : s.why, recurrence: s.repeat === 'after' ? null : s.repeat || null,
+      repeatAfterDays: s.repeat === 'after' ? s.every : null};
+    if (s.minutes != null) fields.minutes = s.minutes;
+    if (s.alert !== 'off') fields.alert = s.alert;
+    let clash = '';
+    if (fields.planned) {
+      try {
+        const {clashes} = await scheduleCheck(app, null, fields);
+        if (clashes.length) clash = ' · clashes with ' + clashes[0].title;
+      } catch {}
+    }
+    const block = app.activeBlocks().find(b => b.id === s.blockId);
+    const where = [s.day ? whenLabel(s) : '', block?.title ?? ''].filter(Boolean);
+    // Add closes the sheet: from here nothing in it changes (no chips redrawn by the save), so it leaves as it was.
+    leaving = !keepOpen;
+    const saved = await save({type: 'saveTask', fields}, (where.length ? 'Added to ' + where.join(' · ') : 'Added to Inbox') + clash);
+    adding = false;
+    if (saved === undefined) {
+      leaving = false;
+      add.disabled = !name.value.trim();
+      return;
+    }
+    rememberBlock(s.blockId);
+    if (!keepOpen) {
+      discardDraft(app);
+      app.closeSheet();
+      return;
+    }
+    // Ready for the next task: the day (as it was before any words set it) and the Block stay.
+    if (parsed) Object.assign(s, before);
+    if (tag) s.blockId = tagBefore;
+    parsed = null;
+    dismissed = null;
+    tag = null;
+    tagDismissed = null;
+    Object.assign(s, {must: false, repeat: '', every: 1, notes: '', why: '', alert: 'off'});
+    name.value = '';
+    group.close();
+    changed();
+    grow();
+    name.focus({preventScroll: true});
+  };
+  const add = button('Add', () => submit(), 'filled-btn');
+  actions.append(labelButton('mic', 'Capture', () => app.capture(), 'text-btn'), el('span', 'spacer'), add);
+  readTitle();
+  paint();
+  requestAnimationFrame(grow);
+
+  app.sheet.live = () => body.isConnected && isSheetOpen(app);
+  app.sheet.sync = () => {
+    if (!app.sheet.live()) return false;
+    app.sheet.version = app.data().version;
+    if (!leaving) paint();
+    return true;
+  };
+  app.sheet.onBack = () => app.sheet.live() && group.onBack();
   requestAnimationFrame(() => {
-    if (id) return;
-    f.name.focus();
+    name.focus();
     app.api.native('keyboard', {field: 'Task'}).catch(() => {});
   });
 }

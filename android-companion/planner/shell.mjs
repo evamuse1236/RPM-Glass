@@ -67,8 +67,8 @@ function detailBar(app, bar, top) {
   }
   bar.append(title);
   if (!DETAIL_NAMES[top.kind]) return;
+  // Everything on a detail page edits where it is, so the bar has no Edit pencil; More keeps Delete.
   const tools = el('div', 'top-actions');
-  tools.append(iconButton('edit', 'Edit ' + DETAIL_NAMES[top.kind], () => app.actions.editEntity(top.kind, top.id)));
   const more = iconButton('more_vert', 'More options', () => openMenu(more, app.actions.detailMenu(top)));
   tools.append(more);
   bar.append(tools);
@@ -108,7 +108,8 @@ function fab(app) {
   host.append(node);
 }
 
-export function renderShell(app) {
+/** `keep` (a save re-rendering the same screen): a top bar that would come out the same keeps its nodes. */
+export function renderShell(app, {keep = false} = {}) {
   const top = app.current();
   const full = top && FULL_SCREENS.has(top.kind);
   const root = app.dom.planner;
@@ -118,9 +119,17 @@ export function renderShell(app) {
   navigationBar(app);
   fab(app);
   const bar = app.dom.topBar;
-  bar.replaceChildren();
   bar.hidden = top?.kind === 'review';
-  if (top?.kind === 'search') app.renderers.searchBar(app, bar);
-  else if (top) detailBar(app, bar, top);
-  else rootBar(app, bar);
+  if (top?.kind === 'search') {
+    bar.replaceChildren();
+    app.renderers.searchBar(app, bar);
+    return;
+  }
+  // Its handlers read the app's state when tapped, so identical markup acts the same.
+  const next = document.createElement('header');
+  if (top) detailBar(app, next, top);
+  else rootBar(app, next);
+  bar.className = next.className;
+  if (keep && bar.innerHTML === next.innerHTML) return;
+  bar.replaceChildren(...next.childNodes);
 }

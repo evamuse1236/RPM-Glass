@@ -154,9 +154,10 @@ h1, h2, h3, p { margin: 0; }
   right: var(--s4);
   bottom: calc(var(--nav-measured, var(--nav)) + var(--s4));
   z-index: 10;
-  transition: transform var(--dur-medium) var(--ease-emphasized);
+  /* The FAB makes room for the snackbar on the snackbar's own timing: in with it, out with it. */
+  transition: transform var(--dur-short3) var(--ease-emphasized-accelerate);
 }
-#planner[data-snackbar=true] #fab-host { transform: translateY(-64px); }
+#planner[data-snackbar=true] #fab-host { transform: translateY(-64px); transition: transform var(--dur-medium1) var(--ease-emphasized-decelerate); }
 .fab { transition: transform var(--dur-medium) var(--ease-emphasized), opacity var(--dur-short) var(--ease-standard); }
 #planner[data-fab-aside=true] .fab { transform: scale(.4); opacity: 0; pointer-events: none; }
 .fab {
@@ -189,11 +190,40 @@ h1, h2, h3, p { margin: 0; }
   color: var(--inverse-on-surface);
   box-shadow: var(--elev-3);
   font: var(--body-medium);
+  overflow: hidden; /* the ticker's words slide inside the bar */
 }
 #planner[data-view=settings] ~ #snackbar, #planner[data-view=search] ~ #snackbar { bottom: var(--s4); }
 /* The review pins its own button footer, so the snackbar sits above it. */
 #planner[data-view=review] ~ #snackbar { bottom: calc(var(--s4) + 72px); }
+/* While a sheet is open the snackbar docks just above the sheet's action bar and the sheet's content ends above it:
+   the body's bottom margin grows by the snackbar's height plus a 12dp gap, quicker than the bar rises (150ms, so the
+   content's edge is always above the bar), and the content's last 16dp fade, so it reads as a scroll edge, never as
+   rows tucked under the bar. planner.mjs measures --sheet-actions-h and --snackbar-h, scrolls the row just tapped (and
+   the next one) into view above the bar, and freezes the sheet's layout while it leaves. */
+#sheet:not([hidden]) ~ #snackbar { bottom: calc(var(--sheet-actions-h, 0px) + var(--s2)); }
+/* Leaving with the sheet: the bar settles to its resting place on the sheet's exit timing. */
+#snackbar { transition: bottom var(--dur-short4) var(--ease-emphasized-accelerate); }
+#planner:not([data-view=settings], [data-view=search], [data-view=review]) ~ #sheet[inert]:not([hidden]) ~ #snackbar {
+  bottom: calc(var(--nav-measured, var(--nav)) + var(--s3)); }
+.sheet-body { transition: margin-bottom var(--dur-short4) var(--ease-emphasized-accelerate); }
+#planner[data-snackbar=true] ~ #sheet .sheet-body {
+  margin-bottom: calc(var(--snackbar-h, 48px) + var(--s2) + var(--s3));
+  transition: margin-bottom var(--dur-short3) var(--ease-standard-decelerate);
+  -webkit-mask-image: linear-gradient(to top, transparent, #000 var(--s4));
+  mask-image: linear-gradient(to top, transparent, #000 var(--s4));
+}
 .snackbar-text { flex: 1; padding: var(--s2) 0; }
+/* The old words, stacked on the new ones in the same opaque bar, slide up and out before the new ones slide in. */
+.snackbar-ghost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: inherit;
+  border-radius: inherit;
+  pointer-events: none;
+}
 .snackbar-action {
   min-height: var(--touch);
   padding: 0 var(--s3);
@@ -465,8 +495,14 @@ button.list-item:active { background: var(--row-press); }
 .lead-now, .lead-next { color: var(--now); }
 .lead-overdue { color: var(--error); }
 .task-row.done .task-title { color: var(--on-surface-variant); text-decoration: line-through; }
+/* Completing: the ring pops once and the line draws in (both 150ms); then the row collapses into Completed. */
+.task-row.just-done .check-ring { animation: check-pop var(--dur-short3) var(--ease-standard); }
+.task-row.just-done .check-ring .ms { animation: check-in var(--dur-short3) var(--ease-emphasized-decelerate); }
+.task-row.just-done .task-title { animation: strike-in var(--dur-short3) var(--ease-standard); }
+@keyframes check-pop { 0% { transform: scale(.85); } 55% { transform: scale(1.15); } 100% { transform: none; } }
+@keyframes check-in { from { opacity: 0; transform: scale(.4); } }
+@keyframes strike-in { from { text-decoration-color: transparent; color: var(--on-surface); } }
 .must-mark { color: var(--must); margin: 16px var(--s3) 0 var(--s1); }
-.drag-handle { margin-top: 4px; color: var(--on-surface-variant); touch-action: none; }
 /* The Now row: a soft primary tint, lighter in dark so it does not shout. */
 :root { --current-row: color-mix(in srgb, var(--primary-container) 55%, transparent); }
 @media (prefers-color-scheme: dark) {
@@ -474,29 +510,82 @@ button.list-item:active { background: var(--row-press); }
 }
 :root[data-appearance=dark] { --current-row: color-mix(in srgb, var(--primary-container) 38%, transparent); }
 .task-row.current { background: var(--current-row); border-radius: var(--shape-lg); }
-.task-row.dragging {
+/* Keyboard focus on a row is a rounded ring inside it; focus the app hands back on touch draws none (planner.mjs). */
+.task-main:focus-visible { outline-offset: -2px; border-radius: var(--shape-md); }
+:root:not([data-keyboard-nav=true]) :is(button, a, [role=button], [role=checkbox], [tabindex]):focus-visible { outline: none; }
+/* The row a task was opened from, on the way back: a soft rounded highlight that fades. */
+.task-row.returned::after {
+  content: "";
+  position: absolute;
+  inset: 0 var(--s1);
+  border-radius: var(--shape-md);
+  background: var(--row-press);
+  pointer-events: none;
+  /* task-sheets.mjs holds it while the Inbox slides back, then fades it out over 300ms (standard easing) */
+}
+/* Plan order by long-press and drag (Google Tasks): the held row lifts, the rows it passes slide out of its way. */
+.plan-list .task-row { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.plan-list.sorting > .task-row:not(.lifted) {
+  translate: 0 var(--shift, 0px);
+  /* A row moves out of the way as soon as the lifted card crosses its middle, quickly (150ms). */
+  transition: translate var(--dur-short3) var(--ease-standard);
+}
+.task-row.lifted {
   z-index: 2;
-  transform: translateY(var(--drag-y, 0));
-  background: var(--surface-container-highest);
+  translate: 0 var(--drag-y, 0px);
+  scale: 1.02;
+  /* Opaque from the first frame, so the rows it passes never show through it. */
+  background: var(--surface-container-high);
   border-radius: var(--shape-md);
   box-shadow: var(--elev-3);
+  transition: scale var(--dur-short3) var(--ease-standard), box-shadow var(--dur-short3) var(--ease-standard);
 }
-.task-row.drop-target { box-shadow: inset 0 2px 0 var(--primary); }
+/* Let go: it glides into its exact slot and lands flat, then the page takes the new order with no further motion. */
+.task-row.lifted.settling {
+  scale: 1;
+  box-shadow: none;
+  background-color: transparent;
+  transition: translate var(--dur-short4) var(--ease-standard), scale var(--dur-short4) var(--ease-standard),
+    box-shadow var(--dur-short4) var(--ease-standard), background-color var(--dur-short4) var(--ease-standard);
+}
+/* Swipes (Things, Todoist): the row slides over a reveal that says what letting go will do, an icon and the word.
+   Right schedules (primary container), left deletes (error container); past the commit distance the icon grows a
+   little, so the moment it will act is visible. */
 .swipe-task { touch-action: pan-y; }
-.swipe-task > * { transform: translateX(var(--swipe-offset)); }
+.swipe-task[data-swipe] { isolation: isolate; }
+.swipe-task > :not(.swipe-reveal) { transform: translateX(var(--swipe-offset)); }
 .swipe-task[data-swipe]::before {
-  content: attr(data-swipe);
+  content: "";
   position: absolute;
   inset: 0;
+  z-index: -1;
+  background: var(--swipe-surface, var(--surface));
+  transform: translateX(var(--swipe-offset));
+}
+.swipe-task.swipe-settling > :not(.swipe-reveal), .swipe-task.swipe-settling::before {
+  transition: transform var(--dur-short4) var(--ease-standard);
+}
+.swipe-task.swipe-leaving > :not(.swipe-reveal), .swipe-task.swipe-leaving::before {
+  transition: transform var(--dur-short3) var(--ease-emphasized-accelerate);
+}
+.swipe-reveal {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
   display: flex;
   align-items: center;
+  gap: var(--s2);
   padding: 0 var(--s6);
   font: var(--label-large);
   border-radius: var(--shape-md);
-  background: var(--secondary-container);
-  color: var(--on-secondary-container);
+  background: var(--primary-container);
+  color: var(--on-primary-container);
 }
-.swipe-task[data-swipe=Delete]::before { justify-content: flex-end; background: var(--error-container); color: var(--on-error-container); }
+.swipe-reveal .ms { transition: scale var(--dur-short3) var(--ease-standard); }
+.swipe-reveal[data-kind=remove] { flex-direction: row-reverse; background: var(--error-container); color: var(--on-error-container); }
+.swipe-task[data-armed=true] .swipe-reveal .ms { scale: 1.2; }
+.swipe-task.swipe-settling .swipe-reveal { opacity: 0; transition: opacity var(--dur-short4) var(--ease-standard); }
+.swipe-task.swipe-leaving .swipe-reveal { opacity: 1; }
 .completed-group { margin: var(--s2) 0 0; }
 .completed-toggle {
   width: 100%;
@@ -891,6 +980,35 @@ button.result-head:active { background: var(--row-press); }
   overflow-wrap: anywhere;
 }
 .detail-lede { padding: 0 var(--gutter) var(--s3); font: var(--body-large); color: var(--on-surface-variant); }
+/* Edit in place: words look like words until tapped; focus adds a soft tonal field and the M3 active indicator. */
+.inline-edit {
+  display: block;
+  margin: 0 calc(-1 * var(--s1));
+  padding: 0 var(--s1);
+  border-radius: var(--shape-xs) var(--shape-xs) 0 0;
+  outline: none;
+  cursor: text;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  caret-color: var(--primary);
+  transition: background-color var(--dur-short) var(--ease-standard), box-shadow var(--dur-short) var(--ease-standard);
+}
+.inline-edit:focus {
+  background: var(--surface-container-high);
+  box-shadow: inset 0 -2px 0 var(--primary);
+}
+.inline-edit.is-empty::before, .inline-edit:empty::before {
+  content: attr(data-placeholder);
+  color: var(--on-surface-variant);
+  pointer-events: none;
+}
+.title-edit { text-wrap: balance; }
+.title-edit:focus { text-wrap: wrap; }
+.editable-row { cursor: text; }
+.notes-text { font: var(--body-large); }
+.crumb-drop { font-size: 20px; color: var(--on-surface-variant); margin-left: -2px; }
+.project-picker { padding-right: var(--s1); }
+.goal-when-chip { padding-right: var(--s1); }
 .detail-title-text + .block-facts { margin-top: calc(-1 * var(--s2)); }
 /* Google Tasks detail rows: the 24dp icon centred on the Plan's check column, the text on the task titles. */
 .fact-row {
@@ -909,12 +1027,16 @@ button.fact-row:active { background: var(--row-press); }
 .verdict-row { align-items: center; }
 .fact-row .outlined-btn { flex: none; padding: 0 var(--s4); }
 .fact-label { font: var(--label-medium); color: var(--on-surface-variant); }
+/* The resting hint that a detail field edits in place: a small pencil after its label, gone while editing. */
+.fact-label .label-edit { font-size: 14px; width: 14px; height: 14px; line-height: 14px; margin-left: var(--s1); vertical-align: -2px;
+  opacity: .72; transition: opacity var(--dur-short3) var(--ease-standard); }
+.editable-row:focus-within .label-edit { opacity: 0; }
 .purpose-text { font: var(--body-large); overflow-wrap: anywhere; }
-.purpose-row.empty .purpose-text { color: var(--on-surface-variant); font-style: italic; }
 .due-when { font-weight: 500; }
 .status-row.tight .due-when { color: var(--error); }
 .must-legend { font-size: 16px; color: var(--must); vertical-align: -3px; margin-right: 2px; }
-.plan-header { align-items: center; padding: var(--s2) var(--s1) 0 var(--gutter); min-height: 48px; }
+/* Tall enough for Sort by time (a 48dp text button) whether it shows or not, so it never pushes the Plan. */
+.plan-header { align-items: center; padding: var(--s2) var(--s1) 0 var(--gutter); min-height: calc(var(--touch) + var(--s2)); }
 .plan-actions { display: flex; align-items: center; }
 .plan-list { padding: 0 var(--s1); }
 .plan-list .task-row { padding-left: var(--s1); }
@@ -937,6 +1059,8 @@ button.fact-row:active { background: var(--row-press); }
 }
 .inline-add input::placeholder { color: var(--primary); opacity: 1; }
 .inline-add input:focus::placeholder { color: var(--on-surface-variant); }
+/* While the words go on to the Plan and the next are typed, the caret stays lit (as Android's does while typing). */
+.inline-add[data-steady] input { caret-animation: manual; }
 .screen-blocks .completed-group, .screen-blocks .plan-list { margin: 0 var(--s1); }
 .achieved-panel {
   margin: var(--s4) var(--gutter);
@@ -1028,21 +1152,78 @@ button.fact-row:active { background: var(--row-press); }
 }
 .values-card p { font: var(--body-large); }
 .area-head { display: flex; align-items: center; gap: var(--s1); padding: var(--s3) 0 0 var(--gutter); }
-.area-head .detail-title-text { padding-left: var(--s2); }
+.area-head .detail-title-text { flex: 1; min-width: 0; padding-left: var(--s2); }
 .rating-row {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
-  gap: var(--s1) var(--s2);
+  gap: 0 var(--s2);
   width: calc(100% - 2 * var(--gutter));
-  margin: 0 var(--gutter);
-  padding: var(--s4);
+  margin: var(--s2) var(--gutter) 0;
+  padding: var(--s4) var(--s4) var(--s3);
   border-radius: 20px;
   background: var(--surface-container-low);
 }
 .rating-row strong { font: var(--title-medium); }
-.rating-row .wheel-track { grid-column: 1 / -1; }
-.goal-horizon { padding: var(--s3) var(--gutter) 0; }
+/* M3 slider in the Area's colour: one active-track colour whether resting or dragged, a 20dp handle, 48dp target.
+   Unrated: the whole track is inactive and there is no handle until the first touch. */
+.rating-slider {
+  grid-column: 1 / -1;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: var(--touch);
+  margin: 0;
+  background: transparent;
+  --active: var(--tone, var(--primary));
+  --inactive: var(--surface-container-highest);
+  --fill: calc(10px + (100% - 20px) * var(--value, 0));
+}
+.rating-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--active) 0 var(--fill), var(--inactive) var(--fill) 100%);
+}
+.rating-slider::-moz-range-track { height: 4px; border-radius: 2px; background: var(--inactive); }
+.rating-slider::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--active); }
+.rating-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--active);
+  transition: box-shadow var(--dur-short3) var(--ease-standard);
+}
+.rating-slider::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: var(--active); }
+.rating-slider:active::-webkit-slider-thumb, .rating-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 10px color-mix(in srgb, var(--active) 14%, transparent);
+}
+.rating-slider:focus-visible { outline: none; }
+.rating-slider.unrated::-webkit-slider-runnable-track { background: var(--inactive); }
+.rating-slider.unrated::-moz-range-progress { background: transparent; }
+/* Unrated: a hollow handle at the start and the eleven points as faint ticks, an affordance that is not a value. */
+.rating-slider.unrated::-webkit-slider-thumb { background: var(--surface-container-low); box-shadow: inset 0 0 0 2px var(--outline); }
+.rating-slider.unrated::-moz-range-thumb { background: var(--surface-container-low); box-shadow: inset 0 0 0 2px var(--outline); }
+.rating-slider { grid-row: 2; }
+.rating-ticks {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  align-self: center;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 8px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-short3) var(--ease-standard);
+}
+.rating-ticks i { width: 4px; height: 4px; border-radius: 50%; background: var(--outline); }
+.rating-slider.unrated + .rating-ticks { opacity: .55; }
+.rating-slider.unrated + .rating-ticks i:first-child { visibility: hidden; }
+.rating-slider.unrated:focus-visible { outline: 2px solid var(--primary); outline-offset: -8px; border-radius: var(--shape-xs); }
+.rating-note { grid-column: 1 / -1; grid-row: 3; font: var(--body-medium); color: var(--on-surface-variant); }
+
 
 /* Search */
 .search-input {
@@ -1067,6 +1248,7 @@ button.fact-row:active { background: var(--row-press); }
   background: var(--scrim);
 }
 .menu-scrim { background: transparent; z-index: 49; }
+.sheet-scrim.leaving { pointer-events: none; }
 .sheet {
   --sheet-bg: var(--surface-container-low);
   position: fixed;
@@ -1083,15 +1265,37 @@ button.fact-row:active { background: var(--row-press); }
   color: var(--on-surface);
   border-radius: var(--shape-xl) var(--shape-xl) 0 0;
   box-shadow: var(--elev-1);
+  transform-origin: 50% 100%;
 }
 .sheet.expanded { height: 92%; }
+/* Content swap on the shared X axis: the old content slides out over the new one (both see-through, so the sheet
+   is never empty) while the sheet's height morphs to the new content. The handle stays put. */
+.sheet.morphing { overflow: hidden; }
+.sheet-ghost {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--ghost-height);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  pointer-events: none;
+}
+.sheet-ghost-spacer { visibility: hidden; }
+.sheet-header { touch-action: none; }
 .sheet-handle {
   flex: none;
   height: 22px;
   display: grid;
   place-items: center;
   touch-action: none;
+  position: relative;
+  cursor: grab;
 }
+/* The handle's grab area is 48dp tall, wider than the pill. */
+.sheet-handle::after { content: ""; position: absolute; inset: -4px 30% -22px; }
 .sheet-handle::before { content: ""; width: 32px; height: 4px; border-radius: 2px; background: var(--on-surface-variant); opacity: .4; }
 .sheet-header { flex: none; display: flex; align-items: center; gap: var(--s1); padding: 0 var(--s2) 0 var(--s6); }
 .sheet-header h2 { flex: 1; min-width: 0; font: var(--title-large); }
@@ -1181,14 +1385,154 @@ button.fact-row:active { background: var(--row-press); }
 .original-capture summary { font: var(--title-small); min-height: 24px; cursor: pointer; }
 .original-capture p { margin-top: var(--s2); font: var(--body-medium); white-space: pre-wrap; overflow-wrap: anywhere; }
 
-/* Quick add */
-.quick-title { margin: 0 0 var(--s1); }
-.quick-title input { border: 0; padding: var(--s2) 0; min-height: 48px; font: var(--title-large); }
-.quick-title input:focus { border: 0; padding: var(--s2) 0; }
-.quick-title .field-label { display: none; }
-.sheet .chip-row { margin: 0 calc(-1 * var(--s6)); padding: 0 var(--s6); }
-.sheet .chip-row.wrap { margin: 0; padding: 0; }
-.option-panel { padding: var(--s3) 0 0; }
+/* Task sheet: every row edits where it is. A row's choices unfold under it (grid rows 0fr → 1fr), so the rows
+   below slide instead of jumping; one is open at a time and a choice saves at once. */
+.field-head { border-radius: var(--shape-md); margin: 0 calc(-1 * var(--s2)); padding: var(--s2); width: calc(100% + 2 * var(--s2)); }
+.field-head:active, .must-row:active { background: var(--row-press); }
+.must-row { border-radius: var(--shape-md); margin: 0 calc(-1 * var(--s2)); padding: var(--s2); width: calc(100% + 2 * var(--s2)); }
+.field-head.is-open > .ms { color: var(--primary); }
+.detail-text.muted { color: var(--on-surface-variant); }
+.field-fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  /* Folding away: the height and the fade run together, so the choices are clipped as they go and no empty band is
+     left behind. */
+  transition: grid-template-rows var(--dur-short4) var(--ease-emphasized-accelerate), opacity var(--dur-short4) var(--ease-standard-accelerate);
+}
+.field-fold.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition: grid-template-rows var(--dur-medium) var(--ease-emphasized), opacity var(--dur-short) var(--ease-standard);
+}
+.fold-inner { min-height: 0; overflow: hidden; }
+/* Choices line up with the row text (24dp icon + 16dp gap). */
+.field-row .fold-inner, .clash-fold .fold-inner, .suggest-slot { padding-left: 40px; }
+.fold-inner > :last-child { margin-bottom: var(--s2); }
+.fold-label { margin: var(--s2) 0 0; padding: 0; }
+.sheet .choice-chips { row-gap: 0; column-gap: var(--s2); }
+.choice-chip .chip-check, .choice-chip[aria-pressed=true] .chip-lead { display: none; }
+.choice-chip[aria-pressed=true] { padding-left: var(--s2); }
+.choice-chip[aria-pressed=true] .chip-check { display: inline-block; }
+.choice-chip .chip-lead { margin-left: calc(-1 * var(--s2)); color: var(--primary); }
+.fold-strip { padding: 0; margin: 0 0 var(--s1) calc(-1 * var(--s2)); }
+.fold-strip .week-day { min-height: 48px; padding: 2px 0; }
+.fold-strip .week-number { width: 36px; height: 36px; min-width: 0; font: var(--title-small); }
+.exact-chip { position: relative; padding-left: var(--s2); }
+.exact-chip input[type=date], .exact-chip input[type=time] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.exact-chip:focus-within { border-color: var(--primary); }
+.minutes-chip { padding: 0 var(--s3); gap: var(--s1); }
+.minutes-chip input, .after-days input {
+  width: 4ch;
+  border: 0;
+  border-bottom: 1px solid var(--outline);
+  background: transparent;
+  font: var(--label-large);
+  color: var(--on-surface);
+  text-align: right;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.minutes-chip input::placeholder { color: var(--on-surface-variant); }
+.minutes-chip input:focus, .after-days input:focus { border-bottom: 2px solid var(--primary); }
+.after-days { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); min-height: var(--touch); font: var(--body-medium); }
+.after-days input { min-height: 32px; font: var(--body-large); }
+.field-error { margin: var(--s2) 0 0; font: var(--body-medium); color: var(--error); }
+.field-alert { display: flex; align-items: flex-start; gap: var(--s2); margin: 0 0 var(--s2); font: var(--body-medium); color: var(--on-surface-variant); }
+.field-alert .ms { font-size: 20px; }
+.field-alert.is-clash { color: var(--error); }
+.block-face { position: relative; }
+.block-face.resizing { overflow: hidden; }
+/* The row (or card) it was, fading out over what it becomes. */
+.block-face-ghost { position: absolute; z-index: 1; top: 0; left: 0; right: 0; pointer-events: none; }
+.part-of-slot { position: relative; }
+.part-of-slot:not(:empty) + .suggest-slot { display: none; }
+.part-of-slot .part-of { padding-right: 56px; }
+.part-change { position: absolute; top: var(--s2); right: var(--s1); color: var(--on-surface-variant); }
+.suggest-slot:empty { display: none; }
+.suggest-chip { max-width: 100%; margin-top: 0; }
+.suggest-chip .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggest-chip .ms { color: var(--primary); }
+.block-search {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: var(--touch);
+  margin: var(--s1) 0;
+  padding: 0 var(--s4);
+  border-radius: var(--shape-full);
+  background: var(--surface-container-high);
+  color: var(--on-surface-variant);
+}
+.block-search input { flex: 1; min-width: 0; min-height: var(--touch); border: 0; background: transparent; font: var(--body-large); color: var(--on-surface); outline: none; }
+.block-search:focus-within { box-shadow: inset 0 0 0 2px var(--primary); }
+.choice-hint { flex: none; font: var(--label-medium); color: var(--on-surface-variant); }
+.choice-row[aria-pressed=true] .choice-hint { color: inherit; }
+.show-all { align-self: flex-start; margin-left: calc(-1 * var(--s3)); }
+.sheet-task { height: var(--sheet-pin, auto); }
+/* The likeliest days on the date row itself, under its words; the time chips unfold under them after a day. */
+.date-quick { padding-left: 40px; margin-top: calc(-1 * var(--s2)); row-gap: 0; column-gap: var(--s2); }
+.date-quick .choice-chip, .time-chips .choice-chip { padding-left: var(--s3); padding-right: var(--s3); }
+.date-quick .choice-chip[aria-pressed=true], .time-chips .choice-chip[aria-pressed=true] { padding-left: var(--s2); }
+.time-chips { row-gap: 0; column-gap: var(--s2); }
+.sheet-header:has(.sheet-back) { padding-left: var(--s1); }
+.sheet-back { margin-right: var(--s1); }
+.sheet-task .sheet-body { scroll-padding-bottom: var(--s4); }
+
+/* Quick add: the title, then the likeliest choices as chips; the rest unfold under their chip. */
+/* The title wraps (all of the user's words stay in view). Behind it, a copy of the words, drawn with the same font and
+   wrapping, highlights what the sheet read from them (a day, a #Block) in the colour of the chips it marked. */
+.quick-title { display: block; position: relative; margin: 0 0 var(--s1); }
+.quick-title textarea, .quick-mirror {
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: var(--s2) 0;
+  min-height: 48px;
+  font: var(--title-large);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.quick-title textarea {
+  position: relative;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: var(--on-surface);
+  outline: none;
+}
+.quick-title textarea::placeholder { color: var(--on-surface-variant); }
+.quick-mirror { position: absolute; inset: 0; color: transparent; overflow: hidden; pointer-events: none; }
+.quick-mirror mark { color: transparent; background: var(--secondary-container); border-radius: var(--shape-xs);
+  box-shadow: 0 0 0 2px var(--secondary-container); }
+/* One line per kind of choice at normal text size (Time and Repeat show only their icon until set). A row that
+   still does not fit (a long Block name, large text) wraps onto a second line: nothing is ever cut off. */
+.sheet .quick-row { flex-wrap: wrap; row-gap: 0; column-gap: var(--s2); overflow: visible; padding: 0; }
+.quick-row .assist-chip.icon-only { padding: 0; width: var(--touch); justify-content: center; }
+.quick-row .assist-chip.icon-only .chip-label { display: none; }
+.hash-chips .assist-chip { max-width: 80%; }
+.hash-chips .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hash-chips .ms { color: var(--primary); }
+/* Compact chips (12dp sides) so each kind of choice fits one line at normal text size. */
+.quick-row .filter-chip, .quick-row .assist-chip, .choice-chips .filter-chip { padding-left: var(--s3); padding-right: var(--s3); }
+.quick-row .choice-chip[aria-pressed=true], .choice-chips .choice-chip[aria-pressed=true], .quick-row .assist-chip { padding-left: var(--s2); }
+.quick-row .choice-chip { max-width: 80%; }
+.quick-row .choice-chip .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list-chip.icon-only { padding: 0; width: var(--touch); justify-content: center; }
+/* The Block chips keep one line (the picker icon stays with them): a long Block name shortens with an ellipsis, so a
+   suggestion appearing as the title is typed never wraps the row and grows the sheet. Large text may still wrap. */
+.sheet .quick-row.block-chips { flex-wrap: nowrap; }
+.block-chips > .choice-chip { flex: 0 1 auto; min-width: 0; max-width: none; }
+.block-chips > .choice-chip[data-value=""], .block-chips > .list-chip { flex: none; }
+.block-chips .chip-label { min-width: 0; }
+:root[data-large-text=true] .sheet .quick-row.block-chips { flex-wrap: wrap; }
+:root[data-large-text=true] .block-chips > .choice-chip { max-width: 80%; }
+.list-chip.icon-only .chip-label { display: none; }
+.sheet-quick .field-fold .fold-inner { padding-left: 0; }
+.must-chip.on .ms { color: var(--must); }
+.alert-choices { margin-top: var(--s1); }
+.sheet .choice-list { margin-bottom: var(--s2); }
 .choice-list { display: flex; flex-direction: column; }
 .choice-row {
   display: flex;
@@ -1202,6 +1546,7 @@ button.fact-row:active { background: var(--row-press); }
 }
 .choice-row > .ms:first-child { color: var(--on-surface-variant); }
 .choice-row span:not(.ms) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.choice-row span.choice-hint { flex: none; }
 .choice-row[aria-pressed=true] { background: var(--secondary-container); color: var(--on-secondary-container); }
 .choice-row .trailing { color: inherit; }
 .sheet-form .sheet-actions { justify-content: flex-start; }
@@ -1225,6 +1570,17 @@ button.fact-row:active { background: var(--row-press); }
 .preview-task { font: var(--body-medium); padding: var(--s1) 0 0 28px; }
 .example-card h3 { font: var(--title-medium); margin-bottom: var(--s2); }
 .example-card p { margin-bottom: var(--s2); }
+
+/* Schedule: the swipe-right choices, a menu anchored to the row. */
+.schedule-menu { min-width: 260px; max-width: min(320px, calc(100vw - 32px)); }
+.schedule-title { display: flex; align-items: center; gap: var(--s3); min-height: 40px; padding: 0 var(--s4) var(--s1) var(--s3); font: var(--title-small); color: var(--on-surface-variant); }
+.schedule-title span:last-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.schedule-title .ms { color: var(--primary); }
+.schedule-label { flex: 1; min-width: 0; text-align: left; }
+.schedule-hint { flex: none; font: var(--body-medium); color: var(--on-surface-variant); }
+.schedule-item .schedule-check { color: var(--primary); }
+.schedule-item[aria-checked=true] { color: var(--primary); }
+:root[data-large-text=true] .schedule-item { flex-wrap: wrap; padding-block: var(--s2); }
 
 /* Menus */
 .menu {
@@ -1362,5 +1718,39 @@ button.fact-row:active { background: var(--row-press); }
 :root[data-large-text=true] .top-title { font-size: 24px; }
 @media (prefers-reduced-motion: reduce) {
   .progress > span, .wheel-track > span, #fab-host, .fab { transition: none; }
+  .plan-list .task-row, .task-row.lifted, .inline-edit { transition: none; scale: none; }
+  .rating-slider::-webkit-slider-thumb { transition: none; }
 }
+
+/* ---------- Motion helpers (surface-motion.mjs) ---------- */
+/* A frozen copy of the outgoing screen or top bar during a transition; never focusable or tappable. */
+.motion-ghost-layer {
+  position: absolute;
+  z-index: 5;
+  top: var(--ghost-top);
+  left: var(--ghost-left);
+  width: var(--ghost-width);
+  height: var(--ghost-height);
+  overflow: hidden;
+  pointer-events: none;
+}
+.motion-ghost-inner { transform: translateY(var(--ghost-scroll, 0px)); }
+.motion-ghost-bar, .motion-ghost-nav { height: 100%; }
+.motion-ghost-nav #nav-bar { height: 100%; }
+.motion-ghost-fab { display: grid; place-items: center; }
+/* A removed row collapsing in place, and a new row opening. */
+.motion-ghost { overflow: hidden; pointer-events: none; }
+/* Old words fading out over a row whose words changed in place (surface-motion.mjs fadeWords). */
+.motion-fade-host { position: relative; height: 100%; }
+.motion-fade-box { position: absolute; overflow: hidden; pointer-events: none; }
+.motion-clip { overflow: hidden; }
+/* Menus open from their anchor. */
+.menu { animation: menu-in var(--dur-short3) var(--ease-emphasized-decelerate); transform-origin: top right; }
+/* The surface is opaque within 50ms (no see-through menu) while it grows from its anchor over 150ms; its items come
+   in with it. */
+@keyframes menu-in { 0% { opacity: 0; transform: scale(.9, .7); } 33% { opacity: 1; } 100% { opacity: 1; transform: none; } }
 :root[data-reduce-motion=true] .progress > span, :root[data-reduce-motion=true] #fab-host, :root[data-reduce-motion=true] .fab { transition: none; }
+@media (prefers-reduced-motion: reduce) { .field-fold, .field-fold.open { transition: none; } }
+:root[data-reduce-motion=true] .field-fold, :root[data-reduce-motion=true] .field-fold.open { transition: none; }
+:root[data-reduce-motion=true] :is(.plan-list .task-row, .task-row.lifted, .inline-edit) { transition: none; scale: none; }
+:root[data-reduce-motion=true] .rating-slider::-webkit-slider-thumb { transition: none; }

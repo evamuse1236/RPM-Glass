@@ -29,3 +29,33 @@ test('saved planner targets dispatch UUID entities by collection and numeric tas
   assert.deepEqual(savedPlannerTarget({view:'day',collection:'tasks',id:42}),{collection:'tasks',id:42});
   assert.equal(savedPlannerTarget({view:'day',collection:'tasks',id:uuid}),null);
 });
+
+test('a sheet refresh that fails after a save never throws into the save (no raw error in the snackbar)',async()=>{
+  const {syncSheet}=await import('./planner.mjs');
+  const logged=[];const original=console.error;console.error=(...args)=>logged.push(args);
+  try{
+    const broken={sheet:{sync:()=>{const body=undefined;return body.querySelectorAll('*');}}};
+    assert.doesNotThrow(()=>syncSheet(broken));
+    assert.equal(syncSheet(broken),false);
+    assert.equal(logged.length,2,'the failure is logged for diagnosis, not shown');
+    assert.equal(syncSheet({sheet:{sync:()=>true}}),true);
+    assert.equal(syncSheet({sheet:{}}),false);
+  }finally{console.error=original;}
+});
+
+test('the docked snackbar scrolls the row just tapped into view, never past that row or the content end',async()=>{
+  const {dockScroll}=await import('./planner.mjs');
+  const first={top:600,bottom:730};
+  assert.equal(dockScroll({rows:[first,{top:730,bottom:782}],first,visibleTop:300,visibleBottom:710,room:200}),72);
+  assert.equal(dockScroll({rows:[first],first,visibleTop:300,visibleBottom:760,room:200}),0,'already above the bar');
+  assert.equal(dockScroll({rows:[first,{top:730,bottom:900}],first,visibleTop:300,visibleBottom:710,room:40}),40,'only as far as the content goes');
+  assert.equal(dockScroll({rows:[first,{top:730,bottom:1400}],first,visibleTop:300,visibleBottom:710,room:900}),300,'the tapped row stays in view');
+});
+
+test('the docked snackbar makes room by growing the sheet first, and never scrolls the title out of view',async()=>{
+  const {dockRoom}=await import('./planner.mjs');
+  assert.deepEqual(dockRoom({need:60,spare:200,titleTop:8}),{grow:60,scroll:0},'room to grow: nothing scrolls');
+  assert.deepEqual(dockRoom({need:60,spare:20,titleTop:100}),{grow:20,scroll:40},'the rest slides');
+  assert.deepEqual(dockRoom({need:60,spare:0,titleTop:12}),{grow:0,scroll:12},'the title stays in view');
+  assert.deepEqual(dockRoom({need:60,spare:0}),{grow:0,scroll:60},'no title: the row comes into view');
+});

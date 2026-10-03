@@ -52,6 +52,7 @@ function mountReview(app, host) {
     openTask: id => app.actions.openTask(id),
     archiveTask: task => app.actions.archiveTask(task),
     deleteTask: task => app.actions.deleteTask(task),
+    scheduleTask: (task, anchor) => app.actions.scheduleTask(task, anchor),
     sortInbox: () => app.actions.jevSort(),
     readCalendar: anchor => app.api.native('calendarRead', {anchor}),
     now: () => new Date(),
