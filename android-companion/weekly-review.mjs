@@ -1018,16 +1018,19 @@ function mustList(api, blockId, now) {
   const box = el('div', 'wr-musts');
   const head = el('div', 'wr-musts-head');
   const plan = button('Open Plan', () => api.openBlock(blockId), 'wr-btn-text wr-open-block');
-  head.append(el('span', '', open.length ? 'Star what must happen' : 'No open tasks. Add the next step to the Plan.'), plan);
+  head.append(el('span', '', open.length ? 'Tap the tasks that must happen' : 'No open tasks. Add the next step to the Plan.'), plan);
   box.append(head);
   for (const task of open) {
-    const row = el('div', 'wr-must-row');
+    // The whole row toggles Must (like a checklist); only a Must shows its star, so nothing reads as "favourite".
     const label = task.must ? 'Must. Tap to unmark' : 'Mark as Must';
     const toggle = () => api.run(d => setMust(d, task.id, !task.must), task.must ? 'No longer a Must' : 'Marked Must');
-    const star = iconButton('star', `${label}: ${task.title}`, toggle, 'wr-icon-btn wr-star' + (task.must ? ' on' : ''));
-    star.setAttribute('aria-pressed', String(!!task.must));
-    star.dataset.key = 'must:' + task.id;
-    if (task.must) star.querySelector('.ms').classList.add('fill');
+    const row = button('', toggle, 'wr-must-row' + (task.must ? ' on' : ''));
+    row.setAttribute('role', 'switch');
+    row.setAttribute('aria-checked', String(!!task.must));
+    row.setAttribute('aria-label', `${label}: ${task.title ?? task.raw}`);
+    row.dataset.key = 'must:' + task.id;
+    const star = el('span', 'wr-star');
+    if (task.must) star.append(Object.assign(icon('star', true), {className: 'ms fill must'}));
     // The title, then its day on its own quiet line, so a time never wraps away from its day.
     const when = whenText(task, now);
     const text = el('span', 'wr-must-text');

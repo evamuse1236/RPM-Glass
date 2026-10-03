@@ -60,11 +60,6 @@ function summary(op,draft,ctx){
  return {dest,when,estimate,must,notes,load,dated,day:preview?.planned?new Date(preview.planned):null,hasMinutes:minutes!=null};
 }
 
-/** Must keeps the Google Tasks star, shown once and never with the word. */
-function mustStar(op,draft,ctx,must){
- return iconButton('star',`Must: ${opTitle(op)}`,()=>ctx.on.action({...actionBase(draft),kind:'set-field',opId:op.opId,field:'must',value:!must}),{cls:'must-star',fill:must,pressed:must});
-}
-
 /** The destination as a two-line list item: the Block (or Inbox) and its Result's deadline. */
 function destinationLine(op,draft,ctx,dest,active){
  const line=el(active?'button':'div','prop-dest');
@@ -154,9 +149,8 @@ function proposalItem(op,draft,ctx,{active,added=false,skipped=new Set()}){
  if(active&&titleField?.origin==='suggested')heading.append(el('span','tag','Suggested title'));
  top.append(heading);
  const sum=summary(op,draft,ctx);
- const canMust=op.entity==='task'&&['create','update'].includes(op.kind);
- if(active&&canMust)top.append(mustStar(op,draft,ctx,sum.must));
- else if(sum.must){const star=icon('star',{fill:true,cls:'must-mark'});star.removeAttribute('aria-hidden');star.setAttribute('role','img');star.setAttribute('aria-label','Must');top.append(star);}
+ // A filled star marks a Must, as everywhere in RPM; other proposals show none. Must changes in words or later in the task sheet.
+ if(sum.must){const star=icon('star',{fill:true,cls:'must-mark'});star.removeAttribute('aria-hidden');star.setAttribute('role','img');star.setAttribute('aria-label','Must');top.append(star);}
  body.append(top);
  if(sum.dest)body.append(destinationLine(op,draft,ctx,sum.dest,active));
  if(sum.dated){const row=el('div','prop-chips');row.append(dateChip(op,draft,ctx,sum,active));body.append(row);}

@@ -236,9 +236,7 @@ details.details>:not(summary){margin:4px 4px 0}
 .prop-title{display:block;margin:0;padding:0;border:0;background:none;font:var(--body-large);color:var(--on-surface);text-align:start;overflow-wrap:anywhere;text-wrap:pretty}
 button.prop-title{cursor:text}
 .prop.skipped .prop-body>:not(.prop-top),.prop.skipped .prop-title{opacity:.5}
-.prop-top .must-star{margin:0 0 -12px}
-.must-star{color:var(--on-surface-variant)}
-.must-star[aria-pressed=true],.must-mark{color:var(--must)}
+.must-mark{color:var(--must)}
 .must-mark{margin:12px 12px 0}
 /* The destination reads like a Block picker row: the name, its deadline under it. */
 .prop-dest{position:relative;display:flex;align-items:flex-start;gap:8px;min-height:40px;margin:0 0 0 -8px;padding:4px 8px;border:0;border-radius:var(--shape-sm);background:transparent;color:var(--on-surface);font:var(--body-medium);text-align:start;max-width:calc(100% + 8px)}

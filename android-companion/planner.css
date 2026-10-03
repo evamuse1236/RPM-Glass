@@ -466,8 +466,6 @@ button.list-item:active { background: var(--row-press); }
 .lead-overdue { color: var(--error); }
 .task-row.done .task-title { color: var(--on-surface-variant); text-decoration: line-through; }
 .must-mark { color: var(--must); margin: 16px var(--s3) 0 var(--s1); }
-.must-btn { margin-top: 4px; color: var(--outline); }
-.must-btn[aria-pressed=true] { color: var(--must); }
 .drag-handle { margin-top: 4px; color: var(--on-surface-variant); touch-action: none; }
 /* The Now row: a soft primary tint, lighter in dark so it does not shout. */
 :root { --current-row: color-mix(in srgb, var(--primary-container) 55%, transparent); }

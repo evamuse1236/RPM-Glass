@@ -1,4 +1,4 @@
-/** Task rows in the style of Google Tasks: circle check, title, supporting time and duration, Must star. */
+/** Task rows in the style of Google Tasks: circle check, title, supporting time and duration, a star on Musts only. */
 import {blockTasks, localDay} from '../planner-state.mjs';
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
 import {reorderTask} from '../planner-ux.mjs';
@@ -61,17 +61,17 @@ function checkButton(app, task) {
   return check;
 }
 
-export function mustButton(app, task) {
-  const label = `${task.must ? 'Unmark' : 'Mark'} Must: ${task.title}`;
-  const star = iconButton('star', label, () => app.commit({type: 'saveTask', id: task.id, fields: {must: !task.must}},
-    {keepSheet: true, label: task.must ? 'Must removed' : 'Marked Must'}).catch(() => {}),
-  {fill: !!task.must, cls: 'must-btn'});
-  star.setAttribute('aria-pressed', String(!!task.must));
+/** The filled star marks a Must; other rows show nothing there. Must is set from the task sheet, never by a stray tap. */
+function mustMark() {
+  const star = icon('star', {fill: true, cls: 'must-mark'});
+  star.removeAttribute('aria-hidden');
+  star.setAttribute('role', 'img');
+  star.setAttribute('aria-label', 'Must');
   return star;
 }
 
 /**
- * options: current, next, anytime, days (say "Today" too), context (text), plan (true in a Block's Plan: star),
+ * options: current, next, anytime, days (say "Today" too), context (text), plan (true in a Block's Plan),
  * reorder (Plan in reorder mode: drag handle), swipe (archive/delete gestures).
  */
 export function taskRow(app, task, options = {}) {
@@ -90,24 +90,14 @@ export function taskRow(app, task, options = {}) {
     task.must ? 'Must' : '', task.done ? 'completed' : ''].filter(Boolean).join(', '));
   row.append(main);
 
-  if (options.plan) {
-    row.append(mustButton(app, task));
-    if (options.reorder && !task.done) {
-      const handle = iconButton('drag_indicator', 'Reorder ' + task.title, () => app.actions.planOrder(task),
-        {cls: 'drag-handle'});
-      installOrder(app, handle, row, task);
-      row.append(handle);
-    }
-  } else {
-    if (task.must) {
-      const star = icon('star', {fill: true, cls: 'must-mark'});
-      star.removeAttribute('aria-hidden');
-      star.setAttribute('role', 'img');
-      star.setAttribute('aria-label', 'Must');
-      row.append(star);
-    }
-    if (options.swipe !== false && !task.done) attachSwipe(app, row, task);
+  if (task.must) row.append(mustMark());
+  if (options.plan && options.reorder && !task.done) {
+    const handle = iconButton('drag_indicator', 'Reorder ' + task.title, () => app.actions.planOrder(task),
+      {cls: 'drag-handle'});
+    installOrder(app, handle, row, task);
+    row.append(handle);
   }
+  if (!options.plan && options.swipe !== false && !task.done) attachSwipe(app, row, task);
   return row;
 }
 
