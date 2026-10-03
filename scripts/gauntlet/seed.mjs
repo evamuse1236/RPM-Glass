@@ -1,7 +1,7 @@
 // A realistic week for the gauntlet screenshots: a student's Saturday weekly review, built through the
 // planner's own editPlan so the store is valid. Dates are relative to `now`, so the review always has a last week.
 import {freshStore} from '../../chat-prototype/companion-state.mjs';
-import {editPlan, freshPlanner, shiftDay, localDay} from '../../android-companion/planner-state.mjs';
+import {editPlan, freshPlanner, shiftDay, localDay, blockTasks} from '../../android-companion/planner-state.mjs';
 import {migratePlannerUX} from '../../android-companion/planner-ux.mjs';
 import {reviewWeek} from '../../android-companion/review-state.mjs';
 
@@ -73,6 +73,9 @@ export function seedStore(now = new Date()) {
   task({title: 'Group call: merge sections', blockId: critical, minutes: 45, planned: at(today, '16:00').toISOString()});
   task({title: 'Weekly review', minutes: 30, planned: at(today, '19:30').toISOString(), recurrence: 'weekly'});
   editPlan(data, {type: 'context', approved: true, vision: 'A calm, capable year: good work at ISDM, a healthy body, tools that serve me.', goals: 'Finish Term 1 well. Run three mornings a week.'});
+  // Dara's own priorities for the review: the steps in the order they will happen, the submission last.
+  const order = ['Read Snyder', 'Agree the article', 'Draft my section', 'Finish my section', 'Group call', 'Run the plagiarism', 'Submit the critical'];
+  editPlan(data, {type: 'reorder', blockId: critical, ids: order.map(start => blockTasks(data, critical).find(t => t.title.startsWith(start)).id)});
   data.planner.undo = null;
   return {data, week, lastWeek, today};
 }
