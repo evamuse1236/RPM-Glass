@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {editPlan} from './planner-state.mjs';
-import {dueSoon, atRisk} from './planner/today.mjs';
+import {dueSoon, atRisk, freeGap, fillGap} from './planner/today.mjs';
 import {countdown, timeLeft} from './planner/format.mjs';
 import {blockDue} from './planner-state.mjs';
 
@@ -69,4 +69,41 @@ test('At risk: one line per clash cluster, mirrored events are not clashes, and 
   assert.deepEqual(risks[1].items.map(item => item.title), ['DAD exam', 'GWBC session', 'Upload the workbook']);
   assert.ok(!risks.some(r => r.block?.id === review));
   assert.deepEqual(atRisk(d, {now: NOW}).map(r => r.kind), ['unplanned'], 'without calendar access only the data speaks');
+});
+
+test('At risk: a Result due within two days with nothing planned before its deadline; work planned ahead keeps it off', () => {
+  const d = freshStore();
+  const dad = block(d, {title: 'DAD workbook', purpose: 'A clear argument'});
+  task(d, {title: 'Build the charts', blockId: dad, minutes: 120});
+  task(d, {title: 'Upload the workbook', blockId: dad, planned: '2026-10-05T05:00:00.000Z'});
+  const quiz = block(d, {title: 'Ready for the quiz', purpose: 'Walk in confident'});
+  task(d, {title: 'Re-read Reading 1', blockId: quiz});
+  task(d, {title: 'Sit the quiz', blockId: quiz, planned: '2026-10-06T06:00:00.000Z'});
+  const essay = block(d, {title: 'Essay', purpose: 'Proud of it'});
+  task(d, {title: 'Draft', blockId: essay, plannedDate: '2026-10-04'});
+  task(d, {title: 'Edit', blockId: essay});
+  task(d, {title: 'Submit', blockId: essay, planned: '2026-10-05T04:00:00.000Z'});
+  const risks = atRisk(d, {now: NOW});
+  assert.deepEqual(risks.map(r => r.block.title), ['DAD workbook'], 'Tuesday is further off; the essay has a draft planned Sunday');
+  assert.deepEqual(risks[0].undated.map(t => t.title), ['Build the charts'], 'the task that sets the deadline never moves');
+});
+
+test('Free time runs from the next quarter hour to the next fixed thing and takes the unplanned tasks that fit', () => {
+  const d = freshStore();
+  const pmdl = block(d, {title: 'PMDL post work', purpose: 'Show what changed'});
+  task(d, {title: 'Check the upload format', blockId: pmdl, minutes: 10});
+  task(d, {title: 'Write the reflection', blockId: pmdl, minutes: 120});
+  task(d, {title: 'Upload the post work', blockId: pmdl, planned: '2026-10-04T18:29:00.000Z'});
+  task(d, {title: 'Group call', minutes: 45, planned: '2026-10-03T07:30:00.000Z'});
+  const now = new Date('2026-10-03T10:07:00+05:30');
+  const gap = freeGap(d, {now});
+  assert.deepEqual([gap.start, gap.end].map(at => at.toISOString()), ['2026-10-03T04:45:00.000Z', '2026-10-03T07:30:00.000Z']);
+  const [risk] = atRisk(d, {now});
+  assert.deepEqual(fillGap(risk, gap).map(slot => [slot.task.title, slot.start.toISOString()]),
+    [['Check the upload format', '2026-10-03T04:45:00.000Z'], ['Write the reflection', '2026-10-03T04:55:00.000Z']]);
+  const lecture = {id: 'l', title: 'Lecture', busy: true, start: Date.parse('2026-10-03T05:30:00Z'), end: Date.parse('2026-10-03T07:00:00Z')};
+  const short = freeGap(d, {now, calendar: [lecture]});
+  assert.equal(short.end.toISOString(), '2026-10-03T05:30:00.000Z', 'a busy event ends the gap');
+  assert.deepEqual(fillGap(risk, short).map(slot => slot.task.title), ['Check the upload format'], 'only what fits');
+  assert.equal(freeGap(d, {now: new Date('2026-10-03T11:30:00+05:30'), calendar: [lecture]}), null, 'nothing is free during the lecture');
 });

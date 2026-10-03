@@ -1,8 +1,9 @@
-/** Read-only calendar: the day's copy, the calendar chooser and event details; plus the date picker. */
-import {localDay} from '../planner-state.mjs';
+/** Read-only calendar: the day's copy, the calendar chooser, event details and clash choices; plus the date picker. */
+import {localDay, tasks, conflicts} from '../planner-state.mjs';
+import {repeats} from '../planner-recurrence.mjs';
 import {calendarLabel, calendarRows} from '../planner-calendar.mjs';
 import {el, icon, button, labelButton} from './dom.mjs';
-import {clock} from './format.mjs';
+import {clock, relativeDay, timeRange} from './format.mjs';
 import {openSheet, field, checkbox} from './sheet.mjs';
 import {selectDay, setDayLayout} from './today.mjs';
 
@@ -42,6 +43,50 @@ export function calendarDetails(app, event) {
   const note = el('div', 'detail-row static');
   note.append(icon('lock'), el('span', 'detail-text', 'Read-only. Make changes in your calendar app.'));
   body.append(row, note);
+}
+
+/**
+ * Resolve a clash: the overlapping items side by side, and a choice of which to change. A task can move to just
+ * before the clash (when that time is free) or open to choose a time; both go through Undo. Calendar events are
+ * read-only here, so for a clash of events only, the fix RPM offers is one task today to sort it out.
+ */
+export function resolveClash(app, items) {
+  const {state} = app;
+  const data = app.data();
+  const start = Math.min(...items.map(item => item.start)), end = Math.max(...items.map(item => item.end));
+  const day = relativeDay(localDay(start)).replace(/,.*$/, '');
+  const {body, actions} = openSheet(app, 'Resolve clash');
+  body.append(el('p', 'sheet-lead tnum', `${day} · ${timeRange(start, end)}`),
+    el('p', 'sheet-note', 'These overlap. Choose what to change. Calendar events can only be changed in your calendar app.'));
+  const list = el('div', 'clash-list');
+  for (const item of items) {
+    const task = item.source === 'rpm' ? tasks(data).find(t => t.id === item.id) : null;
+    const row = el('div', 'clash-item');
+    const copy = el('span', 'list-copy');
+    copy.append(el('span', 'list-headline', item.title),
+      el('span', 'list-supporting tnum', `${timeRange(item.start, item.end)} · ${task ? 'Task' : 'Calendar event'}`));
+    row.append(icon(task ? 'task_alt' : 'event', {cls: 'leading'}), copy);
+    list.append(row);
+    if (!task) continue;
+    const choices = el('div', 'clash-actions');
+    const minutes = (item.end - item.start) / 60000;
+    const before = Math.min(...items.filter(other => other !== item).map(other => other.start)) - minutes * 60000;
+    if (!repeats(task) && before > Date.now() && !conflicts(data, before, minutes, state.calendar ?? [], task.id).length) {
+      choices.append(button(`Move to ${clock(before)}`, () => app.commit({type: 'saveTask', id: task.id,
+        fields: {planned: new Date(before).toISOString()}}, {label: `${task.title} moved to ${clock(before)}`}).catch(() => {}),
+      'tonal-btn'));
+    }
+    choices.append(button('Change time', () => app.actions.openTask(task.id, item.occurrence), 'text-btn'));
+    list.append(choices);
+  }
+  body.append(list);
+  if (!items.some(item => item.source === 'rpm')) {
+    const title = `Sort out the ${day} ${clock(start)} clash: ${items.map(item => item.title).join(' and ')}`;
+    const added = data.entries.find(t => !t.archived && !t.done && t.title === title);
+    actions.append(added ? button('Open task', () => app.actions.openTask(added.id), 'tonal-btn')
+      : button('Add a task for today', () => app.commit({type: 'saveTask',
+        fields: {title, plannedDate: localDay(), minutes: 15}}, {label: 'Added to Today'}).catch(() => {}), 'tonal-btn'));
+  }
 }
 
 export async function calendarEditor(app) {
