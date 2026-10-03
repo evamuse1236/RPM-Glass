@@ -292,8 +292,8 @@ function installOrder(app, row, task, onReorder) {
   });
 }
 
-/** The row starts collapsing into Completed while its tick is still landing, so it is gone by about 370ms. */
-const COLLAPSE_AFTER = 120;
+/** The struck row holds for 300ms, so "done" can be read, then collapses into Completed (250ms): gone by about 550ms. */
+const COLLAPSE_AFTER = 300;
 
 /**
  * The row on screen becomes the completed row at once: the ring fills with a short pop and the title strikes
@@ -317,8 +317,10 @@ function markRow(app, task, done) {
 
 /**
  * One tap completes; recurring tasks complete one occurrence. Undo is always offered.
- * The ring pops and the title strikes through at once; from 120ms the row collapses where it is (250ms) while the
- * rows below slide up, so it is gone by about 370ms and waits under Completed. Undo reopens it in place.
+ * The ring pops and the title strikes through at once and the row holds, struck, for 300ms; then it collapses where it
+ * is (250ms) while the rows below slide up, so it is gone by about 550ms and waits under Completed. The rest of the
+ * page (a lead card, Coming up, the free time) changes in that same re-render, so everything that follows from the
+ * tick moves once, together. Undo reopens it in place.
  */
 export async function toggleDone(app, task, when) {
   if (app.saving) return;
@@ -332,12 +334,15 @@ export async function toggleDone(app, task, when) {
   const collapse = linger ? waitMotion(COLLAPSE_AFTER) : null;
   if (linger) app.recentlyCompleted.set(task.id, true);
   if (linger) markRow(app, task, true);
+  // From the list, the page waits for the collapse; from a sheet, the page behind it updates under the scrim as usual.
+  const fromList = linger && app.dom.sheet.hidden;
   try {
-    await app.commit(op, {label: completing ? 'Task completed' : 'Task marked incomplete', keepSheet: false});
+    await app.commit(op, {label: completing ? 'Task completed' : 'Task marked incomplete', keepSheet: false,
+      render: !fromList});
     if (linger) {
       collapse.then(() => {
         if (!app.recentlyCompleted.delete(task.id)) return;
-        if (app.dom.sheet.hidden) app.render();
+        if (fromList || app.dom.sheet.hidden) app.render();
       });
     }
     app.api.native('haptic').catch(() => {});

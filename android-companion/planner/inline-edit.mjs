@@ -191,8 +191,7 @@ function smoothHeight(node) {
   if (typeof ResizeObserver === 'undefined') return;
   let last = null;
   let slide = null;
-  new ResizeObserver(entries => {
-    const height = entries[entries.length - 1].borderBoxSize?.[0]?.blockSize ?? node.offsetHeight;
+  const settle = height => {
     const before = last;
     last = height;
     if (before == null || !node.isConnected || !height) return;
@@ -203,6 +202,13 @@ function smoothHeight(node) {
     slide = node.animate([{marginBottom: `${now + delta}px`}, {marginBottom: '0px'}],
       {duration: DURATION.short4, easing: EASE.standard});
     slide.onfinish = () => { slide = null; };
+  };
+  // Typing measures at once, in the same task as the reflow, so the slide starts in the frame the words rewrap (a
+  // ResizeObserver alone reports after that frame's layout, one frame late). The observer catches every other change.
+  node.addEventListener('input', () => settle(node.getBoundingClientRect().height));
+  new ResizeObserver(entries => {
+    const height = entries[entries.length - 1].borderBoxSize?.[0]?.blockSize ?? node.offsetHeight;
+    if (height !== last) settle(height);
   }).observe(node);
 }
 

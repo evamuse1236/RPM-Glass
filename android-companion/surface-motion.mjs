@@ -17,11 +17,12 @@ export const DURATION = Object.freeze({
   medium1: 250, medium2: 300, medium3: 350, medium4: 400,
 });
 /** Pairings used by the planner: sheets enter in 350ms and leave in 200ms, screens move in 300ms. Rows slide in
- * 300ms and open, collapse or resize in 250ms. In a shared axis or fade through the incoming layer starts fading in
- * at 50ms, while the outgoing one (90ms) is still visible, so no frame is blank. */
+ * 300ms and open, collapse or resize in 250ms. A shared axis or fade through is sequenced as M3 specifies: the
+ * outgoing layer fades out over 0–90ms and the incoming one fades in over 90–300ms, so the two are never seen on top
+ * of each other; both move from the first frame. */
 export const MOTION = Object.freeze({
   navigate: DURATION.medium2, enter: DURATION.medium3, exit: DURATION.short4, feedback: DURATION.short3,
-  layout: DURATION.medium2, resize: DURATION.medium1, fadeOut: 90, fadeInDelay: 50, fadeIn: 210, axis: 30,
+  layout: DURATION.medium2, resize: DURATION.medium1, fadeOut: 90, fadeInDelay: 90, fadeIn: 210, axis: 30,
   ease: EASE.standard,
 });
 
@@ -125,8 +126,9 @@ function screenTransition(outgoing, incoming, plan) {
   });
 }
 
-/** M3 shared axis: outgoing and incoming slide together by 30dp (X for siblings and push/pop, Y for a step down
- * in hierarchy such as the weekly review); the old fades out while the new fades in over it. `back` reverses. */
+/** M3 shared axis: outgoing and incoming slide together by 30dp from the first frame (X for siblings and push/pop, Y
+ * for a step down in hierarchy such as the weekly review); the old fades out by 90ms, then the new fades in (90–300ms).
+ * `back` reverses. */
 export function sharedAxis(outgoing, incoming, {back = false, axis = 'x'} = {}) {
   const shift = (back ? -1 : 1) * MOTION.axis;
   const move = px => (axis === 'y' ? `translateY(${px}px)` : `translateX(${px}px)`);
@@ -146,15 +148,26 @@ export function sharedAxis(outgoing, incoming, {back = false, axis = 'x'} = {}) 
   });
 }
 
-/** M3 fade through for unrelated destinations (navigation bar tabs): out 90ms, in 210ms from 92% scale from 50ms. */
+/** A page taller than its scroller grows from the middle of what is on screen, not the middle of the whole page. */
+function originOf(node) {
+  const host = node.parentElement;
+  if (!host || host.scrollHeight <= host.clientHeight + 1) return '50% 50%';
+  const top = node.getBoundingClientRect().top - host.getBoundingClientRect().top;
+  return `50% ${Math.round(host.clientHeight / 2 - top)}px`;
+}
+
+/** M3 fade through for unrelated destinations (navigation bar tabs): the old fades out by 90ms, then the new fades in
+ * (90–300ms) while it grows from 92% (the scale runs from the first frame, so the tap answers at once). */
 export function fadeThrough(outgoing, incoming, {scale = true} = {}) {
   return screenTransition(outgoing, incoming, {
     out: layer => [layer.animate([{opacity: 1}, {opacity: 0}],
       {duration: MOTION.fadeOut, easing: EASE.standardAccelerate, fill: 'forwards'})],
-    in: node => [node.animate(scale
-      ? [{opacity: 0, transform: 'scale(.92)'}, {opacity: 1, transform: 'none'}]
-      : [{opacity: 0}, {opacity: 1}],
-    {duration: MOTION.fadeIn, delay: MOTION.fadeInDelay, easing: EASE.standardDecelerate, fill: 'backwards'})],
+    in: node => [
+      node.animate([{opacity: 0}, {opacity: 1}],
+        {duration: MOTION.fadeIn, delay: MOTION.fadeInDelay, easing: EASE.standardDecelerate, fill: 'backwards'}),
+      ...(scale ? [node.animate([{transform: 'scale(.92)', transformOrigin: originOf(node)},
+        {transform: 'none', transformOrigin: originOf(node)}], {duration: MOTION.navigate, easing: EASE.emphasizedDecelerate})] : []),
+    ],
   });
 }
 
@@ -171,6 +184,9 @@ export const KEYED = '[data-key],[data-task-id],[data-block-id],[data-project-id
 const IDENTITY = 'h1,h2,h3,.task-title,.list-headline,.today-row-headline,.next-title,.card-title,.block-title';
 /** Containers named by their place, not their words: a Plan that gains its first task is the same Plan. */
 const CONTAINERS = '.plan-list,.chip-row,.day-header,.detail-head';
+/** Cards whose content changes as a whole (the lead card on Today becomes another task): the card is replaced in one
+ * fade through while its height morphs, instead of its parts collapsing and opening one by one. */
+const SWAP = '.next-card';
 /** Fields hold the user's words and their own save closures: always taken from the new render. */
 const EDITABLE = 'input,select,textarea,[contenteditable],[data-edit-key]';
 /** Classes that only motion adds; two nodes that differ only by these are the same row. */
@@ -278,12 +294,21 @@ function planChildren(oldParent, newParent, plan) {
   }
   const result = [];
   const used = new Set();
+  // An old node and the new node that took its place (a rebuilt twin), so removed rows keep their place beside it.
+  const twin = new Map();
   for (const child of [...newParent.childNodes]) {
     if (child.nodeType !== 1) { result.push(child); continue; }
     const old = pool.get(matchKey(child))?.shift();
     if (old && reusable(old, child)) {
       result.push(old);
       used.add(old);
+      continue;
+    }
+    if (old && old.matches(SWAP)) {
+      used.add(old);
+      twin.set(old, child);
+      plan.swaps.push([old, child]);
+      result.push(child);
       continue;
     }
     if (old && morphable(old, child)) {
@@ -293,7 +318,7 @@ function planChildren(oldParent, newParent, plan) {
       planChildren(old, child, plan);
       continue;
     }
-    if (old) used.add(old);
+    if (old) { used.add(old); twin.set(old, child); }
     else if (!child.matches(KEYED)) plan.fresh.push(child);
     result.push(child);
   }
@@ -302,8 +327,9 @@ function planChildren(oldParent, newParent, plan) {
   olds.forEach((old, i) => {
     if (used.has(old) || !plan.isGhost(old)) return;
     let at = -1;
-    for (let j = i - 1; j >= 0 && at < 0; j--) { const k = result.indexOf(olds[j]); if (k >= 0) at = k + 1; }
-    for (let j = i + 1; j < olds.length && at < 0; j++) { const k = result.indexOf(olds[j]); if (k >= 0) at = k; }
+    const place = node => result.indexOf(twin.get(node) ?? node);
+    for (let j = i - 1; j >= 0 && at < 0; j--) { const k = place(olds[j]); if (k >= 0) at = k + 1; }
+    for (let j = i + 1; j < olds.length && at < 0; j++) { const k = place(olds[j]); if (k >= 0) at = k; }
     result.splice(at < 0 ? Math.min(i, result.length) : at, 0, old);
     plan.ghosts.push(old);
   });
@@ -328,7 +354,7 @@ function syncAttributes(old, next) {
 
 /** Reconcile `stage` (a detached, freshly built copy) into `root`. */
 function reconcile(root, stage, isGhost) {
-  const plan = {morphs: [], fresh: [], ghosts: [], lists: [], isGhost};
+  const plan = {morphs: [], fresh: [], ghosts: [], lists: [], swaps: [], isGhost};
   planChildren(root, stage, plan);
   const heights = new Map(plan.morphs.map(([old]) => [old, old.getBoundingClientRect()]));
   for (const [old, next] of plan.morphs) syncAttributes(old, next);
@@ -384,10 +410,18 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
   const before = captureRows(root, scroller);
   const oldKeys = keyOf(before.rows);
   const focus = focusPath(root);
-  // The first fully visible row holds the reading position.
-  const anchorEntry = [...before.rows].find(([, row]) => !row.parent && row.rect.top >= before.view.top
-    && row.rect.top < before.view.bottom);
-  const line = anchorEntry?.[1].rect.top ?? -Infinity;
+  // The first row on screen (the innermost, even when its top is cut off) holds the reading position; if it goes, the
+  // next one on screen that stays does. Everything on screen animates; what is above the screen changes at once.
+  const anchors = anchorRows(before);
+  const line = anchors[0]?.[1].rect.top ?? -Infinity;
+  // Rows on screen whose words may change in place: a copy of how they look now, to fade out over the new words.
+  const looks = new Map();
+  if (motion) {
+    for (const [key, row] of before.rows) {
+      if (!row.visible || row.node.querySelector(KEYED) || row.node.closest(SWAP)) continue;
+      looks.set(key, {text: row.node.textContent, copy: row.node.cloneNode(true), chain: chainOf(row.node.parentElement, root)});
+    }
+  }
   const stage = build();
   const stageRows = keyRows(stage);
   const stageKeys = new Set(stageRows.map(([key]) => key));
@@ -400,10 +434,11 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
     const layer = ghost([...root.childNodes], before.view, scroller.parentElement, {cls: oldClass, scrollTop});
     root.replaceChildren(...stage.childNodes);
     if (stage.className) root.className = stage.className;
+    pinTail(root, scroller, scrollTop, []);
     scroller.scrollTop = scrollTop;
     const after = captureRows(root, scroller);
     restoreFocus(focus, oldKeys, after.rows);
-    holdAnchor(scroller, anchorEntry, after.rows);
+    holdAnchor(scroller, anchors, after.rows);
     return fadeThrough([layer], [root], {scale: false});
   }
 
@@ -416,11 +451,14 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
   const plan = reconcile(root, stage, isGhost);
   // Collapsing copies are not part of the new layout.
   for (const node of plan.ghosts) node.classList.add('motion-ghost');
+  // Scrolled to the end and the page got shorter: the page keeps its length for now, so what is above stays still
+  // and the rows below close the gap (the spare space at the end goes as the user scrolls back up).
+  pinTail(root, scroller, scrollTop, plan.ghosts);
   scroller.scrollTop = scrollTop;
   const after = captureRows(root, scroller);
   restoreFocus(focus, oldKeys, after.rows);
   if (!motion) {
-    holdAnchor(scroller, anchorEntry, after.rows);
+    holdAnchor(scroller, anchors, after.rows);
     return Promise.resolve(true);
   }
 
@@ -434,8 +472,11 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
     if (next) kept.push([row, next]);
   }
   const keptNew = new Set(kept.map(([, next]) => next.node));
+  // A swapped card is one unit: its parts neither open nor slide on their own.
+  const swapped = new Set(plan.swaps.map(([, next]) => next));
+  const inSwap = node => { for (let n = node.parentElement; n && n !== root; n = n.parentElement) if (swapped.has(n)) return true; return false; };
   for (const [key, row] of after.rows) {
-    if (before.rows.has(key) || !row.visible) continue;
+    if (before.rows.has(key) || !row.visible || inSwap(row.node)) continue;
     if (row.parent && !keptNew.has(row.parent)) continue;
     if (row.rect.bottom <= line + 1) continue;
     added.push(row);
@@ -443,8 +484,10 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
   const clip = node => { node.classList.add('motion-clip'); clipped.push(node); };
   const view = scroller.getBoundingClientRect();
   const visible = rect => rect.bottom > view.top - 80 && rect.top < view.bottom + 80;
-  // A row whose words changed in the same slot changes size in place instead of collapsing and reopening.
+  // A row whose words changed in the same slot changes size in place instead of collapsing and reopening, and its old
+  // words fade out before the new ones fade in.
   const resize = new Map();
+  const fades = [];
   for (const node of plan.ghosts) {
     const old = before.rows.get(oldKeys.get(node));
     const cls = String(node.className).split(/\s+/)[0];
@@ -453,9 +496,21 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
         || node.nextElementSibling === row.node));
     if (twin >= 0) {
       resize.set(added[twin].node, old.rect.height);
+      node.classList.remove('motion-ghost');
+      fades.push({copy: node, chain: chainOf(node.parentElement, root), rect: old.rect, node: added[twin].node});
       added.splice(twin, 1);
       node.remove();
     } else ghosts.push(node);
+  }
+  // A card replaced as a whole, and a row on screen whose words changed in place, fade through.
+  for (const [old, next] of plan.swaps) {
+    const was = before.rows.get(oldKeys.get(old));
+    if (was?.visible && next.isConnected) fades.push({copy: old, chain: chainOf(next.parentElement, root), rect: was.rect, node: next});
+  }
+  for (const [key, look] of looks) {
+    const next = after.rows.get(key)?.node;
+    if (!next?.isConnected || next.textContent === look.text || inSwap(next) || next.contains(document.activeElement)) continue;
+    fades.push({...look, rect: before.rows.get(key).rect, node: next});
   }
   for (const node of ghosts) {
     node.classList.add('motion-ghost');
@@ -504,11 +559,11 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
   }
   // Layout at the first frame (ghosts full, new rows closed, resized rows at their old size): rows that still differ
   // from before really moved, and slide.
-  holdAnchor(scroller, anchorEntry, after.rows);
+  holdAnchor(scroller, anchors, after.rows);
   const start = new Map(kept.map(([, next]) => [next.node, next.node.getBoundingClientRect()]));
   const shift = new Map();
   for (const [old, next] of kept) {
-    if (!old.visible && !next.visible) continue;
+    if ((!old.visible && !next.visible) || inSwap(next.node)) continue;
     const now = start.get(next.node);
     let dx = old.rect.left - now.left;
     let dy = old.rect.top - now.top;
@@ -523,10 +578,109 @@ export function animateRerender(root, scroller, build, {enabled = true, limit = 
     animations.push(next.node.animate([{translate: `${dx}px ${dy}px`}, {translate: '0px 0px'}],
       {duration: MOTION.layout, easing: EASE.emphasized}));
   }
+  const layer = fades.length ? fadeWords(fades, scroller, view, start, animations) : null;
   return track(root, animations, () => {
     ghosts.forEach(node => node.remove());
+    layer?.remove();
     for (const node of clipped) node.classList.remove('motion-clip');
   });
+}
+
+/** Shallow copies of `parent` and its ancestors up to `root`, so a copy of a row placed elsewhere matches the same
+ * styles; they draw no box of their own. Returns [outermost, innermost]. */
+function chainOf(parent, root) {
+  let outer = null, inner = null;
+  for (let n = parent; n; n = n.parentElement) {
+    const copy = n.cloneNode(false);
+    copy.removeAttribute('id');
+    copy.style.display = 'contents';
+    if (outer) copy.append(outer); else inner = copy;
+    outer = copy;
+    if (n === root) break;
+  }
+  return [outer, inner];
+}
+
+/**
+ * Words that changed in place fade through: a copy of the old row, pinned where it was (and moving with the row),
+ * fades out over 0–90ms; then the row's new content fades in over 90–240ms. The row's own surface stays, so only the
+ * words change.
+ */
+function fadeWords(fades, scroller, view, start, animations) {
+  const layer = ghost([], view, scroller.parentElement, {cls: 'motion-fade-host'});
+  const inner = layer.firstChild;
+  for (const {copy, chain: [outer, parent], rect, node} of fades) {
+    // Where the row's new layout puts it (read before its slide began).
+    const now = start.get(node) ?? node.getBoundingClientRect();
+    const box = document.createElement('div');
+    box.className = 'motion-fade-box';
+    box.style.cssText = `left:${rect.left - view.left}px;top:${rect.top - view.top}px;width:${rect.width}px;height:${rect.height}px`;
+    const parts = [...node.children];
+    const loose = [...node.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+    if (parts.length && !loose) {
+      // Only the words cross: the row's surface (fill, outline, shadow) stays put in the live row.
+      copy.style.background = 'transparent';
+      copy.style.boxShadow = 'none';
+      copy.style.borderColor = 'transparent';
+    }
+    copy.style.margin = '0';
+    copy.style.width = '100%';
+    copy.style.translate = 'none';
+    if (parent) { parent.append(copy); box.append(outer); } else box.append(copy);
+    inner.append(box);
+    const dy = now.top - rect.top, dx = now.left - rect.left;
+    animations.push(box.animate([{opacity: 1}, {opacity: 0}],
+      {duration: MOTION.fadeOut, easing: EASE.standardAccelerate, fill: 'forwards'}));
+    if (Math.abs(dx) >= .5 || Math.abs(dy) >= .5) {
+      animations.push(box.animate([{translate: '0px 0px'}, {translate: `${dx}px ${dy}px`}],
+        {duration: MOTION.layout, easing: EASE.emphasized, fill: 'forwards'}));
+    }
+    for (const target of parts.length && !loose ? parts : [node]) {
+      animations.push(target.animate([{opacity: 0}, {opacity: 1}],
+        {duration: DURATION.short3, delay: MOTION.fadeInDelay, easing: EASE.standardDecelerate, fill: 'backwards'}));
+    }
+  }
+  return layer;
+}
+
+/** The rows on screen, innermost first in reading order: the first one that survives a change holds the position. */
+function anchorRows(before) {
+  const {view} = before;
+  const onScreen = [...before.rows].filter(([, row]) => row.rect.bottom > view.top + 1 && row.rect.top < view.bottom);
+  const leaves = onScreen.filter(([, row]) => !row.node.querySelector(KEYED));
+  return [...leaves, ...onScreen.filter(entry => !leaves.includes(entry))];
+}
+
+/* Scrolled to the end, a page that gets shorter would pull everything down to fill the screen. Instead the page keeps
+ * the length the screen needs (a min-height on `root`) and gives the spare space back as the user scrolls up. */
+const tails = new WeakSet();
+function pinTail(root, scroller, scrollTop, ghosts) {
+  if (root === scroller) return;
+  root.style.removeProperty('min-height');
+  ghosts.forEach(node => { node.style.display = 'none'; });
+  const max = scroller.scrollHeight - scroller.clientHeight;
+  const natural = root.getBoundingClientRect().height;
+  ghosts.forEach(node => node.style.removeProperty('display'));
+  if (scrollTop - max <= 1) return;
+  root.style.minHeight = natural + scrollTop - max + 'px';
+  root.__tail = {natural, max};
+  if (tails.has(scroller)) return;
+  tails.add(scroller);
+  scroller.addEventListener('scroll', () => {
+    const tail = root.__tail;
+    if (!tail || !root.style.minHeight) return;
+    const spare = scroller.scrollTop - tail.max;
+    if (spare <= 0) {
+      root.style.removeProperty('min-height');
+      root.__tail = null;
+    } else if (tail.natural + spare < parseFloat(root.style.minHeight)) root.style.minHeight = tail.natural + spare + 'px';
+  }, {passive: true});
+}
+
+/** A new screen starts at its own length. */
+export function releaseTail(root) {
+  root.style.removeProperty('min-height');
+  root.__tail = null;
 }
 
 /** Register a group of re-render animations on `root`; the next re-render or settleRerender ends it at once. */
@@ -550,13 +704,14 @@ function track(root, animations, cleanup) {
   });
 }
 
-function holdAnchor(scroller, anchorEntry, rows) {
-  if (!anchorEntry) return;
-  const [key, old] = anchorEntry;
-  const now = rows.get(key)?.node;
-  if (!now?.isConnected) return;
-  const delta = now.getBoundingClientRect().top - old.rect.top;
-  if (Math.abs(delta) >= 1) scroller.scrollTop += delta;
+function holdAnchor(scroller, anchors, rows) {
+  for (const [key, old] of anchors) {
+    const now = rows.get(key)?.node;
+    if (!now?.isConnected || now.classList.contains('motion-ghost')) continue;
+    const delta = now.getBoundingClientRect().top - old.rect.top;
+    if (Math.abs(delta) >= 1) scroller.scrollTop += delta;
+    return;
+  }
 }
 
 /** Ends a running re-render motion at once (used before a screen transition takes over). */

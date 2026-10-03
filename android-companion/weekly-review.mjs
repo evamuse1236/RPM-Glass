@@ -15,7 +15,7 @@ import {calendarRows} from './planner-calendar.mjs';
 import {dueInfo, clock, duration, plural, timeRange} from './planner/format.mjs';
 import {areaDot} from './planner/dom.mjs';
 import {attachTaskSwipe} from './task-swipe.mjs';
-import {animateRerender, sharedAxis, ghost, reducedMotion} from './surface-motion.mjs';
+import {animateRerender, sharedAxis, ghost, reducedMotion, releaseTail} from './surface-motion.mjs';
 
 const STEPS = [
   {name: "Last week's Results", next: 'Next: empty your head'},
@@ -226,18 +226,16 @@ function renderReview(root, api, ctx) {
   const bodyRect = stepChange ? body.getBoundingClientRect() : null;
   const oldScroll = body.scrollTop;
   const oldContent = stepChange && !reducedMotion() ? [...content.childNodes] : [];
-  const foot = footer(api);
+  const foot = footer(api, root.querySelector(':scope > .wr-foot'));
   const sheetKey = ui.step === 3 && ui.sheet ? `${ui.sheet.kind}:${ui.sheet.taskId}` : null;
   const sheetWasOpen = sheetKey && root.querySelector(':scope > .wr-layer')?.dataset.sheet === sheetKey;
   root.querySelector(':scope > .wr-layer')?.remove();
-  const bar = topBar(api);
+  // The frame (bar, progress, footer) stays the same nodes from step to step; only the step body moves.
+  const bar = topBar(api, root.querySelector(':scope > .wr-bar'));
   const progress = progressBar(ui.step, api.goTo, root.querySelector(':scope > .wr-steps'));
   if (first) root.replaceChildren(bar, progress, body, foot);
-  else {
-    root.querySelector(':scope > .wr-bar')?.replaceWith(bar);
-    root.querySelector(':scope > .wr-foot')?.replaceWith(foot);
-  }
   if (first || ui.stepChanged) {
+    releaseTail(content);
     content.replaceChildren(...stepContent(api, ctx));
     body.scrollTop = 0;
   } else {
@@ -274,8 +272,15 @@ function renderReview(root, api, ctx) {
   }
 }
 
-/* ---------- frame: top bar, progress, footer ---------- */
-function topBar(api) {
+/* ---------- frame: top bar, progress, footer ----------
+ * Built once and updated in place, so they never flash or replay while the step body changes under them. */
+function topBar(api, existing = null) {
+  if (existing) {
+    const count = existing.querySelector('.wr-bar-count');
+    const text = `${api.ui.step} of ${REVIEW_STEPS}`;
+    if (count && count.textContent !== text) count.textContent = text;
+    return existing;
+  }
   const bar = el('header', 'wr-bar');
   bar.append(iconButton('close', 'Close review', api.close), el('h1', 'wr-bar-title', 'Weekly review'));
   const count = el('span', 'wr-bar-count tnum', `${api.ui.step} of ${REVIEW_STEPS}`);
@@ -308,16 +313,29 @@ function progressBar(step, goTo, existing = null) {
 }
 
 /** Every step can be skipped, so Next and Finish are always the one filled button; the step's own counts guide. */
-function footer(api) {
+function footer(api, existing = null) {
   const {ui} = api;
-  const foot = el('footer', 'wr-foot');
-  if (ui.step > 1) foot.append(button('Back', () => api.goTo(ui.step - 1), 'wr-btn-text wr-back', 'arrow_back'));
+  const foot = existing ?? el('footer', 'wr-foot');
+  // The handlers read the step when tapped, so the same buttons serve every step.
+  let back = foot.querySelector(':scope > .wr-back');
+  if (ui.step > 1 && !back) {
+    back = button('Back', () => api.goTo(api.ui.step - 1), 'wr-btn-text wr-back', 'arrow_back');
+    foot.prepend(back);
+  } else if (ui.step <= 1 && back) back.remove();
   const last = ui.step === REVIEW_STEPS;
   const label = last ? (ui.focus.length ? `Finish with ${plural(ui.focus.length, 'Result')}` : 'Finish review') : STEPS[ui.step - 1].next;
-  const next = button('', last ? api.finish : () => api.goTo(ui.step + 1), 'wr-btn-filled wr-next');
-  next.append(el('span', 'wr-label wr-long', label), el('span', 'wr-label wr-short', last ? 'Finish' : 'Next'), icon(last ? 'check' : 'arrow_forward'));
+  let next = foot.querySelector(':scope > .wr-next');
+  if (!next) {
+    next = button('', () => (api.ui.step === REVIEW_STEPS ? api.finish() : api.goTo(api.ui.step + 1)), 'wr-btn-filled wr-next');
+    next.append(el('span', 'wr-label wr-long'), el('span', 'wr-label wr-short'), icon('arrow_forward'));
+    foot.append(next);
+  }
+  const [long, short, mark] = next.children;
+  const set = (node, text) => { if (node.textContent !== text) node.textContent = text; };
+  set(long, label);
+  set(short, last ? 'Finish' : 'Next');
+  set(mark, last ? 'check' : 'arrow_forward');
   next.setAttribute('aria-label', label);
-  foot.append(next);
   return foot;
 }
 

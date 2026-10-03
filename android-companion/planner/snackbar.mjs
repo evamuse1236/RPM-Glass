@@ -1,6 +1,7 @@
 /** One snackbar at a time, with an optional Undo that reverts the last planner change.
  * It rises from the bottom and always leaves downward (150ms). A new message while one shows keeps the bar opaque
- * and cross-fades only its words. It stays 6s with Undo (4s without), and never times out while the user is typing:
+ * and cross-fades only its words (old out and new in over the same 150ms). A message raised while a sheet is leaving
+ * waits until the sheet is gone. It stays 6s with Undo (4s without), and never times out while the user is typing:
  * the timer pauses while a text field has focus and resumes when it is left. */
 import {playMotion, stopMotion, reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
 import {el, button} from './dom.mjs';
@@ -71,7 +72,8 @@ export function hideSnackbar(app, {instant = false} = {}) {
   });
 }
 
-/** The old words fade out on an opaque copy of the bar while the new ones fade in under it. */
+/** The old words, stacked on the new ones in the same opaque bar, fade out while the new ones fade in (150ms each,
+ * together), so the bar never dips to empty. */
 function swapWords(node, oldParts, content) {
   node.querySelectorAll(':scope > .snackbar-ghost').forEach(n => n.remove());
   if (reducedMotion() || !oldParts.length) return;
@@ -80,15 +82,25 @@ function swapWords(node, oldParts, content) {
   cover.inert = true;
   cover.append(...oldParts);
   node.append(cover);
-  // Old words out (75ms), then new words in (150ms): the two never sit on top of each other half-faded.
-  playMotion(cover, [{opacity: 1}, {opacity: 0}], {duration: 75, easing: EASE.standardAccelerate, fill: 'forwards'})
+  playMotion(cover, [{opacity: 1}, {opacity: 0}], {duration: DURATION.short3, easing: EASE.standard, fill: 'forwards'})
     .then(() => cover.remove());
   for (const part of content) {
-    playMotion(part, [{opacity: 0}, {opacity: 1}], {duration: DURATION.short3, delay: 75, easing: EASE.standardDecelerate});
+    playMotion(part, [{opacity: 0}, {opacity: 1}], {duration: DURATION.short3, easing: EASE.standard});
   }
 }
 
-export function notice(app, message, {undo = false} = {}) {
+/** The latest message waiting for a leaving sheet. */
+let queued = null;
+
+export function notice(app, message, options = {}) {
+  const sheet = app.dom.sheet;
+  if (!sheet.hidden && sheet.inert && app.sheet.gone && !reducedMotion()) {
+    const ticket = queued = {};
+    app.sheet.gone.then(() => { if (queued === ticket) { queued = null; notice(app, message, options); } });
+    return;
+  }
+  queued = null;
+  const {undo = false} = options;
   const node = app.dom.snackbar;
   const showing = !node.hidden;
   ++leaving;

@@ -34,9 +34,10 @@ export function isSheetOpen(app) {
 
 /* ---------- Motion ----------
  * One sheet and one scrim. The sheet rises from the bottom edge and leaves by sliding down; the scrim's opacity
- * follows it (fading evenly on the way out). Opening while a sheet is showing replaces its content in place: the
- * height morphs and the content moves on the shared X axis (forward, or back with `motion: 'back'`), with no second
- * entrance. Every move starts from the pose on screen, so taps redirect it. */
+ * follows the sheet's travel (same curve and duration both ways). Opening while a sheet is showing replaces its
+ * content in place: the old content leaves, then the height morphs as the new content enters on the shared X axis
+ * (forward, or back with `motion: 'back'`), with no second entrance. Every move starts from the pose on screen, so
+ * taps redirect it. */
 const sheetMotion = new WeakMap();
 
 function scrimFor(app) {
@@ -99,9 +100,10 @@ export function closeSheet(app) {
   node.inert = true;
   scrim.classList.add('leaving');
   app.dom.planner.inert = false;
-  // The scrim fades evenly (linear) while the sheet accelerates away, so it never hangs dark and then drops.
-  moveSheet(node, scrim, from, {transform: offscreen(node), opacity: 0},
-    {duration: MOTION.exit, easing: EASE.emphasizedAccelerate, scrimEasing: 'linear'}).then(() => {
+  // The scrim's opacity follows the sheet's travel (same curve, same duration), so it is clear only as the sheet's
+  // last edge leaves. A snackbar raised meanwhile waits for `gone`.
+  app.sheet.gone = moveSheet(node, scrim, from, {transform: offscreen(node), opacity: 0},
+    {duration: MOTION.exit, easing: EASE.emphasizedAccelerate}).then(() => {
     if (epoch !== app.sheet.epoch) return;
     cancelSheetMotion(node);
     node.style.removeProperty('transform');
@@ -194,8 +196,10 @@ function installDrag(app, zone) {
   });
 }
 
-/** Content swap inside an open sheet, on the shared X axis: the old content slides out and fades while the new slides
- * in and fades in over it (both visible, so the sheet is never empty), and the height morphs. */
+/** Content swap inside an open sheet, one motion in M3's shared-axis order: the old content leaves first (it fades out
+ * by 90ms as it starts to slide), then the sheet's height morphs to the new content while that content slides the
+ * rest of the way in and fades in (90–300ms). The sheet keeps its old height until the old content is gone, so it
+ * never moves while the old words are still on it. */
 function replaceContent(node, oldHeight, oldChildren, back) {
   if (reducedMotion() || !oldChildren.length) return;
   const shift = (back ? -1 : 1) * MOTION.axis;
@@ -223,7 +227,7 @@ function replaceContent(node, oldHeight, oldChildren, back) {
   if (Math.abs(newHeight - oldHeight) > 1) {
     node.classList.add('morphing');
     done.push(node.animate([{height: oldHeight + 'px'}, {height: newHeight + 'px'}],
-      {duration: MOTION.navigate, easing: EASE.emphasized}));
+      {duration: MOTION.fadeIn, delay: MOTION.fadeInDelay, easing: EASE.emphasized, fill: 'backwards'}));
   }
   Promise.all(done.map(a => a.finished.catch(() => {}))).then(() => {
     ghostLayer.remove();

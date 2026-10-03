@@ -204,7 +204,8 @@ h1, h2, h3, p { margin: 0; }
   transition: margin-bottom var(--dur-medium1) var(--ease-emphasized-decelerate);
 }
 .snackbar-text { flex: 1; padding: var(--s2) 0; }
-/* The old words on an opaque copy of the bar, fading out over the new ones (the bar itself never goes see-through). */
+/* The old words stacked on the new ones in the same bar, fading out while the new ones fade in (the bar itself stays
+   opaque). */
 .snackbar-ghost {
   position: absolute;
   inset: 0;
@@ -213,7 +214,6 @@ h1, h2, h3, p { margin: 0; }
   gap: var(--s2);
   padding: inherit;
   border-radius: inherit;
-  background: var(--inverse-surface);
   pointer-events: none;
 }
 .snackbar-action {
@@ -1674,6 +1674,9 @@ button.fact-row:active { background: var(--row-press); }
 .motion-ghost-fab { display: grid; place-items: center; }
 /* A removed row collapsing in place, and a new row opening. */
 .motion-ghost { overflow: hidden; pointer-events: none; }
+/* Old words fading out over a row whose words changed in place (surface-motion.mjs fadeWords). */
+.motion-fade-host { position: relative; height: 100%; }
+.motion-fade-box { position: absolute; overflow: hidden; pointer-events: none; }
 .motion-clip { overflow: hidden; }
 /* Menus open from their anchor. */
 .menu { animation: menu-in var(--dur-short3) var(--ease-emphasized-decelerate); transform-origin: top right; }

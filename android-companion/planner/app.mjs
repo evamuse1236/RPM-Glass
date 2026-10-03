@@ -1,6 +1,6 @@
 /** Planner state, navigation and the save path shared by every screen module. */
 import {animateRerender, settleRerender, sharedAxis, fadeThrough, ghost, reducedMotion, snapshotRows, landRows, playMotion,
-  EASE, DURATION, MOTION} from '../surface-motion.mjs';
+  releaseTail, EASE, MOTION} from '../surface-motion.mjs';
 import {planner, localDay} from '../planner-state.mjs';
 import {taskContext, areaTone} from '../planner-ux.mjs';
 import {clarityPreferences, applyClarityPreferences} from '../planner-clarity.mjs';
@@ -180,6 +180,7 @@ function transitionFor(previousKey, key, direction) {
 }
 
 function buildScreen(app, kind, top) {
+  releaseTail(app.dom.work);
   app.dom.work.replaceChildren();
   app.dom.work.className = 'screen screen-' + kind;
   app.renderers.screen(app, kind, top);
@@ -212,14 +213,15 @@ function shellAfter(app, before, motion, outgoing, incoming) {
   const {fab, nav} = app.dom;
   const button = !fab.hidden && fab.firstElementChild;
   if (!motion) return;
+  // The FAB belongs to its page: it fades out with the outgoing page (gone by 90ms) and in with the incoming one.
   if (before.fab && !button) {
     const layer = ghost([before.fab.node], before.fab.rect, before.host, {cls: 'motion-ghost-fab'});
-    layer.animate([{opacity: 1, transform: 'none'}, {opacity: 0, transform: 'scale(.6)'}],
-      {duration: DURATION.short3, easing: EASE.emphasizedAccelerate, fill: 'forwards'}).finished
+    layer.animate([{opacity: 1, transform: 'none'}, {opacity: 0, transform: 'scale(.8)'}],
+      {duration: MOTION.fadeOut, easing: EASE.standardAccelerate, fill: 'forwards'}).finished
       .then(() => layer.remove(), () => layer.remove());
   } else if (button && !before.fab) {
-    playMotion(button, [{opacity: 0, transform: 'scale(.6)'}, {opacity: 1, transform: 'none'}],
-      {duration: DURATION.medium1, delay: MOTION.fadeInDelay, easing: EASE.emphasizedDecelerate});
+    playMotion(button, [{opacity: 0, transform: 'scale(.8)'}, {opacity: 1, transform: 'none'}],
+      {duration: MOTION.fadeIn, delay: MOTION.fadeInDelay, easing: EASE.standardDecelerate});
   }
   if (before.nav && nav.hidden) outgoing.push(ghost([before.nav.node], before.nav.rect, before.host, {cls: 'motion-ghost-nav'}));
   else if (!before.nav && !nav.hidden) incoming.push(nav);
@@ -289,8 +291,12 @@ export function render(app, {reset = false, direction = ''} = {}) {
   else fadeThrough(outgoing, incoming);
 }
 
-/** Apply a planner op (or a review mutator function) through the native save path. */
-export async function commit(app, op, {keepSheet = false, label = 'Saved', undo = true} = {}) {
+/**
+ * Apply a planner op (or a review mutator function) through the native save path. `render: false` leaves the screen
+ * to the caller (a completed row re-renders the page once its tick has been seen). A sheet that closes after the save
+ * leaves first; the snackbar follows once it is gone, never over the leaving sheet.
+ */
+export async function commit(app, op, {keepSheet = false, label = 'Saved', undo = true, render: redraw = true} = {}) {
   if (app.saving) return undefined;
   app.saving = true;
   try {
@@ -299,15 +305,21 @@ export async function commit(app, op, {keepSheet = false, label = 'Saved', undo 
     }
     const id = await app.api.commit(op);
     app.sheet.version = app.data().version;
+    const closing = !keepSheet && !app.dom.sheet.hidden;
     if (!keepSheet) {
       discardDraft(app);
       // Close after the caller's follow-up: a caller that opens the next sheet right away replaces this one in
       // place (one motion), instead of the sheet sliding away and rising again.
       const epoch = app.sheet.epoch;
-      setTimeout(() => { if (epoch === app.sheet.epoch) closeSheet(app); }, 0);
+      setTimeout(() => {
+        if (epoch === app.sheet.epoch) closeSheet(app);
+        if (closing && label) notice(app, label, {undo});
+      }, 0);
     }
-    render(app);
-    if (label) notice(app, label, {undo});
+    if (redraw) render(app);
+    // Raised after the caller's follow-up, so a caller that closes the sheet right after saving (Add) gets the
+    // snackbar once the sheet is gone rather than over it.
+    if (label && !closing) setTimeout(() => notice(app, label, {undo}), 0);
     return id;
   } catch (error) {
     const slot = app.dom.sheet.hidden ? null : app.dom.sheet.querySelector('.sheet-error');
