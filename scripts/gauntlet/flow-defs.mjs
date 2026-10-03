@@ -15,12 +15,9 @@ export const flows = {
     async run(h) {
       const {page} = h;
       await h.tap('open task', page.getByText('Group call: merge sections'));
-      await h.tap('date row', sheet(page).getByRole('button', {name: /^Today, 4:00/}));
-      await h.tap('tomorrow', sheet(page).getByRole('button', {name: 'Tomorrow', exact: true}));
-      await h.tap('time field', sheet(page).getByLabel('Time'));
-      await h.type('type 9:00', sheet(page).getByLabel('Time'), '09:00');
-      await h.tap('save', sheet(page).getByRole('button', {name: /^Save/}));
-      await h.tap('close', sheet(page).getByRole('button', {name: 'Close', exact: true}));
+      await h.tap('date row (unfolds in place)', sheet(page).getByRole('button', {name: /^Date: Today, 4:00/}));
+      await h.tap('tomorrow (saved, time kept)', sheet(page).getByRole('button', {name: /^Tomorrow, /}));
+      await h.tap('9:00 AM (saved, folds away)', sheet(page).getByRole('button', {name: /^9:00\sAM$/}));
     },
     check: s => { const t = find(s, 'Group call'); return ok(t?.planned && new Date(t.planned).toLocaleDateString('en-CA') === tomorrow() && new Date(t.planned).getHours() === 9, 'planned tomorrow 9:00'); },
   },
@@ -30,11 +27,9 @@ export const flows = {
       const {page} = h;
       await h.tap('open inbox', page.getByRole('button', {name: /^Inbox/}));
       await h.tap('open task', sheet(page).getByText('Send the RI budget to Mariyam'));
-      await h.tap('duration row', sheet(page).getByRole('button', {name: /^(30 min|No estimate)$/}));
-      await h.tap('15 min', sheet(page).getByRole('button', {name: '15 min', exact: true}));
-      await h.tap('save', sheet(page).getByRole('button', {name: /^Save/}));
-      await h.tap('must row', sheet(page).getByRole('button', {name: /Mark as Must/}));
-      await h.tap('close', sheet(page).getByRole('button', {name: 'Close', exact: true}));
+      await h.tap('estimate row', sheet(page).getByRole('button', {name: /^Estimate: /}));
+      await h.tap('15 min (saved)', sheet(page).getByRole('button', {name: '15 min', exact: true}));
+      await h.tap('must (toggles in place)', sheet(page).getByRole('button', {name: 'Must', exact: true}));
     },
     check: s => { const t = find(s, 'Send the RI budget'); return ok(t?.minutes === 15 && t.must, '15 min and Must'); },
   },
@@ -44,8 +39,7 @@ export const flows = {
       const {page} = h;
       await h.tap('open inbox', page.getByRole('button', {name: /^Inbox/}));
       await h.tap('open task', sheet(page).getByText('Ask the group which district we picked'));
-      await h.tap('choose block row', sheet(page).getByRole('button', {name: /Choose a Block/}));
-      await h.tap('pick block', sheet(page).getByRole('button', {name: /District demographic profile ready/}));
+      await h.tap('suggested Block (one tap)', sheet(page).getByRole('button', {name: /^Suggested Block District demographic profile ready/}));
     },
     check: s => { const t = find(s, 'Ask the group which district'); const b = s.planner.blocks.find(x => x.title.startsWith('District')); return ok(t?.blockId === b?.id, 'in the District Block'); },
   },
@@ -57,9 +51,9 @@ export const flows = {
       await h.tap('open task', sheet(page).getByText('Call home on Sunday'));
       await h.tap('title', sheet(page).getByLabel('Task title'));
       await h.type('rename', sheet(page).getByLabel('Task title'), 'Call home Sunday evening');
-      await h.tap('notes', sheet(page).getByLabel('Add details'));
+      await h.tap('notes (title saves)', sheet(page).getByLabel('Add details'));
       await h.type('note', sheet(page).getByLabel('Add details'), 'Ask about Diwali plans');
-      await h.tap('close', sheet(page).getByRole('button', {name: 'Close', exact: true}));
+      await h.key('back (note saves, sheet closes)', 'Escape');
     },
     check: s => { const t = find(s, 'Call home Sunday evening'); return ok(t?.notes === 'Ask about Diwali plans', 'renamed with the note'); },
   },
@@ -69,11 +63,9 @@ export const flows = {
       const {page} = h;
       await h.tap('add task', page.getByRole('button', {name: 'Add task'}));
       await h.type('title', sheet(page).getByLabel('Task'), 'Email the TA about the quiz room');
-      await h.tap('date chip', sheet(page).locator('.assist-chip').nth(0));
-      await h.tap('tomorrow', sheet(page).getByRole('button', {name: 'Tomorrow', exact: true}));
-      await h.tap('block chip', sheet(page).locator('.assist-chip').nth(2));
-      await h.tap('pick block', sheet(page).getByRole('button', {name: /Confident for RM Quiz I/}));
-      await h.tap('add', sheet(page).getByRole('button', {name: /^Add$/}));
+      await h.tap('tomorrow chip', sheet(page).getByRole('button', {name: /^Tomorrow, /}));
+      await h.tap('suggested Block chip', sheet(page).getByRole('button', {name: /Suggested Block Confident for RM Quiz I/}));
+      await h.tap('add (sheet stays for the next)', sheet(page).getByRole('button', {name: /^Add$/}));
       await h.key('back (closes the sheet)', 'Escape');
     },
     check: s => { const t = find(s, 'Email the TA'); const b = s.planner.blocks.find(x => x.title.startsWith('Confident')); return ok(t?.blockId === b?.id && (t.plannedDate === tomorrow() || t.planned?.startsWith?.(tomorrow())), 'tomorrow in the quiz Block'); },
