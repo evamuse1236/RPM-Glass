@@ -9,7 +9,7 @@ import {MODEL} from '../chat-prototype/companion-agent.mjs';
 import {migratePlannerUX} from './planner-ux.mjs';
 import {importLegacyEntries} from './legacy-import.mjs';
 import * as reviewState from './review-state.mjs';
-import {editPlan} from './planner-state.mjs';
+import {editPlan,blockDue} from './planner-state.mjs';
 import {planningFocus,changePlanner} from './planner-tools.mjs';
 import {executeCaptureAction,goalDraftAction,receiptsForMessage} from './capture-actions.mjs';
 import {createIntentService,intentViewFromData} from './intent-service.mjs';
@@ -77,7 +77,7 @@ window.RPM_PLATFORM.suggestionAction=(suggestion,sourceRaw,at)=>goalDraftAction(
 window.RPM_PLATFORM.receiptsForMessage=message=>receiptsForMessage(data,message,entryView);
 window.RPM_PLATFORM.describeLink=(field,value)=>describeLink(data,field,value);
 // A Block's Result deadline for Capture's proposals and Block picker: dueInfo() or null.
-window.RPM_PLATFORM.blockDue=id=>dueInfo(data.planner?.blocks?.find(b=>String(b.id)===String(id))?.due);
+window.RPM_PLATFORM.blockDue=id=>dueInfo(blockDue(data,id)?.value);
 window.RPM_PLATFORM.blockChoices=()=>blockChoices(data,window.RPM_PLATFORM.blockDue);
 window.rpmPhoneRefresh=coalesceRefresh(async()=>{await ready;if(!busy){const latest=await native('load');phone=latest.phone;if(latest.data&&latest.data.version!==data.version){data=latest.data;window.dispatchEvent(new Event('rpm-data-refresh'));}}window.dispatchEvent(new Event('rpm-phone-status'));});
 await ready;
