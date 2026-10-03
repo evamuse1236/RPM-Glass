@@ -139,10 +139,11 @@ export const flows = {
       await h.tap('purpose', page.getByRole('textbox', {name: 'Purpose'}));
       await h.type('purpose', page.getByRole('textbox', {name: 'Purpose'}), 'Energy for everything else');
       await h.key('enter (saves)', 'Enter');
-      // The unrated slider rests at 5: drag its thumb two steps' worth to the right, to 7.
+      // The unrated slider is an empty track: touch it in the middle (the handle appears there, at 5) and drag
+      // two whole points to the right, to 7 (the 20px handle travels the width less its own size).
       const slider = page.getByRole('slider', {name: /Health rating/});
       const box = await slider.boundingBox();
-      await h.swipe('drag the rating to 7', slider, (box.width - 16) * 0.2);
+      await h.swipe('drag the rating to 7', slider, (box.width - 20) * 0.2);
     },
     check: s => { const a = s.planner.areas.find(x => x.title === 'Health'); return ok(a?.purpose === 'Energy for everything else' && a.rating === 7, 'Purpose and rating 7'); },
   },

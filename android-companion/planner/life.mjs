@@ -189,7 +189,11 @@ export function renderLife(app, page) {
   }
 }
 
-/** The Area's rating as a slider on the page: drag or arrow keys, saved when let go, with Undo. */
+/**
+ * The Area's rating as a slider on the page: drag or arrow keys, saved when let go, with Undo. It moves in whole
+ * points (a half point saved earlier shows as it is until touched). Unrated, it is an empty track with no thumb, so
+ * nothing reads as a 5; the first touch puts the thumb where the finger is.
+ */
 function ratingSlider(app, area) {
   const row = el('div', 'rating-row');
   row.dataset.tone = app.tone(area);
@@ -199,7 +203,7 @@ function ratingSlider(app, area) {
   input.type = 'range';
   input.min = 0;
   input.max = 10;
-  input.step = 0.5;
+  input.step = area.rating == null || Number.isInteger(area.rating) ? 1 : 0.5;
   input.value = area.rating ?? 5;
   input.classList.toggle('unrated', area.rating == null);
   input.setAttribute('aria-label', `${area.title} rating, 0 to 10`);
@@ -207,6 +211,10 @@ function ratingSlider(app, area) {
   const paint = () => input.style.setProperty('--value', String(Number(input.value) / 10));
   paint();
   input.addEventListener('input', () => {
+    if (input.step !== '1') {
+      input.step = 1;
+      input.value = Math.round(Number(input.value));
+    }
     input.classList.remove('unrated');
     output.textContent = `${input.value} / 10`;
     input.setAttribute('aria-valuetext', `${input.value} of 10`);

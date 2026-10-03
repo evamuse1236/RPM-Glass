@@ -5,6 +5,7 @@ import {reorderTask} from '../planner-ux.mjs';
 import {attachTaskSwipe} from '../task-swipe.mjs';
 import {reducedMotion, waitMotion} from '../surface-motion.mjs';
 import {el, icon, button} from './dom.mjs';
+import {commitInPlace} from './inline-edit.mjs';
 import {clock, duration, dayName} from './format.mjs';
 export {dayName};
 
@@ -92,7 +93,7 @@ export function taskRow(app, task, options = {}) {
   row.append(main);
 
   if (task.must) row.append(mustMark());
-  if (options.plan && !task.done) installOrder(app, row, task);
+  if (options.plan && !task.done) installOrder(app, row, task, options.onReorder);
   if (!options.plan && options.swipe !== false && !task.done) attachSwipe(app, row, task);
   // What the row's handlers act on: a re-render may keep this very node (and its running animations) in place of an
   // identical rebuilt row only when this matches (see animateRerender).
@@ -125,13 +126,23 @@ export function dropIndex(centers, from, top, bottom) {
   return to;
 }
 
+/** Where the lifted row comes to rest, as an offset from its own resting top: the slot it takes is the one `to` held. */
+export function slotOffset(rests, from, to) {
+  if (to === from) return 0;
+  const own = rests[from].bottom - rests[from].top;
+  return to < from ? rests[to].top - rests[from].top : rests[to].bottom - own - rests[from].top;
+}
+
+const SETTLE = 200;
+
 /**
  * Plan order by touch, as in Google Tasks: hold a Plan row still for 350 ms and it lifts; drag it and the rows it
- * passes slide out of its way; let go and it settles into the gap and the order is saved, with Undo. Moving before
+ * passes slide out of its way; let go and it settles into its exact slot and lands flat. Only then is the row moved
+ * in the page and the order saved (with Undo), without rebuilding the Plan, so nothing moves twice. Moving before
  * the hold completes is a scroll and releasing early is a tap, so neither conflicts. Alt or Ctrl with the arrow keys
  * moves a row one step; "Change Plan order" in the task menu stays the accessible path.
  */
-function installOrder(app, row, task) {
+function installOrder(app, row, task, onReorder) {
   let press = null;
   let drag = null;
   let swallowClick = false;
@@ -140,11 +151,13 @@ function installOrder(app, row, task) {
     if (press) clearTimeout(press.timer);
     press = null;
   };
+  const saveOp = targetId => ({type: 'reorder', blockId: task.blockId,
+    ids: reorderTask(blockTasks(app.data(), task.blockId).map(t => t.id), task.id, targetId)});
   const save = targetId => {
+    const op = saveOp(targetId);
     const ids = blockTasks(app.data(), task.blockId).map(t => t.id);
-    const next = reorderTask(ids, task.id, targetId);
-    if (next.every((id, i) => id === ids[i])) return Promise.resolve();
-    return app.commit({type: 'reorder', blockId: task.blockId, ids: next}, {label: 'Plan order changed'});
+    if (op.ids.every((id, i) => id === ids[i])) return Promise.resolve();
+    return app.commit(op, {label: 'Plan order changed'});
   };
   const shift = () => {
     const {peers, from, to, gap} = drag;
@@ -182,8 +195,10 @@ function installOrder(app, row, task) {
     if (!press || !list) return;
     const peers = [...list.querySelectorAll(':scope > .task-row')];
     if (peers.length < 2) { cancelPress(); return; }
-    drag = {pointerId: press.id, startY: press.y, y: press.y, peers, from: peers.indexOf(row), scroll: scroller().scrollTop,
-      gap: row.offsetHeight, top: row.getBoundingClientRect().top, centers: peers.map(peer => { const r = peer.getBoundingClientRect(); return r.top + r.height / 2; })};
+    const rests = peers.map(peer => { const r = peer.getBoundingClientRect(); return {top: r.top, bottom: r.bottom}; });
+    const from = peers.indexOf(row);
+    drag = {pointerId: press.id, startY: press.y, y: press.y, peers, rests, from, scroll: scroller().scrollTop,
+      gap: rests[from].bottom - rests[from].top, top: rests[from].top, centers: rests.map(r => (r.top + r.bottom) / 2)};
     drag.to = drag.from;
     press = null;
     swallowClick = true;
@@ -194,6 +209,7 @@ function installOrder(app, row, task) {
     app.api.native('haptic').catch(() => {});
     drag.frame = requestAnimationFrame(edgeScroll);
   };
+  // Clears every drag style in one style change: transitions belong to the classes removed, so nothing animates.
   const reset = list => {
     row.classList.remove('lifted', 'settling');
     row.style.removeProperty('--drag-y');
@@ -202,24 +218,34 @@ function installOrder(app, row, task) {
   };
   const drop = keep => {
     if (!drag) return;
-    const {peers, from, to, frame} = drag;
+    const {peers, rests, from, to, frame} = drag;
     cancelAnimationFrame(frame);
     drag = null;
     const list = row.parentElement;
     const moved = keep && to !== from;
-    // Settle into the gap: the slot is the sum of the heights of the rows it passed.
-    const span = moved ? peers.slice(Math.min(from, to) + (to > from ? 1 : 0), Math.max(from, to) + (to > from ? 1 : 0))
-      .reduce((sum, peer) => sum + peer.offsetHeight, 0) * (to > from ? 1 : -1) : 0;
     if (!moved) peers.forEach(peer => peer.style.setProperty('--shift', '0px'));
+    // Settle: the row glides into its exact slot while it comes down flat (scale, shadow and fill together).
     row.classList.add('settling');
-    row.style.setProperty('--drag-y', span + 'px');
+    row.style.setProperty('--drag-y', (moved ? slotOffset(rests, from, to) : 0) + 'px');
     const finish = () => {
-      if (!moved) return reset(list);
-      // The saved order re-renders the Plan in its new order, exactly where the rows now sit.
-      return save(Number(peers[to].dataset.taskId)).catch(() => {}).finally(() => { if (row.isConnected) reset(list); });
+      if (!moved || !list || row.parentElement !== list) return reset(list);
+      // The row now sits, flat, exactly where the new order puts it: move it there in the page, clear the offsets
+      // in the same frame (nothing visible changes), then save without rebuilding the Plan.
+      const target = peers[to];
+      if (to < from) target.before(row);
+      else target.after(row);
+      reset(list);
+      return commitInPlace(app, saveOp(Number(target.dataset.taskId)), {label: 'Plan order changed'})
+        .then(() => onReorder?.()).catch(() => {});
     };
-    if (reducedMotion()) finish();
-    else setTimeout(finish, 200);
+    if (reducedMotion() || !row.getAnimations) return finish();
+    // Wait for the glide and for the rows still sliding out of the way (their transitions, on the page's clock).
+    getComputedStyle(row).translate;
+    const moving = [row, ...peers].flatMap(node => node.getAnimations());
+    let done = false;
+    const once = () => { if (!done) { done = true; finish(); } };
+    Promise.all(moving.map(a => a.finished.catch(() => {}))).then(once);
+    setTimeout(once, SETTLE * 6);
   };
 
   row.addEventListener('pointerdown', event => {
