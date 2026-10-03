@@ -1,6 +1,6 @@
 /** Planner state, navigation and the save path shared by every screen module. */
-import {animateRerender, settleRerender, sharedAxis, fadeThrough, ghost, reducedMotion, snapshotRows, landRows, playMotion,
-  releaseTail, EASE, MOTION} from '../surface-motion.mjs';
+import {animateRerender, settleRerender, sharedAxis, fadeThrough, ghost, reducedMotion, snapshotRows, landRows,
+  releaseTail, MOTION} from '../surface-motion.mjs';
 import {planner, localDay} from '../planner-state.mjs';
 import {taskContext, areaTone} from '../planner-ux.mjs';
 import {clarityPreferences, applyClarityPreferences} from '../planner-clarity.mjs';
@@ -213,16 +213,10 @@ function shellAfter(app, before, motion, outgoing, incoming) {
   const {fab, nav} = app.dom;
   const button = !fab.hidden && fab.firstElementChild;
   if (!motion) return;
-  // The FAB belongs to its page: it fades out with the outgoing page (gone by 90ms) and in with the incoming one.
-  if (before.fab && !button) {
-    const layer = ghost([before.fab.node], before.fab.rect, before.host, {cls: 'motion-ghost-fab'});
-    layer.animate([{opacity: 1, transform: 'none'}, {opacity: 0, transform: 'scale(.8)'}],
-      {duration: MOTION.fadeOut, easing: EASE.standardAccelerate, fill: 'forwards'}).finished
-      .then(() => layer.remove(), () => layer.remove());
-  } else if (button && !before.fab) {
-    playMotion(button, [{opacity: 0, transform: 'scale(.8)'}, {opacity: 1, transform: 'none'}],
-      {duration: MOTION.fadeIn, delay: MOTION.fadeInDelay, easing: EASE.standardDecelerate});
-  }
+  // The FAB belongs to its page: it rides the page's own transition (the same layers, the same motion), leaving with
+  // the outgoing page and arriving with the incoming one, with no motion of its own on top.
+  if (before.fab && !button) outgoing.push(ghost([before.fab.node], before.fab.rect, before.host, {cls: 'motion-ghost-fab'}));
+  else if (button && !before.fab) incoming.push(button);
   if (before.nav && nav.hidden) outgoing.push(ghost([before.nav.node], before.nav.rect, before.host, {cls: 'motion-ghost-nav'}));
   else if (!before.nav && !nav.hidden) incoming.push(nav);
 }

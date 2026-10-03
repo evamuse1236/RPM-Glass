@@ -258,7 +258,7 @@ export function sheetBackCancel(app) {
  * in localStorage until saved or discarded; `seed` pre-fills a draft from Capture.
  */
 export function openSheet(app, title, {draftKey = null, seed = null, variant = 'detail', showTitle = true,
-  motion = 'forward'} = {}) {
+  motion = 'forward', enter = MOTION.enter} = {}) {
   const node = app.dom.sheet;
   const scrim = scrimFor(app);
   // Showing (open, or still on its way out): keep sheet and scrim, swap the content.
@@ -320,7 +320,7 @@ export function openSheet(app, title, {draftKey = null, seed = null, variant = '
       } else settleOpen(node);
     } else {
       moveSheet(node, scrim, {transform: offscreen(node), opacity: 0}, {transform: 'translateY(0px)', opacity: 1},
-        {duration: MOTION.enter, easing: EASE.emphasizedDecelerate}).then(settled);
+        {duration: enter, easing: EASE.emphasizedDecelerate}).then(settled);
     }
   };
   if (showing) {

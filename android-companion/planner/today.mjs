@@ -489,10 +489,11 @@ function eventRow(app, event) {
 }
 
 const eventKey = event => 'event:' + (event.id ?? `${event.title}@${+event.start}`);
-/** Free time is keyed by what follows it: when two gaps merge, the later one stays (its words change) and the earlier
- * one closes, so the agenda only ever gets shorter. */
-const freeRow = (minutes, next) => keyed(el('div', 'agenda-free tnum', `${duration(minutes)} free`),
-  'free:' + (next.task ? 'task:' + next.task.id : eventKey(next.event)));
+/** Free time is keyed by what it follows (or the start of the agenda): when the item after a gap leaves, the gap
+ * before it stays where it is and its words change in place (fade through), while the leaving item and the gap after
+ * it close below; nothing new slides in. */
+const itemKey = item => (item ? (item.task ? 'task:' + item.task.id : eventKey(item.event)) : 'start');
+const freeRow = (minutes, prev) => keyed(el('div', 'agenda-free tnum', `${duration(minutes)} free`), 'free:after:' + itemKey(prev));
 
 /**
  * The rest of the day in time order, as Calendar's schedule shows it: tasks (each naming its Result) and calendar
@@ -517,9 +518,11 @@ function agenda(app, page, {tasks, events, from, title}) {
     .sort((a, b) => a.start - b.start || a.end - b.end);
   for (const event of events.filter(e => e.allDay)) section.append(eventRow(app, event));
   let cursor = from;
+  let last = null; // the item whose end the free time starts from
   for (const item of timed) {
-    if (cursor != null && item.start - cursor >= GAP_MINUTES * 60000) section.append(freeRow(Math.round((item.start - cursor) / 60000), item));
+    if (cursor != null && item.start - cursor >= GAP_MINUTES * 60000) section.append(freeRow(Math.round((item.start - cursor) / 60000), last));
     section.append(item.task ? row(item.task) : eventRow(app, item.event));
+    if (cursor == null || item.end >= cursor) last = item;
     cursor = Math.max(cursor ?? 0, item.end);
   }
   for (const task of tasks.filter(task => !task.start)) section.append(row(task));

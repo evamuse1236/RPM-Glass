@@ -147,7 +147,8 @@ const WHEN = new RegExp(String.raw`\b(today|tonight|tomorrow|tmrw?|(?:next\s+)?(
 
 /**
  * A date (and time) written in the title, as Quick add offers it: "tomorrow", "friday", "mon 9am", "tonight".
- * Returns {day, time, match} or null. The words stay in the title; the sheet shows the date it read, removable.
+ * Returns {day, time, match, start, end} or null. The words stay in the title; the sheet marks the date it read on its
+ * chip and highlights the words it came from.
  */
 export function parseWhen(text, today = localDay()) {
   const found = String(text ?? '').match(WHEN);
@@ -167,7 +168,8 @@ export function parseWhen(text, today = localDay()) {
       time = String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
     }
   }
-  return {day, time, match: found[0].trim()};
+  const match = found[0].trim();
+  return {day, time, match, start: found.index, end: found.index + match.length};
 }
 
 /* ---------- inline rows ---------- */

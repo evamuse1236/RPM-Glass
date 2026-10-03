@@ -9,7 +9,7 @@ import {calendarLabel, calendarRisk, calendarRows} from '../planner-calendar.mjs
 import {rankResults} from '../review-state.mjs';
 import {el, icon, button, iconButton, labelButton, emptyState} from './dom.mjs';
 import {clock, duration, timeRange, dateText} from './format.mjs';
-import {animateRerender, reducedMotion, slideScroll, EASE, DURATION} from '../surface-motion.mjs';
+import {animateRerender, reducedMotion, slideScroll, EASE, DURATION, MOTION} from '../surface-motion.mjs';
 import {openSheet, isSheetOpen, discardDraft, rememberValue} from './sheet.mjs';
 import {openMenu, closeMenu} from './menu.mjs';
 import {taskRow, toggleDone} from './task-row.mjs';
@@ -791,6 +791,15 @@ export function showInbox(app, {motion = 'forward'} = {}) {
 const DRAFT = 'task:new';
 
 
+/** A chip's accessible name, with `extra` added while what it shows was read from the typed words. */
+function readLabel(chip, extra) {
+  chip.dataset.aria ??= chip.getAttribute('aria-label') ?? '';
+  const base = chip.dataset.aria;
+  if (extra) chip.setAttribute('aria-label', (base || chip.querySelector('.chip-label')?.textContent || '') + extra);
+  else if (base) chip.setAttribute('aria-label', base);
+  else chip.removeAttribute('aria-label');
+}
+
 /** Quick add (no id) or, for an existing task, the task sheet itself: there is no separate editor. */
 export function taskEditor(app, id, overrides = {}) {
   if (id) return openTask(app, id);
@@ -804,7 +813,7 @@ export function taskEditor(app, id, overrides = {}) {
  * and Block kept for the next task.
  */
 function quickAdd(app, overrides = {}) {
-  const {body, actions, sheet} = openSheet(app, 'New task', {draftKey: DRAFT, variant: 'form sheet-quick'});
+  const {body, actions, sheet} = openSheet(app, 'New task', {draftKey: DRAFT, variant: 'form sheet-quick', enter: MOTION.navigate});
   const draft = app.sheet.draftValues;
   const planned = overrides.planned ? whenOf({}, overrides.planned) : null;
   const s = {
@@ -822,23 +831,51 @@ function quickAdd(app, overrides = {}) {
   const save = saver(app);
   const group = foldGroup(body);
 
-  const name = el('input', 'quick-input');
-  name.type = 'text';
+  // The title wraps onto as many lines as the words need, so the user's words are always all in view. The words the
+  // sheet read (a day, a #Block) are highlighted where they are, by a copy of the text drawn behind the field.
+  const name = el('textarea', 'quick-input');
+  name.rows = 1;
   name.maxLength = 200;
   name.placeholder = 'New task';
   name.enterKeyHint = 'done';
   name.value = draft.Task ?? '';
   name.setAttribute('aria-label', 'Task');
+  const mirror = el('div', 'quick-mirror');
+  mirror.setAttribute('aria-hidden', 'true');
   const nameWrap = el('label', 'quick-title');
-  nameWrap.append(name);
+  nameWrap.append(mirror, name);
+  let lastHeight = 0;
+  const grow = () => {
+    name.style.height = 'auto';
+    const to = name.scrollHeight;
+    name.style.height = to + 'px';
+    // A new line opens smoothly (the sheet's top follows), never in one jump.
+    if (lastHeight && Math.abs(to - lastHeight) > 1 && !reducedMotion() && name.isConnected) {
+      name.animate([{height: lastHeight + 'px'}, {height: to + 'px'}], {duration: DURATION.short3, easing: EASE.standard});
+    }
+    lastHeight = to;
+  };
 
-  // What the title said about the day, shown before it is used, with Remove.
-  const parsedFold = fold('parsed-fold');
+  // A day written in the title is used as the date: its chip is marked and its words highlighted; tapping the marked
+  // chip removes it (the words stay).
   let parsed = null, dismissed = null, before = null;
-  // A #word naming exactly one Block chooses it as typed (shown with Remove, the Block chip marked); the #word leaves
-  // the title when the task is added. Several matches offer chips under the title instead.
-  const tagFold = fold('parsed-fold tag-fold');
+  // A #word naming exactly one Block chooses it as typed (the Block chip marked, the #word highlighted); the #word
+  // leaves the title when the task is added. Several matches offer chips under the title instead.
   let tag = null, tagDismissed = null, tagBefore = null;
+  const paintMirror = () => {
+    const value = name.value;
+    const marks = [parsed, tag].filter(Boolean).filter(m => value.slice(m.start, m.end).toLowerCase() === m.match.toLowerCase())
+      .sort((a, b) => a.start - b.start);
+    const parts = [];
+    let at = 0;
+    for (const m of marks) {
+      if (m.start < at) continue;
+      parts.push(value.slice(at, m.start), el('mark', '', value.slice(m.start, m.end)));
+      at = m.end;
+    }
+    parts.push(value.slice(at) + '\u200b');
+    mirror.replaceChildren(...parts);
+  };
   const readTitle = () => {
     const found = parseWhen(name.value);
     if (found && found.match.toLowerCase() !== dismissed) {
@@ -884,6 +921,7 @@ function quickAdd(app, overrides = {}) {
   whenChips.append(timeChip);
   const whenFold = foldFor(group, timeChip, inner => dateChooser(inner, {
     presets: false,
+    noDate: true,
     get: () => ({day: s.day, time: s.time}),
     pickDay: day => { pickDay(day, true); whenFold.refresh(); },
     pickTime: time => {
@@ -901,7 +939,8 @@ function quickAdd(app, overrides = {}) {
   listChip.append(icon('stacks'), el('span', 'chip-label', 'Choose Block'));
   const pickBlock = id => {
     forgetTag();
-    s.blockId = id || null;
+    // Tapping the marked Block chip again takes the task out of it (as the day chips do).
+    s.blockId = id && id === s.blockId && !blockFold.isOpen ? null : id || null;
     group.close();
     changed();
   };
@@ -1011,6 +1050,7 @@ function quickAdd(app, overrides = {}) {
         hashKey = null;
         readTitle();
         changed();
+        grow();
         name.focus({preventScroll: true});
       }, 'assist-chip hash-chip');
       // Keep the keyboard up: the title keeps focus while a chip is tapped.
@@ -1021,13 +1061,9 @@ function quickAdd(app, overrides = {}) {
     }));
   };
 
-  const parsedLine = el('div', 'parsed-line');
-  parsedFold.inner.append(parsedLine);
-  const tagLine = el('div', 'parsed-line');
-  tagFold.inner.append(tagLine);
   const error = el('p', 'sheet-error');
   error.setAttribute('role', 'alert');
-  body.append(nameWrap, hashFold.node, parsedFold.node, tagFold.node, whenChips, whenFold.node, blockChips, blockFold.node, moreChips,
+  body.append(nameWrap, hashFold.node, whenChips, whenFold.node, blockChips, blockFold.node, moreChips,
     durationFold.node, repeatFold.node, detailsFold.node, error);
 
   const paint = () => {
@@ -1049,27 +1085,21 @@ function quickAdd(app, overrides = {}) {
     repeatChip.classList.toggle('icon-only', !s.repeat);
     repeatChip.setAttribute('aria-label', s.repeat ? 'Repeat: ' + repeatChip.textContent.trim() : 'Repeat');
     detailsChip.classList.toggle('on', !!(s.notes || s.why || s.alert !== 'off'));
-    parsedFold.node.setOpen(!!parsed);
-    if (parsed) {
-      const remove = button('Remove', () => {
-        forgetParse();
-        Object.assign(s, before);
-        changed();
-      }, 'text-btn');
-      remove.setAttribute('aria-label', `Remove the date read from “${parsed.match}”`);
-      parsedLine.replaceChildren(icon('auto_awesome'),
-        el('span', '', `${whenLabel(s)} · from “${parsed.match}”`), remove);
+    // What the words set says so on its chip (marked, and named as read from the words), once.
+    for (const chip of whenChips.querySelectorAll('.choice-chip')) {
+      const read = !!parsed && chip.dataset.value === s.day;
+      chip.classList.toggle('from-words', read);
+      readLabel(chip, read && `, read from “${parsed.match}”. Tap to remove`);
     }
-    tagFold.node.setOpen(!!tag);
-    if (tag) {
-      const remove = button('Remove', () => {
-        forgetTag();
-        s.blockId = tagBefore;
-        changed();
-      }, 'text-btn');
-      remove.setAttribute('aria-label', `Remove the Block read from “${tag.match}”`);
-      tagLine.replaceChildren(icon('stacks'), el('span', '', `${tag.block.title} · from “${tag.match}”`), remove);
+    if (parsed && !whenChips.querySelector('.from-words')) {
+      timeChip.setAttribute('aria-label', `${timeChip.getAttribute('aria-label')}, read from “${parsed.match}”`);
     }
+    for (const chip of blockChips.querySelectorAll('.choice-chip')) {
+      const read = !!tag && chip.dataset.value === String(tag.block.id) && s.blockId === tag.block.id;
+      chip.classList.toggle('from-words', read);
+      readLabel(chip, read && `, read from “${tag.match}”. Tap to remove`);
+    }
+    paintMirror();
     paintHash();
     group.current?.refresh();
     add.disabled = !name.value.trim();
@@ -1092,9 +1122,17 @@ function quickAdd(app, overrides = {}) {
     paint();
   };
   name.addEventListener('input', () => {
+    // One line of words: a pasted line break becomes a space (Enter adds the task).
+    if (/[\r\n]/.test(name.value)) {
+      const caret = name.selectionStart;
+      name.value = name.value.replace(/[\r\n]+/g, ' ');
+      name.setSelectionRange(caret, caret);
+    }
     readTitle();
     changed();
+    grow();
   });
+  name.addEventListener('scroll', () => { mirror.scrollTop = name.scrollTop; });
   name.addEventListener('keyup', event => { if (event.key.startsWith('Arrow') || event.key === 'Home' || event.key === 'End') paintHash(); });
   name.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== name) paintHash(); }));
   // The keyboard's Done adds and keeps the sheet for the next task; the Add button adds and closes.
@@ -1157,12 +1195,14 @@ function quickAdd(app, overrides = {}) {
     name.value = '';
     group.close();
     changed();
+    grow();
     name.focus({preventScroll: true});
   };
   const add = button('Add', () => submit(), 'filled-btn');
   actions.append(labelButton('mic', 'Capture', () => app.capture(), 'text-btn'), el('span', 'spacer'), add);
   readTitle();
   paint();
+  requestAnimationFrame(grow);
 
   app.sheet.live = () => body.isConnected && isSheetOpen(app);
   app.sheet.sync = () => {

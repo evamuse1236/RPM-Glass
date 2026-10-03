@@ -51,3 +51,11 @@ test('the docked snackbar scrolls the row just tapped into view, never past that
   assert.equal(dockScroll({rows:[first,{top:730,bottom:900}],first,visibleTop:300,visibleBottom:710,room:40}),40,'only as far as the content goes');
   assert.equal(dockScroll({rows:[first,{top:730,bottom:1400}],first,visibleTop:300,visibleBottom:710,room:900}),300,'the tapped row stays in view');
 });
+
+test('the docked snackbar makes room by growing the sheet first, and never scrolls the title out of view',async()=>{
+  const {dockRoom}=await import('./planner.mjs');
+  assert.deepEqual(dockRoom({need:60,spare:200,titleTop:8}),{grow:60,scroll:0},'room to grow: nothing scrolls');
+  assert.deepEqual(dockRoom({need:60,spare:20,titleTop:100}),{grow:20,scroll:40},'the rest slides');
+  assert.deepEqual(dockRoom({need:60,spare:0,titleTop:12}),{grow:0,scroll:12},'the title stays in view');
+  assert.deepEqual(dockRoom({need:60,spare:0}),{grow:0,scroll:60},'no title: the row comes into view');
+});

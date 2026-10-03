@@ -527,7 +527,8 @@ button.list-item:active { background: var(--row-press); }
 .plan-list .task-row { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .plan-list.sorting > .task-row:not(.lifted) {
   translate: 0 var(--shift, 0px);
-  transition: translate var(--dur-medium) var(--ease-standard);
+  /* A row moves out of the way as soon as the lifted card crosses its middle, quickly (150ms). */
+  transition: translate var(--dur-short3) var(--ease-standard);
 }
 .task-row.lifted {
   z-index: 2;
@@ -1477,18 +1478,32 @@ button.fact-row:active { background: var(--row-press); }
 .sheet-task .sheet-body { scroll-padding-bottom: var(--s4); }
 
 /* Quick add: the title, then the likeliest choices as chips; the rest unfold under their chip. */
-.quick-title { display: block; margin: 0 0 var(--s1); }
-.quick-title input {
+/* The title wraps (all of the user's words stay in view). Behind it, a copy of the words, drawn with the same font and
+   wrapping, highlights what the sheet read from them (a day, a #Block) in the colour of the chips it marked. */
+.quick-title { display: block; position: relative; margin: 0 0 var(--s1); }
+.quick-title textarea, .quick-mirror {
+  display: block;
   width: 100%;
   border: 0;
   padding: var(--s2) 0;
   min-height: 48px;
+  font: var(--title-large);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.quick-title textarea {
+  position: relative;
+  resize: none;
+  overflow: hidden;
   background: transparent;
   color: var(--on-surface);
-  font: var(--title-large);
   outline: none;
 }
-.quick-title input::placeholder { color: var(--on-surface-variant); }
+.quick-title textarea::placeholder { color: var(--on-surface-variant); }
+.quick-mirror { position: absolute; inset: 0; color: transparent; overflow: hidden; pointer-events: none; }
+.quick-mirror mark { color: transparent; background: var(--secondary-container); border-radius: var(--shape-xs);
+  box-shadow: 0 0 0 2px var(--secondary-container); }
 /* One line per kind of choice at normal text size (Time and Repeat show only their icon until set). A row that
    still does not fit (a long Block name, large text) wraps onto a second line: nothing is ever cut off. */
 .sheet .quick-row { flex-wrap: wrap; row-gap: 0; column-gap: var(--s2); overflow: visible; padding: 0; }
@@ -1514,9 +1529,6 @@ button.fact-row:active { background: var(--row-press); }
 .list-chip.icon-only .chip-label { display: none; }
 .sheet-quick .field-fold .fold-inner { padding-left: 0; }
 .must-chip.on .ms { color: var(--must); }
-.parsed-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s2); font: var(--body-medium); color: var(--primary); }
-.parsed-line > span:not(.ms) { flex: 1 1 160px; }
-.parsed-line .ms { font-size: 18px; }
 .alert-choices { margin-top: var(--s1); }
 .sheet .choice-list { margin-bottom: var(--s2); }
 .choice-list { display: flex; flex-direction: column; }

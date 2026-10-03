@@ -6,9 +6,10 @@ import {parseWhen, dayPresets, whenFields, whenOf, timePresets, repeatLabel, sch
 const SAT = '2026-10-03';
 
 test('Quick add reads a day (and time) written in the title, never a stray short word', () => {
-  assert.deepEqual(parseWhen('Call mum tomorrow', SAT), {day: '2026-10-04', time: '', match: 'tomorrow'});
-  assert.deepEqual(parseWhen('mon 9am standup', SAT), {day: '2026-10-05', time: '09:00', match: 'mon 9am'});
-  assert.deepEqual(parseWhen('Email TA tomorrow at 3:30pm', SAT), {day: '2026-10-04', time: '15:30', match: 'tomorrow at 3:30pm'});
+  // start and end say where the words are, so the sheet can highlight them in the title.
+  assert.deepEqual(parseWhen('Call mum tomorrow', SAT), {day: '2026-10-04', time: '', match: 'tomorrow', start: 9, end: 17});
+  assert.deepEqual(parseWhen('mon 9am standup', SAT), {day: '2026-10-05', time: '09:00', match: 'mon 9am', start: 0, end: 7});
+  assert.deepEqual(parseWhen('Email TA tomorrow at 3:30pm', SAT), {day: '2026-10-04', time: '15:30', match: 'tomorrow at 3:30pm', start: 9, end: 27});
   assert.equal(parseWhen('Pay rent friday', SAT).day, '2026-10-09');
   assert.equal(parseWhen('Dinner tonight', SAT).time, '19:00');
   assert.equal(parseWhen('Weekly review saturday', SAT).day, '2026-10-10', 'the same weekday means next week');

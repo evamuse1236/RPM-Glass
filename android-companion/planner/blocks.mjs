@@ -418,7 +418,8 @@ function refreshPlanHeader(app, block, header) {
   }
   if (wanted) {
     header.append(wanted);
-    playMotion(wanted, [{opacity: 0}, {opacity: 1}], {duration: DURATION.short3, easing: EASE.standard});
+    // An even fade (linear alpha, 150ms), so it reads as appearing, never as a pop.
+    playMotion(wanted, [{opacity: 0}, {opacity: 1}], {duration: DURATION.short3, easing: 'linear'});
   } else {
     shown.inert = true;
     playMotion(shown, [{opacity: 1}, {opacity: 0}], {duration: DURATION.short3, easing: EASE.standardAccelerate,
