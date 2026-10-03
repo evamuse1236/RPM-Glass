@@ -394,6 +394,7 @@ button.pchip:active::before{opacity:.1}
 .pchip-guess{border-style:dashed;border-color:var(--outline)}
 .pchip-tag{flex:none;color:var(--on-surface-variant);font:var(--label-medium)}
 .pchip-flat .pchip-icon{color:var(--tertiary)}
+.also-fate{font:var(--body-small);color:var(--on-surface-variant)}
 .prop-was{margin:2px 12px 0 0;font:var(--body-medium);color:var(--on-surface-variant)}
 .prop-title.done{text-decoration:line-through;text-decoration-color:var(--on-surface-variant)}
 .prop-warn{margin:4px 12px 0 0;font:var(--body-medium);color:var(--error)}

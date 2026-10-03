@@ -145,6 +145,8 @@ function warnings(sum){
  const windowed=sum.load.filter(i=>i.window);
  if(windowed.length){
   // The first two, briefly ("DAD exam 9–10 AM"); the rest as a count.
+  // Deadlines first: a submission due in those hours matters more than a busy event.
+  windowed.sort((a,b)=>(a.kind==='deadline'?0:1)-(b.kind==='deadline'?0:1)||a.at-b.at);
   const items=windowed.slice(0,2).map(i=>i.kind==='clash'?`${i.title} ${span(i.start,i.end)}`:`${i.title} due ${short(i.at)}`);
   const more=windowed.length>2?`, +${windowed.length-2} more`:'';
   nodes.push(el('p','prop-warn',`That ${windowed[0].window==='tonight'?'night':windowed[0].window} also has ${items.join(', ')}${more}`));
@@ -291,7 +293,9 @@ export function alsoHeard(capture,ctx){
  const notes=capture.notes??[];
  if(!notes.length)return null;
  const box=el('section','also');
- box.append(el('p','also-head','Also heard'));
+ const head=el('p','also-head','Also heard');
+ head.append(el('span','also-fate',' · kept with your words in History'));
+ box.append(head);
  const list=el('ul','also-list');
  for(const n of notes){
   const row=el('li','also-row'+(n.disposition==='existing'?' existing':''));
@@ -324,9 +328,8 @@ function draftFooter(draft,{excluded,ready}){
  if(refresh){out.push({label:'Refresh times',role:'filled',icon:'refresh',action:refresh.action});return out;}
  const reviewCommit=draft.review?actions.find(a=>a.action.kind==='commit'):null;
  if(reviewCommit){out.push({label:reviewCommit.label,role:'filled',action:reviewCommit.action});return out;}
- const allCreate=draft.operations.every(op=>op.kind==='create');
- const verb=allCreate?'Add':'Save';
- const label=draft.operations.length>1&&ready>0?`${verb} ${ready}`:verb;
+ // One label everywhere: "Save", or "Save 2" when there is more than one card.
+ const label=draft.operations.length>1&&ready>0?`Save ${ready}`:'Save';
  out.push({label,role:'filled',disabled:!ready,action:{...actionBase(draft),kind:'commit',...(excluded.size?{skip:[...excluded]}:{})}});
  return out;
 }
