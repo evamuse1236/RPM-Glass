@@ -120,7 +120,7 @@ Reduced motion (the system setting or Android's Remove animations) removes movem
 - **Buttons:** one filled button per screen, tonal or outlined for secondary actions, and text buttons for tertiary ones. All are 40dp visually inside a 48dp target.
 - **Chips:** filter chips for views and filters, assist chips for suggestions.
 - **Snackbar:** an inverse surface with a single Undo action. Every plan change made from the planner, the review or Capture can be undone.
-- **Sheets:** Task detail and Quick add are bottom sheets with 28dp top corners. The primary action stays above the keyboard.
+- **Sheets:** Task detail and Quick add are bottom sheets with 28dp top corners. The primary action stays above the keyboard. The task sheet keeps the height it opened at; a row's choices unfold below it (grid rows 0fr to 1fr, 250ms emphasized in, 150ms accelerate out), so the row tapped stays put and the rows below slide. Choices are filter chips (a check as well as the fill when chosen) and, for days, the Today strip's day cells; there is no Save button.
 
 ### Weekly review
 

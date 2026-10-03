@@ -89,11 +89,25 @@ function installActions(app) {
 }
 
 function installBack(app) {
+  // Escape is Back inside the sheet too: it reaches here before the sheet's own handler.
+  app.dom.sheet.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !app.sheet.onBack?.()) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+  // With focus lost to the page (a chosen row folded away), Escape still acts as Back for the open sheet.
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || event.defaultPrevented || app.dom.sheet.hidden) return;
+    if (app.dom.sheet.contains(event.target) || event.target.closest?.('.menu')) return;
+    event.preventDefault();
+    window.rpmHandleBack();
+  });
   window.rpmOpenSettings = section => app.openSettings(section);
   window.rpmHandleBack = () => {
     if (closeMenu()) return true;
     if (!app.dom.sheet.hidden) {
-      dismissSheet(app);
+      // An open inline chooser is the topmost layer: Back closes it before the sheet.
+      if (!app.sheet.onBack?.()) dismissSheet(app);
       return true;
     }
     if (app.mounted?.controller?.handleBack?.()) return true;
@@ -115,7 +129,7 @@ function installNativeHooks(app) {
     return changed;
   };
   window.addEventListener('rpm-data-refresh', () => {
-    if (app.dom.sheet.hidden) app.render();
+    if (app.dom.sheet.hidden || app.sheet.live?.()) app.render();
     else app.notice('Saved data changed. Review before saving.');
   });
   window.addEventListener('rpm-phone-status', () => {
@@ -226,7 +240,12 @@ function openView(app, target) {
 }
 
 export function mountPlanner(api) {
-  const app = createApp(api, {shell: renderShell, screen: renderScreen, defaultScroll, refreshCalendar, searchBar});
+  // After every save, Undo or outside change the shell re-renders; an open task sheet then updates its rows in place.
+  const shell = app => {
+    renderShell(app);
+    app.sheet.sync?.();
+  };
+  const app = createApp(api, {shell, screen: renderScreen, defaultScroll, refreshCalendar, searchBar});
   installActions(app);
   installSheetKeys(app);
   installBack(app);

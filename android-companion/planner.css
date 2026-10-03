@@ -1212,14 +1212,116 @@ button.fact-row:active { background: var(--row-press); }
 .original-capture summary { font: var(--title-small); min-height: 24px; cursor: pointer; }
 .original-capture p { margin-top: var(--s2); font: var(--body-medium); white-space: pre-wrap; overflow-wrap: anywhere; }
 
-/* Quick add */
-.quick-title { margin: 0 0 var(--s1); }
-.quick-title input { border: 0; padding: var(--s2) 0; min-height: 48px; font: var(--title-large); }
-.quick-title input:focus { border: 0; padding: var(--s2) 0; }
-.quick-title .field-label { display: none; }
-.sheet .chip-row { margin: 0 calc(-1 * var(--s6)); padding: 0 var(--s6); }
-.sheet .chip-row.wrap { margin: 0; padding: 0; }
-.option-panel { padding: var(--s3) 0 0; }
+/* Task sheet: every row edits where it is. A row's choices unfold under it (grid rows 0fr → 1fr), so the rows
+   below slide instead of jumping; one is open at a time and a choice saves at once. */
+.field-head { border-radius: var(--shape-md); margin: 0 calc(-1 * var(--s2)); padding: var(--s2); width: calc(100% + 2 * var(--s2)); }
+.field-head:active, .must-row:active { background: var(--row-press); }
+.must-row { border-radius: var(--shape-md); margin: 0 calc(-1 * var(--s2)); padding: var(--s2); width: calc(100% + 2 * var(--s2)); }
+.field-head.is-open > .ms { color: var(--primary); }
+.detail-text.muted { color: var(--on-surface-variant); }
+.field-fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows var(--dur-short) var(--ease-accelerate), opacity 100ms var(--ease-accelerate);
+}
+.field-fold.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition: grid-template-rows var(--dur-medium) var(--ease-emphasized), opacity var(--dur-short) var(--ease-standard);
+}
+.fold-inner { min-height: 0; overflow: hidden; }
+/* Choices line up with the row text (24dp icon + 16dp gap). */
+.field-row .fold-inner, .clash-fold .fold-inner, .suggest-slot { padding-left: 40px; }
+.fold-inner > :last-child { margin-bottom: var(--s2); }
+.fold-label { margin: var(--s2) 0 0; padding: 0; }
+.sheet .choice-chips { row-gap: 0; column-gap: var(--s2); }
+.choice-chip .chip-check, .choice-chip[aria-pressed=true] .chip-lead { display: none; }
+.choice-chip[aria-pressed=true] { padding-left: var(--s2); }
+.choice-chip[aria-pressed=true] .chip-check { display: inline-block; }
+.choice-chip .chip-lead { margin-left: calc(-1 * var(--s2)); color: var(--primary); }
+.fold-strip { padding: 0; margin: 0 0 var(--s1) calc(-1 * var(--s2)); }
+.fold-strip .week-day { min-height: 48px; padding: 2px 0; }
+.fold-strip .week-number { width: 36px; height: 36px; min-width: 0; font: var(--title-small); }
+.exact-chip { position: relative; padding-left: var(--s2); }
+.exact-chip input[type=date], .exact-chip input[type=time] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.exact-chip:focus-within { border-color: var(--primary); }
+.minutes-chip { padding: 0 var(--s3); gap: var(--s1); }
+.minutes-chip input, .after-days input {
+  width: 4ch;
+  border: 0;
+  border-bottom: 1px solid var(--outline);
+  background: transparent;
+  font: var(--label-large);
+  color: var(--on-surface);
+  text-align: right;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.minutes-chip input::placeholder { color: var(--on-surface-variant); }
+.minutes-chip input:focus, .after-days input:focus { border-bottom: 2px solid var(--primary); }
+.after-days { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); min-height: var(--touch); font: var(--body-medium); }
+.after-days input { min-height: 32px; font: var(--body-large); }
+.field-error { margin: var(--s2) 0 0; font: var(--body-medium); color: var(--error); }
+.field-alert { display: flex; align-items: flex-start; gap: var(--s2); margin: 0 0 var(--s2); font: var(--body-medium); color: var(--on-surface-variant); }
+.field-alert .ms { font-size: 20px; }
+.field-alert.is-clash { color: var(--error); }
+.part-of-slot { position: relative; }
+.part-of-slot:not(:empty) + .suggest-slot { display: none; }
+.part-of-slot .part-of { padding-right: 56px; }
+.part-change { position: absolute; top: var(--s2); right: var(--s1); color: var(--on-surface-variant); }
+.suggest-slot:empty { display: none; }
+.suggest-chip { max-width: 100%; margin-top: 0; }
+.suggest-chip .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggest-chip .ms { color: var(--primary); }
+.block-search {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: var(--touch);
+  margin: var(--s1) 0;
+  padding: 0 var(--s4);
+  border-radius: var(--shape-full);
+  background: var(--surface-container-high);
+  color: var(--on-surface-variant);
+}
+.block-search input { flex: 1; min-width: 0; min-height: var(--touch); border: 0; background: transparent; font: var(--body-large); color: var(--on-surface); outline: none; }
+.block-search:focus-within { box-shadow: inset 0 0 0 2px var(--primary); }
+.choice-hint { flex: none; font: var(--label-medium); color: var(--on-surface-variant); }
+.choice-row[aria-pressed=true] .choice-hint { color: inherit; }
+.show-all { align-self: flex-start; margin-left: calc(-1 * var(--s3)); }
+.sheet-task { height: var(--sheet-pin, auto); }
+.sheet-task .sheet-body { scroll-padding-bottom: var(--s4); }
+
+/* Quick add: the title, then the likeliest choices as chips; the rest unfold under their chip. */
+.quick-title { display: block; margin: 0 0 var(--s1); }
+.quick-title input {
+  width: 100%;
+  border: 0;
+  padding: var(--s2) 0;
+  min-height: 48px;
+  background: transparent;
+  color: var(--on-surface);
+  font: var(--title-large);
+  outline: none;
+}
+.quick-title input::placeholder { color: var(--on-surface-variant); }
+/* One line per kind of choice; a row that is wider than the sheet scrolls sideways, running to the sheet's edge. */
+.sheet .quick-row { flex-wrap: nowrap; overflow-x: auto; column-gap: var(--s2); margin: 0 calc(-1 * var(--s6)); padding: 0 var(--s6); }
+/* Compact chips (12dp sides) so each kind of choice fits one line at normal text size. */
+.quick-row .filter-chip, .quick-row .assist-chip, .choice-chips .filter-chip { padding-left: var(--s3); padding-right: var(--s3); }
+.quick-row .choice-chip[aria-pressed=true], .choice-chips .choice-chip[aria-pressed=true], .quick-row .assist-chip { padding-left: var(--s2); }
+.quick-row .choice-chip { max-width: 80%; }
+.quick-row .choice-chip .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list-chip.icon-only { padding: 0; width: var(--touch); justify-content: center; }
+.list-chip.icon-only .chip-label { display: none; }
+.sheet-quick .field-fold .fold-inner { padding-left: 0; }
+.must-chip.on .ms { color: var(--must); }
+.parsed-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s2); font: var(--body-medium); color: var(--primary); }
+.parsed-line > span:not(.ms) { flex: 1 1 160px; }
+.parsed-line .ms { font-size: 18px; }
+.alert-choices { margin-top: var(--s1); }
+.sheet .choice-list { margin-bottom: var(--s2); }
 .choice-list { display: flex; flex-direction: column; }
 .choice-row {
   display: flex;
@@ -1233,6 +1335,7 @@ button.fact-row:active { background: var(--row-press); }
 }
 .choice-row > .ms:first-child { color: var(--on-surface-variant); }
 .choice-row span:not(.ms) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.choice-row span.choice-hint { flex: none; }
 .choice-row[aria-pressed=true] { background: var(--secondary-container); color: var(--on-secondary-container); }
 .choice-row .trailing { color: inherit; }
 .sheet-form .sheet-actions { justify-content: flex-start; }
@@ -1416,3 +1519,5 @@ button.fact-row:active { background: var(--row-press); }
 .menu { animation: menu-in var(--dur-short3) var(--ease-emphasized-decelerate); transform-origin: top right; }
 @keyframes menu-in { from { opacity: 0; transform: scale(.9, .7); } }
 :root[data-reduce-motion=true] .progress > span, :root[data-reduce-motion=true] #fab-host, :root[data-reduce-motion=true] .fab { transition: none; }
+@media (prefers-reduced-motion: reduce) { .field-fold, .field-fold.open { transition: none; } }
+:root[data-reduce-motion=true] .field-fold, :root[data-reduce-motion=true] .field-fold.open { transition: none; }
