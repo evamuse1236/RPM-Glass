@@ -103,6 +103,9 @@ async function runFlow(browser, name, flow) {
       return file;
     });
     const shot = await snapshot(label);
+    // A raw script error shown to the user (snackbar or sheet error slot) is a failure even if the job got done.
+    const shown = await page.evaluate(() => [...document.querySelectorAll('#snackbar, .sheet-error, .snackbar-text')].map(n => n.textContent).join(' '));
+    if (/undefined|null|Cannot read|TypeError|is not a function|is not defined/.test(shown)) problems.push(`step "${label}" showed: ${shown.trim().slice(0, 160)}`);
     record.steps.push({label, kind, ...shot, motionFrames: motionFiles, elementsRemoved: motion.removed,
       motion: motion.log.slice(0, 40)});
   };
