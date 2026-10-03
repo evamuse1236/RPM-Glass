@@ -52,13 +52,17 @@ export function blockChoices(data,deadline=()=>null){
 }
 
 /**
- * What else holds the day a proposal is set for, from the planner and the
- * read-only calendar only: other Results due that day ({text}) and busy events
- * overlapping the proposed time ({text, clash}), in time order. The
- * destination Block's own deadline is left out; its due line already says it.
- * `deadline(id)` returns {value} as blockDue() does, or null.
+ * What else bears on a proposal's time, from the planner and the read-only
+ * calendar only, in time order:
+ * - `deadline`: another Result due the same day ({title, time});
+ * - `clash`: a busy event overlapping the proposed time ({title, start, end});
+ * - `before`: a busy event on the destination Result's own due day, before it is
+ *   due, when the proposal is on an earlier day ({title, start, end}), so a
+ *   morning taken by an exam shows before the deadline that follows it.
+ * The destination Block's own deadline is left out; its due line already says it.
+ * `deadline(id)` returns {value} as blockDue() does, or null; `due` is the destination's value.
  */
-export function dayLoad(data,{start,minutes=null,blockId=null,events=[],deadline=()=>null}){
+export function dayLoad(data,{start,minutes=null,blockId=null,due=null,events=[],deadline=()=>null}){
  const from=Date.parse(start);
  if(!Number.isFinite(from))return [];
  const day=localDay(new Date(from)),to=from+Math.max(1,minutes??0)*60000,items=[];
@@ -67,11 +71,14 @@ export function dayLoad(data,{start,minutes=null,blockId=null,events=[],deadline
   const value=deadline(b.id)?.value;
   if(value?.slice(0,10)!==day)continue;
   const timed=value.length>10,at=new Date(timed?value:value+'T23:59');
-  items.push({at:+at,title:b.title,time:timed?clock(at):null,text:b.title+(timed?' due '+clock(at):' due')});
+  items.push({kind:'deadline',at:+at,title:b.title,time:timed?clock(at):null});
  }
+ const dueAt=due?.length>10?Date.parse(due):NaN,dueDay=Number.isFinite(dueAt)?localDay(new Date(dueAt)):null;
  for(const e of events){
-  if(e.busy===false||e.allDay||!(e.start<to&&e.end>from))continue;
-  items.push({at:e.start,clash:true,text:`${e.title} ${clock(e.start)}–${clock(e.end)}`});
+  if(e.busy===false||e.allDay)continue;
+  const event={at:e.start,title:e.title,start:e.start,end:e.end};
+  if(e.start<to&&e.end>from)items.push({kind:'clash',...event});
+  else if(dueDay&&dueDay>day&&localDay(new Date(e.start))===dueDay&&e.start<dueAt)items.push({kind:'before',...event});
  }
  return items.sort((a,b)=>a.at-b.at);
 }

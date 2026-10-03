@@ -9,9 +9,9 @@ export function installComposer({onSubmit,onInput,onVoice}){
  const form=$('composer'),message=$('message'),panel=$('panel');
  message.setAttribute('enterkeyhint','send');
 
- // Past one line the text takes the field's full width and the buttons drop to a
- // row underneath, as in Gemini. It returns to one line only when the text is
- // shorter than when it grew, so the layout never flickers between the two.
+ // Past one line the field rounds its corners less, as in Gemini, and Send stays on
+ // the last line. It returns to one line only when the text is shorter than when
+ // it grew, so the shape never flickers between the two.
  let grewAt=0;
  const fit=()=>{
   // Five lines at the current text size, then the field scrolls.
