@@ -52,7 +52,7 @@ export function stableKey(value) {
   return (hash >>> 0).toString(36);
 }
 
-/** When a Result's deadline (`block.due`) falls: {at, label, soon, overdue}, or null without one. */
+/** When a Result's derived deadline (`blockDue(data, id).value`) falls: {at, label, soon, overdue}, or null without one. */
 export function dueInfo(value, now = new Date()) {
   if (!value) return null;
   const timed = value.length > 10, at = new Date(timed ? value : value + 'T23:59');

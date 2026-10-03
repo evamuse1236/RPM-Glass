@@ -29,7 +29,7 @@ Capture turns messy thoughts into tasks and Blocks. The assistant may interpret,
 - The weekly review is a four-step route reached from the This week card and the overflow menu: how last week's Results went (Achieved, Partly or Not yet, with Carry, Defer or Drop for unfinished tasks), empty your head into Capture, group Inbox tasks into Blocks, and pick 3 to 5 Results for this week with Must time against planned time. Every step can be skipped, progress is kept, and every change can be undone.
 - Only the user marks a Result achieved, from the review or Block detail, with an optional line of evidence. Completing every task does not mark it.
 - Blocks present **Result · Purpose · Plan**. Summary cards stay simple; Block detail holds Purpose, ordered Plan tasks, Must, and editing.
-- A Block may carry an optional **Due** date (and time) for its Result, set by the user. It is when the Result has to be true, separate from any task's scheduled time, and the planner and weekly review use it to show what is close.
+- A Result has no separate deadline field (decided 2026-10-03). Its due time is derived: the latest open, dated, one-time task in its Block (`blockDue`), such as "Submit the PDF · Sun 9:00 PM". The planner and weekly review use it to show what is close.
 - Projects summarize linked Blocks without nested card stacks. Life contains Vision, Quarter, Month, and Values, with Areas, Goals, Projects, ratings, and a labelled Wheel of Life.
 - Task detail and Quick add keep frequent actions near the keyboard and thumb. Original capture appears when it differs from the task title.
 - The vocabulary is binding in UI text: **Area, Goal, Project, Block, Result, Purpose, Plan, Task, Must, No block, Inbox**.

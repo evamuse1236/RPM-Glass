@@ -75,16 +75,13 @@ export function entityEditor(app, collection, id = null, defaults = {}, draftMet
     {key: collection === 'blocks' ? 'Result' : KEYS.title, helper: collection === 'blocks' ? 'What you want to be true' : ''});
   const purpose = field(app, body, 'Purpose', record.purpose, 'textarea',
     {key: KEYS.purpose, helper: 'Why this matters to you'});
-  let parent = null, dueDay = null, dueTime = null;
+  let parent = null;
   let rating = null;
   let readGoal = null;
   if (collection === 'blocks') {
     const fallback = app.current()?.kind === 'projects' ? app.current().id : null;
     parent = select(app, body, 'Project', record.projectId ?? fallback,
       [['', 'No project'], ...app.p().projects.map(pr => [pr.id, pr.title])]);
-    dueDay = field(app, body, 'Due (optional)', record.due?.slice(0, 10) ?? '', 'date',
-      {key: 'Due', helper: 'When the Result has to be true'});
-    dueTime = field(app, body, 'Due time (optional)', record.due?.slice(11) ?? '', 'time', {key: 'Due time'});
   }
   if (collection === 'projects') {
     parent = select(app, body, 'Goal', record.goalId, [['', 'No goal'], ...app.p().goals.map(g => [g.id, `${g.year} · ${g.title}`])]);
@@ -112,10 +109,7 @@ export function entityEditor(app, collection, id = null, defaults = {}, draftMet
   const save = button('Save', async () => {
     try {
       const fields = {title: name.value, purpose: purpose.value, notes: notes.value};
-      if (collection === 'blocks') {
-        fields.projectId = parent.value || null;
-        fields.due = dueDay.value ? dueDay.value + (dueTime.value ? 'T' + dueTime.value : '') : null;
-      }
+      if (collection === 'blocks') fields.projectId = parent.value || null;
       if (collection === 'projects') fields.goalId = parent.value || null;
       if (collection === 'areas') fields.rating = rating.value === '' ? null : Number(rating.value);
       if (readGoal) readGoal(fields);

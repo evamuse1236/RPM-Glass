@@ -27,8 +27,8 @@ export function seedStore(now = new Date()) {
 
   // Last week's Results (chosen in last week's review).
   const sun = shiftDay(today, 1), mon = shiftDay(today, 2), tue = shiftDay(today, 3);
-  const critical = save('blocks', {title: 'RM critical review drafted with my group', purpose: 'So Sunday\'s submission is calm, not a 10 PM scramble', projectId: isdm, due: sun + 'T23:00'});
-  const pmdl = save('blocks', {title: 'PMDL post work ready to submit', purpose: 'Show what the course actually changed in how I lead', projectId: isdm, due: sun});
+  const critical = save('blocks', {title: 'RM critical review drafted with my group', purpose: 'So Sunday\'s submission is calm, not a 10 PM scramble', projectId: isdm});
+  const pmdl = save('blocks', {title: 'PMDL post work ready to submit', purpose: 'Show what the course actually changed in how I lead', projectId: isdm});
   const readings = save('blocks', {title: 'All five RM readings in the second brain', purpose: 'Revise for the quiz from my own notes', projectId: brain});
   const running = save('blocks', {title: 'Three morning runs', purpose: 'Start the day clear-headed', projectId: runs});
   editPlan(data, {type: 'setWeekFocus', week: lastWeek, ids: [critical, pmdl, readings, running]});
@@ -50,13 +50,14 @@ export function seedStore(now = new Date()) {
   done(r1, d(0));
 
   // Blocks for the coming week, not chosen yet.
-  const dad = save('blocks', {title: 'DAD Excel workbook submitted', purpose: 'Prove I can turn data into a clear argument', projectId: isdm, due: mon + 'T10:30'});
+  const dad = save('blocks', {title: 'DAD Excel workbook submitted', purpose: 'Prove I can turn data into a clear argument', projectId: isdm});
   task({title: 'Build the three charts for the DAD workbook', blockId: dad, minutes: 120, must: true});
   task({title: 'Write an interpretation under each chart', blockId: dad, minutes: 60});
-  const quiz = save('blocks', {title: 'Confident for RM Quiz I', purpose: 'Walk in knowing the seven paradigms cold', projectId: isdm, due: tue + 'T11:30'});
+  const quiz = save('blocks', {title: 'Confident for RM Quiz I', purpose: 'Walk in knowing the seven paradigms cold', projectId: isdm});
   task({title: 'Re-read Reading 1 on the seven paradigms', blockId: quiz, minutes: 45, must: true});
+  task({title: 'Sit RM Quiz I', blockId: quiz, minutes: 60, must: true, planned: at(tue, '11:30').toISOString()});
   task({title: 'Make 20 flash cards from my notes', blockId: quiz, minutes: 40});
-  task({title: 'Upload the workbook to the LMS', blockId: dad, minutes: 15, must: true, planned: at(mon, '09:45').toISOString()});
+  task({title: 'Upload the workbook to the LMS', blockId: dad, minutes: 15, must: true, planned: at(mon, '10:15').toISOString()});
   task({title: 'Submit the critical review PDF with the plagiarism report', blockId: critical, minutes: 20, must: true, planned: at(sun, '21:00').toISOString()});
   task({title: 'Upload the PMDL post work', blockId: pmdl, minutes: 15, must: true, plannedDate: sun});
   save('blocks', {title: 'District demographic profile ready', purpose: 'Our group presents real post-2020 data, not guesses', projectId: isdm});
