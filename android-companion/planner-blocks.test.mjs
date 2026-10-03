@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {deadline, byDeadline, planByTime} from './planner/blocks.mjs';
-import {timeLeft} from './planner/format.mjs';
+import {timeLeft, clock} from './planner/format.mjs';
 import {blockDue} from './planner-state.mjs';
 
 const now = new Date('2026-10-03T12:00');
@@ -23,7 +23,7 @@ test('a Result is due when its latest open, dated, one-time task is', () => {
 
 test('the deadline counts down and turns tight when the Musts need a quarter of the time left', () => {
   const due = deadline(data, {id: 'a'}, status(140), now);
-  assert.equal(due.text, 'Due tomorrow ' + due.at.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}) + ' · 33 h left');
+  assert.equal(due.text, 'Due tomorrow ' + clock(due.at) + ' · 33\u00a0h\u00a0left');
   assert.equal(due.tight, false);
   assert.equal(deadline(data, {id: 'd'}, status(300), now).tight, true);
   assert.equal(deadline(data, {id: 'a'}, {...status(140), achieved: true}, now), null);

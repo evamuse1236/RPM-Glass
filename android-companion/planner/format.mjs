@@ -2,8 +2,9 @@ import {localDay, shiftDay} from '../planner-state.mjs';
 
 export const plural = (count, one, many = one + 's') => `${count} ${count === 1 ? one : many}`;
 
+/** "11:00 PM", kept on one line so a wrap never strands "PM". */
 export function clock(value) {
-  return new Date(value).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+  return new Date(value).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}).replace(/ /g, '\u00a0');
 }
 
 /** "30 min", "1 h", "1 h 50 min"; a number never wraps away from its unit. */
