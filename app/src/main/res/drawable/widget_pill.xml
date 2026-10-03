@@ -1,0 +1,9 @@
+<!-- The capture field: a full pill on surface-container-highest, like the search bar in Google's widgets. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/rpm_ripple">
+    <item>
+        <shape>
+            <solid android:color="@color/rpm_surface_container_highest"/>
+            <corners android:radius="28dp"/>
+        </shape>
+    </item>
+</ripple>

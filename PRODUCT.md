@@ -55,7 +55,7 @@ Capture turns messy thoughts into tasks and Blocks. The assistant may interpret,
 ### Native companion surfaces
 
 - The generated butterfly remains a 64dp, user-started, draggable launcher over other apps. It hides over RPM's own screens and can be hidden by long press or the visible service notification.
-- The native home-screen widget is a four-action Material bar for Check in, Capture, Remind and Open app. Check in, Capture and Remind open the Capture panel; Open app opens the planner. Its colours mirror theme.css in `res/values*/colors.xml`.
+- The native home-screen widget is a capture bar like Google Keep's: the app icon opens the planner, a wide "Capture a thought" pill opens Capture ready to type, and the mic inside it opens Capture already listening (Android's speech recognizer, then the words wait in the field to check). Check-ins and reminders are simply said in Capture. Its colours mirror theme.css in `res/values*/colors.xml`.
 - RPM reminders use Android notifications. Ringing alarms use Android scheduling with snooze and dismiss. Permission, battery, DND, and OEM behavior remain Android-controlled.
 
 ## Product principles

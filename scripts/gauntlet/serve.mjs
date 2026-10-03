@@ -74,6 +74,7 @@ function handle(action, payload) {
     case 'appSettings': return {};
     case 'calendarList': return {permitted: true, selected: [1], calendars: [{id: 1, name: 'College', account: 'student', color: -16746133}]};
     case 'calendarRead': return calendar(payload.anchor);
+    case 'dictate': return {text: 'call mom sunday evening'}; // stands in for Android's speech recognizer
     case 'model': {
       const body = payload.body, input = JSON.parse(body.messages[1].content);
       input.sourceUnits ??= sourceUnits(input.raw ?? '');

@@ -1,9 +1,8 @@
-<!-- The main action uses primary container, like the planner's FAB. -->
+<!-- A round 48dp icon button. Tonal for the mic; transparent with a state layer for the planner. -->
 <ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/rpm_ripple_primary">
     <item>
-        <shape>
+        <shape android:shape="oval">
             <solid android:color="@color/rpm_primary_container"/>
-            <corners android:radius="@dimen/rpm_widget_inner_radius"/>
         </shape>
     </item>
 </ripple>

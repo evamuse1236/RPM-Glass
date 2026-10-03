@@ -557,6 +557,9 @@ export function mountCapture(platform){
  $('about').addEventListener('click',()=>setView('about'));
  $('context-view').addEventListener('click',()=>setView('context'));
  $('history-view').addEventListener('click',()=>setView('history'));
+ // The widget's mic opens Capture listening; the page may still be loading its state, so wait briefly for it.
+ window.rpmStartVoice=(tries=25)=>{setView('chat');if(s.busy&&tries>0){setTimeout(()=>window.rpmStartVoice(tries-1),200);return;}voice();};
+ if(window.rpmPendingVoice){delete window.rpmPendingVoice;window.rpmStartVoice();}
  $('plans-view').addEventListener('click',()=>setView('plans'));
  $('focus-clear').addEventListener('click',()=>{platform.clearPlanningFocus();render();});
  // The planning starters wait in More so the field leads; each sends its own words.

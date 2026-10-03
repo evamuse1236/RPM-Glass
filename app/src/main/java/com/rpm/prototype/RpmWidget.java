@@ -4,7 +4,7 @@ import android.appwidget.*;
 import android.content.*;
 import android.widget.RemoteViews;
 
-/** Check in, Capture and Remind all open the Material Capture panel; Open app opens the planner.
+/** A capture bar: the pill opens Capture ready to type, the mic opens it already listening, the icon opens the planner.
  *  The legacy SQLite CaptureActivity is no longer reachable from here (its entries are copied by LegacyImport). */
 public final class RpmWidget extends AppWidgetProvider {
     // Capture and the planner share a task. Without CLEAR_TOP, a tap that matches the task's root intent
@@ -20,7 +20,7 @@ public final class RpmWidget extends AppWidgetProvider {
     @Override public void onUpdate(Context c,AppWidgetManager manager,int[] ids) {
         for(int id:ids) {
             RemoteViews v=new RemoteViews(c.getPackageName(),R.layout.widget);
-            capture(c,v,R.id.checkin,"checkin",1);capture(c,v,R.id.capture,"capture",2);capture(c,v,R.id.remind,"remind",3);
+            capture(c,v,R.id.capture,"capture",2);capture(c,v,R.id.voice,"voice",3);
             Intent open=new Intent(c,PlannerActivity.class).setAction("com.rpm.widget.open").addFlags(SHOW);
             v.setOnClickPendingIntent(R.id.open,PendingIntent.getActivity(c,4,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
             manager.updateAppWidget(id,v);
