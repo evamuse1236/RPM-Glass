@@ -6,12 +6,12 @@ export function clock(value) {
   return new Date(value).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
 }
 
-/** "30 min", "1 h", "1 h 50 min". */
+/** "30 min", "1 h", "1 h 50 min"; a number never wraps away from its unit. */
 export function duration(minutes) {
   if (minutes == null) return 'No estimate';
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 60) return `${minutes}\u00a0min`;
   const rest = minutes % 60;
-  return `${Math.floor(minutes / 60)} h${rest ? ` ${rest} min` : ''}`;
+  return `${Math.floor(minutes / 60)}\u00a0h${rest ? ` ${rest}\u00a0min` : ''}`;
 }
 
 export function dateText(value) {
@@ -73,11 +73,11 @@ export function dueInfo(value, now = new Date()) {
     label: overdue ? 'Overdue since ' + (day === today ? clock(at) : dateText(day + 'T12:00')) : `Due ${when}${timed ? ' ' + clock(at) : ''}`};
 }
 
-/** Time left until `at`, coarse enough to read at a glance: "40 min", "37 h", "3 days"; null once it has passed. */
+/** Time left until `at`, coarse and never rounded up: "40 min", "33 h", "5 days"; null once it has passed. */
 export function timeLeft(at, now = new Date()) {
-  const minutes = Math.round((at - now) / 60000);
+  const minutes = Math.floor((at - now) / 60000);
   if (minutes < 0) return null;
   if (minutes < 60) return `${Math.max(1, minutes)} min`;
-  const hours = Math.round(minutes / 60);
-  return hours < 48 ? `${hours} h` : `${Math.round(hours / 24)} days`;
+  return minutes < 48 * 60 ? `${Math.floor(minutes / 60)} h` : `${Math.floor(minutes / 1440)} days`;
 }
+export const countdown = (at, now = new Date()) => (timeLeft(at, now) ? 'in ' + timeLeft(at, now) : 'Overdue');

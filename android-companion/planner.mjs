@@ -54,7 +54,6 @@ const VIEW_TABS = {day: 'today', rpm: 'blocks', projects: 'projects', life: 'lif
 
 function installActions(app) {
   const fabs = {
-    today: {label: 'Add task', onClick: () => taskEditor(app, null, {plannedDate: app.state.day})},
     blocks: {label: 'New Block', onClick: () => entityEditor(app, 'blocks')},
     projects: {label: 'New Project', onClick: () => entityEditor(app, 'projects')},
   };
@@ -144,8 +143,16 @@ function installNativeHooks(app) {
     window.visualViewport.addEventListener('resize', sync);
     sync();
   }
+  let lastTop = 0;
   app.dom.scroll.addEventListener('scroll', () => {
-    const scrolled = String(app.dom.scroll.scrollTop > 4);
+    const top = app.dom.scroll.scrollTop;
+    // The FAB steps aside while reading down and returns on the way back up, so it never sits on what is read.
+    if (Math.abs(top - lastTop) > 8 || top < 8) {
+      const hide = String(top > lastTop && top > 64);
+      if (app.dom.planner.dataset.fabAside !== hide) app.dom.planner.dataset.fabAside = hide;
+      lastTop = top;
+    }
+    const scrolled = String(top > 4);
     if (app.dom.planner.dataset.scrolled !== scrolled) app.dom.planner.dataset.scrolled = scrolled;
     // A detail page's large title hands over to the bar only once it has scrolled fully out of view.
     const big = app.dom.work.querySelector('.detail-title-text');
