@@ -2,6 +2,8 @@ import {randomUUID} from 'node:crypto';
 import {occurrences,completeTask,repeats} from './planner-recurrence.mjs';
 
 export const freshPlanner=()=>({schema:1,projects:[],blocks:[],areas:[],goals:[],events:[],drafts:[],context:{vision:'',goals:'',approved:false},undo:null,reviewVersion:REVIEW_VERSION,weeks:{},reviews:{}});
+/** A Result's optional deadline, in local time: 'YYYY-MM-DD' (any time that day) or 'YYYY-MM-DDTHH:MM'. */
+export function due(value){if(value==null||value==='')return null;if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(value)||!Number.isFinite(Date.parse(value.length===10?value+'T12:00':value)))throw new Error('Choose a valid due date.');return value;}
 export function planner(data){return data.planner??freshPlanner();}
 export const tasks=data=>data.entries.filter(e=>!e.archived&&(e.kind??'plan')==='plan');
 export const blockTasks=(data,id)=>tasks(data).filter(e=>(e.blockId??null)===(id??null)).sort((a,b)=>(a.priority??Infinity)-(b.priority??Infinity)||a.id-b.id);
@@ -16,7 +18,7 @@ export function validatePlanner(data){
   const p=planner(data);if(p.schema!==1)throw new Error('Unsupported planner format.');
   for(const k of ['projects','blocks','areas','goals','events','drafts'])if(!Array.isArray(p[k]))throw new Error('Invalid planning data.');
   for(const k of ['projects','blocks','areas','goals']){const ids=new Set();for(const r of p[k]){if(typeof r.id!=='string'||ids.has(r.id))throw new Error('Duplicate planning ID.');ids.add(r.id);title(r.title);}}
-  for(const b of p.blocks)link(p.projects,b.projectId);
+  for(const b of p.blocks){link(p.projects,b.projectId);if(b.due!=null)due(b.due);}
   for(const a of p.areas)if(a.rating!=null&&(typeof a.rating!=='number'||!Number.isFinite(a.rating)||a.rating<0||a.rating>10))throw new Error('Choose a life area rating from 0 to 10.');
   for(const g of p.goals){link(p.areas,g.areaId);integer(g.year,2000,2200);if(!['yearly','quarterly','monthly'].includes(g.horizon??'yearly'))throw new Error('Choose a valid goal horizon.');if(g.horizon==='quarterly'||g.horizon==='monthly')integer(g.period,1,g.horizon==='quarterly'?4:12);}
   for(const pr of p.projects)link(p.goals,pr.goalId);
@@ -43,7 +45,7 @@ export function editPlan(data,op,now=new Date()){
     if(!['projects','blocks','areas','goals'].includes(op.collection))throw new Error('Unknown planning group.');
     let r=op.id?one(p[op.collection],op.id):{id:randomUUID(),created:at};
     r.title=title(op.fields.title);r.purpose=text(op.fields.purpose??'');r.notes=text(op.fields.notes??'',8000);
-    if(op.collection==='blocks')r.projectId=link(p.projects,op.fields.projectId);
+    if(op.collection==='blocks'){r.projectId=link(p.projects,op.fields.projectId);if('due' in op.fields)r.due=due(op.fields.due);}
     if(op.collection==='projects')r.goalId=link(p.goals,op.fields.goalId);
     if(op.collection==='areas')r.colorIndex??=p.areas.length%8;
     if(op.collection==='areas'&&'rating' in op.fields){const value=op.fields.rating;if(value!==null&&(typeof value!=='number'||!Number.isFinite(value)||value<0||value>10))throw new Error('Choose a life area rating from 0 to 10.');r.rating=value==null?null:Math.round(value*10)/10;}

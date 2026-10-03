@@ -51,3 +51,15 @@ export function stableKey(value) {
   }
   return (hash >>> 0).toString(36);
 }
+
+/** When a Result's deadline (`block.due`) falls: {at, label, soon, overdue}, or null without one. */
+export function dueInfo(value, now = new Date()) {
+  if (!value) return null;
+  const timed = value.length > 10, at = new Date(timed ? value : value + 'T23:59');
+  const day = value.slice(0, 10), today = localDay(now);
+  const when = day === today ? 'today' : day === shiftDay(today, 1) ? 'tomorrow'
+    : at - now < 6 * 864e5 && at > now ? at.toLocaleDateString([], {weekday: 'short'}) : dateText(day + 'T12:00');
+  const overdue = at < now;
+  return {at, overdue, soon: !overdue && at - now < 3 * 864e5,
+    label: overdue ? 'Overdue since ' + (day === today ? clock(at) : dateText(day + 'T12:00')) : `Due ${when}${timed ? ' ' + clock(at) : ''}`};
+}

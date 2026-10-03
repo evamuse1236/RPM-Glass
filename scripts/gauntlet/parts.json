@@ -1,0 +1,19 @@
+{
+ "today": {"name": "Today (the planner's home screen)",
+  "job": "Dara opens the app on a Saturday morning of a heavy assessment week. In three seconds they must know what to do next, why it matters (the Result and its Purpose), what is at risk today, and whether the coming week still needs planning. Then act on a task with one tap.",
+  "ours": ["today-light", "today-scrolled", "today-dark", "today-large-text"],
+  "alternative": "Google Tasks plus Google Calendar's schedule view used together for the same day", "short": "Google Tasks + Calendar"},
+ "block": {"name": "Blocks list and Block detail (one RPM Result with its Purpose and Plan)",
+  "job": "Dara opens a Block to reconnect with why the Result matters, see the plan of actions in priority order with the Musts clear, see honest progress and remaining Must time, reorder or add a task, and decide whether the Result itself is achieved (ticking tasks never proves that).",
+  "ours": ["blocks-list", "block-detail", "block-detail-scrolled"],
+  "alternative": "a Google Tasks list with subtasks, or a Google Keep note, used for the same Result", "short": "Google Tasks / Keep"},
+ "capture": {"name": "Capture (floating quick-capture panel over any app)",
+  "job": "Mid-lecture Dara has two thoughts and wants them out of their head in seconds, trusting the exact words are saved immediately, then glance at where the assistant proposes to file them (Block or Inbox, Must, dates), confirm with one tap, and see a receipt with Undo. Quick capture is the most important interaction in the app.",
+  "ours": ["capture-empty", "capture-typed", "capture-sorting", "capture-proposals", "capture-receipt"],
+  "alternative": "Google Tasks' quick add sheet or the Gemini overlay", "short": "Google Tasks quick add / Gemini"},
+ "review": {"name": "Weekly review (a four-step guided flow)",
+  "job": "Dara's real weekly RPM planning session, ideally ten calm minutes on Saturday or Sunday: judge last week's Results honestly (achievement is the Result happening, not tasks ticked), notice and celebrate wins, empty the head, chunk loose items into Results with a Purpose, then choose 3 to 5 Results for the coming week with Must time that fits the week's real capacity and deadlines.",
+  "ours": ["review-1", "review-1-scrolled", "review-2", "review-2-scrolled", "review-3", "review-3-scrolled", "review-4", "review-4-scrolled"],
+  "extra": "Also read /home/user/rpm-agent/knowledge/rpm-framework.md for what the RPM method actually asks of a planning session.",
+  "alternative": "doing the same RPM weekly plan on paper with the RPM workbook (capture, chunk, RPM blocks with Result, Purpose and MAP, Musts and time) beside Google Calendar", "short": "paper RPM workbook + Calendar"}
+}

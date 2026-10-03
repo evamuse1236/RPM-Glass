@@ -19,15 +19,21 @@ const reset = (options = {}) => {
 };
 reset();
 
-// A canned interpretation: each sentence becomes a task, filed under a Block whose title shares a word with it.
+// A canned interpretation that behaves like a good model run: a short verb-first title, the stated time,
+// Must when the words say so, and the Block whose title shares a distinctive word with the thought.
+const STOP = new Set(['the', 'and', 'for', 'with', 'which', 'that', 'this', 'from', 'about', 'ask', 'our', 'group', 'into', 'all']);
 function fakeTurn(input) {
   const blocks = (input.context?.entities ?? []).filter(e => e.entity === 'block');
-  const words = s => new Set(s.toLowerCase().match(/[a-z]{4,}/g) ?? []);
+  const words = s => new Set((s.toLowerCase().match(/[a-z]{3,}/g) ?? []).filter(w => !STOP.has(w)));
   const operations = input.sourceUnits.map((unit, i) => {
     const w = words(unit.text), block = blocks.find(b => [...words(b.title ?? '')].some(x => w.has(x)));
-    const fields = [{name: 'title', op: 'set', value: unit.text.replace(/[.!?;]+$/, ''), origin: 'stated', evidence: unit.text}];
+    const time = unit.text.match(/\b(?:today|tomorrow|tonight|on (?:mon|tues|wednes|thurs|fri|satur|sun)day)(?: (?:at|by) \d{1,2}(?::\d{2})? ?(?:am|pm))?/i)?.[0];
+    const must = /\bmust\b|important/i.test(unit.text);
+    const title = unit.text.replace(time ?? '\u0000', '').replace(/,? it(?:'s| is) a must/i, '').replace(/[.!?;,\s]+$/, '').replace(/\s{2,}/g, ' ').trim();
+    const fields = [{name: 'title', op: 'set', value: title, origin: 'stated', evidence: unit.text}];
+    if (time) fields.push({name: 'time', op: 'set', value: time, origin: 'stated', evidence: time});
     if (block) fields.push({name: 'blockId', op: 'set', value: block.id, origin: 'suggested', evidence: null});
-    if (/\bmust\b|important/i.test(unit.text)) fields.push({name: 'must', op: 'set', value: true, origin: 'stated', evidence: unit.text});
+    if (must) fields.push({name: 'must', op: 'set', value: true, origin: 'stated', evidence: unit.text});
     return {opId: 'task' + (i + 1), sourceId: unit.id, kind: 'create', entity: 'task', targetId: null, fields};
   });
   return {schemaVersion: 1, mode: 'capture', draftMode: 'new', reply: 'Here is what I heard.',

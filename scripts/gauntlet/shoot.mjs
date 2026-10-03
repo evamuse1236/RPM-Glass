@@ -20,6 +20,7 @@ async function open(path, {dark = false, reset = {}} = {}) {
   return page;
 }
 const shot = async (page, name, full = false) => { await page.waitForTimeout(350); await page.screenshot({path: `${out}/${name}.png`, fullPage: full}); };
+const scroll = async (page, dy) => { await page.mouse.move(206, 500); await page.mouse.wheel(0, dy); await page.waitForTimeout(300); };
 const click = async (page, locator) => { await locator.first().click(); await page.waitForTimeout(400); };
 
 const scenes = {
@@ -27,7 +28,7 @@ const scenes = {
     for (const dark of [false, true]) {
       const page = await open('/planner.html', {dark});
       await shot(page, `today-${dark ? 'dark' : 'light'}`);
-      if (!dark) { await page.mouse.wheel(0, 700); await shot(page, 'today-scrolled'); }
+      if (!dark) { await scroll(page, 700); await shot(page, 'today-scrolled'); }
       await page.close();
     }
     const big = await open('/planner.html', {reset: {fontScale: 2}});
@@ -40,7 +41,7 @@ const scenes = {
     await shot(page, 'blocks-list');
     await click(page, page.getByText('RM critical review drafted with my group'));
     await shot(page, 'block-detail');
-    await page.mouse.wheel(0, 800); await shot(page, 'block-detail-scrolled');
+    await scroll(page, 800); await shot(page, 'block-detail-scrolled');
     await page.close();
   },
   async review() {
@@ -48,8 +49,8 @@ const scenes = {
     await click(page, page.getByRole('button', {name: /Open weekly review/}));
     for (let step = 1; step <= 4; step++) {
       await shot(page, `review-${step}`);
-      await page.mouse.wheel(0, 900); await shot(page, `review-${step}-scrolled`);
-      await page.mouse.wheel(0, -2000);
+      await scroll(page, 900); await shot(page, `review-${step}-scrolled`);
+      await scroll(page, -2000);
       if (step < 4) await click(page, page.getByRole('button', {name: /^Next/}));
     }
     await page.close();
@@ -58,7 +59,7 @@ const scenes = {
     const page = await open('/index.html');
     await shot(page, 'capture-empty');
     const box = page.locator('textarea').first();
-    await box.fill('Finish the DAD charts tomorrow morning, it is a must. Ask the group which district we picked');
+    await box.fill("Finish the DAD charts tomorrow at 9am, it's a must. Ask the group which district we picked for the RM profile");
     await shot(page, 'capture-typed');
     await page.evaluate(() => { window.__modelDelay = 4000; });
     await box.press('Enter');
