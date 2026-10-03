@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseWhen, dayPresets, whenFields, whenOf, timePresets, repeatLabel} from './planner/task-fields.mjs';
+import {parseWhen, dayPresets, whenFields, whenOf, timePresets, repeatLabel, schedulePresets, blockMatches, hashToken}
+  from './planner/task-fields.mjs';
 
 const SAT = '2026-10-03';
 
@@ -38,4 +39,31 @@ test('Time presets fold in the task’s own time; repeat labels read in words', 
   assert.equal(repeatLabel({repeatAfterDays: 3}), '3 days after completion');
   assert.equal(repeatLabel({recurrence: 'weekdays'}), 'Every weekday');
   assert.equal(repeatLabel({}), "Doesn't repeat");
+});
+
+test('Swipe-to-schedule offers whole dates and times, one tap each, keeping the task’s time where it says so', () => {
+  const morning = new Date('2026-10-03T08:05');
+  const p = schedulePresets({day: SAT, time: '16:00'}, morning);
+  assert.deepEqual(p.map(x => x.key), ['today', 'tonight', 'tomorrow', 'morning', 'later', 'none']);
+  assert.deepEqual(p.find(x => x.key === 'tomorrow').value, {day: '2026-10-04', time: '16:00'});
+  assert.deepEqual(p.find(x => x.key === 'morning').value, {day: '2026-10-04', time: '09:00'});
+  assert.deepEqual(p.find(x => x.key === 'later').value, {day: '2026-10-05', time: '16:00'}, 'Saturday offers next week');
+  assert.equal(p.find(x => x.key === 'today').current, true);
+  const evening = schedulePresets({day: '', time: ''}, new Date('2026-10-03T20:00'));
+  assert.ok(!evening.some(x => x.key === 'tonight'), 'no Tonight after 7 PM');
+  assert.ok(!evening.some(x => x.key === 'none'), 'No date only for a dated task');
+  assert.deepEqual(evening.find(x => x.key === 'tomorrow').value, {day: '2026-10-04', time: ''});
+  const repeating = schedulePresets({day: SAT, time: '19:30'}, morning, {repeating: true});
+  assert.ok(repeating.every(x => x.value.day && x.value.time), 'a repeating task keeps a date and time');
+});
+
+test('A #word in Quick add matches Blocks by word start first, and is found just before the caret', () => {
+  const blocks = [{id: 1, title: 'DAD Excel workbook submitted'}, {id: 2, title: 'Confident for RM Quiz I'}, {id: 3, title: 'Squid notes'}];
+  assert.deepEqual(blockMatches(blocks, 'qui').map(b => b.id), [2, 3]);
+  assert.deepEqual(blockMatches(blocks, '').map(b => b.id), [1, 2, 3]);
+  assert.deepEqual(blockMatches(blocks, 'zzz'), []);
+  assert.deepEqual(hashToken('Email the TA #qui'), {query: 'qui', start: 13, end: 17});
+  assert.deepEqual(hashToken('Email #qui room', 10), {query: 'qui', start: 6, end: 10});
+  assert.equal(hashToken('Email #qui room'), null, 'the caret has moved past the word');
+  assert.equal(hashToken('Room#4'), null, 'a # inside a word is not a Block');
 });

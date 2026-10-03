@@ -194,6 +194,15 @@ h1, h2, h3, p { margin: 0; }
 #planner[data-view=settings] ~ #snackbar, #planner[data-view=search] ~ #snackbar { bottom: var(--s4); }
 /* The review pins its own button footer, so the snackbar sits above it. */
 #planner[data-view=review] ~ #snackbar { bottom: calc(var(--s4) + 72px); }
+/* While a sheet is open the snackbar docks just above the sheet's action bar and the sheet's content makes room for
+   it (the body's bottom margin grows by the snackbar's height), so it never covers a live control. The heights are
+   measured into --sheet-actions-h and --snackbar-h (planner.mjs). */
+#sheet:not([hidden]) ~ #snackbar { bottom: calc(var(--sheet-actions-h, 0px) + var(--s2)); }
+.sheet-body { transition: margin-bottom var(--dur-short4) var(--ease-emphasized-accelerate); }
+#planner[data-snackbar=true] ~ #sheet .sheet-body {
+  margin-bottom: calc(var(--snackbar-h, 48px) + var(--s4));
+  transition: margin-bottom var(--dur-medium1) var(--ease-emphasized-decelerate);
+}
 .snackbar-text { flex: 1; padding: var(--s2) 0; }
 /* The old words on an opaque copy of the bar, fading out over the new ones (the bar itself never goes see-through). */
 .snackbar-ghost {
@@ -514,21 +523,44 @@ button.list-item:active { background: var(--row-press); }
   box-shadow: var(--elev-1);
   transition: translate 200ms var(--ease-standard), scale 200ms var(--ease-standard), box-shadow 200ms var(--ease-standard);
 }
+/* Swipes (Things, Todoist): the row slides over a reveal that says what letting go will do, an icon and the word.
+   Right schedules (primary container), left deletes (error container); past the commit distance the icon grows a
+   little, so the moment it will act is visible. */
 .swipe-task { touch-action: pan-y; }
-.swipe-task > * { transform: translateX(var(--swipe-offset)); }
+.swipe-task[data-swipe] { isolation: isolate; }
+.swipe-task > :not(.swipe-reveal) { transform: translateX(var(--swipe-offset)); }
 .swipe-task[data-swipe]::before {
-  content: attr(data-swipe);
+  content: "";
   position: absolute;
   inset: 0;
+  z-index: -1;
+  background: var(--swipe-surface, var(--surface));
+  transform: translateX(var(--swipe-offset));
+}
+.swipe-task.swipe-settling > :not(.swipe-reveal), .swipe-task.swipe-settling::before {
+  transition: transform var(--dur-short4) var(--ease-standard);
+}
+.swipe-task.swipe-leaving > :not(.swipe-reveal), .swipe-task.swipe-leaving::before {
+  transition: transform var(--dur-short3) var(--ease-emphasized-accelerate);
+}
+.swipe-reveal {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
   display: flex;
   align-items: center;
+  gap: var(--s2);
   padding: 0 var(--s6);
   font: var(--label-large);
   border-radius: var(--shape-md);
-  background: var(--secondary-container);
-  color: var(--on-secondary-container);
+  background: var(--primary-container);
+  color: var(--on-primary-container);
 }
-.swipe-task[data-swipe=Delete]::before { justify-content: flex-end; background: var(--error-container); color: var(--on-error-container); }
+.swipe-reveal .ms { transition: scale var(--dur-short3) var(--ease-standard); }
+.swipe-reveal[data-kind=remove] { flex-direction: row-reverse; background: var(--error-container); color: var(--on-error-container); }
+.swipe-task[data-armed=true] .swipe-reveal .ms { scale: 1.2; }
+.swipe-task.swipe-settling .swipe-reveal { opacity: 0; transition: opacity var(--dur-short4) var(--ease-standard); }
+.swipe-task.swipe-leaving .swipe-reveal { opacity: 1; }
 .completed-group { margin: var(--s2) 0 0; }
 .completed-toggle {
   width: 100%;
@@ -1277,7 +1309,9 @@ button.fact-row:active { background: var(--row-press); }
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
-  transition: grid-template-rows var(--dur-short) var(--ease-accelerate), opacity 100ms var(--ease-accelerate);
+  /* Folding away: the height and the fade run together, so the choices are clipped as they go and no empty band is
+     left behind. */
+  transition: grid-template-rows var(--dur-short4) var(--ease-emphasized-accelerate), opacity var(--dur-short4) var(--ease-standard-accelerate);
 }
 .field-fold.open {
   grid-template-rows: 1fr;
@@ -1320,6 +1354,7 @@ button.fact-row:active { background: var(--row-press); }
 .field-alert { display: flex; align-items: flex-start; gap: var(--s2); margin: 0 0 var(--s2); font: var(--body-medium); color: var(--on-surface-variant); }
 .field-alert .ms { font-size: 20px; }
 .field-alert.is-clash { color: var(--error); }
+.block-face.resizing { overflow: hidden; }
 .part-of-slot { position: relative; }
 .part-of-slot:not(:empty) + .suggest-slot { display: none; }
 .part-of-slot .part-of { padding-right: 56px; }
@@ -1345,6 +1380,13 @@ button.fact-row:active { background: var(--row-press); }
 .choice-row[aria-pressed=true] .choice-hint { color: inherit; }
 .show-all { align-self: flex-start; margin-left: calc(-1 * var(--s3)); }
 .sheet-task { height: var(--sheet-pin, auto); }
+/* The likeliest days on the date row itself, under its words; the time chips unfold under them after a day. */
+.date-quick { padding-left: 40px; margin-top: calc(-1 * var(--s2)); row-gap: 0; column-gap: var(--s2); }
+.date-quick .choice-chip, .time-chips .choice-chip { padding-left: var(--s3); padding-right: var(--s3); }
+.date-quick .choice-chip[aria-pressed=true], .time-chips .choice-chip[aria-pressed=true] { padding-left: var(--s2); }
+.time-chips { row-gap: 0; column-gap: var(--s2); }
+.sheet-header:has(.sheet-back) { padding-left: var(--s1); }
+.sheet-back { margin-right: var(--s1); }
 .sheet-task .sheet-body { scroll-padding-bottom: var(--s4); }
 
 /* Quick add: the title, then the likeliest choices as chips; the rest unfold under their chip. */
@@ -1360,8 +1402,14 @@ button.fact-row:active { background: var(--row-press); }
   outline: none;
 }
 .quick-title input::placeholder { color: var(--on-surface-variant); }
-/* One line per kind of choice; a row that is wider than the sheet scrolls sideways, running to the sheet's edge. */
-.sheet .quick-row { flex-wrap: nowrap; overflow-x: auto; column-gap: var(--s2); margin: 0 calc(-1 * var(--s6)); padding: 0 var(--s6); }
+/* One line per kind of choice at normal text size (Time and Repeat show only their icon until set). A row that
+   still does not fit (a long Block name, large text) wraps onto a second line: nothing is ever cut off. */
+.sheet .quick-row { flex-wrap: wrap; row-gap: 0; column-gap: var(--s2); overflow: visible; padding: 0; }
+.quick-row .assist-chip.icon-only { padding: 0; width: var(--touch); justify-content: center; }
+.quick-row .assist-chip.icon-only .chip-label { display: none; }
+.hash-chips .assist-chip { max-width: 80%; }
+.hash-chips .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hash-chips .ms { color: var(--primary); }
 /* Compact chips (12dp sides) so each kind of choice fits one line at normal text size. */
 .quick-row .filter-chip, .quick-row .assist-chip, .choice-chips .filter-chip { padding-left: var(--s3); padding-right: var(--s3); }
 .quick-row .choice-chip[aria-pressed=true], .choice-chips .choice-chip[aria-pressed=true], .quick-row .assist-chip { padding-left: var(--s2); }
@@ -1413,6 +1461,17 @@ button.fact-row:active { background: var(--row-press); }
 .preview-task { font: var(--body-medium); padding: var(--s1) 0 0 28px; }
 .example-card h3 { font: var(--title-medium); margin-bottom: var(--s2); }
 .example-card p { margin-bottom: var(--s2); }
+
+/* Schedule: the swipe-right choices, a menu anchored to the row. */
+.schedule-menu { min-width: 260px; max-width: min(320px, calc(100vw - 32px)); }
+.schedule-title { display: flex; align-items: center; gap: var(--s3); min-height: 40px; padding: 0 var(--s4) var(--s1) var(--s3); font: var(--title-small); color: var(--on-surface-variant); }
+.schedule-title span:last-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.schedule-title .ms { color: var(--primary); }
+.schedule-label { flex: 1; min-width: 0; text-align: left; }
+.schedule-hint { flex: none; font: var(--body-medium); color: var(--on-surface-variant); }
+.schedule-item .schedule-check { color: var(--primary); }
+.schedule-item[aria-checked=true] { color: var(--primary); }
+:root[data-large-text=true] .schedule-item { flex-wrap: wrap; padding-block: var(--s2); }
 
 /* Menus */
 .menu {

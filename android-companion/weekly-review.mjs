@@ -1,6 +1,6 @@
 // Weekly review: last week's Results → capture → sort the Inbox into Results → this week's Results.
 // Renders into the container the planner gives it and talks to the app only through `ctx`
-// (getData, commit, close, openBlock, openCapture, now, day; optional sortInbox, readCalendar, openTask, archiveTask, deleteTask).
+// (getData, commit, close, openBlock, openCapture, now, day; optional sortInbox, readCalendar, openTask, archiveTask, deleteTask, scheduleTask).
 // Plan changes go through ctx.commit with a label, so they save, re-render and offer Undo.
 // Review progress (step, draft choice of Results) is saved with ctx.commit(mutator, null):
 // a null label means "save quietly"; it changes no plan data and keeps the last Undo intact.
@@ -609,14 +609,14 @@ function stepTwo(api, ctx) {
       text.append(meta);
     }
     item.append(text);
-    if (ctx.archiveTask && ctx.deleteTask) {
+    if (ctx.deleteTask) {
       item.classList.add('swipe-task');
-      attachTaskSwipe(item, {archive: () => ctx.archiveTask(task), remove: () => ctx.deleteTask(task)});
+      attachTaskSwipe(item, {schedule: ctx.scheduleTask ? () => ctx.scheduleTask(task, item) : null, remove: () => ctx.deleteTask(task)});
     }
     list.append(item);
   }
   parts.push(list);
-  if (ctx.openTask) parts.push(el('p', 'wr-section-note wr-hint', 'Tap a task to edit it. Swipe to archive or delete.'));
+  if (ctx.openTask) parts.push(el('p', 'wr-section-note wr-hint', 'Tap a task to edit it. Swipe right to schedule it, left to delete it.'));
   return parts;
 }
 
