@@ -1,11 +1,10 @@
 /** Today: date header with a 7-day strip, the week card, what is due soon, and the day grouped by Result. */
-import {localDay, shiftDay, planner, blockTasks, timelineItems} from '../planner-state.mjs';
+import {localDay, shiftDay, planner, blockTasks, blockDue, timelineItems} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
 import {setClarityPreference} from '../planner-clarity.mjs';
-import {repeats} from '../planner-recurrence.mjs';
 import {weekStart, reviewWeek, weekFocus, resultStatus, inboxTasks} from '../review-state.mjs';
 import {el, icon, button, emptyState, areaDot, labelButton} from './dom.mjs';
-import {clock, longDate, plural, dateText, dueInfo, timeValue} from './format.mjs';
+import {clock, longDate, plural, dateText, dueInfo} from './format.mjs';
 import {taskRow, completedSection, taskWhen} from './task-row.mjs';
 import {renderTimeline} from './timeline.mjs';
 
@@ -26,22 +25,11 @@ export function selectDay(app, day, direction = '') {
 
 const DUE_DAYS = 3;
 
-/** A Result's deadline: its latest open, dated, one-time task ('YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM'), or null. */
-export function resultDue(data, blockId) {
-  let best = null;
-  for (const task of blockTasks(data, blockId)) {
-    if (task.done || repeats(task) || !(task.planned || task.plannedDate)) continue;
-    const value = task.planned ? `${localDay(task.planned)}T${timeValue(task.planned)}` : task.plannedDate;
-    if (!best || dueInfo(value).at > dueInfo(best).at) best = value;
-  }
-  return best;
-}
-
 /** Open Results whose deadline falls before the end of the third day from today (or has passed), soonest first. */
 export function dueSoon(data, now = new Date()) {
   const until = new Date(shiftDay(localDay(now), DUE_DAYS + 1) + 'T00:00');
   return planner(data).blocks.filter(block => !block.archived && block.achieved !== true)
-    .map(block => ({block, due: dueInfo(resultDue(data, block.id), now)}))
+    .map(block => ({block, due: dueInfo(blockDue(data, block.id)?.value, now)}))
     .filter(({due}) => due && due.at < until)
     .sort((a, b) => a.due.at - b.due.at);
 }
@@ -90,7 +78,7 @@ function weekStrip(app) {
   // Days that hold a Result's deadline get a flag; other days with tasks keep the quiet dot.
   const dues = new Map();
   for (const block of planner(data).blocks.filter(b => !b.archived && b.achieved !== true)) {
-    const value = resultDue(data, block.id);
+    const value = blockDue(data, block.id)?.value;
     if (value) dues.set(value.slice(0, 10), (dues.get(value.slice(0, 10)) ?? 0) + 1);
   }
   for (let i = 0; i < 7; i++) {
@@ -214,7 +202,7 @@ function dueSection(app, now = new Date()) {
     }
     lastDay = day;
     const copy = el('span', 'due-copy');
-    const timed = resultDue(data, block.id).includes('T');
+    const timed = blockDue(data, block.id)?.value?.includes('T');
     const meta = el('span', 'due-meta tnum');
     meta.append(due.overdue ? el('b', 'due-overdue', 'Overdue') : live(el('span'), timed ? 'timed' : 'day', due.at),
       ` · ${plural(left, 'task')} left`);
@@ -259,7 +247,7 @@ function resultHeader(app, group) {
   const head = button('', () => app.openBlock(block.id), 'result-head');
   const status = resultStatus(data, block.id);
   const area = app.blockArea(block);
-  const due = dueInfo(resultDue(data, block.id));
+  const due = dueInfo(blockDue(data, block.id)?.value);
   const copy = el('span', 'result-copy');
   copy.append(el('span', 'result-title', block.title));
   if (block.purpose) copy.append(el('span', 'result-purpose', block.purpose));

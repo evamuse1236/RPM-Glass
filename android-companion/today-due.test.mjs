@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {editPlan} from './planner-state.mjs';
-import {resultDue, dueSoon, countdown, timeLeft} from './planner/today.mjs';
+import {dueSoon, countdown, timeLeft} from './planner/today.mjs';
+import {blockDue} from './planner-state.mjs';
 
 // Tests run in Asia/Kolkata (scripts/test-tz.mjs). "Now" is Saturday 3 Oct 2026, 10:00.
 const NOW = new Date('2026-10-03T10:00:00+05:30');
@@ -26,9 +27,9 @@ function seed() {
 
 test("a Result's deadline is its latest open, dated, one-time task", () => {
   const {d, review, quiz, loose} = seed();
-  assert.equal(resultDue(d, review), '2026-10-04T21:00');
-  assert.equal(resultDue(d, quiz), '2026-10-06', 'a repeating routine never sets the deadline');
-  assert.equal(resultDue(d, loose), null);
+  assert.equal(blockDue(d, review)?.value ?? null, '2026-10-04T21:00');
+  assert.equal(blockDue(d, quiz)?.value ?? null, '2026-10-06', 'a repeating routine never sets the deadline');
+  assert.equal(blockDue(d, loose)?.value ?? null, null);
 });
 
 test('Due soon lists open Results due by the end of the third day, soonest first, and drops achieved ones', () => {
