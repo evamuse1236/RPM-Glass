@@ -1,19 +1,20 @@
 // Weekly review: last week's Results → capture → sort the Inbox into Results → this week's Results.
 // Renders into the container the planner gives it and talks to the app only through `ctx`
-// (getData, commit, close, openBlock, openCapture, now, day; optional sortInbox, readCalendar).
+// (getData, commit, close, openBlock, openCapture, now, day; optional sortInbox, readCalendar, openTask, archiveTask, deleteTask).
 // Plan changes go through ctx.commit with a label, so they save, re-render and offer Undo.
 // Review progress (step, draft choice of Results) is saved with ctx.commit(mutator, null):
 // a null label means "save quietly"; it changes no plan data and keeps the last Undo intact.
 import {
   REVIEW_STEPS, reviewWeek, reviewSummary, markAchieved, decideLeftover, leftoverChoice, inboxTasks,
   groupTasks, addInboxTask, taskDate, setMust, focusCandidates, weekFocus, reviewProgress, saveReviewProgress, finishReview,
-  weekCapacity, placedMusts, mustPlacements, placeMusts, rankResults, clashTask, planClash,
+  weekCapacity, placedMusts, mustPlacements, placeMusts, rankResults, clashTask, decideClash, clashKey, clashDecision,
 } from './review-state.mjs';
 import {planner, blockTasks, shiftDay, localDay} from './planner-state.mjs';
 import {areaTone} from './planner-ux.mjs';
 import {calendarRows} from './planner-calendar.mjs';
-import {dueInfo, clock, duration, plural} from './planner/format.mjs';
+import {dueInfo, clock, duration, plural, timeRange} from './planner/format.mjs';
 import {areaDot} from './planner/dom.mjs';
+import {attachTaskSwipe} from './task-swipe.mjs';
 
 const STEPS = [
   {name: "Last week's Results", next: 'Next: empty your head'},
@@ -89,11 +90,14 @@ export function mountWeeklyReview(container, ctx) {
     focusBase: null,
     focusHint: '',
     inboxIds: saved.inboxIds,
+    kept: saved.keptIds, // step 3: Inbox tasks left there on purpose
+    clashes: saved.clashes, // step 4: {clashKey: 'a'|'b'|'later'}
+    day: null, // step 4: the strip day whose deadlines, Musts and clashes are shown
     sheet: null, // step 3: {kind: 'add' (choose a Result) or 'new' (new Result with its Purpose), taskId}
     newBlock: {title: '', purpose: ''},
     draft: '',
     lens: null,
-    expanded: null, // step 4: the picked Result whose tasks are listed with Must stars
+    expanded: null, // step 4: the Result opened to its Purpose and tasks
     weekOpen: false, // step 4: the week summary expanded to one row per picked Result
     showIdle: false,
     calendar: undefined, // undefined while reading; then the read-only calendar copy as native returns it
@@ -162,7 +166,7 @@ function createActions(ctx, week, ui, render) {
     return queue;
   }
   const saveProgress = (patch = {}) => {
-    const progress = {step: ui.step, focusDraft: ui.focus, inboxIds: ui.inboxIds, ...patch};
+    const progress = {step: ui.step, focusDraft: ui.focus, inboxIds: ui.inboxIds, keptIds: ui.kept, clashes: ui.clashes, ...patch};
     return run(d => saveReviewProgress(d, week, progress, ctx.now()), null);
   };
   const groupList = () => {
@@ -192,7 +196,12 @@ function createActions(ctx, week, ui, render) {
   }
   /** The calendar's events once it is readable, else null (not connected, unavailable, or still reading). */
   const events = () => (ui.calendar && READABLE.has(ui.calendar.status) ? calendarRows(ui.calendar) : null);
-  return {data, week, ui, run, goTo, close, finish, render, groupList, openBlock, events, now: () => ctx.now()};
+  /** This week's calendar clashes (none until the calendar is read), each with the task that deals with it. */
+  const clashes = () => {
+    const rows = events();
+    return rows ? weekCapacity([], rows, week, ctx.now()).clashes.slice(0, 2).map(c => ({...c, key: clashKey(c), task: clashTask(data(), c)})) : [];
+  };
+  return {data, week, ui, run, goTo, close, finish, render, groupList, openBlock, events, clashes, saveProgress, now: () => ctx.now()};
 }
 
 function renderReview(root, api, ctx) {
@@ -365,11 +374,11 @@ function verdictControl(api, summary, result) {
       if (selected) return;
       const achieved = value === 'achieved';
       api.run(d => markAchieved(d, result.blockId, {achieved, week: summary.lastWeek, verdict: value}), VERDICT_RECEIPTS[value]);
-    }, `wr-seg-btn ${value}` + (selected ? ' sel' : ''));
+    }, 'wr-seg-btn' + (selected ? ' sel' : ''));
     option.setAttribute('role', 'radio');
     option.setAttribute('aria-checked', String(selected));
     option.dataset.key = `verdict:${result.blockId}:${value}`;
-    if (selected) option.append(icon(value === 'achieved' ? 'emoji_events' : 'check', true));
+    if (selected) option.append(icon('check'));
     option.append(el('span', 'wr-label', label));
     group.append(option);
   }
@@ -397,41 +406,66 @@ function evidenceField(api, summary, result) {
   return wrap;
 }
 
-/** Carrying pre-picks the Result in step 4 (a draft, not plan data). */
-function carryChip(api, result, short = false) {
-  const on = api.ui.focus.includes(result.blockId);
-  const label = on ? (short ? 'Carried' : "In this week's Results") : (short ? 'Carry' : 'Carry into this week');
-  const chip = button(label, () => toggleFocus(api, result.blockId), 'wr-chip' + (on ? ' sel' : ''), on ? 'check' : 'redo');
-  chip.setAttribute('aria-pressed', String(on));
-  if (short) chip.setAttribute('aria-label', `Carry "${result.title}" into this week`);
-  chip.dataset.key = 'carry:' + result.blockId;
-  return chip;
+/** A checkbox row that puts a Result in this week's Results (a draft, saved quietly): Carry in step 1, Pick in step 4. */
+function focusCheck(api, blockId, title, cls = 'wr-check') {
+  const on = api.ui.focus.includes(blockId);
+  const box = button('', () => toggleFocus(api, blockId), cls + (on ? ' on' : ''));
+  box.setAttribute('role', 'checkbox');
+  box.setAttribute('aria-checked', String(on));
+  box.dataset.key = 'focus:' + blockId;
+  box.append(icon(on ? 'check_box' : 'check_box_outline_blank', on));
+  return box;
 }
 function carryRow(api, result) {
-  const row = el('div', 'wr-carry');
-  row.append(carryChip(api, result));
+  const row = focusCheck(api, result.blockId, result.title, 'wr-check-row');
+  row.setAttribute('aria-label', `Carry "${result.title}" into this week`);
+  row.append(el('span', 'wr-label', 'Carry into this week'));
   return row;
 }
 
-/** Results whose deadline is still ahead: nothing to judge yet, so the only question is whether to carry them. */
+/** Results whose deadline is still ahead: nothing to judge yet, only whether to carry them (one tap for all). */
 function runningList(api, running) {
   const now = api.now();
   const list = el('ul', 'wr-list wr-running');
   list.setAttribute('aria-label', 'Still running');
   for (const r of running) {
-    const item = el('li', 'wr-run');
-    const text = el('div', 'wr-run-text');
+    const item = el('li');
+    const row = focusCheck(api, r.blockId, r.title, 'wr-check-row wr-run');
+    row.setAttribute('aria-label', `Carry "${r.title}" into this week`);
+    const text = el('span', 'wr-run-text');
     text.append(el('span', 'wr-run-title', r.title));
-    const meta = el('span', 'wr-run-meta tnum');
-    const chip = dueChip(r.due, now);
-    if (chip) meta.append(chip);
-    meta.append(el('span', '', r.mustMinutes ? `${duration(r.mustMinutes)} of Must left` : 'No Must set'));
+    const meta = el('span', 'wr-facts tnum');
+    meta.append(...factsLine([dueFact(r.due, now), mustFact(r.mustMinutes, 'No Must set')]));
     text.append(meta);
-    item.append(text, carryChip(api, r, true));
+    row.append(text);
+    item.append(row);
     list.append(item);
   }
-  return [sectionHead('Still running', running.length),
-    el('p', 'wr-section-note', "Their deadlines haven't come yet, so there's nothing to judge. Carry them into this week."), list];
+  const left = running.filter(r => !api.ui.focus.includes(r.blockId));
+  const all = running.length > 1 && left.length
+    ? button(running.length === 2 ? 'Carry both' : `Carry all ${running.length}`, () => setFocus(api, [...api.ui.focus, ...left.map(r => r.blockId)]), 'wr-btn-tonal', 'redo')
+    : null;
+  return [sectionHead('Still running', running.length, all),
+    el('p', 'wr-section-note', "Their deadlines haven't come yet, so there's nothing to judge. Checked ones join this week's Results."), list];
+}
+
+/** One facts line, as the Blocks list writes it: parts joined by " · ", each kept whole, a line only breaking after a dot. */
+function factsLine(parts) {
+  const nodes = parts.filter(Boolean).map(part => (typeof part === 'string' ? el('span', '', part) : part));
+  return nodes.flatMap((node, i) => (i < nodes.length - 1 ? [node, '\u00a0· '] : [node]));
+}
+/** The deadline in the words every card uses ("Due tomorrow 11:00 PM"), in medium weight; error colour once past. */
+function dueFact(value, now) {
+  const info = value && dueInfo(value, now);
+  return info ? el('b', 'wr-due-text' + (info.overdue ? ' overdue' : ''), info.label) : null;
+}
+/** "★ 3 h 50 min": the open Must time with the star as its legend; `none` words it when there is no Must. */
+function mustFact(minutes, none = '') {
+  if (!minutes) return none ? el('span', '', none) : null;
+  const node = el('span', 'wr-must-fact');
+  node.append(Object.assign(icon('star', true), {className: 'ms fill must'}), duration(minutes));
+  node.setAttribute('aria-label', `${duration(minutes)} of Must`);
+  return node;
 }
 
 function leftoverList(api, result) {
@@ -491,6 +525,7 @@ function winsCard(wins) {
 function stepTwo(api, ctx) {
   const inbox = inboxTasks(api.data());
   const now = api.now();
+  const clashIds = new Set(api.clashes().map(c => c.task?.id).filter(Boolean));
   const parts = heading('Empty your head', 'Every idea, want and to-do, in your own words. Sorting comes next.');
   parts.push(quickAdd(api), ...lenses(api));
   parts.push(sectionHead('Inbox', inbox.length, button('Open Capture', () => ctx.openCapture(), 'wr-btn-text', 'edit_note')));
@@ -502,10 +537,13 @@ function stepTwo(api, ctx) {
   list.setAttribute('aria-label', 'Inbox');
   for (const task of inbox) {
     const item = el('li', 'wr-list-item');
-    const text = el('span', 'wr-list-text');
+    // Tap to edit (the planner's task sheet, with Delete in its menu); swipe as in every task list.
+    const text = button('', ctx.openTask ? () => ctx.openTask(task.id) : null, 'wr-list-text');
+    text.dataset.key = 'inbox:' + task.id;
     text.append(el('span', 'wr-list-title', task.title ?? task.raw));
     const when = whenText(task, now);
-    if (when || task.must) {
+    const clash = clashIds.has(task.id);
+    if (when || task.must || clash) {
       const meta = el('span', 'wr-list-meta');
       if (task.must) {
         const must = el('span', 'wr-must-tag');
@@ -515,12 +553,18 @@ function stepTwo(api, ctx) {
         meta.append(must);
       }
       if (when) meta.append(el('span', when.overdue ? 'overdue' : when.soon ? 'soon' : '', when.text));
+      if (clash) meta.append(el('span', '', 'Calendar clash · you decide it in step 4'));
       text.append(meta);
     }
     item.append(text);
+    if (ctx.archiveTask && ctx.deleteTask) {
+      item.classList.add('swipe-task');
+      attachTaskSwipe(item, {archive: () => ctx.archiveTask(task), remove: () => ctx.deleteTask(task)});
+    }
     list.append(item);
   }
   parts.push(list);
+  if (ctx.openTask) parts.push(el('p', 'wr-section-note wr-hint', 'Tap a task to edit it. Swipe to archive or delete.'));
   return parts;
 }
 
@@ -532,7 +576,7 @@ function quickAdd(api) {
   const input = el('input', 'wr-add-input');
   input.type = 'text';
   input.maxLength = 200;
-  input.placeholder = ui.lens ? `Anything for ${ui.lens}?` : 'Ideas, wants, to-dos';
+  input.placeholder = ui.lens ? `${ui.lens}: anything due, stuck or wanted?` : 'Ideas, wants, to-dos';
   input.value = ui.draft;
   input.enterKeyHint = 'enter';
   input.dataset.key = 'quick-add';
@@ -555,50 +599,54 @@ function quickAdd(api) {
   return form;
 }
 
-/** RPM's lenses: walking through each Area surfaces what a blank field doesn't. A tap only changes the prompt. */
+/** RPM's lenses: walking through each Area surfaces what a blank field doesn't. A prompt, not a filter: a tap asks
+ * that Area's question in the field and nothing else changes. */
 function lenses(api) {
   const {ui} = api;
   const areas = planner(api.data()).areas.filter(a => !a.archived);
   if (!areas.length) return [];
   const row = el('div', 'wr-lenses');
   row.setAttribute('role', 'group');
-  row.setAttribute('aria-label', 'Think through an Area');
+  row.setAttribute('aria-label', 'Prompts, one per Area');
   for (const area of areas) {
-    const on = ui.lens === area.title;
     const chip = button('', () => {
-      ui.lens = on ? null : area.title;
+      ui.lens = area.title;
       api.render();
       document.querySelector('.wr-add-input')?.focus({preventScroll: true});
-    }, 'wr-chip wr-lens' + (on ? ' sel' : ''));
-    chip.setAttribute('aria-pressed', String(on));
+    }, 'wr-chip wr-lens');
+    chip.setAttribute('aria-label', `Prompt: ${area.title}, anything due, stuck or wanted?`);
     chip.dataset.key = 'lens:' + area.id;
-    chip.append(areaDot(areaTone(area, planner(api.data()).areas)), el('span', 'wr-label', area.title));
+    chip.append(areaDot(areaTone(area, planner(api.data()).areas)), el('span', 'wr-label', area.title + '?'));
     row.append(chip);
   }
-  return [el('p', 'wr-lens-head', 'Stuck? Think through each Area'), row];
+  return [el('p', 'wr-lens-head', 'Stuck? Ask yourself about each Area'), row];
 }
 
 /* ---------- step 3: sort the Inbox into Results ---------- */
 function stepThree(api, ctx) {
   const {ui} = api;
   const rows = api.groupList();
-  const loose = rows.filter(t => (t.blockId ?? null) === null);
+  const clashIds = new Set(api.clashes().map(c => c.task?.id).filter(Boolean));
+  const loose = rows.filter(t => (t.blockId ?? null) === null && !clashIds.has(t.id));
+  const toSort = loose.filter(t => !ui.kept.includes(t.id));
+  const kept = loose.filter(t => ui.kept.includes(t.id));
   if (ui.sheet && !loose.some(t => t.id === ui.sheet.taskId)) ui.sheet = null;
-  const parts = heading('Sort the Inbox', 'Give each task the Result it serves: tap a suggestion, or Choose. Errands can stay in the Inbox.');
+  const parts = heading('Sort the Inbox', 'Give each task the Result it serves, or leave errands in the Inbox.');
   if (!rows.length) {
     parts.push(emptyState('done_all', 'Nothing to sort', 'Your Inbox is empty, so every task already has a Result.'));
     return parts;
   }
-  const jev = ctx.sortInbox && loose.length ? button('Ask Jev', () => ctx.sortInbox(), 'wr-btn-text', 'auto_awesome') : null;
-  parts.push(sectionHead('Inbox', loose.length, jev));
+  const jev = ctx.sortInbox && toSort.length ? button('Ask Jev', () => ctx.sortInbox(), 'wr-btn-text', 'auto_awesome') : null;
+  parts.push(sectionHead('To sort', toSort.length, jev));
   if (jev) parts.push(el('p', 'wr-section-note', 'Jev proposes; nothing moves until you confirm.'));
-  if (loose.length) {
+  if (toSort.length) {
     const candidates = focusCandidates(api.data(), api.week, []);
     const list = el('ul', 'wr-list wr-sort-list');
     list.setAttribute('aria-label', 'Inbox tasks to sort');
-    for (const task of loose) list.append(sortRow(api, task, rankResults(api.data(), task, candidates).suggested));
+    for (const task of toSort) list.append(sortRow(api, task, rankResults(api.data(), task, candidates).suggested));
     parts.push(list);
-  } else parts.push(el('p', 'wr-quiet', 'Inbox is clear. Every task here has a Result.'));
+  } else parts.push(el('p', 'wr-quiet', 'All sorted. Every task has a Result or stays in the Inbox on purpose.'));
+  if (clashIds.size) parts.push(el('p', 'wr-section-note', clashIds.size === 1 ? 'The calendar clash in your Inbox is decided in step 4.' : 'The calendar clashes in your Inbox are decided in step 4.'));
 
   // What this step sorted: each Result that received tasks, with them, and a way back to the Inbox.
   const grouped = rows.filter(t => t.blockId);
@@ -615,22 +663,41 @@ function stepThree(api, ctx) {
     }
     parts.push(list);
   }
+  if (kept.length) {
+    parts.push(sectionHead('Staying in the Inbox', kept.length));
+    const list = el('ul', 'wr-list wr-formed');
+    list.setAttribute('aria-label', 'Staying in the Inbox');
+    for (const task of kept) list.append(groupedRow(api, task, true));
+    parts.push(list);
+  }
   return parts;
 }
 
-/** One Inbox task: its words, a one-tap suggested Result when one clearly fits, and Choose for any other. */
+/** Errands stay in the Inbox on purpose: remembered with the review's progress, no plan change. */
+function keep(api, taskId, on) {
+  const {ui} = api;
+  ui.kept = on ? [...new Set([...ui.kept, taskId])] : ui.kept.filter(id => id !== taskId);
+  ui.sheet = null;
+  api.render();
+  api.saveProgress();
+}
+
+/** One Inbox task: its words, then one tap: the suggested Result when the words clearly point to one, else Leave in Inbox. */
 function sortRow(api, task, suggested) {
   const {ui} = api;
   const name = task.title ?? task.raw;
   const item = el('li', 'wr-sort');
   item.append(el('span', 'wr-row-title', name));
-  let chip = null;
+  let chip;
   if (suggested) {
     chip = button(suggested.title, () => api.run(d => groupTasks(d, [task.id], suggested.blockId), 'Added to ' + suggested.title),
       'wr-chip wr-suggest', 'add');
     chip.setAttribute('aria-label', `Add "${name}" to ${suggested.title}`);
-    chip.dataset.key = 'suggest:' + task.id;
+  } else {
+    chip = button('Leave in Inbox', () => keep(api, task.id, true), 'wr-chip wr-suggest wr-leave', 'inbox');
+    chip.setAttribute('aria-label', `Leave "${name}" in the Inbox`);
   }
+  chip.dataset.key = 'suggest:' + task.id;
   const choose = button('Choose', () => {
     Object.assign(ui, {sheet: {kind: 'add', taskId: task.id}});
     api.render();
@@ -638,17 +705,17 @@ function sortRow(api, task, suggested) {
   }, 'wr-btn-text wr-choose');
   choose.setAttribute('aria-label', `Choose a Result for "${name}"`);
   choose.dataset.key = 'choose:' + task.id;
-  item.append(choose);
-  if (chip) item.append(chip);
+  item.append(choose, chip);
   return item;
 }
 
-function groupedRow(api, task) {
+function groupedRow(api, task, kept = false) {
   const item = el('li', 'wr-row sub');
   const name = task.title ?? task.raw;
-  item.append(icon('subdirectory_arrow_right'), el('span', 'wr-row-title', name));
-  const back = iconButton('close', `Move "${name}" back to the Inbox`,
-    () => api.run(d => groupTasks(d, [task.id], null), 'Moved to Inbox'), 'wr-icon-btn wr-unmove');
+  item.append(icon(kept ? 'inbox' : 'subdirectory_arrow_right'), el('span', 'wr-row-title', name));
+  const back = kept
+    ? iconButton('undo', `Sort "${name}" after all`, () => keep(api, task.id, false), 'wr-icon-btn wr-unmove')
+    : iconButton('close', `Move "${name}" back to the Inbox`, () => api.run(d => groupTasks(d, [task.id], null), 'Moved to Inbox'), 'wr-icon-btn wr-unmove');
   back.dataset.key = 'unmove:' + task.id;
   item.append(back);
   return item;
@@ -676,25 +743,36 @@ function sheetTitle(text) {
   return h;
 }
 
-/** Results with the likeliest first (then by deadline), each with its Purpose; New Result leads. */
+/** New Result and Leave in Inbox, then every Result, likeliest first (then by deadline), with its deadline and Area. */
 function resultChooser(api, task) {
   const {ui} = api;
   const name = task.title ?? task.raw;
+  const now = api.now();
+  const p = planner(api.data());
+  const areaOf = blockId => {
+    const project = p.projects.find(pr => pr.id === p.blocks.find(b => b.id === blockId)?.projectId);
+    const goal = p.goals.find(g => g.id === project?.goalId);
+    return p.areas.find(a => a.id === goal?.areaId)?.title ?? '';
+  };
   const list = el('div', 'wr-picker');
   const fresh = button('New Result', () => {
     Object.assign(ui, {sheet: {kind: 'new', taskId: task.id}, newBlock: {title: '', purpose: ''}});
     api.render();
     document.querySelector('.wr-sheet input')?.focus({preventScroll: true});
-  }, 'wr-option wr-option-new', 'add');
+  }, 'wr-option wr-option-action', 'add');
   fresh.dataset.key = 'sheet:new';
-  list.append(fresh);
+  const leave = button('Leave in Inbox', () => keep(api, task.id, true), 'wr-option wr-option-action', 'inbox');
+  leave.dataset.key = 'sheet:keep';
+  list.append(fresh, leave);
   for (const c of rankResults(api.data(), task, focusCandidates(api.data(), api.week, [])).ranked) {
     const option = el('button', 'wr-option');
     option.type = 'button';
     option.dataset.key = 'sheet:' + c.blockId;
     const text = el('span', 'wr-option-text');
-    text.append(el('span', 'wr-option-label', c.title), el('span', 'wr-option-detail', c.purpose || 'No Purpose yet'));
-    option.append(text);
+    const info = c.due && dueInfo(c.due, now);
+    const detail = [info?.label ?? 'No deadline', areaOf(c.blockId)].filter(Boolean).join(' · ');
+    text.append(el('span', 'wr-option-label', c.title), el('span', 'wr-option-detail' + (info?.overdue ? ' overdue' : ''), detail));
+    option.append(icon('stacks'), text);
     option.addEventListener('click', () => {
       ui.sheet = null;
       api.run(d => groupTasks(d, [task.id], c.blockId), 'Added to ' + c.title);
@@ -752,51 +830,75 @@ function stepFour(api) {
   const candidates = focusCandidates(api.data(), api.week, ui.focusBase);
   ui.focus = ui.focus.filter(id => candidates.some(c => c.blockId === id));
   const chosen = candidates.filter(c => ui.focus.includes(c.blockId));
+  const clashes = api.clashes();
+  const missed = unpickedDue(api, candidates, now);
+  // Nothing blocks Finish; the counts say what is still open.
+  const open = clashes.filter(c => clashState(api, c).state === 'open').length;
+  const todo = [open && `${plural(open, 'clash', 'clashes')} to decide`, missed.size && `${plural(missed.size, 'Result')} due by Sunday not picked`].filter(Boolean);
   const [title] = heading("Pick this week's Results", '');
-  const sub = el('p', 'wr-sub tnum', `${chosen.length} picked · aim for 3 to 5, nearest deadline first.`);
+  const sub = el('p', 'wr-sub tnum', `${chosen.length} picked · aim for 3 to 5.` + (todo.length ? ` ${capital(todo.join(' · '))}.` : ''));
   sub.setAttribute('aria-live', 'polite');
   const parts = [title, sub];
   if (!candidates.length) {
     parts.push(emptyState('flag', 'No Results yet', 'Go back a step and give a task a new Result, then pick it here.'));
     return parts;
   }
-  parts.push(weekCard(api, chosen, now));
-  const risks = riskList(api, candidates, now);
-  if (risks) parts.push(risks);
-  // Results with nothing left to do wait behind one row, so they don't compete with the urgent ones.
+  // The choice first: one quiet list, nearest deadline first. Results with nothing left to do wait behind one row.
   const idle = candidates.filter(c => c.total === c.done && !ui.focusBase.includes(c.blockId));
-  for (const c of candidates.filter(c => !idle.includes(c))) parts.push(focusCard(api, c, now));
+  parts.push(resultList(api, candidates.filter(c => !idle.includes(c)), now, missed, "This week's Results"));
   if (idle.length) {
     const toggle = button('', () => { ui.showIdle = !ui.showIdle; api.render(); }, 'wr-idle-toggle');
     toggle.setAttribute('aria-expanded', String(ui.showIdle));
     toggle.dataset.key = 'idle';
     toggle.append(el('span', 'wr-label', `${plural(idle.length, 'Result')} with no open tasks`), icon(ui.showIdle ? 'expand_less' : 'expand_more'));
     parts.push(toggle);
-    if (ui.showIdle) for (const c of idle) parts.push(focusCard(api, c, now));
+    if (ui.showIdle) parts.push(resultList(api, idle, now, missed, 'Results with no open tasks'));
   }
+  // Then what the week holds: a clash to decide, and whether the picked Results' Must time fits.
+  if (clashes.length) {
+    const list = el('ul', 'wr-risks');
+    list.setAttribute('aria-label', 'Calendar clashes');
+    list.append(...clashes.map(c => clashRow(api, c)));
+    parts.push(list);
+  }
+  parts.push(weekCard(api, chosen, candidates, now));
   return parts;
+}
+
+/** Once picking has started, Results due by Sunday (or overdue) with open tasks that aren't picked: flagged on their row. */
+function unpickedDue(api, candidates, now) {
+  const end = new Date(shiftDay(api.week, 7) + 'T00:00');
+  if (!api.ui.focus.length) return new Set();
+  return new Set(candidates.filter(c => !api.ui.focus.includes(c.blockId) && c.due && c.done < c.total && dueInfo(c.due, now).at < end)
+    .map(c => c.blockId));
 }
 
 /** A Result's deadline in the words its card uses ("Due tomorrow 11:00 PM", "Overdue since …"). */
 const dueWords = (value, now) => dueInfo(value, now).label;
 
 /**
- * The week at a glance: a day strip (free hours, Must time already on each day, deadlines, clashes), then one line
- * on whether the picked Results' Must time fits, which opens to one row per Result checked against its own deadline,
- * with the same deadline and Must time as its card, and a proposal for Musts that have no day yet.
+ * The week at a glance: a day strip (Must time already on each day, deadline days and clash days, in words; a tap
+ * shows that day), then one line on whether the picked Results' Must time fits, which opens to one row per Result
+ * checked against its own deadline, and a proposal for Musts that have no day yet.
  */
-function weekCard(api, chosen, now) {
+function weekCard(api, chosen, candidates, now) {
   const {ui} = api;
   const events = api.events();
   const ids = chosen.map(c => c.blockId);
-  const cap = weekCapacity(chosen, events, api.week, now, placedMusts(api.data(), ids));
+  const placed = placedMusts(api.data(), ids);
+  const cap = weekCapacity(chosen, events, api.week, now, placed);
+  const due = candidates.filter(c => c.due && c.done < c.total);
   const box = el('section', 'wr-summary');
   box.setAttribute('aria-label', 'This week at a glance');
-  box.append(dayStrip(cap.days, events != null));
-  const legend = el('p', 'wr-strip-note' + (events ? ' legend' : ''));
-  if (events) legend.append('Free hours, 8 AM–10 PM minus events · ', Object.assign(icon('star', true), {className: 'ms fill must'}), ' Must planned');
-  else legend.append(calendarNote(ui.calendar));
-  box.append(legend);
+  box.append(dayStrip(api, cap.days, due));
+  const day = cap.days.find(d => d.day === ui.day);
+  if (day) box.append(dayDetail(api, day, due, placed, cap.clashes, now));
+  else {
+    const legend = el('p', 'wr-strip-note legend');
+    legend.append(Object.assign(icon('star', true), {className: 'ms fill must'}), ' Must time with a day · tap a day to see it');
+    box.append(legend);
+  }
+  if (!events) box.append(el('p', 'wr-strip-note', calendarNote(ui.calendar)));
   if (!chosen.length) {
     box.append(el('p', 'wr-summary-line', 'Pick a Result to see whether its Must time fits before its deadline.'));
     return box;
@@ -818,7 +920,7 @@ function weekCard(api, chosen, now) {
   const undatedText = `${unplaced ? duration(unplaced) + ' of Must' : plural(placements.length, 'Must')} with no day yet`;
   text.append(el('span', 'wr-week-head tnum', undated ? undatedText
     : `${duration(cap.must)} of Must` + (verdict ? ` · ${verdict}` : '')));
-  const detail = undated ? `${duration(cap.must)} of Must in all${events ? ' · free time before every deadline' : ''}`
+  const detail = undated ? `${duration(cap.must)} of Must in all${events ? ', with free time before every deadline' : ''}`
     : placements.length ? undatedText
       : worst && !worst.overdue ? worst.title : `${plural(chosen.length, 'Result')}, each against its own deadline`;
   text.append(el('span', 'wr-week-sub', detail));
@@ -826,7 +928,7 @@ function weekCard(api, chosen, now) {
   box.append(toggle);
   if (ui.weekOpen) {
     box.append(capacityRows(cap.rows, now));
-    if (events) box.append(el('p', 'wr-summary-note', 'Each Result counts the Musts due before it too, since that work comes first.'));
+    if (events) box.append(el('p', 'wr-summary-note', 'Free time counts 8 AM–10 PM minus your calendar. Each Result counts the Musts due before it too, since that work comes first.'));
   }
   // Undated Musts and their suggested days stay in view: they are what the plan still lacks.
   if (placements.length && (ui.weekOpen || undated)) box.append(placementBox(api, placements));
@@ -859,7 +961,7 @@ function capacityRows(rows, now) {
 /** Undated Musts with the freest day before their deadline: shown first, written only on the tap, with Undo. */
 function placementBox(api, placements) {
   const box = el('div', 'wr-place');
-  box.append(el('p', 'wr-place-head', 'No day yet. Suggested from free time before each deadline:'));
+  box.append(el('p', 'wr-place-head', 'Suggested days, from free time before each deadline'));
   const list = el('ul', 'wr-place-list');
   for (const p of placements) {
     const row = el('li');
@@ -883,136 +985,203 @@ function calendarNote(calendar) {
   return "Calendar unavailable, so free time isn't counted.";
 }
 
-/** Today to Sunday as Calendar-style day cells: free hours, Must time placed, an hourglass on deadline days, a warning on clash days. */
-function dayStrip(days, counted) {
-  const strip = el('ol', 'wr-strip');
+/**
+ * Today to Sunday as Calendar-style day buttons. Each says its marks in words: the Must time already on it (★),
+ * "Due" when a Result's deadline falls on it, "Clash" when calendar events overlap. A tap shows that day below.
+ */
+function dayStrip(api, days, due) {
+  const {ui} = api;
+  const strip = el('div', 'wr-strip');
+  strip.setAttribute('role', 'group');
   strip.setAttribute('aria-label', 'Days until the end of the week');
   const today = days[0]?.day;
   for (const d of days) {
     const date = new Date(d.day + 'T12:00');
-    const cell = el('li', 'wr-strip-day' + (d.day === today ? ' today' : '') + (date.getDay() === 1 ? ' monday' : '') + (d.over ? ' over' : ''));
+    const on = ui.day === d.day;
+    const cell = button('', () => { ui.day = on ? null : d.day; api.render(); },
+      'wr-strip-day' + (d.day === today ? ' today' : '') + (on ? ' sel' : '') + (d.over ? ' over' : ''));
+    cell.setAttribute('aria-pressed', String(on));
+    cell.dataset.key = 'day:' + d.day;
     const said = [dayName(d.day)];
     cell.append(el('span', 'wr-strip-letter', date.toLocaleDateString(undefined, {weekday: 'narrow'})), el('span', 'wr-strip-num tnum', String(date.getDate())));
-    if (counted) {
-      cell.append(el('span', 'wr-strip-free tnum', hours(d.free)));
-      said.push(`${duration(d.free)} free`);
-    }
     const must = el('span', 'wr-strip-must tnum');
     if (d.must) {
       must.append(Object.assign(icon('star', true), {className: 'ms fill must'}), hours(d.must));
       said.push(`${duration(d.must)} of Must`);
     }
-    const marks = el('span', 'wr-strip-marks');
-    if (d.deadlines) { marks.append(icon('hourglass_bottom', true)); said.push(d.over ? 'deadline, Must time does not fit' : 'deadline'); }
-    if (d.clash) { marks.append(Object.assign(icon('warning', true), {className: 'ms fill clash'})); said.push('calendar clash'); }
-    cell.append(must, marks);
+    const dueHere = due.some(c => c.due.slice(0, 10) === d.day);
+    const deadline = el('span', 'wr-strip-mark', dueHere ? 'Due' : '');
+    if (dueHere) said.push(d.over ? 'a deadline, Must time does not fit' : 'a deadline');
+    const clash = el('span', 'wr-strip-mark clash');
+    if (d.clash) { clash.append(el('i', 'wr-dot'), 'Clash'); said.push('calendar clash'); }
+    cell.append(must, deadline, clash);
     cell.setAttribute('aria-label', said.join(', '));
     strip.append(cell);
   }
   return strip;
 }
 
+/** One day from the strip: its free time, the deadlines on it (picked or not), the Musts already on it and any clash. */
+function dayDetail(api, d, due, placed, clashes, now) {
+  const box = el('div', 'wr-day');
+  box.setAttribute('aria-live', 'polite');
+  const head = el('p', 'wr-day-head');
+  const today = d.day === localDay(now);
+  head.append(el('b', '', today ? 'Today' : new Date(d.day + 'T12:00').toLocaleDateString(undefined, {weekday: 'long', day: 'numeric', month: 'long'})));
+  if (d.free != null) head.append(` · ${duration(d.free)} free ${today ? 'until 10\u00a0PM' : 'from 8\u00a0AM to 10\u00a0PM'}`);
+  box.append(head);
+  const list = el('ul', 'wr-day-list');
+  const row = (lead, text, cls = '') => {
+    const item = el('li', cls);
+    item.append(lead, el('span', 'wr-day-text', text));
+    list.append(item);
+  };
+  for (const c of due.filter(c => c.due.slice(0, 10) === d.day)) {
+    const when = c.due.length > 10 ? clock(c.due) : 'end of day';
+    row(el('b', 'wr-day-lead', 'Due ' + when), c.title + (api.ui.focus.includes(c.blockId) ? '' : ' · not picked'));
+  }
+  for (const p of placed.filter(p => p.day === d.day)) {
+    const task = api.data().entries.find(t => t.id === p.taskId);
+    const lead = el('span', 'wr-day-lead');
+    lead.append(Object.assign(icon('star', true), {className: 'ms fill must'}), p.minutes ? duration(p.minutes) : '');
+    row(lead, task?.title ?? 'Must');
+  }
+  for (const c of clashes.filter(c => c.day === d.day)) {
+    const decided = api.clashes().find(x => x.key === clashKey(c));
+    const done = decided && ['decided', 'planned'].includes(clashState(api, decided).state);
+    row(el('b', 'wr-day-lead' + (done ? '' : ' overdue'), 'Clash ' + clock(c.b.start)), `${c.a.title} and ${c.b.title}${done ? ' · decided' : ''}`);
+  }
+  if (!list.childElementCount) list.append(el('li', 'wr-day-empty', 'Nothing due, no Musts and no clashes.'));
+  box.append(list);
+  return box;
+}
+
 /**
- * What to look at before Finish, as plain rows with one action each (as Today's At risk): a calendar clash not yet
- * dealt with (calendars are read-only, so the fix offered is a task on Today), and, once picking has started, Results
- * due by Sunday that aren't picked.
+ * A clash is a decision, not a loose to-do: which event stays. Calendars are read-only, so the answer becomes a task
+ * on Today (the user's own task naming the clash keeps its words and gains the decision in its notes). "Decide later"
+ * says so explicitly; Finish never waits on it.
  */
-function riskList(api, candidates, now) {
-  const rows = [];
-  const end = new Date(shiftDay(api.week, 7) + 'T00:00');
-  const events = api.events();
-  const clashes = events ? weekCapacity([], events, api.week, now).clashes : [];
-  for (const clash of clashes.slice(0, 2)) {
-    const task = clashTask(api.data(), clash);
-    if (task && taskDate(task)) continue; // already on a day: the warning on the strip is enough
-    const lead = el('span', '');
-    lead.append(el('b', 'wr-risk-lead', 'Clash'), ` · ${dayName(clash.day)}, ${clock(clash.a.start)}`);
-    const row = riskRow('event_busy', lead, `${clash.a.title} overlaps ${clash.b.title}`, task ? 'Plan today' : 'Add to Today',
-      () => api.run(d => planClash(d, clash, api.now()), task ? 'Moved to Today' : 'Added to Today'), `clash:${clash.day}:${clash.a.title}`);
-    row.querySelector('button').setAttribute('aria-label', task ? `Put "${task.title}" on Today` : 'Add a task to Today to sort out the clash');
-    rows.push(row);
+function clashState(api, clash) {
+  const choice = api.ui.clashes[clash.key];
+  if (api.ui.clashOpen === clash.key) return {state: 'open', choice};
+  if ((choice === 'a' || choice === 'b') && clash.task && String(clash.task.notes ?? '').includes(clashDecision(clash, choice))) return {state: 'decided', choice};
+  if (clash.task && taskDate(clash.task)) return {state: 'planned'};
+  return {state: choice === 'later' ? 'later' : 'open'};
+}
+
+function clashRow(api, clash) {
+  const {ui} = api;
+  const {state, choice} = clashState(api, clash);
+  const item = el('li', 'wr-risk wr-clash' + (state === 'decided' || state === 'planned' ? ' done' : ''));
+  const text = el('span', 'wr-risk-text');
+  const lead = el('span', '');
+  const when = `${dayName(clash.day)}, ${clock(clash.b.start)}`;
+  const reopen = label => {
+    const go = button(label, () => { ui.clashOpen = clash.key; api.render(); }, 'wr-btn-text');
+    go.dataset.key = 'clash-open:' + clash.key;
+    return go;
+  };
+  if (state === 'decided' || state === 'planned') {
+    lead.append(el('b', 'wr-risk-lead', 'Clash decided'), ' · ' + when);
+    const sub = el('span', 'wr-risk-sub');
+    const [stays, other] = choice === 'b' ? [clash.b, clash.a] : [clash.a, clash.b];
+    if (state === 'decided') sub.append('Keep ', el('span', 'wr-nowrap', stays.title), ', move or skip ', el('span', 'wr-nowrap', other.title));
+    else sub.append(clash.task.title);
+    sub.append(' · ', el('span', 'wr-nowrap', `a task for ${whenText(clash.task, api.now())?.text ?? 'Today'}`));
+    text.append(lead, sub);
+    item.append(icon('event_available'), text, reopen('Change'));
+    return item;
   }
-  // With nothing picked yet the cards themselves are the question; once picking starts, a due Result left out is flagged.
-  for (const c of api.ui.focus.length ? candidates : []) {
-    if (api.ui.focus.includes(c.blockId) || !c.due || c.done === c.total || dueInfo(c.due, now).at >= end) continue;
-    const lead = el('span', '');
-    lead.append(el('b', 'wr-risk-lead', 'Not picked'), ' · ' + dueWords(c.due, now));
-    const row = riskRow('hourglass_bottom', lead, c.title, 'Pick', () => toggleFocus(api, c.blockId), 'unpicked:' + c.blockId);
-    row.querySelector('button').setAttribute('aria-label', `Pick ${c.title}`);
-    rows.push(row);
+  lead.append(el('b', 'wr-risk-lead', 'Clash'), ' · ' + when);
+  // Each event with its time stays whole, so a range never breaks across lines.
+  const both = el('span', 'wr-risk-sub');
+  both.append(el('span', 'wr-nowrap', `${clash.a.title} ${timeRange(clash.a.start, clash.a.end)}`), ' overlaps ',
+    el('span', 'wr-nowrap', `${clash.b.title} ${timeRange(clash.b.start, clash.b.end)}`));
+  if (state === 'later') {
+    both.append('. Left for later.');
+    text.append(lead, both);
+    item.append(icon('event_busy'), text, reopen('Decide'));
+    return item;
   }
-  if (!rows.length) return null;
-  const list = el('ul', 'wr-risks');
-  list.setAttribute('aria-label', 'Before you finish');
-  list.append(...rows);
+  text.append(lead, both, el('span', 'wr-ask-small', 'Which one stays? Your answer goes on Today as a task.'));
+  const choices = el('span', 'wr-choices');
+  choices.setAttribute('role', 'group');
+  choices.setAttribute('aria-label', 'Which event stays');
+  const decide = keep => {
+    ui.clashes = {...ui.clashes, [clash.key]: keep};
+    ui.clashOpen = null;
+    if (keep === 'later') { api.render(); api.saveProgress(); return; }
+    api.saveProgress();
+    api.run(d => decideClash(d, clash, keep, api.now()), 'Decision added to Today');
+  };
+  for (const [keep, label, said] of [['a', clash.a.title, 'Keep ' + clash.a.title], ['b', clash.b.title, 'Keep ' + clash.b.title], ['later', 'Later', 'Decide later']]) {
+    const chip = button(label, () => decide(keep), 'wr-chip wr-choice' + (choice === keep ? ' sel' : ''));
+    chip.setAttribute('aria-label', said);
+    chip.dataset.key = `clash:${keep}:${clash.key}`;
+    choices.append(chip);
+  }
+  text.append(choices);
+  item.append(icon('event_busy'), text);
+  return item;
+}
+
+/** Results as one list of rows: a checkbox picks, the row opens its Purpose and tasks. Only meaning carries colour. */
+function resultList(api, rows, now, missed, label) {
+  const list = el('ul', 'wr-list wr-results');
+  list.setAttribute('aria-label', label);
+  for (const c of rows) list.append(resultRow(api, c, now, missed.has(c.blockId)));
   return list;
 }
 
-function riskRow(symbol, headline, supporting, action, onAction, key) {
-  const row = el('li', 'wr-risk');
-  const text = el('span', 'wr-risk-text');
-  text.append(headline, el('span', 'wr-risk-sub', supporting));
-  const go = button(action, onAction, 'wr-btn-text');
-  go.dataset.key = key;
-  row.append(icon(symbol), text, go);
-  return row;
-}
-
-function focusCard(api, c, now) {
+function resultRow(api, c, now, flagged) {
   const {ui} = api;
-  const selected = ui.focus.includes(c.blockId);
-  const card = el('article', 'wr-card wr-pick' + (selected ? ' sel' : ''));
-  const head = el('button', 'wr-pick-head');
-  head.type = 'button';
-  head.setAttribute('role', 'checkbox');
-  head.setAttribute('aria-checked', String(selected));
-  head.dataset.key = 'pick:' + c.blockId;
-  head.append(icon(selected ? 'check_circle' : 'radio_button_unchecked', selected));
-  const text = el('span', 'wr-pick-text');
-  text.append(el('span', 'wr-card-title', c.title));
-  if (c.purpose) text.append(el('span', 'wr-card-purpose', c.purpose));
-  const open = c.total - c.done;
+  const open = ui.expanded === c.blockId;
+  const item = el('li', 'wr-result' + (ui.focus.includes(c.blockId) ? ' picked' : ''));
+  const check = focusCheck(api, c.blockId, c.title);
+  check.setAttribute('aria-label', `Pick "${c.title}"`);
+  const main = button('', () => { ui.expanded = open ? null : c.blockId; api.render(); }, 'wr-result-main');
+  main.setAttribute('aria-expanded', String(open));
+  main.dataset.key = 'open:' + c.blockId;
+  const text = el('span', 'wr-result-text');
+  text.append(el('span', 'wr-result-title', c.title));
+  // One facts line, as on the Blocks list: the deadline, the Must time (or why there is none), Carried, Not picked.
+  const left = c.total - c.done;
   const info = c.due ? dueInfo(c.due, now) : null;
-  // One facts line: the deadline, the Must time left (or why there is none), and Carried when it came from step 1.
-  const facts = el('span', 'wr-tags tnum');
-  const chip = c.due && dueChip(c.due, now);
-  if (chip) facts.append(chip);
-  if (!c.total) facts.append(el('span', 'wr-fact', 'No tasks yet'));
-  else if (!open) facts.append(el('span', 'wr-fact', 'All tasks done'));
-  else if (c.mustMinutes) facts.append(el('span', 'wr-fact', `${duration(c.mustMinutes)} of Must`));
-  else if (info && (info.soon || info.overdue)) {
-    const warn = el('span', 'wr-warn');
-    warn.append(icon('star'), el('span', '', 'No Must set'));
-    facts.append(warn);
-  } else facts.append(el('span', 'wr-fact', 'No Must yet'));
-  if (c.carried) facts.append(el('span', 'wr-tag', 'Carried from last week'));
+  const must = !c.total ? 'No tasks yet' : !left ? 'All tasks done' : c.mustMinutes ? mustFact(c.mustMinutes)
+    : info && (info.soon || info.overdue) ? el('span', 'wr-warn', 'No Must set') : null;
+  const facts = el('span', 'wr-facts tnum');
+  facts.append(...factsLine([dueFact(c.due, now), must, !c.due && left ? `${c.done} of ${c.total} done` : null,
+    c.carried ? 'Carried from last week' : null]));
   text.append(facts);
-  head.append(text);
-  head.addEventListener('click', () => toggleFocus(api, c.blockId));
-  card.append(head);
-  // Only the Result picked last lists its tasks with Must stars; the others fold to one line, so the stack stays short.
-  if (selected && ui.expanded === c.blockId) card.append(mustList(api, c.blockId, now));
-  else if (selected && open) {
-    const musts = blockTasks(api.data(), c.blockId).filter(t => !t.done && t.must).length;
-    const more = button(`${plural(open, 'open task')} · ${plural(musts, 'Must')}`, () => { ui.expanded = c.blockId; api.render(); }, 'wr-musts-more', 'expand_more');
-    more.setAttribute('aria-expanded', 'false');
-    more.dataset.key = 'more:' + c.blockId;
-    card.append(more);
+  if (flagged) text.append(el('span', 'wr-flag', 'Due by Sunday and not picked'));
+  main.append(text, icon(open ? 'expand_less' : 'expand_more'));
+  main.setAttribute('aria-label', `${c.title}. ${open ? 'Hide' : 'Show'} its Purpose and tasks`);
+  const row = el('div', 'wr-result-row');
+  row.append(check, main);
+  item.append(row);
+  if (open) {
+    const more = el('div', 'wr-result-more');
+    if (c.purpose) more.append(el('p', 'wr-result-purpose', c.purpose));
+    more.append(mustList(api, c.blockId, now));
+    item.append(more);
   }
-  return card;
+  return item;
 }
 
 function toggleFocus(api, blockId) {
+  const {focus} = api.ui;
+  setFocus(api, focus.includes(blockId) ? focus.filter(id => id !== blockId) : [...focus, blockId]);
+}
+/** This week's draft choice, at most five; saved quietly (it is a draft until Finish). */
+function setFocus(api, ids) {
   const {ui} = api;
-  ui.focusHint = '';
-  if (ui.focus.includes(blockId)) ui.focus = ui.focus.filter(id => id !== blockId);
-  else if (ui.focus.length >= MAX_FOCUS) ui.focusHint = 'Five is the most for one week. Unpick one to swap it.';
-  else Object.assign(ui, {focus: [...ui.focus, blockId], expanded: blockId});
+  ui.focusHint = ids.length > MAX_FOCUS ? 'Five is the most for one week. Unpick one to swap it.' : '';
+  ui.focus = [...new Set(ids)].slice(0, MAX_FOCUS);
   api.render();
   api.run(d => saveReviewProgress(d, api.week, {focusDraft: ui.focus}), null);
 }
 
-/** Inline Must stars for a picked Result's open tasks: the Must time above updates as they change, with Undo. */
+/** A Result's open tasks, each row toggling Must: the Must time above updates as they change, with Undo. */
 function mustList(api, blockId, now) {
   const open = blockTasks(api.data(), blockId).filter(t => !t.done);
   const box = el('div', 'wr-musts');

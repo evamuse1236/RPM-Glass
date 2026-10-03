@@ -38,6 +38,7 @@
 .wr-section-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 8px;min-height:48px;padding:4px 4px 0;margin-bottom:-8px}
 .wr-section{display:flex;align-items:center;gap:8px;font:var(--title-small);color:var(--on-surface-variant)}
 .wr-section-row .wr-btn-text{margin-right:-12px}
+.wr-section-row .wr-btn-tonal{margin:4px 0}
 .wr-count{min-width:24px;height:24px;padding:0 8px;display:inline-grid;place-items:center;border-radius:var(--shape-full);background:var(--surface-container-highest);color:var(--on-surface);font:var(--label-medium)}
 .wr-section-note{font:var(--body-medium);color:var(--on-surface-variant);padding:0 4px;margin-top:-4px!important}
 .wr-quiet{font:var(--body-medium);color:var(--on-surface-variant);padding:4px 4px 8px}
@@ -58,25 +59,34 @@
 .wr-mini-bar>span{display:block;height:100%;background:var(--primary);transform-origin:left;transform:scaleX(var(--value,0))}
 .wr-progress-text{font:var(--body-small);color:var(--on-surface-variant)}
 .wr-ask{margin:-4px 0 12px!important;font:var(--body-medium);color:var(--on-surface-variant);text-wrap:pretty}
-/* Segmented buttons (M3): one decision per row. Achieved selected is tertiary (success); other choices secondary. */
+/* Segmented buttons (M3): one decision per row. Every selected option looks the same: secondary container, a check, the label. */
 .wr-seg{display:grid;grid-auto-columns:1fr;grid-auto-flow:column;border:1px solid var(--outline);border-radius:var(--shape-full);overflow:hidden}
 .wr-seg-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:0;min-height:40px;padding:0 10px;border:0;background-color:transparent;color:var(--on-surface);font:var(--label-large)}
 .wr-seg-btn+.wr-seg-btn{border-left:1px solid var(--outline)}
 .wr-seg-btn .wr-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wr-seg-btn .ms{font-size:18px;margin-left:-2px}
 .wr-seg-btn.sel{background-color:var(--secondary-container);color:var(--on-secondary-container)}
-.wr-seg-btn.achieved.sel{background-color:var(--tertiary);color:var(--on-tertiary)}
 .wr-seg.sm{flex:none;margin-left:auto}
 .wr-seg.sm .wr-seg-btn{min-height:32px;padding:0 12px}
 .wr-seg.sm .wr-seg-btn::after{content:"";position:absolute;inset:-8px 0}
-.wr-carry{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-top:12px}
 
-/* Step 1: Results still running (deadline ahead), one row each with Carry */
-.wr-run{display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 12px 10px 16px}
-.wr-run+.wr-run{border-top:1px solid var(--outline-variant)}
+/* A checkbox that puts a Result in this week's Results: Carry (step 1) and Pick (step 4) look and work the same */
+.wr-check,.wr-check-row{border:0;background-color:transparent;color:var(--on-surface-variant);font:inherit;text-align:left}
+.wr-check{flex:none;width:48px;height:48px;display:grid;place-items:center;border-radius:50%}
+.wr-check.on,.wr-check-row.on>.ms{color:var(--primary)}
+.wr-check-row{display:flex;align-items:center;gap:12px;width:calc(100% + 8px);min-height:48px;padding:0 8px 0 0;margin:8px 0 0 -8px;border-radius:var(--shape-full);color:var(--on-surface);font:var(--label-large)}
+.wr-check-row>.ms{flex:none;width:40px;text-align:center;color:var(--on-surface-variant)}
+
+/* Step 1: Results still running (deadline ahead), one checkbox row each */
+.wr-running>li+li{border-top:1px solid var(--outline-variant)}
+.wr .wr-run{align-items:center;width:100%;min-height:64px;margin:0;padding:8px 16px 8px 8px;border-radius:0;font:var(--body-large)}
 .wr-run-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .wr-run-title{font:var(--body-large);overflow-wrap:anywhere;text-wrap:pretty}
-.wr-run-meta{display:flex;flex-wrap:wrap;gap:2px 10px;font:var(--body-small);color:var(--on-surface-variant)}
+/* One facts line, as the Blocks list writes it; each fact stays whole */
+.wr-facts{font:var(--body-medium);color:var(--on-surface-variant);text-wrap:pretty}
+.wr-facts>*{white-space:nowrap}
+.wr-due-text{font-weight:500;color:var(--on-surface)}
+.wr-must-fact .ms{font-size:16px;vertical-align:-3px;margin-right:2px}
 
 /* Deadline chip: a Result's latest dated task. Close ones are stronger; past ones use error with words. */
 .wr-due{display:inline-flex;align-items:center;gap:4px;font:var(--label-medium);color:var(--on-surface-variant);white-space:nowrap}
@@ -105,11 +115,6 @@
 .wr-chip .ms{font-size:18px;margin-left:-4px}
 .wr-chip .wr-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wr-chip.sel{background-color:var(--secondary-container);border-color:var(--secondary-container);color:var(--on-secondary-container)}
-/* Assist chip (Jev): an action, not a filter */
-.wr-assist{color:var(--on-surface);border-color:var(--outline)}
-.wr-assist .ms{color:var(--primary)}
-.wr-jev{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:0 4px}
-.wr-jev-note{font:var(--body-small);color:var(--on-surface-variant)}
 
 /* Wins summary */
 .wr-wins{background:var(--tertiary-container);color:var(--on-tertiary-container);border-radius:20px;padding:16px}
@@ -131,10 +136,15 @@
 .wr-lens-head{font:var(--label-medium);color:var(--on-surface-variant);padding:4px 4px 0}
 .wr-lenses{display:flex;flex-wrap:wrap;gap:8px;padding:0 4px;margin-top:-4px}
 .wr-lens .area-dot{width:8px;height:8px}
+.wr .wr-lens{border-radius:var(--shape-full);background-color:var(--surface-container-low);border-color:var(--outline-variant);color:var(--on-surface)}
 .wr-list{list-style:none;margin:0;padding:4px 0;background:var(--surface-container);border-radius:20px}
-.wr-list-item{display:flex;align-items:center;gap:16px;min-height:52px;padding:10px 16px;font:var(--body-large)}
+.wr-list-item{position:relative;display:flex;align-items:stretch;min-height:52px;font:var(--body-large);--swipe-offset:0px}
 .wr-list-item+.wr-list-item{border-top:1px solid var(--outline-variant)}
-.wr-list-text{display:flex;flex-direction:column;min-width:0}
+.wr .wr-list-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;min-height:52px;padding:10px 16px;border:0;border-radius:0;background-color:var(--surface-container);color:var(--on-surface);font:inherit;text-align:left}
+.wr-list-item:first-child .wr-list-text{border-radius:20px 20px 0 0}
+.wr-list-item:last-child .wr-list-text{border-radius:0 0 20px 20px}
+.wr-list-item:only-child .wr-list-text{border-radius:20px}
+.wr-hint{font:var(--body-small)}
 .wr-list-title{min-width:0;overflow-wrap:anywhere;text-wrap:pretty}
 .wr-nowrap{white-space:nowrap}
 .wr-list-meta{display:flex;flex-wrap:wrap;gap:4px 12px;font:var(--body-small);color:var(--on-surface-variant)}
@@ -150,6 +160,7 @@
 .wr-row-title{flex:1;min-width:0;overflow-wrap:anywhere;font:var(--body-large);text-wrap:pretty}
 .wr .wr-suggest{max-width:calc(100% - 4px);border-color:var(--outline);color:var(--on-surface)}
 .wr-suggest .ms{color:var(--primary)}
+.wr-leave .ms{color:var(--on-surface-variant)}
 .wr-choose{flex:none}
 .wr-row{display:flex;align-items:center;gap:4px;min-height:48px;padding:0 4px}
 .wr-row.sub{padding-left:20px;min-height:44px}
@@ -171,12 +182,14 @@
 .wr-sheet-title:focus{outline:none}
 .wr-sheet-sub{font:var(--body-medium);color:var(--on-surface-variant);padding:2px 8px 8px;text-wrap:pretty}
 .wr-picker{display:flex;flex-direction:column}
-.wr-option{display:flex;align-items:center;gap:16px;min-height:56px;padding:8px 8px 8px 48px;border:0;border-radius:var(--shape-lg);background-color:transparent;color:var(--on-surface);text-align:left;font:inherit}
-.wr-option-new{padding-left:8px;color:var(--primary);font:var(--label-large)}
-.wr-option-new>.ms{flex:none;font-size:24px;color:var(--primary)}
+.wr-option{display:flex;align-items:center;gap:16px;min-height:56px;padding:8px;border:0;border-radius:var(--shape-lg);background-color:transparent;color:var(--on-surface);text-align:left;font:inherit}
+.wr-option>.ms{flex:none;font-size:24px;color:var(--on-surface-variant)}
+.wr-option-action{min-height:48px;color:var(--primary);font:var(--label-large)}
+.wr .wr-option-action>.ms{color:var(--primary)}
+.wr-option-action+.wr-option:not(.wr-option-action){margin-top:4px;border-top:1px solid var(--outline-variant);border-radius:0}
 .wr-option-text{display:flex;flex-direction:column;min-width:0}
 .wr-option-label{font:var(--body-large);overflow-wrap:anywhere}
-.wr-option-detail{font:var(--body-small);color:var(--on-surface-variant);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1;overflow:hidden}
+.wr-option-detail{font:var(--body-medium);color:var(--on-surface-variant)}
 .wr-new{padding:0 8px}
 .wr-new-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:16px}
 
@@ -194,30 +207,40 @@
 .wr-summary-line{font:var(--body-medium);color:var(--on-surface-variant);padding:4px 0 12px}
 .wr-summary-note{font:var(--body-small);color:var(--on-surface-variant);padding:0 0 12px}
 .wr-summary-warn{color:var(--error)}
-/* Day strip: today to Sunday, Calendar-style; Monday starts the planned week */
-.wr-strip{list-style:none;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;padding:0;margin:4px -10px 0!important}
-.wr-strip-day{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 0 4px;border-radius:var(--shape-md)}
-.wr-strip-day.monday::before{content:"";position:absolute;left:-2px;top:6px;bottom:6px;width:1px;background:var(--outline-variant)}
+/* Day strip: today to Sunday, Calendar-style day buttons; marks are words ("Due", "Clash"), a tap shows the day */
+.wr-strip{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;margin:6px -10px 0}
+.wr .wr-strip-day{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;padding:6px 0 6px;border:0;border-radius:var(--shape-md);background-color:transparent;color:var(--on-surface);font:inherit}
 .wr-strip-letter{font:var(--label-small);color:var(--on-surface-variant)}
 .wr-strip-num{width:28px;height:28px;display:grid;place-items:center;border-radius:50%;font:var(--title-small)}
 .wr-strip-day.today .wr-strip-num{background:var(--primary);color:var(--on-primary)}
-.wr-strip-free{font:var(--label-small);color:var(--on-surface-variant)}
-.wr-strip-must{display:flex;align-items:center;min-height:16px;font:var(--label-small);color:var(--on-surface)}
-.wr-strip-must .ms{font-size:13px;line-height:16px}
-.wr-strip-marks{display:flex;gap:1px;min-height:16px;color:var(--on-surface-variant)}
-.wr-strip-marks .ms{font-size:15px;line-height:16px}
-.wr-strip-marks .clash{color:var(--error)}
+.wr .wr-strip-day.sel{background-color:var(--secondary-container);color:var(--on-secondary-container)}
+.wr-strip-must,.wr-strip-mark{display:flex;align-items:center;gap:3px;min-height:16px;font:var(--label-small);white-space:nowrap}
+.wr-strip-must{gap:0}
+.wr-strip-must .ms{font-size:12px;line-height:16px}
+.wr-strip-mark{color:var(--on-surface-variant);font-weight:500}
+.wr-strip-mark.clash{color:var(--error)}
+.wr-dot{width:6px;height:6px;border-radius:50%;background:var(--error)}
 .wr .ms.must{color:var(--must)}
-.wr-strip-day.over{background:var(--error-container);color:var(--on-error-container)}
-.wr-strip-day.over .wr-strip-free,.wr-strip-day.over .wr-strip-marks{color:var(--on-error-container)}
+.wr .wr-strip-day.over{background-color:var(--error-container);color:var(--on-error-container)}
+.wr-strip-day.over .wr-strip-mark,.wr-strip-day.over .wr-strip-letter{color:var(--on-error-container)}
 .wr-strip-note{font:var(--body-small);color:var(--on-surface-variant);padding:4px 0 10px;text-wrap:pretty}
 .wr-strip-note .ms{font-size:14px;vertical-align:-2px}
+/* One day from the strip */
+.wr-day{padding:8px 0 10px}
+.wr-day-head{font:var(--body-medium);color:var(--on-surface-variant)}
+.wr-day-head b{font-weight:500;color:var(--on-surface)}
+.wr-day-list{list-style:none;display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 12px;padding:8px 0 0;font:var(--body-medium)}
+.wr-day-list li{display:contents}
+.wr-day-lead{display:inline-flex;align-items:center;gap:2px;font-weight:500;white-space:nowrap}
+.wr-day-lead .ms{font-size:16px}
+.wr-day-text{min-width:0;text-wrap:pretty}
+.wr .wr-day-empty{display:block;grid-column:1/-1;color:var(--on-surface-variant)}
 /* The one summary line: Must time and whether it fits; it opens to a row per Result */
 .wr-week-toggle{width:calc(100% + 24px);display:flex;align-items:center;gap:12px;min-height:56px;margin:0 -12px;padding:6px 12px;border:0;border-top:1px solid var(--outline-variant);border-radius:0;background-color:transparent;color:var(--on-surface);text-align:left;font:inherit}
 .wr-week-toggle>.ms{flex:none;color:var(--on-surface-variant)}
 .wr-week-text{flex:1;min-width:0;display:flex;flex-direction:column}
 .wr-week-head{font:var(--title-small)}
-.wr-week-sub{font:var(--body-small);color:var(--on-surface-variant);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wr-week-sub{font:var(--body-small);color:var(--on-surface-variant);text-wrap:pretty}
 .wr-week-toggle.over .wr-week-head{color:var(--error)}
 /* One row per picked Result: its deadline and Must time as its card says them; words carry the verdict */
 .wr-ladder{list-style:none;padding:0 0 8px}
@@ -239,39 +262,42 @@
 .wr-place-title{flex:1;min-width:0;padding:6px 0;text-wrap:pretty}
 .wr-place-day{flex:none;font:var(--label-large)}
 .wr-place .wr-btn-tonal{margin-top:4px}
-/* Before you finish: plain rows, error-coloured lead words, one action each (as Today's At risk) */
+/* Calendar clashes: plain rows as Today's At risk; an open clash asks which event stays */
 .wr-risks{list-style:none;padding:0;margin:-4px 0!important}
-.wr-risk{display:flex;align-items:center;gap:16px;min-height:56px;padding:4px 0 4px 4px}
-.wr-risk>.ms{flex:none;color:var(--error)}
+.wr-risk{display:flex;align-items:flex-start;gap:16px;min-height:56px;padding:8px 0 4px 4px}
+.wr-risk>.ms{flex:none;color:var(--error);margin-top:2px}
+.wr-risk.done>.ms{color:var(--on-surface-variant)}
 .wr-risk-text{flex:1;min-width:0;display:flex;flex-direction:column;font:var(--body-medium)}
 .wr-risk-lead{color:var(--error);font-weight:600}
+.wr-risk.done .wr-risk-lead{color:var(--on-surface);font-weight:500}
 .wr-risk-sub{color:var(--on-surface-variant);font:var(--body-small);overflow-wrap:anywhere;text-wrap:pretty}
-.wr-risk .wr-btn-text{flex:none;margin-right:-8px}
+.wr-risk .wr-btn-text{flex:none;margin:-4px -8px 0 0}
+.wr-ask-small{font:var(--body-small);color:var(--on-surface);margin-top:6px}
+.wr-choices{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.wr-flag{font:var(--body-medium);color:var(--error)}
+.wr .wr-choice{color:var(--on-surface);border-color:var(--outline)}
 .wr-idle-toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:0 12px 0 16px;border:0;border-radius:var(--shape-full);background-color:transparent;color:var(--on-surface-variant);font:var(--label-large);text-align:left}
-/* A Result card: picked shows a filled check and a primary outline; the card's tone stays, so picks never stack into a wall of colour */
-.wr-fact{color:var(--on-surface-variant);font:var(--label-medium)}
-.wr-pick{padding:0;box-shadow:inset 0 0 0 1px transparent;transition:box-shadow var(--dur-short) var(--ease-standard)}
-.wr-pick.sel{box-shadow:inset 0 0 0 2px var(--primary)}
-.wr-pick-head{width:100%;display:flex;align-items:flex-start;gap:12px;padding:16px;border:0;border-radius:20px;background-color:transparent;color:inherit;text-align:left;font:inherit}
-.wr-pick-head>.ms{color:var(--on-surface-variant)}
-.wr-pick.sel .wr-pick-head>.ms{color:var(--primary)}
-.wr-pick-text{flex:1;min-width:0;display:flex;flex-direction:column}
-.wr-tags{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-top:6px}
-.wr-tag{font:var(--label-medium);background:var(--surface-container-highest);color:var(--on-surface);border-radius:var(--shape-sm);padding:2px 8px}
-.wr-warn{display:inline-flex;align-items:center;gap:4px;font:var(--label-medium);color:var(--error)}
-.wr-warn .ms{font-size:16px}
-.wr-musts{padding:0 8px 8px 4px;margin:0 8px 0 44px;border-top:1px solid var(--outline-variant)}
+/* Results: one quiet list; a checkbox picks, the row opens the Purpose and tasks. No outlines or tints for picked. */
+.wr-results>li+li{border-top:1px solid var(--outline-variant)}
+.wr-result-row{display:flex;align-items:flex-start;padding:4px 0 4px 4px}
+.wr-result-row>.wr-check{margin-top:2px}
+.wr .wr-result-main{flex:1;min-width:0;display:flex;align-items:flex-start;gap:8px;min-height:56px;padding:10px 12px 10px 4px;border:0;border-radius:var(--shape-lg);background-color:transparent;color:var(--on-surface);text-align:left;font:inherit}
+.wr-result-main>.ms{flex:none;color:var(--on-surface-variant)}
+.wr-result-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.wr-result-title{font:var(--title-medium);overflow-wrap:anywhere;text-wrap:pretty}
+.wr-result-more{padding:0 16px 8px 56px}
+.wr-result-purpose{font:var(--body-medium);color:var(--on-surface-variant);text-wrap:pretty;padding-bottom:4px}
+.wr-warn{color:var(--error)}
+.wr-musts{padding:0 0 4px;border-top:1px solid var(--outline-variant)}
 .wr-musts-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font:var(--label-medium);color:var(--on-surface-variant);padding:4px 0 0}
-.wr-must-row{display:flex;align-items:center;gap:4px;width:100%;min-height:48px;padding:0 4px 0 0;border:0;border-radius:var(--shape-small,8px);background-color:transparent;color:var(--on-surface);text-align:left;font:inherit}
+.wr-must-row{display:flex;align-items:center;gap:8px;width:calc(100% + 8px);min-height:48px;margin-left:-8px;padding:0 4px 0 8px;border:0;border-radius:var(--shape-sm);background-color:transparent;color:var(--on-surface);text-align:left;font:inherit}
 .wr-must-text{flex:1;min-width:0;display:flex;flex-direction:column;padding:4px 0}
 .wr-must-title{font:var(--body-medium);overflow-wrap:anywhere;text-wrap:pretty}
 .wr-must-when{font:var(--body-small);color:var(--on-surface-variant)}
 .wr-must-min{flex:none;font:var(--body-small);color:var(--on-surface-variant)}
-.wr-star{flex:none;width:24px;display:grid;place-items:center;color:var(--must)}
+.wr-star{flex:none;width:20px;display:grid;place-items:center;color:var(--must)}
 .wr-star .ms{font-size:20px}
 .wr-open-block{flex:none;margin-right:-12px;white-space:nowrap}
-.wr-musts-more{display:flex;align-items:center;gap:8px;min-height:48px;margin:-8px 0 0 40px;padding:0 12px 4px;border:0;border-radius:var(--shape-full);background-color:transparent;color:var(--on-surface-variant);font:var(--label-large)}
-.wr-musts-more .ms{order:1;font-size:20px}
 
 /* Empty states */
 .wr-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:32px 24px}
@@ -294,13 +320,13 @@
 :root[data-large-text=true] .wr-long{display:none}
 :root[data-large-text=true] .wr-short{display:inline}
 :root[data-large-text=true] .wr-title{font:var(--title-large)}
-:root[data-large-text=true] .wr-musts{margin-left:8px}
+:root[data-large-text=true] .wr-result-more{padding-left:16px}
 :root[data-large-text=true] .wr-seg.sm{margin-left:0}
 :root[data-large-text=true] .wr-verdicts{grid-auto-flow:row;border-radius:20px}
 :root[data-large-text=true] .wr-verdicts .wr-seg-btn+.wr-seg-btn{border-left:0;border-top:1px solid var(--outline)}
 :root[data-large-text=true] .wr-seg.sm{flex-basis:100%}
 :root[data-large-text=true] .wr-strip{display:none}
-:root[data-large-text=true] .wr-run,:root[data-large-text=true] .wr-risk{flex-wrap:wrap}
+:root[data-large-text=true] .wr-risk{flex-wrap:wrap}
 :root[data-large-text=true] .wr-week-sub,:root[data-large-text=true] .wr-ladder-when{white-space:normal}
 :root[data-large-text=true] .wr-strip-note.legend{display:none}
 :root[data-large-text=true] .wr-suggest .wr-label{white-space:normal;text-align:left;padding:4px 0}
