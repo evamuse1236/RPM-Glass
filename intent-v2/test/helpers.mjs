@@ -5,7 +5,7 @@ export const NOW='2026-09-16T04:00:00.000Z';
 export const seed=()=>({schema:2,version:0,entries:[],memories:[],history:[],conversations:[{id:'c1',messages:[],archived:false},{id:'c2',messages:[],archived:false}],pending:null,undo:null,planner:{schema:1,projects:[],blocks:[],areas:[],goals:[],events:[],drafts:[],context:{approved:false,vision:'',goals:''},undo:null}});
 export const field=(name,value,evidence='Plan the lesson',origin='stated',op='set')=>({name,value,evidence,origin,op});
 export const operation=(fields=[field('title','Plan the lesson')],extra={})=>({opId:'task1',sourceId:'s0',kind:'create',entity:'task',targetId:null,fields,...extra});
-export const turn=(raw='Plan the lesson',operations=[operation()],extra={})=>({schemaVersion:1,mode:'capture',draftMode:'new',reply:'Let’s make room for the next step.',decisions:sourceUnits(raw).map(u=>({sourceId:u.id,disposition:'action'})),operations,question:null,memoryCandidates:[],...extra});
+export const turn=(raw='Plan the lesson',operations=[operation()],extra={})=>({schemaVersion:1,mode:'capture',draftMode:'new',reply:'Let’s make room for the next step.',decisions:sourceUnits(raw).map(u=>({sourceId:u.id,disposition:'action',note:null})),operations,question:null,memoryCandidates:[],...extra});
 export function fakeAdapter(){let calls=0;return {get calls(){return calls;},async applyPlan({data,draft,approval}){
  calls++;const before=structuredClone(data.entries);
  for(const op of draft.operations){if(op.entity!=='task')continue;let e=op.kind==='create'?{id:Math.max(0,...data.entries.map(e=>e.id))+1,kind:'plan',title:'',raw:'fixture',minutes:null,done:false,revisions:[],archived:false}:data.entries.find(e=>String(e.id)===op.targetId);if(!e)throw new Error('Missing fixture target');

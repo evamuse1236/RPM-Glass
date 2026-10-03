@@ -40,13 +40,15 @@ function rangeTime(result,base,text,now) {
 /** Small, explicit transliteration vocabulary; untouched source stays in the journal. */
 export function normalizeLocalTime(raw,{evidence=raw}={}){
  let text=raw,reason=null;
- if(/^(?:\s*kal)\b|\bkal\s+(?:subah|sakali|shaam|raat|\d)/i.test(text)){
-  const future=/\b(?:karna hai|karni hai|karne hain|karunga|karungi|karo|remind me|schedule|tomorrow)\b/i.test(evidence);
+ if(/^(?:\s*kal)\b|\bkal\s+(?:subah|sakali|shaam|raat|dopahar|\d)/i.test(text)){
+  // "karna hai", "leni hai", "jana hai": an infinitive with "hai" says it still has to happen.
+  const future=/\b(?:karna hai|karni hai|karne hain|karunga|karungi|karo|remind me|schedule|tomorrow)\b|\b\w+(?:na|ni|ne)\s+(?:hai|hain|h)\b/i.test(evidence);
   const past=/\b(?:kiya|ki thi|kiya tha|gaya|gayi|tha|thi|yesterday)\b/i.test(evidence);
   if(!future||past)reason='Does “kal” mean tomorrow or yesterday? Use an explicit day.';
   else text=text.replace(/\bkal\b/gi,'tomorrow');
  }
- text=text.replace(/\budya\b/gi,'tomorrow').replace(/\baaj\b/gi,'today');
+ text=text.replace(/\budya\b/gi,'tomorrow').replace(/\baaj\b/gi,'today').replace(/\bparso[n]?\b/gi,'in 2 days')
+  .replace(/\b(?:shaam|sham)(?:\s+ko)?\b/gi,'evening').replace(/\braat(?:\s+ko)?\b/gi,'night').replace(/\bdopahar(?:\s+ko)?\b/gi,'afternoon');
  const morning=text.match(/\b(?:subah|sakali)\s+(\d{1,2})(?::(\d{2}))?\s*(?:baje|vajta|vajata|am|a\.m\.?)\b/i);
  if(morning&&(Number(morning[1])<1||Number(morning[1])>=12||Number(morning[2]??0)>59||/\bpm\b/i.test(text)))reason='The morning clock is unclear. Use an explicit time such as 8 AM.';
  text=text.replace(/\b(subah|sakali)\s+(\d{1,2}(?::\d{2})?)\s*(?:baje|vajta|vajata)\b/gi,(_,period,h)=>`at ${h}am`)
@@ -57,6 +59,15 @@ export function normalizeLocalTime(raw,{evidence=raw}={}){
  return {text,reason};
 }
 
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// "by the 16th" names a day of the month without one: the next 16th, this month or the following one.
+function dayOfMonth(text,now){
+ return text.replace(/\b(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)\b(?!\s+(?:of\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b)/gi,(match,n)=>{
+  const day=Number(n);if(day<1||day>31)return match;
+  const month=day>=now.getDate()?now.getMonth():now.getMonth()+1,at=new Date(now.getFullYear(),month,day);
+  return at.getDate()===day?`${day} ${MONTHS[at.getMonth()]} ${at.getFullYear()}`:match;
+ });
+}
 /** Explicit calendar choices only; an implied day from "afternoon" is not one. */
 export function statedDays(raw,now=new Date()) {
   const text=raw.replace(/\bday after tomorrow\b/gi,'in 2 days');
@@ -69,7 +80,7 @@ export function interpretTime(raw, now = new Date(), options = {}) {
   const localized=normalizeLocalTime(raw,options);
   if(localized.reason)return {...base,status:'review',reason:localized.reason,normalized:localized.text};
   // "for 20 minutes" is a duration, while "in 20 minutes" is a start time.
-  const normalized=localized.text.replace(/\b(?:the\s+)?day after tomorrow\b/gi, "in 2 days").replace(/\b(?:the\s+)?day after tmrw\b/gi,"in 2 days").replace(/\b(?:tmrw|tmr)\b/gi,"tomorrow").replace(/\b(\d{1,2})\.(\d{2})\s*([ap]\.?m\.?)/gi,"$1:$2 $3");
+  const normalized=dayOfMonth(localized.text,now).replace(/\b(?:the\s+)?day after tomorrow\b/gi, "in 2 days").replace(/\b(?:the\s+)?day after tmrw\b/gi,"in 2 days").replace(/\b(?:tmrw|tmr)\b/gi,"tomorrow").replace(/\b(\d{1,2})\.(\d{2})\s*([ap]\.?m\.?)/gi,"$1:$2 $3");
   const spoken={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12};
   const clockText=normalized.replace(/\b(half past|quarter past|quarter to)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/gi,(_,part,h)=>`${part.toLowerCase()==='quarter to'?(spoken[h.toLowerCase()]+10)%12+1:spoken[h.toLowerCase()]}:${part.toLowerCase()==='half past'?'30':part.toLowerCase()==='quarter to'?'45':'15'}`).replace(/\bat\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/gi,(_,h)=>'at '+spoken[h.toLowerCase()]).replace(/(\d(?::\d{2})?)\s*(?:o'clock\s*)?in the (morning|afternoon|evening)\b/gi,(_,h,p)=>h+(p.toLowerCase()==='morning'?'am':'pm'));
   // Normalize spoken clocks only beside a time marker; task counts stay intact.
@@ -77,6 +88,9 @@ export function interpretTime(raw, now = new Date(), options = {}) {
     .replace(/\b(from|between)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(to|and)\s+/gi,(_,prefix,word,join)=>`${prefix} ${spoken[word.toLowerCase()]} ${join} `)
     .replace(/\bbetween\s+([\d: .apm]+)\s+and\s+([\d: .apm]+)/gi,'from $1 to $2');
   base.normalized=rangeText;
+  // A window such as "this week", "next week" or "someday" names no day. Chrono would pick one, so keep it undated.
+  if(/\b(?:this|next|coming)\s+(?:week|weekend|month)\b|\bsome\s?(?:day|time)\b|\bsoon\b|\blater\b|\beventually\b/i.test(rangeText)
+    &&!/\b(?:today|tonight|tomorrow|(?:mon|tues|wednes|thurs|fri|satur|sun)day|\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?|\d{1,2}:\d{2}|\d{4}-\d{2}-\d{2})\b/i.test(rangeText))return base;
   const text=rangeText.replace(/\bfor\s+(?:(?:\d+(?:\.\d+)?|one|two|three|ten|fifteen|twenty|thirty|forty[- ]five|sixty|half an?)\s+)(?:minutes?|mins?|m\b|hours?|hrs?|h\b)/gi,m=>' '.repeat(m.length));
   const results=chrono.parse(text,now,{forwardDate:true});
   base.matched=results.map(r=>({text:rangeText.slice(r.index,r.index+r.text.length),index:r.index,known:{...r.start.knownValues},implied:{...r.start.impliedValues},...(r.end?{end:{known:{...r.end.knownValues},implied:{...r.end.impliedValues}}}:{})}));
@@ -99,6 +113,8 @@ export function interpretTime(raw, now = new Date(), options = {}) {
   if(result.end)return rangeTime(result,base,rangeText,now);
   // A partially parsed range must not silently become a single-time task.
   if(/\b(?:from|between)\s+\d|\d\s*(?:[ap]\.?m\.?)?\s*(?:to|until|through|[–—])(?:\s|$)|\d(?:[ap]m)\s*-\s*(?:\d|$)/i.test(text))return {...base,status:'review',reason:'I could not resolve both ends of that time range. Include a valid start and end time.'};
+  // "evening" alone names neither a day nor a clock: leave it undated rather than take Chrono's implied today.
+  if(!clock(start)&&!hasDay(start))return base;
   if(!clock(start)){
     // Do not turn Chrono's implied noon into a time the user chose.
     base.plannedDate=localDate(start.date());base.status='date_only';

@@ -13,7 +13,8 @@ export const TURN_SCHEMA=object({
   mode:enumeration(['capture','plan','reflect','query']),
   draftMode:enumeration(['new','amend','none']),
   reply:text(900),
-  decisions:array(object({sourceId:text(50),disposition:enumeration(['action','idea','reflection','reference','question','preference'])}),100),
+  // note: a short faithful label for a source unit that becomes no operation, so nothing said vanishes from view.
+  decisions:array(object({sourceId:text(50),disposition:enumeration(['action','idea','reflection','reference','question','preference','existing']),note:nullable(text(140))}),100),
   operations:array(OPERATION_SCHEMA,30),
   question:nullable(object({opId:text(50),field:enumeration(FIELD_NAMES),prompt:text(250),options:array(object({label:text(50),value}),3)})),
   memoryCandidates:array(object({text:text(500),evidence:text(1000),sensitive:{type:'boolean'}}),3)

@@ -7,6 +7,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {seedStore} from './seed.mjs';
 import {sourceUnits} from '../../intent-v2/src/context.mjs';
+import crypto from 'node:crypto';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const assets = path.join(root, 'app/src/main/assets/companion');
@@ -37,7 +38,7 @@ function fakeTurn(input) {
     return {opId: 'task' + (i + 1), sourceId: unit.id, kind: 'create', entity: 'task', targetId: null, fields};
   });
   return {schemaVersion: 1, mode: 'capture', draftMode: 'new', reply: 'Here is what I heard.',
-    decisions: input.sourceUnits.map(u => ({sourceId: u.id, disposition: 'action'})), operations, question: null, memoryCandidates: []};
+    decisions: input.sourceUnits.map(u => ({sourceId: u.id, disposition: 'action', note: null})), operations, question: null, memoryCandidates: []};
 }
 
 // The week's real commitments, read-only as PlannerCalendar.java returns them (start/end in epoch ms).
@@ -49,6 +50,16 @@ function calendar(anchor = Date.now()) {
     [2, '11:30', '13:30', 'RM Session 5 (Section A)'], [3, '11:30', '13:30', 'RM Quiz I in class'], [4, '14:00', '16:00', 'PMDL workshop'], [5, '10:00', '12:00', 'DAD lab']];
   const events = rows.map(([n, a, b, title], i) => ({id: `calendar-${i}-${at(n, a)}`, start: at(n, a), end: at(n, b), title, calendarId: 1, allDay: false, busy: true}));
   return {status: 'ready', events, start: anchor - 3 * 864e5, end: anchor + 22 * 864e5, readAt: Date.now(), source: 'Android-synced calendars'};
+}
+
+// With RAMBLE_DIR set, model answers come from files (see rambles.mjs) instead of fakeTurn. The key ignores
+// volatile ids and clock values so the same ramble against the same plan replays the same answer.
+const replayDir = process.env.RAMBLE_DIR ? path.resolve(process.env.RAMBLE_DIR) : null;
+if (replayDir) fs.mkdirSync(replayDir, {recursive: true});
+function modelKey(input) {
+  const stable = {units: input.sourceUnits.map(u => u.text), repair: input.repair?.validationError ?? null,
+    draft: input.activeDraft?.operations ?? null, recent: (input.context?.recentMessages ?? []).map(m => m.text)};
+  return crypto.createHash('sha1').update(JSON.stringify(stable)).digest('hex').slice(0, 12);
 }
 
 function handle(action, payload) {
@@ -66,7 +77,17 @@ function handle(action, payload) {
     case 'model': {
       const body = payload.body, input = JSON.parse(body.messages[1].content);
       input.sourceUnits ??= sourceUnits(input.raw ?? '');
-      const turn = fakeTurn(input);
+      let turn;
+      if (replayDir) {
+        // Replay a recorded model answer for exactly this request; otherwise park the request for a model to answer.
+        const key = modelKey(input);
+        const answer = path.join(replayDir, key + '.out.json');
+        if (!fs.existsSync(answer)) {
+          fs.writeFileSync(path.join(replayDir, key + '.in.json'), JSON.stringify({effort: body.reasoning?.effort ?? null, input}, null, 1));
+          return {status: 503, body: {error: 'No recorded answer: ' + key}};
+        }
+        turn = JSON.parse(fs.readFileSync(answer, 'utf8'));
+      } else turn = fakeTurn(input);
       return {status: 200, body: {model: body.model, provider: body.provider?.only?.[0] ?? 'OpenAI',
         choices: [{finish_reason: 'stop', message: {content: JSON.stringify(turn)}}]}};
     }

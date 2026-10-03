@@ -77,5 +77,14 @@ export function seedStore(now = new Date()) {
   const order = ['Read Snyder', 'Agree the article', 'Draft my section', 'Finish my section', 'Group call', 'Run the plagiarism', 'Submit the critical'];
   editPlan(data, {type: 'reorder', blockId: critical, ids: order.map(start => blockTasks(data, critical).find(t => t.title.startsWith(start)).id)});
   data.planner.undo = null;
-  return {data, week, lastWeek, today};
+  return {data: stableIds(data), week, lastWeek, today};
+}
+
+// Random UUIDs would differ on every reset, so a recorded model answer (rambles.mjs) could never name a Block
+// again. Rename each planner record to a stable id ("block-3") everywhere it appears.
+function stableIds(data) {
+  let json = JSON.stringify(data);
+  for (const collection of ['areas', 'goals', 'projects', 'blocks'])
+    data.planner[collection].forEach((row, i) => { json = json.replaceAll(row.id, `${collection.slice(0, -1)}-${i + 1}`); });
+  return JSON.parse(json);
 }

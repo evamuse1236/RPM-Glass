@@ -307,6 +307,7 @@ export function mountCapture(platform){
    connectAI:()=>platform.action('settings',{section:'ai_connection'}),
    itemMenu:openItemMenu,
    pickBlock,
+   keepNote:(capture,note,keep)=>turn({type:'keepNote',messageId:capture.messageId,sourceId:note.sourceId,keep,actionId:`note:${crypto.randomUUID()}`}),
    toggleInclude:(draft,opId)=>{
     const set=skippedOps.get(draft.id)??new Set();
     if(!set.delete(opId))set.add(opId);
@@ -322,7 +323,7 @@ export function mountCapture(platform){
    return set;
   },
  });
- const responseKey=c=>c?JSON.stringify([c.messageId,c.reply,c.draft?.revision,c.draft?.status,c.lastError?.message]):null;
+ const responseKey=c=>c?JSON.stringify([c.messageId,c.reply,c.draft?.revision,c.draft?.status,c.lastError?.message,c.notes?.map(n=>n.keptTaskId)]):null;
 
   // Field-first: nothing sits above the composer. The trust line lives under it (see syncHint)
  // and the planning starters live in More.

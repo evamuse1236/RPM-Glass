@@ -56,6 +56,8 @@ window.fetch=async(url,options={})=>{
       busy=true;await diagnostics.track('capture.action',{operationId:b.actionId,draftId:b.action?.draftId,action:b.action?.kind},()=>intentService.act(b.action,{actionId:b.actionId}));busy=false;return response(view());
     }else if(b.type==='intentUndo'){
       busy=true;await intentService.undo({draftId:b.draftId,conversationId:cid,actionId:b.actionId});busy=false;return response(view());
+    }else if(b.type==='keepNote'){
+      busy=true;await intentService.keepNote({messageId:b.messageId,sourceId:b.sourceId,keep:b.keep!==false,actionId:b.actionId});busy=false;return response(view());
     }else if(b.type==='intentResume'){
       busy=true;await intentService.resume(b.draftId,{conversationId:cid,actionId:b.actionId});busy=false;return response(view());
     }else if(b.type==='message'){
