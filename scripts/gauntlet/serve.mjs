@@ -40,6 +40,17 @@ function fakeTurn(input) {
     decisions: input.sourceUnits.map(u => ({sourceId: u.id, disposition: 'action'})), operations, question: null, memoryCandidates: []};
 }
 
+// The week's real commitments, read-only as PlannerCalendar.java returns them (start/end in epoch ms).
+// Monday morning holds the unresolved clash: the DAD exam overlaps the GWBC session.
+function calendar(anchor = Date.now()) {
+  const day = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  const at = (n, hm) => +new Date(`${day(n)}T${hm}:00`);
+  const rows = [[0, '11:30', '13:30', 'RM Session 4 (Section A)'], [2, '09:00', '10:00', 'DAD exam'], [2, '09:00', '11:00', 'GWBC session'],
+    [2, '11:30', '13:30', 'RM Session 5 (Section A)'], [3, '11:30', '13:30', 'RM Quiz I in class'], [4, '14:00', '16:00', 'PMDL workshop'], [5, '10:00', '12:00', 'DAD lab']];
+  const events = rows.map(([n, a, b, title], i) => ({id: `calendar-${i}-${at(n, a)}`, start: at(n, a), end: at(n, b), title, calendarId: 1, allDay: false, busy: true}));
+  return {status: 'ready', events, start: anchor - 3 * 864e5, end: anchor + 22 * 864e5, readAt: Date.now(), source: 'Android-synced calendars'};
+}
+
 function handle(action, payload) {
   switch (action) {
     case 'load': return {data: store, phone};
@@ -50,8 +61,8 @@ function handle(action, payload) {
     case 'legacyEntries': return {done: true, entries: []};
     case 'captureDraft': return payload.text == null ? {present: false} : {};
     case 'appSettings': return {};
-    case 'calendarList': return {permitted: false, selected: [], calendars: []};
-    case 'calendarRead': return {status: 'not_selected', events: []}; // as PlannerCalendar.java reports no chosen calendar
+    case 'calendarList': return {permitted: true, selected: [1], calendars: [{id: 1, name: 'College', account: 'student', color: -16746133}]};
+    case 'calendarRead': return calendar(payload.anchor);
     case 'model': {
       const body = payload.body, input = JSON.parse(body.messages[1].content);
       input.sourceUnits ??= sourceUnits(input.raw ?? '');

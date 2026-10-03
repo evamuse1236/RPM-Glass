@@ -46,7 +46,7 @@ const scenes = {
   },
   async review() {
     const page = await open('/planner.html');
-    await click(page, page.getByRole('button', {name: /Open weekly review/}));
+    await click(page, page.getByRole('button', {name: /start the weekly review|Open weekly review/}));
     for (let step = 1; step <= 4; step++) {
       await shot(page, `review-${step}`);
       await scroll(page, 900); await shot(page, `review-${step}-scrolled`);

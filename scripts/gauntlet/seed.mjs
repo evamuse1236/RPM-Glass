@@ -57,9 +57,9 @@ export function seedStore(now = new Date()) {
   task({title: 'Re-read Reading 1 on the seven paradigms', blockId: quiz, minutes: 45, must: true});
   task({title: 'Sit RM Quiz I', blockId: quiz, minutes: 60, must: true, planned: at(tue, '11:30').toISOString()});
   task({title: 'Make 20 flash cards from my notes', blockId: quiz, minutes: 40});
-  task({title: 'Upload the workbook to the LMS', blockId: dad, minutes: 15, must: true, planned: at(mon, '10:15').toISOString()});
-  task({title: 'Submit the critical review PDF with the plagiarism report', blockId: critical, minutes: 20, must: true, planned: at(sun, '21:00').toISOString()});
-  task({title: 'Upload the PMDL post work', blockId: pmdl, minutes: 15, must: true, plannedDate: sun});
+  task({title: 'Upload the workbook to the LMS', blockId: dad, minutes: 15, must: true, planned: at(mon, '10:30').toISOString()});
+  task({title: 'Submit the critical review PDF with the plagiarism report', blockId: critical, minutes: 20, must: true, planned: at(sun, '23:00').toISOString()});
+  task({title: 'Upload the PMDL post work', blockId: pmdl, minutes: 15, must: true, planned: at(sun, '23:59').toISOString()});
   save('blocks', {title: 'District demographic profile ready', purpose: 'Our group presents real post-2020 data, not guesses', projectId: isdm});
   save('blocks', {title: 'RPM app weekly review I actually use', purpose: 'Plan my week in ten calm minutes', projectId: null});
 
