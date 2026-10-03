@@ -51,7 +51,7 @@ function handle(action, payload) {
     case 'captureDraft': return payload.text == null ? {present: false} : {};
     case 'appSettings': return {};
     case 'calendarList': return {permitted: false, selected: [], calendars: []};
-    case 'calendarRead': return {permitted: false, events: []};
+    case 'calendarRead': return {status: 'not_selected', events: []}; // as PlannerCalendar.java reports no chosen calendar
     case 'model': {
       const body = payload.body, input = JSON.parse(body.messages[1].content);
       input.sourceUnits ??= sourceUnits(input.raw ?? '');

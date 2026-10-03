@@ -23,10 +23,10 @@ test('starters appear only when Capture is truly empty',()=>{
  assert.equal(startersFor(empty).length,3);
  for(const change of [{busy:true},{captureCount:1},{recovering:true},{view:'history'},{archived:true}])assert.deepEqual(startersFor({...empty,...change}),[]);
 });
-test('draft actions read Dismiss, Edit, Add in increasing emphasis',()=>{
+test('draft actions read Keep for later, Edit, Add in increasing emphasis',()=>{
  const draft={operations:[{kind:'create'},{kind:'create'}],question:null,review:null};
  const roles=['dismiss','open','commit'].map(kind=>actionPresentation({action:{kind}},draft));
- assert.deepEqual(roles.map(r=>r.label),['Dismiss','Edit','Add all 2']);
+ assert.deepEqual(roles.map(r=>r.label),['Keep for later','Edit','Add all 2']);
  assert.ok(roles[0].order<roles[1].order&&roles[1].order<roles[2].order);
  assert.equal(actionPresentation({action:{kind:'commit'}},{operations:[{kind:'update'}]}).label,'Save changes');
 });

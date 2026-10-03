@@ -46,7 +46,8 @@ export function actionPresentation(item,draft){
   return {label,role:'filled',order:3,icon:draft.operations.length>1&&allCreate?'done_all':null};
  }
  if(kind==='open')return {label:'Edit',role:'tonal',order:1};
- if(kind==='dismiss')return {label:draft.question?'Not now':'Dismiss',role:'text',order:0};
+ // Dismiss only parks the draft; the words and proposals stay in History.
+ if(kind==='dismiss')return {label:'Keep for later',role:'text',order:0};
  if(kind==='refresh-time')return {label:'Refresh times',role:'filled',order:2,icon:'refresh'};
  return {label:item.label,role:'tonal',order:2};
 }

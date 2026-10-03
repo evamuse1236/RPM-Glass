@@ -37,3 +37,13 @@ export function describeLink(data,field,value){
  if(!parts.length&&row.purpose)parts.push(row.purpose);
  return {title:row.title,subtitle:parts.join(' · '),tone:areaTone(area,areas)};
 }
+
+/**
+ * Blocks a proposal can be moved to: open Results only, the closest deadline
+ * first, then by title. `deadline(id)` returns dueInfo() or null.
+ */
+export function blockChoices(data,deadline=()=>null){
+ return plannerRows(data,'blocks').filter(b=>!b.archived&&!b.achieved)
+  .map(b=>({id:b.id,...describeLink(data,'blockId',b.id),due:deadline(b.id)}))
+  .sort((a,b)=>(a.due?.at??Infinity)-(b.due?.at??Infinity)||a.title.localeCompare(b.title));
+}

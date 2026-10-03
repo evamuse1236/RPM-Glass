@@ -16,9 +16,35 @@ export function savedWords(raw,{title='Your words are saved'}={}){
 
 /** Original words and assumptions, one tap away. */
 export function originalWords(raw,notes=[]){
- const children=[el('p','field-label','Your words'),el('p','original',raw)];
+ const children=[el('p','original',raw)];
  for(const note of notes)children.push(el('p','detail-note',note));
- return details('Details',children);
+ return details('Your words',children);
+}
+
+// Which captures have their words open, so a re-render keeps them open.
+const wordsOpen=new Set();
+
+/**
+ * The same disclosure for a card header: a "Your words" toggle that sits
+ * beside the kicker, and the region it opens just below.
+ */
+export function wordsToggle(capture,notes=[]){
+ const key=capture.messageId,id='words-'+String(key??'').replace(/[^\w-]/g,'');
+ const region=el('div','words-region');
+ region.id=id;
+ region.append(el('p','original',capture.raw));
+ for(const note of notes)region.append(el('p','detail-note',note));
+ const toggle=button('Your words',null,{role:'text',cls:'words-toggle'});
+ toggle.append(icon('expand_more',{cls:'chev'}));
+ toggle.setAttribute('aria-controls',id);
+ const set=open=>{
+  region.hidden=!open;
+  toggle.setAttribute('aria-expanded',String(open));
+  if(open)wordsOpen.add(key);else wordsOpen.delete(key);
+ };
+ toggle.addEventListener('click',()=>set(region.hidden));
+ set(wordsOpen.has(key));
+ return {toggle,region};
 }
 
 /**
@@ -43,7 +69,7 @@ export function pendingCard({text,phase='saving',attempt=0,slow=false}){
  status.setAttribute('role','status');
  const bar=el('div','linear');bar.append(el('i'));
  sorting.append(status,bar,el('div','shimmer'),el('div','shimmer short'));
- card.append(sorting,el('p','state-hint','You can close Capture now. Your words stay saved, and you can sort them later.'));
+ card.append(sorting,el('p','state-hint','You can close Capture now. Your words stay saved.'));
  return card;
 }
 
@@ -93,13 +119,19 @@ export function dialogueCard(capture){
 }
 
 /** After Add: what went where, with alert delivery as Android reports it. */
-export function receiptCard(capture,{history,canUndo,delivery}){
+export function receiptCard(capture,{history,canUndo,delivery},added=[]){
  const draft=capture.draft;
  const card=el('section','state-card receipt-card');
  const head=el('div','receipt-head');
  head.append(icon('check_circle',{fill:true,cls:'saved-icon'}));
  const body=el('div','saved-body');
- body.append(el('p','saved-title',history?'Added earlier':'Added to your plan'),el('p','receipt-summary',addedSummary(draft.operations)));
+ body.append(el('p','saved-title',history?'Added earlier':'Added to your plan'));
+ // Named tasks say what went where; other changes keep the one-line summary.
+ if(added.length){
+  const list=el('ul','receipt-list');
+  list.append(...added);
+  body.append(list);
+ }else body.append(el('p','receipt-summary',addedSummary(draft.operations)));
  head.append(body);card.append(head);
  const receipts=(draft.receipt?.plannerReceipts??[]).filter(r=>r.action);
  for(const receipt of receipts){
@@ -107,18 +139,20 @@ export function receiptCard(capture,{history,canUndo,delivery}){
   const status=delivery?.(receipt.entry.id);
   card.append(el('p','delivery',status?.label??'Check alert delivery in Planner.'));
  }
+ if(canUndo&&!history)card.append(el('p','detail-note','You can undo this until your next change.'));
  if(!canUndo&&draft.receipt?.undoId)card.append(el('p','detail-note','Undo is no longer available for this one.'));
  return card;
 }
 
+/** Undo is the receipt's main action; Open in Planner stays a quiet text button. */
 export function receiptActions(capture,{canUndo,on}){
  const draft=capture.draft,row=[];
  const receipts=(draft.receipt?.plannerReceipts??[]).filter(r=>r.action);
- if(canUndo)row.push(button('Undo',()=>on.undo(draft),{role:'text',iconName:'undo'}));
  if(receipts.length){
   const open=()=>receipts.length===1?on.open(receipts[0].action):on.openPlanner();
-  row.push(button('Open in Planner',open,{role:'tonal',iconName:'open_in_new'}));
+  row.push(button('Open in Planner',open,{role:'text'}));
  }
+ if(canUndo)row.push(button('Undo',()=>on.undo(draft),{role:'tonal',iconName:'undo'}));
  return row;
 }
 
