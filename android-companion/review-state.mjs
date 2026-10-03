@@ -2,7 +2,7 @@
 // Every mutation goes through editPlan, so validation, the single Undo snapshot and the event log
 // behave exactly like any other planner edit. Review progress (where the user is in the flow) is
 // the only thing saved without Undo, because rewinding it would not restore anything the user made.
-import {planner, tasks, blockTasks, totals, editPlan, shiftDay, localDay, migrateReviewData} from './planner-state.mjs';
+import {planner, tasks, blockTasks, blockDue, totals, editPlan, shiftDay, localDay, migrateReviewData} from './planner-state.mjs';
 export {migrateReviewData};
 import {repeats} from './planner-recurrence.mjs';
 
@@ -31,6 +31,17 @@ export function reviewWeek(day) {
 const weeks = data => planner(data).weeks ?? {};
 const blockById = (data, id) => planner(data).blocks.find(b => b.id === id) ?? null;
 const oneOff = rows => rows.filter(t => !repeats(t));
+
+const pad = n => String(n).padStart(2, '0');
+/** When a task is dated, as local 'YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM'; null when it has no date. */
+export function taskDate(task) {
+  if (task.planned && Number.isFinite(Date.parse(task.planned))) {
+    const d = new Date(task.planned);
+    return `${localDay(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  return DAY.test(task.plannedDate ?? '') ? task.plannedDate : null;
+}
+const dateKey = value => (value.length > 10 ? value : value + 'T23:59');
 
 /** Achievement is the user's call; task counts are activity only. */
 export function resultStatus(data, blockId) {
@@ -131,6 +142,7 @@ export function reviewSummary(data, week) {
       done: status.done,
       total: status.total,
       achieved: status.achieved,
+      due: blockDue(data, blockId)?.value ?? null,
       verdict: weekVerdict(data, lastWeek, blockId) ?? (status.achieved ? 'achieved' : null),
       evidence: status.evidence,
       leftovers: leftoverTasks(data, blockId, week).map(t => t.id),
@@ -160,25 +172,53 @@ export function groupTask(data, taskId, target) {
   return op.newBlock ? 'New Block created' : 'Added to ' + blockById(data, blockId).title;
 }
 
+/** Moves several tasks in one change with one Undo: into a Block (id), a new Block ({title, purpose}) or the Inbox (null). */
+export function groupTasks(data, taskIds, target) {
+  if (!taskIds.length) throw new Error('Choose a task first.');
+  let undo = null, blockId = target ?? null;
+  for (const id of taskIds) {
+    groupTask(data, id, blockId);
+    undo ??= planner(data).undo;
+    if (blockId && typeof blockId === 'object') blockId = data.entries.find(t => t.id === id).blockId;
+  }
+  data.planner.undo = undo;
+  const n = taskIds.length === 1 ? 'Task' : `${taskIds.length} tasks`;
+  if (!blockId) return `${n} moved to Inbox`;
+  const name = blockById(data, blockId).title;
+  return target && typeof target === 'object' ? 'New Result: ' + name : `${n} added to ${name}`;
+}
+
+/** Quick add from the review: a new Inbox task saved in the user's own words, through the planner's saveTask. */
+export function addInboxTask(data, title, now = new Date()) {
+  return editPlan(data, {type: 'saveTask', fields: {title}}, now);
+}
+
 export function setMust(data, taskId, must) {
   editPlan(data, {type: 'saveTask', id: taskId, fields: {must}});
   return must ? 'Marked Must' : 'No longer a Must';
 }
 
-/** Blocks worth choosing for `week`: active, not yet achieved (unless already chosen), chosen ones first. */
+/**
+ * Blocks worth choosing for `week`: active, not yet achieved (unless already chosen). Chosen ones lead,
+ * then Results by deadline (soonest first), then carried ones, then ones with open tasks.
+ * Pass the choice as it stood when the step opened, so cards don't jump while the user picks.
+ */
 export function focusCandidates(data, week, chosen = weekFocus(data, week)) {
   const picked = new Set(chosen);
   const carried = new Set(data.entries.filter(t => leftoverChoice(t, week) === 'carry' && !t.archived).map(t => t.blockId));
   const rank = b => (picked.has(b.id) ? 0 : carried.has(b.id) ? 1 : blockTasks(data, b.id).some(t => !t.done) ? 2 : 3);
+  const key = c => (c.due ? dateKey(c.due) : '~'); // '~' sorts after every date
+  const byDue = (a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0);
   return planner(data).blocks
     .filter(b => !b.archived && (picked.has(b.id) || b.achieved !== true))
-    .map((b, index) => ({block: b, index, rank: rank(b)}))
-    .sort((a, b) => a.rank - b.rank || b.index - a.index)
-    .map(({block}) => ({
+    .map((b, index) => ({block: b, index, rank: rank(b), due: blockDue(data, b.id)?.value ?? null}))
+    .sort((a, b) => Number(a.rank > 0) - Number(b.rank > 0) || byDue(a, b) || a.rank - b.rank || b.index - a.index)
+    .map(({block, due}) => ({
       blockId: block.id,
       title: block.title,
       purpose: block.purpose ?? '',
       carried: carried.has(block.id),
+      due,
       ...resultStatus(data, block.id),
     }));
 }
