@@ -63,9 +63,10 @@ export const flows = {
     async run(h) {
       const {page} = h;
       await h.tap('add task', page.getByRole('button', {name: 'Add task'}));
-      await h.type('title', sheet(page).getByLabel('Task'), 'Email the TA about the quiz room');
-      await h.tap('tomorrow chip', sheet(page).getByRole('button', {name: /^Tomorrow, /}));
-      await h.tap('suggested Block chip', sheet(page).getByRole('button', {name: /Suggested Block Confident for RM Quiz I/}));
+      // The words carry the day and the Block: "tomorrow" is read as the date and "#quiz" (one Block matches) chooses
+      // the Block; both show under the title with Remove, and the Tomorrow and Block chips are marked, before Add.
+      await h.type('title with the day and #Block (both read, shown, removable)', sheet(page).getByLabel('Task'),
+        'Email the TA about the quiz room tomorrow #quiz');
       await h.tap('add (adds and closes)', sheet(page).getByRole('button', {name: /^Add$/}));
     },
     check: s => { const t = find(s, 'Email the TA'); const b = s.planner.blocks.find(x => x.title.startsWith('Confident')); return ok(t?.blockId === b?.id && (t.plannedDate === tomorrow() || t.planned?.startsWith?.(tomorrow())), 'tomorrow in the quiz Block'); },
