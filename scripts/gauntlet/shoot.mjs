@@ -19,7 +19,8 @@ async function open(path, {dark = false, reset = {}} = {}) {
   await page.waitForTimeout(900);
   return page;
 }
-const shot = async (page, name, full = false) => { await page.waitForTimeout(350); await page.screenshot({path: `${out}/${name}.png`, fullPage: full}); };
+// A phone has no hover: park the pointer off the page so no hover state lands in a shot.
+const shot = async (page, name, full = false) => { await page.mouse.move(-10, -10); await page.waitForTimeout(350); await page.screenshot({path: `${out}/${name}.png`, fullPage: full}); };
 // Android applies the system font scale through WebSettings.setTextZoom, which multiplies every font size and
 // line height (px included) and nothing else. Chromium has no switch for that, so scale those declarations in place.
 const textZoom = (page, factor) => page.evaluate(factor => {

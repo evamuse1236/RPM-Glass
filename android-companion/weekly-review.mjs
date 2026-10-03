@@ -802,8 +802,11 @@ function weekCard(api, chosen, now) {
     return box;
   }
   const placements = mustPlacements(api.data(), ids, events, api.week, now);
+  const unplaced = placements.reduce((sum, p) => sum + (p.minutes ?? 0), 0);
   const worst = cap.rows.find(r => r.over) ?? cap.rows.find(r => r.tight) ?? null;
-  const state = worst?.over ? 'over' : worst ? 'tight' : events ? 'fits' : '';
+  // Free time alone isn't a plan: while Musts have no day, say that first instead of "fits".
+  const undated = !worst && placements.length > 0;
+  const state = worst?.over ? 'over' : worst ? 'tight' : undated ? '' : events ? 'fits' : '';
   const toggle = button('', () => { ui.weekOpen = !ui.weekOpen; api.render(); }, 'wr-week-toggle ' + state);
   toggle.setAttribute('aria-expanded', String(ui.weekOpen));
   toggle.dataset.key = 'week';
@@ -812,18 +815,21 @@ function weekCard(api, chosen, now) {
   const verdict = !worst ? (events ? 'fits before every deadline' : '')
     : worst.overdue ? `${worst.title} is overdue`
       : worst.over ? `short ${duration(worst.need - worst.free)} by ${by(worst)}` : `tight by ${by(worst)}`;
-  text.append(el('span', 'wr-week-head tnum', `${duration(cap.must)} of Must` + (verdict ? ` · ${verdict}` : '')));
-  const unplaced = placements.reduce((sum, p) => sum + (p.minutes ?? 0), 0);
-  const detail = placements.length ? `${plural(placements.length, 'Must')} with no day yet${unplaced ? ` (${duration(unplaced)})` : ''}`
-    : worst && !worst.overdue ? worst.title : `${plural(chosen.length, 'Result')}, each against its own deadline`;
+  const undatedText = `${unplaced ? duration(unplaced) + ' of Must' : plural(placements.length, 'Must')} with no day yet`;
+  text.append(el('span', 'wr-week-head tnum', undated ? undatedText
+    : `${duration(cap.must)} of Must` + (verdict ? ` · ${verdict}` : '')));
+  const detail = undated ? `${duration(cap.must)} of Must in all${events ? ' · free time before every deadline' : ''}`
+    : placements.length ? undatedText
+      : worst && !worst.overdue ? worst.title : `${plural(chosen.length, 'Result')}, each against its own deadline`;
   text.append(el('span', 'wr-week-sub', detail));
   toggle.append(text, icon(ui.weekOpen ? 'expand_less' : 'expand_more'));
   box.append(toggle);
   if (ui.weekOpen) {
     box.append(capacityRows(cap.rows, now));
-    if (placements.length) box.append(placementBox(api, placements));
     if (events) box.append(el('p', 'wr-summary-note', 'Each Result counts the Musts due before it too, since that work comes first.'));
   }
+  // Undated Musts and their suggested days stay in view: they are what the plan still lacks.
+  if (placements.length && (ui.weekOpen || undated)) box.append(placementBox(api, placements));
   if (ui.focusHint) box.append(el('p', 'wr-summary-note wr-summary-warn', ui.focusHint));
   return box;
 }
