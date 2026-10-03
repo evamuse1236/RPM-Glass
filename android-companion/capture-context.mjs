@@ -1,4 +1,7 @@
 // Read-only descriptions of planner records for Capture choices. Never writes.
+import {localDay} from './planner-state.mjs';
+import {clock} from './planner/format.mjs';
+
 const COLLECTION={blockId:'blocks',projectId:'projects',goalId:'goals',areaId:'areas'};
 
 function plannerRows(data,collection){
@@ -46,4 +49,29 @@ export function blockChoices(data,deadline=()=>null){
  return plannerRows(data,'blocks').filter(b=>!b.archived&&!b.achieved)
   .map(b=>({id:b.id,...describeLink(data,'blockId',b.id),due:deadline(b.id)}))
   .sort((a,b)=>(a.due?.at??Infinity)-(b.due?.at??Infinity)||a.title.localeCompare(b.title));
+}
+
+/**
+ * What else holds the day a proposal is set for, from the planner and the
+ * read-only calendar only: other Results due that day ({text}) and busy events
+ * overlapping the proposed time ({text, clash}), in time order. The
+ * destination Block's own deadline is left out; its due line already says it.
+ * `deadline(id)` returns {value} as blockDue() does, or null.
+ */
+export function dayLoad(data,{start,minutes=null,blockId=null,events=[],deadline=()=>null}){
+ const from=Date.parse(start);
+ if(!Number.isFinite(from))return [];
+ const day=localDay(new Date(from)),to=from+Math.max(1,minutes??0)*60000,items=[];
+ for(const b of plannerRows(data,'blocks')){
+  if(b.archived||b.achieved||String(b.id)===String(blockId))continue;
+  const value=deadline(b.id)?.value;
+  if(value?.slice(0,10)!==day)continue;
+  const timed=value.length>10,at=new Date(timed?value:value+'T23:59');
+  items.push({at:+at,title:b.title,time:timed?clock(at):null,text:b.title+(timed?' due '+clock(at):' due')});
+ }
+ for(const e of events){
+  if(e.busy===false||e.allDay||!(e.start<to&&e.end>from))continue;
+  items.push({at:e.start,clash:true,text:`${e.title} ${clock(e.start)}–${clock(e.end)}`});
+ }
+ return items.sort((a,b)=>a.at-b.at);
 }

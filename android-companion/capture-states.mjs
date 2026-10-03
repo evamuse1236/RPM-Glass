@@ -119,33 +119,31 @@ export function dialogueCard(capture){
  return card;
 }
 
-/** After Add: what went where, with alert delivery as Android reports it. */
+/** After Add: the added tasks in the same rows as their proposals, with alert delivery as Android reports it. */
 export function receiptCard(capture,{history,canUndo,delivery},added=[]){
  const draft=capture.draft;
  const card=el('section','state-card receipt-card');
- const head=el('div','receipt-head');
- head.append(icon('check_circle',{fill:true,cls:'saved-icon'}));
- const body=el('div','saved-body');
- // Named tasks say what went where in the proposal's own words; other changes keep the one-line summary.
- const title=history?'Added earlier':added.length?(added.length===1?'Task added':`${added.length} tasks added`):'Added to your plan';
- body.append(el('p','saved-title',title));
+ const total=added.length+(draft.skipped?.length??0);
  if(added.length){
-  const list=el('ul','receipt-list');
+  // Named tasks read exactly as they were proposed; a left-out proposal is counted, not listed.
+  const title=history?'Added earlier':added.length===total?(added.length===1?'Task added':`${added.length} tasks added`):`${added.length} of ${total} tasks added`;
+  const head=el('div','card-head');
+  head.append(el('p','kicker',title));
+  const list=el('ul','props receipt-list');
   list.append(...added);
-  body.append(list);
- }else body.append(el('p','receipt-summary',addedSummary(draft.operations)));
- head.append(body);card.append(head);
+  card.append(head,list);
+ }else{
+  const head=el('div','receipt-head');
+  head.append(icon('check_circle',{fill:true,cls:'saved-icon'}));
+  const body=el('div','saved-body');
+  body.append(el('p','saved-title',history?'Added earlier':'Added to your plan'),el('p','receipt-summary',addedSummary(draft.operations)));
+  head.append(body);card.append(head);
+ }
  const receipts=(draft.receipt?.plannerReceipts??[]).filter(r=>r.action);
  for(const receipt of receipts){
   if(!receipt.entry?.alert)continue;
   const status=delivery?.(receipt.entry.id);
   card.append(el('p','delivery',status?.label??'Check alert delivery in Planner.'));
- }
- if(canUndo&&!history){
-  const note=el('p','detail-note undo-window','Undo works until your next change.');
-  // Shown only while the panel is about to close itself (see capture.css).
-  note.append(el('span','auto-close-note',' Capture closes by itself in a few seconds unless you touch it.'));
-  card.append(note);
  }
  if(!canUndo&&draft.receipt?.undoId)card.append(el('p','detail-note','Undo is no longer available for this one.'));
  return card;
@@ -159,7 +157,8 @@ export function receiptActions(capture,{canUndo,on}){
   const open=()=>receipts.length===1?on.open(receipts[0].action):on.openPlanner();
   row.push(button('Open in Planner',open,{role:'text'}));
  }
- if(canUndo)row.push(button('Undo',()=>on.undo(draft),{role:'tonal',iconName:'undo'}));
+ // While Capture is about to close itself, the Undo label counts down the seconds (see capture-app).
+ if(canUndo)row.push(button('Undo',()=>on.undo(draft),{role:'tonal',iconName:'undo',cls:'undo-action'}));
  return row;
 }
 

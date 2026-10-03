@@ -2,26 +2,37 @@
 // grows with text. The microphone becomes Send as soon as there is text.
 
 const MAX_LINES=5;
+const ONE='one',MANY='many';
 
 export function installComposer({onSubmit,onInput,onVoice}){
  const $=id=>document.getElementById(id);
  const form=$('composer'),message=$('message'),panel=$('panel');
  message.setAttribute('enterkeyhint','send');
 
+ // Past one line the text takes the field's full width and the buttons drop to a
+ // row underneath, as in Gemini. It returns to one line only when the text is
+ // shorter than when it grew, so the layout never flickers between the two.
+ let grewAt=0;
  const fit=()=>{
   // Five lines at the current text size, then the field scrolls.
   const style=getComputedStyle(message);
   const line=parseFloat(style.lineHeight)||24,padding=(parseFloat(style.paddingTop)||0)+(parseFloat(style.paddingBottom)||0);
   const max=line*MAX_LINES+padding;
-  message.style.height='auto';
-  // Empty is always one line; a long placeholder is cut, not wrapped.
-  const height=message.value?Math.min(message.scrollHeight,max):line+padding;
+  const measure=()=>{
+   message.style.height='auto';
+   // Empty is always one line; a long placeholder is cut, not wrapped.
+   return message.value?Math.min(message.scrollHeight,max):line+padding;
+  };
+  const wraps=height=>height>line+padding+2;
+  let height=measure();
+  if(form.dataset.lines!==MANY&&wraps(height)){form.dataset.lines=MANY;grewAt=message.value.length;height=measure();}
+  else if(form.dataset.lines===MANY&&message.value.length<grewAt){
+   form.dataset.lines=ONE;height=measure();
+   if(wraps(height)){form.dataset.lines=MANY;height=measure();}
+  }
   message.style.height=height+'px';
   message.style.overflowY=message.scrollHeight>max?'auto':'hidden';
-  const hasText=!!message.value.trim();
-  panel.dataset.hasText=String(hasText);
-  // One line when empty; the field's corners soften as it grows.
-  form.dataset.lines=height>line+padding+2?'many':'one';
+  panel.dataset.hasText=String(!!message.value.trim());
  };
  message.addEventListener('input',()=>{fit();onInput(message.value);});
  form.addEventListener('submit',e=>{
