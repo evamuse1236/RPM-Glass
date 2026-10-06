@@ -19,7 +19,7 @@ import java.util.concurrent.*;
 /** A trusted, bundled conversation surface. All networking is native and HTTPS-only. */
 public class CompanionActivity extends Activity {
     protected boolean planning(){return false;}
-    private String voiceRequest;
+    private String voiceRequest,pickRequest;
     private volatile boolean diagnosticReady=false;
     private WebView web;private boolean expanded=false,closing=false;
     private double captureHeightCss=300,captureWidthCss=0;
@@ -29,7 +29,7 @@ public class CompanionActivity extends Activity {
     private final ExecutorService work=Executors.newFixedThreadPool(2);
     private final ExecutorService captureInput=Executors.newSingleThreadExecutor();
     private final ModelRequests modelRequests=new ModelRequests();
-    private static final Set<String> ASSETS=Set.of("index.html","planner.html","runtime.js","theme.css","planner.css","capture.css","review.css","planner-stitch.css","planner-tokens.css","night.css","capture-tokens.css","butterfly.png","google-sans-flex.woff2","material-symbols-rounded.woff2");
+    private static final Set<String> ASSETS=Set.of("index.html","planner.html","repo.html","repo.css","runtime.js","theme.css","planner.css","capture.css","review.css","planner-stitch.css","planner-tokens.css","night.css","capture-tokens.css","butterfly.png","google-sans-flex.woff2","material-symbols-rounded.woff2");
     private static final String CSP="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
     private static final String CHAT_ENDPOINT="https://openrouter.ai/api/v1/chat/completions",DECISION_ENDPOINT="https://openrouter.ai/api/alpha/decisions";
     @Override public void onCreate(Bundle saved){super.onCreate(saved);expanded=saved!=null&&saved.getBoolean("expanded");getWindow().setBackgroundDrawableResource(android.R.color.transparent);getWindow().setDimAmount(.12f);getWindow().addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE|WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
@@ -42,9 +42,11 @@ public class CompanionActivity extends Activity {
                 try{Diagnostics.recordNow(CompanionActivity.this,Diagnostics.event("crash","error","webview.renderer","error",new JSONObject().put("didCrash",detail.didCrash()).put("priority",detail.rendererPriorityAtExit())));}catch(Exception ignored){}
                 return false;
             }
-            @Override public void onPageFinished(WebView v,String url){if("https://rpm.local/index.html".equals(url)){arrive();}syncSurfaceInsets();}
+            @Override public void onPageFinished(WebView v,String url){if("https://rpm.local/index.html".equals(url)||"https://rpm.local/repo.html".equals(url)){arrive();}syncSurfaceInsets();}
             @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return true;}
-            @Override public WebResourceResponse shouldInterceptRequest(WebView v,WebResourceRequest r){Uri u=r.getUrl();String asset=u.getPath()==null?"":u.getPath().substring(1);if("https".equals(u.getScheme())&&"rpm.local".equals(u.getHost())&&u.getPort()==-1&&u.getQuery()==null&&ASSETS.contains(asset)&&r.getMethod().equals("GET"))try{String type=asset.endsWith(".html")?"text/html":asset.endsWith(".css")?"text/css":asset.endsWith(".png")?"image/png":asset.endsWith(".woff2")?"font/woff2":"text/javascript";return new WebResourceResponse(type,"UTF-8",200,"OK",Map.of("Content-Security-Policy",CSP,"X-Content-Type-Options","nosniff","Cache-Control","no-store"),getAssets().open("companion/"+asset));}catch(IOException ignored){}return new WebResourceResponse("text/plain","UTF-8",403,"Blocked",Map.of(),new ByteArrayInputStream(new byte[0]));}
+            @Override public WebResourceResponse shouldInterceptRequest(WebView v,WebResourceRequest r){Uri u=r.getUrl();String asset=u.getPath()==null?"":u.getPath().substring(1);
+                // Screenshots picked for a repo idea, by their generated id only.
+                if("https".equals(u.getScheme())&&"rpm.local".equals(u.getHost())&&u.getPort()==-1&&u.getQuery()==null&&asset.matches("shot/[a-f0-9-]{36}\\.jpg")&&r.getMethod().equals("GET")){File shot=RepoIdeas.draftShot(CompanionActivity.this,asset.substring(5,41));if(shot!=null)try{return new WebResourceResponse("image/jpeg",null,200,"OK",Map.of("X-Content-Type-Options","nosniff","Cache-Control","no-store"),new FileInputStream(shot));}catch(IOException ignored){}}if("https".equals(u.getScheme())&&"rpm.local".equals(u.getHost())&&u.getPort()==-1&&u.getQuery()==null&&ASSETS.contains(asset)&&r.getMethod().equals("GET"))try{String type=asset.endsWith(".html")?"text/html":asset.endsWith(".css")?"text/css":asset.endsWith(".png")?"image/png":asset.endsWith(".woff2")?"font/woff2":"text/javascript";return new WebResourceResponse(type,"UTF-8",200,"OK",Map.of("Content-Security-Policy",CSP,"X-Content-Type-Options","nosniff","Cache-Control","no-store"),getAssets().open("companion/"+asset));}catch(IOException ignored){}return new WebResourceResponse("text/plain","UTF-8",403,"Blocked",Map.of(),new ByteArrayInputStream(new byte[0]));}
         });
         // A full transparent host lets Android deliver reliable IME/system insets.
         // Only the small child panel is painted; it stays entirely above the keyboard.
@@ -53,7 +55,9 @@ public class CompanionActivity extends Activity {
         if(Build.VERSION.SDK_INT>=30)getWindow().setDecorFitsSystemWindows(false);
         if(planning())paintPlannerBars(systemNight());
         root.setOnApplyWindowInsetsListener((v,insets)->{if(Build.VERSION.SDK_INT>=30){android.graphics.Insets i=insets.getInsets(WindowInsets.Type.systemBars()|WindowInsets.Type.ime());insetTop=i.top;insetBottom=i.bottom;insetLeft=i.left;insetRight=i.right;systemBottom=insets.getInsets(WindowInsets.Type.systemBars()).bottom;web.evaluateJavascript("window.rpmCaptureKeyboard?.("+insets.isVisible(WindowInsets.Type.ime())+")",null);}else{insetTop=insets.getSystemWindowInsetTop();insetBottom=insets.getSystemWindowInsetBottom();insetLeft=insets.getSystemWindowInsetLeft();insetRight=insets.getSystemWindowInsetRight();}size();syncSurfaceInsets();return insets;});
-        root.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{if(r-l!=or-ol||b-t!=ob-ot)size();});size();if(Build.VERSION.SDK_INT>=33)getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,this::handleBack);String target=getIntent().getStringExtra("plannerTarget");web.loadUrl(planning()?"https://rpm.local/planner.html"+(target!=null?"#open="+Uri.encode(target):"ideas".equals(getIntent().getStringExtra("plannerAction"))?"#ideas":""):"https://rpm.local/index.html");
+        root.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{if(r-l!=or-ol||b-t!=ob-ot)size();});size();if(Build.VERSION.SDK_INT>=33)getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,this::handleBack);String target=getIntent().getStringExtra("plannerTarget");if(planning())web.loadUrl("https://rpm.local/planner.html"+(target!=null?"#open="+Uri.encode(target):"ideas".equals(getIntent().getStringExtra("plannerAction"))?"#ideas":""));
+        else if(isShare(getIntent()))importShared(getIntent(),()->{if(!closing&&web!=null)web.loadUrl(page(getIntent()));});
+        else web.loadUrl(page(getIntent()));
     }
     // The planner draws edge to edge on the Material surface: transparent bars, and a surface colour and
     // bar icons that follow the planner's effective theme (system, or pinned in Settings via "surface").
@@ -100,13 +104,26 @@ public class CompanionActivity extends Activity {
     @Override public void onBackPressed(){if(Build.VERSION.SDK_INT<33)handleBack();}
     int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
     @Override protected void onSaveInstanceState(Bundle out){out.putBoolean("expanded",expanded);super.onSaveInstanceState(out);}
-    @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);if(intent.getBooleanExtra("reload",false))web.reload();else if(!planning())arrive();}
+    @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);if(intent.getBooleanExtra("reload",false)){web.reload();return;}if(planning())return;
+        // The widget's pill and mic open Capture, its repo button (or a shared screenshot) the repo capture; each keeps its own draft.
+        String next=page(intent);Runnable show=()->{if(closing||web==null)return;if(next.equals(web.getUrl())){if(isShare(intent))web.evaluateJavascript("window.rpmRepoShared?.()",null);arrive();}else web.loadUrl(next);};
+        if(isShare(intent))importShared(intent,show);else show.run();}
+    private static boolean isShare(Intent i){String a=i==null?null:i.getAction();return Intent.ACTION_SEND.equals(a)||Intent.ACTION_SEND_MULTIPLE.equals(a);}
+    private static String page(Intent i){return "https://rpm.local/"+("com.rpm.widget.repo".equals(i.getAction())||isShare(i)?"repo.html":"index.html");}
+    /** Screenshots shared from another app ("Repo idea" in the share sheet) join the repo idea's draft before the page reads it. */
+    @SuppressWarnings("deprecation") private void importShared(Intent intent,Runnable then){
+        List<Uri> uris=new ArrayList<>();
+        if(Intent.ACTION_SEND.equals(intent.getAction())){Uri one=intent.getParcelableExtra(Intent.EXTRA_STREAM);if(one!=null)uris.add(one);}
+        else{ArrayList<Uri> many=intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);if(many!=null)uris.addAll(many);}
+        work.execute(()->{try{RepoIdeas.addSharedShots(this,uris);}catch(Exception ignored){}runOnUiThread(then);});
+    }
     // The widget's mic opens Capture already listening (once: a reload afterwards only focuses the field); anything else opens the keyboard.
     private void arrive(){if(web==null)return;if(!"com.rpm.widget.voice".equals(getIntent().getAction())){openKeyboard();return;}getIntent().setAction("com.rpm.widget.capture");web.post(()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmStartVoice?window.rpmStartVoice():(window.rpmPendingVoice=true)",null);});}
     @Override protected void onResume(){super.onResume();applyTextScale();if(settingsController!=null)settingsController.onResume();work.execute(()->{try{JSONObject d=CompanionStore.read(this);if(d!=null)CompanionAlerts.reconcile(this,d,false);}catch(Exception ignored){}runOnUiThread(this::settingsChanged);});}
     @Override protected void onPause(){if(settingsController!=null)settingsController.onPause();super.onPause();}
     @Override public void onConfigurationChanged(android.content.res.Configuration c){super.onConfigurationChanged(c);size();applyTextScale();settingsChanged();}
-    @Override protected void onActivityResult(int request,int result,Intent intent){super.onActivityResult(request,result,intent);if(request==302 && voiceRequest!=null){String id=voiceRequest;voiceRequest=null;try{ArrayList<String> words=intent==null?null:intent.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS);reply(id,new JSONObject().put("text",result==RESULT_OK&&words!=null&&!words.isEmpty()?words.get(0):""),null);}catch(JSONException error){reply(id,null,"Voice input could not be read.");}return;}if(settingsController!=null)settingsController.onActivityResult(request,result,intent);}
+    @Override protected void onActivityResult(int request,int result,Intent intent){super.onActivityResult(request,result,intent);if(request==303&&pickRequest!=null){String id=pickRequest;pickRequest=null;List<Uri> uris=new ArrayList<>();if(result==RESULT_OK&&intent!=null){if(intent.getClipData()!=null)for(int i=0;i<intent.getClipData().getItemCount();i++)uris.add(intent.getClipData().getItemAt(i).getUri());else if(intent.getData()!=null)uris.add(intent.getData());}
+            work.execute(()->{JSONArray shots=new JSONArray();int failed=0;for(Uri uri:uris){if(shots.length()>=RepoIdeas.MAX_SHOTS)break;try{shots.put(RepoIdeas.importImage(this,uri));}catch(Exception e){failed++;}}try{JSONObject value=new JSONObject().put("shots",shots);if(failed>0)value.put("error",failed==1?"One image couldn’t be read.":failed+" images couldn’t be read.");reply(id,value,null);}catch(JSONException e){reply(id,null,"The screenshots couldn’t be added.");}});return;}if(request==302 && voiceRequest!=null){String id=voiceRequest;voiceRequest=null;try{ArrayList<String> words=intent==null?null:intent.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS);reply(id,new JSONObject().put("text",result==RESULT_OK&&words!=null&&!words.isEmpty()?words.get(0):""),null);}catch(JSONException error){reply(id,null,"Voice input could not be read.");}return;}if(settingsController!=null)settingsController.onActivityResult(request,result,intent);}
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){super.onRequestPermissionsResult(request,permissions,results);if(settingsController!=null)settingsController.onRequestPermissionsResult(request);settingsChanged();}
     @Override protected void onDestroy(){closing=true;modelRequests.cancelAll();if(settingsController!=null){settingsController.destroy();settingsController=null;}if(web!=null){web.removeJavascriptInterface("RpmNative");web.destroy();web=null;}captureInput.shutdown();work.shutdown();super.onDestroy();}
     private void reply(String id,Object value,String error){runOnUiThread(()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmBridgeResult("+JSONObject.quote(id)+","+(value==null?"null":value.toString())+","+(error==null?"null":JSONObject.quote(error))+")",null);});}
@@ -144,6 +161,21 @@ public class CompanionActivity extends Activity {
                     case "legacyEntries":result=LegacyImport.read(CompanionActivity.this);break;
                     case "legacyImported":LegacyImport.markDone(CompanionActivity.this);result=new JSONObject();break;
                     case "dictate":runOnUiThread(()->{if(voiceRequest!=null){reply(id,null,"Voice input is already open.");return;}voiceRequest=id;try{Intent voice=new Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM).putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT,"Capture your thought");startActivityForResult(voice,302);}catch(ActivityNotFoundException error){voiceRequest=null;reply(id,null,"Voice input is unavailable on this device. You can use keyboard dictation.");}});return;
+                    case "repoState":if(planning())throw new IllegalArgumentException("Unsupported phone action.");result=RepoIdeas.state(CompanionActivity.this);break;
+                    case "repoRepos":result=RepoIdeas.repos(CompanionActivity.this);break;
+                    case "repoDraft":RepoIdeas.saveDraft(CompanionActivity.this,p.getJSONObject("draft"));result=new JSONObject();break;
+                    case "repoShotRemove":RepoIdeas.removeShot(CompanionActivity.this,p.optString("id"));result=new JSONObject();break;
+                    case "repoPick":runOnUiThread(()->{if(pickRequest!=null){reply(id,null,"The photo picker is already open.");return;}pickRequest=id;int max=Math.max(1,Math.min(RepoIdeas.MAX_SHOTS,p.optInt("max",RepoIdeas.MAX_SHOTS)));
+                        Intent pick=Build.VERSION.SDK_INT>=33?new Intent(android.provider.MediaStore.ACTION_PICK_IMAGES).setType("image/*"):new Intent(Intent.ACTION_GET_CONTENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_ALLOW_MULTIPLE,max>1);
+                        if(Build.VERSION.SDK_INT>=33&&max>1)pick.putExtra(android.provider.MediaStore.EXTRA_PICK_IMAGES_MAX,Math.min(max,android.provider.MediaStore.getPickImagesMaxLimit()));
+                        try{startActivityForResult(pick,303);}catch(ActivityNotFoundException error){pickRequest=null;reply(id,null,"This phone has no photo picker.");}});return;
+                    case "repoSave":{JSONObject saved=RepoIdeas.save(CompanionActivity.this,p);String ideaId=saved.getString("id");RepoIdeas.schedule(CompanionActivity.this);
+                        // Send at once while the panel shows the receipt; the job above covers a closed panel or no network.
+                        if("waiting".equals(saved.optString("state"))){saved.put("state","sending");work.execute(()->{try{JSONObject sent=RepoIdeas.upload(CompanionActivity.this,ideaId);if(sent!=null)runOnUiThread(()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmRepoIdeaStatus?.("+sent+")",null);});}catch(Exception ignored){}});}
+                        result=saved;break;}
+                    case "repoUndo":result=RepoIdeas.undo(CompanionActivity.this,p.optString("id"));break;
+                    case "repoSendWaiting":result=RepoIdeas.sendWaiting(CompanionActivity.this);break;
+                    case "repoOpen":{String url=RepoIdeas.url(CompanionActivity.this,p.optString("id"));if(url==null)throw new IllegalStateException("It isn’t on GitHub yet.");runOnUiThread(()->{try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(ActivityNotFoundException e){reply(id,null,"No browser to open it.");}});result=new JSONObject();break;}
                     case "haptic":runOnUiThread(()->web.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK));result=new JSONObject();break;
                     case "keyboard":runOnUiThread(()->{web.requestFocus();((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(web,android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);});result=new JSONObject();break;
                     case "appSettings":result=settingsController.read();break;

@@ -58,7 +58,15 @@ Capture turns messy thoughts into tasks and Blocks. The assistant may interpret,
 ### Native companion surfaces
 
 - The generated butterfly remains a 64dp, user-started, draggable launcher over other apps. It hides over RPM's own screens and can be hidden by long press or the visible service notification.
-- The native home-screen widget is a capture bar like Google Keep's: the app icon opens the planner, a wide "Capture a thought" pill opens Capture ready to type, and the mic inside it opens Capture already listening (Android's speech recognizer, then the words wait in the field to check). Check-ins and reminders are simply said in Capture. Its colours mirror theme.css in `res/values*/colors.xml`.
+- The native home-screen widget is a capture bar like Google Keep's: the app icon opens the planner, a wide "Capture a thought" pill opens Capture ready to type, the mic inside it opens Capture already listening (Android's speech recognizer, then the words wait in the field to check), and a code button at the end opens the repo capture. Check-ins and reminders are simply said in Capture. Its colours mirror theme.css in `res/values*/colors.xml`.
+
+### Repo capture
+
+- Repo capture holds ideas for Dara's code repositories, apart from the plan: it never creates tasks or Blocks and sends nothing to a model. It opens from the widget's code button, or from Android's share sheet as "Repo idea" with the shared screenshots attached, in the same floating panel and composer as Capture.
+- "For" offers the repo in use and Dara's recent repos as filter chips (the ones Dara saved ideas for most recently, then the ones pushed most recently on GitHub), All repos (every repo on GitHub, searchable) and New repo (an optional name field for a repo that doesn't exist yet). The last repo used is chosen when it opens.
+- The words are typed or said with the mic (Android's speech recognizer, as in Capture); Add screenshots at the start of the field opens Android's photo picker (up to 10, scaled to 2000px). Send works with words, screenshots or both. The draft (repo, words, screenshots) is kept on the phone as it changes.
+- Send keeps the idea on the phone first, then adds it in one commit to the ideas repo (`evamuse1236/second-brain` by default, under `ideas/<owner>/<repo>/<YYYY-MM-DD-HHmm>-<slug>/`, or `ideas/new/…`): `idea.md` with a title from the first sentence, the repo, `status: new`, the time, then Dara's exact words and the screenshots beside it. The receipt says where it went ("In second-brain for Claude and Codex"), with Undo (removes it from GitHub in one commit and puts the words, repo and screenshots back in the field) and Open; it closes after six seconds unless touched. Without a network or GitHub connection the idea waits on the phone and is sent by a background job once it can be.
+- Settings → Repo ideas connects GitHub with a fine-grained token (Keystore-encrypted, like the AI key), sets the ideas repo and sends waiting ideas. Claude and Codex pick ideas up with the `repo-ideas` skill ("pull from recent"), which marks them picked and done in the same files.
 - RPM reminders use Android notifications. Ringing alarms use Android scheduling with snooze and dismiss. Permission, battery, DND, and OEM behavior remain Android-controlled.
 
 ## Product principles
@@ -90,7 +98,7 @@ The purpose-first migration is lossless and idempotent:
 
 ## External services and safety boundary
 
-The APK contains no API key or personal history. The user enters an OpenRouter key on the phone, stored with Android Keystore protection. Model requests are bounded, HTTPS-only, and use the selected planning paths; no live model call is required for local planning. Calendar access is read-only and permission-based. Calendar writes, Samsung Clock writes, automatic background imports, and silent plan mutation are outside the current scope.
+The APK contains no API key or personal history. The user enters an OpenRouter key on the phone, stored with Android Keystore protection; the GitHub token for repo ideas is stored the same way and used only to list repos and commit ideas to the chosen ideas repo. Model requests are bounded, HTTPS-only, and use the selected planning paths; no live model call is required for local planning. Calendar access is read-only and permission-based. Calendar writes, Samsung Clock writes, automatic background imports, and silent plan mutation are outside the current scope.
 
 Desktop companion data can be imported only through the existing explicit backup/review flow; imported alerts stay disarmed until reviewed. The phone companion store does not enter the old Convex outbox. Diagnostic logging is separately connected to the private RPM Convex database. It uploads full app console output (which may include capture content), errors, and operation records, with credential redaction and 14-day retention. Settings provides pause/disconnect controls; diagnostic pairing does not enqueue planner data. See `docs/diagnostic-logging.md` for activation and inspection.
 

@@ -48,7 +48,7 @@ export function savedPlannerTarget(target) {
   return null;
 }
 
-const SETTINGS_VIEWS = ['settings', 'alarm_sound', 'reminder_sound', 'ai_connection', 'notifications', 'exact_alarms',
+const SETTINGS_VIEWS = ['settings', 'alarm_sound', 'reminder_sound', 'ai_connection', 'github', 'notifications', 'exact_alarms',
   'import_export'];
 const VIEW_TABS = {day: 'today', rpm: 'blocks', projects: 'projects', life: 'life'};
 

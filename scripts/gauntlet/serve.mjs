@@ -12,8 +12,20 @@ import crypto from 'node:crypto';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const assets = path.join(root, 'app/src/main/assets/companion');
 const port = Number(process.argv[2] ?? 4173);
-let store = null, phone = null;
+let store = null, phone = null, repo = null;
+// Repo capture's phone side: a GitHub account with a few repos, the draft, and ideas "sent" to second-brain.
+const REPOS = [['RPM-Glass', 'RPM app: Android planner, Capture and widget', '2026-10-06', false], ['hinge-profile-cli', '', '2026-10-06', true],
+  ['rpm-agent', 'Arden, the RPM coaching agent', '2026-10-06', true], ['vocalinux-local', 'Local voice typing for Linux', '2026-10-06', true],
+  ['EvaMS', '', '2026-10-05', true], ['second-brain', 'What is true now, and what I am learning', '2026-10-03', true],
+  ['reading-room-site', 'ISDM Reading Room', '2026-09-30', true], ['flatsplit', 'Split flat expenses', '2026-07-28', true]]
+  .map(([name, description, pushedAt, priv]) => ({fullName: 'evamuse1236/' + name, name, description, pushedAt, private: priv}));
+const resetRepo = (options = {}) => {
+  repo = {github: options.github === false ? {connected: false} : {connected: true, login: 'evamuse1236', inbox: 'evamuse1236/second-brain', folder: 'ideas'},
+    repos: options.github === false ? [] : REPOS, reposAt: Date.now(), used: options.used ?? ['evamuse1236/RPM-Glass', 'evamuse1236/rpm-agent'],
+    draft: options.draft ?? null, waiting: options.waiting ?? 0, ideas: new Map()};
+};
 const reset = (options = {}) => {
+  resetRepo(options.repo ?? {});
   store = options.empty ? null : seedStore().data;
   phone = {fontScale: options.fontScale ?? 1, effectiveFontScale: options.fontScale ?? 1, hasKey: options.hasKey ?? true,
     reducedMotion: false, debug: false, notifications: true, exact: true, overlay: true, delivery: {}, widgetTextScale: 100};
@@ -92,16 +104,36 @@ function handle(action, payload) {
       return {status: 200, body: {model: body.model, provider: body.provider?.only?.[0] ?? 'OpenAI',
         choices: [{finish_reason: 'stop', message: {content: JSON.stringify(turn)}}]}};
     }
+    case 'repoState': return {github: repo.github, repos: repo.repos, reposAt: repo.reposAt, used: repo.used, draft: repo.draft, waiting: repo.waiting};
+    case 'repoRepos': return {repos: repo.repos, reposAt: Date.now()};
+    case 'repoDraft': repo.draft = payload.draft; return {};
+    case 'repoPick': return {shots: Array.from({length: Math.min(payload.max ?? 1, 2)}, () => crypto.randomUUID())};
+    case 'repoSave': {
+      if (payload.repo) repo.used = [payload.repo, ...repo.used.filter(r => r !== payload.repo)].slice(0, 8);
+      repo.ideas.set(payload.id, payload); repo.draft = {repo: payload.repo, isNew: false, newName: '', text: '', shots: []};
+      return {state: repo.github.connected ? 'sending' : 'not-connected', used: repo.used};
+    }
+    case 'repoUndo': {
+      const idea = repo.ideas.get(payload.id); repo.ideas.delete(payload.id);
+      return {draft: {repo: idea.repo, isNew: !idea.repo, newName: idea.newName, text: idea.text, shots: idea.shots.map(x => x.id)}};
+    }
     default: return {};
   }
 }
+
+// A stand-in screenshot: a phone-shaped page with a few rows, so thumbnails look like the real thing.
+const shotSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="760" viewBox="0 0 360 760"><rect width="360" height="760" fill="#F8FAFD"/>
+<rect x="16" y="48" width="200" height="28" rx="6" fill="#1F1F1F"/><rect x="16" y="110" width="328" height="120" rx="24" fill="#D3E3FD"/>
+${[260, 330, 400, 470, 540].map(y => `<circle cx="36" cy="${y + 20}" r="10" fill="none" stroke="#444746" stroke-width="3"/><rect x="60" y="${y + 8}" width="240" height="14" rx="4" fill="#444746"/><rect x="60" y="${y + 30}" width="140" height="10" rx="4" fill="#C4C7C5"/>`).join('')}
+<rect x="0" y="680" width="360" height="80" fill="#F0F4F9"/></svg>`;
 
 const bridge = `<script>
 const nativeFetch=window.fetch.bind(window);
 window.RpmNative={invoke(id,action,json){const payload=JSON.parse(json);
   if(action==='planner'){location.href='/planner.html';return;}if(action==='capture'){location.href='/index.html';return;}
   nativeFetch('/__native',{method:'POST',body:JSON.stringify({action,payload})}).then(r=>r.json()).then(r=>{
-    const delay=action==='model'?(window.__modelDelay??600):0;setTimeout(()=>window.rpmBridgeResult(id,r.result??null,r.error??null),delay);});}};
+    const delay=action==='model'?(window.__modelDelay??600):0;setTimeout(()=>window.rpmBridgeResult(id,r.result??null,r.error??null),delay);
+    if(action==='repoSave'&&r.result?.state==='sending')setTimeout(()=>window.rpmRepoIdeaStatus?.({id:payload.id,state:'sent',url:'https://github.com/evamuse1236/second-brain/tree/main/ideas/'+payload.folder}),window.__sendDelay??900);});}};
 </script>`;
 
 const types = {'.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.woff2': 'font/woff2', '.png': 'image/png', '.json': 'application/json'};
@@ -117,6 +149,7 @@ http.createServer((req, res) => {
     });
     return;
   }
+  if (/^\/shot\/[a-f0-9-]{36}\.jpg$/.test(url.pathname)) { res.setHeader('content-type', 'image/svg+xml'); return res.end(shotSvg); }
   if (url.pathname === '/__store') { res.setHeader('content-type', 'application/json'); return res.end(JSON.stringify(store)); }
   const file = path.join(assets, url.pathname === '/' ? 'planner.html' : path.normalize(url.pathname));
   if (!file.startsWith(assets) || !fs.existsSync(file)) { res.statusCode = 404; return res.end('Not found'); }

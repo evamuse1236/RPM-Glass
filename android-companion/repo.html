@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>RPM · Repo idea</title>
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/capture.css">
+<link rel="stylesheet" href="/repo.css">
+<script type="module" src="/runtime.js"></script>
+</head>
+<body>
+<main class="host">
+<!-- The widget's repo capture: the same floating panel as Capture. Pick a repo, say or type the idea,
+     add screenshots; Send files it in the ideas repo for Claude and Codex. -->
+<section id="panel" class="panel repo" aria-label="Repo idea" data-view="repo" data-state="idle">
+  <div class="grab" aria-hidden="true"></div>
+  <header class="panel-header">
+    <span class="brand" aria-hidden="true"><span class="ms">code</span></span>
+    <h1 id="view-label" class="panel-title">Repo idea</h1>
+    <button id="close" class="icon-btn" type="button" aria-label="Close"><span class="ms" aria-hidden="true">close</span></button>
+  </header>
+  <div id="content" class="content" tabindex="-1" aria-label="Repo idea"></div>
+  <button id="capture-overflow" class="more-below" type="button" hidden aria-label="Scroll down to see more"><span class="ms" aria-hidden="true">arrow_downward</span>More below</button>
+  <div id="capture-actions" class="action-dock" aria-label="Idea actions" hidden></div>
+  <footer class="composer-area">
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+    <form id="composer" class="composer" data-lines="one">
+      <button id="attach" class="icon-btn attach" type="button" aria-label="Add screenshots"><span class="ms" aria-hidden="true">add_photo_alternate</span></button>
+      <label class="sr-only" for="message">The idea</label>
+      <textarea id="message" rows="1" maxlength="12000" placeholder="What’s the idea?"></textarea>
+      <button id="dictate" class="icon-btn mic" type="button" aria-label="Voice input"><span class="ms" aria-hidden="true">mic</span></button>
+      <button id="send" class="send" type="submit" aria-label="Send idea"><span class="ms" aria-hidden="true">arrow_upward</span></button>
+    </form>
+    <p id="composer-hint" class="hint" hidden><span class="ms" aria-hidden="true">check</span><span id="hint-text"></span></p>
+  </footer>
+</section>
+</main>
+</body>
+</html>

@@ -19,6 +19,7 @@ export const settingsSectionAction = section => {
     case 'alarm_sound': return 'choose_alarm';
     case 'reminder_sound': return 'reminder_sound';
     case 'ai_connection': return 'connect_key';
+    case 'github': return 'connect_github';
     case 'notifications': return 'notifications';
     case 'exact_alarms': return 'exact_alarms';
     default: return null;
@@ -151,6 +152,21 @@ function accountSection(ctx) {
   return section;
 }
 
+/** Repo ideas from the widget go to GitHub, where Claude and Codex pick them up. */
+function repoIdeasSection(ctx) {
+  const section = group('Repo ideas', 'repo-ideas');
+  const s = ctx.state;
+  add(ctx, section, s.githubConnected ? 'Replace GitHub token' : 'Connect GitHub', 'Lists your repos and saves ideas from the widget',
+    s.githubConnected ? (s.githubLogin ? '@' + s.githubLogin : 'Connected') : 'Not connected', 'connect_github');
+  if (s.githubConnected) {
+    add(ctx, section, 'Ideas repo', 'Each idea is saved under ideas/ here', s.ideasRepo || 'Choose', 'ideas_repo');
+    if (s.ideasWaiting) add(ctx, section, 'Send waiting ideas', 'They also send on their own once online', String(s.ideasWaiting), 'send_ideas');
+    add(ctx, section, 'Disconnect GitHub', 'Ideas already sent stay on GitHub', '', 'remove_github');
+  }
+  section.append(el('p', 'settings-note', 'Your words and screenshots stay on this phone until they reach GitHub. Ask Claude or Codex to “pull from recent” to start on one.'));
+  return section;
+}
+
 function diagnosticsSection(ctx) {
   const section = group('Diagnostics', 'diagnostics');
   const log = ctx.state.diagnostics ?? {};
@@ -198,7 +214,7 @@ function render(ctx) {
   notice.setAttribute('aria-live', 'polite');
   notice.hidden = !ctx.noticeText;
   notice.classList.toggle('error', ctx.noticeError);
-  page.append(notice, soundsSection(ctx), widgetsSection(ctx), accountSection(ctx), diagnosticsSection(ctx), aboutSection());
+  page.append(notice, soundsSection(ctx), widgetsSection(ctx), accountSection(ctx), repoIdeasSection(ctx), diagnosticsSection(ctx), aboutSection());
   if (ctx.state.working) page.querySelectorAll('button,input').forEach(node => { node.disabled = true; });
   ctx.host.replaceChildren(page);
   if (focus) ctx.host.querySelector(`[data-action="${focus}"]`)?.focus({preventScroll: true});
