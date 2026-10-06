@@ -29,7 +29,8 @@ final class CompanionSettingsController {
         "set_widget_text_scale","choose_alarm","preview_alarm","stop_preview","reminder_sound",
         "show_butterfly","hide_butterfly","overlay_permission","notifications","exact_alarms",
         "full_screen_alarms","check_alerts","connect_key","remove_key","import_context",
-        "export_context","restore_backup","earlier_screens","diagnostics_connect","diagnostics_pause","diagnostics_resume","diagnostics_disconnect","diagnostics_upload"
+        "export_context","restore_backup","earlier_screens","diagnostics_connect","diagnostics_pause","diagnostics_resume","diagnostics_disconnect","diagnostics_upload",
+        "connect_github","remove_github","ideas_repo","send_ideas"
     );
     private final Activity activity;
     private final Runnable changed;
@@ -79,6 +80,10 @@ final class CompanionSettingsController {
             case "diagnostics_resume":Diagnostics.pause(activity,false);message="Full console capture and upload resumed.";break;
             case "diagnostics_disconnect":Diagnostics.disconnect(activity);message="Disconnected; queued logs cleared. Uploaded logs expire after 14 days.";break;
             case "diagnostics_upload":Diagnostics.uploadNow(activity);message="Upload requested. Reopen Settings to refresh delivery status.";break;
+            case "connect_github":runUi(this::githubDialog);message="Paste a GitHub token in the secure Android dialog.";break;
+            case "remove_github":runUi(this::removeGithubDialog);message="Review the removal confirmation.";break;
+            case "ideas_repo":runUi(this::ideasRepoDialog);message="Choose where repo ideas go.";break;
+            case "send_ideas":{JSONObject sent=RepoIdeas.sendWaiting(activity);int left=sent.optInt("waiting");message=left==0?"Every repo idea is on GitHub.":left+" still waiting"+(sent.has("error")?": "+sent.getString("error"):". They send when you’re online.");notifyChanged();break;}
             case "connect_key":runUi(this::keyDialog);message="Enter the key in the secure Android dialog.";break;
             case "remove_key":runUi(this::removeKeyDialog);message="Review the secure removal confirmation.";break;
             case "import_context":runUi(this::importDialog);message="Review the backup notice, then choose a context file.";break;
@@ -143,6 +148,22 @@ final class CompanionSettingsController {
         AlertDialog dialog=new AlertDialog.Builder(activity).setTitle("Connect OpenRouter").setMessage("Used only for RPM chat. Saved encrypted on this phone; never bundled in the APK.").setView(key).setNegativeButton("Cancel",null).setPositiveButton("Save key",null).create();
         dialog.setOnShowListener(d->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{try{CompanionKey.set(activity,key.getText().toString());key.setText("");dialog.dismiss();notifyChanged();toast("AI key connected.");}catch(Exception e){key.setError("Paste a valid key, then try again.");}}));
         dialog.setOnDismissListener(d->{key.setText("");activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);notifyChanged();});dialog.show();dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+    }
+
+    /** A GitHub token for repo ideas: it lists the repos for the repo capture and commits ideas to the ideas repo. */
+    private void githubDialog(){
+        EditText key=new EditText(activity);key.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);key.setSingleLine(true);key.setHint("GitHub token");key.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);key.setPadding(30,20,30,20);
+        String inbox=RepoIdeas.inbox(activity);
+        AlertDialog dialog=new AlertDialog.Builder(activity).setTitle("Connect GitHub").setMessage("For repo ideas from the widget. RPM lists your repos and saves each idea in "+(inbox.isEmpty()?"your second-brain repo":inbox)+"/ideas, where Claude and Codex read it.\n\nCreate a fine-grained token at github.com → Settings → Developer settings, with access to your repositories and Contents: Read and write. Saved encrypted on this phone.").setView(key).setNegativeButton("Cancel",null).setPositiveButton("Connect",null).create();
+        dialog.setOnShowListener(d->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{String value=key.getText().toString().trim();if(value.length()<20||value.matches(".*\\s.*")){key.setError("Paste the whole token.");return;}key.setText("");dialog.dismiss();background(()->{String done=RepoIdeas.connect(activity,value);ui.post(()->toast(done));},null,false);}));
+        dialog.setOnDismissListener(d->{key.setText("");notifyChanged();});dialog.show();dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+    }
+    private void removeGithubDialog(){new AlertDialog.Builder(activity).setTitle("Disconnect GitHub?").setMessage("Ideas already sent stay in "+RepoIdeas.inbox(activity)+". New ones wait on this phone.").setNegativeButton("Keep",null).setPositiveButton("Disconnect",(d,w)->background(()->RepoIdeas.disconnect(activity),"GitHub disconnected.",false)).show();}
+    private void ideasRepoDialog(){
+        EditText repo=new EditText(activity);repo.setSingleLine(true);repo.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);repo.setText(RepoIdeas.inbox(activity));repo.setHint("owner/repo");repo.setPadding(30,20,30,20);
+        AlertDialog dialog=new AlertDialog.Builder(activity).setTitle("Ideas repo").setMessage("Each idea is saved under ideas/ in this repo. Claude and Codex look for it there.").setView(repo).setNegativeButton("Cancel",null).setPositiveButton("Save",null).create();
+        dialog.setOnShowListener(d->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{try{RepoIdeas.setInbox(activity,repo.getText().toString());dialog.dismiss();notifyChanged();toast("Ideas go to "+RepoIdeas.inbox(activity)+".");}catch(Exception e){repo.setError(e.getMessage());}}));
+        dialog.show();
     }
 
     private void removeKeyDialog(){new AlertDialog.Builder(activity).setTitle("Remove AI key?").setMessage("Your plans and conversations stay on this phone.").setNegativeButton("Keep",null).setPositiveButton("Remove",(d,w)->background(()->CompanionKey.set(activity,null),"AI key removed.",false)).show();}

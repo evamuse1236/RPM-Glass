@@ -4,7 +4,8 @@ import android.appwidget.*;
 import android.content.*;
 import android.widget.RemoteViews;
 
-/** A capture bar: the pill opens Capture ready to type, the mic opens it already listening, the icon opens the planner.
+/** A capture bar: the pill opens Capture ready to type, the mic opens it already listening, the code button opens the
+ *  repo capture (an idea for one of Dara's repos), the icon opens the planner.
  *  The legacy SQLite CaptureActivity is no longer reachable from here (its entries are copied by LegacyImport). */
 public final class RpmWidget extends AppWidgetProvider {
     // Capture and the planner share a task. Without CLEAR_TOP, a tap that matches the task's root intent
@@ -21,18 +22,18 @@ public final class RpmWidget extends AppWidgetProvider {
         for(int id:ids) {
             RemoteViews v=new RemoteViews(c.getPackageName(),R.layout.widget);
             v.setTextViewText(R.id.capture_label,c.getString(fits(c,manager,id)?R.string.widget_capture:R.string.widget_capture_short));
-            capture(c,v,R.id.capture,"capture",2);capture(c,v,R.id.voice,"voice",3);
+            capture(c,v,R.id.capture,"capture",2);capture(c,v,R.id.voice,"voice",3);capture(c,v,R.id.repo,"repo",5);
             Intent open=new Intent(c,PlannerActivity.class).setAction("com.rpm.widget.open").addFlags(SHOW);
             v.setOnClickPendingIntent(R.id.open,PendingIntent.getActivity(c,4,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
             manager.updateAppWidget(id,v);
         }
     }
     // "Capture a thought" needs about 150dp at 16sp; larger text or a narrow bar gets "Capture" instead of an ellipsis.
-    // The pill's text has the bar's width minus padding, the planner icon and the mic (about 132dp).
+    // The pill's text has the bar's width minus padding, the planner icon, the mic and the repo button (about 184dp).
     private static boolean fits(Context c,AppWidgetManager manager,int id){
         int width=manager.getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,0);
         float scale=c.getResources().getConfiguration().fontScale;
-        return width==0||150*scale<=width-132;
+        return width==0||150*scale<=width-184;
     }
     private void capture(Context c,RemoteViews v,int view,String source,int request) {
         // A distinct action keeps each PendingIntent separate.

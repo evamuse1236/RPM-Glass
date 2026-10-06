@@ -1,0 +1,52 @@
+/* Repo capture: Capture's panel and composer (capture.css) plus the repo chips and screenshots.
+   Only theme.css tokens. */
+
+.panel.repo[data-view=repo] .content>:first-child{margin-top:auto}
+.repo .content{gap:12px;padding-top:0}
+/* Like Capture's header: the glyph in a primary-container circle, then the title. */
+.panel.repo[data-view=repo] .brand{display:grid}
+.panel.repo[data-view=repo] .panel-title{font:var(--title-small);margin-left:6px}
+
+/* The repo choice: M3 filter chips, one selected, as in Google's own pickers. */
+.repo-pick{display:flex;flex-direction:column;gap:8px}
+.repo-pick .field-label{margin:0;padding:0 4px}
+.chip-row{display:flex;flex-wrap:wrap;gap:8px}
+.filter-chip{padding:4px 16px}
+.filter-chip .ms{margin-left:-8px}
+.filter-chip.selected{background:var(--secondary-container);border-color:transparent;color:var(--on-secondary-container);padding-left:8px}
+.filter-chip.selected .ms{color:inherit;margin-left:0}
+.filter-chip:not(.selected) .ms{color:var(--primary)}
+.filter-chip:not(.selected)>.ms+.chip-label{margin-left:0}
+.filter-chip:not(.selected):has(>.ms){padding-left:8px}
+.filter-chip:not(.selected):has(>.ms) .ms{margin-left:0}
+.more-chip{padding:4px 8px 4px 16px;gap:4px}
+.more-chip .ms{color:var(--on-surface-variant)}
+
+/* A new repo's name: an M3 outlined field. */
+.repo-name{box-sizing:border-box;width:100%;min-height:48px;margin:0;padding:0 16px;border:1px solid var(--outline);border-radius:var(--shape-xs);background:transparent;color:var(--on-surface);font:var(--body-large);outline:none;caret-color:var(--primary)}
+.repo-name:focus{border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
+.repo-name::placeholder{color:var(--on-surface-variant);opacity:1}
+
+/* Screenshots: a row of thumbnails above the field, each removable. */
+.shots{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:4px 4px 0;margin:0 -4px}
+.shots::-webkit-scrollbar{display:none}
+.shot{position:relative;flex:none;width:64px;height:80px;border-radius:var(--shape-md);overflow:visible}
+.shot img{display:block;width:100%;height:100%;object-fit:cover;object-position:top;border-radius:inherit;background:var(--surface-container-high);box-shadow:inset 0 0 0 1px var(--outline-variant)}
+.shot-remove{position:absolute;top:-4px;right:-4px;width:24px;height:24px;padding:0;border:0;border-radius:50%;background:var(--inverse-surface);color:var(--inverse-on-surface);display:grid;place-items:center;cursor:pointer}
+.shot-remove .ms{font-size:var(--cap-icon-tiny)}
+.shot-remove::after{content:'';position:absolute;inset:-12px}
+
+/* The field carries Add screenshots at its start, like Gemini's +. */
+.repo .composer .attach{margin-right:-4px}
+.repo #message{padding-left:4px}
+.panel.repo[data-has-shots=true]:not([data-has-text=true]) .send{display:grid}
+
+/* All repos: a searchable menu over the content. */
+.repo-list{padding:8px 0 4px}
+.repo-search{box-sizing:border-box;margin:0 12px 8px;min-height:48px;padding:0 16px;border:0;border-radius:var(--shape-full);background:var(--cap-field);color:var(--on-surface);font:var(--body-large);outline:none;caret-color:var(--primary)}
+.repo-search::placeholder{color:var(--on-surface-variant);opacity:1}
+.repo-items{display:flex;flex-direction:column;overflow-y:auto;overscroll-behavior:contain;min-height:0}
+.repo-list .popover-item{min-height:56px}
+.repo-list .popover-sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.popover-note{margin:8px 16px;font:var(--body-medium);color:var(--on-surface-variant)}
+.repo-list>.repo-items>.btn{align-self:flex-start;margin:0 4px 4px}

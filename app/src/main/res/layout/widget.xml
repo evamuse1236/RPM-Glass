@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Material home-screen widget, a capture bar like Google Keep's: the app icon opens the planner, the pill
-     opens Capture ready to type, and the mic opens Capture already listening. Check-ins and reminders are just
-     said in Capture. Colours come from res/values*/colors.xml, which mirror android-companion/theme.css. -->
+     opens Capture ready to type, the mic opens Capture already listening, and the code button at the end opens
+     the repo capture (an idea for a repo, filed for Claude and Codex). Check-ins and reminders are just said in Capture. Colours come from res/values*/colors.xml, which mirror android-companion/theme.css. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@android:id/background"
     android:layout_width="match_parent"
@@ -35,4 +35,10 @@
                 android:src="@drawable/ic_mic" android:tint="@color/rpm_on_primary_container"/>
         </FrameLayout>
     </LinearLayout>
+
+    <FrameLayout android:id="@+id/repo" android:layout_width="48dp" android:layout_height="48dp" android:layout_marginStart="4dp"
+        android:background="@drawable/widget_action" android:contentDescription="@string/widget_repo">
+        <ImageView style="@style/WidgetIcon" android:layout_gravity="center"
+            android:src="@drawable/ic_code" android:tint="@color/rpm_on_surface_variant"/>
+    </FrameLayout>
 </LinearLayout>
