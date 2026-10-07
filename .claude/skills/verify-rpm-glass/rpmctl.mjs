@@ -16,7 +16,7 @@ const STATE = path.join(WORK, 'state.json');
 const EVIDENCE = path.join(WORK, 'evidence');
 const APK = path.join(ROOT, 'app/build/outputs/apk/debug/app-debug.apk');
 const SOURCES = ['app/src/main', 'android-companion', 'chat-prototype', 'cli', 'intent-v2/src', 'intent-v2/adapters', 'intent-v2/prompts', 'scripts/build-companion-assets.mjs', 'app/build.gradle'];
-const DEFAULTS = {avd: 'Galaxy_S24_FE_API_36', port: 5580, gpu: 'swiftshader_indirect', cdpPort: 9333};
+const DEFAULTS = {avd: 'Galaxy_S24_FE_API_36', port: 5580, gpu: 'host', cdpPort: 9333};
 const DISPLAYS = {
   phone: {fontScale: '1.0', rotation: 0, size: null, density: null, note: 'S24 FE portrait, default text'},
   'large-text': {fontScale: '1.3', rotation: 0, size: null, density: null, note: '130% system text'},
@@ -66,7 +66,8 @@ Typical run
 Evidence lives in .verify/evidence/<run-id>/ (gitignored) and survives cleanup.
 Run \`rpmctl <command> --help\` for details.`,
   launch: `launch [--avd NAME] [--port N] [--build] [--no-build] [--apk FILE] [--no-install] [--gpu MODE] [--timeout SECONDS]
-Boots AVD ${DEFAULTS.avd} headless as emulator-<port> (default ${DEFAULTS.port}) with -read-only, so nothing the run does
+Boots AVD ${DEFAULTS.avd} headless as emulator-<port> with the host GPU (--gpu swiftshader_indirect on a machine without one;
+it is 3-4x slower and the slow emulator raises System UI ANR prompts) (default ${DEFAULTS.port}) with -read-only, so nothing the run does
 persists into the AVD. Builds app-debug.apk when it is missing or older than the app sources (--build forces,
 --no-build skips), installs it with all runtime permissions, opens the app and dismisses System UI ANR prompts.
 --apk installs that APK instead (e.g. an older build, to reproduce a past bug); doctor then reports the mismatch.
@@ -249,7 +250,25 @@ async function openLauncher(serial, action) {
   await waitFor(() => appPid(serial), {timeout: 30000, what: 'the app process'});
 }
 
-async function tapElement(serial, cdpPort, query) {
+// The software-rendered emulator can raise "System UI isn't responding" at any time; it sits on top of the app and eats
+// every tap. Answer Wait and try once more before reporting the element as missing.
+// Opens Capture's More menu and waits for the item, since the menu animates in and a slow emulator takes a while.
+async function openMenuItem(serial, cdpPort, item) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    touch(serial, (await tapElement(serial, cdpPort, {name: 'More: planner, history, settings', role: 'button'})).at);
+    for (const until = Date.now() + 6000; Date.now() < until; await sleep(300)) {
+      try { return await tapElement(serial, cdpPort, {name: item, role: 'menuitem'}, true); } catch (e) { if (!(e instanceof UserError)) throw e; }
+    }
+  }
+  throw new UserError(`Capture's More menu did not show "${item}".`, 'Run `rpmctl shot menu` and `rpmctl ui` to see the screen.');
+}
+
+async function tapElement(serial, cdpPort, query, retried = false) {
+  try { return await locateForTap(serial, cdpPort, query); }
+  catch (e) { if (!retried && e instanceof UserError && dismissAnr(serial)) { await sleep(1500); return tapElement(serial, cdpPort, query, true); } throw e; }
+}
+
+async function locateForTap(serial, cdpPort, query) {
   const page = await inPage(serial, cdpPort);
   try {
     const found = await page.evaluate(`(q) => window.__rpmLocate(q)`, {...query, scroll: true});
@@ -358,8 +377,13 @@ const commands = {
     }
     const anr = nativeNodes(serial).some(n => /isn.t responding/i.test(n.text ?? ''));
     add('no-anr-prompt', !anr, anr ? 'a System UI / app not responding prompt is on screen' : 'none', owned ? '`rpmctl tap --native Wait`, then retry.' : 'Dismiss it on the device.');
-    const crashes = errorLines(serial, owned ? state.appLogSince : null).filter(l => /FATAL EXCEPTION|ANR in com\.rpm/.test(l));
-    add('no-app-crash', !crashes.length, crashes.length ? crashes.slice(0, 5) : 'no FATAL EXCEPTION / ANR since launch', 'Read `rpmctl logs --errors`.');
+    // A crash fails only when RPM's own code is in the stack. A cold boot can start the image's old copy of the app
+    // while launch replaces it, and Android then crashes inside its own start-up code; that is reported, not failed.
+    const crashLines = errorLines(serial, owned ? state.appLogSince : null).filter(l => /AndroidRuntime|ANR in com\.rpm/.test(l));
+    const rpmCode = crashLines.some(l => /\bat com\.rpm\.|ANR in com\.rpm/.test(l));
+    add('no-app-crash', !rpmCode, rpmCode ? crashLines.slice(0, 14)
+      : crashLines.length ? {platformOnly: crashLines.filter(l => /Exception|Process:/.test(l)).slice(0, 6), note: 'Android crashed while starting the process; no RPM code in the stack'} : 'no RPM crash or ANR since launch',
+      'Read `rpmctl logs --errors` for the stack.');
     const failed = checks.filter(c => !c.ok);
     return {ok: !failed.length, ...(failed.length ? {firstFix: failed[0].fix} : {}), checks};
   },
@@ -372,6 +396,7 @@ const commands = {
       try { const page = await inPage(serial, cdpPort); try { return await page.evaluate(`document.readyState === 'complete' && !!document.querySelector(${JSON.stringify(selector)})`); } finally { page.close(); } }
       catch (e) { if (e instanceof UserError) return false; throw e; }
     }, {timeout: 45000, every: 400, what: `the ${surface} screen to render`});
+    dismissAnr(serial);
     const plannerInFront = () => /PlannerActivity/.test(foregroundActivity(serial) ?? '');
     let backs = 0;
     if (['capture', 'widget-capture', 'widget-voice', 'history'].includes(surface)) {
@@ -380,17 +405,13 @@ const commands = {
       while (plannerInFront() && backs < 6) { shell(serial, 'input keyevent 4'); backs++; await sleep(700); }
       await rendered('#message');
       if (surface === 'history') {
-        touch(serial, (await tapElement(serial, cdpPort, {name: 'More: planner, history, settings', role: 'button'})).at);
-        await sleep(700);
-        touch(serial, (await tapElement(serial, cdpPort, {name: 'History', role: 'menuitem'})).at);
+        touch(serial, (await openMenuItem(serial, cdpPort, 'History')).at);
       }
     } else if (surface === 'planner') {
       await openLauncher(serial);
       if (!plannerInFront()) {
         await rendered('#message');
-        touch(serial, (await tapElement(serial, cdpPort, {name: 'More: planner, history, settings', role: 'button'})).at);
-        await sleep(700);
-        touch(serial, (await tapElement(serial, cdpPort, {name: 'Open planner', role: 'menuitem'})).at);
+        touch(serial, (await openMenuItem(serial, cdpPort, 'Open planner')).at);
       }
       await rendered('#nav-bar button');
     } else throw new UserError(`Unknown surface "${surface ?? ''}".`, 'One of: capture, planner, history, widget-capture, widget-voice. See `rpmctl open --help`.');
@@ -585,6 +606,7 @@ const commands = {
     const {serial, state} = target(args, {mutates: true});
     const results = [];
     for (const m of wanted) {
+      dismissAnr(serial);
       const t0 = Date.now(), since = shell(serial, "date '+%m-%d %H:%M:%S.000'").trim(), facts = {}, shots = [];
       const ctx = {
         facts,
@@ -670,9 +692,18 @@ class ScenarioFailure extends Error {
 function errorLines(serial, since) {
   const pid = appPid(serial);
   const raw = adb(serial, ['logcat', '-d', ...(since ? ['-T', since] : []), '-v', 'threadtime'], {allowFail: true});
-  return raw.split('\n').filter(l => /FATAL EXCEPTION|ANR in com\.rpm|AndroidRuntime.*com\.rpm/.test(l)
+  const lines = raw.split('\n');
+  // A crash counts only when its "Process:" line names RPM; other apps crashing on a slow emulator are not RPM's failure.
+  const rpmCrash = i => /FATAL EXCEPTION/.test(lines[i]) && lines.slice(i + 1, i + 4).some(l => /Process: com\.rpm\.prototype\b/.test(l));
+  // Keep a crash's whole stack: the AndroidRuntime lines from the crashing pid after "FATAL EXCEPTION".
+  const crashPids = new Set(lines.map((l, i) => rpmCrash(i) ? l.trim().split(/\s+/)[2] : null).filter(Boolean));
+  const inCrash = l => /AndroidRuntime/.test(l) && crashPids.has(l.trim().split(/\s+/)[2]);
+  // Process deaths without a Java crash: the WebView renderer dying, or Android reclaiming memory.
+  const silentDeath = l => /Render process .*(crash|gone|killed)|renderer.*(crash|gone)/i.test(l) && /chromium|cr_|WebView/i.test(l)
+    || /(lowmemorykiller|ActivityManager).*(Kill|kill).*com\.rpm\.prototype|Process com\.rpm\.prototype .* has died/.test(l);
+  return lines.filter((l, i) => rpmCrash(i) || inCrash(l) || silentDeath(l) || /ANR in com\.rpm/.test(l)
     || (/chromium/.test(l) && /Uncaught|CONSOLE.*(error|Error)/.test(l))
-    || (pid && l.includes(` ${pid} `) && /\sE\s/.test(l) && !/eglCodecCommon|EGL_emulation|HostConnection|ashmem|MESA/.test(l))).slice(-80);
+    || (pid && l.includes(` ${pid} `) && /\sE\s/.test(l) && !/eglCodecCommon|EGL_emulation|HostConnection|ashmem|MESA|Frame latency is negative|simple_file_enumerator|simple_index_file/.test(l))).slice(-120);
 }
 
 const argv = parseArgs(process.argv.slice(2));
