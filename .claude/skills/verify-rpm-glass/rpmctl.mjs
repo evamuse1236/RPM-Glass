@@ -42,7 +42,7 @@ Drive
   tap        Tap an element by role/name/css (real touch through adb).
   type       Type text into the focused field.
   key        Press a key (back, enter, home, ...).
-  scroll     Swipe the screen up or down.
+  scroll     Swipe up/down, or left/right across an element (row swipe actions).
   wait       Wait until an element appears or disappears.
   display    Switch screen size / text scale (phone, large-text, max-text, landscape, wide).
 Evidence
@@ -110,8 +110,10 @@ Types into the focused field via DevTools Input.insertText (an IME commit: fires
 --adb uses \`adb shell input text\` instead (ASCII only). Tap the field first.`,
   key: `key <back|enter|home|tab|del|escape|recents|KEYCODE_*>
 Sends an Android key event. back closes sheets, enter submits in the composer.`,
-  scroll: `scroll <down|up> [--amount PX]
-Swipes the middle of the screen by --amount device pixels (default 900) with a real touch gesture.`,
+  scroll: `scroll <down|up|left|right> [--amount PX] [--name TEXT [--role ROLE] | --css SELECTOR] [--ms DURATION]
+A real touch swipe. down/up move the content like a thumb (default 900 device px, from the screen centre).
+left/right swipe sideways (default 500 px), across the named element's centre when --name/--css is given: use it
+for a task row's swipe actions (right = Schedule, left = Delete) or to step days. --ms sets the gesture length.`,
   wait: `wait (--name TEXT [--role ROLE] | --css SELECTOR) [--gone] [--timeout MS]
 Polls the visible WebView every 300ms until the element is on screen (or gone with --gone). Default timeout 10000.`,
   display: `display <${Object.keys(DISPLAYS).join('|')}|reset>
@@ -476,16 +478,20 @@ const commands = {
   },
 
   async scroll(args) {
-    const {serial, state} = target(args, {mutates: true});
+    const {serial, state, cdpPort} = target(args, {mutates: true});
     const dir = args._[0];
-    if (!['up', 'down'].includes(dir)) throw new UserError('Scroll needs a direction.', 'rpmctl scroll down [--amount 900]');
+    if (!['up', 'down', 'left', 'right'].includes(dir)) throw new UserError('Scroll needs a direction.', 'rpmctl scroll down [--amount 900] | rpmctl scroll right --name "Buy a new notebook"');
     const [w, h] = (displayInfo(serial).size ?? '1080x2340').split('x').map(Number);
-    const amount = Number(args.amount ?? 900), mid = Math.round(h / 2), x = Math.round(w / 2);
-    const [from, to] = dir === 'down' ? [mid + amount / 2, mid - amount / 2] : [mid - amount / 2, mid + amount / 2];
-    shell(serial, `input swipe ${x} ${Math.round(from)} ${x} ${Math.round(to)} 350`);
+    let [x, y] = [Math.round(w / 2), Math.round(h / 2)];
+    if (args.name || args.css) [x, y] = (await tapElement(serial, cdpPort, {name: args.name, role: args.role, css: args.css, nth: args.nth === undefined ? undefined : Number(args.nth)})).at;
+    const vertical = dir === 'up' || dir === 'down';
+    const amount = Number(args.amount ?? (vertical ? 900 : 500)), sign = dir === 'down' || dir === 'left' ? -1 : 1;
+    const [x1, y1, x2, y2] = vertical ? [x, y - sign * amount / 2, x, y + sign * amount / 2] : [x - sign * amount / 2, y, x + sign * amount / 2, y];
+    const clamp = (v, max) => Math.max(5, Math.min(max - 5, Math.round(v)));
+    shell(serial, `input swipe ${clamp(x1, w)} ${clamp(y1, h)} ${clamp(x2, w)} ${clamp(y2, h)} ${Number(args.ms ?? 350)}`);
     await sleep(700);
-    journal(state, {command: 'scroll', dir, amount});
-    return {ok: true, scrolled: dir, amount};
+    journal(state, {command: 'scroll', dir, amount, at: [x, y]});
+    return {ok: true, scrolled: dir, amount, at: [x, y]};
   },
 
   async wait(args) {

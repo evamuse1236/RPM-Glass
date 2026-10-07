@@ -8,7 +8,7 @@ export async function pageTargets(serial, port) {
   if (!shell(serial, 'cat /proc/net/unix').includes(socket))
     throw new UserError(`No WebView debug socket for pid ${pid}.`, 'Install the debug APK (`launch --build`); release builds do not expose WebView debugging.');
   adb(serial, ['forward', `tcp:${port}`, `localabstract:${socket}`]);
-  const res = await fetch(`http://127.0.0.1:${port}/json`).catch(e => { throw new UserError(`DevTools did not answer on port ${port}: ${e.message}`, 'Run `doctor`; if another tool holds the port, pass --cdp-port.'); });
+  const res = await fetch(`http://127.0.0.1:${port}/json`, {signal: AbortSignal.timeout(8000)}).catch(e => { throw new UserError(`DevTools did not answer on port ${port}: ${e.message}`, 'If the app is in the background, bring it forward with `rpmctl open capture`. Otherwise run `doctor`; if another tool holds the port, pass --cdp-port.'); });
   return (await res.json()).filter(t => t.type === 'page').map(t => ({...t, view: JSON.parse(t.description || '{}')}));
 }
 
@@ -24,7 +24,7 @@ export async function visiblePage(serial, port) {
 
 export async function connect(target) {
   const ws = new WebSocket(target.webSocketDebuggerUrl);
-  await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = () => reject(new UserError('Could not attach to the WebView.', 'Close Chrome DevTools (chrome://inspect) if it is attached to the same page, then retry.')); });
+  await new Promise((resolve, reject) => { ws.onopen = resolve; setTimeout(() => reject(new UserError('The WebView did not accept a DevTools connection within 8s.', 'Bring the app to the front (`rpmctl open capture`) and close any other DevTools client, then retry.')), 8000); ws.onerror = () => reject(new UserError('Could not attach to the WebView.', 'Close Chrome DevTools (chrome://inspect) if it is attached to the same page, then retry.')); });
   let next = 0;
   const pending = new Map();
   ws.onmessage = event => {
@@ -33,7 +33,8 @@ export async function connect(target) {
   };
   const send = (method, params = {}) => new Promise((resolve, reject) => {
     const id = ++next;
-    pending.set(id, msg => msg.error ? reject(new Error(`${method}: ${msg.error.message}`)) : resolve(msg.result));
+    const timer = setTimeout(() => { pending.delete(id); reject(new UserError(`The page did not answer ${method} within 30s.`, 'The app may be frozen or in the background: run `rpmctl doctor` and `rpmctl logs --errors`.')); }, 30000);
+    pending.set(id, msg => { clearTimeout(timer); msg.error ? reject(new Error(`${method}: ${msg.error.message}`)) : resolve(msg.result); });
     ws.send(JSON.stringify({id, method, params}));
   });
   const evaluate = async (expression, arg) => {
@@ -55,7 +56,7 @@ export const SNAPSHOT = function snapshot(all) {
   const nameOf = el => {
     const by = el.getAttribute('aria-labelledby');
     if (by) return by.split(/\s+/).map(id => document.getElementById(id)).filter(Boolean).map(text).join(' ');
-    return (el.getAttribute('aria-label') || (el.labels?.[0] && text(el.labels[0])) || text(el) || el.getAttribute('placeholder') || el.getAttribute('title') || el.value || '').trim();
+    return (el.getAttribute('aria-label') || (el.labels?.[0] && text(el.labels[0])) || text(el) || el.getAttribute('placeholder') || el.getAttribute('title') || el.value || '').replace(/\s+/g, ' ').trim();
   };
   const shown = el => {
     if (el.closest('[hidden],[inert],[aria-hidden="true"]')) return false;
@@ -103,7 +104,7 @@ export const LOCATE = function locate({role, name, css, nth, scroll}) {
     return {match: {role: el.tagName.toLowerCase(), name: (el.getAttribute('aria-label') || el.innerText || '').trim().slice(0, 80), rect: [r.left, r.top, r.width, r.height]}, viewport: [innerWidth, innerHeight]};
   }
   pool = snap.elements.filter(e => !role || e.role === role);
-  const want = (name ?? '').toLowerCase();
+  const want = (name ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
   let hits = pool.filter(e => e.name.toLowerCase() === want);
   if (!hits.length && want) hits = pool.filter(e => e.name.toLowerCase().includes(want));
   if (!hits.length) return {error: `No ${role ?? 'element'} named "${name}" on screen`, candidates: pool.filter(e => e.role !== 'text').slice(0, 40).map(e => `${e.role} "${e.name}"`)};
