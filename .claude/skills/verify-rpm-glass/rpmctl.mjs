@@ -4,12 +4,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 import {PACKAGE, LAUNCHER, UserError, adb, shell, devices, startEmulator, processAlive, killTree, sleep, waitFor,
   appPid, foregroundActivity, displayInfo, nativeNodes, dismissAnr, sdkRoot} from './lib/device.mjs';
 import {inPage, toDevice, pageTargets} from './lib/page.mjs';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+const SKILL = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(SKILL, '../../..');
 const WORK = path.join(ROOT, '.verify');
 const STATE = path.join(WORK, 'state.json');
 const EVIDENCE = path.join(WORK, 'evidence');
@@ -82,9 +83,13 @@ Output: {ok, checks:[{name, ok, detail, fix?}]}. ok=false names the first fix to
   history        Capture sheet -> More -> "History".
   widget-capture The intent the home-screen widget's Capture bar sends (com.rpm.widget.capture).
   widget-voice   The intent the widget's mic sends (com.rpm.widget.voice); starts voice input.
-PlannerActivity is not exported, so the planner can only be reached through the app's own UI.`,
+PlannerActivity is not exported, so the planner can only be reached through the app's own UI.
+The launcher and am start resume the app's task as it was, so when the planner is in front, capture/widget-*
+press Back (like a user) until Capture shows; the output reports pressedBackFromPlanner. The real widget clears
+the task instead (CLEAR_TOP), which am start cannot reproduce.`,
   seed: `seed [--empty | --file companion.json]
-Force-stops the app and writes files/companion.json through run-as (owned emulator, debug build only).
+Force-stops the app, deletes all its data (files, shared_prefs, databases, WebView storage, so no draft or
+legacy record carries over) and writes files/companion.json through run-as (owned emulator, debug build only).
 Default data is scripts/gauntlet/seed.mjs: 4 Areas, 8 Blocks, ~35 tasks, Inbox items, dates relative to now,
 so Today, Blocks, Inbox and the weekly review have something to show. --empty deletes the store (fresh-install
 state). --file loads a store you saved earlier (e.g. from \`rpmctl state files/companion.json\`).
@@ -123,6 +128,13 @@ With a path (e.g. files/companion.json): prints its text. Debug builds only.`,
   logs: `logs [--errors] [--lines N]
 Logcat for the app's process plus WebView console lines (tag chromium). --errors keeps only crashes, ANRs,
 uncaught exceptions and console errors since launch. Default --lines 200.`,
+  scenario: `scenario (--list | --all | <id>...)
+Runs scenarios from .claude/skills/verify-rpm-glass/scenarios/ on the owned emulator. Each one seeds its own data,
+drives the app like a user, asserts the rule it encodes, and saves shots named <id>-*. After each scenario the runner
+also fails it if a raw script error is on screen or the page logged an uncaught error.
+A scenario marked knownBug is a recorded product bug: it is reported as known-bug while it fails and as
+known-bug-fixed (a failure: delete the marker) once it passes. ok=true when every scenario passes or is a known bug.
+Output: {ok, results:[{id, status, ms, facts, failure?, shots}]}`,
   check: `check [--only js|cloud|java|rules]
 Runs npm test (JS, Convex, typecheck, Java) and npm run check:rules (regression checks from past corrections).
 Logs go to .verify/evidence/<run-id>/check-*.log. ok=false if any step fails.`,
@@ -186,9 +198,12 @@ function target(args, {mutates}) {
   return {serial, state: owned ? state : null, cdpPort: Number(args.cdpPort ?? state?.cdpPort ?? DEFAULTS.cdpPort)};
 }
 
+// .bat and .cmd launchers (gradlew.bat, npm.cmd) need cmd.exe on Windows.
+const viaShell = (cmd, args) => process.platform === 'win32' ? ['cmd.exe', ['/d', '/s', '/c', cmd, ...args]] : [cmd, args];
+
 function build() {
   const gradlew = path.join(ROOT, process.platform === 'win32' ? 'gradlew.bat' : 'gradlew');
-  const r = spawnSync(gradlew, ['--no-daemon', '-q', 'assembleDebug'], {cwd: ROOT, encoding: 'utf8', shell: process.platform === 'win32', windowsHide: true, maxBuffer: 64 * 1024 * 1024});
+  const r = spawnSync(...viaShell(gradlew, ['--no-daemon', '-q', 'assembleDebug']), {cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024});
   if (r.status !== 0) throw new UserError(`Gradle assembleDebug failed:\n${(r.stderr || r.stdout).trim().slice(-2000)}`, 'Fix the build error above, run `npm ci` if node_modules is missing, then `rpmctl launch --build`.');
 }
 
@@ -319,21 +334,35 @@ const commands = {
   async open(args) {
     const {serial, state} = target(args, {mutates: true});
     const surface = args._[0];
-    if (surface === 'capture') await openLauncher(serial);
-    else if (surface === 'widget-capture' || surface === 'widget-voice') await openLauncher(serial, `com.rpm.widget.${surface.slice(7)}`);
-    else if (surface === 'planner' || surface === 'history') {
+    const {cdpPort} = target(args, {mutates: false});
+    const rendered = async selector => waitFor(async () => {
+      try { const page = await inPage(serial, cdpPort); try { return await page.evaluate(`document.readyState === 'complete' && !!document.querySelector(${JSON.stringify(selector)})`); } finally { page.close(); } }
+      catch (e) { if (e instanceof UserError) return false; throw e; }
+    }, {timeout: 20000, every: 400, what: `the ${surface} screen to render`});
+    const plannerInFront = () => /PlannerActivity/.test(foregroundActivity(serial) ?? '');
+    let backs = 0;
+    if (['capture', 'widget-capture', 'widget-voice', 'history'].includes(surface)) {
+      await openLauncher(serial, surface.startsWith('widget-') ? `com.rpm.widget.${surface.slice(7)}` : undefined);
+      // The launcher (and am start) resume the task as it was; the real widget clears it. Back out of the planner like a user.
+      while (plannerInFront() && backs < 6) { shell(serial, 'input keyevent 4'); backs++; await sleep(700); }
+      await rendered('#message');
+      if (surface === 'history') {
+        touch(serial, (await tapElement(serial, cdpPort, {name: 'More: planner, history, settings', role: 'button'})).at);
+        await sleep(700);
+        touch(serial, (await tapElement(serial, cdpPort, {name: 'History', role: 'menuitem'})).at);
+      }
+    } else if (surface === 'planner') {
       await openLauncher(serial);
-      await sleep(1200);
-      const t = target(args, {mutates: true});
-      const menu = await tapElement(serial, t.cdpPort, {name: 'More: planner, history, settings', role: 'button'});
-      touch(serial, menu.at);
-      await sleep(700);
-      const item = await tapElement(serial, t.cdpPort, {name: surface === 'planner' ? 'Open planner' : 'History', role: 'menuitem'});
-      touch(serial, item.at);
-      if (surface === 'planner') await waitFor(async () => (await pageTargets(serial, t.cdpPort)).some(p => p.view.visible && /planner\.html/.test(p.url)), {timeout: 20000, every: 500, what: 'the planner page'});
+      if (!plannerInFront()) {
+        await rendered('#message');
+        touch(serial, (await tapElement(serial, cdpPort, {name: 'More: planner, history, settings', role: 'button'})).at);
+        await sleep(700);
+        touch(serial, (await tapElement(serial, cdpPort, {name: 'Open planner', role: 'menuitem'})).at);
+      }
+      await rendered('#nav-bar button');
     } else throw new UserError(`Unknown surface "${surface ?? ''}".`, 'One of: capture, planner, history, widget-capture, widget-voice. See `rpmctl open --help`.');
-    await sleep(1000);
-    const out = {ok: true, surface, activity: foregroundActivity(serial)};
+    await sleep(600);
+    const out = {ok: true, surface, activity: foregroundActivity(serial), ...(backs ? {pressedBackFromPlanner: backs} : {})};
     journal(state, {command: 'open', args: args._, result: out});
     return out;
   },
@@ -349,9 +378,9 @@ const commands = {
       const local = path.join(evidenceDir(state), 'seed-companion.json');
       fs.writeFileSync(local, JSON.stringify(data));
       adb(serial, ['push', local, '/data/local/tmp/rpm-seed.json']);
-      adb(serial, ['shell', 'run-as', PACKAGE, 'sh', '-c', "'mkdir -p files && rm -f files/companion.json.new files/companion.json.bak && cp /data/local/tmp/rpm-seed.json files/companion.json'"]);
+      adb(serial, ['shell', 'run-as', PACKAGE, 'sh', '-c', "'rm -rf files shared_prefs databases app_webview cache && mkdir -p files && cp /data/local/tmp/rpm-seed.json files/companion.json'"]);
       adb(serial, ['shell', 'rm', '-f', '/data/local/tmp/rpm-seed.json']);
-    } else adb(serial, ['shell', 'run-as', PACKAGE, 'sh', '-c', "'rm -f files/companion.json files/companion.json.new files/companion.json.bak'"]);
+    } else adb(serial, ['shell', 'run-as', PACKAGE, 'sh', '-c', "'rm -rf files shared_prefs databases app_webview cache'"]);
     await openLauncher(serial);
     await sleep(2000);
     const stored = adb(serial, ['exec-out', 'run-as', PACKAGE, 'cat', 'files/companion.json'], {allowFail: true});
@@ -509,6 +538,51 @@ const commands = {
     return {ok: true, pid, lines};
   },
 
+  async scenario(args) {
+    const dir = path.join(SKILL, 'scenarios');
+    const mods = [];
+    for (const f of fs.readdirSync(dir).filter(f => f.endsWith(".mjs")).sort()) { const m = await import(pathToFileURL(path.join(dir, f)).href); if (m.id && m.run) mods.push(m); }
+    if (args.list) return {ok: true, scenarios: mods.map(m => ({id: m.id, rule: m.rule, enforces: m.enforces, knownBug: m.knownBug ?? null}))};
+    const wanted = args.all ? mods : mods.filter(m => args._.includes(m.id));
+    if (!wanted.length) throw new UserError('No scenario selected.', `Pass --all or ids from \`rpmctl scenario --list\`: ${mods.map(m => m.id).join(', ')}`);
+    const {serial, state} = target(args, {mutates: true});
+    const results = [];
+    for (const m of wanted) {
+      const t0 = Date.now(), since = shell(serial, "date '+%m-%d %H:%M:%S.000'").trim(), facts = {}, shots = [];
+      const ctx = {
+        facts,
+        do: async (cmd, ...argv) => {
+          const out = await commands[cmd](parseArgs(argv.map(String)));
+          if (out.ok === false) throw new ScenarioFailure(`${cmd} ${argv.join(' ')} failed`, out);
+          if (cmd === 'shot') shots.push(out.png);
+          return out;
+        },
+        read: async (fn, arg) => { const page = await inPage(serial, Number(state.cdpPort)); try { return await page.evaluate(String(fn), arg ?? null); } finally { page.close(); } },
+        store: async () => (await commands.state(parseArgs(['files/companion.json']))).json,
+        expect: (condition, message, detail) => { if (!condition) throw new ScenarioFailure(message, detail); },
+        shot: label => ctx.do('shot', `${m.id}-${label}`),
+      };
+      let status = 'pass', failure = null;
+      try {
+        await m.run(ctx);
+        const shown = await ctx.read(() => [...document.querySelectorAll('#snackbar, .sheet-error, .snackbar-text, [role=alert], .error, #status')].filter(n => !n.closest('[hidden]')).map(n => n.textContent).join(' | '));
+        ctx.expect(!/Cannot read|TypeError|ReferenceError|is not a function|is not defined|\bundefined\b|\bnull\b/.test(shown), 'A raw script error is on screen', shown);
+        const errors = errorLines(serial, since).filter(l => /Uncaught|FATAL EXCEPTION/.test(l));
+        ctx.expect(!errors.length, 'The page logged an uncaught error or the app crashed', errors.slice(0, 5));
+      } catch (e) {
+        status = 'fail';
+        failure = {message: e.message, detail: e.detail ?? e.fix ?? e.stack?.split('\n').slice(0, 3)};
+        try { await ctx.shot('failure'); } catch {}
+      }
+      // A known bug only excuses the failure it describes; any other failure still fails the run.
+      if (m.knownBug) status = status === 'pass' ? 'known-bug-fixed' : m.knownBug.failsWith.test(failure.message) ? 'known-bug' : 'fail';
+      results.push({id: m.id, status, ms: Date.now() - t0, facts, ...(failure ? {failure} : {}), ...(m.knownBug ? {knownBug: m.knownBug} : {}), shots});
+    }
+    const out = {ok: results.every(r => r.status === 'pass' || r.status === 'known-bug'), results};
+    journal(state, {command: 'scenario', result: out});
+    return out;
+  },
+
   async check(args) {
     const state = readState();
     const dir = evidenceDir(state);
@@ -518,7 +592,7 @@ const commands = {
     for (const name of wanted) {
       if (!steps[name]) throw new UserError(`Unknown check "${name}".`, `One of ${Object.keys(steps).join(', ')}.`);
       const t0 = Date.now();
-      const r = spawnSync('npm', ['run', '--silent', steps[name]], {cwd: ROOT, encoding: 'utf8', shell: process.platform === 'win32', windowsHide: true, maxBuffer: 64 * 1024 * 1024});
+      const r = spawnSync(...viaShell('npm', ['run', '--silent', steps[name]]), {cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024});
       const log = path.join(dir, `check-${name}.log`);
       fs.writeFileSync(log, `$ npm run ${steps[name]}\nexit ${r.status}\n\n${r.stdout}\n${r.stderr}`);
       const summary = (r.stdout + r.stderr).split('\n').filter(l => /^ℹ (tests|pass|fail)|Tests? +\d|PASS:|FAIL|✖|error TS|rule /.test(l)).slice(0, 12);
@@ -545,6 +619,10 @@ const commands = {
     return {ok: true, killedEmulatorPid: args.keepEmulator ? null : state.pid, evidence: dir, evidenceFiles: fs.readdirSync(dir).length};
   },
 };
+
+class ScenarioFailure extends Error {
+  constructor(message, detail) { super(message); this.detail = detail; }
+}
 
 function errorLines(serial, since) {
   const pid = appPid(serial);
