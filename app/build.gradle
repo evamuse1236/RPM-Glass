@@ -1,4 +1,8 @@
 plugins { id "com.android.application" }
+def rpmLocalProperties = new Properties()
+def rpmLocalFile = rootProject.file('local.properties')
+if (rpmLocalFile.exists()) rpmLocalFile.withInputStream { rpmLocalProperties.load(it) }
+def rpmDebugKeystore = rpmLocalProperties.getProperty('rpm.debugKeystore')
 android {
     namespace "com.rpm.prototype"
     compileSdk 36
@@ -14,6 +18,18 @@ android {
         coreLibraryDesugaringEnabled true
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+    }
+    if (rpmDebugKeystore) {
+        def originalKeystore = rootProject.file(rpmDebugKeystore)
+        if (!originalKeystore.isFile()) throw new GradleException('Configured RPM signing keystore is missing.')
+        signingConfigs {
+            debug {
+                storeFile originalKeystore
+                storePassword 'android'
+                keyAlias 'androiddebugkey'
+                keyPassword 'android'
+            }
+        }
     }
 }
 dependencies { coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5' }
