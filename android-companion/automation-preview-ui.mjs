@@ -1,11 +1,12 @@
 import {createFocusPreview,focusDecision,createMockUpdateAdapters,createUpdatePreview} from './automation-preview.mjs';
+import {userMessage} from './user-message.mjs';
 const el=(tag,text='',cls='')=>{const n=document.createElement(tag);n.textContent=text;n.className=cls;return n;};
 export function automationPreview(){
   const section=el('section','','settings-group');section.dataset.section='automation-preview';section.append(el('h2','Automation previews'),el('p','Try sample events. These previews do not hide real notifications, block apps, build updates or send messages.','settings-note'));
   function field(label,value,type){const wrap=el('label','','field'),input=el('input');input.type=type;input.value=value;wrap.append(el('span',label),input);section.append(wrap);return input;}
   const start=field('Focus starts','09:00','time'),end=field('Focus ends','11:00','time'),time=field('Sample event time','09:30','time');
   const out=el('p','','settings-note');out.setAttribute('role','status');const focus=createFocusPreview();let sequence=0;
-  function action(label,fn){const b=el('button',label,'menu-action link');b.type='button';b.addEventListener('click',async()=>{b.disabled=true;try{await fn();}catch(e){out.textContent=e.message;}finally{b.disabled=false;}});section.append(b);}
+  function action(label,fn){const b=el('button',label,'menu-action link');b.type='button';b.addEventListener('click',async()=>{b.disabled=true;try{await fn();}catch(e){out.textContent=userMessage(e);}finally{b.disabled=false;}});section.append(b);}
   const schedule=()=>({start:start.value,end:end.value,time:time.value});
   action('Preview notification batch',()=>{const result=focus.receive({id:String(++sequence),title:'Sample notification'},schedule());out.textContent=result.notification==='batch'?`${result.queued} sample notifications held out of view until release.`:'Outside focus hours: the sample notification appears normally.';});
   action('Release sample batch',()=>{const digest=focus.release();out.textContent=digest.length?`Sample digest: ${digest.length} notifications ready to review.`:'No sample notifications waiting.';});

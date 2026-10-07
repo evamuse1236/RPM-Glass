@@ -3,6 +3,7 @@
 import {formattedReply} from '../chat-prototype/reply-format.mjs';
 import {addedSummary} from './capture-content.mjs';
 import {el,icon,button,details} from './capture-dom.mjs';
+import {userMessage} from './user-message.mjs';
 
 /** "Your words are saved" with the exact words, only after the save is confirmed. */
 export function savedWords(raw,{title='Your words are saved'}={}){
@@ -120,7 +121,7 @@ export function keptCard(capture,{aiEnabled}){
  if(!aiEnabled)note='Connect an AI key to sort this into tasks. Your words stay saved either way.';
  else if(capture.lastError)note='Couldn’t sort this yet. Retry, or edit your words.';
  card.append(el('p','state-note',note));
- if(aiEnabled&&capture.lastError?.message)card.append(details('What happened',[el('p','detail-note',capture.lastError.message)]));
+ if(aiEnabled&&capture.lastError)card.append(details('What happened',[el('p','detail-note',userMessage(capture.lastError))]));
  return card;
 }
 

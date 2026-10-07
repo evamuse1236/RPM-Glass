@@ -1,5 +1,6 @@
 /** Settings: an M3 list inside the planner, backed by native actions. The planner's top bar owns Back. */
 import {automationPreview} from './automation-preview-ui.mjs';
+import {userMessage} from './user-message.mjs';
 
 const el = (tag, cls = '', text = '') => {
   const node = document.createElement(tag);
@@ -238,7 +239,7 @@ async function refresh(ctx) {
     }
   } catch (error) {
     if (ctx.destroyed) return;
-    const message = error.message || 'Settings could not be refreshed.';
+    const message = userMessage(error, 'Settings could not be refreshed.');
     if (ctx.state) announce(ctx, message, true);
     else loadError(ctx, message);
   }
@@ -257,7 +258,7 @@ async function act(ctx, action, payload = {}) {
   } catch (error) {
     if (ctx.destroyed) return;
     render(ctx);
-    announce(ctx, error.message || 'That setting could not be changed.', true);
+    announce(ctx, userMessage(error, 'That setting could not be changed.'), true);
   }
 }
 

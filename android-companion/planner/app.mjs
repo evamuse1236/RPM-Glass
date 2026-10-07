@@ -8,6 +8,7 @@ import {notice} from './snackbar.mjs';
 import {closeSheet, discardDraft, isSheetOpen} from './sheet.mjs';
 import {closeMenu} from './menu.mjs';
 import {carryFocus} from './inline-edit.mjs';
+import {userMessage} from '../user-message.mjs';
 
 export const TABS = ['today', 'blocks', 'projects', 'life'];
 /** Names Capture uses for the planning focus (see planner-tools planningFocus). */
@@ -160,7 +161,7 @@ function installNavigation(app) {
       projectId: app.current()?.kind === 'projects' ? app.current().id : null,
     };
     try { localStorage.setItem('rpm-capture-context', JSON.stringify(focus)); } catch {}
-    app.api.native('capture').catch(error => app.notice(error.message));
+    app.api.native('capture').catch(error => app.notice(userMessage(error)));
   };
 }
 
@@ -332,8 +333,8 @@ export async function commit(app, op, {keepSheet = false, label = 'Saved', undo 
     return id;
   } catch (error) {
     const slot = app.dom.sheet.hidden ? null : app.dom.sheet.querySelector('.sheet-error');
-    if (slot) slot.textContent = error.message;
-    else notice(app, error.message);
+    if (slot) slot.textContent = userMessage(error);
+    else notice(app, userMessage(error));
     throw error;
   } finally {
     app.saving = false;

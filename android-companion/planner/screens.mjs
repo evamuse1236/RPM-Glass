@@ -10,6 +10,7 @@ import {renderProjects, renderProjectDetail} from './projects.mjs';
 import {renderLife, renderAreaDetail, renderGoalDetail, shiftLifePeriod} from './life.mjs';
 import {renderSearch} from './search.mjs';
 import {screenKey} from './app.mjs';
+import {userMessage} from '../user-message.mjs';
 
 const DETAILS = {blocks: renderBlockDetail, projects: renderProjectDetail, areas: renderAreaDetail, goals: renderGoalDetail};
 const ROOTS = {today: renderToday, blocks: renderBlocks, projects: renderProjects, life: renderLife};
@@ -23,7 +24,7 @@ function mountSettingsScreen(app, host) {
     clarity = mountClaritySettings(host);
   } catch (error) {
     host.replaceChildren(emptyState({symbol: 'error', title: 'Settings unavailable',
-      body: error.message || 'Could not load settings.', action: () => app.openSettings(), label: 'Try again'}));
+      body: userMessage(error, 'Could not load settings.'), action: () => app.openSettings(), label: 'Try again'}));
   }
   app.mounted = {key: screenKey(app), controller: {
     handleBack: () => settings?.handleBack?.() ?? false,

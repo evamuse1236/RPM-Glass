@@ -3,6 +3,7 @@ import {el, button} from './dom.mjs';
 import {openSheet, field, select, checkbox} from './sheet.mjs';
 import {blockMenu, revealNotes, focusTitleOnOpen} from './blocks.mjs';
 import {persist} from './inline-edit.mjs';
+import {userMessage} from '../user-message.mjs';
 
 export const NAMES = {projects: 'Project', blocks: 'Block', areas: 'Area', goals: 'Goal'};
 /** Draft slot names stay stable so drafts saved by earlier versions (and Capture seeds) restore. */
@@ -163,7 +164,7 @@ export function entityEditor(app, collection, id = null, defaults = {}, draftMet
       if (!id && collection === 'projects' && saved) app.openProject(saved);
       if (!id && collection === 'blocks' && saved && !app.current()) app.openBlock(saved);
     } catch (problem) {
-      error.textContent = problem.message;
+      error.textContent = userMessage(problem);
     }
   }, 'filled-btn');
   actions.append(button('Cancel', () => app.dom.sheet.querySelector('.sheet-close')?.click(), 'text-btn'), save);

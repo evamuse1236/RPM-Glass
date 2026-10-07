@@ -5,6 +5,7 @@
  * the timer pauses while a text field has focus and resumes when it is left. */
 import {playMotion, stopMotion, reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
 import {el, button} from './dom.mjs';
+import {userMessage} from '../user-message.mjs';
 
 let timer = null;
 let leaving = 0;
@@ -131,7 +132,7 @@ export function notice(app, message, options = {}) {
         app.mounted?.controller?.refresh?.();
         notice(app, 'Change undone');
       } catch (error) {
-        notice(app, error.message);
+        notice(app, userMessage(error));
       }
     }, 'snackbar-action'));
   }

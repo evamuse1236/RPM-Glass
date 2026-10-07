@@ -16,6 +16,7 @@ import {dueInfo, clock, duration, plural, timeRange} from './planner/format.mjs'
 import {areaDot} from './planner/dom.mjs';
 import {attachTaskSwipe} from './task-swipe.mjs';
 import {animateRerender, sharedAxis, ghost, reducedMotion, releaseTail, waitMotion, MOTION, DURATION, EASE} from './surface-motion.mjs';
+import {userMessage} from './user-message.mjs';
 
 const STEPS = [
   {name: "Last week's Results", next: 'Next: empty your head'},
@@ -158,7 +159,7 @@ function createActions(ctx, week, ui, render) {
       try {
         await ctx.commit(mutator, label);
       } catch (error) {
-        ui.hint = error?.message ?? 'That change could not be saved.';
+        ui.hint = userMessage(error, 'That change could not be saved.');
       } finally {
         ui.busy = false;
       }
