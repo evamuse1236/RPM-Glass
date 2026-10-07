@@ -12,6 +12,19 @@ Run `npm ci` once, then `npm test`. It needs Node 22 and a JDK 17 (`java` and `j
 
 The device checks in `app/src/androidTest/` are not part of `npm test`. They need an emulator or phone and are run by hand before a phone release with `./gradlew connectedDebugAndroidTest`. `scripts/build-debug.sh` builds the debug APK, runs lint and assembles the test APK.
 
+## Driving the real app
+
+`npm test` does not open the app. To see a change on Android, use the `verify-rpm-glass` skill in `.claude/skills/verify-rpm-glass/`. Its CLI boots a read-only emulator sized like the Galaxy S24 FE, installs the debug build from this checkout, and drives Capture and the planner by accessible name:
+
+```bash
+node .claude/skills/verify-rpm-glass/rpmctl.mjs launch
+node .claude/skills/verify-rpm-glass/rpmctl.mjs doctor
+node .claude/skills/verify-rpm-glass/rpmctl.mjs scenario --all
+node .claude/skills/verify-rpm-glass/rpmctl.mjs cleanup
+```
+
+`features/` in that folder holds one recipe per feature. Screenshots and saved-data readbacks go to `.verify/evidence/` (not tracked) and survive `cleanup`. `rpmctl doctor --serial <phone>` compares a connected phone's installed version and signing key with the local build without changing the phone.
+
 ## Verification history
 
 The current **0.23-readable-capture** build is [verified and installed on the physical phone](capture-motion-fit-verification-2026-09-28.md). It includes the composited motion repair and the correction to the user’s keyboard-open frame: a complete readable update card, compact estimate, and no empty starter or duplicate instruction row. Current checks: 428 JavaScript tests, 272 native Capture assertions across 31 layouts, 22 focused fit/save/Undo checks, 28 motion checks, build/lint, physical screenshot inspection, exact installed APK verification and lossless app/draft preservation.
