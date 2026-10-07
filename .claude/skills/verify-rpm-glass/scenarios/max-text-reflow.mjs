@@ -34,7 +34,8 @@ function clipped(exceptions) {
   const nav = [...document.querySelectorAll('#nav-bar button')].map(b => {
     const label = [...b.querySelectorAll('*')].find(n => !n.closest('[aria-hidden="true"]') && !n.children.length && n.textContent.trim()) ?? b;
     const r = label.getBoundingClientRect();
-    return {label: label.textContent.trim(), shown: r.width > 0 && r.height > 0 && r.left >= 0 && r.right <= innerWidth + 1 && r.top >= 0 && r.bottom <= innerHeight + 1};
+    const ls = getComputedStyle(label);
+    return {label: label.textContent.trim(), shown: ls.visibility !== 'hidden' && Number(ls.opacity) > 0.1 && r.width > 0 && r.height > 0 && r.left >= 0 && r.right <= innerWidth + 1 && r.top >= 0 && r.bottom <= innerHeight + 1};
   });
   return {out, excepted, nav};
 }

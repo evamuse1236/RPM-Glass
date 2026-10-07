@@ -17,14 +17,14 @@ const git = (root, args) => { try { return execFileSync('git', ['-c', 'core.quot
 export function changedAppFiles(root) {
   const base = ['origin/main', 'main'].map(ref => git(root, ['merge-base', 'HEAD', ref])?.trim()).find(Boolean);
   if (!base) return {base: null, files: []};
-  const committed = (git(root, ['diff', '--name-only', '-z', `${base}..HEAD`]) ?? '').split('\0');
+  const committed = (git(root, ['diff', '--name-only', '--no-renames', '-z', `${base}..HEAD`]) ?? '').split('\0');
   const status = (git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']) ?? '').split('\0');
   const working = [];
   for (let i = 0; i < status.length; i++) {
     const entry = status[i];
     if (!entry) continue;
     working.push(entry.slice(3));
-    if (/^R|^C/.test(entry)) i++;
+    if (/^R|^C/.test(entry)) working.push(status[++i]);
   }
   return {base, files: [...new Set([...committed, ...working].filter(Boolean))].filter(isAppFile)};
 }
@@ -44,7 +44,7 @@ export function matchingEvidence(root, apkSha) {
     if (!e.name.endsWith('.png')) continue;
     let meta = null;
     try { meta = JSON.parse(fs.readFileSync(p.replace(/\.png$/, '.json'), 'utf8')); } catch {}
-    if (!meta?.launchedByRpmctl || meta.apkSha256 !== apkSha) continue;
+    if (!meta?.launchedByRpmctl || meta.apkSha256 !== apkSha || fs.statSync(p).size < 1000) continue;
     const m = fs.statSync(p).mtimeMs;
     if (!newest || m > newest.mtime) newest = {file: p, mtime: m};
   } };
@@ -65,6 +65,8 @@ export function evidenceGap(root) {
   if (unbuilt.length) return `The debug APK is older than changed app code (${list(unbuilt)}), so no screenshot can show it yet. ${how}`;
   const evidence = matchingEvidence(root, crypto.createHash('sha256').update(fs.readFileSync(apk)).digest('hex'));
   if (!evidence) return `No rpmctl screenshot was taken with the current debug APK installed (app code changed: ${list(changed)}). ${how}`;
+  const unshown = changed.filter(f => changedAt(root, f) > evidence.mtime);
+  if (unshown.length) return `App code changed after the newest matching screenshot (${path.relative(root, evidence.file)}): ${list(unshown)}. ${how}`;
   return null;
 }
 

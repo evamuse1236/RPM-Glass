@@ -31,7 +31,7 @@ function build(root, content, at) {
 function shot(root, name, meta, at) {
   const dir = path.join(root, '.verify/evidence/run');
   fs.mkdirSync(dir, {recursive: true});
-  fs.writeFileSync(path.join(dir, name + '.png'), '');
+  fs.writeFileSync(path.join(dir, name + '.png'), Buffer.alloc(2000));
   fs.writeFileSync(path.join(dir, name + '.json'), JSON.stringify(meta));
   touch(path.join(dir, name + '.png'), at);
 }

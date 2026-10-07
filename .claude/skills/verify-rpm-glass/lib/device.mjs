@@ -85,10 +85,10 @@ export function foregroundActivity(serial) {
 }
 
 export function displayInfo(serial) {
-  const size = shell(serial, 'wm size').match(/(Override|Physical) size: (\d+)x(\d+)/g) ?? [];
-  const density = shell(serial, 'wm density').match(/(\d+)\s*$/m)?.[1];
-  const fontScale = shell(serial, 'settings get system font_scale').trim();
-  const rotation = shell(serial, 'settings get system user_rotation').trim();
+  const size = shell(serial, 'wm size', {allowFail: true}).match(/(Override|Physical) size: (\d+)x(\d+)/g) ?? [];
+  const density = shell(serial, 'wm density', {allowFail: true}).match(/(\d+)\s*$/m)?.[1];
+  const fontScale = shell(serial, 'settings get system font_scale', {allowFail: true}).trim();
+  const rotation = shell(serial, 'settings get system user_rotation', {allowFail: true}).trim();
   return {size: size.at(-1)?.replace(/.*: /, '') ?? null, density: Number(density), fontScale: fontScale === 'null' ? '1.0' : fontScale, rotation: rotation === 'null' ? '0' : rotation};
 }
 

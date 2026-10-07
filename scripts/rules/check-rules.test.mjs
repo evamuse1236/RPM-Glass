@@ -37,8 +37,10 @@ test('raw-error-text sees renamed catch bindings, computed access, destructuring
     "p.catch(oops => show(oops['message']));",
     "try { a(); } catch ({message}) { show(message); }",
     "if (error.message === 'x') show(error.message);",
+    "p.catch(async oops => show(oops.message));",
+    "const {message} = err; show(message);",
   ].join('\n')});
   try {
-    assert.deepEqual(check(root).map(p => p.match(/:(\d+): /)[1]), ['1', '2', '3', '4']);
+    assert.deepEqual(check(root).map(p => p.match(/:(\d+): /)[1]), ['1', '2', '3', '4', '5', '6']);
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });

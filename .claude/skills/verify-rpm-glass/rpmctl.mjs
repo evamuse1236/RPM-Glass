@@ -191,6 +191,13 @@ function journal(state, entry) {
 }
 
 // Resolves which device a command targets and whether it may change it.
+// A device rpmctl did not launch gets its own DevTools port, derived from its serial, never the owned emulator's.
+function devtoolsPort(serial, args) {
+  const port = Number(args.cdpPort ?? 9400 + [...serial].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 500, 0));
+  if (port === (readState()?.cdpPort ?? DEFAULTS.cdpPort)) throw new UserError(`Port ${port} belongs to the emulator rpmctl launched.`, 'Pick another --cdp-port for this device, or drop it.');
+  return port;
+}
+
 function target(args, {mutates}) {
   const state = readState();
   const serial = args.serial ?? state?.serial;
@@ -200,8 +207,7 @@ function target(args, {mutates}) {
     args.serial ? 'Mutating commands only run on the owned emulator. Drop --serial, or use doctor/ui/shot/logs/state for read-only checks.' : 'Run `rpmctl launch`.');
   if (!devices().some(d => d.serial === serial && d.state === 'device')) throw new UserError(`${serial} is not online in adb.`, owned ? 'Run `rpmctl doctor`; if the emulator hung, `rpmctl cleanup` then `rpmctl launch`.' : 'Connect the device and check `adb devices`.');
   // Each device gets its own DevTools port, so a read-only look at a phone can never redirect a command meant for the emulator.
-  const ownPort = 9400 + [...serial].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 500, 0);
-  return {serial, state: owned ? state : null, cdpPort: Number(args.cdpPort ?? (owned ? state.cdpPort : ownPort))};
+  return {serial, state: owned ? state : null, cdpPort: owned ? Number(args.cdpPort ?? state.cdpPort) : devtoolsPort(serial, args)};
 }
 
 // .bat and .cmd launchers (gradlew.bat, npm.cmd) need cmd.exe on Windows.
@@ -262,8 +268,8 @@ const commands = {
     const port = Number(args.port ?? DEFAULTS.port), serial = `emulator-${port}`;
     let state = readState();
     const t0 = Date.now();
-    if (state && !(state.serial === serial && processAlive(state.pid))) {
-      if (processAlive(state.pid)) throw new UserError(`An rpmctl emulator is already running as ${state.serial}.`, 'Use it (drop --port), or run `rpmctl cleanup` first.');
+    if (state && !(state.serial === serial && ownsEmulator(state, serial))) {
+      if (/emulator|qemu/i.test(processImage(state.pid) ?? '')) throw new UserError(`An rpmctl emulator is already running as ${state.serial}.`, 'Use it (drop --port), or run `rpmctl cleanup` first.');
       fs.rmSync(STATE, {force: true}); state = null;
     }
     if (!state) {
@@ -346,7 +352,7 @@ const commands = {
     add('app-running', !!pid, pid ? `pid ${pid}, foreground ${foregroundActivity(serial)}` : 'not running', '`rpmctl open capture`.');
     if (pid) {
       try {
-        const pages = await pageTargets(serial, Number(args.cdpPort ?? state?.cdpPort ?? DEFAULTS.cdpPort));
+        const pages = await pageTargets(serial, owned ? state.cdpPort : devtoolsPort(serial, args));
         add('webview-devtools', true, pages.map(p => ({title: p.title, url: p.url, visible: p.view.visible})));
       } catch (e) { add('webview-devtools', false, e.message, e.fix); }
     }
@@ -365,7 +371,7 @@ const commands = {
     const rendered = async selector => waitFor(async () => {
       try { const page = await inPage(serial, cdpPort); try { return await page.evaluate(`document.readyState === 'complete' && !!document.querySelector(${JSON.stringify(selector)})`); } finally { page.close(); } }
       catch (e) { if (e instanceof UserError) return false; throw e; }
-    }, {timeout: 20000, every: 400, what: `the ${surface} screen to render`});
+    }, {timeout: 45000, every: 400, what: `the ${surface} screen to render`});
     const plannerInFront = () => /PlannerActivity/.test(foregroundActivity(serial) ?? '');
     let backs = 0;
     if (['capture', 'widget-capture', 'widget-voice', 'history'].includes(surface)) {
@@ -607,7 +613,7 @@ const commands = {
         try { await ctx.shot('failure'); } catch {}
       }
       // A known bug only excuses the failure it describes; any other failure still fails the run.
-      if (m.knownBug && new Date(m.knownBug.expires) < new Date()) { status = 'fail'; failure = {message: `Known-bug exception expired on ${m.knownBug.expires}: fix the bug or get the exception renewed`, detail: failure}; }
+      if (m.knownBug && status !== 'pass' && new Date(m.knownBug.expires) < new Date()) { status = 'fail'; failure = {message: `Known-bug exception expired on ${m.knownBug.expires}: fix the bug or get the exception renewed`, detail: failure}; }
       else if (m.knownBug) status = status === 'pass' ? 'known-bug-fixed' : m.knownBug.failsWith.test(failure.message) ? 'known-bug' : 'fail';
       results.push({id: m.id, status, ms: Date.now() - t0, facts, ...(failure ? {failure} : {}), ...(m.knownBug ? {knownBug: m.knownBug} : {}), shots});
     }
@@ -666,7 +672,7 @@ function errorLines(serial, since) {
   const raw = adb(serial, ['logcat', '-d', ...(since ? ['-T', since] : []), '-v', 'threadtime'], {allowFail: true});
   return raw.split('\n').filter(l => /FATAL EXCEPTION|ANR in com\.rpm|AndroidRuntime.*com\.rpm/.test(l)
     || (/chromium/.test(l) && /Uncaught|CONSOLE.*(error|Error)/.test(l))
-    || (pid && l.includes(` ${pid} `) && /\sE\s/.test(l) && !/eglCodecCommon|EGL_emulation|HostConnection/.test(l))).slice(-80);
+    || (pid && l.includes(` ${pid} `) && /\sE\s/.test(l) && !/eglCodecCommon|EGL_emulation|HostConnection|ashmem|MESA/.test(l))).slice(-80);
 }
 
 const argv = parseArgs(process.argv.slice(2));

@@ -27,11 +27,12 @@ const ERROR_NAMES = ['error', 'err', 'e', 'problem', 'failure', 'lastError', 're
 // dotted or computed access, and destructuring in a catch parameter. A comparison (error.message === '...') is not display.
 function rawErrorReads(text) {
   const names = new Set(ERROR_NAMES);
-  for (const m of text.matchAll(/catch\s*\(\s*([A-Za-z_$][\w$]*)\s*\)|\.catch\(\s*\(?\s*([A-Za-z_$][\w$]*)\s*\)?\s*=>/g)) names.add(m[1] ?? m[2]);
+  for (const m of text.matchAll(/catch\s*\(\s*([A-Za-z_$][\w$]*)\s*\)|\.catch\(\s*(?:async\s+)?\(?\s*([A-Za-z_$][\w$]*)\s*\)?\s*=>/g)) names.add(m[1] ?? m[2]);
   const alt = [...names].map(n => n.replace(/\$/g, '\\$')).join('|');
   const read = new RegExp(`\\b(?:${alt})(?:\\?\\.|\\.)message\\b(?!\\s*[!=]==)|\\b(?:${alt})\\??\\.?\\[\\s*['"]message['"]\\s*\\]`);
   const destructure = /catch\s*\(\s*\{[^}]*\bmessage\b|\.catch\(\s*\(?\s*\{[^}]*\bmessage\b/;
-  return line => read.test(line) || destructure.test(line);
+  const fromError = new RegExp(`\\{[^}]*\\bmessage\\b[^}]*\\}\\s*=\\s*(?:${alt})\\b`);
+  return line => read.test(line) || destructure.test(line) || fromError.test(line);
 }
 
 export const RULES = [

@@ -57,6 +57,8 @@ Preconditions:
 
 ## Gotchas
 
+- Known bug as of 2026-10-07: at `display max-text` the empty field hint reads `Capture a though` with the last letter cut at the mic button. The text measures 1 px narrower than the field, so the max-text scenario cannot catch it; check the screenshot. Evidence: `.verify/evidence/2026-10-07T15-24-56/20-capture-hint-cut-max-text.png`.
+
 - The Capture sheet closes itself after a receipt unless touched. The keyless path has no receipt, so it stays open.
 - The apostrophes in the keyless note and the starter text are curly (`’`). Use the substring `Without an AI key` or `planned today` in `tap --name`.
 - `Send` and the keyboard Enter both send. Shift+Enter makes a new line.
