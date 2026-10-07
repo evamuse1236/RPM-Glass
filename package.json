@@ -14,7 +14,8 @@
     "cli": "node cli/rpm.mjs",
     "chat": "node chat-prototype/companion-server.mjs",
     "build:android-assets": "node scripts/build-companion-assets.mjs",
-    "check:rules": "node scripts/rules/check-rules.mjs && node --test scripts/rules/*.test.mjs"
+    "check:rules": "node scripts/rules/check-rules.mjs && node --test scripts/rules/*.test.mjs",
+    "check:evidence": "node scripts/agent/require-evidence.mjs"
   },
   "dependencies": {
     "chrono-node": "2.10.1",

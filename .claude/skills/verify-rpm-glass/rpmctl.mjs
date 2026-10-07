@@ -65,10 +65,12 @@ Typical run
 
 Evidence lives in .verify/evidence/<run-id>/ (gitignored) and survives cleanup.
 Run \`rpmctl <command> --help\` for details.`,
-  launch: `launch [--avd NAME] [--port N] [--build] [--no-build] [--gpu MODE] [--timeout SECONDS]
+  launch: `launch [--avd NAME] [--port N] [--build] [--no-build] [--apk FILE] [--no-install] [--gpu MODE] [--timeout SECONDS]
 Boots AVD ${DEFAULTS.avd} headless as emulator-<port> (default ${DEFAULTS.port}) with -read-only, so nothing the run does
 persists into the AVD. Builds app-debug.apk when it is missing or older than the app sources (--build forces,
 --no-build skips), installs it with all runtime permissions, opens the app and dismisses System UI ANR prompts.
+--apk installs that APK instead (e.g. an older build, to reproduce a past bug); doctor then reports the mismatch.
+--no-install leaves whatever the emulator image already has (doctor shows its version and signer).
 Idempotent: when the owned emulator is already up it only re-installs if the APK changed and re-opens the app.
 Refuses to use a port where an emulator it did not start is running.
 Output: {ok, serial, pid, runId, evidence, apk:{versionName, sha256}, bootSeconds}`,
@@ -201,20 +203,30 @@ function target(args, {mutates}) {
 // .bat and .cmd launchers (gradlew.bat, npm.cmd) need cmd.exe on Windows.
 const viaShell = (cmd, args) => process.platform === 'win32' ? ['cmd.exe', ['/d', '/s', '/c', cmd, ...args]] : [cmd, args];
 
+// SHA-256 of the APK's signing certificate, via the SDK's apksigner (needs Java on PATH or JAVA_HOME).
+function signer(apk) {
+  const tools = path.join(sdkRoot(), 'build-tools');
+  const latest = fs.existsSync(tools) ? fs.readdirSync(tools).sort((a, b) => a.localeCompare(b, undefined, {numeric: true})).at(-1) : null;
+  if (!latest) return null;
+  const bin = path.join(tools, latest, process.platform === 'win32' ? 'apksigner.bat' : 'apksigner');
+  const r = spawnSync(...viaShell(bin, ['verify', '--print-certs', apk]), {encoding: 'utf8', windowsHide: true});
+  return r.stdout?.match(/certificate SHA-256 digest: ([0-9a-f]+)/)?.[1] ?? null;
+}
+
 function build() {
   const gradlew = path.join(ROOT, process.platform === 'win32' ? 'gradlew.bat' : 'gradlew');
   const r = spawnSync(...viaShell(gradlew, ['--no-daemon', '-q', 'assembleDebug']), {cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024});
   if (r.status !== 0) throw new UserError(`Gradle assembleDebug failed:\n${(r.stderr || r.stdout).trim().slice(-2000)}`, 'Fix the build error above, run `npm ci` if node_modules is missing, then `rpmctl launch --build`.');
 }
 
-function install(serial) {
-  const r = adb(serial, ['install', '-r', '-g', APK], {allowFail: true, timeout: 180000});
+function install(serial, apk) {
+  const r = adb(serial, ['install', '-r', '-g', apk], {allowFail: true, timeout: 180000});
   if (/Success/.test(r)) return 'installed';
   const err = r + '';
   // Only reachable on the owned -read-only emulator, so removing a differently signed copy never touches real data.
   if (/INSTALL_FAILED_UPDATE_INCOMPATIBLE|signatures do not match/.test(err)) {
     adb(serial, ['uninstall', PACKAGE], {allowFail: true});
-    const again = adb(serial, ['install', '-r', '-g', APK], {timeout: 180000});
+    const again = adb(serial, ['install', '-r', '-g', apk], {timeout: 180000});
     if (/Success/.test(again)) return 'replaced-differently-signed-copy';
   }
   throw new UserError(`APK install failed: ${err.trim().slice(0, 500)}`, 'Run `rpmctl doctor`; rebuild with `rpmctl launch --build`.');
@@ -264,12 +276,14 @@ const commands = {
       shell(serial, 'settings put global stay_on_while_plugged_in 7', {allowFail: true});
       shell(serial, 'settings put system accelerometer_rotation 0', {allowFail: true});
     }
-    if (args.build || (!args.noBuild && apkStale())) build();
-    if (!fs.existsSync(APK)) throw new UserError('No debug APK.', 'Run `rpmctl launch --build`.');
-    const apkHash = sha256(fs.readFileSync(APK));
-    const installedHash = state.installedSha256;
-    const installResult = installedHash === apkHash && shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).includes('package:') ? 'already-installed' : install(serial);
-    state.installedSha256 = apkHash;
+    const apk = args.apk ? path.resolve(String(args.apk)) : APK;
+    if (!args.apk && (args.build || (!args.noBuild && apkStale()))) build();
+    if (!fs.existsSync(apk)) throw new UserError(`No APK at ${apk}.`, 'Run `rpmctl launch --build`.');
+    const apkHash = sha256(fs.readFileSync(apk));
+    const installed = shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).includes('package:');
+    const installResult = args.noInstall ? (installed ? 'skipped (kept what the emulator had)' : 'skipped (not installed)')
+      : state.installedSha256 === apkHash && installed ? 'already-installed' : install(serial, apk);
+    if (!args.noInstall) state.installedSha256 = apkHash;
     state.appLogSince = shell(serial, "date '+%m-%d %H:%M:%S.000'").trim();
     writeState(state);
     dismissAnr(serial);
@@ -277,7 +291,7 @@ const commands = {
     await sleep(2500);
     const anr = dismissAnr(serial);
     const out = {ok: true, serial, pid: state.pid, runId: state.runId, evidence: evidenceDir(state), install: installResult,
-      apk: {...gradleVersion(), sha256: apkHash}, dismissedAnr: anr, seconds: Math.round((Date.now() - t0) / 1000),
+      apk: {path: path.relative(ROOT, apk), ...(args.apk ? {} : gradleVersion()), sha256: apkHash}, dismissedAnr: anr, seconds: Math.round((Date.now() - t0) / 1000),
       next: 'rpmctl doctor'};
     journal(state, {command: 'launch', result: out});
     return out;
@@ -311,7 +325,16 @@ const commands = {
       const local = sha256(fs.readFileSync(APK));
       const remotePath = shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).match(/package:(\S+base\.apk)/)?.[1];
       const remote = remotePath ? sha256(adb(serial, ['exec-out', 'cat', remotePath], {binary: true})) : null;
-      add('installed-apk-matches-local-build', local === remote, {local: local.slice(0, 16), installed: remote?.slice(0, 16)}, 'The device runs a different build. `rpmctl launch` installs the local one.');
+      add('installed-apk-matches-local-build', local === remote, {local: local.slice(0, 16), installed: remote?.slice(0, 16)}, owned ? 'The device runs a different build. `rpmctl launch` installs the local one.' : 'The phone runs a different build than this checkout. Compare branch, working tree and installed version before any release (AGENTS.md).');
+      if (remotePath) {
+        const pulled = path.join(WORK, 'installed-base.apk');
+        fs.mkdirSync(WORK, {recursive: true});
+        fs.writeFileSync(pulled, adb(serial, ['exec-out', 'cat', remotePath], {binary: true}));
+        const [mine, theirs] = [signer(APK), signer(pulled)];
+        fs.rmSync(pulled, {force: true});
+        add('installed-signer-matches-local', !!mine && mine === theirs, {local: mine?.slice(0, 16) ?? 'apksigner unavailable', installed: theirs?.slice(0, 16) ?? 'apksigner unavailable'},
+          owned ? '`rpmctl launch` replaces it on this throwaway emulator.' : 'This build cannot update the installed app in place: Android would require an uninstall, which deletes the app data. Do not uninstall. Build with the key the installed app was signed with (docs/phone-setup.md).');
+      }
       const src = newestSource();
       add('apk-newer-than-sources', !apkStale(), {apkBuilt: new Date(fs.statSync(APK).mtimeMs).toISOString(), newestSource: src.file}, 'Sources changed since the build: `rpmctl launch --build`.');
     } else add('local-apk', false, 'app/build/outputs/apk/debug/app-debug.apk missing', '`rpmctl launch --build`.');
