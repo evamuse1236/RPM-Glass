@@ -4,6 +4,7 @@ import {planningRequest, readPlanningResponse, jevSortRequest, readJevSortRespon
   from '../planner-ai.mjs';
 import {el, icon, button} from './dom.mjs';
 import {openSheet} from './sheet.mjs';
+import {userMessage} from '../user-message.mjs';
 
 const TITLES = {sort: 'Sort with Jev', purpose: 'Purpose suggestion', ideas: 'Goal ideas'};
 
@@ -28,7 +29,7 @@ function showSortPreview(app, preview, body, actions, explanation = 'Proposed ar
         app.closeSheet();
         app.notice('Suggestion dismissed. Your plan was not changed.');
       } catch (error) {
-        app.notice(error.message);
+        app.notice(userMessage(error));
       }
     }, 'text-btn'),
     button('Apply arrangement', async () => {
@@ -38,7 +39,7 @@ function showSortPreview(app, preview, body, actions, explanation = 'Proposed ar
         app.goTab('blocks');
         app.notice('Arrangement applied', {undo: true});
       } catch (error) {
-        app.notice(error.message);
+        app.notice(userMessage(error));
       }
     }, 'filled-btn'),
   );
@@ -124,7 +125,7 @@ export async function aiAction(app, action, blockId = null) {
     }
   } catch (error) {
     if (!body.isConnected) return;
-    status.textContent = error.message;
+    status.textContent = userMessage(error);
     status.className = 'sheet-error';
   }
 }

@@ -6,6 +6,7 @@ import {el, icon, button, labelButton} from './dom.mjs';
 import {clock, relativeDay, timeRange} from './format.mjs';
 import {openSheet, field, checkbox} from './sheet.mjs';
 import {selectDay, setDayLayout} from './today.mjs';
+import {userMessage} from '../user-message.mjs';
 
 let serial = 0;
 
@@ -101,7 +102,7 @@ export async function calendarEditor(app) {
     if (!result.permitted) {
       body.append(el('p', '', 'Allow read access to choose calendars. Capture and RPM reminders work without it.'));
       actions.append(button('Refresh', () => calendarEditor(app), 'text-btn'), button('Allow access', async () => {
-        try { await app.api.native('calendarPermission'); } catch (error) { app.notice(error.message); }
+        try { await app.api.native('calendarPermission'); } catch (error) { app.notice(userMessage(error)); }
       }, 'filled-btn'));
       return;
     }
@@ -118,11 +119,11 @@ export async function calendarEditor(app) {
         await refreshCalendar(app);
         app.notice('Calendar selection saved');
       } catch (error) {
-        app.notice(error.message);
+        app.notice(userMessage(error));
       }
     }, 'filled-btn'));
   } catch (error) {
-    body.append(el('p', 'sheet-error', error.message));
+    body.append(el('p', 'sheet-error', userMessage(error)));
     actions.append(button('Retry', () => calendarEditor(app), 'text-btn'));
   }
 }

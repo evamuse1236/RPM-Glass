@@ -134,7 +134,7 @@ test('failure to persist prevents the API request; later write failure keeps the
   const later=new Workflow(emptyData(),{now,save:()=>{if(++writes>1)throw new Error('disk full');},interpreter:interpreter(extraction())});
   await assert.rejects(later.sendAsync(raw));assert.equal(later.get().raw,raw);assert.equal(later.get().interpretation.status,'pending');assert.equal(later.get().alert,null);
 });
-test('private key file is parsed as data and never executed',()=>{
+test('private key file is parsed as data and never executed',{skip:process.platform==='win32'&&'Windows has no POSIX file modes, so readApiKey always refuses'},()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'rpm-key-test-'));const file=path.join(dir,'key.env');
   try{fs.writeFileSync(file,'OPENROUTER_API_KEY="test-only-token"\nUNRELATED=$(false)\n',{mode:0o600});assert.equal(readApiKey(file,{OPENROUTER_API_KEY:'different-test-key'}),'test-only-token');fs.chmodSync(file,0o644);assert.throws(()=>readApiKey(file,{}),/private/);}finally{fs.rmSync(dir,{recursive:true,force:true});}
 });

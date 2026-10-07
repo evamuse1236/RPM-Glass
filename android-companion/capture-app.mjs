@@ -10,6 +10,7 @@ import {installComposer,listeningCard} from './capture-composer.mjs';
 import {createSendIdentity,draftToKeep,STARTERS} from './capture-session.mjs';
 import {dueText} from './capture-content.mjs';
 import {el,icon,button} from './capture-dom.mjs';
+import {userMessage} from './user-message.mjs';
 
 const TITLES={listening:'Voice input',chat:'Capture',history:'History',conversation:'Conversation',context:'Context',about:'About'};
 const ACTIVE=new Set(['draft','review']);
@@ -151,7 +152,7 @@ export function mountCapture(platform){
     composer.set(draftText,{focus:false});
     rememberComposer(draftText);
    }
-   const text=error.message==='Failed to fetch'?'The phone did not respond. Your words are kept.':error.message;
+   const text=error.message==='Failed to fetch'?'The phone did not respond. Your words are kept.':userMessage(error);
    s.failure={payload,saved,text:request?.text,error:text,actionFailed:!request?.card,inBox:!!request?.text&&message.value===request.text};
    reveal.settle(null,{failed:true});
    render();
@@ -214,7 +215,7 @@ export function mountCapture(platform){
  async function captureAction(action){
   if(s.busy)return;
   try{await platform.captureAction(action);}
-  catch(error){status(error.message,true);}
+  catch(error){status(userMessage(error),true);}
  }
 
  // ---- auto close after Add -----------------------------------------------
@@ -323,7 +324,7 @@ export function mountCapture(platform){
    return set;
   },
  });
- const responseKey=c=>c?JSON.stringify([c.messageId,c.reply,c.draft?.revision,c.draft?.status,c.lastError?.message,c.notes?.map(n=>n.keptTaskId)]):null;
+ const responseKey=c=>c?JSON.stringify([c.messageId,c.reply,c.draft?.revision,c.draft?.status,c.lastError?.message/* rules-allow raw-error-text: a render key, never shown */,c.notes?.map(n=>n.keptTaskId)]):null;
 
   // Field-first: nothing sits above the composer. The trust line lives under it (see syncHint)
  // and the planning starters live in More.
@@ -525,7 +526,7 @@ export function mountCapture(platform){
    if(result?.text){composer.append(result.text);status('Check your words, then send.');}
   }catch(error){
    s.listening=false;render();
-   status(error.message,true);
+   status(userMessage(error),true);
   }
  }
 

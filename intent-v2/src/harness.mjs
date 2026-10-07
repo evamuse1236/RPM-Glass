@@ -1,3 +1,4 @@
+import {userMessage} from '../../android-companion/user-message.mjs';
 import {validateFollowUp,draftFollowUpProblem} from './follow-up.mjs';
 import {intentState} from './repository.mjs';
 import {sourceUnits,buildContext,guardsFor,checkGuards,stable,findEntity,contextEntity} from './context.mjs';
@@ -50,7 +51,7 @@ export class IntentHarness {
   conversation(data,capture.conversationId);
   const activeDraft=capture.focusDraftId?v.drafts[capture.focusDraftId]:null;
   if(activeDraft&&(!activeStatus(activeDraft)||activeDraft.revision!==capture.focusRevision))return {messageId,status:'stale',error:'The focused draft changed; the original is kept.'};
-  let units;try{units=sourceUnits(capture.raw);}catch(error){return {messageId,status:'captured',error:error.message};}
+  let units;try{units=sourceUnits(capture.raw);}catch(error){return {messageId,status:'captured',error:userMessage(error)};}
   const context=buildContext(data,{messageId,raw:capture.raw,conversationId:capture.conversationId,now:new Date(capture.at),timezone:capture.timezone});
   // Referenced draft targets are explicitly visible, even when not keyword-relevant.
   if(activeDraft)for(const op of activeDraft.operations){
@@ -84,7 +85,7 @@ export class IntentHarness {
      // Network/provider failures are not repaired. Invalid structured content or
      // local semantic validation errors may use the one stronger-model attempt.
      if(error.code==='TRANSPORT_ERROR')throw error;
-     repair={validationError:error.message};
+     repair={validationError:error.message/* rules-allow raw-error-text: sent back to the model as a repair hint, never shown */};
     }finally{clearTimeout(timer);}
    }
    const result=await this.repository.transact(`interpret:${messageId}`,{messageId},current=>{
@@ -105,7 +106,7 @@ export class IntentHarness {
     return {messageId,draftId,status:'interpreted',calls};
    });
    this.emit({type:'ready',...result});return result;
-  }catch(error){const result={messageId,status:'captured',error:error.message,code:error.code??'INTERPRETATION_FAILED',calls};
+  }catch(error){const result={messageId,status:'captured',error:userMessage(error),code:error.code??'INTERPRETATION_FAILED',calls};
    // Keep the retry state beside the durable raw capture. A failure receipt uses
    // one stable ID per capture, so repeated outages do not grow the ledger.
    try{await this.repository.transact(`interpret-failure:${messageId}`,{messageId},current=>{const saved=intentState(current).captures[messageId];if(saved&&saved.status!=='interpreted')saved.lastError={message:result.error,code:result.code,at:this.clock().toISOString()};return result;});}catch{/* Raw capture was already committed; surface the original model error. */}

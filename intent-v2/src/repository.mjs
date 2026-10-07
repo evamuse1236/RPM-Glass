@@ -26,7 +26,7 @@ export function createRepository(backend,{maxConflictRetries=2}={}){
      let recovered;try{recovered=await load();}catch{throw new SaveUnknownError(id);}
      const receipt=recovered.intentV2?.transactions?.[id];
      if(receipt){if(receipt.signature!==signature)throw new Error('REQUEST_ID_REUSED');return structuredClone(receipt.result);}
-     const message=error.message??'';
+     const message=error.message??''; // rules-allow raw-error-text: classifies a save conflict, never shown
      const conflict=error.code==='VERSION_CONFLICT'||/Saved context changed|Saved data changed|Version conflict/i.test(message);
      if(conflict&&attempt<maxConflictRetries)continue;
      // These are validation/capacity rejections performed before the AtomicFile

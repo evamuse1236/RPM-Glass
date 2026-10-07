@@ -42,7 +42,7 @@ export function installDiagnostics({host=window,sessionId=crypto.randomUUID(),cl
     if(timers.size>1000)timers.delete(timers.keys().next().value);if(counts.size>1000)counts.delete(counts.keys().next().value);
     emit('console',['error','assert'].includes(method)?'error':method==='warn'?'warn':method==='debug'?'debug':method==='info'?'info':'log',{method,args:method==='assert'?args.slice(1):args,...extra});
   };}
-  const onError=e=>emit('exception','error',{error:e.error??e.message,source:e.filename,line:e.lineno,column:e.colno},{operation:'javascript',outcome:'error'});
+  const onError=e=>emit('exception','error',{error:e.error??e.message/* rules-allow raw-error-text: diagnostics log, never shown */,source:e.filename,line:e.lineno,column:e.colno},{operation:'javascript',outcome:'error'});
   const onRejection=e=>emit('rejection','error',{error:e.reason},{operation:'promise',outcome:'error'});
   host.addEventListener?.('error',onError);host.addEventListener?.('unhandledrejection',onRejection);
   try{host.RpmNative?.diagnosticsReady?.();}catch{}
