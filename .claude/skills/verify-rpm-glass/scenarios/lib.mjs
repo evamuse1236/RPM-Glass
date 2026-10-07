@@ -10,10 +10,11 @@ export async function openBlock(t, name = 'RM critical review drafted') {
 export async function waitForKeyboard(t) {
   for (let i = 0; i < 20; i++) {
     const inset = await t.read(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--keyboard-inset')) || 0);
-    if (inset > 50) return inset;
+    // Android's own keyboard state, independent of the inset the page uses, so a broken inset bridge cannot pass.
+    if (inset > 50 && t.keyboardShown()) return inset;
     await sleep(300);
   }
-  return 0;
+  t.expect(false, 'The keyboard never opened, so this step cannot test what covers the field', null);
 }
 
 // What covers the focused field: the part of the screen under the keyboard, or a bar, snackbar or FAB drawn over it.

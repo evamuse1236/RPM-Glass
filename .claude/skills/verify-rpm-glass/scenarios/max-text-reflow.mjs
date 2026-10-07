@@ -19,12 +19,27 @@ function clipped(exceptions) {
     const s = getComputedStyle(el);
     const cutsX = s.textOverflow === 'ellipsis' || s.overflowX === 'hidden' || s.overflow === 'hidden';
     const clamp = s.webkitLineClamp && s.webkitLineClamp !== 'none';
-    if ((cutsX && el.scrollWidth > el.clientWidth + 1) || (clamp && el.scrollHeight > el.clientHeight + 1))
+    const r = el.getBoundingClientRect();
+    // A parent that hides overflow (not one that scrolls) can cut text that fits its own box.
+    let clippedByParent = false;
+    for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+      const as = getComputedStyle(a);
+      if (!/hidden|clip/.test(as.overflowX)) continue;
+      const ar = a.getBoundingClientRect();
+      if (r.left < ar.left - 1 || r.right > ar.right + 1) { clippedByParent = true; break; }
+    }
+    if ((cutsX && el.scrollWidth > el.clientWidth + 1) || (clamp && el.scrollHeight > el.clientHeight + 1) || clippedByParent)
       (exceptions.some(x => el.classList.contains(x.cls)) ? excepted : out).push({text: el.textContent.replace(/\s+/g, ' ').trim().slice(0, 60), tag: el.tagName.toLowerCase(), cls: String(el.className).slice(0, 40)});
   }
-  const nav = [...document.querySelectorAll('#nav-bar button')].map(b => ({label: b.innerText.trim(), shown: b.innerText.trim().length > 0}));
+  const nav = [...document.querySelectorAll('#nav-bar button')].map(b => {
+    const label = [...b.querySelectorAll('*')].find(n => !n.closest('[aria-hidden="true"]') && !n.children.length && n.textContent.trim()) ?? b;
+    const r = label.getBoundingClientRect();
+    return {label: label.textContent.trim(), shown: r.width > 0 && r.height > 0 && r.left >= 0 && r.right <= innerWidth + 1 && r.top >= 0 && r.bottom <= innerHeight + 1};
+  });
   return {out, excepted, nav};
 }
+
+const live = EXCEPTIONS.filter(x => new Date(x.expires) >= new Date());
 
 export async function run(t) {
   await t.do('seed');
@@ -32,24 +47,24 @@ export async function run(t) {
   await t.do('display', 'max-text');
   await sleep(1500);
   const screens = {};
-  screens.today = await t.read(clipped, EXCEPTIONS);
+  screens.today = await t.read(clipped, live);
   await t.shot('today');
   await t.do('tap', '--role', 'button', '--name', 'Blocks');
-  screens.blocks = await t.read(clipped, EXCEPTIONS);
+  screens.blocks = await t.read(clipped, live);
   await t.shot('blocks');
   await t.do('tap', '--name', 'RM critical review drafted');
   await sleep(800);
-  screens.blockDetail = await t.read(clipped, EXCEPTIONS);
+  screens.blockDetail = await t.read(clipped, live);
   await t.shot('block-detail');
   await t.do('open', 'capture');
   await sleep(1000);
-  screens.capture = await t.read(clipped, EXCEPTIONS);
+  screens.capture = await t.read(clipped, live);
   await t.shot('capture');
   await t.do('display', 'phone');
   t.facts.clipped = Object.fromEntries(Object.entries(screens).map(([k, v]) => [k, v.out]));
   t.facts.nav = screens.today.nav;
   t.facts.excepted = Object.entries(screens).flatMap(([screen, v]) => v.excepted.map(c => ({screen, ...c})));
-  t.expect(screens.today.nav.every(n => n.shown), 'Bottom nav labels must stay visible at 200% text', screens.today.nav);
+  t.expect(['Today', 'Blocks', 'Projects', 'Life'].every(want => screens.today.nav.some(n => n.label === want && n.shown)), 'Bottom nav labels Today, Blocks, Projects and Life must stay visible at 200% text', screens.today.nav);
   const cut = Object.entries(screens).flatMap(([screen, v]) => v.out.map(c => ({screen, ...c})));
   t.expect(!cut.length, `${cut.length} label(s) cut at 200% text: ${cut.map(c => `${c.screen} "${c.text}"`).join('; ')}`, cut);
 }

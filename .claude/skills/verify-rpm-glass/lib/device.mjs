@@ -118,3 +118,21 @@ export function dismissAnr(serial) {
   if (wait) shell(serial, `input tap ${wait.center[0]} ${wait.center[1]}`);
   return true;
 }
+
+export function processImage(pid) {
+  if (!processAlive(pid)) return null;
+  if (process.platform === 'win32') {
+    const r = spawnSync('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], {encoding: 'utf8', windowsHide: true});
+    return r.stdout?.match(/^"([^"]+)","(\d+)"/m)?.[2] === String(pid) ? r.stdout.match(/^"([^"]+)"/m)[1] : null;
+  }
+  try { return fs.readFileSync(`/proc/${pid}/comm`, 'utf8').trim(); } catch { return spawnSync('ps', ['-p', String(pid), '-o', 'comm='], {encoding: 'utf8'}).stdout?.trim() || null; }
+}
+
+export const avdName = serial => adb(serial, ['emu', 'avd', 'name'], {allowFail: true, timeout: 10000}).split('\n')[0].trim();
+
+// The recorded pid must still be an emulator process (pids get reused) and the serial must be running the AVD it booted.
+export function ownsEmulator(state, serial = state?.serial) {
+  if (!state || state.serial !== serial) return false;
+  if (!/emulator|qemu/i.test(processImage(state.pid) ?? '')) return false;
+  return avdName(serial) === state.avd;
+}

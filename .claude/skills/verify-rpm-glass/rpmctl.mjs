@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {PACKAGE, LAUNCHER, UserError, adb, shell, devices, startEmulator, processAlive, killTree, sleep, waitFor,
-  appPid, foregroundActivity, displayInfo, nativeNodes, dismissAnr, sdkRoot} from './lib/device.mjs';
+  appPid, foregroundActivity, displayInfo, nativeNodes, dismissAnr, sdkRoot, processImage, ownsEmulator} from './lib/device.mjs';
 import {inPage, toDevice, pageTargets} from './lib/page.mjs';
 
 const SKILL = path.dirname(fileURLToPath(import.meta.url));
@@ -195,11 +195,13 @@ function target(args, {mutates}) {
   const state = readState();
   const serial = args.serial ?? state?.serial;
   if (!serial) throw new UserError('No emulator launched by rpmctl.', 'Run `rpmctl launch` (or pass --serial for a read-only look at another device).');
-  const owned = state && state.serial === serial && processAlive(state.pid);
+  const owned = !!state && state.serial === serial && devices().some(d => d.serial === serial && d.state === 'device') && ownsEmulator(state, serial);
   if (mutates && !owned) throw new UserError(`${serial} was not launched by rpmctl (or its emulator has exited); refusing to change it.`,
     args.serial ? 'Mutating commands only run on the owned emulator. Drop --serial, or use doctor/ui/shot/logs/state for read-only checks.' : 'Run `rpmctl launch`.');
   if (!devices().some(d => d.serial === serial && d.state === 'device')) throw new UserError(`${serial} is not online in adb.`, owned ? 'Run `rpmctl doctor`; if the emulator hung, `rpmctl cleanup` then `rpmctl launch`.' : 'Connect the device and check `adb devices`.');
-  return {serial, state: owned ? state : null, cdpPort: Number(args.cdpPort ?? state?.cdpPort ?? DEFAULTS.cdpPort)};
+  // Each device gets its own DevTools port, so a read-only look at a phone can never redirect a command meant for the emulator.
+  const ownPort = 9400 + [...serial].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 500, 0);
+  return {serial, state: owned ? state : null, cdpPort: Number(args.cdpPort ?? (owned ? state.cdpPort : ownPort))};
 }
 
 // .bat and .cmd launchers (gradlew.bat, npm.cmd) need cmd.exe on Windows.
@@ -536,7 +538,7 @@ const commands = {
     let page = null;
     try { const p = await inPage(serial, cdpPort); try { page = await p.evaluate(`(all) => window.__rpmSnapshot(all)`, false); } finally { p.close(); } }
     catch (e) { page = {unavailable: e.message}; }
-    const meta = {label, at: new Date().toISOString(), serial, activity: foregroundActivity(serial), display: displayInfo(serial), page,
+    const meta = {label, at: new Date().toISOString(), serial, launchedByRpmctl: !!state, apkSha256: state?.installedSha256 ?? null, activity: foregroundActivity(serial), display: displayInfo(serial), page,
       native: page?.unavailable ? nativeNodes(serial) : undefined};
     fs.writeFileSync(json, JSON.stringify(meta, null, 2));
     journal(state, {command: 'shot', png, json});
@@ -553,7 +555,7 @@ const commands = {
   async state(args) {
     const {serial} = target(args, {mutates: false});
     const rel = args._[0];
-    if (rel && (rel.includes('..') || rel.startsWith('/'))) throw new UserError('Path must be relative to the app data dir.', 'e.g. rpmctl state files/companion.json');
+    if (rel && (!/^(files|shared_prefs|databases)\/[\w.-]+(\/[\w.-]+)*$/.test(rel) || rel.split('/').includes('..'))) throw new UserError('Path must be a file under files/, shared_prefs/ or databases/ (letters, digits, . _ - and / only).', 'e.g. rpmctl state files/companion.json');
     if (!rel) return {ok: true, files: adb(serial, ['exec-out', 'run-as', PACKAGE, 'ls', '-laR', 'files', 'shared_prefs', 'databases'], {allowFail: true}).trim().split('\n')};
     const text = adb(serial, ['exec-out', 'run-as', PACKAGE, 'cat', rel]);
     try { return {ok: true, path: rel, json: JSON.parse(text)}; } catch { return {ok: true, path: rel, text: text.slice(0, 200000)}; }
@@ -588,6 +590,7 @@ const commands = {
         },
         read: async (fn, arg) => { const page = await inPage(serial, Number(state.cdpPort)); try { return await page.evaluate(String(fn), arg ?? null); } finally { page.close(); } },
         store: async () => (await commands.state(parseArgs(['files/companion.json']))).json,
+        keyboardShown: () => /mInputShown=true|isInputViewShown=true/.test(shell(serial, 'dumpsys input_method', {allowFail: true})),
         expect: (condition, message, detail) => { if (!condition) throw new ScenarioFailure(message, detail); },
         shot: label => ctx.do('shot', `${m.id}-${label}`),
       };
@@ -604,7 +607,8 @@ const commands = {
         try { await ctx.shot('failure'); } catch {}
       }
       // A known bug only excuses the failure it describes; any other failure still fails the run.
-      if (m.knownBug) status = status === 'pass' ? 'known-bug-fixed' : m.knownBug.failsWith.test(failure.message) ? 'known-bug' : 'fail';
+      if (m.knownBug && new Date(m.knownBug.expires) < new Date()) { status = 'fail'; failure = {message: `Known-bug exception expired on ${m.knownBug.expires}: fix the bug or get the exception renewed`, detail: failure}; }
+      else if (m.knownBug) status = status === 'pass' ? 'known-bug-fixed' : m.knownBug.failsWith.test(failure.message) ? 'known-bug' : 'fail';
       results.push({id: m.id, status, ms: Date.now() - t0, facts, ...(failure ? {failure} : {}), ...(m.knownBug ? {knownBug: m.knownBug} : {}), shots});
     }
     const out = {ok: results.every(r => r.status === 'pass' || r.status === 'known-bug'), results};
@@ -639,9 +643,13 @@ const commands = {
     adb(null, ['forward', '--remove', `tcp:${state.cdpPort}`], {allowFail: true});
     let killed = false;
     if (!args.keepEmulator) {
-      if (devices().some(d => d.serial === state.serial)) adb(state.serial, ['emu', 'kill'], {allowFail: true});
-      await waitFor(() => !processAlive(state.pid), {timeout: 30000, what: 'the emulator to exit'}).catch(() => null);
-      killed = killTree(state.pid) || !processAlive(state.pid);
+      const ours = /emulator|qemu/i.test(processImage(state.pid) ?? '');
+      if (ours && devices().some(d => d.serial === state.serial) && ownsEmulator(state)) adb(state.serial, ['emu', 'kill'], {allowFail: true});
+      if (ours) {
+        await waitFor(() => !processAlive(state.pid), {timeout: 30000, what: 'the emulator to exit'}).catch(() => null);
+        if (/emulator|qemu/i.test(processImage(state.pid) ?? '')) killTree(state.pid);
+      }
+      killed = ours && !processAlive(state.pid);
     }
     journal(state, {command: 'cleanup', killedEmulator: killed});
     if (!args.keepEmulator) fs.rmSync(STATE, {force: true});
