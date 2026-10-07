@@ -700,7 +700,7 @@ function errorLines(serial, since) {
   const inCrash = l => /AndroidRuntime/.test(l) && crashPids.has(l.trim().split(/\s+/)[2]);
   // Process deaths without a Java crash: the WebView renderer dying, or Android reclaiming memory.
   const silentDeath = l => /Render process .*(crash|gone|killed)|renderer.*(crash|gone)/i.test(l) && /chromium|cr_|WebView/i.test(l)
-    || /(lowmemorykiller|ActivityManager).*(Kill|kill).*com\.rpm\.prototype|Process com\.rpm\.prototype .* has died/.test(l);
+    || /(lowmemorykiller|ActivityManager).*(Kill|kill).*com\.rpm\.prototype|Process com\.rpm\.prototype .* has died/.test(l) && !/stop com\.rpm\.prototype due to/.test(l);
   return lines.filter((l, i) => rpmCrash(i) || inCrash(l) || silentDeath(l) || /ANR in com\.rpm/.test(l)
     || (/chromium/.test(l) && /Uncaught|CONSOLE.*(error|Error)/.test(l))
     || (pid && l.includes(` ${pid} `) && /\sE\s/.test(l) && !/eglCodecCommon|EGL_emulation|HostConnection|ashmem|MESA|Frame latency is negative|simple_file_enumerator|simple_index_file/.test(l))).slice(-120);
