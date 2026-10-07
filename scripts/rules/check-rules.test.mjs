@@ -30,3 +30,15 @@ test('raw-error-text accepts userMessage, comparisons, tests and reasoned except
   });
   try { assert.deepEqual(check(root), []); } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });
+
+test('raw-error-text sees renamed catch bindings, computed access, destructuring and a raw read after a comparison', () => {
+  const root = tree({'intent-v2/src/x.mjs': [
+    "try { a(); } catch (failure) { notice(app, failure.message); }",
+    "p.catch(oops => show(oops['message']));",
+    "try { a(); } catch ({message}) { show(message); }",
+    "if (error.message === 'x') show(error.message);",
+  ].join('\n')});
+  try {
+    assert.deepEqual(check(root).map(p => p.match(/:(\d+): /)[1]), ['1', '2', '3', '4']);
+  } finally { fs.rmSync(root, {recursive: true, force: true}); }
+});

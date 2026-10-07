@@ -21,12 +21,28 @@ function files(root, dir, keep) {
   return out;
 }
 
+const ERROR_NAMES = ['error', 'err', 'e', 'problem', 'failure', 'lastError', 'reason'];
+
+// Every place a caught error's message is read: the usual names plus whatever this file binds in catch clauses,
+// dotted or computed access, and destructuring in a catch parameter. A comparison (error.message === '...') is not display.
+function rawErrorReads(text) {
+  const names = new Set(ERROR_NAMES);
+  for (const m of text.matchAll(/catch\s*\(\s*([A-Za-z_$][\w$]*)\s*\)|\.catch\(\s*\(?\s*([A-Za-z_$][\w$]*)\s*\)?\s*=>/g)) names.add(m[1] ?? m[2]);
+  const alt = [...names].map(n => n.replace(/\$/g, '\\$')).join('|');
+  const read = new RegExp(`\\b(?:${alt})(?:\\?\\.|\\.)message\\b(?!\\s*[!=]==)|\\b(?:${alt})\\??\\.?\\[\\s*['"]message['"]\\s*\\]`);
+  const destructure = /catch\s*\(\s*\{[^}]*\bmessage\b|\.catch\(\s*\(?\s*\{[^}]*\bmessage\b/;
+  return line => read.test(line) || destructure.test(line);
+}
+
 export const RULES = [
   {
     id: 'raw-error-text',
     rule: 'An error reaches the screen only through userMessage(error), so a script fault never shows as raw text.',
-    files: root => files(root, 'android-companion', p => p.endsWith('.mjs') && !p.endsWith('.test.mjs') && !p.endsWith('user-message.mjs')),
-    match: line => /\b(?:error|err|e|problem|lastError)\??\.message\b(?!\s*[!=]==)/.test(line),
+    files: root => [
+      ...files(root, 'android-companion', p => p.endsWith('.mjs') && !p.endsWith('.test.mjs') && !p.endsWith('user-message.mjs')),
+      ...files(root, 'intent-v2/src', p => p.endsWith('.mjs') && !p.endsWith('.test.mjs')),
+    ],
+    matcher: rawErrorReads,
     fix: 'Show userMessage(error) from android-companion/user-message.mjs instead of error.message.',
   },
 ];
@@ -34,8 +50,10 @@ export const RULES = [
 export function check(root, rules = RULES) {
   const problems = [];
   for (const r of rules) for (const file of r.files(root)) {
-    fs.readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
-      if (r.match(line) && !line.includes(`rules-allow ${r.id}:`))
+    const text = fs.readFileSync(file, 'utf8');
+    const matches = r.matcher(text);
+    text.split('\n').forEach((line, i) => {
+      if (matches(line) && !line.includes(`rules-allow ${r.id}:`))
         problems.push(`rule ${r.id}: ${path.relative(root, file).replace(/\\/g, '/')}:${i + 1}: ${r.rule} ${r.fix}`);
     });
   }
