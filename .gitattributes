@@ -1,0 +1,3 @@
+* text=auto eol=lf
+*.bat text eol=crlf
+android-companion/assets/fonts/*.txt -text
