@@ -653,7 +653,7 @@ const commands = {
     }
     journal(state, {command: 'cleanup', killedEmulator: killed});
     if (!args.keepEmulator) fs.rmSync(STATE, {force: true});
-    return {ok: true, killedEmulatorPid: args.keepEmulator ? null : state.pid, evidence: dir, evidenceFiles: fs.readdirSync(dir).length};
+    return {ok: true, emulator: args.keepEmulator ? 'kept' : killed ? `stopped pid ${state.pid}` : 'already gone (nothing killed)', evidence: dir, evidenceFiles: fs.readdirSync(dir).length};
   },
 };
 
