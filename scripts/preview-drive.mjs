@@ -36,6 +36,7 @@ try {
     page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
     await page.goto(base + '/planner.html');
     await page.getByRole('heading', {name: 'Today', exact: true}).waitFor({timeout: 15000});
+    await page.waitForTimeout(900); // let the entrance motion finish so the first shot is not mid-fade (as gauntlet/shoot.mjs)
     const box = page.getByRole('checkbox', {name: `Mark ${TASK} complete`}).first();
     await box.scrollIntoViewIfNeeded();
     await page.screenshot({path: path.join(out, `${name}-01-today.png`)});
