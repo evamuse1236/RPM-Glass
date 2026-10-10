@@ -2,15 +2,15 @@
 
 ## How to run the tests
 
-Run `npm ci` once, then `npm test`. It needs Node 22 and a JDK 17 (`java` and `javac` on `PATH`, or `JAVA_HOME` set). The same command runs in CI on every push and pull request (`.github/workflows/test.yml`).
+Run `npm run setup` once (it runs `npm ci` and checks the toolchain), then `npm test`. It needs Node 22 or newer and a JDK 17 or newer (`java` and `javac` on `PATH`, or `JAVA_HOME` set; 21 works). `npm run verify` is the full gate: tests, Android build and lint, and a browser preview drive. The same command runs in CI on every push and pull request (`.github/workflows/test.yml`).
 
 `npm test` runs, and stops at the first failure:
 
 - `test:js`: every `node:test` file in `android-companion/`, `cli/`, `chat-prototype/` and `intent-v2/test/`. `scripts/test-tz.mjs` is preloaded and sets the timezone to Asia/Kolkata, so local-time tests give the same result on any machine.
 - `test:cloud` and `typecheck:cloud`: the Convex sync and diagnostics tests (vitest) and `tsc --noEmit`.
-- `test:java`: `scripts/test-parser.sh`, which compiles and runs the plain-JVM host tests in `tests/` (`CaptureParserTest`, `ModelRequestsTest`).
+- `test:java`: `scripts/test-java.mjs`, which compiles and runs the plain-JVM host tests in `tests/` (`CaptureParserTest`, `ModelRequestsTest`).
 
-The device checks in `app/src/androidTest/` are not part of `npm test`. They need an emulator or phone and are run by hand before a phone release with `./gradlew connectedDebugAndroidTest`. `scripts/build-debug.sh` builds the debug APK, runs lint and assembles the test APK.
+The device checks in `app/src/androidTest/` are not part of `npm test`. They need an emulator or phone and are run by hand before a phone release with `./gradlew connectedDebugAndroidTest`. `npm run build:android` builds the debug APK and runs lint. `npm run build:android -- assembleDebugAndroidTest` assembles the test APK, which does not compile today (a known failure listed in `AGENTS.md`).
 
 ## Driving the real app
 

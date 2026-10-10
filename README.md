@@ -25,16 +25,16 @@ The earlier Android screens (Next, History, Results, Cloud sync) and their separ
 
 ## Build
 
-Use JDK 17 and an Android SDK with platform 36 and Build Tools 36.0.0. Set `JAVA_HOME` and `ANDROID_HOME`, or put `sdk.dir=...` in an ignored `local.properties`.
+Use JDK 17 or newer (21 works) and an Android SDK with platform 36 and Build Tools 36.0.0. Set `JAVA_HOME` and `ANDROID_HOME`, or put `sdk.dir=...` in an ignored `local.properties`.
 
 Run `npm ci` once (and again after dependency changes) before building. Gradle's `preBuild` runs `node scripts/build-companion-assets.mjs`, which needs esbuild and chrono-node from `node_modules`. It regenerates the WebView assets in `app/src/main/assets/companion/`.
 
 ```bash
-npm ci
-./scripts/build-debug.sh
+npm run setup
+npm run build:android
 ```
 
-`build-debug.sh` assembles the debug app, runs Android lint and builds the on-device integration-test APK. If `JAVA_HOME` is unset, it uses the local JDK in `.tooling/`. The app APK is written to `app/build/outputs/apk/debug/app-debug.apk`. Install it with `adb install -r`. The integration tests use their own disposable database:
+`npm run setup` installs everything and names any missing toolchain piece. `npm run build:android` (`scripts/build-android.mjs`, works from PowerShell and Git Bash) assembles the debug app and runs Android lint. The on-device integration-test APK (`assembleDebugAndroidTest`) is a known failure skipped by default; see `AGENTS.md`. If `JAVA_HOME` is unset, it uses a JDK in `.tooling/` or on `PATH`. The app APK is written to `app/build/outputs/apk/debug/app-debug.apk`. Install it with `adb install -r`. The integration tests use their own disposable database:
 
 ```bash
 adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk

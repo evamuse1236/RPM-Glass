@@ -4,9 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "node scripts/dev.mjs",
     "test": "npm run test:js && npm run check:rules && npm run test:cloud && npm run typecheck:cloud && npm run test:java",
+    "verify": "node scripts/verify.mjs",
     "test:js": "node --import ./scripts/test-tz.mjs --test android-companion/*.test.mjs cli/*.test.mjs chat-prototype/*.test.mjs intent-v2/test/*.test.mjs",
-    "test:java": "bash scripts/test-parser.sh",
+    "test:java": "node scripts/test-java.mjs",
     "dev:cloud": "convex dev",
     "deploy:cloud": "convex deploy",
     "test:cloud": "vitest run",
@@ -15,7 +18,9 @@
     "chat": "node chat-prototype/companion-server.mjs",
     "build:android-assets": "node scripts/build-companion-assets.mjs",
     "check:rules": "node scripts/rules/check-rules.mjs && node --test scripts/rules/*.test.mjs",
-    "check:evidence": "node scripts/agent/require-evidence.mjs"
+    "check:evidence": "node scripts/agent/require-evidence.mjs",
+    "build:android": "node scripts/build-android.mjs",
+    "preview:drive": "node scripts/preview-drive.mjs"
   },
   "dependencies": {
     "chrono-node": "2.10.1",
@@ -25,6 +30,7 @@
     "@edge-runtime/vm": "^5.0.0",
     "convex-test": "^0.0.54",
     "esbuild": "0.27.0",
+    "playwright": "1.63.0",
     "typescript": "^5.9.0",
     "vitest": "^4.1.0"
   }
