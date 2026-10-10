@@ -19,9 +19,9 @@ Every command works from PowerShell, cmd and Git Bash. Run them from the repo ro
 | Command | What it does |
 |---|---|
 | `npm run setup` | `npm ci`, Playwright Chromium, `.env.local` from `.env.example`, builds the WebView assets, then checks Node 22+, a JDK 17+ (21 works) and the Android SDK (platform 36, build-tools 36.0.0). Exits 1 naming each missing piece. |
-| `npm test` | The fast suite, same as CI: `test:js` (node:test), `check:rules`, `test:cloud` (vitest), `typecheck:cloud` (tsc), `test:java`. About 1 minute. |
+| `npm test` | The fast suite, same as CI: `test:js` (node:test), `check:rules`, `test:cloud` (vitest), `typecheck:cloud` (tsc), `test:java`. About 15 s. |
 | `npm run dev` | Serves the Planner and Capture in a desktop browser with a fake Android bridge and sample data: `http://localhost:4173/planner.html` (`-- --port N` to change). No model, no Convex. |
-| `npm run verify` | The gate before "done": `npm test`, `npm run build:android` (debug APK + lint), `npm run preview:drive` (ticks a task at 390x844 and 1440x900), `npm run check:evidence`. About 3 minutes once Gradle is warm. |
+| `npm run verify` | The gate before "done": `npm test`, `npm run build:android` (debug APK + lint), `npm run preview:drive` (ticks a task at 390x844 and 1440x900), `npm run check:evidence`. Needs the Android SDK and Playwright Chromium that `npm run setup` checks for. About 1 minute; the first Gradle run takes about 4. |
 | `node .claude/skills/verify-rpm-glass/rpmctl.mjs` | Drives the real Android app. Read the `verify-rpm-glass` skill first. |
 
 `npm run dev:cloud` and `npm run deploy:cloud` talk to a real Convex deployment. Run them only when the user asks.

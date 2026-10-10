@@ -13,9 +13,9 @@ const exe = name => win ? name + '.exe' : name;
 // JDK 21 works: the Java sources target 17 and Gradle 8.13 / AGP 8.13 run on 17 through 21 (measured with 21.0.12).
 export function findJdk() {
   const homes = [];
-  if (process.env.JAVA_HOME) homes.push({home: process.env.JAVA_HOME.replace(/[\\/]+$/, ''), from: 'JAVA_HOME'});
+  if (process.env.JAVA_HOME) homes.push({home: process.env.JAVA_HOME.replace(/^"|"$/g, '').replace(/[\\/]+$/, ''), from: 'JAVA_HOME'});
   const tooling = path.join(ROOT, '.tooling');
-  if (fs.existsSync(tooling)) for (const d of fs.readdirSync(tooling).filter(d => /^jdk-/.test(d)).sort().reverse())
+  if (fs.existsSync(tooling)) for (const d of fs.readdirSync(tooling).filter(d => /^jdk-/.test(d)).sort((a, b) => b.localeCompare(a, 'en', {numeric: true})))
     homes.push({home: path.join(tooling, d), from: '.tooling'});
   for (const {home, from} of homes) {
     const javac = path.join(home, 'bin', exe('javac'));
@@ -49,7 +49,10 @@ export function findAndroidSdk() {
   const fromProps = fs.existsSync(props) ? fs.readFileSync(props, 'utf8').match(/^sdk\.dir=(.*)$/m)?.[1]?.trim().replace(/\\:/g, ':').replace(/\\\\/g, '\\') : null;
   const candidates = [[fromProps, 'local.properties sdk.dir'], [process.env.ANDROID_HOME, 'ANDROID_HOME'], [process.env.ANDROID_SDK_ROOT, 'ANDROID_SDK_ROOT'],
     [process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Android', 'Sdk'), 'default location'],
-    [process.env.HOME && path.join(process.env.HOME, 'Android', 'Sdk'), 'default location']];
+    [process.env.HOME && path.join(process.env.HOME, 'Android', 'Sdk'), 'default location'],
+    [process.env.HOME && path.join(process.env.HOME, 'Library', 'Android', 'sdk'), 'default location']];
+  // Gradle uses sdk.dir when it is set, so a stale one is the answer even if another SDK exists.
+  if (fromProps && !fs.existsSync(fromProps)) return {dir: fromProps, from: 'local.properties sdk.dir (folder missing)', platform36: false, buildTools: false};
   for (const [dir, from] of candidates) if (dir && fs.existsSync(dir)) {
     return {dir, from, platform36: fs.existsSync(path.join(dir, 'platforms', 'android-36')), buildTools: fs.existsSync(path.join(dir, 'build-tools', '36.0.0'))};
   }
@@ -73,6 +76,14 @@ export function run(cmd, args, options = {}) {
 }
 
 export const npmCmd = win ? 'npm.cmd' : 'npm';
+
+// A copy of process.env with dir first on PATH. Windows env keys are case-insensitive (`Path`), so reuse the existing key.
+export function envWithPath(dir, extra = {}) {
+  const env = {...process.env, ...extra};
+  const key = Object.keys(env).find(k => k.toUpperCase() === 'PATH') ?? 'PATH';
+  env[key] = dir + path.delimiter + (env[key] ?? '');
+  return env;
+}
 
 export function fail(message) {
   console.error(`✖ ${message}`);

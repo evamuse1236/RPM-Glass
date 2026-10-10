@@ -37,21 +37,29 @@ function rawErrorReads(text) {
 
 // Lines holding a `*/` outside any comment. In CSS a comment ends at the first `*/`, so a path like res/values*/colors.xml
 // inside a comment closes it early and the browser silently drops the next rule (a5352a5 lost the Google Sans Flex @font-face).
+// Quotes are not tracked: the text after an early close is comment prose, where an apostrophe would hide the stray `*/`.
+// A real `*/` inside a CSS string takes `rules-allow css-comment-close: <reason>` on its line.
 function strayCommentClose(text) {
   const bad = new Set();
-  let line = 1, inComment = false, quote = null;
+  let line = 1, inComment = false;
   for (let i = 0; i < text.length; i++) {
     const c = text[i], two = text.slice(i, i + 2);
     if (c === '\n') { line++; continue; }
     if (inComment) { if (two === '*/') { inComment = false; i++; } continue; }
-    if (quote) { if (c === '\\') i++; else if (c === quote) quote = null; continue; }
-    if (two === '/*') { inComment = true; i++; } else if (two === '*/') { bad.add(line); i++; } else if (c === '"' || c === "'") quote = c;
+    if (two === '/*') { inComment = true; i++; } else if (two === '*/') { bad.add(line); i++; }
   }
   return (_, index) => bad.has(index + 1);
 }
 
-// npm script lines that call bash or a .sh file. From PowerShell or cmd, `bash` is often WSL's, which has no Node or JDK.
-const bashInNpmScript = () => line => /^\s*"[^"]+":\s*"(?:[^"]*\s)?(?:bash|sh)\s|^\s*"[^"]+":\s*"[^"]*\.sh\b/.test(line);
+// Lines of the package.json "scripts" block that call bash, sh or a .sh file. From PowerShell or cmd, `bash` is often
+// WSL's, which has no Node or JDK.
+function bashInNpmScript(text) {
+  const lines = text.split('\n');
+  const start = lines.findIndex(l => /^\s*"scripts":\s*\{/.test(l));
+  const end = start < 0 ? -1 : lines.findIndex((l, i) => i > start && /^\s*\}/.test(l));
+  const calls = /^\s*"[^"]+":\s*"(?:[^"]*[\s;&|(])?(?:bash|sh)\s|^\s*"[^"]+":\s*"[^"]*\.sh\b/;
+  return (line, index) => start >= 0 && index > start && (end < 0 || index < end) && calls.test(line);
+}
 
 export const RULES = [
   {

@@ -48,20 +48,22 @@ test('raw-error-text sees renamed catch bindings, computed access, destructuring
 test('css-comment-close flags a comment that a "*/" inside it closes early (a5352a5) and names the fix', () => {
   const root = tree({
     'android-companion/theme.css': '/* Native surfaces mirror these values in\n   res/values*/colors.xml. */\n@font-face{font-family:"Google Sans Flex"}\n',
-    'chat-prototype/style.css': '/* fine: res/values/colors.xml */\na{background:url("/x*/y.png")}\n/* two */ /* comments */\n',
+    'android-companion/planner.css': "/* res/values*/colors.xml, don't forget the night file */\na{}\n",
+    'chat-prototype/style.css': '/* fine: res/values/colors.xml */\n/* two */ /* comments */\na{background:url("/x*/y.png")} /* rules-allow css-comment-close: a real path */\n',
   });
   try {
     const problems = check(root);
-    assert.equal(problems.length, 1);
-    assert.match(problems[0], /^rule css-comment-close: android-companion\/theme\.css:2: .*Reword the comment/);
+    assert.deepEqual(problems.map(p => p.match(/: (\S+\.css:\d+): /)[1]).sort(), ['android-companion/planner.css:1', 'android-companion/theme.css:2']);
+    assert.match(problems.find(p => p.includes('theme.css')), /Reword the comment/);
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });
 
-test('bash-in-npm-script flags npm scripts that call bash or a .sh file', () => {
-  const root = tree({'package.json': JSON.stringify({scripts: {
+test('bash-in-npm-script flags npm scripts that call bash, sh or a .sh file, and only in the scripts block', () => {
+  const root = tree({'package.json': JSON.stringify({description: 'uses bash nowhere', scripts: {
     'test:java': 'bash scripts/test-parser.sh', build: './scripts/build-debug.sh', ok: 'node scripts/test-java.mjs', bashful: 'node bashful.mjs',
-  }}, null, 2)});
+    chained: 'npm ci && sh x',
+  }, keywords: ['bash it']}, null, 2)});
   try {
-    assert.deepEqual(check(root).map(p => p.match(/:(\d+): /)[1]), ['3', '4']);
+    assert.deepEqual(check(root).map(p => p.match(/:(\d+): /)[1]), ['4', '5', '8']);
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });

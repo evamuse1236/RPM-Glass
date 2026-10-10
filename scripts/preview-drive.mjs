@@ -23,11 +23,17 @@ const freePort = () => new Promise(resolve => { const s = net.createServer().lis
 if (run(process.execPath, ['scripts/build-companion-assets.mjs']) !== 0) process.exit(1);
 const port = await freePort();
 const server = spawn(process.execPath, ['scripts/gauntlet/serve.mjs', String(port)], {cwd: ROOT, stdio: ['ignore', 'pipe', 'inherit']});
-await new Promise((resolve, reject) => { server.stdout.on('data', d => /harness on/.test(d) && resolve()); server.on('exit', c => reject(new Error(`serve.mjs exited ${c}`))); });
+process.on('exit', () => server.kill()); // also when a step below throws
+await new Promise((resolve, reject) => {
+  const timer = setTimeout(() => reject(new Error('serve.mjs did not start within 20 s')), 20000);
+  server.stdout.on('data', d => { if (/harness on/.test(d)) { clearTimeout(timer); resolve(); } });
+  server.on('exit', c => { clearTimeout(timer); reject(new Error(`serve.mjs exited ${c}`)); });
+});
 const base = `http://localhost:${port}`;
-const browser = await chromium.launch();
 const results = [];
+let browser;
 try {
+  browser = await chromium.launch();
   for (const [name, viewport] of WIDTHS) {
     const errors = [];
     await fetch(base + '/__reset', {method: 'POST', body: '{}'});
@@ -51,7 +57,7 @@ try {
     await page.close();
   }
 } finally {
-  await browser.close();
+  await browser?.close();
   server.kill();
 }
 fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify(results, null, 2));
