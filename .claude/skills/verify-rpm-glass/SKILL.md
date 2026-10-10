@@ -21,6 +21,8 @@ Run it from the repo root. Needs Node 22+, the Android SDK (`ANDROID_HOME`, or t
 
 The operator watches Android devices in T3's Device panel, so in T3 do not run `rpmctl launch` (it boots an emulator from the shell, where nobody can see it). Open `Galaxy_S24_FE_API_36` with `device_list` then `device_open`, and install with `adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk`. `rpmctl` refuses mutating commands on a device it did not launch, so on that device use `doctor`, `ui`, `shot`, `logs` and `state` with `--serial <serial>` and drive with the CLI `device_open` returns. If no device can be opened (a sub-agent has no Device panel), mark the Android drive **UNVERIFIED**. Never install on or drive the physical phone unless the user asked for a release.
 
+If `adb install -r` fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, the installed copy is signed with another key. Never uninstall it without the owner: that wipes the app's data. Drive the installed build read-only (`rpmctl ui`, `doctor`, `shot` with `--serial`) and say in the reply that the build under test was not installed, or ask the owner. `doctor` then reports a different build; that is expected.
+
 ## Browser preview (a smoke check, not phone proof)
 
 ```bash
@@ -111,7 +113,7 @@ Kills the emulator process tree that `launch` started (by its recorded pid, neve
 
 ## Gotchas
 
-- The software-rendered emulator sometimes raises "System UI isn't responding". `launch` answers Wait; mid-run, `tap --native Wait`.
+- The software-rendered emulator sometimes raises "System UI isn't responding", always on a fresh boot in the Device panel. `launch` answers Wait; otherwise tap Wait (`tap --native Wait`, or in the Device panel).
 - The Capture sheet auto-closes 6 s after a receipt unless touched; the planner snackbar times out after 6 s (4 s without Undo). Wait for the element, not a fixed sleep.
 - A WebView element hidden behind the bottom nav bar or the keyboard still has a rect; `ui` reports it as on screen. Look at the screenshot.
 - `tap` uses `scrollIntoView` to bring an off-screen element into view. When scrolling itself is under test, use `scroll down|up` (a real swipe) first.

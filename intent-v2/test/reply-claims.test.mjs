@@ -7,6 +7,8 @@ import {intentSystemPrompt} from '../prompts/intent-system.mjs';
 // "added" or "scheduled" lies about what happened. Words that claim a finished write:
 const CLAIMS = /\b(saved|added|scheduled|set up|created|remembered|sent|booked|put (?:it|this) (?:in|into)|(?:i|i'?ve|i have|i'll|i will) (?:got|put|add|save|schedule|set|create|remember))\b/i;
 
+const WHY = 'A reply beside an unsaved draft must not claim a write happened.';
+const PROMPT_FIX = `${WHY} Restore the sentence in intent-v2/prompts/intent-system.mjs.`;
 const op = (...fields) => ({kind: 'create', entity: 'task', fields: fields.map(([name, value, origin = 'stated']) => ({name, op: 'set', value, origin}))});
 const CASES = [
   ['a plain capture', {mode: 'capture', operations: [op(['title', 'Walk'])]}, null],
@@ -17,12 +19,12 @@ const CASES = [
 
 for (const [name, parsed, schedulePreview] of CASES) test(`the app's own reply for ${name} describes a draft and never claims a write`, () => {
   const reply = captureReply({parsed: {...parsed, reply: 'model text replaced by the app'}, schedulePreview});
-  assert.match(reply, /^Draft /);
-  assert.doesNotMatch(reply, CLAIMS);
+  assert.match(reply, /^Draft /, `${WHY} Fix captureReply in intent-v2/src/model-policy.mjs.`);
+  assert.doesNotMatch(reply, CLAIMS, `${WHY} Fix captureReply in intent-v2/src/model-policy.mjs.`);
 });
 
 test('the model is told it cannot write and must never claim it saved, changed, scheduled, sent or remembered something', () => {
-  assert.match(intentSystemPrompt, /You have no write capability\./);
-  assert.match(intentSystemPrompt, /Never claim you saved, changed, scheduled, sent or remembered something\./);
-  assert.match(intentSystemPrompt, /Never say "set up", "added", "scheduled"/);
+  assert.match(intentSystemPrompt, /You have no write capability\./, PROMPT_FIX);
+  assert.match(intentSystemPrompt, /Never claim you saved, changed, scheduled, sent or remembered something\./, PROMPT_FIX);
+  assert.match(intentSystemPrompt, /Never say "set up", "added", "scheduled"/, PROMPT_FIX);
 });

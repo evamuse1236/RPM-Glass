@@ -40,4 +40,6 @@ node --test android-companion/*.test.mjs chat-prototype/*.test.mjs cli/*.test.mj
 bash scripts/build-debug.sh
 ```
 
+(`scripts/build-debug.sh` was removed later; its replacement is `npm run build:android`.)
+
 For the native synthetic checks, back up the owned emulator first, install the built APK and test APK, open Capture and forward its debuggable WebView to port 9229. Run `node scripts/check-parser-capture.mjs`, then restore and verify the backup. The runner deliberately refuses a non-emulator serial. Live model evaluation is separately opt-in via `node scripts/compare-luna-native.mjs --run`; it bills the emulator's configured OpenRouter account and never extracts its key.

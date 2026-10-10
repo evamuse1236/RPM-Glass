@@ -6,7 +6,7 @@ For planning behavior, read `CONTEXT.md` and the relevant part of `PRODUCT.md`. 
 
 For UI work, use `DESIGN.md` and the relevant surface contract under `docs/`; validate the named widget or screen at phone size and enlarged text. A build or web preview alone does not verify a native widget.
 
-`/home/darax/Codex Projects/RPM Agent` is the separate Arden coaching project. Its course study and `docs/rpm-widget-recommendations.md` can inform requested product decisions; recommendations are not already-implemented app features. Keep Arden's persona and memory local to that project.
+`C:\Repos\rpm\rpm-agent` (`/home/darax/Codex Projects/RPM Agent` on the Linux machine) is the separate Arden coaching project. Its course study and `docs/rpm-widget-recommendations.md` can inform requested product decisions; recommendations are not already-implemented app features. Keep Arden's persona and memory local to that project.
 
 For a Google Tasks batch, read the installed `tasks` skill and preserve its batch/item ledger. A mock-only integration remains unfinished unless accepted as the requested scope. `docs/rpm-deferred-features.md` is a backlog, not authorization to activate features.
 
@@ -14,14 +14,14 @@ For an authorized phone release, compare the working tree, branch, and installed
 
 ## Commands
 
-Every command works from PowerShell, cmd and Git Bash. Run them from the repo root.
+Every command works from PowerShell, cmd and Git Bash. Run them from the repo root. First run: `npm run setup`, then `npm test`.
 
 | Command | What it does |
 |---|---|
 | `npm run setup` | `npm ci`, Playwright Chromium, `.env.local` from `.env.example`, builds the WebView assets, then checks Node 22+, a JDK 17+ (21 works) and the Android SDK (platform 36, build-tools 36.0.0). Exits 1 naming each missing piece. |
 | `npm test` | The fast suite, same as CI: `test:js` (node:test), `check:rules`, `test:cloud` (vitest), `typecheck:cloud` (tsc), `test:java`. About 15 s. |
 | `npm run dev` | Serves the Planner and Capture in a desktop browser with a fake Android bridge and sample data: `http://localhost:4173/planner.html` (`-- --port N` to change). No model, no Convex. |
-| `npm run verify` | The gate before "done": `npm test`, `npm run build:android` (debug APK + lint), `npm run preview:drive` (ticks a task at 390x844 and 1440x900), `npm run check:evidence`. Needs the Android SDK and Playwright Chromium that `npm run setup` checks for. About 1 minute; the first Gradle run takes about 4. |
+| `npm run verify` | The gate before "done": `npm test`, `npm run build:android` (debug APK + lint), `npm run preview:drive` (ticks a task at 390x844 and 1440x900), `npm run check:evidence`. Needs the Android SDK, which `npm run setup` checks for, and Playwright Chromium, which it installs. About 1 minute warm, about 2.5 minutes cold (first Gradle run). |
 | `node .claude/skills/verify-rpm-glass/rpmctl.mjs` | Drives the real Android app. Read the `verify-rpm-glass` skill first. |
 
 `npm run dev:cloud` and `npm run deploy:cloud` talk to a real Convex deployment. Run them only when the user asks.
@@ -45,7 +45,7 @@ Product words (Task, RPM block, Project, Life area, Must, Priority, Calendar com
 
 ## Before you say done
 
-1. Run `npm run verify`. CI runs `npm test` only.
+1. Run `npm run verify`. CI runs `npm test` only. After any app-code change its last step, `check:evidence`, fails until fresh `rpmctl` evidence matches the current APK (it also needs a current `origin/main`: `git fetch`). An agent with no Device panel reports that step **UNVERIFIED** and the other three **PASS**.
 2. If app code changed (`app/src/main`, `android-companion`, `chat-prototype`, `intent-v2`, `cli`), drive the changed feature on the real app with the `verify-rpm-glass` skill: `node .claude/skills/verify-rpm-glass/rpmctl.mjs launch` (`rpmctl` below), then the recipe in its `features/` file. Inside T3 Code, open the emulator in the Device panel instead of `rpmctl launch` (see the skill). Check it at `display phone` and `display large-text` (and `max-text` if text can wrap), read back what was saved with `state`, and run `logs --errors`.
 3. Run `rpmctl scenario --all` when the change touches the planner, Capture or layout. Every scenario must pass or be a recorded known bug.
 4. Put the evidence paths (`.verify/evidence/<run-id>/NN-*.png`) in the reply. Mark anything you could not drive (model-backed paths, Samsung-only behavior, the real home-screen widget) **UNVERIFIED**.

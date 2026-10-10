@@ -61,9 +61,9 @@ test('css-comment-close flags a comment that a "*/" inside it closes early (a535
 test('bash-in-npm-script flags npm scripts that call bash, sh or a .sh file, and only in the scripts block', () => {
   const root = tree({'package.json': JSON.stringify({description: 'uses bash nowhere', scripts: {
     'test:java': 'bash scripts/test-parser.sh', build: './scripts/build-debug.sh', ok: 'node scripts/test-java.mjs', bashful: 'node bashful.mjs',
-    chained: 'npm ci && sh x',
+    chained: 'npm ci && sh x', piped: 'curl a | sh',
   }, keywords: ['bash it']}, null, 2)});
   try {
-    assert.deepEqual(check(root).map(p => p.match(/:(\d+): /)[1]), ['4', '5', '8']);
+    assert.deepEqual(check(root).map(p => p.match(/:(\d+): /)[1]), ['4', '5', '8', '9']);
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });

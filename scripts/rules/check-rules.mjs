@@ -57,7 +57,7 @@ function bashInNpmScript(text) {
   const lines = text.split('\n');
   const start = lines.findIndex(l => /^\s*"scripts":\s*\{/.test(l));
   const end = start < 0 ? -1 : lines.findIndex((l, i) => i > start && /^\s*\}/.test(l));
-  const calls = /^\s*"[^"]+":\s*"(?:[^"]*[\s;&|(])?(?:bash|sh)\s|^\s*"[^"]+":\s*"[^"]*\.sh\b/;
+  const calls = /^\s*"[^"]+":\s*"(?:[^"]*[\s;&|(])?(?:bash|sh)(?:[\s"]|$)|^\s*"[^"]+":\s*"[^"]*\.sh\b/;
   return (line, index) => start >= 0 && index > start && (end < 0 || index < end) && calls.test(line);
 }
 
