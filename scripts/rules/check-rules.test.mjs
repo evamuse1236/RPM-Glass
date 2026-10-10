@@ -44,3 +44,24 @@ test('raw-error-text sees renamed catch bindings, computed access, destructuring
     assert.deepEqual(check(root).map(p => p.match(/:(\d+): /)[1]), ['1', '2', '3', '4', '5', '6']);
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });
+
+test('css-comment-close flags a comment that a "*/" inside it closes early (a5352a5) and names the fix', () => {
+  const root = tree({
+    'android-companion/theme.css': '/* Native surfaces mirror these values in\n   res/values*/colors.xml. */\n@font-face{font-family:"Google Sans Flex"}\n',
+    'chat-prototype/style.css': '/* fine: res/values/colors.xml */\na{background:url("/x*/y.png")}\n/* two */ /* comments */\n',
+  });
+  try {
+    const problems = check(root);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /^rule css-comment-close: android-companion\/theme\.css:2: .*Reword the comment/);
+  } finally { fs.rmSync(root, {recursive: true, force: true}); }
+});
+
+test('bash-in-npm-script flags npm scripts that call bash or a .sh file', () => {
+  const root = tree({'package.json': JSON.stringify({scripts: {
+    'test:java': 'bash scripts/test-parser.sh', build: './scripts/build-debug.sh', ok: 'node scripts/test-java.mjs', bashful: 'node bashful.mjs',
+  }}, null, 2)});
+  try {
+    assert.deepEqual(check(root).map(p => p.match(/:(\d+): /)[1]), ['3', '4']);
+  } finally { fs.rmSync(root, {recursive: true, force: true}); }
+});

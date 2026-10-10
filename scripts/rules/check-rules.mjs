@@ -35,7 +35,39 @@ function rawErrorReads(text) {
   return line => read.test(line) || destructure.test(line) || fromError.test(line);
 }
 
+// Lines holding a `*/` outside any comment. In CSS a comment ends at the first `*/`, so a path like res/values*/colors.xml
+// inside a comment closes it early and the browser silently drops the next rule (a5352a5 lost the Google Sans Flex @font-face).
+function strayCommentClose(text) {
+  const bad = new Set();
+  let line = 1, inComment = false, quote = null;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i], two = text.slice(i, i + 2);
+    if (c === '\n') { line++; continue; }
+    if (inComment) { if (two === '*/') { inComment = false; i++; } continue; }
+    if (quote) { if (c === '\\') i++; else if (c === quote) quote = null; continue; }
+    if (two === '/*') { inComment = true; i++; } else if (two === '*/') { bad.add(line); i++; } else if (c === '"' || c === "'") quote = c;
+  }
+  return (_, index) => bad.has(index + 1);
+}
+
+// npm script lines that call bash or a .sh file. From PowerShell or cmd, `bash` is often WSL's, which has no Node or JDK.
+const bashInNpmScript = () => line => /^\s*"[^"]+":\s*"(?:[^"]*\s)?(?:bash|sh)\s|^\s*"[^"]+":\s*"[^"]*\.sh\b/.test(line);
+
 export const RULES = [
+  {
+    id: 'css-comment-close',
+    rule: 'A CSS comment must not contain "*/": it ends the comment early and the browser silently drops the next rule.',
+    files: root => [...files(root, 'android-companion', p => p.endsWith('.css')), ...files(root, 'chat-prototype', p => p.endsWith('.css'))],
+    matcher: strayCommentClose,
+    fix: 'Reword the comment so it has no "*/" (write res/values/colors.xml and res/values-night/colors.xml, not res/values*/colors.xml).',
+  },
+  {
+    id: 'bash-in-npm-script',
+    rule: 'npm scripts run from PowerShell, cmd and Git Bash, so none calls bash or a .sh file.',
+    files: root => [path.join(root, 'package.json')].filter(p => fs.existsSync(p)),
+    matcher: bashInNpmScript,
+    fix: 'Write the step as a Node script under scripts/ and use scripts/lib/toolchain.mjs to find the JDK, Android SDK or npm.',
+  },
   {
     id: 'raw-error-text',
     rule: 'An error reaches the screen only through userMessage(error), so a script fault never shows as raw text.',
@@ -54,7 +86,7 @@ export function check(root, rules = RULES) {
     const text = fs.readFileSync(file, 'utf8');
     const matches = r.matcher(text);
     text.split('\n').forEach((line, i) => {
-      if (matches(line) && !line.includes(`rules-allow ${r.id}:`))
+      if (matches(line, i) && !line.includes(`rules-allow ${r.id}:`))
         problems.push(`rule ${r.id}: ${path.relative(root, file).replace(/\\/g, '/')}:${i + 1}: ${r.rule} ${r.fix}`);
     });
   }
