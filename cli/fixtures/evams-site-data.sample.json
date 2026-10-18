@@ -1,0 +1,98 @@
+{
+  "assignments": [
+    {
+      "id": "pmdl-pre-work-2026-09-20",
+      "lmsContentId": "1316916",
+      "title": "PMDL — Personal Mastery pre-work",
+      "course": "Personal Mastery for Development Leadership",
+      "dueDate": "2026-09-20",
+      "time": "11:00 PM",
+      "submissionWindow": null,
+      "status": "active",
+      "lmsDateChange": null
+    },
+    {
+      "id": "dad-group-assignment-2026-09-14",
+      "lmsContentId": "1315253",
+      "title": "DAD — Group Assignment 1",
+      "course": "Data Analysis for Development",
+      "dueDate": "2026-09-14",
+      "time": "Not specified by LMS",
+      "submissionWindow": null,
+      "status": "active",
+      "lmsDateChange": null
+    },
+    {
+      "id": "sms-individual-assignment-2026-09-16",
+      "lmsContentId": "1312480",
+      "title": "SMS — Individual worksheet",
+      "course": "State, Market and Society",
+      "dueDate": "2026-09-16",
+      "time": "11:59 PM",
+      "submissionWindow": null,
+      "status": "active",
+      "lmsDateChange": null
+    },
+    {
+      "id": "sms-group-presentation-2026-09-16",
+      "lmsContentId": "1312482",
+      "title": "SMS — Group presentation",
+      "course": "State, Market and Society",
+      "dueDate": "2026-09-16",
+      "time": "11:59 PM",
+      "submissionWindow": null,
+      "status": "active",
+      "lmsDateChange": null
+    },
+    {
+      "id": "pmdl-group-contract-2026-09-19",
+      "lmsContentId": "1308681",
+      "title": "PMDL — Group contract",
+      "course": "Personal Mastery for Development Leadership",
+      "dueDate": "2026-09-19",
+      "time": "Not specified by LMS",
+      "submissionWindow": {
+        "closesOn": "2026-09-21",
+        "time": "11:00 PM"
+      },
+      "status": "active",
+      "lmsDateChange": null
+    },
+    {
+      "id": "wid-op-ed-2026-09-21",
+      "lmsContentId": "1311810",
+      "title": "WID — Opinion piece",
+      "course": "Writing in Discipline",
+      "dueDate": "2026-09-28",
+      "time": "Not specified by LMS",
+      "submissionWindow": {
+        "closesOn": "2026-09-28",
+        "time": "11:00 PM"
+      },
+      "status": "active",
+      "lmsDateChange": null
+    },
+    {
+      "id": "pmdl-reflection-3-2026-09-25",
+      "lmsContentId": "1316915",
+      "title": "PMDL — Reflection 3",
+      "course": "Personal Mastery for Development Leadership",
+      "dueDate": "2026-09-25",
+      "time": "Not specified by LMS",
+      "submissionWindow": null,
+      "status": "details-pending",
+      "lmsDateChange": null
+    },
+    {
+      "id": "cbcl-self-peer-assessment-2026-09-21",
+      "lmsContentId": "1311809",
+      "title": "CBCL — Self and peer assessment",
+      "course": "CBCL",
+      "dueDate": "2026-09-21",
+      "time": "11:00 PM",
+      "submissionWindow": null,
+      "status": "active",
+      "lmsDateChange": null
+    }
+  ]
+}
