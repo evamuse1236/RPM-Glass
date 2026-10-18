@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>RPM playground</title>
+<link rel="stylesheet" href="/__playground/android-colors.css">
+<link rel="stylesheet" href="/__playground/shell.css">
+<link rel="stylesheet" href="/__playground/notch.css">
+<link rel="stylesheet" href="/__playground/widget.css">
+<script type="module" src="/__playground/shell.mjs"></script>
+</head>
+<body>
+<aside class="controls" aria-label="Playground controls">
+  <h1>RPM playground</h1>
+  <p class="lede">Capture and the planner are the real pages from <code>android-companion/</code>. Change a file, then reload this tab.</p>
+
+  <div class="group" role="group" aria-labelledby="screen-label">
+    <h2 id="screen-label">Screen</h2>
+    <div class="segmented">
+      <button type="button" data-view="capture">Capture</button>
+      <button type="button" data-view="planner">Planner</button>
+      <button type="button" data-view="notch">Notch</button>
+      <button type="button" data-view="widget">Widget</button>
+    </div>
+  </div>
+
+  <div class="group" role="group" aria-labelledby="phone-label">
+    <h2 id="phone-label">Phone</h2>
+    <div class="segmented">
+      <button type="button" data-text-scale="1">Text 100%</button>
+      <button type="button" data-text-scale="2">Text 200%</button>
+    </div>
+    <div class="segmented">
+      <button type="button" data-dark="false">Light</button>
+      <button type="button" data-dark="true">Dark</button>
+    </div>
+    <button type="button" id="back">Back</button>
+  </div>
+
+  <div class="group" role="group" aria-labelledby="notch-label" data-for="notch">
+    <h2 id="notch-label">Notch</h2>
+    <div class="segmented">
+      <button type="button" data-expand="false">Pill</button>
+      <button type="button" data-expand="true">Panel</button>
+    </div>
+    <label class="field">Time on the notch <input type="time" id="notch-time"></label>
+    <button type="button" id="notch-live">Use the real time</button>
+  </div>
+
+  <div class="group" role="group" aria-labelledby="data-label">
+    <h2 id="data-label">Data</h2>
+    <button type="button" id="reset">Reset to sample data</button>
+    <label class="file-button">Load companion.json<input type="file" id="load" accept=".json,application/json"></label>
+    <button type="button" id="download">Download data</button>
+  </div>
+
+  <p id="status" class="status" role="status" aria-live="polite"></p>
+
+  <details class="log">
+    <summary>Bridge calls</summary>
+    <ol id="log" reversed></ol>
+  </details>
+</aside>
+
+<main class="stage">
+  <div class="phone">
+    <div class="screen" id="screen">
+      <div class="home">
+        <div id="home-widget" class="home-widget"></div>
+      </div>
+      <div class="dim"></div>
+      <iframe id="capture-frame" class="page capture-page" title="Capture, the real page"></iframe>
+      <div class="planner-surface">
+        <iframe id="planner-frame" class="page planner-page" title="Planner, the real page"></iframe>
+      </div>
+      <div id="notch-stage" class="notch-stage"></div>
+      <div class="status-bar" aria-hidden="true"><span id="clock"></span></div>
+      <span class="camera" aria-hidden="true"></span>
+      <p id="copy-badge" class="copy-badge">Copy of a native view</p>
+      <p id="notch-empty" class="notch-empty" hidden>Nothing to show: the phone hides the notch when no task, water or routine is due.</p>
+    </div>
+  </div>
+</main>
+</body>
+</html>
