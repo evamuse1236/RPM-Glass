@@ -61,6 +61,9 @@
   --dur-short1:50ms;--dur-short2:100ms;--dur-short3:150ms;--dur-short4:200ms;
   --dur-medium1:250ms;--dur-medium2:300ms;--dur-medium3:350ms;--dur-medium4:400ms;
   --dur-short:var(--dur-short3);--dur-medium:var(--dur-medium1);--dur-long:var(--dur-medium4);
+  /* The spring overshoots: only for a scale of at most 1.1 (a press release, a ring pop), never for travel. */
+  --ease-spring:cubic-bezier(.34,1.56,.64,1);
+  --dur-press:100ms;--dur-settle:200ms;--dur-morph:350ms;
 
   /* Capture's dark bar and + sheet (Claude Design, 2026-10-18): dark in both themes, built from the dark roles above */
   --bar:#171719;--bar-high:#282a2c;--bar-highest:#333537;

@@ -1,5 +1,5 @@
-/** Motion tokens and screen transitions (surface-motion.mjs re-exports them). Interruptible, local motion on Material 3 tokens. Storage and navigation never wait on decoration.
- * Every animation starts from what is on screen now, so a tap during a transition redirects it. */
+/** Motion tokens and screen transitions; surface-motion.mjs re-exports them. Storage and navigation never wait on
+ * decoration. Every animation starts from what is on screen now, so a tap during a transition redirects it. */
 const running = new Map();
 
 /** M3 easing and duration tokens (androidx MotionTokens). theme.css carries the same values as --ease-* and --dur-*. */
@@ -10,10 +10,12 @@ export const EASE = Object.freeze({
   standard: 'cubic-bezier(.2,0,0,1)',
   standardDecelerate: 'cubic-bezier(0,0,0,1)',
   standardAccelerate: 'cubic-bezier(.3,0,1,1)',
+  spring: 'cubic-bezier(.34,1.56,.64,1)',
 });
 export const DURATION = Object.freeze({
   short1: 50, short2: 100, short3: 150, short4: 200,
   medium1: 250, medium2: 300, medium3: 350, medium4: 400,
+  press: 100, settle: 200, morph: 350,
 });
 /** Pairings used by the planner: sheets enter in 350ms and leave in 200ms, screens move in 300ms. Rows slide in
  * 300ms and open, collapse or resize in 250ms. A shared axis or fade through is sequenced as M3 specifies: the
