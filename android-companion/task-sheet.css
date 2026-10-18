@@ -1,0 +1,79 @@
+/* The task sheet's When card: one summary line that unfolds one icon-led chip row per choice. */
+.when-card {
+  margin-block: var(--s1);
+  margin-inline: calc(-1 * var(--s2));
+  padding-inline: var(--s2);
+  border-radius: var(--shape-lg);
+  background: var(--surface-container);
+}
+.when-card > .when-head { margin: 0 calc(-1 * var(--s2)); inline-size: calc(100% + 2 * var(--s2)); }
+.when-head .when-summary { font: var(--title-medium); }
+.when-head .when-summary.muted { font: var(--body-large); color: var(--primary); }
+.when-head > .when-bell { color: var(--primary); font-size: 20px; }
+.when-head > .when-caret { color: var(--on-surface-variant); }
+.when-head.is-open > .when-caret { rotate: 180deg; }
+.when-fold .fold-inner { padding-inline-start: 0; }
+.when-line {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  min-block-size: var(--touch);
+}
+.when-line[hidden] { display: none; }
+.when-glyph { justify-self: start; font-size: 20px; color: var(--on-surface-variant); }
+.when-card .choice-chips[aria-label]::before { content: none; }
+.when-chips {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: var(--s1) var(--s2) var(--s1) 0;
+  mask-image: linear-gradient(to right, black calc(100% - var(--s4)), transparent);
+}
+:root[data-large-text=true] .when-chips { flex-wrap: wrap; overflow: visible; mask-image: none; }
+
+/* Must as a switch: the whole row toggles it. */
+.must-switch .switch-track {
+  position: relative;
+  flex: none;
+  inline-size: 52px;
+  block-size: 32px;
+  border: 2px solid var(--outline);
+  border-radius: var(--shape-full);
+  background: var(--surface-container-highest);
+}
+.must-switch .switch-thumb {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 6px;
+  inline-size: 16px;
+  block-size: 16px;
+  border-radius: 50%;
+  background: var(--outline);
+  translate: 0 -50%;
+}
+.must-switch.must-on .switch-track { border-color: var(--primary); background: var(--primary); }
+.must-switch.must-on .switch-thumb { inline-size: 24px; block-size: 24px; inset-inline-start: 22px; background: var(--on-primary); }
+.must-switch:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* More details: Repeat and the free-text fields, folded until wanted. */
+.more-toggle {
+  border-radius: var(--shape-md);
+  margin: 0 calc(-1 * var(--s2));
+  padding: var(--s2);
+  inline-size: calc(100% + 2 * var(--s2));
+  color: var(--primary);
+}
+.more-toggle > .ms { color: var(--primary); }
+.more-toggle .detail-text { font: var(--label-large); }
+.more-toggle.is-open > .more-caret { rotate: 180deg; }
+.more-toggle:active { background: var(--row-press); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .when-caret, .more-caret { transition: rotate var(--dur-short4) var(--ease-emphasized); }
+  .must-switch .switch-thumb, .must-switch .switch-track {
+    transition: inset-inline-start var(--dur-short4) var(--ease-emphasized), inline-size var(--dur-short4) var(--ease-emphasized),
+      block-size var(--dur-short4) var(--ease-emphasized), background-color var(--dur-short2) var(--ease-standard),
+      border-color var(--dur-short2) var(--ease-standard);
+  }
+}
+:root[data-reduce-motion=true] :is(.when-caret, .more-caret, .must-switch .switch-thumb, .must-switch .switch-track) { transition: none; }

@@ -17,8 +17,9 @@ export const flows = {
     async run(h) {
       const {page} = h;
       await h.tap('open task', page.getByText('Group call: merge sections'));
-      await h.tap('tomorrow chip on the date row (saved, time chips unfold)', sheet(page).locator('.date-quick').getByRole('button', {name: /^Tomorrow, /}));
-      await h.tap('9:00 AM (saved, folds away)', sheet(page).locator('.time-chips').getByRole('button', {name: /^9:00\sAM$/}));
+      await h.tap('when card (unfolds day, time, length and alert rows)', sheet(page).locator('.when-head'));
+      await h.tap('tomorrow chip (saved, card stays open)', sheet(page).getByRole('group', {name: 'Day'}).getByRole('button', {name: /^Tomorrow/}));
+      await h.tap('9:00 AM (saved)', sheet(page).getByRole('group', {name: 'Time'}).getByRole('button', {name: /^9:00\sAM$/}));
     },
     check: s => { const t = find(s, 'Group call'); return ok(t?.planned && new Date(t.planned).toLocaleDateString('en-CA') === tomorrow() && new Date(t.planned).getHours() === 9, 'planned tomorrow 9:00'); },
   },
@@ -28,8 +29,9 @@ export const flows = {
       const {page} = h;
       await h.tap('open inbox', page.getByRole('button', {name: /^Inbox/}));
       await h.tap('open task', sheet(page).getByText('Send the RI budget to Mariyam'));
-      await h.tap('15 min chip on the estimate row (saved)', sheet(page).getByRole('button', {name: 'Estimate 15 min', exact: true}));
-      await h.tap('must (toggles in place)', sheet(page).getByRole('button', {name: 'Must', exact: true}));
+      await h.tap('when card', sheet(page).locator('.when-head'));
+      await h.tap('15 min length chip (saved)', sheet(page).getByRole('button', {name: 'Length 15 min', exact: true}));
+      await h.tap('must switch (toggles in place)', sheet(page).getByRole('switch', {name: 'Must', exact: true}));
     },
     check: s => { const t = find(s, 'Send the RI budget'); return ok(t?.minutes === 15 && t.must, '15 min and Must'); },
   },
