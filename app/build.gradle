@@ -10,8 +10,8 @@ android {
         applicationId "com.rpm.prototype"
         minSdk 26
         targetSdk 36
-        versionCode 24
-        versionName "0.24-whole-day"
+        versionCode 25
+        versionName "0.25-notch-centred"
         testInstrumentationRunner "com.rpm.prototype.OfflineTests"
     }
     compileOptions {

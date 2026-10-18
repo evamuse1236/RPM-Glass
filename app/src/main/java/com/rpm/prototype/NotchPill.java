@@ -103,11 +103,10 @@ final class NotchPill implements IslandView.Listener {
             }
         } else {
             String value = primary.text;
-            int lead = content.leadWidth(h);
             int keep = Math.max(dp(24), anchor.holeDiameter + dp(12));
-            int trail = Math.max(content.trailWidth(value), dp(MIN_PILL_WIDTH_DP) - lead - keep);
-            int w = lead + keep + trail;
-            int x = clamp(anchor.centerX - keep / 2 - lead, dp(4), displayWidth - w - dp(4));
+            int side = NotchAnchor.pillSide(content.leadWidth(h), content.trailWidth(value), keep, dp(MIN_PILL_WIDTH_DP));
+            int w = side + keep + side;
+            int x = clamp(anchor.centerX - keep / 2 - side, dp(4), displayWidth - w - dp(4));
             s.body.set(x, anchor.pillTop(), x + w, anchor.pillTop() + h);
             s.bottomRadius = h / 2f;
             s.topRadius = h / 2f;
@@ -129,7 +128,7 @@ final class NotchPill implements IslandView.Listener {
             Look look = NotchContent.look(primary.kind, scene);
             String key = "pill:" + look + ":" + value + ":" + w;
             if (!key.equals(mainKey)) {
-                main = content.pill(look, value, h, lead, keep, trail);
+                main = content.pill(look, value, h, side, keep, side);
                 mainKey = key;
             }
         }

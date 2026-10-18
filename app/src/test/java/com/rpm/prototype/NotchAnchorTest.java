@@ -30,6 +30,19 @@ public class NotchAnchorTest {
     }
 
     @Test
+    public void collapsedPillIsCentredOnThePhoneCamera() {
+        NotchAnchor a = NotchAnchor.fromCutout(506, 24, 574, 92, S24_DENSITY);
+        int keep = 102, minWidth = NotchAnchor.dp(140, S24_DENSITY);
+        for (int[] leadTrail : new int[][] {{110, 130}, {110, 60}, {110, 400}}) {
+            int side = NotchAnchor.pillSide(leadTrail[0], leadTrail[1], keep, minWidth);
+            int left = a.centerX - keep / 2 - side, right = left + side + keep + side;
+            assertEquals("lead " + leadTrail[0] + " trail " + leadTrail[1], a.centerX, (left + right) / 2);
+            assertTrue(right - left >= minWidth);
+            assertTrue(side >= leadTrail[0] && side >= leadTrail[1]);
+        }
+    }
+
+    @Test
     public void pillNeverRisesAboveTheScreen() {
         NotchAnchor a = NotchAnchor.fromCutout(520, 0, 560, 40, S24_DENSITY);
         assertEquals(0, a.pillTop());
