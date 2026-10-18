@@ -10,8 +10,8 @@ android {
         applicationId "com.rpm.prototype"
         minSdk 26
         targetSdk 36
-        versionCode 27
-        versionName "0.27-chip-names"
+        versionCode 28
+        versionName "0.28-whole-day-overhaul"
         testInstrumentationRunner "com.rpm.prototype.OfflineTests"
     }
     compileOptions {
