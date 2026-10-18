@@ -75,4 +75,5 @@ Live status as of 2026-10-07: Capture, Today, Blocks, Task rows and sheet, and I
 - [Home widget](./home-widget.md) covers the widget's Capture pill, mic and planner icon.
 - [Floating butterfly](./floating-butterfly.md) covers the overlay butterfly that opens Capture over other apps.
 - [Alerts](./alerts.md) covers reminders, ringing alarms, notification permissions and delivery status.
+- [Notch](./notch.md) covers the camera island: the pill, the open island, its swipes and the reminder and alarm islands.
 - [Earlier screens](./earlier-screens.md) covers the original native screens reached from Settings.
