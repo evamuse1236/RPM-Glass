@@ -101,6 +101,9 @@
 
 /* Base */
 *,*::before,*::after{box-sizing:border-box}
+/* Scrolling shows through partial rows and edge fades, never a scrollbar. */
+*{scrollbar-width:none}
+*::-webkit-scrollbar{display:none}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{margin:0;background:var(--surface);color:var(--on-surface);font:var(--body-medium);-webkit-tap-highlight-color:transparent}
 button,input,textarea,select{font:inherit;color:inherit}

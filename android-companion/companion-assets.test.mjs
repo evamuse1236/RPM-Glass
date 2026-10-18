@@ -11,3 +11,11 @@ test('every stylesheet the Capture and planner pages link is served by the nativ
   for(const [,href] of read(page).matchAll(/<link rel="stylesheet" href="\/([^"]+)"/g))assert.ok(allow.has(href),`${page} links ${href}, missing from CompanionSurface.ASSETS`);
  }
 });
+
+test('no page shows a scrollbar: both pages load theme.css, which hides them on every element',()=>{
+ const theme=read('theme.css');
+ assert.match(theme,/^\*\{scrollbar-width:none\}$/m);
+ assert.match(theme,/^\*::-webkit-scrollbar\{display:none\}$/m);
+ for(const page of ['index.html','planner.html'])assert.match(read(page),/href="\/theme\.css"/,page);
+ for(const css of fs.readdirSync(new URL('.',import.meta.url)).filter(f=>f.endsWith('.css')))assert.doesNotMatch(read(css),/scrollbar-width:\s*(auto|thin)/,css);
+});
