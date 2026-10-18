@@ -2,6 +2,8 @@
 import {tasks} from '../planner-state.mjs';
 import {occurrences, repeats} from '../planner-recurrence.mjs';
 import {toggleDone} from './task-row.mjs';
+import {openMealSheet} from './meals.mjs';
+import {bodyApi} from './body-api.mjs';
 
 /**
  * The notch's Done: ticks the task (or, for a repeating task, the occurrence starting at `start`) with the planner's
@@ -17,12 +19,7 @@ export function completeFromNotch(app, {complete, start}) {
   return undefined;
 }
 
-/**
- * The notch's Log meal. Opens the meal sheet for `slot` when this build has the Body screens (they set
- * `app.openMealLog`); otherwise Today stays open with a note.
- */
+/** The notch's Log meal: opens the meal sheet on `slot` (breakfast, lunch, snack or dinner), or on the next free slot. */
 export function openMealFromNotch(app, {slot} = {}) {
-  if (typeof app.openMealLog === 'function') return app.openMealLog(slot ?? null);
-  app.notice('The meal log is not in this build yet');
-  return undefined;
+  return openMealSheet(app, bodyApi(app), {slot: slot ?? null});
 }
