@@ -50,10 +50,8 @@ function rootBar(app, bar) {
   bar.className = 'top-bar root-bar';
   bar.append(el('h1', 'top-title', TITLES[state.tab]));
   const tools = el('div', 'top-actions');
-  tools.append(iconButton('search', 'Search', () => app.openSearch()));
+  // Search and Add live in the thumb's reach, bottom right (fab below); the bar keeps Capture and More.
   tools.append(iconButton('mic', 'Capture', () => app.capture()));
-  // Today adds from the bar, beside Capture, so nothing floats over the day.
-  if (state.tab === 'today') tools.append(iconButton('add_task', 'Add task', () => app.actions.addTask({plannedDate: state.day})));
   const more = iconButton('more_vert', 'More options', () => rootMenu(app, more));
   tools.append(more);
   bar.append(tools);
@@ -103,26 +101,26 @@ function navigationBar(app) {
   }
 }
 
+/** Root tabs: a right-hand column (Search above the tab's Add), and on today's spine the centred Now pill. Detail pages have none. */
 function fab(app) {
   const host = app.dom.fab;
   host.replaceChildren();
   const top = app.current();
-  // Detail pages have no FAB, so nothing floats over a task's Must star: Today adds from its top bar and Block
-  // detail from the inline "Add a task" row under its Plan.
+  const spec = top ? null : app.state.tab === 'today'
+    ? {label: 'Add task', onClick: () => app.actions.addTask({plannedDate: app.state.day})}
+    : app.actions.fabFor(app.state.tab);
+  host.hidden = !!top;
+  app.dom.planner.dataset.fab = String(!top);
+  if (top) return;
   if (dayAtNow(app)) {
-    host.hidden = false;
-    app.dom.planner.dataset.fab = 'true';
-    const node = labelButton('my_location', 'Now', () => jumpToNow(app), 'now-fab');
-    node.setAttribute('aria-label', 'Go to now');
-    host.append(node);
-    return;
+    const now = labelButton('my_location', 'Now', () => jumpToNow(app), 'now-fab');
+    now.setAttribute('aria-label', 'Go to now');
+    host.append(now);
   }
-  const spec = top || app.state.tab === 'today' ? null : app.actions.fabFor(app.state.tab);
-  host.hidden = !spec;
-  app.dom.planner.dataset.fab = String(!!spec);
-  if (!spec) return;
-  const node = iconButton('add', spec.label, spec.onClick, {cls: 'fab'});
-  host.append(node);
+  const stack = el('div', 'fab-stack');
+  stack.append(iconButton('search', 'Search', () => app.openSearch(), {cls: 'fab fab-small'}));
+  if (spec) stack.append(iconButton('add', spec.label, spec.onClick, {cls: 'fab'}));
+  host.append(stack);
 }
 
 /** `keep` (a save re-rendering the same screen): a top bar that would come out the same keeps its nodes. */

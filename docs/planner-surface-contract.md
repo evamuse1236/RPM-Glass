@@ -15,7 +15,7 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 ## Navigation and hierarchy
 
 - The solid 80dp bottom bar contains exactly **Today, Blocks, Projects, Life**, each with icon and visible label.
-- Settings pushes from the Today top bar and from other-screen overflow. Search stays in the top bar. Capture opens from the top bar; neither is a floating peer to Add.
+- Settings pushes from the Today top bar and from other-screen overflow. Search and Add sit bottom right, in the right thumb's reach: a 40dp Search button above the 56dp Add button on every root tab (user, 2026-10-18). Capture opens from the top bar.
 - Each root screen has at most one context-specific floating action.
 - Details push above root navigation and use Android Back. Task detail and quick add use bottom sheets with sticky primary actions above the keyboard.
 - Structural hierarchy is **Area → Goal → Project → Block → Task**. A list shows a summary; the next level holds controls. Cards never nest more than one level.
