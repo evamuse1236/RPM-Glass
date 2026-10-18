@@ -44,6 +44,7 @@ export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}
   }
  }
  if(turn.question){const op=merged.find(o=>o.opId===turn.question.opId),field=op?.fields.find(f=>f.name===turn.question.field);if(!field||field.op!=='unknown')throw new Error('A blocking question must name an unresolved field');for(const option of turn.question.options)validateField({name:field.name,op:'set',value:option.value,origin:'suggested',evidence:null},op.entity);}
+ if(turn.card){if(turn.card.day!==null&&!/^\d{4}-\d{2}-\d{2}$/.test(turn.card.day))throw new Error('A card day is YYYY-MM-DD or null');if(turn.card.kind==='task'&&!visible.has(`task:${turn.card.targetId}`))throw new Error('A task card needs a task ID supplied in context');}
  for(const m of turn.memoryCandidates)if(!m.evidence.trim()||!units.some(u=>u.text.includes(m.evidence)))throw new Error('Memory candidate lacks exact evidence');
  return {...turn,operations:merged};
 }

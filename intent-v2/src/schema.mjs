@@ -4,6 +4,8 @@ const text = maxLength => ({type:'string', maxLength});
 const enumeration = values => ({type:'string', enum:values});
 const array = (items,maxItems) => ({type:'array',items,maxItems});
 const nullable = schema => ({anyOf:[schema,{type:'null'}]});
+/** Prepared answer cards the app draws from current data: a day's agenda, the next item, one saved task, water, meals. */
+export const CARD_KINDS=['agenda','next','task','water','meals'];
 export const FIELD_NAMES=['title','purpose','notes','time','minutes','blockId','projectId','goalId','areaId','year','must','priority','recurrence','repeatAfterDays','alert'];
 const value={type:['string','integer','boolean','null']};
 export const FIELD_SCHEMA=object({name:enumeration(FIELD_NAMES),op:enumeration(['set','clear','unknown']),value,origin:enumeration(['stated','suggested']),evidence:nullable(text(2000))});
@@ -17,7 +19,8 @@ export const TURN_SCHEMA=object({
   decisions:array(object({sourceId:text(50),disposition:enumeration(['action','idea','reflection','reference','question','preference','existing']),note:nullable(text(140))}),100),
   operations:array(OPERATION_SCHEMA,30),
   question:nullable(object({opId:text(50),field:enumeration(FIELD_NAMES),prompt:text(250),options:array(object({label:text(50),value}),3)})),
-  memoryCandidates:array(object({text:text(500),evidence:text(1000),sensitive:{type:'boolean'}}),3)
+  memoryCandidates:array(object({text:text(500),evidence:text(1000),sensitive:{type:'boolean'}}),3),
+  card:nullable(object({kind:enumeration(CARD_KINDS),day:nullable(text(10)),targetId:nullable(text(100))}))
 });
 export function validate(value,schema,path='$') {
   if(schema.anyOf){if(schema.anyOf.some(s=>{try{validate(value,s,path);return true;}catch{return false;}}))return;throw new Error(`${path}: no permitted shape`);}

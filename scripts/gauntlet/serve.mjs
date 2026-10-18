@@ -38,7 +38,7 @@ function fakeTurn(input) {
     return {opId: 'task' + (i + 1), sourceId: unit.id, kind: 'create', entity: 'task', targetId: null, fields};
   });
   return {schemaVersion: 1, mode: 'capture', draftMode: 'new', reply: 'Here is what I heard.',
-    decisions: input.sourceUnits.map(u => ({sourceId: u.id, disposition: 'action', note: null})), operations, question: null, memoryCandidates: []};
+    decisions: input.sourceUnits.map(u => ({sourceId: u.id, disposition: 'action', note: null})), operations, question: null, memoryCandidates: [], card: null};
 }
 
 // The week's real commitments, read-only as PlannerCalendar.java returns them (start/end in epoch ms).

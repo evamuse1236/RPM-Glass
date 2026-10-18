@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildContext,sourceUnits} from '../src/context.mjs';
-import {intentModelPolicy} from '../src/model-policy.mjs';
+import {intentModelPolicy,HAIKU_MODEL} from '../src/model-policy.mjs';
 import {seed,setup,turn,operation,field,actionFor,captured} from './helpers.mjs';
 import {intentViewFromData} from '../../android-companion/intent-service.mjs';
 const NOW='2026-09-28T14:49:30.600Z';
@@ -11,8 +11,8 @@ const clarification='The task I just mentioned to you before';
 function fixture(){const d=seed();d.entries=[{id:16,kind:'plan',title:'Finish one WID assessment',done:false,archived:false}];d.intentV2={schema:1,captures:{idea:{messageId:'idea',conversationId:'c1',raw:idea,at:'2026-09-28T14:48:37.914Z',status:'interpreted',reply:'What would the Wispr bot help with?'},follow:{messageId:'follow',conversationId:'c1',raw:follow,at:'2026-09-28T14:49:19.161Z',status:'interpreted',reply:'Which item do you mean?'}},drafts:{},transactions:{},approvedMemories:[]};return d;}
 const bad=raw=>turn(raw,[operation([field('title','Finish one WID assessment',raw)],{entity:'project'})]);
 
-test('referential project follow-ups use high, ordinary captures remain none',()=>{
- for(const raw of [follow,clarification,'Turn that idea into a project','Add the one we discussed earlier'])assert.equal(intentModelPolicy({input:{sourceUnits:sourceUnits(raw)}}).effort,'high',raw);
+test('referential project follow-ups get careful Haiku reasoning, ordinary captures remain none',()=>{
+ for(const raw of [follow,clarification,'Turn that idea into a project','Add the one we discussed earlier']){const r=intentModelPolicy({input:{sourceUnits:sourceUnits(raw)}});assert.equal(r.effort,'high',raw);assert.equal(r.model,HAIKU_MODEL,raw);}
  for(const raw of ['Buy milk','Read tomorrow','Call Alex at 3pm'])assert.equal(intentModelPolicy({input:{sourceUnits:sourceUnits(raw)}}).effort,'none',raw);
 });
 test('recent conversation survives a crowded retrieval budget and excludes future turns',()=>{

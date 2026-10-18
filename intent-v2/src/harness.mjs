@@ -22,9 +22,9 @@ function skippedOps(draft,action){
 function safeQuestion(operations){for(const op of operations){const field=op.fields.find(f=>f.op==='unknown');if(field)return {opId:op.opId,field:field.name,prompt:`What should ${field.name} be for ${op.fields.find(f=>f.name==='title')?.value??op.entity}?`,options:[]};}return null;}
 /** Orchestration only. The model never receives a mutating function or persistence key. */
 export class IntentHarness {
- constructor({repository,model,applyPlan,undoPlan=null,refreshSchedule=null,modelPolicy=null,normalizeReply=null,validateInterpretation=null,onEvent=()=>{},clock=()=>new Date(),timezone='Asia/Kolkata',timeoutMs=12000,maxRepairCalls=1}={}){
+ constructor({repository,model,applyPlan,undoPlan=null,refreshSchedule=null,modelPolicy=null,snapshot=null,normalizeReply=null,validateInterpretation=null,onEvent=()=>{},clock=()=>new Date(),timezone='Asia/Kolkata',timeoutMs=12000,maxRepairCalls=1}={}){
   if(!repository||!model||!applyPlan)throw new Error('repository, model and applyPlan are required');
-  Object.assign(this,{repository,model,applyPlan,undoPlan,refreshSchedule,modelPolicy,normalizeReply,validateInterpretation,onEvent,clock,timezone,timeoutMs,maxRepairCalls});this.running=new Map();
+  Object.assign(this,{repository,model,applyPlan,undoPlan,refreshSchedule,modelPolicy,snapshot,normalizeReply,validateInterpretation,onEvent,clock,timezone,timeoutMs,maxRepairCalls});this.running=new Map();
  }
  emit(event){try{this.onEvent(event);}catch{/* Telemetry/UI must never break persistence. */}}
  async capture(input){
@@ -60,27 +60,30 @@ export class IntentHarness {
    for(const f of op.fields){const entity={blockId:'block',projectId:'project',goalId:'goal',areaId:'area'}[f.name];if(entity&&f.op==='set'&&!f.value.startsWith('$'))include(entity,f.value);}
   }
   const draftContext=activeDraft?{id:activeDraft.id,revision:activeDraft.revision,operations:activeDraft.operations.map(o=>({opId:o.opId,kind:o.kind,entity:o.entity,targetId:o.targetId,fields:o.fields.map(f=>({name:f.name,op:f.op,value:typeof f.value==='string'?f.value.slice(0,1000):f.value,origin:f.origin,truncated:typeof f.value==='string'&&f.value.length>1000}))}))}:null;
-  const input={messageId,sourceUnits:units,context,activeDraft:draftContext};
+  const plan=this.snapshot?await this.snapshot({data,capture,context}):null;
+  for(const e of plan?.entities??[])if(!context.entities.some(x=>x.entity===e.entity&&x.id===e.id))context.entities.push(e);
+  const input={messageId,sourceUnits:units,context,activeDraft:draftContext,...(plan?{snapshot:plan.summary}:{})};
   if(JSON.stringify(input).length>45000)return {messageId,status:'captured',error:'This thought needs a larger review. The original is kept; no task changed.'};
   const controller=new AbortController();let timer;
-  let repair=null,parsed,calls=0;const modelRuns=[];
+  let repair=null,parsed,fallback=null,calls=0;const modelRuns=[];
   try{
    for(let attempt=0;attempt<=this.maxRepairCalls;attempt++){
     const route=this.modelPolicy?.({input,attempt})??null;
     const budget=route?.timeoutMs??this.timeoutMs,deadline=Date.now()+budget;
     const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();const e=new Error('Interpretation timed out; the captured words are safe');e.code='TIMEOUT';reject(e);},budget);});
     this.emit({type:'interpreting',messageId,attempt,...(route?{effort:route.effort}:{})});calls++;
-    if(route)modelRuns.push({...route,attempt});
+    const run={...(route??{}),attempt,ms:null,ok:false};modelRuns.push(run);const started=Date.now();
     try{
-     const output=await Promise.race([this.model({...input,repair},{signal:controller.signal,deadline,route}),timeout]);
+     const output=await Promise.race([this.model({...input,repair},{signal:controller.signal,deadline,route,run}),timeout]).finally(()=>{run.ms=Date.now()-started;});run.ok=true;
      parsed=interpretTurn(output,{units,messageId,visibleEntities:context.entities,activeDraft});
      validateFollowUp(parsed,{input});
      this.validateInterpretation?.(parsed,{input});
-     // A fast extraction that identifies reasoning gets one high follow-up.
-     // This shares the repair allowance; there is never an unbounded cascade.
-     if(route?.effort==='none'&&this.modelPolicy?.({input,output})?.effort==='high'&&attempt<this.maxRepairCalls){repair={validationError:'This request needs planning or a contextual answer. Give concrete suggested steps for a plan; use supplied local schedule facts for queries.'};continue;}
+     // A fast run that turns out to be a plan or a large edit gets one stronger follow-up, sharing the repair allowance.
+     const next=route&&this.modelPolicy({input,output});if(next&&next.model!==route.model&&attempt<this.maxRepairCalls){run.escalated=next.reason;fallback=parsed;repair={validationError:'This request needs careful planning. Check every change against the supplied snapshot and give concrete suggested steps for a plan.'};continue;}
      break;
     }catch(error){
+     run.error=error.code??'INVALID_OUTPUT';
+     if(fallback){parsed=fallback;run.fellBack=true;break;}
      if(controller.signal.aborted||attempt===this.maxRepairCalls||error.code==='TIMEOUT')throw error;
      // Network/provider failures are not repaired. Invalid structured content or
      // local semantic validation errors may use the one stronger-model attempt.
@@ -102,11 +105,11 @@ export class IntentHarness {
      parsed.reply=this.normalizeReply?.({parsed,schedulePreview})??parsed.reply;
      state.drafts[draftId]={id:draftId,conversationId:capture.conversationId,revision:(previous?.revision??0)+1,status:'draft',created:previous?.created??capture.at,updated:this.clock().toISOString(),operations:parsed.operations,guards:{...newGuards,...previous?.guards},question:parsed.question??safeQuestion(parsed.operations),mode:parsed.mode,review:null,sourceMessageIds:[...new Set([...(previous?.sourceMessageIds??[]),messageId])],reply:parsed.reply,timeAnchorAt,schedulePreview};
     }
-    saved.status='interpreted';saved.draftId=draftId;saved.decisions=withNotes(parsed.decisions,units);saved.reply=parsed.reply;saved.memoryCandidates=parsed.memoryCandidates;saved.calls=calls;if(modelRuns.length)saved.modelRuns=modelRuns;delete saved.lastError;
+    saved.status='interpreted';saved.draftId=draftId;saved.decisions=withNotes(parsed.decisions,units);saved.reply=parsed.reply;saved.memoryCandidates=parsed.memoryCandidates;saved.card=parsed.card??null;saved.calls=calls;if(modelRuns.length)saved.modelRuns=modelRuns;delete saved.lastError;
     return {messageId,draftId,status:'interpreted',calls};
    });
-   this.emit({type:'ready',...result});return result;
-  }catch(error){const result={messageId,status:'captured',error:userMessage(error),code:error.code??'INTERPRETATION_FAILED',calls};
+   this.emit({type:'ready',...result});return {...result,modelRuns};
+  }catch(error){const result={messageId,status:'captured',error:userMessage(error),code:error.code??'INTERPRETATION_FAILED',calls,modelRuns};
    // Keep the retry state beside the durable raw capture. A failure receipt uses
    // one stable ID per capture, so repeated outages do not grow the ledger.
    try{await this.repository.transact(`interpret-failure:${messageId}`,{messageId},current=>{const saved=intentState(current).captures[messageId];if(saved&&saved.status!=='interpreted')saved.lastError={message:result.error,code:result.code,at:this.clock().toISOString()};return result;});}catch{/* Raw capture was already committed; surface the original model error. */}

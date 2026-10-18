@@ -1,6 +1,6 @@
 import {draftFollowUpProblem,FOLLOW_UP_NOTICE} from '../intent-v2/src/follow-up.mjs';
 import {validateIntentTimes} from './intent-time-guard.mjs';
-import {LUNA_MODEL,intentModelPolicy,captureReply} from '../intent-v2/src/model-policy.mjs';
+import {HAIKU_MODEL,CLAUDE_PROVIDERS,intentModelPolicy,captureReply} from '../intent-v2/src/model-policy.mjs';
 import {IntentHarness} from '../intent-v2/src/harness.mjs';
 import {createRepository,intentState} from '../intent-v2/src/repository.mjs';
 import {createRpmPlanAdapter} from '../intent-v2/adapters/rpm-glass.mjs';
@@ -11,6 +11,7 @@ import {findEntity} from '../intent-v2/src/context.mjs';
 import {intentSystemPrompt} from '../intent-v2/prompts/intent-system.mjs';
 import {formatTime} from '../cli/interpret.mjs';
 import {resolvePlannerTime} from './planner-tools.mjs';
+import {receiptLines} from './capture-receipt.mjs';
 
 const ACTIVE_DRAFTS=new Set(['draft','review']);
 export const INTENT_LIMITS=Object.freeze({outstandingCaptures:100,activeDrafts:100,sortPreviews:100,rawBytes:4*1024*1024});
@@ -37,7 +38,7 @@ export function refreshSchedulePreview({data,draft,anchor=new Date()}={}){
 }
 function projectDraft(data,draft,now){if(!draft)return null;const validationNotice=draftFollowUpProblem(data,draft)?FOLLOW_UP_NOTICE:null;const raw=structuredClone(draft.operations),byId=new Map(raw.map(op=>[op.opId,op])),links={blockId:['block','RPM block'],projectId:['project','Project'],goalId:['goal','Goal'],areaId:['area','Life area']};const target=op=>op.targetId===null?null:findEntity(data,op.entity,op.targetId);
  // An update shows what it changes from, so the saved task's current day, time and Block travel with it.
- const operations=raw.map(op=>({...op,targetTitle:target(op)?.title??null,...(op.entity==='task'&&target(op)?{targetBefore:{planned:target(op).planned??null,plannedDate:target(op).plannedDate??null,blockId:target(op).blockId??null,done:!!target(op).done}}:{}),fields:op.fields.map(field=>{const link=links[field.name];if(!link||field.op!=='set')return field;const value=String(field.value),created=value.startsWith('$')?byId.get(value.slice(1)):null,title=created?.fields.find(f=>f.name==='title'&&f.op==='set')?.value??findEntity(data,link[0],field.value)?.title??null;return {...field,displayLabel:link[1],displayValue:title??'Unavailable link'};})}));return {id:draft.id,conversationId:draft.conversationId,revision:draft.revision,status:draft.status,mode:draft.mode??'capture',created:draft.created,updated:draft.updated,reply:draft.reply??'',question:draft.question??null,review:draft.review??null,timeAnchorAt:draft.timeAnchorAt??null,schedulePreview:structuredClone(draft.schedulePreview??null),operations,receipt:structuredClone(draft.receipt??null),skipped:draft.skipped??[],validationNotice,actions:draftActions(draft,{now}).filter(a=>!validationNotice||a.action.kind!=='commit')};}
+ const operations=raw.map(op=>({...op,targetTitle:target(op)?.title??null,...(op.entity==='task'&&target(op)?{targetBefore:{planned:target(op).planned??null,plannedDate:target(op).plannedDate??null,blockId:target(op).blockId??null,done:!!target(op).done}}:{}),fields:op.fields.map(field=>{const link=links[field.name];if(!link||field.op!=='set')return field;const value=String(field.value),created=value.startsWith('$')?byId.get(value.slice(1)):null,title=created?.fields.find(f=>f.name==='title'&&f.op==='set')?.value??findEntity(data,link[0],field.value)?.title??null;return {...field,displayLabel:link[1],displayValue:title??'Unavailable link'};})}));return {id:draft.id,conversationId:draft.conversationId,revision:draft.revision,status:draft.status,mode:draft.mode??'capture',created:draft.created,updated:draft.updated,reply:draft.reply??'',question:draft.question??null,review:draft.review??null,timeAnchorAt:draft.timeAnchorAt??null,schedulePreview:structuredClone(draft.schedulePreview??null),operations,receipt:structuredClone(draft.receipt??null),applied:draft.applied?{at:draft.applied.at,auto:!!draft.applied.auto,needsConfirm:!!draft.applied.needsConfirm,warning:draft.applied.warning??null}:null,confirm:draft.confirm??null,lines:draft.receipt?receiptLines(data,draft):[],skipped:draft.skipped??[],validationNotice,actions:draftActions(draft,{now}).filter(a=>!validationNotice||a.action.kind!=='commit')};}
 /**
  * What was heard but not proposed ("Also heard"): each unit's note, and the Inbox task it became if Dara kept it.
  * An action unit's note names a saved item it also mentioned, so it shows as already on the list, never keepable.
@@ -48,20 +49,20 @@ function captureNotes(data,capture){
   return {sourceId:d.sourceId,disposition:d.disposition==='action'?'existing':d.disposition,note:d.note.trim(),keptTaskId:task?id:null};
  });
 }
-function projectCapture(data,state,capture,now){const draft=capture.draftId?state.drafts[capture.draftId]:null;return {messageId:capture.messageId,conversationId:capture.conversationId,raw:capture.raw,at:capture.at,status:capture.status,reply:draft?.reply??capture.reply??'',lastError:capture.lastError??null,draft:projectDraft(data,draft,now),notes:captureNotes(data,capture),memoryCandidates:structuredClone(capture.memoryCandidates??[])};}
+function projectCapture(data,state,capture,now){const draft=capture.draftId?state.drafts[capture.draftId]:null;return {messageId:capture.messageId,conversationId:capture.conversationId,raw:capture.raw,at:capture.at,status:capture.status,reply:draft?.reply??capture.reply??'',lastError:capture.lastError??null,draft:projectDraft(data,draft,now),notes:captureNotes(data,capture),memoryCandidates:structuredClone(capture.memoryCandidates??[]),card:structuredClone(capture.card??null)};}
 export function intentViewFromData(data,{conversationId=null,offset=0,limit=20,now=new Date()}={}){const state=ensureIntent(data),all=Object.values(state.captures).filter(c=>!conversationId||c.conversationId===conversationId).sort((a,b)=>at(b.at)-at(a.at)),start=Number.isInteger(offset)&&offset>=0?offset:0,count=Number.isInteger(limit)&&limit>=0?Math.min(limit,100):20,captures=all.slice(start,start+count);return {captures:captures.map(c=>projectCapture(data,state,c,now)),totalCaptures:all.length,hasMore:start+captures.length<all.length,nextOffset:start+captures.length,storage:{...storageUse(state),limits:INTENT_LIMITS}};}
 
 /**
  * Production integration around RPM's canonical store. The supplied backend must
  * compare-and-swap `save(expectedVersion,nextData)` and share the runtime's owner.
  */
-export function createIntentService({backend,native,model,changePlanner,undo,readCalendar,editPlan,onEvent=()=>{},clock=()=>new Date(),timezone=Intl.DateTimeFormat().resolvedOptions().timeZone}={}){
+export function createIntentService({backend,native,model,changePlanner,undo,readCalendar,editPlan,snapshot=null,onEvent=()=>{},clock=()=>new Date(),timezone=Intl.DateTimeFormat().resolvedOptions().timeZone}={}){
  if(!backend||typeof backend.load!=='function'||typeof backend.save!=='function')throw new Error('A shared versioned backend is required');
  if(typeof changePlanner!=='function'||typeof undo!=='function'||typeof readCalendar!=='function'||typeof editPlan!=='function')throw new Error('Inject RPM planner, Undo, calendar and editor contracts');
  const repository=createRepository(backend);
  const adapter=createRpmPlanAdapter({changePlanner,undo,readCalendar});
- const interpret=model??nativeModelTransport({native,model:LUNA_MODEL,prompt:intentSystemPrompt,providerNames:['OpenAI'],effort:'none'});
- const harness=new IntentHarness({repository,...adapter,model:interpret,modelPolicy:intentModelPolicy,normalizeReply:captureReply,validateInterpretation:validateIntentTimes,refreshSchedule:args=>({...refreshSchedulePreview(args),timezone}),onEvent,clock,timezone});
+ const interpret=model??nativeModelTransport({native,model:HAIKU_MODEL,prompt:intentSystemPrompt,providerNames:CLAUDE_PROVIDERS,effort:'none'});
+ const harness=new IntentHarness({repository,...adapter,model:interpret,modelPolicy:intentModelPolicy,snapshot,normalizeReply:captureReply,validateInterpretation:validateIntentTimes,refreshSchedule:args=>({...refreshSchedulePreview(args),timezone}),onEvent,clock,timezone});
 
  async function view({conversationId=null,offset=0,limit=20}={}){
   return intentViewFromData(await repository.load(),{conversationId,offset,limit,now:clock()});
