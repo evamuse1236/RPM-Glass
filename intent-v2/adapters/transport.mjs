@@ -44,6 +44,7 @@ export function nativeModelTransport({native,model,prompt,providerNames=[],effor
    const body=structuredRequest({model:selectedModel,prompt,input,providerNames,effort:selectedEffort,...(route?.maxTokens?{maxTokens:route.maxTokens}:{})});
    const r=await native('model',{requestId,body,...(route?.timeoutMs?{timeoutMs:route.timeoutMs+2000}:{})});
    if(signal?.aborted)throw new DOMException('Late native response ignored','AbortError');
+   if(r.status===401||r.status===403)throw new Error('The AI service refused your key. Add a new OpenRouter key in Settings, then tap Retry.');
    if(r.status<200||r.status>=300)throw new Error(`Native model request failed (${r.status})`);
    if(run)Object.assign(run,{requestId,...usageOf(r.body)});
    return readStructuredResponse(r.body,{model:selectedModel,providerNames});
