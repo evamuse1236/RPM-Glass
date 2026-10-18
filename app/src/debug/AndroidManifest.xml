@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+    <application>
+        <activity android:name=".notchlab.NotchLabActivity" android:exported="true" android:label="Notch lab" android:taskAffinity="com.rpm.prototype.notchlab" android:theme="@android:style/Theme.DeviceDefault">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity>
+        <receiver android:name=".notchlab.LiveUpdateReceiver" android:exported="false" />
+        <service android:name=".notchlab.NotchAccessibilityService" android:exported="true" android:label="RPM Notch lab (debug)" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/notch_accessibility" />
+        </service>
+        <!-- Lint's ForegroundServiceType check reads this file instead of the merged manifest once a debug manifest exists; restating the main types keeps lintDebug accurate. -->
+        <service android:name="com.rpm.prototype.ButterflyService" android:foregroundServiceType="specialUse" />
+        <service android:name="com.rpm.prototype.CompanionAlarmService" android:foregroundServiceType="mediaPlayback" />
+        <service android:name="com.rpm.prototype.AlarmService" android:foregroundServiceType="mediaPlayback" />
+    </application>
+</manifest>

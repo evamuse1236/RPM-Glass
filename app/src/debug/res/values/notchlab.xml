@@ -1,0 +1,4 @@
+<resources>
+    <string name="notch_accessibility_summary">Debug build only. Draws a test pill at the camera cutout.</string>
+    <string name="notch_accessibility_description">RPM Notch lab is a debug-only experiment. When on, it draws one black pill around the front camera so you can compare it with a Live Update notification. It does not read the screen, your typing or other apps, and it sends nothing anywhere. Touches outside the pill go to the app underneath. Turn it off here when you are done testing.</string>
+</resources>
