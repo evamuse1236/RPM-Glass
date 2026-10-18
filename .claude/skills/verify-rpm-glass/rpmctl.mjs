@@ -22,7 +22,8 @@ const commands = {
 
 const argv = parseArgs(process.argv.slice(2));
 const cmd = argv._.shift();
-if (!cmd || cmd === 'help' || (argv.help && !commands[cmd])) { console.log(HELP._); process.exit(0); }
+if (cmd === 'help') { console.log(HELP[argv._[0]] ?? HELP._); process.exit(0); }
+if (!cmd || (argv.help && !commands[cmd])) { console.log(HELP._); process.exit(0); }
 if (argv.help) { console.log(HELP[cmd]); process.exit(0); }
 if (!commands[cmd]) { console.log(JSON.stringify({ok: false, error: `Unknown command "${cmd}".`, fix: 'Run `rpmctl --help` for the command list.'})); process.exit(1); }
 try {

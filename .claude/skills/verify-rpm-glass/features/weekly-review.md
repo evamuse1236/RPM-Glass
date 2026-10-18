@@ -26,6 +26,8 @@ The weekly review is a four-step flow the user runs once a week. It looks back a
 
 Preconditions:
 
+- After `rpmctl launch`, run `export RPMCTL_OWNER=<owner from launch>` in this agent's shell (PowerShell: `$env:RPMCTL_OWNER = '<owner from launch>'`). Keep it set through cleanup.
+
 - Baseline state. The sample plan has four Results chosen for last week, six Inbox tasks, and no week picked.
 - `rpmctl open planner` has been run, on Today.
 

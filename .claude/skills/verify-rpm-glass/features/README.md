@@ -5,6 +5,7 @@ This directory is the maintained source for verifying the user-facing behavior o
 ## Baseline preconditions
 
 - Run `rpmctl launch`. It prints `"ok": true` when the owned emulator is booted and the debug APK from this checkout is installed.
+- After launch, run `export RPMCTL_OWNER=<owner from launch>` in this agent's shell (PowerShell: `$env:RPMCTL_OWNER = '<owner from launch>'`). Keep it set through cleanup.
 - Run `rpmctl doctor` and require `ok`. Read `firstFix` if it is not.
 - Run `rpmctl seed`. It loads the sample plan and reopens the app. Dates in the sample plan are relative to the moment you seed, so reseed on a new day.
 - Run `rpmctl display phone` so the screen is S24 FE size at normal text.

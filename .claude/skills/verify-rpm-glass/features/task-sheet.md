@@ -32,6 +32,8 @@ A task row shows a check circle, a title, a time line and a star if it is a Must
 
 Preconditions:
 
+- After `rpmctl launch`, run `export RPMCTL_OWNER=<owner from launch>` in this agent's shell (PowerShell: `$env:RPMCTL_OWNER = '<owner from launch>'`). Keep it set through cleanup.
+
 - Baseline state.
 - `rpmctl open planner` has been run and the `Today` nav button tapped. `open planner` reopens the last tab used, so check the heading and wait a couple of seconds before the first tap. Scroll down once (`rpmctl scroll down`) so the agenda rows are in view.
 

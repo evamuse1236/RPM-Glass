@@ -5,6 +5,7 @@ import {spawnSync} from 'node:child_process';
 import {PACKAGE, UserError, adb, shell, devices, startEmulator, processAlive, killTree, sleep, waitFor, appPid, foregroundActivity, displayInfo, nativeNodes, dismissAnr, sdkRoot, processImage, ownsEmulator} from './device.mjs';
 import {pageTargets} from './page.mjs';
 import {ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, readState, writeState, evidenceDir, journal, devtoolsPort, viaShell, openLauncher, errorLines} from './runtime.mjs';
+import {portsFor, requireOwner, takeLease, updateLease, assertLease, releaseLease} from './ownership.mjs';
 
 const SOURCES = ['app/src/main', 'android-companion', 'chat-prototype', 'cli', 'intent-v2/src', 'intent-v2/adapters', 'intent-v2/prompts', 'scripts/build-companion-assets.mjs', 'app/build.gradle'];
 const sha256 = buf => crypto.createHash('sha256').update(buf).digest('hex');
@@ -55,46 +56,61 @@ function install(serial, apk) {
 
 export const lifecycleCommands = {
   async launch(args) {
-    const port = Number(args.port ?? DEFAULTS.port), serial = `emulator-${port}`;
     let state = readState();
+    requireOwner(state, args);
+    const {port, cdpPort} = portsFor(args, state ?? DEFAULTS), serial = `emulator-${port}`;
+    if (state && (state.port !== port || state.cdpPort !== cdpPort))
+      throw new UserError('This worktree already has a run with different ports.', 'Run `rpmctl cleanup` with its owner token before changing --port or --cdp-port.');
     const t0 = Date.now();
-    if (state && !(state.serial === serial && ownsEmulator(state, serial))) {
-      if (/emulator|qemu/i.test(processImage(state.pid) ?? '')) throw new UserError(`An rpmctl emulator is already running as ${state.serial}.`, 'Use it (drop --port), or run `rpmctl cleanup` first.');
-      fs.rmSync(STATE, {force: true}); state = null;
-    }
-    if (!state) {
-      if (devices().some(d => d.serial === serial)) throw new UserError(`${serial} is already running and was not started by rpmctl.`, `Pick a free port: rpmctl launch --port ${port + 10}. Never drive an instance you did not start.`);
-      const runId = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      state = {serial, port, avd: args.avd ?? DEFAULTS.avd, runId, cdpPort: Number(args.cdpPort ?? DEFAULTS.cdpPort), startedAt: new Date().toISOString()};
-      const log = path.join(evidenceDir(state), 'emulator.log');
-      const {pid, args: emuArgs} = startEmulator({avd: state.avd, port, logFile: log, gpu: args.gpu ?? DEFAULTS.gpu});
-      Object.assign(state, {pid, emulatorArgs: emuArgs});
+    const startedAt = new Date().toISOString();
+    const leaseState = {...state, port, cdpPort, worktree: ROOT,
+      owner: state && processAlive(state.pid) ? state.owner ?? crypto.randomUUID() : crypto.randomUUID(), startedAt: state?.startedAt ?? startedAt};
+    takeLease(leaseState);
+    try {
+      if (state && !(state.serial === serial && ownsEmulator(state, serial))) {
+        if (/emulator|qemu/i.test(processImage(state.pid) ?? '')) throw new UserError(`An rpmctl emulator is already running as ${state.serial}.`, 'Use it (drop --port), or run `rpmctl cleanup` first.');
+        fs.rmSync(STATE, {force: true}); state = null;
+      }
+      if (!state) {
+        if (devices().some(d => d.serial === serial)) throw new UserError(`${serial} is already running and was not started by rpmctl.`, `Pick a free port: rpmctl launch --port ${port + 10}. Never drive an instance you did not start.`);
+        const runId = `${startedAt.replace(/[:.]/g, '-').slice(0, 19)}-${crypto.randomBytes(3).toString('hex')}`;
+        state = {...leaseState, pid: undefined, serial, avd: args.avd ?? DEFAULTS.avd, runId};
+        const log = path.join(evidenceDir(state), 'emulator.log');
+        const {pid, args: emuArgs} = startEmulator({avd: state.avd, port, logFile: log, gpu: args.gpu ?? DEFAULTS.gpu});
+        Object.assign(state, {pid, emulatorArgs: emuArgs});
+        if (!pid) throw new UserError('The emulator process did not start.', 'Check the emulator log, then retry `rpmctl launch`.');
+        writeState(state);
+        updateLease(state, {launching: true});
+        await waitFor(() => devices().some(d => d.serial === serial && d.state === 'device'), {timeout: Number(args.timeout ?? 240) * 1000, what: `${serial} to come online (see ${log})`});
+        await waitFor(() => shell(serial, 'getprop sys.boot_completed', {allowFail: true}).trim() === '1', {timeout: Number(args.timeout ?? 240) * 1000, what: 'Android to finish booting'});
+        shell(serial, 'input keyevent 82', {allowFail: true});
+        shell(serial, 'settings put global stay_on_while_plugged_in 7', {allowFail: true});
+        shell(serial, 'settings put system accelerometer_rotation 0', {allowFail: true});
+      } else { Object.assign(state, leaseState); writeState(state); }
+      const apk = args.apk ? path.resolve(String(args.apk)) : APK;
+      if (!args.apk && (args.build || (!args.noBuild && apkStale()))) build();
+      if (!fs.existsSync(apk)) throw new UserError(`No APK at ${apk}.`, 'Run `rpmctl launch --build`.');
+      const apkHash = sha256(fs.readFileSync(apk));
+      const installed = shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).includes('package:');
+      const installResult = args.noInstall ? (installed ? 'skipped (kept what the emulator had)' : 'skipped (not installed)')
+        : state.installedSha256 === apkHash && installed ? 'already-installed' : install(serial, apk);
+      if (!args.noInstall) state.installedSha256 = apkHash;
+      state.appLogSince = shell(serial, "date '+%m-%d %H:%M:%S.000'").trim();
       writeState(state);
-      await waitFor(() => devices().some(d => d.serial === serial && d.state === 'device'), {timeout: Number(args.timeout ?? 240) * 1000, what: `${serial} to come online (see ${log})`});
-      await waitFor(() => shell(serial, 'getprop sys.boot_completed', {allowFail: true}).trim() === '1', {timeout: Number(args.timeout ?? 240) * 1000, what: 'Android to finish booting'});
-      shell(serial, 'input keyevent 82', {allowFail: true});
-      shell(serial, 'settings put global stay_on_while_plugged_in 7', {allowFail: true});
-      shell(serial, 'settings put system accelerometer_rotation 0', {allowFail: true});
+      dismissAnr(serial);
+      await openLauncher(serial);
+      await sleep(2500);
+      const anr = dismissAnr(serial);
+      const out = {ok: true, serial, pid: state.pid, owner: state.owner, port, cdpPort, runId: state.runId, evidence: evidenceDir(state), install: installResult,
+        apk: {path: path.relative(ROOT, apk), ...(args.apk ? {} : gradleVersion()), sha256: apkHash}, dismissedAnr: anr, seconds: Math.round((Date.now() - t0) / 1000),
+        next: 'rpmctl doctor'};
+      journal(state, {command: 'launch', result: out});
+      return out;
+    } finally {
+      const saved = readState();
+      if (saved?.owner === leaseState.owner) updateLease(saved);
+      else releaseLease(leaseState);
     }
-    const apk = args.apk ? path.resolve(String(args.apk)) : APK;
-    if (!args.apk && (args.build || (!args.noBuild && apkStale()))) build();
-    if (!fs.existsSync(apk)) throw new UserError(`No APK at ${apk}.`, 'Run `rpmctl launch --build`.');
-    const apkHash = sha256(fs.readFileSync(apk));
-    const installed = shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).includes('package:');
-    const installResult = args.noInstall ? (installed ? 'skipped (kept what the emulator had)' : 'skipped (not installed)')
-      : state.installedSha256 === apkHash && installed ? 'already-installed' : install(serial, apk);
-    if (!args.noInstall) state.installedSha256 = apkHash;
-    state.appLogSince = shell(serial, "date '+%m-%d %H:%M:%S.000'").trim();
-    writeState(state);
-    dismissAnr(serial);
-    await openLauncher(serial);
-    await sleep(2500);
-    const anr = dismissAnr(serial);
-    const out = {ok: true, serial, pid: state.pid, runId: state.runId, evidence: evidenceDir(state), install: installResult,
-      apk: {path: path.relative(ROOT, apk), ...(args.apk ? {} : gradleVersion()), sha256: apkHash}, dismissedAnr: anr, seconds: Math.round((Date.now() - t0) / 1000),
-      next: 'rpmctl doctor'};
-    journal(state, {command: 'launch', result: out});
-    return out;
   },
 
   async doctor(args) {
@@ -162,6 +178,8 @@ export const lifecycleCommands = {
   async cleanup(args) {
     const state = readState();
     if (!state) return {ok: true, note: 'Nothing launched by rpmctl is running.', evidence: fs.existsSync(EVIDENCE) ? EVIDENCE : null};
+    requireOwner(state, args);
+    assertLease(state);
     const dir = evidenceDir(state);
     adb(null, ['forward', '--remove', `tcp:${state.cdpPort}`], {allowFail: true});
     let killed = false;
@@ -175,7 +193,12 @@ export const lifecycleCommands = {
       killed = ours && !processAlive(state.pid);
     }
     journal(state, {command: 'cleanup', killedEmulator: killed});
-    if (!args.keepEmulator) fs.rmSync(STATE, {force: true});
+    if (!args.keepEmulator) {
+      if (processAlive(state.pid) && /emulator|qemu/i.test(processImage(state.pid) ?? ''))
+        throw new UserError('The emulator is still running; its lease and state were kept.', 'Retry `rpmctl cleanup` with the same owner token.');
+      fs.rmSync(STATE, {force: true});
+      releaseLease(state);
+    }
     return {ok: true, emulator: args.keepEmulator ? 'kept' : killed ? `stopped pid ${state.pid}` : 'already gone (nothing killed)', evidence: dir, evidenceFiles: fs.readdirSync(dir).length};
   },
 };

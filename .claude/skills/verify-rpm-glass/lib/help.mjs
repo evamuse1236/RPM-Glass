@@ -30,17 +30,26 @@ Evidence
 Global options
   --serial <s>   Target another device read-only (doctor, ui, shot, logs, state). Mutating commands
                  only run on the emulator this tool launched.
-  --cdp-port <n> Local port for the WebView DevTools forward (default 9333).
+  --port <n>     Launch console port. Default hashes the worktree path to an even port in 5580–5680.
+  --cdp-port <n> Local DevTools port. Default hashes the worktree path to 10000–19999.
+  --owner <token> Run owner from launch, or set RPMCTL_OWNER. Required for mutating commands,
+                 including eval, scenario, cleanup and launch on an existing run. Wrong tokens refuse.
+                 For one compatibility release only, a missing token warns instead of refusing.
+                 Read-only ui, shot, state, logs, doctor, check and wait need no token.
+Ports and worktree are reserved by a machine-wide lease under the OS temp folder. A dead emulator's
+lease can be reclaimed; a live launch is also protected. Hash collisions need explicit free ports.
 
 Typical run
-  rpmctl launch && rpmctl doctor
+  rpmctl launch
+  export RPMCTL_OWNER=<owner from launch>
+  rpmctl doctor
   rpmctl open planner && rpmctl tap --role button --name "Blocks" && rpmctl shot blocks-list
   rpmctl display large-text && rpmctl shot blocks-large-text && rpmctl display phone
   rpmctl check && rpmctl cleanup
 
 Evidence lives in .verify/evidence/<run-id>/ (gitignored) and survives cleanup.
 Run \`rpmctl <command> --help\` for details.`,
-  launch: `launch [--avd NAME] [--port N] [--build] [--no-build] [--apk FILE] [--no-install] [--gpu MODE] [--timeout SECONDS]
+  launch: `launch [--avd NAME] [--port N] [--cdp-port N] [--owner TOKEN] [--build] [--no-build] [--apk FILE] [--no-install] [--gpu MODE] [--timeout SECONDS]
 Boots AVD ${DEFAULTS.avd} headless as emulator-<port> with the host GPU (--gpu swiftshader_indirect on a machine without one;
 it is 3-4x slower and the slow emulator raises System UI ANR prompts) (default ${DEFAULTS.port}) with -read-only, so nothing the run does
 persists into the AVD. Builds app-debug.apk when it is missing or older than the app sources (--build forces,
@@ -48,8 +57,16 @@ persists into the AVD. Builds app-debug.apk when it is missing or older than the
 --apk installs that APK instead (e.g. an older build, to reproduce a past bug); doctor then reports the mismatch.
 --no-install leaves whatever the emulator image already has (doctor shows its version and signer).
 Idempotent: when the owned emulator is already up it only re-installs if the APK changed and re-opens the app.
-Refuses to use a port where an emulator it did not start is running.
-Output: {ok, serial, pid, runId, evidence, apk:{versionName, sha256}, bootSeconds}`,
+Default console port hashes the worktree path to an even port in 5580–5680 (this checkout: ${DEFAULTS.port}).
+Default CDP port hashes the path to 10000–19999 (this checkout: ${DEFAULTS.cdpPort}). Overrides are retained
+for later launches. A machine-wide lease in the OS temp folder reserves the worktree and port pair,
+including the adjacent emulator adb port. Dead emulator leases can be reclaimed; concurrent launches refuse.
+Refuses to use a port where an emulator it did not start is running. cleanup releases the lease.
+Save the random owner returned by launch: export RPMCTL_OWNER=<owner from launch>
+PowerShell: $env:RPMCTL_OWNER = '<owner from launch>'
+Mutating commands require --owner TOKEN or RPMCTL_OWNER, including launch on an owned emulator.
+For one compatibility release, a missing token warns instead of refusing. A wrong token always refuses.
+Output: {ok, serial, pid, owner, port, cdpPort, runId, evidence, apk:{versionName, sha256}, seconds}`,
   doctor: `doctor
 Read-only. Checks: adb, owned emulator alive and booted, read-only instance, display size/density/text scale,
 installed package version and APK hash against app/build.gradle and the local build, APK newer than sources,
@@ -121,5 +138,7 @@ Logs go to .verify/evidence/<run-id>/check-*.log. ok=false if any step fails.`,
   cleanup: `cleanup [--keep-emulator]
 Removes the DevTools port forward, kills the emulator process tree that launch started (by its recorded pid,
 never by name) and deletes .verify/state.json. Display overrides die with the read-only emulator.
+Releases the machine-wide lease once the emulator exits. --keep-emulator retains both state and lease.
+Requires --owner TOKEN or RPMCTL_OWNER (missing tokens warn for one compatibility release).
 The evidence folder is never touched. Output names the surviving evidence folder.`,
 };

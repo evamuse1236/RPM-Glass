@@ -25,6 +25,8 @@ Alerts are reminders and ringing alarms attached to a task with a time. A remind
 
 Preconditions:
 
+- After `rpmctl launch`, run `export RPMCTL_OWNER=<owner from launch>` in this agent's shell (PowerShell: `$env:RPMCTL_OWNER = '<owner from launch>'`). Keep it set through cleanup.
+
 - Baseline state. Notification permission is granted at install (`-g`). The exact-alarm permission is (unconfirmed) on the emulator; read the Settings row.
 - A task with a time, for example `Group call: merge sections` (4:00 PM today), open in the task sheet.
 

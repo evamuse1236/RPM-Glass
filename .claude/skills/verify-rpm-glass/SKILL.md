@@ -20,10 +20,15 @@ Run it from the repo root. Needs Node 22+, the Android SDK (`ANDROID_HOME`, or t
 ## Launch
 
 ```bash
-$RPMCTL launch            # boots emulator-5580 headless, builds the APK if sources changed, installs, opens Capture
+$RPMCTL launch            # boots this worktree's emulator, builds if needed, installs, opens Capture
+export RPMCTL_OWNER=<owner from launch>
 ```
 
 Ready when it prints `"ok": true` (cold boot about 1-2 minutes, then about 35 s when the emulator is already up). The emulator runs `-read-only`: nothing a run does persists into the AVD, so differently signed or stale copies of the app are replaced freely. `launch` refuses a port where an emulator it did not start is running. It is idempotent; rerun it after editing app sources to rebuild and reinstall (`--build` forces a build).
+
+Copy the `owner` from launch into `RPMCTL_OWNER` in the launching agent's shell. In PowerShell use `$env:RPMCTL_OWNER = '<owner from launch>'`. Alternatively pass `--owner <token>` on each mutating command, including `eval`, `scenario`, `cleanup` and a repeated `launch`. A wrong token refuses before any device access. For one compatibility release only, a missing token warns and proceeds. Read-only commands need no token. Keep the token with the launching agent.
+
+The worktree path determines the default even emulator console port in 5580–5680 and CDP port in 10000–19999. `--port` and `--cdp-port` override them at launch and are remembered for the run. Hash collisions refuse safely; choose free overrides. Atomic machine-wide lease directories under the OS temp folder reserve the worktree and ports, including the adjacent emulator adb port. A live launcher reserves them before boot; a dead emulator's lease is stale and can be reclaimed.
 
 ## Doctor
 
@@ -91,6 +96,8 @@ $RPMCTL cleanup
 ```
 
 Kills the emulator process tree that `launch` started (by its recorded pid, never by name), removes the DevTools port forward and `.verify/state.json`. Display and data changes die with the read-only emulator. Evidence stays; the output names the folder. Run `cleanup` after a failed attempt too.
+
+Cleanup releases the lease after the emulator exits. `cleanup --keep-emulator` retains the state and lease for the same owner to resume.
 
 ## A physical phone
 

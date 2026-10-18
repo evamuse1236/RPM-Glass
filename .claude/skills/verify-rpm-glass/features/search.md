@@ -22,6 +22,8 @@ Search is a full-screen view where the query lives in the top bar. It finds task
 
 Preconditions:
 
+- After `rpmctl launch`, run `export RPMCTL_OWNER=<owner from launch>` in this agent's shell (PowerShell: `$env:RPMCTL_OWNER = '<owner from launch>'`). Keep it set through cleanup.
+
 - Baseline state.
 - `rpmctl open planner` has been run, on Today.
 
