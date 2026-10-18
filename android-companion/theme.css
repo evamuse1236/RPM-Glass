@@ -63,7 +63,7 @@
   --dur-short:var(--dur-short3);--dur-medium:var(--dur-medium1);--dur-long:var(--dur-medium4);
 
   /* Capture's dark bar and + sheet (Claude Design, 2026-10-18): dark in both themes, built from the dark roles above */
-  --bar:#1e1f20;--bar-high:#282a2c;--bar-highest:#333537;
+  --bar:#171719;--bar-high:#282a2c;--bar-highest:#333537;
   --bar-on:#e3e3e3;--bar-on-variant:#c4c7c5;--bar-outline:#444746;
   --bar-accent:#0842a0;--bar-on-accent:#d3e3fd;--bar-primary:#a8c7fa;
   --bar-error:#f2b8b5;--bar-warn:#fdd663;--bar-success:#6dd58c;

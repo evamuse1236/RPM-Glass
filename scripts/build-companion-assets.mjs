@@ -12,7 +12,7 @@ await build({absWorkingDir:root,entryPoints:['android-companion/runtime.mjs'],ou
 }}]});
 // Every page and stylesheet in android-companion/ ships; CompanionActivity.ASSETS must list the same names.
 // A stylesheet with parts ships as one file, its parts appended in order, so the asset list names it once.
-const STYLE_PARTS={'planner.css':['body.css','day.css']};
+const STYLE_PARTS={'planner.css':['body.css','day.css','task-chips.css']};
 const parts=new Set(Object.values(STYLE_PARTS).flat());
 const source=file=>fs.readFileSync(path.join(root,'android-companion',file),'utf8');
 for(const file of fs.readdirSync(path.join(root,'android-companion')).filter(f=>/\.(html|css)$/.test(f)&&!parts.has(f)))fs.writeFileSync(path.join(out,file),[file,...(STYLE_PARTS[file]??[])].map(source).join('\n'));
