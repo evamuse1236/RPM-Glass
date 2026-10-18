@@ -5,6 +5,7 @@ import {sourceUnits,buildContext,guardsFor,checkGuards,stable,findEntity,context
 import {interpretTurn} from './interpret.mjs';
 import {checkAction} from './suggestions.mjs';
 import {validateField} from './schema.mjs';
+import {quickAnswer} from './quick-answer.mjs';
 
 const ident=value=>{if(typeof value!=='string'||!value||value.length>100)throw new Error('A stable client ID is required');return value;};
 const activeStatus=d=>d&&['draft','review'].includes(d.status);
@@ -52,6 +53,8 @@ export class IntentHarness {
   const activeDraft=capture.focusDraftId?v.drafts[capture.focusDraftId]:null;
   if(activeDraft&&(!activeStatus(activeDraft)||activeDraft.revision!==capture.focusRevision))return {messageId,status:'stale',error:'The focused draft changed; the original is kept.'};
   let units;try{units=sourceUnits(capture.raw);}catch(error){return {messageId,status:'captured',error:userMessage(error)};}
+  const quick=activeDraft?null:quickAnswer(capture.raw,{now:new Date(capture.at),timezone:capture.timezone});
+  if(quick)return this.#answerLocally(messageId,units,quick);
   const context=buildContext(data,{messageId,raw:capture.raw,conversationId:capture.conversationId,now:new Date(capture.at),timezone:capture.timezone});
   // Referenced draft targets are explicitly visible, even when not keyword-relevant.
   if(activeDraft)for(const op of activeDraft.operations){
@@ -115,6 +118,16 @@ export class IntentHarness {
    try{await this.repository.transact(`interpret-failure:${messageId}`,{messageId},current=>{const saved=intentState(current).captures[messageId];if(saved&&saved.status!=='interpreted')saved.lastError={message:result.error,code:result.code,at:this.clock().toISOString()};return result;});}catch{/* Raw capture was already committed; surface the original model error. */}
    this.emit({type:'needs-attention',...result});return result;}
   finally{clearTimeout(timer);controller.abort();}
+ }
+ /** A plain day question answered from saved data: the card draws itself, so no model call is made. */
+ async #answerLocally(messageId,units,card){
+  const result=await this.repository.transact(`interpret:${messageId}`,{messageId},current=>{
+   const saved=intentState(current).captures[messageId];
+   if(saved.status==='interpreted')return {messageId,draftId:saved.draftId??null,status:'interpreted'};
+   saved.status='interpreted';saved.draftId=null;saved.decisions=units.map(u=>({sourceId:u.id,disposition:'question',note:null}));saved.reply=null;saved.memoryCandidates=[];saved.card=card;saved.calls=0;saved.answeredLocally=true;delete saved.lastError;
+   return {messageId,draftId:null,status:'interpreted',calls:0};
+  });
+  this.emit({type:'ready',...result});return {...result,modelRuns:[]};
  }
  async act(action,{actionId}={}){
   ident(actionId);if(!action||typeof action!=='object')throw new Error('A typed action is required');

@@ -14,7 +14,8 @@ This replaces the Capture section of `PRODUCT.md` where they differ. `PRODUCT.md
 
 ## Models
 
-- Every capture: `anthropic/claude-haiku-5.5`, no reasoning. Follow-ups to an open draft: Haiku at high effort.
+- A plain day question on its own ("What's planned today?", "my timetable", "what's next", water, meals) skips the model and shows the card from saved data, so it works with no key (`intent-v2/src/quick-answer.mjs`).
+- Every other capture: `anthropic/claude-haiku-5.5`, no reasoning. Follow-ups to an open draft: Haiku at high effort.
 - Re-plan a day or week, sort the Inbox or backlog, advice, or a reading that changes more than three saved items: `anthropic/claude-sonnet-5.5` at high effort. A Haiku reading that turns out hard escalates to Sonnet; if Sonnet then fails, the Haiku reading is used.
 - Routing lives in `intent-v2/src/model-policy.mjs`; the native allowlist and limits in `ModelLimits.java`.
 
