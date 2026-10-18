@@ -6,9 +6,10 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {BUILT_WEB, builtWeb, isWebSource} from './web-assets.mjs';
 
 const APP_SOURCES = /^(app\/src\/main\/|android-companion\/|chat-prototype\/|intent-v2\/(src|adapters|prompts)\/|cli\/)/;
-const isAppFile = f => APP_SOURCES.test(f) && !/\.test\.(mjs|ts)$/.test(f) && !f.includes('/experiments/');
+const isAppFile = f => APP_SOURCES.test(f) && !/\.test\.(mjs|ts)$/.test(f) && !f.includes('/experiments/') && !f.startsWith(BUILT_WEB);
 const APK = 'app/build/outputs/apk/debug/app-debug.apk';
 
 const git = (root, args) => { try { return execFileSync('git', ['-c', 'core.quotepath=off', ...args], {cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}); } catch { return null; } };
@@ -35,8 +36,8 @@ function changedAt(root, file) {
   return Date.now();
 }
 
-// The newest rpmctl screenshot taken while this exact APK was installed on the emulator rpmctl launched.
-export function matchingEvidence(root, apkSha) {
+// The newest rpmctl screenshot taken while this exact APK, and these web assets when given, ran on the emulator rpmctl launched.
+export function matchingEvidence(root, apkSha, {webSha = null, needWeb = false} = {}) {
   let newest = null;
   const walk = d => { for (const e of fs.existsSync(d) ? fs.readdirSync(d, {withFileTypes: true}) : []) {
     const p = path.join(d, e.name);
@@ -45,6 +46,7 @@ export function matchingEvidence(root, apkSha) {
     let meta = null;
     try { meta = JSON.parse(fs.readFileSync(p.replace(/\.png$/, '.json'), 'utf8')); } catch {}
     if (!meta?.launchedByRpmctl || meta.apkSha256 !== apkSha || fs.statSync(p).size < 1000) continue;
+    if (meta.webSha256 ? meta.webSha256 !== webSha : needWeb) continue;
     const m = fs.statSync(p).mtimeMs;
     if (!newest || m > newest.mtime) newest = {file: p, mtime: m};
   } };
@@ -55,15 +57,18 @@ export function matchingEvidence(root, apkSha) {
 export function evidenceGap(root) {
   const {base, files: changed} = changedAppFiles(root);
   const how = 'Before saying done, drive the changed screen with the verify-rpm-glass skill (node .claude/skills/verify-rpm-glass/rpmctl.mjs launch, then open/tap/shot at phone and large-text), run `rpmctl check`, and put the evidence paths in the reply. '
+    + 'For a web-only change on a running emulator, `rpmctl sync` loads it in seconds without an APK build. '
     + 'If you could not drive it, mark the claim UNVERIFIED in the reply. If this turn changed no app behavior, say so and stop again.';
   if (!base) return `Cannot tell what this branch changed: no main or origin/main to compare with. ${how}`;
   if (!changed.length) return null;
   const list = files => files.slice(0, 5).join(', ') + (files.length > 5 ? ` and ${files.length - 5} more` : '');
   const apk = path.join(root, APK);
   const built = fs.existsSync(apk) ? fs.statSync(apk).mtimeMs : 0;
-  const unbuilt = changed.filter(f => changedAt(root, f) > built);
+  const web = builtWeb(root);
+  const unbuilt = changed.filter(f => changedAt(root, f) > (isWebSource(f) ? Math.max(built, web.at) : built));
   if (unbuilt.length) return `The debug APK is older than changed app code (${list(unbuilt)}), so no screenshot can show it yet. ${how}`;
-  const evidence = matchingEvidence(root, crypto.createHash('sha256').update(fs.readFileSync(apk)).digest('hex'));
+  const needWeb = changed.some(f => isWebSource(f) && changedAt(root, f) > built);
+  const evidence = matchingEvidence(root, crypto.createHash('sha256').update(fs.readFileSync(apk)).digest('hex'), {webSha: web.sha, needWeb});
   if (!evidence) return `No rpmctl screenshot was taken with the current debug APK installed (app code changed: ${list(changed)}). ${how}`;
   const unshown = changed.filter(f => changedAt(root, f) > evidence.mtime);
   if (unshown.length) return `App code changed after the newest matching screenshot (${path.relative(root, evidence.file)}): ${list(unshown)}. ${how}`;

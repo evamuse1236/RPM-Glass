@@ -23,7 +23,9 @@ Run it from the repo root. Needs Node 22+, the Android SDK (`ANDROID_HOME`, or t
 $RPMCTL launch            # boots emulator-5580 headless, builds the APK if sources changed, installs, opens Capture
 ```
 
-Ready when it prints `"ok": true` (cold boot about 1-2 minutes, then about 35 s when the emulator is already up). The emulator runs `-read-only`: nothing a run does persists into the AVD, so differently signed or stale copies of the app are replaced freely. `launch` refuses a port where an emulator it did not start is running. It is idempotent; rerun it after editing app sources to rebuild and reinstall (`--build` forces a build).
+Ready when it prints `"ok": true` (cold boot about 1-2 minutes, then about 35 s when the emulator is already up). The emulator runs `-read-only`: nothing a run does persists into the AVD, so differently signed or stale copies of the app are replaced freely. `launch` refuses a port where an emulator it did not start is running. It is idempotent; rerun it after editing Java or the manifest to rebuild and reinstall (`--build` forces a build).
+
+After editing web code only (`android-companion`, `intent-v2`, `chat-prototype`), run `rpmctl sync` instead: it bundles the assets, copies them into the running debug app and reloads the page in about 5 seconds. Screenshots taken after a sync prove the web change for `npm run check:evidence`.
 
 ## Doctor
 

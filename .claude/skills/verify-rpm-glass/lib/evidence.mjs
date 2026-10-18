@@ -16,7 +16,7 @@ export const evidenceCommands = {
     let page = null;
     try { const p = await inPage(serial, cdpPort); try { page = await p.evaluate(`(all) => window.__rpmSnapshot(all)`, false); } finally { p.close(); } }
     catch (e) { page = {unavailable: e.message}; }
-    const meta = {label, at: new Date().toISOString(), serial, launchedByRpmctl: !!state, apkSha256: state?.installedSha256 ?? null, activity: foregroundActivity(serial), display: displayInfo(serial), page,
+    const meta = {label, at: new Date().toISOString(), serial, launchedByRpmctl: !!state, apkSha256: state?.installedSha256 ?? null, webSha256: state?.webSha256 ?? null, activity: foregroundActivity(serial), display: displayInfo(serial), page,
       native: page?.unavailable ? nativeNodes(serial) : undefined};
     fs.writeFileSync(json, JSON.stringify(meta, null, 2));
     journal(state, {command: 'shot', png, json});

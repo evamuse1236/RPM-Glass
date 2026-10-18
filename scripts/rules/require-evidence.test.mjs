@@ -6,6 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {evidenceGap} from '../agent/require-evidence.mjs';
+import {builtWeb} from '../agent/web-assets.mjs';
 
 function repo({branch = 'main'} = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rpm-evidence-'));
@@ -52,6 +53,36 @@ test('an app change needs a newer build and a screenshot taken with that build i
     assert.match(evidenceGap(root), /No rpmctl screenshot/, 'a screenshot from a device rpmctl did not launch does not count');
     shot(root, '03-today', {launchedByRpmctl: true, apkSha256: sha}, now + 120000);
     assert.equal(evidenceGap(root), null);
+  } finally { fs.rmSync(root, {recursive: true, force: true}); }
+});
+
+function bundle(root, content, at) {
+  const file = path.join(root, 'app/src/main/assets/companion/runtime.js');
+  fs.mkdirSync(path.dirname(file), {recursive: true});
+  fs.writeFileSync(file, content);
+  touch(file, at);
+  return builtWeb(root).sha;
+}
+
+test('a web-only change proven by a synced screenshot needs no new APK; Java still does', () => {
+  const root = repo();
+  try {
+    const now = Date.now();
+    const apk = build(root, 'build', now - 60000);
+    fs.writeFileSync(path.join(root, 'android-companion/planner/app.mjs'), 'export const a = 2;\n');
+    touch(path.join(root, 'android-companion/planner/app.mjs'), now);
+    assert.match(evidenceGap(root), /debug APK is older.*rpmctl sync/s, 'an unbundled web change asks for sync or a build');
+    const old = bundle(root, 'old bundle', now + 30000);
+    shot(root, '01-apk-only', {launchedByRpmctl: true, apkSha256: apk}, now + 60000);
+    assert.match(evidenceGap(root), /No rpmctl screenshot/, 'a screenshot without the synced assets cannot show the web change');
+    shot(root, '02-synced', {launchedByRpmctl: true, apkSha256: apk, webSha256: old}, now + 60000);
+    assert.equal(evidenceGap(root), null);
+    bundle(root, 'newer bundle', now + 90000);
+    assert.match(evidenceGap(root), /No rpmctl screenshot/, 'a screenshot of an older sync does not count');
+    fs.mkdirSync(path.join(root, 'app/src/main/java'), {recursive: true});
+    fs.writeFileSync(path.join(root, 'app/src/main/java/A.java'), 'class A {}\n');
+    touch(path.join(root, 'app/src/main/java/A.java'), now + 100000);
+    assert.match(evidenceGap(root), /debug APK is older than changed app code \(app\/src\/main\/java\/A\.java\)/, 'sync never proves Java');
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });
 

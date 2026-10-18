@@ -6,10 +6,12 @@ import {lifecycleCommands} from './lib/lifecycle.mjs';
 import {driveCommands} from './lib/drive.mjs';
 import {evidenceCommands} from './lib/evidence.mjs';
 import {scenarioCommands} from './lib/scenarios.mjs';
+import {syncCommands} from './lib/sync.mjs';
 
 const commands = {
   launch: lifecycleCommands.launch,
   doctor: lifecycleCommands.doctor,
+  sync: syncCommands.sync,
   ...driveCommands,
   shot: evidenceCommands.shot,
   eval: evidenceCommands.eval,

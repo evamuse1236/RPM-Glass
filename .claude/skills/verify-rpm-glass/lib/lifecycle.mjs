@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {PACKAGE, UserError, adb, shell, devices, startEmulator, processAlive, killTree, sleep, waitFor, appPid, foregroundActivity, displayInfo, nativeNodes, dismissAnr, sdkRoot, processImage, ownsEmulator} from './device.mjs';
 import {pageTargets} from './page.mjs';
+import {builtAssetsSha, clearSynced} from './sync.mjs';
 import {ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, readState, writeState, evidenceDir, journal, devtoolsPort, viaShell, openLauncher, errorLines} from './runtime.mjs';
 
 const SOURCES = ['app/src/main', 'android-companion', 'chat-prototype', 'cli', 'intent-v2/src', 'intent-v2/adapters', 'intent-v2/prompts', 'scripts/build-companion-assets.mjs', 'app/build.gradle'];
@@ -36,7 +37,7 @@ function signer(apk) {
 
 function build() {
   const gradlew = path.join(ROOT, process.platform === 'win32' ? 'gradlew.bat' : 'gradlew');
-  const r = spawnSync(...viaShell(gradlew, ['--no-daemon', '-q', 'assembleDebug']), {cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024});
+  const r = spawnSync(...viaShell(gradlew, ['-q', 'assembleDebug']), {cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024});
   if (r.status !== 0) throw new UserError(`Gradle assembleDebug failed:\n${(r.stderr || r.stdout).trim().slice(-2000)}`, 'Fix the build error above, run `npm ci` if node_modules is missing, then `rpmctl launch --build`.');
 }
 
@@ -83,6 +84,7 @@ export const lifecycleCommands = {
     const installed = shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).includes('package:');
     const installResult = args.noInstall ? (installed ? 'skipped (kept what the emulator had)' : 'skipped (not installed)')
       : state.installedSha256 === apkHash && installed ? 'already-installed' : install(serial, apk);
+    if (!args.noInstall && installResult !== 'already-installed') { clearSynced(serial); state.webSha256 = builtAssetsSha(); }
     if (!args.noInstall) state.installedSha256 = apkHash;
     state.appLogSince = shell(serial, "date '+%m-%d %H:%M:%S.000'").trim();
     writeState(state);

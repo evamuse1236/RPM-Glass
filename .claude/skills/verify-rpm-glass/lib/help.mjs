@@ -9,6 +9,7 @@ Usage: node .claude/skills/verify-rpm-glass/rpmctl.mjs <command> [options]
 Lifecycle
   launch     Boot the owned emulator, build/install the debug APK, open the app.
   doctor     Read-only health check: is this instance worth driving?
+  sync       Push changed web code (android-companion, intent-v2) to the running app in seconds, no APK build.
   cleanup    Kill only what launch started. Evidence is kept.
 Drive
   seed       Replace the app's data with the sample plan (or --empty / --file), then reopen.
@@ -40,6 +41,12 @@ Typical run
 
 Evidence lives in .verify/evidence/<run-id>/ (gitignored) and survives cleanup.
 Run \`rpmctl <command> --help\` for details.`,
+  sync: `sync
+Bundles the web assets (scripts/build-companion-assets.mjs), copies the HTML, CSS and JS into the debug app's
+files/dev-companion/ (served before the APK's own copy, debug builds only) and reloads every open RPM page.
+Takes about 5 seconds, against about a minute for \`launch --build\`. Java or manifest changes still need \`launch --build\`.
+The next install by \`launch\` deletes the synced copy. Screenshots record the synced assets' hash (webSha256), and
+npm run check:evidence accepts them for web-only changes.`,
   launch: `launch [--avd NAME] [--port N] [--build] [--no-build] [--apk FILE] [--no-install] [--gpu MODE] [--timeout SECONDS]
 Boots AVD ${DEFAULTS.avd} headless as emulator-<port> with the host GPU (--gpu swiftshader_indirect on a machine without one;
 it is 3-4x slower and the slow emulator raises System UI ANR prompts) (default ${DEFAULTS.port}) with -read-only, so nothing the run does
