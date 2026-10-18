@@ -52,7 +52,6 @@ Preconditions:
 - Curly apostrophes (`’`) appear in `What’s planned today?` and `isn’t built yet`. Use substrings in `tap --name`.
 - `Send` and the keyboard Enter both send. Shift+Enter makes a new line.
 - `Voice input` is hidden while the field holds text.
-- Known gap as of 2026-10-18: `rpmctl open planner` and `open history` still look for the old More menu (`menuitem` named `Open planner` or `History`), so they fail on this build. `openMenuItem` in `rpmctl.mjs` needs role `button` and the name `Planner`. `rpmctl.mjs` is over the 5,000-token file limit, so it must be split before that edit can be committed. Until then, tap `More: planner, history, settings`, then the `Planner` or `History` tile.
 - The widget mic and `open widget-voice` start listening only after the page has loaded its data.
 - Reseed or relaunch resets saved words. A `seed` run replaces Capture history too.
 - Browser preview: `node scripts/build-companion-assets.mjs && node scripts/gauntlet/serve.mjs`, then `node scripts/gauntlet/shoot.mjs <dir> 4173 capture` shoots every Capture state at 390 px, light and dark, with a canned model.

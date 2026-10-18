@@ -1,0 +1,181 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import {spawnSync} from 'node:child_process';
+import {PACKAGE, UserError, adb, shell, devices, startEmulator, processAlive, killTree, sleep, waitFor, appPid, foregroundActivity, displayInfo, nativeNodes, dismissAnr, sdkRoot, processImage, ownsEmulator} from './device.mjs';
+import {pageTargets} from './page.mjs';
+import {ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, readState, writeState, evidenceDir, journal, devtoolsPort, viaShell, openLauncher, errorLines} from './runtime.mjs';
+
+const SOURCES = ['app/src/main', 'android-companion', 'chat-prototype', 'cli', 'intent-v2/src', 'intent-v2/adapters', 'intent-v2/prompts', 'scripts/build-companion-assets.mjs', 'app/build.gradle'];
+const sha256 = buf => crypto.createHash('sha256').update(buf).digest('hex');
+const gradleVersion = () => {
+  const g = fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8');
+  return {versionName: g.match(/versionName "([^"]+)"/)?.[1], versionCode: g.match(/versionCode (\d+)/)?.[1]};
+};
+function newestSource() {
+  let newest = 0, file = null;
+  const walk = p => {
+    const st = fs.statSync(p);
+    if (st.isDirectory()) { for (const f of fs.readdirSync(p)) if (!['node_modules', 'build', 'experiments', '.gradle', 'companion'].includes(f)) walk(path.join(p, f)); }
+    else if (st.mtimeMs > newest) { newest = st.mtimeMs; file = p; }
+  };
+  for (const s of SOURCES) if (fs.existsSync(path.join(ROOT, s))) walk(path.join(ROOT, s));
+  return {mtime: newest, file: file && path.relative(ROOT, file)};
+}
+const apkStale = () => !fs.existsSync(APK) || fs.statSync(APK).mtimeMs < newestSource().mtime;
+
+// SHA-256 of the APK's signing certificate, via the SDK's apksigner (needs Java on PATH or JAVA_HOME).
+function signer(apk) {
+  const tools = path.join(sdkRoot(), 'build-tools');
+  const latest = fs.existsSync(tools) ? fs.readdirSync(tools).sort((a, b) => a.localeCompare(b, undefined, {numeric: true})).at(-1) : null;
+  if (!latest) return null;
+  const bin = path.join(tools, latest, process.platform === 'win32' ? 'apksigner.bat' : 'apksigner');
+  const r = spawnSync(...viaShell(bin, ['verify', '--print-certs', apk]), {encoding: 'utf8', windowsHide: true});
+  return r.stdout?.match(/certificate SHA-256 digest: ([0-9a-f]+)/)?.[1] ?? null;
+}
+
+function build() {
+  const gradlew = path.join(ROOT, process.platform === 'win32' ? 'gradlew.bat' : 'gradlew');
+  const r = spawnSync(...viaShell(gradlew, ['--no-daemon', '-q', 'assembleDebug']), {cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024});
+  if (r.status !== 0) throw new UserError(`Gradle assembleDebug failed:\n${(r.stderr || r.stdout).trim().slice(-2000)}`, 'Fix the build error above, run `npm ci` if node_modules is missing, then `rpmctl launch --build`.');
+}
+
+function install(serial, apk) {
+  const r = adb(serial, ['install', '-r', '-g', apk], {allowFail: true, timeout: 180000});
+  if (/Success/.test(r)) return 'installed';
+  const err = r + '';
+  // Only reachable on the owned -read-only emulator, so removing a differently signed copy never touches real data.
+  if (/INSTALL_FAILED_UPDATE_INCOMPATIBLE|signatures do not match/.test(err)) {
+    adb(serial, ['uninstall', PACKAGE], {allowFail: true});
+    const again = adb(serial, ['install', '-r', '-g', apk], {timeout: 180000});
+    if (/Success/.test(again)) return 'replaced-differently-signed-copy';
+  }
+  throw new UserError(`APK install failed: ${err.trim().slice(0, 500)}`, 'Run `rpmctl doctor`; rebuild with `rpmctl launch --build`.');
+}
+
+export const lifecycleCommands = {
+  async launch(args) {
+    const port = Number(args.port ?? DEFAULTS.port), serial = `emulator-${port}`;
+    let state = readState();
+    const t0 = Date.now();
+    if (state && !(state.serial === serial && ownsEmulator(state, serial))) {
+      if (/emulator|qemu/i.test(processImage(state.pid) ?? '')) throw new UserError(`An rpmctl emulator is already running as ${state.serial}.`, 'Use it (drop --port), or run `rpmctl cleanup` first.');
+      fs.rmSync(STATE, {force: true}); state = null;
+    }
+    if (!state) {
+      if (devices().some(d => d.serial === serial)) throw new UserError(`${serial} is already running and was not started by rpmctl.`, `Pick a free port: rpmctl launch --port ${port + 10}. Never drive an instance you did not start.`);
+      const runId = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      state = {serial, port, avd: args.avd ?? DEFAULTS.avd, runId, cdpPort: Number(args.cdpPort ?? DEFAULTS.cdpPort), startedAt: new Date().toISOString()};
+      const log = path.join(evidenceDir(state), 'emulator.log');
+      const {pid, args: emuArgs} = startEmulator({avd: state.avd, port, logFile: log, gpu: args.gpu ?? DEFAULTS.gpu});
+      Object.assign(state, {pid, emulatorArgs: emuArgs});
+      writeState(state);
+      await waitFor(() => devices().some(d => d.serial === serial && d.state === 'device'), {timeout: Number(args.timeout ?? 240) * 1000, what: `${serial} to come online (see ${log})`});
+      await waitFor(() => shell(serial, 'getprop sys.boot_completed', {allowFail: true}).trim() === '1', {timeout: Number(args.timeout ?? 240) * 1000, what: 'Android to finish booting'});
+      shell(serial, 'input keyevent 82', {allowFail: true});
+      shell(serial, 'settings put global stay_on_while_plugged_in 7', {allowFail: true});
+      shell(serial, 'settings put system accelerometer_rotation 0', {allowFail: true});
+    }
+    const apk = args.apk ? path.resolve(String(args.apk)) : APK;
+    if (!args.apk && (args.build || (!args.noBuild && apkStale()))) build();
+    if (!fs.existsSync(apk)) throw new UserError(`No APK at ${apk}.`, 'Run `rpmctl launch --build`.');
+    const apkHash = sha256(fs.readFileSync(apk));
+    const installed = shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).includes('package:');
+    const installResult = args.noInstall ? (installed ? 'skipped (kept what the emulator had)' : 'skipped (not installed)')
+      : state.installedSha256 === apkHash && installed ? 'already-installed' : install(serial, apk);
+    if (!args.noInstall) state.installedSha256 = apkHash;
+    state.appLogSince = shell(serial, "date '+%m-%d %H:%M:%S.000'").trim();
+    writeState(state);
+    dismissAnr(serial);
+    await openLauncher(serial);
+    await sleep(2500);
+    const anr = dismissAnr(serial);
+    const out = {ok: true, serial, pid: state.pid, runId: state.runId, evidence: evidenceDir(state), install: installResult,
+      apk: {path: path.relative(ROOT, apk), ...(args.apk ? {} : gradleVersion()), sha256: apkHash}, dismissedAnr: anr, seconds: Math.round((Date.now() - t0) / 1000),
+      next: 'rpmctl doctor'};
+    journal(state, {command: 'launch', result: out});
+    return out;
+  },
+
+  async doctor(args) {
+    const checks = [];
+    const add = (name, ok, detail, fix) => checks.push({name, ok, detail, ...(ok ? {} : {fix})});
+    try { sdkRoot(); add('android-sdk', true, sdkRoot()); } catch (e) { add('android-sdk', false, e.message, e.fix); return {ok: false, checks}; }
+    const state = readState();
+    const serial = args.serial ?? state?.serial;
+    if (!args.serial) add('launched-by-rpmctl', !!state, state ? `${state.serial} run ${state.runId}` : 'no .verify/state.json', 'Run `rpmctl launch`.');
+    if (!serial) return {ok: false, checks};
+    const owned = !!state && state.serial === serial;
+    if (owned) add('emulator-process', processAlive(state.pid), `pid ${state.pid}`, 'The emulator exited. Run `rpmctl cleanup` then `rpmctl launch`.');
+    const online = devices().find(d => d.serial === serial);
+    add('adb-online', online?.state === 'device', online ? `${serial} ${online.state}` : `${serial} not listed`, 'Wait for boot, or `rpmctl cleanup && rpmctl launch`.');
+    if (online?.state !== 'device') return {ok: false, checks};
+    add('booted', shell(serial, 'getprop sys.boot_completed', {allowFail: true}).trim() === '1', 'sys.boot_completed', 'Wait 30s and rerun doctor.');
+    if (owned) add('read-only-instance', state.emulatorArgs?.includes('-read-only'), 'changes are discarded when the emulator exits', 'Relaunch with rpmctl so the AVD is not modified.');
+    else add('target', true, `${serial} (not launched by rpmctl: read-only checks only)`);
+    const display = displayInfo(serial);
+    add('display', true, display);
+    const want = gradleVersion();
+    const dump = shell(serial, `dumpsys package ${PACKAGE}`, {allowFail: true});
+    const installed = {versionName: dump.match(/versionName=(\S+)/)?.[1], versionCode: dump.match(/versionCode=(\d+)/)?.[1], debuggable: /flags=\[[^\]]*DEBUGGABLE/.test(dump)};
+    add('installed-version', installed.versionName === want.versionName && installed.versionCode === want.versionCode,
+      {installed, appBuildGradle: want}, installed.versionName ? 'Rebuild and reinstall: `rpmctl launch --build`.' : 'App not installed: `rpmctl launch`.');
+    add('debuggable', installed.debuggable, 'needed for WebView DevTools and `state`', 'Install the debug APK with `rpmctl launch --build`.');
+    if (fs.existsSync(APK)) {
+      const local = sha256(fs.readFileSync(APK));
+      const remotePath = shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).match(/package:(\S+base\.apk)/)?.[1];
+      const remote = remotePath ? sha256(adb(serial, ['exec-out', 'cat', remotePath], {binary: true})) : null;
+      add('installed-apk-matches-local-build', local === remote, {local: local.slice(0, 16), installed: remote?.slice(0, 16)}, owned ? 'The device runs a different build. `rpmctl launch` installs the local one.' : 'The phone runs a different build than this checkout. Compare branch, working tree and installed version before any release (AGENTS.md).');
+      if (remotePath) {
+        const pulled = path.join(WORK, 'installed-base.apk');
+        fs.mkdirSync(WORK, {recursive: true});
+        fs.writeFileSync(pulled, adb(serial, ['exec-out', 'cat', remotePath], {binary: true}));
+        const [mine, theirs] = [signer(APK), signer(pulled)];
+        fs.rmSync(pulled, {force: true});
+        add('installed-signer-matches-local', !!mine && mine === theirs, {local: mine?.slice(0, 16) ?? 'apksigner unavailable', installed: theirs?.slice(0, 16) ?? 'apksigner unavailable'},
+          owned ? '`rpmctl launch` replaces it on this throwaway emulator.' : 'This build cannot update the installed app in place: Android would require an uninstall, which deletes the app data. Do not uninstall. Build with the key the installed app was signed with (docs/phone-setup.md).');
+      }
+      const src = newestSource();
+      add('apk-newer-than-sources', !apkStale(), {apkBuilt: new Date(fs.statSync(APK).mtimeMs).toISOString(), newestSource: src.file}, 'Sources changed since the build: `rpmctl launch --build`.');
+    } else add('local-apk', false, 'app/build/outputs/apk/debug/app-debug.apk missing', '`rpmctl launch --build`.');
+    const pid = appPid(serial);
+    add('app-running', !!pid, pid ? `pid ${pid}, foreground ${foregroundActivity(serial)}` : 'not running', '`rpmctl open capture`.');
+    if (pid) {
+      try {
+        const pages = await pageTargets(serial, owned ? state.cdpPort : devtoolsPort(serial, args));
+        add('webview-devtools', true, pages.map(p => ({title: p.title, url: p.url, visible: p.view.visible})));
+      } catch (e) { add('webview-devtools', false, e.message, e.fix); }
+    }
+    const anr = nativeNodes(serial).some(n => /isn.t responding/i.test(n.text ?? ''));
+    add('no-anr-prompt', !anr, anr ? 'a System UI / app not responding prompt is on screen' : 'none', owned ? '`rpmctl tap --native Wait`, then retry.' : 'Dismiss it on the device.');
+    // A crash fails only when RPM's own code is in the stack. A cold boot can start the image's old copy of the app
+    // while launch replaces it, and Android then crashes inside its own start-up code; that is reported, not failed.
+    const crashLines = errorLines(serial, owned ? state.appLogSince : null).filter(l => /AndroidRuntime|ANR in com\.rpm/.test(l));
+    const rpmCode = crashLines.some(l => /\bat com\.rpm\.|ANR in com\.rpm/.test(l));
+    add('no-app-crash', !rpmCode, rpmCode ? crashLines.slice(0, 14)
+      : crashLines.length ? {platformOnly: crashLines.filter(l => /Exception|Process:/.test(l)).slice(0, 6), note: 'Android crashed while starting the process; no RPM code in the stack'} : 'no RPM crash or ANR since launch',
+      'Read `rpmctl logs --errors` for the stack.');
+    const failed = checks.filter(c => !c.ok);
+    return {ok: !failed.length, ...(failed.length ? {firstFix: failed[0].fix} : {}), checks};
+  },
+
+  async cleanup(args) {
+    const state = readState();
+    if (!state) return {ok: true, note: 'Nothing launched by rpmctl is running.', evidence: fs.existsSync(EVIDENCE) ? EVIDENCE : null};
+    const dir = evidenceDir(state);
+    adb(null, ['forward', '--remove', `tcp:${state.cdpPort}`], {allowFail: true});
+    let killed = false;
+    if (!args.keepEmulator) {
+      const ours = /emulator|qemu/i.test(processImage(state.pid) ?? '');
+      if (ours && devices().some(d => d.serial === state.serial) && ownsEmulator(state)) adb(state.serial, ['emu', 'kill'], {allowFail: true});
+      if (ours) {
+        await waitFor(() => !processAlive(state.pid), {timeout: 30000, what: 'the emulator to exit'}).catch(() => null);
+        if (/emulator|qemu/i.test(processImage(state.pid) ?? '')) killTree(state.pid);
+      }
+      killed = ours && !processAlive(state.pid);
+    }
+    journal(state, {command: 'cleanup', killedEmulator: killed});
+    if (!args.keepEmulator) fs.rmSync(STATE, {force: true});
+    return {ok: true, emulator: args.keepEmulator ? 'kept' : killed ? `stopped pid ${state.pid}` : 'already gone (nothing killed)', evidence: dir, evidenceFiles: fs.readdirSync(dir).length};
+  },
+};
