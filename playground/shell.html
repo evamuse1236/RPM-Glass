@@ -45,6 +45,15 @@
       <button type="button" data-expand="false">Pill</button>
       <button type="button" data-expand="true">Panel</button>
     </div>
+    <div class="labelled-row">
+      <span id="alert-label">Alert:</span>
+      <div class="segmented" role="group" aria-labelledby="alert-label">
+        <button type="button" data-alert="none" aria-label="Show no alert">None</button>
+        <button type="button" data-alert="reminder" aria-label="Show the reminder island">Reminder</button>
+        <button type="button" data-alert="alarm" aria-label="Show the ringing alarm island">Alarm</button>
+      </div>
+    </div>
+    <button type="button" id="notch-animate" aria-label="Animate the pill opening into the island">Animate open</button>
     <label class="field">Time on the notch <input type="time" id="notch-time"></label>
     <button type="button" id="notch-live">Use the real time</button>
   </div>

@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseNotchData} from './notch-day.mjs';
-import {notchScene, WATER_SNOOZE, routineSnooze, PillPriority} from './notch-scene.mjs';
+import {notchScene, alertScene, WATER_SNOOZE, routineSnooze, PillPriority} from './notch-scene.mjs';
+import {anchor} from './notch-geometry.mjs';
+import {S24} from './device.mjs';
 
 const at = local => new Date(local + ':00+05:30').getTime();
 const iso = local => new Date(at(local)).toISOString();
@@ -90,4 +92,35 @@ test('a new nudge leads for eight seconds, then the task returns and the nudge s
   assert.equal(p.primary(1000).kind, 'HABIT');
   assert.equal(p.primary(9000).kind, 'TASK');
   assert.equal(p.secondary(9000).kind, 'HABIT');
+});
+
+test('the pill fits the measured status bar: 4dp above the hole, ending with the bar', () => {
+  const a = anchor();
+  assert.equal(a.top, 24 - Math.round(4 * S24.density));
+  assert.equal(a.top + a.pill, S24.statusBarPx);
+  assert.equal(a.centerX, S24.hole.centerX);
+  assert.ok(Math.abs(S24.statusBarDp - 32.71) < 0.01);
+});
+
+function alertDay() {
+  const entries = [task(1, 'Write RM essay', '2026-10-18T15:30', 45), {...task(2, 'Call the bank', '2026-10-18T16:30', 30), alertIntent: {type: 'reminder'}},
+    {...task(3, 'Sit RM Quiz I', '2026-10-18T19:00', 60), alertIntent: {type: 'alarm'}}, {...task(4, 'Old reminder', '2026-10-18T09:00', 30), alertIntent: {type: 'reminder'}}];
+  return parseNotchData({version: 1, entries, planner: {blocks: [{id: 'b1', title: 'Study'}]}}, null);
+}
+
+test('an alert shows the next task today that asked for it, else the hero', () => {
+  const reminder = alertScene(alertDay(), at('2026-10-18T15:50'), 'reminder');
+  assert.deepEqual([reminder.taskId, reminder.title, reminder.at, reminder.action], [2, 'Call the bank', '4:30 PM', 'Open']);
+  const alarm = alertScene(alertDay(), at('2026-10-18T15:50'), 'alarm');
+  assert.deepEqual([alarm.taskId, alarm.line], [3, 'Ringing · 7:00 PM']);
+  assert.equal(alertScene(alertDay(), at('2026-10-18T19:30'), 'reminder').taskId, 3);
+  assert.equal(alertScene(day(false), at('2026-10-18T15:50'), 'alarm').title, 'Write RM essay');
+  assert.equal(alertScene(day(false), at('2026-10-18T23:00'), 'alarm'), null);
+});
+
+test('a reminder never says alarm', () => {
+  for (const local of ['2026-10-18T15:50', '2026-10-18T19:30']) for (const data of [alertDay(), day(true)]) {
+    const words = Object.values(alertScene(data, at(local), 'reminder')).join(' ');
+    assert.doesNotMatch(words, /alarm|ringing/i);
+  }
 });

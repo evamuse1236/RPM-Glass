@@ -227,7 +227,17 @@ final class NotchPill implements IslandView.Listener {
         Rect hole = topCutout();
         float density = context.getResources().getDisplayMetrics().density;
         if (hole == null) return NotchAnchor.fallback(displayWidth(), density);
-        return NotchAnchor.fromCutout(hole.left, hole.top, hole.right, hole.bottom, density);
+        return NotchAnchor.fromCutout(hole.left, hole.top, hole.right, hole.bottom, statusBarHeight(), density);
+    }
+
+    /** The status bar's height in pixels, even while it is hidden; 0 when the phone does not say. */
+    private int statusBarHeight() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            int top = wm.getMaximumWindowMetrics().getWindowInsets().getInsetsIgnoringVisibility(WindowInsets.Type.statusBars()).top;
+            if (top > 0) return top;
+        }
+        int id = context.getResources().getIdentifier("status_bar_height", "dimen", "android");
+        return id == 0 ? 0 : context.getResources().getDimensionPixelSize(id);
     }
 
     /** The cutout from the window insets; the Display's own cutout only when insets are unavailable. */

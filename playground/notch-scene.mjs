@@ -2,6 +2,7 @@
 import {today, hero as pickHero, after, running, minutes, spoken, clock, waterStatus, routines, routineDue, unloggedMeal, slotName} from './notch-day.mjs';
 
 export const WATER_SNOOZE = 'water';
+export const ALERT_SNOOZE_MINUTES = 10;
 export const routineSnooze = id => 'routine:' + id;
 
 const slotRow = (s, h24) => ({look: s.task.fixed ? 'EVENT' : 'TASK', title: s.task.title, value: clock(s.start, h24)});
@@ -64,6 +65,16 @@ export function notchScene(data, now, snoozes = {}, h24 = false) {
   s.canDone = !!hero && !hero.task.fixed;
   s.canSnooze = waterDue || !!habit;
   return s;
+}
+
+/** What an alert island says: the next task today that asked for this alert, else the hero. A reminder never says "alarm". */
+export function alertScene(data, now, type, h24 = false) {
+  const slots = today(data.tasks, now);
+  const slot = slots.find(s => s.task.alert === type && s.end > now) ?? pickHero(slots, now);
+  if (!slot) return null;
+  const {title, id} = slot.task, at = clock(slot.start, h24);
+  if (type === 'alarm') return {type, taskId: id, title, at, line: `Ringing · ${at}`, spoken: `Ringing: ${title}, ${at}`};
+  return {type, taskId: id, title, at, action: 'Open', spoken: `Reminder: ${title}, ${at}. Opens the task.`};
 }
 
 const EMPHASIS_MS = {TASK: 0, WATER: 8_000, HABIT: 8_000};
