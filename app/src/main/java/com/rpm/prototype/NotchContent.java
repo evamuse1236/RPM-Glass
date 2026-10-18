@@ -84,7 +84,7 @@ final class NotchContent {
 
     int trailWidth(String value, boolean chip) {
         TextView probe = text(value, 15, Color.WHITE, 600);
-        return Math.round(probe.getPaint().measureText(value)) + dp(8) + dp(14) + (chip ? dp(16) : 0);
+        return (int) Math.ceil(probe.getPaint().measureText(value)) + 1 + dp(8) + dp(14) + (chip ? dp(16) : 0);
     }
 
     /** Collapsed pill: icon in a grey circle left of the camera, the value right of it; a chip for "+10m". */

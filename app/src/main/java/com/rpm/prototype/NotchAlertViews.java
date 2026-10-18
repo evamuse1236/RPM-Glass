@@ -63,11 +63,12 @@ final class NotchAlertViews {
         face.setOrientation(stacked ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
         face.setGravity(Gravity.CENTER_VERTICAL);
         face.setPadding(dp(16), topInset, dp(16), dp(8));
+        face.setClipChildren(false);
+        face.setClipToPadding(false);
 
         LinearLayout words = new LinearLayout(context);
         words.setGravity(Gravity.CENTER_VERTICAL);
         words.setMinimumHeight(dp(72));
-        words.setClipChildren(false);
         words.setBackground(NotchContent.pressed(dp(16), 0x14FFFFFF));
         words.setContentDescription(alert.spoken());
         words.setOnClickListener(v -> NotchController.safely("open alarm task", actions::openAlert));
