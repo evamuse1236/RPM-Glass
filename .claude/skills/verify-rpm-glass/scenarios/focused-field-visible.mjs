@@ -1,4 +1,4 @@
-import {openBlock, waitForKeyboard, focusCoverage} from './lib.mjs';
+import {openBlock, waitForKeyboard, focusCoverage, seededBlockName} from './lib.mjs';
 
 export const id = 'focused-field-visible';
 export const rule = 'The field you are typing into stays visible with the keyboard open: not under the keyboard, the bottom nav bar, a snackbar or a FAB. Checked on Quick add (Today > Add task) and on the Plan add field of a Block you come back to.';
@@ -31,7 +31,7 @@ export async function run(t) {
   await waitForKeyboard(t);
   await t.do('key', 'back');
   await t.do('key', 'back');
-  await t.do('tap', '--name', 'RM critical review drafted');
+  await t.do('tap', '--name', await seededBlockName(t));
   await waitForKeyboard(t);
   const planAdd = await t.read(focusCoverage);
   await t.shot('plan-add');

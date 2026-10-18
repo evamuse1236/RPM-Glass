@@ -28,6 +28,8 @@ Settings is a planner screen with grouped rows for alarm and reminder sounds, no
 
 Preconditions:
 
+- After `rpmctl launch`, run `export RPMCTL_OWNER=<owner from launch>` in this agent's shell (PowerShell: `$env:RPMCTL_OWNER = '<owner from launch>'`). Keep it set through cleanup.
+
 - Baseline state. No AI key is connected.
 - `rpmctl open planner` has been run, on Today.
 

@@ -22,6 +22,8 @@ The floating butterfly is a small draggable butterfly shown over other apps. Tap
 
 Preconditions:
 
+- After `rpmctl launch`, run `export RPMCTL_OWNER=<owner from launch>` in this agent's shell (PowerShell: `$env:RPMCTL_OWNER = '<owner from launch>'`). Keep it set through cleanup.
+
 - Baseline state, then `rpmctl open planner`, then Settings open (`More options` then `Settings`).
 - The app is installed with runtime permissions granted, but the overlay permission is a separate app setting. Whether it is already granted on the emulator is (unconfirmed); `rpmctl ui` shows which row appears.
 

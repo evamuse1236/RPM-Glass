@@ -31,6 +31,8 @@ Blocks is the list of Results the user is working toward, and each Result opens 
 
 Preconditions:
 
+- After `rpmctl launch`, run `export RPMCTL_OWNER=<owner from launch>` in this agent's shell (PowerShell: `$env:RPMCTL_OWNER = '<owner from launch>'`). Keep it set through cleanup.
+
 - Baseline state.
 - `rpmctl open planner` has been run. Then `rpmctl tap --role button --name "Blocks"` shows the list; `Blocks` is `aria-current=page`. Wait a second after switching tabs before the next command.
 

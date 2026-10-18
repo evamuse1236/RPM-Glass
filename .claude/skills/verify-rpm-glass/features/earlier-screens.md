@@ -24,6 +24,8 @@ The earlier screens are the original native RPM screens (Next, History, Results,
 
 Preconditions:
 
+- After `rpmctl launch`, run `export RPMCTL_OWNER=<owner from launch>` in this agent's shell (PowerShell: `$env:RPMCTL_OWNER = '<owner from launch>'`). Keep it set through cleanup.
+
 - Baseline state. The sample plan does not populate the old storage, so most tabs are empty.
 - `rpmctl open planner` has been run and Settings is open.
 

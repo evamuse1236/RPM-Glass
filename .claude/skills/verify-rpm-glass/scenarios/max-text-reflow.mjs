@@ -1,4 +1,4 @@
-import {sleep} from './lib.mjs';
+import {sleep, seededBlockName} from './lib.mjs';
 
 export const id = 'max-text-reflow';
 export const rule = 'At 200% system text the main screens reflow: no button, heading, chip or title is cut with an ellipsis or clipped, and the bottom nav labels stay visible.';
@@ -53,7 +53,7 @@ export async function run(t) {
   await t.do('tap', '--role', 'button', '--name', 'Blocks');
   screens.blocks = await t.read(clipped, live);
   await t.shot('blocks');
-  await t.do('tap', '--name', 'RM critical review drafted');
+  await t.do('tap', '--name', await seededBlockName(t));
   await sleep(800);
   screens.blockDetail = await t.read(clipped, live);
   await t.shot('block-detail');

@@ -30,6 +30,8 @@ Today is the planner's home screen. It opens on the **spine**: the whole day in 
 
 Preconditions:
 
+- After `rpmctl launch`, run `export RPMCTL_OWNER=<owner from launch>` in this agent's shell (PowerShell: `$env:RPMCTL_OWNER = '<owner from launch>'`). Keep it set through cleanup.
+
 - Baseline state, seeded today.
 - `rpmctl open planner` has been run. The heading `Today` is on screen and the `Today` nav button is `aria-current=page`.
 

@@ -1,9 +1,13 @@
 export const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-export async function openBlock(t, name = 'RM critical review drafted') {
+export async function seededBlockName(t) {
+  return (await t.store()).planner.blocks.find(block => block.id === 'block-1').title;
+}
+
+export async function openBlock(t, name) {
   await t.do('open', 'planner');
   await t.do('tap', '--role', 'button', '--name', 'Blocks');
-  await t.do('tap', '--name', name);
+  await t.do('tap', '--name', name ?? await seededBlockName(t));
   await t.do('wait', '--role', 'textbox', '--name', 'Purpose');
 }
 

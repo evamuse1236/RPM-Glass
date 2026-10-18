@@ -28,6 +28,8 @@ The Inbox holds tasks that are not in a Block yet, such as loose captures. The u
 
 Preconditions:
 
+- After `rpmctl launch`, run `export RPMCTL_OWNER=<owner from launch>` in this agent's shell (PowerShell: `$env:RPMCTL_OWNER = '<owner from launch>'`). Keep it set through cleanup.
+
 - Baseline state. The sample plan has six loose tasks plus the weekly task `Weekly review`, so the sheet lists seven rows.
 - `rpmctl open planner` has been run. It reopens the last tab used, so check the heading and wait a couple of seconds before the first tap.
 

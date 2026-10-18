@@ -21,7 +21,7 @@ export const scenarioCommands = {
       const ctx = {
         facts,
         do: async (cmd, ...argv) => {
-          const out = await commands[cmd](parseArgs(argv.map(String)));
+          const out = await commands[cmd]({...parseArgs(argv.map(String)), owner: args.owner ?? process.env.RPMCTL_OWNER});
           if (out.ok === false) throw new ScenarioFailure(`${cmd} ${argv.join(' ')} failed`, out);
           if (cmd === 'shot') shots.push(out.png);
           return out;

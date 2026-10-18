@@ -22,6 +22,8 @@ The home-screen widget is a one-row capture bar. Its pill (`Capture a thought`) 
 
 Preconditions:
 
+- After `rpmctl launch`, run `export RPMCTL_OWNER=<owner from launch>` in this agent's shell (PowerShell: `$env:RPMCTL_OWNER = '<owner from launch>'`). Keep it set through cleanup.
+
 - Baseline state. The emulator's launcher is the stock one.
 - `rpmctl open capture` works.
 

@@ -27,6 +27,8 @@ Capture is a dark bar at the bottom of the screen where a user types or speaks a
 
 Preconditions:
 
+- After `rpmctl launch`, run `export RPMCTL_OWNER=<owner from launch>` in this agent's shell (PowerShell: `$env:RPMCTL_OWNER = '<owner from launch>'`). Keep it set through cleanup.
+
 - Baseline state. No AI key is connected.
 - `rpmctl open capture` has been run and the bar shows the field `Capture a thought`.
 

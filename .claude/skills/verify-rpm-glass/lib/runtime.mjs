@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {LAUNCHER, UserError, adb, devices, waitFor, appPid, ownsEmulator} from './device.mjs';
+import {defaultPorts, requireOwner, assertLease} from './ownership.mjs';
 
 const SKILL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ROOT = path.resolve(SKILL, '../../..');
@@ -9,7 +10,7 @@ const WORK = path.join(ROOT, '.verify');
 const STATE = path.join(WORK, 'state.json');
 const EVIDENCE = path.join(WORK, 'evidence');
 const APK = path.join(ROOT, 'app/build/outputs/apk/debug/app-debug.apk');
-const DEFAULTS = {avd: 'Galaxy_S24_FE_API_36', port: 5580, gpu: 'host', cdpPort: 9333};
+const DEFAULTS = {avd: 'Galaxy_S24_FE_API_36', ...defaultPorts(ROOT), gpu: 'host'};
 const DISPLAYS = {
   phone: {fontScale: '1.0', rotation: 0, size: null, density: null, note: 'S24 FE portrait, default text'},
   'large-text': {fontScale: '1.3', rotation: 0, size: null, density: null, note: '130% system text'},
@@ -33,7 +34,12 @@ function parseArgs(argv) {
 }
 
 const readState = () => fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : null;
-const writeState = s => { fs.mkdirSync(WORK, {recursive: true}); fs.writeFileSync(STATE, JSON.stringify(s, null, 2)); };
+const writeState = s => {
+  fs.mkdirSync(WORK, {recursive: true});
+  const temporary = `${STATE}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(s, null, 2));
+  fs.renameSync(temporary, STATE);
+};
 
 function evidenceDir(state) {
   const dir = path.join(EVIDENCE, state?.runId ?? `adhoc-${new Date().toISOString().slice(0, 10)}`);
@@ -54,6 +60,7 @@ function devtoolsPort(serial, args) {
 
 function target(args, {mutates}) {
   const state = readState();
+  if (mutates) { requireOwner(state, args); if (state) assertLease(state); }
   const serial = args.serial ?? state?.serial;
   if (!serial) throw new UserError('No emulator launched by rpmctl.', 'Run `rpmctl launch` (or pass --serial for a read-only look at another device).');
   const owned = !!state && state.serial === serial && devices().some(d => d.serial === serial && d.state === 'device') && ownsEmulator(state, serial);
@@ -61,7 +68,9 @@ function target(args, {mutates}) {
     args.serial ? 'Mutating commands only run on the owned emulator. Drop --serial, or use doctor/ui/shot/logs/state for read-only checks.' : 'Run `rpmctl launch`.');
   if (!devices().some(d => d.serial === serial && d.state === 'device')) throw new UserError(`${serial} is not online in adb.`, owned ? 'Run `rpmctl doctor`; if the emulator hung, `rpmctl cleanup` then `rpmctl launch`.' : 'Connect the device and check `adb devices`.');
   // Each device gets its own DevTools port, so a read-only look at a phone can never redirect a command meant for the emulator.
-  return {serial, state: owned ? state : null, cdpPort: owned ? Number(args.cdpPort ?? state.cdpPort) : devtoolsPort(serial, args)};
+  if (owned && args.cdpPort !== undefined && Number(args.cdpPort) !== state.cdpPort)
+    throw new UserError('This run leased a different CDP port.', 'Use the CDP port selected at launch; cleanup before changing --cdp-port.');
+  return {serial, state: owned ? state : null, cdpPort: owned ? state.cdpPort : devtoolsPort(serial, args)};
 }
 
 // .bat and .cmd launchers (gradlew.bat, npm.cmd) need cmd.exe on Windows.

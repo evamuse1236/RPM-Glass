@@ -7,7 +7,7 @@ description: Drive the real RPM Android app (com.rpm.prototype, Capture sheet + 
 
 RPM is an Android app. Its Capture sheet (`index.html`) and Planner (`planner.html`) are WebViews inside a Java host; the widget, alarms, settings dialogs and "Earlier RPM screens" are native. A desktop browser preview, a green `npm test` or a passing build does not prove a change on the phone. This skill boots an emulator sized like the user's Galaxy S24 FE (1080 × 2340, 450 dpi, Android 16), installs the debug APK built from this checkout, and drives it with real touches.
 
-All commands go through one CLI. Every command prints one JSON object; failures print `{"ok":false,"error","fix"}` and exit 1. Read the `fix`.
+All commands go through one CLI. Every command prints one JSON object except `ui --brief`; failures print `{"ok":false,"error","fix"}` and exit 1. Read the `fix`.
 
 ```bash
 RPMCTL="node .claude/skills/verify-rpm-glass/rpmctl.mjs"
@@ -20,12 +20,17 @@ Run it from the repo root. Needs Node 22+, the Android SDK (`ANDROID_HOME`, or t
 ## Launch
 
 ```bash
-$RPMCTL launch            # boots emulator-5580 headless, builds the APK if sources changed, installs, opens Capture
+$RPMCTL launch            # boots this worktree's emulator, builds if needed, installs, opens Capture
+export RPMCTL_OWNER=<owner from launch>
 ```
 
 Ready when it prints `"ok": true` (cold boot about 1-2 minutes, then about 35 s when the emulator is already up). The emulator runs `-read-only`: nothing a run does persists into the AVD, so differently signed or stale copies of the app are replaced freely. `launch` refuses a port where an emulator it did not start is running. It is idempotent; rerun it after editing Java or the manifest to rebuild and reinstall (`--build` forces a build).
 
 After editing web code only (`android-companion`, `intent-v2`, `chat-prototype`), run `rpmctl sync` instead: it bundles the assets, copies them into the running debug app and reloads the page in about 5 seconds. Screenshots taken after a sync prove the web change for `npm run check:evidence`.
+
+Copy the `owner` from launch into `RPMCTL_OWNER` in the launching agent's shell. In PowerShell use `$env:RPMCTL_OWNER = '<owner from launch>'`. Alternatively pass `--owner <token>` on each mutating command, including `eval`, `scenario`, `cleanup` and a repeated `launch`. A wrong token refuses before any device access. For one compatibility release only, a missing token warns and proceeds. Read-only commands need no token. Keep the token with the launching agent.
+
+The worktree path determines the default even emulator console port in 5580–5680 and CDP port in 10000–19999. `--port` and `--cdp-port` override them at launch and are remembered for the run. Hash collisions refuse safely; choose free overrides. Atomic machine-wide lease directories under the OS temp folder reserve the worktree and ports, including the adjacent emulator adb port. A live launcher reserves them before boot; a dead emulator's lease is stale and can be reclaimed.
 
 ## Doctor
 
@@ -43,6 +48,8 @@ Start from known data, open a surface the way a user does, then act by accessibl
 $RPMCTL seed                                   # sample plan: 8 Blocks, ~32 tasks, Inbox items, dates relative to now
 $RPMCTL open planner                           # Capture -> More -> Planner tile (real taps)
 $RPMCTL ui                                     # what is on screen: role, name, state, rect
+$RPMCTL ui --brief                             # one line per element: role "name" [state]
+$RPMCTL ui --brief --all                       # include elements marked (off-screen)
 $RPMCTL tap --role button --name Blocks
 $RPMCTL tap --name "RM critical review drafted"
 $RPMCTL tap --role combobox --name "Add a task to the Plan"
@@ -86,6 +93,8 @@ $RPMCTL check                 # npm test + npm run check:rules, logs into the ev
 
 The rule table in `AGENTS.md` names which scenario or check enforces each rule.
 
+`npm test` checks literal role/name lookups in rpmctl and scenarios against the app's web source before a device run. Failures identify the call to update. Matching uses name substrings, as the driver does; roles beyond button/textbox must be set in the same source file. Keep saved-data titles dynamic, read from `state`, rather than treating seeded words as app labels. This source check cannot prove runtime visibility or accessibility wiring.
+
 ## Cleanup
 
 ```bash
@@ -93,6 +102,8 @@ $RPMCTL cleanup
 ```
 
 Kills the emulator process tree that `launch` started (by its recorded pid, never by name), removes the DevTools port forward and `.verify/state.json`. Display and data changes die with the read-only emulator. Evidence stays; the output names the folder. Run `cleanup` after a failed attempt too.
+
+Cleanup releases the lease after the emulator exits. `cleanup --keep-emulator` retains the state and lease for the same owner to resume.
 
 ## A physical phone
 
