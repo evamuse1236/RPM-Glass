@@ -12,7 +12,6 @@ import android.widget.FrameLayout;
 import org.json.*;
 import java.io.*;
 import java.net.*;
-import javax.net.ssl.HttpsURLConnection;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -28,10 +27,7 @@ public class CompanionActivity extends Activity {
     private FrameLayout root;private int insetTop=0,insetBottom=0,insetLeft=0,insetRight=0,systemBottom=0;
     private final ExecutorService work=Executors.newFixedThreadPool(2);
     private final ExecutorService captureInput=Executors.newSingleThreadExecutor();
-    private final ModelRequests modelRequests=new ModelRequests();
-    private static final Set<String> ASSETS=Set.of("index.html","planner.html","runtime.js","theme.css","planner.css","capture.css","review.css","planner-stitch.css","planner-tokens.css","night.css","capture-tokens.css","butterfly.png","google-sans-flex.woff2","material-symbols-rounded.woff2");
-    private static final String CSP="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
-    private static final String CHAT_ENDPOINT="https://openrouter.ai/api/v1/chat/completions",DECISION_ENDPOINT="https://openrouter.ai/api/alpha/decisions";
+    private final ModelRequests modelRequests=new ModelRequests();private final OpenRouterGateway openRouter=new OpenRouterGateway(this);
     @Override public void onCreate(Bundle saved){super.onCreate(saved);expanded=saved!=null&&saved.getBoolean("expanded");getWindow().setBackgroundDrawableResource(android.R.color.transparent);getWindow().setDimAmount(.12f);getWindow().addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE|WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
         if(planning()){expanded=true;getWindow().setDimAmount(0);getWindow().setBackgroundDrawableResource(R.color.rpm_surface);}
         web=new WebView(this);if(!planning())web.setAlpha(0);web.setBackgroundColor(planning()?getColor(R.color.rpm_surface):Color.TRANSPARENT);WebSettings s=web.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setAllowFileAccess(false);s.setAllowContentAccess(false);s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);s.setMediaPlaybackRequiresUserGesture(true);s.setSupportMultipleWindows(false);s.setJavaScriptCanOpenWindowsAutomatically(false);s.setSafeBrowsingEnabled(true);applyTextScale();
@@ -44,29 +40,17 @@ public class CompanionActivity extends Activity {
             }
             @Override public void onPageFinished(WebView v,String url){if("https://rpm.local/index.html".equals(url)){arrive();}syncSurfaceInsets();}
             @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return true;}
-            @Override public WebResourceResponse shouldInterceptRequest(WebView v,WebResourceRequest r){Uri u=r.getUrl();String asset=u.getPath()==null?"":u.getPath().substring(1);if("https".equals(u.getScheme())&&"rpm.local".equals(u.getHost())&&u.getPort()==-1&&u.getQuery()==null&&ASSETS.contains(asset)&&r.getMethod().equals("GET"))try{String type=asset.endsWith(".html")?"text/html":asset.endsWith(".css")?"text/css":asset.endsWith(".png")?"image/png":asset.endsWith(".woff2")?"font/woff2":"text/javascript";return new WebResourceResponse(type,"UTF-8",200,"OK",Map.of("Content-Security-Policy",CSP,"X-Content-Type-Options","nosniff","Cache-Control","no-store"),getAssets().open("companion/"+asset));}catch(IOException ignored){}return new WebResourceResponse("text/plain","UTF-8",403,"Blocked",Map.of(),new ByteArrayInputStream(new byte[0]));}
+            @Override public WebResourceResponse shouldInterceptRequest(WebView v,WebResourceRequest r){return CompanionSurface.serve(CompanionActivity.this,r);}
         });
         // A full transparent host lets Android deliver reliable IME/system insets.
         // Only the small child panel is painted; it stays entirely above the keyboard.
         root=new FrameLayout(this);root.setBackgroundColor(planning()?getColor(R.color.rpm_surface):Color.TRANSPARENT);root.addView(web);root.setOnClickListener(v->finish());setContentView(root);
         getWindow().setLayout(WindowManager.LayoutParams.MATCH_PARENT,WindowManager.LayoutParams.MATCH_PARENT);
         if(Build.VERSION.SDK_INT>=30)getWindow().setDecorFitsSystemWindows(false);
-        if(planning())paintPlannerBars(systemNight());
+        if(planning())CompanionSurface.paintPlannerBars(this,root,web,CompanionSurface.systemNight(this));
         root.setOnApplyWindowInsetsListener((v,insets)->{if(Build.VERSION.SDK_INT>=30){android.graphics.Insets i=insets.getInsets(WindowInsets.Type.systemBars()|WindowInsets.Type.ime());insetTop=i.top;insetBottom=i.bottom;insetLeft=i.left;insetRight=i.right;systemBottom=insets.getInsets(WindowInsets.Type.systemBars()).bottom;web.evaluateJavascript("window.rpmCaptureKeyboard?.("+insets.isVisible(WindowInsets.Type.ime())+")",null);}else{insetTop=insets.getSystemWindowInsetTop();insetBottom=insets.getSystemWindowInsetBottom();insetLeft=insets.getSystemWindowInsetLeft();insetRight=insets.getSystemWindowInsetRight();}size();syncSurfaceInsets();return insets;});
         root.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{if(r-l!=or-ol||b-t!=ob-ot)size();});size();if(Build.VERSION.SDK_INT>=33)getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,this::handleBack);String target=getIntent().getStringExtra("plannerTarget");web.loadUrl(planning()?"https://rpm.local/planner.html"+(target!=null?"#open="+Uri.encode(target):"ideas".equals(getIntent().getStringExtra("plannerAction"))?"#ideas":""):"https://rpm.local/index.html");
     }
-    // The planner draws edge to edge on the Material surface: transparent bars, and a surface colour and
-    // bar icons that follow the planner's effective theme (system, or pinned in Settings via "surface").
-    @SuppressWarnings("deprecation") private void paintPlannerBars(boolean night){
-        android.content.res.Configuration conf=new android.content.res.Configuration(getResources().getConfiguration());
-        conf.uiMode=(conf.uiMode&~android.content.res.Configuration.UI_MODE_NIGHT_MASK)|(night?android.content.res.Configuration.UI_MODE_NIGHT_YES:android.content.res.Configuration.UI_MODE_NIGHT_NO);
-        int surface=createConfigurationContext(conf).getColor(R.color.rpm_surface);
-        getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(surface));if(root!=null)root.setBackgroundColor(surface);if(web!=null)web.setBackgroundColor(surface);
-        getWindow().setStatusBarColor(Color.TRANSPARENT);getWindow().setNavigationBarColor(Color.TRANSPARENT);
-        if(Build.VERSION.SDK_INT>=30){int light=WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;getWindow().getInsetsController().setSystemBarsAppearance(night?0:light,light);}
-        else getWindow().getDecorView().setSystemUiVisibility(night?0:View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|(Build.VERSION.SDK_INT>=27?View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR:0));
-    }
-    private boolean systemNight(){return (getResources().getConfiguration().uiMode&android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_YES;}
     // Keep the WebView stable. Animate the visible content within its viewport,
     // so resizing cannot discard the Android WebView compositor's current frame.
     private void syncSurfaceInsets(){if(Build.VERSION.SDK_INT>=30&&web!=null)web.evaluateJavascript("window.rpmSurfaceInsetsValue={bottom:"+Math.max(0,insetBottom-systemBottom)+",width:"+web.getWidth()+",animate:"+ValueAnimator.areAnimatorsEnabled()+"};window.rpmSurfaceInsets?.(window.rpmSurfaceInsetsValue)",null);}
@@ -77,7 +61,7 @@ public class CompanionActivity extends Activity {
         boolean wide=expanded||effectiveFontScale()>1.3f;int pad=dp(wide?4:12);
         int layoutBottom=Build.VERSION.SDK_INT>=30?systemBottom:insetBottom;
         int availableWidth=Math.max(1,width-insetLeft-insetRight-pad*2),availableHeight=Math.max(1,height-insetTop-layoutBottom-pad-dp(planning()?4:24));
-        FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(wide?availableWidth:Math.min(dp(372),availableWidth),availableHeight,Gravity.BOTTOM|Gravity.END);
+        FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(wide?availableWidth:Math.min(dp(560),availableWidth),availableHeight,Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
         p.setMargins(insetLeft+pad,insetTop+dp(planning()?4:24),insetRight+pad,layoutBottom+pad);
         FrameLayout.LayoutParams old=(FrameLayout.LayoutParams)web.getLayoutParams();
         if(old!=null&&old.width==p.width&&old.height==p.height&&old.gravity==p.gravity&&old.leftMargin==p.leftMargin&&old.rightMargin==p.rightMargin&&old.topMargin==p.topMargin&&old.bottomMargin==p.bottomMargin)return;
@@ -135,12 +119,12 @@ public class CompanionActivity extends Activity {
                 modelId=p.optString("requestId",id);
                 request=("model".equals(action)||"decision".equals(action))?modelRequests.register(modelId):null;
             }catch(Exception e){reply(id,null,e.getMessage());return;}
-            work.execute(()->{long diagnosticStart=SystemClock.elapsedRealtime();String diagnosticOutcome="success";JSONObject diagnosticPayload=new JSONObject();try{diagnosticPayload.put("action",action);if(p.has("expected"))diagnosticPayload.put("expectedRevision",p.optInt("expected"));if(p.has("body")){JSONObject body=p.getJSONObject("body");diagnosticPayload.put("model",body.optString("model")).put("reasoning",body.optJSONObject("reasoning"));}Object result;
+            work.execute(()->{BridgeCallRecord log=new BridgeCallRecord(action,p);try{Object result;
                 switch(action){
                     case "load":result=new JSONObject().put("data",Optional.ofNullable(CompanionStore.read(CompanionActivity.this)).orElse(null)).put("phone",phoneStatus());break;
                     case "save":CompanionStore.write(CompanionActivity.this,p.getJSONObject("data"),p.getInt("expected"));result=phoneStatus();break;
                     case "status":result=phoneStatus();break;
-                    case "surface":if(!planning())throw new IllegalArgumentException("Unsupported phone action.");boolean dark=p.getBoolean("dark");runOnUiThread(()->{if(!closing&&web!=null)paintPlannerBars(dark);});result=new JSONObject();break;
+                    case "surface":if(!planning())throw new IllegalArgumentException("Unsupported phone action.");boolean dark=p.getBoolean("dark");runOnUiThread(()->{if(!closing&&web!=null)CompanionSurface.paintPlannerBars(CompanionActivity.this,root,web,dark);});result=new JSONObject();break;
                     case "legacyEntries":result=LegacyImport.read(CompanionActivity.this);break;
                     case "legacyImported":LegacyImport.markDone(CompanionActivity.this);result=new JSONObject();break;
                     case "dictate":runOnUiThread(()->{if(voiceRequest!=null){reply(id,null,"Voice input is already open.");return;}voiceRequest=id;try{Intent voice=new Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM).putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT,"Capture your thought");startActivityForResult(voice,302);}catch(ActivityNotFoundException error){voiceRequest=null;reply(id,null,"Voice input is unavailable on this device. You can use keyboard dictation.");}});return;
@@ -153,8 +137,8 @@ public class CompanionActivity extends Activity {
                     case "calendarRead":result=PlannerCalendar.read(CompanionActivity.this,p.optLong("anchor",System.currentTimeMillis()));break;
                     case "calendarSelect":PlannerCalendar.select(CompanionActivity.this,p.getJSONArray("ids"));result=new JSONObject();break;
                     case "calendarPermission":runOnUiThread(()->requestPermissions(new String[]{android.Manifest.permission.READ_CALENDAR},301));result=new JSONObject();break;
-                    case "model":result=model(p.getJSONObject("body"),request);break;
-                    case "decision":result=decision(p.getJSONObject("body"),request);break;
+                    case "model":result=openRouter.model(p.getJSONObject("body"),request);break;
+                    case "decision":result=openRouter.decision(p.getJSONObject("body"),request);break;
                     case "arm":CompanionAlerts.arm(CompanionActivity.this,p.getLong("id"));result=new JSONObject();break;
                     case "settings":String settingsSection=p.optString("section","settings");runOnUiThread(()->openIntegratedSettings(settingsSection));result=new JSONObject();break;
                     case "planner":String plannerTarget=p.toString();runOnUiThread(()->startActivity(new Intent(CompanionActivity.this,PlannerActivity.class).putExtra("plannerTarget",plannerTarget)));result=new JSONObject();break;
@@ -162,29 +146,8 @@ public class CompanionActivity extends Activity {
                     case "minimize":runOnUiThread(()->finish());result=new JSONObject();break;
                     case "expand":runOnUiThread(()->{expanded=!expanded;size();});result=new JSONObject();break;
                     default:throw new IllegalArgumentException("Unsupported phone action.");
-                }if(result instanceof JSONObject&&((JSONObject)result).optInt("status",200)>=400){diagnosticOutcome="error";diagnosticPayload.put("statusCode",((JSONObject)result).optInt("status"));}if(Set.of("planner","capture","settings","minimize","expand").contains(action))diagnosticOutcome="dispatched";reply(id,result,null);
-            }catch(Exception e){diagnosticOutcome=e instanceof java.util.concurrent.CancellationException?"cancelled":"error";try{diagnosticPayload.put("error",new JSONObject().put("type",e.getClass().getSimpleName()).put("message",e.getMessage()).put("stack",android.util.Log.getStackTraceString(e)));}catch(JSONException ignored){}String message=(action.equals("model")||action.equals("decision"))?"The OpenRouter connection failed. Check your key and internet connection.":e.getMessage();reply(id,null,message==null?"The phone could not finish that action.":message);}finally{if(!Set.of("haptic","keyboard","status","surface","appSettings","load").contains(action))try{diagnosticPayload.put("durationMs",SystemClock.elapsedRealtime()-diagnosticStart);JSONObject event=Diagnostics.event("operation",diagnosticOutcome.equals("error")?"error":"info","native."+action,diagnosticOutcome,diagnosticPayload).put("sessionId",id.substring(0,36)).put("operationId",modelId);Diagnostics.record(CompanionActivity.this,event);}catch(JSONException ignored){}if(request!=null)modelRequests.finish(modelId,request);}});
+                }log.result(result);reply(id,result,null);
+            }catch(Exception e){reply(id,null,log.fail(e));}finally{log.record(CompanionActivity.this,id,modelId);if(request!=null)modelRequests.finish(modelId,request);}});
         }
-    }
-    private JSONObject model(JSONObject body,ModelRequests.Request request)throws Exception{
-        request.check();
-        if(!Set.of("openai/gpt-5.6-luna","openai/gpt-6-luna").contains(body.optString("model"))||body.toString().length()>2000000||body.optInt("max_tokens")>3500)throw new IllegalArgumentException("Unsupported AI request.");return postOpenRouter(CHAT_ENDPOINT,body,request,30000);
-    }
-    private JSONObject decision(JSONObject body,ModelRequests.Request request)throws Exception{
-        request.check();validateDecision(body);return postOpenRouter(DECISION_ENDPOINT,body,request,12000);
-    }
-    private static void validateDecision(JSONObject body)throws Exception{
-        if(!body.optString("model").equals("typesafe/jev-1.13")||body.toString().length()>500000)throw new IllegalArgumentException("Unsupported Jev request.");
-        Set<String> top=Set.of("model","state","questions");for(Iterator<String> keys=body.keys();keys.hasNext();)if(!top.contains(keys.next()))throw new IllegalArgumentException("Unsupported Jev request field.");
-        JSONObject state=body.getJSONObject("state"),questions=body.getJSONObject("questions");JSONArray tasks=state.getJSONArray("tasks"),blocks=state.getJSONArray("blocks");if(tasks.length()<1||tasks.length()>24||blocks.length()<1||blocks.length()>12||questions.length()!=tasks.length())throw new IllegalArgumentException("Unsupported Jev grouping size.");
-        for(Iterator<String> keys=state.keys();keys.hasNext();)if(!Set.of("tasks","blocks").contains(keys.next()))throw new IllegalArgumentException("Unsupported Jev state field.");
-        for(int i=0;i<tasks.length();i++){JSONObject task=tasks.getJSONObject(i);for(Iterator<String> keys=task.keys();keys.hasNext();)if(!Set.of("id","title").contains(keys.next()))throw new IllegalArgumentException("Unsupported Jev task field.");if(task.getLong("id")<=0||task.getString("title").isBlank()||task.getString("title").length()>200)throw new IllegalArgumentException("Unsupported Jev task.");if(!questions.has("assignment_"+i))throw new IllegalArgumentException("Missing Jev task decision.");}
-        for(int i=0;i<blocks.length();i++){JSONObject block=blocks.getJSONObject(i);for(Iterator<String> keys=block.keys();keys.hasNext();)if(!Set.of("id","title","purpose","projectTitle").contains(keys.next()))throw new IllegalArgumentException("Unsupported Jev block field.");if(block.getString("id").isBlank()||block.getString("id").length()>160||block.getString("title").isBlank()||block.getString("title").length()>200||block.getString("purpose").length()>2000||block.getString("projectTitle").length()>200)throw new IllegalArgumentException("Unsupported Jev block.");}
-        for(Iterator<String> ids=questions.keys();ids.hasNext();){String id=ids.next();if(!id.matches("assignment_[0-9]{1,2}"))throw new IllegalArgumentException("Unsupported Jev question.");JSONObject question=questions.getJSONObject(id);for(Iterator<String> keys=question.keys();keys.hasNext();)if(!Set.of("type","instructions","criteria").contains(keys.next()))throw new IllegalArgumentException("Unsupported Jev question field.");if(!"choice".equals(question.optString("type"))||question.optString("instructions").length()<20||question.optString("instructions").length()>1000)throw new IllegalArgumentException("Unsupported Jev question type.");JSONObject criteria=question.getJSONObject("criteria");if(criteria.length()!=blocks.length()+1||!criteria.has("keep_unsorted"))throw new IllegalArgumentException("Unsupported Jev choices.");for(int i=0;i<blocks.length();i++)if(!criteria.has("block_"+i))throw new IllegalArgumentException("Missing Jev block choice.");for(Iterator<String> choices=criteria.keys();choices.hasNext();){String choice=choices.next();if(!choice.equals("keep_unsorted")&&!choice.matches("block_[0-9]{1,2}"))throw new IllegalArgumentException("Unsupported Jev choice.");String description=criteria.getString(choice);if(description.isBlank()||description.length()>1000)throw new IllegalArgumentException("Unsupported Jev choice description.");}}
-    }
-    private JSONObject postOpenRouter(String endpoint,JSONObject body,ModelRequests.Request request,int readTimeout)throws Exception{
-        String key=CompanionKey.get(this);if(key==null)throw new IllegalStateException("Connect an OpenRouter key in Settings.");
-        HttpsURLConnection connection=(HttpsURLConnection)new URL(endpoint).openConnection();connection.setConnectTimeout(8000);connection.setReadTimeout(readTimeout);connection.setInstanceFollowRedirects(false);connection.setRequestMethod("POST");connection.setRequestProperty("Authorization","Bearer "+key);connection.setRequestProperty("Content-Type","application/json");connection.setDoOutput(true);
-        try{request.attach(connection);request.check();try(OutputStream out=connection.getOutputStream()){out.write(body.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));}int code=connection.getResponseCode();request.check();if(code<200||code>=300)return new JSONObject().put("status",code).put("body",new JSONObject());try(InputStream in=connection.getInputStream()){return new JSONObject().put("status",code).put("body",new JSONObject(CompanionStore.readText(in)));}}finally{connection.disconnect();}
     }
 }

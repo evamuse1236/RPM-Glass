@@ -1,16 +1,34 @@
 import {isContextualFollowUp} from './follow-up.mjs';
-/** Routing changes effort only. It never authorizes a plan change. */
+/** Routing picks the model and effort only. It never authorizes a plan change. */
+/** Planner suggestions and the older chat prototype; Capture uses the Claude models below. */
 export const LUNA_MODEL='openai/gpt-6-luna';
-export const MODEL_POLICY_VERSION='rpm-effort-v2';
-export const MODEL_BUDGETS=Object.freeze({none:12000,high:30000});
+export const HAIKU_MODEL='anthropic/claude-haiku-5.5';
+export const SONNET_MODEL='anthropic/claude-sonnet-5.5';
+/** OpenRouter providers that serve these models with strict structured outputs. */
+export const CLAUDE_PROVIDERS=Object.freeze(['Anthropic','Google','Azure']);
+export const MODEL_POLICY_VERSION='rpm-claude-v1';
+export const MODEL_ROUTES=Object.freeze({
+ quick:Object.freeze({model:HAIKU_MODEL,effort:'none',timeoutMs:25000,maxTokens:4000}),
+ careful:Object.freeze({model:HAIKU_MODEL,effort:'high',timeoutMs:35000,maxTokens:6000}),
+ hard:Object.freeze({model:SONNET_MODEL,effort:'high',timeoutMs:90000,maxTokens:16000}),
+});
+/** More changes to saved items than this in one capture is a re-plan, not a quick edit. */
+export const HARD_CHANGE_COUNT=3;
+const REPLAN_SORT_OR_ADVICE=/\b(?:re-?plan|re-?schedule (?:my|the|this) (?:day|week|morning|afternoon|evening)|plan (?:my|the|this|next|out) (?:day|week|weekend|month|today|tomorrow)|plan (?:a|my|the) result|sort (?:out )?(?:my |the )?(?:backlog|inbox|tasks|list)|organi[sz]e (?:my|the) (?:week|day|backlog|tasks|inbox)|prioriti[sz]e|weekly review|review (?:my|the|this|last) week|what should i|should i\b|how (?:should|could|can|do) i\b|advice|advise|help me (?:decide|choose|plan|figure|prioriti[sz]e|make)|suggest|ideas? for|trade-?offs?|choose between)/i;
+
+const changesToSaved=output=>(output?.operations??[]).filter(op=>op.kind!=='create').length;
+
+/** Which model reads this capture. A fast run that turns out to be a plan or a big edit gets one Sonnet follow-up. */
 export function intentModelPolicy({input,attempt=0,output=null}={}){
- const raw=input.sourceUnits.map(u=>u.text).join('\n');
- // These are conservative upgrades, not a semantic permission check. Quoted
- // planning words can cost an extra high call, but cannot cause a task write.
- const contextual=/\?|\b(help|plan|planning|suggest|ideas?|prioriti[sz]e|tradeoffs?|decide|choose between|how (?:can|should|do)|what (?:should|could|can)|free (?:time|hour)|available|availability)\b/i.test(raw);
- const reason=attempt?'repair':output&&['plan','query'].includes(output.mode)?'interpreted_reasoning':isContextualFollowUp(raw)?'conversational_follow_up':contextual?'contextual_request':'capture';
- const effort=reason==='capture'?'none':'high';
- return {model:LUNA_MODEL,effort,timeoutMs:MODEL_BUDGETS[effort],reason,version:MODEL_POLICY_VERSION};
+ const raw=(input?.sourceUnits??[]).map(u=>u.text).join('\n');
+ let reason='capture';
+ if(attempt)reason='repair';
+ else if(output&&(output.mode==='plan'||changesToSaved(output)>HARD_CHANGE_COUNT))reason='interpreted_hard';
+ else if(REPLAN_SORT_OR_ADVICE.test(raw))reason='hard_request';
+ else if(isContextualFollowUp(raw))reason='conversational_follow_up';
+ else if(/\?|\b(?:what(?:'s| is| are)|when|how (?:much|many|long)|do i have|am i|is there|timetable|schedule today|agenda)\b/i.test(raw))reason='question';
+ const route=reason==='capture'||reason==='question'?MODEL_ROUTES.quick:reason==='conversational_follow_up'?MODEL_ROUTES.careful:MODEL_ROUTES.hard;
+ return {...route,reason,version:MODEL_POLICY_VERSION};
 }
 /** Routine confirmations come from checked fields and the local time preview. */
 export function captureReply({parsed,schedulePreview}){

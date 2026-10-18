@@ -10,9 +10,9 @@ fs.mkdirSync(out, {recursive: true});
 const browser = await chromium.launch();
 const problems = [];
 
-async function open(path, {dark = false, reset = {}} = {}) {
+async function open(path, {dark = false, reset = {}, width = 412} = {}) {
   await fetch(base + '/__reset', {method: 'POST', body: JSON.stringify(reset)});
-  const page = await browser.newPage({viewport: {width: 412, height: 915}, deviceScaleFactor: 2, colorScheme: dark ? 'dark' : 'light'});
+  const page = await browser.newPage({viewport: {width, height: 915}, deviceScaleFactor: 2, colorScheme: dark ? 'dark' : 'light'});
   page.on('pageerror', e => problems.push(`${path}: ${e.message}`));
   page.on('console', m => { if (m.type() === 'error') problems.push(`${path}: ${m.text()}`); });
   await page.goto(base + path);
@@ -98,19 +98,36 @@ const scenes = {
     await page.close();
   },
   async capture() {
-    const page = await open('/index.html');
-    await shot(page, 'capture-empty');
-    const box = page.locator('textarea').first();
-    await box.fill("Finish the DAD charts tomorrow at 9am, it's a must. Ask the group which district we picked for the RM profile");
-    await shot(page, 'capture-typed');
-    await page.evaluate(() => { window.__modelDelay = 4000; });
-    await box.press('Enter');
-    await page.waitForTimeout(1200); await shot(page, 'capture-sorting');
-    await page.waitForTimeout(4500); await shot(page, 'capture-proposals');
-    const add = page.getByRole('button', {name: /^Add/});
-    if (await add.count()) { await click(page, add); await page.waitForTimeout(600); await shot(page, 'capture-receipt'); }
-    else problems.push('capture: no Add button after proposals');
-    await page.close();
+    // Capture at 390 px, light and dark: the bar, the + sheet, a receipt with Undo, a change waiting for Keep, an answer card.
+    for (const dark of [false, true]) {
+      const tone = dark ? 'dark' : 'light';
+      const page = await open('/index.html', {dark, width: 390});
+      const box = page.getByRole('textbox', {name: 'Capture a thought'});
+      const send = async text => { await box.fill(text); await box.press('Enter'); await page.waitForTimeout(1600); };
+      await shot(page, `capture-bar-${tone}`);
+      await box.fill('Call the bank tomorrow at 10:30am');
+      await shot(page, `capture-typed-${tone}`);
+      await page.evaluate(() => { window.__modelDelay = 3000; });
+      await box.press('Enter');
+      await page.waitForTimeout(900); await shot(page, `capture-pending-${tone}`);
+      await page.waitForTimeout(3000); await shot(page, `capture-receipt-${tone}`);
+      await page.evaluate(() => { window.__modelDelay = 300; });
+      await send('Move Reread PMDL session notes to tomorrow at 6 pm');
+      await shot(page, `capture-keep-undo-${tone}`);
+      await click(page, page.getByRole('button', {name: 'More: planner, history, settings'}));
+      await shot(page, `capture-sheet-${tone}`);
+      await click(page, page.getByRole('button', {name: /What’s planned today/}));
+      await page.waitForTimeout(1200); await shot(page, `capture-answer-${tone}`);
+      await click(page, page.getByRole('button', {name: 'More: planner, history, settings'}));
+      await click(page, page.getByRole('button', {name: 'Photos'}));
+      await shot(page, `capture-not-built-${tone}`);
+      await page.close();
+      const keyless = await open('/index.html', {dark, width: 390, reset: {hasKey: false}});
+      await keyless.getByRole('textbox', {name: 'Capture a thought'}).fill('Buy marigolds for the puja');
+      await keyless.keyboard.press('Enter'); await keyless.waitForTimeout(1600);
+      await shot(keyless, `capture-words-kept-${tone}`);
+      await keyless.close();
+    }
   },
 };
 

@@ -24,7 +24,22 @@ reset();
 // Must when the words say so, and the Block whose title shares a distinctive word with the thought.
 const STOP = new Set(['the', 'and', 'for', 'with', 'which', 'that', 'this', 'from', 'about', 'ask', 'our', 'group', 'into', 'all']);
 function fakeTurn(input) {
-  const blocks = (input.context?.entities ?? []).filter(e => e.entity === 'block');
+  const said = input.sourceUnits.map(u => u.text).join(' ');
+  const tasks = (input.context?.entities ?? []).filter(e => e.entity === 'task');
+  const unit = input.sourceUnits[0];
+  const base = {schemaVersion: 1, memoryCandidates: [], question: null};
+  if (/what(?:'|’)?s planned|timetable|my day look/i.test(said)) {
+    const d = new Date(), day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return {...base, mode: 'query', draftMode: 'none', reply: 'Two classes and a workshop prep block. The evening is open.', operations: [],
+      decisions: [{sourceId: unit.id, disposition: 'question', note: null}], card: {kind: 'agenda', day, targetId: null}};
+  }
+  const move = unit.text.match(/^(?:move|push|shift)\s+(?:my\s+|the\s+)?(.+?)\s+to\s+(.+?)[.!]?$/i);
+  const target = move && tasks.find(t => (t.title ?? '').toLowerCase().includes(move[1].toLowerCase().split(' ')[0]));
+  if (target) return {...base, mode: 'capture', draftMode: 'new', reply: 'Moved it.', card: null,
+    decisions: [{sourceId: unit.id, disposition: 'action', note: null}],
+    operations: [{opId: 'move1', sourceId: unit.id, kind: 'update', entity: 'task', targetId: target.id,
+      fields: [{name: 'time', op: 'set', value: move[2], origin: 'stated', evidence: move[2]}]}]};
+  const blocks =(input.context?.entities ?? []).filter(e => e.entity === 'block');
   const words = s => new Set((s.toLowerCase().match(/[a-z]{3,}/g) ?? []).filter(w => !STOP.has(w)));
   const operations = input.sourceUnits.map((unit, i) => {
     const w = words(unit.text), block = blocks.find(b => [...words(b.title ?? '')].some(x => w.has(x)));
@@ -38,7 +53,7 @@ function fakeTurn(input) {
     return {opId: 'task' + (i + 1), sourceId: unit.id, kind: 'create', entity: 'task', targetId: null, fields};
   });
   return {schemaVersion: 1, mode: 'capture', draftMode: 'new', reply: 'Here is what I heard.',
-    decisions: input.sourceUnits.map(u => ({sourceId: u.id, disposition: 'action', note: null})), operations, question: null, memoryCandidates: []};
+    decisions: input.sourceUnits.map(u => ({sourceId: u.id, disposition: 'action', note: null})), operations, question: null, memoryCandidates: [], card: null};
 }
 
 // The week's real commitments, read-only as PlannerCalendar.java returns them (start/end in epoch ms).
@@ -76,6 +91,7 @@ function handle(action, payload) {
     case 'calendarRead': return calendar(payload.anchor);
     case 'dictate': return {text: 'call mom sunday evening'}; // stands in for Android's speech recognizer
     case 'model': {
+      if (!phone.hasKey) throw new Error('Connect an OpenRouter key in Settings.');
       const body = payload.body, input = JSON.parse(body.messages[1].content);
       input.sourceUnits ??= sourceUnits(input.raw ?? '');
       let turn;
