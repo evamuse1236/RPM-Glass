@@ -1,0 +1,68 @@
+.widget {
+  display: flex;
+  align-items: center;
+  min-block-size: 64px;
+  padding: 8px;
+  border-radius: 28px;
+  background: var(--rpm-surface-container);
+  font-family: Roboto, "Segoe UI", system-ui, sans-serif;
+}
+
+.widget-open {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 48px;
+  block-size: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+  cursor: pointer;
+}
+.widget-open img { inline-size: 32px; block-size: 32px; }
+
+.widget-capture {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  block-size: 48px;
+  margin-inline-start: 8px;
+  padding-inline: 16px 4px;
+  border-radius: 28px;
+  background: var(--rpm-surface-container-highest);
+  cursor: text;
+}
+
+.widget-label {
+  flex: 1;
+  font-size: calc(16px * var(--font-scale));
+  line-height: 1.2;
+  color: var(--rpm-on-surface-variant);
+  white-space: nowrap;
+  overflow: clip;
+  text-overflow: ellipsis;
+}
+
+.widget-voice {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 40px;
+  block-size: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--rpm-primary-container);
+  cursor: pointer;
+}
+.widget-mic {
+  inline-size: 24px;
+  block-size: 24px;
+  background: var(--rpm-on-primary-container);
+  mask: url(/__playground/icon/ic_mic.svg) center / contain no-repeat;
+}
+
+.widget-open:active, .widget-capture:active, .widget-voice:active { background-image: linear-gradient(var(--rpm-ripple), var(--rpm-ripple)); }
+.widget-voice:active { background-image: linear-gradient(var(--rpm-ripple-primary), var(--rpm-ripple-primary)); }
+.widget :focus-visible { outline: 2px solid var(--rpm-primary); outline-offset: 2px; }

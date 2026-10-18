@@ -1,0 +1,71 @@
+/* Copy of NotchContent: 1 CSS px is 1 dp; text sizes are sp, so they follow --font-scale. */
+.notch-stage {
+  --notch-font: Roboto, "Segoe UI", system-ui, sans-serif;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  font-family: var(--notch-font);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.notch-stage > * { pointer-events: auto; }
+.notch-ink { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; fill: #000; pointer-events: none; }
+
+.notch-glyph {
+  display: block;
+  flex: none;
+  background: currentColor;
+  mask: var(--icon) center / contain no-repeat;
+}
+.notch-circle { display: grid; place-items: center; flex: none; border-radius: 50%; }
+.notch-text { display: block; white-space: nowrap; overflow: clip; text-overflow: ellipsis; line-height: 1.2; }
+
+.notch-pill {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+}
+.notch-pill:active { transform: scale(0.97); }
+.notch-pill:focus-visible { outline: 2px solid #7CACF8; outline-offset: 2px; }
+.notch-value { flex: none; text-align: end; }
+.notch-split { position: absolute; pointer-events: none; }
+
+.notch-panel {
+  position: absolute;
+  inset-block-start: 0;
+  display: flex;
+  flex-direction: column;
+  padding-inline: 20px;
+  padding-block-end: 14px;
+  color: #fff;
+}
+.notch-hero { display: flex; align-items: center; gap: 14px; }
+.notch-tile { display: grid; place-items: center; flex: none; inline-size: 52px; block-size: 52px; border-radius: 14px; color: #fff; }
+.notch-tile .notch-glyph { inline-size: 28px; block-size: 28px; }
+.notch-words { flex: 1; display: grid; }
+.notch-sub { padding-block-start: 2px; }
+.notch-bar { display: flex; align-items: center; min-block-size: 24px; margin-block-start: 14px; }
+.notch-track { flex: 1; block-size: 4px; margin-inline: 12px; border-radius: 2px; background: rgb(255 255 255 / 0.18); overflow: clip; }
+.notch-fill { display: block; block-size: 100%; border-radius: 2px; }
+.notch-controls { display: grid; grid-template-columns: repeat(4, 1fr); block-size: 56px; margin-block-start: 6px; }
+.notch-control { display: grid; place-items: center; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #fff; cursor: pointer; }
+.notch-control .notch-glyph { inline-size: 28px; block-size: 28px; }
+.notch-control:disabled { opacity: 0.3; cursor: default; }
+.notch-control:not(:disabled):active { transform: scale(0.95); }
+.notch-control:focus-visible { outline: 2px solid #7CACF8; outline-offset: -2px; }
+.notch-rule { inline-size: 100%; block-size: 1px; margin-block: 6px 4px; border: 0; background: rgb(255 255 255 / 0.18); }
+.notch-row { display: flex; align-items: center; min-block-size: 40px; }
+.notch-row .notch-glyph { inline-size: 20px; block-size: 20px; }
+.notch-row-title { flex: 1; margin-inline: 14px 12px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .notch-pill, .notch-control { transition: transform 120ms ease-out; }
+}
+.notch-probe { position: absolute; visibility: hidden; inline-size: max-content; }
