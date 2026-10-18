@@ -16,6 +16,13 @@ function kicker(text,{name,tone=''}={}){
  row.append(el('span','',text));
  return row;
 }
+/** A tap on this card failed: say why on the card itself, under its heading. */
+export function withProblem(node,text){
+ const row=kicker(text,{name:'error',tone:'error'});
+ row.classList.add('problem');row.setAttribute('role','alert');
+ node.insertBefore(row,node.children[1]??null);
+ return node;
+}
 function actionsRow(...nodes){
  const row=el('div','card-actions');
  row.append(...nodes.filter(Boolean));

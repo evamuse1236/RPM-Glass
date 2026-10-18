@@ -1,5 +1,5 @@
 import {captureRenderKey} from './surface-refresh.mjs';
-import {pendingCard,wordsKeptCard,receiptCard,confirmCard,undoneCard,parkedCard,savedCard,openCard,card} from './capture-cards.mjs';
+import {pendingCard,wordsKeptCard,receiptCard,confirmCard,undoneCard,parkedCard,savedCard,openCard,card,withProblem} from './capture-cards.mjs';
 import {answerCard} from './capture-answers.mjs';
 import {historyView,contextView} from './capture-views.mjs';
 import {installSheet} from './capture-sheet.mjs';
@@ -8,6 +8,7 @@ import {installComposer,listeningCard} from './capture-composer.mjs';
 import {createSendIdentity,draftToKeep,cardKind} from './capture-session.mjs';
 import {el,button} from './capture-dom.mjs';
 import {userMessage} from './user-message.mjs';
+import {actionIdFor} from '../intent-v2/src/suggestions.mjs';
 
 const ACTIVE=new Set(['draft','review']);
 const WAITING=new Set(['words-kept','confirm','open']);
@@ -27,7 +28,7 @@ export function mountCapture(platform){
  const $=id=>document.getElementById(id);
  const panel=$('panel'),content=$('content'),message=$('message');
  const s={state:null,busy:false,view:'chat',conversationId:storage.get('rpm-conversation'),focusedDraftId:null,historyLimit:30,
-  showArchived:false,lastKey:null,request:null,failure:null,listening:false,autoClose:null,countdown:null,slowTimer:null};
+  showArchived:false,lastKey:null,request:null,failure:null,problem:null,listening:false,autoClose:null,countdown:null,slowTimer:null};
  const identity=createSendIdentity(),reveal=createRevealTracker(),seen=new Set();
 
  function rememberComposer(text){
@@ -66,8 +67,10 @@ export function mountCapture(platform){
    seen.add(pending.messageId);
   }
   if(payload.messageId)seen.add(payload.messageId);
+  const tapped=captures().find(c=>c.draft&&c.draft.id===(payload.draftId??payload.action?.draftId));
+  if(tapped)seen.add(tapped.messageId);
   const card=payload.type==='message'||payload.type==='intentRetry';
-  s.busy=true;s.failure=null;status('');
+  s.busy=true;s.failure=null;s.problem=null;status('');
   if(card){
    s.view='chat';reveal.begin();
    s.request={payload,phase:payload.type==='intentRetry'?'sorting':'saving',slow:false,text:words??captures().find(c=>c.messageId===payload.messageId)?.raw??''};
@@ -92,7 +95,7 @@ export function mountCapture(platform){
    if(words!==null&&!saved){
     if(!message.value){composer.set(words,{focus:false});rememberComposer(words);}
     s.failure={payload,text:words,error:text};
-   }else{status(text,true);if(words!==null)rememberComposer(message.value);}
+   }else{s.problem=text;if(words!==null)rememberComposer(message.value);}
    reveal.settle(null,{failed:true});
    render();
    return null;
@@ -112,9 +115,8 @@ export function mountCapture(platform){
  });
 
  const action=a=>{
-  const id=`${a.kind}:${a.draftId}:${a.revision}:${a.opId??''}:${a.value??''}`;
   if(a.kind==='open'){s.focusedDraftId=a.draftId;}
-  return turn({type:'intentAction',action:a,actionId:id}).then(()=>{if(a.kind==='open')message.focus({preventScroll:true});});
+  return turn({type:'intentAction',action:a,actionId:actionIdFor(a)}).then(()=>{if(a.kind==='open')message.focus({preventScroll:true});});
  };
  const on={
   retry:()=>turn({type:'intentRetry',messageId:latest()?.messageId}),
@@ -183,6 +185,7 @@ export function mountCapture(platform){
    if(c&&(seen.has(c.messageId)||WAITING.has(kind))){
     const node=captureCard(c,kind);
     node.dataset.replyKey=JSON.stringify([c.messageId,kind,c.draft?.revision,c.draft?.confirm]);
+    if(s.problem)withProblem(node,s.problem);
     out.push(node);
    }
   }
@@ -209,6 +212,7 @@ export function mountCapture(platform){
   s.lastKey=captureRenderKey({...s.state,intent:page()});
   const nodes=viewCards();
   content.replaceChildren(...nodes);
+  if(s.problem&&!content.querySelector('.problem'))status(s.problem,true);
   content.scrollTop=0;
   const kind=s.listening?'listening':s.request?'pending':s.failure?'error':nodes[0]?.classList[2]??'idle';
   panel.dataset.view=s.view;panel.dataset.busy=String(s.busy);panel.dataset.state=kind;
@@ -225,7 +229,7 @@ export function mountCapture(platform){
  }
  function setView(next){
   if(next===s.view)return;
-  s.view=next;s.failure=null;
+  s.view=next;s.failure=null;s.problem=null;
   render();
  }
 

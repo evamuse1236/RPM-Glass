@@ -1,3 +1,14 @@
+import {stable} from './context.mjs';
+
+const fnv=(text,seed)=>{let h=seed>>>0;for(let i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}return h.toString(16).padStart(8,'0');};
+/**
+ * The request ID for one tap on a chip: the same tap always gets the same ID, and it is always a short local ID.
+ * An answer's value is the model's words ("tomorrow at 6:00 AM"), so it is hashed, never pasted in.
+ */
+export function actionIdFor(action){
+ const key=stable(action);
+ return `${action.kind}:${action.revision}:${fnv(key,0x811c9dc5)}${fnv(key,0x01000193)}`;
+}
 /** Chips are capabilities bound to a conversation, draft and revision, not prose. */
 export function draftActions(draft,{now=new Date()}={}){
  if(!draft||!['draft','review'].includes(draft.status))return [];
