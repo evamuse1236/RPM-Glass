@@ -39,11 +39,11 @@ Start from known data, open a surface the way a user does, then act by accessibl
 
 ```bash
 $RPMCTL seed                                   # sample plan: 8 Blocks, ~32 tasks, Inbox items, dates relative to now
-$RPMCTL open planner                           # Capture -> More -> Open planner (real taps)
+$RPMCTL open planner                           # Capture -> More -> Planner tile (real taps)
 $RPMCTL ui                                     # what is on screen: role, name, state, rect
 $RPMCTL tap --role button --name Blocks
 $RPMCTL tap --name "RM critical review drafted"
-$RPMCTL tap --role textbox --name "Add a task to the Plan"
+$RPMCTL tap --role combobox --name "Add a task to the Plan"
 $RPMCTL type "Email Prof. Rao about the citation format"
 $RPMCTL key enter
 $RPMCTL wait --role button --name "Email Prof. Rao"

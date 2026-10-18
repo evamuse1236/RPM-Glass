@@ -106,6 +106,12 @@ export function blockAdd(app, block) {
     if (open) waitMotion(DURATION.short4).then(() => list.scrollIntoView({block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'}));
   }
 
+  function foldUntilTyped() {
+    show(false);
+    options = [];
+    highlight(-1);
+  }
+
   async function pull(task) {
     input.value = '';
     refresh();
@@ -145,7 +151,7 @@ export function blockAdd(app, block) {
     const title = input.value;
     if (!title.trim()) return;
     input.value = '';
-    refresh();
+    foldUntilTyped();
     const typed = title.trim();
     landInPlace(node => node.matches('.plan-list > .task-row') && node.querySelector('.task-title')?.textContent === typed);
     const op = {type: 'saveTask', fields: {title, blockId: block.id}};

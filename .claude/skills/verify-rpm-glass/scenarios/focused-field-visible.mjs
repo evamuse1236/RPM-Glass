@@ -27,7 +27,7 @@ export async function run(t) {
 
   // Start typing a task in a Block's Plan, leave with Back twice, then come back to the same Block.
   await openBlock(t);
-  await t.do('tap', '--role', 'textbox', '--name', 'Add a task to the Plan');
+  await t.do('tap', '--role', 'combobox', '--name', 'Add a task to the Plan');
   await waitForKeyboard(t);
   await t.do('key', 'back');
   await t.do('key', 'back');

@@ -11,7 +11,8 @@ export async function run(t) {
   await t.do('display', 'phone');
   await t.do('seed');
   await openBlock(t);
-  await t.do('tap', '--role', 'textbox', '--name', 'Add a task to the Plan');
+  await t.do('tap', '--role', 'combobox', '--name', 'Add a task to the Plan');
+  await t.do('type', TITLE);
   const before = await t.read(() => {
     window.__churn = 0;
     window.__rowsBefore = [...document.querySelectorAll('.plan-list .task-row')];
@@ -20,12 +21,11 @@ export async function run(t) {
     }).observe(document.getElementById('workspace'), {childList: true, subtree: true});
     return window.__rowsBefore.length;
   });
-  await t.do('type', TITLE);
   await t.do('key', 'enter');
   await t.do('wait', '--role', 'button', '--name', TITLE);
   await sleep(1500);
   const after = await t.read(title => {
-    const field = document.querySelector('[aria-label="Add a task to the Plan"]');
+    const field = document.querySelector('[aria-label^="Add a task to the Plan"]');
     const rows = [...document.querySelectorAll('.plan-list .task-row')];
     return {
       removedNodes: window.__churn,

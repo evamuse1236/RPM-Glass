@@ -114,7 +114,8 @@ export const LOCATE = function locate({role, name, css, nth, scroll}) {
   }
   const hit = hits[nth ?? 0];
   if (!hit) return {error: `Only ${hits.length} match(es) for "${name}"`};
-  if (scroll && !hit.inView) {
+  const [x, , w] = hit.rect;
+  if (scroll && (!hit.inView || x < 0 || x + w > innerWidth)) {
     window.__rpmEls[hit.ref].scrollIntoView({block: 'center', inline: 'nearest'});
     return locate({role, name, css, nth, scroll: false});
   }
