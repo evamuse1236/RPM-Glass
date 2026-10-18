@@ -110,7 +110,7 @@ test('the trace records words, model, prompt version, latency, actions and what 
 });
 
 test('a question gets an answer card and changes nothing',async()=>{
- const raw='What’s my timetable today?';
+ const raw='Is my afternoon free for a long call?';
  const s=agentFor(async()=>turn(raw,[],{mode:'query',draftMode:'none',reply:'Your afternoon is free after 3.',decisions:[{sourceId:'s0',disposition:'question',note:null}],card:{kind:'agenda',day:'2026-09-16',targetId:null}}));
  const r=await s.agent.capture({messageId:'m-q',conversationId:await conversationOf(s.backend),text:raw});
  assert.equal(r.applied,null);assert.equal((await s.backend.load()).entries.length,0);
