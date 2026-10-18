@@ -9,6 +9,7 @@ import {openRoutineEditor} from './planner/routine-editor.mjs';
 import {waterRow} from './planner/water.mjs';
 import {mealRow} from './planner/meals.mjs';
 import {renderHistory} from './planner/history.mjs';
+import {renderDay} from './body-day.mjs';
 
 const root = document.documentElement;
 const today = localDay(new Date());
@@ -23,9 +24,10 @@ const SAMPLES = {
   meal: [['open', 'Not logged'], ['lunch', 'Lunch logged'], ['dinner', 'Dinner logged']],
   history: [['sample', 'History: sample'], ['empty', 'History: empty']],
   estimate: [['ready', 'Estimate works'], ['failed', 'Estimate fails'], ['pending', 'Estimate stays pending']],
+  day: [['plan', 'Day: sample'], ['packed', 'Day: packed'], ['empty', 'Day: empty'], ['done', 'Day: all done']],
 };
 const settings = {layout: 'day', large: false, dark: false, clock: '13:10', routine: 'some', water: 'five', meal: 'open',
-  history: 'sample', estimate: 'ready', failSaves: false, screen: 'today', samplesOpen: false};
+  history: 'sample', estimate: 'ready', day: 'plan', failSaves: false, screen: 'today', samplesOpen: false};
 
 const STEPS = ['Glass of water', 'Stretch for 10 minutes', 'Shower', 'Journal one page', 'Plan the day'];
 const ESTIMATES = {'dal rice': [550, 18], 'rajma chawal': [610, 20], 'paneer wrap': [480, 22], 'curd rice': [420, 11],
@@ -209,6 +211,7 @@ function bodyRows() {
 }
 
 function renderToday(page) {
+  if (settings.layout === 'timeline') return renderDay(app, body, page, settings);
   const {routines, water, meal} = bodyRows();
   const header = el('div', 'day-header');
   const line = el('div', 'date-line');
@@ -348,7 +351,7 @@ function sampleSelect(key, label) {
   select.value = settings[key];
   select.addEventListener('change', () => {
     settings[key] = select.value;
-    if (key !== 'clock' && key !== 'estimate') { data = seed(); undoStack = []; }
+    if (!['clock', 'estimate', 'day'].includes(key)) { data = seed(); undoStack = []; }
     app.render();
   });
   wrap.append(el('span', '', label), select);
@@ -360,7 +363,7 @@ function previewBar() {
   const layout = el('span', 'preview-group');
   layout.setAttribute('role', 'group');
   layout.setAttribute('aria-label', 'Today layout');
-  const choices = [['day', 'In the day'], ['strip', 'Body strip']].map(([value, text]) => {
+  const choices = [['day', 'In the day'], ['strip', 'Body strip'], ['timeline', 'Day']].map(([value, text]) => {
     const node = button(text, () => {
       settings.layout = value;
       choices.forEach(choice => choice.setAttribute('aria-pressed', String(choice === node)));
@@ -378,9 +381,9 @@ function previewBar() {
   failBox.addEventListener('change', () => { settings.failSaves = failBox.checked; });
   fail.append(failBox, el('span', '', 'Saves fail'));
   samples.append(sampleSelect('clock', 'Clock'), sampleSelect('routine', 'Routine'), sampleSelect('water', 'Water'),
-    sampleSelect('meal', 'Meal'), sampleSelect('history', ''), sampleSelect('estimate', ''), fail);
+    sampleSelect('meal', 'Meal'), sampleSelect('history', ''), sampleSelect('estimate', ''), sampleSelect('day', ''), fail);
   const more = toggle('Samples', 'samplesOpen', on => { samples.hidden = !on; });
-  bar.append(layout, toggle('Text 200%', 'large', setLargeText),
+  bar.append(layout, toggle('Text 200%', 'large', on => { setLargeText(on); app.render(); }),
     toggle('Dark', 'dark', on => { root.dataset.appearance = on ? 'dark' : 'light'; }), more, samples);
 }
 
