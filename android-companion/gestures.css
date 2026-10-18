@@ -1,0 +1,62 @@
+/* Gestures and their motion (task-swipe.mjs, planner/row-gestures.mjs). Ships inside planner.css, after it.
+   Swipe right = Done (tertiary), swipe left = Schedule (primary) or, in the Inbox, Move to Block (secondary).
+   The reveal shows from the 8px lock at a tint; at the 90dp commit it fills and its icon grows, both in 40ms. */
+.swipe-reveal {
+  --reveal: var(--primary-container);
+  --on-reveal: var(--on-primary-container);
+  background: color-mix(in oklch, var(--reveal) 45%, var(--swipe-surface, var(--surface)));
+  color: var(--on-reveal);
+  transition: background-color 40ms linear;
+}
+.swipe-reveal[data-side=left] { flex-direction: row-reverse; }
+.swipe-reveal[data-kind=done] { --reveal: var(--tertiary-container); --on-reveal: var(--on-tertiary-container); }
+.swipe-reveal[data-kind=move] { --reveal: var(--secondary-container); --on-reveal: var(--on-secondary-container); }
+.swipe-reveal[data-kind=remove] { --reveal: var(--error-container); --on-reveal: var(--on-error-container); }
+.swipe-task[data-armed=true] .swipe-reveal { background: var(--reveal); }
+.swipe-reveal .ms { display: inline-block; transition: none; }
+.swipe-task[data-armed=true] .swipe-reveal .ms { scale: 1.15; }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduce-motion=true]) .swipe-reveal .ms { transition: scale 40ms var(--ease-standard); }
+}
+
+.spine-card.swipe-task { position: relative; touch-action: pan-y; }
+.spine-card.swipe-task[data-swipe] { background: transparent; border-color: transparent; overflow: clip; overflow-clip-margin: 1px; }
+.swipe-task[data-swipe] :active, .swipe-task[data-swipe] :active .check-ring { background-color: transparent; }
+.spine-card.swipe-task[data-swipe]::before { inset: -1px; border: 1px solid var(--swipe-edge, transparent); border-radius: inherit; }
+.spine-card > .swipe-reveal { inset: -1px; border-radius: inherit; }
+
+.task-row.done .check-ring, .spine-row.done .check-ring {
+  background: var(--tertiary);
+  border-color: var(--tertiary);
+  color: var(--on-tertiary);
+}
+.spine-row.just-done .spine-title { animation: strike-in var(--dur-short3) var(--ease-standard); }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduce-motion=true]) :is(.task-row, .spine-row).just-done .check-ring {
+    animation: ring-pop var(--dur-short3) var(--ease-spring);
+  }
+  :root:not([data-reduce-motion=true]) .spine-row.just-done .check-ring .ms {
+    animation: check-in var(--dur-short3) var(--ease-emphasized-decelerate);
+  }
+}
+@keyframes ring-pop { 50% { scale: 1.2; } }
+
+.week-strip { isolation: isolate; }
+.week-day[aria-pressed=true] .week-number { background: none; position: relative; }
+.week-day[aria-pressed=true] .week-number::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 50%;
+  background: var(--primary);
+}
+/* A day change inside the shown week keeps the head still: the old page fades out without its own head. */
+.motion-ghost-keep-head .day-header { visibility: hidden; }
+
+.filter-chip, .assist-chip {
+  transition: background-color var(--dur-press) var(--ease-standard), border-color var(--dur-press) var(--ease-standard),
+    color var(--dur-press) var(--ease-standard);
+}
+.choice-chip[aria-pressed=true] .chip-check { animation: chip-check-in var(--dur-press) var(--ease-standard); }
+@keyframes chip-check-in { from { opacity: 0; } }

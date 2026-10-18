@@ -91,7 +91,7 @@ function settleOpen(node) {
   document.getElementById('sheet-scrim')?.style.removeProperty('opacity');
 }
 
-export function closeSheet(app) {
+export function closeSheet(app, {duration = MOTION.exit} = {}) {
   const node = app.dom.sheet;
   if (node.hidden) return;
   const epoch = ++app.sheet.epoch;
@@ -103,7 +103,7 @@ export function closeSheet(app) {
   // The scrim's opacity follows the sheet's travel (same curve, same duration), so it is clear only as the sheet's
   // last edge leaves. A snackbar raised meanwhile waits for `gone`.
   app.sheet.gone = moveSheet(node, scrim, from, {transform: offscreen(node), opacity: 0},
-    {duration: MOTION.exit, easing: EASE.emphasizedAccelerate}).then(() => {
+    {duration, easing: EASE.emphasizedAccelerate}).then(() => {
     if (epoch !== app.sheet.epoch) return;
     cancelSheetMotion(node);
     node.style.removeProperty('transform');
@@ -119,11 +119,11 @@ export function closeSheet(app) {
 }
 
 /** Ask before throwing away typed changes; otherwise close. Returns true when the sheet is closing. */
-export function dismissSheet(app) {
+export function dismissSheet(app, {duration} = {}) {
   const node = app.dom.sheet;
   const dirty = app.sheet.draftKey && node.dataset.dirty === 'true' && node.querySelector('input,textarea,select');
   if (!dirty) {
-    closeSheet(app);
+    closeSheet(app, {duration});
     return true;
   }
   const footer = node.querySelector('.sheet-actions');
@@ -143,8 +143,13 @@ function springBack(app) {
   const node = app.dom.sheet;
   const scrim = scrimFor(app);
   moveSheet(node, scrim, currentPose(node, scrim), {transform: 'translateY(0px)', opacity: 1},
-    {duration: DURATION.medium1, easing: EASE.standardDecelerate}).then(done => { if (done) settleOpen(node); });
+    {duration: DURATION.settle, easing: EASE.emphasizedDecelerate}).then(done => { if (done) settleOpen(node); });
 }
+
+/** Let go past 30% of its height or faster than 0.8 px/ms, a dragged sheet leaves in 150ms; otherwise it settles back. */
+export const DISMISS_TRAVEL = 0.3;
+export const DISMISS_SPEED = 0.8;
+export const draggedAway = (travel, height, velocity) => travel > height * DISMISS_TRAVEL || velocity > DISMISS_SPEED;
 
 /** The handle (and the header's empty space) drags the sheet: it follows the finger, then dismisses or springs back. */
 function installDrag(app, zone) {
@@ -185,7 +190,7 @@ function installDrag(app, zone) {
     const [t0, y0] = samples[0];
     const velocity = (event.clientY - y0) / Math.max(1, event.timeStamp - t0);
     if (travel < -40) app.dom.sheet.classList.add('expanded');
-    if ((travel > height * 0.3 || velocity > 0.6) && dismissSheet(app)) return;
+    if (draggedAway(travel, height, velocity) && dismissSheet(app, {duration: DURATION.short3})) return;
     springBack(app);
   };
   zone.addEventListener('pointerup', release);

@@ -2,18 +2,40 @@
 import {localDay, shiftDay, blockDue} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
 import {weekStart, reviewWeek, weekFocus, resultStatus} from '../review-state.mjs';
-import {el, icon, button, iconButton, labelButton} from './dom.mjs';
+import {reducedMotion, DURATION, EASE} from '../surface-motion.mjs';
+import {lockAxis, LONG_PRESS} from '../task-swipe.mjs';
+import {el, icon, button, iconButton, labelButton, emptyState} from './dom.mjs';
 import {clock, longDate, plural, dateText} from './format.mjs';
-import {taskWhen} from './task-row.mjs';
+import {openSheet} from './sheet.mjs';
+import {taskWhen, taskRow} from './task-row.mjs';
 import {phrase, sep} from './today-row.mjs';
 import {openResults, clashes} from './today-model.mjs';
 
-export function selectDay(app, day, direction = '') {
-  app.state.day = day;
-  app.render({reset: true, direction});
-}
-
+const SELECTED = '.day-page .week-strip .week-day[aria-pressed=true] .week-number';
 const dayGap = (from, to) => Math.round((Date.parse(to + 'T12:00') - Date.parse(from + 'T12:00')) / 864e5);
+/** The first day of the strip that shows `day`: seven days running forward from today, a week at a time. */
+export const stripStart = (day, today = localDay()) => shiftDay(today, 7 * Math.floor(dayGap(today, day) / 7));
+
+/**
+ * Inside the shown week the head stays still: the selected ring slides to the new day (250ms emphasized) while its
+ * number takes the ring's colour, and the content below fades through (or moves on the X axis after a swipe).
+ */
+export function selectDay(app, day, direction = '') {
+  const before = app.dom.work.querySelector(SELECTED);
+  const target = app.dom.work.querySelector(`.day-page .week-strip .week-day[data-day="${day}"] .week-number`);
+  const from = before?.getBoundingClientRect();
+  const color = target && getComputedStyle(target).color;
+  const keepHead = !!before && stripStart(day) === stripStart(app.state.day);
+  app.state.day = day;
+  app.render({reset: true, direction, keepHead});
+  const number = app.dom.work.querySelector(SELECTED);
+  if (!keepHead || !number || reducedMotion()) return;
+  const to = number.getBoundingClientRect();
+  if (Math.abs(to.left - from.left) < 1) return;
+  const timing = {duration: DURATION.medium1, easing: EASE.emphasized};
+  number.animate([{translate: `${from.left - to.left}px 0`}, {translate: '0 0'}], {...timing, pseudoElement: '::before'});
+  number.animate([{color}, {color: getComputedStyle(number).color}], timing);
+}
 export const dueDay = (data, block) => blockDue(data, block.id)?.value?.slice(0, 10);
 
 /**
@@ -27,7 +49,7 @@ function weekStrip(app) {
   strip.setAttribute('role', 'group');
   strip.setAttribute('aria-label', 'Next seven days');
   const today = localDay();
-  const first = shiftDay(today, 7 * Math.floor(dayGap(today, day) / 7));
+  const first = stripStart(day, today);
   const data = app.data();
   const dues = new Map();
   for (const block of openResults(data)) {
@@ -41,6 +63,7 @@ function weekStrip(app) {
     const key = shiftDay(first, i);
     const date = new Date(key + 'T12:00');
     const cell = button('', () => selectDay(app, key), 'week-day');
+    cell.dataset.day = key;
     cell.classList.toggle('is-today', key === today);
     cell.classList.toggle('is-past', key < today);
     const due = dues.get(key) ?? 0, clash = clashDays.has(key);
@@ -62,15 +85,73 @@ function weekStrip(app) {
     );
     strip.append(cell);
   }
-  let startX = null;
-  strip.addEventListener('pointerdown', event => { startX = event.clientX; });
-  strip.addEventListener('pointerup', event => {
-    if (startX == null) return;
-    const dx = event.clientX - startX;
-    startX = null;
-    if (Math.abs(dx) > 70) selectDay(app, shiftDay(day, dx < 0 ? 7 : -7), dx < 0 ? 'right' : 'left');
-  });
+  stripGestures(app, strip);
   return strip;
+}
+
+/** Swipe right shows the previous week and left the next; holding a day opens that day's tasks in a sheet. */
+function stripGestures(app, strip) {
+  let start = null, axis = null, swallow = false, timer = 0;
+  const hold = (cell, pressed) => {
+    start = null;
+    swallow = pressed;
+    app.api.native('haptic').catch(() => {});
+    daySheet(app, cell.dataset.day);
+  };
+  strip.addEventListener('pointerdown', event => {
+    swallow = false;
+    if (event.button > 0) return;
+    const cell = event.target.closest('.week-day');
+    start = {x: event.clientX, y: event.clientY};
+    axis = null;
+    clearTimeout(timer);
+    if (cell) timer = setTimeout(() => { if (start && !axis) hold(cell, true); }, LONG_PRESS);
+  });
+  strip.addEventListener('pointermove', event => {
+    if (!start || axis) return;
+    axis = lockAxis(event.clientX - start.x, event.clientY - start.y);
+    if (axis) clearTimeout(timer);
+  });
+  strip.addEventListener('pointerup', event => {
+    clearTimeout(timer);
+    setTimeout(() => { swallow = false; });
+    if (!start) return;
+    const dx = event.clientX - start.x;
+    const swiped = axis === 'x' && Math.abs(dx) >= WEEK_SWIPE;
+    start = null;
+    if (!swiped) return;
+    swallow = true;
+    selectDay(app, shiftDay(app.state.day, dx < 0 ? 7 : -7), dx < 0 ? 'right' : 'left');
+  });
+  strip.addEventListener('pointercancel', () => { clearTimeout(timer); start = null; });
+  strip.addEventListener('contextmenu', event => {
+    const cell = event.target.closest('.week-day');
+    if (!cell) return;
+    event.preventDefault();
+    if (!swallow) hold(cell, false);
+  });
+  strip.addEventListener('click', event => {
+    if (!swallow) return;
+    swallow = false;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+}
+
+const WEEK_SWIPE = 70;
+
+/** One day's tasks without leaving the day on screen; Open day goes there. */
+function daySheet(app, day) {
+  const {body, actions} = openSheet(app, longDate(day), {variant: 'choice'});
+  const paint = () => {
+    const {active, completed} = dayTasks(app.data(), day);
+    body.replaceChildren(...[...active, ...completed].map(task => taskRow(app, task)));
+    if (!body.children.length) body.append(emptyState({symbol: 'event_available', title: 'Nothing planned',
+      body: 'Tasks you plan for this day show here.'}));
+  };
+  paint();
+  app.sheetRefresh = paint;
+  actions.append(button('Open day', () => { app.closeSheet(); selectDay(app, day); }, 'filled-btn'));
 }
 
 export function dateHeader(app, week) {

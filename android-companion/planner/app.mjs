@@ -244,9 +244,10 @@ function shellAfter(app, before, motion, outgoing, incoming) {
  *   focus stay (animateRerender).
  * - A route change runs one transition: shared axis X for push/pop and day to day (reversed on Back), fade through
  *   for tabs. Outgoing and incoming are both visible; the top bar moves with its page.
- * `reset` restores the position last seen on that screen.
+ * `reset` restores the position last seen on that screen. `keepHead` (a day change inside the shown week) holds the
+ * day's head and the top bar still when the page keeps its scroll, so only the content below changes.
  */
-export function render(app, {reset = false, direction = ''} = {}) {
+export function render(app, {reset = false, direction = '', keepHead = false} = {}) {
   const key = screenKey(app);
   const previousKey = app.lastKey;
   const changed = previousKey !== key;
@@ -293,13 +294,17 @@ export function render(app, {reset = false, direction = ''} = {}) {
   scroll.scrollTop = reset || changed ? (app.positions.get(key) ?? app.renderers.defaultScroll(app, kind)) : scrollTop;
   if (changed && kind === 'today') app.renderers.refreshCalendar(app);
   if (!motion) return;
-  const outgoing = [ghost(oldPage, pageRect, planner, {cls: oldWorkClass + ' motion-ghost-page', scrollTop})];
-  if (oldBar.length) outgoing.push(ghost(oldBar, barRect, planner, {cls: oldBarClass + ' motion-ghost-bar'}));
-  const incoming = [work, topBar.hidden ? null : topBar];
+  const still = keepHead && Math.abs(scroll.scrollTop - scrollTop) < 1;
+  const outgoing = [ghost(oldPage, pageRect, planner,
+    {cls: oldWorkClass + ' motion-ghost-page' + (still ? ' motion-ghost-keep-head' : ''), scrollTop})];
+  if (oldBar.length && !still) outgoing.push(ghost(oldBar, barRect, planner, {cls: oldBarClass + ' motion-ghost-bar'}));
+  const incoming = still ? [...work.querySelectorAll(':scope > .page > :not(.day-header)')]
+    : [work, topBar.hidden ? null : topBar];
   shellAfter(app, shell, motion, outgoing, incoming);
-  const plan = transitionFor(previousKey, key, direction);
+  const plan = still ? {kind: direction ? 'axis' : 'fade', back: direction === 'left', scale: false}
+    : transitionFor(previousKey, key, direction);
   if (plan.kind === 'axis') sharedAxis(outgoing, incoming, {back: plan.back, axis: plan.axis});
-  else fadeThrough(outgoing, incoming);
+  else fadeThrough(outgoing, incoming, {scale: plan.scale ?? true});
 }
 
 /**

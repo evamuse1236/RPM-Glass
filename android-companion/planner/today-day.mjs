@@ -12,6 +12,7 @@ import {dueInfo} from './format.mjs';
 import {openSheet} from './sheet.mjs';
 import {notice} from './snackbar.mjs';
 import {toggleDone, taskRow} from './task-row.mjs';
+import {attachRowGestures} from './row-gestures.mjs';
 import {openRunSheet} from './routines.mjs';
 import {drink, openWaterSheet} from './water.mjs';
 import {openMealSheet} from './meals.mjs';
@@ -70,15 +71,19 @@ async function toggleRoutine(app, body, row) {
   notice(app, row.done ? `${routine.name} reopened` : `${routine.name} done`, {undo: true});
 }
 
+function toggleTask(app, row) {
+  const node = app.dom.work.querySelector(`.spine-row[data-key="${CSS.escape(row.key)}"]`);
+  node?.classList.toggle('done', !row.done);
+  node?.classList.toggle('just-done', !row.done);
+  node?.querySelector('.spine-check')?.setAttribute('aria-checked', String(!row.done));
+  return toggleDone(app, row.task.ref, row.task.occurrence);
+}
+
 function handlers(app) {
   const body = bodyApi(app);
   return {
-    toggleTask: row => {
-      const node = app.dom.work.querySelector(`.spine-row[data-key="${CSS.escape(row.key)}"]`);
-      node?.classList.toggle('done', !row.done);
-      node?.querySelector('.spine-check')?.setAttribute('aria-checked', String(!row.done));
-      toggleDone(app, row.task.ref, row.task.occurrence);
-    },
+    toggleTask: row => toggleTask(app, row),
+    gestures: (card, row) => attachRowGestures(app, card, row.task.ref, {leave: false, complete: () => toggleTask(app, row)}),
     openTask: task => app.actions.openTask(task.id, task.occurrence),
     openEvent: event => app.actions.calendarDetails(event),
     resolve(row) {

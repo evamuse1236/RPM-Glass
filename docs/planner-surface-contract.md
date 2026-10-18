@@ -21,6 +21,14 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 - Structural hierarchy is **Area → Goal → Project → Block → Task**. A list shows a summary; the next level holds controls. Cards never nest more than one level.
 - Preserve the selected day, filters, scroll position, detail target, draft, and active context across ordinary rerenders and system text-scale changes.
 
+### Gestures
+
+- Task rows (Today's spine cards, Block Plan, Inbox, lists): swipe right is **Done**, swipe left is **Schedule** (one-tap date choices). In the Inbox, swipe left is **Move to Block**. A drag locks to one axis after 8px, so vertical scrolling never moves a row; letting go before 90dp springs back and changes nothing.
+- Delete is never a swipe. A long press on a task row opens a quick menu with Must, Move to Block and Delete; on Block Plan rows the long press stays the reorder lift, and Delete is in the task sheet's ⋮.
+- Week strip: swipe right for the previous week, left for the next; long-press a day for that day's tasks in a sheet; tap a day to open it. On Today, a day-change swipe starts only from the gutter, the date line or empty space.
+- The task sheet's handle drags it down; it closes past 30% of its height or a fast flick.
+- Every gesture has a tap or menu route (the ring, the task sheet's Schedule and ⋮, Must in the sheet), and every change it makes has Undo.
+
 ## Core surfaces
 
 ### Today
@@ -29,7 +37,7 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 - One line about 64dp from the left carries every item with a dot; the gutter holds its start time and length. Tasks and Routines are filled cards with the round check; calendar events are outlined with the event icon. The supporting line carries one thing: Area dot and Result, Now · until, Not done, or Clash with … plus Resolve (a clash wins).
 - Card height is 56dp, plus 24dp per full extra half hour, capped at 160dp. Free time of 45 minutes or more is a dashed row with a + that plans into it. Water and meals are 40dp rows with one action.
 - Now is the item in progress (tinted, with an elapsed bar) or a line between rows. Today opens at now; a floating Now button returns there.
-- Completion is one tap, recoverable through Undo, and never claims the Result was achieved. Every water, meal and Routine change has Undo.
+- Completion is one tap on the ring or a swipe right, recoverable through Undo, and never claims the Result was achieved. Every water, meal and Routine change has Undo.
 
 ### Blocks
 

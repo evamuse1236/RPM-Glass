@@ -93,12 +93,14 @@ export function defaultScroll(app, kind) {
   return kind === 'today' ? todayScroll(app) : 0;
 }
 
-/** Horizontal swipes: change day on Today, period on Life, Project in Project detail. */
+/** Horizontal swipes: change day on Today (from the gutter, the date line or empty space; rows own their swipes),
+ * period on Life, Project in Project detail. */
 export function installSwipe(app) {
   const node = app.dom.work;
   let start = null;
   let suppress = false;
-  const ignore = '.task-row,.chip-row,.week-strip,input,textarea,select,.wheel-card,.tabs';
+  const ignore = '.task-row,.swipe-task,.spine-card,.spine-small,.spine-free,.chip-row,.week-strip,input,textarea,select,'
+    + '.wheel-card,.tabs';
   node.addEventListener('pointerdown', event => {
     start = event.target.closest(ignore) ? null : {x: event.clientX, y: event.clientY};
   });

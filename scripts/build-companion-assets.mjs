@@ -10,7 +10,7 @@ export const bundleOptions={absWorkingDir:root,entryPoints:['android-companion/r
 }}]};
 // Every page and stylesheet in android-companion/ ships; CompanionActivity.ASSETS must list the same names.
 // A stylesheet with parts ships as one file, its parts appended in order, so the asset list names it once.
-export const STYLE_PARTS={'planner.css':['body.css','day.css','task-chips.css']};
+export const STYLE_PARTS={'planner.css':['body.css','day.css','task-chips.css','gestures.css']};
 const parts=new Set(Object.values(STYLE_PARTS).flat());
 const source=file=>fs.readFileSync(path.join(root,'android-companion',file),'utf8');
 export const shippedText=file=>[file,...(STYLE_PARTS[file]??[])].map(source).join('\n');

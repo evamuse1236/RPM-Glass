@@ -2,7 +2,7 @@
 import {blockTasks, localDay} from '../planner-state.mjs';
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
 import {reorderTask} from '../planner-ux.mjs';
-import {attachTaskSwipe} from '../task-swipe.mjs';
+import {attachRowGestures} from './row-gestures.mjs';
 import {reducedMotion, waitMotion} from '../surface-motion.mjs';
 import {el, icon, button} from './dom.mjs';
 import {commitInPlace} from './inline-edit.mjs';
@@ -74,7 +74,8 @@ function mustMark() {
 
 /**
  * options: current, next, anytime, days (say "Today" too), context (text), plan (true in a Block's Plan),
- * swipe (schedule/delete gestures; on unless false). Open Plan rows reorder by long-press and drag.
+ * inbox (swipe left moves to a Block), swipe (row gestures; on unless false). Open Plan rows reorder by long-press
+ * and drag.
  */
 export function taskRow(app, task, options = {}) {
   const row = el('div', 'task-row');
@@ -94,7 +95,7 @@ export function taskRow(app, task, options = {}) {
 
   if (task.must) row.append(mustMark());
   if (options.plan && !task.done) installOrder(app, row, task, options.onReorder);
-  if (!options.plan && options.swipe !== false && !task.done) attachSwipe(app, row, task);
+  if (options.swipe !== false && !task.done) attachGestures(app, row, task, options);
   // What the row's handlers act on: a re-render may keep this very node (and its running animations) in place of an
   // identical rebuilt row only when this matches (see animateRerender).
   row.__closure = JSON.stringify([task.id, task.title, !!task.done, task.occurrence ?? null, task.planned ?? null,
@@ -103,13 +104,11 @@ export function taskRow(app, task, options = {}) {
   return row;
 }
 
-/** Swipe right schedules (one-tap date choices anchored to the row); swipe left deletes, with Undo. */
-function attachSwipe(app, row, task) {
-  row.classList.add('swipe-task');
-  attachTaskSwipe(row, {
-    schedule: () => app.actions.scheduleTask(task, row),
-    remove: () => app.actions.deleteTask(task),
-  });
+/** A done one-time task leaves the list, so its row carries off; a repeating one stays and shows its tick. */
+function attachGestures(app, row, task, options) {
+  const leave = !repeats(task);
+  attachRowGestures(app, row, task, {leave, inbox: !!options.inbox, hold: !options.plan,
+    complete: () => toggleDone(app, task, task.occurrence, {carried: leave, keepSheet: !!row.closest('.sheet')})});
 }
 
 const LONG_PRESS = 350;
@@ -320,10 +319,11 @@ function markRow(app, task, done) {
  * The ring pops and the title strikes through at once and the row holds, struck, for 300ms; then, in one re-render, it
  * collapses where it is (250ms, its words fading with its space) while Completed opens and whatever the tick changed
  * (a lead card, Coming up, the free time) fades through in the same 250ms, so it is all still by about 550ms and
- * nothing moves after. Undo reopens it in place.
+ * nothing moves after. Undo reopens it in place. A row swiped off its edge (`carried`) has shown "Done" already: it
+ * collapses as soon as the save lands. Resolves true once saved.
  */
-export async function toggleDone(app, task, when) {
-  if (app.saving) return;
+export async function toggleDone(app, task, when, {carried = false, keepSheet = false} = {}) {
+  if (app.saving) return false;
   const completing = !task.done;
   const occurrence = when ?? task.occurrence ?? (repeats(task) ? nextOccurrence(task) : task.planned);
   const op = task.done
@@ -331,13 +331,13 @@ export async function toggleDone(app, task, when) {
     : {type: 'saveTask', id: task.id, fields: {done: true}, occurrence};
   const linger = completing && !repeats(task);
   // Timed on the animation clock from the tap, so the collapse overlaps the tick whatever the save takes.
-  const collapse = linger ? waitMotion(COLLAPSE_AFTER) : null;
+  const collapse = linger ? waitMotion(carried ? 0 : COLLAPSE_AFTER) : null;
   if (linger) app.recentlyCompleted.set(task.id, true);
-  if (linger) markRow(app, task, true);
+  if (linger && !carried) markRow(app, task, true);
   // From the list, the page waits for the collapse; from a sheet, the page behind it updates under the scrim as usual.
   const fromList = linger && app.dom.sheet.hidden;
   try {
-    await app.commit(op, {label: completing ? 'Task completed' : 'Task marked incomplete', keepSheet: false,
+    await app.commit(op, {label: completing ? 'Task completed' : 'Task marked incomplete', keepSheet,
       render: !fromList});
     if (linger) {
       collapse.then(() => {
@@ -351,9 +351,11 @@ export async function toggleDone(app, task, when) {
       });
     }
     app.api.native('haptic').catch(() => {});
+    return true;
   } catch {
     if (linger) app.recentlyCompleted.delete(task.id);
-    if (linger) markRow(app, task, false);
+    if (linger && !carried) markRow(app, task, false);
+    return false;
   }
 }
 
