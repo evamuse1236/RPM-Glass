@@ -1,6 +1,5 @@
 // Presentation only: geometry, insets and motion. This module never saves a
 // plan and never invents request progress.
-export {menuGeometry} from './widget-menu.mjs';
 
 export function createRevealTracker(){
  const seen=new Set();
@@ -72,27 +71,10 @@ function installSizeReport(panel,action){
  return report;
 }
 
-function installOverflow(content,overflow,message){
- const update=()=>{
-  const more=content.scrollHeight-content.clientHeight-content.scrollTop>3;
-  overflow.hidden=!more;
-  content.dataset.more=String(more);
- };
- overflow.addEventListener('pointerdown',e=>{if(document.activeElement===message)e.preventDefault();});
- overflow.addEventListener('click',()=>{
-  content.scrollBy({top:Math.max(48,content.clientHeight-48),behavior:reducedMotion()?'instant':'smooth'});
- });
- content.addEventListener('scroll',update,{passive:true});
- new ResizeObserver(update).observe(content);
- new MutationObserver(update).observe(content,{childList:true,subtree:true,characterData:true});
- content.addEventListener('toggle',update,true);
- return update;
-}
-
-/** Drag the handle or header down to close, like a bottom sheet. */
+/** Drag the bar's handle down to close, like a bottom sheet. */
 function installSwipeToClose(panel,close){
  let start=null;
- const zone=e=>e.target.closest('.grab,.panel-header')&&!e.target.closest('button');
+ const zone=e=>!!e.target.closest('.grab');
  panel.addEventListener('pointerdown',e=>{
   if(e.button!==0||!zone(e))return;
   start={y:e.clientY,id:e.pointerId,dy:0};
@@ -118,16 +100,15 @@ function installSwipeToClose(panel,close){
 
 export function installCapturePresentation({action}){
  const $=id=>document.getElementById(id);
- const panel=$('panel'),content=$('content'),message=$('message');
+ const panel=$('panel');
  installInsets(panel);
  const report=installSizeReport(panel,action);
- const updateOverflow=installOverflow(content,$('capture-overflow'),message);
  const syncMotion=()=>{panel.dataset.motion=reducedMotion()?'reduced':'full';};
  prefersReduced?.addEventListener?.('change',syncMotion);
  window.addEventListener('rpm-phone-status',syncMotion);
  syncMotion();
- // A tap on the transparent host outside the panel closes Capture.
- document.addEventListener('pointerdown',e=>{if(!panel.contains(e.target))action?.('minimize').catch(()=>{});});
+ // A tap on the transparent host, away from the bar, its cards and the + sheet, closes Capture.
+ document.addEventListener('pointerdown',e=>{if(!e.target.closest('#stack,#sheet,#scrim'))action?.('minimize').catch(()=>{});});
  installSwipeToClose(panel,()=>action?.('minimize').catch(()=>{}));
- return {report,updateOverflow,syncMotion};
+ return {report,syncMotion};
 }

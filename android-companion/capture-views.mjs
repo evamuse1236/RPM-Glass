@@ -1,107 +1,72 @@
-// Secondary Capture views reached from More: History, a past conversation,
-// Context and About. Records are archived or restored, never deleted.
-import {formattedReply} from '../chat-prototype/reply-format.mjs';
-import {el,icon,button} from './capture-dom.mjs';
-import {historyCard} from './capture-card.mjs';
+import {el,button,iconButton} from './capture-dom.mjs';
+import {cardKind} from './capture-session.mjs';
+import {card} from './capture-cards.mjs';
 
-function intro(frag,text){
- frag.append(el('p','view-intro',text));
-}
+const STATUS={pending:'Saving',
+ 'words-kept':'Words saved, not sorted yet',saved:'Saved',answer:'Answered',confirm:'Changed, waiting for Keep',receipt:'Applied',
+ undone:'Undone',parked:'Left as a draft',open:'Waiting for an answer'};
 
-function recordAction(row,collection,item,turn){
- const restore=item.archived;
- row.append(button(restore?'Restore':'Archive',()=>turn({type:restore?'restore':'archive',collection,id:item.id}),{role:'text'}));
-}
-
-export function renderHistory(frag,{state,conversationId,countFor,openConversation,turn}){
+function shell(title,onBack){
+ const node=card('view');
  const head=el('div','view-head');
- head.append(el('p','view-intro','Previous captures and conversations. New conversations keep your plans and memory.'));
- head.append(button('New conversation',()=>turn({type:'new'}),{role:'tonal',iconName:'add'}));
- frag.append(head);
- const list=el('div','list');
- for(const c of state.conversations.toReversed()){
-  const row=el('div','list-row'+(c.archived?' archived':''));
-  const open=el('button','list-main');
-  open.type='button';
-  open.append(icon(c.id===conversationId?'chat_bubble':'chat_bubble_outline'));
-  const text=el('span','list-text');
-  const total=c.messages.length+countFor(c.id);
-  text.append(el('span','list-title',c.title),el('span','list-sub',`${total} ${total===1?'message':'messages'}${c.archived?' · archived':''}${c.id===conversationId?' · current':''}`));
-  open.append(text);
-  open.addEventListener('click',()=>openConversation(c.id));
-  row.append(open);
-  if(c.id!==conversationId||c.archived)recordAction(row,'conversations',c,turn);
-  list.append(row);
- }
- frag.append(list);
+ head.append(iconButton('arrow_back','Back to Capture',onBack),el('h2','',title));
+ node.append(head);
+ return node;
+}
+const when=at=>new Date(at).toLocaleString([],{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
+
+function statusText(capture){
+ const kind=cardKind(capture),lines=capture.draft?.lines??[];
+ if((kind==='receipt'||kind==='confirm')&&lines.length)return lines.map(l=>`${l.verb} ${l.title}`).join(', ');
+ return STATUS[kind]??'Saved';
 }
 
-function legacyMessage(m,{state,receiptsFor,turn}){
- if(m.role==='user'){
-  return el('p','bubble user',m.text);
+/** Every capture in this conversation, newest first, with what became of it. Words that never got sorted keep Retry. */
+export function historyView({captures,hasMore,showMore,retry,onBack}){
+ const node=shell('History',onBack);
+ if(!captures.length)node.append(el('p','quiet','Nothing captured yet. Your words appear here as soon as you send them.'));
+ for(const c of captures){
+  const row=el('div','history-row');
+  row.append(el('p','quiet',when(c.at)),el('p','card-text',c.raw),el('p','quiet',statusText(c)));
+  if(cardKind(c)==='words-kept'){
+   const actions=el('div','card-actions');
+   actions.append(button('Retry',()=>retry(c.messageId),{role:'text',iconName:'refresh'}));
+   row.append(actions);
+  }
+  node.append(row);
  }
- const row=el('div','bubble assistant');
- const receipts=receiptsFor(m);
- row.append(formattedReply(receipts.length&&m.text!=='Saved.'?'Saved.':m.text));
- for(const r of receipts)row.append(el('p','detail-note',[r.status,r.title].filter(Boolean).join(' · ')));
- if(m.undoId&&m.undoId===state.undoId)row.append(button('Undo this change',()=>turn({type:'undo',undoId:m.undoId}),{role:'text',iconName:'undo'}));
+ if(hasMore)node.append(button('Show more',showMore,{role:'text'}));
+ return node;
+}
+
+function record(item,{collection,turn,edit}){
+ const row=el('div','record'+(item.archived?' archived':''));
+ row.append(el('p','record-text',item.text??item.raw??item.title));
+ if(edit&&!item.archived)row.append(button('Edit',()=>edit(item),{role:'text'}));
+ row.append(button(item.archived?'Restore':'Archive',()=>turn({type:item.archived?'restore':'archive',collection,id:item.id}),{role:'text'}));
  return row;
 }
 
-export function renderConversation(frag,{state,conversation,page,cardContext,showMore,receiptsFor,turn}){
- intro(frag,conversation.archived?'Archived conversation. Restore it from History before capturing here.':'Captures from this conversation, newest first.');
- for(const capture of page.captures??[])frag.append(historyCard(capture,cardContext));
- if(page.hasMore)frag.append(button('Show older captures',showMore,{role:'text',iconName:'expand_more'}));
- if(conversation.messages.length){
-  frag.append(el('h2','section-title','Earlier messages'));
-  for(const m of conversation.messages)frag.append(legacyMessage(m,{state,receiptsFor,turn}));
- }
- if(!(page.captures??[]).length&&!conversation.messages.length)frag.append(el('p','empty','Nothing captured here yet.'));
-}
-
-export function renderContext(frag,{state,showArchived,toggleArchived,editMemory,turn}){
- intro(frag,'Preferences you stated and your original words. Archive anything you don’t want the assistant to use.');
- frag.append(button(showArchived?'Hide archived':'Show archived',toggleArchived,{role:'text',iconName:showArchived?'visibility_off':'visibility'}));
- frag.append(el('h2','section-title','Remembered preferences'));
+/** What Capture remembers about you, archived or restored, never deleted. */
+export function contextView({state,showArchived,toggleArchived,editMemory,turn,onBack}){
+ const node=shell('Context',onBack);
+ node.append(el('p','quiet','Preferences you stated. Archive anything you don’t want Capture to use.'));
  const memories=state.memories.filter(m=>showArchived||!m.archived);
- if(!memories.length)frag.append(el('p','empty','Nothing remembered yet. Tell Capture a preference and it will appear here.'));
- for(const m of memories){
-  const row=el('div','record'+(m.archived?' archived':''));
-  const text=el('div','record-text');
-  text.append(el('p','',m.text),el('p','list-sub',m.archived?'Archived · not used':'You said this'));
-  row.append(text,button('Edit',()=>editMemory(m),{role:'text'}));
-  recordAction(row,'memories',m,turn);
-  frag.append(row);
+ node.append(el('p','section-title','Remembered preferences'));
+ if(!memories.length)node.append(el('p','quiet','Nothing remembered yet. Tell Capture a preference and it appears here.'));
+ for(const m of memories)node.append(record(m,{collection:'memories',turn,edit:editMemory}));
+ const history=state.history.filter(h=>showArchived||!h.archived);
+ if(history.length){
+  node.append(el('p','section-title','Imported words'));
+  for(const h of history.toReversed())node.append(record(h,{collection:'history',turn}));
  }
  if(showArchived){
-  frag.append(el('h2','section-title','Archived entries'));
-  for(const e of state.entries.filter(e=>e.archived)){
-   const row=el('div','record');
-   row.append(el('p','record-text',e.title));
-   recordAction(row,'entries',e,turn);
-   frag.append(row);
-  }
+  const archived=state.entries.filter(e=>e.archived);
+  if(archived.length)node.append(el('p','section-title','Archived entries'));
+  for(const e of archived)node.append(record(e,{collection:'entries',turn}));
  }
- frag.append(el('h2','section-title','Original words'));
- const history=state.history.filter(h=>showArchived||!h.archived);
- if(!history.length)frag.append(el('p','empty','Earlier imported words appear here. Captures live in History.'));
- for(const h of history.toReversed()){
-  const row=el('div','record'+(h.archived?' archived':''));
-  const text=el('div','record-text');
-  const when=h.archived?'archived':new Date(h.at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
-  text.append(el('p','',h.raw),el('p','list-sub',`${h.source==='cli-import'?'Imported':'Conversation'} · ${when}`));
-  row.append(text);
-  recordAction(row,'history',h,turn);
-  frag.append(row);
- }
-}
-
-export function renderAbout(frag,{paragraphs,openSettings}){
- const head=el('div','about-head');
- head.append(el('img','about-mark'),el('p','about-title','Your pocket planner'),el('p','list-sub','Private phone storage · OpenRouter AI'));
- head.querySelector('img').src='/butterfly.png';
- head.querySelector('img').alt='';
- frag.append(head);
- for(const p of paragraphs)frag.append(el('p','about-copy',p));
- frag.append(button('Phone settings',openSettings,{role:'tonal',iconName:'settings'}));
+ const row=el('div','card-actions');
+ row.append(button(showArchived?'Hide archived':'Show archived',toggleArchived,{role:'text'}));
+ node.append(row);
+ return node;
 }

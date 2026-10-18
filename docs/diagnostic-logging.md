@@ -33,6 +33,17 @@ The commands return the full authorized content. Use `continueCursor` as `--curs
 
 The event fields include release, source kind, level, occurrence/receipt time, session and operation IDs, outcome, and payload. Native payloads add Android version, device model and process session. Operation records distinguish successful completion, failure, cancellation, and UI dispatch. A console message alone is not proof that an operation completed. Capture failures returned as values are recorded as failures.
 
+## Capture traces
+
+Every capture leaves one trace record, kind `capture-trace`, operation `capture.trace`, with the capture's message ID as the operation ID. It holds the exact words, the prompt and model-policy versions, each model call (model, effort, routing reason, attempt, milliseconds, ok or error code, escalation or fallback, served model, tokens, cost), what the model read (mode, reply, answer card, compact operations, what else was heard), what applied (status, draft, entry IDs, whether Keep is pending, any clash warning), errors by stage, and later outcomes: `kept`, `undone` or `edited` (a task the capture touched was changed by hand in the planner). An Undo sets `likelyMistake: true` and logs the record at `warn`, so `inspect --level warn` lists captures worth reviewing. The trace never holds the API key or the prompt.
+
+A copy of the newest 100 traces stays on the phone in WebView local storage (`rpm-capture-traces`) and shows in Planner → Settings → Diagnostics → Recent captures, so a mistake can be read without a computer.
+
+```sh
+node scripts/diagnostics.mjs inspect --operation MESSAGE_ID
+node scripts/diagnostics.mjs inspect --level warn --limit 50
+```
+
 ## Delivery and limits
 
 - No probabilistic sampling of captured console messages. Standard log/debug/info/warn/error, trace/assert/table/dir, grouping, timers and counters are wrapped while preserving local console output. This captures the bundled app console, not all Android logcat or other applications.

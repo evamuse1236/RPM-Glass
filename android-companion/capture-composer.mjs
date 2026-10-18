@@ -81,19 +81,12 @@ export function installComposer({onSubmit,onInput,onVoice}){
  };
 }
 
-/**
- * Android's speech recognizer runs in its own system dialog and returns only
- * final text, so this state never shows a live transcript or audio levels.
- */
-export function listeningCard(el,icon){
- const card=el('section','listening');
+/** Android's speech recognizer runs in its own system dialog and returns only final text. */
+export function listeningCard(el){
+ const card=el('section','card enter listening');
  card.setAttribute('role','status');
- const mic=el('div','mic-big');
- mic.append(icon('mic',{fill:true}));
- card.append(
-  mic,
-  el('p','listen-title','Listening with Android voice input'),
-  el('p','listen-text','Speak in the voice input window. Your words will appear in the box so you can check them before sending.'),
- );
+ const mic=el('span','ms fill','mic');
+ mic.setAttribute('aria-hidden','true');
+ card.append(mic,el('p','card-title','Listening'),el('p','quiet','Speak in the voice input window. Your words appear in the bar so you can check them before sending.'));
  return card;
 }

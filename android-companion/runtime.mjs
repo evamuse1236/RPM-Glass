@@ -6,7 +6,7 @@ import {calendarRows} from './planner-calendar.mjs';
 import {dueInfo} from './planner/format.mjs';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {entryView,propose,undo} from '../chat-prototype/companion-tools.mjs';
-import {MODEL} from '../chat-prototype/companion-agent.mjs';
+import {HAIKU_MODEL} from '../intent-v2/src/model-policy.mjs';
 import {migratePlannerUX} from './planner-ux.mjs';
 import {importLegacyEntries} from './legacy-import.mjs';
 import * as reviewState from './review-state.mjs';
@@ -14,6 +14,10 @@ import {editPlan,blockDue} from './planner-state.mjs';
 import {planningFocus,changePlanner} from './planner-tools.mjs';
 import {executeCaptureAction,goalDraftAction,receiptsForMessage} from './capture-actions.mjs';
 import {createIntentService,intentViewFromData} from './intent-service.mjs';
+import {createCaptureAgent} from './capture-agent.mjs';
+import {createTraceStore} from './capture-trace.mjs';
+import {planSnapshot} from './capture-snapshot.mjs';
+import {dayAgenda,nextItem,bodyToday} from './capture-agenda.mjs';
 import {userMessage} from './user-message.mjs';
 
 // Android's WebView is updateable independently of the OS; support older engines.
@@ -33,8 +37,11 @@ if(legacy&&!legacy.done)native('legacyImported').catch(()=>{});if(data.inFlight)
 ready.catch(error=>{diagnostics.emit('exception','error',{error},{operation:'app.load',outcome:'error'});const host=document.getElementById('workspace')??document.getElementById('content');if(!host)return;const message=document.createElement('p'),retry=document.createElement('button');message.className='error';message.setAttribute('role','alert');message.textContent='Your plan could not be opened. '+userMessage(error,'');retry.textContent='Try again';retry.addEventListener('click',()=>location.reload());host.replaceChildren(message,retry);if(location.pathname==='/index.html')native('captureSize',{height:300,width:innerWidth}).catch(()=>{});});
 async function save(){const expected=data.version;const next={...data,version:expected+1};const result=await native('save',{expected,data:next});data=next;phone=result;}
 const intentBackend={load:async()=>{const latest=await native('load');phone=latest.phone;if(latest.data)data=latest.data;return structuredClone(data);},save:async(expected,next)=>{if(data.version!==expected){const error=new Error('Version conflict');error.code='VERSION_CONFLICT';throw error;}const result=await native('save',{expected,data:next});data=structuredClone(next);phone=result;}};
-const intentService=createIntentService({backend:intentBackend,native,changePlanner,undo,readCalendar:anchor=>native('calendarRead',{anchor}),editPlan,onEvent:event=>{window.dispatchEvent(new CustomEvent('rpm-intent-event',{detail:event}));diagnostics.emit('intent',event.error?'error':'info',event,{operation:'intent.'+event.type,operationId:event.messageId??event.draftId??'',outcome:event.error?'error':''});}});
-const view=()=>({version:data.version,csrf:'native-local',busy,aiEnabled:phone.hasKey,model:MODEL,captureMode:'glass',intent:intentViewFromData(data),entries:data.entries.map(entryView),memories:data.memories,history:data.history,conversations:data.conversations,pending:data.pending,undoId:data.undo?.id??null,imported:data.imported,phone});
+const calendarEvents=()=>native('calendarRead',{anchor:Date.now()}).then(value=>value?.status==='ready'?calendarRows(value):[],()=>[]);
+const intentService=createIntentService({backend:intentBackend,native,changePlanner,undo,readCalendar:anchor=>native('calendarRead',{anchor}),editPlan,snapshot:async({data})=>planSnapshot(data,{now:new Date(),events:await calendarEvents()}),onEvent:event=>{window.dispatchEvent(new CustomEvent('rpm-intent-event',{detail:event}));diagnostics.emit('intent',event.error?'error':'info',event,{operation:'intent.'+event.type,operationId:event.messageId??event.draftId??'',outcome:event.error?'error':''});}});
+const traces=createTraceStore({emit:trace=>diagnostics.emit('capture-trace',trace.likelyMistake?'warn':'info',trace,{operation:'capture.trace',operationId:trace.id,outcome:trace.outcome??trace.applied?.status??''})});
+const agent=createCaptureAgent({service:intentService,traces});
+const view=()=>({version:data.version,csrf:'native-local',busy,aiEnabled:phone.hasKey,model:HAIKU_MODEL,captureMode:'glass',intent:intentViewFromData(data),entries:data.entries.map(entryView),memories:data.memories,history:data.history,conversations:data.conversations,pending:data.pending,undoId:data.undo?.id??null,imported:data.imported,phone});
 const response=(value,status=200)=>({ok:status<400,status,json:async()=>value});
 const captureFocus=()=>{let f={};try{f=JSON.parse(localStorage.getItem('rpm-capture-context')??'{}');}catch{}return f;};
 window.fetch=async(url,options={})=>{
@@ -52,25 +59,27 @@ window.fetch=async(url,options={})=>{
       if(!['entries','memories','history','conversations'].includes(b.collection)||(b.collection==='conversations'&&b.id===cid&&b.type==='archive'))throw new Error('Open another conversation before archiving this one.');
       const raw=`${b.type} this ${b.collection} record`;const result=propose(data,{operations:[{type:b.type,collection:b.collection,id:b.id,fields:{},evidence:[raw]}],continuation:false,question:null,choices:[]},{raw,conversationId:cid});c.messages.push({role:'assistant',id:crypto.randomUUID(),at:at(),...result});
     }else if(b.type==='intentRetry'){
-      busy=true;await diagnostics.track('capture.retry',{operationId:b.messageId,conversationId:cid},()=>intentService.retry(b.messageId));busy=false;return response(view());
+      busy=true;await diagnostics.track('capture.retry',{operationId:b.messageId,conversationId:cid},()=>agent.retry(b.messageId));busy=false;return response(view());
     }else if(b.type==='intentAction'){
-      busy=true;await diagnostics.track('capture.action',{operationId:b.actionId,draftId:b.action?.draftId,action:b.action?.kind},()=>intentService.act(b.action,{actionId:b.actionId}));busy=false;return response(view());
+      busy=true;await diagnostics.track('capture.action',{operationId:b.actionId,draftId:b.action?.draftId,action:b.action?.kind},()=>agent.act(b.action,{actionId:b.actionId}));busy=false;return response(view());
     }else if(b.type==='intentUndo'){
-      busy=true;await intentService.undo({draftId:b.draftId,conversationId:cid,actionId:b.actionId});busy=false;return response(view());
+      busy=true;await agent.undo({draftId:b.draftId,conversationId:cid,actionId:b.actionId});busy=false;return response(view());
+    }else if(b.type==='intentKeep'){
+      busy=true;await agent.confirm({draftId:b.draftId,conversationId:cid,actionId:b.actionId});busy=false;return response(view());
     }else if(b.type==='keepNote'){
       busy=true;await intentService.keepNote({messageId:b.messageId,sourceId:b.sourceId,keep:b.keep!==false,actionId:b.actionId});busy=false;return response(view());
     }else if(b.type==='intentResume'){
       busy=true;await intentService.resume(b.draftId,{conversationId:cid,actionId:b.actionId});busy=false;return response(view());
     }else if(b.type==='message'){
       if(c.archived||typeof b.text!=='string'||!b.text.trim()||b.text.length>12000)throw new Error('Write a message in an active conversation.');
-      busy=true;await diagnostics.track('capture',{operationId:b.messageId,conversationId:cid,inputCharacters:b.text.length},()=>intentService.capture({messageId:b.messageId,conversationId:cid,text:b.text,focusDraftId:b.focusDraftId??null}));busy=false;return response(view());
+      busy=true;await diagnostics.track('capture',{operationId:b.messageId,conversationId:cid,inputCharacters:b.text.length},()=>agent.capture({messageId:b.messageId,conversationId:cid,text:b.text,focusDraftId:b.focusDraftId??null}));busy=false;return response(view());
     }else throw new Error('Unknown action.');
     if(data.planner&&['archive','restore','undo'].includes(b.type))data.planner.undo=null;
     await save();return response(view());
   }catch(e){if(!busy)data=before;busy=false;return response({error:userMessage(e),state:view()},500);}
 };
 const isPlanner=location.pathname==='/planner.html';
-window.RPM_PLATFORM={native:true,action:native,delivery:id=>phone.delivery?.[String(id)],plansDescription:'Saved on this phone. Alert status below comes from Android.',about:['Capture saves your exact words, then asks before changing tasks or Blocks. Older conversations and records remain in History.','Your recent chat, relevant entries and explicit preferences go to OpenRouter when you send a message. Older unarchived history is available through tools. Capture uses '+MODEL+' with no reasoning for extraction and high reasoning for planning, contextual questions and one repair attempt. Jev is used only when you choose Sort with Jev: it suggests matches to existing Blocks, then waits for your review.','Chat, plans and context are stored privately on this phone. The AI key is encrypted with Android Keystore, not included in this APK. When diagnostics are connected, full app console output, errors and operation records upload to the private diagnostic database and expire after 14 days. Console output may include capture content. Pause or disconnect in Settings. No desktop server is needed.','RPM reminders use Android notifications. Ringing alarms use Android AlarmManager and alarm audio, at the planned time. They are not entries in Samsung Clock or Google Calendar. Phone permissions and notification settings must allow delivery.','Imported context is a copy. Imported alerts start disarmed, so old plans cannot unexpectedly ring. Review an entry and tap Enable on phone. Archive or Undo updates the phone schedule too.','You can hide the floating butterfly from its notification. Microphone input opens Android voice typing only when you tap the microphone. The older RPM screens remain separate in Settings.']};
+window.RPM_PLATFORM={native:true,action:native,delivery:id=>phone.delivery?.[String(id)],plansDescription:'Saved on this phone. Alert status below comes from Android.'};
 // Refresh delivery outcomes/permissions without losing the current draft.
 window.RPM_PLATFORM.openPlans=()=>native('planner');
 window.RPM_PLATFORM.intentForConversation=(conversationId,options={})=>intentViewFromData(data,{conversationId,...options});
@@ -83,6 +92,11 @@ window.RPM_PLATFORM.describeLink=(field,value)=>describeLink(data,field,value);
 // A Block's Result deadline for Capture's proposals and Block picker: dueInfo() with its stored value, or null.
 window.RPM_PLATFORM.blockDue=id=>{const due=blockDue(data,id);return due&&{...dueInfo(due.value),value:due.value};};
 window.RPM_PLATFORM.blockChoices=()=>blockChoices(data,window.RPM_PLATFORM.blockDue);
+let calendarCopy=[];
+window.RPM_PLATFORM.agenda=day=>dayAgenda(data,{day:day??undefined,events:calendarCopy});
+window.RPM_PLATFORM.next=()=>nextItem(data,{events:calendarCopy});
+window.RPM_PLATFORM.task=id=>{const e=data.entries.find(x=>String(x.id)===String(id)&&!x.archived);return e&&{...e,block:(data.planner?.blocks??[]).find(b=>b.id===e.blockId)?.title??null};};
+window.RPM_PLATFORM.health=()=>bodyToday(data);
 window.rpmPhoneRefresh=coalesceRefresh(async()=>{await ready;if(!busy){const latest=await native('load');phone=latest.phone;if(latest.data&&latest.data.version!==data.version){data=latest.data;window.dispatchEvent(new Event('rpm-data-refresh'));}}window.dispatchEvent(new Event('rpm-phone-status'));});
 await ready;
 applyClarityPreferences();
@@ -95,7 +109,7 @@ if(isPlanner){
   const {mountPlanner}=await import('./planner.mjs');
   const withSort=async run=>{if(busy)throw new Error('Wait for the current save.');busy=true;try{return await run();}finally{busy=false;}};
   const sortPreview={create:(input,options)=>withSort(()=>intentService.sort.create(input,options)),accept:(id,options)=>withSort(()=>intentService.sort.accept(id,options)),dismiss:(id,options)=>withSort(()=>intentService.sort.dismiss(id,options)),get:id=>intentService.sort.get(id),list:options=>intentService.sort.list(options)};
-  const ui=mountPlanner({getData:()=>data,getPhone:()=>phone,native,sortPreview,commit:async op=>{if(busy)throw new Error('Wait for the current save.');busy=true;const before=data;try{data=structuredClone(before);const id=typeof op==='function'?op(data):editPlan(data,op);await save();return id;}catch(e){data=before;throw e;}finally{busy=false;}}});
+  const ui=mountPlanner({getData:()=>data,getPhone:()=>phone,native,sortPreview,commit:async op=>{if(busy)throw new Error('Wait for the current save.');busy=true;const before=data;try{data=structuredClone(before);const id=typeof op==='function'?op(data):editPlan(data,op);await save();if(/Task$/.test(op?.type??'')&&op.id!=null)traces.handEdit(op.id,{what:op.type});return id;}catch(e){data=before;throw e;}finally{busy=false;}}});
   if(location.hash==='#ideas')ui.goalIdeas();
   else if(location.hash.startsWith('#open='))try{ui.openView(JSON.parse(decodeURIComponent(location.hash.slice(6))));}catch{}
 }else {
@@ -112,7 +126,7 @@ if(isPlanner){
   // A read-only copy of the selected calendars, so a proposal can say what else holds its day.
   // Without permission or a selected calendar there are simply no events.
   let calendar=null;
-  const readCalendar=()=>native('calendarRead',{anchor:Date.now()}).then(value=>{calendar=value?.status==='ready'?calendarRows(value):null;window.dispatchEvent(new Event('rpm-calendar-ready'));},()=>{});
+  const readCalendar=()=>native('calendarRead',{anchor:Date.now()}).then(value=>{calendar=value?.status==='ready'?calendarRows(value):null;calendarCopy=calendar??[];window.dispatchEvent(new Event('rpm-calendar-ready'));},()=>{});
   readCalendar();window.addEventListener('rpm-phone-status',readCalendar);
   window.RPM_PLATFORM.dayLoad=options=>dayLoad(data,{...options,events:calendar??[],deadline:id=>blockDue(data,id)});
   const {mountCapture}=await import('./capture-app.mjs');

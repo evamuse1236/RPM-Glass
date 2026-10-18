@@ -25,11 +25,20 @@ export function draftToKeep(composerText,{busy=false,pendingText=null}={}){
  return composerText;
 }
 
-/** Planning starters, offered in More; each sends its own words. */
-export const STARTERS=Object.freeze([
- {label:'What’s planned today?',text:'What’s planned today?',icon:'today'},
- {label:'Plan a Result',text:'Help me plan a Result',icon:'flag'},
-]);
+/**
+ * Which card the latest capture shows above the bar. Pure, so the order of the checks is tested:
+ * words that never reached the model, an open question, a change waiting for Keep, a receipt, an answer.
+ */
+export function cardKind(capture){
+ if(!capture)return 'empty';
+ const draft=capture.draft;
+ if(capture.status==='captured')return capture.lastError?'words-kept':'pending';
+ if(!draft)return capture.card?'answer':capture.reply?'answer':'saved';
+ if(draft.status==='committed')return draft.confirm==='pending'?'confirm':'receipt';
+ if(draft.status==='undone')return 'undone';
+ if(draft.status==='parked')return 'parked';
+ return 'open';
+}
 
 /** Button roles for draft actions, in increasing emphasis. */
 export function actionPresentation(item,draft,{selected=draft.operations.length}={}){

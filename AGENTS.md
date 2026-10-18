@@ -27,7 +27,10 @@ For an authorized phone release, compare the working tree, branch, and installed
 | A change updates the screen in place: existing rows are kept, the field keeps focus, the new item appears once and is saved where it belongs. | `rpmctl scenario plan-add-in-place`, `android-companion/surface-refresh.test.mjs` |
 | The field you are typing in is never covered by the keyboard, nav bar, snackbar or FAB. | `rpmctl scenario focused-field-visible` (known bug recorded, expires 2026-11-07) |
 | At 200% text no title or action label is cut, and nav labels stay visible. | `rpmctl scenario max-text-reflow` (one exception pending approval) |
-| Capture saves the user's exact words before anything else, with or without an AI key. | `rpmctl scenario capture-keeps-words`, `android-companion/capture-session.test.mjs`, `chat-prototype/composer.test.mjs` |
+| Capture saves the user's exact words before anything else, with or without an AI key, and keeps them for Retry when the model fails. | `rpmctl scenario capture-keeps-words`, `android-companion/capture-agent.test.mjs`, `android-companion/capture-session.test.mjs`, `chat-prototype/composer.test.mjs` |
+| Capture applies what it reads: new items with a receipt and Undo, changes to saved items with Keep or Undo, deletes to Trash; every capture writes one trace without the key. | `android-companion/capture-agent.test.mjs` |
+| Every capture uses Claude Haiku 5.5; re-planning, sorting, advice and changes to more than three items use Claude Sonnet 5.5 at high effort. Both are on the native allowlist. | `intent-v2/test/model-policy.test.mjs`, `app/src/test/java/com/rpm/prototype/ModelLimitsTest.java` |
+| Every stylesheet Capture and the planner link is served by the native asset allowlist. | `android-companion/companion-assets.test.mjs` |
 | Dates are honest and compact ("2:30 pm to 3 pm", "Time not set"). | `android-companion/capture-content.test.mjs` |
 | "Done" needs proof from the real app: a build and a screenshot newer than the change. | `scripts/agent/require-evidence.mjs` (Stop hook in `.claude/settings.json`, `npm run check:evidence`) |
 | A phone release updates the installed app in place: same signing key, and the build matches this checkout. | `rpmctl doctor --serial <phone>` (`installed-signer-matches-local`, `installed-apk-matches-local-build`, `installed-version`) |

@@ -1,6 +1,7 @@
 /** Settings: an M3 list inside the planner, backed by native actions. The planner's top bar owns Back. */
 import {automationPreview} from './automation-preview-ui.mjs';
 import {userMessage} from './user-message.mjs';
+import {captureTraces} from './settings-traces.mjs';
 
 const el = (tag, cls = '', text = '') => {
   const node = document.createElement(tag);
@@ -176,13 +177,14 @@ function diagnosticsSection(ctx) {
   }
   section.append(el('p', 'settings-note', 'Captures app console channels, not the phone’s system log. Offline storage '
     + 'holds up to 2,000 records or 2 MB; oversized records are truncated.'));
+  section.append(captureTraces());
   return section;
 }
 
 function aboutSection() {
   const section = group('About', 'about');
   section.append(el('p', 'settings-note', 'RPM · Result, Purpose, Plan'),
-    el('p', 'settings-note', 'Capture saves your words and asks before adding tasks or blocks.'));
+    el('p', 'settings-note', 'Capture saves your words first, then applies what you said with Undo.'));
   const previews = el('details', 'settings-details');
   previews.append(el('summary', '', 'Automation previews'), automationPreview());
   section.append(previews);

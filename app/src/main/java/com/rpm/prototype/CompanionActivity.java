@@ -61,7 +61,7 @@ public class CompanionActivity extends Activity {
         boolean wide=expanded||effectiveFontScale()>1.3f;int pad=dp(wide?4:12);
         int layoutBottom=Build.VERSION.SDK_INT>=30?systemBottom:insetBottom;
         int availableWidth=Math.max(1,width-insetLeft-insetRight-pad*2),availableHeight=Math.max(1,height-insetTop-layoutBottom-pad-dp(planning()?4:24));
-        FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(wide?availableWidth:Math.min(dp(372),availableWidth),availableHeight,Gravity.BOTTOM|Gravity.END);
+        FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(wide?availableWidth:Math.min(dp(560),availableWidth),availableHeight,Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
         p.setMargins(insetLeft+pad,insetTop+dp(planning()?4:24),insetRight+pad,layoutBottom+pad);
         FrameLayout.LayoutParams old=(FrameLayout.LayoutParams)web.getLayoutParams();
         if(old!=null&&old.width==p.width&&old.height==p.height&&old.gravity==p.gravity&&old.leftMargin==p.leftMargin&&old.rightMargin==p.rightMargin&&old.topMargin==p.topMargin&&old.bottomMargin==p.bottomMargin)return;
