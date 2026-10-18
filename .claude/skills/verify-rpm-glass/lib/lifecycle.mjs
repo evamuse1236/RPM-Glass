@@ -64,7 +64,8 @@ export const lifecycleCommands = {
     const t0 = Date.now();
     const startedAt = new Date().toISOString();
     const leaseState = {...state, port, cdpPort, worktree: ROOT,
-      owner: state && processAlive(state.pid) ? state.owner ?? crypto.randomUUID() : crypto.randomUUID(), startedAt: state?.startedAt ?? startedAt};
+      owner: state && /emulator|qemu/i.test(processImage(state.pid) ?? '') ? state.owner ?? crypto.randomUUID() : crypto.randomUUID(),
+      startedAt: state?.startedAt ?? startedAt};
     takeLease(leaseState);
     try {
       if (state && !(state.serial === serial && ownsEmulator(state, serial))) {

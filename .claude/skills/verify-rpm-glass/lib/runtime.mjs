@@ -34,7 +34,12 @@ function parseArgs(argv) {
 }
 
 const readState = () => fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : null;
-const writeState = s => { fs.mkdirSync(WORK, {recursive: true}); fs.writeFileSync(STATE, JSON.stringify(s, null, 2)); };
+const writeState = s => {
+  fs.mkdirSync(WORK, {recursive: true});
+  const temporary = `${STATE}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(s, null, 2));
+  fs.renameSync(temporary, STATE);
+};
 
 function evidenceDir(state) {
   const dir = path.join(EVIDENCE, state?.runId ?? `adhoc-${new Date().toISOString().slice(0, 10)}`);

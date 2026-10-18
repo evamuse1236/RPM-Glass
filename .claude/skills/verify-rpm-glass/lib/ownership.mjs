@@ -19,8 +19,8 @@ export function defaultPorts(worktree) {
 
 export function portsFor(args, defaults) {
   const port = Number(args.port ?? defaults.port), cdpPort = Number(args.cdpPort ?? defaults.cdpPort);
-  if (!Number.isInteger(port) || port < 5554 || port > 5680 || port % 2)
-    throw new UserError('The emulator console port must be even and between 5554 and 5680.', 'Use --port 5580, or omit --port for the worktree default.');
+  if (!Number.isInteger(port) || port < 1024 || port > 65534 || port % 2)
+    throw new UserError('The emulator console port must be an even TCP port between 1024 and 65534.', 'Use --port 5580, or omit --port for the worktree default.');
   if (!Number.isInteger(cdpPort) || cdpPort < 1024 || cdpPort > 65535 || [port, port + 1].includes(cdpPort))
     throw new UserError('The CDP port must be between 1024 and 65535 and separate from both emulator ports.', 'Choose another --cdp-port, or omit it for the worktree default.');
   return {port, cdpPort};
@@ -45,7 +45,11 @@ const readRecord = dir => {
   try { return JSON.parse(fs.readFileSync(path.join(dir, 'lease.json'), 'utf8')); }
   catch (e) { if (e.code === 'ENOENT') return null; throw e; }
 };
-const writeRecord = (dir, record) => fs.writeFileSync(path.join(dir, 'lease.json'), JSON.stringify(record));
+const writeRecord = (dir, record) => {
+  const temporary = path.join(dir, `lease-${process.pid}.tmp`);
+  fs.writeFileSync(temporary, JSON.stringify(record));
+  fs.renameSync(temporary, path.join(dir, 'lease.json'));
+};
 const sameRun = (a, b) => a?.owner === b.owner && worktreeKey(a.worktree) === worktreeKey(b.worktree);
 const live = (record, alive) => record && (record.launching && alive(record.pid) || alive(record.emulatorPid));
 const busy = dir => new UserError(`rpmctl lease is busy at ${dir}.`, 'Another agent owns or is launching this run. Wait for its cleanup, or choose another worktree and free --port / --cdp-port.');

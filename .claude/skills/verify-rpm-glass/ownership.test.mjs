@@ -25,7 +25,8 @@ test('worktree ports are deterministic, console ports are even and bounded, and 
     assert.ok(p.cdpPort >= 10000 && p.cdpPort < 20000);
   }
   assert.deepEqual(portsFor({port: '5582', cdpPort: '9334'}, ports[0]), {port: 5582, cdpPort: 9334});
-  for (const port of [true, 5581, 0, 5682, 'bad']) assert.throws(() => portsFor({port}, ports[0]), /must be even/);
+  assert.equal(portsFor({port: '5682'}, ports[0]).port, 5682);
+  for (const port of [true, 5581, 0, 65536, 'bad']) assert.throws(() => portsFor({port}, ports[0]), /must be an even/);
   for (const cdpPort of [true, 0, 65536, 5580, 5581, 'bad']) assert.throws(() => portsFor({port: 5580, cdpPort}, ports[0]), /CDP port/);
 });
 
