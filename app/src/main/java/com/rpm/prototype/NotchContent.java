@@ -240,7 +240,7 @@ final class NotchContent {
     }
 
     private int circle(int pillHeight) {
-        return Math.min(pillHeight - dp(12), dp(28));
+        return Math.min(pillHeight - dp(8), dp(28));
     }
 
     private int inset(int pillHeight) {
