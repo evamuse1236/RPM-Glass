@@ -7,6 +7,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.os.Build;
 import android.text.TextUtils;
 import android.util.TypedValue;
@@ -19,12 +20,13 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.rpm.prototype.NotchScene.Look;
-import com.rpm.prototype.PillPriority.Kind;
 
-/** Builds the views inside the island, in the Atoll / SmartIsland look: pure black, one accent per kind. */
+/** Builds the pill and the open island's content (playground/notch-view.mjs is its copy): pure black, one accent per kind. */
 final class NotchContent {
     static final int WHITE_60 = 0x99FFFFFF;
+    static final int WHITE_70 = 0xB3FFFFFF;
     static final int WHITE_87 = 0xDEFFFFFF;
+    static final int WHITE_12 = 0x1FFFFFFF;
     static final int WATER = 0xFF7CACF8;
     static final int HABIT = 0xFF6DD58C;
     static final int MEAL = 0xFFFDD663;
@@ -38,7 +40,13 @@ final class NotchContent {
 
         void logMeal();
 
-        void askAgent();
+        void openPlan();
+
+        void openAlert();
+
+        void snoozeAlert();
+
+        void stopAlert();
     }
 
     private final Context context;
@@ -66,13 +74,6 @@ final class NotchContent {
         }
     }
 
-    /** The look of a pill slot: the current item's (task or event), or the nudge's. */
-    static Look look(Kind kind, NotchScene scene) {
-        if (kind == Kind.WATER) return Look.WATER;
-        if (kind == Kind.HABIT) return Look.HABIT;
-        return scene.hero != null && scene.hero.task.fixed ? Look.EVENT : Look.TASK;
-    }
-
     private static boolean plain(Look look) {
         return look == Look.TASK || look == Look.EVENT;
     }
@@ -81,25 +82,31 @@ final class NotchContent {
         return inset(pillHeight) + circle(pillHeight) + dp(8);
     }
 
-    /** Collapsed pill: icon in a grey circle left of the camera, the value right of it. */
-    View pill(Look look, String value, int pillHeight, int leadWidth, int keep, int trailWidth) {
+    int trailWidth(String value, boolean chip) {
+        TextView probe = text(value, 15, Color.WHITE, 600);
+        return (int) Math.ceil(probe.getPaint().measureText(value)) + 1 + dp(8) + dp(14) + (chip ? dp(16) : 0);
+    }
+
+    /** Collapsed pill: icon in a grey circle left of the camera, the value right of it; a chip for "+10m". */
+    View pill(Look look, String value, boolean chip, int pillHeight, int leadWidth, int keep, int trailWidth) {
         LinearLayout row = new LinearLayout(context);
         row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
         LinearLayout.LayoutParams circleLp = new LinearLayout.LayoutParams(circle(pillHeight), circle(pillHeight));
         circleLp.setMarginStart(inset(pillHeight));
         circleLp.setMarginEnd(leadWidth - inset(pillHeight) - circle(pillHeight));
         row.addView(iconCircle(look, circle(pillHeight)), circleLp);
         row.addView(new View(context), new LinearLayout.LayoutParams(keep, 1));
-        TextView text = text(value, 15, plain(look) ? Color.WHITE : accent(look), 600);
-        text.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
-        text.setPadding(dp(8), 0, dp(14), 0);
-        row.addView(text, new LinearLayout.LayoutParams(trailWidth, ViewGroup.LayoutParams.MATCH_PARENT));
+        FrameLayout slot = new FrameLayout(context);
+        slot.setPadding(dp(8), 0, dp(14), 0);
+        TextView text = text(value, 15, plain(look) || chip ? Color.WHITE : accent(look), 600);
+        if (chip) {
+            text.setBackground(round(TRACK, dp(999)));
+            text.setPadding(dp(8), dp(1), dp(8), dp(1));
+        }
+        slot.addView(text, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END | Gravity.CENTER_VERTICAL));
+        row.addView(slot, new LinearLayout.LayoutParams(trailWidth, ViewGroup.LayoutParams.MATCH_PARENT));
         return row;
-    }
-
-    int trailWidth(String value) {
-        TextView probe = text(value, 15, Color.WHITE, 600);
-        return Math.round(probe.getPaint().measureText(value)) + dp(8) + dp(14);
     }
 
     /** The split island's second circle. */
@@ -109,7 +116,7 @@ final class NotchContent {
         return box;
     }
 
-    /** Expanded panel: one hero row (tile, title, bar, four bare controls), then at most three small rows. */
+    /** The open island: hero (tile, title, time), the bar, three labelled controls, then at most two small rows. */
     View panel(int topInset, NotchScene scene, Actions actions) {
         LinearLayout col = new LinearLayout(context);
         col.setOrientation(LinearLayout.VERTICAL);
@@ -118,10 +125,10 @@ final class NotchContent {
 
         LinearLayout hero = new LinearLayout(context);
         hero.setGravity(Gravity.CENTER_VERTICAL);
-        FrameLayout art = new FrameLayout(context);
-        art.setBackground(round(look == Look.HABIT ? 0xFF146C2E : look == Look.EVENT ? 0xFF3C4043 : TILE, dp(14)));
-        art.addView(glyph(icon(look), Color.WHITE), new FrameLayout.LayoutParams(dp(28), dp(28), Gravity.CENTER));
-        hero.addView(art, new LinearLayout.LayoutParams(dp(52), dp(52)));
+        FrameLayout tile = new FrameLayout(context);
+        tile.setBackground(round(look == Look.HABIT ? 0xFF146C2E : look == Look.EVENT ? 0xFF3C4043 : TILE, dp(12)));
+        tile.addView(glyph(icon(look), Color.WHITE), new FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER));
+        hero.addView(tile, new LinearLayout.LayoutParams(dp(44), dp(44)));
         LinearLayout words = new LinearLayout(context);
         words.setOrientation(LinearLayout.VERTICAL);
         words.addView(text(scene.heroTitle, 17, Color.WHITE, 600));
@@ -143,67 +150,90 @@ final class NotchContent {
         bar.addView(text(scene.barEnd, 12, WHITE_60, 500));
         bar.setContentDescription(scene.barSpoken);
         LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        barLp.topMargin = dp(14);
+        barLp.topMargin = dp(12);
         col.addView(bar, barLp);
 
         LinearLayout controls = new LinearLayout(context);
-        controls.setGravity(Gravity.CENTER);
-        controls.addView(control(R.drawable.notch_ic_done, scene.canDone() ? "Done: " + scene.heroTitle : "Done", scene.canDone(), actions::done), cell());
-        controls.addView(control(R.drawable.notch_ic_snooze, "Snooze " + scene.snoozeMinutes + " minutes", scene.canSnooze(), actions::snooze), cell());
-        controls.addView(control(R.drawable.notch_ic_meal, "Log a meal", scene.canLogMeal, actions::logMeal), cell());
-        controls.addView(control(R.drawable.notch_ic_agent, "Ask agent", true, actions::askAgent), cell());
-        LinearLayout.LayoutParams controlsLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
-        controlsLp.topMargin = dp(6);
+        controls.addView(control(R.drawable.notch_ic_done, "Done", scene.canDone() ? "Done: " + scene.heroTitle : "Done", scene.canDone(), actions::done), cell(false));
+        controls.addView(control(R.drawable.notch_ic_snooze, "Snooze", "Snooze " + scene.snoozeMinutes + " minutes", scene.canSnooze(), actions::snooze), cell(true));
+        if (scene.meal != null) controls.addView(control(R.drawable.notch_ic_meal, "Log meal", "Log a meal", scene.canLogMeal, actions::logMeal), cell(true));
+        else controls.addView(control(R.drawable.ic_open, "Open plan", "Open the plan", true, actions::openPlan), cell(true));
+        LinearLayout.LayoutParams controlsLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        controlsLp.topMargin = dp(8);
         col.addView(controls, controlsLp);
 
-        if (!scene.rows.isEmpty()) {
-            View rule = new View(context);
-            rule.setBackgroundColor(TRACK);
-            LinearLayout.LayoutParams ruleLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp(1)));
-            ruleLp.setMargins(0, dp(6), 0, dp(4));
-            col.addView(rule, ruleLp);
-        }
-        for (NotchScene.Row r : scene.rows) {
-            col.addView(smallRow(r), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        for (int i = 0; i < Math.min(2, scene.rows.size()); i++) {
+            LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            if (i == 0) rowLp.topMargin = dp(10);
+            col.addView(smallRow(scene.rows.get(i), scene), rowLp);
         }
         return col;
     }
 
-    private View smallRow(NotchScene.Row r) {
+    /** One small row: glyph, title, then dots for water, a ring for an unlogged meal, or the value. */
+    private View smallRow(NotchScene.Row r, NotchScene scene) {
         LinearLayout row = new LinearLayout(context);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setMinimumHeight(dp(40));
         row.addView(glyph(icon(r.look), accent(r.look)), new LinearLayout.LayoutParams(dp(20), dp(20)));
         TextView title = text(r.title, 15, WHITE_87, 400);
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-        titleLp.setMarginStart(dp(14));
+        titleLp.setMarginStart(dp(12));
         titleLp.setMarginEnd(dp(12));
         row.addView(title, titleLp);
-        row.addView(text(r.value, 15, accent(r.look), plain(r.look) ? 400 : 500));
+        if (r.look == Look.WATER && scene.water != null) {
+            row.addView(new Dots(context, scene.water.count, scene.water.goal, dp(8), dp(4)));
+            TextView count = text(scene.water.count + "/" + scene.water.goal, 14, WATER, 500);
+            count.setPadding(dp(12), 0, 0, 0);
+            row.addView(count);
+        } else if (r.look == Look.MEAL) {
+            View ring = new View(context);
+            GradientDrawable d = new GradientDrawable();
+            d.setShape(GradientDrawable.OVAL);
+            d.setStroke(dp(2), 0x80FFFFFF);
+            ring.setBackground(d);
+            row.addView(ring, new LinearLayout.LayoutParams(dp(16), dp(16)));
+        } else if (r.look == Look.HABIT && scene.habit != null) {
+            row.addView(text(scene.habit.done + "/" + scene.habit.total, 14, HABIT, 500));
+        } else {
+            row.addView(text(r.value, 14, WHITE_70, 400));
+        }
         row.setContentDescription(r.title + ", " + r.value);
         return row;
     }
 
-    private View control(int icon, String label, boolean enabled, Runnable action) {
-        FrameLayout target = new FrameLayout(context);
-        target.addView(glyph(icon, Color.WHITE), new FrameLayout.LayoutParams(dp(28), dp(28), Gravity.CENTER));
-        target.setContentDescription(enabled ? label : label + ", not available now");
+    private View control(int icon, String label, String spoken, boolean enabled, Runnable action) {
+        LinearLayout target = new LinearLayout(context);
+        target.setOrientation(LinearLayout.VERTICAL);
+        target.setGravity(Gravity.CENTER);
+        target.setMinimumHeight(dp(64));
+        target.setPadding(0, dp(8), 0, dp(8));
+        target.addView(glyph(icon, Color.WHITE), new LinearLayout.LayoutParams(dp(24), dp(24)));
+        TextView name = text(label, 12, WHITE_70, 500);
+        name.setPadding(0, dp(4), 0, 0);
+        target.addView(name, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        target.setContentDescription(enabled ? spoken : spoken + ", not available now");
         target.setEnabled(enabled);
         target.setAlpha(enabled ? 1f : 0.3f);
-        if (enabled) target.setOnClickListener(v -> NotchController.safely(label, action));
+        if (enabled) {
+            target.setBackground(pressed(dp(16), WHITE_12));
+            target.setOnClickListener(v -> NotchController.safely(label, action));
+        }
         return target;
     }
 
-    private LinearLayout.LayoutParams cell() {
-        return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1);
+    private LinearLayout.LayoutParams cell(boolean gap) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        if (gap) lp.setMarginStart(dp(8));
+        return lp;
     }
 
     /** Tasks and events: white glyph on grey; nudges: accent glyph on a dim accent. */
-    private View iconCircle(Look look, int size) {
+    View iconCircle(Look look, int size) {
         FrameLayout circle = new FrameLayout(context);
         GradientDrawable bg = new GradientDrawable();
         bg.setShape(GradientDrawable.OVAL);
-        boolean plain = look == Look.TASK || look == Look.EVENT;
+        boolean plain = plain(look);
         bg.setColor(plain ? 0xFF3C3C3C : (accent(look) & 0x00FFFFFF) | 0x3D000000);
         circle.setBackground(bg);
         int glyph = Math.round(size * 0.6f);
@@ -211,7 +241,7 @@ final class NotchContent {
         return circle;
     }
 
-    private ImageView glyph(int icon, int color) {
+    ImageView glyph(int icon, int color) {
         ImageView v = new ImageView(context);
         v.setImageResource(icon);
         v.setImageTintList(ColorStateList.valueOf(color));
@@ -219,7 +249,7 @@ final class NotchContent {
         return v;
     }
 
-    private TextView text(String s, int sp, int color, int weight) {
+    TextView text(String s, int sp, int color, int weight) {
         TextView t = new TextView(context);
         t.setText(s);
         t.setTextColor(color);
@@ -232,10 +262,18 @@ final class NotchContent {
         return t;
     }
 
-    private static GradientDrawable round(int color, float radius) {
+    static GradientDrawable round(int color, float radius) {
         GradientDrawable d = new GradientDrawable();
         d.setColor(color);
         d.setCornerRadius(radius);
+        return d;
+    }
+
+    /** Clear at rest, {@code pressedColor} while a finger is down. */
+    static StateListDrawable pressed(float radius, int pressedColor) {
+        StateListDrawable d = new StateListDrawable();
+        d.addState(new int[]{android.R.attr.state_pressed}, round(pressedColor, radius));
+        d.addState(new int[]{}, round(Color.TRANSPARENT, radius));
         return d;
     }
 
@@ -247,7 +285,7 @@ final class NotchContent {
         return (pillHeight - circle(pillHeight)) / 2;
     }
 
-    private int dp(float v) {
+    int dp(float v) {
         return NotchAnchor.dp(v, context.getResources().getDisplayMetrics().density);
     }
 
@@ -269,6 +307,38 @@ final class NotchContent {
             canvas.drawRoundRect(0, 0, getWidth(), getHeight(), r, r, paint);
             paint.setColor(fill);
             canvas.drawRoundRect(0, 0, Math.max(getHeight(), getWidth() * fraction), getHeight(), r, r, paint);
+        }
+    }
+
+    /** Water's goal as dots: filled for each glass drunk. */
+    private static final class Dots extends View {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final int count;
+        private final int goal;
+        private final int size;
+        private final int gap;
+
+        Dots(Context context, int count, int goal, int size, int gap) {
+            super(context);
+            this.count = count;
+            this.goal = Math.max(0, Math.min(goal, 12));
+            this.size = size;
+            this.gap = gap;
+            setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+        }
+
+        @Override
+        protected void onMeasure(int w, int h) {
+            setMeasuredDimension(Math.max(0, goal * size + (goal - 1) * gap), size);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            float r = size / 2f;
+            for (int i = 0; i < goal; i++) {
+                paint.setColor(i < count ? WATER : TRACK);
+                canvas.drawCircle(i * (size + gap) + r, r, r, paint);
+            }
         }
     }
 }
