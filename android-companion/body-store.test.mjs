@@ -98,3 +98,15 @@ test('meals keep the user\'s words; guesses live apart and never outlive a renam
   assert.equal(bodyOf(d).meals[0].name, 'Rajma chawal');
   assert.equal(planner(d).body.schema, 1);
 });
+
+test('Capture answers about water and meals read what the planner logged', async () => {
+  const {bodyToday} = await import('./capture-agenda.mjs');
+  const data = before();
+  assert.equal(bodyToday(data, {now: at('09:00')}), null, 'no body data yet: Capture says it is not tracked');
+  editPlan(data, {type: 'drinkWater', at: at('08:40').toISOString()}, at('08:40'));
+  editPlan(data, {type: 'drinkWater', at: at('08:50').toISOString()}, at('08:50'));
+  editPlan(data, {type: 'saveMeal', meal: {name: 'Poha', slot: 'breakfast', at: at('08:45').toISOString()}}, at('08:45'));
+  const today = bodyToday(data, {now: at('09:00')});
+  assert.deepEqual(today.water, {glasses: 2, goal: 8});
+  assert.deepEqual(today.meals, [{slot: 'Breakfast', text: 'Poha'}]);
+});

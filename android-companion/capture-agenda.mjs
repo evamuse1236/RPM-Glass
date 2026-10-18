@@ -34,14 +34,14 @@ export function nextItem(data,{events=[],now=new Date()}={}){
  return null;
 }
 
-/** Water, meals and routines for a day when RPM logs them (data.body); otherwise null. */
+/** Water, meals and routines for a day when RPM logs them (planner.body); otherwise null. */
 export function bodyToday(data,{now=new Date()}={}){
- const body=data.body;
+ const body=data?.planner?.body;
  if(!body)return null;
  const day=localDay(now),onDay=at=>localDay(new Date(at))===day;
- const goal=body.settings?.goal??WATER_DEFAULTS.goal;
- const glasses=(body.glasses??[]).filter(onDay).length;
- const meals=(body.meals??[]).filter(m=>onDay(m.at)).map(m=>({slot:SLOT_NAMES[m.slot]??m.slot,text:m.text??m.title??''}));
+ const goal=body.water?.settings?.goal??WATER_DEFAULTS.goal;
+ const glasses=(body.water?.glasses??[]).filter(onDay).length;
+ const meals=(body.meals??[]).filter(m=>onDay(m.at)).map(m=>({slot:SLOT_NAMES[m.slot]??m.slot,text:m.name??''}));
  const routines=(body.routines??[]).map(r=>{const run=(body.runs??[]).find(x=>x.routineId===r.id&&x.day===day);const steps=r.steps?.length??0;const done=run?Object.values(run.marks??{}).filter(m=>m?.state==='done').length:0;return {name:r.name,start:r.start,end:r.end,steps,done};});
  return {water:{glasses,goal},meals,routines};
 }
