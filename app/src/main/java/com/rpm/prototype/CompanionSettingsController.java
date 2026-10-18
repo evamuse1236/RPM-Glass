@@ -27,7 +27,7 @@ final class CompanionSettingsController {
     static final int IMPORT_CONTEXT=71,EXPORT_CONTEXT=72,PICK_TONE=73,PICK_AUDIO=74,NOTIFICATIONS=32;
     private static final Set<String> ACTIONS=Set.of(
         "set_widget_text_scale","choose_alarm","preview_alarm","stop_preview","reminder_sound",
-        "show_butterfly","hide_butterfly","overlay_permission","notifications","exact_alarms",
+        "show_butterfly","hide_butterfly","overlay_permission","notch_toggle","notch_permission","notifications","exact_alarms",
         "full_screen_alarms","check_alerts","connect_key","remove_key","import_context",
         "export_context","restore_backup","earlier_screens","diagnostics_connect","diagnostics_pause","diagnostics_resume","diagnostics_disconnect","diagnostics_upload"
     );
@@ -70,6 +70,8 @@ final class CompanionSettingsController {
             case "show_butterfly":message=CompanionControls.apply(activity,new JSONObject().put("action","show_butterfly")).getString("message");ui.postDelayed(this::notifyChanged,300);break;
             case "hide_butterfly":message=CompanionControls.apply(activity,new JSONObject().put("action","hide_butterfly")).getString("message");notifyChanged();break;
             case "overlay_permission":runUi(()->launch(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:"+activity.getPackageName()))));message="Opening Android floating-window permission.";break;
+            case "notch_toggle":{boolean on=NotchController.toggle(activity);boolean allowed=NotchAccessibilityService.isOn(activity);if(on&&!allowed)runUi(()->launch(NotchAccessibilityService.settingsIntent()));message=!on?"Notch off. RPM Notch stays allowed in Android's accessibility settings until you turn it off there.":allowed?"Notch on.":"Notch on. Android needs one more step: turn on RPM Notch in Accessibility, then come back.";notifyChanged();break;}
+            case "notch_permission":runUi(()->launch(NotchAccessibilityService.settingsIntent()));message="Opening Android accessibility settings. Turn on RPM Notch there.";break;
             case "notifications":runUi(this::openNotifications);message="Opening Android notification controls.";break;
             case "exact_alarms":runUi(()->{if(Build.VERSION.SDK_INT>=31)launch(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,Uri.parse("package:"+activity.getPackageName())));});message=Build.VERSION.SDK_INT>=31?"Opening Android exact alarm permission.":"Exact alarms are already available on this Android version.";break;
             case "full_screen_alarms":runUi(()->{if(Build.VERSION.SDK_INT>=34)launch(new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,Uri.parse("package:"+activity.getPackageName())));});message=Build.VERSION.SDK_INT>=34?"Opening Android lock-screen alarm controls.":"Lock-screen alarm permission is managed automatically on this Android version.";break;
