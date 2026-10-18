@@ -1,0 +1,46 @@
+/* A Block's add-or-find field: Inbox matches unfold under it, in the page's flow. */
+.inline-add { flex-wrap: wrap; }
+.add-fold {
+  flex-basis: 100%;
+  display: grid;
+  grid-template-rows: 0fr;
+}
+.inline-add[data-open=true] .add-fold { grid-template-rows: 1fr; margin-block: var(--s1) var(--s2); }
+.add-results {
+  min-block-size: 0;
+  overflow: clip;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: var(--shape-md);
+  background: var(--surface-container-low);
+  scroll-margin-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4));
+}
+.add-result {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s2);
+  min-block-size: var(--touch);
+  padding-inline: var(--s1) var(--s4);
+  font: var(--body-large);
+  color: var(--on-surface);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.add-result-icon { justify-self: center; font-size: 20px; color: var(--on-surface-variant); }
+.add-result-title { white-space: nowrap; overflow: clip; text-overflow: ellipsis; }
+.add-result-title b { font-weight: 600; }
+.add-result-meta { font: var(--body-medium); color: var(--on-surface-variant); white-space: nowrap; }
+.add-create .add-result-icon { color: var(--primary); }
+.add-result[aria-selected=true] { background: var(--secondary-container); color: var(--on-secondary-container); }
+.add-result:active { background: color-mix(in srgb, var(--on-surface) 10%, transparent); }
+@media (hover: hover) and (pointer: fine) {
+  .add-result:hover { background: color-mix(in srgb, var(--on-surface) 8%, transparent); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .add-fold { transition: grid-template-rows var(--dur-short4, 200ms) var(--ease-emphasized), margin-block var(--dur-short4, 200ms) var(--ease-emphasized); }
+}
+:root[data-reduce-motion=true] .add-fold { transition: none; }
+:root[data-large-text=true] .add-result { grid-template-columns: 40px minmax(0, 1fr); }
+:root[data-large-text=true] .add-result-meta { grid-column: 2; white-space: normal; }

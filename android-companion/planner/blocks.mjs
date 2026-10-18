@@ -1,13 +1,17 @@
 /** Blocks list and Block detail: Result, its deadline, Purpose, your verdict, progress, the ordered Plan. */
 import {blockTasks, blockDue, localDay} from '../planner-state.mjs';
 import {weekStart, weekFocus, resultStatus, markAchieved} from '../review-state.mjs';
-import {el, icon, button, iconButton, labelButton, emptyState, areaDot, attrs, sectionHeader} from './dom.mjs';
+import {el, icon, button, labelButton, emptyState, areaDot, attrs, sectionHeader} from './dom.mjs';
 import {duration, plural, dateText, dueInfo, timeLeft} from './format.mjs';
 import {taskRow, completedSection, toggleDone, taskWhen} from './task-row.mjs';
 import {openSheet, field} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
-import {playMotion, landInPlace, waitMotion, DURATION, EASE} from '../surface-motion.mjs';
-import {inlineText, focusField, selectAll, carryFocus, backHandler, persist, saveEntity, NO_ICON} from './inline-edit.mjs';
+import {playMotion, DURATION, EASE} from '../surface-motion.mjs';
+import {saveEntity, NO_ICON} from './inline-edit.mjs';
+import {stampOf, factRow, purposePanel, notesPanel, revealNotes, titleField, finishDetail} from './detail-fields.mjs';
+import {blockAdd} from './block-add.mjs';
+
+export {factRow, purposePanel, notesPanel, revealNotes, titleField, finishDetail, focusTitleOnOpen} from './detail-fields.mjs';
 
 const thisWeek = app => weekFocus(app.data(), weekStart(localDay()));
 
@@ -198,96 +202,6 @@ export function renderBlocks(app, page) {
 /** A Google Tasks detail row: a 24dp icon in the check column, then text aligned with the task titles. */
 /** What a field's or button's handlers act on: a save that leaves the record as it was keeps the very node (focus,
  * caret and all); any change to the record rebuilds it (see `data-keep` and `__closure` in animateRerender). */
-const stampOf = (collection, record) => `${collection}:${record.id}:${JSON.stringify(record)}`;
-
-export function factRow(symbol, {onClick = null, cls = ''} = {}) {
-  const row = onClick ? button('', onClick, 'fact-row ' + cls) : el('div', 'fact-row ' + cls);
-  row.append(typeof symbol === 'string' ? icon(symbol, {cls: 'leading'}) : symbol);
-  const copy = el('span', 'list-copy');
-  row.append(copy);
-  return {row, copy};
-}
-
-/** A field's label with a quiet edit glyph beside it (Google Contacts, Calendar): it says the words take a tap, at
- * rest, without outlining them. The glyph goes while the field is being edited. */
-function editLabel(text) {
-  const label = el('span', 'fact-label');
-  const glyph = icon('edit', {cls: 'label-edit'});
-  glyph.setAttribute('aria-hidden', 'true');
-  label.append(text, glyph);
-  return label;
-}
-
-/**
- * Purpose as a labelled detail row (Block, Project, Goal, Area) that edits where it is: tap anywhere on the row
- * and the caret lands in the words; Enter or leaving saves, with Undo.
- */
-export function purposePanel(app, collection, record, noun = 'Purpose') {
-  const {row, copy} = factRow('favorite', {cls: 'purpose-row editable-row'});
-  const text = inlineText(app, {key: `${collection}:${record.id}:purpose`, value: record.purpose ?? '', label: noun,
-    placeholder: 'Add why this matters to you', multiline: false, maxLength: 2000, cls: 'purpose-text',
-    onSave: words => saveEntity(app, collection, record, {purpose: words}, words ? 'Purpose saved' : 'Purpose cleared')});
-  copy.append(editLabel(noun), text);
-  row.addEventListener('click', event => { if (event.target !== text) focusField(text); });
-  row.dataset.keep = 'purpose:' + stampOf(collection, record);
-  return row;
-}
-
-/** Notes, shown once there are some (or once "Add notes" asks for them); multi-line, saved on leaving. */
-export function notesPanel(app, collection, record) {
-  const key = `${collection}:${record.id}:notes`;
-  if (!record.notes && openNotes !== key) return null;
-  const {row, copy} = factRow('notes', {cls: 'notes-row editable-row'});
-  const text = inlineText(app, {key, value: record.notes ?? '', label: 'Notes', placeholder: 'Add notes',
-    multiline: true, maxLength: 8000, cls: 'notes-text',
-    onSave: words => saveEntity(app, collection, record, {notes: words}, words ? 'Notes saved' : 'Notes cleared')});
-  text.addEventListener('blur', () => {
-    if (!text.textContent.trim() && !record.notes) {
-      openNotes = null;
-      row.remove();
-    }
-  });
-  copy.append(editLabel('Notes'), text);
-  row.addEventListener('click', event => { if (event.target !== text) focusField(text); });
-  return row;
-}
-
-let openNotes = null;
-/** "Add notes" from a detail page's More menu: show the Notes row and put the caret in it. */
-export function revealNotes(app, collection, id) {
-  openNotes = `${collection}:${id}:notes`;
-  app.render();
-  focusField(app.dom.work.querySelector(`[data-edit-key="${openNotes}"]`));
-}
-
-/** The detail page's large title, edited in place. An empty title is never saved. */
-export function titleField(app, collection, record, label) {
-  const heading = el('h2', 'detail-title-text');
-  heading.append(inlineText(app, {key: `${collection}:${record.id}:title`, value: record.title, label, required: true,
-    placeholder: label, cls: 'title-edit', emptyNotice: `A ${label} needs words. Kept “${record.title}”.`,
-    onSave: words => saveEntity(app, collection, record, {title: words}, `${label} renamed`)}));
-  heading.dataset.keep = 'title:' + stampOf(collection, record);
-  return heading;
-}
-
-/** Called at the end of every detail render: Back reverts an open edit, and focus survives the re-render. */
-export function finishDetail(app, page) {
-  backHandler(app);
-  carryFocus(page);
-  if (pendingTitle) {
-    const node = page.querySelector(`[data-edit-key="${pendingTitle}"]`);
-    pendingTitle = null;
-    if (node) node.dataset.nextKey = node.dataset.editKey.replace(/:title$/, ':purpose');
-    selectAll(node);
-  }
-}
-
-let pendingTitle = null;
-/** A newly created Block, Project, Goal or Area opens with its placeholder title selected, ready to be typed over. */
-export function focusTitleOnOpen(collection, id) {
-  pendingTitle = `${collection}:${id}:title`;
-}
-
 function achievedSheet(app, block) {
   const {body, actions} = openSheet(app, 'Mark Result achieved', {variant: 'dialog'});
   body.append(el('p', 'sheet-lead', block.title),
@@ -323,57 +237,6 @@ function achievedControl(app, block, status) {
     data => markAchieved(data, block.id, {achieved: false}), {label: 'Result marked not achieved'}).catch(() => {}),
   'text-btn'));
   return panel;
-}
-
-function inlineAdd(app, block) {
-  const form = el('form', 'inline-add');
-  // The same node for the life of the page: never rebuilt by a save, so focus, caret and typing carry straight on.
-  form.dataset.keep = `plan-add:${block.id}`;
-  const input = el('input');
-  input.placeholder = 'Add a task';
-  input.maxLength = 200;
-  input.enterKeyHint = 'enter';
-  input.dataset.editKey = `plan-add:${block.id}`;
-  input.setAttribute('aria-label', 'Add a task to the Plan');
-  input.addEventListener('keydown', event => {
-    if (event.key !== 'Escape' || !input.value) return;
-    event.preventDefault();
-    event.stopPropagation();
-    input.value = '';
-    input.blur();
-  });
-  const submit = iconButton('add', 'Add task to the Plan', () => form.requestSubmit());
-  form.append(submit, input);
-  form.addEventListener('submit', async event => {
-    event.preventDefault();
-    const title = input.value;
-    if (!title.trim()) return;
-    // One frame: the words become the new Plan row above the field (full opacity, where they were typed) and the
-    // field empties, keeping its focus and caret, so the next words typed (however fast) go to the next task. The
-    // row is shown from a copy of the data while the save runs; only the field's place moves, as the row opens.
-    input.value = '';
-    const words = title.trim();
-    const isRow = node => node.matches('.plan-list > .task-row') && node.querySelector('.task-title')?.textContent === words;
-    landInPlace(isRow);
-    const op = {type: 'saveTask', fields: {title, blockId: block.id}};
-    const pending = {op};
-    app.pending.push(pending);
-    // The caret stays lit while the row opens and the next words are typed.
-    const landing = form.__landing = {};
-    form.dataset.steady = 'true';
-    waitMotion(DURATION.medium4 * 2).then(() => { if (form.__landing === landing) delete form.dataset.steady; });
-    app.render();
-    try {
-      // The screen already shows the saved result: no second re-render (it would cut the row's opening short).
-      await persist(app, op, {label: 'Task added', pending, render: false});
-    } catch {
-      // Not saved: the row leaves and the words come back to the field (unless new words are already there).
-      app.pending = app.pending.filter(p => p !== pending);
-      app.render();
-      if (input.isConnected && !input.value) input.value = title;
-    }
-  });
-  return form;
 }
 
 /**
@@ -494,7 +357,7 @@ export function renderBlockDetail(app, page, block) {
   list.dataset.key = 'plan';
   const onReorder = () => refreshPlanHeader(app, block, header);
   for (const task of open) list.append(taskRow(app, task, {plan: true, days: true, onReorder}));
-  page.append(list, inlineAdd(app, block));
+  page.append(list, blockAdd(app, block));
   completedSection(app, page, rows.filter(t => t.done), {plan: true, days: true});
   finishDetail(app, page);
 }
