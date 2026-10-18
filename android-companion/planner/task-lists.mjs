@@ -58,7 +58,7 @@ export function showInbox(app, {motion = 'forward'} = {}) {
     }
     const back = app.sheet.returned;
     for (const task of rows) {
-      const row = taskRow(app, task);
+      const row = taskRow(app, task, {inbox: true});
       // A redraw while the returned highlight is still fading carries it on (from where it was).
       if (back?.id === task.id && host !== body) markReturned(row, back.elapsed());
       host.append(row);

@@ -78,7 +78,7 @@ export const flows = {
       const {page} = h;
       const row = page.locator('.task-row', {hasText: 'Group call: merge sections'}).first();
       await row.scrollIntoViewIfNeeded();
-      await h.swipe('swipe the row right (Schedule)', row, 150);
+      await h.swipe('swipe the row left (Schedule)', row, -150);
       await h.tap('tomorrow morning (saved, with Undo)', page.getByRole('menuitemradio', {name: /^Tomorrow morning/}));
     },
     check: s => { const t = find(s, 'Group call'); return ok(t?.planned && new Date(t.planned).toLocaleDateString('en-CA') === tomorrow() && new Date(t.planned).getHours() === 9, 'planned tomorrow 9:00'); },
