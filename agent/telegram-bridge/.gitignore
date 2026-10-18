@@ -1,0 +1,6 @@
+bridge.env
+state.json
+state.json.*.tmp
+sessions/
+.test-*/
+todo.md

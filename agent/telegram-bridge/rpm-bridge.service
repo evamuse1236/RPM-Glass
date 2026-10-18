@@ -1,0 +1,21 @@
+[Unit]
+Description=RPM Telegram bridge for Pi
+
+[Service]
+Type=simple
+WorkingDirectory=%h/work/telegram-bridge
+Environment=PATH=%h/.local/node/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=TELEGRAM_TOKEN_FILE=%h/.secrets/TELEGRAM_BOT_TOKEN
+Environment=ANTHROPIC_KEY_FILE=%h/.secrets/ANTHROPIC_API_KEY
+EnvironmentFile=%h/work/telegram-bridge/bridge.env
+ExecStart=%h/.local/node/bin/node %h/work/telegram-bridge/bridge.mjs
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=10
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=yes
+MemoryMax=400M
+
+[Install]
+WantedBy=default.target
