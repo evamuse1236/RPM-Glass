@@ -29,7 +29,7 @@ function build(app, body, item) {
 
 export function renderHistory(app, body, page) {
   page.append(el('h1', 'history-title', 'History'));
-  const days = historyDays({meals: body.meals(), glasses: body.water().glasses, runs: body.runs(), routines: body.routines(),
+  const days = historyDays({meals: body.meals(), glasses: body.water().glasses, runs: body.runs(), routines: body.allRoutines(),
     goal: body.water().settings?.goal}, body.now());
   if (!days.length) {
     page.append(emptyState({symbol: 'history', title: 'Nothing logged yet', body: 'Meals, water and routines you log appear here.'}));

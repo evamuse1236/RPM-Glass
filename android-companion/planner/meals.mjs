@@ -1,35 +1,23 @@
 /** The meal on Today and the meal sheet: the slot guessed from the time, the usual meals for it as one-tap chips, a
  * box to type one, then a Saved state with Jev's nutrition guess kept apart from the user's words. */
-import {guessSlot, usualMeals, mealRowState, estimateText, clockText, SLOTS, SLOT_NAMES, SLOT_PLURALS} from '../body-state.mjs';
+import {guessSlot, usualMeals, estimateText, clockText, SLOTS, SLOT_NAMES, SLOT_PLURALS} from '../body-state.mjs';
 import {el, icon, button, iconButton} from './dom.mjs';
 import {openSheet, closeSheet, field} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
 import {notice} from './snackbar.mjs';
-import {listRow, phraseNodes} from './today-row.mjs';
+import {phraseNodes} from './today-row.mjs';
 import {choiceChip, chipRow, markChips} from './task-fields.mjs';
-
-/** The row for the meal now due; null in the evening once dinner is logged. */
-export function mealRow(app, body) {
-  const {slot, meal, hidden} = mealRowState(body.meals(), body.now());
-  if (hidden) return null;
-  const open = () => openMealSheet(app, body, {mealId: meal?.id ?? null});
-  const node = listRow({symbol: 'restaurant', headline: SLOT_NAMES[slot],
-    lines: [meal ? phraseNodes([{text: meal.name}, {text: clockText(meal.at)}]) : 'Not logged yet'],
-    action: meal ? 'Change' : 'Log it', onAction: open, open});
-  node.dataset.key = 'meal';
-  node.querySelector('.today-row-action').setAttribute('aria-label', meal ? `Change ${SLOT_NAMES[slot].toLowerCase()}` : `Log ${SLOT_NAMES[slot].toLowerCase()}`);
-  return node;
-}
 
 function estimateLine(estimate) {
   const line = el('div', 'estimate-line');
+  line.hidden = !estimate;
   if (estimate?.status === 'ready') {
     const words = el('span');
     words.append(...phraseNodes(estimateText(estimate).split(' · ').map(text => ({text}))));
     line.append(icon('auto_awesome'), words);
   } else if (estimate?.status === 'failed') {
     line.append(icon('auto_awesome'), el('span', '', 'No estimate this time. Your meal is saved.'));
-  } else {
+  } else if (estimate) {
     const bar = el('div', 'estimate-progress');
     bar.setAttribute('role', 'progressbar');
     bar.setAttribute('aria-label', 'Guessing the nutrition');
@@ -41,7 +29,7 @@ function estimateLine(estimate) {
   return line;
 }
 
-export function openMealSheet(app, body, {mealId = null, prefill = ''} = {}) {
+export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wanted = null} = {}) {
   const editing = mealId ? body.meal(mealId) : null;
   const {body: content, actions, header} = openSheet(app, editing ? 'Edit meal' : 'Log a meal', {variant: 'meal'});
   if (editing) {
@@ -56,7 +44,7 @@ export function openMealSheet(app, body, {mealId = null, prefill = ''} = {}) {
   }
   const now = body.now();
   const guessed = guessSlot(now);
-  let slot = editing?.slot ?? guessed;
+  let slot = editing?.slot ?? wanted ?? guessed;
 
   function renderForm(text) {
     content.replaceChildren();
@@ -134,7 +122,7 @@ export function openMealSheet(app, body, {mealId = null, prefill = ''} = {}) {
       line.replaceWith(next);
       line = next;
     };
-    if (body.meal(meal.id)?.estimate?.status === 'pending') body.estimate(meal.id).then(paintEstimate, paintEstimate);
+    if (!body.meal(meal.id)?.estimate) body.estimate(meal.id).then(paintEstimate, paintEstimate);
     actions.replaceChildren(
       button('Undo', async () => {
         try {

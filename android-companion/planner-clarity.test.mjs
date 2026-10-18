@@ -7,8 +7,8 @@ const storage=entries=>{
 };
 
 test('Clarity preferences default safely and reject unknown stored values',()=>{
-  assert.deepEqual(clarityPreferences(storage()),{appearance:'system',dayLayout:'agenda',solidNavigation:true});
-  assert.deepEqual(clarityPreferences(storage([['rpm-clarity:appearance','sepia'],['rpm-clarity:day-layout','board'],['rpm-clarity:solid-navigation','yes']])),{appearance:'system',dayLayout:'agenda',solidNavigation:true});
+  assert.deepEqual(clarityPreferences(storage()),{appearance:'system',dayLayout:'day',solidNavigation:true});
+  assert.deepEqual(clarityPreferences(storage([['rpm-clarity:appearance','sepia'],['rpm-clarity:today-layout','board'],['rpm-clarity:solid-navigation','yes']])),{appearance:'system',dayLayout:'day',solidNavigation:true});
 });
 
 test('appearance and navigation preferences update semantic root state',()=>{

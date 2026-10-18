@@ -93,7 +93,9 @@ export function createApp(api, renderers) {
   // While a sheet is open the page behind it re-renders at once (nothing moves under the scrim); when the sheet
   // closes, the rows changed meanwhile slide from where the user last saw them to their new places.
   app.backdrop = null;
+  app.sheetRefresh = null;
   app.onSheetClose = () => {
+    app.sheetRefresh = null;
     const snapshot = app.backdrop;
     app.backdrop = null;
     if (snapshot) landRows(app.dom.work, app.dom.scroll, snapshot, {delay: MOTION.fadeOut});
@@ -140,6 +142,7 @@ function installNavigation(app) {
   app.openGoal = id => app.push('goals', id);
   app.openSearch = () => app.push('search');
   app.openReview = () => app.push('review');
+  app.openHistory = () => app.push('history');
   app.openSettings = (section = 'settings') => {
     state.settingsSection = section;
     closeSheet(app);

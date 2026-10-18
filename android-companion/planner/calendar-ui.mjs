@@ -133,13 +133,11 @@ export function datePicker(app) {
   const {body, actions} = openSheet(app, 'Go to date');
   const date = field(app, body, 'Date', state.day, 'date');
   body.append(labelButton('calendar_month', `Calendars · ${state.calendarState}`, () => calendarEditor(app), 'list-btn'));
-  if (!app.largeText()) {
-    const timeline = state.dayLayout === 'timeline';
-    body.append(labelButton(timeline ? 'view_agenda' : 'schedule', timeline ? 'Show agenda' : 'Show timeline', () => {
-      app.closeSheet();
-      setDayLayout(app, timeline ? 'agenda' : 'timeline');
-    }, 'list-btn'));
-  }
+  const list = state.dayLayout === 'list';
+  body.append(labelButton(list ? 'view_day' : 'view_agenda', list ? 'Show day' : 'Show list', () => {
+    app.closeSheet();
+    setDayLayout(app, list ? 'day' : 'list');
+  }, 'list-btn'));
   actions.append(button('Today', () => { app.closeSheet(); selectDay(app, localDay()); }, 'text-btn'),
     button('Go', () => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date.value)) return;

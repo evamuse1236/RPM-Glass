@@ -11,7 +11,11 @@ await build({absWorkingDir:root,entryPoints:['android-companion/runtime.mjs'],ou
   b.onLoad({filter:/.*/,namespace:'native'},args=>({contents:args.path==='crypto'?'export const randomUUID=()=>globalThis.crypto.randomUUID();':"export const ENDPOINT='https://openrouter.ai/api/v1/chat/completions';"}));
 }}]});
 // Every page and stylesheet in android-companion/ ships; CompanionActivity.ASSETS must list the same names.
-for(const file of fs.readdirSync(path.join(root,'android-companion')).filter(f=>/\.(html|css)$/.test(f)))fs.copyFileSync(path.join(root,'android-companion',file),path.join(out,file));
+// A stylesheet with parts ships as one file, its parts appended in order, so the asset list names it once.
+const STYLE_PARTS={'planner.css':['body.css','day.css']};
+const parts=new Set(Object.values(STYLE_PARTS).flat());
+const source=file=>fs.readFileSync(path.join(root,'android-companion',file),'utf8');
+for(const file of fs.readdirSync(path.join(root,'android-companion')).filter(f=>/\.(html|css)$/.test(f)&&!parts.has(f)))fs.writeFileSync(path.join(out,file),[file,...(STYLE_PARTS[file]??[])].map(source).join('\n'));
 fs.copyFileSync(path.join(root,'android-companion/assets/butterfly.png'),path.join(out,'butterfly.png'));
 for(const file of fs.readdirSync(path.join(root,'android-companion/assets/fonts')))fs.copyFileSync(path.join(root,'android-companion/assets/fonts',file),path.join(out,file));
 console.log('Bundled offline Android companion assets (no credentials or personal data).');

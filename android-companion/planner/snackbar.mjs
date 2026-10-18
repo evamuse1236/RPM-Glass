@@ -129,6 +129,7 @@ export function notice(app, message, options = {}) {
         await app.api.commit({type: 'undo'});
         app.recentlyCompleted.clear();
         app.render();
+        app.sheetRefresh?.();
         app.mounted?.controller?.refresh?.();
         notice(app, 'Change undone');
       } catch (error) {

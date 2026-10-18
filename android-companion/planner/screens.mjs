@@ -9,6 +9,8 @@ import {renderBlocks, renderBlockDetail} from './blocks.mjs';
 import {renderProjects, renderProjectDetail} from './projects.mjs';
 import {renderLife, renderAreaDetail, renderGoalDetail, shiftLifePeriod} from './life.mjs';
 import {renderSearch} from './search.mjs';
+import {renderHistory} from './history.mjs';
+import {bodyApi} from './body-api.mjs';
 import {screenKey} from './app.mjs';
 import {userMessage} from '../user-message.mjs';
 
@@ -73,6 +75,7 @@ export function renderScreen(app, kind, top) {
   if (kind === 'settings') return mountSettingsScreen(app, page);
   if (kind === 'review') return mountReview(app, page);
   if (kind === 'search') return renderSearch(app, page);
+  if (kind === 'history') return renderHistory(app, bodyApi(app), page);
   if (top) {
     const record = app.p()[kind]?.find(item => item.id === top.id);
     if (!record) {

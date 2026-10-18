@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {editPlan} from './planner-state.mjs';
-import {dueSoon, atRisk, upcoming, freeGap, fillGap, gapResult} from './planner/today.mjs';
+import {dueSoon, atRisk, upcoming, freeGap, fillGap, gapResult} from './planner/today-model.mjs';
 import {countdown, timeLeft} from './planner/format.mjs';
 import {blockDue} from './planner-state.mjs';
 

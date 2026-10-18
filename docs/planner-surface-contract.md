@@ -25,11 +25,11 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 
 ### Today
 
-- Header, date, week strip with task dots, and up to three Result summaries precede the Agenda/Timeline toggle.
-- Agenda groups Now & next, Scheduled, Must anytime, Anytime, and collapsed Completed tasks. Every task keeps Result context; Now & next also keeps the full inherited Purpose.
-- Completion is one tap, recoverable through Undo, and never claims the Result was achieved.
-- Timeline uses a 72dp ruler and 112dp per hour. Timed cards scale by duration and use their Area tone. A 15- or 30-minute card keeps its title first and drops duration or Result metadata before it drops identity. Overlaps remain readable.
-- The red Now label is one line. Hide only the nearest hour label when it falls within 12 minutes; keep the marker behind task text.
+- Today's main body is the **spine** (design: `docs/design/final-2026-10-18/README.md`, "Day view"). The sticky date line and the week strip head it; anytime tasks and all-day events are one chip line above it. The list layout (More options, Show list) remains one tap away.
+- One line about 64dp from the left carries every item with a dot; the gutter holds its start time and length. Tasks and Routines are filled cards with the round check; calendar events are outlined with the event icon. The supporting line carries one thing: Area dot and Result, Now · until, Not done, or Clash with … plus Resolve (a clash wins).
+- Card height is 56dp, plus 24dp per full extra half hour, capped at 160dp. Free time of 45 minutes or more is a dashed row with a + that plans into it. Water and meals are 40dp rows with one action.
+- Now is the item in progress (tinted, with an elapsed bar) or a line between rows. Today opens at now; a floating Now button returns there.
+- Completion is one tap, recoverable through Undo, and never claims the Result was achieved. Every water, meal and Routine change has Undo.
 
 ### Blocks
 

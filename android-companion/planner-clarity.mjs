@@ -1,5 +1,5 @@
 const APPEARANCES=new Set(['system','light','dark']);
-const DAY_LAYOUTS=new Set(['agenda','timeline']);
+const DAY_LAYOUTS=new Set(['day','list']);
 const key=name=>'rpm-clarity:'+name;
 const defaultStorage=()=>{try{return globalThis.localStorage;}catch{return null;}};
 
@@ -7,10 +7,10 @@ function read(storage,name,fallback){try{return storage?.getItem(key(name))??fal
 function write(storage,name,value){try{storage?.setItem(key(name),value);}catch{}}
 
 export function clarityPreferences(storage=defaultStorage()){
-  const appearance=read(storage,'appearance','system'),dayLayout=read(storage,'day-layout','agenda');
+  const appearance=read(storage,'appearance','system'),dayLayout=read(storage,'today-layout','day');
   return {
     appearance:APPEARANCES.has(appearance)?appearance:'system',
-    dayLayout:DAY_LAYOUTS.has(dayLayout)?dayLayout:'agenda',
+    dayLayout:DAY_LAYOUTS.has(dayLayout)?dayLayout:'day',
     solidNavigation:true
   };
 }
@@ -26,10 +26,10 @@ export function applyClarityPreferences(preferences=clarityPreferences(),root=gl
 export function setClarityPreference(name,value,{storage=defaultStorage(),root=globalThis.document?.documentElement}={}){
   const current=clarityPreferences(storage),next={...current};
   if(name==='appearance')next.appearance=APPEARANCES.has(value)?value:'system';
-  else if(name==='day-layout')next.dayLayout=DAY_LAYOUTS.has(value)?value:'agenda';
+  else if(name==='today-layout')next.dayLayout=DAY_LAYOUTS.has(value)?value:'day';
   else if(name==='solid-navigation')next.solidNavigation=true;
   else return current;
-  write(storage,name,name==='solid-navigation'?String(next.solidNavigation):next[name==='day-layout'?'dayLayout':'appearance']);
+  write(storage,name,name==='solid-navigation'?String(next.solidNavigation):next[name==='today-layout'?'dayLayout':'appearance']);
   applyClarityPreferences(next,root);
   return next;
 }

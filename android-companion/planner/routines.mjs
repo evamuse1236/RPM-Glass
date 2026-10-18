@@ -1,49 +1,11 @@
-/** Routines on Today (a fixed block in the agenda, or a row in the Body strip) and the run sheet whose steps tick like
- * a Plan. `body` is the store: routines, today's runs and the saves, each of which can be undone. */
-import {
-  routineOn, routineRowParts, routineProgress, runSummary, missedLine, rangeText, daysText, localDay, markStep, doneAll, skipRest,
-} from '../body-state.mjs';
+/** A Routine's run sheet, whose steps tick like a Plan. `body` is the store: routines, today's runs and the saves,
+ * each of which can be undone from the snackbar. */
+import {routineProgress, runSummary, missedLine, rangeText, daysText, localDay, markStep, doneAll, skipRest} from '../body-state.mjs';
 import {el, icon, button, iconButton, progress, emptyState} from './dom.mjs';
 import {openSheet, closeSheet} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
 import {notice} from './snackbar.mjs';
-import {listRow, phraseNodes} from './today-row.mjs';
 import {openRoutineEditor} from './routine-editor.mjs';
-
-/** Today's routines that still show a row (a routine skipped for today has none). */
-export function todaysRoutines(body) {
-  const now = body.now(), day = localDay(now);
-  return body.routines().filter(r => routineOn(r, day)).sort((a, b) => (a.start < b.start ? -1 : 1))
-    .map(routine => ({routine, row: routineRowParts(routine, body.runFor(routine.id), now)}))
-    .filter(item => item.row);
-}
-
-/** Layout "In the day": the routine is a fixed window, drawn as a calendar block in the agenda. */
-export function routineBlock(app, body, {routine, row}) {
-  const node = button('', () => openRunSheet(app, body, routine.id), 'agenda-event routine-block');
-  node.dataset.key = 'routine:' + routine.id;
-  const block = el('span', 'event-block');
-  const time = el('span', 'event-time tnum');
-  const range = {text: rangeText(routine.start, routine.end)};
-  const parts = row.state === 'running' || row.state === 'empty' ? row.parts
-    : row.state === 'upcoming' ? [range, row.parts[1]] : [range, ...row.parts];
-  time.append(...phraseNodes(parts));
-  block.append(el('span', 'event-title', routine.name), time);
-  node.append(icon('checklist', {fill: !!row.filled, cls: 'leading'}), block);
-  node.setAttribute('aria-label', `${routine.name}, ${time.textContent}. Open routine`);
-  return node;
-}
-
-/** Layout "Body strip": a plain row with Open. */
-export function routineRow(app, body, {routine, row}) {
-  const open = () => openRunSheet(app, body, routine.id);
-  const node = listRow({symbol: 'checklist', headline: routine.name, lines: [phraseNodes(row.parts)], action: 'Open', onAction: open, open});
-  node.dataset.key = 'routine:' + routine.id;
-  if (row.filled) node.querySelector('.leading').classList.add('fill');
-  node.querySelector('.today-row-action').setAttribute('aria-label', `Open ${routine.name}`);
-  return node;
-}
-
 
 function stepRow(step, {onCheck, onAction}) {
   const row = el('div', 'task-row step-row');
@@ -80,7 +42,7 @@ function stagger(rows) {
   setTimeout(() => rows.forEach(row => row.style.removeProperty('--stagger')), 300);
 }
 
-export function openRunSheet(app, body, routineId) {
+export function openRunSheet(app, body, routineId, day = localDay(body.now())) {
   const routine = body.routine(routineId);
   if (!routine) return;
   const {body: content, actions, header} = openSheet(app, routine.name, {variant: 'run'});
@@ -95,7 +57,7 @@ export function openRunSheet(app, body, routineId) {
   ]));
   header.querySelector('.sheet-close').before(more);
 
-  let run = body.runFor(routine.id);
+  let run = body.runFor(routine.id, day) ?? {routineId: routine.id, day, marks: {}};
   const count = el('p', 'run-count tnum');
   const bar = progress(0, 1, 'Steps done');
   const list = el('div', 'step-list');
@@ -103,7 +65,7 @@ export function openRunSheet(app, body, routineId) {
   error.setAttribute('role', 'alert');
   const rows = new Map();
 
-  async function save(next, staggerIds = []) {
+  async function save(next, words, staggerIds = []) {
     const before = run;
     run = next;
     paint(staggerIds);
@@ -111,6 +73,7 @@ export function openRunSheet(app, body, routineId) {
       await body.saveRun(next);
       error.textContent = '';
       app.render();
+      notice(app, words, {undo: true});
     } catch {
       run = before;
       paint();
@@ -118,11 +81,13 @@ export function openRunSheet(app, body, routineId) {
     }
   }
   const stateOf = step => run?.marks?.[step.id]?.state ?? null;
-  const tick = step => save(markStep(routine, run, step.id, stateOf(step) === 'done' ? null : 'done', body.now()));
-  const skip = step => save(markStep(routine, run, step.id, stateOf(step) === 'skipped' ? null : 'skipped', body.now()));
+  const tick = step => save(markStep(routine, run, step.id, stateOf(step) === 'done' ? null : 'done', body.now()),
+    stateOf(step) === 'done' ? 'Step marked not done' : 'Step done');
+  const skip = step => save(markStep(routine, run, step.id, stateOf(step) === 'skipped' ? null : 'skipped', body.now()),
+    stateOf(step) === 'skipped' ? 'Step put back' : 'Step skipped');
 
   function skipToday() {
-    body.skipDay(routine.id).then(() => {
+    body.skipDay(routine.id, day).then(() => {
       closeSheet(app);
       app.render();
       notice(app, `${routine.name} skipped for today`, {undo: true});
@@ -138,10 +103,10 @@ export function openRunSheet(app, body, routineId) {
     }
     if (actions.querySelector('.run-done-all')) return;
     actions.replaceChildren(
-      button('Skip the rest', () => save(skipRest(routine, run, body.now())), 'text-btn'),
+      button('Skip the rest', () => save(skipRest(routine, run, body.now()), 'Rest of the steps skipped'), 'text-btn'),
       button('Done all', () => {
         const opened = routine.steps.filter(step => !stateOf(step)).map(step => step.id);
-        save(doneAll(routine, run, body.now()), opened);
+        save(doneAll(routine, run, body.now()), `${routine.name} done`, opened);
       }, 'filled-btn run-done-all'),
     );
   }
@@ -173,7 +138,7 @@ export function openRunSheet(app, body, routineId) {
   content.append(count, bar, list, error);
   paint();
   app.sheetRefresh = () => {
-    run = body.runFor(routine.id);
+    run = body.runFor(routine.id, day) ?? {routineId: routine.id, day, marks: {}};
     paint();
   };
 }

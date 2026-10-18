@@ -72,6 +72,18 @@ export function seedStore(now = new Date()) {
   task({title: 'Finish my section of the critical review', blockId: critical, minutes: 90, must: true, planned: at(today, '10:00').toISOString()});
   task({title: 'Group call: merge sections', blockId: critical, minutes: 45, planned: at(today, '16:00').toISOString()});
   task({title: 'Weekly review', minutes: 30, planned: at(today, '19:30').toISOString(), recurrence: 'weekly'});
+  task({title: 'Call the bank about the fee refund', minutes: 15, planned: at(today, '12:00').toISOString()});
+  task({title: 'Buy a birthday card for Amma', minutes: 15, plannedDate: today});
+  task({title: 'Past paper 2019, section B', blockId: quiz, minutes: 60, must: true, planned: at(today, '17:30').toISOString()});
+
+  const routine = editPlan(data, {type: 'saveRoutine', routine: {name: 'Morning routine', start: '07:00', end: '07:30',
+    days: [0, 1, 2, 3, 4, 5, 6], steps: ['Water and stretch', 'Make the bed', 'Shower', 'Plan the day', 'Read 10 pages'].map(title => ({title}))}});
+  const steps = data.planner.body.routines[0].steps;
+  const mark = (step, state) => [step.id, {state, at: at(today, '07:20').toISOString()}];
+  editPlan(data, {type: 'saveRoutineRun', run: {routineId: routine, day: today,
+    marks: Object.fromEntries([mark(steps[0], 'done'), mark(steps[1], 'done'), mark(steps[2], 'done'), mark(steps[3], 'skipped')])}});
+  for (const hm of ['08:10', '10:05', '12:40']) editPlan(data, {type: 'drinkWater', at: at(today, hm).toISOString()});
+  editPlan(data, {type: 'saveMeal', meal: {name: 'Poha and tea', slot: 'breakfast', at: at(today, '08:40').toISOString()}});
   editPlan(data, {type: 'context', approved: true, vision: 'A calm, capable year: good work at ISDM, a healthy body, tools that serve me.', goals: 'Finish Term 1 well. Run three mornings a week.'});
   // Dara's own priorities for the review: the steps in the order they will happen, the submission last.
   const order = ['Read Snyder', 'Agree the article', 'Draft my section', 'Finish my section', 'Group call', 'Run the plagiarism', 'Submit the critical'];
