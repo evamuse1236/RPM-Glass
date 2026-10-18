@@ -1,0 +1,66 @@
+/* ---------- 7. Large text (200%) and reduced motion ---------- */
+:root[data-large-text=true] .week-number { min-width: 1.6em; height: 1.6em; font-size: 15px; }
+:root[data-large-text=true] #nav-bar { grid-template-columns: 1fr 1fr 1.3fr .9fr; padding-inline: 0; }
+:root[data-large-text=true] .nav-pill { min-width: 56px; }
+/* Large text: a row's action moves under its words instead of squeezing them. */
+:root[data-large-text=true] .today-row { grid-template-columns: auto 1fr; }
+:root[data-large-text=true] .today-row-headline { grid-column: 2; }
+:root[data-large-text=true] .today-row-action { grid-column: 2; grid-row: 3; justify-self: start; margin: 0 0 0 calc(-1 * var(--s3)); }
+:root[data-large-text=true] .today-row-line.is-clash-item { display: block; }
+:root[data-large-text=true] :is(.today-row-line, .week-line) .phrase { display: block; }
+:root[data-large-text=true] :is(.today-row, .week-line) .sep { display: none; }
+:root[data-large-text=true] .today-row.action-top .today-row-action { grid-row: 3; }
+:root[data-large-text=true] .screen-today .week-strip, :root[data-large-text=true] .next-label .label-extra,
+:root[data-large-text=true] .next-card .meta-extra, :root[data-large-text=true] .upcoming .section-header,
+:root[data-large-text=true] .gap-card .task-supporting { display: none; }
+:root[data-large-text=true] .next-action { margin-left: var(--s4); white-space: nowrap; }
+:root[data-large-text=true] .week-line { grid-template-columns: auto 1fr auto; padding-block: var(--s2); }
+:root[data-large-text=true] .clash-time::after { content: ' · '; }
+:root[data-large-text=true] .result-count, :root[data-large-text=true] .eyebrow span:last-child { display: none; }
+:root[data-large-text=true] .detail-head .crumb .eyebrow span:last-child { display: inline; }
+:root[data-large-text=true] .card-top .eyebrow { display: none; }
+:root[data-large-text=true] .verdict-row { display: grid; grid-template-columns: auto 1fr; align-items: start; }
+:root[data-large-text=true] .verdict-row .outlined-btn { grid-column: 2; justify-self: start; }
+:root[data-large-text=true] .project-run .eyebrow { align-items: baseline; }
+:root[data-large-text=true] .project-run .eyebrow span:last-child { display: inline; white-space: normal; }
+:root[data-large-text=true] .settings-row { flex-wrap: wrap; }
+:root[data-large-text=true] .settings-value { max-width: none; text-align: left; }
+:root[data-large-text=true] .top-title { font-size: 24px; }
+@media (prefers-reduced-motion: reduce) {
+  .progress > span, .wheel-track > span, #fab-host, .fab { transition: none; }
+  .plan-list .task-row, .task-row.lifted, .inline-edit { transition: none; scale: none; }
+  .rating-slider::-webkit-slider-thumb { transition: none; }
+}
+
+/* ---------- Motion helpers (surface-motion.mjs) ---------- */
+/* A frozen copy of the outgoing screen or top bar during a transition; never focusable or tappable. */
+.motion-ghost-layer {
+  position: absolute;
+  z-index: 5;
+  top: var(--ghost-top);
+  left: var(--ghost-left);
+  width: var(--ghost-width);
+  height: var(--ghost-height);
+  overflow: hidden;
+  pointer-events: none;
+}
+.motion-ghost-inner { transform: translateY(var(--ghost-scroll, 0px)); }
+.motion-ghost-bar, .motion-ghost-nav { height: 100%; }
+.motion-ghost-nav #nav-bar { height: 100%; }
+.motion-ghost-fab { display: grid; place-items: center; }
+/* A removed row collapsing in place, and a new row opening. */
+.motion-ghost { overflow: hidden; pointer-events: none; }
+/* Old words fading out over a row whose words changed in place (surface-motion.mjs fadeWords). */
+.motion-fade-host { position: relative; height: 100%; }
+.motion-fade-box { position: absolute; overflow: hidden; pointer-events: none; }
+.motion-clip { overflow: hidden; }
+/* Menus open from their anchor. */
+.menu { animation: menu-in var(--dur-short3) var(--ease-emphasized-decelerate); transform-origin: top right; }
+/* The surface is opaque within 50ms (no see-through menu) while it grows from its anchor over 150ms; its items come
+   in with it. */
+@keyframes menu-in { 0% { opacity: 0; transform: scale(.9, .7); } 33% { opacity: 1; } 100% { opacity: 1; transform: none; } }
+:root[data-reduce-motion=true] .progress > span, :root[data-reduce-motion=true] #fab-host, :root[data-reduce-motion=true] .fab { transition: none; }
+@media (prefers-reduced-motion: reduce) { .field-fold, .field-fold.open { transition: none; } }
+:root[data-reduce-motion=true] .field-fold, :root[data-reduce-motion=true] .field-fold.open { transition: none; }
+:root[data-reduce-motion=true] :is(.plan-list .task-row, .task-row.lifted, .inline-edit) { transition: none; scale: none; }
+:root[data-reduce-motion=true] .rating-slider::-webkit-slider-thumb { transition: none; }

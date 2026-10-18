@@ -1,0 +1,195 @@
+/* Task rows (Google Tasks) */
+.task-row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  min-height: 56px;
+  padding: 0 var(--s1) 0 var(--s1);
+  background: inherit;
+  --swipe-offset: 0px;
+}
+.task-check {
+  width: var(--touch);
+  height: var(--touch);
+  display: grid;
+  place-items: center;
+  flex: none;
+  margin-top: 4px;
+}
+.check-ring {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--on-surface-variant);
+  display: grid;
+  place-items: center;
+  transition: background-color var(--dur-short), border-color var(--dur-short);
+}
+.check-ring .ms { font-size: 16px; font-weight: 700; }
+.task-check:active .check-ring { background: var(--row-press); }
+.task-row.current .check-ring { border-color: var(--now); }
+.task-row.done .check-ring { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.task-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--s2) var(--s2) var(--s2) var(--s1);
+}
+.task-title { font: var(--body-large); color: var(--on-surface); overflow-wrap: anywhere; text-wrap: pretty; }
+.task-supporting { font: var(--body-medium); color: var(--on-surface-variant); }
+.task-supporting b { font-weight: 600; }
+.lead-now, .lead-next { color: var(--now); }
+.lead-overdue { color: var(--error); }
+.task-row.done .task-title { color: var(--on-surface-variant); text-decoration: line-through; }
+/* Completing: the ring pops once and the line draws in (both 150ms); then the row collapses into Completed. */
+.task-row.just-done .check-ring { animation: check-pop var(--dur-short3) var(--ease-standard); }
+.task-row.just-done .check-ring .ms { animation: check-in var(--dur-short3) var(--ease-emphasized-decelerate); }
+.task-row.just-done .task-title { animation: strike-in var(--dur-short3) var(--ease-standard); }
+@keyframes check-pop { 0% { transform: scale(.85); } 55% { transform: scale(1.15); } 100% { transform: none; } }
+@keyframes check-in { from { opacity: 0; transform: scale(.4); } }
+@keyframes strike-in { from { text-decoration-color: transparent; color: var(--on-surface); } }
+.must-mark { color: var(--must); margin: 16px var(--s3) 0 var(--s1); }
+/* The Now row: a soft primary tint, lighter in dark so it does not shout. */
+:root { --current-row: color-mix(in srgb, var(--primary-container) 55%, transparent); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-appearance=light]) { --current-row: color-mix(in srgb, var(--primary-container) 38%, transparent); }
+}
+:root[data-appearance=dark] { --current-row: color-mix(in srgb, var(--primary-container) 38%, transparent); }
+.task-row.current { background: var(--current-row); border-radius: var(--shape-lg); }
+/* Keyboard focus on a row is a rounded ring inside it; focus the app hands back on touch draws none (planner.mjs). */
+.task-main:focus-visible { outline-offset: -2px; border-radius: var(--shape-md); }
+:root:not([data-keyboard-nav=true]) :is(button, a, [role=button], [role=checkbox], [tabindex]):focus-visible { outline: none; }
+/* The row a task was opened from, on the way back: a soft rounded highlight that fades. */
+.task-row.returned::after {
+  content: "";
+  position: absolute;
+  inset: 0 var(--s1);
+  border-radius: var(--shape-md);
+  background: var(--row-press);
+  pointer-events: none;
+  /* task-sheets.mjs holds it while the Inbox slides back, then fades it out over 300ms (standard easing) */
+}
+/* Plan order by long-press and drag (Google Tasks): the held row lifts, the rows it passes slide out of its way. */
+.plan-list .task-row { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.plan-list.sorting > .task-row:not(.lifted) {
+  translate: 0 var(--shift, 0px);
+  /* A row moves out of the way as soon as the lifted card crosses its middle, quickly (150ms). */
+  transition: translate var(--dur-short3) var(--ease-standard);
+}
+.task-row.lifted {
+  z-index: 2;
+  translate: 0 var(--drag-y, 0px);
+  scale: 1.02;
+  /* Opaque from the first frame, so the rows it passes never show through it. */
+  background: var(--surface-container-high);
+  border-radius: var(--shape-md);
+  box-shadow: var(--elev-3);
+  transition: scale var(--dur-short3) var(--ease-standard), box-shadow var(--dur-short3) var(--ease-standard);
+}
+/* Let go: it glides into its exact slot and lands flat, then the page takes the new order with no further motion. */
+.task-row.lifted.settling {
+  scale: 1;
+  box-shadow: none;
+  background-color: transparent;
+  transition: translate var(--dur-short4) var(--ease-standard), scale var(--dur-short4) var(--ease-standard),
+    box-shadow var(--dur-short4) var(--ease-standard), background-color var(--dur-short4) var(--ease-standard);
+}
+/* Swipes (Things, Todoist): the row slides over a reveal that says what letting go will do, an icon and the word.
+   Right schedules (primary container), left deletes (error container); past the commit distance the icon grows a
+   little, so the moment it will act is visible. */
+.swipe-task { touch-action: pan-y; }
+.swipe-task[data-swipe] { isolation: isolate; }
+.swipe-task > :not(.swipe-reveal) { transform: translateX(var(--swipe-offset)); }
+.swipe-task[data-swipe]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--swipe-surface, var(--surface));
+  transform: translateX(var(--swipe-offset));
+}
+.swipe-task.swipe-settling > :not(.swipe-reveal), .swipe-task.swipe-settling::before {
+  transition: transform var(--dur-short4) var(--ease-standard);
+}
+.swipe-task.swipe-leaving > :not(.swipe-reveal), .swipe-task.swipe-leaving::before {
+  transition: transform var(--dur-short3) var(--ease-emphasized-accelerate);
+}
+.swipe-reveal {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 0 var(--s6);
+  font: var(--label-large);
+  border-radius: var(--shape-md);
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+}
+.swipe-reveal .ms { transition: scale var(--dur-short3) var(--ease-standard); }
+.swipe-reveal[data-kind=remove] { flex-direction: row-reverse; background: var(--error-container); color: var(--on-error-container); }
+.swipe-task[data-armed=true] .swipe-reveal .ms { scale: 1.2; }
+.swipe-task.swipe-settling .swipe-reveal { opacity: 0; transition: opacity var(--dur-short4) var(--ease-standard); }
+.swipe-task.swipe-leaving .swipe-reveal { opacity: 1; }
+.completed-group { margin: var(--s2) 0 0; }
+.completed-toggle {
+  width: 100%;
+  min-height: var(--touch);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--s4) 0 var(--gutter);
+  font: var(--title-small);
+  color: var(--on-surface-variant);
+}
+
+/* Inputs (M3 outlined text fields) */
+.text-field { position: relative; display: block; margin: var(--s3) 0 var(--s2); }
+.text-field input, .text-field textarea, .text-field select {
+  width: 100%;
+  min-height: 56px;
+  padding: var(--s4);
+  border: 1px solid var(--outline);
+  border-radius: var(--shape-xs);
+  background: transparent;
+  font: var(--body-large);
+  color: var(--on-surface);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.text-field textarea { min-height: 88px; resize: vertical; display: block; }
+.text-field select { padding-right: 40px; }
+.select-field::after {
+  content: "arrow_drop_down";
+  font-family: "Material Symbols Rounded";
+  font-size: 24px;
+  position: absolute;
+  right: 12px;
+  top: 16px;
+  pointer-events: none;
+  color: var(--on-surface-variant);
+}
+.text-field input:focus, .text-field textarea:focus, .text-field select:focus { border: 2px solid var(--primary); padding: 15px; }
+.field-label {
+  position: absolute;
+  left: 12px;
+  top: -8px;
+  padding: 0 4px;
+  background: var(--sheet-bg, var(--surface));
+  font: var(--body-small);
+  color: var(--on-surface-variant);
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.text-field:focus-within .field-label { color: var(--primary); }
+.field-helper { display: block; padding: 4px var(--s4) 0; font: var(--body-small); color: var(--on-surface-variant); }
+.check-field { display: flex; align-items: center; gap: var(--s3); min-height: var(--touch); font: var(--body-large); }
+.check-field input, .dialog-choice input { width: 20px; height: 20px; accent-color: var(--primary); }
+input[type=range] { width: 100%; accent-color: var(--primary); min-height: var(--touch); }
