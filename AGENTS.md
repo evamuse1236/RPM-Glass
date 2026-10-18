@@ -35,6 +35,12 @@ For an authorized phone release, compare the working tree, branch, and installed
 | Capture asks Claude (Anthropic API key) first and tries OpenRouter once when Claude has no key, is unreachable, or answers 401, 403, 429 or 5xx; the trace records which service answered. | `intent-v2/test/model-services.test.mjs`, `ModelLimitsTest.java` |
 | Every stylesheet Capture and the planner link is served by the native asset allowlist. | `android-companion/companion-assets.test.mjs` |
 | Dates are honest and compact ("2:30 pm to 3 pm", "Time not set"). | `android-companion/capture-content.test.mjs` |
+| No page shows a scrollbar. | `android-companion/companion-assets.test.mjs` |
+| Task rows swipe right to complete and left to schedule (Move in the Inbox); a drag locks to one axis after 8px; Delete is never a swipe. | `android-companion/task-swipe.test.mjs` |
+| Motion tokens in `theme.css` match `motion-core.mjs`. | `android-companion/motion-tokens.test.mjs` |
+| A Block's add field finds Inbox tasks by word starts and pulls one in; Enter alone creates. | `android-companion/block-add.test.mjs`, `rpmctl scenario plan-add-in-place` |
+| Capture cards show facts as icon chips, and a receipt shows the task's alert. | `android-companion/capture-lines.test.mjs` |
+| The notch pill ends at the status bar's bottom edge, 4dp above the camera hole. | `NotchAnchorTest.java`, `playground/notch-scene.test.mjs` |
 | "Done" needs proof from the real app: a build and a screenshot newer than the change. | `scripts/agent/require-evidence.mjs` (Stop hook in `.claude/settings.json`, `npm run check:evidence`) |
 | A phone release updates the installed app in place: same signing key, and the build matches this checkout. | `rpmctl doctor --serial <phone>` (`installed-signer-matches-local`, `installed-apk-matches-local-build`, `installed-version`) |
 | Never drive or change a device the tooling did not start. | `rpmctl` refuses mutating commands on any device but its own read-only emulator |
