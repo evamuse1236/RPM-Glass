@@ -80,6 +80,7 @@ export function mountCapture(platform){
    s.state=data;
    if(words!==null)identity.settle();
    endRequest();
+   if(words!==null)rememberComposer(message.value);
    if(s.focusedDraftId&&!ACTIVE.has(findDraft(s.focusedDraftId)?.status))s.focusedDraftId=null;
    render();
    settle(card);
@@ -91,7 +92,7 @@ export function mountCapture(platform){
    if(words!==null&&!saved){
     if(!message.value){composer.set(words,{focus:false});rememberComposer(words);}
     s.failure={payload,text:words,error:text};
-   }else status(text,true);
+   }else{status(text,true);if(words!==null)rememberComposer(message.value);}
    reveal.settle(null,{failed:true});
    render();
    return null;

@@ -115,7 +115,9 @@ if(isPlanner){
 }else {
   // Capture: the unsent draft is written through Android's ordered private
   // store; WebView localStorage is only a compatibility mirror.
-  const kept=await native('captureDraft');
+  let kept=await native('captureDraft');
+  // Words already in the capture journal were sent; an older build left them in the box after sending.
+  if(kept.present&&kept.text&&Object.values(data.intentV2?.captures??{}).some(c=>c.raw===kept.text))kept=await native('captureDraft',{text:''});
   if(kept.present)localStorage.setItem('rpm-native-draft',kept.text);
   let lastText=kept.present?kept.text:null;
   window.RPM_PLATFORM.saveComposerDraft=text=>{
