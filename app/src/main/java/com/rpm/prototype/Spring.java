@@ -1,4 +1,4 @@
-package com.rpm.prototype.notchlab;
+package com.rpm.prototype;
 
 /** A damped spring with unit mass, stepped in fixed slices so any frame rate gives the same curve. */
 final class Spring {

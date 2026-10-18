@@ -19,7 +19,7 @@ final class CompanionControls {
             .put("aiConnected",CompanionKey.has(c)).put("notificationsAllowed",CompanionAlerts.notifications(c,CompanionAlerts.REMINDERS))
             .put("exactAlarmsAllowed",CompanionAlerts.exact(c)).put("overlayAllowed",Settings.canDrawOverlays(c))
             .put("fullScreenSupported",fullScreenSupported).put("fullScreenAllowed",!fullScreenSupported||notifications.canUseFullScreenIntent())
-            .put("launcherRunning",ButterflyService.isRunning())
+            .put("launcherRunning",ButterflyService.isRunning()).put("notchOn",NotchAccessibilityService.isOn(c))
             .put("backupCount",backupCount(c))
             .put("calendarAccess","Read-only; choose calendars in the planner")
             .put("systemBoundary","Sound files, keys and permission choices require the person. No secret values are exposed.");

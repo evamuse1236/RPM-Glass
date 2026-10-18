@@ -1,4 +1,4 @@
-package com.rpm.prototype.notchlab;
+package com.rpm.prototype;
 
 import android.animation.ValueAnimator;
 import android.content.Context;
@@ -79,7 +79,7 @@ final class IslandView extends ViewGroup {
         press.target = 1f;
         kick();
     };
-    private final Choreographer.FrameCallback frame = nanos -> NotchOverlays.safely("island frame", () -> tick(nanos));
+    private final Choreographer.FrameCallback frame = nanos -> NotchController.safely("island frame", () -> tick(nanos));
 
     IslandView(Context context, Listener listener) {
         super(context);
@@ -266,7 +266,7 @@ final class IslandView extends ViewGroup {
     @Override
     public boolean dispatchTouchEvent(MotionEvent e) {
         if (e.getActionMasked() == MotionEvent.ACTION_OUTSIDE) {
-            NotchOverlays.safely("outside tap", listener::onOutsideTap);
+            NotchController.safely("outside tap", listener::onOutsideTap);
             return true;
         }
         return super.dispatchTouchEvent(e);
@@ -284,7 +284,7 @@ final class IslandView extends ViewGroup {
             case MotionEvent.ACTION_DOWN:
                 pressedInside = inside;
                 if (!inside) {
-                    NotchOverlays.safely("outside tap", listener::onOutsideTap);
+                    NotchController.safely("outside tap", listener::onOutsideTap);
                     return false;
                 }
                 if (!expanded) {
@@ -297,7 +297,7 @@ final class IslandView extends ViewGroup {
                 if (pressedInside && !expanded) {
                     long held = e.getEventTime() - e.getDownTime();
                     postDelayed(release, Math.max(0, PRESS_HOLD_MS - held));
-                    if (inside) NotchOverlays.safely("island tap", this::performClick);
+                    if (inside) NotchController.safely("island tap", this::performClick);
                 }
                 pressedInside = false;
                 return true;

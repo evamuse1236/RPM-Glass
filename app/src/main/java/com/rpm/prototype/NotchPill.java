@@ -1,4 +1,4 @@
-package com.rpm.prototype.notchlab;
+package com.rpm.prototype;
 
 import android.animation.ValueAnimator;
 import android.content.Context;
@@ -15,9 +15,8 @@ import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowManager;
 
-import com.rpm.prototype.notchlab.PillPriority.Item;
-import java.util.Locale;
-import com.rpm.prototype.notchlab.PillPriority.Kind;
+import com.rpm.prototype.PillPriority.Item;
+import com.rpm.prototype.PillPriority.Kind;
 
 /** One overlay window holding the island. Collapsed, the window is only as big as the pill, so taps beside it reach the app. */
 final class NotchPill implements IslandView.Listener {
@@ -28,8 +27,8 @@ final class NotchPill implements IslandView.Listener {
     private static final int MIN_PILL_WIDTH_DP = 140;
     private static final int TOUCH_HEIGHT_DP = 48;
 
-    final String name;
     private final Context context;
+    private final NotchController owner;
     private final WindowManager wm;
     private final int type;
     private final NotchContent content;
@@ -42,11 +41,11 @@ final class NotchPill implements IslandView.Listener {
     String placement = "not shown";
     String cutoutSource = "not measured";
 
-    NotchPill(Context context, int type, String name) {
+    NotchPill(Context context, NotchController owner, int type) {
         this.context = context;
+        this.owner = owner;
         this.wm = context.getSystemService(WindowManager.class);
         this.type = type;
-        this.name = name;
         this.content = new NotchContent(context);
     }
 
@@ -59,7 +58,7 @@ final class NotchPill implements IslandView.Listener {
             try {
                 wm.removeView(island);
             } catch (RuntimeException e) {
-                Log.w(LiveUpdates.TAG, name + " removeView failed", e);
+                Log.w(NotchController.TAG, "removeView failed", e);
             }
         }
         island = null;
@@ -68,7 +67,7 @@ final class NotchPill implements IslandView.Listener {
         placement = "not shown";
     }
 
-    void show(Item primary, Item secondary, boolean expanded, NotchContent.Actions actions) {
+    void show(Item primary, Item secondary, boolean expanded, NotchScene scene, NotchContent.Actions actions) {
         NotchAnchor anchor = anchor();
         int displayWidth = displayWidth();
         int h = anchor.pillHeight;
@@ -85,7 +84,7 @@ final class NotchPill implements IslandView.Listener {
             int x = dp(PANEL_MARGIN_DP) + ear;
             int w = displayWidth - 2 * x;
             int topInset = anchor.pillBottom() + dp(10);
-            View panel = content.panel(topInset, "Write RM essay", "Study · 25 min left", 20, 25, rows(primary), actions);
+            View panel = content.panel(topInset, scene, actions);
             panel.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
             int ph = panel.getMeasuredHeight();
             s.body.set(x, 0, x + w, ph);
@@ -96,13 +95,13 @@ final class NotchPill implements IslandView.Listener {
             s.splitR = 0;
             s.touch.set(x - ear, 0, x + w + ear, ph);
             mainAt = new RectF(s.body);
-            String key = "panel:" + rowsKey(primary);
+            String key = "panel:" + w + ":" + scene.key();
             if (!key.equals(mainKey)) {
                 main = panel;
                 mainKey = key;
             }
         } else {
-            String value = valueFor(primary);
+            String value = primary.text;
             int lead = content.leadWidth(h);
             int keep = Math.max(dp(24), anchor.holeDiameter + dp(12));
             int trail = Math.max(content.trailWidth(value), dp(MIN_PILL_WIDTH_DP) - lead - keep);
@@ -146,20 +145,20 @@ final class NotchPill implements IslandView.Listener {
             union.union(Math.round(drawn.left), Math.round(drawn.top), Math.round(drawn.right), Math.round(drawn.bottom));
             moveWindow(union);
         }
-        island.setContentDescription(describe(primary, secondary, expanded));
+        island.setContentDescription(describe(primary, secondary, expanded, scene));
         island.setScene(s, main, mainAt, splitChanged, split, splitAt, firstFrame);
         placement = "window " + window.toShortString() + " · " + anchor + " · via " + cutoutSource;
-        Log.i(LiveUpdates.TAG, name + " island " + (expanded ? "expanded" : primary.kind) + " " + placement);
+        Log.i(NotchController.TAG, "island " + (expanded ? "expanded" : primary.kind + " " + primary.text) + " " + placement);
     }
 
     @Override
     public void onIslandTap() {
-        NotchOverlays.setExpanded(true);
+        owner.setExpanded(true);
     }
 
     @Override
     public void onOutsideTap() {
-        if (NotchOverlays.expanded) NotchOverlays.setExpanded(false);
+        if (owner.expanded) owner.setExpanded(false);
     }
 
     @Override
@@ -178,7 +177,7 @@ final class NotchPill implements IslandView.Listener {
         lp.gravity = Gravity.TOP | Gravity.START;
         lp.x = bounds.left;
         lp.y = bounds.top;
-        lp.setTitle("RPM notch lab (" + name + ")");
+        lp.setTitle("RPM notch");
         if (Build.VERSION.SDK_INT >= 30) {
             lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
             lp.setFitInsetsTypes(0);
@@ -194,7 +193,7 @@ final class NotchPill implements IslandView.Listener {
             mainKey = null;
             splitKey = null;
             placement = "addView failed: " + e.getClass().getSimpleName() + ": " + e.getMessage();
-            Log.w(LiveUpdates.TAG, name + " " + placement);
+            Log.w(NotchController.TAG, placement);
             return false;
         }
     }
@@ -210,37 +209,12 @@ final class NotchPill implements IslandView.Listener {
         placement = "window " + window.toShortString() + " · via " + cutoutSource;
     }
 
-    private static String valueFor(Item item) {
-        if (item.kind == Kind.WATER) return LiveUpdates.glasses + "/" + LiveUpdates.WATER_GOAL;
-        return item.text;
-    }
-
-    private static NotchContent.Row[] rows(Item primary) {
-        NotchContent.Row water = new NotchContent.Row(Kind.WATER, "Water", LiveUpdates.glasses + " of " + LiveUpdates.WATER_GOAL);
-        NotchContent.Row nudge = water;
-        if (primary != null && primary.kind == Kind.MEAL) nudge = new NotchContent.Row(Kind.MEAL, "Lunch not logged", "Log it");
-        if (primary != null && primary.kind == Kind.AGENT) nudge = new NotchContent.Row(Kind.AGENT, primary.text, "Undo");
-        return new NotchContent.Row[]{
-                new NotchContent.Row(Kind.TASK, "Call Prof. Rao", "4:00 PM"),
-                new NotchContent.Row(Kind.TASK, "Gym", "7:00 PM"),
-                nudge,
-        };
-    }
-
-    private static String rowsKey(Item primary) {
-        return (primary == null ? "none" : primary.kind.name()) + ":" + LiveUpdates.glasses;
-    }
-
-    private static String describe(Item primary, Item secondary, boolean expanded) {
+    private static String describe(Item primary, Item secondary, boolean expanded, NotchScene scene) {
         if (expanded) return "Notch panel. Tap outside to close.";
-        String what;
-        switch (primary.kind) {
-            case WATER: what = "Water, " + LiveUpdates.glasses + " of " + LiveUpdates.WATER_GOAL + " glasses"; break;
-            case MEAL: what = "Lunch not logged"; break;
-            case AGENT: what = "Agent: " + primary.text; break;
-            default: what = "Write RM essay, " + primary.text + " left"; break;
-        }
-        return what + (secondary == null ? "" : ". Also " + secondary.kind.name().toLowerCase(Locale.ROOT)) + ". Tap to open.";
+        String water = scene.water == null ? "" : "Water, " + scene.water.count + " of " + scene.water.goal + " glasses";
+        String what = primary.kind == Kind.WATER ? water + ", due now" : scene.spoken;
+        String also = secondary == null ? "" : ". Also " + (secondary.kind == Kind.WATER ? water : scene.spoken);
+        return what + also + ". Tap to open.";
     }
 
     private NotchAnchor anchor() {
@@ -291,10 +265,5 @@ final class NotchPill implements IslandView.Listener {
 
     private static int clamp(int v, int lo, int hi) {
         return Math.max(lo, Math.min(v, hi));
-    }
-
-    static String cutoutDescription(Context context) {
-        NotchPill probe = new NotchPill(context, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, "probe");
-        return "Anchor: " + probe.anchor() + " · via " + probe.cutoutSource;
     }
 }

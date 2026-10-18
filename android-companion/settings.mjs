@@ -131,6 +131,8 @@ function widgetsSection(ctx) {
     add(ctx, section, 'Floating butterfly', 'Open Capture over your other apps', '',
       ctx.state.launcherRunning ? 'hide_butterfly' : 'show_butterfly', {toggle: !!ctx.state.launcherRunning});
   }
+  add(ctx, section, 'Notch', 'Your current task around the front camera. Android turns it on in accessibility settings; RPM reads no screen content.',
+    '', 'notch', {toggle: !!ctx.state.notchOn});
   return section;
 }
 

@@ -1,4 +1,4 @@
-package com.rpm.prototype.notchlab;
+package com.rpm.prototype;
 
 /** Where the island sits, in screen pixels: centred on the camera hole, or top-centre when there is none. */
 final class NotchAnchor {

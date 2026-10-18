@@ -1,4 +1,4 @@
-package com.rpm.prototype.notchlab;
+package com.rpm.prototype;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;

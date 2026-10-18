@@ -1,4 +1,4 @@
-package com.rpm.prototype.notchlab;
+package com.rpm.prototype;
 
 import android.content.Context;
 import android.content.res.ColorStateList;
@@ -18,19 +18,17 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.rpm.prototype.R;
-import com.rpm.prototype.notchlab.PillPriority.Kind;
+import com.rpm.prototype.PillPriority.Kind;
 
 /** Builds the views inside the island, in the Atoll / SmartIsland look: pure black, one accent per kind. */
 final class NotchContent {
     static final int WHITE_60 = 0x99FFFFFF;
     static final int WHITE_87 = 0xDEFFFFFF;
     static final int WATER = 0xFF7CACF8;
-    static final int MEAL = 0xFFF2A93B;
-    static final int AGENT = 0xFFC58AF9;
     static final int TRACK = 0x2EFFFFFF;
     static final int AREA_STUDY = 0xFF0842A0;
     static final int AREA_STUDY_ON = 0xFFD3E3FD;
+    static final int WATER_ART = 0xFF0B57D0;
 
     interface Actions {
         void done();
@@ -40,19 +38,19 @@ final class NotchContent {
         void logMeal();
 
         void capture();
-
-        void askAgent();
     }
 
     static final class Row {
         final Kind kind;
         final String title;
         final String value;
+        final long at;
 
-        Row(Kind kind, String title, String value) {
+        Row(Kind kind, String title, String value, long at) {
             this.kind = kind;
             this.title = title;
             this.value = value;
+            this.at = at;
         }
     }
 
@@ -63,21 +61,11 @@ final class NotchContent {
     }
 
     static int accent(Kind kind) {
-        switch (kind) {
-            case WATER: return WATER;
-            case MEAL: return MEAL;
-            case AGENT: return AGENT;
-            default: return WHITE_60;
-        }
+        return kind == Kind.WATER ? WATER : WHITE_60;
     }
 
     static int icon(Kind kind) {
-        switch (kind) {
-            case WATER: return R.drawable.notch_ic_water;
-            case MEAL: return R.drawable.notch_ic_meal;
-            case AGENT: return R.drawable.notch_ic_agent;
-            default: return R.drawable.notch_ic_task;
-        }
+        return kind == Kind.WATER ? R.drawable.notch_ic_water : R.drawable.notch_ic_task;
     }
 
     int leadWidth(int pillHeight) {
@@ -112,52 +100,57 @@ final class NotchContent {
         return box;
     }
 
-    /** Expanded panel: one hero row (task, bar, bare controls), then at most three small rows. */
-    View panel(int topInset, String title, String subtitle, int elapsedMin, int leftMin, Row[] rows, Actions actions) {
+    /** Expanded panel: one hero row (task or water, bar, bare controls), then at most three small rows. */
+    View panel(int topInset, NotchScene scene, Actions actions) {
         LinearLayout col = new LinearLayout(context);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setPadding(dp(20), topInset, dp(20), dp(14));
+        boolean task = scene.hero != null;
+        String title = task ? scene.hero.task.title : "Water";
+        String subtitle = task ? scene.subtitle : scene.water.count + " of " + scene.water.goal + " glasses today" + (scene.waterDue() ? " · due now" : "");
 
         LinearLayout hero = new LinearLayout(context);
         hero.setGravity(Gravity.CENTER_VERTICAL);
         FrameLayout art = new FrameLayout(context);
-        art.setBackground(round(AREA_STUDY, dp(14)));
-        ImageView artIcon = glyph(R.drawable.notch_ic_task, AREA_STUDY_ON);
-        art.addView(artIcon, new FrameLayout.LayoutParams(dp(30), dp(30), Gravity.CENTER));
+        art.setBackground(round(task ? AREA_STUDY : WATER_ART, dp(14)));
+        art.addView(glyph(task ? R.drawable.notch_ic_task : R.drawable.notch_ic_water, AREA_STUDY_ON), new FrameLayout.LayoutParams(dp(30), dp(30), Gravity.CENTER));
         hero.addView(art, new LinearLayout.LayoutParams(dp(60), dp(60)));
         LinearLayout words = new LinearLayout(context);
         words.setOrientation(LinearLayout.VERTICAL);
         words.addView(text(title, 17, Color.WHITE, 600));
-        words.addView(text(subtitle, 14, WHITE_60, 400));
+        words.addView(text(subtitle, 14, task ? WHITE_60 : WATER, 400));
         LinearLayout.LayoutParams wordsLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
         wordsLp.setMarginStart(dp(14));
         hero.addView(words, wordsLp);
         col.addView(hero);
 
+        String start = task ? scene.barStart : String.valueOf(scene.water.count);
+        String end = task ? scene.barEnd : String.valueOf(scene.water.goal);
+        float fraction = task ? scene.progress : scene.water.count / (float) scene.water.goal;
         LinearLayout bar = new LinearLayout(context);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.addView(text(elapsedMin + "m", 12, WHITE_60, 500));
+        bar.addView(text(start, 12, WHITE_60, 500));
         LinearLayout.LayoutParams trackLp = new LinearLayout.LayoutParams(0, dp(4), 1);
         trackLp.setMargins(dp(12), 0, dp(12), 0);
-        bar.addView(new Bar(context, elapsedMin / (float) (elapsedMin + leftMin), WHITE_87), trackLp);
-        bar.addView(text("-" + leftMin + "m", 12, WHITE_60, 500));
-        bar.setContentDescription(elapsedMin + " minutes done, " + leftMin + " minutes left");
+        bar.addView(new Bar(context, fraction, task ? WHITE_87 : WATER), trackLp);
+        bar.addView(text(end, 12, WHITE_60, 500));
+        bar.setContentDescription(task ? (scene.running ? scene.barStart + " done, " + scene.pillValue + " left" : "Starts at " + scene.barStart + ", lasts " + scene.barEnd)
+                : scene.water.count + " of " + scene.water.goal + " glasses");
         LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(24));
         barLp.topMargin = dp(12);
         col.addView(bar, barLp);
 
         LinearLayout controls = new LinearLayout(context);
         controls.setGravity(Gravity.CENTER);
-        controls.addView(control(R.drawable.notch_ic_snooze, 26, "Snooze water", actions::snoozeWater), cell());
-        controls.addView(control(R.drawable.notch_ic_meal, 26, "Log a meal", actions::logMeal), cell());
-        controls.addView(control(R.drawable.notch_ic_done, 40, "Done: " + title, actions::done), cell());
-        controls.addView(control(R.drawable.notch_ic_capture, 26, "Quick capture", actions::capture), cell());
-        controls.addView(control(R.drawable.notch_ic_agent, 26, "Ask the agent", actions::askAgent), cell());
+        if (scene.waterDue()) controls.addView(control(R.drawable.notch_ic_snooze, 26, "Snooze water " + scene.snoozeMinutes + " minutes", actions::snoozeWater), cell());
+        if (scene.canLogMeal) controls.addView(control(R.drawable.notch_ic_meal, 26, "Log a meal", actions::logMeal), cell());
+        if (task) controls.addView(control(R.drawable.notch_ic_done, 40, "Done: " + title, actions::done), cell());
+        controls.addView(control(R.drawable.notch_ic_capture, 26, "Capture", actions::capture), cell());
         LinearLayout.LayoutParams controlsLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
         controlsLp.topMargin = dp(4);
         col.addView(controls, controlsLp);
 
-        for (int i = 0; i < Math.min(3, rows.length); i++) col.addView(smallRow(rows[i]), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)));
+        for (Row r : scene.rows) col.addView(smallRow(r), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)));
         return col;
     }
 
@@ -177,7 +170,7 @@ final class NotchContent {
         FrameLayout target = new FrameLayout(context);
         target.addView(glyph(icon, sizeDp > 30 ? Color.WHITE : WHITE_87), new FrameLayout.LayoutParams(dp(sizeDp), dp(sizeDp), Gravity.CENTER));
         target.setContentDescription(label);
-        target.setOnClickListener(v -> NotchOverlays.safely(label, action));
+        target.setOnClickListener(v -> NotchController.safely(label, action));
         return target;
     }
 
