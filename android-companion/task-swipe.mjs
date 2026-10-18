@@ -1,12 +1,46 @@
-// Vertical movement belongs to scrolling. Horizontal swipes reveal their intent while dragging (Things and Todoist:
-// right schedules, left deletes); cancellation and short gestures never change the plan.
-export const SWIPE_COMMIT = 90;
-export function swipeAction(dx,dy){return Math.abs(dx)>=SWIPE_COMMIT&&Math.abs(dx)>Math.abs(dy)*1.5?(dx>0?'schedule':'remove'):null;}
+// Row gestures, pointer events only. Vertical movement belongs to scrolling: a drag locks to one axis once it has
+// moved SWIPE_LOCK px, and only a horizontal lock moves the row. Short drags and cancels never change the plan.
+import {reducedMotion} from './motion-core.mjs';
 
-const REVEAL = {schedule: ['event_upcoming', 'Schedule'], remove: ['delete', 'Delete']};
+export const SWIPE_LOCK = 8;
+export const SWIPE_COMMIT = 90;
+export const LONG_PRESS = 400;
+/** Horizontal must lead vertical by this factor, so a slightly slanted scroll stays a scroll. */
+export const X_BIAS = 1.2;
+const SETTLE = 200;
+const CARRY = 150;
+
+/** 'x' (the row's swipe), 'y' (the page's scroll), or null while the finger is still within SWIPE_LOCK. */
+export function lockAxis(dx, dy) {
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_LOCK) return null;
+  return Math.abs(dx) > Math.abs(dy) * X_BIAS ? 'x' : 'y';
+}
+
+export const swipeSide = dx => (dx > 0 ? 'right' : dx < 0 ? 'left' : null);
+
+/** The side whose action fires when a horizontal drag is let go at `dx`; null springs the row back. */
+export function releaseSide(dx, sides) {
+  const side = swipeSide(dx);
+  return side && sides[side] && Math.abs(dx) >= SWIPE_COMMIT ? side : null;
+}
+
+/** With the finger toward a side that acts (up to 80% of the row's width); at rest toward one that does not. */
+export function rowOffset(dx, sides, width) {
+  const side = swipeSide(dx);
+  if (!side || !sides[side]) return 0;
+  const limit = (width || 200) * 0.8;
+  return Math.max(-limit, Math.min(limit, dx));
+}
+
+export const REVEALS = {
+  done: ['check', 'Done'],
+  schedule: ['event_upcoming', 'Schedule'],
+  move: ['drive_file_move', 'Move'],
+  remove: ['delete', 'Delete'],
+};
 
 /** The coloured layer under a dragged row: an icon and the word, so colour is never the only signal. */
-function reveal(row, kind) {
+function reveal(row, kind, side) {
   let layer = row.querySelector(':scope > .swipe-reveal');
   if (!layer) {
     layer = document.createElement('span');
@@ -18,69 +52,136 @@ function reveal(row, kind) {
     word.className = 'swipe-word';
     layer.append(symbol, word);
     row.prepend(layer);
-    // The row's own surface slides over the reveal, so the reveal shows only where the row has moved away.
     let surface = 'transparent';
     for (let node = row; node && surface === 'transparent'; node = node.parentElement) {
       const bg = getComputedStyle(node).backgroundColor;
       if (bg && bg !== 'transparent' && !/rgba\(.*,\s*0\)$/.test(bg)) surface = bg;
     }
     row.style.setProperty('--swipe-surface', surface === 'transparent' ? 'var(--surface)' : surface);
+    row.style.setProperty('--swipe-edge', getComputedStyle(row).borderTopColor);
   }
   layer.dataset.kind = kind;
-  const [symbol, word] = REVEAL[kind];
+  layer.dataset.side = side;
+  const [symbol, word] = REVEALS[kind];
   layer.firstChild.textContent = symbol;
   layer.lastChild.textContent = word;
   return layer;
 }
 
+const vibrate = () => { if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(10); };
+
 /**
- * actions: {schedule(row), remove(row)}. While dragging, the row follows the finger over its reveal; past the commit
- * distance the reveal fills (armed). On release a schedule springs the row back and opens the date choices; a delete
- * carries the row off the edge first, so the removal reads as the gesture's end.
+ * sides: right and left, each {kind, run(row), leave}. `run` acts and may resolve false when nothing happened.
+ * `leave` carries the row off its edge first (150ms) and it then collapses where it was; otherwise the row springs back
+ * (200ms) as `run` opens its choices. Past SWIPE_COMMIT the reveal fills and its icon grows, with one haptic tick.
+ * hold(row) runs when the row is held still for LONG_PRESS ms, on a right click, or on the keyboard's menu key.
  */
-export function attachTaskSwipe(row,actions){
-  let start=null,dragged=false;
-  const motionOff=()=>document.documentElement.dataset.reduceMotion==='true'||matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const clear=()=>{row.querySelector(':scope > .swipe-reveal')?.remove();row.style.removeProperty('--swipe-surface');delete row.dataset.swipe;delete row.dataset.armed;};
-  const settle=()=>{
-    start=null;
-    if(!row.dataset.swipe){row.style.removeProperty('--swipe-offset');return;}
-    row.classList.add('swipe-settling');
-    row.style.setProperty('--swipe-offset','0px');
-    const done=()=>{row.classList.remove('swipe-settling');row.style.removeProperty('--swipe-offset');clear();};
-    if(motionOff())done();else setTimeout(done,200);
+export function attachSwipe(row, {right = null, left = null, hold = null, haptic = vibrate} = {}) {
+  const sides = {right, left};
+  let start = null, axis = null, armed = false, swallow = false, timer = 0;
+  row.classList.add('swipe-task');
+  const offset = px => row.style.setProperty('--swipe-offset', px + 'px');
+  const after = (ms, fn) => (reducedMotion() ? fn() : setTimeout(fn, ms));
+  const clear = () => {
+    row.querySelector(':scope > .swipe-reveal')?.remove();
+    for (const name of ['--swipe-offset', '--swipe-surface', '--swipe-edge']) row.style.removeProperty(name);
+    delete row.dataset.swipe;
+    delete row.dataset.armed;
   };
-  row.addEventListener('pointerdown',e=>{if(e.isPrimary===false||e.button>0||e.target.closest('select,input,textarea')||row.classList.contains('swipe-leaving'))return;start={x:e.clientX,y:e.clientY};dragged=false;row.classList.remove('swipe-settling');});
-  row.addEventListener('pointermove',e=>{
-    if(!start)return;const dx=e.clientX-start.x,dy=e.clientY-start.y;
-    if(!dragged&&Math.abs(dy)>16&&Math.abs(dy)>Math.abs(dx)){settle();return;}
-    if(dragged||(Math.abs(dx)>16&&Math.abs(dx)>Math.abs(dy)*1.5)){
-      dragged=true;row.setPointerCapture?.(e.pointerId);
-      const kind=dx>0?'schedule':'remove';
-      if(!actions[kind])return;
-      reveal(row,kind);row.dataset.swipe=kind;
-      row.dataset.armed=String(Math.abs(dx)>=SWIPE_COMMIT);
-      const limit=row.offsetWidth*.6||160;
-      row.style.setProperty('--swipe-offset',Math.max(-limit,Math.min(limit,dx))+'px');
-    }
+  const settle = () => {
+    if (!row.dataset.swipe) return clear();
+    row.classList.add('swipe-settling');
+    offset(0);
+    after(SETTLE, () => { row.classList.remove('swipe-settling'); clear(); });
+  };
+  /** The click that ends this press never reaches what is under the finger; any later click does. */
+  const eatClick = () => {
+    swallow = true;
+    document.addEventListener('pointerup', () => setTimeout(() => { swallow = false; }), {once: true, capture: true});
+  };
+  const held = pressed => {
+    clearTimeout(timer);
+    start = null;
+    if (pressed) eatClick();
+    haptic();
+    hold(row);
+  };
+  row.addEventListener('pointerdown', event => {
+    swallow = false;
+    if (event.isPrimary === false || event.button > 0 || event.target.closest('input,select,textarea')
+      || row.classList.contains('swipe-leaving')) return;
+    start = {x: event.clientX, y: event.clientY, id: event.pointerId};
+    axis = null;
+    armed = false;
+    row.classList.remove('swipe-settling');
+    if (hold) timer = setTimeout(() => { if (start && !axis) held(true); }, LONG_PRESS);
   });
-  row.addEventListener('pointerup',e=>{
-    const action=start&&swipeAction(e.clientX-start.x,e.clientY-start.y);
-    if(!action||!actions[action]){settle();setTimeout(()=>dragged=false,0);return;}
-    dragged=true;start=null;setTimeout(()=>dragged=false,0);
-    if(action==='remove'){
-      // Off the edge, then the row collapses where it was (the re-render keeps this row as its collapsing ghost).
-      row.classList.add('swipe-settling','swipe-leaving');
-      row.style.setProperty('--swipe-offset',-(row.offsetWidth+24)+'px');
-      // A delete that did not happen brings the row back.
-      const back=()=>{if(!row.isConnected)return;row.classList.remove('swipe-leaving');row.dataset.swipe='remove';settle();};
-      const go=()=>{row.classList.remove('swipe-settling');Promise.resolve(actions.remove(row)).then(ok=>{if(ok===false)back();},back);};
-      if(motionOff())go();else setTimeout(go,150);
+  row.addEventListener('pointermove', event => {
+    if (!start || event.pointerId !== start.id) return;
+    if (row.classList.contains('lifted')) { start = null; clearTimeout(timer); return; }
+    const dx = event.clientX - start.x, dy = event.clientY - start.y;
+    if (!axis) {
+      axis = lockAxis(dx, dy);
+      if (!axis) return;
+      clearTimeout(timer);
+      if (axis === 'y') { start = null; return; }
+      try { row.setPointerCapture(event.pointerId); } catch {}
+    }
+    const side = swipeSide(dx);
+    const spec = side && sides[side];
+    offset(rowOffset(dx, sides, row.offsetWidth));
+    if (!spec) { delete row.dataset.armed; return; }
+    reveal(row, spec.kind, side);
+    row.dataset.swipe = side;
+    const now = Math.abs(dx) >= SWIPE_COMMIT;
+    if (now && !armed) haptic();
+    armed = now;
+    row.dataset.armed = String(now);
+  });
+  row.addEventListener('pointerup', event => {
+    clearTimeout(timer);
+    if (!start || event.pointerId !== start.id) return;
+    const dx = event.clientX - start.x;
+    const dragged = axis === 'x';
+    start = null;
+    if (!dragged) return;
+    swallow = true;
+    setTimeout(() => { swallow = false; });
+    const side = releaseSide(dx, sides);
+    if (!side) return settle();
+    const spec = sides[side];
+    if (!spec.leave) {
+      settle();
+      spec.run(row);
       return;
     }
-    settle();
-    actions.schedule(row);
+    row.classList.add('swipe-settling', 'swipe-leaving');
+    offset((side === 'right' ? 1 : -1) * (row.offsetWidth + 24));
+    const back = () => { if (!row.isConnected) return; row.classList.remove('swipe-leaving'); settle(); };
+    after(CARRY, () => {
+      row.classList.remove('swipe-settling');
+      Promise.resolve(spec.run(row)).then(ok => { if (ok === false) back(); }, back);
+    });
   });
-  row.addEventListener('pointercancel',settle);
-  row.addEventListener('click',e=>{if(dragged){e.preventDefault();e.stopImmediatePropagation();}},true);
+  row.addEventListener('pointercancel', () => {
+    clearTimeout(timer);
+    if (axis === 'x') settle();
+    start = null;
+  });
+  row.addEventListener('contextmenu', event => {
+    if (!hold) return;
+    event.preventDefault();
+    if (!swallow) held(false);
+  });
+  row.addEventListener('click', event => {
+    if (!swallow) return;
+    swallow = false;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+}
+
+/** The weekly review's Inbox list keeps its own pair: right schedules, left deletes (with Undo). */
+export function attachTaskSwipe(row, {schedule = null, remove = null}) {
+  attachSwipe(row, {right: schedule && {kind: 'schedule', run: schedule}, left: remove && {kind: 'remove', run: remove, leave: true}});
 }

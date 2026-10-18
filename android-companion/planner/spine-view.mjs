@@ -79,6 +79,7 @@ function taskCard(row, on) {
     card.append(resolve);
   }
   if (row.elapsed) card.append(elapsedBar(row));
+  if (!row.done) on.gestures?.(card, row);
   return card;
 }
 
