@@ -13,8 +13,9 @@ function text(tag,cls,value){
  return node;
 }
 
-/** One line per model call: "claude-haiku-5.5 · none · 2.1 s · ok". */
-const runLine=run=>[shortModel(run.servedModel??run.model),run.effort,run.ms!=null?`${(run.ms/1000).toFixed(1)} s`:null,run.ok===false?(run.error??'failed'):'ok',run.escalated?`then ${run.escalated}`:null].filter(Boolean).join(' · ');
+/** One line per model call: "claude-haiku-5-5 · Claude · none · 2.1 s · ok". */
+const SERVICE={anthropic:'Claude',openrouter:'OpenRouter'};
+const runLine=run=>[shortModel(run.servedModel??run.model),SERVICE[run.service],run.serviceFallback?`after ${run.serviceFallback}`:null,run.effort,run.ms!=null?`${(run.ms/1000).toFixed(1)} s`:null,run.ok===false?(run.error??'failed'):'ok',run.escalated?`then ${run.escalated}`:null].filter(Boolean).join(' · ');
 
 /**
  * Settings → Diagnostics: the capture traces kept on this phone, newest first, so a likely mistake can be read

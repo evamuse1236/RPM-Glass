@@ -27,7 +27,7 @@ public class CompanionActivity extends Activity {
     private FrameLayout root;private int insetTop=0,insetBottom=0,insetLeft=0,insetRight=0,systemBottom=0;
     private final ExecutorService work=Executors.newFixedThreadPool(2);
     private final ExecutorService captureInput=Executors.newSingleThreadExecutor();
-    private final ModelRequests modelRequests=new ModelRequests();private final OpenRouterGateway openRouter=new OpenRouterGateway(this);
+    private final ModelRequests modelRequests=new ModelRequests();private final ModelGateway models=new ModelGateway(this);
     @Override public void onCreate(Bundle saved){super.onCreate(saved);expanded=saved!=null&&saved.getBoolean("expanded");getWindow().setBackgroundDrawableResource(android.R.color.transparent);getWindow().setDimAmount(.12f);getWindow().addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE|WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
         if(planning()){expanded=true;getWindow().setDimAmount(0);getWindow().setBackgroundDrawableResource(R.color.rpm_surface);}
         web=new WebView(this);if(!planning())web.setAlpha(0);web.setBackgroundColor(planning()?getColor(R.color.rpm_surface):Color.TRANSPARENT);WebSettings s=web.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setAllowFileAccess(false);s.setAllowContentAccess(false);s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);s.setMediaPlaybackRequiresUserGesture(true);s.setSupportMultipleWindows(false);s.setJavaScriptCanOpenWindowsAutomatically(false);s.setSafeBrowsingEnabled(true);applyTextScale();
@@ -137,8 +137,8 @@ public class CompanionActivity extends Activity {
                     case "calendarRead":result=PlannerCalendar.read(CompanionActivity.this,p.optLong("anchor",System.currentTimeMillis()));break;
                     case "calendarSelect":PlannerCalendar.select(CompanionActivity.this,p.getJSONArray("ids"));result=new JSONObject();break;
                     case "calendarPermission":runOnUiThread(()->requestPermissions(new String[]{android.Manifest.permission.READ_CALENDAR},301));result=new JSONObject();break;
-                    case "model":result=openRouter.model(p.getJSONObject("body"),request);break;
-                    case "decision":result=openRouter.decision(p.getJSONObject("body"),request);break;
+                    case "model":result=models.model(p.getJSONObject("body"),CompanionKey.Service.named(p.optString("service",CompanionKey.Service.OPENROUTER.id)),request);break;
+                    case "decision":result=models.decision(p.getJSONObject("body"),request);break;
                     case "arm":CompanionAlerts.arm(CompanionActivity.this,p.getLong("id"));result=new JSONObject();break;
                     case "settings":String settingsSection=p.optString("section","settings");runOnUiThread(()->openIntegratedSettings(settingsSection));result=new JSONObject();break;
                     case "planner":String plannerTarget=p.toString();runOnUiThread(()->startActivity(new Intent(CompanionActivity.this,PlannerActivity.class).putExtra("plannerTarget",plannerTarget)));result=new JSONObject();break;

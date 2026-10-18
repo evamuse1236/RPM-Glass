@@ -18,6 +18,7 @@ This replaces the Capture section of `PRODUCT.md` where they differ. `PRODUCT.md
 - Every other capture: `anthropic/claude-haiku-5.5`, no reasoning. Follow-ups to an open draft: Haiku at high effort.
 - Re-plan a day or week, sort the Inbox or backlog, advice, or a reading that changes more than three saved items: `anthropic/claude-sonnet-5.5` at high effort. A Haiku reading that turns out hard escalates to Sonnet; if Sonnet then fails, the Haiku reading is used.
 - Routing lives in `intent-v2/src/model-policy.mjs`; the native allowlist and limits in `ModelLimits.java`.
+- Settings holds two keys. Each call goes to the Anthropic Messages API first (`claude-haiku-5-5`, `claude-sonnet-5-5`, structured output in `output_config.format`, `intent-v2/adapters/claude.mjs`). When Claude has no key, cannot be reached, answers 401, 403, 429 or 5xx, the same call goes once to OpenRouter with the matching model. A 400 or an unusable Claude answer does not fall back. Planner suggestions (GPT Luna), meal guesses and Jev sorting stay on OpenRouter.
 
 ## The look
 

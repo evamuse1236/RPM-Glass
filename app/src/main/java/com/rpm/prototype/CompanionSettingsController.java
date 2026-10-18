@@ -28,7 +28,7 @@ final class CompanionSettingsController {
     private static final Set<String> ACTIONS=Set.of(
         "set_widget_text_scale","choose_alarm","preview_alarm","stop_preview","reminder_sound",
         "show_butterfly","hide_butterfly","overlay_permission","notch_toggle","notch_permission","notifications","exact_alarms",
-        "full_screen_alarms","check_alerts","connect_key","remove_key","import_context",
+        "full_screen_alarms","check_alerts","connect_key","connect_claude_key","connect_openrouter_key","remove_claude_key","remove_openrouter_key","import_context",
         "export_context","restore_backup","earlier_screens","diagnostics_connect","diagnostics_pause","diagnostics_resume","diagnostics_disconnect","diagnostics_upload"
     );
     private final Activity activity;
@@ -81,8 +81,10 @@ final class CompanionSettingsController {
             case "diagnostics_resume":Diagnostics.pause(activity,false);message="Full console capture and upload resumed.";break;
             case "diagnostics_disconnect":Diagnostics.disconnect(activity);message="Disconnected; queued logs cleared. Uploaded logs expire after 14 days.";break;
             case "diagnostics_upload":Diagnostics.uploadNow(activity);message="Upload requested. Reopen Settings to refresh delivery status.";break;
-            case "connect_key":runUi(this::keyDialog);message="Enter the key in the secure Android dialog.";break;
-            case "remove_key":runUi(this::removeKeyDialog);message="Review the secure removal confirmation.";break;
+            case "connect_key":case "connect_claude_key":runUi(()->keyDialog(CompanionKey.Service.CLAUDE));message="Enter the key in the secure Android dialog.";break;
+            case "connect_openrouter_key":runUi(()->keyDialog(CompanionKey.Service.OPENROUTER));message="Enter the key in the secure Android dialog.";break;
+            case "remove_claude_key":runUi(()->removeKeyDialog(CompanionKey.Service.CLAUDE));message="Review the secure removal confirmation.";break;
+            case "remove_openrouter_key":runUi(()->removeKeyDialog(CompanionKey.Service.OPENROUTER));message="Review the secure removal confirmation.";break;
             case "import_context":runUi(this::importDialog);message="Review the backup notice, then choose a context file.";break;
             case "export_context":runUi(()->activity.startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/json").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"rpm-companion-context.json"),EXPORT_CONTEXT));message="Choose where to save the context copy.";break;
             case "restore_backup":runUi(this::backups);message="Choose a private pre-import backup.";break;
@@ -139,15 +141,16 @@ final class CompanionSettingsController {
         dialog.setOnDismissListener(d->code.setText(""));dialog.show();dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
     }
 
-    private void keyDialog(){
-        EditText key=new EditText(activity);key.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);key.setSingleLine(true);key.setHint("OpenRouter API key");key.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);key.setPadding(30,20,30,20);
+    private void keyDialog(CompanionKey.Service service){
+        boolean claude=service==CompanionKey.Service.CLAUDE;
+        EditText key=new EditText(activity);key.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);key.setSingleLine(true);key.setHint(claude?"Claude API key (sk-ant-…)":"OpenRouter API key (sk-or-…)");key.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);key.setPadding(30,20,30,20);
         activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
-        AlertDialog dialog=new AlertDialog.Builder(activity).setTitle("Connect OpenRouter").setMessage("Used only for RPM chat. Saved encrypted on this phone; never bundled in the APK.").setView(key).setNegativeButton("Cancel",null).setPositiveButton("Save key",null).create();
-        dialog.setOnShowListener(d->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{try{CompanionKey.set(activity,key.getText().toString());key.setText("");dialog.dismiss();notifyChanged();toast("AI key connected.");}catch(Exception e){key.setError("Paste a valid key, then try again.");}}));
+        AlertDialog dialog=new AlertDialog.Builder(activity).setTitle(claude?"Connect Claude":"Connect OpenRouter").setMessage((claude?"Capture uses this key first.":"Used when Claude fails, and for planner suggestions and Jev sorting.")+" Saved encrypted on this phone; never bundled in the APK.").setView(key).setNegativeButton("Cancel",null).setPositiveButton("Save key",null).create();
+        dialog.setOnShowListener(d->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{try{CompanionKey.set(activity,service,key.getText().toString());key.setText("");dialog.dismiss();notifyChanged();toast(claude?"Claude key connected.":"OpenRouter key connected.");}catch(IllegalArgumentException e){key.setError(e.getMessage());}catch(Exception e){key.setError("The key could not be saved. Try again.");}}));
         dialog.setOnDismissListener(d->{key.setText("");activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);notifyChanged();});dialog.show();dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
     }
 
-    private void removeKeyDialog(){new AlertDialog.Builder(activity).setTitle("Remove AI key?").setMessage("Your plans and conversations stay on this phone.").setNegativeButton("Keep",null).setPositiveButton("Remove",(d,w)->background(()->CompanionKey.set(activity,null),"AI key removed.",false)).show();}
+    private void removeKeyDialog(CompanionKey.Service service){String name=service==CompanionKey.Service.CLAUDE?"Claude":"OpenRouter";new AlertDialog.Builder(activity).setTitle("Remove "+name+" key?").setMessage("Your plans and conversations stay on this phone.").setNegativeButton("Keep",null).setPositiveButton("Remove",(d,w)->background(()->CompanionKey.set(activity,service,null),name+" key removed.",false)).show();}
     private void importDialog(){new AlertDialog.Builder(activity).setTitle("Replace this companion's context?").setMessage("Your current copy will be backed up privately first. Imported alerts stay off until you enable them in Current plans.").setNegativeButton("Cancel",null).setPositiveButton("Choose file",(d,w)->activity.startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("application/json").addCategory(Intent.CATEGORY_OPENABLE),IMPORT_CONTEXT)).show();}
 
     private void backups(){

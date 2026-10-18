@@ -6,6 +6,9 @@ import {buildContext,sourceUnits} from '../src/context.mjs';
 import {setup,turn,operation,field,captured,seed} from './helpers.mjs';
 const input=raw=>({sourceUnits:sourceUnits(raw)});
 const route=raw=>intentModelPolicy({input:input(raw)});
+/** A phone with only an OpenRouter key: Claude reports no key, so these tests see the OpenRouter request. */
+const openRouterOnly=fn=>async(action,p)=>action==='model'&&p.service==='anthropic'?{status:0,missingKey:true}:fn(action,p);
+const transport=options=>nativeModelTransport({...options,native:openRouterOnly(options.native)});
 const answer=(content,model=HAIKU_MODEL)=>({status:200,body:{model,provider:'Anthropic',usage:{prompt_tokens:900,completion_tokens:80,cost:0.001},choices:[{finish_reason:'stop',message:{content:JSON.stringify(content)}}]}});
 
 for(const raw of ['Buy milk','Read tomorrow from 2 to 3.','Move my run to 6 am','I am tired tonight.','Remind me to call mom at 6'])
@@ -24,7 +27,7 @@ test('more than three changes to saved items is a re-plan; three or fewer stay q
 });
 
 test('Haiku requests leave reasoning out, use strict structured output and Claude providers',async()=>{
- let request,payload;const model=nativeModelTransport({model:HAIKU_MODEL,prompt:'prompt',providerNames:CLAUDE_PROVIDERS,native:async(action,p)=>{payload=p;request=p.body;return answer(turn());}});
+ let request,payload;const model=transport({model:HAIKU_MODEL,prompt:'prompt',providerNames:CLAUDE_PROVIDERS,native:async(action,p)=>{payload=p;request=p.body;return answer(turn());}});
  await model(input('Buy milk'),{route:route('Buy milk')});
  assert.equal(request.model,HAIKU_MODEL);assert.equal(request.reasoning,undefined);assert.equal(request.max_tokens,4000);
  assert.deepEqual(request.provider,{require_parameters:true,allow_fallbacks:true,only:[...CLAUDE_PROVIDERS]});
@@ -33,7 +36,7 @@ test('Haiku requests leave reasoning out, use strict structured output and Claud
  assert.equal(/maxLength|maxItems/.test(text),false);assert.equal(/"type":\[/.test(text),false);
 });
 test('Sonnet requests ask for high reasoning and a larger token budget',async()=>{
- let request;const model=nativeModelTransport({model:HAIKU_MODEL,prompt:'p',providerNames:CLAUDE_PROVIDERS,native:async(_,p)=>{request=p.body;return answer(turn(),SONNET_MODEL);}});
+ let request;const model=transport({model:HAIKU_MODEL,prompt:'p',providerNames:CLAUDE_PROVIDERS,native:async(_,p)=>{request=p.body;return answer(turn(),SONNET_MODEL);}});
  await model(input('Re-plan my week'),{route:route('Re-plan my week')});
  assert.equal(request.model,SONNET_MODEL);assert.deepEqual(request.reasoning,{effort:'high',exclude:true});assert.equal(request.max_tokens,16000);
 });
@@ -42,7 +45,7 @@ test('the provider schema keeps every key, enum and nullable shape of the local 
  assert.deepEqual(providerSchema(schema),{type:'object',properties:{a:{type:'string'},b:{anyOf:[{type:'string'},{type:'null'}]},c:{type:'array',items:{type:'string',enum:['x']}}},required:['a','b','c'],additionalProperties:false});
 });
 test('a dated model snapshot is accepted and usage lands on the run record',async()=>{
- const run={};const model=nativeModelTransport({model:HAIKU_MODEL,prompt:'p',providerNames:CLAUDE_PROVIDERS,native:async()=>answer(turn(),HAIKU_MODEL+'-20261001')});
+ const run={};const model=transport({model:HAIKU_MODEL,prompt:'p',providerNames:CLAUDE_PROVIDERS,native:async()=>answer(turn(),HAIKU_MODEL+'-20261001')});
  await model(input('Plan the lesson'),{route:route('Plan the lesson'),run});
  assert.equal(run.provider,'Anthropic');assert.equal(run.inputTokens,900);assert.equal(run.outputTokens,80);assert.match(run.requestId,/^intent-model:/);
 });
@@ -64,17 +67,17 @@ test('when the Sonnet follow-up fails, the valid Haiku reading is kept',async()=
  const runs=(await s.repository.load()).intentV2.captures.m1.modelRuns;assert.equal(runs[1].error,'TRANSPORT_ERROR');assert.equal(runs[1].fellBack,true);
 });
 test('transport outage is not a paid repair loop and keeps the original',async()=>{
- let calls=0;const model=nativeModelTransport({model:HAIKU_MODEL,prompt:'p',native:async()=>{calls++;throw new Error('Connection failed');}});const s=setup(model,{modelPolicy:intentModelPolicy,maxRepairCalls:1});
+ let calls=0;const model=transport({model:HAIKU_MODEL,prompt:'p',native:async()=>{calls++;throw new Error('Connection failed');}});const s=setup(model,{modelPolicy:intentModelPolicy,maxRepairCalls:1});
  const {result}=await captured(s,'Read');assert.equal(result.status,'captured');assert.equal(calls,1);assert.equal((await s.repository.load()).intentV2.captures.m1.raw,'Read');assert.equal(result.modelRuns[0].error,'TRANSPORT_ERROR');
 });
 test('invalid JSON can be repaired but an unexpected model or provider cannot',async()=>{
  for(const bad of ['json','model','provider']){
-  let calls=0;const models=[];const model=nativeModelTransport({model:HAIKU_MODEL,prompt:'p',providerNames:CLAUDE_PROVIDERS,native:async(_,p)=>{models.push(p.body.model);calls++;return {status:200,body:{model:bad==='model'?'wrong':p.body.model,provider:bad==='provider'?'other':'Anthropic',choices:[{finish_reason:'stop',message:{content:bad==='json'&&calls===1?'{':JSON.stringify(turn('Read',[operation([field('title','Read','Read')])]))}}]}};}});
+  let calls=0;const models=[];const model=transport({model:HAIKU_MODEL,prompt:'p',providerNames:CLAUDE_PROVIDERS,native:async(_,p)=>{models.push(p.body.model);calls++;return {status:200,body:{model:bad==='model'?'wrong':p.body.model,provider:bad==='provider'?'other':'Anthropic',choices:[{finish_reason:'stop',message:{content:bad==='json'&&calls===1?'{':JSON.stringify(turn('Read',[operation([field('title','Read','Read')])]))}}]}};}});
   const s=setup(model,{modelPolicy:intentModelPolicy,maxRepairCalls:1}),{result}=await captured(s,'Read');assert.equal(calls,bad==='json'?2:1);assert.equal(result.status,bad==='json'?'interpreted':'captured');if(bad==='json')assert.deepEqual(models,[HAIKU_MODEL,SONNET_MODEL]);
  }
 });
 test('stage deadlines abort native work and ignore a late valid response',async()=>{
- let resolve;const requests=[];const model=nativeModelTransport({model:HAIKU_MODEL,prompt:'p',native:async(a,p)=>{requests.push([a,p.requestId]);if(a==='cancelModel')return {};return new Promise(r=>resolve=r);}});
+ let resolve;const requests=[];const model=transport({model:HAIKU_MODEL,prompt:'p',native:async(a,p)=>{requests.push([a,p.requestId]);if(a==='cancelModel')return {};return new Promise(r=>resolve=r);}});
  const s=setup(model,{modelPolicy:()=>({model:HAIKU_MODEL,effort:'none',timeoutMs:15}),maxRepairCalls:1}),{result}=await captured(s,'Read');assert.equal(result.code,'TIMEOUT');assert.equal(requests.filter(([a])=>a==='model').length,1);assert.ok(requests.some(([a,id])=>a==='cancelModel'&&id===requests[0][1]));resolve(answer(turn()));await new Promise(r=>setTimeout(r,5));assert.equal((await s.repository.load()).intentV2.captures.m1.status,'captured');
 });
 test('local schedule context includes saved dates and computed endpoints, with no claim of calendar coverage',()=>{

@@ -151,9 +151,13 @@ function notchRows(ctx, section) {
 
 function accountSection(ctx) {
   const section = group('Account & backup', 'ai');
-  add(ctx, section, ctx.state.aiConnected ? 'Replace AI key' : 'Connect AI key', 'OpenRouter · Luna chat + review-only Jev sorting',
-    ctx.state.aiConnected ? 'Connected' : 'Not connected', 'connect_key');
-  if (ctx.state.aiConnected) add(ctx, section, 'Remove AI key', 'Plans and conversations stay on this phone', '', 'remove_key');
+  const {claudeKey, openRouterKey} = ctx.state;
+  add(ctx, section, claudeKey ? 'Replace Claude key' : 'Connect Claude key', 'Capture asks Claude first',
+    claudeKey ? 'Connected' : 'Not connected', 'connect_claude_key');
+  if (claudeKey) add(ctx, section, 'Remove Claude key', 'Plans and conversations stay on this phone', '', 'remove_claude_key');
+  add(ctx, section, openRouterKey ? 'Replace OpenRouter key' : 'Connect OpenRouter key',
+    'Backup when Claude fails; planner suggestions and Jev sorting', openRouterKey ? 'Connected' : 'Not connected', 'connect_openrouter_key');
+  if (openRouterKey) add(ctx, section, 'Remove OpenRouter key', 'Plans and conversations stay on this phone', '', 'remove_openrouter_key');
   const history = el('div', 'settings-subgroup');
   history.dataset.section = 'context-history';
   add(ctx, history, 'Import context copy', 'Backs up this phone first; imported alerts stay off', '', 'import_context');
@@ -161,7 +165,7 @@ function accountSection(ctx) {
   add(ctx, history, 'Restore a backup', 'Pre-import copies saved privately on this phone',
     ctx.state.backupCount ? String(ctx.state.backupCount) : 'None', 'restore_backup');
   add(ctx, history, 'Earlier RPM screens', 'Open the original planner', '', 'earlier_screens');
-  history.append(el('p', 'settings-note', 'Plans stay on this phone. Relevant context goes to OpenRouter when you chat; '
+  history.append(el('p', 'settings-note', 'Plans stay on this phone. Relevant context goes to Claude (or OpenRouter as backup) when you capture; '
     + 'connected diagnostics upload console output and error details.'));
   section.append(history);
   return section;
