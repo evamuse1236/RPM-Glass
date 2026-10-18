@@ -31,7 +31,7 @@ Preconditions:
 - `rpmctl open capture` has been run and the bar shows the field `Capture a thought`.
 
 - **Open.** Run `rpmctl shot capture-empty`. The bar shows the textarea named `Capture a thought`, a `+` button named `More: planner, history, settings` and a round `Voice input` button. `Send` replaces `Voice input` once something is typed. There is no header.
-- **Send with no key.** Type words, then press `rpmctl key enter`. A card above the bar reads `Your words are saved` with the words quoted, then `Connect an AI key to sort this into your plan. Your words stay saved either way.` with buttons `Edit`, `Retry` and `Connect an AI key`. Run `rpmctl shot capture-keyless-saved`.
+- **Send with no key.** Type words, then press `rpmctl key enter`. A card above the bar shows a green check and the words quoted on one line (a button named `Your words are saved: <words>`; a tap shows them all), with buttons `Edit`, `Retry` and `Connect an AI key`. Run `rpmctl shot capture-keyless-saved`.
 - **Readback.** Run `rpmctl state files/companion.json`. Under `intentV2.captures`, one entry has `raw` equal to the typed words and `status` `captured`, with a `lastError`. No task with that title exists in `entries`.
 - **Edit the kept words.** With the field empty, tap `Edit`. The words return to the field.
 - **Connect.** Tap `Connect an AI key`. The planner opens its Settings with the `Connect OpenRouter` dialog. Cancel it, then run `rpmctl open capture`.
@@ -43,7 +43,7 @@ Preconditions:
 - **Starters.** `What’s planned today?` sends that question. Without a key the card `Your words are saved` quotes it. `Plan a Result` puts `Help me plan a Result: ` in the field without sending.
 - **Voice.** With the field empty tap `Voice input`. A card reads `Listening`, and Android's speech window opens. Spoken text cannot be produced here, so the transcript is **UNVERIFIED**.
 - **Close.** Tap the empty screen above the bar. Capture closes.
-- **Model path (UNVERIFIED on the emulator).** With a key, a message shows `Saving your words`, then `Your words are saved · Reading them now.`, then either a receipt (`Added Call the bank` / `Mon 19 Oct, 10:30 AM · Inbox` with `Undo` and `Closing in 5s`), a change card (`Changed. Keep it?` with the old time struck through, `Undo` and `Keep`), or an answer card (`Today, …` with the agenda). Undo moves deleted tasks back from Trash.
+- **Model path (UNVERIFIED on the emulator).** With a key, a message shows `Saving your words`, then `Your words are saved · Reading them now.`, then either a receipt (`2 added`, then per item an image named `Added`, the title and chips such as `Mon 19 Oct`, `10:30 AM`, `Inbox`, with `Undo` and `Closing in 5s`), a change card (`Changed. Keep it?` with the old time struck through inside its chip, `Undo` and `Keep`), or an answer card (`Today, …` with the agenda). Undo moves deleted tasks back from Trash.
 - **Traces.** Each capture writes one trace. The planner's Settings → Diagnostics → `Recent captures` lists them with model, timing, outcome and Undo marks.
 
 ## Gotchas

@@ -1,6 +1,7 @@
 import {el,icon,button} from './capture-dom.mjs';
 import {scheduleText} from './capture-content.mjs';
 import {actionPresentation} from './capture-session.mjs';
+import {line,lines,tally} from './capture-lines.mjs';
 
 const ENTITY={task:'Task',block:'Block',project:'Project',goal:'Goal',area:'Area'};
 const KEEPABLE=new Set(['idea','preference','question']);
@@ -30,6 +31,17 @@ function actionsRow(...nodes){
 }
 const words=raw=>el('p','words',raw);
 
+/** The saved words as one quoted line behind a check; a tap shows them all. */
+function keptWords(raw){
+ const row=el('button','kept-words');
+ row.type='button';
+ row.setAttribute('aria-expanded','false');
+ row.setAttribute('aria-label',`Your words are saved: ${raw}`);
+ row.append(icon('check_circle',{fill:true}),el('span','words',raw));
+ row.addEventListener('click',()=>row.setAttribute('aria-expanded',String(row.getAttribute('aria-expanded')!=='true')));
+ return row;
+}
+
 export function opTitle(op){
  const set=op.fields.find(f=>f.name==='title'&&f.op==='set');
  return set?.value??op.targetTitle??ENTITY[op.entity]??'Item';
@@ -52,46 +64,17 @@ export function pendingCard({text,phase='saving',slow=false}){
 /** The model failed, or there is no key. The words stay saved and wait for Retry. */
 export function wordsKeptCard({raw,error,aiEnabled,saved=true},on){
  const node=card('failure');
- node.append(kicker(saved?'Your words are saved':'Not saved yet',{name:saved?'check_circle':'error',tone:saved?'done':'error'}));
- node.append(words(raw));
- const why=!aiEnabled?'Connect an AI key to sort this into your plan. Your words stay saved either way.'
-  :saved?(error?`Capture couldn’t read them: ${error}`:'Capture couldn’t read them yet.')
+ if(saved)node.append(keptWords(raw));
+ else node.append(kicker('Not saved yet',{name:'error',tone:'error'}),words(raw));
+ const why=!aiEnabled?null
+  :saved?(error?`Couldn’t read them: ${error}`:'Couldn’t read them yet.')
   :(error??'The phone did not respond.')+' Your words are still in the box.';
- node.append(el('p','quiet',why));
+ if(why)node.append(el('p','quiet',why));
  const edit=on.edit?button('Edit',()=>on.edit(raw),{role:'text'}):null;
  node.append(aiEnabled
   ?actionsRow(edit,button('Retry',on.retry,{role:'filled',iconName:'refresh'}))
   :actionsRow(edit,button('Retry',on.retry,{role:'text'}),button('Connect an AI key',on.connectAI,{role:'filled',iconName:'key'})));
  return node;
-}
-
-function line(row){
- const item=el('li','line');
- const head=el('p','line-head');
- head.append(el('span','verb',row.verb));
- const title=el('span','line-title',row.title||'Untitled');
- if(row.must){const star=icon('star',{fill:true,cls:'must-mark'});star.removeAttribute('aria-hidden');star.setAttribute('aria-label','Must');star.setAttribute('role','img');title.append(' ',star);}
- head.append(title);
- item.append(head);
- const meta=el('p','line-meta');
- const parts=[];
- if(row.renamedFrom)parts.push(['was',row.renamedFrom]);
- if(row.was&&row.when)parts.push(['was',row.was],['arrow','→'],['',row.when]);
- else if(row.when)parts.push(['',row.when]);
- if(row.where)parts.push(['',row.where]);
- if(row.alert)parts.push(['',row.alert==='alarm'?'Alarm':'Reminder']);
- parts.forEach(([cls,text],i)=>{
-  if(i&&parts[i-1][0]!=='arrow'&&cls!=='arrow')meta.append(' · ');
-  else if(i)meta.append(' ');
-  meta.append(cls==='was'?el('span','was',text):cls==='arrow'?el('span','',text+' '):text);
- });
- if(parts.length)item.append(meta);
- return item;
-}
-function lines(rows){
- const list=el('ul','lines');
- list.append(...rows.map(line));
- return list;
 }
 
 /** "Also heard": what was said but not planned, each keepable one tap away. */
@@ -120,9 +103,9 @@ export function alsoHeard(capture,on){
 /** New items: "Added · Call the bank · Today, 10:30 AM · Inbox" with Undo, and a countdown before Capture closes. */
 export function receiptCard(capture,{canUndo,on}){
  const draft=capture.draft,node=card('receipt');
- const kept=draft.confirm==='kept';
- if(kept)node.append(kicker('Kept',{name:'check_circle',tone:'done'}));
- node.append(lines(draft.lines?.length?draft.lines:[{verb:'Saved',title:capture.raw}]));
+ const rows=draft.lines?.length?draft.lines:[{verb:'Saved',title:capture.raw}];
+ node.append(kicker(draft.confirm==='kept'?'Kept':tally(rows),{name:'check_circle',tone:'done'}));
+ node.append(lines(rows));
  if(draft.applied?.warning)node.append(warnLine(draft.applied.warning));
  const also=alsoHeard(capture,on);
  if(also)node.append(also);
@@ -197,7 +180,7 @@ export function openCard(capture,on){
   const preview=draft.schedulePreview?.items?.find(p=>p.opId===op.opId);
   const when=scheduleText(preview,{timeZone:draft.schedulePreview?.timezone});
   const verb=op.kind==='create'?'New':op.kind==='complete'?'Done':op.kind==='archive'?'Trash':'Change';
-  list.append(line({verb,title:opTitle(op),when:when??null,was:null,where:null}));
+  list.append(line({verb,title:opTitle(op),when:when??null,was:null,where:null,minutes:null}));
  }
  if(draft.operations.length)node.append(list);
  node.append(words(capture.raw));
