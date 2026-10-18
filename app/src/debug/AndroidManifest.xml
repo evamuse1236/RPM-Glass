@@ -5,6 +5,7 @@
         <activity android:name=".notchlab.NotchLabActivity" android:exported="true" android:label="Notch lab" android:taskAffinity="com.rpm.prototype.notchlab" android:theme="@android:style/Theme.DeviceDefault">
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity>
+        <activity android:name=".notchlab.NotchTouchProbeActivity" android:exported="false" android:label="Notch touch probe" android:taskAffinity="com.rpm.prototype.notchlab" android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar" />
         <receiver android:name=".notchlab.LiveUpdateReceiver" android:exported="false" />
         <service android:name=".notchlab.NotchAccessibilityService" android:exported="true" android:label="RPM Notch lab (debug)" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>

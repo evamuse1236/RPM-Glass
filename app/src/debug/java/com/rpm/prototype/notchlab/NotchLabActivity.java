@@ -56,10 +56,14 @@ public final class NotchLabActivity extends Activity {
 
         section("B · Overlay pill (accessibility service)");
         button("Open accessibility settings", () -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
-        button("Overlay: task", () -> NotchOverlays.show(NotchOverlays.Mode.TASK, false));
-        button("Overlay: water", () -> NotchOverlays.show(NotchOverlays.Mode.WATER, false));
-        button("Overlay: expanded", () -> NotchOverlays.show(NotchOverlays.mode, true));
-        button("Overlay: hide", NotchOverlays::hideAccessibility);
+        button("Pill: task only", NotchOverlays::taskOnly);
+        button("Pill: water nudge (8 s)", () -> NotchOverlays.post(PillPriority.Kind.WATER, "Water"));
+        button("Pill: meal prompt (12 s)", () -> NotchOverlays.post(PillPriority.Kind.MEAL, "Lunch?"));
+        button("Pill: agent message (4 s)", () -> NotchOverlays.post(PillPriority.Kind.AGENT, "Moved Gym to 7 PM"));
+        button("Pill: expand", () -> NotchOverlays.setExpanded(true));
+        button("Pill: collapse", () -> NotchOverlays.setExpanded(false));
+        button("Pill: hide", NotchOverlays::hideAccessibility);
+        button("Open touch probe (full-screen app under the pill)", () -> startActivity(new Intent(this, NotchTouchProbeActivity.class)));
         button("Toggle plain overlay (TYPE_APPLICATION_OVERLAY)", () -> {
             if (!Settings.canDrawOverlays(this)) {
                 startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName())));

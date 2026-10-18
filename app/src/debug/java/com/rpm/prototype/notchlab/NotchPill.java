@@ -1,105 +1,183 @@
 package com.rpm.prototype.notchlab;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
-import android.graphics.drawable.GradientDrawable;
+import android.graphics.RectF;
 import android.hardware.display.DisplayManager;
 import android.os.Build;
-import android.text.TextUtils;
 import android.util.Log;
-import android.util.TypedValue;
 import android.view.Display;
 import android.view.DisplayCutout;
 import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewGroup;
+import android.view.WindowInsets;
 import android.view.WindowManager;
-import android.widget.Button;
-import android.widget.LinearLayout;
-import android.widget.TextView;
-import android.widget.Toast;
 
-import java.util.List;
+import com.rpm.prototype.notchlab.PillPriority.Item;
+import java.util.Locale;
+import com.rpm.prototype.notchlab.PillPriority.Kind;
 
-/** Approach B: one overlay window shaped like a pill around the camera cutout. */
-final class NotchPill {
-    private static final int TASK_COLOR = Color.BLACK;
-    private static final int WATER_COLOR = 0xFF1565C0;
+/** One overlay window holding the island. Collapsed, the window is only as big as the pill, so taps beside it reach the app. */
+final class NotchPill implements IslandView.Listener {
+    private static final int EAR_DP = 14;
+    private static final int PANEL_MARGIN_DP = 6;
+    private static final int PANEL_RADIUS_DP = 32;
+    private static final int SPLIT_GAP_DP = 8;
+    private static final int MIN_PILL_WIDTH_DP = 140;
+    private static final int TOUCH_HEIGHT_DP = 48;
 
     final String name;
     private final Context context;
     private final WindowManager wm;
     private final int type;
-    private LinearLayout root;
+    private final NotchContent content;
+    private IslandView island;
+    private WindowManager.LayoutParams lp;
+    private final Rect window = new Rect();
+    private final Rect settledWindow = new Rect();
+    private String mainKey;
+    private String splitKey;
     String placement = "not shown";
+    String cutoutSource = "not measured";
 
     NotchPill(Context context, int type, String name) {
         this.context = context;
         this.wm = context.getSystemService(WindowManager.class);
         this.type = type;
         this.name = name;
+        this.content = new NotchContent(context);
     }
 
     boolean isShown() {
-        return root != null;
+        return island != null;
     }
 
     void hide() {
-        if (root != null) {
-            wm.removeView(root);
-            root = null;
+        if (island != null) {
+            try {
+                wm.removeView(island);
+            } catch (RuntimeException e) {
+                Log.w(LiveUpdates.TAG, name + " removeView failed", e);
+            }
         }
+        island = null;
+        mainKey = null;
+        splitKey = null;
         placement = "not shown";
     }
 
-    void render() {
-        hide();
-        Rect cutout = cutoutRect(context);
+    void show(Item primary, Item secondary, boolean expanded, NotchContent.Actions actions) {
+        NotchAnchor anchor = anchor();
         int displayWidth = displayWidth();
-        boolean water = NotchOverlays.mode == NotchOverlays.Mode.WATER;
-        boolean expanded = NotchOverlays.expanded;
+        int h = anchor.pillHeight;
+        IslandView.Shape s = new IslandView.Shape();
+        s.expanded = expanded;
+        s.splitCy = anchor.centerY;
+        View main = null;
+        RectF mainAt;
+        View split = null;
+        RectF splitAt = null;
+        String nextSplitKey = "none";
+        if (expanded) {
+            int ear = dp(EAR_DP);
+            int x = dp(PANEL_MARGIN_DP) + ear;
+            int w = displayWidth - 2 * x;
+            int topInset = anchor.pillBottom() + dp(10);
+            View panel = content.panel(topInset, "Write RM essay", "Study · 25 min left", 20, 25, rows(primary), actions);
+            panel.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+            int ph = panel.getMeasuredHeight();
+            s.body.set(x, 0, x + w, ph);
+            s.bottomRadius = dp(PANEL_RADIUS_DP);
+            s.topRadius = 0;
+            s.ear = ear;
+            s.splitCx = x + h / 2f;
+            s.splitR = 0;
+            s.touch.set(x - ear, 0, x + w + ear, ph);
+            mainAt = new RectF(s.body);
+            String key = "panel:" + rowsKey(primary);
+            if (!key.equals(mainKey)) {
+                main = panel;
+                mainKey = key;
+            }
+        } else {
+            String value = valueFor(primary);
+            int lead = content.leadWidth(h);
+            int keep = Math.max(dp(24), anchor.holeDiameter + dp(12));
+            int trail = Math.max(content.trailWidth(value), dp(MIN_PILL_WIDTH_DP) - lead - keep);
+            int w = lead + keep + trail;
+            int x = clamp(anchor.centerX - keep / 2 - lead, dp(4), displayWidth - w - dp(4));
+            s.body.set(x, anchor.pillTop(), x + w, anchor.pillTop() + h);
+            s.bottomRadius = h / 2f;
+            s.topRadius = h / 2f;
+            s.ear = 0;
+            mainAt = new RectF(s.body);
+            if (secondary != null) {
+                s.splitR = h / 2f;
+                s.splitCx = x - dp(SPLIT_GAP_DP) - h / 2f;
+                splitAt = new RectF(s.splitCx - h / 2f, anchor.pillTop(), s.splitCx + h / 2f, anchor.pillTop() + h);
+                nextSplitKey = secondary.kind.name() + ":" + Math.round(s.splitCx);
+                if (!nextSplitKey.equals(splitKey)) split = content.split(secondary.kind, h);
+            } else {
+                s.splitR = 0;
+                s.splitCx = x + h / 2f;
+            }
+            float touchBottom = Math.max(s.body.bottom, anchor.centerY + dp(TOUCH_HEIGHT_DP) / 2f);
+            s.touch.set(secondary != null ? splitAt.left : x, 0, x + w, touchBottom);
+            String key = "pill:" + primary.kind + ":" + value + ":" + w;
+            if (!key.equals(mainKey)) {
+                main = content.pill(primary.kind, value, h, lead, keep, trail);
+                mainKey = key;
+            }
+        }
+        boolean splitChanged = !nextSplitKey.equals(splitKey);
+        splitKey = nextSplitKey;
 
-        int pillHeight = Math.max(cutout.height() + dp(10), dp(34));
-        int side = dp(84);
-        int gap = cutout.width() + dp(14);
-        int width = expanded ? Math.min(displayWidth - dp(24), dp(420)) : side * 2 + gap;
-        int x = Math.max(0, Math.min(cutout.centerX() - width / 2, displayWidth - width));
-        int y = Math.max(0, cutout.centerY() - pillHeight / 2);
+        Rect target = new Rect();
+        s.touch.roundOut(target);
+        settledWindow.set(target);
+        boolean firstFrame = island == null;
+        if (firstFrame && !attach(target)) return;
+        if (!firstFrame && ValueAnimator.areAnimatorsEnabled()) {
+            RectF drawn = island.drawnBounds();
+            Rect union = new Rect(target);
+            union.union(window);
+            union.union(Math.round(drawn.left), Math.round(drawn.top), Math.round(drawn.right), Math.round(drawn.bottom));
+            moveWindow(union);
+        }
+        island.setContentDescription(describe(primary, secondary, expanded));
+        island.setScene(s, main, mainAt, splitChanged, split, splitAt, firstFrame);
+        placement = "window " + window.toShortString() + " · " + anchor + " · via " + cutoutSource;
+        Log.i(LiveUpdates.TAG, name + " island " + (expanded ? "expanded" : primary.kind) + " " + placement);
+    }
 
-        root = new LinearLayout(context);
-        root.setOrientation(LinearLayout.VERTICAL);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(water ? WATER_COLOR : TASK_COLOR);
-        bg.setCornerRadius(expanded ? dp(28) : pillHeight / 2f);
-        root.setBackground(bg);
-        root.setPadding(dp(14), 0, dp(14), expanded ? dp(14) : 0);
+    @Override
+    public void onIslandTap() {
+        NotchOverlays.setExpanded(true);
+    }
 
-        LinearLayout header = new LinearLayout(context);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        TextView left = label(water ? "Water" : "Write RM essay", 14, Gravity.END | Gravity.CENTER_VERTICAL);
-        TextView right = label(water ? LiveUpdates.glasses + "/" + LiveUpdates.WATER_GOAL : "25m", 14, Gravity.START | Gravity.CENTER_VERTICAL);
-        right.setTextColor(water ? Color.WHITE : 0xFFB39DFF);
-        header.addView(left, new LinearLayout.LayoutParams(0, pillHeight, 1));
-        header.addView(new View(context), new LinearLayout.LayoutParams(gap, pillHeight));
-        header.addView(right, new LinearLayout.LayoutParams(0, pillHeight, 1));
-        root.addView(header, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, pillHeight));
-        header.setContentDescription(water ? "Water " + LiveUpdates.glasses + " of 8. Tap to expand." : "Write RM essay, 25 minutes left. Tap to expand.");
-        header.setOnClickListener(v -> NotchOverlays.setExpanded(!NotchOverlays.expanded));
+    @Override
+    public void onOutsideTap() {
+        if (NotchOverlays.expanded) NotchOverlays.setExpanded(false);
+    }
 
-        if (expanded) addPanel(water);
+    @Override
+    public void onSettled() {
+        if (island != null) moveWindow(settledWindow);
+    }
 
-        WindowManager.LayoutParams lp = new WindowManager.LayoutParams(width, ViewGroup.LayoutParams.WRAP_CONTENT, type,
+    private boolean attach(Rect bounds) {
+        island = new IslandView(context, this);
+        lp = new WindowManager.LayoutParams(bounds.width(), bounds.height(), type,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                         | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
                         | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
                 PixelFormat.TRANSLUCENT);
         lp.gravity = Gravity.TOP | Gravity.START;
-        lp.x = x;
-        lp.y = y;
+        lp.x = bounds.left;
+        lp.y = bounds.top;
         lp.setTitle("RPM notch lab (" + name + ")");
         if (Build.VERSION.SDK_INT >= 30) {
             lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
@@ -107,70 +185,99 @@ final class NotchPill {
         } else if (Build.VERSION.SDK_INT >= 28) {
             lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
         }
-
-        root.setOnTouchListener((v, e) -> {
-            if (e.getActionMasked() == MotionEvent.ACTION_OUTSIDE && NotchOverlays.expanded) {
-                NotchOverlays.setExpanded(false);
-                return true;
-            }
-            return false;
-        });
-        LinearLayout shown = root;
-        shown.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
-            int[] at = new int[2];
-            v.getLocationOnScreen(at);
-            placement = "asked x=" + x + " y=" + y + " · actual x=" + at[0] + " y=" + at[1] + " " + v.getWidth() + "x" + v.getHeight()
-                    + " · cutout " + cutout.toShortString();
-            Log.i(LiveUpdates.TAG, name + " pill " + placement);
-        });
         try {
-            wm.addView(root, lp);
+            wm.addView(island, lp);
+            window.set(bounds);
+            return true;
         } catch (RuntimeException e) {
-            root = null;
+            island = null;
+            mainKey = null;
+            splitKey = null;
             placement = "addView failed: " + e.getClass().getSimpleName() + ": " + e.getMessage();
             Log.w(LiveUpdates.TAG, name + " " + placement);
+            return false;
         }
     }
 
-    private void addPanel(boolean water) {
-        String[] rows = water
-                ? new String[]{"Water " + LiveUpdates.glasses + " of 8 glasses", "Next reminder in 45 min", "Last glass 10:40"}
-                : new String[]{"Now · Write RM essay · 25 min left", "Next · Call Prof. Rao · 16:00", "Later · Gym · 18:30"};
-        for (String row : rows) {
-            TextView t = label(row, 15, Gravity.START | Gravity.CENTER_VERTICAL);
-            t.setPadding(dp(4), dp(8), dp(4), dp(8));
-            root.addView(t, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        }
-        LinearLayout buttons = new LinearLayout(context);
-        buttons.setPadding(0, dp(8), 0, 0);
-        for (String label : new String[]{"Log a meal", "Quick capture", "Ask agent"}) {
-            Button b = new Button(context);
-            b.setText(label);
-            b.setAllCaps(false);
-            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-            b.setTextColor(Color.WHITE);
-            GradientDrawable chip = new GradientDrawable();
-            chip.setColor(0x33FFFFFF);
-            chip.setCornerRadius(dp(18));
-            b.setBackground(chip);
-            b.setMinHeight(dp(44));
-            b.setOnClickListener(v -> Toast.makeText(context, label + " (spike: not wired)", Toast.LENGTH_SHORT).show());
-            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(44), 1);
-            p.setMargins(dp(3), 0, dp(3), 0);
-            buttons.addView(b, p);
-        }
-        root.addView(buttons, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+    private void moveWindow(Rect bounds) {
+        if (bounds.equals(window) || island == null) return;
+        lp.x = bounds.left;
+        lp.y = bounds.top;
+        lp.width = bounds.width();
+        lp.height = bounds.height();
+        wm.updateViewLayout(island, lp);
+        window.set(bounds);
+        placement = "window " + window.toShortString() + " · via " + cutoutSource;
     }
 
-    private TextView label(String text, int sp, int gravity) {
-        TextView t = new TextView(context);
-        t.setText(text);
-        t.setTextColor(Color.WHITE);
-        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
-        t.setGravity(gravity);
-        t.setSingleLine(true);
-        t.setEllipsize(TextUtils.TruncateAt.END);
-        return t;
+    private static String valueFor(Item item) {
+        if (item.kind == Kind.WATER) return LiveUpdates.glasses + "/" + LiveUpdates.WATER_GOAL;
+        return item.text;
+    }
+
+    private static NotchContent.Row[] rows(Item primary) {
+        NotchContent.Row water = new NotchContent.Row(Kind.WATER, "Water", LiveUpdates.glasses + " of " + LiveUpdates.WATER_GOAL);
+        NotchContent.Row nudge = water;
+        if (primary != null && primary.kind == Kind.MEAL) nudge = new NotchContent.Row(Kind.MEAL, "Lunch not logged", "Log it");
+        if (primary != null && primary.kind == Kind.AGENT) nudge = new NotchContent.Row(Kind.AGENT, primary.text, "Undo");
+        return new NotchContent.Row[]{
+                new NotchContent.Row(Kind.TASK, "Call Prof. Rao", "4:00 PM"),
+                new NotchContent.Row(Kind.TASK, "Gym", "7:00 PM"),
+                nudge,
+        };
+    }
+
+    private static String rowsKey(Item primary) {
+        return (primary == null ? "none" : primary.kind.name()) + ":" + LiveUpdates.glasses;
+    }
+
+    private static String describe(Item primary, Item secondary, boolean expanded) {
+        if (expanded) return "Notch panel. Tap outside to close.";
+        String what;
+        switch (primary.kind) {
+            case WATER: what = "Water, " + LiveUpdates.glasses + " of " + LiveUpdates.WATER_GOAL + " glasses"; break;
+            case MEAL: what = "Lunch not logged"; break;
+            case AGENT: what = "Agent: " + primary.text; break;
+            default: what = "Write RM essay, " + primary.text + " left"; break;
+        }
+        return what + (secondary == null ? "" : ". Also " + secondary.kind.name().toLowerCase(Locale.ROOT)) + ". Tap to open.";
+    }
+
+    private NotchAnchor anchor() {
+        Rect hole = topCutout();
+        float density = context.getResources().getDisplayMetrics().density;
+        if (hole == null) return NotchAnchor.fallback(displayWidth(), density);
+        return NotchAnchor.fromCutout(hole.left, hole.top, hole.right, hole.bottom, density);
+    }
+
+    /** The cutout from the window insets; the Display's own cutout only when insets are unavailable. */
+    private Rect topCutout() {
+        if (Build.VERSION.SDK_INT < 29) {
+            cutoutSource = "none (Android 9 or older)";
+            return null;
+        }
+        DisplayCutout cutout = null;
+        if (Build.VERSION.SDK_INT >= 30) {
+            WindowInsets insets = wm.getMaximumWindowMetrics().getWindowInsets();
+            cutout = insets.getDisplayCutout();
+            cutoutSource = "window insets";
+        }
+        if (cutout == null) {
+            Display display = context.getSystemService(DisplayManager.class).getDisplay(Display.DEFAULT_DISPLAY);
+            cutout = display == null ? null : display.getCutout();
+            cutoutSource = "Display.getCutout";
+        }
+        if (cutout == null) {
+            cutoutSource = "none reported";
+            return null;
+        }
+        Rect top = null;
+        for (Rect r : cutout.getBoundingRects()) {
+            if (!r.isEmpty() && (top == null || r.top < top.top)) top = r;
+        }
+        if (top == null) cutoutSource += " (no rects)";
+        else cutoutSource += " " + top.toShortString();
+        return top;
     }
 
     private int displayWidth() {
@@ -179,33 +286,15 @@ final class NotchPill {
     }
 
     private int dp(int value) {
-        return Math.round(value * context.getResources().getDisplayMetrics().density);
+        return NotchAnchor.dp(value, context.getResources().getDisplayMetrics().density);
     }
 
-    /** Top cutout of the default display, or a centred stand-in when the display reports none. */
-    static Rect cutoutRect(Context context) {
-        if (Build.VERSION.SDK_INT >= 29) {
-            Display display = context.getSystemService(DisplayManager.class).getDisplay(Display.DEFAULT_DISPLAY);
-            DisplayCutout cutout = display == null ? null : display.getCutout();
-            if (cutout != null) {
-                List<Rect> rects = cutout.getBoundingRects();
-                Rect top = null;
-                for (Rect r : rects) if (top == null || r.top < top.top) top = r;
-                if (top != null && !top.isEmpty()) return top;
-            }
-        }
-        float density = context.getResources().getDisplayMetrics().density;
-        int w = context.getResources().getDisplayMetrics().widthPixels;
-        int h = Math.round(24 * density);
-        return new Rect(w / 2, Math.round(4 * density), w / 2, Math.round(4 * density) + h);
+    private static int clamp(int v, int lo, int hi) {
+        return Math.max(lo, Math.min(v, hi));
     }
 
     static String cutoutDescription(Context context) {
-        if (Build.VERSION.SDK_INT >= 29) {
-            Display display = context.getSystemService(DisplayManager.class).getDisplay(Display.DEFAULT_DISPLAY);
-            DisplayCutout cutout = display == null ? null : display.getCutout();
-            if (cutout != null && !cutout.getBoundingRects().isEmpty()) return "Cutout: " + cutoutRect(context).toShortString();
-        }
-        return "Cutout: none reported (pill uses top-centre stand-in)";
+        NotchPill probe = new NotchPill(context, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, "probe");
+        return "Anchor: " + probe.anchor() + " · via " + probe.cutoutSource;
     }
 }

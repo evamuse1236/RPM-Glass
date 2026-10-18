@@ -9,11 +9,13 @@ import android.view.accessibility.AccessibilityEvent;
 public final class NotchAccessibilityService extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
-        NotchOverlays.attachAccessibility(this);
+        NotchOverlays.safely("service connected", () -> NotchOverlays.attachAccessibility(this));
     }
 
     @Override
-    public void onAccessibilityEvent(AccessibilityEvent event) {}
+    public void onAccessibilityEvent(AccessibilityEvent event) {
+        NotchOverlays.safely("accessibility event", () -> NotchOverlays.refreshEnvironment(this));
+    }
 
     @Override
     public void onInterrupt() {}
@@ -21,12 +23,17 @@ public final class NotchAccessibilityService extends AccessibilityService {
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        NotchOverlays.renderAll();
+        NotchOverlays.safely("configuration changed", () -> NotchOverlays.refreshEnvironment(this));
     }
 
     @Override
     public boolean onUnbind(Intent intent) {
-        NotchOverlays.detachAccessibility();
-        return super.onUnbind(intent);
+        NotchOverlays.safely("unbind", NotchOverlays::detachAccessibility);
+        return true;
+    }
+
+    @Override
+    public void onRebind(Intent intent) {
+        NotchOverlays.safely("rebind", () -> NotchOverlays.attachAccessibility(this));
     }
 }

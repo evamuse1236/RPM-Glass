@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Symbols Rounded (Apache 2.0), glyph "water_drop.fill". -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="960" android:viewportHeight="960">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M160 552Q160 490 188.0 428.0Q216 366 258.0 309.0Q300 252 349.0 202.0Q398 152 440 115Q448 107 458.5 103.5Q469 100 480.0 100.0Q491 100 501.5 103.5Q512 107 520 115Q562 152 611.0 202.0Q660 252 702.0 309.0Q744 366 772.0 428.0Q800 490 800 552Q800 692 708.5 786.0Q617 880 480.0 880.0Q343 880 251.5 786.0Q160 692 160 552ZM491 760Q503 759 511.5 750.5Q520 742 520 730Q520 716 511.0 707.5Q502 699 488 700Q447 703 401.0 677.5Q355 652 343 585Q341 574 332.5 567.0Q324 560 313 560Q299 560 290.0 570.5Q281 581 284 595Q301 686 364.0 725.0Q427 764 491 760Z" />
+</vector>
