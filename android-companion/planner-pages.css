@@ -1,0 +1,348 @@
+/* Blocks and Projects cards */
+.filters { padding-top: 0; }
+.block-card, .project-card {
+  display: block;
+  width: calc(100% - 2 * var(--gutter));
+  margin: var(--s3) var(--gutter) 0;
+  border-radius: var(--card-radius);
+  background: var(--surface-container-low);
+  border: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
+  overflow: hidden;
+}
+.card-main, .project-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  padding: var(--s4) var(--s4) var(--s3);
+}
+.card-main { width: 100%; gap: 2px; }
+.card-main:active, .project-card:active { background: var(--row-press); }
+.card-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+  font: var(--label-medium);
+  color: var(--on-surface-variant);
+}
+.eyebrow span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-title { font: var(--title-medium); font-size: 17px; line-height: 23px; overflow-wrap: anywhere; text-wrap: pretty; }
+.card-purpose {
+  font: var(--body-medium);
+  color: var(--on-surface-variant);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.project-card .progress { margin-top: var(--s3); }
+.card-meta { font: var(--body-small); color: var(--on-surface-variant); margin-top: 2px; }
+/* One facts line on a Block card: deadline, the Musts' time left, tasks done. */
+.card-facts { margin-top: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
+.card-facts > *, .nowrap, .must-left { white-space: nowrap; }
+.card-due { font-weight: 500; color: var(--on-surface); }
+.card-due.tight { color: var(--error); }
+.ring { flex: none; width: 24px; height: 24px; }
+.ring circle { fill: none; stroke-width: 3; }
+.ring-track { stroke: var(--surface-container-highest); }
+.ring-value { stroke: var(--primary); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
+.next-task {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
+  padding: 0 var(--s2) 0 var(--s1);
+}
+.next-task .task-check { margin: 0; }
+.next-title {
+  flex: 1;
+  min-width: 0;
+  min-height: 52px;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  padding: var(--s3) var(--s2) var(--s3) 0;
+  font: var(--body-medium);
+}
+.next-title .overline { font-size: 11px; color: var(--primary); }
+/* Blocks list: consecutive cards from one Project sit under one Area and Project line. */
+.project-run { padding: var(--s5) var(--gutter) 0 calc(var(--gutter) + var(--s2)); }
+.project-run .eyebrow { font: var(--label-large); }
+.filters + .project-run { padding-top: var(--s1); }
+.project-run + .block-card { margin-top: var(--s2); }
+.stat-line { padding: 0 var(--gutter) var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
+
+/* Detail pages (Block, Project, Area, Goal) */
+.detail-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s2); padding: 0 var(--gutter); }
+.detail-head .crumb { margin: 0; }
+.detail-head .crumb .eyebrow { font: var(--label-large); color: var(--on-surface-variant); }
+/* Block detail: the Project as a plain link line, not a chip. */
+.crumb-link { display: flex; align-items: center; min-height: var(--touch); max-width: 100%; border-radius: var(--shape-sm); }
+.detail-head .crumb-link { margin: 0; }
+.crumb-link:active { background: var(--row-press); }
+.detail-title-text {
+  padding: var(--s1) var(--gutter) var(--s4);
+  font: var(--headline-small);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.detail-lede { padding: 0 var(--gutter) var(--s3); font: var(--body-large); color: var(--on-surface-variant); }
+/* Edit in place: words look like words until tapped; focus adds a soft tonal field and the M3 active indicator. */
+.inline-edit {
+  display: block;
+  margin: 0 calc(-1 * var(--s1));
+  padding: 0 var(--s1);
+  border-radius: var(--shape-xs) var(--shape-xs) 0 0;
+  outline: none;
+  cursor: text;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  caret-color: var(--primary);
+  transition: background-color var(--dur-short) var(--ease-standard), box-shadow var(--dur-short) var(--ease-standard);
+}
+.inline-edit:focus {
+  background: var(--surface-container-high);
+  box-shadow: inset 0 -2px 0 var(--primary);
+}
+.inline-edit.is-empty::before, .inline-edit:empty::before {
+  content: attr(data-placeholder);
+  color: var(--on-surface-variant);
+  pointer-events: none;
+}
+.title-edit { text-wrap: balance; }
+.title-edit:focus { text-wrap: wrap; }
+.editable-row { cursor: text; }
+.notes-text { font: var(--body-large); }
+.crumb-drop { font-size: 20px; color: var(--on-surface-variant); margin-left: -2px; }
+.project-picker { padding-right: var(--s1); }
+.goal-when-chip { padding-right: var(--s1); }
+.detail-title-text + .block-facts { margin-top: calc(-1 * var(--s2)); }
+/* Google Tasks detail rows: the 24dp icon centred on the Plan's check column, the text on the task titles. */
+.fact-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s4);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--s2) var(--gutter) var(--s2) 24px;
+  text-align: left;
+  color: var(--on-surface);
+}
+button.fact-row:active { background: var(--row-press); }
+.fact-row > .leading, .fact-row > .ring { color: var(--on-surface-variant); flex: none; }
+.fact-row .text-btn { align-self: center; flex: none; margin: calc(-1 * var(--s2)) calc(-1 * var(--s2)) calc(-1 * var(--s2)) 0; }
+.verdict-row { align-items: center; }
+.fact-row .outlined-btn { flex: none; padding: 0 var(--s4); }
+.fact-label { font: var(--label-medium); color: var(--on-surface-variant); }
+/* The resting hint that a detail field edits in place: a small pencil after its label, gone while editing. */
+.fact-label .label-edit { font-size: 14px; width: 14px; height: 14px; line-height: 14px; margin-left: var(--s1); vertical-align: -2px;
+  opacity: .72; transition: opacity var(--dur-short3) var(--ease-standard); }
+.editable-row:focus-within .label-edit { opacity: 0; }
+.purpose-text { font: var(--body-large); overflow-wrap: anywhere; }
+.due-when { font-weight: 500; }
+.status-row.tight .due-when { color: var(--error); }
+.must-legend { font-size: 16px; color: var(--must); vertical-align: -3px; margin-right: 2px; }
+/* Tall enough for Sort by time (a 48dp text button) whether it shows or not, so it never pushes the Plan. */
+.plan-header { align-items: center; padding: var(--s2) var(--s1) 0 var(--gutter); min-height: calc(var(--touch) + var(--s2)); }
+.plan-actions { display: flex; align-items: center; }
+.plan-list { padding: 0 var(--s1); }
+.plan-list .task-row { padding-left: var(--s1); }
+.inline-add {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  margin: 0 var(--s2);
+  min-height: 56px;
+}
+.inline-add .icon-btn { color: var(--primary); }
+.inline-add input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--touch);
+  border: 0;
+  background: transparent;
+  outline: none;
+  font: var(--body-large);
+}
+.inline-add input::placeholder { color: var(--primary); opacity: 1; }
+.inline-add input:focus::placeholder { color: var(--on-surface-variant); }
+/* While the words go on to the Plan and the next are typed, the caret stays lit (as Android's does while typing). */
+.inline-add[data-steady] input { caret-animation: manual; }
+.screen-blocks .completed-group, .screen-blocks .plan-list { margin: 0 var(--s1); }
+.achieved-panel {
+  margin: var(--s4) var(--gutter);
+  padding: var(--s4) var(--s4) var(--s2);
+  border-radius: 20px;
+  background: var(--tertiary-container);
+  color: var(--on-tertiary-container);
+}
+.achieved-head { display: flex; align-items: center; gap: var(--s2); }
+.achieved-head strong { flex: 1; font: var(--title-medium); }
+.achieved-date { font: var(--body-small); }
+.achieved-panel p { margin-top: var(--s2); font: var(--body-medium); }
+.achieved-panel .text-btn { color: inherit; padding-left: 0; }
+.block-facts .achieved-panel { margin: var(--s2) var(--gutter); }
+
+/* Life */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--surface-container-highest);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tab {
+  flex: 1 0 auto;
+  min-height: var(--touch);
+  padding: 0 var(--s4);
+  font: var(--title-small);
+  color: var(--on-surface-variant);
+  position: relative;
+}
+.tab[aria-selected=true] { color: var(--primary); }
+.tab[aria-selected=true]::after {
+  content: "";
+  position: absolute;
+  left: 25%;
+  right: 25%;
+  bottom: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--primary);
+}
+.period-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s1) var(--s1) 0;
+}
+.period-switch h2 { font: var(--title-medium); text-align: center; }
+.wheel-card {
+  margin: var(--s1) var(--gutter) 0;
+  padding: var(--s4) var(--s4) var(--s3);
+  border-radius: var(--card-radius);
+  background: var(--surface-container-low);
+  border: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
+}
+.wheel-head { display: flex; align-items: flex-start; gap: var(--s2); }
+.wheel-copy { flex: 1; }
+.wheel-copy h2 { font: var(--title-medium); }
+.wheel-copy p { font: var(--body-medium); color: var(--on-surface-variant); }
+.wheel-head .icon-btn { margin: -8px -8px 0 0; }
+.wheel-bars { display: grid; gap: var(--s3); margin: var(--s4) 0 var(--s2); }
+.wheel-bar-head { display: flex; justify-content: space-between; gap: var(--s2); font: var(--body-medium); }
+.wheel-name { overflow-wrap: anywhere; }
+.wheel-value { color: var(--on-surface-variant); white-space: nowrap; }
+.wheel-track { height: 8px; margin-top: 6px; border-radius: 4px; background: var(--surface-container-highest); overflow: hidden; }
+.wheel-track > span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--tone);
+  transform-origin: left;
+  transform: scaleX(var(--value, 0));
+}
+.wheel-radar { display: block; width: 100%; max-width: 360px; margin: var(--s2) auto; overflow: visible; }
+.radar-grid { fill: none; stroke: var(--outline-variant); stroke-width: 1; }
+.radar-value { fill: color-mix(in srgb, var(--primary) 18%, transparent); stroke: var(--primary); stroke-width: 2; }
+.radar-node { fill: var(--tone); stroke: var(--surface); stroke-width: 2; }
+.radar-label { fill: var(--on-surface-variant); font: var(--label-medium); }
+.wheel-card .tonal-btn { margin-top: var(--s2); }
+.values-card {
+  margin: var(--s4) var(--gutter);
+  padding: var(--s4);
+  border-radius: var(--card-radius);
+  background: var(--surface-container-low);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s2);
+}
+.values-card p { font: var(--body-large); }
+.area-head { display: flex; align-items: center; gap: var(--s1); padding: var(--s3) 0 0 var(--gutter); }
+.area-head .detail-title-text { flex: 1; min-width: 0; padding-left: var(--s2); }
+.rating-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0 var(--s2);
+  width: calc(100% - 2 * var(--gutter));
+  margin: var(--s2) var(--gutter) 0;
+  padding: var(--s4) var(--s4) var(--s3);
+  border-radius: 20px;
+  background: var(--surface-container-low);
+}
+.rating-row strong { font: var(--title-medium); }
+/* M3 slider in the Area's colour: one active-track colour whether resting or dragged, a 20dp handle, 48dp target.
+   Unrated: the whole track is inactive and there is no handle until the first touch. */
+.rating-slider {
+  grid-column: 1 / -1;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: var(--touch);
+  margin: 0;
+  background: transparent;
+  --active: var(--tone, var(--primary));
+  --inactive: var(--surface-container-highest);
+  --fill: calc(10px + (100% - 20px) * var(--value, 0));
+}
+.rating-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--active) 0 var(--fill), var(--inactive) var(--fill) 100%);
+}
+.rating-slider::-moz-range-track { height: 4px; border-radius: 2px; background: var(--inactive); }
+.rating-slider::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--active); }
+.rating-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--active);
+  transition: box-shadow var(--dur-short3) var(--ease-standard);
+}
+.rating-slider::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: var(--active); }
+.rating-slider:active::-webkit-slider-thumb, .rating-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 10px color-mix(in srgb, var(--active) 14%, transparent);
+}
+.rating-slider:focus-visible { outline: none; }
+.rating-slider.unrated::-webkit-slider-runnable-track { background: var(--inactive); }
+.rating-slider.unrated::-moz-range-progress { background: transparent; }
+/* Unrated: a hollow handle at the start and the eleven points as faint ticks, an affordance that is not a value. */
+.rating-slider.unrated::-webkit-slider-thumb { background: var(--surface-container-low); box-shadow: inset 0 0 0 2px var(--outline); }
+.rating-slider.unrated::-moz-range-thumb { background: var(--surface-container-low); box-shadow: inset 0 0 0 2px var(--outline); }
+.rating-slider { grid-row: 2; }
+.rating-ticks {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  align-self: center;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 8px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-short3) var(--ease-standard);
+}
+.rating-ticks i { width: 4px; height: 4px; border-radius: 50%; background: var(--outline); }
+.rating-slider.unrated + .rating-ticks { opacity: .55; }
+.rating-slider.unrated + .rating-ticks i:first-child { visibility: hidden; }
+.rating-slider.unrated:focus-visible { outline: 2px solid var(--primary); outline-offset: -8px; border-radius: var(--shape-xs); }
+.rating-note { grid-column: 1 / -1; grid-row: 3; font: var(--body-medium); color: var(--on-surface-variant); }
+
+
+/* Search */
+.search-input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--touch);
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: var(--body-large);
+  font-size: 18px;
+  -webkit-appearance: none;
+}
+.search-input::-webkit-search-cancel-button { display: none; }
+.search-results .task-row { padding-left: var(--s2); }
