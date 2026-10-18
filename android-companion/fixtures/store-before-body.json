@@ -1,0 +1,636 @@
+{
+ "schema": 2,
+ "version": 41,
+ "entries": [
+  {
+   "id": 1,
+   "kind": "plan",
+   "raw": "Draft the method section",
+   "created": "2026-10-17T03:30:00.000Z",
+   "state": "active",
+   "done": false,
+   "archived": false,
+   "minutes": 45,
+   "durationSource": "user_words",
+   "planned": "2026-10-17T08:30:00.000Z",
+   "plannedDate": null,
+   "alertIntent": {
+    "type": "reminder"
+   },
+   "recurrence": null,
+   "revisions": [
+    {
+     "at": "2026-10-17T03:30:00.000Z",
+     "reason": "Edited in planner",
+     "before": {
+      "id": 1,
+      "kind": "plan",
+      "raw": "Draft the method section",
+      "created": "2026-10-17T03:30:00.000Z",
+      "state": "active",
+      "done": false,
+      "archived": false,
+      "minutes": 30,
+      "durationSource": "default_estimate",
+      "planned": null,
+      "plannedDate": null,
+      "alertIntent": {
+       "type": null
+      },
+      "recurrence": null,
+      "source": "planner"
+     },
+     "snapshot": {
+      "title": "Draft the method section",
+      "planned": "2026-10-17T08:30:00.000Z",
+      "minutes": 45,
+      "blockId": "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3",
+      "done": false
+     }
+    }
+   ],
+   "source": "planner",
+   "title": "Draft the method section",
+   "blockId": "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3",
+   "completedOccurrences": [],
+   "priority": 1,
+   "must": false
+  },
+  {
+   "id": 2,
+   "kind": "plan",
+   "raw": "Email lab partner",
+   "created": "2026-10-17T03:30:00.000Z",
+   "state": "done",
+   "done": true,
+   "archived": false,
+   "minutes": 30,
+   "durationSource": "default_estimate",
+   "planned": null,
+   "plannedDate": "2026-10-17",
+   "alertIntent": {
+    "type": null
+   },
+   "recurrence": null,
+   "revisions": [
+    {
+     "at": "2026-10-17T03:30:00.000Z",
+     "reason": "Edited in planner",
+     "before": {
+      "id": 2,
+      "kind": "plan",
+      "raw": "Email lab partner",
+      "created": "2026-10-17T03:30:00.000Z",
+      "state": "active",
+      "done": false,
+      "archived": false,
+      "minutes": 30,
+      "durationSource": "default_estimate",
+      "planned": null,
+      "plannedDate": null,
+      "alertIntent": {
+       "type": null
+      },
+      "recurrence": null,
+      "source": "planner"
+     },
+     "snapshot": {
+      "title": "Email lab partner",
+      "planned": null,
+      "minutes": 30,
+      "blockId": "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3",
+      "must": true,
+      "done": false
+     }
+    },
+    {
+     "at": "2026-10-17T03:30:00.000Z",
+     "reason": "Edited in planner",
+     "before": {
+      "id": 2,
+      "kind": "plan",
+      "raw": "Email lab partner",
+      "created": "2026-10-17T03:30:00.000Z",
+      "state": "active",
+      "done": false,
+      "archived": false,
+      "minutes": 30,
+      "durationSource": "default_estimate",
+      "planned": null,
+      "plannedDate": "2026-10-17",
+      "alertIntent": {
+       "type": null
+      },
+      "recurrence": null,
+      "source": "planner",
+      "title": "Email lab partner",
+      "blockId": "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3",
+      "must": true,
+      "priority": 2
+     },
+     "snapshot": {
+      "title": "Email lab partner",
+      "planned": null,
+      "minutes": 30,
+      "blockId": "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3",
+      "must": true,
+      "done": true
+     }
+    }
+   ],
+   "source": "planner",
+   "title": "Email lab partner",
+   "blockId": "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3",
+   "must": true,
+   "priority": 2,
+   "completedAt": "2026-10-17T03:30:00.000Z"
+  },
+  {
+   "id": 3,
+   "kind": "plan",
+   "raw": "Stretch",
+   "created": "2026-10-17T03:30:00.000Z",
+   "state": "active",
+   "done": false,
+   "archived": false,
+   "minutes": 30,
+   "durationSource": "default_estimate",
+   "planned": "2026-10-17T01:30:00.000Z",
+   "plannedDate": null,
+   "alertIntent": {
+    "type": "alarm"
+   },
+   "recurrence": "daily",
+   "revisions": [
+    {
+     "at": "2026-10-17T03:30:00.000Z",
+     "reason": "Edited in planner",
+     "before": {
+      "id": 3,
+      "kind": "plan",
+      "raw": "Stretch",
+      "created": "2026-10-17T03:30:00.000Z",
+      "state": "active",
+      "done": false,
+      "archived": false,
+      "minutes": 30,
+      "durationSource": "default_estimate",
+      "planned": null,
+      "plannedDate": null,
+      "alertIntent": {
+       "type": null
+      },
+      "recurrence": null,
+      "source": "planner"
+     },
+     "snapshot": {
+      "title": "Stretch",
+      "planned": "2026-10-17T01:30:00.000Z",
+      "minutes": 30,
+      "done": false
+     }
+    }
+   ],
+   "source": "planner",
+   "title": "Stretch",
+   "completedOccurrences": [],
+   "priority": 1,
+   "must": false
+  }
+ ],
+ "memories": [],
+ "history": [],
+ "conversations": [
+  {
+   "id": "b4306c54-0d01-4c7a-bb02-ae39e02762b1",
+   "title": "New conversation",
+   "messages": [],
+   "archived": false
+  }
+ ],
+ "pending": null,
+ "undo": null,
+ "imported": null,
+ "planner": {
+  "schema": 1,
+  "projects": [],
+  "blocks": [
+   {
+    "id": "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3",
+    "created": "2026-10-17T03:30:00.000Z",
+    "title": "Physics lab report submitted",
+    "purpose": "So the practical marks count",
+    "notes": "",
+    "projectId": null
+   }
+  ],
+  "areas": [
+   {
+    "id": "a1d80541-94e9-40e3-8c16-707e4c2ea6c9",
+    "created": "2026-10-17T03:30:00.000Z",
+    "title": "Health",
+    "purpose": "",
+    "notes": "",
+    "colorIndex": 0,
+    "rating": 6
+   }
+  ],
+  "goals": [],
+  "events": [
+   {
+    "id": "f829d60e-653b-46e1-891e-d36ba0fdb551",
+    "at": "2026-10-17T03:30:00.000Z",
+    "type": "saveEntity",
+    "target": "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3",
+    "fields": [
+     "title",
+     "purpose"
+    ]
+   },
+   {
+    "id": "86fb6001-b6f5-48ec-9b32-54bd4cd32f39",
+    "at": "2026-10-17T03:30:00.000Z",
+    "type": "saveEntity",
+    "target": "a1d80541-94e9-40e3-8c16-707e4c2ea6c9",
+    "fields": [
+     "title",
+     "rating"
+    ]
+   },
+   {
+    "id": "5ea4425a-74d6-44ff-a8e8-afe81bb8e6ff",
+    "at": "2026-10-17T03:30:00.000Z",
+    "type": "saveTask",
+    "target": 1,
+    "fields": [
+     "title",
+     "blockId",
+     "planned",
+     "minutes",
+     "alert"
+    ]
+   },
+   {
+    "id": "63cfffb3-41ec-49f4-a05d-2b3955a113fd",
+    "at": "2026-10-17T03:30:00.000Z",
+    "type": "saveTask",
+    "target": 2,
+    "fields": [
+     "title",
+     "blockId",
+     "plannedDate",
+     "must"
+    ]
+   },
+   {
+    "id": "2e7efc26-c7e1-4787-89b7-afc242f38ab3",
+    "at": "2026-10-17T03:30:00.000Z",
+    "type": "saveTask",
+    "target": 3,
+    "fields": [
+     "title",
+     "planned",
+     "recurrence",
+     "alert"
+    ]
+   },
+   {
+    "id": "08ccbe2a-7d8d-4361-921c-d20dd0b98548",
+    "at": "2026-10-17T03:30:00.000Z",
+    "type": "saveTask",
+    "target": 2,
+    "fields": [
+     "done"
+    ]
+   },
+   {
+    "id": "6d2078fd-8fe6-4d2f-8cca-5a85cd188a53",
+    "at": "2026-10-17T03:30:00.000Z",
+    "type": "setWeekFocus",
+    "target": "2026-10-12",
+    "fields": []
+   }
+  ],
+  "drafts": [],
+  "context": {
+   "vision": "",
+   "goals": "",
+   "approved": false
+  },
+  "undo": {
+   "entries": [
+    {
+     "id": 1,
+     "kind": "plan",
+     "raw": "Draft the method section",
+     "created": "2026-10-17T03:30:00.000Z",
+     "state": "active",
+     "done": false,
+     "archived": false,
+     "minutes": 45,
+     "durationSource": "user_words",
+     "planned": "2026-10-17T08:30:00.000Z",
+     "plannedDate": null,
+     "alertIntent": {
+      "type": "reminder"
+     },
+     "recurrence": null,
+     "revisions": [
+      {
+       "at": "2026-10-17T03:30:00.000Z",
+       "reason": "Edited in planner",
+       "before": {
+        "id": 1,
+        "kind": "plan",
+        "raw": "Draft the method section",
+        "created": "2026-10-17T03:30:00.000Z",
+        "state": "active",
+        "done": false,
+        "archived": false,
+        "minutes": 30,
+        "durationSource": "default_estimate",
+        "planned": null,
+        "plannedDate": null,
+        "alertIntent": {
+         "type": null
+        },
+        "recurrence": null,
+        "source": "planner"
+       },
+       "snapshot": {
+        "title": "Draft the method section",
+        "planned": "2026-10-17T08:30:00.000Z",
+        "minutes": 45,
+        "blockId": "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3",
+        "done": false
+       }
+      }
+     ],
+     "source": "planner",
+     "title": "Draft the method section",
+     "blockId": "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3",
+     "completedOccurrences": [],
+     "priority": 1,
+     "must": false
+    },
+    {
+     "id": 2,
+     "kind": "plan",
+     "raw": "Email lab partner",
+     "created": "2026-10-17T03:30:00.000Z",
+     "state": "done",
+     "done": true,
+     "archived": false,
+     "minutes": 30,
+     "durationSource": "default_estimate",
+     "planned": null,
+     "plannedDate": "2026-10-17",
+     "alertIntent": {
+      "type": null
+     },
+     "recurrence": null,
+     "revisions": [
+      {
+       "at": "2026-10-17T03:30:00.000Z",
+       "reason": "Edited in planner",
+       "before": {
+        "id": 2,
+        "kind": "plan",
+        "raw": "Email lab partner",
+        "created": "2026-10-17T03:30:00.000Z",
+        "state": "active",
+        "done": false,
+        "archived": false,
+        "minutes": 30,
+        "durationSource": "default_estimate",
+        "planned": null,
+        "plannedDate": null,
+        "alertIntent": {
+         "type": null
+        },
+        "recurrence": null,
+        "source": "planner"
+       },
+       "snapshot": {
+        "title": "Email lab partner",
+        "planned": null,
+        "minutes": 30,
+        "blockId": "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3",
+        "must": true,
+        "done": false
+       }
+      },
+      {
+       "at": "2026-10-17T03:30:00.000Z",
+       "reason": "Edited in planner",
+       "before": {
+        "id": 2,
+        "kind": "plan",
+        "raw": "Email lab partner",
+        "created": "2026-10-17T03:30:00.000Z",
+        "state": "active",
+        "done": false,
+        "archived": false,
+        "minutes": 30,
+        "durationSource": "default_estimate",
+        "planned": null,
+        "plannedDate": "2026-10-17",
+        "alertIntent": {
+         "type": null
+        },
+        "recurrence": null,
+        "source": "planner",
+        "title": "Email lab partner",
+        "blockId": "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3",
+        "must": true,
+        "priority": 2
+       },
+       "snapshot": {
+        "title": "Email lab partner",
+        "planned": null,
+        "minutes": 30,
+        "blockId": "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3",
+        "must": true,
+        "done": true
+       }
+      }
+     ],
+     "source": "planner",
+     "title": "Email lab partner",
+     "blockId": "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3",
+     "must": true,
+     "priority": 2,
+     "completedAt": "2026-10-17T03:30:00.000Z"
+    },
+    {
+     "id": 3,
+     "kind": "plan",
+     "raw": "Stretch",
+     "created": "2026-10-17T03:30:00.000Z",
+     "state": "active",
+     "done": false,
+     "archived": false,
+     "minutes": 30,
+     "durationSource": "default_estimate",
+     "planned": "2026-10-17T01:30:00.000Z",
+     "plannedDate": null,
+     "alertIntent": {
+      "type": "alarm"
+     },
+     "recurrence": "daily",
+     "revisions": [
+      {
+       "at": "2026-10-17T03:30:00.000Z",
+       "reason": "Edited in planner",
+       "before": {
+        "id": 3,
+        "kind": "plan",
+        "raw": "Stretch",
+        "created": "2026-10-17T03:30:00.000Z",
+        "state": "active",
+        "done": false,
+        "archived": false,
+        "minutes": 30,
+        "durationSource": "default_estimate",
+        "planned": null,
+        "plannedDate": null,
+        "alertIntent": {
+         "type": null
+        },
+        "recurrence": null,
+        "source": "planner"
+       },
+       "snapshot": {
+        "title": "Stretch",
+        "planned": "2026-10-17T01:30:00.000Z",
+        "minutes": 30,
+        "done": false
+       }
+      }
+     ],
+     "source": "planner",
+     "title": "Stretch",
+     "completedOccurrences": [],
+     "priority": 1,
+     "must": false
+    }
+   ],
+   "planner": {
+    "schema": 1,
+    "projects": [],
+    "blocks": [
+     {
+      "id": "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3",
+      "created": "2026-10-17T03:30:00.000Z",
+      "title": "Physics lab report submitted",
+      "purpose": "So the practical marks count",
+      "notes": "",
+      "projectId": null
+     }
+    ],
+    "areas": [
+     {
+      "id": "a1d80541-94e9-40e3-8c16-707e4c2ea6c9",
+      "created": "2026-10-17T03:30:00.000Z",
+      "title": "Health",
+      "purpose": "",
+      "notes": "",
+      "colorIndex": 0,
+      "rating": 6
+     }
+    ],
+    "goals": [],
+    "events": [
+     {
+      "id": "f829d60e-653b-46e1-891e-d36ba0fdb551",
+      "at": "2026-10-17T03:30:00.000Z",
+      "type": "saveEntity",
+      "target": "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3",
+      "fields": [
+       "title",
+       "purpose"
+      ]
+     },
+     {
+      "id": "86fb6001-b6f5-48ec-9b32-54bd4cd32f39",
+      "at": "2026-10-17T03:30:00.000Z",
+      "type": "saveEntity",
+      "target": "a1d80541-94e9-40e3-8c16-707e4c2ea6c9",
+      "fields": [
+       "title",
+       "rating"
+      ]
+     },
+     {
+      "id": "5ea4425a-74d6-44ff-a8e8-afe81bb8e6ff",
+      "at": "2026-10-17T03:30:00.000Z",
+      "type": "saveTask",
+      "target": 1,
+      "fields": [
+       "title",
+       "blockId",
+       "planned",
+       "minutes",
+       "alert"
+      ]
+     },
+     {
+      "id": "63cfffb3-41ec-49f4-a05d-2b3955a113fd",
+      "at": "2026-10-17T03:30:00.000Z",
+      "type": "saveTask",
+      "target": 2,
+      "fields": [
+       "title",
+       "blockId",
+       "plannedDate",
+       "must"
+      ]
+     },
+     {
+      "id": "2e7efc26-c7e1-4787-89b7-afc242f38ab3",
+      "at": "2026-10-17T03:30:00.000Z",
+      "type": "saveTask",
+      "target": 3,
+      "fields": [
+       "title",
+       "planned",
+       "recurrence",
+       "alert"
+      ]
+     },
+     {
+      "id": "08ccbe2a-7d8d-4361-921c-d20dd0b98548",
+      "at": "2026-10-17T03:30:00.000Z",
+      "type": "saveTask",
+      "target": 2,
+      "fields": [
+       "done"
+      ]
+     }
+    ],
+    "drafts": [],
+    "context": {
+     "vision": "",
+     "goals": "",
+     "approved": false
+    },
+    "undo": null,
+    "reviewVersion": 1,
+    "weeks": {},
+    "reviews": {},
+    "uxVersion": 2
+   }
+  },
+  "reviewVersion": 1,
+  "weeks": {
+   "2026-10-12": {
+    "focus": [
+     "71bcbf88-99a5-4261-bab1-a4d40fe5a4a3"
+    ],
+    "verdicts": {}
+   }
+  },
+  "reviews": {},
+  "uxVersion": 2
+ }
+}

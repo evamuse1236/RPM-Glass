@@ -1,5 +1,10 @@
 import {randomUUID} from 'node:crypto';
 import {occurrences,completeTask,repeats} from './planner-recurrence.mjs';
+import {text,title,integer,one,link} from './planner-fields.mjs';
+import {REVIEW_VERSION,REVIEW_OPS,migrateReviewData,validateReviewData,forgetBlockInWeeks,keepCompletionTime} from './planner-review-data.mjs';
+import {BODY_OPS,validateBody} from './body-store.mjs';
+
+export {REVIEW_VERSION,migrateReviewData};
 
 export const freshPlanner=()=>({schema:1,projects:[],blocks:[],areas:[],goals:[],events:[],drafts:[],context:{vision:'',goals:'',approved:false},undo:null,reviewVersion:REVIEW_VERSION,weeks:{},reviews:{}});
 export function planner(data){return data.planner??freshPlanner();}
@@ -9,11 +14,6 @@ export const blockTasks=(data,id)=>tasks(data).filter(e=>(e.blockId??null)===(id
 export function blockDue(data,id){let best=null;for(const t of blockTasks(data,id)){if(t.done||t.recurrence||t.repeatAfterDays)continue;const value=t.planned?localStamp(t.planned):t.plannedDate;if(!value)continue;const at=Date.parse(value.length===10?value+'T23:59':value);if(!best||at>best.at)best={at,value,task:t};}return best&&{value:best.value,task:best.task};}
 const localStamp=iso=>{const d=new Date(iso);return localDay(d)+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
 export function totals(rows){return {all:rows.filter(e=>!e.done).reduce((s,e)=>s+(e.minutes??0),0),must:rows.filter(e=>e.must&&!e.done).reduce((s,e)=>s+(e.minutes??0),0),unknown:rows.filter(e=>!e.done&&e.minutes==null).length};}
-const text=(v,max=2000)=>{if(typeof v!=='string'||v.length>max)throw new Error('Text is too long or invalid.');return v.trim();};
-const title=v=>{const s=text(v,200);if(!s)throw new Error('Add a title.');return s;};
-const integer=(v,min,max)=>{if(!Number.isInteger(v)||v<min||v>max)throw new Error('Choose a valid number.');return v;};
-const one=(rows,id)=>{const r=rows.find(x=>x.id===id);if(!r)throw new Error('This item no longer exists.');return r;};
-const link=(rows,id)=>id==null||id===''?null:one(rows,id).id;
 const snap=data=>({entries:structuredClone(data.entries),planner:structuredClone({...planner(data),undo:null})});
 export function validatePlanner(data){
   const p=planner(data);if(p.schema!==1)throw new Error('Unsupported planner format.');
@@ -25,6 +25,7 @@ export function validatePlanner(data){
   for(const pr of p.projects)link(p.goals,pr.goalId);
   for(const e of tasks(data)){link(p.blocks,e.blockId);if(e.minutes!=null)integer(e.minutes,1,1440);if(e.priority!=null)integer(e.priority,0,100000);}
   validateReviewData(p);
+  validateBody(p);
   return data;
 }
 
@@ -130,6 +131,8 @@ export function editPlan(data,op,now=new Date()){
     if(typeof op.approved!=='boolean')throw new Error('Review state is required.');p.context={...p.context,vision:text(op.vision,10000),goals:text(op.goals,10000),coreValues:text(op.coreValues??p.context.coreValues??'',10000),approved:op.approved,updated:at};
   }else if(REVIEW_OPS[op.type]){
     result=REVIEW_OPS[op.type](next,op,at);
+  }else if(BODY_OPS[op.type]){
+    result=BODY_OPS[op.type](next,op,at);
   }else throw new Error('Unknown planning action.');
   for(const task of next.entries){if(task.blockId&&task.purpose){task.revisions??=[];task.revisions.push({at,reason:'Task purpose retained in notes',before:{purpose:task.purpose,notes:task.notes??''}});task.notes=[task.notes,'Previous task purpose: '+task.purpose].filter(Boolean).join('\n\n');task.purpose='';}}
   validatePlanner(next);p.events.push({id:randomUUID(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=before;next.undo=null;
@@ -160,157 +163,3 @@ export function timelineItems(data,day,calendar=[],minimumVisualMinutes=0){
   let group=[],until=-Infinity;const finish=()=>{const ends=[];for(const e of group){let lane=ends.findIndex(t=>t<=e.start);if(lane<0)lane=ends.length;ends[lane]=visualEnd(e);e.lane=lane;}for(const e of group)e.lanes=ends.length;group=[];};
   for(const e of rows){if(e.start>=until){finish();until=visualEnd(e);}else until=Math.max(until,visualEnd(e));group.push(e);}finish();return rows;
 }
-
-/* ---------- Weekly review data (reviewVersion 1) ----------
-   Block:   achieved (boolean, only ever set by the user), achievedAt (ISO or null), evidence (the user's words).
-   Task:    completedAt (ISO) stamped when a one-time task is completed from now on; never back-filled.
-            reviewChoice {week, choice:'carry'|'defer'|'drop', at, cleared?} records a review decision.
-   Planner: weeks[week] = {focus:[blockId…≤5], verdicts:{blockId:'achieved'|'partly'|'notyet'}}  (plan data, undoable)
-            reviews[week] = {step, startedAt, updatedAt, finishedAt, focusDraft, inboxIds, keptIds, clashes}  (progress, kept on Undo) */
-export const REVIEW_VERSION = 1;
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
-const VERDICTS = ['achieved', 'partly', 'notyet'];
-const CHOICES = ['carry', 'defer', 'drop'];
-
-function upgradePlannerForReview(p) {
-  if (!p || typeof p !== 'object') return false;
-  if (p.reviewVersion >= REVIEW_VERSION && p.weeks && p.reviews) return false;
-  for (const block of p.blocks ?? []) {
-    block.achieved = block.achieved === true;
-    block.achievedAt ??= null;
-    if (typeof block.evidence !== 'string') block.evidence = '';
-  }
-  p.weeks ??= {};
-  p.reviews ??= {};
-  p.reviewVersion = REVIEW_VERSION;
-  return true;
-}
-
-/** Lossless and idempotent: adds review defaults to the store and to the Undo snapshot. Tasks are untouched. */
-export function migrateReviewData(data) {
-  if (!data?.planner) return false;
-  const changed = upgradePlannerForReview(data.planner);
-  const undoChanged = upgradePlannerForReview(data.planner.undo?.planner);
-  return changed || undoChanged;
-}
-
-function validateReviewData(p) {
-  for (const b of p.blocks) {
-    if (b.achieved != null && typeof b.achieved !== 'boolean') throw new Error('Invalid Result status.');
-    if (b.achievedAt != null && !Number.isFinite(Date.parse(b.achievedAt))) throw new Error('Invalid Result status.');
-    if (b.evidence != null) text(b.evidence, 2000);
-  }
-  for (const [week, record] of Object.entries(p.weeks ?? {})) {
-    if (!DAY.test(week) || !record || typeof record !== 'object') throw new Error('Invalid week plan.');
-    const focus = record.focus ?? [];
-    if (!Array.isArray(focus) || focus.length > 5 || new Set(focus).size !== focus.length) throw new Error('Choose up to five Results for a week.');
-    for (const verdict of Object.values(record.verdicts ?? {})) if (!VERDICTS.includes(verdict)) throw new Error('Invalid Result status.');
-  }
-}
-
-function forgetBlockInWeeks(p, blockId) {
-  for (const record of Object.values(p.weeks ?? {})) {
-    if (Array.isArray(record.focus)) record.focus = record.focus.filter(id => id !== blockId);
-    if (record.verdicts) delete record.verdicts[blockId];
-  }
-}
-
-/** Stamp completion time once, when a one-time task actually becomes done; editing a done task keeps its stamp. */
-function keepCompletionTime(e, old, at) {
-  if (repeats(e) || !e.done) return;
-  if (!old.done) {
-    e.completedAt = at;
-    return;
-  }
-  if ('completedAt' in old) e.completedAt = old.completedAt;
-  else delete e.completedAt;
-}
-
-function weekRecord(p, week) {
-  if (typeof week !== 'string' || !DAY.test(week)) throw new Error('Choose a valid week.');
-  p.weeks[week] ??= {focus: [], verdicts: {}};
-  p.weeks[week].focus ??= [];
-  p.weeks[week].verdicts ??= {};
-  return p.weeks[week];
-}
-
-function markAchievedOp(next, op, at) {
-  const p = next.planner;
-  const block = one(p.blocks, op.id);
-  if (typeof op.achieved !== 'boolean') throw new Error('Choose whether the Result was achieved.');
-  if (op.evidence != null) block.evidence = text(op.evidence, 2000);
-  if (op.achieved && !block.achieved) block.achievedAt = at;
-  if (!op.achieved) block.achievedAt = null;
-  block.achieved = op.achieved;
-  if (op.week != null) {
-    const verdict = op.verdict ?? (op.achieved ? 'achieved' : 'notyet');
-    if (!VERDICTS.includes(verdict) || (verdict === 'achieved') !== op.achieved) throw new Error('Invalid Result status.');
-    weekRecord(p, op.week).verdicts[block.id] = verdict;
-  }
-  return block.id;
-}
-
-function setWeekFocusOp(next, op) {
-  const p = next.planner;
-  if (!Array.isArray(op.ids) || op.ids.length > 5 || new Set(op.ids).size !== op.ids.length) throw new Error('Choose up to five Results for a week.');
-  for (const id of op.ids) one(p.blocks, id);
-  weekRecord(p, op.week).focus = [...op.ids];
-  return op.week;
-}
-
-function isBefore(task, week) {
-  const day = task.planned ? localDay(task.planned) : task.plannedDate;
-  return !!day && day < week;
-}
-
-function reviewTaskOp(next, op, at) {
-  const p = next.planner;
-  if (!CHOICES.includes(op.choice)) throw new Error('Choose carry, defer or drop.');
-  const e = one(next.entries, op.id);
-  if ((e.kind ?? 'plan') !== 'plan' || e.done) throw new Error('Choose an open task.');
-  const previous = e.reviewChoice?.week === op.week ? e.reviewChoice : null;
-  const before = {archived: !!e.archived, planned: e.planned ?? null, plannedDate: e.plannedDate ?? null, choice: previous?.choice ?? null};
-  weekRecord(p, op.week);
-  if (e.archived && op.choice !== 'drop') {
-    e.archived = false;
-    e.archiveDisposition = null;
-    if (e.blockId && !p.blocks.some(b => b.id === e.blockId)) e.blockId = null;
-  }
-  if (previous?.cleared && op.choice !== 'defer') Object.assign(e, previous.cleared);
-  const choice = {week: op.week, choice: op.choice, at};
-  if (op.choice === 'defer' && !repeats(e) && isBefore(e, op.week)) {
-    choice.cleared = {planned: e.planned ?? null, plannedDate: e.plannedDate ?? null};
-    e.planned = null;
-    e.plannedDate = null;
-  }
-  if (op.choice === 'drop') {
-    e.archived = true;
-    e.archiveDisposition = 'archive';
-  }
-  e.reviewChoice = choice;
-  e.revisions ??= [];
-  e.revisions.push({at, reason: 'Weekly review: ' + op.choice, before});
-  e.revisions = e.revisions.slice(-100);
-  return e.id;
-}
-
-function groupTaskOp(next, op, at) {
-  const p = next.planner;
-  const e = one(tasks(next), op.id);
-  let target = op.blockId ?? null;
-  if (op.newBlock) {
-    const block = {id: randomUUID(), created: at, title: title(op.newBlock.title), purpose: text(op.newBlock.purpose ?? ''), notes: '', projectId: link(p.projects, op.newBlock.projectId), achieved: false, achievedAt: null, evidence: ''};
-    p.blocks.push(block);
-    target = block.id;
-  } else target = link(p.blocks, target);
-  const oldBlock = e.blockId ?? null;
-  if (oldBlock === target) return target;
-  e.blockId = target;
-  const rows = blockTasks(next, target).filter(t => t.id !== e.id);
-  rows.push(e);
-  rows.forEach((t, i) => { t.priority = i + 1; });
-  blockTasks(next, oldBlock).forEach((t, i) => { t.priority = i + 1; });
-  return target;
-}
-
-const REVIEW_OPS = {markAchieved: markAchievedOp, setWeekFocus: setWeekFocusOp, reviewTask: reviewTaskOp, groupTask: groupTaskOp};
