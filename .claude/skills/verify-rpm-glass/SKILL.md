@@ -7,7 +7,7 @@ description: Drive the real RPM Android app (com.rpm.prototype, Capture sheet + 
 
 RPM is an Android app. Its Capture sheet (`index.html`) and Planner (`planner.html`) are WebViews inside a Java host; the widget, alarms, settings dialogs and "Earlier RPM screens" are native. A desktop browser preview, a green `npm test` or a passing build does not prove a change on the phone. This skill boots an emulator sized like the user's Galaxy S24 FE (1080 × 2340, 450 dpi, Android 16), installs the debug APK built from this checkout, and drives it with real touches.
 
-All commands go through one CLI. Every command prints one JSON object; failures print `{"ok":false,"error","fix"}` and exit 1. Read the `fix`.
+All commands go through one CLI. Every command prints one JSON object except `ui --brief`; failures print `{"ok":false,"error","fix"}` and exit 1. Read the `fix`.
 
 ```bash
 RPMCTL="node .claude/skills/verify-rpm-glass/rpmctl.mjs"
@@ -46,6 +46,8 @@ Start from known data, open a surface the way a user does, then act by accessibl
 $RPMCTL seed                                   # sample plan: 8 Blocks, ~32 tasks, Inbox items, dates relative to now
 $RPMCTL open planner                           # Capture -> More -> Planner tile (real taps)
 $RPMCTL ui                                     # what is on screen: role, name, state, rect
+$RPMCTL ui --brief                             # one line per element: role "name" [state]
+$RPMCTL ui --brief --all                       # include elements marked (off-screen)
 $RPMCTL tap --role button --name Blocks
 $RPMCTL tap --name "RM critical review drafted"
 $RPMCTL tap --role combobox --name "Add a task to the Plan"
@@ -88,6 +90,8 @@ $RPMCTL check                 # npm test + npm run check:rules, logs into the ev
 ```
 
 The rule table in `AGENTS.md` names which scenario or check enforces each rule.
+
+`npm test` checks literal role/name lookups in rpmctl and scenarios against the app's web source before a device run. Failures identify the call to update. Matching uses name substrings, as the driver does; roles beyond button/textbox must be set in the same source file. Keep saved-data titles dynamic, read from `state`, rather than treating seeded words as app labels. This source check cannot prove runtime visibility or accessibility wiring.
 
 ## Cleanup
 

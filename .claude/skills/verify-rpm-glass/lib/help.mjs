@@ -2,7 +2,7 @@ import {DEFAULTS, DISPLAYS} from './runtime.mjs';
 
 export const HELP = {
   _: `rpmctl drives the RPM Android app (com.rpm.prototype) on an S24 FE-sized emulator that it launches and owns.
-Every command prints one JSON object on stdout. Failures print {"ok":false,"error","fix"} and exit 1.
+Every command prints one JSON object on stdout, except ui --brief. Failures print {"ok":false,"error","fix"} and exit 1.
 
 Usage: node .claude/skills/verify-rpm-glass/rpmctl.mjs <command> [options]
 
@@ -13,7 +13,7 @@ Lifecycle
 Drive
   seed       Replace the app's data with the sample plan (or --empty / --file), then reopen.
   open       Open a surface the way a user reaches it (capture, planner, widget intents).
-  ui         List what is on screen: role, name, state, rect.
+  ui         List what is on screen: role, name, state, rect. --brief prints one line per element.
   tap        Tap an element by role/name/css (real touch through adb).
   type       Type text into the focused field.
   key        Press a key (back, enter, home, ...).
@@ -89,10 +89,12 @@ Default data is scripts/gauntlet/seed.mjs: 4 Areas, 8 Blocks, ~35 tasks, Inbox i
 so Today, Blocks, Inbox and the weekly review have something to show. --empty deletes the store (fresh-install
 state). --file loads a store you saved earlier (e.g. from \`rpmctl state files/companion.json\`).
 Output: {stored:{version, tasks, blocks, projects}} read back from the device.`,
-  ui: `ui [--all] [--native]
+  ui: `ui [--all] [--native] [--brief]
 Lists visible WebView elements: {ref, role, name, id, key, rect:[x,y,w,h] in CSS px, state}. --all includes
 off-screen elements and plain paragraphs. --native lists the Android view tree instead (system dialogs, native
-screens, launcher). Output also has the page title, url, data-view, viewport and devicePixelRatio.`,
+screens, launcher). Output also has the page title, url, data-view, viewport and devicePixelRatio.
+--brief prints role "name" [state] on one line per element. Combine with --all to include elements marked
+(off-screen). Empty states are omitted. Names and values are quoted and escaped. Default JSON is unchanged.`,
   tap: `tap (--name TEXT [--role ROLE] | --css SELECTOR | --native TEXT | --xy X,Y) [--nth N] [--long]
 Finds the element in the visible WebView (exact accessible name first, then substring), scrolls it into view if
 needed, and taps its centre with \`adb shell input tap\` (a real touch). --native matches text/content-desc in the
