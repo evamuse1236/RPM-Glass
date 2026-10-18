@@ -15,6 +15,7 @@ import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowManager;
 
+import com.rpm.prototype.NotchScene.Look;
 import com.rpm.prototype.PillPriority.Item;
 import com.rpm.prototype.PillPriority.Kind;
 
@@ -116,17 +117,19 @@ final class NotchPill implements IslandView.Listener {
                 s.splitR = h / 2f;
                 s.splitCx = x - dp(SPLIT_GAP_DP) - h / 2f;
                 splitAt = new RectF(s.splitCx - h / 2f, anchor.pillTop(), s.splitCx + h / 2f, anchor.pillTop() + h);
-                nextSplitKey = secondary.kind.name() + ":" + Math.round(s.splitCx);
-                if (!nextSplitKey.equals(splitKey)) split = content.split(secondary.kind, h);
+                Look splitLook = NotchContent.look(secondary.kind, scene);
+                nextSplitKey = splitLook + ":" + Math.round(s.splitCx);
+                if (!nextSplitKey.equals(splitKey)) split = content.split(splitLook, h);
             } else {
                 s.splitR = 0;
                 s.splitCx = x + h / 2f;
             }
             float touchBottom = Math.max(s.body.bottom, anchor.centerY + dp(TOUCH_HEIGHT_DP) / 2f);
             s.touch.set(secondary != null ? splitAt.left : x, 0, x + w, touchBottom);
-            String key = "pill:" + primary.kind + ":" + value + ":" + w;
+            Look look = NotchContent.look(primary.kind, scene);
+            String key = "pill:" + look + ":" + value + ":" + w;
             if (!key.equals(mainKey)) {
-                main = content.pill(primary.kind, value, h, lead, keep, trail);
+                main = content.pill(look, value, h, lead, keep, trail);
                 mainKey = key;
             }
         }
@@ -211,10 +214,14 @@ final class NotchPill implements IslandView.Listener {
 
     private static String describe(Item primary, Item secondary, boolean expanded, NotchScene scene) {
         if (expanded) return "Notch panel. Tap outside to close.";
-        String water = scene.water == null ? "" : "Water, " + scene.water.count + " of " + scene.water.goal + " glasses";
-        String what = primary.kind == Kind.WATER ? water + ", due now" : scene.spoken;
-        String also = secondary == null ? "" : ". Also " + (secondary.kind == Kind.WATER ? water : scene.spoken);
-        return what + also + ". Tap to open.";
+        String also = secondary == null ? "" : ". Also " + spoken(secondary, scene);
+        return spoken(primary, scene) + also + ". Tap to open.";
+    }
+
+    private static String spoken(Item item, NotchScene scene) {
+        if (item.kind == Kind.WATER) return "Water due, " + scene.water.count + " of " + scene.water.goal + " glasses";
+        if (item.kind == Kind.HABIT) return scene.habit.routine.name + ", " + scene.habit.done + " of " + scene.habit.total + " steps done";
+        return scene.spoken;
     }
 
     private NotchAnchor anchor() {

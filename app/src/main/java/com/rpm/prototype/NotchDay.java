@@ -20,7 +20,7 @@ final class NotchDay {
     static final long MIN = 60_000L;
     private static final DateTimeFormatter OCCURRENCE = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ROOT).withZone(ZoneId.of("UTC"));
 
-    /** The fields of one open planner task that the notch needs. */
+    /** The fields of one open planner task (or calendar event) that the notch needs. */
     static final class Task {
         final long id;
         final String title;
@@ -29,8 +29,14 @@ final class NotchDay {
         final int minutes;
         final String recurrence;
         final Set<String> completedOccurrences;
+        /** A calendar event: fixed, not the person's to tick off. */
+        final boolean fixed;
 
         Task(long id, String title, String block, Instant planned, int minutes, String recurrence, Set<String> completedOccurrences) {
+            this(id, title, block, planned, minutes, recurrence, completedOccurrences, false);
+        }
+
+        Task(long id, String title, String block, Instant planned, int minutes, String recurrence, Set<String> completedOccurrences, boolean fixed) {
             this.id = id;
             this.title = title;
             this.block = block;
@@ -38,6 +44,7 @@ final class NotchDay {
             this.minutes = minutes;
             this.recurrence = recurrence;
             this.completedOccurrences = completedOccurrences;
+            this.fixed = fixed;
         }
     }
 
@@ -96,22 +103,21 @@ final class NotchDay {
         return out;
     }
 
-    /** The task in hand: running now, else the next one to start. */
+    /** What is happening now: a running task before a running calendar event, else the next one to start. */
     static Slot hero(List<Slot> slots, long now) {
+        for (Slot s : slots) if (s.runningAt(now) && !s.task.fixed) return s;
         for (Slot s : slots) if (s.end > now) return s;
         return null;
     }
 
-    /** Up to {@code n} slots that start after the hero, in order. */
+    /** Up to {@code n} slots that start after the hero, in order; none when there is no hero (nothing left today). */
     static List<Slot> after(List<Slot> slots, Slot hero, int n) {
         List<Slot> out = new ArrayList<>();
-        boolean past = hero == null;
+        if (hero == null) return out;
+        boolean past = false;
         for (Slot s : slots) {
-            if (s == hero) {
-                past = true;
-                continue;
-            }
-            if (past && (hero == null || s.start >= hero.start) && out.size() < n) out.add(s);
+            if (s == hero) past = true;
+            else if (past && s.start >= hero.start && out.size() < n) out.add(s);
         }
         return out;
     }

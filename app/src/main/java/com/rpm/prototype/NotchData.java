@@ -16,63 +16,66 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** What the notch reads from the private planner store. Read-only: it never writes companion.json. */
+/** What the notch reads: the planner store (tasks and planner.body) and the calendars chosen in the planner. Read-only. */
 final class NotchData {
-    static final NotchData EMPTY = new NotchData(Collections.emptyList(), null, false);
+    static final NotchData EMPTY = new NotchData(Collections.emptyList(), Collections.emptyList(), NotchBody.ABSENT);
 
-    /** The Body store's water, as body-state.mjs shapes it. */
-    static final class Water {
-        final List<Long> glasses;
-        final NotchWater.Settings settings;
-        final List<NotchWater.Busy> busy;
-        final long snoozedUntil;
-
-        Water(List<Long> glasses, NotchWater.Settings settings, List<NotchWater.Busy> busy, long snoozedUntil) {
-            this.glasses = glasses;
-            this.settings = settings;
-            this.busy = busy;
-            this.snoozedUntil = snoozedUntil;
-        }
-    }
-
+    /** Open timed tasks, then calendar events (fixed). */
     final List<NotchDay.Task> tasks;
-    /** Null when the app has no Body water store yet; the notch then shows no water at all. */
-    final Water water;
-    /** True when the Body store exists, so the planner has somewhere to log a meal. */
-    final boolean body;
+    /** Busy calendar events, which hold water nudges (busyEvents in body-api.mjs). */
+    final List<NotchWater.Busy> busy;
+    final NotchBody body;
 
-    private NotchData(List<NotchDay.Task> tasks, Water water, boolean body) {
+    private NotchData(List<NotchDay.Task> tasks, List<NotchWater.Busy> busy, NotchBody body) {
         this.tasks = tasks;
-        this.water = water;
+        this.busy = busy;
         this.body = body;
     }
 
     static NotchData read(Context context) {
+        JSONArray events = null;
+        try {
+            events = PlannerCalendar.read(context, System.currentTimeMillis()).optJSONArray("events");
+        } catch (Exception e) {
+            Log.w(NotchController.TAG, "calendar unreadable; notch shows tasks only", e);
+        }
         try {
             JSONObject data = CompanionStore.read(context);
-            return data == null ? EMPTY : parse(data);
+            return parse(data, events);
         } catch (Exception e) {
             Log.w(NotchController.TAG, "planner data unreadable; notch hides", e);
             return EMPTY;
         }
     }
 
-    static NotchData parse(JSONObject data) {
-        Map<String, String> blocks = new HashMap<>();
-        JSONObject planner = data.optJSONObject("planner");
-        JSONArray b = planner == null ? null : planner.optJSONArray("blocks");
-        for (int i = 0; b != null && i < b.length(); i++) {
-            JSONObject block = b.optJSONObject(i);
-            if (block != null) blocks.put(block.optString("id"), block.optString("title"));
-        }
+    /** {@code data} is companion.json (null before the first save); {@code events} is PlannerCalendar's list (or null). */
+    static NotchData parse(JSONObject data, JSONArray events) {
         List<NotchDay.Task> tasks = new ArrayList<>();
-        JSONArray entries = data.optJSONArray("entries");
-        for (int i = 0; entries != null && i < entries.length(); i++) {
-            NotchDay.Task task = task(entries.optJSONObject(i), blocks);
-            if (task != null) tasks.add(task);
+        if (data != null) {
+            Map<String, String> blocks = new HashMap<>();
+            JSONObject planner = data.optJSONObject("planner");
+            JSONArray b = planner == null ? null : planner.optJSONArray("blocks");
+            for (int i = 0; b != null && i < b.length(); i++) {
+                JSONObject block = b.optJSONObject(i);
+                if (block != null) blocks.put(block.optString("id"), block.optString("title"));
+            }
+            JSONArray entries = data.optJSONArray("entries");
+            for (int i = 0; entries != null && i < entries.length(); i++) {
+                NotchDay.Task task = task(entries.optJSONObject(i), blocks);
+                if (task != null) tasks.add(task);
+            }
         }
-        JSONObject body = data.optJSONObject("body");
-        return new NotchData(tasks, body == null ? null : water(body), body != null);
+        List<NotchWater.Busy> busy = new ArrayList<>();
+        for (int i = 0; events != null && i < events.length(); i++) {
+            JSONObject e = events.optJSONObject(i);
+            if (e == null || e.optBoolean("allDay")) continue;
+            long start = e.optLong("start"), end = e.optLong("end");
+            if (start <= 0 || end <= start) continue;
+            if (e.optBoolean("busy", true)) busy.add(new NotchWater.Busy(start, end));
+            tasks.add(new NotchDay.Task(0, e.optString("title", "Calendar commitment"), null, Instant.ofEpochMilli(start),
+                    (int) ((end - start) / NotchDay.MIN), "", Collections.emptySet(), true));
+        }
+        return new NotchData(tasks, busy, NotchBody.parse(data));
     }
 
     /** Open, timed plan entries only, as tasks() and occurrences() in the planner keep them. */
@@ -88,38 +91,6 @@ final class NotchData {
         String block = e.isNull("blockId") ? null : blocks.get(e.optString("blockId"));
         String title = e.optString("title", e.optString("raw"));
         return new NotchDay.Task(e.optLong("id"), title, block, Instant.ofEpochMilli(planned), minutes, e.optString("recurrence", ""), completed);
-    }
-
-    private static Water water(JSONObject body) {
-        JSONObject w = body.optJSONObject("water");
-        if (w == null) w = body;
-        JSONArray g = w.optJSONArray("glasses");
-        if (g == null) return null;
-        List<Long> glasses = new ArrayList<>();
-        for (int i = 0; i < g.length(); i++) {
-            long at = time(g.opt(i));
-            if (at != 0) glasses.add(at);
-        }
-        NotchWater.Settings s = new NotchWater.Settings();
-        JSONObject o = w.optJSONObject("settings");
-        if (o != null) {
-            s.goal = Math.max(1, o.optInt("goal", s.goal));
-            s.intervalMinutes = Math.max(1, o.optInt("intervalMinutes", s.intervalMinutes));
-            s.from = clock(o.optString("from"), s.from);
-            s.until = clock(o.optString("until"), s.until);
-            s.snoozeMinutes = Math.max(1, o.optInt("snoozeMinutes", s.snoozeMinutes));
-        }
-        List<NotchWater.Busy> busy = new ArrayList<>();
-        JSONArray bz = w.optJSONArray("busy");
-        for (int i = 0; bz != null && i < bz.length(); i++) {
-            JSONObject x = bz.optJSONObject(i);
-            if (x != null && time(x.opt("start")) != 0 && time(x.opt("end")) != 0) busy.add(new NotchWater.Busy(time(x.opt("start")), time(x.opt("end"))));
-        }
-        return new Water(glasses, s, busy, time(w.opt("snoozedUntil")));
-    }
-
-    private static String clock(String v, String fallback) {
-        return v != null && v.matches("\\d{2}:\\d{2}") ? v : fallback;
     }
 
     /** Epoch ms of an ISO date-time, or 0 when absent or unreadable. */

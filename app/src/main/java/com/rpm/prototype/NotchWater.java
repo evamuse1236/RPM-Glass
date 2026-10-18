@@ -9,13 +9,15 @@ import java.util.List;
 
 /** Today's water for the notch, by the same rules as waterStatus in body-state.mjs. */
 final class NotchWater {
-    /** The Body store's water settings; defaults match WATER_DEFAULTS. */
+    /** The Body store's water settings; defaults match WATER_SETTINGS in body-store.mjs. */
     static final class Settings {
         int goal = 8;
         int intervalMinutes = 90;
         String from = "08:00";
         String until = "22:00";
         int snoozeMinutes = 15;
+        /** Off means the person turned water nudges off; the count still shows. */
+        boolean reminders = true;
     }
 
     /** A calendar block that holds nudges until it ends. */
@@ -60,7 +62,7 @@ final class NotchWater {
         long end = at(day, s.until, zone);
         boolean paused = false;
         for (Busy b : busy) paused |= b.start <= now && now < b.end;
-        if (today.size() >= s.goal) return new Status(today.size(), s.goal, 0, false);
+        if (today.size() >= s.goal || !s.reminders) return new Status(today.size(), s.goal, 0, false);
         long next = last != 0 ? last + s.intervalMinutes * NotchDay.MIN : start;
         if (next < start) next = start;
         if (snoozedUntil > next) next = snoozedUntil;

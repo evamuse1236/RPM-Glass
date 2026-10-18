@@ -131,9 +131,21 @@ function widgetsSection(ctx) {
     add(ctx, section, 'Floating butterfly', 'Open Capture over your other apps', '',
       ctx.state.launcherRunning ? 'hide_butterfly' : 'show_butterfly', {toggle: !!ctx.state.launcherRunning});
   }
-  add(ctx, section, 'Notch', 'Your current task around the front camera. Android turns it on in accessibility settings; RPM reads no screen content.',
-    '', 'notch', {toggle: !!ctx.state.notchOn});
+  notchRows(ctx, section);
   return section;
+}
+
+/** The notch is off until switched on here; Android also needs RPM Notch on in its accessibility settings. */
+function notchRows(ctx, section) {
+  const {notchOn, notchServiceOn} = ctx.state;
+  const detail = !notchOn ? 'Your current task, water and routines around the front camera'
+    : notchServiceOn ? 'On. Tap the pill at the camera to see what is next.'
+      : 'Waiting for Android: allow RPM Notch below';
+  add(ctx, section, 'Notch', detail, '', 'notch_toggle', {toggle: !!notchOn});
+  if (notchOn && !notchServiceOn) {
+    add(ctx, section, 'Allow the notch', 'Android only lets apps draw at the camera through an accessibility service. '
+      + 'Opens Accessibility; turn on RPM Notch there. RPM reads no screen content.', NEEDS_PERMISSION, 'notch_permission');
+  }
 }
 
 function accountSection(ctx) {

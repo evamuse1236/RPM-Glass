@@ -67,4 +67,24 @@ public class PillPriorityTest {
         assertNull(pill.primary(0));
         assertNull(pill.secondary(0));
     }
+
+    @Test
+    public void aDueRoutineLeadsThenSplitsOutLikeWater() {
+        pill.show(Kind.HABIT, "1/3", 5_000);
+        assertEquals(Kind.HABIT, pill.primary(5_000).kind);
+        assertEquals(Kind.TASK, pill.secondary(5_000).kind);
+        assertEquals(Kind.TASK, pill.primary(13_000).kind);
+        assertEquals(Kind.HABIT, pill.secondary(13_000).kind);
+    }
+
+    @Test
+    public void withNoTaskOneNudgeLeadsAndTheOtherSplits() {
+        pill.dismiss(Kind.TASK);
+        pill.show(Kind.WATER, "5/8", 0);
+        pill.show(Kind.HABIT, "1/3", 0);
+        PillPriority.Item first = pill.primary(60_000);
+        PillPriority.Item second = pill.secondary(60_000);
+        assertEquals(2, java.util.EnumSet.of(first.kind, second.kind).size());
+        assertEquals(java.util.EnumSet.of(Kind.WATER, Kind.HABIT), java.util.EnumSet.of(first.kind, second.kind));
+    }
 }

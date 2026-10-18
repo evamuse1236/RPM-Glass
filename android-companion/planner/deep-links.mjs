@@ -4,7 +4,7 @@ import {openTask} from './task-sheets.mjs';
 import {contextEditor, entityEditor} from './entities.mjs';
 import {calendarEditor} from './calendar-ui.mjs';
 import {aiAction} from './jev.mjs';
-import {completeFromNotch} from './notch-link.mjs';
+import {completeFromNotch, openMealFromNotch} from './notch-link.mjs';
 
 /** A Goal drafted by Capture: keeps the exact source words; entity fields stay within limits. */
 export function capturedGoalDraft(target) {
@@ -99,5 +99,6 @@ export function openView(app, target) {
     app.render({reset: true});
   }
   if (target.complete != null) return completeFromNotch(app, target);
+  if (target.view === 'meal') return openMealFromNotch(app, target);
   return undefined;
 }

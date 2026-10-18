@@ -9,8 +9,11 @@ import java.util.Map;
  */
 final class PillPriority {
     enum Kind {
+        /** What is happening now: a task or calendar event. */
         TASK(0),
-        WATER(8_000);
+        WATER(8_000),
+        /** A routine with steps due. */
+        HABIT(8_000);
 
         final long emphasisMs;
 

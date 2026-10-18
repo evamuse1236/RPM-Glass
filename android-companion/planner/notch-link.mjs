@@ -16,3 +16,13 @@ export function completeFromNotch(app, {complete, start}) {
   app.notice('Already done or changed');
   return undefined;
 }
+
+/**
+ * The notch's Log meal. Opens the meal sheet for `slot` when this build has the Body screens (they set
+ * `app.openMealLog`); otherwise Today stays open with a note.
+ */
+export function openMealFromNotch(app, {slot} = {}) {
+  if (typeof app.openMealLog === 'function') return app.openMealLog(slot ?? null);
+  app.notice('The meal log is not in this build yet');
+  return undefined;
+}
