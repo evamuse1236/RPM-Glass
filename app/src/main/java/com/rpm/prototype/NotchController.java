@@ -17,6 +17,7 @@ import android.text.format.DateFormat;
 import android.util.Log;
 import android.view.WindowManager;
 
+import com.rpm.prototype.NotchFrame.Mode;
 import com.rpm.prototype.PillPriority.Item;
 import com.rpm.prototype.PillPriority.Kind;
 
@@ -27,8 +28,11 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** The one island: reads the planner store when it changes and every few minutes, and redraws the pill or panel. */
-final class NotchController {
+/**
+ * The one island: reads the planner store when it changes and every few minutes, and redraws the pill, the open island
+ * or an alert island. Rendering the same frame twice does nothing, so window events and ticks cost no relayout.
+ */
+final class NotchController implements NotchPill.Gestures {
     static final String TAG = "RpmNotch";
     private static final String PREFS = "notch";
     private static final String ENABLED = "enabled";
@@ -79,9 +83,11 @@ final class NotchController {
     };
 
     private final Context service;
+    final NotchAlerting alerting;
 
     NotchController(Context serviceContext) {
         service = serviceContext;
+        alerting = new NotchAlerting(serviceContext, this, reader, handler);
     }
 
     /** Runs {@code body} so one exception is logged instead of killing the process and the service with it. */
@@ -102,15 +108,21 @@ final class NotchController {
         filter.addAction(Intent.ACTION_TIME_TICK);
         filter.addAction(Intent.ACTION_TIME_CHANGED);
         filter.addAction(Intent.ACTION_TIMEZONE_CHANGED);
-        if (Build.VERSION.SDK_INT >= 33) service.registerReceiver(system, filter, Context.RECEIVER_NOT_EXPORTED);
-        else service.registerReceiver(system, filter);
+        register(system, filter);
+        alerting.attach();
         registered = true;
         prefs(service).registerOnSharedPreferenceChangeListener(prefsChanged);
         observer = new StoreObserver(service.getFilesDir());
         observer.startWatching();
         NotchActions.log(service, "notch.service", "connected", null);
         reload();
-        refreshEnvironment();
+        readEnvironment();
+        render();
+    }
+
+    void register(BroadcastReceiver receiver, IntentFilter filter) {
+        if (Build.VERSION.SDK_INT >= 33) service.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        else service.registerReceiver(receiver, filter);
     }
 
     void detach() {
@@ -120,6 +132,7 @@ final class NotchController {
         observer = null;
         if (registered) {
             service.unregisterReceiver(system);
+            alerting.detach();
             prefs(service).unregisterOnSharedPreferenceChangeListener(prefsChanged);
         }
         registered = false;
@@ -142,10 +155,21 @@ final class NotchController {
 
     /** Re-reads lock, screen and orientation, then redraws (also the minute tick). */
     void refreshEnvironment() {
+        readEnvironment();
+        render();
+    }
+
+    /** A window changed somewhere on the phone: redraw only if lock, screen or orientation changed with it. */
+    void onWindowEvent() {
+        if (readEnvironment()) render();
+    }
+
+    private boolean readEnvironment() {
+        boolean wasLocked = locked, wasOn = screenOn, wasLandscape = landscape;
         locked = service.getSystemService(KeyguardManager.class).isKeyguardLocked();
         screenOn = service.getSystemService(PowerManager.class).isInteractive();
         landscape = service.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
-        render();
+        return locked != wasLocked || screenOn != wasOn || landscape != wasLandscape;
     }
 
     void setExpanded(boolean expand) {
@@ -172,10 +196,63 @@ final class NotchController {
         else priority.dismiss(Kind.HABIT);
         Item primary = priority.primary(now);
         if (primary == null) expanded = false;
-        if (primary != null && !locked && screenOn && !landscape) pill.show(primary, priority.secondary(now), expanded, scene, actions);
+        NotchAlert alert = alerting.alert();
+        NotchFrame.Note note = alerting.note();
+        Mode mode = alert != null ? (alert.type == NotchAlert.Type.ALARM ? Mode.ALARM : Mode.REMINDER) : expanded ? Mode.OPEN : Mode.PILL;
+        boolean something = primary != null || note != null || alert != null;
+        if (something && !locked && screenOn && !landscape) pill.show(new NotchFrame(mode, primary, priority.secondary(now), scene, alert, note), actions);
         else pill.hide();
         long next = priority.nextChangeAt(now);
         if (next != Long.MAX_VALUE) handler.postAtTime(emphasisEnd, next);
+    }
+
+    @Override
+    public void onGesture(Mode mode, IslandGesture.Result result) {
+        NotchActions.log(service, "notch.gesture", result.name().toLowerCase(java.util.Locale.ROOT), NotchActions.payload("on", mode.name()));
+        switch (mode) {
+            case PILL:
+                if (result == IslandGesture.Result.TAP || result == IslandGesture.Result.RIGHT || result == IslandGesture.Result.DOWN) setExpanded(true);
+                else if (result == IslandGesture.Result.LEFT) snoozePill();
+                else if (result == IslandGesture.Result.LONG_PRESS) openHero();
+                break;
+            case OPEN:
+                if (result == IslandGesture.Result.UP) setExpanded(false);
+                break;
+            case REMINDER:
+                if (result == IslandGesture.Result.TAP || result == IslandGesture.Result.RIGHT) actions.openAlert();
+                else if (result == IslandGesture.Result.LEFT) actions.snoozeAlert();
+                else if (result == IslandGesture.Result.UP) alerting.fold();
+                break;
+            case ALARM:
+                if (result == IslandGesture.Result.TAP || result == IslandGesture.Result.RIGHT) actions.openAlert();
+                break;
+            default:
+                break;
+        }
+    }
+
+    @Override
+    public void onOutsideTap(Mode mode) {
+        if (mode == Mode.OPEN) setExpanded(false);
+    }
+
+    /** Swipe left on the pill: the island's own Snooze, shown on the pill as "+10m" for 2 s. */
+    private void snoozePill() {
+        if (scene == null || !scene.canSnooze()) {
+            NotchActions.log(service, "notch.snooze", "nothing_due", null);
+            return;
+        }
+        int minutes = scene.snoozeMinutes;
+        actions.snooze();
+        alerting.showSnoozed(minutes);
+    }
+
+    /** Long press on the pill: the current task in the planner, or the day when the pill shows a nudge or an event. */
+    private void openHero() {
+        NotchDay.Slot hero = scene == null ? null : scene.hero;
+        expanded = false;
+        NotchActions.openTask(service, hero == null ? 0 : hero.task.id);
+        render();
     }
 
     /** Local snoozes still running, by key (NotchScene.WATER_SNOOZE, NotchScene.routineSnooze). */
@@ -230,10 +307,25 @@ final class NotchController {
         }
 
         @Override
-        public void askAgent() {
+        public void openPlan() {
             expanded = false;
-            NotchActions.askAgent(service);
+            NotchActions.openTask(service, 0);
             render();
+        }
+
+        @Override
+        public void openAlert() {
+            alerting.openTask();
+        }
+
+        @Override
+        public void snoozeAlert() {
+            alerting.snooze();
+        }
+
+        @Override
+        public void stopAlert() {
+            alerting.stop();
         }
     };
 

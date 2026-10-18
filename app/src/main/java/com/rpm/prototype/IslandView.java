@@ -1,5 +1,7 @@
 package com.rpm.prototype;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
@@ -7,37 +9,37 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
+import android.os.SystemClock;
 import android.view.Choreographer;
+import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.Interpolator;
+import android.view.animation.LinearInterpolator;
+import android.view.animation.PathInterpolator;
 
-/** Draws the black island (pill, split circle, panel with ears) in screen coordinates and springs between shapes. */
+/** Draws the one black island in screen coordinates and morphs it between the pill, the open island and the alert islands. */
 final class IslandView extends ViewGroup {
-    static final long FADE_MS = 190;
-    private static final float PRESSED_SCALE = 0.90f;
+    static final long OPEN_MS = 350;
+    static final long ALERT_MS = 300;
+    static final long CLOSE_MS = 250;
+    static final long FADE_OUT_MS = 90;
+    static final long FADE_IN_DELAY_MS = 90;
+    static final long FADE_IN_MS = 210;
+    static final Interpolator DECELERATE = new PathInterpolator(0.05f, 0.7f, 0.1f, 1f);
+    static final Interpolator ACCELERATE = new PathInterpolator(0.3f, 0f, 0.8f, 0.15f);
+    static final Interpolator STANDARD = new PathInterpolator(0.2f, 0f, 0f, 1f);
+    private static final float PRESSED_SCALE = 0.97f;
     private static final long PRESS_HOLD_MS = 90;
-    private static final float EAR_CURVE = 0.5523f;
+    private static final int SHADOW = 0x40000000;
 
     interface Listener {
-        void onIslandTap();
+        void onGesture(IslandGesture.Result result);
 
         void onOutsideTap();
 
         void onSettled();
-    }
-
-    /** Target geometry in screen pixels. */
-    static final class Shape {
-        final RectF body = new RectF();
-        float bottomRadius;
-        float topRadius;
-        float ear;
-        float splitCx;
-        float splitCy;
-        float splitR;
-        boolean expanded;
-        final RectF touch = new RectF();
     }
 
     private static final class At extends LayoutParams {
@@ -50,139 +52,138 @@ final class IslandView extends ViewGroup {
     }
 
     private final Listener listener;
-    private final Spring left;
-    private final Spring top;
-    private final Spring width;
-    private final Spring height;
-    private final Spring bottomRadius;
-    private final Spring topRadius;
-    private final Spring ear;
-    private final Spring splitCx;
-    private final Spring splitR;
+    private final IslandGesture gesture;
     private final Spring press = Spring.island(0.002f);
-    private final Spring[] springs;
-    private float splitCy;
-    private boolean expanded;
-    private final RectF touch = new RectF();
     private final Paint ink = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path body = new Path();
-    private final Path clip = new Path();
-    private final RectF scratch = new RectF();
     private final int[] loc = new int[2];
     private final int[] laidOutAt = new int[2];
-    private View mainContent;
-    private View splitContent;
-    private boolean running;
-    private long lastFrameNanos;
-    private boolean pressedInside;
+    private final float density;
+    private IslandShape from;
+    private IslandShape to;
+    private IslandShape now;
+    private ValueAnimator morph;
+    private View face;
+    private View split;
+    private boolean pressable;
+    private boolean pressing;
+    private long pressFrameNanos;
     private final Runnable release = () -> {
         press.target = 1f;
-        kick();
+        pressFrame();
     };
-    private final Choreographer.FrameCallback frame = nanos -> NotchController.safely("island frame", () -> tick(nanos));
+    private final Runnable longPress = () -> NotchController.safely("island long press", this::longPress);
+    private final Choreographer.FrameCallback pressTick = nanos -> NotchController.safely("island press", () -> stepPress(nanos));
 
     IslandView(Context context, Listener listener) {
         super(context);
         this.listener = listener;
-        float px = context.getResources().getDisplayMetrics().density * 0.5f;
-        left = Spring.island(px);
-        top = Spring.island(px);
-        width = Spring.island(px);
-        height = Spring.island(px);
-        bottomRadius = Spring.island(px);
-        topRadius = Spring.island(px);
-        ear = Spring.island(px);
-        splitCx = Spring.island(px);
-        splitR = Spring.island(px);
-        springs = new Spring[]{left, top, width, height, bottomRadius, topRadius, ear, splitCx, splitR, press};
+        density = context.getResources().getDisplayMetrics().density;
+        gesture = new IslandGesture(density);
         press.snapTo(1f);
         ink.setColor(Color.BLACK);
+        setWillNotDraw(false);
         setClickable(true);
-        setOnClickListener(v -> listener.onIslandTap());
+        setOnClickListener(v -> listener.onGesture(IslandGesture.Result.TAP));
     }
 
-    /** Moves the island toward {@code s}. A null main view keeps the current pill or panel content. */
-    void setScene(Shape s, View main, RectF mainAt, boolean replaceSplit, View split, RectF splitAt, boolean firstFrame) {
-        expanded = s.expanded;
-        touch.set(s.touch);
-        splitCy = s.splitCy;
-        set(left, s.body.left, firstFrame);
-        set(top, s.body.top, firstFrame);
-        set(width, s.body.width(), firstFrame);
-        set(height, s.body.height(), firstFrame);
-        set(bottomRadius, s.bottomRadius, firstFrame);
-        set(topRadius, s.topRadius, firstFrame);
-        set(ear, s.ear, firstFrame);
-        set(splitCx, s.splitCx, firstFrame);
-        set(splitR, s.splitR, firstFrame);
-        if (main != null) mainContent = swap(mainContent, main, mainAt);
-        if (replaceSplit) splitContent = swap(splitContent, split, splitAt);
-        kick();
+    /**
+     * Morphs to {@code shape} over {@code ms}. A null {@code nextFace} keeps the current content; {@code fade} cross-fades
+     * old content out over 0-90ms and the new in over 90-300ms, otherwise the content swaps at once.
+     */
+    void setScene(IslandShape shape, long ms, Interpolator curve, View nextFace, RectF faceAt, boolean fade,
+                  boolean replaceSplit, View nextSplit, RectF splitAt, boolean pressable) {
+        this.pressable = pressable;
+        if (nextFace != null) face = swap(face, nextFace, faceAt, fade, true);
+        if (replaceSplit) split = swap(split, nextSplit, splitAt, true, false);
+        morphTo(shape, ms, curve);
     }
 
-    /** Where anything is drawn right now, ears and split circle included. */
-    RectF drawnBounds() {
-        RectF r = new RectF(left.value - ear.value, top.value, left.value + width.value + ear.value, top.value + height.value);
-        if (splitR.value > 0.5f) r.union(splitCx.value - splitR.value, splitCy - splitR.value, splitCx.value + splitR.value, splitCy + splitR.value);
-        return r;
+    /** The window the island needs this frame, mid-morph included. */
+    Box drawnWindow() {
+        return now == null ? null : now.window();
     }
 
-    boolean isSettled() {
-        return !running;
-    }
-
-    private static void set(Spring spring, float to, boolean snap) {
-        if (snap || !ValueAnimator.areAnimatorsEnabled()) spring.snapTo(to);
-        else spring.target = to;
-    }
-
-    private View swap(View old, View next, RectF at) {
-        if (old == next) return old;
-        boolean animate = ValueAnimator.areAnimatorsEnabled();
-        if (old != null) {
-            if (animate) old.animate().alpha(0f).setDuration(FADE_MS).withEndAction(() -> removeView(old));
-            else removeView(old);
-        }
-        if (next == null) return null;
-        next.setAlpha(animate ? 0f : 1f);
-        addView(next, new At(at));
-        if (animate) next.animate().alpha(1f).setDuration(FADE_MS);
-        return next;
-    }
-
-    private void kick() {
-        if (!ValueAnimator.areAnimatorsEnabled()) {
-            for (Spring s : springs) s.snapTo(s.target);
+    private void morphTo(IslandShape target, long ms, Interpolator curve) {
+        if (morph != null) morph.cancel();
+        morph = null;
+        boolean animate = now != null && ValueAnimator.areAnimatorsEnabled() && !same(now, target);
+        from = now;
+        to = target;
+        if (!animate) {
+            now = target;
             invalidate();
-            running = false;
             listener.onSettled();
             return;
         }
-        if (running) return;
-        running = true;
-        lastFrameNanos = 0;
-        Choreographer.getInstance().postFrameCallback(frame);
+        ValueAnimator a = ValueAnimator.ofFloat(0f, 1f);
+        a.setDuration(ms);
+        a.setInterpolator(curve);
+        a.addUpdateListener(v -> {
+            now = IslandShape.lerp(from, to, (float) v.getAnimatedValue());
+            invalidate();
+        });
+        a.addListener(new AnimatorListenerAdapter() {
+            private boolean cancelled;
+
+            @Override
+            public void onAnimationCancel(Animator animation) {
+                cancelled = true;
+            }
+
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (cancelled) return;
+                now = to;
+                morph = null;
+                invalidate();
+                NotchController.safely("island settled", listener::onSettled);
+            }
+        });
+        morph = a;
+        a.start();
     }
 
-    private void tick(long nanos) {
-        float dt = lastFrameNanos == 0 ? 1f / 60f : Math.min((nanos - lastFrameNanos) / 1e9f, 1f / 20f);
-        lastFrameNanos = nanos;
-        boolean moving = false;
-        for (Spring s : springs) moving |= s.step(dt);
-        invalidate();
-        if (moving) {
-            Choreographer.getInstance().postFrameCallback(frame);
-        } else {
-            running = false;
-            listener.onSettled();
+    private static boolean same(IslandShape a, IslandShape b) {
+        return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom && a.radius == b.radius
+                && a.splitCx == b.splitCx && a.splitR == b.splitR && a.shadow == b.shadow;
+    }
+
+    private View swap(View old, View next, RectF at, boolean fade, boolean lift) {
+        if (old == next) return old;
+        boolean animate = fade && ValueAnimator.areAnimatorsEnabled();
+        if (old != null) {
+            disable(old);
+            if (animate) old.animate().alpha(0f).setStartDelay(0).setDuration(FADE_OUT_MS).setInterpolator(new LinearInterpolator()).withEndAction(() -> removeView(old));
+            else removeView(old);
+        }
+        if (next == null) return null;
+        addView(next, new At(at));
+        if (animate) {
+            next.setAlpha(0f);
+            if (lift) next.setTranslationY(-6 * density);
+            next.animate().alpha(1f).translationY(0f).setStartDelay(lift ? FADE_IN_DELAY_MS : 0).setDuration(lift ? FADE_IN_MS : FADE_OUT_MS)
+                    .setInterpolator(lift ? STANDARD : new LinearInterpolator());
+        }
+        return next;
+    }
+
+    private static void disable(View v) {
+        v.setEnabled(false);
+        v.setClickable(false);
+        if (v instanceof ViewGroup) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) disable(g.getChildAt(i));
         }
     }
 
     @Override
     protected void onDetachedFromWindow() {
-        Choreographer.getInstance().removeFrameCallback(frame);
+        if (morph != null) morph.cancel();
+        morph = null;
+        Choreographer.getInstance().removeFrameCallback(pressTick);
         removeCallbacks(release);
-        running = false;
+        removeCallbacks(longPress);
         super.onDetachedFromWindow();
     }
 
@@ -211,6 +212,7 @@ final class IslandView extends ViewGroup {
 
     @Override
     protected void dispatchDraw(Canvas canvas) {
+        if (now == null) return;
         getLocationOnScreen(loc);
         int dx = laidOutAt[0] - loc[0];
         int dy = laidOutAt[1] - loc[1];
@@ -222,54 +224,56 @@ final class IslandView extends ViewGroup {
             laidOutAt[0] = loc[0];
             laidOutAt[1] = loc[1];
         }
-        float x = left.value - loc[0];
-        float y = top.value - loc[1];
-        float w = Math.max(0f, width.value);
-        float h = Math.max(0f, height.value);
-        buildBody(x, y, w, h);
+        float x = now.left - loc[0];
+        float y = now.top - loc[1];
+        float w = Math.max(0f, now.width());
+        float h = Math.max(0f, now.height());
+        float r = Math.min(now.radius, Math.min(w, h) / 2f);
+        body.reset();
+        body.addRoundRect(x, y, x + w, y + h, r, r, Path.Direction.CW);
+        if (now.splitR > 0.5f) body.addCircle(now.splitCx - loc[0], now.splitCy - loc[1], now.splitR, Path.Direction.CW);
+        if (now.shadow > 0.01f) ink.setShadowLayer(10 * density, 0f, 4 * density, Color.argb(Math.round(Color.alpha(SHADOW) * now.shadow), 0, 0, 0));
+        else ink.clearShadowLayer();
         canvas.save();
         canvas.scale(press.value, press.value, x + w / 2f, y + h / 2f);
         canvas.drawPath(body, ink);
-        clip.set(body);
-        if (splitR.value > 0.5f) {
-            canvas.drawCircle(splitCx.value - loc[0], splitCy - loc[1], splitR.value, ink);
-            clip.addCircle(splitCx.value - loc[0], splitCy - loc[1], splitR.value, Path.Direction.CW);
-        }
-        canvas.clipPath(clip);
+        canvas.clipPath(body);
         super.dispatchDraw(canvas);
         canvas.restore();
     }
 
-    private void buildBody(float x, float y, float w, float h) {
-        body.reset();
-        float rt = Math.min(Math.max(0f, topRadius.value), h / 2f);
-        float rb = Math.min(Math.max(0f, bottomRadius.value), h / 2f);
-        scratch.set(x, y, x + w, y + h);
-        body.addRoundRect(scratch, new float[]{rt, rt, rt, rt, rb, rb, rb, rb}, Path.Direction.CW);
-        float e = Math.min(ear.value, h / 2f);
-        if (e < 0.5f) return;
-        float k = e * (1f - EAR_CURVE);
-        body.moveTo(x - e, y);
-        body.lineTo(x + 1f, y);
-        body.lineTo(x + 1f, y + e);
-        body.lineTo(x, y + e);
-        body.cubicTo(x, y + k, x - e + (e - k), y, x - e, y);
-        body.close();
-        float r = x + w;
-        body.moveTo(r - 1f, y);
-        body.lineTo(r + e, y);
-        body.cubicTo(r + e - (e - k), y, r, y + k, r, y + e);
-        body.lineTo(r - 1f, y + e);
-        body.close();
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent e) {
+        switch (e.getActionMasked()) {
+            case MotionEvent.ACTION_OUTSIDE:
+                NotchController.safely("outside tap", listener::onOutsideTap);
+                return true;
+            case MotionEvent.ACTION_DOWN:
+                if (now == null || !gesture.down(now.touch, e.getRawX(), e.getRawY(), e.getEventTime())) {
+                    NotchController.safely("outside tap", listener::onOutsideTap);
+                    return false;
+                }
+                if (pressable) {
+                    removeCallbacks(release);
+                    press.target = PRESSED_SCALE;
+                    pressFrame();
+                    postDelayed(longPress, IslandGesture.LONG_PRESS_MS);
+                }
+                break;
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                removeCallbacks(longPress);
+                if (pressable) postDelayed(release, Math.max(0, PRESS_HOLD_MS - (e.getEventTime() - e.getDownTime())));
+                break;
+            default:
+                break;
+        }
+        return super.dispatchTouchEvent(e);
     }
 
     @Override
-    public boolean dispatchTouchEvent(MotionEvent e) {
-        if (e.getActionMasked() == MotionEvent.ACTION_OUTSIDE) {
-            NotchController.safely("outside tap", listener::onOutsideTap);
-            return true;
-        }
-        return super.dispatchTouchEvent(e);
+    public boolean onInterceptTouchEvent(MotionEvent e) {
+        return e.getActionMasked() == MotionEvent.ACTION_MOVE && claim(e);
     }
 
     @Override
@@ -279,34 +283,57 @@ final class IslandView extends ViewGroup {
 
     @Override
     public boolean onTouchEvent(MotionEvent e) {
-        boolean inside = touch.contains(e.getRawX(), e.getRawY());
         switch (e.getActionMasked()) {
-            case MotionEvent.ACTION_DOWN:
-                pressedInside = inside;
-                if (!inside) {
-                    NotchController.safely("outside tap", listener::onOutsideTap);
-                    return false;
-                }
-                if (!expanded) {
-                    removeCallbacks(release);
-                    press.target = PRESSED_SCALE;
-                    kick();
-                }
+            case MotionEvent.ACTION_MOVE:
+                claim(e);
                 return true;
             case MotionEvent.ACTION_UP:
-                if (pressedInside && !expanded) {
-                    long held = e.getEventTime() - e.getDownTime();
-                    postDelayed(release, Math.max(0, PRESS_HOLD_MS - held));
-                    if (inside) NotchController.safely("island tap", this::performClick);
-                }
-                pressedInside = false;
+                IslandGesture.Result r = gesture.up(e.getRawX(), e.getRawY(), e.getEventTime());
+                if (r == IslandGesture.Result.NONE) return true;
+                if (r != IslandGesture.Result.TAP) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+                NotchController.safely("island " + r, () -> listener.onGesture(r));
                 return true;
             case MotionEvent.ACTION_CANCEL:
-                pressedInside = false;
-                release.run();
+                gesture.cancel();
                 return true;
             default:
                 return true;
         }
+    }
+
+    /** Moves the gesture on; once it is a swipe, the press and the long press stop. */
+    private boolean claim(MotionEvent e) {
+        if (!gesture.move(e.getRawX(), e.getRawY())) return false;
+        removeCallbacks(longPress);
+        if (pressable) release.run();
+        return true;
+    }
+
+    private void longPress() {
+        if (!gesture.longPressAt(SystemClock.uptimeMillis())) return;
+        performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+        release.run();
+        listener.onGesture(IslandGesture.Result.LONG_PRESS);
+    }
+
+    private void pressFrame() {
+        if (!ValueAnimator.areAnimatorsEnabled()) {
+            press.snapTo(press.target);
+            invalidate();
+            return;
+        }
+        if (pressing) return;
+        pressing = true;
+        pressFrameNanos = 0;
+        Choreographer.getInstance().postFrameCallback(pressTick);
+    }
+
+    private void stepPress(long nanos) {
+        float dt = pressFrameNanos == 0 ? 1f / 60f : Math.min((nanos - pressFrameNanos) / 1e9f, 1f / 20f);
+        pressFrameNanos = nanos;
+        boolean moving = press.step(dt);
+        invalidate();
+        if (moving) Choreographer.getInstance().postFrameCallback(pressTick);
+        else pressing = false;
     }
 }

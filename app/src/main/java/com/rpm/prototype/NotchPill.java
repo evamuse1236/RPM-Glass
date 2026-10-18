@@ -14,40 +14,44 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowManager;
+import android.view.animation.Interpolator;
 
+import com.rpm.prototype.NotchFrame.Mode;
 import com.rpm.prototype.NotchScene.Look;
-import com.rpm.prototype.PillPriority.Item;
-import com.rpm.prototype.PillPriority.Kind;
 
-/** One overlay window holding the island. Collapsed, the window is only as big as the pill, so taps beside it reach the app. */
+/**
+ * One overlay window holding the island. Settled, the window is only as big as what it draws, so taps beside it reach
+ * the app. A frame that is already on screen is skipped: no redraw, no animation, no window relayout.
+ */
 final class NotchPill implements IslandView.Listener {
-    private static final int EAR_DP = 14;
-    private static final int PANEL_MARGIN_DP = 6;
-    private static final int PANEL_RADIUS_DP = 32;
-    private static final int SPLIT_GAP_DP = 8;
-    private static final int MIN_PILL_WIDTH_DP = 140;
-    private static final int TOUCH_HEIGHT_DP = 48;
+    interface Gestures {
+        void onGesture(Mode mode, IslandGesture.Result result);
+
+        void onOutsideTap(Mode mode);
+    }
 
     private final Context context;
-    private final NotchController owner;
+    private final Gestures owner;
     private final WindowManager wm;
     private final int type;
     private final NotchContent content;
+    private final NotchAlertViews alerts;
+    private final IslandWindow plan = new IslandWindow();
     private IslandView island;
     private WindowManager.LayoutParams lp;
-    private final Rect window = new Rect();
-    private final Rect settledWindow = new Rect();
-    private String mainKey;
+    private IslandShape target;
+    private Mode shownMode;
     private String splitKey;
     String placement = "not shown";
     String cutoutSource = "not measured";
 
-    NotchPill(Context context, NotchController owner, int type) {
+    NotchPill(Context context, Gestures owner, int type) {
         this.context = context;
         this.owner = owner;
         this.wm = context.getSystemService(WindowManager.class);
         this.type = type;
         this.content = new NotchContent(context);
+        this.alerts = new NotchAlertViews(context, content);
     }
 
     boolean isShown() {
@@ -63,112 +67,96 @@ final class NotchPill implements IslandView.Listener {
             }
         }
         island = null;
-        mainKey = null;
+        target = null;
+        shownMode = null;
         splitKey = null;
+        plan.forget();
         placement = "not shown";
     }
 
-    void show(Item primary, Item secondary, boolean expanded, NotchScene scene, NotchContent.Actions actions) {
+    void show(NotchFrame f, NotchContent.Actions actions) {
         NotchAnchor anchor = anchor();
         int displayWidth = displayWidth();
+        float density = context.getResources().getDisplayMetrics().density;
+        String key = f.key(anchor + "|" + displayWidth + "|" + context.getResources().getConfiguration().fontScale);
+        if (island != null && plan.showing(key)) return;
+
         int h = anchor.pillHeight;
-        IslandView.Shape s = new IslandView.Shape();
-        s.expanded = expanded;
-        s.splitCy = anchor.centerY;
-        View main = null;
-        RectF mainAt;
-        View split = null;
-        RectF splitAt = null;
-        String nextSplitKey = "none";
-        if (expanded) {
-            int ear = dp(EAR_DP);
-            int x = dp(PANEL_MARGIN_DP) + ear;
-            int w = displayWidth - 2 * x;
-            int topInset = anchor.pillBottom() + dp(10);
-            View panel = content.panel(topInset, scene, actions);
-            panel.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
-            int ph = panel.getMeasuredHeight();
-            s.body.set(x, 0, x + w, ph);
-            s.bottomRadius = dp(PANEL_RADIUS_DP);
-            s.topRadius = 0;
-            s.ear = ear;
-            s.splitCx = x + h / 2f;
-            s.splitR = 0;
-            s.touch.set(x - ear, 0, x + w + ear, ph);
-            mainAt = new RectF(s.body);
-            String key = "panel:" + w + ":" + scene.key();
-            if (!key.equals(mainKey)) {
-                main = panel;
-                mainKey = key;
-            }
-        } else {
-            String value = primary.text;
+        int topInset = h + dp(8);
+        IslandShape shape;
+        View face;
+        long ms;
+        Interpolator curve;
+        if (f.mode == Mode.PILL) {
             int keep = Math.max(dp(24), anchor.holeDiameter + dp(12));
-            int side = NotchAnchor.pillSide(content.leadWidth(h), content.trailWidth(value), keep, dp(MIN_PILL_WIDTH_DP));
-            int w = side + keep + side;
-            int x = clamp(anchor.centerX - keep / 2 - side, dp(4), displayWidth - w - dp(4));
-            s.body.set(x, anchor.pillTop(), x + w, anchor.pillTop() + h);
-            s.bottomRadius = h / 2f;
-            s.topRadius = h / 2f;
-            s.ear = 0;
-            mainAt = new RectF(s.body);
-            if (secondary != null) {
-                s.splitR = h / 2f;
-                s.splitCx = x - dp(SPLIT_GAP_DP) - h / 2f;
-                splitAt = new RectF(s.splitCx - h / 2f, anchor.pillTop(), s.splitCx + h / 2f, anchor.pillTop() + h);
-                Look splitLook = NotchContent.look(secondary.kind, scene);
-                nextSplitKey = splitLook + ":" + Math.round(s.splitCx);
-                if (!nextSplitKey.equals(splitKey)) split = content.split(splitLook, h);
-            } else {
-                s.splitR = 0;
-                s.splitCx = x + h / 2f;
-            }
-            float touchBottom = Math.max(s.body.bottom, anchor.centerY + dp(TOUCH_HEIGHT_DP) / 2f);
-            s.touch.set(secondary != null ? splitAt.left : x, 0, x + w, touchBottom);
-            Look look = NotchContent.look(primary.kind, scene);
-            String key = "pill:" + look + ":" + value + ":" + w;
-            if (!key.equals(mainKey)) {
-                main = content.pill(look, value, h, side, keep, side);
-                mainKey = key;
-            }
+            int lead = content.leadWidth(h);
+            int trail = content.trailWidth(f.pillValue(), f.chip());
+            int side = NotchAnchor.pillSide(lead, trail, keep, dp(IslandShape.MIN_PILL_WIDTH_DP));
+            shape = IslandShape.pill(anchor, displayWidth, side, keep, f.secondary != null, density);
+            face = content.pill(f.pillLook(), f.pillValue(), f.chip(), h, side, keep, side);
+            ms = IslandView.CLOSE_MS;
+            curve = IslandView.ACCELERATE;
+        } else {
+            int w = displayWidth - 2 * dp(IslandShape.ISLAND_INSET_DP);
+            if (f.mode == Mode.OPEN) face = content.panel(topInset, f.scene, actions);
+            else if (f.mode == Mode.REMINDER) face = alerts.reminder(topInset, f.alert, actions);
+            else face = alerts.alarm(topInset, f.alert, actions);
+            face.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+            int radius = f.mode == Mode.OPEN ? IslandShape.OPEN_RADIUS_DP : IslandShape.ALERT_RADIUS_DP;
+            shape = IslandShape.island(anchor, displayWidth, face.getMeasuredHeight(), radius, density);
+            ms = f.mode == Mode.OPEN ? IslandView.OPEN_MS : IslandView.ALERT_MS;
+            curve = IslandView.DECELERATE;
         }
-        boolean splitChanged = !nextSplitKey.equals(splitKey);
+        RectF faceAt = new RectF(shape.left, shape.top, shape.right, shape.bottom);
+
+        Look splitLook = f.mode == Mode.PILL ? f.splitLook() : null;
+        String nextSplitKey = splitLook == null ? null : splitLook + ":" + Math.round(shape.splitCx);
+        boolean splitChanged = nextSplitKey == null ? splitKey != null : !nextSplitKey.equals(splitKey);
+        View split = splitChanged && splitLook != null ? content.split(splitLook, h) : null;
+        RectF splitAt = new RectF(shape.splitCx - h / 2f, anchor.pillTop(), shape.splitCx + h / 2f, anchor.pillBottom());
         splitKey = nextSplitKey;
 
-        Rect target = new Rect();
-        s.touch.roundOut(target);
-        settledWindow.set(target);
-        boolean firstFrame = island == null;
-        if (firstFrame && !attach(target)) return;
-        if (!firstFrame && ValueAnimator.areAnimatorsEnabled()) {
-            RectF drawn = island.drawnBounds();
-            Rect union = new Rect(target);
-            union.union(window);
-            union.union(Math.round(drawn.left), Math.round(drawn.top), Math.round(drawn.right), Math.round(drawn.bottom));
-            moveWindow(union);
+        boolean first = island == null;
+        Box window = shape.window();
+        Box resize = plan.begin(key, window, first ? window : island.drawnWindow(), !first && ValueAnimator.areAnimatorsEnabled());
+        if (first && !attach(window)) {
+            plan.forget();
+            return;
         }
-        island.setContentDescription(describe(primary, secondary, expanded, scene));
-        island.setScene(s, main, mainAt, splitChanged, split, splitAt, firstFrame);
-        placement = "window " + window.toShortString() + " · " + anchor + " · via " + cutoutSource;
-        Log.i(NotchController.TAG, "island " + (expanded ? "expanded" : primary.kind + " " + primary.text) + " " + placement);
+        if (!first && resize != null) moveWindow(resize);
+        island.setContentDescription(f.mode == Mode.PILL ? f.spoken() : null);
+        boolean fade = !first && f.mode != shownMode;
+        target = shape;
+        shownMode = f.mode;
+        island.setScene(shape, ms, curve, face, faceAt, fade, splitChanged, split, splitAt, f.mode == Mode.PILL);
+        placement = "window " + plan.current() + " · " + anchor + " · via " + cutoutSource;
+        Log.i(NotchController.TAG, "island " + describe(f) + " " + placement);
+    }
+
+    private static String describe(NotchFrame f) {
+        if (f.mode == Mode.PILL) return (f.primary == null ? "NOTE" : f.primary.kind) + " " + f.pillValue();
+        if (f.mode == Mode.OPEN) return "expanded";
+        return f.mode.name().toLowerCase(java.util.Locale.ROOT) + " " + f.alert.title;
     }
 
     @Override
-    public void onIslandTap() {
-        owner.setExpanded(true);
+    public void onGesture(IslandGesture.Result result) {
+        if (shownMode != null) owner.onGesture(shownMode, result);
     }
 
     @Override
     public void onOutsideTap() {
-        if (owner.expanded) owner.setExpanded(false);
+        if (shownMode != null) owner.onOutsideTap(shownMode);
     }
 
     @Override
     public void onSettled() {
-        if (island != null) moveWindow(settledWindow);
+        if (island == null || target == null) return;
+        Box settled = plan.settle(target.window());
+        if (settled != null) moveWindow(settled);
     }
 
-    private boolean attach(Rect bounds) {
+    private boolean attach(Box bounds) {
         island = new IslandView(context, this);
         lp = new WindowManager.LayoutParams(bounds.width(), bounds.height(), type,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
@@ -188,11 +176,9 @@ final class NotchPill implements IslandView.Listener {
         }
         try {
             wm.addView(island, lp);
-            window.set(bounds);
             return true;
         } catch (RuntimeException e) {
             island = null;
-            mainKey = null;
             splitKey = null;
             placement = "addView failed: " + e.getClass().getSimpleName() + ": " + e.getMessage();
             Log.w(NotchController.TAG, placement);
@@ -200,27 +186,14 @@ final class NotchPill implements IslandView.Listener {
         }
     }
 
-    private void moveWindow(Rect bounds) {
-        if (bounds.equals(window) || island == null) return;
+    private void moveWindow(Box bounds) {
+        if (island == null) return;
         lp.x = bounds.left;
         lp.y = bounds.top;
         lp.width = bounds.width();
         lp.height = bounds.height();
         wm.updateViewLayout(island, lp);
-        window.set(bounds);
-        placement = "window " + window.toShortString() + " · via " + cutoutSource;
-    }
-
-    private static String describe(Item primary, Item secondary, boolean expanded, NotchScene scene) {
-        if (expanded) return "Notch panel. Tap outside to close.";
-        String also = secondary == null ? "" : ". Also " + spoken(secondary, scene);
-        return spoken(primary, scene) + also + ". Tap to open.";
-    }
-
-    private static String spoken(Item item, NotchScene scene) {
-        if (item.kind == Kind.WATER) return "Water due, " + scene.water.count + " of " + scene.water.goal + " glasses";
-        if (item.kind == Kind.HABIT) return scene.habit.routine.name + ", " + scene.habit.done + " of " + scene.habit.total + " steps done";
-        return scene.spoken;
+        placement = "window " + bounds + " · via " + cutoutSource;
     }
 
     private NotchAnchor anchor() {
@@ -277,9 +250,5 @@ final class NotchPill implements IslandView.Listener {
 
     private int dp(int value) {
         return NotchAnchor.dp(value, context.getResources().getDisplayMetrics().density);
-    }
-
-    private static int clamp(int v, int lo, int hi) {
-        return Math.max(lo, Math.min(v, hi));
     }
 }

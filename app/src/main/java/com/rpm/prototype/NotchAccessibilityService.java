@@ -35,7 +35,7 @@ public final class NotchAccessibilityService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        NotchController.safely("accessibility event", notch::refreshEnvironment);
+        NotchController.safely("accessibility event", notch::onWindowEvent);
     }
 
     @Override

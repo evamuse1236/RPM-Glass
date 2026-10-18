@@ -9,10 +9,12 @@ import org.json.*;
 import java.util.*;
 
 public final class CompanionAlarmService extends Service {
+    static final String RING_CHANGED="com.rpm.prototype.COMPANION_RING_CHANGED";
     private static CompanionAlarmService running;
     private final java.util.concurrent.ConcurrentHashMap<Long,Long> active=new java.util.concurrent.ConcurrentHashMap<>();
     private final Handler handler=new Handler(Looper.getMainLooper());
     private MediaPlayer player;private PowerManager.WakeLock wake;private Vibrator vibrator;private AudioFocusRequest focus;
+    static void answer(long id,boolean snooze){CompanionAlarmService s=running;if(s!=null)s.handler.post(()->s.remove(id,snooze,true,"Alarm dismissed"));}
     static void cancelActive(long id){CompanionAlarmService s=running;if(s!=null)s.handler.post(()->s.remove(id,false,false,"Alert changed"));}
     @Override public void onCreate(){super.onCreate();running=this;CompanionAlerts.channels(this);}
     @Override public IBinder onBind(Intent i){return null;}
@@ -20,7 +22,7 @@ public final class CompanionAlarmService extends Service {
         if(i==null){stopSelf();return START_NOT_STICKY;}long id=i.getLongExtra("id",-1);String action=i.getAction();
         if("dismiss".equals(action)||"snooze".equals(action)){remove(id,"snooze".equals(action),true,"Alarm dismissed");return START_NOT_STICKY;}
         try{JSONObject d=CompanionStore.read(this),e=d==null?null:CompanionAlerts.entry(d,id),r=CompanionAlerts.ledger(this).optJSONObject(String.valueOf(id));if(e==null||r==null||!CompanionAlerts.active(e)||!r.optString("status").equals("ringing")){if(active.isEmpty())stopSelf();return START_NOT_STICKY;}
-            active.putIfAbsent(id,SystemClock.elapsedRealtime());startForeground(81001,notification());if(player==null)startSound();handler.removeCallbacks(expire);handler.postDelayed(expire,1000);
+            if(active.putIfAbsent(id,SystemClock.elapsedRealtime())==null)sendBroadcast(new Intent(RING_CHANGED).setPackage(getPackageName()));startForeground(81001,notification());if(player==null)startSound();handler.removeCallbacks(expire);handler.postDelayed(expire,1000);
         }catch(Exception e){try{CompanionAlerts.finish(this,id,false,"Alarm audio could not start");}catch(Exception ignored){}active.remove(id);if(active.isEmpty())stopSelf();}
         return START_NOT_STICKY;
     }
@@ -38,7 +40,7 @@ public final class CompanionAlarmService extends Service {
         vibrator=getSystemService(Vibrator.class);if(vibrator!=null)vibrator.vibrate(VibrationEffect.createWaveform(new long[]{0,500,600,500,1200},0),attributes);
         wake=getSystemService(PowerManager.class).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"rpm:companion-alarm");wake.acquire(660000);
     }
-    private void remove(long id,boolean snooze,boolean update,String label){if(active.remove(id)==null)return;if(update)try{CompanionAlerts.finish(this,id,snooze,label);}catch(Exception ignored){}if(active.isEmpty()){stopForeground(STOP_FOREGROUND_REMOVE);stopSelf();}else getSystemService(NotificationManager.class).notify(81001,notification());sendBroadcast(new Intent("com.rpm.prototype.COMPANION_RING_CHANGED").setPackage(getPackageName()));}
+    private void remove(long id,boolean snooze,boolean update,String label){if(active.remove(id)==null)return;if(update)try{CompanionAlerts.finish(this,id,snooze,label);}catch(Exception ignored){}if(active.isEmpty()){stopForeground(STOP_FOREGROUND_REMOVE);stopSelf();}else getSystemService(NotificationManager.class).notify(81001,notification());sendBroadcast(new Intent(RING_CHANGED).setPackage(getPackageName()));}
     static Set<Long> activeIds(){return running==null?Set.of():new LinkedHashSet<>(running.active.keySet());}
     @Override public void onDestroy(){handler.removeCallbacksAndMessages(null);if(player!=null){player.release();player=null;}if(vibrator!=null)vibrator.cancel();if(wake!=null&&wake.isHeld())wake.release();if(focus!=null)getSystemService(AudioManager.class).abandonAudioFocusRequest(focus);for(long id:active.keySet())try{CompanionAlerts.finish(this,id,false,"Alarm interrupted · check phone settings");}catch(Exception ignored){}active.clear();if(running==this)running=null;super.onDestroy();}
 }

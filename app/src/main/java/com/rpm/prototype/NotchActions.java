@@ -38,15 +38,16 @@ final class NotchActions {
         }
     }
 
-    /** Ask agent opens Capture, the same intent as the home-screen widget's capture pill. */
-    static void askAgent(Context c) {
+    /** Opens a task's sheet in the planner, or the day's plan when {@code taskId} is 0 (a calendar event or a nudge). */
+    static void openTask(Context c, long taskId) {
         try {
-            c.startActivity(new Intent(c, CompanionActivity.class).setAction("com.rpm.widget.capture")
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
-            log(c, "notch.ask_agent", "opened", null);
-        } catch (RuntimeException e) {
-            log(c, "notch.ask_agent", "error", payload("error", e.getClass().getSimpleName()));
-            Log.e(NotchController.TAG, "could not open Capture", e);
+            JSONObject target = new JSONObject().put("view", "day");
+            if (taskId > 0) target.put("id", taskId);
+            planner(c, target);
+            log(c, "notch.open_task", "opened", payload("taskId", taskId));
+        } catch (JSONException | RuntimeException e) {
+            log(c, "notch.open_task", "error", payload("taskId", taskId, "error", e.getClass().getSimpleName()));
+            Log.e(NotchController.TAG, "could not open the task in the planner", e);
         }
     }
 
