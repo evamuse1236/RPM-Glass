@@ -1,43 +1,11 @@
-// Copy of NotchPill, NotchContent, NotchAnchor and IslandView's shapes, drawn in device pixels of a Galaxy S24 FE.
+// Copy of NotchPill, NotchContent and IslandView: one black island that morphs between the pill, the open island and the alert islands.
 import {S24} from './device.mjs';
+import {D, dp, css, anchor, ISLAND_INSET_DP} from './notch-geometry.mjs';
+import {el, glyph, text, iconCircle, button, plain, accent, lookOf, TILE} from './notch-parts.mjs';
+import {alertFace} from './notch-alert.mjs';
+import {swipeable} from './notch-gesture.mjs';
 
-const D = S24.density, dp = v => Math.round(v * D), css = px => `${px / D}px`;
-const ICONS = {TASK: 'notch_ic_task', EVENT: 'notch_ic_event', WATER: 'notch_ic_water', HABIT: 'notch_ic_routine', MEAL: 'notch_ic_meal'};
-const ACCENT = {WATER: '#7CACF8', HABIT: '#6DD58C', MEAL: '#FDD663'};
-const TILE = {HABIT: '#146C2E', EVENT: '#3C4043'};
-const plain = look => look === 'TASK' || look === 'EVENT';
-const accent = look => ACCENT[look] ?? 'rgb(255 255 255 / .6)';
-const lookOf = (kind, scene) => kind === 'WATER' ? 'WATER' : kind === 'HABIT' ? 'HABIT' : scene.hero?.task.fixed ? 'EVENT' : 'TASK';
-const EAR_CURVE = 0.5523;
-
-function anchor() {
-  const hole = S24.hole.diameter, pill = Math.max(dp(36), hole + dp(8));
-  const centerY = Math.max(Math.floor(pill / 2), S24.hole.centerY + hole / 2 - Math.floor(hole / 2));
-  return {centerX: S24.hole.centerX, centerY, hole, pill, top: centerY - Math.floor(pill / 2)};
-}
-
-function el(tag, className, props = {}) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  return Object.assign(node, props);
-}
-
-function glyph(look, icon = ICONS[look]) {
-  const g = el('span', 'notch-glyph');
-  g.style.setProperty('--icon', `url(/__playground/icon/${icon}.svg)`);
-  return g;
-}
-
-function iconCircle(look, size) {
-  const c = el('span', 'notch-circle');
-  c.style.inlineSize = c.style.blockSize = css(size);
-  c.style.background = plain(look) ? '#3C3C3C' : `color-mix(in srgb, ${accent(look)} 24%, transparent)`;
-  const g = glyph(look);
-  g.style.inlineSize = g.style.blockSize = css(Math.round(size * 0.6));
-  g.style.color = plain(look) ? 'rgb(255 255 255 / .87)' : accent(look);
-  c.append(g);
-  return c;
-}
+const RADIUS = {open: 32, reminder: 28, alarm: 28};
 
 function measure(stage, value) {
   const probe = text(value, 15, '#fff', 600, 'notch-text notch-probe');
@@ -47,119 +15,162 @@ function measure(stage, value) {
   return width;
 }
 
-function bodyPath(x, y, w, h, rt, rb, ear) {
-  rt = Math.min(rt, h / 2); rb = Math.min(rb, h / 2);
-  let d = `M${x + rt} ${y}H${x + w - rt}A${rt} ${rt} 0 0 1 ${x + w} ${y + rt}V${y + h - rb}A${rb} ${rb} 0 0 1 ${x + w - rb} ${y + h}`
-    + `H${x + rb}A${rb} ${rb} 0 0 1 ${x} ${y + h - rb}V${y + rt}A${rt} ${rt} 0 0 1 ${x + rt} ${y}Z`;
-  const e = Math.min(ear, h / 2);
-  if (e >= 0.5) {
-    const k = e * (1 - EAR_CURVE), r = x + w;
-    d += `M${x - e} ${y}L${x + 1} ${y}L${x + 1} ${y + e}L${x} ${y + e}C${x} ${y + k} ${x - k} ${y} ${x - e} ${y}Z`;
-    d += `M${r - 1} ${y}L${r + e} ${y}C${r + k} ${y} ${r} ${y + k} ${r} ${y + e}L${r - 1} ${y + e}Z`;
-  }
-  return d;
-}
-
 function describe(primary, secondary, scene) {
   const say = item => item.kind === 'WATER' ? `Water due, ${scene.water.count} of ${scene.water.goal} glasses`
     : item.kind === 'HABIT' ? `${scene.habit.routine.name}, ${scene.habit.done} of ${scene.habit.total} steps done` : scene.spoken;
-  return say(primary) + (secondary ? '. Also ' + say(secondary) : '') + '. Tap to open.';
+  return say(primary) + (secondary ? '. Also ' + say(secondary) : '') + '. Opens the island.';
 }
 
-function text(value, sp, color, weight, className = 'notch-text') {
-  const t = el('span', className, {textContent: value});
-  t.style.cssText = `font-size:calc(${sp}px * var(--font-scale));color:${color};font-weight:${weight}`;
-  return t;
-}
-
-function collapsed(stage, svg, primary, secondary, scene, onTap) {
-  const a = anchor(), h = a.pill, look = lookOf(primary.kind, scene);
-  const circle = Math.min(h - dp(12), dp(28)), inset = Math.floor((h - circle) / 2);
+function pillFace(stage, {primary, secondary, scene, note, onTap}) {
+  const a = anchor(), h = a.pill, look = lookOf(primary.kind, scene), value = note?.text ?? primary.text;
+  const circle = Math.min(h - dp(8), dp(28)), inset = Math.floor((h - circle) / 2);
   const keep = Math.max(dp(24), a.hole + dp(12));
-  const lead = inset + circle + dp(8), trail = measure(stage, primary.text) + dp(8) + dp(14);
+  const lead = inset + circle + dp(8), trail = measure(stage, value) + dp(8) + dp(14) + (note?.chip ? dp(16) : 0);
   const side = Math.max(lead, trail, Math.floor((dp(140) - keep + 1) / 2)), w = side + keep + side;
   const x = Math.max(dp(4), Math.min(a.centerX - Math.floor(keep / 2) - side, S24.width - w - dp(4)));
-  svg.innerHTML = `<path d="${bodyPath(x, a.top, w, h, h / 2, h / 2, 0)}"/>`;
-  const pill = el('button', 'notch-pill', {type: 'button', onclick: event => { event.stopPropagation(); onTap(); }});
-  pill.setAttribute('aria-label', describe(primary, secondary, scene));
-  Object.assign(pill.style, {insetInlineStart: css(x), insetBlockStart: css(a.top), inlineSize: css(w), blockSize: css(h)});
+  const face = button('island-face notch-pill', note?.spoken ?? describe(primary, secondary, scene), onTap);
+  face.style.setProperty('--face-w', css(w));
+  face.style.blockSize = css(h);
   const icon = iconCircle(look, circle);
   icon.style.marginInlineStart = css(inset);
   icon.style.marginInlineEnd = css(side - inset - circle);
-  const value = text(primary.text, 15, plain(look) ? '#fff' : accent(look), 600, 'notch-text notch-value');
-  Object.assign(value.style, {inlineSize: css(side), paddingInline: `${css(dp(8))} ${css(dp(14))}`, marginInlineStart: css(keep)});
-  pill.append(icon, value);
-  stage.append(pill);
-  if (secondary) {
-    const cx = x - dp(8) - h / 2;
-    svg.innerHTML += `<circle cx="${cx}" cy="${a.centerY}" r="${h / 2}"/>`;
-    const split = iconCircle(lookOf(secondary.kind, scene), circle);
-    split.classList.add('notch-split');
-    Object.assign(split.style, {insetInlineStart: css(cx - circle / 2), insetBlockStart: css(a.centerY - circle / 2)});
-    stage.append(split);
-  }
+  const color = plain(look) || note ? '#fff' : accent(look);
+  const shown = text(value, 15, color, 600, 'notch-text' + (note?.chip ? ' notch-chip' : ''));
+  const slot = el('span', 'notch-value');
+  Object.assign(slot.style, {inlineSize: css(side), paddingInline: `${css(dp(8))} ${css(dp(14))}`, marginInlineStart: css(keep)});
+  slot.append(shown);
+  face.append(icon, slot);
+  return {face, geo: {x: x / D, w: w / D, h: h / D, r: h / D / 2}};
 }
 
-function control(icon, label, enabled, action) {
-  const b = el('button', 'notch-control', {type: 'button', disabled: !enabled, onclick: action});
-  b.setAttribute('aria-label', enabled ? label : label + ', not available now');
-  b.append(glyph(null, icon));
+function control(icon, label, spoken, enabled, action) {
+  const b = button('notch-control', enabled ? spoken : spoken + ', not available now', action);
+  b.disabled = !enabled;
+  b.append(glyph(null, icon), el('span', 'notch-control-label', {textContent: label}));
   return b;
 }
 
-function panel(scene, actions) {
-  const a = anchor(), look = scene.heroLook;
-  const col = el('div', 'notch-panel');
-  col.style.paddingBlockStart = css(a.top + a.pill + dp(10));
+function dots(count, goal) {
+  const row = el('span', 'notch-dots');
+  row.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < goal; i++) row.append(el('span', i < count ? 'notch-dot on' : 'notch-dot'));
+  return row;
+}
+
+function row(r, scene) {
+  const line = el('div', 'notch-row');
+  const g = glyph(r.look);
+  g.style.color = accent(r.look);
+  line.append(g, text(r.title, 15, 'rgb(255 255 255 / .87)', 400, 'notch-text notch-row-title'));
+  if (r.look === 'WATER') line.append(dots(scene.water.count, scene.water.goal), text(`${scene.water.count}/${scene.water.goal}`, 14, accent('WATER'), 500));
+  else if (r.look === 'MEAL') line.append(el('span', 'notch-ring', {role: 'img', ariaLabel: 'Not logged'}));
+  else if (r.look === 'HABIT') line.append(text(`${scene.habit.done}/${scene.habit.total}`, 14, accent('HABIT'), 500));
+  else line.append(text(r.value, 14, 'rgb(255 255 255 / .7)', 400));
+  return line;
+}
+
+function openFace(scene, actions) {
+  const look = scene.heroLook, face = el('div', 'island-face island-open');
   const hero = el('div', 'notch-hero');
-  const art = el('span', 'notch-tile');
-  art.style.background = TILE[look] ?? '#0B57D0';
-  art.append(glyph(look));
+  const tile = el('span', 'notch-tile');
+  tile.style.background = TILE[look] ?? '#0B57D0';
+  tile.append(glyph(look));
   const words = el('div', 'notch-words');
   words.append(text(scene.heroTitle, 17, '#fff', 600), text(scene.heroSubtitle, 14, accent(look), 400, 'notch-text notch-sub'));
-  hero.append(art, words);
+  hero.append(tile, words);
   const bar = el('div', 'notch-bar');
-  const track = el('span', 'notch-track');
-  const fill = el('span', 'notch-fill');
+  const track = el('span', 'notch-track'), fill = el('span', 'notch-fill');
   fill.style.cssText = `inline-size:max(4px, ${scene.progress * 100}%);background:${plain(look) ? 'rgb(255 255 255 / .87)' : accent(look)}`;
   track.append(fill);
   bar.append(text(scene.barStart, 12, 'rgb(255 255 255 / .6)', 500), track, text(scene.barEnd, 12, 'rgb(255 255 255 / .6)', 500));
   const controls = el('div', 'notch-controls');
-  controls.append(control('notch_ic_done', scene.canDone ? 'Done: ' + scene.heroTitle : 'Done', scene.canDone, actions.done),
-    control('notch_ic_snooze', `Snooze ${scene.snoozeMinutes} minutes`, scene.canSnooze, actions.snooze),
-    control('notch_ic_meal', 'Log a meal', scene.canLogMeal, actions.logMeal),
-    control('notch_ic_agent', 'Ask agent', true, actions.askAgent));
-  col.append(hero, bar, controls);
-  if (scene.rows.length) col.append(el('hr', 'notch-rule'));
-  for (const r of scene.rows) {
-    const row = el('div', 'notch-row');
-    const g = glyph(r.look);
-    g.style.color = accent(r.look);
-    row.append(g, text(r.title, 15, 'rgb(255 255 255 / .87)', 400, 'notch-text notch-row-title'), text(r.value, 15, accent(r.look), plain(r.look) ? 400 : 500));
-    col.append(row);
+  controls.append(control('notch_ic_done', 'Done', 'Done: ' + scene.heroTitle, scene.canDone, actions.done),
+    control('notch_ic_snooze', 'Snooze', `Snooze ${scene.snoozeMinutes} minutes`, scene.canSnooze, actions.snooze),
+    scene.meal ? control('notch_ic_meal', 'Log meal', 'Log a meal', scene.canLogMeal, actions.logMeal)
+      : control('ic_open', 'Open plan', 'Open the plan', true, actions.openPlan));
+  face.append(hero, bar, controls, ...scene.rows.slice(0, 2).map(r => row(r, scene)));
+  return face;
+}
+
+function paintSplit(stage, island, {mode, secondary, scene}, pill) {
+  let split = stage.querySelector(':scope > .notch-split');
+  if (!secondary) return split?.remove();
+  const a = anchor(), h = a.pill;
+  if (!split) {
+    split = el('span', 'notch-split');
+    split.setAttribute('aria-hidden', 'true');
+    island.before(split);
   }
-  return col;
+  const look = lookOf(secondary.kind, scene);
+  if (split.dataset.look !== look) {
+    split.dataset.look = look;
+    split.replaceChildren(iconCircle(look, Math.min(h - dp(8), dp(28))));
+  }
+  if (mode === 'pill') {
+    const cx = pill.x - dp(8) / D - h / D / 2;
+    Object.assign(split.style, {insetInlineStart: `${cx - h / D / 2}px`, insetBlockStart: css(a.top), inlineSize: css(h), blockSize: css(h), translate: ''});
+    split.dataset.state = 'shown';
+  } else {
+    const at = parseFloat(split.style.insetInlineStart) || 0;
+    split.style.translate = `${ISLAND_INSET_DP - at}px 0`;
+    split.dataset.state = 'away';
+  }
 }
 
-function expanded(stage, svg, scene, actions) {
-  const ear = dp(14), x = dp(6) + ear, w = S24.width - 2 * x;
-  const col = panel(scene, actions);
-  Object.assign(col.style, {insetInlineStart: css(x), inlineSize: css(w)});
-  stage.append(col);
-  const h = col.getBoundingClientRect().height * D;
-  svg.innerHTML = `<path d="${bodyPath(x, 0, w, h, 0, dp(32), ear)}"/>`;
+function settle(island, face, same) {
+  for (const old of island.querySelectorAll(':scope > .island-face')) {
+    if (same) { old.remove(); continue; }
+    if (old.dataset.state === 'leaving') continue;
+    old.dataset.state = 'leaving';
+    old.inert = true;
+    Promise.allSettled(old.getAnimations().map(a => a.finished)).then(() => old.remove());
+  }
+  if (same) face.dataset.enter = 'instant';
+  island.append(face);
 }
 
-/** Draws the island for one moment. Returns false when the phone would hide it (nothing to show). */
-export function renderNotch(stage, {scene, primary, secondary, expand, fontScale, actions, onTap}) {
-  stage.replaceChildren();
+/**
+ * Draws the island for one moment and morphs to it from what is on screen. Returns false when the phone would hide it.
+ * mode is 'pill', 'open', 'reminder' or 'alarm'; gestures maps each mode to its swipe handlers.
+ */
+export function renderNotch(stage, opts) {
+  const {scene, primary, mode, alert, fontScale, actions, gestures, instant = false} = opts;
   stage.style.setProperty('--font-scale', fontScale);
-  if (!primary) return false;
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', `0 0 ${S24.width} ${S24.height}`);
-  svg.classList.add('notch-ink');
-  stage.append(svg);
-  if (expand) expanded(stage, svg, scene, actions);
-  else collapsed(stage, svg, primary, secondary, scene, onTap);
+  stage.dataset.text = fontScale > 1.3 ? 'large' : 'normal';
+  const alerting = mode === 'reminder' || mode === 'alarm';
+  if (!alerting && !primary) {
+    stage.replaceChildren();
+    return false;
+  }
+  let island = stage.querySelector(':scope > .island');
+  const first = !island;
+  if (first) {
+    island = el('div', 'island');
+    stage.append(island);
+    swipeable(island, () => island.gestures ?? {});
+  }
+  island.gestures = gestures?.[mode] ?? {};
+  const same = island.dataset.mode === mode;
+  let face, geo;
+  if (mode === 'pill') {
+    ({face, geo} = pillFace(stage, opts));
+  } else {
+    face = alerting ? alertFace(alert, actions) : openFace(scene, actions);
+    const w = (S24.width - 2 * dp(ISLAND_INSET_DP)) / D;
+    face.style.setProperty('--face-w', `${w}px`);
+    face.style.paddingBlockStart = `calc(${css(anchor().pill)} + 8px)`;
+    geo = {x: ISLAND_INSET_DP, w, r: RADIUS[mode]};
+  }
+  settle(island, face, same || first || instant);
+  geo.h ??= face.getBoundingClientRect().height;
+  island.dataset.motion = first || instant ? 'none' : mode === 'pill' ? 'close' : mode === 'open' ? 'open' : 'alert';
+  island.dataset.mode = mode;
+  Object.assign(island.style, {insetInlineStart: `${geo.x}px`, insetBlockStart: css(anchor().top), inlineSize: `${geo.w}px`,
+    blockSize: `${geo.h}px`, borderRadius: `${geo.r}px`});
+  paintSplit(stage, island, opts, geo);
+  if (island.dataset.motion === 'none') {
+    island.getBoundingClientRect();
+    island.dataset.motion = 'idle';
+  }
   return true;
 }
