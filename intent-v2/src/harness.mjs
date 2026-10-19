@@ -109,14 +109,14 @@ export class IntentHarness {
   }catch(error){return this.#needsAttention(messageId,error,{calls,modelRuns});}
   finally{clearTimeout(timer);controller.abort();}
  }
- /** Save what was read: a draft for any operations, the reply, notes, card and any choice question, in one write. */
+ /** Save what was read: a draft unless asking which item, the reply, notes, card and any choice question, in one write. */
  async #stage(messageId,{data,capture,parsed,units,activeDraft,calls,modelRuns,extra={}}){
    const result=await this.repository.transact(`interpret:${messageId}`,{messageId},current=>{
     conversation(current,capture.conversationId);const state=intentState(current),saved=state.captures[messageId];
     if(saved.status==='interpreted')return {messageId,draftId:saved.draftId??null,status:'interpreted'};
     let draftId=null;
-    if(parsed.discarded?.length)draftId=stageProposalRemoval(state,{data,capture,activeDraft,parsed,now:this.clock().toISOString(),refreshSchedule:this.refreshSchedule});
-    else if(parsed.draftMode!=='none'&&parsed.operations.length){
+    if(!parsed.clarification&&parsed.discarded?.length)draftId=stageProposalRemoval(state,{data,capture,activeDraft,parsed,now:this.clock().toISOString(),refreshSchedule:this.refreshSchedule});
+    else if(!parsed.clarification&&parsed.draftMode!=='none'&&parsed.operations.length){
      const previous=parsed.draftMode==='amend'?state.drafts[activeDraft?.id]:null;
      if(parsed.draftMode==='amend'&&(!activeStatus(previous)||previous.revision!==capture.focusRevision))throw new Error('STALE_MODEL_RESULT: draft changed during interpretation');
      draftId=previous?.id??`draft-${messageId}`;

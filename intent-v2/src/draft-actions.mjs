@@ -3,6 +3,7 @@ import {guardsFor,checkGuards,stable} from './context.mjs';
 import {draftFollowUpProblem} from './follow-up.mjs';
 import {checkAction} from './suggestions.mjs';
 import {validateField} from './schema.mjs';
+import {openQuestion} from './conversation-focus.mjs';
 
 export const ident=value=>{if(typeof value!=='string'||!value||value.length>100)throw new Error('A stable client ID is required');return value;};
 export const activeStatus=d=>d&&['draft','review'].includes(d.status);
@@ -42,6 +43,7 @@ export async function actOnDraft(h,action,{actionId}={}){
    if(h.refreshSchedule){draft.schedulePreview=h.refreshSchedule({data,draft:structuredClone(draft),anchor:new Date(draft.timeAnchorAt??draft.created)});draft.reply=h.normalizeReply?.({parsed:draft,schedulePreview:draft.schedulePreview})??draft.reply;}
    return {status:'draft',draftId:draft.id,revision:draft.revision};
   }
+  if(openQuestion(state,draft.conversationId))throw new Error('Answer the open question before saving this draft.');
   // The user may leave some proposals out; only the ones they kept are checked and applied.
   const skipped=skippedOps(draft,action),kept=skipped.size?{...draft,operations:draft.operations.filter(o=>!skipped.has(o.opId)),schedulePreview:draft.schedulePreview&&{...draft.schedulePreview,items:(draft.schedulePreview.items??[]).filter(i=>!skipped.has(i.opId))}}:draft;
   if(kept.operations.some(o=>o.fields.some(f=>f.op==='unknown')))throw new Error('An unresolved field remains; edit it or leave the draft');
