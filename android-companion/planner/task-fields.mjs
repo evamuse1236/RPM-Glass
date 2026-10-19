@@ -1,14 +1,14 @@
 /**
- * The task sheet's inline choices. Each field is a row that unfolds its choices under itself (one open at a time);
- * a choice is handed straight back to the sheet, which saves it, so nothing here owns a Save button.
- * The same choosers serve the task sheet and Quick add.
+ * Quick add's inline choices. Each field unfolds its choices under its chip (one open at a time); a choice is handed
+ * straight back to the sheet, which saves it, so nothing here owns a Save button. The Block search also serves Move to
+ * Block.
  */
 import {localDay, shiftDay} from '../planner-state.mjs';
 import {reducedMotion} from '../surface-motion.mjs';
 import {el, icon, button} from './dom.mjs';
 import {duration} from './format.mjs';
 import {DURATIONS, REPEATS, ALERTS, clockOf, dayPresets, timePresets} from './task-values.mjs';
-export {DURATIONS, TIMES, REPEATS, ALERTS, whenOf, whenFields, whenLabel, clockOf, dayPresets, schedulePresets, blockMatches, hashToken, hashTag, withoutTag, timePresets, repeatValue, repeatLabel, parseWhen} from './task-values.mjs';
+export {DURATIONS, TIMES, TIME_GRID, timeChips, nextHalfHour, dayChips, REPEATS, ALERTS, whenOf, whenFields, whenLabel, clockOf, dayPresets, schedulePresets, blockMatches, hashToken, hashTag, withoutTag, timePresets, repeatValue, repeatLabel, parseWhen} from './task-values.mjs';
 
 /* ---------- inline rows ---------- */
 
@@ -94,25 +94,6 @@ export function foldFor(group, head, build) {
     refresh() { if (refresh) refresh(); },
   };
   return row;
-}
-
-/** A field row: icon and current value, with its choices unfolding below it. */
-export function fieldRow(group, {symbol, cls = '', build, label = ''}) {
-  const wrap = el('div', 'field-row ' + cls);
-  const head = button('', null, 'detail-row field-head');
-  const text = el('span', 'detail-text');
-  head.append(icon(symbol), text);
-  const row = foldFor(group, head, build);
-  wrap.append(head, row.node);
-  return Object.assign(row, {
-    wrap,
-    icon: head.querySelector('.ms'),
-    set(value, {muted = false, aria = ''} = {}) {
-      text.textContent = value;
-      text.classList.toggle('muted', muted);
-      head.setAttribute('aria-label', `${label ? label + ': ' : ''}${aria || value}. Change`);
-    },
-  });
 }
 
 /* ---------- chips ---------- */

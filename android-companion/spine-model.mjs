@@ -47,10 +47,10 @@ function waterRow(water, now) {
     due, reached: status.reached, label: `Water · ${status.count} of ${status.goal}`};
 }
 
-function markRows({day, now, live, water, meals, deadlines}) {
+function markRows({day, now, live, water, meals, mealPlan, deadlines}) {
   const rows = [];
   if (live && water?.status) rows.push(waterRow(water, now));
-  for (const slot of mealSlots(meals, day, now, {placeholders: live})) {
+  for (const slot of mealSlots(meals, day, now, {placeholders: live, plan: mealPlan})) {
     rows.push({kind: 'meal', key: 'meal:' + slot.slot, start: slot.at, end: slot.at, time: gutterTime(slot.at), ...slot});
   }
   for (const due of deadlines) {
@@ -119,14 +119,15 @@ function elapsed(row, now) {
 
 /**
  * `tasks` carry `start` (ms or null), `minutes`, `done`, `must`, `result` and `tone`; `events` are timed calendar
- * events; `routines` carry their day's `state` and `progress`. `live` is true on today.
+ * events; `routines` carry their day's `state` and `progress`; `mealPlan` is `planner.body.mealPlan`. `live` is true on
+ * today.
  */
-export function buildSpine({day, now, live = true, tasks = [], events = [], routines = [], water = null, meals = [], deadlines = [],
-  window = WATER_DEFAULTS}) {
+export function buildSpine({day, now, live = true, tasks = [], events = [], routines = [], water = null, meals = [], mealPlan = null,
+  deadlines = [], window = WATER_DEFAULTS}) {
   const eventCards = events.map(event => card('event', 'event:' + (event.id ?? event.title + event.start), event.start, event.end,
     {title: event.title, event}));
   const blocks = [...eventCards, ...routineCards(day, routines), ...taskCards(tasks)];
-  const marks = markRows({day, now, live, water, meals, deadlines});
+  const marks = markRows({day, now, live, water, meals, mealPlan, deadlines});
   const starts = [...blocks, ...marks].map(r => r.start), ends = [...blocks, ...marks].map(r => r.end);
   const from = Math.min(+atMinutes(day, minutesOf(window.from ?? '08:00')), ...starts);
   const to = Math.max(+atMinutes(day, minutesOf(window.until ?? '22:00')), ...ends);

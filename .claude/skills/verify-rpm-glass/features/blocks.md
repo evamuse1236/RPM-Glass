@@ -12,7 +12,7 @@ Blocks is the list of Results the user is working toward, and each Result opens 
 - `blocks-edit-purpose` edits the Purpose in place, with Undo.
 - `blocks-change-project` moves the Block to another Project from the breadcrumb.
 - `blocks-plan-add` adds a task to the Plan from the inline field.
-- `blocks-plan-reorder` reorders Plan tasks by drag, or by the `Change Plan order` sheet.
+- `blocks-plan-reorder` reorders Plan tasks by drag, or with Alt or Ctrl and the arrow keys on a focused row.
 - `blocks-sort-by-time` sorts the Plan by time when it is out of order.
 - `blocks-achieved` marks a Result achieved, and marks it not achieved again.
 - `blocks-menu` offers `Add notes`, `Suggest a Purpose`, `Archive Block`, `Delete` in More options.
@@ -47,8 +47,8 @@ Preconditions:
 - **Undo.** Chain the edit and `rpmctl tap --role button --name "Undo"` in one shell line, because the snackbar lasts 6 s. The snackbar then reads `Change undone` and the file shows the earlier words.
 - **Change Project.** Run `rpmctl tap --role button --name "Project: Term 1 coursework. Change Project"`. A menu lists `Open Term 1 coursework`, the three Projects and `No project`. Choose `Second brain`; a snackbar reads `Moved to Second brain` and the Block's `projectId` becomes `project-2`. `Undo` restores `project-1`.
 - **Add a task to the Plan.** Run `rpmctl tap --role combobox --name "Add a task to the Plan"`, `rpmctl type "Email Prof. Rao about the citation format"`, `rpmctl key enter`. A snackbar reads `Task added` with `Undo`, the field empties and a Plan row appears. In `entries` one item has that `title`, `raw` equal to the typed words, `blockId` `block-1` and `state` `active`. The progress then reads `2 of 8 tasks done`. Run `rpmctl shot block-plan-added`.
-- **Reorder by sheet.** Run `rpmctl tap --role button --name "Group call: merge sections"` to open the task sheet (pass `--role button`), `rpmctl tap --role button --name "More task options"`, `rpmctl tap --role menuitem --name "Change Plan order"`. A sheet `Plan order` shows the task name, `Plan order is the task’s priority. It does not change the scheduled time.`, and `Move up` and `Move down`. Tap `Move up`. A snackbar reads `Plan order changed`. In `entries` the task's `priority` drops by one and it sits one place higher in the Plan after `Close`.
-- **Reorder by drag.** Hold a Plan row for about a third of a second, then drag. rpmctl has no drag, so drag reorder is **UNVERIFIED**; the sheet path above is the verified alternative.
+- **Reorder by keys.** Focus a Plan row and press Alt or Ctrl with Up or Down. rpmctl cannot send Alt with a key, so send the event: `rpmctl eval 'document.querySelector(".plan-list .task-row:nth-child(2) .task-main").dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowUp",altKey:true,bubbles:true}))'`. A snackbar reads `Plan order changed` with `Undo`; in `entries` the task's `priority` drops by one and it sits one place higher in the Plan (unconfirmed selector). The task sheet no longer has a `Change Plan order` sheet.
+- **Reorder by drag.** Hold a Plan row for about a third of a second, then drag. rpmctl has no drag, so drag reorder is **UNVERIFIED**; the key path above is the verified alternative.
 - **Sort by time.** After the move above, a text button `Sort by time` shows beside the `Plan` heading. Tap it. A snackbar reads `Plan sorted by time` with `Undo`.
 - **Mark Result achieved.** Run `rpmctl tap --role button --name "Mark Result achieved"`. A dialog `Mark Result achieved` shows the Result title, `Achieving the Result is your call. Ticking tasks alone does not decide it.`, a field `How do you know? (optional)` and buttons `Cancel` and `Mark achieved`. Type a line into the field, tap `Mark achieved`. A snackbar reads `Result achieved`. A panel `Result achieved` with a button `Mark not achieved` replaces the question. The Block in the file has `achieved` true, `achievedAt` and the typed `evidence`. `Mark not achieved` shows `Result marked not achieved` and `achieved` becomes false. Run `rpmctl shot block-achieved`.
 - **List after achieving.** Go `Back`. The `Status: Achieved` filter now lists the Block; under `Active` it is gone.
@@ -66,7 +66,7 @@ Preconditions:
 - The Result and Purpose are editable text areas, not form inputs. Use `--role textbox` with the exact name `Result` or `Purpose`.
 - Both names `Result` and `Purpose` also appear in other texts such as `Result: …` card names. Pass `--role textbox`.
 - Snackbars last 6 s and every rpmctl call takes a few seconds. Chain the action and `Undo` in one shell line, and read the snackbar text with `rpmctl eval 'document.querySelector("[role=status]").textContent'`.
-- The drag to reorder cannot be driven with rpmctl. Use the `Plan order` sheet and report the drag as **UNVERIFIED**.
+- The drag to reorder cannot be driven with rpmctl. Use the key path and report the drag as **UNVERIFIED**.
 - Stable ids in the sample plan are `block-1` to `block-8`, `project-1` to `project-3`, `area-1` to `area-4`. They are the same after every `seed`. Plan order is the `priority` number on each task.
 - The Inbox count here includes the weekly task, so it reads 7 while Today's Inbox row reads 6.
 - Marking tasks done does not achieve a Result. Only the `Mark achieved` flow does.

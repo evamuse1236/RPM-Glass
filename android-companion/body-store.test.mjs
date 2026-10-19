@@ -5,7 +5,7 @@ import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {editPlan, planner} from './planner-state.mjs';
 import {migratePlannerUX} from './planner-ux.mjs';
 import {migrateReviewData} from './review-state.mjs';
-import {bodyOf, WATER_SETTINGS} from './body-store.mjs';
+import {bodyOf, defaultMealPlan, WATER_SETTINGS} from './body-store.mjs';
 import {waterStatus} from './body-state.mjs';
 
 const at = (time, day = '2026-10-18') => new Date(`${day}T${time}`);
@@ -19,7 +19,7 @@ test('a store saved before Routines, water and meals loads unchanged and keeps e
   assert.equal(migratePlannerUX(data), false);
   assert.equal(migrateReviewData(data), false);
   assert.deepEqual(data, old);
-  assert.deepEqual(bodyOf(data), {routines: [], runs: [], water: {settings: WATER_SETTINGS, glasses: [], snoozedUntil: null}, meals: [], mealGuesses: {}});
+  assert.deepEqual(bodyOf(data), {routines: [], runs: [], water: {settings: WATER_SETTINGS, glasses: [], snoozedUntil: null}, meals: [], mealGuesses: {}, mealPlan: defaultMealPlan()});
 
   const id = editPlan(data, {type: 'saveRoutine', routine}, at('06:00'));
   editPlan(data, {type: 'drinkWater', at: at('08:40').toISOString()}, at('08:40'));

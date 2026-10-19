@@ -1,12 +1,12 @@
 /** Planner entry: wires the per-screen modules in ./planner/ and the native hooks. */
-import {animateLayout, reducedMotion, slideScroll, EASE, DURATION} from './surface-motion.mjs';
+import {animateLayout, slideScroll} from './surface-motion.mjs';
 import {createApp, TABS} from './planner/app.mjs';
 import {renderShell} from './planner/shell.mjs';
 import {renderScreen, defaultScroll, installSwipe} from './planner/screens.mjs';
 import {dismissSheet, installSheetKeys} from './planner/sheet.mjs';
 import {closeMenu} from './planner/menu.mjs';
 import {setDayLayout} from './planner/today.mjs';
-import {openTask, taskEditor, movePicker, planOrder, archiveTask, deleteTask, showTrash, showInbox, scheduleMenu,
+import {openTask, taskEditor, movePicker, archiveTask, deleteTask, showTrash, showInbox, scheduleMenu,
   closeSchedule} from './planner/task-sheets.mjs';
 import {entityEditor, contextEditor, detailMenu} from './planner/entities.mjs';
 import {refreshCalendar, calendarDetails, calendarEditor, datePicker, resolveClash} from './planner/calendar-ui.mjs';
@@ -24,7 +24,6 @@ function installActions(app) {
   app.actions = {
     openTask: (id, occurrence) => openTask(app, id, occurrence),
     addTask: overrides => taskEditor(app, null, overrides),
-    planOrder: task => planOrder(app, task),
     movePicker: task => movePicker(app, task),
     archiveTask: task => archiveTask(app, task),
     deleteTask: task => deleteTask(app, task),
@@ -165,16 +164,13 @@ function installNativeHooks(app) {
 }
 
 /* ---------- The snackbar docked over an open sheet ----------
- * The bar sits just above the sheet's action bar and the body's bottom margin grows to make room (planner.css). The
- * task sheet reserves that room when it opens, so the bar usually arrives without anything moving. Only when the row
- * the user just tapped (or is typing in) would end up under the bar does the sheet make room: first by growing
- * taller (its height animates on the bar's timing), and only if it is already as tall as it may be by scrolling,
- * animated (250ms standard) and never so far that the task's title leaves the top. Everything is measured where it
- * will be once the choices folding away or opening (and a Part of card growing) have finished. */
+ * The bar sits just above the sheet's action bar and the body's bottom margin grows to make room (planner.css). Only
+ * when the row the user just tapped (or is typing in) would end up under the bar does the body scroll, animated
+ * (250ms standard) and never so far that Quick add's title leaves the top. Everything is measured where it will be
+ * once the choices folding away or opening have finished. */
 const DOCK_GAP = 20; // the bar's 8dp above the action bar plus the content's 12dp above the bar (planner.css)
 const DOCK_FADE = 16; // the faded edge of the content (planner.css)
-const DOCK_ROWS = '.detail-title-row, .field-row, .date-quick, .must-row, .block-face, .detail-field, .original-capture, '
-  + '.task-row, .quick-title, .quick-row, .field-fold.open, .choice-row';
+const DOCK_ROWS = '.edit-row, .block-row, .detail-field, .task-row, .quick-title, .quick-row, .field-fold.open, .choice-row';
 /** The room a docked one-line snackbar takes from a sheet's body (its 48dp plus the gaps). */
 export const DOCK_ROOM = 48 + DOCK_GAP;
 
@@ -206,18 +202,11 @@ export function dockScroll({rows, first, visibleTop, visibleBottom, room}) {
   return delta >= 1 ? Math.ceil(delta) : 0;
 }
 
-/** Split the rise a docked bar needs between growing the sheet (up to `spare`) and scrolling the rest, which may not
- * take the title (whose top is `titleTop` above the body's visible top) out of view. */
-export function dockRoom({need, spare, titleTop = Infinity}) {
-  const grow = Math.max(0, Math.min(need, Math.floor(spare)));
-  const scroll = Math.max(0, Math.min(need - grow, titleTop));
-  return {grow, scroll: scroll >= 1 ? Math.ceil(scroll) : 0};
-}
-
-/** The tallest a sheet may grow (planner.css: 92% of the screen, or of the space above the keyboard). */
-function sheetCap(sheet) {
-  const visual = parseFloat(document.documentElement.style.getPropertyValue('--visual-height')) || innerHeight;
-  return Math.min(sheet.parentElement.getBoundingClientRect().height * 0.92 || innerHeight * 0.92, visual);
+/** How far the body scrolls for a docked bar: the rise it needs, but never taking the title (whose top is `titleTop`
+ * above the body's visible top) out of view. */
+export function dockRoom({need, titleTop = Infinity}) {
+  const scroll = Math.max(0, Math.min(need, titleTop));
+  return {scroll: scroll >= 1 ? Math.ceil(scroll) : 0};
 }
 
 function changingBoxes(body) {
@@ -256,20 +245,9 @@ function revealAboveSnackbar(app, from) {
     room: content + grow - finalClient - body.scrollTop,
   });
   if (!need) return;
-  // A pinned sheet (the task sheet keeps its height) grows instead, as far as it may; an unpinned one already grows
-  // with its margin until it reaches its cap.
-  const pinned = parseFloat(sheet.style.getPropertyValue('--sheet-pin')) || 0;
-  const height = sheet.getBoundingClientRect().height;
-  const title = body.querySelector('.detail-title-row, .quick-title');
+  const title = body.querySelector('.quick-title');
   const titleTop = title ? Math.max(0, title.getBoundingClientRect().top - frame.top) : Infinity;
-  const plan = dockRoom({need, spare: pinned ? sheetCap(sheet) - height : 0, titleTop});
-  if (plan.grow) {
-    sheet.style.setProperty('--sheet-pin', height + plan.grow + 'px');
-    if (!reducedMotion()) {
-      sheet.animate([{height: height + 'px'}, {height: height + plan.grow + 'px'}],
-        {duration: DURATION.short3, easing: EASE.standardDecelerate});
-    }
-  }
+  const plan = dockRoom({need, titleTop});
   if (!plan.scroll) return;
   const delta = plan.scroll;
   // While the margin is still growing the body cannot yet scroll that far; a little extra room at its end lets the

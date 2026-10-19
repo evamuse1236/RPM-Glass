@@ -7,6 +7,8 @@ import {openMenu} from './menu.mjs';
 import {notice} from './snackbar.mjs';
 import {phraseNodes} from './today-row.mjs';
 import {choiceChip, chipRow, markChips} from './task-fields.mjs';
+import {openMealEditor} from './habit-editors.mjs';
+import {openHabits} from './habits.mjs';
 
 function estimateLine(estimate) {
   const line = el('div', 'estimate-line');
@@ -29,9 +31,20 @@ function estimateLine(estimate) {
   return line;
 }
 
-export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wanted = null} = {}) {
+export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wanted = null, motion = 'forward'} = {}) {
   const editing = mealId ? body.meal(mealId) : null;
-  const {body: content, actions, header} = openSheet(app, editing ? 'Edit meal' : 'Log a meal', {variant: 'meal'});
+  const {body: content, actions, header} = openSheet(app, editing ? 'Edit meal' : 'Log a meal', {variant: 'meal', motion});
+  const plan = body.mealTimes();
+  const offered = SLOTS.filter(value => value === editing?.slot || plan.find(p => p.slot === value)?.on !== false);
+  const slotName = value => plan.find(p => p.slot === value)?.name ?? SLOT_NAMES[value];
+  let typed = prefill || editing?.name || '';
+  if (!editing) {
+    header.querySelector('.sheet-close').before(iconButton('tune', 'Edit meals', () => {
+      const back = () => openMealSheet(app, body, {slot, prefill: typed, motion: 'back'});
+      if (plan.some(p => p.slot === slot)) openMealEditor(app, body, slot, {back, backLabel: 'Back to Log a meal'});
+      else openHabits(app, body);
+    }));
+  }
   if (editing) {
     const more = iconButton('more_vert', 'More options', () => openMenu(more, [
       {label: 'Delete meal', icon: 'delete', danger: true, onClick: () => body.deleteMeal(editing.id).then(() => {
@@ -44,7 +57,8 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
   }
   const now = body.now();
   const guessed = guessSlot(now);
-  let slot = editing?.slot ?? wanted ?? guessed;
+  const firstOffered = [wanted, guessed].find(value => offered.includes(value)) ?? offered[0] ?? guessed;
+  let slot = editing?.slot ?? firstOffered;
 
   function renderForm(text) {
     content.replaceChildren();
@@ -52,7 +66,7 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
     const slots = chipRow('slot-chips');
     slots.setAttribute('role', 'group');
     slots.setAttribute('aria-label', 'Meal');
-    for (const value of SLOTS) slots.append(choiceChip(SLOT_NAMES[value], value, picked => { slot = picked; paintSlot(); }));
+    for (const value of offered) slots.append(choiceChip(slotName(value), value, picked => { slot = picked; paintSlot(); }));
     markChips(slots, slot);
     const helper = el('p', 'body-helper tnum', `Guessed from the time · ${clockText(now)}`);
     const usualHead = el('h3', 'field-group-label');
@@ -88,16 +102,16 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
       usual.replaceChildren(...names.map(name => {
         const chip = button('', () => save(name), 'assist-chip usual-chip');
         chip.append(el('span', 'chip-label', name));
-        chip.setAttribute('aria-label', `Save ${name} as ${SLOT_NAMES[slot].toLowerCase()}`);
+        chip.setAttribute('aria-label', `Save ${name} as ${slotName(slot).toLowerCase()}`);
         return chip;
       }));
       usual.hidden = !names.length;
-      nothing.textContent = `Nothing usual for ${SLOT_NAMES[slot].toLowerCase()} yet. Type it once and it'll be here next time.`;
+      nothing.textContent = `Nothing usual for ${slotName(slot).toLowerCase()} yet. Type it once and it'll be here next time.`;
       nothing.hidden = !!names.length;
     }
     const submit = button('Save', () => save(input.value), 'filled-btn');
     const sync = () => { submit.disabled = !input.value.trim(); };
-    input.addEventListener('input', sync);
+    input.addEventListener('input', () => { typed = input.value; sync(); });
     input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); save(input.value); } });
     actions.append(submit);
     sync();
@@ -139,5 +153,5 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
     app.sheetRefresh = paintEstimate;
   }
 
-  renderForm(prefill || editing?.name || '');
+  renderForm(typed);
 }

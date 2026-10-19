@@ -16,6 +16,7 @@ import {attachRowGestures} from './row-gestures.mjs';
 import {openRunSheet} from './routines.mjs';
 import {drink, openWaterSheet} from './water.mjs';
 import {openMealSheet} from './meals.mjs';
+import {holdToEdit} from './habits.mjs';
 import {bodyApi} from './body-api.mjs';
 import {openResults} from './today-model.mjs';
 import {dueDay} from './today-header.mjs';
@@ -51,7 +52,7 @@ function spineModel(app) {
   return {
     model: buildSpine({day, now: +now, live, tasks, events: events.filter(e => !e.allDay), deadlines,
       routines: dayRoutines(body, day, now), meals: body.meals().filter(m => localDay(m.at) === day),
-      water: {...water, status: waterStatus({...water, now})}, window: water.settings}),
+      water: {...water, status: waterStatus({...water, now})}, window: water.settings, mealPlan: body.mealPlan()}),
     allDay: events.filter(e => e.allDay),
   };
 }
@@ -96,6 +97,7 @@ function handlers(app) {
     openWater: () => openWaterSheet(app, body),
     drink: () => drink(app, body),
     openMeal: row => openMealSheet(app, body, {mealId: row.meal?.id ?? null, slot: row.slot}),
+    holdHabit: (node, id) => holdToEdit(app, node, id),
     plan: row => app.actions.addTask({planned: new Date(row.plan).toISOString(), plannedDate: app.state.day}),
   };
 }

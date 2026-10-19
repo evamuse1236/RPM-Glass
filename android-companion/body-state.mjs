@@ -168,6 +168,22 @@ export function validateRoutine({name, start, end, days, steps}) {
 
 export const WATER_DEFAULTS = Object.freeze({goal: 8, intervalMinutes: 90, from: '08:00', until: '22:00', glassMl: 250, snoozeMinutes: 15});
 
+/** The water editor's steppers: 1 to 20 glasses a day, and a reminder every 15 to 240 minutes in 15-minute steps. */
+export const WATER_STEPS = Object.freeze({
+  goal: Object.freeze({min: 1, max: 20, step: 1}),
+  intervalMinutes: Object.freeze({min: 15, max: 240, step: 15}),
+});
+export const GLASS_SIZES = Object.freeze([200, 250, 300, 330, 500]);
+
+/** One stepper press: `value` moved `delta` steps, kept on the step grid and inside the range. */
+export function stepWater(key, value, delta) {
+  const {min, max, step} = WATER_STEPS[key];
+  return Math.min(max, Math.max(min, Math.round(value / step) * step + delta * step));
+}
+
+/** The Every stepper's words: "90 min", "2 h". */
+export const everyText = minutes => (minutes % 60 ? `${minutes} min` : `${minutes / 60} h`);
+
 /**
  * Today's water: glasses so far, the next nudge and whether one is waiting. Nudges start at `from`, follow the last
  * glass by the interval (or a snooze), wait out a busy calendar event and stop at `until` or once the goal is met.

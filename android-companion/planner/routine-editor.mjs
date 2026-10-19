@@ -1,10 +1,11 @@
 /** The routine editor: name, window, days and ordered steps, in a full-height sheet. Saving and deleting can be undone. */
-import {WEEK_ORDER, DAY_NAMES, validateRoutine} from '../body-state.mjs';
+import {WEEK_ORDER, DAY_NAMES, validateRoutine, clockText, atMinutes, minutesOf} from '../body-state.mjs';
 import {el, icon, button, iconButton} from './dom.mjs';
-import {openSheet, closeSheet, field} from './sheet.mjs';
+import {openSheet, closeSheet, isSheetOpen, field} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
 import {notice} from './snackbar.mjs';
 import {dropIndex, slotOffset} from './task-row.mjs';
+import {chip, factRow, timeButton} from './fact-rows.mjs';
 
 const NEW_ROUTINE = {name: '', start: '07:00', end: '07:30', days: [1, 2, 3, 4, 5], steps: []};
 let stepSeq = 0;
@@ -21,12 +22,21 @@ function groupLabel(text) {
 }
 
 function dayChip(day, on) {
-  const chip = button('', () => chip.setAttribute('aria-pressed', String(chip.getAttribute('aria-pressed') !== 'true')),
-    'filter-chip choice-chip day-chip');
-  chip.dataset.day = String(day);
-  chip.setAttribute('aria-pressed', String(on));
-  chip.append(icon('check', {cls: 'chip-check'}), el('span', 'chip-label', DAY_NAMES[day]));
-  return chip;
+  const node = chip(DAY_NAMES[day], String(day), () => node.setAttribute('aria-pressed', String(node.getAttribute('aria-pressed') !== 'true')));
+  node.dataset.day = String(day);
+  node.setAttribute('aria-pressed', String(on));
+  return node;
+}
+
+/** A window edge as a time button: its words follow the picked time; `value()` reads it back. */
+function edge(label, value, onPick) {
+  const node = timeButton(label, picked => {
+    node.set(picked, clockText(atMinutes('2000-01-01', minutesOf(picked))));
+    onPick();
+  });
+  node.set(value, clockText(atMinutes('2000-01-01', minutesOf(value))));
+  node.value = () => node.querySelector('input').value;
+  return node;
 }
 
 /** One step: an outlined field and a handle that drags it (arrow keys on the focused handle move it one place). */
@@ -122,15 +132,25 @@ function installDrag(row, handle, list) {
   handle.addEventListener('pointercancel', drop);
 }
 
-export function openRoutineEditor(app, body, routineId = null) {
+/** `back` (the Habits list that opened it) adds a back arrow, and saving or deleting returns there. */
+export function openRoutineEditor(app, body, routineId = null, {back = null} = {}) {
   const existing = routineId ? body.routine(routineId) : null;
   const routine = existing ?? NEW_ROUTINE;
   const {body: content, actions, header, sheet} = openSheet(app, existing ? 'Edit routine' : 'New routine', {variant: 'editor'});
   sheet.classList.add('expanded');
+  const done = () => (back ? back() : closeSheet(app));
+  if (back) {
+    header.prepend(iconButton('arrow_back', 'Back to Habits', back, {cls: 'sheet-back'}));
+    app.sheet.onBack = () => {
+      if (!content.isConnected || !isSheetOpen(app)) return false;
+      back();
+      return true;
+    };
+  }
   if (existing) {
     const more = iconButton('more_vert', 'More options', () => openMenu(more, [
       {label: 'Delete routine', icon: 'delete', danger: true, onClick: () => body.deleteRoutine(existing.id).then(() => {
-        closeSheet(app);
+        done();
         app.render();
         notice(app, 'Routine deleted', {undo: true});
       }, () => { saveError.textContent = "Couldn't delete. Try again."; })},
@@ -143,14 +163,16 @@ export function openRoutineEditor(app, body, routineId = null) {
   content.append(nameError);
 
   content.append(groupLabel('Window'));
-  const times = el('div', 'time-pair');
-  const start = field(app, times, 'Starts', routine.start, 'time');
-  const end = field(app, times, 'Ends', routine.end, 'time');
+  const times = el('div', 'edit-pair');
+  const clearWindow = () => { windowError.textContent = ''; };
+  const start = edge('Starts', routine.start, clearWindow);
+  const end = edge('Ends', routine.end, clearWindow);
+  times.append(factRow('wb_sunny', start), factRow('bedtime', end));
   const windowError = errorLine();
   content.append(times, windowError);
 
   content.append(groupLabel('Days'));
-  const days = el('div', 'chip-row wrap day-chips');
+  const days = el('div', 'chip-row chip-wrap');
   days.setAttribute('role', 'group');
   days.setAttribute('aria-label', 'Days');
   for (const day of WEEK_ORDER) days.append(dayChip(day, routine.days.includes(day)));
@@ -182,7 +204,6 @@ export function openRoutineEditor(app, body, routineId = null) {
   content.append(saveError);
   const clearOn = (node, error, event = 'input') => node.addEventListener(event, () => { error.textContent = ''; });
   clearOn(name, nameError);
-  clearOn(times, windowError);
   clearOn(days, daysError, 'click');
   clearOn(list, stepsError);
 
@@ -190,7 +211,7 @@ export function openRoutineEditor(app, body, routineId = null) {
     const pending = addInput.value.trim() ? [{id: stepId(), title: addInput.value.trim()}] : [];
     return {
       ...(existing ?? {}),
-      name: name.value.trim(), start: start.value, end: end.value,
+      name: name.value.trim(), start: start.value(), end: end.value(),
       days: [...days.querySelectorAll('[aria-pressed=true]')].map(chip => Number(chip.dataset.day)),
       steps: [...[...list.children].map(row => ({id: row.dataset.stepId, title: row.querySelector('textarea').value.trim()})), ...pending]
         .filter(step => step.title),
@@ -205,7 +226,7 @@ export function openRoutineEditor(app, body, routineId = null) {
     stepsError.textContent = errors.steps ?? '';
     saveError.textContent = '';
     name.setAttribute('aria-invalid', String(!!errors.name));
-    const first = errors.name ? name : errors.window ? end : errors.days ? days.querySelector('button') : errors.steps ? addInput : null;
+    const first = errors.name ? name : errors.window ? end.querySelector('input') : errors.days ? days.querySelector('button') : errors.steps ? addInput : null;
     if (first) return first.focus();
     try {
       await body.saveRoutine(draft);
@@ -213,7 +234,7 @@ export function openRoutineEditor(app, body, routineId = null) {
       saveError.textContent = "Couldn't save. Try again.";
       return;
     }
-    closeSheet(app);
+    done();
     app.render();
     notice(app, 'Routine saved', {undo: true});
   }, 'filled-btn'));

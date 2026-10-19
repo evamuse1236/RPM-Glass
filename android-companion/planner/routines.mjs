@@ -52,10 +52,9 @@ export function openRunSheet(app, body, routineId, day = localDay(body.now())) {
   const missed = el('p', 'run-missed');
   titles.append(heading, el('p', 'sheet-subtitle tnum', `${rangeText(routine.start, routine.end)} · ${daysText(routine.days)}`), missed);
   const more = iconButton('more_vert', 'More options', () => openMenu(more, [
-    {label: 'Edit routine', icon: 'edit', onClick: () => openRoutineEditor(app, body, routine.id)},
     {label: 'Skip today', icon: 'event_busy', onClick: skipToday},
   ]));
-  header.querySelector('.sheet-close').before(more);
+  header.querySelector('.sheet-close').before(iconButton('tune', `Edit ${routine.name}`, () => openRoutineEditor(app, body, routine.id)), more);
 
   let run = body.runFor(routine.id, day) ?? {routineId: routine.id, day, marks: {}};
   const count = el('p', 'run-count tnum');

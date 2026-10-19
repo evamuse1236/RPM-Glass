@@ -5,6 +5,7 @@
 import {editPlan} from '../planner-state.mjs';
 import {bodyOf} from '../body-store.mjs';
 import {localDay} from '../body-state.mjs';
+import {mealPlanSlots} from '../day-parts.mjs';
 import {guessMeal} from './meal-guess.mjs';
 
 const apis = new WeakMap();
@@ -76,6 +77,10 @@ export function bodyApi(app) {
       return api.meal(id);
     },
     deleteMeal: id => save({type: 'removeMeal', id}),
+    mealPlan: () => read().mealPlan,
+    mealTimes: () => mealPlanSlots(read().mealPlan),
+    setMealSlot: (slot, fields) => save({type: 'setMealSlot', slot, fields}),
+    removeMealSlot: slot => save({type: 'removeMealSlot', slot}),
     estimate: id => guessMeal(app, api, id, guess => save({type: 'setMealGuess', id, guess}, {keepUndo: true})),
   };
   apis.set(app, api);
