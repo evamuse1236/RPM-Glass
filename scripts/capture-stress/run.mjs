@@ -12,14 +12,17 @@ const here=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(here,'../..');
 const git=(repo,...args)=>execFileSync('git',args,{cwd:repo,encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();
 export function parseOptions(args){
- const options={repo:root,repeat:1,concurrency:3};
+ const options={repo:root,repeat:1,concurrency:3,transport:'cli'};
+ const invalid=message=>Object.assign(new Error(message),{code:'INVALID_OPTIONS'});
  for(let i=0;i<args.length;i++){
   const name=args[i];
   if(['--judge','--hardest','--probe-only','--help'].includes(name)){options[name.slice(2)]=true;continue;}
-  if(!['--repo','--only','--repeat','--concurrency','--out'].includes(name)||!args[i+1]||args[i+1].startsWith('--'))throw new Error(`Unknown or incomplete option ${name}`);
+  if(!['--repo','--only','--repeat','--concurrency','--out','--transport'].includes(name)||!args[i+1]||args[i+1].startsWith('--'))throw invalid(`Unknown or incomplete option ${name}`);
   options[name.slice(2)]=args[++i];
  }
- for(const key of ['repeat','concurrency']){options[key]=Number(options[key]);if(!Number.isSafeInteger(options[key])||options[key]<1||options[key]>100)throw new Error(`${key} must be an integer from 1 to 100`);}
+ for(const key of ['repeat','concurrency']){options[key]=Number(options[key]);if(!Number.isSafeInteger(options[key])||options[key]<1||options[key]>100)throw invalid(`${key} must be an integer from 1 to 100`);}
+ if(!['cli','api'].includes(options.transport))throw invalid('--transport must be cli or api');
+ if(options.transport==='api'&&(options.judge||options['probe-only']))throw invalid('--judge and --probe-only require --transport cli');
  options.repo=path.resolve(options.repo);return options;
 }
 
@@ -54,7 +57,7 @@ async function judgeCase(result,{mode}){
 
 async function main(){
  const options=parseOptions(process.argv.slice(2));
- if(options.help){console.log('npm run stress:capture -- [--repo PATH] [--only id,id] [--hardest] [--repeat N] [--concurrency 3] [--judge] [--out PATH] [--probe-only]');return;}
+ if(options.help){console.log('npm run stress:capture -- [--transport cli|api] [--repo PATH] [--only id,id] [--hardest] [--repeat N] [--concurrency 3] [--judge (cli only)] [--out PATH] [--probe-only (cli only)]');return;}
  process.env.TZ='Asia/Kolkata';
  const {manifest,cases,hash}=await loadCorpus();
  const selectedIds=options.only?.split(',')??(options.hardest?manifest.hardest:null);
@@ -64,21 +67,22 @@ async function main(){
  const directory=path.resolve(options.out??path.join(root,'.verify/capture-stress',id));
  await mkdir(directory,{recursive:true});
  const started=Date.now(),revision=git(options.repo,'rev-parse','HEAD'),sourceBefore=await sourceHash(options.repo);
- const machine={platform:os.platform(),logicalCores:os.cpus().length,loadAverage:os.platform()==='win32'?null:os.loadavg(),cliVersion:execFileSync('claude',['--version'],{encoding:'utf8'}).trim()};
- const probe=await isolationProbe();await writeFile(path.join(directory,'isolation.json'),JSON.stringify(probe,null,2));
- if(!probe.passed)throw new Error(`CLI isolation probe failed. Evidence ${directory}`);
- console.log(`Project canary checks passed (${probe.mode}); strict prompt-only isolation UNVERIFIED. Report directory ${directory}`);
+ const machine={platform:os.platform(),logicalCores:os.cpus().length,loadAverage:os.platform()==='win32'?null:os.loadavg(),cliVersion:options.transport==='api'?'skipped (API transport)':execFileSync('claude',['--version'],{encoding:'utf8'}).trim()};
+ const probe=options.transport==='api'?{skipped:true,reason:'API transport does not invoke Claude CLI',attempts:[]}:await isolationProbe();
+ await writeFile(path.join(directory,'isolation.json'),JSON.stringify(probe,null,2));
+ if(!probe.skipped&&!probe.passed)throw new Error(`CLI isolation probe failed. Evidence ${directory}`);
+ console.log(probe.skipped?`API transport; CLI version and isolation probe skipped. Report directory ${directory}`:`Project canary checks passed (${probe.mode}); strict prompt-only isolation UNVERIFIED. Report directory ${directory}`);
  if(options['probe-only'])return;
  const modules=await targetModules(options.repo);
  const jobs=selected.flatMap(test=>Array.from({length:options.repeat},(_,i)=>({test,repeat:i+1}))),results=[];
- const run={id,repo:options.repo,revision,sourceHash:sourceBefore,dirty:git(options.repo,'status','--porcelain'),corpusHash:hash,
+ const run={id,transport:options.transport,repo:options.repo,revision,sourceHash:sourceBefore,dirty:git(options.repo,'status','--porcelain'),corpusHash:hash,
   concurrency:options.concurrency,machine,probe,results,options};
  await writeFile(path.join(directory,'run.json'),JSON.stringify({...run,cases:jobs.map(j=>({id:j.test.id,repeat:j.repeat}))},null,2));
  let cursor=0;
  await Promise.all(Array.from({length:Math.min(options.concurrency,jobs.length)},async()=>{
   while(cursor<jobs.length){
    const {test,repeat}=jobs[cursor++];
-   const result=await runCase(test,{modules,directory:path.join(directory,`${test.id}-${repeat}`),mode:probe.mode,repeat});
+   const result=await runCase(test,{modules,directory:path.join(directory,`${test.id}-${repeat}`),mode:probe.mode,transport:options.transport,repeat});
    if(options.judge){try{result.judge=await judgeCase(result,{mode:probe.mode});}catch{result.judge={error:'Judge transport failed'};}}
    results.push(result);
    await writeFile(path.join(result.artifacts.directory,'result.json'),JSON.stringify(result,null,2));
@@ -96,4 +100,4 @@ async function main(){
  if(run.summary.passed!==results.length)process.exitCode=1;
 }
 
-if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))main().catch(()=>{console.error('Capture stress runner failed. Inspect the run artifacts and CLI isolation result; no provider credentials are logged.');process.exitCode=2;});
+if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))main().catch(error=>{console.error(error.code==='INVALID_OPTIONS'?error.message:'Capture stress runner failed. Inspect the run artifacts and transport result; no provider credentials are logged.');process.exitCode=2;});
