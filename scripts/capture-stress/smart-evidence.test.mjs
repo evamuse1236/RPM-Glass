@@ -11,7 +11,7 @@ test('the original ten API outputs now survive the real Capture pipeline and cor
  t.after(()=>rm(directory,{recursive:true,force:true}));
  const here=path.dirname(fileURLToPath(import.meta.url)),modules=await targetModules(path.resolve(here,'../..'));
  const cases=JSON.parse(await readFile(path.join(here,'corpus/smart.json'),'utf8'));
- for(const c of cases){
+ for(const c of cases.filter(c=>!c.tags.includes('round2'))){
   const evidence=JSON.parse(await readFile(path.join(here,'smart-evidence',c.id+'.json'),'utf8'));
   assert.equal(evidence.before.turns[0].words,c.turns[0].text);
   const trace=JSON.stringify(evidence.before.turns[0].trace);

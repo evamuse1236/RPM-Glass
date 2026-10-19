@@ -124,13 +124,25 @@ export function interpretTime(raw, now = new Date(), options = {}) {
     return base;
   }
   let d=start.date();
-  const bareClock=!start.isCertain('meridiem')&&start.get('hour')>=1&&start.get('hour')<=12&&!start.isCertain('timezoneOffset')&&!/\d{1,2}:\d{2}|\b(noon|midnight|morning|afternoon|evening|night)\b/i.test(source);
+  const bareClock=!start.isCertain('meridiem')&&start.get('hour')>=1&&start.get('hour')<=12&&!start.isCertain('timezoneOffset')&&!/\b(noon|midnight|morning|afternoon|evening|night)\b/i.test(source)&&!/(?:^|\s)0\d:/.test(source)&&(options.inferBareClock||!/\d{1,2}:\d{2}/.test(source));
   if(bareClock){
     if(!explicitDay){
       const candidates=[start.get('hour')%12,start.get('hour')%12+12].map(h=>{const x=new Date(now);x.setHours(h,start.get('minute')||0,0,0);if(x<=now)x.setDate(x.getDate()+1);return x;}).sort((a,b)=>a-b);d=candidates[0];
+      if(d-now>12*3600000)return {...base,status:'review',reason:'That clock needs a timezone decision.'};
+    }else if(options.inferBareClock){
+      const subject=options.subject??'',hour=start.get('hour');
+      const morning=/\b(?:wake|breakfast|run)\b|\bgym\s+morning\b/i.test(subject),evening=/\b(?:dinner|after work)\b/i.test(subject);
+      const pm=hour===12||(hour<=6?!morning:evening);
+      d.setHours(hour%12+(pm?12:0),start.get('minute')||0,0,0);
     }
-    base.assumptions.push(`AM/PM wasn't specified; using ${d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}.`);
-    const alternate=new Date(d);alternate.setHours((d.getHours()+12)%24);if(alternate>now)base.candidates.push({at:alternate.toISOString(),label:formatTime(alternate)});
+    const alternate=new Date(d);alternate.setHours((d.getHours()+12)%24);
+    if(options.inferBareClock&&!explicitDay&&alternate<=now)alternate.setDate(alternate.getDate()+1);
+    const label=date=>`${date.getHours()%12||12}${date.getMinutes()?':'+String(date.getMinutes()).padStart(2,'0'):''} ${date.getHours()<12?'AM':'PM'}`;
+    if(options.inferBareClock){
+      base.inference={rule:explicitDay?'stated-day-waking':'next-12h',anchorAt:now.toISOString(),timezone:base.timezone,selectedAt:d.toISOString(),alternateAt:alternate.toISOString(),selectedLabel:label(d),alternateLabel:label(alternate)};
+      base.assumptions.push(`Clock inferred by ${base.inference.rule}; using ${label(d)}.`);
+    }else base.assumptions.push(`AM/PM wasn't specified; using ${label(d)}.`);
+    if(alternate>now)base.candidates.push({at:alternate.toISOString(),label:formatTime(alternate)});
   }
   if(!explicitDay)base.assumptions.push('No day specified; using the next occurrence.');
   if(d<=now)return {...base,status:'review',reason:'That explicit time is in the past. I kept it in your original text instead of moving it silently.'};

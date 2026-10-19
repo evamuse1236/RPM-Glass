@@ -29,7 +29,7 @@ test('CLI uses canonical autoapply and Undo, persists exact words and refuses a 
  await s.reset();assert.equal(Object.keys((await s.backend.load()).intentV2.captures).length,1);
 });
 test('without a key CLI still durably saves the original words and prints AI off',async t=>{
- const s=await fixture(t,{env:{}}),raw='  set a reminder in 5  ';
+ const s=await fixture(t,{env:{}}),raw='  organise my work for next week  ';
  const result=await s.send(raw);
  assert.equal(result.card.raw,raw);assert.equal(result.card.status,'captured');
  assert.match(renderCapture(result,s).text,/AI is off/);

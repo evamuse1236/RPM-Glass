@@ -50,6 +50,7 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
   const trace={id:messageId,at:capture?.at??clock().toISOString(),conversationId:capture?.conversationId??null,words:capture?.raw??null,
    attempts:(previous?.attempts??0)+1,latencyMs:ms(started,clock),
    models:[...(previous?.models??[]),...(result?.modelRuns??(previous?[]:capture?.modelRuns??[])).map(modelRun)].slice(-8),
+   localInterpretation:capture?.localInterpretation??null,timeInferences:capture?.timeInferences??[],
    interpreted:interpretedSummary(capture,draft),applied:{status,draftId:capture?.draftId??null,...(applied?.status==='applied'?applied:{})},
    errors:[...(previous?.errors??[]),...errors].slice(-8)};
   traces.put({...previous,...trace});

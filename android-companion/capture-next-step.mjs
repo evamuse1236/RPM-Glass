@@ -18,6 +18,13 @@ export function receiptHelp(data,draft,{now=new Date(),calendar=null}={}){
  const created=(draft.receipt?.changes??[]).filter(c=>c.type==='create'&&c.collection==='tasks')
   .map(c=>data.entries.find(e=>String(e.id)===String(c.id))).filter(e=>e&&!e.archived&&!e.done);
  const base={kind:'next-step',conversationId:draft.conversationId,draftId:draft.id,revision:draft.revision};
+ for(const op of draft.operations){
+  const inference=op.fields.find(f=>f.name==='time')?.inference;
+  if(!inference)continue;
+  const ids=(draft.receipt?.changes??[]).filter(c=>c.collection==='tasks'&&(op.kind!=='create'||c.opId===op.opId)).map(c=>String(c.id));
+  const row=data.entries.find(e=>!e.archived&&!e.done&&ids.includes(String(e.id))&&e.planned===inference.selectedAt&&(op.targetId===null||String(e.id)===op.targetId));
+  if(row)return {text:null,label:`Make it ${inference.alternateLabel}`,action:{...base,step:'flip-time',targetId:String(row.id),guard:stepGuard(row),at:inference.alternateAt,opId:op.opId}};
+ }
  const name=created.find(e=>/^(?:Reminder|Alarm)$/i.test(e.title));
  if(name)return {text:null,label:'Name it',action:{...base,step:'name',targetId:String(name.id),guard:stepGuard(name)}};
  if(draft.operations.some(o=>o.entity==='water')){
@@ -38,6 +45,7 @@ export function checkReceiptStep(data,action,{now=new Date(),calendar=null}={}){
  const draft=data.intentV2?.drafts?.[action.draftId],help=currentReceiptHelp(data,draft);
  if(!help?.action||stable(help.action)!==stable(action))throw new Error('That next step changed. Use the newest receipt.');
  const row=data.entries.find(e=>String(e.id)===action.targetId);
+ if(action.step==='flip-time'&&Date.parse(action.at)<=+now)throw new Error('That clock time has passed. Ask for a new time.');
  if(action.step==='schedule'){
   const start=Date.parse(action.at),end=start+(row.minutes??30)*60000;
   if(start<=+now||calendar?.status!=='ready'||calendarRisk(calendar,start,end)||conflicts(data,start,row.minutes??30,calendarRows(calendar),row.id).length)throw new Error('That opening is no longer available. Ask for a fresh time.');

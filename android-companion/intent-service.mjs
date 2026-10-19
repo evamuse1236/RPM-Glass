@@ -88,6 +88,7 @@ export function createIntentService({backend,native,model,changePlanner,undo,rea
  async function choose(action,{actionId}={}){validId(actionId,'Action ID');const result=await harness.choose(action,{actionId});return {...result,intent:await view({conversationId:action.conversationId})};}
  async function help(draftId){
   const data=await repository.load(),draft=ensureIntent(data).drafts[draftId];
+  const local=receiptHelp(data,draft,{now:clock()});if(['flip-time','name'].includes(local?.action?.step))return local;
   const calendar=await readCalendar(+clock()).catch(()=>null);
   return receiptHelp(data,draft,{now:clock(),calendar});
  }
@@ -95,7 +96,7 @@ export function createIntentService({backend,native,model,changePlanner,undo,rea
   validId(actionId,'Action ID');
   const calendar=action.step==='schedule'?await readCalendar(+clock()).catch(()=>null):null;
   const data=await repository.load(),row=checkReceiptStep(data,action,{now:clock(),calendar});
-  const naming=action.step==='name',text=naming?'Name it':`Schedule ${row.title} at ${action.at}`;
+  const naming=action.step==='name',text=naming?'Name it':action.step==='flip-time'?data.intentV2.drafts[action.draftId].nextStep.label:`Schedule ${row.title} at ${action.at}`;
   const localTurn={schemaVersion:1,mode:'capture',draftMode:'new',reply:'',decisions:sourceUnits(text).map(u=>({sourceId:u.id,disposition:'action',note:null})),
    operations:[{opId:'next',sourceId:'s0',kind:'update',entity:'task',targetId:action.targetId,fields:[{name:naming?'title':'time',op:naming?'unknown':'set',value:naming?null:action.at,origin:'suggested',evidence:null}]}],
    question:naming?{opId:'next',field:'title',prompt:'What should I call it?',options:[]}:null,clarification:null,memoryCandidates:[],card:null};

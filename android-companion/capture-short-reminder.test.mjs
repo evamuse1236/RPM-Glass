@@ -31,7 +31,7 @@ test('bare relative minutes are scoped to reminders and explicit units win',()=>
  assert.equal(interpretTime(normalizeReminderTime('in 5'),now).planned,new Date(+now+5*60000).toISOString());
  assert.equal(interpretTime('in 5',now,{evidence:'finish this in 5'}).status,'none');
  for(const time of ['in 5 days','in 5 hours','in 5 weeks'])assert.ok(!interpretTime(time,now,{evidence:'remind me '+time}).normalized.includes('minutes'));
- assert.equal(interpretTime('at 6',now,{evidence:'remind me at 6'}).assumptions.some(x=>x.includes('AM/PM')),true);
+ assert.equal(interpretTime('at 6',now,{evidence:'remind me at 6',inferBareClock:true}).inference.rule,'next-12h');
 });
 test('relative provenance cannot authorize an invented clock or a different delay',()=>{
  const raw='remind me in 5',input={messageId:'m',sourceUnits:[{text:raw}],context:{now:now.toISOString(),entities:[]}};
@@ -71,7 +71,6 @@ test('Undo of an overlapping reminder never restores the adapter approval as a p
  await agent.undo({draftId:result.draftId,conversationId,actionId:'undo-alarm'});
  assert.equal((await backend.load()).pending,null);
  await agent.capture({messageId:'next',conversationId,text:'remind me at 6'});
- const card=(await service.view()).captures[0],action=card.draft.actions.find(a=>a.action.kind==='answer').action;
- await agent.act(action,{actionId:'answer-next'});
+ const card=(await service.view()).captures[0];assert.equal(card.draft.status,'committed');assert.equal(card.draft.question,null);
  const data=await backend.load();assert.equal(data.pending,null);assert.equal(data.entries.length,2);
 });

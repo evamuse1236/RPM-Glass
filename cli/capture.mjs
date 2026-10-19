@@ -54,7 +54,7 @@ export function renderCapture({card,result,ms},{aiEnabled=true,data=null,events=
  actions.forEach((a,i)=>lines.push(`${i+1}. ${a.label}`));
  for(const note of card?.notes??[])lines.push(`Also heard: ${note.note}`);
  const runs=result?.modelRuns??[];
- lines.push(`${!aiEnabled?'No model answered':runs.map(r=>`${r.servedModel??r.model}${r.ok?'':' unavailable'} (${r.effort??'none'})`).join(', ')||'No model call'} · ${(ms/1000).toFixed(1)}s`);
+ lines.push(`${!runs.length&&card?.status==='interpreted'?'Read locally':!aiEnabled?'No model answered':runs.map(r=>`${r.servedModel??r.model}${r.ok?'':' unavailable'} (${r.effort??'none'})`).join(', ')||'No model call'} · ${(ms/1000).toFixed(1)}s`);
  return {text:lines.join('\n'),actions};
 }
 

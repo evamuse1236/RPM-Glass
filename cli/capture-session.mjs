@@ -40,7 +40,7 @@ export function nodeModelBridge({env=process.env,fetchImpl=fetch}={}){
 export function privateTrace(trace){
  if(!trace)return null;
  return {id:trace.id,at:trace.at,attempts:trace.attempts,latencyMs:trace.latencyMs,outcome:trace.outcome,
-  models:(trace.models??[]).map(modelRun),applied:{status:trace.applied?.status,draftId:trace.applied?.draftId,entryIds:trace.applied?.entryIds??[]},
+  models:(trace.models??[]).map(modelRun),localInterpretation:trace.localInterpretation??null,timeInferences:trace.timeInferences??[],applied:{status:trace.applied?.status,draftId:trace.applied?.draftId,entryIds:trace.applied?.entryIds??[]},
   errors:(trace.errors??[]).map(({stage,code})=>({stage,code}))};
 }
 

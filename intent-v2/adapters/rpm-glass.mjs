@@ -51,7 +51,7 @@ export function createRpmPlanAdapter({changePlanner,readCalendar,undo,maxTimeDra
   // Receipt snapshots must also show genuine source words and estimate provenance.
   for(const r of result.plannerReceipts??[]){const e=working.entries.find(e=>e.id===r.entry?.id);if(e&&r.entry){r.entry.raw=e.raw;r.entry.durationSource=e.durationSource;}}
   for(const key of ['entries','planner','undo'])data[key]=working[key];
-  return {status:'committed',receipt:{undoId:result.undoId,entryIds:result.entryIds??[],changes:result.plannerChanges??[],plannerReceipts:result.plannerReceipts??[],savedAt:approval.at,delivery:'Check native phone status; not a delivery confirmation'}};
+  return {status:'committed',receipt:{undoId:result.undoId,entryIds:result.entryIds??[],changes:(result.plannerChanges??[]).map((change,index)=>({...change,opId:operations[index]?.ref??null})),plannerReceipts:result.plannerReceipts??[],savedAt:approval.at,delivery:'Check native phone status; not a delivery confirmation'}};
  }
  async function undoPlan({data,receipt}){
   if(typeof undo!=='function')throw new Error('Inject the existing companion-tools undo function');

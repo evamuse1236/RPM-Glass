@@ -11,6 +11,7 @@ import {readChoiceReply,choiceTurn,choiceEntities,orphanChoiceTurn} from './choi
 import {proposalEntities,stageProposalRemoval} from './proposal-removal.mjs';
 import {completeShortReminder} from './short-reminder.mjs';
 import {completeWaterLog} from './body-intent.mjs';
+import {withNotes} from './source-notes.mjs';
 
 const STALE_FOCUS='STALE_FOCUS';
 /** Orchestration only. The model never receives a mutating function or persistence key. */
@@ -85,6 +86,12 @@ export class IntentHarness {
   if(plan?.truncated)meta.truncated={...meta.truncated,snapshot:plan.truncated};
   for(const e of plan?.entities??[])if(!context.entities.some(x=>x.entity===e.entity&&x.id===e.id))context.entities.push(e);
   const input={messageId,sourceUnits:units,context,activeDraft:draftContext,...(question?{openQuestion:{id:question.id,prompt:question.prompt,action:question.action,choices:question.choices}}:{}),...(plan?{snapshot:plan.summary}:{})};
+  const localReminder=completeShortReminder(null,input);
+  if(localReminder){
+   const parsed=interpretTurn(localReminder,{units,messageId,visibleEntities:context.entities,activeDraft});
+   this.validateInterpretation?.(parsed,{input});
+   return this.#stage(messageId,{data,capture,parsed,units,activeDraft,calls:0,modelRuns:[],extra:{localInterpretation:'short-reminder'}});
+  }
   if(JSON.stringify(input).length>45000)return {messageId,status:'captured',error:'This thought needs a larger review. The original is kept; no task changed.'};
   const controller=new AbortController();let timer;
   let repair=null,parsed,fallback=null,held=null,calls=0;const modelRuns=[];
@@ -142,6 +149,7 @@ export class IntentHarness {
     }
     if(parsed.notice)parsed.reply=[parsed.reply,parsed.notice].filter(Boolean).join(' ');
     saved.status='interpreted';saved.draftId=draftId;saved.decisions=withNotes(parsed.decisions,units);saved.reply=parsed.reply;saved.memoryCandidates=parsed.memoryCandidates;saved.card=parsed.card??null;saved.calls=calls;if(modelRuns.length)saved.modelRuns=modelRuns;delete saved.lastError;
+    saved.timeInferences=parsed.operations.flatMap(op=>op.fields.filter(f=>f.inference).map(f=>f.inference));
     if(parsed.unapplied)saved.unapplied=structuredClone(parsed.unapplied);
     if(parsed.clarification)saved.clarification={id:`q-${messageId}`,revision:1,prompt:parsed.clarification.prompt,action:parsed.clarification.action,choices:parsed.clarification.choices.map((c,i)=>({id:`c${i+1}`,label:c.label,targets:c.targets.map(t=>({entity:t.entity,id:String(t.id)}))}))};
     Object.assign(saved,extra);
@@ -198,8 +206,3 @@ export class IntentHarness {
  undo(input){return undoCommitted(this,input);}
 }
 
-// Nothing said may vanish: a non-action unit the model left without a note shows in Dara's own words.
-function withNotes(decisions,units){
- const text=new Map(units.map(u=>[u.id,u.text]));
- return decisions.map(d=>d.disposition==='action'||d.note?.trim()?d:{...d,note:(text.get(d.sourceId)??'').trim().replace(/[.,;]+$/,'').slice(0,140)||null});
-}

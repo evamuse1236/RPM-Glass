@@ -23,8 +23,8 @@ const conversationOf=async backend=>(await backend.load()).conversations[0].id;
 const withTask=(fields)=>{const seed=freshStore();editPlan(seed,{type:'saveTask',fields:{title:'Run',...fields}},NOW);return seed;};
 
 test('a rejected time keeps valid actions, names the unapplied time on the receipt, and Undo restores everything',async()=>{
- const raw='Read tomorrow at nine and buy milk';
- const output=()=>turn(raw,[operation([field('title','Read','Read'),field('time','tomorrow 9pm','tomorrow at nine')]),operation([field('title','Buy milk','buy milk')],{opId:'milk'})]);
+ const raw='Read tomorrow at 9am and buy milk';
+ const output=()=>turn(raw,[operation([field('title','Read','Read'),field('time','tomorrow 9pm','tomorrow at 9am')]),operation([field('title','Buy milk','buy milk')],{opId:'milk'})]);
  const s=agentFor(async()=>output()),conversationId=await conversationOf(s.backend);
  const result=await s.agent.capture({messageId:'partial-time',conversationId,text:raw});
  assert.equal(result.applied.status,'applied');
@@ -39,10 +39,10 @@ test('a rejected time keeps valid actions, names the unapplied time on the recei
 });
 
 test('a repair timeout retains the checked parts of the earlier response',async()=>{
- const raw='Read tomorrow at nine and buy milk';let calls=0;
+ const raw='Read tomorrow at 9am and buy milk';let calls=0;
  const s=agentFor(async()=>{
   if(++calls===2)return new Promise(()=>{});
-  return turn(raw,[operation([field('title','Read','Read'),field('time','tomorrow 9pm','tomorrow at nine')]),operation([field('title','Buy milk','buy milk')],{opId:'milk'})]);
+  return turn(raw,[operation([field('title','Read','Read'),field('time','tomorrow 9pm','tomorrow at 9am')]),operation([field('title','Buy milk','buy milk')],{opId:'milk'})]);
  });
  s.service.harness.modelPolicy=()=>({timeoutMs:20});
  const result=await s.agent.capture({messageId:'repair-timeout',conversationId:await conversationOf(s.backend),text:raw});
@@ -53,8 +53,8 @@ test('a repair timeout retains the checked parts of the earlier response',async(
 });
 
 test('an unsupported time-only update leaves the saved time unchanged and explains the unapplied change',async()=>{
- const seed=withTask({planned:'2026-09-17T12:30:00.000Z'}),raw='Move Run tomorrow at nine';
- const s=agentFor(async()=>turn(raw,[operation([field('time','tomorrow 9pm','tomorrow at nine')],{kind:'update',targetId:'1'})]),{seed});
+ const seed=withTask({planned:'2026-09-17T12:30:00.000Z'}),raw='Move Run tomorrow at 9am';
+ const s=agentFor(async()=>turn(raw,[operation([field('time','tomorrow 9pm','tomorrow at 9am')],{kind:'update',targetId:'1'})]),{seed});
  const result=await s.agent.capture({messageId:'only-time',conversationId:await conversationOf(s.backend),text:raw});
  assert.equal(result.draftId,null);
  const card=await latest(s.backend);

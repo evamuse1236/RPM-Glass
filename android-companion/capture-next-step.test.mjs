@@ -29,7 +29,7 @@ test('Name it follows a saved reminder, binds its ID, and never replays the orig
  const raw='remind me in 5',s=await setup(raw,[operation([field('title','Reminder',null,'suggested'),field('time','in 5','in 5'),field('alert','reminder','remind me')])]);
  let c=await s.card();assert.equal(c.draft.status,'committed');assert.equal(c.draft.question,null);assert.equal(c.draft.nextStep.label,'Name it');
  const action=c.draft.nextStep.action,id=actionIdFor(action);assert.ok(id.length<160);
- await s.agent.act(action,{actionId:id});assert.equal(s.calls,1);
+ await s.agent.act(action,{actionId:id});assert.equal(s.calls,0);
  c=await s.card();assert.equal(c.raw,'Name it');assert.equal(c.draft.question.field,'title');
  assert.equal((await s.backend.load()).entries.length,1);
  await s.agent.capture({messageId:'name',conversationId:s.conversationId,text:'Call Mom'});
@@ -70,4 +70,9 @@ test('drank water logs one glass even when the model asks for a count in prose',
  const s=await setup('drank water',[]),card=await s.card();
  assert.equal(card.draft.status,'committed');assert.equal(card.draft.question,null);
  assert.match(card.draft.nextStep.text,/1 of 8 glasses today.*11:30 AM/);
+});
+test('water receipt still reads the calendar before naming the next nudge',async()=>{
+ const busy={...calendar,events:[{title:'Busy',start:Date.parse('2026-10-19T11:00:00+05:30'),end:Date.parse('2026-10-19T13:00:00+05:30')}]};
+ const s=await setup('drank water',[],{calendarValue:busy});
+ assert.match((await s.card()).draft.nextStep.text,/Next nudge at 1:00 PM/);
 });
