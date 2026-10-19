@@ -76,7 +76,9 @@ export async function isolationProbe(){
 
 export function usageTotals(records){
  const total={input:0,output:0,cacheRead:0,cacheWrite:0,costUSD:0,calls:records.length};
- for(const r of records){const u=r.usage??{};total.input+=u.input_tokens??0;total.output+=u.output_tokens??0;total.cacheRead+=u.cache_read_input_tokens??0;total.cacheWrite+=u.cache_creation_input_tokens??0;total.costUSD+=r.costUSD??0;}
+ let complete=true;
+ for(const r of records){const u=r.usage??{};total.input+=u.input_tokens??0;total.output+=u.output_tokens??0;total.cacheRead+=u.cache_read_input_tokens??0;total.cacheWrite+=u.cache_creation_input_tokens??0;if(r.costUSD==null)complete=false;else total.costUSD+=r.costUSD;}
+ if(!complete)total.costUSD=null;
  return total;
 }
 

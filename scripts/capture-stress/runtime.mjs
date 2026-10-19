@@ -3,13 +3,17 @@ import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {seedFixture,NOW,TIMEZONE} from './seed.mjs';
 import {cliCall} from './cli.mjs';
+import {apiCall} from './api.mjs';
 import {evaluateCase} from './evaluate.mjs';
+
+export const routeName=(route,routes)=>Object.entries(routes).find(([,candidate])=>['model','effort','timeoutMs','maxTokens'].every(k=>candidate[k]===route?.[k]))?.[0]??'unknown';
 
 export async function targetModules(repo){
  const files={service:'android-companion/intent-service.mjs',agent:'android-companion/capture-agent.mjs',trace:'android-companion/capture-trace.mjs',
   planner:'android-companion/planner-tools.mjs',editor:'android-companion/planner-state.mjs',undo:'chat-prototype/companion-tools.mjs',
   snapshot:'android-companion/capture-snapshot.mjs',seed:'scripts/gauntlet/seed.mjs',state:'intent-v2/src/repository.mjs',
-  prompt:'intent-v2/prompts/intent-system.mjs',schema:'intent-v2/src/schema.mjs',claude:'intent-v2/adapters/claude.mjs',errors:'android-companion/user-message.mjs'};
+  prompt:'intent-v2/prompts/intent-system.mjs',schema:'intent-v2/src/schema.mjs',claude:'intent-v2/adapters/claude.mjs',
+  transport:'intent-v2/adapters/transport.mjs',policy:'intent-v2/src/model-policy.mjs',errors:'android-companion/user-message.mjs'};
  return Object.fromEntries(await Promise.all(Object.entries(files).map(async([key,file])=>[key,await import(pathToFileURL(path.join(repo,file)).href)])));
 }
 
@@ -25,7 +29,7 @@ export async function fileBackend(file,seed){
  };
 }
 
-export async function runCase(test,{modules:m,directory,mode,repeat=1,modelOverride}){
+export async function runCase(test,{modules:m,directory,mode,transport='cli',repeat=1,modelOverride,fetchImpl}){
  const started=Date.now();await mkdir(directory,{recursive:true});
  const {data,events}=seedFixture({seedStore:m.seed.seedStore,editPlan:m.editor.editPlan,intentState:m.state.intentState});
  await writeFile(path.join(directory,'seed.json'),JSON.stringify({data,events},null,2));
@@ -33,20 +37,21 @@ export async function runCase(test,{modules:m,directory,mode,repeat=1,modelOverr
  let tick=0,currentText='',currentMessage='',turnCalls=[];
  const clock=()=>new Date(Date.parse(NOW)+tick*1000);
  const model=async(input,options)=>{
-  const call={routeUsed:options.route.effort==='none'?'quick':'careful',route:structuredClone(options.route),savedBeforeModel:(await backend.load()).intentV2?.captures?.[currentMessage]?.raw===currentText};
+  const routeUsed=routeName(options.route,m.policy.MODEL_ROUTES);
+  const call={routeUsed,route:structuredClone(options.route),savedBeforeModel:(await backend.load()).intentV2?.captures?.[currentMessage]?.raw===currentText};
   turnCalls.push(call);
   try{
-   const result=modelOverride?await modelOverride(input,options):await cliCall({prompt:m.prompt.intentSystemPrompt,input,schema:m.schema.TURN_SCHEMA,
+   const result=modelOverride?await modelOverride(input,options):transport==='api'?await apiCall({prompt:m.prompt.intentSystemPrompt,input,route:options.route,deadline:options.deadline,signal:options.signal,adapters:m,fetchImpl}):await cliCall({prompt:m.prompt.intentSystemPrompt,input,schema:m.schema.TURN_SCHEMA,
     model:m.claude.CLAUDE_API_MODELS[options.route.model],effort:options.route.effort,mode,signal:options.signal,timeoutMs:Math.max(1,options.deadline-Date.now())});
    Object.assign(call,result);
    const record=result.record;
    if(record?.isError){const error=new Error('CLI transport could not obtain a model response; captured words are safe');error.code='TRANSPORT_ERROR';throw error;}
    const models=Object.keys(record?.modelUsage??{}),requested=m.claude.CLAUDE_API_MODELS[options.route.model];
-   if(!modelOverride&&!models.some(id=>id===requested||id.startsWith(requested+'-')))throw new Error('CLI returned an unexpected model');
-   Object.assign(options.run,{service:'cli',provider:'CLI transport',servedModel:models.join(',')||requested,
+   if(!modelOverride&&transport==='cli'&&!models.some(id=>id===requested||id.startsWith(requested+'-')))throw new Error('CLI returned an unexpected model');
+   Object.assign(options.run,{service:transport==='api'?'anthropic':'cli',provider:transport==='api'?'API transport':'CLI transport',servedModel:record?.servedModel??(models.join(',')||requested),
     inputTokens:record?.usage?.input_tokens??null,outputTokens:record?.usage?.output_tokens??null,cost:record?.costUSD??null});
    return result.output;
-  }catch(error){call.error=m.errors.userMessage(error);throw error;}
+  }catch(error){if(error.record)call.record=error.record;call.error=m.errors.userMessage(error);throw error;}
  };
  const service=m.service.createIntentService({backend,model,changePlanner:m.planner.changePlanner,undo:m.undo.undo,editPlan:m.editor.editPlan,
   readCalendar:async()=>({status:'ready',start:Date.parse('2026-10-01'),end:Date.parse('2026-12-01'),events}),
@@ -68,9 +73,11 @@ export async function runCase(test,{modules:m,directory,mode,repeat=1,modelOverr
   if(result?.draftId)previousId=result.draftId;
   const draftId=result?.draftId??input.focusDraftId??previousId;
   const draft=after.intentV2?.drafts?.[draftId]??null;
+  const projected=m.service.intentViewFromData(after,{now:clock(),timezone:TIMEZONE}).captures.find(c=>c.messageId===currentMessage);
   const observation={text:turn.text,stage:turn.deferApply?'draft':'auto-apply',ms:Date.now()-at,
    result:result?{status:result.status,draftId:result.draftId,error:result.error,code:result.code,applied:result.applied}:null,
-   exception,capture,draft,focusDraft:after.intentV2?.drafts?.[(test.turns.some(t=>t.focus==='dinner')?'draft-dinner':input.focusDraftId)??draftId]??null,calls:turnCalls,trace:traces.get(currentMessage),
+   exception,capture,draft,receiptLines:projected?.draft?.lines??[],undoId:draft?.receipt?.undoId??null,
+   focusDraft:after.intentV2?.drafts?.[(test.turns.some(t=>t.focus==='dinner')?'draft-dinner':input.focusDraftId)??draftId]??null,calls:turnCalls,trace:traces.get(currentMessage),
    allRawRetained:turns.every(t=>after.intentV2?.captures?.[t.capture?.messageId]?.raw===t.text)};
   turns.push(observation);
   states.push(after);

@@ -19,7 +19,8 @@ public class ModelLimitsTest {
             assertTrue(service + " Haiku", haiku > 0);
             assertTrue(service + ": Sonnet at high effort gets at least as long to answer", sonnet >= haiku);
             assertEquals(95000, ModelLimits.readTimeoutMs(service, haikuId, 6000, 20000));
-            assertEquals(-1, ModelLimits.readTimeoutMs(service, haikuId, 6001, 20000));
+            assertEquals(95000, ModelLimits.readTimeoutMs(service, haikuId, 16000, 20000));
+            assertEquals(-1, ModelLimits.readTimeoutMs(service, haikuId, 16001, 20000));
         }
     }
 
@@ -35,8 +36,8 @@ public class ModelLimitsTest {
     }
 
     @Test public void tokenCapsFollowTheModel() {
-        assertEquals(-1, ModelLimits.readTimeoutMs(OPENROUTER, ModelLimits.HAIKU, 16000, 20000));
-        assertEquals(-1, ModelLimits.readTimeoutMs(CLAUDE, ModelLimits.CLAUDE_HAIKU, 16000, 20000));
+        assertEquals(-1, ModelLimits.readTimeoutMs(OPENROUTER, ModelLimits.HAIKU, 16001, 20000));
+        assertEquals(-1, ModelLimits.readTimeoutMs(CLAUDE, ModelLimits.CLAUDE_HAIKU, 16001, 20000));
         assertEquals(-1, ModelLimits.readTimeoutMs(OPENROUTER, ModelLimits.SONNET, 16001, 20000));
         assertEquals(-1, ModelLimits.readTimeoutMs(CLAUDE, ModelLimits.CLAUDE_SONNET, 0, 20000));
     }

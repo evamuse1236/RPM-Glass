@@ -3,7 +3,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {loadCorpus} from './run.mjs';
-import {targetModules} from './runtime.mjs';
+import {targetModules,routeName} from './runtime.mjs';
 import {evaluateCase} from './evaluate.mjs';
 import {summarize,reportMarkdown} from './report.mjs';
 
@@ -18,7 +18,7 @@ export async function recheck(directory){
   const states=await Promise.all(result.turns.map(async(_,i)=>JSON.parse(await readFile(path.join(dir,`turn-${i+1}.json`),'utf8')).state));
   const after=JSON.parse(await readFile(path.join(dir,'final.json'),'utf8'));
   result.expect=test.expect;
-  for(const turn of result.turns)for(const call of turn.calls)call.routeUsed??=call.route?.effort==='none'?'quick':'careful';
+  for(const turn of result.turns)for(const call of turn.calls)call.routeUsed=routeName(call.route,m.policy.MODEL_ROUTES);
   result.failures=evaluateCase(test,{before,after,turns:result.turns,states,validate:m.schema.validate,schema:m.schema.TURN_SCHEMA});
   result.pass=result.failures.length===0;
  }
