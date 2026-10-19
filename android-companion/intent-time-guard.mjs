@@ -1,4 +1,4 @@
-import {interpretTime} from '../cli/interpret.mjs';
+import {interpretTime,normalizeReminderTime} from '../cli/interpret.mjs';
 const bareClock=/^\s*\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?\s*$/i;
 function clocks(text,now,evidence){
  const parsed=interpretTime(bareClock.test(text)?'at '+text:text,now,{evidence});
@@ -49,9 +49,11 @@ export function validateIntentTimes(parsed,{input}){
  recoverExplicitSavedClock(parsed,input,now);
  for(const op of parsed.operations)for(const field of op.fields){
   if(field.name!=='time'||field.op!=='set'||field.origin!=='stated'||(field.sourceMessageId&&field.sourceMessageId!==input.messageId))continue;
+  const alert=op.fields.some(f=>f.name==='alert'&&f.op==='set'&&['reminder','alarm'].includes(f.value))||input.context.entities.some(e=>e.entity==='task'&&e.id===op.targetId&&['reminder','alarm'].includes(e.alert));
+  const proof=alert?normalizeReminderTime(field.evidence??''):field.evidence??'';
   // An unresolved local parse already blocks Save without another model call.
   if(interpretTime(field.value,now,{evidence:raw}).status==='review')continue;
-  const requested=clocks(field.value,now,raw),supported=[...clocks(field.evidence??'',now,raw),...looseClocks(field.evidence)].map(c=>withPart(c,field.evidence)).filter(c=>c.explicit);
+  const requested=clocks(field.value,now,raw),supported=[...clocks(proof,now,raw),...looseClocks(field.evidence)].map(c=>withPart(c,field.evidence)).filter(c=>c.explicit);
   for(const c of requested)if(!c.explicit||!supported.some(s=>s.hour===c.hour&&s.minute===c.minute)){
    const error=new Error('Time precision was not supported by the exact source words. Use the exact stated clock if present; when AM/PM is missing keep time unknown and ask AM or PM. Keep every other requested action. A saved date does not authorize inheriting its AM/PM.');
    error.code='UNSUPPORTED_TIME';throw error;

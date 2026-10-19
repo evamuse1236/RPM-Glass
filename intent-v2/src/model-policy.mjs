@@ -39,10 +39,10 @@ export function intentModelPolicy({input,attempt=0,output=null}={}){
 }
 /** Routine confirmations come from checked fields and the local time preview. */
 export function captureReply({parsed,schedulePreview}){
- if(parsed.mode!=='capture'||!parsed.operations.length||parsed.operations.some(op=>op.fields.some(f=>f.origin==='suggested')))return parsed.reply;
+ if(parsed.operations.some(op=>op.opId==='short-alert'))return parsed.question?.prompt??'';
+ if(parsed.mode!=='capture'||!parsed.operations.length)return parsed.reply;
  const times=schedulePreview?.items??[];
  const review=times.find(t=>t.status==='review');
  if(review)return `Draft kept for review. ${review.reason}`;
- const labels=times.filter(t=>t.label).map(t=>`${t.title}: ${t.label}.`);
- return ['Draft ready to review.',...labels,parsed.question?.prompt??''].filter(Boolean).join(' ');
+ return parsed.question?.prompt??parsed.reply;
 }

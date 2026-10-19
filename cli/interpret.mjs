@@ -2,6 +2,7 @@ import {normalizeSpokenTime} from './spoken-time.mjs';
 import * as chrono from 'chrono-node';
 export const localDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 export const formatTime = value => new Date(value).toLocaleString(undefined,{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+export const normalizeReminderTime=raw=>raw.replace(/^\s*in\s+(\d+)\s*$/i,'in $1 minutes');
 const hasDay = c => ['day','weekday','month','year'].some(k=>c.isCertain(k));
 const clock = c => c.isCertain('hour');
 

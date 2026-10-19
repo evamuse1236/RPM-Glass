@@ -1,7 +1,7 @@
 import {userMessage} from '../../android-companion/user-message.mjs';
 import {validateFollowUp} from './follow-up.mjs';
 import {intentState} from './repository.mjs';
-import {sourceUnits,buildContext,guardsFor,findEntity,contextEntity,draftEntity} from './context.mjs';
+import {sourceUnits,buildContext,guardsFor,checkGuards,findEntity,contextEntity,draftEntity} from './context.mjs';
 import {interpretTurn} from './interpret.mjs';
 import {ident,activeStatus,conversation,safeQuestion,actOnDraft,undoCommitted} from './draft-actions.mjs';
 import {quickAnswer} from './quick-answer.mjs';
@@ -9,6 +9,8 @@ import {inputSummary} from './input-summary.mjs';
 import {focusFor,focusOf,questionFor,openQuestion} from './conversation-focus.mjs';
 import {readChoiceReply,choiceTurn,choiceEntities} from './choice-reply.mjs';
 import {proposalEntities,stageProposalRemoval} from './proposal-removal.mjs';
+import {completeShortReminder} from './short-reminder.mjs';
+import {completeWaterLog} from './body-intent.mjs';
 
 const STALE_FOCUS='STALE_FOCUS';
 /** Orchestration only. The model never receives a mutating function or persistence key. */
@@ -18,12 +20,14 @@ export class IntentHarness {
   Object.assign(this,{repository,model,applyPlan,undoPlan,refreshSchedule,modelPolicy,snapshot,normalizeReply,validateInterpretation,recoverInterpretation,onEvent,clock,timezone,timeoutMs,maxRepairCalls});this.running=new Map();
  }
  emit(event){try{this.onEvent(event);}catch{/* Telemetry/UI must never break persistence. */}}
- async capture(input){
+ async capture(input,{localTurn=null,validateLocal=null}={}){
   const {messageId,conversationId,text,focusDraftId=null}=input;ident(messageId);ident(conversationId);
   if(typeof text!=='string'||!text.trim()||text.length>12000)throw new Error('Use 1–12,000 characters');
   await this.repository.transact(`capture:${messageId}`,{conversationId,text,focusDraftId},data=>{
    const chat=conversation(data,conversationId);const v=intentState(data);const focus=focusFor(v,{conversationId,messageId,focusDraftId});
+   if(localTurn)validateLocal(data);
    v.captures[messageId]={messageId,conversationId,raw:text,at:this.clock().toISOString(),timezone:this.timezone,focusDraftId:focus?.draftId??null,focusRevision:focus?.draftRevision??null,focus,status:'captured'};
+   if(localTurn)Object.assign(v.captures[messageId],{localTurn,localGuards:guardsFor(data,localTurn.operations)});
    if(chat.title==='New conversation'&&!(chat.messages??[]).length)chat.title=text.trim().slice(0,60);
    return {messageId,status:'captured'};
   });
@@ -45,6 +49,14 @@ export class IntentHarness {
   if(stale&&capture.lastError?.code!==STALE_FOCUS)return this.#needsAttention(messageId,Object.assign(new Error('The draft you pointed at changed or closed. Your words are saved; tap Retry to read them on their own.'),{code:STALE_FOCUS}),{calls:0,modelRuns:[]});
   const activeDraft=stale?null:focused,question=questionFor(v,capture);
   let units;try{units=sourceUnits(capture.raw);}catch(error){return {messageId,status:'captured',error:userMessage(error)};}
+  if(capture.localTurn){
+   try{
+    checkGuards(data,capture.localGuards);
+    const visibleEntities=capture.localTurn.operations.map(op=>contextEntity(op.entity,findEntity(data,op.entity,op.targetId),capture.timezone));
+    const parsed=interpretTurn(capture.localTurn,{units,messageId,visibleEntities,activeDraft:null});
+    return await this.#stage(messageId,{data,capture,parsed,units,activeDraft:null,calls:0,modelRuns:[]});
+   }catch(error){return this.#needsAttention(messageId,error,{calls:0,modelRuns:[]});}
+  }
   if(question||capture.choice){
    try{
     if(capture.choice&&question?.id!==capture.choice.questionId)throw new Error('That question was already answered or replaced. Nothing changed.');
@@ -85,7 +97,9 @@ export class IntentHarness {
     const run={...(route??{}),attempt,ms:null,ok:false,input:inputSummary({...input,repair},meta)};modelRuns.push(run);const started=Date.now();
     try{
      const output=await Promise.race([this.model({...input,repair},{signal:controller.signal,deadline,route,run}),timeout]).finally(()=>{run.ms=Date.now()-started;});run.ok=true;
-     parsed=interpretTurn(output,{units,messageId,visibleEntities:context.entities,activeDraft});
+     const reminder=completeShortReminder(output,input),completed=completeWaterLog(reminder,input);
+     if(completed!==output)run.completion=completed===reminder?'short-reminder':'water-log';
+     parsed=interpretTurn(completed,{units,messageId,visibleEntities:context.entities,activeDraft});
      validateFollowUp(parsed,{input});
      held=this.recoverInterpretation?.(parsed,{input,activeDraft})??held;
      this.validateInterpretation?.(parsed,{input});

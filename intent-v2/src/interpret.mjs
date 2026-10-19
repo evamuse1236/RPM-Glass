@@ -1,6 +1,8 @@
 import {TURN_SCHEMA,validate,validateField} from './schema.mjs';
 import {checkRemoval,REMOVALS} from './removal.mjs';
 import {checkBodyOperation} from './body-intent.mjs';
+import {CAPTURE_OPERATIONS} from './capabilities.mjs';
+import {normalizeReminderTime} from '../../cli/interpret.mjs';
 const words=s=>String(s).toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
 /** A choice may only name what the model was shown, and only what its action can be done to. */
 function checkClarification(c,visible){
@@ -21,6 +23,18 @@ function checkClarification(c,visible){
 }
 export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}={}){
  validate(turn,TURN_SCHEMA);
+ turn=structuredClone(turn);
+ for(const op of turn.operations){
+  if(op.entity!=='task')continue;
+  const alert=op.fields.find(f=>f.name==='alert'&&f.op==='set'&&['reminder','alarm'].includes(f.value))??visibleEntities.find(e=>e.entity==='task'&&e.id===op.targetId&&['reminder','alarm'].includes(e.alert));
+  if(alert)for(const f of op.fields)if(f.name==='time'&&f.op==='set'&&typeof f.value==='string')f.value=normalizeReminderTime(f.value);
+  if(op.kind!=='create')continue;
+  const title=op.fields.find(f=>f.name==='title');
+  if(!alert||title?.op==='set')continue;
+  op.fields=op.fields.filter(f=>f.name!=='title');
+  op.fields.unshift({name:'title',op:'set',value:alert.value==='alarm'?'Alarm':'Reminder',origin:'suggested',evidence:null});
+  if(turn.question?.opId===op.opId&&turn.question.field==='title')turn.question=null;
+ }
  const source=new Map(units.map(u=>[u.id,u.text])),decisions=new Map();
  for(const d of turn.decisions){if(!source.has(d.sourceId)||decisions.has(d.sourceId))throw new Error('Invalid/duplicate source decision');decisions.set(d.sourceId,d.disposition);}
  if(decisions.size!==source.size)throw new Error('Every source unit needs a disposition; keep non-actions too');
@@ -44,6 +58,7 @@ export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}
    if(activeDraft.operations.some(p=>{const title=p.fields.find(f=>f.name==='title'&&f.op==='set')?.value;return title&&raw.includes(`keep ${words(title)}`);}))throw new Error('Keep the explicitly named proposal. Discard only the requested proposal IDs; do not set the whole draft aside.');
   }
   checkRemoval(op,turn);
+  if(!CAPTURE_OPERATIONS[op.entity].actions[op.kind])throw new Error(`Capture cannot ${op.kind} a ${op.entity}`);
   const names=new Set();
   const fields=op.fields.map(f=>{
    validateField(f,op.entity);if(names.has(f.name))throw new Error('Duplicate field');names.add(f.name);
