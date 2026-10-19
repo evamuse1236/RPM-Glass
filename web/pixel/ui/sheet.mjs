@@ -60,7 +60,7 @@ export function createSheet(ctx) {
         task.must ? h('p.must', {}, icon('star'), 'Must') : null,
         task.notes ? h('p.notes', {}, task.notes) : null),
       h('div.sheet-keys', {},
-        key(task.done ? 'Not done' : 'Done', () => { toggleDone(ctx, task, !!task.done); close(); }, {cls: 'filled', hint: '␣'}),
+        key(task.done ? 'Not done' : 'Done', () => { toggleDone(ctx, task, !!task.done); close(); }, {cls: 'filled', hint: 'Space'}),
         key('Move to…', () => moveList(task)),
         key('Trash', () => { ctx.act('archive', {taskId: task.id}, `Trash: ${task.title}`); close(); })));
   }

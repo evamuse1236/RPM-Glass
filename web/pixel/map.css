@@ -41,7 +41,6 @@
   border: var(--px) dashed var(--ink);
   background: none; padding: 0;
 }
-.phone-square[data-health="stale"] svg, .phone-square[data-health="offline"] svg { opacity: 0.55; }
 .phone-label { font: 400 var(--text-meta) / 1.25rem var(--font-read); white-space: nowrap; }
 .hud-status {
   padding: 6px var(--s4);

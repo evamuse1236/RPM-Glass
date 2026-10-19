@@ -18,6 +18,7 @@
     "web:pixel": "node web/pixel/build.mjs",
     "web:serve": "node web/pixel/serve.mjs",
     "web:pixel:shots": "node web/pixel/shots.mjs",
+    "web:pixel:flow": "npm run web:pixel && node web/pixel/flow.mjs",
     "check:rules": "node scripts/rules/check-rules.mjs && node --test scripts/rules/*.test.mjs",
     "check:evidence": "node scripts/agent/require-evidence.mjs"
   },

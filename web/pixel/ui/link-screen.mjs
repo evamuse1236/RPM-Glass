@@ -16,8 +16,9 @@ export function linkScreen(ctx, {storage, onLinked}) {
   const hero = h('span.link-hero', {'aria-hidden': 'true'}, icon('hero'));
   const submit = key('Link', null, {cls: 'filled', type: 'submit'});
   const room = h('section.room.link-room', {'aria-labelledby': 'link-title', dataset: {current: ''}},
-    h('div.wall', {}, h('h1.sign', {id: 'link-title'}, 'Link this browser to your phone')),
+    h('div.wall', {}, h('span.sign', {}, 'Link')),
     h('form.floor', {onsubmit: event => { event.preventDefault(); link(); }},
+      h('h1.link-title', {id: 'link-title'}, 'Link this browser to your phone'),
       h('p', {id: 'link-help'}, 'On the phone, open Settings, Cloud, Link a web browser, and read the 8-character code.'),
       h('label.code-field', {for: 'link-code'}, input, plates),
       error,

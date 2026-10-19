@@ -44,7 +44,11 @@
 .receipt[data-undone] { background: var(--stone-light); box-shadow: none; translate: 0 var(--edge); }
 .receipt-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
 .receipt-title { display: inline-flex; align-items: center; gap: var(--s2); font: 400 1rem / 1.5rem var(--font-pixel); }
-.receipt-title .sprite svg { inline-size: 12px; block-size: 12px; }
+.receipt-title .sprite svg { inline-size: 16px; block-size: 16px; }
+.receipt-title.sentence { font: 400 var(--text-meta) / 1.25rem var(--font-read); }
+.receipt-title.sentence .sprite svg { inline-size: 12px; block-size: 12px; }
+.send-hint { display: inline-flex; align-items: center; gap: 4px; font: 400 var(--text-small) / 1rem var(--font-read); color: var(--ink-soft); }
+.send-hint kbd { font: 400 var(--text-small) / 1rem var(--font-pixel); background: var(--ink); color: var(--sand); padding: 2px 6px; }
 .said {
   margin: 0;
   padding-inline-start: var(--s3);
@@ -94,9 +98,8 @@
 
 .link-screen { display: grid; place-items: center; min-block-size: 100dvh; padding: var(--s6) var(--s4); }
 .link-room { inline-size: min(32rem, 100%); }
-.link-room .sign { font-size: var(--text-title); line-height: 2rem; inset-block-start: 6px; white-space: normal; inset-inline-end: var(--s4); }
-.link-room .wall { block-size: 48px; margin-block-end: var(--s6); }
-.link-room .floor { gap: var(--s4); padding-block-start: var(--s8); }
+.link-title { font: 400 var(--text-title) / 2rem var(--font-pixel); }
+.link-room .floor { gap: var(--s4); }
 .code-field { position: relative; display: block; }
 .code-input { position: absolute; inset: 0; opacity: 0; inline-size: 100%; block-size: 100%; caret-color: transparent; }
 .code-plates { display: grid; grid-template-columns: repeat(8, minmax(0, 40px)); justify-content: center; gap: 6px; }

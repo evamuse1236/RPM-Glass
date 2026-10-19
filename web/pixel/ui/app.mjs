@@ -73,7 +73,7 @@ export function mountApp(root, {store, now, demo, storage}) {
     if (!anchor) return;
     const m = map.getBoundingClientRect(), a = anchor.getBoundingClientRect();
     const x = spot ? a.left - m.left : a.right - m.left + 12;
-    const y = spot ? a.top - m.top : sections[ctx.room].getBoundingClientRect().top - m.top;
+    const y = spot ? a.top - m.top : sections[ctx.room].getBoundingClientRect().top - m.top + 8;
     hero.style.setProperty('--hx', `${Math.round(x / 2) * 2}px`);
     hero.style.setProperty('--hy', `${Math.round(y / 2) * 2}px`);
     if (walking && !reducedMotion()) {

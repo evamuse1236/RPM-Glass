@@ -29,7 +29,8 @@ export function buildDesk(ctx) {
     h('div.desk-actions', {},
       h('p.trust', {id: 'capture-trust'}, 'Your words are saved first, then sorted.'),
       ctx.demo ? h('span.demo-label', {title: 'This page runs a demo phone with sample data'}, 'Demo data') : null,
-      key('Send to phone', send, {cls: 'filled', hint: '⌃↵', aria: 'Send to phone (Control or Command plus Enter)'})),
+      h('span.send-hint', {'aria-hidden': 'true'}, h('kbd', {}, 'Ctrl'), '+', h('kbd', {}, 'Enter')),
+      key('Send to phone', send, {cls: 'filled', aria: 'Send to phone (Control or Command plus Enter)'})),
     h('span.ladder', {'aria-hidden': 'true'}, icon('ladder')));
   return {desk, area, receipts, asks, focus: () => area.focus()};
 }
@@ -46,7 +47,7 @@ function receiptPlate(ctx, capture, entry) {
   const fresh = entry && ctx.now() - entry.at < UNDO_WINDOW_MS;
   return h('article.receipt', {dataset: {undone: undone ? '' : null}},
     h('header.receipt-head', {},
-      h('span.receipt-title', {}, undone ? 'Undone · moved to Trash' : added ? `✓ ${plural(added, 'task')} added` : '✓ Saved'),
+      h('span.receipt-title', {}, undone ? null : icon('check'), undone ? 'Undone, moved to Trash' : added ? `${plural(added, 'task')} added` : 'Saved'),
       canUndo ? key('Undo', () => ctx.store.undo(entry.command.id), {cls: `small${fresh ? ' filled' : ''}`, hint: fresh ? 'Z' : null, aria: 'Undo this capture'}) : null),
     h('blockquote.said', {}, capture.text),
     capture.receipt.length ? h('ul.receipt-lines', {}, capture.receipt.map(r => lineParts(r.text))) : null);
@@ -55,7 +56,7 @@ function receiptPlate(ctx, capture, entry) {
 function sentPlate(ctx, entry) {
   return h('article.receipt', {dataset: {state: 'pending'}},
     h('header.receipt-head', {},
-      h('span.receipt-title', {}, icon('hourglass'), entry.undoRequested ? 'Undoing on the phone…' : 'Sent. The phone sorts it when it opens.'),
+      h('span.receipt-title.sentence', {}, icon('hourglass'), entry.undoRequested ? 'Undoing on the phone…' : 'Sent. The phone sorts it when it opens.'),
       entry.undoRequested ? null : key('Undo', () => ctx.store.undo(entry.command.id), {cls: 'small', aria: 'Undo this capture'})),
     h('blockquote.said', {}, entry.command.args.text));
 }
