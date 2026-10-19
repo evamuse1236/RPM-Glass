@@ -16,6 +16,19 @@ export function createRevealTracker(){
  };
 }
 
+/** The scroll position that shows a question's choices inside the card list, moving as little as possible. */
+export function choicesScrollTop(box,chips,scrollTop){
+ if(chips.bottom-chips.top>box.bottom-box.top||chips.top<box.top)return scrollTop+chips.top-box.top;
+ if(chips.bottom>box.bottom)return scrollTop+chips.bottom-box.bottom;
+ return scrollTop;
+}
+
+export function keepChoicesInView(content){
+ const chips=content.querySelector('.question .chips');
+ if(!chips)return;
+ content.scrollTop=choicesScrollTop(content.getBoundingClientRect(),chips.getBoundingClientRect(),content.scrollTop);
+}
+
 const prefersReduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
 
 /** Reduced motion follows Android's animator setting or the web preference. */

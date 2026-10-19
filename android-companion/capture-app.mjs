@@ -3,7 +3,7 @@ import {pendingCard,wordsKeptCard,receiptCard,confirmCard,undoneCard,parkedCard,
 import {answerCard} from './capture-answers.mjs';
 import {historyView,contextView} from './capture-views.mjs';
 import {installSheet} from './capture-sheet.mjs';
-import {installCapturePresentation,createRevealTracker,enter} from './capture-presentation.mjs';
+import {installCapturePresentation,createRevealTracker,enter,keepChoicesInView} from './capture-presentation.mjs';
 import {installComposer,listeningCard} from './capture-composer.mjs';
 import {createSendIdentity,draftToKeep,cardKind,canUndoChange} from './capture-session.mjs';
 import {el,button} from './capture-dom.mjs';
@@ -27,6 +27,7 @@ const storage={
 export function mountCapture(platform){
  const $=id=>document.getElementById(id);
  const panel=$('panel'),content=$('content'),message=$('message');
+ new ResizeObserver(()=>keepChoicesInView(content)).observe(content);
  const s={state:null,busy:false,view:'chat',conversationId:storage.get('rpm-conversation'),focusedDraftId:null,historyLimit:30,
   showArchived:false,lastKey:null,request:null,failure:null,problem:null,listening:false,autoClose:null,countdown:null,slowTimer:null};
  const identity=createSendIdentity(),reveal=createRevealTracker(),seen=new Set();
@@ -215,6 +216,7 @@ export function mountCapture(platform){
   content.replaceChildren(...nodes);
   if(s.problem&&!content.querySelector('.problem'))status(s.problem,true);
   content.scrollTop=0;
+  keepChoicesInView(content);
   const kind=s.listening?'listening':s.request?'pending':s.failure?'error':nodes[0]?.classList[2]??'idle';
   panel.dataset.view=s.view;panel.dataset.busy=String(s.busy);panel.dataset.state=kind;
   content.setAttribute('aria-busy',String(s.busy));
