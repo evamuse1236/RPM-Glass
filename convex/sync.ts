@@ -1,6 +1,7 @@
 import { internalMutation } from "./functions";
 import { v } from "convex/values";
 import { canonicalJson } from "./security";
+import { accountFor } from "./plannerAuth";
 
 const event=v.object({eventId:v.string(),sequence:v.number(),collection:v.string(),localId:v.string(),payload:v.any()});
 export const pair=internalMutation({args:{codeHash:v.string(),tokenHash:v.string(),installationId:v.string()},handler:async(ctx,args)=>{
@@ -8,7 +9,9 @@ export const pair=internalMutation({args:{codeHash:v.string(),tokenHash:v.string
   if(!code||code.usedAt!==undefined||code.expiresAt<=Date.now())return false;
   const existing=await ctx.db.query("devices").withIndex("by_installation",q=>q.eq("installationId",args.installationId)).unique();
   const data={installationId:args.installationId,tokenHash:args.tokenHash,label:code.label,pairedAt:Date.now(),revoked:false};
-  if(existing)await ctx.db.patch(existing._id,data);else await ctx.db.insert("devices",data);
+  const deviceId=existing?existing._id:await ctx.db.insert("devices",data);
+  if(existing)await ctx.db.patch(existing._id,data);
+  await accountFor(ctx,(await ctx.db.get(deviceId))!);
   await ctx.db.patch(code._id,{usedAt:Date.now()});return true;
 }});
 export const ingest=internalMutation({args:{tokenHash:v.string(),events:v.array(event)},handler:async(ctx,args)=>{
