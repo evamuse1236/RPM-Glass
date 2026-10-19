@@ -43,8 +43,20 @@ jobs:
         with:
           cache-read-only: false
       - run: npm ci
+      - name: Sign with the phone's key
+        env:
+          RPM_DEBUG_KEYSTORE: ${{ secrets.RPM_DEBUG_KEYSTORE }}
+        if: env.RPM_DEBUG_KEYSTORE != ''
+        run: |
+          echo "$RPM_DEBUG_KEYSTORE" | base64 -d > "$RUNNER_TEMP/rpm-debug.keystore"
+          echo "rpm.debugKeystore=$RUNNER_TEMP/rpm-debug.keystore" >> local.properties
       - name: Build debug APK
         run: ./gradlew --no-daemon assembleDebug
+      - name: The APK installs over the phone's app
+        env:
+          RPM_DEBUG_KEYSTORE: ${{ secrets.RPM_DEBUG_KEYSTORE }}
+        if: env.RPM_DEBUG_KEYSTORE != ''
+        run: node scripts/ci/check-signer.mjs app/build/outputs/apk/debug/app-debug.apk
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

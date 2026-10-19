@@ -54,3 +54,9 @@ test('waiting for a run stops at its time limit', async () => {
   const run = await untilCompleted(() => ({status: 'in_progress'}), {wait: async ms => { t += ms; }, limitMs: 60000, now: () => t});
   assert.equal(run.status, 'in_progress');
 });
+
+test('the signer check reads the first signer digest and knows the phone key', async () => {
+  const {signerDigest, PHONE_SIGNER} = await import('./check-signer.mjs');
+  assert.equal(signerDigest(`Signer #1 certificate DN: CN=Android Debug\nSigner #1 certificate SHA-256 digest: ${PHONE_SIGNER}\n`), PHONE_SIGNER);
+  assert.equal(signerDigest('DOES NOT VERIFY'), null);
+});
