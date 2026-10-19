@@ -54,15 +54,17 @@ export async function runCase(test,{modules:m,directory,mode,repeat=1,modelOverr
  let traceJson='[]';
  const traces=m.trace.createTraceStore({storage:{getItem:()=>traceJson,setItem:(_,v)=>{traceJson=v;}},clock});
  const agent=m.agent.createCaptureAgent({service,traces,clock});
- const turns=[],states=[];let focusedId='draft-dinner',previousId=null;
+ const turns=[],states=[];let focusedId=null,previousId=null;
  for(const [index,turn] of test.turns.entries()){
   tick=index;currentText=turn.text;currentMessage=`stress-${test.id}-${index+1}`;turnCalls=[];
   const input={messageId:currentMessage,conversationId:'stress',text:turn.text};
-  if(turn.focus){focusedId=turn.focus==='dinner'?'draft-dinner':previousId??focusedId;input.focusDraftId=focusedId;}
+  if(turn.focus)focusedId=turn.focus==='dinner'?'draft-dinner':previousId??focusedId;
+  if(focusedId)input.focusDraftId=focusedId;
   let result=null,exception=null;
   const at=Date.now();
   try{result=await (turn.deferApply?service:agent).capture(input);}catch(error){exception=m.errors.userMessage(error);}
   const after=await backend.load(),capture=after.intentV2?.captures?.[currentMessage]??null;
+  if(focusedId&&!['draft','review'].includes(after.intentV2?.drafts?.[focusedId]?.status))focusedId=null;
   if(result?.draftId)previousId=result.draftId;
   const draftId=result?.draftId??input.focusDraftId??previousId;
   const draft=after.intentV2?.drafts?.[draftId]??null;

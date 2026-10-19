@@ -122,7 +122,7 @@ test('fake model goes through production interpreter, canonical adapter, file pe
  const output=input=>({schemaVersion:1,mode:'capture',draftMode:'new',reply:'',decisions:input.sourceUnits.map(u=>({sourceId:u.id,disposition:'action',note:null})),
   operations:[{opId:'bank',sourceId:'s0',kind:'create',entity:'task',targetId:null,fields:[
    {name:'title',op:'set',value:'Call the bank',origin:'stated',evidence:'Call the bank'},
-   {name:'time',op:'set',value:'tomorrow at 6 pm',origin:'stated',evidence:'tomorrow at 6 pm'}]}],question:null,memoryCandidates:[],card:null});
+   {name:'time',op:'set',value:'tomorrow at 6 pm',origin:'stated',evidence:'tomorrow at 6 pm'}]}],question:null,clarification:null,memoryCandidates:[],card:null});
  try{
   const result=await runCase({id:'fake',tags:[],turns:[{text}],expect:expectation({})},{modules,directory:path.join(directory,'success'),modelOverride:async input=>({output:output(input),record:{}})});
   assert.deepEqual(result.failures,[]);

@@ -13,13 +13,15 @@ planner.body = {
     glasses: [ISO, ...],        // one entry per glass drunk
     snoozedUntil: ISO | null,
   },
-  meals: [{id, created, name /* the user's words */, slot: 'breakfast' | 'lunch' | 'snack' | 'dinner', at: ISO}],
+  meals: [{id, created, name /* the user's words */, slot: 'breakfast' | 'lunch' | 'snack' | 'dinner', at: ISO, state?: 'logged' | 'skipped'}],
   mealGuesses: {[mealId]: {status: 'pending' | 'ready' | 'failed', by, at, kcal?, protein?}},  // the agent's guesses, never the user's words
   mealPlan?: {slots: [{slot: 'breakfast' | 'lunch' | 'snack' | 'dinner', at: 'HH:MM', on: boolean, name?}]},  // absent until the first change
 };
 ```
 
 ## Reading today's state
+
+A meal without `state` is logged. A skipped meal records today's choice without changing the recurring meal plan; it is excluded from usual foods and nutrition guesses. Capture creates current water and meal records through the same validated `editPlan` operations as the planner. A mixed body/task capture shares one receipt and Undo.
 
 - Water today: `waterStatus({...bodyOf(data).water, now})` in `body-state.mjs` gives `{count, goal, reached, lastAt, nextAt, pending, paused}`. `count` counts `glasses` on today's local date.
 - A meal slot today: `mealSlots(meals, day, now)` in `day-parts.mjs` gives breakfast, lunch, (snack,) dinner with the logged meal or `null` ("Not logged"). Unlogged slots sit at their `mealPlan` time; with no `mealPlan` they are breakfast 8:30 AM, lunch 1 PM and dinner 8 PM (`MEAL_TIMES`). A slot with `on: false` has no placeholder and no `Log a meal` chip, but a meal logged for it still shows. `mealPlanSlots(mealPlan)` reads the plan with these defaults, in clock order; only the snack has its own `name`.

@@ -67,9 +67,11 @@ export async function undoCommitted(h,{draftId,conversationId,actionId}){
  return h.repository.transact(`undo:${ident(actionId)}`,{draftId,conversationId},async data=>{
   conversation(data,conversationId);const drafts=intentState(data).drafts,d=drafts[draftId];
   if(!d||d.conversationId!==conversationId||d.status!=='committed')throw new Error('Committed draft not found');
+  for(const edit of d.receipt?.draftEdits??[])if(drafts[edit.id]?.revision!==edit.revision)throw new Error('The draft changed after that removal. Review it before undoing.');
   let receipt={text:'Undone'};
   if(d.receipt?.undoId){if(!h.undoPlan)throw new Error('Undo adapter is not installed');receipt=await h.undoPlan({data,receipt:d.receipt});}
   for(const p of d.receipt?.parkedDrafts??[]){const t=intentState(data).drafts[p.id];if(t?.status==='parked'&&t.parkedBy===d.id){t.status=p.status;delete t.parkedBy;t.revision++;}}
+  for(const edit of d.receipt?.draftEdits??[])drafts[edit.id]={...structuredClone(edit.before),revision:drafts[edit.id].revision+1,updated:h.clock().toISOString()};
   d.status='undone';d.revision++;return {status:'undone',draftId,receipt};
  });
 }

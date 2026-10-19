@@ -6,7 +6,8 @@ import {editPlan, planner} from './planner-state.mjs';
 import {migratePlannerUX} from './planner-ux.mjs';
 import {migrateReviewData} from './review-state.mjs';
 import {bodyOf, defaultMealPlan, WATER_SETTINGS} from './body-store.mjs';
-import {waterStatus} from './body-state.mjs';
+import {waterStatus,usualMeals} from './body-state.mjs';
+import {mealSlots} from './day-parts.mjs';
 
 const at = (time, day = '2026-10-18') => new Date(`${day}T${time}`);
 const before = () => JSON.parse(fs.readFileSync(new URL('./fixtures/store-before-body.json', import.meta.url), 'utf8'));
@@ -109,4 +110,22 @@ test('Capture answers about water and meals read what the planner logged', async
   const today = bodyToday(data, {now: at('09:00')});
   assert.deepEqual(today.water, {glasses: 2, goal: 8});
   assert.deepEqual(today.meals, [{slot: 'Breakfast', text: 'Poha'}]);
+});
+
+test('a skipped meal stays distinct from food, can be corrected and has Undo',async()=>{
+  const {bodyToday}=await import('./capture-agenda.mjs');
+  const data=freshStore(),now=at('13:10');
+  const id=editPlan(data,{type:'saveMeal',meal:{name:'Skipped lunch',slot:'lunch',state:'skipped'}},now);
+  assert.equal(bodyOf(data).meals[0].state,'skipped');
+  assert.deepEqual(usualMeals(bodyOf(data).meals,'lunch'),[]);
+  assert.deepEqual(bodyToday(data,{now}).meals,[{slot:'Lunch',text:'Skipped',state:'skipped'}]);
+  assert.equal(mealSlots(bodyOf(data).meals,'2026-10-18',now).find(m=>m.slot==='lunch').label,'Lunch · Skipped');
+  assert.throws(()=>editPlan(data,{type:'setMealGuess',id,guess:{status:'pending'}},now),/skipped meal/);
+  editPlan(data,{type:'saveMeal',meal:{id,name:'Dal rice',slot:'lunch',state:'logged'}},now);
+  assert.equal(bodyOf(data).meals[0].state,undefined);
+  assert.deepEqual(usualMeals(bodyOf(data).meals,'lunch'),['Dal rice']);
+  editPlan(data,{type:'undo'});
+  assert.equal(bodyOf(data).meals[0].state,'skipped');
+  editPlan(data,{type:'removeMeal',id});
+  assert.deepEqual(bodyOf(data).meals,[]);
 });

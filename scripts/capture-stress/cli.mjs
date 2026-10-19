@@ -7,7 +7,7 @@ import {randomUUID} from 'node:crypto';
 export const isolationFlags=mode=>mode==='bare'?['--bare','--disable-slash-commands']:
  ['--safe-mode','--restricted','--setting-sources','','--disable-slash-commands'];
 
-export async function cliCall({prompt,input,schema,model='claude-haiku-5-5',effort,mode='login',signal,timeoutMs=90000,cwd}){
+export async function cliCall({prompt,input,schema,model='claude-haiku-5-5',effort,mode='login',signal,timeoutMs=90000,cwd,spawnImpl=spawn}){
  const owned=!cwd;
  cwd??=await mkdtemp(path.join(os.tmpdir(),'rpm-stress-cli-'));
  const systemFile=path.join(os.tmpdir(),`rpm-stress-system-${randomUUID()}.txt`);
@@ -16,11 +16,13 @@ export async function cliCall({prompt,input,schema,model='claude-haiku-5-5',effo
   '--json-schema',JSON.stringify(schema),'--output-format','json','--tools','','--no-session-persistence','--strict-mcp-config'];
  if(effort==='high')args.push('--effort','high');
  const started=Date.now();
+ let closed,failed=false;
  try{
   const body=await new Promise((resolve,reject)=>{
-   const child=spawn('claude',args,{cwd,windowsHide:true,stdio:['pipe','pipe','pipe']});
+   const child=spawnImpl('claude',args,{cwd,windowsHide:true,stdio:['pipe','pipe','pipe']});
+   closed=new Promise(resolve=>child.once('close',resolve));
    let out='',settled=false;
-   const stop=()=>{child.kill();finish(new Error('CLI transport timed out or was cancelled'));};
+   const stop=()=>{finish(new Error('CLI transport timed out or was cancelled'));child.kill();};
    const timer=setTimeout(stop,timeoutMs);
    const finish=(error,result)=>{if(settled)return;settled=true;clearTimeout(timer);signal?.removeEventListener('abort',stop);error?reject(error):resolve(result);};
    signal?.addEventListener('abort',stop,{once:true});
@@ -38,9 +40,12 @@ export async function cliCall({prompt,input,schema,model='claude-haiku-5-5',effo
    numTurns:body.num_turns??null,permissionDenials:body.permission_denials?.length??0};
   if(body.is_error){record.error=body.result?.includes('Not logged in')?'CLI_NOT_LOGGED_IN':'CLI_API_ERROR';return {record,output:null};}
   return {record,output:body.structured_output??JSON.parse(body.result)};
- }finally{
-  await rm(systemFile,{force:true});
-  if(owned)await rm(cwd,{recursive:true,force:true});
+ }catch(error){failed=true;throw error;}finally{
+  await closed;
+  try{
+   await rm(systemFile,{force:true,maxRetries:5,retryDelay:100});
+   if(owned)await rm(cwd,{recursive:true,force:true,maxRetries:5,retryDelay:100});
+  }catch(error){if(!failed)throw error;}
  }
 }
 

@@ -342,23 +342,16 @@
     "turns": [
       {
         "text": "Delete this",
-        "focus": "dinner",
-        "deferApply": true
+        "focus": "dinner"
       },
       {
-        "text": "That one only",
-        "focus": "previous",
-        "deferApply": true
+        "text": "That one only"
       },
       {
-        "text": "Both",
-        "focus": "previous",
-        "deferApply": true
+        "text": "Both"
       },
       {
-        "text": "First",
-        "focus": "previous",
-        "deferApply": true
+        "text": "First"
       }
     ],
     "expect": {
@@ -376,9 +369,7 @@
         106
       ],
       "focusRemoved": [
-        "dinner1"
-      ],
-      "focusRetained": [
+        "dinner1",
         "dinner2"
       ]
     }
@@ -393,13 +384,10 @@
     "turns": [
       {
         "text": "Delete both of these dinner draft items, cooking and buying the ingredients.",
-        "focus": "dinner",
-        "deferApply": true
+        "focus": "dinner"
       },
       {
-        "text": "Yes, both draft items. Nothing already saved in my plan.",
-        "focus": "previous",
-        "deferApply": true
+        "text": "Yes, both draft items. Nothing already saved in my plan."
       }
     ],
     "expect": {
@@ -431,8 +419,7 @@
     "turns": [
       {
         "text": "Remove only the first item, Cook dinner, from this draft. Keep Buy dinner ingredients. I am talking about these two draft cards.",
-        "focus": "dinner",
-        "deferApply": true
+        "focus": "dinner"
       }
     ],
     "expect": {

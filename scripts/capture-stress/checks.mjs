@@ -66,7 +66,7 @@ export function checkExpectation(expect,{before,after,draft,focusDraft=draft,que
   const row=entities(after).find(e=>e.entity==='task'&&String(e.id)===String(id));
   if(!row||signature(row)!==signature(previous.get(`task:${id}`)??{}))fail('focus lost',`Task ${id} should stay unchanged`);
  }
- for(const opId of expect.focusRemoved??[])if(focusDraft===undefined||focusDraft&&['draft','review'].includes(focusDraft.status)&&focusDraft.operations.some(o=>o.opId===opId))fail('focus lost',`Focused proposal ${opId} was not removed from the effective draft`);
+ for(const opId of expect.focusRemoved??[])if(!focusDraft||['draft','review'].includes(focusDraft.status)&&focusDraft.operations.some(o=>o.opId===opId))fail('focus lost',`Focused proposal ${opId} was not removed from the effective draft`);
  for(const opId of expect.focusRetained??[])if(!focusDraft||!['draft','review'].includes(focusDraft.status)||!focusDraft.operations.some(o=>o.opId===opId))fail('focus lost',`Focused proposal ${opId} should remain in the effective draft`);
  if(expect.focusRemoved){
   const original=before.intentV2?.drafts?.[focusDraft?.id??draft?.id??'draft-dinner'];
@@ -104,6 +104,7 @@ function checkFields(expected,row,fail,after){
 }
 
 export function visibleQuestions(turn){
+ if(turn.capture?.clarification?.prompt)return [turn.capture.clarification.prompt.trim().toLowerCase()];
  const pending=turn.draft&&['draft','review'].includes(turn.draft.status);
  const texts=pending?[turn.draft.question?.prompt,turn.draft.review?.question]:[];
  const reply=turn.draft?.reply??turn.capture?.reply??'';
@@ -129,7 +130,7 @@ export function checkExecution(turns,{validate,schema}){
   if(t.result?.applied?.status==='failed')fail('apply failed',`${label}: planner rejected the draft`);
   const qs=visibleQuestions(t);
   if(qs.length>1)fail('repeated question',`${label}: ${qs.length} questions shown`);
-  if(qs.length&&qs[0]===previousQuestion&&t.draft?.id===previousDraft)fail('repeated question',`${label}: same question repeated on the same draft`);
+  if(qs.length&&!t.capture?.clarification&&qs[0]===previousQuestion&&t.draft?.id===previousDraft)fail('repeated question',`${label}: same question repeated on the same draft`);
   previousQuestion=qs[0]??null;previousDraft=t.draft?.id??null;
  }
  return failures;

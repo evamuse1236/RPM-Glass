@@ -1,3 +1,4 @@
+import {BODY_INTENTS,MEAL_SLOTS,MEAL_STATES} from './body-intent.mjs';
 /** Small strict JSON-Schema vocabulary, also validated locally. No dependencies. */
 const object = properties => ({type:'object', properties, required:Object.keys(properties), additionalProperties:false});
 const text = maxLength => ({type:'string', maxLength});
@@ -6,13 +7,13 @@ const array = (items,maxItems) => ({type:'array',items,maxItems});
 const nullable = schema => ({anyOf:[schema,{type:'null'}]});
 /** Prepared answer cards the app draws from current data: a day's agenda, the next item, one saved task, water, meals. */
 export const CARD_KINDS=['agenda','next','task','water','meals'];
-export const FIELD_NAMES=['title','purpose','notes','time','minutes','blockId','projectId','goalId','areaId','year','must','priority','recurrence','repeatAfterDays','alert'];
+export const FIELD_NAMES=['title','purpose','notes','time','minutes','blockId','projectId','goalId','areaId','year','must','priority','recurrence','repeatAfterDays','alert','count','slot','state'];
 const value={type:['string','integer','boolean','null']};
 export const FIELD_SCHEMA=object({name:enumeration(FIELD_NAMES),op:enumeration(['set','clear','unknown']),value,origin:enumeration(['stated','suggested']),evidence:nullable(text(2000))});
 /** What a choice may point at: a saved item, a draft, or the alarm of a task (its id is the task's id). */
-export const CHOICE_TARGETS=['task','draft','alarm','block','project','goal','area'];
+export const CHOICE_TARGETS=['task','draft','proposal','alarm','block','project','goal','area'];
 export const CLARIFICATION_ACTIONS=['remove','complete','other'];
-export const OPERATION_SCHEMA=object({opId:text(50),sourceId:text(50),kind:enumeration(['create','update','complete','archive']),entity:enumeration(['task','block','project','goal','area','draft']),targetId:nullable(text(100)),fields:array(FIELD_SCHEMA,16)});
+export const OPERATION_SCHEMA=object({opId:text(50),sourceId:text(50),kind:enumeration(['create','update','complete','archive','discard']),entity:enumeration(['task','block','project','goal','area','draft',...Object.keys(BODY_INTENTS)]),targetId:nullable(text(100)),fields:array(FIELD_SCHEMA,16)});
 export const TURN_SCHEMA=object({
   schemaVersion:{type:'integer',enum:[1]},
   mode:enumeration(['capture','plan','reflect','query']),
@@ -42,15 +43,15 @@ export function validate(value,schema,path='$') {
 }
 export const ALLOWED_FIELDS={
  task:['title','purpose','notes','time','minutes','blockId','must','priority','recurrence','repeatAfterDays','alert'],
- block:['title','purpose','notes','projectId'],project:['title','purpose','notes','goalId'],goal:['title','purpose','notes','areaId','year'],area:['title','purpose','notes'],draft:[]
+ block:['title','purpose','notes','projectId'],project:['title','purpose','notes','goalId'],goal:['title','purpose','notes','areaId','year'],area:['title','purpose','notes'],draft:[],...Object.fromEntries(Object.entries(BODY_INTENTS).map(([entity,body])=>[entity,body.fields]))
 };
 export function validateField(field,entity){
  validate(field,FIELD_SCHEMA);
  if(!ALLOWED_FIELDS[entity]?.includes(field.name))throw new Error(`Field ${field.name} does not belong to ${entity}`);
  if(field.op!=='set'){if(field.value!==null)throw new Error('Clear/unknown must carry null');if(field.op==='clear'&&['title','year','must','priority'].includes(field.name))throw new Error('Required field cannot be cleared');return;}
  const v=field.value,n=field.name;
- if(['minutes','year','priority','repeatAfterDays'].includes(n)){
-  const [lo,hi]=n==='year'?[2000,2200]:n==='minutes'?[1,1440]:n==='repeatAfterDays'?[1,365]:[1,100000];
+ if(['minutes','year','priority','repeatAfterDays','count'].includes(n)){
+  const [lo,hi]=n==='year'?[2000,2200]:n==='minutes'?[1,1440]:n==='repeatAfterDays'?[1,365]:n==='count'?[1,30]:[1,100000];
   if(!Number.isInteger(v)||v<lo||v>hi)throw new Error(`Invalid ${n}`);
  } else if(n==='must'){if(typeof v!=='boolean')throw new Error('must must be boolean');}
  else {
@@ -59,5 +60,7 @@ export function validateField(field,entity){
   if(v.length>limit)throw new Error(`${n} is too long`);
   if(n==='alert'&&!['alarm','reminder','off'].includes(v))throw new Error('Invalid alert');
   if(n==='recurrence'&&!['daily','weekly','weekdays'].includes(v))throw new Error('Invalid recurrence');
+  if(n==='slot'&&!MEAL_SLOTS.includes(v))throw new Error('Invalid meal slot');
+  if(n==='state'&&!MEAL_STATES.includes(v))throw new Error('Invalid meal state');
  }
 }

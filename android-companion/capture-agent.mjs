@@ -28,6 +28,8 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
   let result=await commit(draft),warning=null;
   if(result.status==='review'){const held=await draftOf(draftId);warning=held.review?.question??null;result=await commit(held);}
   if(result.status!=='committed')return {status:'skipped'};
+  const unapplied=draft.sourceMessageIds.flatMap(id=>intentState(data).captures[id]?.unapplied??[]);
+  if(unapplied.length)warning=[warning,...unapplied.map(x=>`${x.title}: ${x.field} was not applied. ${x.reason} Your original words are saved.`)].filter(Boolean).join(' ');
   const applied={at:clock().toISOString(),auto:true,needsConfirm:confirm,warning,before};
   await repository.transact(`applied:${draftId}`,{draftId},current=>{const d=intentState(current).drafts[draftId];if(d){d.applied=applied;d.confirm=confirm?'pending':null;}return {status:'applied'};});
   const receipt=result.receipt??(await draftOf(draftId))?.receipt;

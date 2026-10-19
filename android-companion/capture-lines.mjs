@@ -4,7 +4,7 @@ import {captureDuration} from './capture-content.mjs';
 
 const GLYPH={Added:'add_task',New:'add_task','New Block':'stacks','New Project':'folder','New Goal':'flag','New Area':'category',
  Done:'check_circle','Moved to Trash':'delete',Trash:'delete',Restored:'restore_from_trash',Reopened:'replay',
- Renamed:'edit',Changed:'edit_note',Change:'edit_note','Set aside':'inventory_2','Alarm off':'alarm_off'};
+ Renamed:'edit',Changed:'edit_note',Change:'edit_note','Set aside':'inventory_2','Alarm off':'alarm_off',Logged:'restaurant',Skipped:'skip_next'};
 
 /** "Today, 10:30 AM" → {day:'Today', time:'10:30 AM'}; "Tue 20 Oct" → {day:'Tue 20 Oct', time:null}. */
 export function splitWhen(text){
@@ -15,6 +15,7 @@ export function splitWhen(text){
 }
 
 function glyphOf(row){
+ if(row.verb==='Logged'&&row.entity==='water')return 'water_drop';
  if(row.verb==='Moved')return row.was?'event_upcoming':'drive_file_move';
  return GLYPH[row.verb]??'edit_note';
 }

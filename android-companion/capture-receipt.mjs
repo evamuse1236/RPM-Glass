@@ -36,6 +36,7 @@ export function receiptLines(data,draft){
  const creates={};
  const parked=(draft?.receipt?.parkedDrafts??[]).map(p=>({verb:'Set aside',entity:'draft',id:p.id,title:draftTitle(data,data.intentV2?.drafts?.[p.id]),when:null,was:null,where:null,alert:null,minutes:null,must:false,renamedFrom:null}));
  return [...changes.map(change=>{
+  if(['water','meals'].includes(change.collection))return {verb:change.state==='skipped'?'Skipped':'Logged',entity:change.collection==='water'?'water':'meal',id:change.id,title:change.title,when:whenOf({planned:change.at}),was:null,where:null,alert:null,minutes:null,must:false,renamedFrom:null};
   const entity=Object.keys(COLLECTION).find(k=>COLLECTION[k]===change.collection)??'task';
   let op;
   if(change.type==='create'){const list=ops.filter(o=>o.kind==='create'&&o.entity===entity);op=list[creates[entity]=(creates[entity]??-1)+1];}
@@ -49,7 +50,7 @@ export function receiptLines(data,draft){
   const alert=entity==='task'&&change.type!=='delete'?alertOf(row):null;
   const minutes=entity==='task'&&change.type==='create'?row?.minutes??null:null;
   return {verb,entity,id:change.id,title:row?.title??change.title??old?.title??'',when,was,where,alert,minutes,must:row?.must===true,renamedFrom:verb==='Renamed'?old?.title??null:null};
- }),...parked];
+ }),...parked,...(draft?.receipt?.removedProposals??[]).map(p=>({verb:'Removed from draft',entity:p.entity,id:p.opId,title:p.title,when:null,was:null,where:null,alert:null,minutes:null,must:false,renamedFrom:null}))];
 }
 
 /** A change to something already saved, or a plan the model filled in, is applied and then confirmed with Keep or Undo. */

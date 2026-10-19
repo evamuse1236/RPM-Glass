@@ -1,5 +1,5 @@
 /** The plain rules under Today's spine: Calendar-style words, routine counts and where each meal sits. */
-import {clockText, atMinutes, minutesOf} from './body-state.mjs';
+import {clockText, atMinutes, minutesOf, mealText} from './body-state.mjs';
 
 export const MIN = 60000;
 /** Where a meal with nothing logged sits on the day (Dara's times, 2026-10-18). */
@@ -52,7 +52,7 @@ export function mealSlots(meals, day, now, {placeholders = true, plan = null} = 
     if (!meal && (!placeholders || !place?.on)) continue;
     const at = meal ? +new Date(meal.at) : +atMinutes(day, minutesOf(place.at));
     slots.push({slot, at, meal: meal ?? null, past: !meal && +now - at >= 2 * 60 * MIN,
-      label: `${place?.name ?? SLOT_NAMES[slot]} · ${meal ? meal.name : 'Not logged'}`});
+      label: `${place?.name ?? SLOT_NAMES[slot]} · ${meal ? mealText(meal) : 'Not logged'}`});
   }
   return slots;
 }

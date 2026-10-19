@@ -6,10 +6,11 @@ export const HAIKU_MODEL='anthropic/claude-haiku-5.5';
 export const SONNET_MODEL='anthropic/claude-sonnet-5.5';
 /** OpenRouter providers that serve these models with strict structured outputs. */
 export const CLAUDE_PROVIDERS=Object.freeze(['Anthropic','Google','Azure']);
-export const MODEL_POLICY_VERSION='rpm-claude-v2';
+export const MODEL_POLICY_VERSION='rpm-claude-v3';
 export const MODEL_ROUTES=Object.freeze({
  quick:Object.freeze({model:HAIKU_MODEL,effort:'none',timeoutMs:25000,maxTokens:4000}),
  careful:Object.freeze({model:HAIKU_MODEL,effort:'high',timeoutMs:35000,maxTokens:6000}),
+ long:Object.freeze({model:HAIKU_MODEL,effort:'high',timeoutMs:90000,maxTokens:6000}),
  hard:Object.freeze({model:SONNET_MODEL,effort:'high',timeoutMs:90000,maxTokens:16000}),
 });
 /** More changes to saved items than this in one capture is a re-plan, not a quick edit. */
@@ -31,7 +32,9 @@ export function intentModelPolicy({input,attempt=0,output=null}={}){
  else if(input?.activeDraft)reason='focused_draft';
  else if(isContextualFollowUp(raw))reason='conversational_follow_up';
  else if(/\?|\b(?:what(?:'s| is| are)|when|how (?:much|many|long)|do i have|am i|is there|timetable|schedule today|agenda)\b/i.test(raw))reason='question';
- const route=reason==='capture'||reason==='question'?MODEL_ROUTES.quick:CAREFUL_REASONS.has(reason)?MODEL_ROUTES.careful:MODEL_ROUTES.hard;
+ const longCapture=raw.length>=1500&&(reason==='capture'||reason==='question'||CAREFUL_REASONS.has(reason));
+ const route=longCapture?MODEL_ROUTES.long:reason==='capture'||reason==='question'?MODEL_ROUTES.quick:CAREFUL_REASONS.has(reason)?MODEL_ROUTES.careful:MODEL_ROUTES.hard;
+ if(longCapture&&reason==='capture')reason='long_capture';
  return {...route,reason,version:MODEL_POLICY_VERSION};
 }
 /** Routine confirmations come from checked fields and the local time preview. */
