@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>How RPM works: blueprint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700&display=swap">
+<link rel="stylesheet" href="blueprint.css">
+</head>
+<body>
+<header class="top">
+  <div class="title">
+    <h1>How RPM works</h1>
+    <p>Your phone, the cloud, your server and your laptop, and what flows between them. Tap any block.</p>
+  </div>
+  <div class="legend" id="legend" aria-label="What the block styles mean"></div>
+</header>
+
+<main class="layout">
+  <figure class="stage">
+    <figcaption class="journeys" id="journeys"><span>Follow a path:</span></figcaption>
+    <div class="scroller">
+    <svg id="scene" role="group" aria-label="Isometric drawing of the RPM system">
+      <defs>
+        <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="6" class="hatch-line"/>
+        </pattern>
+        <marker id="arrow-live" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1 L10 5 L0 9 z" class="arrowhead"/></marker>
+        <marker id="arrow-branch" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1 L10 5 L0 9 z" class="arrowhead"/></marker>
+        <marker id="arrow-planned" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" class="arrowhead open"/></marker>
+      </defs>
+    </svg>
+    </div>
+  </figure>
+
+  <aside class="side">
+    <div class="tools">
+      <button type="button" class="secondary" id="pin-btn" aria-pressed="false">Drop a pin</button>
+      <button type="button" class="primary" id="save-btn">Save notes</button>
+      <button type="button" class="secondary" id="copy-btn">Copy notes</button>
+      <p class="tool-state"><span id="note-count">0 notes</span> <span id="save-state" role="status"></span></p>
+    </div>
+    <div class="panel" id="panel" aria-live="polite"></div>
+  </aside>
+</main>
+
+<div id="toast" class="toast" popover="manual" role="status"></div>
+<script src="blueprint-data.js"></script>
+<script src="blueprint.js"></script>
+</body>
+</html>
