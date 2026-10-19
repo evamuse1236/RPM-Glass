@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {scenarioArgs, scenarioOutcome} from './scenarios.mjs';
-import {selectRun} from './emulator.mjs';
+import {selectRun, untilCompleted} from './emulator.mjs';
 import {avdConfig} from './prepare-avd.mjs';
 
 test('CI AVD uses the S24 FE physical display, including density after display phone resets overrides', () => {
@@ -39,4 +39,18 @@ test('helper follows only its own dispatch at the current pushed branch and comm
   const others = [{...run, headSha: 'old'}, {...run, headBranch: 'main'}, {...run, displayTitle: 'RPM emulator somebody-else'}, {...run, event: 'push'}];
   assert.equal(selectRun(others, expected), undefined);
   assert.equal(selectRun([...others, run], expected), run);
+});
+
+test('a run is finished only when GitHub says it completed: API errors and in-progress answers keep it waiting', async () => {
+  const answers = [() => { throw new Error('HTTP 502'); }, () => ({status: 'in_progress'}), () => ({status: 'completed', conclusion: 'success'})];
+  let waits = 0;
+  const run = await untilCompleted(() => answers.shift()(), {wait: async () => { waits++; }});
+  assert.deepEqual(run, {status: 'completed', conclusion: 'success'});
+  assert.equal(waits, 2);
+});
+
+test('waiting for a run stops at its time limit', async () => {
+  let t = 0;
+  const run = await untilCompleted(() => ({status: 'in_progress'}), {wait: async ms => { t += ms; }, limitMs: 60000, now: () => t});
+  assert.equal(run.status, 'in_progress');
 });

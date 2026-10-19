@@ -20,7 +20,38 @@ export function selectRun(runs, {branch, sha, request}) {
   return runs.find(r => r.headBranch === branch && r.headSha === sha && r.displayTitle === `RPM emulator ${request}` && r.event === 'workflow_dispatch');
 }
 
+// `gh run watch` gives up on one API error, so a run counts as finished only when GitHub says it completed.
+export async function untilCompleted(view, {wait = pause, limitMs = 60 * 60000, now = Date.now} = {}) {
+  const deadline = now() + limitMs;
+  for (;;) {
+    let run = null;
+    try { run = view(); } catch {}
+    if (run?.status === 'completed' || now() > deadline) return run;
+    await wait(15000);
+  }
+}
+
+async function finish(repo, runId, {branch, sha}) {
+  command('gh', ['run', 'watch', String(runId), '--repo', repo, '--exit-status', '--interval', '15'], {allowFail: true, inherit: true});
+  const finished = await untilCompleted(() => JSON.parse(gh('run', 'view', String(runId), '--repo', repo, '--json', 'status,conclusion,createdAt,updatedAt,url')))
+    ?? {status: 'unknown', conclusion: null, url: `https://github.com/${repo}/actions/runs/${runId}`};
+  const destination = path.join(root, '.verify/evidence', `ci-${runId}`);
+  fs.mkdirSync(destination, {recursive: true});
+  fs.writeFileSync(path.join(destination, 'run.json'), JSON.stringify({...finished, branch, sha}, null, 2));
+  const download = command('gh', ['run', 'download', String(runId), '--repo', repo, '--dir', destination], {allowFail: true});
+  console.log(`${finished.conclusion || finished.status}: ${finished.url}`);
+  console.log(`Artifacts: ${destination}`);
+  if (download.status !== 0) console.error(`Artifact download failed: ${download.stderr?.trim()}`);
+  process.exitCode = finished.status === 'completed' && finished.conclusion === 'success' && download.status === 0 ? 0 : 1;
+}
+
 async function main() {
+  const resume = process.argv.indexOf('--run');
+  if (resume > 0) {
+    const runId = process.argv[resume + 1], repo = JSON.parse(gh('repo', 'view', '--json', 'nameWithOwner')).nameWithOwner;
+    const {headBranch, headSha} = JSON.parse(gh('run', 'view', runId, '--repo', repo, '--json', 'headBranch,headSha'));
+    return finish(repo, runId, {branch: headBranch, sha: headSha});
+  }
   const scenarios = scenarioArgs(process.argv.slice(2).join(' ') || '--all').join(' ');
   const branch = git('branch', '--show-current'), sha = git('rev-parse', 'HEAD');
   if (!branch) throw new Error('Check out a branch and push it to origin before running ci:emulator.');
@@ -46,16 +77,7 @@ async function main() {
   if (!run) throw new Error(`GitHub has not listed request ${request}. Check gh run list before dispatching again.`);
   const url = `https://github.com/${repo}/actions/runs/${run.databaseId}`;
   console.log(url);
-  command('gh', ['run', 'watch', String(run.databaseId), '--repo', repo, '--exit-status', '--interval', '15'], {allowFail: true, inherit: true});
-  const finished = JSON.parse(gh('run', 'view', String(run.databaseId), '--repo', repo, '--json', 'status,conclusion,createdAt,updatedAt,url'));
-  const destination = path.join(root, '.verify/evidence', `ci-${run.databaseId}`);
-  fs.mkdirSync(destination, {recursive: true});
-  fs.writeFileSync(path.join(destination, 'run.json'), JSON.stringify({...finished, branch, sha}, null, 2));
-  const download = command('gh', ['run', 'download', String(run.databaseId), '--repo', repo, '--dir', destination], {allowFail: true});
-  console.log(`${finished.conclusion || finished.status}: ${finished.url}`);
-  console.log(`Artifacts: ${destination}`);
-  if (download.status !== 0) console.error(`Artifact download failed: ${download.stderr?.trim()}`);
-  process.exitCode = finished.status === 'completed' && finished.conclusion === 'success' && download.status === 0 ? 0 : 1;
+  await finish(repo, run.databaseId, {branch, sha});
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
