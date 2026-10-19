@@ -32,7 +32,8 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
   const unapplied=draft.sourceMessageIds.flatMap(id=>intentState(data).captures[id]?.unapplied??[]);
   if(unapplied.length)warning=[warning,...unapplied.map(x=>`${x.title}: ${x.field} was not applied. ${x.reason} Your original words are saved.`)].filter(Boolean).join(' ');
   const applied={at:clock().toISOString(),auto:true,needsConfirm:confirm,warning,before};
-  await repository.transact(`applied:${draftId}`,{draftId},current=>{const d=intentState(current).drafts[draftId];if(d){d.applied=applied;d.confirm=confirm?'pending':null;}return {status:'applied'};});
+  const nextStep=await service.help?.(draftId).catch(()=>null);
+  await repository.transact(`applied:${draftId}`,{draftId},current=>{const d=intentState(current).drafts[draftId];if(d){d.applied=applied;d.confirm=confirm?'pending':null;if(nextStep)d.nextStep=nextStep;}return {status:'applied'};});
   const receipt=result.receipt??(await draftOf(draftId))?.receipt;
   return {status:'applied',needsConfirm:confirm,warning,undoId:receipt?.undoId??null,entryIds:receipt?.entryIds??[],changes:(receipt?.changes??[]).map(({type,collection,id,title})=>({type,collection,id,title}))};
  }
@@ -76,6 +77,10 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
  }
  /** An answer chip, a field edit or Dara's own "Add anyway": acted on, then applied when nothing else is open. */
  async function act(action,{actionId}){
+  if(action.kind==='next-step'){
+   const started=clock(),result=await service.nextStep(action,{actionId});
+   return {...result,applied:await settle(actionId,result,{started})};
+  }
   const result=await service.act(action,{actionId});
   const draft=await draftOf(action.draftId),messageId=draft?.sourceMessageIds?.at(-1);
   if(draft?.status==='draft'&&messageId)await settle(messageId,{status:'interpreted',draftId:draft.id,modelRuns:[]},{started:clock()});

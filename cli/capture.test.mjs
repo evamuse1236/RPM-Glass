@@ -1,11 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,readFile,rm} from 'node:fs/promises';
+import {mkdtemp,readFile,writeFile,rm} from 'node:fs/promises';
+import {execFileSync} from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import {createCaptureSession,nodeModelBridge,privateTrace} from './capture-session.mjs';
-import {captureOptions,renderCapture} from './capture.mjs';
+import {captureOptions,renderCapture,renderAnswer,renderState} from './capture.mjs';
 import {field,operation,turn} from '../intent-v2/test/helpers.mjs';
+import {nativeModelTransport} from '../intent-v2/adapters/transport.mjs';
+import {HAIKU_MODEL} from '../intent-v2/src/model-policy.mjs';
 
 const NOW='2026-10-19T04:30:00Z';
 async function fixture(t,options={}){
@@ -47,4 +50,28 @@ test('flags keep the default local store and accept an explicit clock',()=>{
  assert.match(captureOptions([]).file,/\.verify/);
  assert.deepEqual(captureOptions(['--store','my.json','--now',NOW]),{file:'my.json',now:NOW});
  assert.throws(()=>captureOptions(['--unknown']),/--store/);
+});
+test('a store whose owner exited reopens without manual lock deletion',async t=>{
+ const dir=await mkdtemp(path.join(os.tmpdir(),'rpm-capture-owner-')),file=path.join(dir,'day.json');
+ const pid=Number(execFileSync(process.execPath,['-e','process.stdout.write(String(process.pid))'],{encoding:'utf8'}));
+ await writeFile(file+'.lock',JSON.stringify({pid}));
+ const s=await createCaptureSession({file,now:NOW,env:{}});
+ t.after(async()=>{await s.close();await rm(dir,{recursive:true,force:true});});
+ assert.equal((await s.backend.load()).entries.length,6);
+});
+test('agenda and state output read saved facts using the fixed CLI clock',async t=>{
+ const s=await fixture(t,{env:{}}),data=await s.backend.load();
+ const lines=renderAnswer({kind:'agenda',day:null},{data,events:s.events,now:new Date(NOW)}).join('\n');
+ assert.match(lines,/Call Raj/);assert.ok(!lines.includes('Dentist appointment'));
+ assert.match(renderState(data,{now:new Date(NOW)}),/Submit workbook.*alarm/);
+});
+test('the real production transport uses the Node bridge for an Anthropic failure and one OpenRouter fallback',async()=>{
+ const endpoints=[],native=nodeModelBridge({env:{ANTHROPIC_API_KEY:'test-key',OPENROUTER_API_KEY:'test-fallback'},fetchImpl:async(url,options)=>{
+  endpoints.push(url);if(endpoints.length===1)return {status:503,ok:false};
+  const body=JSON.parse(options.body);
+  return {status:200,ok:true,json:async()=>({model:body.model,provider:'Anthropic',choices:[{finish_reason:'stop',message:{content:JSON.stringify(turn())}}]})};
+ }});
+ const model=nativeModelTransport({native,model:HAIKU_MODEL,prompt:'test',providerNames:['Anthropic']});
+ const run={};await model({},{run});assert.equal(endpoints.length,2);assert.equal(run.service,'openrouter');assert.equal(run.serviceFallback,'anthropic 503');
+ assert.ok(!JSON.stringify(run).includes('test-key'));
 });
