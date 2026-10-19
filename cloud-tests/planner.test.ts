@@ -65,7 +65,7 @@ describe("Planner snapshots and command delivery",()=>{
     expect((await sync(t,bad.token,{snapshot:snapshot(99),acks:[]})).status).toBe(409);
     expect((await (await request(t,"/v1/web/snapshot",web.token,undefined,"GET")).json()).revision).toBe(42);
   });
-  it("lists last-seen times, revokes browser access immediately, and rejects its queue on phone pull",async()=>{
+  it("lists last-seen times, revokes browser access immediately, and marks queued work for phone rejection",async()=>{
     const t=setup(), device=await phone(t), first=await linked(t,device.token,"Office"), second=await linked(t,device.token,"Home");
     await enqueue(t,first.token);await enqueue(t,second.token,command(2));
     await t.run(async ctx=>{const sessions=await ctx.db.query("webSessions").collect();await ctx.db.patch(sessions[0]._id,{lastSeenAt:1});});
@@ -76,14 +76,20 @@ describe("Planner snapshots and command delivery",()=>{
     expect((await request(t,"/v1/web/revoke",device.token,{sessionId:first.sessionId})).status).toBe(200);
     expect((await poll(t,first.token)).status).toBe(401);expect((await enqueue(t,first.token,command(3))).status).toBe(401);
     expect((await t.run(ctx=>ctx.db.query("webCommands").collect())).every(item=>item.status==="pending")).toBe(true);
-    expect((await (await sync(t,device.token)).json()).commands).toEqual([command(2)]);
+    const pulled=await (await sync(t,device.token)).json();
+    expect(pulled.commands).toEqual([command(1),command(2)]);expect(pulled.revokedCommandIds).toEqual([command(1).id]);
+    expect((await t.run(ctx=>ctx.db.query("webCommands").collect())).every(item=>item.status==="pending")).toBe(true);
+    const rejected={id:command(1).id,status:"rejected",message:"Browser access was revoked",newRevision:0};
+    expect((await sync(t,device.token,{acks:[rejected]})).status).toBe(200);
     const commands=await t.run(ctx=>ctx.db.query("webCommands").collect());
     expect(commands.find(item=>item.commandId===command().id)).toMatchObject({status:"rejected",message:"Browser access was revoked",newRevision:0,cursor:3});
     expect((await sync(t,device.token,{acks:[{id:command().id,status:"applied",message:"Saved",newRevision:1}]})).status).toBe(409);
     sessions=(await (await request(t,"/v1/web/sessions",device.token,undefined,"GET")).json()).sessions;
     expect(sessions.find((item:any)=>item.id===first.sessionId).revoked).toBe(true);
     expect((await request(t,"/v1/web/session",second.token,undefined,"DELETE")).status).toBe(200);
-    expect((await (await sync(t,device.token)).json()).commands).toEqual([]);
+    const remaining=await (await sync(t,device.token)).json();
+    expect(remaining.commands).toEqual([command(2)]);expect(remaining.revokedCommandIds).toEqual([command(2).id]);
+    expect((await (await sync(t,device.token,{acks:[{...rejected,id:command(2).id}]})).json()).commands).toEqual([]);
   });
   it("pages status changes by cursor and returns only the oldest hundred pending commands",async()=>{
     const t=setup(), device=await phone(t), web=await linked(t,device.token);
@@ -96,19 +102,23 @@ describe("Planner snapshots and command delivery",()=>{
     const changes=await (await poll(t,web.token,101)).json();expect(changes.commands).toEqual([{...ack,cursor:102}]);expect(changes.cursor).toBe(102);
     const next=await (await sync(t,device.token)).json();expect(next.commands).toHaveLength(100);expect(next.commands[0].id).toBe(command(2).id);expect(next.commands[99].id).toBe(command(101).id);
   });
-  it("rejects the remaining revoked backlog on sync without delivering it to the phone",async()=>{
+  it("keeps a revoked backlog pending and bounded until the phone acknowledges each rejection",async()=>{
     const t=setup(), device=await phone(t), web=await linked(t,device.token);
     for(let number=1;number<=102;number++)await enqueue(t,web.token,command(number));
     expect((await request(t,"/v1/web/session",web.token,undefined,"DELETE")).status).toBe(200);
-    expect((await (await sync(t,device.token)).json()).commands).toEqual([]);
+    const first=await (await sync(t,device.token)).json();
+    expect(first.commands).toHaveLength(100);expect(first.revokedCommandIds).toEqual(first.commands.map((item:any)=>item.id));
     const firstPage=await t.run(ctx=>ctx.db.query("webCommands").collect());
-    expect(firstPage.filter(item=>item.status==="rejected")).toHaveLength(100);
-    expect(firstPage.filter(item=>item.status==="pending")).toHaveLength(2);
-    expect((await (await sync(t,device.token)).json()).commands).toEqual([]);
+    expect(firstPage.every(item=>item.status==="pending")).toBe(true);
+    const reject=(item:any)=>({id:item.id,status:"rejected",message:"Browser access was revoked",newRevision:0});
+    const second=await (await sync(t,device.token,{acks:first.commands.map(reject)})).json();
+    expect(second.commands).toEqual([command(101),command(102)]);expect(second.revokedCommandIds).toEqual([command(101).id,command(102).id]);
+    const drained=await (await sync(t,device.token,{acks:second.commands.map(reject)})).json();
+    expect(drained.commands).toEqual([]);expect(drained.revokedCommandIds).toEqual([]);
     const commands=await t.run(ctx=>ctx.db.query("webCommands").collect());
     expect(commands).toHaveLength(102);expect(commands.every(item=>item.status==="rejected")).toBe(true);
   });
-  it("accepts an executing phone command's result after revocation and rejects later queued work",async()=>{
+  it("accepts an executing phone command's result after revocation and marks later queued work",async()=>{
     const t=setup(), device=await phone(t), web=await linked(t,device.token);
     await enqueue(t,web.token,command(1));
     const pulled=await sync(t,device.token,{snapshot:snapshot(42),acks:[]});
@@ -120,12 +130,35 @@ describe("Planner snapshots and command delivery",()=>{
     const applied=await sync(t,device.token,{snapshot:snapshot(43),acks:[ack]});
     expect(applied.status).toBe(200);
     const result=await applied.json();
-    expect(result.commands).toEqual([]);expect(result.snapshots[0]).toEqual(snapshot(43));
-    const commands=await t.run(ctx=>ctx.db.query("webCommands").collect());
+    expect(result.commands).toEqual([command(2)]);expect(result.revokedCommandIds).toEqual([command(2).id]);expect(result.snapshots[0]).toEqual(snapshot(43));
+    let commands=await t.run(ctx=>ctx.db.query("webCommands").collect());
     expect(commands.find(item=>item.commandId===command(1).id)).toMatchObject({status:"applied",message:"Task completed",newRevision:43,cursor:3});
+    expect(commands.find(item=>item.commandId===command(2).id)).toMatchObject({status:"pending",cursor:2});
+    const rejected={id:command(2).id,status:"rejected",message:"Browser access was revoked",newRevision:43};
+    expect((await sync(t,device.token,{acks:[rejected]})).status).toBe(200);
+    commands=await t.run(ctx=>ctx.db.query("webCommands").collect());
     expect(commands.find(item=>item.commandId===command(2).id)).toMatchObject({status:"rejected",message:"Browser access was revoked",newRevision:43,cursor:4});
     expect((await sync(t,device.token,{snapshot:snapshot(44),acks:[ack]})).status).toBe(200);
     expect((await sync(t,device.token,{acks:[{...ack,status:"rejected"}]})).status).toBe(409);
     expect((await (await sync(t,device.token)).json()).snapshots[0]).toEqual(snapshot(44));
+  });
+  it("redelivers a locally applied command with revocation metadata after a lost acknowledgement",async()=>{
+    const t=setup(), device=await phone(t), web=await linked(t,device.token);
+    await enqueue(t,web.token);
+    const initial=await (await sync(t,device.token,{snapshot:snapshot(42),acks:[]})).json();
+    expect(initial.commands).toEqual([command()]);expect(initial.revokedCommandIds).toEqual([]);
+    expect((await request(t,"/v1/web/revoke",device.token,{sessionId:web.sessionId})).status).toBe(200);
+    const recovered=await sync(t,device.token,{snapshot:snapshot(43),acks:[]});
+    expect(recovered.status).toBe(200);
+    const redelivered=await recovered.json();
+    expect(redelivered.commands).toEqual([command()]);expect(redelivered.revokedCommandIds).toEqual([command().id]);
+    expect((await t.run(ctx=>ctx.db.query("webCommands").first()))?.status).toBe("pending");
+    const ack={id:command().id,status:"applied",message:"Task completed",newRevision:43};
+    const acknowledged=await sync(t,device.token,{snapshot:snapshot(43),acks:[ack]});
+    expect(acknowledged.status).toBe(200);
+    const result=await acknowledged.json();
+    expect(result.commands).toEqual([]);expect(result.revokedCommandIds).toEqual([]);expect(result.snapshots[0]).toEqual(snapshot(43));
+    expect(await t.run(ctx=>ctx.db.query("webCommands").first())).toMatchObject({status:"applied",message:"Task completed",newRevision:43,cursor:2});
+    expect((await sync(t,device.token,{snapshot:snapshot(44),acks:[ack]})).status).toBe(200);
   });
 });

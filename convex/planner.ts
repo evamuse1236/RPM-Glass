@@ -15,9 +15,6 @@ async function nextCursor(ctx:PlannerCtx,account:Id<"accounts">) {
   await ctx.db.patch(account,{cursor});
   return cursor;
 }
-async function rejectRevoked(ctx:PlannerCtx,command:Doc<"webCommands">,revision:number) {
-  await ctx.db.patch(command._id,{status:"rejected",message:"Browser access was revoked",newRevision:revision,cursor:await nextCursor(ctx,command.account)});
-}
 async function revoke(ctx:PlannerCtx,session:Doc<"webSessions">) {
   await ctx.db.patch(session._id,{revoked:true});
   return {revoked:true};
@@ -87,15 +84,14 @@ async function syncPlanner(ctx:PlannerCtx,device:Doc<"devices">,account:Id<"acco
   }
   for(const {command,ack} of changes)await ctx.db.patch(command._id,{status:ack.status,message:ack.message,newRevision:ack.newRevision,cursor:await nextCursor(ctx,account)});
   const pending = await ctx.db.query("webCommands").withIndex("by_device_status",q=>q.eq("device",device._id).eq("status","pending")).take(100);
-  const commands:unknown[] = [];
+  const revokedCommandIds:string[] = [];
   for(const command of pending) {
     const session = await ctx.db.get(command.session);
-    if(!session || session.revoked)await rejectRevoked(ctx,command,snapshot?.revision??latest?.revision??0);
-    else commands.push(command.payload);
+    if(!session || session.revoked)revokedCommandIds.push(command.payload.id);
   }
   await ctx.db.patch(device._id,{lastSyncAt:Date.now()});
   const snapshots = await ctx.db.query("plannerSnapshots").withIndex("by_account_revision",q=>q.eq("account",account)).order("desc").take(5);
-  return {commands,snapshots:snapshots.map(row=>row.payload)};
+  return {commands:pending.map(command=>command.payload),snapshots:snapshots.map(row=>row.payload),revokedCommandIds};
 }
 
 export const browser = internalMutation({args:{tokenHash:v.string(),op:v.union(v.literal("snapshot"),v.literal("enqueue"),v.literal("commands"),v.literal("revoke")),command:v.optional(v.any()),identity:v.optional(v.string()),since:v.optional(v.number())},handler:async(ctx,args)=>{
