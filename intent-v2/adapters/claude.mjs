@@ -21,4 +21,4 @@ export function readClaudeResponse(body,{model}={}){
  }catch(error){error.code='INVALID_MODEL_RESPONSE';throw error;}
 }
 /** What one Claude call cost and who served it, for the capture trace. Never the content. */
-export const claudeUsageOf=body=>({provider:'Anthropic',servedModel:body?.model??null,inputTokens:body?.usage?.input_tokens??null,outputTokens:body?.usage?.output_tokens??null,cost:null});
+export const claudeUsageOf=body=>({provider:'Anthropic',servedModel:body?.model??null,inputTokens:body?.usage?.input_tokens??null,outputTokens:body?.usage?.output_tokens??null,cacheReadTokens:body?.usage?.cache_read_input_tokens??null,cacheWriteTokens:body?.usage?.cache_creation_input_tokens??null,cost:null});

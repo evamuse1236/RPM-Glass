@@ -1,5 +1,6 @@
 import {TURN_SCHEMA,validate} from '../src/schema.mjs';
 import {CLAUDE_API_MODELS,claudeRequest,readClaudeResponse,claudeUsageOf} from './claude.mjs';
+import {shortHash} from '../src/hash.mjs';
 /** Pass fetchImpl only on Node/server. Android uses nativeModelTransport instead;
  * never store an API key in localStorage or expose it to a WebView prompt.
  */
@@ -33,7 +34,7 @@ export function readStructuredResponse(body,{model,providerNames=[]}={}){
  }catch(error){error.code='INVALID_MODEL_RESPONSE';throw error;}
 }
 /** What one model call cost and who served it, for the capture trace. Never the content. */
-export const usageOf=body=>({provider:body?.provider??null,servedModel:body?.model??null,inputTokens:body?.usage?.prompt_tokens??null,outputTokens:body?.usage?.completion_tokens??null,cost:body?.usage?.cost??null});
+export const usageOf=body=>({provider:body?.provider??null,servedModel:body?.model??null,inputTokens:body?.usage?.prompt_tokens??null,outputTokens:body?.usage?.completion_tokens??null,cacheReadTokens:body?.usage?.prompt_tokens_details?.cached_tokens??null,cost:body?.usage?.cost??null});
 /** Claude answers first; OpenRouter is tried once when Claude has no key, cannot be reached, refuses the key, is busy or fails. */
 export const MODEL_SERVICES=Object.freeze(['anthropic','openrouter']);
 const fallsBack=status=>status===401||status===403||status===429||status>=500;
@@ -53,6 +54,8 @@ export function nativeModelTransport({native,model,prompt,providerNames=[],effor
     const body=service==='anthropic'
      ?claudeRequest({model:selectedModel,prompt,input,schema:providerSchema(TURN_SCHEMA),effort:selectedEffort,...(maxTokens?{maxTokens}:{})})
      :structuredRequest({model:selectedModel,prompt,input,providerNames,effort:selectedEffort,...(maxTokens?{maxTokens}:{})});
+    // The whole request as sent, system prompt and schema included; the key is added natively and never seen here.
+    if(run){const sent=JSON.stringify(body);Object.assign(run,{requestBytes:sent.length,requestHash:shortHash(sent)});}
     let r;
     try{r=await native('model',{requestId,service,body,...(route?.timeoutMs?{timeoutMs:route.timeoutMs+2000}:{})});}
     catch(error){if(signal?.aborted)throw new DOMException('Late native response ignored','AbortError');failure={service,error};continue;}
