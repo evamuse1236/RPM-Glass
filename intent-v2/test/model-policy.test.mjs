@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {intentModelPolicy,HAIKU_MODEL,SONNET_MODEL,CLAUDE_PROVIDERS,HARD_CHANGE_COUNT} from '../src/model-policy.mjs';
+import {intentModelPolicy,HAIKU_MODEL,SONNET_MODEL,CLAUDE_PROVIDERS,HARD_CHANGE_COUNT,MODEL_POLICY_VERSION,MODEL_ROUTES} from '../src/model-policy.mjs';
 import {nativeModelTransport,providerSchema} from '../adapters/transport.mjs';
 import {buildContext,sourceUnits} from '../src/context.mjs';
 import {setup,turn,operation,field,captured,seed} from './helpers.mjs';
@@ -31,12 +31,18 @@ test('a repair attempt always uses Sonnet',()=>{const r=intentModelPolicy({input
 test('long captures get a bounded Haiku reading without changing short routes or hard request priority',()=>{
  const short=route('x'.repeat(1499)),long=route('x'.repeat(1500));
  assert.deepEqual([short.model,short.effort,short.timeoutMs,short.maxTokens],[HAIKU_MODEL,'none',25000,4000]);
- assert.deepEqual([long.model,long.effort,long.timeoutMs,long.maxTokens,long.reason],[HAIKU_MODEL,'high',90000,6000,'long_capture']);
+ assert.deepEqual([long.model,long.effort,long.timeoutMs,long.maxTokens,long.reason],[HAIKU_MODEL,'high',90000,16000,'long_capture']);
  const focused=intentModelPolicy({input:{...input('x'.repeat(1500)),activeDraft:{id:'d0'}}});
- assert.equal(focused.timeoutMs,90000);assert.equal(focused.reason,'focused_draft');
+ assert.equal(focused.timeoutMs,90000);assert.equal(focused.maxTokens,16000);assert.equal(focused.reason,'focused_draft');
  assert.equal(route('Re-plan my week '+ 'x'.repeat(1500)).model,SONNET_MODEL);
  assert.equal(intentModelPolicy({input:input('x'.repeat(1500)),attempt:1}).model,SONNET_MODEL);
  assert.deepEqual([route('make it 5 pm').effort,route('make it 5 pm').timeoutMs],['high',35000]);
+});
+
+test('the versioned budgets reserve room for thinking and JSON on long captures',()=>{
+ assert.equal(MODEL_POLICY_VERSION,'rpm-claude-v4');
+ assert.deepEqual(Object.fromEntries(Object.entries(MODEL_ROUTES).map(([name,r])=>[name,r.maxTokens])),{quick:4000,careful:6000,long:16000,hard:16000});
+ assert.equal(route('x'.repeat(1500)).version,MODEL_POLICY_VERSION);
 });
 test('more than three changes to saved items is a re-plan; three or fewer stay quick',()=>{
  const updates=n=>turn('Move them',Array.from({length:n},(_,i)=>operation([field('time','6am','Move them')],{opId:'u'+i,kind:'update',targetId:String(i+1)})));

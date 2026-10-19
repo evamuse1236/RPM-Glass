@@ -8,7 +8,7 @@ final class ModelLimits {
     static final String CLAUDE_HAIKU="claude-haiku-5-5",CLAUDE_SONNET="claude-sonnet-5-5";
     static final int MAX_BODY_CHARS=2000000;
     private static final class Limit {final int maxTokens,readTimeoutMs;Limit(int maxTokens,int readTimeoutMs){this.maxTokens=maxTokens;this.readTimeoutMs=readTimeoutMs;}}
-    private static final Limit HAIKU_LIMIT=new Limit(6000,95000),SONNET_LIMIT=new Limit(16000,95000);
+    private static final Limit HAIKU_LIMIT=new Limit(16000,95000),SONNET_LIMIT=new Limit(16000,95000);
     private static final Map<String,Limit> OPENROUTER=Map.of(
         HAIKU,HAIKU_LIMIT,
         SONNET,SONNET_LIMIT,

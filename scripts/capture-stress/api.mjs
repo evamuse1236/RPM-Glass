@@ -7,6 +7,18 @@ const PRICES=Object.freeze({
  'claude-sonnet-5-5':{input:2,output:10,read:0.10,write5m:2.5,write1h:4},
 });
 const count=value=>Number.isSafeInteger(value)&&value>=0?value:null;
+const RESPONSE_CONTENT_TYPES=new Set(['text','thinking','redacted_thinking','tool_use']);
+function safeResponseShape(value){
+ if(!Array.isArray(value?.content))return null;
+ const shape={contentTypes:{},textChars:0,thinkingChars:0};
+ for(const block of value.content){
+  if(!RESPONSE_CONTENT_TYPES.has(block?.type))continue;
+  shape.contentTypes[block.type]=(shape.contentTypes[block.type]??0)+1;
+  if(block.type==='text'&&typeof block.text==='string')shape.textChars+=block.text.length;
+  if(block.type==='thinking'&&typeof block.thinking==='string')shape.thinkingChars+=block.thinking.length;
+ }
+ return shape;
+}
 export function safeUsage(value){
  if(!value||typeof value!=='object')return null;
  const usage={};
@@ -33,7 +45,7 @@ const servedModel=(model,requested)=>typeof model==='string'&&(model===requested
 
 export async function apiCall({prompt,input,route,deadline,signal,adapters,fetchImpl=fetch}){
  const started=Date.now(),requested=adapters.claude.CLAUDE_API_MODELS[route.model];
- const record={transport:'API transport',requestedModel:requested??null,servedModel:null,status:null,stopReason:null,ms:0,isError:false,usage:null,costUSD:null};
+ const record={transport:'API transport',requestedModel:requested??null,servedModel:null,status:null,stopReason:null,ms:0,isError:false,usage:null,costUSD:null,responseShape:null};
  const fail=code=>{record.isError=true;record.error=code;record.ms=Date.now()-started;
   const error=new Error(code==='INVALID_MODEL_RESPONSE'?'API transport returned an invalid interpretation; captured words are safe':'API transport could not obtain a model response; captured words are safe');
   error.code=code;error.record=record;return error;
@@ -52,6 +64,7 @@ export async function apiCall({prompt,input,route,deadline,signal,adapters,fetch
   if(controller.signal.aborted||record.status===null||record.status<200||record.status>=300)throw fail('TRANSPORT_ERROR');
   const value=await response.json();
   if(controller.signal.aborted)throw fail('TRANSPORT_ERROR');
+  record.responseShape=safeResponseShape(value);
   record.usage=safeUsage(value?.usage);record.costUSD=apiCost(requested,record.usage);
   record.stopReason=['end_turn','stop_sequence','max_tokens','refusal','tool_use','pause_turn'].includes(value?.stop_reason)?value.stop_reason:null;
   record.servedModel=servedModel(value?.model,requested);

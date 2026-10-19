@@ -43,9 +43,48 @@ test('API endpoint, headers, maximum timeout and budgets stay aligned with Java 
  assert.ok(gateway.includes(API_ENDPOINT));assert.ok(gateway.includes(`"anthropic-version","${API_VERSION}"`));
  assert.ok(gateway.includes('"x-api-key",key'));assert.ok(gateway.includes('"Content-Type","application/json"'));
  assert.ok(gateway.includes('setInstanceFollowRedirects(false)'));assert.ok(gateway.includes('setConnectTimeout(8000)'));assert.ok(gateway.includes('setReadTimeout(readTimeout)'));
- assert.ok(limits.includes(`new Limit(6000,${API_TIMEOUT_MS})`));assert.ok(limits.includes(`new Limit(16000,${API_TIMEOUT_MS})`));
+ const nativeLimits={};
+ for(const [name,model] of [['HAIKU',adapters.policy.HAIKU_MODEL],['SONNET',adapters.policy.SONNET_MODEL]]){
+  const match=limits.match(new RegExp(`${name}_LIMIT\\s*=\\s*new Limit\\((\\d+),(\\d+)\\)`));
+  assert.ok(match,`the native ${name} limit is explicit`);
+  nativeLimits[model]={maxTokens:Number(match[1]),timeoutMs:Number(match[2])};
+  assert.equal(nativeLimits[model].maxTokens,16000,`${name} can carry the long output budget`);
+  assert.equal(nativeLimits[model].timeoutMs,API_TIMEOUT_MS,`${name} read timeout matches the API transport ceiling`);
+ }
+ for(const [name,route] of Object.entries(routes)){
+  const nativeLimit=nativeLimits[route.model];assert.ok(nativeLimit,`${name} has a native model limit`);
+  assert.ok(route.maxTokens<=nativeLimit.maxTokens,`${name} output budget fits the native cap`);
+  assert.ok(route.timeoutMs<=nativeLimit.timeoutMs,`${name} deadline fits the native read timeout`);
+ }
  assert.deepEqual(Object.values(routes).map(r=>r.timeoutMs),[25000,35000,90000,90000]);
 });
+
+test('API records allowlisted response shapes without text, thinking, signatures or arbitrary type names',()=>withKey(async()=>{
+ const text=JSON.stringify(turn()),thinking=`private thinking ${key}`,signature=`private signature ${key}`;
+ const content=[{type:'thinking',thinking,signature},{type:'thinking',thinking:'more'},{type:'text',text},
+  {type:'redacted_thinking',data:signature},{type:'tool_use',id:key,name:key,input:{secret:key}},
+  {type:key,text:key,thinking:key},{type:'constructor',text:key},{type:'__proto__',thinking:key},null];
+ const result=await call({fetchImpl:async()=>response(answer('claude-haiku-5-5',{content,usage:{input_tokens:100,output_tokens:6020,thinking_tokens:6000}}))});
+ assert.deepEqual(result.record.responseShape,{contentTypes:{thinking:2,text:1,redacted_thinking:1,tool_use:1},textChars:text.length,thinkingChars:thinking.length+4});
+ assert.deepEqual(result.record.usage,{input_tokens:100,output_tokens:6020});
+ for(const secret of [text,thinking,signature,key])assert.equal(JSON.stringify(result.record).includes(secret),false);
+}));
+
+test('a truncated response retains safe thinking and text lengths before interpretation fails',()=>withKey(async()=>{
+ const thinking=`hidden ${key}`,text=`{"partial":"${key}`;
+ for(const hasText of [false,true]){
+  const content=[{type:'thinking',thinking,signature:key},...(hasText?[{type:'text',text}]:[])];
+  await assert.rejects(call({fetchImpl:async()=>response(answer('claude-haiku-5-5',{
+   stop_reason:'max_tokens',content,usage:{input_tokens:100,output_tokens:16000},
+  }))}),error=>{
+   assert.equal(error.code,'INVALID_MODEL_RESPONSE');assert.equal(error.record.stopReason,'max_tokens');
+   assert.deepEqual(error.record.responseShape,{contentTypes:{thinking:1,...(hasText?{text:1}:{})},textChars:hasText?text.length:0,thinkingChars:thinking.length});
+   assert.deepEqual(error.record.usage,{input_tokens:100,output_tokens:16000});
+   for(const secret of [text,thinking,key])assert.equal(JSON.stringify(error.record).includes(secret),false);
+   return true;
+  });
+ }
+}));
 
 test('HTTP failures never read provider bodies, retry, or expose secrets and retain status',()=>withKey(async()=>{
  for(const status of [401,429,500,529]){

@@ -6,11 +6,11 @@ export const HAIKU_MODEL='anthropic/claude-haiku-5.5';
 export const SONNET_MODEL='anthropic/claude-sonnet-5.5';
 /** OpenRouter providers that serve these models with strict structured outputs. */
 export const CLAUDE_PROVIDERS=Object.freeze(['Anthropic','Google','Azure']);
-export const MODEL_POLICY_VERSION='rpm-claude-v3';
+export const MODEL_POLICY_VERSION='rpm-claude-v4';
 export const MODEL_ROUTES=Object.freeze({
  quick:Object.freeze({model:HAIKU_MODEL,effort:'none',timeoutMs:25000,maxTokens:4000}),
  careful:Object.freeze({model:HAIKU_MODEL,effort:'high',timeoutMs:35000,maxTokens:6000}),
- long:Object.freeze({model:HAIKU_MODEL,effort:'high',timeoutMs:90000,maxTokens:6000}),
+ long:Object.freeze({model:HAIKU_MODEL,effort:'high',timeoutMs:90000,maxTokens:16000}),
  hard:Object.freeze({model:SONNET_MODEL,effort:'high',timeoutMs:90000,maxTokens:16000}),
 });
 /** More changes to saved items than this in one capture is a re-plan, not a quick edit. */
