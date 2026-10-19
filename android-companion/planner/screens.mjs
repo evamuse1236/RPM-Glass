@@ -12,6 +12,7 @@ import {renderSearch} from './search.mjs';
 import {renderHistory} from './history.mjs';
 import {bodyApi} from './body-api.mjs';
 import {screenKey} from './app.mjs';
+import {TITLES} from './shell.mjs';
 import {userMessage} from '../user-message.mjs';
 
 const DETAILS = {blocks: renderBlockDetail, projects: renderProjectDetail, areas: renderAreaDetail, goals: renderGoalDetail};
@@ -86,6 +87,9 @@ export function renderScreen(app, kind, top) {
     }
     return DETAILS[kind](app, page, record);
   }
+  const title = el('h1', 'large-title', TITLES[kind]);
+  title.dataset.keep = 'large-title:' + kind;
+  page.append(title);
   return ROOTS[kind](app, page);
 }
 

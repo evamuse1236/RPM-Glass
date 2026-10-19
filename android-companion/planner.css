@@ -5,8 +5,8 @@
 
 /* ---------- 1. Layout ---------- */
 :root {
-  --top-bar: 64px;
-  --nav: 80px;
+  --top-bar: 56px;
+  --nav: 64px;
   --fab-size: 56px;
   --hour: 96px;
   --ruler: 56px;
@@ -59,42 +59,70 @@ h1, h2, h3, p { margin: 0; }
   padding: var(--s4);
 }
 
-/* ---------- 2. Top app bar ---------- */
+/* ---------- 2. Navigation bar, tab bar, right-thumb column ---------- */
 .top-bar {
   flex: none;
-  min-height: var(--top-bar);
+  min-block-size: var(--top-bar);
   display: flex;
   align-items: center;
   gap: var(--s1);
-  padding: var(--s2) var(--s1) var(--s1) var(--s5);
-  background: var(--surface);
-  transition: background-color var(--dur-medium) var(--ease-standard);
+  padding-inline: var(--s1);
+  background: var(--bg);
+  border-block-end: 1px solid transparent;
+  transition: border-color var(--dur-medium) var(--ease-standard);
 }
-#planner[data-scrolled=true] .top-bar { background: var(--surface-container); }
-.detail-bar, .search-bar { padding-left: var(--s1); }
+#planner[data-scrolled=true] .top-bar { border-block-end-color: var(--separator); }
+.root-bar, .detail-bar { display: grid; grid-template-columns: 1fr minmax(0, max-content) 1fr; }
+.root-bar > .top-title, .detail-bar > .top-title { grid-column: 2; }
+.top-actions { grid-column: 3; justify-self: end; display: flex; align-items: center; flex: none; }
+.top-bar .icon-btn { color: var(--tint); }
 .top-title {
-  flex: 1;
-  min-width: 0;
-  font: var(--headline-medium);
-  font-weight: 450;
-  letter-spacing: -.01em;
-  overflow-wrap: anywhere;
-}
-.top-title.small {
-  font: var(--title-large);
-  padding-left: var(--s1);
+  min-inline-size: 0;
+  font: var(--headline);
+  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  opacity: 0;
+  transition: opacity var(--dur-short) var(--ease-standard);
 }
-.top-title.with-subtitle { display: flex; flex-direction: column; }
-.top-title-text, .top-subtitle { overflow: hidden; text-overflow: ellipsis; }
-.top-subtitle { font: var(--body-medium); color: var(--on-surface-variant); }
-/* Detail titles live in the page; the bar shows them once the page scrolls. */
-.detail-bar .top-title { opacity: 0; transition: opacity var(--dur-short) var(--ease-standard); }
-#planner[data-title-out=true] .detail-bar .top-title,
-#planner[data-view=settings] .detail-bar .top-title { opacity: 1; }
-.top-actions { display: flex; align-items: center; flex: none; }
+.top-title.with-subtitle { display: flex; flex-direction: column; align-items: center; }
+.top-title-text, .top-subtitle { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; }
+.top-subtitle { font: var(--footnote); color: var(--label-2); }
+#planner[data-title-out=true] .top-title, #planner[data-view=settings] .detail-bar .top-title { opacity: 1; }
+#planner { timeline-scope: --page; }
+#planner-scroll { scroll-timeline: --page block; }
+@supports (animation-timeline: scroll()) {
+  .root-bar .top-title {
+    --title-travel: calc(var(--s2) + 41px * var(--text-scale, 1));
+    transition: none;
+    animation: bar-title-in linear both;
+    animation-timeline: --page;
+    animation-range: calc(var(--title-travel) - 24px) var(--title-travel);
+  }
+}
+@keyframes bar-title-in { from { opacity: 0; } to { opacity: 1; } }
+.large-title {
+  margin: var(--s2) var(--page-inset) var(--s2);
+  font: var(--large-title);
+  letter-spacing: -.01em;
+  overflow-wrap: break-word;
+  hyphens: none;
+}
+.bar-back {
+  grid-column: 1;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--touch);
+  max-inline-size: 100%;
+  padding-inline: 0 var(--s2);
+  border-radius: var(--r-pill);
+  color: var(--tint);
+  font: var(--body);
+}
+.bar-back .ms { font-size: 32px; margin-inline-end: -4px; }
+.bar-back-label { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .icon-btn {
   min-width: var(--touch);
@@ -115,40 +143,40 @@ h1, h2, h3, p { margin: 0; }
   opacity: 0;
   transition: opacity var(--dur-short);
 }
-.icon-btn:active::before, .icon-btn:hover::before { opacity: .1; }
+.icon-btn:active::before { opacity: .1; }
+@media (hover: hover) and (pointer: fine) { .icon-btn:hover::before { opacity: .08; } }
+.bar-back:active { opacity: .5; }
 
-/* ---------- Navigation bar (pill indicator) ---------- */
+/* Tab bar: icon over label, the tint marks the current tab; no indicator shape. */
 #nav-bar {
   flex: none;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  min-height: var(--nav);
-  padding: var(--s3) var(--s2) calc(var(--s4) + env(safe-area-inset-bottom));
-  background: var(--surface-container);
+  min-block-size: 64px;
+  padding-block: var(--s1) calc(var(--s1) + env(safe-area-inset-bottom));
+  padding-inline: var(--s2);
+  background: var(--bg);
+  border-block-start: 1px solid var(--separator);
 }
 .nav-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--s1);
-  min-height: var(--touch);
-  color: var(--on-surface-variant);
+  justify-content: center;
+  gap: 2px;
+  min-block-size: 56px;
+  color: var(--label-2);
 }
-.nav-pill {
-  min-width: 64px;
-  min-height: 32px;
-  border-radius: var(--shape-full);
-  display: grid;
-  place-items: center;
-  transition: background-color var(--dur-medium) var(--ease-emphasized);
+.nav-pill { display: grid; place-items: center; min-block-size: 28px; }
+.nav-pill .ms { font-size: calc(24px / var(--text-scale, 1)); }
+.nav-label { font: var(--caption); font-weight: 500; text-align: center; hyphens: none; }
+.nav-item[aria-current=page] { color: var(--tint); }
+@media (prefers-reduced-motion: no-preference) {
+  .nav-pill { transition: scale var(--dur-press) var(--ease-standard); }
 }
-.nav-label { font: var(--label-medium); text-align: center; }
-.nav-item[aria-current=page] { color: var(--on-surface); }
-.nav-item[aria-current=page] .nav-label { font-weight: 700; }
-.nav-item[aria-current=page] .nav-pill { background: var(--secondary-container); color: var(--on-secondary-container); }
-.nav-item:active .nav-pill { background: color-mix(in srgb, var(--on-surface) 10%, transparent); }
+.nav-item:active .nav-pill { scale: .9; }
 
-/* ---------- FAB: primary-container rounded square ---------- */
+/* The right-thumb column: Search over Add, 16dp from the edge and 16dp above the tab bar. */
 #fab-host {
   position: absolute;
   right: var(--s4);
@@ -161,14 +189,14 @@ h1, h2, h3, p { margin: 0; }
 .fab { transition: transform var(--dur-medium) var(--ease-emphasized), opacity var(--dur-short) var(--ease-standard); }
 #planner[data-fab-aside=true] .fab { transform: scale(.4); opacity: 0; pointer-events: none; }
 .fab {
-  width: var(--fab-size);
-  height: var(--fab-size);
-  border-radius: var(--shape-lg);
-  background: var(--primary-container);
-  color: var(--on-primary-container);
-  box-shadow: var(--elev-3);
+  inline-size: var(--fab-size);
+  block-size: var(--fab-size);
+  border-radius: var(--r-pill);
+  background: var(--tint);
+  color: var(--on-tint);
+  box-shadow: var(--shadow-float);
 }
-.fab .ms { font-size: 26px; }
+.fab .ms { font-size: 28px; }
 .fab::before { inset: 0; }
 
 /* ---------- Snackbar ---------- */
