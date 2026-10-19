@@ -9,6 +9,15 @@ final class IslandWindow {
     private String shown;
     private Box window;
 
+    /**
+     * The drawing window for a shape whose own window is {@code drawn}: pinned to the screen's top-left corner, full width.
+     * Android applies a window's new size at once but its new position a few frames late, so a moving window draws the
+     * island in the wrong place mid-morph. Only the height changes here.
+     */
+    static Box stage(Box drawn, int displayWidth) {
+        return new Box(0, 0, displayWidth, drawn.bottom);
+    }
+
     /** True when {@code key} is what the island already shows. */
     boolean showing(String key) {
         return key.equals(shown);

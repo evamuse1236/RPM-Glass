@@ -11,6 +11,7 @@ import android.util.Log;
 import android.view.Display;
 import android.view.DisplayCutout;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowManager;
@@ -20,8 +21,9 @@ import com.rpm.prototype.NotchFrame.Mode;
 import com.rpm.prototype.NotchScene.Look;
 
 /**
- * One overlay window holding the island. Settled, the window is only as big as what it draws, so taps beside it reach
- * the app. A frame that is already on screen is skipped: no redraw, no animation, no window relayout.
+ * Two overlay windows. The island draws in one pinned to the top-left corner at full width, so a morph only changes its
+ * height and never its position. While the pill shows, that window takes no touches and a small touch window over the
+ * pill passes taps and swipes to it, so taps beside the pill reach the app. A frame already on screen is skipped.
  */
 final class NotchPill implements IslandView.Listener {
     interface Gestures {
@@ -39,6 +41,10 @@ final class NotchPill implements IslandView.Listener {
     private final IslandWindow plan = new IslandWindow();
     private IslandView island;
     private WindowManager.LayoutParams lp;
+    private boolean touchable;
+    private View pad;
+    private WindowManager.LayoutParams padLp;
+    private Box padBox;
     private IslandShape target;
     private Mode shownMode;
     private String splitKey;
@@ -59,6 +65,7 @@ final class NotchPill implements IslandView.Listener {
     }
 
     void hide() {
+        placePad(null, null);
         if (island != null) {
             try {
                 wm.removeView(island);
@@ -95,7 +102,7 @@ final class NotchPill implements IslandView.Listener {
             shape = IslandShape.pill(anchor, displayWidth, side, keep, f.secondary != null, density);
             face = content.pill(f.pillLook(), f.pillValue(), f.chip(), h, side, keep, side);
             ms = IslandView.CLOSE_MS;
-            curve = IslandView.ACCELERATE;
+            curve = IslandView.STANDARD;
         } else {
             int w = displayWidth - 2 * dp(IslandShape.ISLAND_INSET_DP);
             if (f.mode == Mode.OPEN) face = content.panel(topInset, f.scene, actions);
@@ -117,14 +124,16 @@ final class NotchPill implements IslandView.Listener {
         splitKey = nextSplitKey;
 
         boolean first = island == null;
-        Box window = shape.window();
-        Box resize = plan.begin(key, window, first ? window : island.drawnWindow(), !first && ValueAnimator.areAnimatorsEnabled());
-        if (first && !attach(window)) {
+        boolean wantTouch = f.mode != Mode.PILL;
+        Box window = IslandWindow.stage(shape.window(), displayWidth);
+        Box drawn = first || island.drawnWindow() == null ? window : IslandWindow.stage(island.drawnWindow(), displayWidth);
+        Box resize = plan.begin(key, window, drawn, !first && ValueAnimator.areAnimatorsEnabled());
+        if (first && !attach(window, wantTouch)) {
             plan.forget();
             return;
         }
-        if (!first && resize != null) moveWindow(resize);
-        island.setContentDescription(f.mode == Mode.PILL ? f.spoken() : null);
+        if (!first) applyWindow(resize, wantTouch);
+        placePad(f.mode == Mode.PILL ? shape.touch : null, f.mode == Mode.PILL ? f.spoken() : null);
         boolean fade = !first && f.mode != shownMode;
         target = shape;
         shownMode = f.mode;
@@ -152,28 +161,38 @@ final class NotchPill implements IslandView.Listener {
     @Override
     public void onSettled() {
         if (island == null || target == null) return;
-        Box settled = plan.settle(target.window());
-        if (settled != null) moveWindow(settled);
+        Box settled = plan.settle(IslandWindow.stage(target.window(), displayWidth()));
+        if (settled != null) applyWindow(settled, touchable);
     }
 
-    private boolean attach(Box bounds) {
-        island = new IslandView(context, this);
-        lp = new WindowManager.LayoutParams(bounds.width(), bounds.height(), type,
+    private WindowManager.LayoutParams overlay(Box bounds, int flags, String title) {
+        WindowManager.LayoutParams p = new WindowManager.LayoutParams(bounds.width(), bounds.height(), type,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                         | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-                        | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                        | flags,
                 PixelFormat.TRANSLUCENT);
-        lp.gravity = Gravity.TOP | Gravity.START;
-        lp.x = bounds.left;
-        lp.y = bounds.top;
-        lp.setTitle("RPM notch");
+        p.gravity = Gravity.TOP | Gravity.START;
+        p.x = bounds.left;
+        p.y = bounds.top;
+        p.setTitle(title);
         if (Build.VERSION.SDK_INT >= 30) {
-            lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
-            lp.setFitInsetsTypes(0);
+            p.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
+            p.setFitInsetsTypes(0);
         } else if (Build.VERSION.SDK_INT >= 28) {
-            lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            p.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
         }
+        return p;
+    }
+
+    private static int touchFlags(boolean touchable) {
+        return touchable ? WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH : WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+    }
+
+    private boolean attach(Box bounds, boolean wantTouch) {
+        island = new IslandView(context, this);
+        touchable = wantTouch;
+        lp = overlay(bounds, touchFlags(wantTouch), "RPM notch");
         try {
             wm.addView(island, lp);
             return true;
@@ -186,14 +205,75 @@ final class NotchPill implements IslandView.Listener {
         }
     }
 
-    private void moveWindow(Box bounds) {
-        if (island == null) return;
-        lp.x = bounds.left;
-        lp.y = bounds.top;
-        lp.width = bounds.width();
-        lp.height = bounds.height();
+    /** Resizes the drawing window when {@code bounds} is set, and lets it take touches only when {@code wantTouch}. */
+    private void applyWindow(Box bounds, boolean wantTouch) {
+        if (island == null || (bounds == null && wantTouch == touchable)) return;
+        if (bounds != null) {
+            lp.x = bounds.left;
+            lp.y = bounds.top;
+            lp.width = bounds.width();
+            lp.height = bounds.height();
+            placement = "window " + bounds + " · via " + cutoutSource;
+        }
+        lp.flags = (lp.flags & ~touchFlags(true) & ~touchFlags(false)) | touchFlags(wantTouch);
+        touchable = wantTouch;
         wm.updateViewLayout(island, lp);
-        placement = "window " + bounds + " · via " + cutoutSource;
+    }
+
+    /** Puts the pill's touch window over {@code box}, or removes it when {@code box} is null. */
+    private void placePad(Box box, CharSequence spoken) {
+        if (box == null) {
+            if (pad != null) {
+                try {
+                    wm.removeView(pad);
+                } catch (RuntimeException e) {
+                    Log.w(NotchController.TAG, "removeView pad failed", e);
+                }
+            }
+            pad = null;
+            padBox = null;
+            return;
+        }
+        if (pad == null) {
+            Pad next = new Pad(context);
+            padLp = overlay(box, 0, "RPM notch touch");
+            try {
+                wm.addView(next, padLp);
+                pad = next;
+            } catch (RuntimeException e) {
+                Log.w(NotchController.TAG, "addView pad failed", e);
+                return;
+            }
+        } else if (!box.equals(padBox)) {
+            padLp.x = box.left;
+            padLp.y = box.top;
+            padLp.width = box.width();
+            padLp.height = box.height();
+            wm.updateViewLayout(pad, padLp);
+        }
+        padBox = box;
+        pad.setContentDescription(spoken);
+    }
+
+    /** The pill's touch window: hands every touch to the island in screen coordinates, which are the island's own. */
+    private final class Pad extends View {
+        Pad(Context context) {
+            super(context);
+            setClickable(true);
+            setOnClickListener(v -> onGesture(IslandGesture.Result.TAP));
+        }
+
+        @Override
+        public boolean dispatchTouchEvent(MotionEvent e) {
+            if (island == null || padBox == null) return false;
+            MotionEvent screen = MotionEvent.obtain(e);
+            screen.offsetLocation(padBox.left, padBox.top);
+            try {
+                return island.dispatchTouchEvent(screen);
+            } finally {
+                screen.recycle();
+            }
+        }
     }
 
     private NotchAnchor anchor() {

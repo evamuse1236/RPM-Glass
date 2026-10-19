@@ -23,12 +23,11 @@ import android.view.animation.PathInterpolator;
 final class IslandView extends ViewGroup {
     static final long OPEN_MS = 350;
     static final long ALERT_MS = 300;
-    static final long CLOSE_MS = 250;
+    static final long CLOSE_MS = 300;
     static final long FADE_OUT_MS = 90;
     static final long FADE_IN_DELAY_MS = 90;
     static final long FADE_IN_MS = 210;
     static final Interpolator DECELERATE = new PathInterpolator(0.05f, 0.7f, 0.1f, 1f);
-    static final Interpolator ACCELERATE = new PathInterpolator(0.3f, 0f, 0.8f, 0.15f);
     static final Interpolator STANDARD = new PathInterpolator(0.2f, 0f, 0f, 1f);
     private static final float PRESSED_SCALE = 0.97f;
     private static final long PRESS_HOLD_MS = 90;
@@ -249,7 +248,7 @@ final class IslandView extends ViewGroup {
                 NotchController.safely("outside tap", listener::onOutsideTap);
                 return true;
             case MotionEvent.ACTION_DOWN:
-                if (now == null || !gesture.down(now.touch, e.getRawX(), e.getRawY(), e.getEventTime())) {
+                if (now == null || !gesture.down(now.touch, screenX(e), screenY(e), e.getEventTime())) {
                     NotchController.safely("outside tap", listener::onOutsideTap);
                     return false;
                 }
@@ -288,7 +287,7 @@ final class IslandView extends ViewGroup {
                 claim(e);
                 return true;
             case MotionEvent.ACTION_UP:
-                IslandGesture.Result r = gesture.up(e.getRawX(), e.getRawY(), e.getEventTime());
+                IslandGesture.Result r = gesture.up(screenX(e), screenY(e), e.getEventTime());
                 if (r == IslandGesture.Result.NONE) return true;
                 if (r != IslandGesture.Result.TAP) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
                 NotchController.safely("island " + r, () -> listener.onGesture(r));
@@ -303,10 +302,18 @@ final class IslandView extends ViewGroup {
 
     /** Moves the gesture on; once it is a swipe, the press and the long press stop. */
     private boolean claim(MotionEvent e) {
-        if (!gesture.move(e.getRawX(), e.getRawY())) return false;
+        if (!gesture.move(screenX(e), screenY(e))) return false;
         removeCallbacks(longPress);
         if (pressable) release.run();
         return true;
+    }
+
+    private float screenX(MotionEvent e) {
+        return e.getX() + laidOutAt[0];
+    }
+
+    private float screenY(MotionEvent e) {
+        return e.getY() + laidOutAt[1];
     }
 
     private void longPress() {

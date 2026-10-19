@@ -45,6 +45,7 @@ For an authorized phone release, compare the working tree, branch, and installed
 | The notch pill ends at the status bar's bottom edge, 4dp above the camera hole. | `NotchAnchorTest.java`, `playground/notch-scene.test.mjs` |
 | A web-only change can be proven with `rpmctl sync` instead of a new APK; the screenshot must carry the hash of the exact assets now built, and Java changes still need the APK. | `scripts/rules/require-evidence.test.mjs` |
 | The notch redraws only when what it shows changes: the same frame twice means no redraw, no animation and no window relayout. | `IslandWindowTest.java`, `NotchFrameTest.java` |
+| The notch's drawing window never moves: it sits at the screen's top-left at full width and only its height changes, so a morph is never drawn at a stale position. A small touch window over the pill takes its taps. | `IslandWindowTest.java` (`theDrawingWindowNeverMovesOnlyItsHeightChanges`) |
 | A tap anywhere on the notch pill opens the island; a finger that drifts less than 8dp is still a tap. | `IslandGestureTest.java` |
 | The open and alert islands float 12dp in from each side with their top at the pill's top. | `IslandShapeTest.java` |
 | A notch reminder never says "alarm" or "ringing"; only a ringing alarm does. | `NotchFrameTest.java` |

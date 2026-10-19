@@ -63,6 +63,23 @@ public class IslandWindowTest {
     }
 
     @Test
+    public void theDrawingWindowNeverMovesOnlyItsHeightChanges() {
+        IslandWindow w = new IslandWindow();
+        IslandShape pill = pill(160);
+        IslandShape open = IslandShape.island(S24, 1080, 900, IslandShape.OPEN_RADIUS_DP, D);
+        Box first = w.begin("pill", IslandWindow.stage(pill.window(), 1080), IslandWindow.stage(pill.window(), 1080), true);
+        Box opening = w.begin("open", IslandWindow.stage(open.window(), 1080), IslandWindow.stage(pill.window(), 1080), true);
+        Box closed = w.settle(IslandWindow.stage(pill.window(), 1080));
+        for (Box b : new Box[] {first, opening, closed}) {
+            assertEquals("left edge stays put", 0, b.left);
+            assertEquals("top edge stays put", 0, b.top);
+            assertEquals("full width, so a morph never moves the window", 1080, b.right);
+        }
+        assertEquals(open.window().bottom, opening.bottom);
+        assertEquals(pill.window().bottom, closed.bottom);
+    }
+
+    @Test
     public void afterTheWindowIsRemovedTheNextFrameIsDrawn() {
         IslandWindow w = new IslandWindow();
         Box target = pill(160).window();
