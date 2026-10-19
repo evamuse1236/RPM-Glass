@@ -3,7 +3,7 @@ import {scheduleText} from './capture-content.mjs';
 import {actionPresentation} from './capture-session.mjs';
 import {line,lines,tally} from './capture-lines.mjs';
 
-const ENTITY={task:'Task',block:'Block',project:'Project',goal:'Goal',area:'Area'};
+const ENTITY={task:'Task',block:'Block',project:'Project',goal:'Goal',area:'Area',draft:'Draft'};
 const KEEPABLE=new Set(['idea','preference','question']);
 const NOTE_ICON={idea:'lightbulb',reflection:'chat',preference:'tune',question:'help',reference:'info',existing:'check_circle'};
 
@@ -179,7 +179,7 @@ export function openCard(capture,on){
  for(const op of draft.operations){
   const preview=draft.schedulePreview?.items?.find(p=>p.opId===op.opId);
   const when=scheduleText(preview,{timeZone:draft.schedulePreview?.timezone});
-  const verb=op.kind==='create'?'New':op.kind==='complete'?'Done':op.kind==='archive'?'Trash':'Change';
+  const verb=op.kind==='create'?'New':op.kind==='complete'?'Done':op.entity==='draft'?'Set aside':op.kind==='archive'?'Trash':'Change';
   list.append(line({verb,title:opTitle(op),when:when??null,was:null,where:null,minutes:null}));
  }
  if(draft.operations.length)node.append(list);
@@ -197,6 +197,24 @@ export function openCard(capture,on){
  }
  const rest=(draft.actions??[]).filter(a=>a.action.kind!=='answer').map(a=>({a,p:actionPresentation(a,draft)})).sort((x,y)=>x.p.order-y.p.order);
  node.append(actionsRow(...rest.map(({a,p})=>button(p.label,()=>on.action(a.action),{role:p.role,iconName:p.icon??null}))));
+ return node;
+}
+
+/** "Which one?": the question, the words it answers, and one chip per choice. A tap answers it with no model call. */
+export function questionCard(capture,on){
+ const q=capture.clarification,node=card('question');
+ node.append(kicker(NEED.question,{name:'help',tone:'change'}),el('p','card-title',q.prompt));
+ if(capture.draft?.lines?.length)node.append(lines(capture.draft.lines));
+ node.append(words(capture.raw));
+ const chips=el('div','chips');
+ for(const a of q.actions){
+  const chip=el('button','chip',a.label);
+  chip.type='button';
+  chip.setAttribute('aria-label',`Choose ${a.label}`);
+  chip.addEventListener('click',()=>on.choose(a.action));
+  chips.append(chip);
+ }
+ node.append(chips);
  return node;
 }
 

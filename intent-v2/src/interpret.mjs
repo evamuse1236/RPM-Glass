@@ -1,4 +1,21 @@
 import {TURN_SCHEMA,validate,validateField} from './schema.mjs';
+import {checkRemoval,REMOVALS} from './removal.mjs';
+const words=s=>String(s).toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+/** A choice may only name what the model was shown, and only what its action can be done to. */
+function checkClarification(c,visible){
+ if(c.choices.length<2)throw new Error('A clarification offers two to four choices');
+ const labels=new Set(c.choices.map(x=>words(x.label)));if(labels.size!==c.choices.length||labels.has(''))throw new Error('Choice labels must be distinct');
+ for(const choice of c.choices){
+  if(!choice.targets.length)throw new Error('Each choice names at least one item');
+  for(const t of choice.targets){
+   const key=t.entity==='alarm'?`task:${t.id}`:`${t.entity}:${t.id}`,row=visible.get(key);
+   if(!row)throw new Error('A choice names an item that was not supplied in current context');
+   if(t.entity==='alarm'&&!row.alert)throw new Error('A choice names an alarm on a task that has none');
+   if(c.action==='remove'&&!['archive','update'].includes(REMOVALS[t.entity]?.kind))throw new Error(`Removing a ${t.entity} is not supported`);
+   if(c.action==='complete'&&t.entity!=='task')throw new Error('Only saved tasks can be completed');
+  }
+ }
+}
 export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}={}){
  validate(turn,TURN_SCHEMA);
  const source=new Map(units.map(u=>[u.id,u.text])),decisions=new Map();
@@ -8,12 +25,13 @@ export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}
  if(turn.draftMode==='none'&&turn.operations.length)throw new Error('Operations require a draft');
  if(turn.draftMode==='amend'&&!activeDraft)throw new Error('Amendment requires an explicitly focused draft');
  const ids=new Set(),visible=new Set(visibleEntities.map(e=>`${e.entity}:${e.id}`));
+ if(turn.clarification){if(turn.question)throw new Error('Ask one question at a time');checkClarification(turn.clarification,new Map(visibleEntities.map(e=>[`${e.entity}:${e.id}`,e])));}
  const operations=turn.operations.map(op=>{
   if(!/^[A-Za-z0-9_-]{1,50}$/.test(op.opId)||ids.has(op.opId))throw new Error('Stable, unique operation IDs are required');ids.add(op.opId);
   if(decisions.get(op.sourceId)!=='action')throw new Error('Only an action source can authorize an operation draft');
   if(op.kind==='create'&&op.targetId!==null||op.kind!=='create'&&op.targetId===null)throw new Error('Create/update target mismatch');
   if(op.targetId!==null&&!visible.has(`${op.entity}:${op.targetId}`))throw new Error('Target ID was not supplied in current context');
-  if(['complete','archive'].includes(op.kind)&&(op.entity!=='task'||op.fields.length))throw new Error('Completion/archive pilot supports tasks only, without field patches');
+  checkRemoval(op,turn);
   const names=new Set();
   const fields=op.fields.map(f=>{
    validateField(f,op.entity);if(names.has(f.name))throw new Error('Duplicate field');names.add(f.name);

@@ -60,6 +60,8 @@ window.fetch=async(url,options={})=>{
       const raw=`${b.type} this ${b.collection} record`;const result=propose(data,{operations:[{type:b.type,collection:b.collection,id:b.id,fields:{},evidence:[raw]}],continuation:false,question:null,choices:[]},{raw,conversationId:cid});c.messages.push({role:'assistant',id:crypto.randomUUID(),at:at(),...result});
     }else if(b.type==='intentRetry'){
       busy=true;await diagnostics.track('capture.retry',{operationId:b.messageId,conversationId:cid},()=>agent.retry(b.messageId));busy=false;return response(view());
+    }else if(b.type==='intentChoose'){
+      busy=true;await diagnostics.track('capture.choose',{operationId:b.actionId,conversationId:cid},()=>agent.choose(b.action,{actionId:b.actionId}));busy=false;return response(view());
     }else if(b.type==='intentAction'){
       busy=true;await diagnostics.track('capture.action',{operationId:b.actionId,draftId:b.action?.draftId,action:b.action?.kind},()=>agent.act(b.action,{actionId:b.actionId}));busy=false;return response(view());
     }else if(b.type==='intentUndo'){
