@@ -1,0 +1,81 @@
+.capture-head { display: flex; align-items: center; gap: var(--s2); padding: var(--s5) var(--s4) var(--s2) var(--s5); }
+.capture-head h2 { flex: 1; font: var(--title-medium); }
+.capture-close { display: none; }
+@media (width <= 1180px) { .capture-close { display: inline-grid; } }
+.composer { padding-inline: var(--s4); display: grid; gap: var(--s2); }
+.composer-field {
+  border-radius: var(--shape-lg);
+  background: var(--surface);
+  border: 1px solid var(--outline-variant);
+}
+.composer-field:focus-within { border-color: var(--primary); outline: 1px solid var(--primary); }
+.composer textarea {
+  display: block;
+  inline-size: 100%;
+  field-sizing: content;
+  min-block-size: 3lh;
+  max-block-size: 12lh;
+  resize: none;
+  padding: var(--s3) var(--s4);
+  border: 0;
+  background: transparent;
+  font: var(--body-large);
+  text-wrap: stable;
+}
+.composer textarea:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: inherit; }
+.composer-actions { display: flex; align-items: center; gap: var(--s2); }
+.composer-actions .filled-btn { margin-inline-start: auto; }
+.mic[aria-pressed="true"] { background: var(--primary-container); color: var(--on-primary-container); }
+.trust { font: var(--body-small); color: var(--on-surface-variant); }
+.capture-notice { margin: var(--s2) var(--s4) 0; }
+
+.receipts {
+  flex: 1;
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s2) var(--s4) var(--s6);
+}
+.receipts-head { display: flex; align-items: baseline; justify-content: space-between; padding: var(--s4) var(--s1) var(--s1); }
+.receipts-head h3 { font: var(--title-small); color: var(--on-surface-variant); }
+.receipt {
+  display: grid;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--shape-lg);
+  background: var(--surface);
+  border: 1px solid var(--surface-container-high);
+}
+.receipt.failed { border-color: color-mix(in oklch, var(--error) 40%, transparent); }
+.kicker { display: flex; align-items: center; gap: var(--s2); font: var(--title-small); }
+.kicker .ms { font-size: 20px; color: var(--on-surface-variant); }
+.kicker.done .ms { color: var(--tertiary); }
+.kicker.error { color: var(--error); }
+.kicker.error .ms { color: var(--error); }
+.kicker.ask .ms { color: var(--primary); }
+.kicker time { margin-inline-start: auto; font: var(--label-small); color: var(--on-surface-variant); }
+.words { font: var(--body-medium); color: var(--on-surface-variant); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: clip; }
+.words::before { content: "\201C"; }
+.words::after { content: "\201D"; }
+.receipt-note { font: var(--body-medium); color: var(--on-surface-variant); }
+.receipt-error { font: var(--body-medium); color: var(--error); }
+.lines { display: grid; gap: var(--s2); }
+.line { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--s3); align-items: start; }
+.line-glyph { display: grid; place-items: center; inline-size: 28px; block-size: 28px; border-radius: 50%; background: color-mix(in oklch, var(--primary) 14%, transparent); color: var(--primary); }
+.line-glyph .ms { font-size: 18px; }
+.line-body { display: grid; gap: var(--s1); padding-block-start: 3px; }
+.line-title { font: var(--body-medium); font-weight: 500; overflow-wrap: break-word; }
+.facts { display: flex; flex-wrap: wrap; gap: var(--s1); }
+.fact { display: inline-flex; align-items: center; min-block-size: 24px; padding-inline: var(--s2); border-radius: var(--shape-sm); background: var(--surface-container-high); font: var(--label-medium); }
+.receipt-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s1); margin-block: calc(-1 * var(--s1)) calc(-1 * var(--s1)); }
+.spinner { inline-size: 18px; block-size: 18px; border-radius: 50%; border: 2.5px solid color-mix(in oklch, var(--primary) 30%, transparent); border-block-start-color: var(--primary); flex: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .spinner { animation: spin 900ms linear infinite; }
+  .receipt { transition: opacity var(--dur-medium1) var(--ease-standard), translate var(--dur-medium1) var(--ease-emphasized-decelerate); }
+  @starting-style { .receipt.new { opacity: 0; translate: 0 8px; } }
+}
+.history-toggle { justify-self: start; }
+.capture-empty { padding: var(--s6) var(--s2); font: var(--body-medium); color: var(--on-surface-variant); text-align: center; }
