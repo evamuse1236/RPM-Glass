@@ -25,7 +25,7 @@ function phone({second='task'}={}){
  const seed=freshStore();editPlan(seed,{type:'saveTask',fields:{title:'Dinner with Asha',alert:'alarm'}},NOW);
  const backend=createMemoryBackend(seed),inputs=[];
  const choices=()=>[{label:'The cooking draft',targets:[{entity:'draft',id:'draft-m0'}]},{label:second==='task'?'Dinner with Asha':'The dinner alarm',targets:[{entity:second,id:'1'}]},{label:'Both',targets:[{entity:'draft',id:'draft-m0'},{entity:second,id:'1'}]}];
- const model=async input=>{inputs.push(input);const raw=input.sourceUnits.map(u=>u.text).join(' ');return raw===COOK?cookDraft():raw==='First'?fragment(raw):asking(raw,choices());};
+ const model=async(input,{route}={})=>{inputs.push({...input,route});const raw=input.sourceUnits.map(u=>u.text).join(' ');return raw===COOK?cookDraft():raw==='First'?fragment(raw):asking(raw,choices());};
  const service=createIntentService({backend,model,changePlanner,undo,readCalendar:async()=>({status:'not_selected',events:[]}),editPlan,snapshot:async({data})=>planSnapshot(data,{now:NOW,timezone:'Asia/Kolkata'}),clock:()=>NOW,timezone:'Asia/Kolkata'});
  const traces=createTraceStore({storage:memoryStorage(),clock:()=>NOW});
  const agent=createCaptureAgent({service,traces,clock:()=>NOW});
@@ -43,6 +43,7 @@ test('the 19 Oct conversation: focus survives, "Both" needs no model, one change
  await send(p,'m2','That one only');
  assert.equal(p.inputs[2].activeDraft.id,'draft-m0','turn 2 carries the cooking draft as focus');
  assert.equal(p.inputs[2].openQuestion.id,'q-m1');
+ assert.equal(p.inputs[2].route.reason,'answer_to_question');assert.equal(p.inputs[2].route.effort,'high');
  assert.deepEqual(p.inputs[2].openQuestion.choices.map(c=>c.label),['The cooking draft','Dinner with Asha','Both']);
  assert.equal(p.inputs.length,3);
  const both=await send(p,'m3','Both');

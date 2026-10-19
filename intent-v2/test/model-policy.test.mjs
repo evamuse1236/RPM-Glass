@@ -17,6 +17,15 @@ for(const raw of ['What’s my timetable today?','Do I have a free hour at 5 pm?
  test(`a quick question stays on Haiku: ${raw}`,()=>{const r=route(raw);assert.equal(r.model,HAIKU_MODEL);assert.equal(r.reason,'question');});
 for(const raw of ['Re-plan my week around the exam','Sort my Inbox: place loose tasks into Blocks','Help me make Friday’s fractions lesson ready.','Suggest three steps','How should I prepare?','What should I do first tonight?','Plan my day tomorrow'])
  test(`a hard request goes to Sonnet at high effort: ${raw}`,()=>{const r=route(raw);assert.equal(r.model,SONNET_MODEL);assert.equal(r.effort,'high');assert.ok(r.timeoutMs>=route('Buy milk').timeoutMs*3);});
+test('a reply to an open question or a focused draft gets careful Haiku; a re-plan still goes to Sonnet',()=>{
+ const asked={sourceUnits:sourceUnits('That one only'),openQuestion:{id:'q-m1',choices:[]},activeDraft:null};
+ assert.deepEqual([intentModelPolicy({input:asked}).model,intentModelPolicy({input:asked}).effort,intentModelPolicy({input:asked}).reason],[HAIKU_MODEL,'high','answer_to_question']);
+ const answering={sourceUnits:sourceUnits('8 pm'),activeDraft:{id:'d0',question:{prompt:'7 AM or 7 PM?'}}};
+ assert.equal(intentModelPolicy({input:answering}).reason,'answer_to_question');
+ const editing={sourceUnits:sourceUnits('make it 5 pm'),activeDraft:{id:'d0',question:null}};
+ assert.deepEqual([intentModelPolicy({input:editing}).effort,intentModelPolicy({input:editing}).reason],['high','focused_draft']);
+ assert.equal(intentModelPolicy({input:{...asked,sourceUnits:sourceUnits('Re-plan my week')}}).model,SONNET_MODEL);
+});
 test('a repair attempt always uses Sonnet',()=>{const r=intentModelPolicy({input:input('Buy milk'),attempt:1});assert.equal(r.model,SONNET_MODEL);assert.equal(r.reason,'repair');});
 test('more than three changes to saved items is a re-plan; three or fewer stay quick',()=>{
  const updates=n=>turn('Move them',Array.from({length:n},(_,i)=>operation([field('time','6am','Move them')],{opId:'u'+i,kind:'update',targetId:String(i+1)})));
