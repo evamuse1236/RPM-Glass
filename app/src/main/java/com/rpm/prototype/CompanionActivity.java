@@ -122,7 +122,7 @@ public class CompanionActivity extends Activity {
             }catch(Exception e){reply(id,null,e.getMessage());return;}
             work.execute(()->{BridgeCallRecord log=new BridgeCallRecord(action,p);try{Object result;
                 switch(action){
-                    case "load":result=new JSONObject().put("data",Optional.ofNullable(CompanionStore.read(CompanionActivity.this)).orElse(null)).put("phone",phoneStatus());break;
+                    case "load":result=CompanionStore.loadReply(CompanionActivity.this,p,phoneStatus());break;
                     case "save":CompanionStore.write(CompanionActivity.this,p.getJSONObject("data"),p.getInt("expected"));result=phoneStatus();break;
                     case "status":result=phoneStatus();break;
                     case "surface":if(!planning())throw new IllegalArgumentException("Unsupported phone action.");boolean dark=p.getBoolean("dark");runOnUiThread(()->{if(!closing&&web!=null)CompanionSurface.paintPlannerBars(CompanionActivity.this,root,web,dark);});result=new JSONObject();break;

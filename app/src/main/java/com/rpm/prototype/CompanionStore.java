@@ -11,6 +11,8 @@ final class CompanionStore {
     static final Object LOCK=new Object();
     static File file(Context c){return new File(c.getFilesDir(),"companion.json");}
     static JSONObject read(Context c)throws Exception{synchronized(LOCK){AtomicFile f=new AtomicFile(file(c));try(InputStream in=f.openRead()){return validate(new JSONObject(readText(in)));}catch(FileNotFoundException e){return null;}}}
+    static JSONObject loadReply(Context c,JSONObject request,JSONObject phone)throws Exception{JSONObject stored=read(c);return unchanged(stored,request)?new JSONObject().put("unchanged",true).put("phone",phone):new JSONObject().put("data",stored).put("phone",phone);}
+    static boolean unchanged(JSONObject stored,JSONObject request)throws JSONException{return stored!=null&&request.has("known")&&request.getInt("known")==stored.getInt("version");}
     static String readText(InputStream in)throws IOException{ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] b=new byte[8192];int n;while((n=in.read(b))!=-1){out.write(b,0,n);if(out.size()>16*1024*1024)throw new IOException("Context exceeds 16 MB; original preserved.");}return out.toString(StandardCharsets.UTF_8.name());}
     static JSONObject validate(JSONObject d)throws JSONException{
         if(d.getInt("schema")!=2||d.getInt("version")<0)throw new JSONException("Unsupported context format.");
