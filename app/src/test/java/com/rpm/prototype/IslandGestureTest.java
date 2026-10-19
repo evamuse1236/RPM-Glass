@@ -15,7 +15,7 @@ public class IslandGestureTest {
 
     private static IslandShape pill() {
         int keep = Math.max(NotchAnchor.dp(24, D), S24.holeDiameter + NotchAnchor.dp(12, D));
-        int side = NotchAnchor.pillSide(110, 130, keep, NotchAnchor.dp(IslandShape.MIN_PILL_WIDTH_DP, D));
+        int side = NotchAnchor.pillSide(110, 130, keep, NotchAnchor.dp(NotchGeometry.MIN_PILL_WIDTH_DP, D));
         return IslandShape.pill(S24, 1080, side, keep, false, D);
     }
 

@@ -2,6 +2,7 @@ package com.rpm.prototype;
 
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.graphics.RectF;
@@ -15,10 +16,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowManager;
-import android.view.animation.Interpolator;
 
 import com.rpm.prototype.NotchFrame.Mode;
-import com.rpm.prototype.NotchScene.Look;
 
 /**
  * Two overlay windows. The island draws in one pinned to the top-left corner at full width, so a morph only changes its
@@ -58,8 +57,8 @@ final class NotchPill implements IslandView.Listener {
         this.wm = context.getSystemService(WindowManager.class);
         this.type = type;
         this.content = new NotchContent(context);
-        this.alerts = new NotchAlertViews(context, content);
-        this.changes = new NotchChangeViews(context, content);
+        this.alerts = new NotchAlertViews(content);
+        this.changes = new NotchChangeViews(content);
     }
 
     boolean isShown() {
@@ -90,41 +89,46 @@ final class NotchPill implements IslandView.Listener {
         String key = f.key(anchor + "|" + displayWidth + "|" + context.getResources().getConfiguration().fontScale);
         if (island != null && plan.showing(key)) return;
 
+        NotchMotion motion = NotchMotion.of(ValueAnimator.areAnimatorsEnabled());
+        NotchBand band = NotchBand.of(f, System.currentTimeMillis());
+        float scaled = density * context.getResources().getConfiguration().fontScale;
         int h = anchor.pillHeight;
-        int topInset = h + dp(8);
         IslandShape shape;
         View face;
         long ms;
-        Interpolator curve;
+        NotchGeometry.Band bandAt;
         if (f.mode == Mode.PILL) {
             int keep = Math.max(dp(24), anchor.holeDiameter + dp(12));
-            int lead = content.leadWidth(h);
-            int trail = content.trailWidth(f.pillValue(), f.chip());
-            int side = NotchAnchor.pillSide(lead, trail, keep, dp(IslandShape.MIN_PILL_WIDTH_DP));
+            int ring = NotchGeometry.pillRing(h, density);
+            int lead = (h - ring) / 2 + ring + dp(NotchGeometry.VALUE_START_DP);
+            float valuePx = NotchGeometry.pillValuePx(scaled, h, density);
+            int trail = dp(NotchGeometry.VALUE_START_DP) + valueWidth(band.value, valuePx) + dp(NotchGeometry.VALUE_END_DP)
+                    + (band.chip ? dp(NotchGeometry.CHIP_DP) : 0);
+            int side = NotchAnchor.pillSide(lead, trail, keep, dp(NotchGeometry.MIN_PILL_WIDTH_DP));
             shape = IslandShape.pill(anchor, displayWidth, side, keep, f.secondary != null, density);
-            face = content.pill(f.pillLook(), f.pillValue(), f.chip(), h, side, keep, side);
-            ms = IslandView.CLOSE_MS;
-            curve = IslandView.STANDARD;
+            face = content.pill();
+            ms = motion.morphMs(false);
+            bandAt = NotchGeometry.pill(shape, density, valuePx);
         } else {
             int w = displayWidth - 2 * dp(IslandShape.ISLAND_INSET_DP);
-            if (f.mode == Mode.OPEN) face = content.panel(topInset, f.scene, actions);
-            else if (f.mode == Mode.MANAGE) face = changes.manage(topInset, f.managed, actions);
-            else if (f.mode == Mode.RECEIPT) face = changes.receipt(topInset, f.receipt, actions);
-            else if (f.mode == Mode.REMINDER) face = alerts.reminder(topInset, f.alert, actions);
-            else face = alerts.alarm(topInset, f.alert, actions);
-            face.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
-            boolean tall = f.mode == Mode.OPEN || f.mode == Mode.MANAGE;
-            int radius = tall ? IslandShape.OPEN_RADIUS_DP : IslandShape.ALERT_RADIUS_DP;
-            shape = IslandShape.island(anchor, displayWidth, face.getMeasuredHeight(), radius, density);
-            ms = tall ? IslandView.OPEN_MS : IslandView.ALERT_MS;
-            curve = IslandView.DECELERATE;
+            int cap = Math.round(displayHeight() * NotchGeometry.MAX_HEIGHT_SHARE);
+            int rows = 3;
+            face = face(f, actions, rows);
+            measure(face, w);
+            while (f.mode == Mode.OPEN && rows > 1 && face.getMeasuredHeight() > cap) {
+                face = face(f, actions, --rows);
+                measure(face, w);
+            }
+            shape = IslandShape.island(anchor, displayWidth, Math.min(face.getMeasuredHeight(), Math.max(cap, h)), density);
+            ms = motion.morphMs(true);
+            bandAt = NotchGeometry.island(shape, density, band.valueSp * scaled);
         }
         RectF faceAt = new RectF(shape.left, shape.top, shape.right, shape.bottom);
 
-        Look splitLook = f.mode == Mode.PILL ? f.splitLook() : null;
-        String nextSplitKey = splitLook == null ? null : splitLook + ":" + Math.round(shape.splitCx);
+        NotchBand splitBand = f.mode == Mode.PILL && f.secondary != null ? NotchBand.split(f.secondary.kind, f.scene) : null;
+        String nextSplitKey = splitBand == null ? null : splitBand.glyph + ":" + Math.round(splitBand.progress * 100) + ":" + Math.round(shape.splitCx);
         boolean splitChanged = nextSplitKey == null ? splitKey != null : !nextSplitKey.equals(splitKey);
-        View split = splitChanged && splitLook != null ? content.split(splitLook, h) : null;
+        View split = splitChanged && splitBand != null ? content.split(splitBand, NotchGeometry.pillRing(h, density)) : null;
         RectF splitAt = new RectF(shape.splitCx - h / 2f, anchor.pillTop(), shape.splitCx + h / 2f, anchor.pillBottom());
         splitKey = nextSplitKey;
 
@@ -142,9 +146,35 @@ final class NotchPill implements IslandView.Listener {
         boolean fade = !first && f.mode != shownMode;
         target = shape;
         shownMode = f.mode;
-        island.setScene(shape, ms, curve, face, faceAt, fade, splitChanged, split, splitAt, f.mode == Mode.PILL);
+        island.setScene(shape, first ? 0 : ms, motion, face, faceAt, fade, splitChanged, split, splitAt, f.mode == Mode.PILL, band, bandAt);
         placement = "window " + plan.current() + " · " + anchor + " · via " + cutoutSource;
         Log.i(NotchController.TAG, "island " + describe(f) + " " + placement);
+    }
+
+    private View face(NotchFrame f, NotchContent.Actions actions, int rows) {
+        if (f.mode == Mode.OPEN) return content.panel(f.scene, actions, rows);
+        if (f.mode == Mode.MANAGE) return changes.manage(f.managed, actions);
+        if (f.mode == Mode.RECEIPT) return changes.receipt(f.receipt, actions);
+        if (f.mode == Mode.REMINDER) return alerts.reminder(f.alert, actions);
+        return alerts.alarm(f.alert, actions);
+    }
+
+    private static void measure(View face, int width) {
+        face.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+    }
+
+    /** The value's width at {@code px}, in the band's own type: 600 weight, tabular digits. */
+    private static int valueWidth(String value, float px) {
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setTypeface(NotchParts.typeface(600));
+        p.setFontFeatureSettings("tnum");
+        p.setTextSize(px);
+        return (int) Math.ceil(p.measureText(value)) + 1;
+    }
+
+    private int displayHeight() {
+        if (Build.VERSION.SDK_INT >= 30) return wm.getMaximumWindowMetrics().getBounds().height();
+        return context.getResources().getDisplayMetrics().heightPixels;
     }
 
     private static String describe(NotchFrame f) {

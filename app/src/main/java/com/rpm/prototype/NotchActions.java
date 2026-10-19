@@ -8,7 +8,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
- * The island's links into the planner: Log meal, Open plan and a task's sheet. Glass, Done and alert changes save in
+ * The island's links into the planner: the meal row, Open and a task's sheet. Glass, Done and alert changes save in
  * place (NotchChanges); only these open the planner. Every action writes one diagnostics event (and a logcat line).
  */
 final class NotchActions {

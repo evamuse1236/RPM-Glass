@@ -11,6 +11,9 @@ final class NotchScene {
     /** Which icon and accent a shape or row uses. */
     enum Look { TASK, EVENT, WATER, HABIT, MEAL, REMINDER, ALARM }
 
+    /** The open island's controls: Done ticks the task, Glass logs water, Later holds due water and routine nudges. */
+    enum Control { DONE, GLASS, LATER }
+
     static final String WATER_SNOOZE = "water";
 
     static String routineSnooze(String routineId) {
@@ -56,15 +59,13 @@ final class NotchScene {
     /** The first task occurrence today whose alert is still to come, or null. */
     final NotchDay.Slot nextAlert;
     final String heroAt;
-    /** The collapsed pill's value for the current item: "25m" left, or the start time. */
+    /** The collapsed pill's value for the current item: "25m" left, or the start time ("4:30", with AM/PM only beyond 12 h). */
     final String pillValue;
     final String spoken;
     /** The expanded panel's hero row: the current item, else the due water or routine. */
     final Look heroLook;
     final String heroTitle;
     final String heroSubtitle;
-    final String barStart;
-    final String barEnd;
     final float progress;
     final String barSpoken;
     final List<Row> rows = new ArrayList<>();
@@ -108,17 +109,13 @@ final class NotchScene {
             if (running) {
                 pillValue = NotchDay.minutes(hero.end - now);
                 heroSubtitle = block + NotchDay.spoken(hero.end - now) + " left";
-                barStart = NotchDay.minutes(Math.max(NotchDay.MIN, now - hero.start));
-                barEnd = "-" + pillValue;
                 progress = (now - hero.start) / (float) (hero.end - hero.start);
                 spoken = hero.task.title + ", " + NotchDay.spoken(hero.end - now) + " left";
-                barSpoken = barStart + " done, " + pillValue + " left";
+                barSpoken = NotchDay.minutes(Math.max(NotchDay.MIN, now - hero.start)) + " done, " + pillValue + " left";
             } else {
                 String at = NotchDay.clock(hero.start, zone, h24);
-                pillValue = at;
+                pillValue = NotchDay.shortClock(hero.start, now, zone, h24);
                 heroSubtitle = block + at + ", in " + NotchDay.spoken(hero.start - now);
-                barStart = at;
-                barEnd = NotchDay.minutes(hero.end - hero.start);
                 progress = 0;
                 spoken = "Next: " + hero.task.title + " at " + at;
                 barSpoken = "Starts at " + at + ", lasts " + NotchDay.spoken(hero.end - hero.start);
@@ -129,16 +126,12 @@ final class NotchScene {
                 heroLook = Look.WATER;
                 heroTitle = "Water";
                 heroSubtitle = water == null ? "" : water.count + " of " + water.goal + " glasses today" + (waterDue() ? " · due now" : "");
-                barStart = water == null ? "" : String.valueOf(water.count);
-                barEnd = water == null ? "" : String.valueOf(water.goal);
                 progress = water == null ? 0 : Math.min(1f, water.count / (float) water.goal);
                 barSpoken = water == null ? "" : water.count + " of " + water.goal + " glasses";
             } else {
                 heroLook = Look.HABIT;
                 heroTitle = habit.routine.name;
                 heroSubtitle = habit.nextStep == null ? habitValue(habit) + " done" : "Next: " + habit.nextStep;
-                barStart = String.valueOf(habit.done);
-                barEnd = String.valueOf(habit.total);
                 progress = habit.done / (float) habit.total;
                 barSpoken = habit.done + " of " + habit.total + " steps done";
             }
@@ -194,13 +187,39 @@ final class NotchScene {
         return waterDue() || habit != null;
     }
 
+    /**
+     * One primary control for the hero, and Later beside Glass when water is due. A control that cannot act is left out,
+     * never greyed: a calendar event has none.
+     */
+    List<Control> controls() {
+        List<Control> out = new ArrayList<>();
+        if (hero != null) {
+            if (canDone()) out.add(Control.DONE);
+        } else if (canDrink()) {
+            out.add(Control.GLASS);
+            if (canSnooze()) out.add(Control.LATER);
+        } else if (canSnooze()) {
+            out.add(Control.LATER);
+        }
+        return out;
+    }
+
+    /** The first {@code n} rows; when rows must drop to fit, the water row stays, so the island can always log a glass. */
+    List<Row> visibleRows(int n) {
+        List<Row> out = new ArrayList<>(rows);
+        for (int i = out.size() - 1; out.size() > Math.max(0, n) && i >= 0; i--) {
+            if (out.get(i).look != Look.WATER || n == 0) out.remove(i);
+        }
+        return out;
+    }
+
     /** Changes whenever anything the panel draws changes. */
     String key() {
         StringBuilder k = new StringBuilder(hero == null ? "-" : hero.task.id + "@" + hero.start);
-        k.append('|').append(heroLook).append(heroTitle).append('|').append(heroSubtitle).append('|').append(barStart).append('|')
-                .append(barEnd).append('|').append(Math.round(progress * 1000)).append(canDone()).append(canDrink()).append(canSnooze()).append(canLogMeal)
+        k.append('|').append(heroLook).append(heroTitle).append('|').append(heroSubtitle).append('|')
+                .append('|').append(Math.round(progress * 1000)).append(canDone()).append(canDrink()).append(canSnooze()).append(canLogMeal)
                 .append(meal != null).append('|').append(heroAlert);
-        for (int i = 0; i < Math.min(2, rows.size()); i++) {
+        for (int i = 0; i < rows.size(); i++) {
             Row r = rows.get(i);
             k.append('|').append(r.look).append(r.title).append(r.value).append(r.alert);
         }

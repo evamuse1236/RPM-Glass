@@ -102,7 +102,7 @@ public class NotchAlertRowsTest {
         NotchFrame.Managed reminder = new NotchFrame.Managed(s.hero, s.heroAt);
         assertEquals("Reminder · 4:30 PM", reminder.line());
         assertFalse(reminder.line().toLowerCase().matches(".*(alarm|ringing).*"));
-        assertFalse(NotchContent.alertSpoken("reminder", "Call", "4:30 PM").toLowerCase().matches(".*(alarm|ringing).*"));
+        assertFalse(NotchParts.alertSpoken("reminder", "Call", "4:30 PM").toLowerCase().matches(".*(alarm|ringing).*"));
         NotchFrame.Managed alarm = new NotchFrame.Managed(scene(day("alarm"), "2026-10-18T16:20").hero, "4:30 PM");
         assertEquals("Ringing alarm · 4:30 PM", alarm.line());
         assertNotEquals(reminder.key(), alarm.key());

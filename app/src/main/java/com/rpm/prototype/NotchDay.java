@@ -148,4 +148,15 @@ final class NotchDay {
     static String clock(long at, ZoneId zone, boolean h24) {
         return DateTimeFormatter.ofPattern(h24 ? "H:mm" : "h:mm a", Locale.US).format(Instant.ofEpochMilli(at).atZone(zone));
     }
+
+    /** The pill's clock: "4:30" within 12 hours of {@code now}, "4:30 PM" further away. */
+    static String shortClock(long at, long now, ZoneId zone, boolean h24) {
+        String full = clock(at, zone, h24);
+        return Math.abs(at - now) <= 12 * 60 * MIN ? dropAmPm(full) : full;
+    }
+
+    /** "4:30 PM" without its " PM"; a 24-hour clock is left alone. */
+    static String dropAmPm(String clock) {
+        return clock.endsWith(" AM") || clock.endsWith(" PM") ? clock.substring(0, clock.length() - 3) : clock;
+    }
 }

@@ -2,14 +2,12 @@ package com.rpm.prototype;
 
 /**
  * Where the black island sits, in screen pixels: the body, its corner radius, the split circle beside the pill and
- * the area that takes touches. The pill hugs the camera; the open and alert islands float 12dp in from each side.
+ * the area that takes touches. The pill hugs the camera; the open, alert and receipt islands float 12dp in from each
+ * side with one 36dp corner (NotchGeometry).
  */
 final class IslandShape {
     static final int ISLAND_INSET_DP = 12;
-    static final int OPEN_RADIUS_DP = 32;
-    static final int ALERT_RADIUS_DP = 28;
     static final int SPLIT_GAP_DP = 8;
-    static final int MIN_PILL_WIDTH_DP = 140;
     static final int TOUCH_HEIGHT_DP = 48;
     static final int SHADOW_SIDE_DP = 12;
     static final int SHADOW_BELOW_DP = 16;
@@ -56,12 +54,16 @@ final class IslandShape {
                 new Box(touchLeft, 0, x + w, touchBottom), dp(SHADOW_SIDE_DP, density), dp(SHADOW_BELOW_DP, density));
     }
 
-    /** The open or alert island: the screen's width less 12dp each side, its top at the pill's top, {@code height} tall. */
-    static IslandShape island(NotchAnchor a, int displayWidth, int height, int radiusDp, float density) {
+    /**
+     * The open, alert or receipt island: the screen's width less 12dp each side, its top at the pill's top, {@code height}
+     * tall, with a 36dp corner. The split circle folds into the band's leading circle.
+     */
+    static IslandShape island(NotchAnchor a, int displayWidth, int height, float density) {
         int x = dp(ISLAND_INSET_DP, density);
         int top = a.pillTop();
         int right = displayWidth - x;
-        return new IslandShape(x, top, right, top + height, dp(radiusDp, density), x + a.pillHeight / 2f, a.centerY, 0f, 1f,
+        float lead = dp(NotchGeometry.PAD_DP, density) + dp(NotchGeometry.CIRCLE_DP, density) / 2f;
+        return new IslandShape(x, top, right, top + height, dp(NotchGeometry.RADIUS_DP, density), x + lead, top + lead, 0f, 1f,
                 new Box(x, 0, right, top + height), dp(SHADOW_SIDE_DP, density), dp(SHADOW_BELOW_DP, density));
     }
 

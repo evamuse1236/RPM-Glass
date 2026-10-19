@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {parseNotchData} from './notch-day.mjs';
-import {notchScene, alertScene, WATER_SNOOZE, routineSnooze, PillPriority} from './notch-scene.mjs';
-import {anchor} from './notch-geometry.mjs';
+import {notchScene, alertScene, WATER_SNOOZE, routineSnooze, PillPriority, controls, visibleRows, progress, heroValue} from './notch-scene.mjs';
+import {anchor, G, innerRadius, faceTop, bandAt, pillRing} from './notch-geometry.mjs';
 import {S24} from './device.mjs';
 
 const at = local => new Date(local + ':00+05:30').getTime();
@@ -28,8 +29,6 @@ test('a running task shows time left everywhere', () => {
   assert.equal(s.pillValue, '25m');
   assert.equal(s.heroTitle, 'Write RM essay');
   assert.equal(s.heroSubtitle, 'Study · 25 min left');
-  assert.equal(s.barStart, '20m');
-  assert.equal(s.barEnd, '-25m');
   assert.ok(Math.abs(s.progress - 20 / 45) < 0.001);
   assert.equal(s.spoken, 'Write RM essay, 25 min left');
   assert.ok(s.canDone);
@@ -37,9 +36,8 @@ test('a running task shows time left everywhere', () => {
 
 test('between items the pill shows when the next starts', () => {
   const s = scene(day(false), '2026-10-18T16:20');
-  assert.equal(s.pillValue, '4:30 PM');
+  assert.equal(s.pillValue, '4:30');
   assert.equal(s.heroSubtitle, 'Study · 4:30 PM, in 10 min');
-  assert.equal(s.barEnd, '30m');
   assert.equal(s.progress, 0);
 });
 
@@ -149,4 +147,71 @@ test('a task row whose alert is still to come carries its chip instead of a seco
   const during = scene(alertRowsDay('reminder'), '2026-10-18T16:40');
   assert.equal(during.heroAlert, '');
   assert.equal(during.nextAlert.task.id, 3);
+});
+
+test('the pill drops AM/PM within 12 hours', () => {
+  assert.equal(scene(day(false), '2026-10-18T16:20').pillValue, '4:30');
+  assert.equal(scene(day(false), '2026-10-18T03:00').pillValue, '3:30 PM');
+  assert.equal(scene(day(false), '2026-10-18T03:31').pillValue, '3:30');
+  assert.equal(notchScene(day(false), at('2026-10-18T16:20'), {}, true).pillValue, '16:30');
+});
+
+test('the ring fills per kind: time used, empty when upcoming, glasses, steps', () => {
+  const running = scene(day(true), '2026-10-18T15:50');
+  assert.ok(Math.abs(progress('TASK', running) - 20 / 45) < 0.001);
+  const upcoming = scene(day(true), '2026-10-18T16:20');
+  assert.equal(progress('TASK', upcoming), 0);
+  assert.equal(progress('WATER', upcoming), 2 / 8);
+  assert.equal(progress('HABIT', scene(day(true), '2026-10-18T16:05')), 0);
+  assert.equal(heroValue(running), '25m');
+  assert.equal(heroValue(scene(day(true), '2026-10-18T21:00')), '2/8');
+});
+
+test('the hero has one primary control, never greyed; Later only sits beside Glass', () => {
+  assert.deepEqual(controls(scene(day(true), '2026-10-18T15:50')), ['DONE']);
+  const events = [{start: at('2026-10-18T15:00'), end: at('2026-10-18T18:00'), title: 'Seminar', allDay: false, busy: false}];
+  assert.deepEqual(controls(scene(day(false, events), '2026-10-18T17:30')), []);
+  assert.deepEqual(controls(scene(day(true), '2026-10-18T21:00')), ['GLASS', 'LATER']);
+});
+
+test('the island always offers Glass, as the primary or as a row that stays when rows drop', () => {
+  for (const local of ['2026-10-18T15:50', '2026-10-18T16:05', '2026-10-18T16:20', '2026-10-18T21:00']) {
+    const s = scene(day(true), local);
+    for (let n = 1; n <= 3; n++) {
+      const rows = visibleRows(s, n);
+      assert.ok(rows.length <= n);
+      assert.ok(controls(s).includes('GLASS') || rows.some(r => r.look === 'WATER'), `${local} with ${n} rows`);
+    }
+  }
+});
+
+test('margins are 16dp on all four sides and every inner corner is 36 less its inset', () => {
+  assert.equal(G.RADIUS_DP, 36);
+  assert.equal(G.PAD_DP, 16);
+  assert.equal(innerRadius(G.PAD_DP), 20);
+  assert.equal(innerRadius(G.PAD_DP), G.CIRCLE_DP / 2);
+  assert.equal(innerRadius(G.PAD_DP), G.CONTROL_DP / 2);
+  const island = {x: 12, w: 360};
+  const band = bandAt('open', island, 4);
+  assert.equal(band.cx - band.d / 2 - island.x, 16);
+  assert.equal(band.cy - band.d / 2 - 4, 16);
+  assert.equal(island.x + island.w - band.valueRight, 16);
+  assert.equal(faceTop(), 16 + 40 + 12);
+  const css = readFileSync(new URL('./notch.css', import.meta.url), 'utf8');
+  assert.match(css, /--radius: 36px;/);
+  assert.match(css, /--pad: 16px;/);
+  assert.match(css, /--inner: calc\(var\(--radius\) - var\(--pad\)\);/);
+  assert.match(css, /padding: calc\(var\(--pad\) \+ var\(--circle\) \+ 12px\) var\(--pad\) var\(--pad\);/);
+  const pill = {x: 100, w: 140, h: 36};
+  const ring = bandAt('pill', pill, 0);
+  assert.equal(ring.d, 28);
+  assert.equal(pill.h / 2 - (ring.cx - ring.d / 2 - pill.x), ring.d / 2, 'the ring is concentric with the pill: 18 - 4 = 14');
+  assert.equal(pillRing(28), 20);
+});
+
+test('the copy uses the phone\'s sizes: NotchGeometry.java and notch-geometry.mjs match', () => {
+  const java = readFileSync(new URL('../app/src/main/java/com/rpm/prototype/NotchGeometry.java', import.meta.url), 'utf8');
+  const constants = Object.fromEntries([...java.matchAll(/static final (?:int|float) (\w+) = ([\d.]+)f?;/g)].map(([, k, v]) => [k, Number(v)]));
+  for (const [k, v] of Object.entries(G)) assert.equal(constants[k], v, k);
+  assert.ok(Object.keys(G).length >= 20);
 });

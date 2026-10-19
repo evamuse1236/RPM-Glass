@@ -124,6 +124,12 @@ export function clock(at, h24) {
   return `${d.getHours() % 12 || 12}:${mm} ${d.getHours() < 12 ? 'AM' : 'PM'}`;
 }
 
+/** "4:30 PM" without its " PM"; a 24-hour clock is left alone. */
+export const dropAmPm = text => text.replace(/ [AP]M$/, '');
+
+/** The pill's clock: "4:30" within 12 hours of now, "4:30 PM" further away. */
+export const shortClock = (at, now, h24) => Math.abs(at - now) <= 12 * 60 * MIN ? dropAmPm(clock(at, h24)) : clock(at, h24);
+
 export function waterStatus(glasses, s, busy, snoozedUntil, now) {
   const day = localDay(now);
   const todays = glasses.filter(g => localDay(g) === day);

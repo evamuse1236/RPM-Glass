@@ -1,5 +1,5 @@
 // Copy of NotchScene and PillPriority: the phone runs the Java, so change both together.
-import {today, hero as pickHero, after, running, minutes, spoken, clock, waterStatus, routines, routineDue, unloggedMeal, slotName} from './notch-day.mjs';
+import {today, hero as pickHero, after, running, minutes, spoken, clock, shortClock, waterStatus, routines, routineDue, unloggedMeal, slotName} from './notch-day.mjs';
 
 export const WATER_SNOOZE = 'water';
 export const ALERT_SNOOZE_MINUTES = 10;
@@ -34,16 +34,12 @@ export function notchScene(data, now, snoozes = {}, h24 = false) {
     if (isRunning) {
       s.pillValue = minutes(hero.end - now);
       s.heroSubtitle = block + spoken(hero.end - now) + ' left';
-      s.barStart = minutes(Math.max(60_000, now - hero.start));
-      s.barEnd = '-' + s.pillValue;
       s.progress = (now - hero.start) / (hero.end - hero.start);
       s.spoken = `${hero.task.title}, ${spoken(hero.end - now)} left`;
     } else {
       const at = clock(hero.start, h24);
-      s.pillValue = at;
+      s.pillValue = shortClock(hero.start, now, h24);
       s.heroSubtitle = `${block}${at}, in ${spoken(hero.start - now)}`;
-      s.barStart = at;
-      s.barEnd = minutes(hero.end - hero.start);
       s.progress = 0;
       s.spoken = `Next: ${hero.task.title} at ${at}`;
     }
@@ -51,15 +47,11 @@ export function notchScene(data, now, snoozes = {}, h24 = false) {
     s.heroLook = 'WATER';
     s.heroTitle = 'Water';
     s.heroSubtitle = water ? `${water.count} of ${water.goal} glasses today${waterDue ? ' · due now' : ''}` : '';
-    s.barStart = water ? String(water.count) : '';
-    s.barEnd = water ? String(water.goal) : '';
     s.progress = water ? Math.min(1, water.count / water.goal) : 0;
   } else {
     s.heroLook = 'HABIT';
     s.heroTitle = habit.routine.name;
     s.heroSubtitle = habit.nextStep == null ? `${habit.done}/${habit.total} done` : 'Next: ' + habit.nextStep;
-    s.barStart = String(habit.done);
-    s.barEnd = String(habit.total);
     s.progress = habit.done / habit.total;
   }
 
@@ -78,7 +70,36 @@ export function notchScene(data, now, snoozes = {}, h24 = false) {
   s.rows.length = Math.min(s.rows.length, 3);
   s.canDone = !!hero && !hero.task.fixed;
   s.canSnooze = waterDue || !!habit;
+  s.canDrink = !!water && s.heroLook === 'WATER';
   return s;
+}
+
+/** One primary control for the hero, and Later beside Glass when water is due. A control that cannot act is left out, never greyed. */
+export function controls(s) {
+  if (s.hero) return s.canDone ? ['DONE'] : [];
+  if (s.canDrink) return s.canSnooze ? ['GLASS', 'LATER'] : ['GLASS'];
+  return s.canSnooze ? ['LATER'] : [];
+}
+
+/** The first n rows; when rows must drop to fit, the water row stays, so the island can always log a glass. */
+export function visibleRows(s, n) {
+  const out = [...s.rows];
+  for (let i = out.length - 1; out.length > Math.max(0, n) && i >= 0; i--) if (out[i].look !== 'WATER' || n === 0) out.splice(i, 1);
+  return out;
+}
+
+/** How full the ring is: a running task by time used, an upcoming one empty, water by glasses, a routine by steps. */
+export function progress(kind, s) {
+  if (kind === 'WATER') return s.water ? s.water.count / Math.max(1, s.water.goal) : 0;
+  if (kind === 'HABIT') return s.habit ? s.habit.done / Math.max(1, s.habit.total) : 0;
+  return s.hero && s.running ? s.progress : 0;
+}
+
+/** The island's trailing value: the pill's "45m" or "4:30" for a task, else water's "3/8" or the routine's "2/5". */
+export function heroValue(s) {
+  if (s.hero) return s.pillValue;
+  if (s.heroLook === 'HABIT' && s.habit) return `${s.habit.done}/${s.habit.total}`;
+  return s.water ? `${s.water.count}/${s.water.goal}` : '';
 }
 
 /** What an alert island says: the next task today that asked for this alert, else the hero. A reminder never says "alarm". */

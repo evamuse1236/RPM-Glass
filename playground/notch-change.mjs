@@ -1,73 +1,57 @@
-import {el, glyph, text, button, control, accent} from './notch-parts.mjs';
+// Copy of NotchChangeViews and NotchReceipt: the receipt keeps the band (its ring fills, Undo takes the trailing slot).
+import {el, glyph, text, button, face, title, line, pill, controls, row, INK, accent} from './notch-parts.mjs';
 import {alertLook, alertName} from './notch-scene.mjs';
 
-const MARK = {water: ['notch_ic_water', '#7CACF8'], done: ['ic_check', 'rgb(255 255 255 / .87)'], reminder: ['ic_notification', 'rgb(255 255 255 / .87)'],
-  alarm: ['ic_clock', '#F2B8B5'], off: ['notch_ic_alert_off', 'rgb(255 255 255 / .87)']};
+export const MARK = {water: ['notch_ic_water', INK.WATER, INK.WATER], done: ['ic_check', INK.TASK, INK.W87], reminder: ['ic_notification', INK.TASK, INK.W87],
+  alarm: ['ic_clock', INK.ALARM, INK.ALARM], off: ['notch_ic_alert_off', INK.TASK, INK.W87]};
 
 /** What NotchReceipt says first, while the change saves. */
-export function receiptFor(change, {water, title}) {
+export function receiptFor(change, {water, title: name}) {
+  const at = Date.now();
   if (change === 'drink') {
     const count = water?.count ?? 0, goal = Math.max(1, water?.goal ?? 8);
-    return {mark: 'water', title: 'Glass logged', detail: `${count + 1} of ${goal} today`, from: count / goal, to: Math.min(1, (count + 1) / goal), undo: true};
+    return {mark: 'water', title: 'Glass logged', detail: `${count + 1} of ${goal} today`, from: count / goal, to: Math.min(1, (count + 1) / goal), undo: true, at};
   }
-  if (change === 'done') return {mark: 'done', title: 'Done', detail: title, from: 0, to: 1, undo: true};
-  return {mark: change, title: change === 'off' ? 'Alert off' : alertName(change) + ' set', detail: title, from: 1, to: 1, undo: true};
+  if (change === 'done') return {mark: 'done', title: 'Done', detail: name, from: 0, to: 1, undo: true, at};
+  return {mark: change, title: change === 'off' ? 'Alert off' : alertName(change) + ' set', detail: name, from: 1, to: 1, undo: true, at};
 }
 
 /** "Reminder at 4:30 PM for Group call. Opens its controls." A reminder never says alarm. */
-export const alertSpoken = (alert, title, at) => `${alertName(alert)} at ${at} for ${title}. Opens its controls.`;
+export const alertSpoken = (alert, name, at) => `${alertName(alert)} at ${at} for ${name}. Opens its controls.`;
 
-/** The alert's bell or clock and its time on a dim pill; a button of its own only where it is not inside a row. */
-export function alertChip(alert, at, spoken, action) {
-  const chip = action ? button('notch-alert-chip', spoken, action) : el('span', 'notch-alert-chip');
+/** The alert's bell or clock and its time on a dim pill. */
+export function alertChip(alert, at) {
+  const chip = el('span', 'notch-alert-chip');
   const g = glyph(alertLook(alert));
   g.style.color = accent(alertLook(alert));
-  chip.append(g, text(at, 13, 'rgb(255 255 255 / .87)', 500));
+  chip.append(g, text(at, 'notch-chip-time'));
   return chip;
 }
 
+/** "Glass logged" over "4 of 8 today" under the band, and Undo in the band once the change is saved. */
 export function receiptFace(r, actions) {
-  const face = el('div', 'island-face island-receipt', {role: 'status'});
-  const [icon, color] = MARK[r.mark] ?? MARK.done;
-  const mark = el('span', 'receipt-mark');
-  mark.style.setProperty('--mark', color);
-  mark.style.setProperty('--from', String(1 - r.from));
-  mark.style.setProperty('--to', String(1 - r.to));
-  mark.innerHTML = '<svg viewBox="0 0 40 40" aria-hidden="true"><circle class="receipt-track" cx="20" cy="20" r="18.5"/>'
-    + '<circle class="receipt-ring" cx="20" cy="20" r="18.5" pathLength="1"/></svg>';
-  const g = glyph(null, icon);
-  g.style.color = color;
-  mark.append(g);
-  const words = el('span', 'receipt-words');
-  words.append(text(r.title, 16, '#fff', 600, 'notch-text receipt-title'), text(r.detail, 13, r.problem ? '#F2B8B5' : 'rgb(255 255 255 / .7)', 400));
-  face.append(mark, words);
+  const f = face('island-receipt', text(r.title, 'receipt-title'), text(r.detail, 'receipt-detail', r.problem ? INK.ALARM : INK.W70));
+  f.setAttribute('role', 'status');
   if (r.undo) {
-    const undo = button('receipt-undo', `Undo: ${r.title}`, actions.undo);
+    const slot = el('div', 'notch-band-control');
+    const undo = button('notch-undo', `Undo: ${r.title}`, actions.undo);
     undo.textContent = 'Undo';
-    face.append(undo);
+    slot.append(undo);
+    f.append(slot);
   }
-  return face;
+  return f;
 }
 
-/** The task and its alert, then Turn off, Reminder or Alarm, Done and Open. */
+/** The task and its alert, then Turn off as the one primary, and rows to switch the alert, tick it, or open it. */
 export function manageFace(m, actions) {
-  const face = el('div', 'island-face island-open island-manage');
-  const look = alertLook(m.alert), alarm = m.alert === 'alarm';
-  const hero = el('div', 'notch-hero');
-  const tile = el('span', 'notch-tile');
-  tile.style.background = alarm ? '#260302' : '#3C3C3C';
-  const g = glyph(look);
-  g.style.color = accent(look);
-  tile.append(g);
-  const words = el('div', 'notch-words');
-  words.append(text(m.title, 17, '#fff', 600), text(`${alertName(m.alert)} · ${m.at}`, 14, accent(look), 400, 'notch-text notch-sub'));
-  hero.append(tile, words);
-  const controls = el('div', 'notch-controls manage-controls');
-  controls.append(control('notch_ic_alert_off', 'Turn off', `Turn off the alert for ${m.title}`, true, () => actions.setAlert('off')),
-    control(alarm ? 'ic_notification' : 'ic_clock', alarm ? 'Reminder' : 'Alarm', alarm ? 'Make it a reminder instead' : 'Make it a ringing alarm instead',
-      true, () => actions.setAlert(alarm ? 'reminder' : 'alarm')),
-    control('notch_ic_done', 'Done', `Done: ${m.title}`, true, actions.doneManaged),
-    control('ic_open', 'Open', `Open ${m.title} in the plan`, true, actions.openManaged));
-  face.append(hero, controls);
-  return face;
+  const alarm = m.alert === 'alarm';
+  const rows = el('div', 'notch-rows');
+  rows.append(
+    row(alarm ? 'ic_notification' : 'ic_clock', accent(alertLook(alarm ? 'reminder' : 'alarm')), alarm ? 'Make it a reminder' : 'Make it a ringing alarm',
+      alarm ? 'Make it a reminder instead' : 'Make it a ringing alarm instead', () => actions.setAlert(alarm ? 'reminder' : 'alarm')),
+    row('ic_check', INK.W60, 'Done', `Done: ${m.title}`, actions.doneManaged),
+    row('ic_open', INK.W60, 'Open', `Open ${m.title} in the plan`, actions.openManaged));
+  return face('island-manage', title(m.title), line(`${alertName(m.alert)} · ${m.at}`, alarm ? INK.ALARM : INK.W70),
+    controls(pill('notch_ic_alert_off', 'Turn off', `Turn off the alert for ${m.title}`, alarm ? INK.ALARM : INK.TASK, true, () => actions.setAlert('off'))),
+    rows);
 }
