@@ -113,17 +113,29 @@
 .settings-slider small { font: var(--body-medium); color: var(--on-surface-variant); }
 .widget-text-preview { margin-top: var(--s2); padding: var(--s3); border-radius: var(--shape-md); background: var(--surface-container); }
 .switch {
-  width: 52px;
-  height: 32px;
-  border-radius: var(--shape-full);
-  border: 2px solid var(--outline);
-  background: var(--surface-container-highest);
+  inline-size: 51px;
+  block-size: 31px;
+  border-radius: var(--r-pill);
+  background: var(--fill);
   position: relative;
   flex: none;
 }
-.switch-thumb { position: absolute; top: 6px; left: 6px; width: 16px; height: 16px; border-radius: 50%; background: var(--outline); transition: all var(--dur-short); }
-[aria-checked=true] > .switch { background: var(--primary); border-color: var(--primary); }
-[aria-checked=true] > .switch .switch-thumb { left: 22px; top: 2px; width: 24px; height: 24px; background: var(--on-primary); }
+.switch-thumb {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: 2px;
+  inline-size: 27px;
+  block-size: 27px;
+  border-radius: 50%;
+  background: oklch(100% 0 none);
+  box-shadow: 0 2px 6px oklch(0% 0 none / .2);
+}
+[aria-checked=true] > .switch { background: var(--success); }
+[aria-checked=true] > .switch .switch-thumb { translate: 20px 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .switch { transition: background-color var(--dur-short4) var(--ease-standard); }
+  .switch-thumb { transition: translate var(--dur-short4) var(--ease-standard); }
+}
 .settings-details { margin: var(--s2) var(--gutter); }
 .settings-details summary { min-height: var(--touch); display: flex; align-items: center; font: var(--body-large); cursor: pointer; }
 .settings-details .settings-group { border: 0; }
