@@ -71,6 +71,7 @@ public class NotchSceneTest {
         assertEquals(20 / 45f, s.progress, 0.001);
         assertEquals("Write RM essay, 25 min left", s.spoken);
         assertTrue(s.canDone());
+        assertFalse(s.canDrink());
     }
 
     @Test
@@ -138,6 +139,8 @@ public class NotchSceneTest {
         assertNull(s.hero);
         assertEquals(Look.WATER, s.heroLook);
         assertEquals("2 of 8 glasses today · due now", s.heroSubtitle);
+        assertTrue(s.canDrink());
+        assertFalse(s.canDone());
         assertEquals("Dinner", s.rows.get(s.rows.size() - 1).title);
         assertEquals("Not logged", s.rows.get(s.rows.size() - 1).value);
     }

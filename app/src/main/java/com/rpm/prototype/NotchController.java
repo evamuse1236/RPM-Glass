@@ -276,6 +276,13 @@ final class NotchController implements NotchPill.Gestures {
             render();
         }
 
+        @Override
+        public void drink() {
+            expanded = false;
+            NotchActions.drink(service);
+            render();
+        }
+
         /** Holds the due water and routine nudges here for the snooze time; the planner's own data is untouched. */
         @Override
         public void snooze() {

@@ -8,7 +8,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
- * The panel's controls. Done and Log meal go through the planner, so its own save, log and Undo apply; the notch
+ * The panel's controls. Done, Glass and Log meal go through the planner, so its own save, log and Undo apply; the notch
  * never writes companion.json. Every action writes one diagnostics event (and a logcat line).
  */
 final class NotchActions {
@@ -22,6 +22,17 @@ final class NotchActions {
         } catch (JSONException | RuntimeException e) {
             log(c, "notch.done", "error", payload("taskId", slot.task.id, "error", e.getClass().getSimpleName()));
             Log.e(NotchController.TAG, "could not open Done in the planner", e);
+        }
+    }
+
+    /** Logs one glass through the planner's own save, so its "Glass logged · Undo" bar is the way back. */
+    static void drink(Context c) {
+        try {
+            planner(c, new JSONObject().put("view", "water").put("drink", true));
+            log(c, "notch.drink", "opened", null);
+        } catch (JSONException | RuntimeException e) {
+            log(c, "notch.drink", "error", payload("error", e.getClass().getSimpleName()));
+            Log.e(NotchController.TAG, "could not log a glass in the planner", e);
         }
     }
 

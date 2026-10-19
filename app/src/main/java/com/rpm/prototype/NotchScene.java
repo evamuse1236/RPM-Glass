@@ -148,6 +148,11 @@ final class NotchScene {
         return hero != null && !hero.task.fixed;
     }
 
+    /** With no task to tick, water is the hero and its first control logs a glass. */
+    boolean canDrink() {
+        return water != null && heroLook == Look.WATER;
+    }
+
     boolean canSnooze() {
         return waterDue() || habit != null;
     }
@@ -156,7 +161,7 @@ final class NotchScene {
     String key() {
         StringBuilder k = new StringBuilder(hero == null ? "-" : hero.task.id + "@" + hero.start);
         k.append('|').append(heroLook).append(heroTitle).append('|').append(heroSubtitle).append('|').append(barStart).append('|')
-                .append(barEnd).append('|').append(Math.round(progress * 1000)).append(canDone()).append(canSnooze()).append(canLogMeal);
+                .append(barEnd).append('|').append(Math.round(progress * 1000)).append(canDone()).append(canDrink()).append(canSnooze()).append(canLogMeal);
         for (Row r : rows) k.append('|').append(r.look).append(r.title).append(r.value);
         return k.toString();
     }

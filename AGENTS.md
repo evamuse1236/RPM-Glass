@@ -48,6 +48,7 @@ For an authorized phone release, compare the working tree, branch, and installed
 | The notch's drawing window never moves: it sits at the screen's top-left at full width and only its height changes, so a morph is never drawn at a stale position. A small touch window over the pill takes its taps. | `IslandWindowTest.java` (`theDrawingWindowNeverMovesOnlyItsHeightChanges`) |
 | A tap anywhere on the notch pill opens the island; a finger that drifts less than 8dp is still a tap. | `IslandGestureTest.java` |
 | The open and alert islands float 12dp in from each side with their top at the pill's top. | `IslandShapeTest.java` |
+| With water due and no task to tick, the island's first control is Glass, which logs one glass through the planner with Undo. | `NotchSceneTest.java` (`noTaskLeftAndWaterDueMakesWaterTheHero`), `verify-rpm-glass` `notch-glass` drive |
 | A notch reminder never says "alarm" or "ringing"; only a ringing alarm does. | `NotchFrameTest.java` |
 | "Done" needs proof from the real app: a build and a screenshot newer than the change. | `scripts/agent/require-evidence.mjs` (Stop hook in `.claude/settings.json`, `npm run check:evidence`) |
 | A phone release updates the installed app in place: same signing key, and the build matches this checkout. | `rpmctl doctor --serial <phone>` (`installed-signer-matches-local`, `installed-apk-matches-local-build`, `installed-version`) |

@@ -4,7 +4,7 @@ import {openTask} from './task-sheets.mjs';
 import {contextEditor, entityEditor} from './entities.mjs';
 import {calendarEditor} from './calendar-ui.mjs';
 import {aiAction} from './jev.mjs';
-import {completeFromNotch, openMealFromNotch} from './notch-link.mjs';
+import {completeFromNotch, openMealFromNotch, drinkFromNotch} from './notch-link.mjs';
 
 /** A Goal drafted by Capture: keeps the exact source words; entity fields stay within limits. */
 export function capturedGoalDraft(target) {
@@ -41,7 +41,7 @@ export function savedPlannerTarget(target) {
 
 const SETTINGS_VIEWS = ['settings', 'alarm_sound', 'reminder_sound', 'ai_connection', 'notifications', 'exact_alarms',
   'import_export'];
-const VIEW_TABS = {day: 'today', meal: 'today', rpm: 'blocks', projects: 'projects', life: 'life'};
+const VIEW_TABS = {day: 'today', meal: 'today', water: 'today', rpm: 'blocks', projects: 'projects', life: 'life'};
 
 function openSaved(app, saved) {
   const {state} = app;
@@ -100,5 +100,6 @@ export function openView(app, target) {
   }
   if (target.complete != null) return completeFromNotch(app, target);
   if (target.view === 'meal') return openMealFromNotch(app, target);
+  if (target.view === 'water' && target.drink) return drinkFromNotch(app);
   return undefined;
 }

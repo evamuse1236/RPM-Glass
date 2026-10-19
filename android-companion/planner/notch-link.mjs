@@ -4,6 +4,7 @@ import {occurrences, repeats} from '../planner-recurrence.mjs';
 import {toggleDone} from './task-row.mjs';
 import {openMealSheet} from './meals.mjs';
 import {bodyApi} from './body-api.mjs';
+import {drink} from './water.mjs';
 
 /**
  * The notch's Done: ticks the task (or, for a repeating task, the occurrence starting at `start`) with the planner's
@@ -22,4 +23,9 @@ export function completeFromNotch(app, {complete, start}) {
 /** The notch's Log meal: opens the meal sheet on `slot` (breakfast, lunch, snack or dinner), or on the next free slot. */
 export function openMealFromNotch(app, {slot} = {}) {
   return openMealSheet(app, bodyApi(app), {slot: slot ?? null});
+}
+
+/** The notch's Glass: logs one glass with the planner's own save, so its "Glass logged · Undo" bar is the way back. */
+export function drinkFromNotch(app) {
+  return drink(app, bodyApi(app));
 }

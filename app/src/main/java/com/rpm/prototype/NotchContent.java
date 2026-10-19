@@ -36,6 +36,8 @@ final class NotchContent {
     interface Actions {
         void done();
 
+        void drink();
+
         void snooze();
 
         void logMeal();
@@ -154,7 +156,8 @@ final class NotchContent {
         col.addView(bar, barLp);
 
         LinearLayout controls = new LinearLayout(context);
-        controls.addView(control(R.drawable.notch_ic_done, "Done", scene.canDone() ? "Done: " + scene.heroTitle : "Done", scene.canDone(), actions::done), cell(false));
+        if (scene.canDrink()) controls.addView(control(R.drawable.notch_ic_water, "Glass", "Log a glass of water", true, actions::drink), cell(false));
+        else controls.addView(control(R.drawable.notch_ic_done, "Done", scene.canDone() ? "Done: " + scene.heroTitle : "Done", scene.canDone(), actions::done), cell(false));
         controls.addView(control(R.drawable.notch_ic_snooze, "Snooze", "Snooze " + scene.snoozeMinutes + " minutes", scene.canSnooze(), actions::snooze), cell(true));
         if (scene.meal != null) controls.addView(control(R.drawable.notch_ic_meal, "Log meal", "Log a meal", scene.canLogMeal, actions::logMeal), cell(true));
         else controls.addView(control(R.drawable.ic_open, "Open plan", "Open the plan", true, actions::openPlan), cell(true));
