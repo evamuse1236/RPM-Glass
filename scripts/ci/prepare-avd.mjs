@@ -11,6 +11,8 @@ export function avdConfig(text) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const server = spawnSync('adb', ['start-server'], {encoding: 'utf8'});
+  if (server.error || server.status !== 0) throw new Error(server.error?.message || server.stderr || 'Could not start CI adb server.');
   const dir = process.env.ANDROID_AVD_HOME || path.join(os.homedir(), '.android/avd');
   const config = path.join(dir, 'Galaxy_S24_FE_API_36.avd/config.ini');
   if (!fs.existsSync(config)) {

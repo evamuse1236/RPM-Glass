@@ -54,8 +54,11 @@ jobs:
         uses: actions/cache@v4
         id: avd
         with:
-          path: ~/.android/avd
-          key: rpm-avd-${{ runner.os }}-36-playstore-x86_64-1080x2340-450-v2
+          path: |
+            ~/.android/avd
+            ~/.android/adbkey
+            ~/.android/adbkey.pub
+          key: rpm-avd-${{ runner.os }}-36-playstore-x86_64-1080x2340-450-v3
       - name: Create clean AVD snapshot
         if: steps.avd.outputs.cache-hit != 'true'
         uses: reactivecircus/android-emulator-runner@324029e2f414c084d8b15ba075288885e74aef9c # v2.34.0
