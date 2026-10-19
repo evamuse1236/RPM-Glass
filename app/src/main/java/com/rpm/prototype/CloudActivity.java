@@ -13,23 +13,27 @@ public final class CloudActivity extends Activity {
     private final Runnable refreshStatus=new Runnable(){public void run(){updateStatus();refreshHandler.postDelayed(this,2000);}};
     @Override protected void onResume(){super.onResume();refreshHandler.post(refreshStatus);}
     @Override protected void onPause(){refreshHandler.removeCallbacks(refreshStatus);super.onPause();}
-    private void updateStatus(){
+    void updateStatus(){
         if(syncStatus==null)return;
         try(Store store=new Store(this)){
             int count=store.pendingCount();boolean paired=SyncManager.configured(this);
             String status=SyncManager.prefs(this).getString("status","Waiting to sync");
             if(count>0&&status.equals("Up to date"))status="Waiting to upload";
             syncStatus.setText(paired?status:"Pair this phone with your own Convex project.");
-            pendingStatus.setText(count+" saved changes waiting to upload");
+            updatePlannerStatus(count);
             long last=SyncManager.prefs(this).getLong("last_success",0);
             lastStatus.setText(last>0?"Last successful sync: "+Ui.date(last):"No successful sync yet");
         }
     }
-    @Override public void onCreate(Bundle state){super.onCreate(state);render();}
+    private void updatePlannerStatus(int earlier){
+        try{org.json.JSONObject data=CompanionStore.read(this);long local=data==null?0:data.optLong("version"),uploaded=SyncManager.prefs(this).getLong("planner_revision",-1);pendingStatus.setText("Planner revision "+local+(uploaded>=local?" synced":" waiting to sync")+" · "+earlier+" earlier changes queued");}
+        catch(Exception failure){pendingStatus.setText("Planner is saved on this phone · "+earlier+" earlier changes queued");}
+    }
+    @Override public void onCreate(Bundle state){super.onCreate(state);render();if(state==null&&getIntent().getBooleanExtra("linkWeb",false)&&SyncManager.configured(this))WebLinkDialog.show(this);}
     private void render(){
         Ui.theme(this);LinearLayout root=Ui.column(this);root.setBackgroundColor(Ui.PAPER);root.addView(Ui.toolbar(this,"Cloud sync",this::finish));ScrollView scroll=new ScrollView(this);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));LinearLayout body=Ui.column(this);Ui.padding(body,20,16,20,24);scroll.addView(body);
         
-        body.addView(Ui.text(this,"Save instantly on your phone. Convex receives saved entries, check-ins, edits and results when a connection is available.",16,Ui.MUTED));
+        body.addView(Ui.text(this,"Your planner saves on this phone first. Convex shares a copy with linked browsers and queues their changes for this phone to apply.",16,Ui.MUTED));
         boolean paired=SyncManager.configured(this);
         try(Store store=new Store(this)){
             LinearLayout status=Ui.card(this);status.addView(Ui.heading(this,paired?"Convex sync":"Connect once",20));
@@ -40,6 +44,7 @@ public final class CloudActivity extends Activity {
             if(paired)status.addView(Ui.text(this,SyncManager.prefs(this).getString("url",""),13,Ui.MUTED));body.addView(status);
         }
         if(paired){
+            body.addView(Ui.option(this,R.drawable.ic_cloud,"Link a web browser","One-use code and linked browser controls",()->WebLinkDialog.show(this)));
             body.addView(Ui.button(this,"Sync now",true,()->{Toast.makeText(this,"Syncing…",Toast.LENGTH_SHORT).show();SyncManager.now(this,()->{if(!isFinishing())render();});}));
             body.addView(Ui.button(this,"Disconnect this phone",false,()->new AlertDialog.Builder(this).setTitle("Disconnect Convex?").setMessage("Local entries and cloud records remain. New changes will wait on this phone until you pair again.").setNegativeButton("Keep connected",null).setPositiveButton("Disconnect",(d,w)->{SyncManager.disconnect(this);render();}).show()));
         }
@@ -61,7 +66,7 @@ public final class CloudActivity extends Activity {
         });body.addView(connect);
         }
         Ui.gap(body,24);
-        body.addView(Ui.text(this,"Sync runs after saves and periodically when Android allows background work. This version uploads data; it does not restore or apply cloud edits to this phone.",13,Ui.MUTED));
+        body.addView(Ui.text(this,"Planner changes sync after saves and about every 20 seconds while RPM is open. Linked browsers send commands for this phone to apply. Background sync runs about every 15 minutes or later when Android allows it. AI keys stay on this phone.",13,Ui.MUTED));
         setContentView(root);Ui.insets(this,root);
     }
 }

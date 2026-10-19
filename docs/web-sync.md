@@ -48,12 +48,14 @@ Phone endpoints use the existing paired device token, never a browser token.
 
 | Method and path | Request | Response |
 |---|---|---|
-| `POST /v1/planner/sync` | `{snapshot, acks: [{id, status, message, newRevision}]}` | `{commands, snapshots}`; oldest pending commands plus up to five retained snapshots for base comparison |
+| `POST /v1/planner/sync` | `{snapshot?, acks: [{id, status, message, newRevision}]}` | `{commands, snapshots, revokedCommandIds}`; up to 100 oldest pending commands and five retained snapshots for base comparison |
 | `POST /v1/web/link-code` | `{}` | `{code, expiresAt}` |
 | `GET /v1/web/sessions` | None | `{sessions: [{id, label, createdAt, lastSeenAt, revoked}]}` |
 | `POST /v1/web/revoke` | `{sessionId}` | `{revoked: true}` |
 
 The code has eight characters from an unambiguous uppercase alphabet. It expires after ten minutes and works once. The phone shows it under Settings, Cloud, Link a web browser. That dialog lists browser sessions with last-seen times and revocation controls. Minting a new code invalidates earlier unused codes for that phone. Linking grants access to the same account and identifies that phone as the command executor. The legacy admin pairing code and diagnostic pairing remain separate.
+
+The phone processes one command, saves and acknowledges its result, then refreshes the pending queue before starting another. A sync run processes at most 20 commands. `revokedCommandIds` identifies commands whose browser was revoked. The phone checks its durable receipt first and rejects an unstarted revoked command without running it. An operation already processing may finish or resume after interruption. This preserves the true outcome when revocation races a saved change or a lost acknowledgement. The server keeps the command pending until the phone supplies that outcome.
 
 ## Timing and offline behavior
 
@@ -67,6 +69,6 @@ Deployment adds an optional account ID to existing devices. On pairing or first 
 
 Each account has one authoritative device and one current snapshot with up to four older snapshots for safety and conflict comparison. The cloud rejects browser snapshot writes, cross-account access, decreasing revisions, and a different payload for an already published revision. Browser commands never write planner collections directly. Snapshots are validated on the phone and server. Local command receipts remain durable across transport retries.
 
-`RPM_WEB_ORIGIN` specifies the allowed production origin, such as `https://planner.example.com`. Local development also allows HTTP origins on localhost and 127.0.0.1 with an explicit port. Responses vary by Origin and expose ETag. Preflight allows Authorization, Content-Type, and If-None-Match. No wildcard origin or credentialed cookies are enabled. Authenticated planner and browser endpoints rate-limit each token. Link exchanges also have a global bound to limit code guessing. The phone can revoke each browser independently. No AI credential leaves the phone.
+`RPM_WEB_ORIGIN` specifies the allowed production origin, such as `https://planner.example.com`. Local development also allows HTTP origins on localhost and 127.0.0.1 with an explicit port. Responses vary by Origin and expose ETag. Preflight allows Authorization, Content-Type, and If-None-Match. No wildcard origin or credentialed cookies are enabled. Authenticated planner and browser endpoints allow 120 validated operations per token per minute. Malformed requests fail validation before quota charging. Link exchanges also have a global bound of 30 attempts per minute to limit code guessing. The phone can revoke each browser independently. No AI credential leaves the phone.
 
 This feature requires a Convex deployment and `RPM_WEB_ORIGIN` configuration before live use. The build brief explicitly excludes deployment, emulator, and phone verification. Automated tests prove local contracts and transport behavior; live end-to-end sync and the Cloud dialog remain UNVERIFIED until the orchestrator verifies them.

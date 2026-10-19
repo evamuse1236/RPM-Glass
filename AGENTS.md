@@ -57,4 +57,14 @@ For an authorized phone release, compare the working tree, branch, and installed
 | A phone release updates the installed app in place: same signing key, and the build matches this checkout. | `rpmctl doctor --serial <phone>` (`installed-signer-matches-local`, `installed-apk-matches-local-build`, `installed-version`) |
 | Never drive or change a device the tooling did not start. | `rpmctl` refuses mutating commands on any device but its own read-only emulator |
 | Checks run green on a Windows checkout. | `.gitattributes` (LF checkout) and the win32 guards in the file-mode tests |
+| The phone is the only writer of planner data; browsers read snapshots and send commands. | `cloud-tests/planner.test.ts`, `cloud-tests/webHttp.test.ts`, `android-companion/web-sync.test.mjs` |
+| Planner snapshots use the versioned allowlist and never contain credential, token, trace, model payload, or Undo fields. | `web/contract/validate.mjs`, `android-companion/web-sync.test.mjs`, `SyncManagerTest.snapshotBoundaryRejectsKeysTokensAndTracesAtAnyDepth` |
+| A command ID keeps one payload and one durable result across save failures, process restarts, and lost acknowledgements. | `android-companion/web-sync.test.mjs`, `cloud-tests/planner.test.ts`, `SyncManagerTest.lostAckRedeliversTheSameIdAndDurableResult` |
+| Stale completion and reopening cannot silently act on a task renamed or moved to another day on the phone. | `android-companion/web-sync-conflicts.test.mjs` |
+| Browser revocation blocks fresh command effects while preserving the true receipt of work already saved or processing. | `android-companion/web-sync-revocation.test.mjs`, `cloud-tests/planner.test.ts`, `SyncManagerTest.eachAckRefreshesRevocationBeforeStartingTheNextCommand` |
+| Browser linking uses hashed, one-use, ten-minute codes and revocable hashed tokens scoped to the phone's account. | `cloud-tests/webHttp.test.ts`, `cloud-tests/plannerRate.test.ts` |
+| Conditional snapshot reads authenticate before returning 304; CORS and token quotas also apply to polling. | `cloud-tests/webHttp.test.ts`, `cloud-tests/plannerRate.test.ts` |
+| Existing device pairing, events, and records survive additive account migration and token rotation. | `cloud-tests/webHttp.test.ts` |
+| The headless sync bundle runs with eval blocked and applies through the normal versioned native save bridge. | `android-companion/web-sync-runtime.test.mjs` with a simulated bridge; Android execution remains UNVERIFIED until driven |
+| Each command is acknowledged before the next starts, and pairing credentials come from one connection snapshot. | `SyncManagerTest.anAppliedCommandIsAcknowledgedBeforeTheNextCommandCanFail`, `SyncManagerTest.credentialsAreCapturedAsOneConnection` |
 | Model-backed paths without a key, Samsung behavior and real widget placement are reported as UNVERIFIED, not as passing. | Judgment: `verify-rpm-glass` SKILL.md proof standards |

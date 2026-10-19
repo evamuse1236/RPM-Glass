@@ -6,11 +6,10 @@ import org.json.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 
-/** Independent from legacy SQLite/outbox: companion context never silently syncs. */
 final class CompanionStore {
     static final Object LOCK=new Object();
     static File file(Context c){return new File(c.getFilesDir(),"companion.json");}
-    static JSONObject read(Context c)throws Exception{synchronized(LOCK){AtomicFile f=new AtomicFile(file(c));try(InputStream in=f.openRead()){return validate(new JSONObject(readText(in)));}catch(FileNotFoundException e){return null;}}}
+    static JSONObject read(Context c)throws Exception{synchronized(LOCK){AtomicFile f=new AtomicFile(file(c));try(InputStream in=f.openRead()){JSONObject data=validate(new JSONObject(readText(in)));if(!data.has("syncSavedAt"))data.put("syncSavedAt",java.time.Instant.ofEpochMilli(file(c).lastModified()).toString());return data;}catch(FileNotFoundException e){return null;}}}
     static String readText(InputStream in)throws IOException{ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] b=new byte[8192];int n;while((n=in.read(b))!=-1){out.write(b,0,n);if(out.size()>16*1024*1024)throw new IOException("Context exceeds 16 MB; original preserved.");}return out.toString(StandardCharsets.UTF_8.name());}
     static JSONObject validate(JSONObject d)throws JSONException{
         if(d.getInt("schema")!=2||d.getInt("version")<0)throw new JSONException("Unsupported context format.");
@@ -28,7 +27,7 @@ final class CompanionStore {
         return d;
     }
     static void write(Context c,JSONObject d,int expected)throws Exception{synchronized(LOCK){JSONObject old=read(c);int current=old==null?0:old.getInt("version");if(expected!=current||d.getInt("version")!=current+1)throw new IOException("Saved context changed. Reopen RPM before retrying.");writeRaw(c,validate(d));CompanionAlerts.reconcile(c,d,false);}}
-    static void writeRaw(Context c,JSONObject d)throws IOException{byte[] bytes=d.toString().getBytes(StandardCharsets.UTF_8);if(bytes.length>16*1024*1024)throw new IOException("Context exceeds 16 MB; original preserved. Export a backup before reducing history.");AtomicFile f=new AtomicFile(file(c));FileOutputStream out=null;try{out=f.startWrite();out.write(bytes);f.finishWrite(out);}catch(IOException e){if(out!=null)f.failWrite(out);throw e;}}
+    static void writeRaw(Context c,JSONObject d)throws IOException{try{d.put("syncSavedAt",java.time.Instant.now().toString());}catch(JSONException e){throw new IOException("Could not date saved planner",e);}byte[] bytes=d.toString().getBytes(StandardCharsets.UTF_8);if(bytes.length>16*1024*1024)throw new IOException("Context exceeds 16 MB; original preserved. Export a backup before reducing history.");AtomicFile f=new AtomicFile(file(c));FileOutputStream out=null;try{out=f.startWrite();out.write(bytes);f.finishWrite(out);}catch(IOException e){if(out!=null)f.failWrite(out);throw e;}SyncManager.request(c);PlannerSyncLifecycle.changed(c);}
     static void importCopy(Context c,JSONObject d)throws Exception{synchronized(LOCK){validate(d);JSONObject old=read(c);if(old!=null){File backup=new File(c.getFilesDir(),"companion-before-import-"+System.currentTimeMillis()+".json");try(FileOutputStream out=new FileOutputStream(backup)){out.write(old.toString().getBytes(StandardCharsets.UTF_8));}}
         CompanionAlerts.cancelAll(c);d.put("version",old==null?1:old.optInt("version")+1);d.put("pending",JSONObject.NULL);d.put("undo",JSONObject.NULL);d.put("inFlight",false);d.put("imported",new JSONObject().put("source","User-selected context copy").put("at",java.time.Instant.now().toString()));
         parkImportedDrafts(d);

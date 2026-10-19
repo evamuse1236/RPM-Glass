@@ -27,6 +27,8 @@ public class CompanionActivity extends Activity {
     private FrameLayout root;private int insetTop=0,insetBottom=0,insetLeft=0,insetRight=0,systemBottom=0;
     private final ExecutorService work=Executors.newFixedThreadPool(2);
     private final ExecutorService captureInput=Executors.newSingleThreadExecutor();
+    private final Runnable syncRefresh=()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmPhoneRefresh?.()",null);};
+    void syncChanged(){syncRefresh.run();}
     private final ModelRequests modelRequests=new ModelRequests();private final ModelGateway models=new ModelGateway(this);
     @Override public void onCreate(Bundle saved){super.onCreate(saved);expanded=saved!=null&&saved.getBoolean("expanded");getWindow().setBackgroundDrawableResource(android.R.color.transparent);getWindow().setDimAmount(.12f);getWindow().addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE|WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
         if(planning()){expanded=true;getWindow().setDimAmount(0);getWindow().setBackgroundDrawableResource(R.color.rpm_surface);}

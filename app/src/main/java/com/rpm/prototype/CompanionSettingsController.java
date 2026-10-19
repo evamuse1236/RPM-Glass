@@ -29,7 +29,7 @@ final class CompanionSettingsController {
         "set_widget_text_scale","choose_alarm","preview_alarm","stop_preview","reminder_sound",
         "show_butterfly","hide_butterfly","overlay_permission","notch_toggle","notch_permission","notifications","exact_alarms",
         "full_screen_alarms","check_alerts","connect_key","connect_claude_key","connect_openrouter_key","remove_claude_key","remove_openrouter_key","import_context",
-        "export_context","restore_backup","earlier_screens","diagnostics_connect","diagnostics_pause","diagnostics_resume","diagnostics_disconnect","diagnostics_upload"
+        "export_context","restore_backup","earlier_screens","cloud_web","diagnostics_connect","diagnostics_pause","diagnostics_resume","diagnostics_disconnect","diagnostics_upload"
     );
     private final Activity activity;
     private final Runnable changed;
@@ -89,6 +89,7 @@ final class CompanionSettingsController {
             case "export_context":runUi(()->activity.startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/json").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"rpm-companion-context.json"),EXPORT_CONTEXT));message="Choose where to save the context copy.";break;
             case "restore_backup":runUi(this::backups);message="Choose a private pre-import backup.";break;
             case "earlier_screens":runUi(()->activity.startActivity(new Intent(activity,MainActivity.class)));message="Opening the earlier RPM screens.";break;
+            case "cloud_web":runUi(()->activity.startActivity(new Intent(activity,CloudActivity.class).putExtra("linkWeb",true)));message="Opening Cloud and browser linking.";break;
             default:throw new IllegalArgumentException("Unsupported settings action.");
         }
         return read().put("message",message);

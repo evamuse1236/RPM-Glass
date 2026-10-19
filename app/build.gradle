@@ -40,7 +40,7 @@ dependencies {
 tasks.register('bundleCompanion', Exec) {
     workingDir rootProject.projectDir
     commandLine 'node', 'scripts/build-companion-assets.mjs'
-    inputs.files(fileTree('../android-companion'), fileTree('../chat-prototype'), fileTree('../cli'), fileTree('../intent-v2/src'), fileTree('../intent-v2/adapters'), fileTree('../intent-v2/prompts'), file('../scripts/build-companion-assets.mjs'))
+    inputs.files(fileTree('../android-companion'), fileTree('../chat-prototype'), fileTree('../cli'), fileTree('../intent-v2/src'), fileTree('../intent-v2/adapters'), fileTree('../intent-v2/prompts'), fileTree('../web/contract'), file('../scripts/build-companion-assets.mjs'))
     outputs.dir('src/main/assets/companion')
 }
 tasks.named('preBuild').configure { dependsOn 'bundleCompanion' }

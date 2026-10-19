@@ -151,6 +151,9 @@ function notchRows(ctx, section) {
 
 function accountSection(ctx) {
   const section = group('Account & backup', 'ai');
+  const cloud = group('Cloud', 'cloud');
+  add(ctx, cloud, 'Link a web browser', 'Cloud pairing, a one-use code and linked browsers', '', 'cloud_web', {icon: 'cloud'});
+  section.append(cloud);
   const {claudeKey, openRouterKey} = ctx.state;
   add(ctx, section, claudeKey ? 'Replace Claude key' : 'Connect Claude key', 'Capture asks Claude first',
     claudeKey ? 'Connected' : 'Not connected', 'connect_claude_key');

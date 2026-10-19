@@ -14,12 +14,18 @@ import java.security.KeyStore;
 import java.util.*;
 import java.util.concurrent.*;
 
-/** Authenticated upload-only Convex mirror; the local DB is always saved first. */
 final class SyncManager {
     static final ExecutorService EXECUTOR=Executors.newSingleThreadExecutor();
+    private static final java.util.concurrent.atomic.AtomicBoolean QUEUED=new java.util.concurrent.atomic.AtomicBoolean();
     private static final int ON_CHANGE=7401, PERIODIC=7402;
     static SharedPreferences prefs(Context c){return c.getSharedPreferences("convex_sync",0);}
     static boolean configured(Context c){return !prefs(c).getString("url","").isEmpty()&&prefs(c).contains("token");}
+    static String generation(Context c){return prefs(c).getString("generation","legacy");}
+    static final class Connection {
+        final String url,encrypted;
+        Connection(Map<String,?> saved){url=validateUrl((String)saved.getOrDefault("url",null));encrypted=(String)saved.get("token");}
+        void check(Context c)throws IOException{Map<String,?> current=prefs(c).getAll();if(Thread.currentThread().isInterrupted()||!url.equals(current.get("url"))||!Objects.equals(encrypted,current.get("token")))throw new IOException("Connection changed");}
+    }
     static String validateUrl(String raw){
         String value=raw.trim().replaceAll("/+$","");
         try{URI uri=new URI(value);
@@ -30,25 +36,32 @@ final class SyncManager {
     static void request(Context c){
         if(!configured(c)||prefs(c).getBoolean("auth_error",false))return;
         JobScheduler scheduler=c.getSystemService(JobScheduler.class);ComponentName service=new ComponentName(c,SyncJob.class);
-        if(scheduler.getPendingJob(ON_CHANGE)==null)scheduler.schedule(new JobInfo.Builder(ON_CHANGE,service).setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY).setMinimumLatency(1000).setBackoffCriteria(30000,JobInfo.BACKOFF_POLICY_EXPONENTIAL).setPersisted(true).build());
-        if(scheduler.getPendingJob(PERIODIC)==null)scheduler.schedule(new JobInfo.Builder(PERIODIC,service).setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY).setPeriodic(15*60*1000).setPersisted(true).build());
+        if(scheduler.getPendingJob(ON_CHANGE)==null)scheduler.schedule(new JobInfo.Builder(ON_CHANGE,service).setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY).setMinimumLatency(PlannerSyncProtocol.DEBOUNCE_MS).setBackoffCriteria(30000,JobInfo.BACKOFF_POLICY_EXPONENTIAL).setPersisted(true).build());
+        if(scheduler.getPendingJob(PERIODIC)==null)scheduler.schedule(new JobInfo.Builder(PERIODIC,service).setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY).setPeriodic(PlannerSyncProtocol.BACKGROUND_MS).setPersisted(true).build());
     }
-    static void now(Context c,Runnable finished){Context app=c.getApplicationContext();request(app);EXECUTOR.execute(()->{sync(app);if(finished!=null)new android.os.Handler(android.os.Looper.getMainLooper()).post(finished);});}
+    static void now(Context c,Runnable finished){Context app=c.getApplicationContext();request(app);if(!QUEUED.compareAndSet(false,true))return;EXECUTOR.execute(()->{try{sync(app);}finally{QUEUED.set(false);if(finished!=null)new android.os.Handler(android.os.Looper.getMainLooper()).post(finished);}});}
     /** @return whether pending work should be retried by the job scheduler. */
     static boolean sync(Context c){
         if(!configured(c)||prefs(c).getBoolean("auth_error",false))return false;
-        try(Store store=new Store(c)){
-            String url=prefs(c).getString("url","");String token=decrypt(prefs(c).getString("token",""));
+        try{
+            Connection connection=new Connection(prefs(c).getAll());String token=decrypt(connection.encrypted);
+            PlannerSyncProtocol.Guard guard=()->connection.check(c);boolean plannerRetry=false;
+            try(PlannerCommandHost host=new PlannerCommandHost(c,guard)){PlannerSyncProtocol.sync(payload->{JSONObject response=post(connection.url+"/v1/planner/sync",payload,token);guard.check();if(payload.has("snapshot"))prefs(c).edit().putLong("planner_revision",payload.getJSONObject("snapshot").getLong("revision")).apply();return response;},host,guard);}
+            catch(Unauthorized revoked){throw revoked;}
+            catch(Exception failure){plannerRetry=true;}
+            try(Store store=new Store(c)){
             long deadline=android.os.SystemClock.elapsedRealtime()+25000;
             for(int batches=0;batches<8&&android.os.SystemClock.elapsedRealtime()<deadline;batches++){
-                if(Thread.currentThread().isInterrupted()||!configured(c))return true;
-                JSONArray batch=store.pendingBatch();if(batch.length()==0){status(c,"Up to date",true);return false;}
-                JSONObject response=post(url+"/v1/sync",new JSONObject().put("events",batch),token);
+                guard.check();
+                JSONArray batch=store.pendingBatch();if(batch.length()==0){status(c,plannerRetry?"Planner waiting to sync · earlier data synced":"Up to date",!plannerRetry);return plannerRetry;}
+                JSONObject response=post(connection.url+"/v1/sync",new JSONObject().put("events",batch),token);
+                guard.check();
                 JSONArray ack=response.getJSONArray("ack");validateAck(batch,ack);
                 // Delete only the exact acknowledged IDs; newer local edits remain queued.
                 store.acknowledge(ack);status(c,"Synced to Convex",true);
             }
-            return store.pendingCount()>0;
+            return plannerRetry||store.pendingCount()>0;
+            }
         }catch(Unauthorized ex){prefs(c).edit().putBoolean("auth_error",true).apply();status(c,"Connection revoked or invalid · pair again",false);return false;}
         catch(Rejected ex){status(c,"Cloud rejected a batch · data remains on phone",false);return false;}
         catch(Exception ex){status(c,"Waiting to sync · data is saved on this phone",false);return true;}
@@ -65,7 +78,7 @@ final class SyncManager {
         JSONObject result=post(url+"/v1/pair",new JSONObject().put("code",code.trim()).put("installationId",installation),null);
         String token=result.getString("token");if(!token.matches("[a-f0-9]{64}"))throw new IOException("Invalid pairing response");
         String encrypted=encrypt(token);
-        if(!prefs(c).edit().putString("url",url).putString("token",encrypted).putBoolean("auth_error",false).putString("status","Connected · waiting to sync").commit())throw new IOException("Could not store connection");
+        if(!prefs(c).edit().putString("url",url).putString("token",encrypted).putString("generation",UUID.randomUUID().toString()).remove("planner_revision").putBoolean("auth_error",false).putString("status","Connected · waiting to sync").commit())throw new IOException("Could not store connection");
         try(Store store=new Store(c)){store.queueAll();}
         request(c);
     }
@@ -73,16 +86,22 @@ final class SyncManager {
     private static void status(Context c,String text,boolean success){if(!configured(c))return;SharedPreferences.Editor edit=prefs(c).edit().putString("status",text);if(success)edit.putLong("last_success",System.currentTimeMillis());edit.apply();}
     static final class Unauthorized extends IOException{}
     static final class Rejected extends IOException{}
+    static JSONObject web(Context c,String method,String path,JSONObject payload)throws Exception{
+        if(!configured(c))throw new IOException("Pair this phone with Convex first");
+        Connection connection=new Connection(prefs(c).getAll());JSONObject result=request(connection.url+path,method,payload,decrypt(connection.encrypted));connection.check(c);return result;
+    }
     static JSONObject post(String url,JSONObject payload,String token)throws Exception{
+        return request(url,"POST",payload,token);
+    }
+    static JSONObject request(String url,String method,JSONObject payload,String token)throws Exception{
         HttpURLConnection connection=(HttpURLConnection)new URL(url).openConnection();
         try{
-            connection.setInstanceFollowRedirects(false);connection.setConnectTimeout(10000);connection.setReadTimeout(10000);connection.setRequestMethod("POST");connection.setDoOutput(true);connection.setRequestProperty("Content-Type","application/json");
+            connection.setInstanceFollowRedirects(false);connection.setConnectTimeout(10000);connection.setReadTimeout(10000);connection.setRequestMethod(method);connection.setRequestProperty("Content-Type","application/json");
             if(token!=null)connection.setRequestProperty("Authorization","Bearer "+token);
-            byte[] bytes=payload.toString().getBytes(StandardCharsets.UTF_8);connection.setFixedLengthStreamingMode(bytes.length);
-            try(OutputStream out=connection.getOutputStream()){out.write(bytes);}
+            if(payload!=null){connection.setDoOutput(true);byte[] bytes=payload.toString().getBytes(StandardCharsets.UTF_8);connection.setFixedLengthStreamingMode(bytes.length);try(OutputStream out=connection.getOutputStream()){out.write(bytes);}}
             int status=connection.getResponseCode();if(status==401||status==403)throw new Unauthorized();if(status==400||status==413)throw new Rejected();if(status!=200)throw new IOException("Cloud unavailable");
             try(InputStream in=connection.getInputStream();ByteArrayOutputStream out=new ByteArrayOutputStream()){
-                byte[] buffer=new byte[4096];int n;while((n=in.read(buffer))!=-1){if(out.size()+n>65536)throw new IOException("Response too large");out.write(buffer,0,n);}return new JSONObject(out.toString("UTF-8"));
+                byte[] buffer=new byte[4096];int n;while((n=in.read(buffer))!=-1){if(out.size()+n>8*1024*1024)throw new IOException("Response too large");out.write(buffer,0,n);}return new JSONObject(out.toString("UTF-8"));
             }
         }finally{connection.disconnect();}
     }

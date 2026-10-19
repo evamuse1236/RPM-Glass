@@ -19,6 +19,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
 // The output folder is generated (and untracked); rebuild it from scratch so retired files never linger.
 const out=path.join(root,'app/src/main/assets/companion');fs.rmSync(out,{recursive:true,force:true});fs.mkdirSync(out,{recursive:true});
 await build({...bundleOptions,outfile:path.join(out,'runtime.js')});
+await build({...bundleOptions,entryPoints:['android-companion/sync-runtime.mjs'],outfile:path.join(out,'sync.js')});
 for(const file of fs.readdirSync(path.join(root,'android-companion')).filter(f=>/\.(html|css)$/.test(f)&&!parts.has(f)))fs.writeFileSync(path.join(out,file),shippedText(file));
 fs.copyFileSync(path.join(root,'android-companion/assets/butterfly.png'),path.join(out,'butterfly.png'));
 for(const file of fs.readdirSync(path.join(root,'android-companion/assets/fonts')))fs.copyFileSync(path.join(root,'android-companion/assets/fonts',file),path.join(out,file));
