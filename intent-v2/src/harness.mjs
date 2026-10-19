@@ -6,6 +6,7 @@ import {interpretTurn} from './interpret.mjs';
 import {ident,activeStatus,conversation,safeQuestion,actOnDraft,undoCommitted} from './draft-actions.mjs';
 import {quickAnswer} from './quick-answer.mjs';
 import {inputSummary} from './input-summary.mjs';
+import {focusFor,focusOf,questionFor} from './conversation-focus.mjs';
 
 const STALE_FOCUS='STALE_FOCUS';
 /** Orchestration only. The model never receives a mutating function or persistence key. */
@@ -19,9 +20,8 @@ export class IntentHarness {
   const {messageId,conversationId,text,focusDraftId=null}=input;ident(messageId);ident(conversationId);
   if(typeof text!=='string'||!text.trim()||text.length>12000)throw new Error('Use 1–12,000 characters');
   await this.repository.transact(`capture:${messageId}`,{conversationId,text,focusDraftId},data=>{
-   const chat=conversation(data,conversationId);const v=intentState(data);const focus=focusDraftId?v.drafts[focusDraftId]:null;
-   const available=!focusDraftId||activeStatus(focus)&&focus.conversationId===conversationId;
-   v.captures[messageId]={messageId,conversationId,raw:text,at:this.clock().toISOString(),timezone:this.timezone,focusDraftId,focusRevision:available?focus?.revision??null:null,...(available?{}:{focusStale:true}),status:'captured'};
+   const chat=conversation(data,conversationId);const v=intentState(data);const focus=focusFor(v,{conversationId,messageId,focusDraftId});
+   v.captures[messageId]={messageId,conversationId,raw:text,at:this.clock().toISOString(),timezone:this.timezone,focusDraftId:focus?.draftId??null,focusRevision:focus?.draftRevision??null,focus,status:'captured'};
    if(chat.title==='New conversation'&&!(chat.messages??[]).length)chat.title=text.trim().slice(0,60);
    return {messageId,status:'captured'};
   });
@@ -37,26 +37,27 @@ export class IntentHarness {
   if(!capture)throw new Error('Capture not found');
   if(capture.status==='interpreted')return {messageId,draftId:capture.draftId??null,status:'interpreted'};
   conversation(data,capture.conversationId);
-  const focused=capture.focusDraftId?v.drafts[capture.focusDraftId]:null;
-  const stale=capture.focusStale||!!focused&&(!activeStatus(focused)||focused.revision!==capture.focusRevision);
+  const focus=focusOf(capture),focused=focus?.draftId?v.drafts[focus.draftId]:null;
+  const stale=!!focus?.draftId&&(!!focus.stale||!activeStatus(focused)||focused.conversationId!==capture.conversationId||focused.revision!==focus.draftRevision);
   // The words are already saved. A stale pointer is reported once; Retry then reads the words on their own.
   if(stale&&capture.lastError?.code!==STALE_FOCUS)return this.#needsAttention(messageId,Object.assign(new Error('The draft you pointed at changed or closed. Your words are saved; tap Retry to read them on their own.'),{code:STALE_FOCUS}),{calls:0,modelRuns:[]});
-  const activeDraft=stale?null:focused;
+  const activeDraft=stale?null:focused,question=questionFor(v,capture);
   let units;try{units=sourceUnits(capture.raw);}catch(error){return {messageId,status:'captured',error:userMessage(error)};}
   const quick=activeDraft?null:quickAnswer(capture.raw,{now:new Date(capture.at),timezone:capture.timezone});
   if(quick)return this.#answerLocally(messageId,units,quick);
-  const meta={},context=buildContext(data,{messageId,raw:capture.raw,conversationId:capture.conversationId,now:new Date(capture.at),timezone:capture.timezone,meta});
+  const targets=[...(activeDraft?.operations??[]).filter(o=>o.targetId!==null).map(o=>({entity:o.entity,id:String(o.targetId)})),...(question?.choices??[]).flatMap(c=>c.targets)];
+  const meta={},context=buildContext(data,{messageId,raw:capture.raw,conversationId:capture.conversationId,focus:{draftId:activeDraft?.id??null,questionId:question?.id??null,targets},now:new Date(capture.at),timezone:capture.timezone,meta});
   // Referenced draft targets are explicitly visible, even when not keyword-relevant.
   if(activeDraft)for(const op of activeDraft.operations){
    const include=(entity,id)=>{if(!context.entities.some(e=>e.entity===entity&&e.id===String(id))){const row=findEntity(data,entity,id);if(row)context.entities.push(contextEntity(entity,row,capture.timezone));}};
    if(op.targetId!==null)include(op.entity,op.targetId);
    for(const f of op.fields){const entity={blockId:'block',projectId:'project',goalId:'goal',areaId:'area'}[f.name];if(entity&&f.op==='set'&&!f.value.startsWith('$'))include(entity,f.value);}
   }
-  const draftContext=activeDraft?{id:activeDraft.id,revision:activeDraft.revision,operations:activeDraft.operations.map(o=>({opId:o.opId,kind:o.kind,entity:o.entity,targetId:o.targetId,fields:o.fields.map(f=>({name:f.name,op:f.op,value:typeof f.value==='string'?f.value.slice(0,1000):f.value,origin:f.origin,truncated:typeof f.value==='string'&&f.value.length>1000}))}))}:null;
+  const draftContext=activeDraft?{id:activeDraft.id,revision:activeDraft.revision,operations:activeDraft.operations.map(o=>({opId:o.opId,kind:o.kind,entity:o.entity,targetId:o.targetId,fields:o.fields.map(f=>({name:f.name,op:f.op,value:typeof f.value==='string'?f.value.slice(0,1000):f.value,origin:f.origin,truncated:typeof f.value==='string'&&f.value.length>1000}))})),question:activeDraft.question?{prompt:activeDraft.question.prompt,field:activeDraft.question.field,options:activeDraft.question.options.map(o=>o.label)}:null,reply:activeDraft.reply??null}:null;
   const plan=this.snapshot?await this.snapshot({data,capture,context}):null;
   if(plan?.truncated)meta.truncated={...meta.truncated,snapshot:plan.truncated};
   for(const e of plan?.entities??[])if(!context.entities.some(x=>x.entity===e.entity&&x.id===e.id))context.entities.push(e);
-  const input={messageId,sourceUnits:units,context,activeDraft:draftContext,...(plan?{snapshot:plan.summary}:{})};
+  const input={messageId,sourceUnits:units,context,activeDraft:draftContext,...(question?{openQuestion:{id:question.id,prompt:question.prompt,action:question.action,choices:question.choices}}:{}),...(plan?{snapshot:plan.summary}:{})};
   if(JSON.stringify(input).length>45000)return {messageId,status:'captured',error:'This thought needs a larger review. The original is kept; no task changed.'};
   const controller=new AbortController();let timer;
   let repair=null,parsed,fallback=null,calls=0;const modelRuns=[];

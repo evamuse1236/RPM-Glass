@@ -9,6 +9,7 @@ This replaces the Capture section of `PRODUCT.md` where they differ. `PRODUCT.md
 - Changes to saved items (a time change, an edit of an earlier task, done, delete) also apply at once, then show one card: "Changed. Keep it?" with the old value struck through, Undo and Keep. Deletes go to Trash. A plan the model filled in (mode `plan`) is confirmed the same way.
 - A clash with the calendar does not block: the change applies and the receipt shows the warning.
 - A draft that needs an answer (AM or PM, a time that could not be read, a missing detail) waits with answer chips. The next message answers it.
+- What a message points at is decided when its words are saved (`intent-v2/src/conversation-focus.mjs`). An Edit tap on a draft wins. Otherwise, when the last answer asked something (an answer chip question, a choice question, or a question in its reply), the next message points at the same draft and question. The model is shown that draft with the question and choices the person saw.
 - Questions get an answer card built from the plan as it is now: the day's agenda, the next item, one task, water or meals. Otherwise a short plain-text answer grounded in the plan snapshot. Water and meals show only when the phone tracks them (`data.body`).
 - Undo works while the change is still the latest one, as before.
 

@@ -48,7 +48,6 @@ export function mountCapture(platform){
  const captures=()=>page().captures??[];
  const latest=()=>captures()[0]??null;
  const answerDraft=()=>{const d=latest()?.draft;return d&&ACTIVE.has(d.status)&&d.question?d.id:null;};
- const focusForSend=()=>s.focusedDraftId??answerDraft();
 
  async function post(payload){
   const body={...payload,version:s.state.version,conversationId:conversation().id};
@@ -62,7 +61,7 @@ export function mountCapture(platform){
   cancelAutoClose();
   const words=payload.type==='message'?payload.text:null;
   if(words!==null){
-   const pending=identity.forText(words,focusForSend());
+   const pending=identity.forText(words,s.focusedDraftId);
    payload={...payload,messageId:pending.messageId,focusDraftId:pending.focusDraftId};
    seen.add(pending.messageId);
   }

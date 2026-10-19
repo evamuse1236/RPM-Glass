@@ -48,9 +48,9 @@ export function buildContext(data,{raw,messageId=null,conversationId,focus={},no
  for(const m of [...messages].reverse())if(add('recentMessages',{role:m.role,text:String(m.text??'').slice(0,700)}))kept.unshift(m);
  result.recentMessages.reverse();
  const candidates=[];
+ const pointed=new Set((focus.targets??[]).map(t=>`${t.entity}:${t.id}`));
  for(const entity of ['task','block','project','goal','area'])for(const row of entityRows(data,entity)){
-  const focusId=focus[entity+'Id'];
-  const score=(String(focusId??'')===String(row.id)?100:0)+relevance(row.title??'',raw)*10+(entity==='task'&&!row.done&&row.state!=='cancelled'?2:0);
+  const score=(pointed.has(`${entity}:${row.id}`)?100:0)+relevance(row.title??'',raw)*10+(entity==='task'&&!row.done&&row.state!=='cancelled'?2:0);
   if(score>0)candidates.push({entity,row,score});
  }
  let entitiesDropped=Math.max(0,candidates.length-16);
