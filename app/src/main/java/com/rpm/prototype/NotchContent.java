@@ -146,7 +146,7 @@ final class NotchContent {
                     () -> actions.doneSlot(r.slot));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(parts.dp(NotchGeometry.CONTROL_DP), parts.dp(NotchGeometry.CONTROL_DP));
             lp.setMarginStart(parts.dp(8));
-            lp.setMarginEnd(-parts.dp(6));
+            row.setPaddingRelative(row.getPaddingStart(), row.getPaddingTop(), parts.dp(NotchGeometry.ROW_DP - NotchGeometry.CONTROL_DP) / 2, row.getPaddingBottom());
             row.addView(done, lp);
             return row;
         }
