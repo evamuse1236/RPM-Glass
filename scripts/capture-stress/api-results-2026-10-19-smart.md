@@ -68,3 +68,55 @@ Local live evidence includes `.verify/capture-smart/cli-final-source.txt`, `cli-
 Phone-side model paths, native fallback/network behavior, audible alarms, notification delivery, Samsung behavior and rendered UI at phone/enlarged-text sizes remain **UNVERIFIED**. No emulator, phone, APK build, install or widget verification was performed, as explicitly excluded by the brief. `npm run check:evidence` exits 1 because it requires a fresh APK and emulator screenshot. Its output is retained in `.verify/capture-smart/check-evidence-final.log`; that requirement was not bypassed. No emulator cleanup was needed because this task started none.
 
 Work stayed in `feat/capture-smart` in the requested worktree. No merge or push was performed. The notch Java code, frontend styling and GitHub Actions workflow were untouched. [The CLI guide](../../docs/capture-cli.md) has the three commands to start testing.
+
+## Round 2: choose the obvious clock
+
+At the fixed **19 October, 4:26 PM IST** clock, `remind me at 6 to call mom` now saves **Call mom today at 6 PM**, with a reminder, receipt, Undo, and one **Make it 6 AM** chip. The chip moves that same saved task to the following morning. No model is called for this bounded command, with or without an API key.
+
+A bare clock without a day uses the next occurrence within 12 hours. A stated day uses 1–6 PM, 7–11 AM, and noon for 12. The item's own words can select morning for wake, gym morning, breakfast or run, and evening for dinner or after work. Explicit AM/PM and periods keep their meaning. A bare edit without a stated day uses the new next-occurrence rule; an explicit-clock edit still retains the saved future day.
+
+The shared parser owns the rule. The time guard resolves eligible unknown fields and removes their matching AM/PM question before presentation. It records `next-12h` or `stated-day-waking`, the capture anchor, timezone, selected instant and offered alternate. Original words and exact evidence remain separate. Retry uses the saved capture clock. This follows Model the Domain: one inference record supplies the guard, saved field, trace and receipt correction.
+
+The local reminder grammar runs after raw words are saved and before the model call. It handles standalone relative commands and simple `to <subject>` commands. Mixed actions, recurrence, purpose clauses and saved-item edits continue through the model. Flip chips use the existing receipt-step mechanism and `actionIdFor` hashes, with the offered action, saved task ID and row guard checked on tap. Invented, stale and consumed taps cannot alter another task. Undo restores the earlier time, without reactivating the consumed chip. A clock correction takes the single optional-chip position; subjectless relative reminders retain Name it.
+
+### Measured CLI times
+
+The orchestrator's supplied Round 1 observation was 17.5 seconds with an AM/PM question. I also measured three sequential samples on `60fdacd` and three on the final implementation. Each used an identical reset file-backed seeded store, the same fixed clock and exact command. Timing covers send, interpretation, application and trace persistence, excluding process startup. No corpus workload overlapped these samples.
+
+| Outcome | Samples, ms | Median | Model calls per sample |
+| --- | --- | ---: | ---: |
+| Before, blocked on AM/PM | 12,273 / 8,446 / 5,511 | 8,446 ms | 2 |
+| After, saved at 6 PM with Undo | 122 / 33 / 37 | 37 ms | 0 |
+
+Every after sample saved the expected timestamp and exact raw words. All were below the 4-second target. The baseline called quick Haiku and then Sonnet repair; this seeded CLI context differs from the orchestrator's high-effort Haiku observation. Removing network interpretation removes that wait. These are small observational samples of different final outcomes, not a controlled throughput benchmark or a phone latency claim.
+
+The real CLI was also driven through the displayed flip choice, `/state`, `/trace`, `/undo`, and another `/state`. It moved the existing task to 6 AM tomorrow and restored 6 PM today on Undo. Local evidence is `.verify/capture-smart/round2/cli-flip.txt`, `before-latency.json`, and `verified-after-latency.json`. The committed [Round 2 ledger](smart-evidence/round2-ledger.json) retains the sample times, model usage and inference metadata without credentials.
+
+### Corpus counts and cost
+
+The original 60 cases now pass **60/60**, compared with **58/60** in Round 1. Ten new clock cases bring the final full run to **70/70**. Repeating all 20 smart cases three times passed **60/60**, including **30/30** repetitions of the ten new cases. Seven new simple reminder cases bypass the model; the task, after-work and edit coverage also exercises model-backed interpretation where needed.
+
+`nine-relative-times` now saves its tomorrow-at-nine task at 9 AM rather than holding the draft. `goal-not-action` also passes. Its old failure was a vocabulary mismatch, so the checker now recognizes `km` as kilometres and still rejects a goal missing its requested distance. The existing bare-six and wake-seven cases now require saved next-occurrence times and forbid an AM/PM question. Their previous draft-only expectations were replaced, not relaxed into accepting either result.
+
+| Workload | Passes | Model calls | Estimated USD |
+| --- | ---: | ---: | ---: |
+| Round 1 final full, historical comparison | 58/60 | 81 | 0.4645477 |
+| Round 2 first full, eight new cases | 68/68 | 75 | 0.4703049 |
+| Round 2 second full, ten new cases | 68/70 | 78 | 0.5475068 |
+| Round 2 verified full | 70/70 | 74 | 0.4066519 |
+| Round 2 all smart cases, three repeats | 60/60 | 14 | 0.0950145 |
+| Round 2 baseline CLI samples | 3 questions, no saves | 6 | 0.1135855 |
+
+Round 2 spent an estimated **$1.6330636 across 247 model calls**. This includes every paid run, including the second full run's failures. Final full plus repeated verification cost **$0.5016664**. These estimates use returned usage and the harness's existing `apiCost` rates, including cache counts. They are not billing receipts. No recorded attempt lacked usage or failed transport.
+
+The second full run failed `focused-delete-first` because both model attempts used a proposal ID instead of the draft operation's target identity. It also failed `thinking-not-permission` because a reflection reply asked an extra question. Neither involved clock inference. Both passed in the verified full run. The ledger retains those failures; a single perfect run does not establish that these model outputs are reliable across all attempts.
+
+All four API workloads were source-stable. Their hashes, corpus hashes, pass counts and costs are in the ledger. After the verified full run, the commit hook required moving the existing `withNotes` helper verbatim into `source-notes.mjs` to satisfy the harness file-size limit. The repeated workload and final `npm test` ran after that extraction. Full local artifacts remain under `.verify/capture-smart/round2/{full,final-full,verified-full,verified-repeat}`.
+
+### Checks and limits
+
+`npm test` passes on Windows: **780 JS tests passed, one existing skip**, seven rule tests, 16 cloud tests, cloud typechecking, 23 Java parser/correction checks and ten native cancellation checks. Clock tests cover before and after the hour, equality, midnight, minutes, stated-day readings, explicit periods, the flip, stale/invented taps, persistence and Undo.
+
+Single-family independent review found and verified fixes for narrow evidence losing a day or explicit AM, quantities becoming clocks, model-generated titles authorizing morning, shared-source unknown fields borrowing another action's clock, mixed subjects being read locally, and water feedback skipping its calendar read. The recovery path now retains complete source ownership even while validating one operation at a time. Its regression was recorded failing before the fix and passing afterward in `recovery-regression-red.log` and `recovery-regression-green.log` under the same evidence directory. The final independent verdict approved the change after 52 focused tests.
+
+**UNVERIFIED:** phone rendering, native model networking, notification delivery, audible alarms, Samsung behavior, enlarged text and real home-screen widgets. No emulator or phone was driven, as the brief explicitly excluded them. `npm run check:evidence` remains blocked by the missing fresh APK and screenshot; its result is `.verify/capture-smart/round2/check-evidence.log`. No emulator cleanup was needed. CSS, notch Java and CI workflows were untouched. Work stayed in the requested worktree and branch, with no push or merge.
