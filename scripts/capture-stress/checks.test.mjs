@@ -40,6 +40,13 @@ test('exact title checks catch casing that fuzzy word checks accept',()=>{
  assert.ok(compare({created:[{words:['bank'],title:'calling the bank'}]}).some(f=>f.type==='wrong title'));
 });
 
+test('case-specific translations accept medicine for dawai while rejecting unrelated tasks and wrong clocks',()=>{
+ const expected={created:[{words:['dawai'],wordAlternatives:[['medicine']],time:'18:00'}]};
+ assert.deepEqual(compare(expected,[{...bank(),title:'Take medicine'}]),[]);
+ assert.ok(compare(expected,[{...bank(),title:'Take a walk'}]).some(f=>f.type==='lost item'));
+ assert.ok(compare(expected,[{...bank(),title:'Take medicine',planned:'2026-10-20T01:30:00Z'}]).some(f=>f.type==='wrong time'));
+});
+
 test('a proposed title is not a saved task and omission is not focused removal',()=>{
  const draft={status:'draft',operations:[{opId:'dinner1',kind:'create',entity:'task',fields:[{name:'title',op:'set',value:'Call bank'}]}]};
  assert.ok(checkExpectation(expectation({}),{before:empty(),after:empty(),draft}).some(f=>f.type==='lost item'));

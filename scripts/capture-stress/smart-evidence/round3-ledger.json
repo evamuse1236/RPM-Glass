@@ -1,0 +1,285 @@
+{
+  "round": 3,
+  "date": "2026-10-19",
+  "baseline": {
+    "head": "44e6ce4a986d9d40b13f231655943124e60c01f9",
+    "reportedFailuresReproduced": 3,
+    "evidence": ".verify/capture-smart/round3/cli-before.txt",
+    "historicalFull": {
+      "passed": 70,
+      "runs": 70
+    },
+    "note": "The old wake-seven expectation incorrectly accepted 7 PM. It now requires tomorrow morning."
+  },
+  "after": {
+    "reportedFailuresRemaining": 0,
+    "cliEvidence": [
+      ".verify/capture-smart/round3/cli-after.txt",
+      ".verify/capture-smart/round3/cli-after-work.txt",
+      ".verify/capture-smart/round3/post-extraction-cli.txt"
+    ],
+    "full": {
+      "passed": 87,
+      "runs": 87
+    },
+    "reminderFamily": {
+      "passed": 110,
+      "runs": 111,
+      "repeat": 3,
+      "cases": 37
+    },
+    "notes": [
+      "All final reminder-family clock, day, duration, casing and flip checks passed. One dinner sample saved correctly at 8 PM but asked an unnecessary task question. It remains a strict failure.",
+      "A retained second-run sample translated dawai to Take medicine. Case-specific word alternatives recognize medicine, medication and meds without relaxing time, duration, flip or question checks. Raw pre-recheck results are preserved.",
+      "First-run after-work failures dropped the stated clock. A bounded local read now preserves the after-work suffix and bypasses the model.",
+      "The hook required verbatim extraction of oversized legacy CLI prompt and dialogue helpers after API runs. Final npm and CLI verification follow that extraction; API hashes identify the earlier source exactly."
+    ],
+    "finalCodeRevision": "2940d827178571acd6f4a9d1debb6b24a2e65582",
+    "finalSourceHash": "643004d680d6dad822e1772e85f08b4a48d802c3af630bfca82dedf37c31e46d",
+    "extraction": {
+      "evidence": ".verify/capture-smart/round3/cli-extraction-verbatim.json",
+      "tests": ".verify/capture-smart/round3/cli-extraction-tests.log",
+      "movedSectionsVerbatim": true,
+      "publicInterfaceUnchanged": true
+    },
+    "remainingKnownFailure": {
+      "case": "round3-dinner",
+      "repeat": 3,
+      "kind": "unnecessary question",
+      "saved": "2026-10-19T14:30:00.000Z",
+      "flip": "Make it 8 AM",
+      "note": "Clock and saved task correct; one final repeated model reply still asked whether dinner should be a task. Full corpus dinner case passed."
+    }
+  },
+  "runs": [
+    {
+      "directory": ".verify/capture-smart/round3/reminders",
+      "id": "2026-10-19T13-43-23-125Z",
+      "revision": "f31be5f11aa683460279ee9810c6ab22904b4635",
+      "sourceHash": "79d10590d0899ccabfe582e5f2a19ef726ce5b05ff51260aa8bc0efc534a4e28",
+      "sourceStable": true,
+      "corpusHash": "95d08f78c95f9a7b201d8a21bcc09c90cf04050e39e2583a0a8ad8c122152371",
+      "rawCounts": {
+        "passed": 108,
+        "runs": 111
+      },
+      "counts": {
+        "passed": 108,
+        "runs": 111
+      },
+      "usage": {
+        "input": 523248,
+        "output": 11319,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.20461109999999993,
+        "calls": 34
+      },
+      "modelCalls": 34,
+      "usageMissing": 0,
+      "transportFailures": 0,
+      "rechecks": [],
+      "failures": [
+        {
+          "id": "smart-clock-after-work",
+          "repeat": 1,
+          "failures": [
+            {
+              "type": "wrong time",
+              "detail": "Call mom: time null, expected 19:00"
+            }
+          ]
+        },
+        {
+          "id": "smart-clock-after-work",
+          "repeat": 2,
+          "failures": [
+            {
+              "type": "wrong time",
+              "detail": "Call mom: time null, expected 19:00"
+            }
+          ]
+        },
+        {
+          "id": "smart-clock-after-work",
+          "repeat": 3,
+          "failures": [
+            {
+              "type": "wrong time",
+              "detail": "Call mom: time null, expected 19:00"
+            }
+          ]
+        }
+      ],
+      "timeFailures": 3
+    },
+    {
+      "directory": ".verify/capture-smart/round3/final-reminders",
+      "id": "2026-10-19T13-48-23-063Z",
+      "revision": "f31be5f11aa683460279ee9810c6ab22904b4635",
+      "sourceHash": "3dbf68efa93f3067b5fa40a3b5002a0668d3451eb2fa9e34d6a397de5a702b3e",
+      "sourceStable": true,
+      "corpusHash": "2110a83bd17401c7daf0925af9fe4f86860a7032d1d061a0ee0c6652c45120a0",
+      "rawCounts": {
+        "passed": 110,
+        "runs": 111
+      },
+      "counts": {
+        "passed": 111,
+        "runs": 111
+      },
+      "usage": {
+        "input": 416900,
+        "output": 7622,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.1449413,
+        "calls": 27
+      },
+      "modelCalls": 27,
+      "usageMissing": 0,
+      "transportFailures": 0,
+      "rechecks": [
+        {
+          "at": "2026-10-19T13:50:25.525Z",
+          "originalResultsHash": "3b2f09209015815717e7412633012e1be7ac9b163987c48e61b0c6b0dfe15333",
+          "originalCorpusHash": "95d08f78c95f9a7b201d8a21bcc09c90cf04050e39e2583a0a8ad8c122152371",
+          "corpusHash": "2110a83bd17401c7daf0925af9fe4f86860a7032d1d061a0ee0c6652c45120a0",
+          "method": "Deterministic evaluation of retained model outputs and disk states. No model calls."
+        }
+      ],
+      "failures": [],
+      "timeFailures": 0
+    },
+    {
+      "directory": ".verify/capture-smart/round3/verified-reminders",
+      "id": "2026-10-19T13-51-16-614Z",
+      "revision": "f31be5f11aa683460279ee9810c6ab22904b4635",
+      "sourceHash": "f8c62928f6b45a0a0920d95261558219f50e5a7f1d9236d60494b62a2635b6a9",
+      "sourceStable": true,
+      "corpusHash": "2110a83bd17401c7daf0925af9fe4f86860a7032d1d061a0ee0c6652c45120a0",
+      "rawCounts": {
+        "passed": 110,
+        "runs": 111
+      },
+      "counts": {
+        "passed": 110,
+        "runs": 111
+      },
+      "usage": {
+        "input": 416943,
+        "output": 7866,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.14729630000000002,
+        "calls": 27
+      },
+      "modelCalls": 27,
+      "usageMissing": 0,
+      "transportFailures": 0,
+      "rechecks": [],
+      "failures": [
+        {
+          "id": "round3-dinner",
+          "repeat": 3,
+          "failures": [
+            {
+              "type": "repeated question",
+              "detail": "A question was asked when no clarification was allowed"
+            }
+          ]
+        }
+      ],
+      "timeFailures": 0
+    },
+    {
+      "directory": ".verify/capture-smart/round3/full",
+      "id": "2026-10-19T13-52-23-208Z",
+      "revision": "f31be5f11aa683460279ee9810c6ab22904b4635",
+      "sourceHash": "f8c62928f6b45a0a0920d95261558219f50e5a7f1d9236d60494b62a2635b6a9",
+      "sourceStable": true,
+      "corpusHash": "2110a83bd17401c7daf0925af9fe4f86860a7032d1d061a0ee0c6652c45120a0",
+      "rawCounts": {
+        "passed": 87,
+        "runs": 87
+      },
+      "counts": {
+        "passed": 87,
+        "runs": 87
+      },
+      "usage": {
+        "input": 1315864,
+        "output": 72561,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.6317177000000003,
+        "calls": 84
+      },
+      "modelCalls": 84,
+      "usageMissing": 0,
+      "transportFailures": 0,
+      "rechecks": [],
+      "failures": [],
+      "timeFailures": 0
+    }
+  ],
+  "total": {
+    "modelCalls": 172,
+    "estimatedUSD": 1.1285664,
+    "basis": "Existing apiCost rates and returned token/cache usage. Estimate, not a billing receipt; includes every paid Round 3 workload."
+  },
+  "checks": {
+    "npm": ".verify/capture-smart/round3/post-extraction-npm-test.log",
+    "singleFamilyReview": "GPT-only read-only review; findings fixed and rechecked.",
+    "evidenceGate": {
+      "status": "UNVERIFIED",
+      "reason": "No fresh APK or native screenshot; user explicitly excluded emulator/phone.",
+      "evidence": ".verify/capture-smart/round3/check-evidence.log"
+    },
+    "npmResult": {
+      "status": "passed",
+      "js": {
+        "total": 832,
+        "passed": 831,
+        "skipped": 1,
+        "failed": 0
+      },
+      "rules": 7,
+      "cloud": 16,
+      "cloudTypecheck": "passed",
+      "javaParserChecks": 23,
+      "nativeCancellationChecks": 10
+    }
+  },
+  "principles": [
+    {
+      "name": "Fix Root Causes",
+      "choice": "Fix shared time, title and duration boundaries instead of hiding warning text."
+    },
+    {
+      "name": "Model the Domain",
+      "choice": "Unknown duration remains null; occurrences without duration are points."
+    },
+    {
+      "name": "Test Behavior, Not Implementation",
+      "choice": "Assert saved timestamps, titles, warnings, flips, completion and Undo."
+    },
+    {
+      "name": "Prove It Works",
+      "choice": "Drive real CLI and live Capture API pipeline; keep native claims UNVERIFIED."
+    }
+  ],
+  "unverified": [
+    "Phone rendering and enlarged text",
+    "Native model networking",
+    "Notifications and audible alarms",
+    "Samsung behavior",
+    "Real home-screen widgets"
+  ],
+  "release": {
+    "pushed": false,
+    "merged": false,
+    "apkBuilt": false,
+    "installed": false
+  }
+}

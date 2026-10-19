@@ -120,3 +120,22 @@ All four API workloads were source-stable. Their hashes, corpus hashes, pass cou
 Single-family independent review found and verified fixes for narrow evidence losing a day or explicit AM, quantities becoming clocks, model-generated titles authorizing morning, shared-source unknown fields borrowing another action's clock, mixed subjects being read locally, and water feedback skipping its calendar read. The recovery path now retains complete source ownership even while validating one operation at a time. Its regression was recorded failing before the fix and passing afterward in `recovery-regression-red.log` and `recovery-regression-green.log` under the same evidence directory. The final independent verdict approved the change after 52 focused tests.
 
 **UNVERIFIED:** phone rendering, native model networking, notification delivery, audible alarms, Samsung behavior, enlarged text and real home-screen widgets. No emulator or phone was driven, as the brief explicitly excluded them. `npm run check:evidence` remains blocked by the missing fresh APK and screenshot; its result is `.verify/capture-smart/round2/check-evidence.log`. No emulator cleanup was needed. CSS, notch Java and CI workflows were untouched. Work stayed in the requested worktree and branch, with no push or merge.
+
+## Round 3
+
+At 16:26 IST, "wake me up at 7" saves 7 AM tomorrow. Morning and evening meaning wins over next-occurrence inference, with the flip chip kept. Titles become "Call mom" and "Take meds" while preserving iPhone and other casing. Items without duration are moments and never clash. Explicit durations still clash.
+
+The CLI reproduced all three reported failures before; none remains afterwards. Flip, saved state and Undo were driven. The expanded full corpus passes **87/87**, versus Round 2's 70/70; 17 cases were added and the old incorrect wake-seven expectation was corrected.
+
+| Round 3 workload | Passes | Calls | Estimated USD |
+| --- | ---: | ---: | ---: |
+| First reminder repeats | 108/111 | 34 | 0.2046111 |
+| Second repeats, rechecked | 111/111 | 27 | 0.1449413 |
+| Final repeats | 110/111 | 27 | 0.1472963 |
+| Full corpus | 87/87 | 84 | 0.6317177 |
+
+Total **$1.1285664**, including failures. All calls returned usage. The first repeats lost after-work clocks, now read locally. The second needed a bounded dawai/medicine vocabulary correction, with original results retained. The final strict failure saved dinner correctly at 8 PM but added an unnecessary question. It remains a failure.
+
+All API runs were source-stable. The hook then required verbatim CLI helper extraction. `npm test` passes after it. Counts, hashes, evidence paths and single-family review are in the [Round 3 ledger](smart-evidence/round3-ledger.json).
+
+**UNVERIFIED:** phone paths, native networking, notifications, alarms, Samsung and widgets. check:evidence lacks a fresh APK/screenshot. No device was driven, push or merge performed.
