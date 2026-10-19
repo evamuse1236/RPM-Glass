@@ -65,6 +65,16 @@ test('a task over an event says Clash in its line; a clash wins over Not done; t
   assert.deepEqual(line('Read'), {kind: 'result', text: 'Pass the DAD exam', tone: 'area-3'});
   assert.equal(model.rows.find(r => r.kind === 'event').line, null);
 });
+test('a durationless task is a visible moment without a clash, duration label or occupied free time',()=>{
+ const moment=task('Reminder','09:30',null),events=[event('Meeting','09:00','10:00')];
+ const model=spine({now:at('08:00'),water:null,tasks:[moment],events});
+ const row=model.rows.find(r=>r.key==='task:Reminder');
+ assert.equal(row.start,row.end);assert.equal(row.minutes,0);assert.equal(row.gutter.length,null);assert.equal(row.line.kind,'result');
+ const free=m=>m.rows.filter(r=>r.kind==='gap').map(r=>[r.start,r.end]);
+ assert.deepEqual(free(model),free(spine({now:at('08:00'),water:null,events})));
+ const span=spine({now:at('08:00'),water:null,tasks:[task('Read','09:30',30)],events});
+ assert.equal(span.rows.find(r=>r.key==='task:Read').line.kind,'clash');
+});
 
 test('routines show their count and bar; water and meals are small rows; anytime tasks are one chip', () => {
   const model = spine({routines: [{id: 'm', name: 'Morning routine', start: '07:00', end: '07:30', state: 'partly',

@@ -292,7 +292,7 @@ export function renderToday(app, page) {
   // It keeps its time so it stays in its own slot, not at the end of the list.
   const recent = model.completed.filter(task => app.recentlyCompleted.has(task.id))
     .map(task => (task.start || !task.planned ? task
-      : {...task, start: Date.parse(task.planned), end: Date.parse(task.planned) + (task.minutes ?? 30) * 60000}));
+      : {...task, start: Date.parse(task.planned), end: Date.parse(task.planned) + (task.minutes ?? 0) * 60000}));
   const active = [...model.active, ...recent];
   const dayEvents = timelineItems(data, day, calendar).filter(item => item.source === 'calendar');
 

@@ -6,7 +6,7 @@ import {createTraceStore} from './capture-trace.mjs';
 import {createMemoryBackend} from '../intent-v2/src/repository.mjs';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {changePlanner} from './planner-tools.mjs';
-import {editPlan,conflicts} from './planner-state.mjs';
+import {editPlan,conflicts,timelineItems} from './planner-state.mjs';
 import {occurrences,completeTask} from './planner-recurrence.mjs';
 import {undo} from '../chat-prototype/companion-tools.mjs';
 import {field,operation,turn} from '../intent-v2/test/helpers.mjs';
@@ -33,6 +33,17 @@ test('wake-up without a day saves tomorrow morning with a guarded PM flip',async
  assert.equal(help.label,'Make it 7 PM');
  await s.agent.act(help.action,{actionId:actionIdFor(help.action)});
  assert.equal((await s.backend.load()).entries[0].planned,'2026-10-20T13:30:00.000Z');
+ await assert.rejects(s.agent.act(help.action,{actionId:'stale'}),/changed/);
+});
+test('an after-work reminder keeps its exact clock locally and offers the guarded AM alternate',async()=>{
+ const raw='remind me tomorrow at 7 to call mom after work',s=setup();
+ const result=await s.agent.capture({messageId:'m',conversationId:s.conversationId,text:raw});
+ assert.equal(result.applied?.status,'applied');assert.equal(result.calls,0);assert.equal(result.applied.warning,null);
+ const data=await s.backend.load();assert.equal(data.entries[0].planned,'2026-10-20T13:30:00.000Z');assert.equal(data.entries[0].raw,raw);
+ const help=(await s.service.view()).captures[0].draft.nextStep;
+ assert.equal(help.label,'Make it 7 AM');
+ await s.agent.act(help.action,{actionId:actionIdFor(help.action)});
+ assert.equal((await s.backend.load()).entries[0].planned,'2026-10-20T01:30:00.000Z');
  await assert.rejects(s.agent.act(help.action,{actionId:'stale'}),/changed/);
 });
 test('model titles and exact semantic evidence use the same boundary as local captures',async()=>{
@@ -63,16 +74,16 @@ test('a moment on either side never conflicts with a duration or a calendar even
 for(const alert of ['reminder','alarm'])test(`${alert} with no duration saves over a calendar event`,async()=>{
  const at=Date.parse('2026-10-19T18:00:00+05:30'),s=setup({calendar:{status:'ready',start:+now-86400000,end:+now+86400000,events:[{id:'event',title:'Meeting',start:at-600000,end:at+3600000}]}});
  const result=await s.agent.capture({messageId:'m',conversationId:s.conversationId,text:`${alert} at 6`});
- assert.equal(result.applied.status,'applied');assert.equal((await s.backend.load()).entries[0].minutes,null);
+ assert.equal(result.applied.status,'applied');assert.equal(result.applied.warning,null);assert.equal((await s.backend.load()).entries[0].minutes,null);
 });
 test('a durationless saved alert does not block a new duration, while real durations still clash',async()=>{
  const seed=freshStore();editPlan(seed,{type:'saveTask',fields:{title:'Reminder',planned:'2026-10-19T12:30:00.000Z',minutes:null,alert:'reminder'}},now);
  const raw='Read at 6pm for 30 minutes',model=async()=>turn(raw,[operation([field('title','Read','Read'),field('time','at 6pm','at 6pm'),field('minutes',30,'for 30 minutes')])]);
  const s=setup({seed,model}),result=await s.agent.capture({messageId:'m',conversationId:s.conversationId,text:raw});
- assert.equal(result.applied.status,'applied');assert.equal((await s.backend.load()).entries.length,2);
+ assert.equal(result.applied.status,'applied');assert.equal(result.applied.warning,null);assert.equal((await s.backend.load()).entries.length,2);
  const busy=structuredClone(seed);busy.entries[0].minutes=30;
  const clash=setup({seed:busy,model}),blocked=await clash.agent.capture({messageId:'m',conversationId:clash.conversationId,text:raw});
- assert.equal(blocked.applied.status,'needs-review');assert.equal((await clash.backend.load()).entries.length,1);
+ assert.equal(blocked.applied.status,'applied');assert.match(blocked.applied.warning,/overlap/);assert.equal((await clash.backend.load()).entries.length,2);
 });
 test('new manual tasks and recurring alerts keep unknown duration as visible, completable moments',()=>{
  const data=freshStore();editPlan(data,{type:'saveTask',fields:{title:'call iPhone SUPPORT',planned:'2026-10-20T01:30:00.000Z',recurrence:'daily',alert:'alarm'}},now);
@@ -80,4 +91,8 @@ test('new manual tasks and recurring alerts keep unknown duration as visible, co
  const at=Date.parse(e.planned),rows=occurrences(e,at,at+1);
  assert.equal(rows.length,1);assert.equal(rows[0].end,rows[0].start);
  completeTask(e,e.planned,now);assert.equal(occurrences(e,at,at+1).length,0);
+});
+test('a moment at midnight remains in its day timeline',()=>{
+ const data=freshStore();editPlan(data,{type:'saveTask',fields:{title:'Alarm',planned:new Date('2026-10-20T00:00:00').toISOString(),minutes:null}},now);
+ const rows=timelineItems(data,'2026-10-20');assert.equal(rows.length,1);assert.equal(rows[0].start,rows[0].end);
 });

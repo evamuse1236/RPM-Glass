@@ -50,7 +50,7 @@ test('next free slot changes only time on tap and still uses canonical Undo',asy
  await assert.rejects(s.agent.act(a,{actionId:actionIdFor(a)}),/changed/);
 });
 test('an invented or stale next-step tap changes nothing',async()=>{
- const raw='Buy apples',s=await setup(raw,[operation([field('title',raw,raw)])]);
+ const raw='Buy apples for 30 minutes',s=await setup(raw,[operation([field('title','Buy apples','Buy apples'),field('minutes',30,'for 30 minutes')])]);
  const a=(await s.card()).draft.nextStep.action,before=await s.backend.load();
  await assert.rejects(s.agent.act({...a,targetId:'999'},{actionId:'fake'}),/changed/);
  assert.deepEqual(await s.backend.load(),before);

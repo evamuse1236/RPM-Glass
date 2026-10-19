@@ -34,11 +34,11 @@ export function receiptHelp(data,draft,{now=new Date(),calendar=null}={}){
  const task=created.find(e=>!e.planned&&!e.plannedDate);
  // A complete local calendar copy is needed to call a gap free.
  if(!task||calendar?.status!=='ready')return null;
- const minutes=task.minutes??30;
+ const minutes=task.minutes??0;
  const at=alternatives(data,new Date(+now+60000),minutes,calendarRows(calendar),task.id)
   .find(at=>localDay(at)===localDay(now)&&!calendarRisk(calendar,Date.parse(at),Date.parse(at)+minutes*60000));
  if(!at)return null;
- return {text:`A ${minutes} minute opening in today's plan.`,label:`Try ${clockText(at)}`,action:{...base,step:'schedule',targetId:String(task.id),guard:stepGuard(task),at}};
+ return {text:minutes?`A ${minutes} minute opening in today's plan.`:`A time in today's plan.`,label:`Try ${clockText(at)}`,action:{...base,step:'schedule',targetId:String(task.id),guard:stepGuard(task),at}};
 }
 
 export function checkReceiptStep(data,action,{now=new Date(),calendar=null}={}){
@@ -47,8 +47,8 @@ export function checkReceiptStep(data,action,{now=new Date(),calendar=null}={}){
  const row=data.entries.find(e=>String(e.id)===action.targetId);
  if(action.step==='flip-time'&&Date.parse(action.at)<=+now)throw new Error('That clock time has passed. Ask for a new time.');
  if(action.step==='schedule'){
-  const start=Date.parse(action.at),end=start+(row.minutes??30)*60000;
-  if(start<=+now||calendar?.status!=='ready'||calendarRisk(calendar,start,end)||conflicts(data,start,row.minutes??30,calendarRows(calendar),row.id).length)throw new Error('That opening is no longer available. Ask for a fresh time.');
+  const start=Date.parse(action.at),end=start+(row.minutes??0)*60000;
+  if(start<=+now||calendar?.status!=='ready'||calendarRisk(calendar,start,end)||conflicts(data,start,row.minutes,calendarRows(calendar),row.id).length)throw new Error('That opening is no longer available. Ask for a fresh time.');
  }
  return row;
 }

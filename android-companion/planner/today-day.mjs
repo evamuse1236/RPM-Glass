@@ -28,7 +28,7 @@ function dayTask(app, task, done) {
   const at = task.start ?? (task.planned ? Date.parse(task.occurrence ?? task.planned) : null);
   const start = at != null && localDay(at) === app.state.day ? at : null;
   const block = app.p().blocks.find(b => b.id === task.blockId);
-  return {id: task.id, title: task.title, start, minutes: task.minutes ?? 30, done, must: !!task.must, result: block?.title ?? null,
+  return {id: task.id, title: task.title, start, minutes: task.minutes ?? null, done, must: !!task.must, result: block?.title ?? null,
     tone: app.tone(app.context(task).area), occurrence: task.occurrence, ref: task};
 }
 

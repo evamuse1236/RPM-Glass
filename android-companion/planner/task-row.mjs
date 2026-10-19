@@ -21,7 +21,7 @@ export function taskWhen(task) {
 
 export function isOverdue(task, when = taskWhen(task)) {
   if (task.done) return false;
-  if (when) return when + (task.minutes ?? 30) * 60000 < Date.now();
+  if (when) return when + (task.minutes ?? 0) * 60000 < Date.now();
   return !!task.plannedDate && task.plannedDate < localDay();
 }
 
