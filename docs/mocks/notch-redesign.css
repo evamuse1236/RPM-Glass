@@ -83,12 +83,12 @@ button:focus-visible { outline: 2px solid var(--kc, var(--task)); outline-offset
 .toast.on { opacity: 1; translate: 0 0; }
 
 .secondary:active, .row:active { background: var(--press); }
-.primary:active, .undo:active { background: color-mix(in oklch, var(--kc) 32%, black); }
+.primary:active, .undo:active { background: color-mix(in oklch, var(--kc) 44%, black); }
 .stop:active { background: color-mix(in oklch, var(--alarm) 80%, black); }
 @media (hover: hover) and (pointer: fine) {
   .row:hover { background: oklch(1 0 none / 0.06); }
   .secondary:hover { background: oklch(1 0 none / 0.16); }
-  .primary:hover { background: color-mix(in oklch, var(--kc) 28%, black); }
+  .primary:hover { background: color-mix(in oklch, var(--kc) 38%, black); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
