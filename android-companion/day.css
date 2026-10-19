@@ -1,5 +1,5 @@
 :root {
-  --spine-gutter: 64px;
+  --spine-gutter: calc(66px * var(--text-scale, 1));
   --spine-rail: 12px;
   --spine-current: color-mix(in srgb, var(--primary-container) 55%, var(--surface));
 }
@@ -7,7 +7,7 @@
   :root:not([data-appearance=light]) { --spine-current: color-mix(in srgb, var(--primary-container) 38%, var(--surface)); }
 }
 :root[data-appearance=dark] { --spine-current: color-mix(in srgb, var(--primary-container) 38%, var(--surface)); }
-:root[data-large-text=true] { --spine-gutter: 80px; --spine-rail: 16px; }
+:root[data-large-text=true] { --spine-gutter: calc(54px * var(--text-scale, 1)); --spine-rail: 16px; }
 
 .day-page > .day-header { display: contents; }
 .day-page .date-line {

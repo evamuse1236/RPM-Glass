@@ -100,7 +100,7 @@ window.RPM_PLATFORM.health=()=>bodyToday(data);
 window.rpmPhoneRefresh=coalesceRefresh(async()=>{await ready;if(!busy){const latest=await native('load');phone=latest.phone;if(latest.data&&latest.data.version!==data.version){data=latest.data;window.dispatchEvent(new Event('rpm-data-refresh'));}}window.dispatchEvent(new Event('rpm-phone-status'));});
 await ready;
 applyClarityPreferences();
-const syncTextScale=()=>{document.documentElement.dataset.reduceMotion=String(!!phone.reducedMotion);document.documentElement.dataset.largeText=String((phone.effectiveFontScale??phone.fontScale)>=1.5);};
+const syncTextScale=()=>{document.documentElement.dataset.reduceMotion=String(!!phone.reducedMotion);const scale=phone.effectiveFontScale??phone.fontScale??1;document.documentElement.dataset.largeText=String(scale>=1.5);document.documentElement.style.setProperty("--text-scale",String(scale));};
 syncTextScale();window.addEventListener('rpm-phone-status',syncTextScale);
 if(isPlanner){
   // Native paints the window edges and system-bar icons; keep them on the planner's effective theme.

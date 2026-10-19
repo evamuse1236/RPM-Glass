@@ -105,6 +105,8 @@ function installNativeHooks(app) {
   const root = document.documentElement;
   const syncPhone = () => {
     const large = String(app.largeText());
+    const phone = app.api.getPhone();
+    root.style.setProperty('--text-scale', String(phone.effectiveFontScale ?? phone.fontScale ?? 1));
     const changed = root.dataset.largeText !== large;
     root.dataset.largeText = large;
     return changed;
