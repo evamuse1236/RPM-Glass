@@ -9,6 +9,14 @@ const ALL=new Set(['all','everything','both']);
 const POINTING=new Set(['that','this','it']);
 const sameTargets=(a,b)=>a.length===b.length&&a.every(t=>b.some(u=>u.entity===t.entity&&String(u.id)===String(t.id)));
 
+export function orphanChoiceTurn(output,input){
+ if(input.activeDraft||input.openQuestion||input.sourceUnits.length!==1)return output;
+ const unit=input.sourceUnits[0],tokens=words(unit.text).filter(t=>!['the','one','ones','only','please','and','of','them'].includes(t));
+ if(!tokens.length||!tokens.every(t=>ALL.has(t)||POINTING.has(t)||Object.hasOwn(ORDINAL,t)||t==='last'))return output;
+ return {schemaVersion:1,mode:'capture',draftMode:'none',reply:'Nothing is waiting for a choice. Name the item you want to change.',
+  decisions:[{sourceId:unit.id,disposition:'reference',note:null}],operations:[],question:null,clarification:null,memoryCandidates:[],card:null};
+}
+
 /** One part of a reply ("first", "the alarm", "both") as choice indexes, or null when it is not clearly one of them. */
 function part(tokens,question,{focus}){
  const {choices}=question,content=tokens.filter(t=>!IGNORED.has(t));

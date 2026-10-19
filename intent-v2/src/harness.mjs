@@ -7,7 +7,7 @@ import {ident,activeStatus,conversation,safeQuestion,actOnDraft,undoCommitted} f
 import {quickAnswer} from './quick-answer.mjs';
 import {inputSummary} from './input-summary.mjs';
 import {focusFor,focusOf,questionFor,openQuestion} from './conversation-focus.mjs';
-import {readChoiceReply,choiceTurn,choiceEntities} from './choice-reply.mjs';
+import {readChoiceReply,choiceTurn,choiceEntities,orphanChoiceTurn} from './choice-reply.mjs';
 import {proposalEntities,stageProposalRemoval} from './proposal-removal.mjs';
 import {completeShortReminder} from './short-reminder.mjs';
 import {completeWaterLog} from './body-intent.mjs';
@@ -97,8 +97,8 @@ export class IntentHarness {
     const run={...(route??{}),attempt,ms:null,ok:false,input:inputSummary({...input,repair},meta)};modelRuns.push(run);const started=Date.now();
     try{
      const output=await Promise.race([this.model({...input,repair},{signal:controller.signal,deadline,route,run}),timeout]).finally(()=>{run.ms=Date.now()-started;});run.ok=true;
-     const reminder=completeShortReminder(output,input),completed=completeWaterLog(reminder,input);
-     if(completed!==output)run.completion=completed===reminder?'short-reminder':'water-log';
+     const reminder=completeShortReminder(output,input),water=completeWaterLog(reminder,input),completed=orphanChoiceTurn(water,input);
+     if(completed!==output)run.completion=completed!==water?'closed-choice':water!==reminder?'water-log':'short-reminder';
      parsed=interpretTurn(completed,{units,messageId,visibleEntities:context.entities,activeDraft});
      validateFollowUp(parsed,{input});
      held=this.recoverInterpretation?.(parsed,{input,activeDraft})??held;

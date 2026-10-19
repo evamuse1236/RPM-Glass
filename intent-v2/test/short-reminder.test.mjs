@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {completeShortReminder} from '../src/short-reminder.mjs';
 import {sourceUnits} from '../src/context.mjs';
 import {interpretTurn} from '../src/interpret.mjs';
+import {orphanChoiceTurn} from '../src/choice-reply.mjs';
 const input=raw=>({sourceUnits:sourceUnits(raw),context:{now:'2026-10-19T04:30:00Z'}});
 test('standalone reminders complete from their words even when the model only asks in prose',()=>{
  for(const raw of ['set a reminder in 5','remind me in 5','alarm in 10','reminder tomorrow morning','5 min baad yaad dilana','set an alarm in 2 hours']){
@@ -22,4 +23,13 @@ test('named subjects, existing items, mixed requests, unsupported units and focu
  const sentinel={operations:[],reply:'model result'};
  for(const raw of ['set a reminder in 5 mins to call mom','remind me about Raj in 5','alarm in 5 then call Mom','remind me in 5 months','remind me in -5','remind me in 5.5','remind me in 5 seconds'])assert.equal(completeShortReminder(sentinel,input(raw)),sentinel,raw);
  assert.equal(completeShortReminder(sentinel,{...input('remind me in 5'),activeDraft:{id:'d'}}),sentinel);
+});
+test('a closed choice cannot manufacture a new question about unrelated saved items',()=>{
+ const output={operations:[{kind:'archive',entity:'task',targetId:'102'}],clarification:{choices:[{label:'Gym morning'}]}};
+ for(const raw of ['That one only','Both','First','all of them']){
+  const parsed=orphanChoiceTurn(output,input(raw));
+  assert.deepEqual(parsed.operations,[]);assert.equal(parsed.clarification,null);
+ }
+ assert.equal(orphanChoiceTurn(output,{...input('Both'),openQuestion:{id:'q'}}),output);
+ assert.equal(orphanChoiceTurn(output,input('Delete this')),output);
 });
