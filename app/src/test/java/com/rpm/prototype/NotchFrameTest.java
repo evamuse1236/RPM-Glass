@@ -61,6 +61,53 @@ public class NotchFrameTest {
         assertNotEquals(f.key(PLACE), f.key("cutout centre=540,52|1080|2.0"));
     }
 
+    private static NotchData mealPlan(String snackAt, String name) throws Exception {
+        JSONObject snack = new JSONObject().put("slot", "snack").put("at", snackAt).put("on", true).put("name", name);
+        JSONObject body = new JSONObject().put("mealPlan", new JSONObject().put("slots", new JSONArray().put(snack)));
+        return NotchData.parse(new JSONObject().put("planner", new JSONObject().put("body", body)), null);
+    }
+
+    @Test
+    public void mealPlanOnlyChangesTheFrameWhenTheVisibleMealChanges() throws Exception {
+        String first = frame(mealPlan("16:00", "Tea and fruit"), "2026-10-18T16:30:05", Mode.OPEN).key(PLACE);
+        assertEquals(first, frame(mealPlan("16:00", "Tea and fruit"), "2026-10-18T16:30:25", Mode.OPEN).key(PLACE));
+        assertEquals(first, frame(mealPlan("15:30", "Tea and fruit"), "2026-10-18T16:30:05", Mode.OPEN).key(PLACE));
+        assertNotEquals(first, frame(mealPlan("16:00", "Yogurt"), "2026-10-18T16:30:05", Mode.OPEN).key(PLACE));
+        assertNotEquals(first, frame(mealPlan("17:00", "Tea and fruit"), "2026-10-18T16:30:05", Mode.OPEN).key(PLACE));
+    }
+
+    private static NotchData busyMealPlan(boolean on, String name, boolean routine) throws Exception {
+        JSONObject store = new JSONObject().put("entries", new JSONArray()
+                .put(new JSONObject().put("id", 1).put("title", "Essay").put("planned", "2026-10-18T10:00:00Z").put("minutes", 45))
+                .put(new JSONObject().put("id", 2).put("title", "Call").put("planned", "2026-10-18T11:00:00Z").put("minutes", 30)));
+        JSONObject snack = new JSONObject().put("slot", "snack").put("at", "16:00").put("on", on).put("name", name);
+        JSONObject body = new JSONObject().put("mealPlan", new JSONObject().put("slots", new JSONArray().put(snack)));
+        if (routine) body.put("routines", new JSONArray().put(new JSONObject().put("id", "r1").put("name", "Tidy")
+                .put("start", "16:00").put("end", "17:00").put("days", new JSONArray().put(0))
+                .put("steps", new JSONArray().put(new JSONObject().put("id", "s1").put("title", "Desk")))));
+        return NotchData.parse(store.put("planner", new JSONObject().put("body", body)), null);
+    }
+
+    @Test
+    public void renamingAHiddenMealRowDoesNotRedrawTheFrame() throws Exception {
+        NotchData first = busyMealPlan(true, "Tea", false);
+        NotchScene scene = new NotchScene(first, at("2026-10-18T16:05"), Collections.emptyMap(), KOLKATA, false);
+        assertEquals(NotchScene.Look.MEAL, scene.rows.get(2).look);
+        assertEquals(frame(first, "2026-10-18T16:05", Mode.OPEN).key(PLACE),
+                frame(busyMealPlan(true, "Fruit", false), "2026-10-18T16:05", Mode.OPEN).key(PLACE));
+    }
+
+    @Test
+    public void changingTheMealControlRedrawsEvenWhenNoMealRowFits() throws Exception {
+        NotchData first = busyMealPlan(true, "Tea", true);
+        NotchScene scene = new NotchScene(first, at("2026-10-18T16:05"), Collections.emptyMap(), KOLKATA, false);
+        assertEquals(3, scene.rows.size());
+        assertTrue(scene.rows.stream().noneMatch(row -> row.look == NotchScene.Look.MEAL));
+        assertEquals("snack", scene.meal);
+        assertNotEquals(frame(first, "2026-10-18T16:05", Mode.OPEN).key(PLACE),
+                frame(busyMealPlan(false, "Tea", true), "2026-10-18T16:05", Mode.OPEN).key(PLACE));
+    }
+
     @Test
     public void aNoteReplacesThePillValue() throws Exception {
         NotchFrame plain = frame(day(), "2026-10-18T15:40:05", Mode.PILL);

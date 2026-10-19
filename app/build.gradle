@@ -44,3 +44,7 @@ tasks.register('bundleCompanion', Exec) {
     outputs.dir('src/main/assets/companion')
 }
 tasks.named('preBuild').configure { dependsOn 'bundleCompanion' }
+
+tasks.withType(Test).configureEach {
+    inputs.file(rootProject.file('fixtures/habit-cases.json'))
+}

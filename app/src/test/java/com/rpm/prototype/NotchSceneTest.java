@@ -144,4 +144,31 @@ public class NotchSceneTest {
         assertEquals("Dinner", s.rows.get(s.rows.size() - 1).title);
         assertEquals("Not logged", s.rows.get(s.rows.size() - 1).value);
     }
+
+    @Test
+    public void remindersOffKeepTheWaterCountWithoutANudge() throws Exception {
+        JSONObject water = new JSONObject().put("settings", new JSONObject().put("reminders", false))
+                .put("glasses", new JSONArray().put(iso("2026-10-18T08:30")));
+        JSONObject store = new JSONObject().put("planner", new JSONObject().put("body", new JSONObject().put("water", water)));
+        NotchScene s = scene(NotchData.parse(store, null), "2026-10-18T16:00");
+        assertEquals(1, s.water.count);
+        assertEquals(8, s.water.goal);
+        assertEquals(0, s.water.nextAt);
+        assertFalse(s.waterDue());
+        assertFalse(s.canSnooze());
+        assertTrue(s.canDrink());
+        assertEquals("1 of 8 glasses today", s.heroSubtitle);
+    }
+
+    @Test
+    public void aPlannedSnackShowsItsSavedName() throws Exception {
+        JSONObject snack = new JSONObject().put("slot", "snack").put("at", "16:00").put("on", true).put("name", "  Tea and fruit  ");
+        JSONObject body = new JSONObject().put("mealPlan", new JSONObject().put("slots", new JSONArray().put(snack)));
+        NotchScene s = scene(NotchData.parse(new JSONObject().put("planner", new JSONObject().put("body", body)), null), "2026-10-18T16:30");
+        assertEquals("snack", s.meal);
+        assertEquals(1, s.rows.size());
+        assertEquals(Look.MEAL, s.rows.get(0).look);
+        assertEquals("Tea and fruit", s.rows.get(0).title);
+        assertEquals("Not logged", s.rows.get(0).value);
+    }
 }

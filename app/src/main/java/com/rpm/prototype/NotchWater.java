@@ -62,7 +62,7 @@ final class NotchWater {
         long end = at(day, s.until, zone);
         boolean paused = false;
         for (Busy b : busy) paused |= b.start <= now && now < b.end;
-        if (today.size() >= s.goal || !s.reminders) return new Status(today.size(), s.goal, 0, false);
+        if (today.size() >= s.goal) return new Status(today.size(), s.goal, 0, false);
         long next = last != 0 ? last + s.intervalMinutes * NotchDay.MIN : start;
         if (next < start) next = start;
         if (snoozedUntil > next) next = snoozedUntil;

@@ -43,6 +43,7 @@ For an authorized phone release, compare the working tree, branch, and installed
 | A Block's add field finds Inbox tasks by word starts and pulls one in; Enter alone creates. | `android-companion/block-add.test.mjs`, `rpmctl scenario plan-add-in-place` |
 | The task sheet's Time row is every half hour from 6:00 AM to 11:00 PM plus the task's own off-grid time; its Day row is Today, Tomorrow and five weekdays. | `android-companion/habits.test.mjs` |
 | With no saved meal plan, meals sit at 8:30 AM, 1 PM and 8 PM; a meal turned off leaves Today but its logged meal stays. Water steppers keep 1–20 glasses and 15–240 minutes. | `android-companion/habits.test.mjs` |
+| Water and meal rules are the same in the planner and the notch: both pass `fixtures/habit-cases.json`. | `android-companion/habit-rules.test.mjs`, `NotchHabitsTest.java` |
 | Capture cards show facts as icon chips, and a receipt shows the task's alert. | `android-companion/capture-lines.test.mjs` |
 | The notch pill ends at the status bar's bottom edge, 4dp above the camera hole. | `NotchAnchorTest.java`, `playground/notch-scene.test.mjs` |
 | `rpmctl seed` keeps synced web assets, so a seeded run shows the synced code. | `.claude/skills/verify-rpm-glass/seed-sync.test.mjs` |
