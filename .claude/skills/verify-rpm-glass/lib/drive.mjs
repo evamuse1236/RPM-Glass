@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {PACKAGE, UserError, adb, shell, sleep, waitFor, foregroundActivity, displayInfo, nativeNodes, dismissAnr} from './device.mjs';
-import {inPage, toDevice} from './page.mjs';
+import {inPage, toDevice, pageTargets} from './page.mjs';
 import {DISPLAYS, evidenceDir, journal, target, openLauncher} from './runtime.mjs';
 import {wipeAppDataKeepingSync} from './sync.mjs';
 
@@ -184,7 +184,10 @@ export const driveCommands = {
         finally { page.close(); }
       } catch (e) { if (!(e instanceof UserError)) throw e; }
       if (found !== !!args.gone) return {ok: true, [args.gone ? 'gone' : 'found']: args.name ?? args.css, ms: timeout - (until - Date.now())};
-      if (Date.now() > until) throw new UserError(`"${args.name ?? args.css}" ${args.gone ? 'still on screen' : 'did not appear'} after ${timeout}ms.`, 'Run `rpmctl ui` and `rpmctl shot` to see the current screen.');
+      if (Date.now() > until) {
+        const pages = (await pageTargets(serial, cdpPort).catch(() => [])).map(p => ({url: p.url, visible: p.view?.visible, attached: p.view?.attached}));
+        throw new UserError(`"${args.name ?? args.css}" ${args.gone ? 'still on screen' : 'did not appear'} after ${timeout}ms. Pages: ${JSON.stringify(pages)}`, 'Run `rpmctl ui` and `rpmctl shot` to see the current screen.');
+      }
       await sleep(300);
     }
   },
