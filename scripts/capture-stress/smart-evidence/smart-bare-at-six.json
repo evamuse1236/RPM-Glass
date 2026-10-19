@@ -1,0 +1,537 @@
+{
+  "id": "smart-bare-at-six",
+  "before": {
+    "pass": false,
+    "failures": [
+      {
+        "type": "repeated question",
+        "detail": "Turn 1: 2 questions shown"
+      },
+      {
+        "type": "invented item",
+        "detail": "task Cook dinner and buy dinner ingredients",
+        "turn": 1
+      },
+      {
+        "type": "lost item",
+        "detail": "Missing task title containing Reminder in draft state"
+      },
+      {
+        "type": "invented item",
+        "detail": "task Cook dinner and buy dinner ingredients"
+      }
+    ],
+    "turns": [
+      {
+        "words": "remind me at 6",
+        "modelCalls": [
+          {
+            "route": "quick",
+            "output": {
+              "schemaVersion": 1,
+              "mode": "capture",
+              "draftMode": "new",
+              "reply": "Which day should I remind you at 6, today or tomorrow? I'll set the reminder once you tell me.",
+              "decisions": [
+                {
+                  "sourceId": "s0",
+                  "disposition": "action",
+                  "note": null
+                }
+              ],
+              "operations": [],
+              "question": {
+                "opId": "q1",
+                "field": "time",
+                "prompt": "Which day should I remind you at 6?",
+                "options": [
+                  {
+                    "label": "Today at 6 PM",
+                    "value": "today 6pm"
+                  },
+                  {
+                    "label": "Tomorrow at 6 PM",
+                    "value": "tomorrow 6pm"
+                  }
+                ]
+              },
+              "clarification": null,
+              "memoryCandidates": [],
+              "card": null
+            },
+            "usage": {
+              "input_tokens": 13384,
+              "output_tokens": 220,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 0,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              }
+            },
+            "costUSD": 0.0014484
+          },
+          {
+            "route": "hard",
+            "output": {
+              "schemaVersion": 1,
+              "mode": "capture",
+              "draftMode": "new",
+              "reply": "I'm guessing you mean the dinner plan you just mentioned. Is 6 this evening, or tomorrow morning?",
+              "decisions": [
+                {
+                  "sourceId": "s0",
+                  "disposition": "action",
+                  "note": null
+                }
+              ],
+              "operations": [
+                {
+                  "opId": "op1",
+                  "sourceId": "s0",
+                  "kind": "create",
+                  "entity": "task",
+                  "targetId": null,
+                  "fields": [
+                    {
+                      "name": "title",
+                      "op": "set",
+                      "value": "Cook dinner and buy dinner ingredients",
+                      "origin": "suggested",
+                      "evidence": null
+                    },
+                    {
+                      "name": "alert",
+                      "op": "set",
+                      "value": "reminder",
+                      "origin": "stated",
+                      "evidence": "remind me"
+                    },
+                    {
+                      "name": "time",
+                      "op": "unknown",
+                      "value": null,
+                      "origin": "stated",
+                      "evidence": null
+                    }
+                  ]
+                }
+              ],
+              "question": {
+                "opId": "op1",
+                "field": "time",
+                "prompt": "Is that 6 PM today or 6 AM tomorrow?",
+                "options": [
+                  {
+                    "label": "6 PM today",
+                    "value": "today at 6 PM"
+                  },
+                  {
+                    "label": "6 AM tomorrow",
+                    "value": "tomorrow at 6 AM"
+                  }
+                ]
+              },
+              "clarification": null,
+              "memoryCandidates": [],
+              "card": null
+            },
+            "usage": {
+              "input_tokens": 13406,
+              "output_tokens": 1208,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 0,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              }
+            },
+            "costUSD": 0.038892
+          }
+        ],
+        "trace": {
+          "id": "stress-smart-bare-at-six-1",
+          "at": "2026-10-19T04:30:00.000Z",
+          "attempts": 1,
+          "latencyMs": 0,
+          "outcome": null,
+          "models": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "effort": "none",
+              "reason": "capture",
+              "attempt": 0,
+              "ms": 1953,
+              "ok": true,
+              "error": "INVALID_OUTPUT",
+              "provider": "API transport",
+              "servedModel": "claude-haiku-5-5",
+              "inputTokens": 13384,
+              "outputTokens": 220,
+              "cost": 0.0014484,
+              "service": "anthropic",
+              "input": {
+                "bytes": 6656,
+                "hash": "8de057a3fc825ae9",
+                "units": 1,
+                "messageCount": 1,
+                "messages": [
+                  {
+                    "id": "seed-dinner",
+                    "role": "user",
+                    "hash": "d97e9286890ca358"
+                  }
+                ],
+                "focus": null,
+                "question": null,
+                "entityCount": 14,
+                "entityIds": [
+                  "task:101",
+                  "task:102",
+                  "task:103",
+                  "task:104",
+                  "task:105",
+                  "task:106",
+                  "block:block-1",
+                  "block:block-2",
+                  "block:block-3",
+                  "block:block-4",
+                  "block:block-5",
+                  "block:block-6",
+                  "block:block-7",
+                  "block:block-8"
+                ],
+                "truncated": {
+                  "olderMessages": 0,
+                  "droppedMessages": 0,
+                  "clippedMessages": 0,
+                  "entities": 0,
+                  "snapshot": {}
+                },
+                "snapshotHash": "f92151df6c8a5155"
+              }
+            },
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "effort": "high",
+              "reason": "repair",
+              "attempt": 1,
+              "ms": 9360,
+              "ok": true,
+              "provider": "API transport",
+              "servedModel": "claude-sonnet-5-5",
+              "inputTokens": 13406,
+              "outputTokens": 1208,
+              "cost": 0.038892,
+              "service": "anthropic",
+              "input": {
+                "bytes": 6723,
+                "hash": "4a3d6e4bc49bd4bd",
+                "units": 1,
+                "messageCount": 1,
+                "messages": [
+                  {
+                    "id": "seed-dinner",
+                    "role": "user",
+                    "hash": "d97e9286890ca358"
+                  }
+                ],
+                "focus": null,
+                "question": null,
+                "entityCount": 14,
+                "entityIds": [
+                  "task:101",
+                  "task:102",
+                  "task:103",
+                  "task:104",
+                  "task:105",
+                  "task:106",
+                  "block:block-1",
+                  "block:block-2",
+                  "block:block-3",
+                  "block:block-4",
+                  "block:block-5",
+                  "block:block-6",
+                  "block:block-7",
+                  "block:block-8"
+                ],
+                "truncated": {
+                  "olderMessages": 0,
+                  "droppedMessages": 0,
+                  "clippedMessages": 0,
+                  "entities": 0,
+                  "snapshot": {}
+                },
+                "snapshotHash": "f92151df6c8a5155",
+                "repair": true
+              }
+            }
+          ],
+          "applied": {
+            "status": "needs-answer",
+            "draftId": "draft-stress-smart-bare-at-six-1",
+            "entryIds": []
+          },
+          "errors": []
+        },
+        "result": {
+          "status": "interpreted",
+          "draftId": "draft-stress-smart-bare-at-six-1",
+          "applied": {
+            "status": "needs-answer"
+          }
+        },
+        "draft": {
+          "status": "draft",
+          "operations": [
+            {
+              "opId": "op1",
+              "sourceId": "s0",
+              "kind": "create",
+              "entity": "task",
+              "targetId": null,
+              "fields": [
+                {
+                  "name": "title",
+                  "op": "set",
+                  "value": "Cook dinner and buy dinner ingredients",
+                  "origin": "suggested",
+                  "evidence": null,
+                  "sourceMessageId": "stress-smart-bare-at-six-1",
+                  "evidenceSourceId": null
+                },
+                {
+                  "name": "alert",
+                  "op": "set",
+                  "value": "reminder",
+                  "origin": "stated",
+                  "evidence": "remind me",
+                  "sourceMessageId": "stress-smart-bare-at-six-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "time",
+                  "op": "unknown",
+                  "value": null,
+                  "origin": "stated",
+                  "evidence": null,
+                  "sourceMessageId": "stress-smart-bare-at-six-1",
+                  "evidenceSourceId": null
+                }
+              ],
+              "sourceMessageIds": [
+                "stress-smart-bare-at-six-1"
+              ]
+            }
+          ],
+          "question": {
+            "opId": "op1",
+            "field": "time",
+            "prompt": "Is that 6 PM today or 6 AM tomorrow?",
+            "options": [
+              {
+                "label": "6 PM today",
+                "value": "today at 6 PM"
+              },
+              {
+                "label": "6 AM tomorrow",
+                "value": "tomorrow at 6 AM"
+              }
+            ]
+          },
+          "schedulePreview": {
+            "anchorAt": "2026-10-19T04:30:00.000Z",
+            "timezone": "Asia/Kolkata",
+            "items": []
+          }
+        }
+      }
+    ],
+    "saved": []
+  },
+  "after": {
+    "pass": true,
+    "failures": [],
+    "turns": [
+      {
+        "words": "remind me at 6",
+        "modelCalls": [
+          {
+            "route": "quick",
+            "output": {
+              "schemaVersion": 1,
+              "mode": "capture",
+              "draftMode": "new",
+              "reply": "Reminder at 6 o'clock: AM or PM? I'll name it once you tell me.",
+              "decisions": [
+                {
+                  "sourceId": "s0",
+                  "disposition": "action",
+                  "note": null
+                }
+              ],
+              "operations": [],
+              "question": null,
+              "clarification": null,
+              "memoryCandidates": [],
+              "card": null
+            },
+            "usage": {
+              "input_tokens": 15044,
+              "output_tokens": 125,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 0,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              }
+            },
+            "costUSD": 0.0015669000000000002
+          }
+        ],
+        "trace": {
+          "id": "stress-smart-bare-at-six-1",
+          "at": "2026-10-19T04:30:00.000Z",
+          "attempts": 1,
+          "latencyMs": 0,
+          "outcome": null,
+          "models": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "effort": "none",
+              "reason": "capture",
+              "attempt": 0,
+              "ms": 1869,
+              "ok": true,
+              "provider": "API transport",
+              "servedModel": "claude-haiku-5-5",
+              "inputTokens": 15044,
+              "outputTokens": 125,
+              "cost": 0.0015669000000000002,
+              "service": "anthropic",
+              "input": {
+                "bytes": 6656,
+                "hash": "8de057a3fc825ae9",
+                "units": 1,
+                "messageCount": 1,
+                "messages": [
+                  {
+                    "id": "seed-dinner",
+                    "role": "user",
+                    "hash": "d97e9286890ca358"
+                  }
+                ],
+                "focus": null,
+                "question": null,
+                "entityCount": 14,
+                "entityIds": [
+                  "task:101",
+                  "task:102",
+                  "task:103",
+                  "task:104",
+                  "task:105",
+                  "task:106",
+                  "block:block-1",
+                  "block:block-2",
+                  "block:block-3",
+                  "block:block-4",
+                  "block:block-5",
+                  "block:block-6",
+                  "block:block-7",
+                  "block:block-8"
+                ],
+                "truncated": {
+                  "olderMessages": 0,
+                  "droppedMessages": 0,
+                  "clippedMessages": 0,
+                  "entities": 0,
+                  "snapshot": {}
+                },
+                "snapshotHash": "f92151df6c8a5155"
+              },
+              "completion": "short-reminder"
+            }
+          ],
+          "applied": {
+            "status": "needs-answer",
+            "draftId": "draft-stress-smart-bare-at-six-1",
+            "entryIds": []
+          },
+          "errors": []
+        },
+        "result": {
+          "status": "interpreted",
+          "draftId": "draft-stress-smart-bare-at-six-1",
+          "applied": {
+            "status": "needs-answer"
+          }
+        },
+        "draft": {
+          "status": "draft",
+          "operations": [
+            {
+              "opId": "short-alert",
+              "sourceId": "s0",
+              "kind": "create",
+              "entity": "task",
+              "targetId": null,
+              "fields": [
+                {
+                  "name": "title",
+                  "value": "Reminder",
+                  "evidence": null,
+                  "origin": "suggested",
+                  "op": "set",
+                  "sourceMessageId": "stress-smart-bare-at-six-1",
+                  "evidenceSourceId": null
+                },
+                {
+                  "name": "time",
+                  "value": null,
+                  "evidence": "at 6",
+                  "origin": "stated",
+                  "op": "unknown",
+                  "sourceMessageId": "stress-smart-bare-at-six-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "alert",
+                  "value": "reminder",
+                  "evidence": "remind me at 6",
+                  "origin": "stated",
+                  "op": "set",
+                  "sourceMessageId": "stress-smart-bare-at-six-1",
+                  "evidenceSourceId": "s0"
+                }
+              ],
+              "sourceMessageIds": [
+                "stress-smart-bare-at-six-1"
+              ]
+            }
+          ],
+          "question": {
+            "opId": "short-alert",
+            "field": "time",
+            "prompt": "at 6: AM or PM?",
+            "options": [
+              {
+                "label": "at 6 AM",
+                "value": "at 6 AM"
+              },
+              {
+                "label": "at 6 PM",
+                "value": "at 6 PM"
+              }
+            ]
+          },
+          "schedulePreview": {
+            "anchorAt": "2026-10-19T04:30:00.000Z",
+            "timezone": "Asia/Kolkata",
+            "items": []
+          }
+        }
+      }
+    ],
+    "saved": []
+  }
+}

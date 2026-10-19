@@ -1,0 +1,581 @@
+{
+  "id": "smart-wake-seven",
+  "before": {
+    "pass": true,
+    "failures": [],
+    "turns": [
+      {
+        "words": "wake me up at 7",
+        "modelCalls": [
+          {
+            "route": "quick",
+            "output": {
+              "schemaVersion": 1,
+              "mode": "capture",
+              "draftMode": "new",
+              "reply": "Got it. I'll set a wake-up alarm for 7 AM tomorrow, Monday. Tell me if you meant tomorrow's morning or a different day.",
+              "decisions": [
+                {
+                  "sourceId": "s0",
+                  "disposition": "action",
+                  "note": null
+                }
+              ],
+              "operations": [
+                {
+                  "opId": "op1",
+                  "sourceId": "s0",
+                  "kind": "create",
+                  "entity": "task",
+                  "targetId": null,
+                  "fields": [
+                    {
+                      "name": "title",
+                      "op": "set",
+                      "value": "Wake up",
+                      "origin": "suggested",
+                      "evidence": null
+                    },
+                    {
+                      "name": "time",
+                      "op": "set",
+                      "value": "tomorrow 7am",
+                      "origin": "stated",
+                      "evidence": "wake me up at 7"
+                    },
+                    {
+                      "name": "alert",
+                      "op": "set",
+                      "value": "alarm",
+                      "origin": "stated",
+                      "evidence": "wake me up"
+                    }
+                  ]
+                }
+              ],
+              "question": null,
+              "clarification": null,
+              "memoryCandidates": [],
+              "card": null
+            },
+            "usage": {
+              "input_tokens": 13384,
+              "output_tokens": 308,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 0,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              }
+            },
+            "costUSD": 0.0014924
+          },
+          {
+            "route": "hard",
+            "output": {
+              "schemaVersion": 1,
+              "mode": "capture",
+              "draftMode": "new",
+              "reply": "Got it, I'll set it as an alarm. Just need to know which 7.",
+              "decisions": [
+                {
+                  "sourceId": "s0",
+                  "disposition": "action",
+                  "note": null
+                }
+              ],
+              "operations": [
+                {
+                  "opId": "op1",
+                  "sourceId": "s0",
+                  "kind": "create",
+                  "entity": "task",
+                  "targetId": null,
+                  "fields": [
+                    {
+                      "name": "title",
+                      "op": "set",
+                      "value": "Wake up",
+                      "origin": "stated",
+                      "evidence": "wake me up"
+                    },
+                    {
+                      "name": "alert",
+                      "op": "set",
+                      "value": "alarm",
+                      "origin": "stated",
+                      "evidence": "wake me up"
+                    },
+                    {
+                      "name": "time",
+                      "op": "unknown",
+                      "value": null,
+                      "origin": "stated",
+                      "evidence": "at 7"
+                    }
+                  ]
+                }
+              ],
+              "question": {
+                "opId": "op1",
+                "field": "time",
+                "prompt": "Is that 7 AM or 7 PM?",
+                "options": [
+                  {
+                    "label": "7 AM",
+                    "value": "7 AM"
+                  },
+                  {
+                    "label": "7 PM",
+                    "value": "7 PM"
+                  }
+                ]
+              },
+              "clarification": null,
+              "memoryCandidates": [],
+              "card": null
+            },
+            "usage": {
+              "input_tokens": 13472,
+              "output_tokens": 682,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 0,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              }
+            },
+            "costUSD": 0.033764
+          }
+        ],
+        "trace": {
+          "id": "stress-smart-wake-seven-1",
+          "at": "2026-10-19T04:30:00.000Z",
+          "attempts": 1,
+          "latencyMs": 0,
+          "outcome": null,
+          "models": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "effort": "none",
+              "reason": "capture",
+              "attempt": 0,
+              "ms": 2025,
+              "ok": true,
+              "error": "UNSUPPORTED_TIME",
+              "provider": "API transport",
+              "servedModel": "claude-haiku-5-5",
+              "inputTokens": 13384,
+              "outputTokens": 308,
+              "cost": 0.0014924,
+              "service": "anthropic",
+              "input": {
+                "bytes": 6656,
+                "hash": "942d0a5cdb7f4562",
+                "units": 1,
+                "messageCount": 1,
+                "messages": [
+                  {
+                    "id": "seed-dinner",
+                    "role": "user",
+                    "hash": "d97e9286890ca358"
+                  }
+                ],
+                "focus": null,
+                "question": null,
+                "entityCount": 14,
+                "entityIds": [
+                  "task:101",
+                  "task:102",
+                  "task:103",
+                  "task:104",
+                  "task:105",
+                  "task:106",
+                  "block:block-1",
+                  "block:block-2",
+                  "block:block-3",
+                  "block:block-4",
+                  "block:block-5",
+                  "block:block-6",
+                  "block:block-7",
+                  "block:block-8"
+                ],
+                "truncated": {
+                  "olderMessages": 0,
+                  "droppedMessages": 0,
+                  "clippedMessages": 0,
+                  "entities": 0,
+                  "snapshot": {}
+                },
+                "snapshotHash": "f92151df6c8a5155"
+              }
+            },
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "effort": "high",
+              "reason": "repair",
+              "attempt": 1,
+              "ms": 5380,
+              "ok": true,
+              "provider": "API transport",
+              "servedModel": "claude-sonnet-5-5",
+              "inputTokens": 13472,
+              "outputTokens": 682,
+              "cost": 0.033764,
+              "service": "anthropic",
+              "input": {
+                "bytes": 6919,
+                "hash": "f17c866d6039fe93",
+                "units": 1,
+                "messageCount": 1,
+                "messages": [
+                  {
+                    "id": "seed-dinner",
+                    "role": "user",
+                    "hash": "d97e9286890ca358"
+                  }
+                ],
+                "focus": null,
+                "question": null,
+                "entityCount": 14,
+                "entityIds": [
+                  "task:101",
+                  "task:102",
+                  "task:103",
+                  "task:104",
+                  "task:105",
+                  "task:106",
+                  "block:block-1",
+                  "block:block-2",
+                  "block:block-3",
+                  "block:block-4",
+                  "block:block-5",
+                  "block:block-6",
+                  "block:block-7",
+                  "block:block-8"
+                ],
+                "truncated": {
+                  "olderMessages": 0,
+                  "droppedMessages": 0,
+                  "clippedMessages": 0,
+                  "entities": 0,
+                  "snapshot": {}
+                },
+                "snapshotHash": "f92151df6c8a5155",
+                "repair": true
+              }
+            }
+          ],
+          "applied": {
+            "status": "needs-answer",
+            "draftId": "draft-stress-smart-wake-seven-1",
+            "entryIds": []
+          },
+          "errors": []
+        },
+        "result": {
+          "status": "interpreted",
+          "draftId": "draft-stress-smart-wake-seven-1",
+          "applied": {
+            "status": "needs-answer"
+          }
+        },
+        "draft": {
+          "status": "draft",
+          "operations": [
+            {
+              "opId": "op1",
+              "sourceId": "s0",
+              "kind": "create",
+              "entity": "task",
+              "targetId": null,
+              "fields": [
+                {
+                  "name": "title",
+                  "op": "set",
+                  "value": "Wake up",
+                  "origin": "stated",
+                  "evidence": "wake me up",
+                  "sourceMessageId": "stress-smart-wake-seven-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "alert",
+                  "op": "set",
+                  "value": "alarm",
+                  "origin": "stated",
+                  "evidence": "wake me up",
+                  "sourceMessageId": "stress-smart-wake-seven-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "time",
+                  "op": "unknown",
+                  "value": null,
+                  "origin": "stated",
+                  "evidence": "at 7",
+                  "sourceMessageId": "stress-smart-wake-seven-1",
+                  "evidenceSourceId": "s0"
+                }
+              ],
+              "sourceMessageIds": [
+                "stress-smart-wake-seven-1"
+              ]
+            }
+          ],
+          "question": {
+            "opId": "op1",
+            "field": "time",
+            "prompt": "Is that 7 AM or 7 PM?",
+            "options": [
+              {
+                "label": "7 AM",
+                "value": "7 AM"
+              },
+              {
+                "label": "7 PM",
+                "value": "7 PM"
+              }
+            ]
+          },
+          "schedulePreview": {
+            "anchorAt": "2026-10-19T04:30:00.000Z",
+            "timezone": "Asia/Kolkata",
+            "items": []
+          }
+        }
+      }
+    ],
+    "saved": []
+  },
+  "after": {
+    "pass": true,
+    "failures": [],
+    "turns": [
+      {
+        "words": "wake me up at 7",
+        "modelCalls": [
+          {
+            "route": "quick",
+            "output": {
+              "schemaVersion": 1,
+              "mode": "capture",
+              "draftMode": "new",
+              "reply": "Got it. Wake-up alarm at 7 — tell me AM or PM so it rings at the right time.",
+              "decisions": [
+                {
+                  "sourceId": "s0",
+                  "disposition": "action",
+                  "note": null
+                }
+              ],
+              "operations": [
+                {
+                  "opId": "op1",
+                  "sourceId": "s0",
+                  "kind": "create",
+                  "entity": "task",
+                  "targetId": null,
+                  "fields": [
+                    {
+                      "name": "title",
+                      "op": "set",
+                      "value": "Wake up",
+                      "origin": "stated",
+                      "evidence": "wake me up"
+                    },
+                    {
+                      "name": "time",
+                      "op": "unknown",
+                      "value": null,
+                      "origin": "stated",
+                      "evidence": "at 7"
+                    },
+                    {
+                      "name": "alert",
+                      "op": "set",
+                      "value": "alarm",
+                      "origin": "stated",
+                      "evidence": "wake me up"
+                    }
+                  ]
+                }
+              ],
+              "question": {
+                "opId": "op1",
+                "field": "time",
+                "prompt": "Should the wake-up alarm be at 7 AM or 7 PM?",
+                "options": [
+                  {
+                    "label": "7 AM",
+                    "value": "7 AM"
+                  },
+                  {
+                    "label": "7 PM",
+                    "value": "7 PM"
+                  }
+                ]
+              },
+              "clarification": null,
+              "memoryCandidates": [],
+              "card": null
+            },
+            "usage": {
+              "input_tokens": 15044,
+              "output_tokens": 369,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 0,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              }
+            },
+            "costUSD": 0.0016889000000000001
+          }
+        ],
+        "trace": {
+          "id": "stress-smart-wake-seven-1",
+          "at": "2026-10-19T04:30:00.000Z",
+          "attempts": 1,
+          "latencyMs": 0,
+          "outcome": null,
+          "models": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "effort": "none",
+              "reason": "capture",
+              "attempt": 0,
+              "ms": 2265,
+              "ok": true,
+              "provider": "API transport",
+              "servedModel": "claude-haiku-5-5",
+              "inputTokens": 15044,
+              "outputTokens": 369,
+              "cost": 0.0016889000000000001,
+              "service": "anthropic",
+              "input": {
+                "bytes": 6656,
+                "hash": "942d0a5cdb7f4562",
+                "units": 1,
+                "messageCount": 1,
+                "messages": [
+                  {
+                    "id": "seed-dinner",
+                    "role": "user",
+                    "hash": "d97e9286890ca358"
+                  }
+                ],
+                "focus": null,
+                "question": null,
+                "entityCount": 14,
+                "entityIds": [
+                  "task:101",
+                  "task:102",
+                  "task:103",
+                  "task:104",
+                  "task:105",
+                  "task:106",
+                  "block:block-1",
+                  "block:block-2",
+                  "block:block-3",
+                  "block:block-4",
+                  "block:block-5",
+                  "block:block-6",
+                  "block:block-7",
+                  "block:block-8"
+                ],
+                "truncated": {
+                  "olderMessages": 0,
+                  "droppedMessages": 0,
+                  "clippedMessages": 0,
+                  "entities": 0,
+                  "snapshot": {}
+                },
+                "snapshotHash": "f92151df6c8a5155"
+              },
+              "completion": "short-reminder"
+            }
+          ],
+          "applied": {
+            "status": "needs-answer",
+            "draftId": "draft-stress-smart-wake-seven-1",
+            "entryIds": []
+          },
+          "errors": []
+        },
+        "result": {
+          "status": "interpreted",
+          "draftId": "draft-stress-smart-wake-seven-1",
+          "applied": {
+            "status": "needs-answer"
+          }
+        },
+        "draft": {
+          "status": "draft",
+          "operations": [
+            {
+              "opId": "short-alert",
+              "sourceId": "s0",
+              "kind": "create",
+              "entity": "task",
+              "targetId": null,
+              "fields": [
+                {
+                  "name": "title",
+                  "value": "Wake up",
+                  "evidence": null,
+                  "origin": "suggested",
+                  "op": "set",
+                  "sourceMessageId": "stress-smart-wake-seven-1",
+                  "evidenceSourceId": null
+                },
+                {
+                  "name": "time",
+                  "value": null,
+                  "evidence": "at 7",
+                  "origin": "stated",
+                  "op": "unknown",
+                  "sourceMessageId": "stress-smart-wake-seven-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "alert",
+                  "value": "alarm",
+                  "evidence": "wake me up at 7",
+                  "origin": "stated",
+                  "op": "set",
+                  "sourceMessageId": "stress-smart-wake-seven-1",
+                  "evidenceSourceId": "s0"
+                }
+              ],
+              "sourceMessageIds": [
+                "stress-smart-wake-seven-1"
+              ]
+            }
+          ],
+          "question": {
+            "opId": "short-alert",
+            "field": "time",
+            "prompt": "at 7: AM or PM?",
+            "options": [
+              {
+                "label": "at 7 AM",
+                "value": "at 7 AM"
+              },
+              {
+                "label": "at 7 PM",
+                "value": "at 7 PM"
+              }
+            ]
+          },
+          "schedulePreview": {
+            "anchorAt": "2026-10-19T04:30:00.000Z",
+            "timezone": "Asia/Kolkata",
+            "items": []
+          }
+        }
+      }
+    ],
+    "saved": []
+  }
+}

@@ -1,0 +1,416 @@
+{
+  "id": "smart-alarm-ten",
+  "before": {
+    "pass": false,
+    "failures": [
+      {
+        "type": "lost item",
+        "detail": "Missing task title containing Alarm in saved state"
+      },
+      {
+        "type": "repeated question",
+        "detail": "A question was asked when no clarification was allowed"
+      }
+    ],
+    "turns": [
+      {
+        "words": "alarm in 10",
+        "modelCalls": [
+          {
+            "route": "quick",
+            "output": {
+              "schemaVersion": 1,
+              "mode": "capture",
+              "draftMode": "new",
+              "reply": "Alarm in 10 minutes from now. Which task should ring? Pick one of the saved items, or say what it is and I'll set it up.",
+              "decisions": [
+                {
+                  "sourceId": "s0",
+                  "disposition": "action",
+                  "note": null
+                }
+              ],
+              "operations": [],
+              "question": null,
+              "clarification": {
+                "prompt": "Which task should ring in 10 minutes?",
+                "action": "other",
+                "choices": [
+                  {
+                    "label": "Call Raj",
+                    "targets": [
+                      {
+                        "entity": "task",
+                        "id": "101"
+                      }
+                    ]
+                  },
+                  {
+                    "label": "Submit workbook",
+                    "targets": [
+                      {
+                        "entity": "task",
+                        "id": "104"
+                      }
+                    ]
+                  },
+                  {
+                    "label": "Call Amma",
+                    "targets": [
+                      {
+                        "entity": "task",
+                        "id": "106"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "memoryCandidates": [],
+              "card": null
+            },
+            "usage": {
+              "input_tokens": 13384,
+              "output_tokens": 264,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 0,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              }
+            },
+            "costUSD": 0.0014704000000000002
+          }
+        ],
+        "trace": {
+          "id": "stress-smart-alarm-ten-1",
+          "at": "2026-10-19T04:30:00.000Z",
+          "attempts": 1,
+          "latencyMs": 0,
+          "outcome": null,
+          "models": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "effort": "none",
+              "reason": "capture",
+              "attempt": 0,
+              "ms": 2573,
+              "ok": true,
+              "provider": "API transport",
+              "servedModel": "claude-haiku-5-5",
+              "inputTokens": 13384,
+              "outputTokens": 264,
+              "cost": 0.0014704000000000002,
+              "service": "anthropic",
+              "input": {
+                "bytes": 6651,
+                "hash": "f4fceff3c2fa4d6d",
+                "units": 1,
+                "messageCount": 1,
+                "messages": [
+                  {
+                    "id": "seed-dinner",
+                    "role": "user",
+                    "hash": "d97e9286890ca358"
+                  }
+                ],
+                "focus": null,
+                "question": null,
+                "entityCount": 14,
+                "entityIds": [
+                  "task:101",
+                  "task:102",
+                  "task:103",
+                  "task:104",
+                  "task:105",
+                  "task:106",
+                  "block:block-1",
+                  "block:block-2",
+                  "block:block-3",
+                  "block:block-4",
+                  "block:block-5",
+                  "block:block-6",
+                  "block:block-7",
+                  "block:block-8"
+                ],
+                "truncated": {
+                  "olderMessages": 0,
+                  "droppedMessages": 0,
+                  "clippedMessages": 0,
+                  "entities": 0,
+                  "snapshot": {}
+                },
+                "snapshotHash": "f92151df6c8a5155"
+              }
+            }
+          ],
+          "applied": {
+            "status": "answered",
+            "draftId": null,
+            "entryIds": []
+          },
+          "errors": []
+        },
+        "result": {
+          "status": "interpreted",
+          "draftId": null,
+          "applied": null
+        },
+        "draft": null
+      }
+    ],
+    "saved": []
+  },
+  "after": {
+    "pass": true,
+    "failures": [],
+    "turns": [
+      {
+        "words": "alarm in 10",
+        "modelCalls": [
+          {
+            "route": "quick",
+            "output": {
+              "schemaVersion": 1,
+              "mode": "capture",
+              "draftMode": "new",
+              "reply": "A ringing alarm in 10 minutes, set for the time you've given. Name it after saving, or I can leave it as \"Alarm\".",
+              "decisions": [
+                {
+                  "sourceId": "s0",
+                  "disposition": "action",
+                  "note": null
+                }
+              ],
+              "operations": [
+                {
+                  "opId": "op1",
+                  "sourceId": "s0",
+                  "kind": "create",
+                  "entity": "task",
+                  "targetId": null,
+                  "fields": [
+                    {
+                      "name": "title",
+                      "op": "set",
+                      "value": "Alarm",
+                      "origin": "suggested",
+                      "evidence": null
+                    },
+                    {
+                      "name": "time",
+                      "op": "set",
+                      "value": "in 10",
+                      "origin": "stated",
+                      "evidence": "alarm in 10"
+                    },
+                    {
+                      "name": "alert",
+                      "op": "set",
+                      "value": "alarm",
+                      "origin": "stated",
+                      "evidence": "alarm"
+                    }
+                  ]
+                }
+              ],
+              "question": null,
+              "clarification": null,
+              "memoryCandidates": [],
+              "card": null
+            },
+            "usage": {
+              "input_tokens": 15044,
+              "output_tokens": 293,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 0,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              }
+            },
+            "costUSD": 0.0016509
+          }
+        ],
+        "trace": {
+          "id": "stress-smart-alarm-ten-1",
+          "at": "2026-10-19T04:30:00.000Z",
+          "attempts": 1,
+          "latencyMs": 0,
+          "outcome": null,
+          "models": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "effort": "none",
+              "reason": "capture",
+              "attempt": 0,
+              "ms": 1919,
+              "ok": true,
+              "provider": "API transport",
+              "servedModel": "claude-haiku-5-5",
+              "inputTokens": 15044,
+              "outputTokens": 293,
+              "cost": 0.0016509,
+              "service": "anthropic",
+              "input": {
+                "bytes": 6651,
+                "hash": "f4fceff3c2fa4d6d",
+                "units": 1,
+                "messageCount": 1,
+                "messages": [
+                  {
+                    "id": "seed-dinner",
+                    "role": "user",
+                    "hash": "d97e9286890ca358"
+                  }
+                ],
+                "focus": null,
+                "question": null,
+                "entityCount": 14,
+                "entityIds": [
+                  "task:101",
+                  "task:102",
+                  "task:103",
+                  "task:104",
+                  "task:105",
+                  "task:106",
+                  "block:block-1",
+                  "block:block-2",
+                  "block:block-3",
+                  "block:block-4",
+                  "block:block-5",
+                  "block:block-6",
+                  "block:block-7",
+                  "block:block-8"
+                ],
+                "truncated": {
+                  "olderMessages": 0,
+                  "droppedMessages": 0,
+                  "clippedMessages": 0,
+                  "entities": 0,
+                  "snapshot": {}
+                },
+                "snapshotHash": "f92151df6c8a5155"
+              },
+              "completion": "short-reminder"
+            }
+          ],
+          "applied": {
+            "status": "applied",
+            "draftId": "draft-stress-smart-alarm-ten-1",
+            "entryIds": [
+              107
+            ]
+          },
+          "errors": []
+        },
+        "result": {
+          "status": "interpreted",
+          "draftId": "draft-stress-smart-alarm-ten-1",
+          "applied": {
+            "status": "applied",
+            "needsConfirm": false,
+            "warning": null,
+            "undoId": "d1e86593-acc1-4281-b4f0-d14043aeceb4",
+            "entryIds": [
+              107
+            ],
+            "changes": [
+              {
+                "type": "create",
+                "collection": "tasks",
+                "id": 107,
+                "title": "Alarm"
+              }
+            ]
+          }
+        },
+        "draft": {
+          "status": "committed",
+          "operations": [
+            {
+              "opId": "short-alert",
+              "sourceId": "s0",
+              "kind": "create",
+              "entity": "task",
+              "targetId": null,
+              "fields": [
+                {
+                  "name": "title",
+                  "value": "Alarm",
+                  "evidence": null,
+                  "origin": "suggested",
+                  "op": "set",
+                  "sourceMessageId": "stress-smart-alarm-ten-1",
+                  "evidenceSourceId": null
+                },
+                {
+                  "name": "time",
+                  "value": "in 10 minutes",
+                  "evidence": "in 10",
+                  "origin": "stated",
+                  "op": "set",
+                  "sourceMessageId": "stress-smart-alarm-ten-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "alert",
+                  "value": "alarm",
+                  "evidence": "alarm in 10",
+                  "origin": "stated",
+                  "op": "set",
+                  "sourceMessageId": "stress-smart-alarm-ten-1",
+                  "evidenceSourceId": "s0"
+                }
+              ],
+              "sourceMessageIds": [
+                "stress-smart-alarm-ten-1"
+              ]
+            }
+          ],
+          "question": null,
+          "schedulePreview": {
+            "anchorAt": "2026-10-19T04:30:00.000Z",
+            "timezone": "Asia/Kolkata",
+            "items": [
+              {
+                "opId": "short-alert",
+                "title": "Alarm",
+                "source": "in 10 minutes",
+                "status": "parsed",
+                "planned": "2026-10-19T04:40:00.000Z",
+                "plannedDate": null,
+                "end": null,
+                "minutes": null,
+                "label": "Mon, Oct 19, 10:10 AM",
+                "reason": null,
+                "assumptions": []
+              }
+            ]
+          },
+          "nextStep": {
+            "text": null,
+            "label": "Name it",
+            "action": {
+              "kind": "next-step",
+              "conversationId": "stress",
+              "draftId": "draft-stress-smart-alarm-ten-1",
+              "revision": 2,
+              "step": "name",
+              "targetId": "107",
+              "guard": "a3a3ced260e94948"
+            }
+          }
+        }
+      }
+    ],
+    "saved": [
+      {
+        "title": "Alarm",
+        "planned": "2026-10-19T04:40:00.000Z",
+        "plannedDate": null,
+        "alert": "alarm",
+        "raw": "alarm in 10"
+      }
+    ]
+  }
+}
