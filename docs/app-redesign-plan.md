@@ -108,3 +108,7 @@ sp scales; dp does not.
 6. Task sheet and attach sheet. Checks: `default-text-fit` task sheet, `focused-field-visible` quick add.
 7. Capture cards, receipt, question, composer. Checks: `capture-keeps-words`, `capture-lines.test.mjs`, `capture-presentation.test.mjs`, the `raw-error-text` rule, `default-text-fit` Capture.
 8. New AGENTS rule: "Inner radius = outer − inset; sheets 36, groups 20, controls 12", enforced by a token test that reads the radius and padding tokens.
+
+## Mock
+
+`docs/mocks/app-redesign.html`: Today, Block, Task sheet and Capture in light and dark.

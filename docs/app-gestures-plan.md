@@ -146,3 +146,7 @@ Write `transform` on `pointermove`; `will-change` only while dragging. Release 2
 - Is the 250ms double-tap wait acceptable before the sheet opens? If not, drop double tap and add a "Start now" chip.
 - Fine mode by dragging below the track, or always 15-min snaps (34 stops over ~300dp ≈ 9dp each)?
 - Does the spine day-swipe fight the Capture button column? If so, change day only from the week strip.
+
+## Prototype
+
+`docs/mocks/gestures.html` (open it at 384px wide): spine drag with a 15-min snap, the duration knurl, Time and Length sliders with fine mode, double tap to start, and notch pill swipes.

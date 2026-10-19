@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RPM app redesign mock</title>
+<link rel="stylesheet" href="app-redesign.css">
+</head>
+<body>
+<div class="stage">
+<div class="phone" id="phone">
+  <div class="statusbar"><span>4:26</span><span>5G ▮</span></div>
+  <div class="pill"><i></i><span>34m</span></div>
+  <div class="cam"></div>
+
+  <div class="navbar" id="nav"><button class="lead" id="back" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg>Blocks</button><span class="inline" id="inline">Today</span><span class="trail"><button class="iconbtn" aria-label="Capture" data-go="capture"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><button class="iconbtn" aria-label="More options"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button></span></div>
+
+  <section class="screen on" id="today" data-title="Today">
+    <h1 class="largetitle">Today</h1>
+    <p class="subtitle">Monday, 19 October · 1 Result due</p>
+    <div class="week"><button class="day on">Mon<b>19</b></button><button class="day">Tue<b>20</b></button><button class="day">Wed<b>21</b></button><button class="day">Thu<b>22</b></button><button class="day">Fri<b>23</b></button><button class="day">Sat<b>24</b></button><button class="day">Sun<b>25</b></button></div>
+    <div class="timeline">
+      <div class="trow"><div class="time">7 AM</div><button class="card"><span class="ring done"></span><span class="t">Morning routine</span><span class="act"></span><span class="s">3 of 5 steps · 30 min</span></button></div>
+      <div class="trow"><div class="time">8:30</div><div class="habit" style="--water:var(--meal)"><svg class="g" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3v18M5 3v5a2 2 0 0 0 4 0V3M17 21V3c-2.2 1.5-3 4.5-3 8h3"/></svg><span class="grow">Breakfast · Poha and tea</span></div></div>
+      <div class="trow free"><div class="time"></div><button class="freeline" data-toast="Pick a task for this free time">4 h 20 min free<b>+</b></button></div>
+      <div class="trow"><div class="time">1 PM</div><button class="card"><span class="ring"></span><span class="t">Lunch</span><span class="act">Log it</span><span class="s">Not logged</span></button></div>
+      <div class="trow"><div class="time">4 PM<br>1 h</div><button class="card now" data-sheet><span class="ring"></span><span class="t">Draft my section of the critical review</span><span class="act" style="color:var(--must)">★</span><span class="s"><span class="dot"></span>Now · until 5 PM · 34 min left</span></button></div>
+      <div class="nowline"><span>4:26</span></div>
+      <div class="trow"><div class="time"></div><div class="habit"><svg class="g" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3.5c3.5 4.2 6 7.6 6 10.5a6 6 0 0 1-12 0c0-2.9 2.5-6.3 6-10.5z"/></svg><span class="grow">Water</span><span class="tnum" id="water">2 of 8</span><span class="stepper"><button aria-label="Remove a glass" data-w="-1">−</button><button aria-label="Log a glass" data-w="1">+</button></span></div></div>
+      <div class="trow"><div class="time">5:30</div><button class="card event"><span class="ring" style="border-style:dashed"></span><span class="t">Past paper 2019, section B</span><span class="act"></span><span class="s">Calendar · 1 h</span></button></div>
+      <div class="trow free"><div class="time"></div><button class="freeline" data-toast="Pick a task for this free time">2 h free<b>+</b></button></div>
+      <div class="trow"><div class="time">8 PM</div><button class="card"><span class="ring"></span><span class="t">Dinner</span><span class="act">Log it</span><span class="s">Not logged</span></button></div>
+    </div>
+  </section>
+
+  <section class="screen" id="blocks" data-title="RM critical review drafted">
+    <h1 class="largetitle" style="font-size:28px;line-height:34px">RM critical review drafted with my group</h1>
+    <p class="subtitle" style="display:flex;gap:6px;align-items:center"><span class="dot"></span>Studies · Term 1 coursework</p>
+    <div class="section" style="margin-block-start:20px"><span>Purpose</span></div>
+    <div class="group">
+      <div class="row textrow"><p class="p" style="color:var(--label)">So Sunday's submission is calm and I'm not the one holding the group up.</p></div>
+      <div class="row"><svg class="ringprog" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--fill)" stroke-width="4"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--tint)" stroke-width="4" stroke-linecap="round" stroke-dasharray="94.2" stroke-dashoffset="67" transform="rotate(-90 18 18)"/></svg><span class="grow stack"><span>Due tomorrow 11 PM</span><span class="p">2 of 7 done · ★ 3 h 50 of Musts</span></span></div>
+      <div class="row textrow"><span class="split grow"><span class="stack"><span class="big" style="font-weight:500">Is this Result achieved?</span><span class="p">Ticked tasks don't decide it.</span></span><button class="btn tinted" data-toast="Marked achieved. Undo">Mark achieved</button></span></div>
+    </div>
+    <div class="section"><span>Plan</span><b>Sort by time</b></div>
+    <div class="group">
+      <button class="row" data-sheet><span class="ring"></span><span class="grow">Draft my section</span><span class="v must">★ Now</span></button>
+      <button class="row"><span class="ring"></span><span class="grow">Run the plagiarism report</span><span class="v">20 min</span></button>
+      <button class="row"><span class="ring"></span><span class="grow">Submit the PDF on the portal</span><span class="v must">★ Tue 11 PM</span></button>
+      <button class="row add" data-toast="Type to add, or find an Inbox task"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="grow">Add or find a task</span></button>
+    </div>
+    <div class="section"><span>Completed (2)</span></div>
+    <div class="group">
+      <div class="row"><span class="ring done"></span><span class="grow" style="color:var(--label-2)">Read the brief</span></div>
+      <div class="row"><span class="ring done"></span><span class="grow" style="color:var(--label-2)">Split the sections</span></div>
+    </div>
+  </section>
+
+  <div class="fab"><button class="search" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></button><button class="add" aria-label="Add a task" data-sheet><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button></div>
+  <nav class="tabbar">
+    <button class="tab on" data-go="today"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="18" height="17" rx="4"/><path d="M8 2v4M16 2v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Today</button>
+    <button class="tab" data-go="blocks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>Blocks</button>
+    <button class="tab" data-toast="Projects"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Projects</button>
+    <button class="tab" data-toast="Life"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>Life</button>
+  </nav>
+
+  <div class="sheet" id="sheet" role="dialog" aria-label="Task">
+    <div class="grabber"></div>
+    <div class="sheethead"><span class="ring" style="inline-size:28px;block-size:28px"></span><span class="t">Draft my section of the critical review</span><button class="iconbtn" aria-label="Must" style="color:var(--must)">★</button><button class="iconbtn" aria-label="Close" data-close>✕</button></div>
+    <div class="group">
+      <div class="factrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/></svg><div class="chips"><button class="chip on">✓ Today</button><button class="chip">Tomorrow</button><button class="chip">Wed</button><button class="chip">Thu</button></div></div>
+      <div class="factrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><div class="chips"><button class="chip">3:30</button><button class="chip on">✓ 4:00 PM</button><button class="chip">4:30</button><button class="chip">5:00</button></div></div>
+      <div class="factrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 2h4M12 14V9"/><circle cx="12" cy="14" r="8"/></svg><div class="chips"><button class="chip">30 min</button><button class="chip on">✓ 1 h</button><button class="chip">1 h 30</button><button class="chip">2 h</button></div></div>
+      <div class="factrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg><div class="chips"><button class="chip">No alert</button><button class="chip on">✓ Reminder</button><button class="chip">Ringing alarm</button></div></div>
+    </div>
+    <div class="blockrow"><span class="stack grow"><span>RM critical review drafted with my group</span><span class="p">So Sunday's submission is calm</span></span></div>
+    <div class="actions"><button class="btn">Ask Capture</button><button class="btn">Duplicate</button><button class="btn danger">Delete</button></div>
+  </div>
+  <div class="scrim" id="scrim" data-close></div>
+
+  <div class="capture" id="capture">
+    <div class="cpanel">
+      <div class="ccard"><span class="ring done"></span><span class="h">Reminder set</span><span class="l">Call Amma about Sunday</span><span class="facts"><span class="fact">🔔 Reminder · 4:31 PM</span><span class="fact">Today</span></span><button class="undo" data-toast="Undone">Undo</button></div>
+      <div class="ccard"><span class="ring"></span><span class="h">Which one should move?</span><span class="cchips"><button class="chip">Call Amma</button><button class="chip">Buy marigolds</button><button class="chip">Both</button></span></div>
+      <div class="composer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="ph">Capture a thought</span><span class="mic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+</div>
+
+<div class="panel">
+  <div><h1>App redesign mock</h1><p>Apple-style planner: grouped cards, one blue tint, a big title that shrinks into the bar as you scroll, and sheets with 36 px corners like the notch. Inner corners are the outer corner minus the margin.</p></div>
+  <div><h2>Screen</h2><div class="ctl" id="screens"><button data-go="today" aria-pressed="true">Today</button><button data-go="blocks">Block</button><button data-go="sheet">Task sheet</button><button data-go="capture">Capture</button></div></div>
+  <div><h2>Look</h2><div class="ctl"><button id="themeT" aria-pressed="false">Light</button><button id="textT" aria-pressed="false">Text 200%</button></div></div>
+  <div><p>Try: scroll Today, tap the blue "now" task, tap + on water, tap the tab bar.</p></div>
+</div>
+</div>
+
+<script src="app-redesign.js"></script>
+</body>
+</html>
