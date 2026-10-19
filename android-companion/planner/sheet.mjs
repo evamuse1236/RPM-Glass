@@ -1,6 +1,7 @@
 /** Material 3 bottom sheets with drag handle, draft memory and a dirty-check on dismiss. */
 import {MOTION, EASE, DURATION, reducedMotion} from '../surface-motion.mjs';
 import {el, button, iconButton} from './dom.mjs';
+import {lockAxis} from '../task-swipe.mjs';
 
 const DRAFT_PREFIX = 'rpm-planner-draft:';
 
@@ -161,7 +162,7 @@ function installDrag(app, zone) {
     const scrim = scrimFor(app);
     const pose = new DOMMatrixReadOnly(getComputedStyle(node).transform === 'none' ? undefined : getComputedStyle(node).transform);
     cancelSheetMotion(node);
-    drag = {id: event.pointerId, y: event.clientY, base: pose.m42, height: node.getBoundingClientRect().height,
+    drag = {id: event.pointerId, x: event.clientX, y: event.clientY, base: pose.m42, height: node.getBoundingClientRect().height,
       samples: [[event.timeStamp, event.clientY]], moved: false, scrim};
     zone.setPointerCapture?.(event.pointerId);
   });
@@ -169,6 +170,11 @@ function installDrag(app, zone) {
     if (!drag || event.pointerId !== drag.id) return;
     const node = app.dom.sheet;
     const raw = drag.base + event.clientY - drag.y;
+    const leftToTheRowBelow = !drag.moved && lockAxis(event.clientX - drag.x, event.clientY - drag.y) === 'x';
+    if (leftToTheRowBelow) {
+      drag = null;
+      return;
+    }
     if (Math.abs(event.clientY - drag.y) > 4) drag.moved = true;
     if (!drag.moved) return;
     // Down follows the finger; up resists (the sheet is already as tall as its content allows).

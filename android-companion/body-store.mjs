@@ -5,6 +5,7 @@
  */
 import {randomUUID} from 'node:crypto';
 import {WATER_DEFAULTS, SLOTS, validateRoutine, minutesOf} from './body-state.mjs';
+import {MEAL_TIMES, SNACK_TIME} from './day-parts.mjs';
 import {text, title, integer, one} from './planner-fields.mjs';
 
 export const BODY_SCHEMA = 1;
@@ -22,6 +23,9 @@ const clock = value => {
   return value.padStart(5, '0');
 };
 
+/** Breakfast, lunch and dinner at their usual times, shown on Today. */
+export const defaultMealPlan = () => ({slots: Object.entries(MEAL_TIMES).map(([slot, at]) => ({slot, at, on: true}))});
+
 /** The body records as stored, with defaults for anything never saved. Read-only: never mutate the result. */
 export function bodyOf(data) {
   const body = data?.planner?.body ?? {};
@@ -32,6 +36,7 @@ export function bodyOf(data) {
     water: {settings: {...WATER_SETTINGS, ...water.settings}, glasses: water.glasses ?? [], snoozedUntil: water.snoozedUntil ?? null},
     meals: body.meals ?? [],
     mealGuesses: body.mealGuesses ?? {},
+    mealPlan: body.mealPlan ?? defaultMealPlan(),
   };
 }
 
@@ -176,8 +181,45 @@ function setMealGuess(next, op, at) {
   return op.id;
 }
 
+/**
+ * One meal time in the plan: `fields` sets its time (`at`), whether Today shows it (`on`) and, for a snack, its own
+ * `name`. A snack not yet in the plan is added at 4:00 PM first.
+ */
+function setMealSlot(next, op) {
+  const body = bodyFor(next);
+  body.mealPlan ??= defaultMealPlan();
+  if (!SLOTS.includes(op.slot)) throw new Error('Choose breakfast, lunch, snack or dinner.');
+  let slot = body.mealPlan.slots.find(s => s.slot === op.slot);
+  if (!slot) {
+    slot = {slot: op.slot, at: op.slot === 'snack' ? SNACK_TIME : MEAL_TIMES[op.slot], on: true};
+    body.mealPlan.slots.push(slot);
+  }
+  for (const [key, value] of Object.entries(op.fields ?? {})) {
+    if (key === 'at') slot.at = clock(value);
+    else if (key === 'on') {
+      if (typeof value !== 'boolean') throw new Error('A meal is shown or hidden.');
+      slot.on = value;
+    } else if (key === 'name' && op.slot === 'snack') {
+      const name = text(value ?? '', 60);
+      if (name) slot.name = name;
+      else delete slot.name;
+    } else throw new Error('Unknown meal setting.');
+  }
+  return op.slot;
+}
+
+/** Only the snack time can leave the plan; breakfast, lunch and dinner are turned off instead. */
+function removeMealSlot(next, op) {
+  const body = bodyFor(next);
+  if (op.slot !== 'snack') throw new Error('Turn this meal off instead.');
+  body.mealPlan ??= defaultMealPlan();
+  if (!body.mealPlan.slots.some(s => s.slot === 'snack')) throw new Error('There is no snack time to remove.');
+  body.mealPlan.slots = body.mealPlan.slots.filter(s => s.slot !== 'snack');
+  return 'snack';
+}
+
 export const BODY_OPS = {saveRoutine, removeRoutine, saveRoutineRun, skipRoutineDay, drinkWater, snoozeWater, setWater,
-  saveMeal, removeMeal, setMealGuess};
+  saveMeal, removeMeal, setMealGuess, setMealSlot, removeMealSlot};
 
 /** Called by validatePlanner: an absent body is valid; a present one must keep its shape. */
 export function validateBody(p) {
@@ -200,4 +242,9 @@ export function validateBody(p) {
   if (water != null && (!Array.isArray(water.glasses ?? []) || (water.glasses ?? []).some(g => !Number.isFinite(Date.parse(g))))) {
     throw new Error('Invalid water data.');
   }
+  const plan = body.mealPlan;
+  if (plan == null) return;
+  const slots = Array.isArray(plan.slots) ? plan.slots : null;
+  if (!slots || slots.some(s => !SLOTS.includes(s?.slot) || Number.isNaN(minutesOf(s.at)) || typeof s.on !== 'boolean')
+    || new Set(slots.map(s => s.slot)).size !== slots.length) throw new Error('Invalid meal plan.');
 }

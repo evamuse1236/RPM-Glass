@@ -2,12 +2,11 @@ import {tasks, conflicts} from '../planner-state.mjs';
 import {repeats, nextOccurrence, occurrences} from '../planner-recurrence.mjs';
 import {calendarLabel, calendarRisk, calendarRows} from '../planner-calendar.mjs';
 import {rankResults} from '../review-state.mjs';
-import {el, icon, button} from './dom.mjs';
+import {el, icon} from './dom.mjs';
 import {clock, timeRange, dateText} from './format.mjs';
 
 export const findTask = (app, id) => tasks(app.data()).find(task => task.id === id);
 export const NEEDS_TIME = 'A repeating task needs a date and time.';
-export const SNACKBAR_ROOM = 68; // a docked one-line snackbar: 48dp, 8dp above the actions, 12dp above the content
 
 /** Saves one after another, so a choice made while another save is still in flight is never dropped. */
 export function saver(app) {
@@ -80,19 +79,6 @@ export function clashText(clashes) {
   const names = clashes.slice(0, 2).map(c => `${c.title} (${dateText(c.start)}, ${timeRange(c.start, c.end)})`);
   const more = clashes.length > 2 ? ` and ${clashes.length - 2} more` : '';
   return `Clashes with ${names.join(' and ')}${more}`;
-}
-
-/** The task's place in the plan: its Result and Purpose, opening the Block. */
-export function partOf(app, task) {
-  const context = app.context(task);
-  const panel = button('', () => app.openBlock(context.block.id), 'part-of');
-  panel.dataset.tone = app.tone(context.area);
-  panel.append(el('span', 'overline', 'Part of'), el('strong', 'part-result', context.block.title));
-  panel.append(el('span', 'part-purpose', context.block.purpose || 'Add a Purpose to this Block'));
-  const crumbs = [context.area?.title, context.project?.title].filter(Boolean).join(' › ');
-  if (crumbs) panel.append(el('span', 'part-crumbs', crumbs));
-  panel.setAttribute('aria-label', `Part of ${context.block.title}. Purpose: ${context.block.purpose || 'none yet'}. Open Block`);
-  return panel;
 }
 
 export function alertText(type, task) {

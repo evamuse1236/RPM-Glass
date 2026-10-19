@@ -1,10 +1,14 @@
 import {localDay, shiftDay} from '../planner-state.mjs';
 import {clock, relativeDay, timeValue} from './format.mjs';
 
-export const DURATIONS = [15, 30, 45, 60, 90, 120];
+export const DURATIONS = [15, 30, 45, 60, 90, 120, 180];
 export const TIMES = ['09:00', '14:00', '19:00'];
+const hhmm = minutes => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${minutes % 60 ? '30' : '00'}`;
+/** The task sheet's Time row: every half hour from 6:00 AM to 11:00 PM. */
+export const TIME_GRID = Object.freeze(Array.from({length: 35}, (_, i) => hhmm(360 + i * 30)));
 export const REPEATS = [['', "Doesn't repeat"], ['daily', 'Daily'], ['weekdays', 'Every weekday'], ['weekly', 'Weekly'],
   ['after', 'After completion']];
+export const REPEAT_CHIPS = REPEATS.map(([value, text]) => [value, value === 'weekdays' ? 'Weekdays' : text]);
 export const ALERTS = [['off', 'No alert'], ['reminder', 'Reminder'], ['alarm', 'Ringing alarm']];
 
 /* ---------- values ---------- */
@@ -118,6 +122,37 @@ export function withoutTag(text, {start, end}) {
 }
 
 const longDay = day => new Date(day + 'T12:00').toLocaleDateString([], {weekday: 'long', month: 'long', day: 'numeric'});
+
+/** The Time row's chips: the half-hour grid, with the task's own time inserted in clock order when it is off the grid. */
+export function timeChips(current = '') {
+  return current && !TIME_GRID.includes(current) ? [...TIME_GRID, current].sort() : [...TIME_GRID];
+}
+
+/** The half hour the Time row opens on when no time is set: the next one from now, kept on the grid. */
+export function nextHalfHour(now = new Date()) {
+  const minutes = Math.ceil((now.getHours() * 60 + now.getMinutes()) / 30) * 30;
+  return hhmm(Math.min(23 * 60, Math.max(6 * 60, minutes)));
+}
+
+/**
+ * The Day row: Today, Tomorrow, then the next five days by short weekday name. A `current` day outside them gets its
+ * own chip: before Today when it has passed, otherwise right after Tomorrow, so a picked date shows without a swipe.
+ * Returns [{label, day, aria}]; `aria` is empty where the label says it all.
+ */
+export function dayChips(today = localDay(), current = '') {
+  const date = day => new Date(day + 'T12:00');
+  const spoken = day => date(day).toLocaleDateString([], {weekday: 'long', month: 'short', day: 'numeric'});
+  const chips = [{label: 'Today', day: today, aria: ''}, {label: 'Tomorrow', day: shiftDay(today, 1), aria: ''}];
+  for (let i = 2; i < 7; i++) {
+    const day = shiftDay(today, i);
+    chips.push({label: date(day).toLocaleDateString([], {weekday: 'short'}), day, aria: spoken(day)});
+  }
+  if (current && !chips.some(c => c.day === current)) {
+    const label = date(current).toLocaleDateString([], {weekday: 'short', month: 'short', day: 'numeric'});
+    chips.splice(current < today ? 0 : 2, 0, {label, day: current, aria: spoken(current)});
+  }
+  return chips;
+}
 
 /** Time presets with the task's own time folded in, in clock order. */
 export function timePresets(current = '') {

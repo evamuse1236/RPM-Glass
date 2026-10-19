@@ -101,6 +101,7 @@ function routineCard(row, on) {
   bar.style.setProperty('--value', String(total ? done / total : 0));
   bar.setAttribute('aria-hidden', 'true');
   card.append(check(`${row.title}, ${row.done ? 'done' : 'mark every step done'}`, row.done, () => on.toggleRoutine(row)), open, bar);
+  on.holdHabit?.(card, row.routine.id);
   return card;
 }
 
@@ -117,6 +118,7 @@ function waterBody(row, on) {
   const add = iconButton('add', 'Log a glass of water', on.drink, {cls: 'spine-action'});
   const body = smallRow(row, 'water_drop', on.openWater, add);
   body.firstChild.setAttribute('aria-label', `${row.label}${row.due ? ', a glass is due' : ''}. Open water`);
+  on.holdHabit?.(body, 'water');
   return body;
 }
 
@@ -124,7 +126,9 @@ function mealBody(row, on) {
   const open = () => on.openMeal(row);
   const action = row.meal ? null : button('Log it', open, 'text-btn spine-action');
   action?.setAttribute('aria-label', `Log ${row.label.split(' · ')[0].toLowerCase()}`);
-  return smallRow(row, 'restaurant', open, action);
+  const body = smallRow(row, 'restaurant', open, action);
+  on.holdHabit?.(body, `meal:${row.slot}`);
+  return body;
 }
 
 function deadlineBody(row) {

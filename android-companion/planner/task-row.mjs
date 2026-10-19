@@ -139,7 +139,7 @@ const SETTLE = 200;
  * passes slide out of its way; let go and it settles into its exact slot and lands flat. Only then is the row moved
  * in the page and the order saved (with Undo), without rebuilding the Plan, so nothing moves twice. Moving before
  * the hold completes is a scroll and releasing early is a tap, so neither conflicts. Alt or Ctrl with the arrow keys
- * moves a row one step; "Change Plan order" in the task menu stays the accessible path.
+ * moves a row one step.
  */
 function installOrder(app, row, task, onReorder) {
   let press = null;

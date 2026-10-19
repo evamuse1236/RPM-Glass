@@ -6,7 +6,7 @@ import {blockSubtitle} from './blocks.mjs';
 import {localDay} from '../planner-state.mjs';
 import {jumpToNow} from './today-day.mjs';
 import {bodyApi} from './body-api.mjs';
-import {openRoutineList} from './routine-list.mjs';
+import {openHabits} from './habits.mjs';
 
 const DESTINATIONS = [
   ['today', 'today', 'Today'],
@@ -27,7 +27,7 @@ function rootMenu(app, anchor) {
     const list = state.dayLayout === 'list';
     items.push({label: list ? 'Show day' : 'Show list', icon: list ? 'view_day' : 'view_agenda',
       onClick: () => actions.setDayLayout(list ? 'day' : 'list')});
-    items.push({label: 'Routines', icon: 'checklist', onClick: () => openRoutineList(app, bodyApi(app))});
+    items.push({label: 'Habits', icon: 'self_improvement', onClick: () => openHabits(app, bodyApi(app))});
     items.push({label: 'History', icon: 'history', onClick: () => app.openHistory()});
     items.push({label: 'Calendars', icon: 'calendar_month', onClick: actions.calendar});
   }

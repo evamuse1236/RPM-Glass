@@ -1,5 +1,5 @@
 /** Task row gestures: swipe right = Done, swipe left = Schedule (Move to Block in the Inbox), hold = quick menu.
- * Each has a tap route: the ring, the task sheet's Schedule and ⋮ menu (Move to Block, Delete), the sheet's Must. */
+ * Each has a tap route: the ring, and the task sheet's Day and Time rows, Block row, Delete and Must star. */
 import {attachSwipe} from '../task-swipe.mjs';
 import {openMenu} from './menu.mjs';
 

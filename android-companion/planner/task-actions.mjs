@@ -1,43 +1,25 @@
-import {blockTasks} from '../planner-state.mjs';
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
-import {el, icon, button, labelButton} from './dom.mjs';
-import {duration} from './format.mjs';
+import {el, icon, button, iconButton} from './dom.mjs';
 import {reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
 import {openSheet, isSheetOpen} from './sheet.mjs';
 import {closeMenu} from './menu.mjs';
-import {whenOf, whenFields, whenLabel, schedulePresets} from './task-fields.mjs';
-import {findTask} from './sheet-parts.mjs';
+import {whenOf, whenFields, whenLabel, schedulePresets, blockChooser, recentBlock, rememberBlock} from './task-fields.mjs';
+import {findTask, suggestBlock} from './sheet-parts.mjs';
 import {inboxShowing} from './task-lists.mjs';
 import {openTask} from './task-sheet.mjs';
 
-export function taskMenu(app, task, inline = {}) {
-  const items = [
-    {label: 'Schedule', icon: 'event_upcoming', onClick: () => (inline.schedule ? inline.schedule() : scheduleMenu(app, task, null))},
-    {label: 'Ask Capture', icon: 'mic', onClick: () => app.capture()},
-    {label: 'Move to Block', icon: 'drive_file_move', onClick: () => (inline.move ? inline.move() : movePicker(app, task))},
-  ];
-  if (inline.helper && !task.leverage) items.push({label: 'Add who could help', icon: 'group', onClick: inline.helper});
-  if (task.blockId != null || blockTasks(app.data(), null).length > 1) {
-    items.push({label: 'Change Plan order', icon: 'swap_vert', onClick: () => planOrder(app, task)});
-  }
-  items.push({label: 'Duplicate', icon: 'content_copy', onClick: () => duplicate(app, task)});
-  if (task.completions?.length && repeats(task)) {
-    items.push({label: 'Undo last completion', icon: 'undo', onClick: () =>
-      app.commit({type: 'reopenTask', id: task.id}, {label: 'Completion undone'}).catch(() => {})});
-  }
-  const after = ok => { if (ok && inline.afterRemove) inline.afterRemove(); };
-  items.push({label: 'Archive', icon: 'archive', onClick: () => archiveTask(app, task).then(after)});
-  items.push({divider: true}, {label: 'Delete', icon: 'delete', danger: true,
-    onClick: () => deleteTask(app, task, {keepSheet: false}).then(after)});
-  return items;
-}
-
-function duplicate(app, task) {
+/** A copy of the task's words, Block, length and Must; the sheet closes and the snackbar offers Undo. */
+export function duplicateTask(app, task) {
   const fields = {
     title: task.title, blockId: task.blockId ?? null, minutes: task.minutes, must: !!task.must,
     notes: task.notes ?? '', purpose: task.purpose ?? '', leverage: task.leverage ?? '',
   };
   app.commit({type: 'saveTask', fields}, {label: 'Task duplicated'}).catch(() => {});
+}
+
+/** A repeating task's latest completion taken back, with Undo. */
+export function undoLastCompletion(app, task) {
+  app.commit({type: 'reopenTask', id: task.id}, {label: 'Completion undone', keepSheet: true}).catch(() => {});
 }
 
 /** Resolves true once archived. */
@@ -140,38 +122,24 @@ export function scheduleMenu(app, task, anchor, {occurrence = null} = {}) {
   menu.querySelector('.schedule-item')?.focus({preventScroll: true});
 }
 
-export function movePicker(app, task) {
-  const {body} = openSheet(app, 'Move to Block');
+/**
+ * Move to Block: a search, the recent and suggested Blocks first, then the rest. With `back` (the task sheet that
+ * opened it), choosing saves and returns there, and Android Back or the arrow returns without a change.
+ */
+export function movePicker(app, task, {back = null} = {}) {
+  const {body, header} = openSheet(app, 'Move to Block');
+  if (back) header.prepend(iconButton('arrow_back', 'Back to task', back, {cls: 'sheet-back'}));
   body.append(el('p', 'sheet-note', 'Moving keeps the task, its schedule and its details.'));
-  const choices = [...app.activeBlocks(), {id: null, title: 'No block'}];
-  for (const block of choices) {
-    const row = button('', () => app.commit({type: 'moveTask', id: task.id, blockId: block.id},
-      {label: block.id ? 'Moved to ' + block.title : 'Moved to No block'}).catch(() => {}), 'choice-row');
-    const selected = (task.blockId ?? null) === block.id;
-    row.setAttribute('aria-pressed', String(selected));
-    row.append(icon(block.id ? 'stacks' : 'inbox'), el('span', '', block.title));
-    if (selected) row.append(icon('check', {cls: 'trailing'}));
-    body.append(row);
-  }
-}
-
-/** Accessible alternative to dragging: move one step in the Plan. */
-export function planOrder(app, task) {
-  const rows = blockTasks(app.data(), task.blockId);
-  const index = rows.findIndex(row => row.id === task.id);
-  const {body, actions} = openSheet(app, 'Plan order');
-  body.append(el('p', 'sheet-lead', task.title),
-    el('p', 'sheet-note', 'Plan order is the task’s priority. It does not change the scheduled time.'));
-  const move = delta => {
-    const ids = rows.map(row => row.id);
-    const next = index + delta;
-    if (next < 0 || next >= ids.length) return;
-    [ids[index], ids[next]] = [ids[next], ids[index]];
-    app.commit({type: 'reorder', blockId: task.blockId, ids}, {label: 'Plan order changed'}).catch(() => {});
+  const pick = (blockId, title) => {
+    rememberBlock(blockId);
+    const label = blockId ? 'Moved to ' + title : 'Moved to No block';
+    app.commit({type: 'moveTask', id: task.id, blockId}, {label, keepSheet: !!back}).then(() => back?.(), () => {});
   };
-  const up = labelButton('arrow_upward', 'Move up', () => move(-1), 'outlined-btn');
-  const down = labelButton('arrow_downward', 'Move down', () => move(1), 'outlined-btn');
-  up.disabled = index === 0;
-  down.disabled = index === rows.length - 1;
-  actions.append(up, down);
+  blockChooser(body, {blocks: () => app.activeBlocks(), get: () => findTask(app, task.id)?.blockId ?? null, pick,
+    recent: recentBlock(), suggested: suggestBlock(app, task, task.blockId)?.id ?? null});
+  app.sheet.onBack = () => {
+    if (!back || !body.isConnected || !isSheetOpen(app)) return false;
+    back();
+    return true;
+  };
 }
