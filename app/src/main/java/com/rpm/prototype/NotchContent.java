@@ -34,8 +34,10 @@ final class NotchContent {
     static final int TILE = 0xFF0B57D0;
 
     interface Actions {
+        /** Ticks the hero task in place, with Undo. */
         void done();
 
+        /** Logs one glass in place, with Undo. */
         void drink();
 
         void snooze();
@@ -49,6 +51,22 @@ final class NotchContent {
         void snoozeAlert();
 
         void stopAlert();
+
+        /** A firing reminder's or a ringing alarm's Done: silences it and ticks its task in place, with Undo. */
+        void doneAlert();
+
+        /** Opens the alert controls for a task occurrence whose alert is still to come. */
+        void manage(NotchDay.Slot slot);
+
+        /** In the alert controls: "off", "reminder" or "alarm", in place, with Undo. */
+        void setAlert(String type);
+
+        void doneManaged();
+
+        void openManaged();
+
+        /** Takes back the change the receipt shows. */
+        void undo();
     }
 
     private final Context context;
@@ -62,6 +80,8 @@ final class NotchContent {
             case WATER: return WATER;
             case HABIT: return HABIT;
             case MEAL: return MEAL;
+            case ALARM: return NotchAlertViews.ALARM_TINT;
+            case REMINDER: return WHITE_87;
             default: return WHITE_60;
         }
     }
@@ -72,12 +92,14 @@ final class NotchContent {
             case WATER: return R.drawable.notch_ic_water;
             case HABIT: return R.drawable.notch_ic_routine;
             case MEAL: return R.drawable.notch_ic_meal;
+            case REMINDER: return R.drawable.ic_notification;
+            case ALARM: return R.drawable.ic_clock;
             default: return R.drawable.notch_ic_task;
         }
     }
 
     private static boolean plain(Look look) {
-        return look == Look.TASK || look == Look.EVENT;
+        return look == Look.TASK || look == Look.EVENT || look == Look.REMINDER;
     }
 
     int leadWidth(int pillHeight) {
@@ -140,6 +162,14 @@ final class NotchContent {
         LinearLayout.LayoutParams wordsLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
         wordsLp.setMarginStart(dp(14));
         hero.addView(words, wordsLp);
+        if (!scene.heroAlert.isEmpty()) {
+            View chip = alertChip(scene.heroAlert, scene.heroAt);
+            chip.setContentDescription(alertSpoken(scene.heroAlert, scene.heroTitle, scene.heroAt));
+            chip.setOnClickListener(v -> NotchController.safely("manage alert", () -> actions.manage(scene.hero)));
+            LinearLayout.LayoutParams chipLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48));
+            chipLp.setMarginStart(dp(8));
+            hero.addView(chip, chipLp);
+        }
         col.addView(hero);
 
         LinearLayout bar = new LinearLayout(context);
@@ -197,6 +227,14 @@ final class NotchContent {
             row.setOnClickListener(v -> NotchController.safely("Glass", actions::drink));
             row.setContentDescription(r.title + ", " + r.value + ". Log a glass of water");
             return row;
+        } else if (!r.alert.isEmpty()) {
+            if (r.look == Look.REMINDER || r.look == Look.ALARM) row.addView(text(r.value, 14, accent(r.look), 500));
+            else row.addView(alertChip(r.alert, r.value), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40)));
+            row.setMinimumHeight(dp(48));
+            row.setBackground(pressed(dp(12), WHITE_12));
+            row.setOnClickListener(v -> NotchController.safely("manage alert", () -> actions.manage(r.slot)));
+            row.setContentDescription(alertSpoken(r.alert, r.title, r.value));
+            return row;
         } else if (r.look == Look.MEAL) {
             View ring = new View(context);
             GradientDrawable d = new GradientDrawable();
@@ -213,7 +251,29 @@ final class NotchContent {
         return row;
     }
 
-    private View control(int icon, String label, String spoken, boolean enabled, Runnable action) {
+    /** The alert's bell or clock and its time, on a dim pill inside a 48dp target that is clear until pressed. */
+    View alertChip(String alert, String at) {
+        Look look = NotchScene.alertLook(alert);
+        FrameLayout target = new FrameLayout(context);
+        target.setBackground(pressed(dp(999), WHITE_12));
+        LinearLayout pill = new LinearLayout(context);
+        pill.setGravity(Gravity.CENTER_VERTICAL);
+        pill.setPadding(dp(8), dp(4), dp(10), dp(4));
+        pill.setBackground(round(TRACK, dp(999)));
+        pill.addView(glyph(icon(look), accent(look)), new LinearLayout.LayoutParams(dp(16), dp(16)));
+        TextView time = text(at, 13, WHITE_87, 500);
+        time.setPadding(dp(4), 0, 0, 0);
+        pill.addView(time);
+        target.addView(pill, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+        return target;
+    }
+
+    /** "Reminder at 4:00 PM for Group call. Opens its controls." A reminder never says alarm. */
+    static String alertSpoken(String alert, String title, String at) {
+        return NotchScene.alertName(alert) + " at " + at + " for " + title + ". Opens its controls.";
+    }
+
+    View control(int icon, String label, String spoken, boolean enabled, Runnable action) {
         LinearLayout target = new LinearLayout(context);
         target.setOrientation(LinearLayout.VERTICAL);
         target.setGravity(Gravity.CENTER);

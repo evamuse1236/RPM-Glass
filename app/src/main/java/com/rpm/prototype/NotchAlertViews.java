@@ -33,30 +33,36 @@ final class NotchAlertViews {
         return context.getResources().getConfiguration().fontScale > LARGE_TEXT;
     }
 
-    /** Bell, the task's title and "Open ›". The whole island opens the task. */
+    /** Bell, the task's title over "Reminder · 5:30 PM", then Done, Snooze 10 min and Open. Tapping the words opens the task. */
     View reminder(int topInset, NotchAlert alert, NotchContent.Actions actions) {
-        FrameLayout face = new FrameLayout(context);
+        LinearLayout face = new LinearLayout(context);
+        face.setOrientation(LinearLayout.VERTICAL);
         face.setPadding(dp(16), topInset, dp(16), dp(8));
         LinearLayout main = new LinearLayout(context);
         main.setGravity(Gravity.CENTER_VERTICAL);
-        main.setMinimumHeight(dp(68));
+        main.setMinimumHeight(dp(60));
         main.setBackground(NotchContent.pressed(dp(16), 0x14FFFFFF));
         main.setContentDescription(alert.spoken());
         main.setOnClickListener(v -> NotchController.safely("open reminder", actions::openAlert));
         main.addView(circle(GREY_CIRCLE, R.drawable.ic_notification, Color.WHITE), new LinearLayout.LayoutParams(dp(40), dp(40)));
-        main.addView(title(alert.title), grow(dp(12), dp(12)));
-        LinearLayout open = new LinearLayout(context);
-        open.setGravity(Gravity.CENTER_VERTICAL);
-        open.addView(parts.text("Open", 14, BLUE, 500));
-        LinearLayout.LayoutParams chevron = new LinearLayout.LayoutParams(dp(18), dp(18));
-        chevron.setMarginStart(dp(2));
-        open.addView(parts.glyph(R.drawable.ic_chevron, BLUE), chevron);
-        main.addView(open);
-        face.addView(main, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        LinearLayout stack = new LinearLayout(context);
+        stack.setOrientation(LinearLayout.VERTICAL);
+        stack.addView(title(alert.title));
+        TextView line = parts.text(alert.reminderLine(), 13, NotchContent.WHITE_70, 400);
+        line.setPadding(0, dp(2), 0, 0);
+        stack.addView(line);
+        main.addView(stack, grow(dp(12), dp(12)));
+        face.addView(main, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        LinearLayout controls = new LinearLayout(context);
+        controls.addView(parts.control(R.drawable.notch_ic_done, "Done", "Done: " + alert.title, true, actions::doneAlert), grow(0, 0));
+        controls.addView(parts.control(R.drawable.notch_ic_snooze, "Snooze 10 min", "Snooze " + alert.title + " for " + NotchAlert.SNOOZE_MINUTES + " minutes",
+                true, actions::snoozeAlert), grow(dp(8), 0));
+        controls.addView(parts.control(R.drawable.ic_open, "Open", "Open " + alert.title + " in the plan", true, actions::openAlert), grow(dp(8), 0));
+        face.addView(controls, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         return face;
     }
 
-    /** Pulsing clock, the title over "Ringing · 5:30 PM", then Snooze and Stop. Only the two buttons silence it. */
+    /** Pulsing clock, the title over "Ringing · 5:30 PM", then Snooze, Done and Stop. Only the buttons silence it. */
     View alarm(int topInset, NotchAlert alert, NotchContent.Actions actions) {
         boolean stacked = largeText();
         LinearLayout face = new LinearLayout(context);
@@ -89,6 +95,10 @@ final class NotchAlertViews {
         LinearLayout buttons = new LinearLayout(context);
         buttons.addView(roundButton(NotchContent.WHITE_12, 0x3DFFFFFF, R.drawable.notch_ic_snooze, Color.WHITE,
                 "Snooze " + alert.title + " for " + NotchAlert.SNOOZE_MINUTES + " minutes", actions::snoozeAlert), new LinearLayout.LayoutParams(dp(48), dp(48)));
+        LinearLayout.LayoutParams doneLp = new LinearLayout.LayoutParams(dp(48), dp(48));
+        doneLp.setMarginStart(dp(8));
+        buttons.addView(roundButton(NotchContent.WHITE_12, 0x3DFFFFFF, R.drawable.ic_check, Color.WHITE,
+                "Done: stop the alarm and tick " + alert.title, actions::doneAlert), doneLp);
         LinearLayout.LayoutParams stopLp = new LinearLayout.LayoutParams(dp(48), dp(48));
         stopLp.setMarginStart(dp(8));
         buttons.addView(roundButton(ALARM_TINT, 0xFFD39A97, 0, ALARM_ON_TINT, "Stop the alarm for " + alert.title, actions::stopAlert), stopLp);

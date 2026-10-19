@@ -31,12 +31,15 @@ final class NotchDay {
         final Set<String> completedOccurrences;
         /** A calendar event: fixed, not the person's to tick off. */
         final boolean fixed;
+        /** "alarm", "reminder", or "" for no alert (NotchData.alertType). */
+        final String alert;
 
         Task(long id, String title, String block, Instant planned, int minutes, String recurrence, Set<String> completedOccurrences) {
-            this(id, title, block, planned, minutes, recurrence, completedOccurrences, false);
+            this(id, title, block, planned, minutes, recurrence, completedOccurrences, false, "");
         }
 
-        Task(long id, String title, String block, Instant planned, int minutes, String recurrence, Set<String> completedOccurrences, boolean fixed) {
+        Task(long id, String title, String block, Instant planned, int minutes, String recurrence, Set<String> completedOccurrences, boolean fixed,
+             String alert) {
             this.id = id;
             this.title = title;
             this.block = block;
@@ -45,6 +48,7 @@ final class NotchDay {
             this.recurrence = recurrence;
             this.completedOccurrences = completedOccurrences;
             this.fixed = fixed;
+            this.alert = alert;
         }
     }
 
@@ -62,6 +66,11 @@ final class NotchDay {
 
         boolean runningAt(long now) {
             return start <= now && now < end;
+        }
+
+        /** The alert this occurrence still has to give: its type when it asked for one and has not started yet, else "". */
+        String alertAt(long now) {
+            return start > now ? task.alert : "";
         }
     }
 

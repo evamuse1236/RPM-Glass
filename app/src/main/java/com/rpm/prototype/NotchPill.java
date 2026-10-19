@@ -38,6 +38,7 @@ final class NotchPill implements IslandView.Listener {
     private final int type;
     private final NotchContent content;
     private final NotchAlertViews alerts;
+    private final NotchChangeViews changes;
     private final IslandWindow plan = new IslandWindow();
     private IslandView island;
     private WindowManager.LayoutParams lp;
@@ -58,6 +59,7 @@ final class NotchPill implements IslandView.Listener {
         this.type = type;
         this.content = new NotchContent(context);
         this.alerts = new NotchAlertViews(context, content);
+        this.changes = new NotchChangeViews(context, content);
     }
 
     boolean isShown() {
@@ -106,12 +108,15 @@ final class NotchPill implements IslandView.Listener {
         } else {
             int w = displayWidth - 2 * dp(IslandShape.ISLAND_INSET_DP);
             if (f.mode == Mode.OPEN) face = content.panel(topInset, f.scene, actions);
+            else if (f.mode == Mode.MANAGE) face = changes.manage(topInset, f.managed, actions);
+            else if (f.mode == Mode.RECEIPT) face = changes.receipt(topInset, f.receipt, actions);
             else if (f.mode == Mode.REMINDER) face = alerts.reminder(topInset, f.alert, actions);
             else face = alerts.alarm(topInset, f.alert, actions);
             face.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
-            int radius = f.mode == Mode.OPEN ? IslandShape.OPEN_RADIUS_DP : IslandShape.ALERT_RADIUS_DP;
+            boolean tall = f.mode == Mode.OPEN || f.mode == Mode.MANAGE;
+            int radius = tall ? IslandShape.OPEN_RADIUS_DP : IslandShape.ALERT_RADIUS_DP;
             shape = IslandShape.island(anchor, displayWidth, face.getMeasuredHeight(), radius, density);
-            ms = f.mode == Mode.OPEN ? IslandView.OPEN_MS : IslandView.ALERT_MS;
+            ms = tall ? IslandView.OPEN_MS : IslandView.ALERT_MS;
             curve = IslandView.DECELERATE;
         }
         RectF faceAt = new RectF(shape.left, shape.top, shape.right, shape.bottom);
@@ -145,6 +150,8 @@ final class NotchPill implements IslandView.Listener {
     private static String describe(NotchFrame f) {
         if (f.mode == Mode.PILL) return (f.primary == null ? "NOTE" : f.primary.kind) + " " + f.pillValue();
         if (f.mode == Mode.OPEN) return "expanded";
+        if (f.mode == Mode.MANAGE) return "manage " + f.managed.alert + " " + f.managed.title;
+        if (f.mode == Mode.RECEIPT) return "receipt " + f.receipt.state + " " + f.receipt.title + " · " + f.receipt.detail + (f.receipt.canUndo() ? " · Undo" : "");
         return f.mode.name().toLowerCase(java.util.Locale.ROOT) + " " + f.alert.title;
     }
 

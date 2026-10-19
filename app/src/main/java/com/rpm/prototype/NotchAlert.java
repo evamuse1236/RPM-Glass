@@ -13,12 +13,15 @@ final class NotchAlert {
     final String title;
     /** The alert's time on the clock, "5:30 PM". */
     final String at;
+    /** When it fired (epoch ms): Done ticks the task's occurrence at or just before it. */
+    final long when;
 
     NotchAlert(Type type, long taskId, String title, long at, ZoneId zone, boolean h24) {
         this.type = type;
         this.taskId = taskId;
         this.title = title == null || title.isEmpty() ? "RPM task" : title;
         this.at = NotchDay.clock(at, zone, h24);
+        this.when = at;
     }
 
     /** The alarm's second line. */
@@ -29,6 +32,11 @@ final class NotchAlert {
     String spoken() {
         if (type == Type.ALARM) return "Ringing: " + title + ", " + at + ". Opens the task.";
         return "Reminder: " + title + ", " + at + ". Opens the task.";
+    }
+
+    /** The reminder's second line; it never says alarm or ringing. */
+    String reminderLine() {
+        return "Reminder · " + at;
     }
 
     String key() {

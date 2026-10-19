@@ -1,4 +1,5 @@
 /** Planner entry: wires the per-screen modules in ./planner/ and the native hooks. */
+import {hideSnackbar} from './planner/snackbar.mjs';
 import {animateLayout, slideScroll} from './surface-motion.mjs';
 import {createApp, TABS} from './planner/app.mjs';
 import {renderShell} from './planner/shell.mjs';
@@ -111,6 +112,8 @@ function installNativeHooks(app) {
     return changed;
   };
   window.addEventListener('rpm-data-refresh', () => {
+    // Saved somewhere else (the notch, Capture): Undo would now take back that change, not this screen's.
+    if (app.dom.snackbar.querySelector('.snackbar-action')) hideSnackbar(app, {instant: true});
     if (app.dom.sheet.hidden || app.sheet.live?.()) app.render();
     else app.notice('Saved data changed. Review before saving.');
   });

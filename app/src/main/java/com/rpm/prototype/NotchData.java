@@ -73,7 +73,7 @@ final class NotchData {
             if (start <= 0 || end <= start) continue;
             if (e.optBoolean("busy", true)) busy.add(new NotchWater.Busy(start, end));
             tasks.add(new NotchDay.Task(0, e.optString("title", "Calendar commitment"), null, Instant.ofEpochMilli(start),
-                    (int) ((end - start) / NotchDay.MIN), "", Collections.emptySet(), true));
+                    (int) ((end - start) / NotchDay.MIN), "", Collections.emptySet(), true, ""));
         }
         return new NotchData(tasks, busy, NotchBody.parse(data));
     }
@@ -90,7 +90,16 @@ final class NotchData {
         int minutes = e.isNull("minutes") ? 30 : e.optInt("minutes", 30);
         String block = e.isNull("blockId") ? null : blocks.get(e.optString("blockId"));
         String title = e.optString("title", e.optString("raw"));
-        return new NotchDay.Task(e.optLong("id"), title, block, Instant.ofEpochMilli(planned), minutes, e.optString("recurrence", ""), completed);
+        return new NotchDay.Task(e.optLong("id"), title, block, Instant.ofEpochMilli(planned), minutes, e.optString("recurrence", ""), completed, false,
+                alertType(e));
+    }
+
+    /** "alarm", "reminder" or "": the task's alertIntent, else an older store's alert (CompanionAlerts schedules by this). */
+    static String alertType(JSONObject e) {
+        JSONObject intent = e.optJSONObject("alertIntent"), alert = e.optJSONObject("alert");
+        String type = intent == null ? "" : intent.optString("type", "");
+        if (type.isEmpty() || type.equals("null")) type = alert == null ? "" : alert.optString("type", "");
+        return type.equals("alarm") || type.equals("reminder") ? type : "";
     }
 
     /** Epoch ms of an ISO date-time, or 0 when absent or unreadable. */
