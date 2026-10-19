@@ -1,4 +1,5 @@
 import {scheduleText} from './capture-content.mjs';
+import {draftTitle,alertOf} from '../intent-v2/src/context.mjs';
 
 const VERB={create:{tasks:'Added',blocks:'New Block',projects:'New Project',goals:'New Goal',areas:'New Area'},complete:'Done',delete:{tasks:'Moved to Trash'},restore:'Restored',reopen:'Reopened'};
 const rows=(data,collection)=>collection==='tasks'?data.entries??[]:data.planner?.[collection]??[];
@@ -22,6 +23,7 @@ function updateVerb(op,old,row){
  if(names.has('time')&&(old?.planned!==row?.planned||old?.plannedDate!==row?.plannedDate))return 'Moved';
  if(names.has('blockId')&&old?.blockId!==row?.blockId)return 'Moved';
  if(names.has('title')&&old?.title!==row?.title)return 'Renamed';
+ if(names.size===1&&names.has('alert')&&!alertOf(row))return 'Alarm off';
  return 'Changed';
 }
 
@@ -32,7 +34,8 @@ function updateVerb(op,old,row){
 export function receiptLines(data,draft){
  const changes=draft?.receipt?.changes??[],ops=draft?.operations??[],before=draft?.applied?.before??{};
  const creates={};
- return changes.map(change=>{
+ const parked=(draft?.receipt?.parkedDrafts??[]).map(p=>({verb:'Set aside',entity:'draft',id:p.id,title:draftTitle(data,data.intentV2?.drafts?.[p.id]),when:null,was:null,where:null,alert:null,minutes:null,must:false,renamedFrom:null}));
+ return [...changes.map(change=>{
   const entity=Object.keys(COLLECTION).find(k=>COLLECTION[k]===change.collection)??'task';
   let op;
   if(change.type==='create'){const list=ops.filter(o=>o.kind==='create'&&o.entity===entity);op=list[creates[entity]=(creates[entity]??-1)+1];}
@@ -43,11 +46,10 @@ export function receiptLines(data,draft){
   const when=entity==='task'&&change.type!=='delete'?whenOf(row):null;
   const was=verb==='Moved'&&old&&(old.planned!==row?.planned||old.plannedDate!==row?.plannedDate)?whenOf(old)??'No date':null;
   const where=entity==='task'&&(change.type==='create'||verb==='Moved'&&old?.blockId!==row?.blockId)?blockTitle(data,row?.blockId)??'Inbox':null;
-  const alertType=row?.alertIntent?.type??row?.alert??null;
-  const alert=entity==='task'&&alertType&&alertType!=='off'?alertType:null;
+  const alert=entity==='task'?alertOf(row):null;
   const minutes=entity==='task'&&change.type==='create'?row?.minutes??null:null;
   return {verb,entity,id:change.id,title:row?.title??change.title??old?.title??'',when,was,where,alert,minutes,must:row?.must===true,renamedFrom:verb==='Renamed'?old?.title??null:null};
- });
+ }),...parked];
 }
 
 /** A change to something already saved, or a plan the model filled in, is applied and then confirmed with Keep or Undo. */

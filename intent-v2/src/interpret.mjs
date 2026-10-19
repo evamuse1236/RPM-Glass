@@ -1,4 +1,5 @@
 import {TURN_SCHEMA,validate,validateField} from './schema.mjs';
+import {checkRemoval} from './removal.mjs';
 export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}={}){
  validate(turn,TURN_SCHEMA);
  const source=new Map(units.map(u=>[u.id,u.text])),decisions=new Map();
@@ -13,7 +14,7 @@ export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}
   if(decisions.get(op.sourceId)!=='action')throw new Error('Only an action source can authorize an operation draft');
   if(op.kind==='create'&&op.targetId!==null||op.kind!=='create'&&op.targetId===null)throw new Error('Create/update target mismatch');
   if(op.targetId!==null&&!visible.has(`${op.entity}:${op.targetId}`))throw new Error('Target ID was not supplied in current context');
-  if(['complete','archive'].includes(op.kind)&&(op.entity!=='task'||op.fields.length))throw new Error('Completion/archive pilot supports tasks only, without field patches');
+  checkRemoval(op,turn);
   const names=new Set();
   const fields=op.fields.map(f=>{
    validateField(f,op.entity);if(names.has(f.name))throw new Error('Duplicate field');names.add(f.name);

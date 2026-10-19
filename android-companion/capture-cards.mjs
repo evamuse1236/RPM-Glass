@@ -3,7 +3,7 @@ import {scheduleText} from './capture-content.mjs';
 import {actionPresentation} from './capture-session.mjs';
 import {line,lines,tally} from './capture-lines.mjs';
 
-const ENTITY={task:'Task',block:'Block',project:'Project',goal:'Goal',area:'Area'};
+const ENTITY={task:'Task',block:'Block',project:'Project',goal:'Goal',area:'Area',draft:'Draft'};
 const KEEPABLE=new Set(['idea','preference','question']);
 const NOTE_ICON={idea:'lightbulb',reflection:'chat',preference:'tune',question:'help',reference:'info',existing:'check_circle'};
 
@@ -179,7 +179,7 @@ export function openCard(capture,on){
  for(const op of draft.operations){
   const preview=draft.schedulePreview?.items?.find(p=>p.opId===op.opId);
   const when=scheduleText(preview,{timeZone:draft.schedulePreview?.timezone});
-  const verb=op.kind==='create'?'New':op.kind==='complete'?'Done':op.kind==='archive'?'Trash':'Change';
+  const verb=op.kind==='create'?'New':op.kind==='complete'?'Done':op.entity==='draft'?'Set aside':op.kind==='archive'?'Trash':'Change';
   list.append(line({verb,title:opTitle(op),when:when??null,was:null,where:null,minutes:null}));
  }
  if(draft.operations.length)node.append(list);

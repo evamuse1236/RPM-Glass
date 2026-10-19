@@ -49,15 +49,27 @@ export async function actOnDraft(h,action,{actionId}={}){
   const followUpIssue=draftFollowUpProblem(data,kept);if(followUpIssue)throw new Error(followUpIssue);
   checkGuards(data,draft.guards);
   if(draft.review&&action.reviewToken!==draft.review.token)throw new Error('The current schedule warning needs an explicit decision');
-  const applied=await h.applyPlan({data,draft:structuredClone(kept),approval:{actionId,reviewToken:action.reviewToken??null,at:h.clock().toISOString()}});
+  // Drafts set aside are not planner records: the plan adapter gets the rest, and one receipt covers both.
+  const parked=kept.operations.filter(o=>o.entity==='draft').map(o=>state.drafts[o.targetId]);
+  if(parked.some(d=>!activeStatus(d)||d.conversationId!==draft.conversationId))throw new Error('That draft was already closed. Nothing changed.');
+  const planned={...kept,operations:kept.operations.filter(o=>o.entity!=='draft')};
+  const applied=planned.operations.length?await h.applyPlan({data,draft:structuredClone(planned),approval:{actionId,reviewToken:action.reviewToken??null,at:h.clock().toISOString()}}):{status:'committed',receipt:{undoId:null,entryIds:[],changes:[],plannerReceipts:[],savedAt:h.clock().toISOString()}};
   if(applied.status==='review'){draft.review=applied.review;draft.question=null;draft.status='review';draft.revision++;return {status:'review',draftId:draft.id,revision:draft.revision};}
   if(applied.status!=='committed')throw new Error('Plan adapter did not confirm a commit candidate');
-  draft.status='committed';draft.revision++;draft.receipt=applied.receipt;if(skipped.size)draft.skipped=[...skipped];draft.approvedAt=h.clock().toISOString();
-  return {status:'committed',draftId:draft.id,receipt:applied.receipt};
+  const receipt=parked.length?{...applied.receipt,parkedDrafts:parked.map(d=>{const was=d.status;d.status='parked';d.parkedBy=draft.id;d.revision++;return {id:d.id,status:was};})}:applied.receipt;
+  draft.status='committed';draft.revision++;draft.receipt=receipt;if(skipped.size)draft.skipped=[...skipped];draft.approvedAt=h.clock().toISOString();
+  return {status:'committed',draftId:draft.id,receipt};
  });
  h.emit({type:result.status,...result});return result;
 }
+/** One Undo for one change: the planner's records come back, and so does every draft the change set aside. */
 export async function undoCommitted(h,{draftId,conversationId,actionId}){
- if(!h.undoPlan)throw new Error('Undo adapter is not installed');
- return h.repository.transact(`undo:${ident(actionId)}`,{draftId,conversationId},async data=>{conversation(data,conversationId);const d=intentState(data).drafts[draftId];if(!d||d.conversationId!==conversationId||d.status!=='committed')throw new Error('Committed draft not found');const receipt=await h.undoPlan({data,receipt:d.receipt});d.status='undone';d.revision++;return {status:'undone',draftId,receipt};});
+ return h.repository.transact(`undo:${ident(actionId)}`,{draftId,conversationId},async data=>{
+  conversation(data,conversationId);const drafts=intentState(data).drafts,d=drafts[draftId];
+  if(!d||d.conversationId!==conversationId||d.status!=='committed')throw new Error('Committed draft not found');
+  let receipt={text:'Undone'};
+  if(d.receipt?.undoId){if(!h.undoPlan)throw new Error('Undo adapter is not installed');receipt=await h.undoPlan({data,receipt:d.receipt});}
+  for(const p of d.receipt?.parkedDrafts??[]){const t=intentState(data).drafts[p.id];if(t?.status==='parked'&&t.parkedBy===d.id){t.status=p.status;delete t.parkedBy;t.revision++;}}
+  d.status='undone';d.revision++;return {status:'undone',draftId,receipt};
+ });
 }

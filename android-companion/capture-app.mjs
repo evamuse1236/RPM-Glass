@@ -5,7 +5,7 @@ import {historyView,contextView} from './capture-views.mjs';
 import {installSheet} from './capture-sheet.mjs';
 import {installCapturePresentation,createRevealTracker,enter} from './capture-presentation.mjs';
 import {installComposer,listeningCard} from './capture-composer.mjs';
-import {createSendIdentity,draftToKeep,cardKind} from './capture-session.mjs';
+import {createSendIdentity,draftToKeep,cardKind,canUndoChange} from './capture-session.mjs';
 import {el,button} from './capture-dom.mjs';
 import {userMessage} from './user-message.mjs';
 import {actionIdFor} from '../intent-v2/src/suggestions.mjs';
@@ -160,7 +160,7 @@ export function mountCapture(platform){
   return node;
  }
  function captureCard(c,kind){
-  const canUndo=!!c.draft?.receipt?.undoId&&c.draft.receipt.undoId===s.state.undoId;
+  const canUndo=canUndoChange(c.draft,s.state.undoId);
   const aiEnabled=!!s.state.aiEnabled;
   const retry={...on,retry:()=>turn({type:'intentRetry',messageId:c.messageId})};
   switch(kind){

@@ -12,7 +12,13 @@ export function sourceUnits(raw){
  if(units.length>100)throw new Error('This capture needs chunked interpretation; the original remains saved');
  return units;
 }
-export function entityRows(data,entity){return entity==='task'?(data.entries??[]).filter(e=>!e.archived&&(e.kind??'plan')==='plan'):(data.planner?.[{block:'blocks',project:'projects',goal:'goals',area:'areas'}[entity]]??[]);}
+/** A draft has no title of its own: its first proposal's title, or the saved item that proposal changes. */
+export function draftTitle(data,draft){
+ const op=draft?.operations?.[0];if(!op)return 'Draft';
+ return op.fields.find(f=>f.name==='title'&&f.op==='set')?.value??(op.targetId!==null&&op.entity!=='draft'?findEntity(data,op.entity,op.targetId)?.title:null)??'Draft';
+}
+export const draftEntity=(data,draft)=>({entity:'draft',id:draft.id,title:draftTitle(data,draft),status:draft.status,revision:draft.revision});
+export function entityRows(data,entity){if(entity==='draft')return Object.values(data.intentV2?.drafts??{}).map(d=>({...d,title:draftTitle(data,d)}));return entity==='task'?(data.entries??[]).filter(e=>!e.archived&&(e.kind??'plan')==='plan'):(data.planner?.[{block:'blocks',project:'projects',goal:'goals',area:'areas'}[entity]]??[]);}
 export function findEntity(data,entity,id){return entityRows(data,entity).find(x=>String(x.id)===String(id));}
 export function stable(value){if(Array.isArray(value))return '['+value.map(stable).join(',')+']';if(value&&typeof value==='object')return '{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+stable(value[k])).join(',')+'}';return JSON.stringify(value);}
 // Function words match every title, which crowds the context with unrelated tasks; they carry no topic.
@@ -29,9 +35,11 @@ export function localStamp(value,timezone){
  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(value)).map(p=>[p.type,p.value]));
  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
 }
+/** A task's alert as the model reads it: alarm or reminder, or nothing when it is off. */
+export const alertOf=row=>{const type=row?.alertIntent?.type??row?.alert??null;return type&&type!=='off'?type:null;};
 export function contextEntity(entity,row,timezone,data=null){
  const startLocal=localStamp(row.planned,timezone),minutes=Number.isInteger(row.minutes)&&row.minutes>0?row.minutes:null;
- return {entity,id:String(row.id),title:row.title,purpose:row.purpose??null,planned:row.planned??null,plannedDate:row.plannedDate??null,savedLocalDate:startLocal?.slice(0,10)??row.plannedDate??null,startLocal,endLocal:startLocal&&minutes?localStamp(new Date(Date.parse(row.planned)+minutes*60000).toISOString(),timezone):null,minutes,blockId:row.blockId??null,projectId:row.projectId??null,goalId:row.goalId??null,done:!!row.done,...(entity==='block'&&data?{dueLocal:blockDue(data,row.id,timezone)}:{})};
+ return {entity,id:String(row.id),title:row.title,purpose:row.purpose??null,planned:row.planned??null,plannedDate:row.plannedDate??null,savedLocalDate:startLocal?.slice(0,10)??row.plannedDate??null,startLocal,endLocal:startLocal&&minutes?localStamp(new Date(Date.parse(row.planned)+minutes*60000).toISOString(),timezone):null,minutes,blockId:row.blockId??null,projectId:row.projectId??null,goalId:row.goalId??null,done:!!row.done,...(entity==='task'&&alertOf(row)?{alert:alertOf(row)}:{}),...(entity==='block'&&data?{dueLocal:blockDue(data,row.id,timezone)}:{})};
 }
 /** `meta`, when given, receives what the model is not shown: each kept message's ID and what was cut to fit. */
 export function buildContext(data,{raw,messageId=null,conversationId,focus={},now=new Date(),maxChars=14000,timezone=Intl.DateTimeFormat().resolvedOptions().timeZone,meta=null}={}){

@@ -9,7 +9,7 @@ export const CARD_KINDS=['agenda','next','task','water','meals'];
 export const FIELD_NAMES=['title','purpose','notes','time','minutes','blockId','projectId','goalId','areaId','year','must','priority','recurrence','repeatAfterDays','alert'];
 const value={type:['string','integer','boolean','null']};
 export const FIELD_SCHEMA=object({name:enumeration(FIELD_NAMES),op:enumeration(['set','clear','unknown']),value,origin:enumeration(['stated','suggested']),evidence:nullable(text(2000))});
-export const OPERATION_SCHEMA=object({opId:text(50),sourceId:text(50),kind:enumeration(['create','update','complete','archive']),entity:enumeration(['task','block','project','goal','area']),targetId:nullable(text(100)),fields:array(FIELD_SCHEMA,16)});
+export const OPERATION_SCHEMA=object({opId:text(50),sourceId:text(50),kind:enumeration(['create','update','complete','archive']),entity:enumeration(['task','block','project','goal','area','draft']),targetId:nullable(text(100)),fields:array(FIELD_SCHEMA,16)});
 export const TURN_SCHEMA=object({
   schemaVersion:{type:'integer',enum:[1]},
   mode:enumeration(['capture','plan','reflect','query']),
@@ -37,7 +37,7 @@ export function validate(value,schema,path='$') {
 }
 export const ALLOWED_FIELDS={
  task:['title','purpose','notes','time','minutes','blockId','must','priority','recurrence','repeatAfterDays','alert'],
- block:['title','purpose','notes','projectId'],project:['title','purpose','notes','goalId'],goal:['title','purpose','notes','areaId','year'],area:['title','purpose','notes']
+ block:['title','purpose','notes','projectId'],project:['title','purpose','notes','goalId'],goal:['title','purpose','notes','areaId','year'],area:['title','purpose','notes'],draft:[]
 };
 export function validateField(field,entity){
  validate(field,FIELD_SCHEMA);

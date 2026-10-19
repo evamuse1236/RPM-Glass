@@ -1,7 +1,7 @@
 import {userMessage} from '../../android-companion/user-message.mjs';
 import {validateFollowUp} from './follow-up.mjs';
 import {intentState} from './repository.mjs';
-import {sourceUnits,buildContext,guardsFor,findEntity,contextEntity} from './context.mjs';
+import {sourceUnits,buildContext,guardsFor,findEntity,contextEntity,draftEntity} from './context.mjs';
 import {interpretTurn} from './interpret.mjs';
 import {ident,activeStatus,conversation,safeQuestion,actOnDraft,undoCommitted} from './draft-actions.mjs';
 import {quickAnswer} from './quick-answer.mjs';
@@ -53,6 +53,7 @@ export class IntentHarness {
    if(op.targetId!==null)include(op.entity,op.targetId);
    for(const f of op.fields){const entity={blockId:'block',projectId:'project',goalId:'goal',areaId:'area'}[f.name];if(entity&&f.op==='set'&&!f.value.startsWith('$'))include(entity,f.value);}
   }
+  if(activeDraft)context.entities.push(draftEntity(data,activeDraft));
   const draftContext=activeDraft?{id:activeDraft.id,revision:activeDraft.revision,operations:activeDraft.operations.map(o=>({opId:o.opId,kind:o.kind,entity:o.entity,targetId:o.targetId,fields:o.fields.map(f=>({name:f.name,op:f.op,value:typeof f.value==='string'?f.value.slice(0,1000):f.value,origin:f.origin,truncated:typeof f.value==='string'&&f.value.length>1000}))})),question:activeDraft.question?{prompt:activeDraft.question.prompt,field:activeDraft.question.field,options:activeDraft.question.options.map(o=>o.label)}:null,reply:activeDraft.reply??null}:null;
   const plan=this.snapshot?await this.snapshot({data,capture,context}):null;
   if(plan?.truncated)meta.truncated={...meta.truncated,snapshot:plan.truncated};

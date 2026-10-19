@@ -1,4 +1,4 @@
-import {contextEntity,localStamp} from '../intent-v2/src/context.mjs';
+import {contextEntity,localStamp,alertOf} from '../intent-v2/src/context.mjs';
 import {dayAgenda,bodyToday} from './capture-agenda.mjs';
 import {localDay,shiftDay} from './planner-state.mjs';
 
@@ -10,7 +10,7 @@ const dayOf=(e,timezone)=>e.planned?localStamp(e.planned,timezone)?.slice(0,10)?
 const blockOf=(data,id)=>id?(data.planner?.blocks??[]).find(b=>b.id===id)?.title??null:null;
 
 function row(data,e,timezone){
- return {id:String(e.id),title:e.title,day:dayOf(e,timezone),at:e.planned?clockOf(Date.parse(e.planned),timezone):null,done:!!e.done,...(e.must===true?{must:true}:{}),...(e.blockId?{block:blockOf(data,e.blockId)}:{})};
+ return {id:String(e.id),title:e.title,day:dayOf(e,timezone),at:e.planned?clockOf(Date.parse(e.planned),timezone):null,done:!!e.done,...(e.must===true?{must:true}:{}),...(e.blockId?{block:blockOf(data,e.blockId)}:{}),...(alertOf(e)?{alert:alertOf(e)}:{})};
 }
 
 /**

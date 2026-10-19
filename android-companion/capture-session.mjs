@@ -40,6 +40,16 @@ export function cardKind(capture){
  return 'open';
 }
 
+/**
+ * Whether a change can still be undone from its card: a planner change while it is the newest Undo, or a change
+ * that only set drafts aside (no planner record), which Undo can always bring back.
+ */
+export function canUndoChange(draft,undoId){
+ const receipt=draft?.receipt;
+ if(!receipt)return false;
+ return receipt.undoId?receipt.undoId===undoId:!!receipt.parkedDrafts?.length;
+}
+
 /** Button roles for draft actions, in increasing emphasis. */
 export function actionPresentation(item,draft,{selected=draft.operations.length}={}){
  const kind=item.action.kind;
