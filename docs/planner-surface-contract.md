@@ -24,7 +24,7 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 ### Gestures
 
 - Task rows (Today's spine cards, Block Plan, Inbox, lists): swipe right is **Done**, swipe left is **Schedule** (one-tap date choices). In the Inbox, swipe left is **Move to Block**. A drag locks to one axis after 8px, so vertical scrolling never moves a row; letting go before 90dp springs back and changes nothing.
-- Delete is never a swipe. A long press on a task row opens a quick menu with Must, Move to Block and Delete; on Block Plan rows the long press stays the reorder lift, and Delete is in the task sheet's ⋮.
+- Delete is never a swipe. A long press on a task row opens a quick menu with Must, Move to Block and Delete; on Block Plan rows the long press stays the reorder lift, and Delete is in the task sheet's `Task actions`.
 - Week strip: swipe right for the previous week, left for the next; long-press a day for that day's tasks in a sheet; tap a day to open it. On Today, a day-change swipe starts only from the gutter, the date line or empty space.
 - The task sheet's handle drags it down; it closes past 30% of its height or a fast flick.
 - Every gesture has a tap or menu route (the ring, the task sheet's Schedule and ⋮, Must in the sheet), and every change it makes has Undo.
@@ -61,7 +61,7 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 ### Task detail and quick add
 
 - Task detail combines completion, editable title and meta, Must, a tappable Part-of panel with Result/Purpose/breadcrumb, notes, and differing original capture text.
-- The sticky footer uses “Mark complete” or “Mark incomplete”; destructive and secondary actions live in overflow with Undo or confirmation.
+- The task sheet completes with the ring in its header (named `Mark <title> complete`); its footer toolbar `Task actions` holds Ask Capture, Duplicate, Archive and Delete, each with Undo.
 - Quick add opens with its title focused and the real keyboard visible. Date, duration, Block, Must, repeat, and More are optional chips. An unassigned task may keep an optional Why.
 - Typed shortcuts are intentionally deferred. Do not claim or infer them from ordinary text.
 

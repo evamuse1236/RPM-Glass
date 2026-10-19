@@ -15,15 +15,16 @@ planner.body = {
   },
   meals: [{id, created, name /* the user's words */, slot: 'breakfast' | 'lunch' | 'snack' | 'dinner', at: ISO}],
   mealGuesses: {[mealId]: {status: 'pending' | 'ready' | 'failed', by, at, kcal?, protein?}},  // the agent's guesses, never the user's words
+  mealPlan?: {slots: [{slot: 'breakfast' | 'lunch' | 'snack' | 'dinner', at: 'HH:MM', on: boolean, name?}]},  // absent until the first change
 };
 ```
 
 ## Reading today's state
 
 - Water today: `waterStatus({...bodyOf(data).water, now})` in `body-state.mjs` gives `{count, goal, reached, lastAt, nextAt, pending, paused}`. `count` counts `glasses` on today's local date.
-- A meal slot today: `mealSlots(meals, day, now)` in `day-parts.mjs` gives breakfast, lunch, (snack,) dinner with the logged meal or `null` ("Not logged"). Unlogged slots sit at 8:30 AM, 1 PM and 8 PM.
+- A meal slot today: `mealSlots(meals, day, now)` in `day-parts.mjs` gives breakfast, lunch, (snack,) dinner with the logged meal or `null` ("Not logged"). Unlogged slots sit at their `mealPlan` time; with no `mealPlan` they are breakfast 8:30 AM, lunch 1 PM and dinner 8 PM (`MEAL_TIMES`). A slot with `on: false` has no placeholder and no `Log a meal` chip, but a meal logged for it still shows. `mealPlanSlots(mealPlan)` reads the plan with these defaults, in clock order; only the snack has its own `name`.
 - A Routine today: `routineState(routine, run, now)` gives `{state, progress: {done, total, skipped, open}}`; `state` is `upcoming`, `running`, `done`, `partly`, `missed`, `skipped` or `empty`.
 
 ## Ops
 
-`saveRoutine`, `removeRoutine` (archives), `saveRoutineRun`, `skipRoutineDay`, `drinkWater {at}`, `snoozeWater {until}`, `setWater {fields}`, `saveMeal {meal}`, `removeMeal {id}`, `setMealGuess {id, guess}`.
+`saveRoutine`, `removeRoutine` (archives), `saveRoutineRun`, `skipRoutineDay`, `drinkWater {at}`, `snoozeWater {until}`, `setWater {fields}`, `saveMeal {meal}`, `removeMeal {id}`, `setMealGuess {id, guess}`, `setMealSlot {slot, fields: {at?, on?, name? /* snack only */}}` (writes the default plan first; a missing snack is added at 4:00 PM), `removeMealSlot {slot: 'snack'}` (breakfast, lunch and dinner are turned off instead).

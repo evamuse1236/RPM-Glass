@@ -67,7 +67,8 @@ Live status as of 2026-10-07: Capture, Today, Blocks, Task rows and sheet, and I
 - [Capture](./capture.md) covers the Capture sheet: typing, keyless saving, the More menu, History, Context, About, expand, close and voice.
 - [Today](./today.md) covers the Today screen: date, next seven days, week line, lead card, Coming up, agenda, completing tasks and the top bar.
 - [Blocks](./blocks.md) covers the Blocks list and Block detail: Result and Purpose editing, the Plan, adding and reordering tasks, and marking a Result achieved.
-- [Task rows and sheet](./task-sheet.md) covers task rows, the task sheet fields, scheduling, deleting, and quick add through `Add task`.
+- [Task rows and sheet](./task-sheet.md) covers task rows, the task sheet (header ring, title and Must star; Day, Time, Length, Alert and Repeat rows; Block row; Task actions), scheduling, deleting, and quick add through `Add task`.
+- [Habits](./habits.md) covers the Habits list and the water, meal and routine editors, and how to reach them from Today.
 - [Inbox and Trash](./inbox-trash.md) covers the Inbox, moving tasks into Blocks, Archive, Trash and restoring.
 - [Weekly review](./weekly-review.md) covers the four-step review from last week's Results to picking this week's Results.
 - [Search](./search.md) covers full-screen search across tasks, Blocks, Projects, Goals and Areas.
