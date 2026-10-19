@@ -1,0 +1,394 @@
+[
+  {
+    "id": "raj-reschedule",
+    "tags": [
+      "saved-task",
+      "relative-times"
+    ],
+    "turns": [
+      {
+        "text": "That call with Raj already on Today at four, move it to tomorrow at six in the evening. Please change the existing one, I keep accidentally ending up with two calls."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [
+        {
+          "id": 101,
+          "kind": "update",
+          "day": "2026-10-20",
+          "time": "18:00"
+        }
+      ],
+      "unchanged": [
+        102,
+        103,
+        104,
+        105,
+        106
+      ]
+    }
+  },
+  {
+    "id": "raj-complete",
+    "tags": [
+      "saved-task",
+      "complete"
+    ],
+    "turns": [
+      {
+        "text": "Spoke to Raj just now, the saved Call Raj task is done. No need to schedule another call, he has the file."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [
+        {
+          "id": 101,
+          "kind": "complete"
+        }
+      ],
+      "unchanged": [
+        102,
+        103,
+        104,
+        105,
+        106
+      ]
+    }
+  },
+  {
+    "id": "dentist-readonly",
+    "tags": [
+      "calendar",
+      "readonly",
+      "saved-task"
+    ],
+    "turns": [
+      {
+        "text": "The dentist is on my calendar tomorrow at eleven. Keep that appointment exactly there. Move my saved groceries task to tomorrow at 12:30 pm so I can go after the dentist. Do not make a dentist task as well."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [
+        [
+          "dentist"
+        ]
+      ],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [
+        {
+          "id": 105,
+          "kind": "update",
+          "day": "2026-10-20",
+          "time": "12:30"
+        }
+      ],
+      "unchanged": [
+        101,
+        102,
+        103,
+        104,
+        106
+      ]
+    }
+  },
+  {
+    "id": "dentist-change-request",
+    "tags": [
+      "calendar",
+      "readonly",
+      "questions"
+    ],
+    "turns": [
+      {
+        "text": "Move tomorrow's dentist calendar appointment from eleven to noon, please. It is the calendar event, not a task I entered here."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [
+        [
+          "dentist"
+        ]
+      ],
+      "maxNew": 0,
+      "question": "allowed",
+      "changes": [],
+      "unchanged": [
+        101,
+        102,
+        103,
+        104,
+        105,
+        106
+      ]
+    }
+  },
+  {
+    "id": "gym-morning-only",
+    "tags": [
+      "duplicate-name",
+      "saved-task"
+    ],
+    "turns": [
+      {
+        "text": "Tomorrow I have two gym entries for some reason. Move the morning gym from seven to eight am. Leave the seven pm one alone, that is with my cousin."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [
+        {
+          "id": 102,
+          "kind": "update",
+          "day": "2026-10-20",
+          "time": "08:00"
+        }
+      ],
+      "unchanged": [
+        101,
+        103,
+        104,
+        105,
+        106
+      ]
+    }
+  },
+  {
+    "id": "gym-evening-only",
+    "tags": [
+      "duplicate-name",
+      "saved-task"
+    ],
+    "turns": [
+      {
+        "text": "Shift my evening gym tomorrow to 8 pm. Morning gym at seven stays, I am trying both once and seeing how I feel."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [
+        {
+          "id": 103,
+          "kind": "update",
+          "day": "2026-10-20",
+          "time": "20:00"
+        }
+      ],
+      "unchanged": [
+        101,
+        102,
+        104,
+        105,
+        106
+      ]
+    }
+  },
+  {
+    "id": "gym-ambiguous",
+    "tags": [
+      "duplicate-name",
+      "clarification"
+    ],
+    "turns": [
+      {
+        "text": "Move gym tomorrow to eight. I cannot remember what time I put it at."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "required",
+      "changes": [],
+      "unchanged": [
+        101,
+        102,
+        103,
+        104,
+        105,
+        106
+      ]
+    }
+  },
+  {
+    "id": "archive-groceries",
+    "tags": [
+      "delete",
+      "saved-task"
+    ],
+    "turns": [
+      {
+        "text": "Delete the saved Buy groceries task for tomorrow. Amma already ordered everything. Keep the Call Amma task though, I still want to talk to her."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [
+        {
+          "id": 105,
+          "kind": "archive"
+        }
+      ],
+      "unchanged": [
+        101,
+        102,
+        103,
+        104,
+        106
+      ]
+    }
+  },
+  {
+    "id": "workbook-alarm-preserved",
+    "tags": [
+      "saved-task",
+      "relative-times"
+    ],
+    "turns": [
+      {
+        "text": "Move my saved Submit workbook task from today at five to tomorrow at 10 am. Keep its alarm on. I am changing the submission time, not claiming I submitted it."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [
+        {
+          "id": 104,
+          "kind": "update",
+          "day": "2026-10-20",
+          "time": "10:00"
+        }
+      ],
+      "unchanged": [
+        101,
+        102,
+        103,
+        105,
+        106
+      ]
+    }
+  },
+  {
+    "id": "amma-correction",
+    "tags": [
+      "saved-task",
+      "correction"
+    ],
+    "turns": [
+      {
+        "text": "Move Call Amma to tomorrow at eight, no I mean tomorrow at nine in the evening. Same saved task. Raj's call is unrelated."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [
+        {
+          "id": 106,
+          "kind": "update",
+          "day": "2026-10-20",
+          "time": "21:00"
+        }
+      ],
+      "unchanged": [
+        101,
+        102,
+        103,
+        104,
+        105
+      ]
+    }
+  },
+  {
+    "id": "cancel-archive-reversal",
+    "tags": [
+      "contradiction",
+      "reversal"
+    ],
+    "turns": [
+      {
+        "text": "Delete Call Raj. No wait, sorry, do not delete it. Leave the saved Raj call exactly as it is at four today. My brain is running ahead of me."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": [
+        101,
+        102,
+        103,
+        104,
+        105,
+        106
+      ]
+    }
+  },
+  {
+    "id": "done-not-result",
+    "tags": [
+      "result",
+      "complete",
+      "saved-task"
+    ],
+    "turns": [
+      {
+        "text": "I submitted the workbook just now, mark that saved task done. I still do not know if the assessment result is any good, so do not invent a passed course or achieved goal from this."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [
+        [
+          "pass",
+          "course"
+        ],
+        [
+          "achiev",
+          "goal"
+        ]
+      ],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [
+        {
+          "id": 104,
+          "kind": "complete"
+        }
+      ],
+      "unchanged": [
+        101,
+        102,
+        103,
+        105,
+        106
+      ]
+    }
+  }
+]

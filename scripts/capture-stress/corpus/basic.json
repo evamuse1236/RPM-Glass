@@ -1,0 +1,452 @@
+[
+  {
+    "id": "fillers-bank",
+    "tags": [
+      "unpunctuated",
+      "fillers",
+      "indian-english"
+    ],
+    "turns": [
+      {
+        "text": "uh okay so um the bank thing yaar that extra charge is still there and every time I see the SMS I remember then forget anyway remind me to call the bank tomorrow at six in the evening bas"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "bank"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "time": "18:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "correction-report",
+    "tags": [
+      "correction",
+      "retraction"
+    ],
+    "turns": [
+      {
+        "text": "Put send the report to Neha tomorrow at nine, no sorry ten, actually leave the time off, just tomorrow. I mean send the report, not write a fresh one."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "send",
+            "report"
+          ],
+          "entity": "task",
+          "day": "2026-10-20"
+        }
+      ],
+      "forbidden": [
+        [
+          "write",
+          "report"
+        ]
+      ],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "vent-buried-electrician",
+    "tags": [
+      "venting",
+      "buried-task"
+    ],
+    "turns": [
+      {
+        "text": "I am so tired of being the person who remembers every stupid thing in this flat. The light flickers and everyone says haan haan and then carries on. Yesterday I spent twenty minutes just finding the switchboard photo. Please put call the electrician tomorrow at 10 am. The rest is me being irritated, I am not asking you to reorganise my life."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "call",
+            "electrician"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "time": "10:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "nine-relative-times",
+    "tags": [
+      "many-items",
+      "relative-times",
+      "unpunctuated"
+    ],
+    "turns": [
+      {
+        "text": "okay brain dump call bank today at noon print the form tomorrow at nine buy stamps day after tomorrow at five in the evening send Meera the slides this Friday at four in the evening collect laundry this Saturday at eleven in the morning refill the bus card this Sunday at six in the evening email the landlord next Monday at ten in the morning scan the passport tomorrow at eight in the evening and water the balcony plants today at seven in the evening these are nine separate things please"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "bank"
+          ],
+          "entity": "task",
+          "day": "2026-10-19",
+          "time": "12:00"
+        },
+        {
+          "words": [
+            "print",
+            "form"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "time": "09:00"
+        },
+        {
+          "words": [
+            "stamp"
+          ],
+          "entity": "task",
+          "day": "2026-10-21",
+          "time": "17:00"
+        },
+        {
+          "words": [
+            "meera",
+            "slide"
+          ],
+          "entity": "task",
+          "day": "2026-10-23",
+          "time": "16:00"
+        },
+        {
+          "words": [
+            "laundry"
+          ],
+          "entity": "task",
+          "day": "2026-10-24",
+          "time": "11:00"
+        },
+        {
+          "words": [
+            "bus",
+            "card"
+          ],
+          "entity": "task",
+          "day": "2026-10-25",
+          "time": "18:00"
+        },
+        {
+          "words": [
+            "landlord"
+          ],
+          "entity": "task",
+          "day": "2026-10-26",
+          "time": "10:00"
+        },
+        {
+          "words": [
+            "passport"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "time": "20:00"
+        },
+        {
+          "words": [
+            "plant"
+          ],
+          "entity": "task",
+          "day": "2026-10-19",
+          "time": "19:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 9,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "hinglish-kal-subah",
+    "tags": [
+      "hinglish",
+      "relative-times"
+    ],
+    "turns": [
+      {
+        "text": "yaar kal subah 8 baje courier wale ko phone karna hai. Aaj nahi, kal subah. Parcel ka issue close karna hai bas."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "courier"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "time": "08:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "hinglish-baad-mein",
+    "tags": [
+      "hinglish",
+      "retraction"
+    ],
+    "turns": [
+      {
+        "text": "Book a flight to Pune, arre nahi yaar cancel that idea. Flight baad mein dekhenge, abhi bas bank ko email karna hai tomorrow. Hotel bhi mat book karna."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "bank",
+            "email"
+          ],
+          "entity": "task",
+          "day": "2026-10-20"
+        }
+      ],
+      "forbidden": [
+        [
+          "flight"
+        ],
+        [
+          "book",
+          "hotel"
+        ]
+      ],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "journal-only",
+    "tags": [
+      "journaling",
+      "no-action"
+    ],
+    "turns": [
+      {
+        "text": "Just journaling. I felt strangely proud after class because I answered without rehearsing it ten times. Then I got home and spiralled about sounding stupid. I do not want a task or a plan from this, just keep my words."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [
+        [
+          "class"
+        ],
+        [
+          "rehears"
+        ],
+        [
+          "plan"
+        ]
+      ],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "question-and-action",
+    "tags": [
+      "questions",
+      "task"
+    ],
+    "turns": [
+      {
+        "text": "Why do I remember a deadline only when I lie down? Anyway please add email Professor Sen about the extension tomorrow morning at 9. The question is me thinking aloud, the email is the thing I need to do."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "email",
+            "sen"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "time": "09:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "allowed",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "pronouns-parcel",
+    "tags": [
+      "cross-sentence-pronouns",
+      "correction"
+    ],
+    "turns": [
+      {
+        "text": "I need to return the blue jacket. It arrived with the zip broken. Take it to the courier tomorrow at 5 pm. Actually the red one is fine, do not return that."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "jacket"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "time": "17:00"
+        }
+      ],
+      "forbidden": [
+        [
+          "red",
+          "return"
+        ]
+      ],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "hypothetical-trip",
+    "tags": [
+      "hypothetical",
+      "no-action"
+    ],
+    "turns": [
+      {
+        "text": "If I had an entire free week I would book a hotel in Goa and disappear. That is a fantasy, yaar. No trip is happening. Just add buy printer paper tomorrow."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "printer",
+            "paper"
+          ],
+          "entity": "task",
+          "day": "2026-10-20"
+        }
+      ],
+      "forbidden": [
+        [
+          "hotel"
+        ],
+        [
+          "flight"
+        ],
+        [
+          "goa"
+        ]
+      ],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "retracted-second-task",
+    "tags": [
+      "retraction",
+      "unpunctuated"
+    ],
+    "turns": [
+      {
+        "text": "uh put buy a notebook and email the hostel office tomorrow wait remove the notebook from what I just said I found three in my bag only email the hostel office tomorrow please"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "email",
+            "hostel"
+          ],
+          "entity": "task",
+          "day": "2026-10-20"
+        }
+      ],
+      "forbidden": [
+        [
+          "notebook"
+        ]
+      ],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "minutes-not-clock",
+    "tags": [
+      "duration",
+      "unscheduled"
+    ],
+    "turns": [
+      {
+        "text": "Need to spend twenty minutes sorting my receipts, not at twenty past anything, just a twenty minute job. No date yet, I only want it out of my head."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "receipt"
+          ],
+          "entity": "task"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  }
+]

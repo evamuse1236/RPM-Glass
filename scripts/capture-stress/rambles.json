@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "files": [
+    "corpus/basic.json",
+    "corpus/saved.json",
+    "corpus/conversation.json",
+    "corpus/outcomes.json",
+    "corpus/monologues.json"
+  ],
+  "hardest": [
+    "nine-relative-times",
+    "gym-ambiguous",
+    "followup-gym-disambiguate",
+    "dinner-exact-four-turns",
+    "focused-delete-both",
+    "followup-retract-draft",
+    "result-purpose-must",
+    "monologue-purifier",
+    "monologue-loan",
+    "tomorrow-not-yesterday"
+  ]
+}
