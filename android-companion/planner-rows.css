@@ -53,12 +53,7 @@
 @keyframes strike-in { from { text-decoration-color: transparent; color: var(--on-surface); } }
 .must-mark { color: var(--must); margin: 16px var(--s3) 0 var(--s1); }
 /* The Now row: a soft primary tint, lighter in dark so it does not shout. */
-:root { --current-row: color-mix(in srgb, var(--primary-container) 55%, transparent); }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-appearance=light]) { --current-row: color-mix(in srgb, var(--primary-container) 38%, transparent); }
-}
-:root[data-appearance=dark] { --current-row: color-mix(in srgb, var(--primary-container) 38%, transparent); }
-.task-row.current { background: var(--current-row); border-radius: var(--shape-lg); }
+.task-row.current { background: var(--tint-soft); border-radius: var(--r-control); }
 /* Keyboard focus on a row is a rounded ring inside it; focus the app hands back on touch draws none (planner.mjs). */
 .task-main:focus-visible { outline-offset: -2px; border-radius: var(--shape-md); }
 :root:not([data-keyboard-nav=true]) :is(button, a, [role=button], [role=checkbox], [tabindex]):focus-visible { outline: none; }
@@ -135,16 +130,23 @@
 .swipe-task[data-armed=true] .swipe-reveal .ms { scale: 1.2; }
 .swipe-task.swipe-settling .swipe-reveal { opacity: 0; transition: opacity var(--dur-short4) var(--ease-standard); }
 .swipe-task.swipe-leaving .swipe-reveal { opacity: 1; }
-.completed-group { margin: var(--s2) 0 0; }
+.completed-group { --swipe-surface: var(--cell); margin: var(--s2) 0 0; border-radius: var(--r-group); background: var(--cell); overflow: clip; }
 .completed-toggle {
   width: 100%;
   min-height: var(--touch);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--s4) 0 var(--gutter);
-  font: var(--title-small);
-  color: var(--on-surface-variant);
+  padding: 0 var(--s4);
+  font: var(--subhead);
+  font-weight: 500;
+  color: var(--label-2);
+}
+.completed-group > .task-row {
+  background-image: linear-gradient(var(--separator), var(--separator));
+  background-size: calc(100% - 56px) 1px;
+  background-position: 100% 0;
+  background-repeat: no-repeat;
 }
 
 /* Text fields: a filled 48dp field with radius 12, its label above it. */

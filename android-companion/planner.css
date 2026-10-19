@@ -13,7 +13,7 @@
   --gutter: 16px;
   --sheet-max: 640px;
   --keyboard-inset: 0px;
-  --row-press: color-mix(in srgb, var(--on-surface) 8%, transparent);
+  --row-press: var(--press);
 }
 html, body { width: 100%; height: 100%; overflow: hidden; }
 body { overscroll-behavior: none; background: var(--surface); }
