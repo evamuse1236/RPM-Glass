@@ -12,7 +12,7 @@ const guard = async data => {
 };
 const keysFor = command => {
   const safety = ['archived'];
-  const fields = {complete: ['done', 'recurrence', 'repeatAfterDays', 'planned', 'completedOccurrences'], uncomplete: ['done', 'recurrence', 'repeatAfterDays', 'planned', 'completedOccurrences'],
+  const fields = {complete: ['title', 'done', 'recurrence', 'repeatAfterDays', 'planned', 'plannedDate', 'completedOccurrences'], uncomplete: ['title', 'done', 'recurrence', 'repeatAfterDays', 'planned', 'plannedDate', 'completedOccurrences'],
     reschedule: ['planned', 'plannedDate', 'recurrence', 'repeatAfterDays'], 'move-to-block': ['blockId'], archive: ['title', 'done', 'blockId', 'planned', 'plannedDate', 'archiveDisposition'], restore: ['archiveDisposition', 'blockId']};
   return [...safety, ...(command.type === 'edit' ? Object.keys(command.args.fields).flatMap(k => k === 'time' ? ['planned', 'plannedDate', 'recurrence', 'repeatAfterDays'] : [k]) : fields[command.type] ?? [])];
 };

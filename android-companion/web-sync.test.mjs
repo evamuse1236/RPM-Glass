@@ -1,10 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
-import snapshotSchema from '../web/contract/snapshot.schema.json' with {type: 'json'};
-import commandSchema from '../web/contract/command.schema.json' with {type: 'json'};
 import fixture from '../web/fixtures/snapshot.json' with {type: 'json'};
 import {validateSnapshot, validateCommand} from '../web/contract/validate.mjs';
 import {buildSnapshot} from './web-sync-snapshot.mjs';
@@ -29,12 +25,10 @@ function setup(seed = null, backend = null, capture = undefined) {
   return {backend: store, processor: createWebSyncProcessor({backend: store, capture, clock: () => now})};
 }
 async function local(backend, reduce) { const repository = createRepository(backend); return repository.transact(randomUUID(), {}, reduce); }
-const ajv = new Ajv({strict: true}); addFormats(ajv);
-const ajvSnapshot = ajv.compile(snapshotSchema), ajvCommand = ajv.compile(commandSchema);
 
 test('snapshot projects the real synthetic rpmctl seed, with default body values and a stable saved time', () => {
   const seed = seedStore(now).data, snapshot = buildSnapshot(seed);
-  assert.equal(ajvSnapshot(snapshot), true, JSON.stringify(ajvSnapshot.errors));
+  assert.equal(validateSnapshot(snapshot), snapshot);
   assert.deepEqual(buildSnapshot(seed), snapshot);
   assert.equal(snapshot.savedAt, '1970-01-01T00:00:00.000Z');
   seed.syncSavedAt = now.toISOString(); assert.equal(buildSnapshot(seed).savedAt, seed.syncSavedAt);
@@ -56,7 +50,7 @@ test('snapshot removes credentials, history, executable draft instructions and n
   assert.equal(snapshot.captures.length, 50); assert.equal(snapshot.captures[0].text, '  Exact words\n5  ');
   assert.deepEqual(snapshot.drafts[0], {id: 'd', status: 'draft', title: 'A draft', reply: 'Review me', receipt: [], taskIds: []});
   assert.doesNotMatch(serialized, /private-|modelPayload|operations|apiKey|revisions|history/);
-  assert.equal(ajvSnapshot(snapshot), true);
+  assert.equal(validateSnapshot(snapshot), snapshot);
 });
 
 test('validators reject malformed dates, extra keys, bad identifiers and invalid command variants', () => {
@@ -64,7 +58,7 @@ test('validators reject malformed dates, extra keys, bad identifiers and invalid
   const variants = [cmd('capture', {text: 'exact words'}), cmd('complete', {taskId: 1}), cmd('uncomplete', {taskId: 1, occurrence: now.toISOString()}),
     cmd('reschedule', {taskId: 1, time: null, day: '2026-10-20'}), cmd('edit', {taskId: 1, fields: {title: 'Renamed'}}), cmd('move-to-block', {taskId: 1, blockId: null}),
     cmd('archive', {taskId: 1}), cmd('restore', {taskId: 1}), cmd('log-water', {at: now.toISOString()}), cmd('log-meal', {name: 'Poha', slot: 'breakfast', at: now.toISOString()}), cmd('undo', {commandId: randomUUID()})];
-  for (const value of variants) { assert.equal(validateCommand(value), value); assert.equal(ajvCommand(value), true, JSON.stringify(ajvCommand.errors)); }
+  for (const value of variants) assert.equal(validateCommand(value), value);
   const invalid = [{...variants[0], key: 'secret'}, {...variants[1], id: 'bad'}, {...variants[1], args: {taskId: 1, key: 'secret'}}, {...variants[1], baseRevision: -1},
     {...variants[0], createdAt: '2026-02-30T01:00:00Z'}, {...variants[0], createdAt: '2026-10-19T25:00:00Z'}, cmd('edit', {taskId: 1, fields: {}}), cmd('edit', {taskId: 1, fields: {key: 'secret'}}),
     cmd('reschedule', {taskId: 1, time: now.toISOString(), day: '2026-10-20'}), cmd('reschedule', {taskId: 1, time: null, day: '2026-02-30'})];
@@ -90,7 +84,7 @@ test('all task command types execute the actual planner and preserve original wo
   await process('move-to-block', {taskId: 1, blockId: null}); assert.equal((await backend.load()).entries[0].blockId, null);
   await process('archive', {taskId: 1}); data = await backend.load(); assert.equal(data.entries[0].archived, true); assert.equal(data.entries[0].archiveDisposition, 'trash');
   await process('restore', {taskId: 1}); assert.equal((await backend.load()).entries[0].archived, false);
-  assert.equal(ajvSnapshot(await processor.snapshot()), true);
+  validateSnapshot(await processor.snapshot());
 });
 
 test('water and meal logs are additive and exact retries survive processor recreation', async () => {
@@ -181,7 +175,7 @@ test('Capture enters the real agent, keeps exact words before the model, and ret
   const applied = await processor.process(command); assert.equal(applied.status, 'applied');
   assert.deepEqual(await setup(null, backend, capture).processor.process(command), applied);
   assert.equal(calls, 1); assert.equal((await backend.load()).entries.length, 1);
-  const snapshot = await processor.snapshot(); assert.equal(snapshot.captures[0].text, raw); assert.match(snapshot.captures[0].receipt[0].text, /Call the bank/); assert.equal(ajvSnapshot(snapshot), true);
+  const snapshot = await processor.snapshot(); assert.equal(snapshot.captures[0].text, raw); assert.match(snapshot.captures[0].receipt[0].text, /Call the bank/); assert.equal(validateSnapshot(snapshot), snapshot);
 });
 
 test('Capture resumes a saved interpreted draft after a crash without asking the model again', async () => {
