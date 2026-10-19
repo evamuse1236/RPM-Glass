@@ -120,11 +120,6 @@ final class NotchRunner {
             }
 
             @Override
-            public void onPageStarted(WebView v, String url, android.graphics.Bitmap icon) {
-                ready = false;
-            }
-
-            @Override
             public boolean onRenderProcessGone(WebView v, RenderProcessGoneDetail detail) {
                 NotchActions.log(context, "notch.runner", "error", NotchActions.payload("renderer", detail.didCrash() ? "crashed" : "killed"));
                 main.post(() -> NotchController.safely("runner gone", NotchRunner.this::release));

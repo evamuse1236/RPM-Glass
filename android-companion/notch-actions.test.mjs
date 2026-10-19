@@ -86,3 +86,10 @@ test('a refusal reaches the notch in plain words, and a script fault only as the
   assert.equal(FAULT_TEXT, 'Something went wrong on this screen. Your saved plans are safe.');
   assert.match(fs.readFileSync(new URL('./notch-actions.mjs', import.meta.url), 'utf8'), /message: userMessage\(error\)/);
 });
+
+test('only a new page or a release clears the runner ready flag: the page can say ready before Android reports it started', () => {
+  const runner = fs.readFileSync(new URL('../app/src/main/java/com/rpm/prototype/NotchRunner.java', import.meta.url), 'utf8');
+  assert.doesNotMatch(runner, /onPageStarted|onPageFinished/);
+  const clears = [...runner.matchAll(/ready = false;/g)].map(m => [...runner.slice(0, m.index).matchAll(/void (\w+)\(\) \{/g)].at(-1)?.[1]);
+  assert.deepEqual(clears, ['start', 'release']);
+});
