@@ -20,9 +20,6 @@ async function rejectRevoked(ctx:PlannerCtx,command:Doc<"webCommands">,revision:
 }
 async function revoke(ctx:PlannerCtx,session:Doc<"webSessions">) {
   await ctx.db.patch(session._id,{revoked:true});
-  const commands = await ctx.db.query("webCommands").withIndex("by_session_status",q=>q.eq("session",session._id).eq("status","pending")).take(100);
-  const snapshot = await ctx.db.query("plannerSnapshots").withIndex("by_account_revision",q=>q.eq("account",session.account)).order("desc").first();
-  for(const command of commands)await rejectRevoked(ctx,command,snapshot?.revision??0);
   return {revoked:true};
 }
 
@@ -80,8 +77,6 @@ async function syncPlanner(ctx:PlannerCtx,device:Doc<"devices">,account:Id<"acco
       if(command.status!==ack.status || command.message!==ack.message || command.newRevision!==ack.newRevision)return fail(409,"command_conflict","A command result cannot be replaced");
       continue;
     }
-    const session = await ctx.db.get(command.session);
-    if(!session || session.revoked)return fail(409,"command_conflict","Browser access was revoked before execution");
     const duplicate = changes.find(change=>change.command._id===command._id);
     if(duplicate && JSON.stringify(duplicate.ack)!==JSON.stringify(ack))return fail(409,"command_conflict","Conflicting command results");
     if(!duplicate)changes.push({command,ack});

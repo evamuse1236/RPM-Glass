@@ -35,6 +35,10 @@ Browsers exchange a phone-issued eight-character code for an independent hashed
 token, read that account's snapshot, and queue commands for its authoritative phone.
 Only the phone applies planner changes and acknowledges command results. Accounts
 are added lazily to existing devices without changing their legacy events or records.
+Revoking a browser immediately disables its token. A command already running on
+the trusted phone may finish and publish its acknowledgement and snapshot. The
+next phone pull rejects remaining commands from that browser in batches of 100.
+The phone executes and acknowledges one command before refreshing its queue.
 
 Set `RPM_WEB_ORIGIN` to the exact production browser origin before live use.
 HTTP localhost and 127.0.0.1 origins require an explicit development port.
