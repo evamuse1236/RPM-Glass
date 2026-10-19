@@ -1,5 +1,5 @@
 import {draftFollowUpProblem,FOLLOW_UP_NOTICE} from '../intent-v2/src/follow-up.mjs';
-import {validateIntentTimes} from './intent-time-guard.mjs';
+import {validateIntentTimes,retainSupportedTimes} from './intent-time-guard.mjs';
 import {HAIKU_MODEL,CLAUDE_PROVIDERS,intentModelPolicy,captureReply} from '../intent-v2/src/model-policy.mjs';
 import {IntentHarness} from '../intent-v2/src/harness.mjs';
 import {createRepository,intentState} from '../intent-v2/src/repository.mjs';
@@ -69,7 +69,7 @@ export function createIntentService({backend,native,model,changePlanner,undo,rea
  const repository=createRepository(backend);
  const adapter=createRpmPlanAdapter({changePlanner,undo,readCalendar});
  const interpret=model??nativeModelTransport({native,model:HAIKU_MODEL,prompt:intentSystemPrompt,providerNames:CLAUDE_PROVIDERS,effort:'none'});
- const harness=new IntentHarness({repository,...adapter,model:interpret,modelPolicy:intentModelPolicy,snapshot,normalizeReply:captureReply,validateInterpretation:validateIntentTimes,refreshSchedule:args=>({...refreshSchedulePreview(args),timezone}),onEvent,clock,timezone});
+ const harness=new IntentHarness({repository,...adapter,model:interpret,modelPolicy:intentModelPolicy,snapshot,normalizeReply:captureReply,validateInterpretation:validateIntentTimes,recoverInterpretation:retainSupportedTimes,refreshSchedule:args=>({...refreshSchedulePreview(args),timezone}),onEvent,clock,timezone});
 
  async function view({conversationId=null,offset=0,limit=20}={}){
   return intentViewFromData(await repository.load(),{conversationId,offset,limit,now:clock()});

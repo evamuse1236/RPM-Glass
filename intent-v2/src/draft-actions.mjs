@@ -3,6 +3,7 @@ import {guardsFor,checkGuards,stable} from './context.mjs';
 import {draftFollowUpProblem} from './follow-up.mjs';
 import {checkAction} from './suggestions.mjs';
 import {validateField} from './schema.mjs';
+import {openQuestion} from './conversation-focus.mjs';
 
 export const ident=value=>{if(typeof value!=='string'||!value||value.length>100)throw new Error('A stable client ID is required');return value;};
 export const activeStatus=d=>d&&['draft','review'].includes(d.status);
@@ -42,6 +43,7 @@ export async function actOnDraft(h,action,{actionId}={}){
    if(h.refreshSchedule){draft.schedulePreview=h.refreshSchedule({data,draft:structuredClone(draft),anchor:new Date(draft.timeAnchorAt??draft.created)});draft.reply=h.normalizeReply?.({parsed:draft,schedulePreview:draft.schedulePreview})??draft.reply;}
    return {status:'draft',draftId:draft.id,revision:draft.revision};
   }
+  if(openQuestion(state,draft.conversationId))throw new Error('Answer the open question before saving this draft.');
   // The user may leave some proposals out; only the ones they kept are checked and applied.
   const skipped=skippedOps(draft,action),kept=skipped.size?{...draft,operations:draft.operations.filter(o=>!skipped.has(o.opId)),schedulePreview:draft.schedulePreview&&{...draft.schedulePreview,items:(draft.schedulePreview.items??[]).filter(i=>!skipped.has(i.opId))}}:draft;
   if(kept.operations.some(o=>o.fields.some(f=>f.op==='unknown')))throw new Error('An unresolved field remains; edit it or leave the draft');
@@ -67,9 +69,11 @@ export async function undoCommitted(h,{draftId,conversationId,actionId}){
  return h.repository.transact(`undo:${ident(actionId)}`,{draftId,conversationId},async data=>{
   conversation(data,conversationId);const drafts=intentState(data).drafts,d=drafts[draftId];
   if(!d||d.conversationId!==conversationId||d.status!=='committed')throw new Error('Committed draft not found');
+  for(const edit of d.receipt?.draftEdits??[])if(drafts[edit.id]?.revision!==edit.revision)throw new Error('The draft changed after that removal. Review it before undoing.');
   let receipt={text:'Undone'};
   if(d.receipt?.undoId){if(!h.undoPlan)throw new Error('Undo adapter is not installed');receipt=await h.undoPlan({data,receipt:d.receipt});}
   for(const p of d.receipt?.parkedDrafts??[]){const t=intentState(data).drafts[p.id];if(t?.status==='parked'&&t.parkedBy===d.id){t.status=p.status;delete t.parkedBy;t.revision++;}}
+  for(const edit of d.receipt?.draftEdits??[])drafts[edit.id]={...structuredClone(edit.before),revision:drafts[edit.id].revision+1,updated:h.clock().toISOString()};
   d.status='undone';d.revision++;return {status:'undone',draftId,receipt};
  });
 }

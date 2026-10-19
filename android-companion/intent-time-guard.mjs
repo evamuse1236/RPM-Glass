@@ -2,7 +2,7 @@ import {interpretTime} from '../cli/interpret.mjs';
 const bareClock=/^\s*\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?\s*$/i;
 function clocks(text,now,evidence){
  const parsed=interpretTime(bareClock.test(text)?'at '+text:text,now,{evidence});
- return parsed.matched.flatMap(match=>[match,match.end&&{...match.end,text:match.text}].filter(Boolean).filter(m=>Number.isInteger(m.known.hour)).map(m=>({hour:m.known.hour,minute:m.known.minute??0,explicit:Object.hasOwn(m.known,'meridiem')||Object.hasOwn(match.end?.known??{},'meridiem')||/\d{1,2}:\d{2}/.test(m.text)||m.known.hour>12})));
+ return parsed.matched.flatMap(match=>[match,match.end&&{...match.end,text:match.text}].filter(Boolean).filter(m=>Number.isInteger(m.known.hour)).map(m=>withPart({hour:m.known.hour,minute:m.known.minute??0,explicit:Object.hasOwn(m.known,'meridiem')||Object.hasOwn(match.end?.known??{},'meridiem')||/\d{1,2}:\d{2}|\b(?:noon|midnight)\b/i.test(m.text)||m.known.hour>12},m.text)));
 }
 // An extraction can ask for a fact already supplied. Resolve only this narrow
 // case: one explicit clock in exact evidence, updating a known future saved day.
@@ -53,7 +53,33 @@ export function validateIntentTimes(parsed,{input}){
   if(interpretTime(field.value,now,{evidence:raw}).status==='review')continue;
   const requested=clocks(field.value,now,raw),supported=[...clocks(field.evidence??'',now,raw),...looseClocks(field.evidence)].map(c=>withPart(c,field.evidence)).filter(c=>c.explicit);
   for(const c of requested)if(!c.explicit||!supported.some(s=>s.hour===c.hour&&s.minute===c.minute)){
-   throw new Error('Time precision was not supported by the exact source words. Use the exact stated clock if present; when AM/PM is missing keep time unknown and ask AM or PM. Keep every other requested action. A saved date does not authorize inheriting its AM/PM.');
+   const error=new Error('Time precision was not supported by the exact source words. Use the exact stated clock if present; when AM/PM is missing keep time unknown and ask AM or PM. Keep every other requested action. A saved date does not authorize inheriting its AM/PM.');
+   error.code='UNSUPPORTED_TIME';throw error;
   }
  }
+}
+
+export function retainSupportedTimes(parsed,{input,activeDraft=null}){
+ const kept=structuredClone(parsed),unapplied=[];
+ for(const op of kept.operations){
+  try{validateIntentTimes({...kept,operations:[op]},{input});}
+  catch(error){
+   if(error.code!=='UNSUPPORTED_TIME')throw error;
+   const title=op.fields.find(f=>f.name==='title'&&f.op==='set')?.value??input.context.entities.find(e=>e.entity===op.entity&&e.id===op.targetId)?.title??op.entity;
+   unapplied.push({opId:op.opId,field:'time',title,reason:'The clock did not match your words.'});
+   op.fields=op.fields.filter(f=>f.name!=='time');
+   if(kept.question?.opId===op.opId&&kept.question.field==='time')kept.question=null;
+   const previous=parsed.draftMode==='amend'&&activeDraft?.operations.find(old=>old.opId===op.opId)?.fields.find(f=>f.name==='time');
+   if(previous){
+    op.fields.push(structuredClone(previous));
+    if(previous.op==='unknown'&&activeDraft.question?.opId===op.opId&&activeDraft.question.field==='time')kept.question=structuredClone(activeDraft.question);
+   }
+  }
+ }
+ if(!unapplied.length)return null;
+ kept.operations=kept.operations.filter(op=>op.kind!=='update'||op.fields.length);
+ if(!kept.operations.length)kept.draftMode='none';
+ kept.unapplied=unapplied;
+ kept.notice=unapplied.map(x=>`${x.title}: time was not applied because it did not match your words. Your original words are saved.`).join(' ');
+ validateIntentTimes(kept,{input});return kept;
 }

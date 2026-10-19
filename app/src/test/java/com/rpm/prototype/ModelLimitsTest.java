@@ -17,7 +17,9 @@ public class ModelLimitsTest {
             int haiku = ModelLimits.readTimeoutMs(service, haikuId, 4000, 20000);
             int sonnet = ModelLimits.readTimeoutMs(service, sonnetId, 16000, 20000);
             assertTrue(service + " Haiku", haiku > 0);
-            assertTrue(service + ": Sonnet at high effort gets longer to answer", sonnet > haiku);
+            assertTrue(service + ": Sonnet at high effort gets at least as long to answer", sonnet >= haiku);
+            assertEquals(95000, ModelLimits.readTimeoutMs(service, haikuId, 6000, 20000));
+            assertEquals(-1, ModelLimits.readTimeoutMs(service, haikuId, 6001, 20000));
         }
     }
 

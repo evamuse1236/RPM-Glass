@@ -14,3 +14,13 @@ test('a bare clock with no part of day still may not borrow AM/PM',()=>{
  const morning='tomorrow morning like 9';
  assert.throws(()=>validateIntentTimes(turn('tomorrow 9pm',morning),{input:input(morning)}),/Time precision/);
 });
+
+test('the clock guard accepts the parser\'s stated morning, noon and spoken clocks',()=>{
+ for(const words of ['tomorrow morning at 9','tomorrow morning at eight','today at noon','tomorrow at midnight'])
+  assert.doesNotThrow(()=>validateIntentTimes(turn(words,words),{input:input(words)}),words);
+});
+
+test('a part of day on another action cannot authorize an invented clock',()=>{
+ const words='Read tomorrow at nine. Walk in the evening at 7pm.';
+ assert.throws(()=>validateIntentTimes(turn('tomorrow 9pm','tomorrow at nine'),{input:input(words)}),/Time precision/);
+});

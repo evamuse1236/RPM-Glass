@@ -27,6 +27,17 @@ test('a reply to an open question or a focused draft gets careful Haiku; a re-pl
  assert.equal(intentModelPolicy({input:{...asked,sourceUnits:sourceUnits('Re-plan my week')}}).model,SONNET_MODEL);
 });
 test('a repair attempt always uses Sonnet',()=>{const r=intentModelPolicy({input:input('Buy milk'),attempt:1});assert.equal(r.model,SONNET_MODEL);assert.equal(r.reason,'repair');});
+
+test('long captures get a bounded Haiku reading without changing short routes or hard request priority',()=>{
+ const short=route('x'.repeat(1499)),long=route('x'.repeat(1500));
+ assert.deepEqual([short.model,short.effort,short.timeoutMs,short.maxTokens],[HAIKU_MODEL,'none',25000,4000]);
+ assert.deepEqual([long.model,long.effort,long.timeoutMs,long.maxTokens,long.reason],[HAIKU_MODEL,'high',90000,6000,'long_capture']);
+ const focused=intentModelPolicy({input:{...input('x'.repeat(1500)),activeDraft:{id:'d0'}}});
+ assert.equal(focused.timeoutMs,90000);assert.equal(focused.reason,'focused_draft');
+ assert.equal(route('Re-plan my week '+ 'x'.repeat(1500)).model,SONNET_MODEL);
+ assert.equal(intentModelPolicy({input:input('x'.repeat(1500)),attempt:1}).model,SONNET_MODEL);
+ assert.deepEqual([route('make it 5 pm').effort,route('make it 5 pm').timeoutMs],['high',35000]);
+});
 test('more than three changes to saved items is a re-plan; three or fewer stay quick',()=>{
  const updates=n=>turn('Move them',Array.from({length:n},(_,i)=>operation([field('time','6am','Move them')],{opId:'u'+i,kind:'update',targetId:String(i+1)})));
  assert.equal(intentModelPolicy({input:input('Move them'),output:updates(HARD_CHANGE_COUNT+1)}).model,SONNET_MODEL);

@@ -1,5 +1,5 @@
 /** History: meals, water and routine runs by day, newest first. A meal opens its sheet to edit or delete it. */
-import {historyDays, estimateText, timesText, clockText, SLOT_NAMES} from '../body-state.mjs';
+import {historyDays, estimateText, timesText, clockText, SLOT_NAMES, mealText} from '../body-state.mjs';
 import {el, listItem, sectionHeader, emptyState, icon} from './dom.mjs';
 import {relativeDay} from './format.mjs';
 import {openMealSheet} from './meals.mjs';
@@ -14,7 +14,7 @@ function build(app, body, item) {
   if (item.kind === 'meal') {
     const {meal} = item;
     const supporting = [SLOT_NAMES[meal.slot], clockText(meal.at), estimateText(meal.estimate, {short: true})].filter(Boolean).join(' · ');
-    const node = listItem({leading: 'restaurant', headline: meal.name, supporting, onClick: () => openMealSheet(app, body, {mealId: meal.id}),
+    const node = listItem({leading: 'restaurant', headline: mealText(meal), supporting, onClick: () => openMealSheet(app, body, {mealId: meal.id}),
       cls: 'history-row'});
     node.dataset.key = 'meal:' + meal.id;
     return node;

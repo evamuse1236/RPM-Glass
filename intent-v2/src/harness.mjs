@@ -8,13 +8,14 @@ import {quickAnswer} from './quick-answer.mjs';
 import {inputSummary} from './input-summary.mjs';
 import {focusFor,focusOf,questionFor,openQuestion} from './conversation-focus.mjs';
 import {readChoiceReply,choiceTurn,choiceEntities} from './choice-reply.mjs';
+import {proposalEntities,stageProposalRemoval} from './proposal-removal.mjs';
 
 const STALE_FOCUS='STALE_FOCUS';
 /** Orchestration only. The model never receives a mutating function or persistence key. */
 export class IntentHarness {
- constructor({repository,model,applyPlan,undoPlan=null,refreshSchedule=null,modelPolicy=null,snapshot=null,normalizeReply=null,validateInterpretation=null,onEvent=()=>{},clock=()=>new Date(),timezone='Asia/Kolkata',timeoutMs=12000,maxRepairCalls=1}={}){
+ constructor({repository,model,applyPlan,undoPlan=null,refreshSchedule=null,modelPolicy=null,snapshot=null,normalizeReply=null,validateInterpretation=null,recoverInterpretation=null,onEvent=()=>{},clock=()=>new Date(),timezone='Asia/Kolkata',timeoutMs=12000,maxRepairCalls=1}={}){
   if(!repository||!model||!applyPlan)throw new Error('repository, model and applyPlan are required');
-  Object.assign(this,{repository,model,applyPlan,undoPlan,refreshSchedule,modelPolicy,snapshot,normalizeReply,validateInterpretation,onEvent,clock,timezone,timeoutMs,maxRepairCalls});this.running=new Map();
+  Object.assign(this,{repository,model,applyPlan,undoPlan,refreshSchedule,modelPolicy,snapshot,normalizeReply,validateInterpretation,recoverInterpretation,onEvent,clock,timezone,timeoutMs,maxRepairCalls});this.running=new Map();
  }
  emit(event){try{this.onEvent(event);}catch{/* Telemetry/UI must never break persistence. */}}
  async capture(input){
@@ -47,10 +48,10 @@ export class IntentHarness {
   if(question||capture.choice){
    try{
     if(capture.choice&&question?.id!==capture.choice.questionId)throw new Error('That question was already answered or replaced. Nothing changed.');
-    const choiceIds=readChoiceReply(capture.raw,question,{choiceId:capture.choice?.choiceId??null,focus}),turn=choiceIds&&choiceTurn(capture.raw,question,choiceIds);
+    const choiceIds=readChoiceReply(capture.raw,question,{choiceId:capture.choice?.choiceId??null,focus}),turn=choiceIds&&choiceTurn(capture.raw,question,choiceIds,{activeDraft});
     if(turn){
-     const parsed=interpretTurn(turn,{units,messageId,visibleEntities:choiceEntities(data,question,choiceIds,capture.timezone),activeDraft:null});
-     return await this.#stage(messageId,{data,capture,parsed,units,activeDraft:null,calls:0,modelRuns:[],extra:{choice:{questionId:question.id,choiceIds}}});
+     const parsed=interpretTurn(turn,{units,messageId,visibleEntities:choiceEntities(data,question,choiceIds,capture.timezone,{activeDraft}),activeDraft});
+     return await this.#stage(messageId,{data,capture,parsed,units,activeDraft,calls:0,modelRuns:[],extra:{choice:{questionId:question.id,choiceIds}}});
     }
    }catch(error){return this.#needsAttention(messageId,error,{calls:0,modelRuns:[]});}
   }
@@ -66,6 +67,7 @@ export class IntentHarness {
   }
   for(const d of [activeDraft,...(question?.choices??[]).flatMap(c=>c.targets).filter(t=>t.entity==='draft').map(t=>v.drafts[t.id])])
    if(activeStatus(d)&&!context.entities.some(e=>e.entity==='draft'&&e.id===d.id))context.entities.push(draftEntity(data,d));
+  if(activeDraft)context.entities.push(...proposalEntities(activeDraft));
   const draftContext=activeDraft?{id:activeDraft.id,revision:activeDraft.revision,operations:activeDraft.operations.map(o=>({opId:o.opId,kind:o.kind,entity:o.entity,targetId:o.targetId,fields:o.fields.map(f=>({name:f.name,op:f.op,value:typeof f.value==='string'?f.value.slice(0,1000):f.value,origin:f.origin,truncated:typeof f.value==='string'&&f.value.length>1000}))})),question:activeDraft.question?{prompt:activeDraft.question.prompt,field:activeDraft.question.field,options:activeDraft.question.options.map(o=>o.label)}:null,reply:activeDraft.reply??null}:null;
   const plan=this.snapshot?await this.snapshot({data,capture,context}):null;
   if(plan?.truncated)meta.truncated={...meta.truncated,snapshot:plan.truncated};
@@ -73,7 +75,7 @@ export class IntentHarness {
   const input={messageId,sourceUnits:units,context,activeDraft:draftContext,...(question?{openQuestion:{id:question.id,prompt:question.prompt,action:question.action,choices:question.choices}}:{}),...(plan?{snapshot:plan.summary}:{})};
   if(JSON.stringify(input).length>45000)return {messageId,status:'captured',error:'This thought needs a larger review. The original is kept; no task changed.'};
   const controller=new AbortController();let timer;
-  let repair=null,parsed,fallback=null,calls=0;const modelRuns=[];
+  let repair=null,parsed,fallback=null,held=null,calls=0;const modelRuns=[];
   try{
    for(let attempt=0;attempt<=this.maxRepairCalls;attempt++){
     const route=this.modelPolicy?.({input,attempt})??null;
@@ -85,6 +87,7 @@ export class IntentHarness {
      const output=await Promise.race([this.model({...input,repair},{signal:controller.signal,deadline,route,run}),timeout]).finally(()=>{run.ms=Date.now()-started;});run.ok=true;
      parsed=interpretTurn(output,{units,messageId,visibleEntities:context.entities,activeDraft});
      validateFollowUp(parsed,{input});
+     held=this.recoverInterpretation?.(parsed,{input,activeDraft})??held;
      this.validateInterpretation?.(parsed,{input});
      // A fast run that turns out to be a plan or a large edit gets one stronger follow-up, sharing the repair allowance.
      const next=route&&this.modelPolicy({input,output});if(next&&next.model!==route.model&&attempt<this.maxRepairCalls){run.escalated=next.reason;fallback=parsed;repair={validationError:'This request needs careful planning. Check every change against the supplied snapshot and give concrete suggested steps for a plan.'};continue;}
@@ -92,7 +95,10 @@ export class IntentHarness {
     }catch(error){
      run.error=error.code??'INVALID_OUTPUT';
      if(fallback){parsed=fallback;run.fellBack=true;break;}
-     if(controller.signal.aborted||attempt===this.maxRepairCalls||error.code==='TIMEOUT')throw error;
+     if(controller.signal.aborted||attempt===this.maxRepairCalls||error.code==='TIMEOUT'||error.code==='TRANSPORT_ERROR'){
+      if(held){parsed=held;run.keptValidParts=true;break;}
+      throw error;
+     }
      // Network/provider failures are not repaired. Invalid structured content or
      // local semantic validation errors may use the one stronger-model attempt.
      if(error.code==='TRANSPORT_ERROR')throw error;
@@ -103,13 +109,14 @@ export class IntentHarness {
   }catch(error){return this.#needsAttention(messageId,error,{calls,modelRuns});}
   finally{clearTimeout(timer);controller.abort();}
  }
- /** Save what was read: a draft for any operations, the reply, notes, card and any choice question, in one write. */
+ /** Save what was read: a draft unless asking which item, the reply, notes, card and any choice question, in one write. */
  async #stage(messageId,{data,capture,parsed,units,activeDraft,calls,modelRuns,extra={}}){
    const result=await this.repository.transact(`interpret:${messageId}`,{messageId},current=>{
     conversation(current,capture.conversationId);const state=intentState(current),saved=state.captures[messageId];
     if(saved.status==='interpreted')return {messageId,draftId:saved.draftId??null,status:'interpreted'};
     let draftId=null;
-    if(parsed.draftMode!=='none'&&parsed.operations.length){
+    if(!parsed.clarification&&parsed.discarded?.length)draftId=stageProposalRemoval(state,{data,capture,activeDraft,parsed,now:this.clock().toISOString(),refreshSchedule:this.refreshSchedule});
+    else if(!parsed.clarification&&parsed.draftMode!=='none'&&parsed.operations.length){
      const previous=parsed.draftMode==='amend'?state.drafts[activeDraft?.id]:null;
      if(parsed.draftMode==='amend'&&(!activeStatus(previous)||previous.revision!==capture.focusRevision))throw new Error('STALE_MODEL_RESULT: draft changed during interpretation');
      draftId=previous?.id??`draft-${messageId}`;
@@ -119,7 +126,9 @@ export class IntentHarness {
      parsed.reply=this.normalizeReply?.({parsed,schedulePreview})??parsed.reply;
      state.drafts[draftId]={id:draftId,conversationId:capture.conversationId,revision:(previous?.revision??0)+1,status:'draft',created:previous?.created??capture.at,updated:this.clock().toISOString(),operations:parsed.operations,guards:{...newGuards,...previous?.guards},question:parsed.question??safeQuestion(parsed.operations),mode:parsed.mode,review:null,sourceMessageIds:[...new Set([...(previous?.sourceMessageIds??[]),messageId])],reply:parsed.reply,timeAnchorAt,schedulePreview};
     }
+    if(parsed.notice)parsed.reply=[parsed.reply,parsed.notice].filter(Boolean).join(' ');
     saved.status='interpreted';saved.draftId=draftId;saved.decisions=withNotes(parsed.decisions,units);saved.reply=parsed.reply;saved.memoryCandidates=parsed.memoryCandidates;saved.card=parsed.card??null;saved.calls=calls;if(modelRuns.length)saved.modelRuns=modelRuns;delete saved.lastError;
+    if(parsed.unapplied)saved.unapplied=structuredClone(parsed.unapplied);
     if(parsed.clarification)saved.clarification={id:`q-${messageId}`,revision:1,prompt:parsed.clarification.prompt,action:parsed.clarification.action,choices:parsed.clarification.choices.map((c,i)=>({id:`c${i+1}`,label:c.label,targets:c.targets.map(t=>({entity:t.entity,id:String(t.id)}))}))};
     Object.assign(saved,extra);
     return {messageId,draftId,status:'interpreted',calls};

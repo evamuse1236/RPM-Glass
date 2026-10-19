@@ -36,7 +36,7 @@ export function readMealGuess(body) {
 /** Without a key nothing is asked and nothing is stored; the meal itself is already saved. */
 export async function guessMeal(app, body, id, store) {
   const meal = body.meal(id);
-  if (!meal || !app.api.getPhone().hasKey) return;
+  if (!meal || meal.state === 'skipped' || !app.api.getPhone().hasKey) return;
   await store({status: 'pending'});
   let guess = null;
   try {

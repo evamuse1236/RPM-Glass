@@ -1,5 +1,6 @@
 import {intentState} from '../intent-v2/src/repository.mjs';
 import {draftFollowUpProblem} from '../intent-v2/src/follow-up.mjs';
+import {openQuestion} from '../intent-v2/src/conversation-focus.mjs';
 import {beforeRows,needsConfirm} from './capture-receipt.mjs';
 import {modelRun,interpretedSummary} from './capture-trace.mjs';
 import {userMessage} from './user-message.mjs';
@@ -18,9 +19,9 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
 
  /** Commit a ready draft. A schedule clash is applied too and kept on the receipt as a warning. */
  async function apply(draftId){
-  const data=await repository.load(),draft=intentState(data).drafts[draftId];
+  const data=await repository.load(),state=intentState(data),draft=state.drafts[draftId];
   if(!draft||draft.status!=='draft')return {status:draft?.status==='committed'?'applied':'skipped'};
-  if(draft.question||draft.operations.some(op=>op.fields.some(f=>f.op==='unknown')))return {status:'needs-answer'};
+  if(openQuestion(state,draft.conversationId)||draft.question||draft.operations.some(op=>op.fields.some(f=>f.op==='unknown')))return {status:'needs-answer'};
   if(draft.schedulePreview?.items?.some(i=>i.status==='review'))return {status:'needs-time'};
   if(draftFollowUpProblem(data,draft))return {status:'needs-check'};
   const before=beforeRows(data,draft),confirm=needsConfirm(draft);
@@ -28,6 +29,8 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
   let result=await commit(draft),warning=null;
   if(result.status==='review'){const held=await draftOf(draftId);warning=held.review?.question??null;result=await commit(held);}
   if(result.status!=='committed')return {status:'skipped'};
+  const unapplied=draft.sourceMessageIds.flatMap(id=>intentState(data).captures[id]?.unapplied??[]);
+  if(unapplied.length)warning=[warning,...unapplied.map(x=>`${x.title}: ${x.field} was not applied. ${x.reason} Your original words are saved.`)].filter(Boolean).join(' ');
   const applied={at:clock().toISOString(),auto:true,needsConfirm:confirm,warning,before};
   await repository.transact(`applied:${draftId}`,{draftId},current=>{const d=intentState(current).drafts[draftId];if(d){d.applied=applied;d.confirm=confirm?'pending':null;}return {status:'applied'};});
   const receipt=result.receipt??(await draftOf(draftId))?.receipt;

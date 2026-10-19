@@ -242,6 +242,7 @@ export function waterNotification(status, settings = WATER_DEFAULTS) {
 export const SLOTS = ['breakfast', 'lunch', 'snack', 'dinner'];
 export const SLOT_NAMES = Object.freeze({breakfast: 'Breakfast', lunch: 'Lunch', snack: 'Snack', dinner: 'Dinner'});
 export const SLOT_PLURALS = Object.freeze({breakfast: 'breakfasts', lunch: 'lunches', snack: 'snacks', dinner: 'dinners'});
+export const mealText = meal => meal?.state === 'skipped' ? 'Skipped' : meal?.name ?? '';
 
 /** The slot a meal eaten at `date` most likely is: breakfast 4:00–10:59, lunch 11:00–15:29, snack 15:30–18:59, else dinner. */
 export function guessSlot(date) {
@@ -258,7 +259,7 @@ const mealKey = name => String(name).trim().replace(/\s+/g, ' ').toLowerCase();
 export function usualMeals(meals, slot, limit = 6) {
   const groups = new Map();
   for (const meal of meals) {
-    if (meal.slot !== slot || !String(meal.name ?? '').trim()) continue;
+    if (meal.state === 'skipped' || meal.slot !== slot || !String(meal.name ?? '').trim()) continue;
     const key = mealKey(meal.name), at = +new Date(meal.at);
     const group = groups.get(key) ?? {name: meal.name.trim(), count: 0, last: -Infinity};
     group.count++;

@@ -5,14 +5,15 @@ import {propose,entryView,validate} from '../chat-prototype/companion-tools.mjs'
 import {calendarRisk,calendarRows} from './planner-calendar.mjs';
 import {repeats,nextOccurrence,occurrences} from './planner-recurrence.mjs';
 import {plannerReceipts} from './capture-actions.mjs';
+import {BODY_COLLECTION_FIELDS,applyBodyLog} from './planner-body.mjs';
 
 const object=(properties,required=Object.keys(properties))=>({type:'object',properties,required,additionalProperties:false});
 const text={type:'string',maxLength:2000},id={type:['string','integer','null']},link={type:['string','null']};
-const collections=['tasks','blocks','projects','areas','goals'];
-const fields=object({title:{type:'string',maxLength:200},purpose:text,notes:{type:'string',maxLength:8000},leverage:text,time:{type:['string','null'],maxLength:100},minutes:{type:['integer','null'],minimum:1,maximum:1440},blockId:link,projectId:link,goalId:link,areaId:link,year:{type:'integer',minimum:2000,maximum:2200},must:{type:'boolean'},priority:{type:'integer',minimum:1,maximum:100000},recurrence:{type:['string','null'],enum:['daily','weekly','weekdays',null]},repeatAfterDays:{type:['integer','null'],minimum:1,maximum:365},alert:{type:['string','null'],enum:['alarm','reminder','off',null]}},[]);
+const collections=['tasks','blocks','projects','areas','goals',...Object.keys(BODY_COLLECTION_FIELDS)];
+const fields=object({title:{type:'string',maxLength:200},purpose:text,notes:{type:'string',maxLength:8000},leverage:text,time:{type:['string','null'],maxLength:100},minutes:{type:['integer','null'],minimum:1,maximum:1440},blockId:link,projectId:link,goalId:link,areaId:link,year:{type:'integer',minimum:2000,maximum:2200},must:{type:'boolean'},priority:{type:'integer',minimum:1,maximum:100000},recurrence:{type:['string','null'],enum:['daily','weekly','weekdays',null]},repeatAfterDays:{type:['integer','null'],minimum:1,maximum:365},alert:{type:['string','null'],enum:['alarm','reminder','off',null]},count:{type:'integer',minimum:1,maximum:30},slot:{type:'string',enum:['breakfast','lunch','snack','dinner']},state:{type:'string',enum:['logged','skipped']}},[]);
 const operation=object({type:{type:'string',enum:['create','update','delete','restore','complete','reopen']},collection:{type:'string',enum:collections},id,ref:{type:['string','null'],maxLength:50},fields,evidence:{type:'array',items:text,maxItems:8}});
 export const changePlannerSchema=object({operations:{type:'array',items:operation,maxItems:30},continuation:{type:'boolean'},question:{type:['string','null'],maxLength:500},choices:{type:'array',items:object({label:{type:'string',maxLength:30},text:{type:'string',maxLength:800}}),maxItems:4}});
-const allowed={tasks:['title','purpose','notes','leverage','time','minutes','blockId','must','priority','recurrence','repeatAfterDays','alert'],blocks:['title','purpose','notes','projectId'],projects:['title','purpose','notes','goalId'],goals:['title','purpose','notes','areaId','year'],areas:['title','purpose','notes']};
+const allowed={tasks:['title','purpose','notes','leverage','time','minutes','blockId','must','priority','recurrence','repeatAfterDays','alert'],blocks:['title','purpose','notes','projectId'],projects:['title','purpose','notes','goalId'],goals:['title','purpose','notes','areaId','year'],areas:['title','purpose','notes'],...BODY_COLLECTION_FIELDS};
 /** Resolve one task time with the exact canonical parser/update semantics, on a clone. */
 export function resolvePlannerTime(data,{id=null,title,time,minutes,evidence=[]},{raw,conversationId,now=new Date()}={}){
  const old=id==null?null:data.entries.find(e=>e.id===id&&(e.kind??'plan')==='plan');if(id!=null&&!old)throw new Error('Task not found. Read current planning context.');
@@ -56,7 +57,10 @@ export async function changePlanner(data,args,meta,readCalendar=async()=>({statu
  for(const op of args.operations){let targetId=resolve(op.id),f={...op.fields};for(const k of ['blockId','projectId','goalId','areaId'])if(k in f)f[k]=resolve(f[k]);
   if(op.type==='create'&&op.id!==null)throw new Error('New records must use id null and an optional ref.');
   if(op.type!=='create'&&targetId==null)throw new Error('Choose an existing record ID.');
-  if(op.collection==='tasks'){
+  let bodyLog=null;
+  if(BODY_COLLECTION_FIELDS[op.collection]){
+   bodyLog=applyBodyLog(copy,op,meta.now);targetId=bodyLog.id;
+  }else if(op.collection==='tasks'){
    const old=targetId==null?null:copy.entries.find(e=>e.id===targetId&&(e.kind??'plan')==='plan');if(targetId!==null&&!old)throw new Error('Task not found. Read current planning context.');
    if(op.type==='delete'||op.type==='restore')editPlan(copy,{type:op.type==='delete'?'archiveTask':'restoreTask',id:targetId},meta.now);
    else if(op.type==='complete'||op.type==='reopen')editPlan(copy,{type:op.type==='complete'?'saveTask':'reopenTask',id:targetId,fields:{done:true}},meta.now);
@@ -78,7 +82,7 @@ export async function changePlanner(data,args,meta,readCalendar=async()=>({statu
    else throw new Error('Only tasks support completion or trash restoration; use Undo for removed groups.');
   }
   if(op.ref){const key=op.ref.startsWith('$')?op.ref:'$'+op.ref;if(refs.has(key))throw new Error('New-item reference used twice.');refs.set(key,targetId);}
-  changes.push({type:op.type,collection:op.collection,id:targetId,title:op.fields.title??(op.collection==='tasks'?copy.entries:planner(data)[op.collection]).find(r=>r.id===targetId)?.title??''});
+  changes.push(bodyLog?{type:op.type,collection:op.collection,...bodyLog}:{type:op.type,collection:op.collection,id:targetId,title:op.fields.title??(op.collection==='tasks'?copy.entries:planner(data)[op.collection]).find(r=>r.id===targetId)?.title??''});
  }
  validatePlanner(copy);const checks=await scheduleChecks(data,copy,readCalendar,meta.now),token=JSON.stringify(checks.map(({alternatives,...c})=>c));
  if(checks.length&&!(args.continuation&&pending.scheduleReview===token&&meta.raw.trim().toLowerCase()==='save anyway')){if(independentCreate)throw new Error('This new item needs a schedule review. Finish or dismiss the open proposal first.');const c=checks[0],question=c.warning??`${c.title} overlaps ${c.conflicts.slice(0,3).map(x=>x.title).join(', ')}. Save anyway, or choose another time?`;const choices=c.alternatives.map(at=>({label:new Date(at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}),text:`Move ${c.title} to ${new Date(at).toLocaleString('en-CA',{hour12:true})}. Keep all other requested changes.`}));choices.push({label:'Save anyway',text:'Save anyway'});return hold(data,args,meta,question,choices,token);}

@@ -6,6 +6,8 @@ const collectionMeta={
   projects:{view:'projects',label:'Project'},
   goals:{view:'life',label:'Goal'},
   areas:{view:'life',label:'Life area'},
+  water:{view:'day',label:'Water'},
+  meals:{view:'day',label:'Meal'},
 };
 const statusLabel={create:'created',update:'updated',delete:'removed',restore:'restored',complete:'completed',reopen:'reopened'};
 
@@ -48,7 +50,7 @@ export function plannerReceipts(data,changes,entryView){
       const entry=data.entries.find(e=>e.id===change.id);
       if(entry)receipt.entry=entryView(entry);
     }
-    if(change.type!=='delete')receipt.action={kind:'open_saved',collection:change.collection,id:change.id};
+    if(change.type!=='delete'&&!['water','meals'].includes(change.collection))receipt.action={kind:'open_saved',collection:change.collection,id:change.id};
     return receipt;
   });
 }

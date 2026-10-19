@@ -1,5 +1,6 @@
 import {sourceUnits,findEntity,contextEntity,draftEntity} from './context.mjs';
 import {removalOperations} from './removal.mjs';
+import {proposalEntities,proposalFor} from './proposal-removal.mjs';
 
 const words=s=>String(s??'').toLocaleLowerCase().replace(/[’‘]/g,"'").replace(/[^\p{L}\p{N}']+/gu,' ').trim().split(' ').filter(Boolean);
 const IGNORED=new Set('ok okay yes yeah yep sure please just only um so then and the a an one ones option choice number do delete remove drop cancel trash clear get rid of mark finish complete done pick choose take go with'.split(' '));
@@ -51,9 +52,14 @@ export function readChoiceReply(raw,question,{choiceId=null,focus=null}={}){
 }
 
 /** The items the chosen choices name, as the interpreter's visible entities. Every one must still exist. */
-export function choiceEntities(data,question,choiceIds,timezone){
+export function choiceEntities(data,question,choiceIds,timezone,{activeDraft=null}={}){
  const out=[];
  for(const t of question.choices.filter(c=>choiceIds.includes(c.id)).flatMap(c=>c.targets)){
+  if(t.entity==='proposal'){
+   const row=proposalEntities(activeDraft).find(e=>e.id===t.id);if(!row)throw new Error('That proposal is no longer in this draft. Nothing changed.');
+   if(!out.some(e=>e.id===row.id))out.push(row);
+   continue;
+  }
   const entity=t.entity==='alarm'?'task':t.entity,row=findEntity(data,entity,t.id);
   const open=entity==='draft'?['draft','review'].includes(row?.status):entity==='task'?row&&!row.archived:!!row;
   if(!open)throw new Error('One of those items is no longer in your plan. Nothing changed.');
@@ -63,13 +69,18 @@ export function choiceEntities(data,question,choiceIds,timezone){
 }
 
 /** The chosen choices as a turn in the model's own format, so the same checks, guards and Undo apply. */
-export function choiceTurn(raw,question,choiceIds){
+export function choiceTurn(raw,question,choiceIds,{activeDraft=null}={}){
  const chosen=question.choices.filter(c=>choiceIds.includes(c.id)),targets=[];
  for(const t of chosen.flatMap(c=>c.targets))if(!targets.some(u=>u.entity===t.entity&&String(u.id)===String(t.id)))targets.push(t);
  const units=sourceUnits(raw),sourceId=units[0].id;
  let operations;
- if(question.action==='remove')operations=removalOperations(targets,{sourceId});
+ const proposals=targets.every(t=>t.entity==='proposal');
+ if(question.action==='remove'&&proposals)operations=targets.map(t=>{
+  const op=proposalFor(activeDraft,t.id);if(!op)throw new Error('That proposal is no longer in this draft. Nothing changed.');
+  return {opId:op.opId,sourceId,kind:'discard',entity:op.entity,targetId:op.targetId,fields:[]};
+ });
+ else if(question.action==='remove')operations=removalOperations(targets,{sourceId});
  else if(question.action==='complete'&&targets.every(t=>t.entity==='task'))operations=targets.map((t,i)=>({opId:`done${i+1}`,sourceId,kind:'complete',entity:'task',targetId:String(t.id),fields:[]}));
  else return null;
- return {schemaVersion:1,mode:'capture',draftMode:'new',reply:'',decisions:units.map(u=>({sourceId:u.id,disposition:'action',note:null})),operations,question:null,clarification:null,memoryCandidates:[],card:null};
+ return {schemaVersion:1,mode:'capture',draftMode:proposals?'amend':'new',reply:'',decisions:units.map(u=>({sourceId:u.id,disposition:'action',note:null})),operations,question:null,clarification:null,memoryCandidates:[],card:null};
 }

@@ -48,7 +48,7 @@ export function cardKind(capture){
 export function canUndoChange(draft,undoId){
  const receipt=draft?.receipt;
  if(!receipt)return false;
- return receipt.undoId?receipt.undoId===undoId:!!receipt.parkedDrafts?.length;
+ return receipt.undoId?receipt.undoId===undoId:!!(receipt.parkedDrafts?.length||receipt.draftEdits?.length);
 }
 
 /** Button roles for draft actions, in increasing emphasis. */
