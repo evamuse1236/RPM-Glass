@@ -1,6 +1,6 @@
 /**
  * The notch's Log meal link into the planner. Glass, Done and alert changes save in place on the phone
- * (notch-actions.mjs); only Log meal, Open plan and a task's sheet open the planner.
+ * (notch-actions.mjs); only the meal row, Open and a task's sheet open the planner.
  */
 import {openMealSheet} from './meals.mjs';
 import {bodyApi} from './body-api.mjs';
