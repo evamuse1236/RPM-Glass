@@ -377,6 +377,9 @@
       ],
       "focusRemoved": [
         "dinner1"
+      ],
+      "focusRetained": [
+        "dinner2"
       ]
     }
   },
@@ -448,6 +451,9 @@
       ],
       "focusRemoved": [
         "dinner1"
+      ],
+      "focusRetained": [
+        "dinner2"
       ]
     }
   },

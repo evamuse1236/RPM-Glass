@@ -30,13 +30,16 @@
           ],
           "entity": "task",
           "day": "2026-10-20",
-          "must": true
+          "must": true,
+          "blockWords": ["room", "amma"]
         },
         {
           "words": [
             "flower"
           ],
-          "entity": "task"
+          "entity": "task",
+          "must": false,
+          "blockWords": ["room", "amma"]
         }
       ],
       "forbidden": [],

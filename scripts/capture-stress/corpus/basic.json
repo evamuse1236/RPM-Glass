@@ -48,7 +48,8 @@
             "report"
           ],
           "entity": "task",
-          "day": "2026-10-20"
+          "day": "2026-10-20",
+          "time": null
         }
       ],
       "forbidden": [
@@ -439,7 +440,10 @@
           "words": [
             "receipt"
           ],
-          "entity": "task"
+          "entity": "task",
+          "day": null,
+          "time": null,
+          "minutes": 20
         }
       ],
       "forbidden": [],

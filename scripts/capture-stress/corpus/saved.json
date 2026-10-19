@@ -278,7 +278,8 @@
           "id": 104,
           "kind": "update",
           "day": "2026-10-20",
-          "time": "10:00"
+          "time": "10:00",
+          "alert": "alarm"
         }
       ],
       "unchanged": [
