@@ -1,6 +1,8 @@
 import { httpActionGeneric as httpAction, httpRouter, makeFunctionReference } from "convex/server";
 import { randomSecret, sha256 } from "./security";
+import { registerPlannerRoutes } from "./plannerHttp";
 const http=httpRouter();
+registerPlannerRoutes(http);
 function json(body:unknown,status=200){return new Response(JSON.stringify(body),{status,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});}
 async function body(request:Request){
   const text=await request.text();if(new TextEncoder().encode(text).byteLength>1000000)throw new Error("Body too large");return JSON.parse(text);
