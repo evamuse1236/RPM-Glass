@@ -77,7 +77,7 @@
 .review-bar small { font: var(--body-medium); color: var(--on-surface-variant); }
 .review-title { padding: var(--s4) var(--gutter) var(--s1); font: var(--headline-small); }
 .review-sub { padding: 0 var(--gutter) var(--s3); font: var(--body-medium); color: var(--on-surface-variant); }
-.review-card { margin: 0 var(--gutter) var(--s3); padding: var(--s4); border-radius: 20px; background: var(--surface-container); }
+.review-card { margin: 0 var(--gutter) var(--s3); padding: var(--s4); border-radius: var(--r-group); background: var(--cell); }
 .review-card h3 { font: var(--title-medium); }
 .review-card .review-sub { padding: var(--s1) 0 var(--s2); }
 .review-page .chip-row { padding: 0 var(--gutter); }

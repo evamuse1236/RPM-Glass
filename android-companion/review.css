@@ -114,7 +114,7 @@
 .wr-chip.sel{background-color:var(--tint-soft);color:var(--tint)}
 
 /* Wins summary */
-.wr-wins{background:var(--tertiary-container);color:var(--on-tertiary-container);border-radius:20px;padding:16px}
+.wr-wins{background:var(--tertiary-container);color:var(--on-tertiary-container);border-radius:var(--r-group);padding:16px}
 .wr-wins-head{display:flex;align-items:center;gap:10px}
 .wr-wins-head h3{font:var(--title-medium)}
 .wr-wins-list{list-style:none;padding:8px 0 0}
@@ -138,9 +138,9 @@
 .wr-list-item{position:relative;display:flex;align-items:stretch;min-height:52px;font:var(--body-large);--swipe-offset:0px}
 .wr-list-item+.wr-list-item{border-top:1px solid var(--separator)}
 .wr .wr-list-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;min-height:52px;padding:10px 16px;border:0;border-radius:0;background-color:var(--cell);color:var(--label);font:inherit;text-align:start}
-.wr-list-item:first-child .wr-list-text{border-radius:20px 20px 0 0}
-.wr-list-item:last-child .wr-list-text{border-radius:0 0 20px 20px}
-.wr-list-item:only-child .wr-list-text{border-radius:20px}
+.wr-list-item:first-child .wr-list-text{border-radius:var(--r-group) var(--r-group) 0 0}
+.wr-list-item:last-child .wr-list-text{border-radius:0 0 var(--r-group) var(--r-group)}
+.wr-list-item:only-child .wr-list-text{border-radius:var(--r-group)}
 .wr-hint{font:var(--body-small)}
 .wr-list-title{min-width:0;overflow-wrap:anywhere;text-wrap:pretty}
 .wr-nowrap{white-space:nowrap}

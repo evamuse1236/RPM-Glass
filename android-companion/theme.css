@@ -30,7 +30,6 @@
   --must:light-dark(oklch(55% 0.14 60),oklch(88% 0.14 90));
   --danger:light-dark(oklch(50% 0.18 27),oklch(82% 0.07 20));
   --scrim:oklch(0% 0 none / .4);
-  --material:color-mix(in oklch,var(--bg) 80%,transparent);
   --press:color-mix(in oklch,var(--label) 8%,transparent);
   /* Area identity: one hue per Area, readable on its surface in both themes */
   --area-0:light-dark(oklch(56.8% 0.152 148),oklch(77.4% 0.104 152.2));
