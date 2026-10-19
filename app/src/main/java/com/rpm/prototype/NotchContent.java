@@ -168,13 +168,13 @@ final class NotchContent {
         for (int i = 0; i < Math.min(2, scene.rows.size()); i++) {
             LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             if (i == 0) rowLp.topMargin = dp(10);
-            col.addView(smallRow(scene.rows.get(i), scene), rowLp);
+            col.addView(smallRow(scene.rows.get(i), scene, actions), rowLp);
         }
         return col;
     }
 
-    /** One small row: glyph, title, then dots for water, a ring for an unlogged meal, or the value. */
-    private View smallRow(NotchScene.Row r, NotchScene scene) {
+    /** One small row: glyph, title, then dots for water, a ring for an unlogged meal, or the value. Water's row logs a glass. */
+    private View smallRow(NotchScene.Row r, NotchScene scene, Actions actions) {
         LinearLayout row = new LinearLayout(context);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setMinimumHeight(dp(40));
@@ -189,6 +189,14 @@ final class NotchContent {
             TextView count = text(scene.water.count + "/" + scene.water.goal, 14, WATER, 500);
             count.setPadding(dp(12), 0, 0, 0);
             row.addView(count);
+            TextView plus = text("+", 20, WATER, 500);
+            plus.setPadding(dp(12), 0, dp(4), 0);
+            row.addView(plus);
+            row.setMinimumHeight(dp(48));
+            row.setBackground(pressed(dp(12), WHITE_12));
+            row.setOnClickListener(v -> NotchController.safely("Glass", actions::drink));
+            row.setContentDescription(r.title + ", " + r.value + ". Log a glass of water");
+            return row;
         } else if (r.look == Look.MEAL) {
             View ring = new View(context);
             GradientDrawable d = new GradientDrawable();

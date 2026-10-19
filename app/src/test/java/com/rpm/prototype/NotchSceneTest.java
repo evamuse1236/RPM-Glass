@@ -84,15 +84,15 @@ public class NotchSceneTest {
     }
 
     @Test
-    public void rowsAreNextItemThenNudgesThenTheMealAtMostThree() throws Exception {
+    public void rowsAreNextItemThenDueWaterThenNudgesAtMostThree() throws Exception {
         NotchScene s = scene(day(true, null), "2026-10-18T16:05");
         assertEquals(3, s.rows.size());
         assertEquals("Call Prof. Rao", s.rows.get(0).title);
         assertEquals("4:30 PM", s.rows.get(0).value);
-        assertEquals(Look.HABIT, s.rows.get(1).look);
-        assertEquals("0 of 2", s.rows.get(1).value);
-        assertEquals(Look.WATER, s.rows.get(2).look);
-        assertEquals("2 of 8 · due", s.rows.get(2).value);
+        assertEquals("the island shows two small rows, so due water must be one of them", Look.WATER, s.rows.get(1).look);
+        assertEquals("2 of 8 · due", s.rows.get(1).value);
+        assertEquals(Look.HABIT, s.rows.get(2).look);
+        assertEquals("0 of 2", s.rows.get(2).value);
         assertTrue(s.waterDue());
         assertEquals("2/8", s.waterValue());
         assertEquals("0/2", NotchScene.habitValue(s.habit));

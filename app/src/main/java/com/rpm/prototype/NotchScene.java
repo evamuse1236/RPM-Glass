@@ -119,6 +119,9 @@ final class NotchScene {
         if (water != null && heroLook != Look.WATER) rows.add(new Row(Look.WATER, "Water", water.count + " of " + water.goal + (water.pending ? " · due" : "")));
         if (meal != null) rows.add(new Row(Look.MEAL, NotchHabits.slotName(meal), "Not logged"));
         for (int i = 1; i < later.size() && rows.size() < 3; i++) rows.add(slotRow(later.get(i), zone, h24));
+        for (int i = 2; i < rows.size(); i++) {
+            if (rows.get(i).look == Look.WATER && waterDue()) rows.add(1, rows.remove(i));
+        }
         while (rows.size() > 3) rows.remove(rows.size() - 1);
     }
 
