@@ -64,9 +64,9 @@
 .btn-filled{background:var(--bar-accent);color:var(--bar-on-accent)}
 .btn:disabled{opacity:.38;cursor:default}
 
-.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{
-  position:relative;display:inline-flex;align-items:center;gap:6px;min-block-size:40px;padding:8px 14px;
+  position:relative;display:inline-flex;align-items:center;gap:6px;min-block-size:40px;padding:8px 11px;
   border:0;border-radius:var(--r-pill);background:var(--bar-highest);color:var(--bar-on);font:var(--subhead);font-weight:500;cursor:pointer;text-align:start;overflow-wrap:anywhere;
 }
 .chip::after{content:'';position:absolute;inset:-4px 0}
