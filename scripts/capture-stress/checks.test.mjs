@@ -20,6 +20,8 @@ const compare=(extra,rows=[bank()])=>checkExpectation(expectation(extra),{before
 test('fuzzy title matching requires every token, permits word starts, and checks IST saved time',()=>{
  assert.equal(matchesWords('Calling the bank',['call','bank']),true);
  assert.equal(matchesWords('Recall a banker',['call','bank']),false);
+ assert.equal(matchesWords('Run 5 km without stopping',['run','kilomet']),true);
+ assert.equal(matchesWords('Run without stopping',['run','kilomet']),false);
  assert.deepEqual(compare({}),[]);
  assert.ok(compare({},[{...bank(),planned:'2026-10-19T12:30:00Z'}]).some(f=>f.type==='wrong time'));
 });
