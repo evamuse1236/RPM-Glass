@@ -158,7 +158,6 @@
   padding-inline-start: var(--s3);
   border-radius: var(--r-group);
   background: var(--cell-elevated);
-  overflow: clip;
 }
 .task-facts > :not([hidden]) { padding-block: var(--s2); }
 .task-facts > :not([hidden]) ~ :not([hidden]) {
