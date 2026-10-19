@@ -53,6 +53,10 @@ test('an app change needs a newer build and a screenshot taken with that build i
     assert.match(evidenceGap(root), /No rpmctl screenshot/, 'a screenshot from a device rpmctl did not launch does not count');
     shot(root, '03-today', {launchedByRpmctl: true, apkSha256: sha}, now + 120000);
     assert.equal(evidenceGap(root), null);
+    fs.rmSync(path.join(root, '.verify/evidence/run/03-today.json'));
+    assert.match(evidenceGap(root), /No rpmctl screenshot/);
+    shot(root, '04-ci', {launchedByRpmctl: false, adoptedByRpmctl: true, apkSha256: sha}, now + 120000);
+    assert.equal(evidenceGap(root), null, 'explicitly adopted CI emulator evidence counts');
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });
 

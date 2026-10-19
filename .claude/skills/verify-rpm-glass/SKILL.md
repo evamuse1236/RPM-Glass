@@ -15,9 +15,26 @@ $RPMCTL --help            # command list
 $RPMCTL <command> --help  # details, options, output shape
 ```
 
-Run it from the repo root. Needs Node 22+, the Android SDK (`ANDROID_HOME`, or the default `%LOCALAPPDATA%\Android\Sdk`), the AVD `Galaxy_S24_FE_API_36`, a JDK 17+ and `npm ci` done once.
+Run it from the repo root. Local driving needs Node 22+, the Android SDK (`ANDROID_HOME`, or the default `%LOCALAPPDATA%\Android\Sdk`), the AVD `Galaxy_S24_FE_API_36`, a JDK 17+ and `npm ci` done once. The GitHub helper only needs Node, Git and authenticated `gh` locally.
 
-## Launch
+## Run emulator tests on GitHub Actions
+
+Use GitHub Actions for emulator tests by default. Commit and push the current branch to origin, then run:
+
+```bash
+npm run ci:emulator
+npm run ci:emulator -- capture-keeps-words plan-add-in-place
+```
+
+The helper refuses an unpushed commit or tracked local changes. It dispatches `.github/workflows/emulator.yml` on that exact branch, waits for its own run, prints the conclusion and URL, and downloads artifacts into `.verify/evidence/ci-<run-id>/`. It downloads failed-run artifacts too. Read `scenarios.json` and the scenario screenshots inside `rpm-emulator-evidence/`. A green run means each selected scenario passed or reproduced its recorded known bug. `known-bug-fixed` prints a warning and passes in CI; unexpected failures and expired exceptions still fail.
+
+The workflow also runs on pull requests and pushes to main. A new workflow must first be registered by a triggering event before `gh workflow run` can find it. On a branch adding the workflow for the first time, use a pull request or a temporary branch push trigger to register it without changing main.
+
+CI uses KVM and an API 36 Play Store x86_64 AVD at 1080 by 2340 pixels and 450 dpi, matching the local S24 FE setup. `rpmctl launch --attach emulator-5554 --no-build` explicitly adopts the runner's read-only emulator. Adoption validates its serial, local PID, port, AVD and process start identity, then uses the normal lease and owner checks. Ordinary launch still refuses an external emulator. Cleanup detaches an adopted emulator and releases the lease; the action stops it. Windows launch is unchanged.
+
+## Launch locally for interactive driving
+
+Use the local emulator as a fallback when a feature needs interactive driving or screenshots beyond the automated scenarios.
 
 ```bash
 $RPMCTL launch            # boots this worktree's emulator, builds if needed, installs, opens Capture
@@ -107,7 +124,7 @@ Cleanup releases the lease after the emulator exits. `cleanup --keep-emulator` r
 
 ## A physical phone
 
-`--serial <adb-serial>` points `doctor`, `ui`, `shot`, `logs` and `state` at another device read-only (for example the S24 FE over wireless debugging). Every command that changes a device refuses any device `rpmctl` did not launch. Installing on the phone is a release step: follow `docs/testing.md` and the release rule in `AGENTS.md`, and only when the user asked for it.
+`--serial <adb-serial>` points `doctor`, `ui`, `shot`, `logs` and `state` at another device read-only (for example the S24 FE over wireless debugging). Mutating commands require an emulator that rpmctl launched or explicitly adopted with `launch --attach` on Linux. Physical phones stay read-only to this tool. Installing on the phone is a release step: follow `docs/testing.md` and the release rule in `AGENTS.md`, and only when the user asked for it.
 
 ## Gotchas
 

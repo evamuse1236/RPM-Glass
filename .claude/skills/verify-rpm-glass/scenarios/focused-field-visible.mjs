@@ -16,6 +16,7 @@ export async function run(t) {
   await t.do('display', 'phone');
   await t.do('seed');
   await t.do('open', 'planner');
+  await t.do('wait', '--role', 'button', '--name', 'Add task');
   await t.do('tap', '--role', 'button', '--name', 'Add task');
   await t.do('wait', '--role', 'textbox', '--name', 'Task');
   await waitForKeyboard(t);

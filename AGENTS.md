@@ -13,8 +13,8 @@ For an authorized phone release, compare the working tree, branch, and installed
 ## Before you say done
 
 1. Run the checks: `npm test` (JS, rules, Convex, typecheck, Java). The same command runs in CI.
-2. If app code changed (`app/src/main`, `android-companion`, `chat-prototype`, `intent-v2`, `cli`), drive the changed feature on the real app with the `verify-rpm-glass` skill: `node .claude/skills/verify-rpm-glass/rpmctl.mjs launch` (`rpmctl` below), then the recipe in its `features/` file. After a web-only edit, `rpmctl sync` reloads it in seconds. Check it at `display phone` and `display large-text` (and `max-text` if text can wrap), read back what was saved with `state`, and run `logs --errors`.
-3. Run `rpmctl scenario --all` when the change touches the planner, Capture or layout. Every scenario must pass or be a recorded known bug.
+2. If app code changed (`app/src/main`, `android-companion`, `chat-prototype`, `intent-v2`, `cli`), use the `verify-rpm-glass` skill and run `npm run ci:emulator` after pushing the branch. For feature paths beyond those scenarios, use the local emulator as an interactive fallback: `node .claude/skills/verify-rpm-glass/rpmctl.mjs launch` (`rpmctl` below), then the recipe in its `features/` file. After a web-only edit, `rpmctl sync` reloads it in seconds. Check the changed screen at `display phone` and `display large-text` (and `max-text` if text can wrap), read back what was saved with `state`, and run `logs --errors`.
+3. Run every scenario in CI with `npm run ci:emulator` when the change touches the planner, Capture or layout. Every scenario must pass or be a recorded known bug.
 4. Put the evidence paths (`.verify/evidence/<run-id>/NN-*.png`) in the reply. Mark anything you could not drive (model-backed paths, Samsung-only behavior, the real home-screen widget) **UNVERIFIED**.
 5. `npm run check:evidence` must pass. In Claude Code the Stop hook runs it for you.
 6. Run `rpmctl cleanup` when you finish. Evidence stays.
@@ -24,6 +24,7 @@ For an authorized phone release, compare the working tree, branch, and installed
 | Rule | Enforced by |
 |---|---|
 | One agent drives one emulator | Machine-wide rpmctl lease for the worktree and ports, plus the run owner token (missing tokens warn for one compatibility release) |
+| Run emulator tests on GitHub Actions by default; use the local emulator for interactive driving. CI adopts only an explicitly selected read-only emulator. | `.github/workflows/emulator.yml`, `npm run ci:emulator`, rpmctl adoption and lifecycle tests in `npm test` |
 | On Windows, rpmctl starts the emulator's netsimd itself with no console, so no netsim window pops up. | `.claude/skills/verify-rpm-glass/lifecycle.test.mjs` (`netsimToStart`) |
 | rpmctl selectors match the app | `.claude/skills/verify-rpm-glass/selectors.test.mjs` in `npm test` |
 | An error reaches the screen only through `userMessage(error)`, never as raw script text. | `npm run check:rules` (`raw-error-text`), `android-companion/user-message.test.mjs`, and the scenario runner's raw-error guard |
@@ -71,6 +72,6 @@ For an authorized phone release, compare the working tree, branch, and installed
 | A notch reminder never says "alarm" or "ringing"; only a ringing alarm does. | `NotchFrameTest.java` |
 | "Done" needs proof from the real app: a build and a screenshot newer than the change. | `scripts/agent/require-evidence.mjs` (Stop hook in `.claude/settings.json`, `npm run check:evidence`) |
 | A phone release updates the installed app in place: same signing key, and the build matches this checkout. | `rpmctl doctor --serial <phone>` (`installed-signer-matches-local`, `installed-apk-matches-local-build`, `installed-version`) |
-| Never drive or change a device the tooling did not start. | `rpmctl` refuses mutating commands on any device but its own read-only emulator |
+| Drive only an emulator the tooling started or explicitly adopted on the CI runner. | `rpmctl` requires the device identity, lease and owner; `launch --attach` validates the read-only emulator's PID, port, AVD and process start identity |
 | Checks run green on a Windows checkout. | `.gitattributes` (LF checkout) and the win32 guards in the file-mode tests |
 | Model-backed paths without a key, Samsung behavior and real widget placement are reported as UNVERIFIED, not as passing. | Judgment: `verify-rpm-glass` SKILL.md proof standards |

@@ -64,7 +64,7 @@ function target(args, {mutates}) {
   const serial = args.serial ?? state?.serial;
   if (!serial) throw new UserError('No emulator launched by rpmctl.', 'Run `rpmctl launch` (or pass --serial for a read-only look at another device).');
   const owned = !!state && state.serial === serial && devices().some(d => d.serial === serial && d.state === 'device') && ownsEmulator(state, serial);
-  if (mutates && !owned) throw new UserError(`${serial} was not launched by rpmctl (or its emulator has exited); refusing to change it.`,
+  if (mutates && !owned) throw new UserError(`${serial} was not launched or explicitly adopted by rpmctl (or its emulator has exited); refusing to change it.`,
     args.serial ? 'Mutating commands only run on the owned emulator. Drop --serial, or use doctor/ui/shot/logs/state for read-only checks.' : 'Run `rpmctl launch`.');
   if (!devices().some(d => d.serial === serial && d.state === 'device')) throw new UserError(`${serial} is not online in adb.`, owned ? 'Run `rpmctl doctor`; if the emulator hung, `rpmctl cleanup` then `rpmctl launch`.' : 'Connect the device and check `adb devices`.');
   // Each device gets its own DevTools port, so a read-only look at a phone can never redirect a command meant for the emulator.

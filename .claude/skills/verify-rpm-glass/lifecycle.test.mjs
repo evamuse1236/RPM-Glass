@@ -36,6 +36,11 @@ async function fixture(t) {
     devices: () => { h.events.push(['devices-fixture']); return h.live ? [{serial: `emulator-${h.port}`, state: 'device'}] : []; },
     startEmulator: args => { h.events.push(['start-fixture', args]); h.starts++; h.live = true; h.port = args.port; return {pid: 7777, args: ['-read-only']}; },
     startNetsim: () => null,
+    adoptEmulator: serial => {
+      h.events.push(['adopt-fixture', serial]);
+      if (!h.live || serial !== `emulator-${h.port}`) throw new UserError('Cannot adopt fixture', 'Start runner.');
+      return {pid: 7777, port: h.port, avd: 'fixture', started: '1234'};
+    },
     processAlive: pid => { h.events.push(['processAlive-fixture']); return alive(pid); },
     processImage: pid => alive(pid) ? 'emulator' : null,
     ownsEmulator: state => h.live && state.pid === 7777,
@@ -143,4 +148,47 @@ test('on Windows rpmctl starts netsimd without a console unless one already runs
   assert.equal(netsimToStart({platform: 'win32', exe: 'netsimd.exe', running: true}), false);
   assert.equal(netsimToStart({platform: 'win32', exe: null, running: false}), false);
   assert.equal(netsimToStart({platform: 'linux', exe: 'netsimd', running: false}), false);
+});
+
+test('explicit attach adopts once, keeps leases and owner checks, then detaches without stopping the runner', async t => {
+  const f = await fixture(t);
+  f.h.live = true; f.h.port = 5554;
+  const args = {_: [], apk: f.apk, attach: 'emulator-5554'};
+  const first = await f.commands.launch(args);
+  assert.equal(first.port, 5554);
+  assert.equal(f.readState().mode, 'attached');
+  assert.equal(f.readState().processStarted, '1234');
+  assert.equal(f.h.starts, 0);
+  ownership.assertLease(f.readState(), f.options);
+  assert.throws(() => ownership.takeLease({...f.readState(), owner: 'other'}, f.options), /lease is busy/);
+  f.h.events.length = 0;
+  await assert.rejects(f.commands.launch({...args, owner: 'other'}), /Owner token/);
+  await assert.rejects(f.commands.cleanup({owner: 'other'}), /Owner token/);
+  assert.deepEqual(f.h.events, []);
+  assert.equal((await f.commands.launch({...args, owner: first.owner})).runId, first.runId);
+  await f.commands.cleanup({owner: first.owner});
+  assert.equal(f.h.live, true);
+  assert.equal(f.readState(), null);
+  assert.deepEqual(fs.readdirSync(f.options.root), []);
+  assert.equal(f.h.events.some(e => e[0] === 'adb-fixture' && e[2][0] === 'emu'), false);
+});
+
+test('ordinary launch refuses an external emulator; failed attached install keeps ownership for detach', async t => {
+  const f = await fixture(t);
+  f.h.live = true; f.h.port = 5582;
+  await assert.rejects(f.commands.launch(f.launchArgs), /was not started/);
+  assert.equal(f.readState(), null);
+  f.h.failInstall = true;
+  await assert.rejects(f.commands.launch({...f.launchArgs, attach: 'emulator-5582'}), /Fixture install failed/);
+  ownership.assertLease(f.readState(), f.options);
+  await f.commands.cleanup({owner: f.readState().owner});
+  assert.equal(f.h.live, true);
+});
+
+test('attach rejects conflicting ports and AVD before recording ownership', async t => {
+  const f = await fixture(t);
+  f.h.live = true; f.h.port = 5554;
+  await assert.rejects(f.commands.launch({...f.launchArgs, attach: 'emulator-5554'}), /conflicts/);
+  await assert.rejects(f.commands.launch({attach: 'emulator-5554', avd: 'wrong'}), /conflicts/);
+  assert.equal(f.readState(), null);
 });
