@@ -109,3 +109,30 @@ test('tests, docs and unchanged trees never block; a repo with no main says so',
   const orphan = repo({branch: 'work'});
   try { assert.match(evidenceGap(orphan), /no main or origin\/main/); } finally { fs.rmSync(orphan, {recursive: true, force: true}); }
 });
+
+test('a passing GitHub emulator run proves the app files of its commit, and only those', () => {
+  const root = repo();
+  const git = (...args) => execFileSync('git', args, {cwd: root, encoding: 'utf8'}).trim();
+  git('checkout', '-q', '-b', 'feature');
+  fs.writeFileSync(path.join(root, 'android-companion/planner/app.mjs'), 'export const a = 2;\n');
+  git('commit', '-qam', 'change app');
+  const ran = git('rev-parse', 'HEAD');
+  const ci = (name, conclusion, sha) => {
+    const dir = path.join(root, '.verify/evidence', name, 'rpm-emulator-evidence/run');
+    fs.mkdirSync(dir, {recursive: true});
+    fs.writeFileSync(path.join(dir, '01-shot.png'), Buffer.alloc(2000));
+    fs.writeFileSync(path.join(root, '.verify/evidence', name, 'run.json'), JSON.stringify({conclusion, sha, url: 'https://github.com/x/y/actions/runs/1'}));
+  };
+  assert.match(evidenceGap(root), /older than changed app code/);
+  ci('ci-1', 'failure', ran);
+  assert.match(evidenceGap(root), /older than changed app code/, 'a failed run proves nothing');
+  ci('ci-2', 'success', ran);
+  assert.equal(evidenceGap(root), null);
+  fs.writeFileSync(path.join(root, 'notes.md'), 'docs\n');
+  git('add', 'notes.md'); git('commit', '-qm', 'docs only');
+  assert.equal(evidenceGap(root), null, 'later commits that leave app files alone keep the proof');
+  fs.writeFileSync(path.join(root, 'android-companion/planner/app.mjs'), 'export const a = 3;\n');
+  assert.match(evidenceGap(root), /older than changed app code/, 'an uncommitted app edit is not in the run');
+  git('commit', '-qam', 'change again');
+  assert.match(evidenceGap(root), /older than changed app code/, 'a later app commit is not in the run');
+});
