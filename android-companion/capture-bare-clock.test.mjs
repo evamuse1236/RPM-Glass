@@ -24,7 +24,7 @@ test('local reminder saves exact words first, applies 6 PM, offers one real flip
  const result=await s.agent.capture({messageId:'m',conversationId:s.conversationId,text:raw});
  assert.equal(result.applied.status,'applied');assert.equal(result.calls,0);
  let data=await s.backend.load();assert.equal(data.intentV2.captures.m.raw,raw);
- assert.equal(data.entries[0].planned,'2026-10-19T12:30:00.000Z');assert.equal(data.entries[0].title,'call mom');
+ assert.equal(data.entries[0].planned,'2026-10-19T12:30:00.000Z');assert.equal(data.entries[0].title,'Call mom');
  const card=(await s.service.view()).captures[0],help=card.draft.nextStep;
  assert.equal(help.label,'Make it 6 AM');assert.equal(card.draft.question,null);
  const trace=s.traces.get('m');assert.equal(trace.models.length,0);assert.equal(trace.timeInferences[0].rule,'next-12h');

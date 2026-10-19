@@ -16,8 +16,8 @@ import {actionIdFor} from '../intent-v2/src/suggestions.mjs';
 
 const NOW=new Date('2026-10-19T04:30:00.000Z');
 const memoryStorage=()=>{const m=new Map();return {getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,String(v))};};
-const COOK='Cook dinner tonight at 7';
-const cookDraft=()=>turn(COOK,[operation([field('title','Cook dinner',COOK),field('time',null,null,'stated','unknown')],{opId:'cook'})],{question:{opId:'cook',field:'time',prompt:'7 AM or 7 PM?',options:[{label:'7 PM',value:'7pm'},{label:'7 AM',value:'7am'}]}});
+const COOK='Cook dinner tonight';
+const cookDraft=()=>turn(COOK,[operation([field('title','Cook dinner',COOK),field('time',null,null,'stated','unknown')],{opId:'cook'})],{question:{opId:'cook',field:'time',prompt:'When tonight?',options:[{label:'7 PM',value:'7pm'},{label:'8 PM',value:'8pm'}]}});
 const asking=(raw,choices)=>turn(raw,[],{mode:'capture',draftMode:'none',reply:'Which one should I delete?',decisions:sourceUnits(raw).map(u=>({sourceId:u.id,disposition:'action',note:null})),clarification:{prompt:'Which one should I delete?',action:'remove',choices}});
 const fragment=raw=>turn(raw,[],{mode:'reflect',draftMode:'none',reply:'',decisions:[{sourceId:'s0',disposition:'reflection',note:'Word fragment, no request to act on'}]});
 

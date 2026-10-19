@@ -1,4 +1,5 @@
 import {interpretTime,normalizeReminderTime} from '../../cli/interpret.mjs';
+import {capitalizeTitle} from '../../cli/title.mjs';
 
 export function completeShortReminder(output,input){
  if(input.activeDraft||input.openQuestion||input.sourceUnits.length!==1)return output;
@@ -12,7 +13,8 @@ export function completeShortReminder(output,input){
  const named=time.match(/^(.+?)\s+to\s+(.+)$/i);
  if(named){
   time=named[1];subject=named[2].trim();
-  if(subject.length>100||/[.!?;,\n&+]|\b(?:and|also|plus|then|but|because|so|every|daily|weekly|tomorrow|today|at|in|after|before)\b/i.test(subject))return output;
+  const subjectAction=subject.replace(/\s+after\s+work$/i,'');
+  if(subject.length>100||/[.!?;,\n&+]|\b(?:and|also|plus|then|but|because|so|every|daily|weekly|tomorrow|today|at|in|after|before)\b/i.test(subjectAction))return output;
  }
  const relative=/^(?:in\s+\d+\s*(?:minutes?|mins?|hours?|hrs?|days?)?|\d+\s*(?:min(?:ute)?s?|hours?)\s+baad)$/i;
  const clock=/^at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?$/i;
@@ -20,7 +22,7 @@ export function completeShortReminder(output,input){
  if(!relative.test(time)&&!clock.test(time)&&!day.test(time))return output;
  const parsed=interpretTime(normalizeReminderTime(time),new Date(input.context.now),{evidence:raw,subject:subject??(wake?'Wake up':''),inferBareClock:true});
  if(!['parsed','date_only'].includes(parsed.status))return output;
- const title=subject??(wake?'Wake up':alert==='alarm'?'Alarm':'Reminder');
+ const title=capitalizeTitle(subject??(wake?'Wake up':alert==='alarm'?'Alarm':'Reminder'));
  const field=(name,value,evidence=null,origin='stated',op='set')=>({name,value,evidence,origin,op});
  const opId='short-alert';
  return {schemaVersion:1,mode:'capture',draftMode:'new',reply:'',decisions:[{sourceId:unit.id,disposition:'action',note:null}],

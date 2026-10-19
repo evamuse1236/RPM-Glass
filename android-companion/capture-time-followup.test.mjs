@@ -30,3 +30,21 @@ test('a spoken clock-only follow-up keeps a saved date without asking again',asy
  assert.equal(result.applied.status,'applied');
  assert.equal((await backend.load()).entries[0].planned,'2026-10-20T05:30:00.000Z');
 });
+
+for(const [phrase,expected] of [
+ ['this evening at 7','2026-10-19T13:30:00.000Z'],
+ ['this morning at 11','2026-10-19T05:30:00.000Z'],
+ ['tonight at 7','2026-10-19T13:30:00.000Z'],
+ ['aaj shaam 7 baje','2026-10-19T13:30:00.000Z'],
+ ['aaj subah 11 baje','2026-10-19T05:30:00.000Z'],
+ ['in the evening at 7','2026-10-21T13:30:00.000Z'],
+ ['in the morning at 11','2026-10-21T05:30:00.000Z'],
+])test(`a saved future day respects the day choice in ${phrase}`,async()=>{
+ const data=freshStore();editPlan(data,{type:'saveTask',fields:{title:'Email rent receipt',plannedDate:'2026-10-21'}},now);
+ const raw='Move it to '+phrase,backend=createMemoryBackend(data);
+ const service=createIntentService({backend,model:async()=>turn(raw,[operation([field('time',phrase,phrase)],{kind:'update',targetId:'1'})]),changePlanner,editPlan,undo,readCalendar:async()=>({status:'ready',start:0,end:Date.parse('2027-01-01'),events:[]}),clock:()=>now});
+ const agent=createCaptureAgent({service,traces:createTraceStore({storage:null}),clock:()=>now});
+ const result=await agent.capture({messageId:'current-day',conversationId:data.conversations[0].id,text:raw});
+ assert.equal(result.applied?.status,'applied');
+ const saved=await backend.load();assert.equal(saved.entries[0].planned,expected);assert.equal(saved.intentV2.captures['current-day'].raw,raw);
+});

@@ -23,7 +23,7 @@ for(const [clock,subject,hour] of [['1','',13],['6','',18],['7','',7],['11','',1
   assert.equal(new Date(result.planned).getHours(),hour);assert.equal(result.plannedDate,'2026-10-20');assert.equal(result.inference.rule,'stated-day-waking');
  });
 test('explicit periods, 24-hour clocks, ranges, and vague days do not receive a bare-clock inference',()=>{
- for(const text of ['tomorrow at 6am','tomorrow morning at 6','tomorrow at 18:30','tomorrow at 06:30','tomorrow from 6 to 7','tomorrow morning'])assert.equal(parse(text).inference,undefined,text);
+ for(const text of ['tomorrow at 6am','tomorrow at 18:30','tomorrow at 06:30','tomorrow from 6 to 7','tomorrow morning'])assert.equal(parse(text).inference,undefined,text);
 });
 for(const [subject,clock,expected,rule] of [
  ['Wake up','7','2026-10-20T07:00:00+05:30','semantic-morning'],
@@ -47,4 +47,14 @@ test('morning inference is narrow and explicit days keep their chosen day',()=>{
  assert.equal(parse('today at 7',undefined,'Wake up').status,'review');
  assert.equal(parse('subah 7 baje uthana').planned,'2026-10-20T01:30:00.000Z');
  assert.equal(parse('at 8','2026-10-19T21:00:00+05:30','Dinner').planned,'2026-10-20T14:30:00.000Z');
+});
+for(const [text,expected,label] of [
+ ['morning run at 9','2026-10-20T03:30:00.000Z','9 PM'],
+ ['gym morning at 6','2026-10-20T00:30:00.000Z','6 PM'],
+ ['subah 7 baje uthana','2026-10-20T01:30:00.000Z','7 PM'],
+ ['raat 8 baje dawai leni hai','2026-10-19T14:30:00.000Z','8 AM'],
+ ['shaam 7 baje walk karna hai','2026-10-19T13:30:00.000Z','7 AM'],
+ ['tomorrow morning at 6','2026-10-20T00:30:00.000Z','6 PM'],
+])test(`${text} keeps its semantic inference and alternate period`,()=>{
+ const result=parse(text);assert.equal(result.status,'parsed');assert.equal(result.planned,expected);assert.equal(result.inference.alternateLabel,label);
 });

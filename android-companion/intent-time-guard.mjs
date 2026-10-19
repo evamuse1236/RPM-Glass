@@ -1,4 +1,4 @@
-import {interpretTime,normalizeReminderTime} from '../cli/interpret.mjs';
+import {interpretTime,normalizeReminderTime,statedDays} from '../cli/interpret.mjs';
 const bareClock=/^\s*\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?\s*$/i;
 const clockWords=text=>bareClock.test(text)?'at '+text:text.replace(/(?<!\bup\s)\bto\s+(\d{1,2}(?::\d{2})?)(?=\s*(?:[ap]\.?m\.?(?:\s|$)|$|[.!?;]|(?:today|tomorrow|on|next)\b))/gi,'at $1');
 function clockSubject(op,sourceOperations,input){
@@ -29,6 +29,11 @@ function inferClocks(parsed,input,now,sourceOperations){
     if(a.getHours()%12!==b.getHours()%12||a.getMinutes()!==b.getMinutes())continue;
     time=whole;proof=owner.text;
    }else if(!f.evidence||bareClock.test(proof))continue;
+   const savedDay=input.context.entities.find(e=>e.entity==='task'&&e.id===op.targetId)?.savedLocalDate;
+   if(savedDay&&savedDay>input.context.nowLocal?.slice(0,10)&&(MORNING.test(proof)||LATER.test(proof))&&!statedDays(proof,now).length&&!/\bthis\s+(?:morning|afternoon|evening|night)\b/i.test(proof)){
+    const retained=interpretTime(`${savedDay} ${clockWords(proof)}`,now,{subject,inferBareClock:true});
+    if(retained.status==='parsed')time=retained;
+   }
    Object.assign(f,{op:'set',origin:'stated',value:time.planned,evidence:proof,evidenceSourceId:input.sourceUnits.find(u=>u.text.includes(proof))?.id??null});
    if(time.inference)f.inference={...time.inference,opId:op.opId,sourceMessageId:input.messageId};else delete f.inference;
    if(parsed.question?.opId===op.opId&&parsed.question.field==='time')parsed.question=null;
