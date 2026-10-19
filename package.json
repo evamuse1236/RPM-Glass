@@ -13,6 +13,7 @@
     "test:cloud": "vitest run",
     "typecheck:cloud": "tsc --noEmit",
     "cli": "node cli/rpm.mjs",
+    "capture": "node cli/capture.mjs",
     "chat": "node chat-prototype/companion-server.mjs",
     "playground": "node playground/server.mjs",
     "build:android-assets": "node scripts/build-companion-assets.mjs",

@@ -5,7 +5,8 @@
     "corpus/saved.json",
     "corpus/conversation.json",
     "corpus/outcomes.json",
-    "corpus/monologues.json"
+    "corpus/monologues.json",
+    "corpus/smart.json"
   ],
   "hardest": [
     "nine-relative-times",
