@@ -2,9 +2,9 @@ const fixed=new Set(['daily','weekly','weekdays']);
 export const repeats=e=>fixed.has(e.recurrence)||Number.isInteger(e.repeatAfterDays)&&e.repeatAfterDays>0;
 export function occurrences(e,start,end){
   if(!e.planned||e.done||e.archived||e.state==='cancelled')return [];
-  const base=new Date(e.planned),minutes=e.minutes??30,rows=[];
+  const base=new Date(e.planned),minutes=e.minutes??0,rows=[];
   if(!Number.isFinite(+base))return rows;
-  const add=d=>{const key=d.toISOString();if(+d<end&&+d+minutes*60000>start&&!(e.completedOccurrences??[]).includes(key))rows.push({...e,occurrence:key,start:+d,end:+d+minutes*60000,source:'rpm'});};
+  const add=d=>{const key=d.toISOString();if(+d<end&&(minutes?+d+minutes*60000>start:+d>=start)&&!(e.completedOccurrences??[]).includes(key))rows.push({...e,occurrence:key,start:+d,end:+d+minutes*60000,source:'rpm'});};
   if(!fixed.has(e.recurrence)){add(base);return rows;}
   // Jump near the requested window in calendar days; preserve local clock through DST.
   const from=new Date(start-minutes*60000),step=e.recurrence==='weekly'?7:1;

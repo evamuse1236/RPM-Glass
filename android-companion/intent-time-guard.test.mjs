@@ -22,5 +22,8 @@ test('the clock guard accepts the parser\'s stated morning, noon and spoken cloc
 
 test('a part of day on another action cannot authorize an invented clock',()=>{
  const words='Read tomorrow at nine. Walk in the evening at 7pm.';
- assert.throws(()=>validateIntentTimes(turn('tomorrow 9pm','tomorrow at nine'),{input:input(words)}),/Time precision/);
+ const parsed=turn('tomorrow 9pm','tomorrow at nine');
+ validateIntentTimes(parsed,{input:input(words)});
+ assert.equal(parsed.operations[0].fields[0].value,'2026-10-04T03:30:00.000Z');
+ assert.equal(parsed.operations[0].fields[0].inference.rule,'stated-day-waking');
 });

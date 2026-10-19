@@ -67,7 +67,7 @@ test('actual planner commits a linked project, block and task as one reviewed tr
 });
 
 test('actual calendar conflict remains a review until the current warning token is approved',async()=>{
- const now=new Date(2026,8,16,8),raw='Plan the lesson today at 10am',output=turn(raw,[operation([field('title','Plan the lesson','Plan the lesson'),field('time','today at 10am','today at 10am')])]);
+ const now=new Date(2026,8,16,8),raw='Plan the lesson today at 10am for 30 minutes',output=turn(raw,[operation([field('title','Plan the lesson','Plan the lesson'),field('time','today at 10am','today at 10am'),field('minutes',30,'for 30 minutes')])]);
  const readCalendar=async()=>({status:'ready',start:+new Date(2026,8,16),end:+new Date(2026,8,17),events:[{id:'meeting',title:'Meeting',start:+new Date(2026,8,16,10),end:+new Date(2026,8,16,11),busy:true}]});const seed=freshStore(),backend=createMemoryBackend(seed),service=createIntentService({backend,model:async()=>output,changePlanner,undo,readCalendar,editPlan,clock:()=>new Date(now),timezone:'Asia/Kolkata'}),conversationId=seed.conversations[0].id;
  let result=await service.capture({messageId:'message-conflict',conversationId,text:raw}),draft=result.intent.captures[0].draft;result=await service.act(draft.actions[0].action,{actionId:'save-conflict-1'});assert.equal(result.status,'review');assert.equal((await backend.load()).entries.length,0);
  draft=result.intent.captures[0].draft;assert.equal(draft.actions[0].label,'Keep this time');result=await service.act(draft.actions[0].action,{actionId:'save-conflict-2'});assert.equal(result.status,'committed');assert.equal((await backend.load()).entries.length,1);

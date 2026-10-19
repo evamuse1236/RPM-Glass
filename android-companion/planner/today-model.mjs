@@ -110,7 +110,7 @@ export function fillGap({undated}, gap) {
   const slots = [];
   let at = +gap.start;
   for (const task of undated) {
-    const end = at + (task.minutes ?? 30) * 60000;
+    const end = at + (task.minutes ?? 0) * 60000;
     if (end > +gap.end) break;
     slots.push({task, start: new Date(at), end: new Date(end)});
     at = end;

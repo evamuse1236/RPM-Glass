@@ -1,4 +1,5 @@
-import {BODY_INTENTS,MEAL_SLOTS,MEAL_STATES} from './body-intent.mjs';
+import {MEAL_SLOTS,MEAL_STATES} from './body-intent.mjs';
+import {CAPTURE_OPERATIONS,OPERATION_KINDS} from './capabilities.mjs';
 /** Small strict JSON-Schema vocabulary, also validated locally. No dependencies. */
 const object = properties => ({type:'object', properties, required:Object.keys(properties), additionalProperties:false});
 const text = maxLength => ({type:'string', maxLength});
@@ -13,7 +14,7 @@ export const FIELD_SCHEMA=object({name:enumeration(FIELD_NAMES),op:enumeration([
 /** What a choice may point at: a saved item, a draft, or the alarm of a task (its id is the task's id). */
 export const CHOICE_TARGETS=['task','draft','proposal','alarm','block','project','goal','area'];
 export const CLARIFICATION_ACTIONS=['remove','complete','other'];
-export const OPERATION_SCHEMA=object({opId:text(50),sourceId:text(50),kind:enumeration(['create','update','complete','archive','discard']),entity:enumeration(['task','block','project','goal','area','draft',...Object.keys(BODY_INTENTS)]),targetId:nullable(text(100)),fields:array(FIELD_SCHEMA,16)});
+export const OPERATION_SCHEMA=object({opId:text(50),sourceId:text(50),kind:enumeration(OPERATION_KINDS),entity:enumeration(Object.keys(CAPTURE_OPERATIONS)),targetId:nullable(text(100)),fields:array(FIELD_SCHEMA,16)});
 export const TURN_SCHEMA=object({
   schemaVersion:{type:'integer',enum:[1]},
   mode:enumeration(['capture','plan','reflect','query']),
@@ -41,10 +42,7 @@ export function validate(value,schema,path='$') {
     for(const k of Object.keys(value)){if(!Object.hasOwn(schema.properties,k))throw new Error(`${path}.${k}: unknown property`);validate(value[k],schema.properties[k],`${path}.${k}`);}
   }
 }
-export const ALLOWED_FIELDS={
- task:['title','purpose','notes','time','minutes','blockId','must','priority','recurrence','repeatAfterDays','alert'],
- block:['title','purpose','notes','projectId'],project:['title','purpose','notes','goalId'],goal:['title','purpose','notes','areaId','year'],area:['title','purpose','notes'],draft:[],...Object.fromEntries(Object.entries(BODY_INTENTS).map(([entity,body])=>[entity,body.fields]))
-};
+export const ALLOWED_FIELDS=Object.fromEntries(Object.entries(CAPTURE_OPERATIONS).map(([entity,spec])=>[entity,spec.fields]));
 export function validateField(field,entity){
  validate(field,FIELD_SCHEMA);
  if(!ALLOWED_FIELDS[entity]?.includes(field.name))throw new Error(`Field ${field.name} does not belong to ${entity}`);

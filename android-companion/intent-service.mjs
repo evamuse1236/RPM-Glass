@@ -8,11 +8,12 @@ import {nativeModelTransport} from '../intent-v2/adapters/transport.mjs';
 import {draftActions,choiceActions} from '../intent-v2/src/suggestions.mjs';
 import {openQuestion} from '../intent-v2/src/conversation-focus.mjs';
 import {createSortPreview,dismissSortPreview,acceptSortPreview} from '../intent-v2/src/sort-preview.mjs';
-import {findEntity} from '../intent-v2/src/context.mjs';
+import {findEntity,sourceUnits} from '../intent-v2/src/context.mjs';
 import {intentSystemPrompt} from '../intent-v2/prompts/intent-system.mjs';
 import {formatTime} from '../cli/interpret.mjs';
 import {resolvePlannerTime} from './planner-tools.mjs';
 import {receiptLines} from './capture-receipt.mjs';
+import {receiptHelp,currentReceiptHelp,checkReceiptStep} from './capture-next-step.mjs';
 
 const ACTIVE_DRAFTS=new Set(['draft','review']);
 export const INTENT_LIMITS=Object.freeze({outstandingCaptures:100,activeDrafts:100,sortPreviews:100,rawBytes:4*1024*1024});
@@ -39,7 +40,7 @@ export function refreshSchedulePreview({data,draft,anchor=new Date()}={}){
 }
 function projectDraft(data,draft,now){if(!draft)return null;const validationNotice=draftFollowUpProblem(data,draft)?FOLLOW_UP_NOTICE:null;const raw=structuredClone(draft.operations),byId=new Map(raw.map(op=>[op.opId,op])),links={blockId:['block','RPM block'],projectId:['project','Project'],goalId:['goal','Goal'],areaId:['area','Life area']};const target=op=>op.targetId===null?null:findEntity(data,op.entity,op.targetId);
  // An update shows what it changes from, so the saved task's current day, time and Block travel with it.
- const operations=raw.map(op=>({...op,targetTitle:target(op)?.title??null,...(op.entity==='task'&&target(op)?{targetBefore:{planned:target(op).planned??null,plannedDate:target(op).plannedDate??null,blockId:target(op).blockId??null,done:!!target(op).done}}:{}),fields:op.fields.map(field=>{const link=links[field.name];if(!link||field.op!=='set')return field;const value=String(field.value),created=value.startsWith('$')?byId.get(value.slice(1)):null,title=created?.fields.find(f=>f.name==='title'&&f.op==='set')?.value??findEntity(data,link[0],field.value)?.title??null;return {...field,displayLabel:link[1],displayValue:title??'Unavailable link'};})}));return {id:draft.id,conversationId:draft.conversationId,revision:draft.revision,status:draft.status,mode:draft.mode??'capture',created:draft.created,updated:draft.updated,reply:draft.reply??'',question:draft.question??null,review:draft.review??null,timeAnchorAt:draft.timeAnchorAt??null,schedulePreview:structuredClone(draft.schedulePreview??null),operations,receipt:structuredClone(draft.receipt??null),applied:draft.applied?{at:draft.applied.at,auto:!!draft.applied.auto,needsConfirm:!!draft.applied.needsConfirm,warning:draft.applied.warning??null}:null,confirm:draft.confirm??null,lines:draft.receipt?receiptLines(data,draft):[],skipped:draft.skipped??[],validationNotice,actions:draftActions(draft,{now}).filter(a=>!validationNotice||a.action.kind!=='commit')};}
+ const operations=raw.map(op=>({...op,targetTitle:target(op)?.title??null,...(op.entity==='task'&&target(op)?{targetBefore:{planned:target(op).planned??null,plannedDate:target(op).plannedDate??null,blockId:target(op).blockId??null,done:!!target(op).done}}:{}),fields:op.fields.map(field=>{const link=links[field.name];if(!link||field.op!=='set')return field;const value=String(field.value),created=value.startsWith('$')?byId.get(value.slice(1)):null,title=created?.fields.find(f=>f.name==='title'&&f.op==='set')?.value??findEntity(data,link[0],field.value)?.title??null;return {...field,displayLabel:link[1],displayValue:title??'Unavailable link'};})}));return {id:draft.id,conversationId:draft.conversationId,revision:draft.revision,status:draft.status,mode:draft.mode??'capture',created:draft.created,updated:draft.updated,reply:draft.reply??'',question:draft.question??null,review:draft.review??null,timeAnchorAt:draft.timeAnchorAt??null,schedulePreview:structuredClone(draft.schedulePreview??null),operations,receipt:structuredClone(draft.receipt??null),applied:draft.applied?{at:draft.applied.at,auto:!!draft.applied.auto,needsConfirm:!!draft.applied.needsConfirm,warning:draft.applied.warning??null}:null,confirm:draft.confirm??null,nextStep:structuredClone(currentReceiptHelp(data,draft)),lines:draft.receipt?receiptLines(data,draft):[],skipped:draft.skipped??[],validationNotice,actions:draftActions(draft,{now}).filter(a=>!validationNotice||a.action.kind!=='commit')};}
 /**
  * What was heard but not proposed ("Also heard"): each unit's note, and the Inbox task it became if Dara kept it.
  * An action unit's note names a saved item it also mentioned, so it shows as already on the list, never keepable.
@@ -85,6 +86,25 @@ export function createIntentService({backend,native,model,changePlanner,undo,rea
  async function act(action,{actionId}={}){validId(actionId,'Action ID');const result=await harness.act(action,{actionId});return {...result,intent:await view({conversationId:action.conversationId})};}
  async function undoDraft(input){validId(input?.actionId,'Action ID');const result=await harness.undo(input);return {...result,intent:await view({conversationId:input.conversationId})};}
  async function choose(action,{actionId}={}){validId(actionId,'Action ID');const result=await harness.choose(action,{actionId});return {...result,intent:await view({conversationId:action.conversationId})};}
+ async function help(draftId){
+  const data=await repository.load(),draft=ensureIntent(data).drafts[draftId];
+  const local=receiptHelp(data,draft,{now:clock()});if(['flip-time','name'].includes(local?.action?.step))return local;
+  const calendar=await readCalendar(+clock()).catch(()=>null);
+  return receiptHelp(data,draft,{now:clock(),calendar});
+ }
+ async function nextStep(action,{actionId}={}){
+  validId(actionId,'Action ID');
+  const calendar=action.step==='schedule'?await readCalendar(+clock()).catch(()=>null):null;
+  const data=await repository.load(),row=checkReceiptStep(data,action,{now:clock(),calendar});
+  const naming=action.step==='name',text=naming?'Name it':action.step==='flip-time'?data.intentV2.drafts[action.draftId].nextStep.label:`Schedule ${row.title} at ${action.at}`;
+  const localTurn={schemaVersion:1,mode:'capture',draftMode:'new',reply:'',decisions:sourceUnits(text).map(u=>({sourceId:u.id,disposition:'action',note:null})),
+   operations:[{opId:'next',sourceId:'s0',kind:'update',entity:'task',targetId:action.targetId,fields:[{name:naming?'title':'time',op:naming?'unknown':'set',value:naming?null:action.at,origin:'suggested',evidence:null}]}],
+   question:naming?{opId:'next',field:'title',prompt:'What should I call it?',options:[]}:null,clarification:null,memoryCandidates:[],card:null};
+  return harness.capture({messageId:actionId,conversationId:action.conversationId,text},{localTurn,validateLocal:current=>{
+   checkReceiptStep(current,action,{now:clock(),calendar});
+   current.intentV2.drafts[action.draftId].nextStep.used=actionId;
+  }});
+ }
  async function resume(draftId,{conversationId,actionId}={}){validId(actionId,'Action ID');const result=await harness.resume(draftId,{conversationId,actionId});return {...result,intent:await view({conversationId})};}
 
  const sort={
@@ -116,5 +136,5 @@ export function createIntentService({backend,native,model,changePlanner,undo,rea
   });
   return {...result,intent:await view({conversationId:ensureIntent(await repository.load()).captures[messageId]?.conversationId})};
  }
- return {repository,harness,capture,retry,act,choose,undo:undoDraft,resume,view,sort,keepNote};
+ return {repository,harness,capture,retry,act,choose,undo:undoDraft,resume,view,sort,keepNote,help,nextStep};
 }

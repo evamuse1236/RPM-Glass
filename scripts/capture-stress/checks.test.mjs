@@ -20,6 +20,8 @@ const compare=(extra,rows=[bank()])=>checkExpectation(expectation(extra),{before
 test('fuzzy title matching requires every token, permits word starts, and checks IST saved time',()=>{
  assert.equal(matchesWords('Calling the bank',['call','bank']),true);
  assert.equal(matchesWords('Recall a banker',['call','bank']),false);
+ assert.equal(matchesWords('Run 5 km without stopping',['run','kilomet']),true);
+ assert.equal(matchesWords('Run without stopping',['run','kilomet']),false);
  assert.deepEqual(compare({}),[]);
  assert.ok(compare({},[{...bank(),planned:'2026-10-19T12:30:00Z'}]).some(f=>f.type==='wrong time'));
 });
@@ -31,6 +33,18 @@ test('known bad controls separate lost, invented, retracted, dates, purpose and 
  assert.ok(compare({created:[{words:['bank'],purposeWords:['refund'],must:true}]}).some(f=>f.detail.includes('purpose')));
  assert.deepEqual(compare({created:[{words:['bank'],must:false}]}),[]);
  assert.ok(compare({created:[{words:['bank'],time:null}]}).some(f=>f.type==='wrong time'));
+});
+
+test('exact title checks catch casing that fuzzy word checks accept',()=>{
+ assert.deepEqual(compare({created:[{words:['bank'],title:'Calling the bank'}]}),[]);
+ assert.ok(compare({created:[{words:['bank'],title:'calling the bank'}]}).some(f=>f.type==='wrong title'));
+});
+
+test('case-specific translations accept medicine for dawai while rejecting unrelated tasks and wrong clocks',()=>{
+ const expected={created:[{words:['dawai'],wordAlternatives:[['medicine']],time:'18:00'}]};
+ assert.deepEqual(compare(expected,[{...bank(),title:'Take medicine'}]),[]);
+ assert.ok(compare(expected,[{...bank(),title:'Take a walk'}]).some(f=>f.type==='lost item'));
+ assert.ok(compare(expected,[{...bank(),title:'Take medicine',planned:'2026-10-20T01:30:00Z'}]).some(f=>f.type==='wrong time'));
 });
 
 test('a proposed title is not a saved task and omission is not focused removal',()=>{

@@ -19,14 +19,14 @@ const plural = (count, one) => `${count} ${count === 1 ? one : one + 's'}`;
 const minutesBetween = (a, b) => Math.round((b - a) / MIN);
 
 function card(kind, key, start, end, extra) {
-  const minutes = Math.max(1, minutesBetween(start, end));
+  const minutes = Math.max(0, minutesBetween(start, end));
   return {kind, key, start, end, minutes, height: cardHeight(minutes),
-    gutter: {time: gutterTime(start), length: duration(minutes)}, ...extra};
+    gutter: {time: gutterTime(start), length: minutes ? duration(minutes) : null}, ...extra};
 }
 
 function taskCards(tasks) {
   return tasks.filter(t => t.start != null).map(task => card('task', 'task:' + task.id + (task.occurrence ?? ''),
-    task.start, task.start + (task.minutes ?? 30) * MIN, {title: task.title, task, done: !!task.done, must: !!task.must}));
+    task.start, task.start + (task.minutes ?? 0) * MIN, {title: task.title, task, done: !!task.done, must: !!task.must}));
 }
 
 function routineCards(day, routines) {
@@ -64,7 +64,7 @@ function markRows({day, now, live, water, meals, mealPlan, deadlines}) {
 /** The one supporting line: a clash wins, then Not done, then Now, then the Area dot and Result. */
 function lineFor(row, events, now, live) {
   if (row.kind === 'task' && !row.done) {
-    const clash = events.find(e => e.start < row.end && row.start < e.end);
+    const clash = row.end > row.start && events.find(e => e.end > e.start && e.start < row.end && row.start < e.end);
     if (clash) return {kind: 'clash', text: `Clash with ${clash.title}`, with: clash};
     if (row.end <= now) return {kind: 'late', text: 'Not done'};
   }
@@ -89,7 +89,7 @@ const keyByFixedEdge = (start, end, now) => (end === now ? 'gap:from:' + start :
 function freeRows(blocks, marks, {from, to, now, live}) {
   const free = [];
   let cursor = from;
-  for (const block of [...blocks].sort((a, b) => a.start - b.start)) {
+  for (const block of blocks.filter(row => row.end > row.start).sort((a, b) => a.start - b.start)) {
     if (block.start > cursor) free.push([cursor, block.start]);
     cursor = Math.max(cursor, block.end);
   }

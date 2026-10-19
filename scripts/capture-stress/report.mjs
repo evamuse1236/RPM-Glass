@@ -50,7 +50,7 @@ export function reportMarkdown(run){
   '- Deterministic checks require canonical saved rows. Deferred turns explicitly test drafts. Proposal text alone is not a saved task.',
   '- Matching uses token prefixes, not semantic equivalence. Inspect lost/invented pairs before interpreting an overall rate as product quality.',
   ...(api?[]:['- The optional Sonnet judge is supplemental and never changes deterministic pass/fail.']),
-  '- The clock is fixed at 2026-10-19 10:00 IST, advancing one second per turn. Calendar and habits are seeded fixtures, not external integrations.',
+  '- The clock defaults to 2026-10-19 10:00 IST. Cases with now use that fixed clock instead; each advances one second per turn. Calendar and habits are seeded fixtures, not external integrations.',
   '- Production routes, repair allowance and deadlines are retained.'+(api?' Application repair or escalation may make another call; the API transport itself never retries.':' CLI startup and structured-output overhead can cause deadline failures. CLI may use thinking even where the API route requests none.'),
   '- Runtime error checks reject raw script faults. Production userMessage provenance is covered by npm rule checks and a fault-injection unit test.',
   '- Full per-turn input, output and disk state are in the case directories beside results.json. No app key files are read.');

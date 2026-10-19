@@ -1,0 +1,481 @@
+{
+  "id": "smart-mom-five",
+  "before": {
+    "pass": true,
+    "failures": [],
+    "turns": [
+      {
+        "words": "set a reminder in 5 mins to call mom",
+        "modelCalls": [
+          {
+            "route": "quick",
+            "output": {
+              "schemaVersion": 1,
+              "mode": "capture",
+              "draftMode": "new",
+              "reply": "Set for 10:05 AM, so the call to Mom is right in front of you.",
+              "decisions": [
+                {
+                  "sourceId": "s0",
+                  "disposition": "action",
+                  "note": null
+                }
+              ],
+              "operations": [
+                {
+                  "opId": "op1",
+                  "sourceId": "s0",
+                  "kind": "create",
+                  "entity": "task",
+                  "targetId": null,
+                  "fields": [
+                    {
+                      "name": "title",
+                      "op": "set",
+                      "value": "Call mom",
+                      "origin": "stated",
+                      "evidence": "call mom"
+                    },
+                    {
+                      "name": "time",
+                      "op": "set",
+                      "value": "in 5 mins",
+                      "origin": "stated",
+                      "evidence": "in 5 mins"
+                    },
+                    {
+                      "name": "alert",
+                      "op": "set",
+                      "value": "reminder",
+                      "origin": "stated",
+                      "evidence": "set a reminder"
+                    }
+                  ]
+                }
+              ],
+              "question": null,
+              "clarification": null,
+              "memoryCandidates": [],
+              "card": null
+            },
+            "usage": {
+              "input_tokens": 13391,
+              "output_tokens": 281,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 0,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              }
+            },
+            "costUSD": 0.0014796000000000002
+          }
+        ],
+        "trace": {
+          "id": "stress-smart-mom-five-1",
+          "at": "2026-10-19T04:30:00.000Z",
+          "attempts": 1,
+          "latencyMs": 0,
+          "outcome": null,
+          "models": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "effort": "none",
+              "reason": "capture",
+              "attempt": 0,
+              "ms": 3635,
+              "ok": true,
+              "provider": "API transport",
+              "servedModel": "claude-haiku-5-5",
+              "inputTokens": 13391,
+              "outputTokens": 281,
+              "cost": 0.0014796000000000002,
+              "service": "anthropic",
+              "input": {
+                "bytes": 6675,
+                "hash": "47dadfee92e8810c",
+                "units": 1,
+                "messageCount": 1,
+                "messages": [
+                  {
+                    "id": "seed-dinner",
+                    "role": "user",
+                    "hash": "d97e9286890ca358"
+                  }
+                ],
+                "focus": null,
+                "question": null,
+                "entityCount": 14,
+                "entityIds": [
+                  "task:101",
+                  "task:106",
+                  "task:102",
+                  "task:103",
+                  "task:104",
+                  "task:105",
+                  "block:block-1",
+                  "block:block-2",
+                  "block:block-3",
+                  "block:block-4",
+                  "block:block-5",
+                  "block:block-6",
+                  "block:block-7",
+                  "block:block-8"
+                ],
+                "truncated": {
+                  "olderMessages": 0,
+                  "droppedMessages": 0,
+                  "clippedMessages": 0,
+                  "entities": 0,
+                  "snapshot": {}
+                },
+                "snapshotHash": "f92151df6c8a5155"
+              }
+            }
+          ],
+          "applied": {
+            "status": "applied",
+            "draftId": "draft-stress-smart-mom-five-1",
+            "entryIds": [
+              107
+            ]
+          },
+          "errors": []
+        },
+        "result": {
+          "status": "interpreted",
+          "draftId": "draft-stress-smart-mom-five-1",
+          "applied": {
+            "status": "applied",
+            "needsConfirm": false,
+            "warning": null,
+            "undoId": "3b182b94-55f5-40a4-a344-3bc3df482a32",
+            "entryIds": [
+              107
+            ],
+            "changes": [
+              {
+                "type": "create",
+                "collection": "tasks",
+                "id": 107,
+                "title": "Call mom"
+              }
+            ]
+          }
+        },
+        "draft": {
+          "status": "committed",
+          "operations": [
+            {
+              "opId": "op1",
+              "sourceId": "s0",
+              "kind": "create",
+              "entity": "task",
+              "targetId": null,
+              "fields": [
+                {
+                  "name": "title",
+                  "op": "set",
+                  "value": "Call mom",
+                  "origin": "stated",
+                  "evidence": "call mom",
+                  "sourceMessageId": "stress-smart-mom-five-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "time",
+                  "op": "set",
+                  "value": "in 5 mins",
+                  "origin": "stated",
+                  "evidence": "in 5 mins",
+                  "sourceMessageId": "stress-smart-mom-five-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "alert",
+                  "op": "set",
+                  "value": "reminder",
+                  "origin": "stated",
+                  "evidence": "set a reminder",
+                  "sourceMessageId": "stress-smart-mom-five-1",
+                  "evidenceSourceId": "s0"
+                }
+              ],
+              "sourceMessageIds": [
+                "stress-smart-mom-five-1"
+              ]
+            }
+          ],
+          "question": null,
+          "schedulePreview": {
+            "anchorAt": "2026-10-19T04:30:00.000Z",
+            "timezone": "Asia/Kolkata",
+            "items": [
+              {
+                "opId": "op1",
+                "title": "Call mom",
+                "source": "in 5 mins",
+                "status": "parsed",
+                "planned": "2026-10-19T04:35:00.000Z",
+                "plannedDate": null,
+                "end": null,
+                "minutes": null,
+                "label": "Mon, Oct 19, 10:05 AM",
+                "reason": null,
+                "assumptions": []
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "saved": [
+      {
+        "title": "Call mom",
+        "planned": "2026-10-19T04:35:00.000Z",
+        "plannedDate": null,
+        "alert": "reminder",
+        "raw": "set a reminder in 5 mins to call mom"
+      }
+    ]
+  },
+  "after": {
+    "pass": true,
+    "failures": [],
+    "turns": [
+      {
+        "words": "set a reminder in 5 mins to call mom",
+        "modelCalls": [
+          {
+            "route": "quick",
+            "output": {
+              "schemaVersion": 1,
+              "mode": "capture",
+              "draftMode": "new",
+              "reply": "Reminder set for 10:05 AM to call Mom.",
+              "decisions": [
+                {
+                  "sourceId": "s0",
+                  "disposition": "action",
+                  "note": null
+                }
+              ],
+              "operations": [
+                {
+                  "opId": "op1",
+                  "sourceId": "s0",
+                  "kind": "create",
+                  "entity": "task",
+                  "targetId": null,
+                  "fields": [
+                    {
+                      "name": "title",
+                      "op": "set",
+                      "value": "Call mom",
+                      "origin": "stated",
+                      "evidence": "call mom"
+                    },
+                    {
+                      "name": "time",
+                      "op": "set",
+                      "value": "in 5 mins",
+                      "origin": "stated",
+                      "evidence": "in 5 mins"
+                    },
+                    {
+                      "name": "alert",
+                      "op": "set",
+                      "value": "reminder",
+                      "origin": "stated",
+                      "evidence": "set a reminder"
+                    }
+                  ]
+                }
+              ],
+              "question": null,
+              "clarification": null,
+              "memoryCandidates": [],
+              "card": null
+            },
+            "usage": {
+              "input_tokens": 15051,
+              "output_tokens": 275,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 0,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              }
+            },
+            "costUSD": 0.0016426000000000001
+          }
+        ],
+        "trace": {
+          "id": "stress-smart-mom-five-1",
+          "at": "2026-10-19T04:30:00.000Z",
+          "attempts": 1,
+          "latencyMs": 0,
+          "outcome": null,
+          "models": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "effort": "none",
+              "reason": "capture",
+              "attempt": 0,
+              "ms": 1950,
+              "ok": true,
+              "provider": "API transport",
+              "servedModel": "claude-haiku-5-5",
+              "inputTokens": 15051,
+              "outputTokens": 275,
+              "cost": 0.0016426000000000001,
+              "service": "anthropic",
+              "input": {
+                "bytes": 6675,
+                "hash": "47dadfee92e8810c",
+                "units": 1,
+                "messageCount": 1,
+                "messages": [
+                  {
+                    "id": "seed-dinner",
+                    "role": "user",
+                    "hash": "d97e9286890ca358"
+                  }
+                ],
+                "focus": null,
+                "question": null,
+                "entityCount": 14,
+                "entityIds": [
+                  "task:101",
+                  "task:106",
+                  "task:102",
+                  "task:103",
+                  "task:104",
+                  "task:105",
+                  "block:block-1",
+                  "block:block-2",
+                  "block:block-3",
+                  "block:block-4",
+                  "block:block-5",
+                  "block:block-6",
+                  "block:block-7",
+                  "block:block-8"
+                ],
+                "truncated": {
+                  "olderMessages": 0,
+                  "droppedMessages": 0,
+                  "clippedMessages": 0,
+                  "entities": 0,
+                  "snapshot": {}
+                },
+                "snapshotHash": "f92151df6c8a5155"
+              }
+            }
+          ],
+          "applied": {
+            "status": "applied",
+            "draftId": "draft-stress-smart-mom-five-1",
+            "entryIds": [
+              107
+            ]
+          },
+          "errors": []
+        },
+        "result": {
+          "status": "interpreted",
+          "draftId": "draft-stress-smart-mom-five-1",
+          "applied": {
+            "status": "applied",
+            "needsConfirm": false,
+            "warning": null,
+            "undoId": "65f018f5-627a-4303-ac27-8f8ad9fbde9a",
+            "entryIds": [
+              107
+            ],
+            "changes": [
+              {
+                "type": "create",
+                "collection": "tasks",
+                "id": 107,
+                "title": "Call mom"
+              }
+            ]
+          }
+        },
+        "draft": {
+          "status": "committed",
+          "operations": [
+            {
+              "opId": "op1",
+              "sourceId": "s0",
+              "kind": "create",
+              "entity": "task",
+              "targetId": null,
+              "fields": [
+                {
+                  "name": "title",
+                  "op": "set",
+                  "value": "Call mom",
+                  "origin": "stated",
+                  "evidence": "call mom",
+                  "sourceMessageId": "stress-smart-mom-five-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "time",
+                  "op": "set",
+                  "value": "in 5 mins",
+                  "origin": "stated",
+                  "evidence": "in 5 mins",
+                  "sourceMessageId": "stress-smart-mom-five-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "alert",
+                  "op": "set",
+                  "value": "reminder",
+                  "origin": "stated",
+                  "evidence": "set a reminder",
+                  "sourceMessageId": "stress-smart-mom-five-1",
+                  "evidenceSourceId": "s0"
+                }
+              ],
+              "sourceMessageIds": [
+                "stress-smart-mom-five-1"
+              ]
+            }
+          ],
+          "question": null,
+          "schedulePreview": {
+            "anchorAt": "2026-10-19T04:30:00.000Z",
+            "timezone": "Asia/Kolkata",
+            "items": [
+              {
+                "opId": "op1",
+                "title": "Call mom",
+                "source": "in 5 mins",
+                "status": "parsed",
+                "planned": "2026-10-19T04:35:00.000Z",
+                "plannedDate": null,
+                "end": null,
+                "minutes": null,
+                "label": "Mon, Oct 19, 10:05 AM",
+                "reason": null,
+                "assumptions": []
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "saved": [
+      {
+        "title": "Call mom",
+        "planned": "2026-10-19T04:35:00.000Z",
+        "plannedDate": null,
+        "alert": "reminder",
+        "raw": "set a reminder in 5 mins to call mom"
+      }
+    ]
+  }
+}

@@ -2,6 +2,7 @@ import {normalizeSpokenTime} from './spoken-time.mjs';
 import * as chrono from 'chrono-node';
 export const localDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 export const formatTime = value => new Date(value).toLocaleString(undefined,{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+export const normalizeReminderTime=raw=>raw.replace(/^\s*in\s+(\d+)\s*$/i,'in $1 minutes');
 const hasDay = c => ['day','weekday','month','year'].some(k=>c.isCertain(k));
 const clock = c => c.isCertain('hour');
 
@@ -75,6 +76,14 @@ export function statedDays(raw,now=new Date()) {
   return [...new Set(chrono.parse(text,now,{forwardDate:true}).filter(r=>hasDay(r.start)).map(r=>localDate(r.start.date())))];
 }
 
+function semanticClockPeriod(subject,hour){
+ const morning=/\b(?:wake(?:\s+me)?\s+up|morning|breakfast|subah|sakali)\b/i.test(subject);
+ const evening=/\b(?:dinner|evening|night|raat|shaam|sham|after\s+work)\b/i.test(subject);
+ if(morning===evening)return null;
+ if(morning&&hour>=5&&hour<=11)return 'morning';
+ return evening?'evening':null;
+}
+
 /** Keep the parser's evidence and assumptions alongside the untouched input. */
 export function interpretTime(raw, now = new Date(), options = {}) {
   const base={parser:'chrono-node',reference:now.toISOString(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,matched:[],assumptions:[],candidates:[],planned:null,plannedDate:null,end:null,minutes:null,status:'none'};
@@ -88,7 +97,11 @@ export function interpretTime(raw, now = new Date(), options = {}) {
   if(/\b(?:this|next|coming)\s+(?:week|weekend|month)\b|\bsome\s?(?:day|time)\b|\bsoon\b|\blater\b|\beventually\b/i.test(rangeText)
     &&!/\b(?:today|tonight|tomorrow|(?:mon|tues|wednes|thurs|fri|satur|sun)day|\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?|\d{1,2}:\d{2}|\d{4}-\d{2}-\d{2})\b/i.test(rangeText))return base;
   const text=rangeText.replace(/\bfor\s+(?:(?:\d+(?:\.\d+)?|one|two|three|ten|fifteen|twenty|thirty|forty[- ]five|sixty|half an?)\s+)(?:minutes?|mins?|m\b|hours?|hrs?|h\b)/gi,m=>' '.repeat(m.length));
-  const results=chrono.parse(text,now,{forwardDate:true});
+  let results=chrono.parse(text,now,{forwardDate:true});
+  if(options.inferBareClock){
+    const times=results.filter(r=>clock(r.start));
+    if(times.length===1&&results.every(r=>r===times[0]||!hasDay(r.start)&&/^(?:morning|afternoon|evening|night)$/i.test(r.text)))results=times;
+  }
   base.matched=results.map(r=>({text:rangeText.slice(r.index,r.index+r.text.length),index:r.index,known:{...r.start.knownValues},implied:{...r.start.impliedValues},...(r.end?{end:{known:{...r.end.knownValues},implied:{...r.end.impliedValues}}}:{})}));
   if(!results.length){if(/\b(today|tomorrow|at\s+\d|\d{4}-\d{2}-\d{2})\b|\d\s*[ap]\.?m\.?/i.test(text)){base.status='review';base.reason='I could not resolve that date or time.';}return base;}
   if(/\b(every|daily|weekly|monthly)\b/i.test(text)){return {...base,status:'review',reason:'This sounds recurring. Choose a single date and time, then set repetition separately.'};}
@@ -123,13 +136,32 @@ export function interpretTime(raw, now = new Date(), options = {}) {
     return base;
   }
   let d=start.date();
-  const bareClock=!start.isCertain('meridiem')&&start.get('hour')>=1&&start.get('hour')<=12&&!start.isCertain('timezoneOffset')&&!/\d{1,2}:\d{2}|\b(noon|midnight|morning|afternoon|evening|night)\b/i.test(source);
+  const semantic=options.inferBareClock?semanticClockPeriod(`${options.subject??''} ${raw}`,start.get('hour')%12||12):null;
+  const writtenPeriod=/(?:\d\s*[ap]\.?m\.?\b)|\b(?:am|pm|noon|midnight)\b|(?:^|\s)0\d:|\bat\s+(?:1[3-9]|2[0-3])\b|\b(?:1[3-9]|2[0-3]):\d{2}\b/i.test(raw);
+  const bareClock=!start.isCertain('timezoneOffset')&&(semantic&&!writtenPeriod||!start.isCertain('meridiem')&&start.get('hour')>=1&&start.get('hour')<=12&&!/\b(noon|midnight|morning|afternoon|evening|night)\b/i.test(source)&&!/(?:^|\s)0\d:/.test(source)&&(options.inferBareClock||!/\d{1,2}:\d{2}/.test(source)));
   if(bareClock){
-    if(!explicitDay){
+    const period=semantic;
+    if(period){
+      d=explicitDay?d:new Date(now);
+      d.setHours(start.get('hour')%12+(period==='evening'?12:0),start.get('minute')||0,0,0);
+      if(!explicitDay&&d<=now)d.setDate(d.getDate()+1);
+    }else if(!explicitDay){
       const candidates=[start.get('hour')%12,start.get('hour')%12+12].map(h=>{const x=new Date(now);x.setHours(h,start.get('minute')||0,0,0);if(x<=now)x.setDate(x.getDate()+1);return x;}).sort((a,b)=>a-b);d=candidates[0];
+      if(d-now>12*3600000)return {...base,status:'review',reason:'That clock needs a timezone decision.'};
+    }else if(options.inferBareClock){
+      const subject=options.subject??'',hour=start.get('hour');
+      const morning=/\b(?:wake|breakfast|run)\b|\bgym\s+morning\b/i.test(subject),evening=/\b(?:dinner|after work)\b/i.test(subject);
+      const pm=hour===12||(hour<=6?!morning:evening);
+      d.setHours(hour%12+(pm?12:0),start.get('minute')||0,0,0);
     }
-    base.assumptions.push(`AM/PM wasn't specified; using ${d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}.`);
-    const alternate=new Date(d);alternate.setHours((d.getHours()+12)%24);if(alternate>now)base.candidates.push({at:alternate.toISOString(),label:formatTime(alternate)});
+    const alternate=new Date(d);alternate.setHours((d.getHours()+12)%24);
+    if(options.inferBareClock&&!explicitDay&&alternate<=now)alternate.setDate(alternate.getDate()+1);
+    const label=date=>`${date.getHours()%12||12}${date.getMinutes()?':'+String(date.getMinutes()).padStart(2,'0'):''} ${date.getHours()<12?'AM':'PM'}`;
+    if(options.inferBareClock){
+      base.inference={rule:explicitDay?'stated-day-waking':period?`semantic-${period}`:'next-12h',anchorAt:now.toISOString(),timezone:base.timezone,selectedAt:d.toISOString(),alternateAt:alternate.toISOString(),selectedLabel:label(d),alternateLabel:label(alternate)};
+      base.assumptions.push(`Clock inferred by ${base.inference.rule}; using ${label(d)}.`);
+    }else base.assumptions.push(`AM/PM wasn't specified; using ${label(d)}.`);
+    if(alternate>now)base.candidates.push({at:alternate.toISOString(),label:formatTime(alternate)});
   }
   if(!explicitDay)base.assumptions.push('No day specified; using the next occurrence.');
   if(d<=now)return {...base,status:'review',reason:'That explicit time is in the past. I kept it in your original text instead of moving it silently.'};

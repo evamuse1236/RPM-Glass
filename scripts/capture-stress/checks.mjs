@@ -1,5 +1,5 @@
 export const matchesWords=(title,words)=>(words??[]).every(word=>{
- const tokens=String(title??'').toLowerCase().normalize('NFKC').match(/[\p{L}\p{N}]+/gu)??[];
+ const tokens=String(title??'').toLowerCase().normalize('NFKC').replace(/\bkm\b/g,'kilometres').match(/[\p{L}\p{N}]+/gu)??[];
  return String(word).toLowerCase().split(/\s+/).every(w=>tokens.some(t=>t===w||(w.length>=4&&t.startsWith(w))));
 });
 
@@ -11,6 +11,7 @@ export function entities(data){
 }
 const key=e=>`${e.entity}:${e.id}`;
 const active=e=>!e.archived&&e.state!=='cancelled';
+const matchesItem=(title,item)=>[item.words,...(item.wordAlternatives??[])].some(words=>matchesWords(title,words));
 const local=value=>{
  if(!value||!Number.isFinite(Date.parse(value)))return null;
  const p=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(value)).map(p=>[p.type,p.value]));
@@ -30,13 +31,13 @@ export function checkExpectation(expect,{before,after,draft,focusDraft=draft,que
  const required=expect.created??[];
  const used=new Set();
  for(const item of required){
-  const candidates=created.filter(e=>(!item.entity||e.entity===item.entity)&&matchesWords(e.title,item.words));
+  const candidates=created.filter(e=>(!item.entity||e.entity===item.entity)&&matchesItem(e.title,item));
   const match=candidates.find(e=>!used.has(key(e)));
   if(!match){fail('lost item',`Missing ${item.entity??'item'} title containing ${item.words.join(' + ')} in ${expect.scope??'saved'} state`);continue;}
   used.add(key(match));
   checkFields(item,match,fail,after);
  }
- for(const row of created)if(!required.some(item=>(!item.entity||row.entity===item.entity)&&matchesWords(row.title,item.words))){
+ for(const row of created)if(!required.some(item=>(!item.entity||row.entity===item.entity)&&matchesItem(row.title,item))){
   if(!(expect.allowNote&&row.entity==='task'&&row.kind==='note'))fail('invented item',`${row.entity} ${row.title}`);
  }
  if(created.length>(expect.maxNew??0))fail('invented item',`${created.length} new items exceeds ${expect.maxNew??0}`);
@@ -91,6 +92,7 @@ export function checkExpectation(expect,{before,after,draft,focusDraft=draft,que
 
 function checkFields(expected,row,fail,after){
  const stamp=local(row.planned),day=stamp?.day??row.plannedDate??null,time=stamp?.time??null;
+ if(expected.title!==undefined&&row.title!==expected.title)fail('wrong title',`${row.title}: expected exact title ${expected.title}`);
  if(expected.day!==undefined&&day!==expected.day)fail('wrong time',`${row.title}: day ${day}, expected ${expected.day}`);
  if(expected.time!==undefined&&time!==expected.time)fail('wrong time',`${row.title}: time ${time}, expected ${expected.time}`);
  if(expected.must!==undefined&&!!row.must!==expected.must)fail('lost item',`${row.title}: must should be ${expected.must}`);

@@ -60,7 +60,7 @@ export async function scheduleCheck(app, id, fields) {
   const existing = id ? findTask(app, id) : null;
   const candidate = {...existing, ...fields};
   const planned = candidate.planned;
-  const minutes = candidate.minutes ?? 30;
+  const minutes = candidate.minutes ?? 0;
   if (!planned) return {clashes: [], risk: null};
   const anchor = repeats(candidate) ? nextOccurrence(candidate) : planned;
   const copy = await app.api.native('calendarRead', {anchor: Date.parse(anchor)});

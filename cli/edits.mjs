@@ -1,4 +1,5 @@
 import {interpretTime,durationFromText,localDate,scheduledAlert,formatTime} from './interpret.mjs';
+import {capitalizeTitle} from './title.mjs';
 
 const text={type:['string','null'],maxLength:2000};
 const object=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
@@ -171,7 +172,7 @@ export function editPatch(entry,edit,now){
       Object.assign(patch,{done:c.value!=='active',state:c.value==='done'?'completed':c.value});
     }else if(c.field==='title'){
       if(!c.value?.trim()||c.value.length>300)return need(index,'What short title should I use?');
-      patch.title=c.value;
+      patch.title=capitalizeTitle(c.value);
     }else patch[c.field]=c.op==='clear'?(c.field==='purpose'?'':null):c.value;
   }
   if(rangeMinutes!==null){

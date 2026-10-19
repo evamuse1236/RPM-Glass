@@ -118,8 +118,8 @@ test('a question gets an answer card and changes nothing',async()=>{
  assert.equal(s.traces.get('m-q').applied.status,'answered');
 });
 
-test('an unclear clock waits for its answer, then applies',async()=>{
- const raw='Call Alex at 7';
+test('an unreadable clock waits for its answer, then applies',async()=>{
+ const raw='Call Alex at tea time';
  const s=agentFor(async()=>turn(raw,[operation([field('title','Call Alex','Call Alex'),field('time',null,null,'stated','unknown')])],{question:{opId:'task1',field:'time',prompt:'Morning or evening?',options:[{label:'7 AM',value:'7 am'},{label:'7 PM',value:'7 pm'}]}}));
  const conversationId=await conversationOf(s.backend);
  const r=await s.agent.capture({messageId:'m-alex',conversationId,text:raw});
