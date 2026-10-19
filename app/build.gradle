@@ -10,8 +10,8 @@ android {
         applicationId "com.rpm.prototype"
         minSdk 26
         targetSdk 36
-        versionCode 28
-        versionName "0.28-whole-day-overhaul"
+        versionCode 29
+        versionName "0.29-task-sheet-habits"
         testInstrumentationRunner "com.rpm.prototype.OfflineTests"
     }
     compileOptions {
