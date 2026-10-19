@@ -24,7 +24,8 @@ export class HttpProblem extends Error {
 async function problem(response) {
   let body = null;
   try { body = await response.json(); } catch { body = null; }
-  return new HttpProblem(response.status, FRIENDLY[response.status] ?? body?.error?.message ?? 'The sync service did not answer as expected.');
+  const said = body?.error ?? {};
+  return new HttpProblem(response.status, FRIENDLY[response.status] ?? said.message ?? 'The sync service did not answer as expected.');
 }
 
 export function httpTransport({base, token, fetch = globalThis.fetch.bind(globalThis), storage = null, timers = globalThis, now = () => Date.now()}) {
