@@ -18,6 +18,8 @@ test('CI accepts a fixed known bug with a warning but keeps unexpected failures 
   for (const value of [report('fail'), report('known-bug-fixed', 'fail'), report('unknown'), {}, report()])
     assert.equal(scenarioOutcome(value, 1).ok, false);
   assert.equal(scenarioOutcome(report('pass'), null).ok, false);
+  assert.equal(scenarioOutcome(report('pass'), 0, ['scenario-0', 'typo-id']).ok, false, 'a valid ID cannot hide an unknown requested scenario');
+  assert.equal(scenarioOutcome(report('pass'), 0, ['scenario-0']).ok, true);
 });
 
 test('helper follows only its own dispatch at the current pushed branch and commit', () => {

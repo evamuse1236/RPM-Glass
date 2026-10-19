@@ -12,7 +12,7 @@ on:
         description: 'Correlation ID used by ci:emulator'
         required: false
   push:
-    branches: [main, ci/emulator]
+    branches: [main]
   pull_request:
 
 permissions:
@@ -62,7 +62,7 @@ jobs:
           target: playstore
           arch: x86_64
           avd-name: Galaxy_S24_FE_API_36
-          profile: pixel_8
+          profile: pixel_2
           ram-size: 4096M
           force-avd-creation: false
           disable-animations: false
@@ -76,13 +76,19 @@ jobs:
           target: playstore
           arch: x86_64
           avd-name: Galaxy_S24_FE_API_36
-          profile: pixel_8
+          profile: pixel_2
           ram-size: 4096M
           force-avd-creation: false
           disable-animations: false
           emulator-boot-timeout: 180
           emulator-options: -read-only -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -skin 1080x2340 -dpi-device 450
           script: node scripts/ci/run-emulator.mjs
+      - name: Collect teardown diagnostics
+        if: always()
+        run: |
+          mkdir -p .verify/evidence
+          adb devices -l > .verify/evidence/adb-devices.txt 2>&1 || true
+          adb -s emulator-5554 logcat -d -v threadtime > .verify/evidence/logcat-final.txt 2>&1 || true
       - name: Upload screenshots, scenario results and logcat
         if: always()
         uses: actions/upload-artifact@v4

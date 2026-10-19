@@ -26,8 +26,14 @@ try {
   const launched = run('launch', ['launch', '--attach', serial, '--no-build']);
   if (launched.status !== 0 || !launched.report.ok) throw new Error('rpmctl launch failed.');
   process.env.RPMCTL_OWNER = launched.report.owner;
+  const available = run('scenario-list', ['scenario', '--list']);
+  if (available.status !== 0 || !available.report.ok) throw new Error('Could not list scenarios.');
+  const ids = available.report.scenarios.map(s => s.id);
+  const expected = args[0] === '--all' ? ids : args;
+  const unknown = expected.filter(id => !ids.includes(id));
+  if (unknown.length) throw new Error(`Unknown scenarios: ${unknown.join(', ')}. See rpmctl scenario --list.`);
   const scenarios = run('scenarios', ['scenario', ...args]);
-  const outcome = scenarioOutcome(scenarios.report, scenarios.status);
+  const outcome = scenarioOutcome(scenarios.report, scenarios.status, expected);
   for (const warning of outcome.warnings) console.log(`::warning::${warning}`);
   passed = outcome.ok;
 } catch (error) {
