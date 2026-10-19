@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
-import {PACKAGE, UserError, adb, shell, devices, startEmulator, processAlive, killTree, sleep, waitFor, appPid, foregroundActivity, displayInfo, nativeNodes, dismissAnr, sdkRoot, processImage, ownsEmulator} from './device.mjs';
+import {PACKAGE, UserError, adb, shell, devices, startEmulator, startNetsim, processAlive, killTree, sleep, waitFor, appPid, foregroundActivity, displayInfo, nativeNodes, dismissAnr, sdkRoot, processImage, ownsEmulator} from './device.mjs';
 import {pageTargets} from './page.mjs';
 import {builtAssetsSha, clearSynced} from './sync.mjs';
 import {ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, readState, writeState, evidenceDir, journal, devtoolsPort, viaShell, openLauncher, errorLines} from './runtime.mjs';
@@ -78,6 +78,7 @@ export const lifecycleCommands = {
         const runId = `${startedAt.replace(/[:.]/g, '-').slice(0, 19)}-${crypto.randomBytes(3).toString('hex')}`;
         state = {...leaseState, pid: undefined, serial, avd: args.avd ?? DEFAULTS.avd, runId};
         const log = path.join(evidenceDir(state), 'emulator.log');
+        startNetsim();
         const {pid, args: emuArgs} = startEmulator({avd: state.avd, port, logFile: log, gpu: args.gpu ?? DEFAULTS.gpu});
         Object.assign(state, {pid, emulatorArgs: emuArgs});
         if (!pid) throw new UserError('The emulator process did not start.', 'Check the emulator log, then retry `rpmctl launch`.');

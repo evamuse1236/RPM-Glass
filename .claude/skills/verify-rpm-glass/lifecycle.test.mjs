@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {UserError} from './lib/device.mjs';
+import {UserError, netsimToStart} from './lib/device.mjs';
 import * as ownership from './lib/ownership.mjs';
 
 const source = fs.readFileSync(new URL('./lib/lifecycle.mjs', import.meta.url), 'utf8');
@@ -35,6 +35,7 @@ async function fixture(t) {
     },
     devices: () => { h.events.push(['devices-fixture']); return h.live ? [{serial: `emulator-${h.port}`, state: 'device'}] : []; },
     startEmulator: args => { h.events.push(['start-fixture', args]); h.starts++; h.live = true; h.port = args.port; return {pid: 7777, args: ['-read-only']}; },
+    startNetsim: () => null,
     processAlive: pid => { h.events.push(['processAlive-fixture']); return alive(pid); },
     processImage: pid => alive(pid) ? 'emulator' : null,
     ownsEmulator: state => h.live && state.pid === 7777,
@@ -135,4 +136,11 @@ test('a fresh run after emulator death rotates the owner token', async t => {
   const second = await f.commands.launch({...f.launchArgs, owner: first.owner});
   assert.notEqual(second.owner, first.owner);
   assert.equal(f.h.starts, 2);
+});
+
+test('on Windows rpmctl starts netsimd without a console unless one already runs', () => {
+  assert.equal(netsimToStart({platform: 'win32', exe: 'netsimd.exe', running: false}), true);
+  assert.equal(netsimToStart({platform: 'win32', exe: 'netsimd.exe', running: true}), false);
+  assert.equal(netsimToStart({platform: 'win32', exe: null, running: false}), false);
+  assert.equal(netsimToStart({platform: 'linux', exe: 'netsimd', running: false}), false);
 });

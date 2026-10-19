@@ -43,6 +43,27 @@ export function devices() {
   });
 }
 
+/** On Windows the emulator starts netsimd itself, which opens a console window. Starting it first, with no console, lets the emulator reuse it. */
+export function netsimToStart({platform = process.platform, exe, running}) {
+  return platform === 'win32' && !!exe && !running;
+}
+
+const netsimRunning = () => spawnSync('tasklist', ['/FI', 'IMAGENAME eq netsimd.exe', '/FO', 'CSV', '/NH'], {encoding: 'utf8', windowsHide: true}).stdout?.includes('netsimd.exe');
+
+export function startNetsim() {
+  const exe = path.join(path.dirname(emulatorPath()), 'netsimd.exe');
+  if (!netsimToStart({exe: fs.existsSync(exe) ? exe : null, running: process.platform === 'win32' && netsimRunning()})) return null;
+  const ini = path.join(os.tmpdir(), 'netsim.ini');
+  const before = fs.existsSync(ini) ? fs.statSync(ini).mtimeMs : 0;
+  const child = spawn(exe, [], {detached: true, stdio: 'ignore', windowsHide: true});
+  child.unref();
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  for (const until = Date.now() + 10000; Date.now() < until; Atomics.wait(pause, 0, 0, 200)) {
+    if (fs.existsSync(ini) && fs.statSync(ini).mtimeMs > before) return child.pid;
+  }
+  return child.pid;
+}
+
 export function startEmulator({avd, port, logFile, gpu}) {
   const args = ['-avd', avd, '-port', String(port), '-read-only', '-no-window', '-no-audio', '-no-boot-anim', '-gpu', gpu, '-no-snapshot-save'];
   const log = fs.openSync(logFile, 'a');
