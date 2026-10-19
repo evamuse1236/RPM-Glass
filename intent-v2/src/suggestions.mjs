@@ -22,6 +22,11 @@ export function draftActions(draft,{now=new Date()}={}){
  if(draft.review)return [{label:'Keep this time',action:action('commit',{reviewToken:draft.review.token})},{label:'Leave as draft',action:action('dismiss')}];
  return [{label:'Save this plan',action:action('commit')},{label:'Edit the draft',action:action('open')},{label:'Not now',action:action('dismiss')}];
 }
+/** Choice chips for a capture's open question: each tap is bound to the question's ID and revision. */
+export function choiceActions(capture){
+ const q=capture?.clarification;if(!q)return [];
+ return q.choices.map(c=>({label:c.label,action:{kind:'choose',conversationId:capture.conversationId,messageId:capture.messageId,questionId:q.id,revision:q.revision,choiceId:c.id}}));
+}
 export function checkAction(draft,action){
  if(!draft||draft.conversationId!==action.conversationId||draft.id!==action.draftId)throw new Error('This action belongs to another conversation or draft');
  if(draft.revision!==action.revision||!['draft','review'].includes(draft.status))throw new Error('STALE_ACTION: use the newest card');

@@ -22,7 +22,7 @@ export function followUpProblem(operations,{messageId,sourceUnits=[],context={},
   const f=op.fields.find(f=>f.name==='title'&&f.op==='set');
   if(!f||f.userActionId||f.sourceMessageId&&f.sourceMessageId!==messageId||named(raw,f.value))continue;
   const borrowed=(context.entities??[]).some(e=>normalize(e.title)===normalize(f.value));
-  if(borrowed&&!overlaps(f.value,anchor))return 'FOLLOW_UP_TARGET: This proposed title is from a saved item unrelated to the preceding user thought. Resolve the reference from recentMessages; do not choose a saved task merely because it is visible. If unclear, ask in reply with no operations.';
+  if(borrowed&&!overlaps(f.value,anchor))return 'FOLLOW_UP_TARGET: This proposed title is from a saved item unrelated to the preceding user thought. Resolve the reference from recentMessages; do not choose a saved task merely because it is visible. If unclear, return clarification with choices and no operations.';
   if(f.origin==='stated'&&!overlaps(f.value,raw))return 'FOLLOW_UP_EVIDENCE: A generic reference does not state this title. Resolve the preceding thought from recentMessages. A title inferred from earlier dialogue must be suggested with null evidence, not stated with a generic pronoun as proof.';
  }
  return null;

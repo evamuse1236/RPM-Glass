@@ -1,5 +1,5 @@
 import {captureRenderKey} from './surface-refresh.mjs';
-import {pendingCard,wordsKeptCard,receiptCard,confirmCard,undoneCard,parkedCard,savedCard,openCard,card,withProblem} from './capture-cards.mjs';
+import {pendingCard,wordsKeptCard,receiptCard,confirmCard,undoneCard,parkedCard,savedCard,openCard,questionCard,card,withProblem} from './capture-cards.mjs';
 import {answerCard} from './capture-answers.mjs';
 import {historyView,contextView} from './capture-views.mjs';
 import {installSheet} from './capture-sheet.mjs';
@@ -11,7 +11,7 @@ import {userMessage} from './user-message.mjs';
 import {actionIdFor} from '../intent-v2/src/suggestions.mjs';
 
 const ACTIVE=new Set(['draft','review']);
-const WAITING=new Set(['words-kept','confirm','open']);
+const WAITING=new Set(['words-kept','confirm','open','question']);
 const AUTO_CLOSE_MS=6000;
 const SLOW_MS=8000;
 
@@ -68,11 +68,11 @@ export function mountCapture(platform){
   if(payload.messageId)seen.add(payload.messageId);
   const tapped=captures().find(c=>c.draft&&c.draft.id===(payload.draftId??payload.action?.draftId));
   if(tapped)seen.add(tapped.messageId);
-  const card=payload.type==='message'||payload.type==='intentRetry';
+  const card=['message','intentRetry','intentChoose'].includes(payload.type);
   s.busy=true;s.failure=null;s.problem=null;status('');
   if(card){
    s.view='chat';reveal.begin();
-   s.request={payload,phase:payload.type==='intentRetry'?'sorting':'saving',slow:false,text:words??captures().find(c=>c.messageId===payload.messageId)?.raw??''};
+   s.request={payload,phase:payload.type==='intentRetry'?'sorting':'saving',slow:false,text:words??payload.label??captures().find(c=>c.messageId===payload.messageId)?.raw??''};
    s.slowTimer=setTimeout(()=>{if(s.request){s.request.slow=true;render();}},SLOW_MS);
   }
   if(words!==null&&message.value===words){composer.set('',{focus:false});rememberComposer('');}
@@ -127,6 +127,7 @@ export function mountCapture(platform){
   undo:d=>turn({type:'intentUndo',draftId:d.id,actionId:`undo:${d.id}:${d.revision}`}),
   keep:async d=>{if(await turn({type:'intentKeep',draftId:d.id,actionId:`keep:${d.id}:${d.revision}`}))scheduleAutoClose();},
   resume:d=>turn({type:'intentResume',draftId:d.id,actionId:`resume:${d.id}:${d.revision}`}),
+  choose:a=>{const id=actionIdFor(a);return turn({type:'intentChoose',action:a,actionId:id,messageId:id,label:latest()?.clarification?.choices.find(c=>c.id===a.choiceId)?.label??null});},
   keepNote:(c,note,keep)=>turn({type:'keepNote',messageId:c.messageId,sourceId:note.sourceId,keep,actionId:`note:${crypto.randomUUID()}`}),
   action,
   openPlanner:()=>platform.openPlans(),
@@ -170,6 +171,7 @@ export function mountCapture(platform){
    case 'undone':return undoneCard(c,on);
    case 'parked':return parkedCard(c,on);
    case 'open':return openCard(c,on);
+   case 'question':return questionCard(c,on);
    case 'answer':return answerCard(c,{platform,on});
    default:return savedCard(c,on);
   }
@@ -216,7 +218,7 @@ export function mountCapture(platform){
   const kind=s.listening?'listening':s.request?'pending':s.failure?'error':nodes[0]?.classList[2]??'idle';
   panel.dataset.view=s.view;panel.dataset.busy=String(s.busy);panel.dataset.state=kind;
   content.setAttribute('aria-busy',String(s.busy));
-  message.placeholder=answerDraft()?'Or answer in your own words':s.focusedDraftId?'Tell me what to change':'Capture a thought';
+  message.placeholder=answerDraft()||latest()?.clarification?.open?'Or answer in your own words':s.focusedDraftId?'Tell me what to change':'Capture a thought';
   for(const b of content.querySelectorAll('button'))if(!b.closest('.view-head'))b.disabled=s.busy;
   $('send').disabled=s.busy;$('dictate').disabled=s.busy||s.listening;
  }

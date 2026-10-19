@@ -6,7 +6,8 @@ import {interpretTurn} from './interpret.mjs';
 import {ident,activeStatus,conversation,safeQuestion,actOnDraft,undoCommitted} from './draft-actions.mjs';
 import {quickAnswer} from './quick-answer.mjs';
 import {inputSummary} from './input-summary.mjs';
-import {focusFor,focusOf,questionFor} from './conversation-focus.mjs';
+import {focusFor,focusOf,questionFor,openQuestion} from './conversation-focus.mjs';
+import {readChoiceReply,choiceTurn,choiceEntities} from './choice-reply.mjs';
 
 const STALE_FOCUS='STALE_FOCUS';
 /** Orchestration only. The model never receives a mutating function or persistence key. */
@@ -43,9 +44,19 @@ export class IntentHarness {
   if(stale&&capture.lastError?.code!==STALE_FOCUS)return this.#needsAttention(messageId,Object.assign(new Error('The draft you pointed at changed or closed. Your words are saved; tap Retry to read them on their own.'),{code:STALE_FOCUS}),{calls:0,modelRuns:[]});
   const activeDraft=stale?null:focused,question=questionFor(v,capture);
   let units;try{units=sourceUnits(capture.raw);}catch(error){return {messageId,status:'captured',error:userMessage(error)};}
+  if(question||capture.choice){
+   try{
+    if(capture.choice&&question?.id!==capture.choice.questionId)throw new Error('That question was already answered or replaced. Nothing changed.');
+    const choiceIds=readChoiceReply(capture.raw,question,{choiceId:capture.choice?.choiceId??null,focus}),turn=choiceIds&&choiceTurn(capture.raw,question,choiceIds);
+    if(turn){
+     const parsed=interpretTurn(turn,{units,messageId,visibleEntities:choiceEntities(data,question,choiceIds,capture.timezone),activeDraft:null});
+     return await this.#stage(messageId,{data,capture,parsed,units,activeDraft:null,calls:0,modelRuns:[],extra:{choice:{questionId:question.id,choiceIds}}});
+    }
+   }catch(error){return this.#needsAttention(messageId,error,{calls:0,modelRuns:[]});}
+  }
   const quick=activeDraft?null:quickAnswer(capture.raw,{now:new Date(capture.at),timezone:capture.timezone});
   if(quick)return this.#answerLocally(messageId,units,quick);
-  const targets=[...(activeDraft?.operations??[]).filter(o=>o.targetId!==null).map(o=>({entity:o.entity,id:String(o.targetId)})),...(question?.choices??[]).flatMap(c=>c.targets)];
+  const targets=[...(activeDraft?.operations??[]).filter(o=>o.targetId!==null).map(o=>({entity:o.entity,id:String(o.targetId)})),...(question?.choices??[]).flatMap(c=>c.targets).map(t=>t.entity==='alarm'?{entity:'task',id:t.id}:t)];
   const meta={},context=buildContext(data,{messageId,raw:capture.raw,conversationId:capture.conversationId,focus:{draftId:activeDraft?.id??null,questionId:question?.id??null,targets},now:new Date(capture.at),timezone:capture.timezone,meta});
   // Referenced draft targets are explicitly visible, even when not keyword-relevant.
   if(activeDraft)for(const op of activeDraft.operations){
@@ -53,7 +64,8 @@ export class IntentHarness {
    if(op.targetId!==null)include(op.entity,op.targetId);
    for(const f of op.fields){const entity={blockId:'block',projectId:'project',goalId:'goal',areaId:'area'}[f.name];if(entity&&f.op==='set'&&!f.value.startsWith('$'))include(entity,f.value);}
   }
-  if(activeDraft)context.entities.push(draftEntity(data,activeDraft));
+  for(const d of [activeDraft,...(question?.choices??[]).flatMap(c=>c.targets).filter(t=>t.entity==='draft').map(t=>v.drafts[t.id])])
+   if(activeStatus(d)&&!context.entities.some(e=>e.entity==='draft'&&e.id===d.id))context.entities.push(draftEntity(data,d));
   const draftContext=activeDraft?{id:activeDraft.id,revision:activeDraft.revision,operations:activeDraft.operations.map(o=>({opId:o.opId,kind:o.kind,entity:o.entity,targetId:o.targetId,fields:o.fields.map(f=>({name:f.name,op:f.op,value:typeof f.value==='string'?f.value.slice(0,1000):f.value,origin:f.origin,truncated:typeof f.value==='string'&&f.value.length>1000}))})),question:activeDraft.question?{prompt:activeDraft.question.prompt,field:activeDraft.question.field,options:activeDraft.question.options.map(o=>o.label)}:null,reply:activeDraft.reply??null}:null;
   const plan=this.snapshot?await this.snapshot({data,capture,context}):null;
   if(plan?.truncated)meta.truncated={...meta.truncated,snapshot:plan.truncated};
@@ -87,6 +99,12 @@ export class IntentHarness {
      repair={validationError:error.message/* rules-allow raw-error-text: sent back to the model as a repair hint, never shown */};
     }finally{clearTimeout(timer);}
    }
+   return await this.#stage(messageId,{data,capture,parsed,units,activeDraft,calls,modelRuns});
+  }catch(error){return this.#needsAttention(messageId,error,{calls,modelRuns});}
+  finally{clearTimeout(timer);controller.abort();}
+ }
+ /** Save what was read: a draft for any operations, the reply, notes, card and any choice question, in one write. */
+ async #stage(messageId,{data,capture,parsed,units,activeDraft,calls,modelRuns,extra={}}){
    const result=await this.repository.transact(`interpret:${messageId}`,{messageId},current=>{
     conversation(current,capture.conversationId);const state=intentState(current),saved=state.captures[messageId];
     if(saved.status==='interpreted')return {messageId,draftId:saved.draftId??null,status:'interpreted'};
@@ -102,11 +120,25 @@ export class IntentHarness {
      state.drafts[draftId]={id:draftId,conversationId:capture.conversationId,revision:(previous?.revision??0)+1,status:'draft',created:previous?.created??capture.at,updated:this.clock().toISOString(),operations:parsed.operations,guards:{...newGuards,...previous?.guards},question:parsed.question??safeQuestion(parsed.operations),mode:parsed.mode,review:null,sourceMessageIds:[...new Set([...(previous?.sourceMessageIds??[]),messageId])],reply:parsed.reply,timeAnchorAt,schedulePreview};
     }
     saved.status='interpreted';saved.draftId=draftId;saved.decisions=withNotes(parsed.decisions,units);saved.reply=parsed.reply;saved.memoryCandidates=parsed.memoryCandidates;saved.card=parsed.card??null;saved.calls=calls;if(modelRuns.length)saved.modelRuns=modelRuns;delete saved.lastError;
+    if(parsed.clarification)saved.clarification={id:`q-${messageId}`,revision:1,prompt:parsed.clarification.prompt,action:parsed.clarification.action,choices:parsed.clarification.choices.map((c,i)=>({id:`c${i+1}`,label:c.label,targets:c.targets.map(t=>({entity:t.entity,id:String(t.id)}))}))};
+    Object.assign(saved,extra);
     return {messageId,draftId,status:'interpreted',calls};
    });
    this.emit({type:'ready',...result});return {...result,modelRuns};
-  }catch(error){return this.#needsAttention(messageId,error,{calls,modelRuns});}
-  finally{clearTimeout(timer);controller.abort();}
+ }
+ /** A tap on a choice chip: saved as a capture in the chip's words, then read against the question it answers. */
+ async choose(action,{actionId}={}){
+  ident(actionId);if(action?.kind!=='choose')throw new Error('Unknown action');
+  const messageId=actionId;
+  await this.repository.transact(`choose:${actionId}`,action,data=>{
+   conversation(data,action.conversationId);const v=intentState(data),question=openQuestion(v,action.conversationId);
+   if(!question||question.id!==action.questionId||question.revision!==action.revision)throw new Error('That question was already answered or replaced. Nothing changed.');
+   const choice=question.choices.find(c=>c.id===action.choiceId);if(!choice)throw new Error('That choice was not offered. Nothing changed.');
+   const focus=focusFor(v,{conversationId:action.conversationId,messageId});
+   v.captures[messageId]={messageId,conversationId:action.conversationId,raw:choice.label,at:this.clock().toISOString(),timezone:this.timezone,focusDraftId:focus?.draftId??null,focusRevision:focus?.draftRevision??null,focus,choice:{questionId:question.id,choiceId:choice.id},status:'captured'};
+   return {messageId,status:'captured'};
+  });
+  this.emit({type:'captured',messageId});return this.interpret(messageId);
  }
  async #needsAttention(messageId,error,{calls,modelRuns}){
   const result={messageId,status:'captured',error:userMessage(error),code:error.code??'INTERPRETATION_FAILED',calls,modelRuns};

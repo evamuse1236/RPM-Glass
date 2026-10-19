@@ -66,6 +66,11 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
   const started=clock(),result=await service.retry(messageId);
   return {...result,applied:await settle(messageId,result,{started})};
  }
+ /** A choice chip: its words are saved as a capture, read against the open question, then applied like any capture. */
+ async function choose(action,{actionId}){
+  const started=clock(),result=await service.choose(action,{actionId});
+  return {...result,applied:await settle(actionId,result,{started})};
+ }
  /** An answer chip, a field edit or Dara's own "Add anyway": acted on, then applied when nothing else is open. */
  async function act(action,{actionId}){
   const result=await service.act(action,{actionId});
@@ -88,5 +93,5 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
   const d=await draftOf(input.draftId);if(d)traces.outcome(d.sourceMessageIds.at(-1),'undone',{confirm:d.confirm??null});
   return result;
  }
- return {capture,retry,act,confirm,undo,apply};
+ return {capture,retry,choose,act,confirm,undo,apply};
 }

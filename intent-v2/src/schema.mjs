@@ -9,6 +9,9 @@ export const CARD_KINDS=['agenda','next','task','water','meals'];
 export const FIELD_NAMES=['title','purpose','notes','time','minutes','blockId','projectId','goalId','areaId','year','must','priority','recurrence','repeatAfterDays','alert'];
 const value={type:['string','integer','boolean','null']};
 export const FIELD_SCHEMA=object({name:enumeration(FIELD_NAMES),op:enumeration(['set','clear','unknown']),value,origin:enumeration(['stated','suggested']),evidence:nullable(text(2000))});
+/** What a choice may point at: a saved item, a draft, or the alarm of a task (its id is the task's id). */
+export const CHOICE_TARGETS=['task','draft','alarm','block','project','goal','area'];
+export const CLARIFICATION_ACTIONS=['remove','complete','other'];
 export const OPERATION_SCHEMA=object({opId:text(50),sourceId:text(50),kind:enumeration(['create','update','complete','archive']),entity:enumeration(['task','block','project','goal','area','draft']),targetId:nullable(text(100)),fields:array(FIELD_SCHEMA,16)});
 export const TURN_SCHEMA=object({
   schemaVersion:{type:'integer',enum:[1]},
@@ -19,6 +22,8 @@ export const TURN_SCHEMA=object({
   decisions:array(object({sourceId:text(50),disposition:enumeration(['action','idea','reflection','reference','question','preference','existing']),note:nullable(text(140))}),100),
   operations:array(OPERATION_SCHEMA,30),
   question:nullable(object({opId:text(50),field:enumeration(FIELD_NAMES),prompt:text(250),options:array(object({label:text(50),value}),3)})),
+  // Which item the person means, asked with choices the app shows as buttons and matches replies against.
+  clarification:nullable(object({prompt:text(250),action:enumeration(CLARIFICATION_ACTIONS),choices:array(object({label:text(60),targets:array(object({entity:enumeration(CHOICE_TARGETS),id:text(100)}),8)}),4)})),
   memoryCandidates:array(object({text:text(500),evidence:text(1000),sensitive:{type:'boolean'}}),3),
   card:nullable(object({kind:enumeration(CARD_KINDS),day:nullable(text(10)),targetId:nullable(text(100))}))
 });

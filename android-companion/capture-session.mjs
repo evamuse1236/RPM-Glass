@@ -33,6 +33,7 @@ export function cardKind(capture){
  if(!capture)return 'empty';
  const draft=capture.draft;
  if(capture.status==='captured')return capture.lastError?'words-kept':'pending';
+ if(capture.clarification?.open)return 'question';
  if(!draft)return capture.card?'answer':capture.reply?'answer':'saved';
  if(draft.status==='committed')return draft.confirm==='pending'?'confirm':'receipt';
  if(draft.status==='undone')return 'undone';

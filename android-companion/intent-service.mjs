@@ -5,7 +5,8 @@ import {IntentHarness} from '../intent-v2/src/harness.mjs';
 import {createRepository,intentState} from '../intent-v2/src/repository.mjs';
 import {createRpmPlanAdapter} from '../intent-v2/adapters/rpm-glass.mjs';
 import {nativeModelTransport} from '../intent-v2/adapters/transport.mjs';
-import {draftActions} from '../intent-v2/src/suggestions.mjs';
+import {draftActions,choiceActions} from '../intent-v2/src/suggestions.mjs';
+import {openQuestion} from '../intent-v2/src/conversation-focus.mjs';
 import {createSortPreview,dismissSortPreview,acceptSortPreview} from '../intent-v2/src/sort-preview.mjs';
 import {findEntity} from '../intent-v2/src/context.mjs';
 import {intentSystemPrompt} from '../intent-v2/prompts/intent-system.mjs';
@@ -49,8 +50,14 @@ function captureNotes(data,capture){
   return {sourceId:d.sourceId,disposition:d.disposition==='action'?'existing':d.disposition,note:d.note.trim(),keptTaskId:task?id:null};
  });
 }
-function projectCapture(data,state,capture,now){const draft=capture.draftId?state.drafts[capture.draftId]:null;return {messageId:capture.messageId,conversationId:capture.conversationId,raw:capture.raw,at:capture.at,status:capture.status,reply:draft?.reply??capture.reply??'',lastError:capture.lastError??null,draft:projectDraft(data,draft,now),notes:captureNotes(data,capture),memoryCandidates:structuredClone(capture.memoryCandidates??[]),card:structuredClone(capture.card??null)};}
-export function intentViewFromData(data,{conversationId=null,offset=0,limit=20,now=new Date()}={}){const state=ensureIntent(data),all=Object.values(state.captures).filter(c=>!conversationId||c.conversationId===conversationId).sort((a,b)=>at(b.at)-at(a.at)),start=Number.isInteger(offset)&&offset>=0?offset:0,count=Number.isInteger(limit)&&limit>=0?Math.min(limit,100):20,captures=all.slice(start,start+count);return {captures:captures.map(c=>projectCapture(data,state,c,now)),totalCaptures:all.length,hasMore:start+captures.length<all.length,nextOffset:start+captures.length,storage:{...storageUse(state),limits:INTENT_LIMITS}};}
+/** A choice question as Capture shows it: chips only while it is still the newest thing asked. */
+function projectQuestion(state,capture){
+ const q=capture.clarification;if(!q)return null;
+ const open=openQuestion(state,capture.conversationId)?.id===q.id;
+ return {id:q.id,prompt:q.prompt,action:q.action,open,choices:q.choices.map(c=>({id:c.id,label:c.label})),actions:open?choiceActions(capture):[]};
+}
+function projectCapture(data,state,capture,now){const draft=capture.draftId?state.drafts[capture.draftId]:null;return {clarification:projectQuestion(state,capture),messageId:capture.messageId,conversationId:capture.conversationId,raw:capture.raw,at:capture.at,status:capture.status,reply:draft?.reply??capture.reply??'',lastError:capture.lastError??null,draft:projectDraft(data,draft,now),notes:captureNotes(data,capture),memoryCandidates:structuredClone(capture.memoryCandidates??[]),card:structuredClone(capture.card??null)};}
+export function intentViewFromData(data,{conversationId=null,offset=0,limit=20,now=new Date()}={}){const state=ensureIntent(data),all=Object.values(state.captures).filter(c=>!conversationId||c.conversationId===conversationId).map((c,i)=>({c,i})).sort((a,b)=>at(b.c.at)-at(a.c.at)||b.i-a.i).map(x=>x.c),start=Number.isInteger(offset)&&offset>=0?offset:0,count=Number.isInteger(limit)&&limit>=0?Math.min(limit,100):20,captures=all.slice(start,start+count);return {captures:captures.map(c=>projectCapture(data,state,c,now)),totalCaptures:all.length,hasMore:start+captures.length<all.length,nextOffset:start+captures.length,storage:{...storageUse(state),limits:INTENT_LIMITS}};}
 
 /**
  * Production integration around RPM's canonical store. The supplied backend must
@@ -77,6 +84,7 @@ export function createIntentService({backend,native,model,changePlanner,undo,rea
  async function retry(messageId){validId(messageId,'Message ID');const before=await repository.load(),capture=ensureIntent(before).captures[messageId];if(!capture)throw new Error('Captured thought not found');const result=await harness.interpret(messageId);return {...result,intent:await view({conversationId:capture.conversationId})};}
  async function act(action,{actionId}={}){validId(actionId,'Action ID');const result=await harness.act(action,{actionId});return {...result,intent:await view({conversationId:action.conversationId})};}
  async function undoDraft(input){validId(input?.actionId,'Action ID');const result=await harness.undo(input);return {...result,intent:await view({conversationId:input.conversationId})};}
+ async function choose(action,{actionId}={}){validId(actionId,'Action ID');const result=await harness.choose(action,{actionId});return {...result,intent:await view({conversationId:action.conversationId})};}
  async function resume(draftId,{conversationId,actionId}={}){validId(actionId,'Action ID');const result=await harness.resume(draftId,{conversationId,actionId});return {...result,intent:await view({conversationId})};}
 
  const sort={
@@ -108,5 +116,5 @@ export function createIntentService({backend,native,model,changePlanner,undo,rea
   });
   return {...result,intent:await view({conversationId:ensureIntent(await repository.load()).captures[messageId]?.conversationId})};
  }
- return {repository,harness,capture,retry,act,undo:undoDraft,resume,view,sort,keepNote};
+ return {repository,harness,capture,retry,act,choose,undo:undoDraft,resume,view,sort,keepNote};
 }

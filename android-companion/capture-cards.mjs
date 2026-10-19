@@ -200,6 +200,24 @@ export function openCard(capture,on){
  return node;
 }
 
+/** "Which one?": the question, the words it answers, and one chip per choice. A tap answers it with no model call. */
+export function questionCard(capture,on){
+ const q=capture.clarification,node=card('question');
+ node.append(kicker(NEED.question,{name:'help',tone:'change'}),el('p','card-title',q.prompt));
+ if(capture.draft?.lines?.length)node.append(lines(capture.draft.lines));
+ node.append(words(capture.raw));
+ const chips=el('div','chips');
+ for(const a of q.actions){
+  const chip=el('button','chip',a.label);
+  chip.type='button';
+  chip.setAttribute('aria-label',`Choose ${a.label}`);
+  chip.addEventListener('click',()=>on.choose(a.action));
+  chips.append(chip);
+ }
+ node.append(chips);
+ return node;
+}
+
 /** A plain-text answer, grounded in the plan snapshot. Paragraphs only; never markup from the model. */
 export function answerText(reply){
  const box=el('div','card-text');
