@@ -84,10 +84,16 @@ final class NotchController implements NotchPill.Gestures {
 
     private final Context service;
     final NotchAlerting alerting;
+    final NotchRunner runner;
+    final NotchChanges changes;
+    /** The alert controls' occurrence while they show, else null. */
+    private NotchFrame.Managed managed;
 
     NotchController(Context serviceContext) {
         service = serviceContext;
         alerting = new NotchAlerting(serviceContext, this, reader, handler);
+        runner = new NotchRunner(serviceContext);
+        changes = new NotchChanges(serviceContext, this, handler, runner);
     }
 
     /** Runs {@code body} so one exception is logged instead of killing the process and the service with it. */
@@ -137,6 +143,9 @@ final class NotchController implements NotchPill.Gestures {
         }
         registered = false;
         expanded = false;
+        managed = null;
+        changes.detach();
+        runner.release();
         handler.removeCallbacks(emphasisEnd);
     }
 
@@ -173,9 +182,16 @@ final class NotchController implements NotchPill.Gestures {
     }
 
     void setExpanded(boolean expand) {
+        if (expand) runner.warm();
         if (expand != expanded) NotchActions.log(service, expand ? "notch.expand" : "notch.collapse", "ok", null);
         expanded = expand;
+        managed = null;
         render();
+    }
+
+    /** Leaves the alert controls (for the open island, or for a receipt). */
+    void closeManaged() {
+        managed = null;
     }
 
     void render() {
@@ -198,9 +214,13 @@ final class NotchController implements NotchPill.Gestures {
         if (primary == null) expanded = false;
         NotchAlert alert = alerting.alert();
         NotchFrame.Note note = alerting.note();
-        Mode mode = alert != null ? (alert.type == NotchAlert.Type.ALARM ? Mode.ALARM : Mode.REMINDER) : expanded ? Mode.OPEN : Mode.PILL;
-        boolean something = primary != null || note != null || alert != null;
-        if (something && !locked && screenOn && !landscape) pill.show(new NotchFrame(mode, primary, priority.secondary(now), scene, alert, note), actions);
+        NotchReceipt receipt = changes.receipt();
+        Mode mode = alert != null ? (alert.type == NotchAlert.Type.ALARM ? Mode.ALARM : Mode.REMINDER)
+                : receipt != null ? Mode.RECEIPT : managed != null ? Mode.MANAGE : expanded ? Mode.OPEN : Mode.PILL;
+        boolean something = primary != null || note != null || alert != null || receipt != null || managed != null;
+        if (something && !locked && screenOn && !landscape) {
+            pill.show(new NotchFrame(mode, primary, priority.secondary(now), scene, alert, note, managed, receipt), actions);
+        }
         else pill.hide();
         long next = priority.nextChangeAt(now);
         if (next != Long.MAX_VALUE) handler.postAtTime(emphasisEnd, next);
@@ -218,6 +238,15 @@ final class NotchController implements NotchPill.Gestures {
             case OPEN:
                 if (result == IslandGesture.Result.UP) setExpanded(false);
                 break;
+            case MANAGE:
+                if (result == IslandGesture.Result.UP) {
+                    managed = null;
+                    render();
+                }
+                break;
+            case RECEIPT:
+                if (result == IslandGesture.Result.UP) changes.dismiss();
+                break;
             case REMINDER:
                 if (result == IslandGesture.Result.TAP || result == IslandGesture.Result.RIGHT) actions.openAlert();
                 else if (result == IslandGesture.Result.LEFT) actions.snoozeAlert();
@@ -233,7 +262,7 @@ final class NotchController implements NotchPill.Gestures {
 
     @Override
     public void onOutsideTap(Mode mode) {
-        if (mode == Mode.OPEN) setExpanded(false);
+        if (mode == Mode.OPEN || mode == Mode.MANAGE) setExpanded(false);
     }
 
     /** Swipe left on the pill: the island's own Snooze, shown on the pill as "+10m" for 2 s. */
@@ -270,17 +299,50 @@ final class NotchController implements NotchPill.Gestures {
     private final NotchContent.Actions actions = new NotchContent.Actions() {
         @Override
         public void done() {
-            NotchDay.Slot hero = scene == null ? null : scene.hero;
-            expanded = false;
-            if (hero != null && !hero.task.fixed) NotchActions.complete(service, hero);
-            render();
+            changes.done(scene == null ? null : scene.hero);
         }
 
         @Override
         public void drink() {
-            expanded = false;
-            NotchActions.drink(service);
+            if (scene != null) changes.drink(scene.water);
+        }
+
+        @Override
+        public void doneAlert() {
+            alerting.done(changes);
+        }
+
+        @Override
+        public void manage(NotchDay.Slot slot) {
+            if (slot == null || slot.task.alert.isEmpty()) return;
+            managed = new NotchFrame.Managed(slot, NotchDay.clock(slot.start, ZoneId.systemDefault(), DateFormat.is24HourFormat(service)));
+            NotchActions.log(service, "notch.manage_alert", "shown", NotchActions.payload("taskId", slot.task.id, "alert", slot.task.alert));
             render();
+        }
+
+        @Override
+        public void setAlert(String type) {
+            if (managed != null) changes.setAlert(managed.slot, type);
+        }
+
+        @Override
+        public void doneManaged() {
+            if (managed != null) changes.done(managed.slot);
+        }
+
+        @Override
+        public void openManaged() {
+            if (managed == null) return;
+            long id = managed.slot.task.id;
+            expanded = false;
+            managed = null;
+            NotchActions.openTask(service, id);
+            render();
+        }
+
+        @Override
+        public void undo() {
+            changes.undo();
         }
 
         /** Holds the due water and routine nudges here for the snooze time; the planner's own data is untouched. */

@@ -5,7 +5,12 @@ export const WATER_SNOOZE = 'water';
 export const ALERT_SNOOZE_MINUTES = 10;
 export const routineSnooze = id => 'routine:' + id;
 
-const slotRow = (s, h24) => ({look: s.task.fixed ? 'EVENT' : 'TASK', title: s.task.title, value: clock(s.start, h24)});
+/** The alert an occurrence still has to give: its type until it starts, else ''. */
+export const alertAt = (slot, now) => slot.start > now && !slot.task.fixed ? slot.task.alert ?? '' : '';
+export const alertLook = alert => alert === 'alarm' ? 'ALARM' : 'REMINDER';
+export const alertName = alert => alert === 'alarm' ? 'Ringing alarm' : 'Reminder';
+
+const slotRow = (s, now, h24) => ({look: s.task.fixed ? 'EVENT' : 'TASK', title: s.task.title, value: clock(s.start, h24), slot: s, alert: alertAt(s, now)});
 
 export function notchScene(data, now, snoozes = {}, h24 = false) {
   const snooze = key => snoozes[key] ?? 0;
@@ -18,6 +23,9 @@ export function notchScene(data, now, snoozes = {}, h24 = false) {
   const meal = body.present ? unloggedMeal(body.meals, now) : null;
   const waterDue = !!water?.pending;
   const s = {hero, running: isRunning, water, habit, meal, waterDue, snoozeMinutes: body.water.snoozeMinutes, canLogMeal: body.present, rows: []};
+  s.heroAlert = hero ? alertAt(hero, now) : '';
+  s.heroAt = hero ? clock(hero.start, h24) : '';
+  s.nextAlert = slots.find(slot => alertAt(slot, now)) ?? null;
 
   if (hero) {
     s.heroLook = hero.task.fixed ? 'EVENT' : 'TASK';
@@ -56,11 +64,17 @@ export function notchScene(data, now, snoozes = {}, h24 = false) {
   }
 
   const later = after(slots, hero, 3);
-  if (later.length) s.rows.push(slotRow(later[0], h24));
+  if (later.length) s.rows.push(slotRow(later[0], now, h24));
   if (habit && s.heroLook !== 'HABIT') s.rows.push({look: 'HABIT', title: habit.routine.name, value: `${habit.done} of ${habit.total}`});
   if (water && s.heroLook !== 'WATER') s.rows.push({look: 'WATER', title: 'Water', value: `${water.count} of ${water.goal}${water.pending ? ' · due' : ''}`});
   if (meal) s.rows.push({look: 'MEAL', title: slotName(meal), value: 'Not logged'});
-  for (let i = 1; i < later.length && s.rows.length < 3; i++) s.rows.push(slotRow(later[i], h24));
+  for (let i = 1; i < later.length && s.rows.length < 3; i++) s.rows.push(slotRow(later[i], now, h24));
+  const next = s.nextAlert;
+  if (next && next !== hero && later[0] !== next) {
+    s.rows.unshift({look: alertLook(next.task.alert), title: next.task.title, value: clock(next.start, h24), slot: next, alert: next.task.alert});
+  }
+  const dueRow = s.rows.findIndex((r, i) => i >= 2 && r.look === 'WATER');
+  if (dueRow >= 2 && waterDue) s.rows.splice(1, 0, ...s.rows.splice(dueRow, 1));
   s.rows.length = Math.min(s.rows.length, 3);
   s.canDone = !!hero && !hero.task.fixed;
   s.canSnooze = waterDue || !!habit;
@@ -74,7 +88,7 @@ export function alertScene(data, now, type, h24 = false) {
   if (!slot) return null;
   const {title, id} = slot.task, at = clock(slot.start, h24);
   if (type === 'alarm') return {type, taskId: id, title, at, line: `Ringing · ${at}`, spoken: `Ringing: ${title}, ${at}`};
-  return {type, taskId: id, title, at, action: 'Open', spoken: `Reminder: ${title}, ${at}. Opens the task.`};
+  return {type, taskId: id, title, at, line: `Reminder · ${at}`, spoken: `Reminder: ${title}, ${at}. Opens the task.`};
 }
 
 const EMPHASIS_MS = {TASK: 0, WATER: 8_000, HABIT: 8_000};

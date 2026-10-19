@@ -219,3 +219,84 @@
 
 .notch-pill:focus-visible, .notch-control:focus-visible, .alert-main:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
 .alert-button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+.notch-alert-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding-block: 4px;
+  padding-inline: 8px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: oklch(100% 0 none / 0.18);
+  color: inherit;
+  font: inherit;
+}
+.notch-alert-chip .notch-glyph { inline-size: 16px; block-size: 16px; }
+button.notch-alert-chip { margin-inline-start: 8px; cursor: pointer; }
+button.notch-alert-chip::after { content: ""; position: absolute; inset: min(0px, (100% - 48px) / 2); }
+button.notch-alert-chip:active { background: oklch(100% 0 none / 0.3); }
+
+.notch-row-tap {
+  inline-size: calc(100% + 16px);
+  min-block-size: 48px;
+  margin-inline: -8px;
+  padding-inline: 8px;
+  padding-block: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: start;
+}
+.notch-row-tap:active { background: oklch(100% 0 none / 0.12); }
+.notch-plus { padding-inline-end: 4px; }
+
+.alert-controls { margin-block-start: 4px; }
+.island-reminder .alert-line { color: oklch(100% 0 none / 0.7); }
+.manage-controls { grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.notch-control-label { text-align: center; }
+
+.island-receipt { display: flex; align-items: center; gap: 12px; min-block-size: 64px; padding-inline: 16px 8px; padding-block-end: 8px; }
+.receipt-mark { position: relative; display: grid; place-items: center; flex: none; inline-size: 40px; block-size: 40px; }
+.receipt-mark svg { position: absolute; inset: 0; rotate: -90deg; fill: none; stroke-width: 3; }
+.receipt-track { stroke: oklch(100% 0 none / 0.18); }
+.receipt-ring { stroke: var(--mark); stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: var(--to); }
+.receipt-mark .notch-glyph { inline-size: 20px; block-size: 20px; }
+.receipt-words { flex: 1; display: grid; gap: 2px; min-inline-size: 0; }
+.receipt-undo {
+  flex: none;
+  min-block-size: 48px;
+  padding-inline: 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--blue);
+  cursor: pointer;
+  font: inherit;
+  font-size: calc(14px * var(--font-scale));
+  font-weight: 600;
+}
+.receipt-undo:active { background: oklch(100% 0 none / 0.12); }
+
+@keyframes receipt-fill { from { stroke-dashoffset: var(--from); } }
+@keyframes receipt-pop { from { scale: 0.6; opacity: 0; } }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduce-motion="true"]) .receipt-ring { animation: receipt-fill 450ms var(--ease-emphasized-decelerate) both; }
+  :root:not([data-reduce-motion="true"]) .receipt-mark .notch-glyph { animation: receipt-pop 300ms var(--ease-spring) 150ms both; }
+  :root:not([data-reduce-motion="true"]) .notch-row-tap, :root:not([data-reduce-motion="true"]) .receipt-undo {
+    transition: scale 100ms var(--ease-standard), background-color 100ms linear;
+  }
+  :root:not([data-reduce-motion="true"]) .notch-row-tap:active, :root:not([data-reduce-motion="true"]) .receipt-undo:active { scale: 0.97; }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .notch-row-tap:hover, .receipt-undo:hover { background: oklch(100% 0 none / 0.08); }
+  button.notch-alert-chip:hover { background: oklch(100% 0 none / 0.24); }
+}
+
+.notch-row-tap:focus-visible, .receipt-undo:focus-visible, .notch-alert-chip:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }

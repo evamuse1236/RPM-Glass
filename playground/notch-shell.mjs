@@ -1,15 +1,16 @@
 import {companion, device, prefs} from './store.mjs';
 import {calendarRead} from './fake-calendar.mjs';
-import {parseNotchData} from './notch-day.mjs';
+import {parseNotchData, clock} from './notch-day.mjs';
 import {notchScene, alertScene, PillPriority, ALERT_SNOOZE_MINUTES} from './notch-scene.mjs';
 import {renderNotch} from './notch-view.mjs';
+import {receiptFor} from './notch-change.mjs';
 
-const REMINDER_MS = 6_000, ALARM_MS = 10 * 60_000, SNOOZE_NOTE_MS = 2_000, REMINDER_NOTE_MS = 8_000;
+const REMINDER_MS = 6_000, ALARM_MS = 10 * 60_000, SNOOZE_NOTE_MS = 2_000, REMINDER_NOTE_MS = 8_000, UNDO_MS = 5_000, UNDONE_MS = 1_500;
 
 /** The Notch screen: which island shows, the alert timers and every gesture, around the copy in notch-view.mjs. */
 export function notchShell({stage, empty, say, shell, setShell, open}) {
   const priority = new PillPriority();
-  let alert = 'none', alertTimer = 0, note = null, noteTimer = 0, key = '';
+  let alert = 'none', alertTimer = 0, note = null, noteTimer = 0, key = '', managed = null, receipt = null, receiptTimer = 0;
 
   const now = () => {
     const at = shell().notchTime;
@@ -20,8 +21,34 @@ export function notchShell({stage, empty, say, shell, setShell, open}) {
     return d.getTime();
   };
   const data = () => parseNotchData(companion(), calendarRead({anchor: Date.now()}).events);
-  const mode = () => alert !== 'none' ? alert : shell().expandNotch ? 'open' : 'pill';
+  const mode = () => alert !== 'none' ? alert : receipt ? 'receipt' : managed ? 'manage' : shell().expandNotch ? 'open' : 'pill';
   const notWired = () => say('This button is not wired in the copy. Make the change in the planner instead.');
+
+  function showReceipt(next, ms) {
+    clearTimeout(receiptTimer);
+    receipt = next;
+    receiptTimer = setTimeout(() => { receipt = null; paint(); }, ms);
+  }
+
+  function change(kind, facts) {
+    managed = null;
+    setShell({expandNotch: false});
+    showReceipt(receiptFor(kind, facts), UNDO_MS);
+    say('On the phone this saves in place, with Undo for 5 seconds. The copy does not save.');
+    paint();
+  }
+
+  function undo() {
+    if (!receipt?.undo) return;
+    showReceipt({...receipt, title: 'Undone', detail: receipt.mark === 'water' ? 'Glass removed' : receipt.detail, from: receipt.to, to: receipt.from,
+      undo: false}, UNDONE_MS);
+    paint();
+  }
+
+  function manage(slot) {
+    managed = {id: slot.task.id, title: slot.task.title, alert: slot.task.alert, at: clock(slot.start, false)};
+    paint();
+  }
 
   function showNote(text, ms, extra = {}) {
     clearTimeout(noteTimer);
@@ -59,6 +86,7 @@ export function notchShell({stage, empty, say, shell, setShell, open}) {
   }
 
   function setExpanded(expand, {instant = false} = {}) {
+    managed = null;
     setShell({expandNotch: expand});
     paint({instant});
   }
@@ -76,12 +104,12 @@ export function notchShell({stage, empty, say, shell, setShell, open}) {
     }
     const m = mode();
     const k = JSON.stringify([scene.heroLook, scene.heroTitle, scene.heroSubtitle, scene.barStart, scene.barEnd, Math.round(scene.progress * 1000),
-      scene.rows, scene.canDone, scene.canSnooze, scene.canLogMeal, !!scene.meal, primary, secondary, m, shownAlert, note, device().textScale, prefs().notchOn]);
+      scene.rows.map(r => [r.look, r.title, r.value, r.alert]), scene.heroAlert, scene.heroAt, managed, receipt, scene.canDone, scene.canSnooze, scene.canLogMeal, !!scene.meal, primary, secondary, m, shownAlert, note, device().textScale, prefs().notchOn]);
     for (const b of document.querySelectorAll('[data-expand]')) b.setAttribute('aria-pressed', String(b.dataset.expand === String(shell().expandNotch)));
     for (const b of document.querySelectorAll('[data-alert]')) b.setAttribute('aria-pressed', String(b.dataset.alert === alert));
     if (k === key && !instant) return;
     key = k;
-    const shown = prefs().notchOn && renderNotch(stage, {scene, primary, secondary, mode: m, alert: shownAlert, note, instant,
+    const shown = prefs().notchOn && renderNotch(stage, {scene, primary, secondary, mode: m, alert: shownAlert, managed, receipt, note, instant,
       fontScale: device().textScale, onTap: () => setExpanded(true), gestures: gestures(scene), actions: actions(scene)});
     if (!shown) stage.replaceChildren();
     empty.hidden = !!shown;
@@ -98,12 +126,23 @@ export function notchShell({stage, empty, say, shell, setShell, open}) {
   const gestures = scene => ({
     pill: {right: () => setExpanded(true), down: () => setExpanded(true), left: snoozePill, longPress: () => openTask(scene.hero?.task.id)},
     open: {up: () => setExpanded(false)},
+    manage: {up: () => { managed = null; paint(); }},
+    receipt: {up: () => { clearTimeout(receiptTimer); receipt = null; paint(); }},
     reminder: {right: () => openTask(current()?.taskId), left: () => endAlert('snooze'), up: () => endAlert('collapse')},
     alarm: {right: () => openTask(current()?.taskId)},
   });
 
-  const actions = () => ({done: notWired, snooze: notWired, logMeal: notWired, openPlan: () => open('planner', {view: 'day'}),
-    openAlert: () => openTask(current()?.taskId), snoozeAlert: () => endAlert('snooze'), stopAlert: () => endAlert('stop')});
+  function doneAlert() {
+    const shown = current();
+    setAlert('none');
+    if (shown) change('done', {title: shown.title});
+  }
+
+  const actions = scene => ({done: () => change('done', {title: scene.heroTitle}), drink: () => change('drink', {water: scene.water}),
+    snooze: notWired, logMeal: notWired, openPlan: () => open('planner', {view: 'day'}), manage, undo,
+    setAlert: type => change(type, {title: managed.title}), doneManaged: () => change('done', {title: managed.title}),
+    openManaged: () => { const {id} = managed; managed = null; openTask(id); }, openAlert: () => openTask(current()?.taskId), snoozeAlert: () => endAlert('snooze'),
+    stopAlert: () => endAlert('stop'), doneAlert});
 
   function animateOpen() {
     setAlert('none', {instant: true});

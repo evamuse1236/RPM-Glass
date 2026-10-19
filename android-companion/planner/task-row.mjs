@@ -1,6 +1,7 @@
 /** Task rows in the style of Google Tasks: circle check, title, supporting time and duration, a star on Musts only. */
 import {blockTasks, localDay} from '../planner-state.mjs';
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
+import {completionOp} from '../notch-ops.mjs';
 import {reorderTask} from '../planner-ux.mjs';
 import {attachRowGestures} from './row-gestures.mjs';
 import {reducedMotion, waitMotion} from '../surface-motion.mjs';
@@ -325,10 +326,7 @@ function markRow(app, task, done) {
 export async function toggleDone(app, task, when, {carried = false, keepSheet = false} = {}) {
   if (app.saving) return false;
   const completing = !task.done;
-  const occurrence = when ?? task.occurrence ?? (repeats(task) ? nextOccurrence(task) : task.planned);
-  const op = task.done
-    ? {type: 'reopenTask', id: task.id, occurrence: when ?? task.occurrence}
-    : {type: 'saveTask', id: task.id, fields: {done: true}, occurrence};
+  const op = completionOp(task, when);
   const linger = completing && !repeats(task);
   // Timed on the animation clock from the tap, so the collapse overlaps the tick whatever the save takes.
   const collapse = linger ? waitMotion(carried ? 0 : COLLAPSE_AFTER) : null;

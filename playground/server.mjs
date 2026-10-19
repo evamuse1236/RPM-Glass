@@ -20,12 +20,13 @@ const surface = () => {
     csp: java.match(/CSP="([^"]+)"/)[1]};
 };
 
-const bundler = await context({...bundleOptions, write: false, sourcemap: 'inline', logLevel: 'silent'});
+const bundle = entry => context({...bundleOptions, ...entry, write: false, sourcemap: 'inline', logLevel: 'silent'});
+const bundlers = {'runtime.js': await bundle({}), 'notch-actions.js': await bundle({entryPoints: ['android-companion/notch-actions.mjs']})};
 
 const PAGE_HOOKS = '<script src="/__playground/emulate.js"></script>\n<script type="module" src="/__playground/fake-native.mjs"></script>\n';
 
 async function phoneAsset(name) {
-  if (name === 'runtime.js') return (await bundler.rebuild()).outputFiles[0].contents;
+  if (bundlers[name]) return (await bundlers[name].rebuild()).outputFiles[0].contents;
   if (name === 'butterfly.png') return fs.readFileSync(from('android-companion/assets', name));
   if (name.endsWith('.woff2')) return fs.readFileSync(from('android-companion/assets/fonts', name));
   const text = shippedText(name);

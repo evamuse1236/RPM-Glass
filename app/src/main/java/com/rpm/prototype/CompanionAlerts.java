@@ -19,7 +19,7 @@ final class CompanionAlerts {
     static boolean exact(Context c){return Build.VERSION.SDK_INT<31||c.getSystemService(AlarmManager.class).canScheduleExactAlarms();}
     static JSONObject ledger(Context c){try{return new JSONObject(c.getSharedPreferences("companion-delivery",0).getString("ledger","{}"));}catch(JSONException e){return new JSONObject();}}
     static void persist(Context c,JSONObject ledger){SharedPreferences prefs=c.getSharedPreferences("companion-delivery",0);String value=ledger.toString();if(value.equals(prefs.getString("ledger","{}")))return;if(!prefs.edit().putString("ledger",value).commit())throw new IllegalStateException("Could not save delivery status.");}
-    static String type(JSONObject e){JSONObject intent=e.optJSONObject("alertIntent"),alert=e.optJSONObject("alert");String type=intent==null?"":intent.optString("type","");if(type.isEmpty()||type.equals("null"))type=alert==null?"":alert.optString("type","");return type.equals("alarm")?"alarm":type.equals("reminder")?"reminder":"";}
+    static String type(JSONObject e){return NotchData.alertType(e);}
     static long planned(JSONObject e){try{return Instant.parse(e.getString("planned")).toEpochMilli();}catch(Exception ignored){return 0;}}
     static String fingerprint(JSONObject e){return String.join("|",String.valueOf(planned(e)),type(e),e.optString("recurrence",""),e.optString("completedOccurrences","[]"),String.valueOf(e.optBoolean("archived")),String.valueOf(e.optBoolean("done")),e.optString("state","active"));}
     static boolean active(JSONObject e){return !e.optBoolean("archived")&&!e.optBoolean("done")&&!e.optString("state").equals("cancelled")&&!type(e).isEmpty();}

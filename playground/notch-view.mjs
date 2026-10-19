@@ -1,11 +1,12 @@
 // Copy of NotchPill, NotchContent and IslandView: one black island that morphs between the pill, the open island and the alert islands.
 import {S24} from './device.mjs';
 import {D, dp, css, anchor, ISLAND_INSET_DP} from './notch-geometry.mjs';
-import {el, glyph, text, iconCircle, button, plain, accent, lookOf, TILE} from './notch-parts.mjs';
+import {el, glyph, text, iconCircle, button, control, plain, accent, lookOf, TILE} from './notch-parts.mjs';
 import {alertFace} from './notch-alert.mjs';
+import {alertChip, alertSpoken, receiptFace, manageFace} from './notch-change.mjs';
 import {swipeable} from './notch-gesture.mjs';
 
-const RADIUS = {open: 32, reminder: 28, alarm: 28};
+const RADIUS = {open: 32, manage: 32, reminder: 28, alarm: 28, receipt: 28};
 
 function measure(stage, value) {
   const probe = text(value, 15, '#fff', 600, 'notch-text notch-probe');
@@ -43,13 +44,6 @@ function pillFace(stage, {primary, secondary, scene, note, onTap}) {
   return {face, geo: {x: x / D, w: w / D, h: h / D, r: h / D / 2}};
 }
 
-function control(icon, label, spoken, enabled, action) {
-  const b = button('notch-control', enabled ? spoken : spoken + ', not available now', action);
-  b.disabled = !enabled;
-  b.append(glyph(null, icon), el('span', 'notch-control-label', {textContent: label}));
-  return b;
-}
-
 function dots(count, goal) {
   const row = el('span', 'notch-dots');
   row.setAttribute('aria-hidden', 'true');
@@ -57,13 +51,26 @@ function dots(count, goal) {
   return row;
 }
 
-function row(r, scene) {
-  const line = el('div', 'notch-row');
+function row(r, scene, actions) {
+  const water = r.look === 'WATER', alert = !water && !!r.alert;
+  const line = water || alert ? el('button', 'notch-row notch-row-tap', {type: 'button'}) : el('div', 'notch-row');
   const g = glyph(r.look);
   g.style.color = accent(r.look);
   line.append(g, text(r.title, 15, 'rgb(255 255 255 / .87)', 400, 'notch-text notch-row-title'));
-  if (r.look === 'WATER') line.append(dots(scene.water.count, scene.water.goal), text(`${scene.water.count}/${scene.water.goal}`, 14, accent('WATER'), 500));
-  else if (r.look === 'MEAL') line.append(el('span', 'notch-ring', {role: 'img', ariaLabel: 'Not logged'}));
+  if (water) {
+    line.append(dots(scene.water.count, scene.water.goal), text(`${scene.water.count}/${scene.water.goal}`, 14, accent('WATER'), 500),
+      text('+', 20, accent('WATER'), 500, 'notch-text notch-plus'));
+    line.setAttribute('aria-label', `${r.title}, ${r.value}. Log a glass of water`);
+    line.addEventListener('click', event => { event.stopPropagation(); actions.drink(); });
+    return line;
+  }
+  if (alert) {
+    line.append(r.look === 'REMINDER' || r.look === 'ALARM' ? text(r.value, 14, accent(r.look), 500) : alertChip(r.alert, r.value));
+    line.setAttribute('aria-label', alertSpoken(r.alert, r.title, r.value));
+    line.addEventListener('click', event => { event.stopPropagation(); actions.manage(r.slot); });
+    return line;
+  }
+  if (r.look === 'MEAL') line.append(el('span', 'notch-ring', {role: 'img', ariaLabel: 'Not logged'}));
   else if (r.look === 'HABIT') line.append(text(`${scene.habit.done}/${scene.habit.total}`, 14, accent('HABIT'), 500));
   else line.append(text(r.value, 14, 'rgb(255 255 255 / .7)', 400));
   return line;
@@ -78,6 +85,9 @@ function openFace(scene, actions) {
   const words = el('div', 'notch-words');
   words.append(text(scene.heroTitle, 17, '#fff', 600), text(scene.heroSubtitle, 14, accent(look), 400, 'notch-text notch-sub'));
   hero.append(tile, words);
+  if (scene.heroAlert) {
+    hero.append(alertChip(scene.heroAlert, scene.heroAt, alertSpoken(scene.heroAlert, scene.heroTitle, scene.heroAt), () => actions.manage(scene.hero)));
+  }
   const bar = el('div', 'notch-bar');
   const track = el('span', 'notch-track'), fill = el('span', 'notch-fill');
   fill.style.cssText = `inline-size:max(4px, ${scene.progress * 100}%);background:${plain(look) ? 'rgb(255 255 255 / .87)' : accent(look)}`;
@@ -88,7 +98,7 @@ function openFace(scene, actions) {
     control('notch_ic_snooze', 'Snooze', `Snooze ${scene.snoozeMinutes} minutes`, scene.canSnooze, actions.snooze),
     scene.meal ? control('notch_ic_meal', 'Log meal', 'Log a meal', scene.canLogMeal, actions.logMeal)
       : control('ic_open', 'Open plan', 'Open the plan', true, actions.openPlan));
-  face.append(hero, bar, controls, ...scene.rows.slice(0, 2).map(r => row(r, scene)));
+  face.append(hero, bar, controls, ...scene.rows.slice(0, 2).map(r => row(r, scene, actions)));
   return face;
 }
 
@@ -131,14 +141,14 @@ function settle(island, face, same) {
 
 /**
  * Draws the island for one moment and morphs to it from what is on screen. Returns false when the phone would hide it.
- * mode is 'pill', 'open', 'reminder' or 'alarm'; gestures maps each mode to its swipe handlers.
+ * mode is 'pill', 'open', 'manage', 'receipt', 'reminder' or 'alarm'; gestures maps each mode to its swipe handlers.
  */
 export function renderNotch(stage, opts) {
-  const {scene, primary, mode, alert, fontScale, actions, gestures, instant = false} = opts;
+  const {scene, primary, mode, alert, managed, receipt, fontScale, actions, gestures, instant = false} = opts;
   stage.style.setProperty('--font-scale', fontScale);
   stage.dataset.text = fontScale > 1.3 ? 'large' : 'normal';
   const alerting = mode === 'reminder' || mode === 'alarm';
-  if (!alerting && !primary) {
+  if (!alerting && mode !== 'receipt' && !primary) {
     stage.replaceChildren();
     return false;
   }
@@ -155,7 +165,8 @@ export function renderNotch(stage, opts) {
   if (mode === 'pill') {
     ({face, geo} = pillFace(stage, opts));
   } else {
-    face = alerting ? alertFace(alert, actions) : openFace(scene, actions);
+    face = alerting ? alertFace(alert, actions) : mode === 'receipt' ? receiptFace(receipt, actions)
+      : mode === 'manage' ? manageFace(managed, actions) : openFace(scene, actions);
     const w = (S24.width - 2 * dp(ISLAND_INSET_DP)) / D;
     face.style.setProperty('--face-w', `${w}px`);
     face.style.paddingBlockStart = `calc(${css(anchor().pill)} + 8px)`;
@@ -163,7 +174,7 @@ export function renderNotch(stage, opts) {
   }
   settle(island, face, same || first || instant);
   geo.h ??= face.getBoundingClientRect().height;
-  island.dataset.motion = first || instant ? 'none' : mode === 'pill' ? 'close' : mode === 'open' ? 'open' : 'alert';
+  island.dataset.motion = first || instant ? 'none' : mode === 'pill' ? 'close' : mode === 'open' || mode === 'manage' ? 'open' : 'alert';
   island.dataset.mode = mode;
   Object.assign(island.style, {insetInlineStart: `${geo.x}px`, insetBlockStart: css(anchor().top), inlineSize: `${geo.w}px`,
     blockSize: `${geo.h}px`, borderRadius: `${geo.r}px`});

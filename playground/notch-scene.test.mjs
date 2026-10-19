@@ -43,10 +43,10 @@ test('between items the pill shows when the next starts', () => {
   assert.equal(s.progress, 0);
 });
 
-test('rows are the next item, then nudges, then the meal, at most three', () => {
+test('rows are the next item, then due water, then the other nudges and the meal, at most three', () => {
   const s = scene(day(true), '2026-10-18T16:05');
   assert.deepEqual(s.rows.map(r => [r.look, r.title, r.value]),
-    [['TASK', 'Call Prof. Rao', '4:30 PM'], ['HABIT', 'Evening routine', '0 of 2'], ['WATER', 'Water', '2 of 8 · due']]);
+    [['TASK', 'Call Prof. Rao', '4:30 PM'], ['WATER', 'Water', '2 of 8 · due'], ['HABIT', 'Evening routine', '0 of 2']]);
   assert.ok(s.waterDue);
 });
 
@@ -110,7 +110,7 @@ function alertDay() {
 
 test('an alert shows the next task today that asked for it, else the hero', () => {
   const reminder = alertScene(alertDay(), at('2026-10-18T15:50'), 'reminder');
-  assert.deepEqual([reminder.taskId, reminder.title, reminder.at, reminder.action], [2, 'Call the bank', '4:30 PM', 'Open']);
+  assert.deepEqual([reminder.taskId, reminder.title, reminder.at, reminder.line], [2, 'Call the bank', '4:30 PM', 'Reminder · 4:30 PM']);
   const alarm = alertScene(alertDay(), at('2026-10-18T15:50'), 'alarm');
   assert.deepEqual([alarm.taskId, alarm.line], [3, 'Ringing · 7:00 PM']);
   assert.equal(alertScene(alertDay(), at('2026-10-18T19:30'), 'reminder').taskId, 3);
@@ -123,4 +123,30 @@ test('a reminder never says alarm', () => {
     const words = Object.values(alertScene(data, at(local), 'reminder')).join(' ');
     assert.doesNotMatch(words, /alarm|ringing/i);
   }
+});
+
+function alertRowsDay(callAlert) {
+  const data = day(true);
+  data.tasks.find(t => t.id === 2).alert = callAlert;
+  data.tasks.find(t => t.id === 3).alert = 'alarm';
+  return data;
+}
+
+test('the next alert leads the rows when nothing else shows it, and due water stays second', () => {
+  const s = scene(alertRowsDay(''), '2026-10-18T16:05');
+  assert.deepEqual([s.rows[0].look, s.rows[0].title, s.rows[0].value, s.rows[0].alert], ['ALARM', 'Gym', '7:00 PM', 'alarm']);
+  assert.equal(s.rows[1].look, 'WATER');
+  assert.ok(s.rows.length <= 3);
+  assert.equal(s.rows[0].slot, s.nextAlert);
+});
+
+test('a task row whose alert is still to come carries its chip instead of a second row, and the hero shows its chip until it starts', () => {
+  const s = scene(alertRowsDay('reminder'), '2026-10-18T16:05');
+  assert.deepEqual([s.rows[0].look, s.rows[0].title, s.rows[0].alert], ['TASK', 'Call Prof. Rao', 'reminder']);
+  assert.ok(s.rows.every(r => r.look !== 'REMINDER'));
+  const before = scene(alertRowsDay('reminder'), '2026-10-18T16:20');
+  assert.deepEqual([before.heroTitle, before.heroAlert, before.heroAt], ['Call Prof. Rao', 'reminder', '4:30 PM']);
+  const during = scene(alertRowsDay('reminder'), '2026-10-18T16:40');
+  assert.equal(during.heroAlert, '');
+  assert.equal(during.nextAlert.task.id, 3);
 });
