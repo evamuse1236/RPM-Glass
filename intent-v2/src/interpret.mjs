@@ -3,6 +3,7 @@ import {checkRemoval,REMOVALS} from './removal.mjs';
 import {checkBodyOperation} from './body-intent.mjs';
 import {CAPTURE_OPERATIONS} from './capabilities.mjs';
 import {normalizeReminderTime} from '../../cli/interpret.mjs';
+import {capitalizeTitle} from '../../cli/title.mjs';
 const words=s=>String(s).toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
 /** A choice may only name what the model was shown, and only what its action can be done to. */
 function checkClarification(c,visible){
@@ -64,7 +65,7 @@ export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}
    validateField(f,op.entity);if(names.has(f.name))throw new Error('Duplicate field');names.add(f.name);
    if(f.op!=='unknown'&&f.origin==='stated'&&(!f.evidence?.trim()||!units.some(u=>u.text.includes(f.evidence))))throw new Error(`No exact current-source evidence for ${f.name}`);
    if(f.origin==='suggested'&&f.evidence!==null)throw new Error('Suggestions must not pretend to be quotations');
-   return {...f,sourceMessageId:messageId,evidenceSourceId:f.evidence?(units.find(u=>u.id===op.sourceId&&u.text.includes(f.evidence))??units.find(u=>u.text.includes(f.evidence)))?.id??null:null};
+   return {...f,...(f.name==='title'&&f.op==='set'?{value:capitalizeTitle(f.value)}:{}),sourceMessageId:messageId,evidenceSourceId:f.evidence?(units.find(u=>u.id===op.sourceId&&u.text.includes(f.evidence))??units.find(u=>u.text.includes(f.evidence)))?.id??null:null};
   });
   return {...op,fields,sourceMessageIds:[messageId]};
  });
