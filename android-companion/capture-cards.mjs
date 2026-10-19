@@ -106,7 +106,7 @@ export function receiptCard(capture,{canUndo,on}){
  const rows=draft.lines?.length?draft.lines:[{verb:'Saved',title:capture.raw}];
  node.append(kicker(draft.confirm==='kept'?'Kept':tally(rows),{name:'check_circle',tone:'done'}));
  node.append(lines(rows));
- if(capture.reply)node.append(answerText(capture.reply));
+ if(capture.reply&&!capture.reply.startsWith('Draft ready to review.'))node.append(answerText(capture.reply));
  appendReceiptHelp(node,draft,on);
  if(draft.applied?.warning)node.append(warnLine(draft.applied.warning));
  const also=alsoHeard(capture,on);
@@ -130,7 +130,7 @@ export function confirmCard(capture,{canUndo,on}){
  const count=draft.lines?.length??0;
  node.append(kicker(draft.mode==='plan'?'Plan applied. Keep it?':count>1?`${count} changes made. Keep them?`:'Changed. Keep it?',{name:'edit_note',tone:'change'}));
  node.append(lines(draft.lines??[]));
- if(capture.reply)node.append(el('p','card-text',capture.reply));
+ if(capture.reply&&!capture.reply.startsWith('Draft ready to review.'))node.append(el('p','card-text',capture.reply));
  appendReceiptHelp(node,draft,on);
  if(draft.applied?.warning)node.append(warnLine(draft.applied.warning));
  node.append(words(capture.raw));

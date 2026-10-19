@@ -5,6 +5,9 @@ import {OPERATION_SCHEMA,ALLOWED_FIELDS,FIELD_NAMES} from '../src/schema.mjs';
 import {intentSystemPrompt} from '../prompts/intent-system.mjs';
 import {interpretTurn} from '../src/interpret.mjs';
 import {operation,turn} from './helpers.mjs';
+import {captureReply} from '../src/model-policy.mjs';
+import {compilePlannerOperations} from '../adapters/rpm-glass.mjs';
+import {changePlannerSchema} from '../../android-companion/planner-tools.mjs';
 
 test('every schema operation and field has a model-facing description from the same registry',()=>{
  assert.deepEqual(OPERATION_SCHEMA.properties.entity.enum,Object.keys(CAPTURE_OPERATIONS));
@@ -19,4 +22,18 @@ test('every schema operation and field has a model-facing description from the s
 test('an operation outside the capability table cannot reach the planner',()=>{
  const output=turn('complete this Block',[operation([],{kind:'complete',entity:'block',targetId:'b1'})]);
  assert.throws(()=>interpretTurn(output,{messageId:'m',units:[{id:'s0',text:'complete this Block'}],visibleEntities:[{id:'b1',entity:'block'}]}),/Only a saved task can be completed/);
+});
+test('every described planner operation compiles to a supported collection and operation',()=>{
+ const schema=changePlannerSchema.properties.operations.items.properties;
+ for(const [entity,spec] of Object.entries(CAPTURE_OPERATIONS))for(const kind of Object.keys(spec.actions)){
+  if(entity==='draft'||kind==='discard')continue;
+  const [compiled]=compilePlannerOperations({id:'d',revision:1,operations:[operation([],{entity,kind,targetId:kind==='create'?null:'1'})]},{actionId:'test'});
+  assert.ok(schema.collection.enum.includes(compiled.collection),`${entity} ${kind}`);
+  assert.ok(schema.type.enum.includes(compiled.type),`${entity} ${kind}`);
+ }
+});
+test('a limitation survives routine receipt normalization without another optional question',()=>{
+ const parsed=turn('Send a message',[],{reply:"RPM can't send messages. Want me to save a task?"});
+ parsed.operations=[operation()];
+ assert.equal(captureReply({parsed,schedulePreview:{items:[]}}),"RPM can't send messages.");
 });

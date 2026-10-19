@@ -1,6 +1,7 @@
-import {readFile,writeFile,rename,mkdir,open,unlink} from 'node:fs/promises';
+import {readFile,writeFile,rename,mkdir,realpath} from 'node:fs/promises';
 import path from 'node:path';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
+import {createServer} from 'node:net';
 import {createIntentService} from '../android-companion/intent-service.mjs';
 import {createCaptureAgent} from '../android-companion/capture-agent.mjs';
 import {createTraceStore,modelRun} from '../android-companion/capture-trace.mjs';
@@ -43,22 +44,26 @@ export function privateTrace(trace){
   errors:(trace.errors??[]).map(({stage,code})=>({stage,code}))};
 }
 
+async function storeLock(file){
+ const identity=process.platform==='win32'?file.toLowerCase():file;
+ const hash=createHash('sha256').update(identity).digest('hex');
+ const address=process.platform==='win32'?`\\\\.\\pipe\\rpm-capture-${hash}`:process.platform==='linux'?`\0rpm-capture-${hash}`:null;
+ if(!address)throw new Error('Capture CLI store locking currently supports Windows and Linux.');
+ const server=createServer(socket=>socket.destroy());
+ await new Promise((resolve,reject)=>{
+  server.once('error',error=>reject(error.code==='EADDRINUSE'||error.code==='EACCES'?new Error('This store is already open. Close its other Capture session first.'):error));
+  server.listen(address,resolve);
+ });
+ server.unref();
+ return {close:()=>new Promise((resolve,reject)=>server.close(error=>error?reject(error):resolve()))};
+}
+
 export async function createCaptureSession({file,now=null,model,env=process.env,fetchImpl=fetch}={}){
  if(now!==null&&!Number.isFinite(Date.parse(now)))throw new Error('--now needs a valid ISO date and time.');
  const clock=()=>now===null?new Date():new Date(now);
  file=path.resolve(file);await mkdir(path.dirname(file),{recursive:true});
- const lockFile=file+'.lock';
- let lock;
- try{lock=await open(lockFile,'wx');}
- catch(error){
-  if(error.code!=='EEXIST')throw error;
-  let owner;try{owner=JSON.parse(await readFile(lockFile,'utf8'));}catch{}
-  let alive=true;
-  if(Number.isSafeInteger(owner?.pid)&&owner.pid>0){try{process.kill(owner.pid,0);}catch(e){if(e.code==='ESRCH')alive=false;}}
-  if(alive)throw new Error('This store is already open. Close its other Capture session first.');
-  await unlink(lockFile);lock=await open(lockFile,'wx');
- }
- await lock.writeFile(JSON.stringify({pid:process.pid}));
+ try{file=await realpath(file);}catch(error){if(error.code!=='ENOENT')throw error;file=path.join(await realpath(path.dirname(file)),path.basename(file));}
+ const lock=await storeLock(file);
  const fresh=()=>seedFixture({seedStore,editPlan,intentState});
  let events=fresh().events,traceJson='[]';
  const atomic=async(next)=>{await writeFile(file+'.next',JSON.stringify(next,null,2));await rename(file+'.next',file);};
@@ -87,6 +92,6 @@ export async function createCaptureSession({file,now=null,model,env=process.env,
    async retry(){const card=await latest();if(!card)throw new Error('There are no saved words to retry.');const started=Date.now(),result=await agent.retry(card.messageId);await persistTraces();return {result,card:await latest(),ms:Date.now()-started};},
    async undo(){const data=await backend.load(),draft=Object.values(data.intentV2?.drafts??{}).reverse().find(d=>d.status==='committed'&&canUndoChange(d,data.undo?.id));if(!draft)throw new Error('There is no current change to undo.');await agent.undo({draftId:draft.id,conversationId:draft.conversationId,actionId:`undo-${randomUUID()}`});await persistTraces();},
    async reset(){await atomic(fresh().data);traceJson='[]';events=fresh().events;},
-   async close(){await lock.close();await unlink(file+'.lock');}};
- }catch(error){await lock.close();await unlink(file+'.lock');throw error;}
+   async close(){await lock.close();}};
+ }catch(error){await lock.close();throw error;}
 }

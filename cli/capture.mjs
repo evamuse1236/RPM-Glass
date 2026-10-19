@@ -17,11 +17,11 @@ export function renderState(data,{now=new Date()}={}){
 
 export function renderAnswer(card,{data,events=[],now=new Date()}={}){
  if(!card||!data)return [];
- if(card.kind==='agenda'){const agenda=dayAgenda(data,{day:card.day??localDay(now),events});return [...agenda.timed,...agenda.anytime].map(i=>`${i.start==null?'Any time':formatTime(i.start)} · ${i.title}`);}
+ if(card.kind==='agenda'){const agenda=dayAgenda(data,{day:card.day??localDay(now),events}),rows=[...agenda.timed,...agenda.anytime];return rows.length?rows.map(i=>`${i.start==null?'Any time':formatTime(i.start)} · ${i.title}`):['Nothing planned for that day.'];}
  if(card.kind==='next'){const item=nextItem(data,{now,events});return [item?`${formatTime(item.start)} · ${item.title}`:'Nothing else is planned today or tomorrow.'];}
  if(card.kind==='task'){const row=data.entries.find(e=>String(e.id)===card.targetId);return [row?taskLine(row):'That task is no longer in your plan.'];}
  const body=bodyToday(data,{now});if(!body)return ['Water and meals are not logged yet.'];
- return card.kind==='water'?[`${body.water.glasses} of ${body.water.goal} glasses today`]:body.meals.map(m=>`${m.slot}: ${m.text}`);
+ return card.kind==='water'?[`${body.water.glasses} of ${body.water.goal} glasses today`]:body.meals.length?body.meals.map(m=>`${m.slot}: ${m.text}`):['No meals logged today.'];
 }
 
 export function captureOptions(args){
@@ -38,7 +38,7 @@ export function renderCapture({card,result,ms},{aiEnabled=true,data=null,events=
  const lines=[],draft=card?.draft;
  if(card?.status==='captured')lines.push(aiEnabled?'Your words are saved. '+(card.lastError?.message??'Retry to read them.'):'Your words are saved. AI is off. Restart with a key, then /retry.');
  else{
-  if(card?.reply)lines.push(card.reply);
+  if(card?.reply&&card.reply!==(card.clarification?.prompt??draft?.question?.prompt)&&!(draft?.status==='committed'&&card.reply.startsWith('Draft ready to review.')))lines.push(card.reply);
   for(const row of draft?.lines??[])lines.push([row.verb,row.title,row.when,row.where,row.alert].filter(Boolean).join(' · '));
   if(draft?.status==='draft')for(const op of draft.operations)lines.push([op.kind,op.fields.find(f=>f.name==='title')?.value??op.targetTitle??op.entity,...op.fields.filter(f=>f.name==='time').map(f=>f.op==='unknown'?'Time needs an answer':f.value)].join(' · '));
   if(card?.card)lines.push(...renderAnswer(card.card,{data,events,now}));
@@ -54,7 +54,7 @@ export function renderCapture({card,result,ms},{aiEnabled=true,data=null,events=
  actions.forEach((a,i)=>lines.push(`${i+1}. ${a.label}`));
  for(const note of card?.notes??[])lines.push(`Also heard: ${note.note}`);
  const runs=result?.modelRuns??[];
- lines.push(`${runs.map(r=>`${r.servedModel??r.model} (${r.effort??'none'})`).join(', ')||'No model call'} · ${(ms/1000).toFixed(1)}s`);
+ lines.push(`${!aiEnabled?'No model answered':runs.map(r=>`${r.servedModel??r.model}${r.ok?'':' unavailable'} (${r.effort??'none'})`).join(', ')||'No model call'} · ${(ms/1000).toFixed(1)}s`);
  return {text:lines.join('\n'),actions};
 }
 

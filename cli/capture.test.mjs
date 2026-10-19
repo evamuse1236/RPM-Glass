@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,readFile,writeFile,rm} from 'node:fs/promises';
-import {execFileSync} from 'node:child_process';
+import {mkdtemp,readFile,rm} from 'node:fs/promises';
+import {spawn} from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import {createCaptureSession,nodeModelBridge,privateTrace} from './capture-session.mjs';
@@ -51,13 +51,23 @@ test('flags keep the default local store and accept an explicit clock',()=>{
  assert.deepEqual(captureOptions(['--store','my.json','--now',NOW]),{file:'my.json',now:NOW});
  assert.throws(()=>captureOptions(['--unknown']),/--store/);
 });
-test('a store whose owner exited reopens without manual lock deletion',async t=>{
+test('a store whose owner is killed reopens without manual lock deletion',async t=>{
  const dir=await mkdtemp(path.join(os.tmpdir(),'rpm-capture-owner-')),file=path.join(dir,'day.json');
- const pid=Number(execFileSync(process.execPath,['-e','process.stdout.write(String(process.pid))'],{encoding:'utf8'}));
- await writeFile(file+'.lock',JSON.stringify({pid}));
+ const script=`import {createCaptureSession} from ${JSON.stringify(new URL('./capture-session.mjs',import.meta.url).href)}; await createCaptureSession({file:process.argv[1],env:{}}); process.stdout.write('ready'); setInterval(()=>{},1000);`;
+ const child=spawn(process.execPath,['--input-type=module','-e',script,file],{stdio:['ignore','pipe','pipe'],windowsHide:true});
+ t.after(()=>child.kill());
+ await new Promise((resolve,reject)=>{child.stdout.once('data',resolve);child.once('error',reject);child.once('exit',()=>reject(new Error('Owner exited before acquiring its store.')));});
+ const exited=new Promise(resolve=>child.once('exit',resolve));child.kill();await exited;
  const s=await createCaptureSession({file,now:NOW,env:{}});
  t.after(async()=>{await s.close();await rm(dir,{recursive:true,force:true});});
  assert.equal((await s.backend.load()).entries.length,6);
+});
+test('simultaneous opens have exactly one owner',async t=>{
+ const dir=await mkdtemp(path.join(os.tmpdir(),'rpm-capture-race-')),file=path.join(dir,'day.json');
+ const attempts=await Promise.allSettled([createCaptureSession({file,env:{}}),createCaptureSession({file,env:{}})]);
+ const owners=attempts.filter(r=>r.status==='fulfilled');
+ t.after(async()=>{await Promise.all(owners.map(r=>r.value.close()));await rm(dir,{recursive:true,force:true});});
+ assert.equal(owners.length,1);assert.match(attempts.find(r=>r.status==='rejected').reason.message,/already open/);
 });
 test('agenda and state output read saved facts using the fixed CLI clock',async t=>{
  const s=await fixture(t,{env:{}}),data=await s.backend.load();

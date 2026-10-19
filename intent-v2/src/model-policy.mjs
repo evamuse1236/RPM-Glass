@@ -40,9 +40,12 @@ export function intentModelPolicy({input,attempt=0,output=null}={}){
 /** Routine confirmations come from checked fields and the local time preview. */
 export function captureReply({parsed,schedulePreview}){
  if(parsed.operations.some(op=>op.opId==='short-alert'))return parsed.question?.prompt??'';
- if(parsed.mode!=='capture'||!parsed.operations.length)return parsed.reply;
+ const limitations=(parsed.reply.match(/[^.!?]+[.!?]?/g)??[]).filter(s=>/\b(?:can't|cannot|unable to|not able to)\b/i.test(s)&&!s.trim().endsWith('?'));
+ if(parsed.mode==='capture'&&parsed.operations.length&&limitations.length)return [...limitations.map(s=>s.trim()),parsed.question?.prompt??''].filter(Boolean).join(' ');
+ if(parsed.mode!=='capture'||!parsed.operations.length||parsed.operations.some(op=>op.fields.some(f=>f.origin==='suggested')))return parsed.reply;
  const times=schedulePreview?.items??[];
  const review=times.find(t=>t.status==='review');
  if(review)return `Draft kept for review. ${review.reason}`;
- return parsed.question?.prompt??parsed.reply;
+ const labels=times.filter(t=>t.label).map(t=>`${t.title}: ${t.label}.`);
+ return ['Draft ready to review.',...labels,parsed.question?.prompt??''].filter(Boolean).join(' ');
 }
