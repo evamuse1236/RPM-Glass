@@ -108,11 +108,20 @@ export function createWebSyncProcessor({backend, capture, clock = () => new Date
     }
     return repository.transact(`web:finish:${command.id}`, command, data => finish(data, command, status, message));
   }
-  async function run(command, snapshots) {
+  async function run(command, snapshots, revoked) {
     validateCommand(command);
     snapshots.forEach(validateSnapshot);
     const saved = await repository.load(), record = records(saved)[command.id]; identity(record, stable(command));
     if (record?.state === 'final') return structuredClone(record.result);
+    if (revoked && record?.state !== 'processing') {
+      const cancellation = await repository.transact(`web:revoke:${command.id}`, command, async data => {
+        const current = records(data)[command.id]; identity(current, stable(command));
+        if (current?.state === 'final') return {result: current.result};
+        if (current?.state === 'processing') return {resume: true};
+        return {result: await finish(data, command, 'rejected', 'This browser was revoked before the phone started the command.')};
+      });
+      if (cancellation.result) return cancellation.result;
+    }
     if (command.type === 'capture') return captureCommand(command);
     if (command.type === 'undo' && (record?.undoCapture || saved.webSync.commands[command.args.commandId]?.undoCapture)) return undoCaptureCommand(command);
     return repository.transact(`web:command:${command.id}`, command, async data => {
@@ -127,8 +136,8 @@ export function createWebSyncProcessor({backend, capture, clock = () => new Date
       return finish(data, command, 'applied', command.type === 'undo' ? 'Change undone on the phone.' : 'Saved on the phone.');
     });
   }
-  return {repository, snapshot: async () => buildSnapshot(await repository.load()), process(command, {snapshots = []} = {}) {
+  return {repository, snapshot: async () => buildSnapshot(await repository.load()), process(command, {snapshots = [], revoked = false} = {}) {
     const input = structuredClone(command), bases = structuredClone(snapshots);
-    const pending = queue.then(() => run(input, bases), () => run(input, bases)); queue = pending.catch(() => {}); return pending;
+    const pending = queue.then(() => run(input, bases, revoked), () => run(input, bases, revoked)); queue = pending.catch(() => {}); return pending;
   }};
 }
