@@ -365,9 +365,18 @@ h1, h2, h3, p { margin: 0; }
 }
 button.list-item:active { background: var(--row-press); }
 .list-item.nested { padding-left: calc(var(--gutter) + 40px); min-height: 48px; }
+.list:not(:empty) { margin-inline: var(--page-inset); border-radius: var(--r-group); background: var(--cell); overflow: clip; }
+.list > .list-item { padding-inline: var(--s4); }
+.list > .list-item.nested { padding-inline-start: calc(var(--s4) + 40px); }
+.list > .list-item + .list-item {
+  background-image: linear-gradient(var(--separator), var(--separator));
+  background-size: calc(100% - var(--s4) - 40px - var(--s4)) 1px;
+  background-position: 100% 0;
+  background-repeat: no-repeat;
+}
+.list-headline { font: var(--body); overflow-wrap: anywhere; }
+.list-supporting { font: var(--footnote); color: var(--label-2); overflow-wrap: anywhere; }
 .list-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.list-headline { font: var(--body-large); overflow-wrap: anywhere; }
-.list-supporting { font: var(--body-medium); color: var(--on-surface-variant); overflow-wrap: anywhere; }
 .trailing-value { font: var(--label-large); color: var(--on-surface-variant); }
 .section-header {
   display: flex;
