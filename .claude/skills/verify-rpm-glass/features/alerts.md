@@ -43,7 +43,6 @@ Preconditions:
 - **Audible sound.** Cannot be heard on the `-no-audio` emulator. The ringing sound and vibration are **UNVERIFIED**. The Settings `Preview alarm sound` only reports that it is playing.
 - **Sound preview.** In Settings run `rpmctl tap --name "Preview alarm sound"`. The status reads `Playing the alarm sound for 5 seconds.` and the row reads `Stop alarm preview`. See the Settings file.
 - **Recurring alerts.** A task with Repeat set and an alert schedules the next occurrence after each firing, and the status shows `next <time>`. **UNVERIFIED** without waiting for a firing.
-- **Large text.** Run `rpmctl display large-text`, open the task sheet's Alert field and Settings `Sounds & alerts`, `rpmctl shot alerts-large-text`, then `rpmctl display phone`. Status lines must wrap, not clip.
 - **Errors.** Run `rpmctl logs --errors`.
 
 ## Gotchas

@@ -56,7 +56,7 @@ export function matchingEvidence(root, apkSha, {webSha = null, needWeb = false} 
 
 export function evidenceGap(root) {
   const {base, files: changed} = changedAppFiles(root);
-  const how = 'Before saying done, drive the changed screen with the verify-rpm-glass skill (node .claude/skills/verify-rpm-glass/rpmctl.mjs launch, then open/tap/shot at phone and large-text), run `rpmctl check`, and put the evidence paths in the reply. '
+  const how = 'Before saying done, drive the changed screen with the verify-rpm-glass skill (node .claude/skills/verify-rpm-glass/rpmctl.mjs launch, then open/tap/shot at phone (One UI default text)), run `rpmctl check`, and put the evidence paths in the reply. '
     + 'For a web-only change on a running emulator, `rpmctl sync` loads it in seconds without an APK build. '
     + 'If you could not drive it, mark the claim UNVERIFIED in the reply. If this turn changed no app behavior, say so and stop again.';
   if (!base) return `Cannot tell what this branch changed: no main or origin/main to compare with. ${how}`;

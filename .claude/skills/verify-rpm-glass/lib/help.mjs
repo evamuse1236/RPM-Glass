@@ -20,7 +20,7 @@ Drive
   key        Press a key (back, enter, home, ...).
   scroll     Swipe up/down, or left/right across an element (row swipe actions).
   wait       Wait until an element appears or disappears.
-  display    Switch screen size / text scale (phone, large-text, max-text, landscape, wide).
+  display    Switch screen size (phone, landscape, wide). phone = One UI default text.
 Evidence
   shot       Screenshot + on-screen element list into the run's evidence folder.
   eval       Read a value from the page with JavaScript.
@@ -47,7 +47,7 @@ Typical run
   export RPMCTL_OWNER=<owner from launch>
   rpmctl doctor
   rpmctl open planner && rpmctl tap --role button --name "Blocks" && rpmctl shot blocks-list
-  rpmctl display large-text && rpmctl shot blocks-large-text && rpmctl display phone
+  rpmctl display landscape && rpmctl shot blocks-landscape && rpmctl display phone
   rpmctl check && rpmctl cleanup
 
 Evidence lives in .verify/evidence/<run-id>/ (gitignored) and survives cleanup.

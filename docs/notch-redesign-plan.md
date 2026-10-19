@@ -55,7 +55,7 @@ sp scales; dp does not. Pill value caps at `h − 12`dp tall; min width grows wi
 
 ## 6. Tests
 
-`NotchSceneTest`: pillValueDropsAmPmWithinTwelveHours, ringProgressPerKind, heroHasOnePrimaryControlNeverDisabled, islandAlwaysOffersGlass. `IslandShapeTest`: innerRadiusIsOuterMinusPadding, pillMinWidthIs112. `NotchFrameTest`: bandBesideCameraHoldsRingAndValue, sharedRingAndValueTravelOnOpen, reducedMotionFadesInsteadOfMoves, rollingDigitsMoveOnlyChangedDigits, reminderNeverSaysAlarm, receiptReplacesBandAndKeepsRows. `rpmctl scenario max-text-reflow` with the notch open, alert and receipt.
+`NotchSceneTest`: pillValueDropsAmPmWithinTwelveHours, ringProgressPerKind, heroHasOnePrimaryControlNeverDisabled, islandAlwaysOffersGlass. `IslandShapeTest`: innerRadiusIsOuterMinusPadding, pillMinWidthIs112. `NotchFrameTest`: bandBesideCameraHoldsRingAndValue, sharedRingAndValueTravelOnOpen, reducedMotionFadesInsteadOfMoves, rollingDigitsMoveOnlyChangedDigits, reminderNeverSaysAlarm, receiptReplacesBandAndKeepsRows. Screenshots at `rpmctl display phone` with the notch open, alert and receipt.
 
 ## Decisions on the plan's open questions
 

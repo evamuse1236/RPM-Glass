@@ -56,7 +56,6 @@ Preconditions:
 - **Suggest a Purpose (keyless).** Choose `Suggest a Purpose`. A sheet `Purpose suggestion` reads `Connect your AI key in Settings to get suggestions. Your plans stay saved.` with a button `Open Settings`. The model path (`Use this Purpose`) is **UNVERIFIED**.
 - **Archive and Delete.** `Archive Block` returns to the list with a snackbar `Block archived` and `Undo`. The list More options then has `Archive`, which opens a sheet with a `Restore` button; `Restore` shows `Block restored`. `Delete` opens a dialog `Delete Block?` with `Linked content is kept. You can undo this change.` and buttons `Keep` and `Delete`. Use `Keep`.
 - **List More options.** On the list, `More options` has `Weekly review`, `Inbox`, `Sort Inbox with Jev`, `Result, Purpose, Plan`, `Archive`, `Trash`, `Settings` and `Component gallery`. `Result, Purpose, Plan` opens a sheet of illustrations that says `Illustrations only. These are not saved goals or assumptions about you.` `Sort Inbox with Jev` keyless opens a sheet `Sort with Jev` reading `Connect your AI key in Settings to get suggestions. Your plans stay saved.`; the sorting preview path is **UNVERIFIED**.
-- **Large text.** Run `rpmctl display large-text`, open the list and the detail page, `rpmctl shot block-detail-large-text`. Then `rpmctl display max-text` and repeat, then `rpmctl display phone`. Titles wrap and the project line truncates with an ellipsis. Nothing was found clipped.
 - **Errors.** Run `rpmctl logs --errors`. Only emulator graphics and Chromium lines appeared.
 
 ## Gotchas

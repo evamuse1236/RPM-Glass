@@ -53,7 +53,6 @@ Preconditions:
 - **Values.** Run `rpmctl tap --role tab --name "Values"`. A card shows `Core values` and a button `Edit values`. Tap it to open a sheet, type, and save; the snackbar reads `Context saved`. A `Vision` tab with no Areas shows `What matters to you?` and `Add Area`.
 - **New Area or Goal.** The corner button is `Add Area` on Vision and `Add Goal` on Quarter and Month. It is absent on Values.
 - **Delete.** In a detail page, `More options` then `Delete` removes the item after a confirmation (unconfirmed wording). `Remove` in the editor leaves its contents unassigned.
-- **Large text.** Run `rpmctl display large-text`, open `Projects`, a Project, and `Life`, `rpmctl shot life-large-text`, then `rpmctl display phone`. At large text the Wheel always shows bars (the radar and its toggle are hidden). Names must wrap, not clip.
 - **Errors.** Run `rpmctl logs --errors`.
 
 ## Gotchas

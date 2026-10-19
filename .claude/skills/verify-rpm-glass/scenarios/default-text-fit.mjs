@@ -1,8 +1,8 @@
 import {sleep, seededBlockName} from './lib.mjs';
 
-export const id = 'max-text-reflow';
-export const rule = 'At 200% system text the main screens and the task sheet reflow: no button, heading, chip or title is cut with an ellipsis or clipped, no word is split across two lines, and the bottom nav labels stay visible.';
-export const enforces = 'docs/planner-surface-contract.md "Content reflows at 200%"; AGENTS.md "validate ... at enlarged text"; fda3272 ("At 130% text the label cut to \'Capture a tho…\'"); 534194f ("Chips wrap instead of truncating").';
+export const id = 'default-text-fit';
+export const rule = 'On the S24 FE at One UI default text (384dp wide, 100% text) the main screens, the task sheet and Capture fit: no button, heading, chip or title is cut with an ellipsis or clipped, no word is split across two lines, and the bottom nav labels stay visible.';
+export const enforces = 'AGENTS.md "One UI default text" row (user 2026-10-19: optimize for Galaxy One UI default font size; 200% is not a target); fda3272 ("At 130% text the label cut to \'Capture a tho…\'"); 534194f ("Chips wrap instead of truncating").';
 
 // Titles and action labels that are cut: ellipsis or clipping where the text is wider or taller than its box.
 // Secondary lines (a card's Purpose, a subtitle, a breadcrumb) may be shortened; the contract says to drop
@@ -58,7 +58,7 @@ const live = EXCEPTIONS.filter(x => new Date(x.expires) >= new Date());
 export async function run(t) {
   await t.do('seed');
   await t.do('open', 'planner');
-  await t.do('display', 'max-text');
+  await t.do('display', 'phone');
   await sleep(1500);
   const screens = {};
   screens.today = await t.read(clipped, live);
@@ -82,14 +82,13 @@ export async function run(t) {
   await sleep(1000);
   screens.capture = await t.read(clipped, live);
   await t.shot('capture');
-  await t.do('display', 'phone');
   t.facts.clipped = Object.fromEntries(Object.entries(screens).map(([k, v]) => [k, v.out]));
   t.facts.nav = screens.today.nav;
   t.facts.excepted = Object.entries(screens).flatMap(([screen, v]) => v.excepted.map(c => ({screen, ...c})));
-  t.expect(['Today', 'Blocks', 'Projects', 'Life'].every(want => screens.today.nav.some(n => n.label === want && n.shown)), 'Bottom nav labels Today, Blocks, Projects and Life must stay visible at 200% text', screens.today.nav);
+  t.expect(['Today', 'Blocks', 'Projects', 'Life'].every(want => screens.today.nav.some(n => n.label === want && n.shown)), 'Bottom nav labels Today, Blocks, Projects and Life must stay visible at default text', screens.today.nav);
   const cut = Object.entries(screens).flatMap(([screen, v]) => v.out.map(c => ({screen, ...c})));
   const split = Object.entries(screens).flatMap(([screen, v]) => v.split.map(c => ({screen, ...c})));
   t.facts.split = split;
-  t.expect(!split.length, `${split.length} word(s) split across lines at 200% text: ${split.map(c => `${c.screen} "${c.word}" in "${c.text}"`).join('; ')}`, split);
-  t.expect(!cut.length, `${cut.length} label(s) cut at 200% text: ${cut.map(c => `${c.screen} "${c.text}"`).join('; ')}`, cut);
+  t.expect(!split.length, `${split.length} word(s) split across lines at default text: ${split.map(c => `${c.screen} "${c.word}" in "${c.text}"`).join('; ')}`, split);
+  t.expect(!cut.length, `${cut.length} label(s) cut at default text: ${cut.map(c => `${c.screen} "${c.text}"`).join('; ')}`, cut);
 }

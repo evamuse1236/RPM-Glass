@@ -12,9 +12,7 @@ const EVIDENCE = path.join(WORK, 'evidence');
 const APK = path.join(ROOT, 'app/build/outputs/apk/debug/app-debug.apk');
 const DEFAULTS = {avd: 'Galaxy_S24_FE_API_36', ...defaultPorts(ROOT), gpu: 'host'};
 const DISPLAYS = {
-  phone: {fontScale: '1.0', rotation: 0, size: null, density: null, note: 'S24 FE portrait, default text'},
-  'large-text': {fontScale: '1.3', rotation: 0, size: null, density: null, note: '130% system text'},
-  'max-text': {fontScale: '2.0', rotation: 0, size: null, density: null, note: '200% system text (Android maximum)'},
+  phone: {fontScale: '1.0', rotation: 0, size: null, density: null, note: 'S24 FE portrait at One UI default: 384dp wide (density 450), 100% text'},
   landscape: {fontScale: '1.0', rotation: 1, size: null, density: null, note: 'S24 FE rotated'},
   wide: {fontScale: '1.0', rotation: 0, size: '1600x2560', density: 320, note: '800dp-wide tablet/unfolded width'},
 };

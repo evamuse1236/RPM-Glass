@@ -82,7 +82,7 @@ Everything is built from one file, [android-companion/theme.css](android-compani
 
 Google Sans Flex is bundled (OFL, latin subset), with the M3 type scale as `font:` shorthand tokens (`--title-medium`, `--body-large` and so on). Page titles use headline-medium and detail titles headline-small (title-large once collapsed into the top bar), Result titles use title-medium, task names use body-large, and metadata uses body-medium on `on-surface-variant`. Times and durations use tabular figures (`.tnum`). Nothing is smaller than label-small (11/16).
 
-Android's text zoom applies the system font scale. At 200% text, rows wrap, metadata gives way before titles and nothing has a fixed text height.
+Design for the user's S24 FE at One UI default text: 384dp wide, 100% font scale. Enlarged text is not a target. Nothing has a fixed text height, so a long title still wraps rather than clipping.
 
 ## Icons
 
@@ -123,7 +123,7 @@ Moved to [docs/design/components.md](docs/design/components.md) to keep each fil
 - Use only theme.css roles and tokens. If a new value is genuinely needed, add a token there.
 - Keep the vocabulary exact: Area, Goal, Project, Block, Result, Purpose, Plan, Task, Must, No block, Inbox.
 - Show Result and Purpose wherever a task is acted on.
-- Keep 48dp targets, Android Back closing the topmost layer first, 200% text reflow and reduced motion.
+- Keep 48dp targets, Android Back closing the topmost layer first, default-text fit and reduced motion.
 
 ## Don't
 

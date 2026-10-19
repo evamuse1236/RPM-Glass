@@ -46,7 +46,6 @@ Preconditions:
 - **Restore.** Run `rpmctl tap --role button --name "Restore"`. A snackbar reads `Task restored` with `Undo`, the sheet closes when the last row is restored, and the file shows `archived` false and `archiveDisposition` null. The task is back in the Inbox or its Block.
 - **Archive.** Archive a Block from its detail `More options` > `Archive Block`, then root `More options` then `Archive`. A dialog `Archive` lists it with `Restore` and the snackbar `Block restored`. An archived task from `Task actions` > `Archive` was not driven.
 - **Empty Trash and Archive.** With nothing deleted, `Trash` shows the heading `Trash is empty` and `Archive` shows `Nothing archived`. Run `rpmctl shot empty-Trash`.
-- **Large text.** Run `rpmctl display large-text`, open the Inbox, `rpmctl shot inbox-large-text`, then `rpmctl display phone`.
 - **Errors.** Run `rpmctl logs --errors`. Only emulator graphics and Chromium lines appeared.
 
 ## Gotchas

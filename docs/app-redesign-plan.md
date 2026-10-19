@@ -81,7 +81,11 @@ Old names stay as aliases for one release. `.tnum` stays for times.
 - **Steppers (water):** gray pill 96×48 with −/+ 48dp halves split by 1dp; the number in `--title-1 tnum` beside it. Hold repeats every 150ms.
 - **Empty states:** centred 44dp icon `--label-3`, one `--title-3` line, one `--subhead` sentence, one tinted button that does the next thing.
 
-## 4. Large text (200%)
+## 4. Text size: One UI default only
+
+User, 2026-10-19: "no need for 200 percent text size adjustments ... I use the default font size for galaxy one ui, optimize for that". Design and verify at 384dp wide, 100% text. The list below is kept as history and is not built.
+
+### Retired: large text (200%)
 
 sp scales; dp does not.
 - Large title wraps whole words up to 2 lines.
@@ -97,10 +101,10 @@ sp scales; dp does not.
 ## 5. Build order (each step verifiable alone)
 
 1. `theme.css` tokens (colour, type, radius, material) with aliases. Checks: `motion-tokens.test.mjs`, `companion-assets.test.mjs`, `rpmctl sync` + a Today screenshot in light and dark.
-2. Navigation bar + large title, tab bar, right-thumb column. Checks: `max-text-reflow` (nav labels visible), `selectors.test.mjs`.
+2. Navigation bar + large title, tab bar, right-thumb column. Checks: `default-text-fit` (nav labels visible), `selectors.test.mjs`.
 3. Grouped list, buttons, chips, fields, switches, stepper. Checks: `task-swipe.test.mjs`, `habits.test.mjs`, `focused-field-visible`.
-4. Today spine. Checks: `scenario --all`, `plan-add-in-place`, `max-text-reflow` Today, `logs --errors`.
-5. Blocks, Block detail, Inbox, Settings, Habits, Weekly review. Checks: `block-add.test.mjs`, `surface-refresh.test.mjs`, `max-text-reflow` Blocks and Block detail.
-6. Task sheet and attach sheet. Checks: `max-text-reflow` task sheet, `focused-field-visible` quick add.
-7. Capture cards, receipt, question, composer. Checks: `capture-keeps-words`, `capture-lines.test.mjs`, `capture-presentation.test.mjs`, the `raw-error-text` rule, `max-text-reflow` Capture.
+4. Today spine. Checks: `scenario --all`, `plan-add-in-place`, `default-text-fit` Today, `logs --errors`.
+5. Blocks, Block detail, Inbox, Settings, Habits, Weekly review. Checks: `block-add.test.mjs`, `surface-refresh.test.mjs`, `default-text-fit` Blocks and Block detail.
+6. Task sheet and attach sheet. Checks: `default-text-fit` task sheet, `focused-field-visible` quick add.
+7. Capture cards, receipt, question, composer. Checks: `capture-keeps-words`, `capture-lines.test.mjs`, `capture-presentation.test.mjs`, the `raw-error-text` rule, `default-text-fit` Capture.
 8. New AGENTS rule: "Inner radius = outer − inset; sheets 36, groups 20, controls 12", enforced by a token test that reads the radius and padding tokens.
