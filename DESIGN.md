@@ -1,67 +1,44 @@
 ---
 name: RPM
-description: Material 3 in the style of Google's own apps (Tasks, Calendar, Keep, Gmail), one theme for the planner, Capture and the weekly review.
+description: Apple-style grouped surfaces (iOS Settings, Reminders, Calendar) drawn with the app's own font and icons, one theme for the planner, Capture and the weekly review.
 source: android-companion/theme.css
+plan: docs/app-redesign-plan.md
 colors:
-  light-primary: "#0B57D0"
-  light-on-primary: "#FFFFFF"
-  light-primary-container: "#D3E3FD"
-  light-on-primary-container: "#041E49"
-  light-secondary-container: "#C2E7FF"
-  light-on-secondary-container: "#001D35"
-  light-tertiary: "#146C2E"
-  light-tertiary-container: "#C4EED0"
-  light-error: "#B3261E"
-  light-surface: "#FFFFFF"
-  light-on-surface: "#1F1F1F"
-  light-on-surface-variant: "#444746"
-  light-surface-container-low: "#F8FAFD"
-  light-surface-container: "#F0F4F9"
-  light-surface-container-high: "#E9EEF6"
-  light-surface-container-highest: "#DDE3EA"
-  light-outline: "#747775"
-  light-outline-variant: "#C4C7C5"
-  light-must: "#B06000"
-  dark-primary: "#A8C7FA"
-  dark-on-primary: "#062E6F"
-  dark-primary-container: "#0842A0"
-  dark-on-primary-container: "#D3E3FD"
-  dark-secondary-container: "#004A77"
-  dark-on-secondary-container: "#C2E7FF"
-  dark-tertiary: "#6DD58C"
-  dark-tertiary-container: "#0F5223"
-  dark-error: "#F2B8B5"
-  dark-surface: "#131314"
-  dark-on-surface: "#E3E3E3"
-  dark-on-surface-variant: "#C4C7C5"
-  dark-surface-container-low: "#1B1B1B"
-  dark-surface-container: "#1E1F20"
-  dark-surface-container-high: "#282A2C"
-  dark-surface-container-highest: "#333537"
-  dark-outline: "#8E918F"
-  dark-outline-variant: "#444746"
-  dark-must: "#FDD663"
+  bg: "light oklch(96% 0.005 285) / dark oklch(0% 0 none)"
+  bg-elevated: "light oklch(100% 0 none) / dark oklch(22% 0.003 285)"
+  cell: "light oklch(100% 0 none) / dark oklch(22% 0.003 285)"
+  cell-elevated: "light oklch(96% 0.005 285) / dark oklch(30% 0.003 285)"
+  fill: "light black 8% / dark white 12%"
+  label: "light black / dark white"
+  label-2: "light oklch(35% 0.01 285 / .75) / dark white 60%"
+  label-3: "light oklch(35% 0.01 285 / .3) / dark white 30%"
+  separator: "light oklch(35% 0.01 285 / .29) / dark oklch(60% 0.01 285 / .65)"
+  tint: "light oklch(47% 0.19 262) / dark oklch(82% 0.08 262)"
+  success: "light oklch(45% 0.13 150) / dark oklch(80% 0.15 150)"
+  must: "light oklch(55% 0.14 60) / dark oklch(88% 0.14 90)"
+  danger: "light oklch(50% 0.18 27) / dark oklch(82% 0.07 20)"
 typography:
   font: "Google Sans Flex, Google Sans, Roboto, system-ui, sans-serif"
-  headline-medium: {fontSize: "28px", fontWeight: 400, lineHeight: "36px"}
-  headline-small: {fontSize: "24px", fontWeight: 400, lineHeight: "32px"}
-  title-large: {fontSize: "22px", fontWeight: 400, lineHeight: "28px"}
-  title-medium: {fontSize: "16px", fontWeight: 500, lineHeight: "24px"}
-  title-small: {fontSize: "14px", fontWeight: 500, lineHeight: "20px"}
-  body-large: {fontSize: "16px", fontWeight: 400, lineHeight: "24px"}
-  body-medium: {fontSize: "14px", fontWeight: 400, lineHeight: "20px"}
-  label-large: {fontSize: "14px", fontWeight: 500, lineHeight: "20px"}
-  label-medium: {fontSize: "12px", fontWeight: 500, lineHeight: "16px"}
+  large-title: {fontSize: "34px", fontWeight: 600, lineHeight: "41px"}
+  title-1: {fontSize: "28px", fontWeight: 600, lineHeight: "34px"}
+  title-2: {fontSize: "22px", fontWeight: 600, lineHeight: "28px"}
+  title-3: {fontSize: "20px", fontWeight: 500, lineHeight: "25px"}
+  headline: {fontSize: "17px", fontWeight: 600, lineHeight: "22px"}
+  body: {fontSize: "17px", fontWeight: 400, lineHeight: "22px"}
+  callout: {fontSize: "16px", fontWeight: 400, lineHeight: "21px"}
+  subhead: {fontSize: "15px", fontWeight: 400, lineHeight: "20px"}
+  footnote: {fontSize: "13px", fontWeight: 400, lineHeight: "18px"}
+  caption: {fontSize: "12px", fontWeight: 400, lineHeight: "16px"}
 icons: "Material Symbols Rounded, 24dp, outlined by default and filled for selected or set states"
-rounded: {xs: "4px", sm: "8px", md: "12px", lg: "16px", card: "24px", xl: "28px", full: "999px"}
-spacing: {s1: "4px", s2: "8px", s3: "12px", s4: "16px", s6: "24px", s8: "32px", touch: "48px", top-bar: "64px", nav: "80px", fab: "56px"}
+rounded: {sheet: "36px", group: "20px", control: "12px", tile: "8px", pill: "999px"}
+spacing: {s1: "4px", s2: "8px", s3: "12px", s4: "16px", s5: "20px", s6: "24px", s8: "32px", page-inset: "16px", touch: "48px", top-bar: "56px", nav: "64px", fab: "56px"}
 ---
 
 # Design System: RPM
 
 ## Overview
 
-RPM looks and behaves like one of Google's own Material 3 apps. The reference set is Google Tasks (task rows, Must stars), Calendar (Timeline, day chips), Keep (tonal cards) and Gmail (top bar, navigation, snackbars), including how those apps look on iPhone: generous white space, large rounded containers and a calm palette where colour means something.
+RPM looks like an Apple app drawn with its own font and icons: grouped cells on a gray page, large titles that hand off to a centred bar title, a tinted accent and a calm palette where colour means something. The reference set is iOS Settings (grouped rows), Reminders (task rows) and Calendar (the day). The full plan is [docs/app-redesign-plan.md](docs/app-redesign-plan.md); the M3 role names in `theme.css` are aliases kept for one release.
 
 The RPM chain stays visible where the user acts. A task serves a Result, the Result has a Purpose, and its ordered tasks form the Plan. Today's lead card puts the next task under its Result and Purpose, and the weekly review is the main planning ritual.
 
@@ -69,18 +46,16 @@ Everything is built from one file, [android-companion/theme.css](android-compani
 
 ## Colour
 
-- The theme is the GM3 Google blue baseline. Light and dark follow the system, or Settings pins one through `data-appearance="light|dark"` on `<html>`.
-- **Primary** marks the main action on a screen, focus and links (and Today's "Do next" label). **Primary container** is used for the FAB.
-- **Secondary container** marks selection: the navigation pill, selected chips and segmented buttons.
-- **Tertiary** (green) means success: an achieved Result and the celebrate banner (in the weekly review, the Wins card; the Achieved option itself is selected like any other).
-- **Must** (amber, as in Google Tasks) is only used for the Must star.
-- **Error** is for overdue text, destructive actions and failures, and always comes with words.
-- **Surfaces** step from `surface` (the page) through `surface-container-low` to `surface-container-highest`. Depth comes from these tones, not from shadows.
-- **Area hues** (`--area-0` to `--area-7`, Google palette) are the only decorative colour. An Area hue always appears next to the Area name, and `Area.colorIndex` keeps the same hue in both themes.
+- Each colour token holds its light and dark value with `light-dark()`. Light and dark follow the system, or Settings pins one through `data-appearance="light|dark"` on `<html>`.
+- **Page and cells:** `--bg` is the page; lists and cards sit on it as `--cell` groups. Sheets are `--bg-elevated`, and groups inside a sheet use `--cell-elevated`.
+- **Labels:** `--label`, `--label-2` for supporting text (4.5:1 on its cell) and `--label-3` for placeholders. `--separator` draws hairlines inset to the text edge.
+- **Tint** marks the main action, links, the current tab and selection (`--tint-soft` behind a selected chip).
+- **Success** (green) is an achieved Result and a switch that is on. **Must** (amber) is only the Must star. **Danger** is for overdue text, destructive actions and failures, and always comes with words.
+- **Area hues** (`--area-0` to `--area-7`) are the only decorative colour. An Area hue always appears next to the Area name, and `Area.colorIndex` keeps the same hue in both themes.
 
 ## Typography
 
-Google Sans Flex is bundled (OFL, latin subset), with the M3 type scale as `font:` shorthand tokens (`--title-medium`, `--body-large` and so on). Page titles use headline-medium and detail titles headline-small (title-large once collapsed into the top bar), Result titles use title-medium, task names use body-large, and metadata uses body-medium on `on-surface-variant`. Times and durations use tabular figures (`.tnum`). Nothing is smaller than label-small (11/16).
+Google Sans Flex is bundled (OFL, latin subset), with an Apple-style scale as `font:` shorthand tokens. Root pages open with a `--large-title` that scrolls away and hands off to a `--headline` bar title; detail titles use `--title-1`, sheet titles `--title-3`, Result titles `--headline`, task names `--body`, and metadata `--footnote` or `--subhead` in `--label-2`. Section headers are `--footnote` above their group. Times and durations use tabular figures (`.tnum`). Nothing is smaller than `--caption` (12/16).
 
 Design for the user's S24 FE at One UI default text: 384dp wide, 100% font scale. Enlarged text is not a target. Nothing has a fixed text height, so a long title still wraps rather than clipping.
 
@@ -90,17 +65,17 @@ Material Symbols Rounded is bundled as a ligature font: `<span class="ms">add</s
 
 ## Layout
 
-- **Planner:** a 64dp top app bar with a large page title that collapses into the bar on scroll. On detail screens the bar shows the title only once the large title has scrolled fully out, so only one title is ever legible. Below it is an 80dp navigation bar with four destinations (Today, Blocks, Projects, Life), each with an icon and label and a pill indicator on the current one. Every root tab has a right-hand column above the navigation bar, in the right thumb's reach: a 40dp surface-container-high Search button over the 56dp primary-container Add button (Add task on Today, New Block or New Project elsewhere). Both step aside together while the page scrolls down and return on the way back up; they press to 94% and spring back. On today's spine the Now pill sits centred on the Add button's line. The top bar keeps Capture and More options. Detail screens have none, so nothing floats over a Plan row's Must star: Block detail adds from the inline field under its Plan. Pages use 16dp side margins and stop at 720dp wide.
+- **Planner:** a 56dp bar with the page's large title in the content below it; the centred bar title fades in over the last 24dp of the large title's travel, and a hairline appears once the page scrolls. Detail screens have a tint Back chevron with the previous page's name. Below the page is a 64dp tab bar with four destinations (Today, Blocks, Projects, Life), each an icon and caption, the current one in the tint. Every root tab has a right-hand column above the tab bar, in the right thumb's reach: a 40dp Search pill over the 56dp tint Add circle (Add task on Today, New Block or New Project elsewhere). Both step aside together while the page scrolls down and return on the way back up; they press to 97% and spring back. On today's spine the Now pill sits centred on the Add button's line. The top bar keeps Capture and More options. Detail screens have none, so nothing floats over a Plan row's Must star: Block detail adds from the inline field under its Plan. Pages use 16dp side margins and stop at 720dp wide.
 - Detail screens (Block, Project, Goal, Area), Settings, Search and the weekly review are pushed above the four destinations and honour Android Back. The navigation bar is hidden on Settings, Search and the review.
 - **Today:** under the date, a strip of the next seven days starting today (swiping steps a week) marks days holding Results' deadlines with an hourglass (and their count when more than one), days with a calendar clash with the clash mark in the error colour, and other days with tasks with a dot; tapping a day lists that day's deadlines and clash above its agenda. Under the strip, one quiet line says where the week's plan stands and opens the weekly review: this week's Results (only Results the user marked achieved count), or from Friday to Sunday "Week of Oct 5 isn't planned · review 7:30 PM" (the user's own timed "Weekly review" task today, which stays in the agenda at its time). Then one lead card for now, the screen's only filled button. When there is half an hour or more free before the next timed task or busy event, it is **Free 8:00 – 10:00 AM · in 1 h** (or "Free until 10:00 AM" once the gap has started): the nearest deadline (overdue first, then due by the end of the day after tomorrow) whose unscheduled tasks fit, as the header, those tasks, and "Schedule at 8:00 AM", which schedules them back to back into the gap with Undo. Otherwise it is **Do next**: a primary "Do next · in 4 h" label (or "Now · 20 min left"), the Result as a short header (title-medium, then its Purpose on its own quieter line, then one facts line: "Due tomorrow 11:00 PM · in 40 h · 5 tasks left"), then the task itself. With large text the title and Purpose wrap in full and the facts keep the deadline; the countdown, the task count, the free card's task durations and the strip give way so the first row below stays in view, and the week line moves under Coming up. **Coming up · Next 3 days** follows: every other Result due in the next three days and every calendar clash, soonest first, as plain list rows with a neutral leading icon, the headline on its own full-width line, then the supporting lines beside at most one trailing text button. A Result row says "Due tomorrow 11:59 PM · in 41 h" (the one deadline format on Today) over "2 tasks left"; one due by the end of the day after tomorrow with nothing planned before its deadline adds "not scheduled yet" and Add to today (dates its first undated task, with Undo). An overdue Result says so in the error colour. A clash (overlapping events, or a timed task and an event, in the next three days; overlaps join into one row) has "Clash · Mon 9 – 11 AM" with Resolve beside it and one line per item with its time span; a task says "can move", and the task that sets a Result's deadline shows "Due 10:30 AM" in place of its span. Resolve opens a sheet listing the overlapping items, where a task can move to just before the clash or open to change its time, both with Undo (never the deadline task in one tap), and a clash of calendar events only offers one task today to sort it out. The error colour is only for a clash or an overdue Result. Then **Later today**: one time-ordered agenda, as Calendar's schedule, with tasks (their Result on a third line) and calendar events (a tonal fixed block whose text lines up with the task titles) interleaved, the free time between them as one quiet line on a dotted rail ("2 h 30 min free"), and tasks with no time last. The Inbox row with its count ends the page. Every row's text starts at the same 56dp edge. The Timeline is a secondary view of the same day.
 - **Weekly review:** a full-height route with a close button, a 4-segment progress bar, a scrolling body and a pinned footer (Back and one filled Next). See the flow below.
-- **Capture:** a floating panel over whatever app is open, in the style of Google's assistant overlay. It has `surface-container-low`, 28dp corners, light elevation and a drag handle, sits 4dp from the screen edges, and grows upward to fit its content above the keyboard. Expand fills the available height.
+- **Capture:** one floating `--bar` panel over whatever app is open, with 36dp corners, a 36×5 grabber and a shadow, 4dp from the screen edges, growing upward above the keyboard. Cards sit inside it at 16dp with 20dp corners on `--bar-high`; the composer is one 20dp-corner field at the same inset with + and the mic inside it. Expand fills the available height.
 
 Content never nests more than one card level.
 
 ## Shape and elevation
 
-Cards use 24dp corners (`--card-radius`). Sheets and the Capture panel use 28dp, inputs 4dp (outlined fields), and chips 8dp. Buttons, the navigation pill and segmented buttons are full pills. Only floating things cast shadows: the FAB, the Capture panel, menus and the snackbar (`--elev-1`, `--elev-3`). Resting cards are flat and tonal.
+Corners nest: an inner radius is the outer radius minus the inset. Sheets and the Capture panel use 36dp (`--r-sheet`), groups and cards 20dp (`--r-group`), fields and menus 12dp (`--r-control`) and tiles 8dp (`--r-tile`); buttons, chips and the segmented control are pills. `radius-tokens.test.mjs` checks the scale, the Capture nesting, and that every corner of 6px or more uses a token. Only floating things cast a shadow (`--shadow-float`): sheets, the Capture panel, menus, the snackbar and the FABs. Groups and cards are flat.
 
 ## Motion
 

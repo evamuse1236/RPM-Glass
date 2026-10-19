@@ -2,17 +2,15 @@
    Swipe right = Done (tertiary), swipe left = Schedule (primary) or, in the Inbox, Move to Block (secondary).
    The reveal shows from the 8px lock at a tint; at the 90dp commit it fills and its icon grows, both in 40ms. */
 .swipe-reveal {
-  --reveal: var(--primary-container);
-  --on-reveal: var(--on-primary-container);
-  background: color-mix(in oklch, var(--reveal) 45%, var(--swipe-surface, var(--surface)));
-  color: var(--on-reveal);
-  transition: background-color 40ms linear;
+  --reveal: var(--tint);
+  background: color-mix(in oklch, var(--reveal) 18%, var(--swipe-surface, var(--surface)));
+  color: var(--reveal);
+  transition: background-color 40ms linear, color 40ms linear;
 }
 .swipe-reveal[data-side=left] { flex-direction: row-reverse; }
-.swipe-reveal[data-kind=done] { --reveal: var(--tertiary-container); --on-reveal: var(--on-tertiary-container); }
-.swipe-reveal[data-kind=move] { --reveal: var(--secondary-container); --on-reveal: var(--on-secondary-container); }
-.swipe-reveal[data-kind=remove] { --reveal: var(--error-container); --on-reveal: var(--on-error-container); }
-.swipe-task[data-armed=true] .swipe-reveal { background: var(--reveal); }
+.swipe-reveal[data-kind=done] { --reveal: var(--success); }
+.swipe-reveal[data-kind=remove] { --reveal: var(--danger); }
+.swipe-task[data-armed=true] .swipe-reveal { background: var(--reveal); color: var(--on-tint); }
 .swipe-reveal .ms { display: inline-block; transition: none; }
 .swipe-task[data-armed=true] .swipe-reveal .ms { scale: 1.15; }
 @media (prefers-reduced-motion: no-preference) {

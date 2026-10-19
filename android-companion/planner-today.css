@@ -96,12 +96,12 @@
 
 /* A Result group: tonal container with the Result as title and Purpose underneath */
 .result-group {
-  overflow: hidden;
-  margin: var(--s3) var(--gutter) 0;
+  --swipe-surface: var(--cell);
+  overflow: clip;
+  margin: var(--s3) var(--page-inset) 0;
   padding: var(--s1) 0;
-  border-radius: var(--card-radius);
-  background: var(--surface-container-low);
-  border: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
+  border-radius: var(--r-group);
+  background: var(--cell);
 }
 .result-head {
   width: 100%;
@@ -174,7 +174,12 @@ button.result-head:active { background: var(--row-press); }
 .clash-list { margin: 0 calc(-1 * var(--s2)); }
 .clash-item { display: flex; align-items: center; gap: var(--s4); min-height: 56px; padding: var(--s2); }
 .clash-actions { display: flex; flex-wrap: wrap; gap: var(--s2); padding: 0 var(--s2) var(--s2) 48px; }
-.inbox-row { margin-top: var(--s2); }
+.inbox-row {
+  inline-size: auto;
+  margin: var(--s2) var(--page-inset) 0;
+  border-radius: var(--r-group);
+  background: var(--cell);
+}
 .inbox-row .trailing-value { margin-right: calc(-1 * var(--s2)); }
 
 .screen-today .completed-group { margin: var(--s3) var(--gutter) 0; }

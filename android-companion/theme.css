@@ -1,56 +1,94 @@
-/* RPM theme: Material 3 roles in the style of Google's own apps (Google blue baseline).
-   One source of colour, type, shape and motion for the planner, Capture and weekly review.
-   CSS px map to Android dp in the WebView; WebSettings textZoom applies the system font scale.
+/* RPM theme: Apple-style roles (docs/app-redesign-plan.md §2) for the planner, Capture and weekly review.
+   Each colour token holds its light and dark value; color-scheme picks one. Settings pins a theme through
+   data-appearance on <html>. CSS px map to Android dp; WebSettings textZoom applies the system font scale.
+   The M3 role names below the new tokens are aliases kept for one release.
    Native surfaces (widget, settings) mirror these values in res/values/colors.xml and res/values-night/colors.xml. */
 @font-face{font-family:"Google Sans Flex";src:url('/google-sans-flex.woff2') format('woff2');font-weight:100 1000;font-display:block}
 @font-face{font-family:"Material Symbols Rounded";src:url('/material-symbols-rounded.woff2') format('woff2');font-weight:400;font-display:block}
 
+:root{color-scheme:light dark}
+:root[data-appearance=light]{color-scheme:light}
+:root[data-appearance=dark]{color-scheme:dark}
 :root{
-  color-scheme:light;
-  /* colour roles, light */
-  --primary:#0b57d0;--on-primary:#ffffff;--primary-container:#d3e3fd;--on-primary-container:#041e49;
-  --secondary:#00639b;--on-secondary:#ffffff;--secondary-container:#c2e7ff;--on-secondary-container:#001d35;
-  --tertiary:#146c2e;--on-tertiary:#ffffff;--tertiary-container:#c4eed0;--on-tertiary-container:#072711;
-  --error:#b3261e;--on-error:#ffffff;--error-container:#f9dedc;--on-error-container:#410e0b;
-  --surface:#ffffff;--on-surface:#1f1f1f;--on-surface-variant:#444746;
-  --surface-container-lowest:#ffffff;--surface-container-low:#f8fafd;--surface-container:#f0f4f9;
-  --surface-container-high:#e9eef6;--surface-container-highest:#dde3ea;
-  --outline:#747775;--outline-variant:#c4c7c5;
-  --inverse-surface:#303030;--inverse-on-surface:#f2f2f2;--inverse-primary:#a8c7fa;
-  --scrim:rgba(0,0,0,.32);
-  /* product meaning */
-  --must:#b06000;       /* Must star, as in Google Tasks */
-  --now:#0b57d0;        /* the task happening now */
-  --success:#146c2e;
-  /* Area identity: Google palette hues, readable on surface in both themes */
-  --area-0:#1e8e3e;--area-1:#e37400;--area-2:#1a73e8;--area-3:#a142f4;--area-4:#d93025;--area-5:#12b5cb;--area-6:#f538a0;--area-7:#9aa0a6;
+  /* colour */
+  --bg:light-dark(oklch(96% 0.005 285),oklch(0% 0 none));
+  --bg-elevated:light-dark(oklch(100% 0 none),oklch(22% 0.003 285));
+  --cell:light-dark(oklch(100% 0 none),oklch(22% 0.003 285));
+  --cell-elevated:light-dark(oklch(96% 0.005 285),oklch(30% 0.003 285));
+  --fill:light-dark(oklch(0% 0 none / .08),oklch(100% 0 none / .12));
+  --fill-solid:light-dark(oklch(91% 0.004 285),oklch(30% 0.003 285));
+  --fill-solid-2:light-dark(oklch(87% 0.005 285),oklch(36% 0.003 285));
+  --label:light-dark(oklch(0% 0 none),oklch(100% 0 none));
+  --label-2:light-dark(oklch(35% 0.01 285 / .75),oklch(100% 0 none / .6));
+  --label-3:light-dark(oklch(35% 0.01 285 / .3),oklch(100% 0 none / .3));
+  --separator:light-dark(oklch(35% 0.01 285 / .29),oklch(60% 0.01 285 / .65));
+  --tint:light-dark(oklch(47% 0.19 262),oklch(82% 0.08 262));
+  --on-tint:light-dark(oklch(100% 0 none),oklch(10% 0.05 262));
+  --tint-soft:color-mix(in oklch,var(--tint) 15%,transparent);
+  --tint-soft-solid:color-mix(in oklch,var(--tint) 15%,var(--bg-elevated));
+  --success:light-dark(oklch(45% 0.13 150),oklch(80% 0.15 150));
+  --must:light-dark(oklch(55% 0.14 60),oklch(88% 0.14 90));
+  --danger:light-dark(oklch(50% 0.18 27),oklch(82% 0.07 20));
+  --scrim:oklch(0% 0 none / .4);
+  --press:color-mix(in oklch,var(--label) 8%,transparent);
+  /* Area identity: one hue per Area, readable on its surface in both themes */
+  --area-0:light-dark(oklch(56.8% 0.152 148),oklch(77.4% 0.104 152.2));
+  --area-1:light-dark(oklch(67.5% 0.168 54.3),oklch(81.1% 0.121 57.7));
+  --area-2:light-dark(oklch(57.4% 0.195 257.9),oklch(76.6% 0.108 259.8));
+  --area-3:light-dark(oklch(59.6% 0.25 303.9),oklch(81.4% 0.114 308.3));
+  --area-4:light-dark(oklch(57.8% 0.206 29),oklch(74.5% 0.127 25.8));
+  --area-5:light-dark(oklch(70.9% 0.121 210.3),oklch(83.3% 0.095 211.8));
+  --area-6:light-dark(oklch(66% 0.238 352.4),oklch(78.1% 0.158 347.1));
+  --area-7:light-dark(oklch(70.3% 0.011 248),oklch(80.9% 0.008 253.9));
 
-  /* type: Google Sans Flex, M3 scale */
+  /* type: Google Sans Flex. px follow Android text zoom like sp. Nothing under 12. */
   --font:"Google Sans Flex","Google Sans",Roboto,system-ui,sans-serif;
-  --display-small:500 36px/44px var(--font);
-  --headline-medium:400 28px/36px var(--font);
-  --headline-small:400 24px/32px var(--font);
-  --title-large:400 22px/28px var(--font);
-  --title-medium:500 16px/24px var(--font);
-  --title-small:500 14px/20px var(--font);
-  --body-large:400 16px/24px var(--font);
-  --body-medium:400 14px/20px var(--font);
-  --body-small:400 12px/16px var(--font);
-  --label-large:500 14px/20px var(--font);
-  --label-medium:500 12px/16px var(--font);
-  --label-small:500 11px/16px var(--font);
+  --large-title:600 34px/41px var(--font);
+  --title-1:600 28px/34px var(--font);
+  --title-2:600 22px/28px var(--font);
+  --title-3:500 20px/25px var(--font);
+  --headline:600 17px/22px var(--font);
+  --body:400 17px/22px var(--font);
+  --callout:400 16px/21px var(--font);
+  --subhead:400 15px/20px var(--font);
+  --footnote:400 13px/18px var(--font);
+  --caption:400 12px/16px var(--font);
 
-  /* shape */
-  --shape-xs:4px;--shape-sm:8px;--shape-md:12px;--shape-lg:16px;--shape-xl:28px;--shape-full:999px;
-  --card-radius:24px;
+  /* radius: concentric, inner = outer − inset */
+  --r-sheet:36px;--r-group:20px;--r-control:12px;--r-tile:8px;--r-pill:999px;
 
   /* spacing and touch */
   --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--s8:32px;--touch:48px;
   --chip-block:40px;--row-gap:var(--s3);--row-icon:40px;
+  --page-inset:16px;--row-min:48px;--icon-col:28px;--content-max:720px;
 
-  /* elevation (used sparingly: FAB, floating Capture panel, snackbar) */
-  --elev-1:0 1px 2px rgba(0,0,0,.3),0 1px 3px 1px rgba(0,0,0,.15);
-  --elev-3:0 4px 8px 3px rgba(0,0,0,.15),0 1px 3px rgba(0,0,0,.3);
+  /* floating things only: sheets, the Capture panel, menus, the snackbar */
+  --shadow-color:light-dark(oklch(0% 0 none / .16),oklch(0% 0 none / .4));
+  --shadow-float:0 8px 24px var(--shadow-color);
+
+  /* M3 role aliases, kept for one release */
+  --primary:var(--tint);--on-primary:var(--on-tint);
+  --primary-container:var(--tint-soft-solid);--on-primary-container:var(--tint);
+  --secondary:var(--tint);--on-secondary:var(--on-tint);
+  --secondary-container:var(--tint-soft);--on-secondary-container:var(--tint);
+  --tertiary:var(--success);--on-tertiary:var(--on-tint);
+  --tertiary-container:color-mix(in oklch,var(--success) 16%,var(--bg-elevated));--on-tertiary-container:var(--success);
+  --error:var(--danger);--on-error:var(--on-tint);
+  --error-container:color-mix(in oklch,var(--danger) 14%,var(--bg-elevated));--on-error-container:var(--danger);
+  --surface:var(--bg);--on-surface:var(--label);--on-surface-variant:var(--label-2);
+  --surface-container-lowest:var(--cell);--surface-container-low:var(--cell);--surface-container:var(--cell);
+  --surface-container-high:var(--fill-solid);--surface-container-highest:var(--fill-solid-2);
+  --outline:light-dark(oklch(60% 0.01 285),oklch(55% 0.01 285));--outline-variant:var(--separator);
+  --inverse-surface:var(--bg-elevated);--inverse-on-surface:var(--label);--inverse-primary:var(--tint);
+  --now:var(--tint);
+  --display-small:var(--large-title);
+  --headline-medium:var(--large-title);--headline-small:var(--title-1);--title-large:var(--title-2);
+  --title-medium:var(--headline);--title-small:600 15px/20px var(--font);
+  --body-large:var(--body);--body-medium:var(--subhead);--body-small:var(--footnote);
+  --label-large:500 15px/20px var(--font);--label-medium:var(--footnote);--label-small:var(--caption);
+  --shape-xs:4px;--shape-sm:var(--r-tile);--shape-md:var(--r-control);--shape-lg:16px;--shape-xl:var(--r-sheet);--shape-full:var(--r-pill);
+  --card-radius:var(--r-group);
+  --elev-1:var(--shadow-float);--elev-3:var(--shadow-float);
 
   /* motion: M3 tokens (androidx MotionTokens); surface-motion.mjs carries the same values for scripted motion.
      Enter decelerates (emphasized decelerate 350–400ms), exit accelerates (emphasized accelerate 200ms). */
@@ -66,41 +104,12 @@
   --ease-spring:cubic-bezier(.34,1.56,.64,1);
   --dur-press:100ms;--dur-settle:200ms;--dur-morph:350ms;
 
-  /* Capture's dark bar and + sheet (Claude Design, 2026-10-18): dark in both themes, built from the dark roles above */
-  --bar:#171719;--bar-high:#282a2c;--bar-highest:#333537;
-  --bar-on:#e3e3e3;--bar-on-variant:#c4c7c5;--bar-outline:#444746;
-  --bar-accent:#0842a0;--bar-on-accent:#d3e3fd;--bar-primary:#a8c7fa;
-  --bar-error:#f2b8b5;--bar-warn:#fdd663;--bar-success:#6dd58c;
-  --bar-shadow:0 4px 16px rgba(0,0,0,.28),0 1px 3px rgba(0,0,0,.3);
-}
-/* Dark: follows the system unless Settings → Theme pins light or dark (data-appearance on <html>). */
-@media (prefers-color-scheme:dark){:root:not([data-appearance=light]){
-  color-scheme:dark;
-  --primary:#a8c7fa;--on-primary:#062e6f;--primary-container:#0842a0;--on-primary-container:#d3e3fd;
-  --secondary:#7fcfff;--on-secondary:#003355;--secondary-container:#004a77;--on-secondary-container:#c2e7ff;
-  --tertiary:#6dd58c;--on-tertiary:#0a3818;--tertiary-container:#0f5223;--on-tertiary-container:#c4eed0;
-  --error:#f2b8b5;--on-error:#601410;--error-container:#8c1d18;--on-error-container:#f9dedc;
-  --surface:#131314;--on-surface:#e3e3e3;--on-surface-variant:#c4c7c5;
-  --surface-container-lowest:#0e0e0e;--surface-container-low:#1b1b1b;--surface-container:#1e1f20;
-  --surface-container-high:#282a2c;--surface-container-highest:#333537;
-  --outline:#8e918f;--outline-variant:#444746;
-  --inverse-surface:#e3e3e3;--inverse-on-surface:#303030;--inverse-primary:#0b57d0;
-  --must:#fdd663;--now:#a8c7fa;--success:#6dd58c;
-  --area-0:#81c995;--area-1:#fcad70;--area-2:#8ab4f8;--area-3:#d7aefb;--area-4:#f28b82;--area-5:#78d9ec;--area-6:#ff8bcb;--area-7:#bdc1c6;
-}}
-:root[data-appearance=dark]{
-  color-scheme:dark;
-  --primary:#a8c7fa;--on-primary:#062e6f;--primary-container:#0842a0;--on-primary-container:#d3e3fd;
-  --secondary:#7fcfff;--on-secondary:#003355;--secondary-container:#004a77;--on-secondary-container:#c2e7ff;
-  --tertiary:#6dd58c;--on-tertiary:#0a3818;--tertiary-container:#0f5223;--on-tertiary-container:#c4eed0;
-  --error:#f2b8b5;--on-error:#601410;--error-container:#8c1d18;--on-error-container:#f9dedc;
-  --surface:#131314;--on-surface:#e3e3e3;--on-surface-variant:#c4c7c5;
-  --surface-container-lowest:#0e0e0e;--surface-container-low:#1b1b1b;--surface-container:#1e1f20;
-  --surface-container-high:#282a2c;--surface-container-highest:#333537;
-  --outline:#8e918f;--outline-variant:#444746;
-  --inverse-surface:#e3e3e3;--inverse-on-surface:#303030;--inverse-primary:#0b57d0;
-  --must:#fdd663;--now:#a8c7fa;--success:#6dd58c;
-  --area-0:#81c995;--area-1:#fcad70;--area-2:#8ab4f8;--area-3:#d7aefb;--area-4:#f28b82;--area-5:#78d9ec;--area-6:#ff8bcb;--area-7:#bdc1c6;
+  /* Capture's dark bar and + sheet: dark in both themes */
+  --bar:oklch(20.5% 0.004 286);--bar-high:oklch(28.4% 0.005 248);--bar-highest:oklch(32.8% 0.004 248);
+  --bar-on:oklch(91.6% 0 none);--bar-on-variant:oklch(82.7% 0.004 157.2);--bar-outline:oklch(39.5% 0.004 174.3);
+  --bar-accent:oklch(40.9% 0.163 260.6);--bar-on-accent:oklch(91.2% 0.04 260.1);--bar-primary:oklch(82.5% 0.08 260.3);
+  --bar-error:oklch(83.4% 0.068 22);--bar-warn:oklch(88.8% 0.139 90.6);--bar-success:oklch(79.2% 0.143 151.6);
+  --bar-shadow:0 8px 24px oklch(0% 0 none / .4);
 }
 
 /* Base */

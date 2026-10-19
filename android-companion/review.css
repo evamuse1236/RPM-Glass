@@ -3,7 +3,7 @@
 #planner .screen-review .page{padding-bottom:0}
 /* The snackbar clears the pinned footer, whose height changes with its hint line (set by weekly-review.mjs). */
 #planner[data-view=review] ~ #snackbar{bottom:calc(var(--wr-foot,72px) + var(--s2))}
-.wr{position:relative;display:flex;flex-direction:column;height:100%;min-height:0;background:var(--surface);color:var(--on-surface);font:var(--body-medium)}
+.wr{position:relative;display:flex;flex-direction:column;height:100%;min-height:0;background:var(--bg);color:var(--label);font:var(--subhead)}
 .wr h1,.wr h2,.wr h3,.wr p{margin:0}
 .wr ul{margin:0}
 .wr button{-webkit-appearance:none;appearance:none;cursor:pointer;
@@ -15,16 +15,16 @@
 
 /* Top app bar */
 .wr-bar{display:flex;align-items:center;gap:4px;min-height:64px;padding:0 4px}
-.wr-bar-title{flex:1;min-width:0;font:var(--title-large)}
-.wr-bar-count{font:var(--body-medium);color:var(--on-surface-variant);padding-inline:8px 16px;white-space:nowrap}
-.wr-icon-btn{flex:none;width:48px;height:48px;display:grid;place-items:center;border:0;border-radius:50%;background-color:transparent;color:var(--on-surface-variant)}
+.wr-bar-title{flex:1;min-width:0;font:var(--headline)}
+.wr-bar-count{font:var(--subhead);color:var(--label-2);padding-inline:8px 16px;white-space:nowrap}
+.wr-icon-btn{flex:none;width:48px;height:48px;display:grid;place-items:center;border:0;border-radius:50%;background-color:transparent;color:var(--tint)}
 
 /* Segmented progress: 4dp bars, 48dp tall touch areas */
 .wr-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:0 20px}
 .wr-step{position:relative;height:16px;border:0;padding:0;background-color:transparent;display:flex;align-items:center}
 .wr-step::after{content:"";position:absolute;inset:-16px 0}
-.wr-step i{display:block;width:100%;height:4px;border-radius:2px;background:var(--surface-container-highest);transition:background-color var(--dur-medium) var(--ease-standard)}
-.wr-step.on i{background:var(--primary)}
+.wr-step i{display:block;width:100%;height:4px;border-radius:2px;background:var(--fill-solid);transition:background-color var(--dur-medium) var(--ease-standard)}
+.wr-step.on i{background:var(--tint)}
 .wr .wr-step{background-image:none}
 
 /* Body */
@@ -39,35 +39,34 @@
 .wr-section{display:flex;align-items:center;gap:8px;font:var(--title-small);color:var(--on-surface-variant)}
 .wr-section-row .wr-btn-text{margin-right:-12px}
 .wr-section-row .wr-btn-tonal{margin:4px 0}
-.wr-count{min-width:24px;height:24px;padding:0 8px;display:inline-grid;place-items:center;border-radius:var(--shape-full);background:var(--surface-container-highest);color:var(--on-surface);font:var(--label-medium)}
+.wr-count{min-width:24px;height:24px;padding:0 8px;display:inline-grid;place-items:center;border-radius:var(--r-pill);background:var(--fill);color:var(--label);font:var(--footnote);font-weight:500}
 .wr-section-note{font:var(--body-medium);color:var(--on-surface-variant);padding:0 4px;margin-top:-4px!important}
-.wr-quiet{font:var(--body-medium);color:var(--on-surface-variant);padding:4px 4px 8px}
+.wr-quiet{font:var(--subhead);color:var(--label-2);padding:4px 4px 8px}
 .wr-error{font:var(--body-medium);color:var(--on-error-container);background:var(--error-container);border-radius:var(--shape-md);padding:12px 16px}
 
 /* Step 1 tally: "1 of 4 decided · 1 win" */
 .wr-tally{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:0 4px;font:var(--label-large);color:var(--on-surface-variant)}
 
 /* Cards */
-.wr-card{background:var(--surface-container);border-radius:20px;padding:16px}
-.wr-card-title{display:block;font:var(--title-medium);overflow-wrap:anywhere;text-wrap:pretty}
-.wr-card-purpose{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font:var(--body-medium);color:var(--on-surface-variant);margin-top:2px!important;text-wrap:pretty}
-.wr-card-note{font:var(--body-small);color:var(--on-surface-variant);margin-top:12px!important}
+.wr-card{background:var(--cell);border-radius:var(--r-group);padding:16px}
+.wr-card-title{display:block;font:var(--headline);overflow-wrap:anywhere;text-wrap:pretty}
+.wr-card-purpose{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font:var(--subhead);color:var(--label-2);margin-top:2px!important;text-wrap:pretty}
+.wr-card-note{font:var(--footnote);color:var(--label-2);margin-top:12px!important}
 
 /* Step 1: a judged Result. Only the chosen segment carries colour; the Wins card is the one celebration. */
 .wr-progress-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:10px 0 12px}
-.wr-mini-bar{flex:none;width:56px;height:4px;border-radius:2px;background:var(--surface-container-highest);overflow:hidden}
-.wr-mini-bar>span{display:block;height:100%;background:var(--primary);transform-origin:left;transform:scaleX(var(--value,0))}
-.wr-progress-text{font:var(--body-small);color:var(--on-surface-variant)}
-.wr-ask{margin:-4px 0 12px!important;font:var(--body-medium);color:var(--on-surface-variant);text-wrap:pretty}
-/* Segmented buttons (M3): one decision per row. Every selected option looks the same: secondary container, a check, the label. */
-.wr-seg{display:grid;grid-auto-columns:1fr;grid-auto-flow:column;border:1px solid var(--outline);border-radius:var(--shape-full);overflow:hidden}
-.wr-seg-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:0;min-height:40px;padding:0 10px;border:0;background-color:transparent;color:var(--on-surface);font:var(--label-large)}
-.wr-seg-btn+.wr-seg-btn{border-left:1px solid var(--outline)}
+.wr-mini-bar{flex:none;width:56px;height:4px;border-radius:2px;background:var(--fill-solid);overflow:hidden}
+.wr-mini-bar>span{display:block;height:100%;background:var(--tint);transform-origin:left;transform:scaleX(var(--value,0))}
+.wr-progress-text{font:var(--footnote);color:var(--label-2)}
+.wr-ask{margin:-4px 0 12px!important;font:var(--subhead);color:var(--label-2);text-wrap:pretty}
+/* Segmented control: one decision per row. The chosen segment is a raised pill with a check. */
+.wr-seg{display:grid;grid-auto-columns:1fr;grid-auto-flow:column;padding:2px;border-radius:var(--r-pill);background:var(--fill)}
+.wr-seg-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:0;min-height:36px;padding:0 10px;border:0;border-radius:var(--r-pill);background-color:transparent;color:var(--label);font:var(--subhead);font-weight:500}
 .wr-seg-btn .wr-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wr-seg-btn .ms{font-size:18px;margin-left:-2px}
-.wr-seg-btn.sel{background-color:var(--secondary-container);color:var(--on-secondary-container)}
+.wr-seg-btn.sel{background-color:light-dark(oklch(100% 0 none),oklch(40% 0.003 285));color:var(--label);box-shadow:0 1px 3px var(--shadow-color)}
 .wr-seg.sm{flex:none;margin-left:auto}
-.wr-seg.sm .wr-seg-btn{min-height:32px;padding:0 12px}
+.wr-seg.sm .wr-seg-btn{min-height:28px;padding:0 12px}
 .wr-seg.sm .wr-seg-btn::after{content:"";position:absolute;inset:-8px 0}
 
 /* A checkbox that puts a Result in this week's Results: Carry (step 1) and Pick (step 4) look and work the same */
@@ -78,7 +77,7 @@
 .wr-check-row>.ms{flex:none;width:40px;text-align:center;color:var(--on-surface-variant)}
 
 /* Step 1: Results still running (deadline ahead), one checkbox row each */
-.wr-running>li+li{border-top:1px solid var(--outline-variant)}
+.wr-running>li+li{border-top:1px solid var(--separator)}
 .wr .wr-run{align-items:center;width:100%;min-height:64px;margin:0;padding:8px 16px 8px 8px;border-radius:0;font:var(--body-large)}
 .wr-run-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .wr-run-title{font:var(--body-large);overflow-wrap:anywhere;text-wrap:pretty}
@@ -97,53 +96,51 @@
 
 /* Evidence and form fields: outlined text field */
 .wr-field{display:flex;flex-direction:column;gap:4px;margin-top:16px}
-.wr-field-label{font:var(--label-medium);color:var(--on-surface-variant);padding-left:4px}
-.wr-input{width:100%;min-height:48px;border:1px solid var(--outline);border-radius:var(--shape-sm);background:transparent;padding:10px 14px;font:var(--body-large);color:var(--on-surface)}
-.wr-input::placeholder{color:var(--on-surface-variant);opacity:.8}
-.wr-input:focus{outline:none;border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
+.wr-field-label{font:var(--footnote);color:var(--label-2);padding-inline-start:4px}
+.wr-input{width:100%;min-height:48px;border:0;border-radius:var(--r-control);background:var(--fill);padding:10px 14px;font:var(--body);color:var(--label)}
+.wr-input::placeholder{color:var(--label-3);opacity:1}
+.wr-input:focus-visible{outline:2px solid var(--tint);outline-offset:0}
 
 /* Unfinished tasks with Carry / Defer / Drop */
-.wr-left{margin-top:12px;padding-top:4px;border-top:1px solid var(--outline-variant)}
-.wr-left-head{font:var(--label-medium);color:var(--on-surface-variant);padding:8px 0 0}
+.wr-left{margin-top:12px;padding-top:4px;border-top:1px solid var(--separator)}
+.wr-left-head{font:var(--footnote);color:var(--label-2);padding:8px 0 0}
 .wr-left-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-height:48px;padding:4px 0}
-.wr-left-title{flex:1 1 120px;min-width:0;font:var(--body-medium);overflow-wrap:anywhere}
-.wr-left-title.dropped{color:var(--on-surface-variant);text-decoration:line-through}
+.wr-left-title{flex:1 1 120px;min-width:0;font:var(--subhead);overflow-wrap:anywhere}
+.wr-left-title.dropped{color:var(--label-2);text-decoration:line-through}
 
-/* Chips (M3 filter chips: 32dp, 8dp corners, 48dp touch area) */
-.wr-chip{position:relative;flex:none;display:inline-flex;align-items:center;gap:6px;min-height:32px;max-width:240px;padding:0 12px;border:1px solid var(--outline-variant);border-radius:var(--shape-sm);background-color:transparent;color:var(--on-surface-variant);font:var(--label-large)}
-.wr-chip::after{content:"";position:absolute;inset:-8px -3px}
+.wr-chip{position:relative;flex:none;display:inline-flex;align-items:center;gap:6px;min-height:40px;max-width:100%;padding:8px 16px;border:0;border-radius:var(--r-pill);background-color:var(--fill);color:var(--label);font:var(--subhead);font-weight:500}
 .wr-chip .ms{font-size:18px;margin-left:-4px}
-.wr-chip .wr-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.wr-chip.sel{background-color:var(--secondary-container);border-color:var(--secondary-container);color:var(--on-secondary-container)}
+.wr-chip .wr-label{min-width:0;overflow-wrap:anywhere}
+.wr-chip.sel{background-color:var(--tint-soft);color:var(--tint)}
 
 /* Wins summary */
-.wr-wins{background:var(--tertiary-container);color:var(--on-tertiary-container);border-radius:20px;padding:16px}
+.wr-wins{background:var(--tertiary-container);color:var(--on-tertiary-container);border-radius:var(--r-group);padding:16px}
 .wr-wins-head{display:flex;align-items:center;gap:10px}
 .wr-wins-head h3{font:var(--title-medium)}
 .wr-wins-list{list-style:none;padding:8px 0 0}
 .wr-wins-list li{display:flex;align-items:flex-start;gap:10px;padding:4px 0;font:var(--body-medium)}
 .wr-wins-list .ms{font-size:18px;margin-top:1px}
-.wr-wins-note{font:var(--body-small);margin-top:6px!important}
+.wr-wins-note{font:var(--footnote);margin-top:6px!important}
 
 /* Step 2: inline quick add and the Inbox list */
-.wr-add{display:flex;align-items:center;gap:4px;min-height:56px;padding:0 4px 0 16px;border-radius:var(--shape-full);background:var(--surface-container-high);color:var(--on-surface-variant)}
-.wr-add:focus-within{box-shadow:inset 0 0 0 2px var(--primary)}
-.wr-add-input{flex:1;min-width:0;min-height:48px;border:0;background:transparent;font:var(--body-large);color:var(--on-surface);padding:0 4px}
+.wr-add{display:flex;align-items:center;gap:4px;min-height:56px;padding:0 4px 0 16px;border-radius:var(--r-pill);background:var(--cell);color:var(--label-2)}
+.wr-add:focus-within{box-shadow:inset 0 0 0 2px var(--tint)}
+.wr-add-input{flex:1;min-width:0;min-height:48px;border:0;background:transparent;font:var(--body);color:var(--label);padding:0 4px}
 .wr-add-input:focus{outline:none}
-.wr-add-input::placeholder{color:var(--on-surface-variant)}
-.wr .wr-add-send{background-color:var(--primary);color:var(--on-primary);width:40px;height:40px;margin:4px}
-.wr .wr-add-send:disabled{background-color:transparent;color:var(--on-surface-variant);opacity:.6}
+.wr-add-input::placeholder{color:var(--label-3)}
+.wr .wr-add-send{background-color:var(--tint);color:var(--on-tint);width:40px;height:40px;margin:4px}
+.wr .wr-add-send:disabled{background-color:transparent;color:var(--label-3);opacity:1}
 .wr-lens-head{font:var(--label-medium);color:var(--on-surface-variant);padding:4px 4px 0}
 .wr-lenses{display:flex;flex-wrap:wrap;gap:8px;padding:0 4px;margin-top:-4px}
 .wr-lens .area-dot{width:8px;height:8px}
-.wr .wr-lens{border-radius:var(--shape-full);background-color:var(--surface-container-low);border-color:var(--outline-variant);color:var(--on-surface)}
-.wr-list{list-style:none;margin:0;padding:4px 0;background:var(--surface-container);border-radius:20px}
+.wr .wr-lens{border-radius:var(--r-pill);background-color:var(--fill);border-color:transparent;color:var(--label)}
+.wr-list{list-style:none;margin:0;padding:0;background:var(--cell);border-radius:var(--r-group);overflow:clip}
 .wr-list-item{position:relative;display:flex;align-items:stretch;min-height:52px;font:var(--body-large);--swipe-offset:0px}
-.wr-list-item+.wr-list-item{border-top:1px solid var(--outline-variant)}
-.wr .wr-list-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;min-height:52px;padding:10px 16px;border:0;border-radius:0;background-color:var(--surface-container);color:var(--on-surface);font:inherit;text-align:left}
-.wr-list-item:first-child .wr-list-text{border-radius:20px 20px 0 0}
-.wr-list-item:last-child .wr-list-text{border-radius:0 0 20px 20px}
-.wr-list-item:only-child .wr-list-text{border-radius:20px}
+.wr-list-item+.wr-list-item{border-top:1px solid var(--separator)}
+.wr .wr-list-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;min-height:52px;padding:10px 16px;border:0;border-radius:0;background-color:var(--cell);color:var(--label);font:inherit;text-align:start}
+.wr-list-item:first-child .wr-list-text{border-radius:var(--r-group) var(--r-group) 0 0}
+.wr-list-item:last-child .wr-list-text{border-radius:0 0 var(--r-group) var(--r-group)}
+.wr-list-item:only-child .wr-list-text{border-radius:var(--r-group)}
 .wr-hint{font:var(--body-small)}
 .wr-list-title{min-width:0;overflow-wrap:anywhere;text-wrap:pretty}
 .wr-nowrap{white-space:nowrap}
@@ -154,7 +151,7 @@
 
 /* Step 3: one row per Inbox task, a suggested Result chip under its words and Choose at the end */
 .wr-sort{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:0 4px;min-height:56px;padding:8px 4px 8px 16px}
-.wr-sort+.wr-sort{border-top:1px solid var(--outline-variant)}
+.wr-sort+.wr-sort{border-top:1px solid var(--separator)}
 .wr-sort>.wr-row-title{padding:8px 0}
 .wr-sort>.wr-suggest{grid-column:1/-1;justify-self:start;margin:0 8px 8px -4px}
 .wr-row-title{flex:1;min-width:0;overflow-wrap:anywhere;font:var(--body-large);text-wrap:pretty}
@@ -167,22 +164,22 @@
 .wr-row.sub>.ms{font-size:18px;color:var(--on-surface-variant);margin-right:8px}
 .wr-row.sub .wr-row-title{font:var(--body-medium);padding:6px 0}
 .wr-formed-head{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 16px 4px}
-.wr-row.sub+.wr-formed-head{border-top:1px solid var(--outline-variant);margin-top:4px}
+.wr-row.sub+.wr-formed-head{border-top:1px solid var(--separator);margin-top:4px}
 .wr-target-title{font:var(--title-small);overflow-wrap:anywhere}
 .wr-target-purpose{font:var(--body-small);color:var(--on-surface-variant);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1;overflow:hidden}
 
 /* Step 3: the bottom sheet that chooses a task's Result */
 .wr-layer{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:flex-end}
-.wr-scrim{position:absolute;inset:0;background:var(--scrim);opacity:.32}
-.wr-sheet{position:relative;max-height:min(80%,640px);overflow-y:auto;overscroll-behavior:contain;padding:0 16px 24px;border-radius:28px 28px 0 0;background:var(--surface-container-low);box-shadow:var(--elev-3);animation:wr-up var(--dur-medium3) var(--ease-emphasized-decelerate) both}
+.wr-scrim{position:absolute;inset:0;background:var(--scrim)}
+.wr-sheet{position:relative;max-height:min(80%,640px);overflow-y:auto;overscroll-behavior:contain;padding:0 16px 24px;border-radius:var(--r-sheet) var(--r-sheet) 0 0;background:var(--bg);box-shadow:var(--shadow-float);animation:wr-up var(--dur-medium3) var(--ease-emphasized-decelerate) both}
 /* The sheet rises from the bottom edge and its scrim fades with it, once: re-renders while it is open don't replay it. */
 .wr-scrim{animation:wr-scrim var(--dur-medium3) var(--ease-emphasized-decelerate) both}
 @keyframes wr-up{from{transform:translateY(100%)}to{transform:none}}
 @keyframes wr-scrim{from{opacity:0}}
 .wr-layer.static .wr-sheet,.wr-layer.static .wr-scrim{animation:none}
 :root[data-reduce-motion=true] .wr-sheet,:root[data-reduce-motion=true] .wr-scrim{animation:none}
-.wr-handle{width:32px;height:4px;border-radius:2px;background:var(--outline);opacity:.4;margin:16px auto 12px}
-.wr-sheet-title{font:var(--title-large);padding:4px 8px 0}
+.wr-handle{width:36px;height:5px;border-radius:2.5px;background:var(--label-3);margin:8px auto 12px}
+.wr-sheet-title{font:var(--title-3);padding:4px 8px 0}
 .wr-sheet-title:focus{outline:none}
 .wr-sheet-sub{font:var(--body-medium);color:var(--on-surface-variant);padding:2px 8px 8px;text-wrap:pretty}
 .wr-picker{display:flex;flex-direction:column}

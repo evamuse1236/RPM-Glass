@@ -8,7 +8,7 @@
 .menu-scrim { background: transparent; z-index: 49; }
 .sheet-scrim.leaving { pointer-events: none; }
 .sheet {
-  --sheet-bg: var(--surface-container-low);
+  --sheet-bg: var(--bg-elevated);
   position: fixed;
   z-index: 30;
   left: 0;
@@ -20,9 +20,10 @@
   display: flex;
   flex-direction: column;
   background: var(--sheet-bg);
-  color: var(--on-surface);
-  border-radius: var(--shape-xl) var(--shape-xl) 0 0;
-  box-shadow: var(--elev-1);
+  color: var(--label);
+  border-start-start-radius: var(--r-sheet);
+  border-start-end-radius: var(--r-sheet);
+  box-shadow: var(--shadow-float);
   transform-origin: 50% 100%;
 }
 .sheet.expanded { height: 92%; }
@@ -45,7 +46,7 @@
 .sheet-header { touch-action: none; }
 .sheet-handle {
   flex: none;
-  height: 22px;
+  height: 21px;
   display: grid;
   place-items: center;
   touch-action: none;
@@ -54,15 +55,15 @@
 }
 /* The handle's grab area is 48dp tall, wider than the pill. */
 .sheet-handle::after { content: ""; position: absolute; inset: -4px 30% -22px; }
-.sheet-handle::before { content: ""; width: 32px; height: 4px; border-radius: 2px; background: var(--on-surface-variant); opacity: .4; }
-.sheet-header { flex: none; display: flex; align-items: center; gap: var(--s1); padding: 0 var(--s2) 0 var(--s6); }
-.sheet-header h2 { flex: 1; min-width: 0; font: var(--title-large); }
+.sheet-handle::before { content: ""; width: 36px; height: 5px; border-radius: 2.5px; background: var(--label-3); }
+.sheet-header { flex: none; display: flex; align-items: center; gap: var(--s1); padding: 0 var(--s2) 0 var(--s5); }
+.sheet-header h2 { flex: 1; min-width: 0; font: var(--title-3); font-weight: 600; }
 .sheet-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: var(--s2) var(--s6) var(--s4);
+  padding: var(--s2) var(--page-inset) var(--s4);
 }
 .sheet-actions {
   flex: none;
@@ -74,13 +75,33 @@
   padding: var(--s2) var(--s4) calc(var(--s3) + env(safe-area-inset-bottom));
 }
 .sheet-actions:empty { display: none; }
-.sheet-note { font: var(--body-medium); color: var(--on-surface-variant); margin: 0 0 var(--s3); }
-.sheet-lead { font: var(--title-medium); margin: 0 0 var(--s2); overflow-wrap: anywhere; }
-.sheet-error { font: var(--body-medium); color: var(--error); }
+.sheet-note { font: var(--footnote); color: var(--label-2); margin: 0 var(--s1) var(--s3); }
+.sheet-lead { font: var(--headline); margin: 0 0 var(--s2); overflow-wrap: anywhere; }
+.sheet-error { font: var(--footnote); color: var(--danger); }
 .sheet-error:empty { display: none; }
 .discard-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); width: 100%; justify-content: flex-end; }
 .discard-controls p { flex: 1 1 auto; font: var(--body-large); }
-.sheet .task-row { margin: 0 calc(-1 * var(--s4)); }
+.sheet .task-row { margin: 0 calc(-1 * var(--s2)); }
+.sheet-body > .task-row {
+  --swipe-surface: var(--cell-elevated);
+  margin: 0;
+  background-color: var(--cell-elevated);
+}
+.sheet-body > :not(.task-row) + .task-row, .sheet-body > .task-row:first-child {
+  margin-block-start: var(--s3);
+  border-start-start-radius: var(--r-group);
+  border-start-end-radius: var(--r-group);
+}
+.sheet-body > .task-row:not(:has(+ .task-row)) {
+  border-end-start-radius: var(--r-group);
+  border-end-end-radius: var(--r-group);
+}
+.sheet-body > .task-row + .task-row {
+  background-image: linear-gradient(var(--separator), var(--separator));
+  background-size: calc(100% - 56px) 1px;
+  background-position: 100% 0;
+  background-repeat: no-repeat;
+}
 .sheet-dialog .sheet-body { padding-bottom: var(--s2); }
 
 .detail-title {

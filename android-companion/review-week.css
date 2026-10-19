@@ -8,7 +8,7 @@
 .wr-btn-tonal .ms{margin-left:-4px}
 
 /* Step 4: the week at a glance (strip, one summary line that opens per Result), what to look at, then Result cards */
-.wr-summary{border:1px solid var(--outline-variant);border-radius:20px;padding:6px 16px 4px}
+.wr-summary{border:1px solid var(--separator);border-radius:var(--r-group);padding:6px 16px 4px}
 .wr-summary-line{font:var(--body-medium);color:var(--on-surface-variant);padding:4px 0 12px}
 .wr-summary-note{font:var(--body-small);color:var(--on-surface-variant);padding:0 0 12px}
 .wr-summary-warn{color:var(--error)}
@@ -127,7 +127,7 @@
 :root[data-large-text=true] .wr-title{font:var(--title-large)}
 :root[data-large-text=true] .wr-result-more{padding-left:16px}
 :root[data-large-text=true] .wr-seg.sm{margin-left:0}
-:root[data-large-text=true] .wr-verdicts{grid-auto-flow:row;border-radius:20px}
+:root[data-large-text=true] .wr-verdicts{grid-auto-flow:row;border-radius:var(--r-group)}
 :root[data-large-text=true] .wr-verdicts .wr-seg-btn+.wr-seg-btn{border-left:0;border-top:1px solid var(--outline)}
 :root[data-large-text=true] .wr-seg.sm{flex-basis:100%}
 :root[data-large-text=true] .wr-strip{display:none}

@@ -1,12 +1,17 @@
-.habit-list { display: flex; flex-direction: column; margin-inline: calc(-1 * var(--s2)); }
+.habit-list { display: flex; flex-direction: column; border-radius: var(--r-group); background: var(--cell-elevated); overflow: clip; }
 .habit-row {
   position: relative;
   display: flex;
   align-items: center;
   gap: var(--s2);
   min-block-size: 56px;
-  padding-inline: var(--s2);
-  border-radius: var(--shape-md);
+  padding-inline: var(--s3) var(--s2);
+}
+.habit-row + .habit-row {
+  background-image: linear-gradient(var(--separator), var(--separator));
+  background-size: calc(100% - 52px) 1px;
+  background-position: 100% 0;
+  background-repeat: no-repeat;
 }
 .habit-icon { inline-size: calc(var(--row-icon) - var(--s2)); font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
 .habit-copy { flex: 1; min-inline-size: 0; display: flex; flex-direction: column; padding-block: var(--s2); }
@@ -16,7 +21,7 @@
 .habit-chevron { font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
 .switch-btn.habit-switch { position: relative; z-index: 1; inline-size: auto; flex: none; }
 .switch-btn.habit-switch .switch-label { display: none; }
-.habit-row:has(.habit-open:active) { background: var(--row-press); }
+.habit-row:has(.habit-open:active) { background-color: var(--press); }
 .habit-row:has(.habit-open:focus-visible) { outline: 2px solid var(--primary); outline-offset: -2px; }
 .sheet-choice.habits .sheet-actions { justify-content: flex-start; }
 

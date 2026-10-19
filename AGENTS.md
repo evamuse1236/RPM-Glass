@@ -58,6 +58,7 @@ For an authorized phone release, compare the working tree, branch, and installed
 | No page shows a scrollbar. | `android-companion/companion-assets.test.mjs` |
 | Task rows swipe right to complete and left to schedule (Move in the Inbox); a drag locks to one axis after 8px; Delete is never a swipe. | `android-companion/task-swipe.test.mjs` |
 | Motion tokens in `theme.css` match `motion-core.mjs`. | `android-companion/motion-tokens.test.mjs` |
+| Corners nest: an inner radius is the outer radius minus the inset. Sheets and the Capture panel are 36, groups and cards 20, controls 12, tiles 8; every corner of 6px or more uses a radius token. | `android-companion/radius-tokens.test.mjs` |
 | A Block's add field finds Inbox tasks by word starts and pulls one in; Enter alone creates. | `android-companion/block-add.test.mjs`, `rpmctl scenario plan-add-in-place` |
 | The task sheet's Time row is every half hour from 6:00 AM to 11:00 PM plus the task's own off-grid time; its Day row is Today, Tomorrow and five weekdays. | `android-companion/habits.test.mjs` |
 | With no saved meal plan, meals sit at 8:30 AM, 1 PM and 8 PM; a meal turned off leaves Today but its logged meal stays. Water steppers keep 1–20 glasses and 15–240 minutes. | `android-companion/habits.test.mjs` |
