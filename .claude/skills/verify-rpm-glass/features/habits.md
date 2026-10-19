@@ -36,7 +36,6 @@ Preconditions:
 - **Long press.** Close the sheet. Run `rpmctl tap --long --role button --name "Open water"`. The dialog `Edit water` opens without the water sheet first. A long press on a meal row opens `Edit <meal>`, on a routine card `Edit routine`.
 - **Edit buttons.** Tap the water row: the `Water` sheet header has `Edit water` (icon `tune`) and no `More options`. Tap the routine card: its header has `Edit Morning routine` beside `More options` (which keeps `Skip today`). Tap a meal's `Log it`: the `Log a meal` header has `Edit meals`, which opens the editor for the chosen meal with a `Back to Log a meal` arrow. Each opens its editor in one tap.
 - **Fresh install.** With no `mealPlan` saved, Today shows Breakfast 8:30 AM, Lunch 1:00 PM and Dinner 8:00 PM (the defaults).
-- **Large text.** Run `rpmctl display large-text` and `max-text`, open `Habits` and `Edit water`, and shoot each. Stepper labels sit on their own line with the stepper under them on the right; `From` and `Until` stack; list summaries wrap under the name. Run `rpmctl display phone`.
 - **Errors.** Run `rpmctl logs --errors`.
 
 ## Gotchas

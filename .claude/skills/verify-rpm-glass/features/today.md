@@ -53,7 +53,6 @@ Preconditions:
 - **Now button.** Scroll up to the morning. A floating button `Go to now` appears; tapping it scrolls back to now.
 - **Layout.** In More options choose `Show list`. Today switches to the list layout; the menu then offers `Show day`.
 - **Empty day.** Open a day with nothing planned, for example Thursday October 29 through the date picker and the week strip (October 28 is not empty because of the weekly task). The screen shows `Nothing planned for this day`, `Start with a Result that matters, then choose its first task.`, and buttons `Plan a Block` and `Add a task`.
-- **Large text.** Run `rpmctl display large-text`, `rpmctl shot today-large-text`, `rpmctl display max-text`, `rpmctl shot today-max-text`, then `rpmctl display phone`. Check that the week strip, the lead card text and the bottom nav labels do not clip or overlap.
 - **Swipe days.** Swiping the page sideways to change the day is **UNVERIFIED**. The page has no sideways swipe target in the accessibility tree to aim at. Use the week strip as the verified alternative.
 - **Errors.** Run `rpmctl logs --errors`. The Chromium and graphics lines (`page_load_metrics`, `MESA`, `ashmem`) are emulator noise, not page errors.
 

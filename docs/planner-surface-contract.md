@@ -97,13 +97,13 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 
 - CSS pixels map to Android dp; WebView text zoom follows the effective phone font scale. Capture refreshes its large-text layout when phone status changes. No text role is smaller than 12px before scaling.
 - Every interactive target is at least 48 × 48dp; visible icons may remain 24dp.
-- Content reflows at 200%. Remove lower-value metadata before shrinking or clipping a title. Bottom navigation labels remain visible.
+- Content fits the S24 FE at One UI default text (384dp, 100%); enlarged text is not a target (user, 2026-10-19). Remove lower-value metadata before shrinking or clipping a title. Bottom navigation labels remain visible.
 - Status never depends on color alone: overdue includes a word, Must uses a star, completion uses a check, and Area color appears with readable context.
 - Honor system bars, display cutouts, the actual IME, predictive Back, locale date formatting, and Remove animations.
 - The desktop browser and native home widget retain their separate design and delivery boundaries. The historical pixel-garden and Frosted Night layouts are not fallback styles; current Capture authority is the scoped token system and accepted Capture contract.
 
 ## Finish boundary
 
-Implementation is not release. Verify source tests, Android build and lint, generated-asset parity, emulator journeys, dark/light themes, normal/200% text, details, Capture, keyboard, Timeline edge cases, migration on a copy, and data restoration. Record emulator evidence separately from physical-phone, TalkBack, live AI, live speech, audible-alert, install, publication, and external-integration status.
+Implementation is not release. Verify source tests, Android build and lint, generated-asset parity, emulator journeys, dark/light themes, One UI default text, details, Capture, keyboard, Timeline edge cases, migration on a copy, and data restoration. Record emulator evidence separately from physical-phone, TalkBack, live AI, live speech, audible-alert, install, publication, and external-integration status.
 
 Current evidence and remaining limits are in [ux-2026-09-26/verification.md](ux-2026-09-26/verification.md).

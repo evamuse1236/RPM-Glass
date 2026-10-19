@@ -48,7 +48,6 @@ Preconditions:
 - **Finish with none.** With nothing picked the button reads `Finish review` and the snackbar reads `Weekly review finished`.
 - **Close mid-way.** Run `rpmctl tap --role button --name "Close review"` on any step. Today returns. Reopening the review returns to the same step with the same picks (unconfirmed).
 - **Calendar parts.** Sections such as `This week at a glance`, `Calendar clashes` and `Which event stays` need calendar data. The emulator has none, so they are **UNVERIFIED**.
-- **Large text.** Run `rpmctl display large-text`, repeat steps 1 and 4 with `rpmctl shot review-step1-large-text`, then `rpmctl display max-text`, then `rpmctl display phone`. The footer shows a short `Next` or `Finish` label when the long label does not fit; the aria name stays long.
 - **Errors.** Run `rpmctl logs --errors`.
 
 ## Gotchas

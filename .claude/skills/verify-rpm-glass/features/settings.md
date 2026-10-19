@@ -50,7 +50,6 @@ Preconditions:
 - **Diagnostics.** The group shows a note and a row `Connect diagnostics` with `Not connected`. Tapping it opens a native dialog `Connect diagnostics` asking for a 32-character code. Cancel it. Pairing is **UNVERIFIED** (needs a code from the owner's database).
 - **About.** The group shows `RPM · Result, Purpose, Plan`, `Capture saves your words and asks before adding tasks or blocks.` and a disclosure `Automation previews`.
 - **Back.** Run `rpmctl tap --role button --name "Back"` or `rpmctl key back`. The previous screen returns. If the alarm preview is playing it stops.
-- **Large text.** Run `rpmctl display large-text`, open Settings, `rpmctl shot settings-large-text`, then `rpmctl display max-text`, scroll through all groups with `rpmctl scroll down` and shoot each, then `rpmctl display phone`. Row labels, details and values must wrap without overlapping the switch or the value.
 - **Errors.** Run `rpmctl logs --errors`.
 
 ## Gotchas

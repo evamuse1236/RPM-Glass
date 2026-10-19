@@ -1,6 +1,6 @@
 ---
 name: verify-rpm-glass
-description: Drive the real RPM Android app (com.rpm.prototype, Capture sheet + Planner WebViews + native widget/settings) on an S24 FE-sized emulator and capture proof. Use before saying any app change is done, to reproduce a reported bug, to screenshot a screen at phone size or enlarged text, or to read what the app actually saved. Ships the `rpmctl` CLI (launch, doctor, seed, open, ui, tap, type, key, scroll, wait, display, shot, eval, state, logs, scenario, check, cleanup).
+description: Drive the real RPM Android app (com.rpm.prototype, Capture sheet + Planner WebViews + native widget/settings) on an S24 FE-sized emulator and capture proof. Use before saying any app change is done, to reproduce a reported bug, to screenshot a screen at the phone's One UI default size, or to read what the app actually saved. Ships the `rpmctl` CLI (launch, doctor, seed, open, ui, tap, type, key, scroll, wait, display, shot, eval, state, logs, scenario, check, cleanup).
 ---
 
 # Verify RPM on a real Android build
@@ -61,7 +61,7 @@ $RPMCTL state files/companion.json            # what the app actually saved
 
 - `tap` finds the element in the visible WebView by exact accessible name (then substring), scrolls it into view if needed, and taps its centre with `adb shell input tap`. Ambiguous names fail and list candidates; add `--role` or `--nth`. Native views (system dialogs, permission prompts, legacy screens) use `--native "Text"`.
 - `type` commits text to the focused field like an IME (`--adb` for raw key events, ASCII only).
-- `display large-text|max-text|landscape|wide|phone` changes the emulator's text scale or size. Check every changed screen at `phone` and `large-text`; use `max-text` when the change touches layout that can wrap.
+- `display landscape|wide|phone` changes the emulator's size. `phone` is the user's S24 FE at One UI default text (384dp wide, density 450, 100% text). Check every changed screen at `phone`. Larger text sizes are not a target.
 - `open widget-capture|widget-voice` sends the intents the home-screen widget's pill and mic send. The widget's planner icon and `PlannerActivity` are not exported, so the planner is only reachable through the app's own UI.
 - `eval` is for reading page state. Drive with `tap`/`type`/`key` so the proof follows the user's path.
 
@@ -76,7 +76,7 @@ Proof standards:
 - Exercise the user's path: launcher or widget intent, then taps and typing. No internal setters, no `eval` that changes state, no desktop-browser substitute.
 - Capture the action and the result: a shot before and after, not only the final screen.
 - Verify side effects: read `state files/companion.json` (or `shared_prefs/...`) after a save, and show the exact stored value.
-- Check the changed screen at `phone` and `large-text` (and `max-text` for wrapping layouts). Name the display in the shot label.
+- Check the changed screen at `phone`. Name the display in the shot label.
 - Run `logs --errors` after a drive; a page error or crash fails the proof even if the screen looks right.
 - Model-backed paths (Capture sorting, Jev, Suggest a Purpose) need an OpenRouter key, which the emulator does not have. Without a key, prove the keyless behavior (words saved, "Connect" offered) and mark the model path **UNVERIFIED**.
 - The emulator is not Samsung One UI. Samsung keyboard, battery limits, audible alarms and real launcher widget placement stay **UNVERIFIED** until checked on the phone.
