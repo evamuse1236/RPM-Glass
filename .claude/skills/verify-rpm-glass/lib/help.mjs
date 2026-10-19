@@ -58,7 +58,7 @@ files/dev-companion/ (served before the APK's own copy, debug builds only) and r
 Takes about 5 seconds, against about a minute for \`launch --build\`. Java or manifest changes still need \`launch --build\`.
 The next install by \`launch\` deletes the synced copy. Screenshots record the synced assets' hash (webSha256), and
 npm run check:evidence accepts them for web-only changes.`,
-  launch: `launch [--avd NAME] [--port N] [--cdp-port N] [--owner TOKEN] [--build] [--no-build] [--apk FILE] [--no-install] [--gpu MODE] [--timeout SECONDS]
+  launch: `launch [--attach SERIAL] [--avd NAME] [--port N] [--cdp-port N] [--owner TOKEN] [--build] [--no-build] [--apk FILE] [--no-install] [--gpu MODE] [--timeout SECONDS]
 Boots AVD ${DEFAULTS.avd} headless as emulator-<port> with the host GPU (--gpu swiftshader_indirect on a machine without one;
 it is 3-4x slower and the slow emulator raises System UI ANR prompts) (default ${DEFAULTS.port}) with -read-only, so nothing the run does
 persists into the AVD. Builds app-debug.apk when it is missing or older than the app sources (--build forces,
@@ -70,7 +70,9 @@ Default console port hashes the worktree path to an even port in 5580–5680 (th
 Default CDP port hashes the path to 10000–19999 (this checkout: ${DEFAULTS.cdpPort}). Overrides are retained
 for later launches. A machine-wide lease in the OS temp folder reserves the worktree and port pair,
 including the adjacent emulator adb port. Dead emulator leases can be reclaimed; concurrent launches refuse.
-Refuses to use a port where an emulator it did not start is running. cleanup releases the lease.
+Refuses an external emulator unless --attach SERIAL explicitly adopts it on Linux. Attach requires a running
+read-only emulator and validates PID, port, AVD and process start identity. cleanup detaches an adopted emulator
+without stopping it; the runner owns its lifetime. cleanup releases the lease.
 Save the random owner returned by launch: export RPMCTL_OWNER=<owner from launch>
 PowerShell: $env:RPMCTL_OWNER = '<owner from launch>'
 Mutating commands require --owner TOKEN or RPMCTL_OWNER, including launch on an owned emulator.

@@ -45,7 +45,7 @@ export function matchingEvidence(root, apkSha, {webSha = null, needWeb = false} 
     if (!e.name.endsWith('.png')) continue;
     let meta = null;
     try { meta = JSON.parse(fs.readFileSync(p.replace(/\.png$/, '.json'), 'utf8')); } catch {}
-    if (!meta?.launchedByRpmctl || meta.apkSha256 !== apkSha || fs.statSync(p).size < 1000) continue;
+    if (!(meta?.launchedByRpmctl || meta?.adoptedByRpmctl) || meta.apkSha256 !== apkSha || fs.statSync(p).size < 1000) continue;
     if (meta.webSha256 ? meta.webSha256 !== webSha : needWeb) continue;
     const m = fs.statSync(p).mtimeMs;
     if (!newest || m > newest.mtime) newest = {file: p, mtime: m};

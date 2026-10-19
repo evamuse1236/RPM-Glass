@@ -24,6 +24,7 @@ For an authorized phone release, compare the working tree, branch, and installed
 | Rule | Enforced by |
 |---|---|
 | One agent drives one emulator | Machine-wide rpmctl lease for the worktree and ports, plus the run owner token (missing tokens warn for one compatibility release) |
+| Run emulator tests on GitHub Actions by default; use the local emulator for interactive driving. CI adopts only an explicitly selected read-only emulator. | `.github/workflows/emulator.yml`, `npm run ci:emulator`, rpmctl adoption and lifecycle tests in `npm test` |
 | On Windows, rpmctl starts the emulator's netsimd itself with no console, so no netsim window pops up. | `.claude/skills/verify-rpm-glass/lifecycle.test.mjs` (`netsimToStart`) |
 | rpmctl selectors match the app | `.claude/skills/verify-rpm-glass/selectors.test.mjs` in `npm test` |
 | An error reaches the screen only through `userMessage(error)`, never as raw script text. | `npm run check:rules` (`raw-error-text`), `android-companion/user-message.test.mjs`, and the scenario runner's raw-error guard |
@@ -71,6 +72,6 @@ For an authorized phone release, compare the working tree, branch, and installed
 | A notch reminder never says "alarm" or "ringing"; only a ringing alarm does. | `NotchFrameTest.java` |
 | "Done" needs proof from the real app: a build and a screenshot newer than the change. | `scripts/agent/require-evidence.mjs` (Stop hook in `.claude/settings.json`, `npm run check:evidence`) |
 | A phone release updates the installed app in place: same signing key, and the build matches this checkout. | `rpmctl doctor --serial <phone>` (`installed-signer-matches-local`, `installed-apk-matches-local-build`, `installed-version`) |
-| Never drive or change a device the tooling did not start. | `rpmctl` refuses mutating commands on any device but its own read-only emulator |
+| Drive only an emulator the tooling started or explicitly adopted on the CI runner. | `rpmctl` requires the device identity, lease and owner; `launch --attach` validates the read-only emulator's PID, port, AVD and process start identity |
 | Checks run green on a Windows checkout. | `.gitattributes` (LF checkout) and the win32 guards in the file-mode tests |
 | Model-backed paths without a key, Samsung behavior and real widget placement are reported as UNVERIFIED, not as passing. | Judgment: `verify-rpm-glass` SKILL.md proof standards |
