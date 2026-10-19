@@ -153,6 +153,7 @@ h1, h2, h3, p { margin: 0; }
   background: var(--bg);
   border-block-start: 1px solid var(--separator);
 }
+:root[data-keyboard=open] :is(#nav-bar, #fab-host) { display: none; }
 .nav-item {
   display: flex;
   flex-direction: column;

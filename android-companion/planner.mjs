@@ -134,6 +134,7 @@ function installNativeHooks(app) {
     ];
     animateLayout(document.body, regions, () => {
       root.dataset.nativeInsets = 'true';
+      root.dataset.keyboard = bottom > 0 ? 'open' : 'closed';
       root.style.setProperty('--keyboard-inset', inset);
     }, {duration: 240, enabled: animate});
   };
