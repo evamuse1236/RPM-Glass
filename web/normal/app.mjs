@@ -57,8 +57,8 @@ const main = h('main.main', head, notices, pane);
 const tab = h('button.capture-tab', {type: 'button', 'aria-controls': 'capture', onclick: () => setCapture(true)}, h('span.ms', {'aria-hidden': 'true'}, 'edit_note'), h('span.tab-label', 'Capture'));
 const scrim = h('div.scrim', {onclick: () => setCapture(false)});
 const mini = h('button.mini-composer', {type: 'button', onclick: () => setCapture(true)}, h('span.grow', 'Capture a thought'), h('span.ms', {'aria-hidden': 'true'}, 'mic'));
-const app = h('div.app', nav, main, tab, capture.node, mini);
-document.body.append(app, scrim, snackbar, sheet.node, ...overlays.nodes);
+const app = h('div.app', nav, main, tab, capture.node, mini, snackbar);
+document.body.append(app, scrim, sheet.node, ...overlays.nodes);
 
 function route() {
   const [view = 'today', id = null] = location.hash.replace(/^#\/?/, '').split('/');

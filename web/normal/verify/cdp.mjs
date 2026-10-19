@@ -68,6 +68,20 @@ export async function launch() {
       await send('Input.dispatchKeyEvent', {type: 'keyDown', key, code, text: key.length === 1 ? key : undefined, ...extra});
       await send('Input.dispatchKeyEvent', {type: 'keyUp', key, code, ...extra});
     },
+    async type(text) {
+      await send('Input.insertText', {text});
+    },
+    async text(selector) {
+      return page.eval(`document.querySelector(${JSON.stringify(selector)})?.innerText ?? null`);
+    },
+    async until(expression, timeout = 6000) {
+      const end = Date.now() + timeout;
+      while (Date.now() < end) {
+        if (await page.eval(expression)) return true;
+        await wait(100);
+      }
+      throw new Error(`Timed out waiting for ${expression}`);
+    },
     async click(selector) {
       const box = await page.eval(`(() => { const r = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect(); return r && {x: r.x + r.width / 2, y: r.y + r.height / 2}; })()`);
       if (!box) throw new Error(`Nothing on the page matches ${selector}.`);
