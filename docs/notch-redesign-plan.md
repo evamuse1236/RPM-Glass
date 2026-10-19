@@ -12,6 +12,19 @@ Design plan by fable-designer, 2026-10-19, from `docs/notch-design-study.md`. Bu
 - System sans. Value 15/600 (pill), 22/600 (island trailing); title 17/600; line 14/400; row title 15/400; row value 14/500; button 15/600. Numbers tabular.
 - Spacing 4/8/12/16. `h` = pill height (status bar, about 36dp).
 
+## 0. Geometry (user, 2026-10-19: "pay special attention to corner radii and arrangement, its not symmtrical above and below")
+
+This section wins over any size below it.
+
+- Every open, alert and receipt island: radius **36dp**, padding **16dp on all four sides**. The space above the first element equals the space below the last.
+- Concentric rule: an inner shape's radius = 36 − its inset. At the 16dp inset that is 20dp: the leading circle (40dp), the alarm Stop (40dp), Undo and every button (40dp tall, radius 20).
+- Rows sit in a −8dp outer margin so their pressed shape reaches 8dp from the edge. Rows are 44dp tall and fully round (22).
+- Band: leading circle at (16, 16), trailing element right-aligned at 16dp, all centred on the band's middle line. Gap band → title 12dp; title → controls 16dp; between rows 0.
+- Two controls (alert islands): two equal pills side by side, 8dp gap, the primary first and filled with its accent at 30% into black; the secondary is white 8%. One control (open island): one full-width pill.
+- Every 40dp control has a 48dp touch area.
+- Pill: height 36, radius 18, ring 28 inset 4 (18 − 4 = 14 = the ring's radius).
+- Reference mock: `docs/mocks/notch-redesign.html`.
+
 ## 1. States
 
 **Pill (compact).** Min width 112dp (was 140). Leading: ring 28dp, inset `(h−28)/2`. Trailing: value, padding 8 start / 14 end. Keep-gap over camera = hole + 12. Values: running "45m"; upcoming "2:27" (AM/PM only when more than 12 h away); water "3/8" in water blue; habit "2/5" in green. Task value white.
