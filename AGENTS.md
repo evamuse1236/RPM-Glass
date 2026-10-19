@@ -28,7 +28,7 @@ For an authorized phone release, compare the working tree, branch, and installed
 | An error reaches the screen only through `userMessage(error)`, never as raw script text. | `npm run check:rules` (`raw-error-text`), `android-companion/user-message.test.mjs`, and the scenario runner's raw-error guard |
 | A change updates the screen in place: existing rows are kept, the field keeps focus, the new item appears once and is saved where it belongs. | `rpmctl scenario plan-add-in-place`, `android-companion/surface-refresh.test.mjs` |
 | The field you are typing in is never covered by the keyboard, nav bar, snackbar or FAB. | `rpmctl scenario focused-field-visible` (known bug recorded, expires 2026-11-07) |
-| At 200% text no title or action label is cut, and nav labels stay visible. | `rpmctl scenario max-text-reflow` (one exception pending approval) |
+| At 200% text no title or action label is cut, no word is split across two lines (Today, Blocks, the task sheet, Capture), and nav labels stay visible. | `rpmctl scenario max-text-reflow` (one exception pending approval) |
 | Capture saves the user's exact words before anything else, with or without an AI key, and keeps them for Retry when the model fails. | `rpmctl scenario capture-keeps-words`, `android-companion/capture-agent.test.mjs`, `android-companion/capture-session.test.mjs`, `chat-prototype/composer.test.mjs` |
 | A chip's request ID is a short hash of the tap (`actionIdFor`), never the answer's own words, so every answer the model offers can be tapped. | `android-companion/capture-answer.test.mjs` |
 | A tap that fails on a Capture card says why on that card (`withProblem`), not only in the status line. | Judgment: `verify-rpm-glass` drive of a rejected answer (no automated check yet) |
@@ -45,6 +45,7 @@ For an authorized phone release, compare the working tree, branch, and installed
 | With no saved meal plan, meals sit at 8:30 AM, 1 PM and 8 PM; a meal turned off leaves Today but its logged meal stays. Water steppers keep 1–20 glasses and 15–240 minutes. | `android-companion/habits.test.mjs` |
 | Capture cards show facts as icon chips, and a receipt shows the task's alert. | `android-companion/capture-lines.test.mjs` |
 | The notch pill ends at the status bar's bottom edge, 4dp above the camera hole. | `NotchAnchorTest.java`, `playground/notch-scene.test.mjs` |
+| `rpmctl seed` keeps synced web assets, so a seeded run shows the synced code. | `.claude/skills/verify-rpm-glass/seed-sync.test.mjs` |
 | A web-only change can be proven with `rpmctl sync` instead of a new APK; the screenshot must carry the hash of the exact assets now built, and Java changes still need the APK. | `scripts/rules/require-evidence.test.mjs` |
 | The notch redraws only when what it shows changes: the same frame twice means no redraw, no animation and no window relayout. | `IslandWindowTest.java`, `NotchFrameTest.java` |
 | The notch's drawing window never moves: it sits at the screen's top-left at full width and only its height changes, so a morph is never drawn at a stale position. A small touch window over the pill takes its taps. | `IslandWindowTest.java` (`theDrawingWindowNeverMovesOnlyItsHeightChanges`) |

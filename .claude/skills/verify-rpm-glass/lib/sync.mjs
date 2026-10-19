@@ -12,6 +12,11 @@ const TEXT = /\.(html|css|js)$/;
 
 export const builtAssetsSha = () => builtWeb(ROOT).sha;
 
+/** The shell line that wipes the app's data for `seed` but keeps synced web assets, so a seeded run still shows them. */
+export function wipeAppDataKeepingSync() {
+  return `for f in files/*; do [ "$f" = ${SYNC_DIR} ] || rm -rf "$f"; done; rm -rf shared_prefs databases app_webview cache; mkdir -p files`;
+}
+
 export function clearSynced(serial) {
   adb(serial, ['shell', `run-as ${PACKAGE} rm -rf ${SYNC_DIR}`], {allowFail: true});
 }

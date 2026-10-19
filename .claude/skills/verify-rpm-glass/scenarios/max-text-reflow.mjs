@@ -1,7 +1,7 @@
 import {sleep, seededBlockName} from './lib.mjs';
 
 export const id = 'max-text-reflow';
-export const rule = 'At 200% system text the main screens reflow: no button, heading, chip or title is cut with an ellipsis or clipped, and the bottom nav labels stay visible.';
+export const rule = 'At 200% system text the main screens and the task sheet reflow: no button, heading, chip or title is cut with an ellipsis or clipped, no word is split across two lines, and the bottom nav labels stay visible.';
 export const enforces = 'docs/planner-surface-contract.md "Content reflows at 200%"; AGENTS.md "validate ... at enlarged text"; fda3272 ("At 130% text the label cut to \'Capture a tho…\'"); 534194f ("Chips wrap instead of truncating").';
 
 // Titles and action labels that are cut: ellipsis or clipping where the text is wider or taller than its box.
@@ -37,7 +37,20 @@ function clipped(exceptions) {
     const ls = getComputedStyle(label);
     return {label: label.textContent.trim(), shown: ls.visibility !== 'hidden' && Number(ls.opacity) > 0.1 && r.width > 0 && r.height > 0 && r.left >= 0 && r.right <= innerWidth + 1 && r.top >= 0 && r.bottom <= innerHeight + 1};
   });
-  return {out, excepted, nav};
+  const split = [];
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const host = n.parentElement;
+    if (!host || !visible(host) || host.closest('.ms, [aria-hidden="true"], textarea, input, .sr-only')) continue;
+    for (const m of n.textContent.matchAll(/[A-Za-z]{3,}/g)) {
+      const range = document.createRange();
+      range.setStart(n, m.index);
+      range.setEnd(n, m.index + m[0].length);
+      const tops = new Set([...range.getClientRects()].filter(r => r.width > 0).map(r => Math.round(r.top)));
+      if (tops.size > 1) split.push({word: m[0], text: host.textContent.replace(/\s+/g, ' ').trim().slice(0, 40), cls: String(host.className).slice(0, 40)});
+    }
+  }
+  return {out, excepted, nav, split};
 }
 
 const live = EXCEPTIONS.filter(x => new Date(x.expires) >= new Date());
@@ -57,6 +70,14 @@ export async function run(t) {
   await sleep(800);
   screens.blockDetail = await t.read(clipped, live);
   await t.shot('block-detail');
+  await t.do('tap', '--role', 'button', '--name', 'Today');
+  await sleep(800);
+  await t.read(() => { const b = document.querySelector('button[aria-label$="Open task"]'); b.scrollIntoView({block: 'center'}); b.click(); });
+  await sleep(1200);
+  screens.taskSheet = await t.read(clipped, live);
+  await t.shot('task-sheet');
+  await t.do('key', 'back');
+  await sleep(600);
   await t.do('open', 'capture');
   await sleep(1000);
   screens.capture = await t.read(clipped, live);
@@ -67,5 +88,8 @@ export async function run(t) {
   t.facts.excepted = Object.entries(screens).flatMap(([screen, v]) => v.excepted.map(c => ({screen, ...c})));
   t.expect(['Today', 'Blocks', 'Projects', 'Life'].every(want => screens.today.nav.some(n => n.label === want && n.shown)), 'Bottom nav labels Today, Blocks, Projects and Life must stay visible at 200% text', screens.today.nav);
   const cut = Object.entries(screens).flatMap(([screen, v]) => v.out.map(c => ({screen, ...c})));
+  const split = Object.entries(screens).flatMap(([screen, v]) => v.split.map(c => ({screen, ...c})));
+  t.facts.split = split;
+  t.expect(!split.length, `${split.length} word(s) split across lines at 200% text: ${split.map(c => `${c.screen} "${c.word}" in "${c.text}"`).join('; ')}`, split);
   t.expect(!cut.length, `${cut.length} label(s) cut at 200% text: ${cut.map(c => `${c.screen} "${c.text}"`).join('; ')}`, cut);
 }

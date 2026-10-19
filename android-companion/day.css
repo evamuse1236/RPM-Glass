@@ -170,6 +170,9 @@ button.spine-card:active, .spine-card .spine-open:active { background: var(--row
   border-radius: var(--shape-md);
 }
 .spine-small > .spine-icon { margin-inline: var(--s3); }
+:root[data-large-text=true] .spine-small { flex-wrap: wrap; }
+:root[data-large-text=true] .spine-small .spine-open { flex: 1 1 calc(9rem * var(--text-scale, 1)); }
+:root[data-large-text=true] .spine-small > .spine-action { margin-inline-start: auto; }
 .spine-icon { font-size: 20px; color: var(--on-surface-variant); }
 .spine-water .spine-icon { color: var(--primary); }
 .spine-label { min-inline-size: 0; overflow-wrap: break-word; }
