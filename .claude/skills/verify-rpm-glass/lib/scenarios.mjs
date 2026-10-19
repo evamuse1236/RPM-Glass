@@ -28,6 +28,7 @@ export const scenarioCommands = {
         },
         read: async (fn, arg) => { const page = await inPage(serial, Number(state.cdpPort)); try { return await page.evaluate(String(fn), arg ?? null); } finally { page.close(); } },
         store: async () => (await commands.state(parseArgs(['files/companion.json']))).json,
+        shell: cmd => shell(serial, cmd, {allowFail: true}),
         keyboardShown: () => /mInputShown=true|isInputViewShown=true/.test(shell(serial, 'dumpsys input_method', {allowFail: true})),
         expect: (condition, message, detail) => { if (!condition) throw new ScenarioFailure(message, detail); },
         shot: label => ctx.do('shot', `${m.id}-${label}`),
