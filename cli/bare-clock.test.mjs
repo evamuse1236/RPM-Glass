@@ -25,3 +25,26 @@ for(const [clock,subject,hour] of [['1','',13],['6','',18],['7','',7],['11','',1
 test('explicit periods, 24-hour clocks, ranges, and vague days do not receive a bare-clock inference',()=>{
  for(const text of ['tomorrow at 6am','tomorrow morning at 6','tomorrow at 18:30','tomorrow at 06:30','tomorrow from 6 to 7','tomorrow morning'])assert.equal(parse(text).inference,undefined,text);
 });
+for(const [subject,clock,expected,rule] of [
+ ['Wake up','7','2026-10-20T07:00:00+05:30','semantic-morning'],
+ ['Morning run','9','2026-10-20T09:00:00+05:30','semantic-morning'],
+ ['Gym morning','6','2026-10-20T06:00:00+05:30','semantic-morning'],
+ ['Breakfast','8','2026-10-20T08:00:00+05:30','semantic-morning'],
+ ['Subah uthana','7','2026-10-20T07:00:00+05:30','semantic-morning'],
+ ['Dinner','8','2026-10-19T20:00:00+05:30','semantic-evening'],
+ ['Raat ko khana','8','2026-10-19T20:00:00+05:30','semantic-evening'],
+ ['Shaam ko walk','5','2026-10-19T17:00:00+05:30','semantic-evening'],
+ ['Call after work','8','2026-10-19T20:00:00+05:30','semantic-evening'],
+])test(`${subject} at ${clock} uses its own semantic period before next-12h`,()=>{
+ const result=parse(`at ${clock}`,undefined,subject);
+ assert.equal(result.planned,new Date(expected).toISOString());assert.equal(result.inference.rule,rule);
+ assert.ok(Date.parse(result.inference.alternateAt)>Date.parse('2026-10-19T16:26:00+05:30'));
+});
+test('morning inference is narrow and explicit days keep their chosen day',()=>{
+ assert.equal(parse('at 3',undefined,'Morning run').inference.rule,'next-12h');
+ assert.equal(parse('at 7',undefined,'Run').inference.rule,'next-12h');
+ assert.equal(parse('tomorrow at 7',undefined,'Wake up').planned,'2026-10-20T01:30:00.000Z');
+ assert.equal(parse('today at 7',undefined,'Wake up').status,'review');
+ assert.equal(parse('subah 7 baje uthana').planned,'2026-10-20T01:30:00.000Z');
+ assert.equal(parse('at 8','2026-10-19T21:00:00+05:30','Dinner').planned,'2026-10-20T14:30:00.000Z');
+});
