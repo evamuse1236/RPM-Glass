@@ -13,7 +13,9 @@ export async function run(t) {
   await t.do('tap', '--role', 'textbox', '--name', 'Capture a thought');
   await t.do('type', WORDS);
   await t.do('tap', '--role', 'button', '--name', 'Send');
-  await t.do('wait', '--name', 'Name it', '--timeout', '15000');
+  const sent = Date.now();
+  const shown = await t.do('wait', '--name', 'Name it', '--timeout', '15000');
+  t.facts.readMs = {wait: shown.ms, wall: Date.now() - sent};
   await sleep(800);
   await t.shot('saved');
   const screen = await t.read(() => document.getElementById('content')?.innerText ?? '');
