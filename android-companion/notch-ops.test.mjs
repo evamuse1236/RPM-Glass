@@ -82,3 +82,26 @@ test('the planner and the notch build completions from one place: Done in a list
   assert.doesNotMatch(read('planner/deep-links.mjs'), /complete|drink/, 'the notch no longer opens the planner to tick or drink');
   assert.match(read('planner/body-api.mjs'), /drink: \(\) => save\(drinkOp\(\)\)/);
 });
+
+const java = name => fs.readFileSync(new URL(`../app/src/main/java/com/rpm/prototype/${name}.java`, import.meta.url), 'utf8');
+
+/** Each method in the source that calls into the planner, by the name of the method it sits in. */
+function plannerCallers(source) {
+  const callers = [];
+  let method = '';
+  for (const line of source.split('\n')) {
+    const head = line.match(/^\s+(?:@Override\s+)?(?:public |private |static |final )*(?:void|boolean|[A-Z]\w*) (\w+)\(.*\{\s*$/);
+    if (head) method = head[1];
+    if (/NotchActions\.(openTask|logMeal)\(|startActivity\(/.test(line)) callers.push(method);
+  }
+  return callers;
+}
+
+test('only Log meal, Open, Open plan and the long press open the planner; Glass, Done, alert changes and Undo save in place', () => {
+  assert.deepEqual(plannerCallers(java('NotchController')).sort(), ['logMeal', 'openHero', 'openManaged', 'openPlan']);
+  assert.deepEqual(plannerCallers(java('NotchAlerting')), ['openTask']);
+  assert.deepEqual(plannerCallers(java('NotchChanges')), []);
+  assert.deepEqual(plannerCallers(java('NotchRunner')), []);
+  const planner = java('NotchActions').match(/static void (\w+)\(Context c[^)]*\) \{[^]*?\n {4}\}/g).filter(m => /planner\(c,/.test(m));
+  assert.deepEqual(planner.map(m => m.match(/static void (\w+)/)[1]), ['logMeal', 'openTask']);
+});

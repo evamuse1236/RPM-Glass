@@ -14,7 +14,7 @@ window.rpmBridgeResult = (id, result, error) => {
   const call = waiting.get(id);
   if (!call) return;
   waiting.delete(id);
-  if (error) call.reject(new Error(error));
+  if (error) call.reject(Object.assign(new Error(error), {changedUnderneath: /saved context changed/i.test(error)}));
   else call.resolve(result);
 };
 
@@ -23,8 +23,6 @@ const native = (action, payload = {}) => new Promise((resolve, reject) => {
   waiting.set(id, {resolve, reject});
   window.RpmNotch.invoke(id, action, JSON.stringify(payload));
 });
-
-const changedUnderneath = error => /saved context changed/i.test(String(error?.message ?? error));
 
 // The store as last read or saved here, so a tap only applies and saves. Anything that fails from this copy (the store
 // may have changed since) is tried once more from a fresh read.
@@ -58,7 +56,7 @@ window.rpmNotchRun = async (id, request) => {
     try {
       answer = {ok: true, ...await attempt(request, false)};
     } catch (error) {
-      if (!fromKept && !changedUnderneath(error)) throw error;
+      if (!fromKept && !error?.changedUnderneath) throw error;
       answer = {ok: true, ...await attempt(request, true)};
     }
   } catch (error) {
