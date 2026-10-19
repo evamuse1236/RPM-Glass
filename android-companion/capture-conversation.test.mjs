@@ -55,6 +55,7 @@ test('the 19 Oct conversation: focus survives, "Both" needs no model, one change
  const card=(await view(p)).captures[0];
  assert.equal(card.messageId,'m3');assert.equal(cardKind(card),'confirm');
  assert.deepEqual(card.draft.lines.map(l=>[l.verb,l.title]),[['Moved to Trash','Dinner with Asha'],['Set aside','Cook dinner']]);
+ assert.equal(card.draft.lines[0].alert,null,'a task in Trash shows no alarm chip');
  assert.equal(p.traces.get('m3').models.length,0);
  const asked=(await view(p)).captures.find(c=>c.messageId==='m2').clarification;
  assert.equal(asked.open,false);assert.deepEqual(asked.actions,[],'an answered question shows no chips');

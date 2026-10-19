@@ -46,7 +46,7 @@ export function receiptLines(data,draft){
   const when=entity==='task'&&change.type!=='delete'?whenOf(row):null;
   const was=verb==='Moved'&&old&&(old.planned!==row?.planned||old.plannedDate!==row?.plannedDate)?whenOf(old)??'No date':null;
   const where=entity==='task'&&(change.type==='create'||verb==='Moved'&&old?.blockId!==row?.blockId)?blockTitle(data,row?.blockId)??'Inbox':null;
-  const alert=entity==='task'?alertOf(row):null;
+  const alert=entity==='task'&&change.type!=='delete'?alertOf(row):null;
   const minutes=entity==='task'&&change.type==='create'?row?.minutes??null:null;
   return {verb,entity,id:change.id,title:row?.title??change.title??old?.title??'',when,was,where,alert,minutes,must:row?.must===true,renamedFrom:verb==='Renamed'?old?.title??null:null};
  }),...parked];
