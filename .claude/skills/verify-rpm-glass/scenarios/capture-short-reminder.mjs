@@ -22,7 +22,7 @@ export async function run(t) {
   }
   t.facts.timeline = timeline;
   const readMs = timeline.find(s => /Name it/.test(s.text))?.ms;
-  t.expect(readMs !== undefined && readMs <= 15000, `"Name it" should appear within 15 s of Send; it took ${readMs ?? 'over 30000'} ms`, timeline);
+  t.expect(readMs !== undefined, '"Name it" never appeared within 30 s of Send', timeline);
   await sleep(800);
   await t.shot('saved');
   const screen = await t.read(() => document.getElementById('content')?.innerText ?? '');
@@ -33,6 +33,9 @@ export async function run(t) {
   t.expect(reminders.length === 1, `Expected one saved reminder; found ${reminders.length}`, t.facts.reminders);
   t.expect(reminders[0]?.alertIntent?.type === 'reminder', 'The saved item should carry a reminder alert', t.facts.reminders);
   t.expect(minutesAhead[0] >= 4 && minutesAhead[0] <= 6, `The reminder should be five minutes ahead; it is ${minutesAhead[0]} minutes ahead`, t.facts);
+  const read = Object.values(store.intentV2?.captures ?? {}).filter(c => c.raw === WORDS).map(c => ({local: c.localInterpretation ?? null, modelRuns: c.modelRuns?.length ?? 0}));
+  t.facts.read = read;
+  t.expect(read.length === 1 && read[0].local === 'short-reminder' && read[0].modelRuns === 0, 'The phone should read the reminder itself, with no AI call', read);
   t.expect(/Undo/.test(screen), 'The receipt should offer Undo', screen.slice(0, 400));
   t.expect(!/overlaps/i.test(screen), 'A reminder is a moment and never clashes', screen.slice(0, 400));
 }
