@@ -61,14 +61,16 @@ final class NotchScene {
         canLogMeal = body.present;
         snoozeMinutes = body.water.snoozeMinutes;
         long waterSnooze = Math.max(body.waterSnoozedUntil, snooze(snoozes, WATER_SNOOZE));
-        water = body.present ? NotchWater.status(body.glasses, body.water, data.busy, waterSnooze, now, zone) : null;
+        NotchWater.Status waterStatus = body.present ? NotchWater.status(body.glasses, body.water, data.busy, waterSnooze, now, zone) : null;
+        water = waterStatus != null && !body.water.reminders
+                ? new NotchWater.Status(waterStatus.count, waterStatus.goal, 0, false) : waterStatus;
         List<NotchHabits.RoutineStatus> routines = body.present ? NotchHabits.routines(body, now, zone) : Collections.emptyList();
         NotchHabits.RoutineStatus due = null;
         for (NotchHabits.RoutineStatus r : routines) {
             if (due == null && r.dueAt(now) && snooze(snoozes, routineSnooze(r.routine.id)) <= now) due = r;
         }
         habit = due;
-        meal = body.present ? NotchHabits.unloggedMeal(body.meals, now, zone) : null;
+        meal = body.present ? NotchHabits.unloggedMeal(body, now, zone) : null;
 
         if (hero != null) {
             heroLook = hero.task.fixed ? Look.EVENT : Look.TASK;
@@ -117,7 +119,7 @@ final class NotchScene {
         if (!later.isEmpty()) rows.add(slotRow(later.get(0), zone, h24));
         if (habit != null && heroLook != Look.HABIT) rows.add(new Row(Look.HABIT, habit.routine.name, habit.done + " of " + habit.total));
         if (water != null && heroLook != Look.WATER) rows.add(new Row(Look.WATER, "Water", water.count + " of " + water.goal + (water.pending ? " · due" : "")));
-        if (meal != null) rows.add(new Row(Look.MEAL, NotchHabits.slotName(meal), "Not logged"));
+        if (meal != null) rows.add(new Row(Look.MEAL, NotchHabits.mealName(body, meal), "Not logged"));
         for (int i = 1; i < later.size() && rows.size() < 3; i++) rows.add(slotRow(later.get(i), zone, h24));
         for (int i = 2; i < rows.size(); i++) {
             if (rows.get(i).look == Look.WATER && waterDue()) rows.add(1, rows.remove(i));
@@ -164,8 +166,12 @@ final class NotchScene {
     String key() {
         StringBuilder k = new StringBuilder(hero == null ? "-" : hero.task.id + "@" + hero.start);
         k.append('|').append(heroLook).append(heroTitle).append('|').append(heroSubtitle).append('|').append(barStart).append('|')
-                .append(barEnd).append('|').append(Math.round(progress * 1000)).append(canDone()).append(canDrink()).append(canSnooze()).append(canLogMeal);
-        for (Row r : rows) k.append('|').append(r.look).append(r.title).append(r.value);
+                .append(barEnd).append('|').append(Math.round(progress * 1000)).append(canDone()).append(canDrink()).append(canSnooze()).append(canLogMeal)
+                .append(meal != null);
+        for (int i = 0; i < Math.min(2, rows.size()); i++) {
+            Row r = rows.get(i);
+            k.append('|').append(r.look).append(r.title).append(r.value);
+        }
         return k.toString();
     }
 }
