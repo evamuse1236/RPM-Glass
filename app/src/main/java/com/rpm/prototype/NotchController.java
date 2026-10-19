@@ -321,6 +321,11 @@ final class NotchController implements NotchPill.Gestures {
         }
 
         @Override
+        public void doneSlot(NotchDay.Slot slot) {
+            changes.done(slot);
+        }
+
+        @Override
         public void setAlert(String type) {
             if (managed != null) changes.setAlert(managed.slot, type);
         }
@@ -372,13 +377,6 @@ final class NotchController implements NotchPill.Gestures {
         public void logMeal() {
             expanded = false;
             NotchActions.logMeal(service, scene.meal);
-            render();
-        }
-
-        @Override
-        public void openPlan() {
-            expanded = false;
-            NotchActions.openTask(service, 0);
             render();
         }
 

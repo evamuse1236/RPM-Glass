@@ -1,220 +1,63 @@
 package com.rpm.prototype;
 
-import android.animation.ValueAnimator;
-import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-import android.widget.TextView;
 
-/** The reminder and ringing-alarm islands (playground/notch-alert.mjs is their copy). */
+/**
+ * The reminder and ringing-alarm islands (playground/notch-alert.mjs is their copy). The band holds the bell or the
+ * pulsing clock and, trailing, the reminder's time or the alarm's Stop. Below: the title and line, which open the
+ * task, then Done and Snooze 10 min as two equal pills.
+ */
 final class NotchAlertViews {
-    static final int BLUE = 0xFF7CACF8;
-    static final int ALARM_TINT = 0xFFF2B8B5;
-    static final int ALARM_ON_TINT = 0xFF410E0B;
-    static final int ALARM_CIRCLE = 0xFF260302;
-    static final int GREY_CIRCLE = 0xFF3C3C3C;
-    private static final float LARGE_TEXT = 1.3f;
+    private final NotchParts parts;
 
-    private final Context context;
-    private final NotchContent parts;
-
-    NotchAlertViews(Context context, NotchContent parts) {
-        this.context = context;
-        this.parts = parts;
+    NotchAlertViews(NotchContent content) {
+        this.parts = content.parts;
     }
 
-    private boolean largeText() {
-        return context.getResources().getConfiguration().fontScale > LARGE_TEXT;
-    }
-
-    /** Bell, the task's title over "Reminder · 5:30 PM", then Done, Snooze 10 min and Open. Tapping the words opens the task. */
-    View reminder(int topInset, NotchAlert alert, NotchContent.Actions actions) {
-        LinearLayout face = new LinearLayout(context);
-        face.setOrientation(LinearLayout.VERTICAL);
-        face.setPadding(dp(16), topInset, dp(16), dp(8));
-        LinearLayout main = new LinearLayout(context);
-        main.setGravity(Gravity.CENTER_VERTICAL);
-        main.setMinimumHeight(dp(60));
-        main.setBackground(NotchContent.pressed(dp(16), 0x14FFFFFF));
-        main.setContentDescription(alert.spoken());
-        main.setOnClickListener(v -> NotchController.safely("open reminder", actions::openAlert));
-        main.addView(circle(GREY_CIRCLE, R.drawable.ic_notification, Color.WHITE), new LinearLayout.LayoutParams(dp(40), dp(40)));
-        LinearLayout stack = new LinearLayout(context);
-        stack.setOrientation(LinearLayout.VERTICAL);
-        stack.addView(title(alert.title));
-        TextView line = parts.text(alert.reminderLine(), 13, NotchContent.WHITE_70, 400);
-        line.setPadding(0, dp(2), 0, 0);
-        stack.addView(line);
-        main.addView(stack, grow(dp(12), dp(12)));
-        face.addView(main, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        LinearLayout controls = new LinearLayout(context);
-        controls.addView(parts.control(R.drawable.notch_ic_done, "Done", "Done: " + alert.title, true, actions::doneAlert), grow(0, 0));
-        controls.addView(parts.control(R.drawable.notch_ic_snooze, "Snooze 10 min", "Snooze " + alert.title + " for " + NotchAlert.SNOOZE_MINUTES + " minutes",
-                true, actions::snoozeAlert), grow(dp(8), 0));
-        controls.addView(parts.control(R.drawable.ic_open, "Open", "Open " + alert.title + " in the plan", true, actions::openAlert), grow(dp(8), 0));
-        face.addView(controls, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+    /** Bell and time in the band, the title over "Reminder · 5:30 PM", then Done and Snooze 10 min. It never says alarm. */
+    View reminder(NotchAlert alert, NotchContent.Actions actions) {
+        LinearLayout col = new LinearLayout(parts.context);
+        FrameLayout face = parts.face(col);
+        parts.bandSpeaks(face, "Reminder at " + alert.at, 0);
+        col.addView(words(alert.title, alert.reminderLine(), NotchInk.WHITE_70, alert.spoken(), actions));
+        col.addView(parts.controls(
+                parts.pill(R.drawable.ic_check, "Done", "Done: " + alert.title, NotchInk.TASK, true, actions::doneAlert),
+                parts.pill(0, "Snooze " + NotchAlert.SNOOZE_MINUTES + " min", "Snooze " + alert.title + " for " + NotchAlert.SNOOZE_MINUTES + " minutes",
+                        NotchInk.TASK, false, actions::snoozeAlert)), parts.controlsAt(true));
         return face;
     }
 
-    /** Pulsing clock, the title over "Ringing · 5:30 PM", then Snooze, Done and Stop. Only the buttons silence it. */
-    View alarm(int topInset, NotchAlert alert, NotchContent.Actions actions) {
-        boolean stacked = largeText();
-        LinearLayout face = new LinearLayout(context);
-        face.setOrientation(stacked ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
-        face.setGravity(Gravity.CENTER_VERTICAL);
-        face.setPadding(dp(16), topInset, dp(16), dp(8));
-        face.setClipChildren(false);
-        face.setClipToPadding(false);
-
-        LinearLayout words = new LinearLayout(context);
-        words.setGravity(Gravity.CENTER_VERTICAL);
-        words.setMinimumHeight(dp(72));
-        words.setBackground(NotchContent.pressed(dp(16), 0x14FFFFFF));
-        words.setContentDescription(alert.spoken());
-        words.setOnClickListener(v -> NotchController.safely("open alarm task", actions::openAlert));
-        LinearLayout.LayoutParams ringLp = new LinearLayout.LayoutParams(dp(40) + 2 * dp(Ring.PULSE_DP), dp(40) + 2 * dp(Ring.PULSE_DP));
-        ringLp.setMargins(-dp(Ring.PULSE_DP), 0, -dp(Ring.PULSE_DP), 0);
-        words.addView(new Ring(context, parts, dp(40), dp(Ring.PULSE_DP)), ringLp);
-        LinearLayout stack = new LinearLayout(context);
-        stack.setOrientation(LinearLayout.VERTICAL);
-        stack.addView(title(alert.title));
-        TextView line = parts.text(alert.ringing(), 13, ALARM_TINT, 400);
-        line.setPadding(0, dp(2), 0, 0);
-        stack.addView(line);
-        words.addView(stack, grow(dp(12), 0));
-        face.addView(words, stacked
-                ? new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-                : new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-
-        LinearLayout buttons = new LinearLayout(context);
-        buttons.addView(roundButton(NotchContent.WHITE_12, 0x3DFFFFFF, R.drawable.notch_ic_snooze, Color.WHITE,
-                "Snooze " + alert.title + " for " + NotchAlert.SNOOZE_MINUTES + " minutes", actions::snoozeAlert), new LinearLayout.LayoutParams(dp(48), dp(48)));
-        LinearLayout.LayoutParams doneLp = new LinearLayout.LayoutParams(dp(48), dp(48));
-        doneLp.setMarginStart(dp(8));
-        buttons.addView(roundButton(NotchContent.WHITE_12, 0x3DFFFFFF, R.drawable.ic_check, Color.WHITE,
-                "Done: stop the alarm and tick " + alert.title, actions::doneAlert), doneLp);
-        LinearLayout.LayoutParams stopLp = new LinearLayout.LayoutParams(dp(48), dp(48));
-        stopLp.setMarginStart(dp(8));
-        buttons.addView(roundButton(ALARM_TINT, 0xFFD39A97, 0, ALARM_ON_TINT, "Stop the alarm for " + alert.title, actions::stopAlert), stopLp);
-        LinearLayout.LayoutParams buttonsLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        if (stacked) {
-            buttonsLp.gravity = Gravity.END;
-            buttonsLp.bottomMargin = dp(4);
-        } else {
-            buttonsLp.setMarginStart(dp(8));
-        }
-        face.addView(buttons, buttonsLp);
+    /** Pulsing clock and Stop in the band, the title over "Ringing · 5:30 PM", then Done and Snooze 10 min. */
+    View alarm(NotchAlert alert, NotchContent.Actions actions) {
+        LinearLayout col = new LinearLayout(parts.context);
+        FrameLayout face = parts.face(col);
+        int touch = parts.dp(NotchGeometry.TOUCH_DP);
+        parts.bandSpeaks(face, "Alarm ringing, " + alert.at, NotchGeometry.TOUCH_DP);
+        View stop = parts.circleButton(NotchInk.ALARM, NotchInk.intoBlack(NotchInk.ALARM, 0.8f), 0, NotchInk.ALARM_INK,
+                "Stop the alarm for " + alert.title, actions::stopAlert);
+        FrameLayout box = new FrameLayout(parts.context);
+        box.addView(stop, new FrameLayout.LayoutParams(parts.dp(NotchGeometry.CONTROL_DP), parts.dp(NotchGeometry.CONTROL_DP), android.view.Gravity.CENTER));
+        box.setOnClickListener(v -> stop.performClick());
+        box.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        parts.bandControl(face, box, touch, true);
+        col.addView(words(alert.title, alert.ringing(), NotchInk.ALARM, alert.spoken(), actions));
+        col.addView(parts.controls(
+                parts.pill(R.drawable.ic_check, "Done", "Done: stop the alarm and tick " + alert.title, NotchInk.ALARM, true, actions::doneAlert),
+                parts.pill(0, "Snooze " + NotchAlert.SNOOZE_MINUTES + " min", "Snooze " + alert.title + " for " + NotchAlert.SNOOZE_MINUTES + " minutes",
+                        NotchInk.ALARM, false, actions::snoozeAlert)), parts.controlsAt(true));
         return face;
     }
 
-    private TextView title(String title) {
-        TextView t = parts.text(title, 16, Color.WHITE, 600);
-        if (largeText()) {
-            t.setSingleLine(false);
-            t.setMaxLines(2);
-        }
-        return t;
-    }
-
-    private View circle(int fill, int icon, int tint) {
-        FrameLayout c = new FrameLayout(context);
-        c.setBackground(NotchContent.round(fill, dp(20)));
-        c.addView(parts.glyph(icon, tint), new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER));
-        return c;
-    }
-
-    /** A 48dp round button. A glyph of 0 draws Stop's square. */
-    private View roundButton(int fill, int pressedFill, int icon, int tint, String spoken, Runnable action) {
-        FrameLayout b = new FrameLayout(context);
-        android.graphics.drawable.StateListDrawable bg = new android.graphics.drawable.StateListDrawable();
-        bg.addState(new int[]{android.R.attr.state_pressed}, NotchContent.round(pressedFill, dp(24)));
-        bg.addState(new int[]{}, NotchContent.round(fill, dp(24)));
-        b.setBackground(bg);
-        View glyph = icon == 0 ? new View(context) : parts.glyph(icon, tint);
-        if (icon == 0) glyph.setBackground(NotchContent.round(tint, dp(2)));
-        int size = icon == 0 ? dp(14) : dp(24);
-        b.addView(glyph, new FrameLayout.LayoutParams(size, size, Gravity.CENTER));
-        b.setContentDescription(spoken);
-        b.setOnClickListener(v -> NotchController.safely(spoken, action));
-        return b;
-    }
-
-    private static LinearLayout.LayoutParams grow(int start, int end) {
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-        lp.setMarginStart(start);
-        lp.setMarginEnd(end);
-        return lp;
-    }
-
-    private int dp(float v) {
-        return parts.dp(v);
-    }
-
-    /** The alarm's clock in a dark red circle with a ring that pulses out every 1.2 s; a still ring under reduced motion. */
-    private static final class Ring extends FrameLayout {
-        static final int PULSE_DP = 10;
-        private static final int RING = 0x59F2B8B5;
-        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final int circle;
-        private final int pulse;
-        private final float stroke;
-        private ValueAnimator beat;
-        private float phase;
-
-        Ring(Context context, NotchContent parts, int circle, int pulse) {
-            super(context);
-            this.circle = circle;
-            this.pulse = pulse;
-            stroke = parts.dp(2);
-            setWillNotDraw(false);
-            setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
-            addView(parts.glyph(R.drawable.ic_clock, ALARM_TINT), new LayoutParams(parts.dp(22), parts.dp(22), Gravity.CENTER));
-        }
-
-        @Override
-        protected void onAttachedToWindow() {
-            super.onAttachedToWindow();
-            if (!ValueAnimator.areAnimatorsEnabled()) return;
-            beat = ValueAnimator.ofFloat(0f, 1f);
-            beat.setDuration(1200);
-            beat.setRepeatCount(ValueAnimator.INFINITE);
-            beat.setInterpolator(new android.view.animation.PathInterpolator(0f, 0f, 0.58f, 1f));
-            beat.addUpdateListener(a -> {
-                phase = (float) a.getAnimatedValue();
-                invalidate();
-            });
-            beat.start();
-        }
-
-        @Override
-        protected void onDetachedFromWindow() {
-            if (beat != null) beat.cancel();
-            beat = null;
-            super.onDetachedFromWindow();
-        }
-
-        @Override
-        protected void onDraw(Canvas canvas) {
-            float cx = getWidth() / 2f, cy = getHeight() / 2f, r = circle / 2f;
-            paint.setStyle(Paint.Style.FILL);
-            if (beat != null) {
-                paint.setColor(Color.argb(Math.round(Color.alpha(RING) * (1f - phase)), 0xF2, 0xB8, 0xB5));
-                canvas.drawCircle(cx, cy, r + pulse * phase, paint);
-            }
-            paint.setColor(ALARM_CIRCLE);
-            canvas.drawCircle(cx, cy, r, paint);
-            if (beat == null) {
-                paint.setStyle(Paint.Style.STROKE);
-                paint.setStrokeWidth(stroke);
-                paint.setColor(RING);
-                canvas.drawCircle(cx, cy, r + stroke / 2f, paint);
-            }
-        }
+    /** The title over the line; tapping the words opens the task, as the island's own tap does. */
+    private View words(String title, String line, int lineColor, String spoken, NotchContent.Actions actions) {
+        LinearLayout words = new LinearLayout(parts.context);
+        words.setOrientation(LinearLayout.VERTICAL);
+        words.addView(parts.title(title));
+        words.addView(parts.line(line, lineColor));
+        words.setContentDescription(spoken);
+        words.setOnClickListener(v -> NotchController.safely("open alert task", actions::openAlert));
+        return words;
     }
 }

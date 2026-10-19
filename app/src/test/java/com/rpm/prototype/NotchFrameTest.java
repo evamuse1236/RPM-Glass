@@ -1,5 +1,6 @@
 package com.rpm.prototype;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -89,11 +90,11 @@ public class NotchFrameTest {
     }
 
     @Test
-    public void renamingAHiddenMealRowDoesNotRedrawTheFrame() throws Exception {
+    public void renamingTheThirdRowRedrawsTheFrameNowThatThreeRowsShow() throws Exception {
         NotchData first = busyMealPlan(true, "Tea", false);
         NotchScene scene = new NotchScene(first, at("2026-10-18T16:05"), Collections.emptyMap(), KOLKATA, false);
         assertEquals(NotchScene.Look.MEAL, scene.rows.get(2).look);
-        assertEquals(frame(first, "2026-10-18T16:05", Mode.OPEN).key(PLACE),
+        assertNotEquals(frame(first, "2026-10-18T16:05", Mode.OPEN).key(PLACE),
                 frame(busyMealPlan(true, "Fruit", false), "2026-10-18T16:05", Mode.OPEN).key(PLACE));
     }
 
@@ -126,5 +127,124 @@ public class NotchFrameTest {
         NotchAlert alarm = new NotchAlert(NotchAlert.Type.ALARM, 7, "Call the bank", at("2026-10-18T11:30"), KOLKATA, false);
         assertTrue(alarm.ringing().startsWith("Ringing · 11:30"));
         assertNotEquals(reminder.key(), alarm.key());
+    }
+
+    @Test
+    public void reminderNeverSaysAlarm() throws Exception {
+        NotchAlert reminder = new NotchAlert(NotchAlert.Type.REMINDER, 7, "Call the bank", at("2026-10-18T17:30"), KOLKATA, false);
+        NotchScene scene = new NotchScene(day(), at("2026-10-18T17:30"), Collections.emptyMap(), KOLKATA, false);
+        NotchBand band = NotchBand.of(new NotchFrame(Mode.REMINDER, null, null, scene, reminder, null), 0);
+        assertNotEquals("a reminder shows a bell, never the alarm clock", R.drawable.ic_clock, band.glyph);
+        assertEquals(R.drawable.ic_notification, band.glyph);
+        assertEquals("its time, without AM/PM", "5:30", band.value);
+        assertEquals(NotchBand.Disc.PLAIN, band.disc);
+        assertFalse(band.pulse);
+        assertFalse((reminder.reminderLine() + reminder.spoken() + band.value).toLowerCase().matches(".*(alarm|ringing).*"));
+        NotchAlert alarm = new NotchAlert(NotchAlert.Type.ALARM, 7, "Call the bank", at("2026-10-18T17:30"), KOLKATA, false);
+        NotchBand ringing = NotchBand.of(new NotchFrame(Mode.ALARM, null, null, scene, alarm, null), 0);
+        assertEquals(NotchBand.Disc.ALARM, ringing.disc);
+        assertEquals("Stop takes the trailing slot", "", ringing.value);
+        assertTrue(ringing.pulse);
+    }
+
+    @Test
+    public void bandBesideCameraHoldsRingAndValue() throws Exception {
+        NotchFrame open = frame(day(), "2026-10-18T15:40:05", Mode.OPEN);
+        NotchBand band = NotchBand.of(open, 0);
+        assertEquals(NotchBand.Disc.RING, band.disc);
+        assertEquals(R.drawable.notch_ic_task, band.glyph);
+        assertEquals("the same value the pill shows", open.scene.pillValue, band.value);
+        assertEquals("34m", band.value);
+        assertEquals("tinted by kind: the notch's task blue", NotchInk.TASK, band.valueColor);
+        assertEquals(10 / 45f, band.progress, 0.01f);
+        assertEquals(22f, band.valueSp, 0f);
+        NotchFrame pill = frame(day(), "2026-10-18T15:40:05", Mode.PILL);
+        NotchBand small = NotchBand.of(pill, 0);
+        assertEquals("the pill's value is white", NotchInk.WHITE, small.valueColor);
+        assertEquals(15f, small.valueSp, 0f);
+        assertEquals(band.glyph, small.glyph);
+        assertEquals(band.progress, small.progress, 0f);
+    }
+
+    @Test
+    public void sharedRingAndValueTravelOnOpen() {
+        float d = 450f / 160f;
+        NotchAnchor s24 = NotchAnchor.fromCutout(506, 24, 574, 92, 92, d);
+        int keep = s24.holeDiameter + NotchAnchor.dp(12, d);
+        IslandShape pill = IslandShape.pill(s24, 1080, 150, keep, false, d);
+        IslandShape island = IslandShape.island(s24, 1080, 600, d);
+        NotchGeometry.Band a = NotchGeometry.pill(pill, d, 15 * d);
+        NotchGeometry.Band b = NotchGeometry.island(island, d, 22 * d);
+        NotchGeometry.Band start = NotchGeometry.Band.lerp(a, b, 0f);
+        NotchGeometry.Band end = NotchGeometry.Band.lerp(a, b, 1f);
+        NotchGeometry.Band mid = NotchGeometry.Band.lerp(a, b, 0.5f);
+        assertEquals(a.cx, start.cx, 0f);
+        assertEquals(b.cx, end.cx, 0f);
+        assertEquals(b.diameter, end.diameter, 0f);
+        assertEquals("the ring grows from 28dp or less to 40dp", NotchAnchor.dp(40, d), b.diameter, 0f);
+        assertTrue(a.diameter < mid.diameter && mid.diameter < b.diameter);
+        assertTrue("the value grows from 15sp to 22sp", a.valuePx < mid.valuePx && mid.valuePx < b.valuePx);
+        assertTrue("the value moves out from the pill's end", mid.valueRight > a.valueRight && mid.valueRight < b.valueRight);
+        assertEquals(NotchMotion.OPEN_MS, NotchMotion.of(true).morphMs(true));
+    }
+
+    @Test
+    public void reducedMotionFadesInsteadOfMoves() {
+        NotchMotion moving = NotchMotion.of(true);
+        assertEquals(350, moving.morphMs(true));
+        assertEquals(300, moving.morphMs(false));
+        assertEquals(400, moving.fillMs());
+        assertEquals(8, moving.riseDp());
+        assertTrue(moving.digitsRoll());
+        NotchMotion still = NotchMotion.of(false);
+        assertEquals("sizes snap", 0, still.morphMs(true));
+        assertEquals("the ring snaps", 0, still.fillMs());
+        assertEquals("faces do not rise", 0, still.riseDp());
+        assertEquals("faces cross-fade", 150, still.faceInMs());
+        assertEquals(150, still.faceOutMs());
+        assertEquals(0, still.faceInDelayMs());
+        assertFalse("digits cross-fade", still.digitsRoll());
+        assertEquals(150, still.valueMs());
+        assertFalse(still.pulses());
+        for (NotchMotion m : new NotchMotion[]{moving, still}) {
+            assertTrue("nothing over 400 ms", m.morphMs(true) <= 400 && m.fillMs() <= 400 && m.faceInDelayMs() + m.faceInMs() <= 400 && m.valueMs() <= 400);
+        }
+    }
+
+    @Test
+    public void rollingDigitsMoveOnlyChangedDigits() {
+        assertArrayEquals(new boolean[]{false, true, false}, NotchMotion.changed("45m", "44m"));
+        assertArrayEquals(new boolean[]{true, true, false}, NotchMotion.changed("9m", "10m"));
+        assertArrayEquals(new boolean[]{true, false}, NotchMotion.changed("10m", "9m"));
+        assertArrayEquals(new boolean[]{false, false, false}, NotchMotion.changed("3/8", "3/8"));
+        assertArrayEquals(new boolean[]{true, false, false}, NotchMotion.changed("3/8", "4/8"));
+        assertArrayEquals(new boolean[]{true, false, true, true}, NotchMotion.changed("4:59", "5:00"));
+    }
+
+    @Test
+    public void receiptReplacesBandWithRingAndUndo() throws Exception {
+        NotchScene scene = new NotchScene(day(), at("2026-10-18T15:40"), Collections.emptyMap(), KOLKATA, false);
+        NotchReceipt glass = NotchReceipt.glass(3, 8, 1000);
+        NotchBand saving = NotchBand.of(new NotchFrame(Mode.RECEIPT, null, null, scene, null, null, null, glass), 0);
+        assertEquals("the ring steps from 3 of 8", 3 / 8f, saving.from, 0.001f);
+        assertEquals("to 4 of 8", 4 / 8f, saving.progress, 0.001f);
+        assertEquals(R.drawable.notch_ic_water, saving.glyph);
+        assertEquals(NotchInk.WATER, saving.accent);
+        assertEquals("Undo, not a value, takes the trailing slot", "", saving.value);
+        NotchBand saved = NotchBand.of(new NotchFrame(Mode.RECEIPT, null, null, scene, null, null, null, glass.saved("t", null)), 0);
+        assertEquals("saving then saved keeps one fill, timed from the same start", saving.startedAt, saved.startedAt);
+        assertTrue(glass.saved("t", null).canUndo());
+        NotchBand done = NotchBand.of(new NotchFrame(Mode.RECEIPT, null, null, scene, null, null, null, NotchReceipt.done("Essay", 5)), 0);
+        assertEquals(R.drawable.ic_check, done.glyph);
+        assertEquals(1f, done.progress, 0f);
+        assertEquals(NotchInk.TASK, done.accent);
+    }
+
+    @Test
+    public void primaryControlsAreTheirAccentThirtyPercentIntoBlack() {
+        assertEquals(0xFF323C4B, NotchInk.intoBlack(NotchInk.TASK, NotchInk.PRIMARY_SHARE));
+        assertEquals(0xFF000000, NotchInk.intoBlack(NotchInk.TASK, 0f));
+        assertEquals(NotchInk.TASK, NotchInk.intoBlack(NotchInk.TASK, 1f));
+        assertEquals("the notch's task blue passes 3:1 on black", 0xFFA8C7FA, NotchInk.TASK);
     }
 }

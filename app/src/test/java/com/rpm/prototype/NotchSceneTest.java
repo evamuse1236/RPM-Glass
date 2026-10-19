@@ -13,8 +13,10 @@ import org.junit.Test;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /** What the pill and panel say at one moment: time-left text, the hero and the small rows. */
@@ -66,8 +68,6 @@ public class NotchSceneTest {
         assertEquals("25m", s.pillValue);
         assertEquals("Write RM essay", s.heroTitle);
         assertEquals("Study · 25 min left", s.heroSubtitle);
-        assertEquals("20m", s.barStart);
-        assertEquals("-25m", s.barEnd);
         assertEquals(20 / 45f, s.progress, 0.001);
         assertEquals("Write RM essay, 25 min left", s.spoken);
         assertTrue(s.canDone());
@@ -77,10 +77,60 @@ public class NotchSceneTest {
     @Test
     public void betweenItemsThePillShowsWhenTheNextStarts() throws Exception {
         NotchScene s = scene(day(false, null), "2026-10-18T16:20");
-        assertEquals("4:30 PM", s.pillValue);
+        assertEquals("4:30", s.pillValue);
         assertEquals("Study · 4:30 PM, in 10 min", s.heroSubtitle);
-        assertEquals("30m", s.barEnd);
         assertEquals(0, s.progress, 0);
+    }
+
+    @Test
+    public void pillValueDropsAmPmWithinTwelveHours() throws Exception {
+        assertEquals("4:30", scene(day(false, null), "2026-10-18T16:20").pillValue);
+        assertEquals("more than 12 h away keeps AM/PM", "3:30 PM", scene(day(false, null), "2026-10-18T03:00").pillValue);
+        assertEquals("3:30", scene(day(false, null), "2026-10-18T03:31").pillValue);
+        assertEquals("the line keeps the full clock", "Study · 4:30 PM, in 10 min", scene(day(false, null), "2026-10-18T16:20").heroSubtitle);
+        assertEquals("16:30", new NotchScene(day(false, null), at("2026-10-18T16:20"), Collections.emptyMap(), KOLKATA, true).pillValue);
+    }
+
+    @Test
+    public void ringProgressPerKind() throws Exception {
+        NotchScene running = scene(day(true, null), "2026-10-18T15:50");
+        assertEquals("a running task fills by time used", 20 / 45f, NotchBand.progress(PillPriority.Kind.TASK, running), 0.001);
+        NotchScene upcoming = scene(day(true, null), "2026-10-18T16:20");
+        assertEquals("an upcoming task stays empty", 0f, NotchBand.progress(PillPriority.Kind.TASK, upcoming), 0f);
+        assertEquals("water fills by glasses of the goal", 2 / 8f, NotchBand.progress(PillPriority.Kind.WATER, upcoming), 0.001);
+        NotchScene routine = scene(day(true, null), "2026-10-18T16:05");
+        assertEquals("a routine fills by steps done", 0f, NotchBand.progress(PillPriority.Kind.HABIT, routine), 0f);
+        NotchScene evening = scene(day(true, null), "2026-10-18T21:00");
+        assertEquals(Look.WATER, evening.heroLook);
+        assertEquals("2/8", NotchBand.heroValue(evening));
+        assertEquals("25m", NotchBand.heroValue(running));
+    }
+
+    @Test
+    public void heroHasOnePrimaryControlNeverDisabled() throws Exception {
+        assertEquals(Collections.singletonList(NotchScene.Control.DONE), scene(day(true, null), "2026-10-18T15:50").controls());
+        JSONArray events = new JSONArray().put(new JSONObject().put("start", at("2026-10-18T15:00")).put("end", at("2026-10-18T18:00"))
+                .put("title", "Seminar").put("allDay", false).put("busy", false));
+        assertTrue("a calendar event hides Done instead of greying it", scene(day(false, events), "2026-10-18T17:30").controls().isEmpty());
+        assertEquals(Arrays.asList(NotchScene.Control.GLASS, NotchScene.Control.LATER), scene(day(true, null), "2026-10-18T21:00").controls());
+        for (String local : new String[]{"2026-10-18T15:50", "2026-10-18T16:05", "2026-10-18T21:00"}) {
+            List<NotchScene.Control> c = scene(day(true, null), local).controls();
+            assertTrue("at most a primary and Later", c.size() <= 2);
+            assertTrue(c.size() < 2 || c.get(1) == NotchScene.Control.LATER);
+        }
+    }
+
+    @Test
+    public void islandAlwaysOffersGlass() throws Exception {
+        for (String local : new String[]{"2026-10-18T15:50", "2026-10-18T16:05", "2026-10-18T16:20", "2026-10-18T21:00"}) {
+            NotchScene s = scene(day(true, null), local);
+            for (int rows = 1; rows <= 3; rows++) {
+                boolean glass = s.controls().contains(NotchScene.Control.GLASS);
+                for (NotchScene.Row r : s.visibleRows(rows)) glass |= r.look == Look.WATER;
+                assertTrue(local + " with " + rows + " rows", glass);
+                assertTrue(s.visibleRows(rows).size() <= rows);
+            }
+        }
     }
 
     @Test

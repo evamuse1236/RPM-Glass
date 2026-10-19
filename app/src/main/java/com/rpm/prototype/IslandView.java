@@ -15,20 +15,15 @@ import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.Interpolator;
-import android.view.animation.LinearInterpolator;
-import android.view.animation.PathInterpolator;
 
-/** Draws the one black island in screen coordinates and morphs it between the pill, the open island and the alert islands. */
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Draws the one black island in screen coordinates and morphs it between the pill, the open island, the alert islands
+ * and the receipt. The band's ring and value (IslandBand) travel with the morph; faces fade, and rise 8dp as they come in.
+ */
 final class IslandView extends ViewGroup {
-    static final long OPEN_MS = 350;
-    static final long ALERT_MS = 300;
-    static final long CLOSE_MS = 300;
-    static final long FADE_OUT_MS = 90;
-    static final long FADE_IN_DELAY_MS = 90;
-    static final long FADE_IN_MS = 210;
-    static final Interpolator DECELERATE = new PathInterpolator(0.05f, 0.7f, 0.1f, 1f);
-    static final Interpolator STANDARD = new PathInterpolator(0.2f, 0f, 0f, 1f);
     private static final float PRESSED_SCALE = 0.97f;
     private static final long PRESS_HOLD_MS = 90;
     private static final int SHADOW = 0x40000000;
@@ -50,8 +45,33 @@ final class IslandView extends ViewGroup {
         }
     }
 
+    /** A face's fade, timed by the clock so it also runs, unmoving, when the person removed animations. */
+    private static final class Fade {
+        final View view;
+        final float fromAlpha;
+        final float toAlpha;
+        final float fromY;
+        final long start;
+        final long ms;
+        final Runnable end;
+
+        Fade(View view, float toAlpha, float fromY, long start, long ms, Runnable end) {
+            this.view = view;
+            this.fromAlpha = view.getAlpha();
+            this.toAlpha = toAlpha;
+            this.fromY = fromY;
+            this.start = start;
+            this.ms = Math.max(1, ms);
+            this.end = end;
+        }
+    }
+
     private final Listener listener;
     private final IslandGesture gesture;
+    private final IslandBand band;
+    private final List<Fade> fades = new ArrayList<>();
+    private boolean fading;
+    private final Choreographer.FrameCallback fadeTick = nanos -> NotchController.safely("island fade", this::stepFades);
     private final Spring press = Spring.island(0.002f);
     private final Paint ink = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path body = new Path();
@@ -79,6 +99,7 @@ final class IslandView extends ViewGroup {
         this.listener = listener;
         density = context.getResources().getDisplayMetrics().density;
         gesture = new IslandGesture(density);
+        band = new IslandBand(this);
         press.snapTo(1f);
         ink.setColor(Color.BLACK);
         setWillNotDraw(false);
@@ -87,15 +108,18 @@ final class IslandView extends ViewGroup {
     }
 
     /**
-     * Morphs to {@code shape} over {@code ms}. A null {@code nextFace} keeps the current content; {@code fade} cross-fades
-     * old content out over 0-90ms and the new in over 90-300ms, otherwise the content swaps at once.
+     * Morphs to {@code shape} over {@code ms} while the band's ring and value travel to {@code bandAt}. A null
+     * {@code nextFace} keeps the current content; {@code fade} fades the old face out over 0-90 ms and the new one in
+     * over 90-300 ms as it rises 8dp (a 150 ms cross-fade under Reduce Motion), otherwise the content swaps at once.
      */
-    void setScene(IslandShape shape, long ms, Interpolator curve, View nextFace, RectF faceAt, boolean fade,
-                  boolean replaceSplit, View nextSplit, RectF splitAt, boolean pressable) {
+    void setScene(IslandShape shape, long ms, NotchMotion motion, View nextFace, RectF faceAt, boolean fade,
+                  boolean replaceSplit, View nextSplit, RectF splitAt, boolean pressable, NotchBand nextBand, NotchGeometry.Band bandAt) {
         this.pressable = pressable;
-        if (nextFace != null) face = swap(face, nextFace, faceAt, fade, true);
-        if (replaceSplit) split = swap(split, nextSplit, splitAt, true, false);
-        morphTo(shape, ms, curve);
+        if (nextFace != null) face = swap(face, nextFace, faceAt, fade, true, motion);
+        if (replaceSplit) split = swap(split, nextSplit, splitAt, true, false, motion);
+        boolean travel = now != null && ms > 0 && ValueAnimator.areAnimatorsEnabled() && !same(now, shape);
+        band.set(nextBand, bandAt, travel, motion);
+        morphTo(shape, ms);
     }
 
     /** The window the island needs this frame, mid-morph included. */
@@ -103,23 +127,26 @@ final class IslandView extends ViewGroup {
         return now == null ? null : now.window();
     }
 
-    private void morphTo(IslandShape target, long ms, Interpolator curve) {
+    private void morphTo(IslandShape target, long ms) {
         if (morph != null) morph.cancel();
         morph = null;
-        boolean animate = now != null && ValueAnimator.areAnimatorsEnabled() && !same(now, target);
+        boolean animate = now != null && ms > 0 && ValueAnimator.areAnimatorsEnabled() && !same(now, target);
         from = now;
         to = target;
         if (!animate) {
             now = target;
+            band.morph(1f);
             invalidate();
             listener.onSettled();
             return;
         }
         ValueAnimator a = ValueAnimator.ofFloat(0f, 1f);
         a.setDuration(ms);
-        a.setInterpolator(curve);
+        a.setInterpolator(IslandBand.STANDARD);
         a.addUpdateListener(v -> {
-            now = IslandShape.lerp(from, to, (float) v.getAnimatedValue());
+            float t = (float) v.getAnimatedValue();
+            now = IslandShape.lerp(from, to, t);
+            band.morph(t);
             invalidate();
         });
         a.addListener(new AnimatorListenerAdapter() {
@@ -135,6 +162,7 @@ final class IslandView extends ViewGroup {
                 if (cancelled) return;
                 now = to;
                 morph = null;
+                band.morph(1f);
                 invalidate();
                 NotchController.safely("island settled", listener::onSettled);
             }
@@ -148,23 +176,50 @@ final class IslandView extends ViewGroup {
                 && a.splitCx == b.splitCx && a.splitR == b.splitR && a.shadow == b.shadow;
     }
 
-    private View swap(View old, View next, RectF at, boolean fade, boolean lift) {
+    private View swap(View old, View next, RectF at, boolean fade, boolean rise, NotchMotion motion) {
         if (old == next) return old;
-        boolean animate = fade && ValueAnimator.areAnimatorsEnabled();
+        long t = SystemClock.uptimeMillis();
+        float scale = motion.moves ? ValueAnimator.getDurationScale() : 1f;
         if (old != null) {
             disable(old);
-            if (animate) old.animate().alpha(0f).setStartDelay(0).setDuration(FADE_OUT_MS).setInterpolator(new LinearInterpolator()).withEndAction(() -> removeView(old));
+            dropFades(old);
+            if (fade) fades.add(new Fade(old, 0f, old.getTranslationY(), t, Math.round(motion.faceOutMs() * scale), () -> removeView(old)));
             else removeView(old);
         }
         if (next == null) return null;
         addView(next, new At(at));
-        if (animate) {
+        if (fade) {
             next.setAlpha(0f);
-            if (lift) next.setTranslationY(-6 * density);
-            next.animate().alpha(1f).translationY(0f).setStartDelay(lift ? FADE_IN_DELAY_MS : 0).setDuration(lift ? FADE_IN_MS : FADE_OUT_MS)
-                    .setInterpolator(lift ? STANDARD : new LinearInterpolator());
+            float y = rise ? motion.riseDp() * density : 0f;
+            next.setTranslationY(y);
+            long delay = rise ? Math.round(motion.faceInDelayMs() * scale) : 0;
+            fades.add(new Fade(next, 1f, y, t + delay, Math.round((rise ? motion.faceInMs() : motion.faceOutMs()) * scale), null));
+        }
+        if (!fades.isEmpty() && !fading) {
+            fading = true;
+            Choreographer.getInstance().postFrameCallback(fadeTick);
         }
         return next;
+    }
+
+    private void dropFades(View v) {
+        for (int i = fades.size() - 1; i >= 0; i--) if (fades.get(i).view == v) fades.remove(i);
+    }
+
+    private void stepFades() {
+        long t = SystemClock.uptimeMillis();
+        for (int i = fades.size() - 1; i >= 0; i--) {
+            Fade f = fades.get(i);
+            float p = Math.max(0f, Math.min(1f, (t - f.start) / (float) f.ms));
+            f.view.setAlpha(f.fromAlpha + (f.toAlpha - f.fromAlpha) * p);
+            f.view.setTranslationY(f.fromY * (1f - IslandBand.STANDARD.getInterpolation(p)));
+            if (p >= 1f) {
+                fades.remove(i);
+                if (f.end != null) f.end.run();
+            }
+        }
+        fading = !fades.isEmpty();
+        if (fading) Choreographer.getInstance().postFrameCallback(fadeTick);
     }
 
     private static void disable(View v) {
@@ -181,6 +236,10 @@ final class IslandView extends ViewGroup {
         if (morph != null) morph.cancel();
         morph = null;
         Choreographer.getInstance().removeFrameCallback(pressTick);
+        Choreographer.getInstance().removeFrameCallback(fadeTick);
+        fades.clear();
+        fading = false;
+        band.stop();
         removeCallbacks(release);
         removeCallbacks(longPress);
         super.onDetachedFromWindow();
@@ -238,6 +297,7 @@ final class IslandView extends ViewGroup {
         canvas.drawPath(body, ink);
         canvas.clipPath(body);
         super.dispatchDraw(canvas);
+        band.draw(canvas, -loc[0], -loc[1]);
         canvas.restore();
     }
 
