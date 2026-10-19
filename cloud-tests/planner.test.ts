@@ -65,7 +65,7 @@ describe("Planner snapshots and command delivery",()=>{
     expect((await sync(t,bad.token,{snapshot:snapshot(99),acks:[]})).status).toBe(409);
     expect((await (await request(t,"/v1/web/snapshot",web.token,undefined,"GET")).json()).revision).toBe(42);
   });
-  it("lists last-seen times and rejects pending work as soon as a phone revokes its browser",async()=>{
+  it("lists last-seen times, revokes browser access immediately, and rejects its queue on phone pull",async()=>{
     const t=setup(), device=await phone(t), first=await linked(t,device.token,"Office"), second=await linked(t,device.token,"Home");
     await enqueue(t,first.token);await enqueue(t,second.token,command(2));
     await t.run(async ctx=>{const sessions=await ctx.db.query("webSessions").collect();await ctx.db.patch(sessions[0]._id,{lastSeenAt:1});});
@@ -75,6 +75,7 @@ describe("Planner snapshots and command delivery",()=>{
     expect(sessions.find((item:any)=>item.id===first.sessionId).lastSeenAt).toBeGreaterThan(1);
     expect((await request(t,"/v1/web/revoke",device.token,{sessionId:first.sessionId})).status).toBe(200);
     expect((await poll(t,first.token)).status).toBe(401);expect((await enqueue(t,first.token,command(3))).status).toBe(401);
+    expect((await t.run(ctx=>ctx.db.query("webCommands").collect())).every(item=>item.status==="pending")).toBe(true);
     expect((await (await sync(t,device.token)).json()).commands).toEqual([command(2)]);
     const commands=await t.run(ctx=>ctx.db.query("webCommands").collect());
     expect(commands.find(item=>item.commandId===command().id)).toMatchObject({status:"rejected",message:"Browser access was revoked",newRevision:0,cursor:3});
@@ -100,7 +101,31 @@ describe("Planner snapshots and command delivery",()=>{
     for(let number=1;number<=102;number++)await enqueue(t,web.token,command(number));
     expect((await request(t,"/v1/web/session",web.token,undefined,"DELETE")).status).toBe(200);
     expect((await (await sync(t,device.token)).json()).commands).toEqual([]);
+    const firstPage=await t.run(ctx=>ctx.db.query("webCommands").collect());
+    expect(firstPage.filter(item=>item.status==="rejected")).toHaveLength(100);
+    expect(firstPage.filter(item=>item.status==="pending")).toHaveLength(2);
+    expect((await (await sync(t,device.token)).json()).commands).toEqual([]);
     const commands=await t.run(ctx=>ctx.db.query("webCommands").collect());
     expect(commands).toHaveLength(102);expect(commands.every(item=>item.status==="rejected")).toBe(true);
+  });
+  it("accepts an executing phone command's result after revocation and rejects later queued work",async()=>{
+    const t=setup(), device=await phone(t), web=await linked(t,device.token);
+    await enqueue(t,web.token,command(1));
+    const pulled=await sync(t,device.token,{snapshot:snapshot(42),acks:[]});
+    expect((await pulled.json()).commands).toEqual([command(1)]);
+    await enqueue(t,web.token,command(2));
+    expect((await request(t,"/v1/web/revoke",device.token,{sessionId:web.sessionId})).status).toBe(200);
+    expect((await poll(t,web.token)).status).toBe(401);
+    const ack={id:command(1).id,status:"applied",message:"Task completed",newRevision:43};
+    const applied=await sync(t,device.token,{snapshot:snapshot(43),acks:[ack]});
+    expect(applied.status).toBe(200);
+    const result=await applied.json();
+    expect(result.commands).toEqual([]);expect(result.snapshots[0]).toEqual(snapshot(43));
+    const commands=await t.run(ctx=>ctx.db.query("webCommands").collect());
+    expect(commands.find(item=>item.commandId===command(1).id)).toMatchObject({status:"applied",message:"Task completed",newRevision:43,cursor:3});
+    expect(commands.find(item=>item.commandId===command(2).id)).toMatchObject({status:"rejected",message:"Browser access was revoked",newRevision:43,cursor:4});
+    expect((await sync(t,device.token,{snapshot:snapshot(44),acks:[ack]})).status).toBe(200);
+    expect((await sync(t,device.token,{acks:[{...ack,status:"rejected"}]})).status).toBe(409);
+    expect((await (await sync(t,device.token)).json()).snapshots[0]).toEqual(snapshot(44));
   });
 });
