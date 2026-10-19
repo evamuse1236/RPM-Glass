@@ -13,9 +13,16 @@ export async function run(t) {
   await t.do('tap', '--role', 'textbox', '--name', 'Capture a thought');
   await t.do('type', WORDS);
   await t.do('tap', '--role', 'button', '--name', 'Send');
-  const sent = Date.now();
-  const shown = await t.do('wait', '--name', 'Name it', '--timeout', '15000');
-  t.facts.readMs = {wait: shown.ms, wall: Date.now() - sent};
+  const sent = Date.now(), timeline = [];
+  for (let last = null; Date.now() - sent < 30000; await sleep(500)) {
+    const text = (await t.read(() => document.getElementById('content')?.innerText ?? '')).replace(/\s+/g, ' ').slice(0, 120);
+    if (text !== last) timeline.push({ms: Date.now() - sent, text});
+    last = text;
+    if (/Name it/.test(text)) break;
+  }
+  t.facts.timeline = timeline;
+  const readMs = timeline.find(s => /Name it/.test(s.text))?.ms;
+  t.expect(readMs !== undefined && readMs <= 15000, `"Name it" should appear within 15 s of Send; it took ${readMs ?? 'over 30000'} ms`, timeline);
   await sleep(800);
   await t.shot('saved');
   const screen = await t.read(() => document.getElementById('content')?.innerText ?? '');
