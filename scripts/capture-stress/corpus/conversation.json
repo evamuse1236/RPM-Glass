@@ -1,0 +1,484 @@
+[
+  {
+    "id": "followup-bank-time",
+    "tags": [
+      "multi-turn",
+      "relative-times"
+    ],
+    "turns": [
+      {
+        "text": "Add call the bank tomorrow, the refund issue is still pending."
+      },
+      {
+        "text": "Make that 6 pm please, the bank thing I just added."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "bank"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "time": "18:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "followup-retime-raj",
+    "tags": [
+      "multi-turn",
+      "saved-task",
+      "correction"
+    ],
+    "turns": [
+      {
+        "text": "Move the saved Raj call to tomorrow at six in the evening."
+      },
+      {
+        "text": "Actually seven in the evening, still tomorrow. The same Raj call."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [
+        {
+          "id": 101,
+          "kind": "update",
+          "day": "2026-10-20",
+          "time": "19:00"
+        }
+      ],
+      "unchanged": [
+        102,
+        103,
+        104,
+        105,
+        106
+      ]
+    }
+  },
+  {
+    "id": "followup-gym-disambiguate",
+    "tags": [
+      "multi-turn",
+      "clarification",
+      "duplicate-name"
+    ],
+    "turns": [
+      {
+        "text": "Move gym tomorrow to eight pm."
+      },
+      {
+        "text": "The evening one only, keep the morning one at seven am."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [
+        {
+          "id": 103,
+          "kind": "update",
+          "day": "2026-10-20",
+          "time": "20:00"
+        }
+      ],
+      "unchanged": [
+        101,
+        102,
+        104,
+        105,
+        106
+      ],
+      "checkpoints": [
+        {
+          "turn": 1,
+          "created": [],
+          "forbidden": [],
+          "maxNew": 0,
+          "question": "required",
+          "changes": [],
+          "unchanged": [
+            102,
+            103
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "followup-vent-to-task",
+    "tags": [
+      "multi-turn",
+      "venting"
+    ],
+    "turns": [
+      {
+        "text": "My room is such a mess I cannot think. Just listening for now, please do not turn this into ten cleaning jobs."
+      },
+      {
+        "text": "Okay one thing, add put the clean clothes away today at 7 pm. That alone is enough."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "cloth"
+          ],
+          "entity": "task",
+          "day": "2026-10-19",
+          "time": "19:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": [],
+      "checkpoints": [
+        {
+          "turn": 1,
+          "created": [],
+          "forbidden": [],
+          "maxNew": 0,
+          "question": "forbidden",
+          "changes": [],
+          "unchanged": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "followup-retract-draft",
+    "tags": [
+      "multi-turn",
+      "retraction",
+      "draft"
+    ],
+    "turns": [
+      {
+        "text": "Add book a hotel for Friday in Jaipur.",
+        "deferApply": true
+      },
+      {
+        "text": "No scrap that hotel draft, trip is off. Just add email the organiser tomorrow.",
+        "focus": "previous"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "email",
+            "organis"
+          ],
+          "entity": "task",
+          "day": "2026-10-20"
+        }
+      ],
+      "forbidden": [
+        [
+          "hotel"
+        ]
+      ],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "followup-must-purpose",
+    "tags": [
+      "multi-turn",
+      "must",
+      "purpose"
+    ],
+    "turns": [
+      {
+        "text": "Add take the iron tablets tomorrow morning at eight."
+      },
+      {
+        "text": "That tablet task must happen. The reason is having enough energy to get through class, not ticking a health box."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "iron",
+            "tablet"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "time": "08:00",
+          "must": true,
+          "purposeWords": [
+            "energy"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "followup-same-not-new",
+    "tags": [
+      "multi-turn",
+      "cross-sentence-pronouns"
+    ],
+    "turns": [
+      {
+        "text": "Add send the rent receipt to the hostel office tomorrow."
+      },
+      {
+        "text": "It needs to go at eleven in the morning. By it I mean that rent receipt email, not some new thing."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "rent",
+            "receipt"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "time": "11:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "followup-dentist-boundary",
+    "tags": [
+      "multi-turn",
+      "calendar",
+      "readonly"
+    ],
+    "turns": [
+      {
+        "text": "Can you move the dentist calendar appointment tomorrow to twelve?"
+      },
+      {
+        "text": "Okay leave the calendar alone. Add call the dental clinic tomorrow at nine am to ask about changing it myself."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "call",
+            "clinic"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "time": "09:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": [
+        101,
+        102,
+        103,
+        104,
+        105,
+        106
+      ],
+      "checkpoints": [
+        {
+          "turn": 1,
+          "created": [],
+          "forbidden": [],
+          "maxNew": 0,
+          "question": "allowed",
+          "changes": [],
+          "unchanged": [
+            101,
+            102,
+            103,
+            104,
+            105,
+            106
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "dinner-exact-four-turns",
+    "tags": [
+      "multi-turn",
+      "delete",
+      "focus",
+      "clarification"
+    ],
+    "turns": [
+      {
+        "text": "Delete this",
+        "focus": "dinner",
+        "deferApply": true
+      },
+      {
+        "text": "That one only",
+        "focus": "previous",
+        "deferApply": true
+      },
+      {
+        "text": "Both",
+        "focus": "previous",
+        "deferApply": true
+      },
+      {
+        "text": "First",
+        "focus": "previous",
+        "deferApply": true
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "allowed",
+      "changes": [],
+      "unchanged": [
+        101,
+        102,
+        103,
+        104,
+        105,
+        106
+      ],
+      "focusRemoved": [
+        "dinner1"
+      ]
+    }
+  },
+  {
+    "id": "focused-delete-both",
+    "tags": [
+      "multi-turn",
+      "delete",
+      "focus"
+    ],
+    "turns": [
+      {
+        "text": "Delete both of these dinner draft items, cooking and buying the ingredients.",
+        "focus": "dinner",
+        "deferApply": true
+      },
+      {
+        "text": "Yes, both draft items. Nothing already saved in my plan.",
+        "focus": "previous",
+        "deferApply": true
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "allowed",
+      "changes": [],
+      "unchanged": [
+        101,
+        102,
+        103,
+        104,
+        105,
+        106
+      ],
+      "focusRemoved": [
+        "dinner1",
+        "dinner2"
+      ]
+    }
+  },
+  {
+    "id": "focused-delete-first",
+    "tags": [
+      "focus",
+      "delete"
+    ],
+    "turns": [
+      {
+        "text": "Remove only the first item, Cook dinner, from this draft. Keep Buy dinner ingredients. I am talking about these two draft cards.",
+        "focus": "dinner",
+        "deferApply": true
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": [
+        101,
+        102,
+        103,
+        104,
+        105,
+        106
+      ],
+      "focusRemoved": [
+        "dinner1"
+      ]
+    }
+  },
+  {
+    "id": "followup-journal-task",
+    "tags": [
+      "multi-turn",
+      "journaling"
+    ],
+    "turns": [
+      {
+        "text": "Just save this as a journal thought. I get homesick after dinner and then pretend I am too busy to call anyone."
+      },
+      {
+        "text": "Actually the existing Call Amma tonight is enough, leave it where it is. No new task please."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": [
+        101,
+        102,
+        103,
+        104,
+        105,
+        106
+      ]
+    }
+  }
+]
