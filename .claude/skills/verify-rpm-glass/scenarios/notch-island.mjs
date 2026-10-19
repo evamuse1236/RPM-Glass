@@ -54,4 +54,5 @@ export async function run(t) {
   Object.assign(t.facts, {pill, closed});
   const crashes = t.shell('logcat -d -b crash').split('\n').filter(l => /com\.rpm\.prototype/.test(l));
   t.expect(!crashes.length, 'The app crashed while the notch was shown', crashes.slice(0, 5));
+  await t.do('open', 'planner');
 }
