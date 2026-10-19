@@ -30,7 +30,9 @@ Evidence
 
 Global options
   --serial <s>   Target another device read-only (doctor, ui, shot, logs, state). Mutating commands
-                 only run on the emulator this tool launched.
+                 only run on the emulator this tool launched or explicitly adopted.
+  --attach <s>   launch only. Adopt a running Linux read-only emulator by serial, preserving leases.
+                 cleanup detaches it; the runner remains responsible for stopping it.
   --port <n>     Launch console port. Default hashes the worktree path to an even port in 5580–5680.
   --cdp-port <n> Local DevTools port. Default hashes the worktree path to 10000–19999.
   --owner <token> Run owner from launch, or set RPMCTL_OWNER. Required for mutating commands,
