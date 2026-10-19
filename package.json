@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "npm run test:js && npm run check:rules && npm run test:cloud && npm run typecheck:cloud && npm run test:java",
-    "test:js": "node --import ./scripts/test-tz.mjs --test --test-concurrency=4 android-companion/*.test.mjs cli/*.test.mjs chat-prototype/*.test.mjs intent-v2/test/*.test.mjs playground/*.test.mjs .claude/skills/verify-rpm-glass/*.test.mjs",
+    "test:js": "node --import ./scripts/test-tz.mjs --test --test-concurrency=4 android-companion/*.test.mjs cli/*.test.mjs chat-prototype/*.test.mjs intent-v2/test/*.test.mjs playground/*.test.mjs .claude/skills/verify-rpm-glass/*.test.mjs web/**/*.test.mjs",
     "test:java": "bash scripts/test-parser.sh",
     "dev:cloud": "convex dev",
     "deploy:cloud": "convex deploy",
@@ -15,6 +15,9 @@
     "chat": "node chat-prototype/companion-server.mjs",
     "playground": "node playground/server.mjs",
     "build:android-assets": "node scripts/build-companion-assets.mjs",
+    "web:pixel": "node web/pixel/build.mjs",
+    "web:serve": "node web/pixel/serve.mjs",
+    "web:pixel:shots": "node web/pixel/shots.mjs",
     "check:rules": "node scripts/rules/check-rules.mjs && node --test scripts/rules/*.test.mjs",
     "check:evidence": "node scripts/agent/require-evidence.mjs"
   },

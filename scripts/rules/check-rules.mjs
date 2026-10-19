@@ -42,6 +42,7 @@ export const RULES = [
     files: root => [
       ...files(root, 'android-companion', p => p.endsWith('.mjs') && !p.endsWith('.test.mjs') && !p.endsWith('user-message.mjs')),
       ...files(root, 'intent-v2/src', p => p.endsWith('.mjs') && !p.endsWith('.test.mjs')),
+      ...files(root, 'web/pixel', p => p.endsWith('.mjs') && !p.endsWith('.test.mjs')),
     ],
     matcher: rawErrorReads,
     fix: 'Show userMessage(error) from android-companion/user-message.mjs instead of error.message.',

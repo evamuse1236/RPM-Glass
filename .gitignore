@@ -36,3 +36,7 @@ __pycache__/
 # rpmctl run state and verification evidence (see .claude/skills/verify-rpm-glass/).
 /.verify/
 /.verify-tmp/
+
+# Built web planner and its screenshots.
+/web/dist/
+/web/evidence/
