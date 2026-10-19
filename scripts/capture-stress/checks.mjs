@@ -91,6 +91,7 @@ export function checkExpectation(expect,{before,after,draft,focusDraft=draft,que
 
 function checkFields(expected,row,fail,after){
  const stamp=local(row.planned),day=stamp?.day??row.plannedDate??null,time=stamp?.time??null;
+ if(expected.title!==undefined&&row.title!==expected.title)fail('wrong title',`${row.title}: expected exact title ${expected.title}`);
  if(expected.day!==undefined&&day!==expected.day)fail('wrong time',`${row.title}: day ${day}, expected ${expected.day}`);
  if(expected.time!==undefined&&time!==expected.time)fail('wrong time',`${row.title}: time ${time}, expected ${expected.time}`);
  if(expected.must!==undefined&&!!row.must!==expected.must)fail('lost item',`${row.title}: must should be ${expected.must}`);

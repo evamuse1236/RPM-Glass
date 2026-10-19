@@ -2,6 +2,10 @@ import {checkExecution,checkExpectation,visibleQuestions} from './checks.mjs';
 
 export function evaluateCase(test,{before,after,turns,states,validate,schema}){
  const failures=checkExecution(turns,{validate,schema});
+ if(test.expect.noOverlap)for(const turn of turns){
+  const warnings=[turn.draft?.applied?.warning,turn.result?.applied?.warning,turn.draft?.review?.question].filter(Boolean);
+  if(warnings.some(text=>/overlap|clash|save anyway/i.test(text)))failures.push({type:'false overlap',detail:warnings.join(' ')});
+ }
  const checkpoints=test.expect.checkpoints??[];
  for(const [i,turn] of turns.entries()){
   const state=states[i],draft=turn.draft;

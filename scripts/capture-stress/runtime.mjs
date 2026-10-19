@@ -35,7 +35,7 @@ export async function runCase(test,{modules:m,directory,mode,transport='cli',rep
  await writeFile(path.join(directory,'seed.json'),JSON.stringify({data,events},null,2));
  const before=structuredClone(data),backend=await fileBackend(path.join(directory,'store.json'),data);
  let tick=0,currentText='',currentMessage='',turnCalls=[];
- const clock=()=>new Date(Date.parse(NOW)+tick*1000);
+ const clock=()=>new Date(Date.parse(test.now??NOW)+tick*1000);
  const model=async(input,options)=>{
   const routeUsed=routeName(options.route,m.policy.MODEL_ROUTES);
   const call={routeUsed,route:structuredClone(options.route),savedBeforeModel:(await backend.load()).intentV2?.captures?.[currentMessage]?.raw===currentText};
@@ -86,6 +86,6 @@ export async function runCase(test,{modules:m,directory,mode,transport='cli',rep
  const after=await backend.load();
  const unique=evaluateCase(test,{before,after,turns,states,validate:m.schema.validate,schema:m.schema.TURN_SCHEMA});
  await writeFile(path.join(directory,'final.json'),JSON.stringify(after,null,2));
- return {id:test.id,repeat,tags:test.tags,pass:unique.length===0,ms:Date.now()-started,failures:unique,expect:test.expect,turns,
+ return {id:test.id,repeat,tags:test.tags,now:test.now??NOW,pass:unique.length===0,ms:Date.now()-started,failures:unique,expect:test.expect,turns,
   artifacts:{directory,final:path.join(directory,'final.json')},saved:{newTasks:after.entries.filter(e=>!before.entries.some(b=>b.id===e.id)),health:after.planner.body}};
 }

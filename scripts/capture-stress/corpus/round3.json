@@ -1,0 +1,571 @@
+[
+  {
+    "id": "round3-wake-after",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T16:26:00+05:30",
+    "turns": [
+      {
+        "text": "wake me up at 7"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "wake"
+          ],
+          "day": "2026-10-20",
+          "time": "07:00",
+          "alert": "alarm"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "round3-wake-before",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T06:00:00+05:30",
+    "turns": [
+      {
+        "text": "wake me up at 7"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "wake"
+          ],
+          "day": "2026-10-19",
+          "time": "07:00",
+          "alert": "alarm",
+          "title": "Wake up"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "round3-subah-wake",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T16:26:00+05:30",
+    "turns": [
+      {
+        "text": "subah 7 baje uthana"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [],
+          "day": "2026-10-20",
+          "time": "07:00",
+          "alert": "alarm"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "round3-dinner",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T16:26:00+05:30",
+    "turns": [
+      {
+        "text": "dinner at 8"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "dinner"
+          ],
+          "day": "2026-10-19",
+          "time": "20:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "round3-breakfast",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T16:26:00+05:30",
+    "turns": [
+      {
+        "text": "remind me at 8 to eat breakfast"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "breakfast"
+          ],
+          "day": "2026-10-20",
+          "time": "08:00",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "round3-morning-run",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T16:26:00+05:30",
+    "turns": [
+      {
+        "text": "remind me at 7 to go for a morning run"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "run"
+          ],
+          "day": "2026-10-20",
+          "time": "07:00",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "round3-gym-morning",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T16:26:00+05:30",
+    "turns": [
+      {
+        "text": "remind me at 6 to go to gym morning"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "gym"
+          ],
+          "day": "2026-10-20",
+          "time": "06:00",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "round3-raat",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T16:26:00+05:30",
+    "turns": [
+      {
+        "text": "raat 8 baje dawai leni hai"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "dawai"
+          ],
+          "day": "2026-10-19",
+          "time": "20:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "round3-shaam",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T16:26:00+05:30",
+    "turns": [
+      {
+        "text": "shaam 7 baje walk karna hai"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "walk"
+          ],
+          "day": "2026-10-19",
+          "time": "19:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "round3-after-work",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T16:26:00+05:30",
+    "turns": [
+      {
+        "text": "remind me at 7 to call mom after work"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "call",
+            "mom"
+          ],
+          "day": "2026-10-19",
+          "time": "19:00",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "round3-title-mom",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T16:26:00+05:30",
+    "turns": [
+      {
+        "text": "remind me at 6 to call mom"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "call",
+            "mom"
+          ],
+          "day": "2026-10-19",
+          "time": "18:00",
+          "alert": "reminder",
+          "title": "Call mom"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "round3-title-meds",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T16:26:00+05:30",
+    "turns": [
+      {
+        "text": "remind me in 5 to take meds"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "take",
+            "meds"
+          ],
+          "day": "2026-10-19",
+          "time": "16:31",
+          "alert": "reminder",
+          "title": "Take meds"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "round3-title-iphone",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T16:26:00+05:30",
+    "turns": [
+      {
+        "text": "remind me at 6 to iPhone backup"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "iPhone",
+            "backup"
+          ],
+          "day": "2026-10-19",
+          "time": "18:00",
+          "alert": "reminder",
+          "title": "iPhone backup"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "round3-title-name",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T16:26:00+05:30",
+    "turns": [
+      {
+        "text": "remind me at 6 to call mOM"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "call",
+            "mom"
+          ],
+          "day": "2026-10-19",
+          "time": "18:00",
+          "alert": "reminder",
+          "title": "Call mOM"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "round3-moment-reminder",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T16:26:00+05:30",
+    "turns": [
+      {
+        "text": "set a reminder in 5"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "Reminder"
+          ],
+          "day": "2026-10-19",
+          "time": "16:31",
+          "alert": "reminder",
+          "title": "Reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "round3-moment-alarm",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T16:26:00+05:30",
+    "turns": [
+      {
+        "text": "alarm in 5"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "Alarm"
+          ],
+          "day": "2026-10-19",
+          "time": "16:31",
+          "alert": "alarm",
+          "title": "Alarm"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "round3-moment-task",
+    "tags": [
+      "smart",
+      "round3",
+      "reminder-family"
+    ],
+    "now": "2026-10-19T16:26:00+05:30",
+    "turns": [
+      {
+        "text": "buy milk at 5:10 PM"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "buy",
+            "milk"
+          ],
+          "day": "2026-10-19",
+          "time": "17:10",
+          "title": "Buy milk"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "noOverlap": true,
+      "changes": [],
+      "unchanged": []
+    }
+  }
+]

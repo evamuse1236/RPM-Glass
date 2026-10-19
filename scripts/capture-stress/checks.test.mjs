@@ -35,6 +35,11 @@ test('known bad controls separate lost, invented, retracted, dates, purpose and 
  assert.ok(compare({created:[{words:['bank'],time:null}]}).some(f=>f.type==='wrong time'));
 });
 
+test('exact title checks catch casing that fuzzy word checks accept',()=>{
+ assert.deepEqual(compare({created:[{words:['bank'],title:'Calling the bank'}]}),[]);
+ assert.ok(compare({created:[{words:['bank'],title:'calling the bank'}]}).some(f=>f.type==='wrong title'));
+});
+
 test('a proposed title is not a saved task and omission is not focused removal',()=>{
  const draft={status:'draft',operations:[{opId:'dinner1',kind:'create',entity:'task',fields:[{name:'title',op:'set',value:'Call bank'}]}]};
  assert.ok(checkExpectation(expectation({}),{before:empty(),after:empty(),draft}).some(f=>f.type==='lost item'));
