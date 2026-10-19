@@ -13,8 +13,8 @@ For an authorized phone release, compare the working tree, branch, and installed
 ## Before you say done
 
 1. Run the checks: `npm test` (JS, rules, Convex, typecheck, Java). The same command runs in CI.
-2. If app code changed (`app/src/main`, `android-companion`, `chat-prototype`, `intent-v2`, `cli`), drive the changed feature on the real app with the `verify-rpm-glass` skill: `node .claude/skills/verify-rpm-glass/rpmctl.mjs launch` (`rpmctl` below), then the recipe in its `features/` file. After a web-only edit, `rpmctl sync` reloads it in seconds. Check it at `display phone` and `display large-text` (and `max-text` if text can wrap), read back what was saved with `state`, and run `logs --errors`.
-3. Run `rpmctl scenario --all` when the change touches the planner, Capture or layout. Every scenario must pass or be a recorded known bug.
+2. If app code changed (`app/src/main`, `android-companion`, `chat-prototype`, `intent-v2`, `cli`), use the `verify-rpm-glass` skill and run `npm run ci:emulator` after pushing the branch. For feature paths beyond those scenarios, use the local emulator as an interactive fallback: `node .claude/skills/verify-rpm-glass/rpmctl.mjs launch` (`rpmctl` below), then the recipe in its `features/` file. After a web-only edit, `rpmctl sync` reloads it in seconds. Check the changed screen at `display phone` and `display large-text` (and `max-text` if text can wrap), read back what was saved with `state`, and run `logs --errors`.
+3. Run every scenario in CI with `npm run ci:emulator` when the change touches the planner, Capture or layout. Every scenario must pass or be a recorded known bug.
 4. Put the evidence paths (`.verify/evidence/<run-id>/NN-*.png`) in the reply. Mark anything you could not drive (model-backed paths, Samsung-only behavior, the real home-screen widget) **UNVERIFIED**.
 5. `npm run check:evidence` must pass. In Claude Code the Stop hook runs it for you.
 6. Run `rpmctl cleanup` when you finish. Evidence stays.

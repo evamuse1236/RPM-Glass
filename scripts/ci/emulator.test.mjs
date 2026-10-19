@@ -2,6 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {scenarioArgs, scenarioOutcome} from './scenarios.mjs';
 import {selectRun} from './emulator.mjs';
+import {avdConfig} from './prepare-avd.mjs';
+
+test('CI AVD uses the S24 FE physical display, including density after display phone resets overrides', () => {
+  const configured = avdConfig('hw.lcd.width=1080\nhw.lcd.height=1920\nhw.lcd.density=420\nhw.lcd.density=480\nabi.type=x86_64\n');
+  assert.match(configured, /^hw.lcd.width=1080$/m);
+  assert.match(configured, /^hw.lcd.height=2340$/m);
+  assert.match(configured, /^hw.lcd.density=450$/m);
+  assert.equal(configured.match(/hw.lcd.density=/g).length, 1);
+  assert.match(configured, /^abi.type=x86_64$/m);
+  assert.equal(avdConfig(configured), configured);
+});
 
 test('scenario input is data, never a command or arbitrary rpmctl option', () => {
   assert.deepEqual(scenarioArgs(), ['--all']);

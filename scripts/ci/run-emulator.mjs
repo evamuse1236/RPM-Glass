@@ -26,6 +26,9 @@ try {
   const launched = run('launch', ['launch', '--attach', serial, '--no-build']);
   if (launched.status !== 0 || !launched.report.ok) throw new Error('rpmctl launch failed.');
   process.env.RPMCTL_OWNER = launched.report.owner;
+  const display = run('display-phone', ['display', 'phone']);
+  if (display.status !== 0 || display.report.after?.size !== '1080x2340' || display.report.after?.density !== 450)
+    throw new Error('CI display must be 1080x2340 at 450 dpi after resetting overrides. Check prepare-avd.mjs.');
   const available = run('scenario-list', ['scenario', '--list']);
   if (available.status !== 0 || !available.report.ok) throw new Error('Could not list scenarios.');
   const ids = available.report.scenarios.map(s => s.id);

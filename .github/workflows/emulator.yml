@@ -40,6 +40,8 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
       - run: npm ci
       - name: Build debug APK
         run: ./gradlew --no-daemon assembleDebug
@@ -53,7 +55,7 @@ jobs:
         id: avd
         with:
           path: ~/.android/avd
-          key: rpm-avd-${{ runner.os }}-36-playstore-x86_64-1080x2340-450-v1
+          key: rpm-avd-${{ runner.os }}-36-playstore-x86_64-1080x2340-450-v2
       - name: Create clean AVD snapshot
         if: steps.avd.outputs.cache-hit != 'true'
         uses: reactivecircus/android-emulator-runner@324029e2f414c084d8b15ba075288885e74aef9c # v2.34.0
@@ -67,7 +69,8 @@ jobs:
           force-avd-creation: false
           disable-animations: false
           emulator-boot-timeout: 180
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -skin 1080x2340 -dpi-device 450
+          pre-emulator-launch-script: node scripts/ci/prepare-avd.mjs
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -skin 1080x2340
           script: echo 'Clean AVD snapshot ready'
       - name: Drive RPM scenarios
         uses: reactivecircus/android-emulator-runner@324029e2f414c084d8b15ba075288885e74aef9c # v2.34.0
@@ -81,14 +84,15 @@ jobs:
           force-avd-creation: false
           disable-animations: false
           emulator-boot-timeout: 180
-          emulator-options: -read-only -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -skin 1080x2340 -dpi-device 450
+          pre-emulator-launch-script: node scripts/ci/prepare-avd.mjs
+          emulator-options: -read-only -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -skin 1080x2340
           script: node scripts/ci/run-emulator.mjs
       - name: Collect teardown diagnostics
         if: always()
         run: |
           mkdir -p .verify/evidence
           adb devices -l > .verify/evidence/adb-devices.txt 2>&1 || true
-          adb -s emulator-5554 logcat -d -v threadtime > .verify/evidence/logcat-final.txt 2>&1 || true
+          timeout 10s adb -s emulator-5554 logcat -d -v threadtime > .verify/evidence/logcat-final.txt 2>&1 || true
       - name: Upload screenshots, scenario results and logcat
         if: always()
         uses: actions/upload-artifact@v4
