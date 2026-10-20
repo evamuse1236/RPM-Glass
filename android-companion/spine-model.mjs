@@ -17,6 +17,11 @@ const RANK = {now: 0, event: 1, routine: 2, task: 3, deadline: 4, meal: 5, water
 const BLOCKS = new Set(['task', 'event', 'routine']);
 const plural = (count, one) => `${count} ${count === 1 ? one : one + 's'}`;
 const minutesBetween = (a, b) => Math.round((b - a) / MIN);
+/** How soon the next card starts, short enough for the gutter: "in 40 min", then whole hours ("in 4 h"). */
+export function soonText(ms) {
+  const minutes = Math.max(1, Math.ceil(ms / MIN));
+  return minutes < 60 ? `in ${minutes} min` : `in ${Math.round(minutes / 60)} h`;
+}
 
 function card(kind, key, start, end, extra) {
   const minutes = Math.max(0, minutesBetween(start, end));
@@ -141,7 +146,7 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
   for (const row of marks) row.past = row.kind === 'meal' ? row.past || (!!row.meal && row.end < now) : row.kind !== 'water' && row.end < now;
   const current = blocks.filter(r => r.current);
   const next = live ? blocks.filter(r => r.start > now && !r.done).sort((a, b) => a.start - b.start)[0] : null;
-  if (next) Object.assign(next, {next: true, soon: `in ${duration(Math.max(1, Math.ceil((next.start - now) / MIN)))}`});
+  if (next) Object.assign(next, {next: true, soon: soonText(next.start - now)});
 
   const rows = [...blocks, ...marks, ...freeRows(blocks, marks, {from, to, now, live})];
   if (live && !current.length) rows.push({kind: 'now', key: 'now', start: now, end: now, time: gutterTime(now), label: clockText(now)});

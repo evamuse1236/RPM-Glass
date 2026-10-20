@@ -81,6 +81,7 @@ function taskCard(row, on) {
   }
   if (row.elapsed) card.append(elapsedBar(row));
   if (!row.done) on.gestures?.(card, row);
+  if (!row.done && row.start != null) on.drag?.(card, row);
   return card;
 }
 

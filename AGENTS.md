@@ -36,7 +36,7 @@ Before changing Capture, read `docs/rules/capture.md`. Before changing the notch
 | Every stylesheet Capture and the planner link is served by the native asset allowlist. | `android-companion/companion-assets.test.mjs` |
 | Dates are honest and compact ("2:30 pm to 3 pm", "Time not set"). | `android-companion/capture-content.test.mjs` |
 | No page shows a scrollbar. | `android-companion/companion-assets.test.mjs` |
-| Task rows swipe right to complete and left to schedule (Move in the Inbox); a drag locks to one axis after 8px; Delete is never a swipe. | `android-companion/task-swipe.test.mjs` |
+| Task rows swipe right to complete and left to schedule (Move in the Inbox); a drag locks to one axis after 8px; no swipe starts within 24dp of a screen edge; Delete is never a swipe. On Today a timed card held still for 250ms lifts and moves in 15-minute steps (its knurl changes the length); a vertical drag before the lift scrolls and never moves a card. | `android-companion/task-swipe.test.mjs`, `android-companion/spine-drag.test.mjs` |
 | Motion tokens in `theme.css` match `motion-core.mjs`. | `android-companion/motion-tokens.test.mjs` |
 | A Block's add field finds Inbox tasks by word starts and pulls one in; Enter alone creates. | `android-companion/block-add.test.mjs`, `rpmctl scenario plan-add-in-place` |
 | The task sheet's Time row is every half hour from 6:00 AM to 11:00 PM plus the task's own off-grid time; its Day row is Today, Tomorrow and five weekdays. | `android-companion/habits.test.mjs` |

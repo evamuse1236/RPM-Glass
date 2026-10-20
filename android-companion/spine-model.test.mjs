@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildSpine, cardHeight, gapHeight} from './spine-model.mjs';
+import {soonText, buildSpine, cardHeight, gapHeight} from './spine-model.mjs';
 import {mealSlots, spanText, gutterTime} from './day-parts.mjs';
 import {WATER_DEFAULTS} from './body-state.mjs';
 
@@ -128,4 +128,5 @@ test('only the next card says how soon it starts', () => {
   const model = spine({tasks: [task('Read', '15:25', 30), task('Write', '17:00', 30)]});
   const soon = model.rows.filter(r => r.soon).map(r => [r.key, r.soon.replace(/\s/g, ' ')]);
   assert.deepEqual(soon, [['task:Read', 'in 40 min']]);
+  assert.deepEqual([1, 59, 60, 89, 91, 235].map(m => soonText(m * 60000)), ['in 1 min', 'in 59 min', 'in 1 h', 'in 1 h', 'in 2 h', 'in 4 h']);
 });

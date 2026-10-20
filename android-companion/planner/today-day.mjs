@@ -12,6 +12,8 @@ import {dueInfo} from './format.mjs';
 import {notice} from './snackbar.mjs';
 import {toggleDone} from './task-row.mjs';
 import {attachRowGestures} from './row-gestures.mjs';
+import {attachSpineDrag} from './spine-drag-ui.mjs';
+import {repeats} from '../planner-recurrence.mjs';
 import {openRunSheet} from './routines.mjs';
 import {drink, openWaterSheet} from './water.mjs';
 import {openMealSheet} from './meals.mjs';
@@ -79,11 +81,16 @@ function toggleTask(app, row) {
   return toggleDone(app, row.task.ref, row.task.occurrence);
 }
 
+/** A timed task that does not repeat can be moved and resized on the spine; a repeat is changed from its sheet. */
+const movable = row => row.start != null && !row.done && !repeats(row.task.ref);
+
 function handlers(app) {
   const body = bodyApi(app);
   return {
     toggleTask: row => toggleTask(app, row),
-    gestures: (card, row) => attachRowGestures(app, card, row.task.ref, {leave: false, complete: () => toggleTask(app, row)}),
+    gestures: (card, row) => attachRowGestures(app, card, row.task.ref, {leave: false, hold: !movable(row),
+      complete: () => toggleTask(app, row)}),
+    drag: (card, row) => { if (movable(row)) attachSpineDrag(app, card, row, {dayStart: Date.parse(app.state.day + 'T00:00:00')}); },
     openTask: task => app.actions.openTask(task.id, task.occurrence),
     openEvent: event => app.actions.calendarDetails(event),
     resolve(row) {

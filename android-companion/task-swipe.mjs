@@ -16,6 +16,10 @@ export function lockAxis(dx, dy) {
   return Math.abs(dx) > Math.abs(dy) * X_BIAS ? 'x' : 'y';
 }
 
+/** A horizontal gesture never starts within 24dp of a screen edge: those belong to the system's Back. */
+export const EDGE = 24;
+export const nearEdge = (x, width) => x < EDGE || x > width - EDGE;
+
 export const swipeSide = dx => (dx > 0 ? 'right' : dx < 0 ? 'left' : null);
 
 /** The side whose action fires when a horizontal drag is let go at `dx`; null springs the row back. */
@@ -110,7 +114,7 @@ export function attachSwipe(row, {right = null, left = null, hold = null, haptic
     swallow = false;
     if (event.isPrimary === false || event.button > 0 || event.target.closest('input,select,textarea')
       || row.classList.contains('swipe-leaving')) return;
-    start = {x: event.clientX, y: event.clientY, id: event.pointerId};
+    start = {x: event.clientX, y: event.clientY, id: event.pointerId, edge: nearEdge(event.clientX, innerWidth)};
     axis = null;
     armed = false;
     row.classList.remove('swipe-settling');
@@ -124,7 +128,7 @@ export function attachSwipe(row, {right = null, left = null, hold = null, haptic
       axis = lockAxis(dx, dy);
       if (!axis) return;
       clearTimeout(timer);
-      if (axis === 'y') { start = null; return; }
+      if (axis === 'y' || start.edge) { start = null; return; }
       try { row.setPointerCapture(event.pointerId); } catch {}
     }
     const side = swipeSide(dx);

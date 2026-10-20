@@ -46,7 +46,7 @@ function tool(symbol, label, onClick, cls = '') {
 /**
  * Task sheet: one level, nothing folded. The header holds the ring, the title and the Must star; then a row each for
  * the day, time, length, alert and repeat; the Block; notes and who could help; and a footer of actions. Every change
- * saves at once with Undo. `occurrence` is the repeat being looked at; `focus: 'date'` puts focus on the day.
+ * saves at once with Undo. `occurrence` is the repeat being looked at; `focus: 'date'` or `'length'` puts focus on that row's chosen chip.
  */
 export function openTask(app, id, occurrence, {focus = null, motion = 'forward', fromInbox = inboxShowing(app)} = {}) {
   const task = findTask(app, id);
@@ -211,7 +211,8 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
   paint(task);
   facts.reveal();
   for (const field of [notes, helper, why]) field.grow();
-  if (focus === 'date') body.querySelector('[aria-label=Day] button.chip[aria-pressed=true]')?.focus({preventScroll: true});
+  const focusRow = {date: 'Day', length: 'Length'}[focus];
+  if (focusRow) body.querySelector(`[aria-label=${focusRow}] button.chip[aria-pressed=true]`)?.focus({preventScroll: true});
 
   app.sheet.live = () => body.isConnected && isSheetOpen(app);
   app.sheet.sync = () => {
