@@ -2,6 +2,10 @@
 .cards{flex:0 1 auto;min-block-size:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;display:flex;flex-direction:column;gap:8px;outline:none;padding:0 16px 8px;margin:0 -16px -8px}
 .cards::-webkit-scrollbar{display:none}
 .cards:empty{display:none}
+@property --fade-start{syntax:"<length>";inherits:false;initial-value:0px}
+@property --fade-end{syntax:"<length>";inherits:false;initial-value:0px}
+@keyframes cards-edges{from{--fade-start:0px;--fade-end:24px}1%,99%{--fade-start:24px;--fade-end:24px}to{--fade-start:24px;--fade-end:0px}}
+.cards{animation:cards-edges linear both;animation-timeline:scroll(self block);mask-image:linear-gradient(to bottom,transparent,#000 var(--fade-start),#000 calc(100% - var(--fade-end)),transparent)}
 
 .card{
   flex:none;display:flex;flex-direction:column;gap:12px;padding:16px 20px;
