@@ -40,6 +40,16 @@ public class NotchFrameTest {
     }
 
     @Test
+    public void anUnreadableStoreKeepsWhatTheIslandShowedInsteadOfHidingIt() throws Exception {
+        NotchData shown = day();
+        NotchData kept = NotchData.readOr(shown, () -> { throw new java.io.IOException("half-written"); }, null);
+        assertTrue("the pill stays instead of blinking out", kept == shown);
+        assertEquals(1, kept.tasks.size());
+        NotchData none = NotchData.readOr(shown, () -> null, null);
+        assertTrue("no saved plan yet is a real empty day", none.tasks.isEmpty());
+    }
+
+    @Test
     public void sameMomentTwiceGivesTheSameFrame() throws Exception {
         NotchData data = day();
         assertEquals(frame(data, "2026-10-18T15:40:05", Mode.PILL).key(PLACE), frame(data, "2026-10-18T15:40:05", Mode.PILL).key(PLACE));

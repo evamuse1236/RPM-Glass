@@ -150,8 +150,9 @@ final class NotchController implements NotchPill.Gestures {
     void reload() {
         if (pill == null) return;
         readAt = SystemClock.elapsedRealtime();
+        NotchData last = data;
         reader.execute(() -> {
-            NotchData next = NotchData.read(service);
+            NotchData next = NotchData.read(service, last);
             handler.post(() -> safely("data loaded", () -> {
                 data = next;
                 render();

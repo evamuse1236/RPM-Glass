@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 
 /** What the notch reads: the planner store (tasks and planner.body) and the calendars chosen in the planner. Read-only. */
 final class NotchData {
@@ -32,19 +33,30 @@ final class NotchData {
         this.body = body;
     }
 
-    static NotchData read(Context context) {
+    /** The store and calendar now; {@code last} again when the store cannot be read, so the island never blinks out. */
+    static NotchData read(Context context, NotchData last) {
         JSONArray events = null;
         try {
             events = PlannerCalendar.read(context, System.currentTimeMillis()).optJSONArray("events");
         } catch (Exception e) {
             Log.w(NotchController.TAG, "calendar unreadable; notch shows tasks only", e);
         }
+        return readOr(last, () -> {
+            try {
+                return CompanionStore.read(context);
+            } catch (Exception e) {
+                Log.w(NotchController.TAG, "planner data unreadable; notch keeps what it showed", e);
+                throw e;
+            }
+        }, events);
+    }
+
+    /** {@code store} reads companion.json; when it throws, the island keeps showing {@code last}. */
+    static NotchData readOr(NotchData last, Callable<JSONObject> store, JSONArray events) {
         try {
-            JSONObject data = CompanionStore.read(context);
-            return parse(data, events);
+            return parse(store.call(), events);
         } catch (Exception e) {
-            Log.w(NotchController.TAG, "planner data unreadable; notch hides", e);
-            return EMPTY;
+            return last;
         }
     }
 

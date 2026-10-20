@@ -5,6 +5,7 @@ Rules for the notch pill and island (`IslandView`, `IslandWindow`, `NotchScene`,
 | Rule | Enforced by |
 |---|---|
 | The notch pill ends at the status bar's bottom edge, 4dp above the camera hole, and keeps the cutout's whole width clear, so a wide notch is never drawn over. | `NotchAnchorTest.java` (`aWideNotchKeepsItsWholeWidthClear`), `playground/notch-scene.test.mjs` |
+| When the planner store cannot be read, the notch keeps what it showed instead of hiding. | `NotchFrameTest.java` (`anUnreadableStoreKeepsWhatTheIslandShowedInsteadOfHidingIt`) |
 | The notch redraws only when what it shows changes: the same frame twice means no redraw, no animation and no window relayout. | `IslandWindowTest.java`, `NotchFrameTest.java` |
 | The notch's drawing window never moves: it sits at the screen's top-left at full width and only its height changes, so a morph is never drawn at a stale position. A small touch window over the pill takes its taps. | `IslandWindowTest.java` (`theDrawingWindowNeverMovesOnlyItsHeightChanges`) |
 | Only a touch opens the island. Whatever hides it (lock, sleep, turning the phone sideways) closes it and its alert controls, so it comes back as the pill. | `IslandStateTest.java` (`lockingSleepingOrTurningThePhoneSidewaysClosesTheIsland`, `theControllerClosesTheIslandWheneverThePhoneHidesIt`) |
