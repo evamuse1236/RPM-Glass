@@ -172,18 +172,23 @@
 .notch-band-control { position: absolute; inset-block-start: var(--pad); inset-inline-end: var(--pad); }
 .notch-undo {
   position: relative;
+  isolation: isolate;
   min-block-size: var(--circle);
   padding: 4px 18px;
   border: 0;
   border-radius: var(--inner);
-  background: color-mix(in oklch, var(--task) 20%, black);
+  background: color-mix(in srgb, var(--task) 20%, black);
   color: var(--task);
   font: inherit;
   font-size: calc(15px * var(--font-scale));
   font-weight: 600;
   cursor: pointer;
 }
-.notch-undo:active { background: color-mix(in oklch, var(--task) 30%, black); }
+.notch-undo:active { background: color-mix(in srgb, var(--task) 42%, black); }
+.notch-undo::before { content: ""; position: absolute; z-index: -1; inset: 0; border-radius: inherit; background: color-mix(in srgb, var(--task) 34%, black);
+  animation: notch-undo-left 5000ms linear forwards; }
+.notch-undo:active::before { visibility: hidden; }
+@keyframes notch-undo-left { from { clip-path: inset(0 0 0 0); } to { clip-path: inset(0 100% 0 0); } }
 
 .receipt-title { font-size: calc(16px * var(--font-scale)); font-weight: 600; color: var(--t1); }
 .receipt-detail { margin-block-start: 2px; font-size: calc(13px * var(--font-scale)); }
@@ -228,7 +233,7 @@
   .notch-row-tap:hover { background: oklch(100% 0 none / 0.06); }
   .notch-secondary:hover { background: oklch(100% 0 none / 0.16); }
   .notch-primary:hover { background: color-mix(in srgb, var(--kc) 92%, black); }
-  .notch-undo:hover { background: color-mix(in oklch, var(--task) 26%, black); }
+  .notch-undo:hover { background: color-mix(in srgb, var(--task) 26%, black); }
 }
 
 :is(.notch-pill, .notch-words, .notch-pill-button, .notch-row-tap, .notch-circle-button, .notch-undo):focus-visible { outline: 2px solid var(--task); outline-offset: 2px; }

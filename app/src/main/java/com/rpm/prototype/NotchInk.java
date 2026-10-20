@@ -26,6 +26,9 @@ final class NotchInk {
     static final float PRIMARY_PRESSED_SHARE = 0.85f;
     static final float PRIMARY_SHARE = 0.30f;
     static final float UNDO_SHARE = 0.20f;
+    /** The part of Undo's pill still counting down: the task blue 34% into black. */
+    static final float UNDO_LEFT_SHARE = 0.34f;
+    static final float UNDO_PRESSED_SHARE = 0.42f;
     static final float ALARM_DISC_SHARE = 0.24f;
 
     private NotchInk() {

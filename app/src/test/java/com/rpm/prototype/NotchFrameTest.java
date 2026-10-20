@@ -241,9 +241,9 @@ public class NotchFrameTest {
         assertEquals(R.drawable.notch_ic_water, saving.glyph);
         assertEquals(NotchInk.WATER, saving.accent);
         assertEquals("Undo, not a value, takes the trailing slot", "", saving.value);
-        NotchBand saved = NotchBand.of(new NotchFrame(Mode.RECEIPT, null, null, scene, null, null, null, glass.saved("t", null)), 0);
+        NotchBand saved = NotchBand.of(new NotchFrame(Mode.RECEIPT, null, null, scene, null, null, null, glass.saved("t", null, 0L)), 0);
         assertEquals("saving then saved keeps one fill, timed from the same start", saving.startedAt, saved.startedAt);
-        assertTrue(glass.saved("t", null).canUndo());
+        assertTrue(glass.saved("t", null, 0L).canUndo());
         NotchBand done = NotchBand.of(new NotchFrame(Mode.RECEIPT, null, null, scene, null, null, null, NotchReceipt.done("Essay", 5)), 0);
         assertEquals(R.drawable.ic_check, done.glyph);
         assertEquals(1f, done.progress, 0f);

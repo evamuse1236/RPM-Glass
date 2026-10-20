@@ -393,6 +393,17 @@ test('a ringing alarm puts Stop across the width over Snooze 10 min and Done; a 
   assert.ok(!copy.includes('notch-band-control'));
 });
 
+test('Undo shows its five seconds draining, on the phone and in the copy', () => {
+  const ms = Number(javaSource('NotchReceipt').match(/UNDO_MS = ([\d_]+);/)[1].replace('_', ''));
+  const ink = javaSource('NotchInk');
+  const share = name => Math.round(Number(ink.match(new RegExp(`${name} = ([\\d.]+)f;`))[1]) * 100);
+  const css = readFileSync(new URL('./notch.css', import.meta.url), 'utf8');
+  assert.ok(css.includes(`background: color-mix(in srgb, var(--task) ${share('UNDO_SHARE')}%, black);`));
+  assert.ok(css.includes(`background: color-mix(in srgb, var(--task) ${share('UNDO_LEFT_SHARE')}%, black);\n  animation: notch-undo-left ${ms}ms linear forwards;`));
+  assert.ok(css.includes(`.notch-undo:active { background: color-mix(in srgb, var(--task) ${share('UNDO_PRESSED_SHARE')}%, black); }`));
+  assert.ok(css.includes('@keyframes notch-undo-left { from { clip-path: inset(0 0 0 0); } to { clip-path: inset(0 100% 0 0); } }'), 'drains from end to start');
+});
+
 test('a row title keeps the phone\'s line count in the copy: 1 line, 2 at large text, 3 at max', () => {
   const parts = javaSource('NotchParts');
   assert.match(parts, /setMaxLines\(fontScale\(\) >= MAX_TEXT \? normal \+ 2 : largeText\(\) \? normal \+ 1 : normal\)/);

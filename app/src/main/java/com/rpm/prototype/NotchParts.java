@@ -221,9 +221,14 @@ final class NotchParts {
      * Draws {@code v} as a pill {@code reach} inside its touch box, with {@code side} padding at each end. The background
      * goes on first: an InsetDrawable background replaces the view's padding with its own insets.
      */
-    static void pillShape(View v, int rest, int pressed, float radius, int reach, int side) {
-        v.setBackground(states(new InsetDrawable(round(rest, radius), 0, reach, 0, reach), new InsetDrawable(round(pressed, radius), 0, reach, 0, reach)));
+    static void pillShape(View v, Drawable rest, int pressed, float radius, int reach, int side) {
+        v.setBackground(states(rest, new InsetDrawable(round(pressed, radius), 0, reach, 0, reach)));
         v.setPadding(side, reach, side, reach);
+    }
+
+    /** A pill filled {@code rest}, {@code reach} inside its touch box. */
+    static void pillShape(View v, int rest, int pressed, float radius, int reach, int side) {
+        pillShape(v, new InsetDrawable(round(rest, radius), 0, reach, 0, reach), pressed, radius, reach, side);
     }
 
     /**

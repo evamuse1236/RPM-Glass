@@ -131,6 +131,22 @@ public class NotchAlertRowsTest {
     }
 
     @Test
+    public void undoShowsItsFiveSecondsDrainingFromTheMomentTheChangeIsSaved() throws Exception {
+        NotchReceipt saving = NotchReceipt.glass(3, 8, 1000);
+        assertEquals("nothing to count while it saves", 0f, saving.undoLeft(1000), 0f);
+        NotchReceipt saved = saving.saved("t", null, 2000);
+        assertEquals(1f, saved.undoLeft(2000), 0f);
+        assertEquals(0.5f, saved.undoLeft(2000 + NotchReceipt.UNDO_MS / 2), 0.001f);
+        assertEquals(0f, saved.undoLeft(2000 + NotchReceipt.UNDO_MS), 0f);
+        assertEquals(0f, saved.undoLeft(99_000), 0f);
+        String views = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("src/main/java/com/rpm/prototype/NotchChangeViews.java")), java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(views.contains("NotchParts.pillShape(undo, new UndoCountdown(r, reach, radius),"));
+        String countdown = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("src/main/java/com/rpm/prototype/UndoCountdown.java")), java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue("reads the clock, so it counts down with animations off", countdown.contains("float left = receipt.undoLeft(now);"));
+        assertTrue(countdown.contains("scheduleSelf(tick, now + FRAME_MS);"));
+    }
+
+    @Test
     public void aReceiptShowsAtOnceAndOffersUndoOnlyOnceSaved() {
         NotchReceipt glass = NotchReceipt.glass(3, 8, 1000);
         assertEquals("Glass logged", glass.title);
@@ -138,11 +154,11 @@ public class NotchAlertRowsTest {
         assertEquals(3 / 8f, glass.from, 0.001);
         assertEquals(4 / 8f, glass.to, 0.001);
         assertFalse(glass.canUndo());
-        NotchReceipt saved = glass.saved("event-1", "5 of 8 today");
+        NotchReceipt saved = glass.saved("event-1", "5 of 8 today", 0L);
         assertTrue(saved.canUndo());
         assertEquals("the saved count wins over the guess", "5 of 8 today", saved.detail);
         assertEquals("the mark keeps playing from the same start", glass.startedAt, saved.startedAt);
-        assertFalse(saved.saved(null, null).canUndo());
+        assertFalse(saved.saved(null, null, 0L).canUndo());
         NotchReceipt undoing = saved.undoing(2000);
         assertEquals("Undone", undoing.title);
         assertEquals("Glass removed", undoing.detail);
@@ -171,7 +187,7 @@ public class NotchAlertRowsTest {
         NotchFrame a = new NotchFrame(Mode.RECEIPT, null, null, s, null, null, null, saving);
         NotchFrame b = new NotchFrame(Mode.RECEIPT, null, null, s, null, null, null, NotchReceipt.glass(1, 8, 5));
         assertEquals(a.key(place), b.key(place));
-        NotchFrame saved = new NotchFrame(Mode.RECEIPT, null, null, s, null, null, null, saving.saved("t", null));
+        NotchFrame saved = new NotchFrame(Mode.RECEIPT, null, null, s, null, null, null, saving.saved("t", null, 0L));
         assertNotEquals(a.key(place), saved.key(place));
         assertNull(saved.secondary);
     }

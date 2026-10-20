@@ -37,14 +37,13 @@ final class NotchChangeViews {
         return face;
     }
 
-    /** Undo: a 40dp pill, the task blue 20% into black, 48dp to touch. */
+    /** Undo: a 40dp pill, 48dp to touch, whose lighter part drains from end to start over the 5 seconds it lasts. */
     private View undo(NotchReceipt r, NotchContent.Actions actions) {
         int reach = (parts.dp(NotchGeometry.TOUCH_DP) - parts.dp(NotchGeometry.CONTROL_DP)) / 2;
         float radius = parts.dp(NotchGeometry.innerRadius(NotchGeometry.PAD_DP));
         TextView undo = parts.text("Undo", 15, NotchInk.TASK, 600);
         undo.setGravity(android.view.Gravity.CENTER);
-        NotchParts.pillShape(undo, NotchInk.intoBlack(NotchInk.TASK, NotchInk.UNDO_SHARE), NotchInk.intoBlack(NotchInk.TASK, NotchInk.PRIMARY_SHARE),
-                radius, reach, parts.dp(18));
+        NotchParts.pillShape(undo, new UndoCountdown(r, reach, radius), NotchInk.intoBlack(NotchInk.TASK, NotchInk.UNDO_PRESSED_SHARE), radius, reach, parts.dp(18));
         undo.setContentDescription("Undo: " + r.title);
         undo.setOnClickListener(v -> NotchController.safely("Undo", actions::undo));
         NotchParts.pressShrinks(undo);
