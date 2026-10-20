@@ -39,3 +39,13 @@ The run passes when all of these hold on `feat/gauntlet-2026-10-20`:
 - 08:35 UTC Design critic round 2: alignment 9, corners 9, next task 9, hints 9, size 8, parity 8, overlap 7, borders 7, choice support 6, overall 8. Round 3 (last) started: quick-add sheet 16/24 and tidy chips, dark sheet edges, Now pill spacing, gutter, "Next" case.
 - 09:00 UTC Design round 3 done and merged into this branch (`174011f`). `npm test`: 901 + 10 pass. Three critic rounds complete (done condition 2).
 - 09:25 UTC Notch round 2 done and merged (`df538f2`): no second frame under a ringing alarm, Stop primary, Done filled, time once, digits roll in place, equal margins, one 40dp circle per row, Undo countdown, large-text scaling, black-wallpaper edge. `npm test`: 919 + 10 pass. Open: island side margin is about 5dp; check the S24's rounded corners on the phone.
+- 09:40 UTC AI round 2 merged. Adversary cases 57/80 → 78/80; old corpus 108/109 → 108/109. The 2 left ask "earlier or later?" when the words give no direction.
+- 09:45 UTC Emulator drive of the merged branch found and fixed: Capture's field could not be tapped (the handle's invisible strip covered it). `rpmctl tap` now refuses a covered control and names the cover (`fa8b6a7`). Water reader learned "had 2 glasses of water" (`c7b8977`).
+- 09:55 UTC Final: `npm test` 979 + 10 pass; all 6 device scenarios pass; `check:evidence` passes on a fresh APK. Evidence: `.verify/evidence/2026-10-20T08-41-07-bca5f5/`.
+
+## Result
+
+All five done-condition checks pass. Open owner decisions:
+1. The phone's instant task reader skips any capture while a Block is open, so on a real plan "buy milk tomorrow" still waits for the AI.
+2. The island's side margin is about 5dp; check that the S24's rounded corners do not clip it.
+3. Not on the phone yet: this branch is not installed or merged to `main`.
