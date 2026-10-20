@@ -8,7 +8,7 @@ import {jumpToNow} from './today-day.mjs';
 import {bodyApi} from './body-api.mjs';
 import {openHabits} from './habits.mjs';
 import {navDrag} from '../nav-drag.mjs';
-import {lockAxis, nearEdge} from '../task-swipe.mjs';
+import {attachSwipe, lockAxis, nearEdge} from '../task-swipe.mjs';
 
 const DESTINATIONS = [
   ['today', 'today', 'Today'],
@@ -186,7 +186,11 @@ function fab(app) {
   }
   const stack = el('div', 'fab-stack');
   stack.append(iconButton('search', 'Search', () => app.openSearch(), {cls: 'fab fab-small'}));
-  if (spec) stack.append(iconButton('add', spec.label, spec.onClick, {cls: 'fab'}));
+  if (spec) {
+    const add = iconButton('add', spec.label, spec.onClick, {cls: 'fab'});
+    attachSwipe(add, {hold: () => app.capture(), haptic: () => app.api.native('haptic', {kind: 'hold'}).catch(() => {})});
+    stack.append(add);
+  }
   host.append(stack);
 }
 
