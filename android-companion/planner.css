@@ -132,6 +132,7 @@ h1, h2, h3, p { margin: 0; }
   border-radius: var(--r-group);
   background: var(--float-surface);
   box-shadow: var(--float-shadow);
+  touch-action: pan-y;
 }
 :root[data-keyboard=open] :is(#nav-bar, #fab-host) { display: none; }
 /* Content scrolls under the bar; what passes below it fades out at the screen's edge. */

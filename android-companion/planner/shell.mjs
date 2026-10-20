@@ -7,6 +7,8 @@ import {localDay} from '../planner-state.mjs';
 import {jumpToNow} from './today-day.mjs';
 import {bodyApi} from './body-api.mjs';
 import {openHabits} from './habits.mjs';
+import {navDrag} from '../nav-drag.mjs';
+import {lockAxis, nearEdge} from '../task-swipe.mjs';
 
 const DESTINATIONS = [
   ['today', 'today', 'Today'],
@@ -94,6 +96,7 @@ function navigationBar(app) {
       item.append(pill, el('span', 'nav-label', label));
       nav.append(item);
     }
+    attachNavDrag(app, nav);
   }
   for (const item of nav.querySelectorAll('.nav-item')) {
     const on = item.dataset.tab === app.state.tab;
@@ -101,6 +104,58 @@ function navigationBar(app) {
     item.querySelector('.ms').classList.toggle('fill', on);
   }
   placeNavIndicator(nav);
+}
+
+/**
+ * Drag along the tab bar: the pill follows the finger with a tick at each tab, and letting go opens the tab under it.
+ * A tap on a tab stays the tap twin; a drag that starts within 24dp of the screen edge is left to system Back.
+ */
+function attachNavDrag(app, nav) {
+  let start = null, axis = null, index = -1;
+  const items = () => [...nav.querySelectorAll('.nav-item')];
+  const end = () => {
+    start = null;
+    delete nav.dataset.dragging;
+  };
+  nav.addEventListener('pointerdown', event => {
+    if (event.isPrimary === false || event.button > 0) return;
+    start = {x: event.clientX, y: event.clientY, id: event.pointerId, edge: nearEdge(event.clientX, innerWidth)};
+    axis = null;
+    index = items().findIndex(item => item.getAttribute('aria-current') === 'page');
+  });
+  nav.addEventListener('pointermove', event => {
+    if (!start || event.pointerId !== start.id) return;
+    if (!axis) {
+      axis = lockAxis(event.clientX - start.x, event.clientY - start.y);
+      if (!axis) return;
+      if (axis === 'y' || start.edge) return end();
+      try { nav.setPointerCapture(event.pointerId); } catch {}
+      nav.dataset.dragging = '';
+    }
+    const tabs = items();
+    const width = parseFloat(nav.style.getPropertyValue('--pill-w')) || 64;
+    const drag = navDrag(event.clientX - nav.getBoundingClientRect().left - nav.clientLeft,
+      tabs.map(item => ({left: item.offsetLeft, width: item.offsetWidth})), width);
+    nav.style.setProperty('--pill-x', drag.pillX + 'px');
+    if (drag.index !== index) app.api.native('haptic', {kind: 'tick'}).catch(() => {});
+    index = drag.index;
+  });
+  nav.addEventListener('pointerup', event => {
+    if (!start || event.pointerId !== start.id) return;
+    const dragged = axis === 'x';
+    end();
+    if (!dragged) return;
+    const eat = click => { click.preventDefault(); click.stopImmediatePropagation(); };
+    nav.addEventListener('click', eat, {capture: true, once: true});
+    setTimeout(() => nav.removeEventListener('click', eat, {capture: true}));
+    const tab = items()[index]?.dataset.tab;
+    if (tab && tab !== app.state.tab) app.goTab(tab);
+    else placeNavIndicator(nav);
+  });
+  nav.addEventListener('pointercancel', () => {
+    if (axis === 'x') placeNavIndicator(nav);
+    end();
+  });
 }
 
 /** Puts the tab bar's one pill under `item` (the current tab by default): 64dp wide, centred, narrower if the column is. */
