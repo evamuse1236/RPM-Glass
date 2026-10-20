@@ -3,7 +3,7 @@
   position: relative;
   display: flex;
   align-items: flex-start;
-  min-height: 56px;
+  min-height: var(--touch);
   padding: 0 var(--s1) 0 var(--s1);
   background: inherit;
   --swipe-offset: 0px;

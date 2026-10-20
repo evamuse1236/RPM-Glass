@@ -50,3 +50,16 @@ All five done-condition checks pass. Open owner decisions:
 2. The island's side margin is about 5dp; check that the S24's rounded corners do not clip it.
 3. Not on the phone yet: this branch is not installed or merged to `main`.
 - 10:00 UTC Push notification not sent (Remote Control inactive). ZapFast fallback skipped: it is Windows-only and not installed on Linux.
+
+## Round 2 (2026-10-20, afternoon): sizes and the glass bar
+
+Done condition:
+1. Apple HIG notes and at least 3 WWDC transcripts saved in the repo. **Pass:** `docs/design-research/apple-design-notes.md` (16 HIG pages, 5 talks).
+2. One size scale written down, with a test that fails any off-scale value. **Pass:** `DESIGN.md` → Sizes, `scripts/rules/size-scale.test.mjs` (120 off-scale values fixed).
+3. The tab bar is see-through glass; a Settings slider changes it and the value is kept. **Pass:** Settings → Tab bar transparency (Solid to 60%, 20% default); value kept after a force-stop.
+4. `npm test` passes, device scenarios pass, phone screenshots exist. See below.
+
+Log:
+- Measured every screen with `scripts/design/measure-sizes.mjs`. Before: Today's words started at 90, 122, 127, 141 and 168dp. After: all at 120dp.
+- Fable wrote the size spec. A second Fable critic scored sizing 4/10 before and 7/10 after, then flagged a pink tint on the light bar (an oklch mix with `transparent` dropped the hue), a cut-off "in N min" label and a broken-looking sample. All three were fixed.
+- Emulator evidence: `.verify/evidence/2026-10-20T09-38-38-6f11ef/`.

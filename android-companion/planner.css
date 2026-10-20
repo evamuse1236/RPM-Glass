@@ -140,7 +140,7 @@ h1, h2, h3, p { margin: 0; }
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
   :root[data-bar-glass=true] #nav-bar {
     border-color: var(--glass-border);
-    background: color-mix(in oklch, var(--float-surface) var(--bar-fill, 100%), transparent);
+    background: color-mix(in srgb, var(--float-surface) var(--bar-fill, 100%), transparent);
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   }

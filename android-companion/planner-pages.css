@@ -13,7 +13,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--s1);
-  padding: var(--s4) var(--s4) var(--s3);
+  padding: var(--s3) var(--s4);
 }
 .card-main { width: 100%; gap: 2px; }
 .card-main:active, .project-card:active { background: var(--row-press); }
@@ -40,7 +40,7 @@
 .card-meta { font: var(--body-small); color: var(--on-surface-variant); margin-top: 2px; }
 /* One facts line on a Block card: deadline, the Musts' time left, tasks done. */
 .card-facts { margin-top: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
-.card-facts > *, .nowrap, .must-left { white-space: nowrap; }
+.card-facts > *, .fact-next, .nowrap, .must-left { white-space: nowrap; }
 .card-due { font-weight: 500; color: var(--on-surface); }
 .card-due.tight { color: var(--error); }
 .ring { flex: none; width: 24px; height: 24px; }

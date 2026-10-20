@@ -111,14 +111,14 @@
 .settings-slider { padding: var(--s3) var(--inset-page) var(--s3) var(--gutter); }
 .settings-slider-head { display: flex; justify-content: space-between; font: var(--body-large); }
 .settings-slider small { font: var(--body-medium); color: var(--on-surface-variant); }
-.bar-sample { position: relative; display: grid; align-content: start; gap: var(--s2); block-size: 96px; margin-block-start: var(--s2); padding: var(--s3) var(--s4); overflow: clip;
+.bar-sample { position: relative; display: grid; align-content: start; gap: var(--s2); block-size: 104px; margin-block-start: var(--s2); padding: var(--s3) var(--s4); overflow: clip;
   border-radius: var(--shape-md); background: var(--surface); outline: 1px solid var(--outline-variant); outline-offset: -1px; }
 .bar-sample-line { display: flex; align-items: center; gap: var(--s2); font: var(--body-large); color: var(--on-surface); white-space: nowrap; }
 .bar-sample-line::before { content: ""; flex: none; inline-size: 8px; block-size: 8px; border-radius: 50%; background: var(--tone); }
-.bar-sample-bar { position: absolute; inset: auto var(--s3) var(--s3); display: grid; place-items: center; block-size: 48px;
+.bar-sample-bar { position: absolute; inset: auto var(--s3) var(--s1); display: grid; place-items: center; block-size: 48px;
   border: 1px solid var(--float-border); border-radius: var(--r-control); background: var(--float-surface); font: var(--label-medium); white-space: pre; color: var(--on-surface-variant); }
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-  :root[data-bar-glass=true] .bar-sample-bar { border-color: var(--glass-border); background: color-mix(in oklch, var(--float-surface) var(--bar-fill, 100%), transparent);
+  :root[data-bar-glass=true] .bar-sample-bar { border-color: var(--glass-border); background: color-mix(in srgb, var(--float-surface) var(--bar-fill, 100%), transparent);
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)); }
 }
 .widget-text-preview { margin-top: var(--s2); padding: var(--s3); border-radius: var(--shape-md); background: var(--surface-container); }

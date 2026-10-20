@@ -53,7 +53,7 @@
 :root[data-large-text=true] .spine-gutter { white-space: normal; overflow-wrap: break-word; }
 .spine-row.next .spine-gutter { color: var(--on-surface); font-weight: 700; }
 /* The next card alone: a 4dp primary bar on its inner left edge and how soon it starts under its time. */
-.spine-soon { color: var(--primary); white-space: normal; text-wrap: balance; }
+.spine-soon { color: var(--primary); font-weight: 500; }
 .spine-row.next .spine-card { position: relative; }
 .spine-row.next .spine-card::after {
   content: "";
