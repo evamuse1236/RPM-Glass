@@ -17,8 +17,10 @@ final class NotchMotion {
     static final long ROLL_IN_MS = 150;
     static final long FADE_MS = 150;
     static final int RISE_DP = 8;
-    /** A rolling digit travels 60% of its height. */
-    static final float ROLL_TRAVEL = 0.6f;
+    /** A rolling digit travels 1.15 times its cap height, inside a box from its cap top to its baseline. */
+    static final float ROLL_TRAVEL = 1.15f;
+    /** The roll's box reaches this share of an em past the cap top and the baseline, no further. */
+    static final float ROLL_PAD = 0.08f;
     static final float PRESS_SCALE = 0.97f;
     static final long PRESS_MS = 100;
     static final long PULSE_MS = 1200;

@@ -15,8 +15,9 @@ export const G = Object.freeze({
 });
 export const innerRadius = inset => G.RADIUS_DP - inset;
 
-/** IslandShape.faceScale: mid-morph a face shrinks with the island toward the camera instead of being cut, never past its size. */
-export const faceScale = (faceWidth, width) => faceWidth <= 0 ? 1 : Math.max(0, Math.min(1, width / faceWidth));
+/** IslandShape.faceScale: mid-morph a face shrinks with the island toward the camera so it always fits inside it, never past its size. */
+export const faceScale = (faceWidth, faceHeight, width, height) =>
+  Math.max(0, Math.min(1, faceWidth > 0 ? width / faceWidth : 1, faceHeight > 0 ? height / faceHeight : 1));
 
 /** NotchGeometry.fits: the open island drops rows 3, 2, 1, then any face cuts its title to two lines; nothing is ever cut off. */
 export function fits(open) {

@@ -64,8 +64,8 @@
 
 .notch-value { font-weight: 600; line-height: 1; white-space: nowrap; color: var(--vc); transform-origin: right center; }
 .notch-value[data-chip="true"] { padding: 2px 8px; border-radius: 999px; background: var(--track); }
-.notch-c { display: inline-block; position: relative; }
-.notch-o { position: absolute; inset: 0; opacity: 0; }
+.notch-c { display: inline-block; position: relative; text-box: trim-both cap alphabetic; clip-path: inset(-0.08em 0); }
+.notch-o { position: absolute; inset: 0; opacity: 0; text-box: trim-both cap alphabetic; }
 
 .notch-split { position: absolute; z-index: 3; display: grid; place-items: center; border-radius: 50%; background: var(--ink); pointer-events: none; }
 .notch-split[data-state="away"] { opacity: 0; }
@@ -199,6 +199,8 @@
     transition-timing-function: var(--ease);
   }
   :root:not([data-reduce-motion="true"]) [data-motion="close"] { transition-duration: 300ms; }
+  :root:not([data-reduce-motion="true"]) .island[data-motion="open"] { transition-duration: 175ms, 175ms, 350ms, 350ms, 350ms; }
+  :root:not([data-reduce-motion="true"]) .island[data-motion="close"] { transition-duration: 150ms; transition-delay: 150ms, 150ms, 0s, 0s, 0s; }
   :root:not([data-reduce-motion="true"]) .notch-arc { transition: stroke-dashoffset 400ms var(--fill-ease); }
   :root:not([data-reduce-motion="true"]) .island-face { transition: opacity 210ms linear 90ms, translate 210ms var(--ease) 90ms, scale 350ms var(--ease); }
   :root:not([data-reduce-motion="true"]) .island-face[data-state="leaving"] { transition: opacity 90ms linear, scale 300ms var(--ease); }
@@ -217,8 +219,8 @@
   .island-face, .notch-value { transition: opacity 150ms linear; }
 }
 .notch-n { display: inline-block; }
-@keyframes notch-roll-out { from { opacity: 1; } to { translate: 0 -60%; opacity: 0; } }
-@keyframes notch-roll-in { from { translate: 0 60%; opacity: 0; } }
+@keyframes notch-roll-out { from { opacity: 1; } to { translate: 0 -115%; opacity: 0; } }
+@keyframes notch-roll-in { from { translate: 0 115%; opacity: 0; } }
 @keyframes notch-beat { 50% { scale: 1.06; } }
 
 @media (hover: hover) and (pointer: fine) {

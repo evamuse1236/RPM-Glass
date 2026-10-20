@@ -11,6 +11,12 @@ final class IslandShape {
     static final int TOUCH_HEIGHT_DP = 48;
     static final int SHADOW_SIDE_DP = 12;
     static final int SHADOW_BELOW_DP = 16;
+    /**
+     * The share of a morph in which the island's width moves: opening, it widens in the first half while it grows down
+     * for the whole morph; closing, it shortens in the first half and narrows in the second. Either way its edge passes
+     * the status bar's clock in a few frames.
+     */
+    static final float WIDTH_SHARE = 0.5f;
 
     final float left;
     final float top;
@@ -69,18 +75,33 @@ final class IslandShape {
 
     /** The shape {@code t} of the way from {@code a} to {@code b}; touches follow the target. */
     static IslandShape lerp(IslandShape a, IslandShape b, float t) {
-        return new IslandShape(mix(a.left, b.left, t), mix(a.top, b.top, t), mix(a.right, b.right, t), mix(a.bottom, b.bottom, t),
-                mix(a.radius, b.radius, t), mix(a.splitCx, b.splitCx, t), mix(a.splitCy, b.splitCy, t), mix(a.splitR, b.splitR, t),
-                mix(a.shadow, b.shadow, t), b.touch, b.shadowSide, b.shadowBelow);
+        return lerp(a, b, t, t);
+    }
+
+    /** The shape {@code t} of the way through a morph: the width leads when it grows and trails when it shrinks. */
+    static IslandShape morph(IslandShape a, IslandShape b, float t) {
+        float lead = Math.min(1f, t / WIDTH_SHARE);
+        if (b.width() > a.width() + 0.5f) return lerp(a, b, lead, t);
+        if (b.width() < a.width() - 0.5f) return lerp(a, b, Math.max(0f, (t - (1f - WIDTH_SHARE)) / WIDTH_SHARE), lead);
+        return lerp(a, b, t, t);
+    }
+
+    private static IslandShape lerp(IslandShape a, IslandShape b, float tx, float ty) {
+        return new IslandShape(mix(a.left, b.left, tx), mix(a.top, b.top, ty), mix(a.right, b.right, tx), mix(a.bottom, b.bottom, ty),
+                mix(a.radius, b.radius, ty), mix(a.splitCx, b.splitCx, tx), mix(a.splitCy, b.splitCy, ty), mix(a.splitR, b.splitR, ty),
+                mix(a.shadow, b.shadow, ty), b.touch, b.shadowSide, b.shadowBelow);
     }
 
     /**
-     * How far a face {@code faceWidth} wide is shrunk while the island is {@code width} wide: mid-morph it shrinks with
-     * the island toward the camera instead of being cut by its edges, and it is never drawn larger than it is.
+     * How far a face {@code faceWidth} by {@code faceHeight} is shrunk while the island is {@code width} by {@code height}:
+     * mid-morph it shrinks with the island toward the camera so it always fits inside it, and it is never drawn larger
+     * than it is.
      */
-    static float faceScale(float faceWidth, float width) {
-        if (faceWidth <= 0f) return 1f;
-        return Math.max(0f, Math.min(1f, width / faceWidth));
+    static float faceScale(float faceWidth, float faceHeight, float width, float height) {
+        float s = 1f;
+        if (faceWidth > 0f) s = Math.min(s, width / faceWidth);
+        if (faceHeight > 0f) s = Math.min(s, height / faceHeight);
+        return Math.max(0f, s);
     }
 
     float width() {

@@ -65,7 +65,7 @@ async function scene(name, {spec, time, expand = false, dark = false, text = 1, 
   const shot = await send('Page.captureScreenshot', {format: 'png', clip: {x: box.x, y: box.y, width: box.w, height: 520, scale: 1}});
   fs.writeFileSync(`${out}/${name}.png`, Buffer.from(shot.result.data, 'base64'));
   const facts = await evaluate(`(() => { const i = document.querySelector('.island'); const f = i?.querySelector('.island-face:not([data-state=leaving])');
-    return i ? {island: [i.offsetWidth, i.offsetHeight], face: f ? f.scrollHeight : 0, clipped: f ? f.scrollHeight > i.offsetHeight + 1 : false,
+    return i ? {island: [i.offsetWidth, i.offsetHeight], face: f ? f.scrollHeight : 0, clipped: f ? (() => { const b = i.getBoundingClientRect(), r = [f, ...f.children].map(c => c.getBoundingClientRect()).slice(f.children.length ? 1 : 0).reduce((a, c) => ({left: Math.min(a.left, c.left), right: Math.max(a.right, c.right), bottom: Math.max(a.bottom, c.bottom)})); return r.bottom > b.bottom + 1 || r.left < b.left - 1 || r.right > b.right + 1; })() : false,
       scale: f ? getComputedStyle(f).scale : ''} : null; })()`);
   console.log(name.padEnd(28), JSON.stringify(facts));
 }

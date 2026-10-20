@@ -131,17 +131,37 @@ public class IslandShapeTest {
     }
 
     @Test
-    public void facesShrinkWithTheIslandInsteadOfBeingCutByItsEdges() {
+    public void facesShrinkWithTheIslandSoTheyAlwaysFitInsideIt() {
         int keep = S24.holeWidth + NotchAnchor.dp(12, D);
         IslandShape pill = IslandShape.pill(S24, 1080, 200, keep, false, D);
         IslandShape open = IslandShape.island(S24, 1080, 700, D);
-        float face = open.width();
-        assertEquals("a settled face is drawn at its own size", 1f, IslandShape.faceScale(face, open.width()), 0f);
-        IslandShape mid = IslandShape.lerp(pill, open, 0.5f);
-        assertEquals("halfway, the face is as much smaller as the island", mid.width() / face, IslandShape.faceScale(face, mid.width()), 0.0001f);
-        assertEquals("a leaving face shrinks toward the pill", pill.width() / face, IslandShape.faceScale(face, pill.width()), 0.0001f);
-        assertEquals("never drawn larger than it is", 1f, IslandShape.faceScale(pill.width(), open.width()), 0f);
-        assertEquals(1f, IslandShape.faceScale(0f, open.width()), 0f);
+        float w = open.width(), h = open.height();
+        assertEquals("a settled face is drawn at its own size", 1f, IslandShape.faceScale(w, h, w, h), 0f);
+        for (float t = 0f; t <= 1f; t += 0.05f) {
+            for (IslandShape now : new IslandShape[]{IslandShape.morph(pill, open, t), IslandShape.morph(open, pill, t)}) {
+                float s = IslandShape.faceScale(w, h, now.width(), now.height());
+                assertTrue("t=" + t + " width", w * s <= now.width() + 0.01f);
+                assertTrue("t=" + t + " height", h * s <= now.height() + 0.01f);
+            }
+        }
+        assertEquals("never drawn larger than it is", 1f, IslandShape.faceScale(pill.width(), pill.height(), w, h), 0f);
+        assertEquals(1f, IslandShape.faceScale(0f, 0f, w, h), 0f);
+    }
+
+    @Test
+    public void openingWidensFirstAndClosingNarrowsLastSoTheEdgePassesTheClockQuickly() {
+        int keep = S24.holeWidth + NotchAnchor.dp(12, D);
+        IslandShape pill = IslandShape.pill(S24, 1080, 200, keep, false, D);
+        IslandShape open = IslandShape.island(S24, 1080, 700, D);
+        IslandShape opening = IslandShape.morph(pill, open, IslandShape.WIDTH_SHARE);
+        assertEquals("opening: full width by the middle", open.left, opening.left, 0.01f);
+        assertTrue("while it is still growing down", opening.bottom < open.bottom);
+        IslandShape closing = IslandShape.morph(open, pill, 1f - IslandShape.WIDTH_SHARE);
+        assertEquals("closing: still full width at the middle", open.left, closing.left, 0.01f);
+        assertEquals("once it is pill height", pill.bottom, closing.bottom, 0.01f);
+        assertEquals(pill.left, IslandShape.morph(open, pill, 1f).left, 0.01f);
+        IslandShape receipt = IslandShape.island(S24, 1080, 300, D);
+        assertEquals("same width: both move together", IslandShape.lerp(open, receipt, 0.3f).bottom, IslandShape.morph(open, receipt, 0.3f).bottom, 0.01f);
     }
 
     @Test

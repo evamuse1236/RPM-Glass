@@ -294,19 +294,48 @@ test('Undo and every pill keep their side padding: the inset background goes on 
   assert.match(javaSource('NotchChangeViews'), /NotchParts\.pillShape\(undo,/);
 });
 
-test('faces shrink with the island instead of being cut by its edges, on the phone and in the copy', () => {
-  assert.equal(faceScale(360, 360), 1);
-  assert.equal(faceScale(360, 180), 0.5);
-  assert.equal(faceScale(120, 360), 1, 'never drawn larger than it is');
-  assert.equal(faceScale(0, 360), 1);
+test('faces shrink with the island so they always fit inside it, on the phone and in the copy', () => {
+  assert.equal(faceScale(360, 300, 360, 300), 1);
+  assert.equal(faceScale(360, 300, 180, 300), 0.5);
+  assert.equal(faceScale(360, 300, 360, 150), 0.5, 'the tighter side wins');
+  assert.equal(faceScale(120, 40, 360, 300), 1, 'never drawn larger than it is');
+  assert.equal(faceScale(0, 0, 360, 300), 1);
   const view = javaSource('IslandView');
-  assert.match(view, /IslandShape\.faceScale\(at\.width\(\), now\.width\(\)\)/);
+  assert.ok(view.includes('IslandShape.faceScale(at.width(), at.height(), now.width(), now.height())'));
+  assert.ok(view.includes('now = IslandShape.morph(from, to, t);'));
   assert.match(view, /f\.setPivotY\(0f\);/, 'from the top centre, under the camera');
-  assert.match(javaSource('IslandShape'), /Math\.max\(0f, Math\.min\(1f, width \/ faceWidth\)\)/);
   const css = readFileSync(new URL('./notch.css', import.meta.url), 'utf8');
   assert.match(css, /transform-origin: top center;/);
   assert.match(css, /scale: var\(--from-scale, 1\);/);
-  assert.match(css, /\.island-face\[data-state="leaving"\] \{ transition: opacity 90ms linear, scale 300ms var\(--ease\); \}/);
+  const copy = readFileSync(new URL('./notch-view.mjs', import.meta.url), 'utf8');
+  assert.ok(copy.includes("next.style.setProperty('--from-scale', String(faceScale(...measure(island, next), ...from)));"), 'set before the face enters');
+  assert.ok(copy.indexOf("next.style.setProperty('--from-scale'") < copy.indexOf('island.append(next);'));
+  assert.ok(copy.includes('shrinkLeaving(island, geo.w, geo.h);'));
+});
+
+test('opening widens first and closing narrows last, so the edge passes the status-bar clock in a few frames', () => {
+  const share = Number(javaSource('IslandShape').match(/WIDTH_SHARE = ([\d.]+)f;/)[1]);
+  const css = readFileSync(new URL('./notch.css', import.meta.url), 'utf8');
+  const open = 350 * share, close = 300 * share;
+  assert.ok(css.includes(`.island[data-motion="open"] { transition-duration: ${open}ms, ${open}ms, 350ms, 350ms, 350ms; }`));
+  assert.ok(css.includes(`.island[data-motion="close"] { transition-duration: ${close}ms; transition-delay: ${close}ms, ${close}ms, 0s, 0s, 0s; }`));
+  assert.match(css, /transition-property: inset-inline-start, inline-size, block-size, border-radius, box-shadow;/);
+});
+
+test('a changing digit rolls inside a box from its cap top to its baseline, so no glyph shows below the baseline', () => {
+  const motion = javaSource('NotchMotion');
+  const travel = Number(motion.match(/ROLL_TRAVEL = ([\d.]+)f;/)[1]), pad = Number(motion.match(/ROLL_PAD = ([\d.]+)f;/)[1]);
+  assert.ok((travel - 1) * 0.7 > pad, 'a digit one travel away (cap ~0.7em) starts and ends fully outside the box');
+  const band = javaSource('IslandBand');
+  const roll = band.slice(band.indexOf('text.getTextBounds("0"'), band.indexOf('canvas.restore();'));
+  assert.ok(roll.includes('float travel = cap * NotchMotion.ROLL_TRAVEL;'));
+  assert.ok(roll.includes('canvas.clipRect(0f, baseline - cap - pad, right, baseline + pad);'));
+  assert.ok(roll.includes('baseline - travel * out') && roll.includes('baseline + travel * (1f - in)'), 'both moving digits are inside the clip');
+  const css = readFileSync(new URL('./notch.css', import.meta.url), 'utf8');
+  assert.ok(css.includes(`.notch-c { display: inline-block; position: relative; text-box: trim-both cap alphabetic; clip-path: inset(-${pad}em 0); }`));
+  assert.ok(css.includes('.notch-o { position: absolute; inset: 0; opacity: 0; text-box: trim-both cap alphabetic; }'));
+  const pct = Math.round(travel * 100);
+  assert.ok(css.includes(`to { translate: 0 -${pct}%; opacity: 0; }`) && css.includes(`from { translate: 0 ${pct}%; opacity: 0; }`));
 });
 
 test('a primary control is filled with its accent and labelled dark, on the phone and in the copy', () => {

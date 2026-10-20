@@ -149,7 +149,7 @@ final class IslandView extends ViewGroup {
         a.setInterpolator(IslandBand.STANDARD);
         a.addUpdateListener(v -> {
             float t = (float) v.getAnimatedValue();
-            now = IslandShape.lerp(from, to, t);
+            now = IslandShape.morph(from, to, t);
             band.morph(t);
             scaleFaces();
             invalidate();
@@ -178,12 +178,12 @@ final class IslandView extends ViewGroup {
         a.start();
     }
 
-    /** Each face shrinks with the island from its top centre, under the camera, so a morph never cuts its words. */
+    /** Each face shrinks with the island from its top centre, under the camera, so it always fits inside the island. */
     private void scaleFaces() {
         if (now == null) return;
         for (View f : faces) {
             RectF at = ((At) f.getLayoutParams()).screen;
-            float s = IslandShape.faceScale(at.width(), now.width());
+            float s = IslandShape.faceScale(at.width(), at.height(), now.width(), now.height());
             f.setPivotX(at.width() / 2f);
             f.setPivotY(0f);
             f.setScaleX(s);

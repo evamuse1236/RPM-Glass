@@ -179,20 +179,37 @@ function paintSplit(stage, {mode, secondary, scene}, geo) {
   }
 }
 
-/** Swaps in the next face. A face that leaves shrinks toward the island's next width; one that enters grows from the last. */
-function settle(island, next, same, width) {
-  const from = island.offsetWidth;
+/** Swaps in the next face, which grows from the island's size on screen; the faces leaving shrink in shrinkLeaving. */
+function settle(island, next, same) {
+  const from = [island.offsetWidth, island.offsetHeight];
   for (const old of island.querySelectorAll(':scope > .island-face')) {
     if (same) { old.remove(); continue; }
     if (old.dataset.state === 'leaving') continue;
     old.dataset.state = 'leaving';
     old.inert = true;
-    old.style.scale = String(faceScale(old.offsetWidth, width));
     Promise.allSettled(old.getAnimations().map(a => a.finished)).then(() => old.remove());
   }
   if (same) next.dataset.enter = 'instant';
-  next.style.setProperty('--from-scale', String(faceScale(width, from)));
+  else next.style.setProperty('--from-scale', String(faceScale(...measure(island, next), ...from)));
   island.append(next);
+}
+
+/** A face's size before it enters: a hidden copy is laid out, so the face itself still starts from its @starting-style. */
+function measure(island, face) {
+  const probe = face.cloneNode(true);
+  probe.dataset.enter = 'instant';
+  probe.style.visibility = 'hidden';
+  island.append(probe);
+  const size = [probe.offsetWidth, probe.offsetHeight];
+  probe.remove();
+  return size;
+}
+
+/** IslandView.scaleFaces: a leaving face shrinks toward the island's next size, so it always fits inside it. */
+function shrinkLeaving(island, w, h) {
+  for (const old of island.querySelectorAll(':scope > .island-face[data-state="leaving"]')) {
+    if (!old.style.scale) old.style.scale = String(faceScale(old.offsetWidth, old.offsetHeight, w, h));
+  }
 }
 
 /**
@@ -232,7 +249,7 @@ export function renderNotch(stage, opts) {
       next = build(fit.rows);
       next.toggleAttribute('data-short-title', fit.shortTitle);
       next.style.setProperty('--face-w', `${w}px`);
-      settle(island, next, tried > 1 || same || first || instant, w);
+      settle(island, next, tried > 1 || same || first || instant);
       if (next.offsetHeight <= cap) break;
     }
     geo = {x: ISLAND_INSET_DP, w, h: Math.max(next.offsetHeight, h), r: G.RADIUS_DP};
@@ -240,8 +257,9 @@ export function renderNotch(stage, opts) {
   if (mode === 'pill') {
     next.style.setProperty('--face-w', `${geo.w}px`);
     next.style.blockSize = `${geo.h}px`;
-    settle(island, next, same || first || instant, geo.w);
+    settle(island, next, same || first || instant);
   }
+  shrinkLeaving(island, geo.w, geo.h);
   island.dataset.motion = first || instant ? 'none' : mode === 'pill' ? 'close' : 'open';
   island.dataset.mode = mode;
   stage.dataset.mode = mode;
