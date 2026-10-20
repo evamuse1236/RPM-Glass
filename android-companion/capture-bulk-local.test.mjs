@@ -41,3 +41,15 @@ test('bulk selection abstains above the transaction bound and for recurring task
  assert.equal(readBulkMove(input,{data:{entries:[{...entry(1),recurrence:'daily'}]}}),null);
  assert.equal(readBulkMove({...input,openQuestion:{id:'q'}},{data:{entries:[entry(1)]}}),null);
 });
+
+test('the after-five selection also works after five, with original capitalization',async()=>{
+ const {readBulkMove}=await import('../intent-v2/src/bulk-move.mjs');
+ const {interpretTurn}=await import('../intent-v2/src/interpret.mjs');
+ const {sourceUnits}=await import('../intent-v2/src/context.mjs');
+ const raw='Push everything after 5 today to Tomorrow';
+ const input={messageId:'m',sourceUnits:sourceUnits(raw),context:{now:'2026-10-19T14:30:00Z',nowLocal:'2026-10-19 20:00',timezone:'Asia/Kolkata'}};
+ const data={entries:[{id:1,title:'Boundary',planned:'2026-10-19T11:30:00Z'},{id:2,title:'Later',planned:'2026-10-19T14:30:00Z'}]};
+ const local=readBulkMove(input,{data});assert.ok(local);
+ assert.deepEqual(local.turn.operations.map(o=>o.targetId),['2']);
+ assert.doesNotThrow(()=>interpretTurn(local.turn,{units:input.sourceUnits,messageId:'m',visibleEntities:local.entities}));
+});

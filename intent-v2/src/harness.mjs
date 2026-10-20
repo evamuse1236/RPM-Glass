@@ -10,6 +10,7 @@ import {focusFor,focusOf,questionFor,openQuestion} from './conversation-focus.mj
 import {readChoiceReply,choiceTurn,choiceEntities,orphanChoiceTurn} from './choice-reply.mjs';
 import {proposalEntities,stageProposalRemoval} from './proposal-removal.mjs';
 import {completeShortReminder} from './short-reminder.mjs';
+import {readSimpleCapture} from './simple-capture.mjs';
 import {readBulkMove} from './bulk-move.mjs';
 import {completeWaterLog} from './body-intent.mjs';
 import {withNotes} from './source-notes.mjs';
@@ -89,11 +90,12 @@ export class IntentHarness {
   const input={messageId,sourceUnits:units,context,activeDraft:draftContext,...(question?{openQuestion:{id:question.id,prompt:question.prompt,action:question.action,choices:question.choices}}:{}),...(plan?{snapshot:plan.summary}:{})};
   const bulk=readBulkMove(input,{data});
   if(bulk)for(const e of bulk.entities)if(!context.entities.some(x=>x.entity===e.entity&&x.id===e.id))context.entities.push(e);
-  const localReminder=bulk?.turn??completeShortReminder(null,input);
+  const simple=bulk?null:readSimpleCapture(input,{data});
+  const localReminder=bulk?.turn??simple?.turn??completeShortReminder(null,input);
   if(localReminder){
    const parsed=interpretTurn(localReminder,{units,messageId,visibleEntities:context.entities,activeDraft});
    this.validateInterpretation?.(parsed,{input});
-   return this.#stage(messageId,{data,capture,parsed,units,activeDraft,calls:0,modelRuns:[],extra:{localInterpretation:bulk?'bulk-move':'short-reminder'}});
+   return this.#stage(messageId,{data,capture,parsed,units,activeDraft,calls:0,modelRuns:[],extra:{localInterpretation:bulk?'bulk-move':simple?.kind??'short-reminder'}});
   }
   if(JSON.stringify(input).length>45000)return {messageId,status:'captured',error:'This thought needs a larger review. The original is kept; no task changed.'};
   const controller=new AbortController();let timer;

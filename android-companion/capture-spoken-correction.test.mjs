@@ -28,3 +28,28 @@ test('a corrected clock followed by its new day can be validated from exact word
  validateIntentTimes(parsed,{input:{messageId:'m',sourceUnits:sourceUnits(raw),context:{now:now.toISOString(),entities:[]}}});
  assert.equal(parsed.operations[0].fields.find(f=>f.name==='time').value,'2026-10-20T11:30:00.000Z');
 });
+
+test('a past kal clause cannot block a separate exact clock or lend it a period',()=>{
+ const raw='kal raat Raj ka call miss ho gaya tha, aaj wala 4 baje wala theek hai, bas usse pehle 3:30 baje notes ready karne hai';
+ const parsed=interpretTurn(turn(raw,[operation([field('title','Get notes ready','notes ready karne hai'),field('time','3:30 baje','3:30 baje')])]),{units:sourceUnits(raw),messageId:'m',visibleEntities:[]});
+ validateIntentTimes(parsed,{input:{messageId:'m',sourceUnits:sourceUnits(raw),context:{now:now.toISOString(),entities:[]}}});
+ assert.equal(parsed.operations[0].fields.find(f=>f.name==='time').value,'2026-10-19T10:00:00.000Z');
+});
+
+test('an explicit due clock wins over a conflicting relative nudge',()=>{
+ const raw='submit workbook is now due at five forty five not five so push it fifteen minutes and keep the alarm';
+ const parsed=interpretTurn(turn(raw,[operation([field('time','5:15 pm',null,'suggested')],{kind:'update',targetId:'104'})]),{units:sourceUnits(raw),messageId:'m',visibleEntities:[{entity:'task',id:'104'}]});
+ validateIntentTimes(parsed,{input:{messageId:'m',sourceUnits:sourceUnits(raw),context:{now:now.toISOString(),entities:[{entity:'task',id:'104',title:'Submit workbook',savedLocalDate:'2026-10-19',startLocal:'2026-10-19 17:00'}]}}});
+ const f=parsed.operations[0].fields.find(f=>f.name==='time');
+ assert.equal(f.value,'2026-10-19T12:15:00.000Z');assert.equal(f.evidence,'five forty five');
+});
+
+test('the near-future thodi der window saves today without a clock',()=>{
+ const parsed=interpretTime('thodi der mein',now);
+ assert.equal(parsed.status,'date_only');assert.equal(parsed.plannedDate,'2026-10-19');assert.equal(parsed.planned,null);
+});
+
+test('punctuated day-after corrections retain the next day, without treating event anchors as dates',()=>{
+ for(const words of ['day after, same time','day after instead same time','make it day after instead same time'])assert.equal(interpretTime(words,now).plannedDate,'2026-10-21');
+ assert.equal(interpretTime('day after the exam',now).plannedDate,null);
+});

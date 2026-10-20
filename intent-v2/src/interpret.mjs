@@ -15,7 +15,7 @@ function collapseCreates(operations,question){
   for(const op of rows){
    for(const f of op.fields)if(['blockId','projectId','goalId','areaId'].includes(f.name)&&f.op==='set'&&String(f.value).startsWith('$'))f.value='$'+resolve(f.value.slice(1));
    if(op.kind!=='create'||!['block','task'].includes(op.entity)){kept.push(op);continue;}
-   const values=op.fields.map(f=>[f.name,f.op,typeof f.value==='string'?f.value.trim().replace(/\s+/g,' ').toLowerCase():f.value]).sort((a,b)=>a[0].localeCompare(b[0]));
+   const values=op.fields.map(f=>[f.name,f.op,typeof f.value==='string'&&['title','time'].includes(f.name)?f.value.trim().replace(/\s+/g,' ').toLowerCase():f.value]).sort((a,b)=>a[0].localeCompare(b[0]));
    const signature=JSON.stringify([op.entity,values]),previous=seen.get(signature);
    if(previous){aliases.set(op.opId,previous.opId);previous.sourceMessageIds=[...new Set([...previous.sourceMessageIds,...op.sourceMessageIds])];changed=true;}
    else{seen.set(signature,op);kept.push(op);}

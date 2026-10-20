@@ -43,3 +43,11 @@ test('a closed choice cannot manufacture a new question about unrelated saved it
  assert.equal(orphanChoiceTurn(output,{...input('Both'),openQuestion:{id:'q'}}),output);
  assert.equal(orphanChoiceTurn(output,input('Delete this')),output);
 });
+
+test('a leading relative time reads locally with the exact named subject',()=>{
+ const raw='in 20 min remind me to take the clothes off the line';
+ const local=completeShortReminder(null,input(raw));assert.ok(local);
+ assert.equal(local.operations[0].fields.find(f=>f.name==='time').value,'in 20 min');
+ assert.equal(local.operations[0].fields.find(f=>f.name==='title').value,'Take the clothes off the line');
+ assert.equal(completeShortReminder(null,input('in 5 months remind me to buy milk')),null);
+});

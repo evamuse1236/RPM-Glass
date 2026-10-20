@@ -8,6 +8,10 @@ export function completeShortReminder(output,input){
  let alert=match?.[1]?.toLowerCase(),time=match?.[2],wake=false;
  if(!match){match=raw.match(/^(?:please\s+)?(remind me|wake me up)\s+(.+)$/i);if(match){wake=/wake/i.test(match[1]);alert=wake?'alarm':'reminder';time=match[2];}}
  if(!match){match=raw.match(/^(\d+\s*(?:min(?:ute)?s?|hours?)\s+baad)\s+yaad\s+dila(?:na|o|na hai)$/i);if(match){alert='reminder';time=match[1];}}
+ if(!match){
+  const front=raw.match(/^(in\s+\d+\s*(?:minutes?|mins?|hours?|hrs?|days?)?)\s+(remind me|wake me up)(?:\s+to\s+(.+))?$/i);
+  if(front){match=front;wake=/wake/i.test(front[2]);alert=wake?'alarm':'reminder';time=front[1]+(front[3]?' to '+front[3]:'');}
+ }
  if(!time)return output;
  let subject=null;
  const named=time.match(/^(.+?)\s+to\s+(.+)$/i);

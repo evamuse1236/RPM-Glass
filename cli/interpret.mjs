@@ -42,9 +42,11 @@ function rangeTime(result,base,text,now) {
 /** Small, explicit transliteration vocabulary; untouched source stays in the journal. */
 export function normalizeLocalTime(raw,{evidence=raw}={}){
  let text=raw,reason=null;
+ // Near-future conversational window: keep today's day, never invent its clock.
+ if(/^thodi\s+der\s+mein$/i.test(text.trim()))text='today';
  const hindiHours={ek:1,do:2,teen:3,chaar:4,char:4,paanch:5,panch:5,chhe:6,che:6,saat:7,aath:8,nau:9,das:10,gyarah:11};
  text=text.replace(/\b(?:saade|saadhe|sadhe)\s+(ek|do|teen|chaar|char|paanch|panch|chhe|che|saat|aath|nau|das|gyarah)(?=\s+baje\b)/gi,(_,h)=>`${hindiHours[h.toLowerCase()]}:30`);
- if(/^(?:make it\s+)?(?:the\s+)?day after(?:\s+(?:instead|same time))*$/i.test(text.trim()))text='in 2 days';
+ if(/^(?:make it\s+)?(?:the\s+)?day after(?:[,\s]+(?:instead|same time))*[.!]?$/i.test(text.trim()))text='in 2 days';
  if(/^(?:\s*kal)\b|\bkal\s+(?:subah|sakali|shaam|raat|dopahar|\d)/i.test(text)){
   // "karna hai", "leni hai", "jana hai": an infinitive with "hai" says it still has to happen.
   const future=/\b(?:karna hai|karni hai|karne hain|karunga|karungi|karo|remind me|schedule|tomorrow|utha dena)\b|\b\w+(?:na|ni|ne)\s+(?:hai|hain|h)\b/i.test(evidence);

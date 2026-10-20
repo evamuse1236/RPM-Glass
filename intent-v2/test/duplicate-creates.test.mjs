@@ -24,3 +24,10 @@ test('same words with different dates, parents, or details remain separate',()=>
  assert.equal(read([create('b1','block','Work'),create('b2','block','Home'),
   create('t1','task','Call',[field('blockId','$b1',null,'suggested')]),create('t2','task','Call',[field('blockId','$b2',null,'suggested')])]).operations.length,4);
 });
+
+test('case-sensitive saved parent IDs and notes are not merged',()=>{
+ const visibleEntities=[{entity:'block',id:'Parent'},{entity:'block',id:'parent'}];
+ const ops=['Parent','parent'].map((id,i)=>create('t'+i,'task','Call',[field('blockId',id,null,'suggested')]));
+ assert.equal(interpretTurn(turn(raw,ops),{units:sourceUnits(raw),messageId:'m',visibleEntities}).operations.length,2);
+ assert.equal(read([create('a','task','Call',[field('notes','Key AbC',raw)]),create('b','task','Call',[field('notes','Key abc',raw)])]).operations.length,2);
+});

@@ -43,3 +43,13 @@ test('the model-facing contract separates capturing personal actions from perfor
  for(const verb of ['call','buy','print','email'])assert.match(CAPTURE_OPERATIONS.task.description,new RegExp(`\\b${verb}\\b`));
  assert.match(intentSystemPrompt,/explicitly asks RPM to execute/);
 });
+
+test('the model contract distinguishes a new body report from a matching daily aggregate',()=>{
+ assert.match(intentSystemPrompt,/aggregate is not evidence that this report was already logged/i);
+ assert.match(intentSystemPrompt,/again does not mean a previous day/i);
+});
+
+test('the model contract treats explicitly essential actions as Must without promoting every deadline',()=>{
+ assert.match(intentSystemPrompt,/have to.*otherwise/);
+ assert.match(intentSystemPrompt,/deadline alone does not make an action a Must/i);
+});
