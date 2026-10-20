@@ -107,8 +107,7 @@ final class NotchChanges {
         boolean same = receipt != null && next.startedAt == receipt.startedAt;
         receipt = next;
         if (!same) serial++;
-        owner.expanded = false;
-        owner.closeManaged();
+        owner.state.close();
         handler.removeCallbacks(end);
         if (forMs > 0) handler.postDelayed(end, forMs);
         owner.render();
