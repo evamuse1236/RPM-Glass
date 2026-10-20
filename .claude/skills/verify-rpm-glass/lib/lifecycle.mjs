@@ -41,6 +41,8 @@ function build() {
   const env = {...process.env, ANDROID_HOME: process.env.ANDROID_HOME || sdkRoot()};
   const r = spawnSync(...viaShell(gradlew, ['-q', 'assembleDebug']), {cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024, env});
   if (r.status !== 0) throw new UserError(`Gradle assembleDebug failed:\n${(r.stderr || r.stdout).trim().slice(-2000)}`, 'Fix the build error above, run `npm ci` if node_modules is missing, then `rpmctl launch --build`.');
+  const now = new Date();
+  if (fs.existsSync(APK)) fs.utimesSync(APK, now, now);
 }
 
 function install(serial, apk) {
