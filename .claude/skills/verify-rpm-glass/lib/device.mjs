@@ -68,7 +68,7 @@ export function startNetsim() {
 export function gpuMode(requested = 'host', env = process.env) {
   if (!/swiftshader|guest|software/i.test(requested) || env.RPM_ALLOW_SOFTWARE_GPU === '1') return requested;
   throw new UserError(`--gpu ${requested} draws on the CPU and uses about 12x more CPU than the host GPU.`,
-    'Drop --gpu. The startup line "Your GPU cannot be used for hardware rendering" is harmless when the screen draws. Only if the screen stays black with the host GPU, set RPM_ALLOW_SOFTWARE_GPU=1.');
+    'Drop --gpu. The startup line "Your GPU cannot be used for hardware rendering" is harmless when the screen draws. If the host-GPU emulator stays black, crashes, or goes offline (log: "error null ctx"), relaunch with RPM_ALLOW_SOFTWARE_GPU=1 and say so in the reply.');
 }
 
 export function startEmulator({avd, port, logFile, gpu}) {
