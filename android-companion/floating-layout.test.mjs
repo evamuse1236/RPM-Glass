@@ -28,8 +28,16 @@ test('the tab bar\'s Add is 48 × 48 with the bar\'s inner radius, and quiet in 
   assert.match(plannerCss(), /\.nav-add \{ background: var\(--secondary-container\)/);
 });
 
-test('the Now pill sits on the tab bar\'s top edge and hides while a snackbar shows', () => {
+test('the Now pill floats 16dp above the tab bar and hides while a snackbar shows', () => {
   const css = read('day.css');
-  assert.match(rule(css, '#now-host'), /inset-block-end: calc\(var\(--nav-measured, var\(--nav\)\) - 6px\)/);
+  assert.match(rule(css, '#now-host'), /inset-block-end: calc\(var\(--nav-measured, var\(--nav\)\) \+ var\(--s4\)\)/);
   assert.match(css, /#planner\[data-snackbar=true\] \.now-pill/);
+});
+
+test('nothing shows in the strip under the tab bar, and a row scrolled into view clears a snackbar', () => {
+  const css = read('planner.css');
+  assert.match(css, /--nav-gap: max\(var\(--s4\), calc\(env\(safe-area-inset-bottom, 0px\) \+ var\(--s2\)\)\);/);
+  assert.match(rule(css, '#nav-bar'), /inset-block-end: var\(--nav-gap\);/);
+  assert.match(css, /mask-image: linear-gradient\(to top, transparent var\(--nav-gap\), #000 calc\(var\(--nav-gap\) \+ var\(--s8\)\)\);/);
+  assert.match(css, /#planner\[data-snackbar=true\]:has\(> #nav-bar:not\(\[hidden\]\)\) #planner-scroll \{\n  scroll-padding-block-end: calc\(var\(--nav-measured, var\(--nav\)\) \+ var\(--s4\) \+ var\(--snackbar-h, 48px\) \+ var\(--s4\)\);/);
 });

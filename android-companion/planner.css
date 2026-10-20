@@ -5,6 +5,8 @@
 
 /* ---------- 1. Layout ---------- */
 :root {
+  /* the strip between the floating tab bar and the screen's bottom edge (more where the gesture area needs it) */
+  --nav-gap: max(var(--s4), calc(env(safe-area-inset-bottom, 0px) + var(--s2)));
   --top-bar: 64px;
   --nav: 80px;
   --hour: 96px;
@@ -124,7 +126,7 @@ h1, h2, h3, p { margin: 0; }
   position: absolute;
   z-index: 11;
   inset-inline: var(--inset-page);
-  inset-block-end: max(var(--s4), calc(env(safe-area-inset-bottom, 0px) + var(--s2)));
+  inset-block-end: var(--nav-gap);
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   min-block-size: 64px;
@@ -136,11 +138,16 @@ h1, h2, h3, p { margin: 0; }
   touch-action: pan-y;
 }
 :root[data-keyboard=open] :is(#nav-bar, #now-host) { display: none; }
-/* Content scrolls under the bar; what passes below it fades out at the screen's edge. */
-#planner:has(> #nav-bar:not([hidden])) #planner-scroll {
+/* Content scrolls under the bar. The strip below the bar shows nothing: the page is masked out there and fades back
+   in behind the bar's opaque surface, so no cut-off words or dots show between the bar and the screen's edge. */
+:root:not([data-keyboard=open]) #planner:has(> #nav-bar:not([hidden])) #planner-scroll {
   scroll-padding-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4));
-  -webkit-mask-image: linear-gradient(to top, transparent, #000 var(--s4));
-  mask-image: linear-gradient(to top, transparent, #000 var(--s4));
+  -webkit-mask-image: linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--s8)));
+  mask-image: linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--s8)));
+}
+/* While a snackbar shows, a row scrolled into view also clears the snackbar (its height and a 16dp gap). */
+:root:not([data-keyboard=open]) #planner[data-snackbar=true]:has(> #nav-bar:not([hidden])) #planner-scroll {
+  scroll-padding-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4) + var(--snackbar-h, 48px) + var(--s4));
 }
 .nav-item {
   position: relative;

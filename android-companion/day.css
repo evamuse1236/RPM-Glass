@@ -231,14 +231,13 @@ button.spine-card:active, .spine-card .spine-open:active { background: var(--row
 .spine-chip::after { content: ""; position: absolute; inset: min(0px, (100% - 48px) / 2) 0; }
 .spine-chip:active { background: var(--surface-container-highest); }
 
-/* Now: a small pill sitting on the tab bar's top edge, centred; it dips 6dp into the bar's 8dp top padding, so it never
-   covers a tab or the Add. It shows only while now is out of view and steps aside while reading down or a snackbar
-   shows. */
+/* Now: a small pill floating 16dp above the tab bar, centred, clear of the bar's border, as the snackbar sits. It
+   shows only while now is out of view and steps aside while reading down or a snackbar shows. */
 #now-host {
   position: absolute;
   z-index: 12;
   inset-inline: 0;
-  inset-block-end: calc(var(--nav-measured, var(--nav)) - 6px);
+  inset-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4));
   display: flex;
   justify-content: center;
   pointer-events: none;

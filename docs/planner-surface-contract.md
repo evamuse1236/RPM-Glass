@@ -16,7 +16,7 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 
 - The solid 80dp bottom bar contains exactly **Today, Blocks, Projects, Life**, each with icon and visible label.
 - Settings pushes from the Today top bar and from other-screen overflow. Add sits inside the floating tab bar at its right end, in the right thumb's reach; Search and Capture are in the top bar (design round 2, 2026-10-20, replacing the 2026-10-18 floating Search and Add column, which covered row controls).
-- Nothing floats over a root screen's rows except the tab bar and, on today's spine while now is out of view, the Now pill on the bar's top edge.
+- Nothing floats over a root screen's rows except the tab bar and, on today's spine while now is out of view, the Now pill 16dp above the bar.
 - Details push above root navigation and use Android Back. Task detail and quick add use bottom sheets with sticky primary actions above the keyboard.
 - Structural hierarchy is **Area → Goal → Project → Block → Task**. A list shows a summary; the next level holds controls. Cards never nest more than one level.
 - Preserve the selected day, filters, scroll position, detail target, draft, and active context across ordinary rerenders and system text-scale changes.
