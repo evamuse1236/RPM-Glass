@@ -57,9 +57,9 @@ Takes about 5 seconds, against about a minute for \`launch --build\`. Java or ma
 The next install by \`launch\` deletes the synced copy. Screenshots record the synced assets' hash (webSha256), and
 npm run check:evidence accepts them for web-only changes.`,
   launch: `launch [--avd NAME] [--port N] [--cdp-port N] [--owner TOKEN] [--build] [--no-build] [--apk FILE] [--no-install] [--gpu MODE] [--timeout SECONDS]
-Boots AVD ${DEFAULTS.avd} headless as emulator-<port> with the host GPU. Software modes (swiftshader, guest) are refused: they use about 12x more CPU.
-The startup line "Your GPU cannot be used for hardware rendering" is harmless; set RPM_ALLOW_SOFTWARE_GPU=1 only if the screen stays black (default ${DEFAULTS.port}) with -read-only, so nothing the run does
-persists into the AVD. Builds app-debug.apk when it is missing or older than the app sources (--build forces,
+Boots AVD ${DEFAULTS.avd} headless as emulator-<port> (default ${DEFAULTS.port}) with -read-only, so nothing the run does
+persists into the AVD. It always uses the host GPU: software modes (swiftshader, guest) use about 12x more CPU and are refused.
+The startup line "Your GPU cannot be used for hardware rendering" is harmless; set RPM_ALLOW_SOFTWARE_GPU=1 only if the screen stays black. Builds app-debug.apk when it is missing or older than the app sources (--build forces,
 --no-build skips), installs it with all runtime permissions, opens the app and dismisses System UI ANR prompts.
 --apk installs that APK instead (e.g. an older build, to reproduce a past bug); doctor then reports the mismatch.
 --no-install leaves whatever the emulator image already has (doctor shows its version and signer).
