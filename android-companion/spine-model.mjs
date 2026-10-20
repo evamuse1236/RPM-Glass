@@ -77,7 +77,7 @@ function lineFor(row, events, now, live) {
   const current = live && row.start <= now && now < row.end;
   if (row.kind === 'routine') return {kind: current ? 'now' : 'count', text: current ? `Now · ${row.count}` : row.count};
   if (current) return {kind: 'now', text: `Now · until ${clockText(row.end)}`};
-  if (row.kind === 'task') return {kind: 'result', text: row.task.result ?? 'No block', tone: row.task.tone ?? 'neutral'};
+  if (row.kind === 'task') return row.task.result ? {kind: 'result', text: row.task.result, tone: row.task.tone ?? 'neutral'} : null;
   return null;
 }
 
@@ -177,7 +177,7 @@ function anytimeRow(untimed, live) {
     label: open ? `${plural(open, 'task')} ${live ? 'for today' : 'for this day'}, no time set` : `${plural(untimed.length, 'task')} done, no time set`,
     tasks: untimed.map(task => ({kind: 'task', key: 'task:' + task.id + (task.occurrence ?? ''), title: task.title, task,
       done: !!task.done, must: !!task.must, gutter: {time: 'Anytime', length: task.minutes ? duration(task.minutes) : null},
-      line: {kind: 'result', text: task.result ?? 'No block', tone: task.tone ?? 'neutral'}}))};
+      line: task.result ? {kind: 'result', text: task.result, tone: task.tone ?? 'neutral'} : null}))};
 }
 
 export const isBlock = row => BLOCKS.has(row.kind);

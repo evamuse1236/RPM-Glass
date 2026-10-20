@@ -80,7 +80,6 @@ h1, h2, h3, p { margin: 0; }
   flex: 1;
   min-width: 0;
   font: var(--headline-medium);
-  font-weight: 450;
   letter-spacing: -.01em;
   overflow-wrap: anywhere;
 }
@@ -137,14 +136,29 @@ h1, h2, h3, p { margin: 0; }
   box-shadow: var(--float-shadow);
   touch-action: pan-y;
 }
+/* Glass, as in T3 Code's composer: Settings → Bar transparency sets --bar-fill (100% is solid). */
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  :root[data-bar-glass=true] #nav-bar {
+    border-color: var(--glass-border);
+    background: color-mix(in oklch, var(--float-surface) var(--bar-fill, 100%), transparent);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-bar-glass=true] #nav-bar { background: var(--float-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
 :root[data-keyboard=open] :is(#nav-bar, #now-host) { display: none; }
-/* Content scrolls under the bar. The strip below the bar shows nothing: the page is masked out there and fades back
-   in behind the bar's opaque surface, so no cut-off words or dots show between the bar and the screen's edge. */
+/* Content scrolls under the bar. The strip below the bar shows nothing; the page fades back in over the bar's
+   lower half when the bar is solid, and within 8dp when it is glass, so the page shows through the glass. */
 :root:not([data-keyboard=open]) #planner:has(> #nav-bar:not([hidden])) #planner-scroll {
   scroll-padding-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4));
-  -webkit-mask-image: linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--s8)));
-  mask-image: linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--s8)));
+  -webkit-mask-image: linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--bar-fade, var(--s8))));
+  mask-image: linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--bar-fade, var(--s8))));
 }
+:root[data-bar-glass=true] { --bar-fade: var(--s2); }
+/* A clearer bar blurs more, so its labels stay readable over busy rows. */
+:root[data-bar-thin=true] { --glass-blur: 24px; --glass-saturate: 1; }
 /* While a snackbar shows, a row scrolled into view also clears the snackbar (its height and a 16dp gap). */
 :root:not([data-keyboard=open]) #planner[data-snackbar=true]:has(> #nav-bar:not([hidden])) #planner-scroll {
   scroll-padding-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4) + var(--snackbar-h, 48px) + var(--s4));
@@ -164,7 +178,7 @@ h1, h2, h3, p { margin: 0; }
 .nav-label { font: var(--label-medium); text-align: center; }
 .nav-item[aria-current=page] { color: var(--on-surface); }
 .nav-item[aria-current=page] .nav-pill { color: var(--on-secondary-container); }
-.nav-item[aria-current=page] .nav-label { font-weight: 700; }
+.nav-item[aria-current=page] .nav-label { color: var(--on-surface); }
 .nav-item:active { scale: .97; }
 .nav-item:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--r-control); }
 /* The one active pill (48 × 64, radius 12 = the bar's 20 − its 8 inset) slides to the tab under it. shell.mjs places it. */
@@ -229,7 +243,7 @@ h1, h2, h3, p { margin: 0; }
 }
 #planner[data-view=settings] ~ #snackbar, #planner[data-view=search] ~ #snackbar { bottom: var(--s4); }
 /* The review pins its own button footer, so the snackbar sits above it. */
-#planner[data-view=review] ~ #snackbar { bottom: calc(var(--s4) + 72px); }
+#planner[data-view=review] ~ #snackbar { bottom: calc(var(--s4) + var(--key-text)); }
 /* While a sheet is open the snackbar docks just above the sheet's action bar and the sheet's content ends above it:
    the body's bottom margin grows by the snackbar's height plus a 12dp gap, quicker than the bar rises (150ms, so the
    content's edge is always above the bar), and the content's last 16dp fade, so it reads as a scroll edge, never as
@@ -273,13 +287,13 @@ h1, h2, h3, p { margin: 0; }
 .overline {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s1);
   font: var(--label-medium);
   letter-spacing: .05em;
   text-transform: uppercase;
   color: var(--on-surface-variant);
 }
-.overline .ms { font-size: 18px; }
+.overline .ms { font-size: 20px; }
 .quiet { color: var(--on-surface-variant); font: var(--body-medium); padding: var(--s2) var(--gutter); }
 
 /* Buttons */
@@ -302,7 +316,7 @@ h1, h2, h3, p { margin: 0; }
 .outlined-btn { border: 1px solid var(--outline); color: var(--primary); }
 .text-btn { color: var(--primary); padding: 0 var(--s3); }
 .text-btn.danger { color: var(--error); }
-.filled-btn .ms, .tonal-btn .ms, .outlined-btn .ms, .text-btn .ms { font-size: 18px; margin-left: -4px; }
+.filled-btn .ms, .tonal-btn .ms, .outlined-btn .ms, .text-btn .ms { font-size: 20px; margin-left: -4px; }
 .tonal-btn.small { min-height: 32px; padding: 0 var(--s3) 0 var(--s2); font: var(--label-medium); }
 .wide { display: flex; width: calc(100% - 2 * var(--gutter)); margin: var(--s4) var(--gutter); }
 .grow { flex: 1; }
@@ -346,7 +360,7 @@ h1, h2, h3, p { margin: 0; }
 }
 .filter-chip::after, .assist-chip::after { content: ""; position: absolute; inset: -8px 0; }
 .filter-chip.dropdown { padding-right: var(--s2); }
-.filter-chip .ms, .assist-chip .ms { font-size: 18px; }
+.filter-chip .ms, .assist-chip .ms { font-size: 20px; }
 .assist-chip { padding-left: var(--s2); }
 .filter-chip.on, .filter-chip[aria-pressed=true], .assist-chip.on, .assist-chip[aria-pressed=true] {
   background: var(--secondary-container);
@@ -369,7 +383,7 @@ h1, h2, h3, p { margin: 0; }
   color: var(--on-surface);
 }
 button.list-item:active { background: var(--row-press); }
-.list-item.nested { padding-left: calc(var(--gutter) + 40px); min-height: 48px; }
+.list-item.nested { padding-left: var(--key-text); min-height: 48px; }
 .list-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .list-headline { font: var(--body-large); overflow-wrap: anywhere; }
 .list-supporting { font: var(--body-medium); color: var(--on-surface-variant); overflow-wrap: anywhere; }
@@ -390,7 +404,7 @@ button.list-item:active { background: var(--row-press); }
 [data-tone=area-2] { --tone: var(--area-2); } [data-tone=area-3] { --tone: var(--area-3); }
 [data-tone=area-4] { --tone: var(--area-4); } [data-tone=area-5] { --tone: var(--area-5); }
 [data-tone=area-6] { --tone: var(--area-6); } [data-tone=area-7] { --tone: var(--area-7); }
-.area-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--tone); flex: none; }
+.area-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tone); flex: none; }
 .avatar {
   width: 40px;
   height: 40px;

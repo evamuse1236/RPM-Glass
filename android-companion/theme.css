@@ -47,13 +47,18 @@
   --r-outer:36px;--r-group:20px;--r-control:12px;--r-tile:8px;--inset-page:16px;
   --float-border:color-mix(in oklch, var(--outline-variant) 60%, transparent);
   --float-surface:var(--surface-container);
+  --glass-blur:12px;--glass-saturate:1.14;--glass-border:oklch(0% none none / 8%);
   /* sheets: the page tone in light; in dark one step up (the tab bar's tone), so a sheet has an edge over the scrim */
   --sheet-surface:var(--surface-container-low);--sheet-raised:var(--surface-container-high);--sheet-card:var(--surface-container);
   --float-shadow:0 2px 8px rgba(0,0,0,.10),0 1px 2px rgba(0,0,0,.08);
 
   /* spacing and touch */
   --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--s8:32px;--touch:48px;
-  --chip-block:40px;--row-gap:var(--s3);--row-icon:40px;
+  --chip-block:40px;
+  /* keylines: text after a 40dp icon column, text after a 56dp leading slot */
+  --key-icon-text:56px;--key-text:72px;
+  /* the M3 switch thumb: 16dp inset 6 when off, 24dp at 22 from the start when on */
+  --switch-off-inset:6px;--switch-on-start:22px;--row-gap:var(--s3);--row-icon:40px;
 
   /* elevation (used sparingly: FAB, floating Capture panel, snackbar) */
   --elev-1:0 1px 2px rgba(0,0,0,.3),0 1px 3px 1px rgba(0,0,0,.15);
@@ -95,6 +100,7 @@
   --must:#fdd663;--now:#a8c7fa;--success:#6dd58c;
   --area-0:#81c995;--area-1:#fcad70;--area-2:#8ab4f8;--area-3:#d7aefb;--area-4:#f28b82;--area-5:#78d9ec;--area-6:#ff8bcb;--area-7:#bdc1c6;
   --float-border:#444746;--float-surface:#282a2c;--float-shadow:none;--sheet-surface:#282a2c;--sheet-raised:#333537;--sheet-card:#333537;
+  --glass-blur:16px;--glass-saturate:1.08;--glass-border:oklch(100% none none / 8%);
 }}
 :root[data-appearance=dark]{
   color-scheme:dark;
@@ -110,6 +116,7 @@
   --must:#fdd663;--now:#a8c7fa;--success:#6dd58c;
   --area-0:#81c995;--area-1:#fcad70;--area-2:#8ab4f8;--area-3:#d7aefb;--area-4:#f28b82;--area-5:#78d9ec;--area-6:#ff8bcb;--area-7:#bdc1c6;
   --float-border:#444746;--float-surface:#282a2c;--float-shadow:none;--sheet-surface:#282a2c;--sheet-raised:#333537;--sheet-card:#333537;
+  --glass-blur:16px;--glass-saturate:1.08;--glass-border:oklch(100% none none / 8%);
 }
 
 /* Base */

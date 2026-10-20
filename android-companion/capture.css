@@ -32,7 +32,7 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 }
 #message::placeholder{color:var(--bar-on-variant);opacity:1}
 /* + at the start, the mic or Send at the end in one cell, so the two cross-fade in place. */
-.bar-row{display:grid;grid-template-columns:auto 1fr 48px;align-items:center;gap:4px;padding:0 8px 6px}
+.bar-row{display:grid;grid-template-columns:auto 1fr 48px;align-items:center;gap:4px;padding:0 8px 8px}
 .bar-row>.round{grid-column:3;grid-row:1;justify-self:center}
 .status{flex:1;margin:0;padding-inline:4px;font:var(--body-small);color:var(--bar-on-variant);overflow-wrap:anywhere}
 .status.error{color:var(--bar-error)}
@@ -54,7 +54,7 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
   .bar-plus{transition:scale var(--dur-press) var(--ease-standard)}
 }
 /* Listening: the mic fills with the accent and a 2dp ring breathes around it (still with reduced motion). */
-.bar[data-state=listening] .mic{background:var(--bar-accent);color:var(--bar-on-accent);box-shadow:0 0 0 3px var(--bar),0 0 0 5px var(--bar-primary)}
+.bar[data-state=listening] .mic{background:var(--bar-accent);color:var(--bar-on-accent);box-shadow:0 0 0 2px var(--bar),0 0 0 4px var(--bar-primary)}
 .bar[data-state=listening] .mic:disabled{opacity:1}
 @media (prefers-reduced-motion:no-preference){
   .bar[data-state=listening] .mic{animation:mic-ring 900ms var(--ease-standard) infinite alternate}
@@ -70,7 +70,7 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 
 
 .toast{
-  flex:none;align-self:center;margin:0;padding:10px 16px;border-radius:var(--shape-full);
+  flex:none;align-self:center;margin:0;padding:8px 16px;border-radius:var(--shape-full);
   background:var(--bar-high);color:var(--bar-on);font:var(--body-medium);box-shadow:var(--bar-shadow);text-align:center;
 }
 
@@ -81,7 +81,7 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
   padding-block-end:calc(16px + env(safe-area-inset-bottom,0px));
   background:var(--bar-high);color:var(--bar-on);border-radius:var(--r-outer) var(--r-outer) 0 0;box-shadow:var(--bar-shadow);
 }
-.sheet .grab{margin-block:10px 14px}
+.sheet .grab{margin-block:8px 16px}
 @media (prefers-reduced-motion:no-preference){
   .scrim,.sheet{transition:opacity var(--dur-medium1) var(--ease-standard),translate var(--dur-medium3) var(--ease-emphasized-decelerate),display var(--dur-medium3) allow-discrete}
   @starting-style{.scrim{opacity:0}.sheet{translate:0 100%}}
@@ -97,12 +97,12 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 }
 .tile .ms{font-size:24px}
 .sheet-row{
-  position:relative;display:flex;align-items:center;gap:16px;inline-size:100%;min-block-size:72px;padding:10px 24px;
+  position:relative;display:flex;align-items:center;gap:16px;inline-size:100%;min-block-size:64px;padding:8px 16px;
   border:0;background:transparent;color:var(--bar-on);text-align:start;cursor:pointer;
 }
 .sheet-row .ms{font-size:24px;color:var(--bar-on-variant)}
 .row-text{display:flex;flex-direction:column;min-inline-size:0}
-.row-title{font:var(--body-large);font-size:18px;line-height:24px}
+.row-title{font:var(--body-large)}
 .row-sub{font:var(--body-medium);color:var(--bar-on-variant)}
 .rows{padding-block-start:8px}
 .tile::before,.sheet-row::before{content:'';position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0}

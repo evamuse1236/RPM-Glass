@@ -1,5 +1,5 @@
 /* ---------- 7. Large text (200%) and reduced motion ---------- */
-:root[data-large-text=true] .week-number { min-width: 1.6em; height: 1.6em; font-size: 15px; }
+:root[data-large-text=true] .week-number { min-width: 1.6em; height: 1.6em; font-size: 16px; }
 :root[data-large-text=true] #nav-bar { grid-template-columns: 1fr 1fr 1.3fr .9fr; padding-inline: 0; }
 /* Large text: a row's action moves under its words instead of squeezing them. */
 :root[data-large-text=true] .today-row { grid-template-columns: auto 1fr; }

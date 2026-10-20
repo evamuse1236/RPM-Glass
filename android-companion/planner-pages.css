@@ -27,7 +27,7 @@
   color: var(--on-surface-variant);
 }
 .eyebrow span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.card-title { font: var(--title-medium); font-size: 17px; line-height: 23px; overflow-wrap: anywhere; text-wrap: pretty; }
+.card-title { font: var(--title-medium); overflow-wrap: anywhere; text-wrap: pretty; }
 .card-purpose {
   font: var(--body-medium);
   color: var(--on-surface-variant);
@@ -135,7 +135,7 @@ button.fact-row:active { background: var(--row-press); }
 .fact-row .outlined-btn { flex: none; padding: 0 var(--s4); }
 .fact-label { font: var(--label-medium); color: var(--on-surface-variant); }
 /* The resting hint that a detail field edits in place: a small pencil after its label, gone while editing. */
-.fact-label .label-edit { font-size: 14px; width: 14px; height: 14px; line-height: 14px; margin-left: var(--s1); vertical-align: -2px;
+.fact-label .label-edit { font-size: 16px; width: 16px; height: 16px; line-height: 16px; margin-left: var(--s1); vertical-align: -2px;
   opacity: .72; transition: opacity var(--dur-short3) var(--ease-standard); }
 .editable-row:focus-within .label-edit { opacity: 0; }
 .purpose-text { font: var(--body-large); overflow-wrap: anywhere; }
@@ -205,8 +205,8 @@ button.fact-row:active { background: var(--row-press); }
   left: 25%;
   right: 25%;
   bottom: 0;
-  height: 3px;
-  border-radius: 3px 3px 0 0;
+  height: 4px;
+  border-radius: 4px 4px 0 0;
   background: var(--primary);
 }
 .period-switch {
@@ -232,7 +232,7 @@ button.fact-row:active { background: var(--row-press); }
 .wheel-bar-head { display: flex; justify-content: space-between; gap: var(--s2); font: var(--body-medium); }
 .wheel-name { overflow-wrap: anywhere; }
 .wheel-value { color: var(--on-surface-variant); white-space: nowrap; }
-.wheel-track { height: 8px; margin-top: 6px; border-radius: 4px; background: var(--surface-container-highest); overflow: hidden; }
+.wheel-track { height: 8px; margin-top: 8px; border-radius: 4px; background: var(--surface-container-highest); overflow: hidden; }
 .wheel-track > span {
   display: block;
   height: 100%;
@@ -341,7 +341,6 @@ button.fact-row:active { background: var(--row-press); }
   outline: none;
   background: transparent;
   font: var(--body-large);
-  font-size: 18px;
   -webkit-appearance: none;
 }
 .search-input::-webkit-search-cancel-button { display: none; }

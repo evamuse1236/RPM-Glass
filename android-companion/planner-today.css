@@ -130,8 +130,8 @@ button.result-head:active { background: var(--row-press); }
 .next-label { display: flex; align-items: center; gap: var(--s2); padding: var(--s3) var(--s4) 0; color: var(--now); font: var(--label-large); }
 [data-live] { white-space: nowrap; }
 .now-pin { width: 8px; height: 8px; border-radius: 50%; background: var(--now); flex: none; }
-.next-why { padding: 0 var(--s4) var(--s2) 60px; font: var(--body-medium); color: var(--on-surface-variant); }
-.next-action { margin: var(--s1) var(--s4) var(--s2) 60px; }
+.next-why { padding: 0 var(--s4) var(--s2) var(--key-icon-text); font: var(--body-medium); color: var(--on-surface-variant); }
+.next-action { margin: var(--s1) var(--s4) var(--s2) var(--key-icon-text); }
 
 /* The agenda: tasks and calendar events in time order on the page, never more cards. Every text starts at 56dp. */
 .plain-section .task-row { padding-left: var(--s1); }
@@ -152,7 +152,7 @@ button.result-head:active { background: var(--row-press); }
   flex-direction: column;
   min-height: 48px;
   justify-content: center;
-  padding: 6px var(--s3);
+  padding: var(--s1) var(--s3);
   border-radius: var(--shape-md);
   background: var(--surface-container-high);
 }
@@ -165,11 +165,11 @@ button.result-head:active { background: var(--row-press); }
   min-height: 32px;
   display: flex;
   align-items: center;
-  padding: 0 var(--s4) 0 56px;
+  padding: 0 var(--s4) 0 var(--key-icon-text);
   font: var(--label-medium);
   color: var(--on-surface-variant);
 }
-.agenda-free::before { content: ''; position: absolute; left: 27px; top: 4px; bottom: 4px; border-left: 2px dotted var(--outline-variant); }
+.agenda-free::before { content: ''; position: absolute; left: calc(var(--key-icon-text) / 2 - 1px); top: 4px; bottom: 4px; border-left: 2px dotted var(--outline-variant); }
 /* Resolve clash sheet: the overlapping items, each task with its choices under its text. */
 .clash-list { margin: 0 calc(-1 * var(--s2)); }
 .clash-item { display: flex; align-items: center; gap: var(--s4); min-height: 56px; padding: var(--s2); }
@@ -211,7 +211,7 @@ button.result-head:active { background: var(--row-press); }
   color: var(--on-surface-variant);
   font: var(--label-medium);
 }
-.timeline-fold .ms { font-size: 18px; }
+.timeline-fold .ms { font-size: 20px; }
 .timed {
   left: calc(var(--ruler) + 4px + (100% - var(--ruler) - 4px) * var(--lane) / var(--lanes));
   width: calc((100% - var(--ruler) - 4px) / var(--lanes) - 4px);
@@ -228,7 +228,7 @@ button.result-head:active { background: var(--row-press); }
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 6px var(--s3) 6px calc(var(--s3) + 4px);
+  padding: var(--s2) var(--s3) var(--s2) var(--s4);
   border-left: 4px solid var(--tone);
   border-radius: inherit;
 }
@@ -241,5 +241,5 @@ button.result-head:active { background: var(--row-press); }
 }
 .timed-meta { font: var(--body-small); color: var(--on-surface-variant); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Behind event cards so it never reads as a strikethrough; the dot marks now in the gutter. */
-.now-line { left: calc(var(--ruler) - 6px); right: 0; height: 2px; background: var(--now); z-index: 0; pointer-events: none; }
-.now-dot { position: absolute; left: 0; top: -5px; width: 12px; height: 12px; border-radius: 50%; background: var(--now); }
+.now-line { left: calc(var(--ruler) - var(--s2)); right: 0; height: 2px; background: var(--now); z-index: 0; pointer-events: none; }
+.now-dot { position: absolute; left: 0; top: calc((2px - 12px) / 2); width: 12px; height: 12px; border-radius: 50%; background: var(--now); }

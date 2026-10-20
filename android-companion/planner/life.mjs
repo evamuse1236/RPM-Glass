@@ -125,7 +125,7 @@ function wheelCard(app, areas) {
 function areaRow(app, area) {
   const goals = app.p().goals.filter(g => g.areaId === area.id && g.year === app.state.year);
   const projects = app.p().projects.filter(pr => goals.some(g => g.id === pr.goalId));
-  const trailing = el('span', 'trailing-value tnum', area.rating == null ? '–' : String(area.rating));
+  const trailing = area.rating == null ? null : el('span', 'trailing-value tnum', String(area.rating));
   const row = listItem({leading: initialAvatar(app, area), headline: area.title,
     supporting: `${plural(goals.length, 'Goal')} · ${plural(projects.length, 'Project')}`, trailing,
     onClick: () => app.openArea(area.id)});
