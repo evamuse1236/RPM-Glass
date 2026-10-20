@@ -91,6 +91,7 @@ export class IntentHarness {
   const bulk=readBulkMove(input,{data});
   if(bulk)for(const e of bulk.entities)if(!context.entities.some(x=>x.entity===e.entity&&x.id===e.id))context.entities.push(e);
   const simple=bulk?null:readSimpleCapture(input,{data});
+  for(const e of simple?.entities??[])if(!context.entities.some(x=>x.entity===e.entity&&x.id===e.id))context.entities.push(e);
   const localReminder=bulk?.turn??simple?.turn??completeShortReminder(null,input);
   if(localReminder){
    const parsed=interpretTurn(localReminder,{units,messageId,visibleEntities:context.entities,activeDraft});

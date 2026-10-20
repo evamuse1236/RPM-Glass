@@ -54,3 +54,31 @@ test('water counts reject other drinks, estimates, dates and unsupported units',
   const s=await fixture();await s.agent.capture({messageId:'uncertain-water',conversationId:s.conversationId,text});assert.equal(s.calls(),1,text);
  }
 });
+
+for(const day of ['19','21'])test(`a fully named saved due clock reads locally on October ${day} with one receipt and Undo`,async()=>{
+ const seed=freshStore();editPlan(seed,{type:'saveTask',fields:{title:'Submit workbook',planned:`2026-10-${day}T17:00:00+05:30`,minutes:30,alert:'alarm'}},now);
+ const before=structuredClone(seed.entries),s=await fixture(seed),text='submit workbook is now due at five forty five not five so push it fifteen minutes and keep the alarm';
+ const result=await s.agent.capture({messageId:'due',conversationId:s.conversationId,text});
+ assert.equal(s.calls(),0);assert.equal(result.applied?.status,'applied');assert.equal(result.applied.needsConfirm,true);
+ const saved=await s.backend.load(),task=saved.entries[0];
+ assert.equal(task.planned,new Date(`2026-10-${day}T17:45:00+05:30`).toISOString());assert.equal(task.minutes,30);assert.equal(task.alertIntent.type,'alarm');assert.equal(saved.intentV2.captures.due.raw,text);
+ await s.agent.undo({draftId:result.draftId,conversationId:s.conversationId,actionId:'undo-due'});assert.deepEqual((await s.backend.load()).entries,before);
+});
+
+test('saved due-clock reading abstains on duplicate names, recurrence, missing alarms and extra actions',async()=>{
+ for(const variation of ['duplicate','recurring','no-alarm','extra']){
+  const seed=freshStore();const id=editPlan(seed,{type:'saveTask',fields:{title:'Submit workbook',planned:'2026-10-21T17:00:00+05:30',alert:variation==='no-alarm'?'off':'alarm'}},now);
+  if(variation==='duplicate')editPlan(seed,{type:'saveTask',fields:{title:'Submit workbook',planned:'2026-10-22T17:00:00+05:30'}},now);
+  if(variation==='recurring')seed.entries.find(e=>e.id===id).recurrence='daily';
+  const s=await fixture(seed),text='submit workbook is now due at five forty five and keep the alarm'+(variation==='extra'?' and call Raj':'');
+  await s.agent.capture({messageId:'uncertain-due',conversationId:s.conversationId,text});assert.equal(s.calls(),1,variation);
+ }
+});
+
+test('saved due-clock reading consumes the whole clock and keeps uncertain corrections with the model',async()=>{
+ for(const clock of ['five or six','five thirty tomorrow','five thirty because I need more time','five thirty and call Raj','about five','five thirty to six','not five','twenty five']){
+  const seed=freshStore();editPlan(seed,{type:'saveTask',fields:{title:'Submit workbook',planned:'2026-10-21T17:00:00+05:30',alert:'alarm'}},now);
+  const s=await fixture(seed);await s.agent.capture({messageId:'uncertain-due',conversationId:s.conversationId,text:`submit workbook is now due at ${clock} and keep the alarm`});
+  assert.equal(s.calls(),1,clock);assert.equal((await s.backend.load()).entries[0].planned,'2026-10-21T17:00:00+05:30');
+ }
+});

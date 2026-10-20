@@ -53,3 +53,10 @@ test('the after-five selection also works after five, with original capitalizati
  assert.deepEqual(local.turn.operations.map(o=>o.targetId),['2']);
  assert.doesNotThrow(()=>interpretTurn(local.turn,{units:input.sourceUnits,messageId:'m',visibleEntities:local.entities}));
 });
+
+test('bulk move abstains when a recurrence can project into today from an earlier start',async()=>{
+ const {readBulkMove}=await import('../intent-v2/src/bulk-move.mjs');
+ const input={sourceUnits:[{id:'s0',text:'push everything after 5 today to tomorrow'}],context:{now:now.toISOString(),nowLocal:'2026-10-19 10:00',timezone:'Asia/Kolkata'}};
+ const data={entries:[{id:1,title:'Daily evening',kind:'plan',planned:'2026-10-18T14:30:00Z',recurrence:'daily'},{id:2,title:'One-off',kind:'plan',planned:'2026-10-19T14:30:00Z'}]};
+ assert.equal(readBulkMove(input,{data}),null);
+});

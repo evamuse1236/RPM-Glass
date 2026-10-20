@@ -11,7 +11,11 @@ export function readBulkMove(input,{data}){
  const boundary=interpretTime(`today at ${match[1]}`,anchor,{inferBareClock:true});
  if(boundary.status!=='parsed')return null;
  const day=input.context.nowLocal.slice(0,10),clock=localStamp(boundary.planned,input.context.timezone)?.slice(11);
- const selected=(data.entries??[]).filter(e=>(e.kind??'plan')==='plan'&&!e.archived&&!e.done&&e.state!=='cancelled'&&e.planned)
+ const active=(data.entries??[]).filter(e=>(e.kind??'plan')==='plan'&&!e.archived&&!e.done&&e.state!=='cancelled');
+ // A recurrence can project into today even when its stored start is earlier.
+ // Leave recurrence expansion to the existing planner/model path.
+ if(active.some(e=>e.recurrence||e.repeatAfterDays))return null;
+ const selected=active.filter(e=>e.planned)
   .filter(e=>{const stamp=localStamp(e.planned,input.context.timezone);return stamp?.slice(0,10)===day&&stamp.slice(11)>clock;});
  // One transaction has a hard 30-operation limit. Never move only a subset.
  if(selected.length>30||selected.some(e=>e.recurrence||e.repeatAfterDays))return null;

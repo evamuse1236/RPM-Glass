@@ -35,9 +35,10 @@ function inferClocks(parsed,input,now,sourceOperations){
     time=whole;proof=owner.text;
    }else if(!f.evidence)continue;
    const savedDay=input.context.entities.find(e=>e.entity==='task'&&e.id===op.targetId)?.savedLocalDate;
-   if(savedDay&&savedDay>input.context.nowLocal?.slice(0,10)&&(MORNING.test(proof)||LATER.test(proof))&&!statedDays(proof,now).length&&!/\bthis\s+(?:morning|afternoon|evening|night)\b/i.test(proof)){
-    const retained=interpretTime(`${savedDay} ${clockWords(proof)}`,now,{subject,inferBareClock:true});
-    if(retained.status==='parsed')time=retained;
+   if(savedDay&&savedDay>input.context.nowLocal?.slice(0,10)&&!statedDays(time.normalized,now).length&&!/\bthis\s+(?:morning|afternoon|evening|night)\b/i.test(proof)){
+    const retainDay=iso=>{const d=new Date(iso),[y,m,day]=savedDay.split('-').map(Number);d.setFullYear(y,m-1,day);return d.toISOString();};
+    time={...time,planned:retainDay(time.planned),plannedDate:savedDay,
+     inference:{...time.inference,selectedAt:retainDay(time.inference.selectedAt),alternateAt:retainDay(time.inference.alternateAt)}};
    }
    Object.assign(f,{op:'set',origin:'stated',value:time.planned,evidence:proof,evidenceSourceId:input.sourceUnits.find(u=>u.text.includes(proof))?.id??null});
    if(time.inference)f.inference={...time.inference,opId:op.opId,sourceMessageId:input.messageId};else delete f.inference;
@@ -106,6 +107,8 @@ function normalizeInheritedClocks(parsed,input,now,sourceOperations){
    if(f.name!=='time'||f.op!=='set'||f.origin!=='stated'||f.sourceMessageId!==input.messageId||!f.evidence||!input.sourceUnits.some(u=>u.text.includes(f.evidence)))continue;
    const proof=interpretTime(f.evidence,now);
    if(proof.status!=='date_only'||proof.matched.some(m=>Number.isInteger(m.known.hour))||!statedDays(proof.normalized,now).length)continue;
+   // A day-only quotation must not conceal a fresh clock in the user's words.
+   if(source&&(clocks(source.text,now,source.text,'').length||looseClocks(source.text).length))continue;
    const requested=clocks(f.value,now,f.evidence,'');
    const [h,m]=target.startLocal.slice(11).split(':').map(Number);
    if(requested.length!==1||requested[0].hour!==h||requested[0].minute!==m)continue;

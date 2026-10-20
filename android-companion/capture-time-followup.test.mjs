@@ -10,6 +10,7 @@ import {undo} from '../chat-prototype/companion-tools.mjs';
 import {createIntentService} from './intent-service.mjs';
 import {createCaptureAgent} from './capture-agent.mjs';
 import {createTraceStore} from './capture-trace.mjs';
+import {actionIdFor} from '../intent-v2/src/suggestions.mjs';
 
 const now=new Date('2026-10-19T04:30:00Z');
 test('spoken clocks with a stated part of day need no preceding at',()=>{
@@ -47,4 +48,21 @@ for(const [phrase,expected] of [
  const result=await agent.capture({messageId:'current-day',conversationId:data.conversations[0].id,text:raw});
  assert.equal(result.applied?.status,'applied');
  const saved=await backend.load();assert.equal(saved.entries[0].planned,expected);assert.equal(saved.intentV2.captures['current-day'].raw,raw);
+});
+
+test('bare numeric and spoken clock corrections retain the saved future day',async()=>{
+ for(const [phrase,time] of [['at 7','19:00'],['five thirty','17:30']]){
+  const data=freshStore();editPlan(data,{type:'saveTask',fields:{title:'Email rent receipt',plannedDate:'2026-10-21'}},now);
+  const raw='Move it to '+phrase,backend=createMemoryBackend(data);
+  const service=createIntentService({backend,model:async()=>turn(raw,[operation([field('time',phrase,phrase)],{kind:'update',targetId:'1'})]),changePlanner,editPlan,undo,readCalendar:async()=>({status:'ready',start:0,end:Date.parse('2027-01-01'),events:[]}),clock:()=>now});
+  const agent=createCaptureAgent({service,traces:createTraceStore({storage:null}),clock:()=>now});
+  const result=await agent.capture({messageId:'bare-future',conversationId:data.conversations[0].id,text:raw});assert.equal(result.applied.status,'applied');
+  assert.equal((await backend.load()).entries[0].planned,new Date(`2026-10-21T${time}:00+05:30`).toISOString(),phrase);
+  const help=(await service.view()).captures[0].draft.nextStep;
+  assert.ok(help.label.includes('AM'));assert.equal(help.action.at.slice(0,10),'2026-10-21');
+  await agent.act(help.action,{actionId:actionIdFor(help.action)});
+  assert.equal((await backend.load()).entries[0].planned,new Date(`2026-10-21T${phrase==='at 7'?'07:00':'05:30'}:00+05:30`).toISOString());
+  await agent.undo({draftId:`draft-${actionIdFor(help.action)}`,conversationId:data.conversations[0].id,actionId:'undo-flip'});
+  assert.equal((await backend.load()).entries[0].planned,new Date(`2026-10-21T${time}:00+05:30`).toISOString());
+ }
 });

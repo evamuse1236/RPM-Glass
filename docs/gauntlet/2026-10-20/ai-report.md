@@ -140,3 +140,15 @@ Iteration 3's adversary run passed 79/80. It had no transport failures. The only
 The next old-corpus run was interrupted by temporary-filesystem quota errors before model calls. It produced no final report. Those partial artifacts stay in `g2-r3-old`. I reran the whole old corpus with `TMPDIR` pointing to `.verify/gauntlet-tmp`, away from the shared temporary filesystem. No other process or emulator was touched.
 
 The complete retry passed 108/109. Its only failure is the previously documented mom/Amma fixture ambiguity: the model moved saved “Call Amma”, while the unchanged expectation asks for a new “Call mom”. No transport failures occurred in the retry. The regression floor is met. This expectation was not loosened.
+
+
+The resumed run kept every artifact under `.verify`, including CLI temporary files. It reproduced all five interrupted test failures before changing production code. It did not discard those tests.
+
+Iteration 4 closes three clock and recurrence gaps. A new bare clock now retains a saved future day. Its AM/PM still comes from the new words and capture anchor. The alternate receipt chip stays on that same saved day, and Undo restores the selected clock. The full suite exposed one older assertion expecting the capture day instead. That assertion now follows the existing product rule for saved future days; its AM/PM inference check remains. Tests: `capture-time-followup.test.mjs` and `intent-service-time.test.mjs`.
+
+A fresh clock elsewhere in a source cannot hide behind a day-only quotation to inherit the saved AM/PM. `intent-time-guard.test.mjs` injects that bad extraction. A recurring task whose stored start is yesterday also prevents a partial local bulk move today. The full active store is checked before selection. `capture-bulk-local.test.mjs` covers the projected recurrence.
+
+An exact, unique saved task name followed by a literal due clock and “keep the alarm” now reads locally. The explicit due clock wins over a redundant relative nudge. The saved day, duration and alarm remain. One normal receipt and Undo cover the change. `capture-local-reader.test.mjs` checks today and a future day. It rejects duplicate names, recurrence, missing alarms, alternatives, historical days, ranges and extra actions. Those two positive tests were red before the local reader was added.
+
+
+Iteration 4 passed 22/24 targeted attempts, 76/80 adversary attempts and 108/109 old cases. Two adversary failures asked for the missing shift direction. Two more lost the clock when the model quoted “9 tonight” without “at”. The retained outputs show the parser saving only today. This is a measured parser gap, not a reason to weaken the case. The old failure is the unchanged mom/Amma ambiguity. `npm test` passed before this commit. The browser bundle compiled in memory.

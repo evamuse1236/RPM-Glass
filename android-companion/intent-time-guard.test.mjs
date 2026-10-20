@@ -41,3 +41,10 @@ test('a day correction may repeat only a verified unchanged saved clock',()=>{
  const wrong=correction();wrong.operations[0].fields[0].evidence='Thursday at 5 pm';
  assert.throws(()=>validateIntentTimes(wrong,{input:explicit}),{code:'UNSUPPORTED_TIME'});
 });
+
+test('a newly stated bare clock cannot inherit the saved AM/PM through a day-only quotation',()=>{
+ const words='Thursday at 4',i=input(words);
+ i.context.entities=[{entity:'task',id:'7',title:'Book haircut',savedLocalDate:'2026-10-04',startLocal:'2026-10-04 04:00'}];
+ const parsed={...turn('Thursday at 4 am','Thursday'),operations:[{opId:'op1',sourceId:'s0',kind:'update',entity:'task',targetId:'7',fields:[{name:'time',op:'set',value:'Thursday at 4 am',origin:'stated',evidence:'Thursday',sourceMessageId:'m1'}]}]};
+ assert.throws(()=>validateIntentTimes(parsed,{input:i}),{code:'UNSUPPORTED_TIME'});
+});
