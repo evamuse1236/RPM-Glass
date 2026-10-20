@@ -130,6 +130,7 @@ final class NotchController implements NotchPill.Gestures {
     }
 
     void detach() {
+        AlarmHeadsUp.notchCanShow(false);
         if (pill != null) pill.hide();
         pill = null;
         if (observer != null) observer.stopWatching();
@@ -190,6 +191,7 @@ final class NotchController implements NotchPill.Gestures {
         handler.removeCallbacks(emphasisEnd);
         if (pill == null) return;
         if (!enabled(service)) {
+            AlarmHeadsUp.notchCanShow(false);
             state.close();
             pill.hide();
             return;
@@ -208,6 +210,7 @@ final class NotchController implements NotchPill.Gestures {
         NotchFrame.Note note = alerting.note();
         NotchReceipt receipt = changes.receipt();
         boolean showable = IslandState.showable(locked, screenOn, landscape);
+        AlarmHeadsUp.notchCanShow(showable);
         if (!showable) state.hidden();
         Mode mode = state.mode(alert, receipt);
         boolean something = primary != null || note != null || alert != null || receipt != null || state.managed() != null;
