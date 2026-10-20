@@ -21,7 +21,7 @@
   padding: 4px var(--s4) 4px 0;
   mask-image: linear-gradient(to right, black calc(100% - var(--s4)), transparent);
 }
-.chip-row.chip-wrap { flex-wrap: wrap; overflow: visible; padding: 4px 0; }
+.chip-row.chip-wrap { flex-wrap: wrap; overflow: visible; padding: 4px 0; margin-inline-end: 0; mask-image: none; }
 
 .chip {
   position: relative;

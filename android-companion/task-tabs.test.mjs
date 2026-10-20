@@ -6,6 +6,7 @@ import {occurrences, repeats} from './planner-recurrence.mjs';
 import {TIME_GRID, whenFields, repeatDaysOf, repeatFieldsFor, repeatLabel, repeatShort} from './planner/task-values.mjs';
 import {TABS, stepTab, whenShort, alertShort, blockShort, lengthChoices, presetOf, presetFields, toggleRepeatDay, blockChoices}
   from './planner/task-tabs-model.mjs';
+import fs from 'node:fs';
 import {HALF_HOUR_PX, rulerScale, offsetOf, stopAt, busySpans} from './planner/time-ruler.mjs';
 
 const DAY = '2026-10-20';
@@ -141,4 +142,11 @@ test('the Block list keeps the planner\'s order with done of total and Purpose, 
   assert.equal(task().blockId, null);
   editPlan(d, {type: 'undo'});
   assert.equal(task().blockId, block);
+});
+
+test('every chip row in the task tabs wraps, so no chip hides past the right edge', () => {
+  const source = fs.readFileSync(new URL('./planner/task-tabs.mjs', import.meta.url), 'utf8');
+  const calls = [...source.matchAll(/\b(chipRow|wrapRow)\(/g)].map(m => m[1]);
+  assert.deepEqual(calls.filter(name => name === 'chipRow'), ['chipRow'], 'only wrapRow itself calls chipRow');
+  assert.ok(calls.filter(name => name === 'wrapRow').length >= 4);
 });
