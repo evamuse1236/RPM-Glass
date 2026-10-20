@@ -10,7 +10,9 @@ export function completeWaterLog(output,input){
  const unit=input.sourceUnits[0],raw=unit.text.trim();
  const counts={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,twenty:20,thirty:30,ek:1,do:2,teen:3,chaar:4,paanch:5};
  let count=/^(?:I\s+)?(?:just\s+)?drank\s+water[.!]?$/i.test(raw)?1:null;
- const english=raw.match(/^(?:I\s+)?(?:just\s+)?drank\s+(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty)\s+glass(?:es)?(?:\s+of\s+water)?[.!]?$/i);
+ const number='(\\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty)';
+ const english=raw.match(new RegExp(`^(?:I\\s+)?(?:just\\s+)?drank\\s+${number}\\s+glass(?:es)?(?:\\s+of\\s+water)?[.!]?$`,'i'))
+  ??raw.match(new RegExp(`^(?:I\\s+)?(?:just\\s+)?(?:had|finished)\\s+${number}\\s+glass(?:es)?\\s+of\\s+water[.!]?$`,'i'));
  const hindi=raw.match(/^(?:abhi\s+)?(\d{1,2}|ek|do|teen|chaar|paanch)\s+glass\s+(?:paani|pani)\s+piya[.!]?$/i);
  const stated=english??hindi;if(stated)count=counts[stated[1].toLowerCase()]??Number(stated[1]);
  if(!Number.isInteger(count)||count<1||count>30)return output;

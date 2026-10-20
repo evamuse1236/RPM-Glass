@@ -23,7 +23,7 @@ for(const [text,title,date] of [['call mom at 6','Call mom','2026-10-19T12:30:00
  await s.agent.undo({draftId:result.draftId,conversationId:s.conversationId,actionId:'undo'});
  assert.equal((await s.backend.load()).entries.length,0);
 });
-for(const text of ['drank 2 glasses','drank two glasses of water','I just drank water'])test('local water logs '+text+' once with Undo',async()=>{
+for(const text of ['drank 2 glasses','drank two glasses of water','I just drank water','had 2 glasses of water','I had two glasses of water','finished 2 glasses of water'])test('local water logs '+text+' once with Undo',async()=>{
  const s=await fixture(),input={messageId:'local',conversationId:s.conversationId,text};
  const result=await s.agent.capture(input);await s.agent.capture(input);
  assert.equal(s.calls(),0);const data=await s.backend.load();
@@ -50,7 +50,7 @@ test('local creation abstains when family aliases or Block filing need interpret
 });
 
 test('water counts reject other drinks, estimates, dates and unsupported units',async()=>{
- for(const text of ['drank 2 glasses of wine','drank about two glasses of water','drank 31 glasses','drank 0 glasses','I will drink 2 glasses','I didnt drink 2 glasses','drank 2 glasses yesterday','he drank two glasses of water']){
+ for(const text of ['drank 2 glasses of wine','drank about two glasses of water','drank 31 glasses','drank 0 glasses','I will drink 2 glasses','I didnt drink 2 glasses','drank 2 glasses yesterday','he drank two glasses of water','had 2 glasses','had 2 glasses of wine','had 2 glasses of water yesterday']){
   const s=await fixture();await s.agent.capture({messageId:'uncertain-water',conversationId:s.conversationId,text});assert.equal(s.calls(),1,text);
  }
 });
