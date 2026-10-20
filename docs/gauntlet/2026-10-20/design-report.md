@@ -90,3 +90,30 @@ Notes on round 2:
 - The Now pill sits on the bar's top edge. While visible, it can cover the top of a row passing just above the bar. It hides as soon as you scroll down or a snackbar shows.
 
 Round 2 UNVERIFIED: the same items as above (no emulator, no `rpmctl scenario --all`, haptics, real touch, TalkBack, the real AI, 200% text).
+
+## Round 3: critic 2's list (overall 8/10)
+
+Shots are in `design-shots/round-3/<fix>/`; measurements are in `round-3/readout.txt`. `npm test` exited 0 before each commit.
+
+| Item | What changed for the user | Measured in the playground | Shots | Commit |
+|---|---|---|---|---|
+| 1. Quick add | The title is 16/24, like Capture. Chips sit one row per meaning, every one with a word: the day; Time, Estimate and Repeat; the Block (Other or Choose Block); Must. Details is a plain row with a chevron under them. | Title 16px/24px. Every chip 32dp tall, 8dp corners. Rows at 516, 564, 612, 660; Details at 700, 48dp tall. | `1-quick-add/` | acafd62 |
+| 2. Dark sheets | In dark, every sheet is #282A2C (the bar's tone) with a 1px #444746 edge, so it stands off the dimmed page. The Block row, search field, stepper buttons and slider tracks stay visible on it. Light is unchanged. | Sheet rgb(40,42,44), border 1px rgb(68,71,70). | `2-dark-sheets/` | acafd62 |
+| 3. Now pill | It floats 16dp above the bar, centred, off the bar's border. | Pill bottom 736, bar top 752, centre x 192. | `3-4-7-floats/now-pill-light.png` | c898ebf |
+| 4. Strip under the bar | The 16dp strip below the bar shows nothing. The page is masked out there and fades back in behind the bar. | Mask: clear to 16px, full at 48px. Bar 16dp from the edge. | `3-4-7-floats/today-top-*` | c898ebf |
+| 5. Gutter | The gutter shows the time and, on the next card, "in 3 h": two lines at most. The length moved into the drag label ("5:15 PM · 3 h 55 min"). | Gutter "4 PM / in 3 h", 2 lines. | `5-gutter/` | 0e583b5 |
+| 6. Question preview line | Not built. The card gets only each choice's id and label from `intent-service.mjs` (`projectQuestion`), not its targets. A line such as "Deletes …" would have to guess the item from the label, which can be "Both". | | | |
+| 7. Snackbar | While a snackbar shows, a row scrolled into view stops 16dp above it. The snackbar's height is now read without its entry scale. | Scroll padding 168px = 152 (snackbar top from the bottom) + 16. | `3-4-7-floats/snackbar-light.png` | c898ebf, 4a766f4 |
+| 8. Blocks "Next" | "NEXT" is now "Next", label-medium in primary. | "Next", no uppercase, 12px, rgb(11,87,208). | `8-blocks-next/` | acafd62 |
+
+Tests: `sheet-look.test.mjs` (new: quick add, dark sheets, Next), more cases in `floating-layout.test.mjs` (Now pill, strip, snackbar padding) and `spine-drag.test.mjs` (gutter lines, drag label). AGENTS.md got a new row for quick add and sheets. The rows for floats and the spine drag were updated in the same commits.
+
+Calls I made:
+
+- The critic asked for the day chips and Time on one row. They need about 405dp; the sheet has 334dp at 384 wide. Time therefore joined Estimate and Repeat (also about time), and Must has its own row.
+- Beside a Block chip, the Block list chip reads "Other" (spoken "Other Blocks"), not "Choose Block". This keeps it labelled while the Block name keeps room.
+- Some things sat on the old dark sheet tone and would vanish on the new one: search field, Block row, stepper buttons, lifted rows, banners. They now use the next tone up. The slider track uses `outline-variant` in both themes, like the water track and the knurl.
+- The Blocks "Next" eyebrow grew from 11px to label-medium (12px), as the critic asked.
+- With a time set (for example "Fri, Oct 23, 6:00 PM"), the Time row wraps Repeat to a second line. Nothing is cut.
+
+Round 3 UNVERIFIED: the same as before (no emulator or phone, no `rpmctl scenario --all`, haptics, real touch, TalkBack, the real AI, 200% text). The quick-add rows were not checked at 200% text.
