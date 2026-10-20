@@ -57,7 +57,7 @@ final class NotchController implements NotchPill.Gestures {
     }
 
     final PillPriority priority = new PillPriority();
-    boolean expanded;
+    final IslandState state = new IslandState();
     private NotchPill pill;
     private StoreObserver observer;
     private NotchData data = NotchData.EMPTY;
@@ -86,8 +86,6 @@ final class NotchController implements NotchPill.Gestures {
     final NotchAlerting alerting;
     final NotchRunner runner;
     final NotchChanges changes;
-    /** The alert controls' occurrence while they show, else null. */
-    private NotchFrame.Managed managed;
 
     NotchController(Context serviceContext) {
         service = serviceContext;
@@ -132,6 +130,7 @@ final class NotchController implements NotchPill.Gestures {
     }
 
     void detach() {
+        AlarmHeadsUp.notchCanShow(false);
         if (pill != null) pill.hide();
         pill = null;
         if (observer != null) observer.stopWatching();
@@ -142,8 +141,7 @@ final class NotchController implements NotchPill.Gestures {
             prefs(service).unregisterOnSharedPreferenceChangeListener(prefsChanged);
         }
         registered = false;
-        expanded = false;
-        managed = null;
+        state.close();
         changes.detach();
         runner.release();
         handler.removeCallbacks(emphasisEnd);
@@ -153,8 +151,9 @@ final class NotchController implements NotchPill.Gestures {
     void reload() {
         if (pill == null) return;
         readAt = SystemClock.elapsedRealtime();
+        NotchData last = data;
         reader.execute(() -> {
-            NotchData next = NotchData.read(service);
+            NotchData next = NotchData.read(service, last);
             handler.post(() -> safely("data loaded", () -> {
                 data = next;
                 render();
@@ -183,22 +182,17 @@ final class NotchController implements NotchPill.Gestures {
 
     void setExpanded(boolean expand) {
         if (expand) runner.warm();
-        if (expand != expanded) NotchActions.log(service, expand ? "notch.expand" : "notch.collapse", "ok", null);
-        expanded = expand;
-        managed = null;
+        if (expand != state.expanded()) NotchActions.log(service, expand ? "notch.expand" : "notch.collapse", "ok", null);
+        state.expand(expand);
         render();
-    }
-
-    /** Leaves the alert controls (for the open island, or for a receipt). */
-    void closeManaged() {
-        managed = null;
     }
 
     void render() {
         handler.removeCallbacks(emphasisEnd);
         if (pill == null) return;
         if (!enabled(service)) {
-            expanded = false;
+            AlarmHeadsUp.notchCanShow(false);
+            state.close();
             pill.hide();
             return;
         }
@@ -211,15 +205,17 @@ final class NotchController implements NotchPill.Gestures {
         if (scene.habit != null) priority.show(Kind.HABIT, NotchScene.habitValue(scene.habit), now);
         else priority.dismiss(Kind.HABIT);
         Item primary = priority.primary(now);
-        if (primary == null) expanded = false;
+        if (primary == null) state.close();
         NotchAlert alert = alerting.alert();
         NotchFrame.Note note = alerting.note();
         NotchReceipt receipt = changes.receipt();
-        Mode mode = alert != null ? (alert.type == NotchAlert.Type.ALARM ? Mode.ALARM : Mode.REMINDER)
-                : receipt != null ? Mode.RECEIPT : managed != null ? Mode.MANAGE : expanded ? Mode.OPEN : Mode.PILL;
-        boolean something = primary != null || note != null || alert != null || receipt != null || managed != null;
-        if (something && !locked && screenOn && !landscape) {
-            pill.show(new NotchFrame(mode, primary, priority.secondary(now), scene, alert, note, managed, receipt), actions);
+        boolean showable = IslandState.showable(locked, screenOn, landscape);
+        AlarmHeadsUp.notchCanShow(showable);
+        if (!showable) state.hidden();
+        Mode mode = state.mode(alert, receipt);
+        boolean something = primary != null || note != null || alert != null || receipt != null || state.managed() != null;
+        if (something && showable) {
+            pill.show(new NotchFrame(mode, primary, priority.secondary(now), scene, alert, note, state.managed(), receipt), actions);
         }
         else pill.hide();
         long next = priority.nextChangeAt(now);
@@ -240,7 +236,7 @@ final class NotchController implements NotchPill.Gestures {
                 break;
             case MANAGE:
                 if (result == IslandGesture.Result.UP) {
-                    managed = null;
+                    state.leaveManaged();
                     render();
                 }
                 break;
@@ -279,7 +275,7 @@ final class NotchController implements NotchPill.Gestures {
     /** Long press on the pill: the current task in the planner, or the day when the pill shows a nudge or an event. */
     private void openHero() {
         NotchDay.Slot hero = scene == null ? null : scene.hero;
-        expanded = false;
+        state.close();
         NotchActions.openTask(service, hero == null ? 0 : hero.task.id);
         render();
     }
@@ -315,7 +311,7 @@ final class NotchController implements NotchPill.Gestures {
         @Override
         public void manage(NotchDay.Slot slot) {
             if (slot == null || slot.task.alert.isEmpty()) return;
-            managed = new NotchFrame.Managed(slot, NotchDay.clock(slot.start, ZoneId.systemDefault(), DateFormat.is24HourFormat(service)));
+            state.manage(new NotchFrame.Managed(slot, NotchDay.clock(slot.start, ZoneId.systemDefault(), DateFormat.is24HourFormat(service))));
             NotchActions.log(service, "notch.manage_alert", "shown", NotchActions.payload("taskId", slot.task.id, "alert", slot.task.alert));
             render();
         }
@@ -327,20 +323,19 @@ final class NotchController implements NotchPill.Gestures {
 
         @Override
         public void setAlert(String type) {
-            if (managed != null) changes.setAlert(managed.slot, type);
+            if (state.managed() != null) changes.setAlert(state.managed().slot, type);
         }
 
         @Override
         public void doneManaged() {
-            if (managed != null) changes.done(managed.slot);
+            if (state.managed() != null) changes.done(state.managed().slot);
         }
 
         @Override
         public void openManaged() {
-            if (managed == null) return;
-            long id = managed.slot.task.id;
-            expanded = false;
-            managed = null;
+            if (state.managed() == null) return;
+            long id = state.managed().slot.task.id;
+            state.close();
             NotchActions.openTask(service, id);
             render();
         }
@@ -348,6 +343,20 @@ final class NotchController implements NotchPill.Gestures {
         @Override
         public void undo() {
             changes.undo();
+        }
+
+        @Override
+        public void openHero() {
+            NotchController.this.openHero();
+        }
+
+        @Override
+        public void snoozeRoutine() {
+            if (scene.habit == null) return;
+            prefs(service).edit().putLong(SNOOZE + NotchScene.routineSnooze(scene.habit.routine.id),
+                    System.currentTimeMillis() + scene.snoozeMinutes * NotchDay.MIN).apply();
+            NotchActions.log(service, "notch.snooze", "ok", NotchActions.payload("what", "routine", "minutes", scene.snoozeMinutes));
+            render();
         }
 
         /** Holds the due water and routine nudges here for the snooze time; the planner's own data is untouched. */
@@ -367,7 +376,7 @@ final class NotchController implements NotchPill.Gestures {
                 edit.putLong(SNOOZE + NotchScene.routineSnooze(scene.habit.routine.id), until);
                 what.append("routine");
             }
-            expanded = false;
+            state.close();
             edit.apply();
             NotchActions.log(service, "notch.snooze", "ok", NotchActions.payload("what", what.toString().trim(), "minutes", scene.snoozeMinutes));
             render();
@@ -375,7 +384,7 @@ final class NotchController implements NotchPill.Gestures {
 
         @Override
         public void logMeal() {
-            expanded = false;
+            state.close();
             NotchActions.logMeal(service, scene.meal);
             render();
         }

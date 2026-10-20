@@ -27,6 +27,9 @@ final class NotchContent {
 
         void snooze();
 
+        /** Holds the due routine's nudge here for the snooze time; water stays due. */
+        void snoozeRoutine();
+
         void logMeal();
 
         void openAlert();
@@ -53,6 +56,9 @@ final class NotchContent {
 
         /** Takes back the change the receipt shows. */
         void undo();
+
+        /** Opens the hero's task (or the day, for a calendar event) in the planner. */
+        void openHero();
     }
 
     final NotchParts parts;
@@ -82,8 +88,12 @@ final class NotchContent {
         Look look = scene.heroLook;
         int accent = NotchInk.accent(look);
         parts.bandSpeaks(face, bandSpoken(scene), 0);
-        col.addView(parts.title(scene.heroTitle));
-        col.addView(parts.line(scene.heroSubtitle, accent));
+        if (scene.hero != null) {
+            col.addView(parts.words(scene.heroTitle, scene.heroSubtitle, accent, "Open " + scene.heroTitle + " in the plan", actions::openHero));
+        } else {
+            col.addView(parts.title(scene.heroTitle));
+            col.addView(parts.line(scene.heroSubtitle, accent));
+        }
 
         List<View> pills = new ArrayList<>();
         for (Control c : scene.controls()) pills.add(control(c, scene, actions, pills.isEmpty(), accent));
@@ -94,6 +104,8 @@ final class NotchContent {
             for (View r : rows) list.addView(r);
             col.addView(list);
         }
+        int more = scene.more(maxRows);
+        if (more > 0) col.addView(parts.more(more));
         return face;
     }
 
@@ -113,62 +125,53 @@ final class NotchContent {
         return s.barSpoken.isEmpty() ? s.heroTitle : s.heroTitle + ", " + s.barSpoken;
     }
 
-    /** The hero's own alert first (it has no row of its own), then the scene's rows; drops keep the water row. */
     private List<View> rows(NotchScene scene, Actions actions, int maxRows) {
         List<View> out = new ArrayList<>();
-        int room = maxRows;
-        if (!scene.heroAlert.isEmpty() && room > 0) {
-            Look look = NotchScene.alertLook(scene.heroAlert);
-            LinearLayout r = parts.row(NotchBand.icon(look), NotchInk.accent(look), NotchScene.alertName(scene.heroAlert),
-                    NotchParts.alertSpoken(scene.heroAlert, scene.heroTitle, scene.heroAt), () -> actions.manage(scene.hero));
-            NotchParts.trail(r, value(scene.heroAt, NotchInk.accent(look)), parts.dp(12));
-            out.add(r);
-            room--;
-        }
-        for (NotchScene.Row row : scene.visibleRows(room)) out.add(row(row, scene, actions));
+        for (NotchScene.Row row : scene.visibleRows(maxRows)) out.add(row(row, scene, actions));
         return out;
     }
 
     private View row(NotchScene.Row r, NotchScene scene, Actions actions) {
         int accent = r.look == Look.TASK || r.look == Look.EVENT ? NotchInk.WHITE_60 : NotchInk.accent(r.look);
         int gap = parts.dp(12);
+        if (r.heros) {
+            Runnable manage = () -> actions.manage(r.slot);
+            LinearLayout row = parts.row(NotchBand.icon(r.look), accent, r.title, NotchParts.alertSpoken(r.alert, scene.heroTitle, r.value), manage);
+            parts.trailCircle(row, parts.rowCircle(R.drawable.ic_chevron, NotchInk.WHITE_87, "Change the alert for " + scene.heroTitle, manage));
+            return row;
+        }
         if (r.look == Look.WATER && scene.water != null) {
             LinearLayout row = parts.row(NotchBand.icon(r.look), accent, r.title, r.title + ", " + r.value + ". Log a glass of water", actions::drink);
-            NotchParts.trail(row, new NotchParts.Dots(context, scene.water.count, scene.water.goal, parts.dp(7), parts.dp(4)), gap);
-            NotchParts.trail(row, value(scene.waterValue(), NotchInk.WATER), parts.dp(10));
-            row.addView(parts.glyph(R.drawable.notch_ic_plus, NotchInk.WATER), plusAt());
+            if (!parts.largeText()) NotchParts.trail(row, new NotchParts.Dots(context, scene.water.count, scene.water.goal, parts.dp(7), parts.dp(4)), gap);
+            NotchParts.trail(row, value(scene.waterValue(), NotchInk.WATER), gap);
+            parts.trailCircle(row, parts.rowCircle(R.drawable.notch_ic_plus, NotchInk.WATER, "Log a glass of water", actions::drink));
             return row;
         }
         if (!r.alert.isEmpty()) {
             LinearLayout row = parts.row(NotchBand.icon(r.look), accent, r.title, NotchParts.alertSpoken(r.alert, r.title, r.value), () -> actions.manage(r.slot));
             NotchParts.trail(row, parts.alertChip(r.alert, r.value), gap);
-            View done = parts.circleButton(NotchInk.SECONDARY, NotchInk.PRESS, R.drawable.ic_check, NotchInk.WHITE_87, "Done: " + r.title,
-                    () -> actions.doneSlot(r.slot));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(parts.dp(NotchGeometry.CONTROL_DP), parts.dp(NotchGeometry.CONTROL_DP));
-            lp.setMarginStart(parts.dp(8));
-            row.setPaddingRelative(row.getPaddingStart(), row.getPaddingTop(), parts.dp(NotchGeometry.ROW_DP - NotchGeometry.CONTROL_DP) / 2, row.getPaddingBottom());
-            row.addView(done, lp);
+            parts.trailCircle(row, parts.rowCircle(R.drawable.ic_check, NotchInk.WHITE_87, "Done: " + r.title, () -> actions.doneSlot(r.slot)));
             return row;
         }
         if (r.look == Look.MEAL) {
             LinearLayout row = parts.row(NotchBand.icon(r.look), accent, r.title, r.title + ", not logged. Log it in the planner", actions::logMeal);
-            NotchParts.trail(row, value("Log", NotchInk.MEAL), gap);
+            parts.trailCircle(row, parts.rowCircle(R.drawable.notch_ic_plus, NotchInk.MEAL, "Log " + r.title + " in the planner", actions::logMeal));
             return row;
         }
+        boolean habit = r.look == Look.HABIT && scene.habit != null;
         LinearLayout row = parts.row(NotchBand.icon(r.look), accent, r.title, r.title + ", " + r.value, null);
-        String v = r.look == Look.HABIT && scene.habit != null ? NotchScene.habitValue(scene.habit) : r.value;
-        NotchParts.trail(row, value(v, r.look == Look.HABIT ? NotchInk.HABIT : NotchInk.WHITE_60), gap);
+        NotchParts.trail(row, value(habit ? NotchScene.habitValue(scene.habit) : r.value, habit ? NotchInk.HABIT : NotchInk.WHITE_60), gap);
+        if (habit) {
+            parts.trailCircle(row, parts.rowCircle(R.drawable.notch_ic_snooze, NotchInk.HABIT, "Snooze " + r.title + " for " + scene.snoozeMinutes + " minutes",
+                    actions::snoozeRoutine));
+        } else if (r.slot != null && !r.slot.task.fixed) {
+            parts.trailCircle(row, parts.rowCircle(R.drawable.ic_check, NotchInk.WHITE_87, "Done: " + r.title, () -> actions.doneSlot(r.slot)));
+        }
         return row;
     }
 
     private View value(String s, int color) {
         return parts.text(s, 14, color, 500);
-    }
-
-    private LinearLayout.LayoutParams plusAt() {
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(parts.dp(20), parts.dp(20));
-        lp.setMarginStart(parts.dp(10));
-        return lp;
     }
 
     /** The split circle's content: one IslandBand ring, centred. */

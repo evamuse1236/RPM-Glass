@@ -50,7 +50,7 @@ function parseTask(e, blocks) {
   if (!planned) return null;
   return {id: Number(e.id) || 0, title: String(e.title ?? e.raw ?? ''), block: e.blockId == null ? null : blocks.get(String(e.blockId)) ?? null,
     planned, minutes: e.minutes == null || !Number.isFinite(Number(e.minutes)) ? 30 : Math.trunc(Number(e.minutes)), recurrence: e.recurrence ?? '',
-    completed: new Set(e.completedOccurrences ?? []), fixed: false, alert: alertType(e)};
+    completed: new Set(e.completedOccurrences ?? []), fixed: false, alert: alertType(e), purpose: String(e.purpose ?? '').trim()};
 }
 
 export function parseNotchData(data, events) {

@@ -42,10 +42,11 @@ export function face(className, ...parts) {
 export const title = words => text(words, 'notch-title');
 export const line = (words, color) => text(words, 'notch-line', color);
 
-/** A 40dp pill control with a 48dp touch area: the primary is its accent 30% into black, the secondary white 8%. */
+/** A 40dp pill control with a 48dp touch area: the primary is filled with its accent and a dark label, the secondary white 8%. */
 export function pill(icon, label, spoken, color, primary, action) {
   const b = button(primary ? 'notch-pill-button notch-primary' : 'notch-pill-button notch-secondary', spoken, action);
   b.style.setProperty('--kc', color);
+  if (primary && color === INK.ALARM) b.style.setProperty('--kc-ink', 'var(--alarm-ink)');
   if (icon) b.append(glyph(null, icon));
   b.append(text(label, 'notch-pill-label'));
   return b;
@@ -70,9 +71,16 @@ export function row(icon, iconColor, title, spoken, action, ...trailing) {
 
 export const rowValue = (value, color) => text(value, 'notch-row-value', color);
 
-/** A 40dp round button: Done on an alert row, Stop on the alarm. */
+/** NotchParts.more: "+2 more" under the rows, lined up with the row titles; it only speaks. */
+export function moreLine(count) {
+  const t = text(`+${count} more`, 'notch-more');
+  t.setAttribute('aria-label', `${count} more ${count === 1 ? 'item' : 'items'} today`);
+  return t;
+}
+
+/** A 40dp round button: Done on an alert row. */
 export function circle(className, spoken, action, icon) {
   const b = button(`notch-circle-button ${className}`, spoken, action);
-  b.append(icon ? glyph(null, icon) : el('span', 'notch-stop-mark'));
+  b.append(glyph(null, icon));
   return b;
 }

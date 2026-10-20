@@ -25,8 +25,15 @@ final class NotchReceipt {
     /** The mark's ring before and after: a glass moves water's ring a step, Done fills it. */
     final float from;
     final float to;
+    /** When Undo runs out (uptime ms); 0 until saved. Undo's pill drains toward it. */
+    final long undoUntil;
 
     NotchReceipt(State state, String mark, String title, String detail, String token, long startedAt, float from, float to) {
+        this(state, mark, title, detail, token, startedAt, from, to, 0L);
+    }
+
+    private NotchReceipt(State state, String mark, String title, String detail, String token, long startedAt, float from, float to, long undoUntil) {
+        this.undoUntil = undoUntil;
         this.state = state;
         this.mark = mark;
         this.title = title;
@@ -54,8 +61,15 @@ final class NotchReceipt {
         return new NotchReceipt(State.SAVING, type, said, title, null, now, 1f, 1f);
     }
 
-    NotchReceipt saved(String token, String detail) {
-        return new NotchReceipt(State.SAVED, mark, title, detail == null ? this.detail : detail, token, startedAt, from, to);
+    /** Saved at {@code now} (uptime ms): Undo lasts {@link #UNDO_MS} from then. */
+    NotchReceipt saved(String token, String detail, long now) {
+        return new NotchReceipt(State.SAVED, mark, title, detail == null ? this.detail : detail, token, startedAt, from, to, now + UNDO_MS);
+    }
+
+    /** The share of Undo's time still left at {@code now}: 1 when saved, 0 when it runs out. */
+    float undoLeft(long now) {
+        if (undoUntil <= 0) return 0f;
+        return Math.max(0f, Math.min(1f, (undoUntil - now) / (float) UNDO_MS));
     }
 
     /** Undo on its way: the mark plays back from where it ended. */

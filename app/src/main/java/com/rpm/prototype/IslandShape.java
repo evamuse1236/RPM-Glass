@@ -2,15 +2,22 @@ package com.rpm.prototype;
 
 /**
  * Where the black island sits, in screen pixels: the body, its corner radius, the split circle beside the pill and
- * the area that takes touches. The pill hugs the camera; the open, alert and receipt islands float 12dp in from each
- * side with one 36dp corner (NotchGeometry).
+ * the area that takes touches. The pill hugs the camera; the open, alert and receipt islands float as far in from each
+ * side as their top is below the screen's top, with one 36dp corner (NotchGeometry).
  */
 final class IslandShape {
-    static final int ISLAND_INSET_DP = 12;
+    static final int MIN_INSET_DP = 4;
+    static final int MAX_INSET_DP = 16;
     static final int SPLIT_GAP_DP = 8;
     static final int TOUCH_HEIGHT_DP = 48;
     static final int SHADOW_SIDE_DP = 12;
     static final int SHADOW_BELOW_DP = 16;
+    /**
+     * The share of a morph in which the island's width moves: opening, it widens in the first half while it grows down
+     * for the whole morph; closing, it shortens in the first half and narrows in the second. Either way its edge passes
+     * the status bar's clock in a few frames.
+     */
+    static final float WIDTH_SHARE = 0.5f;
 
     final float left;
     final float top;
@@ -55,11 +62,19 @@ final class IslandShape {
     }
 
     /**
-     * The open, alert or receipt island: the screen's width less 12dp each side, its top at the pill's top, {@code height}
-     * tall, with a 36dp corner. The split circle folds into the band's leading circle.
+     * How far the open, alert and receipt islands sit in from each side: the same gap as above their top (the pill's top),
+     * so the three outer margins match; 4 to 16dp.
+     */
+    static int inset(NotchAnchor a, float density) {
+        return Math.max(dp(MIN_INSET_DP, density), Math.min(dp(MAX_INSET_DP, density), a.pillTop()));
+    }
+
+    /**
+     * The open, alert or receipt island: the screen's width less {@link #inset} each side, its top at the pill's top,
+     * {@code height} tall, with a 36dp corner. The split circle folds into the band's leading circle.
      */
     static IslandShape island(NotchAnchor a, int displayWidth, int height, float density) {
-        int x = dp(ISLAND_INSET_DP, density);
+        int x = inset(a, density);
         int top = a.pillTop();
         int right = displayWidth - x;
         float lead = dp(NotchGeometry.PAD_DP, density) + dp(NotchGeometry.CIRCLE_DP, density) / 2f;
@@ -69,9 +84,33 @@ final class IslandShape {
 
     /** The shape {@code t} of the way from {@code a} to {@code b}; touches follow the target. */
     static IslandShape lerp(IslandShape a, IslandShape b, float t) {
-        return new IslandShape(mix(a.left, b.left, t), mix(a.top, b.top, t), mix(a.right, b.right, t), mix(a.bottom, b.bottom, t),
-                mix(a.radius, b.radius, t), mix(a.splitCx, b.splitCx, t), mix(a.splitCy, b.splitCy, t), mix(a.splitR, b.splitR, t),
-                mix(a.shadow, b.shadow, t), b.touch, b.shadowSide, b.shadowBelow);
+        return lerp(a, b, t, t);
+    }
+
+    /** The shape {@code t} of the way through a morph: the width leads when it grows and trails when it shrinks. */
+    static IslandShape morph(IslandShape a, IslandShape b, float t) {
+        float lead = Math.min(1f, t / WIDTH_SHARE);
+        if (b.width() > a.width() + 0.5f) return lerp(a, b, lead, t);
+        if (b.width() < a.width() - 0.5f) return lerp(a, b, Math.max(0f, (t - (1f - WIDTH_SHARE)) / WIDTH_SHARE), lead);
+        return lerp(a, b, t, t);
+    }
+
+    private static IslandShape lerp(IslandShape a, IslandShape b, float tx, float ty) {
+        return new IslandShape(mix(a.left, b.left, tx), mix(a.top, b.top, ty), mix(a.right, b.right, tx), mix(a.bottom, b.bottom, ty),
+                mix(a.radius, b.radius, ty), mix(a.splitCx, b.splitCx, tx), mix(a.splitCy, b.splitCy, ty), mix(a.splitR, b.splitR, ty),
+                mix(a.shadow, b.shadow, ty), b.touch, b.shadowSide, b.shadowBelow);
+    }
+
+    /**
+     * How far a face {@code faceWidth} by {@code faceHeight} is shrunk while the island is {@code width} by {@code height}:
+     * mid-morph it shrinks with the island toward the camera so it always fits inside it, and it is never drawn larger
+     * than it is.
+     */
+    static float faceScale(float faceWidth, float faceHeight, float width, float height) {
+        float s = 1f;
+        if (faceWidth > 0f) s = Math.min(s, width / faceWidth);
+        if (faceHeight > 0f) s = Math.min(s, height / faceHeight);
+        return Math.max(0f, s);
     }
 
     float width() {

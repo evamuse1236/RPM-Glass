@@ -1,5 +1,8 @@
 package com.rpm.prototype;
 
+import android.animation.ObjectAnimator;
+import android.animation.PropertyValuesHolder;
+import android.animation.StateListAnimator;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Canvas;
@@ -29,9 +32,12 @@ import android.widget.TextView;
 final class NotchParts {
     static final float LARGE_TEXT = 1.3f;
     static final float MAX_TEXT = 1.8f;
+    /** Icons grow with the text up to this much, so a glyph never outgrows its 40dp-tall control. */
+    static final float MAX_ICON_SCALE = 1.5f;
 
     final Context context;
     private final float density;
+    private boolean shortTitles;
 
     NotchParts(Context context) {
         this.context = context;
@@ -48,6 +54,21 @@ final class NotchParts {
 
     int dp(float v) {
         return NotchAnchor.dp(v, density);
+    }
+
+    /** How much icons grow at this text size: with the text, never smaller, at most 1.5 times. */
+    static float iconScale(float fontScale) {
+        return Math.min(MAX_ICON_SCALE, Math.max(1f, fontScale));
+    }
+
+    /** An icon {@code size} dp at normal text, in px, grown with the text. */
+    int icon(float size) {
+        return dp(size * iconScale(fontScale()));
+    }
+
+    /** A row's trailing control: 40dp, or its grown icon with 10dp round it when that is bigger. */
+    int rowControl() {
+        return Math.max(dp(NotchGeometry.CONTROL_DP), icon(20) + 2 * dp(10));
     }
 
     /** The face: a frame the island's size, its column padded 16dp on three sides and below the band on top. */
@@ -71,7 +92,7 @@ final class NotchParts {
     }
 
     /**
-     * A control in the band's trailing slot (Stop, Undo): its 40dp shape 16dp from the end, centred on the band, in a
+     * A control in the band's trailing slot (Undo): its 40dp shape 16dp from the end, centred on the band, in a
      * 48dp touch box. {@code reachEnd} is true when the box also reaches 4dp past the shape's end.
      */
     void bandControl(FrameLayout face, View control, int widthPx, boolean reachEnd) {
@@ -111,9 +132,16 @@ final class NotchParts {
         return t;
     }
 
-    /** The face's title, 17/600 white, two lines (three at large text, four at max). */
+    /** While a face is too tall for the screen, its title keeps two lines at any text size. */
+    void shortTitles(boolean on) {
+        shortTitles = on;
+    }
+
+    /** The face's title, 17/600 white, two lines (three at large text, four at max; two while it must fit). */
     TextView title(String s) {
-        return wrapping(s, 17, Color.WHITE, 600, 2);
+        TextView t = wrapping(s, 17, Color.WHITE, 600, 2);
+        if (shortTitles) t.setMaxLines(NotchGeometry.SHORT_TITLE_LINES);
+        return t;
     }
 
     /** The line under the title, 14/400 in the accent, 2dp below. */
@@ -121,6 +149,34 @@ final class NotchParts {
         TextView t = wrapping(s, 14, color, 400, 1);
         t.setPadding(0, dp(2), 0, 0);
         return t;
+    }
+
+    /** The title over the line as one tap target that opens the task; it shrinks while pressed like every control. */
+    View words(String title, String line, int lineColor, String spoken, Runnable open) {
+        LinearLayout words = new LinearLayout(context);
+        words.setOrientation(LinearLayout.VERTICAL);
+        words.addView(title(title));
+        words.addView(line(line, lineColor));
+        words.setContentDescription(spoken);
+        words.setOnClickListener(v -> NotchController.safely("open task", open));
+        pressShrinks(words);
+        return words;
+    }
+
+    /** While a finger is down the view shrinks to {@link NotchMotion#PRESS_SCALE}; with animations off it snaps. */
+    static void pressShrinks(View v) {
+        StateListAnimator a = new StateListAnimator();
+        a.addState(new int[]{android.R.attr.state_pressed}, scaleTo(NotchMotion.PRESS_SCALE));
+        a.addState(new int[]{}, scaleTo(1f));
+        v.setStateListAnimator(a);
+    }
+
+    private static ObjectAnimator scaleTo(float scale) {
+        ObjectAnimator a = ObjectAnimator.ofPropertyValuesHolder((Object) null,
+                PropertyValuesHolder.ofFloat(View.SCALE_X, scale), PropertyValuesHolder.ofFloat(View.SCALE_Y, scale));
+        a.setDuration(NotchMotion.PRESS_MS);
+        a.setInterpolator(IslandBand.STANDARD);
+        return a;
     }
 
     ImageView glyph(int icon, int color) {
@@ -151,22 +207,25 @@ final class NotchParts {
     }
 
     /**
-     * A 40dp pill control drawn inside a 48dp touch box: a primary is its accent 30% into black with the label in the
-     * accent; a secondary is white 8% with the label in white 70%. Its corner is 20dp (36 less the 16dp inset).
+     * A 40dp pill control drawn inside a 48dp touch box: a primary is filled with its accent with a dark label
+     * ({@link NotchInk#onAccent}); a secondary is white 8% with the label in white 70%. Its corner is 20dp (36 less the 16dp inset).
      */
+    /** Space above and below a pill's label, so larger text makes the pill taller instead of filling it edge to edge. */
+    static final int PILL_PAD_DP = 8;
+
     View pill(int icon, String label, String spoken, int accent, boolean primary, Runnable action) {
         LinearLayout b = new LinearLayout(context);
         b.setGravity(Gravity.CENTER);
         int reach = (dp(NotchGeometry.TOUCH_DP) - dp(NotchGeometry.CONTROL_DP)) / 2;
         float r = dp(NotchGeometry.innerRadius(NotchGeometry.PAD_DP));
-        int rest = primary ? NotchInk.intoBlack(accent, NotchInk.PRIMARY_SHARE) : NotchInk.SECONDARY;
-        int down = primary ? NotchInk.intoBlack(accent, NotchInk.PRIMARY_SHARE + 0.06f) : NotchInk.PRESS;
-        b.setBackground(states(new InsetDrawable(round(rest, r), 0, reach, 0, reach), new InsetDrawable(round(down, r), 0, reach, 0, reach)));
+        int rest = primary ? accent : NotchInk.SECONDARY;
+        int down = primary ? NotchInk.intoBlack(accent, NotchInk.PRIMARY_PRESSED_SHARE) : NotchInk.PRESS;
+        pillShape(b, rest, down, r, reach, dp(16));
+        b.setPadding(dp(16), reach + dp(PILL_PAD_DP), dp(16), reach + dp(PILL_PAD_DP));
         b.setMinimumHeight(dp(NotchGeometry.TOUCH_DP));
-        b.setPadding(dp(16), reach, dp(16), reach);
-        int ink = primary ? accent : NotchInk.WHITE_70;
+        int ink = primary ? NotchInk.onAccent(accent) : NotchInk.WHITE_70;
         if (icon != 0) {
-            LinearLayout.LayoutParams g = new LinearLayout.LayoutParams(dp(20), dp(20));
+            LinearLayout.LayoutParams g = new LinearLayout.LayoutParams(icon(20), icon(20));
             g.setMarginEnd(dp(8));
             b.addView(glyph(icon, ink), g);
         }
@@ -175,7 +234,22 @@ final class NotchParts {
         b.addView(name);
         b.setContentDescription(spoken);
         b.setOnClickListener(v -> NotchController.safely(label, action));
+        pressShrinks(b);
         return b;
+    }
+
+    /**
+     * Draws {@code v} as a pill {@code reach} inside its touch box, with {@code side} padding at each end. The background
+     * goes on first: an InsetDrawable background replaces the view's padding with its own insets.
+     */
+    static void pillShape(View v, Drawable rest, int pressed, float radius, int reach, int side) {
+        v.setBackground(states(rest, new InsetDrawable(round(pressed, radius), 0, reach, 0, reach)));
+        v.setPadding(side, reach, side, reach);
+    }
+
+    /** A pill filled {@code rest}, {@code reach} inside its touch box. */
+    static void pillShape(View v, int rest, int pressed, float radius, int reach, int side) {
+        pillShape(v, new InsetDrawable(round(rest, radius), 0, reach, 0, reach), pressed, radius, reach, side);
     }
 
     /**
@@ -207,7 +281,19 @@ final class NotchParts {
         return lp;
     }
 
-    /** The rows' column: 12dp under what is above, 8dp past the margin on each side so a pressed row is 8dp from the edge. */
+    /** A second set of controls 8dp under the first, the last thing on the face. */
+    LinearLayout.LayoutParams pairUnder() {
+        int reach = (dp(NotchGeometry.TOUCH_DP) - dp(NotchGeometry.CONTROL_DP)) / 2;
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(NotchGeometry.PAIR_GAP_DP) - 2 * reach;
+        lp.bottomMargin = -reach;
+        return lp;
+    }
+
+    /**
+     * The rows' column: 12dp under what is above, 8dp past the margin on each side so a pressed row is 8dp from the edge,
+     * and 2dp into the bottom margin so the last row's 40dp control ends 16dp from the island's bottom.
+     */
     LinearLayout rows(boolean afterControls) {
         LinearLayout col = new LinearLayout(context);
         col.setOrientation(LinearLayout.VERTICAL);
@@ -216,6 +302,7 @@ final class NotchParts {
         lp.topMargin = dp(NotchGeometry.ROWS_GAP_DP) - (afterControls ? reach : 0);
         lp.setMarginStart(-dp(NotchGeometry.ROW_OUTSET_DP));
         lp.setMarginEnd(-dp(NotchGeometry.ROW_OUTSET_DP));
+        lp.bottomMargin = -(dp(NotchGeometry.ROW_DP) - dp(NotchGeometry.CONTROL_DP)) / 2;
         col.setLayoutParams(lp);
         return col;
     }
@@ -226,7 +313,7 @@ final class NotchParts {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setMinimumHeight(dp(NotchGeometry.ROW_DP));
         row.setPadding(dp(NotchGeometry.ROW_OUTSET_DP), dp(2), dp(NotchGeometry.ROW_OUTSET_DP), dp(2));
-        row.addView(glyph(icon, iconColor), new LinearLayout.LayoutParams(dp(20), dp(20)));
+        row.addView(glyph(icon, iconColor), new LinearLayout.LayoutParams(icon(20), icon(20)));
         TextView name = wrapping(title, 15, NotchInk.WHITE_87, 400, 1);
         LinearLayout.LayoutParams nameLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
         nameLp.setMarginStart(dp(12));
@@ -235,6 +322,7 @@ final class NotchParts {
         if (action != null) {
             row.setBackground(pressed(dp(NotchGeometry.ROW_DP) / 2f, NotchInk.PRESS));
             row.setOnClickListener(v -> NotchController.safely(title, action));
+            pressShrinks(row);
         }
         return row;
     }
@@ -247,18 +335,44 @@ final class NotchParts {
         row.addView(part, lp);
     }
 
-    /** A 40dp round button: Done on an alert row, Stop on the alarm. Its corner is 20dp. */
-    View circleButton(int fill, int pressedFill, int icon, int tint, String spoken, Runnable action) {
+    /**
+     * A row's one trailing control: a quiet 40dp circle, clear with a 1dp white 12% ring (filled white 12% while pressed),
+     * its icon 20dp. Its corner is 20dp, 36 less the 16dp it sits from the island's edge.
+     */
+    View rowCircle(int icon, int tint, String spoken, Runnable action) {
         FrameLayout b = new FrameLayout(context);
         float r = dp(NotchGeometry.innerRadius(NotchGeometry.PAD_DP));
-        b.setBackground(states(round(fill, r), round(pressedFill, r)));
-        View mark = icon == 0 ? new View(context) : glyph(icon, tint);
-        if (icon == 0) mark.setBackground(round(tint, dp(2)));
-        int size = icon == 0 ? dp(14) : dp(20);
-        b.addView(mark, new FrameLayout.LayoutParams(size, size, Gravity.CENTER));
+        b.setBackground(states(outlined(Color.TRANSPARENT, r), outlined(NotchInk.PRESS, r)));
+        b.addView(glyph(icon, tint), new FrameLayout.LayoutParams(icon(20), icon(20), Gravity.CENTER));
         b.setContentDescription(spoken);
         b.setOnClickListener(v -> NotchController.safely(spoken, action));
+        pressShrinks(b);
         return b;
+    }
+
+    private GradientDrawable outlined(int fill, float radius) {
+        GradientDrawable d = round(fill, radius);
+        d.setStroke(Math.max(1, dp(1)), NotchInk.OUTLINE);
+        return d;
+    }
+
+    /** Ends {@code row} with its one 40dp control, 12dp after what is before it. */
+    void trailCircle(LinearLayout row, View circle) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(rowControl(), rowControl());
+        lp.setMarginStart(dp(12));
+        lp.gravity = Gravity.CENTER_VERTICAL;
+        row.addView(circle, lp);
+    }
+
+    /**
+     * "+2 more" under the rows when the island leaves items out: 13sp white 60%, lined up with the row titles, the last
+     * line on the face. It only speaks; the long press opens the plan.
+     */
+    TextView more(int count) {
+        TextView t = text("+" + count + " more", 13, NotchInk.WHITE_60, 500);
+        t.setContentDescription(count + (count == 1 ? " more item" : " more items") + " today");
+        t.setPadding(icon(20) + dp(12), dp(8), 0, 0);
+        return t;
     }
 
     /** The alert's bell or clock and its time on a dim pill. */
@@ -268,7 +382,7 @@ final class NotchParts {
         pill.setGravity(Gravity.CENTER_VERTICAL);
         pill.setPadding(dp(8), dp(4), dp(10), dp(4));
         pill.setBackground(round(NotchInk.TRACK, dp(14)));
-        pill.addView(glyph(NotchBand.icon(look), NotchInk.accent(look)), new LinearLayout.LayoutParams(dp(16), dp(16)));
+        pill.addView(glyph(NotchBand.icon(look), NotchInk.accent(look)), new LinearLayout.LayoutParams(icon(16), icon(16)));
         TextView time = text(at, 13, NotchInk.WHITE_87, 500);
         time.setPadding(dp(4), 0, 0, 0);
         pill.addView(time);

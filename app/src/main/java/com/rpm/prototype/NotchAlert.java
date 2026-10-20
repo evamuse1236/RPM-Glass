@@ -24,9 +24,9 @@ final class NotchAlert {
         this.when = at;
     }
 
-    /** The alarm's second line. */
+    /** The alarm's second line; its time is in the band. */
     String ringing() {
-        return "Ringing · " + at;
+        return "Ringing";
     }
 
     String spoken() {
@@ -36,7 +36,7 @@ final class NotchAlert {
 
     /** The reminder's second line; it never says alarm or ringing. */
     String reminderLine() {
-        return "Reminder · " + at;
+        return "Reminder";
     }
 
     String key() {

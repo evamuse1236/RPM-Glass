@@ -51,7 +51,7 @@ export function manageFace(m, actions) {
       alarm ? 'Make it a reminder instead' : 'Make it a ringing alarm instead', () => actions.setAlert(alarm ? 'reminder' : 'alarm')),
     row('ic_check', INK.W60, 'Done', `Done: ${m.title}`, actions.doneManaged),
     row('ic_open', INK.W60, 'Open', `Open ${m.title} in the plan`, actions.openManaged));
-  return face('island-manage', title(m.title), line(`${alertName(m.alert)} · ${m.at}`, alarm ? INK.ALARM : INK.W70),
+  return face('island-manage', title(m.title), line(alertName(m.alert), alarm ? INK.ALARM : INK.W70),
     controls(pill('notch_ic_alert_off', 'Turn off', `Turn off the alert for ${m.title}`, alarm ? INK.ALARM : INK.TASK, true, () => actions.setAlert('off'))),
     rows);
 }

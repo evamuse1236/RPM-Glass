@@ -1,16 +1,15 @@
 // Copy of NotchPill, NotchContent, IslandView and IslandBand: one black island that morphs between the pill, the open island,
 // the alert islands and the receipt, with the band's ring and value travelling between them.
 import {S24} from './device.mjs';
-import {D, G, anchor, ISLAND_INSET_DP, pillRing, bandAt} from './notch-geometry.mjs';
-import {el, glyph, button, face, title, line, pill, controls, row, rowValue, circle, accent, lookOf, ICONS, INK} from './notch-parts.mjs';
+import {D, G, anchor, islandInset, pillRing, bandAt, fits, faceScale} from './notch-geometry.mjs';
+import {el, glyph, button, face, title, line, pill, controls, row, rowValue, moreLine, circle, accent, lookOf, ICONS, INK} from './notch-parts.mjs';
 import {alertFace} from './notch-alert.mjs';
 import {alertChip, alertSpoken, receiptFace, manageFace, MARK} from './notch-change.mjs';
-import {alertLook, alertName, controls as heroControls, visibleRows, progress, heroValue} from './notch-scene.mjs';
+import {controls as heroControls, visibleRows, more, progress, heroValue} from './notch-scene.mjs';
 import {dropAmPm} from './notch-day.mjs';
 import {swipeable} from './notch-gesture.mjs';
 
 const C = 2 * Math.PI * 16.5;
-const MAX_SHARE = 0.6;
 
 function describe(primary, secondary, scene) {
   const say = item => item.kind === 'WATER' ? `Water due, ${scene.water.count} of ${scene.water.goal} glasses`
@@ -24,7 +23,7 @@ function bandFor({mode, scene, primary, note, alert, managed, receipt}) {
     ({disc: 'ring', icon: ICONS[look], glyphColor: look === 'TASK' || look === 'EVENT' ? INK.W87 : accent(look), accent: accent(look), p, value, valueColor, sp, chip});
   if (mode === 'open') return ring(scene.heroLook, scene.progress, heroValue(scene), accent(scene.heroLook), G.BAND_VALUE_SP);
   if (mode === 'reminder') return {disc: 'plain', icon: 'ic_notification', glyphColor: INK.W87, p: 0, value: dropAmPm(alert.at), valueColor: '#fff', sp: G.ALERT_TIME_SP};
-  if (mode === 'alarm') return {disc: 'alarm', icon: 'ic_clock', glyphColor: INK.ALARM, p: 0, value: '', sp: G.ALERT_TIME_SP, pulse: true};
+  if (mode === 'alarm') return {disc: 'alarm', icon: 'ic_clock', glyphColor: INK.ALARM, p: 0, value: dropAmPm(alert.at), valueColor: '#fff', sp: G.ALERT_TIME_SP, pulse: true};
   if (mode === 'manage') {
     const alarm = managed.alert === 'alarm';
     return {disc: alarm ? 'alarm' : 'plain', icon: alarm ? 'ic_clock' : 'ic_notification', glyphColor: alarm ? INK.ALARM : INK.W87, p: 0,
@@ -104,48 +103,60 @@ function paintValue(v, band, at, fontScale, pillDp) {
   v.style.translate = `${at.valueRight - v.offsetWidth}px ${at.cy - v.offsetHeight / 2}px`;
 }
 
-function heroAlertRow(scene, actions) {
-  const look = alertLook(scene.heroAlert);
-  return row(ICONS[look], accent(look), alertName(scene.heroAlert), alertSpoken(scene.heroAlert, scene.heroTitle, scene.heroAt),
-    () => actions.manage(scene.hero), rowValue(scene.heroAt, accent(look)));
+/** A row's one trailing control: a quiet 40dp circle (NotchParts.rowCircle). */
+function rowCircle(icon, color, spoken, action) {
+  const c = circle('notch-row-circle', spoken, action, icon);
+  c.style.color = color;
+  return c;
 }
 
-function sceneRow(r, scene, actions) {
+/** NotchContent.row: every row ends in one 40dp circle; water's dots show only at normal text, where they fit. */
+function sceneRow(r, scene, actions, fontScale) {
   const color = r.look === 'TASK' || r.look === 'EVENT' ? INK.W60 : accent(r.look);
+  if (r.heros) {
+    const manage = () => actions.manage(r.slot);
+    return row(ICONS[r.look], color, r.title, alertSpoken(r.alert, scene.heroTitle, r.value), manage,
+      rowCircle('ic_chevron', INK.W87, `Change the alert for ${scene.heroTitle}`, manage));
+  }
   if (r.look === 'WATER' && scene.water) {
     const dots = el('span', 'notch-dots');
     for (let i = 0; i < Math.min(12, scene.water.goal); i++) dots.append(el('i', i < scene.water.count ? 'on' : ''));
-    const plus = glyph(null, 'notch_ic_plus');
-    plus.style.color = INK.WATER;
-    return row(ICONS.WATER, color, r.title, `${r.title}, ${r.value}. Log a glass of water`, actions.drink, dots,
-      rowValue(`${scene.water.count}/${scene.water.goal}`, INK.WATER), plus);
+    return row(ICONS.WATER, color, r.title, `${r.title}, ${r.value}. Log a glass of water`, actions.drink, ...(fontScale > 1.3 ? [] : [dots]),
+      rowValue(`${scene.water.count}/${scene.water.goal}`, INK.WATER), rowCircle('notch_ic_plus', INK.WATER, 'Log a glass of water', actions.drink));
   }
   if (r.alert) {
-    const done = circle('notch-row-done', `Done: ${r.title}`, () => actions.doneSlot(r.slot), 'ic_check');
-    return row(ICONS[r.look], color, r.title, alertSpoken(r.alert, r.title, r.value), () => actions.manage(r.slot), alertChip(r.alert, r.value), done);
+    return row(ICONS[r.look], color, r.title, alertSpoken(r.alert, r.title, r.value), () => actions.manage(r.slot), alertChip(r.alert, r.value),
+      rowCircle('ic_check', INK.W87, `Done: ${r.title}`, () => actions.doneSlot(r.slot)));
   }
-  if (r.look === 'MEAL') return row(ICONS.MEAL, color, r.title, `${r.title}, not logged. Log it in the planner`, actions.logMeal, rowValue('Log', INK.MEAL));
-  const value = r.look === 'HABIT' && scene.habit ? `${scene.habit.done}/${scene.habit.total}` : r.value;
-  return row(ICONS[r.look], color, r.title, `${r.title}, ${r.value}`, null, rowValue(value, r.look === 'HABIT' ? INK.HABIT : INK.W60));
+  if (r.look === 'MEAL') {
+    return row(ICONS.MEAL, color, r.title, `${r.title}, not logged. Log it in the planner`, actions.logMeal,
+      rowCircle('notch_ic_plus', INK.MEAL, `Log ${r.title} in the planner`, actions.logMeal));
+  }
+  const habit = r.look === 'HABIT' && scene.habit;
+  const value = rowValue(habit ? `${scene.habit.done}/${scene.habit.total}` : r.value, habit ? INK.HABIT : INK.W60);
+  const end = habit ? [rowCircle('notch_ic_snooze', INK.HABIT, `Snooze ${r.title} for ${scene.snoozeMinutes} minutes`, actions.snoozeRoutine)]
+    : r.slot && !r.slot.task.fixed ? [rowCircle('ic_check', INK.W87, `Done: ${r.title}`, () => actions.doneSlot(r.slot))] : [];
+  return row(ICONS[r.look], color, r.title, `${r.title}, ${r.value}`, null, value, ...end);
 }
 
 /** The open island: title, line, the hero's one control (two when Later sits beside Glass), then up to maxRows rows. */
-function openFace(scene, actions, maxRows) {
+function openFace(scene, actions, maxRows, fontScale) {
   const heroAccent = accent(scene.heroLook);
   const pills = heroControls(scene).map((c, i) => c === 'DONE' ? pill('ic_check', 'Done', `Done: ${scene.heroTitle}`, heroAccent, i === 0, actions.done)
     : c === 'GLASS' ? pill('notch_ic_water', 'Glass', 'Log a glass of water', INK.WATER, i === 0, actions.drink)
       : pill('notch_ic_snooze', 'Later', `Snooze ${scene.snoozeMinutes} minutes`, heroAccent, i === 0, actions.snooze));
-  const rows = [];
-  let room = maxRows;
-  if (scene.heroAlert && room > 0) { rows.push(heroAlertRow(scene, actions)); room--; }
-  rows.push(...visibleRows(scene, room).map(r => sceneRow(r, scene, actions)));
-  const parts = [title(scene.heroTitle), line(scene.heroSubtitle, heroAccent)];
+  const rows = visibleRows(scene, maxRows).map(r => sceneRow(r, scene, actions, fontScale));
+  const words = scene.hero ? [button('notch-words', `Open ${scene.heroTitle} in the plan`, actions.openHero)] : [];
+  words[0]?.append(title(scene.heroTitle), line(scene.heroSubtitle, heroAccent));
+  const parts = words.length ? words : [title(scene.heroTitle), line(scene.heroSubtitle, heroAccent)];
   if (pills.length) parts.push(controls(...pills));
   if (rows.length) {
     const list = el('div', 'notch-rows');
     list.append(...rows);
     parts.push(list);
   }
+  const hidden = more(scene, maxRows);
+  if (hidden > 0) parts.push(moreLine(hidden));
   return face('island-open', ...parts);
 }
 
@@ -181,12 +192,14 @@ function paintSplit(stage, {mode, secondary, scene}, geo) {
     split.dataset.state = 'shown';
   } else {
     const at = parseFloat(split.style.insetInlineStart) || 0;
-    split.style.translate = `${ISLAND_INSET_DP + G.PAD_DP - at}px ${G.PAD_DP}px`;
+    split.style.translate = `${islandInset() + G.PAD_DP - at}px ${G.PAD_DP}px`;
     split.dataset.state = 'away';
   }
 }
 
+/** Swaps in the next face, which grows from the island's size on screen; the faces leaving shrink in shrinkLeaving. */
 function settle(island, next, same) {
+  const from = [island.offsetWidth, island.offsetHeight];
   for (const old of island.querySelectorAll(':scope > .island-face')) {
     if (same) { old.remove(); continue; }
     if (old.dataset.state === 'leaving') continue;
@@ -195,7 +208,26 @@ function settle(island, next, same) {
     Promise.allSettled(old.getAnimations().map(a => a.finished)).then(() => old.remove());
   }
   if (same) next.dataset.enter = 'instant';
+  else next.style.setProperty('--from-scale', String(faceScale(...measure(island, next), ...from)));
   island.append(next);
+}
+
+/** A face's size before it enters: a hidden copy is laid out, so the face itself still starts from its @starting-style. */
+function measure(island, face) {
+  const probe = face.cloneNode(true);
+  probe.dataset.enter = 'instant';
+  probe.style.visibility = 'hidden';
+  island.append(probe);
+  const size = [probe.offsetWidth, probe.offsetHeight];
+  probe.remove();
+  return size;
+}
+
+/** IslandView.scaleFaces: a leaving face shrinks toward the island's next size, so it always fits inside it. */
+function shrinkLeaving(island, w, h) {
+  for (const old of island.querySelectorAll(':scope > .island-face[data-state="leaving"]')) {
+    if (!old.style.scale) old.style.scale = String(faceScale(old.offsetWidth, old.offsetHeight, w, h));
+  }
 }
 
 /**
@@ -226,26 +258,26 @@ export function renderNotch(stage, opts) {
   if (mode === 'pill') {
     ({face: next, geo} = pillFace(stage, opts, band, fontScale));
   } else {
-    const w = S24.width / D - 2 * ISLAND_INSET_DP, cap = (S24.height / D) * MAX_SHARE;
+    const w = S24.width / D - 2 * islandInset(), cap = (S24.height / D) * G.MAX_HEIGHT_SHARE;
     const build = rows => alerting ? alertFace(alert, actions) : mode === 'receipt' ? receiptFace(receipt, actions)
-      : mode === 'manage' ? manageFace(managed, actions) : openFace(scene, actions, rows);
-    let rows = 3;
-    next = build(rows);
-    next.style.setProperty('--face-w', `${w}px`);
-    settle(island, next, same || first || instant);
-    while (mode === 'open' && rows > 1 && next.offsetHeight > cap) {
-      next.remove();
-      next = build(--rows);
+      : mode === 'manage' ? manageFace(managed, actions) : openFace(scene, actions, rows, fontScale);
+    let tried = 0;
+    for (const fit of fits(mode === 'open')) {
+      if (tried++) next.remove();
+      next = build(fit.rows);
+      next.toggleAttribute('data-short-title', fit.shortTitle);
       next.style.setProperty('--face-w', `${w}px`);
-      settle(island, next, true);
+      settle(island, next, tried > 1 || same || first || instant);
+      if (next.offsetHeight <= cap) break;
     }
-    geo = {x: ISLAND_INSET_DP, w, h: Math.min(next.offsetHeight, cap), r: G.RADIUS_DP};
+    geo = {x: islandInset(), w, h: Math.max(next.offsetHeight, h), r: G.RADIUS_DP};
   }
   if (mode === 'pill') {
     next.style.setProperty('--face-w', `${geo.w}px`);
     next.style.blockSize = `${geo.h}px`;
     settle(island, next, same || first || instant);
   }
+  shrinkLeaving(island, geo.w, geo.h);
   island.dataset.motion = first || instant ? 'none' : mode === 'pill' ? 'close' : 'open';
   island.dataset.mode = mode;
   stage.dataset.mode = mode;

@@ -37,18 +37,16 @@ final class NotchChangeViews {
         return face;
     }
 
-    /** Undo: a 40dp pill, the task blue 20% into black, 48dp to touch. */
+    /** Undo: a 40dp pill, 48dp to touch, whose lighter part drains from end to start over the 5 seconds it lasts. */
     private View undo(NotchReceipt r, NotchContent.Actions actions) {
         int reach = (parts.dp(NotchGeometry.TOUCH_DP) - parts.dp(NotchGeometry.CONTROL_DP)) / 2;
         float radius = parts.dp(NotchGeometry.innerRadius(NotchGeometry.PAD_DP));
         TextView undo = parts.text("Undo", 15, NotchInk.TASK, 600);
         undo.setGravity(android.view.Gravity.CENTER);
-        undo.setPadding(parts.dp(18), reach, parts.dp(18), reach);
-        undo.setBackground(NotchParts.states(
-                new android.graphics.drawable.InsetDrawable(NotchParts.round(NotchInk.intoBlack(NotchInk.TASK, NotchInk.UNDO_SHARE), radius), 0, reach, 0, reach),
-                new android.graphics.drawable.InsetDrawable(NotchParts.round(NotchInk.intoBlack(NotchInk.TASK, NotchInk.PRIMARY_SHARE), radius), 0, reach, 0, reach)));
+        NotchParts.pillShape(undo, new UndoCountdown(r, reach, radius), NotchInk.intoBlack(NotchInk.TASK, NotchInk.UNDO_PRESSED_SHARE), radius, reach, parts.dp(18));
         undo.setContentDescription("Undo: " + r.title);
         undo.setOnClickListener(v -> NotchController.safely("Undo", actions::undo));
+        NotchParts.pressShrinks(undo);
         return undo;
     }
 
@@ -58,7 +56,7 @@ final class NotchChangeViews {
         FrameLayout face = parts.face(col);
         boolean alarm = "alarm".equals(m.alert);
         int accent = alarm ? NotchInk.ALARM : NotchInk.TASK;
-        parts.bandSpeaks(face, m.line(), 0);
+        parts.bandSpeaks(face, m.spoken(), 0);
         col.addView(parts.title(m.title));
         col.addView(parts.line(m.line(), alarm ? NotchInk.ALARM : NotchInk.WHITE_70));
         col.addView(parts.controls(parts.pill(R.drawable.notch_ic_alert_off, "Turn off", "Turn off the alert for " + m.title, accent, true,

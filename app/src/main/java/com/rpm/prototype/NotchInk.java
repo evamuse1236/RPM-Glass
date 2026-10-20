@@ -11,6 +11,16 @@ final class NotchInk {
     static final int TRACK = 0x2EFFFFFF;
     static final int PRESS = 0x1FFFFFFF;
     static final int SECONDARY = 0x14FFFFFF;
+    /** A row control's 1dp ring: white 12%. */
+    static final int OUTLINE = 0x1FFFFFFF;
+    /** The 1dp white 8% edge of a floating island, so it stays apart from a black or near-black wallpaper. */
+    static final int HAIRLINE = 0x14FFFFFF;
+
+    /** The hairline as the island floats: none on the pill (0), all of it on an open island (1). */
+    static int hairline(float floating) {
+        float f = Math.max(0f, Math.min(1f, floating));
+        return (Math.round((HAIRLINE >>> 24) * f) << 24) | (HAIRLINE & 0xFFFFFF);
+    }
     static final int TASK = 0xFFA8C7FA;
     static final int EVENT = 0xFFC4C7C5;
     static final int WATER = 0xFF7CACF8;
@@ -18,9 +28,15 @@ final class NotchInk {
     static final int MEAL = 0xFFFDD663;
     static final int ALARM = 0xFFF2B8B5;
     static final int ALARM_INK = 0xFF601410;
-    /** A primary control's fill: its accent 30% of the way from black. */
+    /** A primary control is filled with its accent; its label is the accent 22% of the way from black (the alarm has its own ink). */
+    static final float ON_ACCENT_SHARE = 0.22f;
+    /** A pressed primary darkens to 85% of its accent. */
+    static final float PRIMARY_PRESSED_SHARE = 0.85f;
     static final float PRIMARY_SHARE = 0.30f;
     static final float UNDO_SHARE = 0.20f;
+    /** The part of Undo's pill still counting down: the task blue 34% into black. */
+    static final float UNDO_LEFT_SHARE = 0.34f;
+    static final float UNDO_PRESSED_SHARE = 0.42f;
     static final float ALARM_DISC_SHARE = 0.24f;
 
     private NotchInk() {
@@ -36,6 +52,11 @@ final class NotchInk {
             case REMINDER: return WHITE_87;
             default: return TASK;
         }
+    }
+
+    /** The label and icon on a primary filled with {@code accent}. */
+    static int onAccent(int accent) {
+        return accent == ALARM ? ALARM_INK : intoBlack(accent, ON_ACCENT_SHARE);
     }
 
     /** {@code color} mixed into black: {@code share} of the colour, the rest black, opaque. */

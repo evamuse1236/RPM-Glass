@@ -33,6 +33,8 @@ final class NotchDay {
         final boolean fixed;
         /** "alarm", "reminder", or "" for no alert (NotchData.alertType). */
         final String alert;
+        /** Why the person does it, in their words; "" when they gave none. */
+        final String purpose;
 
         Task(long id, String title, String block, Instant planned, int minutes, String recurrence, Set<String> completedOccurrences) {
             this(id, title, block, planned, minutes, recurrence, completedOccurrences, false, "");
@@ -40,6 +42,12 @@ final class NotchDay {
 
         Task(long id, String title, String block, Instant planned, int minutes, String recurrence, Set<String> completedOccurrences, boolean fixed,
              String alert) {
+            this(id, title, block, planned, minutes, recurrence, completedOccurrences, fixed, alert, "");
+        }
+
+        Task(long id, String title, String block, Instant planned, int minutes, String recurrence, Set<String> completedOccurrences, boolean fixed,
+             String alert, String purpose) {
+            this.purpose = purpose == null ? "" : purpose.trim();
             this.id = id;
             this.title = title;
             this.block = block;

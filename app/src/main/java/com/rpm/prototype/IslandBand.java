@@ -4,6 +4,7 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
@@ -28,6 +29,7 @@ final class IslandBand {
     private final float density;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Rect digit = new Rect();
     private final SparseArray<Drawable> glyphs = new SparseArray<>();
     private NotchBand band;
     private NotchMotion motion = NotchMotion.of(true);
@@ -217,11 +219,16 @@ final class IslandBand {
         float scale = span / (float) motion.valueMs();
         float out = STANDARD.getInterpolation(Math.min(1f, e / (NotchMotion.ROLL_OUT_MS * scale)));
         float in = STANDARD.getInterpolation(Math.max(0f, Math.min(1f, (e - NotchMotion.ROLL_IN_DELAY_MS * scale) / (NotchMotion.ROLL_IN_MS * scale))));
-        float travel = g.valuePx * NotchMotion.ROLL_TRAVEL;
+        text.getTextBounds("0", 0, 1, digit);
+        float cap = -digit.top, pad = g.valuePx * NotchMotion.ROLL_PAD;
+        float travel = cap * NotchMotion.ROLL_TRAVEL;
         boolean[] gone = NotchMotion.changed(shown, old);
         boolean[] came = NotchMotion.changed(old, shown);
+        canvas.save();
+        canvas.clipRect(0f, baseline - cap - pad, right, baseline + pad);
         drawChars(canvas, old, gone, right, baseline - travel * out, color, alpha * (1f - out), 0f, 0f);
         drawChars(canvas, shown, came, right, baseline + travel * (1f - in), color, alpha * in, 0f, 1f);
+        canvas.restore();
         drawChars(canvas, shown, came, right, baseline, color, alpha, 1f, 0f);
     }
 

@@ -40,6 +40,16 @@ public class NotchFrameTest {
     }
 
     @Test
+    public void anUnreadableStoreKeepsWhatTheIslandShowedInsteadOfHidingIt() throws Exception {
+        NotchData shown = day();
+        NotchData kept = NotchData.readOr(shown, () -> { throw new java.io.IOException("half-written"); }, null);
+        assertTrue("the pill stays instead of blinking out", kept == shown);
+        assertEquals(1, kept.tasks.size());
+        NotchData none = NotchData.readOr(shown, () -> null, null);
+        assertTrue("no saved plan yet is a real empty day", none.tasks.isEmpty());
+    }
+
+    @Test
     public void sameMomentTwiceGivesTheSameFrame() throws Exception {
         NotchData data = day();
         assertEquals(frame(data, "2026-10-18T15:40:05", Mode.PILL).key(PLACE), frame(data, "2026-10-18T15:40:05", Mode.PILL).key(PLACE));
@@ -125,7 +135,7 @@ public class NotchFrameTest {
         assertFalse(reminder.spoken().toLowerCase().contains("ringing"));
         assertTrue(reminder.spoken().startsWith("Reminder: Call the bank, 11:30"));
         NotchAlert alarm = new NotchAlert(NotchAlert.Type.ALARM, 7, "Call the bank", at("2026-10-18T11:30"), KOLKATA, false);
-        assertTrue(alarm.ringing().startsWith("Ringing · 11:30"));
+        assertEquals("the time is in the band", "Ringing", alarm.ringing());
         assertNotEquals(reminder.key(), alarm.key());
     }
 
@@ -143,7 +153,7 @@ public class NotchFrameTest {
         NotchAlert alarm = new NotchAlert(NotchAlert.Type.ALARM, 7, "Call the bank", at("2026-10-18T17:30"), KOLKATA, false);
         NotchBand ringing = NotchBand.of(new NotchFrame(Mode.ALARM, null, null, scene, alarm, null), 0);
         assertEquals(NotchBand.Disc.ALARM, ringing.disc);
-        assertEquals("Stop takes the trailing slot", "", ringing.value);
+        assertEquals("the band shows the alarm's time; Stop is the primary under the words", "5:30", ringing.value);
         assertTrue(ringing.pulse);
     }
 
@@ -170,7 +180,7 @@ public class NotchFrameTest {
     public void sharedRingAndValueTravelOnOpen() {
         float d = 450f / 160f;
         NotchAnchor s24 = NotchAnchor.fromCutout(506, 24, 574, 92, 92, d);
-        int keep = s24.holeDiameter + NotchAnchor.dp(12, d);
+        int keep = s24.holeWidth + NotchAnchor.dp(12, d);
         IslandShape pill = IslandShape.pill(s24, 1080, 150, keep, false, d);
         IslandShape island = IslandShape.island(s24, 1080, 600, d);
         NotchGeometry.Band a = NotchGeometry.pill(pill, d, 15 * d);
@@ -231,9 +241,9 @@ public class NotchFrameTest {
         assertEquals(R.drawable.notch_ic_water, saving.glyph);
         assertEquals(NotchInk.WATER, saving.accent);
         assertEquals("Undo, not a value, takes the trailing slot", "", saving.value);
-        NotchBand saved = NotchBand.of(new NotchFrame(Mode.RECEIPT, null, null, scene, null, null, null, glass.saved("t", null)), 0);
+        NotchBand saved = NotchBand.of(new NotchFrame(Mode.RECEIPT, null, null, scene, null, null, null, glass.saved("t", null, 0L)), 0);
         assertEquals("saving then saved keeps one fill, timed from the same start", saving.startedAt, saved.startedAt);
-        assertTrue(glass.saved("t", null).canUndo());
+        assertTrue(glass.saved("t", null, 0L).canUndo());
         NotchBand done = NotchBand.of(new NotchFrame(Mode.RECEIPT, null, null, scene, null, null, null, NotchReceipt.done("Essay", 5)), 0);
         assertEquals(R.drawable.ic_check, done.glyph);
         assertEquals(1f, done.progress, 0f);
@@ -241,10 +251,31 @@ public class NotchFrameTest {
     }
 
     @Test
-    public void primaryControlsAreTheirAccentThirtyPercentIntoBlack() {
-        assertEquals(0xFF323C4B, NotchInk.intoBlack(NotchInk.TASK, NotchInk.PRIMARY_SHARE));
+    public void primaryControlsAreFilledWithTheirAccentAndADarkLabel() throws Exception {
+        assertEquals(0xFF252C37, NotchInk.onAccent(NotchInk.TASK));
+        assertEquals(NotchInk.ALARM_INK, NotchInk.onAccent(NotchInk.ALARM));
+        String parts = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("src/main/java/com/rpm/prototype/NotchParts.java")), java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(parts.contains("int rest = primary ? accent : NotchInk.SECONDARY;"));
+        assertTrue(parts.contains("int ink = primary ? NotchInk.onAccent(accent) : NotchInk.WHITE_70;"));
+        assertTrue("dark on the task blue passes 4.5:1", contrast(NotchInk.onAccent(NotchInk.TASK), NotchInk.TASK) >= 4.5);
+        assertTrue(contrast(NotchInk.onAccent(NotchInk.WATER), NotchInk.WATER) >= 4.5);
+        assertTrue(contrast(NotchInk.ALARM_INK, NotchInk.ALARM) >= 4.5);
         assertEquals(0xFF000000, NotchInk.intoBlack(NotchInk.TASK, 0f));
         assertEquals(NotchInk.TASK, NotchInk.intoBlack(NotchInk.TASK, 1f));
         assertEquals("the notch's task blue passes 3:1 on black", 0xFFA8C7FA, NotchInk.TASK);
+    }
+
+    private static double luminance(int c) {
+        double[] ch = new double[3];
+        for (int i = 0; i < 3; i++) {
+            double v = ((c >> (16 - 8 * i)) & 0xFF) / 255.0;
+            ch[i] = v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+        }
+        return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+    }
+
+    private static double contrast(int a, int b) {
+        double la = luminance(a), lb = luminance(b);
+        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
     }
 }

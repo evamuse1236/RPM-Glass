@@ -17,14 +17,15 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Draws the one black island in screen coordinates and morphs it between the pill, the open island, the alert islands
  * and the receipt. The band's ring and value (IslandBand) travel with the morph; faces fade, and rise 8dp as they come in.
  */
 final class IslandView extends ViewGroup {
-    private static final float PRESSED_SCALE = 0.97f;
     private static final long PRESS_HOLD_MS = 90;
     private static final int SHADOW = 0x40000000;
 
@@ -70,10 +71,13 @@ final class IslandView extends ViewGroup {
     private final IslandGesture gesture;
     private final IslandBand band;
     private final List<Fade> fades = new ArrayList<>();
+    /** The faces on screen, the leaving ones too: each shrinks with the island while it morphs. */
+    private final Set<View> faces = new HashSet<>();
     private boolean fading;
     private final Choreographer.FrameCallback fadeTick = nanos -> NotchController.safely("island fade", this::stepFades);
     private final Spring press = Spring.island(0.002f);
     private final Paint ink = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path body = new Path();
     private final int[] loc = new int[2];
     private final int[] laidOutAt = new int[2];
@@ -136,6 +140,7 @@ final class IslandView extends ViewGroup {
         if (!animate) {
             now = target;
             band.morph(1f);
+            scaleFaces();
             invalidate();
             listener.onSettled();
             return;
@@ -145,8 +150,9 @@ final class IslandView extends ViewGroup {
         a.setInterpolator(IslandBand.STANDARD);
         a.addUpdateListener(v -> {
             float t = (float) v.getAnimatedValue();
-            now = IslandShape.lerp(from, to, t);
+            now = IslandShape.morph(from, to, t);
             band.morph(t);
+            scaleFaces();
             invalidate();
         });
         a.addListener(new AnimatorListenerAdapter() {
@@ -163,12 +169,27 @@ final class IslandView extends ViewGroup {
                 now = to;
                 morph = null;
                 band.morph(1f);
+                scaleFaces();
                 invalidate();
                 NotchController.safely("island settled", listener::onSettled);
             }
         });
         morph = a;
+        scaleFaces();
         a.start();
+    }
+
+    /** Each face shrinks with the island from its top centre, under the camera, so it always fits inside the island. */
+    private void scaleFaces() {
+        if (now == null) return;
+        for (View f : faces) {
+            RectF at = ((At) f.getLayoutParams()).screen;
+            float s = IslandShape.faceScale(at.width(), at.height(), now.width(), now.height());
+            f.setPivotX(at.width() / 2f);
+            f.setPivotY(0f);
+            f.setScaleX(s);
+            f.setScaleY(s);
+        }
     }
 
     private static boolean same(IslandShape a, IslandShape b) {
@@ -183,11 +204,12 @@ final class IslandView extends ViewGroup {
         if (old != null) {
             disable(old);
             dropFades(old);
-            if (fade) fades.add(new Fade(old, 0f, old.getTranslationY(), t, Math.round(motion.faceOutMs() * scale), () -> removeView(old)));
-            else removeView(old);
+            if (fade) fades.add(new Fade(old, 0f, old.getTranslationY(), t, Math.round(motion.faceOutMs() * scale), () -> drop(old)));
+            else drop(old);
         }
         if (next == null) return null;
         addView(next, new At(at));
+        if (rise) faces.add(next);
         if (fade) {
             next.setAlpha(0f);
             float y = rise ? motion.riseDp() * density : 0f;
@@ -200,6 +222,11 @@ final class IslandView extends ViewGroup {
             Choreographer.getInstance().postFrameCallback(fadeTick);
         }
         return next;
+    }
+
+    private void drop(View v) {
+        faces.remove(v);
+        removeView(v);
     }
 
     private void dropFades(View v) {
@@ -238,6 +265,7 @@ final class IslandView extends ViewGroup {
         Choreographer.getInstance().removeFrameCallback(pressTick);
         Choreographer.getInstance().removeFrameCallback(fadeTick);
         fades.clear();
+        faces.clear();
         fading = false;
         band.stop();
         removeCallbacks(release);
@@ -298,7 +326,20 @@ final class IslandView extends ViewGroup {
         canvas.clipPath(body);
         super.dispatchDraw(canvas);
         band.draw(canvas, -loc[0], -loc[1]);
+        drawEdge(canvas, x, y, w, h, r);
         canvas.restore();
+    }
+
+    /** The floating island's 1dp hairline, just inside its edge, fading in as it leaves the pill. */
+    private void drawEdge(Canvas canvas, float x, float y, float w, float h, float r) {
+        int color = NotchInk.hairline(now.shadow);
+        if ((color >>> 24) == 0) return;
+        float stroke = Math.max(1f, density);
+        edge.setStyle(Paint.Style.STROKE);
+        edge.setStrokeWidth(stroke);
+        edge.setColor(color);
+        float half = stroke / 2f;
+        canvas.drawRoundRect(x + half, y + half, x + w - half, y + h - half, Math.max(0f, r - half), Math.max(0f, r - half), edge);
     }
 
     @Override
@@ -314,7 +355,7 @@ final class IslandView extends ViewGroup {
                 }
                 if (pressable) {
                     removeCallbacks(release);
-                    press.target = PRESSED_SCALE;
+                    press.target = NotchMotion.PRESS_SCALE;
                     pressFrame();
                     postDelayed(longPress, IslandGesture.LONG_PRESS_MS);
                 }

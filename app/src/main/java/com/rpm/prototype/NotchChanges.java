@@ -88,7 +88,7 @@ final class NotchChanges {
         runner.run(request, answer -> {
             if (answer.optBoolean("ok")) {
                 NotchActions.log(service, operation, "saved", NotchActions.payload("kind", answer.optString("kind")));
-                if (mine == serial) show(receipt.saved(answer.optString("token", null), detail(answer)), NotchReceipt.UNDO_MS);
+                if (mine == serial) show(receipt.saved(answer.optString("token", null), detail(answer), now()), NotchReceipt.UNDO_MS);
             } else {
                 NotchActions.log(service, operation, "error", null);
                 if (mine == serial) show(receipt.problem(answer.optString("message")), NotchReceipt.PROBLEM_MS);
@@ -107,8 +107,7 @@ final class NotchChanges {
         boolean same = receipt != null && next.startedAt == receipt.startedAt;
         receipt = next;
         if (!same) serial++;
-        owner.expanded = false;
-        owner.closeManaged();
+        owner.state.close();
         handler.removeCallbacks(end);
         if (forMs > 0) handler.postDelayed(end, forMs);
         owner.render();

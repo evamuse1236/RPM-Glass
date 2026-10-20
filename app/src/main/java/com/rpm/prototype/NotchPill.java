@@ -98,7 +98,7 @@ final class NotchPill implements IslandView.Listener {
         long ms;
         NotchGeometry.Band bandAt;
         if (f.mode == Mode.PILL) {
-            int keep = Math.max(dp(24), anchor.holeDiameter + dp(12));
+            int keep = Math.max(dp(24), anchor.holeWidth + dp(12));
             int ring = NotchGeometry.pillRing(h, density);
             int lead = (h - ring) / 2 + ring + dp(NotchGeometry.VALUE_START_DP);
             float valuePx = NotchGeometry.pillValuePx(scaled, h, density);
@@ -110,16 +110,17 @@ final class NotchPill implements IslandView.Listener {
             ms = motion.morphMs(false);
             bandAt = NotchGeometry.pill(shape, density, valuePx);
         } else {
-            int w = displayWidth - 2 * dp(IslandShape.ISLAND_INSET_DP);
+            int w = displayWidth - 2 * IslandShape.inset(anchor, density);
             int cap = Math.round(displayHeight() * NotchGeometry.MAX_HEIGHT_SHARE);
-            int rows = 3;
-            face = face(f, actions, rows);
-            measure(face, w);
-            while (f.mode == Mode.OPEN && rows > 1 && face.getMeasuredHeight() > cap) {
-                face = face(f, actions, --rows);
+            face = null;
+            for (NotchGeometry.Fit fit : NotchGeometry.fits(f.mode == Mode.OPEN)) {
+                content.parts.shortTitles(fit.shortTitle);
+                face = face(f, actions, fit.rows);
                 measure(face, w);
+                if (face.getMeasuredHeight() <= cap) break;
             }
-            shape = IslandShape.island(anchor, displayWidth, Math.min(face.getMeasuredHeight(), Math.max(cap, h)), density);
+            content.parts.shortTitles(false);
+            shape = IslandShape.island(anchor, displayWidth, Math.max(face.getMeasuredHeight(), h), density);
             ms = motion.morphMs(true);
             bandAt = NotchGeometry.island(shape, density, band.valueSp * scaled);
         }
