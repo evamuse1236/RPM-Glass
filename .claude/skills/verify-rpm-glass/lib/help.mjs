@@ -61,7 +61,7 @@ Boots AVD ${DEFAULTS.avd} headless as emulator-<port> (default ${DEFAULTS.port})
 persists into the AVD. It always uses the host GPU: software modes (swiftshader, guest) use about 12x more CPU and are refused.
 The startup line "Your GPU cannot be used for hardware rendering" is harmless; set RPM_ALLOW_SOFTWARE_GPU=1 only if the host-GPU emulator stays black, crashes or goes offline. Builds app-debug.apk when it is missing or older than the app sources (--build forces,
 --no-build skips), installs it with all runtime permissions, opens the app and dismisses System UI ANR prompts.
---apk installs that APK instead (e.g. an older build, to reproduce a past bug); doctor then reports the mismatch.
+--apk installs that APK instead (e.g. an older build, to reproduce a past bug); doctor then reports the mismatch. An APK from another checkout (<checkout>/app/build/outputs/apk/...) saves the run's evidence in that checkout, so its own check:evidence finds it; sync then refuses.
 --no-install leaves whatever the emulator image already has (doctor shows its version and signer).
 Idempotent: when the owned emulator is already up it only re-installs if the APK changed and re-opens the app.
 Shared: every worktree uses one warm emulator on console port ${DEFAULTS.port}. When another worktree's run ended, launch

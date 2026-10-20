@@ -55,7 +55,7 @@ async function fixture(t, shared = null) {
   const runtime = {
     ROOT: root, WORK: root, STATE: statePath, EVIDENCE: path.join(root, 'evidence'), APK: apk,
     DEFAULTS: {port: 5580, cdpPort: 13000, avd: 'fixture', gpu: 'host'}, readState,
-    writeState: state => fs.writeFileSync(statePath, JSON.stringify(state)), evidenceDir,
+    writeState: state => fs.writeFileSync(statePath, JSON.stringify(state)), evidenceDir, apkCheckout: () => null,
     journal: (state, entry) => h.events.push(['journal', entry]), openLauncher: async () => {},
     devtoolsPort: unexpected('devtoolsPort'), viaShell: unexpected('viaShell'), errorLines: unexpected('errorLines'),
   };

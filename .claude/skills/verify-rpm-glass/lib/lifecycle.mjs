@@ -5,7 +5,7 @@ import {spawnSync} from 'node:child_process';
 import {PACKAGE, UserError, adb, shell, devices, startEmulator, startNetsim, spawnReaper, processAlive, killTree, sleep, waitFor, appPid, foregroundActivity, displayInfo, nativeNodes, dismissAnr, sdkRoot, processImage, ownsEmulator} from './device.mjs';
 import {pageTargets} from './page.mjs';
 import {builtAssetsSha, clearSynced} from './sync.mjs';
-import {ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, readState, writeState, evidenceDir, journal, devtoolsPort, viaShell, openLauncher, errorLines} from './runtime.mjs';
+import {ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, readState, writeState, evidenceDir, apkCheckout, journal, devtoolsPort, viaShell, openLauncher, errorLines} from './runtime.mjs';
 import {portsFor, requireOwner, takeLease, updateLease, assertLease, releaseLease, readEmulator, saveEmulator, dropEmulator, IDLE_MS} from './ownership.mjs';
 
 const SOURCES = ['app/src/main', 'android-companion', 'chat-prototype', 'cli', 'intent-v2/src', 'intent-v2/adapters', 'intent-v2/prompts', 'scripts/build-companion-assets.mjs', 'app/build.gradle'];
@@ -106,10 +106,10 @@ export const lifecycleCommands = {
       throw new UserError('This worktree already has a run with different ports.', 'Run `rpmctl cleanup` with its owner token before changing --port or --cdp-port.');
     const t0 = Date.now();
     const startedAt = new Date().toISOString();
+    const apk = args.apk ? path.resolve(String(args.apk)) : APK;
     const leaseState = {...state, port, cdpPort, worktree: ROOT,
       owner: state && /emulator|qemu/i.test(processImage(state.pid) ?? '') ? state.owner ?? crypto.randomUUID() : crypto.randomUUID(),
-      startedAt: state?.startedAt ?? startedAt};
-    const apk = args.apk ? path.resolve(String(args.apk)) : APK;
+      startedAt: state?.startedAt ?? startedAt, appCheckout: apkCheckout(apk)};
     if (!args.apk && (args.build || (!args.noBuild && apkStale()))) build();
     try { takeLease(leaseState); }
     catch (e) { if (!args.wait || !/lease is busy/.test(e.message)) throw e; await queueForLease(leaseState, args); }
@@ -154,7 +154,7 @@ export const lifecycleCommands = {
       const installed = shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).includes('package:');
       const installResult = args.noInstall ? (installed ? 'skipped (kept what the emulator had)' : 'skipped (not installed)')
         : state.installedSha256 === apkHash && installed ? 'already-installed' : install(serial, apk);
-      if (!args.noInstall && installResult !== 'already-installed') { clearSynced(serial); state.webSha256 = builtAssetsSha(); }
+      if (!args.noInstall && installResult !== 'already-installed') { clearSynced(serial); state.webSha256 = builtAssetsSha(state.appCheckout ?? ROOT); }
       if (!args.noInstall) state.installedSha256 = apkHash;
       state.syncedAt = null;
       const shared = readEmulator(port);

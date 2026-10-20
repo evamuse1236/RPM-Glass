@@ -39,8 +39,15 @@ const writeState = s => {
   fs.renameSync(temporary, STATE);
 };
 
+/** The other checkout whose APK this run installs, so its evidence check finds the screenshots; null for this checkout's own APK. */
+function apkCheckout(apk, root = ROOT) {
+  const parts = path.resolve(apk).split(path.join(path.sep, 'app', 'build', 'outputs', 'apk', path.sep));
+  const other = parts.length > 1 ? parts[0] : null;
+  return other && other !== path.resolve(root) && fs.existsSync(path.join(other, '.git')) ? other : null;
+}
+
 function evidenceDir(state) {
-  const dir = path.join(EVIDENCE, state?.runId ?? `adhoc-${new Date().toISOString().slice(0, 10)}`);
+  const dir = path.join(state?.appCheckout ? path.join(state.appCheckout, '.verify', 'evidence') : EVIDENCE, state?.runId ?? `adhoc-${new Date().toISOString().slice(0, 10)}`);
   fs.mkdirSync(dir, {recursive: true});
   return dir;
 }
@@ -99,4 +106,4 @@ function errorLines(serial, since) {
     || (pid && l.includes(` ${pid} `) && /\sE\s/.test(l) && !/eglCodecCommon|EGL_emulation|HostConnection|ashmem|MESA|Frame latency is negative|simple_file_enumerator|simple_index_file/.test(l))).slice(-120);
 }
 
-export {SKILL, ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, DISPLAYS, parseArgs, readState, writeState, evidenceDir, journal, devtoolsPort, target, viaShell, openLauncher, errorLines};
+export {SKILL, ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, DISPLAYS, parseArgs, readState, writeState, evidenceDir, apkCheckout, journal, devtoolsPort, target, viaShell, openLauncher, errorLines};
