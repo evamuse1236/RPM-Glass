@@ -295,6 +295,17 @@ test('faces shrink with the island instead of being cut by its edges, on the pho
   assert.match(css, /\.island-face\[data-state="leaving"\] \{ transition: opacity 90ms linear, scale 300ms var\(--ease\); \}/);
 });
 
+test('a row title keeps the phone\'s line count in the copy: 1 line, 2 at large text, 3 at max', () => {
+  const parts = javaSource('NotchParts');
+  assert.match(parts, /setMaxLines\(fontScale\(\) >= MAX_TEXT \? normal \+ 2 : largeText\(\) \? normal \+ 1 : normal\)/);
+  assert.match(parts, /TextView name = wrapping\(title, 15, NotchInk\.WHITE_87, 400, 1\);/, 'a row title starts at one line');
+  const css = readFileSync(new URL('./notch.css', import.meta.url), 'utf8');
+  const clamp = rule => Number(css.slice(css.indexOf(rule)).match(/line-clamp: (\d+);/)[1]);
+  assert.equal(clamp('.notch-row-title {'), 1);
+  assert.equal(clamp('.notch-stage[data-text="large"] .notch-row-title {'), 2);
+  assert.equal(clamp('.notch-stage[data-text="max"] .notch-row-title {'), 3);
+});
+
 test('the copy uses the phone\'s sizes: NotchGeometry.java and notch-geometry.mjs match', () => {
   const java = readFileSync(new URL('../app/src/main/java/com/rpm/prototype/NotchGeometry.java', import.meta.url), 'utf8');
   const constants = Object.fromEntries([...java.matchAll(/static final (?:int|float) (\w+) = ([\d.]+)f?;/g)].map(([, k, v]) => [k, Number(v)]));
