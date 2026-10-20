@@ -1,6 +1,6 @@
 export const matchesWords=(title,words)=>(words??[]).every(word=>{
  const tokens=String(title??'').toLowerCase().normalize('NFKC').replace(/\bkm\b/g,'kilometres').match(/[\p{L}\p{N}]+/gu)??[];
- return String(word).toLowerCase().split(/\s+/).every(w=>tokens.some(t=>t===w||(w.length>=4&&t.startsWith(w))));
+ return String(word).toLowerCase().split(/\s+/).every(w=>tokens.some(t=>t===w||(w.length>=3&&t===w+'s')||(w.length>=4&&t.startsWith(w))));
 });
 
 export function entities(data){

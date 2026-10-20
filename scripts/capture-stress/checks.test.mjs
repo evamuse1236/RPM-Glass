@@ -206,3 +206,22 @@ test('a shopping task can cover both named goods but cannot omit either',()=>{
  assert.deepEqual(compare({created,maxNew:2},[{...bank(),title:'Buy rice'},{...bank(),id:2,title:'Buy eggs'}]),[]);
  assert.ok(compare({created},[{...bank(),title:'Buy rice'}]).some(f=>f.type==='lost item'));
 });
+
+test('short noun plurals match without matching unrelated prefixes',()=>{
+ assert.equal(matchesWords('Pay college fees',['college','fee']),true);
+ assert.equal(matchesWords('College feedback',['college','fee']),false);
+});
+
+test('an explicitly requested then retracted item is allowed only at its checkpoint',()=>{
+ const before=empty(),first={...empty(),entries:[{id:1,title:'Buy shoes'},{id:2,title:'Get haircut'}]},after=structuredClone(first);
+ after.entries[0].archived=true;
+ const turns=['buy shoes and get haircut','not the shoes'].map((text,i)=>({text,capture:{messageId:String(i),raw:text},calls:[]}));
+ const captures=Object.fromEntries(turns.map(t=>[t.capture.messageId,t.capture]));
+ for(const s of [first,after])s.intentV2={captures,drafts:{}};
+ const testCase={turns,expect:expectation({created:[{words:['haircut']}],maxNew:1,forbidden:[['shoes']],checkpoints:[{turn:1,created:[{words:['shoes']},{words:['haircut']}],maxNew:2,changes:[],forbidden:[],unchanged:[],question:'forbidden'}]})};
+ const check=last=>evaluateCase(testCase,{before,after:last,states:[first,last],turns,validate,schema:TURN_SCHEMA});
+ assert.deepEqual(check(after),[]);
+ assert.ok(check(first).some(f=>f.type==='retraction ignored'));
+ const bad=structuredClone(after);bad.entries.push({id:3,title:'Invented flight'});
+ assert.ok(check(bad).some(f=>f.type==='invented item'));
+});
