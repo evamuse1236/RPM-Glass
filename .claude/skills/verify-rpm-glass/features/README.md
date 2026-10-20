@@ -74,8 +74,8 @@ Live status as of 2026-10-07: Capture, Today, Blocks, Task rows and sheet, and I
 - [Search](./search.md) covers full-screen search across tasks, Blocks, Projects, Goals and Areas.
 - [Projects and Life](./projects-life.md) covers the Projects list and detail, and the Life tab with Vision, Quarter, Month, Values, Areas, Goals and the Wheel of Life.
 - [Settings](./settings.md) covers the Settings screen: sounds, widget text size, AI key, backup, diagnostics, theme and About.
-- [Home widget](./home-widget.md) covers the widget's Capture pill, mic and planner icon.
+- [Home widget](./home-widget.md) covers the capture bar's pill, mic and planner icon, and the Next up widget.
 - [Floating butterfly](./floating-butterfly.md) covers the overlay butterfly that opens Capture over other apps.
 - [Alerts](./alerts.md) covers reminders, ringing alarms, notification permissions and delivery status.
-- [Notch](./notch.md) covers the camera island: the pill, the open island, its swipes and the reminder and alarm islands.
+- [Notch](./notch.md) covers the camera island: the two drops, the task and habit islands, their swipes and the reminder and alarm islands.
 - [Earlier screens](./earlier-screens.md) covers the original native screens reached from Settings.

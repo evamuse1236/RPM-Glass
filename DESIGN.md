@@ -147,4 +147,4 @@ The butterfly launcher and the desktop browser prototype keep their older styles
 
 ## Home-screen widget
 
-The widget is a RemoteViews bar, so it uses native resources instead of theme.css. `res/values/colors.xml` and `res/values-night/colors.xml` mirror the theme.css roles as `rpm_*` colours; change both files together. The bar is `surface-container` with the launcher's widget corner radius on Android 12+ (28dp before). From the start: the app icon (32dp in a 48dp target, M3 pressed state) opens the planner; then a 48dp full pill in `surface-container-highest` reads "Capture a thought" (16sp, `on-surface-variant`, one line) and holds, at its end, a 40dp round mic button in `primary-container`. The pill opens Capture ready to type; the mic opens it listening. Custom fonts are not available in RemoteViews, so the widget uses the system sans-serif.
+Both home-screen widgets (the capture bar and Next up) are in [docs/design/widgets.md](docs/design/widgets.md).
