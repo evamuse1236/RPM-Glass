@@ -162,3 +162,9 @@ test('fake model goes through production interpreter, canonical adapter, file pe
   after.planner.body.meals[0].state='skipped';
   assert.ok(checkExpectation(expect,{before:empty(),after}).some(f=>f.type==='lost item'));
  });
+
+test('route latency reports nearest-rank median and p90 separately from failures',()=>{
+ const turns=[{calls:Array.from({length:10},(_,i)=>({routeUsed:'quick',record:{ms:(i+1)*100}}))}];
+ const summary=summarize([{ms:1000,pass:true,failures:[],turns}]);
+ assert.deepEqual(summary.routeLatencyMs.quick,{count:10,measured:10,p50:500,p90:900,p95:1000});
+});

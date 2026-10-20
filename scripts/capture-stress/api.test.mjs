@@ -159,7 +159,7 @@ test('API options, skipped CLI probe reporting, route percentiles and incomplete
  assert.equal(parseOptions([]).transport,'cli');assert.equal(parseOptions(['--transport','api']).transport,'api');
  for(const args of [['--transport','other'],['--transport'],['--transport','api','--judge'],['--transport','api','--probe-only']])assert.throws(()=>parseOptions(args));
  const results=[{ms:1,pass:true,failures:[],turns:[{calls:[10,20,30,40].map((ms,i)=>({routeUsed:'long',record:{ms,status:200,usage:{input_tokens:1,output_tokens:2},costUSD:i?0.01:null}}))}]}];
- const summary=summarize(results);assert.deepEqual(summary.routeLatencyMs.long,{count:4,measured:4,p50:20,p95:40});assert.equal(summary.usage.costUSD,null);assert.equal(summary.costComplete,false);
+ const summary=summarize(results);assert.deepEqual(summary.routeLatencyMs.long,{count:4,measured:4,p50:20,p90:40,p95:40});assert.equal(summary.usage.costUSD,null);assert.equal(summary.costComplete,false);
  const report=reportMarkdown({transport:'api',summary,results,probe:{skipped:true},wallMs:1});
  assert.match(report,/API transport/);assert.match(report,/CLI version and isolation probe skipped/);assert.match(report,/Cost incomplete/);assert.doesNotMatch(report,/Strict custom-prompt-only|CLI startup|StructuredOutput framing/);
 });

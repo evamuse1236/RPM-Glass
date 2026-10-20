@@ -98,6 +98,10 @@ export function interpretTime(raw, now = new Date(), options = {}) {
     &&!/\b(?:today|tonight|tomorrow|(?:mon|tues|wednes|thurs|fri|satur|sun)day|\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?|\d{1,2}:\d{2}|\d{4}-\d{2}-\d{2})\b/i.test(rangeText))return base;
   const text=rangeText.replace(/\bfor\s+(?:(?:\d+(?:\.\d+)?|one|two|three|ten|fifteen|twenty|thirty|forty[- ]five|sixty|half an?)\s+)(?:minutes?|mins?|m\b|hours?|hrs?|h\b)/gi,m=>' '.repeat(m.length));
   let results=chrono.parse(text,now,{forwardDate:true});
+  // Meal and bedtime windows mean today's routine unless a day was supplied.
+  // Keep the window in the interpretation; it never supplies a clock or duration.
+  if(/\b(?:after|before)\s+(?:breakfast|lunch|dinner)\b|\bbefore\s+bed\b/i.test(text)&&!results.some(r=>clock(r.start)||hasDay(r.start)))
+    return {...base,status:'date_only',plannedDate:localDate(now),assumptions:['No day specified; using today for the meal or bedtime window.']};
   if(options.inferBareClock){
     const times=results.filter(r=>clock(r.start));
     if(times.length===1&&results.every(r=>r===times[0]||!hasDay(r.start)&&/^(?:morning|afternoon|evening|night)$/i.test(r.text)))results=times;
