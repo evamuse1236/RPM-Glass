@@ -10,6 +10,8 @@ For a Google Tasks batch, read the installed `tasks` skill and preserve its batc
 
 For an authorized phone release, compare the working tree, branch, and installed build so the release preserves newer features and unrelated work. Follow `docs/testing.md` and relevant phone setup guidance. Verify package/version, compatible signing, preserved app data, and actual launch. Report commit/push, APK build, device installation, and external integration activation separately.
 
+When Vishwajit asks for a finished APK, send it to their Telegram with the global `juno` skill: build it, then run `~/.claude/skills/juno/send-rpm-apk.sh`. Sending it is not installing it.
+
 ## Before you say done
 
 1. Run the checks: `npm test` (JS, rules, Convex, typecheck, Java). The same command runs in CI.
