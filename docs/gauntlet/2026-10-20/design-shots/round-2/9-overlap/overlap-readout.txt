@@ -1,0 +1,52 @@
+eval: 0
+evalFile: "{\"scroll\":[0,936],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(211, 227, 253)\"],\"covered\":[\"restaurant\\nLunch · Not logged under nav-bar\",\"Log lunch under nav-bar\"]}"
+eval: 468
+evalFile: "{\"scroll\":[468,936],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(211, 227, 253)\"],\"covered\":[\"Plan something in 45 min of fr under nav-bar\",\"check\\nPast paper 2019, section under nav-bar\",\"Past paper 2019, section B, no under nav-bar\",\"Past paper 2019, section B, 5: under nav-bar\"]}"
+eval: 936
+evalFile: "{\"scroll\":[936,936],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(211, 227, 253)\"],\"covered\":[]}"
+eval: 0
+eval: 1006
+evalFile: "{\"scroll\":[1006,1006],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(211, 227, 253)\"],\"covered\":[]}"
+eval: "Task completed Undo"
+eval: 503
+evalFile: "{\"scroll\":[503,1006],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(211, 227, 253)\"],\"covered\":[\"check\\nGroup call: merge sectio under snackbar\",\"Group call: merge sections, no under snackbar\",\"Group call: merge sections, 4  under snackbar\",\"Length, 45 min. Change the len under snackbar\",\"Plan something in 45 min of fr under snackbar\",\"check\\nPast paper 2019, section under nav-bar\",\"Past paper 2019, section B, no under nav-bar\",\"Past paper 2019, section B, 5: un
+eval: 0
+evalFile: "{\"scroll\":[0,853],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(211, 227, 253)\"],\"covered\":[\"Result: DAD Excel workbook sub under snackbar\",\"Mark Build the three charts fo under snackbar\",\"NEXT\\nBuild the three charts fo under snackbar\",\"Result: Confident for RM Quiz  under nav-bar\"]}"
+eval: 853
+evalFile: "{\"scroll\":[853,853],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(211, 227, 253)\"],\"covered\":[]}"
+eval: 0
+evalFile: "{\"scroll\":[0,113],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(211, 227, 253)\"],\"covered\":[\"Building, rating not set. Open under snackbar\",\"Family, rating not set. Open A under nav-bar\",\"Family, rating not set. Open A under snackbar\"]}"
+eval: 113
+evalFile: "{\"scroll\":[43,43],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(211, 227, 253)\"],\"covered\":[]}"
+eval: 0
+eval: "inbox\nInbox\n8 tasks not in a Block\nchevron_right"
+eval: 1
+evalFile: "{\"scroll\":[783,853],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(211, 227, 253)\"],\"covered\":[]}"
+eval: "no scroller | Task completed Undo"
+evalFile: "{\"scroll\":[783,853],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(211, 227, 253)\"],\"covered\":[]}"
+eval: 0
+evalFile: "{\"scroll\":[0,936],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(0, 74, 119)\"],\"covered\":[\"restaurant\\nLunch · Not logged under nav-bar\",\"Log lunch under nav-bar\"]}"
+eval: 468
+evalFile: "{\"scroll\":[468,936],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(0, 74, 119)\"],\"covered\":[\"Plan something in 45 min of fr under nav-bar\",\"check\\nPast paper 2019, section under nav-bar\",\"Past paper 2019, section B, no under nav-bar\",\"Past paper 2019, section B, 5: under nav-bar\"]}"
+eval: 936
+evalFile: "{\"scroll\":[936,936],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(0, 74, 119)\"],\"covered\":[]}"
+eval: 0
+eval: 1006
+evalFile: "{\"scroll\":[1006,1006],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(0, 74, 119)\"],\"covered\":[]}"
+eval: "Task completed Undo"
+eval: 503
+evalFile: "{\"scroll\":[503,1006],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(0, 74, 119)\"],\"covered\":[\"check\\nGroup call: merge sectio under snackbar\",\"Group call: merge sections, no under snackbar\",\"Group call: merge sections, 4  under snackbar\",\"Length, 45 min. Change the len under snackbar\",\"Plan something in 45 min of fr under snackbar\",\"check\\nPast paper 2019, section under nav-bar\",\"Past paper 2019, section B, no under nav-bar\",\"Past paper 2019, section B, 5: under
+eval: 0
+evalFile: "{\"scroll\":[0,853],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(0, 74, 119)\"],\"covered\":[\"Result: DAD Excel workbook sub under snackbar\",\"Mark Build the three charts fo under snackbar\",\"NEXT\\nBuild the three charts fo under snackbar\",\"Result: Confident for RM Quiz  under nav-bar\"]}"
+eval: 853
+evalFile: "{\"scroll\":[853,853],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(0, 74, 119)\"],\"covered\":[]}"
+eval: 0
+evalFile: "{\"scroll\":[0,113],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(0, 74, 119)\"],\"covered\":[\"Building, rating not set. Open under snackbar\",\"Family, rating not set. Open A under nav-bar\",\"Family, rating not set. Open A under snackbar\"]}"
+eval: 113
+evalFile: "{\"scroll\":[43,43],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(0, 74, 119)\"],\"covered\":[]}"
+eval: 0
+eval: "inbox\nInbox\n8 tasks not in a Block\nchevron_right"
+eval: 1
+evalFile: "{\"scroll\":[783,853],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(0, 74, 119)\"],\"covered\":[]}"
+eval: "no scroller | Task completed Undo"
+evalFile: "{\"scroll\":[783,853],\"bar\":[16,16,16,64],\"add\":[312,8,48,48,\"12px\",\"rgb(0, 74, 119)\"],\"covered\":[]}"
