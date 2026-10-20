@@ -26,3 +26,5 @@ The run passes when all of these hold on `feat/gauntlet-2026-10-20`:
 - 05:33 Restyle undone on the new branch. `npm test` passes. Branch pushed.
 - 05:35 Key vault is empty after the Linux reinstall, so no Anthropic API key. AI tests use the Claude CLI transport.
 - 05:40 Launched: AI track (Codex, GPT-6.1 Sol high), notch track (Opus builder), design plan (Fable). T3 Code reference crops in `/tmp/gauntlet/`.
+- 06:12 Bug found and fixed: the planner's Add button and Enter saved nothing (`whenFields is not defined` in quick add). Also broken on `main`, so likely on the phone. New `undefined-names` rules test catches any missing import (`1a64330`).
+- 06:12 Open finding for design: a task dated today with no time does not appear on the Today timeline; Inbox shows a count of 1.
