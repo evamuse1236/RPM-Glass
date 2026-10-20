@@ -57,7 +57,7 @@ final class NotchChangeViews {
         FrameLayout face = parts.face(col);
         boolean alarm = "alarm".equals(m.alert);
         int accent = alarm ? NotchInk.ALARM : NotchInk.TASK;
-        parts.bandSpeaks(face, m.line(), 0);
+        parts.bandSpeaks(face, m.spoken(), 0);
         col.addView(parts.title(m.title));
         col.addView(parts.line(m.line(), alarm ? NotchInk.ALARM : NotchInk.WHITE_70));
         col.addView(parts.controls(parts.pill(R.drawable.notch_ic_alert_off, "Turn off", "Turn off the alert for " + m.title, accent, true,

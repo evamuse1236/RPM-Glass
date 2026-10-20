@@ -9,6 +9,8 @@ export const routineSnooze = id => 'routine:' + id;
 export const alertAt = (slot, now) => slot.start > now && !slot.task.fixed ? slot.task.alert ?? '' : '';
 export const alertLook = alert => alert === 'alarm' ? 'ALARM' : 'REMINDER';
 export const alertName = alert => alert === 'alarm' ? 'Ringing alarm' : 'Reminder';
+/** NotchScene.about: the line under the title is the task's purpose, else its block; the band has the time. */
+export const about = task => task.purpose || task.block || '';
 
 const slotRow = (s, now, h24) => ({look: s.task.fixed ? 'EVENT' : 'TASK', title: s.task.title, value: clock(s.start, h24), slot: s, alert: alertAt(s, now)});
 
@@ -30,28 +32,28 @@ export function notchScene(data, now, snoozes = {}, h24 = false) {
   if (hero) {
     s.heroLook = hero.task.fixed ? 'EVENT' : 'TASK';
     s.heroTitle = hero.task.title;
-    const block = hero.task.block ? hero.task.block + ' · ' : '';
+    const line = about(hero.task);
     if (isRunning) {
       s.pillValue = minutes(hero.end - now);
-      s.heroSubtitle = block + spoken(hero.end - now) + ' left';
+      s.heroSubtitle = line || 'Now';
       s.progress = (now - hero.start) / (hero.end - hero.start);
       s.spoken = `${hero.task.title}, ${spoken(hero.end - now)} left`;
     } else {
       const at = clock(hero.start, h24);
       s.pillValue = shortClock(hero.start, now, h24);
-      s.heroSubtitle = `${block}${at}, in ${spoken(hero.start - now)}`;
+      s.heroSubtitle = line || 'Next';
       s.progress = 0;
       s.spoken = `Next: ${hero.task.title} at ${at}`;
     }
   } else if (waterDue || !habit) {
     s.heroLook = 'WATER';
     s.heroTitle = 'Water';
-    s.heroSubtitle = water ? `${water.count} of ${water.goal} glasses today${waterDue ? ' · due now' : ''}` : '';
+    s.heroSubtitle = waterDue ? 'Due now' : 'Not due yet';
     s.progress = water ? Math.min(1, water.count / water.goal) : 0;
   } else {
     s.heroLook = 'HABIT';
     s.heroTitle = habit.routine.name;
-    s.heroSubtitle = habit.nextStep == null ? `${habit.done}/${habit.total} done` : 'Next: ' + habit.nextStep;
+    s.heroSubtitle = habit.nextStep == null ? 'Routine' : 'Next: ' + habit.nextStep;
     s.progress = habit.done / habit.total;
   }
 
@@ -109,8 +111,8 @@ export function alertScene(data, now, type, h24 = false) {
   const slot = slots.find(s => s.task.alert === type && s.end > now) ?? pickHero(slots, now);
   if (!slot) return null;
   const {title, id} = slot.task, at = clock(slot.start, h24);
-  if (type === 'alarm') return {type, taskId: id, title, at, line: `Ringing · ${at}`, spoken: `Ringing: ${title}, ${at}`};
-  return {type, taskId: id, title, at, line: `Reminder · ${at}`, spoken: `Reminder: ${title}, ${at}. Opens the task.`};
+  if (type === 'alarm') return {type, taskId: id, title, at, line: 'Ringing', spoken: `Ringing: ${title}, ${at}`};
+  return {type, taskId: id, title, at, line: 'Reminder', spoken: `Reminder: ${title}, ${at}. Opens the task.`};
 }
 
 const EMPHASIS_MS = {TASK: 0, WATER: 8_000, HABIT: 8_000};

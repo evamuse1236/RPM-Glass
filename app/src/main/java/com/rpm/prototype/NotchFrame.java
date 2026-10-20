@@ -22,9 +22,14 @@ final class NotchFrame {
             this.at = at;
         }
 
-        /** "Reminder · 4:00 PM" or "Ringing alarm · 4:00 PM". */
+        /** "Reminder" or "Ringing alarm": the time is in the band. */
         String line() {
-            return NotchScene.alertName(alert) + " · " + at;
+            return NotchScene.alertName(alert);
+        }
+
+        /** "Reminder at 4:00 PM", for a screen reader. */
+        String spoken() {
+            return NotchScene.alertName(alert) + " at " + at;
         }
 
         String key() {

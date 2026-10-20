@@ -118,14 +118,15 @@ public class NotchAlertRowsTest {
     public void alertControlsNameTheAlertAsThePlannerDoesAndAReminderNeverSaysAlarm() throws Exception {
         NotchScene s = scene(day("reminder"), "2026-10-18T16:20");
         NotchFrame.Managed reminder = new NotchFrame.Managed(s.hero, s.heroAt);
-        assertEquals("Reminder · 4:30 PM", reminder.line());
+        assertEquals("Reminder", reminder.line());
+        assertEquals("Reminder at 4:30 PM", reminder.spoken());
         assertFalse(reminder.line().toLowerCase().matches(".*(alarm|ringing).*"));
         assertFalse(NotchParts.alertSpoken("reminder", "Call", "4:30 PM").toLowerCase().matches(".*(alarm|ringing).*"));
         NotchFrame.Managed alarm = new NotchFrame.Managed(scene(day("alarm"), "2026-10-18T16:20").hero, "4:30 PM");
-        assertEquals("Ringing alarm · 4:30 PM", alarm.line());
+        assertEquals("Ringing alarm", alarm.line());
         assertNotEquals(reminder.key(), alarm.key());
         NotchAlert fired = new NotchAlert(NotchAlert.Type.REMINDER, 2, "Call Prof. Rao", at("2026-10-18T16:30"), KOLKATA, false);
-        assertEquals("Reminder · 4:30 PM", fired.reminderLine());
+        assertEquals("Reminder", fired.reminderLine());
         assertEquals(at("2026-10-18T16:30"), fired.when);
     }
 

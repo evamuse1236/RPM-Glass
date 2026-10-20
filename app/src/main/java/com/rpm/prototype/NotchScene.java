@@ -78,6 +78,15 @@ final class NotchScene {
     final List<Row> rows = new ArrayList<>();
     /** Null when the planner has no Body data yet. */
     final NotchWater.Status water;
+    /**
+     * The island's line under the title: the task's purpose, else its block. The band already shows the time, so the
+     * line never repeats it; "" when the task has neither.
+     */
+    static String about(NotchDay.Task task) {
+        if (!task.purpose.isEmpty()) return task.purpose;
+        return task.block == null ? "" : task.block;
+    }
+
     /** The first routine with steps due now and not snoozed here, or null. */
     final NotchHabits.RoutineStatus habit;
     /** The meal slot not logged yet ("lunch"), or null. */
@@ -112,17 +121,17 @@ final class NotchScene {
         if (hero != null) {
             heroLook = hero.task.fixed ? Look.EVENT : Look.TASK;
             heroTitle = hero.task.title;
-            String block = hero.task.block == null || hero.task.block.isEmpty() ? "" : hero.task.block + " · ";
+            String about = about(hero.task);
             if (running) {
                 pillValue = NotchDay.minutes(hero.end - now);
-                heroSubtitle = block + NotchDay.spoken(hero.end - now) + " left";
+                heroSubtitle = about.isEmpty() ? "Now" : about;
                 progress = (now - hero.start) / (float) (hero.end - hero.start);
                 spoken = hero.task.title + ", " + NotchDay.spoken(hero.end - now) + " left";
                 barSpoken = NotchDay.minutes(Math.max(NotchDay.MIN, now - hero.start)) + " done, " + pillValue + " left";
             } else {
                 String at = NotchDay.clock(hero.start, zone, h24);
                 pillValue = NotchDay.shortClock(hero.start, now, zone, h24);
-                heroSubtitle = block + at + ", in " + NotchDay.spoken(hero.start - now);
+                heroSubtitle = about.isEmpty() ? "Next" : about;
                 progress = 0;
                 spoken = "Next: " + hero.task.title + " at " + at;
                 barSpoken = "Starts at " + at + ", lasts " + NotchDay.spoken(hero.end - hero.start);
@@ -132,13 +141,13 @@ final class NotchScene {
             if (waterDue() || habit == null) {
                 heroLook = Look.WATER;
                 heroTitle = "Water";
-                heroSubtitle = water == null ? "" : water.count + " of " + water.goal + " glasses today" + (waterDue() ? " · due now" : "");
+                heroSubtitle = waterDue() ? "Due now" : "Not due yet";
                 progress = water == null ? 0 : Math.min(1f, water.count / (float) water.goal);
                 barSpoken = water == null ? "" : water.count + " of " + water.goal + " glasses";
             } else {
                 heroLook = Look.HABIT;
                 heroTitle = habit.routine.name;
-                heroSubtitle = habit.nextStep == null ? habitValue(habit) + " done" : "Next: " + habit.nextStep;
+                heroSubtitle = habit.nextStep == null ? "Routine" : "Next: " + habit.nextStep;
                 progress = habit.done / (float) habit.total;
                 barSpoken = habit.done + " of " + habit.total + " steps done";
             }

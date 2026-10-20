@@ -135,7 +135,7 @@ public class NotchFrameTest {
         assertFalse(reminder.spoken().toLowerCase().contains("ringing"));
         assertTrue(reminder.spoken().startsWith("Reminder: Call the bank, 11:30"));
         NotchAlert alarm = new NotchAlert(NotchAlert.Type.ALARM, 7, "Call the bank", at("2026-10-18T11:30"), KOLKATA, false);
-        assertTrue(alarm.ringing().startsWith("Ringing · 11:30"));
+        assertEquals("the time is in the band", "Ringing", alarm.ringing());
         assertNotEquals(reminder.key(), alarm.key());
     }
 

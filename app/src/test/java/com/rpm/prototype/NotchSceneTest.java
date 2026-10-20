@@ -67,7 +67,7 @@ public class NotchSceneTest {
         NotchScene s = scene(day(true, null), "2026-10-18T15:50");
         assertEquals("25m", s.pillValue);
         assertEquals("Write RM essay", s.heroTitle);
-        assertEquals("Study · 25 min left", s.heroSubtitle);
+        assertEquals("the line is the block; the band has the time", "Study", s.heroSubtitle);
         assertEquals(20 / 45f, s.progress, 0.001);
         assertEquals("Write RM essay, 25 min left", s.spoken);
         assertTrue(s.canDone());
@@ -75,10 +75,24 @@ public class NotchSceneTest {
     }
 
     @Test
+    public void theTimeShowsOnceTheLineIsThePurposeElseTheBlockElseNowOrNext() throws Exception {
+        for (String local : new String[]{"2026-10-18T15:50", "2026-10-18T16:20"}) {
+            NotchScene s = scene(day(true, null), local);
+            assertFalse(local + ": " + s.heroSubtitle, s.heroSubtitle.matches(".*\\d.*"));
+        }
+        JSONArray entries = new JSONArray()
+                .put(new JSONObject(task(1, "Write RM essay", "2026-10-18T15:30", 45).toString()).put("purpose", " So Sunday is calm ").put("blockId", JSONObject.NULL))
+                .put(new JSONObject(task(2, "Call Prof. Rao", "2026-10-18T16:30", 30).toString()).put("blockId", JSONObject.NULL));
+        NotchData bare = NotchData.parse(new JSONObject().put("version", 1).put("entries", entries).put("planner", new JSONObject()), null);
+        assertEquals("So Sunday is calm", scene(bare, "2026-10-18T15:50").heroSubtitle);
+        assertEquals("Next", scene(bare, "2026-10-18T16:20").heroSubtitle);
+    }
+
+    @Test
     public void betweenItemsThePillShowsWhenTheNextStarts() throws Exception {
         NotchScene s = scene(day(false, null), "2026-10-18T16:20");
         assertEquals("4:30", s.pillValue);
-        assertEquals("Study · 4:30 PM, in 10 min", s.heroSubtitle);
+        assertEquals("Study", s.heroSubtitle);
         assertEquals(0, s.progress, 0);
     }
 
@@ -87,7 +101,6 @@ public class NotchSceneTest {
         assertEquals("4:30", scene(day(false, null), "2026-10-18T16:20").pillValue);
         assertEquals("more than 12 h away keeps AM/PM", "3:30 PM", scene(day(false, null), "2026-10-18T03:00").pillValue);
         assertEquals("3:30", scene(day(false, null), "2026-10-18T03:31").pillValue);
-        assertEquals("the line keeps the full clock", "Study · 4:30 PM, in 10 min", scene(day(false, null), "2026-10-18T16:20").heroSubtitle);
         assertEquals("16:30", new NotchScene(day(false, null), at("2026-10-18T16:20"), Collections.emptyMap(), KOLKATA, true).pillValue);
     }
 
@@ -188,7 +201,7 @@ public class NotchSceneTest {
         NotchScene s = scene(day(true, null), "2026-10-18T21:00");
         assertNull(s.hero);
         assertEquals(Look.WATER, s.heroLook);
-        assertEquals("2 of 8 glasses today · due now", s.heroSubtitle);
+        assertEquals("Due now", s.heroSubtitle);
         assertTrue(s.canDrink());
         assertFalse(s.canDone());
         assertEquals("Dinner", s.rows.get(s.rows.size() - 1).title);
@@ -207,7 +220,7 @@ public class NotchSceneTest {
         assertFalse(s.waterDue());
         assertFalse(s.canSnooze());
         assertTrue(s.canDrink());
-        assertEquals("1 of 8 glasses today", s.heroSubtitle);
+        assertEquals("Not due yet", s.heroSubtitle);
     }
 
     @Test

@@ -103,7 +103,7 @@ final class NotchData {
         String block = e.isNull("blockId") ? null : blocks.get(e.optString("blockId"));
         String title = e.optString("title", e.optString("raw"));
         return new NotchDay.Task(e.optLong("id"), title, block, Instant.ofEpochMilli(planned), minutes, e.optString("recurrence", ""), completed, false,
-                alertType(e));
+                alertType(e), e.optString("purpose", ""));
     }
 
     /** "alarm", "reminder" or "": the task's alertIntent, else an older store's alert (CompanionAlerts schedules by this). */

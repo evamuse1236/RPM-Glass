@@ -28,16 +28,30 @@ test('a running task shows time left everywhere', () => {
   const s = scene(day(true), '2026-10-18T15:50');
   assert.equal(s.pillValue, '25m');
   assert.equal(s.heroTitle, 'Write RM essay');
-  assert.equal(s.heroSubtitle, 'Study · 25 min left');
+  assert.equal(s.heroSubtitle, 'Study');
   assert.ok(Math.abs(s.progress - 20 / 45) < 0.001);
   assert.equal(s.spoken, 'Write RM essay, 25 min left');
   assert.ok(s.canDone);
 });
 
+test('the time shows once: the band has it, the line is the purpose, else the block, else Now or Next', () => {
+  const data = day(true);
+  for (const local of ['2026-10-18T15:50', '2026-10-18T16:20']) {
+    const s = scene(data, local);
+    assert.ok(!s.heroSubtitle.includes(s.pillValue) && !/\d/.test(s.heroSubtitle), `${local}: ${s.heroSubtitle}`);
+  }
+  const planner = {blocks: []};
+  const entries = [{...task(1, 'Write RM essay', '2026-10-18T15:30', 45), purpose: ' So Sunday is calm ', blockId: null},
+    {...task(2, 'Call Prof. Rao', '2026-10-18T16:30', 30), blockId: null}];
+  const bare = parseNotchData({version: 1, entries, planner}, null);
+  assert.equal(scene(bare, '2026-10-18T15:50').heroSubtitle, 'So Sunday is calm');
+  assert.equal(scene(bare, '2026-10-18T16:20').heroSubtitle, 'Next');
+});
+
 test('between items the pill shows when the next starts', () => {
   const s = scene(day(false), '2026-10-18T16:20');
   assert.equal(s.pillValue, '4:30');
-  assert.equal(s.heroSubtitle, 'Study · 4:30 PM, in 10 min');
+  assert.equal(s.heroSubtitle, 'Study');
   assert.equal(s.progress, 0);
 });
 
@@ -80,7 +94,7 @@ test('with no task left and water due, water is the hero', () => {
   const s = scene(day(true), '2026-10-18T21:00');
   assert.equal(s.hero, null);
   assert.equal(s.heroLook, 'WATER');
-  assert.equal(s.heroSubtitle, '2 of 8 glasses today · due now');
+  assert.equal(s.heroSubtitle, 'Due now');
   assert.deepEqual([s.rows.at(-1).title, s.rows.at(-1).value], ['Dinner', 'Not logged']);
 });
 
@@ -108,9 +122,9 @@ function alertDay() {
 
 test('an alert shows the next task today that asked for it, else the hero', () => {
   const reminder = alertScene(alertDay(), at('2026-10-18T15:50'), 'reminder');
-  assert.deepEqual([reminder.taskId, reminder.title, reminder.at, reminder.line], [2, 'Call the bank', '4:30 PM', 'Reminder · 4:30 PM']);
+  assert.deepEqual([reminder.taskId, reminder.title, reminder.at, reminder.line], [2, 'Call the bank', '4:30 PM', 'Reminder']);
   const alarm = alertScene(alertDay(), at('2026-10-18T15:50'), 'alarm');
-  assert.deepEqual([alarm.taskId, alarm.line], [3, 'Ringing · 7:00 PM']);
+  assert.deepEqual([alarm.taskId, alarm.line], [3, 'Ringing']);
   assert.equal(alertScene(alertDay(), at('2026-10-18T19:30'), 'reminder').taskId, 3);
   assert.equal(alertScene(day(false), at('2026-10-18T15:50'), 'alarm').title, 'Write RM essay');
   assert.equal(alertScene(day(false), at('2026-10-18T23:00'), 'alarm'), null);
