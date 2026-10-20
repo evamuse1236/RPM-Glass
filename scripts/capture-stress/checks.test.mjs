@@ -150,3 +150,15 @@ test('fake model goes through production interpreter, canonical adapter, file pe
   assert.equal(failure.turns[0].capture.raw,text);
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+ test('everyday checks require completion and the meal foods in canonical storage',()=>{
+  assert.ok(compare({created:[{words:['bank'],done:true}]}).some(f=>f.detail.includes('done should be true')));
+  assert.deepEqual(compare({created:[{words:['bank'],done:true}]},[{...bank(),done:true}]),[]);
+  const expect=expectation({created:[],maxNew:0,health:{meals:[{slot:'lunch',state:'logged',foodWords:['dal','rice','curd']}]}});
+  const after=empty();
+  assert.ok(checkExpectation(expect,{before:empty(),after}).some(f=>f.type==='lost item'));
+  after.planner.body.meals.push({slot:'lunch',name:'dal rice curd'});
+  assert.deepEqual(checkExpectation(expect,{before:empty(),after}),[]);
+  after.planner.body.meals[0].state='skipped';
+  assert.ok(checkExpectation(expect,{before:empty(),after}).some(f=>f.type==='lost item'));
+ });

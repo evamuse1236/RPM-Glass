@@ -7,7 +7,8 @@
     "corpus/outcomes.json",
     "corpus/monologues.json",
     "corpus/smart.json",
-    "corpus/round3.json"
+    "corpus/round3.json",
+    "corpus/everyday.json"
   ],
   "hardest": [
     "nine-relative-times",

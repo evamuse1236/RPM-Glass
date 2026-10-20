@@ -85,6 +85,7 @@ export function checkExpectation(expect,{before,after,draft,focusDraft=draft,que
  if(expect.health){
   const water=d=>(d.planner?.body?.water?.glasses??[]).length;
   if(expect.health.waterDelta!==undefined&&water(after)-water(before)!==expect.health.waterDelta)fail('lost item',`Water delta ${water(after)-water(before)} instead of ${expect.health.waterDelta}`);
+  for(const meal of expect.health.meals??[])if(!after.planner?.body?.meals?.some(m=>m.slot===meal.slot&&(m.state??'logged')===meal.state&&matchesWords(m.name,meal.foodWords??[])))fail('lost item',`No ${meal.state} ${meal.slot} recorded with the stated food`);
   if(expect.health.mealSkipped&&!after.planner?.body?.meals?.some(m=>m.slot===expect.health.mealSkipped&&m.state==='skipped'))fail('lost item',`No skipped ${expect.health.mealSkipped} recorded`);
  }
  return failures;
@@ -95,6 +96,7 @@ function checkFields(expected,row,fail,after){
  if(expected.title!==undefined&&row.title!==expected.title)fail('wrong title',`${row.title}: expected exact title ${expected.title}`);
  if(expected.day!==undefined&&day!==expected.day)fail('wrong time',`${row.title}: day ${day}, expected ${expected.day}`);
  if(expected.time!==undefined&&time!==expected.time)fail('wrong time',`${row.title}: time ${time}, expected ${expected.time}`);
+ if(expected.done!==undefined&&!!row.done!==expected.done)fail('lost item',`${row.title}: done should be ${expected.done}`);
  if(expected.must!==undefined&&!!row.must!==expected.must)fail('lost item',`${row.title}: must should be ${expected.must}`);
  if(expected.titleWords&&!matchesWords(row.title,expected.titleWords))fail('lost item',`${row.title}: expected title ${expected.titleWords.join(' + ')}`);
  if(expected.purposeWords&&!matchesWords(row.purpose,expected.purposeWords))fail('lost item',`${row.title}: purpose missing ${expected.purposeWords.join(' + ')}`);
