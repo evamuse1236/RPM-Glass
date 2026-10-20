@@ -9,14 +9,14 @@
   border: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
   overflow: hidden;
 }
-.card-main, .project-card {
+.card-main {
   display: flex;
   flex-direction: column;
   gap: var(--s1);
   padding: var(--s3) var(--s4);
 }
 .card-main { width: 100%; gap: 2px; }
-.card-main:active, .project-card:active { background: var(--row-press); }
+.card-main:active { background: var(--row-press); }
 .card-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
 .eyebrow {
   display: inline-flex;
@@ -36,8 +36,44 @@
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
-.project-card .progress { margin-top: var(--s3); }
 .card-meta { font: var(--body-small); color: var(--on-surface-variant); margin-top: 2px; }
+.project-head { display: flex; align-items: center; }
+.project-toggle {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s3) 0 var(--s3) var(--s3);
+  border-radius: var(--card-radius) 0 0 var(--card-radius);
+}
+.project-toggle:active { background: var(--row-press); }
+.project-copy { display: grid; gap: 2px; min-inline-size: 0; }
+.project-area { font: var(--label-medium); color: color-mix(in oklch, var(--tone) 78%, var(--on-surface)); overflow-wrap: anywhere; }
+.project-open { flex: none; margin-inline-end: var(--s1); color: var(--on-surface-variant); }
+.nest-rings { flex: none; inline-size: 64px; block-size: 64px; }
+.nest-rings circle { fill: none; }
+.nest-track { stroke: var(--surface-container-highest); }
+.nest-value { stroke: var(--tone); stroke-linecap: round; }
+.project-blocks { display: grid; gap: var(--s1); padding: 0 var(--s3) var(--s3); }
+.project-block {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-block-size: 48px;
+  padding: var(--s1) var(--s3);
+  border-radius: var(--r-control);
+  background: var(--surface);
+  font: var(--body-medium);
+}
+.project-block:active { background: var(--row-press); }
+.project-block .seg-ring { flex: none; inline-size: 28px; block-size: 28px; }
+.project-block-name { flex: 1; min-inline-size: 0; overflow-wrap: break-word; text-wrap: pretty; }
+.project-block-count { color: var(--on-surface-variant); white-space: nowrap; }
+.seg-ring :is(path, circle) { fill: none; stroke-width: 6; }
+.seg-off { stroke: var(--surface-container-highest); }
+.seg-on { stroke: var(--tone, var(--primary)); }
+.seg-arc { stroke-linecap: round; }
 /* One facts line on a Block card: deadline, the Musts' time left, tasks done. */
 .card-facts { margin-top: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
 .card-facts > *, .fact-next, .nowrap, .must-left { white-space: nowrap; }
@@ -216,37 +252,6 @@ button.fact-row:active { background: var(--row-press); }
   padding: var(--s1) var(--s1) 0;
 }
 .period-switch h2 { font: var(--title-medium); text-align: center; }
-.wheel-card {
-  margin: var(--s1) var(--gutter) 0;
-  padding: var(--s4) var(--s4) var(--s3);
-  border-radius: var(--card-radius);
-  background: var(--surface-container-low);
-  border: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
-}
-.wheel-head { display: flex; align-items: flex-start; gap: var(--s2); }
-.wheel-copy { flex: 1; }
-.wheel-copy h2 { font: var(--title-medium); }
-.wheel-copy p { font: var(--body-medium); color: var(--on-surface-variant); }
-.wheel-head .icon-btn { margin: -8px -8px 0 0; }
-.wheel-bars { display: grid; gap: var(--s3); margin: var(--s4) 0 var(--s2); }
-.wheel-bar-head { display: flex; justify-content: space-between; gap: var(--s2); font: var(--body-medium); }
-.wheel-name { overflow-wrap: anywhere; }
-.wheel-value { color: var(--on-surface-variant); white-space: nowrap; }
-.wheel-track { height: 8px; margin-top: 8px; border-radius: 4px; background: var(--surface-container-highest); overflow: hidden; }
-.wheel-track > span {
-  display: block;
-  height: 100%;
-  border-radius: 4px;
-  background: var(--tone);
-  transform-origin: left;
-  transform: scaleX(var(--value, 0));
-}
-.wheel-radar { display: block; width: 100%; max-width: 360px; margin: var(--s2) auto; overflow: visible; }
-.radar-grid { fill: none; stroke: var(--outline-variant); stroke-width: 1; }
-.radar-value { fill: color-mix(in srgb, var(--primary) 18%, transparent); stroke: var(--primary); stroke-width: 2; }
-.radar-node { fill: var(--tone); stroke: var(--surface); stroke-width: 2; }
-.radar-label { fill: var(--on-surface-variant); font: var(--label-medium); }
-.wheel-card .tonal-btn { margin-top: var(--s2); }
 .values-card {
   margin: var(--s4) var(--gutter);
   padding: var(--s4);

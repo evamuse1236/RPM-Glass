@@ -47,15 +47,14 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 
 ### Projects
 
-- List cards show Area, Project, one-line Purpose, progress, and Block count. No nested Block cards appear in the list.
+- List cards show nested rings (one per Block, outermost first, each arc its tasks done/total in the Area hue), the Area, the Project, and "N Blocks · X of Y done". Tapping a card expands it in place to one row per Block (segment ring, name, done/total) that opens the Block; a second tap collapses it. A chevron button on the card opens the Project. No nested Block cards appear in the list.
 - Project detail shows Area/Goal breadcrumbs, the Project Purpose, progress, and first-level Block cards.
 
 ### Life
 
 - Vision is the default view; Quarter, Month, and Values are scrollable 48dp tabs.
-- The default Wheel of Life is a labelled radar chart with Area names, scores, persistent Area hues, and the average below.
-- At 200% text, labelled accessible rating bars replace fixed chart labels so names and values remain readable.
-- Ratings are reflective 0–10 values in half steps. They do not derive from task completion.
+- The Wheel of Life has one wedge per Area in its persistent hue, filled from the centre to rating/10, faint rings at 2, 4, 6, 8 and 10, the average in the middle and the Area names with their ratings round it. Dragging a wedge out or in sets its rating in whole points, saved on release with Undo. Area chips with their Goal count sit under it and open the Area; "Rate your Areas" opens the sheet of sliders, the keyboard and screen-reader route.
+- Ratings are reflective 0–10 values (whole points on the wheel, half steps in the sheet). They do not derive from task completion.
 - Area detail shows its description, rating, yearly Goals, and linked Projects as rows rather than nested cards.
 
 ### Task detail and quick add
