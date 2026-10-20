@@ -1,4 +1,4 @@
-// SessionStart hook. In a cloud session only: installs the Android SDK pieces the build needs, sets ANDROID_HOME,
+// SessionStart hook. In a cloud session only: installs the Android SDK pieces and node packages the build needs, sets ANDROID_HOME,
 // adds the cloud Gradle settings and tells the agent how proof works without an emulator. Elsewhere it does nothing.
 import fs from 'node:fs';
 import os from 'node:os';
@@ -58,6 +58,12 @@ try {
   } else log.push('Android SDK already present');
 } catch (error) { problem = error.message; }
 
+let deps = 'node_modules present';
+if (fs.existsSync(path.join(project, 'package-lock.json')) && !fs.existsSync(path.join(project, 'node_modules'))) {
+  try { run(env.RPM_NPM || 'npm', ['ci', '--no-audit', '--no-fund'], {cwd: project}); deps = 'ran npm ci'; }
+  catch (error) { deps = 'npm ci FAILED'; problem = [problem, error.message].filter(Boolean).join('; '); }
+}
+
 const gradle = writeGradleProperties(env);
 const mirrorUp = env.RPM_MAVEN_MIRROR !== 'off' && spawnSync('curl', ['-fsIL', '--max-time', '15', MIRROR_PROBE], {timeout: 20_000}).status === 0;
 const mirror = writeMavenMirror(env, os.homedir(), mirrorUp);
@@ -66,4 +72,4 @@ const localProperties = path.join(project, 'local.properties');
 if (!fs.existsSync(localProperties)) fs.writeFileSync(localProperties, `sdk.dir=${sdk}\n`);
 
 const seconds = Math.round((Date.now() - started) / 1000);
-console.log(`${CLOUD_RULES}\nAndroid setup (${seconds} s): ${problem ? `FAILED: ${problem}` : log.join('; ')}. ANDROID_HOME=${sdk}. Gradle cloud settings: ${gradle}. Maven Central: ${mirror ? `Google mirror (${mirror})` : 'repo.maven.apache.org (mirror unreachable)'}.`);
+console.log(`${CLOUD_RULES}\nAndroid setup (${seconds} s): ${problem ? `FAILED: ${problem}` : log.join('; ')}. ANDROID_HOME=${sdk}. Node packages: ${deps}. Gradle cloud settings: ${gradle}. Maven Central: ${mirror ? `Google mirror (${mirror})` : 'repo.maven.apache.org (mirror unreachable)'}.`);

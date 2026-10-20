@@ -125,6 +125,22 @@ test('the SessionStart setup does nothing off the cloud; in the cloud it reuses 
   assert.match(fs.readFileSync(path.join(env.GRADLE_USER_HOME, 'gradle.properties'), 'utf8'), /org\.gradle\.workers\.max=2/);
 });
 
+test('the cloud setup runs npm ci when a fresh checkout has no node_modules, so build-debug finds esbuild', {skip: process.platform === 'win32'}, t => {
+  const dir = temp(t, 'rpm-setup-npm-');
+  const sdk = path.join(dir, 'sdk'), project = path.join(dir, 'project'), npm = path.join(dir, 'npm');
+  fs.mkdirSync(project);
+  fs.writeFileSync(path.join(project, 'package-lock.json'), '{}');
+  for (const pkg of SDK_PACKAGES) fs.mkdirSync(path.join(sdk, ...pkg.split(';')), {recursive: true});
+  fs.writeFileSync(npm, '#!/bin/sh\necho "$@" > npm-args\nmkdir node_modules\n', {mode: 0o755});
+  const env = {...baseEnv(), ...CLOUD, RPM_MAVEN_MIRROR: 'off', RPM_NPM: npm, HOME: dir, ANDROID_HOME: sdk, CLAUDE_PROJECT_DIR: project, GRADLE_USER_HOME: path.join(dir, 'gradle')};
+  const setup = () => spawnSync(process.execPath, [path.join(here, 'agent/cloud-setup.mjs')], {env, encoding: 'utf8', timeout: 20_000});
+  const first = setup();
+  assert.equal(first.status, 0, first.stderr);
+  assert.match(first.stdout, /Node packages: ran npm ci/);
+  assert.equal(fs.readFileSync(path.join(project, 'npm-args'), 'utf8').trim(), 'ci --no-audit --no-fund');
+  assert.match(setup().stdout, /Node packages: node_modules present/);
+});
+
 test('build-debug retries a Maven 429 with two workers in the cloud, and runs Gradle once as before elsewhere', {skip: process.platform === 'win32'}, t => {
   const dir = temp(t, 'rpm-build-');
   const calls = path.join(dir, 'calls'), gradlew = path.join(dir, 'gradlew');
