@@ -41,7 +41,6 @@ export function factsOf(row){
  return list;
 }
 
-/** A row's chips as the receipt shows them: the Must star first, then factsOf. */
 export function rowFacts(row){
  const facts=factsOf(row);
  if(row.must){const must=el('li','fact fact-must');must.append(icon('star',{fill:true}),el('span','fact-now','Must'));facts.unshift(must);}

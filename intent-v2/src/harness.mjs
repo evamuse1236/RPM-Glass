@@ -174,7 +174,6 @@ export class IntentHarness {
   });
   this.emit({type:'ready',...result});return {...result,modelRuns:[]};
  }
- /** A read while the words are still being typed: nothing is saved, and Enter on the same words reuses it. */
  preview(input,options){return previewRead(this,input,options);}
  act(action,{actionId}={}){return actOnDraft(this,action,{actionId});}
  async resume(draftId,{conversationId,actionId}={}){

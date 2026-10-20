@@ -105,7 +105,6 @@ export function createIntentService({backend,native,model,changePlanner,undo,rea
    current.intentV2.drafts[action.draftId].nextStep.used=actionId;
   }});
  }
- /** Typed words read without saving: the rows the receipt would show, or a status that shows nothing. */
  async function preview(input,{signal}={}){
   const read=await harness.preview(input,{signal});
   if(read.status!=='read')return {status:read.status,run:read.run??null,rows:[]};

@@ -29,10 +29,6 @@ export function createPreviewReads({clock=()=>new Date(),ttlMs=READ_TTL_MS,limit
  };
 }
 
-/**
- * Read typed words the way Enter would, without saving anything. Only a plain new capture on the quick route is
- * read; a reply, a question, a focused draft, words the phone reads itself and anything heavier stay silent.
- */
 export async function previewRead(harness,{conversationId,text,focusDraftId=null},{signal}={}){
  if(typeof text!=='string'||!text.trim()||text.length>12000)return {status:'silent'};
  const data=await harness.repository.load(),v=intentState(data);conversation(data,conversationId);

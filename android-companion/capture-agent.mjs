@@ -102,7 +102,6 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
   const d=await draftOf(input.draftId);if(d)traces.outcome(d.sourceMessageIds.at(-1),'undone',{confirm:d.confirm??null});
   return result;
  }
- /** A read while typing. Its model call leaves its own trace with no words; nothing is saved or applied. */
  async function preview(input,{signal}={}){
   const started=clock(),result=await service.preview(input,{signal});
   if(result.run){

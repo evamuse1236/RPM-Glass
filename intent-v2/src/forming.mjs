@@ -20,7 +20,6 @@ const REPEATS=[
 ];
 const minutesOf=(n,unit)=>{const count=/^half/i.test(n)?.5:/^(?:an?|one)$/i.test(n)?1:n==='two'?2:n==='three'?3:Number(n);return Math.round(count*(/^h/i.test(unit)?60:1));};
 
-/** Sentences, kept in the person's order; the last one is the one still being typed. */
 export function formingClauses(text){
  return String(text??'').split(/(?<=[.!?;])\s+|\n+/).map(s=>s.trim()).filter(s=>/\p{L}{2}/u.test(s));
 }
@@ -30,7 +29,6 @@ function tidy(text){
   .replace(/^(?:please\s+|to\s+|and\s+)+/i,'').replace(/\s+(?:and|at|on|by|to|with)$/i,'').trim();
 }
 
-/** What the phone reads in one sentence on its own, with no model: the parts a receipt shows as chips. */
 export function readFormingClause(clause,{now=new Date()}={}){
  let rest=clause.replace(/[’]/g,"'"),alert=null,leadMinutes=null,minutes=null,must=false,recurrence=null,repeatAfterDays=null;
  const lead=rest.match(LEAD);
@@ -69,7 +67,6 @@ export function readFormingClause(clause,{now=new Date()}={}){
   minutes,alert,leadMinutes,recurrence,repeatAfterDays,must};
 }
 
-/** One reading per sentence, at most FORMING_LIMIT, the newest last. A question is not a task. */
 export function readForming(text,{now=new Date(),limit=FORMING_LIMIT}={}){
  return formingClauses(text).slice(-limit).filter(c=>!/\?\s*$/.test(c)).map(c=>readFormingClause(c,{now})).filter(r=>r.title);
 }

@@ -11,13 +11,11 @@ const COLLECTION={task:'tasks',block:'blocks',project:'projects',goal:'goals',ar
 
 const repeatOf=row=>row?.recurrence||row?.repeatAfterDays?repeatLabel(row):null;
 
-/** A task not saved yet, as a receipt row, so what forms while typing is drawn the way its receipt will be. */
 export function pendingRow({id=null,title='',planned=null,plannedDate=null,minutes=null,alert=null,recurrence=null,repeatAfterDays=null,must=false,where=null,tone=null}){
  return {verb:'Added',entity:'task',id,title,when:whenOf(planned||plannedDate?{planned,plannedDate}:null),was:null,where,tone,
   alert:alert==='off'?null:alert,minutes,repeat:repeatOf({recurrence,repeatAfterDays}),must:must===true,renamedFrom:null};
 }
 
-/** The tasks a read would add, with the Block it chose (Inbox when none) and that Block's Area tone. Reads only. */
 export function previewRows(data,operations=[],schedule=null){
  return operations.filter(op=>op.kind==='create'&&op.entity==='task').map(op=>{
   const value=name=>op.fields.find(f=>f.name===name&&f.op==='set')?.value??null;

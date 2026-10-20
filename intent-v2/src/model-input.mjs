@@ -10,7 +10,6 @@ import {completeWaterLog} from './body-intent.mjs';
 import {orphanChoiceTurn} from './choice-reply.mjs';
 import {interpretTurn} from './interpret.mjs';
 
-/** What the model would be given for these words, and the phone's own reading when it needs no model. Reads only. */
 export async function prepareRead(data,capture,{activeDraft,question,units,snapshot}){
  const v=intentState(data),messageId=capture.messageId;
  const targets=[...(activeDraft?.operations??[]).filter(o=>o.targetId!==null).map(o=>({entity:o.entity,id:String(o.targetId)})),...(question?.choices??[]).flatMap(c=>c.targets).map(t=>t.entity==='alarm'?{entity:'task',id:t.id}:t)];
@@ -37,13 +36,11 @@ export async function prepareRead(data,capture,{activeDraft,question,units,snaps
  return {input,context,meta,local:turn?{turn,kind:bulk?'bulk-move':simple?.kind??'short-reminder'}:null};
 }
 
-/** Equal for two reads the model would see alike: the message ID and the clock are left out. */
 export function readKey(input){
  const {messageId,...rest}=input;
  return shortHash(JSON.stringify({...rest,context:{...rest.context,now:null,nowLocal:null}}));
 }
 
-/** The model's answer completed the way every capture completes it, then checked against what it was given. */
 export function readOutput(output,{input,units,messageId,visibleEntities,activeDraft}){
  const reminder=completeShortReminder(output,input),water=completeWaterLog(reminder,input),completed=orphanChoiceTurn(water,input);
  const completion=completed===output?null:completed!==water?'closed-choice':water!==reminder?'water-log':'short-reminder';
