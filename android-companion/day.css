@@ -101,11 +101,11 @@
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr) auto;
   align-content: start;
-  border-radius: var(--shape-lg);
+  border-radius: var(--r-group);
   color: var(--on-surface);
   text-align: start;
 }
-.spine-card.filled { background: var(--surface-container-low); border: 1px solid var(--surface-container-high); }
+.spine-card.filled { background: var(--surface-container-low); border: 1px solid color-mix(in oklch, var(--outline-variant) 45%, transparent); }
 .spine-card.outlined { border: 1px solid var(--outline-variant); }
 .spine-row.current .spine-card { background: var(--spine-current); border-color: transparent; }
 button.spine-card:active, .spine-card .spine-open:active { background: var(--row-press); }
@@ -119,7 +119,7 @@ button.spine-card:active, .spine-card .spine-open:active { background: var(--row
 .spine-row.done .check-ring .ms { opacity: 1; }
 .spine-row.current .check-ring { border-color: var(--now); }
 
-.spine-open { grid-column: 2; min-inline-size: 0; padding: var(--s3) var(--s3) var(--s3) 0; color: inherit; text-align: start; border-radius: var(--shape-lg); }
+.spine-open { grid-column: 2; min-inline-size: 0; padding: var(--s3) var(--s3) var(--s3) 0; color: inherit; text-align: start; border-radius: var(--r-group); }
 .spine-card .spine-icon { grid-column: 1; justify-self: center; margin-block-start: var(--s3); color: var(--on-surface-variant); }
 .spine-card.outlined > .spine-copy { grid-column: 2 / -1; padding: var(--s3) var(--s4) var(--s3) 0; }
 .spine-copy { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; }

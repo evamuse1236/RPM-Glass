@@ -53,7 +53,7 @@ typography:
   label-large: {fontSize: "14px", fontWeight: 500, lineHeight: "20px"}
   label-medium: {fontSize: "12px", fontWeight: 500, lineHeight: "16px"}
 icons: "Material Symbols Rounded, 24dp, outlined by default and filled for selected or set states"
-rounded: {xs: "4px", sm: "8px", md: "12px", lg: "16px", card: "24px", xl: "28px", full: "999px"}
+rounded: {xs: "4px", sm: "8px", md: "12px", lg: "16px", card: "20px", xl: "28px", outer: "36px", full: "999px"}
 spacing: {s1: "4px", s2: "8px", s3: "12px", s4: "16px", s6: "24px", s8: "32px", touch: "48px", top-bar: "64px", nav: "80px (64 bar + 16 gap)", fab: "56px", inset-page: "16px"}
 ---
 
@@ -100,7 +100,7 @@ Content never nests more than one card level.
 
 ## Shape and elevation
 
-Cards use 24dp corners (`--card-radius`). Sheets and the Capture panel use 28dp, inputs 4dp (outlined fields), and chips 8dp. Buttons, the navigation pill and segmented buttons are full pills. Only floating things cast shadows: the FAB, the tab bar, the Capture panel, menus and the snackbar (`--float-shadow` for the tab bar, FAB and snackbar; `--elev-1`, `--elev-3` elsewhere). In dark mode floats drop the shadow and keep a 1px `outline-variant` border. Floating corners are concentric (`--r-outer` 36, `--r-group` 20, `--r-control` 12, `--r-tile` 8): an inner corner is its parent's minus the inset, so the tab bar's 20 holds a 12dp pill 8dp in, and the snackbar is 12. Resting cards are flat and tonal.
+Cards (Block and Project cards, Today's spine cards) use 20dp corners (`--card-radius` = `--r-group`). Bottom sheets use 36dp top corners (`--r-outer`) with a 1px float border, as does the Capture composer; dialogs keep 28dp, inputs 4dp (outlined fields), and chips 8dp. Buttons, the navigation pill and segmented buttons are full pills. Only floating things cast shadows: the FAB, the tab bar, the Capture panel, menus and the snackbar (`--float-shadow` for the tab bar, FAB and snackbar; `--elev-1`, `--elev-3` elsewhere). In dark mode floats drop the shadow and keep a 1px `outline-variant` border. Floating corners are concentric (`--r-outer` 36, `--r-group` 20, `--r-control` 12, `--r-tile` 8): an inner corner is its parent's minus the inset, so the tab bar's 20 holds a 12dp pill 8dp in, and the snackbar is 12. Resting cards are flat and tonal.
 
 ## Motion
 

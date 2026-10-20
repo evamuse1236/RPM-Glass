@@ -174,7 +174,7 @@
 /* Step 3: the bottom sheet that chooses a task's Result */
 .wr-layer{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:flex-end}
 .wr-scrim{position:absolute;inset:0;background:var(--scrim);opacity:.32}
-.wr-sheet{position:relative;max-height:min(80%,640px);overflow-y:auto;overscroll-behavior:contain;padding:0 16px 24px;border-radius:28px 28px 0 0;background:var(--surface-container-low);box-shadow:var(--elev-3);animation:wr-up var(--dur-medium3) var(--ease-emphasized-decelerate) both}
+.wr-sheet{position:relative;max-height:min(80%,640px);overflow-y:auto;overscroll-behavior:contain;padding:0 16px 24px;border:1px solid var(--float-border);border-block-end:0;border-radius:var(--r-outer) var(--r-outer) 0 0;background:var(--surface-container-low);box-shadow:var(--float-shadow);animation:wr-up var(--dur-medium3) var(--ease-emphasized-decelerate) both}
 /* The sheet rises from the bottom edge and its scrim fades with it, once: re-renders while it is open don't replay it. */
 .wr-scrim{animation:wr-scrim var(--dur-medium3) var(--ease-emphasized-decelerate) both}
 @keyframes wr-up{from{transform:translateY(100%)}to{transform:none}}

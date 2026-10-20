@@ -42,7 +42,7 @@
 
   /* shape */
   --shape-xs:4px;--shape-sm:8px;--shape-md:12px;--shape-lg:16px;--shape-xl:28px;--shape-full:999px;
-  --card-radius:24px;
+  --card-radius:var(--r-group);
   /* floats (tab bar, Capture composer, sheets, FAB): concentric corners, inner = outer − inset */
   --r-outer:36px;--r-group:20px;--r-control:12px;--r-tile:8px;--inset-page:16px;
   --float-border:color-mix(in oklch, var(--outline-variant) 60%, transparent);

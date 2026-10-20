@@ -21,8 +21,10 @@
   flex-direction: column;
   background: var(--sheet-bg);
   color: var(--on-surface);
-  border-radius: var(--shape-xl) var(--shape-xl) 0 0;
-  box-shadow: var(--elev-1);
+  border: 1px solid var(--float-border);
+  border-block-end: 0;
+  border-radius: var(--r-outer) var(--r-outer) 0 0;
+  box-shadow: var(--float-shadow);
   transform-origin: 50% 100%;
 }
 .sheet.expanded { height: 92%; }
