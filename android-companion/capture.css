@@ -21,21 +21,19 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
   border:1px solid var(--bar-outline);border-radius:var(--r-outer);box-shadow:var(--bar-shadow);
   touch-action:pan-y;
 }
-.grab{position:relative;flex:none;inline-size:32px;block-size:4px;border-radius:2px;background:color-mix(in oklch,var(--bar-on) 38%,transparent);margin:10px auto 0;touch-action:none}
+.grab{position:relative;flex:none;inline-size:32px;block-size:4px;border-radius:2px;background:color-mix(in oklch,var(--bar-on) 38%,transparent);margin:8px auto 0;touch-action:none}
 /* The handle's grab strip is 48dp tall and wider than the pill. */
-.grab::after{content:'';position:absolute;inset:-10px -48px -34px}
+.grab::after{content:'';position:absolute;inset:-8px -48px -36px}
 
 .composer{display:flex;flex-direction:column}
 #message{
-  display:block;inline-size:100%;min-block-size:44px;margin:0;padding:12px 20px 4px;
+  display:block;inline-size:100%;min-block-size:40px;margin:0;padding:12px 20px 4px;
   border:0;outline:none;resize:none;background:transparent;color:var(--bar-on);
-  font:var(--title-large);caret-color:var(--bar-primary);overflow-y:hidden;text-wrap:stable;
+  font:var(--body-large);caret-color:var(--bar-primary);overflow-y:hidden;text-wrap:stable;
 }
-
-:root[data-large-text=true] #message{font:var(--body-large)}
 #message::placeholder{color:var(--bar-on-variant);opacity:1}
 /* + at the start, the mic or Send at the end in one cell, so the two cross-fade in place. */
-.bar-row{display:grid;grid-template-columns:auto 1fr 48px;align-items:center;gap:4px;min-block-size:56px;padding:4px 8px 12px}
+.bar-row{display:grid;grid-template-columns:auto 1fr 48px;align-items:center;gap:4px;padding:0 8px 6px}
 .bar-row>.round{grid-column:3;grid-row:1;justify-self:center}
 .status{flex:1;margin:0;padding-inline:4px;font:var(--body-small);color:var(--bar-on-variant);overflow-wrap:anywhere}
 .status.error{color:var(--bar-error)}
@@ -47,7 +45,8 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .round .ms{font-size:24px}
 /* A 48dp target around the 40dp circle. */
 .round::after{content:'';position:absolute;inset:-4px;border-radius:50%}
-.send{background:var(--bar-accent);color:var(--bar-on-accent)}
+/* Send is the one lit control: the bright primary in both themes. */
+.send{background:var(--bar-primary);color:var(--bar-on-primary)}
 .mic{background:var(--bar-highest);color:var(--bar-on)}
 .bar[data-has-text=true] .mic,.bar[data-has-text=false] .send{opacity:0;visibility:hidden;pointer-events:none}
 .bar-plus:active,.round:active{scale:.96}

@@ -45,7 +45,7 @@ export const REVEALS = {
 };
 
 /** The coloured layer under a dragged row: an icon and the word, so colour is never the only signal. */
-function reveal(row, {kind, word: named}, side) {
+function reveal(row, {kind, word: named, symbol: drawn}, side) {
   let layer = row.querySelector(':scope > .swipe-reveal');
   if (!layer) {
     layer = document.createElement('span');
@@ -68,7 +68,7 @@ function reveal(row, {kind, word: named}, side) {
   layer.dataset.kind = kind;
   layer.dataset.side = side;
   const [symbol, word] = REVEALS[kind];
-  layer.firstChild.textContent = symbol;
+  layer.firstChild.textContent = drawn ?? symbol;
   layer.lastChild.textContent = named ?? word;
   return layer;
 }
@@ -76,7 +76,8 @@ function reveal(row, {kind, word: named}, side) {
 const vibrate = () => { if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(10); };
 
 /**
- * sides: right and left, each {kind, run(row), leave, word}; `word` names the reveal in place of the kind's own word. `run` acts and may resolve false when nothing happened.
+ * sides: right and left, each {kind, run(row), leave, word, symbol}; `word` and `symbol` replace the kind's own word
+ * and icon in the reveal. `run` acts and may resolve false when nothing happened.
  * `leave` carries the row off its edge first (150ms) and it then collapses where it was; otherwise the row springs back
  * (200ms) as `run` opens its choices. Past SWIPE_COMMIT the reveal fills and its icon grows, with one haptic tick.
  * hold(row) runs when the row is held still for LONG_PRESS ms, on a right click, or on the keyboard's menu key.
