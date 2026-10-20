@@ -1,5 +1,5 @@
 /* The list scrolls, so it pads 8dp past its edges to keep the cards' shadows from being cut square. */
-.cards{flex:0 1 auto;min-block-size:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;display:flex;flex-direction:column;gap:8px;outline:none;padding:0 8px 8px;margin:0 -8px -8px}
+.cards{flex:0 1 auto;min-block-size:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;display:flex;flex-direction:column;gap:8px;outline:none;padding:0 16px 8px;margin:0 -16px -8px}
 .cards::-webkit-scrollbar{display:none}
 .cards:empty{display:none}
 
@@ -113,3 +113,25 @@
   .btn,.chip{transition:scale 160ms var(--ease-standard)}
 }
 :root[data-reduce-motion=true] .card{transition:none}
+
+/* "Which one?": the first chip is what a right swipe picks, marked with a check. The card slides over a reveal that
+   names it (task-swipe.mjs). */
+.chip-first{border-color:var(--bar-primary)}
+.question.swipe-task{position:relative;isolation:isolate;touch-action:pan-y;overflow:clip}
+.question.swipe-task > :not(.swipe-reveal){translate:var(--swipe-offset,0) 0}
+.question.swipe-task[data-swipe]{background:transparent;box-shadow:none}
+.question.swipe-task[data-swipe]::before{
+  content:'';position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--bar);translate:var(--swipe-offset,0) 0;
+}
+.question .swipe-reveal{
+  position:absolute;inset:0;z-index:-2;display:flex;align-items:center;gap:8px;padding-inline:20px;border-radius:inherit;
+  background:color-mix(in oklch,var(--bar-accent) 55%,var(--bar));color:var(--bar-on-accent);font:var(--label-large);
+}
+.question[data-armed=true] .swipe-reveal{background:var(--bar-accent)}
+.question .swipe-reveal .ms{font-size:24px}
+.question[data-armed=true] .swipe-reveal .ms{scale:1.15}
+.question .swipe-word{min-inline-size:0;overflow-wrap:anywhere}
+@media (prefers-reduced-motion:no-preference){
+  .question.swipe-settling > :not(.swipe-reveal),.question.swipe-settling::before{transition:translate var(--dur-short4) var(--ease-standard)}
+  .question .swipe-reveal .ms{transition:scale 40ms var(--ease-standard)}
+}

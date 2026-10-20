@@ -42,10 +42,11 @@ export const REVEALS = {
   move: ['drive_file_move', 'Move'],
   remove: ['delete', 'Delete'],
   log: ['restaurant', 'Log now'],
+  choose: ['check', 'Choose'],
 };
 
 /** The coloured layer under a dragged row: an icon and the word, so colour is never the only signal. */
-function reveal(row, kind, side) {
+function reveal(row, {kind, word: named}, side) {
   let layer = row.querySelector(':scope > .swipe-reveal');
   if (!layer) {
     layer = document.createElement('span');
@@ -69,14 +70,14 @@ function reveal(row, kind, side) {
   layer.dataset.side = side;
   const [symbol, word] = REVEALS[kind];
   layer.firstChild.textContent = symbol;
-  layer.lastChild.textContent = word;
+  layer.lastChild.textContent = named ?? word;
   return layer;
 }
 
 const vibrate = () => { if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(10); };
 
 /**
- * sides: right and left, each {kind, run(row), leave}. `run` acts and may resolve false when nothing happened.
+ * sides: right and left, each {kind, run(row), leave, word}; `word` names the reveal in place of the kind's own word. `run` acts and may resolve false when nothing happened.
  * `leave` carries the row off its edge first (150ms) and it then collapses where it was; otherwise the row springs back
  * (200ms) as `run` opens its choices. Past SWIPE_COMMIT the reveal fills and its icon grows, with one haptic tick.
  * hold(row) runs when the row is held still for LONG_PRESS ms, on a right click, or on the keyboard's menu key.
@@ -136,7 +137,7 @@ export function attachSwipe(row, {right = null, left = null, hold = null, haptic
     const spec = side && sides[side];
     offset(rowOffset(dx, sides, row.offsetWidth));
     if (!spec) { delete row.dataset.armed; return; }
-    reveal(row, spec.kind, side);
+    reveal(row, spec, side);
     row.dataset.swipe = side;
     const now = Math.abs(dx) >= SWIPE_COMMIT;
     if (now && !armed) haptic();

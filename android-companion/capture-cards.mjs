@@ -2,6 +2,7 @@ import {el,icon,button} from './capture-dom.mjs';
 import {scheduleText} from './capture-content.mjs';
 import {actionPresentation} from './capture-session.mjs';
 import {line,lines,tally} from './capture-lines.mjs';
+import {attachSwipe} from './task-swipe.mjs';
 
 const ENTITY={task:'Task',block:'Block',project:'Project',goal:'Goal',area:'Area',draft:'Draft'};
 const KEEPABLE=new Set(['idea','preference','question']);
@@ -213,21 +214,34 @@ export function openCard(capture,on){
  return node;
 }
 
-/** "Which one?": the question, the words it answers, and one chip per choice. A tap answers it with no model call. */
+/** The choice a right swipe on an open question picks: the first one the card offers; none once it is answered. */
+export const swipeChoice=q=>q?.actions?.[0]??null;
+
+/**
+ * "Which one?": the question, the words it answers, and one chip per choice. A tap answers it with no model call; a
+ * right swipe on the card answers with the first chip, which carries a check so the swipe's pick is visible.
+ */
 export function questionCard(capture,on){
  const q=capture.clarification,node=card('question');
  node.append(kicker(NEED.question,{name:'help',tone:'change'}),el('p','card-title',q.prompt));
  if(capture.draft?.lines?.length)node.append(lines(capture.draft.lines));
  node.append(words(capture.raw));
  const chips=el('div','chips');
+ const first=swipeChoice(q);
  for(const a of q.actions){
-  const chip=el('button','chip',a.label);
+  const chip=el('button','chip');
   chip.type='button';
   chip.setAttribute('aria-label',`Choose ${a.label}`);
+  if(a===first){
+   chip.classList.add('chip-first');
+   chip.append(icon('check'));
+  }
+  chip.append(el('span','',a.label));
   chip.addEventListener('click',()=>on.choose(a.action));
   chips.append(chip);
  }
  node.append(chips);
+ if(first)attachSwipe(node,{right:{kind:'choose',word:first.label,run:()=>on.choose(first.action)}});
  return node;
 }
 
