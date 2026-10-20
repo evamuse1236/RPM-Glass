@@ -1,18 +1,16 @@
 import {userMessage} from '../../android-companion/user-message.mjs';
 import {validateFollowUp} from './follow-up.mjs';
 import {intentState} from './repository.mjs';
-import {sourceUnits,buildContext,guardsFor,checkGuards,findEntity,contextEntity,draftEntity} from './context.mjs';
+import {sourceUnits,guardsFor,checkGuards,findEntity,contextEntity} from './context.mjs';
 import {interpretTurn} from './interpret.mjs';
 import {ident,activeStatus,conversation,safeQuestion,actOnDraft,undoCommitted} from './draft-actions.mjs';
 import {quickAnswer} from './quick-answer.mjs';
 import {inputSummary} from './input-summary.mjs';
 import {focusFor,focusOf,questionFor,openQuestion} from './conversation-focus.mjs';
-import {readChoiceReply,choiceTurn,choiceEntities,orphanChoiceTurn} from './choice-reply.mjs';
-import {proposalEntities,stageProposalRemoval} from './proposal-removal.mjs';
-import {completeShortReminder} from './short-reminder.mjs';
-import {readSimpleCapture} from './simple-capture.mjs';
-import {readBulkMove} from './bulk-move.mjs';
-import {completeWaterLog} from './body-intent.mjs';
+import {readChoiceReply,choiceTurn,choiceEntities} from './choice-reply.mjs';
+import {stageProposalRemoval} from './proposal-removal.mjs';
+import {prepareRead,readOutput} from './model-input.mjs';
+import {createPreviewReads,previewRead} from './preview-read.mjs';
 import {withNotes} from './source-notes.mjs';
 
 const STALE_FOCUS='STALE_FOCUS';
@@ -20,7 +18,7 @@ const STALE_FOCUS='STALE_FOCUS';
 export class IntentHarness {
  constructor({repository,model,applyPlan,undoPlan=null,refreshSchedule=null,modelPolicy=null,snapshot=null,normalizeReply=null,validateInterpretation=null,recoverInterpretation=null,onEvent=()=>{},clock=()=>new Date(),timezone='Asia/Kolkata',timeoutMs=12000,maxRepairCalls=1}={}){
   if(!repository||!model||!applyPlan)throw new Error('repository, model and applyPlan are required');
-  Object.assign(this,{repository,model,applyPlan,undoPlan,refreshSchedule,modelPolicy,snapshot,normalizeReply,validateInterpretation,recoverInterpretation,onEvent,clock,timezone,timeoutMs,maxRepairCalls});this.running=new Map();
+  Object.assign(this,{repository,model,applyPlan,undoPlan,refreshSchedule,modelPolicy,snapshot,normalizeReply,validateInterpretation,recoverInterpretation,onEvent,clock,timezone,timeoutMs,maxRepairCalls});this.running=new Map();this.reads=createPreviewReads({clock});
  }
  emit(event){try{this.onEvent(event);}catch{/* Telemetry/UI must never break persistence. */}}
  async capture(input,{localTurn=null,validateLocal=null}={}){
@@ -72,31 +70,12 @@ export class IntentHarness {
   }
   const quick=activeDraft?null:quickAnswer(capture.raw,{now:new Date(capture.at),timezone:capture.timezone});
   if(quick)return this.#answerLocally(messageId,units,quick);
-  const targets=[...(activeDraft?.operations??[]).filter(o=>o.targetId!==null).map(o=>({entity:o.entity,id:String(o.targetId)})),...(question?.choices??[]).flatMap(c=>c.targets).map(t=>t.entity==='alarm'?{entity:'task',id:t.id}:t)];
-  const meta={},context=buildContext(data,{messageId,raw:capture.raw,conversationId:capture.conversationId,focus:{draftId:activeDraft?.id??null,questionId:question?.id??null,targets},now:new Date(capture.at),timezone:capture.timezone,meta});
-  // Referenced draft targets are explicitly visible, even when not keyword-relevant.
-  if(activeDraft)for(const op of activeDraft.operations){
-   const include=(entity,id)=>{if(!context.entities.some(e=>e.entity===entity&&e.id===String(id))){const row=findEntity(data,entity,id);if(row)context.entities.push(contextEntity(entity,row,capture.timezone));}};
-   if(op.targetId!==null)include(op.entity,op.targetId);
-   for(const f of op.fields){const entity={blockId:'block',projectId:'project',goalId:'goal',areaId:'area'}[f.name];if(entity&&f.op==='set'&&!f.value.startsWith('$'))include(entity,f.value);}
-  }
-  for(const d of [activeDraft,...(question?.choices??[]).flatMap(c=>c.targets).filter(t=>t.entity==='draft').map(t=>v.drafts[t.id])])
-   if(activeStatus(d)&&!context.entities.some(e=>e.entity==='draft'&&e.id===d.id))context.entities.push(draftEntity(data,d));
-  if(activeDraft)context.entities.push(...proposalEntities(activeDraft));
-  const draftContext=activeDraft?{id:activeDraft.id,revision:activeDraft.revision,operations:activeDraft.operations.map(o=>({opId:o.opId,kind:o.kind,entity:o.entity,targetId:o.targetId,fields:o.fields.map(f=>({name:f.name,op:f.op,value:typeof f.value==='string'?f.value.slice(0,1000):f.value,origin:f.origin,truncated:typeof f.value==='string'&&f.value.length>1000}))})),question:activeDraft.question?{prompt:activeDraft.question.prompt,field:activeDraft.question.field,options:activeDraft.question.options.map(o=>o.label)}:null,reply:activeDraft.reply??null}:null;
-  const plan=this.snapshot?await this.snapshot({data,capture,context}):null;
-  if(plan?.truncated)meta.truncated={...meta.truncated,snapshot:plan.truncated};
-  for(const e of plan?.entities??[])if(!context.entities.some(x=>x.entity===e.entity&&x.id===e.id))context.entities.push(e);
-  const input={messageId,sourceUnits:units,context,activeDraft:draftContext,...(question?{openQuestion:{id:question.id,prompt:question.prompt,action:question.action,choices:question.choices}}:{}),...(plan?{snapshot:plan.summary}:{})};
-  const bulk=readBulkMove(input,{data});
-  if(bulk)for(const e of bulk.entities)if(!context.entities.some(x=>x.entity===e.entity&&x.id===e.id))context.entities.push(e);
-  const simple=bulk?null:readSimpleCapture(input,{data});
-  for(const e of simple?.entities??[])if(!context.entities.some(x=>x.entity===e.entity&&x.id===e.id))context.entities.push(e);
-  const localReminder=bulk?.turn??simple?.turn??completeShortReminder(null,input);
+  const {input,context,meta,local}=await prepareRead(data,capture,{activeDraft,question,units,snapshot:this.snapshot});
+  const localReminder=local?.turn??null;
   if(localReminder){
    const parsed=interpretTurn(localReminder,{units,messageId,visibleEntities:context.entities,activeDraft});
    this.validateInterpretation?.(parsed,{input});
-   return this.#stage(messageId,{data,capture,parsed,units,activeDraft,calls:0,modelRuns:[],extra:{localInterpretation:bulk?'bulk-move':simple?.kind??'short-reminder'}});
+   return this.#stage(messageId,{data,capture,parsed,units,activeDraft,calls:0,modelRuns:[],extra:{localInterpretation:local.kind}});
   }
   if(JSON.stringify(input).length>45000)return {messageId,status:'captured',error:'This thought needs a larger review. The original is kept; no task changed.'};
   const controller=new AbortController();let timer;
@@ -106,13 +85,14 @@ export class IntentHarness {
     const route=this.modelPolicy?.({input,attempt})??null;
     const budget=route?.timeoutMs??this.timeoutMs,deadline=Date.now()+budget;
     const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();const e=new Error('Interpretation timed out; the captured words are safe');e.code='TIMEOUT';reject(e);},budget);});
-    this.emit({type:'interpreting',messageId,attempt,...(route?{effort:route.effort}:{})});calls++;
-    const run={...(route??{}),attempt,ms:null,ok:false,input:inputSummary({...input,repair},meta)};modelRuns.push(run);const started=Date.now();
+    this.emit({type:'interpreting',messageId,attempt,...(route?{effort:route.effort}:{})});
+    const reused=attempt===0?await this.reads.take(input):null;if(!reused)calls++;
+    const run={...(route??{}),attempt,ms:null,ok:false,input:inputSummary({...input,repair},meta),...(reused?{reused:'preview',requestId:reused.run.requestId,service:reused.run.service}:{})};modelRuns.push(run);const started=Date.now();
     try{
-     const output=await Promise.race([this.model({...input,repair},{signal:controller.signal,deadline,route,run}),timeout]).finally(()=>{run.ms=Date.now()-started;});run.ok=true;
-     const reminder=completeShortReminder(output,input),water=completeWaterLog(reminder,input),completed=orphanChoiceTurn(water,input);
-     if(completed!==output)run.completion=completed!==water?'closed-choice':water!==reminder?'water-log':'short-reminder';
-     parsed=interpretTurn(completed,{units,messageId,visibleEntities:context.entities,activeDraft});
+     const output=reused?reused.output:await Promise.race([this.model({...input,repair},{signal:controller.signal,deadline,route,run}),timeout]).finally(()=>{run.ms=Date.now()-started;});run.ok=true;if(reused)run.ms=0;
+     const read=readOutput(output,{input,units,messageId,visibleEntities:context.entities,activeDraft});
+     if(read.completion)run.completion=read.completion;
+     parsed=read.parsed;
      validateFollowUp(parsed,{input});
      held=this.recoverInterpretation?.(parsed,{input,activeDraft})??held;
      this.validateInterpretation?.(parsed,{input});
@@ -194,6 +174,8 @@ export class IntentHarness {
   });
   this.emit({type:'ready',...result});return {...result,modelRuns:[]};
  }
+ /** A read while the words are still being typed: nothing is saved, and Enter on the same words reuses it. */
+ preview(input,options){return previewRead(this,input,options);}
  act(action,{actionId}={}){return actOnDraft(this,action,{actionId});}
  async resume(draftId,{conversationId,actionId}={}){
   return this.repository.transact(`resume:${ident(actionId)}`,{draftId,conversationId},data=>{conversation(data,conversationId);const d=intentState(data).drafts[draftId];if(!d||d.conversationId!==conversationId||d.status!=='parked')throw new Error('No parked draft here');d.status=d.review?'review':'draft';d.revision++;return {status:d.status,draftId,revision:d.revision};});
