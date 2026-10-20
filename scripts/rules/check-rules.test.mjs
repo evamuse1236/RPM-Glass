@@ -44,3 +44,15 @@ test('raw-error-text sees renamed catch bindings, computed access, destructuring
     assert.deepEqual(check(root).map(p => p.match(/:(\d+): /)[1]), ['1', '2', '3', '4', '5', '6']);
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });
+
+test('inline-style-attribute flags a style attribute in markup, which the companion CSP drops', () => {
+  const root = tree({
+    'android-companion/planner/meter.mjs': "const svg = `<g class=\"level\" style=\"transform:translateY(4px)\">`;\nnode.style.setProperty('--h', '4px');\n",
+    'android-companion/planner.html': '<div id="dock"></div>\n',
+  });
+  try {
+    const problems = check(root);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /^rule inline-style-attribute: android-companion\/planner\/meter\.mjs:1: .*setProperty/);
+  } finally { fs.rmSync(root, {recursive: true, force: true}); }
+});
