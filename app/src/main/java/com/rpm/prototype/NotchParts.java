@@ -32,6 +32,7 @@ final class NotchParts {
 
     final Context context;
     private final float density;
+    private boolean shortTitles;
 
     NotchParts(Context context) {
         this.context = context;
@@ -111,9 +112,16 @@ final class NotchParts {
         return t;
     }
 
-    /** The face's title, 17/600 white, two lines (three at large text, four at max). */
+    /** While a face is too tall for the screen, its title keeps two lines at any text size. */
+    void shortTitles(boolean on) {
+        shortTitles = on;
+    }
+
+    /** The face's title, 17/600 white, two lines (three at large text, four at max; two while it must fit). */
     TextView title(String s) {
-        return wrapping(s, 17, Color.WHITE, 600, 2);
+        TextView t = wrapping(s, 17, Color.WHITE, 600, 2);
+        if (shortTitles) t.setMaxLines(NotchGeometry.SHORT_TITLE_LINES);
+        return t;
     }
 
     /** The line under the title, 14/400 in the accent, 2dp below. */

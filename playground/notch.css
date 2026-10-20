@@ -82,6 +82,7 @@
 .notch-stage[data-text="large"] .notch-title { -webkit-line-clamp: 3; line-clamp: 3; }
 .notch-stage[data-text="max"] .notch-title { -webkit-line-clamp: 4; line-clamp: 4; }
 .notch-stage:not([data-text="normal"]) .notch-line { -webkit-line-clamp: 2; line-clamp: 2; }
+.notch-stage .island-face[data-short-title] .notch-title { -webkit-line-clamp: 2; line-clamp: 2; }
 
 .notch-words { display: block; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: start; cursor: pointer; }
 

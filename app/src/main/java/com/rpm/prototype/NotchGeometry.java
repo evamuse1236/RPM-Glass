@@ -1,5 +1,8 @@
 package com.rpm.prototype;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * The island's sizes from section 0 of docs/notch-redesign-plan.md, in dp: one 36dp outer corner, a 16dp margin on all
  * four sides, and every inner shape's corner is 36 minus its inset. playground/notch-geometry.mjs is its copy.
@@ -29,8 +32,32 @@ final class NotchGeometry {
     static final float BAND_VALUE_SP = 22f;
     static final float ALERT_TIME_SP = 17f;
     static final float MAX_HEIGHT_SHARE = 0.6f;
+    static final int SHORT_TITLE_LINES = 2;
 
     private NotchGeometry() {
+    }
+
+    /** One way a face may shrink to fit under the cap: the rows it keeps, and whether its title is cut to two lines. */
+    static final class Fit {
+        final int rows;
+        final boolean shortTitle;
+
+        Fit(int rows, boolean shortTitle) {
+            this.rows = rows;
+            this.shortTitle = shortTitle;
+        }
+    }
+
+    /**
+     * Tried in order until a face fits under {@link #MAX_HEIGHT_SHARE} of the screen: the open island drops rows 3, 2, 1,
+     * then any face cuts its title to {@link #SHORT_TITLE_LINES} lines. Controls and rows are never cut: a face that
+     * still does not fit makes the island taller than the cap.
+     */
+    static List<Fit> fits(boolean open) {
+        List<Fit> out = new ArrayList<>();
+        for (int rows = 3; rows >= (open ? 1 : 3); rows--) out.add(new Fit(rows, false));
+        out.add(new Fit(open ? 1 : 3, true));
+        return out;
     }
 
     /** The corner of a shape {@code insetDp} inside the island: 20dp for the leading circle, the buttons and Undo. */

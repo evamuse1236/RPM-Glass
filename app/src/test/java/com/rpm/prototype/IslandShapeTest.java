@@ -62,6 +62,25 @@ public class IslandShapeTest {
     }
 
     @Test
+    public void aFaceTooTallForTheScreenDropsRowsThenShortensItsTitleAndIsNeverCut() throws Exception {
+        java.util.List<NotchGeometry.Fit> open = NotchGeometry.fits(true);
+        assertEquals(4, open.size());
+        int[] rows = {3, 2, 1, 1};
+        for (int i = 0; i < rows.length; i++) {
+            assertEquals(rows[i], open.get(i).rows);
+            assertEquals(i == 3, open.get(i).shortTitle);
+        }
+        java.util.List<NotchGeometry.Fit> other = NotchGeometry.fits(false);
+        assertEquals(2, other.size());
+        assertEquals(3, other.get(1).rows);
+        assertTrue("alert controls, alerts and receipts keep every row and shorten the title", other.get(1).shortTitle);
+        String pill = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("src/main/java/com/rpm/prototype/NotchPill.java")),
+                java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(pill.contains("NotchGeometry.fits(f.mode == Mode.OPEN)"));
+        assertTrue("the island is as tall as its face, so nothing is clipped", pill.contains("Math.max(face.getMeasuredHeight(), h)"));
+    }
+
+    @Test
     public void pillMinWidthIs112() {
         assertEquals(112, NotchGeometry.MIN_PILL_WIDTH_DP);
         int keep = S24.holeDiameter + NotchAnchor.dp(12, D);

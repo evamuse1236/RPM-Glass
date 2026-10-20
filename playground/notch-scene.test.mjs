@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {parseNotchData} from './notch-day.mjs';
 import {notchScene, alertScene, WATER_SNOOZE, routineSnooze, PillPriority, controls, visibleRows, progress, heroValue} from './notch-scene.mjs';
-import {anchor, G, innerRadius, faceTop, bandAt, pillRing} from './notch-geometry.mjs';
+import {anchor, G, innerRadius, faceTop, bandAt, pillRing, fits} from './notch-geometry.mjs';
 import {S24} from './device.mjs';
 
 const at = local => new Date(local + ':00+05:30').getTime();
@@ -219,6 +219,14 @@ test('margins are 16dp on all four sides and every inner corner is 36 less its i
   assert.equal(ring.d, 28);
   assert.equal(pill.h / 2 - (ring.cx - ring.d / 2 - pill.x), ring.d / 2, 'the ring is concentric with the pill: 18 - 4 = 14');
   assert.equal(pillRing(28), 20);
+});
+
+test('a face too tall for the screen drops rows, then shortens its title, and is never cut', () => {
+  assert.deepEqual(fits(true), [{rows: 3, shortTitle: false}, {rows: 2, shortTitle: false}, {rows: 1, shortTitle: false}, {rows: 1, shortTitle: true}]);
+  assert.deepEqual(fits(false), [{rows: 3, shortTitle: false}, {rows: 3, shortTitle: true}]);
+  const view = readFileSync(new URL('./notch-view.mjs', import.meta.url), 'utf8');
+  assert.match(view, /for \(const fit of fits\(mode === 'open'\)\)/);
+  assert.match(view, /h: Math\.max\(next\.offsetHeight, h\)/, 'the island is as tall as its face');
 });
 
 test('the copy uses the phone\'s sizes: NotchGeometry.java and notch-geometry.mjs match', () => {

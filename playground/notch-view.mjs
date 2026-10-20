@@ -1,7 +1,7 @@
 // Copy of NotchPill, NotchContent, IslandView and IslandBand: one black island that morphs between the pill, the open island,
 // the alert islands and the receipt, with the band's ring and value travelling between them.
 import {S24} from './device.mjs';
-import {D, G, anchor, ISLAND_INSET_DP, pillRing, bandAt} from './notch-geometry.mjs';
+import {D, G, anchor, ISLAND_INSET_DP, pillRing, bandAt, fits} from './notch-geometry.mjs';
 import {el, glyph, button, face, title, line, pill, controls, row, rowValue, circle, accent, lookOf, ICONS, INK} from './notch-parts.mjs';
 import {alertFace} from './notch-alert.mjs';
 import {alertChip, alertSpoken, receiptFace, manageFace, MARK} from './notch-change.mjs';
@@ -10,7 +10,6 @@ import {dropAmPm} from './notch-day.mjs';
 import {swipeable} from './notch-gesture.mjs';
 
 const C = 2 * Math.PI * 16.5;
-const MAX_SHARE = 0.6;
 
 function describe(primary, secondary, scene) {
   const say = item => item.kind === 'WATER' ? `Water due, ${scene.water.count} of ${scene.water.goal} glasses`
@@ -218,20 +217,19 @@ export function renderNotch(stage, opts) {
   if (mode === 'pill') {
     ({face: next, geo} = pillFace(stage, opts, band, fontScale));
   } else {
-    const w = S24.width / D - 2 * ISLAND_INSET_DP, cap = (S24.height / D) * MAX_SHARE;
+    const w = S24.width / D - 2 * ISLAND_INSET_DP, cap = (S24.height / D) * G.MAX_HEIGHT_SHARE;
     const build = rows => alerting ? alertFace(alert, actions) : mode === 'receipt' ? receiptFace(receipt, actions)
       : mode === 'manage' ? manageFace(managed, actions) : openFace(scene, actions, rows);
-    let rows = 3;
-    next = build(rows);
-    next.style.setProperty('--face-w', `${w}px`);
-    settle(island, next, same || first || instant);
-    while (mode === 'open' && rows > 1 && next.offsetHeight > cap) {
-      next.remove();
-      next = build(--rows);
+    let tried = 0;
+    for (const fit of fits(mode === 'open')) {
+      if (tried++) next.remove();
+      next = build(fit.rows);
+      next.toggleAttribute('data-short-title', fit.shortTitle);
       next.style.setProperty('--face-w', `${w}px`);
-      settle(island, next, true);
+      settle(island, next, tried > 1 || same || first || instant);
+      if (next.offsetHeight <= cap) break;
     }
-    geo = {x: ISLAND_INSET_DP, w, h: Math.min(next.offsetHeight, cap), r: G.RADIUS_DP};
+    geo = {x: ISLAND_INSET_DP, w, h: Math.max(next.offsetHeight, h), r: G.RADIUS_DP};
   }
   if (mode === 'pill') {
     next.style.setProperty('--face-w', `${geo.w}px`);

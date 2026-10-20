@@ -11,8 +11,17 @@ export const G = Object.freeze({
   RADIUS_DP: 36, PAD_DP: 16, CIRCLE_DP: 40, CONTROL_DP: 40, TOUCH_DP: 48, ROW_DP: 44, ROW_OUTSET_DP: 8, BAND_GAP_DP: 12,
   CONTROLS_GAP_DP: 16, ROWS_GAP_DP: 12, PAIR_GAP_DP: 8, PILL_RING_DP: 28, PILL_RING_INSET_DP: 4, MIN_PILL_WIDTH_DP: 112,
   VALUE_START_DP: 8, VALUE_END_DP: 14, VALUE_CAP_DP: 12, CHIP_DP: 16, PILL_VALUE_SP: 15, BAND_VALUE_SP: 22, ALERT_TIME_SP: 17,
+  MAX_HEIGHT_SHARE: 0.6, SHORT_TITLE_LINES: 2,
 });
 export const innerRadius = inset => G.RADIUS_DP - inset;
+
+/** NotchGeometry.fits: the open island drops rows 3, 2, 1, then any face cuts its title to two lines; nothing is ever cut off. */
+export function fits(open) {
+  const out = [];
+  for (let rows = 3; rows >= (open ? 1 : 3); rows--) out.push({rows, shortTitle: false});
+  out.push({rows: open ? 1 : 3, shortTitle: true});
+  return out;
+}
 export const faceTop = () => G.PAD_DP + G.CIRCLE_DP + G.BAND_GAP_DP;
 
 export function anchor(device = S24) {
