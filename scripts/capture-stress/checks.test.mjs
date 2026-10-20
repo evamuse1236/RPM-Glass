@@ -187,3 +187,22 @@ test('the isolated critic sees edited canonical rows and the seeded context, not
   assert.deepEqual(input.saved.newTasks,[]);
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+test('adversary health requires water, a skipped meal and named breakfast together',()=>{
+ const expect={created:[],maxNew:0,health:{waterDelta:3,mealSkipped:'lunch',meals:[{slot:'breakfast',state:'logged',foodWords:['poha']}]}};
+ const before=empty(),after=empty();
+ after.planner.body.water.glasses=[{},{},{}];
+ after.planner.body.meals=[{slot:'breakfast',state:'logged',name:'poha'},{slot:'lunch',state:'skipped'}];
+ assert.deepEqual(checkExpectation(expect,{before,after}),[]);
+ for(const breakOne of [d=>d.planner.body.water.glasses.pop(),d=>d.planner.body.meals.pop(),d=>d.planner.body.meals[0].name='toast']){
+  const broken=structuredClone(after);breakOne(broken);
+  assert.ok(checkExpectation(expect,{before,after:broken}).some(f=>f.type==='lost item'));
+ }
+});
+
+test('a shopping task can cover both named goods but cannot omit either',()=>{
+ const created=[{entity:'task',words:['rice']},{entity:'task',words:['eggs'],allowShared:true}];
+ assert.deepEqual(compare({created},[{...bank(),title:'Buy rice and eggs'}]),[]);
+ assert.deepEqual(compare({created,maxNew:2},[{...bank(),title:'Buy rice'},{...bank(),id:2,title:'Buy eggs'}]),[]);
+ assert.ok(compare({created},[{...bank(),title:'Buy rice'}]).some(f=>f.type==='lost item'));
+});

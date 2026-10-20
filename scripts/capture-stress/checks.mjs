@@ -32,7 +32,7 @@ export function checkExpectation(expect,{before,after,draft,focusDraft=draft,que
  const used=new Set();
  for(const item of required){
   const candidates=created.filter(e=>(!item.entity||e.entity===item.entity)&&matchesItem(e.title,item));
-  const match=candidates.find(e=>!used.has(key(e)));
+  const match=candidates.find(e=>item.allowShared||!used.has(key(e)));
   if(!match){fail('lost item',`Missing ${item.entity??'item'} title containing ${item.words.join(' + ')} in ${expect.scope??'saved'} state`);continue;}
   used.add(key(match));
   checkFields(item,match,fail,after);

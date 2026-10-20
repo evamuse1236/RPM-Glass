@@ -77,3 +77,13 @@ The new meal-window and prompt-classification paths are UNVERIFIED in the phone 
 Artifacts remain under `.verify/capture-stress/`: `g-baseline`, `g-expanded-baseline`, `g-round1-repeat`, `g-round1-full`, `g-round2-repeat`, `g-round2-full`, and `g-final`. Each has inputs, outputs and saved stores. Full reports retain all failures. Rechecks preserve the original results and their hashes.
 
 CLI project-document and hook canaries passed. Strict custom-prompt-only isolation remains UNVERIFIED. CLI framing and runtime instructions can differ from the phone API. Native networking, provider fallback, actual notification delivery, Samsung behavior, voice transcription and real widget placement remain UNVERIFIED.
+
+## Round 2
+
+Work is on `gauntlet/ai`, alone, with CLI transport. No push, emulator or UI changes are authorized for this track. Native verification will remain UNVERIFIED. The fixed corpus clock stays Monday 19 October at 10 AM IST.
+
+The adversary's 40 cases are committed before app changes. I inspected every expectation against the checker and product terms. Combined water, skipped meal and breakfast checks already exist. A new negative-control test proves each part can fail independently.
+
+Three expectations omitted requested actions. The mixed day now requires Kunal's notes too. Rice and eggs, and atta and oil, now require both goods. The checker permits those shopping pairs in one combined task or two tasks, but omission still fails. `checks.test.mjs` has omission and combined/separate controls. No model result informed these corrections.
+
+Assumptions: “shift by an hour” means later in the adversary's two-calls case. A reported completed call can complete the saved future call. “Have to … otherwise I lose the seat” deliberately marks an essential action. An incidental visa appointment in a reason is context, not permission to invent another task. Existing strict checks enforce that last boundary.
