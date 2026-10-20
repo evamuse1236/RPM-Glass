@@ -29,7 +29,7 @@
 }
 /* What sits raised on a sheet (a search field, a lifted row, a banner) uses the step above the sheet's own tone. */
 .sheet :is(.block-search, .task-row.lifted, .step-edit.lifted, .banner, .empty-art, .stepper-btn) { background: var(--sheet-raised); }
-.sheet :is(.block-row, .original-capture):not(:active) { background: var(--sheet-card); }
+.sheet .original-capture:not(:active) { background: var(--sheet-card); }
 .sheet.expanded { height: 92%; }
 /* Content swap on the shared X axis: the old content slides out over the new one (both see-through, so the sheet
    is never empty) while the sheet's height morphs to the new content. The handle stays put. */

@@ -8,7 +8,6 @@ const hhmm = minutes => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${
 export const TIME_GRID = Object.freeze(Array.from({length: 35}, (_, i) => hhmm(360 + i * 30)));
 export const REPEATS = [['', "Doesn't repeat"], ['daily', 'Daily'], ['weekdays', 'Every weekday'], ['weekly', 'Weekly'],
   ['after', 'After completion']];
-export const REPEAT_CHIPS = REPEATS.map(([value, text]) => [value, value === 'weekdays' ? 'Weekdays' : text]);
 export const ALERTS = [['off', 'No alert'], ['reminder', 'Reminder'], ['alarm', 'Ringing alarm']];
 
 /* ---------- values ---------- */
@@ -160,10 +159,53 @@ export function timePresets(current = '') {
 }
 
 export const repeatValue = task => (task?.repeatAfterDays ? 'after' : task?.recurrence ?? '');
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export function repeatLabel(task) {
   if (task?.repeatAfterDays) return `${task.repeatAfterDays} ${task.repeatAfterDays === 1 ? 'day' : 'days'} after completion`;
+  if (task?.recurrence === 'days') return 'Every ' + weekOrder(task.repeatDays ?? []).map(d => DAY_NAMES[d]).join(', ');
   return REPEATS.find(([value]) => value === (task?.recurrence ?? ''))?.[1] ?? "Doesn't repeat";
 }
+
+/** The Repeat tab's circles, Monday first: [weekday 0–6, letter, name]. */
+export const REPEAT_DAYS = [1, 2, 3, 4, 5, 6, 0].map(d => [d, DAY_NAMES[d][0], new Date(2026, 9, 18 + d, 12).toLocaleDateString([], {weekday: 'long'})]);
+const weekOrder = days => [...new Set(days)].sort((a, b) => (a + 6) % 7 - (b + 6) % 7);
+const weekdayOf = planned => (planned ? new Date(planned).getDay() : null);
+
+/** The weekdays a task repeats on (0 Sunday to 6 Saturday); a weekly task repeats on its own day. */
+export function repeatDaysOf(task) {
+  switch (task?.repeatAfterDays ? 'after' : task?.recurrence) {
+    case 'daily': return [0, 1, 2, 3, 4, 5, 6];
+    case 'weekdays': return [1, 2, 3, 4, 5];
+    case 'weekly': return weekdayOf(task.planned) == null ? [] : [weekdayOf(task.planned)];
+    case 'days': return weekOrder(task.repeatDays ?? []);
+    default: return [];
+  }
+}
+
+/** The saved fields for a set of weekdays, in the plainest pattern that says it: none, daily, weekdays, weekly or chosen days. */
+export function repeatFieldsFor(days, planned) {
+  const set = weekOrder(days);
+  const off = {recurrence: null, repeatDays: null, repeatAfterDays: null};
+  if (!set.length) return off;
+  if (set.length === 7) return {...off, recurrence: 'daily'};
+  if (set.join() === '1,2,3,4,5') return {...off, recurrence: 'weekdays'};
+  if (set.length === 1 && set[0] === weekdayOf(planned)) return {...off, recurrence: 'weekly'};
+  return {...off, recurrence: 'days', repeatDays: [...set].sort((a, b) => a - b)};
+}
+
+/** The Repeat tab's short value: "Once", "Every day", "Weekdays", "Mo We Fr" or "After 3 days". */
+export function repeatShort(task) {
+  if (task?.repeatAfterDays) return `After ${task.repeatAfterDays} ${task.repeatAfterDays === 1 ? 'day' : 'days'}`;
+  const days = repeatDaysOf(task);
+  if (!days.length) return 'Once';
+  if (days.length === 7) return 'Every day';
+  if (task.recurrence === 'weekdays') return 'Weekdays';
+  return days.map(d => DAY_NAMES[d].slice(0, 2)).join(' ');
+}
+
+/** Lead times for an alert, in minutes before the task. */
+export const ALERT_LEADS = [0, 5, 10, 30, 60];
+export const leadLabel = minutes => (minutes ? `${minutes} min before` : 'On time');
 
 const WORDS = {today: 0, tonight: 0, tomorrow: 1, tmr: 1, tmrw: 1};
 const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];

@@ -23,7 +23,7 @@ Blocks is the list of Results the user is working toward, and each Result opens 
 - Tap `Blocks` in the bottom navigation bar.
 - Tap a Result card on the Blocks list.
 - Tap a Block card inside a Project's detail page.
-- Tap a task's `Part of <Block>` panel in the task sheet.
+- Tap the `Block` tab in the task sheet and choose a Block from its list.
 - Tap `Open Plan` in the weekly review, or a search result of type Block.
 - Tap `Back` on the detail page to return to the list.
 

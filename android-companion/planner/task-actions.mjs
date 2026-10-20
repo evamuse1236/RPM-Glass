@@ -1,5 +1,5 @@
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
-import {el, icon, button, iconButton} from './dom.mjs';
+import {el, icon, button} from './dom.mjs';
 import {reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
 import {openSheet, isSheetOpen} from './sheet.mjs';
 import {closeMenu} from './menu.mjs';
@@ -132,20 +132,14 @@ export function scheduleMenu(app, task, anchor, {occurrence = null, moveToBlock 
  * Move to Block: a search, the recent and suggested Blocks first, then the rest. With `back` (the task sheet that
  * opened it), choosing saves and returns there, and Android Back or the arrow returns without a change.
  */
-export function movePicker(app, task, {back = null} = {}) {
-  const {body, header} = openSheet(app, 'Move to Block');
-  if (back) header.prepend(iconButton('arrow_back', 'Back to task', back, {cls: 'sheet-back'}));
+export function movePicker(app, task) {
+  const {body} = openSheet(app, 'Move to Block');
   body.append(el('p', 'sheet-note', 'Moving keeps the task, its schedule and its details.'));
   const pick = (blockId, title) => {
     rememberBlock(blockId);
     const label = blockId ? 'Moved to ' + title : 'Moved to No block';
-    app.commit({type: 'moveTask', id: task.id, blockId}, {label, keepSheet: !!back}).then(() => back?.(), () => {});
+    app.commit({type: 'moveTask', id: task.id, blockId}, {label}).catch(() => {});
   };
   blockChooser(body, {blocks: () => app.activeBlocks(), get: () => findTask(app, task.id)?.blockId ?? null, pick,
     recent: recentBlock(), suggested: suggestBlock(app, task, task.blockId)?.id ?? null});
-  app.sheet.onBack = () => {
-    if (!back || !body.isConnected || !isSheetOpen(app)) return false;
-    back();
-    return true;
-  };
 }
