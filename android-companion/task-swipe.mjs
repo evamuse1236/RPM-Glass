@@ -39,7 +39,6 @@ export function rowOffset(dx, sides, width) {
 export const REVEALS = {
   done: ['check', 'Done'],
   schedule: ['event_upcoming', 'Schedule'],
-  move: ['drive_file_move', 'Move'],
   remove: ['delete', 'Delete'],
   log: ['restaurant', 'Log now'],
   choose: ['check', 'Choose'],

@@ -23,7 +23,7 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 
 ### Gestures
 
-- Task rows (Today's spine cards, Block Plan, Inbox, lists): swipe right is **Done**, swipe left is **Schedule** (one-tap date choices). In the Inbox, swipe left is **Move to Block**. A drag locks to one axis after 8px, so vertical scrolling never moves a row; letting go before 90dp springs back and changes nothing.
+- Task rows (Today's spine cards, Block Plan, Inbox, lists): swipe right is **Done**, swipe left is **Schedule** (one-tap date choices). In the Inbox the same choices end with **Move to Block…**, so an Inbox task goes to Today or Tomorrow 9:00 AM in two taps. A drag locks to one axis after 8px, so vertical scrolling never moves a row; letting go before 90dp springs back and changes nothing.
 - Delete is never a swipe. A long press on a task row opens a quick menu with Must, Move to Block and Delete; on Block Plan rows the long press stays the reorder lift, and Delete is in the task sheet's `Task actions`.
 - Week strip: swipe right for the previous week, left for the next; long-press a day for that day's tasks in a sheet; tap a day to open it. On Today, a day-change swipe starts only from the gutter, the date line or empty space.
 - The task sheet's handle drags it down; it closes past 30% of its height or a fast flick.

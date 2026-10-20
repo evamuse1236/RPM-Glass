@@ -1,5 +1,5 @@
 /* Gestures and their motion (task-swipe.mjs, planner/row-gestures.mjs). Ships inside planner.css, after it.
-   Swipe right = Done (tertiary), swipe left = Schedule (primary) or, in the Inbox, Move to Block (secondary).
+   Swipe right = Done (tertiary), swipe left = Schedule (primary; in the Inbox its menu ends with Move to Block).
    The reveal shows from the 8px lock at a tint; at the 90dp commit it fills and its icon grows, both in 40ms. */
 .swipe-reveal {
   --reveal: var(--primary-container);
@@ -10,7 +10,6 @@
 }
 .swipe-reveal[data-side=left] { flex-direction: row-reverse; }
 .swipe-reveal[data-kind=done] { --reveal: var(--tertiary-container); --on-reveal: var(--on-tertiary-container); }
-.swipe-reveal[data-kind=move] { --reveal: var(--secondary-container); --on-reveal: var(--on-secondary-container); }
 .swipe-reveal[data-kind=remove] { --reveal: var(--error-container); --on-reveal: var(--on-error-container); }
 .swipe-task[data-armed=true] .swipe-reveal { background: var(--reveal); }
 .swipe-reveal .ms { display: inline-block; transition: none; }

@@ -60,7 +60,7 @@ export function closeSchedule({restoreFocus = true} = {}) {
  * One-tap reschedules anchored to the swiped row (or the task sheet's More button): each choice is a whole date and
  * time and saves at once with Undo. "Pick a date…" opens the task sheet with its date choices unfolded.
  */
-export function scheduleMenu(app, task, anchor, {occurrence = null} = {}) {
+export function scheduleMenu(app, task, anchor, {occurrence = null, moveToBlock = false} = {}) {
   closeMenu();
   closeSchedule({restoreFocus: false});
   const t = findTask(app, task.id) ?? task;
@@ -95,6 +95,12 @@ export function scheduleMenu(app, task, anchor, {occurrence = null} = {}) {
   other.setAttribute('role', 'menuitem');
   other.append(icon('calendar_month'), el('span', 'schedule-label', 'Pick a date…'));
   menu.append(other);
+  if (moveToBlock) {
+    const move = button('', () => { closeSchedule({restoreFocus: false}); movePicker(app, t); }, 'menu-item schedule-item');
+    move.setAttribute('role', 'menuitem');
+    move.append(icon('drive_file_move'), el('span', 'schedule-label', 'Move to Block…'));
+    menu.append(move);
+  }
   menu.addEventListener('keydown', event => {
     if (event.key === 'Escape') {
       event.preventDefault();

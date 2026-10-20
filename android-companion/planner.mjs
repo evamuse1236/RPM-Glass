@@ -28,7 +28,7 @@ function installActions(app) {
     movePicker: task => movePicker(app, task),
     archiveTask: task => archiveTask(app, task),
     deleteTask: task => deleteTask(app, task),
-    scheduleTask: (task, anchor) => scheduleMenu(app, task, anchor, {occurrence: task.occurrence}),
+    scheduleTask: (task, anchor, {moveToBlock = false} = {}) => scheduleMenu(app, task, anchor, {occurrence: task.occurrence, moveToBlock}),
     trash: archive => showTrash(app, archive),
     inbox: () => showInbox(app),
     newEntity: (collection, defaults = {}) => entityEditor(app, collection, null, defaults),
