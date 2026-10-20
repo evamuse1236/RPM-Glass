@@ -7,7 +7,7 @@ The notch is a black island around the front camera, drawn by the `RPM Notch` ac
 - `notch-pill` shows a ring and the current or next task's time (or water, routine) beside the camera. Within 12 hours the time drops AM/PM.
 - `notch-open` opens the island on tap, swipe right or pull down; swipe up or a tap outside closes it.
 - `notch-long-press` opens the task's sheet in the planner. In the open island, a tap on the title and line does the same.
-- `notch-glass` when water is due and no task is planned, the island's primary control is `Glass`; otherwise the due water row (dots, `N/G`, a plus) logs a glass. It saves in place (the planner stays closed) and the island turns into a receipt: the band's ring fills one step, `Glass logged` over `N of G today`, and `Undo` sits in the band for 5 s.
+- `notch-glass` when water is due and no task is planned, the island's primary control is `Glass`; otherwise the due water row (dots at normal text, `N/G`, a plus circle) logs a glass. It saves in place (the planner stays closed) and the island turns into a receipt: the band's ring fills one step, `Glass logged` over `N of G today`, and `Undo` sits in the band for 5 s.
 - `notch-done` the island's `Done` ticks the task in place, a repeating task only at the occurrence shown, with the same receipt and Undo.
 - `notch-alert-rows` the next reminder or alarm still to come today shows as the hero's own alert row, as a chip and a Done circle on its task row, or else as its own row. Tapping it opens the alert's controls: `Turn off` as the primary, then rows `Make it a ringing alarm` or `Make it a reminder`, `Done`, `Open`; each change shows a receipt with Undo.
 - `notch-snooze` swipe left snoozes due water and routine nudges and shows `+Nm` on the pill for 2 s.

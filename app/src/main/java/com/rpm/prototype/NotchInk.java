@@ -11,6 +11,8 @@ final class NotchInk {
     static final int TRACK = 0x2EFFFFFF;
     static final int PRESS = 0x1FFFFFFF;
     static final int SECONDARY = 0x14FFFFFF;
+    /** A row control's 1dp ring: white 12%. */
+    static final int OUTLINE = 0x1FFFFFFF;
     static final int TASK = 0xFFA8C7FA;
     static final int EVENT = 0xFFC4C7C5;
     static final int WATER = 0xFF7CACF8;

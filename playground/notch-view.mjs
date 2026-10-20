@@ -103,33 +103,49 @@ function paintValue(v, band, at, fontScale, pillDp) {
   v.style.translate = `${at.valueRight - v.offsetWidth}px ${at.cy - v.offsetHeight / 2}px`;
 }
 
-function sceneRow(r, scene, actions) {
+/** A row's one trailing control: a quiet 40dp circle (NotchParts.rowCircle). */
+function rowCircle(icon, color, spoken, action) {
+  const c = circle('notch-row-circle', spoken, action, icon);
+  c.style.color = color;
+  return c;
+}
+
+/** NotchContent.row: every row ends in one 40dp circle; water's dots show only at normal text, where they fit. */
+function sceneRow(r, scene, actions, fontScale) {
   const color = r.look === 'TASK' || r.look === 'EVENT' ? INK.W60 : accent(r.look);
-  if (r.heros) return row(ICONS[r.look], color, r.title, alertSpoken(r.alert, scene.heroTitle, r.value), () => actions.manage(r.slot), rowValue(r.value, color));
+  if (r.heros) {
+    const manage = () => actions.manage(r.slot);
+    return row(ICONS[r.look], color, r.title, alertSpoken(r.alert, scene.heroTitle, r.value), manage,
+      rowCircle('ic_chevron', INK.W87, `Change the alert for ${scene.heroTitle}`, manage));
+  }
   if (r.look === 'WATER' && scene.water) {
     const dots = el('span', 'notch-dots');
     for (let i = 0; i < Math.min(12, scene.water.goal); i++) dots.append(el('i', i < scene.water.count ? 'on' : ''));
-    const plus = glyph(null, 'notch_ic_plus');
-    plus.style.color = INK.WATER;
-    return row(ICONS.WATER, color, r.title, `${r.title}, ${r.value}. Log a glass of water`, actions.drink, dots,
-      rowValue(`${scene.water.count}/${scene.water.goal}`, INK.WATER), plus);
+    return row(ICONS.WATER, color, r.title, `${r.title}, ${r.value}. Log a glass of water`, actions.drink, ...(fontScale > 1.3 ? [] : [dots]),
+      rowValue(`${scene.water.count}/${scene.water.goal}`, INK.WATER), rowCircle('notch_ic_plus', INK.WATER, 'Log a glass of water', actions.drink));
   }
   if (r.alert) {
-    const done = circle('notch-row-done', `Done: ${r.title}`, () => actions.doneSlot(r.slot), 'ic_check');
-    return row(ICONS[r.look], color, r.title, alertSpoken(r.alert, r.title, r.value), () => actions.manage(r.slot), alertChip(r.alert, r.value), done);
+    return row(ICONS[r.look], color, r.title, alertSpoken(r.alert, r.title, r.value), () => actions.manage(r.slot), alertChip(r.alert, r.value),
+      rowCircle('ic_check', INK.W87, `Done: ${r.title}`, () => actions.doneSlot(r.slot)));
   }
-  if (r.look === 'MEAL') return row(ICONS.MEAL, color, r.title, `${r.title}, not logged. Log it in the planner`, actions.logMeal, rowValue('Log', INK.MEAL));
-  const value = r.look === 'HABIT' && scene.habit ? `${scene.habit.done}/${scene.habit.total}` : r.value;
-  return row(ICONS[r.look], color, r.title, `${r.title}, ${r.value}`, null, rowValue(value, r.look === 'HABIT' ? INK.HABIT : INK.W60));
+  if (r.look === 'MEAL') {
+    return row(ICONS.MEAL, color, r.title, `${r.title}, not logged. Log it in the planner`, actions.logMeal,
+      rowCircle('notch_ic_plus', INK.MEAL, `Log ${r.title} in the planner`, actions.logMeal));
+  }
+  const habit = r.look === 'HABIT' && scene.habit;
+  const value = rowValue(habit ? `${scene.habit.done}/${scene.habit.total}` : r.value, habit ? INK.HABIT : INK.W60);
+  const end = habit ? [rowCircle('notch_ic_snooze', INK.HABIT, `Snooze ${r.title} for ${scene.snoozeMinutes} minutes`, actions.snoozeRoutine)]
+    : r.slot && !r.slot.task.fixed ? [rowCircle('ic_check', INK.W87, `Done: ${r.title}`, () => actions.doneSlot(r.slot))] : [];
+  return row(ICONS[r.look], color, r.title, `${r.title}, ${r.value}`, null, value, ...end);
 }
 
 /** The open island: title, line, the hero's one control (two when Later sits beside Glass), then up to maxRows rows. */
-function openFace(scene, actions, maxRows) {
+function openFace(scene, actions, maxRows, fontScale) {
   const heroAccent = accent(scene.heroLook);
   const pills = heroControls(scene).map((c, i) => c === 'DONE' ? pill('ic_check', 'Done', `Done: ${scene.heroTitle}`, heroAccent, i === 0, actions.done)
     : c === 'GLASS' ? pill('notch_ic_water', 'Glass', 'Log a glass of water', INK.WATER, i === 0, actions.drink)
       : pill('notch_ic_snooze', 'Later', `Snooze ${scene.snoozeMinutes} minutes`, heroAccent, i === 0, actions.snooze));
-  const rows = visibleRows(scene, maxRows).map(r => sceneRow(r, scene, actions));
+  const rows = visibleRows(scene, maxRows).map(r => sceneRow(r, scene, actions, fontScale));
   const words = scene.hero ? [button('notch-words', `Open ${scene.heroTitle} in the plan`, actions.openHero)] : [];
   words[0]?.append(title(scene.heroTitle), line(scene.heroSubtitle, heroAccent));
   const parts = words.length ? words : [title(scene.heroTitle), line(scene.heroSubtitle, heroAccent)];
@@ -242,7 +258,7 @@ export function renderNotch(stage, opts) {
   } else {
     const w = S24.width / D - 2 * islandInset(), cap = (S24.height / D) * G.MAX_HEIGHT_SHARE;
     const build = rows => alerting ? alertFace(alert, actions) : mode === 'receipt' ? receiptFace(receipt, actions)
-      : mode === 'manage' ? manageFace(managed, actions) : openFace(scene, actions, rows);
+      : mode === 'manage' ? manageFace(managed, actions) : openFace(scene, actions, rows, fontScale);
     let tried = 0;
     for (const fit of fits(mode === 'open')) {
       if (tried++) next.remove();

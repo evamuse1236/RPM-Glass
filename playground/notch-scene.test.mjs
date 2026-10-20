@@ -273,7 +273,7 @@ test('every control shrinks to the same scale while pressed, on the phone and in
   assert.match(css, new RegExp(`transition: scale ${ms}ms var\\(--ease\\)`));
   for (const part of ['.notch-pill-button', '.notch-row-tap', '.notch-circle-button', '.notch-undo', '.notch-words']) assert.ok(pressed[1].includes(part), part);
   const parts = javaSource('NotchParts');
-  for (const method of ['View words(', 'View pill(', 'LinearLayout row(', 'View circleButton(']) {
+  for (const method of ['View words(', 'View pill(', 'LinearLayout row(', 'View rowCircle(']) {
     const body = parts.slice(parts.indexOf(method), parts.indexOf('\n    }\n', parts.indexOf(method)));
     assert.match(body, /pressShrinks\(/, method);
   }
@@ -287,10 +287,24 @@ test('the open island\'s title and line open the task, as the alert island\'s wo
   assert.match(readFileSync(new URL('./notch-view.mjs', import.meta.url), 'utf8'), /button\('notch-words', `Open \$\{scene\.heroTitle\} in the plan`, actions\.openHero\)/);
 });
 
-test('an alert row\'s Done circle ends 16dp from the island\'s edge, like every row value', () => {
-  assert.doesNotMatch(javaSource('NotchContent'), /ROW_DP - NotchGeometry\.CONTROL_DP\) \/ 2/, 'the row keeps its own 8dp end');
+test('every row ends in one quiet 40dp circle, 16dp from the island\'s edge; water keeps its dots only at normal text', () => {
+  const content = javaSource('NotchContent');
+  const row = content.slice(content.indexOf('private View row('), content.indexOf('private View value('));
+  const branches = row.split('return row;').slice(0, -1);
+  assert.equal(branches.length, 5, 'hero alert, water, alert task, meal, task or routine');
+  for (const b of branches) assert.equal(b.split('parts.trailCircle(').length - 1, b.includes('if (habit)') ? 2 : 1, 'one circle per row');
+  assert.ok(!row.includes('value("Log"') && !row.includes('notch_ic_plus, NotchInk.WATER), plusAt'), 'no bare text or glyph controls');
+  assert.ok(row.includes('if (!parts.largeText()) NotchParts.trail(row, new NotchParts.Dots('));
+  const parts = javaSource('NotchParts');
+  assert.ok(parts.includes('b.setBackground(states(outlined(Color.TRANSPARENT, r), outlined(NotchInk.PRESS, r)));'));
+  assert.ok(javaSource('NotchInk').includes('static final int OUTLINE = 0x1FFFFFFF;'));
   const css = readFileSync(new URL('./notch.css', import.meta.url), 'utf8');
-  assert.match(css, /\.notch-row-done \{ background: var\(--secondary\); color: var\(--t87\); \}/);
+  assert.ok(css.includes('.notch-row-circle { background: transparent; box-shadow: inset 0 0 0 1px var(--outline); }'));
+  assert.ok(css.includes('--outline: oklch(100% 0 none / 0.12);'));
+  const view = readFileSync(new URL('./notch-view.mjs', import.meta.url), 'utf8');
+  const copy = view.slice(view.indexOf('function sceneRow('), view.indexOf('function openFace('));
+  assert.equal(copy.split('rowCircle(').length - 1, 6, 'hero alert, water, alert task, meal, routine, task');
+  assert.ok(copy.includes("...(fontScale > 1.3 ? [] : [dots])"));
   assert.equal(G.ROW_OUTSET_DP + 8, G.PAD_DP, 'rows reach 8dp past the margin and pad 8dp back in');
   assert.equal(innerRadius(G.PAD_DP), G.CONTROL_DP / 2, 'at a 16dp inset the 40dp circle is concentric with the island');
 });
@@ -370,7 +384,7 @@ test('a ringing alarm puts Stop across the width over Snooze 10 min and Done; a 
   assert.ok(alarm.indexOf('"Snooze "') > stop && alarm.indexOf('"Done"') > alarm.indexOf('"Snooze "'), 'Snooze then Done under it');
   assert.ok(alarm.includes('NotchInk.ALARM, false, actions::doneAlert'), 'Done is a secondary on the alarm');
   assert.ok(alarm.includes('parts.pairUnder()'));
-  assert.ok(!alarm.includes('circleButton') && !alarm.includes('bandControl'), 'no Stop circle in the band');
+  assert.ok(!alarm.includes('rowCircle') && !alarm.includes('bandControl'), 'no Stop circle in the band');
   const reminder = views.slice(views.indexOf('View reminder('), views.indexOf('View alarm('));
   assert.ok(reminder.includes('"Done", "Done: " + alert.title, NotchInk.TASK, true'), 'a reminder keeps Done as its primary');
   const copy = readFileSync(new URL('./notch-alert.mjs', import.meta.url), 'utf8');

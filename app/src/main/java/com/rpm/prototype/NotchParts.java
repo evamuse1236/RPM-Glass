@@ -309,16 +309,33 @@ final class NotchParts {
         row.addView(part, lp);
     }
 
-    /** A 40dp round button: Done on an alert row. Its corner is 20dp. */
-    View circleButton(int fill, int pressedFill, int icon, int tint, String spoken, Runnable action) {
+    /**
+     * A row's one trailing control: a quiet 40dp circle, clear with a 1dp white 12% ring (filled white 12% while pressed),
+     * its icon 20dp. Its corner is 20dp, 36 less the 16dp it sits from the island's edge.
+     */
+    View rowCircle(int icon, int tint, String spoken, Runnable action) {
         FrameLayout b = new FrameLayout(context);
         float r = dp(NotchGeometry.innerRadius(NotchGeometry.PAD_DP));
-        b.setBackground(states(round(fill, r), round(pressedFill, r)));
+        b.setBackground(states(outlined(Color.TRANSPARENT, r), outlined(NotchInk.PRESS, r)));
         b.addView(glyph(icon, tint), new FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER));
         b.setContentDescription(spoken);
         b.setOnClickListener(v -> NotchController.safely(spoken, action));
         pressShrinks(b);
         return b;
+    }
+
+    private GradientDrawable outlined(int fill, float radius) {
+        GradientDrawable d = round(fill, radius);
+        d.setStroke(Math.max(1, dp(1)), NotchInk.OUTLINE);
+        return d;
+    }
+
+    /** Ends {@code row} with its one 40dp control, 12dp after what is before it. */
+    void trailCircle(LinearLayout row, View circle) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(NotchGeometry.CONTROL_DP), dp(NotchGeometry.CONTROL_DP));
+        lp.setMarginStart(dp(12));
+        lp.gravity = Gravity.CENTER_VERTICAL;
+        row.addView(circle, lp);
     }
 
     /** The alert's bell or clock and its time on a dim pill. */

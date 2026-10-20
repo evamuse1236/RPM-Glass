@@ -11,6 +11,7 @@
   --track: oklch(100% 0 none / 0.18);
   --press: oklch(100% 0 none / 0.12);
   --secondary: oklch(100% 0 none / 0.08);
+  --outline: oklch(100% 0 none / 0.12);
   --task: oklch(82.4% 0.074 259.6);
   --water: oklch(74.1% 0.122 259.3);
   --alarm: oklch(83.4% 0.068 22);
@@ -164,9 +165,9 @@
   border-radius: var(--inner);
   cursor: pointer;
 }
-.notch-row-done { background: var(--secondary); color: var(--t87); }
-.notch-row-done .notch-glyph { inline-size: 20px; block-size: 20px; }
-.notch-row-done:active { background: var(--press); }
+.notch-row-circle { background: transparent; box-shadow: inset 0 0 0 1px var(--outline); }
+.notch-row-circle .notch-glyph { inline-size: 20px; block-size: 20px; }
+.notch-row-circle:active { background: var(--press); }
 
 .notch-band-control { position: absolute; inset-block-start: var(--pad); inset-inline-end: var(--pad); }
 .notch-undo {

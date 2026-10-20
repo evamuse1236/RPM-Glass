@@ -350,6 +350,15 @@ final class NotchController implements NotchPill.Gestures {
             NotchController.this.openHero();
         }
 
+        @Override
+        public void snoozeRoutine() {
+            if (scene.habit == null) return;
+            prefs(service).edit().putLong(SNOOZE + NotchScene.routineSnooze(scene.habit.routine.id),
+                    System.currentTimeMillis() + scene.snoozeMinutes * NotchDay.MIN).apply();
+            NotchActions.log(service, "notch.snooze", "ok", NotchActions.payload("what", "routine", "minutes", scene.snoozeMinutes));
+            render();
+        }
+
         /** Holds the due water and routine nudges here for the snooze time; the planner's own data is untouched. */
         @Override
         public void snooze() {
