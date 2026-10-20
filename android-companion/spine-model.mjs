@@ -141,7 +141,7 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
   for (const row of marks) row.past = row.kind === 'meal' ? row.past || (!!row.meal && row.end < now) : row.kind !== 'water' && row.end < now;
   const current = blocks.filter(r => r.current);
   const next = live ? blocks.filter(r => r.start > now && !r.done).sort((a, b) => a.start - b.start)[0] : null;
-  if (next) next.next = true;
+  if (next) Object.assign(next, {next: true, soon: `in ${duration(Math.max(1, Math.ceil((next.start - now) / MIN)))}`});
 
   const rows = [...blocks, ...marks, ...freeRows(blocks, marks, {from, to, now, live})];
   if (live && !current.length) rows.push({kind: 'now', key: 'now', start: now, end: now, time: gutterTime(now), label: clockText(now)});

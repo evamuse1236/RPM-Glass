@@ -5,6 +5,7 @@ function gutter(row) {
   const node = el('div', 'spine-gutter tnum');
   node.setAttribute('aria-hidden', 'true');
   node.append(el('span', 'spine-time', row.sameTime ? '' : row.gutter?.time ?? row.time ?? ''));
+  if (row.soon) node.append(el('span', 'spine-soon', row.soon));
   if (row.gutter?.length) node.append(el('span', 'spine-length', row.gutter.length.replaceAll(' ', ' ')));
   return node;
 }
@@ -63,7 +64,7 @@ function words(row) {
   return copy;
 }
 
-const spoken = row => [row.title, row.gutter.time, row.gutter.length, row.line?.text,
+const spoken = row => [row.title, row.gutter.time, row.soon, row.gutter.length, row.line?.text,
   row.done ? 'done' : '', row.must ? 'Must' : ''].filter(Boolean).join(', ');
 
 function taskCard(row, on) {

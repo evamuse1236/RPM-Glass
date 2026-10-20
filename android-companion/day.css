@@ -51,6 +51,19 @@
 }
 :root[data-large-text=true] .spine-gutter { white-space: normal; overflow-wrap: break-word; }
 .spine-row.next .spine-gutter { color: var(--on-surface); font-weight: 700; }
+/* The next card alone: a 3dp primary bar on its inner left edge and how soon it starts under its time. */
+.spine-soon { color: var(--primary); }
+.spine-row.next .spine-card { position: relative; }
+.spine-row.next .spine-card::after {
+  content: "";
+  position: absolute;
+  inset-block: var(--s3);
+  inset-inline-start: -1px;
+  inline-size: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--primary);
+  pointer-events: none;
+}
 .spine-row.current .spine-gutter, .spine-now .spine-gutter { color: var(--now); font-weight: 700; }
 :is(.spine-water, .spine-meal, .spine-deadline, .spine-now) .spine-gutter { align-self: center; padding-block-start: 0; }
 .spine-gap .spine-gutter { padding-block-start: var(--s1); }

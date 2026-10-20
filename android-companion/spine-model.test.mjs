@@ -123,3 +123,9 @@ test('words read as Calendar writes them', () => {
   assert.deepEqual(slots.map(s => [s.slot, s.label]), [['breakfast', 'Breakfast · Poha'], ['lunch', 'Lunch · Not logged'],
     ['dinner', 'Dinner · Not logged']]);
 });
+
+test('only the next card says how soon it starts', () => {
+  const model = spine({tasks: [task('Read', '15:25', 30), task('Write', '17:00', 30)]});
+  const soon = model.rows.filter(r => r.soon).map(r => [r.key, r.soon.replace(/\s/g, ' ')]);
+  assert.deepEqual(soon, [['task:Read', 'in 40 min']]);
+});
