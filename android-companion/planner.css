@@ -380,7 +380,8 @@ button.list-item:active { background: var(--row-press); }
 .section-header small { font: var(--label-medium); color: var(--on-surface-variant); }
 
 /* Area identity: one hue per Area, everywhere */
-[data-tone] { --tone: var(--outline); }
+[data-tone] { --tone: var(--outline); --progress: var(--primary); }
+[data-tone^=area-] { --progress: var(--tone); }
 [data-tone=area-0] { --tone: var(--area-0); } [data-tone=area-1] { --tone: var(--area-1); }
 [data-tone=area-2] { --tone: var(--area-2); } [data-tone=area-3] { --tone: var(--area-3); }
 [data-tone=area-4] { --tone: var(--area-4); } [data-tone=area-5] { --tone: var(--area-5); }

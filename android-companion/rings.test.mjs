@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {nestedRings, ringSegments, MAX_RINGS, MAX_SEGMENTS} from './planner/rings.mjs';
 import {toggleProject} from './planner/projects.mjs';
 
@@ -31,4 +32,15 @@ test('a card tap opens its Block list, a second tap closes it, and only one card
   assert.equal(toggleProject(state, 'p2'), 'p2');
   assert.equal(toggleProject(state, 'p2'), null);
   assert.equal(state.projectOpen, null);
+});
+
+test('progress is drawn in the Area colour, or primary blue with no Area; never the neutral gray', () => {
+  const css = ['planner.css', 'planner-pages.css'].map(f => fs.readFileSync(new URL(`./${f}`, import.meta.url), 'utf8')).join('\n');
+  assert.ok(css.includes('[data-tone] { --tone: var(--outline); --progress: var(--primary); }'));
+  assert.ok(css.includes('[data-tone^=area-] { --progress: var(--tone); }'));
+  for (const stroke of ['.nest-value {', '.seg-on {']) {
+    const start = css.indexOf(stroke);
+    assert.ok(start >= 0, stroke);
+    assert.ok(css.slice(start, css.indexOf('}', start)).includes('stroke: var(--progress'), `${stroke} uses --progress`);
+  }
 });
