@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {UserError, netsimToStart, gpuMode} from './lib/device.mjs';
+import {UserError, netsimToStart, gpuMode, emulatorEnv} from './lib/device.mjs';
 import * as ownership from './lib/ownership.mjs';
 
 const source = fs.readFileSync(new URL('./lib/lifecycle.mjs', import.meta.url), 'utf8');
@@ -151,4 +151,10 @@ test('launch refuses software GPU modes unless RPM_ALLOW_SOFTWARE_GPU=1', () => 
   for (const mode of ['swiftshader_indirect', 'swiftshader', 'guest', 'software'])
     assert.throws(() => gpuMode(mode, {}), UserError);
   assert.equal(gpuMode('swiftshader_indirect', {RPM_ALLOW_SOFTWARE_GPU: '1'}), 'swiftshader_indirect');
+});
+
+test('the emulator keeps its multi-GB disk files out of the RAM-backed /tmp', () => {
+  assert.equal(emulatorEnv({}, '/home/u', 'linux').ANDROID_TMP, '/home/u/.cache/android-tmp');
+  assert.equal(emulatorEnv({ANDROID_TMP: '/x'}, '/home/u', 'linux').ANDROID_TMP, '/x');
+  assert.equal(emulatorEnv({}, 'C:/Users/u', 'win32').ANDROID_TMP, undefined);
 });

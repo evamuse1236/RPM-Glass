@@ -71,10 +71,17 @@ export function gpuMode(requested = 'host', env = process.env) {
     'Drop --gpu. The startup line "Your GPU cannot be used for hardware rendering" is harmless when the screen draws. If the host-GPU emulator stays black, crashes, or goes offline (log: "error null ctx"), relaunch with RPM_ALLOW_SOFTWARE_GPU=1 and say so in the reply.');
 }
 
+export function emulatorEnv(env = process.env, home = os.homedir(), platform = process.platform) {
+  if (env.ANDROID_TMP || platform === 'win32') return env;
+  return {...env, ANDROID_TMP: path.join(home, '.cache', 'android-tmp')};
+}
+
 export function startEmulator({avd, port, logFile, gpu}) {
   const args = ['-avd', avd, '-port', String(port), '-read-only', '-no-window', '-no-audio', '-no-boot-anim', '-gpu', gpuMode(gpu), '-no-snapshot-save'];
   const log = fs.openSync(logFile, 'a');
-  const child = spawn(emulatorPath(), args, {detached: true, stdio: ['ignore', log, log], windowsHide: true});
+  const env = emulatorEnv();
+  if (env.ANDROID_TMP) fs.mkdirSync(env.ANDROID_TMP, {recursive: true});
+  const child = spawn(emulatorPath(), args, {detached: true, stdio: ['ignore', log, log], windowsHide: true, env});
   child.unref();
   return {pid: child.pid, args};
 }

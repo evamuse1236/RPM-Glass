@@ -10,7 +10,7 @@ For a Google Tasks batch, read the installed `tasks` skill and preserve its batc
 
 For an authorized phone release, compare the working tree, branch, and installed build so the release preserves newer features and unrelated work. Follow `docs/testing.md` and relevant phone setup guidance. Verify package/version, compatible signing, preserved app data, and actual launch. Report commit/push, APK build, device installation, and external integration activation separately.
 
-When Vishwajit asks for a finished APK, send it to their Telegram with the global `juno` skill: build it, then run `~/.claude/skills/juno/send-rpm-apk.sh`. Sending it is not installing it.
+When Vishwajit asks for a finished APK, follow the global `juno` skill: build the branch that holds the phone's installed build plus the new work, send it with `~/.claude/skills/juno/send-rpm-apk.sh`, and call the install UNVERIFIED until the phone's `dumpsys package` shows the new version.
 
 ## Before you say done
 
@@ -28,6 +28,7 @@ When Vishwajit asks for a finished APK, send it to their Telegram with the globa
 | One agent drives one emulator | Machine-wide rpmctl lease for the worktree and ports, plus the run owner token (missing tokens warn for one compatibility release) |
 | On Windows, rpmctl starts the emulator's netsimd itself with no console, so no netsim window pops up. | `.claude/skills/verify-rpm-glass/lifecycle.test.mjs` (`netsimToStart`) |
 | rpmctl boots the emulator on the host GPU; software rendering (swiftshader, guest) is refused unless `RPM_ALLOW_SOFTWARE_GPU=1`, because it used 8.2 CPU cores against 0.68 to scroll Settings. | `.claude/skills/verify-rpm-glass/lifecycle.test.mjs` (`gpuMode`) |
+| rpmctl starts the emulator with `ANDROID_TMP` on disk (`~/.cache/android-tmp`), because `/tmp` is RAM with a per-user quota and the emulator leaves multi-GB disk files there. | `.claude/skills/verify-rpm-glass/lifecycle.test.mjs` (`emulatorEnv`) |
 | rpmctl selectors match the app | `.claude/skills/verify-rpm-glass/selectors.test.mjs` in `npm test` |
 | An error reaches the screen only through `userMessage(error)`, never as raw script text. | `npm run check:rules` (`raw-error-text`), `android-companion/user-message.test.mjs`, and the scenario runner's raw-error guard |
 | A change updates the screen in place: existing rows are kept, the field keeps focus, the new item appears once and is saved where it belongs. | `rpmctl scenario plan-add-in-place`, `android-companion/surface-refresh.test.mjs` |
