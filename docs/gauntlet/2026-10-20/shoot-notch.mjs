@@ -33,6 +33,7 @@ const evaluate = async expression => {
   return r.result?.result?.value;
 };
 await send('Runtime.enable');
+await send('Animation.enable');
 await send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 900, deviceScaleFactor: 2, mobile: false});
 
 const STORE = String.raw`(spec => {
@@ -46,24 +47,26 @@ const STORE = String.raw`(spec => {
   return {schema: 2, version: 1, entries, memories: [], history: [], conversations: [], planner};
 })`;
 
-async function scene(name, {spec, time, expand = false, dark = false, text = 1, then = null, settle = 900}) {
+async function scene(name, {spec, time, expand = false, dark = false, text = 1, then = null, settle = 900, motion = false, midway = 0}) {
   await send('Page.navigate', {url: base});
   await wait(600);
   await evaluate(`(() => { localStorage.clear();
     localStorage.setItem('rpm-playground:companion', JSON.stringify(${STORE}(${JSON.stringify(spec)})));
     localStorage.setItem('rpm-playground:device', JSON.stringify({dark: ${dark}, textScale: ${text}}));
     localStorage.setItem('rpm-playground:shell', JSON.stringify({view: 'notch', expandNotch: ${expand}, notchTime: '${time}'}));
-    document.documentElement.dataset.reduceMotion = 'true'; })()`);
+    document.documentElement.dataset.reduceMotion = '${!motion}'; })()`);
   await send('Page.reload');
   await wait(1200);
-  await evaluate(`document.documentElement.dataset.reduceMotion = 'true'`);
-  if (then) { await evaluate(then); await wait(settle); }
-  await wait(400);
+  await evaluate(`document.documentElement.dataset.reduceMotion = '${!motion}'`);
+  await send('Animation.setPlaybackRate', {playbackRate: midway ? 0.1 : 1});
+  if (then) { await evaluate(then); await wait(midway || settle); }
+  if (!midway) await wait(400);
   const box = await evaluate(`(() => { const r = document.getElementById('screen').getBoundingClientRect(); return {x: r.x, y: r.y, w: r.width}; })()`);
   const shot = await send('Page.captureScreenshot', {format: 'png', clip: {x: box.x, y: box.y, width: box.w, height: 520, scale: 1}});
   fs.writeFileSync(`${out}/${name}.png`, Buffer.from(shot.result.data, 'base64'));
   const facts = await evaluate(`(() => { const i = document.querySelector('.island'); const f = i?.querySelector('.island-face:not([data-state=leaving])');
-    return i ? {island: [i.offsetWidth, i.offsetHeight], face: f ? f.scrollHeight : 0, clipped: f ? f.scrollHeight > i.offsetHeight + 1 : false} : null; })()`);
+    return i ? {island: [i.offsetWidth, i.offsetHeight], face: f ? f.scrollHeight : 0, clipped: f ? f.scrollHeight > i.offsetHeight + 1 : false,
+      scale: f ? getComputedStyle(f).scale : ''} : null; })()`);
   console.log(name.padEnd(28), JSON.stringify(facts));
 }
 
@@ -90,6 +93,8 @@ await scene('13-max-text-manage', {spec: LONG, time: '15:10', expand: true, text
   then: `[...document.querySelectorAll('.notch-row-tap')].find(r => r.querySelector('.notch-alert-chip') || /Reminder|alarm/.test(r.textContent)).click()`});
 await scene('14-max-text-alarm', {spec: LONG, time: '16:29', text: 2, then: click('[data-alert="alarm"]')});
 await scene('15-large-text-open', {spec: DAY, time: '15:50', expand: true, text: 1.3});
+await scene('16-morph-midway', {spec: DAY, time: '15:50', motion: true, then: `document.getElementById('notch-animate').click()`, midway: 1500});
+await scene('17-morph-settled', {spec: DAY, time: '15:50', motion: true, then: `document.getElementById('notch-animate').click()`, settle: 900});
 
 if (errors.length) console.log('page errors:\n' + errors.join('\n'));
 ws.close();

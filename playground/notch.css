@@ -40,6 +40,7 @@
   inset-block-start: 0;
   inset-inline-start: calc(50% - var(--face-w) / 2);
   inline-size: var(--face-w);
+  transform-origin: top center;
   display: flex;
   flex-direction: column;
   padding: calc(var(--pad) + var(--circle) + 12px) var(--pad) var(--pad);
@@ -201,9 +202,10 @@
   }
   :root:not([data-reduce-motion="true"]) [data-motion="close"] { transition-duration: 300ms; }
   :root:not([data-reduce-motion="true"]) .notch-arc { transition: stroke-dashoffset 400ms var(--fill-ease); }
-  :root:not([data-reduce-motion="true"]) .island-face { transition: opacity 210ms linear 90ms, translate 210ms var(--ease) 90ms; }
+  :root:not([data-reduce-motion="true"]) .island-face { transition: opacity 210ms linear 90ms, translate 210ms var(--ease) 90ms, scale 350ms var(--ease); }
+  :root:not([data-reduce-motion="true"]) .island-face[data-state="leaving"] { transition: opacity 90ms linear, scale 300ms var(--ease); }
   @starting-style {
-    :root:not([data-reduce-motion="true"]) .island-face:not([data-enter="instant"]) { translate: 0 8px; }
+    :root:not([data-reduce-motion="true"]) .island-face:not([data-enter="instant"]) { translate: 0 8px; scale: var(--from-scale, 1); }
   }
   :root:not([data-reduce-motion="true"]) .notch-split { transition: opacity 90ms linear, translate 350ms var(--ease); }
   :root:not([data-reduce-motion="true"]) .notch-o { animation: notch-roll-out 150ms var(--ease) both; }

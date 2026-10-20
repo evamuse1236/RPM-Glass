@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {parseNotchData} from './notch-day.mjs';
 import {notchScene, alertScene, WATER_SNOOZE, routineSnooze, PillPriority, controls, visibleRows, progress, heroValue} from './notch-scene.mjs';
-import {anchor, G, innerRadius, faceTop, bandAt, pillRing, fits} from './notch-geometry.mjs';
+import {anchor, G, innerRadius, faceTop, bandAt, pillRing, fits, faceScale} from './notch-geometry.mjs';
 import {S24} from './device.mjs';
 
 const at = local => new Date(local + ':00+05:30').getTime();
@@ -278,6 +278,21 @@ test('Undo and every pill keep their side padding: the inset background goes on 
     assert.equal(insets, name === 'NotchParts' ? 2 : 0, `${name} draws pills only through pillShape`);
   }
   assert.match(javaSource('NotchChangeViews'), /NotchParts\.pillShape\(undo,/);
+});
+
+test('faces shrink with the island instead of being cut by its edges, on the phone and in the copy', () => {
+  assert.equal(faceScale(360, 360), 1);
+  assert.equal(faceScale(360, 180), 0.5);
+  assert.equal(faceScale(120, 360), 1, 'never drawn larger than it is');
+  assert.equal(faceScale(0, 360), 1);
+  const view = javaSource('IslandView');
+  assert.match(view, /IslandShape\.faceScale\(at\.width\(\), now\.width\(\)\)/);
+  assert.match(view, /f\.setPivotY\(0f\);/, 'from the top centre, under the camera');
+  assert.match(javaSource('IslandShape'), /Math\.max\(0f, Math\.min\(1f, width \/ faceWidth\)\)/);
+  const css = readFileSync(new URL('./notch.css', import.meta.url), 'utf8');
+  assert.match(css, /transform-origin: top center;/);
+  assert.match(css, /scale: var\(--from-scale, 1\);/);
+  assert.match(css, /\.island-face\[data-state="leaving"\] \{ transition: opacity 90ms linear, scale 300ms var\(--ease\); \}/);
 });
 
 test('the copy uses the phone\'s sizes: NotchGeometry.java and notch-geometry.mjs match', () => {

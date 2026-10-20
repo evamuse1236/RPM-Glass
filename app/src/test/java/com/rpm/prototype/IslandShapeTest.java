@@ -131,6 +131,20 @@ public class IslandShapeTest {
     }
 
     @Test
+    public void facesShrinkWithTheIslandInsteadOfBeingCutByItsEdges() {
+        int keep = S24.holeWidth + NotchAnchor.dp(12, D);
+        IslandShape pill = IslandShape.pill(S24, 1080, 200, keep, false, D);
+        IslandShape open = IslandShape.island(S24, 1080, 700, D);
+        float face = open.width();
+        assertEquals("a settled face is drawn at its own size", 1f, IslandShape.faceScale(face, open.width()), 0f);
+        IslandShape mid = IslandShape.lerp(pill, open, 0.5f);
+        assertEquals("halfway, the face is as much smaller as the island", mid.width() / face, IslandShape.faceScale(face, mid.width()), 0.0001f);
+        assertEquals("a leaving face shrinks toward the pill", pill.width() / face, IslandShape.faceScale(face, pill.width()), 0.0001f);
+        assertEquals("never drawn larger than it is", 1f, IslandShape.faceScale(pill.width(), open.width()), 0f);
+        assertEquals(1f, IslandShape.faceScale(0f, open.width()), 0f);
+    }
+
+    @Test
     public void halfwayMorphSitsBetweenBothShapes() {
         int keep = S24.holeWidth + NotchAnchor.dp(12, D);
         IslandShape p = IslandShape.pill(S24, 1080, 200, keep, false, D);

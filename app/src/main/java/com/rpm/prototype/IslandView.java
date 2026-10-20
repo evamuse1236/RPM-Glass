@@ -17,7 +17,9 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Draws the one black island in screen coordinates and morphs it between the pill, the open island, the alert islands
@@ -69,6 +71,8 @@ final class IslandView extends ViewGroup {
     private final IslandGesture gesture;
     private final IslandBand band;
     private final List<Fade> fades = new ArrayList<>();
+    /** The faces on screen, the leaving ones too: each shrinks with the island while it morphs. */
+    private final Set<View> faces = new HashSet<>();
     private boolean fading;
     private final Choreographer.FrameCallback fadeTick = nanos -> NotchController.safely("island fade", this::stepFades);
     private final Spring press = Spring.island(0.002f);
@@ -135,6 +139,7 @@ final class IslandView extends ViewGroup {
         if (!animate) {
             now = target;
             band.morph(1f);
+            scaleFaces();
             invalidate();
             listener.onSettled();
             return;
@@ -146,6 +151,7 @@ final class IslandView extends ViewGroup {
             float t = (float) v.getAnimatedValue();
             now = IslandShape.lerp(from, to, t);
             band.morph(t);
+            scaleFaces();
             invalidate();
         });
         a.addListener(new AnimatorListenerAdapter() {
@@ -162,12 +168,27 @@ final class IslandView extends ViewGroup {
                 now = to;
                 morph = null;
                 band.morph(1f);
+                scaleFaces();
                 invalidate();
                 NotchController.safely("island settled", listener::onSettled);
             }
         });
         morph = a;
+        scaleFaces();
         a.start();
+    }
+
+    /** Each face shrinks with the island from its top centre, under the camera, so a morph never cuts its words. */
+    private void scaleFaces() {
+        if (now == null) return;
+        for (View f : faces) {
+            RectF at = ((At) f.getLayoutParams()).screen;
+            float s = IslandShape.faceScale(at.width(), now.width());
+            f.setPivotX(at.width() / 2f);
+            f.setPivotY(0f);
+            f.setScaleX(s);
+            f.setScaleY(s);
+        }
     }
 
     private static boolean same(IslandShape a, IslandShape b) {
@@ -182,11 +203,12 @@ final class IslandView extends ViewGroup {
         if (old != null) {
             disable(old);
             dropFades(old);
-            if (fade) fades.add(new Fade(old, 0f, old.getTranslationY(), t, Math.round(motion.faceOutMs() * scale), () -> removeView(old)));
-            else removeView(old);
+            if (fade) fades.add(new Fade(old, 0f, old.getTranslationY(), t, Math.round(motion.faceOutMs() * scale), () -> drop(old)));
+            else drop(old);
         }
         if (next == null) return null;
         addView(next, new At(at));
+        if (rise) faces.add(next);
         if (fade) {
             next.setAlpha(0f);
             float y = rise ? motion.riseDp() * density : 0f;
@@ -199,6 +221,11 @@ final class IslandView extends ViewGroup {
             Choreographer.getInstance().postFrameCallback(fadeTick);
         }
         return next;
+    }
+
+    private void drop(View v) {
+        faces.remove(v);
+        removeView(v);
     }
 
     private void dropFades(View v) {
@@ -237,6 +264,7 @@ final class IslandView extends ViewGroup {
         Choreographer.getInstance().removeFrameCallback(pressTick);
         Choreographer.getInstance().removeFrameCallback(fadeTick);
         fades.clear();
+        faces.clear();
         fading = false;
         band.stop();
         removeCallbacks(release);

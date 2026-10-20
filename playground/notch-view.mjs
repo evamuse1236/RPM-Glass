@@ -1,7 +1,7 @@
 // Copy of NotchPill, NotchContent, IslandView and IslandBand: one black island that morphs between the pill, the open island,
 // the alert islands and the receipt, with the band's ring and value travelling between them.
 import {S24} from './device.mjs';
-import {D, G, anchor, ISLAND_INSET_DP, pillRing, bandAt, fits} from './notch-geometry.mjs';
+import {D, G, anchor, ISLAND_INSET_DP, pillRing, bandAt, fits, faceScale} from './notch-geometry.mjs';
 import {el, glyph, button, face, title, line, pill, controls, row, rowValue, circle, accent, lookOf, ICONS, INK} from './notch-parts.mjs';
 import {alertFace} from './notch-alert.mjs';
 import {alertChip, alertSpoken, receiptFace, manageFace, MARK} from './notch-change.mjs';
@@ -179,15 +179,19 @@ function paintSplit(stage, {mode, secondary, scene}, geo) {
   }
 }
 
-function settle(island, next, same) {
+/** Swaps in the next face. A face that leaves shrinks toward the island's next width; one that enters grows from the last. */
+function settle(island, next, same, width) {
+  const from = island.offsetWidth;
   for (const old of island.querySelectorAll(':scope > .island-face')) {
     if (same) { old.remove(); continue; }
     if (old.dataset.state === 'leaving') continue;
     old.dataset.state = 'leaving';
     old.inert = true;
+    old.style.scale = String(faceScale(old.offsetWidth, width));
     Promise.allSettled(old.getAnimations().map(a => a.finished)).then(() => old.remove());
   }
   if (same) next.dataset.enter = 'instant';
+  next.style.setProperty('--from-scale', String(faceScale(width, from)));
   island.append(next);
 }
 
@@ -228,7 +232,7 @@ export function renderNotch(stage, opts) {
       next = build(fit.rows);
       next.toggleAttribute('data-short-title', fit.shortTitle);
       next.style.setProperty('--face-w', `${w}px`);
-      settle(island, next, tried > 1 || same || first || instant);
+      settle(island, next, tried > 1 || same || first || instant, w);
       if (next.offsetHeight <= cap) break;
     }
     geo = {x: ISLAND_INSET_DP, w, h: Math.max(next.offsetHeight, h), r: G.RADIUS_DP};
@@ -236,7 +240,7 @@ export function renderNotch(stage, opts) {
   if (mode === 'pill') {
     next.style.setProperty('--face-w', `${geo.w}px`);
     next.style.blockSize = `${geo.h}px`;
-    settle(island, next, same || first || instant);
+    settle(island, next, same || first || instant, geo.w);
   }
   island.dataset.motion = first || instant ? 'none' : mode === 'pill' ? 'close' : 'open';
   island.dataset.mode = mode;

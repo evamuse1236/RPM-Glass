@@ -74,6 +74,15 @@ final class IslandShape {
                 mix(a.shadow, b.shadow, t), b.touch, b.shadowSide, b.shadowBelow);
     }
 
+    /**
+     * How far a face {@code faceWidth} wide is shrunk while the island is {@code width} wide: mid-morph it shrinks with
+     * the island toward the camera instead of being cut by its edges, and it is never drawn larger than it is.
+     */
+    static float faceScale(float faceWidth, float width) {
+        if (faceWidth <= 0f) return 1f;
+        return Math.max(0f, Math.min(1f, width / faceWidth));
+    }
+
     float width() {
         return right - left;
     }
