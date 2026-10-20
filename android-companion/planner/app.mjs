@@ -25,6 +25,7 @@ export function createApp(api, renderers) {
     work: document.getElementById('workspace'),
     now: document.getElementById('now-host'),
     nav: document.getElementById('nav-bar'),
+    dock: document.getElementById('dock'),
     sheet: document.getElementById('sheet'),
     snackbar: document.getElementById('snackbar'),
   };
@@ -217,17 +218,24 @@ function stageScreen(app, kind, top) {
   return stage;
 }
 
-/** The navigation bar (with its Add) leaves and arrives with the page instead of snapping. */
+/** The navigation bar and the dock beside it (Add and the habit circle) leave and arrive with the page instead of snapping. */
+const FLOATS = ['nav', 'dock'];
 function shellBefore(app) {
-  const {nav, planner} = app.dom;
-  return {nav: nav.hidden ? null : {rect: nav.getBoundingClientRect(), node: nav.cloneNode(true)}, host: planner};
+  const floats = {};
+  for (const name of FLOATS) {
+    const node = app.dom[name];
+    floats[name] = node.hidden ? null : {rect: node.getBoundingClientRect(), node: node.cloneNode(true)};
+  }
+  return {floats, host: app.dom.planner};
 }
 
 function shellAfter(app, before, motion, outgoing, incoming) {
-  const {nav} = app.dom;
   if (!motion) return;
-  if (before.nav && nav.hidden) outgoing.push(ghost([before.nav.node], before.nav.rect, before.host, {cls: 'motion-ghost-nav'}));
-  else if (!before.nav && !nav.hidden) incoming.push(nav);
+  for (const name of FLOATS) {
+    const node = app.dom[name], was = before.floats[name];
+    if (was && node.hidden) outgoing.push(ghost([was.node], was.rect, before.host, {cls: 'motion-ghost-' + name}));
+    else if (!was && !node.hidden) incoming.push(node);
+  }
 }
 
 /**

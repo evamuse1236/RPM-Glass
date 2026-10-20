@@ -1,11 +1,10 @@
-import {pressStep, snapStart, snapLength, glassesFor, labelTop, hasKnurl, moveLabel, HOLD_LIFT, LABEL_GAP, LABEL_HEIGHT} from '../spine-drag.mjs';
-import {LONG_PRESS, lockAxis, nearEdge} from '../task-swipe.mjs';
+import {pressStep, snapStart, snapLength, labelTop, hasKnurl, moveLabel, HOLD_LIFT} from '../spine-drag.mjs';
+import {LONG_PRESS} from '../task-swipe.mjs';
 import {cardHeight} from '../spine-model.mjs';
 import {clockText} from '../body-state.mjs';
 import {duration} from './format.mjs';
 import {el} from './dom.mjs';
 import {quickMenu} from './row-gestures.mjs';
-import {paintWaterTrack} from './spine-view.mjs';
 
 const EDGE_SCROLL = 64;
 const navRoom = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-measured')) || 0;
@@ -16,13 +15,6 @@ function floatingLabel() {
   label.setAttribute('aria-hidden', 'true');
   document.body.append(label);
   return label;
-}
-
-function placeLabel(label, x, y, text) {
-  if (label.textContent !== text) label.textContent = text;
-  const half = label.offsetWidth / 2;
-  const left = Math.min(innerWidth - 16 - half, Math.max(16 + half, x)) - half;
-  label.style.translate = `${left}px ${Math.max(8, y - LABEL_GAP - LABEL_HEIGHT)}px`;
 }
 
 /** A card's label sits centred 12dp above the card, never over its title (below it when the card is near the top). */
@@ -208,53 +200,4 @@ function knurl(app, card, row, haptic) {
   node.addEventListener('pointerup', end(true));
   node.addEventListener('pointercancel', end(false));
   return node;
-}
-
-/**
- * Drag across the Water row: one glass per 24dp, read out above the finger and filled into the track; let go, the new
- * glasses save as one change with one Undo. A vertical drag stays the page's scroll.
- */
-export function attachWaterDrag(app, node, row, track, {log}) {
-  const haptic = kind => app.api.native('haptic', {kind}).catch(() => {});
-  let start = null, axis = null, label = null, count = row.count;
-  const reset = () => {
-    label?.remove();
-    label = null;
-    start = null;
-    count = row.count;
-    paintWaterTrack(track, row.count, row.goal);
-  };
-  node.addEventListener('pointerdown', event => {
-    if (event.isPrimary === false || event.button > 0 || typing()) return;
-    start = {x: event.clientX, y: event.clientY, id: event.pointerId, edge: nearEdge(event.clientX, innerWidth)};
-    axis = null;
-  });
-  node.addEventListener('pointermove', event => {
-    if (!start || event.pointerId !== start.id) return;
-    const dx = event.clientX - start.x;
-    if (!axis) {
-      axis = lockAxis(dx, event.clientY - start.y);
-      if (!axis) return;
-      if (axis === 'y' || start.edge) { start = null; return; }
-      try { node.setPointerCapture(event.pointerId); } catch {}
-      label = floatingLabel();
-    }
-    const next = glassesFor(dx, row.count);
-    if (next !== count) haptic('tick');
-    count = next;
-    paintWaterTrack(track, count, row.goal, row.count);
-    placeLabel(label, event.clientX, event.clientY, `${count} of ${row.goal}`);
-  });
-  node.addEventListener('pointerup', event => {
-    if (!start || event.pointerId !== start.id || axis !== 'x') { start = null; return; }
-    const added = count - row.count;
-    label?.remove();
-    label = null;
-    start = null;
-    if (added > 0) {
-      haptic('confirm');
-      log(added);
-    } else reset();
-  });
-  node.addEventListener('pointercancel', reset);
 }

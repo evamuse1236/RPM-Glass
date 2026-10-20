@@ -23,6 +23,8 @@
   --now:#0b57d0;        /* the task happening now */
   --success:#146c2e;
   /* Area identity: Google palette hues, readable on surface in both themes */
+  /* Today's habit pills and the habit circle; --on-tone is the icon on any pill */
+  --tone-meal:#e37400;--tone-routine:#1e8e3e;--tone-water:#1a73e8;--on-tone:#ffffff;
   --area-0:#1e8e3e;--area-1:#e37400;--area-2:#1a73e8;--area-3:#a142f4;--area-4:#d93025;--area-5:#12b5cb;--area-6:#f538a0;--area-7:#9aa0a6;
 
   /* type: Google Sans Flex, M3 scale */
@@ -39,6 +41,13 @@
   --label-large:500 14px/20px var(--font);
   --label-medium:500 12px/16px var(--font);
   --label-small:500 11px/16px var(--font);
+  /* Today (approved 2026-10-20): the big date, row titles, the day numbers, footnotes and the habit circle's count */
+  --title-date:700 28px/34px var(--font);
+  --title-row:600 16px/22px var(--font);
+  --day-number:600 17px/22px var(--font);
+  --footnote:400 13px/18px var(--font);
+  --footnote-label:500 13px/18px var(--font);
+  --caption-strong:600 11px/13px var(--font);
 
   /* shape */
   --shape-xs:4px;--shape-sm:8px;--shape-md:12px;--shape-lg:16px;--shape-xl:28px;--shape-full:999px;
@@ -55,6 +64,8 @@
   /* spacing and touch */
   --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--s8:32px;--touch:48px;
   --chip-block:40px;
+  /* Add beside the tab bar, a round 60dp button */
+  --fab:60px;
   /* keylines: text after a 40dp icon column, text after a 56dp leading slot */
   --key-icon-text:56px;--key-text:72px;
   /* the M3 switch thumb: 16dp inset 6 when off, 24dp at 22 from the start when on */
@@ -99,6 +110,7 @@
   --inverse-surface:#e3e3e3;--inverse-on-surface:#303030;--inverse-primary:#0b57d0;
   --must:#fdd663;--now:#a8c7fa;--success:#6dd58c;
   --area-0:#81c995;--area-1:#fcad70;--area-2:#8ab4f8;--area-3:#d7aefb;--area-4:#f28b82;--area-5:#78d9ec;--area-6:#ff8bcb;--area-7:#bdc1c6;
+  --tone-meal:#fcad70;--tone-routine:#81c995;--tone-water:#8ab4f8;--on-tone:#131314;
   --float-border:#444746;--float-surface:#282a2c;--float-shadow:none;--sheet-surface:#282a2c;--sheet-raised:#333537;--sheet-card:#333537;
   --glass-blur:16px;--glass-saturate:1.08;--glass-border:oklch(100% none none / 8%);
 }}
@@ -115,6 +127,7 @@
   --inverse-surface:#e3e3e3;--inverse-on-surface:#303030;--inverse-primary:#0b57d0;
   --must:#fdd663;--now:#a8c7fa;--success:#6dd58c;
   --area-0:#81c995;--area-1:#fcad70;--area-2:#8ab4f8;--area-3:#d7aefb;--area-4:#f28b82;--area-5:#78d9ec;--area-6:#ff8bcb;--area-7:#bdc1c6;
+  --tone-meal:#fcad70;--tone-routine:#81c995;--tone-water:#8ab4f8;--on-tone:#131314;
   --float-border:#444746;--float-surface:#282a2c;--float-shadow:none;--sheet-surface:#282a2c;--sheet-raised:#333537;--sheet-card:#333537;
   --glass-blur:16px;--glass-saturate:1.08;--glass-border:oklch(100% none none / 8%);
 }

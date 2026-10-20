@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {pressStep, snapStart, snapLength, glassesFor, GLASS_PX, HOLD_LIFT} from './spine-drag.mjs';
+import {pressStep, snapStart, snapLength, HOLD_LIFT} from './spine-drag.mjs';
 import {nearEdge, EDGE} from './task-swipe.mjs';
 
 const run = events => events.reduce((state, event) => pressStep(state, event), null);
@@ -60,29 +60,19 @@ test('no horizontal gesture starts within 24dp of a screen edge', () => {
   for (const x of [24, 200, 360]) assert.equal(nearEdge(x, 384), false, String(x));
 });
 
-test('a drag across the Water row adds one glass per 24dp and never takes off a saved glass', () => {
-  assert.equal(GLASS_PX, 24);
-  assert.equal(glassesFor(0, 3), 3);
-  assert.equal(glassesFor(23, 3), 3);
-  assert.equal(glassesFor(24, 3), 4);
-  assert.equal(glassesFor(120, 3), 8);
-  assert.equal(glassesFor(-200, 3), 3, 'dragging back stops at what is already logged');
-  assert.equal(glassesFor(2000, 3), 30);
-});
-
 test('a dragged card\'s label sits 12dp above the card, never over its title, or below it near the top', async () => {
   const {labelTop} = await import('./spine-drag.mjs');
   assert.equal(labelTop(400, 480, 112), 400 - 12 - 28);
   assert.equal(labelTop(150, 230, 112), 230 + 12, 'too close to the top: below the card');
 });
 
-test('the gutter shows only the time and the countdown; the length shows in the moving card\'s label', async () => {
+test('the gutter shows only the start and end times; the length shows in the moving card\'s label', async () => {
   const {readFileSync} = await import('node:fs');
   const view = readFileSync(new URL('./planner/spine-view.mjs', import.meta.url), 'utf8');
   const gutter = view.slice(view.indexOf('function gutter'), view.indexOf('function shell'));
   assert.match(gutter, /spine-time/);
-  assert.match(gutter, /spine-soon/);
-  assert.doesNotMatch(gutter, /length/, 'no third or fourth line in the gutter');
+  assert.match(gutter, /gutter\?\.end/);
+  assert.doesNotMatch(gutter, /length|soon/, 'no third line in the gutter; the countdown is the row\'s when line');
   const {moveLabel} = await import('./spine-drag.mjs');
   assert.equal(moveLabel('5:15 PM', '3 h 55 min'), '5:15 PM · 3 h 55 min');
   assert.equal(moveLabel('5:15 PM', ''), '5:15 PM');
@@ -99,10 +89,10 @@ test('the length knurl shows only on timed cards that have not ended', async () 
 test('a meal row\'s reveal has the card\'s outer corners and shows "Log now" only once it fits whole', async () => {
   const {readFileSync} = await import('node:fs');
   const css = readFileSync(new URL('./gestures.css', import.meta.url), 'utf8');
-  const reveal = css.match(/\.spine-small > \.swipe-reveal \{([^}]*)\}/)?.[1] ?? '';
+  const reveal = css.match(/\.spine-meal > \.spine-card > \.swipe-reveal \{([^}]*)\}/)?.[1] ?? '';
   assert.match(reveal, /border-radius: var\(--r-group\) 0 0 var\(--r-group\)/);
   assert.match(reveal, /container-type: inline-size/);
   assert.match(reveal, /white-space: nowrap/);
-  assert.match(css, /@container \(inline-size < 7em\) \{ \.spine-small > \.swipe-reveal \.swipe-word \{ visibility: hidden; \} \}/,
+  assert.match(css, /@container \(inline-size < 7em\) \{ \.spine-meal > \.spine-card > \.swipe-reveal \.swipe-word \{ visibility: hidden; \} \}/,
     'the word hides below 7em (icon + gap + "Log now"), and the threshold grows with the text');
 });

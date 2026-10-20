@@ -1,4 +1,5 @@
-/** App shell: top app bar, and a floating tab bar with a sliding pill and the tab's Add at its end. */
+/** App shell: top app bar, a floating tab bar with a sliding pill, and beside it the dock: the tab's round Add and, on
+ * Today, the habit circle above it. */
 import {el, icon, iconButton, button, labelButton} from './dom.mjs';
 import {openMenu} from './menu.mjs';
 import {FULL_SCREENS} from './app.mjs';
@@ -8,6 +9,7 @@ import {jumpToNow} from './today-day.mjs';
 import {bodyApi} from './body-api.mjs';
 import {openHabits} from './habits.mjs';
 import {navDrag} from '../nav-drag.mjs';
+import {paintHabit, watchHabit} from './habit-circle.mjs';
 import {attachSwipe, lockAxis, nearEdge} from '../task-swipe.mjs';
 
 const DESTINATIONS = [
@@ -50,9 +52,8 @@ function rootMenu(app, anchor) {
 function rootBar(app, bar) {
   const {state} = app;
   bar.className = 'top-bar root-bar';
-  bar.append(el('h1', 'top-title', TITLES[state.tab]));
+  bar.append(el('h1', state.tab === 'today' ? 'top-title visually-hidden' : 'top-title', TITLES[state.tab]));
   const tools = el('div', 'top-actions');
-  // Add lives at the tab bar's end; the top bar keeps Search, Capture and More.
   tools.append(iconButton('search', 'Search', () => app.openSearch()), iconButton('mic', 'Capture', () => app.capture()));
   const more = iconButton('more_vert', 'More options', () => rootMenu(app, more));
   tools.append(more);
@@ -96,9 +97,6 @@ function navigationBar(app) {
       item.append(pill, el('span', 'nav-label', label));
       nav.append(item);
     }
-    const add = iconButton('add', 'Add', () => addSpec(app)?.onClick(), {cls: 'nav-add'});
-    attachSwipe(add, {hold: () => app.capture(), haptic: () => app.api.native('haptic', {kind: 'hold'}).catch(() => {})});
-    nav.append(add);
     attachNavDrag(app, nav);
   }
   for (const item of nav.querySelectorAll('.nav-item')) {
@@ -106,11 +104,25 @@ function navigationBar(app) {
     item.setAttribute('aria-current', on ? 'page' : 'false');
     item.querySelector('.ms').classList.toggle('fill', on);
   }
-  const spec = addSpec(app);
-  const add = nav.querySelector('.nav-add');
+  placeNavIndicator(nav);
+}
+
+/** The dock beside the tab bar: the habit circle (Today only) over the round Add. Tap adds; a 400ms hold opens Capture. */
+function dock(app, full) {
+  const host = app.dom.dock;
+  if (!host.children.length) {
+    const habit = el('div', 'habit-slot');
+    const add = iconButton('add', 'Add', () => addSpec(app)?.onClick(), {cls: 'fab'});
+    attachSwipe(add, {hold: () => app.capture(), haptic: () => app.api.native('haptic', {kind: 'hold'}).catch(() => {})});
+    host.append(habit, add);
+    watchHabit(app, habit);
+  }
+  const spec = full ? null : addSpec(app);
+  const add = host.querySelector('.fab');
   add.hidden = !spec;
   if (spec) add.setAttribute('aria-label', spec.label);
-  placeNavIndicator(nav);
+  paintHabit(app, host.querySelector('.habit-slot'));
+  host.hidden = !!full || (!spec && !host.querySelector('.habit-circle'));
 }
 
 /** What the tab bar's Add makes on this tab (Add task on Today); none on a detail page or Values. */
@@ -133,7 +145,7 @@ function attachNavDrag(app, nav) {
     delete nav.dataset.dragging;
   };
   nav.addEventListener('pointerdown', event => {
-    if (event.isPrimary === false || event.button > 0 || event.target.closest('.nav-add')) return;
+    if (event.isPrimary === false || event.button > 0) return;
     start = {x: event.clientX, y: event.clientY, id: event.pointerId, edge: nearEdge(event.clientX, innerWidth)};
     axis = null;
     index = items().findIndex(item => item.getAttribute('aria-current') === 'page');
@@ -203,6 +215,7 @@ export function renderShell(app, {keep = false} = {}) {
   root.dataset.detail = String(!!top);
   app.dom.nav.hidden = !!full;
   navigationBar(app);
+  dock(app, full);
   nowPill(app);
   const bar = app.dom.topBar;
   bar.hidden = top?.kind === 'review';

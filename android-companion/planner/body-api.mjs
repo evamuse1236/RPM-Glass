@@ -68,9 +68,6 @@ export function bodyApi(app) {
     deleteRoutine: id => save({type: 'removeRoutine', id}),
     water: () => ({...read().water, busy: busyEvents(app.state.calendar)}),
     drink: () => save(drinkOp()),
-    async drinkMany(count) {
-      for (let i = 0; i < count; i++) await save(drinkOp(), {keepUndo: i > 0});
-    },
     snooze: () => save({type: 'snoozeWater', until: new Date(Date.now() + read().water.settings.snoozeMinutes * 60000).toISOString()}),
     setWater: (key, value) => save({type: 'setWater', fields: {[key]: value}}),
     setWaterFields: fields => save({type: 'setWater', fields}),

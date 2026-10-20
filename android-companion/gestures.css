@@ -24,31 +24,30 @@
 .spine-card.swipe-task[data-swipe]::before { inset: -1px; border: 1px solid var(--swipe-edge, transparent); border-radius: inherit; }
 .spine-card > .swipe-reveal { inset: -1px; border-radius: inherit; }
 
-.task-row.done .check-ring, :is(.spine-row, .spine-anytime-item).done .check-ring {
+.task-row.done .check-ring {
   background: var(--tertiary);
   border-color: var(--tertiary);
   color: var(--on-tertiary);
 }
-:is(.spine-row, .spine-anytime-item).just-done .spine-title { animation: strike-in var(--dur-short3) var(--ease-standard); }
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-reduce-motion=true]) :is(.task-row, .spine-row, .spine-anytime-item).just-done .check-ring {
+  :root:not([data-reduce-motion=true]) :is(.task-row, .spine-row).just-done .check-ring {
     animation: ring-pop var(--dur-short3) var(--ease-spring);
   }
-  :root:not([data-reduce-motion=true]) :is(.spine-row, .spine-anytime-item).just-done .check-ring .ms {
+  :root:not([data-reduce-motion=true]) .spine-row.just-done .check-ring .ms {
     animation: check-in var(--dur-short3) var(--ease-emphasized-decelerate);
   }
 }
 @keyframes ring-pop { 50% { scale: 1.2; } }
 
 .week-strip { isolation: isolate; }
-.week-day[aria-pressed=true] .week-number { background: none; position: relative; }
+.week-day[aria-pressed=true] .week-number { position: relative; }
 .week-day[aria-pressed=true] .week-number::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
   border-radius: 50%;
-  background: var(--primary);
+  background: var(--surface-container-highest);
 }
 /* A day change inside the shown week keeps the head still: the old page fades out without its own head. */
 .motion-ghost-keep-head .day-header { visibility: hidden; }
@@ -62,9 +61,10 @@
 
 /* Spine cards: held 250ms a card lifts and follows the finger; a dashed slot keeps its old place. */
 .spine-card.lifted, .spine-card.drag-settling { z-index: 2; translate: 0 var(--drag-y, 0px); }
-.spine-card.lifted { scale: 1.02; box-shadow: var(--float-shadow); border-color: var(--outline); user-select: none; -webkit-user-select: none; }
+.spine-card.lifted { scale: 1.02; background: var(--surface); box-shadow: var(--float-shadow); user-select: none; -webkit-user-select: none; }
 .drag-ghost {
-  grid-column: 3;
+  grid-column: 2;
+  align-self: stretch;
   border: 1px dashed var(--primary);
   border-radius: var(--r-group);
   background: color-mix(in oklch, var(--primary-container) 40%, transparent);
@@ -90,26 +90,26 @@
   box-shadow: var(--float-shadow);
   pointer-events: none;
 }
-/* The knurl: a 24 × 4 grip at the foot of a timed card, in a 48 × 20 target; dragging it changes the length. */
+/* The knurl: a 24 × 4 grip at the foot of a timed task's pill, in a 48 × 20 target; dragging it changes the length. */
 .spine-knurl {
   position: absolute;
-  inset-block-end: 0;
-  inset-inline-start: calc(50% - 24px);
+  z-index: 2;
+  inset-block-end: calc(50% - var(--h, 40px) / 2);
+  inset-inline-start: calc(var(--spine-pill) / 2 - var(--touch) / 2);
   inline-size: 48px;
   block-size: 20px;
   display: grid;
-  place-items: center;
+  place-items: end center;
+  padding-block-end: var(--s1);
   touch-action: none;
   cursor: ns-resize;
 }
-.spine-knurl::before { content: ""; inline-size: 24px; block-size: 4px; border-radius: 2px; background: var(--outline-variant); }
-.spine-knurl:active::before, .spine-card.resizing .spine-knurl::before { background: var(--primary); }
-.spine-card.resizing { border-color: var(--primary); }
-/* Small spine rows (meals) swipe inside their own box, so the reveal never covers the gutter. */
-.spine-small.swipe-task { position: relative; }
+.spine-knurl::before { content: ""; inline-size: 24px; block-size: 4px; border-radius: 2px; background: color-mix(in oklch, var(--on-tone) 70%, transparent); }
+.spine-knurl:active::before, .spine-card.resizing .spine-knurl::before { background: var(--on-tone); }
+.spine-card.resizing .spine-pill { outline: 2px solid var(--primary); outline-offset: 2px; }
 /* A meal row's reveal grows with the finger and has the card's 20dp corners on its outer side; its word shows only
    once it fits whole, so "Log now" is never cut mid-word. */
-.spine-small > .swipe-reveal {
+.spine-meal > .spine-card > .swipe-reveal {
   inset-inline-end: auto;
   inline-size: max(0px, var(--swipe-offset, 0px));
   border-radius: var(--r-group) 0 0 var(--r-group);
@@ -118,4 +118,4 @@
   container-type: inline-size;
   white-space: nowrap;
 }
-@container (inline-size < 7em) { .spine-small > .swipe-reveal .swipe-word { visibility: hidden; } }
+@container (inline-size < 7em) { .spine-meal > .spine-card > .swipe-reveal .swipe-word { visibility: hidden; } }

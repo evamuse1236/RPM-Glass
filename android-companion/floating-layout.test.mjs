@@ -7,25 +7,45 @@ const read = path => fs.readFileSync(new URL(path, import.meta.url), 'utf8');
 const plannerCss = () => ['planner.css', ...STYLE_PARTS['planner.css']].map(read).join('\n');
 const rule = (css, selector) => css.match(new RegExp(`(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{([^}]*)\\}`))?.[1] ?? '';
 
-test('nothing floats beside the tab bar: no FAB host, no FAB styles, Add lives inside the bar', () => {
+test('Add is a round 60dp button in the dock beside the tab bar, and the bar ends 12dp before it', () => {
   const html = read('planner.html');
-  assert.doesNotMatch(html, /fab-host/);
+  assert.match(html, /<nav id="nav-bar"[^>]*><\/nav>\s*<div id="dock"><\/div>/);
   assert.match(html, /id="now-host"/);
   const css = plannerCss();
-  assert.doesNotMatch(css, /#fab-host|\.fab\b|--fab-size/);
+  const fab = rule(css, '.fab');
+  assert.match(fab, /inline-size: var\(--fab\)/);
+  assert.match(fab, /block-size: var\(--fab\)/);
+  assert.match(fab, /border-radius: 50%/);
+  assert.match(fab, /background: var\(--primary\)/);
+  assert.match(read('theme.css'), /--fab:60px;/);
+  assert.match(css, /#nav-bar \{ inset-inline-end: calc\(var\(--inset-page\) \+ var\(--fab\) \+ var\(--s3\)\); \}/);
   const shell = read('planner/shell.mjs');
-  assert.match(shell, /nav\.append\(add\)/, 'Add is a child of the tab bar');
+  assert.match(shell, /host\.append\(habit, add\)/, 'Add and the habit circle live in the dock, not in the tab bar');
+  assert.doesNotMatch(shell, /nav\.append\(add\)/);
   assert.match(shell, /attachSwipe\(add, \{hold: \(\) => app\.capture\(\)/, 'a 400ms hold on Add opens Capture');
   assert.match(shell, /iconButton\('search', 'Search'/, 'Search is a top-bar button');
 });
 
-test('the tab bar\'s Add is 48 × 48 with the bar\'s inner radius, and quiet in dark mode', () => {
-  const add = rule(plannerCss(), '.nav-add');
-  assert.match(add, /inline-size: var\(--touch\)/);
-  assert.match(add, /block-size: var\(--touch\)/);
-  assert.match(add, /border-radius: var\(--r-control\)/);
-  assert.doesNotMatch(add, /shadow/);
-  assert.match(plannerCss(), /\.nav-add \{ background: var\(--secondary-container\)/);
+test('the habit circle is 48dp glass 12dp above Add; the page and the snackbar keep clear of it', () => {
+  const css = plannerCss();
+  const dock = rule(css, '#dock');
+  assert.match(dock, /flex-direction: column/);
+  assert.match(dock, /align-items: center/, 'the circle is centred above Add');
+  assert.match(dock, /gap: var\(--s3\)/);
+  const circle = rule(css, '.habit-circle');
+  assert.match(circle, /inline-size: var\(--touch\)/);
+  assert.match(circle, /border-radius: 50%/);
+  assert.match(css, /:root\[data-bar-glass=true\] \.habit-circle \{[^}]*backdrop-filter: blur\(var\(--glass-blur\)\)/, 'the same glass as the tab bar');
+  assert.match(css, /#planner\[data-habit=true\] \.page \{ padding-bottom: calc\(var\(--nav-measured, var\(--nav\)\) \+ var\(--touch\) \+ var\(--s3\) \+ var\(--s4\)\); \}/);
+  assert.match(css, /#planner\[data-habit=true\] ~ #sheet\[hidden\] ~ #snackbar \{ right: calc\(var\(--inset-page\) \+ var\(--fab\) \+ var\(--s3\)\); \}/);
+});
+
+test('with large text the tab bar takes the full width and the dock stands 12dp above it, clear of the page and snackbar', () => {
+  const css = plannerCss();
+  assert.match(css, /:root\[data-large-text=true\] #planner:has\(> #dock:not\(\[hidden\]\) \.fab:not\(\[hidden\]\)\) :is\(#nav-bar, #now-host\) \{ inset-inline-end: var\(--inset-page\); \}/);
+  assert.match(css, /:root\[data-large-text=true\] #dock \{ inset-block-end: calc\(var\(--nav-measured, var\(--nav\)\) \+ var\(--s3\)\); \}/);
+  assert.match(css, /:root\[data-large-text=true\] #planner\[data-habit=true\] \.page \{ padding-bottom: calc\(var\(--nav-measured, var\(--nav\)\) \+ var\(--fab\) \+ var\(--touch\) \+ 2 \* var\(--s3\) \+ var\(--s4\)\); \}/);
+  assert.match(css, /:root\[data-large-text=true\] #planner:has\(> #dock:not\(\[hidden\]\) \.fab:not\(\[hidden\]\)\) ~ #sheet\[hidden\] ~ #snackbar \{ right:/);
 });
 
 test('the Now pill floats 16dp above the tab bar and hides while a snackbar shows', () => {

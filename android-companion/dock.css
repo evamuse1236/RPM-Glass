@@ -1,0 +1,78 @@
+/* The dock beside the tab bar: Add, a round 60dp button centred on the bar, and on Today the habit circle 12dp above it.
+   Tap adds; a 400ms hold opens Capture. */
+#planner:has(> #dock:not([hidden]) .fab:not([hidden])) #nav-bar { inset-inline-end: calc(var(--inset-page) + var(--fab) + var(--s3)); }
+#dock {
+  position: absolute;
+  z-index: 11;
+  inset-inline-end: var(--inset-page);
+  inset-block-end: calc(var(--nav-gap) + 2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s3);
+  pointer-events: none;
+}
+#dock > * { pointer-events: auto; }
+.habit-slot:empty { display: none; }
+.fab {
+  inline-size: var(--fab);
+  block-size: var(--fab);
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: var(--float-shadow);
+}
+.fab .ms { font-size: 28px; }
+.fab:active { scale: .96; }
+.fab:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.habit-circle {
+  position: relative;
+  display: grid;
+  place-items: center;
+  inline-size: var(--touch);
+  block-size: var(--touch);
+  border: 1px solid var(--float-border);
+  border-radius: 50%;
+  background: var(--float-surface);
+  box-shadow: var(--float-shadow);
+}
+.habit-circle:active { scale: .96; }
+.habit-circle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  :root[data-bar-glass=true] .habit-circle {
+    border-color: var(--glass-border);
+    background: color-mix(in srgb, var(--float-surface) var(--bar-fill, 100%), transparent);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-bar-glass=true] .habit-circle { background: var(--float-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduce-motion=true]) :is(.fab, .habit-circle) { transition: scale var(--dur-press) var(--ease-standard); }
+}
+.habit-meter { display: block; inline-size: 44px; block-size: 44px; overflow: visible; }
+.habit-meter.water { --meter: var(--tone-water); }
+.habit-meter.meal { --meter: var(--tone-meal); }
+.habit-meter .track { fill: none; stroke: color-mix(in oklch, var(--on-surface) 12%, transparent); stroke-width: 3; }
+.habit-meter .fill { fill: none; stroke: var(--meter); stroke-width: 3; }
+.habit-meter .inner { fill: color-mix(in oklch, var(--on-surface) 4%, transparent); }
+.habit-meter .water-top { stop-color: color-mix(in oklch, var(--tone-water) 45%, white); }
+.habit-meter .water-deep { stop-color: color-mix(in oklch, var(--tone-water) 85%, black); }
+.habit-meter .back path { fill: var(--tone-water); opacity: .4; }
+.habit-meter .glyph { fill: none; stroke: var(--meter); stroke-width: 3.7; stroke-linecap: round; stroke-linejoin: round; }
+.habit-meter.covered .glyph { stroke: var(--on-tone); }
+.habit-meter .fall { fill: color-mix(in oklch, var(--tone-water) 45%, white); }
+.habit-meter .ripple { fill: none; stroke: color-mix(in oklch, var(--tone-water) 25%, white); stroke-width: 1; transform-box: fill-box; transform-origin: center; }
+.habit-meter .steam { fill: none; stroke: var(--on-surface-variant); stroke-width: 1.4; stroke-linecap: round; opacity: 0; }
+.habit-meter .bit { transform-box: fill-box; transform-origin: 50% 100%; }
+.habit-meter .bit.off { transform: scale(0); }
+.habit-meter .grain { fill: color-mix(in oklch, var(--tone-meal) 35%, white); }
+.habit-meter .greens { fill: var(--tone-routine); }
+.habit-meter .rice { fill: color-mix(in oklch, var(--tone-meal) 15%, white); }
+.habit-meter .bowl { fill: var(--tone-meal); }
+.habit-meter .bowl-foot { fill: none; stroke: var(--tone-meal); stroke-width: 2; stroke-linecap: round; }
+@media (prefers-reduced-motion: no-preference) {
+  .habit-meter .glyph { transition: stroke var(--dur-settle) var(--ease-standard); }
+}

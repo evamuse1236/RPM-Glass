@@ -1,48 +1,48 @@
 /* ---------- 4. Screens ---------- */
-/* Today. One left edge: every row's text starts at 56dp (16dp margin + 24dp leading + 16dp gap), as in Google Tasks. */
-.day-header { padding: 0 0 var(--s1); }
-.date-line { display: flex; align-items: center; gap: var(--s2); padding: 0 var(--s3); }
+/* Today's list layout. One left edge: every row's text starts at 56dp (16dp margin + 24dp leading + 16dp gap), as in Google Tasks. */
+.day-header { padding-block-end: var(--s6); background: var(--surface-container); }
+.date-line { display: flex; align-items: center; gap: var(--s2); padding-inline: var(--inset-page); }
 .date-button {
   display: inline-flex;
   align-items: center;
-  min-height: var(--touch);
-  padding: 0 var(--s1) 0 var(--s2);
-  border-radius: var(--shape-full);
-  font: var(--body-large);
-  color: var(--on-surface-variant);
+  min-block-size: var(--touch);
+  border-radius: var(--r-control);
+  font: var(--title-date);
+  letter-spacing: -.02em;
+  color: var(--on-surface);
 }
-.date-button .ms { color: var(--on-surface-variant); }
-.week-strip { display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 var(--s2); }
+.date-button:active { background: var(--row-press); }
+.date-year { color: var(--primary); }
+.week-strip { display: grid; grid-template-columns: repeat(7, 1fr); margin-block-start: var(--s3); padding-inline: var(--s2); }
 .week-day {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  min-height: 56px;
-  padding: 2px 0 var(--s1);
+  gap: var(--s1);
+  padding-block: var(--s1);
+  border-radius: var(--r-control);
 }
-.week-letter { font: var(--label-small); color: var(--on-surface-variant); }
+.week-letter { font: var(--label-medium); color: var(--on-surface-variant); }
 .week-number {
-  min-width: 2.25em;
-  height: 2.25em;
-  border-radius: 50%;
   display: grid;
   place-items: center;
-  font: var(--title-medium);
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: 50%;
+  font: var(--day-number);
   color: var(--on-surface);
 }
-/* Days already gone step back, so today and the days ahead read first. */
-.week-day.is-past .week-number { color: var(--on-surface-variant); font-weight: 400; }
-.week-day.is-today .week-number { color: var(--primary); font-weight: 700; }
-.week-day[aria-pressed=true] .week-number { background: var(--primary); color: var(--on-primary); }
-.week-day:active .week-number { background: var(--row-press); }
-.day-marks { display: flex; align-items: center; justify-content: center; gap: 1px; min-height: 16px; margin-top: -4px; }
-.day-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--outline); }
-/* A day holding deadlines: the hourglass, with their count when more than one; a clash day: the clash mark in error. */
-.day-due, .day-clash { font-size: 16px; line-height: 1; width: 1em; overflow: hidden; color: var(--on-surface-variant); }
-.day-count { font: var(--label-small); color: var(--on-surface-variant); margin-right: 2px; }
+.week-day.is-past .week-number { color: var(--on-surface-variant); font-weight: 500; }
+.week-day.is-today .week-number { background: var(--primary); color: var(--on-primary); }
+.week-day:active .week-number { scale: .92; }
+@media (prefers-reduced-motion: no-preference) {
+  .week-number { transition: scale var(--dur-press) var(--ease-standard); }
+}
+.day-marks { display: flex; align-items: center; justify-content: center; gap: 2px; min-block-size: 12px; }
+.day-dot { inline-size: 4px; block-size: 4px; border-radius: 50%; background: var(--tone); }
+.day-due, .day-clash { font-size: 12px; line-height: 1; inline-size: 1em; overflow: clip; color: var(--on-surface-variant); }
+.day-count { font: var(--label-small); color: var(--on-surface-variant); }
 .day-clash { color: var(--error); }
-.week-day[aria-pressed=true] .day-due, .week-day[aria-pressed=true] .day-count { color: var(--primary); }
 /* Where the week's plan stands: one quiet line under the strip that opens the weekly review. */
 .week-line {
   width: 100%;

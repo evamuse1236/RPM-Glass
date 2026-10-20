@@ -48,6 +48,7 @@ h1, h2, h3, p { margin: 0; }
 /* The page ends above the floating tab bar (--nav-measured: its height plus its gap to the screen's edge). */
 .page { padding: 0 0 calc(var(--nav-measured, var(--nav)) + var(--s4)); max-width: 720px; margin: 0 auto; }
 #planner:has(> #nav-bar[hidden]) .page { padding-bottom: var(--s8); }
+#planner[data-habit=true] .page { padding-bottom: calc(var(--nav-measured, var(--nav)) + var(--touch) + var(--s3) + var(--s4)); }
 /* While a snackbar shows, the page ends above it too, so the last row can always scroll clear of it. */
 #planner[data-snackbar=true] .page { padding-bottom: calc(var(--nav-measured, var(--nav)) + var(--snackbar-h, 48px) + var(--s8)); }
 /* Weekly review: a focused full-height route; the review scrolls its own body. */
@@ -74,7 +75,7 @@ h1, h2, h3, p { margin: 0; }
   background: var(--surface);
   transition: background-color var(--dur-medium) var(--ease-standard);
 }
-#planner[data-scrolled=true] .top-bar { background: var(--surface-container); }
+#planner[data-scrolled=true] .top-bar, #planner[data-view=today] .top-bar { background: var(--surface-container); }
 .detail-bar, .search-bar { padding-left: var(--s1); }
 .top-title {
   flex: 1;
@@ -97,7 +98,7 @@ h1, h2, h3, p { margin: 0; }
 .detail-bar .top-title { opacity: 0; transition: opacity var(--dur-short) var(--ease-standard); }
 #planner[data-title-out=true] .detail-bar .top-title,
 #planner[data-view=settings] .detail-bar .top-title { opacity: 1; }
-.top-actions { display: flex; align-items: center; flex: none; }
+.top-actions { display: flex; align-items: center; flex: none; margin-inline-start: auto; }
 
 .icon-btn {
   min-width: var(--touch);
@@ -131,7 +132,7 @@ h1, h2, h3, p { margin: 0; }
   min-block-size: 64px;
   padding: calc(var(--s2) - 1px); /* 8dp from the bar's outer edge, inside its 1px border */
   border: 1px solid var(--float-border);
-  border-radius: var(--r-group);
+  border-radius: var(--shape-full);
   background: var(--float-surface);
   box-shadow: var(--float-shadow);
   touch-action: pan-y;
@@ -148,7 +149,7 @@ h1, h2, h3, p { margin: 0; }
 @media (prefers-reduced-transparency: reduce) {
   :root[data-bar-glass=true] #nav-bar { background: var(--float-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
-:root[data-keyboard=open] :is(#nav-bar, #now-host) { display: none; }
+:root[data-keyboard=open] :is(#nav-bar, #now-host, #dock) { display: none; }
 /* Content scrolls under the bar. The strip below the bar shows nothing; the page fades back in over the bar's
    lower half when the bar is solid, and within 8dp when it is glass, so the page shows through the glass. */
 :root:not([data-keyboard=open]) #planner:has(> #nav-bar:not([hidden])) #planner-scroll {
@@ -181,13 +182,13 @@ h1, h2, h3, p { margin: 0; }
 .nav-item[aria-current=page] .nav-label { color: var(--on-surface); }
 .nav-item:active { scale: .97; }
 .nav-item:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--r-control); }
-/* The one active pill (48 × 64, radius 12 = the bar's 20 − its 8 inset) slides to the tab under it. shell.mjs places it. */
+/* The one active pill (48 × 64, a capsule inside the capsule bar) slides to the tab under it. shell.mjs places it. */
 .nav-indicator {
   position: absolute;
   inset-block: calc(var(--s2) - 1px);
   inset-inline-start: 0;
   inline-size: var(--pill-w, 64px);
-  border-radius: var(--r-control);
+  border-radius: var(--shape-full);
   background: var(--secondary-container);
   translate: var(--pill-x, 0px) 0;
   pointer-events: none;
@@ -197,27 +198,6 @@ h1, h2, h3, p { margin: 0; }
   .nav-item { transition: scale var(--dur-press) var(--ease-standard); }
   #nav-bar[data-placed] .nav-indicator { transition: translate var(--dur-medium1) var(--ease-emphasized), inline-size var(--dur-medium1) var(--ease-emphasized); }
   #nav-bar[data-dragging] .nav-indicator { transition-duration: 60ms; }
-}
-
-/* Add sits inside the tab bar at its end, like a composer's send button: 48 × 48, radius 12 (= the bar's 20 − its 8
-   inset), concentric with the active pill. Tap adds; a 400ms hold opens Capture. */
-#nav-bar:has(> .nav-add:not([hidden])) { grid-template-columns: repeat(4, minmax(0, 1fr)) calc(var(--touch) + var(--s2)); }
-.nav-add {
-  justify-self: end;
-  align-self: center;
-  inline-size: var(--touch);
-  block-size: var(--touch);
-  border-radius: var(--r-control);
-  background: var(--primary-container);
-  color: var(--on-primary-container);
-}
-.nav-add .ms { font-size: 24px; }
-.nav-add:active { scale: .94; }
-.nav-add:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-@media (prefers-color-scheme: dark) { :root:not([data-appearance=light]) .nav-add { background: var(--secondary-container); color: var(--on-secondary-container); } }
-:root[data-appearance=dark] .nav-add { background: var(--secondary-container); color: var(--on-secondary-container); }
-@media (prefers-reduced-motion: no-preference) {
-  :root:not([data-reduce-motion=true]) .nav-add { transition: scale var(--dur-press) var(--ease-standard); }
 }
 
 /* ---------- Snackbar ---------- */
@@ -242,6 +222,7 @@ h1, h2, h3, p { margin: 0; }
   overflow: hidden; /* the ticker's words slide inside the bar */
 }
 #planner[data-view=settings] ~ #snackbar, #planner[data-view=search] ~ #snackbar { bottom: var(--s4); }
+#planner[data-habit=true] ~ #sheet[hidden] ~ #snackbar { right: calc(var(--inset-page) + var(--fab) + var(--s3)); }
 /* The review pins its own button footer, so the snackbar sits above it. */
 #planner[data-view=review] ~ #snackbar { bottom: calc(var(--s4) + var(--key-text)); }
 /* While a sheet is open the snackbar docks just above the sheet's action bar and the sheet's content ends above it:
