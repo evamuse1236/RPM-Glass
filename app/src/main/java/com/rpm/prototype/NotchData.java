@@ -102,7 +102,7 @@ final class NotchData {
         int minutes = e.isNull("minutes") ? 30 : e.optInt("minutes", 30);
         String block = e.isNull("blockId") ? null : blocks.get(e.optString("blockId"));
         String title = e.optString("title", e.optString("raw"));
-        return new NotchDay.Task(e.optLong("id"), title, block, Instant.ofEpochMilli(planned), minutes, e.optString("recurrence", ""), completed, false,
+        return new NotchDay.Task(e.optLong("id"), title, block, Instant.ofEpochMilli(planned), minutes, Repeats.key(e), completed, false,
                 alertType(e), e.optString("purpose", ""));
     }
 

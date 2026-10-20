@@ -1,6 +1,5 @@
 package com.rpm.prototype;
 
-import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -101,20 +100,19 @@ final class NotchDay {
         return slots;
     }
 
-    /** One-time tasks have their own time; daily, weekly and weekday repeats keep the first time's local clock. */
+    /** One-time tasks have their own time; every calendar repeat (Repeats) keeps the first time's local clock. */
     private static List<ZonedDateTime> candidates(Task task, LocalDate day, ZoneId zone) {
         List<ZonedDateTime> out = new ArrayList<>();
         ZonedDateTime base = task.planned.atZone(zone);
         String r = task.recurrence;
-        if (!"daily".equals(r) && !"weekly".equals(r) && !"weekdays".equals(r)) {
+        if (!Repeats.repeating(r)) {
             out.add(base);
             return out;
         }
         for (LocalDate d = day.minusDays(1); !d.isAfter(day); d = d.plusDays(1)) {
             long days = d.toEpochDay() - base.toLocalDate().toEpochDay();
             if (days < 0 || ("weekly".equals(r) && days % 7 != 0)) continue;
-            DayOfWeek dow = d.getDayOfWeek();
-            if ("weekdays".equals(r) && (dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY)) continue;
+            if (!Repeats.on(r, d.getDayOfWeek())) continue;
             out.add(base.plusDays(days));
         }
         return out;

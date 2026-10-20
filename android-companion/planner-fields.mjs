@@ -19,3 +19,8 @@ export const one = (rows, id) => {
   return r;
 };
 export const link = (rows, id) => (id == null || id === '' ? null : one(rows, id).id);
+/** Days of the week a repeat lands on, 0 (Sunday) to 6 (Saturday): unique and in order. */
+export const weekdays = v => {
+  if (!Array.isArray(v) || v.some(d => !Number.isInteger(d) || d < 0 || d > 6)) throw new Error('Choose valid days.');
+  return [...new Set(v)].sort((a, b) => a - b);
+};

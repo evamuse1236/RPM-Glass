@@ -145,8 +145,6 @@
 .sheet-task .sheet-header { align-items: flex-start; padding-inline: var(--s1); }
 .sheet-task .sheet-body { display: flex; flex-direction: column; gap: var(--row-gap); padding: var(--s2) var(--s4) var(--s4); }
 .sheet-task .sheet-body > *, .habit-editor .sheet-body > * { flex-shrink: 0; }
-.task-facts { display: flex; flex-direction: column; gap: var(--row-gap); }
-.task-facts .field-alert, .task-facts .field-error { margin: 0; }
 
 .task-head {
   flex: 1;
@@ -183,34 +181,6 @@
 .task-start:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .task-head.is-done .task-title-field { text-decoration: line-through; color: var(--on-surface-variant); }
 
-.block-row {
-  display: grid;
-  grid-template-columns: calc(var(--row-icon) - 4px) minmax(0, 1fr) auto;
-  align-items: center;
-  inline-size: 100%;
-  min-block-size: 56px;
-  padding-block: var(--s2);
-  padding-inline-end: var(--s2);
-  border-inline-start: 4px solid var(--tone, var(--outline-variant));
-  border-radius: var(--shape-md);
-  background: var(--surface-container);
-  color: var(--on-surface);
-  text-align: start;
-}
-.block-icon { justify-self: center; font-size: calc(24px / var(--text-scale, 1)); color: var(--tone, var(--on-surface-variant)); }
-.block-chevron { font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
-.block-copy { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; }
-.block-result { font: var(--title-small); overflow-wrap: anywhere; }
-.block-purpose {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-  font: var(--body-small);
-  color: var(--on-surface-variant);
-}
-.block-row:active { background: var(--surface-container-high); }
-.block-row:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 .sheet-task .sheet-actions {
   display: grid;
@@ -240,7 +210,6 @@
 .tool-btn:active { background: var(--row-press); }
 .tool-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 
-:root[data-large-text=true] .block-purpose { -webkit-line-clamp: 3; }
 :root[data-large-text=true] .stepper-row .edit-label { flex-basis: 100%; }
 :root[data-large-text=true] .stepper-value { font: var(--title-large); }
 
@@ -251,15 +220,13 @@
   }
   .chip[aria-pressed=true] { transition-duration: var(--dur-press), var(--dur-short3), var(--dur-short3), var(--dur-short3), var(--dur-short3); }
   .edit-row, .edit-pair, .edit-chips { transition: opacity var(--dur-short3) var(--ease-standard); }
-  .tool-btn, .stepper-btn, .block-row, .time-button, .switch-btn, .task-ring, .must-star {
+  .tool-btn, .stepper-btn, .time-button, .switch-btn, .task-ring, .must-star {
     transition: scale var(--dur-press) var(--ease-standard), background-color var(--dur-press) var(--ease-standard);
   }
-  :is(.chip, .tool-btn, .stepper-btn, .block-row, .time-button, .switch-btn, .task-ring, .must-star):active { scale: .97; }
+  :is(.chip, .tool-btn, .stepper-btn, .time-button, .switch-btn, .task-ring, .must-star):active { scale: .97; }
   .task-head.swipe-settling { transition: translate var(--dur-settle) var(--ease-emphasized); }
 }
 
-/* Time and Length: a 4dp track with a 28dp thumb, the value at the trailing end; tapping the value opens the chips. */
-.fact-slider-line { display: flex; align-items: center; gap: var(--s3); min-block-size: var(--chip-block); }
 .fact-slider {
   flex: 1;
   min-inline-size: 0;
@@ -286,19 +253,6 @@
 .fact-slider:active::-webkit-slider-thumb { box-shadow: 0 0 0 8px color-mix(in oklch, var(--primary) 14%, transparent); }
 .fact-slider:disabled { opacity: .38; }
 .fact-slider:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--r-control); }
-.fact-value {
-  flex: none;
-  min-inline-size: 5.5em;
-  min-block-size: var(--touch);
-  padding-inline: var(--s1);
-  border-radius: var(--r-control);
-  font: var(--title-medium);
-  color: var(--on-surface);
-  text-align: end;
-}
-.fact-slider-line:has(.fact-slider[data-unset]) .fact-value { color: var(--on-surface-variant); }
-.fact-value[aria-expanded=true] { color: var(--primary); }
-.fact-value:active { background: var(--row-press); }
 @media (prefers-reduced-motion: no-preference) {
   .fact-slider::-webkit-slider-thumb { transition: box-shadow var(--dur-short3) var(--ease-standard); }
 }

@@ -180,7 +180,7 @@ function installNativeHooks(app) {
  * once the choices folding away or opening have finished. */
 const DOCK_GAP = 20; // the bar's 8dp above the action bar plus the content's 12dp above the bar (planner.css)
 const DOCK_FADE = 16; // the faded edge of the content (planner.css)
-const DOCK_ROWS = '.edit-row, .block-row, .detail-field, .task-row, .quick-title, .quick-row, .field-fold.open, .choice-row';
+const DOCK_ROWS = '.edit-row, .block-choice, .tab-panel > *, .detail-field, .task-row, .quick-title, .quick-row, .field-fold.open, .choice-row';
 /** The room a docked one-line snackbar takes from a sheet's body (its 48dp plus the gaps). */
 export const DOCK_ROOM = 48 + DOCK_GAP;
 
