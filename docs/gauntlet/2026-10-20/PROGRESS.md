@@ -49,3 +49,4 @@ All five done-condition checks pass. Open owner decisions:
 1. The phone's instant task reader skips any capture while a Block is open, so on a real plan "buy milk tomorrow" still waits for the AI.
 2. The island's side margin is about 5dp; check that the S24's rounded corners do not clip it.
 3. Not on the phone yet: this branch is not installed or merged to `main`.
+- 10:00 UTC Push notification not sent (Remote Control inactive). ZapFast fallback skipped: it is Windows-only and not installed on Linux.
