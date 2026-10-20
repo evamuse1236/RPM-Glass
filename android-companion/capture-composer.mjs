@@ -1,7 +1,7 @@
 // The Capture composer: an M3 filled field that is one line when empty and
 // grows with text. The microphone becomes Send as soon as there is text.
 
-const MAX_LINES=5;
+const MAX_LINES=6;
 const ONE='one',MANY='many';
 
 export function installComposer({onSubmit,onInput,onVoice}){
@@ -14,7 +14,7 @@ export function installComposer({onSubmit,onInput,onVoice}){
  // it grew, so the shape never flickers between the two.
  let grewAt=0;
  const fit=()=>{
-  // Five lines at the current text size, then the field scrolls.
+  // Six lines at the current text size, then the field scrolls.
   const style=getComputedStyle(message);
   const line=parseFloat(style.lineHeight)||24,padding=(parseFloat(style.paddingTop)||0)+(parseFloat(style.paddingBottom)||0);
   const max=line*MAX_LINES+padding;

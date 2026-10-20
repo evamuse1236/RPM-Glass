@@ -64,7 +64,7 @@
   padding: var(--s3) var(--s2) var(--s3) 0;
   font: var(--body-medium);
 }
-.next-title .overline { font-size: 11px; color: var(--primary); }
+.next-title .overline { text-transform: none; letter-spacing: 0; color: var(--primary); }
 /* Blocks list: consecutive cards from one Project sit under one Area and Project line. */
 .project-run { padding: var(--s5) var(--gutter) 0 calc(var(--gutter) + var(--s2)); }
 .project-run .eyebrow { font: var(--label-large); }

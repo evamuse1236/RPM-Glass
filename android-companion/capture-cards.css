@@ -1,13 +1,14 @@
-.cards{flex:0 1 auto;min-block-size:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;display:flex;flex-direction:column;gap:8px;outline:none}
+/* The list scrolls, so it pads 8dp past its edges to keep the cards' shadows from being cut square. */
+.cards{flex:0 1 auto;min-block-size:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;display:flex;flex-direction:column;gap:8px;outline:none;padding:0 16px 8px;margin:0 -16px -8px}
 .cards::-webkit-scrollbar{display:none}
 .cards:empty{display:none}
 
 .card{
   flex:none;display:flex;flex-direction:column;gap:12px;padding:16px 20px;
-  background:var(--bar);color:var(--bar-on);border-radius:var(--card-radius);box-shadow:var(--bar-shadow);
+  background:var(--bar);color:var(--bar-on);border:1px solid var(--bar-outline);border-radius:var(--r-group);
+  /* The border draws the edge; a short shadow stays inside the list's 8dp of room, so it never ends in a straight cut. */
+  box-shadow:0 2px 6px rgba(0,0,0,.22);
 }
-@media (prefers-color-scheme:dark){:root:not([data-appearance=light]) .card{outline:1px solid var(--bar-outline);outline-offset:-1px}}
-:root[data-appearance=dark] .card{outline:1px solid var(--bar-outline);outline-offset:-1px}
 .card p{margin:0}
 .kicker{display:flex;align-items:center;gap:8px;font:var(--label-large);color:var(--bar-on-variant)}
 .kicker .ms{font-size:20px}
@@ -112,3 +113,26 @@
   .btn,.chip{transition:scale 160ms var(--ease-standard)}
 }
 :root[data-reduce-motion=true] .card{transition:none}
+
+/* "Which one?": every chip leads with what choosing does (delete, done); the first, which a right swipe picks, has a
+   primary outline and a filled icon. The card slides over a reveal that names it (task-swipe.mjs). */
+.chip-first{border-color:var(--bar-primary)}
+.chip-first .ms{font-variation-settings:'FILL' 1}
+.question.swipe-task{position:relative;isolation:isolate;touch-action:pan-y;overflow:clip}
+.question.swipe-task > :not(.swipe-reveal){translate:var(--swipe-offset,0) 0}
+.question.swipe-task[data-swipe]{background:transparent;border-color:transparent;box-shadow:none}
+.question.swipe-task[data-swipe]::before{
+  content:'';position:absolute;inset:-1px;z-index:-1;border:1px solid var(--bar-outline);border-radius:inherit;background:var(--bar);translate:var(--swipe-offset,0) 0;
+}
+.question .swipe-reveal{
+  position:absolute;inset:-1px;z-index:-2;display:flex;align-items:center;gap:8px;padding-inline:20px;border-radius:inherit;
+  background:color-mix(in oklch,var(--bar-accent) 55%,var(--bar));color:var(--bar-on-accent);font:var(--label-large);
+}
+.question[data-armed=true] .swipe-reveal{background:var(--bar-accent)}
+.question .swipe-reveal .ms{font-size:24px}
+.question[data-armed=true] .swipe-reveal .ms{scale:1.15}
+.question .swipe-word{min-inline-size:0;overflow-wrap:anywhere}
+@media (prefers-reduced-motion:no-preference){
+  .question.swipe-settling > :not(.swipe-reveal),.question.swipe-settling::before{transition:translate var(--dur-short4) var(--ease-standard)}
+  .question .swipe-reveal .ms{transition:scale 40ms var(--ease-standard)}
+}

@@ -18,6 +18,12 @@ const BLOCKS = new Set(['task', 'event', 'routine']);
 const plural = (count, one) => `${count} ${count === 1 ? one : one + 's'}`;
 const minutesBetween = (a, b) => Math.round((b - a) / MIN);
 
+/** How soon the next card starts, short enough for the gutter: "in 40 min", then whole hours ("in 4 h"). */
+export function soonText(ms) {
+  const minutes = Math.max(1, Math.ceil(ms / MIN));
+  return minutes < 60 ? `in ${minutes} min` : `in ${Math.round(minutes / 60)} h`;
+}
+
 function card(kind, key, start, end, extra) {
   const minutes = Math.max(0, minutesBetween(start, end));
   return {kind, key, start, end, minutes, height: cardHeight(minutes),
@@ -141,7 +147,7 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
   for (const row of marks) row.past = row.kind === 'meal' ? row.past || (!!row.meal && row.end < now) : row.kind !== 'water' && row.end < now;
   const current = blocks.filter(r => r.current);
   const next = live ? blocks.filter(r => r.start > now && !r.done).sort((a, b) => a.start - b.start)[0] : null;
-  if (next) next.next = true;
+  if (next) Object.assign(next, {next: true, soon: soonText(next.start - now)});
 
   const rows = [...blocks, ...marks, ...freeRows(blocks, marks, {from, to, now, live})];
   if (live && !current.length) rows.push({kind: 'now', key: 'now', start: now, end: now, time: gutterTime(now), label: clockText(now)});
@@ -149,16 +155,29 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
   const shown = row => row.gutter?.time ?? row.time;
   rows.forEach((row, i) => { row.sameTime = i > 0 && shown(rows[i - 1]) === shown(row); });
 
-  const untimed = tasks.filter(t => t.start == null);
-  const open = untimed.filter(t => !t.done).length;
+  const nowKey = live ? (current[0]?.key ?? 'now') : null;
+  const anytime = anytimeRow(tasks.filter(t => t.start == null), live);
+  if (anytime) rows.splice(nowKey ? rows.findIndex(r => r.key === nowKey) + 1 : 0, 0, anytime);
   return {
     rows,
-    nowKey: live ? (current[0]?.key ?? 'now') : null,
-    anytime: {tasks: untimed, open, done: untimed.length - open,
-      label: open ? `${plural(open, 'anytime task')}` : untimed.length ? `${plural(untimed.length, 'anytime task')} done` : null},
+    nowKey,
     empty: !tasks.length && !events.length,
-    shape: rows.map(r => `${r.key}:${r.past ? 1 : 0}${r.current ? 1 : 0}${r.next ? 1 : 0}${r.line?.kind ?? ''}`).join('|'),
+    shape: rows.map(r => `${r.key}:${r.past ? 1 : 0}${r.current ? 1 : 0}${r.next ? 1 : 0}${r.line?.kind ?? ''}${r.tasks?.length ?? ''}`).join('|'),
   };
+}
+
+/**
+ * Tasks dated for the day without a time: one group of cards under "Anytime", right after now (where Today opens) or
+ * first on another day, so a task planned for today is never only behind a chip or in the Inbox count.
+ */
+function anytimeRow(untimed, live) {
+  if (!untimed.length) return null;
+  const open = untimed.filter(t => !t.done).length;
+  return {kind: 'anytime', key: 'anytime', time: 'Anytime', past: false,
+    label: open ? `${plural(open, 'task')} ${live ? 'for today' : 'for this day'}, no time set` : `${plural(untimed.length, 'task')} done, no time set`,
+    tasks: untimed.map(task => ({kind: 'task', key: 'task:' + task.id + (task.occurrence ?? ''), title: task.title, task,
+      done: !!task.done, must: !!task.must, gutter: {time: 'Anytime', length: task.minutes ? duration(task.minutes) : null},
+      line: {kind: 'result', text: task.result ?? 'No block', tone: task.tone ?? 'neutral'}}))};
 }
 
 export const isBlock = row => BLOCKS.has(row.kind);

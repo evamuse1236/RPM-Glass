@@ -15,15 +15,15 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 ## Navigation and hierarchy
 
 - The solid 80dp bottom bar contains exactly **Today, Blocks, Projects, Life**, each with icon and visible label.
-- Settings pushes from the Today top bar and from other-screen overflow. Search and Add sit bottom right, in the right thumb's reach: a 40dp Search button above the 56dp Add button on every root tab (user, 2026-10-18). Capture opens from the top bar.
-- Each root screen has at most one context-specific floating action.
+- Settings pushes from the Today top bar and from other-screen overflow. Add sits inside the floating tab bar at its right end, in the right thumb's reach; Search and Capture are in the top bar (design round 2, 2026-10-20, replacing the 2026-10-18 floating Search and Add column, which covered row controls).
+- Nothing floats over a root screen's rows except the tab bar and, on today's spine while now is out of view, the Now pill 16dp above the bar.
 - Details push above root navigation and use Android Back. Task detail and quick add use bottom sheets with sticky primary actions above the keyboard.
 - Structural hierarchy is **Area → Goal → Project → Block → Task**. A list shows a summary; the next level holds controls. Cards never nest more than one level.
 - Preserve the selected day, filters, scroll position, detail target, draft, and active context across ordinary rerenders and system text-scale changes.
 
 ### Gestures
 
-- Task rows (Today's spine cards, Block Plan, Inbox, lists): swipe right is **Done**, swipe left is **Schedule** (one-tap date choices). In the Inbox, swipe left is **Move to Block**. A drag locks to one axis after 8px, so vertical scrolling never moves a row; letting go before 90dp springs back and changes nothing.
+- Task rows (Today's spine cards, Block Plan, Inbox, lists): swipe right is **Done**, swipe left is **Schedule** (one-tap date choices). In the Inbox the same choices end with **Move to Block…**, so an Inbox task goes to Today or Tomorrow 9:00 AM in two taps. A drag locks to one axis after 8px, so vertical scrolling never moves a row; letting go before 90dp springs back and changes nothing.
 - Delete is never a swipe. A long press on a task row opens a quick menu with Must, Move to Block and Delete; on Block Plan rows the long press stays the reorder lift, and Delete is in the task sheet's `Task actions`.
 - Week strip: swipe right for the previous week, left for the next; long-press a day for that day's tasks in a sheet; tap a day to open it. On Today, a day-change swipe starts only from the gutter, the date line or empty space.
 - The task sheet's handle drags it down; it closes past 30% of its height or a fast flick.
@@ -33,7 +33,7 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 
 ### Today
 
-- Today's main body is the **spine** (design: `docs/design/final-2026-10-18/README.md`, "Day view"). The sticky date line and the week strip head it; anytime tasks and all-day events are one chip line above it. The list layout (More options, Show list) remains one tap away.
+- Today's main body is the **spine** (design: `docs/design/final-2026-10-18/README.md`, "Day view"). The sticky date line and the week strip head it; all-day events are one chip line above it. Tasks dated for the day without a time are one "Anytime" group of task cards right after now (first on another day), so a task planned for today is always on Today, not only in the Inbox count. The list layout (More options, Show list) remains one tap away.
 - One line about 64dp from the left carries every item with a dot; the gutter holds its start time and length. Tasks and Routines are filled cards with the round check; calendar events are outlined with the event icon. The supporting line carries one thing: Area dot and Result, Now · until, Not done, or Clash with … plus Resolve (a clash wins).
 - Card height is 56dp, plus 24dp per full extra half hour, capped at 160dp. Free time of 45 minutes or more is a dashed row with a + that plans into it. Water and meals are 40dp rows with one action.
 - Now is the item in progress (tinted, with an elapsed bar) or a line between rows. Today opens at now; a floating Now button returns there.
@@ -62,7 +62,7 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 
 - Task detail combines completion, editable title and meta, Must, a tappable Part-of panel with Result/Purpose/breadcrumb, notes, and differing original capture text.
 - The task sheet completes with the ring in its header (named `Mark <title> complete`); its footer toolbar `Task actions` holds Ask Capture, Duplicate, Archive and Delete, each with Undo.
-- Quick add opens with its title focused and the real keyboard visible. Date, duration, Block, Must, repeat, and More are optional chips. An unassigned task may keep an optional Why.
+- Quick add opens with its title focused and the real keyboard visible. Day, Time, Estimate, Repeat, Block and Must are optional labelled chips, one row per meaning; Details is a text row under them. An unassigned task may keep an optional Why.
 - Typed shortcuts are intentionally deferred. Do not claim or infer them from ordinary text.
 
 ### Capture

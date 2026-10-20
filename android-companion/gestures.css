@@ -1,5 +1,5 @@
 /* Gestures and their motion (task-swipe.mjs, planner/row-gestures.mjs). Ships inside planner.css, after it.
-   Swipe right = Done (tertiary), swipe left = Schedule (primary) or, in the Inbox, Move to Block (secondary).
+   Swipe right = Done (tertiary), swipe left = Schedule (primary; in the Inbox its menu ends with Move to Block).
    The reveal shows from the 8px lock at a tint; at the 90dp commit it fills and its icon grows, both in 40ms. */
 .swipe-reveal {
   --reveal: var(--primary-container);
@@ -10,7 +10,6 @@
 }
 .swipe-reveal[data-side=left] { flex-direction: row-reverse; }
 .swipe-reveal[data-kind=done] { --reveal: var(--tertiary-container); --on-reveal: var(--on-tertiary-container); }
-.swipe-reveal[data-kind=move] { --reveal: var(--secondary-container); --on-reveal: var(--on-secondary-container); }
 .swipe-reveal[data-kind=remove] { --reveal: var(--error-container); --on-reveal: var(--on-error-container); }
 .swipe-task[data-armed=true] .swipe-reveal { background: var(--reveal); }
 .swipe-reveal .ms { display: inline-block; transition: none; }
@@ -25,17 +24,17 @@
 .spine-card.swipe-task[data-swipe]::before { inset: -1px; border: 1px solid var(--swipe-edge, transparent); border-radius: inherit; }
 .spine-card > .swipe-reveal { inset: -1px; border-radius: inherit; }
 
-.task-row.done .check-ring, .spine-row.done .check-ring {
+.task-row.done .check-ring, :is(.spine-row, .spine-anytime-item).done .check-ring {
   background: var(--tertiary);
   border-color: var(--tertiary);
   color: var(--on-tertiary);
 }
-.spine-row.just-done .spine-title { animation: strike-in var(--dur-short3) var(--ease-standard); }
+:is(.spine-row, .spine-anytime-item).just-done .spine-title { animation: strike-in var(--dur-short3) var(--ease-standard); }
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-reduce-motion=true]) :is(.task-row, .spine-row).just-done .check-ring {
+  :root:not([data-reduce-motion=true]) :is(.task-row, .spine-row, .spine-anytime-item).just-done .check-ring {
     animation: ring-pop var(--dur-short3) var(--ease-spring);
   }
-  :root:not([data-reduce-motion=true]) .spine-row.just-done .check-ring .ms {
+  :root:not([data-reduce-motion=true]) :is(.spine-row, .spine-anytime-item).just-done .check-ring .ms {
     animation: check-in var(--dur-short3) var(--ease-emphasized-decelerate);
   }
 }
@@ -60,3 +59,63 @@
 }
 .choice-chip[aria-pressed=true] .chip-check { animation: chip-check-in var(--dur-press) var(--ease-standard); }
 @keyframes chip-check-in { from { opacity: 0; } }
+
+/* Spine cards: held 250ms a card lifts and follows the finger; a dashed slot keeps its old place. */
+.spine-card.lifted, .spine-card.drag-settling { z-index: 2; translate: 0 var(--drag-y, 0px); }
+.spine-card.lifted { scale: 1.02; box-shadow: var(--float-shadow); border-color: var(--outline); user-select: none; -webkit-user-select: none; }
+.drag-ghost {
+  grid-column: 3;
+  border: 1px dashed var(--primary);
+  border-radius: var(--r-group);
+  background: color-mix(in oklch, var(--primary-container) 40%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .spine-card { transition: scale var(--dur-short3) var(--ease-standard); }
+  .spine-card.drag-settling { transition: translate var(--dur-settle) var(--ease-emphasized-decelerate), scale var(--dur-settle) var(--ease-standard); }
+}
+.drag-label {
+  position: fixed;
+  z-index: 60;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  display: grid;
+  place-items: center;
+  block-size: 28px;
+  padding-inline: var(--s3);
+  border-radius: var(--r-control);
+  background: var(--inverse-surface);
+  color: var(--inverse-on-surface);
+  font: var(--label-large);
+  white-space: nowrap;
+  box-shadow: var(--float-shadow);
+  pointer-events: none;
+}
+/* The knurl: a 24 × 4 grip at the foot of a timed card, in a 48 × 20 target; dragging it changes the length. */
+.spine-knurl {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline-start: calc(50% - 24px);
+  inline-size: 48px;
+  block-size: 20px;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  cursor: ns-resize;
+}
+.spine-knurl::before { content: ""; inline-size: 24px; block-size: 4px; border-radius: 2px; background: var(--outline-variant); }
+.spine-knurl:active::before, .spine-card.resizing .spine-knurl::before { background: var(--primary); }
+.spine-card.resizing { border-color: var(--primary); }
+/* Small spine rows (meals) swipe inside their own box, so the reveal never covers the gutter. */
+.spine-small.swipe-task { position: relative; }
+/* A meal row's reveal grows with the finger and has the card's 20dp corners on its outer side; its word shows only
+   once it fits whole, so "Log now" is never cut mid-word. */
+.spine-small > .swipe-reveal {
+  inset-inline-end: auto;
+  inline-size: max(0px, var(--swipe-offset, 0px));
+  border-radius: var(--r-group) 0 0 var(--r-group);
+  padding-inline: var(--s4);
+  overflow: clip;
+  container-type: inline-size;
+  white-space: nowrap;
+}
+@container (inline-size < 7em) { .spine-small > .swipe-reveal .swipe-word { visibility: hidden; } }

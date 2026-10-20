@@ -5,7 +5,7 @@ function gutter(row) {
   const node = el('div', 'spine-gutter tnum');
   node.setAttribute('aria-hidden', 'true');
   node.append(el('span', 'spine-time', row.sameTime ? '' : row.gutter?.time ?? row.time ?? ''));
-  if (row.gutter?.length) node.append(el('span', 'spine-length', row.gutter.length.replaceAll(' ', ' ')));
+  if (row.soon) node.append(el('span', 'spine-soon', row.soon));
   return node;
 }
 
@@ -63,7 +63,7 @@ function words(row) {
   return copy;
 }
 
-const spoken = row => [row.title, row.gutter.time, row.gutter.length, row.line?.text,
+const spoken = row => [row.title, row.gutter.time, row.soon, row.gutter.length, row.line?.text,
   row.done ? 'done' : '', row.must ? 'Must' : ''].filter(Boolean).join(', ');
 
 function taskCard(row, on) {
@@ -80,6 +80,7 @@ function taskCard(row, on) {
   }
   if (row.elapsed) card.append(elapsedBar(row));
   if (!row.done) on.gestures?.(card, row);
+  if (!row.done && row.start != null) on.drag?.(card, row);
   return card;
 }
 
@@ -114,11 +115,28 @@ function smallRow(row, symbol, open, action) {
   return body;
 }
 
+/** The faint track under the Water count: one segment per glass of the goal, filled as glasses are logged. */
+export function paintWaterTrack(track, count, goal, logged = count) {
+  const total = Math.max(goal, count);
+  while (track.children.length < total) track.append(el('i'));
+  while (track.children.length > total) track.lastChild.remove();
+  [...track.children].forEach((segment, i) => {
+    segment.classList.toggle('on', i < count);
+    segment.classList.toggle('adding', i >= logged && i < count);
+  });
+}
+
 function waterBody(row, on) {
   const add = iconButton('add', 'Log a glass of water', on.drink, {cls: 'spine-action'});
   const body = smallRow(row, 'water_drop', on.openWater, add);
-  body.firstChild.setAttribute('aria-label', `${row.label}${row.due ? ', a glass is due' : ''}. Open water`);
+  const open = body.firstChild;
+  open.setAttribute('aria-label', `${row.label}${row.due ? ', a glass is due' : ''}. Open water`);
+  const track = el('span', 'water-track');
+  track.setAttribute('aria-hidden', 'true');
+  paintWaterTrack(track, row.count, row.goal);
+  open.querySelector('.spine-label').append(track);
   on.holdHabit?.(body, 'water');
+  on.waterDrag?.(body, row, track);
   return body;
 }
 
@@ -127,7 +145,7 @@ function mealBody(row, on) {
   const action = row.meal ? null : button('Log it', open, 'text-btn spine-action');
   action?.setAttribute('aria-label', `Log ${row.label.split(' · ')[0].toLowerCase()}`);
   const body = smallRow(row, 'restaurant', open, action);
-  on.holdHabit?.(body, `meal:${row.slot}`);
+  on.holdHabit?.(body, `meal:${row.slot}`, row.meal ? {} : {right: {kind: 'log', run: () => on.logMealNow(row)}});
   return body;
 }
 
@@ -155,7 +173,22 @@ function ticks(row, node) {
   return node;
 }
 
-const BODIES = {task: taskCard, event: eventCard, routine: routineCard, water: waterBody, meal: mealBody, deadline: deadlineBody, gap: gapBody};
+function anytimeBody(row, on) {
+  const body = el('div', 'spine-anytime-list');
+  body.setAttribute('role', 'group');
+  body.setAttribute('aria-label', 'Anytime: ' + row.label);
+  for (const task of row.tasks) {
+    const item = el('div', 'spine-anytime-item');
+    item.dataset.key = task.key;
+    item.classList.toggle('done', task.done);
+    item.append(taskCard(task, on));
+    body.append(item);
+  }
+  return body;
+}
+
+const BODIES = {task: taskCard, event: eventCard, routine: routineCard, water: waterBody, meal: mealBody, deadline: deadlineBody, gap: gapBody,
+  anytime: anytimeBody};
 
 export function spineRow(row, on) {
   if (row.kind === 'now') {

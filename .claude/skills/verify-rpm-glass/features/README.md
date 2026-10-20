@@ -32,7 +32,7 @@ This directory is the maintained source for verifying the user-facing behavior o
 - Wait for an element, never a fixed time: `rpmctl wait --name "Task added"`. Snackbars last 6 s with Undo and 4 s without.
 - Read saved data with `rpmctl state files/companion.json`. Compare it before and after a mutation.
 - Switch screen size or text with `rpmctl display landscape|wide|phone`. Always return to `phone`.
-- Swipe sideways across a row with `rpmctl scroll right|left --role button --name "<row name>"` (right completes the task with Undo; left opens `Schedule <title>`, or Move in the Inbox). There is no drag command, so drag reorder is marked UNVERIFIED and its menu alternative is given.
+- Swipe sideways across a row with `rpmctl scroll right|left --role button --name "<row name>"` (right completes the task with Undo; left opens `Schedule <title>`, which in the Inbox ends with `Move to Block…`). There is no drag command, so drag reorder is marked UNVERIFIED and its menu alternative is given.
 - Tapping a text box puts the caret where you tapped. To add to the end of existing text, run `rpmctl key KEYCODE_MOVE_END` before `rpmctl type`.
 - A step that was not confirmed from the app's source or a live run carries "(unconfirmed)". Treat it as a hypothesis, correct it, and report the correction.
 

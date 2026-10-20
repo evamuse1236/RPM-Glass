@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildSpine, cardHeight, gapHeight} from './spine-model.mjs';
+import {soonText, buildSpine, cardHeight, gapHeight} from './spine-model.mjs';
 import {mealSlots, spanText, gutterTime} from './day-parts.mjs';
 import {WATER_DEFAULTS} from './body-state.mjs';
 
@@ -76,7 +76,7 @@ test('a durationless task is a visible moment without a clash, duration label or
  assert.equal(span.rows.find(r=>r.key==='task:Read').line.kind,'clash');
 });
 
-test('routines show their count and bar; water and meals are small rows; anytime tasks are one chip', () => {
+test('routines show their count and bar; water and meals are small rows', () => {
   const model = spine({routines: [{id: 'm', name: 'Morning routine', start: '07:00', end: '07:30', state: 'partly',
     progress: {done: 3, total: 5, skipped: 1}}], tasks: [task('Loose', null, 30), task('Other', null, 30, {done: true})],
   meals: [{slot: 'lunch', name: 'Dal rice', at: new Date(at('13:10')).toISOString()}]});
@@ -87,7 +87,25 @@ test('routines show their count and bar; water and meals are small rows; anytime
   assert.equal(model.rows.find(r => r.kind === 'water').label, 'Water · 5 of 8');
   assert.equal(model.rows.find(r => r.key === 'meal:lunch').label, 'Lunch · Dal rice');
   assert.equal(model.rows.find(r => r.key === 'meal:dinner').label, 'Dinner · Not logged');
-  assert.equal(model.anytime.label, '1 anytime task');
+});
+
+test('tasks for the day without a time are one Anytime group right after now, done ones included', () => {
+  const model = spine({tasks: [task('Loose', null, 30), task('Other', null, 30, {done: true}), task('Read', '09:30', 30)]});
+  const nowAt = model.rows.findIndex(r => r.key === model.nowKey);
+  const anytime = model.rows[nowAt + 1];
+  assert.equal(anytime.kind, 'anytime');
+  assert.equal(anytime.time, 'Anytime');
+  assert.equal(anytime.label, '1 task for today, no time set');
+  assert.deepEqual(anytime.tasks.map(t => [t.title, t.done, t.gutter.length.replace(/\s/g, ' ')]), [['Loose', false, '30 min'], ['Other', true, '30 min']]);
+  assert.equal(anytime.tasks[0].line.text, 'Pass the DAD exam');
+  assert.equal(model.rows.filter(r => r.kind === 'task').length, 1, 'the timed task keeps its own card');
+});
+
+test('another day puts its Anytime group first; a day with none has no group', () => {
+  const other = spine({live: false, now: at('09:00') - 864e5, tasks: [task('Lab', '14:00', 60), task('Loose', null, null)]});
+  assert.equal(other.rows[0].kind, 'anytime');
+  assert.equal(other.rows[0].label, '1 task for this day, no time set');
+  assert.equal(spine({tasks: [task('Read', '09:30', 30)]}).rows.some(r => r.kind === 'anytime'), false);
 });
 
 test('another day has no now, no water and no meal placeholders', () => {
@@ -104,4 +122,11 @@ test('words read as Calendar writes them', () => {
   const slots = mealSlots([{slot: 'breakfast', name: 'Poha', at: new Date(at('09:05')).toISOString()}], DAY, at('13:10'));
   assert.deepEqual(slots.map(s => [s.slot, s.label]), [['breakfast', 'Breakfast · Poha'], ['lunch', 'Lunch · Not logged'],
     ['dinner', 'Dinner · Not logged']]);
+});
+
+test('only the next card says how soon it starts', () => {
+  const model = spine({tasks: [task('Read', '15:25', 30), task('Write', '17:00', 30)]});
+  const soon = model.rows.filter(r => r.soon).map(r => [r.key, r.soon.replace(/\s/g, ' ')]);
+  assert.deepEqual(soon, [['task:Read', 'in 40 min']]);
+  assert.deepEqual([1, 59, 60, 89, 91, 235].map(m => soonText(m * 60000)), ['in 1 min', 'in 59 min', 'in 1 h', 'in 1 h', 'in 2 h', 'in 4 h']);
 });

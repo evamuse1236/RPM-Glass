@@ -5,7 +5,7 @@ import {el, icon, button, iconButton} from './dom.mjs';
 import {duration} from './format.mjs';
 import {openSheet, closeSheet, isSheetOpen} from './sheet.mjs';
 import {toggleDone} from './task-row.mjs';
-import {whenOf, whenFields, whenLabel, repeatValue, repeatLabel} from './task-values.mjs';
+import {whenOf, whenFields, whenLabel, repeatValue, repeatLabel, startNowValue, clockOf} from './task-values.mjs';
 import {NEEDS_TIME, alertText, clashText, findTask, saver, scheduleCheck, syncText} from './sheet-parts.mjs';
 import {archiveTask, deleteTask, duplicateTask, undoLastCompletion, movePicker} from './task-actions.mjs';
 import {RETURN_FADE, RETURN_HOLD, inboxShowing, markReturned, showInbox} from './task-lists.mjs';
@@ -46,7 +46,7 @@ function tool(symbol, label, onClick, cls = '') {
 /**
  * Task sheet: one level, nothing folded. The header holds the ring, the title and the Must star; then a row each for
  * the day, time, length, alert and repeat; the Block; notes and who could help; and a footer of actions. Every change
- * saves at once with Undo. `occurrence` is the repeat being looked at; `focus: 'date'` puts focus on the day.
+ * saves at once with Undo. `occurrence` is the repeat being looked at; `focus: 'date'` or `'length'` puts focus on that row's chosen chip.
  */
 export function openTask(app, id, occurrence, {focus = null, motion = 'forward', fromInbox = inboxShowing(app)} = {}) {
   const task = findTask(app, id);
@@ -109,6 +109,13 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
     },
   });
   header.querySelector('.sheet-close').before(head.row);
+  const startable = t => startNowValue(t, {repeating: repeats(t)});
+  const start = button('', () => {
+    const value = startable(live());
+    if (value) setWhen(value, 'Started at ' + clockOf(value.day, value.time));
+  }, 'assist-chip task-start');
+  start.append(icon('play_arrow'), el('span', 'chip-label', 'Start now'));
+  head.row.append(start);
   if (fromInbox) header.prepend(iconButton('arrow_back', 'Back to Inbox', goBack, {cls: 'sheet-back'}));
 
   let checkToken = 0;
@@ -200,6 +207,7 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
 
   const paint = t => {
     if (!completing) head.paint(t);
+    start.hidden = completing || !startable(t);
     facts.paint(now(t));
     block.paint(t);
     syncText(notes, t.notes);
@@ -211,7 +219,8 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
   paint(task);
   facts.reveal();
   for (const field of [notes, helper, why]) field.grow();
-  if (focus === 'date') body.querySelector('[aria-label=Day] button.chip[aria-pressed=true]')?.focus({preventScroll: true});
+  const focusRow = {date: 'Day', length: 'Length'}[focus];
+  if (focusRow) body.querySelector(`[aria-label=${focusRow}] button.chip[aria-pressed=true]`)?.focus({preventScroll: true});
 
   app.sheet.live = () => body.isConnected && isSheetOpen(app);
   app.sheet.sync = () => {

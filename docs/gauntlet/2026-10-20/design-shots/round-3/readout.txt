@@ -1,0 +1,12 @@
+eval: "{\"mask\":\"linear-gradient(to top, rgba(0, 0, 0, 0) 16px, rgb(0, 0, 0) 48px)\",\"pad\":\"96px\",\"barBottomGap\":16}"
+eval: "4 PM | in 3 h lines=2"
+eval: "5:15 PM · 3 h 55 min"
+eval: 880
+eval: 760
+eval: "{\"pillBottom\":736,\"barTop\":752,\"gap\":16,\"centred\":192}"
+eval: 1
+eval: "{\"pad\":\"168px\",\"snackTop\":680,\"snackH\":56,\"clearFromBottom\":152}"
+eval: "Next none 12px rgb(11, 87, 208)"
+eval: 1
+eval: "rgb(40, 42, 44) | 1px solid rgb(68, 71, 70)"
+eval: 1

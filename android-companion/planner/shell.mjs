@@ -1,4 +1,4 @@
-/** App shell: Google-style top app bar, navigation bar with pill indicator, one FAB. */
+/** App shell: top app bar, and a floating tab bar with a sliding pill and the tab's Add at its end. */
 import {el, icon, iconButton, button, labelButton} from './dom.mjs';
 import {openMenu} from './menu.mjs';
 import {FULL_SCREENS} from './app.mjs';
@@ -7,6 +7,8 @@ import {localDay} from '../planner-state.mjs';
 import {jumpToNow} from './today-day.mjs';
 import {bodyApi} from './body-api.mjs';
 import {openHabits} from './habits.mjs';
+import {navDrag} from '../nav-drag.mjs';
+import {attachSwipe, lockAxis, nearEdge} from '../task-swipe.mjs';
 
 const DESTINATIONS = [
   ['today', 'today', 'Today'],
@@ -50,14 +52,14 @@ function rootBar(app, bar) {
   bar.className = 'top-bar root-bar';
   bar.append(el('h1', 'top-title', TITLES[state.tab]));
   const tools = el('div', 'top-actions');
-  // Search and Add live in the thumb's reach, bottom right (fab below); the bar keeps Capture and More.
-  tools.append(iconButton('mic', 'Capture', () => app.capture()));
+  // Add lives at the tab bar's end; the top bar keeps Search, Capture and More.
+  tools.append(iconButton('search', 'Search', () => app.openSearch()), iconButton('mic', 'Capture', () => app.capture()));
   const more = iconButton('more_vert', 'More options', () => rootMenu(app, more));
   tools.append(more);
   bar.append(tools);
 }
 
-/** Today's spine on today: the one floating action is Now, shown while now is out of view (day.css). */
+/** Today's spine on today: the Now pill on the tab bar's top edge shows while now is out of view (day.css). */
 const dayAtNow = app => !app.current() && app.state.tab === 'today' && app.state.dayLayout !== 'list' && app.state.day === localDay();
 
 function detailBar(app, bar, top) {
@@ -84,6 +86,7 @@ function detailBar(app, bar, top) {
 function navigationBar(app) {
   const nav = app.dom.nav;
   if (!nav.children.length) {
+    nav.append(el('span', 'nav-indicator'));
     for (const [tab, symbol, label] of DESTINATIONS) {
       const item = button('', () => app.goTab(tab), 'nav-item');
       item.dataset.tab = tab;
@@ -93,34 +96,102 @@ function navigationBar(app) {
       item.append(pill, el('span', 'nav-label', label));
       nav.append(item);
     }
+    const add = iconButton('add', 'Add', () => addSpec(app)?.onClick(), {cls: 'nav-add'});
+    attachSwipe(add, {hold: () => app.capture(), haptic: () => app.api.native('haptic', {kind: 'hold'}).catch(() => {})});
+    nav.append(add);
+    attachNavDrag(app, nav);
   }
-  for (const item of nav.children) {
+  for (const item of nav.querySelectorAll('.nav-item')) {
     const on = item.dataset.tab === app.state.tab;
     item.setAttribute('aria-current', on ? 'page' : 'false');
     item.querySelector('.ms').classList.toggle('fill', on);
   }
+  const spec = addSpec(app);
+  const add = nav.querySelector('.nav-add');
+  add.hidden = !spec;
+  if (spec) add.setAttribute('aria-label', spec.label);
+  placeNavIndicator(nav);
 }
 
-/** Root tabs: a right-hand column (Search above the tab's Add), and on today's spine the centred Now pill. Detail pages have none. */
-function fab(app) {
-  const host = app.dom.fab;
-  host.replaceChildren();
-  const top = app.current();
-  const spec = top ? null : app.state.tab === 'today'
+/** What the tab bar's Add makes on this tab (Add task on Today); none on a detail page or Values. */
+function addSpec(app) {
+  if (app.current()) return null;
+  return app.state.tab === 'today'
     ? {label: 'Add task', onClick: () => app.actions.addTask({plannedDate: app.state.day})}
-    : app.actions.fabFor(app.state.tab);
-  host.hidden = !!top;
-  app.dom.planner.dataset.fab = String(!top);
-  if (top) return;
-  if (dayAtNow(app)) {
-    const now = labelButton('my_location', 'Now', () => jumpToNow(app), 'now-fab');
-    now.setAttribute('aria-label', 'Go to now');
-    host.append(now);
-  }
-  const stack = el('div', 'fab-stack');
-  stack.append(iconButton('search', 'Search', () => app.openSearch(), {cls: 'fab fab-small'}));
-  if (spec) stack.append(iconButton('add', spec.label, spec.onClick, {cls: 'fab'}));
-  host.append(stack);
+    : app.actions.addFor(app.state.tab);
+}
+
+/**
+ * Drag along the tab bar: the pill follows the finger with a tick at each tab, and letting go opens the tab under it.
+ * A tap on a tab stays the tap twin; a drag that starts within 24dp of the screen edge is left to system Back.
+ */
+function attachNavDrag(app, nav) {
+  let start = null, axis = null, index = -1;
+  const items = () => [...nav.querySelectorAll('.nav-item')];
+  const end = () => {
+    start = null;
+    delete nav.dataset.dragging;
+  };
+  nav.addEventListener('pointerdown', event => {
+    if (event.isPrimary === false || event.button > 0 || event.target.closest('.nav-add')) return;
+    start = {x: event.clientX, y: event.clientY, id: event.pointerId, edge: nearEdge(event.clientX, innerWidth)};
+    axis = null;
+    index = items().findIndex(item => item.getAttribute('aria-current') === 'page');
+  });
+  nav.addEventListener('pointermove', event => {
+    if (!start || event.pointerId !== start.id) return;
+    if (!axis) {
+      axis = lockAxis(event.clientX - start.x, event.clientY - start.y);
+      if (!axis) return;
+      if (axis === 'y' || start.edge) return end();
+      try { nav.setPointerCapture(event.pointerId); } catch {}
+      nav.dataset.dragging = '';
+    }
+    const tabs = items();
+    const width = parseFloat(nav.style.getPropertyValue('--pill-w')) || 64;
+    const drag = navDrag(event.clientX - nav.getBoundingClientRect().left - nav.clientLeft,
+      tabs.map(item => ({left: item.offsetLeft, width: item.offsetWidth})), width);
+    nav.style.setProperty('--pill-x', drag.pillX + 'px');
+    if (drag.index !== index) app.api.native('haptic', {kind: 'tick'}).catch(() => {});
+    index = drag.index;
+  });
+  nav.addEventListener('pointerup', event => {
+    if (!start || event.pointerId !== start.id) return;
+    const dragged = axis === 'x';
+    end();
+    if (!dragged) return;
+    const eat = click => { click.preventDefault(); click.stopImmediatePropagation(); };
+    nav.addEventListener('click', eat, {capture: true, once: true});
+    setTimeout(() => nav.removeEventListener('click', eat, {capture: true}));
+    const tab = items()[index]?.dataset.tab;
+    if (tab && tab !== app.state.tab) app.goTab(tab);
+    else placeNavIndicator(nav);
+  });
+  nav.addEventListener('pointercancel', () => {
+    if (axis === 'x') placeNavIndicator(nav);
+    end();
+  });
+}
+
+/** Puts the tab bar's one pill under `item` (the current tab by default): 64dp wide, centred, narrower if the column is. */
+export function placeNavIndicator(nav, item = nav.querySelector('.nav-item[aria-current=page]')) {
+  const pill = nav.querySelector('.nav-indicator');
+  if (!pill || !item || nav.hidden || !nav.offsetWidth) return;
+  const width = Math.min(64, item.offsetWidth);
+  nav.style.setProperty('--pill-w', width + 'px');
+  nav.style.setProperty('--pill-x', item.offsetLeft + (item.offsetWidth - width) / 2 + 'px');
+  if (!nav.dataset.placed) requestAnimationFrame(() => { nav.dataset.placed = ''; });
+}
+
+/** On today's spine, the Now pill: centred on the tab bar's top edge, shown only while now is out of view. */
+function nowPill(app) {
+  const host = app.dom.now;
+  host.replaceChildren();
+  host.hidden = !dayAtNow(app);
+  if (host.hidden) return;
+  const now = labelButton('my_location', 'Now', () => jumpToNow(app), 'now-pill');
+  now.setAttribute('aria-label', 'Go to now');
+  host.append(now);
 }
 
 /** `keep` (a save re-rendering the same screen): a top bar that would come out the same keeps its nodes. */
@@ -132,7 +203,7 @@ export function renderShell(app, {keep = false} = {}) {
   root.dataset.detail = String(!!top);
   app.dom.nav.hidden = !!full;
   navigationBar(app);
-  fab(app);
+  nowPill(app);
   const bar = app.dom.topBar;
   bar.hidden = top?.kind === 'review';
   if (top?.kind === 'search') {

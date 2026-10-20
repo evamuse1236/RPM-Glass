@@ -3,18 +3,19 @@
  * calendar events, Routines, water, meals and Result deadlines. It opens at now; a floating Now button returns there.
  */
 import {buildSpine} from '../spine-model.mjs';
-import {waterStatus, routineOn, routineState, doneAll} from '../body-state.mjs';
+import {waterStatus, routineOn, routineState, doneAll, usualMeals} from '../body-state.mjs';
 import {localDay, blockDue, timelineItems} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
 import {spineList, spineRow} from './spine-view.mjs';
 import {el, icon, button, emptyState} from './dom.mjs';
 import {dueInfo} from './format.mjs';
-import {openSheet} from './sheet.mjs';
 import {notice} from './snackbar.mjs';
-import {toggleDone, taskRow} from './task-row.mjs';
+import {toggleDone} from './task-row.mjs';
 import {attachRowGestures} from './row-gestures.mjs';
+import {attachSpineDrag, attachWaterDrag} from './spine-drag-ui.mjs';
+import {repeats} from '../planner-recurrence.mjs';
 import {openRunSheet} from './routines.mjs';
-import {drink, openWaterSheet} from './water.mjs';
+import {drink, drinkGlasses, openWaterSheet} from './water.mjs';
 import {openMealSheet} from './meals.mjs';
 import {holdToEdit} from './habits.mjs';
 import {bodyApi} from './body-api.mjs';
@@ -72,19 +73,39 @@ async function toggleRoutine(app, body, row) {
   notice(app, row.done ? `${routine.name} reopened` : `${routine.name} done`, {undo: true});
 }
 
+/** Swipe right on a meal not yet logged: log it now as the usual food for that meal, with Undo; with none yet, the sheet. */
+async function logMealNow(app, body, row) {
+  const [usual] = usualMeals(body.meals(), row.slot);
+  if (!usual) return openMealSheet(app, body, {mealId: null, slot: row.slot});
+  try {
+    await body.saveMeal({name: usual, slot: row.slot, at: new Date().toISOString()});
+  } catch {
+    notice(app, "Couldn't save that. Try again.");
+    return false;
+  }
+  app.render();
+  notice(app, `${row.label.split(' · ')[0]} logged · ${usual}`, {undo: true});
+  return true;
+}
+
 function toggleTask(app, row) {
-  const node = app.dom.work.querySelector(`.spine-row[data-key="${CSS.escape(row.key)}"]`);
+  const node = app.dom.work.querySelector(`:is(.spine-row, .spine-anytime-item)[data-key="${CSS.escape(row.key)}"]`);
   node?.classList.toggle('done', !row.done);
   node?.classList.toggle('just-done', !row.done);
   node?.querySelector('.spine-check')?.setAttribute('aria-checked', String(!row.done));
   return toggleDone(app, row.task.ref, row.task.occurrence);
 }
 
+/** A timed task that does not repeat can be moved and resized on the spine; a repeat is changed from its sheet. */
+const movable = row => row.start != null && !row.done && !repeats(row.task.ref);
+
 function handlers(app) {
   const body = bodyApi(app);
   return {
     toggleTask: row => toggleTask(app, row),
-    gestures: (card, row) => attachRowGestures(app, card, row.task.ref, {leave: false, complete: () => toggleTask(app, row)}),
+    gestures: (card, row) => attachRowGestures(app, card, row.task.ref, {leave: false, hold: !movable(row),
+      complete: () => toggleTask(app, row)}),
+    drag: (card, row) => { if (movable(row)) attachSpineDrag(app, card, row, {dayStart: Date.parse(app.state.day + 'T00:00:00')}); },
     openTask: task => app.actions.openTask(task.id, task.occurrence),
     openEvent: event => app.actions.calendarDetails(event),
     resolve(row) {
@@ -97,31 +118,19 @@ function handlers(app) {
     openWater: () => openWaterSheet(app, body),
     drink: () => drink(app, body),
     openMeal: row => openMealSheet(app, body, {mealId: row.meal?.id ?? null, slot: row.slot}),
-    holdHabit: (node, id) => holdToEdit(app, node, id),
+    holdHabit: (node, id, sides) => holdToEdit(app, node, id, sides),
+    waterDrag: (node, row, track) => attachWaterDrag(app, node, row, track, {log: count => drinkGlasses(app, body, count)}),
+    logMealNow: row => logMealNow(app, body, row),
     plan: row => app.actions.addTask({planned: new Date(row.plan).toISOString(), plannedDate: app.state.day}),
   };
 }
 
-function anytimeSheet(app) {
-  const {body} = openSheet(app, 'Anytime', {variant: 'choice'});
-  const paint = () => body.replaceChildren(...spineModel(app).model.anytime.tasks.map(task => taskRow(app, task.ref, {anytime: true})));
-  paint();
-  app.sheetRefresh = paint;
-}
-
-function chips(app, model, allDay) {
+function chips(app, allDay) {
   const row = el('div', 'spine-chips');
   for (const event of allDay) {
     const chip = button('', () => app.actions.calendarDetails(event), 'spine-chip outlined');
     chip.append(icon('event'), el('span', 'chip-label', event.title));
     chip.setAttribute('aria-label', `${event.title}, all day, calendar event`);
-    row.append(chip);
-  }
-  const {anytime} = model;
-  if (anytime.label) {
-    const chip = button('', () => anytimeSheet(app), 'spine-chip');
-    chip.append(el('span', 'chip-label', anytime.label), icon('chevron_right'));
-    chip.setAttribute('aria-label', `${anytime.label}, no time set. Open the list`);
     row.append(chip);
   }
   return row.children.length ? row : null;
@@ -132,7 +141,7 @@ export function renderDay(app, page) {
   state.model = model;
   state.app = app;
   page.classList.add('day-page');
-  const top = chips(app, model, allDay);
+  const top = chips(app, allDay);
   if (top) page.append(top);
   if (model.empty) {
     page.append(emptyState({symbol: 'wb_sunny', title: model.nowKey ? 'Nothing planned for today' : 'Nothing planned for this day',

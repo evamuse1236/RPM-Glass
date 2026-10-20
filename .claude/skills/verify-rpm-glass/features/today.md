@@ -1,6 +1,6 @@
 # Today
 
-Today is the planner's home screen. It opens on the **spine**: the whole day in time order on one line, at now. Above it are the date line (sticky), the next seven days, one line about the week's plan, and one chip line for anytime tasks and all-day events. Tasks, events, Routines, water, meals, free time and now each have a row. Ticking a task completes it with Undo. The older list layout (lead card, Coming up, agenda) is under More options, `Show list`.
+Today is the planner's home screen. It opens on the **spine**: the whole day in time order on one line, at now. Above it are the date line (sticky), the next seven days, one line about the week's plan, and one chip line for all-day events. Tasks, events, Routines, water, meals, free time and now each have a row. Tasks dated for the day without a time are one **Anytime** group of cards right after now (first on another day); check it shows a task saved with a day and no time. Ticking a task completes it with Undo. Holding a timed card still for 250ms lifts it; dragging it up or down shows the new time and the card's length 12dp above the card (never over its title) in 15-minute steps and saves it with Undo ("Moved to 5:15 PM"). The 24 × 4 knurl at the foot of a timed card that has not ended drags its length (past, done and Anytime cards have none); tapping the knurl opens the task at Length. A quick vertical drag scrolls the page and never moves a card. Dragging across the Water row adds a glass per 24dp (label "5 of 8", the 2dp track under the count fills) and saves them with one Undo. A meal row not yet logged swipes right to "Log now" with its usual food and Undo; the reveal shows only the icon until "Log now" fits whole. The gutter shows only the start time and, on the next card, "in 3 h"; the length shows in the label while you drag ("5:15 PM · 3 h 55 min"). The next card has a primary bar on its edge and "in 40 min" (or "in 4 h") under its time. The older list layout (lead card, Coming up, agenda) is under More options, `Show list`.
 
 ## Sub-features
 
@@ -15,7 +15,7 @@ Today is the planner's home screen. It opens on the **spine**: the whole day in 
 - `today-inbox-row` shows the Inbox count and opens the Inbox.
 - `today-topbar` offers `Search`, `Capture`, `Add task` and `More options`.
 - `today-spine` shows the day by time: cards, free time with +, water and meal rows, and the now hero or now line.
-- `today-now-button` floats while now is out of view and scrolls back to it.
+- `today-now-button` (`Go to now`) sits on the tab bar's top edge while now is out of view and scrolls back to it.
 - `today-layout` switches between the spine (`Show day`) and the list (`Show list`).
 - `today-empty` shows the empty-day state.
 
@@ -36,7 +36,7 @@ Preconditions:
 - `rpmctl open planner` has been run. The heading `Today` is on screen and the `Today` nav button is `aria-current=page`.
 
 - **Header.** Run `rpmctl ui`. The heading is `Today`. A button named `Choose date, <weekday>, <month> <day>` shows today's date, for example `Choose date, Wednesday, October 7`. Run `rpmctl shot today-top`.
-- **Top bar.** The buttons `Search`, `Capture` (drawn as a microphone), `Add task` and `More options` are in the top bar. The bottom nav has buttons `Today`, `Blocks`, `Projects`, `Life`.
+- **Top bar.** The buttons `Search`, `Capture` (drawn as a microphone) and `More options` are in the top bar. The floating tab bar has buttons `Today`, `Blocks`, `Projects`, `Life`, then `Add task` at its right end (hold it 400ms to open Capture).
 - **Week strip.** The group `Next seven days` holds seven day buttons with names like `Thu, Oct 8, 2 Results due`. The current day is `Wed, Oct 7, today` with `aria-pressed=true`. Run `rpmctl tap --role button --name "Thu, Oct 8"`. The date button now reads `Choose date, Thursday, October 8`, a `Today` jump-back button appears, and the list changes to that day's tasks under a heading `Tomorrow`. The big heading stays `Today`. Run `rpmctl tap --role button --name "Today"` to return.
 - **Date picker.** Run `rpmctl tap --role button --name "Choose date"`. A dialog `Go to date` opens with a field `Date`, a button `Calendars · Not connected`, `Show list`, `Today` and `Go`. Tapping the field opens Android's calendar. Run `rpmctl tap --native "28 October 2026"`, then `rpmctl tap --native "SET"`. The field reads `2026-10-28`. Run `rpmctl tap --role button --name "Go"`. Today shows that day. Close the dialog without choosing with `rpmctl tap --role button --name "Close"`.
 - **Week line.** With no week planned the line is a button named `This week isn't planned, pick 3 to 5 Results. Open weekly review`. Run `rpmctl tap --name "Open weekly review"`. The weekly review opens with `Step 1 of 4: Last week's Results` current (see the weekly review file). `rpmctl key back` returns to Today.

@@ -2,7 +2,7 @@
 import {hideSnackbar} from './planner/snackbar.mjs';
 import {animateLayout, slideScroll} from './surface-motion.mjs';
 import {createApp, TABS} from './planner/app.mjs';
-import {renderShell} from './planner/shell.mjs';
+import {placeNavIndicator, renderShell} from './planner/shell.mjs';
 import {renderScreen, defaultScroll, installSwipe} from './planner/screens.mjs';
 import {dismissSheet, installSheetKeys} from './planner/sheet.mjs';
 import {closeMenu} from './planner/menu.mjs';
@@ -18,7 +18,7 @@ export {capturedGoalDraft, savedPlannerTarget} from './planner/deep-links.mjs';
 import {componentGallery} from './planner/gallery.mjs';
 
 function installActions(app) {
-  const fabs = {
+  const adds = {
     blocks: {label: 'New Block', onClick: () => entityEditor(app, 'blocks')},
     projects: {label: 'New Project', onClick: () => entityEditor(app, 'projects')},
   };
@@ -28,7 +28,7 @@ function installActions(app) {
     movePicker: task => movePicker(app, task),
     archiveTask: task => archiveTask(app, task),
     deleteTask: task => deleteTask(app, task),
-    scheduleTask: (task, anchor) => scheduleMenu(app, task, anchor, {occurrence: task.occurrence}),
+    scheduleTask: (task, anchor, {moveToBlock = false} = {}) => scheduleMenu(app, task, anchor, {occurrence: task.occurrence, moveToBlock}),
     trash: archive => showTrash(app, archive),
     inbox: () => showInbox(app),
     newEntity: (collection, defaults = {}) => entityEditor(app, collection, null, defaults),
@@ -44,8 +44,8 @@ function installActions(app) {
     purposeIdea: blockId => aiAction(app, 'purpose', blockId),
     examples: () => examples(app),
     gallery: () => componentGallery(app),
-    fabFor: tab => {
-      if (tab !== 'life') return fabs[tab] ?? null;
+    addFor: tab => {
+      if (tab !== 'life') return adds[tab] ?? null;
       if (app.state.horizon === 'values') return null;
       if (app.state.horizon === 'yearly') return {label: 'Add Area', onClick: () => entityEditor(app, 'areas')};
       return {label: 'Add Goal', onClick: () => entityEditor(app, 'goals')};
@@ -130,7 +130,7 @@ function installNativeHooks(app) {
       {node: sheet, scale: false},
       ...['.sheet-handle', '.sheet-header', '.sheet-actions'].map(selector => ({node: sheet.querySelector(selector)})),
       {node: sheet.querySelector('.sheet-body'), clip: true},
-      {node: app.dom.nav}, {node: app.dom.fab}, {node: app.dom.snackbar},
+      {node: app.dom.nav}, {node: app.dom.now}, {node: app.dom.snackbar},
     ];
     animateLayout(document.body, regions, () => {
       root.dataset.nativeInsets = 'true';
@@ -147,10 +147,10 @@ function installNativeHooks(app) {
   let lastTop = 0;
   app.dom.scroll.addEventListener('scroll', () => {
     const top = app.dom.scroll.scrollTop;
-    // The FAB steps aside while reading down and returns on the way back up, so it never sits on what is read.
+    // The Now pill steps aside while reading down and returns on the way back up, so it never sits on what is read.
     if (Math.abs(top - lastTop) > 8 || top < 8) {
       const hide = String(top > lastTop && top > 64);
-      if (app.dom.planner.dataset.fabAside !== hide) app.dom.planner.dataset.fabAside = hide;
+      if (app.dom.planner.dataset.nowAside !== hide) app.dom.planner.dataset.nowAside = hide;
       lastTop = top;
     }
     const scrolled = String(top > 4);
@@ -161,8 +161,14 @@ function installNativeHooks(app) {
       <= app.dom.scroll.getBoundingClientRect().top : scrolled === 'true');
     if (app.dom.planner.dataset.titleOut !== out) app.dom.planner.dataset.titleOut = out;
   }, {passive: true});
+  // --nav-measured: the room the floating tab bar takes at the bottom (its height plus its gap to the edge); 0 while
+  // the keyboard hides it.
   new ResizeObserver(() => {
-    if (!app.dom.nav.hidden) root.style.setProperty('--nav-measured', app.dom.nav.getBoundingClientRect().height + 'px');
+    const nav = app.dom.nav;
+    if (nav.hidden) return;
+    const height = nav.getBoundingClientRect().height;
+    root.style.setProperty('--nav-measured', (height ? height + parseFloat(getComputedStyle(nav).bottom) : 0) + 'px');
+    placeNavIndicator(nav);
   }).observe(app.dom.nav);
   syncPhone();
 }
@@ -278,7 +284,7 @@ function installSnackbarDock(app) {
     const actions = sheet.hidden ? null : sheet.querySelector(':scope > .sheet-actions');
     const height = actions?.getClientRects().length ? actions.getBoundingClientRect().height : 0;
     if (!sheet.inert) root.style.setProperty('--sheet-actions-h', height + 'px');
-    if (!snackbar.hidden) root.style.setProperty('--snackbar-h', snackbar.getBoundingClientRect().height + 'px');
+    if (!snackbar.hidden) root.style.setProperty('--snackbar-h', snackbar.offsetHeight + 'px');
   };
   const freeze = () => {
     const body = sheet.querySelector(':scope > .sheet-body');

@@ -51,6 +51,19 @@
 }
 :root[data-large-text=true] .spine-gutter { white-space: normal; overflow-wrap: break-word; }
 .spine-row.next .spine-gutter { color: var(--on-surface); font-weight: 700; }
+/* The next card alone: a 3dp primary bar on its inner left edge and how soon it starts under its time. */
+.spine-soon { color: var(--primary); }
+.spine-row.next .spine-card { position: relative; }
+.spine-row.next .spine-card::after {
+  content: "";
+  position: absolute;
+  inset-block: var(--s3);
+  inset-inline-start: -1px;
+  inline-size: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--primary);
+  pointer-events: none;
+}
 .spine-row.current .spine-gutter, .spine-now .spine-gutter { color: var(--now); font-weight: 700; }
 :is(.spine-water, .spine-meal, .spine-deadline, .spine-now) .spine-gutter { align-self: center; padding-block-start: 0; }
 .spine-gap .spine-gutter { padding-block-start: var(--s1); }
@@ -93,6 +106,9 @@
 }
 
 .spine-now { padding-block: var(--s1); }
+/* Anytime: the day's tasks without a time, one card each, stacked under one "Anytime" gutter label. */
+.spine-anytime-list { grid-column: 3; display: flex; flex-direction: column; gap: var(--s2); min-inline-size: 0; }
+.spine-anytime-item { min-inline-size: 0; }
 .spine-now-line { grid-column: 2 / -1; align-self: center; block-size: 2px; background: var(--now); }
 
 .spine-card {
@@ -101,11 +117,11 @@
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr) auto;
   align-content: start;
-  border-radius: var(--shape-lg);
+  border-radius: var(--r-group);
   color: var(--on-surface);
   text-align: start;
 }
-.spine-card.filled { background: var(--surface-container-low); border: 1px solid var(--surface-container-high); }
+.spine-card.filled { background: var(--surface-container-low); border: 1px solid color-mix(in oklch, var(--outline-variant) 45%, transparent); }
 .spine-card.outlined { border: 1px solid var(--outline-variant); }
 .spine-row.current .spine-card { background: var(--spine-current); border-color: transparent; }
 button.spine-card:active, .spine-card .spine-open:active { background: var(--row-press); }
@@ -115,16 +131,16 @@ button.spine-card:active, .spine-card .spine-open:active { background: var(--row
 .spine-check .check-ring { inline-size: 22px; block-size: 22px; }
 .spine-check .check-ring .ms { opacity: 0; }
 .spine-check:active .check-ring { background: var(--row-press); }
-.spine-row.done .check-ring { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
-.spine-row.done .check-ring .ms { opacity: 1; }
+:is(.spine-row, .spine-anytime-item).done .check-ring { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+:is(.spine-row, .spine-anytime-item).done .check-ring .ms { opacity: 1; }
 .spine-row.current .check-ring { border-color: var(--now); }
 
-.spine-open { grid-column: 2; min-inline-size: 0; padding: var(--s3) var(--s3) var(--s3) 0; color: inherit; text-align: start; border-radius: var(--shape-lg); }
+.spine-open { grid-column: 2; min-inline-size: 0; padding: var(--s3) var(--s3) var(--s3) 0; color: inherit; text-align: start; border-radius: var(--r-group); }
 .spine-card .spine-icon { grid-column: 1; justify-self: center; margin-block-start: var(--s3); color: var(--on-surface-variant); }
 .spine-card.outlined > .spine-copy { grid-column: 2 / -1; padding: var(--s3) var(--s4) var(--s3) 0; }
 .spine-copy { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; }
 .spine-title { font: var(--body-large); overflow-wrap: break-word; text-wrap: pretty; }
-.spine-row.done .spine-title { color: var(--on-surface-variant); text-decoration: line-through; }
+:is(.spine-row, .spine-anytime-item).done .spine-title { color: var(--on-surface-variant); text-decoration: line-through; }
 :is(.spine-event, .spine-routine).past:not(.current) .spine-title { color: var(--on-surface-variant); }
 .spine-line { display: flex; align-items: flex-start; gap: 6px; font: var(--body-medium); color: var(--on-surface-variant); min-inline-size: 0; }
 .spine-line .area-dot { inline-size: 8px; block-size: 8px; margin-block-start: calc((1lh - 8px) / 2); }
@@ -213,28 +229,48 @@ button.spine-card:active, .spine-card .spine-open:active { background: var(--row
 .spine-chip::after { content: ""; position: absolute; inset: min(0px, (100% - 48px) / 2) 0; }
 .spine-chip:active { background: var(--surface-container-highest); }
 
-#fab-host:has(.now-fab) { inset-inline: 0; display: flex; justify-content: center; pointer-events: none; }
-.now-fab {
+/* Now: a small pill floating 16dp above the tab bar, centred, clear of the bar's border, as the snackbar sits. It
+   shows only while now is out of view and steps aside while reading down or a snackbar shows. */
+#now-host {
+  position: absolute;
+  z-index: 12;
+  inset-inline: 0;
+  inset-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4));
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.now-pill {
   display: inline-flex;
   align-items: center;
-  gap: var(--s2);
-  min-block-size: 40px;
-  padding-inline: var(--s4) var(--s5);
+  gap: var(--s1);
+  min-block-size: 32px;
+  padding-inline: var(--s3) var(--s4);
   border-radius: var(--shape-full);
   background: var(--primary);
   color: var(--on-primary);
   font: var(--label-large);
-  box-shadow: var(--elev-3);
   pointer-events: auto;
+  position: relative;
 }
-.now-fab .ms { font-size: 18px; margin: 0; }
-.now-fab:active { scale: .97; }
-#planner:not([data-now-off=true]) .now-fab, #planner[data-fab-aside=true] .now-fab { opacity: 0; scale: .6; pointer-events: none; visibility: hidden; }
+.now-pill::after { content: ""; position: absolute; inset: -8px 0; }
+.now-pill .ms { font-size: 18px; margin: 0; }
+.now-pill:active { scale: .97; }
+.now-pill:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+#planner:not([data-now-off=true]) .now-pill, #planner[data-now-aside=true] .now-pill, #planner[data-snackbar=true] .now-pill {
+  opacity: 0; scale: .6; pointer-events: none; visibility: hidden;
+}
 @media (prefers-reduced-motion: no-preference) {
-  .now-fab { transition: opacity var(--dur-short3) var(--ease-standard), scale var(--dur-short3) var(--ease-emphasized-decelerate), visibility var(--dur-short3); }
+  .now-pill { transition: opacity var(--dur-short3) var(--ease-standard), scale var(--dur-short3) var(--ease-emphasized-decelerate), visibility var(--dur-short3); }
 }
 
 :root[data-large-text=true] .spine-gutter { padding-block-start: var(--s3); }
 :root[data-large-text=true] .spine-elapsed { grid-template-columns: 1fr; }
 :root[data-large-text=true] .spine-resolve { justify-self: start; margin: 0 0 var(--s2) calc(-1 * var(--s3)); }
 :root[data-large-text=true] .spine-elapsed .spine-left { justify-self: start; }
+/* Water: a faint 2dp track under the count, one segment per glass of the goal; a drag across the row fills it. */
+.spine-water .spine-label { display: inline-flex; flex-direction: column; gap: var(--s1); }
+.water-track { display: flex; gap: 2px; inline-size: 96px; block-size: 2px; }
+.water-track i { flex: 1; border-radius: 1px; background: var(--outline-variant); }
+.water-track i.on { background: var(--primary); }
+.water-track i.adding { background: color-mix(in oklch, var(--primary) 55%, transparent); }
