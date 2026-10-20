@@ -131,7 +131,7 @@
       "created": [],
       "forbidden": [],
       "maxNew": 0,
-      "question": "required",
+      "question": "forbidden",
       "changes": [],
       "unchanged": []
     }
@@ -397,7 +397,11 @@
           {
             "slot": "lunch",
             "state": "logged",
-            "foodWords": ["dal", "rice", "curd"]
+            "foodWords": [
+              "dal",
+              "rice",
+              "curd"
+            ]
           }
         ]
       }
@@ -521,7 +525,12 @@
         {
           "id": 104,
           "kind": "update",
-          "alert": null
+          "alert": "off",
+          "title": "Submit workbook",
+          "day": "2026-10-19",
+          "time": "17:00",
+          "done": false,
+          "minutes": 30
         }
       ],
       "unchanged": []

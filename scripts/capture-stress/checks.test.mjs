@@ -168,3 +168,22 @@ test('route latency reports nearest-rank median and p90 separately from failures
  const summary=summarize([{ms:1000,pass:true,failures:[],turns}]);
  assert.deepEqual(summary.routeLatencyMs.quick,{count:10,measured:10,p50:500,p90:900,p95:1000});
 });
+
+test('the isolated critic sees edited canonical rows and the seeded context, not just new tasks',async()=>{
+ const {judgeInput}=await import('./run.mjs');
+ const directory=await mkdtemp(path.join(os.tmpdir(),'rpm-judge-state-'));
+ try{
+  const {writeFile}=await import('node:fs/promises');
+  const before=empty(),after=empty();
+  before.entries=[{...bank(),id:101,done:false}];
+  after.entries=[{...bank(),id:101,done:true}];
+  after.planner.blocks=[{id:'b1',title:'Return the deposit'}];
+  await writeFile(path.join(directory,'seed.json'),JSON.stringify({data:before}));
+  await writeFile(path.join(directory,'final.json'),JSON.stringify(after));
+  const input=await judgeInput({expect:{},turns:[],saved:{newTasks:[]},failures:[],artifacts:{directory,final:path.join(directory,'final.json')}});
+  assert.equal(input.before.entities.find(e=>e.id===101).done,false);
+  assert.equal(input.saved.entities.find(e=>e.id===101).done,true);
+  assert.equal(input.saved.entities.find(e=>e.id==='b1').title,'Return the deposit');
+  assert.deepEqual(input.saved.newTasks,[]);
+ }finally{await rm(directory,{recursive:true,force:true});}
+});
