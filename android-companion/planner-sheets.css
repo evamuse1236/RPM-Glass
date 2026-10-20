@@ -8,7 +8,7 @@
 .menu-scrim { background: transparent; z-index: 49; }
 .sheet-scrim.leaving { pointer-events: none; }
 .sheet {
-  --sheet-bg: var(--surface-container-low);
+  --sheet-bg: var(--sheet-surface);
   position: fixed;
   z-index: 30;
   left: 0;
@@ -27,6 +27,9 @@
   box-shadow: var(--float-shadow);
   transform-origin: 50% 100%;
 }
+/* What sits raised on a sheet (a search field, a lifted row, a banner) uses the step above the sheet's own tone. */
+.sheet :is(.block-search, .task-row.lifted, .step-edit.lifted, .banner, .empty-art, .stepper-btn) { background: var(--sheet-raised); }
+.sheet :is(.block-row, .original-capture):not(:active) { background: var(--sheet-card); }
 .sheet.expanded { height: 92%; }
 /* Content swap on the shared X axis: the old content slides out over the new one (both see-through, so the sheet
    is never empty) while the sheet's height morphs to the new content. The handle stays put. */
@@ -209,7 +212,7 @@
   border: 0;
   padding: var(--s2) 0;
   min-height: 48px;
-  font: var(--title-large);
+  font: var(--body-large);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: normal;
@@ -226,11 +229,27 @@
 .quick-mirror { position: absolute; inset: 0; color: transparent; overflow: hidden; pointer-events: none; }
 .quick-mirror mark { color: transparent; background: var(--secondary-container); border-radius: var(--shape-xs);
   box-shadow: 0 0 0 2px var(--secondary-container); }
-/* One line per kind of choice at normal text size (Time and Repeat show only their icon until set). A row that
-   still does not fit (a long Block name, large text) wraps onto a second line: nothing is ever cut off. */
+/* One row per meaning, every chip labelled: the day; Time, Estimate and Repeat; the Block; Must. A row that does not
+   fit (a set time with its day, large text) wraps onto a second line: nothing is ever cut off. */
 .sheet .quick-row { flex-wrap: wrap; row-gap: 0; column-gap: var(--s2); overflow: visible; padding: 0; }
-.quick-row .assist-chip.icon-only { padding: 0; width: var(--touch); justify-content: center; }
-.quick-row .assist-chip.icon-only .chip-label { display: none; }
+/* Details is a plain text row under the chips: its icon lines up with the chips' icons. */
+.quick-details {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  inline-size: 100%;
+  min-block-size: var(--touch);
+  padding-inline: var(--s2);
+  font: var(--label-large);
+  color: var(--on-surface-variant);
+  border-radius: var(--shape-sm);
+}
+.quick-details .ms { font-size: 18px; }
+.quick-details .chip-label { flex: 1; text-align: start; }
+.quick-details .quick-details-open { transition: rotate var(--dur-press) var(--ease-standard); }
+.quick-details.is-open .quick-details-open { rotate: 180deg; }
+.quick-details.on { color: var(--on-surface); }
+.quick-details:active { background: var(--row-press); }
 .hash-chips .assist-chip { max-width: 80%; }
 .hash-chips .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hash-chips .ms { color: var(--primary); }
@@ -239,7 +258,6 @@
 .quick-row .choice-chip[aria-pressed=true], .choice-chips .choice-chip[aria-pressed=true], .quick-row .assist-chip { padding-left: var(--s2); }
 .quick-row .choice-chip { max-width: 80%; }
 .quick-row .choice-chip .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.list-chip.icon-only { padding: 0; width: var(--touch); justify-content: center; }
 /* The Block chips keep one line (the picker icon stays with them): a long Block name shortens with an ellipsis, so a
    suggestion appearing as the title is typed never wraps the row and grows the sheet. Large text may still wrap. */
 .sheet .quick-row.block-chips { flex-wrap: nowrap; }
@@ -248,7 +266,6 @@
 .block-chips .chip-label { min-width: 0; }
 :root[data-large-text=true] .sheet .quick-row.block-chips { flex-wrap: wrap; }
 :root[data-large-text=true] .block-chips > .choice-chip { max-width: 80%; }
-.list-chip.icon-only .chip-label { display: none; }
 .sheet-quick .field-fold .fold-inner { padding-left: 0; }
 .must-chip.on .ms { color: var(--must); }
 .alert-choices { margin-top: var(--s1); }

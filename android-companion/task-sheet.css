@@ -269,8 +269,8 @@
   background: transparent;
   touch-action: pan-y;
 }
-.fact-slider::-webkit-slider-runnable-track { block-size: 4px; border-radius: 2px; background: var(--surface-container-highest); }
-.fact-slider::-moz-range-track { block-size: 4px; border-radius: 2px; background: var(--surface-container-highest); }
+.fact-slider::-webkit-slider-runnable-track { block-size: 4px; border-radius: 2px; background: var(--outline-variant); }
+.fact-slider::-moz-range-track { block-size: 4px; border-radius: 2px; background: var(--outline-variant); }
 .fact-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   inline-size: 28px;
