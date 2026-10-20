@@ -25,6 +25,7 @@ For an authorized phone release, compare the working tree, branch, and installed
 |---|---|
 | One agent drives one emulator | Machine-wide rpmctl lease for the worktree and ports, plus the run owner token (missing tokens warn for one compatibility release) |
 | On Windows, rpmctl starts the emulator's netsimd itself with no console, so no netsim window pops up. | `.claude/skills/verify-rpm-glass/lifecycle.test.mjs` (`netsimToStart`) |
+| rpmctl boots the emulator on the host GPU; software rendering (swiftshader, guest) is refused unless `RPM_ALLOW_SOFTWARE_GPU=1`, because it used 8.2 CPU cores against 0.68 to scroll Settings. | `.claude/skills/verify-rpm-glass/lifecycle.test.mjs` (`gpuMode`) |
 | rpmctl selectors match the app | `.claude/skills/verify-rpm-glass/selectors.test.mjs` in `npm test` |
 | An error reaches the screen only through `userMessage(error)`, never as raw script text. | `npm run check:rules` (`raw-error-text`), `android-companion/user-message.test.mjs`, and the scenario runner's raw-error guard |
 | A change updates the screen in place: existing rows are kept, the field keeps focus, the new item appears once and is saved where it belongs. | `rpmctl scenario plan-add-in-place`, `android-companion/surface-refresh.test.mjs` |

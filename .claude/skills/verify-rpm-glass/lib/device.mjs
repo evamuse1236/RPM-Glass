@@ -64,8 +64,15 @@ export function startNetsim() {
   return child.pid;
 }
 
+/** Software rendering scrolled Settings at 8.2 CPU cores against 0.68 with the host GPU (2026-10-20). The emulator prints "Your GPU cannot be used" even when the host GPU works. */
+export function gpuMode(requested = 'host', env = process.env) {
+  if (!/swiftshader|guest|software/i.test(requested) || env.RPM_ALLOW_SOFTWARE_GPU === '1') return requested;
+  throw new UserError(`--gpu ${requested} draws on the CPU and uses about 12x more CPU than the host GPU.`,
+    'Drop --gpu. The startup line "Your GPU cannot be used for hardware rendering" is harmless when the screen draws. Only if the screen stays black with the host GPU, set RPM_ALLOW_SOFTWARE_GPU=1.');
+}
+
 export function startEmulator({avd, port, logFile, gpu}) {
-  const args = ['-avd', avd, '-port', String(port), '-read-only', '-no-window', '-no-audio', '-no-boot-anim', '-gpu', gpu, '-no-snapshot-save'];
+  const args = ['-avd', avd, '-port', String(port), '-read-only', '-no-window', '-no-audio', '-no-boot-anim', '-gpu', gpuMode(gpu), '-no-snapshot-save'];
   const log = fs.openSync(logFile, 'a');
   const child = spawn(emulatorPath(), args, {detached: true, stdio: ['ignore', log, log], windowsHide: true});
   child.unref();

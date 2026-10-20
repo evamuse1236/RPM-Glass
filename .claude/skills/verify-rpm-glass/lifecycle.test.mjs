@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {UserError, netsimToStart} from './lib/device.mjs';
+import {UserError, netsimToStart, gpuMode} from './lib/device.mjs';
 import * as ownership from './lib/ownership.mjs';
 
 const source = fs.readFileSync(new URL('./lib/lifecycle.mjs', import.meta.url), 'utf8');
@@ -143,4 +143,12 @@ test('on Windows rpmctl starts netsimd without a console unless one already runs
   assert.equal(netsimToStart({platform: 'win32', exe: 'netsimd.exe', running: true}), false);
   assert.equal(netsimToStart({platform: 'win32', exe: null, running: false}), false);
   assert.equal(netsimToStart({platform: 'linux', exe: 'netsimd', running: false}), false);
+});
+
+test('launch refuses software GPU modes unless RPM_ALLOW_SOFTWARE_GPU=1', () => {
+  assert.equal(gpuMode('host', {}), 'host');
+  assert.equal(gpuMode(undefined, {}), 'host');
+  for (const mode of ['swiftshader_indirect', 'swiftshader', 'guest', 'software'])
+    assert.throws(() => gpuMode(mode, {}), UserError);
+  assert.equal(gpuMode('swiftshader_indirect', {RPM_ALLOW_SOFTWARE_GPU: '1'}), 'swiftshader_indirect');
 });
