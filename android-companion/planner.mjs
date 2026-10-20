@@ -284,7 +284,7 @@ function installSnackbarDock(app) {
     const actions = sheet.hidden ? null : sheet.querySelector(':scope > .sheet-actions');
     const height = actions?.getClientRects().length ? actions.getBoundingClientRect().height : 0;
     if (!sheet.inert) root.style.setProperty('--sheet-actions-h', height + 'px');
-    if (!snackbar.hidden) root.style.setProperty('--snackbar-h', snackbar.getBoundingClientRect().height + 'px');
+    if (!snackbar.hidden) root.style.setProperty('--snackbar-h', snackbar.offsetHeight + 'px');
   };
   const freeze = () => {
     const body = sheet.querySelector(':scope > .sheet-body');

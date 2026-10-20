@@ -40,4 +40,6 @@ test('nothing shows in the strip under the tab bar, and a row scrolled into view
   assert.match(rule(css, '#nav-bar'), /inset-block-end: var\(--nav-gap\);/);
   assert.match(css, /mask-image: linear-gradient\(to top, transparent var\(--nav-gap\), #000 calc\(var\(--nav-gap\) \+ var\(--s8\)\)\);/);
   assert.match(css, /#planner\[data-snackbar=true\]:has\(> #nav-bar:not\(\[hidden\]\)\) #planner-scroll \{\n  scroll-padding-block-end: calc\(var\(--nav-measured, var\(--nav\)\) \+ var\(--s4\) \+ var\(--snackbar-h, 48px\) \+ var\(--s4\)\);/);
+  assert.match(read('planner.mjs'), /setProperty\('--snackbar-h', snackbar\.offsetHeight \+ 'px'\)/,
+    'the snackbar\'s full height, not its size part-way through the entry scale');
 });
