@@ -37,3 +37,9 @@ test('a limitation survives routine receipt normalization without another option
  parsed.operations=[operation()];
  assert.equal(captureReply({parsed,schedulePreview:{items:[]}}),"RPM can't send messages.");
 });
+
+test('the model-facing contract separates capturing personal actions from performing them',()=>{
+ assert.match(intentSystemPrompt,/Bare personal actions[\s\S]*tasks for the person/);
+ for(const verb of ['call','buy','print','email'])assert.match(CAPTURE_OPERATIONS.task.description,new RegExp(`\\b${verb}\\b`));
+ assert.match(intentSystemPrompt,/explicitly asks RPM to execute/);
+});
