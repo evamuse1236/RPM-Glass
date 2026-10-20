@@ -113,14 +113,7 @@ export function blockCard(app, block, {focus = false, project = true} = {}) {
   }
   const must = mustLeft(status, {words: false});
   if (must) parts.push(must);
-  const tally = el('span', 'card-count', status.total ? `${status.done} of ${status.total} done` : count);
-  if (status.total) {
-    const ring = progressRing(status.done, status.total, '');
-    ring.removeAttribute('role');
-    ring.setAttribute('aria-hidden', 'true');
-    tally.prepend(ring);
-  }
-  parts.push(tally);
+  parts.push(el('span', '', status.total ? `${status.done} of ${status.total} done` : count));
   parts.forEach((part, i) => facts.append(...(i ? [' · ', part] : [part])));
   main.append(facts);
   main.setAttribute('aria-label', `Result: ${block.title}. ${due ? due.text + '. ' : ''}`

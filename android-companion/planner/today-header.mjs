@@ -4,7 +4,7 @@ import {dayTasks} from '../planner-ux.mjs';
 import {weekStart, reviewWeek, weekFocus, resultStatus} from '../review-state.mjs';
 import {reducedMotion, DURATION, EASE} from '../surface-motion.mjs';
 import {lockAxis, LONG_PRESS} from '../task-swipe.mjs';
-import {el, icon, button, labelButton, emptyState} from './dom.mjs';
+import {el, icon, button, iconButton, labelButton, emptyState} from './dom.mjs';
 import {clock, longDate, plural, dateText} from './format.mjs';
 import {openSheet} from './sheet.mjs';
 import {taskWhen, taskRow} from './task-row.mjs';
@@ -163,6 +163,9 @@ export function dateHeader(app, week) {
   picker.setAttribute('aria-label', 'Choose date, ' + longDate(day));
   line.append(picker);
   if (day !== localDay()) line.append(labelButton('today', 'Today', () => selectDay(app, localDay()), 'tonal-btn small'));
+  const list = app.state.dayLayout === 'list';
+  line.append(iconButton(list ? 'view_day' : 'view_agenda', list ? 'Show day' : 'Show list',
+    () => app.actions.setDayLayout(list ? 'day' : 'list'), {cls: 'layout-toggle'}));
   header.append(line, weekStrip(app));
   if (week) header.append(week);
   return header;

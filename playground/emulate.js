@@ -15,7 +15,7 @@
   };
 
   // WebView's setTextZoom multiplies every font size and line height (px included) and nothing else.
-  const type = /^(font-size|line-height|--(display|headline|title|body|label)-[a-z0-9]+|--(large-title|headline|body|callout|subhead|footnote|caption))$/;
+  const type = /^(font-size|line-height|--(display|headline|title|body|label)-[a-z]+)$/;
   const visit = rules => {
     for (const rule of rules) {
       if (rule.media && scheme.test(rule.media.mediaText)) rule.media.mediaText = dark ? 'all' : 'not all';

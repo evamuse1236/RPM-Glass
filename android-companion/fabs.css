@@ -14,13 +14,13 @@
 .fab.fab-small {
   inline-size: 40px;
   block-size: 40px;
-  border-radius: var(--r-pill);
-  background: var(--bg-elevated);
-  color: var(--label);
-  box-shadow: var(--shadow-float);
+  border-radius: var(--shape-md);
+  background: var(--surface-container-high);
+  color: var(--on-surface-variant);
+  box-shadow: var(--elev-1);
 }
 .fab.fab-small .ms { font-size: 24px; }
-.fab:active { scale: .97; }
+.fab:active { scale: .94; }
 #planner[data-fab=true] .page { padding-block-end: calc(var(--fab-size) + 40px + var(--s4) + var(--s8)); }
 @media (prefers-reduced-motion: no-preference) {
   .fab { transition: transform var(--dur-medium) var(--ease-emphasized), opacity var(--dur-short) var(--ease-standard), scale 200ms cubic-bezier(.34, 1.56, .64, 1); }

@@ -53,7 +53,12 @@
 @keyframes strike-in { from { text-decoration-color: transparent; color: var(--on-surface); } }
 .must-mark { color: var(--must); margin: 16px var(--s3) 0 var(--s1); }
 /* The Now row: a soft primary tint, lighter in dark so it does not shout. */
-.task-row.current { background: var(--tint-soft); border-radius: var(--r-control); }
+:root { --current-row: color-mix(in srgb, var(--primary-container) 55%, transparent); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-appearance=light]) { --current-row: color-mix(in srgb, var(--primary-container) 38%, transparent); }
+}
+:root[data-appearance=dark] { --current-row: color-mix(in srgb, var(--primary-container) 38%, transparent); }
+.task-row.current { background: var(--current-row); border-radius: var(--shape-lg); }
 /* Keyboard focus on a row is a rounded ring inside it; focus the app hands back on touch draws none (planner.mjs). */
 .task-main:focus-visible { outline-offset: -2px; border-radius: var(--shape-md); }
 :root:not([data-keyboard-nav=true]) :is(button, a, [role=button], [role=checkbox], [tabindex]):focus-visible { outline: none; }
@@ -130,61 +135,61 @@
 .swipe-task[data-armed=true] .swipe-reveal .ms { scale: 1.2; }
 .swipe-task.swipe-settling .swipe-reveal { opacity: 0; transition: opacity var(--dur-short4) var(--ease-standard); }
 .swipe-task.swipe-leaving .swipe-reveal { opacity: 1; }
-.completed-group { --swipe-surface: var(--cell); margin: var(--s2) 0 0; border-radius: var(--r-group); background: var(--cell); overflow: clip; }
+.completed-group { margin: var(--s2) 0 0; }
 .completed-toggle {
   width: 100%;
   min-height: var(--touch);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--s4);
-  font: var(--subhead);
-  font-weight: 500;
-  color: var(--label-2);
-}
-.completed-group > .task-row {
-  background-image: linear-gradient(var(--separator), var(--separator));
-  background-size: calc(100% - 56px) 1px;
-  background-position: 100% 0;
-  background-repeat: no-repeat;
+  padding: 0 var(--s4) 0 var(--gutter);
+  font: var(--title-small);
+  color: var(--on-surface-variant);
 }
 
-/* Text fields: a filled 48dp field with radius 12, its label above it. */
-.text-field { position: relative; display: flex; flex-direction: column; gap: var(--s1); margin: var(--s3) 0 var(--s2); }
+/* Inputs (M3 outlined text fields) */
+.text-field { position: relative; display: block; margin: var(--s3) 0 var(--s2); }
 .text-field input, .text-field textarea, .text-field select {
   width: 100%;
-  min-block-size: var(--touch);
-  padding: var(--s3) var(--s4);
-  border: 0;
-  border-radius: var(--r-control);
-  background: var(--fill);
-  font: var(--body);
-  color: var(--label);
+  min-height: 56px;
+  padding: var(--s4);
+  border: 1px solid var(--outline);
+  border-radius: var(--shape-xs);
+  background: transparent;
+  font: var(--body-large);
+  color: var(--on-surface);
+  outline: none;
   -webkit-appearance: none;
   appearance: none;
 }
-.text-field textarea { min-block-size: 88px; resize: vertical; display: block; }
-.text-field select { padding-inline-end: 40px; }
-.text-field ::placeholder { color: var(--label-3); }
+.text-field textarea { min-height: 88px; resize: vertical; display: block; }
+.text-field select { padding-right: 40px; }
 .select-field::after {
-  content: "expand_more";
+  content: "arrow_drop_down";
   font-family: "Material Symbols Rounded";
   font-size: 24px;
   position: absolute;
-  inset-inline-end: 12px;
-  inset-block-end: 12px;
+  right: 12px;
+  top: 16px;
   pointer-events: none;
-  color: var(--label-2);
+  color: var(--on-surface-variant);
 }
+.text-field input:focus, .text-field textarea:focus, .text-field select:focus { border: 2px solid var(--primary); padding: 15px; }
 .field-label {
-  order: -1;
-  padding-inline: var(--s4);
-  font: var(--footnote);
-  color: var(--label-2);
-  overflow-wrap: anywhere;
+  position: absolute;
+  left: 12px;
+  top: -8px;
+  padding: 0 4px;
+  background: var(--sheet-bg, var(--surface));
+  font: var(--body-small);
+  color: var(--on-surface-variant);
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.text-field:focus-within .field-label { color: var(--tint); }
-.field-helper { display: block; padding-inline: var(--s4); font: var(--footnote); color: var(--label-2); }
+.text-field:focus-within .field-label { color: var(--primary); }
+.field-helper { display: block; padding: 4px var(--s4) 0; font: var(--body-small); color: var(--on-surface-variant); }
 .check-field { display: flex; align-items: center; gap: var(--s3); min-height: var(--touch); font: var(--body-large); }
 .check-field input, .dialog-choice input { width: 20px; height: 20px; accent-color: var(--primary); }
 input[type=range] { width: 100%; accent-color: var(--primary); min-height: var(--touch); }

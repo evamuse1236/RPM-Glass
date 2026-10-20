@@ -14,7 +14,7 @@ const DESTINATIONS = [
   ['projects', 'folder', 'Projects'],
   ['life', 'spa', 'Life'],
 ];
-export const TITLES = {today: 'Today', blocks: 'Blocks', projects: 'Projects', life: 'Life'};
+const TITLES = {today: 'Today', blocks: 'Blocks', projects: 'Projects', life: 'Life'};
 const DETAIL_NAMES = {blocks: 'Block', projects: 'Project', areas: 'Area', goals: 'Goal'};
 
 function rootMenu(app, anchor) {
@@ -48,9 +48,7 @@ function rootMenu(app, anchor) {
 function rootBar(app, bar) {
   const {state} = app;
   bar.className = 'top-bar root-bar';
-  const echo = el('span', 'top-title', TITLES[state.tab]);
-  echo.setAttribute('aria-hidden', 'true');
-  bar.append(echo);
+  bar.append(el('h1', 'top-title', TITLES[state.tab]));
   const tools = el('div', 'top-actions');
   // Search and Add live in the thumb's reach, bottom right (fab below); the bar keeps Capture and More.
   tools.append(iconButton('mic', 'Capture', () => app.capture()));
@@ -62,19 +60,9 @@ function rootBar(app, bar) {
 /** Today's spine on today: the one floating action is Now, shown while now is out of view (day.css). */
 const dayAtNow = app => !app.current() && app.state.tab === 'today' && app.state.dayLayout !== 'list' && app.state.day === localDay();
 
-function backWord(app) {
-  const stack = app.state.stack;
-  const previous = stack[stack.length - 2];
-  if (!previous) return TITLES[app.state.tab];
-  return DETAIL_NAMES[previous.kind] ?? (previous.kind === 'settings' ? 'Settings' : 'Back');
-}
-
 function detailBar(app, bar, top) {
   bar.className = 'top-bar detail-bar';
-  const back = button('', () => app.back(), 'bar-back');
-  back.setAttribute('aria-label', 'Back');
-  back.append(icon('chevron_left'), el('span', 'bar-back-label', backWord(app)));
-  bar.append(back);
+  bar.append(iconButton('arrow_back', 'Back', () => app.back()));
   const record = DETAIL_NAMES[top.kind] ? app.p()[top.kind]?.find(item => item.id === top.id) : null;
   const title = el('h1', 'top-title small', top.kind === 'settings' ? 'Settings' : record?.title ?? '');
   if (DETAIL_NAMES[top.kind]) title.setAttribute('aria-label', `${DETAIL_NAMES[top.kind]}: ${record?.title ?? ''}`);
