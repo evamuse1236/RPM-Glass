@@ -13,6 +13,16 @@ function appOnEmulator(state) {
   return staleApp({apk, installedSha: state.installedSha256, syncedAt: state.syncedAt, native: newestFile(ROOT, NATIVE_SOURCES), web: newestFile(ROOT, WEB_SOURCES)});
 }
 
+export async function storeJson(read, {tries = 3, wait = ms => new Promise(r => setTimeout(r, ms))} = {}) {
+  let out;
+  for (let i = 0; i < tries; i++) {
+    out = await read();
+    if (out.json) return out.json;
+    if (i < tries - 1) await wait(300);
+  }
+  throw new ScenarioFailure(`files/companion.json did not read as JSON after ${tries} tries`, {text: String(out.text ?? '').slice(0, 300)});
+}
+
 export const scenarioCommands = {
   async scenario(args, commands) {
     const dir = path.join(SKILL, 'scenarios');
@@ -37,7 +47,7 @@ export const scenarioCommands = {
           return out;
         },
         read: async (fn, arg) => { const page = await inPage(serial, Number(state.cdpPort)); try { return await page.evaluate(String(fn), arg ?? null); } finally { page.close(); } },
-        store: async () => (await commands.state(parseArgs(['files/companion.json']))).json,
+        store: () => storeJson(() => commands.state(parseArgs(['files/companion.json']))),
         keyboardShown: () => /mInputShown=true|isInputViewShown=true/.test(shell(serial, 'dumpsys input_method', {allowFail: true})),
         expect: (condition, message, detail) => { if (!condition) throw new ScenarioFailure(message, detail); },
         shot: label => ctx.do('shot', `${m.id}-${label}`),
