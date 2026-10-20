@@ -47,12 +47,40 @@ Branch `gauntlet/notch`. The scenario catalogue is in `notch-breaks.md`. The rul
 
 - Playground, before: `docs/gauntlet/2026-10-20/notch-shots/round-0/` (15 scenes).
 - Playground, final: `docs/gauntlet/2026-10-20/notch-shots/final/` (17 scenes, including the slowed morph `16-morph-midway.png`).
+- Playground, round 2: `docs/gauntlet/2026-10-20/notch-shots/round-2/` (20 scenes, including black wallpaper and 5+ due items).
+- Round 2 rpmctl shot: `.verify/evidence/2026-10-20T07-58-17-256507/01-screen.png` (not committed).
 - Emulator (Pixel_9, 1080x2424, 420 dpi): `docs/gauntlet/2026-10-20/notch-shots/emulator/` (`before-*` and `after-*`).
 - Final-build rpmctl shot: `.verify/evidence/2026-10-20T06-14-08-42a26c/01-notch-pill-final.png` (not committed).
 - The shooter: `node docs/gauntlet/2026-10-20/shoot-notch.mjs <outDir> [port]` against `node playground/server.mjs 4290`.
 
+## Round 2: the critic's ranked list (critic report `/tmp/gauntlet/notch-critic-r1.md`)
+
+| # | Decision | Commit | Tests | Shots |
+|---|---|---|---|---|
+| 1 | No ghost frame: while the notch shows a ringing alarm on an unlocked screen, its notification posts to a quiet channel without heads-up or full-screen intent; asleep or locked, it rings full-screen as before | b39569c | `AlarmHeadsUpTest` | `emulator/r2-1-alarm-without-heads-up.png` (measured: channel `companion_alarms_notch`, importance 2, `fullscreenIntent=null`; asleep it switched to `companion_alarms` with the intent) |
+| 2 | Alarm: Stop is the full-width primary, Snooze 10 min and Done a pair under it; corner Stop circle removed. A reminder keeps Done | 293990e | JS `a ringing alarm ...`, `NotchFrameTest` | `emulator/r2-2-alarm-stop-primary-pair-under.png`, `round-2/04-alarm.png`, `14-max-text-alarm.png` |
+| 3 | Rolling digits clip to their cap height; opening widens first, closing narrows last; faces shrink with the island | d3ff0bd | `IslandShapeTest` (2 new), 3 JS | `emulator/r2-3-digit-roll-frames.png`, `r2-3-open-morph-frames.png`, `round-2/16-morph-midway.png` |
+| 4 | The time shows once, in the band; the line is the purpose, else the block, else Now/Next | ac2bd17 | `NotchSceneTest.theTimeShowsOnce...`, JS | `emulator/r2-6-open-rows-time-once-more.png` ("Confident for RM Quiz I") |
+| 5 | Side margin = top margin (4–16dp); last control 16dp above the bottom | dab1b8f | `IslandShapeTest.openIslandSitsAsFarIn...`, JS | `emulator/r2-6-*`, `round-2/02-open.png` |
+| 6 | Each row ends in one quiet 40dp circle; water dots only at normal text | c028365 | JS `every row ends in one quiet ...` | `emulator/r2-6-*`, `round-2/02-open.png` |
+| 7 | Done is the filled primary with a dark label; Undo shows its 5 s draining | 886bfa3, f0db027 | `NotchFrameTest.primaryControls...`, `NotchAlertRowsTest.undoShows...`, 2 JS | `emulator/r2-7-undo-countdown-2s-and-3s.png`, `round-2/05-receipt-undo.png` |
+| 8 | Large text: icons grow up to 1.5x, pills keep 8dp round their label, row controls grow (corner stays 20dp), "+N more" when items are left out; the next alert no longer shows twice | bb829cd | `NotchSceneTest` (2 new), `NotchAlertRowsTest.theNextAlertShowsOnce...`, JS | `emulator/r2-8-large-text-150-open.png`, `round-2/10`, `12b`, `13`, `14`, `15` |
+| 9 | Black wallpaper: floating islands get a 1dp white 8% edge (none on the pill); 5+ due items and the empty day re-shot | 8a9e74d | `IslandShapeTest.aFloatingIslandHas...`, JS | `round-2/11-black-wallpaper-open.png`, `11b`, `11c`, `12-many-due.png`, `07-empty-day.png` |
+
+Choices made where the brief was silent:
+- The empty day is no notch at all, only the camera (the phone already hides it when nothing is due). The playground's note moved off the status bar into the copy badge area.
+- "+N more" only speaks; it is not a button. The long press already opens the plan.
+- At large text a row control grows to its icon plus 10dp each side and keeps its 20dp corner, so it turns into a rounded square past 40dp.
+- The routine row's circle snoozes only the routine.
+
+Known gaps:
+- While the island opens, its edge still sweeps over the status clock for a few frames. An overlay cannot hide the system clock; widening first shortens that window (measured on the emulator, frames in `r2-3-open-morph-frames.png`).
+- The playground copy's meal rule is older than the phone's (any time slot, including snack, vs the phone's meal-plan windows), so the copy can show a Snack row and a larger "+N more" than the phone. Not fixed here.
+
 ## UNVERIFIED
 
+- Black wallpaper on the device: the hairline is shown in the playground only.
+- The full-screen alarm on a real lock screen: the emulator has no keyguard.
 - Wide-notch layout on a real wide notch: the emulator cannot show one.
 - Samsung One UI and the S24 FE's real cutout. The emulator is a Pixel_9.
 - Reminder Snooze, and alarm Stop and Snooze, on the device. Alarm Done and the reminder island were driven.
