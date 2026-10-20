@@ -9,6 +9,7 @@ import crypto from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {BUILT_WEB, builtWeb, isWebSource} from './web-assets.mjs';
+import {isCloud} from './cloud.mjs';
 
 const APP_SOURCES = /^(app\/src\/main\/|android-companion\/|chat-prototype\/|intent-v2\/(src|adapters|prompts)\/|cli\/)/;
 export const isAppFile = f => APP_SOURCES.test(f) && !/\.test\.(mjs|ts)$/.test(f) && !f.includes('/experiments/') && !f.startsWith(BUILT_WEB);
@@ -84,6 +85,36 @@ export function evidenceGap(root) {
   return null;
 }
 
+export function browserEvidence(root) {
+  const webSha = builtWeb(root).sha;
+  let newest = null;
+  const evidence = path.join(root, '.verify', 'evidence');
+  for (const run of fs.existsSync(evidence) ? fs.readdirSync(evidence) : []) {
+    const dir = path.join(evidence, run);
+    for (const name of fs.statSync(dir).isDirectory() ? fs.readdirSync(dir).filter(n => n.endsWith('.png')) : []) {
+      const file = path.join(dir, name);
+      let meta = null;
+      try { meta = JSON.parse(fs.readFileSync(file.replace(/\.png$/, '.json'), 'utf8')); } catch {}
+      if (!meta?.browser || meta.pageErrors?.length || meta.webSha256 !== webSha || fs.statSync(file).size < 1000) continue;
+      const mtime = fs.statSync(file).mtimeMs;
+      if (!newest || mtime > newest.mtime) newest = {file, mtime};
+    }
+  }
+  return newest;
+}
+
+export function cloudGap(root) {
+  const {files} = changedAppFiles(root);
+  const list = names => names.slice(0, 5).join(', ') + (names.length > 5 ? ` and ${names.length - 5} more` : '');
+  const web = files.filter(isWebSource), native = files.filter(f => !isWebSource(f));
+  const shot = web.length ? browserEvidence(root) : null;
+  const unshown = web.filter(f => !shot || changedAt(root, f) > shot.mtime);
+  return {
+    block: unshown.length ? `Cloud session: no browser screenshot shows the web change (${list(unshown)}). Run \`node scripts/agent/browser-shot.mjs <label> [planner.html|index.html]\` on the changed screen and put the PNG path in the reply.` : null,
+    unverified: native.length ? `UNVERIFIED: native change (${list(native)}) needs a PC emulator run; a cloud session has no emulator.` : null,
+  };
+}
+
 export const headCommit = root => git(root, ['rev-parse', 'HEAD'])?.trim() ?? null;
 export function uncommittedAppFiles(root) {
   const status = (git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']) ?? '').split('\0').filter(Boolean);
@@ -146,9 +177,20 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log(gap ? `✖ ${gap}` : '✔ No app change in this merge lacks a passing scenario --all.');
     process.exit(gap ? 1 : 0);
   }
-  if (process.argv.includes('--hook')) {
-    let input = {};
-    try { input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'); } catch {}
+  const hook = process.argv.includes('--hook');
+  let input = {};
+  if (hook) try { input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'); } catch {}
+  if (isCloud()) {
+    const {block, unverified} = cloudGap(root);
+    if (hook) {
+      const out = {...block && !input.stop_hook_active ? {decision: 'block', reason: block} : {}, ...unverified ? {systemMessage: unverified} : {}};
+      if (Object.keys(out).length) console.log(JSON.stringify(out));
+      process.exit(0);
+    }
+    console.log([block ? `✖ ${block}` : '✔ Every web change has a browser screenshot (cloud session).', unverified].filter(Boolean).join('\n'));
+    process.exit(block ? 1 : 0);
+  }
+  if (hook) {
     const gap = input.stop_hook_active ? null : evidenceGap(root);
     if (gap) console.log(JSON.stringify({decision: 'block', reason: gap}));
     process.exit(0);

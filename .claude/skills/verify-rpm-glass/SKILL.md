@@ -97,7 +97,8 @@ Reply with the evidence paths (`.verify/evidence/<run-id>/NN-*.png`).
 |---|---|---|
 | Web only (`android-companion`, `chat-prototype`, `intent-v2`) | A browser screenshot of the changed screen, then `rpmctl sync` on the warm emulator and `rpmctl shot`. No APK build. | `npm run check:evidence` (`require-evidence.mjs`, Stop hook) accepts a shot whose web hash matches the bundle |
 | Native (Java, notch, manifest, `cli`) | `rpmctl launch --build`, then drive the changed feature and `rpmctl shot` it. | `npm run check:evidence` needs an APK newer than the change and a shot with it installed |
-| Merging app changes into main | One passing `rpmctl scenario --all` on the merged commit, not after each change. | `npm run check:merge`; `npm run hooks:install` makes it a `pre-merge-commit` hook |
+| Merging app changes into main | One passing `rpmctl scenario --all` on the merged commit, not after each change. | `npm run check:merge`; `npm run hooks:install` makes it a `pre-merge-commit` and `pre-commit` hook |
+| Any change, in a cloud session (no emulator) | Web: `node scripts/agent/browser-shot.mjs <label> [planner.html\|index.html]`, which bundles, serves and screenshots the page at 384dp. Native: say UNVERIFIED, needs a PC emulator run. | The Stop hook switches on `CLAUDE_CODE_REMOTE_SESSION_ID` (`scripts/rules/cloud.test.mjs`) |
 
 `scenario` refuses to run on a stale app: an APK older than native code, a different APK than this checkout built, or web code newer than the last install or `sync`. `--allow-stale` overrides and is recorded.
 
