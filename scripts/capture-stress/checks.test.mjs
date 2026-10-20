@@ -150,3 +150,78 @@ test('fake model goes through production interpreter, canonical adapter, file pe
   assert.equal(failure.turns[0].capture.raw,text);
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+ test('everyday checks require completion and the meal foods in canonical storage',()=>{
+  assert.ok(compare({created:[{words:['bank'],done:true}]}).some(f=>f.detail.includes('done should be true')));
+  assert.deepEqual(compare({created:[{words:['bank'],done:true}]},[{...bank(),done:true}]),[]);
+  const expect=expectation({created:[],maxNew:0,health:{meals:[{slot:'lunch',state:'logged',foodWords:['dal','rice','curd']}]}});
+  const after=empty();
+  assert.ok(checkExpectation(expect,{before:empty(),after}).some(f=>f.type==='lost item'));
+  after.planner.body.meals.push({slot:'lunch',name:'dal rice curd'});
+  assert.deepEqual(checkExpectation(expect,{before:empty(),after}),[]);
+  after.planner.body.meals[0].state='skipped';
+  assert.ok(checkExpectation(expect,{before:empty(),after}).some(f=>f.type==='lost item'));
+ });
+
+test('route latency reports nearest-rank median and p90 separately from failures',()=>{
+ const turns=[{calls:Array.from({length:10},(_,i)=>({routeUsed:'quick',record:{ms:(i+1)*100}}))}];
+ const summary=summarize([{ms:1000,pass:true,failures:[],turns}]);
+ assert.deepEqual(summary.routeLatencyMs.quick,{count:10,measured:10,p50:500,p90:900,p95:1000});
+});
+
+test('the isolated critic sees edited canonical rows and the seeded context, not just new tasks',async()=>{
+ const {judgeInput}=await import('./run.mjs');
+ const directory=await mkdtemp(path.join(os.tmpdir(),'rpm-judge-state-'));
+ try{
+  const {writeFile}=await import('node:fs/promises');
+  const before=empty(),after=empty();
+  before.entries=[{...bank(),id:101,done:false}];
+  after.entries=[{...bank(),id:101,done:true}];
+  after.planner.blocks=[{id:'b1',title:'Return the deposit'}];
+  await writeFile(path.join(directory,'seed.json'),JSON.stringify({data:before}));
+  await writeFile(path.join(directory,'final.json'),JSON.stringify(after));
+  const input=await judgeInput({expect:{},turns:[],saved:{newTasks:[]},failures:[],artifacts:{directory,final:path.join(directory,'final.json')}});
+  assert.equal(input.before.entities.find(e=>e.id===101).done,false);
+  assert.equal(input.saved.entities.find(e=>e.id===101).done,true);
+  assert.equal(input.saved.entities.find(e=>e.id==='b1').title,'Return the deposit');
+  assert.deepEqual(input.saved.newTasks,[]);
+ }finally{await rm(directory,{recursive:true,force:true});}
+});
+
+test('adversary health requires water, a skipped meal and named breakfast together',()=>{
+ const expect={created:[],maxNew:0,health:{waterDelta:3,mealSkipped:'lunch',meals:[{slot:'breakfast',state:'logged',foodWords:['poha']}]}};
+ const before=empty(),after=empty();
+ after.planner.body.water.glasses=[{},{},{}];
+ after.planner.body.meals=[{slot:'breakfast',state:'logged',name:'poha'},{slot:'lunch',state:'skipped'}];
+ assert.deepEqual(checkExpectation(expect,{before,after}),[]);
+ for(const breakOne of [d=>d.planner.body.water.glasses.pop(),d=>d.planner.body.meals.pop(),d=>d.planner.body.meals[0].name='toast']){
+  const broken=structuredClone(after);breakOne(broken);
+  assert.ok(checkExpectation(expect,{before,after:broken}).some(f=>f.type==='lost item'));
+ }
+});
+
+test('a shopping task can cover both named goods but cannot omit either',()=>{
+ const created=[{entity:'task',words:['rice']},{entity:'task',words:['eggs'],allowShared:true}];
+ assert.deepEqual(compare({created},[{...bank(),title:'Buy rice and eggs'}]),[]);
+ assert.deepEqual(compare({created,maxNew:2},[{...bank(),title:'Buy rice'},{...bank(),id:2,title:'Buy eggs'}]),[]);
+ assert.ok(compare({created},[{...bank(),title:'Buy rice'}]).some(f=>f.type==='lost item'));
+});
+
+test('short noun plurals match without matching unrelated prefixes',()=>{
+ assert.equal(matchesWords('Pay college fees',['college','fee']),true);
+ assert.equal(matchesWords('College feedback',['college','fee']),false);
+});
+
+test('an explicitly requested then retracted item is allowed only at its checkpoint',()=>{
+ const before=empty(),first={...empty(),entries:[{id:1,title:'Buy shoes'},{id:2,title:'Get haircut'}]},after=structuredClone(first);
+ after.entries[0].archived=true;
+ const turns=['buy shoes and get haircut','not the shoes'].map((text,i)=>({text,capture:{messageId:String(i),raw:text},calls:[]}));
+ const captures=Object.fromEntries(turns.map(t=>[t.capture.messageId,t.capture]));
+ for(const s of [first,after])s.intentV2={captures,drafts:{}};
+ const testCase={turns,expect:expectation({created:[{words:['haircut']}],maxNew:1,forbidden:[['shoes']],checkpoints:[{turn:1,created:[{words:['shoes']},{words:['haircut']}],maxNew:2,changes:[],forbidden:[],unchanged:[],question:'forbidden'}]})};
+ const check=last=>evaluateCase(testCase,{before,after:last,states:[first,last],turns,validate,schema:TURN_SCHEMA});
+ assert.deepEqual(check(after),[]);
+ assert.ok(check(first).some(f=>f.type==='retraction ignored'));
+ const bad=structuredClone(after);bad.entries.push({id:3,title:'Invented flight'});
+ assert.ok(check(bad).some(f=>f.type==='invented item'));
+});

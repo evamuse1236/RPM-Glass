@@ -27,7 +27,24 @@ export function followUpProblem(operations,{messageId,sourceUnits=[],context={},
  }
  return null;
 }
-export function validateFollowUp(parsed,{input}){const issue=followUpProblem(parsed.operations,input);if(issue)throw new Error(issue);}
+// A shared verb is not the identity of a saved task. A literal new purchase
+// may not silently rewrite a broad grocery run just because both involve buying.
+function newActionTargetProblem(operations,{sourceUnits=[],context={},activeDraft=null,openQuestion=null}={}){
+ const raw=sourceUnits.map(s=>s.text).join(' ');
+ if(activeDraft||openQuestion||isContextualFollowUp(raw)||! /^(?:please\s+)?(?:buy|call|read|submit|pay|print|collect|book|wash|clean|return|finish)\b/i.test(raw)||/\b(?:this|that|those|these|it|instead|actually|meant|rename|change|move|shopping|list)\b/i.test(raw))return null;
+ const family=text=>normalize(text).replace(/\b(?:amma|mum|mummy|mother)\b/g,'mom').replace(/\b(?:papa|daddy|father)\b/g,'dad');
+ const verbs=new Set('buy call read submit pay print collect book wash clean return finish get go'.split(' '));
+ const current=new Set(words(family(raw)).filter(w=>!verbs.has(w)));
+ for(const op of operations){
+  if(op.kind!=='update'||op.entity!=='task')continue;
+  const target=context.entities?.find(e=>e.entity==='task'&&e.id===op.targetId);
+  if(target&&!words(family(target.title)).filter(w=>!verbs.has(w)).some(w=>current.has(w)))
+   return 'This new action does not name the saved item. Keep that saved item unchanged and capture the specific action separately. A shared verb or broad category does not identify a saved task.';
+ }
+ return null;
+}
+export function validateFollowUp(parsed,{input}){const issue=newActionTargetProblem(parsed.operations,input)??followUpProblem(parsed.operations,input);if(issue)throw new Error(issue);}
+
 /** Re-check uncommitted drafts created by older builds, without rewriting them. */
 export function draftFollowUpProblem(data,draft){
  if(!draft||!['draft','review'].includes(draft.status))return null;

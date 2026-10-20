@@ -15,6 +15,7 @@ export function evaluateCase(test,{before,after,turns,states,validate,schema}){
   const checkpoint=checkpoints.find(c=>c.turn===i+1);
   if(checkpoint)failures.push(...checkExpectation(checkpoint,context).map(f=>({...f,checkpoint:i+1})));
   const allowed={...test.expect,created:[...test.expect.created,...checkpoints.flatMap(c=>c.created)],
+   maxNew:Math.max(test.expect.maxNew,...checkpoints.map(c=>c.maxNew)),
    changes:[...test.expect.changes,...checkpoints.flatMap(c=>c.changes)],forbidden:[],question:'allowed',unchanged:[],focusRemoved:[],focusRetained:[],health:undefined};
   failures.push(...checkExpectation(allowed,context).filter(f=>f.type==='invented item').map(f=>({...f,turn:i+1})));
  }

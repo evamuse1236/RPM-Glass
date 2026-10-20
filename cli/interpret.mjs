@@ -42,9 +42,14 @@ function rangeTime(result,base,text,now) {
 /** Small, explicit transliteration vocabulary; untouched source stays in the journal. */
 export function normalizeLocalTime(raw,{evidence=raw}={}){
  let text=raw,reason=null;
+ // Near-future conversational window: keep today's day, never invent its clock.
+ if(/^thodi\s+der\s+mein$/i.test(text.trim()))text='today';
+ const hindiHours={ek:1,do:2,teen:3,chaar:4,char:4,paanch:5,panch:5,chhe:6,che:6,saat:7,aath:8,nau:9,das:10,gyarah:11};
+ text=text.replace(/\b(?:saade|saadhe|sadhe)\s+(ek|do|teen|chaar|char|paanch|panch|chhe|che|saat|aath|nau|das|gyarah)(?=\s+baje\b)/gi,(_,h)=>`${hindiHours[h.toLowerCase()]}:30`);
+ if(/^(?:make it\s+)?(?:the\s+)?day after(?:[,\s]+(?:instead|same time))*[.!]?$/i.test(text.trim()))text='in 2 days';
  if(/^(?:\s*kal)\b|\bkal\s+(?:subah|sakali|shaam|raat|dopahar|\d)/i.test(text)){
   // "karna hai", "leni hai", "jana hai": an infinitive with "hai" says it still has to happen.
-  const future=/\b(?:karna hai|karni hai|karne hain|karunga|karungi|karo|remind me|schedule|tomorrow)\b|\b\w+(?:na|ni|ne)\s+(?:hai|hain|h)\b/i.test(evidence);
+  const future=/\b(?:karna hai|karni hai|karne hain|karunga|karungi|karo|remind me|schedule|tomorrow|utha dena)\b|\b\w+(?:na|ni|ne)\s+(?:hai|hain|h)\b/i.test(evidence);
   const past=/\b(?:kiya|ki thi|kiya tha|gaya|gayi|tha|thi|yesterday)\b/i.test(evidence);
   if(!future||past)reason='Does “kal” mean tomorrow or yesterday? Use an explicit day.';
   else text=text.replace(/\bkal\b/gi,'tomorrow');
@@ -98,6 +103,10 @@ export function interpretTime(raw, now = new Date(), options = {}) {
     &&!/\b(?:today|tonight|tomorrow|(?:mon|tues|wednes|thurs|fri|satur|sun)day|\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?|\d{1,2}:\d{2}|\d{4}-\d{2}-\d{2})\b/i.test(rangeText))return base;
   const text=rangeText.replace(/\bfor\s+(?:(?:\d+(?:\.\d+)?|one|two|three|ten|fifteen|twenty|thirty|forty[- ]five|sixty|half an?)\s+)(?:minutes?|mins?|m\b|hours?|hrs?|h\b)/gi,m=>' '.repeat(m.length));
   let results=chrono.parse(text,now,{forwardDate:true});
+  // Meal and bedtime windows mean today's routine unless a day was supplied.
+  // Keep the window in the interpretation; it never supplies a clock or duration.
+  if(/\b(?:after|before)\s+(?:breakfast|lunch|dinner)\b|\bbefore\s+bed\b/i.test(text)&&!results.some(r=>clock(r.start)||hasDay(r.start)))
+    return {...base,status:'date_only',plannedDate:localDate(now),assumptions:['No day specified; using today for the meal or bedtime window.']};
   if(options.inferBareClock){
     const times=results.filter(r=>clock(r.start));
     if(times.length===1&&results.every(r=>r===times[0]||!hasDay(r.start)&&/^(?:morning|afternoon|evening|night)$/i.test(r.text)))results=times;

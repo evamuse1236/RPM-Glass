@@ -39,10 +39,10 @@ test('Name it follows a saved reminder, binds its ID, and never replays the orig
 });
 test('next free slot changes only time on tap and still uses canonical Undo',async()=>{
  const raw='Buy apples',s=await setup(raw,[operation([field('title',raw,raw)])]);
- const c=await s.card(),a=c.draft.nextStep.action;
+ const c=await s.card(),a=c.draft.nextStep.action,callsBeforeTap=s.calls;
  assert.equal(a.step,'schedule');assert.equal((await s.backend.load()).entries[0].planned,null);
  await s.agent.act(a,{actionId:actionIdFor(a)});
- const data=await s.backend.load();assert.equal(data.entries[0].planned,a.at);assert.equal(data.entries[0].minutes,null);assert.equal(data.entries.length,1);assert.equal(s.calls,1);
+ const data=await s.backend.load();assert.equal(data.entries[0].planned,a.at);assert.equal(data.entries[0].minutes,null);assert.equal(data.entries.length,1);assert.equal(s.calls,callsBeforeTap);
  assert.equal(Object.values(data.intentV2.captures).at(-1).raw,`Schedule Buy apples at ${a.at}`);
  await s.agent.undo({draftId:(await s.card()).draft.id,conversationId:s.conversationId,actionId:'undo-slot'});
  assert.equal((await s.backend.load()).entries[0].planned,null);

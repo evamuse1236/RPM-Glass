@@ -1,0 +1,636 @@
+[
+  {
+    "id": "everyday-call-mom",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "call mom at 6"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "call",
+            "mom"
+          ],
+          "day": "2026-10-19",
+          "time": "18:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "everyday-later-today",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "email the hostel later today"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "email",
+            "hostel"
+          ],
+          "day": "2026-10-19",
+          "time": null
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "everyday-after-lunch",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "print my boarding pass after lunch"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "print",
+            "boarding",
+            "pass"
+          ],
+          "day": "2026-10-19",
+          "time": null
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "everyday-tonight",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "charge the power bank tonight"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "charge",
+            "power",
+            "bank"
+          ],
+          "day": "2026-10-19",
+          "time": null
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "everyday-kal-gym",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "kal subah gym jaana hai"
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "everyday-voice-noise",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "um yeah buy toothpaste tomorrow and uh pick up my spectacles friday"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "toothpaste"
+          ],
+          "day": "2026-10-20",
+          "time": null
+        },
+        {
+          "entity": "task",
+          "words": [
+            "spectacles"
+          ],
+          "day": "2026-10-23",
+          "time": null
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 2,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "everyday-done-laundry",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "collect laundry tomorrow"
+      },
+      {
+        "text": "done with laundry"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "laundry"
+          ],
+          "day": "2026-10-20",
+          "time": null,
+          "done": true
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": [],
+      "checkpoints": [
+        {
+          "turn": 1,
+          "created": [
+            {
+              "entity": "task",
+              "words": [
+                "laundry"
+              ],
+              "day": "2026-10-20",
+              "time": null
+            }
+          ],
+          "changes": [],
+          "question": "forbidden",
+          "forbidden": [],
+          "maxNew": 1,
+          "unchanged": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "everyday-move-gym",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "move gym to 7"
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "required",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "everyday-bulk-after-five",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "push everything after 5 today to tomorrow"
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [
+        {
+          "id": 106,
+          "kind": "update",
+          "day": "2026-10-20",
+          "time": "20:00"
+        }
+      ],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "everyday-next",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "what's next?"
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "everyday-purpose",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "revise chapter 3 so that I pass the exam"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "revise",
+            "chapter",
+            "3"
+          ],
+          "day": null,
+          "time": null,
+          "purposeWords": [
+            "pass",
+            "exam"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "everyday-must",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "must pay the electricity bill tomorrow"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "pay",
+            "electricity",
+            "bill"
+          ],
+          "day": "2026-10-20",
+          "time": null,
+          "must": true
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "everyday-water",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "drank two glasses of water"
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": [],
+      "health": {
+        "waterDelta": 2
+      }
+    }
+  },
+  {
+    "id": "everyday-meal",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "had lunch dal rice and curd"
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": [],
+      "health": {
+        "meals": [
+          {
+            "slot": "lunch",
+            "state": "logged",
+            "foodWords": [
+              "dal",
+              "rice",
+              "curd"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "everyday-correction",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "book a haircut tomorrow at 4 pm"
+      },
+      {
+        "text": "no, I meant Thursday"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "haircut"
+          ],
+          "day": "2026-10-22",
+          "time": "16:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": [],
+      "checkpoints": [
+        {
+          "turn": 1,
+          "created": [
+            {
+              "entity": "task",
+              "words": [
+                "haircut"
+              ],
+              "day": "2026-10-20",
+              "time": "16:00"
+            }
+          ],
+          "changes": [],
+          "question": "forbidden",
+          "forbidden": [],
+          "maxNew": 1,
+          "unchanged": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "everyday-unsupported",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "send a WhatsApp to Neha saying I will be late"
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "allowed",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "everyday-unscheduled",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "buy mosquito repellent"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "mosquito",
+            "repellent"
+          ],
+          "day": null,
+          "time": null
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "everyday-cancel-reminder",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "turn off the alarm for submit workbook"
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [
+        {
+          "id": 104,
+          "kind": "update",
+          "alert": "off",
+          "title": "Submit workbook",
+          "day": "2026-10-19",
+          "time": "17:00",
+          "done": false,
+          "minutes": 30
+        }
+      ],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "everyday-duration",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "practice guitar for 15 minutes tonight"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "practice",
+            "guitar"
+          ],
+          "day": "2026-10-19",
+          "time": null,
+          "minutes": 15
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "everyday-negation",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "do not add anything just thinking I should probably start running"
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "everyday-hinglish-water",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "abhi do glass paani piya"
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": [],
+      "health": {
+        "waterDelta": 2
+      }
+    }
+  },
+  {
+    "id": "everyday-retime-day-only",
+    "tags": [
+      "everyday"
+    ],
+    "turns": [
+      {
+        "text": "move groceries to Friday"
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [
+        {
+          "id": 105,
+          "kind": "update",
+          "day": "2026-10-23",
+          "time": "18:00"
+        }
+      ],
+      "unchanged": []
+    }
+  }
+]
