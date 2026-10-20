@@ -1,4 +1,4 @@
-import {pressStep, snapStart, snapLength, glassesFor, labelTop, hasKnurl, HOLD_LIFT, LABEL_GAP, LABEL_HEIGHT} from '../spine-drag.mjs';
+import {pressStep, snapStart, snapLength, glassesFor, labelTop, hasKnurl, moveLabel, HOLD_LIFT, LABEL_GAP, LABEL_HEIGHT} from '../spine-drag.mjs';
 import {LONG_PRESS, lockAxis, nearEdge} from '../task-swipe.mjs';
 import {cardHeight} from '../spine-model.mjs';
 import {clockText} from '../body-state.mjs';
@@ -68,7 +68,7 @@ export function attachSpineDrag(app, card, row, {dayStart}) {
       if (shown != null) haptic('tick');
       shown = start;
     }
-    placeCardLabel(label, card, clockText(new Date(start)));
+    placeCardLabel(label, card, moveLabel(clockText(new Date(start)), row.minutes ? duration(row.minutes) : ''));
   };
   const autoScroll = () => {
     frame = 0;

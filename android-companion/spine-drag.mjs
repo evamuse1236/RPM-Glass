@@ -69,4 +69,7 @@ export function labelTop(cardTop, cardBottom, viewTop = 0) {
 }
 
 /** The length knurl shows on a timed, open card that has not ended: a past or untimed (Anytime) card has none. */
+/** The moving card's label: its new start, and its length when it has one (the gutter shows no length). */
+export const moveLabel = (clock, length) => (length ? `${clock} · ${length}` : clock);
+
 export const hasKnurl = row => row.start != null && !row.done && !row.past;

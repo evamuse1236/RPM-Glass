@@ -1,13 +1,11 @@
 /** Draws the spine (spine-model.mjs): the gutter times, the line with its dots, and one row per item, gap or now. */
 import {el, icon, button, iconButton} from './dom.mjs';
-import {gutterLength} from '../spine-model.mjs';
 
 function gutter(row) {
   const node = el('div', 'spine-gutter tnum');
   node.setAttribute('aria-hidden', 'true');
   node.append(el('span', 'spine-time', row.sameTime ? '' : row.gutter?.time ?? row.time ?? ''));
   if (row.soon) node.append(el('span', 'spine-soon', row.soon));
-  if (row.gutter?.length) node.append(el('span', 'spine-length', gutterLength(row.gutter.length)));
   return node;
 }
 

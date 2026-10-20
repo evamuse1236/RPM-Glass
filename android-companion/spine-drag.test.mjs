@@ -76,11 +76,16 @@ test('a dragged card\'s label sits 12dp above the card, never over its title, or
   assert.equal(labelTop(150, 230, 112), 230 + 12, 'too close to the top: below the card');
 });
 
-test('a long length in the gutter keeps each number with its unit and breaks only between hours and minutes', async () => {
-  const {gutterLength} = await import('./spine-model.mjs');
-  assert.equal(gutterLength('3 h 55 min'), '3 h 55 min');
-  assert.equal(gutterLength('3 h 55 min'), '3 h 55 min');
-  assert.equal(gutterLength('45 min'), '45 min');
+test('the gutter shows only the time and the countdown; the length shows in the moving card\'s label', async () => {
+  const {readFileSync} = await import('node:fs');
+  const view = readFileSync(new URL('./planner/spine-view.mjs', import.meta.url), 'utf8');
+  const gutter = view.slice(view.indexOf('function gutter'), view.indexOf('function shell'));
+  assert.match(gutter, /spine-time/);
+  assert.match(gutter, /spine-soon/);
+  assert.doesNotMatch(gutter, /length/, 'no third or fourth line in the gutter');
+  const {moveLabel} = await import('./spine-drag.mjs');
+  assert.equal(moveLabel('5:15 PM', '3 h 55 min'), '5:15 PM · 3 h 55 min');
+  assert.equal(moveLabel('5:15 PM', ''), '5:15 PM');
 });
 
 test('the length knurl shows only on timed cards that have not ended', async () => {
