@@ -12,7 +12,7 @@ import {findEntity,sourceUnits} from '../intent-v2/src/context.mjs';
 import {intentSystemPrompt} from '../intent-v2/prompts/intent-system.mjs';
 import {formatTime} from '../cli/interpret.mjs';
 import {resolvePlannerTime} from './planner-tools.mjs';
-import {receiptLines} from './capture-receipt.mjs';
+import {receiptLines,previewRows} from './capture-receipt.mjs';
 import {receiptHelp,currentReceiptHelp,checkReceiptStep} from './capture-next-step.mjs';
 
 const ACTIVE_DRAFTS=new Set(['draft','review']);
@@ -105,6 +105,12 @@ export function createIntentService({backend,native,model,changePlanner,undo,rea
    current.intentV2.drafts[action.draftId].nextStep.used=actionId;
   }});
  }
+ /** Typed words read without saving: the rows the receipt would show, or a status that shows nothing. */
+ async function preview(input,{signal}={}){
+  const read=await harness.preview(input,{signal});
+  if(read.status!=='read')return {status:read.status,run:read.run??null,rows:[]};
+  return {status:'read',run:read.run,rows:previewRows(await repository.load(),read.parsed.operations,read.schedulePreview)};
+ }
  async function resume(draftId,{conversationId,actionId}={}){validId(actionId,'Action ID');const result=await harness.resume(draftId,{conversationId,actionId});return {...result,intent:await view({conversationId})};}
 
  const sort={
@@ -136,5 +142,5 @@ export function createIntentService({backend,native,model,changePlanner,undo,rea
   });
   return {...result,intent:await view({conversationId:ensureIntent(await repository.load()).captures[messageId]?.conversationId})};
  }
- return {repository,harness,capture,retry,act,choose,undo:undoDraft,resume,view,sort,keepNote,help,nextStep};
+ return {repository,harness,capture,retry,act,choose,undo:undoDraft,resume,view,sort,keepNote,help,nextStep,preview};
 }

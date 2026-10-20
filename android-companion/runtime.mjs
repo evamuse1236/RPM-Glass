@@ -92,6 +92,7 @@ window.RPM_PLATFORM.clearPlanningFocus=()=>localStorage.removeItem('rpm-capture-
 window.RPM_PLATFORM.captureAction=async action=>{const latest=await native('load');phone=latest.phone;if(latest.data)data=latest.data;return executeCaptureAction(data,action,native);};
 window.RPM_PLATFORM.suggestionAction=(suggestion,sourceRaw,at)=>goalDraftAction(suggestion,sourceRaw,at?new Date(at):new Date());
 window.RPM_PLATFORM.receiptsForMessage=message=>receiptsForMessage(data,message,entryView);
+window.RPM_PLATFORM.previewCapture=(text,{conversationId,signal}={})=>ready.then(()=>phone.hasKey?agent.preview({conversationId,text},{signal}):{status:'silent',rows:[]});
 window.RPM_PLATFORM.describeLink=(field,value)=>describeLink(data,field,value);
 // A Block's Result deadline for Capture's proposals and Block picker: dueInfo() with its stored value, or null.
 window.RPM_PLATFORM.blockDue=id=>{const due=blockDue(data,id);return due&&{...dueInfo(due.value),value:due.value};};

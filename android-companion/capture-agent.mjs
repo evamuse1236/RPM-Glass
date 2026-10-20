@@ -102,5 +102,16 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
   const d=await draftOf(input.draftId);if(d)traces.outcome(d.sourceMessageIds.at(-1),'undone',{confirm:d.confirm??null});
   return result;
  }
- return {capture,retry,choose,act,confirm,undo,apply};
+ /** A read while typing. Its model call leaves its own trace with no words; nothing is saved or applied. */
+ async function preview(input,{signal}={}){
+  const started=clock(),result=await service.preview(input,{signal});
+  if(result.run){
+   const run=result.run;
+   traces.put({id:`preview:${run.requestId??started.getTime()}`,kind:'preview',at:started.toISOString(),conversationId:input.conversationId,words:null,attempts:1,
+    latencyMs:ms(started,clock),models:[modelRun(run)],localInterpretation:null,timeInferences:[],interpreted:null,applied:{status:'preview',read:result.status},
+    errors:run.ok?[]:[{stage:'preview',code:run.error??null,message:null}]});
+  }
+  return {status:result.status,rows:result.rows};
+ }
+ return {capture,retry,choose,act,confirm,undo,apply,preview};
 }
