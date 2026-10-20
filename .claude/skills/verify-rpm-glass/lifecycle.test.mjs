@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {UserError, netsimToStart, gpuMode} from './lib/device.mjs';
+import {UserError, netsimToStart, gpuMode, emulatorEnv} from './lib/device.mjs';
 import * as ownership from './lib/ownership.mjs';
 
 const source = fs.readFileSync(new URL('./lib/lifecycle.mjs', import.meta.url), 'utf8');
@@ -45,6 +45,7 @@ async function fixture(t, shared = null) {
     sleep: async () => { await h.onSleep?.(); },
     waitFor: async (fn, args) => {
       if (h.pause && args.what.includes('come online')) await h.pause;
+      if (h.failBoot && args.what.includes('finish booting')) throw new UserError('Fixture wait failed', 'Retry.');
       if (!await fn()) throw new UserError('Fixture wait failed', 'Retry.');
     },
     dismissAnr: () => false,
@@ -109,10 +110,38 @@ test('launch and cleanup reject another owner before any device or process acces
   assert.deepEqual(f.h.events, []);
 });
 
-test('failed launch keeps the emulator lease for cleanup, and cleanup --stop releases it after exit', async t => {
+test('a launch that fails after boot releases the shared emulator warm, so the next worktree reuses it', async t => {
   const f = await fixture(t);
   f.h.failInstall = true;
   await assert.rejects(f.commands.launch(f.launchArgs), /Fixture install failed/);
+  assert.equal(f.readState(), null);
+  assert.deepEqual(fs.readdirSync(f.options.root), ['emulator-5582.json']);
+  assert.ok(ownership.readEmulator(5582, f.options).releasedAt);
+  assert.equal(f.h.reapers, 1, 'the idle watcher stops it if nobody comes');
+  f.h.failInstall = false;
+  const g = await fixture(t, {h: f.h, options: f.options});
+  const next = await g.commands.launch({...g.launchArgs});
+  assert.match(next.emulator, /reused the warm emulator/);
+  assert.equal(f.h.starts, 1);
+});
+
+test('a launch builds before it takes the emulator, so a failed build holds nothing', async t => {
+  const f = await fixture(t);
+  await assert.rejects(f.commands.launch({_: [], build: true, port: 5582, cdpPort: 13002}), /Unexpected fixture call/);
+  assert.equal(f.h.starts, 0);
+  assert.deepEqual(fs.existsSync(f.options.root) ? fs.readdirSync(f.options.root) : [], []);
+});
+
+test('the emulator keeps its 2-3 GB overlay on disk, not in a RAM /tmp', () => {
+  assert.equal(emulatorEnv({}, {platform: 'linux', home: '/home/me'}).ANDROID_TMP, '/home/me/.cache/rpmctl-emulator-tmp');
+  assert.equal(emulatorEnv({ANDROID_TMP: '/big'}, {platform: 'linux', home: '/home/me'}).ANDROID_TMP, '/big');
+  assert.equal(emulatorEnv({}, {platform: 'win32', home: 'C:/Users/me'}).ANDROID_TMP, undefined);
+});
+
+test('a launch whose boot fails keeps the emulator lease for cleanup, and cleanup --stop releases it after exit', async t => {
+  const f = await fixture(t);
+  f.h.failBoot = true;
+  await assert.rejects(f.commands.launch(f.launchArgs), /Fixture wait failed/);
   const state = f.readState();
   ownership.assertLease(state, f.options);
   assert.throws(() => ownership.takeLease({...state, owner: 'other'}, f.options), /lease is busy/);

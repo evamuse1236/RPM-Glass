@@ -38,7 +38,8 @@ function signer(apk) {
 
 function build() {
   const gradlew = path.join(ROOT, process.platform === 'win32' ? 'gradlew.bat' : 'gradlew');
-  const r = spawnSync(...viaShell(gradlew, ['-q', 'assembleDebug']), {cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024});
+  const env = {...process.env, ANDROID_HOME: process.env.ANDROID_HOME || sdkRoot()};
+  const r = spawnSync(...viaShell(gradlew, ['-q', 'assembleDebug']), {cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024, env});
   if (r.status !== 0) throw new UserError(`Gradle assembleDebug failed:\n${(r.stderr || r.stdout).trim().slice(-2000)}`, 'Fix the build error above, run `npm ci` if node_modules is missing, then `rpmctl launch --build`.');
 }
 
@@ -78,6 +79,15 @@ function warmEmulator(port, serial) {
   return null;
 }
 
+function keepWarm(state) {
+  fs.rmSync(STATE, {force: true});
+  releaseLease(state);
+  const shared = readEmulator(state.port);
+  if (shared?.pid !== state.pid) return;
+  const reaperPid = processAlive(shared.reaperPid) ? shared.reaperPid : spawnReaper(state.port);
+  saveEmulator(state.port, {...shared, releasedAt: new Date().toISOString(), reaperPid});
+}
+
 function handOver(serial) {
   shell(serial, `am force-stop ${PACKAGE}`, {allowFail: true});
   if (shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).includes('package:'))
@@ -99,6 +109,8 @@ export const lifecycleCommands = {
     const leaseState = {...state, port, cdpPort, worktree: ROOT,
       owner: state && /emulator|qemu/i.test(processImage(state.pid) ?? '') ? state.owner ?? crypto.randomUUID() : crypto.randomUUID(),
       startedAt: state?.startedAt ?? startedAt};
+    const apk = args.apk ? path.resolve(String(args.apk)) : APK;
+    if (!args.apk && (args.build || (!args.noBuild && apkStale()))) build();
     try { takeLease(leaseState); }
     catch (e) { if (!args.wait || !/lease is busy/.test(e.message)) throw e; await queueForLease(leaseState, args); }
     let emulator = "kept this run's emulator";
@@ -137,8 +149,6 @@ export const lifecycleCommands = {
         saveEmulator(port, {pid: state.pid, serial, port, avd: state.avd, emulatorArgs: state.emulatorArgs, bootedAt: new Date().toISOString(), bootedBy: ROOT});
         emulator = 'booted';
       } else { Object.assign(state, leaseState); writeState(state); }
-      const apk = args.apk ? path.resolve(String(args.apk)) : APK;
-      if (!args.apk && (args.build || (!args.noBuild && apkStale()))) build();
       if (!fs.existsSync(apk)) throw new UserError(`No APK at ${apk}.`, 'Run `rpmctl launch --build`.');
       const apkHash = sha256(fs.readFileSync(apk));
       const installed = shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).includes('package:');
@@ -160,6 +170,13 @@ export const lifecycleCommands = {
         next: 'rpmctl doctor'};
       journal(state, {command: 'launch', result: out});
       return out;
+    } catch (error) {
+      const saved = readState();
+      if (saved?.shared && saved.owner === leaseState.owner && readEmulator(port)?.pid === saved.pid && processAlive(saved.pid)) {
+        journal(saved, {command: 'launch', failed: error.message, keptWarm: true});
+        keepWarm(saved);
+      }
+      throw error;
     } finally {
       const saved = readState();
       if (saved?.owner === leaseState.owner) updateLease(saved);
@@ -240,11 +257,7 @@ export const lifecycleCommands = {
     const ownsShared = shared?.pid === state.pid;
     if (state.shared && !args.stop && !args.keepEmulator) {
       journal(state, {command: 'cleanup', keptWarm: true});
-      fs.rmSync(STATE, {force: true});
-      releaseLease(state);
-      let reaperPid = shared?.reaperPid;
-      if (ownsShared && !processAlive(reaperPid)) reaperPid = spawnReaper(state.port);
-      if (ownsShared) saveEmulator(state.port, {...shared, releasedAt: new Date().toISOString(), reaperPid});
+      keepWarm(state);
       return {ok: true, emulator: `kept warm for the next run on ${state.serial}; it stops after ${IDLE_MS / 60000} min with no run (\`rpmctl cleanup --stop\` stops it now)`,
         evidence: dir, evidenceFiles: fs.readdirSync(dir).length};
     }
