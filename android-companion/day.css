@@ -229,25 +229,40 @@ button.spine-card:active, .spine-card .spine-open:active { background: var(--row
 .spine-chip::after { content: ""; position: absolute; inset: min(0px, (100% - 48px) / 2) 0; }
 .spine-chip:active { background: var(--surface-container-highest); }
 
-#fab-host:has(.now-fab) { inset-inline: 0; display: flex; justify-content: center; pointer-events: none; }
-.now-fab {
+/* Now: a small pill sitting on the tab bar's top edge, centred; it dips 6dp into the bar's 8dp top padding, so it never
+   covers a tab or the Add. It shows only while now is out of view and steps aside while reading down or a snackbar
+   shows. */
+#now-host {
+  position: absolute;
+  z-index: 12;
+  inset-inline: 0;
+  inset-block-end: calc(var(--nav-measured, var(--nav)) - 6px);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.now-pill {
   display: inline-flex;
   align-items: center;
-  gap: var(--s2);
-  min-block-size: 40px;
-  padding-inline: var(--s4) var(--s5);
+  gap: var(--s1);
+  min-block-size: 32px;
+  padding-inline: var(--s3) var(--s4);
   border-radius: var(--shape-full);
   background: var(--primary);
   color: var(--on-primary);
   font: var(--label-large);
-  box-shadow: var(--elev-3);
   pointer-events: auto;
+  position: relative;
 }
-.now-fab .ms { font-size: 18px; margin: 0; }
-.now-fab:active { scale: .97; }
-#planner:not([data-now-off=true]) .now-fab, #planner[data-fab-aside=true] .now-fab { opacity: 0; scale: .6; pointer-events: none; visibility: hidden; }
+.now-pill::after { content: ""; position: absolute; inset: -8px 0; }
+.now-pill .ms { font-size: 18px; margin: 0; }
+.now-pill:active { scale: .97; }
+.now-pill:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+#planner:not([data-now-off=true]) .now-pill, #planner[data-now-aside=true] .now-pill, #planner[data-snackbar=true] .now-pill {
+  opacity: 0; scale: .6; pointer-events: none; visibility: hidden;
+}
 @media (prefers-reduced-motion: no-preference) {
-  .now-fab { transition: opacity var(--dur-short3) var(--ease-standard), scale var(--dur-short3) var(--ease-emphasized-decelerate), visibility var(--dur-short3); }
+  .now-pill { transition: opacity var(--dur-short3) var(--ease-standard), scale var(--dur-short3) var(--ease-emphasized-decelerate), visibility var(--dur-short3); }
 }
 
 :root[data-large-text=true] .spine-gutter { padding-block-start: var(--s3); }

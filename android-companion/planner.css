@@ -1,13 +1,12 @@
 /* RPM planner: Material 3 in the style of Google's own apps (Tasks, Calendar, Keep).
    Built only on the roles, type, shape and motion tokens in theme.css.
-   Layers: 1 layout · 2 app bar, navigation, FAB, snackbar · 3 components · 4 screens · 5 sheets, menus, dialogs
+   Layers: 1 layout · 2 app bar, navigation, snackbar · 3 components · 4 screens · 5 sheets, menus, dialogs
    · 6 settings · 7 large text and reduced motion. CSS px are Android dp. */
 
 /* ---------- 1. Layout ---------- */
 :root {
   --top-bar: 64px;
   --nav: 80px;
-  --fab-size: 56px;
   --hour: 96px;
   --ruler: 56px;
   --gutter: 16px;
@@ -47,6 +46,8 @@ h1, h2, h3, p { margin: 0; }
 /* The page ends above the floating tab bar (--nav-measured: its height plus its gap to the screen's edge). */
 .page { padding: 0 0 calc(var(--nav-measured, var(--nav)) + var(--s4)); max-width: 720px; margin: 0 auto; }
 #planner:has(> #nav-bar[hidden]) .page { padding-bottom: var(--s8); }
+/* While a snackbar shows, the page ends above it too, so the last row can always scroll clear of it. */
+#planner[data-snackbar=true] .page { padding-bottom: calc(var(--nav-measured, var(--nav)) + var(--snackbar-h, 48px) + var(--s8)); }
 /* Weekly review: a focused full-height route; the review scrolls its own body. */
 #planner[data-view=review] #planner-scroll { overflow: hidden; }
 #planner[data-view=review] #workspace { height: 100%; }
@@ -134,7 +135,7 @@ h1, h2, h3, p { margin: 0; }
   box-shadow: var(--float-shadow);
   touch-action: pan-y;
 }
-:root[data-keyboard=open] :is(#nav-bar, #fab-host) { display: none; }
+:root[data-keyboard=open] :is(#nav-bar, #now-host) { display: none; }
 /* Content scrolls under the bar; what passes below it fades out at the screen's edge. */
 #planner:has(> #nav-bar:not([hidden])) #planner-scroll {
   scroll-padding-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4));
@@ -177,28 +178,26 @@ h1, h2, h3, p { margin: 0; }
   #nav-bar[data-dragging] .nav-indicator { transition-duration: 60ms; }
 }
 
-/* ---------- FAB: primary-container rounded square ---------- */
-#fab-host {
-  position: absolute;
-  right: var(--s4);
-  bottom: calc(var(--nav-measured, var(--nav)) + var(--s4));
-  z-index: 10;
-  /* The FAB makes room for the snackbar on the snackbar's own timing: in with it, out with it. */
-  transition: transform var(--dur-short3) var(--ease-emphasized-accelerate);
-}
-#planner[data-snackbar=true] #fab-host { transform: translateY(-64px); transition: transform var(--dur-medium1) var(--ease-emphasized-decelerate); }
-.fab { transition: transform var(--dur-medium) var(--ease-emphasized), opacity var(--dur-short) var(--ease-standard); }
-#planner[data-fab-aside=true] .fab { transform: scale(.4); opacity: 0; pointer-events: none; }
-.fab {
-  width: var(--fab-size);
-  height: var(--fab-size);
-  border-radius: var(--r-group);
+/* Add sits inside the tab bar at its end, like a composer's send button: 48 × 48, radius 12 (= the bar's 20 − its 8
+   inset), concentric with the active pill. Tap adds; a 400ms hold opens Capture. */
+#nav-bar:has(> .nav-add:not([hidden])) { grid-template-columns: repeat(4, minmax(0, 1fr)) calc(var(--touch) + var(--s2)); }
+.nav-add {
+  justify-self: end;
+  align-self: center;
+  inline-size: var(--touch);
+  block-size: var(--touch);
+  border-radius: var(--r-control);
   background: var(--primary-container);
   color: var(--on-primary-container);
-  box-shadow: var(--float-shadow);
 }
-.fab .ms { font-size: 26px; }
-.fab::before { inset: 0; }
+.nav-add .ms { font-size: 24px; }
+.nav-add:active { scale: .94; }
+.nav-add:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+@media (prefers-color-scheme: dark) { :root:not([data-appearance=light]) .nav-add { background: var(--secondary-container); color: var(--on-secondary-container); } }
+:root[data-appearance=dark] .nav-add { background: var(--secondary-container); color: var(--on-secondary-container); }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduce-motion=true]) .nav-add { transition: scale var(--dur-press) var(--ease-standard); }
+}
 
 /* ---------- Snackbar ---------- */
 #snackbar {

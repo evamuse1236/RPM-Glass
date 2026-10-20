@@ -18,7 +18,7 @@ export {capturedGoalDraft, savedPlannerTarget} from './planner/deep-links.mjs';
 import {componentGallery} from './planner/gallery.mjs';
 
 function installActions(app) {
-  const fabs = {
+  const adds = {
     blocks: {label: 'New Block', onClick: () => entityEditor(app, 'blocks')},
     projects: {label: 'New Project', onClick: () => entityEditor(app, 'projects')},
   };
@@ -44,8 +44,8 @@ function installActions(app) {
     purposeIdea: blockId => aiAction(app, 'purpose', blockId),
     examples: () => examples(app),
     gallery: () => componentGallery(app),
-    fabFor: tab => {
-      if (tab !== 'life') return fabs[tab] ?? null;
+    addFor: tab => {
+      if (tab !== 'life') return adds[tab] ?? null;
       if (app.state.horizon === 'values') return null;
       if (app.state.horizon === 'yearly') return {label: 'Add Area', onClick: () => entityEditor(app, 'areas')};
       return {label: 'Add Goal', onClick: () => entityEditor(app, 'goals')};
@@ -130,7 +130,7 @@ function installNativeHooks(app) {
       {node: sheet, scale: false},
       ...['.sheet-handle', '.sheet-header', '.sheet-actions'].map(selector => ({node: sheet.querySelector(selector)})),
       {node: sheet.querySelector('.sheet-body'), clip: true},
-      {node: app.dom.nav}, {node: app.dom.fab}, {node: app.dom.snackbar},
+      {node: app.dom.nav}, {node: app.dom.now}, {node: app.dom.snackbar},
     ];
     animateLayout(document.body, regions, () => {
       root.dataset.nativeInsets = 'true';
@@ -147,10 +147,10 @@ function installNativeHooks(app) {
   let lastTop = 0;
   app.dom.scroll.addEventListener('scroll', () => {
     const top = app.dom.scroll.scrollTop;
-    // The FAB steps aside while reading down and returns on the way back up, so it never sits on what is read.
+    // The Now pill steps aside while reading down and returns on the way back up, so it never sits on what is read.
     if (Math.abs(top - lastTop) > 8 || top < 8) {
       const hide = String(top > lastTop && top > 64);
-      if (app.dom.planner.dataset.fabAside !== hide) app.dom.planner.dataset.fabAside = hide;
+      if (app.dom.planner.dataset.nowAside !== hide) app.dom.planner.dataset.nowAside = hide;
       lastTop = top;
     }
     const scrolled = String(top > 4);

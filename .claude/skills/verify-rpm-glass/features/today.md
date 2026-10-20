@@ -15,7 +15,7 @@ Today is the planner's home screen. It opens on the **spine**: the whole day in 
 - `today-inbox-row` shows the Inbox count and opens the Inbox.
 - `today-topbar` offers `Search`, `Capture`, `Add task` and `More options`.
 - `today-spine` shows the day by time: cards, free time with +, water and meal rows, and the now hero or now line.
-- `today-now-button` floats while now is out of view and scrolls back to it.
+- `today-now-button` (`Go to now`) sits on the tab bar's top edge while now is out of view and scrolls back to it.
 - `today-layout` switches between the spine (`Show day`) and the list (`Show list`).
 - `today-empty` shows the empty-day state.
 
@@ -36,7 +36,7 @@ Preconditions:
 - `rpmctl open planner` has been run. The heading `Today` is on screen and the `Today` nav button is `aria-current=page`.
 
 - **Header.** Run `rpmctl ui`. The heading is `Today`. A button named `Choose date, <weekday>, <month> <day>` shows today's date, for example `Choose date, Wednesday, October 7`. Run `rpmctl shot today-top`.
-- **Top bar.** The buttons `Search`, `Capture` (drawn as a microphone), `Add task` and `More options` are in the top bar. The bottom nav has buttons `Today`, `Blocks`, `Projects`, `Life`.
+- **Top bar.** The buttons `Search`, `Capture` (drawn as a microphone) and `More options` are in the top bar. The floating tab bar has buttons `Today`, `Blocks`, `Projects`, `Life`, then `Add task` at its right end (hold it 400ms to open Capture).
 - **Week strip.** The group `Next seven days` holds seven day buttons with names like `Thu, Oct 8, 2 Results due`. The current day is `Wed, Oct 7, today` with `aria-pressed=true`. Run `rpmctl tap --role button --name "Thu, Oct 8"`. The date button now reads `Choose date, Thursday, October 8`, a `Today` jump-back button appears, and the list changes to that day's tasks under a heading `Tomorrow`. The big heading stays `Today`. Run `rpmctl tap --role button --name "Today"` to return.
 - **Date picker.** Run `rpmctl tap --role button --name "Choose date"`. A dialog `Go to date` opens with a field `Date`, a button `Calendars · Not connected`, `Show list`, `Today` and `Go`. Tapping the field opens Android's calendar. Run `rpmctl tap --native "28 October 2026"`, then `rpmctl tap --native "SET"`. The field reads `2026-10-28`. Run `rpmctl tap --role button --name "Go"`. Today shows that day. Close the dialog without choosing with `rpmctl tap --role button --name "Close"`.
 - **Week line.** With no week planned the line is a button named `This week isn't planned, pick 3 to 5 Results. Open weekly review`. Run `rpmctl tap --name "Open weekly review"`. The weekly review opens with `Step 1 of 4: Last week's Results` current (see the weekly review file). `rpmctl key back` returns to Today.

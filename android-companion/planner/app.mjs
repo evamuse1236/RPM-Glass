@@ -23,7 +23,7 @@ export function createApp(api, renderers) {
     topBar: document.getElementById('top-bar'),
     scroll: document.getElementById('planner-scroll'),
     work: document.getElementById('workspace'),
-    fab: document.getElementById('fab-host'),
+    now: document.getElementById('now-host'),
     nav: document.getElementById('nav-bar'),
     sheet: document.getElementById('sheet'),
     snackbar: document.getElementById('snackbar'),
@@ -217,23 +217,15 @@ function stageScreen(app, kind, top) {
   return stage;
 }
 
-/** The FAB and the navigation bar leave and arrive with the page instead of snapping. */
+/** The navigation bar (with its Add) leaves and arrives with the page instead of snapping. */
 function shellBefore(app) {
-  const {fab, nav, planner} = app.dom;
-  const button = !fab.hidden && fab.firstElementChild;
-  return {fab: button ? {node: button.cloneNode(true), rect: button.getBoundingClientRect(),
-    label: button.getAttribute('aria-label')} : null,
-  nav: nav.hidden ? null : {rect: nav.getBoundingClientRect(), node: nav.cloneNode(true)}, host: planner};
+  const {nav, planner} = app.dom;
+  return {nav: nav.hidden ? null : {rect: nav.getBoundingClientRect(), node: nav.cloneNode(true)}, host: planner};
 }
 
 function shellAfter(app, before, motion, outgoing, incoming) {
-  const {fab, nav} = app.dom;
-  const button = !fab.hidden && fab.firstElementChild;
+  const {nav} = app.dom;
   if (!motion) return;
-  // The FAB belongs to its page: it rides the page's own transition (the same layers, the same motion), leaving with
-  // the outgoing page and arriving with the incoming one, with no motion of its own on top.
-  if (before.fab && !button) outgoing.push(ghost([before.fab.node], before.fab.rect, before.host, {cls: 'motion-ghost-fab'}));
-  else if (button && !before.fab) incoming.push(button);
   if (before.nav && nav.hidden) outgoing.push(ghost([before.nav.node], before.nav.rect, before.host, {cls: 'motion-ghost-nav'}));
   else if (!before.nav && !nav.hidden) incoming.push(nav);
 }
