@@ -1,0 +1,28 @@
+# Gauntlet run, 2026-10-20
+
+Branch: `feat/gauntlet-2026-10-20` (worktree `RPM-Glass-apple`). Base: `feat/whole-day-v1` (v0.31) with the Apple-style app restyle undone (`d879b7d`). The notch keeps its even corners and 16dp spacing.
+
+## Done condition (pass/fail)
+
+The run passes when all of these hold on `feat/gauntlet-2026-10-20`:
+
+1. `npm test` exits 0.
+2. Design: the planner tab bar is a floating rounded rectangle. `docs/gauntlet/2026-10-20/journeys.md` maps each user journey. A fresh-context critic scores Today, Capture, the task sheet, Blocks and Inbox at 8/10 or more, or three critic rounds are done.
+3. AI: the Capture stress corpus (CLI transport) passes more cases than the baseline, with no new failures on the ten hardest cases.
+4. Notch: every break scenario in `notch-breaks.md` is fixed with a test, or recorded as a known bug with a reason.
+5. Each changed surface has phone-size screenshots, or is marked UNVERIFIED with a reason.
+
+## Tracks
+
+| Track | Checkout | Branch | Who |
+|---|---|---|---|
+| Design and gestures | `RPM-Glass-g-design` | `gauntlet/design` | Fable plans, Opus builds, fresh critic judges |
+| Capture AI | `RPM-Glass-g-ai` | `gauntlet/ai` | GPT-6.1 Sol high builds, Claude judge |
+| Notch | `RPM-Glass-g-notch` | `gauntlet/notch` | Opus builds, fresh critic judges |
+
+## Log
+
+- 05:20 Before/after screenshots: the Apple restyle raised body text from 14/16px to 15/17px, added grey pills, clipped times and the Inbox button.
+- 05:33 Restyle undone on the new branch. `npm test` passes. Branch pushed.
+- 05:35 Key vault is empty after the Linux reinstall, so no Anthropic API key. AI tests use the Claude CLI transport.
+- 05:40 Launched: AI track (Codex, GPT-6.1 Sol high), notch track (Opus builder), design plan (Fable). T3 Code reference crops in `/tmp/gauntlet/`.
