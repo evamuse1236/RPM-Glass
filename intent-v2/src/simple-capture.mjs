@@ -36,7 +36,7 @@ export function readSimpleCapture(input,{data}){
  const water=completeWaterLog(null,input);if(water)return {turn:water,kind:'water-log'};
  const due=readDueClock(input,data);if(due)return due;
  const unit=input.sourceUnits[0],raw=unit.text.trim();
- if(raw.length>160||/[?;,&+\n]/.test(raw)||/\b(?:and|or|also|plus|then|but|because|so|if|not|never|don't|dont|maybe|perhaps|might|should|would|could|every|daily|weekly|done|finished|already|instead|again|another|it|that|this|them)\b/i.test(raw))return null;
+ if(raw.length>160||/[?;,&+\n]/.test(raw)||/\b(?:and|or|also|plus|then|but|because|so|if|not|never|don't|dont|maybe|perhaps|might|should|would|could|every|daily|weekly|done|finished|already|yesterday|last|ago|earlier|instead|again|another|it|that|this|them)\b/i.test(raw))return null;
  let rest=raw.replace(/[.!]$/,'').replace(/^(?:please\s+)?(?:add\s+)?/i,'');
  const must=rest.match(/^must\b/i)?.[0]??null;rest=rest.replace(/^must\s+/i,'');
  const suffix=rest.match(/\s+((?:(?:today|tomorrow|tonight|(?:next\s+)?(?:mon|tues|wednes|thurs|fri|satur|sun)day)(?:\s+(?:morning|afternoon|evening|night))?(?:\s+(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm)?)?|later today|(?:after|before) (?:breakfast|lunch|dinner|bed)|at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?|\d{1,2}(?::\d{2})?\s*(?:am|pm)))$/i);
@@ -45,7 +45,7 @@ export function readSimpleCapture(input,{data}){
  if(duration){minutes=Number(duration[1]);if(minutes<1||minutes>1440)return null;rest=rest.slice(0,duration.index);}
  if(!/^(?:(?:call|buy|email|print|charge|collect|submit|pay|practice|clean|book|read|write|wash|return|finish)\s+[\p{L}][\p{L}\p{M}'’ -]{0,90}|gym)$/iu.test(rest))return null;
  // A time word left inside the title means the suffix did not consume the request.
- if(/\b(?:at|today|tomorrow|tonight|morning|afternoon|evening|night|before|after|in|during|until|by|minutes?|hours?)\b/i.test(rest))return null;
+ if(/\b(?:at|today|tomorrow|tonight|morning|afternoon|evening|night|before|after|in|during|until|by|next|weeks?|weekends?|months?|years?|later|soon|someday|sometime|minutes?|hours?)\b/i.test(rest))return null;
  // Use the full saved store. Shared subject words, family aliases, and open
  // Blocks need semantic matching and filing, so the local reader abstains.
  const subject=tokens(family(rest)).slice(1);

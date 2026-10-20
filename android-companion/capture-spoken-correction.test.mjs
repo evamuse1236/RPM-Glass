@@ -5,7 +5,19 @@ import {validateIntentTimes} from './intent-time-guard.mjs';
 import {interpretTurn} from '../intent-v2/src/interpret.mjs';
 import {sourceUnits} from '../intent-v2/src/context.mjs';
 import {field,operation,turn} from '../intent-v2/test/helpers.mjs';
+import {serviceFor} from './intent-service-fixtures.mjs';
 const now=new Date('2026-10-19T04:30:00Z');
+
+test('a five-minute title and an extracted 9 tonight save the clock and duration with Undo',async()=>{
+ const raw='do the 5 minute tidy at 9 tonight';
+ const {backend,service}=serviceFor(async()=>turn(raw,[operation([field('title','Do the 5 minute tidy','5 minute tidy'),field('minutes',5,'5 minute'),field('time','9 tonight','9 tonight')])]),undefined,{clock:()=>now});
+ const conversationId=(await backend.load()).conversations[0].id;
+ const captured=await service.capture({messageId:'clock-first',conversationId,text:raw}),draft=captured.intent.captures[0].draft;
+ assert.equal(draft.schedulePreview.items[0].planned,'2026-10-19T15:30:00.000Z');
+ await service.act(draft.actions.find(a=>a.action.kind==='commit').action,{actionId:'save-clock-first'});
+ const data=await backend.load();assert.equal(data.entries.length,1);assert.equal(data.entries[0].minutes,5);assert.equal(data.entries[0].planned,'2026-10-19T15:30:00.000Z');assert.equal(data.intentV2.captures['clock-first'].raw,raw);
+ await service.undo({draftId:draft.id,conversationId,actionId:'undo-clock-first'});assert.equal((await backend.load()).entries.length,0);
+});
 
 test('spoken hour-minute clocks are precise while counts remain counts',()=>{
  for(const [words,at] of [['five thirty','2026-10-19T12:00:00.000Z'],['at five forty five','2026-10-19T12:15:00.000Z'],['at for thirty','2026-10-19T11:00:00.000Z'],['kal subah saade paanch baje','2026-10-20T00:00:00.000Z']]){

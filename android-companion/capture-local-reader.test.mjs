@@ -55,6 +55,13 @@ test('water counts reject other drinks, estimates, dates and unsupported units',
  }
 });
 
+test('historical reports and unsupported time windows never become local new tasks',async()=>{
+ for(const text of ['read the workbook yesterday','read chapter last Tuesday','read a chapter a week ago','read the workbook earlier','buy milk next week','call mom next month','call mom soon','call mom someday']){
+  const s=await fixture();await s.agent.capture({messageId:'not-literal',conversationId:s.conversationId,text});
+  assert.equal(s.calls(),1,text);assert.equal((await s.backend.load()).entries.length,0,text);
+ }
+});
+
 for(const day of ['19','21'])test(`a fully named saved due clock reads locally on October ${day} with one receipt and Undo`,async()=>{
  const seed=freshStore();editPlan(seed,{type:'saveTask',fields:{title:'Submit workbook',planned:`2026-10-${day}T17:00:00+05:30`,minutes:30,alert:'alarm'}},now);
  const before=structuredClone(seed.entries),s=await fixture(seed),text='submit workbook is now due at five forty five not five so push it fifteen minutes and keep the alarm';

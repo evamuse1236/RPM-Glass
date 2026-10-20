@@ -7,12 +7,14 @@ export function normalizeSpokenTime(normalized){
   normalized=normalized.replace(new RegExp(`\\b(${hour})[ -]+(oh[ -]five|twenty[ -]five|thirty[ -]five|forty[ -]five|fifty[ -]five|ten|fifteen|twenty|thirty|forty|fifty)\\b`,'gi'),(match,h,m,offset,whole)=>{
     const prefix=whole.slice(0,offset),suffix=whole.slice(offset+match.length);
     if(!/^(?:\s*(?:today|tomorrow|morning|evening|night)\s*)?$/i.test(prefix)&&!/(?:at|to|by|past|before|after)\s+$/i.test(prefix))return match;
-    if(!/^(?:\s*(?:am|pm|today|tomorrow|morning|evening|night))*(?:[.!?]|$)/i.test(suffix)&&!/^\s*(?:baje|in the (?:morning|evening|afternoon))\b/i.test(suffix))return match;
+    if(!/^(?:\s*(?:am|pm|today|tomorrow|tonight|morning|evening|night))*(?:[.!?]|$)/i.test(suffix)&&!/^\s*(?:baje|in the (?:morning|evening|afternoon))\b/i.test(suffix))return match;
     return `${spoken[h.toLowerCase()]}:${minute[m.toLowerCase().replaceAll('-',' ')]}`;
   });
   const clockText=normalized.replace(/\b(half past|quarter past|quarter to)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/gi,(_,part,h)=>`${part.toLowerCase()==='quarter to'?(spoken[h.toLowerCase()]+10)%12+1:spoken[h.toLowerCase()]}:${part.toLowerCase()==='half past'?'30':part.toLowerCase()==='quarter to'?'45':'15'}`).replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)(?=\s+in the (?:morning|afternoon|evening)\b)/gi,h=>String(spoken[h.toLowerCase()])).replace(/\bat\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/gi,(_,h)=>'at '+spoken[h.toLowerCase()]).replace(/(\d(?::\d{2})?)\s*(?:o'clock\s*)?in the (morning|afternoon|evening)\b/gi,(_,h,p)=>h+(p.toLowerCase()==='morning'?'am':'pm'));
   const rangeText=clockText.replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(?=[ap]\.?m\.?\b)/gi,(_,word)=>String(spoken[word.toLowerCase()]))
     .replace(/\b(from|between)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(to|and)\s+/gi,(_,prefix,word,join)=>`${prefix} ${spoken[word.toLowerCase()]} ${join} `)
     .replace(/\bbetween\s+([\d: .apm]+)\s+and\s+([\d: .apm]+)/gi,'from $1 to $2');
-  return rangeText;
+  // A clock-first time fragment can omit “at”. The next word must be a day,
+  // so “9 eggs tonight” and “5 minute tidy tonight” remain quantities.
+  return rangeText.replace(new RegExp(`^(\\s*)(${hour}|\\d{1,2}(?::\\d{2})?)\\s+(?=(?:today|tomorrow|tonight|(?:next\\s+)?(?:mon|tues|wednes|thurs|fri|satur|sun)day)\\b)`,'i'),(_,space,h)=>`${space}at ${spoken[h.toLowerCase()]??h} `);
 }

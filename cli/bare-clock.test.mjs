@@ -3,6 +3,12 @@ import assert from 'node:assert/strict';
 import {interpretTime} from './interpret.mjs';
 
 const parse=(text,now='2026-10-19T16:26:00+05:30',subject='')=>interpretTime(text,new Date(now),{subject,inferBareClock:true});
+test('a leading numeric or spoken clock keeps its day without a preceding at',()=>{
+ for(const [words,at] of [['9 tonight','2026-10-19T21:00:00+05:30'],['five thirty tonight','2026-10-19T17:30:00+05:30'],['9 tomorrow','2026-10-20T09:00:00+05:30'],['nine Thursday','2026-10-22T09:00:00+05:30']]){
+  const result=parse(words,'2026-10-19T10:00:00+05:30');assert.equal(result.status,'parsed',words);assert.equal(result.planned,new Date(at).toISOString(),words);
+ }
+ for(const words of ['9 eggs tonight','five glasses tonight','5 minute tidy tonight','nine chapters tomorrow'])assert.equal(parse(words).planned,null,words);
+});
 for(const [now,text,expected] of [
  ['2026-10-19T16:26:00+05:30','at 6','2026-10-19T18:00:00+05:30'],
  ['2026-10-19T05:59:00+05:30','at 6','2026-10-19T06:00:00+05:30'],

@@ -94,18 +94,19 @@ The two-calls case says “shift by an hour” without earlier or later. I am re
 
 Adversary baseline: 57/80 attempts passed (40 cases, two repeats). The uncorrected checker said 53/80. Four retained outputs gained passes solely from the documented fees/checkpoint corrections. Case words, model outputs and canonical stores did not change.
 
-| Attack class | Baseline |
-| --- | ---: |
-| ADHD day rambles | 3/8 |
-| Voice errors | 2/8 |
-| Hinglish | 4/10 |
-| Loose saved references | 4/8 |
-| Multi-turn corrections | 8/8 |
-| Relative and fuzzy time | 8/8 |
-| Non-tasks | 6/6 |
-| Completion and status | 8/8 |
-| Purpose and Must | 4/6 |
-| Dangerous misreads | 10/10 |
+| Attack class | Baseline | Final |
+| --- | ---: | ---: |
+| ADHD day rambles | 3/8 | 8/8 |
+| Voice errors | 2/8 | 8/8 |
+| Hinglish | 4/10 | 10/10 |
+| Loose saved references | 4/8 | 6/8 |
+| Multi-turn corrections | 8/8 | 8/8 |
+| Relative and fuzzy time | 8/8 | 8/8 |
+| Non-tasks | 6/6 | 6/6 |
+| Completion and status | 8/8 | 8/8 |
+| Purpose and Must | 4/6 | 6/6 |
+| Dangerous misreads | 10/10 | 10/10 |
+| Total | 57/80 | 78/80 |
 
 Fix iteration 1 targets time reading, the biggest measured baseline cause. “Five thirty”, “five forty five”, and clock-shaped “at for thirty” are normalized without altering quantity phrases. Hindi half-hour clocks with future wake-up wording are supported. An isolated exact clock in a multi-action source uses the same guarded inference as other bare clocks. A clock followed by its corrected day can now pass the time guard. A narrow “day after … same time” correction uses the existing day updater.
 
@@ -152,3 +153,30 @@ An exact, unique saved task name followed by a literal due clock and “keep the
 
 
 Iteration 4 passed 22/24 targeted attempts, 76/80 adversary attempts and 108/109 old cases. Two adversary failures asked for the missing shift direction. Two more lost the clock when the model quoted “9 tonight” without “at”. The retained outputs show the parser saving only today. This is a measured parser gap, not a reason to weaken the case. The old failure is the unchanged mom/Amma ambiguity. `npm test` passed before this commit. The browser bundle compiled in memory.
+
+
+Iteration 5 fixes the clock-first fragment at the parser boundary. “9 tonight”, “9 tomorrow”, “nine Thursday” and “five thirty tonight” keep their exact day and clock without a preceding “at”. Only a leading clock followed directly by a day gets this normalization. “9 eggs tonight” and “5 minute tidy tonight” remain quantities. `cli/bare-clock.test.mjs` checks both sides. `capture-spoken-correction.test.mjs` replays the failing extraction with the five-minute title, exact words, canonical saved clock, duration and Undo. All three new regression tests were red before the fixes.
+
+The local-reader audit also found that “read chapter last Tuesday” could create a future task. Historical words and unsupported windows now make the literal-task reader abstain. “Read the workbook yesterday”, “buy milk next week”, “call mom soon” and the other negative controls go to the model. `capture-local-reader.test.mjs` verifies no local save; it does not claim to prove the model’s later classification.
+
+The final local coverage audit uses the production service and file-backed stores with a non-interpreting model sentinel. A capture counts only with zero model calls and every corpus check passing. There are 55 eligible single-turn texts: 20 everyday and 35 adversary texts. Six read locally, or 10.9%. That is four of 20 everyday texts and two of 35 adversary texts. No local result failed the checker. Median backend latency is 16 ms; p90 is 71 ms. The six texts are the strict bulk move, the existing next-task query, two water reports, the named due-clock edit and the leading relative reminder. The retained baseline outputs had one model-free everyday text and no model-free adversary text.
+
+The “call mom at 6”, “buy milk tomorrow” and “gym 7am” unit tests also use zero model calls with receipt and Undo. The populated benchmark has open Blocks and possible saved references, so those bare task shapes still require the model there. This conservative rule limits the measured speed gain. These are backend timings on this machine, not phone timings. The final audit is `.verify/capture-stress/g2-local-r5/coverage.json`.
+
+No push, emulator launch, sync, cleanup or device install was performed in this resumed run. Cleanup would risk the other agent’s emulator. The in-memory browser bundle compiles. Native Capture, Samsung behavior, alarms and real widget placement remain **UNVERIFIED**. `npm run check:evidence` exits 1 because the APK is older than this branch’s app code. `npm run ci:emulator` refuses the unpushed branch. Logs are `.verify/g2-final-evidence.log`, `.verify/g2-final-ci.log` and `.verify/g2-final-browser-build.log`. No native screenshot is claimed for these changes.
+
+
+Final adversary comparison: **57/80 before and 78/80 after**, or 71.25% to 97.5%. Every clear case passed both final repeats. The final run made 88 model calls versus 96 in the baseline. There were no transport failures. The fixed clock, case texts, corrected expectations and CLI transport stayed the same. Both runs have stable source fingerprints. Iteration 3’s 79/80 remains recorded. Inferred: its extra pass assumed a direction that was not stated. The final count is not replaced with that best count.
+
+Measured final failures: both repeats of `adv-ref-both-calls-hour` asked whether to move earlier or later and left the calls unchanged. Inferred cause: the expectation supplies a forward direction absent from “both calls today shift by an hour”. A safe clarification fails this benchmark expectation. I retained the case and did not teach the local reader to guess. Rounds 4 and 5 did not improve the best measured pass count, so the loop stops after five rounds. The later fixes address tested safety, speed and extraction variance.
+
+Measured CLI latency: quick calls had an 8.43 s median and 13.05 s p90 in the adversary baseline. The final quick calls had an 8.04 s median and 14.13 s p90. This does not establish faster model work. Careful calls had a 12.15 s final median and 17.35 s p90. Models, route budgets and route effort were not changed. Native latency is **UNVERIFIED**.
+
+The cases and checker are still a finite synthetic workload. Guess: CLI framing can conceal failures that occur through the phone API. That is unmeasured here. Differently worded semantic duplicates remain unmeasured; the implemented merge uses equality of normalized fields and preserves distinct details. The owner’s actual failing captures were not available.
+
+
+Iteration 5 passed 12/15 targeted attempts, 78/80 adversary attempts and **108/109 old cases**. All three targeted failures asked for the unstated shift direction. All three targeted tidy-clock attempts passed. The old-corpus floor stays at 108/109, matching round 1. Measured old failure: `everyday-call-mom` updated saved “Call Amma” instead of creating the checker’s “Call mom”. Inferred cause: unresolved family identity in the fixture. Its expectation remains unchanged. No transport failure occurred in either final full run.
+
+Final verification: `npm test` passes 918 JS tests, eight rule tests, 16 cloud tests, cloud typechecking, 23 Java parser checks and ten native cancellation checks. The interrupted tests remain in the suite. Red/green proof is in `.verify/resume-targeted.log`, `.verify/g2-r5-red.log` and `.verify/g2-r5-green.log`. The complete final test log is `.verify/g2-final-tests.log`. These checks do not substitute for the explicitly unverified native paths.
+
+Benchmark artifacts are under `.verify/capture-stress/`. The baseline is `g2-baseline`. Iterations 1, 2 and 3 retain `g2-r1-*`, `g2-r2-*` and `g2-r3-*`, including the interrupted old run and its complete retry. The resumed iterations retain `g2-r4-repeat`, `g2-r4-adv`, `g2-r4-old`, `g2-r5-repeat`, `g2-r5-adv` and `g2-r5-old`. Their `results.json`, `report.md`, per-turn outputs and canonical stores preserve the scores above. All completed resumed benchmark runs have stable app-source fingerprints. No case was loosened to obtain a model pass.
