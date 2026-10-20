@@ -269,6 +269,17 @@ test('an alert row\'s Done circle ends 16dp from the island\'s edge, like every 
   assert.equal(innerRadius(G.PAD_DP), G.CONTROL_DP / 2, 'at a 16dp inset the 40dp circle is concentric with the island');
 });
 
+test('Undo and every pill keep their side padding: the inset background goes on before the padding', () => {
+  const parts = javaSource('NotchParts');
+  const shape = parts.slice(parts.indexOf('static void pillShape('), parts.indexOf('\n    }\n', parts.indexOf('static void pillShape(')));
+  assert.ok(shape.indexOf('v.setBackground(') < shape.indexOf('v.setPadding('), 'setBackground with an InsetDrawable resets the padding');
+  for (const name of ['NotchParts', 'NotchChangeViews', 'NotchAlertViews', 'NotchContent']) {
+    const insets = javaSource(name).split('new InsetDrawable(').length - 1;
+    assert.equal(insets, name === 'NotchParts' ? 2 : 0, `${name} draws pills only through pillShape`);
+  }
+  assert.match(javaSource('NotchChangeViews'), /NotchParts\.pillShape\(undo,/);
+});
+
 test('the copy uses the phone\'s sizes: NotchGeometry.java and notch-geometry.mjs match', () => {
   const java = readFileSync(new URL('../app/src/main/java/com/rpm/prototype/NotchGeometry.java', import.meta.url), 'utf8');
   const constants = Object.fromEntries([...java.matchAll(/static final (?:int|float) (\w+) = ([\d.]+)f?;/g)].map(([, k, v]) => [k, Number(v)]));

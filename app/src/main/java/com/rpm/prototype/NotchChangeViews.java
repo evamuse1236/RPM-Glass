@@ -43,10 +43,8 @@ final class NotchChangeViews {
         float radius = parts.dp(NotchGeometry.innerRadius(NotchGeometry.PAD_DP));
         TextView undo = parts.text("Undo", 15, NotchInk.TASK, 600);
         undo.setGravity(android.view.Gravity.CENTER);
-        undo.setPadding(parts.dp(18), reach, parts.dp(18), reach);
-        undo.setBackground(NotchParts.states(
-                new android.graphics.drawable.InsetDrawable(NotchParts.round(NotchInk.intoBlack(NotchInk.TASK, NotchInk.UNDO_SHARE), radius), 0, reach, 0, reach),
-                new android.graphics.drawable.InsetDrawable(NotchParts.round(NotchInk.intoBlack(NotchInk.TASK, NotchInk.PRIMARY_SHARE), radius), 0, reach, 0, reach)));
+        NotchParts.pillShape(undo, NotchInk.intoBlack(NotchInk.TASK, NotchInk.UNDO_SHARE), NotchInk.intoBlack(NotchInk.TASK, NotchInk.PRIMARY_SHARE),
+                radius, reach, parts.dp(18));
         undo.setContentDescription("Undo: " + r.title);
         undo.setOnClickListener(v -> NotchController.safely("Undo", actions::undo));
         NotchParts.pressShrinks(undo);

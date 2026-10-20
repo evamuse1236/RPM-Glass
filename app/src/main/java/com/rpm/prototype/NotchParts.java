@@ -200,9 +200,8 @@ final class NotchParts {
         float r = dp(NotchGeometry.innerRadius(NotchGeometry.PAD_DP));
         int rest = primary ? NotchInk.intoBlack(accent, NotchInk.PRIMARY_SHARE) : NotchInk.SECONDARY;
         int down = primary ? NotchInk.intoBlack(accent, NotchInk.PRIMARY_SHARE + 0.06f) : NotchInk.PRESS;
-        b.setBackground(states(new InsetDrawable(round(rest, r), 0, reach, 0, reach), new InsetDrawable(round(down, r), 0, reach, 0, reach)));
+        pillShape(b, rest, down, r, reach, dp(16));
         b.setMinimumHeight(dp(NotchGeometry.TOUCH_DP));
-        b.setPadding(dp(16), reach, dp(16), reach);
         int ink = primary ? accent : NotchInk.WHITE_70;
         if (icon != 0) {
             LinearLayout.LayoutParams g = new LinearLayout.LayoutParams(dp(20), dp(20));
@@ -216,6 +215,15 @@ final class NotchParts {
         b.setOnClickListener(v -> NotchController.safely(label, action));
         pressShrinks(b);
         return b;
+    }
+
+    /**
+     * Draws {@code v} as a pill {@code reach} inside its touch box, with {@code side} padding at each end. The background
+     * goes on first: an InsetDrawable background replaces the view's padding with its own insets.
+     */
+    static void pillShape(View v, int rest, int pressed, float radius, int reach, int side) {
+        v.setBackground(states(new InsetDrawable(round(rest, radius), 0, reach, 0, reach), new InsetDrawable(round(pressed, radius), 0, reach, 0, reach)));
+        v.setPadding(side, reach, side, reach);
     }
 
     /**
