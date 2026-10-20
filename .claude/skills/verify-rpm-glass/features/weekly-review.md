@@ -6,7 +6,7 @@ The weekly review is a four-step flow the user runs once a week. It looks back a
 
 - `review-open` opens the review from each entry point.
 - `review-steps` shows four steps with Back and Next, and a step bar.
-- `review-last-week` asks whether each of last week's Results was Achieved, Partly or Not yet, with an optional line.
+- `review-last-week` shows last week's Results as a deck of cards: swipe right for Achieved, left for Not yet, or tap Not yet, Partly or Achieved; then a summary with the wins, the optional line and Carry.
 - `review-unfinished` offers Carry, Defer or Drop for unfinished tasks.
 - `review-empty-head` adds loose thoughts to the Inbox, with one prompt per Area.
 - `review-sort-inbox` sorts Inbox tasks into Results, one by one.
@@ -35,9 +35,10 @@ Preconditions:
 - **Open from More.** Run `rpmctl tap --role button --name "More options"` then `rpmctl tap --role menuitem --name "Weekly review"`. The same screen opens.
 - **Step bar.** A navigation named `Review steps` has four buttons: `Step 1 of 4: Last week's Results`, `Step 2 of 4: Empty your head`, `Step 3 of 4: Sort the Inbox`, `Step 4 of 4: This week's Results`.
 - **Footer.** On step 1 the filled button is named `Next: empty your head`. On later steps there is also a `Back` button. The names change per step: `Next: sort the Inbox`, `Next: pick Results`, and on step 4 `Finish review` or `Finish with 3 Results` (the number follows what is picked).
-- **Step 1 verdict.** Each last-week Result shows a radio group named `Did "RM critical review drafted with my group" happen?` with radios `Achieved`, `Partly`, `Not yet`. Run `rpmctl tap --role radio --name "Partly" --nth 0`. The chosen radio shows a check, and a snackbar reads `Marked partly achieved`. Choosing `Achieved` reads `Result achieved`; `Not yet` reads `Marked not achieved yet`. Run `rpmctl shot review-verdict`.
-- **Step 1 evidence line.** A field labelled `What made it work? (optional)` with the placeholder `One line to remember next time`. Tap it, `rpmctl type "Started Sunday morning"`, `rpmctl key enter`. Reopen later to see the line kept (unconfirmed where it is stored; look in `rpmctl state files/companion.json` for the text).
-- **Step 1 unfinished tasks.** A heading `Unfinished tasks` lists open tasks, each with a group named `What to do with "<task>"` and options `Carry`, `Defer`, `Drop`. A choice saves with a snackbar (unconfirmed wording).
+- **Step 1 verdict.** A tally reads `0 of 2 decided` with counts named `0 achieved`, `0 partly`, `0 not yet`. The top card reads `Result 1 of 2` over the Result's title, Purpose, a ring named `2 of 7 tasks done` and the deadline. Under it a group named `Did "<Result>" happen?` has buttons `Not yet`, `Partly`, `Achieved`. Run `rpmctl tap --role button --name "Partly"`. A snackbar reads `Marked partly achieved` with `Undo`, and the next card comes up; `Undo` brings the card back. `Achieved` reads `Result achieved`; `Not yet` reads `Marked not achieved yet`. Swiping the card right (Achieved) or left (Not yet) does the same; rpmctl has no sideways swipe, so on the phone the swipe is **UNVERIFIED**. Run `rpmctl shot review-verdict`.
+- **Step 1 summary.** Once every card is decided, the wins card (`A win last week`) comes first, then `Your verdicts` with one card per Result: a radio group named `Did "<Result>" happen?` with radios `Achieved`, `Partly`, `Not yet` to change the verdict.
+- **Step 1 evidence line.** In the summary, an achieved Result has a field labelled `What made it work? (optional)` with the placeholder `One line to remember next time`. Tap it, `rpmctl type "Started Sunday morning"`, `rpmctl key enter`. Reopen later to see the line kept (unconfirmed where it is stored; look in `rpmctl state files/companion.json` for the text).
+- **Step 1 unfinished tasks.** In the summary, a Partly or Not yet Result has `Carry into this week` and a heading `Unfinished tasks` lists open tasks, each with a group named `What to do with "<task>"` and options `Carry`, `Defer`, `Drop`. A choice saves with a snackbar (unconfirmed wording).
 - **Step 2 inbox.** Run `rpmctl tap --role button --name "Next: empty your head"`. The heading is `Empty your head`. A field named `Add to the Inbox` has the placeholder `Ideas, wants, to-dos`. A group named `Prompts, one per Area` has chips such as `Prompt: Studies, anything due, stuck or wanted?`. A button `Open Capture` opens Capture.
 - **Step 2 add.** Run `rpmctl tap --role textbox --name "Add to the Inbox"`, `rpmctl type "Renew passport"`, `rpmctl key enter`. The thought appears in a list named `Inbox` below the field. `rpmctl state files/companion.json` has an entry titled `Renew passport` with no Block.
 - **Step 3 sort.** Run `rpmctl tap --role button --name "Next: sort the Inbox"`. The heading is `Sort the Inbox`. Lists are named `Inbox tasks to sort`, `Sorted into Results`, `Staying in the Inbox`. Each task shows a chip like `Add "<task>" to <Result>` when a Result matches, `Leave in Inbox`, and a button `Choose a Result for "<task>"` named `Choose`. Tap the `Choose` button: a sheet lists Results and a `New Result` option, plus `Leave in Inbox`. Picking a Result moves the task there. Run `rpmctl shot review-sort`.
@@ -59,6 +60,6 @@ Preconditions:
 - The visible footer label can be short (`Next`, `Finish`) while its accessible name is long. Tap by the long name.
 - Last week's Results come from the seeded plan. A reseed on another day moves the "last week" window with it.
 - Verdict choices change real Block data (achieved or not). Reseed afterwards.
-- A radio's name is only its label (`Achieved`), repeated for every Result. Add `--nth` to pick the Result.
+- In the summary a radio's name is only its label (`Achieved`), repeated for every Result. Add `--nth` to pick the Result.
 - Progress is saved quietly while you move through steps. Only Finish and verdicts show a snackbar.
 - The review hides the planner's top bar and bottom navigation. `Close review` and `Back` are the only ways out; Android Back also works (`rpmctl key back`).

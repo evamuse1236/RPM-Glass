@@ -31,7 +31,7 @@
 :root[data-large-text=true] .settings-value { max-width: none; text-align: left; }
 :root[data-large-text=true] .top-title { font-size: 24px; }
 @media (prefers-reduced-motion: reduce) {
-  .progress > span, .wheel-track > span { transition: none; }
+  .progress > span { transition: none; }
   .plan-list .task-row, .task-row.lifted, .inline-edit { transition: none; scale: none; }
   .rating-slider::-webkit-slider-thumb { transition: none; }
 }

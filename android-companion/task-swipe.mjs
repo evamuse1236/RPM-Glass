@@ -73,7 +73,7 @@ function reveal(row, {kind, word: named, symbol: drawn}, side) {
   return layer;
 }
 
-const vibrate = () => { if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(10); };
+export const vibrate = () => { if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(10); };
 
 /**
  * sides: right and left, each {kind, run(row), leave, word, symbol}; `word` and `symbol` replace the kind's own word

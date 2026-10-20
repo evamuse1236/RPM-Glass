@@ -9,9 +9,9 @@ import {EASE, DURATION, reducedMotion} from '../motion-core.mjs';
 const TAU = Math.PI * 2;
 const RADIUS = 22, CENTRE = 24, GAP = 3.2;
 const pt = (r, a) => `${(CENTRE + r * Math.cos(a)).toFixed(2)} ${(CENTRE + r * Math.sin(a)).toFixed(2)}`;
-/** `n` arcs round the circle from twelve o'clock, 3.2 px apart. */
-export function segs(n, r = RADIUS) {
-  const gap = GAP / r, out = [];
+/** `n` arcs round the circle from twelve o'clock, `gapPx` apart (3.2 px by default). */
+export function segs(n, r = RADIUS, gapPx = GAP) {
+  const gap = gapPx / r, out = [];
   for (let i = 0; i < n; i++) {
     const a0 = -Math.PI / 2 + i * TAU / n + gap / 2, a1 = a0 + TAU / n - gap;
     out.push(`M${pt(r, a0)} A${r} ${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${pt(r, a1)}`);
