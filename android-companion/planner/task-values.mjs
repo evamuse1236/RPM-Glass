@@ -199,3 +199,17 @@ export function parseWhen(text, today = localDay()) {
   const match = found[0].trim();
   return {day, time, match, start: found.index, end: found.index + match.length};
 }
+
+/**
+ * "Start now" in the task sheet: the {day, time} that makes an open one-time task begin at this minute today, or null
+ * while it is done, repeats (Start now would move the whole series) or is already running.
+ */
+export function startNowValue(task, {repeating = false, now = new Date()} = {}) {
+  if (!task || task.done || repeating) return null;
+  const start = task.planned ? Date.parse(task.planned) : NaN;
+  const minute = new Date(now);
+  minute.setSeconds(0, 0);
+  if (start <= minute.getTime() && minute.getTime() < start + Math.max(task.minutes ?? 0, 1) * 60000) return null;
+  const pad = n => String(n).padStart(2, '0');
+  return {day: localDay(now), time: `${pad(now.getHours())}:${pad(now.getMinutes())}`};
+}

@@ -5,7 +5,7 @@ import {el, icon, button, iconButton} from './dom.mjs';
 import {duration} from './format.mjs';
 import {openSheet, closeSheet, isSheetOpen} from './sheet.mjs';
 import {toggleDone} from './task-row.mjs';
-import {whenOf, whenFields, whenLabel, repeatValue, repeatLabel} from './task-values.mjs';
+import {whenOf, whenFields, whenLabel, repeatValue, repeatLabel, startNowValue, clockOf} from './task-values.mjs';
 import {NEEDS_TIME, alertText, clashText, findTask, saver, scheduleCheck, syncText} from './sheet-parts.mjs';
 import {archiveTask, deleteTask, duplicateTask, undoLastCompletion, movePicker} from './task-actions.mjs';
 import {RETURN_FADE, RETURN_HOLD, inboxShowing, markReturned, showInbox} from './task-lists.mjs';
@@ -109,6 +109,13 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
     },
   });
   header.querySelector('.sheet-close').before(head.row);
+  const startable = t => startNowValue(t, {repeating: repeats(t)});
+  const start = button('', () => {
+    const value = startable(live());
+    if (value) setWhen(value, 'Started at ' + clockOf(value.day, value.time));
+  }, 'assist-chip task-start');
+  start.append(icon('play_arrow'), el('span', 'chip-label', 'Start now'));
+  head.row.append(start);
   if (fromInbox) header.prepend(iconButton('arrow_back', 'Back to Inbox', goBack, {cls: 'sheet-back'}));
 
   let checkToken = 0;
@@ -200,6 +207,7 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
 
   const paint = t => {
     if (!completing) head.paint(t);
+    start.hidden = completing || !startable(t);
     facts.paint(now(t));
     block.paint(t);
     syncText(notes, t.notes);

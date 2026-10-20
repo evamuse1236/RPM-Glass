@@ -176,6 +176,11 @@
   overflow-wrap: anywhere;
 }
 .task-title-field:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+/* Start now sits under the title, aligned with its text; it hides while the task is running, done or repeating. */
+.task-start { grid-column: 2; justify-self: start; margin: 0 0 var(--s2) var(--s1); }
+.task-start .ms { color: var(--primary); }
+.task-start:active { background: color-mix(in oklch, var(--on-surface) 12%, transparent); }
+.task-start:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .task-head.is-done .task-title-field { text-decoration: line-through; color: var(--on-surface-variant); }
 
 .block-row {
