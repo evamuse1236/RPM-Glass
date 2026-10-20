@@ -295,6 +295,17 @@ test('faces shrink with the island instead of being cut by its edges, on the pho
   assert.match(css, /\.island-face\[data-state="leaving"\] \{ transition: opacity 90ms linear, scale 300ms var\(--ease\); \}/);
 });
 
+test('a primary control is filled with its accent and labelled dark, on the phone and in the copy', () => {
+  const ink = javaSource('NotchInk');
+  const share = Math.round(Number(ink.match(/ON_ACCENT_SHARE = ([\d.]+)f;/)[1]) * 100);
+  const pressed = Math.round(Number(ink.match(/PRIMARY_PRESSED_SHARE = ([\d.]+)f;/)[1]) * 100);
+  const css = readFileSync(new URL('./notch.css', import.meta.url), 'utf8');
+  assert.ok(css.includes(`.notch-primary { background: var(--kc); color: var(--kc-ink, color-mix(in srgb, var(--kc) ${share}%, black)); }`));
+  assert.ok(css.includes(`.notch-primary:active { background: color-mix(in srgb, var(--kc) ${pressed}%, black); }`));
+  assert.ok(readFileSync(new URL('./notch-parts.mjs', import.meta.url), 'utf8').includes("if (primary && color === INK.ALARM) b.style.setProperty('--kc-ink', 'var(--alarm-ink)');"));
+  assert.ok(ink.includes('return accent == ALARM ? ALARM_INK : intoBlack(accent, ON_ACCENT_SHARE);'));
+});
+
 test('a row title keeps the phone\'s line count in the copy: 1 line, 2 at large text, 3 at max', () => {
   const parts = javaSource('NotchParts');
   assert.match(parts, /setMaxLines\(fontScale\(\) >= MAX_TEXT \? normal \+ 2 : largeText\(\) \? normal \+ 1 : normal\)/);

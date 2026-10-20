@@ -190,19 +190,19 @@ final class NotchParts {
     }
 
     /**
-     * A 40dp pill control drawn inside a 48dp touch box: a primary is its accent 30% into black with the label in the
-     * accent; a secondary is white 8% with the label in white 70%. Its corner is 20dp (36 less the 16dp inset).
+     * A 40dp pill control drawn inside a 48dp touch box: a primary is filled with its accent with a dark label
+     * ({@link NotchInk#onAccent}); a secondary is white 8% with the label in white 70%. Its corner is 20dp (36 less the 16dp inset).
      */
     View pill(int icon, String label, String spoken, int accent, boolean primary, Runnable action) {
         LinearLayout b = new LinearLayout(context);
         b.setGravity(Gravity.CENTER);
         int reach = (dp(NotchGeometry.TOUCH_DP) - dp(NotchGeometry.CONTROL_DP)) / 2;
         float r = dp(NotchGeometry.innerRadius(NotchGeometry.PAD_DP));
-        int rest = primary ? NotchInk.intoBlack(accent, NotchInk.PRIMARY_SHARE) : NotchInk.SECONDARY;
-        int down = primary ? NotchInk.intoBlack(accent, NotchInk.PRIMARY_SHARE + 0.06f) : NotchInk.PRESS;
+        int rest = primary ? accent : NotchInk.SECONDARY;
+        int down = primary ? NotchInk.intoBlack(accent, NotchInk.PRIMARY_PRESSED_SHARE) : NotchInk.PRESS;
         pillShape(b, rest, down, r, reach, dp(16));
         b.setMinimumHeight(dp(NotchGeometry.TOUCH_DP));
-        int ink = primary ? accent : NotchInk.WHITE_70;
+        int ink = primary ? NotchInk.onAccent(accent) : NotchInk.WHITE_70;
         if (icon != 0) {
             LinearLayout.LayoutParams g = new LinearLayout.LayoutParams(dp(20), dp(20));
             g.setMarginEnd(dp(8));

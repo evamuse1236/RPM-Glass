@@ -107,9 +107,9 @@
 }
 .notch-pill-button::after, .notch-circle-button::after, .notch-undo::after { content: ""; position: absolute; inset: calc(var(--reach) * -1); }
 .notch-pill-button .notch-glyph { inline-size: 20px; block-size: 20px; }
-.notch-primary { background: color-mix(in oklch, var(--kc) 30%, black); color: var(--kc); }
+.notch-primary { background: var(--kc); color: var(--kc-ink, color-mix(in srgb, var(--kc) 22%, black)); }
 .notch-secondary { background: var(--secondary); color: var(--t70); }
-.notch-primary:active { background: color-mix(in oklch, var(--kc) 36%, black); }
+.notch-primary:active { background: color-mix(in srgb, var(--kc) 85%, black); }
 .notch-secondary:active { background: var(--press); }
 
 .notch-rows { margin-block-start: 12px; margin-inline: calc(var(--pad) / -2); }
@@ -226,7 +226,7 @@
 @media (hover: hover) and (pointer: fine) {
   .notch-row-tap:hover { background: oklch(100% 0 none / 0.06); }
   .notch-secondary:hover { background: oklch(100% 0 none / 0.16); }
-  .notch-primary:hover { background: color-mix(in oklch, var(--kc) 34%, black); }
+  .notch-primary:hover { background: color-mix(in srgb, var(--kc) 92%, black); }
   .notch-undo:hover { background: color-mix(in oklch, var(--task) 26%, black); }
 }
 

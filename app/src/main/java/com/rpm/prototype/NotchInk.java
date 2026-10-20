@@ -18,7 +18,10 @@ final class NotchInk {
     static final int MEAL = 0xFFFDD663;
     static final int ALARM = 0xFFF2B8B5;
     static final int ALARM_INK = 0xFF601410;
-    /** A primary control's fill: its accent 30% of the way from black. */
+    /** A primary control is filled with its accent; its label is the accent 22% of the way from black (the alarm has its own ink). */
+    static final float ON_ACCENT_SHARE = 0.22f;
+    /** A pressed primary darkens to 85% of its accent. */
+    static final float PRIMARY_PRESSED_SHARE = 0.85f;
     static final float PRIMARY_SHARE = 0.30f;
     static final float UNDO_SHARE = 0.20f;
     static final float ALARM_DISC_SHARE = 0.24f;
@@ -36,6 +39,11 @@ final class NotchInk {
             case REMINDER: return WHITE_87;
             default: return TASK;
         }
+    }
+
+    /** The label and icon on a primary filled with {@code accent}. */
+    static int onAccent(int accent) {
+        return accent == ALARM ? ALARM_INK : intoBlack(accent, ON_ACCENT_SHARE);
     }
 
     /** {@code color} mixed into black: {@code share} of the colour, the rest black, opaque. */

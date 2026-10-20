@@ -251,10 +251,31 @@ public class NotchFrameTest {
     }
 
     @Test
-    public void primaryControlsAreTheirAccentThirtyPercentIntoBlack() {
-        assertEquals(0xFF323C4B, NotchInk.intoBlack(NotchInk.TASK, NotchInk.PRIMARY_SHARE));
+    public void primaryControlsAreFilledWithTheirAccentAndADarkLabel() throws Exception {
+        assertEquals(0xFF252C37, NotchInk.onAccent(NotchInk.TASK));
+        assertEquals(NotchInk.ALARM_INK, NotchInk.onAccent(NotchInk.ALARM));
+        String parts = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("src/main/java/com/rpm/prototype/NotchParts.java")), java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(parts.contains("int rest = primary ? accent : NotchInk.SECONDARY;"));
+        assertTrue(parts.contains("int ink = primary ? NotchInk.onAccent(accent) : NotchInk.WHITE_70;"));
+        assertTrue("dark on the task blue passes 4.5:1", contrast(NotchInk.onAccent(NotchInk.TASK), NotchInk.TASK) >= 4.5);
+        assertTrue(contrast(NotchInk.onAccent(NotchInk.WATER), NotchInk.WATER) >= 4.5);
+        assertTrue(contrast(NotchInk.ALARM_INK, NotchInk.ALARM) >= 4.5);
         assertEquals(0xFF000000, NotchInk.intoBlack(NotchInk.TASK, 0f));
         assertEquals(NotchInk.TASK, NotchInk.intoBlack(NotchInk.TASK, 1f));
         assertEquals("the notch's task blue passes 3:1 on black", 0xFFA8C7FA, NotchInk.TASK);
+    }
+
+    private static double luminance(int c) {
+        double[] ch = new double[3];
+        for (int i = 0; i < 3; i++) {
+            double v = ((c >> (16 - 8 * i)) & 0xFF) / 255.0;
+            ch[i] = v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+        }
+        return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+    }
+
+    private static double contrast(int a, int b) {
+        double la = luminance(a), lb = luminance(b);
+        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
     }
 }
