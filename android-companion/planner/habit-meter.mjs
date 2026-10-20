@@ -44,8 +44,6 @@ export function waterSVG(count, goal) {
       <g class="wave front"><path d="${WAVE}" fill="url(#${id}-g)"/></g>
     </g></g>
     <path class="glyph" d="${DROP}" transform="translate(17.5 17) scale(.54)"/>
-    <path class="fall" d="M24 0c0 0 3 3.6 3 5.6a3 3 0 0 1-6 0C21 3.6 24 0 24 0z" opacity="0"/>
-    <ellipse class="ripple" cx="24" cy="0" rx="7" ry="1.6" opacity="0"/>
   </svg>`;
 }
 
