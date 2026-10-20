@@ -135,6 +135,18 @@ public class IslandShapeTest {
     }
 
     @Test
+    public void aFloatingIslandHasAOneDpWhiteEightPercentEdgeSoABlackWallpaperCannotSwallowIt() throws Exception {
+        assertEquals(0x14FFFFFF, NotchInk.HAIRLINE);
+        assertEquals("the pill sits in the status bar like the camera: no edge", 0, NotchInk.hairline(0f) >>> 24);
+        assertEquals(0x14FFFFFF, NotchInk.hairline(1f));
+        assertEquals(10, NotchInk.hairline(0.5f) >>> 24);
+        String view = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("src/main/java/com/rpm/prototype/IslandView.java")),
+                java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue("the edge is drawn over the faces and the band", view.contains("band.draw(canvas, -loc[0], -loc[1]);\n        drawEdge(canvas, x, y, w, h, r);"));
+        assertTrue(view.contains("int color = NotchInk.hairline(now.shadow);"));
+    }
+
+    @Test
     public void facesShrinkWithTheIslandSoTheyAlwaysFitInsideIt() {
         int keep = S24.holeWidth + NotchAnchor.dp(12, D);
         IslandShape pill = IslandShape.pill(S24, 1080, 200, keep, false, D);

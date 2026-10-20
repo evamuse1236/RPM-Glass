@@ -13,6 +13,14 @@ final class NotchInk {
     static final int SECONDARY = 0x14FFFFFF;
     /** A row control's 1dp ring: white 12%. */
     static final int OUTLINE = 0x1FFFFFFF;
+    /** The 1dp white 8% edge of a floating island, so it stays apart from a black or near-black wallpaper. */
+    static final int HAIRLINE = 0x14FFFFFF;
+
+    /** The hairline as the island floats: none on the pill (0), all of it on an open island (1). */
+    static int hairline(float floating) {
+        float f = Math.max(0f, Math.min(1f, floating));
+        return (Math.round((HAIRLINE >>> 24) * f) << 24) | (HAIRLINE & 0xFFFFFF);
+    }
     static final int TASK = 0xFFA8C7FA;
     static final int EVENT = 0xFFC4C7C5;
     static final int WATER = 0xFF7CACF8;

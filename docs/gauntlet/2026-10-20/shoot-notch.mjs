@@ -47,12 +47,12 @@ const STORE = String.raw`(spec => {
   return {schema: 2, version: 1, entries, memories: [], history: [], conversations: [], planner};
 })`;
 
-async function scene(name, {spec, time, expand = false, dark = false, text = 1, then = null, settle = 900, motion = false, midway = 0}) {
+async function scene(name, {spec, time, expand = false, dark = false, wallpaper = 'colour', text = 1, then = null, settle = 900, motion = false, midway = 0}) {
   await send('Page.navigate', {url: base});
   await wait(600);
   await evaluate(`(() => { localStorage.clear();
     localStorage.setItem('rpm-playground:companion', JSON.stringify(${STORE}(${JSON.stringify(spec)})));
-    localStorage.setItem('rpm-playground:device', JSON.stringify({dark: ${dark}, textScale: ${text}}));
+    localStorage.setItem('rpm-playground:device', JSON.stringify({dark: ${dark}, textScale: ${text}, wallpaper: '${wallpaper}'}));
     localStorage.setItem('rpm-playground:shell', JSON.stringify({view: 'notch', expandNotch: ${expand}, notchTime: '${time}'}));
     document.documentElement.dataset.reduceMotion = '${!motion}'; })()`);
   await send('Page.reload');
@@ -75,6 +75,8 @@ const DAY = {tasks: [{title: 'Write RM essay', at: '15:30', minutes: 45}, {title
 const LONG = {tasks: [{title: 'Finish the literature review section and send the draft to the group for comments before the call', at: '15:30', minutes: 45, alert: 'reminder'},
   {title: 'रिसर्च पेपर का दूसरा अध्याय पढ़ना और नोट्स बनाना', at: '16:30', alert: 'alarm'}, {title: 'Gym', at: '19:00'}],
   body: {glasses: ['08:30'], routine: true}};
+const MANY = {tasks: [...DAY.tasks, {title: 'Reply to the hostel office', at: '17:00'}, {title: 'Draft slides', at: '17:30'},
+  {title: 'Read chapter 4', at: '18:00'}, {title: 'Call home', at: '21:00'}], body: DAY.body};
 const click = selector => `document.querySelector(${JSON.stringify(selector)}).click()`;
 
 await scene('01-pill', {spec: DAY, time: '15:50'});
@@ -83,13 +85,16 @@ await scene('03-reminder', {spec: DAY, time: '16:29', then: click('[data-alert="
 await scene('04-alarm', {spec: DAY, time: '18:59', then: click('[data-alert="alarm"]')});
 await scene('05-receipt-undo', {spec: DAY, time: '15:50', expand: true, then: click('.notch-primary')});
 await scene('06-manage', {spec: DAY, time: '15:50', expand: true, then: `[...document.querySelectorAll('.notch-row-tap')].find(r => r.querySelector('.notch-alert-chip')).click()`});
-await scene('07-empty-day', {spec: {tasks: []}, time: '15:50'});
+await scene('07-empty-day', {spec: {tasks: [], body: {glasses: ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00']}}, time: '15:50'});
 await scene('08-water-hero', {spec: {tasks: [], body: {glasses: ['08:30']}}, time: '15:50', expand: true});
 await scene('09-long-title', {spec: LONG, time: '15:10', expand: true});
 await scene('10-long-title-max-text', {spec: LONG, time: '15:10', expand: true, text: 2});
-await scene('11-dark', {spec: DAY, time: '15:50', expand: true, dark: true});
-await scene('12-many-due', {spec: {...DAY, tasks: [...DAY.tasks, {title: 'Draft slides', at: '17:00'}]}, time: '16:05', expand: true});
-await scene('13-max-text-manage', {spec: LONG, time: '15:10', expand: true, text: 2,
+await scene('11-black-wallpaper-open', {spec: DAY, time: '15:50', expand: true, dark: true, wallpaper: 'black'});
+await scene('11b-black-wallpaper-pill', {spec: DAY, time: '15:50', dark: true, wallpaper: 'black'});
+await scene('11c-black-wallpaper-alarm', {spec: DAY, time: '18:59', dark: true, wallpaper: 'black', then: click('[data-alert="alarm"]')});
+await scene('12-many-due', {spec: MANY, time: '16:05', expand: true});
+await scene('12b-many-due-large-text', {spec: MANY, time: '16:05', expand: true, text: 1.3});
+await scene('13-max-text-manage', {spec: {tasks: LONG.tasks}, time: '15:10', expand: true, text: 2,
   then: `[...document.querySelectorAll('.notch-row-tap')].find(r => r.querySelector('.notch-alert-chip') || /Reminder|alarm/.test(r.textContent)).click()`});
 await scene('14-max-text-alarm', {spec: LONG, time: '16:29', text: 2, then: click('[data-alert="alarm"]')});
 await scene('15-large-text-open', {spec: DAY, time: '15:50', expand: true, text: 1.3});

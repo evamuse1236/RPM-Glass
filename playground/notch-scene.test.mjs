@@ -410,9 +410,17 @@ test('large text: icons grow up to 1.5x, pills grow round their label, and "+N m
   assert.ok(css.includes('--icon-scale: clamp(1, var(--font-scale), 1.5);'));
   assert.ok(css.includes('--row-control: max(var(--circle), calc(20px * var(--icon-scale) + 20px));'));
   assert.ok(css.includes('min-block-size: var(--circle);\n  padding: 8px 16px;'), 'the copy pads its pills 8dp too');
+  assert.ok(css.includes('.notch-stage:not([data-text="normal"]) .notch-pill-button { flex-basis: auto; }'), 'a stacked pill grows with its label instead of overflowing');
   assert.equal((css.match(/\.notch-glyph \{ inline-size: (?:16|20)px/g) ?? []).length, 0, 'no glyph in the copy keeps a fixed size');
   const view = readFileSync(new URL('./notch-view.mjs', import.meta.url), 'utf8');
   assert.ok(view.includes('const hidden = more(scene, maxRows);\n  if (hidden > 0) parts.push(moreLine(hidden));'));
+});
+
+test('a floating island has the phone\'s 1dp white 8% edge in the copy; the pill has none', () => {
+  const alpha = parseInt(javaSource('NotchInk').match(/HAIRLINE = 0x([0-9A-F]{2})FFFFFF;/)[1], 16);
+  const css = readFileSync(new URL('./notch.css', import.meta.url), 'utf8');
+  assert.ok(css.includes(`--hairline: oklch(100% 0 none / ${(alpha / 255).toFixed(2)});`));
+  assert.ok(css.includes('.island:not([data-mode="pill"]) { box-shadow: var(--elev), inset 0 0 0 1px var(--hairline); }'));
 });
 
 test('Undo shows its five seconds draining, on the phone and in the copy', () => {

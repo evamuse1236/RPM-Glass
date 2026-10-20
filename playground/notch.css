@@ -12,6 +12,7 @@
   --press: oklch(100% 0 none / 0.12);
   --secondary: oklch(100% 0 none / 0.08);
   --outline: oklch(100% 0 none / 0.12);
+  --hairline: oklch(100% 0 none / 0.08);
   --task: oklch(82.4% 0.074 259.6);
   --water: oklch(74.1% 0.122 259.3);
   --alarm: oklch(83.4% 0.068 22);
@@ -36,7 +37,7 @@
 .notch-glyph { display: block; flex: none; background: currentColor; mask: var(--icon) center / contain no-repeat; }
 
 .island { position: absolute; overflow: clip; background: var(--ink); color: var(--t1); touch-action: none; user-select: none; }
-.island:not([data-mode="pill"]) { box-shadow: var(--elev); }
+.island:not([data-mode="pill"]) { box-shadow: var(--elev), inset 0 0 0 1px var(--hairline); }
 
 .island-face {
   position: absolute;
@@ -93,6 +94,7 @@
 .notch-controls { display: flex; gap: 8px; margin-block-start: 16px; }
 .notch-controls + .notch-controls { margin-block-start: 8px; }
 .notch-stage:not([data-text="normal"]) .notch-controls { flex-direction: column; }
+.notch-stage:not([data-text="normal"]) .notch-pill-button { flex-basis: auto; }
 .notch-pill-button {
   position: relative;
   flex: 1 1 0;

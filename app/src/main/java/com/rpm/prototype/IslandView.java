@@ -77,6 +77,7 @@ final class IslandView extends ViewGroup {
     private final Choreographer.FrameCallback fadeTick = nanos -> NotchController.safely("island fade", this::stepFades);
     private final Spring press = Spring.island(0.002f);
     private final Paint ink = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path body = new Path();
     private final int[] loc = new int[2];
     private final int[] laidOutAt = new int[2];
@@ -325,7 +326,20 @@ final class IslandView extends ViewGroup {
         canvas.clipPath(body);
         super.dispatchDraw(canvas);
         band.draw(canvas, -loc[0], -loc[1]);
+        drawEdge(canvas, x, y, w, h, r);
         canvas.restore();
+    }
+
+    /** The floating island's 1dp hairline, just inside its edge, fading in as it leaves the pill. */
+    private void drawEdge(Canvas canvas, float x, float y, float w, float h, float r) {
+        int color = NotchInk.hairline(now.shadow);
+        if ((color >>> 24) == 0) return;
+        float stroke = Math.max(1f, density);
+        edge.setStyle(Paint.Style.STROKE);
+        edge.setStrokeWidth(stroke);
+        edge.setColor(color);
+        float half = stroke / 2f;
+        canvas.drawRoundRect(x + half, y + half, x + w - half, y + h - half, Math.max(0f, r - half), Math.max(0f, r - half), edge);
     }
 
     @Override
