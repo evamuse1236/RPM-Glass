@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {parseNotchData} from './notch-day.mjs';
 import {notchScene, alertScene, WATER_SNOOZE, routineSnooze, PillPriority, controls, visibleRows, progress, heroValue} from './notch-scene.mjs';
-import {anchor, G, innerRadius, faceTop, bandAt, pillRing, fits, faceScale} from './notch-geometry.mjs';
+import {anchor, G, D, innerRadius, faceTop, bandAt, pillRing, fits, faceScale, islandInset} from './notch-geometry.mjs';
 import {S24} from './device.mjs';
 
 const at = local => new Date(local + ':00+05:30').getTime();
@@ -233,6 +233,18 @@ test('margins are 16dp on all four sides and every inner corner is 36 less its i
   assert.equal(ring.d, 28);
   assert.equal(pill.h / 2 - (ring.cx - ring.d / 2 - pill.x), ring.d / 2, 'the ring is concentric with the pill: 18 - 4 = 14');
   assert.equal(pillRing(28), 20);
+});
+
+test('outer margins match: the islands sit as far in from each side as their top is down; the last control ends 16dp up', () => {
+  assert.equal(islandInset(), anchor().top / D, 'S24: the side margin is the pill top');
+  const shape = javaSource('IslandShape');
+  assert.ok(shape.includes('return Math.max(dp(MIN_INSET_DP, density), Math.min(dp(MAX_INSET_DP, density), a.pillTop()));'));
+  assert.ok(shape.includes('int x = inset(a, density);'));
+  assert.ok(javaSource('NotchPill').includes('int w = displayWidth - 2 * IslandShape.inset(anchor, density);'));
+  assert.equal(G.ROW_DP - G.CONTROL_DP, 4, 'a row is its 40dp control and 2dp above and below');
+  assert.ok(javaSource('NotchParts').includes('lp.bottomMargin = -(dp(NotchGeometry.ROW_DP) - dp(NotchGeometry.CONTROL_DP)) / 2;'));
+  const css = readFileSync(new URL('./notch.css', import.meta.url), 'utf8');
+  assert.ok(css.includes('.notch-rows { margin-block: 12px calc((var(--circle) - 44px) / 2);'));
 });
 
 test('a wide notch keeps its whole width clear, as NotchAnchor does', () => {

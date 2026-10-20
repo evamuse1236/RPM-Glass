@@ -1,7 +1,7 @@
 // Copy of NotchPill, NotchContent, IslandView and IslandBand: one black island that morphs between the pill, the open island,
 // the alert islands and the receipt, with the band's ring and value travelling between them.
 import {S24} from './device.mjs';
-import {D, G, anchor, ISLAND_INSET_DP, pillRing, bandAt, fits, faceScale} from './notch-geometry.mjs';
+import {D, G, anchor, islandInset, pillRing, bandAt, fits, faceScale} from './notch-geometry.mjs';
 import {el, glyph, button, face, title, line, pill, controls, row, rowValue, circle, accent, lookOf, ICONS, INK} from './notch-parts.mjs';
 import {alertFace} from './notch-alert.mjs';
 import {alertChip, alertSpoken, receiptFace, manageFace, MARK} from './notch-change.mjs';
@@ -174,7 +174,7 @@ function paintSplit(stage, {mode, secondary, scene}, geo) {
     split.dataset.state = 'shown';
   } else {
     const at = parseFloat(split.style.insetInlineStart) || 0;
-    split.style.translate = `${ISLAND_INSET_DP + G.PAD_DP - at}px ${G.PAD_DP}px`;
+    split.style.translate = `${islandInset() + G.PAD_DP - at}px ${G.PAD_DP}px`;
     split.dataset.state = 'away';
   }
 }
@@ -240,7 +240,7 @@ export function renderNotch(stage, opts) {
   if (mode === 'pill') {
     ({face: next, geo} = pillFace(stage, opts, band, fontScale));
   } else {
-    const w = S24.width / D - 2 * ISLAND_INSET_DP, cap = (S24.height / D) * G.MAX_HEIGHT_SHARE;
+    const w = S24.width / D - 2 * islandInset(), cap = (S24.height / D) * G.MAX_HEIGHT_SHARE;
     const build = rows => alerting ? alertFace(alert, actions) : mode === 'receipt' ? receiptFace(receipt, actions)
       : mode === 'manage' ? manageFace(managed, actions) : openFace(scene, actions, rows);
     let tried = 0;
@@ -252,7 +252,7 @@ export function renderNotch(stage, opts) {
       settle(island, next, tried > 1 || same || first || instant);
       if (next.offsetHeight <= cap) break;
     }
-    geo = {x: ISLAND_INSET_DP, w, h: Math.max(next.offsetHeight, h), r: G.RADIUS_DP};
+    geo = {x: islandInset(), w, h: Math.max(next.offsetHeight, h), r: G.RADIUS_DP};
   }
   if (mode === 'pill') {
     next.style.setProperty('--face-w', `${geo.w}px`);

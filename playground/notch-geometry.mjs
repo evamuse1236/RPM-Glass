@@ -4,7 +4,6 @@ import {S24} from './device.mjs';
 export const D = S24.density;
 export const dp = v => Math.round(v * D);
 export const css = px => `${px / D}px`;
-export const ISLAND_INSET_DP = 12;
 
 /** Section 0 of docs/notch-redesign-plan.md, in dp: one 36dp corner, a 16dp margin on all four sides, inner corners 36 less their inset. */
 export const G = Object.freeze({
@@ -36,6 +35,9 @@ export function anchor(device = S24) {
   const pill = pillBottom - pillTop;
   return {centerX: Math.floor((left + right) / 2), centerY: pillTop + Math.floor(pill / 2), hole, pill, top: pillTop, bottom: pillBottom};
 }
+
+/** IslandShape.inset, in dp: the islands sit as far in from each side as their top is below the screen's top, 4 to 16dp. */
+export const islandInset = (device = S24) => Math.max(dp(4), Math.min(dp(16), anchor(device).top)) / D;
 
 /** The pill's ring in dp: 28, or smaller on a short pill so its inset keeps it concentric with the pill's ends. */
 export const pillRing = pillDp => Math.min(G.PILL_RING_DP, pillDp - 2 * G.PILL_RING_INSET_DP);

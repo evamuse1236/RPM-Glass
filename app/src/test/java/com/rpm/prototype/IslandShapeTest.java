@@ -6,7 +6,7 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 /**
- * The open, alert and receipt islands float 12dp in from each side with their top at the pill's top, one 36dp corner,
+ * The open, alert and receipt islands sit as far in from each side as their top (the pill's top) is below the screen's top, one 36dp corner,
  * a 16dp margin on all four sides, and every inner corner 36 less its inset.
  */
 public class IslandShapeTest {
@@ -20,10 +20,14 @@ public class IslandShapeTest {
     }
 
     @Test
-    public void openIslandFloatsTwelveDpInWithItsTopAtThePillTop() {
+    public void openIslandSitsAsFarInFromEachSideAsItsTopIsBelowTheScreensTop() {
         IslandShape open = IslandShape.island(S24, 1080, 700, D);
-        assertEquals(34f, open.left, 0f);
-        assertEquals(1080f - 34f, open.right, 0f);
+        assertEquals("equal outer margins", (float) open.top, open.left, 0f);
+        assertEquals(1080f - open.top, open.right, 0f);
+        NotchAnchor none = NotchAnchor.fallback(1080, D);
+        assertEquals("no cutout: the pill sits 12dp down, so the sides are 12dp", (float) none.pillTop(), IslandShape.island(none, 1080, 700, D).left, 0f);
+        NotchAnchor low = NotchAnchor.fromCutout(500, NotchAnchor.dp(30, D), 580, NotchAnchor.dp(60, D), 0, D);
+        assertEquals("never more than 16dp", dp(16), IslandShape.island(low, 1080, 700, D).left, 1f);
         assertEquals(S24.pillTop(), open.top, 0f);
         assertEquals(S24.pillTop() + 700f, open.bottom, 0f);
         assertEquals(0f, open.splitR, 0f);

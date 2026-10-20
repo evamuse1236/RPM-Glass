@@ -110,7 +110,7 @@ final class NotchPill implements IslandView.Listener {
             ms = motion.morphMs(false);
             bandAt = NotchGeometry.pill(shape, density, valuePx);
         } else {
-            int w = displayWidth - 2 * dp(IslandShape.ISLAND_INSET_DP);
+            int w = displayWidth - 2 * IslandShape.inset(anchor, density);
             int cap = Math.round(displayHeight() * NotchGeometry.MAX_HEIGHT_SHARE);
             face = null;
             for (NotchGeometry.Fit fit : NotchGeometry.fits(f.mode == Mode.OPEN)) {

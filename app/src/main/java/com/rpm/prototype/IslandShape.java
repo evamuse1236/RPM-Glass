@@ -2,11 +2,12 @@ package com.rpm.prototype;
 
 /**
  * Where the black island sits, in screen pixels: the body, its corner radius, the split circle beside the pill and
- * the area that takes touches. The pill hugs the camera; the open, alert and receipt islands float 12dp in from each
- * side with one 36dp corner (NotchGeometry).
+ * the area that takes touches. The pill hugs the camera; the open, alert and receipt islands float as far in from each
+ * side as their top is below the screen's top, with one 36dp corner (NotchGeometry).
  */
 final class IslandShape {
-    static final int ISLAND_INSET_DP = 12;
+    static final int MIN_INSET_DP = 4;
+    static final int MAX_INSET_DP = 16;
     static final int SPLIT_GAP_DP = 8;
     static final int TOUCH_HEIGHT_DP = 48;
     static final int SHADOW_SIDE_DP = 12;
@@ -61,11 +62,19 @@ final class IslandShape {
     }
 
     /**
-     * The open, alert or receipt island: the screen's width less 12dp each side, its top at the pill's top, {@code height}
-     * tall, with a 36dp corner. The split circle folds into the band's leading circle.
+     * How far the open, alert and receipt islands sit in from each side: the same gap as above their top (the pill's top),
+     * so the three outer margins match; 4 to 16dp.
+     */
+    static int inset(NotchAnchor a, float density) {
+        return Math.max(dp(MIN_INSET_DP, density), Math.min(dp(MAX_INSET_DP, density), a.pillTop()));
+    }
+
+    /**
+     * The open, alert or receipt island: the screen's width less {@link #inset} each side, its top at the pill's top,
+     * {@code height} tall, with a 36dp corner. The split circle folds into the band's leading circle.
      */
     static IslandShape island(NotchAnchor a, int displayWidth, int height, float density) {
-        int x = dp(ISLAND_INSET_DP, density);
+        int x = inset(a, density);
         int top = a.pillTop();
         int right = displayWidth - x;
         float lead = dp(NotchGeometry.PAD_DP, density) + dp(NotchGeometry.CIRCLE_DP, density) / 2f;

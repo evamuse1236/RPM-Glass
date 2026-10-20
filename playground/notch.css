@@ -113,7 +113,7 @@
 .notch-primary:active { background: color-mix(in srgb, var(--kc) 85%, black); }
 .notch-secondary:active { background: var(--press); }
 
-.notch-rows { margin-block-start: 12px; margin-inline: calc(var(--pad) / -2); }
+.notch-rows { margin-block: 12px calc((var(--circle) - 44px) / 2); margin-inline: calc(var(--pad) / -2); }
 .notch-row {
   display: flex;
   align-items: center;

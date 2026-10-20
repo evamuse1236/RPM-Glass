@@ -264,7 +264,10 @@ final class NotchParts {
         return lp;
     }
 
-    /** The rows' column: 12dp under what is above, 8dp past the margin on each side so a pressed row is 8dp from the edge. */
+    /**
+     * The rows' column: 12dp under what is above, 8dp past the margin on each side so a pressed row is 8dp from the edge,
+     * and 2dp into the bottom margin so the last row's 40dp control ends 16dp from the island's bottom.
+     */
     LinearLayout rows(boolean afterControls) {
         LinearLayout col = new LinearLayout(context);
         col.setOrientation(LinearLayout.VERTICAL);
@@ -273,6 +276,7 @@ final class NotchParts {
         lp.topMargin = dp(NotchGeometry.ROWS_GAP_DP) - (afterControls ? reach : 0);
         lp.setMarginStart(-dp(NotchGeometry.ROW_OUTSET_DP));
         lp.setMarginEnd(-dp(NotchGeometry.ROW_OUTSET_DP));
+        lp.bottomMargin = -(dp(NotchGeometry.ROW_DP) - dp(NotchGeometry.CONTROL_DP)) / 2;
         col.setLayoutParams(lp);
         return col;
     }
