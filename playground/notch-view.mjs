@@ -168,7 +168,7 @@ function pillFace(stage, {primary, secondary, scene, note, onTap}, band, fontSca
   setValue(probe, band.value);
   const lead = (h - ring) / 2 + ring + G.VALUE_START_DP;
   const trail = G.VALUE_START_DP + probe.offsetWidth * valueScale(band, fontScale, h) + G.VALUE_END_DP;
-  const side = Math.max(lead, trail, (G.MIN_PILL_WIDTH_DP - keep) / 2), w = side + keep + side;
+  const side = Math.max(lead, trail), w = side + keep + side;
   const x = Math.max(4, Math.min(a.centerX / D - keep / 2 - side, S24.width / D - w - 4));
   const f = button('island-face notch-pill', note?.spoken ?? describe(primary, secondary, scene), onTap);
   return {face: f, geo: {x, w, h, r: h / 2}};

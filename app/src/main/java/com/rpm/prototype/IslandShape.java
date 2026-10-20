@@ -1,14 +1,13 @@
 package com.rpm.prototype;
 
 /**
- * Where the black island sits, in screen pixels: the body, its corner radius, the split circle beside the pill and
- * the area that takes touches. The pill hugs the camera; the open, alert and receipt islands float as far in from each
- * side as their top is below the screen's top, with one 36dp corner (NotchGeometry).
+ * Where the black island sits, in screen pixels: the body, its corner radius and the area that takes touches. The pill
+ * hugs the camera with a drop on either side; the open, habit, alert and receipt islands float as far in from each side
+ * as their top is below the screen's top, with one 36dp corner (NotchGeometry).
  */
 final class IslandShape {
     static final int MIN_INSET_DP = 4;
     static final int MAX_INSET_DP = 16;
-    static final int SPLIT_GAP_DP = 8;
     static final int TOUCH_HEIGHT_DP = 48;
     static final int SHADOW_SIDE_DP = 12;
     static final int SHADOW_BELOW_DP = 16;
@@ -24,41 +23,32 @@ final class IslandShape {
     final float right;
     final float bottom;
     final float radius;
-    final float splitCx;
-    final float splitCy;
-    final float splitR;
     /** 0 for the pill, 1 for a floating island with its shadow. */
     final float shadow;
     final Box touch;
     private final int shadowSide;
     private final int shadowBelow;
 
-    private IslandShape(float left, float top, float right, float bottom, float radius, float splitCx, float splitCy, float splitR,
-                        float shadow, Box touch, int shadowSide, int shadowBelow) {
+    private IslandShape(float left, float top, float right, float bottom, float radius, float shadow, Box touch, int shadowSide, int shadowBelow) {
         this.left = left;
         this.top = top;
         this.right = right;
         this.bottom = bottom;
         this.radius = radius;
-        this.splitCx = splitCx;
-        this.splitCy = splitCy;
-        this.splitR = splitR;
         this.shadow = shadow;
         this.touch = touch;
         this.shadowSide = shadowSide;
         this.shadowBelow = shadowBelow;
     }
 
-    /** The collapsed pill: {@code side} either side of the {@code keep} gap over the camera, the split circle to its left. */
-    static IslandShape pill(NotchAnchor a, int displayWidth, int side, int keep, boolean split, float density) {
+    /** The collapsed pill: {@code left} px before the camera's centre and {@code right} px after it. */
+    static IslandShape pill(NotchAnchor a, int displayWidth, int left, int right, float density) {
         int h = a.pillHeight;
-        int w = side + keep + side;
-        int x = Math.max(dp(4, density), Math.min(a.centerX - keep / 2 - side, displayWidth - w - dp(4, density)));
-        float splitCx = split ? x - dp(SPLIT_GAP_DP, density) - h / 2f : x + h / 2f;
-        int touchLeft = split ? Math.round(splitCx - h / 2f) : x;
+        int w = left + right;
+        int x = Math.max(dp(4, density), Math.min(a.centerX - left, displayWidth - w - dp(4, density)));
         int touchBottom = Math.max(a.pillBottom(), a.centerY + dp(TOUCH_HEIGHT_DP, density) / 2);
-        return new IslandShape(x, a.pillTop(), x + w, a.pillBottom(), h / 2f, splitCx, a.centerY, split ? h / 2f : 0f, 0f,
-                new Box(touchLeft, 0, x + w, touchBottom), dp(SHADOW_SIDE_DP, density), dp(SHADOW_BELOW_DP, density));
+        return new IslandShape(x, a.pillTop(), x + w, a.pillBottom(), h / 2f, 0f,
+                new Box(x, 0, x + w, touchBottom), dp(SHADOW_SIDE_DP, density), dp(SHADOW_BELOW_DP, density));
     }
 
     /**
@@ -70,15 +60,14 @@ final class IslandShape {
     }
 
     /**
-     * The open, alert or receipt island: the screen's width less {@link #inset} each side, its top at the pill's top,
-     * {@code height} tall, with a 36dp corner. The split circle folds into the band's leading circle.
+     * The open, habit, alert or receipt island: the screen's width less {@link #inset} each side, its top at the pill's
+     * top, {@code height} tall, with a 36dp corner.
      */
     static IslandShape island(NotchAnchor a, int displayWidth, int height, float density) {
         int x = inset(a, density);
         int top = a.pillTop();
         int right = displayWidth - x;
-        float lead = dp(NotchGeometry.PAD_DP, density) + dp(NotchGeometry.CIRCLE_DP, density) / 2f;
-        return new IslandShape(x, top, right, top + height, dp(NotchGeometry.RADIUS_DP, density), x + lead, top + lead, 0f, 1f,
+        return new IslandShape(x, top, right, top + height, dp(NotchGeometry.RADIUS_DP, density), 1f,
                 new Box(x, 0, right, top + height), dp(SHADOW_SIDE_DP, density), dp(SHADOW_BELOW_DP, density));
     }
 
@@ -97,8 +86,7 @@ final class IslandShape {
 
     private static IslandShape lerp(IslandShape a, IslandShape b, float tx, float ty) {
         return new IslandShape(mix(a.left, b.left, tx), mix(a.top, b.top, ty), mix(a.right, b.right, tx), mix(a.bottom, b.bottom, ty),
-                mix(a.radius, b.radius, ty), mix(a.splitCx, b.splitCx, tx), mix(a.splitCy, b.splitCy, ty), mix(a.splitR, b.splitR, ty),
-                mix(a.shadow, b.shadow, ty), b.touch, b.shadowSide, b.shadowBelow);
+                mix(a.radius, b.radius, ty), mix(a.shadow, b.shadow, ty), b.touch, b.shadowSide, b.shadowBelow);
     }
 
     /**
@@ -121,10 +109,9 @@ final class IslandShape {
         return bottom - top;
     }
 
-    /** The window that holds everything drawn: the touch area, the split circle and the shadow. */
+    /** The window that holds everything drawn: the touch area and the shadow. */
     Box window() {
         Box w = touch.union(Box.around(left, top, right, bottom));
-        if (splitR > 0.5f) w = w.union(Box.around(splitCx - splitR, splitCy - splitR, splitCx + splitR, splitCy + splitR));
         if (shadow > 0f) w = w.union(Box.around(left - shadowSide, top, right + shadowSide, bottom + shadowBelow));
         return new Box(w.left, Math.max(0, w.top), w.right, w.bottom);
     }

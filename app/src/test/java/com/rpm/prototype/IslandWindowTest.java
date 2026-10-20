@@ -13,8 +13,7 @@ public class IslandWindowTest {
     private static final NotchAnchor S24 = NotchAnchor.fromCutout(506, 24, 574, 92, 92, D);
 
     private static IslandShape pill(int side) {
-        int keep = S24.holeWidth + NotchAnchor.dp(12, D);
-        return IslandShape.pill(S24, 1080, side, keep, false, D);
+        return IslandShape.pill(S24, 1080, side, side, D);
     }
 
     @Test

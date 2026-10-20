@@ -11,13 +11,17 @@ final class NotchScene {
     /** Which icon and accent a shape or row uses. */
     enum Look { TASK, EVENT, WATER, HABIT, MEAL, REMINDER, ALARM }
 
-    /** The open island's controls: Done ticks the task, Glass logs water, Later holds due water and routine nudges. */
-    enum Control { DONE, GLASS, LATER }
+    /** Done ticks the task island's task; the habit island has Glass or Log meal, then Later. */
+    enum Control { DONE, GLASS, LOG_MEAL, LATER }
 
     static final String WATER_SNOOZE = "water";
 
     static String routineSnooze(String routineId) {
         return "routine:" + routineId;
+    }
+
+    static String mealSnooze(String slot) {
+        return "meal:" + slot;
     }
 
     static final class Row {
@@ -69,7 +73,7 @@ final class NotchScene {
     /** The collapsed pill's value for the current item: "25m" left, or the start time ("4:30", with AM/PM only beyond 12 h). */
     final String pillValue;
     final String spoken;
-    /** The expanded panel's hero row: the current item, else the due water or routine. */
+    /** The task island's hero: the current task or event; null when nothing timed is left today. */
     final Look heroLook;
     final String heroTitle;
     final String heroSubtitle;
@@ -95,6 +99,9 @@ final class NotchScene {
     final String meal;
     final int snoozeMinutes;
     final boolean canLogMeal;
+    final NotchHabits.Habit topHabit;
+    final NotchHabits.MealMeter meals;
+    final String mealTitle;
 
     NotchScene(NotchData data, long now, Map<String, Long> snoozes, ZoneId zone, boolean h24) {
         List<NotchDay.Slot> slots = NotchDay.today(data.tasks, now, zone);
@@ -119,6 +126,9 @@ final class NotchScene {
         }
         habit = due;
         meal = body.present ? NotchHabits.unloggedMeal(body, now, zone) : null;
+        meals = NotchHabits.mealMeter(body, now, zone);
+        mealTitle = meal == null ? "" : NotchHabits.mealName(body, meal);
+        topHabit = NotchHabits.top(waterDue(), meal != null && snooze(snoozes, mealSnooze(meal)) <= now ? meal : null);
 
         if (hero != null) {
             heroLook = hero.task.fixed ? Look.EVENT : Look.TASK;
@@ -140,26 +150,16 @@ final class NotchScene {
             }
         } else {
             pillValue = spoken = null;
-            if (waterDue() || habit == null) {
-                heroLook = Look.WATER;
-                heroTitle = "Water";
-                heroSubtitle = waterDue() ? "Due now" : "Not due yet";
-                progress = water == null ? 0 : Math.min(1f, water.count / (float) water.goal);
-                barSpoken = water == null ? "" : water.count + " of " + water.goal + " glasses";
-            } else {
-                heroLook = Look.HABIT;
-                heroTitle = habit.routine.name;
-                heroSubtitle = habit.nextStep == null ? "Routine" : "Next: " + habit.nextStep;
-                progress = habit.done / (float) habit.total;
-                barSpoken = habit.done + " of " + habit.total + " steps done";
-            }
+            heroLook = null;
+            heroTitle = heroSubtitle = barSpoken = "";
+            progress = 0;
         }
 
         List<NotchDay.Slot> later = NotchDay.after(slots, hero, Integer.MAX_VALUE);
         boolean alertRow = nextAlert != null && nextAlert != hero && (later.isEmpty() || later.get(0) != nextAlert);
         if (!later.isEmpty()) rows.add(slotRow(later.get(0), now, zone, h24));
-        if (habit != null && heroLook != Look.HABIT) rows.add(new Row(Look.HABIT, habit.routine.name, habit.done + " of " + habit.total));
-        if (water != null && heroLook != Look.WATER) rows.add(new Row(Look.WATER, "Water", water.count + " of " + water.goal + (water.pending ? " · due" : "")));
+        if (habit != null) rows.add(new Row(Look.HABIT, habit.routine.name, habit.done + " of " + habit.total));
+        if (water != null) rows.add(new Row(Look.WATER, "Water", water.count + " of " + water.goal + (water.pending ? " · due" : "")));
         if (meal != null) rows.add(new Row(Look.MEAL, NotchHabits.mealName(body, meal), "Not logged"));
         for (int i = 1; i < later.size(); i++) if (!alertRow || later.get(i) != nextAlert) rows.add(slotRow(later.get(i), now, zone, h24));
         if (alertRow) {
@@ -198,30 +198,35 @@ final class NotchScene {
         return hero != null && !hero.task.fixed;
     }
 
-    /** With no task to tick, water is the hero and its first control logs a glass. */
-    boolean canDrink() {
-        return water != null && heroLook == Look.WATER;
-    }
-
     boolean canSnooze() {
         return waterDue() || habit != null;
     }
 
-    /**
-     * One primary control for the hero, and Later beside Glass when water is due. A control that cannot act is left out,
-     * never greyed: a calendar event has none.
-     */
+    /** The task island's one control: Done, left out (never greyed) for a calendar event. */
     List<Control> controls() {
         List<Control> out = new ArrayList<>();
-        if (hero != null) {
-            if (canDone()) out.add(Control.DONE);
-        } else if (canDrink()) {
-            out.add(Control.GLASS);
-            if (canSnooze()) out.add(Control.LATER);
-        } else if (canSnooze()) {
-            out.add(Control.LATER);
-        }
+        if (canDone()) out.add(Control.DONE);
         return out;
+    }
+
+    List<Control> habitControls() {
+        List<Control> out = new ArrayList<>();
+        if (topHabit == null) return out;
+        out.add(topHabit == NotchHabits.Habit.WATER ? Control.GLASS : Control.LOG_MEAL);
+        out.add(Control.LATER);
+        return out;
+    }
+
+    String habitLine() {
+        if (topHabit == NotchHabits.Habit.WATER) return water.count + " of " + water.goal + " glasses";
+        if (topHabit == NotchHabits.Habit.MEAL) return mealTitle + " not logged";
+        return "";
+    }
+
+    String habitKey() {
+        if (topHabit == NotchHabits.Habit.WATER) return "water|" + water.count + "/" + water.goal;
+        if (topHabit == NotchHabits.Habit.MEAL) return "meal|" + meal + "|" + habitLine() + "|" + meals.key();
+        return "-";
     }
 
     /**
@@ -250,7 +255,7 @@ final class NotchScene {
     String key() {
         StringBuilder k = new StringBuilder(hero == null ? "-" : hero.task.id + "@" + hero.start);
         k.append('|').append(heroLook).append(heroTitle).append('|').append(heroSubtitle).append('|')
-                .append('|').append(Math.round(progress * 1000)).append(canDone()).append(canDrink()).append(canSnooze()).append(canLogMeal)
+                .append('|').append(Math.round(progress * 1000)).append(canDone()).append(canSnooze()).append(canLogMeal)
                 .append(meal != null).append('|').append(heroAlert).append('|').append(candidates);
         for (int i = 0; i < rows.size(); i++) {
             Row r = rows.get(i);

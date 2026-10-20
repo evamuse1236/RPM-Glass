@@ -43,11 +43,6 @@ final class NotchAnchor {
         return new NotchAnchor(false, displayWidth / 2, dp(FALLBACK_TOP_DP, density), 0, pill);
     }
 
-    /** The width of each side of the collapsed pill. Both sides match, so the camera sits in the middle. */
-    static int pillSide(int lead, int trail, int keep, int minWidth) {
-        return Math.max(Math.max(lead, trail), (minWidth - keep + 1) / 2);
-    }
-
     int pillTop() {
         return top;
     }

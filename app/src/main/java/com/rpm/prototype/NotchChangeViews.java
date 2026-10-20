@@ -38,7 +38,7 @@ final class NotchChangeViews {
     }
 
     /** Undo: a 40dp pill, 48dp to touch, whose lighter part drains from end to start over the 5 seconds it lasts. */
-    private View undo(NotchReceipt r, NotchContent.Actions actions) {
+    View undo(NotchReceipt r, NotchContent.Actions actions) {
         int reach = (parts.dp(NotchGeometry.TOUCH_DP) - parts.dp(NotchGeometry.CONTROL_DP)) / 2;
         float radius = parts.dp(NotchGeometry.innerRadius(NotchGeometry.PAD_DP));
         TextView undo = parts.text("Undo", 15, NotchInk.TASK, 600);

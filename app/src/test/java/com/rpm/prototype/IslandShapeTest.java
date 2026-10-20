@@ -30,7 +30,6 @@ public class IslandShapeTest {
         assertEquals("never more than 16dp", dp(16), IslandShape.island(low, 1080, 700, D).left, 1f);
         assertEquals(S24.pillTop(), open.top, 0f);
         assertEquals(S24.pillTop() + 700f, open.bottom, 0f);
-        assertEquals(0f, open.splitR, 0f);
     }
 
     @Test
@@ -84,46 +83,64 @@ public class IslandShapeTest {
         assertTrue("the island is as tall as its face, so nothing is clipped", pill.contains("Math.max(face.getMeasuredHeight(), h)"));
     }
 
-    @Test
-    public void pillMinWidthIs112() {
-        assertEquals(112, NotchGeometry.MIN_PILL_WIDTH_DP);
-        int keep = S24.holeWidth + NotchAnchor.dp(12, D);
-        int side = NotchAnchor.pillSide(10, 10, keep, NotchAnchor.dp(NotchGeometry.MIN_PILL_WIDTH_DP, D));
-        IslandShape p = IslandShape.pill(S24, 1080, side, keep, false, D);
-        assertEquals(dp(112), p.width(), 2f);
+    private static IslandShape drops(NotchAnchor a, boolean task, boolean habit) {
+        int keep = Math.max(NotchAnchor.dp(24, D), a.holeWidth + NotchAnchor.dp(12, D));
+        int drop = NotchGeometry.dropHeight(a.pillHeight, D);
+        int taskSide = task ? NotchGeometry.dropSide(keep, NotchGeometry.taskDropWidth(drop), a.pillHeight, drop, D) : 0;
+        int habitSide = habit ? NotchGeometry.dropSide(keep, drop, a.pillHeight, drop, D) : 0;
+        int[] sides = NotchGeometry.pillSides(taskSide, habitSide, NotchGeometry.bareSide(keep, a.pillHeight));
+        return IslandShape.pill(a, 1080, sides[0], sides[1], D);
     }
 
     @Test
-    public void thePillsRingIsConcentricWithItsEnds() {
-        int keep = TALL.holeWidth + NotchAnchor.dp(12, D);
-        IslandShape p = IslandShape.pill(TALL, 1080, 200, keep, false, D);
-        assertEquals(dp(36), p.height(), 1f);
-        NotchGeometry.Band ring = NotchGeometry.pill(p, D, dp(15));
-        assertEquals("28dp ring", dp(28), ring.diameter, 0f);
-        float inset = ring.ringLeft() - p.left;
-        assertEquals("inset 4dp", dp(4), inset, 1f);
-        assertEquals("18 - 4 = 14, the ring's radius", p.radius - inset, ring.diameter / 2f, 1f);
-        IslandShape small = IslandShape.pill(S24, 1080, 200, keep, false, D);
-        NotchGeometry.Band smallRing = NotchGeometry.pill(small, D, dp(15));
-        assertEquals("a short pill shrinks the ring, not the inset", small.radius - (smallRing.ringLeft() - small.left), smallRing.diameter / 2f, 1f);
+    public void eachDropIsConcentricWithThePillsRoundEnd() {
+        for (NotchAnchor a : new NotchAnchor[]{TALL, S24}) {
+            IslandShape p = drops(a, true, true);
+            int drop = NotchGeometry.dropHeight(a.pillHeight, D);
+            Box task = NotchGeometry.taskDrop(p, drop, NotchGeometry.taskDropWidth(drop));
+            Box habit = NotchGeometry.habitDrop(p, drop, drop);
+            float inset = task.left - p.left;
+            assertEquals("inset 4dp", dp(4), inset, 1f);
+            assertEquals("the drop's round end sits inside the pill's", p.radius - inset, task.height() / 2f, 1f);
+            assertEquals(p.right - habit.right, inset, 1f);
+            assertEquals(task.top - p.top, p.bottom - task.bottom, 1f);
+        }
+        assertEquals("28dp drops in a 36dp pill", dp(28), NotchGeometry.dropHeight(TALL.pillHeight, D), 0f);
+        assertEquals("the task drop is the prototype's 36 by 22 capsule", 36f / 22f, NotchGeometry.taskDropWidth(220) / 220f, 0.01f);
     }
 
     @Test
-    public void pillStaysCentredOnTheCameraWithTheSplitCircleToItsLeft() {
-        int keep = S24.holeWidth + NotchAnchor.dp(12, D);
-        IslandShape p = IslandShape.pill(S24, 1080, 200, keep, true, D);
+    public void bothDropsKeepTheCameraCentredWithTheTaskBeforeItAndTheHabitAfterIt() {
+        IslandShape p = drops(S24, true, true);
         assertEquals(S24.centerX, (p.left + p.right) / 2f, 1f);
         assertEquals(S24.pillHeight / 2f, p.radius, 0f);
-        assertTrue(p.splitCx + p.splitR <= p.left - NotchAnchor.dp(8, D) + 1);
-        assertTrue("the split circle takes taps too", p.touch.contains(p.splitCx, p.splitCy));
+        int drop = NotchGeometry.dropHeight(S24.pillHeight, D);
+        int keep = S24.holeWidth + NotchAnchor.dp(12, D);
+        Box task = NotchGeometry.taskDrop(p, drop, NotchGeometry.taskDropWidth(drop));
+        Box habit = NotchGeometry.habitDrop(p, drop, drop);
+        assertTrue("the task drop clears the camera by 8dp", task.right <= S24.centerX - keep / 2 - NotchAnchor.dp(8, D) + 1);
+        assertTrue("so does the habit drop", habit.left >= S24.centerX + keep / 2 + NotchAnchor.dp(8, D) - 1);
+        assertTrue("both drops take taps", p.touch.contains(task.left + 1, p.top + 1) && p.touch.contains(habit.right - 1, p.top + 1));
     }
 
     @Test
-    public void theSplitCircleFoldsIntoTheBandsLeadingCircle() {
-        IslandShape open = IslandShape.island(S24, 1080, 700, D);
-        NotchGeometry.Band band = NotchGeometry.island(open, D, dp(22));
-        assertEquals(band.cx, open.splitCx, 0.5f);
-        assertEquals(band.cy, open.splitCy, 0.5f);
+    public void oneDropLeavesTheOtherSideHuggingTheCamera() {
+        int keep = S24.holeWidth + NotchAnchor.dp(12, D);
+        IslandShape task = drops(S24, true, false);
+        assertEquals("no habit: the pill ends just past the camera", S24.centerX + NotchGeometry.bareSide(keep, S24.pillHeight), task.right, 1f);
+        IslandShape habit = drops(S24, false, true);
+        assertEquals("no task: the pill starts just before the camera", S24.centerX - NotchGeometry.bareSide(keep, S24.pillHeight), habit.left, 1f);
+        assertTrue("the camera stays covered", habit.left <= S24.centerX - S24.holeWidth / 2f && task.right >= S24.centerX + S24.holeWidth / 2f);
+    }
+
+    @Test
+    public void theTaskIslandsRingGrowsOutOfTheTaskDrop() {
+        IslandShape p = drops(S24, true, true);
+        int drop = NotchGeometry.dropHeight(S24.pillHeight, D);
+        Box task = NotchGeometry.taskDrop(p, drop, NotchGeometry.taskDropWidth(drop));
+        NotchGeometry.Band band = NotchGeometry.pill(p, task, D, dp(15));
+        assertEquals((task.left + task.right) / 2f, band.cx, 0.5f);
+        assertEquals(task.height(), band.diameter, 0f);
     }
 
     @Test
@@ -148,8 +165,7 @@ public class IslandShapeTest {
 
     @Test
     public void facesShrinkWithTheIslandSoTheyAlwaysFitInsideIt() {
-        int keep = S24.holeWidth + NotchAnchor.dp(12, D);
-        IslandShape pill = IslandShape.pill(S24, 1080, 200, keep, false, D);
+        IslandShape pill = drops(S24, true, true);
         IslandShape open = IslandShape.island(S24, 1080, 700, D);
         float w = open.width(), h = open.height();
         assertEquals("a settled face is drawn at its own size", 1f, IslandShape.faceScale(w, h, w, h), 0f);
@@ -166,8 +182,7 @@ public class IslandShapeTest {
 
     @Test
     public void openingWidensFirstAndClosingNarrowsLastSoTheEdgePassesTheClockQuickly() {
-        int keep = S24.holeWidth + NotchAnchor.dp(12, D);
-        IslandShape pill = IslandShape.pill(S24, 1080, 200, keep, false, D);
+        IslandShape pill = drops(S24, true, true);
         IslandShape open = IslandShape.island(S24, 1080, 700, D);
         IslandShape opening = IslandShape.morph(pill, open, IslandShape.WIDTH_SHARE);
         assertEquals("opening: full width by the middle", open.left, opening.left, 0.01f);
@@ -182,8 +197,7 @@ public class IslandShapeTest {
 
     @Test
     public void halfwayMorphSitsBetweenBothShapes() {
-        int keep = S24.holeWidth + NotchAnchor.dp(12, D);
-        IslandShape p = IslandShape.pill(S24, 1080, 200, keep, false, D);
+        IslandShape p = drops(S24, true, true);
         IslandShape open = IslandShape.island(S24, 1080, 700, D);
         IslandShape mid = IslandShape.lerp(p, open, 0.5f);
         assertEquals((p.left + open.left) / 2f, mid.left, 0.01f);

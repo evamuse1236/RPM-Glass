@@ -3,15 +3,26 @@ package com.rpm.prototype;
 import com.rpm.prototype.NotchFrame.Mode;
 
 /**
- * What the person opened: the island, or one alert's controls inside it. Alerts and receipts sit over this. Only a
- * touch opens it, so whatever hides the island (lock, sleep, turning sideways) closes it and it comes back as the pill.
+ * What the person opened: the task island, one alert's controls inside it, or the habit island. Alerts and receipts sit
+ * over this. Only a touch opens it, so whatever hides the island (lock, sleep, turning sideways) closes it and it comes
+ * back as the pill.
  */
 final class IslandState {
     private boolean expanded;
+    private boolean habit;
     private NotchFrame.Managed managed;
 
     boolean expanded() {
         return expanded;
+    }
+
+    boolean habit() {
+        return habit;
+    }
+
+    void openHabit() {
+        expand(false);
+        habit = true;
     }
 
     NotchFrame.Managed managed() {
@@ -21,6 +32,7 @@ final class IslandState {
     /** Opens or closes the island; either way the alert controls close. */
     void expand(boolean open) {
         expanded = open;
+        habit = false;
         managed = null;
     }
 
@@ -48,6 +60,7 @@ final class IslandState {
         if (alert != null) return alert.type == NotchAlert.Type.ALARM ? Mode.ALARM : Mode.REMINDER;
         if (receipt != null) return Mode.RECEIPT;
         if (managed != null) return Mode.MANAGE;
+        if (habit) return Mode.HABIT;
         return expanded ? Mode.OPEN : Mode.PILL;
     }
 

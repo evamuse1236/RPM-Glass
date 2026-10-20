@@ -1,8 +1,6 @@
 package com.rpm.prototype;
 
 import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.Paint;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -14,8 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The pill and the open island's face (playground/notch-view.mjs is its copy). The band's ring and value are drawn by
- * IslandBand; the face holds the title, the line in the accent, one primary control and up to three 44dp rows.
+ * The task island's face (playground/notch-view.mjs is its copy). The band's ring and value are drawn by IslandBand;
+ * the face holds the title, the line in the accent, one primary control and up to three 44dp rows.
  */
 final class NotchContent {
     interface Actions {
@@ -24,6 +22,10 @@ final class NotchContent {
 
         /** Logs one glass in place, with Undo. */
         void drink();
+
+        void habitGlass();
+
+        void habitLater();
 
         void snooze();
 
@@ -69,34 +71,17 @@ final class NotchContent {
         parts = new NotchParts(context);
     }
 
-    /** The pill's face is empty: its ring and value are the band's, drawn over it. */
-    View pill() {
-        View v = new View(context);
-        v.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-        return v;
-    }
-
-    /** The split circle beside the pill: the second kind's live ring and glyph, no text. */
-    View split(NotchBand band, int ringPx) {
-        return new SplitRing(context, band, ringPx, NotchGeometry.PILL_STROKE_DP * context.getResources().getDisplayMetrics().density);
-    }
-
-    /** The open island: title, line, the hero's one control (two when Later sits beside Glass), then {@code maxRows} rows. */
+    /** The task island: title, line, the hero's one control, then {@code maxRows} rows. */
     View panel(NotchScene scene, Actions actions, int maxRows) {
         LinearLayout col = new LinearLayout(context);
         FrameLayout face = parts.face(col);
         Look look = scene.heroLook;
         int accent = NotchInk.accent(look);
-        parts.bandSpeaks(face, bandSpoken(scene), 0);
-        if (scene.hero != null) {
-            col.addView(parts.words(scene.heroTitle, scene.heroSubtitle, accent, "Open " + scene.heroTitle + " in the plan", actions::openHero));
-        } else {
-            col.addView(parts.title(scene.heroTitle));
-            col.addView(parts.line(scene.heroSubtitle, accent));
-        }
+        parts.bandSpeaks(face, scene.spoken, 0);
+        col.addView(parts.words(scene.heroTitle, scene.heroSubtitle, accent, "Open " + scene.heroTitle + " in the plan", actions::openHero));
 
         List<View> pills = new ArrayList<>();
-        for (Control c : scene.controls()) pills.add(control(c, scene, actions, pills.isEmpty(), accent));
+        if (scene.controls().contains(Control.DONE)) pills.add(parts.pill(R.drawable.ic_check, "Done", "Done: " + scene.heroTitle, accent, true, actions::done));
         List<View> rows = rows(scene, actions, maxRows);
         if (!pills.isEmpty()) col.addView(parts.controls(pills.toArray(new View[0])), parts.controlsAt(rows.isEmpty()));
         if (!rows.isEmpty()) {
@@ -107,22 +92,6 @@ final class NotchContent {
         int more = scene.more(maxRows);
         if (more > 0) col.addView(parts.more(more));
         return face;
-    }
-
-    private View control(Control c, NotchScene scene, Actions actions, boolean primary, int heroAccent) {
-        switch (c) {
-            case DONE:
-                return parts.pill(R.drawable.ic_check, "Done", "Done: " + scene.heroTitle, heroAccent, primary, actions::done);
-            case GLASS:
-                return parts.pill(R.drawable.notch_ic_water, "Glass", "Log a glass of water", NotchInk.WATER, primary, actions::drink);
-            default:
-                return parts.pill(R.drawable.notch_ic_snooze, "Later", "Snooze " + scene.snoozeMinutes + " minutes", heroAccent, primary, actions::snooze);
-        }
-    }
-
-    private static String bandSpoken(NotchScene s) {
-        if (s.hero != null) return s.spoken;
-        return s.barSpoken.isEmpty() ? s.heroTitle : s.heroTitle + ", " + s.barSpoken;
     }
 
     private List<View> rows(NotchScene scene, Actions actions, int maxRows) {
@@ -172,28 +141,5 @@ final class NotchContent {
 
     private View value(String s, int color) {
         return parts.text(s, 14, color, 500);
-    }
-
-    /** The split circle's content: one IslandBand ring, centred. */
-    private static final class SplitRing extends View {
-        private final IslandBand painter;
-        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final NotchBand band;
-        private final int ring;
-        private final float stroke;
-
-        SplitRing(Context context, NotchBand band, int ring, float stroke) {
-            super(context);
-            this.band = band;
-            this.ring = ring;
-            this.stroke = stroke;
-            painter = new IslandBand(this);
-            setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
-        }
-
-        @Override
-        protected void onDraw(Canvas canvas) {
-            painter.drawRing(canvas, paint, band, getWidth() / 2f, getHeight() / 2f, ring, stroke, band.progress);
-        }
     }
 }

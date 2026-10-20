@@ -8,7 +8,7 @@ export const css = px => `${px / D}px`;
 /** Section 0 of docs/notch-redesign-plan.md, in dp: one 36dp corner, a 16dp margin on all four sides, inner corners 36 less their inset. */
 export const G = Object.freeze({
   RADIUS_DP: 36, PAD_DP: 16, CIRCLE_DP: 40, CONTROL_DP: 40, TOUCH_DP: 48, ROW_DP: 44, ROW_OUTSET_DP: 8, BAND_GAP_DP: 12,
-  CONTROLS_GAP_DP: 16, ROWS_GAP_DP: 12, PAIR_GAP_DP: 8, PILL_RING_DP: 28, PILL_RING_INSET_DP: 4, MIN_PILL_WIDTH_DP: 112,
+  CONTROLS_GAP_DP: 16, ROWS_GAP_DP: 12, PAIR_GAP_DP: 8, PILL_RING_DP: 28, PILL_RING_INSET_DP: 4, DROP_GAP_DP: 8, METER_DP: 72,
   VALUE_START_DP: 8, VALUE_END_DP: 14, VALUE_CAP_DP: 12, CHIP_DP: 16, PILL_VALUE_SP: 15, BAND_VALUE_SP: 22, ALERT_TIME_SP: 17,
   MAX_HEIGHT_SHARE: 0.6, SHORT_TITLE_LINES: 2,
 });

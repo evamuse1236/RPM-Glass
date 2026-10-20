@@ -7,7 +7,6 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.rpm.prototype.NotchFrame.Mode;
-import com.rpm.prototype.PillPriority.Kind;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -34,9 +33,7 @@ public class NotchFrameTest {
 
     private static NotchFrame frame(NotchData data, String local, Mode mode) {
         NotchScene scene = new NotchScene(data, at(local), Collections.emptyMap(), KOLKATA, false);
-        PillPriority priority = new PillPriority();
-        priority.show(Kind.TASK, scene.pillValue, 0);
-        return new NotchFrame(mode, priority.primary(0), priority.secondary(0), scene, null, null);
+        return new NotchFrame(mode, scene, null, null);
     }
 
     @Test
@@ -57,12 +54,52 @@ public class NotchFrameTest {
     }
 
     @Test
-    public void windowEventsWithinTheSameMinuteDoNotChangeThePill() throws Exception {
+    public void thePillRedrawsOnlyWhenADropChangesNotEachMinute() throws Exception {
         NotchData data = day();
         String first = frame(data, "2026-10-18T15:40:05", Mode.PILL).key(PLACE);
-        assertEquals(first, frame(data, "2026-10-18T15:40:09", Mode.PILL).key(PLACE));
         assertEquals(first, frame(data, "2026-10-18T15:40:31", Mode.PILL).key(PLACE));
-        assertNotEquals(first, frame(data, "2026-10-18T15:41:05", Mode.PILL).key(PLACE));
+        assertEquals("the drops carry no clock", first, frame(data, "2026-10-18T15:41:05", Mode.PILL).key(PLACE));
+        assertNotEquals("the next task takes the drop", first, frame(data, "2026-10-18T16:20:00", Mode.PILL).key(PLACE));
+        String open = frame(data, "2026-10-18T15:40:05", Mode.OPEN).key(PLACE);
+        assertNotEquals("the open island's time still moves", open, frame(data, "2026-10-18T15:41:05", Mode.OPEN).key(PLACE));
+    }
+
+    private static NotchData waterDay(int glasses) throws Exception {
+        JSONArray drunk = new JSONArray();
+        for (int i = 0; i < glasses; i++) drunk.put(java.time.Instant.ofEpochMilli(at("2026-10-18T08:00") + i * 60_000L).toString());
+        JSONObject body = new JSONObject().put("water", new JSONObject().put("glasses", drunk));
+        JSONObject task = new JSONObject().put("id", 7).put("title", "Call Prof. Rao").put("raw", "Call Prof. Rao").put("kind", "plan")
+                .put("planned", java.time.Instant.ofEpochMilli(at("2026-10-18T15:30")).toString()).put("minutes", 45);
+        return NotchData.parse(new JSONObject().put("version", 1).put("entries", new JSONArray().put(task))
+                .put("planner", new JSONObject().put("body", body)), new JSONArray());
+    }
+
+    @Test
+    public void eachDropOpensItsOwnIsland() throws Exception {
+        NotchFrame both = frame(waterDay(2), "2026-10-18T15:40", Mode.PILL);
+        assertTrue(both.taskDrop() && both.habitDrop());
+        assertEquals(Mode.OPEN, both.opens(NotchFrame.Side.TASK));
+        assertEquals(Mode.HABIT, both.opens(NotchFrame.Side.HABIT));
+        assertEquals("the task drop is the task's own tone and icon", R.drawable.sym_call, both.dropIcon());
+        assertTrue(both.spoken(NotchFrame.Side.TASK).endsWith("Opens the island."));
+        assertEquals("Water due, 2 of 8 glasses. Opens water.", both.spoken(NotchFrame.Side.HABIT));
+        NotchFrame taskOnly = frame(day(), "2026-10-18T15:40", Mode.PILL);
+        assertFalse(taskOnly.habitDrop());
+        assertEquals("a lone drop opens its island from either side", Mode.OPEN, taskOnly.opens(NotchFrame.Side.HABIT));
+        NotchFrame waterOnly = frame(waterDay(2), "2026-10-18T21:00", Mode.PILL);
+        assertFalse(waterOnly.taskDrop());
+        assertEquals(Mode.HABIT, waterOnly.opens(NotchFrame.Side.TASK));
+        assertTrue(waterOnly.showsPill());
+        NotchFrame nothing = frame(NotchData.parse(new JSONObject(), null), "2026-10-18T21:00", Mode.PILL);
+        assertFalse("nothing to show hides the pill", nothing.showsPill());
+        assertEquals(Mode.PILL, nothing.opens(NotchFrame.Side.TASK));
+    }
+
+    @Test
+    public void aLoggedGlassRedrawsTheHabitDropAndItsIsland() throws Exception {
+        assertNotEquals(frame(waterDay(2), "2026-10-18T15:40", Mode.PILL).key(PLACE), frame(waterDay(3), "2026-10-18T15:40", Mode.PILL).key(PLACE));
+        assertNotEquals(frame(waterDay(2), "2026-10-18T15:40", Mode.HABIT).key(PLACE), frame(waterDay(3), "2026-10-18T15:40", Mode.HABIT).key(PLACE));
+        assertEquals(frame(waterDay(2), "2026-10-18T15:40", Mode.HABIT).key(PLACE), frame(waterDay(2), "2026-10-18T15:41", Mode.HABIT).key(PLACE));
     }
 
     @Test
@@ -122,9 +159,11 @@ public class NotchFrameTest {
     @Test
     public void aNoteReplacesThePillValue() throws Exception {
         NotchFrame plain = frame(day(), "2026-10-18T15:40:05", Mode.PILL);
-        NotchFrame snoozed = new NotchFrame(Mode.PILL, plain.primary, null, plain.scene, null, new NotchFrame.Note("+10m", true, "Snoozed 10 minutes"));
+        NotchFrame snoozed = new NotchFrame(Mode.PILL, plain.scene, null, new NotchFrame.Note("+10m", true, "Snoozed 10 minutes"));
+        assertEquals("", plain.pillValue());
         assertEquals("+10m", snoozed.pillValue());
         assertTrue(snoozed.chip());
+        assertEquals("Snoozed 10 minutes", snoozed.spoken(NotchFrame.Side.HABIT));
         assertNotEquals(plain.key(PLACE), snoozed.key(PLACE));
     }
 
@@ -143,7 +182,7 @@ public class NotchFrameTest {
     public void reminderNeverSaysAlarm() throws Exception {
         NotchAlert reminder = new NotchAlert(NotchAlert.Type.REMINDER, 7, "Call the bank", at("2026-10-18T17:30"), KOLKATA, false);
         NotchScene scene = new NotchScene(day(), at("2026-10-18T17:30"), Collections.emptyMap(), KOLKATA, false);
-        NotchBand band = NotchBand.of(new NotchFrame(Mode.REMINDER, null, null, scene, reminder, null), 0);
+        NotchBand band = NotchBand.of(new NotchFrame(Mode.REMINDER, scene, reminder, null), 0);
         assertNotEquals("a reminder shows a bell, never the alarm clock", R.drawable.ic_clock, band.glyph);
         assertEquals(R.drawable.ic_notification, band.glyph);
         assertEquals("its time, without AM/PM", "5:30", band.value);
@@ -151,7 +190,7 @@ public class NotchFrameTest {
         assertFalse(band.pulse);
         assertFalse((reminder.reminderLine() + reminder.spoken() + band.value).toLowerCase().matches(".*(alarm|ringing).*"));
         NotchAlert alarm = new NotchAlert(NotchAlert.Type.ALARM, 7, "Call the bank", at("2026-10-18T17:30"), KOLKATA, false);
-        NotchBand ringing = NotchBand.of(new NotchFrame(Mode.ALARM, null, null, scene, alarm, null), 0);
+        NotchBand ringing = NotchBand.of(new NotchFrame(Mode.ALARM, scene, alarm, null), 0);
         assertEquals(NotchBand.Disc.ALARM, ringing.disc);
         assertEquals("the band shows the alarm's time; Stop is the primary under the words", "5:30", ringing.value);
         assertTrue(ringing.pulse);
@@ -168,22 +207,18 @@ public class NotchFrameTest {
         assertEquals("tinted by kind: the notch's task blue", NotchInk.TASK, band.valueColor);
         assertEquals(10 / 45f, band.progress, 0.01f);
         assertEquals(22f, band.valueSp, 0f);
-        NotchFrame pill = frame(day(), "2026-10-18T15:40:05", Mode.PILL);
-        NotchBand small = NotchBand.of(pill, 0);
-        assertEquals("the pill's value is white", NotchInk.WHITE, small.valueColor);
-        assertEquals(15f, small.valueSp, 0f);
-        assertEquals(band.glyph, small.glyph);
-        assertEquals(band.progress, small.progress, 0f);
+        assertEquals("the drops carry no band", NotchBand.Disc.NONE, NotchBand.of(frame(day(), "2026-10-18T15:40:05", Mode.PILL), 0).disc);
+        assertEquals("nor does the habit island", NotchBand.Disc.NONE, NotchBand.of(frame(waterDay(2), "2026-10-18T15:40:05", Mode.HABIT), 0).disc);
     }
 
     @Test
     public void sharedRingAndValueTravelOnOpen() {
         float d = 450f / 160f;
         NotchAnchor s24 = NotchAnchor.fromCutout(506, 24, 574, 92, 92, d);
-        int keep = s24.holeWidth + NotchAnchor.dp(12, d);
-        IslandShape pill = IslandShape.pill(s24, 1080, 150, keep, false, d);
+        IslandShape pill = IslandShape.pill(s24, 1080, 150, 150, d);
         IslandShape island = IslandShape.island(s24, 1080, 600, d);
-        NotchGeometry.Band a = NotchGeometry.pill(pill, d, 15 * d);
+        int drop = NotchGeometry.dropHeight(s24.pillHeight, d);
+        NotchGeometry.Band a = NotchGeometry.pill(pill, NotchGeometry.taskDrop(pill, drop, NotchGeometry.taskDropWidth(drop)), d, 15 * d);
         NotchGeometry.Band b = NotchGeometry.island(island, d, 22 * d);
         NotchGeometry.Band start = NotchGeometry.Band.lerp(a, b, 0f);
         NotchGeometry.Band end = NotchGeometry.Band.lerp(a, b, 1f);
@@ -194,7 +229,7 @@ public class NotchFrameTest {
         assertEquals("the ring grows from 28dp or less to 40dp", NotchAnchor.dp(40, d), b.diameter, 0f);
         assertTrue(a.diameter < mid.diameter && mid.diameter < b.diameter);
         assertTrue("the value grows from 15sp to 22sp", a.valuePx < mid.valuePx && mid.valuePx < b.valuePx);
-        assertTrue("the value moves out from the pill's end", mid.valueRight > a.valueRight && mid.valueRight < b.valueRight);
+        assertTrue("the value moves out from the task drop", mid.valueRight > a.valueRight && mid.valueRight < b.valueRight);
         assertEquals(NotchMotion.OPEN_MS, NotchMotion.of(true).morphMs(true));
     }
 
@@ -235,19 +270,25 @@ public class NotchFrameTest {
     public void receiptReplacesBandWithRingAndUndo() throws Exception {
         NotchScene scene = new NotchScene(day(), at("2026-10-18T15:40"), Collections.emptyMap(), KOLKATA, false);
         NotchReceipt glass = NotchReceipt.glass(3, 8, 1000);
-        NotchBand saving = NotchBand.of(new NotchFrame(Mode.RECEIPT, null, null, scene, null, null, null, glass), 0);
+        NotchBand saving = NotchBand.of(new NotchFrame(Mode.RECEIPT, scene, null, null, null, glass), 0);
         assertEquals("the ring steps from 3 of 8", 3 / 8f, saving.from, 0.001f);
         assertEquals("to 4 of 8", 4 / 8f, saving.progress, 0.001f);
         assertEquals(R.drawable.notch_ic_water, saving.glyph);
         assertEquals(NotchInk.WATER, saving.accent);
         assertEquals("Undo, not a value, takes the trailing slot", "", saving.value);
-        NotchBand saved = NotchBand.of(new NotchFrame(Mode.RECEIPT, null, null, scene, null, null, null, glass.saved("t", null, 0L)), 0);
+        NotchBand saved = NotchBand.of(new NotchFrame(Mode.RECEIPT, scene, null, null, null, glass.saved("t", null, 0L)), 0);
         assertEquals("saving then saved keeps one fill, timed from the same start", saving.startedAt, saved.startedAt);
         assertTrue(glass.saved("t", null, 0L).canUndo());
-        NotchBand done = NotchBand.of(new NotchFrame(Mode.RECEIPT, null, null, scene, null, null, null, NotchReceipt.done("Essay", 5)), 0);
+        NotchBand done = NotchBand.of(new NotchFrame(Mode.RECEIPT, scene, null, null, null, NotchReceipt.done("Essay", 5)), 0);
         assertEquals(R.drawable.ic_check, done.glyph);
         assertEquals(1f, done.progress, 0f);
         assertEquals(NotchInk.TASK, done.accent);
+        NotchReceipt fromHabit = NotchReceipt.glass(3, 8, 1000, true);
+        assertEquals("a glass from the habit island keeps its meter, not the band", NotchBand.Disc.NONE,
+                NotchBand.of(new NotchFrame(Mode.RECEIPT, scene, null, null, null, fromHabit.saved("t", null, 0L)), 0).disc);
+        assertEquals(3, fromHabit.saved("t", null, 0L).fromCount());
+        assertEquals(4, fromHabit.saved("t", null, 0L).toCount());
+        assertNotEquals(glass.key(), fromHabit.key());
     }
 
     @Test

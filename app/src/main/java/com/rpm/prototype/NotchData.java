@@ -71,9 +71,10 @@ final class NotchData {
                 JSONObject block = b.optJSONObject(i);
                 if (block != null) blocks.put(block.optString("id"), block.optString("title"));
             }
+            Map<String, Integer> tones = tones(planner);
             JSONArray entries = data.optJSONArray("entries");
             for (int i = 0; entries != null && i < entries.length(); i++) {
-                NotchDay.Task task = task(entries.optJSONObject(i), blocks);
+                NotchDay.Task task = task(entries.optJSONObject(i), blocks, tones);
                 if (task != null) tasks.add(task);
             }
         }
@@ -91,7 +92,35 @@ final class NotchData {
     }
 
     /** Open, timed plan entries only, as tasks() and occurrences() in the planner keep them. */
-    private static NotchDay.Task task(JSONObject e, Map<String, String> blocks) {
+    static Map<String, Integer> tones(JSONObject planner) {
+        Map<String, Integer> out = new HashMap<>();
+        if (planner == null) return out;
+        Map<String, Integer> areas = new HashMap<>();
+        JSONArray a = planner.optJSONArray("areas");
+        for (int i = 0; a != null && i < a.length(); i++) {
+            JSONObject area = a.optJSONObject(i);
+            if (area != null) areas.put(area.optString("id"), area.has("colorIndex") && !area.isNull("colorIndex") ? area.optInt("colorIndex") : i % 8);
+        }
+        Map<String, String> goalArea = links(planner.optJSONArray("goals"), "areaId");
+        Map<String, String> projectGoal = links(planner.optJSONArray("projects"), "goalId");
+        Map<String, String> blockProject = links(planner.optJSONArray("blocks"), "projectId");
+        for (Map.Entry<String, String> block : blockProject.entrySet()) {
+            Integer tone = areas.get(goalArea.get(projectGoal.get(block.getValue())));
+            if (tone != null) out.put(block.getKey(), tone);
+        }
+        return out;
+    }
+
+    private static Map<String, String> links(JSONArray items, String field) {
+        Map<String, String> out = new HashMap<>();
+        for (int i = 0; items != null && i < items.length(); i++) {
+            JSONObject item = items.optJSONObject(i);
+            if (item != null && !item.isNull(field)) out.put(item.optString("id"), item.optString(field));
+        }
+        return out;
+    }
+
+    private static NotchDay.Task task(JSONObject e, Map<String, String> blocks, Map<String, Integer> tones) {
         if (e == null || e.optBoolean("archived") || e.optBoolean("done") || "cancelled".equals(e.optString("state"))) return null;
         if (!"plan".equals(e.optString("kind", "plan"))) return null;
         long planned = time(e.opt("planned"));
@@ -102,8 +131,9 @@ final class NotchData {
         int minutes = e.isNull("minutes") ? 30 : e.optInt("minutes", 30);
         String block = e.isNull("blockId") ? null : blocks.get(e.optString("blockId"));
         String title = e.optString("title", e.optString("raw"));
+        Integer tone = e.isNull("blockId") ? null : tones.get(e.optString("blockId"));
         return new NotchDay.Task(e.optLong("id"), title, block, Instant.ofEpochMilli(planned), minutes, e.optString("recurrence", ""), completed, false,
-                alertType(e), e.optString("purpose", ""));
+                alertType(e), e.optString("purpose", ""), tone == null ? -1 : tone);
     }
 
     /** "alarm", "reminder" or "": the task's alertIntent, else an older store's alert (CompanionAlerts schedules by this). */

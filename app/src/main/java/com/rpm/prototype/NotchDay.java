@@ -35,6 +35,7 @@ final class NotchDay {
         final String alert;
         /** Why the person does it, in their words; "" when they gave none. */
         final String purpose;
+        final int tone;
 
         Task(long id, String title, String block, Instant planned, int minutes, String recurrence, Set<String> completedOccurrences) {
             this(id, title, block, planned, minutes, recurrence, completedOccurrences, false, "");
@@ -47,6 +48,12 @@ final class NotchDay {
 
         Task(long id, String title, String block, Instant planned, int minutes, String recurrence, Set<String> completedOccurrences, boolean fixed,
              String alert, String purpose) {
+            this(id, title, block, planned, minutes, recurrence, completedOccurrences, fixed, alert, purpose, -1);
+        }
+
+        Task(long id, String title, String block, Instant planned, int minutes, String recurrence, Set<String> completedOccurrences, boolean fixed,
+             String alert, String purpose, int tone) {
+            this.tone = tone;
             this.purpose = purpose == null ? "" : purpose.trim();
             this.id = id;
             this.title = title;

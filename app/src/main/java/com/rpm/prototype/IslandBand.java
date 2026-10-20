@@ -165,6 +165,7 @@ final class IslandBand {
     }
 
     void drawRing(Canvas canvas, Paint p, NotchBand b, float cx, float cy, float d, float stroke, float fill) {
+        if (b.disc == NotchBand.Disc.NONE) return;
         p.setStyle(Paint.Style.FILL);
         if (b.disc == NotchBand.Disc.PLAIN || b.disc == NotchBand.Disc.ALARM) {
             p.setColor(b.disc == NotchBand.Disc.ALARM ? NotchInk.intoBlack(NotchInk.ALARM, NotchInk.ALARM_DISC_SHARE) : NotchInk.PRESS);
