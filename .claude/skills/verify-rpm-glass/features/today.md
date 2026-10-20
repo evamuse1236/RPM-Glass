@@ -1,6 +1,6 @@
 # Today
 
-Today is the planner's home screen. It opens on the **spine**: the whole day in time order on one line, at now. Above it are the date line (sticky), the next seven days, one line about the week's plan, and one chip line for anytime tasks and all-day events. Tasks, events, Routines, water, meals, free time and now each have a row. Ticking a task completes it with Undo. The older list layout (lead card, Coming up, agenda) is under More options, `Show list`.
+Today is the planner's home screen. It opens on the **spine**: the whole day in time order on one line, at now. Above it are the date line (sticky), the next seven days, one line about the week's plan, and one chip line for all-day events. Tasks, events, Routines, water, meals, free time and now each have a row. Tasks dated for the day without a time are one **Anytime** group of cards right after now (first on another day); check it shows a task saved with a day and no time. Ticking a task completes it with Undo. The older list layout (lead card, Coming up, agenda) is under More options, `Show list`.
 
 ## Sub-features
 

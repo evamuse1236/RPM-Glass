@@ -155,7 +155,22 @@ function ticks(row, node) {
   return node;
 }
 
-const BODIES = {task: taskCard, event: eventCard, routine: routineCard, water: waterBody, meal: mealBody, deadline: deadlineBody, gap: gapBody};
+function anytimeBody(row, on) {
+  const body = el('div', 'spine-anytime-list');
+  body.setAttribute('role', 'group');
+  body.setAttribute('aria-label', 'Anytime: ' + row.label);
+  for (const task of row.tasks) {
+    const item = el('div', 'spine-anytime-item');
+    item.dataset.key = task.key;
+    item.classList.toggle('done', task.done);
+    item.append(taskCard(task, on));
+    body.append(item);
+  }
+  return body;
+}
+
+const BODIES = {task: taskCard, event: eventCard, routine: routineCard, water: waterBody, meal: mealBody, deadline: deadlineBody, gap: gapBody,
+  anytime: anytimeBody};
 
 export function spineRow(row, on) {
   if (row.kind === 'now') {

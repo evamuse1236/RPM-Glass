@@ -9,9 +9,8 @@ import {dayTasks} from '../planner-ux.mjs';
 import {spineList, spineRow} from './spine-view.mjs';
 import {el, icon, button, emptyState} from './dom.mjs';
 import {dueInfo} from './format.mjs';
-import {openSheet} from './sheet.mjs';
 import {notice} from './snackbar.mjs';
-import {toggleDone, taskRow} from './task-row.mjs';
+import {toggleDone} from './task-row.mjs';
 import {attachRowGestures} from './row-gestures.mjs';
 import {openRunSheet} from './routines.mjs';
 import {drink, openWaterSheet} from './water.mjs';
@@ -73,7 +72,7 @@ async function toggleRoutine(app, body, row) {
 }
 
 function toggleTask(app, row) {
-  const node = app.dom.work.querySelector(`.spine-row[data-key="${CSS.escape(row.key)}"]`);
+  const node = app.dom.work.querySelector(`:is(.spine-row, .spine-anytime-item)[data-key="${CSS.escape(row.key)}"]`);
   node?.classList.toggle('done', !row.done);
   node?.classList.toggle('just-done', !row.done);
   node?.querySelector('.spine-check')?.setAttribute('aria-checked', String(!row.done));
@@ -102,26 +101,12 @@ function handlers(app) {
   };
 }
 
-function anytimeSheet(app) {
-  const {body} = openSheet(app, 'Anytime', {variant: 'choice'});
-  const paint = () => body.replaceChildren(...spineModel(app).model.anytime.tasks.map(task => taskRow(app, task.ref, {anytime: true})));
-  paint();
-  app.sheetRefresh = paint;
-}
-
-function chips(app, model, allDay) {
+function chips(app, allDay) {
   const row = el('div', 'spine-chips');
   for (const event of allDay) {
     const chip = button('', () => app.actions.calendarDetails(event), 'spine-chip outlined');
     chip.append(icon('event'), el('span', 'chip-label', event.title));
     chip.setAttribute('aria-label', `${event.title}, all day, calendar event`);
-    row.append(chip);
-  }
-  const {anytime} = model;
-  if (anytime.label) {
-    const chip = button('', () => anytimeSheet(app), 'spine-chip');
-    chip.append(el('span', 'chip-label', anytime.label), icon('chevron_right'));
-    chip.setAttribute('aria-label', `${anytime.label}, no time set. Open the list`);
     row.append(chip);
   }
   return row.children.length ? row : null;
@@ -132,7 +117,7 @@ export function renderDay(app, page) {
   state.model = model;
   state.app = app;
   page.classList.add('day-page');
-  const top = chips(app, model, allDay);
+  const top = chips(app, allDay);
   if (top) page.append(top);
   if (model.empty) {
     page.append(emptyState({symbol: 'wb_sunny', title: model.nowKey ? 'Nothing planned for today' : 'Nothing planned for this day',

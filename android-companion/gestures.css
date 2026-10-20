@@ -25,17 +25,17 @@
 .spine-card.swipe-task[data-swipe]::before { inset: -1px; border: 1px solid var(--swipe-edge, transparent); border-radius: inherit; }
 .spine-card > .swipe-reveal { inset: -1px; border-radius: inherit; }
 
-.task-row.done .check-ring, .spine-row.done .check-ring {
+.task-row.done .check-ring, :is(.spine-row, .spine-anytime-item).done .check-ring {
   background: var(--tertiary);
   border-color: var(--tertiary);
   color: var(--on-tertiary);
 }
-.spine-row.just-done .spine-title { animation: strike-in var(--dur-short3) var(--ease-standard); }
+:is(.spine-row, .spine-anytime-item).just-done .spine-title { animation: strike-in var(--dur-short3) var(--ease-standard); }
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-reduce-motion=true]) :is(.task-row, .spine-row).just-done .check-ring {
+  :root:not([data-reduce-motion=true]) :is(.task-row, .spine-row, .spine-anytime-item).just-done .check-ring {
     animation: ring-pop var(--dur-short3) var(--ease-spring);
   }
-  :root:not([data-reduce-motion=true]) .spine-row.just-done .check-ring .ms {
+  :root:not([data-reduce-motion=true]) :is(.spine-row, .spine-anytime-item).just-done .check-ring .ms {
     animation: check-in var(--dur-short3) var(--ease-emphasized-decelerate);
   }
 }

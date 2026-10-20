@@ -93,6 +93,9 @@
 }
 
 .spine-now { padding-block: var(--s1); }
+/* Anytime: the day's tasks without a time, one card each, stacked under one "Anytime" gutter label. */
+.spine-anytime-list { grid-column: 3; display: flex; flex-direction: column; gap: var(--s2); min-inline-size: 0; }
+.spine-anytime-item { min-inline-size: 0; }
 .spine-now-line { grid-column: 2 / -1; align-self: center; block-size: 2px; background: var(--now); }
 
 .spine-card {
@@ -115,8 +118,8 @@ button.spine-card:active, .spine-card .spine-open:active { background: var(--row
 .spine-check .check-ring { inline-size: 22px; block-size: 22px; }
 .spine-check .check-ring .ms { opacity: 0; }
 .spine-check:active .check-ring { background: var(--row-press); }
-.spine-row.done .check-ring { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
-.spine-row.done .check-ring .ms { opacity: 1; }
+:is(.spine-row, .spine-anytime-item).done .check-ring { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+:is(.spine-row, .spine-anytime-item).done .check-ring .ms { opacity: 1; }
 .spine-row.current .check-ring { border-color: var(--now); }
 
 .spine-open { grid-column: 2; min-inline-size: 0; padding: var(--s3) var(--s3) var(--s3) 0; color: inherit; text-align: start; border-radius: var(--r-group); }
@@ -124,7 +127,7 @@ button.spine-card:active, .spine-card .spine-open:active { background: var(--row
 .spine-card.outlined > .spine-copy { grid-column: 2 / -1; padding: var(--s3) var(--s4) var(--s3) 0; }
 .spine-copy { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; }
 .spine-title { font: var(--body-large); overflow-wrap: break-word; text-wrap: pretty; }
-.spine-row.done .spine-title { color: var(--on-surface-variant); text-decoration: line-through; }
+:is(.spine-row, .spine-anytime-item).done .spine-title { color: var(--on-surface-variant); text-decoration: line-through; }
 :is(.spine-event, .spine-routine).past:not(.current) .spine-title { color: var(--on-surface-variant); }
 .spine-line { display: flex; align-items: flex-start; gap: 6px; font: var(--body-medium); color: var(--on-surface-variant); min-inline-size: 0; }
 .spine-line .area-dot { inline-size: 8px; block-size: 8px; margin-block-start: calc((1lh - 8px) / 2); }

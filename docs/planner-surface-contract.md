@@ -33,7 +33,7 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 
 ### Today
 
-- Today's main body is the **spine** (design: `docs/design/final-2026-10-18/README.md`, "Day view"). The sticky date line and the week strip head it; anytime tasks and all-day events are one chip line above it. The list layout (More options, Show list) remains one tap away.
+- Today's main body is the **spine** (design: `docs/design/final-2026-10-18/README.md`, "Day view"). The sticky date line and the week strip head it; all-day events are one chip line above it. Tasks dated for the day without a time are one "Anytime" group of task cards right after now (first on another day), so a task planned for today is always on Today, not only in the Inbox count. The list layout (More options, Show list) remains one tap away.
 - One line about 64dp from the left carries every item with a dot; the gutter holds its start time and length. Tasks and Routines are filled cards with the round check; calendar events are outlined with the event icon. The supporting line carries one thing: Area dot and Result, Now · until, Not done, or Clash with … plus Resolve (a clash wins).
 - Card height is 56dp, plus 24dp per full extra half hour, capped at 160dp. Free time of 45 minutes or more is a dashed row with a + that plans into it. Water and meals are 40dp rows with one action.
 - Now is the item in progress (tinted, with an elapsed bar) or a line between rows. Today opens at now; a floating Now button returns there.
