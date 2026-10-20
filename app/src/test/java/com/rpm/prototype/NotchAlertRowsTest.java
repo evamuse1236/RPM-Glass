@@ -50,6 +50,20 @@ public class NotchAlertRowsTest {
     }
 
     @Test
+    public void theNextAlertShowsOnceEvenWhenTheRowsHaveRoomForItTwice() throws Exception {
+        JSONArray entries = new JSONArray()
+                .put(task(1, "Write RM essay", "2026-10-18T15:30", 45, null))
+                .put(task(2, "Call Prof. Rao", "2026-10-18T16:30", 30, null))
+                .put(task(3, "Gym", "2026-10-18T19:00", 60, "alarm"));
+        NotchData data = NotchData.parse(new JSONObject().put("version", 1).put("entries", entries).put("planner", new JSONObject()), null);
+        NotchScene s = scene(data, "2026-10-18T16:05");
+        assertEquals(2, s.rows.size());
+        assertEquals("Gym", s.rows.get(0).title);
+        assertEquals("Call Prof. Rao", s.rows.get(1).title);
+        assertEquals(0, s.more(3));
+    }
+
+    @Test
     public void theHerosOwnAlertRowNeverPushesDueWaterOutOfTheIsland() throws Exception {
         NotchScene s = scene(day("reminder"), "2026-10-18T16:20");
         assertEquals("reminder", s.heroAlert);

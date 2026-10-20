@@ -21,6 +21,8 @@
   --inner: calc(var(--radius) - var(--pad));
   --circle: 40px;
   --reach: 4px;
+  --icon-scale: clamp(1, var(--font-scale), 1.5);
+  --row-control: max(var(--circle), calc(20px * var(--icon-scale) + 20px));
   --elev: 0 4px 8px 3px oklch(0% 0 none / 0.15), 0 1px 3px oklch(0% 0 none / 0.3);
   position: absolute;
   inset: 0;
@@ -99,7 +101,7 @@
   justify-content: center;
   gap: 8px;
   min-block-size: var(--circle);
-  padding: 4px 16px;
+  padding: 8px 16px;
   border: 0;
   border-radius: var(--inner);
   font: inherit;
@@ -108,7 +110,7 @@
   cursor: pointer;
 }
 .notch-pill-button::after, .notch-circle-button::after, .notch-undo::after { content: ""; position: absolute; inset: calc(var(--reach) * -1); }
-.notch-pill-button .notch-glyph { inline-size: 20px; block-size: 20px; }
+.notch-pill-button .notch-glyph { inline-size: calc(20px * var(--icon-scale)); block-size: calc(20px * var(--icon-scale)); }
 .notch-primary { background: var(--kc); color: var(--kc-ink, color-mix(in srgb, var(--kc) 22%, black)); }
 .notch-secondary { background: var(--secondary); color: var(--t70); }
 .notch-primary:active { background: color-mix(in srgb, var(--kc) 85%, black); }
@@ -133,7 +135,7 @@
 }
 .notch-row-tap { cursor: pointer; }
 .notch-row-tap:active { background: var(--press); }
-.notch-row > .notch-glyph { inline-size: 20px; block-size: 20px; }
+.notch-row > .notch-glyph { inline-size: calc(20px * var(--icon-scale)); block-size: calc(20px * var(--icon-scale)); }
 .notch-row-title {
   flex: 1 1 8em;
   display: -webkit-box;
@@ -145,12 +147,13 @@
 .notch-stage[data-text="large"] .notch-row-title { -webkit-line-clamp: 2; line-clamp: 2; }
 .notch-stage[data-text="max"] .notch-row-title { -webkit-line-clamp: 3; line-clamp: 3; }
 .notch-row-value { flex: none; font-size: calc(14px * var(--font-scale)); font-weight: 500; }
+.notch-more { display: block; padding-block-start: 8px; padding-inline-start: calc(20px * var(--icon-scale) + 12px); font-size: calc(13px * var(--font-scale)); font-weight: 500; line-height: 1.25; color: var(--t60); }
 .notch-dots { display: inline-flex; gap: 4px; flex: none; }
 .notch-dots i { inline-size: 7px; block-size: 7px; border-radius: 50%; background: var(--track); }
 .notch-dots i.on { background: var(--water); }
 
 .notch-alert-chip { display: inline-flex; align-items: center; gap: 4px; flex: none; padding-block: 4px; padding-inline: 8px 10px; border-radius: 14px; background: var(--track); }
-.notch-alert-chip .notch-glyph { inline-size: 16px; block-size: 16px; }
+.notch-alert-chip .notch-glyph { inline-size: calc(16px * var(--icon-scale)); block-size: calc(16px * var(--icon-scale)); }
 .notch-chip-time { font-size: calc(13px * var(--font-scale)); font-weight: 500; color: var(--t87); }
 
 .notch-circle-button {
@@ -165,8 +168,8 @@
   border-radius: var(--inner);
   cursor: pointer;
 }
-.notch-row-circle { background: transparent; box-shadow: inset 0 0 0 1px var(--outline); }
-.notch-row-circle .notch-glyph { inline-size: 20px; block-size: 20px; }
+.notch-row-circle { inline-size: var(--row-control); block-size: var(--row-control); background: transparent; box-shadow: inset 0 0 0 1px var(--outline); }
+.notch-row-circle .notch-glyph { inline-size: calc(20px * var(--icon-scale)); block-size: calc(20px * var(--icon-scale)); }
 .notch-row-circle:active { background: var(--press); }
 
 .notch-band-control { position: absolute; inset-block-start: var(--pad); inset-inline-end: var(--pad); }

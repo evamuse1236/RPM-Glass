@@ -162,6 +162,25 @@ public class NotchSceneTest {
     }
 
     @Test
+    public void theIslandSaysHowManyOfTodaysItemsItLeavesOut() throws Exception {
+        NotchScene s = scene(day(true, null), "2026-10-18T16:05");
+        assertEquals("Gym is past the three rows", 1, s.more(3));
+        assertEquals("at large text two rows drop as well", 3, s.more(1));
+        NotchScene few = scene(day(false, null), "2026-10-18T15:50");
+        assertEquals(0, few.more(3));
+        assertEquals(1, few.more(1));
+    }
+
+    @Test
+    public void iconsGrowWithTheTextUpToOneAndAHalfTimes() {
+        assertEquals(1f, NotchParts.iconScale(0.85f), 0f);
+        assertEquals(1f, NotchParts.iconScale(1f), 0f);
+        assertEquals(1.3f, NotchParts.iconScale(1.3f), 0f);
+        assertEquals(1.5f, NotchParts.iconScale(1.8f), 0f);
+        assertEquals(1.5f, NotchParts.iconScale(2f), 0f);
+    }
+
+    @Test
     public void withoutBodyDataOnlyTheDayShows() throws Exception {
         NotchScene s = scene(day(false, null), "2026-10-18T15:50");
         assertNull(s.water);

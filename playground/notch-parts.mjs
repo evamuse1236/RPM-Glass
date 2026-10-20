@@ -71,6 +71,13 @@ export function row(icon, iconColor, title, spoken, action, ...trailing) {
 
 export const rowValue = (value, color) => text(value, 'notch-row-value', color);
 
+/** NotchParts.more: "+2 more" under the rows, lined up with the row titles; it only speaks. */
+export function moreLine(count) {
+  const t = text(`+${count} more`, 'notch-more');
+  t.setAttribute('aria-label', `${count} more ${count === 1 ? 'item' : 'items'} today`);
+  return t;
+}
+
 /** A 40dp round button: Done on an alert row. */
 export function circle(className, spoken, action, icon) {
   const b = button(`notch-circle-button ${className}`, spoken, action);

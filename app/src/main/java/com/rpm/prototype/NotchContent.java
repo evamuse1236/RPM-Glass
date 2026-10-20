@@ -104,6 +104,8 @@ final class NotchContent {
             for (View r : rows) list.addView(r);
             col.addView(list);
         }
+        int more = scene.more(maxRows);
+        if (more > 0) col.addView(parts.more(more));
         return face;
     }
 

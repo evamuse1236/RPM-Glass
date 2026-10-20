@@ -2,10 +2,10 @@
 // the alert islands and the receipt, with the band's ring and value travelling between them.
 import {S24} from './device.mjs';
 import {D, G, anchor, islandInset, pillRing, bandAt, fits, faceScale} from './notch-geometry.mjs';
-import {el, glyph, button, face, title, line, pill, controls, row, rowValue, circle, accent, lookOf, ICONS, INK} from './notch-parts.mjs';
+import {el, glyph, button, face, title, line, pill, controls, row, rowValue, moreLine, circle, accent, lookOf, ICONS, INK} from './notch-parts.mjs';
 import {alertFace} from './notch-alert.mjs';
 import {alertChip, alertSpoken, receiptFace, manageFace, MARK} from './notch-change.mjs';
-import {controls as heroControls, visibleRows, progress, heroValue} from './notch-scene.mjs';
+import {controls as heroControls, visibleRows, more, progress, heroValue} from './notch-scene.mjs';
 import {dropAmPm} from './notch-day.mjs';
 import {swipeable} from './notch-gesture.mjs';
 
@@ -155,6 +155,8 @@ function openFace(scene, actions, maxRows, fontScale) {
     list.append(...rows);
     parts.push(list);
   }
+  const hidden = more(scene, maxRows);
+  if (hidden > 0) parts.push(moreLine(hidden));
   return face('island-open', ...parts);
 }
 

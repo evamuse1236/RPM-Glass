@@ -76,6 +76,8 @@ final class NotchScene {
     final float progress;
     final String barSpoken;
     final List<Row> rows = new ArrayList<>();
+    /** Everything the rows could show today before the cap of three: later tasks, routine, water, meal and the next alert. */
+    private int candidates;
     /** Null when the planner has no Body data yet. */
     final NotchWater.Status water;
     /**
@@ -153,18 +155,20 @@ final class NotchScene {
             }
         }
 
-        List<NotchDay.Slot> later = NotchDay.after(slots, hero, 3);
+        List<NotchDay.Slot> later = NotchDay.after(slots, hero, Integer.MAX_VALUE);
+        boolean alertRow = nextAlert != null && nextAlert != hero && (later.isEmpty() || later.get(0) != nextAlert);
         if (!later.isEmpty()) rows.add(slotRow(later.get(0), now, zone, h24));
         if (habit != null && heroLook != Look.HABIT) rows.add(new Row(Look.HABIT, habit.routine.name, habit.done + " of " + habit.total));
         if (water != null && heroLook != Look.WATER) rows.add(new Row(Look.WATER, "Water", water.count + " of " + water.goal + (water.pending ? " · due" : "")));
         if (meal != null) rows.add(new Row(Look.MEAL, NotchHabits.mealName(body, meal), "Not logged"));
-        for (int i = 1; i < later.size() && rows.size() < 3; i++) rows.add(slotRow(later.get(i), now, zone, h24));
-        if (nextAlert != null && nextAlert != hero && (later.isEmpty() || later.get(0) != nextAlert)) {
+        for (int i = 1; i < later.size(); i++) if (!alertRow || later.get(i) != nextAlert) rows.add(slotRow(later.get(i), now, zone, h24));
+        if (alertRow) {
             rows.add(0, new Row(alertLook(nextAlert.task.alert), nextAlert.task.title, NotchDay.clock(nextAlert.start, zone, h24), nextAlert, nextAlert.task.alert));
         }
         for (int i = 2; i < rows.size(); i++) {
             if (rows.get(i).look == Look.WATER && waterDue()) rows.add(1, rows.remove(i));
         }
+        candidates = rows.size();
         while (rows.size() > 3) rows.remove(rows.size() - 1);
     }
 
@@ -234,12 +238,20 @@ final class NotchScene {
         return out;
     }
 
+    /**
+     * How many of today's items the island leaves out when it shows {@code n} rows: the rows dropped to fit, and what is
+     * past the three rows. The island says "+N more" for them.
+     */
+    int more(int n) {
+        return candidates + (heroAlert.isEmpty() ? 0 : 1) - visibleRows(n).size();
+    }
+
     /** Changes whenever anything the panel draws changes. */
     String key() {
         StringBuilder k = new StringBuilder(hero == null ? "-" : hero.task.id + "@" + hero.start);
         k.append('|').append(heroLook).append(heroTitle).append('|').append(heroSubtitle).append('|')
                 .append('|').append(Math.round(progress * 1000)).append(canDone()).append(canDrink()).append(canSnooze()).append(canLogMeal)
-                .append(meal != null).append('|').append(heroAlert);
+                .append(meal != null).append('|').append(heroAlert).append('|').append(candidates);
         for (int i = 0; i < rows.size(); i++) {
             Row r = rows.get(i);
             k.append('|').append(r.look).append(r.title).append(r.value).append(r.alert);

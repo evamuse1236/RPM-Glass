@@ -57,18 +57,20 @@ export function notchScene(data, now, snoozes = {}, h24 = false) {
     s.progress = habit.done / habit.total;
   }
 
-  const later = after(slots, hero, 3);
+  const later = after(slots, hero, Infinity);
+  const next = s.nextAlert;
+  const alertRow = !!next && next !== hero && later[0] !== next;
   if (later.length) s.rows.push(slotRow(later[0], now, h24));
   if (habit && s.heroLook !== 'HABIT') s.rows.push({look: 'HABIT', title: habit.routine.name, value: `${habit.done} of ${habit.total}`});
   if (water && s.heroLook !== 'WATER') s.rows.push({look: 'WATER', title: 'Water', value: `${water.count} of ${water.goal}${water.pending ? ' · due' : ''}`});
   if (meal) s.rows.push({look: 'MEAL', title: slotName(meal), value: 'Not logged'});
-  for (let i = 1; i < later.length && s.rows.length < 3; i++) s.rows.push(slotRow(later[i], now, h24));
-  const next = s.nextAlert;
-  if (next && next !== hero && later[0] !== next) {
+  for (let i = 1; i < later.length; i++) if (!alertRow || later[i] !== next) s.rows.push(slotRow(later[i], now, h24));
+  if (alertRow) {
     s.rows.unshift({look: alertLook(next.task.alert), title: next.task.title, value: clock(next.start, h24), slot: next, alert: next.task.alert});
   }
   const dueRow = s.rows.findIndex((r, i) => i >= 2 && r.look === 'WATER');
   if (dueRow >= 2 && waterDue) s.rows.splice(1, 0, ...s.rows.splice(dueRow, 1));
+  s.candidates = s.rows.length;
   s.rows.length = Math.min(s.rows.length, 3);
   s.canDone = !!hero && !hero.task.fixed;
   s.canSnooze = waterDue || !!habit;
@@ -90,6 +92,9 @@ export function visibleRows(s, n) {
   for (let i = out.length - 1; out.length > Math.max(0, n) && i >= 0; i--) if (out[i].look !== 'WATER' || n === 0) out.splice(i, 1);
   return out;
 }
+
+/** NotchScene.more: how many of today's items the island leaves out with n rows (dropped to fit, or past three). */
+export const more = (s, n) => s.candidates + (s.heroAlert ? 1 : 0) - visibleRows(s, n).length;
 
 /** How full the ring is: a running task by time used, an upcoming one empty, water by glasses, a routine by steps. */
 export function progress(kind, s) {

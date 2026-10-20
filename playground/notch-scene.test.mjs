@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {parseNotchData} from './notch-day.mjs';
-import {notchScene, alertScene, WATER_SNOOZE, routineSnooze, PillPriority, controls, visibleRows, progress, heroValue} from './notch-scene.mjs';
+import {notchScene, alertScene, WATER_SNOOZE, routineSnooze, PillPriority, controls, visibleRows, more, progress, heroValue} from './notch-scene.mjs';
 import {anchor, G, D, innerRadius, faceTop, bandAt, pillRing, fits, faceScale, islandInset} from './notch-geometry.mjs';
 import {S24} from './device.mjs';
 
@@ -299,7 +299,7 @@ test('every row ends in one quiet 40dp circle, 16dp from the island\'s edge; wat
   assert.ok(parts.includes('b.setBackground(states(outlined(Color.TRANSPARENT, r), outlined(NotchInk.PRESS, r)));'));
   assert.ok(javaSource('NotchInk').includes('static final int OUTLINE = 0x1FFFFFFF;'));
   const css = readFileSync(new URL('./notch.css', import.meta.url), 'utf8');
-  assert.ok(css.includes('.notch-row-circle { background: transparent; box-shadow: inset 0 0 0 1px var(--outline); }'));
+  assert.ok(css.includes('.notch-row-circle { inline-size: var(--row-control); block-size: var(--row-control); background: transparent; box-shadow: inset 0 0 0 1px var(--outline); }'));
   assert.ok(css.includes('--outline: oklch(100% 0 none / 0.12);'));
   const view = readFileSync(new URL('./notch-view.mjs', import.meta.url), 'utf8');
   const copy = view.slice(view.indexOf('function sceneRow('), view.indexOf('function openFace('));
@@ -391,6 +391,28 @@ test('a ringing alarm puts Stop across the width over Snooze 10 min and Done; a 
   assert.ok(copy.includes("controls(pill('notch_ic_stop', 'Stop', `Stop the alarm for ${alert.title}`, INK.ALARM, true, actions.stopAlert)),"));
   assert.ok(copy.includes("controls(snooze(alert, INK.ALARM, actions), pill('ic_check', 'Done'"));
   assert.ok(!copy.includes('notch-band-control'));
+});
+
+test('large text: icons grow up to 1.5x, pills grow round their label, and "+N more" counts what the island leaves out', () => {
+  const s = scene(day(true), '2026-10-18T16:05');
+  assert.equal(more(s, 3), 2, "the snack and Gym are past the three rows (the copy still uses the old meal rule)");
+  assert.equal(more(s, 1), 4);
+  const few = scene(day(false), '2026-10-18T15:50');
+  assert.deepEqual([more(few, 3), more(few, 1)], [0, 1]);
+  const parts = javaSource('NotchParts');
+  assert.match(parts, /return Math\.min\(MAX_ICON_SCALE, Math\.max\(1f, fontScale\)\);/);
+  assert.match(parts, /static final float MAX_ICON_SCALE = 1\.5f;/);
+  assert.equal((parts.match(/new (?:Linear|Frame)Layout\.LayoutParams\(dp\((?:16|20)\), dp\((?:16|20)\)/g) ?? []).length, 0, 'no glyph keeps a fixed size');
+  assert.match(parts, /b\.setPadding\(dp\(16\), reach \+ dp\(PILL_PAD_DP\), dp\(16\), reach \+ dp\(PILL_PAD_DP\)\);/);
+  assert.match(parts, /static final int PILL_PAD_DP = 8;/);
+  assert.ok(javaSource('NotchContent').includes('int more = scene.more(maxRows);\n        if (more > 0) col.addView(parts.more(more));'));
+  const css = readFileSync(new URL('./notch.css', import.meta.url), 'utf8');
+  assert.ok(css.includes('--icon-scale: clamp(1, var(--font-scale), 1.5);'));
+  assert.ok(css.includes('--row-control: max(var(--circle), calc(20px * var(--icon-scale) + 20px));'));
+  assert.ok(css.includes('min-block-size: var(--circle);\n  padding: 8px 16px;'), 'the copy pads its pills 8dp too');
+  assert.equal((css.match(/\.notch-glyph \{ inline-size: (?:16|20)px/g) ?? []).length, 0, 'no glyph in the copy keeps a fixed size');
+  const view = readFileSync(new URL('./notch-view.mjs', import.meta.url), 'utf8');
+  assert.ok(view.includes('const hidden = more(scene, maxRows);\n  if (hidden > 0) parts.push(moreLine(hidden));'));
 });
 
 test('Undo shows its five seconds draining, on the phone and in the copy', () => {
