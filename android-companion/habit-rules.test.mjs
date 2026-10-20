@@ -5,7 +5,7 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {bodyOf} from './body-store.mjs';
 import {localDay, waterStatus} from './body-state.mjs';
-import {mealPlanSlots, mealSlots} from './day-parts.mjs';
+import {mealPlanSlots, dueMeal} from './day-parts.mjs';
 
 const cases = JSON.parse(readFileSync(new URL('../fixtures/habit-cases.json', import.meta.url), 'utf8'));
 
@@ -18,9 +18,7 @@ if (process.env.RPM_HABIT_CASE_TZ) {
       const water = waterStatus({...body.water, now, busy: c.busy});
       assert.deepEqual({count: water.count, goal: water.goal, nextAt: water.nextAt?.toISOString() ?? null, pending: water.pending}, c.expected.water);
       const meals = body.meals.filter(m => localDay(m.at) === day);
-      const eligible = mealSlots(meals, day, now, {plan: body.mealPlan})
-        .filter(s => !s.meal && s.at <= now && !s.past).sort((a, b) => a.at - b.at)[0];
-      assert.equal(eligible?.slot ?? null, c.expected.meal);
+      assert.equal(dueMeal(meals, day, now, body.mealPlan)?.slot ?? null, c.expected.meal);
       if (c.expected.mealPlan) assert.deepEqual(mealPlanSlots(body.mealPlan), c.expected.mealPlan);
     });
   }

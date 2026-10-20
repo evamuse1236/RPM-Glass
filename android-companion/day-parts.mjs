@@ -1,5 +1,5 @@
 /** The plain rules under Today's spine: Calendar-style words, routine counts and where each meal sits. */
-import {clockText, atMinutes, minutesOf, mealText} from './body-state.mjs';
+import {clockText, atMinutes, minutesOf, mealText, localDay} from './body-state.mjs';
 
 export const MIN = 60000;
 /** Where a meal with nothing logged sits on the day (Dara's times, 2026-10-18). */
@@ -51,8 +51,14 @@ export function mealSlots(meals, day, now, {placeholders = true, plan = null} = 
     const place = planned.find(p => p.slot === slot);
     if (!meal && (!placeholders || !place?.on)) continue;
     const at = meal ? +new Date(meal.at) : +atMinutes(day, minutesOf(place.at));
-    slots.push({slot, at, meal: meal ?? null, past: !meal && +now - at >= 2 * 60 * MIN,
-      label: `${place?.name ?? SLOT_NAMES[slot]} · ${meal ? mealText(meal) : 'Not logged'}`});
+    const name = place?.name ?? SLOT_NAMES[slot];
+    slots.push({slot, at, name, meal: meal ?? null, past: !meal && +now - at >= 2 * 60 * MIN,
+      label: `${name} · ${meal ? mealText(meal) : 'Not logged'}`});
   }
   return slots;
+}
+
+/** The meal due now: the earliest planned slot whose time has come, nothing logged for it, and under two hours past. */
+export function dueMeal(meals, day, now, plan = null) {
+  return mealSlots(meals.filter(m => localDay(m.at) === day), day, now, {plan}).filter(s => !s.meal && s.at <= now && !s.past).sort((a, b) => a.at - b.at)[0] ?? null;
 }
