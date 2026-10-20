@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {CLOUD_RULES, isCloud, missingPackages, sdkHome, writeGradleProperties} from './cloud.mjs';
+import {CLOUD_RULES, MIRROR_PROBE, isCloud, missingPackages, sdkHome, writeGradleProperties, writeMavenMirror} from './cloud.mjs';
 
 const env = process.env;
 if (!isCloud(env)) process.exit(0);
@@ -59,9 +59,11 @@ try {
 } catch (error) { problem = error.message; }
 
 const gradle = writeGradleProperties(env);
+const mirrorUp = env.RPM_MAVEN_MIRROR !== 'off' && spawnSync('curl', ['-fsIL', '--max-time', '15', MIRROR_PROBE], {timeout: 20_000}).status === 0;
+const mirror = writeMavenMirror(env, os.homedir(), mirrorUp);
 if (env.CLAUDE_ENV_FILE) fs.appendFileSync(env.CLAUDE_ENV_FILE, `export ANDROID_HOME="${sdk}"\nexport ANDROID_SDK_ROOT="${sdk}"\nexport PATH="${sdk}/platform-tools:$PATH"\n`);
 const localProperties = path.join(project, 'local.properties');
 if (!fs.existsSync(localProperties)) fs.writeFileSync(localProperties, `sdk.dir=${sdk}\n`);
 
 const seconds = Math.round((Date.now() - started) / 1000);
-console.log(`${CLOUD_RULES}\nAndroid setup (${seconds} s): ${problem ? `FAILED: ${problem}` : log.join('; ')}. ANDROID_HOME=${sdk}. Gradle cloud settings: ${gradle}.`);
+console.log(`${CLOUD_RULES}\nAndroid setup (${seconds} s): ${problem ? `FAILED: ${problem}` : log.join('; ')}. ANDROID_HOME=${sdk}. Gradle cloud settings: ${gradle}. Maven Central: ${mirror ? `Google mirror (${mirror})` : 'repo.maven.apache.org (mirror unreachable)'}.`);

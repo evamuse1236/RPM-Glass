@@ -1,6 +1,5 @@
-import {execFileSync} from 'node:child_process';
-const config = (...args) => execFileSync('git', ['config', ...args], {stdio: 'inherit'});
-config('--replace-all', 'hook.rpm-merge-scenarios.event', 'pre-merge-commit');
-config('--add', 'hook.rpm-merge-scenarios.event', 'pre-commit');
-config('--replace-all', 'hook.rpm-merge-scenarios.command', 'node scripts/agent/require-evidence.mjs --merge');
-console.log('Installed: a merge commit on main now needs a passing `rpmctl scenario --all` for incoming app changes.');
+import {installMergeCheck} from './git-hooks.mjs';
+const {mode, written, skipped} = installMergeCheck(process.cwd());
+console.log(`Installed as ${mode === 'config' ? 'git config hooks' : 'hook files'} (${written.join(', ')}): a merge commit on main now needs a passing \`rpmctl scenario --all\` for incoming app changes.`);
+for (const file of skipped) console.log(`Not installed: ${file} already exists. Add \`node scripts/agent/require-evidence.mjs --merge\` to it.`);
+if (skipped.length) process.exitCode = 1;

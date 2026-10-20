@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {mergeGap, tierOf, evidenceGap} from '../agent/require-evidence.mjs';
+import {configHooksWork, installMergeCheck} from '../agent/git-hooks.mjs';
 
 function repo(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rpm-merge-'));
@@ -81,22 +82,35 @@ test('a merge with no app change needs no scenario run', t => {
   assert.equal(mergeGap(r.root, {heads: [tip], branch: 'main'}), null);
 });
 
-test('a real merge into main runs the hook: it refuses without a scenario run and merges after one', t => {
+for (const mode of ['config', 'files']) {
+  const supported = mode === 'files' || configHooksWork();
+  test(`a real merge into main runs the ${mode} hook: it refuses without a scenario run and merges after one`, {skip: !supported && 'this git ignores hook.<name>.event'}, t => {
+    const r = repo(t);
+    for (const file of ['require-evidence.mjs', 'cloud.mjs', 'web-assets.mjs']) r.write(`scripts/agent/${file}`, fs.readFileSync(path.resolve(import.meta.dirname, '../agent', file)));
+    r.git('add', '.');
+    r.git('commit', '-q', '-m', 'scripts');
+    assert.equal(installMergeCheck(r.root, {configHooks: mode === 'config'}).mode, mode);
+    r.git('checkout', '-q', '-b', 'feat/x');
+    const tip = commit(r, 'android-companion/a.mjs', 'export const a = 2;\n', 'change');
+    r.git('checkout', '-q', 'main');
+    const merge = () => { try { r.git('merge', '--no-ff', '-q', '-m', 'merge', 'feat/x'); return true; } catch { return false; } };
+    assert.equal(merge(), false, 'the hook refuses the merge');
+    assert.throws(() => r.git('commit', '-q', '--no-edit'), 'git commit cannot finish the refused merge');
+    try { r.git('merge', '--abort'); } catch {}
+    assert.notEqual(r.git('rev-parse', 'HEAD^{tree}'), r.git('rev-parse', `${tip}^{tree}`), 'main is unchanged');
+    journal(r, {ok: true, all: true, head: tip, uncommittedApp: []});
+    assert.equal(merge(), true);
+    assert.equal(r.git('rev-parse', 'HEAD^2'), tip);
+    commit(r, 'android-companion/b.mjs', 'export const b = 1;\n', 'an ordinary commit on main still works');
+  });
+}
+
+test('the hook-file installer leaves a hook it did not write alone', t => {
   const r = repo(t);
-  const script = path.resolve(import.meta.dirname, '../agent/require-evidence.mjs');
-  r.git('config', 'hook.rpm-merge-scenarios.event', 'pre-merge-commit');
-  r.git('config', '--add', 'hook.rpm-merge-scenarios.event', 'pre-commit');
-  r.git('config', 'hook.rpm-merge-scenarios.command', `node "${script}" --merge`);
-  r.git('checkout', '-q', '-b', 'feat/x');
-  const tip = commit(r, 'android-companion/a.mjs', 'export const a = 2;\n', 'change');
-  r.git('checkout', '-q', 'main');
-  const merge = () => { try { r.git('merge', '--no-ff', '-q', '-m', 'merge', 'feat/x'); return true; } catch { return false; } };
-  assert.equal(merge(), false, 'the hook refuses the merge');
-  assert.throws(() => r.git('commit', '-q', '--no-edit'), 'git commit cannot finish the refused merge');
-  try { r.git('merge', '--abort'); } catch {}
-  assert.notEqual(r.git('rev-parse', 'HEAD^{tree}'), r.git('rev-parse', `${tip}^{tree}`), 'main is unchanged');
-  journal(r, {ok: true, all: true, head: tip, uncommittedApp: []});
-  assert.equal(merge(), true);
-  assert.equal(r.git('rev-parse', 'HEAD^2'), tip);
-  commit(r, 'android-companion/b.mjs', 'export const b = 1;\n', 'an ordinary commit on main still works');
+  const hooks = path.join(r.root, '.git/hooks');
+  fs.mkdirSync(hooks, {recursive: true});
+  fs.writeFileSync(path.join(hooks, 'pre-commit'), '#!/bin/sh\necho mine\n');
+  assert.deepEqual(installMergeCheck(r.root, {configHooks: false}).written, ['pre-merge-commit']);
+  assert.equal(fs.readFileSync(path.join(hooks, 'pre-commit'), 'utf8'), '#!/bin/sh\necho mine\n');
+  assert.deepEqual(installMergeCheck(r.root, {configHooks: false}).written, ['pre-merge-commit'], 'running it again rewrites only its own hook');
 });

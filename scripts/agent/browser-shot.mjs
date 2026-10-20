@@ -34,7 +34,7 @@ const port = 4400 + Math.floor(Math.random() * 500), cdp = port + 1000;
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'rpm-browser-shot-'));
 const server = spawn(process.execPath, [path.join(root, 'scripts/gauntlet/serve.mjs'), String(port)], {cwd: root, stdio: 'ignore'});
 const browser = spawn(chrome, ['--headless=new', '--no-sandbox', '--hide-scrollbars', '--disable-gpu', `--remote-debugging-port=${cdp}`, `--user-data-dir=${profile}`, 'about:blank'], {stdio: 'ignore'});
-const stop = () => { for (const child of [browser, server]) try { child.kill('SIGKILL'); } catch {} fs.rmSync(profile, {recursive: true, force: true}); };
+const stop = () => { for (const child of [browser, server]) try { child.kill('SIGKILL'); } catch {} try { fs.rmSync(profile, {recursive: true, force: true, maxRetries: 5}); } catch {} };
 process.on('exit', stop);
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => process.exit(1));
 setTimeout(() => fail('Timed out after 90 s.', 'Check that the page loads with `node scripts/gauntlet/serve.mjs`.'), 90_000).unref();

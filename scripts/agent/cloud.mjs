@@ -29,6 +29,24 @@ export function writeGradleProperties(env = process.env, home = os.homedir()) {
   return file;
 }
 
+export const MAVEN_MIRROR = 'https://maven-central.storage-download.googleapis.com/maven2/';
+export const MIRROR_PROBE = `${MAVEN_MIRROR}junit/junit/4.13.2/junit-4.13.2.pom`;
+export const MIRROR_INIT = `def mirror = '${MAVEN_MIRROR}'
+def useMirror = { repos -> repos.withType(MavenArtifactRepository).configureEach { repo -> if (repo.url.host == 'repo.maven.apache.org') repo.url = mirror } }
+beforeSettings { settings ->
+  useMirror(settings.pluginManagement.repositories)
+  useMirror(settings.dependencyResolutionManagement.repositories)
+}
+`;
+
+export function writeMavenMirror(env = process.env, home = os.homedir(), reachable = false) {
+  if (!isCloud(env) || !reachable) return null;
+  const file = path.join(env.GRADLE_USER_HOME || path.join(home, '.gradle'), 'init.d', 'rpm-maven-mirror.gradle');
+  fs.mkdirSync(path.dirname(file), {recursive: true});
+  fs.writeFileSync(file, MIRROR_INIT);
+  return file;
+}
+
 export const CLOUD_RULES = 'Cloud session: there is no emulator here (no KVM). Prove a web-only change with '
   + '`node scripts/agent/browser-shot.mjs <label> [planner.html|index.html]` and put the PNG path in the reply. '
   + 'Report a Java, notch or manifest change as UNVERIFIED: needs a PC emulator run.';

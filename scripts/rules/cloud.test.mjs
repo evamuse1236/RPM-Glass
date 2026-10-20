@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync, spawnSync} from 'node:child_process';
-import {GRADLE_CLOUD, SDK_PACKAGES, writeGradleProperties} from '../agent/cloud.mjs';
+import {GRADLE_CLOUD, MAVEN_MIRROR, SDK_PACKAGES, writeGradleProperties, writeMavenMirror} from '../agent/cloud.mjs';
 import {builtWeb} from '../agent/web-assets.mjs';
 
 const here = path.resolve(import.meta.dirname, '..');
@@ -92,11 +92,24 @@ test('cloud Gradle settings: fewer workers and more download retries, written on
   assert.equal(GRADLE_CLOUD['org.gradle.workers.max'], '2');
 });
 
+test('cloud Gradle fetches Maven Central from the Google mirror, only in a cloud session and only when the mirror answers', t => {
+  const home = temp(t, 'rpm-mirror-');
+  const file = path.join(home, '.gradle/init.d/rpm-maven-mirror.gradle');
+  assert.equal(writeMavenMirror(baseEnv(), home, true), null);
+  assert.equal(writeMavenMirror({...CLOUD}, home, false), null);
+  assert.equal(fs.existsSync(file), false);
+  assert.equal(writeMavenMirror({...CLOUD}, home, true), file);
+  const script = fs.readFileSync(file, 'utf8');
+  assert.match(script, /repo\.url\.host == 'repo\.maven\.apache\.org'.*repo\.url = mirror/);
+  assert.ok(script.includes(MAVEN_MIRROR));
+  assert.match(script, /pluginManagement\.repositories[\s\S]*dependencyResolutionManagement\.repositories/);
+});
+
 test('the SessionStart setup does nothing off the cloud; in the cloud it reuses an SDK that is present and sets ANDROID_HOME', t => {
   const dir = temp(t, 'rpm-setup-');
   const sdk = path.join(dir, 'sdk'), project = path.join(dir, 'project'), envFile = path.join(dir, 'env');
   fs.mkdirSync(project);
-  const env = {...baseEnv(), HOME: dir, ANDROID_HOME: sdk, CLAUDE_PROJECT_DIR: project, CLAUDE_ENV_FILE: envFile, GRADLE_USER_HOME: path.join(dir, 'gradle')};
+  const env = {...baseEnv(), RPM_MAVEN_MIRROR: 'off', HOME: dir, ANDROID_HOME: sdk, CLAUDE_PROJECT_DIR: project, CLAUDE_ENV_FILE: envFile, GRADLE_USER_HOME: path.join(dir, 'gradle')};
   const setup = extra => spawnSync(process.execPath, [path.join(here, 'agent/cloud-setup.mjs')], {env: {...env, ...extra}, encoding: 'utf8', timeout: 20_000});
   const off = setup({});
   assert.equal(off.status, 0);
