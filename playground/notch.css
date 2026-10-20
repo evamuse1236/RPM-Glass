@@ -88,6 +88,7 @@
 .notch-words { display: block; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: start; cursor: pointer; }
 
 .notch-controls { display: flex; gap: 8px; margin-block-start: 16px; }
+.notch-controls + .notch-controls { margin-block-start: 8px; }
 .notch-stage:not([data-text="normal"]) .notch-controls { flex-direction: column; }
 .notch-pill-button {
   position: relative;
@@ -166,9 +167,6 @@
 .notch-row-done { background: var(--secondary); color: var(--t87); }
 .notch-row-done .notch-glyph { inline-size: 20px; block-size: 20px; }
 .notch-row-done:active { background: var(--press); }
-.notch-stop { background: var(--alarm); }
-.notch-stop:active { background: color-mix(in oklch, var(--alarm) 80%, black); }
-.notch-stop-mark { inline-size: 14px; block-size: 14px; border-radius: 2px; background: var(--alarm-ink); }
 
 .notch-band-control { position: absolute; inset-block-start: var(--pad); inset-inline-end: var(--pad); }
 .notch-undo {

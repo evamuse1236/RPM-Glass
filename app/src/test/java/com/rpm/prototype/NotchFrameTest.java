@@ -153,7 +153,7 @@ public class NotchFrameTest {
         NotchAlert alarm = new NotchAlert(NotchAlert.Type.ALARM, 7, "Call the bank", at("2026-10-18T17:30"), KOLKATA, false);
         NotchBand ringing = NotchBand.of(new NotchFrame(Mode.ALARM, null, null, scene, alarm, null), 0);
         assertEquals(NotchBand.Disc.ALARM, ringing.disc);
-        assertEquals("Stop takes the trailing slot", "", ringing.value);
+        assertEquals("the band shows the alarm's time; Stop is the primary under the words", "5:30", ringing.value);
         assertTrue(ringing.pulse);
     }
 

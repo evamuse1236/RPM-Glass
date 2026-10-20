@@ -306,6 +306,24 @@ test('a primary control is filled with its accent and labelled dark, on the phon
   assert.ok(ink.includes('return accent == ALARM ? ALARM_INK : intoBlack(accent, ON_ACCENT_SHARE);'));
 });
 
+test('a ringing alarm puts Stop across the width over Snooze 10 min and Done; a reminder keeps Done first', () => {
+  const views = javaSource('NotchAlertViews');
+  const alarm = views.slice(views.indexOf('View alarm('), views.indexOf('private View words('));
+  const stop = alarm.indexOf('parts.controls(parts.pill(R.drawable.notch_ic_stop, "Stop"');
+  assert.ok(stop > 0, 'Stop is a pill of its own');
+  assert.ok(alarm.slice(stop).includes('NotchInk.ALARM, true,'), 'Stop is the primary');
+  assert.ok(alarm.indexOf('"Snooze "') > stop && alarm.indexOf('"Done"') > alarm.indexOf('"Snooze "'), 'Snooze then Done under it');
+  assert.ok(alarm.includes('NotchInk.ALARM, false, actions::doneAlert'), 'Done is a secondary on the alarm');
+  assert.ok(alarm.includes('parts.pairUnder()'));
+  assert.ok(!alarm.includes('circleButton') && !alarm.includes('bandControl'), 'no Stop circle in the band');
+  const reminder = views.slice(views.indexOf('View reminder('), views.indexOf('View alarm('));
+  assert.ok(reminder.includes('"Done", "Done: " + alert.title, NotchInk.TASK, true'), 'a reminder keeps Done as its primary');
+  const copy = readFileSync(new URL('./notch-alert.mjs', import.meta.url), 'utf8');
+  assert.ok(copy.includes("controls(pill('notch_ic_stop', 'Stop', `Stop the alarm for ${alert.title}`, INK.ALARM, true, actions.stopAlert)),"));
+  assert.ok(copy.includes("controls(snooze(alert, INK.ALARM, actions), pill('ic_check', 'Done'"));
+  assert.ok(!copy.includes('notch-band-control'));
+});
+
 test('a row title keeps the phone\'s line count in the copy: 1 line, 2 at large text, 3 at max', () => {
   const parts = javaSource('NotchParts');
   assert.match(parts, /setMaxLines\(fontScale\(\) >= MAX_TEXT \? normal \+ 2 : largeText\(\) \? normal \+ 1 : normal\)/);

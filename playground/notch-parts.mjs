@@ -71,9 +71,9 @@ export function row(icon, iconColor, title, spoken, action, ...trailing) {
 
 export const rowValue = (value, color) => text(value, 'notch-row-value', color);
 
-/** A 40dp round button: Done on an alert row, Stop on the alarm. */
+/** A 40dp round button: Done on an alert row. */
 export function circle(className, spoken, action, icon) {
   const b = button(`notch-circle-button ${className}`, spoken, action);
-  b.append(icon ? glyph(null, icon) : el('span', 'notch-stop-mark'));
+  b.append(glyph(null, icon));
   return b;
 }

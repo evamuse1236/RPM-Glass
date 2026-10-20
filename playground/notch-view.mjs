@@ -23,7 +23,7 @@ function bandFor({mode, scene, primary, note, alert, managed, receipt}) {
     ({disc: 'ring', icon: ICONS[look], glyphColor: look === 'TASK' || look === 'EVENT' ? INK.W87 : accent(look), accent: accent(look), p, value, valueColor, sp, chip});
   if (mode === 'open') return ring(scene.heroLook, scene.progress, heroValue(scene), accent(scene.heroLook), G.BAND_VALUE_SP);
   if (mode === 'reminder') return {disc: 'plain', icon: 'ic_notification', glyphColor: INK.W87, p: 0, value: dropAmPm(alert.at), valueColor: '#fff', sp: G.ALERT_TIME_SP};
-  if (mode === 'alarm') return {disc: 'alarm', icon: 'ic_clock', glyphColor: INK.ALARM, p: 0, value: '', sp: G.ALERT_TIME_SP, pulse: true};
+  if (mode === 'alarm') return {disc: 'alarm', icon: 'ic_clock', glyphColor: INK.ALARM, p: 0, value: dropAmPm(alert.at), valueColor: '#fff', sp: G.ALERT_TIME_SP, pulse: true};
   if (mode === 'manage') {
     const alarm = managed.alert === 'alarm';
     return {disc: alarm ? 'alarm' : 'plain', icon: alarm ? 'ic_clock' : 'ic_notification', glyphColor: alarm ? INK.ALARM : INK.W87, p: 0,

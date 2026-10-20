@@ -1,5 +1,5 @@
-// Copy of NotchAlertViews: the band holds the bell and time, or the pulsing clock and Stop.
-import {el, face, title, line, pill, controls, circle, button, INK} from './notch-parts.mjs';
+// Copy of NotchAlertViews: the band holds the bell or the pulsing clock, and the alert's time.
+import {face, title, line, pill, controls, button, INK} from './notch-parts.mjs';
 
 function words(alert, color, actions) {
   const w = button('notch-words', alert.spoken, actions.openAlert);
@@ -15,14 +15,11 @@ function reminder(alert, actions) {
     controls(pill('ic_check', 'Done', `Done: ${alert.title}`, INK.TASK, true, actions.doneAlert), snooze(alert, INK.TASK, actions)));
 }
 
-/** Pulsing clock and Stop in the band, the title over "Ringing · 5:30 PM", then Done and Snooze 10 min. */
+/** Pulsing clock and time in the band, the title over "Ringing", then Stop across the width over Snooze 10 min and Done. */
 function alarm(alert, actions) {
-  const f = face('island-alert island-alarm', words(alert, INK.ALARM, actions),
-    controls(pill('ic_check', 'Done', `Done: stop the alarm and tick ${alert.title}`, INK.ALARM, true, actions.doneAlert), snooze(alert, INK.ALARM, actions)));
-  const slot = el('div', 'notch-band-control');
-  slot.append(circle('notch-stop', `Stop the alarm for ${alert.title}`, actions.stopAlert));
-  f.append(slot);
-  return f;
+  return face('island-alert island-alarm', words(alert, INK.ALARM, actions),
+    controls(pill('notch_ic_stop', 'Stop', `Stop the alarm for ${alert.title}`, INK.ALARM, true, actions.stopAlert)),
+    controls(snooze(alert, INK.ALARM, actions), pill('ic_check', 'Done', `Done: stop the alarm and tick ${alert.title}`, INK.ALARM, false, actions.doneAlert)));
 }
 
 export function alertFace(alert, actions) {

@@ -19,7 +19,7 @@ final class NotchBand {
     /** Where a receipt's ring starts, timed from {@code startedAt}; NaN when the ring simply follows the progress. */
     final float from;
     final long startedAt;
-    /** "" when the trailing slot holds a control (Stop, Undo) or nothing. */
+    /** "" when the trailing slot holds a control (Undo) or nothing. */
     final String value;
     final int valueColor;
     final float valueSp;
@@ -53,7 +53,7 @@ final class NotchBand {
                         NotchDay.dropAmPm(f.alert.at), NotchInk.WHITE, NotchGeometry.ALERT_TIME_SP, false, false);
             case ALARM:
                 return new NotchBand(Disc.ALARM, R.drawable.ic_clock, NotchInk.ALARM, NotchInk.ALARM, 0f, Float.NaN, 0,
-                        "", NotchInk.WHITE, NotchGeometry.ALERT_TIME_SP, false, true);
+                        NotchDay.dropAmPm(f.alert.at), NotchInk.WHITE, NotchGeometry.ALERT_TIME_SP, false, true);
             case MANAGE: {
                 boolean alarm = "alarm".equals(f.managed.alert);
                 String at = Math.abs(f.managed.slot.start - now) <= 12 * 60 * NotchDay.MIN ? NotchDay.dropAmPm(f.managed.at) : f.managed.at;

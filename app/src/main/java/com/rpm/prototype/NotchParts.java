@@ -75,7 +75,7 @@ final class NotchParts {
     }
 
     /**
-     * A control in the band's trailing slot (Stop, Undo): its 40dp shape 16dp from the end, centred on the band, in a
+     * A control in the band's trailing slot (Undo): its 40dp shape 16dp from the end, centred on the band, in a
      * 48dp touch box. {@code reachEnd} is true when the box also reaches 4dp past the shape's end.
      */
     void bandControl(FrameLayout face, View control, int widthPx, boolean reachEnd) {
@@ -255,6 +255,15 @@ final class NotchParts {
         return lp;
     }
 
+    /** A second set of controls 8dp under the first, the last thing on the face. */
+    LinearLayout.LayoutParams pairUnder() {
+        int reach = (dp(NotchGeometry.TOUCH_DP) - dp(NotchGeometry.CONTROL_DP)) / 2;
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(NotchGeometry.PAIR_GAP_DP) - 2 * reach;
+        lp.bottomMargin = -reach;
+        return lp;
+    }
+
     /** The rows' column: 12dp under what is above, 8dp past the margin on each side so a pressed row is 8dp from the edge. */
     LinearLayout rows(boolean afterControls) {
         LinearLayout col = new LinearLayout(context);
@@ -296,15 +305,12 @@ final class NotchParts {
         row.addView(part, lp);
     }
 
-    /** A 40dp round button: Done on an alert row, Stop on the alarm. Its corner is 20dp. */
+    /** A 40dp round button: Done on an alert row. Its corner is 20dp. */
     View circleButton(int fill, int pressedFill, int icon, int tint, String spoken, Runnable action) {
         FrameLayout b = new FrameLayout(context);
         float r = dp(NotchGeometry.innerRadius(NotchGeometry.PAD_DP));
         b.setBackground(states(round(fill, r), round(pressedFill, r)));
-        View mark = icon == 0 ? new View(context) : glyph(icon, tint);
-        if (icon == 0) mark.setBackground(round(tint, dp(2)));
-        int size = icon == 0 ? dp(14) : dp(20);
-        b.addView(mark, new FrameLayout.LayoutParams(size, size, Gravity.CENTER));
+        b.addView(glyph(icon, tint), new FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER));
         b.setContentDescription(spoken);
         b.setOnClickListener(v -> NotchController.safely(spoken, action));
         pressShrinks(b);

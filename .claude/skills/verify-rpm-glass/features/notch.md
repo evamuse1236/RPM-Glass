@@ -12,7 +12,7 @@ The notch is a black island around the front camera, drawn by the `RPM Notch` ac
 - `notch-alert-rows` the next reminder or alarm still to come today shows as the hero's own alert row, as a chip and a Done circle on its task row, or else as its own row. Tapping it opens the alert's controls: `Turn off` as the primary, then rows `Make it a ringing alarm` or `Make it a reminder`, `Done`, `Open`; each change shows a receipt with Undo.
 - `notch-snooze` swipe left snoozes due water and routine nudges and shows `+Nm` on the pill for 2 s.
 - `notch-reminder` shows a bell in the band, the task and `Reminder · <time>` (tap them to open the task), then two equal pills `Done` and `Snooze 10 min`, for 6 s when a reminder fires; then the pill shows its time.
-- `notch-alarm` shows a pulsing clock, `Stop` as a round button in the band, `Ringing · <time>`, then `Done` and `Snooze 10 min` until one is pressed. Done stops the ring and ticks the task; its Undo brings the task back and the ring stays stopped.
+- `notch-alarm` shows a pulsing clock and the time in the band, `Ringing`, then `Stop` across the width over `Snooze 10 min` and `Done`, until one is pressed. Done stops the ring and ticks the task; its Undo brings the task back and the ring stays stopped.
 
 ## How to get to it (user POV)
 
