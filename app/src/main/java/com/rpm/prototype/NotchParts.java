@@ -1,5 +1,8 @@
 package com.rpm.prototype;
 
+import android.animation.ObjectAnimator;
+import android.animation.PropertyValuesHolder;
+import android.animation.StateListAnimator;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Canvas;
@@ -131,6 +134,34 @@ final class NotchParts {
         return t;
     }
 
+    /** The title over the line as one tap target that opens the task; it shrinks while pressed like every control. */
+    View words(String title, String line, int lineColor, String spoken, Runnable open) {
+        LinearLayout words = new LinearLayout(context);
+        words.setOrientation(LinearLayout.VERTICAL);
+        words.addView(title(title));
+        words.addView(line(line, lineColor));
+        words.setContentDescription(spoken);
+        words.setOnClickListener(v -> NotchController.safely("open task", open));
+        pressShrinks(words);
+        return words;
+    }
+
+    /** While a finger is down the view shrinks to {@link NotchMotion#PRESS_SCALE}; with animations off it snaps. */
+    static void pressShrinks(View v) {
+        StateListAnimator a = new StateListAnimator();
+        a.addState(new int[]{android.R.attr.state_pressed}, scaleTo(NotchMotion.PRESS_SCALE));
+        a.addState(new int[]{}, scaleTo(1f));
+        v.setStateListAnimator(a);
+    }
+
+    private static ObjectAnimator scaleTo(float scale) {
+        ObjectAnimator a = ObjectAnimator.ofPropertyValuesHolder((Object) null,
+                PropertyValuesHolder.ofFloat(View.SCALE_X, scale), PropertyValuesHolder.ofFloat(View.SCALE_Y, scale));
+        a.setDuration(NotchMotion.PRESS_MS);
+        a.setInterpolator(IslandBand.STANDARD);
+        return a;
+    }
+
     ImageView glyph(int icon, int color) {
         ImageView v = new ImageView(context);
         v.setImageResource(icon);
@@ -183,6 +214,7 @@ final class NotchParts {
         b.addView(name);
         b.setContentDescription(spoken);
         b.setOnClickListener(v -> NotchController.safely(label, action));
+        pressShrinks(b);
         return b;
     }
 
@@ -243,6 +275,7 @@ final class NotchParts {
         if (action != null) {
             row.setBackground(pressed(dp(NotchGeometry.ROW_DP) / 2f, NotchInk.PRESS));
             row.setOnClickListener(v -> NotchController.safely(title, action));
+            pressShrinks(row);
         }
         return row;
     }
@@ -266,6 +299,7 @@ final class NotchParts {
         b.addView(mark, new FrameLayout.LayoutParams(size, size, Gravity.CENTER));
         b.setContentDescription(spoken);
         b.setOnClickListener(v -> NotchController.safely(spoken, action));
+        pressShrinks(b);
         return b;
     }
 

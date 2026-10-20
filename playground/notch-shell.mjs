@@ -141,7 +141,7 @@ export function notchShell({stage, empty, say, shell, setShell, open}) {
   const actions = scene => ({done: () => change('done', {title: scene.heroTitle}), drink: () => change('drink', {water: scene.water}),
     snooze: notWired, logMeal: notWired, manage, undo, doneSlot: slot => change('done', {title: slot.task.title}),
     setAlert: type => change(type, {title: managed.title}), doneManaged: () => change('done', {title: managed.title}),
-    openManaged: () => { const {id} = managed; managed = null; openTask(id); }, openAlert: () => openTask(current()?.taskId), snoozeAlert: () => endAlert('snooze'),
+    openManaged: () => { const {id} = managed; managed = null; openTask(id); }, openHero: () => { setShell({expandNotch: false}); openTask(scene.hero?.task.id); }, openAlert: () => openTask(current()?.taskId), snoozeAlert: () => endAlert('snooze'),
     stopAlert: () => endAlert('stop'), doneAlert});
 
   function animateOpen() {

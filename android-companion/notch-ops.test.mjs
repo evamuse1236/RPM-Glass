@@ -97,7 +97,7 @@ function plannerCallers(source) {
   return callers;
 }
 
-test('only the meal row, Open and the long press open the planner; Glass, Done, alert changes and Undo save in place', () => {
+test('only the meal row, Open, the open island\'s words and the long press open the planner; Glass, Done, alert changes and Undo save in place', () => {
   assert.deepEqual(plannerCallers(java('NotchController')).sort(), ['logMeal', 'openHero', 'openManaged']);
   assert.deepEqual(plannerCallers(java('NotchAlerting')), ['openTask']);
   assert.deepEqual(plannerCallers(java('NotchChanges')), []);

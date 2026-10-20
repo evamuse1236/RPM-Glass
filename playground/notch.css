@@ -131,7 +131,16 @@
 .notch-row-tap { cursor: pointer; }
 .notch-row-tap:active { background: var(--press); }
 .notch-row > .notch-glyph { inline-size: 20px; block-size: 20px; }
-.notch-row-title { flex: 1 1 8em; }
+.notch-row-title {
+  flex: 1 1 8em;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  overflow: clip;
+}
+.notch-stage[data-text="large"] .notch-row-title { -webkit-line-clamp: 2; line-clamp: 2; }
+.notch-stage[data-text="max"] .notch-row-title { -webkit-line-clamp: 3; line-clamp: 3; }
 .notch-row-value { flex: none; font-size: calc(14px * var(--font-scale)); font-weight: 500; }
 .notch-dots { display: inline-flex; gap: 4px; flex: none; }
 .notch-dots i { inline-size: 7px; block-size: 7px; border-radius: 50%; background: var(--track); }
@@ -153,7 +162,7 @@
   border-radius: var(--inner);
   cursor: pointer;
 }
-.notch-row-done { margin-inline-end: -6px; background: var(--secondary); color: var(--t87); }
+.notch-row-done { background: var(--secondary); color: var(--t87); }
 .notch-row-done .notch-glyph { inline-size: 20px; block-size: 20px; }
 .notch-row-done:active { background: var(--press); }
 .notch-stop { background: var(--alarm); }
@@ -200,8 +209,8 @@
   :root:not([data-reduce-motion="true"]) .notch-o { animation: notch-roll-out 150ms var(--ease) both; }
   :root:not([data-reduce-motion="true"]) .notch-n { display: inline-block; animation: notch-roll-in 150ms var(--ease) 100ms both; }
   :root:not([data-reduce-motion="true"]) .notch-ring[data-pulse="true"] { animation: notch-beat 1200ms ease-in-out infinite; }
-  :root:not([data-reduce-motion="true"]) :is(.notch-pill-button, .notch-row-tap, .notch-circle-button, .notch-undo) { transition: scale 100ms var(--ease), background-color 100ms linear; }
-  :root:not([data-reduce-motion="true"]) :is(.notch-pill-button, .notch-row-tap, .notch-circle-button, .notch-undo):active { scale: 0.97; }
+  :root:not([data-reduce-motion="true"]) :is(.notch-pill-button, .notch-row-tap, .notch-circle-button, .notch-undo, .notch-words) { transition: scale 100ms var(--ease), background-color 100ms linear; }
+  :root:not([data-reduce-motion="true"]) :is(.notch-pill-button, .notch-row-tap, .notch-circle-button, .notch-undo, .notch-words):active { scale: 0.97; }
 }
 :root[data-reduce-motion="true"] .island-face, :root[data-reduce-motion="true"] .notch-value { transition: opacity 150ms linear; }
 @media (prefers-reduced-motion: reduce) {

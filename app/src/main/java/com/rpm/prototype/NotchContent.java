@@ -53,6 +53,9 @@ final class NotchContent {
 
         /** Takes back the change the receipt shows. */
         void undo();
+
+        /** Opens the hero's task (or the day, for a calendar event) in the planner. */
+        void openHero();
     }
 
     final NotchParts parts;
@@ -82,8 +85,12 @@ final class NotchContent {
         Look look = scene.heroLook;
         int accent = NotchInk.accent(look);
         parts.bandSpeaks(face, bandSpoken(scene), 0);
-        col.addView(parts.title(scene.heroTitle));
-        col.addView(parts.line(scene.heroSubtitle, accent));
+        if (scene.hero != null) {
+            col.addView(parts.words(scene.heroTitle, scene.heroSubtitle, accent, "Open " + scene.heroTitle + " in the plan", actions::openHero));
+        } else {
+            col.addView(parts.title(scene.heroTitle));
+            col.addView(parts.line(scene.heroSubtitle, accent));
+        }
 
         List<View> pills = new ArrayList<>();
         for (Control c : scene.controls()) pills.add(control(c, scene, actions, pills.isEmpty(), accent));
@@ -142,7 +149,6 @@ final class NotchContent {
                     () -> actions.doneSlot(r.slot));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(parts.dp(NotchGeometry.CONTROL_DP), parts.dp(NotchGeometry.CONTROL_DP));
             lp.setMarginStart(parts.dp(8));
-            row.setPaddingRelative(row.getPaddingStart(), row.getPaddingTop(), parts.dp(NotchGeometry.ROW_DP - NotchGeometry.CONTROL_DP) / 2, row.getPaddingBottom());
             row.addView(done, lp);
             return row;
         }

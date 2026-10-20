@@ -24,7 +24,6 @@ import java.util.List;
  * and the receipt. The band's ring and value (IslandBand) travel with the morph; faces fade, and rise 8dp as they come in.
  */
 final class IslandView extends ViewGroup {
-    private static final float PRESSED_SCALE = 0.97f;
     private static final long PRESS_HOLD_MS = 90;
     private static final int SHADOW = 0x40000000;
 
@@ -314,7 +313,7 @@ final class IslandView extends ViewGroup {
                 }
                 if (pressable) {
                     removeCallbacks(release);
-                    press.target = PRESSED_SCALE;
+                    press.target = NotchMotion.PRESS_SCALE;
                     pressFrame();
                     postDelayed(longPress, IslandGesture.LONG_PRESS_MS);
                 }

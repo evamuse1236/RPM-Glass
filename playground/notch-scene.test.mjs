@@ -236,6 +236,39 @@ test('a face too tall for the screen drops rows, then shortens its title, and is
   assert.match(view, /h: Math\.max\(next\.offsetHeight, h\)/, 'the island is as tall as its face');
 });
 
+const javaSource = name => readFileSync(new URL(`../app/src/main/java/com/rpm/prototype/${name}.java`, import.meta.url), 'utf8');
+
+test('every control shrinks to the same scale while pressed, on the phone and in the copy', () => {
+  const motion = javaSource('NotchMotion');
+  const scale = Number(motion.match(/PRESS_SCALE = ([\d.]+)f;/)[1]), ms = Number(motion.match(/PRESS_MS = (\d+);/)[1]);
+  const css = readFileSync(new URL('./notch.css', import.meta.url), 'utf8');
+  const pressed = css.match(/:is\(([^)]*)\):active \{ scale: ([\d.]+); \}/);
+  assert.equal(Number(pressed[2]), scale);
+  assert.match(css, new RegExp(`transition: scale ${ms}ms var\\(--ease\\)`));
+  for (const part of ['.notch-pill-button', '.notch-row-tap', '.notch-circle-button', '.notch-undo', '.notch-words']) assert.ok(pressed[1].includes(part), part);
+  const parts = javaSource('NotchParts');
+  for (const method of ['View words(', 'View pill(', 'LinearLayout row(', 'View circleButton(']) {
+    const body = parts.slice(parts.indexOf(method), parts.indexOf('\n    }\n', parts.indexOf(method)));
+    assert.match(body, /pressShrinks\(/, method);
+  }
+  assert.match(javaSource('NotchChangeViews'), /NotchParts\.pressShrinks\(undo\)/);
+  assert.match(javaSource('IslandView'), /press\.target = NotchMotion\.PRESS_SCALE;/, 'the pill itself shrinks by the same amount');
+});
+
+test('the open island\'s title and line open the task, as the alert island\'s words do', () => {
+  assert.match(javaSource('NotchContent'), /parts\.words\(scene\.heroTitle, scene\.heroSubtitle, accent, "Open " \+ scene\.heroTitle \+ " in the plan", actions::openHero\)/);
+  assert.match(javaSource('NotchController'), /public void openHero\(\) \{\s+NotchController\.this\.openHero\(\);/);
+  assert.match(readFileSync(new URL('./notch-view.mjs', import.meta.url), 'utf8'), /button\('notch-words', `Open \$\{scene\.heroTitle\} in the plan`, actions\.openHero\)/);
+});
+
+test('an alert row\'s Done circle ends 16dp from the island\'s edge, like every row value', () => {
+  assert.doesNotMatch(javaSource('NotchContent'), /ROW_DP - NotchGeometry\.CONTROL_DP\) \/ 2/, 'the row keeps its own 8dp end');
+  const css = readFileSync(new URL('./notch.css', import.meta.url), 'utf8');
+  assert.match(css, /\.notch-row-done \{ background: var\(--secondary\); color: var\(--t87\); \}/);
+  assert.equal(G.ROW_OUTSET_DP + 8, G.PAD_DP, 'rows reach 8dp past the margin and pad 8dp back in');
+  assert.equal(innerRadius(G.PAD_DP), G.CONTROL_DP / 2, 'at a 16dp inset the 40dp circle is concentric with the island');
+});
+
 test('the copy uses the phone\'s sizes: NotchGeometry.java and notch-geometry.mjs match', () => {
   const java = readFileSync(new URL('../app/src/main/java/com/rpm/prototype/NotchGeometry.java', import.meta.url), 'utf8');
   const constants = Object.fromEntries([...java.matchAll(/static final (?:int|float) (\w+) = ([\d.]+)f?;/g)].map(([, k, v]) => [k, Number(v)]));

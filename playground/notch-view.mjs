@@ -130,7 +130,9 @@ function openFace(scene, actions, maxRows) {
     : c === 'GLASS' ? pill('notch_ic_water', 'Glass', 'Log a glass of water', INK.WATER, i === 0, actions.drink)
       : pill('notch_ic_snooze', 'Later', `Snooze ${scene.snoozeMinutes} minutes`, heroAccent, i === 0, actions.snooze));
   const rows = visibleRows(scene, maxRows).map(r => sceneRow(r, scene, actions));
-  const parts = [title(scene.heroTitle), line(scene.heroSubtitle, heroAccent)];
+  const words = scene.hero ? [button('notch-words', `Open ${scene.heroTitle} in the plan`, actions.openHero)] : [];
+  words[0]?.append(title(scene.heroTitle), line(scene.heroSubtitle, heroAccent));
+  const parts = words.length ? words : [title(scene.heroTitle), line(scene.heroSubtitle, heroAccent)];
   if (pills.length) parts.push(controls(...pills));
   if (rows.length) {
     const list = el('div', 'notch-rows');

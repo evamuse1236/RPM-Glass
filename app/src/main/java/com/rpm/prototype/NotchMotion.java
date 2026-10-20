@@ -19,6 +19,8 @@ final class NotchMotion {
     static final int RISE_DP = 8;
     /** A rolling digit travels 60% of its height. */
     static final float ROLL_TRAVEL = 0.6f;
+    static final float PRESS_SCALE = 0.97f;
+    static final long PRESS_MS = 100;
     static final long PULSE_MS = 1200;
     static final float PULSE_SCALE = 1.06f;
 

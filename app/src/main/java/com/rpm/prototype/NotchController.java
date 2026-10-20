@@ -342,6 +342,11 @@ final class NotchController implements NotchPill.Gestures {
             changes.undo();
         }
 
+        @Override
+        public void openHero() {
+            NotchController.this.openHero();
+        }
+
         /** Holds the due water and routine nudges here for the snooze time; the planner's own data is untouched. */
         @Override
         public void snooze() {

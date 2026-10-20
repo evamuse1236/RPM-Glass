@@ -49,6 +49,7 @@ final class NotchChangeViews {
                 new android.graphics.drawable.InsetDrawable(NotchParts.round(NotchInk.intoBlack(NotchInk.TASK, NotchInk.PRIMARY_SHARE), radius), 0, reach, 0, reach)));
         undo.setContentDescription("Undo: " + r.title);
         undo.setOnClickListener(v -> NotchController.safely("Undo", actions::undo));
+        NotchParts.pressShrinks(undo);
         return undo;
     }
 

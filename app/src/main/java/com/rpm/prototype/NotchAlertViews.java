@@ -52,12 +52,6 @@ final class NotchAlertViews {
 
     /** The title over the line; tapping the words opens the task, as the island's own tap does. */
     private View words(String title, String line, int lineColor, String spoken, NotchContent.Actions actions) {
-        LinearLayout words = new LinearLayout(parts.context);
-        words.setOrientation(LinearLayout.VERTICAL);
-        words.addView(parts.title(title));
-        words.addView(parts.line(line, lineColor));
-        words.setContentDescription(spoken);
-        words.setOnClickListener(v -> NotchController.safely("open alert task", actions::openAlert));
-        return words;
+        return parts.words(title, line, lineColor, spoken, actions::openAlert);
     }
 }
