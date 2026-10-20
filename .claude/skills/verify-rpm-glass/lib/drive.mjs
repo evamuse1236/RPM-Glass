@@ -9,13 +9,27 @@ import {wipeAppDataKeepingSync} from './sync.mjs';
 // every tap. Answer Wait and try once more before reporting the element as missing.
 // Opens Capture's More menu and waits for the item, since the menu animates in and a slow emulator takes a while.
 async function openMenuItem(serial, cdpPort, item) {
+  const find = () => tapElement(serial, cdpPort, {name: item, role: 'button', exact: true}, true);
   for (let attempt = 0; attempt < 2; attempt++) {
+    try { return await settled(find); } catch (e) { if (!(e instanceof UserError)) throw e; }
     touch(serial, (await tapElement(serial, cdpPort, {name: 'More: planner, history, settings', role: 'button'})).at);
     for (const until = Date.now() + 6000; Date.now() < until; await sleep(300)) {
-      try { return await tapElement(serial, cdpPort, {name: item, role: 'button'}, true); } catch (e) { if (!(e instanceof UserError)) throw e; }
+      try { return await settled(find); } catch (e) { if (!(e instanceof UserError)) throw e; }
     }
   }
   throw new UserError(`Capture's More menu did not show "${item}".`, 'Run `rpmctl shot menu` and `rpmctl ui` to see the screen.');
+}
+
+/** A sheet that is still sliding in moves its items; tap only once two reads 150 ms apart agree within 2 px. */
+export async function settled(locate, {wait = sleep, tries = 12} = {}) {
+  let last = await locate();
+  for (let i = 0; i < tries; i++) {
+    await wait(150);
+    const next = await locate();
+    if (Math.abs(next.at[0] - last.at[0]) <= 2 && Math.abs(next.at[1] - last.at[1]) <= 2) return next;
+    last = next;
+  }
+  throw new UserError('The menu item kept moving.', 'Run `rpmctl shot menu` to see the screen, then retry.');
 }
 
 async function tapElement(serial, cdpPort, query, retried = false) {
