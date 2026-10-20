@@ -49,7 +49,7 @@ function parseTask(e, blocks) {
   const planned = time(e.planned);
   if (!planned) return null;
   return {id: Number(e.id) || 0, title: String(e.title ?? e.raw ?? ''), block: e.blockId == null ? null : blocks.get(String(e.blockId)) ?? null,
-    planned, minutes: e.minutes == null || !Number.isFinite(Number(e.minutes)) ? 30 : Math.trunc(Number(e.minutes)), recurrence: e.recurrence ?? '',
+    planned, minutes: e.minutes == null || !Number.isFinite(Number(e.minutes)) ? 30 : Math.trunc(Number(e.minutes)), recurrence: e.recurrence ?? '', repeatDays: e.repeatDays ?? [],
     completed: new Set(e.completedOccurrences ?? []), fixed: false, alert: alertType(e), purpose: String(e.purpose ?? '').trim()};
 }
 
@@ -68,13 +68,13 @@ export function parseNotchData(data, events) {
 
 function candidates(task, now) {
   const r = task.recurrence, base = new Date(task.planned);
-  if (!['daily', 'weekly', 'weekdays'].includes(r)) return [task.planned];
+  if (!['daily', 'weekly', 'weekdays', 'days'].includes(r)) return [task.planned];
   const out = [], today = dayStart(now);
   for (let back = 1; back >= 0; back--) {
     const d = new Date(today); d.setDate(d.getDate() - back);
     const days = epochDay(d) - epochDay(base);
     if (days < 0 || (r === 'weekly' && days % 7 !== 0)) continue;
-    if (r === 'weekdays' && (d.getDay() === 0 || d.getDay() === 6)) continue;
+    if (r === 'weekdays' && (d.getDay() === 0 || d.getDay() === 6) || r === 'days' && !task.repeatDays.includes(d.getDay())) continue;
     const at = new Date(base); at.setDate(at.getDate() + days);
     out.push(at.getTime());
   }

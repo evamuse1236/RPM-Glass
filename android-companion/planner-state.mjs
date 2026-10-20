@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {occurrences,completeTask,repeats} from './planner-recurrence.mjs';
-import {text,title,integer,one,link} from './planner-fields.mjs';
+import {text,title,integer,weekdays,one,link} from './planner-fields.mjs';
 import {REVIEW_VERSION,REVIEW_OPS,migrateReviewData,validateReviewData,forgetBlockInWeeks,keepCompletionTime} from './planner-review-data.mjs';
 import {BODY_OPS,validateBody} from './body-store.mjs';
 
@@ -72,12 +72,16 @@ export function editPlan(data,op,now=new Date()){
     if('priority'in f)e.priority=integer(f.priority,1,100000);
     if('must'in f){if(typeof f.must!=='boolean')throw new Error('Must must be on or off.');e.must=f.must;}
     if('done'in f){if(typeof f.done!=='boolean')throw new Error('Invalid completion.');e.done=f.done;e.state=f.done?'done':'active';if(!f.done)e.completedAt=null;}
-    if('alert'in f){if(!['alarm','reminder','off',null].includes(f.alert))throw new Error('Invalid alert.');e.alertIntent={type:f.alert};}
-    if('recurrence'in f){if(![null,'daily','weekly','weekdays'].includes(f.recurrence))throw new Error('Invalid recurrence.');e.recurrence=f.recurrence;}
+    if('alert'in f){if(!['alarm','reminder','off',null].includes(f.alert))throw new Error('Invalid alert.');e.alertIntent={...e.alertIntent,type:f.alert};}
+    if('alertLead'in f)e.alertIntent={type:null,...e.alertIntent,lead:integer(f.alertLead,0,1440)};
+    if('recurrence'in f){if(![null,'daily','weekly','weekdays','days'].includes(f.recurrence))throw new Error('Invalid recurrence.');e.recurrence=f.recurrence;}
+    if('repeatDays'in f)e.repeatDays=f.repeatDays==null?null:weekdays(f.repeatDays);
+    if(e.recurrence==='days'&&!e.repeatDays?.length)throw new Error('Choose the days it repeats on.');
+    if(e.recurrence!=='days'&&'repeatDays'in e)delete e.repeatDays;
     if('repeatAfterDays'in f)e.repeatAfterDays=f.repeatAfterDays==null?null:integer(f.repeatAfterDays,1,365);
     if(e.repeatAfterDays&&e.recurrence)throw new Error('Choose one repeat pattern.');
     if((e.recurrence||e.repeatAfterDays)&&!e.planned)throw new Error('Add the first date and time for a repeating task.');
-    if('planned'in f&&f.planned!==old.planned||'recurrence'in f&&f.recurrence!==old.recurrence)e.completedOccurrences=[];
+    if('planned'in f&&f.planned!==old.planned||'recurrence'in f&&f.recurrence!==old.recurrence||String(e.repeatDays??'')!==String(old.repeatDays??''))e.completedOccurrences=[];
     if(f.done===true){e.done=false;e.state='active';completeTask(e,op.occurrence,now);keepCompletionTime(e,old,at);}
     e.revisions.push({at,reason:'Edited in planner',before:old,snapshot:{title:e.title,planned:e.planned,minutes:e.minutes,blockId:e.blockId,must:e.must,done:e.done}});
     e.revisions=e.revisions.slice(-100);
