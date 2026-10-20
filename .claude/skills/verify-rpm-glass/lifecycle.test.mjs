@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {UserError, netsimToStart, gpuMode, emulatorEnv} from './lib/device.mjs';
+import {UserError, netsimToStart, gpuMode, emulatorEnv, staleOverlays} from './lib/device.mjs';
 import * as ownership from './lib/ownership.mjs';
 
 const source = fs.readFileSync(new URL('./lib/lifecycle.mjs', import.meta.url), 'utf8');
@@ -130,6 +130,15 @@ test('a launch builds before it takes the emulator, so a failed build holds noth
   await assert.rejects(f.commands.launch({_: [], build: true, port: 5582, cdpPort: 13002}), /Unexpected fixture call/);
   assert.equal(f.h.starts, 0);
   assert.deepEqual(fs.existsSync(f.options.root) ? fs.readdirSync(f.options.root) : [], []);
+});
+
+test('a boot clears overlays a crashed emulator left, but never while any emulator runs', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'overlays-'));
+  for (const f of ['emulator-l9oSKn.qcow2', 'emulator-d44Uu6', 'notes.qcow2']) fs.writeFileSync(path.join(dir, f), '');
+  assert.deepEqual(staleOverlays(dir, {emulatorRunning: false}), [path.join(dir, 'emulator-l9oSKn.qcow2')]);
+  assert.deepEqual(staleOverlays(dir, {emulatorRunning: true}), []);
+  assert.deepEqual(staleOverlays(path.join(dir, 'missing'), {emulatorRunning: false}), []);
+  fs.rmSync(dir, {recursive: true, force: true});
 });
 
 test('the emulator keeps its 2-3 GB overlay on disk, not in a RAM /tmp', () => {

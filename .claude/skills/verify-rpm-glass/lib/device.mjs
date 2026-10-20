@@ -78,11 +78,20 @@ export function emulatorEnv(env = process.env, {platform = process.platform, hom
   return {...env, ANDROID_TMP: path.join(home, '.cache', 'rpmctl-emulator-tmp')};
 }
 
+const qemuRunning = () => process.platform !== 'linux' || fs.readdirSync('/proc').some(p => /^\d+$/.test(p) && (() => { try { return fs.readFileSync(`/proc/${p}/comm`, 'utf8').startsWith('qemu-system'); } catch { return false; } })());
+
+/** Overlays left by an emulator that crashed; a clean exit deletes its own. Only rpmctl's folder, and only when no emulator runs. */
+export function staleOverlays(dir, {emulatorRunning}) {
+  if (emulatorRunning || !fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter(f => /^emulator-\w+\.qcow2$/.test(f)).map(f => path.join(dir, f));
+}
+
 export function startEmulator({avd, port, logFile, gpu}) {
   const args = ['-avd', avd, '-port', String(port), '-read-only', '-no-window', '-no-audio', '-no-boot-anim', '-gpu', gpuMode(gpu), '-no-snapshot-save'];
   const log = fs.openSync(logFile, 'a');
   const env = emulatorEnv();
   if (env.ANDROID_TMP) fs.mkdirSync(env.ANDROID_TMP, {recursive: true});
+  if (env.ANDROID_TMP && !process.env.ANDROID_TMP) for (const f of staleOverlays(env.ANDROID_TMP, {emulatorRunning: qemuRunning()})) fs.rmSync(f, {force: true});
   const child = spawn(emulatorPath(), args, {detached: true, stdio: ['ignore', log, log], windowsHide: true, env});
   child.unref();
   return {pid: child.pid, args};
