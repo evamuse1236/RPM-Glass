@@ -1,6 +1,6 @@
 import {interpretTime,normalizeReminderTime,statedDays} from '../cli/interpret.mjs';
 const bareClock=/^\s*\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?\s*$/i;
-const clockWords=text=>bareClock.test(text)?'at '+text:text.replace(/(?<!\bup\s)\bto\s+(\d{1,2}(?::\d{2})?)(?=\s*(?:[ap]\.?m\.?(?:\s|$)|$|[.!?;]|(?:today|tomorrow|on|next)\b))/gi,'at $1');
+const clockWords=text=>bareClock.test(text)?'at '+text:text.replace(/^(?:no(?: wait)?\s+)?(\d{1,2}(?::\d{2})?)\s+(?=actually\b|(?:make it )?tomorrow\b)/i,'at $1 ').replace(/(?<!\bup\s)\bto\s+(\d{1,2}(?::\d{2})?)(?=\s*(?:[ap]\.?m\.?(?:\s|$)|$|[.!?;]|(?:today|tomorrow|on|next)\b))/gi,'at $1');
 function clockSubject(op,sourceOperations,input){
  const ownsSource=sourceOperations.filter(o=>o.sourceId===op.sourceId).length===1;
  return [op.fields.find(f=>f.name==='title'&&f.op==='set')?.evidence,input.context.entities.find(e=>e.entity==='task'&&e.id===op.targetId)?.title,ownsSource?input.sourceUnits.find(u=>u.id===op.sourceId)?.text:null].filter(Boolean).join(' ');
@@ -28,7 +28,7 @@ function inferClocks(parsed,input,now,sourceOperations){
     const a=new Date(time.planned),b=new Date(whole.planned);
     if(a.getHours()%12!==b.getHours()%12||a.getMinutes()!==b.getMinutes())continue;
     time=whole;proof=owner.text;
-   }else if(!f.evidence||bareClock.test(proof))continue;
+   }else if(!f.evidence)continue;
    const savedDay=input.context.entities.find(e=>e.entity==='task'&&e.id===op.targetId)?.savedLocalDate;
    if(savedDay&&savedDay>input.context.nowLocal?.slice(0,10)&&(MORNING.test(proof)||LATER.test(proof))&&!statedDays(proof,now).length&&!/\bthis\s+(?:morning|afternoon|evening|night)\b/i.test(proof)){
     const retained=interpretTime(`${savedDay} ${clockWords(proof)}`,now,{subject,inferBareClock:true});
@@ -58,6 +58,26 @@ function recoverExplicitSavedClock(parsed,input,now){
   }
  }
 }
+// A day-only edit may echo the saved clock. Strip only a verified unchanged
+// clock, then let the canonical updater carry it to the stated day.
+function normalizeInheritedClocks(parsed,input,now){
+ for(const op of parsed.operations){
+  if(op.kind!=='update'||op.entity!=='task')continue;
+  const target=input.context.entities.find(e=>e.entity==='task'&&e.id===op.targetId);
+  if(!target?.startLocal)continue;
+  for(const f of op.fields){
+   if(f.name!=='time'||f.op!=='set'||f.origin!=='stated'||f.sourceMessageId!==input.messageId||!f.evidence||!input.sourceUnits.some(u=>u.text.includes(f.evidence)))continue;
+   const proof=interpretTime(f.evidence,now);
+   if(proof.status!=='date_only'||proof.matched.some(m=>Number.isInteger(m.known.hour))||!statedDays(proof.normalized,now).length)continue;
+   const requested=clocks(f.value,now,f.evidence,'');
+   const [h,m]=target.startLocal.slice(11).split(':').map(Number);
+   if(requested.length!==1||requested[0].hour!==h||requested[0].minute!==m)continue;
+   const value=interpretTime(f.value,now);
+   if(value.plannedDate!==proof.plannedDate)continue;
+   f.value=f.evidence;
+  }
+ }
+}
 // A bare clock said with its part of day ("in the morning like 9 or 10", "shaam ko 7") has stated its AM/PM.
 const MORNING=/\b(?:morning|subah|sakali)\b/i,LATER=/\b(?:afternoon|evening|tonight|night|shaam|sham|raat|dopahar)\b/i;
 // Bare clocks the parser skips ("like 9 or 10", "7 baje"), read only beside a time word.
@@ -82,6 +102,7 @@ function withPart(c,evidence=''){
 /** A bare clock uses its own evidence and the capture anchor, never another action's period. */
 export function validateIntentTimes(parsed,{input,sourceOperations=parsed.operations}){
  const now=new Date(input.context.now),raw=input.sourceUnits.map(u=>u.text).join('\n');
+ normalizeInheritedClocks(parsed,input,now);
  recoverExplicitSavedClock(parsed,input,now);
  inferClocks(parsed,input,now,sourceOperations);
  for(const op of parsed.operations)for(const field of op.fields){

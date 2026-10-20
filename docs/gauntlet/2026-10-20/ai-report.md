@@ -91,3 +91,28 @@ Assumptions: “shift by an hour” means later in the adversary's two-calls cas
 A retained-output audit found two more measurement defects before app edits. The word matcher rejected “fees” for “fee”; it now accepts a direct plural s without permitting unrelated prefixes. The shoes retraction lacked its first-turn checkpoint, so intentionally requested shoes were called an invention before retraction. That checkpoint is now explicit. Intermediate maximum counts use the largest declared checkpoint; the final maximum and retraction still apply. New negative controls preserve both boundaries. The original baseline outputs and scores are retained, and corrected scores come from deterministic replay, without fresh Capture calls.
 
 The two-calls case says “shift by an hour” without earlier or later. I am retaining its adversary expectation but will not make a local reader guess the direction merely to pass it. A clarification on that case is a benchmark failure with an inferred specification ambiguity.
+
+Adversary baseline: 57/80 attempts passed (40 cases, two repeats). The uncorrected checker said 53/80. Four retained outputs gained passes solely from the documented fees/checkpoint corrections. Case words, model outputs and canonical stores did not change.
+
+| Attack class | Baseline |
+| --- | ---: |
+| ADHD day rambles | 3/8 |
+| Voice errors | 2/8 |
+| Hinglish | 4/10 |
+| Loose saved references | 4/8 |
+| Multi-turn corrections | 8/8 |
+| Relative and fuzzy time | 8/8 |
+| Non-tasks | 6/6 |
+| Completion and status | 8/8 |
+| Purpose and Must | 4/6 |
+| Dangerous misreads | 10/10 |
+
+Fix iteration 1 targets time reading, the biggest measured baseline cause. “Five thirty”, “five forty five”, and clock-shaped “at for thirty” are normalized without altering quantity phrases. Hindi half-hour clocks with future wake-up wording are supported. An isolated exact clock in a multi-action source uses the same guarded inference as other bare clocks. A clock followed by its corrected day can now pass the time guard. A narrow “day after … same time” correction uses the existing day updater.
+
+A day-only correction that echoes the target's unchanged clock no longer needs a repair call. The guard verifies the target, clock and stated day, then sends only the original day evidence to the canonical updater. A different clock still fails. Tests: `capture-spoken-correction.test.mjs` and `intent-time-guard.test.mjs`. The new assertions were red before the fixes.
+
+“Push everything after 5 today to tomorrow” reads the full store locally. The task at exactly 5 stays put. Later open tasks retain their clocks. One receipt and Undo cover the move. The reader abstains above 30 matches, on recurrence and during an open question or draft. `capture-bulk-local.test.mjs` proves selection beyond retrieval limits, the strict boundary, exact words, canonical readback and Undo. Its core assertion was red before the fix.
+
+Equal task and Block creates collapse before application. Child links are rewritten to the retained parent. Different schedules, parents and purposes stay separate. `duplicate-creates.test.mjs` was red at four operations and now requires two, with the retained parent reference. This is conservative equality of normalized field values, not a similarity-based merge of differently worded tasks.
+
+Iteration 1 measured 31/45 on targeted repeats, 68/80 on all adversary attempts, and 109/109 on the old corpus. Baseline time failures accounted for 17 of the 23 failures; health reports, Must and the directionless shift accounted for two each. The targeted run includes the three mandatory round-1 defects, three repeats each; all nine passed. Native behavior is UNVERIFIED. All live runs use stable source fingerprints.

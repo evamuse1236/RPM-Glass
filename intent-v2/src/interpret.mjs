@@ -5,6 +5,26 @@ import {CAPTURE_OPERATIONS} from './capabilities.mjs';
 import {normalizeReminderTime} from '../../cli/interpret.mjs';
 import {capitalizeTitle} from '../../cli/title.mjs';
 const words=s=>String(s).toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+// Collapse only equal task/Block values; provenance and operation IDs do not
+// make a second item. Different schedules, parents or purposes stay distinct.
+function collapseCreates(operations,question){
+ const aliases=new Map(),resolve=id=>{while(aliases.has(id))id=aliases.get(id);return id;};
+ let rows=operations,changed=true;
+ while(changed){
+  changed=false;const seen=new Map(),kept=[];
+  for(const op of rows){
+   for(const f of op.fields)if(['blockId','projectId','goalId','areaId'].includes(f.name)&&f.op==='set'&&String(f.value).startsWith('$'))f.value='$'+resolve(f.value.slice(1));
+   if(op.kind!=='create'||!['block','task'].includes(op.entity)){kept.push(op);continue;}
+   const values=op.fields.map(f=>[f.name,f.op,typeof f.value==='string'?f.value.trim().replace(/\s+/g,' ').toLowerCase():f.value]).sort((a,b)=>a[0].localeCompare(b[0]));
+   const signature=JSON.stringify([op.entity,values]),previous=seen.get(signature);
+   if(previous){aliases.set(op.opId,previous.opId);previous.sourceMessageIds=[...new Set([...previous.sourceMessageIds,...op.sourceMessageIds])];changed=true;}
+   else{seen.set(signature,op);kept.push(op);}
+  }
+  rows=kept;
+ }
+ if(question)question.opId=resolve(question.opId);
+ return rows;
+}
 /** A choice may only name what the model was shown, and only what its action can be done to. */
 function checkClarification(c,visible){
  if(c.choices.length<2)throw new Error('A clarification offers two to four choices');
@@ -81,6 +101,7 @@ export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}
    }else old.set(op.opId,op);
   }merged=[...old.values()];
  }
+ merged=collapseCreates(merged,turn.question);
  if(merged.length>30)throw new Error('A draft supports at most 30 operations');
  for(const op of merged){
   checkBodyOperation(op);
