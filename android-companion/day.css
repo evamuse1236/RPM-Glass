@@ -50,6 +50,8 @@
   white-space: nowrap;
 }
 :root[data-large-text=true] .spine-gutter { white-space: normal; overflow-wrap: break-word; }
+/* A long length wraps between its hours and minutes ("3 h" over "55 min") instead of running past the screen edge. */
+.spine-length { white-space: normal; }
 .spine-row.next .spine-gutter { color: var(--on-surface); font-weight: 700; }
 /* The next card alone: a 3dp primary bar on its inner left edge and how soon it starts under its time. */
 .spine-soon { color: var(--primary); }

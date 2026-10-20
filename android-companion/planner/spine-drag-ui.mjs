@@ -1,4 +1,4 @@
-import {pressStep, snapStart, snapLength, glassesFor, HOLD_LIFT} from '../spine-drag.mjs';
+import {pressStep, snapStart, snapLength, glassesFor, labelTop, hasKnurl, HOLD_LIFT, LABEL_GAP, LABEL_HEIGHT} from '../spine-drag.mjs';
 import {LONG_PRESS, lockAxis, nearEdge} from '../task-swipe.mjs';
 import {cardHeight} from '../spine-model.mjs';
 import {clockText} from '../body-state.mjs';
@@ -8,8 +8,6 @@ import {quickMenu} from './row-gestures.mjs';
 import {paintWaterTrack} from './spine-view.mjs';
 
 const EDGE_SCROLL = 64;
-const LABEL_GAP = 12;
-const LABEL_HEIGHT = 28;
 const navRoom = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-measured')) || 0;
 const typing = () => document.activeElement?.matches?.('input, textarea, [contenteditable=true]');
 
@@ -27,6 +25,15 @@ function placeLabel(label, x, y, text) {
   label.style.translate = `${left}px ${Math.max(8, y - LABEL_GAP - LABEL_HEIGHT)}px`;
 }
 
+/** A card's label sits centred 12dp above the card, never over its title (below it when the card is near the top). */
+function placeCardLabel(label, card, text) {
+  if (label.textContent !== text) label.textContent = text;
+  const box = card.getBoundingClientRect();
+  const half = label.offsetWidth / 2;
+  const left = Math.min(innerWidth - 16 - half, Math.max(16 + half, box.left + box.width / 2)) - half;
+  label.style.translate = `${left}px ${labelTop(box.top, box.bottom, card.closest('#planner-scroll')?.getBoundingClientRect().top ?? 0)}px`;
+}
+
 /** Eats the click that ends a drag or a lift, so letting go never also opens the task. */
 function clickGuard(node) {
   let eat = false;
@@ -42,7 +49,7 @@ function clickGuard(node) {
 /**
  * Hold a timed card still for 250ms and it lifts; drag it up or down and its start follows in 15-minute steps, read out
  * above the finger, and it saves where it is let go with Undo. Held past 400ms and let go without moving, it opens the
- * quick menu. The knurl at its foot drags the length.
+ * quick menu. The knurl at its foot (only on a card that has not ended) drags the length.
  */
 export function attachSpineDrag(app, card, row, {dayStart}) {
   const task = row.task.ref;
@@ -61,7 +68,7 @@ export function attachSpineDrag(app, card, row, {dayStart}) {
       if (shown != null) haptic('tick');
       shown = start;
     }
-    placeLabel(label, finger.x, finger.y, clockText(new Date(start)));
+    placeCardLabel(label, card, clockText(new Date(start)));
   };
   const autoScroll = () => {
     frame = 0;
@@ -149,7 +156,7 @@ export function attachSpineDrag(app, card, row, {dayStart}) {
     if (!card.classList.contains('lifted')) quickMenu(app, task, card);
   });
 
-  card.append(knurl(app, card, row, haptic));
+  if (hasKnurl(row)) card.append(knurl(app, card, row, haptic));
 }
 
 function knurl(app, card, row, haptic) {
@@ -180,7 +187,7 @@ function knurl(app, card, row, haptic) {
     if (value !== press.value) haptic('tick');
     press.value = value;
     card.closest('.spine-row')?.style.setProperty('--h', cardHeight(value) + 'px');
-    placeLabel(label, event.clientX, event.clientY, duration(value));
+    placeCardLabel(label, card, duration(value));
   });
   const end = commit => event => {
     if (!press || event.pointerId !== press.id) return;

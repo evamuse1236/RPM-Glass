@@ -69,3 +69,35 @@ test('a drag across the Water row adds one glass per 24dp and never takes off a 
   assert.equal(glassesFor(-200, 3), 3, 'dragging back stops at what is already logged');
   assert.equal(glassesFor(2000, 3), 30);
 });
+
+test('a dragged card\'s label sits 12dp above the card, never over its title, or below it near the top', async () => {
+  const {labelTop} = await import('./spine-drag.mjs');
+  assert.equal(labelTop(400, 480, 112), 400 - 12 - 28);
+  assert.equal(labelTop(150, 230, 112), 230 + 12, 'too close to the top: below the card');
+});
+
+test('a long length in the gutter keeps each number with its unit and breaks only between hours and minutes', async () => {
+  const {gutterLength} = await import('./spine-model.mjs');
+  assert.equal(gutterLength('3 h 55 min'), '3 h 55 min');
+  assert.equal(gutterLength('3 h 55 min'), '3 h 55 min');
+  assert.equal(gutterLength('45 min'), '45 min');
+});
+
+test('the length knurl shows only on timed cards that have not ended', async () => {
+  const {hasKnurl} = await import('./spine-drag.mjs');
+  assert.equal(hasKnurl({start: 1, past: false}), true, 'a future or running card');
+  assert.equal(hasKnurl({start: 1, past: true}), false, 'a past card');
+  assert.equal(hasKnurl({start: null, past: false}), false, 'an Anytime card');
+  assert.equal(hasKnurl({start: 1, past: false, done: true}), false);
+});
+
+test('a meal row\'s reveal has the card\'s outer corners and shows "Log now" only once it fits whole', async () => {
+  const {readFileSync} = await import('node:fs');
+  const css = readFileSync(new URL('./gestures.css', import.meta.url), 'utf8');
+  const reveal = css.match(/\.spine-small > \.swipe-reveal \{([^}]*)\}/)?.[1] ?? '';
+  assert.match(reveal, /border-radius: var\(--r-group\) 0 0 var\(--r-group\)/);
+  assert.match(reveal, /container-type: inline-size/);
+  assert.match(reveal, /white-space: nowrap/);
+  assert.match(css, /@container \(inline-size < 7em\) \{ \.spine-small > \.swipe-reveal \.swipe-word \{ visibility: hidden; \} \}/,
+    'the word hides below 7em (icon + gap + "Log now"), and the threshold grows with the text');
+});

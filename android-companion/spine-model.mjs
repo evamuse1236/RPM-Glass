@@ -17,6 +17,9 @@ const RANK = {now: 0, event: 1, routine: 2, task: 3, deadline: 4, meal: 5, water
 const BLOCKS = new Set(['task', 'event', 'routine']);
 const plural = (count, one) => `${count} ${count === 1 ? one : one + 's'}`;
 const minutesBetween = (a, b) => Math.round((b - a) / MIN);
+/** A length for the gutter: each number stays with its unit, and "3 h 55 min" may break between hours and minutes. */
+export const gutterLength = text => String(text).replace(/\s+/g, ' ').replace(/(\d+) (h|min)\b/g, '$1 $2');
+
 /** How soon the next card starts, short enough for the gutter: "in 40 min", then whole hours ("in 4 h"). */
 export function soonText(ms) {
   const minutes = Math.max(1, Math.ceil(ms / MIN));

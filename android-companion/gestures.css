@@ -107,4 +107,15 @@
 .spine-card.resizing { border-color: var(--primary); }
 /* Small spine rows (meals) swipe inside their own box, so the reveal never covers the gutter. */
 .spine-small.swipe-task { position: relative; }
-.spine-small > .swipe-reveal { border-radius: var(--r-control); }
+/* A meal row's reveal grows with the finger and has the card's 20dp corners on its outer side; its word shows only
+   once it fits whole, so "Log now" is never cut mid-word. */
+.spine-small > .swipe-reveal {
+  inset-inline-end: auto;
+  inline-size: max(0px, var(--swipe-offset, 0px));
+  border-radius: var(--r-group) 0 0 var(--r-group);
+  padding-inline: var(--s4);
+  overflow: clip;
+  container-type: inline-size;
+  white-space: nowrap;
+}
+@container (inline-size < 7em) { .spine-small > .swipe-reveal .swipe-word { visibility: hidden; } }

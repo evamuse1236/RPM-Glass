@@ -59,3 +59,14 @@ export const GLASS_PX = 24;
 export function glassesFor(dx, count, most = 30) {
   return Math.min(Math.max(most, count), Math.max(count, count + Math.trunc(dx / GLASS_PX)));
 }
+
+/** The live label's top while a card moves or resizes: 12dp above the card, or 12dp below it near the screen's top. */
+export const LABEL_GAP = 12;
+export const LABEL_HEIGHT = 28;
+export function labelTop(cardTop, cardBottom, viewTop = 0) {
+  const above = cardTop - LABEL_GAP - LABEL_HEIGHT;
+  return above >= viewTop + 8 ? above : cardBottom + LABEL_GAP;
+}
+
+/** The length knurl shows on a timed, open card that has not ended: a past or untimed (Anytime) card has none. */
+export const hasKnurl = row => row.start != null && !row.done && !row.past;
