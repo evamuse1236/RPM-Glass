@@ -254,3 +254,9 @@ button.spine-card:active, .spine-card .spine-open:active { background: var(--row
 :root[data-large-text=true] .spine-elapsed { grid-template-columns: 1fr; }
 :root[data-large-text=true] .spine-resolve { justify-self: start; margin: 0 0 var(--s2) calc(-1 * var(--s3)); }
 :root[data-large-text=true] .spine-elapsed .spine-left { justify-self: start; }
+/* Water: a faint 2dp track under the count, one segment per glass of the goal; a drag across the row fills it. */
+.spine-water .spine-label { display: inline-flex; flex-direction: column; gap: var(--s1); }
+.water-track { display: flex; gap: 2px; inline-size: 96px; block-size: 2px; }
+.water-track i { flex: 1; border-radius: 1px; background: var(--outline-variant); }
+.water-track i.on { background: var(--primary); }
+.water-track i.adding { background: color-mix(in oklch, var(--primary) 55%, transparent); }

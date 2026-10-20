@@ -116,11 +116,28 @@ function smallRow(row, symbol, open, action) {
   return body;
 }
 
+/** The faint track under the Water count: one segment per glass of the goal, filled as glasses are logged. */
+export function paintWaterTrack(track, count, goal, logged = count) {
+  const total = Math.max(goal, count);
+  while (track.children.length < total) track.append(el('i'));
+  while (track.children.length > total) track.lastChild.remove();
+  [...track.children].forEach((segment, i) => {
+    segment.classList.toggle('on', i < count);
+    segment.classList.toggle('adding', i >= logged && i < count);
+  });
+}
+
 function waterBody(row, on) {
   const add = iconButton('add', 'Log a glass of water', on.drink, {cls: 'spine-action'});
   const body = smallRow(row, 'water_drop', on.openWater, add);
-  body.firstChild.setAttribute('aria-label', `${row.label}${row.due ? ', a glass is due' : ''}. Open water`);
+  const open = body.firstChild;
+  open.setAttribute('aria-label', `${row.label}${row.due ? ', a glass is due' : ''}. Open water`);
+  const track = el('span', 'water-track');
+  track.setAttribute('aria-hidden', 'true');
+  paintWaterTrack(track, row.count, row.goal);
+  open.querySelector('.spine-label').append(track);
   on.holdHabit?.(body, 'water');
+  on.waterDrag?.(body, row, track);
   return body;
 }
 
@@ -129,7 +146,7 @@ function mealBody(row, on) {
   const action = row.meal ? null : button('Log it', open, 'text-btn spine-action');
   action?.setAttribute('aria-label', `Log ${row.label.split(' · ')[0].toLowerCase()}`);
   const body = smallRow(row, 'restaurant', open, action);
-  on.holdHabit?.(body, `meal:${row.slot}`);
+  on.holdHabit?.(body, `meal:${row.slot}`, row.meal ? {} : {right: {kind: 'log', run: () => on.logMealNow(row)}});
   return body;
 }
 

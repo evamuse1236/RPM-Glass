@@ -3,7 +3,7 @@
  * calendar events, Routines, water, meals and Result deadlines. It opens at now; a floating Now button returns there.
  */
 import {buildSpine} from '../spine-model.mjs';
-import {waterStatus, routineOn, routineState, doneAll} from '../body-state.mjs';
+import {waterStatus, routineOn, routineState, doneAll, usualMeals} from '../body-state.mjs';
 import {localDay, blockDue, timelineItems} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
 import {spineList, spineRow} from './spine-view.mjs';
@@ -12,10 +12,10 @@ import {dueInfo} from './format.mjs';
 import {notice} from './snackbar.mjs';
 import {toggleDone} from './task-row.mjs';
 import {attachRowGestures} from './row-gestures.mjs';
-import {attachSpineDrag} from './spine-drag-ui.mjs';
+import {attachSpineDrag, attachWaterDrag} from './spine-drag-ui.mjs';
 import {repeats} from '../planner-recurrence.mjs';
 import {openRunSheet} from './routines.mjs';
-import {drink, openWaterSheet} from './water.mjs';
+import {drink, drinkGlasses, openWaterSheet} from './water.mjs';
 import {openMealSheet} from './meals.mjs';
 import {holdToEdit} from './habits.mjs';
 import {bodyApi} from './body-api.mjs';
@@ -73,6 +73,21 @@ async function toggleRoutine(app, body, row) {
   notice(app, row.done ? `${routine.name} reopened` : `${routine.name} done`, {undo: true});
 }
 
+/** Swipe right on a meal not yet logged: log it now as the usual food for that meal, with Undo; with none yet, the sheet. */
+async function logMealNow(app, body, row) {
+  const [usual] = usualMeals(body.meals(), row.slot);
+  if (!usual) return openMealSheet(app, body, {mealId: null, slot: row.slot});
+  try {
+    await body.saveMeal({name: usual, slot: row.slot, at: new Date().toISOString()});
+  } catch {
+    notice(app, "Couldn't save that. Try again.");
+    return false;
+  }
+  app.render();
+  notice(app, `${row.label.split(' · ')[0]} logged · ${usual}`, {undo: true});
+  return true;
+}
+
 function toggleTask(app, row) {
   const node = app.dom.work.querySelector(`:is(.spine-row, .spine-anytime-item)[data-key="${CSS.escape(row.key)}"]`);
   node?.classList.toggle('done', !row.done);
@@ -103,7 +118,9 @@ function handlers(app) {
     openWater: () => openWaterSheet(app, body),
     drink: () => drink(app, body),
     openMeal: row => openMealSheet(app, body, {mealId: row.meal?.id ?? null, slot: row.slot}),
-    holdHabit: (node, id) => holdToEdit(app, node, id),
+    holdHabit: (node, id, sides) => holdToEdit(app, node, id, sides),
+    waterDrag: (node, row, track) => attachWaterDrag(app, node, row, track, {log: count => drinkGlasses(app, body, count)}),
+    logMealNow: row => logMealNow(app, body, row),
     plan: row => app.actions.addTask({planned: new Date(row.plan).toISOString(), plannedDate: app.state.day}),
   };
 }

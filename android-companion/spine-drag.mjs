@@ -53,3 +53,9 @@ export function snapLength(minutes, dy) {
   const step = raw < 30 ? 5 : 15;
   return Math.min(MAX_LENGTH, Math.max(MIN_LENGTH, Math.round(raw / step) * step));
 }
+
+/** One glass per 24dp dragged right across the Water row; dragging back takes the extra glasses off before letting go. */
+export const GLASS_PX = 24;
+export function glassesFor(dx, count, most = 30) {
+  return Math.min(Math.max(most, count), Math.max(count, count + Math.trunc(dx / GLASS_PX)));
+}

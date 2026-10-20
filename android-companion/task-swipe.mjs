@@ -41,6 +41,7 @@ export const REVEALS = {
   schedule: ['event_upcoming', 'Schedule'],
   move: ['drive_file_move', 'Move'],
   remove: ['delete', 'Delete'],
+  log: ['restaurant', 'Log now'],
 };
 
 /** The coloured layer under a dragged row: an icon and the word, so colour is never the only signal. */

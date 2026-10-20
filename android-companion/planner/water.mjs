@@ -23,6 +23,20 @@ export async function drink(app, body) {
   notice(app, `Glass logged · ${count} of ${goal}`, {undo: true});
 }
 
+/** Several glasses from one drag across the Water row: one change, one Undo. */
+export async function drinkGlasses(app, body, count) {
+  try {
+    await body.drinkMany(count);
+  } catch {
+    app.render();
+    notice(app, "Couldn't save the glasses. Try again.");
+    return;
+  }
+  const status = statusOf(body);
+  app.render();
+  notice(app, `${count === 1 ? 'Glass' : count + ' glasses'} logged · ${status.count} of ${status.goal}`, {undo: true});
+}
+
 export function openWaterSheet(app, body, {motion = 'forward'} = {}) {
   const {body: content, actions, header} = openSheet(app, 'Water', {variant: 'water', motion});
   header.querySelector('.sheet-close').before(iconButton('tune', 'Edit water',

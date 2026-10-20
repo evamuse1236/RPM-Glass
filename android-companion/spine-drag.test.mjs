@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {pressStep, snapStart, snapLength, HOLD_LIFT} from './spine-drag.mjs';
+import {pressStep, snapStart, snapLength, glassesFor, GLASS_PX, HOLD_LIFT} from './spine-drag.mjs';
 import {nearEdge, EDGE} from './task-swipe.mjs';
 
 const run = events => events.reduce((state, event) => pressStep(state, event), null);
@@ -58,4 +58,14 @@ test('no horizontal gesture starts within 24dp of a screen edge', () => {
   assert.equal(EDGE, 24);
   for (const x of [0, 23, 361, 384]) assert.equal(nearEdge(x, 384), true, String(x));
   for (const x of [24, 200, 360]) assert.equal(nearEdge(x, 384), false, String(x));
+});
+
+test('a drag across the Water row adds one glass per 24dp and never takes off a saved glass', () => {
+  assert.equal(GLASS_PX, 24);
+  assert.equal(glassesFor(0, 3), 3);
+  assert.equal(glassesFor(23, 3), 3);
+  assert.equal(glassesFor(24, 3), 4);
+  assert.equal(glassesFor(120, 3), 8);
+  assert.equal(glassesFor(-200, 3), 3, 'dragging back stops at what is already logged');
+  assert.equal(glassesFor(2000, 3), 30);
 });

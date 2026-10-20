@@ -106,3 +106,6 @@
 .spine-knurl::before { content: ""; inline-size: 24px; block-size: 4px; border-radius: 2px; background: var(--outline-variant); }
 .spine-knurl:active::before, .spine-card.resizing .spine-knurl::before { background: var(--primary); }
 .spine-card.resizing { border-color: var(--primary); }
+/* Small spine rows (meals) swipe inside their own box, so the reveal never covers the gutter. */
+.spine-small.swipe-task { position: relative; }
+.spine-small > .swipe-reveal { border-radius: var(--r-control); }

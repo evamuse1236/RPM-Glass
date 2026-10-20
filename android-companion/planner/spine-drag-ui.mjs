@@ -1,10 +1,11 @@
-import {pressStep, snapStart, snapLength, HOLD_LIFT} from '../spine-drag.mjs';
-import {LONG_PRESS} from '../task-swipe.mjs';
+import {pressStep, snapStart, snapLength, glassesFor, HOLD_LIFT} from '../spine-drag.mjs';
+import {LONG_PRESS, lockAxis, nearEdge} from '../task-swipe.mjs';
 import {cardHeight} from '../spine-model.mjs';
 import {clockText} from '../body-state.mjs';
 import {duration} from './format.mjs';
 import {el} from './dom.mjs';
 import {quickMenu} from './row-gestures.mjs';
+import {paintWaterTrack} from './spine-view.mjs';
 
 const EDGE_SCROLL = 64;
 const LABEL_GAP = 12;
@@ -200,4 +201,53 @@ function knurl(app, card, row, haptic) {
   node.addEventListener('pointerup', end(true));
   node.addEventListener('pointercancel', end(false));
   return node;
+}
+
+/**
+ * Drag across the Water row: one glass per 24dp, read out above the finger and filled into the track; let go, the new
+ * glasses save as one change with one Undo. A vertical drag stays the page's scroll.
+ */
+export function attachWaterDrag(app, node, row, track, {log}) {
+  const haptic = kind => app.api.native('haptic', {kind}).catch(() => {});
+  let start = null, axis = null, label = null, count = row.count;
+  const reset = () => {
+    label?.remove();
+    label = null;
+    start = null;
+    count = row.count;
+    paintWaterTrack(track, row.count, row.goal);
+  };
+  node.addEventListener('pointerdown', event => {
+    if (event.isPrimary === false || event.button > 0 || typing()) return;
+    start = {x: event.clientX, y: event.clientY, id: event.pointerId, edge: nearEdge(event.clientX, innerWidth)};
+    axis = null;
+  });
+  node.addEventListener('pointermove', event => {
+    if (!start || event.pointerId !== start.id) return;
+    const dx = event.clientX - start.x;
+    if (!axis) {
+      axis = lockAxis(dx, event.clientY - start.y);
+      if (!axis) return;
+      if (axis === 'y' || start.edge) { start = null; return; }
+      try { node.setPointerCapture(event.pointerId); } catch {}
+      label = floatingLabel();
+    }
+    const next = glassesFor(dx, row.count);
+    if (next !== count) haptic('tick');
+    count = next;
+    paintWaterTrack(track, count, row.goal, row.count);
+    placeLabel(label, event.clientX, event.clientY, `${count} of ${row.goal}`);
+  });
+  node.addEventListener('pointerup', event => {
+    if (!start || event.pointerId !== start.id || axis !== 'x') { start = null; return; }
+    const added = count - row.count;
+    label?.remove();
+    label = null;
+    start = null;
+    if (added > 0) {
+      haptic('confirm');
+      log(added);
+    } else reset();
+  });
+  node.addEventListener('pointercancel', reset);
 }
