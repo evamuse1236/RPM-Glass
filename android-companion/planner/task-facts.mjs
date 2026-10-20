@@ -1,12 +1,37 @@
-/** The task sheet's chip rows: Day, Time, Length, Alert and Repeat. Each chip saves at once; the rows never fold. */
+/** The task sheet's rows: Day, Time, Length, Alert and Repeat. Time and Length are sliders whose value opens their chips;
+ * each chip and each let-go slider saves at once. */
 import {localDay} from '../planner-state.mjs';
-import {el} from './dom.mjs';
+import {el, button} from './dom.mjs';
+import {bindSlider} from './fact-slider.mjs';
 import {duration} from './format.mjs';
-import {DURATIONS, REPEAT_CHIPS, dayChips, timeChips, nextHalfHour, clockOf} from './task-values.mjs';
+import {DURATIONS, REPEAT_CHIPS, dayChips, timeChips, clockOf} from './task-values.mjs';
 import {factRow, chipRow, chip, pickerChip, markChips, settleChip, revealChip, setDisabled} from './fact-rows.mjs';
 
 export const ALERT_CHIPS = [['off', 'No alert', 'notifications_off', ''], ['reminder', 'Reminder', 'notifications', ''],
   ['alarm', 'Alarm', 'alarm', 'Ringing alarm']];
+
+/**
+ * A slider with its value at the trailing end; tapping the value shows or hides `chips`, the same choices as taps.
+ * Returns {line, slider, input, open(show)}.
+ */
+function sliderLine(label, kind, text, save, chips) {
+  const line = el('div', 'fact-slider-line');
+  const input = el('input', 'fact-slider');
+  input.type = 'range';
+  input.setAttribute('aria-label', label);
+  const value = button('', () => open(chips.hidden), 'fact-value tnum');
+  value.setAttribute('aria-expanded', 'false');
+  value.setAttribute('aria-label', `${label} choices`);
+  const slider = bindSlider(input, {kind, text, save, onLive: words => { value.textContent = words; }});
+  const open = show => {
+    chips.hidden = !show;
+    value.setAttribute('aria-expanded', String(show));
+    if (show) revealChip(chips, chips.querySelector('button.chip[aria-pressed=true]'));
+  };
+  chips.hidden = true;
+  line.append(input, value);
+  return {line, slider, input, open};
+}
 
 function errorSlot() {
   const slot = el('p', 'field-error');
@@ -46,6 +71,7 @@ export function taskFacts({get, pick}) {
   const noTime = chip('No time', '', choose(times, pick.time));
   const clash = el('p', 'field-alert');
   clash.hidden = true;
+  const timeLine = sliderLine('Time', 'time', time => clockOf(get().day, time), time => pick.time(time), times);
 
   const lengths = chipRow('Length');
   const other = pickerChip('number', 'keyboard', 'Other', 'Other length', value => {
@@ -54,6 +80,7 @@ export function taskFacts({get, pick}) {
   });
   Object.assign(other.input, {min: 1, max: 1440});
   const noLength = chip('No length', '', choose(lengths, () => pick.minutes(null)));
+  const lengthLine = sliderLine('Length', 'length', duration, n => pick.minutes(n), lengths);
 
   const alerts = chipRow('Alert');
   for (const [value, word, symbol, aria] of ALERT_CHIPS) alerts.append(chip(word, value, choose(alerts, pick.alert), {symbol, aria}));
@@ -73,8 +100,8 @@ export function taskFacts({get, pick}) {
   const errors = {day: errorSlot(), repeat: errorSlot()};
   const rows = [
     factRow('calendar_today', [days, errors.day]),
-    factRow('schedule', [times, clash]),
-    factRow('timer', lengths),
+    factRow('schedule', [timeLine.line, times, clash]),
+    factRow('timer', [lengthLine.line, lengths]),
     factRow('notifications', alerts),
     factRow('repeat', [repeats, after, errors.repeat]),
   ];
@@ -98,6 +125,9 @@ export function taskFacts({get, pick}) {
     markChips(alerts, now.alert);
     markChips(repeats, now.repeat);
     setDisabled(times, !now.day);
+    timeLine.slider.set(now.time || null);
+    timeLine.input.disabled = !now.day;
+    lengthLine.slider.set(now.minutes);
     setDisabled(alerts, !now.day || !now.time);
     after.hidden = now.repeat !== 'after';
     if (document.activeElement !== every) every.value = now.every ?? 1;
@@ -105,13 +135,10 @@ export function taskFacts({get, pick}) {
     timePicker.input.value = now.time;
   };
 
-  /** On open each row already shows its chosen chip; the time row puts it (or the next half hour) second. */
+  /** On open each chip row already shows its chosen chip; Time and Length show their sliders. */
   const reveal = () => {
-    const now = get();
     const pressed = row => row.querySelector('button.chip[aria-pressed=true]');
-    for (const row of [days, lengths, alerts, repeats]) revealChip(row, pressed(row));
-    const time = pressed(times) ?? times.querySelector(`button.chip[data-value="${nextHalfHour()}"]`);
-    if (now.time || time) revealChip(times, time, {second: true});
+    for (const row of [days, alerts, repeats]) revealChip(row, pressed(row));
   };
 
   const error = (name, message) => {

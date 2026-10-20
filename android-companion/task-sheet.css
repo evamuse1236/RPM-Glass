@@ -252,3 +252,48 @@
   :is(.chip, .tool-btn, .stepper-btn, .block-row, .time-button, .switch-btn, .task-ring, .must-star):active { scale: .97; }
   .task-head.swipe-settling { transition: translate var(--dur-settle) var(--ease-emphasized); }
 }
+
+/* Time and Length: a 4dp track with a 28dp thumb, the value at the trailing end; tapping the value opens the chips. */
+.fact-slider-line { display: flex; align-items: center; gap: var(--s3); min-block-size: var(--chip-block); }
+.fact-slider {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: var(--touch);
+  margin: calc((var(--chip-block) - var(--touch)) / 2) 0;
+  appearance: none;
+  background: transparent;
+  touch-action: pan-y;
+}
+.fact-slider::-webkit-slider-runnable-track { block-size: 4px; border-radius: 2px; background: var(--surface-container-highest); }
+.fact-slider::-moz-range-track { block-size: 4px; border-radius: 2px; background: var(--surface-container-highest); }
+.fact-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  inline-size: 28px;
+  block-size: 28px;
+  margin-block-start: -12px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--primary);
+}
+.fact-slider::-moz-range-thumb { inline-size: 28px; block-size: 28px; border: 0; border-radius: 50%; background: var(--primary); }
+.fact-slider[data-unset]::-webkit-slider-thumb { opacity: .38; }
+.fact-slider[data-unset]::-moz-range-thumb { opacity: .38; }
+.fact-slider:active::-webkit-slider-thumb { box-shadow: 0 0 0 8px color-mix(in oklch, var(--primary) 14%, transparent); }
+.fact-slider:disabled { opacity: .38; }
+.fact-slider:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--r-control); }
+.fact-value {
+  flex: none;
+  min-inline-size: 5.5em;
+  min-block-size: var(--touch);
+  padding-inline: var(--s1);
+  border-radius: var(--r-control);
+  font: var(--title-medium);
+  color: var(--on-surface);
+  text-align: end;
+}
+.fact-slider-line:has(.fact-slider[data-unset]) .fact-value { color: var(--on-surface-variant); }
+.fact-value[aria-expanded=true] { color: var(--primary); }
+.fact-value:active { background: var(--row-press); }
+@media (prefers-reduced-motion: no-preference) {
+  .fact-slider::-webkit-slider-thumb { transition: box-shadow var(--dur-short3) var(--ease-standard); }
+}
