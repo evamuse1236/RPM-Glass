@@ -1,6 +1,6 @@
 # Home widget
 
-The home-screen widget is a one-row capture bar. Its pill (`Capture a thought`) opens Capture ready to type, its mic opens Capture already listening, and its butterfly icon opens the planner. The text size follows a Settings slider.
+RPM has two home-screen widgets. The first is a one-row capture bar. Its pill (`Capture a thought`) opens Capture ready to type, its mic opens Capture already listening, and its butterfly icon opens the planner. The second, `RPM next up` (2 × 2), shows the next task's tone capsule and a countdown ring, "in 50 min" and the title, then the water meter, a mic and a plus. Both follow the Settings widget text size.
 
 ## Sub-features
 
@@ -10,6 +10,10 @@ The home-screen widget is a one-row capture bar. Its pill (`Capture a thought`) 
 - `widget-label` shows `Capture a thought`, or `Capture` when the widget is narrow.
 - `widget-place` adds the widget to a home screen and resizes it horizontally.
 - `widget-text-scale` follows the Settings widget text size.
+- `next-up-task` tapping the task opens its task sheet in the planner (the day's plan for a calendar event or nothing timed).
+- `next-up-water` tapping the meter opens the planner's Water sheet. It does not log in place: the widget has no surface for the receipt and Undo.
+- `next-up-mic` and `next-up-plus` open Capture listening, or ready to type.
+- `next-up-refresh` it redraws on every saved change and at each minute the countdown changes ("at 4:30 PM" needs no update until the last hour); its alarms never wake the phone.
 
 ## How to get to it (user POV)
 
@@ -33,6 +37,13 @@ Preconditions:
 - **Placement and label.** Adding the widget from the launcher's widget picker, its preview, its description `Capture a thought by typing or speaking, or open your planner.`, horizontal resize and the narrow label `Capture` all need a real home screen. This is **UNVERIFIED** on the emulator. To try anyway: `rpmctl key home`, `rpmctl ui --native` to inspect the launcher, then long-press with `rpmctl tap --native "<text>" --long` (unconfirmed that the emulator's launcher offers the picker).
 - **Widget text size.** Change `Widget text size` in Settings (see the Settings file) and compare the widget text. **UNVERIFIED** without a placed widget.
 - **Errors.** Run `rpmctl logs --errors` after the intents.
+
+### Next up
+
+- **Place it.** `adb shell input keyevent KEYCODE_HOME`, long-press an empty spot (`input swipe 540 1500 540 1500 1200`), tap `Widgets`, search `RPM`, tap `RPM, RPM next up`, then drag its preview (`input draganddrop <x> <y> 540 1300 1500`). On the stock five-column launcher it lands two cells wide (about 132dp) and uses the compact layout.
+- **Refresh.** `logcat -s RpmNextUp` shows `next up <state> until <time>` after each save and tick; `dumpsys alarm | grep -A3 next_up` shows one `RTC` (non-waking) alarm.
+- **Taps.** Tap the title: `rpmctl ui --brief` shows `dialog "Task"` with that title. Tap the meter: `dialog "Water"`. Tap the mic: `Listening`. Tap the plus: `Capture a thought` focused.
+- **Theme and text.** `cmd uimode night yes` swaps the art without a redraw. The Settings `Widget text size` slider (tap its centre for 120%) logs a new `next up` line and the text grows.
 
 ## Gotchas
 

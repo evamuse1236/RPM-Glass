@@ -1,4 +1,5 @@
 <resources><string name="app_name">RPM</string><string name="widget_description">Capture a thought by typing or speaking, or open your planner.</string>
+<string name="widget_next_label">RPM next up</string><string name="widget_next_description">Your next task with a countdown, water, and quick Capture.</string><string name="widget_next_open">Open the next task</string><string name="widget_next_water">Open water</string><string name="widget_next_add">Type a thought</string><string name="widget_next_preview_when">in 50 min</string><string name="widget_next_preview_title">Your next task</string>
 <string name="widget_capture">Capture a thought</string><string name="widget_capture_short">Capture</string><string name="widget_voice">Speak a thought</string><string name="widget_open">Open planner</string><string name="convex_default_url">https://neat-emu-821.convex.site</string>
 <string name="notch_service_label">RPM Notch</string>
 <string name="notch_accessibility_summary">Shows your current task, water and routines around the front camera.</string>

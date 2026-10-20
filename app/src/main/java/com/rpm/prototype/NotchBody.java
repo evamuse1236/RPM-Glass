@@ -21,7 +21,7 @@ import java.util.Set;
  *   routines: [{id, name, start: "HH:MM", end: "HH:MM", days: [0..6, Sunday = 0], steps: [{id, title}], archived?}],
  *   runs:     [{routineId, day: "YYYY-MM-DD", marks: {stepId: {state: "done"|"skipped", at}}, skippedDay?}],
  *   water:    {settings: {goal, intervalMinutes, from, until, snoozeMinutes, reminders}, glasses: [ISO], snoozedUntil: ISO|null},
- *   meals:    [{id, name, slot: "breakfast"|"lunch"|"snack"|"dinner", at: ISO}]
+ *   meals:    [{id, name, slot: "breakfast"|"lunch"|"snack"|"dinner", at: ISO, state?: "skipped"}]
  * }
  * </pre>
  */
@@ -74,10 +74,12 @@ final class NotchBody {
     static final class Meal {
         final String slot;
         final long at;
+        final boolean skipped;
 
-        Meal(String slot, long at) {
+        Meal(String slot, long at, boolean skipped) {
             this.slot = slot;
             this.at = at;
+            this.skipped = skipped;
         }
     }
 
@@ -194,7 +196,7 @@ final class NotchBody {
         for (int i = 0; a != null && i < a.length(); i++) {
             JSONObject m = a.optJSONObject(i);
             long at = m == null ? 0 : NotchData.time(m.opt("at"));
-            if (at != 0) out.add(new Meal(m.optString("slot"), at));
+            if (at != 0) out.add(new Meal(m.optString("slot"), at, "skipped".equals(m.optString("state"))));
         }
         return out;
     }

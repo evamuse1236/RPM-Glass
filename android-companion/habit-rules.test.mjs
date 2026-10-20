@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 import {bodyOf} from './body-store.mjs';
 import {localDay, waterStatus} from './body-state.mjs';
 import {mealPlanSlots, dueMeal} from './day-parts.mjs';
+import {topHabit} from './habit-priority.mjs';
 
 const cases = JSON.parse(readFileSync(new URL('../fixtures/habit-cases.json', import.meta.url), 'utf8'));
 
@@ -20,13 +21,14 @@ if (process.env.RPM_HABIT_CASE_TZ) {
       const meals = body.meals.filter(m => localDay(m.at) === day);
       assert.equal(dueMeal(meals, day, now, body.mealPlan)?.slot ?? null, c.expected.meal);
       if (c.expected.mealPlan) assert.deepEqual(mealPlanSlots(body.mealPlan), c.expected.mealPlan);
+      assert.equal(topHabit({water: {...body.water, busy: c.busy}, meals: body.meals, mealPlan: body.mealPlan}, now)?.kind ?? null, c.expected.top);
     });
   }
 } else {
   for (const timezone of new Set(cases.map(c => c.timezone))) {
     test(`shared habit cases in ${timezone}`, () => {
       const child = spawnSync(process.execPath, ['--test', fileURLToPath(import.meta.url)], {
-        env: {...process.env, TZ: timezone, RPM_HABIT_CASE_TZ: timezone}, encoding: 'utf8',
+        env: {...process.env, NODE_TEST_CONTEXT: undefined, TZ: timezone, RPM_HABIT_CASE_TZ: timezone}, encoding: 'utf8',
       });
       assert.ifError(child.error);
       assert.equal(child.status, 0, child.stdout + child.stderr);

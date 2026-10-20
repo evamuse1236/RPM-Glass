@@ -20,13 +20,13 @@ import android.view.WindowManager;
 import com.rpm.prototype.NotchFrame.Mode;
 
 /**
- * Two overlay windows. The island draws in one pinned to the top-left corner at full width, so a morph only changes its
- * height and never its position. While the pill shows, that window takes no touches and a small touch window over the
- * pill passes taps and swipes to it, so taps beside the pill reach the app. A frame already on screen is skipped.
+ * The overlay windows. The island draws in one pinned to the top-left corner at full width, so a morph only changes its
+ * height and never its position. While the pill shows, that window takes no touches and a small touch window over each
+ * drop passes taps and swipes to it, so taps beside the pill reach the app. A frame already on screen is skipped.
  */
 final class NotchPill implements IslandView.Listener {
     interface Gestures {
-        void onGesture(Mode mode, IslandGesture.Result result);
+        void onGesture(Mode mode, IslandGesture.Result result, NotchFrame.Side side);
 
         void onOutsideTap(Mode mode);
     }
@@ -38,16 +38,16 @@ final class NotchPill implements IslandView.Listener {
     private final NotchContent content;
     private final NotchAlertViews alerts;
     private final NotchChangeViews changes;
+    private final NotchHabitViews habits;
     private final IslandWindow plan = new IslandWindow();
     private IslandView island;
     private WindowManager.LayoutParams lp;
     private boolean touchable;
-    private View pad;
-    private WindowManager.LayoutParams padLp;
-    private Box padBox;
+    private final Pad[] pads = new Pad[2];
+    private NotchFrame.Side downSide = NotchFrame.Side.TASK;
     private IslandShape target;
     private Mode shownMode;
-    private String splitKey;
+    private boolean shownMeter;
     String placement = "not shown";
     String cutoutSource = "not measured";
 
@@ -59,6 +59,7 @@ final class NotchPill implements IslandView.Listener {
         this.content = new NotchContent(context);
         this.alerts = new NotchAlertViews(content);
         this.changes = new NotchChangeViews(content);
+        this.habits = new NotchHabitViews(content, changes);
     }
 
     boolean isShown() {
@@ -66,7 +67,7 @@ final class NotchPill implements IslandView.Listener {
     }
 
     void hide() {
-        placePad(null, null);
+        placePads(null, null, null, null);
         if (island != null) {
             try {
                 wm.removeView(island);
@@ -77,7 +78,6 @@ final class NotchPill implements IslandView.Listener {
         island = null;
         target = null;
         shownMode = null;
-        splitKey = null;
         plan.forget();
         placement = "not shown";
     }
@@ -87,7 +87,10 @@ final class NotchPill implements IslandView.Listener {
         int displayWidth = displayWidth();
         float density = context.getResources().getDisplayMetrics().density;
         String key = f.key(anchor + "|" + displayWidth + "|" + context.getResources().getConfiguration().fontScale);
-        if (island != null && plan.showing(key)) return;
+        if (island != null && plan.showing(key)) {
+            speak(f);
+            return;
+        }
 
         NotchMotion motion = NotchMotion.of(ValueAnimator.areAnimatorsEnabled());
         NotchBand band = NotchBand.of(f, System.currentTimeMillis());
@@ -97,25 +100,38 @@ final class NotchPill implements IslandView.Listener {
         View face;
         long ms;
         NotchGeometry.Band bandAt;
+        Box taskPad = null, habitPad = null;
         if (f.mode == Mode.PILL) {
             int keep = Math.max(dp(24), anchor.holeWidth + dp(12));
-            int ring = NotchGeometry.pillRing(h, density);
-            int lead = (h - ring) / 2 + ring + dp(NotchGeometry.VALUE_START_DP);
+            int drop = NotchGeometry.dropHeight(h, density);
+            int taskWidth = NotchGeometry.taskDropWidth(drop);
             float valuePx = NotchGeometry.pillValuePx(scaled, h, density);
-            int trail = dp(NotchGeometry.VALUE_START_DP) + valueWidth(band.value, valuePx) + dp(NotchGeometry.VALUE_END_DP)
-                    + (band.chip ? dp(NotchGeometry.CHIP_DP) : 0);
-            int side = NotchAnchor.pillSide(lead, trail, keep, dp(NotchGeometry.MIN_PILL_WIDTH_DP));
-            shape = IslandShape.pill(anchor, displayWidth, side, keep, f.secondary != null, density);
-            face = content.pill();
+            int habitWidth = f.note != null ? valueWidth(f.pillValue(), valuePx) + (f.chip() ? 2 * dp(8) : 0) : f.habitDrop() ? drop : 0;
+            int[] sides = NotchGeometry.pillSides(f.taskDrop() ? NotchGeometry.dropSide(keep, taskWidth, h, drop, density) : 0,
+                    habitWidth > 0 ? NotchGeometry.dropSide(keep, habitWidth, h, drop, density) : 0, NotchGeometry.bareSide(keep, h));
+            shape = IslandShape.pill(anchor, displayWidth, sides[0], sides[1], density);
+            Box taskDrop = f.taskDrop() ? NotchGeometry.taskDrop(shape, drop, taskWidth) : null;
+            Box habitDrop = habitWidth > 0 ? NotchGeometry.habitDrop(shape, drop, habitWidth) : null;
+            face = new NotchHabitViews.Drops(context, f, local(taskDrop, shape), local(habitDrop, shape), valuePx);
             ms = motion.morphMs(false);
-            bandAt = NotchGeometry.pill(shape, density, valuePx);
+            bandAt = NotchGeometry.pill(shape, taskDrop, density, valuePx);
+            int split = Math.round(Math.max(shape.left, Math.min(shape.right, anchor.centerX)));
+            Box all = shape.touch;
+            if (f.taskDrop() && habitWidth > 0) {
+                taskPad = new Box(all.left, all.top, split, all.bottom);
+                habitPad = new Box(split, all.top, all.right, all.bottom);
+            } else if (f.taskDrop()) {
+                taskPad = all;
+            } else {
+                habitPad = all;
+            }
         } else {
             int w = displayWidth - 2 * IslandShape.inset(anchor, density);
             int cap = Math.round(displayHeight() * NotchGeometry.MAX_HEIGHT_SHARE);
             face = null;
             for (NotchGeometry.Fit fit : NotchGeometry.fits(f.mode == Mode.OPEN)) {
                 content.parts.shortTitles(fit.shortTitle);
-                face = face(f, actions, fit.rows);
+                face = face(f, actions, fit.rows, h);
                 measure(face, w);
                 if (face.getMeasuredHeight() <= cap) break;
             }
@@ -125,13 +141,6 @@ final class NotchPill implements IslandView.Listener {
             bandAt = NotchGeometry.island(shape, density, band.valueSp * scaled);
         }
         RectF faceAt = new RectF(shape.left, shape.top, shape.right, shape.bottom);
-
-        NotchBand splitBand = f.mode == Mode.PILL && f.secondary != null ? NotchBand.split(f.secondary.kind, f.scene) : null;
-        String nextSplitKey = splitBand == null ? null : splitBand.glyph + ":" + Math.round(splitBand.progress * 100) + ":" + Math.round(shape.splitCx);
-        boolean splitChanged = nextSplitKey == null ? splitKey != null : !nextSplitKey.equals(splitKey);
-        View split = splitChanged && splitBand != null ? content.split(splitBand, NotchGeometry.pillRing(h, density)) : null;
-        RectF splitAt = new RectF(shape.splitCx - h / 2f, anchor.pillTop(), shape.splitCx + h / 2f, anchor.pillBottom());
-        splitKey = nextSplitKey;
 
         boolean first = island == null;
         boolean wantTouch = f.mode != Mode.PILL;
@@ -143,18 +152,36 @@ final class NotchPill implements IslandView.Listener {
             return;
         }
         if (!first) applyWindow(resize, wantTouch);
-        placePad(f.mode == Mode.PILL ? shape.touch : null, f.mode == Mode.PILL ? f.spoken() : null);
-        boolean fade = !first && f.mode != shownMode;
+        placePads(taskPad, habitPad, f.spoken(NotchFrame.Side.TASK), f.spoken(NotchFrame.Side.HABIT));
+        boolean meter = meter(f);
+        boolean fade = !first && f.mode != shownMode && !(meter && (shownMeter || shownMode == Mode.HABIT));
         target = shape;
         shownMode = f.mode;
-        island.setScene(shape, first ? 0 : ms, motion, face, faceAt, fade, splitChanged, split, splitAt, f.mode == Mode.PILL, band, bandAt);
+        shownMeter = meter;
+        island.setScene(shape, first ? 0 : ms, motion, face, faceAt, fade, f.mode == Mode.PILL, band, bandAt);
         placement = "window " + plan.current() + " · " + anchor + " · via " + cutoutSource;
         Log.i(NotchController.TAG, "island " + describe(f) + " " + placement);
     }
 
-    private View face(NotchFrame f, NotchContent.Actions actions, int rows) {
+    private static boolean meter(NotchFrame f) {
+        return f.mode == Mode.RECEIPT && f.receipt.meter;
+    }
+
+    private static RectF local(Box screen, IslandShape shape) {
+        if (screen == null) return null;
+        return new RectF(screen.left - shape.left, screen.top - shape.top, screen.right - shape.left, screen.bottom - shape.top);
+    }
+
+    private void speak(NotchFrame f) {
+        if (pads[0] != null) pads[0].setContentDescription(f.spoken(pads[0].side));
+        if (pads[1] != null) pads[1].setContentDescription(f.spoken(pads[1].side));
+    }
+
+    private View face(NotchFrame f, NotchContent.Actions actions, int rows, int pillHeight) {
         if (f.mode == Mode.OPEN) return content.panel(f.scene, actions, rows);
+        if (f.mode == Mode.HABIT) return habits.habit(f.scene, pillHeight, actions);
         if (f.mode == Mode.MANAGE) return changes.manage(f.managed, actions);
+        if (f.mode == Mode.RECEIPT && f.receipt.meter) return habits.receipt(f.receipt, pillHeight, actions);
         if (f.mode == Mode.RECEIPT) return changes.receipt(f.receipt, actions);
         if (f.mode == Mode.REMINDER) return alerts.reminder(f.alert, actions);
         return alerts.alarm(f.alert, actions);
@@ -179,8 +206,10 @@ final class NotchPill implements IslandView.Listener {
     }
 
     private static String describe(NotchFrame f) {
-        if (f.mode == Mode.PILL) return (f.primary == null ? "NOTE" : f.primary.kind) + " " + f.pillValue();
+        if (f.mode == Mode.PILL) return "drops task=" + (f.taskDrop() ? f.scene.hero.task.id : "-") + " habit=" + (f.habitDrop() ? f.scene.topHabit : "-")
+                + (f.note != null ? " note=" + f.pillValue() : "");
         if (f.mode == Mode.OPEN) return "expanded";
+        if (f.mode == Mode.HABIT) return "habit " + f.scene.topHabit + " " + f.scene.habitLine();
         if (f.mode == Mode.MANAGE) return "manage " + f.managed.alert + " " + f.managed.title;
         if (f.mode == Mode.RECEIPT) return "receipt " + f.receipt.state + " " + f.receipt.title + " · " + f.receipt.detail + (f.receipt.canUndo() ? " · Undo" : "");
         return f.mode.name().toLowerCase(java.util.Locale.ROOT) + " " + f.alert.title;
@@ -188,7 +217,7 @@ final class NotchPill implements IslandView.Listener {
 
     @Override
     public void onGesture(IslandGesture.Result result) {
-        if (shownMode != null) owner.onGesture(shownMode, result);
+        if (shownMode != null) owner.onGesture(shownMode, result, downSide);
     }
 
     @Override
@@ -236,7 +265,6 @@ final class NotchPill implements IslandView.Listener {
             return true;
         } catch (RuntimeException e) {
             island = null;
-            splitKey = null;
             placement = "addView failed: " + e.getClass().getSimpleName() + ": " + e.getMessage();
             Log.w(NotchController.TAG, placement);
             return false;
@@ -258,8 +286,13 @@ final class NotchPill implements IslandView.Listener {
         wm.updateViewLayout(island, lp);
     }
 
-    /** Puts the pill's touch window over {@code box}, or removes it when {@code box} is null. */
-    private void placePad(Box box, CharSequence spoken) {
+    private void placePads(Box task, Box habit, CharSequence taskSpoken, CharSequence habitSpoken) {
+        placePad(0, NotchFrame.Side.TASK, task, taskSpoken);
+        placePad(1, NotchFrame.Side.HABIT, habit, habitSpoken);
+    }
+
+    private void placePad(int i, NotchFrame.Side side, Box box, CharSequence spoken) {
+        Pad pad = pads[i];
         if (box == null) {
             if (pad != null) {
                 try {
@@ -268,44 +301,51 @@ final class NotchPill implements IslandView.Listener {
                     Log.w(NotchController.TAG, "removeView pad failed", e);
                 }
             }
-            pad = null;
-            padBox = null;
+            pads[i] = null;
             return;
         }
         if (pad == null) {
-            Pad next = new Pad(context);
-            padLp = overlay(box, 0, "RPM notch touch");
+            Pad next = new Pad(context, side);
+            next.lp = overlay(box, 0, "RPM notch touch " + side.name().toLowerCase(java.util.Locale.ROOT));
             try {
-                wm.addView(next, padLp);
-                pad = next;
+                wm.addView(next, next.lp);
+                pads[i] = pad = next;
             } catch (RuntimeException e) {
                 Log.w(NotchController.TAG, "addView pad failed", e);
                 return;
             }
-        } else if (!box.equals(padBox)) {
-            padLp.x = box.left;
-            padLp.y = box.top;
-            padLp.width = box.width();
-            padLp.height = box.height();
-            wm.updateViewLayout(pad, padLp);
+        } else if (!box.equals(pad.box)) {
+            pad.lp.x = box.left;
+            pad.lp.y = box.top;
+            pad.lp.width = box.width();
+            pad.lp.height = box.height();
+            wm.updateViewLayout(pad, pad.lp);
         }
-        padBox = box;
+        pad.box = box;
         pad.setContentDescription(spoken);
     }
 
-    /** The pill's touch window: hands every touch to the island in screen coordinates, which are the island's own. */
     private final class Pad extends View {
-        Pad(Context context) {
+        final NotchFrame.Side side;
+        WindowManager.LayoutParams lp;
+        Box box;
+
+        Pad(Context context, NotchFrame.Side side) {
             super(context);
+            this.side = side;
             setClickable(true);
-            setOnClickListener(v -> onGesture(IslandGesture.Result.TAP));
+            setOnClickListener(v -> {
+                downSide = side;
+                onGesture(IslandGesture.Result.TAP);
+            });
         }
 
         @Override
         public boolean dispatchTouchEvent(MotionEvent e) {
-            if (island == null || padBox == null) return false;
+            if (island == null || box == null) return false;
+            if (e.getActionMasked() == MotionEvent.ACTION_DOWN) downSide = side;
             MotionEvent screen = MotionEvent.obtain(e);
-            screen.offsetLocation(padBox.left, padBox.top);
+            screen.offsetLocation(box.left, box.top);
             try {
                 return island.dispatchTouchEvent(screen);
             } finally {

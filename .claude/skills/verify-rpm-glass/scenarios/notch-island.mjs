@@ -1,10 +1,10 @@
 import {sleep} from './lib.mjs';
 
 export const id = 'notch-island';
-export const rule = 'With the Notch setting and RPM Notch on, the pill shows beside the camera over the home screen; a tap opens the island and a swipe up closes it, with no crash.';
+export const rule = 'With the Notch setting and RPM Notch on, the two drops show around the camera over the home screen; a tap on the task half opens its island and a swipe up closes it, with no crash.';
 export const enforces = 'Notch redesign (feat/notch-apple, 0f2c254 alert row Done circle); docs/rules/notch.md tap and open rows; user 2026-10-19: "use github actions from now on for emulator tests".';
 
-const PILL = /island [A-Z_]+ /;
+const PILL = /island drops /;
 const SERVICE = 'com.rpm.prototype/com.rpm.prototype.NotchAccessibilityService';
 
 async function waitForLog(t, from, pattern, label) {
@@ -36,11 +36,11 @@ export async function run(t) {
   await sleep(1500);
   await t.shot('pill');
 
-  const width = Number(/(\d+)x\d+/.exec(t.shell('wm size'))?.[1] ?? 1080), x = Math.round(width / 2);
+  const width = Number(/(\d+)x\d+/.exec(t.shell('wm size'))?.[1] ?? 1080), x = Math.round(width / 2) - 24;
   const open = async () => {
     const from = notchLog(t).length;
     t.shell(`input tap ${x} 69`);
-    await waitForLog(t, from, /island expanded/, '"island expanded" after a tap on the pill');
+    await waitForLog(t, from, /island (expanded|habit) /, '"island expanded" or "island habit" after a tap on the task half');
   };
   await sleep(3000);
   await open();

@@ -32,10 +32,10 @@ final class NotchChanges {
         return receipt;
     }
 
-    /** One glass toward today's goal. */
-    void drink(NotchWater.Status water) {
+    /** One glass toward today's goal; from the habit island, its meter shows the receipt. */
+    void drink(NotchWater.Status water, boolean meter) {
         int count = water == null ? 0 : water.count, goal = water == null ? 8 : water.goal;
-        save("notch.drink", NotchActions.request("drink"), NotchReceipt.glass(count, goal, now()));
+        save("notch.drink", NotchActions.request("drink"), NotchReceipt.glass(count, goal, now(), meter));
     }
 
     /** Ticks a task occurrence the island shows (the hero, or the one in the alert controls). */

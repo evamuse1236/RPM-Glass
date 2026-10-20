@@ -4,7 +4,7 @@ import {openTask} from './task-sheets.mjs';
 import {contextEditor, entityEditor} from './entities.mjs';
 import {calendarEditor} from './calendar-ui.mjs';
 import {aiAction} from './jev.mjs';
-import {openMealFromNotch} from './notch-link.mjs';
+import {openMealFromNotch, openWaterFromLink} from './notch-link.mjs';
 import {openHabit} from './habits.mjs';
 
 /** A Goal drafted by Capture: keeps the exact source words; entity fields stay within limits. */
@@ -100,6 +100,7 @@ export function openView(app, target) {
     app.render({reset: true});
   }
   if (target.view === 'meal') return openMealFromNotch(app, target);
+  if (target.view === 'water') return openWaterFromLink(app);
   if (target.view === 'habit') return openHabit(app, target.id);
   return undefined;
 }

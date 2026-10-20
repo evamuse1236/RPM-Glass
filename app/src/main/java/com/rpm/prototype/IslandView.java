@@ -87,7 +87,6 @@ final class IslandView extends ViewGroup {
     private IslandShape now;
     private ValueAnimator morph;
     private View face;
-    private View split;
     private boolean pressable;
     private boolean pressing;
     private long pressFrameNanos;
@@ -117,10 +116,9 @@ final class IslandView extends ViewGroup {
      * over 90-300 ms as it rises 8dp (a 150 ms cross-fade under Reduce Motion), otherwise the content swaps at once.
      */
     void setScene(IslandShape shape, long ms, NotchMotion motion, View nextFace, RectF faceAt, boolean fade,
-                  boolean replaceSplit, View nextSplit, RectF splitAt, boolean pressable, NotchBand nextBand, NotchGeometry.Band bandAt) {
+                  boolean pressable, NotchBand nextBand, NotchGeometry.Band bandAt) {
         this.pressable = pressable;
-        if (nextFace != null) face = swap(face, nextFace, faceAt, fade, true, motion);
-        if (replaceSplit) split = swap(split, nextSplit, splitAt, true, false, motion);
+        if (nextFace != null) face = swap(face, nextFace, faceAt, fade, motion);
         boolean travel = now != null && ms > 0 && ValueAnimator.areAnimatorsEnabled() && !same(now, shape);
         band.set(nextBand, bandAt, travel, motion);
         morphTo(shape, ms);
@@ -194,10 +192,10 @@ final class IslandView extends ViewGroup {
 
     private static boolean same(IslandShape a, IslandShape b) {
         return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom && a.radius == b.radius
-                && a.splitCx == b.splitCx && a.splitR == b.splitR && a.shadow == b.shadow;
+                && a.shadow == b.shadow;
     }
 
-    private View swap(View old, View next, RectF at, boolean fade, boolean rise, NotchMotion motion) {
+    private View swap(View old, View next, RectF at, boolean fade, NotchMotion motion) {
         if (old == next) return old;
         long t = SystemClock.uptimeMillis();
         float scale = motion.moves ? ValueAnimator.getDurationScale() : 1f;
@@ -209,13 +207,13 @@ final class IslandView extends ViewGroup {
         }
         if (next == null) return null;
         addView(next, new At(at));
-        if (rise) faces.add(next);
+        faces.add(next);
         if (fade) {
             next.setAlpha(0f);
-            float y = rise ? motion.riseDp() * density : 0f;
+            float y = motion.riseDp() * density;
             next.setTranslationY(y);
-            long delay = rise ? Math.round(motion.faceInDelayMs() * scale) : 0;
-            fades.add(new Fade(next, 1f, y, t + delay, Math.round((rise ? motion.faceInMs() : motion.faceOutMs()) * scale), null));
+            long delay = Math.round(motion.faceInDelayMs() * scale);
+            fades.add(new Fade(next, 1f, y, t + delay, Math.round(motion.faceInMs() * scale), null));
         }
         if (!fades.isEmpty() && !fading) {
             fading = true;
@@ -317,7 +315,6 @@ final class IslandView extends ViewGroup {
         float r = Math.min(now.radius, Math.min(w, h) / 2f);
         body.reset();
         body.addRoundRect(x, y, x + w, y + h, r, r, Path.Direction.CW);
-        if (now.splitR > 0.5f) body.addCircle(now.splitCx - loc[0], now.splitCy - loc[1], now.splitR, Path.Direction.CW);
         if (now.shadow > 0.01f) ink.setShadowLayer(10 * density, 0f, 4 * density, Color.argb(Math.round(Color.alpha(SHADOW) * now.shadow), 0, 0, 0));
         else ink.clearShadowLayer();
         canvas.save();

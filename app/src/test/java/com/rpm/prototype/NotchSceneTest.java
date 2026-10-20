@@ -71,7 +71,6 @@ public class NotchSceneTest {
         assertEquals(20 / 45f, s.progress, 0.001);
         assertEquals("Write RM essay, 25 min left", s.spoken);
         assertTrue(s.canDone());
-        assertFalse(s.canDrink());
     }
 
     @Test
@@ -105,18 +104,14 @@ public class NotchSceneTest {
     }
 
     @Test
-    public void ringProgressPerKind() throws Exception {
+    public void theTaskIslandsRingFillsByTimeUsedAndAWaterOnlyEveningHasNoTaskHero() throws Exception {
         NotchScene running = scene(day(true, null), "2026-10-18T15:50");
-        assertEquals("a running task fills by time used", 20 / 45f, NotchBand.progress(PillPriority.Kind.TASK, running), 0.001);
-        NotchScene upcoming = scene(day(true, null), "2026-10-18T16:20");
-        assertEquals("an upcoming task stays empty", 0f, NotchBand.progress(PillPriority.Kind.TASK, upcoming), 0f);
-        assertEquals("water fills by glasses of the goal", 2 / 8f, NotchBand.progress(PillPriority.Kind.WATER, upcoming), 0.001);
-        NotchScene routine = scene(day(true, null), "2026-10-18T16:05");
-        assertEquals("a routine fills by steps done", 0f, NotchBand.progress(PillPriority.Kind.HABIT, routine), 0f);
-        NotchScene evening = scene(day(true, null), "2026-10-18T21:00");
-        assertEquals(Look.WATER, evening.heroLook);
-        assertEquals("2/8", NotchBand.heroValue(evening));
+        assertEquals("a running task fills by time used", 20 / 45f, running.progress, 0.001);
         assertEquals("25m", NotchBand.heroValue(running));
+        assertEquals("an upcoming task stays empty", 0f, scene(day(true, null), "2026-10-18T16:20").progress, 0f);
+        NotchScene evening = scene(day(true, null), "2026-10-18T21:00");
+        assertNull(evening.heroLook);
+        assertEquals(NotchHabits.Habit.WATER, evening.topHabit);
     }
 
     @Test
@@ -125,20 +120,22 @@ public class NotchSceneTest {
         JSONArray events = new JSONArray().put(new JSONObject().put("start", at("2026-10-18T15:00")).put("end", at("2026-10-18T18:00"))
                 .put("title", "Seminar").put("allDay", false).put("busy", false));
         assertTrue("a calendar event hides Done instead of greying it", scene(day(false, events), "2026-10-18T17:30").controls().isEmpty());
-        assertEquals(Arrays.asList(NotchScene.Control.GLASS, NotchScene.Control.LATER), scene(day(true, null), "2026-10-18T21:00").controls());
+        assertEquals(Arrays.asList(NotchScene.Control.GLASS, NotchScene.Control.LATER), scene(day(true, null), "2026-10-18T21:00").habitControls());
         for (String local : new String[]{"2026-10-18T15:50", "2026-10-18T16:05", "2026-10-18T21:00"}) {
-            List<NotchScene.Control> c = scene(day(true, null), local).controls();
-            assertTrue("at most a primary and Later", c.size() <= 2);
-            assertTrue(c.size() < 2 || c.get(1) == NotchScene.Control.LATER);
+            NotchScene s = scene(day(true, null), local);
+            assertTrue("the task island has at most Done", s.controls().size() <= 1);
+            List<NotchScene.Control> c = s.habitControls();
+            assertTrue("the habit island has a primary and Later, or nothing", c.isEmpty() || (c.size() == 2 && c.get(1) == NotchScene.Control.LATER));
         }
     }
 
     @Test
-    public void islandAlwaysOffersGlass() throws Exception {
+    public void dueWaterCanAlwaysBeLoggedFromTheNotch() throws Exception {
         for (String local : new String[]{"2026-10-18T15:50", "2026-10-18T16:05", "2026-10-18T16:20", "2026-10-18T21:00"}) {
             NotchScene s = scene(day(true, null), local);
+            if (!s.waterDue()) continue;
             for (int rows = 1; rows <= 3; rows++) {
-                boolean glass = s.controls().contains(NotchScene.Control.GLASS);
+                boolean glass = s.topHabit == NotchHabits.Habit.WATER && s.habitControls().get(0) == NotchScene.Control.GLASS;
                 for (NotchScene.Row r : s.visibleRows(rows)) glass |= r.look == Look.WATER;
                 assertTrue(local + " with " + rows + " rows", glass);
                 assertTrue(s.visibleRows(rows).size() <= rows);
@@ -216,12 +213,13 @@ public class NotchSceneTest {
     }
 
     @Test
-    public void noTaskLeftAndWaterDueMakesWaterTheHero() throws Exception {
+    public void noTaskLeftAndWaterDueMakesWaterTheHabitDrop() throws Exception {
         NotchScene s = scene(day(true, null), "2026-10-18T21:00");
         assertNull(s.hero);
-        assertEquals(Look.WATER, s.heroLook);
-        assertEquals("Due now", s.heroSubtitle);
-        assertTrue(s.canDrink());
+        assertNull(s.heroLook);
+        assertEquals(NotchHabits.Habit.WATER, s.topHabit);
+        assertEquals("2 of 8 glasses", s.habitLine());
+        assertEquals(Arrays.asList(NotchScene.Control.GLASS, NotchScene.Control.LATER), s.habitControls());
         assertFalse(s.canDone());
         assertEquals("Dinner", s.rows.get(s.rows.size() - 1).title);
         assertEquals("Not logged", s.rows.get(s.rows.size() - 1).value);
@@ -238,8 +236,27 @@ public class NotchSceneTest {
         assertEquals(0, s.water.nextAt);
         assertFalse(s.waterDue());
         assertFalse(s.canSnooze());
-        assertTrue(s.canDrink());
-        assertEquals("Not due yet", s.heroSubtitle);
+        assertNull("water that is not due shows no habit drop", s.topHabit);
+        assertTrue(s.habitControls().isEmpty());
+    }
+
+    @Test
+    public void laterOnAMealHoldsOnlyThatMealAndWaterStillComesFirst() throws Exception {
+        JSONObject dinner = new JSONObject().put("slot", "dinner").put("at", "20:00").put("on", true);
+        JSONObject body = new JSONObject().put("mealPlan", new JSONObject().put("slots", new JSONArray().put(dinner)))
+                .put("water", new JSONObject().put("settings", new JSONObject().put("reminders", false)));
+        NotchData data = NotchData.parse(new JSONObject().put("planner", new JSONObject().put("body", body)), null);
+        NotchScene due = scene(data, "2026-10-18T20:30");
+        assertEquals(NotchHabits.Habit.MEAL, due.topHabit);
+        assertEquals(Arrays.asList(NotchScene.Control.LOG_MEAL, NotchScene.Control.LATER), due.habitControls());
+        assertEquals("Dinner not logged", due.habitLine());
+        Map<String, Long> snoozes = new HashMap<>();
+        snoozes.put(NotchScene.mealSnooze("dinner"), at("2026-10-18T20:45"));
+        assertNull(scene(data, "2026-10-18T20:30", snoozes).topHabit);
+        assertEquals(NotchHabits.Habit.MEAL, scene(data, "2026-10-18T20:46", snoozes).topHabit);
+        assertEquals(NotchHabits.Habit.WATER, NotchHabits.top(true, "dinner"));
+        assertEquals(NotchHabits.Habit.MEAL, NotchHabits.top(false, "dinner"));
+        assertNull(NotchHabits.top(false, null));
     }
 
     @Test
@@ -248,9 +265,9 @@ public class NotchSceneTest {
         JSONObject body = new JSONObject().put("mealPlan", new JSONObject().put("slots", new JSONArray().put(snack)));
         NotchScene s = scene(NotchData.parse(new JSONObject().put("planner", new JSONObject().put("body", body)), null), "2026-10-18T16:30");
         assertEquals("snack", s.meal);
-        assertEquals(1, s.rows.size());
-        assertEquals(Look.MEAL, s.rows.get(0).look);
-        assertEquals("Tea and fruit", s.rows.get(0).title);
-        assertEquals("Not logged", s.rows.get(0).value);
+        NotchScene.Row meal = s.rows.stream().filter(r -> r.look == Look.MEAL).findFirst().orElseThrow(AssertionError::new);
+        assertEquals("Tea and fruit", meal.title);
+        assertEquals("Not logged", meal.value);
+        assertEquals("Tea and fruit", s.mealTitle);
     }
 }

@@ -21,7 +21,10 @@ final class NotchGeometry {
     static final int PAIR_GAP_DP = 8;
     static final int PILL_RING_DP = 28;
     static final int PILL_RING_INSET_DP = 4;
-    static final int MIN_PILL_WIDTH_DP = 112;
+    static final int DROP_GAP_DP = 8;
+    static final float TASK_DROP_RATIO = 18f / 11f;
+    static final int HABIT_TOP_DP = PAD_DP + 24 + BAND_GAP_DP;
+    static final int METER_DP = 72;
     static final int VALUE_START_DP = 8;
     static final int VALUE_END_DP = 14;
     static final int VALUE_CAP_DP = 12;
@@ -120,12 +123,53 @@ final class NotchGeometry {
         }
     }
 
-    /** The pill: ring at the start, inset so it is concentric with the pill's round end; value 14dp from the end. */
-    static Band pill(IslandShape s, float density, float valuePx) {
-        float h = s.height();
-        float mid = s.top + h / 2f;
-        return new Band(s.left + h / 2f, mid, pillRing(Math.round(h), density), PILL_STROKE_DP * density,
-                s.right - dp(VALUE_END_DP, density), mid, valuePx);
+    static int dropHeight(int pillHeight, float density) {
+        return pillRing(pillHeight, density);
+    }
+
+    static int taskDropWidth(int dropHeight) {
+        return Math.round(dropHeight * TASK_DROP_RATIO);
+    }
+
+    static int dropInset(int pillHeight, int dropHeight) {
+        return (pillHeight - dropHeight) / 2;
+    }
+
+    static int dropSide(int keep, int width, int pillHeight, int dropHeight, float density) {
+        return keep / 2 + dp(DROP_GAP_DP, density) + width + dropInset(pillHeight, dropHeight);
+    }
+
+    static int bareSide(int keep, int pillHeight) {
+        return Math.max(keep / 2, (pillHeight + 1) / 2);
+    }
+
+    static int[] pillSides(int taskSide, int habitSide, int bare) {
+        if (taskSide > 0 && habitSide > 0) {
+            int side = Math.max(taskSide, habitSide);
+            return new int[]{side, side};
+        }
+        return new int[]{taskSide > 0 ? taskSide : bare, habitSide > 0 ? habitSide : bare};
+    }
+
+    static Box taskDrop(IslandShape s, int dropHeight, int width) {
+        int left = Math.round(s.left) + dropInset(Math.round(s.height()), dropHeight), top = Math.round(s.top) + dropInset(Math.round(s.height()), dropHeight);
+        return new Box(left, top, left + width, top + dropHeight);
+    }
+
+    static Box habitDrop(IslandShape s, int dropHeight, int width) {
+        int right = Math.round(s.right) - dropInset(Math.round(s.height()), dropHeight), top = Math.round(s.top) + dropInset(Math.round(s.height()), dropHeight);
+        return new Box(right - width, top, right, top + dropHeight);
+    }
+
+    static Band pill(IslandShape s, Box taskDrop, float density, float valuePx) {
+        float mid = s.top + s.height() / 2f;
+        float cx = taskDrop == null ? (s.left + s.right) / 2f : (taskDrop.left + taskDrop.right) / 2f;
+        float d = taskDrop == null ? dropHeight(Math.round(s.height()), density) : taskDrop.height();
+        return new Band(cx, mid, d, PILL_STROKE_DP * density, s.right - dp(VALUE_END_DP, density), mid, valuePx);
+    }
+
+    static int habitFaceTop(int pillHeight, float density) {
+        return Math.max(dp(HABIT_TOP_DP, density), pillHeight + dp(BAND_GAP_DP, density));
     }
 
     /** The island's band: a 40dp circle at (16, 16) and the value 16dp from the end, both on the band's middle line. */

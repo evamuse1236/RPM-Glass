@@ -198,11 +198,10 @@ public class NotchAlertRowsTest {
         NotchScene s = scene(day(null), "2026-10-18T16:05");
         NotchReceipt saving = NotchReceipt.glass(1, 8, 5);
         String place = "cutout centre=540,52|1080|1.0";
-        NotchFrame a = new NotchFrame(Mode.RECEIPT, null, null, s, null, null, null, saving);
-        NotchFrame b = new NotchFrame(Mode.RECEIPT, null, null, s, null, null, null, NotchReceipt.glass(1, 8, 5));
+        NotchFrame a = new NotchFrame(Mode.RECEIPT, s, null, null, null, saving);
+        NotchFrame b = new NotchFrame(Mode.RECEIPT, s, null, null, null, NotchReceipt.glass(1, 8, 5));
         assertEquals(a.key(place), b.key(place));
-        NotchFrame saved = new NotchFrame(Mode.RECEIPT, null, null, s, null, null, null, saving.saved("t", null, 0L));
+        NotchFrame saved = new NotchFrame(Mode.RECEIPT, s, null, null, null, saving.saved("t", null, 0L));
         assertNotEquals(a.key(place), saved.key(place));
-        assertNull(saved.secondary);
     }
 }

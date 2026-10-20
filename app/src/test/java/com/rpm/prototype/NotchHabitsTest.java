@@ -50,6 +50,8 @@ public class NotchHabitsTest {
             assertEquals(id + " water nextAt", nextAt, water.nextAt);
             assertEquals(id + " water pending", expectedWater.getBoolean("pending"), water.pending);
             assertEquals(id + " eligible meal", expected.isNull("meal") ? null : expected.getString("meal"), NotchHabits.unloggedMeal(body, now, zone));
+            NotchHabits.Habit top = NotchHabits.top(water.pending, NotchHabits.unloggedMeal(body, now, zone));
+            assertEquals(id + " top habit", expected.isNull("top") ? null : expected.getString("top"), top == null ? null : top.name().toLowerCase(java.util.Locale.ROOT));
             if (expected.has("mealPlan")) {
                 JSONArray plan = expected.getJSONArray("mealPlan");
                 assertEquals(id + " meal plan size", plan.length(), body.mealPlan.size());

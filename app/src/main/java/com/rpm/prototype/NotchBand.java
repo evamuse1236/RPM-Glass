@@ -1,15 +1,14 @@
 package com.rpm.prototype;
 
 import com.rpm.prototype.NotchScene.Look;
-import com.rpm.prototype.PillPriority.Kind;
 
 /**
  * What the band beside the camera shows for one frame: the leading ring (or an alert's plain disc) and the trailing
  * value. The same ring and value travel between the pill and the island, so one model serves both.
  */
 final class NotchBand {
-    /** A progress ring around the glyph, a reminder's white disc, or an alarm's red disc. */
-    enum Disc { RING, PLAIN, ALARM }
+    /** A progress ring around the glyph, a reminder's white disc, an alarm's red disc, or nothing (the drops, the habit island). */
+    enum Disc { RING, PLAIN, ALARM, NONE }
 
     final Disc disc;
     final int glyph;
@@ -61,25 +60,23 @@ final class NotchBand {
                         alarm ? NotchInk.ALARM : NotchInk.WHITE_87, alarm ? NotchInk.ALARM : NotchInk.WHITE_87, 0f, Float.NaN, 0,
                         at, NotchInk.WHITE, NotchGeometry.ALERT_TIME_SP, false, false);
             }
+            case PILL:
+            case HABIT:
+                return none();
             case RECEIPT: {
                 NotchReceipt r = f.receipt;
+                if (r.meter) return none();
                 int accent = markColor(r.mark);
                 return new NotchBand(Disc.RING, markIcon(r.mark), "water".equals(r.mark) || "alarm".equals(r.mark) ? accent : NotchInk.WHITE_87,
                         accent, r.to, r.from, r.startedAt, "", NotchInk.WHITE, NotchGeometry.BAND_VALUE_SP, false, false);
             }
-            default: {
-                Look look = f.pillLook();
-                float p = f.primary == null ? 0f : progress(f.primary.kind, s);
-                boolean plain = look == Look.TASK || look == Look.EVENT;
-                return ring(look, p, f.pillValue(), plain || f.chip() ? NotchInk.WHITE : NotchInk.accent(look), NotchGeometry.PILL_VALUE_SP, f.chip());
-            }
+            default:
+                return none();
         }
     }
 
-    /** The split circle's ring for the second kind: no value, just its live ring and glyph. */
-    static NotchBand split(Kind kind, NotchScene scene) {
-        Look look = NotchFrame.look(kind, scene);
-        return ring(look, progress(kind, scene), "", NotchInk.WHITE, NotchGeometry.PILL_VALUE_SP, false);
+    static NotchBand none() {
+        return new NotchBand(Disc.NONE, 0, 0, 0, 0f, Float.NaN, 0, "", NotchInk.WHITE, NotchGeometry.PILL_VALUE_SP, false, false);
     }
 
     private static NotchBand ring(Look look, float progress, String value, int valueColor, float sp, boolean chip) {
@@ -88,21 +85,9 @@ final class NotchBand {
                 progress, Float.NaN, 0, value, valueColor, sp, chip, false);
     }
 
-    /**
-     * How full the ring is: a running task or event by time used, an upcoming one empty, water by glasses of the goal,
-     * a routine by steps done.
-     */
-    static float progress(Kind kind, NotchScene s) {
-        if (kind == Kind.WATER) return s.water == null ? 0f : s.water.count / (float) Math.max(1, s.water.goal);
-        if (kind == Kind.HABIT) return s.habit == null ? 0f : s.habit.done / (float) Math.max(1, s.habit.total);
-        return s.hero != null && s.running ? s.progress : 0f;
-    }
-
-    /** The island's trailing value: the pill's "45m" or "4:30" for a task, else water's "3/8" or the routine's "2/5". */
+    /** The task island's trailing value: "45m" left, or the start "4:30". */
     static String heroValue(NotchScene s) {
-        if (s.hero != null) return s.pillValue;
-        if (s.heroLook == Look.HABIT && s.habit != null) return NotchScene.habitValue(s.habit);
-        return s.water == null ? "" : s.waterValue();
+        return s.hero == null ? "" : s.pillValue;
     }
 
     static int icon(Look look) {
