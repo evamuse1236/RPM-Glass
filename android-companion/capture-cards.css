@@ -1,10 +1,11 @@
-.cards{flex:0 1 auto;min-block-size:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;display:flex;flex-direction:column;gap:8px;outline:none}
+/* The list scrolls, so it pads 8dp past its edges to keep the cards' shadows from being cut square. */
+.cards{flex:0 1 auto;min-block-size:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;display:flex;flex-direction:column;gap:8px;outline:none;padding:0 8px 8px;margin:0 -8px -8px}
 .cards::-webkit-scrollbar{display:none}
 .cards:empty{display:none}
 
 .card{
   flex:none;display:flex;flex-direction:column;gap:12px;padding:16px 20px;
-  background:var(--bar);color:var(--bar-on);border-radius:var(--card-radius);box-shadow:var(--bar-shadow);
+  background:var(--bar);color:var(--bar-on);border-radius:var(--r-group);box-shadow:var(--bar-shadow);
 }
 @media (prefers-color-scheme:dark){:root:not([data-appearance=light]) .card{outline:1px solid var(--bar-outline);outline-offset:-1px}}
 :root[data-appearance=dark] .card{outline:1px solid var(--bar-outline);outline-offset:-1px}
