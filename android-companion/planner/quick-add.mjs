@@ -3,7 +3,7 @@ import {el, icon, button, labelButton} from './dom.mjs';
 import {duration} from './format.mjs';
 import {reducedMotion, EASE, DURATION, MOTION} from '../surface-motion.mjs';
 import {openSheet, isSheetOpen, discardDraft, rememberValue} from './sheet.mjs';
-import {whenOf, whenLabel, clockOf, dayPresets, repeatLabel, parseWhen, blockMatches, hashToken, hashTag, withoutTag, foldGroup, fold, foldFor, choiceChip, markChips, chipRow, dateChooser, durationChooser, repeatChooser, alertChooser, blockChooser, recentBlock, rememberBlock} from './task-fields.mjs';
+import {whenOf, whenFields, whenLabel, clockOf, dayPresets, repeatLabel, parseWhen, blockMatches, hashToken, hashTag, withoutTag, foldGroup, fold, foldFor, choiceChip, markChips, chipRow, dateChooser, durationChooser, repeatChooser, alertChooser, blockChooser, recentBlock, rememberBlock} from './task-fields.mjs';
 import {readLabel, NEEDS_TIME, inlineText, saver, scheduleCheck, suggestBlock, syncText} from './sheet-parts.mjs';
 import {openTask} from './task-sheet.mjs';
 
