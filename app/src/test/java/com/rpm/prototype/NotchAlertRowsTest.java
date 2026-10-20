@@ -50,6 +50,24 @@ public class NotchAlertRowsTest {
     }
 
     @Test
+    public void theHerosOwnAlertRowNeverPushesDueWaterOutOfTheIsland() throws Exception {
+        NotchScene s = scene(day("reminder"), "2026-10-18T16:20");
+        assertEquals("reminder", s.heroAlert);
+        assertTrue(s.waterDue());
+        NotchScene.Row own = s.visibleRows(3).get(0);
+        assertTrue(own.heros);
+        assertEquals("Reminder", own.title);
+        assertEquals("4:30 PM", own.value);
+        assertSame(s.hero, own.slot);
+        for (int n = 1; n <= 3; n++) {
+            boolean glass = s.controls().contains(NotchScene.Control.GLASS);
+            for (NotchScene.Row r : s.visibleRows(n)) glass |= r.look == Look.WATER;
+            assertTrue("at large text the island shrinks to " + n + " row(s) and still logs a glass", glass);
+            assertTrue(s.visibleRows(n).size() <= n);
+        }
+    }
+
+    @Test
     public void theNextAlertLeadsTheRowsWhenNothingElseShowsItAndDueWaterStaysSecond() throws Exception {
         NotchScene s = scene(day(null), "2026-10-18T16:05");
         NotchScene.Row first = s.rows.get(0);

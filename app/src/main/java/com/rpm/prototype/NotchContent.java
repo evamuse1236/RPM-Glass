@@ -113,25 +113,21 @@ final class NotchContent {
         return s.barSpoken.isEmpty() ? s.heroTitle : s.heroTitle + ", " + s.barSpoken;
     }
 
-    /** The hero's own alert first (it has no row of its own), then the scene's rows; drops keep the water row. */
     private List<View> rows(NotchScene scene, Actions actions, int maxRows) {
         List<View> out = new ArrayList<>();
-        int room = maxRows;
-        if (!scene.heroAlert.isEmpty() && room > 0) {
-            Look look = NotchScene.alertLook(scene.heroAlert);
-            LinearLayout r = parts.row(NotchBand.icon(look), NotchInk.accent(look), NotchScene.alertName(scene.heroAlert),
-                    NotchParts.alertSpoken(scene.heroAlert, scene.heroTitle, scene.heroAt), () -> actions.manage(scene.hero));
-            NotchParts.trail(r, value(scene.heroAt, NotchInk.accent(look)), parts.dp(12));
-            out.add(r);
-            room--;
-        }
-        for (NotchScene.Row row : scene.visibleRows(room)) out.add(row(row, scene, actions));
+        for (NotchScene.Row row : scene.visibleRows(maxRows)) out.add(row(row, scene, actions));
         return out;
     }
 
     private View row(NotchScene.Row r, NotchScene scene, Actions actions) {
         int accent = r.look == Look.TASK || r.look == Look.EVENT ? NotchInk.WHITE_60 : NotchInk.accent(r.look);
         int gap = parts.dp(12);
+        if (r.heros) {
+            LinearLayout row = parts.row(NotchBand.icon(r.look), accent, r.title, NotchParts.alertSpoken(r.alert, scene.heroTitle, r.value),
+                    () -> actions.manage(r.slot));
+            NotchParts.trail(row, value(r.value, accent), gap);
+            return row;
+        }
         if (r.look == Look.WATER && scene.water != null) {
             LinearLayout row = parts.row(NotchBand.icon(r.look), accent, r.title, r.title + ", " + r.value + ". Log a glass of water", actions::drink);
             NotchParts.trail(row, new NotchParts.Dots(context, scene.water.count, scene.water.goal, parts.dp(7), parts.dp(4)), gap);

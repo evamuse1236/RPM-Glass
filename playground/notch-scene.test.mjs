@@ -149,6 +149,18 @@ test('a task row whose alert is still to come carries its chip instead of a seco
   assert.equal(during.nextAlert.task.id, 3);
 });
 
+test("the hero's own alert row leads the island's rows and never pushes due water out", () => {
+  const s = scene(alertRowsDay('reminder'), '2026-10-18T16:20');
+  assert.ok(s.waterDue);
+  const own = visibleRows(s, 3)[0];
+  assert.deepEqual([own.heros, own.title, own.value, own.alert], [true, 'Reminder', '4:30 PM', 'reminder']);
+  for (let n = 1; n <= 3; n++) {
+    const rows = visibleRows(s, n);
+    assert.ok(rows.length <= n);
+    assert.ok(controls(s).includes('GLASS') || rows.some(r => r.look === 'WATER'), `${n} rows`);
+  }
+});
+
 test('the pill drops AM/PM within 12 hours', () => {
   assert.equal(scene(day(false), '2026-10-18T16:20').pillValue, '4:30');
   assert.equal(scene(day(false), '2026-10-18T03:00').pillValue, '3:30 PM');

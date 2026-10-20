@@ -5,7 +5,7 @@ import {D, G, anchor, ISLAND_INSET_DP, pillRing, bandAt} from './notch-geometry.
 import {el, glyph, button, face, title, line, pill, controls, row, rowValue, circle, accent, lookOf, ICONS, INK} from './notch-parts.mjs';
 import {alertFace} from './notch-alert.mjs';
 import {alertChip, alertSpoken, receiptFace, manageFace, MARK} from './notch-change.mjs';
-import {alertLook, alertName, controls as heroControls, visibleRows, progress, heroValue} from './notch-scene.mjs';
+import {controls as heroControls, visibleRows, progress, heroValue} from './notch-scene.mjs';
 import {dropAmPm} from './notch-day.mjs';
 import {swipeable} from './notch-gesture.mjs';
 
@@ -104,14 +104,9 @@ function paintValue(v, band, at, fontScale, pillDp) {
   v.style.translate = `${at.valueRight - v.offsetWidth}px ${at.cy - v.offsetHeight / 2}px`;
 }
 
-function heroAlertRow(scene, actions) {
-  const look = alertLook(scene.heroAlert);
-  return row(ICONS[look], accent(look), alertName(scene.heroAlert), alertSpoken(scene.heroAlert, scene.heroTitle, scene.heroAt),
-    () => actions.manage(scene.hero), rowValue(scene.heroAt, accent(look)));
-}
-
 function sceneRow(r, scene, actions) {
   const color = r.look === 'TASK' || r.look === 'EVENT' ? INK.W60 : accent(r.look);
+  if (r.heros) return row(ICONS[r.look], color, r.title, alertSpoken(r.alert, scene.heroTitle, r.value), () => actions.manage(r.slot), rowValue(r.value, color));
   if (r.look === 'WATER' && scene.water) {
     const dots = el('span', 'notch-dots');
     for (let i = 0; i < Math.min(12, scene.water.goal); i++) dots.append(el('i', i < scene.water.count ? 'on' : ''));
@@ -135,10 +130,7 @@ function openFace(scene, actions, maxRows) {
   const pills = heroControls(scene).map((c, i) => c === 'DONE' ? pill('ic_check', 'Done', `Done: ${scene.heroTitle}`, heroAccent, i === 0, actions.done)
     : c === 'GLASS' ? pill('notch_ic_water', 'Glass', 'Log a glass of water', INK.WATER, i === 0, actions.drink)
       : pill('notch_ic_snooze', 'Later', `Snooze ${scene.snoozeMinutes} minutes`, heroAccent, i === 0, actions.snooze));
-  const rows = [];
-  let room = maxRows;
-  if (scene.heroAlert && room > 0) { rows.push(heroAlertRow(scene, actions)); room--; }
-  rows.push(...visibleRows(scene, room).map(r => sceneRow(r, scene, actions)));
+  const rows = visibleRows(scene, maxRows).map(r => sceneRow(r, scene, actions));
   const parts = [title(scene.heroTitle), line(scene.heroSubtitle, heroAccent)];
   if (pills.length) parts.push(controls(...pills));
   if (rows.length) {

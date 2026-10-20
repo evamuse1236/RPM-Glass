@@ -81,9 +81,10 @@ export function controls(s) {
   return s.canSnooze ? ['LATER'] : [];
 }
 
-/** The first n rows; when rows must drop to fit, the water row stays, so the island can always log a glass. */
+/** The island's first n rows: the hero's own alert, then the scene's rows. When rows must drop to fit, the water row stays. */
 export function visibleRows(s, n) {
-  const out = [...s.rows];
+  const own = s.heroAlert ? [{look: alertLook(s.heroAlert), title: alertName(s.heroAlert), value: s.heroAt, slot: s.hero, alert: s.heroAlert, heros: true}] : [];
+  const out = [...own, ...s.rows];
   for (let i = out.length - 1; out.length > Math.max(0, n) && i >= 0; i--) if (out[i].look !== 'WATER' || n === 0) out.splice(i, 1);
   return out;
 }

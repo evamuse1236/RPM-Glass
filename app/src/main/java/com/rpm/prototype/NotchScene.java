@@ -28,17 +28,24 @@ final class NotchScene {
         final NotchDay.Slot slot;
         /** "alarm" or "reminder" when the row's task still has that alert to give, else "". Such a row opens its controls. */
         final String alert;
+        /** The hero's own alert: "Reminder" and its time, no chip and no Done (the hero's Done is the primary control). */
+        final boolean heros;
 
         Row(Look look, String title, String value) {
-            this(look, title, value, null, "");
+            this(look, title, value, null, "", false);
         }
 
         Row(Look look, String title, String value, NotchDay.Slot slot, String alert) {
+            this(look, title, value, slot, alert, false);
+        }
+
+        private Row(Look look, String title, String value, NotchDay.Slot slot, String alert, boolean heros) {
             this.look = look;
             this.title = title;
             this.value = value;
             this.slot = slot;
             this.alert = alert;
+            this.heros = heros;
         }
     }
 
@@ -204,9 +211,14 @@ final class NotchScene {
         return out;
     }
 
-    /** The first {@code n} rows; when rows must drop to fit, the water row stays, so the island can always log a glass. */
+    /**
+     * The island's first {@code n} rows: the hero's own alert, then the scene's rows. When rows must drop to fit, the
+     * water row stays, so the island can always log a glass.
+     */
     List<Row> visibleRows(int n) {
-        List<Row> out = new ArrayList<>(rows);
+        List<Row> out = new ArrayList<>();
+        if (!heroAlert.isEmpty()) out.add(new Row(alertLook(heroAlert), alertName(heroAlert), heroAt, hero, heroAlert, true));
+        out.addAll(rows);
         for (int i = out.size() - 1; out.size() > Math.max(0, n) && i >= 0; i--) {
             if (out.get(i).look != Look.WATER || n == 0) out.remove(i);
         }
