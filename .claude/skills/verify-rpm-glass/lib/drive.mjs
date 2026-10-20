@@ -194,13 +194,16 @@ export const driveCommands = {
     const name = args._[0] === 'reset' ? 'phone' : args._[0];
     const d = DISPLAYS[name];
     if (!d) throw new UserError(`Unknown display "${args._[0] ?? ''}".`, `One of ${Object.keys(DISPLAYS).join(', ')}, reset.`);
+    const scale = args.fontScale === undefined ? d.fontScale : String(args.fontScale);
+    if (!/^(0\.85|1(\.\d+)?|2(\.0)?)$/.test(scale) || Number(scale) > 2)
+      throw new UserError(`Font scale "${scale}" is not one Android offers.`, 'Use 0.85 to 2.0. Normal text (1.0) is the default; check larger text only when the user asks for it.');
     const before = displayInfo(serial);
-    shell(serial, `settings put system font_scale ${d.fontScale}`);
+    shell(serial, `settings put system font_scale ${scale}`);
     shell(serial, `settings put system user_rotation ${d.rotation}`);
     shell(serial, d.size ? `wm size ${d.size}` : 'wm size reset');
     shell(serial, d.density ? `wm density ${d.density}` : 'wm density reset');
     await sleep(2000);
-    const out = {ok: true, display: name, note: d.note, before, after: displayInfo(serial)};
+    const out = {ok: true, display: name, note: scale === d.fontScale ? d.note : `${d.note}, text at ${Math.round(scale * 100)}% (asked for by the user)`, before, after: displayInfo(serial)};
     journal(state, {command: 'display', result: out});
     return out;
   },

@@ -2,6 +2,7 @@ import {spawn, spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import {fileURLToPath} from 'node:url';
 
 export const PACKAGE = 'com.rpm.prototype';
 export const LAUNCHER = `${PACKAGE}/.CompanionActivity`;
@@ -77,6 +78,14 @@ export function startEmulator({avd, port, logFile, gpu}) {
   const child = spawn(emulatorPath(), args, {detached: true, stdio: ['ignore', log, log], windowsHide: true});
   child.unref();
   return {pid: child.pid, args};
+}
+
+/** Starts the detached watcher that stops the shared emulator once no run has used it for the idle time. */
+export function spawnReaper(port) {
+  const script = path.join(path.dirname(fileURLToPath(import.meta.url)), 'reaper.mjs');
+  const child = spawn(process.execPath, [script, String(port)], {detached: true, stdio: 'ignore', windowsHide: true});
+  child.unref();
+  return child.pid;
 }
 
 export function processAlive(pid) {

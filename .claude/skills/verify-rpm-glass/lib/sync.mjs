@@ -37,6 +37,7 @@ export const syncCommands = {
       adb(serial, ['exec-in', `run-as ${PACKAGE} sh -c 'cat > ${SYNC_DIR}/${file}'`], {input: fs.readFileSync(path.join(BUILT, file))});
     const sha = builtAssetsSha();
     state.webSha256 = sha;
+    state.syncedAt = Date.now();
     writeState(state);
     let reloaded = 0;
     for (const t of (await pageTargets(serial, cdpPort).catch(() => [])).filter(p => p.url.startsWith('https://rpm.local/'))) {

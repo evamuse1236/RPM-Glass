@@ -2,7 +2,7 @@
 
 For planning behavior, read `CONTEXT.md` and the relevant part of `PRODUCT.md`. Capture, task, result, purpose, must, priority, and calendar commitment have distinct meanings. Preserve the user's original words and recovery/Undo. Completing actions does not by itself establish that a result was achieved.
 
-For UI work, use `DESIGN.md` and the relevant surface contract under `docs/`; validate the named widget or screen on the S24 FE at One UI default text (`rpmctl display phone`); larger text sizes are not a target. A build or web preview alone does not verify a native widget.
+For UI work, use `DESIGN.md` and the relevant surface contract under `docs/`; validate the named widget or screen on the S24 FE at phone size with normal text (`rpmctl display phone`). Check larger text only when a change touches text sizing and the user asks for it. A build or web preview alone does not verify a native widget.
 
 `/home/darax/Codex Projects/RPM Agent` is the separate Arden coaching project. Its course study and `docs/rpm-widget-recommendations.md` can inform requested product decisions; recommendations are not already-implemented app features. Keep Arden's persona and memory local to that project.
 
@@ -13,17 +13,25 @@ For an authorized phone release, compare the working tree, branch, and installed
 ## Before you say done
 
 1. Run the checks: `npm test` (JS, rules, Convex, typecheck, Java). The same command runs in CI.
-2. If app code changed (`app/src/main`, `android-companion`, `chat-prototype`, `intent-v2`, `cli`), drive the changed feature on the real app with the `verify-rpm-glass` skill: `node .claude/skills/verify-rpm-glass/rpmctl.mjs launch` (`rpmctl` below), then the recipe in its `features/` file. After a web-only edit, `rpmctl sync` reloads it in seconds. Check it at `display phone` and `display large-text` (and `max-text` if text can wrap), read back what was saved with `state`, and run `logs --errors`.
-3. Run `rpmctl scenario --all` when the change touches the planner, Capture or layout. Every scenario must pass or be a recorded known bug.
+2. If app code changed (`app/src/main`, `android-companion`, `chat-prototype`, `intent-v2`, `cli`), prove it on the real app with the `verify-rpm-glass` skill (`node .claude/skills/verify-rpm-glass/rpmctl.mjs`, `rpmctl` below), matched to the change:
+   - **Web only** (`android-companion`, `chat-prototype`, `intent-v2`): a browser screenshot of the changed screen, then `rpmctl sync` on the shared emulator and `rpmctl shot`. No APK build.
+   - **Native** (Java, the notch, the manifest, `cli`): `rpmctl launch --build`, then drive the changed feature with the recipe in its `features/` file.
+   - Check at `display phone` (normal text), read back what was saved with `state`, and run `logs --errors`.
+3. Run the full `rpmctl scenario --all` once before merging app changes to main, not after each change. Every scenario must pass or be a recorded known bug.
 4. Put the evidence paths (`.verify/evidence/<run-id>/NN-*.png`) in the reply. Mark anything you could not drive (model-backed paths, Samsung-only behavior, the real home-screen widget) **UNVERIFIED**.
 5. `npm run check:evidence` must pass. In Claude Code the Stop hook runs it for you.
-6. Run `rpmctl cleanup` when you finish. Evidence stays.
+6. Run `rpmctl cleanup` when you finish. It keeps the shared emulator warm for the next run (it stops itself after 20 min idle); `cleanup --stop` stops it now. Evidence stays.
 
 ## Rules and what enforces them
 
 | Rule | Enforced by |
 |---|---|
 | One agent drives one emulator | Machine-wide rpmctl lease for the worktree and ports, plus the run owner token (missing tokens warn for one compatibility release) |
+| All worktrees share one warm emulator on port 5580: a second `launch` reuses it (no new boot), wipes the app's data, installs its own APK and seeds its own data. While another run holds it, `launch` says who and refuses, or queues with `--wait`. A run idle for 20 min can be taken over, and a warm emulator with no run stops itself after 20 min. | `.claude/skills/verify-rpm-glass/lifecycle.test.mjs` (`a second worktree reuses the warm emulator`, `busy message naming it, or waits in the queue`), `ownership.test.mjs` (`idle past the limit`, `the reaper stops the warm emulator`) |
+| Leases live in one folder per user (`~/.cache/rpmctl-leases`), whatever `TMPDIR` a shell sets, so agents with different TMPDIRs still exclude each other. | `.claude/skills/verify-rpm-glass/ownership.test.mjs` (`the lease folder is the same whatever TMPDIR`) |
+| The check matches the change: web-only needs a sync screenshot and no APK build; native needs an APK built after it and a screenshot with it installed. | `npm run check:evidence` (`scripts/agent/require-evidence.mjs`, Stop hook), `scripts/rules/merge-scenarios.test.mjs` (`the tier follows the change`) |
+| App changes merge into main only after one passing `rpmctl scenario --all` on the merged commit with no uncommitted app edits. | `npm run check:merge`, as a `pre-merge-commit` hook after `npm run hooks:install`; `scripts/rules/merge-scenarios.test.mjs` |
+| Scenarios never run on a stale app: an APK older than native code, another checkout's APK, or web code newer than the last install or sync is refused. | `.claude/skills/verify-rpm-glass/freshness.test.mjs`, `rpmctl scenario` |
 | On Windows, rpmctl starts the emulator's netsimd itself with no console, so no netsim window pops up. | `.claude/skills/verify-rpm-glass/lifecycle.test.mjs` (`netsimToStart`) |
 | rpmctl boots the emulator on the host GPU; software rendering (swiftshader, guest) is refused unless `RPM_ALLOW_SOFTWARE_GPU=1`, because it used 8.2 CPU cores against 0.68 to scroll Settings. | `.claude/skills/verify-rpm-glass/lifecycle.test.mjs` (`gpuMode`) |
 | rpmctl selectors match the app | `.claude/skills/verify-rpm-glass/selectors.test.mjs` in `npm test` |
@@ -31,7 +39,7 @@ For an authorized phone release, compare the working tree, branch, and installed
 | A change updates the screen in place: existing rows are kept, the field keeps focus, the new item appears once and is saved where it belongs. | `rpmctl scenario plan-add-in-place`, `android-companion/surface-refresh.test.mjs` |
 | The field you are typing in is never covered by the keyboard, nav bar, snackbar or FAB. | `rpmctl scenario focused-field-visible` (known bug recorded, expires 2026-11-07) |
 | When the Capture card list shrinks (keyboard open), it scrolls so a question's choices stay in view. | `android-companion/capture-presentation.test.mjs` (`choicesScrollTop`) |
-| Design and proof target the user's S24 FE at One UI default text: 384dp wide (density 450), 100% text. Enlarged text (130%, 200%) is not a target (user, 2026-10-19). At that size no title or action label is cut, no word is split across two lines (Today, Blocks, the task sheet, Capture), and nav labels stay visible. | `.claude/skills/verify-rpm-glass/display-target.test.mjs`, `rpmctl scenario default-text-fit` (one exception pending approval) |
+| Design and proof target the user's S24 FE at phone size with normal text: 384dp wide (density 450), 100% text. The user only uses normal text (2026-10-19, 2026-10-20), so no default check, scenario or brief asks for 130% or 200%; `display phone --font-scale` checks larger text only when a change touches text sizing and the user asks. At that size no title or action label is cut, no word is split across two lines (Today, Blocks, the task sheet, Capture), and nav labels stay visible. | `.claude/skills/verify-rpm-glass/display-target.test.mjs`, `rpmctl scenario default-text-fit` (one exception pending approval), `~/.claude/hooks/agent-routing.py` refuses sub-agent briefs that ask for enlarged text |
 | Capture saves the user's exact words before anything else, with or without an AI key, and keeps them for Retry when the model fails. A stale or closed focus never rejects the words: they are saved, the card says so, and Retry reads them on their own. | `rpmctl scenario capture-keeps-words`, `android-companion/capture-agent.test.mjs`, `android-companion/capture-session.test.mjs`, `chat-prototype/composer.test.mjs`, `intent-v2/test/capture-input.test.mjs` |
 | What a message points at is decided once, when its words are saved: an Edit tap wins; otherwise a reply inherits the draft and open question of the capture that asked. The model sees that draft with the question and choices the person saw. | `intent-v2/test/conversation-focus.test.mjs` |
 | Removal follows one table (`intent-v2/src/removal.mjs`): a task goes to Trash, a draft is set aside (Resume brings it back), an alarm turns the task's alert off, a calendar event is refused in plain words. The interpreter checks it and the prompt's removal rules are written from it. A task and a draft removed together are one change with one Undo that restores both. | `intent-v2/test/removal.test.mjs`, `android-companion/capture-session.test.mjs` |

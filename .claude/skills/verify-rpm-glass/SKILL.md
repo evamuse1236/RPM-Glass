@@ -20,17 +20,25 @@ Run it from the repo root. Needs Node 22+, the Android SDK (`ANDROID_HOME`, or t
 ## Launch
 
 ```bash
-$RPMCTL launch            # boots this worktree's emulator, builds if needed, installs, opens Capture
+$RPMCTL launch            # reuses the shared warm emulator (boots it if none), builds if needed, installs, opens Capture
 export RPMCTL_OWNER=<owner from launch>
 ```
 
-Ready when it prints `"ok": true` (cold boot about 1-2 minutes, then about 35 s when the emulator is already up). The emulator runs `-read-only`: nothing a run does persists into the AVD, so differently signed or stale copies of the app are replaced freely. `launch` refuses a port where an emulator it did not start is running. It is idempotent; rerun it after editing Java or the manifest to rebuild and reinstall (`--build` forces a build).
+Ready when it prints `"ok": true` (cold boot about 1-2 minutes, then about 35 s when the emulator is already up). Its `emulator` field says `booted` or `reused the warm emulator`. The emulator runs `-read-only`: nothing a run does persists into the AVD, so differently signed or stale copies of the app are replaced freely. `launch` refuses a port where an emulator it did not start is running. It is idempotent; rerun it after editing Java or the manifest to rebuild and reinstall (`--build` forces a build).
 
 After editing web code only (`android-companion`, `intent-v2`, `chat-prototype`), run `rpmctl sync` instead: it bundles the assets, copies them into the running debug app and reloads the page in about 5 seconds. Screenshots taken after a sync prove the web change for `npm run check:evidence`.
 
 Copy the `owner` from launch into `RPMCTL_OWNER` in the launching agent's shell. In PowerShell use `$env:RPMCTL_OWNER = '<owner from launch>'`. Alternatively pass `--owner <token>` on each mutating command, including `eval`, `scenario`, `cleanup` and a repeated `launch`. A wrong token refuses before any device access. For one compatibility release only, a missing token warns and proceeds. Read-only commands need no token. Keep the token with the launching agent.
 
-The worktree path determines the default even emulator console port in 5580–5680 and CDP port in 10000–19999. `--port` and `--cdp-port` override them at launch and are remembered for the run. Hash collisions refuse safely; choose free overrides. Atomic machine-wide lease directories under the OS temp folder reserve the worktree and ports, including the adjacent emulator adb port. A live launcher reserves them before boot; a dead emulator's lease is stale and can be reclaimed.
+### One shared emulator
+
+Every worktree drives the same warm emulator on console port 5580 (`emulator-5580`); only the DevTools port (10000–19999) is per worktree. Two emulators do not fit next to each other in 16 GB, so rpmctl never boots a second one by default.
+
+- **One driver at a time.** A run holds the machine-wide lease from `launch` until `cleanup`. Another worktree's `launch` refuses with `The emulator is busy: <worktree> has driven it since …` and the fix. Add `--wait 900` to queue: it retries every 15 s for up to that many seconds.
+- **Each run starts clean.** Taking over the warm emulator wipes the app's data and synced web assets, resets the display to `phone`, then installs this worktree's APK (skipped when the exact APK is already installed). Seed your own data next.
+- **Idle runs can be taken over.** Every command marks the run active. A run idle for 20 min (`RPMCTL_IDLE_MINUTES`) loses its lease to the next `launch`, so an agent that forgot `cleanup` cannot block the others.
+- **Leases live in `~/.cache/rpmctl-leases`** (Windows: the temp folder; `RPMCTL_LEASE_ROOT` overrides), the same folder whatever `TMPDIR` a shell sets. They reserve the worktree, the console and adb ports and the CDP port. `emulator-5580.json` there records the warm emulator: pid, AVD, boot time and installed APK.
+- `--port` and `--cdp-port` still override for a separate emulator and are remembered for the run. Never drive or stop an emulator that rpmctl did not start.
 
 ## Doctor
 
@@ -76,12 +84,22 @@ Proof standards:
 - Exercise the user's path: launcher or widget intent, then taps and typing. No internal setters, no `eval` that changes state, no desktop-browser substitute.
 - Capture the action and the result: a shot before and after, not only the final screen.
 - Verify side effects: read `state files/companion.json` (or `shared_prefs/...`) after a save, and show the exact stored value.
-- Check the changed screen at `phone`. Name the display in the shot label.
+- Check the changed screen at `phone`: normal text at phone size. Name the display in the shot label. Check larger text only when the change touches text sizing and the user asks for it: `display phone --font-scale 1.3`.
 - Run `logs --errors` after a drive; a page error or crash fails the proof even if the screen looks right.
 - Model-backed paths (Capture sorting, Jev, Suggest a Purpose) need an OpenRouter key, which the emulator does not have. Without a key, prove the keyless behavior (words saved, "Connect" offered) and mark the model path **UNVERIFIED**.
 - The emulator is not Samsung One UI. Samsung keyboard, battery limits, audible alarms and real launcher widget placement stay **UNVERIFIED** until checked on the phone.
 
 Reply with the evidence paths (`.verify/evidence/<run-id>/NN-*.png`).
+
+## Match the check to the change
+
+| Change | Proof before saying done | Enforced by |
+|---|---|---|
+| Web only (`android-companion`, `chat-prototype`, `intent-v2`) | A browser screenshot of the changed screen, then `rpmctl sync` on the warm emulator and `rpmctl shot`. No APK build. | `npm run check:evidence` (`require-evidence.mjs`, Stop hook) accepts a shot whose web hash matches the bundle |
+| Native (Java, notch, manifest, `cli`) | `rpmctl launch --build`, then drive the changed feature and `rpmctl shot` it. | `npm run check:evidence` needs an APK newer than the change and a shot with it installed |
+| Merging app changes into main | One passing `rpmctl scenario --all` on the merged commit, not after each change. | `npm run check:merge`; `npm run hooks:install` makes it a `pre-merge-commit` hook |
+
+`scenario` refuses to run on a stale app: an APK older than native code, a different APK than this checkout built, or web code newer than the last install or `sync`. `--allow-stale` overrides and is recorded.
 
 ## Regression scenarios and checks
 
@@ -101,9 +119,9 @@ The rule table in `AGENTS.md` names which scenario or check enforces each rule.
 $RPMCTL cleanup
 ```
 
-Kills the emulator process tree that `launch` started (by its recorded pid, never by name), removes the DevTools port forward and `.verify/state.json`. Display and data changes die with the read-only emulator. Evidence stays; the output names the folder. Run `cleanup` after a failed attempt too.
+Ends your run: removes the DevTools port forward and `.verify/state.json`, releases the lease and keeps the emulator warm for the next run. A detached watcher stops the warm emulator after 20 min with no run, so it does not sit on the machine's memory. Evidence stays; the output names the folder. Run `cleanup` after a failed attempt too.
 
-Cleanup releases the lease after the emulator exits. `cleanup --keep-emulator` retains the state and lease for the same owner to resume.
+`cleanup --stop` also stops the emulator now (by its recorded pid, never by name). `cleanup --keep-emulator` retains the state and lease for the same owner to resume.
 
 ## A physical phone
 

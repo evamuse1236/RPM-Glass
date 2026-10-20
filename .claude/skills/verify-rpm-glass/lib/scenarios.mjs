@@ -3,7 +3,15 @@ import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {UserError, shell, dismissAnr} from './device.mjs';
 import {inPage} from './page.mjs';
-import {SKILL, parseArgs, journal, target, errorLines} from './runtime.mjs';
+import crypto from 'node:crypto';
+import {SKILL, ROOT, APK, parseArgs, journal, target, errorLines} from './runtime.mjs';
+import {newestFile, staleApp, NATIVE_SOURCES, WEB_SOURCES} from './freshness.mjs';
+import {headCommit, uncommittedAppFiles} from '../../../../scripts/agent/require-evidence.mjs';
+
+function appOnEmulator(state) {
+  const apk = fs.existsSync(APK) ? {mtime: fs.statSync(APK).mtimeMs, sha: crypto.createHash('sha256').update(fs.readFileSync(APK)).digest('hex')} : null;
+  return staleApp({apk, installedSha: state.installedSha256, syncedAt: state.syncedAt, native: newestFile(ROOT, NATIVE_SOURCES), web: newestFile(ROOT, WEB_SOURCES)});
+}
 
 export const scenarioCommands = {
   async scenario(args, commands) {
@@ -14,6 +22,8 @@ export const scenarioCommands = {
     const wanted = args.all ? mods : mods.filter(m => args._.includes(m.id));
     if (!wanted.length) throw new UserError('No scenario selected.', `Pass --all or ids from \`rpmctl scenario --list\`: ${mods.map(m => m.id).join(', ')}`);
     const {serial, state} = target(args, {mutates: true});
+    const stale = appOnEmulator(state);
+    if (stale && !args.allowStale) throw new UserError(`Refusing to run scenarios on a stale app: ${stale.error}`, `${stale.fix} Then rerun the scenarios.`);
     const results = [];
     for (const m of wanted) {
       dismissAnr(serial);
@@ -49,7 +59,8 @@ export const scenarioCommands = {
       else if (m.knownBug) status = status === 'pass' ? 'known-bug-fixed' : m.knownBug.failsWith.test(failure.message) ? 'known-bug' : 'fail';
       results.push({id: m.id, status, ms: Date.now() - t0, facts, ...(failure ? {failure} : {}), ...(m.knownBug ? {knownBug: m.knownBug} : {}), shots});
     }
-    const out = {ok: results.every(r => r.status === 'pass' || r.status === 'known-bug'), results};
+    const out = {ok: results.every(r => r.status === 'pass' || r.status === 'known-bug'), all: !!args.all, head: headCommit(ROOT),
+      uncommittedApp: uncommittedAppFiles(ROOT), apkSha256: state.installedSha256, webSha256: state.webSha256, ...(stale ? {staleAllowed: stale.error} : {}), results};
     journal(state, {command: 'scenario', result: out});
     return out;
   },

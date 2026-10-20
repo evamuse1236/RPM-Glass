@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {LAUNCHER, UserError, adb, devices, waitFor, appPid, ownsEmulator} from './device.mjs';
-import {defaultPorts, requireOwner, assertLease} from './ownership.mjs';
+import {defaultPorts, requireOwner, touchLease} from './ownership.mjs';
 
 const SKILL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ROOT = path.resolve(SKILL, '../../..');
@@ -58,7 +58,7 @@ function devtoolsPort(serial, args) {
 
 function target(args, {mutates}) {
   const state = readState();
-  if (mutates) { requireOwner(state, args); if (state) assertLease(state); }
+  if (mutates) { requireOwner(state, args); if (state) touchLease(state); }
   const serial = args.serial ?? state?.serial;
   if (!serial) throw new UserError('No emulator launched by rpmctl.', 'Run `rpmctl launch` (or pass --serial for a read-only look at another device).');
   const owned = !!state && state.serial === serial && devices().some(d => d.serial === serial && d.state === 'device') && ownsEmulator(state, serial);
