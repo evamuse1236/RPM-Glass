@@ -38,3 +38,26 @@ test('old incorrect draft is visibly blocked and cannot bypass review through co
 test('ambiguous referent can ask without creating anything',async()=>{
  const s=setup(async()=>turn(clarification,[],{draftMode:'none',reply:'Which idea do you mean?'}),{seed:fixture(),clock:()=>new Date(NOW)});const r=await captured(s,clarification);assert.equal(r.result.status,'interpreted');assert.equal(r.draft,null);
 });
+
+test('a new specific purchase cannot silently broaden a saved grocery run',async()=>{
+ const raw='buy 2 kg atta and 5 litre oil',initial=seed();
+ initial.entries=[{id:105,kind:'plan',title:'Buy groceries',done:false,archived:false}];
+ let calls=0;
+ const s=setup(async input=>{
+  calls++;
+  if(!input.repair)return turn(raw,[operation([field('title','Buy groceries: 2 kg atta and 5 litre oil',raw)],{kind:'update',targetId:'105'})]);
+  assert.match(input.repair.validationError,/new action|saved item/i);
+  return turn(raw,[operation([field('title','Buy 2 kg atta and 5 litre oil',raw)])]);
+ },{seed:initial,maxRepairCalls:1});
+ const {draft}=await captured(s,raw);assert.ok(draft);assert.equal(calls,2);assert.equal(draft.operations[0].kind,'create');
+ await s.harness.act(actionFor(draft),{actionId:'save-new-purchase'});
+ const data=await s.repository.load();assert.equal(data.entries.find(e=>e.id===105).title,'Buy groceries');assert.equal(data.entries.length,2);
+});
+
+test('a named subject or explicit saved-item reference still allows updates',async()=>{
+ for(const raw of ['buy groceries: 2 kg atta and 5 litre oil','add 2 kg atta to that shopping task']){
+  const initial=seed();initial.entries=[{id:105,kind:'plan',title:'Buy groceries',done:false,archived:false}];
+  const s=setup(async()=>turn(raw,[operation([field('title','Buy groceries and atta',raw)],{kind:'update',targetId:'105'})]),{seed:initial});
+  const {draft}=await captured(s,raw);assert.equal(draft.operations[0].kind,'update');
+ }
+});

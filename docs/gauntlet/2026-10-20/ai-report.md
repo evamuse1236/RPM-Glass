@@ -128,3 +128,15 @@ The model contract now distinguishes a fresh body report from an equal saved dai
 Duplicate equality now preserves case-sensitive parent IDs and notes. The bulk selector handles an already-passed boundary and keeps the source's capitalization. Their new regression controls failed before these refinements.
 
 Iteration 2 kept the old corpus at 109/109. Its five broad-run failures were two directionless shifts, one malformed inherited day/clock, one lost fee-waiver reason and one unwanted rewrite of the generic saved grocery run. The in-memory browser bundle compiled. No generated UI assets were written.
+
+Iteration 3 recovered the source's exact day when a “same time” edit contained a malformed model-rendered clock. The canonical updater preserves the clock. It also copies a missing explicit loss consequence or “the only way” reason onto a single Inbox action. Clear existing fields, Block purposes and independent clauses are preserved. An explicitly essential leading “I have to” with that reason can mark Must. `task-reasons.test.mjs` and the same-time regression were red before these changes.
+
+A bare new specific action now needs a subject match before it can update a saved task. Sharing “buy” does not identify “Buy groceries”. A mismatch asks for the existing bounded repair before any mutation. `follow-up.test.mjs` injects the bad grocery rewrite, checks the repair creates a separate task, and checks the saved grocery task stays unchanged. Named saved subjects and explicit references remain allowed.
+
+Clock recovery now respects explicit schedule clears and original source ownership during partial validation. An unquoted clock is recovered only immediately after its own exact action quote. Vague windows abstain on other day choices, clocks or actions. `capture-spoken-correction.test.mjs` has positive and negative controls. Iteration 3's targeted run passed 18/21; only the directionless shift failed its three repeats.
+
+Iteration 3's adversary run passed 79/80. It had no transport failures. The only failure asked for the missing shift direction. One other repeat chose the adversary's assumed forward direction and passed. That variation does not establish that the direction was stated.
+
+The next old-corpus run was interrupted by temporary-filesystem quota errors before model calls. It produced no final report. Those partial artifacts stay in `g2-r3-old`. I reran the whole old corpus with `TMPDIR` pointing to `.verify/gauntlet-tmp`, away from the shared temporary filesystem. No other process or emulator was touched.
+
+The complete retry passed 108/109. Its only failure is the previously documented mom/Amma fixture ambiguity: the model moved saved “Call Amma”, while the unchanged expectation asks for a new “Call mom”. No transport failures occurred in the retry. The regression floor is met. This expectation was not loosened.

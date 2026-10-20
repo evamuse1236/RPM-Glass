@@ -5,6 +5,22 @@ import {CAPTURE_OPERATIONS} from './capabilities.mjs';
 import {normalizeReminderTime} from '../../cli/interpret.mjs';
 import {capitalizeTitle} from '../../cli/title.mjs';
 const words=s=>String(s).toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+// Retain an explicit reason when the model supplied exactly one Inbox action.
+// This copies a bounded literal clause; mixed actions and Block purposes stay
+// with the model, as do reasons whose meaning needs interpretation.
+function completeExplicitReasons(operations,{units,messageId,visibleEntities}){
+ for(const op of operations){
+  if(op.entity!=='task'||!['create','update'].includes(op.kind)||operations.filter(o=>o.sourceId===op.sourceId).length!==1)continue;
+  if(op.fields.some(f=>f.name==='blockId')||visibleEntities.find(e=>e.entity==='task'&&e.id===op.targetId)?.blockId)continue;
+  const unit=units.find(u=>u.id===op.sourceId),text=unit?.text??'';
+  const reason=text.match(/\botherwise\s+(?:I|we)\s+(?:lose|miss)\b[^.!?;]*|\b(?:(?:its|it's|it is|that's|that is)\s+)?the only way\b[^.!?;]*/i)?.[0].trim();
+  if(/\?/.test(text)||!reason||reason.length>2000||/\b(?:and|also|then|plus|but|aur|actually|instead)\b/i.test(reason))continue;
+  const keep=(name,value,evidence)=>{if(!op.fields.some(f=>f.name===name))op.fields.push({name,op:'set',value,origin:'stated',evidence,sourceMessageId:messageId,evidenceSourceId:unit.id});};
+  keep('purpose',reason,reason);
+  const essential=text.match(/^(?:I\s+)?(?:have to|must)\b/i)?.[0];
+  if(essential&&!/\b(?:not|optional|nahi)\b/i.test(text))keep('must',true,essential);
+ }
+}
 // Collapse only equal task/Block values; provenance and operation IDs do not
 // make a second item. Different schedules, parents or purposes stay distinct.
 function collapseCreates(operations,question){
@@ -101,6 +117,7 @@ export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}
    }else old.set(op.opId,op);
   }merged=[...old.values()];
  }
+ completeExplicitReasons(merged,{units,messageId,visibleEntities});
  merged=collapseCreates(merged,turn.question);
  if(merged.length>30)throw new Error('A draft supports at most 30 operations');
  for(const op of merged){

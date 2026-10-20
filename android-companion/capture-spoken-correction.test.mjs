@@ -53,3 +53,40 @@ test('punctuated day-after corrections retain the next day, without treating eve
  for(const words of ['day after, same time','day after instead same time','make it day after instead same time'])assert.equal(interpretTime(words,now).plannedDate,'2026-10-21');
  assert.equal(interpretTime('day after the exam',now).plannedDate,null);
 });
+
+test('a due-clock mention cannot overwrite an explicitly cleared schedule',()=>{
+ const raw='Submit workbook is now due at five forty five, but remove its time from my plan';
+ const parsed=interpretTurn(turn(raw,[operation([field('time',null,'remove its time', 'stated','clear')],{kind:'update',targetId:'104'})]),{units:sourceUnits(raw),messageId:'m',visibleEntities:[{entity:'task',id:'104'}]});
+ validateIntentTimes(parsed,{input:{messageId:'m',sourceUnits:sourceUnits(raw),context:{now:now.toISOString(),entities:[{entity:'task',id:'104',title:'Submit workbook',savedLocalDate:'2026-10-19',startLocal:'2026-10-19 17:00'}]}}});
+ assert.equal(parsed.operations[0].fields.find(f=>f.name==='time').op,'clear');
+});
+
+test('near-window recovery cannot take another action or an explicit day choice',()=>{
+ for(const raw of ['tomorrow thodi der mein hang clothes, remind me','thodi der mein hang clothes and call Raj at 6 or 7']){
+  const parsed=interpretTurn(turn(raw,[operation([field('title','Hang clothes','hang clothes'),field('time',null,null,'stated','unknown')])],{question:{opId:'task1',field:'time',prompt:'Which time?',options:[]}}),{units:sourceUnits(raw),messageId:'m',visibleEntities:[]});
+  validateIntentTimes(parsed,{input:{messageId:'m',sourceUnits:sourceUnits(raw),context:{now:now.toISOString(),entities:[]}}});
+  assert.equal(parsed.operations[0].fields.find(f=>f.name==='time').op,'unknown',raw);assert.ok(parsed.question);
+ }
+});
+
+test('partial validation keeps the original multi-action ownership for a vague window',()=>{
+ const raw='thodi der mein hang clothes and call Raj',units=sourceUnits(raw);
+ const full=interpretTurn(turn(raw,[operation([field('title','Hang clothes','hang clothes'),field('time',null,null,'stated','unknown')]),operation([field('title','Call Raj','call Raj')],{opId:'raj'})]),{units,messageId:'m',visibleEntities:[]});
+ const partial={...full,operations:[full.operations[0]]};
+ validateIntentTimes(partial,{input:{messageId:'m',sourceUnits:units,context:{now:now.toISOString(),entities:[]}},sourceOperations:full.operations});
+ assert.equal(partial.operations[0].fields.find(f=>f.name==='time').op,'unknown');
+});
+
+test('a same-time day correction uses its exact day even if the model emits malformed inherited time',()=>{
+ const raw='the shopping thing tomorrow, make it day after instead same time',units=sourceUnits(raw);
+ const parsed=interpretTurn(turn(raw,[operation([field('time','day after 6 PM',null,'suggested')],{kind:'update',targetId:'105'})]),{units,messageId:'m',visibleEntities:[{entity:'task',id:'105'}]});
+ validateIntentTimes(parsed,{input:{messageId:'m',sourceUnits:units,context:{now:now.toISOString(),entities:[{entity:'task',id:'105',title:'Buy groceries',savedLocalDate:'2026-10-20',startLocal:'2026-10-20 18:00'}]}}});
+ const f=parsed.operations[0].fields.find(f=>f.name==='time');assert.equal(f.value,'day after');assert.equal(f.evidence,'day after');assert.equal(f.origin,'stated');
+});
+
+test('an unquoted reminder clock may be recovered only right after its exact action quote',()=>{
+ const raw='remind me to buy for kg rice and two dozen eggs at for thirty';
+ const units=sourceUnits(raw),parsed=interpretTurn(turn(raw,[operation([field('title','Buy rice and eggs','buy for kg rice and two dozen eggs'),field('alert','reminder','remind me'),field('time',null,null,'stated','unknown')])]),{units,messageId:'m',visibleEntities:[]});
+ validateIntentTimes(parsed,{input:{messageId:'m',sourceUnits:units,context:{now:now.toISOString(),entities:[]}}});
+ assert.equal(parsed.operations[0].fields.find(f=>f.name==='time').value,'2026-10-19T11:00:00.000Z');
+});

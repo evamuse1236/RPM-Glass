@@ -17,7 +17,12 @@ function inferClocks(parsed,input,now,sourceOperations){
   const subject=clockSubject(op,sourceOperations,input);
   for(const f of op.fields){
    if(f.name!=='time'||!['set','unknown'].includes(f.op)||f.sourceMessageId!==input.messageId)continue;
-   let proof=f.evidence??(ownsSource?source?.text:null);
+   let proof=f.evidence;
+   if(!proof&&ownsSource&&source){
+    const title=op.fields.find(f=>f.name==='title'&&f.op==='set'&&f.origin==='stated')?.evidence;
+    const index=title?source.text.indexOf(title):-1,tail=index>=0?source.text.slice(index+title.length).trim():'';
+    if(/^(?:at|in|today|tomorrow|tonight|on|next)\b/i.test(tail)&&!/[;!?]|\b(?:and|or|also|then|but|because|so|aur)\b/i.test(tail))proof=tail;
+   }
    if(!proof||!input.sourceUnits.some(u=>u.text.includes(proof)))continue;
    if(/^\d{1,2}$/.test(proof.trim())&&!new RegExp(`\\b(?:at|to|by|around|about)\\s+${proof.trim()}\\b|\\b${proof.trim()}\\s+baje\\b`,'i').test(source?.text??''))continue;
    let time=interpretTime(clockWords(proof),now,{subject,inferBareClock:true});
@@ -58,11 +63,11 @@ function recoverExplicitSavedClock(parsed,input,now){
   }
  }
 }
-function recoverNearWindow(parsed,input){
+function recoverNearWindow(parsed,input,sourceOperations,now){
  for(const op of parsed.operations){
-  if(op.entity!=='task'||!['create','update'].includes(op.kind)||parsed.operations.filter(o=>o.sourceId===op.sourceId).length!==1)continue;
+  if(op.entity!=='task'||!['create','update'].includes(op.kind)||sourceOperations.filter(o=>o.sourceId===op.sourceId).length!==1)continue;
   const source=input.sourceUnits.find(u=>u.id===op.sourceId),match=source?.text.match(/\bthodi\s+der\s+mein\b/i);
-  if(!match)continue;
+  if(!match||statedDays(source.text,now).length||/\d|\b(?:kal|parso|aaj|or|and|aur|ya|not|nahi|at|baje|am|pm|half|quarter|thirty|fifteen|forty|fifty)\b/i.test(source.text))continue;
   const f=op.fields.find(f=>f.name==='time'&&f.op==='unknown');
   if(!f)continue;
   Object.assign(f,{op:'set',value:match[0],origin:'stated',evidence:match[0],evidenceSourceId:source.id});
@@ -70,28 +75,34 @@ function recoverNearWindow(parsed,input){
  }
 }
 // A named task's explicit due clock outranks a contradictory relative nudge.
-function preferDueClock(parsed,input,now){
+function preferDueClock(parsed,input,now,sourceOperations){
  for(const op of parsed.operations){
-  if(op.kind!=='update'||op.entity!=='task'||parsed.operations.filter(o=>o.sourceId===op.sourceId).length!==1)continue;
+  if(op.kind!=='update'||op.entity!=='task'||sourceOperations.filter(o=>o.sourceId===op.sourceId).length!==1)continue;
   const target=input.context.entities.find(e=>e.entity==='task'&&e.id===op.targetId),source=input.sourceUnits.find(u=>u.id===op.sourceId);
   if(!target?.title||!source?.text.toLowerCase().startsWith(target.title.toLowerCase()+' '))continue;
   const match=source.text.slice(target.title.length).match(/^\s+(?:is\s+)?(?:now\s+)?due at\s+(.+?)(?=\s+not\b|[,!?;]|$)/i);
   if(!match)continue;
   const clock=interpretTime(clockWords(match[1]),now,{inferBareClock:true});
   if(clock.status!=='parsed'||clock.matched.length!==1||!Number.isInteger(clock.matched[0].known.hour)||clock.end)continue;
-  const f=op.fields.find(f=>f.name==='time');if(!f)continue;
+  const f=op.fields.find(f=>f.name==='time'&&['set','unknown'].includes(f.op));if(!f)continue;
   Object.assign(f,{op:'set',value:match[1],origin:'stated',evidence:match[1],sourceMessageId:input.messageId,evidenceSourceId:source.id});
   if(parsed.question?.opId===op.opId&&parsed.question.field==='time')parsed.question=null;
  }
 }
 // A day-only edit may echo the saved clock. Strip only a verified unchanged
 // clock, then let the canonical updater carry it to the stated day.
-function normalizeInheritedClocks(parsed,input,now){
+function normalizeInheritedClocks(parsed,input,now,sourceOperations){
  for(const op of parsed.operations){
   if(op.kind!=='update'||op.entity!=='task')continue;
   const target=input.context.entities.find(e=>e.entity==='task'&&e.id===op.targetId);
-  if(!target?.startLocal)continue;
+  if(!target)continue;
+  const source=input.sourceUnits.find(u=>u.id===op.sourceId);
+  const sameDay=sourceOperations.filter(o=>o.sourceId===op.sourceId).length===1&&source?.text.match(/\b(?:make|move|push|change)\s+(?:it|that)\s+(?:to\s+)?((?:the\s+)?day after(?: tomorrow)?|today|tomorrow|(?:next\s+)?(?:mon|tues|wednes|thurs|fri|satur|sun)day)(?:\s+instead)?[\s,]+same time[.!?]*$/i);
   for(const f of op.fields){
+   if(f.name==='time'&&f.op==='set'&&sameDay&&interpretTime(sameDay[1],now).status==='date_only'){
+    Object.assign(f,{value:sameDay[1],origin:'stated',evidence:sameDay[1],sourceMessageId:input.messageId,evidenceSourceId:source.id});delete f.inference;continue;
+   }
+   if(!target.startLocal)continue;
    if(f.name!=='time'||f.op!=='set'||f.origin!=='stated'||f.sourceMessageId!==input.messageId||!f.evidence||!input.sourceUnits.some(u=>u.text.includes(f.evidence)))continue;
    const proof=interpretTime(f.evidence,now);
    if(proof.status!=='date_only'||proof.matched.some(m=>Number.isInteger(m.known.hour))||!statedDays(proof.normalized,now).length)continue;
@@ -128,9 +139,9 @@ function withPart(c,evidence=''){
 /** A bare clock uses its own evidence and the capture anchor, never another action's period. */
 export function validateIntentTimes(parsed,{input,sourceOperations=parsed.operations}){
  const now=new Date(input.context.now),raw=input.sourceUnits.map(u=>u.text).join('\n');
- recoverNearWindow(parsed,input);
- preferDueClock(parsed,input,now);
- normalizeInheritedClocks(parsed,input,now);
+ recoverNearWindow(parsed,input,sourceOperations,now);
+ preferDueClock(parsed,input,now,sourceOperations);
+ normalizeInheritedClocks(parsed,input,now,sourceOperations);
  recoverExplicitSavedClock(parsed,input,now);
  inferClocks(parsed,input,now,sourceOperations);
  for(const op of parsed.operations)for(const field of op.fields){
