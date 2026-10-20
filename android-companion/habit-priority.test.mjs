@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {bodyOf} from './body-store.mjs';
-import {HABITS, topHabit} from './habit-priority.mjs';
+import {HABITS, topHabit, habitMeters} from './habit-priority.mjs';
 
 const DAY = '2026-10-20';
 const at = time => new Date(`${DAY}T${time}`);
@@ -30,4 +30,9 @@ test('water goal reached and no meal due shows nothing', () => {
 
 test('a skipped meal is not due', () => {
   assert.equal(topHabit(body({glasses: eight, meals: [['lunch', '13:05', {state: 'skipped', name: ''}]]}), at('13:30')), null);
+});
+
+test('the meters count glasses against the goal and the meal slots that are on, logged ones by name', () => {
+  const meters = habitMeters(body({glasses: ['10:00', '12:00'], meals: [['breakfast', '08:40'], ['lunch', '13:05', {state: 'skipped', name: ''}]]}), at('13:30'));
+  assert.deepEqual(meters, {water: {count: 2, goal: 8}, meals: {slots: ['breakfast', 'lunch', 'dinner'], logged: ['breakfast']}});
 });
