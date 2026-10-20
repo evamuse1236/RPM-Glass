@@ -15,7 +15,7 @@ public class NotchAnchorTest {
         NotchAnchor a = NotchAnchor.fromCutout(506, 24, 574, 92, S24_STATUS_BAR, S24_DENSITY);
         assertTrue(a.fromCutout);
         assertEquals(540, a.centerX);
-        assertEquals(68, a.holeDiameter);
+        assertEquals(68, a.holeWidth);
         assertEquals(24 - Math.round(4 * 2.8125f), a.pillTop());
         assertEquals(92, a.pillBottom());
         assertEquals(92 - 13, a.pillHeight);
@@ -24,9 +24,18 @@ public class NotchAnchorTest {
     @Test
     public void holeBelowTheStatusBarStaysInsideThePill() {
         NotchAnchor a = NotchAnchor.fromCutout(479, 0, 601, 132, S24_STATUS_BAR, S24_DENSITY);
-        assertEquals(122, a.holeDiameter);
+        assertEquals(122, a.holeWidth);
         assertEquals(NotchAnchor.dp(2, S24_DENSITY), a.pillTop());
         assertEquals(132, a.pillBottom());
+    }
+
+    @Test
+    public void aWideNotchKeepsItsWholeWidthClear() {
+        NotchAnchor a = NotchAnchor.fromCutout(315, 0, 765, 84, 84, S24_DENSITY);
+        assertEquals("the ring and the value sit beside the notch, never under it", 450, a.holeWidth);
+        assertEquals(540, a.centerX);
+        assertEquals(NotchAnchor.dp(2, S24_DENSITY), a.pillTop());
+        assertEquals(84, a.pillBottom());
     }
 
     @Test

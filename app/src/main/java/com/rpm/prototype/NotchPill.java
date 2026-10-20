@@ -98,7 +98,7 @@ final class NotchPill implements IslandView.Listener {
         long ms;
         NotchGeometry.Band bandAt;
         if (f.mode == Mode.PILL) {
-            int keep = Math.max(dp(24), anchor.holeDiameter + dp(12));
+            int keep = Math.max(dp(24), anchor.holeWidth + dp(12));
             int ring = NotchGeometry.pillRing(h, density);
             int lead = (h - ring) / 2 + ring + dp(NotchGeometry.VALUE_START_DP);
             float valuePx = NotchGeometry.pillValuePx(scaled, h, density);

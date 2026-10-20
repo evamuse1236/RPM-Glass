@@ -26,8 +26,8 @@ export const faceTop = () => G.PAD_DP + G.CIRCLE_DP + G.BAND_GAP_DP;
 
 export function anchor(device = S24) {
   const {left, top, right, bottom} = device.cutout;
-  const hole = Math.min(right - left, bottom - top);
-  const pillTop = Math.max(dp(2), bottom - hole - dp(4));
+  const hole = right - left, square = Math.min(hole, bottom - top);
+  const pillTop = Math.max(dp(2), bottom - square - dp(4));
   const pillBottom = device.statusBarPx > 0 ? Math.max(device.statusBarPx, bottom) : bottom + dp(4);
   const pill = pillBottom - pillTop;
   return {centerX: Math.floor((left + right) / 2), centerY: pillTop + Math.floor(pill / 2), hole, pill, top: pillTop, bottom: pillBottom};

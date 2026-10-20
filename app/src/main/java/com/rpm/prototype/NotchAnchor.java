@@ -10,30 +10,32 @@ final class NotchAnchor {
     final boolean fromCutout;
     final int centerX;
     final int centerY;
-    final int holeDiameter;
+    final int holeWidth;
     final int pillHeight;
     private final int top;
 
-    private NotchAnchor(boolean fromCutout, int centerX, int top, int holeDiameter, int pillHeight) {
+    private NotchAnchor(boolean fromCutout, int centerX, int top, int holeWidth, int pillHeight) {
         this.fromCutout = fromCutout;
         this.centerX = centerX;
         this.top = top;
         this.centerY = top + pillHeight / 2;
-        this.holeDiameter = holeDiameter;
+        this.holeWidth = holeWidth;
         this.pillHeight = pillHeight;
     }
 
     /**
      * A punch-hole's bounding rect usually starts at the screen's top edge, so the hole itself is the
-     * square at the rect's bottom: its diameter is the rect's width. The pill starts 4dp above the hole
-     * (at least 2dp below the screen edge) and ends with the status bar, so it is never taller than the bar.
-     * A status bar of 0 means unknown: the pill then ends 4dp below the hole.
+     * square at the rect's bottom. The pill keeps the rect's whole width clear, so a wide notch is never
+     * drawn over. It starts 4dp above the hole (at least 2dp below the screen edge) and ends with the
+     * status bar, so it is never taller than the bar. A status bar of 0 means unknown: the pill then
+     * ends 4dp below the hole.
      */
     static NotchAnchor fromCutout(int left, int top, int right, int bottom, int statusBar, float density) {
-        int hole = Math.min(right - left, bottom - top);
-        int pillTop = Math.max(dp(MIN_TOP_DP, density), bottom - hole - dp(ABOVE_HOLE_DP, density));
+        int width = right - left;
+        int square = Math.min(width, bottom - top);
+        int pillTop = Math.max(dp(MIN_TOP_DP, density), bottom - square - dp(ABOVE_HOLE_DP, density));
         int pillBottom = statusBar > 0 ? Math.max(statusBar, bottom) : bottom + dp(ABOVE_HOLE_DP, density);
-        return new NotchAnchor(true, (left + right) / 2, pillTop, hole, pillBottom - pillTop);
+        return new NotchAnchor(true, (left + right) / 2, pillTop, width, pillBottom - pillTop);
     }
 
     static NotchAnchor fallback(int displayWidth, float density) {
@@ -61,6 +63,6 @@ final class NotchAnchor {
     @Override
     public String toString() {
         return (fromCutout ? "cutout" : "no cutout, top-centre fallback") + " centre=" + centerX + "," + centerY
-                + " hole=" + holeDiameter + "px pill=" + pillTop() + ".." + pillBottom() + "px";
+                + " hole=" + holeWidth + "px pill=" + pillTop() + ".." + pillBottom() + "px";
     }
 }

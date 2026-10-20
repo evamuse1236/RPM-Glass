@@ -221,6 +221,13 @@ test('margins are 16dp on all four sides and every inner corner is 36 less its i
   assert.equal(pillRing(28), 20);
 });
 
+test('a wide notch keeps its whole width clear, as NotchAnchor does', () => {
+  const wide = anchor({...S24, cutout: {left: 315, top: 0, right: 765, bottom: 84}, statusBarPx: 84});
+  assert.equal(wide.hole, 450);
+  assert.equal(wide.top, Math.round(2 * S24.density));
+  assert.equal(anchor().hole, 68);
+});
+
 test('a face too tall for the screen drops rows, then shortens its title, and is never cut', () => {
   assert.deepEqual(fits(true), [{rows: 3, shortTitle: false}, {rows: 2, shortTitle: false}, {rows: 1, shortTitle: false}, {rows: 1, shortTitle: true}]);
   assert.deepEqual(fits(false), [{rows: 3, shortTitle: false}, {rows: 3, shortTitle: true}]);

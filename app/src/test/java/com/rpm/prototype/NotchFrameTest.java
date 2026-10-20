@@ -170,7 +170,7 @@ public class NotchFrameTest {
     public void sharedRingAndValueTravelOnOpen() {
         float d = 450f / 160f;
         NotchAnchor s24 = NotchAnchor.fromCutout(506, 24, 574, 92, 92, d);
-        int keep = s24.holeDiameter + NotchAnchor.dp(12, d);
+        int keep = s24.holeWidth + NotchAnchor.dp(12, d);
         IslandShape pill = IslandShape.pill(s24, 1080, 150, keep, false, d);
         IslandShape island = IslandShape.island(s24, 1080, 600, d);
         NotchGeometry.Band a = NotchGeometry.pill(pill, d, 15 * d);

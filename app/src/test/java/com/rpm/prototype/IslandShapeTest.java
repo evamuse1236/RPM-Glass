@@ -83,7 +83,7 @@ public class IslandShapeTest {
     @Test
     public void pillMinWidthIs112() {
         assertEquals(112, NotchGeometry.MIN_PILL_WIDTH_DP);
-        int keep = S24.holeDiameter + NotchAnchor.dp(12, D);
+        int keep = S24.holeWidth + NotchAnchor.dp(12, D);
         int side = NotchAnchor.pillSide(10, 10, keep, NotchAnchor.dp(NotchGeometry.MIN_PILL_WIDTH_DP, D));
         IslandShape p = IslandShape.pill(S24, 1080, side, keep, false, D);
         assertEquals(dp(112), p.width(), 2f);
@@ -91,7 +91,7 @@ public class IslandShapeTest {
 
     @Test
     public void thePillsRingIsConcentricWithItsEnds() {
-        int keep = TALL.holeDiameter + NotchAnchor.dp(12, D);
+        int keep = TALL.holeWidth + NotchAnchor.dp(12, D);
         IslandShape p = IslandShape.pill(TALL, 1080, 200, keep, false, D);
         assertEquals(dp(36), p.height(), 1f);
         NotchGeometry.Band ring = NotchGeometry.pill(p, D, dp(15));
@@ -106,7 +106,7 @@ public class IslandShapeTest {
 
     @Test
     public void pillStaysCentredOnTheCameraWithTheSplitCircleToItsLeft() {
-        int keep = S24.holeDiameter + NotchAnchor.dp(12, D);
+        int keep = S24.holeWidth + NotchAnchor.dp(12, D);
         IslandShape p = IslandShape.pill(S24, 1080, 200, keep, true, D);
         assertEquals(S24.centerX, (p.left + p.right) / 2f, 1f);
         assertEquals(S24.pillHeight / 2f, p.radius, 0f);
@@ -132,7 +132,7 @@ public class IslandShapeTest {
 
     @Test
     public void halfwayMorphSitsBetweenBothShapes() {
-        int keep = S24.holeDiameter + NotchAnchor.dp(12, D);
+        int keep = S24.holeWidth + NotchAnchor.dp(12, D);
         IslandShape p = IslandShape.pill(S24, 1080, 200, keep, false, D);
         IslandShape open = IslandShape.island(S24, 1080, 700, D);
         IslandShape mid = IslandShape.lerp(p, open, 0.5f);
