@@ -22,12 +22,11 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
   touch-action:pan-y;
 }
 .grab{position:relative;flex:none;inline-size:32px;block-size:4px;border-radius:2px;background:color-mix(in oklch,var(--bar-on) 38%,transparent);margin:8px auto 0;touch-action:none}
-/* The handle's grab strip is 48dp tall and wider than the pill. */
-.grab::after{content:'';position:absolute;inset:-8px -48px -36px}
+.grab::after{content:'';position:absolute;inset:-8px -48px}
 
 .composer{display:flex;flex-direction:column}
 #message{
-  display:block;inline-size:100%;min-block-size:40px;margin:0;padding:12px 20px 4px;
+  position:relative;display:block;inline-size:100%;min-block-size:40px;margin:0;padding:12px 20px 4px;
   border:0;outline:none;resize:none;background:transparent;color:var(--bar-on);
   font:var(--body-large);caret-color:var(--bar-primary);overflow-y:hidden;text-wrap:stable;
 }

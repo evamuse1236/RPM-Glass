@@ -9,8 +9,13 @@ import {wipeAppDataKeepingSync} from './sync.mjs';
 // every tap. Answer Wait and try once more before reporting the element as missing.
 // Opens Capture's More menu and waits for the item, since the menu animates in and a slow emulator takes a while.
 async function openMenuItem(serial, cdpPort, item) {
+  const menuOpen = async () => {
+    const page = await inPage(serial, cdpPort);
+    try { return await page.evaluate(`document.querySelector('[aria-label="More: planner, history, settings"]')?.getAttribute('aria-expanded') === 'true'`); } finally { page.close(); }
+  };
   for (let attempt = 0; attempt < 2; attempt++) {
-    touch(serial, (await tapElement(serial, cdpPort, {name: 'More: planner, history, settings', role: 'button'})).at);
+    if (!(await menuOpen())) touch(serial, (await tapElement(serial, cdpPort, {name: 'More: planner, history, settings', role: 'button'})).at);
+    await sleep(400);
     for (const until = Date.now() + 6000; Date.now() < until; await sleep(300)) {
       try { return await tapElement(serial, cdpPort, {name: item, role: 'button'}, true); } catch (e) { if (!(e instanceof UserError)) throw e; }
     }
@@ -28,6 +33,7 @@ async function locateForTap(serial, cdpPort, query) {
   try {
     const found = await page.evaluate(`(q) => window.__rpmLocate(q)`, {...query, scroll: true});
     if (found.error) throw new UserError(found.error + (found.candidates ? `. On screen: ${found.candidates.join(', ')}` : ''), 'Run `rpmctl ui` to see names, then retry with --role/--nth or --css.');
+    if (found.match.coveredBy) throw new UserError(`"${found.match.name}" is covered by ${found.match.coveredBy}, so a tap there lands on that instead`, 'Fix the layout so nothing sits on top of the control, or close what covers it first.');
     const dpr = await page.evaluate('devicePixelRatio');
     const [x, y, w, h] = found.match.rect;
     const at = toDevice(page, dpr, [x + w / 2, y + h / 2]);
