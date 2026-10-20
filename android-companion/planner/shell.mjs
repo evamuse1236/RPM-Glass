@@ -84,6 +84,7 @@ function detailBar(app, bar, top) {
 function navigationBar(app) {
   const nav = app.dom.nav;
   if (!nav.children.length) {
+    nav.append(el('span', 'nav-indicator'));
     for (const [tab, symbol, label] of DESTINATIONS) {
       const item = button('', () => app.goTab(tab), 'nav-item');
       item.dataset.tab = tab;
@@ -94,11 +95,22 @@ function navigationBar(app) {
       nav.append(item);
     }
   }
-  for (const item of nav.children) {
+  for (const item of nav.querySelectorAll('.nav-item')) {
     const on = item.dataset.tab === app.state.tab;
     item.setAttribute('aria-current', on ? 'page' : 'false');
     item.querySelector('.ms').classList.toggle('fill', on);
   }
+  placeNavIndicator(nav);
+}
+
+/** Puts the tab bar's one pill under `item` (the current tab by default): 64dp wide, centred, narrower if the column is. */
+export function placeNavIndicator(nav, item = nav.querySelector('.nav-item[aria-current=page]')) {
+  const pill = nav.querySelector('.nav-indicator');
+  if (!pill || !item || nav.hidden || !nav.offsetWidth) return;
+  const width = Math.min(64, item.offsetWidth);
+  nav.style.setProperty('--pill-w', width + 'px');
+  nav.style.setProperty('--pill-x', item.offsetLeft + (item.offsetWidth - width) / 2 + 'px');
+  if (!nav.dataset.placed) requestAnimationFrame(() => { nav.dataset.placed = ''; });
 }
 
 /** Root tabs: a right-hand column (Search above the tab's Add), and on today's spine the centred Now pill. Detail pages have none. */

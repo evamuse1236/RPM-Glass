@@ -2,7 +2,7 @@
 import {hideSnackbar} from './planner/snackbar.mjs';
 import {animateLayout, slideScroll} from './surface-motion.mjs';
 import {createApp, TABS} from './planner/app.mjs';
-import {renderShell} from './planner/shell.mjs';
+import {placeNavIndicator, renderShell} from './planner/shell.mjs';
 import {renderScreen, defaultScroll, installSwipe} from './planner/screens.mjs';
 import {dismissSheet, installSheetKeys} from './planner/sheet.mjs';
 import {closeMenu} from './planner/menu.mjs';
@@ -161,8 +161,14 @@ function installNativeHooks(app) {
       <= app.dom.scroll.getBoundingClientRect().top : scrolled === 'true');
     if (app.dom.planner.dataset.titleOut !== out) app.dom.planner.dataset.titleOut = out;
   }, {passive: true});
+  // --nav-measured: the room the floating tab bar takes at the bottom (its height plus its gap to the edge); 0 while
+  // the keyboard hides it.
   new ResizeObserver(() => {
-    if (!app.dom.nav.hidden) root.style.setProperty('--nav-measured', app.dom.nav.getBoundingClientRect().height + 'px');
+    const nav = app.dom.nav;
+    if (nav.hidden) return;
+    const height = nav.getBoundingClientRect().height;
+    root.style.setProperty('--nav-measured', (height ? height + parseFloat(getComputedStyle(nav).bottom) : 0) + 'px');
+    placeNavIndicator(nav);
   }).observe(app.dom.nav);
   syncPhone();
 }

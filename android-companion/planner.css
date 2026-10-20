@@ -44,8 +44,9 @@ h1, h2, h3, p { margin: 0; }
   overscroll-behavior: contain;
   scroll-padding-top: var(--s4);
 }
-.page { padding: 0 0 calc(var(--fab-size) + 40px); max-width: 720px; margin: 0 auto; }
-#planner[data-fab=false] .page { padding-bottom: var(--s8); }
+/* The page ends above the floating tab bar (--nav-measured: its height plus its gap to the screen's edge). */
+.page { padding: 0 0 calc(var(--nav-measured, var(--nav)) + var(--s4)); max-width: 720px; margin: 0 auto; }
+#planner:has(> #nav-bar[hidden]) .page { padding-bottom: var(--s8); }
 /* Weekly review: a focused full-height route; the review scrolls its own body. */
 #planner[data-view=review] #planner-scroll { overflow: hidden; }
 #planner[data-view=review] #workspace { height: 100%; }
@@ -117,37 +118,63 @@ h1, h2, h3, p { margin: 0; }
 }
 .icon-btn:active::before, .icon-btn:hover::before { opacity: .1; }
 
-/* ---------- Navigation bar (pill indicator) ---------- */
+/* ---------- Navigation bar: a floating tab bar, 16dp in from the edges, one sliding pill ---------- */
 #nav-bar {
-  flex: none;
+  position: absolute;
+  z-index: 11;
+  inset-inline: var(--inset-page);
+  inset-block-end: max(var(--s4), calc(env(safe-area-inset-bottom, 0px) + var(--s2)));
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  min-height: var(--nav);
-  padding: var(--s3) var(--s2) calc(var(--s4) + env(safe-area-inset-bottom));
-  background: var(--surface-container);
+  min-block-size: 64px;
+  padding: calc(var(--s2) - 1px); /* 8dp from the bar's outer edge, inside its 1px border */
+  border: 1px solid var(--float-border);
+  border-radius: var(--r-group);
+  background: var(--float-surface);
+  box-shadow: var(--float-shadow);
 }
 :root[data-keyboard=open] :is(#nav-bar, #fab-host) { display: none; }
+/* Content scrolls under the bar; what passes below it fades out at the screen's edge. */
+#planner:has(> #nav-bar:not([hidden])) #planner-scroll {
+  scroll-padding-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4));
+  -webkit-mask-image: linear-gradient(to top, transparent, #000 var(--s4));
+  mask-image: linear-gradient(to top, transparent, #000 var(--s4));
+}
 .nav-item {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--s1);
-  min-height: var(--touch);
+  justify-content: center;
+  gap: 2px;
+  min-block-size: var(--touch);
   color: var(--on-surface-variant);
 }
-.nav-pill {
-  min-width: 64px;
-  min-height: 32px;
-  border-radius: var(--shape-full);
-  display: grid;
-  place-items: center;
-  transition: background-color var(--dur-medium) var(--ease-emphasized);
-}
+.nav-pill { display: grid; place-items: center; }
 .nav-label { font: var(--label-medium); text-align: center; }
 .nav-item[aria-current=page] { color: var(--on-surface); }
+.nav-item[aria-current=page] .nav-pill { color: var(--on-secondary-container); }
 .nav-item[aria-current=page] .nav-label { font-weight: 700; }
-.nav-item[aria-current=page] .nav-pill { background: var(--secondary-container); color: var(--on-secondary-container); }
-.nav-item:active .nav-pill { background: color-mix(in srgb, var(--on-surface) 10%, transparent); }
+.nav-item:active { scale: .97; }
+.nav-item:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--r-control); }
+/* The one active pill (48 × 64, radius 12 = the bar's 20 − its 8 inset) slides to the tab under it. shell.mjs places it. */
+.nav-indicator {
+  position: absolute;
+  inset-block: calc(var(--s2) - 1px);
+  inset-inline-start: 0;
+  inline-size: var(--pill-w, 64px);
+  border-radius: var(--r-control);
+  background: var(--secondary-container);
+  translate: var(--pill-x, 0px) 0;
+  pointer-events: none;
+}
+#nav-bar:not([data-placed]) .nav-indicator { visibility: hidden; }
+@media (prefers-reduced-motion: no-preference) {
+  .nav-item { transition: scale var(--dur-press) var(--ease-standard); }
+  #nav-bar[data-placed] .nav-indicator { transition: translate var(--dur-medium1) var(--ease-emphasized), inline-size var(--dur-medium1) var(--ease-emphasized); }
+  #nav-bar[data-dragging] .nav-indicator { transition-duration: 60ms; }
+}
 
 /* ---------- FAB: primary-container rounded square ---------- */
 #fab-host {
@@ -164,10 +191,10 @@ h1, h2, h3, p { margin: 0; }
 .fab {
   width: var(--fab-size);
   height: var(--fab-size);
-  border-radius: var(--shape-lg);
+  border-radius: var(--r-group);
   background: var(--primary-container);
   color: var(--on-primary-container);
-  box-shadow: var(--elev-3);
+  box-shadow: var(--float-shadow);
 }
 .fab .ms { font-size: 26px; }
 .fab::before { inset: 0; }
@@ -178,7 +205,7 @@ h1, h2, h3, p { margin: 0; }
   z-index: 40;
   left: var(--s4);
   right: var(--s4);
-  bottom: calc(var(--nav-measured, var(--nav)) + var(--s3));
+  bottom: calc(var(--nav-measured, var(--nav)) + var(--s4));
   max-width: 560px;
   margin: 0 auto;
   min-height: 48px;
@@ -186,10 +213,10 @@ h1, h2, h3, p { margin: 0; }
   align-items: center;
   gap: var(--s2);
   padding: var(--s1) var(--s2) var(--s1) var(--s4);
-  border-radius: var(--shape-xs);
+  border-radius: var(--r-control);
   background: var(--inverse-surface);
   color: var(--inverse-on-surface);
-  box-shadow: var(--elev-3);
+  box-shadow: var(--float-shadow);
   font: var(--body-medium);
   overflow: hidden; /* the ticker's words slide inside the bar */
 }
@@ -205,7 +232,7 @@ h1, h2, h3, p { margin: 0; }
 /* Leaving with the sheet: the bar settles to its resting place on the sheet's exit timing. */
 #snackbar { transition: bottom var(--dur-short4) var(--ease-emphasized-accelerate); }
 #planner:not([data-view=settings], [data-view=search], [data-view=review]) ~ #sheet[inert]:not([hidden]) ~ #snackbar {
-  bottom: calc(var(--nav-measured, var(--nav)) + var(--s3)); }
+  bottom: calc(var(--nav-measured, var(--nav)) + var(--s4)); }
 .sheet-body { transition: margin-bottom var(--dur-short4) var(--ease-emphasized-accelerate); }
 #planner[data-snackbar=true] ~ #sheet .sheet-body {
   margin-bottom: calc(var(--snackbar-h, 48px) + var(--s2) + var(--s3));
