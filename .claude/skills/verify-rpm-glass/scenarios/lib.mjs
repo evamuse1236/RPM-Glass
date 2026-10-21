@@ -38,3 +38,14 @@ export function focusCoverage() {
   return {field: field.getAttribute('aria-label') || field.id || field.tagName, top: Math.round(r.top), bottom: Math.round(r.bottom),
     visibleBottom: Math.round(visibleBottom), keyboardInset: Math.round(inset), covers};
 }
+
+export async function waitForReading(t, read, pattern, {timeout = 30000, every = 500, timeline = []} = {}) {
+  const start = Date.now();
+  for (let last = null; Date.now() - start < timeout; await sleep(every)) {
+    const text = String(await t.read(read)).replace(/\s+/g, ' ').trim();
+    if (text !== last) timeline.push({ms: Date.now() - start, text: text.slice(0, 200)});
+    last = text;
+    if (pattern.test(text)) return {ms: Date.now() - start, text, timeline};
+  }
+  return {ms: undefined, text: last, timeline};
+}

@@ -1,4 +1,4 @@
-import {sleep} from './lib.mjs';
+import {sleep, waitForReading} from './lib.mjs';
 
 export const id = 'capture-short-reminder';
 export const rule = 'A short reminder such as "set a reminder in 5" is read on the phone without the AI: it saves a reminder five minutes from now, names it "Reminder", offers "Name it" and Undo, and keeps the typed words.';
@@ -13,16 +13,10 @@ export async function run(t) {
   await t.do('tap', '--role', 'textbox', '--name', 'Capture a thought');
   await t.do('type', WORDS);
   await t.do('tap', '--role', 'button', '--name', 'Send');
-  const sent = Date.now(), timeline = [];
-  for (let last = null; Date.now() - sent < 30000; await sleep(500)) {
-    const text = (await t.read(() => document.getElementById('content')?.innerText ?? '')).replace(/\s+/g, ' ').slice(0, 120);
-    if (text !== last) timeline.push({ms: Date.now() - sent, text});
-    last = text;
-    if (/Name it/.test(text)) break;
-  }
-  t.facts.timeline = timeline;
-  const readMs = timeline.find(s => /Name it/.test(s.text))?.ms;
-  t.expect(readMs !== undefined, '"Name it" never appeared within 30 s of Send', timeline);
+  t.facts.timeline = [];
+  const {ms: readMs} = await waitForReading(t, () => document.getElementById('content')?.innerText ?? '', /Name it/, {timeline: t.facts.timeline});
+  t.facts.readMs = readMs;
+  t.expect(readMs !== undefined, '"Name it" never appeared within 30 s of Send', t.facts.timeline);
   await sleep(800);
   await t.shot('saved');
   const screen = await t.read(() => document.getElementById('content')?.innerText ?? '');
