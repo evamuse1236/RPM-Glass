@@ -1,4 +1,5 @@
 import test from 'node:test';
+import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import {createRevealTracker,choicesScrollTop} from './capture-presentation.mjs';
 
@@ -24,4 +25,10 @@ test('choices taller than the box keep their first row at the top',()=>{
 });
 test('choices scrolled above the box come back into view',()=>{
  assert.equal(choicesScrollTop({top:100,bottom:400},{top:60,bottom:120},80),40);
+});
+
+test('a Capture card list that overflows fades only the edge with more cards, so a cut card reads as scrollable',()=>{
+  const css=fs.readFileSync(new URL('./capture-cards.css',import.meta.url),'utf8');
+  assert.match(css,/@keyframes cards-edges\{from\{--fade-start:0px;--fade-end:24px\}.*to\{--fade-start:24px;--fade-end:0px\}\}/);
+  assert.match(css,/\.cards\{animation:cards-edges linear both;animation-timeline:scroll\(self block\);mask-image:linear-gradient\(to bottom,transparent,#000 var\(--fade-start\),#000 calc\(100% - var\(--fade-end\)\),transparent\)\}/);
 });
