@@ -1,7 +1,7 @@
 import {coalesceRefresh} from './surface-refresh.mjs';
 import {installDiagnostics} from './diagnostics.mjs';
 import {applyClarityPreferences} from './planner-clarity.mjs';
-import {describeLink,blockChoices,dayLoad} from './capture-context.mjs';
+import {describeLink,blockChoices,dayLoad,editChoices} from './capture-context.mjs';
 import {calendarRows} from './planner-calendar.mjs';
 import {dueInfo} from './planner/format.mjs';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
@@ -43,7 +43,7 @@ const calendarEvents=()=>native('calendarRead',{anchor:Date.now()}).then(value=>
 const intentService=createIntentService({backend:intentBackend,native,changePlanner,undo,readCalendar:anchor=>native('calendarRead',{anchor}),editPlan,snapshot:async({data})=>planSnapshot(data,{now:new Date(),events:await calendarEvents()}),onEvent:event=>{window.dispatchEvent(new CustomEvent('rpm-intent-event',{detail:event}));diagnostics.emit('intent',event.error?'error':'info',event,{operation:'intent.'+event.type,operationId:event.messageId??event.draftId??'',outcome:event.error?'error':''});}});
 const traces=createTraceStore({emit:trace=>diagnostics.emit('capture-trace',trace.likelyMistake?'warn':'info',trace,{operation:'capture.trace',operationId:trace.id,outcome:trace.outcome??trace.applied?.status??''})});
 const agent=createCaptureAgent({service:intentService,traces});
-const view=()=>({version:data.version,csrf:'native-local',busy,aiEnabled:phone.hasKey,model:HAIKU_MODEL,captureMode:'glass',intent:intentViewFromData(data),entries:data.entries.map(entryView),memories:data.memories,history:data.history,conversations:data.conversations,pending:data.pending,undoId:data.undo?.id??null,imported:data.imported,phone});
+const view=()=>({version:data.version,csrf:'native-local',busy,aiEnabled:phone.hasKey,model:HAIKU_MODEL,captureMode:'glass',intent:intentViewFromData(data),entries:data.entries.map(entryView),memories:data.memories,history:data.history,conversations:data.conversations,pending:data.pending,undoId:data.undo?.id??null,choices:editChoices(data),imported:data.imported,phone});
 const response=(value,status=200)=>({ok:status<400,status,json:async()=>value});
 const captureFocus=()=>{let f={};try{f=JSON.parse(localStorage.getItem('rpm-capture-context')??'{}');}catch{}return f;};
 window.fetch=async(url,options={})=>{

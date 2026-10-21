@@ -66,3 +66,13 @@ test('chip edits refuse fields, items and captures they do not own',async()=>{
  const r=await s.edit(  'minutes',30,'len');assert.equal((await entry(s.backend,s.task.id)).minutes,30);assert.equal(r.status,'edited');
  await s.edit('time',null,'clear');const cleared=await entry(s.backend,s.task.id);assert.equal(cleared.planned??null,null);
 });
+
+test('every value a task chip sends saves as the planner reads it',async()=>{
+ const s=await captured();
+ await s.edit('time','2026-10-21','day');let row=await entry(s.backend,s.task.id);
+ assert.equal(new Date(row.planned).getDate(),new Date('2026-10-21T12:00:00').getDate());assert.equal(new Date(row.planned).getHours(),18);
+ await s.edit('alert','alarm','alarm');await s.edit('recurrence','weekdays','repeat');await s.edit('minutes',45,'length');
+ row=await entry(s.backend,s.task.id);
+ assert.equal(row.recurrence,'weekdays');assert.equal(row.minutes,45);assert.equal(row.alertIntent?.type??row.alert,'alarm');
+ await s.edit('recurrence',null,'never');row=await entry(s.backend,s.task.id);assert.ok(!row.recurrence);
+});

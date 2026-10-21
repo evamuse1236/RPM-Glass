@@ -23,6 +23,18 @@ function chainFrom(data,collection,row){
  return {project,goal,area,areas};
 }
 
+/** The Project, Goal and Area above a planner row; `collection` is the row's own ('blocks', 'projects', ...). */
+export function chainOf(data,collection,row){
+ return chainFrom(data,collection,row);
+}
+
+/** What a Capture chip tray offers: open Blocks with their Area and Project, and every Project, Goal and Area. */
+export function editChoices(data){
+ const named=list=>list.filter(r=>!r.archived).map(r=>({id:r.id,title:r.title}));
+ return {blocks:plannerRows(data,'blocks').filter(b=>!b.archived&&!b.achieved).map(b=>({id:b.id,title:b.title,subtitle:describeLink(data,'blockId',b.id)?.subtitle??''})),
+  projects:named(plannerRows(data,'projects')),goals:named(plannerRows(data,'goals')),areas:named(plannerRows(data,'areas'))};
+}
+
 /**
  * Describe a planner link value offered as an answer, e.g. a Block id, as
  * {title, subtitle, tone}. Unknown fields or ids return null so the caller

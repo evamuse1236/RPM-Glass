@@ -1,13 +1,25 @@
 import {scheduleText} from './capture-content.mjs';
 import {draftTitle,alertOf} from '../intent-v2/src/context.mjs';
 import {repeatLabel} from './planner/task-values.mjs';
-import {describeLink} from './capture-context.mjs';
+import {describeLink,chainOf} from './capture-context.mjs';
 
 const VERB={create:{tasks:'Added',blocks:'New Block',projects:'New Project',goals:'New Goal',areas:'New Area'},complete:'Done',delete:{tasks:'Moved to Trash'},restore:'Restored',reopen:'Reopened'};
 const rows=(data,collection)=>collection==='tasks'?data.entries??[]:data.planner?.[collection]??[];
 const whenOf=(row,reference=new Date())=>row?scheduleText(row.planned?{planned:row.planned}:row.plannedDate?{plannedDate:row.plannedDate}:null,{reference}):null;
 const blockTitle=(data,id)=>id?(data.planner?.blocks??[]).find(b=>String(b.id)===String(id))?.title??null:null;
 const COLLECTION={task:'tasks',block:'blocks',project:'projects',goal:'goals',area:'areas'};
+
+/** What a created item's chips need: its saved values, the fields the reading left out, and the titles it links to. */
+function editOf(data,entity,row,op,missing){
+ if(!row)return null;
+ const chain=chainOf(data,COLLECTION[entity],row);
+ return {opId:op?.opId??null,missing:missing.filter(m=>m.opId===op?.opId).map(m=>m.field),
+  planned:row.planned??null,plannedDate:row.plannedDate??null,blockId:row.blockId??null,recurrence:row.recurrence??null,
+  alert:alertOf(row)??null,minutes:row.minutes??null,must:row.must===true,purpose:row.purpose??null,
+  projectId:row.projectId??null,goalId:row.goalId??null,areaId:row.areaId??null,
+  project:entity==='block'?chain.project?.title??null:null,goal:entity==='project'?chain.goal?.title??null:null,
+  area:['block','project','goal'].includes(entity)?chain.area?.title??null:null};
+}
 
 const repeatOf=row=>row?.recurrence||row?.repeatAfterDays?repeatLabel(row):null;
 
@@ -69,7 +81,8 @@ export function receiptLines(data,draft){
   const alert=entity==='task'&&change.type!=='delete'?alertOf(row):null;
   const minutes=entity==='task'&&change.type==='create'?row?.minutes??null:null;
   const repeat=entity==='task'&&change.type==='create'?repeatOf(row):null;
-  return {verb,entity,id:change.id,title:row?.title??change.title??old?.title??'',when,was,where,alert,minutes,repeat,must:row?.must===true,renamedFrom:verb==='Renamed'?old?.title??null:null};
+  const edit=change.type==='create'?editOf(data,entity,row,op,draft.missing??[]):null;
+  return {verb,entity,id:change.id,title:row?.title??change.title??old?.title??'',when,was,where,alert,minutes,repeat,must:row?.must===true,renamedFrom:verb==='Renamed'?old?.title??null:null,edit};
  }),...parked,...(draft?.receipt?.removedProposals??[]).map(p=>({verb:'Removed from draft',entity:p.entity,id:p.opId,title:p.title,when:null,was:null,where:null,alert:null,minutes:null,must:false,renamedFrom:null}))];
 }
 
