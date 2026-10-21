@@ -119,7 +119,14 @@ export const LOCATE = function locate({role, name, css, nth, scroll}) {
     window.__rpmEls[hit.ref].scrollIntoView({block: 'center', inline: 'nearest'});
     return locate({role, name, css, nth, scroll: false});
   }
-  return {match: hit, viewport: [innerWidth, innerHeight]};
+  return {match: {...hit, coveredBy: coverOf(window.__rpmEls[hit.ref], hit.rect)}, viewport: [innerWidth, innerHeight]};
+
+  function coverOf(el, [left, top, width, height]) {
+    const front = document.elementFromPoint(left + width / 2, top + height / 2);
+    if (!front || !el || el.contains(front) || front.contains(el) || front.control === el) return null;
+    const classes = typeof front.className === 'string' && front.className.trim() ? '.' + front.className.trim().split(/\s+/).join('.') : '';
+    return front.tagName.toLowerCase() + (front.id ? '#' + front.id : '') + classes;
+  }
 };
 
 export async function inPage(serial, port) {

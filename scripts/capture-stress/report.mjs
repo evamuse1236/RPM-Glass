@@ -8,7 +8,7 @@ export function summarize(results){
  const routes={},routeReasons={},latencies={};
  for(const c of attempts){const name=c.routeUsed??'unknown',reason=c.route?.reason??'unknown';routes[name]=(routes[name]??0)+1;routeReasons[reason]=(routeReasons[reason]??0)+1;
   const times=latencies[name]??=[];if(Number.isFinite(c.record?.ms))times.push(c.record.ms);}
- const routeLatencyMs=Object.fromEntries(Object.entries(latencies).map(([name,times])=>{times.sort((a,b)=>a-b);return [name,{count:routes[name],measured:times.length,p50:times[Math.ceil(times.length*0.5)-1]??null,p95:times[Math.ceil(times.length*0.95)-1]??null}];}));
+ const routeLatencyMs=Object.fromEntries(Object.entries(latencies).map(([name,times])=>{times.sort((a,b)=>a-b);return [name,{count:routes[name],measured:times.length,p50:times[Math.ceil(times.length*0.5)-1]??null,p90:times[Math.ceil(times.length*0.90)-1]??null,p95:times[Math.ceil(times.length*0.95)-1]??null}];}));
  const usage=usageTotals(records);if(attempts.length!==records.length)usage.costUSD=null;
  const times=results.map(r=>r.ms).sort((a,b)=>a-b);
  return {runs:results.length,passed:results.filter(r=>r.pass).length,passRate:results.length?results.filter(r=>r.pass).length/results.length:0,
@@ -32,7 +32,7 @@ export function reportMarkdown(run){
   `Probe usage ${JSON.stringify(run.probeUsage??null)}. Optional judge usage ${JSON.stringify(run.judgeUsage??null)}. Both are separate from the case workload.`,
   ...run.results.filter(r=>r.judge).map(r=>`Judge ${r.id} #${r.repeat}: ${JSON.stringify(r.judge.output??r.judge.error)}`),
   `Model attempts ${s.modelCalls}, transport failures ${s.callFailures}, attempts with missing usage ${s.usageMissing}. Routes ${JSON.stringify(s.routes)}. Reasons ${JSON.stringify(s.routeReasons)}.`,
-  `Route call latency in ms ${JSON.stringify(s.routeLatencyMs)}. p50 and p95 use nearest rank over recorded calls, including failed calls.`,
+  `Route call latency in ms ${JSON.stringify(s.routeLatencyMs)}. p50, p90 and p95 use nearest rank over recorded calls, including failed calls.`,
   `Machine ${JSON.stringify(run.machine)}. ${api?'Network, model thinking and response validation':'Startup, CLI framing, network, model thinking and schema formatting'} are included. No phone latency claim.`,
   ...(run.rechecks?.length?[`Deterministic recheck history ${JSON.stringify(run.rechecks)}. Original model responses are retained unchanged.`]:[]),
   '', '## Failure classes','', '| Class | Case-runs |','| --- | ---: |',
@@ -50,7 +50,7 @@ export function reportMarkdown(run){
   '- Deterministic checks require canonical saved rows. Deferred turns explicitly test drafts. Proposal text alone is not a saved task.',
   '- Matching uses token prefixes, not semantic equivalence. Inspect lost/invented pairs before interpreting an overall rate as product quality.',
   ...(api?[]:['- The optional Sonnet judge is supplemental and never changes deterministic pass/fail.']),
-  '- The clock is fixed at 2026-10-19 10:00 IST, advancing one second per turn. Calendar and habits are seeded fixtures, not external integrations.',
+  '- The clock defaults to 2026-10-19 10:00 IST. Cases with now use that fixed clock instead; each advances one second per turn. Calendar and habits are seeded fixtures, not external integrations.',
   '- Production routes, repair allowance and deadlines are retained.'+(api?' Application repair or escalation may make another call; the API transport itself never retries.':' CLI startup and structured-output overhead can cause deadline failures. CLI may use thinking even where the API route requests none.'),
   '- Runtime error checks reject raw script faults. Production userMessage provenance is covered by npm rule checks and a fault-injection unit test.',
   '- Full per-turn input, output and disk state are in the case directories beside results.json. No app key files are read.');

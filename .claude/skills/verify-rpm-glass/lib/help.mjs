@@ -20,7 +20,7 @@ Drive
   key        Press a key (back, enter, home, ...).
   scroll     Swipe up/down, or left/right across an element (row swipe actions).
   wait       Wait until an element appears or disappears.
-  display    Switch screen size / text scale (phone, large-text, max-text, landscape, wide).
+  display    Switch screen size (phone, landscape, wide). phone = One UI default text.
 Evidence
   shot       Screenshot + on-screen element list into the run's evidence folder.
   eval       Read a value from the page with JavaScript.
@@ -30,7 +30,9 @@ Evidence
 
 Global options
   --serial <s>   Target another device read-only (doctor, ui, shot, logs, state). Mutating commands
-                 only run on the emulator this tool launched.
+                 only run on the emulator this tool launched or explicitly adopted.
+  --attach <s>   launch only. Adopt a running Linux read-only emulator by serial, preserving leases.
+                 cleanup detaches it; the runner remains responsible for stopping it.
   --port <n>     Launch console port. Default hashes the worktree path to an even port in 5580–5680.
   --cdp-port <n> Local DevTools port. Default hashes the worktree path to 10000–19999.
   --owner <token> Run owner from launch, or set RPMCTL_OWNER. Required for mutating commands,
@@ -45,7 +47,7 @@ Typical run
   export RPMCTL_OWNER=<owner from launch>
   rpmctl doctor
   rpmctl open planner && rpmctl tap --role button --name "Blocks" && rpmctl shot blocks-list
-  rpmctl display large-text && rpmctl shot blocks-large-text && rpmctl display phone
+  rpmctl display landscape && rpmctl shot blocks-landscape && rpmctl display phone
   rpmctl check && rpmctl cleanup
 
 Evidence lives in .verify/evidence/<run-id>/ (gitignored) and survives cleanup.
@@ -56,7 +58,7 @@ files/dev-companion/ (served before the APK's own copy, debug builds only) and r
 Takes about 5 seconds, against about a minute for \`launch --build\`. Java or manifest changes still need \`launch --build\`.
 The next install by \`launch\` deletes the synced copy. Screenshots record the synced assets' hash (webSha256), and
 npm run check:evidence accepts them for web-only changes.`,
-  launch: `launch [--avd NAME] [--port N] [--cdp-port N] [--owner TOKEN] [--build] [--no-build] [--apk FILE] [--no-install] [--gpu MODE] [--timeout SECONDS]
+  launch: `launch [--attach SERIAL] [--avd NAME] [--port N] [--cdp-port N] [--owner TOKEN] [--build] [--no-build] [--apk FILE] [--no-install] [--gpu MODE] [--timeout SECONDS]
 Boots AVD ${DEFAULTS.avd} headless as emulator-<port> (default ${DEFAULTS.port}) with -read-only, so nothing the run does
 persists into the AVD. It always uses the host GPU: software modes (swiftshader, guest) use about 12x more CPU and are refused.
 The startup line "Your GPU cannot be used for hardware rendering" is harmless; set RPM_ALLOW_SOFTWARE_GPU=1 only if the host-GPU emulator stays black, crashes or goes offline. Builds app-debug.apk when it is missing or older than the app sources (--build forces,
@@ -68,7 +70,9 @@ Default console port hashes the worktree path to an even port in 5580–5680 (th
 Default CDP port hashes the path to 10000–19999 (this checkout: ${DEFAULTS.cdpPort}). Overrides are retained
 for later launches. A machine-wide lease in the OS temp folder reserves the worktree and port pair,
 including the adjacent emulator adb port. Dead emulator leases can be reclaimed; concurrent launches refuse.
-Refuses to use a port where an emulator it did not start is running. cleanup releases the lease.
+Refuses an external emulator unless --attach SERIAL explicitly adopts it on Linux. Attach requires a running
+read-only emulator and validates PID, port, AVD and process start identity. cleanup detaches an adopted emulator
+without stopping it; the runner owns its lifetime. cleanup releases the lease.
 Save the random owner returned by launch: export RPMCTL_OWNER=<owner from launch>
 PowerShell: $env:RPMCTL_OWNER = '<owner from launch>'
 Mutating commands require --owner TOKEN or RPMCTL_OWNER, including launch on an owned emulator.

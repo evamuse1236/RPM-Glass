@@ -12,7 +12,7 @@
 .preview-head h3 { font: var(--title-small); }
 .preview-head .ms { color: var(--on-surface-variant); font-size: 20px; }
 .preview-purpose { font: var(--body-small); color: var(--on-surface-variant); }
-.preview-task { font: var(--body-medium); padding: var(--s1) 0 0 28px; }
+.preview-task { font: var(--body-medium); padding: var(--s1) 0 0 var(--s8); }
 .example-card h3 { font: var(--title-medium); margin-bottom: var(--s2); }
 .example-card p { margin-bottom: var(--s2); }
 
@@ -98,19 +98,29 @@
   align-items: center;
   gap: var(--s4);
   width: 100%;
-  min-height: 64px;
-  padding: var(--s3) var(--s6) var(--s3) var(--gutter);
+  min-height: var(--touch);
+  padding: var(--s3) var(--inset-page) var(--s3) var(--gutter);
 }
 .settings-row:active { background: var(--row-press); }
 .settings-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .settings-copy strong { font: var(--body-large); font-weight: 400; }
 .settings-copy small { font: var(--body-medium); color: var(--on-surface-variant); }
-.settings-value { font: var(--body-medium); color: var(--on-surface-variant); text-align: right; max-width: 40%; overflow-wrap: anywhere; }
+.settings-value { align-self: start; padding-block-start: 2px; font: var(--body-medium); color: var(--on-surface-variant); text-align: right; max-width: 40%; overflow-wrap: anywhere; }
 .settings-value.warning { color: var(--error); font-weight: 500; }
 .settings-note { padding: var(--s1) var(--gutter); font: var(--body-small); color: var(--on-surface-variant); }
-.settings-slider { padding: var(--s3) var(--s6) var(--s3) var(--gutter); }
+.settings-slider { padding: var(--s3) var(--inset-page) var(--s3) var(--gutter); }
 .settings-slider-head { display: flex; justify-content: space-between; font: var(--body-large); }
 .settings-slider small { font: var(--body-medium); color: var(--on-surface-variant); }
+.bar-sample { position: relative; display: grid; align-content: start; gap: var(--s2); block-size: 104px; margin-block-start: var(--s2); padding: var(--s3) var(--s4); overflow: clip;
+  border-radius: var(--shape-md); background: var(--surface); outline: 1px solid var(--outline-variant); outline-offset: -1px; }
+.bar-sample-line { display: flex; align-items: center; gap: var(--s2); font: var(--body-large); color: var(--on-surface); white-space: nowrap; }
+.bar-sample-line::before { content: ""; flex: none; inline-size: 8px; block-size: 8px; border-radius: 50%; background: var(--tone); }
+.bar-sample-bar { position: absolute; inset: auto var(--s3) var(--s1); display: grid; place-items: center; block-size: 48px;
+  border: 1px solid var(--float-border); border-radius: var(--r-control); background: var(--float-surface); font: var(--label-medium); white-space: pre; color: var(--on-surface-variant); }
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  :root[data-bar-glass=true] .bar-sample-bar { border-color: var(--glass-border); background: color-mix(in srgb, var(--float-surface) var(--bar-fill, 100%), transparent);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)); }
+}
 .widget-text-preview { margin-top: var(--s2); padding: var(--s3); border-radius: var(--shape-md); background: var(--surface-container); }
 .switch {
   width: 52px;
@@ -121,9 +131,9 @@
   position: relative;
   flex: none;
 }
-.switch-thumb { position: absolute; top: 6px; left: 6px; width: 16px; height: 16px; border-radius: 50%; background: var(--outline); transition: all var(--dur-short); }
+.switch-thumb { position: absolute; top: var(--switch-off-inset); left: var(--switch-off-inset); width: 16px; height: 16px; border-radius: 50%; background: var(--outline); transition: all var(--dur-short); }
 [aria-checked=true] > .switch { background: var(--primary); border-color: var(--primary); }
-[aria-checked=true] > .switch .switch-thumb { left: 22px; top: 2px; width: 24px; height: 24px; background: var(--on-primary); }
+[aria-checked=true] > .switch .switch-thumb { left: var(--switch-on-start); top: 2px; width: 24px; height: 24px; background: var(--on-primary); }
 .settings-details { margin: var(--s2) var(--gutter); }
 .settings-details summary { min-height: var(--touch); display: flex; align-items: center; font: var(--body-large); cursor: pointer; }
 .settings-details .settings-group { border: 0; }

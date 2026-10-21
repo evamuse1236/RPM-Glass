@@ -31,18 +31,18 @@ This directory is the maintained source for verifying the user-facing behavior o
 - Reach native dialogs and system screens with `rpmctl tap --native "Text"` and list them with `rpmctl ui --native`.
 - Wait for an element, never a fixed time: `rpmctl wait --name "Task added"`. Snackbars last 6 s with Undo and 4 s without.
 - Read saved data with `rpmctl state files/companion.json`. Compare it before and after a mutation.
-- Switch screen size or text with `rpmctl display large-text|max-text|landscape|wide|phone`. Always return to `phone`.
-- Swipe sideways across a row with `rpmctl scroll right|left --role button --name "<row name>"` (right completes the task with Undo; left opens `Schedule <title>`, or Move in the Inbox). There is no drag command, so drag reorder is marked UNVERIFIED and its menu alternative is given.
+- Switch screen size or text with `rpmctl display landscape|wide|phone`. Always return to `phone`.
+- Swipe sideways across a row with `rpmctl scroll right|left --role button --name "<row name>"` (right completes the task with Undo; left opens `Schedule <title>`, which in the Inbox ends with `Move to Block…`). There is no drag command, so drag reorder is marked UNVERIFIED and its menu alternative is given.
 - Tapping a text box puts the caret where you tapped. To add to the end of existing text, run `rpmctl key KEYCODE_MOVE_END` before `rpmctl type`.
 - A step that was not confirmed from the app's source or a live run carries "(unconfirmed)". Treat it as a hypothesis, correct it, and report the correction.
 
 ## Proof and skip reporting
 
-- Capture the user action and the resulting state, not only the final screen. Use `rpmctl shot <label>` before and after, and name the display in the label (for example `blocks-list-large-text`).
+- Capture the user action and the resulting state, not only the final screen. Use `rpmctl shot <label>` before and after, and name the display in the label (for example `blocks-list-phone`).
 - UI proof is a screenshot plus the matching `rpmctl ui` output. Shots land in `.verify/evidence/<run-id>/`.
 - Mutation proof includes a read-only second view: `rpmctl state files/companion.json` showing the exact stored value.
 - Run `rpmctl logs --errors` after each drive. A page error or crash fails the proof even if the screen looks right.
-- Check every layout-sensitive feature at `phone`, `large-text` and, if text can wrap, `max-text`.
+- Check every layout-sensitive feature at `phone`: the S24 FE at One UI default text (384dp wide, 100% text). Larger text sizes are not a target.
 - Record the feature ID and the entry point used with every artifact.
 - Report an unreachable path with the attempted command and the unmet precondition.
 - Do not report a skipped entry point as verified through a different path.
@@ -74,8 +74,8 @@ Live status as of 2026-10-07: Capture, Today, Blocks, Task rows and sheet, and I
 - [Search](./search.md) covers full-screen search across tasks, Blocks, Projects, Goals and Areas.
 - [Projects and Life](./projects-life.md) covers the Projects list and detail, and the Life tab with Vision, Quarter, Month, Values, Areas, Goals and the Wheel of Life.
 - [Settings](./settings.md) covers the Settings screen: sounds, widget text size, AI key, backup, diagnostics, theme and About.
-- [Home widget](./home-widget.md) covers the widget's Capture pill, mic and planner icon.
+- [Home widget](./home-widget.md) covers the capture bar's pill, mic and planner icon, and the Next up widget.
 - [Floating butterfly](./floating-butterfly.md) covers the overlay butterfly that opens Capture over other apps.
 - [Alerts](./alerts.md) covers reminders, ringing alarms, notification permissions and delivery status.
-- [Notch](./notch.md) covers the camera island: the pill, the open island, its swipes and the reminder and alarm islands.
+- [Notch](./notch.md) covers the camera island: the two drops, the task and habit islands, their swipes and the reminder and alarm islands.
 - [Earlier screens](./earlier-screens.md) covers the original native screens reached from Settings.

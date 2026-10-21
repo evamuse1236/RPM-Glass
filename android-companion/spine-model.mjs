@@ -1,95 +1,100 @@
 /**
- * Today's spine as data: every item of the day in time order, hung off one line. Tasks, calendar events and Routines
- * are cards whose height follows their length (tamed); water, meals and deadlines are small rows; free time of 45 min
- * or more is its own row; now is either the item in progress (the hero) or a line between rows.
+ * Today's timeline as data: every timed item of the day in time order, hung off one rail. Tasks, calendar events,
+ * Routines, meals and deadlines are rows with a coloured pill whose height follows their length; free time of 10 min or
+ * more is its own row; now is either the item in progress or a line between rows. Tasks without a time are returned
+ * apart, as the chips above the timeline.
  */
 import {clockText, atMinutes, minutesOf, WATER_DEFAULTS} from './body-state.mjs';
 import {duration} from './planner/format.mjs';
 import {MIN, gutterTime, routineMeta, mealSlots} from './day-parts.mjs';
+import {taskSymbol, routineSymbol} from './task-symbol.mjs';
 
-export const FREE_MINUTES = 45;
-/** Card heights in dp: 56 up to 30 min, then 24 more for each full extra half hour, never above 160. */
-export const cardHeight = minutes => Math.min(160, 56 + 24 * Math.max(0, Math.floor((minutes - 30) / 30)));
-/** Free-time heights in dp: 32, then 8 more for each full half hour, never above 96. */
-export const gapHeight = minutes => Math.min(96, 32 + 8 * Math.floor(minutes / 30));
+export const FREE_MINUTES = 10;
+/** Free time this long offers + to plan something in it. */
+export const PLAN_MINUTES = 60;
+/** The gutter shows the end time too once an item lasts this long. */
+export const END_MINUTES = 45;
+const snap4 = px => Math.round(px / 4) * 4;
+/** Pill heights in dp: 0.72 dp a minute on the 4dp grid, at least 40 and at most 160. */
+export const cardHeight = minutes => Math.min(160, Math.max(40, snap4((minutes ?? 0) * 0.72)));
+/** Free-time heights in dp: 28, plus 0.08 dp a minute on the 4dp grid, never above 56. */
+export const gapHeight = minutes => Math.min(56, snap4(28 + minutes * 0.08));
 /** At one start time: now first, then fixed things, then yours, then the small rows, then free time. */
-const RANK = {now: 0, event: 1, routine: 2, task: 3, deadline: 4, meal: 5, water: 6, gap: 7};
-const BLOCKS = new Set(['task', 'event', 'routine']);
+const RANK = {now: 0, event: 1, routine: 2, task: 3, deadline: 4, meal: 5, gap: 7};
 const plural = (count, one) => `${count} ${count === 1 ? one : one + 's'}`;
 const minutesBetween = (a, b) => Math.round((b - a) / MIN);
+/** "7 AM to 7:30 AM", or one time for a moment. */
+export const spanWords = (start, end) => (end > start ? `${gutterTime(start)} to ${gutterTime(end)}` : gutterTime(start));
 
-function card(kind, key, start, end, extra) {
-  const minutes = Math.max(1, minutesBetween(start, end));
+/** How soon the next item starts: "in 40 min", then whole hours ("in 4 h"). */
+export function soonText(ms) {
+  const minutes = Math.max(1, Math.ceil(ms / MIN));
+  return minutes < 60 ? `in ${minutes} min` : `in ${Math.round(minutes / 60)} h`;
+}
+
+function item(kind, key, start, end, extra) {
+  const minutes = Math.max(0, minutesBetween(start, end));
   return {kind, key, start, end, minutes, height: cardHeight(minutes),
-    gutter: {time: gutterTime(start), length: duration(minutes)}, ...extra};
+    gutter: {time: gutterTime(start), end: minutes >= END_MINUTES ? gutterTime(end) : null, length: minutes ? duration(minutes) : null},
+    ...extra};
 }
 
-function taskCards(tasks) {
-  return tasks.filter(t => t.start != null).map(task => card('task', 'task:' + task.id + (task.occurrence ?? ''),
-    task.start, task.start + (task.minutes ?? 30) * MIN, {title: task.title, task, done: !!task.done, must: !!task.must}));
+function taskRows(tasks) {
+  return tasks.filter(t => t.start != null).map(task => item('task', 'task:' + task.id + (task.occurrence ?? ''),
+    task.start, task.start + (task.minutes ?? 0) * MIN,
+    {title: task.title, task, done: !!task.done, must: !!task.must, symbol: taskSymbol(task.title), tone: task.tone ?? 'neutral'}));
 }
 
-function routineCards(day, routines) {
+function routineRows(day, routines) {
   return routines.map(routine => {
     const start = +atMinutes(day, minutesOf(routine.start)), end = +atMinutes(day, minutesOf(routine.end));
     const finished = routine.progress.total > 0 && routine.progress.open === 0;
-    return card('routine', 'routine:' + routine.id, start, end, {title: routine.name, routine, done: finished,
+    return item('routine', 'routine:' + routine.id, start, end, {title: routine.name, routine, done: finished, symbol: routineSymbol(routine.name),
       progress: routine.progress, count: routineMeta(routine.state, routine.progress), missed: routine.state === 'missed'});
   });
 }
 
-function waterRow(water, now) {
-  const {status} = water, settings = {...WATER_DEFAULTS, ...water.settings};
-  const quiet = settings.reminders === false || status.reached || !status.nextAt;
-  const at = quiet ? +(status.lastAt ?? now) : Math.max(+status.nextAt, now);
-  const due = !quiet && +status.nextAt <= now;
-  return {kind: 'water', key: 'water', start: at, end: at, time: gutterTime(at), count: status.count, goal: status.goal,
-    due, reached: status.reached, label: `Water · ${status.count} of ${status.goal}`};
-}
-
-function markRows({day, now, live, water, meals, mealPlan, deadlines}) {
+function markRows({day, now, live, meals, mealPlan, deadlines}) {
   const rows = [];
-  if (live && water?.status) rows.push(waterRow(water, now));
   for (const slot of mealSlots(meals, day, now, {placeholders: live, plan: mealPlan})) {
-    rows.push({kind: 'meal', key: 'meal:' + slot.slot, start: slot.at, end: slot.at, time: gutterTime(slot.at), ...slot});
+    rows.push({...item('meal', 'meal:' + slot.slot, slot.at, slot.at, {symbol: 'restaurant', title: slot.name}), ...slot,
+      done: !!slot.meal, line: {kind: slot.meal ? 'meal' : 'unlogged', text: slot.label.split(' · ').slice(1).join(' · ')}});
   }
   for (const due of deadlines) {
     const overdue = due.at < now;
-    rows.push({kind: 'deadline', key: 'due:' + due.id, start: due.at, end: due.at, time: gutterTime(due.at), overdue,
-      label: `${overdue ? 'Overdue' : 'Due'} · ${due.title}`});
+    rows.push(item('deadline', 'due:' + due.id, due.at, due.at, {symbol: 'hourglass_bottom', title: due.title, overdue,
+      when: {kind: overdue ? 'late' : 'time', text: `${overdue ? 'Overdue' : 'Due'} ${gutterTime(due.at)}`},
+      label: `${overdue ? 'Overdue' : 'Due'} · ${due.title}`}));
   }
   return rows;
 }
 
-/** The one supporting line: a clash wins, then Not done, then Now, then the Area dot and Result. */
-function lineFor(row, events, now, live) {
+/** The one line under the title: a clash wins, then Not done, then the Result (or a Routine's count). */
+function lineFor(row, events, now) {
   if (row.kind === 'task' && !row.done) {
-    const clash = events.find(e => e.start < row.end && row.start < e.end);
+    const clash = row.end > row.start && events.find(e => e.end > e.start && e.start < row.end && row.start < e.end);
     if (clash) return {kind: 'clash', text: `Clash with ${clash.title}`, with: clash};
     if (row.end <= now) return {kind: 'late', text: 'Not done'};
   }
-  const current = live && row.start <= now && now < row.end;
-  if (row.kind === 'routine') return {kind: current ? 'now' : 'count', text: current ? `Now · ${row.count}` : row.count};
-  if (current) return {kind: 'now', text: `Now · until ${clockText(row.end)}`};
-  if (row.kind === 'task') return {kind: 'result', text: row.task.result ?? 'No block', tone: row.task.tone ?? 'neutral'};
+  if (row.kind === 'routine') return {kind: row.missed ? 'late' : 'count', text: row.count};
+  if (row.kind === 'task') return row.task.result ? {kind: 'result', text: row.task.result, tone: row.task.tone ?? 'neutral'} : null;
   return null;
 }
 
-function hoursInside(start, end) {
-  const hour = new Date(start);
-  hour.setMinutes(0, 0, 0);
-  const found = [];
-  for (hour.setHours(hour.getHours() + 1); +hour < end; hour.setHours(hour.getHours() + 1)) found.push(+hour);
-  return found;
+/** The line over the title: how soon the next item starts, how long is left of the one in progress, else its times. */
+function whenFor(row, now) {
+  if (row.current) return {kind: 'now', text: `Now · ${duration(Math.max(1, Math.ceil((row.end - now) / MIN)))} left`};
+  if (row.next) return {kind: 'soon', text: row.soon};
+  return {kind: 'time', text: spanWords(row.start, row.end)};
 }
 
 const keyByFixedEdge = (start, end, now) => (end === now ? 'gap:from:' + start : 'gap:to:' + end);
 
-/** Free time between the fixed rows, cut where a small row or now falls, kept where it lasts 45 min or more. */
+/** Free time between the fixed rows, cut where a small row or now falls, kept where it lasts 10 min or more. */
 function freeRows(blocks, marks, {from, to, now, live}) {
   const free = [];
   let cursor = from;
-  for (const block of [...blocks].sort((a, b) => a.start - b.start)) {
+  for (const block of blocks.filter(row => row.end > row.start).sort((a, b) => a.start - b.start)) {
     if (block.start > cursor) free.push([cursor, block.start]);
     cursor = Math.max(cursor, block.end);
   }
@@ -102,32 +107,25 @@ function freeRows(blocks, marks, {from, to, now, live}) {
       const start = points[i - 1], end = points[i], minutes = minutesBetween(start, end);
       if (minutes < FREE_MINUTES) continue;
       const past = end <= now;
-      const ticks = hoursInside(start, end).map(t => (t - start) / (end - start));
-      rows.push({kind: 'gap', key: keyByFixedEdge(start, end, now), start, end, minutes, height: gapHeight(minutes), past, ticks,
+      rows.push({kind: 'gap', key: keyByFixedEdge(start, end, now), start, end, minutes, height: gapHeight(minutes), past,
         time: gutterTime(start), label: `${duration(minutes)} free`,
-        plan: past ? null : Math.max(start, Math.ceil(now / (15 * MIN)) * 15 * MIN)});
+        plan: past || minutes < PLAN_MINUTES ? null : Math.max(start, Math.ceil(now / (15 * MIN)) * 15 * MIN)});
     }
   }
   return rows;
 }
 
-function elapsed(row, now) {
-  const done = Math.max(0, Math.floor((now - row.start) / MIN)), left = Math.max(1, Math.ceil((row.end - now) / MIN));
-  return {fraction: Math.min(1, (now - row.start) / (row.end - row.start)),
-    in: done ? `${duration(done)} in` : 'Just started', left: `${duration(left)} left`};
-}
-
 /**
  * `tasks` carry `start` (ms or null), `minutes`, `done`, `must`, `result` and `tone`; `events` are timed calendar
- * events; `routines` carry their day's `state` and `progress`; `mealPlan` is `planner.body.mealPlan`. `live` is true on
- * today.
+ * events; `routines` carry their day's `state` and `progress`; `mealPlan` is `planner.body.mealPlan`; `window` is the
+ * water window, which also bounds the day's free time. `live` is true on today.
  */
-export function buildSpine({day, now, live = true, tasks = [], events = [], routines = [], water = null, meals = [], mealPlan = null,
+export function buildSpine({day, now, live = true, tasks = [], events = [], routines = [], meals = [], mealPlan = null,
   deadlines = [], window = WATER_DEFAULTS}) {
-  const eventCards = events.map(event => card('event', 'event:' + (event.id ?? event.title + event.start), event.start, event.end,
-    {title: event.title, event}));
-  const blocks = [...eventCards, ...routineCards(day, routines), ...taskCards(tasks)];
-  const marks = markRows({day, now, live, water, meals, mealPlan, deadlines});
+  const eventRows = events.map(event => item('event', 'event:' + (event.id ?? event.title + event.start), event.start, event.end,
+    {title: event.title, event, symbol: 'event'}));
+  const blocks = [...eventRows, ...routineRows(day, routines), ...taskRows(tasks)];
+  const marks = markRows({day, now, live, meals, mealPlan, deadlines});
   const starts = [...blocks, ...marks].map(r => r.start), ends = [...blocks, ...marks].map(r => r.end);
   const from = Math.min(+atMinutes(day, minutesOf(window.from ?? '08:00')), ...starts);
   const to = Math.max(+atMinutes(day, minutesOf(window.until ?? '22:00')), ...ends);
@@ -135,13 +133,14 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
   for (const row of blocks) {
     row.past = row.end <= now;
     row.current = live && row.start <= now && now < row.end;
-    row.line = lineFor(row, events, now, live);
-    if (row.current && row.kind !== 'routine') row.elapsed = elapsed(row, now);
+    row.line = lineFor(row, events, now);
   }
-  for (const row of marks) row.past = row.kind === 'meal' ? row.past || (!!row.meal && row.end < now) : row.kind !== 'water' && row.end < now;
+  for (const row of marks) row.past = row.kind === 'meal' ? row.past || (!!row.meal && row.end < now) : row.end < now;
   const current = blocks.filter(r => r.current);
   const next = live ? blocks.filter(r => r.start > now && !r.done).sort((a, b) => a.start - b.start)[0] : null;
-  if (next) next.next = true;
+  if (next) Object.assign(next, {next: true, soon: soonText(next.start - now)});
+  for (const row of blocks) row.when = whenFor(row, now);
+  for (const row of marks) row.when ??= {kind: 'time', text: gutterTime(row.start)};
 
   const rows = [...blocks, ...marks, ...freeRows(blocks, marks, {from, to, now, live})];
   if (live && !current.length) rows.push({kind: 'now', key: 'now', start: now, end: now, time: gutterTime(now), label: clockText(now)});
@@ -149,16 +148,26 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
   const shown = row => row.gutter?.time ?? row.time;
   rows.forEach((row, i) => { row.sameTime = i > 0 && shown(rows[i - 1]) === shown(row); });
 
-  const untimed = tasks.filter(t => t.start == null);
-  const open = untimed.filter(t => !t.done).length;
+  const anytime = anytimeTasks(tasks.filter(t => t.start == null));
   return {
     rows,
+    anytime,
     nowKey: live ? (current[0]?.key ?? 'now') : null,
-    anytime: {tasks: untimed, open, done: untimed.length - open,
-      label: open ? `${plural(open, 'anytime task')}` : untimed.length ? `${plural(untimed.length, 'anytime task')} done` : null},
     empty: !tasks.length && !events.length,
-    shape: rows.map(r => `${r.key}:${r.past ? 1 : 0}${r.current ? 1 : 0}${r.next ? 1 : 0}${r.line?.kind ?? ''}`).join('|'),
+    shape: [...rows.map(r => `${r.key}:${r.past ? 1 : 0}${r.current ? 1 : 0}${r.next ? 1 : 0}${r.line?.kind ?? ''}`),
+      ...anytime.map(t => `${t.key}:${t.done ? 1 : 0}`)].join('|'),
   };
 }
 
-export const isBlock = row => BLOCKS.has(row.kind);
+/** Tasks dated for the day without a time, open ones first: the chips above the timeline. */
+function anytimeTasks(untimed) {
+  return untimed.map(task => ({kind: 'task', key: 'task:' + task.id + (task.occurrence ?? ''), title: task.title, task,
+    done: !!task.done, must: !!task.must, symbol: taskSymbol(task.title), tone: task.tone ?? 'neutral'}))
+    .sort((a, b) => a.done - b.done);
+}
+
+/** "2 tasks anytime today": the chip strip's accessible name. */
+export const anytimeLabel = (anytime, live) => {
+  const open = anytime.filter(t => !t.done).length;
+  return open ? `${plural(open, 'task')} anytime ${live ? 'today' : 'this day'}` : `${plural(anytime.length, 'task')} done, no time set`;
+};

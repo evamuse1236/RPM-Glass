@@ -1,6 +1,7 @@
 /**
- * Today opens in the Day layout (today-day.mjs: the whole day by time, at now). The list layout, one tap away, runs top
- * to bottom: the date, the next seven days and one line on the week's plan; one lead card for now (free time filled with
+ * Today opens in the Day layout: the date band (the big date and the next seven days) and, on a rounded sheet over it,
+ * the anytime chips and the whole day by time (today-day.mjs). The list layout, one tap away, keeps the band (with one
+ * line on the week's plan) and runs on the sheet: one lead card for now (free time filled with
  * the nearest deadline's unscheduled tasks, or the next task, under its Result and Purpose); what is coming up in the
  * next three days, soonest first (every other deadline and calendar clash); the rest of the day as one time-ordered
  * agenda (tasks, calendar events and the free time between); the Inbox.
@@ -14,7 +15,7 @@ import {clock, plural, dueInfo, relativeDay, timeLeft, countdown, duration, time
 import {taskRow, completedSection} from './task-row.mjs';
 import {listRow, phrase, sep} from './today-row.mjs';
 import {openResults, upcoming, freeGap, gapResult, clashes} from './today-model.mjs';
-import {dateHeader, weekLine, dueDay} from './today-header.mjs';
+import {dateHeader, weekLine, dueDay, todaySheet} from './today-header.mjs';
 import {renderDay, dayScroll} from './today-day.mjs';
 
 export {selectDay} from './today-header.mjs';
@@ -276,13 +277,18 @@ function inboxRow(app) {
 }
 
 export function renderToday(app, page) {
+  const sheet = todaySheet();
   if (app.state.dayLayout !== 'list') {
-    const week = app.state.day === localDay() && !app.largeText() ? weekLine(app, dayTasks(app.data(), app.state.day).active) : null;
-    page.append(dateHeader(app, week));
-    renderDay(app, page);
-    page.append(inboxRow(app));
+    page.classList.add('day-page');
+    page.append(dateHeader(app), sheet);
+    renderDay(app, sheet);
+    sheet.append(inboxRow(app));
     return;
   }
+  renderList(app, page, sheet);
+}
+
+function renderList(app, band, page) {
   const {day, calendar = []} = app.state;
   const data = app.data();
   const now = new Date();
@@ -292,7 +298,7 @@ export function renderToday(app, page) {
   // It keeps its time so it stays in its own slot, not at the end of the list.
   const recent = model.completed.filter(task => app.recentlyCompleted.has(task.id))
     .map(task => (task.start || !task.planned ? task
-      : {...task, start: Date.parse(task.planned), end: Date.parse(task.planned) + (task.minutes ?? 30) * 60000}));
+      : {...task, start: Date.parse(task.planned), end: Date.parse(task.planned) + (task.minutes ?? 0) * 60000}));
   const active = [...model.active, ...recent];
   const dayEvents = timelineItems(data, day, calendar).filter(item => item.source === 'calendar');
 
@@ -304,7 +310,7 @@ export function renderToday(app, page) {
 
   // With large text the strip gives way and the week line follows what is coming up, so the first risk stays in view.
   const big = app.largeText(), week = isToday ? weekLine(app, model.active) : null;
-  page.append(dateHeader(app, big ? null : week));
+  band.append(dateHeader(app, big ? null : week), page);
   if (fill) page.append(gapCard(app, gap, fill, +now));
   else if (focus) page.append(nextCard(app, focus, +now));
   // Each Result once: the lead's Result is not repeated below.

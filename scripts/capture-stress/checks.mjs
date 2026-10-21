@@ -1,6 +1,6 @@
 export const matchesWords=(title,words)=>(words??[]).every(word=>{
- const tokens=String(title??'').toLowerCase().normalize('NFKC').match(/[\p{L}\p{N}]+/gu)??[];
- return String(word).toLowerCase().split(/\s+/).every(w=>tokens.some(t=>t===w||(w.length>=4&&t.startsWith(w))));
+ const tokens=String(title??'').toLowerCase().normalize('NFKC').replace(/\bkm\b/g,'kilometres').match(/[\p{L}\p{N}]+/gu)??[];
+ return String(word).toLowerCase().split(/\s+/).every(w=>tokens.some(t=>t===w||(w.length>=3&&t===w+'s')||(w.length>=4&&t.startsWith(w))));
 });
 
 export function entities(data){
@@ -11,6 +11,7 @@ export function entities(data){
 }
 const key=e=>`${e.entity}:${e.id}`;
 const active=e=>!e.archived&&e.state!=='cancelled';
+const matchesItem=(title,item)=>[item.words,...(item.wordAlternatives??[])].some(words=>matchesWords(title,words));
 const local=value=>{
  if(!value||!Number.isFinite(Date.parse(value)))return null;
  const p=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(value)).map(p=>[p.type,p.value]));
@@ -30,13 +31,13 @@ export function checkExpectation(expect,{before,after,draft,focusDraft=draft,que
  const required=expect.created??[];
  const used=new Set();
  for(const item of required){
-  const candidates=created.filter(e=>(!item.entity||e.entity===item.entity)&&matchesWords(e.title,item.words));
-  const match=candidates.find(e=>!used.has(key(e)));
+  const candidates=created.filter(e=>(!item.entity||e.entity===item.entity)&&matchesItem(e.title,item));
+  const match=candidates.find(e=>item.allowShared||!used.has(key(e)));
   if(!match){fail('lost item',`Missing ${item.entity??'item'} title containing ${item.words.join(' + ')} in ${expect.scope??'saved'} state`);continue;}
   used.add(key(match));
   checkFields(item,match,fail,after);
  }
- for(const row of created)if(!required.some(item=>(!item.entity||row.entity===item.entity)&&matchesWords(row.title,item.words))){
+ for(const row of created)if(!required.some(item=>(!item.entity||row.entity===item.entity)&&matchesItem(row.title,item))){
   if(!(expect.allowNote&&row.entity==='task'&&row.kind==='note'))fail('invented item',`${row.entity} ${row.title}`);
  }
  if(created.length>(expect.maxNew??0))fail('invented item',`${created.length} new items exceeds ${expect.maxNew??0}`);
@@ -84,6 +85,7 @@ export function checkExpectation(expect,{before,after,draft,focusDraft=draft,que
  if(expect.health){
   const water=d=>(d.planner?.body?.water?.glasses??[]).length;
   if(expect.health.waterDelta!==undefined&&water(after)-water(before)!==expect.health.waterDelta)fail('lost item',`Water delta ${water(after)-water(before)} instead of ${expect.health.waterDelta}`);
+  for(const meal of expect.health.meals??[])if(!after.planner?.body?.meals?.some(m=>m.slot===meal.slot&&(m.state??'logged')===meal.state&&matchesWords(m.name,meal.foodWords??[])))fail('lost item',`No ${meal.state} ${meal.slot} recorded with the stated food`);
   if(expect.health.mealSkipped&&!after.planner?.body?.meals?.some(m=>m.slot===expect.health.mealSkipped&&m.state==='skipped'))fail('lost item',`No skipped ${expect.health.mealSkipped} recorded`);
  }
  return failures;
@@ -91,8 +93,10 @@ export function checkExpectation(expect,{before,after,draft,focusDraft=draft,que
 
 function checkFields(expected,row,fail,after){
  const stamp=local(row.planned),day=stamp?.day??row.plannedDate??null,time=stamp?.time??null;
+ if(expected.title!==undefined&&row.title!==expected.title)fail('wrong title',`${row.title}: expected exact title ${expected.title}`);
  if(expected.day!==undefined&&day!==expected.day)fail('wrong time',`${row.title}: day ${day}, expected ${expected.day}`);
  if(expected.time!==undefined&&time!==expected.time)fail('wrong time',`${row.title}: time ${time}, expected ${expected.time}`);
+ if(expected.done!==undefined&&!!row.done!==expected.done)fail('lost item',`${row.title}: done should be ${expected.done}`);
  if(expected.must!==undefined&&!!row.must!==expected.must)fail('lost item',`${row.title}: must should be ${expected.must}`);
  if(expected.titleWords&&!matchesWords(row.title,expected.titleWords))fail('lost item',`${row.title}: expected title ${expected.titleWords.join(' + ')}`);
  if(expected.purposeWords&&!matchesWords(row.purpose,expected.purposeWords))fail('lost item',`${row.title}: purpose missing ${expected.purposeWords.join(' + ')}`);

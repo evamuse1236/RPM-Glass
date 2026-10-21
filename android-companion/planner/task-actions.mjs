@@ -1,5 +1,5 @@
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
-import {el, icon, button, iconButton} from './dom.mjs';
+import {el, icon, button} from './dom.mjs';
 import {reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
 import {openSheet, isSheetOpen} from './sheet.mjs';
 import {closeMenu} from './menu.mjs';
@@ -60,7 +60,7 @@ export function closeSchedule({restoreFocus = true} = {}) {
  * One-tap reschedules anchored to the swiped row (or the task sheet's More button): each choice is a whole date and
  * time and saves at once with Undo. "Pick a date…" opens the task sheet with its date choices unfolded.
  */
-export function scheduleMenu(app, task, anchor, {occurrence = null} = {}) {
+export function scheduleMenu(app, task, anchor, {occurrence = null, moveToBlock = false} = {}) {
   closeMenu();
   closeSchedule({restoreFocus: false});
   const t = findTask(app, task.id) ?? task;
@@ -95,6 +95,12 @@ export function scheduleMenu(app, task, anchor, {occurrence = null} = {}) {
   other.setAttribute('role', 'menuitem');
   other.append(icon('calendar_month'), el('span', 'schedule-label', 'Pick a date…'));
   menu.append(other);
+  if (moveToBlock) {
+    const move = button('', () => { closeSchedule({restoreFocus: false}); movePicker(app, t); }, 'menu-item schedule-item');
+    move.setAttribute('role', 'menuitem');
+    move.append(icon('drive_file_move'), el('span', 'schedule-label', 'Move to Block…'));
+    menu.append(move);
+  }
   menu.addEventListener('keydown', event => {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -126,20 +132,14 @@ export function scheduleMenu(app, task, anchor, {occurrence = null} = {}) {
  * Move to Block: a search, the recent and suggested Blocks first, then the rest. With `back` (the task sheet that
  * opened it), choosing saves and returns there, and Android Back or the arrow returns without a change.
  */
-export function movePicker(app, task, {back = null} = {}) {
-  const {body, header} = openSheet(app, 'Move to Block');
-  if (back) header.prepend(iconButton('arrow_back', 'Back to task', back, {cls: 'sheet-back'}));
+export function movePicker(app, task) {
+  const {body} = openSheet(app, 'Move to Block');
   body.append(el('p', 'sheet-note', 'Moving keeps the task, its schedule and its details.'));
   const pick = (blockId, title) => {
     rememberBlock(blockId);
     const label = blockId ? 'Moved to ' + title : 'Moved to No block';
-    app.commit({type: 'moveTask', id: task.id, blockId}, {label, keepSheet: !!back}).then(() => back?.(), () => {});
+    app.commit({type: 'moveTask', id: task.id, blockId}, {label}).catch(() => {});
   };
   blockChooser(body, {blocks: () => app.activeBlocks(), get: () => findTask(app, task.id)?.blockId ?? null, pick,
     recent: recentBlock(), suggested: suggestBlock(app, task, task.blockId)?.id ?? null});
-  app.sheet.onBack = () => {
-    if (!back || !body.isConnected || !isSheetOpen(app)) return false;
-    back();
-    return true;
-  };
 }

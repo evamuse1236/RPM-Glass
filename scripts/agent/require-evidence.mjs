@@ -1,5 +1,6 @@
 // "Done" needs proof from the real app: when app code changed, there must be a debug APK built after the change and
-// an rpmctl screenshot taken while exactly that APK was installed. As a Claude Code Stop hook (.claude/settings.json)
+// an rpmctl screenshot taken while exactly that APK was installed, or a passing GitHub emulator run (npm run ci:emulator)
+// whose commit has the same app files as HEAD with nothing uncommitted. As a Claude Code Stop hook (.claude/settings.json)
 // it blocks once per stop with the reason; run by hand (npm run check:evidence) it exits 1 with the same reason.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -45,7 +46,7 @@ export function matchingEvidence(root, apkSha, {webSha = null, needWeb = false} 
     if (!e.name.endsWith('.png')) continue;
     let meta = null;
     try { meta = JSON.parse(fs.readFileSync(p.replace(/\.png$/, '.json'), 'utf8')); } catch {}
-    if (!meta?.launchedByRpmctl || meta.apkSha256 !== apkSha || fs.statSync(p).size < 1000) continue;
+    if (!(meta?.launchedByRpmctl || meta?.adoptedByRpmctl) || meta.apkSha256 !== apkSha || fs.statSync(p).size < 1000) continue;
     if (meta.webSha256 ? meta.webSha256 !== webSha : needWeb) continue;
     const m = fs.statSync(p).mtimeMs;
     if (!newest || m > newest.mtime) newest = {file: p, mtime: m};
@@ -54,9 +55,23 @@ export function matchingEvidence(root, apkSha, {webSha = null, needWeb = false} 
   return newest;
 }
 
+export function passingCiRun(root, changed) {
+  if (git(root, ['status', '--porcelain', '--', ...changed])?.trim()) return null;
+  const dir = path.join(root, '.verify', 'evidence');
+  for (const name of fs.existsSync(dir) ? fs.readdirSync(dir).filter(n => /^ci-\d+$/.test(n)).sort().reverse() : []) {
+    let run = null;
+    try { run = JSON.parse(fs.readFileSync(path.join(dir, name, 'run.json'), 'utf8')); } catch {}
+    if (run?.conclusion !== 'success' || !/^[0-9a-f]{40}$/.test(run.sha ?? '')) continue;
+    const shots = fs.readdirSync(path.join(dir, name), {recursive: true}).filter(f => String(f).endsWith('.png') && fs.statSync(path.join(dir, name, String(f))).size >= 1000);
+    if (shots.length && git(root, ['diff', '--quiet', run.sha, 'HEAD', '--', ...changed]) !== null) return {dir: path.join(dir, name), url: run.url};
+  }
+  return null;
+}
+
 export function evidenceGap(root) {
   const {base, files: changed} = changedAppFiles(root);
-  const how = 'Before saying done, drive the changed screen with the verify-rpm-glass skill (node .claude/skills/verify-rpm-glass/rpmctl.mjs launch, then open/tap/shot at phone and large-text), run `rpmctl check`, and put the evidence paths in the reply. '
+  if (changed.length && passingCiRun(root, changed)) return null;
+  const how = 'Before saying done, drive the changed screen with the verify-rpm-glass skill (node .claude/skills/verify-rpm-glass/rpmctl.mjs launch, then open/tap/shot at phone (One UI default text)), run `rpmctl check`, and put the evidence paths in the reply. '
     + 'For a web-only change on a running emulator, `rpmctl sync` loads it in seconds without an APK build. '
     + 'If you could not drive it, mark the claim UNVERIFIED in the reply. If this turn changed no app behavior, say so and stop again.';
   if (!base) return `Cannot tell what this branch changed: no main or origin/main to compare with. ${how}`;
@@ -85,6 +100,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exit(0);
   }
   const gap = evidenceGap(root);
-  console.log(gap ? `✖ ${gap}` : '✔ The current debug build includes every app change and has an rpmctl screenshot (or no app code changed).');
+  console.log(gap ? `✖ ${gap}` : '✔ Every app change is shown by an rpmctl screenshot of the current build or a passing GitHub emulator run (or no app code changed).');
   process.exit(gap ? 1 : 0);
 }

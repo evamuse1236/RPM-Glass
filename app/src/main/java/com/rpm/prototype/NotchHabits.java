@@ -105,6 +105,43 @@ final class NotchHabits {
         return selected;
     }
 
+    enum Habit { WATER, MEAL }
+
+    static Habit top(boolean waterDue, String dueMeal) {
+        if (waterDue) return Habit.WATER;
+        return dueMeal == null ? null : Habit.MEAL;
+    }
+
+    static final class MealMeter {
+        final List<String> slots;
+        final List<Integer> logged;
+
+        MealMeter(List<String> slots, List<Integer> logged) {
+            this.slots = slots;
+            this.logged = logged;
+        }
+
+        String key() {
+            return slots + "" + logged;
+        }
+    }
+
+    static MealMeter mealMeter(NotchBody body, long now, ZoneId zone) {
+        LocalDate day = Instant.ofEpochMilli(now).atZone(zone).toLocalDate();
+        List<String> slots = new ArrayList<>();
+        for (NotchBody.MealSlot s : body.mealPlan) if (s.on) slots.add(s.slot);
+        List<Integer> logged = new ArrayList<>();
+        for (int i = 0; i < slots.size(); i++) {
+            for (NotchBody.Meal m : body.meals) {
+                if (!m.skipped && slots.get(i).equals(m.slot) && Instant.ofEpochMilli(m.at).atZone(zone).toLocalDate().equals(day)) {
+                    logged.add(i);
+                    break;
+                }
+            }
+        }
+        return new MealMeter(slots, logged);
+    }
+
     static String mealName(NotchBody body, String slot) {
         for (NotchBody.MealSlot planned : body.mealPlan) if (planned.slot.equals(slot)) return planned.name;
         return slotName(slot);

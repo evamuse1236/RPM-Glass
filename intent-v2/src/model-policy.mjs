@@ -39,6 +39,9 @@ export function intentModelPolicy({input,attempt=0,output=null}={}){
 }
 /** Routine confirmations come from checked fields and the local time preview. */
 export function captureReply({parsed,schedulePreview}){
+ if(parsed.operations.some(op=>op.opId==='short-alert'))return parsed.question?.prompt??'';
+ const limitations=(parsed.reply.match(/[^.!?]+[.!?]?/g)??[]).filter(s=>/\b(?:can't|cannot|unable to|not able to)\b/i.test(s)&&!s.trim().endsWith('?'));
+ if(parsed.mode==='capture'&&parsed.operations.length&&limitations.length)return [...limitations.map(s=>s.trim()),parsed.question?.prompt??''].filter(Boolean).join(' ');
  if(parsed.mode!=='capture'||!parsed.operations.length||parsed.operations.some(op=>op.fields.some(f=>f.origin==='suggested')))return parsed.reply;
  const times=schedulePreview?.items??[];
  const review=times.find(t=>t.status==='review');

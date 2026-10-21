@@ -37,7 +37,6 @@ Preconditions:
 - **Hide by long press.** Run `rpmctl tap --native "RPM butterfly. Tap to chat; drag to move; long press to hide." --long`. The butterfly disappears and the notification goes away. Reopen Settings; the switch reads `aria-checked=false` after it refreshes.
 - **Hide by switch.** With the butterfly on, run `rpmctl tap --role switch --name "Floating butterfly"` again. The status line reads `Butterfly hidden.`
 - **No restart on boot.** After `rpmctl cleanup` and a new `rpmctl launch`, the butterfly is off. It never turns itself on.
-- **Large text.** Run `rpmctl display large-text`, `rpmctl shot butterfly-settings-large-text`, then `rpmctl display phone`. The row label and value must not clip.
 - **Errors.** Run `rpmctl logs --errors`.
 
 ## Gotchas

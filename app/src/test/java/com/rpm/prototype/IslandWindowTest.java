@@ -13,8 +13,7 @@ public class IslandWindowTest {
     private static final NotchAnchor S24 = NotchAnchor.fromCutout(506, 24, 574, 92, 92, D);
 
     private static IslandShape pill(int side) {
-        int keep = S24.holeDiameter + NotchAnchor.dp(12, D);
-        return IslandShape.pill(S24, 1080, side, keep, false, D);
+        return IslandShape.pill(S24, 1080, side, side, D);
     }
 
     @Test
@@ -41,7 +40,7 @@ public class IslandWindowTest {
     public void morphHoldsBothShapesThenShrinksOnceSettled() {
         IslandWindow w = new IslandWindow();
         IslandShape pill = pill(160);
-        IslandShape open = IslandShape.island(S24, 1080, 900, IslandShape.OPEN_RADIUS_DP, D);
+        IslandShape open = IslandShape.island(S24, 1080, 900, D);
         w.begin("pill", pill.window(), pill.window(), true);
         Box during = w.begin("open", open.window(), pill.window(), true);
         assertEquals(open.window().union(pill.window()), during);
@@ -56,7 +55,7 @@ public class IslandWindowTest {
     public void withAnimationsOffTheWindowJumpsStraightToTheTarget() {
         IslandWindow w = new IslandWindow();
         IslandShape pill = pill(160);
-        IslandShape open = IslandShape.island(S24, 1080, 900, IslandShape.OPEN_RADIUS_DP, D);
+        IslandShape open = IslandShape.island(S24, 1080, 900, D);
         w.begin("open", open.window(), open.window(), false);
         assertEquals(pill.window(), w.begin("pill", pill.window(), open.window(), false));
         assertNull(w.settle(pill.window()));
@@ -66,7 +65,7 @@ public class IslandWindowTest {
     public void theDrawingWindowNeverMovesOnlyItsHeightChanges() {
         IslandWindow w = new IslandWindow();
         IslandShape pill = pill(160);
-        IslandShape open = IslandShape.island(S24, 1080, 900, IslandShape.OPEN_RADIUS_DP, D);
+        IslandShape open = IslandShape.island(S24, 1080, 900, D);
         Box first = w.begin("pill", IslandWindow.stage(pill.window(), 1080), IslandWindow.stage(pill.window(), 1080), true);
         Box opening = w.begin("open", IslandWindow.stage(open.window(), 1080), IslandWindow.stage(pill.window(), 1080), true);
         Box closed = w.settle(IslandWindow.stage(pill.window(), 1080));

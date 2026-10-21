@@ -3,7 +3,7 @@ import {el, icon, button, labelButton} from './dom.mjs';
 import {duration} from './format.mjs';
 import {reducedMotion, EASE, DURATION, MOTION} from '../surface-motion.mjs';
 import {openSheet, isSheetOpen, discardDraft, rememberValue} from './sheet.mjs';
-import {whenOf, whenLabel, clockOf, dayPresets, repeatLabel, parseWhen, blockMatches, hashToken, hashTag, withoutTag, foldGroup, fold, foldFor, choiceChip, markChips, chipRow, dateChooser, durationChooser, repeatChooser, alertChooser, blockChooser, recentBlock, rememberBlock} from './task-fields.mjs';
+import {whenOf, whenFields, whenLabel, clockOf, dayPresets, repeatLabel, parseWhen, blockMatches, hashToken, hashTag, withoutTag, foldGroup, fold, foldFor, choiceChip, markChips, chipRow, dateChooser, durationChooser, repeatChooser, alertChooser, blockChooser, recentBlock, rememberBlock} from './task-fields.mjs';
 import {readLabel, NEEDS_TIME, inlineText, saver, scheduleCheck, suggestBlock, syncText} from './sheet-parts.mjs';
 import {openTask} from './task-sheet.mjs';
 
@@ -131,11 +131,11 @@ function quickAdd(app, overrides = {}) {
     if (!s.day) s.time = '';
     changed();
   };
-  const whenChips = chipRow('quick-row');
+  // One row per meaning: the day; then the time, the estimate and the repeat; then the Block; then Must; then Details.
+  const whenChips = chipRow('quick-row quick-days');
   for (const [label, day, aria] of dayPresets()) whenChips.append(choiceChip(label, day, value => pickDay(value), {aria}));
   const timeChip = button('', null, 'assist-chip');
   timeChip.append(icon('schedule'), el('span', 'chip-label'));
-  whenChips.append(timeChip);
   const whenFold = foldFor(group, timeChip, inner => dateChooser(inner, {
     presets: false,
     noDate: true,
@@ -185,24 +185,25 @@ function quickAdd(app, overrides = {}) {
         }
         return chip;
       }), choiceChip('No block', '', pickBlock), listChip);
-      // With a Block chip showing, the full list needs only its icon, so the row stays on one line.
-      listChip.classList.toggle('icon-only', ids.length > 0);
-      listChip.setAttribute('aria-label', 'Choose a Block');
+      // With a Block chip showing, the full list's chip says "Other", so the row stays on one line and stays labelled.
+      listChip.querySelector('.chip-label').textContent = ids.length ? 'Other' : 'Choose Block';
+      listChip.setAttribute('aria-label', ids.length ? 'Other Blocks' : 'Choose a Block');
     }
     markChips(blockChips, s.blockId ?? '');
   };
 
-  // Estimate, Must, Repeat, Details
-  const moreChips = chipRow('quick-row');
+  const timeChips = chipRow('quick-row quick-times');
   const durationChip = button('', null, 'assist-chip');
   durationChip.append(icon('timer'), el('span', 'chip-label'));
+  const mustChips = chipRow('quick-row');
   const mustChip = button('', () => { s.must = !s.must; changed(); }, 'assist-chip must-chip');
   mustChip.append(icon('star'), el('span', 'chip-label', 'Must'));
+  mustChips.append(mustChip);
   const repeatChip = button('', null, 'assist-chip');
   repeatChip.append(icon('repeat'), el('span', 'chip-label'));
-  const detailsChip = button('', null, 'assist-chip');
-  detailsChip.append(icon('notes'), el('span', 'chip-label', 'Details'));
-  moreChips.append(durationChip, mustChip, repeatChip, detailsChip);
+  timeChips.append(timeChip, durationChip, repeatChip);
+  const detailsChip = button('', null, 'quick-details');
+  detailsChip.append(icon('notes'), el('span', 'chip-label', 'Details'), icon('expand_more', {cls: 'quick-details-open'}));
   const durationFold = foldFor(group, durationChip, inner => durationChooser(inner, {
     get: () => s.minutes,
     pick: minutes => { s.minutes = minutes; group.close(); changed(); },
@@ -280,15 +281,14 @@ function quickAdd(app, overrides = {}) {
 
   const error = el('p', 'sheet-error');
   error.setAttribute('role', 'alert');
-  body.append(nameWrap, hashFold.node, whenChips, whenFold.node, blockChips, blockFold.node, moreChips,
-    durationFold.node, repeatFold.node, detailsFold.node, error);
+  body.append(nameWrap, hashFold.node, whenChips, timeChips, whenFold.node, durationFold.node, repeatFold.node,
+    blockChips, blockFold.node, mustChips, detailsChip, detailsFold.node, error);
 
   const paint = () => {
     markChips(whenChips, s.day);
     const preset = dayPresets().some(([, day]) => day === s.day);
     timeChip.querySelector('.chip-label').textContent = s.day && !preset ? whenLabel(s) : s.time ? clockOf(s.day, s.time) : 'Time';
     timeChip.classList.toggle('on', !!s.time || (!!s.day && !preset));
-    timeChip.classList.toggle('icon-only', !timeChip.classList.contains('on'));
     timeChip.setAttribute('aria-label', timeChip.classList.contains('on') ? 'Time: ' + timeChip.textContent.trim() : 'Time');
     paintBlocks();
     durationChip.querySelector('.chip-label').textContent = s.minutes == null ? 'Estimate' : duration(s.minutes);
@@ -299,7 +299,6 @@ function quickAdd(app, overrides = {}) {
     repeatChip.querySelector('.chip-label').textContent = s.repeat ? repeatLabel(s.repeat === 'after'
       ? {repeatAfterDays: s.every} : {recurrence: s.repeat}) : 'Repeat';
     repeatChip.classList.toggle('on', !!s.repeat);
-    repeatChip.classList.toggle('icon-only', !s.repeat);
     repeatChip.setAttribute('aria-label', s.repeat ? 'Repeat: ' + repeatChip.textContent.trim() : 'Repeat');
     detailsChip.classList.toggle('on', !!(s.notes || s.why || s.alert !== 'off'));
     // What the words set says so on its chip (marked, and named as read from the words), once.

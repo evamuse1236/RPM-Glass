@@ -32,7 +32,7 @@ final class CompanionControls {
             case "widget_text_scale":
                 Object scale=p.opt("value");if(!(scale instanceof Integer)||((Integer)scale)<MIN_TEXT_SCALE||((Integer)scale)>MAX_TEXT_SCALE)throw new IllegalArgumentException("Widget text size must be between 80 and 160 percent.");
                 if(!c.getSharedPreferences(APPEARANCE,0).edit().putInt("widget-text-scale",(Integer)scale).commit())throw new IllegalStateException("The text size could not be saved.");
-                message="Widget text size set to "+scale+"%.";break;
+                NextUpWidget.changed(c);message="Widget text size set to "+scale+"%.";break;
             case "show_butterfly":
                 if(!Settings.canDrawOverlays(c))throw new IllegalStateException("Allow the floating butterfly in Android Settings first.");
                 c.startForegroundService(new Intent(c,ButterflyService.class));message="Butterfly started. Leave RPM to see it.";break;

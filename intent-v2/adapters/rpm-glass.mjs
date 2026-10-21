@@ -41,6 +41,8 @@ export function createRpmPlanAdapter({changePlanner,readCalendar,undo,maxTimeDra
    return {status:'review',review:{token:working.pending.scheduleReview,question:working.pending.question,choices:working.pending.choices??[]}};
   }
   if(!result.undoId)throw new Error('No canonical commit receipt returned');
+  // The adapter's temporary approval is never a user proposal to restore with Undo.
+  if(acceptReview&&working.undo?.before)working.undo.before.pending=null;
   // Retain genuine original words, not the adapter's approval protocol, as task raw text.
   for(const [i,compiled] of operations.entries())if(compiled.type==='create'&&compiled.collection==='tasks'){
    const changed=result.plannerChanges?.[i],entry=working.entries.find(e=>e.id===changed?.id);
@@ -49,7 +51,7 @@ export function createRpmPlanAdapter({changePlanner,readCalendar,undo,maxTimeDra
   // Receipt snapshots must also show genuine source words and estimate provenance.
   for(const r of result.plannerReceipts??[]){const e=working.entries.find(e=>e.id===r.entry?.id);if(e&&r.entry){r.entry.raw=e.raw;r.entry.durationSource=e.durationSource;}}
   for(const key of ['entries','planner','undo'])data[key]=working[key];
-  return {status:'committed',receipt:{undoId:result.undoId,entryIds:result.entryIds??[],changes:result.plannerChanges??[],plannerReceipts:result.plannerReceipts??[],savedAt:approval.at,delivery:'Check native phone status; not a delivery confirmation'}};
+  return {status:'committed',receipt:{undoId:result.undoId,entryIds:result.entryIds??[],changes:(result.plannerChanges??[]).map((change,index)=>({...change,opId:operations[index]?.ref??null})),plannerReceipts:result.plannerReceipts??[],savedAt:approval.at,delivery:'Check native phone status; not a delivery confirmation'}};
  }
  async function undoPlan({data,receipt}){
   if(typeof undo!=='function')throw new Error('Inject the existing companion-tools undo function');

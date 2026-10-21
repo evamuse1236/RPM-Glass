@@ -1,6 +1,6 @@
 ---
 name: verify-rpm-glass
-description: Drive the real RPM Android app (com.rpm.prototype, Capture sheet + Planner WebViews + native widget/settings) on an S24 FE-sized emulator and capture proof. Use before saying any app change is done, to reproduce a reported bug, to screenshot a screen at phone size or enlarged text, or to read what the app actually saved. Ships the `rpmctl` CLI (launch, doctor, seed, open, ui, tap, type, key, scroll, wait, display, shot, eval, state, logs, scenario, check, cleanup).
+description: Drive the real RPM Android app (com.rpm.prototype, Capture sheet + Planner WebViews + native widget/settings) on an S24 FE-sized emulator and capture proof. Use before saying any app change is done, to reproduce a reported bug, to screenshot a screen at the phone's One UI default size, or to read what the app actually saved. Ships the `rpmctl` CLI (launch, doctor, seed, open, ui, tap, type, key, scroll, wait, display, shot, eval, state, logs, scenario, check, cleanup).
 ---
 
 # Verify RPM on a real Android build
@@ -15,9 +15,26 @@ $RPMCTL --help            # command list
 $RPMCTL <command> --help  # details, options, output shape
 ```
 
-Run it from the repo root. Needs Node 22+, the Android SDK (`ANDROID_HOME`, or the default `%LOCALAPPDATA%\Android\Sdk`), the AVD `Galaxy_S24_FE_API_36`, a JDK 17+ and `npm ci` done once.
+Run it from the repo root. Local driving needs Node 22+, the Android SDK (`ANDROID_HOME`, or the default `%LOCALAPPDATA%\Android\Sdk`), the AVD `Galaxy_S24_FE_API_36`, a JDK 17+ and `npm ci` done once. The GitHub helper only needs Node, Git and authenticated `gh` locally.
 
-## Launch
+## Run emulator tests on GitHub Actions
+
+Use GitHub Actions for emulator tests by default. Commit and push the current branch to origin, then run:
+
+```bash
+npm run ci:emulator
+npm run ci:emulator -- capture-keeps-words plan-add-in-place
+```
+
+The helper refuses an unpushed commit or tracked local changes. It dispatches `.github/workflows/emulator.yml` on that exact branch, waits for its own run, prints the conclusion and URL, and downloads artifacts into `.verify/evidence/ci-<run-id>/`. It downloads failed-run artifacts too. Read `scenarios.json` and the scenario screenshots inside `rpm-emulator-evidence/`. A green run means each selected scenario passed or reproduced its recorded known bug. `known-bug-fixed` prints a warning and passes in CI; unexpected failures and expired exceptions still fail.
+
+The workflow also runs on pull requests and pushes to main. A new workflow must first be registered by a triggering event before `gh workflow run` can find it. On a branch adding the workflow for the first time, use a pull request or a temporary branch push trigger to register it without changing main.
+
+CI uses KVM and an API 36 Play Store x86_64 AVD at 1080 by 2340 pixels and 450 dpi, matching the local S24 FE setup. `rpmctl launch --attach emulator-5554 --no-build` explicitly adopts the runner's read-only emulator. Adoption validates its serial, local PID, port, AVD and process start identity, then uses the normal lease and owner checks. Ordinary launch still refuses an external emulator. Cleanup detaches an adopted emulator and releases the lease; the action stops it. Windows launch is unchanged.
+
+## Launch locally for interactive driving
+
+Use the local emulator as a fallback when a feature needs interactive driving or screenshots beyond the automated scenarios.
 
 ```bash
 $RPMCTL launch            # boots this worktree's emulator, builds if needed, installs, opens Capture
@@ -61,7 +78,7 @@ $RPMCTL state files/companion.json            # what the app actually saved
 
 - `tap` finds the element in the visible WebView by exact accessible name (then substring), scrolls it into view if needed, and taps its centre with `adb shell input tap`. Ambiguous names fail and list candidates; add `--role` or `--nth`. Native views (system dialogs, permission prompts, legacy screens) use `--native "Text"`.
 - `type` commits text to the focused field like an IME (`--adb` for raw key events, ASCII only).
-- `display large-text|max-text|landscape|wide|phone` changes the emulator's text scale or size. Check every changed screen at `phone` and `large-text`; use `max-text` when the change touches layout that can wrap.
+- `display landscape|wide|phone` changes the emulator's size. `phone` is the user's S24 FE at One UI default text (384dp wide, density 450, 100% text). Check every changed screen at `phone`. Larger text sizes are not a target.
 - `open widget-capture|widget-voice` sends the intents the home-screen widget's pill and mic send. The widget's planner icon and `PlannerActivity` are not exported, so the planner is only reachable through the app's own UI.
 - `eval` is for reading page state. Drive with `tap`/`type`/`key` so the proof follows the user's path.
 
@@ -76,7 +93,7 @@ Proof standards:
 - Exercise the user's path: launcher or widget intent, then taps and typing. No internal setters, no `eval` that changes state, no desktop-browser substitute.
 - Capture the action and the result: a shot before and after, not only the final screen.
 - Verify side effects: read `state files/companion.json` (or `shared_prefs/...`) after a save, and show the exact stored value.
-- Check the changed screen at `phone` and `large-text` (and `max-text` for wrapping layouts). Name the display in the shot label.
+- Check the changed screen at `phone`. Name the display in the shot label.
 - Run `logs --errors` after a drive; a page error or crash fails the proof even if the screen looks right.
 - Model-backed paths (Capture sorting, Jev, Suggest a Purpose) need an OpenRouter key, which the emulator does not have. Without a key, prove the keyless behavior (words saved, "Connect" offered) and mark the model path **UNVERIFIED**.
 - The emulator is not Samsung One UI. Samsung keyboard, battery limits, audible alarms and real launcher widget placement stay **UNVERIFIED** until checked on the phone.
@@ -107,7 +124,7 @@ Cleanup releases the lease after the emulator exits. `cleanup --keep-emulator` r
 
 ## A physical phone
 
-`--serial <adb-serial>` points `doctor`, `ui`, `shot`, `logs` and `state` at another device read-only (for example the S24 FE over wireless debugging). Every command that changes a device refuses any device `rpmctl` did not launch. Installing on the phone is a release step: follow `docs/testing.md` and the release rule in `AGENTS.md`, and only when the user asked for it.
+`--serial <adb-serial>` points `doctor`, `ui`, `shot`, `logs` and `state` at another device read-only (for example the S24 FE over wireless debugging). Mutating commands require an emulator that rpmctl launched or explicitly adopted with `launch --attach` on Linux. Physical phones stay read-only to this tool. Installing on the phone is a release step: follow `docs/testing.md` and the release rule in `AGENTS.md`, and only when the user asked for it.
 
 ## Gotchas
 

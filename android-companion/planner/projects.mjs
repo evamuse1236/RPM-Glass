@@ -1,6 +1,7 @@
 /** Projects list and Project detail. Lists summarise; Block cards appear only one level down. */
 import {tasks} from '../planner-state.mjs';
-import {el, icon, button, labelButton, emptyState, progress, areaDot, sectionHeader} from './dom.mjs';
+import {el, icon, button, iconButton, labelButton, emptyState, sectionHeader} from './dom.mjs';
+import {segmentRing, nestRings} from './rings.mjs';
 import {plural, doneStats} from './format.mjs';
 import {openMenu} from './menu.mjs';
 import {blockCard, purposePanel, notesPanel, titleField, finishDetail, byDeadline, factRow, progressRing} from './blocks.mjs';
@@ -12,21 +13,54 @@ function projectTasks(app, project) {
   return {blocks, rows, stats: doneStats(rows)};
 }
 
+/** One Block's tasks done of total. */
+function blockStats(app, block) {
+  return doneStats(tasks(app.data()).filter(task => task.blockId === block.id));
+}
+
+/** Opens and closes a card's Block list in place; only one card is open at a time. */
+export function toggleProject(state, id) {
+  state.projectOpen = state.projectOpen === id ? null : id;
+  return state.projectOpen;
+}
+
+function blockRow(app, block) {
+  const {done, total} = blockStats(app, block);
+  const row = button('', () => app.openBlock(block.id), 'project-block');
+  row.dataset.key = 'project-block:' + block.id;
+  row.append(segmentRing(done, total), el('span', 'project-block-name', block.title),
+    el('span', 'project-block-count tnum', `${done}/${total}`));
+  row.setAttribute('aria-label', `${block.title}, ${done} of ${plural(total, 'task')} done. Open Block`);
+  return row;
+}
+
 function projectCard(app, project) {
   const area = app.projectArea(project);
   const {blocks, stats} = projectTasks(app, project);
-  const card = button('', () => app.openProject(project.id), 'project-card');
+  const ordered = byDeadline(app.data(), blocks);
+  const open = app.state.projectOpen === project.id;
+  const card = el('article', 'project-card' + (open ? ' open' : ''));
   card.dataset.projectId = project.id;
   card.dataset.tone = app.tone(area);
-  const eyebrow = el('span', 'eyebrow');
-  eyebrow.append(areaDot(app.tone(area)), el('span', '', area?.title ?? 'No area'));
-  card.append(eyebrow, el('span', 'card-title', project.title));
-  card.append(el('span', 'card-purpose', project.purpose || 'Add a Purpose for this Project'));
-  if (stats.total) card.append(progress(stats.done, stats.total, `${stats.done} of ${stats.total} tasks done`));
-  const meta = [plural(blocks.length, 'Block'), stats.total ? `${stats.done} of ${plural(stats.total, 'task')} done` : '']
-    .filter(Boolean).join(' · ');
-  card.append(el('span', 'card-meta tnum', meta));
-  card.setAttribute('aria-label', `Project: ${project.title}. ${meta}. Open Project`);
+  const meta = `${plural(blocks.length, 'Block')} · ${stats.done} of ${stats.total} done`;
+  const toggle = button('', () => { toggleProject(app.state, project.id); app.render(); }, 'project-toggle');
+  toggle.setAttribute('aria-expanded', String(open));
+  toggle.setAttribute('aria-label', `${project.title}, ${area?.title ?? 'No area'}. ${meta}. ${open ? 'Hide' : 'Show'} Blocks`);
+  const copy = el('span', 'project-copy');
+  copy.append(el('span', 'project-area', area?.title ?? 'No area'), el('span', 'card-title', project.title),
+    el('span', 'card-meta tnum', meta));
+  toggle.append(nestRings(ordered.map(block => blockStats(app, block)), `${stats.done} of ${stats.total} tasks done`), copy);
+  const head = el('div', 'project-head');
+  head.append(toggle, iconButton('chevron_right', `Open ${project.title}`, () => app.openProject(project.id),
+    {cls: 'project-open'}));
+  card.append(head);
+  if (open) {
+    const list = el('div', 'project-blocks');
+    list.dataset.key = 'project-blocks:' + project.id;
+    for (const block of ordered) list.append(blockRow(app, block));
+    if (!ordered.length) list.append(el('p', 'quiet', 'No Blocks in this Project yet.'));
+    card.append(list);
+  }
   return card;
 }
 

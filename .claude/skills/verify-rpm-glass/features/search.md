@@ -36,7 +36,6 @@ Preconditions:
 - **Empty.** Type `volcano`. The page shows `No matches` and `Try another word.`
 - **Clear.** Run `rpmctl tap --role button --name "Clear search"`. The field is empty, the shortcuts return, and the clear button is hidden.
 - **Leave.** Run `rpmctl tap --role button --name "Back"` or `rpmctl key back`. The root screen returns.
-- **Large text.** Run `rpmctl display large-text`, search `RM`, `rpmctl shot search-large-text`, then `rpmctl display phone`. Result rows must wrap without hiding their Block name.
 - **Errors.** Run `rpmctl logs --errors`.
 
 ## Gotchas

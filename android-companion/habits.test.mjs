@@ -5,7 +5,8 @@ import {bodyOf, defaultMealPlan} from './body-store.mjs';
 import {editPlan} from './planner-state.mjs';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {WATER_STEPS, GLASS_SIZES, stepWater, everyText} from './body-state.mjs';
-import {TIME_GRID, timeChips, nextHalfHour, dayChips, REPEAT_CHIPS, repeatLabel} from './planner/task-values.mjs';
+import {TIME_GRID, timeChips, nextHalfHour, dayChips, repeatLabel} from './planner/task-values.mjs';
+import {REPEAT_PRESETS} from './planner/task-tabs-model.mjs';
 
 const DAY = '2026-10-19';
 const at = time => new Date(`${DAY}T${time}`);
@@ -100,7 +101,7 @@ test('the Day row is Today, Tomorrow and five weekdays; a picked date outside th
   assert.equal(dayChips(DAY, '2026-10-21').length, 7);
 });
 
-test('the Repeat chip says Weekdays while the task row still says Every weekday', () => {
-  assert.equal(REPEAT_CHIPS.find(([value]) => value === 'weekdays')[1], 'Weekdays');
+test('the Repeat preset says Weekdays while the task row still says Every weekday', () => {
+  assert.equal(REPEAT_PRESETS.find(([value]) => value === 'weekdays')[1], 'Weekdays');
   assert.equal(repeatLabel({recurrence: 'weekdays'}), 'Every weekday');
 });

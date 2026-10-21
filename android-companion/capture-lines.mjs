@@ -28,16 +28,23 @@ function fact(symbol,now,before=null,cls=''){
  return chip;
 }
 
-/** Fixed order: day, time, length, Block, alert. A move shows the old value struck before the new one. */
+/** Fixed order: day, time, repeat, length, Block, alert. A move shows the old value struck before the new one. */
 export function factsOf(row){
  const now=splitWhen(row.when),was=row.was?splitWhen(row.was):{day:null,time:null};
  const list=[];
  if(now.day||was.day)list.push(fact('event',now.day??'No date',row.was?was.day??'No date':null));
  if(now.time||was.time)list.push(fact('schedule',now.time??'No time',row.was?was.time??'No time':null));
+ if(row.repeat)list.push(fact('repeat',row.repeat));
  if(row.minutes)list.push(fact('timer',captureDuration(row.minutes)));
  if(row.where)list.push(fact(row.where==='Inbox'?'inbox':'stacks',row.where));
  if(row.alert)list.push(fact(row.alert==='alarm'?'alarm':'notifications',row.alert==='alarm'?'Alarm':'Reminder'));
  return list;
+}
+
+export function rowFacts(row){
+ const facts=factsOf(row);
+ if(row.must){const must=el('li','fact fact-must');must.append(icon('star',{fill:true}),el('span','fact-now','Must'));facts.unshift(must);}
+ return facts;
 }
 
 export function line(row){
@@ -49,8 +56,7 @@ export function line(row){
  const body=el('div','line-body');
  body.append(el('p','line-title',row.title||'Untitled'));
  if(row.renamedFrom)body.append(el('s','line-was',row.renamedFrom));
- const facts=factsOf(row);
- if(row.must){const must=el('li','fact fact-must');must.append(icon('star',{fill:true}),el('span','fact-now','Must'));facts.unshift(must);}
+ const facts=rowFacts(row);
  if(facts.length){const list=el('ul','facts');list.append(...facts);body.append(list);}
  item.append(glyph,body);
  return item;

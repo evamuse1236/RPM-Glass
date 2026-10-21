@@ -1,6 +1,13 @@
 const APPEARANCES=new Set(['system','light','dark']);
 const DAY_LAYOUTS=new Set(['day','list']);
+export const BAR_TRANSPARENCY=Object.freeze({min:0,max:60,step:5,initial:20});
 const key=name=>'rpm-clarity:'+name;
+const barTransparency=value=>{
+  const n=Number(value);
+  if(value===null||value===''||!Number.isFinite(n))return BAR_TRANSPARENCY.initial;
+  const stepped=Math.round(n/BAR_TRANSPARENCY.step)*BAR_TRANSPARENCY.step;
+  return Math.min(BAR_TRANSPARENCY.max,Math.max(BAR_TRANSPARENCY.min,stepped));
+};
 const defaultStorage=()=>{try{return globalThis.localStorage;}catch{return null;}};
 
 function read(storage,name,fallback){try{return storage?.getItem(key(name))??fallback;}catch{return fallback;}}
@@ -11,7 +18,7 @@ export function clarityPreferences(storage=defaultStorage()){
   return {
     appearance:APPEARANCES.has(appearance)?appearance:'system',
     dayLayout:DAY_LAYOUTS.has(dayLayout)?dayLayout:'day',
-    solidNavigation:true
+    barTransparency:barTransparency(read(storage,'bar-transparency',null))
   };
 }
 
@@ -19,7 +26,9 @@ export function applyClarityPreferences(preferences=clarityPreferences(),root=gl
   if(!root)return preferences;
   if(preferences.appearance==='system')delete root.dataset.appearance;
   else root.dataset.appearance=preferences.appearance;
-  root.dataset.solidNavigation='true';
+  root.style?.setProperty('--bar-fill',`${100-preferences.barTransparency}%`);
+  root.dataset.barGlass=String(preferences.barTransparency>0);
+  root.dataset.barThin=String(preferences.barTransparency>30);
   return preferences;
 }
 
@@ -27,9 +36,10 @@ export function setClarityPreference(name,value,{storage=defaultStorage(),root=g
   const current=clarityPreferences(storage),next={...current};
   if(name==='appearance')next.appearance=APPEARANCES.has(value)?value:'system';
   else if(name==='today-layout')next.dayLayout=DAY_LAYOUTS.has(value)?value:'day';
-  else if(name==='solid-navigation')next.solidNavigation=true;
+  else if(name==='bar-transparency')next.barTransparency=barTransparency(value);
   else return current;
-  write(storage,name,name==='solid-navigation'?String(next.solidNavigation):next[name==='today-layout'?'dayLayout':'appearance']);
+  const stored={appearance:next.appearance,'today-layout':next.dayLayout,'bar-transparency':String(next.barTransparency)};
+  write(storage,name,stored[name]);
   applyClarityPreferences(next,root);
   return next;
 }
@@ -62,6 +72,35 @@ function themeDialog(document,current,onChoose){
   return dialog;
 }
 
+/** Settings → Bar transparency: a slider with a live sample of the tab bar over a task row. */
+function transparencyRow(document,current,onChange){
+  const wrap=element(document,'div','settings-slider bar-transparency');
+  const head=element(document,'div','settings-slider-head');
+  const label=element(document,'label','','Tab bar transparency');
+  label.htmlFor='bar-transparency';
+  const shown=value=>value?`${value}%`:'Solid';
+  const output=element(document,'output','settings-value tnum',shown(current));
+  head.append(label,output);
+  const slider=element(document,'input','fact-slider');
+  Object.assign(slider,{id:'bar-transparency',type:'range',min:String(BAR_TRANSPARENCY.min),max:String(BAR_TRANSPARENCY.max),step:String(BAR_TRANSPARENCY.step),value:String(current)});
+  slider.setAttribute('aria-valuetext',shown(current));
+  const sample=element(document,'div','bar-sample');
+  sample.setAttribute('aria-hidden','true');
+  for(const [tone,title] of [[0,'Group call: merge sections'],[2,'Past paper 2019, section B']]){
+    const line=element(document,'span','bar-sample-line',title);
+    line.style.setProperty('--tone',`var(--area-${tone})`);
+    sample.append(line);
+  }
+  sample.append(element(document,'span','bar-sample-bar','Today   Blocks   Projects   Life'));
+  slider.addEventListener('input',()=>{
+    const applied=onChange(slider.value);
+    output.textContent=shown(applied);
+    slider.setAttribute('aria-valuetext',shown(applied));
+  });
+  wrap.append(head,slider,element(document,'small','','How much of the page shows through the tab bar.'),sample);
+  return wrap;
+}
+
 /** Adds local planner display choices to the existing native-backed Settings destination. */
 export function mountClaritySettings(host,{storage=defaultStorage(),root=globalThis.document?.documentElement}={}){
   const document=host.ownerDocument;
@@ -81,6 +120,10 @@ export function mountClaritySettings(host,{storage=defaultStorage(),root=globalT
     copy.append(element(document,'strong','','Theme'),value);
     choice.append(copy);
     section.append(choice);
+    section.append(transparencyRow(document,preferences.barTransparency,value=>{
+      preferences=setClarityPreference('bar-transparency',value,{storage,root});
+      return preferences.barTransparency;
+    }));
     choice.addEventListener('click',()=>{
       const dialog=themeDialog(document,preferences.appearance,next=>{
         preferences=setClarityPreference('appearance',next,{storage,root});

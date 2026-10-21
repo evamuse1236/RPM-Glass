@@ -8,7 +8,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
- * The island's links into the planner: Log meal, Open plan and a task's sheet. Glass, Done and alert changes save in
+ * The island's links into the planner: the meal row, Open, a task's sheet and water's sheet. Glass, Done and alert changes save in
  * place (NotchChanges); only these open the planner. Every action writes one diagnostics event (and a logcat line).
  */
 final class NotchActions {
@@ -24,6 +24,16 @@ final class NotchActions {
         } catch (JSONException | RuntimeException e) {
             log(c, "notch.log_meal", "error", payload("error", e.getClass().getSimpleName()));
             Log.e(NotchController.TAG, "could not open the meal log", e);
+        }
+    }
+
+    static void openWater(Context c) {
+        try {
+            planner(c, new JSONObject().put("view", "water"));
+            log(c, "notch.open_water", "opened", null);
+        } catch (JSONException | RuntimeException e) {
+            log(c, "notch.open_water", "error", payload("error", e.getClass().getSimpleName()));
+            Log.e(NotchController.TAG, "could not open water in the planner", e);
         }
     }
 
@@ -71,7 +81,11 @@ final class NotchActions {
 
     /** CLEAR_TOP without SINGLE_TOP recreates an open planner, so it always reads the new target. */
     private static void planner(Context c, JSONObject target) {
-        c.startActivity(new Intent(c, PlannerActivity.class).setAction("com.rpm.notch.open").putExtra("plannerTarget", target.toString())
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
+        c.startActivity(plannerIntent(c, target, "com.rpm.notch.open"));
+    }
+
+    static Intent plannerIntent(Context c, JSONObject target, String action) {
+        return new Intent(c, PlannerActivity.class).setAction(action).putExtra("plannerTarget", target.toString())
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
     }
 }

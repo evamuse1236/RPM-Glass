@@ -2,6 +2,7 @@ import {el,icon,button} from './capture-dom.mjs';
 import {scheduleText} from './capture-content.mjs';
 import {actionPresentation} from './capture-session.mjs';
 import {line,lines,tally} from './capture-lines.mjs';
+import {attachSwipe} from './task-swipe.mjs';
 
 const ENTITY={task:'Task',block:'Block',project:'Project',goal:'Goal',area:'Area',draft:'Draft'};
 const KEEPABLE=new Set(['idea','preference','question']);
@@ -106,6 +107,8 @@ export function receiptCard(capture,{canUndo,on}){
  const rows=draft.lines?.length?draft.lines:[{verb:'Saved',title:capture.raw}];
  node.append(kicker(draft.confirm==='kept'?'Kept':tally(rows),{name:'check_circle',tone:'done'}));
  node.append(lines(rows));
+ if(capture.reply&&!capture.reply.startsWith('Draft ready to review.'))node.append(answerText(capture.reply));
+ appendReceiptHelp(node,draft,on);
  if(draft.applied?.warning)node.append(warnLine(draft.applied.warning));
  const also=alsoHeard(capture,on);
  if(also)node.append(also);
@@ -128,12 +131,23 @@ export function confirmCard(capture,{canUndo,on}){
  const count=draft.lines?.length??0;
  node.append(kicker(draft.mode==='plan'?'Plan applied. Keep it?':count>1?`${count} changes made. Keep them?`:'Changed. Keep it?',{name:'edit_note',tone:'change'}));
  node.append(lines(draft.lines??[]));
- if(capture.reply&&draft.mode==='plan')node.append(el('p','card-text',capture.reply));
+ if(capture.reply&&!capture.reply.startsWith('Draft ready to review.'))node.append(el('p','card-text',capture.reply));
+ appendReceiptHelp(node,draft,on);
  if(draft.applied?.warning)node.append(warnLine(draft.applied.warning));
  node.append(words(capture.raw));
  node.append(actionsRow(canUndo?button('Undo',()=>on.undo(draft),{role:'text',iconName:'undo'}):el('span','quiet','Changed since; Undo is in the planner.'),
   button('Keep',()=>on.keep(draft),{role:'filled',iconName:'check'})));
  return node;
+}
+
+function appendReceiptHelp(node,draft,on){
+ const help=draft.nextStep;if(!help)return;
+ if(help.text)node.append(el('p','quiet',help.text));
+ if(help.action){
+  const chips=el('div','chips'),chip=el('button','chip',help.label);
+  chip.type='button';chip.addEventListener('click',()=>on.action(help.action));
+  chips.append(chip);node.append(chips);
+ }
 }
 
 export function undoneCard(capture,on){
@@ -188,8 +202,9 @@ export function openCard(capture,on){
  if(answers.length){
   const chips=el('div','chips');
   for(const a of answers){
-   const chip=el('button','chip',a.label);
+   const chip=el('button','chip');
    chip.type='button';
+   chip.append(icon(answerIcon(draft.question?.field)),el('span','',a.label));
    chip.addEventListener('click',()=>on.action(a.action));
    chips.append(chip);
   }
@@ -200,21 +215,35 @@ export function openCard(capture,on){
  return node;
 }
 
-/** "Which one?": the question, the words it answers, and one chip per choice. A tap answers it with no model call. */
+/** The choice a right swipe on an open question picks: the first one the card offers; none once it is answered. */
+export const swipeChoice=q=>q?.actions?.[0]??null;
+/** The 18px icon before each "Which one?" chip: what choosing it does. */
+export const choiceIcon=action=>({remove:'delete',complete:'check_circle'})[action]??'arrow_forward';
+/** The 18px icon before each answer chip of a field question: the kind of value it sets. */
+export const answerIcon=field=>({time:'schedule',minutes:'timer',blockId:'target',recurrence:'repeat',alert:'notifications',title:'edit'})[field]??'chat_bubble';
+
+/**
+ * "Which one?": the question, the words it answers, and one chip per choice, each led by what choosing does. A tap
+ * answers it with no model call; a right swipe on the card answers with the first chip, outlined so the pick is visible.
+ */
 export function questionCard(capture,on){
  const q=capture.clarification,node=card('question');
  node.append(kicker(NEED.question,{name:'help',tone:'change'}),el('p','card-title',q.prompt));
  if(capture.draft?.lines?.length)node.append(lines(capture.draft.lines));
  node.append(words(capture.raw));
  const chips=el('div','chips');
+ const first=swipeChoice(q);
  for(const a of q.actions){
-  const chip=el('button','chip',a.label);
+  const chip=el('button','chip');
   chip.type='button';
   chip.setAttribute('aria-label',`Choose ${a.label}`);
+  if(a===first)chip.classList.add('chip-first');
+  chip.append(icon(choiceIcon(q.action)),el('span','',a.label));
   chip.addEventListener('click',()=>on.choose(a.action));
   chips.append(chip);
  }
  node.append(chips);
+ if(first)attachSwipe(node,{right:{kind:'choose',word:first.label,symbol:choiceIcon(q.action),run:()=>on.choose(first.action)}});
  return node;
 }
 

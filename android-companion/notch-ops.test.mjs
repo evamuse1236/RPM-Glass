@@ -92,16 +92,16 @@ function plannerCallers(source) {
   for (const line of source.split('\n')) {
     const head = line.match(/^\s+(?:@Override\s+)?(?:public |private |static |final )*(?:void|boolean|[A-Z]\w*) (\w+)\(.*\{\s*$/);
     if (head) method = head[1];
-    if (/NotchActions\.(openTask|logMeal)\(|startActivity\(/.test(line)) callers.push(method);
+    if (/NotchActions\.(openTask|logMeal|openWater)\(|startActivity\(/.test(line)) callers.push(method);
   }
   return callers;
 }
 
-test('only Log meal, Open, Open plan and the long press open the planner; Glass, Done, alert changes and Undo save in place', () => {
-  assert.deepEqual(plannerCallers(java('NotchController')).sort(), ['logMeal', 'openHero', 'openManaged', 'openPlan']);
+test('only Log meal, Open, the task island\'s words and a long press on a drop open the planner; Glass, Done, alert changes and Undo save in place', () => {
+  assert.deepEqual(plannerCallers(java('NotchController')).sort(), ['holdDrop', 'holdDrop', 'logMeal', 'openHero', 'openManaged']);
   assert.deepEqual(plannerCallers(java('NotchAlerting')), ['openTask']);
   assert.deepEqual(plannerCallers(java('NotchChanges')), []);
   assert.deepEqual(plannerCallers(java('NotchRunner')), []);
   const planner = java('NotchActions').match(/static void (\w+)\(Context c[^)]*\) \{[^]*?\n {4}\}/g).filter(m => /planner\(c,/.test(m));
-  assert.deepEqual(planner.map(m => m.match(/static void (\w+)/)[1]), ['logMeal', 'openTask']);
+  assert.deepEqual(planner.map(m => m.match(/static void (\w+)/)[1]), ['logMeal', 'openWater', 'openTask']);
 });

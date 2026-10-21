@@ -1,13 +1,14 @@
 /* RPM planner: Material 3 in the style of Google's own apps (Tasks, Calendar, Keep).
    Built only on the roles, type, shape and motion tokens in theme.css.
-   Layers: 1 layout · 2 app bar, navigation, FAB, snackbar · 3 components · 4 screens · 5 sheets, menus, dialogs
+   Layers: 1 layout · 2 app bar, navigation, snackbar · 3 components · 4 screens · 5 sheets, menus, dialogs
    · 6 settings · 7 large text and reduced motion. CSS px are Android dp. */
 
 /* ---------- 1. Layout ---------- */
 :root {
+  /* the strip between the floating tab bar and the screen's bottom edge (more where the gesture area needs it) */
+  --nav-gap: max(var(--s4), calc(env(safe-area-inset-bottom, 0px) + var(--s2)));
   --top-bar: 64px;
   --nav: 80px;
-  --fab-size: 56px;
   --hour: 96px;
   --ruler: 56px;
   --gutter: 16px;
@@ -44,8 +45,12 @@ h1, h2, h3, p { margin: 0; }
   overscroll-behavior: contain;
   scroll-padding-top: var(--s4);
 }
-.page { padding: 0 0 calc(var(--fab-size) + 40px); max-width: 720px; margin: 0 auto; }
-#planner[data-fab=false] .page { padding-bottom: var(--s8); }
+/* The page ends above the floating tab bar (--nav-measured: its height plus its gap to the screen's edge). */
+.page { padding: 0 0 calc(var(--nav-measured, var(--nav)) + var(--s4)); max-width: 720px; margin: 0 auto; }
+#planner:has(> #nav-bar[hidden]) .page { padding-bottom: var(--s8); }
+#planner[data-habit=true] .page { padding-bottom: calc(var(--nav-measured, var(--nav)) + var(--touch) + var(--s3) + var(--s4)); }
+/* While a snackbar shows, the page ends above it too, so the last row can always scroll clear of it. */
+#planner[data-snackbar=true] .page { padding-bottom: calc(var(--nav-measured, var(--nav)) + var(--snackbar-h, 48px) + var(--s8)); }
 /* Weekly review: a focused full-height route; the review scrolls its own body. */
 #planner[data-view=review] #planner-scroll { overflow: hidden; }
 #planner[data-view=review] #workspace { height: 100%; }
@@ -70,13 +75,12 @@ h1, h2, h3, p { margin: 0; }
   background: var(--surface);
   transition: background-color var(--dur-medium) var(--ease-standard);
 }
-#planner[data-scrolled=true] .top-bar { background: var(--surface-container); }
+#planner[data-scrolled=true] .top-bar, #planner[data-view=today] .top-bar { background: var(--surface-container); }
 .detail-bar, .search-bar { padding-left: var(--s1); }
 .top-title {
   flex: 1;
   min-width: 0;
   font: var(--headline-medium);
-  font-weight: 450;
   letter-spacing: -.01em;
   overflow-wrap: anywhere;
 }
@@ -94,7 +98,7 @@ h1, h2, h3, p { margin: 0; }
 .detail-bar .top-title { opacity: 0; transition: opacity var(--dur-short) var(--ease-standard); }
 #planner[data-title-out=true] .detail-bar .top-title,
 #planner[data-view=settings] .detail-bar .top-title { opacity: 1; }
-.top-actions { display: flex; align-items: center; flex: none; }
+.top-actions { display: flex; align-items: center; flex: none; margin-inline-start: auto; }
 
 .icon-btn {
   min-width: var(--touch);
@@ -117,59 +121,84 @@ h1, h2, h3, p { margin: 0; }
 }
 .icon-btn:active::before, .icon-btn:hover::before { opacity: .1; }
 
-/* ---------- Navigation bar (pill indicator) ---------- */
+/* ---------- Navigation bar: a floating tab bar, 16dp in from the edges, one sliding pill ---------- */
 #nav-bar {
-  flex: none;
+  position: absolute;
+  z-index: 11;
+  inset-inline: var(--inset-page);
+  inset-block-end: var(--nav-gap);
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  min-height: var(--nav);
-  padding: var(--s3) var(--s2) calc(var(--s4) + env(safe-area-inset-bottom));
-  background: var(--surface-container);
+  min-block-size: 64px;
+  padding: calc(var(--s2) - 1px); /* 8dp from the bar's outer edge, inside its 1px border */
+  border: 1px solid var(--float-border);
+  border-radius: var(--shape-full);
+  background: var(--float-surface);
+  box-shadow: var(--float-shadow);
+  touch-action: pan-y;
+}
+/* Glass, as in T3 Code's composer: Settings → Bar transparency sets --bar-fill (100% is solid). */
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  :root[data-bar-glass=true] #nav-bar {
+    border-color: var(--glass-border);
+    background: color-mix(in srgb, var(--float-surface) var(--bar-fill, 100%), transparent);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-bar-glass=true] #nav-bar { background: var(--float-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+:root[data-keyboard=open] :is(#nav-bar, #now-host, #dock) { display: none; }
+/* Content scrolls under the bar. The strip below the bar shows nothing; the page fades back in over the bar's
+   lower half when the bar is solid, and within 8dp when it is glass, so the page shows through the glass. */
+:root:not([data-keyboard=open]) #planner:has(> #nav-bar:not([hidden])) #planner-scroll {
+  scroll-padding-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4));
+  -webkit-mask-image: linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--bar-fade, var(--s8))));
+  mask-image: linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--bar-fade, var(--s8))));
+}
+:root[data-bar-glass=true] { --bar-fade: var(--s2); }
+/* A clearer bar blurs more, so its labels stay readable over busy rows. */
+:root[data-bar-thin=true] { --glass-blur: 24px; --glass-saturate: 1; }
+/* While a snackbar shows, a row scrolled into view also clears the snackbar (its height and a 16dp gap). */
+:root:not([data-keyboard=open]) #planner[data-snackbar=true]:has(> #nav-bar:not([hidden])) #planner-scroll {
+  scroll-padding-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4) + var(--snackbar-h, 48px) + var(--s4));
 }
 .nav-item {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--s1);
-  min-height: var(--touch);
+  justify-content: center;
+  gap: 2px;
+  min-block-size: var(--touch);
   color: var(--on-surface-variant);
 }
-.nav-pill {
-  min-width: 64px;
-  min-height: 32px;
-  border-radius: var(--shape-full);
-  display: grid;
-  place-items: center;
-  transition: background-color var(--dur-medium) var(--ease-emphasized);
-}
+.nav-pill { display: grid; place-items: center; }
 .nav-label { font: var(--label-medium); text-align: center; }
 .nav-item[aria-current=page] { color: var(--on-surface); }
-.nav-item[aria-current=page] .nav-label { font-weight: 700; }
-.nav-item[aria-current=page] .nav-pill { background: var(--secondary-container); color: var(--on-secondary-container); }
-.nav-item:active .nav-pill { background: color-mix(in srgb, var(--on-surface) 10%, transparent); }
-
-/* ---------- FAB: primary-container rounded square ---------- */
-#fab-host {
+.nav-item[aria-current=page] .nav-pill { color: var(--on-secondary-container); }
+.nav-item[aria-current=page] .nav-label { color: var(--on-surface); }
+.nav-item:active { scale: .97; }
+.nav-item:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--r-control); }
+/* The one active pill (48 × 64, a capsule inside the capsule bar) slides to the tab under it. shell.mjs places it. */
+.nav-indicator {
   position: absolute;
-  right: var(--s4);
-  bottom: calc(var(--nav-measured, var(--nav)) + var(--s4));
-  z-index: 10;
-  /* The FAB makes room for the snackbar on the snackbar's own timing: in with it, out with it. */
-  transition: transform var(--dur-short3) var(--ease-emphasized-accelerate);
+  inset-block: calc(var(--s2) - 1px);
+  inset-inline-start: 0;
+  inline-size: var(--pill-w, 64px);
+  border-radius: var(--shape-full);
+  background: var(--secondary-container);
+  translate: var(--pill-x, 0px) 0;
+  pointer-events: none;
 }
-#planner[data-snackbar=true] #fab-host { transform: translateY(-64px); transition: transform var(--dur-medium1) var(--ease-emphasized-decelerate); }
-.fab { transition: transform var(--dur-medium) var(--ease-emphasized), opacity var(--dur-short) var(--ease-standard); }
-#planner[data-fab-aside=true] .fab { transform: scale(.4); opacity: 0; pointer-events: none; }
-.fab {
-  width: var(--fab-size);
-  height: var(--fab-size);
-  border-radius: var(--shape-lg);
-  background: var(--primary-container);
-  color: var(--on-primary-container);
-  box-shadow: var(--elev-3);
+#nav-bar:not([data-placed]) .nav-indicator { visibility: hidden; }
+@media (prefers-reduced-motion: no-preference) {
+  .nav-item { transition: scale var(--dur-press) var(--ease-standard); }
+  #nav-bar[data-placed] .nav-indicator { transition: translate var(--dur-medium1) var(--ease-emphasized), inline-size var(--dur-medium1) var(--ease-emphasized); }
+  #nav-bar[data-dragging] .nav-indicator { transition-duration: 60ms; }
 }
-.fab .ms { font-size: 26px; }
-.fab::before { inset: 0; }
 
 /* ---------- Snackbar ---------- */
 #snackbar {
@@ -177,7 +206,7 @@ h1, h2, h3, p { margin: 0; }
   z-index: 40;
   left: var(--s4);
   right: var(--s4);
-  bottom: calc(var(--nav-measured, var(--nav)) + var(--s3));
+  bottom: calc(var(--nav-measured, var(--nav)) + var(--s4));
   max-width: 560px;
   margin: 0 auto;
   min-height: 48px;
@@ -185,16 +214,17 @@ h1, h2, h3, p { margin: 0; }
   align-items: center;
   gap: var(--s2);
   padding: var(--s1) var(--s2) var(--s1) var(--s4);
-  border-radius: var(--shape-xs);
+  border-radius: var(--r-control);
   background: var(--inverse-surface);
   color: var(--inverse-on-surface);
-  box-shadow: var(--elev-3);
+  box-shadow: var(--float-shadow);
   font: var(--body-medium);
   overflow: hidden; /* the ticker's words slide inside the bar */
 }
 #planner[data-view=settings] ~ #snackbar, #planner[data-view=search] ~ #snackbar { bottom: var(--s4); }
+#planner[data-habit=true] ~ #sheet[hidden] ~ #snackbar { right: calc(var(--inset-page) + var(--fab) + var(--s3)); }
 /* The review pins its own button footer, so the snackbar sits above it. */
-#planner[data-view=review] ~ #snackbar { bottom: calc(var(--s4) + 72px); }
+#planner[data-view=review] ~ #snackbar { bottom: calc(var(--s4) + var(--key-text)); }
 /* While a sheet is open the snackbar docks just above the sheet's action bar and the sheet's content ends above it:
    the body's bottom margin grows by the snackbar's height plus a 12dp gap, quicker than the bar rises (150ms, so the
    content's edge is always above the bar), and the content's last 16dp fade, so it reads as a scroll edge, never as
@@ -204,7 +234,7 @@ h1, h2, h3, p { margin: 0; }
 /* Leaving with the sheet: the bar settles to its resting place on the sheet's exit timing. */
 #snackbar { transition: bottom var(--dur-short4) var(--ease-emphasized-accelerate); }
 #planner:not([data-view=settings], [data-view=search], [data-view=review]) ~ #sheet[inert]:not([hidden]) ~ #snackbar {
-  bottom: calc(var(--nav-measured, var(--nav)) + var(--s3)); }
+  bottom: calc(var(--nav-measured, var(--nav)) + var(--s4)); }
 .sheet-body { transition: margin-bottom var(--dur-short4) var(--ease-emphasized-accelerate); }
 #planner[data-snackbar=true] ~ #sheet .sheet-body {
   margin-bottom: calc(var(--snackbar-h, 48px) + var(--s2) + var(--s3));
@@ -238,13 +268,13 @@ h1, h2, h3, p { margin: 0; }
 .overline {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s1);
   font: var(--label-medium);
   letter-spacing: .05em;
   text-transform: uppercase;
   color: var(--on-surface-variant);
 }
-.overline .ms { font-size: 18px; }
+.overline .ms { font-size: 20px; }
 .quiet { color: var(--on-surface-variant); font: var(--body-medium); padding: var(--s2) var(--gutter); }
 
 /* Buttons */
@@ -267,7 +297,7 @@ h1, h2, h3, p { margin: 0; }
 .outlined-btn { border: 1px solid var(--outline); color: var(--primary); }
 .text-btn { color: var(--primary); padding: 0 var(--s3); }
 .text-btn.danger { color: var(--error); }
-.filled-btn .ms, .tonal-btn .ms, .outlined-btn .ms, .text-btn .ms { font-size: 18px; margin-left: -4px; }
+.filled-btn .ms, .tonal-btn .ms, .outlined-btn .ms, .text-btn .ms { font-size: 20px; margin-left: -4px; }
 .tonal-btn.small { min-height: 32px; padding: 0 var(--s3) 0 var(--s2); font: var(--label-medium); }
 .wide { display: flex; width: calc(100% - 2 * var(--gutter)); margin: var(--s4) var(--gutter); }
 .grow { flex: 1; }
@@ -311,7 +341,7 @@ h1, h2, h3, p { margin: 0; }
 }
 .filter-chip::after, .assist-chip::after { content: ""; position: absolute; inset: -8px 0; }
 .filter-chip.dropdown { padding-right: var(--s2); }
-.filter-chip .ms, .assist-chip .ms { font-size: 18px; }
+.filter-chip .ms, .assist-chip .ms { font-size: 20px; }
 .assist-chip { padding-left: var(--s2); }
 .filter-chip.on, .filter-chip[aria-pressed=true], .assist-chip.on, .assist-chip[aria-pressed=true] {
   background: var(--secondary-container);
@@ -334,7 +364,7 @@ h1, h2, h3, p { margin: 0; }
   color: var(--on-surface);
 }
 button.list-item:active { background: var(--row-press); }
-.list-item.nested { padding-left: calc(var(--gutter) + 40px); min-height: 48px; }
+.list-item.nested { padding-left: var(--key-text); min-height: 48px; }
 .list-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .list-headline { font: var(--body-large); overflow-wrap: anywhere; }
 .list-supporting { font: var(--body-medium); color: var(--on-surface-variant); overflow-wrap: anywhere; }
@@ -355,7 +385,7 @@ button.list-item:active { background: var(--row-press); }
 [data-tone=area-2] { --tone: var(--area-2); } [data-tone=area-3] { --tone: var(--area-3); }
 [data-tone=area-4] { --tone: var(--area-4); } [data-tone=area-5] { --tone: var(--area-5); }
 [data-tone=area-6] { --tone: var(--area-6); } [data-tone=area-7] { --tone: var(--area-7); }
-.area-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--tone); flex: none; }
+.area-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tone); flex: none; }
 .avatar {
   width: 40px;
   height: 40px;

@@ -1,17 +1,18 @@
-/** Today's head: the date, the next seven days and one line on where the week's plan stands. */
+/** Today's head: a band with the big date and the next seven days (with one line on the week's plan in the list layout). */
 import {localDay, shiftDay, blockDue} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
 import {weekStart, reviewWeek, weekFocus, resultStatus} from '../review-state.mjs';
 import {reducedMotion, DURATION, EASE} from '../surface-motion.mjs';
 import {lockAxis, LONG_PRESS} from '../task-swipe.mjs';
-import {el, icon, button, iconButton, labelButton, emptyState} from './dom.mjs';
+import {el, icon, button, labelButton, emptyState} from './dom.mjs';
 import {clock, longDate, plural, dateText} from './format.mjs';
 import {openSheet} from './sheet.mjs';
 import {taskWhen, taskRow} from './task-row.mjs';
 import {phrase, sep} from './today-row.mjs';
 import {openResults, clashes} from './today-model.mjs';
 
-const SELECTED = '.day-page .week-strip .week-day[aria-pressed=true] .week-number';
+const SELECTED = '.week-strip .week-day[aria-pressed=true] .week-number';
+const MAX_DOTS = 5;
 const dayGap = (from, to) => Math.round((Date.parse(to + 'T12:00') - Date.parse(from + 'T12:00')) / 864e5);
 /** The first day of the strip that shows `day`: seven days running forward from today, a week at a time. */
 export const stripStart = (day, today = localDay()) => shiftDay(today, 7 * Math.floor(dayGap(today, day) / 7));
@@ -22,7 +23,7 @@ export const stripStart = (day, today = localDay()) => shiftDay(today, 7 * Math.
  */
 export function selectDay(app, day, direction = '') {
   const before = app.dom.work.querySelector(SELECTED);
-  const target = app.dom.work.querySelector(`.day-page .week-strip .week-day[data-day="${day}"] .week-number`);
+  const target = app.dom.work.querySelector(`.week-strip .week-day[data-day="${day}"] .week-number`);
   const from = before?.getBoundingClientRect();
   const color = target && getComputedStyle(target).color;
   const keepHead = !!before && stripStart(day) === stripStart(app.state.day);
@@ -39,9 +40,10 @@ export function selectDay(app, day, direction = '') {
 export const dueDay = (data, block) => blockDue(data, block.id)?.value?.slice(0, 10);
 
 /**
- * Seven days running forward from today, as far ahead as Dara plans; swiping steps a week. A day holding Results'
- * deadlines shows the hourglass with their count when more than one, a day with a calendar clash the clash mark, other
- * days with tasks a dot. Tapping a day opens it, and its deadlines and clash are listed at the top.
+ * Seven days running forward from today, as far ahead as Dara plans; swiping steps a week. Each day shows one dot per
+ * task in its Area's colour (up to five), after the hourglass for Results' deadlines (with their count when more than
+ * one) and the clash mark. Today's number sits in a filled circle. Tapping a day opens it, and its deadlines and clash
+ * are listed at the top.
  */
 function weekStrip(app) {
   const {day, calendar} = app.state;
@@ -74,12 +76,15 @@ function weekStrip(app) {
     if (due) marks.append(icon('hourglass_bottom', {fill: true, cls: 'day-due'}));
     if (due > 1) marks.append(el('span', 'day-count tnum', String(due)));
     if (clash) marks.append(icon('event_busy', {cls: 'day-clash'}));
-    if (!due && !clash) {
-      const model = dayTasks(data, key);
-      if (model.active.length || model.completed.length) marks.append(el('span', 'day-dot'));
+    const {active, completed} = dayTasks(data, key);
+    for (const task of [...active, ...completed].slice(0, MAX_DOTS - marks.children.length)) {
+      const dot = el('span', 'day-dot');
+      dot.dataset.tone = app.tone(app.context(task).area);
+      marks.append(dot);
     }
+    marks.setAttribute('aria-hidden', 'true');
     cell.append(
-      el('span', 'week-letter', date.toLocaleDateString([], {weekday: 'narrow'})),
+      el('span', 'week-letter', date.toLocaleDateString([], {weekday: 'short'})),
       el('span', 'week-number tnum', String(date.getDate())),
       marks,
     );
@@ -154,21 +159,33 @@ function daySheet(app, day) {
   actions.append(button('Open day', () => { app.closeSheet(); selectDay(app, day); }, 'filled-btn'));
 }
 
-export function dateHeader(app, week) {
+/** "20. October 2026 ›": the day, the month, and the year in the accent colour with the picker's chevron. */
+function dateWords(day) {
+  const date = new Date(day + 'T12:00');
+  const words = el('span', 'date-words', `${date.getDate()}. ${date.toLocaleDateString([], {month: 'long'})} `);
+  words.append(el('span', 'date-year', `${date.getFullYear()} ›`));
+  return words;
+}
+
+export function dateHeader(app, week = null) {
   const {day} = app.state;
   const header = el('div', 'day-header');
   const line = el('div', 'date-line');
   const picker = button('', () => app.actions.datePicker(), 'date-button');
-  picker.append(el('span', '', longDate(day)), icon('arrow_drop_down'));
+  picker.append(dateWords(day));
   picker.setAttribute('aria-label', 'Choose date, ' + longDate(day));
   line.append(picker);
   if (day !== localDay()) line.append(labelButton('today', 'Today', () => selectDay(app, localDay()), 'tonal-btn small'));
-  const list = app.state.dayLayout === 'list';
-  line.append(iconButton(list ? 'view_day' : 'view_agenda', list ? 'Show day' : 'Show list',
-    () => app.actions.setDayLayout(list ? 'day' : 'list'), {cls: 'layout-toggle'}));
   header.append(line, weekStrip(app));
   if (week) header.append(week);
   return header;
+}
+
+/** The rounded sheet that overlaps the date band; Today's content goes in it. */
+export function todaySheet() {
+  const sheet = el('div', 'today-sheet');
+  sheet.dataset.key = 'today-sheet';
+  return sheet;
 }
 
 const weekName = (week, month = 'long') => 'week of ' + new Date(week + 'T12:00').toLocaleDateString([], {month, day: 'numeric'});

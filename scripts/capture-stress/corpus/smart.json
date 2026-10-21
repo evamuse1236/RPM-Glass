@@ -1,0 +1,618 @@
+[
+  {
+    "id": "smart-bare-in-five",
+    "tags": [
+      "smart",
+      "short-reminder"
+    ],
+    "turns": [
+      {
+        "text": "set a reminder in 5"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "Reminder"
+          ],
+          "day": "2026-10-19",
+          "time": "10:05",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-remind-in-five",
+    "tags": [
+      "smart",
+      "short-reminder"
+    ],
+    "turns": [
+      {
+        "text": "remind me in 5"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "Reminder"
+          ],
+          "day": "2026-10-19",
+          "time": "10:05",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-mom-five",
+    "tags": [
+      "smart",
+      "short-reminder"
+    ],
+    "turns": [
+      {
+        "text": "set a reminder in 5 mins to call mom"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "call",
+            "mom"
+          ],
+          "day": "2026-10-19",
+          "time": "10:05",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-alarm-ten",
+    "tags": [
+      "smart",
+      "short-reminder"
+    ],
+    "turns": [
+      {
+        "text": "alarm in 10"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "Alarm"
+          ],
+          "day": "2026-10-19",
+          "time": "10:10",
+          "alert": "alarm"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-bare-at-six",
+    "tags": [
+      "smart",
+      "short-reminder"
+    ],
+    "turns": [
+      {
+        "text": "remind me at 6"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "Reminder"
+          ],
+          "alert": "reminder",
+          "day": "2026-10-19",
+          "time": "18:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-water-twenty",
+    "tags": [
+      "smart",
+      "short-reminder"
+    ],
+    "turns": [
+      {
+        "text": "in 20 minutes remind me to drink water"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "drink",
+            "water"
+          ],
+          "day": "2026-10-19",
+          "time": "10:20",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-tomorrow-morning",
+    "tags": [
+      "smart",
+      "short-reminder"
+    ],
+    "turns": [
+      {
+        "text": "reminder tomorrow morning"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "Reminder"
+          ],
+          "day": "2026-10-20",
+          "time": null,
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-wake-seven",
+    "tags": [
+      "smart",
+      "short-reminder"
+    ],
+    "turns": [
+      {
+        "text": "wake me up at 7"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "wake"
+          ],
+          "alert": "alarm",
+          "day": "2026-10-20",
+          "time": "07:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-hinglish-five",
+    "tags": [
+      "smart",
+      "short-reminder"
+    ],
+    "turns": [
+      {
+        "text": "5 min baad yaad dilana"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "Reminder"
+          ],
+          "day": "2026-10-19",
+          "time": "10:05",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-explicit-hours",
+    "tags": [
+      "smart",
+      "short-reminder"
+    ],
+    "turns": [
+      {
+        "text": "set a reminder in 2 hours"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "Reminder"
+          ],
+          "day": "2026-10-19",
+          "time": "12:00",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-clock-mom",
+    "tags": [
+      "smart",
+      "round2",
+      "bare-clock"
+    ],
+    "turns": [
+      {
+        "text": "remind me at 6 to call mom"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "call",
+            "mom"
+          ],
+          "day": "2026-10-19",
+          "time": "18:00",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-clock-tomorrow",
+    "tags": [
+      "smart",
+      "round2",
+      "bare-clock"
+    ],
+    "turns": [
+      {
+        "text": "remind me tomorrow at 6 to call mom"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "call",
+            "mom"
+          ],
+          "day": "2026-10-20",
+          "time": "18:00",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-clock-wake",
+    "tags": [
+      "smart",
+      "round2",
+      "bare-clock"
+    ],
+    "turns": [
+      {
+        "text": "wake me up tomorrow at 6"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "wake"
+          ],
+          "day": "2026-10-20",
+          "time": "06:00",
+          "alert": "alarm"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-clock-task",
+    "tags": [
+      "smart",
+      "round2",
+      "bare-clock"
+    ],
+    "turns": [
+      {
+        "text": "Read the atlas tomorrow at nine"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "read",
+            "atlas"
+          ],
+          "day": "2026-10-20",
+          "time": "09:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-clock-dinner",
+    "tags": [
+      "smart",
+      "round2",
+      "bare-clock"
+    ],
+    "turns": [
+      {
+        "text": "remind me tomorrow at 9 to cook dinner"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "cook",
+            "dinner"
+          ],
+          "day": "2026-10-20",
+          "time": "21:00",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-clock-noon",
+    "tags": [
+      "smart",
+      "round2",
+      "bare-clock"
+    ],
+    "turns": [
+      {
+        "text": "remind me tomorrow at 12 to call mom"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "call",
+            "mom"
+          ],
+          "day": "2026-10-20",
+          "time": "12:00",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-clock-half",
+    "tags": [
+      "smart",
+      "round2",
+      "bare-clock"
+    ],
+    "turns": [
+      {
+        "text": "remind me at 6:30 to call mom"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "call",
+            "mom"
+          ],
+          "day": "2026-10-19",
+          "time": "18:30",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-clock-morning-run",
+    "tags": [
+      "smart",
+      "round2",
+      "bare-clock"
+    ],
+    "turns": [
+      {
+        "text": "remind me tomorrow at 5 to run"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "run"
+          ],
+          "day": "2026-10-20",
+          "time": "05:00",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-clock-after-work",
+    "tags": [
+      "smart",
+      "round2",
+      "bare-clock"
+    ],
+    "turns": [
+      {
+        "text": "remind me tomorrow at 7 to call mom after work"
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "entity": "task",
+          "words": [
+            "call",
+            "mom"
+          ],
+          "day": "2026-10-20",
+          "time": "19:00",
+          "alert": "reminder"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "smart-clock-edit",
+    "tags": [
+      "smart",
+      "round2",
+      "bare-clock"
+    ],
+    "turns": [
+      {
+        "text": "Move Call Raj to 7"
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [
+        {
+          "entity": "task",
+          "id": "101",
+          "kind": "update",
+          "day": "2026-10-19",
+          "time": "19:00"
+        }
+      ],
+      "unchanged": []
+    }
+  }
+]

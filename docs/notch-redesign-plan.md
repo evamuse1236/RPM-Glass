@@ -20,7 +20,7 @@ This section wins over any size below it.
 - Concentric rule: an inner shape's radius = 36 − its inset. At the 16dp inset that is 20dp: the leading circle (40dp), the alarm Stop (40dp), Undo and every button (40dp tall, radius 20).
 - Rows sit in a −8dp outer margin so their pressed shape reaches 8dp from the edge. Rows are 44dp tall and fully round (22).
 - Band: leading circle at (16, 16), trailing element right-aligned at 16dp, all centred on the band's middle line. Gap band → title 12dp; title → controls 16dp; between rows 0.
-- Two controls (alert islands): two equal pills side by side, 8dp gap, the primary first and filled with its accent at 30% into black; the secondary is white 8%. One control (open island): one full-width pill.
+- Two controls (alert islands): two equal pills side by side, 8dp gap, the primary first and filled with its accent, its label the accent 22% into black (the alarm's Stop: `#F2B8B5` with `#601410`); the secondary is white 8%. One control (open island): one full-width pill.
 - Every 40dp control has a 48dp touch area.
 - Pill: height 36, radius 18, ring 28 inset 4 (18 − 4 = 14 = the ring's radius).
 - Reference mock: `docs/mocks/notch-redesign.html`.
@@ -55,7 +55,7 @@ sp scales; dp does not. Pill value caps at `h − 12`dp tall; min width grows wi
 
 ## 6. Tests
 
-`NotchSceneTest`: pillValueDropsAmPmWithinTwelveHours, ringProgressPerKind, heroHasOnePrimaryControlNeverDisabled, islandAlwaysOffersGlass. `IslandShapeTest`: innerRadiusIsOuterMinusPadding, pillMinWidthIs112. `NotchFrameTest`: bandBesideCameraHoldsRingAndValue, sharedRingAndValueTravelOnOpen, reducedMotionFadesInsteadOfMoves, rollingDigitsMoveOnlyChangedDigits, reminderNeverSaysAlarm, receiptReplacesBandAndKeepsRows. `rpmctl scenario max-text-reflow` with the notch open, alert and receipt.
+`NotchSceneTest`: pillValueDropsAmPmWithinTwelveHours, ringProgressPerKind, heroHasOnePrimaryControlNeverDisabled, islandAlwaysOffersGlass. `IslandShapeTest`: innerRadiusIsOuterMinusPadding, pillMinWidthIs112. `NotchFrameTest`: bandBesideCameraHoldsRingAndValue, sharedRingAndValueTravelOnOpen, reducedMotionFadesInsteadOfMoves, rollingDigitsMoveOnlyChangedDigits, reminderNeverSaysAlarm, receiptReplacesBandAndKeepsRows. Screenshots at `rpmctl display phone` with the notch open, alert and receipt.
 
 ## Decisions on the plan's open questions
 

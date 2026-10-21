@@ -8,6 +8,7 @@ import {reducedMotion, waitMotion} from '../surface-motion.mjs';
 import {el, icon, button} from './dom.mjs';
 import {commitInPlace} from './inline-edit.mjs';
 import {clock, duration, dayName} from './format.mjs';
+import {repeatLabel} from './task-values.mjs';
 export {dayName};
 
 const REPEAT_NAMES = {daily: 'Daily', weekdays: 'Weekdays', weekly: 'Weekly'};
@@ -21,7 +22,7 @@ export function taskWhen(task) {
 
 export function isOverdue(task, when = taskWhen(task)) {
   if (task.done) return false;
-  if (when) return when + (task.minutes ?? 30) * 60000 < Date.now();
+  if (when) return when + (task.minutes ?? 0) * 60000 < Date.now();
   return !!task.plannedDate && task.plannedDate < localDay();
 }
 
@@ -43,7 +44,8 @@ function supportingLine(task, options) {
   else if (day) parts.push(day);
   else if (!when && options.anytime) parts.push('Anytime');
   if (task.minutes != null) parts.push(duration(task.minutes));
-  const rule = task.repeatAfterDays ? 'After completion' : REPEAT_NAMES[task.recurrence];
+  const rule = task.repeatAfterDays ? 'After completion'
+    : task.recurrence === 'days' ? repeatLabel(task).replace(/^Every /, '') : REPEAT_NAMES[task.recurrence];
   if (rule) parts.push(rule);
   if (options.context) parts.push(options.context);
   const text = parts.join(' · ');
@@ -100,7 +102,7 @@ export function taskRow(app, task, options = {}) {
   // What the row's handlers act on: a re-render may keep this very node (and its running animations) in place of an
   // identical rebuilt row only when this matches (see animateRerender).
   row.__closure = JSON.stringify([task.id, task.title, !!task.done, task.occurrence ?? null, task.planned ?? null,
-    task.plannedDate ?? null, task.recurrence ?? null, task.repeatAfterDays ?? null, task.blockId ?? null, !!task.must]);
+    task.plannedDate ?? null, task.recurrence ?? null, task.repeatDays ?? null, task.repeatAfterDays ?? null, task.blockId ?? null, !!task.must]);
   row.__options = options;
   return row;
 }

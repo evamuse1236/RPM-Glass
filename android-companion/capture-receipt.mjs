@@ -1,11 +1,30 @@
 import {scheduleText} from './capture-content.mjs';
 import {draftTitle,alertOf} from '../intent-v2/src/context.mjs';
+import {repeatLabel} from './planner/task-values.mjs';
+import {describeLink} from './capture-context.mjs';
 
 const VERB={create:{tasks:'Added',blocks:'New Block',projects:'New Project',goals:'New Goal',areas:'New Area'},complete:'Done',delete:{tasks:'Moved to Trash'},restore:'Restored',reopen:'Reopened'};
 const rows=(data,collection)=>collection==='tasks'?data.entries??[]:data.planner?.[collection]??[];
 const whenOf=row=>row?scheduleText(row.planned?{planned:row.planned}:row.plannedDate?{plannedDate:row.plannedDate}:null,{}):null;
 const blockTitle=(data,id)=>id?(data.planner?.blocks??[]).find(b=>String(b.id)===String(id))?.title??null:null;
 const COLLECTION={task:'tasks',block:'blocks',project:'projects',goal:'goals',area:'areas'};
+
+const repeatOf=row=>row?.recurrence||row?.repeatAfterDays?repeatLabel(row):null;
+
+export function pendingRow({id=null,title='',planned=null,plannedDate=null,minutes=null,alert=null,recurrence=null,repeatAfterDays=null,must=false,where=null,tone=null}){
+ return {verb:'Added',entity:'task',id,title,when:whenOf(planned||plannedDate?{planned,plannedDate}:null),was:null,where,tone,
+  alert:alert==='off'?null:alert,minutes,repeat:repeatOf({recurrence,repeatAfterDays}),must:must===true,renamedFrom:null};
+}
+
+export function previewRows(data,operations=[],schedule=null){
+ return operations.filter(op=>op.kind==='create'&&op.entity==='task').map(op=>{
+  const value=name=>op.fields.find(f=>f.name===name&&f.op==='set')?.value??null;
+  const item=schedule?.items?.find(i=>i.opId===op.opId),timed=item&&item.status!=='review';
+  const blockId=value('blockId'),block=blockId&&!String(blockId).startsWith('$')?describeLink(data,'blockId',blockId):null;
+  return pendingRow({id:op.opId,title:value('title')??'',planned:timed?item.planned:null,plannedDate:timed?item.plannedDate:null,minutes:value('minutes'),
+   alert:value('alert'),recurrence:value('recurrence'),repeatAfterDays:value('repeatAfterDays'),must:value('must'),where:block?.title??'Inbox',tone:block?.tone??null});
+ });
+}
 
 /** What a change saved before it applied, so a Keep card can say "from → to". Read just before the commit. */
 export function beforeRows(data,draft){
@@ -49,7 +68,8 @@ export function receiptLines(data,draft){
   const where=entity==='task'&&(change.type==='create'||verb==='Moved'&&old?.blockId!==row?.blockId)?blockTitle(data,row?.blockId)??'Inbox':null;
   const alert=entity==='task'&&change.type!=='delete'?alertOf(row):null;
   const minutes=entity==='task'&&change.type==='create'?row?.minutes??null:null;
-  return {verb,entity,id:change.id,title:row?.title??change.title??old?.title??'',when,was,where,alert,minutes,must:row?.must===true,renamedFrom:verb==='Renamed'?old?.title??null:null};
+  const repeat=entity==='task'&&change.type==='create'?repeatOf(row):null;
+  return {verb,entity,id:change.id,title:row?.title??change.title??old?.title??'',when,was,where,alert,minutes,repeat,must:row?.must===true,renamedFrom:verb==='Renamed'?old?.title??null:null};
  }),...parked,...(draft?.receipt?.removedProposals??[]).map(p=>({verb:'Removed from draft',entity:p.entity,id:p.opId,title:p.title,when:null,was:null,where:null,alert:null,minutes:null,must:false,renamedFrom:null}))];
 }
 

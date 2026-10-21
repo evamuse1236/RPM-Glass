@@ -103,7 +103,7 @@
   align-items: flex-start;
   gap: var(--s2);
   margin-block: var(--s3) var(--s2);
-  padding-inline-start: 56px;
+  padding-inline-start: var(--key-icon-text);
   font: var(--body-medium);
   color: var(--on-surface-variant);
 }

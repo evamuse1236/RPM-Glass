@@ -22,5 +22,29 @@ test('the clock guard accepts the parser\'s stated morning, noon and spoken cloc
 
 test('a part of day on another action cannot authorize an invented clock',()=>{
  const words='Read tomorrow at nine. Walk in the evening at 7pm.';
- assert.throws(()=>validateIntentTimes(turn('tomorrow 9pm','tomorrow at nine'),{input:input(words)}),/Time precision/);
+ const parsed=turn('tomorrow 9pm','tomorrow at nine');
+ validateIntentTimes(parsed,{input:input(words)});
+ assert.equal(parsed.operations[0].fields[0].value,'2026-10-04T03:30:00.000Z');
+ assert.equal(parsed.operations[0].fields[0].inference.rule,'stated-day-waking');
+});
+
+test('a day correction may repeat only a verified unchanged saved clock',()=>{
+ const words='no, I meant Thursday',i=input(words);
+ i.context.entities=[{entity:'task',id:'7',title:'Book a haircut',savedLocalDate:'2026-10-04',startLocal:'2026-10-04 16:00'}];
+ const correction=()=>({...turn('Thursday at 4 pm',words),operations:[{opId:'op1',sourceId:'s0',kind:'update',entity:'task',targetId:'7',fields:[{name:'time',op:'set',value:'Thursday at 4 pm',origin:'stated',evidence:words,sourceMessageId:'m1'}]}]});
+ const parsed=correction();
+ assert.doesNotThrow(()=>validateIntentTimes(parsed,{input:i}));
+ assert.equal(parsed.operations[0].fields[0].value,words);
+ const changed=correction();changed.operations[0].fields[0].value='Thursday at 5 pm';
+ assert.throws(()=>validateIntentTimes(changed,{input:i}),{code:'UNSUPPORTED_TIME'});
+ const explicit=input('Thursday at 5 pm');explicit.context.entities=i.context.entities;
+ const wrong=correction();wrong.operations[0].fields[0].evidence='Thursday at 5 pm';
+ assert.throws(()=>validateIntentTimes(wrong,{input:explicit}),{code:'UNSUPPORTED_TIME'});
+});
+
+test('a newly stated bare clock cannot inherit the saved AM/PM through a day-only quotation',()=>{
+ const words='Thursday at 4',i=input(words);
+ i.context.entities=[{entity:'task',id:'7',title:'Book haircut',savedLocalDate:'2026-10-04',startLocal:'2026-10-04 04:00'}];
+ const parsed={...turn('Thursday at 4 am','Thursday'),operations:[{opId:'op1',sourceId:'s0',kind:'update',entity:'task',targetId:'7',fields:[{name:'time',op:'set',value:'Thursday at 4 am',origin:'stated',evidence:'Thursday',sourceMessageId:'m1'}]}]};
+ assert.throws(()=>validateIntentTimes(parsed,{input:i}),{code:'UNSUPPORTED_TIME'});
 });

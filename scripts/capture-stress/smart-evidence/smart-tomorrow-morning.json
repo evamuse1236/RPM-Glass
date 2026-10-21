@@ -1,0 +1,506 @@
+{
+  "id": "smart-tomorrow-morning",
+  "before": {
+    "pass": false,
+    "failures": [
+      {
+        "type": "lost item",
+        "detail": "Missing task title containing Reminder in saved state"
+      },
+      {
+        "type": "repeated question",
+        "detail": "A question was asked when no clarification was allowed"
+      }
+    ],
+    "turns": [
+      {
+        "words": "reminder tomorrow morning",
+        "modelCalls": [
+          {
+            "route": "quick",
+            "output": {
+              "schemaVersion": 1,
+              "mode": "capture",
+              "draftMode": "new",
+              "reply": "Tomorrow morning is open for a reminder, but I need the time to set it.",
+              "decisions": [
+                {
+                  "sourceId": "s0",
+                  "disposition": "action",
+                  "note": null
+                }
+              ],
+              "operations": [
+                {
+                  "opId": "op1",
+                  "sourceId": "s0",
+                  "kind": "create",
+                  "entity": "task",
+                  "targetId": null,
+                  "fields": [
+                    {
+                      "name": "title",
+                      "op": "set",
+                      "value": "Reminder",
+                      "origin": "suggested",
+                      "evidence": null
+                    },
+                    {
+                      "name": "time",
+                      "op": "unknown",
+                      "value": null,
+                      "origin": "stated",
+                      "evidence": "tomorrow morning"
+                    },
+                    {
+                      "name": "alert",
+                      "op": "set",
+                      "value": "reminder",
+                      "origin": "stated",
+                      "evidence": "reminder"
+                    }
+                  ]
+                }
+              ],
+              "question": {
+                "opId": "op1",
+                "field": "time",
+                "prompt": "What time tomorrow morning should I remind you?",
+                "options": [
+                  {
+                    "label": "8 AM",
+                    "value": "tomorrow 8am"
+                  },
+                  {
+                    "label": "9 AM",
+                    "value": "tomorrow 9am"
+                  },
+                  {
+                    "label": "10 AM",
+                    "value": "tomorrow 10am"
+                  }
+                ]
+              },
+              "clarification": null,
+              "memoryCandidates": [],
+              "card": null
+            },
+            "usage": {
+              "input_tokens": 13654,
+              "output_tokens": 381,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 0,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              }
+            },
+            "costUSD": 0.0015559
+          }
+        ],
+        "trace": {
+          "id": "stress-smart-tomorrow-morning-1",
+          "at": "2026-10-19T04:30:00.000Z",
+          "attempts": 1,
+          "latencyMs": 0,
+          "outcome": null,
+          "models": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "effort": "none",
+              "reason": "capture",
+              "attempt": 0,
+              "ms": 2286,
+              "ok": true,
+              "provider": "API transport",
+              "servedModel": "claude-haiku-5-5",
+              "inputTokens": 13654,
+              "outputTokens": 381,
+              "cost": 0.0015559,
+              "service": "anthropic",
+              "input": {
+                "bytes": 7288,
+                "hash": "18045e7840cbd4da",
+                "units": 1,
+                "messageCount": 1,
+                "messages": [
+                  {
+                    "id": "seed-dinner",
+                    "role": "user",
+                    "hash": "d97e9286890ca358"
+                  }
+                ],
+                "focus": null,
+                "question": null,
+                "entityCount": 16,
+                "entityIds": [
+                  "task:102",
+                  "block:block-4",
+                  "project:project-3",
+                  "goal:goal-2",
+                  "task:101",
+                  "task:103",
+                  "task:104",
+                  "task:105",
+                  "task:106",
+                  "block:block-1",
+                  "block:block-2",
+                  "block:block-3",
+                  "block:block-5",
+                  "block:block-6",
+                  "block:block-7",
+                  "block:block-8"
+                ],
+                "truncated": {
+                  "olderMessages": 0,
+                  "droppedMessages": 0,
+                  "clippedMessages": 0,
+                  "entities": 0,
+                  "snapshot": {}
+                },
+                "snapshotHash": "f92151df6c8a5155"
+              }
+            }
+          ],
+          "applied": {
+            "status": "needs-answer",
+            "draftId": "draft-stress-smart-tomorrow-morning-1",
+            "entryIds": []
+          },
+          "errors": []
+        },
+        "result": {
+          "status": "interpreted",
+          "draftId": "draft-stress-smart-tomorrow-morning-1",
+          "applied": {
+            "status": "needs-answer"
+          }
+        },
+        "draft": {
+          "status": "draft",
+          "operations": [
+            {
+              "opId": "op1",
+              "sourceId": "s0",
+              "kind": "create",
+              "entity": "task",
+              "targetId": null,
+              "fields": [
+                {
+                  "name": "title",
+                  "op": "set",
+                  "value": "Reminder",
+                  "origin": "suggested",
+                  "evidence": null,
+                  "sourceMessageId": "stress-smart-tomorrow-morning-1",
+                  "evidenceSourceId": null
+                },
+                {
+                  "name": "time",
+                  "op": "unknown",
+                  "value": null,
+                  "origin": "stated",
+                  "evidence": "tomorrow morning",
+                  "sourceMessageId": "stress-smart-tomorrow-morning-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "alert",
+                  "op": "set",
+                  "value": "reminder",
+                  "origin": "stated",
+                  "evidence": "reminder",
+                  "sourceMessageId": "stress-smart-tomorrow-morning-1",
+                  "evidenceSourceId": "s0"
+                }
+              ],
+              "sourceMessageIds": [
+                "stress-smart-tomorrow-morning-1"
+              ]
+            }
+          ],
+          "question": {
+            "opId": "op1",
+            "field": "time",
+            "prompt": "What time tomorrow morning should I remind you?",
+            "options": [
+              {
+                "label": "8 AM",
+                "value": "tomorrow 8am"
+              },
+              {
+                "label": "9 AM",
+                "value": "tomorrow 9am"
+              },
+              {
+                "label": "10 AM",
+                "value": "tomorrow 10am"
+              }
+            ]
+          },
+          "schedulePreview": {
+            "anchorAt": "2026-10-19T04:30:00.000Z",
+            "timezone": "Asia/Kolkata",
+            "items": []
+          }
+        }
+      }
+    ],
+    "saved": []
+  },
+  "after": {
+    "pass": true,
+    "failures": [],
+    "turns": [
+      {
+        "words": "reminder tomorrow morning",
+        "modelCalls": [
+          {
+            "route": "quick",
+            "output": {
+              "schemaVersion": 1,
+              "mode": "capture",
+              "draftMode": "new",
+              "reply": "A reminder for tomorrow morning, with no clock yet, so I'll keep it as a morning reminder.",
+              "decisions": [
+                {
+                  "sourceId": "s0",
+                  "disposition": "action",
+                  "note": null
+                }
+              ],
+              "operations": [
+                {
+                  "opId": "op1",
+                  "sourceId": "s0",
+                  "kind": "create",
+                  "entity": "task",
+                  "targetId": null,
+                  "fields": [
+                    {
+                      "name": "title",
+                      "op": "set",
+                      "value": "Reminder",
+                      "origin": "suggested",
+                      "evidence": null
+                    },
+                    {
+                      "name": "time",
+                      "op": "set",
+                      "value": "tomorrow morning",
+                      "origin": "stated",
+                      "evidence": "tomorrow morning"
+                    },
+                    {
+                      "name": "alert",
+                      "op": "set",
+                      "value": "reminder",
+                      "origin": "stated",
+                      "evidence": "reminder"
+                    }
+                  ]
+                }
+              ],
+              "question": null,
+              "clarification": null,
+              "memoryCandidates": [],
+              "card": null
+            },
+            "usage": {
+              "input_tokens": 15314,
+              "output_tokens": 288,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 0,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              }
+            },
+            "costUSD": 0.0016754
+          }
+        ],
+        "trace": {
+          "id": "stress-smart-tomorrow-morning-1",
+          "at": "2026-10-19T04:30:00.000Z",
+          "attempts": 1,
+          "latencyMs": 0,
+          "outcome": null,
+          "models": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "effort": "none",
+              "reason": "capture",
+              "attempt": 0,
+              "ms": 1912,
+              "ok": true,
+              "provider": "API transport",
+              "servedModel": "claude-haiku-5-5",
+              "inputTokens": 15314,
+              "outputTokens": 288,
+              "cost": 0.0016754,
+              "service": "anthropic",
+              "input": {
+                "bytes": 7288,
+                "hash": "18045e7840cbd4da",
+                "units": 1,
+                "messageCount": 1,
+                "messages": [
+                  {
+                    "id": "seed-dinner",
+                    "role": "user",
+                    "hash": "d97e9286890ca358"
+                  }
+                ],
+                "focus": null,
+                "question": null,
+                "entityCount": 16,
+                "entityIds": [
+                  "task:102",
+                  "block:block-4",
+                  "project:project-3",
+                  "goal:goal-2",
+                  "task:101",
+                  "task:103",
+                  "task:104",
+                  "task:105",
+                  "task:106",
+                  "block:block-1",
+                  "block:block-2",
+                  "block:block-3",
+                  "block:block-5",
+                  "block:block-6",
+                  "block:block-7",
+                  "block:block-8"
+                ],
+                "truncated": {
+                  "olderMessages": 0,
+                  "droppedMessages": 0,
+                  "clippedMessages": 0,
+                  "entities": 0,
+                  "snapshot": {}
+                },
+                "snapshotHash": "f92151df6c8a5155"
+              },
+              "completion": "short-reminder"
+            }
+          ],
+          "applied": {
+            "status": "applied",
+            "draftId": "draft-stress-smart-tomorrow-morning-1",
+            "entryIds": [
+              107
+            ]
+          },
+          "errors": []
+        },
+        "result": {
+          "status": "interpreted",
+          "draftId": "draft-stress-smart-tomorrow-morning-1",
+          "applied": {
+            "status": "applied",
+            "needsConfirm": false,
+            "warning": null,
+            "undoId": "57f8cacb-a00e-4792-aba9-721df5a1cbc2",
+            "entryIds": [
+              107
+            ],
+            "changes": [
+              {
+                "type": "create",
+                "collection": "tasks",
+                "id": 107,
+                "title": "Reminder"
+              }
+            ]
+          }
+        },
+        "draft": {
+          "status": "committed",
+          "operations": [
+            {
+              "opId": "short-alert",
+              "sourceId": "s0",
+              "kind": "create",
+              "entity": "task",
+              "targetId": null,
+              "fields": [
+                {
+                  "name": "title",
+                  "value": "Reminder",
+                  "evidence": null,
+                  "origin": "suggested",
+                  "op": "set",
+                  "sourceMessageId": "stress-smart-tomorrow-morning-1",
+                  "evidenceSourceId": null
+                },
+                {
+                  "name": "time",
+                  "value": "tomorrow morning",
+                  "evidence": "tomorrow morning",
+                  "origin": "stated",
+                  "op": "set",
+                  "sourceMessageId": "stress-smart-tomorrow-morning-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "alert",
+                  "value": "reminder",
+                  "evidence": "reminder tomorrow morning",
+                  "origin": "stated",
+                  "op": "set",
+                  "sourceMessageId": "stress-smart-tomorrow-morning-1",
+                  "evidenceSourceId": "s0"
+                }
+              ],
+              "sourceMessageIds": [
+                "stress-smart-tomorrow-morning-1"
+              ]
+            }
+          ],
+          "question": null,
+          "schedulePreview": {
+            "anchorAt": "2026-10-19T04:30:00.000Z",
+            "timezone": "Asia/Kolkata",
+            "items": [
+              {
+                "opId": "short-alert",
+                "title": "Reminder",
+                "source": "tomorrow morning",
+                "status": "date_only",
+                "planned": null,
+                "plannedDate": "2026-10-20",
+                "end": null,
+                "minutes": null,
+                "label": "2026-10-20 · time not set",
+                "reason": null,
+                "assumptions": []
+              }
+            ]
+          },
+          "nextStep": {
+            "text": null,
+            "label": "Name it",
+            "action": {
+              "kind": "next-step",
+              "conversationId": "stress",
+              "draftId": "draft-stress-smart-tomorrow-morning-1",
+              "revision": 2,
+              "step": "name",
+              "targetId": "107",
+              "guard": "a6ba1313867320fd"
+            }
+          }
+        }
+      }
+    ],
+    "saved": [
+      {
+        "title": "Reminder",
+        "planned": null,
+        "plannedDate": "2026-10-20",
+        "alert": "reminder",
+        "raw": "reminder tomorrow morning"
+      }
+    ]
+  }
+}

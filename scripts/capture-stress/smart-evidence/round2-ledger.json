@@ -1,0 +1,743 @@
+{
+  "baseline": {
+    "revision": "60fdacd",
+    "fullCorpusPassed": 58,
+    "fullCorpusTotal": 60,
+    "estimatedUSD": 0.4645477,
+    "source": "Round 1 committed report"
+  },
+  "runs": [
+    {
+      "name": "full",
+      "directory": ".verify/capture-smart/round2/full",
+      "revision": "60fdacd0a924cc6153998dc669d68cdd3e8e8b1d",
+      "sourceHash": "70af47ce1cbafe96bee292df785c59eabb4eec20c35059d7d2f685a7276939ce",
+      "corpusHash": "4a86bfde6863a6323c123400cbe6746962e39f1df4f8ca2194b71b455c156ba8",
+      "sourceStable": true,
+      "concurrency": 3,
+      "wallMs": 143705,
+      "passed": 68,
+      "total": 68,
+      "oldCases": {
+        "passed": 60,
+        "total": 60
+      },
+      "newCases": {
+        "passed": 8,
+        "total": 8
+      },
+      "usage": {
+        "input": 1146763,
+        "output": 70771,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.47030489999999986,
+        "calls": 75
+      },
+      "modelCalls": 75,
+      "transportFailures": 0,
+      "usageMissing": 0,
+      "failures": [],
+      "clockCases": [
+        {
+          "id": "smart-bare-at-six",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-wake-seven",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-mom",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-tomorrow",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-wake",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-task",
+          "repeat": 1,
+          "passed": true,
+          "calls": 1
+        },
+        {
+          "id": "smart-clock-dinner",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-noon",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-half",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-morning-run",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        }
+      ]
+    },
+    {
+      "name": "final-full",
+      "directory": ".verify/capture-smart/round2/final-full",
+      "revision": "60fdacd0a924cc6153998dc669d68cdd3e8e8b1d",
+      "sourceHash": "8bfa7c87a42b1566f71dca4ddda2d331e6f7280d8ed63aeba61d88cfffcea593",
+      "corpusHash": "2e49b279b7ec3fa4560ea8b0e9942c74b1352f602311a5dfaedfac5724cf5f4f",
+      "sourceStable": true,
+      "concurrency": 3,
+      "wallMs": 158372,
+      "passed": 68,
+      "total": 70,
+      "oldCases": {
+        "passed": 58,
+        "total": 60
+      },
+      "newCases": {
+        "passed": 10,
+        "total": 10
+      },
+      "usage": {
+        "input": 1193670,
+        "output": 75961,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.5475067999999997,
+        "calls": 78
+      },
+      "modelCalls": 78,
+      "transportFailures": 0,
+      "usageMissing": 0,
+      "failures": [
+        {
+          "id": "focused-delete-first",
+          "repeat": 1,
+          "failures": [
+            {
+              "type": "interpretation rejected",
+              "detail": "Turn 1: INTERPRETATION_FAILED Discard needs an unchanged proposal identity in the focused draft, without field patches"
+            },
+            {
+              "type": "focus lost",
+              "detail": "Focused proposal dinner1 was not removed from the effective draft"
+            }
+          ]
+        },
+        {
+          "id": "thinking-not-permission",
+          "repeat": 1,
+          "failures": [
+            {
+              "type": "repeated question",
+              "detail": "A question was asked when no clarification was allowed"
+            }
+          ]
+        }
+      ],
+      "clockCases": [
+        {
+          "id": "smart-bare-at-six",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-wake-seven",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-mom",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-tomorrow",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-wake",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-task",
+          "repeat": 1,
+          "passed": true,
+          "calls": 1
+        },
+        {
+          "id": "smart-clock-dinner",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-noon",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-half",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-morning-run",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-after-work",
+          "repeat": 1,
+          "passed": true,
+          "calls": 1
+        },
+        {
+          "id": "smart-clock-edit",
+          "repeat": 1,
+          "passed": true,
+          "calls": 2
+        }
+      ]
+    },
+    {
+      "name": "verified-full",
+      "directory": ".verify/capture-smart/round2/verified-full",
+      "revision": "60fdacd0a924cc6153998dc669d68cdd3e8e8b1d",
+      "sourceHash": "904e3a84393db24950d20a2ea523fea574fc1e18707d371fd4f282dd91eb6889",
+      "corpusHash": "2e49b279b7ec3fa4560ea8b0e9942c74b1352f602311a5dfaedfac5724cf5f4f",
+      "sourceStable": true,
+      "concurrency": 3,
+      "wallMs": 139602,
+      "passed": 70,
+      "total": 70,
+      "oldCases": {
+        "passed": 60,
+        "total": 60
+      },
+      "newCases": {
+        "passed": 10,
+        "total": 10
+      },
+      "usage": {
+        "input": 1132505,
+        "output": 70398,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.4066519,
+        "calls": 74
+      },
+      "modelCalls": 74,
+      "transportFailures": 0,
+      "usageMissing": 0,
+      "failures": [],
+      "clockCases": [
+        {
+          "id": "smart-bare-at-six",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-wake-seven",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-mom",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-tomorrow",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-wake",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-task",
+          "repeat": 1,
+          "passed": true,
+          "calls": 1
+        },
+        {
+          "id": "smart-clock-dinner",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-noon",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-half",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-morning-run",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-after-work",
+          "repeat": 1,
+          "passed": true,
+          "calls": 1
+        },
+        {
+          "id": "smart-clock-edit",
+          "repeat": 1,
+          "passed": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "name": "verified-repeat",
+      "directory": ".verify/capture-smart/round2/verified-repeat",
+      "revision": "60fdacd0a924cc6153998dc669d68cdd3e8e8b1d",
+      "sourceHash": "1eafef6627074edac09fb310fa9ce2f59f3778793bd434837615313c569fa159",
+      "corpusHash": "2e49b279b7ec3fa4560ea8b0e9942c74b1352f602311a5dfaedfac5724cf5f4f",
+      "sourceStable": true,
+      "concurrency": 3,
+      "wallMs": 20217,
+      "passed": 60,
+      "total": 60,
+      "oldCases": {
+        "passed": 30,
+        "total": 30
+      },
+      "newCases": {
+        "passed": 30,
+        "total": 30
+      },
+      "usage": {
+        "input": 211946,
+        "output": 4889,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.0950145,
+        "calls": 14
+      },
+      "modelCalls": 14,
+      "transportFailures": 0,
+      "usageMissing": 0,
+      "failures": [],
+      "clockCases": [
+        {
+          "id": "smart-bare-at-six",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-bare-at-six",
+          "repeat": 2,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-bare-at-six",
+          "repeat": 3,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-wake-seven",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-wake-seven",
+          "repeat": 2,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-wake-seven",
+          "repeat": 3,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-mom",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-mom",
+          "repeat": 2,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-mom",
+          "repeat": 3,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-tomorrow",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-tomorrow",
+          "repeat": 2,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-tomorrow",
+          "repeat": 3,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-wake",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-wake",
+          "repeat": 2,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-wake",
+          "repeat": 3,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-task",
+          "repeat": 1,
+          "passed": true,
+          "calls": 2
+        },
+        {
+          "id": "smart-clock-task",
+          "repeat": 2,
+          "passed": true,
+          "calls": 1
+        },
+        {
+          "id": "smart-clock-task",
+          "repeat": 3,
+          "passed": true,
+          "calls": 1
+        },
+        {
+          "id": "smart-clock-dinner",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-dinner",
+          "repeat": 2,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-dinner",
+          "repeat": 3,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-noon",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-noon",
+          "repeat": 2,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-noon",
+          "repeat": 3,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-half",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-half",
+          "repeat": 2,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-half",
+          "repeat": 3,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-morning-run",
+          "repeat": 1,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-morning-run",
+          "repeat": 2,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-morning-run",
+          "repeat": 3,
+          "passed": true,
+          "calls": 0
+        },
+        {
+          "id": "smart-clock-after-work",
+          "repeat": 1,
+          "passed": true,
+          "calls": 2
+        },
+        {
+          "id": "smart-clock-after-work",
+          "repeat": 2,
+          "passed": true,
+          "calls": 1
+        },
+        {
+          "id": "smart-clock-after-work",
+          "repeat": 3,
+          "passed": true,
+          "calls": 1
+        },
+        {
+          "id": "smart-clock-edit",
+          "repeat": 1,
+          "passed": true,
+          "calls": 1
+        },
+        {
+          "id": "smart-clock-edit",
+          "repeat": 2,
+          "passed": true,
+          "calls": 1
+        },
+        {
+          "id": "smart-clock-edit",
+          "repeat": 3,
+          "passed": true,
+          "calls": 1
+        }
+      ]
+    }
+  ],
+  "latency": {
+    "clock": "2026-10-19T16:26:00+05:30",
+    "input": "remind me at 6 to call mom",
+    "before": [
+      {
+        "ms": 12273,
+        "status": "needs-answer",
+        "planned": [],
+        "question": "Is the reminder for 6 AM or 6 PM?",
+        "flip": null,
+        "localInterpretation": null,
+        "timeInferences": [],
+        "models": [
+          {
+            "model": "claude-haiku-5-5",
+            "effort": "none",
+            "ms": 2654,
+            "estimatedUSD": 0.0016436
+          },
+          {
+            "model": "claude-sonnet-5-5",
+            "effort": "high",
+            "ms": 9497,
+            "estimatedUSD": 0.037158
+          }
+        ]
+      },
+      {
+        "ms": 8446,
+        "status": "needs-answer",
+        "planned": [],
+        "question": "Is that 6 AM or 6 PM?",
+        "flip": null,
+        "localInterpretation": null,
+        "timeInferences": [],
+        "models": [
+          {
+            "model": "claude-haiku-5-5",
+            "effort": "none",
+            "ms": 2074,
+            "estimatedUSD": 0.0016707
+          },
+          {
+            "model": "claude-sonnet-5-5",
+            "effort": "high",
+            "ms": 6341,
+            "estimatedUSD": 0.03774
+          }
+        ]
+      },
+      {
+        "ms": 5511,
+        "status": "needs-answer",
+        "planned": [],
+        "question": "Is that 6 AM or 6 PM?",
+        "flip": null,
+        "localInterpretation": null,
+        "timeInferences": [],
+        "models": [
+          {
+            "model": "claude-haiku-5-5",
+            "effort": "none",
+            "ms": 2330,
+            "estimatedUSD": 0.0016432
+          },
+          {
+            "model": "claude-sonnet-5-5",
+            "effort": "high",
+            "ms": 3157,
+            "estimatedUSD": 0.03373
+          }
+        ]
+      }
+    ],
+    "after": [
+      {
+        "ms": 122,
+        "status": "applied",
+        "planned": [
+          "2026-10-19T12:30:00.000Z"
+        ],
+        "question": null,
+        "flip": "Make it 6 AM",
+        "localInterpretation": "short-reminder",
+        "timeInferences": [
+          {
+            "rule": "next-12h",
+            "anchorAt": "2026-10-19T10:56:00.000Z",
+            "timezone": "Asia/Calcutta",
+            "selectedAt": "2026-10-19T12:30:00.000Z",
+            "alternateAt": "2026-10-20T00:30:00.000Z",
+            "selectedLabel": "6 PM",
+            "alternateLabel": "6 AM",
+            "opId": "short-alert",
+            "sourceMessageId": "cli-9f7ede2a-bc2a-4d16-a8a4-cbefedbb0d97"
+          }
+        ],
+        "models": []
+      },
+      {
+        "ms": 33,
+        "status": "applied",
+        "planned": [
+          "2026-10-19T12:30:00.000Z"
+        ],
+        "question": null,
+        "flip": "Make it 6 AM",
+        "localInterpretation": "short-reminder",
+        "timeInferences": [
+          {
+            "rule": "next-12h",
+            "anchorAt": "2026-10-19T10:56:00.000Z",
+            "timezone": "Asia/Calcutta",
+            "selectedAt": "2026-10-19T12:30:00.000Z",
+            "alternateAt": "2026-10-20T00:30:00.000Z",
+            "selectedLabel": "6 PM",
+            "alternateLabel": "6 AM",
+            "opId": "short-alert",
+            "sourceMessageId": "cli-ef6c3a46-5245-432a-bfd9-6e6351bc1f90"
+          }
+        ],
+        "models": []
+      },
+      {
+        "ms": 37,
+        "status": "applied",
+        "planned": [
+          "2026-10-19T12:30:00.000Z"
+        ],
+        "question": null,
+        "flip": "Make it 6 AM",
+        "localInterpretation": "short-reminder",
+        "timeInferences": [
+          {
+            "rule": "next-12h",
+            "anchorAt": "2026-10-19T10:56:00.000Z",
+            "timezone": "Asia/Calcutta",
+            "selectedAt": "2026-10-19T12:30:00.000Z",
+            "alternateAt": "2026-10-20T00:30:00.000Z",
+            "selectedLabel": "6 PM",
+            "alternateLabel": "6 AM",
+            "opId": "short-alert",
+            "sourceMessageId": "cli-b3aacd8a-ad69-4416-9392-835c60db115d"
+          }
+        ],
+        "models": []
+      }
+    ]
+  },
+  "totalModelCalls": 247,
+  "estimatedUSD": 1.6330635999999994
+}

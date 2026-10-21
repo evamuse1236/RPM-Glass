@@ -12,9 +12,7 @@ const EVIDENCE = path.join(WORK, 'evidence');
 const APK = path.join(ROOT, 'app/build/outputs/apk/debug/app-debug.apk');
 const DEFAULTS = {avd: 'Galaxy_S24_FE_API_36', ...defaultPorts(ROOT), gpu: 'host'};
 const DISPLAYS = {
-  phone: {fontScale: '1.0', rotation: 0, size: null, density: null, note: 'S24 FE portrait, default text'},
-  'large-text': {fontScale: '1.3', rotation: 0, size: null, density: null, note: '130% system text'},
-  'max-text': {fontScale: '2.0', rotation: 0, size: null, density: null, note: '200% system text (Android maximum)'},
+  phone: {fontScale: '1.0', rotation: 0, size: null, density: null, note: 'S24 FE portrait at One UI default: 384dp wide (density 450), 100% text'},
   landscape: {fontScale: '1.0', rotation: 1, size: null, density: null, note: 'S24 FE rotated'},
   wide: {fontScale: '1.0', rotation: 0, size: '1600x2560', density: 320, note: '800dp-wide tablet/unfolded width'},
 };
@@ -64,7 +62,7 @@ function target(args, {mutates}) {
   const serial = args.serial ?? state?.serial;
   if (!serial) throw new UserError('No emulator launched by rpmctl.', 'Run `rpmctl launch` (or pass --serial for a read-only look at another device).');
   const owned = !!state && state.serial === serial && devices().some(d => d.serial === serial && d.state === 'device') && ownsEmulator(state, serial);
-  if (mutates && !owned) throw new UserError(`${serial} was not launched by rpmctl (or its emulator has exited); refusing to change it.`,
+  if (mutates && !owned) throw new UserError(`${serial} was not launched or explicitly adopted by rpmctl (or its emulator has exited); refusing to change it.`,
     args.serial ? 'Mutating commands only run on the owned emulator. Drop --serial, or use doctor/ui/shot/logs/state for read-only checks.' : 'Run `rpmctl launch`.');
   if (!devices().some(d => d.serial === serial && d.state === 'device')) throw new UserError(`${serial} is not online in adb.`, owned ? 'Run `rpmctl doctor`; if the emulator hung, `rpmctl cleanup` then `rpmctl launch`.' : 'Connect the device and check `adb devices`.');
   // Each device gets its own DevTools port, so a read-only look at a phone can never redirect a command meant for the emulator.

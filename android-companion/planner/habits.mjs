@@ -92,7 +92,7 @@ export function openHabit(app, id, {body = bodyApi(app), back = null} = {}) {
 }
 
 /** Holding a Today row (water, a meal, a routine) opens its editor. */
-export function holdToEdit(app, node, id) {
-  attachSwipe(node, {hold: () => openHabit(app, id), haptic: () => app.api.native('haptic').catch(() => {})});
+export function holdToEdit(app, node, id, sides = {}) {
+  attachSwipe(node, {...sides, hold: () => openHabit(app, id), haptic: () => app.api.native('haptic').catch(() => {})});
 }
 

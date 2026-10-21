@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:clipToOutline="true"
+    android:background="@drawable/widget_bg">
+
+    <LinearLayout android:id="@+id/next_task" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:orientation="vertical" android:background="@drawable/widget_action" android:contentDescription="@string/widget_next_open">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <FrameLayout android:layout_width="40dp" android:layout_height="40dp">
+                <ImageView android:id="@+id/next_capsule" style="@style/WidgetDayArt" android:layout_width="match_parent" android:layout_height="match_parent"
+                    android:src="@drawable/widget_next_preview_capsule" android:importantForAccessibility="no"/>
+                <ImageView android:id="@+id/next_capsule_night" style="@style/WidgetNightArt" android:layout_width="match_parent" android:layout_height="match_parent"
+                    android:src="@drawable/widget_next_preview_capsule" android:importantForAccessibility="no"/>
+            </FrameLayout>
+            <FrameLayout android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
+            <FrameLayout android:layout_width="36dp" android:layout_height="36dp">
+                <ImageView android:id="@+id/next_ring" style="@style/WidgetDayArt" android:layout_width="match_parent" android:layout_height="match_parent"
+                    android:importantForAccessibility="no"/>
+                <ImageView android:id="@+id/next_ring_night" style="@style/WidgetNightArt" android:layout_width="match_parent" android:layout_height="match_parent"
+                    android:importantForAccessibility="no"/>
+            </FrameLayout>
+        </LinearLayout>
+        <TextView android:id="@+id/next_when" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:maxLines="1" android:ellipsize="end"
+            android:fontFamily="sans-serif-medium" android:textSize="12sp" android:includeFontPadding="false"
+            android:textColor="@color/rpm_primary" android:text="@string/widget_next_preview_when" android:importantForAccessibility="no"/>
+        <TextView android:id="@+id/next_title" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:maxLines="2" android:ellipsize="end"
+            android:fontFamily="sans-serif-medium" android:textSize="15sp" android:lineSpacingExtra="2sp"
+            android:textColor="@color/rpm_on_surface" android:text="@string/widget_next_preview_title" android:importantForAccessibility="no"/>
+    </LinearLayout>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp"
+        android:orientation="horizontal" android:gravity="center_vertical">
+        <FrameLayout android:layout_width="44dp" android:layout_height="44dp" android:id="@+id/next_water" android:padding="2dp"
+            android:background="@drawable/widget_action" android:contentDescription="@string/widget_next_water">
+            <ImageView android:id="@+id/next_water_art" style="@style/WidgetDayArt" android:layout_width="match_parent" android:layout_height="match_parent"
+                android:src="@drawable/widget_next_preview_water" android:importantForAccessibility="no"/>
+            <ImageView android:id="@+id/next_water_art_night" style="@style/WidgetNightArt" android:layout_width="match_parent" android:layout_height="match_parent"
+                android:src="@drawable/widget_next_preview_water" android:importantForAccessibility="no"/>
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
+        <FrameLayout android:id="@+id/next_voice" android:layout_width="44dp" android:layout_height="44dp"
+            android:background="@drawable/widget_mic" android:contentDescription="@string/widget_voice">
+            <ImageView style="@style/WidgetIcon" android:layout_gravity="center"
+                android:src="@drawable/ic_mic" android:tint="@color/rpm_on_surface"/>
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
+        <FrameLayout android:id="@+id/next_add" android:layout_width="44dp" android:layout_height="44dp"
+            android:background="@drawable/widget_add" android:contentDescription="@string/widget_next_add">
+            <ImageView style="@style/WidgetIcon" android:layout_gravity="center"
+                android:src="@drawable/notch_ic_plus" android:tint="@color/rpm_on_primary"/>
+        </FrameLayout>
+    </LinearLayout>
+</LinearLayout>

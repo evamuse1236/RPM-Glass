@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {occurrences,completeTask,repeats} from './planner-recurrence.mjs';
-import {text,title,integer,one,link} from './planner-fields.mjs';
+import {text,title,integer,weekdays,one,link} from './planner-fields.mjs';
 import {REVIEW_VERSION,REVIEW_OPS,migrateReviewData,validateReviewData,forgetBlockInWeeks,keepCompletionTime} from './planner-review-data.mjs';
 import {BODY_OPS,validateBody} from './body-store.mjs';
 
@@ -61,23 +61,27 @@ export function editPlan(data,op,now=new Date()){
     if(op.collection==='areas')for(const g of p.goals)if(g.areaId===op.id)g.areaId=null;
     if(op.collection==='goals')for(const pr of p.projects)if(pr.goalId===op.id)pr.goalId=null;
   }else if(op.type==='saveTask'){
-    const f=op.fields;let e=op.id?one(tasks(next),op.id):{id:Math.max(0,...next.entries.map(e=>e.id))+1,kind:'plan',raw:title(f.title),created:at,state:'active',done:false,archived:false,minutes:30,durationSource:'default_estimate',planned:null,plannedDate:null,alertIntent:{type:null},recurrence:null,revisions:[],source:'planner'};
+    const f=op.fields;let e=op.id?one(tasks(next),op.id):{id:Math.max(0,...next.entries.map(e=>e.id))+1,kind:'plan',raw:text(f.title,200),created:at,state:'active',done:false,archived:false,minutes:null,durationSource:'unknown',planned:null,plannedDate:null,alertIntent:{type:null},recurrence:null,revisions:[],source:'planner'};
     const {revisions:ignoredRevisions,...oldFields}=e;const old=structuredClone(oldFields);
     if('title'in f)e.title=title(f.title);
     for(const k of ['purpose','notes','leverage'])if(k in f)e[k]=text(f[k]??'',k==='notes'?16000:2000);
-    if('minutes'in f){e.minutes=f.minutes==null?null:integer(f.minutes,1,1440);e.durationSource='user_words';}
+    if('minutes'in f){e.minutes=f.minutes==null?null:integer(f.minutes,1,1440);e.durationSource=e.minutes==null?'unknown':'user_words';}
     if('planned'in f){if(f.planned!==null&&(typeof f.planned!=='string'||!Number.isFinite(Date.parse(f.planned))))throw new Error('Choose a valid date and time.');e.planned=f.planned;e.plannedDate=null;}
     if('plannedDate'in f){if(f.plannedDate!==null&&(typeof f.plannedDate!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(f.plannedDate)||!Number.isFinite(Date.parse(f.plannedDate+'T12:00'))))throw new Error('Choose a valid day.');if(e.planned&&f.plannedDate)throw new Error('Use either a scheduled time or a day without a time.');e.plannedDate=f.plannedDate;}
     if('blockId'in f)e.blockId=link(p.blocks,f.blockId);
     if('priority'in f)e.priority=integer(f.priority,1,100000);
     if('must'in f){if(typeof f.must!=='boolean')throw new Error('Must must be on or off.');e.must=f.must;}
     if('done'in f){if(typeof f.done!=='boolean')throw new Error('Invalid completion.');e.done=f.done;e.state=f.done?'done':'active';if(!f.done)e.completedAt=null;}
-    if('alert'in f){if(!['alarm','reminder','off',null].includes(f.alert))throw new Error('Invalid alert.');e.alertIntent={type:f.alert};}
-    if('recurrence'in f){if(![null,'daily','weekly','weekdays'].includes(f.recurrence))throw new Error('Invalid recurrence.');e.recurrence=f.recurrence;}
+    if('alert'in f){if(!['alarm','reminder','off',null].includes(f.alert))throw new Error('Invalid alert.');e.alertIntent={...e.alertIntent,type:f.alert};}
+    if('alertLead'in f)e.alertIntent={type:null,...e.alertIntent,lead:integer(f.alertLead,0,1440)};
+    if('recurrence'in f){if(![null,'daily','weekly','weekdays','days'].includes(f.recurrence))throw new Error('Invalid recurrence.');e.recurrence=f.recurrence;}
+    if('repeatDays'in f)e.repeatDays=f.repeatDays==null?null:weekdays(f.repeatDays);
+    if(e.recurrence==='days'&&!e.repeatDays?.length)throw new Error('Choose the days it repeats on.');
+    if(e.recurrence!=='days'&&'repeatDays'in e)delete e.repeatDays;
     if('repeatAfterDays'in f)e.repeatAfterDays=f.repeatAfterDays==null?null:integer(f.repeatAfterDays,1,365);
     if(e.repeatAfterDays&&e.recurrence)throw new Error('Choose one repeat pattern.');
     if((e.recurrence||e.repeatAfterDays)&&!e.planned)throw new Error('Add the first date and time for a repeating task.');
-    if('planned'in f&&f.planned!==old.planned||'recurrence'in f&&f.recurrence!==old.recurrence)e.completedOccurrences=[];
+    if('planned'in f&&f.planned!==old.planned||'recurrence'in f&&f.recurrence!==old.recurrence||String(e.repeatDays??'')!==String(old.repeatDays??''))e.completedOccurrences=[];
     if(f.done===true){e.done=false;e.state='active';completeTask(e,op.occurrence,now);keepCompletionTime(e,old,at);}
     e.revisions.push({at,reason:'Edited in planner',before:old,snapshot:{title:e.title,planned:e.planned,minutes:e.minutes,blockId:e.blockId,must:e.must,done:e.done}});
     e.revisions=e.revisions.slice(-100);
@@ -145,9 +149,10 @@ export function localDay(date=new Date()){const d=new Date(date);return `${d.get
 export function shiftDay(day,offset){const d=new Date(day+'T12:00:00');d.setDate(d.getDate()+offset);return localDay(d);}
 export function dayRange(day){const start=new Date(day+'T00:00:00');const end=new Date(start);end.setDate(end.getDate()+1);end.setHours(1);return {start:+start,end:+end};}
 export function conflicts(data,start,minutes,calendar=[],excludeId=null){
+  if(minutes==null||minutes===0)return [];
   const a=+new Date(start),b=a+minutes*60000;
   if(!Number.isFinite(a)||!Number.isFinite(b)||minutes<=0)throw new Error('Choose a valid time and duration.');
-  return [...tasks(data).filter(e=>e.id!==excludeId).flatMap(e=>occurrences(e,a,b)),...calendar.filter(e=>e.busy!==false).map(e=>({...e,source:'calendar'}))].filter(e=>a<+e.end&&b>+e.start);
+  return [...tasks(data).filter(e=>e.id!==excludeId).flatMap(e=>occurrences(e,a,b)),...calendar.filter(e=>e.busy!==false).map(e=>({...e,source:'calendar'}))].filter(e=>+e.end>+e.start&&a<+e.end&&b>+e.start);
 }
 export function alternatives(data,start,minutes,calendar=[],excludeId=null){
   const slots=[],anchor=new Date(start);let t=Math.ceil(+anchor/900000)*900000;
@@ -158,7 +163,7 @@ export function alternatives(data,start,minutes,calendar=[],excludeId=null){
 /** Partition overlapping events into lanes so no commitment disappears behind another. */
 export function timelineItems(data,day,calendar=[],minimumVisualMinutes=0){
   const {start,end}=dayRange(day);
-  const rows=[...tasks(data).flatMap(e=>occurrences(e,start,end)),...calendar.map(e=>({...e,source:'calendar'}))].filter(e=>e.start<end&&e.end>start).sort((a,b)=>a.start-b.start||b.end-a.end);
+  const rows=[...tasks(data).flatMap(e=>occurrences(e,start,end)),...calendar.map(e=>({...e,source:'calendar'}))].filter(e=>e.start<end&&(e.end>start||e.start===e.end&&e.start>=start)).sort((a,b)=>a.start-b.start||b.end-a.end);
   const visualEnd=e=>Math.max(e.end,e.start+minimumVisualMinutes*60000);
   let group=[],until=-Infinity;const finish=()=>{const ends=[];for(const e of group){let lane=ends.findIndex(t=>t<=e.start);if(lane<0)lane=ends.length;ends[lane]=visualEnd(e);e.lane=lane;}for(const e of group)e.lanes=ends.length;group=[];};
   for(const e of rows){if(e.start>=until){finish();until=visualEnd(e);}else until=Math.max(until,visualEnd(e));group.push(e);}finish();return rows;

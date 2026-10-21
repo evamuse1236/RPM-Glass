@@ -38,7 +38,6 @@ Preconditions:
 - **Entry rows.** If old entries exist, each row has a content description of the title, kind and time. Tapping a row opens the entry, with `Original input` and `Save changes`. The sample plan has none (unconfirmed), so this is **UNVERIFIED** unless old data is imported.
 - **Settings.** Run `rpmctl tap --native "Settings"`. The older settings page opens. Go back with `rpmctl key back`.
 - **Return.** Run `rpmctl key back` until the planner Settings screen returns. Run `rpmctl shot earlier-back`.
-- **Large text.** Run `rpmctl display large-text`, open the screens, `rpmctl shot earlier-large-text`, then `rpmctl display phone`. In very short windows the bottom navigation switches from stacked to side-by-side labels.
 - **Errors.** Run `rpmctl logs --errors`.
 
 ## Gotchas

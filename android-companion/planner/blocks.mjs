@@ -3,6 +3,16 @@ import {blockTasks, blockDue, localDay} from '../planner-state.mjs';
 import {weekStart, weekFocus, resultStatus, markAchieved} from '../review-state.mjs';
 import {el, icon, button, labelButton, emptyState, areaDot, attrs, sectionHeader} from './dom.mjs';
 import {duration, plural, dateText, dueInfo, timeLeft} from './format.mjs';
+
+/** A wrapped facts line never ends on a dangling dot: each fact after the first carries its own. */
+function appendFacts(line, parts) {
+  parts.forEach((part, i) => {
+    if (!i) return line.append(part);
+    const next = el('span', 'fact-next');
+    next.append('· ', part);
+    line.append(' ', next);
+  });
+}
 import {taskRow, completedSection, toggleDone, taskWhen} from './task-row.mjs';
 import {openSheet, field} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
@@ -114,7 +124,7 @@ export function blockCard(app, block, {focus = false, project = true} = {}) {
   const must = mustLeft(status, {words: false});
   if (must) parts.push(must);
   parts.push(el('span', '', status.total ? `${status.done} of ${status.total} done` : count));
-  parts.forEach((part, i) => facts.append(...(i ? [' · ', part] : [part])));
+  appendFacts(facts, parts);
   main.append(facts);
   main.setAttribute('aria-label', `Result: ${block.title}. ${due ? due.text + '. ' : ''}`
     + `${must ? duration(status.mustMinutes) + ' of Musts left. ' : ''}${count}. Open Block`);
@@ -262,7 +272,7 @@ function statusRow(status, due) {
   }
   if (parts.length) {
     const line = el('span', 'list-supporting tnum');
-    parts.forEach((part, i) => line.append(...(i ? [' · ', part] : [part])));
+    appendFacts(line, parts);
     copy.append(line);
   }
   return row;

@@ -63,3 +63,12 @@ test('every reveal names its action in words as well as an icon', () => {
   assert.deepEqual(REVEALS.done, ['check', 'Done']);
   assert.deepEqual(REVEALS.schedule, ['event_upcoming', 'Schedule']);
 });
+
+test('an Inbox row swiped left offers Today and Tomorrow 9:00 AM before Move to Block', async () => {
+  const {schedulePresets} = await import('./planner/task-values.mjs');
+  const presets = schedulePresets({day: '', time: ''}, new Date(2026, 9, 20, 10, 0));
+  assert.equal(presets[0].key, 'today');
+  assert.deepEqual(presets[0].value, {day: '2026-10-20', time: ''});
+  assert.deepEqual(presets.find(p => p.key === 'morning').value, {day: '2026-10-21', time: '09:00'});
+  assert.equal(presets.some(p => p.key === 'none'), false, 'an undated task is not offered No date');
+});

@@ -34,9 +34,9 @@ async function scheduleChecks(data,copy,readCalendar,now=new Date()){
   const changed=copy.entries.filter(e=>e.planned&&!e.done&&!e.archived&&e.state!=='cancelled'&&(()=>{const old=data.entries.find(x=>x.id===e.id);return !old||e.planned!==old.planned||e.minutes!==old.minutes||e.recurrence!==old.recurrence||old.done||old.archived;})());
   const checks=[];
   for(const e of changed){const anchor=repeats(e)?nextOccurrence(e,now):e.planned,copyCalendar=await readCalendar(Date.parse(anchor)),rows=calendarRows(copyCalendar),window=occurrences(e,Date.parse(anchor),Date.parse(anchor)+(repeats(e)?21*86400000:1));
-    const overlaps=window.flatMap(o=>conflicts(copy,o.start,e.minutes??30,rows,e.id));
-    const warning=calendarRisk(copyCalendar,Date.parse(anchor),Date.parse(anchor)+(e.minutes??30)*60000);
-    if(overlaps.length||warning)checks.push({id:e.id,title:e.title,planned:e.planned,minutes:e.minutes,recurrence:e.recurrence??null,warning,conflicts:overlaps.map(x=>({id:x.id,title:x.title,start:x.start,end:x.end})),alternatives:alternatives(copy,anchor,e.minutes??30,rows,e.id)});
+    const overlaps=window.flatMap(o=>conflicts(copy,o.start,e.minutes,rows,e.id));
+    const warning=calendarRisk(copyCalendar,Date.parse(anchor),Date.parse(anchor)+(e.minutes??0)*60000);
+    if(overlaps.length||warning)checks.push({id:e.id,title:e.title,planned:e.planned,minutes:e.minutes,recurrence:e.recurrence??null,warning,conflicts:overlaps.map(x=>({id:x.id,title:x.title,start:x.start,end:x.end})),alternatives:alternatives(copy,anchor,e.minutes??0,rows,e.id)});
   }return checks;
 }
 /** One validated transaction; every operation either saves together or stays a draft. */

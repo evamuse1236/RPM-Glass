@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RPM gesture prototypes</title>
+<link rel="stylesheet" href="gestures.css">
+</head>
+<body>
+<div class="stage">
+<div class="phone" id="phone">
+  <div class="status"><span>4:26</span><span>5G ▮</span></div>
+  <div class="pillwrap" id="pillwrap">
+    <div class="rev r">💧 Glass</div><div class="rev l">Done ✓</div>
+    <div class="pill" id="pill" role="button" tabindex="0" aria-label="Notch. Swipe right to log a glass, left to mark the current task done.">
+      <svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="13" fill="none" stroke="oklch(100% 0 none / .18)" stroke-width="3.5"/><circle class="arc" id="arc" cx="18" cy="18" r="13" fill="none" stroke="oklch(82% 0.08 262)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="81.7" stroke-dashoffset="40" transform="rotate(-90 18 18)"/></svg>
+      <span id="pillval">34m</span>
+    </div>
+  </div>
+  <div class="cam"></div>
+
+  <div class="scroll" id="scroll">
+    <h1 class="title">Today</h1>
+    <p class="sub">Monday, 19 October</p>
+    <p class="hint">Hold a card, then drag it. Drag the bar at its bottom to change length. Tap to open, double tap to start now.</p>
+    <div class="day" id="day">
+      <div class="rail"></div><div class="railhi" id="railhi"></div>
+      <div class="ghost" id="ghost"></div>
+      <div class="now" id="now"><b>4:26</b></div>
+    </div>
+  </div>
+
+  <div class="dragpill" id="dragpill"></div>
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-label="Task">
+    <div class="grab"></div>
+    <div class="shead"><span class="t" id="stitle">Task</span><button aria-label="Close" id="sclose">✕</button></div>
+    <div class="group">
+      <div class="srow"><div class="top"><span class="lbl">Time</span><span class="val" id="tval">4:00 PM</span></div>
+        <div class="slider" id="tslider" role="slider" tabindex="0" aria-label="Start time"><div class="track"></div><div class="fill"></div><div class="ticks"><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>11 PM</span></div><div class="thumb"></div></div>
+        <p class="finehint">Slide your finger down below the line for 15-minute steps.</p></div>
+      <div class="srow"><div class="top"><span class="lbl">Length</span><span class="val" id="lval">1 h</span></div>
+        <div class="slider" id="lslider" role="slider" tabindex="0" aria-label="Length"><div class="track"></div><div class="fill"></div><div class="ticks"><span>5 min</span><span>1 h</span><span>2 h</span><span>4 h</span></div><div class="thumb"></div></div></div>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status"><span id="tmsg"></span><button id="tundo">Undo</button></div>
+</div>
+
+<div class="panel">
+  <div><h1>Gesture prototypes</h1><p>Drag with a mouse or finger. 384 px wide, like your S24 FE at One UI default text.</p></div>
+  <div><h2>Try</h2><ol>
+    <li>Hold a task card for a moment, then drag it up or down. It snaps every 15 minutes.</li>
+    <li>Drag the small bar at a card's bottom to change its length.</li>
+    <li>Tap a card to open its sheet. Slide Time and Length. Pull your finger down below the line for finer steps.</li>
+    <li>Double tap a card to start it now.</li>
+    <li>Swipe the black pill at the top: right logs a glass, left ticks the current task.</li>
+  </ol></div>
+  <div><h2>Settings to compare</h2><div class="ctl">
+    <button id="dtT" aria-pressed="true">Double tap = Start now</button>
+    <button id="snapT" aria-pressed="false">Smaller snap (12 px)</button>
+  </div></div>
+  <div><h2>What happened</h2><p class="log" id="log">Nothing yet.</p></div>
+</div>
+</div>
+
+<script src="gestures.js"></script>
+</body>
+</html>

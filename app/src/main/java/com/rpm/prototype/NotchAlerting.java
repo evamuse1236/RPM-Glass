@@ -119,7 +119,7 @@ final class NotchAlerting {
 
     private void show(NotchAlert next, long forMs) {
         alert = next;
-        owner.expanded = false;
+        owner.state.close();
         handler.removeCallbacks(alertEnd);
         handler.postDelayed(alertEnd, forMs);
         NotchActions.log(service, next.type == NotchAlert.Type.ALARM ? "notch.alarm" : "notch.reminder", "shown", NotchActions.payload("taskId", next.taskId));

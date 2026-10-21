@@ -1,7 +1,46 @@
 import {TURN_SCHEMA,validate,validateField} from './schema.mjs';
 import {checkRemoval,REMOVALS} from './removal.mjs';
 import {checkBodyOperation} from './body-intent.mjs';
+import {CAPTURE_OPERATIONS} from './capabilities.mjs';
+import {normalizeReminderTime} from '../../cli/interpret.mjs';
+import {capitalizeTitle} from '../../cli/title.mjs';
 const words=s=>String(s).toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+// Retain an explicit reason when the model supplied exactly one Inbox action.
+// This copies a bounded literal clause; mixed actions and Block purposes stay
+// with the model, as do reasons whose meaning needs interpretation.
+function completeExplicitReasons(operations,{units,messageId,visibleEntities}){
+ for(const op of operations){
+  if(op.entity!=='task'||!['create','update'].includes(op.kind)||operations.filter(o=>o.sourceId===op.sourceId).length!==1)continue;
+  if(op.fields.some(f=>f.name==='blockId')||visibleEntities.find(e=>e.entity==='task'&&e.id===op.targetId)?.blockId)continue;
+  const unit=units.find(u=>u.id===op.sourceId),text=unit?.text??'';
+  const reason=text.match(/\botherwise\s+(?:I|we)\s+(?:lose|miss)\b[^.!?;]*|\b(?:(?:its|it's|it is|that's|that is)\s+)?the only way\b[^.!?;]*/i)?.[0].trim();
+  if(/\?/.test(text)||!reason||reason.length>2000||/\b(?:and|also|then|plus|but|aur|actually|instead)\b/i.test(reason))continue;
+  const keep=(name,value,evidence)=>{if(!op.fields.some(f=>f.name===name))op.fields.push({name,op:'set',value,origin:'stated',evidence,sourceMessageId:messageId,evidenceSourceId:unit.id});};
+  keep('purpose',reason,reason);
+  const essential=text.match(/^(?:I\s+)?(?:have to|must)\b/i)?.[0];
+  if(essential&&!/\b(?:not|optional|nahi)\b/i.test(text))keep('must',true,essential);
+ }
+}
+// Collapse only equal task/Block values; provenance and operation IDs do not
+// make a second item. Different schedules, parents or purposes stay distinct.
+function collapseCreates(operations,question){
+ const aliases=new Map(),resolve=id=>{while(aliases.has(id))id=aliases.get(id);return id;};
+ let rows=operations,changed=true;
+ while(changed){
+  changed=false;const seen=new Map(),kept=[];
+  for(const op of rows){
+   for(const f of op.fields)if(['blockId','projectId','goalId','areaId'].includes(f.name)&&f.op==='set'&&String(f.value).startsWith('$'))f.value='$'+resolve(f.value.slice(1));
+   if(op.kind!=='create'||!['block','task'].includes(op.entity)){kept.push(op);continue;}
+   const values=op.fields.map(f=>[f.name,f.op,typeof f.value==='string'&&['title','time'].includes(f.name)?f.value.trim().replace(/\s+/g,' ').toLowerCase():f.value]).sort((a,b)=>a[0].localeCompare(b[0]));
+   const signature=JSON.stringify([op.entity,values]),previous=seen.get(signature);
+   if(previous){aliases.set(op.opId,previous.opId);previous.sourceMessageIds=[...new Set([...previous.sourceMessageIds,...op.sourceMessageIds])];changed=true;}
+   else{seen.set(signature,op);kept.push(op);}
+  }
+  rows=kept;
+ }
+ if(question)question.opId=resolve(question.opId);
+ return rows;
+}
 /** A choice may only name what the model was shown, and only what its action can be done to. */
 function checkClarification(c,visible){
  if(c.choices.length<2)throw new Error('A clarification offers two to four choices');
@@ -21,6 +60,18 @@ function checkClarification(c,visible){
 }
 export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}={}){
  validate(turn,TURN_SCHEMA);
+ turn=structuredClone(turn);
+ for(const op of turn.operations){
+  if(op.entity!=='task')continue;
+  const alert=op.fields.find(f=>f.name==='alert'&&f.op==='set'&&['reminder','alarm'].includes(f.value))??visibleEntities.find(e=>e.entity==='task'&&e.id===op.targetId&&['reminder','alarm'].includes(e.alert));
+  if(alert)for(const f of op.fields)if(f.name==='time'&&f.op==='set'&&typeof f.value==='string')f.value=normalizeReminderTime(f.value);
+  if(op.kind!=='create')continue;
+  const title=op.fields.find(f=>f.name==='title');
+  if(!alert||title?.op==='set')continue;
+  op.fields=op.fields.filter(f=>f.name!=='title');
+  op.fields.unshift({name:'title',op:'set',value:alert.value==='alarm'?'Alarm':'Reminder',origin:'suggested',evidence:null});
+  if(turn.question?.opId===op.opId&&turn.question.field==='title')turn.question=null;
+ }
  const source=new Map(units.map(u=>[u.id,u.text])),decisions=new Map();
  for(const d of turn.decisions){if(!source.has(d.sourceId)||decisions.has(d.sourceId))throw new Error('Invalid/duplicate source decision');decisions.set(d.sourceId,d.disposition);}
  if(decisions.size!==source.size)throw new Error('Every source unit needs a disposition; keep non-actions too');
@@ -44,12 +95,13 @@ export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}
    if(activeDraft.operations.some(p=>{const title=p.fields.find(f=>f.name==='title'&&f.op==='set')?.value;return title&&raw.includes(`keep ${words(title)}`);}))throw new Error('Keep the explicitly named proposal. Discard only the requested proposal IDs; do not set the whole draft aside.');
   }
   checkRemoval(op,turn);
+  if(!CAPTURE_OPERATIONS[op.entity].actions[op.kind])throw new Error(`Capture cannot ${op.kind} a ${op.entity}`);
   const names=new Set();
   const fields=op.fields.map(f=>{
    validateField(f,op.entity);if(names.has(f.name))throw new Error('Duplicate field');names.add(f.name);
    if(f.op!=='unknown'&&f.origin==='stated'&&(!f.evidence?.trim()||!units.some(u=>u.text.includes(f.evidence))))throw new Error(`No exact current-source evidence for ${f.name}`);
    if(f.origin==='suggested'&&f.evidence!==null)throw new Error('Suggestions must not pretend to be quotations');
-   return {...f,sourceMessageId:messageId,evidenceSourceId:f.evidence?(units.find(u=>u.id===op.sourceId&&u.text.includes(f.evidence))??units.find(u=>u.text.includes(f.evidence)))?.id??null:null};
+   return {...f,...(f.name==='title'&&f.op==='set'?{value:capitalizeTitle(f.value)}:{}),sourceMessageId:messageId,evidenceSourceId:f.evidence?(units.find(u=>u.id===op.sourceId&&u.text.includes(f.evidence))??units.find(u=>u.text.includes(f.evidence)))?.id??null:null};
   });
   return {...op,fields,sourceMessageIds:[messageId]};
  });
@@ -65,6 +117,8 @@ export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}
    }else old.set(op.opId,op);
   }merged=[...old.values()];
  }
+ completeExplicitReasons(merged,{units,messageId,visibleEntities});
+ merged=collapseCreates(merged,turn.question);
  if(merged.length>30)throw new Error('A draft supports at most 30 operations');
  for(const op of merged){
   checkBodyOperation(op);

@@ -165,9 +165,37 @@ export function processImage(pid) {
 
 export const avdName = serial => adb(serial, ['emu', 'avd', 'name'], {allowFail: true, timeout: 10000}).split('\n')[0].trim();
 
+export function attachedProcess(pid, {proc = '/proc'} = {}) {
+  try {
+    const args = fs.readFileSync(path.join(proc, String(pid), 'cmdline'), 'utf8').split('\0').filter(Boolean);
+    const stat = fs.readFileSync(path.join(proc, String(pid), 'stat'), 'utf8');
+    const started = stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19];
+    const port = args[args.indexOf('-port') + 1];
+    const avd = args.includes('-avd') ? args[args.indexOf('-avd') + 1] : args.find(a => a.startsWith('@'))?.slice(1);
+    if (!/emulator|qemu/i.test(path.basename(args[0] ?? '')) || !args.includes('-read-only') || !started || !avd || !/^\d+$/.test(port ?? '')) return null;
+    return {pid: Number(pid), port: Number(port), avd, started};
+  } catch { return null; }
+}
+
+export function adoptEmulator(serial, {platform = process.platform, proc = '/proc', list = devices, name = avdName} = {}) {
+  if (platform !== 'linux' || !/^emulator-\d+$/.test(serial ?? ''))
+    throw new UserError('Attach needs a Linux emulator serial such as emulator-5554.', 'Use --attach emulator-5554 on the CI runner; use normal launch on Windows.');
+  const port = Number(serial.slice('emulator-'.length));
+  if (!list().some(d => d.serial === serial && d.state === 'device'))
+    throw new UserError(`${serial} is not online.`, 'Start the CI emulator before attaching.');
+  const matches = fs.readdirSync(proc).filter(p => /^\d+$/.test(p)).map(pid => attachedProcess(pid, {proc})).filter(p => p?.port === port);
+  if (matches.length !== 1 || matches[0].avd !== name(serial))
+    throw new UserError(`Cannot identify one read-only emulator process for ${serial}.`, 'Start the runner emulator with -port, -read-only, and an explicit AVD.');
+  return matches[0];
+}
+
 // The recorded pid must still be an emulator process (pids get reused) and the serial must be running the AVD it booted.
 export function ownsEmulator(state, serial = state?.serial) {
   if (!state || state.serial !== serial) return false;
+  if (state.mode === 'attached') {
+    const current = attachedProcess(state.pid);
+    if (!current || current.started !== state.processStarted || current.port !== state.port || current.avd !== state.avd) return false;
+  }
   if (!/emulator|qemu/i.test(processImage(state.pid) ?? '')) return false;
   return avdName(serial) === state.avd;
 }

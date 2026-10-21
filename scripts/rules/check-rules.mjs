@@ -46,6 +46,13 @@ export const RULES = [
     matcher: rawErrorReads,
     fix: 'Show userMessage(error) from android-companion/user-message.mjs instead of error.message.',
   },
+  {
+    id: 'inline-style-attribute',
+    rule: 'The companion pages run under style-src \'self\' (CompanionSurface.CSP), which drops style="…" attributes, so markup never carries one.',
+    files: root => files(root, 'android-companion', p => /\.(mjs|html)$/.test(p) && !p.endsWith('.test.mjs')),
+    matcher: () => line => /\sstyle=["'\\]/.test(line),
+    fix: 'Use an SVG presentation attribute, a class, or node.style.setProperty() after the node exists.',
+  },
 ];
 
 export function check(root, rules = RULES) {

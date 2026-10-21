@@ -44,7 +44,7 @@ test('Capture records skipped lunch without changing the recurring meal plan or 
  const s=fixture(raw,[lunch]),{result,data,card}=await capture(s,raw);
  assert.equal(result.applied?.status,'applied');
  assert.equal(data.entries.length,0);
- assert.deepEqual(data.planner.body.meals.map(({name,slot,state,at})=>({name,slot,state,at})),[{name:"today's lunch skipped",slot:'lunch',state:'skipped',at:NOW.toISOString()}]);
+ assert.deepEqual(data.planner.body.meals.map(({name,slot,state,at})=>({name,slot,state,at})),[{name:"Today's lunch skipped",slot:'lunch',state:'skipped',at:NOW.toISOString()}]);
  assert.equal(data.planner.body.mealPlan,undefined);
  assert.deepEqual(card.draft.lines.map(l=>[l.verb,l.title]),[['Skipped','Lunch']]);
 });
@@ -55,9 +55,9 @@ test('a water log and a new task share one canonical Undo',async()=>{
  const {result,data,card,conversationId}=await capture(s,raw);
  assert.equal(result.applied?.status,'applied');
  assert.equal(data.planner.body.water.glasses.length,2);
- assert.deepEqual(data.entries.map(e=>e.title),['refill the water bottle']);
+ assert.deepEqual(data.entries.map(e=>e.title),['Refill the water bottle']);
  assert.equal(data.entries[0].raw,raw);
- assert.deepEqual(card.draft.lines.map(l=>l.title),['2 glasses of water','refill the water bottle']);
+ assert.deepEqual(card.draft.lines.map(l=>l.title),['2 glasses of water','Refill the water bottle']);
  await s.agent.undo({draftId:card.draft.id,conversationId,actionId:'undo-mixed'});
  const restored=await s.backend.load();
  assert.equal(restored.entries.length,0);
@@ -80,9 +80,9 @@ test('Capture logs the food named without a nutrition guess or task',async()=>{
  const s=fixture(raw,[meal]),{result,data,card}=await capture(s,raw);
  assert.equal(result.applied?.status,'applied');
  assert.equal(data.entries.length,0);
- assert.deepEqual(data.planner.body.meals.map(m=>[m.name,m.slot,m.state]),[['poha','breakfast',undefined]]);
+ assert.deepEqual(data.planner.body.meals.map(m=>[m.name,m.slot,m.state]),[['Poha','breakfast',undefined]]);
  assert.deepEqual(data.planner.body.mealGuesses,{});
- assert.deepEqual(card.draft.lines.map(l=>[l.verb,l.entity,l.title]),[['Logged','meal','poha']]);
+ assert.deepEqual(card.draft.lines.map(l=>[l.verb,l.entity,l.title]),[['Logged','meal','Poha']]);
 });
 
 test('an invalid meal after a water log saves neither record',async()=>{

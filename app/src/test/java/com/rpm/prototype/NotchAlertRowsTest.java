@@ -50,6 +50,38 @@ public class NotchAlertRowsTest {
     }
 
     @Test
+    public void theNextAlertShowsOnceEvenWhenTheRowsHaveRoomForItTwice() throws Exception {
+        JSONArray entries = new JSONArray()
+                .put(task(1, "Write RM essay", "2026-10-18T15:30", 45, null))
+                .put(task(2, "Call Prof. Rao", "2026-10-18T16:30", 30, null))
+                .put(task(3, "Gym", "2026-10-18T19:00", 60, "alarm"));
+        NotchData data = NotchData.parse(new JSONObject().put("version", 1).put("entries", entries).put("planner", new JSONObject()), null);
+        NotchScene s = scene(data, "2026-10-18T16:05");
+        assertEquals(2, s.rows.size());
+        assertEquals("Gym", s.rows.get(0).title);
+        assertEquals("Call Prof. Rao", s.rows.get(1).title);
+        assertEquals(0, s.more(3));
+    }
+
+    @Test
+    public void theHerosOwnAlertRowNeverPushesDueWaterOutOfTheIsland() throws Exception {
+        NotchScene s = scene(day("reminder"), "2026-10-18T16:20");
+        assertEquals("reminder", s.heroAlert);
+        assertTrue(s.waterDue());
+        NotchScene.Row own = s.visibleRows(3).get(0);
+        assertTrue(own.heros);
+        assertEquals("Reminder", own.title);
+        assertEquals("4:30 PM", own.value);
+        assertSame(s.hero, own.slot);
+        for (int n = 1; n <= 3; n++) {
+            boolean glass = s.controls().contains(NotchScene.Control.GLASS);
+            for (NotchScene.Row r : s.visibleRows(n)) glass |= r.look == Look.WATER;
+            assertTrue("at large text the island shrinks to " + n + " row(s) and still logs a glass", glass);
+            assertTrue(s.visibleRows(n).size() <= n);
+        }
+    }
+
+    @Test
     public void theNextAlertLeadsTheRowsWhenNothingElseShowsItAndDueWaterStaysSecond() throws Exception {
         NotchScene s = scene(day(null), "2026-10-18T16:05");
         NotchScene.Row first = s.rows.get(0);
@@ -100,15 +132,32 @@ public class NotchAlertRowsTest {
     public void alertControlsNameTheAlertAsThePlannerDoesAndAReminderNeverSaysAlarm() throws Exception {
         NotchScene s = scene(day("reminder"), "2026-10-18T16:20");
         NotchFrame.Managed reminder = new NotchFrame.Managed(s.hero, s.heroAt);
-        assertEquals("Reminder · 4:30 PM", reminder.line());
+        assertEquals("Reminder", reminder.line());
+        assertEquals("Reminder at 4:30 PM", reminder.spoken());
         assertFalse(reminder.line().toLowerCase().matches(".*(alarm|ringing).*"));
-        assertFalse(NotchContent.alertSpoken("reminder", "Call", "4:30 PM").toLowerCase().matches(".*(alarm|ringing).*"));
+        assertFalse(NotchParts.alertSpoken("reminder", "Call", "4:30 PM").toLowerCase().matches(".*(alarm|ringing).*"));
         NotchFrame.Managed alarm = new NotchFrame.Managed(scene(day("alarm"), "2026-10-18T16:20").hero, "4:30 PM");
-        assertEquals("Ringing alarm · 4:30 PM", alarm.line());
+        assertEquals("Ringing alarm", alarm.line());
         assertNotEquals(reminder.key(), alarm.key());
         NotchAlert fired = new NotchAlert(NotchAlert.Type.REMINDER, 2, "Call Prof. Rao", at("2026-10-18T16:30"), KOLKATA, false);
-        assertEquals("Reminder · 4:30 PM", fired.reminderLine());
+        assertEquals("Reminder", fired.reminderLine());
         assertEquals(at("2026-10-18T16:30"), fired.when);
+    }
+
+    @Test
+    public void undoShowsItsFiveSecondsDrainingFromTheMomentTheChangeIsSaved() throws Exception {
+        NotchReceipt saving = NotchReceipt.glass(3, 8, 1000);
+        assertEquals("nothing to count while it saves", 0f, saving.undoLeft(1000), 0f);
+        NotchReceipt saved = saving.saved("t", null, 2000);
+        assertEquals(1f, saved.undoLeft(2000), 0f);
+        assertEquals(0.5f, saved.undoLeft(2000 + NotchReceipt.UNDO_MS / 2), 0.001f);
+        assertEquals(0f, saved.undoLeft(2000 + NotchReceipt.UNDO_MS), 0f);
+        assertEquals(0f, saved.undoLeft(99_000), 0f);
+        String views = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("src/main/java/com/rpm/prototype/NotchChangeViews.java")), java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(views.contains("NotchParts.pillShape(undo, new UndoCountdown(r, reach, radius),"));
+        String countdown = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("src/main/java/com/rpm/prototype/UndoCountdown.java")), java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue("reads the clock, so it counts down with animations off", countdown.contains("float left = receipt.undoLeft(now);"));
+        assertTrue(countdown.contains("scheduleSelf(tick, now + FRAME_MS);"));
     }
 
     @Test
@@ -119,11 +168,11 @@ public class NotchAlertRowsTest {
         assertEquals(3 / 8f, glass.from, 0.001);
         assertEquals(4 / 8f, glass.to, 0.001);
         assertFalse(glass.canUndo());
-        NotchReceipt saved = glass.saved("event-1", "5 of 8 today");
+        NotchReceipt saved = glass.saved("event-1", "5 of 8 today", 0L);
         assertTrue(saved.canUndo());
         assertEquals("the saved count wins over the guess", "5 of 8 today", saved.detail);
         assertEquals("the mark keeps playing from the same start", glass.startedAt, saved.startedAt);
-        assertFalse(saved.saved(null, null).canUndo());
+        assertFalse(saved.saved(null, null, 0L).canUndo());
         NotchReceipt undoing = saved.undoing(2000);
         assertEquals("Undone", undoing.title);
         assertEquals("Glass removed", undoing.detail);
@@ -149,11 +198,10 @@ public class NotchAlertRowsTest {
         NotchScene s = scene(day(null), "2026-10-18T16:05");
         NotchReceipt saving = NotchReceipt.glass(1, 8, 5);
         String place = "cutout centre=540,52|1080|1.0";
-        NotchFrame a = new NotchFrame(Mode.RECEIPT, null, null, s, null, null, null, saving);
-        NotchFrame b = new NotchFrame(Mode.RECEIPT, null, null, s, null, null, null, NotchReceipt.glass(1, 8, 5));
+        NotchFrame a = new NotchFrame(Mode.RECEIPT, s, null, null, null, saving);
+        NotchFrame b = new NotchFrame(Mode.RECEIPT, s, null, null, null, NotchReceipt.glass(1, 8, 5));
         assertEquals(a.key(place), b.key(place));
-        NotchFrame saved = new NotchFrame(Mode.RECEIPT, null, null, s, null, null, null, saving.saved("t", null));
+        NotchFrame saved = new NotchFrame(Mode.RECEIPT, s, null, null, null, saving.saved("t", null, 0L));
         assertNotEquals(a.key(place), saved.key(place));
-        assertNull(saved.secondary);
     }
 }

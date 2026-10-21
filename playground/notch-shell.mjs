@@ -41,7 +41,7 @@ export function notchShell({stage, empty, say, shell, setShell, open}) {
   function undo() {
     if (!receipt?.undo) return;
     showReceipt({...receipt, title: 'Undone', detail: receipt.mark === 'water' ? 'Glass removed' : receipt.detail, from: receipt.to, to: receipt.from,
-      undo: false}, UNDONE_MS);
+      undo: false, at: Date.now()}, UNDONE_MS);
     paint();
   }
 
@@ -103,7 +103,7 @@ export function notchShell({stage, empty, say, shell, setShell, open}) {
       alert = 'none';
     }
     const m = mode();
-    const k = JSON.stringify([scene.heroLook, scene.heroTitle, scene.heroSubtitle, scene.barStart, scene.barEnd, Math.round(scene.progress * 1000),
+    const k = JSON.stringify([scene.heroLook, scene.heroTitle, scene.heroSubtitle, scene.pillValue, Math.round(scene.progress * 1000),
       scene.rows.map(r => [r.look, r.title, r.value, r.alert]), scene.heroAlert, scene.heroAt, managed, receipt, scene.canDone, scene.canSnooze, scene.canLogMeal, !!scene.meal, primary, secondary, m, shownAlert, note, device().textScale, prefs().notchOn]);
     for (const b of document.querySelectorAll('[data-expand]')) b.setAttribute('aria-pressed', String(b.dataset.expand === String(shell().expandNotch)));
     for (const b of document.querySelectorAll('[data-alert]')) b.setAttribute('aria-pressed', String(b.dataset.alert === alert));
@@ -139,9 +139,9 @@ export function notchShell({stage, empty, say, shell, setShell, open}) {
   }
 
   const actions = scene => ({done: () => change('done', {title: scene.heroTitle}), drink: () => change('drink', {water: scene.water}),
-    snooze: notWired, logMeal: notWired, openPlan: () => open('planner', {view: 'day'}), manage, undo,
+    snooze: notWired, snoozeRoutine: notWired, logMeal: notWired, manage, undo, doneSlot: slot => change('done', {title: slot.task.title}),
     setAlert: type => change(type, {title: managed.title}), doneManaged: () => change('done', {title: managed.title}),
-    openManaged: () => { const {id} = managed; managed = null; openTask(id); }, openAlert: () => openTask(current()?.taskId), snoozeAlert: () => endAlert('snooze'),
+    openManaged: () => { const {id} = managed; managed = null; openTask(id); }, openHero: () => { setShell({expandNotch: false}); openTask(scene.hero?.task.id); }, openAlert: () => openTask(current()?.taskId), snoozeAlert: () => endAlert('snooze'),
     stopAlert: () => endAlert('stop'), doneAlert});
 
   function animateOpen() {

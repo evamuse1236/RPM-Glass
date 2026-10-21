@@ -19,6 +19,7 @@ export const flows = {
       await h.tap('open task', page.getByText('Group call: merge sections'));
       await h.tap('when card (unfolds day, time, length and alert rows)', sheet(page).locator('.when-head'));
       await h.tap('tomorrow chip (saved, card stays open)', sheet(page).getByRole('group', {name: 'Day'}).getByRole('button', {name: /^Tomorrow/}));
+      await h.tap('time value (opens the time chips under the slider)', sheet(page).getByRole('button', {name: 'Time choices'}));
       await h.tap('9:00 AM (saved)', sheet(page).getByRole('group', {name: 'Time'}).getByRole('button', {name: /^9:00\sAM$/}));
     },
     check: s => { const t = find(s, 'Group call'); return ok(t?.planned && new Date(t.planned).toLocaleDateString('en-CA') === tomorrow() && new Date(t.planned).getHours() === 9, 'planned tomorrow 9:00'); },
@@ -30,6 +31,7 @@ export const flows = {
       await h.tap('open inbox', page.getByRole('button', {name: /^Inbox/}));
       await h.tap('open task', sheet(page).getByText('Send the RI budget to Mariyam'));
       await h.tap('when card', sheet(page).locator('.when-head'));
+      await h.tap('length value (opens the length chips under the slider)', sheet(page).getByRole('button', {name: 'Length choices'}));
       await h.tap('15 min length chip (saved)', sheet(page).getByRole('button', {name: 'Length 15 min', exact: true}));
       await h.tap('must switch (toggles in place)', sheet(page).getByRole('switch', {name: 'Must', exact: true}));
     },

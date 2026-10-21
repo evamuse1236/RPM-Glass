@@ -26,7 +26,7 @@ const conversationOf=async backend=>(await backend.load()).conversations[0].id;
 const withTask=(fields)=>{const seed=freshStore();editPlan(seed,{type:'saveTask',fields:{title:'Run',...fields}},NOW);return seed;};
 
 test('the exact words are saved before the model is asked anything',async()=>{
- const raw='Call the bank at 10:30 am';let seenAtCall=null;
+ const raw='Call the bank at 10:30 am about the joint account';let seenAtCall=null;
  const s=agentFor(async()=>{const data=await s.backend.load();seenAtCall={raw:Object.values(data.intentV2.captures)[0]?.raw,entries:data.entries.length};return turn(raw,[operation([field('title','Call the bank','Call the bank'),field('time','10:30 am','10:30 am')])]);});
  await s.agent.capture({messageId:'m-bank',conversationId:await conversationOf(s.backend),text:raw});
  assert.deepEqual(seenAtCall,{raw,entries:0});
@@ -83,7 +83,7 @@ test('a delete moves the task to Trash and asks for Keep or Undo',async()=>{
 });
 
 test('a model failure keeps the words for Retry, and Retry applies them',async()=>{
- let fail=true;const raw='Buy printer ink';
+ let fail=true;const raw='Buy printer ink, the waterproof kind';
  const s=agentFor(async()=>{if(fail){const e=new Error('Connection failed');e.code='TRANSPORT_ERROR';throw e;}return turn(raw,[operation([field('title','Buy printer ink','Buy printer ink')])]);});
  const r=await s.agent.capture({messageId:'m-ink',conversationId:await conversationOf(s.backend),text:raw});
  assert.equal(r.status,'captured');assert.equal(r.applied,null);
@@ -96,7 +96,7 @@ test('a model failure keeps the words for Retry, and Retry applies them',async()
 });
 
 test('the trace records words, model, prompt version, latency, actions and what applied, and never a key',async()=>{
- const raw='Call the bank at 10:30 am';
+ const raw='Call the bank at 10:30 am about the joint account';
  const s=agentFor(async(input,{route,run})=>{Object.assign(run,{provider:'Anthropic',inputTokens:1200,outputTokens:90});return turn(raw,[operation([field('title','Call the bank','Call the bank'),field('time','10:30 am','10:30 am')])]);});
  s.service.harness.modelPolicy=()=>({model:HAIKU_MODEL,effort:'none',timeoutMs:1000,reason:'capture'});
  await s.agent.capture({messageId:'m-trace',conversationId:await conversationOf(s.backend),text:raw});
@@ -118,8 +118,8 @@ test('a question gets an answer card and changes nothing',async()=>{
  assert.equal(s.traces.get('m-q').applied.status,'answered');
 });
 
-test('an unclear clock waits for its answer, then applies',async()=>{
- const raw='Call Alex at 7';
+test('an unreadable clock waits for its answer, then applies',async()=>{
+ const raw='Call Alex at tea time';
  const s=agentFor(async()=>turn(raw,[operation([field('title','Call Alex','Call Alex'),field('time',null,null,'stated','unknown')])],{question:{opId:'task1',field:'time',prompt:'Morning or evening?',options:[{label:'7 AM',value:'7 am'},{label:'7 PM',value:'7 pm'}]}}));
  const conversationId=await conversationOf(s.backend);
  const r=await s.agent.capture({messageId:'m-alex',conversationId,text:raw});

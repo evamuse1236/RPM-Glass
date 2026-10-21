@@ -1,16 +1,30 @@
-/* Copy of NotchContent: 1 CSS px is 1 dp; text sizes are sp, so they follow --font-scale. */
+/* Copy of NotchParts and IslandBand: 1 CSS px is 1 dp; text sizes are sp, so they follow --font-scale. Sizes from NotchGeometry. */
 .notch-stage {
-  --notch-font: Roboto, "Segoe UI", system-ui, sans-serif;
-  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  --ease-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
-  --ease-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --notch-font: Roboto, "Google Sans", "Segoe UI", system-ui, sans-serif;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --fill-ease: cubic-bezier(0.05, 0.7, 0.1, 1);
   --ink: oklch(0% 0 none);
-  --on-ink: oklch(100% 0 none);
-  --blue: oklch(74.1% 0.122 259.3);
-  --alarm-tint: oklch(83.4% 0.068 22);
-  --alarm-on-tint: oklch(25.4% 0.079 27.6);
-  --elev-3: 0 4px 8px 3px oklch(0% 0 none / 0.15), 0 1px 3px oklch(0% 0 none / 0.3);
+  --t1: oklch(100% 0 none);
+  --t87: oklch(100% 0 none / 0.87);
+  --t70: oklch(100% 0 none / 0.7);
+  --t60: oklch(100% 0 none / 0.6);
+  --track: oklch(100% 0 none / 0.18);
+  --press: oklch(100% 0 none / 0.12);
+  --secondary: oklch(100% 0 none / 0.08);
+  --outline: oklch(100% 0 none / 0.12);
+  --hairline: oklch(100% 0 none / 0.08);
+  --task: oklch(82.4% 0.074 259.6);
+  --water: oklch(74.1% 0.122 259.3);
+  --alarm: oklch(83.4% 0.068 22);
+  --alarm-ink: oklch(32.6% 0.105 27.9);
+  --radius: 36px;
+  --pad: 16px;
+  --inner: calc(var(--radius) - var(--pad));
+  --circle: 40px;
+  --reach: 4px;
+  --icon-scale: clamp(1, var(--font-scale), 1.5);
+  --row-control: max(var(--circle), calc(20px * var(--icon-scale) + 20px));
+  --elev: 0 4px 8px 3px oklch(0% 0 none / 0.15), 0 1px 3px oklch(0% 0 none / 0.3);
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -18,285 +32,213 @@
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
-.notch-stage > * { pointer-events: auto; }
+.notch-stage > :is(.island, .notch-split) { pointer-events: auto; }
 
-.notch-glyph {
-  display: block;
-  flex: none;
-  background: currentColor;
-  mask: var(--icon) center / contain no-repeat;
-}
-.notch-circle { display: grid; place-items: center; flex: none; border-radius: 50%; }
-.notch-text { display: block; white-space: nowrap; overflow: clip; text-overflow: ellipsis; line-height: 1.2; }
-.notch-probe { position: absolute; visibility: hidden; inline-size: max-content; }
+.notch-glyph { display: block; flex: none; background: currentColor; mask: var(--icon) center / contain no-repeat; }
 
-.island {
-  position: absolute;
-  overflow: clip;
-  background: var(--ink);
-  color: var(--on-ink);
-  touch-action: none;
-  user-select: none;
-  transition: box-shadow 200ms var(--ease-standard);
-  --morph: 350ms var(--ease-emphasized-decelerate);
-}
-.island:not([data-mode="pill"]) { box-shadow: var(--elev-3); }
-.island[data-motion="alert"] { --morph: 300ms var(--ease-emphasized-decelerate); }
-.island[data-motion="close"] { --morph: 250ms var(--ease-emphasized-accelerate); }
+.island { position: absolute; overflow: clip; background: var(--ink); color: var(--t1); touch-action: none; user-select: none; }
+.island:not([data-mode="pill"]) { box-shadow: var(--elev), inset 0 0 0 1px var(--hairline); }
 
 .island-face {
   position: absolute;
   inset-block-start: 0;
   inset-inline-start: calc(50% - var(--face-w) / 2);
   inline-size: var(--face-w);
-  transition: opacity 210ms var(--ease-standard) 90ms;
+  transform-origin: top center;
+  display: flex;
+  flex-direction: column;
+  padding: calc(var(--pad) + var(--circle) + 12px) var(--pad) var(--pad);
+  transition: opacity 210ms linear 90ms;
 }
-@starting-style {
-  .island-face:not([data-enter="instant"]) { opacity: 0; }
-}
+.island-face[data-state="leaving"] { opacity: 0; pointer-events: none; transition: opacity 90ms linear; }
+@starting-style { .island-face:not([data-enter="instant"]) { opacity: 0; } }
 
-.notch-split {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--ink);
-  pointer-events: none;
-  transition: opacity 90ms linear;
-}
+.notch-pill { padding: 0; border: 0; border-radius: inherit; background: transparent; color: inherit; cursor: pointer; }
+
+.notch-ring, .notch-value { position: absolute; z-index: 3; inset-block-start: 0; inset-inline-start: 0; pointer-events: none; }
+.notch-ring svg { display: block; inline-size: 100%; block-size: 100%; overflow: visible; }
+.notch-disc { fill: transparent; }
+.notch-ring[data-disc="plain"] .notch-disc { fill: var(--press); }
+.notch-ring[data-disc="alarm"] .notch-disc { fill: color-mix(in oklch, var(--alarm) 24%, black); }
+.notch-ring:not([data-disc="ring"]) :is(.notch-track, .notch-arc) { display: none; }
+.notch-track { fill: none; stroke: var(--track); stroke-width: 3; }
+.notch-arc { fill: none; stroke: var(--kc); stroke-width: 3; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 18px 18px; }
+.notch-ring-glyph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--gc); }
+.notch-ring-glyph .notch-glyph { inline-size: 50%; block-size: 50%; }
+
+.notch-value { font-weight: 600; line-height: 1; white-space: nowrap; color: var(--vc); transform-origin: right center; }
+.notch-value[data-chip="true"] { padding: 2px 8px; border-radius: 999px; background: var(--track); }
+.notch-c { display: inline-block; position: relative; text-box: trim-both cap alphabetic; clip-path: inset(-0.08em 0); }
+.notch-o { position: absolute; inset: 0; opacity: 0; text-box: trim-both cap alphabetic; }
+
+.notch-split { position: absolute; z-index: 3; display: grid; place-items: center; border-radius: 50%; background: var(--ink); pointer-events: none; }
 .notch-split[data-state="away"] { opacity: 0; }
+.notch-split-ring { position: static; }
 
-@media (prefers-reduced-motion: no-preference) {
-  :root:not([data-reduce-motion="true"]) .island:not([data-motion="none"]) {
-    transition: inset-inline-start var(--morph), inline-size var(--morph), block-size var(--morph), border-radius var(--morph),
-      box-shadow 200ms var(--ease-standard), translate 200ms var(--ease-spring), scale 100ms var(--ease-standard);
-  }
-  :root:not([data-reduce-motion="true"]) .island[data-dragging] {
-    transition: inset-inline-start var(--morph), inline-size var(--morph), block-size var(--morph), border-radius var(--morph),
-      box-shadow 200ms var(--ease-standard);
-  }
-  :root:not([data-reduce-motion="true"]) .island:has(> .notch-pill:active) { scale: 0.97; }
-  :root:not([data-reduce-motion="true"]) .island-face {
-    transition: opacity 210ms var(--ease-standard) 90ms, translate 210ms var(--ease-emphasized-decelerate) 90ms;
-  }
-  @starting-style {
-    :root:not([data-reduce-motion="true"]) .island-face:not([data-enter="instant"]) { translate: 0 -6px; }
-  }
-  :root:not([data-reduce-motion="true"]) .notch-split { transition: opacity 90ms linear, translate 90ms var(--ease-emphasized-accelerate); }
+.notch-title, .notch-line {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: clip;
+  hyphens: none;
+  overflow-wrap: normal;
 }
-.notch-stage .island-face[data-state="leaving"] { opacity: 0; pointer-events: none; transition: opacity 90ms linear; }
+.notch-title { -webkit-line-clamp: 2; line-clamp: 2; font-size: calc(17px * var(--font-scale)); font-weight: 600; line-height: 1.25; color: var(--t1); }
+.notch-line { -webkit-line-clamp: 1; line-clamp: 1; margin-block-start: 2px; font-size: calc(14px * var(--font-scale)); line-height: 1.3; }
+.notch-stage[data-text="large"] .notch-title { -webkit-line-clamp: 3; line-clamp: 3; }
+.notch-stage[data-text="max"] .notch-title { -webkit-line-clamp: 4; line-clamp: 4; }
+.notch-stage:not([data-text="normal"]) .notch-line { -webkit-line-clamp: 2; line-clamp: 2; }
+.notch-stage .island-face[data-short-title] .notch-title { -webkit-line-clamp: 2; line-clamp: 2; }
 
-.notch-pill {
+.notch-words { display: block; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: start; cursor: pointer; }
+
+.notch-controls { display: flex; gap: 8px; margin-block-start: 16px; }
+.notch-controls + .notch-controls { margin-block-start: 8px; }
+.notch-stage:not([data-text="normal"]) .notch-controls { flex-direction: column; }
+.notch-stage:not([data-text="normal"]) .notch-pill-button { flex-basis: auto; }
+.notch-pill-button {
+  position: relative;
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-block-size: var(--circle);
+  padding: 8px 16px;
+  border: 0;
+  border-radius: var(--inner);
+  font: inherit;
+  font-size: calc(15px * var(--font-scale));
+  font-weight: 600;
+  cursor: pointer;
+}
+.notch-pill-button::after, .notch-circle-button::after, .notch-undo::after { content: ""; position: absolute; inset: calc(var(--reach) * -1); }
+.notch-pill-button .notch-glyph { inline-size: calc(20px * var(--icon-scale)); block-size: calc(20px * var(--icon-scale)); }
+.notch-primary { background: var(--kc); color: var(--kc-ink, color-mix(in srgb, var(--kc) 22%, black)); }
+.notch-secondary { background: var(--secondary); color: var(--t70); }
+.notch-primary:active { background: color-mix(in srgb, var(--kc) 85%, black); }
+.notch-secondary:active { background: var(--press); }
+
+.notch-rows { margin-block: 12px calc((var(--circle) - 44px) / 2); margin-inline: calc(var(--pad) / -2); }
+.notch-row {
   display: flex;
   align-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: inherit;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-}
-.notch-pill:active { opacity: 0.85; }
-.notch-value { flex: none; display: flex; justify-content: flex-end; }
-.notch-chip { padding-inline: 8px; padding-block: 1px; border-radius: 999px; background: oklch(100% 0 none / 0.18); }
-
-.island-open { display: flex; flex-direction: column; padding-inline: 20px; padding-block-end: 14px; }
-.notch-hero { display: flex; align-items: center; gap: 14px; }
-.notch-tile { display: grid; place-items: center; flex: none; inline-size: 44px; block-size: 44px; border-radius: 12px; color: var(--on-ink); }
-.notch-tile .notch-glyph { inline-size: 24px; block-size: 24px; }
-.notch-words { flex: 1; display: grid; }
-.notch-sub { padding-block-start: 2px; }
-.notch-bar { display: flex; align-items: center; min-block-size: 24px; margin-block-start: 12px; }
-.notch-track { flex: 1; block-size: 4px; margin-inline: 12px; border-radius: 2px; background: oklch(100% 0 none / 0.18); overflow: clip; }
-.notch-fill { display: block; block-size: 100%; border-radius: 2px; }
-.notch-controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-block-start: 8px; }
-.notch-control {
-  display: grid;
-  justify-items: center;
-  align-content: center;
-  gap: 4px;
-  min-block-size: 64px;
-  padding-block: 8px;
-  border: 0;
-  border-radius: 16px;
-  background: transparent;
-  color: var(--on-ink);
-  cursor: pointer;
-  font: inherit;
-}
-.notch-control .notch-glyph { inline-size: 24px; block-size: 24px; }
-.notch-control-label { font-size: calc(12px * var(--font-scale)); font-weight: 500; line-height: 1.2; color: oklch(100% 0 none / 0.7); }
-.notch-control:disabled { opacity: 0.3; cursor: default; }
-.notch-control:not(:disabled):active { background: oklch(100% 0 none / 0.12); }
-.notch-row { display: flex; align-items: center; gap: 12px; min-block-size: 40px; }
-.notch-controls + .notch-row { margin-block-start: 10px; }
-.notch-row .notch-glyph { inline-size: 20px; block-size: 20px; }
-.notch-row-title { flex: 1; }
-.notch-dots { display: flex; gap: 4px; flex: none; }
-.notch-dot { inline-size: 8px; block-size: 8px; border-radius: 50%; background: oklch(100% 0 none / 0.18); }
-.notch-dot.on { background: var(--blue); }
-.notch-ring { flex: none; inline-size: 16px; block-size: 16px; border: 2px solid oklch(100% 0 none / 0.5); border-radius: 50%; }
-
-.island-alert { padding-inline: 16px; padding-block-end: 8px; }
-.alert-main {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  gap: 0 12px;
   inline-size: 100%;
-  min-block-size: 68px;
-  padding: 0;
+  min-block-size: 44px;
+  padding: 2px 8px;
   border: 0;
-  border-radius: 16px;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
+  border-radius: 22px;
+  background: none;
+  color: var(--t87);
   font: inherit;
+  font-size: calc(15px * var(--font-scale));
+  line-height: 1.25;
   text-align: start;
 }
-.alert-circle { display: grid; place-items: center; flex: none; inline-size: 40px; block-size: 40px; border-radius: 50%; background: oklch(35.6% 0 none); }
-.alert-circle .notch-glyph { inline-size: 22px; block-size: 22px; }
-.alert-title {
-  flex: 1;
-  font-size: calc(16px * var(--font-scale));
-  font-weight: 600;
-  line-height: 1.25;
+.notch-row-tap { cursor: pointer; }
+.notch-row-tap:active { background: var(--press); }
+.notch-row > .notch-glyph { inline-size: calc(20px * var(--icon-scale)); block-size: calc(20px * var(--icon-scale)); }
+.notch-row-title {
+  flex: 1 1 8em;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
   line-clamp: 1;
   overflow: clip;
-  overflow-wrap: anywhere;
 }
-.notch-stage[data-text="large"] .alert-title { -webkit-line-clamp: 2; line-clamp: 2; }
-.alert-open { display: flex; align-items: center; gap: 2px; flex: none; font-size: calc(14px * var(--font-scale)); font-weight: 500; color: var(--blue); }
-.alert-open .notch-glyph { inline-size: 18px; block-size: 18px; }
+.notch-stage[data-text="large"] .notch-row-title { -webkit-line-clamp: 2; line-clamp: 2; }
+.notch-stage[data-text="max"] .notch-row-title { -webkit-line-clamp: 3; line-clamp: 3; }
+.notch-row-value { flex: none; font-size: calc(14px * var(--font-scale)); font-weight: 500; }
+.notch-more { display: block; padding-block-start: 8px; padding-inline-start: calc(20px * var(--icon-scale) + 12px); font-size: calc(13px * var(--font-scale)); font-weight: 500; line-height: 1.25; color: var(--t60); }
+.notch-dots { display: inline-flex; gap: 4px; flex: none; }
+.notch-dots i { inline-size: 7px; block-size: 7px; border-radius: 50%; background: var(--track); }
+.notch-dots i.on { background: var(--water); }
 
-.alert-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-block-size: 72px; }
-.alert-words { flex: 1 1 11em; inline-size: auto; min-block-size: 72px; font-size: calc(16px * var(--font-scale)); }
-.alert-stack { display: grid; flex: 1; gap: 2px; }
-.alert-stack .alert-title { font-size: 1em; }
-.alert-line { font-size: calc(13px * var(--font-scale)); color: var(--alarm-tint); }
-.alert-buttons { display: flex; gap: 8px; margin-inline-start: auto; }
-.alert-button {
+.notch-alert-chip { display: inline-flex; align-items: center; gap: 4px; flex: none; padding-block: 4px; padding-inline: 8px 10px; border-radius: 14px; background: var(--track); }
+.notch-alert-chip .notch-glyph { inline-size: calc(16px * var(--icon-scale)); block-size: calc(16px * var(--icon-scale)); }
+.notch-chip-time { font-size: calc(13px * var(--font-scale)); font-weight: 500; color: var(--t87); }
+
+.notch-circle-button {
+  position: relative;
   display: grid;
   place-items: center;
-  inline-size: 48px;
-  block-size: 48px;
+  flex: none;
+  inline-size: var(--circle);
+  block-size: var(--circle);
   padding: 0;
   border: 0;
-  border-radius: 50%;
+  border-radius: var(--inner);
   cursor: pointer;
 }
-.alert-button .notch-glyph { inline-size: 24px; block-size: 24px; }
-.alert-snooze { background: oklch(100% 0 none / 0.12); color: var(--on-ink); }
-.alert-stop { background: var(--alarm-tint); color: var(--alarm-on-tint); }
-.alert-stop-glyph { inline-size: 14px; block-size: 14px; border-radius: 2px; background: currentColor; }
-.alert-snooze:active { background: oklch(100% 0 none / 0.24); }
-.alert-stop:active { background: color-mix(in oklch, var(--alarm-tint) 80%, var(--ink)); }
-.alert-main:active { background: oklch(100% 0 none / 0.08); }
-.island-alarm .alert-circle {
-  background: color-mix(in oklch, oklch(50.1% 0.178 28.7) 35%, var(--ink));
-  color: var(--alarm-tint);
-  box-shadow: 0 0 0 2px oklch(83.4% 0.068 22 / 0.35);
-}
+.notch-row-circle { inline-size: var(--row-control); block-size: var(--row-control); background: transparent; box-shadow: inset 0 0 0 1px var(--outline); }
+.notch-row-circle .notch-glyph { inline-size: calc(20px * var(--icon-scale)); block-size: calc(20px * var(--icon-scale)); }
+.notch-row-circle:active { background: var(--press); }
 
-@keyframes alarm-pulse {
-  from { box-shadow: 0 0 0 0 oklch(83.4% 0.068 22 / 0.35); }
-  to { box-shadow: 0 0 0 10px oklch(83.4% 0.068 22 / 0); }
-}
-@media (prefers-reduced-motion: no-preference) {
-  :root:not([data-reduce-motion="true"]) .island-alarm .alert-circle { animation: alarm-pulse 1.2s ease-out infinite; }
-  :root:not([data-reduce-motion="true"]) .alert-button { transition: scale 100ms var(--ease-standard), background-color 100ms linear; }
-  :root:not([data-reduce-motion="true"]) .alert-button:active { scale: 0.94; }
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .notch-control:not(:disabled):hover, .alert-main:hover { background: oklch(100% 0 none / 0.08); }
-  .alert-snooze:hover { background: oklch(100% 0 none / 0.18); }
-  .alert-stop:hover { background: color-mix(in oklch, var(--alarm-tint) 90%, var(--on-ink)); }
-}
-
-.notch-pill:focus-visible, .notch-control:focus-visible, .alert-main:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
-.alert-button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-
-.notch-alert-chip {
+.notch-band-control { position: absolute; inset-block-start: var(--pad); inset-inline-end: var(--pad); }
+.notch-undo {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex: none;
-  padding-block: 4px;
-  padding-inline: 8px 10px;
+  isolation: isolate;
+  min-block-size: var(--circle);
+  padding: 4px 18px;
   border: 0;
-  border-radius: 999px;
-  background: oklch(100% 0 none / 0.18);
-  color: inherit;
+  border-radius: var(--inner);
+  background: color-mix(in srgb, var(--task) 20%, black);
+  color: var(--task);
   font: inherit;
-}
-.notch-alert-chip .notch-glyph { inline-size: 16px; block-size: 16px; }
-button.notch-alert-chip { margin-inline-start: 8px; cursor: pointer; }
-button.notch-alert-chip::after { content: ""; position: absolute; inset: min(0px, (100% - 48px) / 2); }
-button.notch-alert-chip:active { background: oklch(100% 0 none / 0.3); }
-
-.notch-row-tap {
-  inline-size: calc(100% + 16px);
-  min-block-size: 48px;
-  margin-inline: -8px;
-  padding-inline: 8px;
-  padding-block: 0;
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  text-align: start;
-}
-.notch-row-tap:active { background: oklch(100% 0 none / 0.12); }
-.notch-plus { padding-inline-end: 4px; }
-
-.alert-controls { margin-block-start: 4px; }
-.island-reminder .alert-line { color: oklch(100% 0 none / 0.7); }
-.manage-controls { grid-template-columns: repeat(4, 1fr); gap: 4px; }
-.notch-control-label { text-align: center; }
-
-.island-receipt { display: flex; align-items: center; gap: 12px; min-block-size: 64px; padding-inline: 16px 8px; padding-block-end: 8px; }
-.receipt-mark { position: relative; display: grid; place-items: center; flex: none; inline-size: 40px; block-size: 40px; }
-.receipt-mark svg { position: absolute; inset: 0; rotate: -90deg; fill: none; stroke-width: 3; }
-.receipt-track { stroke: oklch(100% 0 none / 0.18); }
-.receipt-ring { stroke: var(--mark); stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: var(--to); }
-.receipt-mark .notch-glyph { inline-size: 20px; block-size: 20px; }
-.receipt-words { flex: 1; display: grid; gap: 2px; min-inline-size: 0; }
-.receipt-undo {
-  flex: none;
-  min-block-size: 48px;
-  padding-inline: 16px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--blue);
-  cursor: pointer;
-  font: inherit;
-  font-size: calc(14px * var(--font-scale));
+  font-size: calc(15px * var(--font-scale));
   font-weight: 600;
+  cursor: pointer;
 }
-.receipt-undo:active { background: oklch(100% 0 none / 0.12); }
+.notch-undo:active { background: color-mix(in srgb, var(--task) 42%, black); }
+.notch-undo::before { content: ""; position: absolute; z-index: -1; inset: 0; border-radius: inherit; background: color-mix(in srgb, var(--task) 34%, black);
+  animation: notch-undo-left 5000ms linear forwards; }
+.notch-undo:active::before { visibility: hidden; }
+@keyframes notch-undo-left { from { clip-path: inset(0 0 0 0); } to { clip-path: inset(0 100% 0 0); } }
 
-@keyframes receipt-fill { from { stroke-dashoffset: var(--from); } }
-@keyframes receipt-pop { from { scale: 0.6; opacity: 0; } }
+.receipt-title { font-size: calc(16px * var(--font-scale)); font-weight: 600; color: var(--t1); }
+.receipt-detail { margin-block-start: 2px; font-size: calc(13px * var(--font-scale)); }
+
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-reduce-motion="true"]) .receipt-ring { animation: receipt-fill 450ms var(--ease-emphasized-decelerate) both; }
-  :root:not([data-reduce-motion="true"]) .receipt-mark .notch-glyph { animation: receipt-pop 300ms var(--ease-spring) 150ms both; }
-  :root:not([data-reduce-motion="true"]) .notch-row-tap, :root:not([data-reduce-motion="true"]) .receipt-undo {
-    transition: scale 100ms var(--ease-standard), background-color 100ms linear;
+  :root:not([data-reduce-motion="true"]) .island:not([data-motion="none"], [data-motion="idle"]) {
+    transition-property: inset-inline-start, inline-size, block-size, border-radius, box-shadow;
+    transition-duration: 350ms;
+    transition-timing-function: var(--ease);
   }
-  :root:not([data-reduce-motion="true"]) .notch-row-tap:active, :root:not([data-reduce-motion="true"]) .receipt-undo:active { scale: 0.97; }
+  :root:not([data-reduce-motion="true"]) :is(.notch-ring, .notch-value):is([data-motion="open"], [data-motion="close"], [data-motion="idle"]) {
+    transition-property: translate, scale, inline-size, block-size, opacity, color;
+    transition-duration: 350ms;
+    transition-timing-function: var(--ease);
+  }
+  :root:not([data-reduce-motion="true"]) [data-motion="close"] { transition-duration: 300ms; }
+  :root:not([data-reduce-motion="true"]) .island[data-motion="open"] { transition-duration: 175ms, 175ms, 350ms, 350ms, 350ms; }
+  :root:not([data-reduce-motion="true"]) .island[data-motion="close"] { transition-duration: 150ms; transition-delay: 150ms, 150ms, 0s, 0s, 0s; }
+  :root:not([data-reduce-motion="true"]) .notch-arc { transition: stroke-dashoffset 400ms var(--fill-ease); }
+  :root:not([data-reduce-motion="true"]) .island-face { transition: opacity 210ms linear 90ms, translate 210ms var(--ease) 90ms, scale 350ms var(--ease); }
+  :root:not([data-reduce-motion="true"]) .island-face[data-state="leaving"] { transition: opacity 90ms linear, scale 300ms var(--ease); }
+  @starting-style {
+    :root:not([data-reduce-motion="true"]) .island-face:not([data-enter="instant"]) { translate: 0 8px; scale: var(--from-scale, 1); }
+  }
+  :root:not([data-reduce-motion="true"]) .notch-split { transition: opacity 90ms linear, translate 350ms var(--ease); }
+  :root:not([data-reduce-motion="true"]) .notch-o { animation: notch-roll-out 150ms var(--ease) both; }
+  :root:not([data-reduce-motion="true"]) .notch-n { display: inline-block; animation: notch-roll-in 150ms var(--ease) 100ms both; }
+  :root:not([data-reduce-motion="true"]) .notch-ring[data-pulse="true"] { animation: notch-beat 1200ms ease-in-out infinite; }
+  :root:not([data-reduce-motion="true"]) :is(.notch-pill-button, .notch-row-tap, .notch-circle-button, .notch-undo, .notch-words) { transition: scale 100ms var(--ease), background-color 100ms linear; }
+  :root:not([data-reduce-motion="true"]) :is(.notch-pill-button, .notch-row-tap, .notch-circle-button, .notch-undo, .notch-words):active { scale: 0.97; }
 }
+:root[data-reduce-motion="true"] .island-face, :root[data-reduce-motion="true"] .notch-value { transition: opacity 150ms linear; }
+@media (prefers-reduced-motion: reduce) {
+  .island-face, .notch-value { transition: opacity 150ms linear; }
+}
+.notch-n { display: inline-block; }
+@keyframes notch-roll-out { from { opacity: 1; } to { translate: 0 -115%; opacity: 0; } }
+@keyframes notch-roll-in { from { translate: 0 115%; opacity: 0; } }
+@keyframes notch-beat { 50% { scale: 1.06; } }
 
 @media (hover: hover) and (pointer: fine) {
-  .notch-row-tap:hover, .receipt-undo:hover { background: oklch(100% 0 none / 0.08); }
-  button.notch-alert-chip:hover { background: oklch(100% 0 none / 0.24); }
+  .notch-row-tap:hover { background: oklch(100% 0 none / 0.06); }
+  .notch-secondary:hover { background: oklch(100% 0 none / 0.16); }
+  .notch-primary:hover { background: color-mix(in srgb, var(--kc) 92%, black); }
+  .notch-undo:hover { background: color-mix(in srgb, var(--task) 26%, black); }
 }
 
-.notch-row-tap:focus-visible, .receipt-undo:focus-visible, .notch-alert-chip:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+:is(.notch-pill, .notch-words, .notch-pill-button, .notch-row-tap, .notch-circle-button, .notch-undo):focus-visible { outline: 2px solid var(--task); outline-offset: 2px; }

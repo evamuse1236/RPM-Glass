@@ -5,6 +5,7 @@ import {historyView,contextView} from './capture-views.mjs';
 import {installSheet} from './capture-sheet.mjs';
 import {installCapturePresentation,createRevealTracker,enter,keepChoicesInView} from './capture-presentation.mjs';
 import {installComposer,listeningCard} from './capture-composer.mjs';
+import {installForming} from './capture-forming.mjs';
 import {createSendIdentity,draftToKeep,cardKind,canUndoChange} from './capture-session.mjs';
 import {el,button} from './capture-dom.mjs';
 import {userMessage} from './user-message.mjs';
@@ -76,7 +77,7 @@ export function mountCapture(platform){
    s.request={payload,phase:payload.type==='intentRetry'?'sorting':'saving',slow:false,text:words??payload.label??captures().find(c=>c.messageId===payload.messageId)?.raw??''};
    s.slowTimer=setTimeout(()=>{if(s.request){s.request.slow=true;render();}},SLOW_MS);
   }
-  if(words!==null&&message.value===words){composer.set('',{focus:false});rememberComposer('');}
+  if(words!==null&&message.value===words){forming.sent();composer.set('',{focus:false});rememberComposer('');}
   render();
   try{
    const data=await post(payload);
@@ -223,7 +224,10 @@ export function mountCapture(platform){
   message.placeholder=answerDraft()||latest()?.clarification?.open?'Or answer in your own words':s.focusedDraftId?'Tell me what to change':'Capture a thought';
   for(const b of content.querySelectorAll('button'))if(!b.closest('.view-head'))b.disabled=s.busy;
   $('send').disabled=s.busy;$('dictate').disabled=s.busy||s.listening;
+  formNow();
  }
+ const replying=()=>!!(answerDraft()||latest()?.clarification?.open||s.focusedDraftId);
+ const formNow=()=>forming.update(message.value,{enabled:!!s.state?.aiEnabled,visible:!!s.state&&s.view==='chat'&&!s.listening&&!replying()});
  function settle(cardRequest){
   if(!cardRequest||s.view!=='chat')return;
   const node=content.querySelector('[data-reply-key]');
@@ -246,12 +250,13 @@ export function mountCapture(platform){
   }catch(error){s.listening=false;render();status(userMessage(error),true);}
  }
 
+ const forming=installForming({host:$('forming'),platform,conversationId:()=>conversation().id});
  installCapturePresentation({action:platform.action});
  const send=text=>{setView('chat');return turn({type:'message',text});};
  const sheet=installSheet({platform,send,setView,prefill:text=>{setView('chat');if(!message.value.trim())composer.set(text);else message.focus({preventScroll:true});}});
  const composer=installComposer({
   onSubmit:text=>{if(!s.busy)send(text);},
-  onInput:text=>{rememberComposer(text);if(s.state&&!s.busy&&$('status').textContent&&!$('status').classList.contains('error'))status('');},
+  onInput:text=>{rememberComposer(text);formNow();if(s.state&&!s.busy&&$('status').textContent&&!$('status').classList.contains('error'))status('');},
   onVoice:voice,
  });
  window.rpmStartVoice=(tries=25)=>{setView('chat');if((s.busy||!s.state)&&tries>0){setTimeout(()=>window.rpmStartVoice(tries-1),200);return;}voice();};

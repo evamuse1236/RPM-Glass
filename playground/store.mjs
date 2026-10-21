@@ -8,7 +8,7 @@ export const KEYS = Object.freeze({
 
 const DEFAULT_PREFS = Object.freeze({widgetTextScale: 100, calendarPermitted: false, calendarSelected: [], notchOn: true,
   diagnosticsPaused: false});
-const DEFAULT_DEVICE = Object.freeze({dark: false, textScale: 1});
+const DEFAULT_DEVICE = Object.freeze({dark: false, textScale: 1, wallpaper: 'colour'});
 
 export function readJson(key, fallback = null) {
   const raw = localStorage.getItem(key);
