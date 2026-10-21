@@ -30,6 +30,7 @@ test('API bodies match independently captured native Anthropic bodies for every 
    assert.equal(url,API_ENDPOINT);fetchOptions=options;return response(answer(JSON.parse(options.body).model));
   }});
   assert.deepEqual(JSON.parse(fetchOptions.body),nativeBody,name);
+  assert.deepEqual(nativeBody.system,[{type:'text',text:prompt,cache_control:{type:'ephemeral'}}]);
   assert.deepEqual(result.output,expected);assert.equal(fetchOptions.redirect,'error');assert.equal(fetchOptions.method,'POST');
   assert.deepEqual(fetchOptions.headers,{'Content-Type':'application/json','x-api-key':key,'anthropic-version':API_VERSION});
   assert.equal(fetchOptions.body.includes(key),false);assert.equal(JSON.stringify(result).includes(key),false);
@@ -56,7 +57,11 @@ test('API endpoint, headers, maximum timeout and budgets stay aligned with Java 
   assert.ok(route.maxTokens<=nativeLimit.maxTokens,`${name} output budget fits the native cap`);
   assert.ok(route.timeoutMs<=nativeLimit.timeoutMs,`${name} deadline fits the native read timeout`);
  }
- assert.deepEqual(Object.values(routes).map(r=>r.timeoutMs),[25000,35000,90000,90000]);
+ assert.deepEqual(Object.values(routes).map(r=>r.timeoutMs),[25000,35000,90000,90000,90000]);
+ assert.ok(limits.includes('MERCURY="inception/mercury-3"'));
+ assert.ok(limits.includes('MERCURY,new Limit(4000,17000)'));
+ assert.ok(adapters.policy.MERCURY_QUICK_ROUTE.maxTokens<=4000);
+ assert.ok(adapters.policy.MERCURY_QUICK_ROUTE.timeoutMs+2000<=17000);
 });
 
 test('API records allowlisted response shapes without text, thinking, signatures or arbitrary type names',()=>withKey(async()=>{

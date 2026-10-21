@@ -53,6 +53,15 @@ public class ModelLimitsTest {
         assertTrue(ModelLimits.readTimeoutMs(OPENROUTER, "openai/gpt-6-luna", 3500, 20000) > 0);
     }
 
+    @Test public void mercuryQuickRouteIsOpenRouterOnlyAndBounded() {
+        assertEquals("inception/mercury-3", ModelLimits.MERCURY);
+        assertEquals(17000, ModelLimits.readTimeoutMs(OPENROUTER, ModelLimits.MERCURY, 4000, 20000));
+        assertEquals(-1, ModelLimits.readTimeoutMs(OPENROUTER, ModelLimits.MERCURY, 4001, 20000));
+        assertEquals(-1, ModelLimits.readTimeoutMs(OPENROUTER, ModelLimits.MERCURY, 0, 20000));
+        assertEquals(-1, ModelLimits.readTimeoutMs(CLAUDE, ModelLimits.MERCURY, 4000, 20000));
+        assertEquals(-1, ModelLimits.readTimeoutMs(OPENROUTER, ModelLimits.MERCURY, 4000, ModelLimits.MAX_BODY_CHARS + 1));
+    }
+
     @Test public void eachKeySlotTakesOnlyItsOwnKind() {
         String claude = "sk-ant-api03-" + "x".repeat(40), openRouter = "sk-or-v1-" + "y".repeat(40);
         assertNull(CompanionKey.problem(CLAUDE, claude));
