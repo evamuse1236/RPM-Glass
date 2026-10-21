@@ -9,18 +9,27 @@ import {wipeAppDataKeepingSync} from './sync.mjs';
 // every tap. Answer Wait and try once more before reporting the element as missing.
 // Opens Capture's More menu and waits for the item, since the menu animates in and a slow emulator takes a while.
 async function openMenuItem(serial, cdpPort, item) {
-  const menuOpen = async () => {
-    const page = await inPage(serial, cdpPort);
-    try { return await page.evaluate(`document.querySelector('[aria-label="More: planner, history, settings"]')?.getAttribute('aria-expanded') === 'true'`); } finally { page.close(); }
-  };
+  const find = () => tapElement(serial, cdpPort, {name: item, role: 'button', exact: true}, true);
   for (let attempt = 0; attempt < 2; attempt++) {
-    if (!(await menuOpen())) touch(serial, (await tapElement(serial, cdpPort, {name: 'More: planner, history, settings', role: 'button'})).at);
-    await sleep(400);
+    try { return await settled(find); } catch (e) { if (!(e instanceof UserError)) throw e; }
+    touch(serial, (await tapElement(serial, cdpPort, {name: 'More: planner, history, settings', role: 'button'})).at);
     for (const until = Date.now() + 6000; Date.now() < until; await sleep(300)) {
-      try { return await tapElement(serial, cdpPort, {name: item, role: 'button'}, true); } catch (e) { if (!(e instanceof UserError)) throw e; }
+      try { return await settled(find); } catch (e) { if (!(e instanceof UserError)) throw e; }
     }
   }
   throw new UserError(`Capture's More menu did not show "${item}".`, 'Run `rpmctl shot menu` and `rpmctl ui` to see the screen.');
+}
+
+/** A sheet that is still sliding in moves its items; tap only once two reads 150 ms apart agree within 2 px. */
+export async function settled(locate, {wait = sleep, tries = 12} = {}) {
+  let last = await locate();
+  for (let i = 0; i < tries; i++) {
+    await wait(150);
+    const next = await locate();
+    if (Math.abs(next.at[0] - last.at[0]) <= 2 && Math.abs(next.at[1] - last.at[1]) <= 2) return next;
+    last = next;
+  }
+  throw new UserError('The menu item kept moving.', 'Run `rpmctl shot menu` to see the screen, then retry.');
 }
 
 async function tapElement(serial, cdpPort, query, retried = false) {
@@ -203,13 +212,16 @@ export const driveCommands = {
     const name = args._[0] === 'reset' ? 'phone' : args._[0];
     const d = DISPLAYS[name];
     if (!d) throw new UserError(`Unknown display "${args._[0] ?? ''}".`, `One of ${Object.keys(DISPLAYS).join(', ')}, reset.`);
+    const scale = args.fontScale === undefined ? d.fontScale : String(args.fontScale);
+    if (!/^(0\.85|1(\.\d+)?|2(\.0)?)$/.test(scale) || Number(scale) > 2)
+      throw new UserError(`Font scale "${scale}" is not one Android offers.`, 'Use 0.85 to 2.0. Normal text (1.0) is the default; check larger text only when the user asks for it.');
     const before = displayInfo(serial);
-    shell(serial, `settings put system font_scale ${d.fontScale}`);
+    shell(serial, `settings put system font_scale ${scale}`);
     shell(serial, `settings put system user_rotation ${d.rotation}`);
     shell(serial, d.size ? `wm size ${d.size}` : 'wm size reset');
     shell(serial, d.density ? `wm density ${d.density}` : 'wm density reset');
     await sleep(2000);
-    const out = {ok: true, display: name, note: d.note, before, after: displayInfo(serial)};
+    const out = {ok: true, display: name, note: scale === d.fontScale ? d.note : `${d.note}, text at ${Math.round(scale * 100)}% (asked for by the user)`, before, after: displayInfo(serial)};
     journal(state, {command: 'display', result: out});
     return out;
   },

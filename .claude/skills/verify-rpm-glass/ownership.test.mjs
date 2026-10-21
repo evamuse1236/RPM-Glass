@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {defaultPorts, portsFor, requireOwner, takeLease, updateLease, assertLease, releaseLease} from './lib/ownership.mjs';
+import {defaultPorts, portsFor, requireOwner, takeLease, updateLease, assertLease, releaseLease, touchLease, leaseRoot, portInUse, SHARED_PORT, IDLE_MS} from './lib/ownership.mjs';
+import {reaperStep} from './lib/reaper.mjs';
 
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rpmctl-lease-test-'));
@@ -14,16 +15,12 @@ function fixture(t) {
   return {root, state, alive: () => true};
 }
 
-test('worktree ports are deterministic, console ports are even and bounded, and overrides survive', () => {
+test('every worktree defaults to the one shared emulator port; DevTools ports stay per worktree; overrides survive', () => {
   const ports = Array.from({length: 100}, (_, i) => defaultPorts(path.resolve(`tree-${i}`)));
   assert.deepEqual(defaultPorts('.'), defaultPorts(path.resolve('.')));
-  assert.ok(new Set(ports.map(p => p.port)).size > 30);
+  assert.deepEqual([...new Set(ports.map(p => p.port))], [SHARED_PORT]);
   assert.ok(new Set(ports.map(p => p.cdpPort)).size > 90);
-  for (const p of ports) {
-    assert.equal(p.port % 2, 0);
-    assert.ok(p.port >= 5580 && p.port <= 5680);
-    assert.ok(p.cdpPort >= 10000 && p.cdpPort < 20000);
-  }
+  for (const p of ports) assert.ok(p.cdpPort >= 10000 && p.cdpPort < 20000);
   assert.deepEqual(portsFor({port: '5582', cdpPort: '9334'}, ports[0]), {port: 5582, cdpPort: 9334});
   assert.equal(portsFor({port: '5682'}, ports[0]).port, 5682);
   for (const port of [true, 5581, 0, 65536, 'bad']) assert.throws(() => portsFor({port}, ports[0]), /must be an even/);
@@ -112,4 +109,55 @@ test('the lease is machine-wide across independent Node processes', t => {
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', source], {encoding: 'utf8', windowsHide: true});
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /lease is busy/);
+});
+
+test('the lease folder is the same whatever TMPDIR a shell sets, so agents with different TMPDIRs still exclude each other', () => {
+  const at = tmp => leaseRoot({env: {TMPDIR: tmp}, platform: 'linux', home: '/home/u', tmp});
+  assert.equal(at('/tmp'), at('/home/u/.cache/android-tmp'));
+  assert.equal(at('/tmp'), '/home/u/.cache/rpmctl-leases');
+  assert.equal(leaseRoot({env: {RPMCTL_LEASE_ROOT: '/x'}, platform: 'linux', home: '/home/u', tmp: '/tmp'}), '/x');
+});
+
+test('a busy lease names the run holding it and how to queue', t => {
+  const f = fixture(t);
+  takeLease(f.state, f);
+  updateLease(f.state, f);
+  assert.throws(() => takeLease({...f.state, owner: 'other', worktree: path.join(f.root, 'other'), cdpPort: 12002}, f), error =>
+    /emulator is busy/.test(error.message) && error.message.includes(f.state.worktree) && /--wait/.test(error.fix));
+});
+
+test('a run idle past the limit can be taken over; any command it runs keeps it active', t => {
+  const f = fixture(t);
+  takeLease(f.state, f);
+  updateLease(f.state, f);
+  const other = {...f.state, owner: 'other', worktree: path.join(f.root, 'other'), cdpPort: 12002};
+  assert.throws(() => takeLease(other, {...f, now: Date.now() + IDLE_MS - 60000}), /lease is busy/);
+  touchLease(f.state, f);
+  assert.throws(() => takeLease(other, {...f, now: Date.now() + IDLE_MS - 1000}), /lease is busy/);
+  takeLease(other, {...f, now: Date.now() + IDLE_MS + 60000});
+  assert.throws(() => touchLease(f.state, f), /lease is busy/);
+});
+
+test('the port counts as in use only while a live, active run holds it', t => {
+  const f = fixture(t);
+  assert.equal(portInUse(5580, f), false);
+  takeLease(f.state, f);
+  updateLease(f.state, f);
+  assert.equal(portInUse(5580, f), true);
+  assert.equal(portInUse(5580, {...f, alive: () => false}), false);
+  assert.equal(portInUse(5580, {...f, now: Date.now() + IDLE_MS + 60000}), false);
+  releaseLease(f.state, f);
+  assert.equal(portInUse(5580, f), false);
+});
+
+test('the reaper stops the warm emulator only after the idle time with no run, and never one that is not its own', () => {
+  const now = Date.parse('2026-10-20T12:00:00Z');
+  const record = {pid: 7, reaperPid: 99, releasedAt: '2026-10-20T11:30:00Z', bootedAt: '2026-10-20T10:00:00Z'};
+  const base = {self: 99, inUse: false, isEmulator: () => true, now, idleMs: 20 * 60000};
+  assert.equal(reaperStep(record, base), 'stop');
+  assert.equal(reaperStep(record, {...base, inUse: true}), 'wait');
+  assert.equal(reaperStep({...record, releasedAt: '2026-10-20T11:50:00Z'}, base), 'wait');
+  assert.equal(reaperStep(record, {...base, self: 100}), 'exit');
+  assert.equal(reaperStep(null, base), 'exit');
+  assert.equal(reaperStep(record, {...base, isEmulator: () => false}), 'forget');
 });

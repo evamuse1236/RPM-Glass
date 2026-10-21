@@ -91,7 +91,7 @@ export const SNAPSHOT = function snapshot(all) {
 };
 
 // Finds one element by role/name/css. Exact (case-insensitive) name beats substring; ambiguity is an error that lists the candidates.
-export const LOCATE = function locate({role, name, css, nth, scroll}) {
+export const LOCATE = function locate({role, name, css, nth, scroll, exact}) {
   const snap = (window.__rpmSnapshot)(true);
   let pool;
   if (css) {
@@ -106,7 +106,7 @@ export const LOCATE = function locate({role, name, css, nth, scroll}) {
   pool = snap.elements.filter(e => !role || e.role === role);
   const want = (name ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
   let hits = pool.filter(e => e.name.toLowerCase() === want);
-  if (!hits.length && want) hits = pool.filter(e => e.name.toLowerCase().includes(want));
+  if (!hits.length && want && !exact) hits = pool.filter(e => e.name.toLowerCase().includes(want));
   if (!hits.length) return {error: `No ${role ?? 'element'} named "${name}" on screen`, candidates: pool.filter(e => e.role !== 'text').slice(0, 40).map(e => `${e.role} "${e.name}"`)};
   if (hits.length > 1 && nth === undefined) {
     const same = hits.filter(e => e.name.toLowerCase() === hits[0].name.toLowerCase() && e.role === hits[0].role);
@@ -117,7 +117,7 @@ export const LOCATE = function locate({role, name, css, nth, scroll}) {
   const [x, , w] = hit.rect;
   if (scroll && (!hit.inView || x < 0 || x + w > innerWidth)) {
     window.__rpmEls[hit.ref].scrollIntoView({block: 'center', inline: 'nearest'});
-    return locate({role, name, css, nth, scroll: false});
+    return locate({role, name, css, nth, exact, scroll: false});
   }
   return {match: {...hit, coveredBy: coverOf(window.__rpmEls[hit.ref], hit.rect)}, viewport: [innerWidth, innerHeight]};
 

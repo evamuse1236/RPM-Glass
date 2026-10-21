@@ -5,14 +5,14 @@ import {describeLink} from './capture-context.mjs';
 
 const VERB={create:{tasks:'Added',blocks:'New Block',projects:'New Project',goals:'New Goal',areas:'New Area'},complete:'Done',delete:{tasks:'Moved to Trash'},restore:'Restored',reopen:'Reopened'};
 const rows=(data,collection)=>collection==='tasks'?data.entries??[]:data.planner?.[collection]??[];
-const whenOf=row=>row?scheduleText(row.planned?{planned:row.planned}:row.plannedDate?{plannedDate:row.plannedDate}:null,{}):null;
+const whenOf=(row,reference=new Date())=>row?scheduleText(row.planned?{planned:row.planned}:row.plannedDate?{plannedDate:row.plannedDate}:null,{reference}):null;
 const blockTitle=(data,id)=>id?(data.planner?.blocks??[]).find(b=>String(b.id)===String(id))?.title??null:null;
 const COLLECTION={task:'tasks',block:'blocks',project:'projects',goal:'goals',area:'areas'};
 
 const repeatOf=row=>row?.recurrence||row?.repeatAfterDays?repeatLabel(row):null;
 
-export function pendingRow({id=null,title='',planned=null,plannedDate=null,minutes=null,alert=null,recurrence=null,repeatAfterDays=null,must=false,where=null,tone=null}){
- return {verb:'Added',entity:'task',id,title,when:whenOf(planned||plannedDate?{planned,plannedDate}:null),was:null,where,tone,
+export function pendingRow({id=null,title='',planned=null,plannedDate=null,minutes=null,alert=null,recurrence=null,repeatAfterDays=null,must=false,where=null,tone=null},reference=new Date()){
+ return {verb:'Added',entity:'task',id,title,when:whenOf(planned||plannedDate?{planned,plannedDate}:null,reference),was:null,where,tone,
   alert:alert==='off'?null:alert,minutes,repeat:repeatOf({recurrence,repeatAfterDays}),must:must===true,renamedFrom:null};
 }
 

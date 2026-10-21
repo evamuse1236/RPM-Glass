@@ -10,7 +10,7 @@ export const READ_MIN_WORDS=3;
 export const READ_MAX_CHARS=1500;
 export const READS_PER_DRAFT=4;
 
-export const instantRows=(text,{now=new Date()}={})=>readForming(text,{now}).map(pendingRow);
+export const instantRows=(text,{now=new Date()}={})=>readForming(text,{now}).map(row=>pendingRow(row,now));
 
 export function worthReading(text){
  const said=String(text??'').trim();

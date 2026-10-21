@@ -77,8 +77,7 @@ final class NotchRunner {
             }
         };
         android.content.IntentFilter filter = new android.content.IntentFilter(CHANGED);
-        if (android.os.Build.VERSION.SDK_INT >= 33) c.registerReceiver(r, filter, Context.RECEIVER_NOT_EXPORTED);
-        else c.registerReceiver(r, filter);
+        c.registerReceiver(r, filter, Context.RECEIVER_NOT_EXPORTED);
         return r;
     }
 

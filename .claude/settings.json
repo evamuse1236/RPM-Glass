@@ -1,5 +1,16 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/agent/cloud-setup.mjs\"",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

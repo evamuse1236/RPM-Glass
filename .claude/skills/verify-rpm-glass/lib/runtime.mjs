@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {LAUNCHER, UserError, adb, devices, waitFor, appPid, ownsEmulator} from './device.mjs';
-import {defaultPorts, requireOwner, assertLease} from './ownership.mjs';
+import {defaultPorts, requireOwner, touchLease} from './ownership.mjs';
 
 const SKILL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ROOT = path.resolve(SKILL, '../../..');
@@ -39,8 +39,15 @@ const writeState = s => {
   fs.renameSync(temporary, STATE);
 };
 
+/** The other checkout whose APK this run installs, so its evidence check finds the screenshots; null for this checkout's own APK. */
+function apkCheckout(apk, root = ROOT) {
+  const parts = path.resolve(apk).split(path.join(path.sep, 'app', 'build', 'outputs', 'apk', path.sep));
+  const other = parts.length > 1 ? parts[0] : null;
+  return other && other !== path.resolve(root) && fs.existsSync(path.join(other, '.git')) ? other : null;
+}
+
 function evidenceDir(state) {
-  const dir = path.join(EVIDENCE, state?.runId ?? `adhoc-${new Date().toISOString().slice(0, 10)}`);
+  const dir = path.join(state?.appCheckout ? path.join(state.appCheckout, '.verify', 'evidence') : EVIDENCE, state?.runId ?? `adhoc-${new Date().toISOString().slice(0, 10)}`);
   fs.mkdirSync(dir, {recursive: true});
   return dir;
 }
@@ -58,7 +65,7 @@ function devtoolsPort(serial, args) {
 
 function target(args, {mutates}) {
   const state = readState();
-  if (mutates) { requireOwner(state, args); if (state) assertLease(state); }
+  if (mutates) { requireOwner(state, args); if (state) touchLease(state); }
   const serial = args.serial ?? state?.serial;
   if (!serial) throw new UserError('No emulator launched by rpmctl.', 'Run `rpmctl launch` (or pass --serial for a read-only look at another device).');
   const owned = !!state && state.serial === serial && devices().some(d => d.serial === serial && d.state === 'device') && ownsEmulator(state, serial);
@@ -99,4 +106,4 @@ function errorLines(serial, since) {
     || (pid && l.includes(` ${pid} `) && /\sE\s/.test(l) && !/eglCodecCommon|EGL_emulation|HostConnection|ashmem|MESA|Frame latency is negative|simple_file_enumerator|simple_index_file/.test(l))).slice(-120);
 }
 
-export {SKILL, ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, DISPLAYS, parseArgs, readState, writeState, evidenceDir, journal, devtoolsPort, target, viaShell, openLauncher, errorLines};
+export {SKILL, ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, DISPLAYS, parseArgs, readState, writeState, evidenceDir, apkCheckout, journal, devtoolsPort, target, viaShell, openLauncher, errorLines};

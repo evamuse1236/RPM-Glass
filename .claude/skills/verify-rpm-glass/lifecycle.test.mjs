@@ -4,22 +4,23 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {UserError, netsimToStart, gpuMode, emulatorEnv} from './lib/device.mjs';
+import {UserError, netsimToStart, gpuMode, emulatorEnv, staleOverlays} from './lib/device.mjs';
 import * as ownership from './lib/ownership.mjs';
 
 const source = fs.readFileSync(new URL('./lib/lifecycle.mjs', import.meta.url), 'utf8');
 
-async function fixture(t) {
+async function fixture(t, shared = null) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rpmctl-lifecycle-test-'));
   const key = `rpmctl-${randomUUID()}`;
   t.after(() => { delete globalThis[key]; fs.rmSync(root, {recursive: true, force: true}); });
   const statePath = path.join(root, 'state.json'), apk = path.join(root, 'sample.apk');
   fs.writeFileSync(apk, 'fixture apk');
-  const h = {events: [], live: false, starts: 0, root, statePath, apk};
+  const h = shared?.h ?? {events: [], live: false, starts: 0};
+  Object.assign(h, {root, statePath, apk});
   const readState = () => fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : null;
   const evidenceDir = () => { const dir = path.join(root, 'evidence'); fs.mkdirSync(dir, {recursive: true}); return dir; };
   const alive = pid => pid === process.pid || h.live && pid === 7777;
-  const options = {root: path.join(root, 'leases'), alive};
+  const options = shared?.options ?? {root: path.join(root, 'leases'), alive};
   const unexpected = name => () => { throw new Error(`Unexpected fixture call: ${name}`); };
   const device = {
     PACKAGE: 'com.rpm.prototype', UserError,
@@ -41,13 +42,15 @@ async function fixture(t) {
       if (!h.live || serial !== `emulator-${h.port}`) throw new UserError('Cannot adopt fixture', 'Start runner.');
       return {pid: 7777, port: h.port, avd: 'fixture', started: '1234'};
     },
+    spawnReaper: port => { h.events.push(['reaper-fixture', port]); h.reapers = (h.reapers ?? 0) + 1; return 4242; },
     processAlive: pid => { h.events.push(['processAlive-fixture']); return alive(pid); },
     processImage: pid => alive(pid) ? 'emulator' : null,
-    ownsEmulator: state => h.live && state.pid === 7777,
+    ownsEmulator: state => h.live && state.pid === 7777 && state.serial === `emulator-${h.port}`,
     killTree: () => { if (!h.keepAlive) h.live = false; },
-    sleep: async () => {},
+    sleep: async () => { await h.onSleep?.(); },
     waitFor: async (fn, args) => {
       if (h.pause && args.what.includes('come online')) await h.pause;
+      if (h.failBoot && args.what.includes('finish booting')) throw new UserError('Fixture wait failed', 'Retry.');
       if (!await fn()) throw new UserError('Fixture wait failed', 'Retry.');
     },
     dismissAnr: () => false,
@@ -57,7 +60,7 @@ async function fixture(t) {
   const runtime = {
     ROOT: root, WORK: root, STATE: statePath, EVIDENCE: path.join(root, 'evidence'), APK: apk,
     DEFAULTS: {port: 5580, cdpPort: 13000, avd: 'fixture', gpu: 'host'}, readState,
-    writeState: state => fs.writeFileSync(statePath, JSON.stringify(state)), evidenceDir,
+    writeState: state => fs.writeFileSync(statePath, JSON.stringify(state)), evidenceDir, apkCheckout: () => null,
     journal: (state, entry) => h.events.push(['journal', entry]), openLauncher: async () => {},
     devtoolsPort: unexpected('devtoolsPort'), viaShell: unexpected('viaShell'), errorLines: unexpected('errorLines'),
   };
@@ -66,6 +69,8 @@ async function fixture(t) {
     takeLease: state => ownership.takeLease(state, options),
     updateLease: (state, extra) => ownership.updateLease(state, {...options, ...extra}),
     assertLease: state => ownership.assertLease(state, options), releaseLease: state => ownership.releaseLease(state, options),
+    readEmulator: port => ownership.readEmulator(port, options), saveEmulator: (port, record) => ownership.saveEmulator(port, record, options),
+    dropEmulator: port => ownership.dropEmulator(port, options), IDLE_MS: ownership.IDLE_MS,
   };
   const sync = {builtAssetsSha: () => 'fixture-web', clearSynced: serial => h.events.push(['clear-synced', serial])};
   globalThis[key] = {device, runtime, leases, sync, page: {pageTargets: unexpected('pageTargets')}};
@@ -110,14 +115,45 @@ test('launch and cleanup reject another owner before any device or process acces
   assert.deepEqual(f.h.events, []);
 });
 
-test('failed launch keeps the emulator lease for cleanup, and cleanup releases it after exit', async t => {
+test('a launch that fails after boot releases the shared emulator warm, so the next worktree reuses it', async t => {
   const f = await fixture(t);
   f.h.failInstall = true;
   await assert.rejects(f.commands.launch(f.launchArgs), /Fixture install failed/);
+  assert.equal(f.readState(), null);
+  assert.deepEqual(fs.readdirSync(f.options.root), ['emulator-5582.json']);
+  assert.ok(ownership.readEmulator(5582, f.options).releasedAt);
+  assert.equal(f.h.reapers, 1, 'the idle watcher stops it if nobody comes');
+  f.h.failInstall = false;
+  const g = await fixture(t, {h: f.h, options: f.options});
+  const next = await g.commands.launch({...g.launchArgs});
+  assert.match(next.emulator, /reused the warm emulator/);
+  assert.equal(f.h.starts, 1);
+});
+
+test('a launch builds before it takes the emulator, so a failed build holds nothing', async t => {
+  const f = await fixture(t);
+  await assert.rejects(f.commands.launch({_: [], build: true, port: 5582, cdpPort: 13002}), /Unexpected fixture call/);
+  assert.equal(f.h.starts, 0);
+  assert.deepEqual(fs.existsSync(f.options.root) ? fs.readdirSync(f.options.root) : [], []);
+});
+
+test('a boot clears overlays a crashed emulator left, but never while any emulator runs', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'overlays-'));
+  for (const f of ['emulator-l9oSKn.qcow2', 'emulator-d44Uu6', 'notes.qcow2']) fs.writeFileSync(path.join(dir, f), '');
+  assert.deepEqual(staleOverlays(dir, {emulatorRunning: false}), [path.join(dir, 'emulator-l9oSKn.qcow2')]);
+  assert.deepEqual(staleOverlays(dir, {emulatorRunning: true}), []);
+  assert.deepEqual(staleOverlays(path.join(dir, 'missing'), {emulatorRunning: false}), []);
+  fs.rmSync(dir, {recursive: true, force: true});
+});
+
+test('a launch whose boot fails keeps the emulator lease for cleanup, and cleanup --stop releases it after exit', async t => {
+  const f = await fixture(t);
+  f.h.failBoot = true;
+  await assert.rejects(f.commands.launch(f.launchArgs), /Fixture wait failed/);
   const state = f.readState();
   ownership.assertLease(state, f.options);
   assert.throws(() => ownership.takeLease({...state, owner: 'other'}, f.options), /lease is busy/);
-  await f.commands.cleanup({_: [], owner: state.owner});
+  await f.commands.cleanup({_: [], owner: state.owner, stop: true});
   assert.equal(f.readState(), null);
   assert.deepEqual(fs.readdirSync(f.options.root), []);
 });
@@ -129,7 +165,7 @@ test('keep-emulator retains ownership; a failed stop keeps the state and lease t
   ownership.assertLease(f.readState(), f.options);
   assert.equal(f.h.live, true);
   f.h.keepAlive = true;
-  await assert.rejects(f.commands.cleanup({_: [], owner}), /still running/);
+  await assert.rejects(f.commands.cleanup({_: [], owner, stop: true}), /still running/);
   ownership.assertLease(f.readState(), f.options);
   assert.equal(f.readState().owner, owner);
 });
@@ -205,4 +241,67 @@ test('attach rejects conflicting ports and AVD before recording ownership', asyn
   await assert.rejects(f.commands.launch({...f.launchArgs, attach: 'emulator-5554'}), /conflicts/);
   await assert.rejects(f.commands.launch({attach: 'emulator-5554', avd: 'wrong'}), /conflicts/);
   assert.equal(f.readState(), null);
+});
+
+test('a second worktree reuses the warm emulator: one boot, its own APK install and wiped app data', async t => {
+  const a = await fixture(t);
+  const first = await a.commands.launch(a.launchArgs);
+  assert.equal(first.emulator, 'booted');
+  const kept = await a.commands.cleanup({_: [], owner: first.owner});
+  assert.match(kept.emulator, /kept warm/);
+  assert.equal(a.h.live, true);
+  assert.equal(a.h.reapers, 1);
+  assert.equal(a.readState(), null);
+  const b = await fixture(t, a);
+  b.h.events.length = 0;
+  const second = await b.commands.launch({...b.launchArgs, cdpPort: 13004});
+  assert.equal(b.h.starts, 1);
+  assert.match(second.emulator, /reused the warm emulator/);
+  assert.notEqual(second.owner, first.owner);
+  assert.notEqual(second.runId, first.runId);
+  const shells = b.h.events.filter(e => e[0] === 'adb-fixture').map(e => e[2].join(' '));
+  assert.ok(shells.some(c => /run-as com\.rpm\.prototype sh -c 'rm -rf files/.test(c)), 'app data is wiped for the new run');
+  assert.ok(b.h.events.some(e => e[0] === 'clear-synced'), 'synced web assets from the last run are cleared');
+  assert.equal(ownership.readEmulator(5582, b.options).owner, second.owner);
+});
+
+test('while one worktree drives the shared emulator, another gets a busy message naming it, or waits in the queue', async t => {
+  const a = await fixture(t);
+  const first = await a.commands.launch(a.launchArgs);
+  const b = await fixture(t, a);
+  await assert.rejects(b.commands.launch({...b.launchArgs, cdpPort: 13004}), error =>
+    /emulator is busy/.test(error.message) && error.message.includes(a.root) && /--wait/.test(error.fix));
+  assert.equal(a.h.starts, 1);
+  let waited = 0;
+  a.h.onSleep = async () => { if (++waited === 2) { a.h.onSleep = null; await a.commands.cleanup({_: [], owner: first.owner}); } };
+  const second = await b.commands.launch({...b.launchArgs, cdpPort: 13004, wait: 60});
+  assert.equal(waited, 2);
+  assert.match(second.emulator, /reused/);
+  assert.equal(a.h.starts, 1);
+});
+
+test('cleanup --stop shuts the shared emulator down and forgets it, so the next launch boots', async t => {
+  const a = await fixture(t);
+  const first = await a.commands.launch(a.launchArgs);
+  await a.commands.cleanup({_: [], owner: first.owner, stop: true});
+  assert.equal(a.h.live, false);
+  assert.equal(ownership.readEmulator(5582, a.options), null);
+  const again = await a.commands.launch(a.launchArgs);
+  assert.equal(again.emulator, 'booted');
+  assert.equal(a.h.starts, 2);
+});
+
+test('a worktree whose old state outlived another run on the shared emulator gets fresh data, not the other run', async t => {
+  const a = await fixture(t);
+  const first = await a.commands.launch(a.launchArgs);
+  const stale = a.readState();
+  await a.commands.cleanup({_: [], owner: first.owner});
+  const b = await fixture(t, a);
+  const second = await b.commands.launch({...b.launchArgs, cdpPort: 13004});
+  await b.commands.cleanup({_: [], owner: second.owner});
+  fs.writeFileSync(a.statePath, JSON.stringify(stale));
+  a.h.events.length = 0;
+  const third = await a.commands.launch({...a.launchArgs, owner: first.owner});
+  assert.match(third.emulator, /reused the warm emulator/);
+  assert.ok(a.h.events.some(e => e[0] === 'clear-synced'));
 });

@@ -10,7 +10,7 @@ const BUILT = path.join(ROOT, BUILT_WEB);
 export const SYNC_DIR = 'files/dev-companion';
 const TEXT = /\.(html|css|js)$/;
 
-export const builtAssetsSha = () => builtWeb(ROOT).sha;
+export const builtAssetsSha = (root = ROOT) => builtWeb(root).sha;
 
 /** The shell line that wipes the app's data for `seed` but keeps synced web assets, so a seeded run still shows them. */
 export function wipeAppDataKeepingSync() {
@@ -29,6 +29,7 @@ function bundle() {
 export const syncCommands = {
   async sync(args) {
     const {serial, state, cdpPort} = target(args, {mutates: true});
+    if (state.appCheckout) throw new UserError(`This run installed the APK built in ${state.appCheckout}; syncing this checkout's web files would mix two branches.`, 'Rebuild that checkout\'s APK, then rerun `rpmctl launch --apk <its APK>`.');
     const t0 = Date.now();
     bundle();
     const files = fs.readdirSync(BUILT).filter(f => TEXT.test(f));
@@ -37,6 +38,7 @@ export const syncCommands = {
       adb(serial, ['exec-in', `run-as ${PACKAGE} sh -c 'cat > ${SYNC_DIR}/${file}'`], {input: fs.readFileSync(path.join(BUILT, file))});
     const sha = builtAssetsSha();
     state.webSha256 = sha;
+    state.syncedAt = Date.now();
     writeState(state);
     let reloaded = 0;
     for (const t of (await pageTargets(serial, cdpPort).catch(() => [])).filter(p => p.url.startsWith('https://rpm.local/'))) {

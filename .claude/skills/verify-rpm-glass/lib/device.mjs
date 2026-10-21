@@ -2,6 +2,7 @@ import {spawn, spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import {fileURLToPath} from 'node:url';
 
 export const PACKAGE = 'com.rpm.prototype';
 export const LAUNCHER = `${PACKAGE}/.CompanionActivity`;
@@ -76,14 +77,31 @@ export function emulatorEnv(env = process.env, home = os.homedir(), platform = p
   return {...env, ANDROID_TMP: path.join(home, '.cache', 'android-tmp')};
 }
 
+const qemuRunning = () => process.platform !== 'linux' || fs.readdirSync('/proc').some(p => /^\d+$/.test(p) && (() => { try { return fs.readFileSync(`/proc/${p}/comm`, 'utf8').startsWith('qemu-system'); } catch { return false; } })());
+
+/** Overlays left by an emulator that crashed; a clean exit deletes its own. Only rpmctl's folder, and only when no emulator runs. */
+export function staleOverlays(dir, {emulatorRunning}) {
+  if (emulatorRunning || !fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter(f => /^emulator-\w+\.qcow2$/.test(f)).map(f => path.join(dir, f));
+}
+
 export function startEmulator({avd, port, logFile, gpu}) {
   const args = ['-avd', avd, '-port', String(port), '-read-only', '-no-window', '-no-audio', '-no-boot-anim', '-gpu', gpuMode(gpu), '-no-snapshot-save'];
   const log = fs.openSync(logFile, 'a');
   const env = emulatorEnv();
   if (env.ANDROID_TMP) fs.mkdirSync(env.ANDROID_TMP, {recursive: true});
+  if (env.ANDROID_TMP && !process.env.ANDROID_TMP) for (const f of staleOverlays(env.ANDROID_TMP, {emulatorRunning: qemuRunning()})) fs.rmSync(f, {force: true});
   const child = spawn(emulatorPath(), args, {detached: true, stdio: ['ignore', log, log], windowsHide: true, env});
   child.unref();
   return {pid: child.pid, args};
+}
+
+/** Starts the detached watcher that stops the shared emulator once no run has used it for the idle time. */
+export function spawnReaper(port) {
+  const script = path.join(path.dirname(fileURLToPath(import.meta.url)), 'reaper.mjs');
+  const child = spawn(process.execPath, [script, String(port)], {detached: true, stdio: 'ignore', windowsHide: true});
+  child.unref();
+  return child.pid;
 }
 
 export function processAlive(pid) {

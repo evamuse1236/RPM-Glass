@@ -7,10 +7,10 @@ Every command prints one JSON object on stdout, except ui --brief. Failures prin
 Usage: node .claude/skills/verify-rpm-glass/rpmctl.mjs <command> [options]
 
 Lifecycle
-  launch     Boot the owned emulator, build/install the debug APK, open the app.
+  launch     Reuse the shared warm emulator (boot it if none), build/install the debug APK, open the app.
   doctor     Read-only health check: is this instance worth driving?
   sync       Push changed web code (android-companion, intent-v2) to the running app in seconds, no APK build.
-  cleanup    Kill only what launch started. Evidence is kept.
+  cleanup    End the run and keep the emulator warm (--stop stops it). Evidence is kept.
 Drive
   seed       Replace the app's data with the sample plan (or --empty / --file), then reopen.
   open       Open a surface the way a user reaches it (capture, planner, widget intents).
@@ -58,18 +58,21 @@ files/dev-companion/ (served before the APK's own copy, debug builds only) and r
 Takes about 5 seconds, against about a minute for \`launch --build\`. Java or manifest changes still need \`launch --build\`.
 The next install by \`launch\` deletes the synced copy. Screenshots record the synced assets' hash (webSha256), and
 npm run check:evidence accepts them for web-only changes.`,
-  launch: `launch [--attach SERIAL] [--avd NAME] [--port N] [--cdp-port N] [--owner TOKEN] [--build] [--no-build] [--apk FILE] [--no-install] [--gpu MODE] [--timeout SECONDS]
+  launch: `launch [--attach SERIAL] [--wait SECONDS] [--avd NAME] [--port N] [--cdp-port N] [--owner TOKEN] [--build] [--no-build] [--apk FILE] [--no-install] [--gpu MODE] [--timeout SECONDS]
 Boots AVD ${DEFAULTS.avd} headless as emulator-<port> (default ${DEFAULTS.port}) with -read-only, so nothing the run does
 persists into the AVD. It always uses the host GPU: software modes (swiftshader, guest) use about 12x more CPU and are refused.
 The startup line "Your GPU cannot be used for hardware rendering" is harmless; set RPM_ALLOW_SOFTWARE_GPU=1 only if the host-GPU emulator stays black, crashes or goes offline. Builds app-debug.apk when it is missing or older than the app sources (--build forces,
 --no-build skips), installs it with all runtime permissions, opens the app and dismisses System UI ANR prompts.
---apk installs that APK instead (e.g. an older build, to reproduce a past bug); doctor then reports the mismatch.
+--apk installs that APK instead (e.g. an older build, to reproduce a past bug); doctor then reports the mismatch. An APK from another checkout (<checkout>/app/build/outputs/apk/...) saves the run's evidence in that checkout, so its own check:evidence finds it; sync then refuses.
 --no-install leaves whatever the emulator image already has (doctor shows its version and signer).
 Idempotent: when the owned emulator is already up it only re-installs if the APK changed and re-opens the app.
-Default console port hashes the worktree path to an even port in 5580–5680 (this checkout: ${DEFAULTS.port}).
+Shared: every worktree uses one warm emulator on console port ${DEFAULTS.port}. When another worktree's run ended, launch
+reuses it with no boot, wipes the app's data and synced web assets, resets the display and installs this APK.
+Output "emulator" says booted or reused. While another run holds it, launch refuses and names that run;
+--wait SECONDS queues, retrying every 15 s. A run idle for 20 min (RPMCTL_IDLE_MINUTES) can be taken over.
 Default CDP port hashes the path to 10000–19999 (this checkout: ${DEFAULTS.cdpPort}). Overrides are retained
-for later launches. A machine-wide lease in the OS temp folder reserves the worktree and port pair,
-including the adjacent emulator adb port. Dead emulator leases can be reclaimed; concurrent launches refuse.
+for later launches. A machine-wide lease in ~/.cache/rpmctl-leases (RPMCTL_LEASE_ROOT) reserves the worktree,
+both emulator ports and the CDP port. Dead emulator leases can be reclaimed; concurrent launches refuse.
 Refuses an external emulator unless --attach SERIAL explicitly adopts it on Linux. Attach requires a running
 read-only emulator and validates PID, port, AVD and process start identity. cleanup detaches an adopted emulator
 without stopping it; the runner owns its lifetime. cleanup releases the lease.
@@ -122,9 +125,10 @@ left/right swipe sideways (default 500 px), across the named element's centre wh
 for a task row's swipe actions (right = Schedule, left = Delete) or to step days. --ms sets the gesture length.`,
   wait: `wait (--name TEXT [--role ROLE] | --css SELECTOR) [--gone] [--timeout MS]
 Polls the visible WebView every 300ms until the element is on screen (or gone with --gone). Default timeout 10000.`,
-  display: `display <${Object.keys(DISPLAYS).join('|')}|reset>
+  display: `display <${Object.keys(DISPLAYS).join('|')}|reset> [--font-scale 0.85-2.0]
 ${Object.entries(DISPLAYS).map(([k, v]) => `  ${k.padEnd(10)} ${v.note}`).join('\n')}
   reset      Same as phone.
+Normal text is the default. --font-scale checks larger text only when a change touches text sizing and the user asks.
 Changes only the owned emulator. Records the before/after display in the output.`,
   shot: `shot <label>
 Saves NN-<label>.png (adb screencap, device pixels) and NN-<label>.json (on-screen elements, foreground activity,
@@ -148,10 +152,10 @@ Output: {ok, results:[{id, status, ms, facts, failure?, shots}]}`,
   check: `check [--only js|cloud|java|rules]
 Runs npm test (JS, Convex, typecheck, Java) and npm run check:rules (regression checks from past corrections).
 Logs go to .verify/evidence/<run-id>/check-*.log. ok=false if any step fails.`,
-  cleanup: `cleanup [--keep-emulator]
-Removes the DevTools port forward, kills the emulator process tree that launch started (by its recorded pid,
-never by name) and deletes .verify/state.json. Display overrides die with the read-only emulator.
-Releases the machine-wide lease once the emulator exits. --keep-emulator retains both state and lease.
+  cleanup: `cleanup [--stop] [--keep-emulator]
+Removes the DevTools port forward, deletes .verify/state.json and releases the lease, keeping the shared emulator
+warm for the next run. A detached watcher stops it after 20 min with no run. --stop also kills the emulator process
+tree that launch started (by its recorded pid, never by name). --keep-emulator retains both state and lease.
 Requires --owner TOKEN or RPMCTL_OWNER (missing tokens warn for one compatibility release).
 The evidence folder is never touched. Output names the surviving evidence folder.`,
 };
