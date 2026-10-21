@@ -43,6 +43,11 @@ public class NotchSetupTest {
         assertTrue("a working notch resets the 6 hours, so a later drop says so at once",
                 clear > 0 && setup.indexOf("remove(LAST_POSTED)", clear) > clear
                         && setup.indexOf("remove(LAST_POSTED)", clear) - clear < 80);
+        assertTrue("the notice offers App info, where Android hides Allow restricted settings",
+                setup.contains("addAction") && setup.contains("ACTION_APPLICATION_DETAILS_SETTINGS"));
+        String settings = new String(Files.readAllBytes(Paths.get("../android-companion/settings.mjs")), StandardCharsets.UTF_8);
+        assertTrue("RPM's Settings offers the same route", settings.contains("'notch_app_info'")
+                && source("CompanionSettingsController").contains("case \"notch_app_info\""));
         assertTrue("the in-app switch", source("CompanionSettingsController").contains("NotchSetup.check(activity)"));
     }
 }

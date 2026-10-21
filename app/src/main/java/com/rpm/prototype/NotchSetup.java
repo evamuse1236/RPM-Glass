@@ -5,6 +5,9 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.provider.Settings;
 import android.content.SharedPreferences;
 import android.service.notification.StatusBarNotification;
 
@@ -16,7 +19,8 @@ final class NotchSetup {
     static final String TITLE = "The notch is off in Android";
     static final String TEXT = "Tap, then turn on RPM Notch.";
     static final String DETAIL = "Tap, then turn on RPM Notch under Installed apps. "
-            + "If Android greys it out, open RPM's App info, tap the menu, then Allow restricted settings.";
+            + "Greyed out? Tap it once, then App info, the menu, Allow restricted settings.";
+    static final String APP_INFO = "App info";
     private static final String LAST_POSTED = "setup_posted_at";
 
     private NotchSetup() {}
@@ -49,11 +53,20 @@ final class NotchSetup {
             n.notify(ID, new Notification.Builder(c, CHANNEL).setSmallIcon(R.drawable.ic_notification)
                     .setContentTitle(TITLE).setContentText(TEXT)
                     .setStyle(new Notification.BigTextStyle().bigText(DETAIL))
-                    .setContentIntent(open).setOnlyAlertOnce(true).setAutoCancel(true).build());
+                    .setContentIntent(open)
+                    .addAction(new Notification.Action.Builder(null, APP_INFO, PendingIntent.getActivity(c, ID + 1, appInfoIntent(c),
+                            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE)).build())
+                    .setOnlyAlertOnce(true).setAutoCancel(true).build());
             p.edit().putLong(LAST_POSTED, now).apply();
         } catch (RuntimeException e) {
             NotchActions.log(c, "notch.setup", "failed", null);
         }
+    }
+
+    /** RPM's App info, where Android hides "Allow restricted settings" for apps installed from a file. */
+    static Intent appInfoIntent(Context c) {
+        return new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", c.getPackageName(), null))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
     }
 
     private static boolean showing(NotificationManager n) {

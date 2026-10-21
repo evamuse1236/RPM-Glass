@@ -146,6 +146,8 @@ function notchRows(ctx, section) {
   if (notchOn && !notchServiceOn) {
     add(ctx, section, 'Allow the notch', 'Android only lets apps draw at the camera through an accessibility service. '
       + 'Opens Accessibility; turn on RPM Notch there. RPM reads no screen content.', NEEDS_PERMISSION, 'notch_permission');
+    add(ctx, section, 'RPM Notch greyed out?', 'Tap it once in Accessibility, then here: open the menu and Allow restricted settings.',
+      '', 'notch_app_info');
   }
 }
 
