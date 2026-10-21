@@ -1,6 +1,6 @@
 import {intentState} from './repository.mjs';
 import {guardsFor,checkGuards,stable} from './context.mjs';
-import {draftFollowUpProblem} from './follow-up.mjs';
+import {draftFollowUpProblem,blocksFollowUp,FOLLOW_UP_NOTICE} from './follow-up.mjs';
 import {checkAction} from './suggestions.mjs';
 import {validateField} from './schema.mjs';
 import {openQuestion} from './conversation-focus.mjs';
@@ -18,7 +18,24 @@ function skippedOps(draft,action){
  for(const op of draft.operations)if(!skip.has(op.opId)&&op.fields.some(f=>f.op==='set'&&typeof f.value==='string'&&f.value.startsWith('$')&&skip.has(f.value.slice(1))))throw new Error('Keep the new Block or Project that another proposal belongs to');
  return skip;
 }
-export function safeQuestion(operations){for(const op of operations){const field=op.fields.find(f=>f.op==='unknown');if(field)return {opId:op.opId,field:field.name,prompt:`What should ${field.name} be for ${op.fields.find(f=>f.name==='title')?.value??op.entity}?`,options:[]};}return null;}
+export function safeQuestion(operations){for(const op of operations){if(op.kind==='create')continue;const field=op.fields.find(f=>f.op==='unknown');if(field)return {opId:op.opId,field:field.name,prompt:`What should ${field.name} be for ${op.fields.find(f=>f.name==='title')?.value??op.entity}?`,options:[]};}return null;}
+/** Keep incomplete creates saveable without inventing values or losing their notices. */
+export function prepareCreates(draft){
+ const missing=[...(draft.missing??[])],notes=[...(draft.notes??[])];
+ const remember=(opId,field)=>{if(!missing.some(m=>m.opId===opId&&m.field===field))missing.push({opId,field});};
+ for(const op of draft.operations){
+  if(op.kind!=='create')continue;
+  const review=draft.schedulePreview?.items?.find(i=>i.opId===op.opId&&i.status==='review');
+  op.fields=op.fields.filter(f=>{
+   if(f.op!=='unknown'&&!(review&&f.name==='time'))return true;
+   remember(op.opId,f.name);return false;
+  });
+  if(review?.reason)notes.push(review.reason);
+  if(draft.question?.opId===op.opId){notes.push(draft.question.prompt);draft.question=null;}
+ }
+ draft.missing=missing;draft.notes=[...new Set(notes.filter(Boolean))];
+ return draft;
+}
 /** A tap on a draft card: answer, edit, refresh, commit or park. Bound to the draft's revision. */
 export async function actOnDraft(h,action,{actionId}={}){
  ident(actionId);if(!action||typeof action!=='object')throw new Error('A typed action is required');
@@ -46,9 +63,10 @@ export async function actOnDraft(h,action,{actionId}={}){
   if(openQuestion(state,draft.conversationId))throw new Error('Answer the open question before saving this draft.');
   // The user may leave some proposals out; only the ones they kept are checked and applied.
   const skipped=skippedOps(draft,action),kept=skipped.size?{...draft,operations:draft.operations.filter(o=>!skipped.has(o.opId)),schedulePreview:draft.schedulePreview&&{...draft.schedulePreview,items:(draft.schedulePreview.items??[]).filter(i=>!skipped.has(i.opId))}}:draft;
+  prepareCreates(kept);
   if(kept.operations.some(o=>o.fields.some(f=>f.op==='unknown')))throw new Error('An unresolved field remains; edit it or leave the draft');
-  if(kept.schedulePreview?.items?.some(item=>item.status==='review'))throw new Error('The time needs review. Edit the draft before saving.');
-  const followUpIssue=draftFollowUpProblem(data,kept);if(followUpIssue)throw new Error(followUpIssue);
+  if(kept.schedulePreview?.items?.some(item=>item.status==='review'&&kept.operations.some(o=>o.opId===item.opId&&o.kind!=='create')))throw new Error('The time needs review. Edit the draft before saving.');
+  const followUpIssue=draftFollowUpProblem(data,kept);if(blocksFollowUp(followUpIssue))throw new Error(followUpIssue);if(followUpIssue)kept.notes=[...new Set([...kept.notes,FOLLOW_UP_NOTICE])];
   checkGuards(data,draft.guards);
   if(draft.review&&action.reviewToken!==draft.review.token)throw new Error('The current schedule warning needs an explicit decision');
   // Drafts set aside are not planner records: the plan adapter gets the rest, and one receipt covers both.
@@ -59,6 +77,7 @@ export async function actOnDraft(h,action,{actionId}={}){
   if(applied.status==='review'){draft.review=applied.review;draft.question=null;draft.status='review';draft.revision++;return {status:'review',draftId:draft.id,revision:draft.revision};}
   if(applied.status!=='committed')throw new Error('Plan adapter did not confirm a commit candidate');
   const receipt=parked.length?{...applied.receipt,parkedDrafts:parked.map(d=>{const was=d.status;d.status='parked';d.parkedBy=draft.id;d.revision++;return {id:d.id,status:was};})}:applied.receipt;
+  draft.missing=kept.missing;draft.notes=kept.notes;draft.question=kept.question;
   draft.status='committed';draft.revision++;draft.receipt=receipt;if(skipped.size)draft.skipped=[...skipped];draft.approvedAt=h.clock().toISOString();
   return {status:'committed',draftId:draft.id,receipt};
  });

@@ -77,9 +77,12 @@ test('a clock on one task never resolves another task with no time evidence',asy
  const raw='Read tomorrow at 6 and buy milk';
  const s=setup(async()=>turn(raw,[operation([field('title','Read','Read'),field('time','tomorrow at 6','tomorrow at 6')]),operation([field('title','Buy milk','buy milk'),field('time',null,null,'stated','unknown')],{opId:'milk'})],{question:{opId:'milk',field:'time',prompt:'When for milk?',options:[]}}));
  const result=await s.agent.capture({messageId:'m',conversationId:s.conversationId,text:raw});
- assert.equal(result.applied.status,'needs-answer');
+ assert.equal(result.applied.status,'applied');
  const draft=(await s.service.view()).captures[0].draft;
- assert.equal(draft.operations[1].fields.find(f=>f.name==='time').op,'unknown');assert.equal(draft.question.opId,'milk');
+ assert.deepEqual(draft.missing,[{opId:'milk',field:'time'}]);assert.equal(draft.question,null);
+ const data=await s.backend.load();assert.equal(data.entries.length,2);assert.equal(data.entries.find(e=>e.title==='Buy milk').planned,null);
+ await s.agent.undo({draftId:result.draftId,conversationId:s.conversationId,actionId:'undo-mixed'});
+ assert.equal((await s.backend.load()).entries.length,0);
 });
 test('a quantity is not a clock even if the model labels it as time',async()=>{
  const raw='Buy 6 apples tomorrow',s=setup(async()=>turn(raw,[operation([field('title','Buy apples','apples'),field('time','6pm','6')])]));
@@ -87,7 +90,7 @@ test('a quantity is not a clock even if the model labels it as time',async()=>{
  assert.equal(result.applied.status,'applied');assert.equal((await s.backend.load()).entries[0].planned,null);
  assert.deepEqual(s.traces.get('m').timeInferences,[]);
 });
-test('retaining valid parts keeps shared-source ownership and the unanswered task question',async()=>{
+test('retaining valid parts saves all creates and keeps missing time separate from another clock',async()=>{
  const raw='Read tomorrow at 6 and buy milk. Call dad at noon.';
  const s=setup(async()=>turn(raw,[
   operation([field('title','Read','Read'),field('time','tomorrow at 6','tomorrow at 6')]),
@@ -95,8 +98,10 @@ test('retaining valid parts keeps shared-source ownership and the unanswered tas
   operation([field('title','Call dad','Call dad'),field('time','tomorrow at 1pm','noon')],{opId:'dad',sourceId:'s1'}),
  ],{question:{opId:'milk',field:'time',prompt:'When for milk?',options:[]}}));
  const result=await s.agent.capture({messageId:'m',conversationId:s.conversationId,text:raw});
- assert.equal(result.applied.status,'needs-answer');
+ assert.equal(result.applied.status,'applied');
  const draft=(await s.service.view()).captures[0].draft;
- assert.equal(draft.question.opId,'milk');assert.equal(draft.operations[1].fields.find(f=>f.name==='time').op,'unknown');
+ assert.equal(draft.question,null);assert.deepEqual(draft.missing,[{opId:'milk',field:'time'}]);
+ const data=await s.backend.load();assert.equal(data.entries.length,3);assert.equal(data.entries.find(e=>e.title==='Buy milk').planned,null);
+ await s.agent.undo({draftId:result.draftId,conversationId:s.conversationId,actionId:'undo-partial-missing'});
  assert.equal((await s.backend.load()).entries.length,0);
 });

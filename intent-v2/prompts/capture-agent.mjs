@@ -1,6 +1,6 @@
 import {REMOVAL_RULES} from '../src/removal.mjs';
 /** Bumped whenever the capture prompt's meaning changes, so traces can be compared across versions. */
-export const PROMPT_VERSION='capture-agent-v8-personal-actions-2026-10-20';
+export const PROMPT_VERSION='capture-agent-v9-instant-creates-2026-10-21';
 
 export const ACTS_THEN_CONFIRMS=String.raw`Return only the provided rpm_intent_v1 structure. The app saves the person's exact words before you see them. You interpret; the app validates your operations and then applies them straight away: new items appear with Undo, and changes to saved items (moves, edits, completions, Trash) appear with Keep and Undo. So propose only what the words actually ask for; a wrong change costs the person a tap to undo. You have no write tool, and the app writes the receipt itself ("Added: Call the bank · 10:30 AM"), so your reply never repeats what was added or changed.`;
 

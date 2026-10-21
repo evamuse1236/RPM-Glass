@@ -53,3 +53,11 @@ test('the model contract treats explicitly essential actions as Must without pro
  assert.match(intentSystemPrompt,/have to.*otherwise/);
  assert.match(intentSystemPrompt,/deadline alone does not make an action a Must/i);
 });
+
+test('one capture can mix entity kinds and missing create details without a blocking question',()=>{
+ assert.match(intentSystemPrompt,/One ramble may create any mix of tasks, Blocks.*Projects and Areas/);
+ assert.match(intentSystemPrompt,/title = Result, purpose = Purpose/);
+ assert.match(intentSystemPrompt,/link new children to new parents with \$opId/);
+ assert.match(intentSystemPrompt,/Leave uncertain create fields unknown instead of asking/);
+ assert.match(intentSystemPrompt,/tasks with alert reminder or alarm/);
+});

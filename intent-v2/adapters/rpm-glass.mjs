@@ -1,11 +1,13 @@
 /** Integration with the inspected RPM-Glass changePlanner/undo APIs.
  * Inject the real functions; no duplicate planner database or date parser.
  */
+import {prepareCreates} from '../src/draft-actions.mjs';
 import {intentState} from '../src/repository.mjs';
 import {checkGuards} from '../src/context.mjs';
 import {BODY_INTENTS} from '../src/body-intent.mjs';
 const collections={task:'tasks',block:'blocks',project:'projects',goal:'goals',area:'areas',...Object.fromEntries(Object.entries(BODY_INTENTS).map(([entity,body])=>[entity,body.collection]))};
 export function compilePlannerOperations(draft,approval){
+ prepareCreates(draft);
  const byId=new Map(draft.operations.map(o=>[o.opId,o])),ordered=[],visiting=new Set(),done=new Set();
  function visit(op){if(done.has(op.opId))return;if(visiting.has(op.opId))throw new Error('Cyclic plan references');visiting.add(op.opId);
   for(const f of op.fields)if(f.op==='set'&&['blockId','projectId','goalId','areaId'].includes(f.name)&&String(f.value).startsWith('$')){const parent=byId.get(f.value.slice(1));if(!parent)throw new Error('Missing referenced operation');visit(parent);}
