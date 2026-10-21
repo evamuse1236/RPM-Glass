@@ -75,7 +75,7 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 }
 
 
-.scrim{position:absolute;inset:0;background:var(--scrim);opacity:1}
+.scrim{position:absolute;inset:0;background:transparent}
 .sheet{
   position:absolute;inset-inline:0;inset-block-end:0;max-block-size:calc(100% - 24px);overflow-y:auto;overscroll-behavior:contain;
   padding-block-end:calc(16px + env(safe-area-inset-bottom,0px));
@@ -83,10 +83,10 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 }
 .sheet .grab{margin-block:8px 16px}
 @media (prefers-reduced-motion:no-preference){
-  .scrim,.sheet{transition:opacity var(--dur-medium1) var(--ease-standard),translate var(--dur-medium3) var(--ease-emphasized-decelerate),display var(--dur-medium3) allow-discrete}
-  @starting-style{.scrim{opacity:0}.sheet{translate:0 100%}}
+  .sheet{transition:translate var(--dur-medium3) var(--ease-emphasized-decelerate),display var(--dur-medium3) allow-discrete}
+  @starting-style{.sheet{translate:0 100%}}
 }
-:root[data-reduce-motion=true] .scrim,:root[data-reduce-motion=true] .sheet{transition:none}
+:root[data-reduce-motion=true] .sheet{transition:none}
 
 .tiles{display:flex;gap:8px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;padding:0 16px 8px;scroll-padding-inline:16px;scroll-snap-type:x proximity}
 .tiles::-webkit-scrollbar{display:none}

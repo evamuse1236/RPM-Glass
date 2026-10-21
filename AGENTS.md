@@ -14,7 +14,7 @@ When Vishwajit asks for a finished APK, follow the global `juno` skill: build th
 
 ## Before you say done
 
-1. Run the checks: `npm test` (JS, rules, Convex, typecheck, Java). The same command runs in CI.
+1. Run the checks: `npm test` (JS, rules, Convex, typecheck, Java, and the app's JUnit tests in `app/src/test` through Gradle). The same command runs in CI.
 2. If app code changed (`app/src/main`, `android-companion`, `chat-prototype`, `intent-v2`, `cli`), prove it on the real app with the `verify-rpm-glass` skill (`node .claude/skills/verify-rpm-glass/rpmctl.mjs`, `rpmctl` below), matched to the change:
    - **Web only** (`android-companion`, `chat-prototype`, `intent-v2`): a browser screenshot of the changed screen, then `rpmctl sync` on the shared emulator and `rpmctl shot`. No APK build.
    - **Native** (Java, the notch, the manifest, `cli`): `rpmctl launch --build`, then drive the changed feature with the recipe in its `features/` file.
@@ -74,7 +74,9 @@ Before changing Capture, read `docs/rules/capture.md`. Before changing the notch
 | The habit circle's meter has one segment per glass of the goal or per meal slot that is on, no text inside; the logged-glass motion is one swappable `animateGlass(svg, from, to)` and the circle settles after it. | `android-companion/habit-meter.test.mjs` |
 | Add is a round 60dp button beside the tab bar (hold 400ms for Capture), with the 48dp habit circle 12dp above it on Today; the page, snackbar and Now pill keep clear of both. | `android-companion/floating-layout.test.mjs` |
 | Companion markup never carries a `style="…"` attribute: the CSP drops it. Use SVG attributes, classes or `node.style`. | `npm run check:rules` (`inline-style-attribute`) |
-| Water and meal rules are the same in the planner and the notch: both pass `fixtures/habit-cases.json`. | `android-companion/habit-rules.test.mjs`, `NotchHabitsTest.java` |
+| Water and meal rules are the same in the planner and the notch: both pass `fixtures/habit-cases.json`. A store that never saved water reads as the default plan in both, so the notch nudges water from 8 AM on a fresh install. | `android-companion/habit-rules.test.mjs`, `NotchHabitsTest.java`, `NotchSceneTest.java` (`aStoreThatNeverSavedWater`) |
+| The app's JUnit tests (notch, widget, habits) run in `npm test`. | `scripts/test-unit.mjs` in `npm run test:java` |
+| Capture never darkens what is behind it: no window dim, and the More sheet's scrim is clear. | `android-companion/capture-look.test.mjs` |
 | The Next up widget shows the next task from the notch's own day rules: "in N min" with a ring filling over the last hour, "at 4:30 PM" further away, "Now · N min left" while it runs. It redraws on every saved change and on a text size change, and otherwise only at the minute its words change, with alarms that never wake the phone. Its meter opens the Water sheet; it never saves in place, because the widget has no receipt or Undo. | `NextUpTest.java`, `verify-rpm-glass` home-widget Next up drive |
 | A widget layout uses only views a home screen can inflate (no plain `View`), or the launcher shows "Can't load widget". | `NextUpTest.java` (`widgetLayoutsUseOnlyViewsAHomeScreenCanDraw`) |
 | `rpmctl seed` keeps synced web assets, so a seeded run shows the synced code. | `.claude/skills/verify-rpm-glass/seed-sync.test.mjs` |

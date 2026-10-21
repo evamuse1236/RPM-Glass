@@ -28,7 +28,7 @@ public class NotchFrameTest {
     private static NotchData day() throws Exception {
         JSONObject task = new JSONObject().put("id", 7).put("title", "Write RM essay").put("raw", "Write RM essay").put("kind", "plan")
                 .put("planned", java.time.Instant.ofEpochMilli(at("2026-10-18T15:30")).toString()).put("minutes", 45);
-        return NotchData.parse(new JSONObject().put("version", 1).put("entries", new JSONArray().put(task)).put("planner", new JSONObject()), new JSONArray());
+        return NotchData.parse(new JSONObject().put("version", 1).put("entries", new JSONArray().put(task)).put("planner", QuietBody.planner()), new JSONArray());
     }
 
     private static NotchFrame frame(NotchData data, String local, Mode mode) {
@@ -90,7 +90,7 @@ public class NotchFrameTest {
         assertFalse(waterOnly.taskDrop());
         assertEquals(Mode.HABIT, waterOnly.opens(NotchFrame.Side.TASK));
         assertTrue(waterOnly.showsPill());
-        NotchFrame nothing = frame(NotchData.parse(new JSONObject(), null), "2026-10-18T21:00", Mode.PILL);
+        NotchFrame nothing = frame(NotchData.parse(new JSONObject().put("planner", QuietBody.planner()), null), "2026-10-18T21:00", Mode.PILL);
         assertFalse("nothing to show hides the pill", nothing.showsPill());
         assertEquals(Mode.PILL, nothing.opens(NotchFrame.Side.TASK));
     }

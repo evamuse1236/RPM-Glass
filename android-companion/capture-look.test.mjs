@@ -31,3 +31,12 @@ test('response cards have a 1px outline border and 20dp corners in both themes; 
   assert.match(read('theme.css'), /--shape-sm:8px/);
   assert.match(block(read('capture.css'), '.stack'), /gap:8px/);
 });
+
+test('Capture never darkens what is behind it: no window dim and a clear More scrim (user, 2026-10-21)', () => {
+  const styles = read('../app/src/main/res/values/styles.xml');
+  assert.match(styles, /backgroundDimEnabled">false</);
+  assert.doesNotMatch(styles, /backgroundDimEnabled">true</);
+  const host = read('../app/src/main/java/com/rpm/prototype/CompanionActivity.java');
+  assert.doesNotMatch(host, /setDimAmount|addFlags\(WindowManager\.LayoutParams\.FLAG_DIM_BEHIND/);
+  assert.match(block(read('capture.css'), '.scrim'), /background:transparent/);
+});

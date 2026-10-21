@@ -38,6 +38,7 @@ public class NotchSceneTest {
 
     private static NotchData day(boolean body, JSONArray events) throws Exception {
         JSONObject planner = new JSONObject().put("blocks", new JSONArray().put(new JSONObject().put("id", "b1").put("title", "Study")));
+        if (!body) planner.put("body", QuietBody.body());
         if (body) {
             JSONObject water = new JSONObject().put("settings", new JSONObject().put("goal", 8))
                     .put("glasses", new JSONArray().put(iso("2026-10-18T08:30")).put(iso("2026-10-18T10:30")));
@@ -82,7 +83,7 @@ public class NotchSceneTest {
         JSONArray entries = new JSONArray()
                 .put(new JSONObject(task(1, "Write RM essay", "2026-10-18T15:30", 45).toString()).put("purpose", " So Sunday is calm ").put("blockId", JSONObject.NULL))
                 .put(new JSONObject(task(2, "Call Prof. Rao", "2026-10-18T16:30", 30).toString()).put("blockId", JSONObject.NULL));
-        NotchData bare = NotchData.parse(new JSONObject().put("version", 1).put("entries", entries).put("planner", new JSONObject()), null);
+        NotchData bare = NotchData.parse(new JSONObject().put("version", 1).put("entries", entries).put("planner", QuietBody.planner()), null);
         assertEquals("So Sunday is calm", scene(bare, "2026-10-18T15:50").heroSubtitle);
         assertEquals("Next", scene(bare, "2026-10-18T16:20").heroSubtitle);
     }
@@ -165,7 +166,7 @@ public class NotchSceneTest {
         assertEquals("at large text two rows drop as well", 3, s.more(1));
         NotchScene few = scene(day(false, null), "2026-10-18T15:50");
         assertEquals(0, few.more(3));
-        assertEquals(1, few.more(1));
+        assertEquals("the second task and the water count", 2, few.more(1));
     }
 
     @Test
@@ -178,14 +179,25 @@ public class NotchSceneTest {
     }
 
     @Test
-    public void withoutBodyDataOnlyTheDayShows() throws Exception {
+    public void withWaterRemindersAndMealsOffOnlyTheDayShows() throws Exception {
         NotchScene s = scene(day(false, null), "2026-10-18T15:50");
-        assertNull(s.water);
+        assertFalse(s.waterDue());
         assertNull(s.habit);
         assertNull(s.meal);
-        assertFalse(s.canLogMeal);
+        assertNull(s.topHabit);
         assertFalse(s.canSnooze());
-        assertEquals(2, s.rows.size());
+        assertEquals("the next task, the water count, then the later task", 3, s.rows.size());
+        assertEquals(Look.WATER, s.rows.get(1).look);
+    }
+
+    @Test
+    public void aStoreThatNeverSavedWaterStillNudgesWaterOnTheDefaultsLikeThePlanner() throws Exception {
+        NotchData fresh = NotchData.parse(new JSONObject().put("version", 1).put("entries", new JSONArray()).put("planner", new JSONObject()), null);
+        NotchScene s = scene(fresh, "2026-10-18T10:00");
+        assertTrue(s.waterDue());
+        assertEquals(NotchHabits.Habit.WATER, s.topHabit);
+        assertEquals(8, s.water.goal);
+        assertFalse("before 8 AM water is not due yet", scene(fresh, "2026-10-18T07:59").waterDue());
     }
 
     @Test

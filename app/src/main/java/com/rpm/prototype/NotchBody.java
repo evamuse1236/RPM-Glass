@@ -26,7 +26,7 @@ import java.util.Set;
  * </pre>
  */
 final class NotchBody {
-    /** No {@code planner.body} yet: the notch shows no water, routines or meals. */
+    /** Before the store is first read: no water, routines or meals. A read store without {@code planner.body} parses as defaults. */
     static final NotchBody ABSENT = new NotchBody(false, Collections.emptyList(), new NotchWater.Settings(), 0,
             Collections.emptyList(), Collections.emptyMap(), Collections.emptyList(), mealPlan(null));
 
@@ -127,7 +127,7 @@ final class NotchBody {
     static NotchBody parse(JSONObject data) {
         JSONObject planner = data == null ? null : data.optJSONObject("planner");
         JSONObject body = planner == null ? null : planner.optJSONObject("body");
-        if (body == null) return ABSENT;
+        if (body == null) body = new JSONObject();
         JSONObject water = body.optJSONObject("water");
         if (water == null) water = new JSONObject();
         List<Long> glasses = new ArrayList<>();

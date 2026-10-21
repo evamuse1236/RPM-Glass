@@ -70,9 +70,13 @@ public class NotchBodyTest {
     }
 
     @Test
-    public void noBodyMeansNoWaterRoutinesOrMeals() throws Exception {
-        assertSame(NotchBody.ABSENT, NotchBody.parse(store(null)));
-        assertSame(NotchBody.ABSENT, NotchBody.parse(null));
+    public void aStoreWithoutBodyReadsAsTheDefaultsLikeThePlanner() throws Exception {
+        for (NotchBody body : new NotchBody[]{NotchBody.parse(store(null)), NotchBody.parse(null)}) {
+            assertTrue(body.present);
+            assertTrue(body.water.reminders);
+            assertEquals(8, body.water.goal);
+            assertEquals(3, body.mealPlan.size());
+        }
         assertFalse(NotchBody.ABSENT.present);
     }
 
