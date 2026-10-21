@@ -5,7 +5,7 @@ import org.json.JSONObject;
 
 public final class ReminderReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context c,Intent intent) {
-        if(!"com.rpm.REMIND".equals(intent.getAction())) { boolean boot=Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction());Reminders.restore(c,boot);Alarms.restore(c,boot);SyncManager.request(c);return; }
+        if(!"com.rpm.REMIND".equals(intent.getAction())) { boolean boot=Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction());Reminders.restore(c,boot);Alarms.restore(c,boot);NotchSetup.check(c);SyncManager.request(c);return; }
         long id=intent.getLongExtra("id",-1);
         try(Store s=new Store(c)) {
             JSONObject e=s.get(id);

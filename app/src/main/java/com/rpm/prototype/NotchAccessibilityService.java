@@ -31,6 +31,7 @@ public final class NotchAccessibilityService extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
         NotchController.safely("service connected", notch::attach);
+        NotchSetup.check(this);
     }
 
     @Override
@@ -50,6 +51,7 @@ public final class NotchAccessibilityService extends AccessibilityService {
     @Override
     public boolean onUnbind(Intent intent) {
         NotchController.safely("unbind", notch::detach);
+        NotchSetup.check(this);
         return true;
     }
 
