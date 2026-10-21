@@ -36,6 +36,8 @@ function pressed(node, on) {
  * statusOf, toneOf, suggested, recent}. `pick` holds day, time, minutes, alert, lead, repeatDay, repeatPreset and
  * block, each saving at once. Returns {node, paint(now), select(tab), error(name, message), clash, focus(what)}.
  */
+const wrapRow = label => { const row = chipRow(label); row.classList.add('chip-wrap'); return row; };
+
 export function taskTabs({get, pick, tick = () => {}}) {
   const node = el('div', 'task-tabs');
   const row = el('div', 'tab-row');
@@ -134,8 +136,8 @@ function whenPanel(host, pick, tick) {
   const ruler = timeRuler({save: time => pick.time(time), tick});
   const clash = el('p', 'field-alert');
   clash.hidden = true;
-  const lengths = chipRow('Length');
-  const more = chipRow('More choices');
+  const lengths = wrapRow('Length');
+  const more = wrapRow('More choices');
   const dayPicker = pickerChip('date', 'edit_calendar', 'Pick a date', 'Pick a date', value => pick.day(value));
   const timePicker = pickerChip('time', 'keyboard', 'Pick a time', 'Pick a time', value => pick.time(value));
   const otherLength = pickerChip('number', 'timer', 'Other', 'Other length', value => {
@@ -202,7 +204,7 @@ function alertPanel(host, pick) {
     kind.append(icon(symbol, {cls: 'alert-kind-icon'}), el('span', 'alert-kind-label', word));
     kinds.append(kind);
   }
-  const leads = chipRow('Alert time');
+  const leads = wrapRow('Alert time');
   for (const n of ALERT_LEADS) {
     leads.append(chip(leadLabel(n), String(n), (value, chosen) => {
       settleChip(leads, markChips(leads, value) ?? chosen);
@@ -235,7 +237,7 @@ function repeatPanel(host, pick) {
     circle.setAttribute('aria-label', name);
     circles.append(circle);
   }
-  const presets = chipRow('Repeat');
+  const presets = wrapRow('Repeat');
   const every = el('input');
   for (const [value, text] of REPEAT_PRESETS) {
     presets.append(chip(text, value, (choice, chosen) => {
