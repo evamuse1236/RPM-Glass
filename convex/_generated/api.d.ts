@@ -14,6 +14,9 @@ import type * as diagnosticRedaction from "../diagnosticRedaction.js";
 import type * as diagnostics from "../diagnostics.js";
 import type * as functions from "../functions.js";
 import type * as http from "../http.js";
+import type * as planner from "../planner.js";
+import type * as plannerAuth from "../plannerAuth.js";
+import type * as plannerHttp from "../plannerHttp.js";
 import type * as security from "../security.js";
 import type * as sync from "../sync.js";
 
@@ -30,6 +33,9 @@ declare const fullApi: ApiFromModules<{
   diagnostics: typeof diagnostics;
   functions: typeof functions;
   http: typeof http;
+  planner: typeof planner;
+  plannerAuth: typeof plannerAuth;
+  plannerHttp: typeof plannerHttp;
   security: typeof security;
   sync: typeof sync;
 }>;

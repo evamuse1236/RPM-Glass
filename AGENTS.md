@@ -67,4 +67,7 @@ For an authorized phone release, compare the working tree, branch, and installed
 | Existing device pairing, events, and records survive additive account migration and token rotation. | `cloud-tests/webHttp.test.ts` |
 | The headless sync bundle runs with eval blocked and applies through the normal versioned native save bridge. | `android-companion/web-sync-runtime.test.mjs` with a simulated bridge; Android execution remains UNVERIFIED until driven |
 | Each command is acknowledged before the next starts, and pairing credentials come from one connection snapshot. | `SyncManagerTest.anAppliedCommandIsAcknowledgedBeforeTheNextCommandCanFail`, `SyncManagerTest.credentialsAreCapturedAsOneConnection` |
+| The website reports a change as saved only after the phone applies it and the newer snapshot arrives; until then the row says it is waiting for the phone. | `web/app/client.test.mjs`, `npm run web:drive` |
+| The website resends an unsent change with the same command ID and body after a network failure or reload. | `web/app/client.test.mjs` |
+| Every website action builds a command the contract accepts, on the snapshot revision the user saw. | `web/app/view.test.mjs` |
 | Model-backed paths without a key, Samsung behavior and real widget placement are reported as UNVERIFIED, not as passing. | Judgment: `verify-rpm-glass` SKILL.md proof standards |

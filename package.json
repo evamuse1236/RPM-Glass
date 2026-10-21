@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "npm run test:js && npm run check:rules && npm run test:cloud && npm run typecheck:cloud && npm run test:java",
-    "test:js": "node --import ./scripts/test-tz.mjs --test --test-concurrency=4 android-companion/*.test.mjs cli/*.test.mjs chat-prototype/*.test.mjs intent-v2/test/*.test.mjs playground/*.test.mjs .claude/skills/verify-rpm-glass/*.test.mjs",
+    "test:js": "node --import ./scripts/test-tz.mjs --test --test-concurrency=4 android-companion/*.test.mjs cli/*.test.mjs chat-prototype/*.test.mjs intent-v2/test/*.test.mjs playground/*.test.mjs web/app/*.test.mjs .claude/skills/verify-rpm-glass/*.test.mjs",
     "test:java": "bash scripts/test-parser.sh",
     "dev:cloud": "convex dev",
     "deploy:cloud": "convex deploy",
@@ -16,7 +16,11 @@
     "playground": "node playground/server.mjs",
     "build:android-assets": "node scripts/build-companion-assets.mjs",
     "check:rules": "node scripts/rules/check-rules.mjs && node --test scripts/rules/*.test.mjs",
-    "check:evidence": "node scripts/agent/require-evidence.mjs"
+    "check:evidence": "node scripts/agent/require-evidence.mjs",
+    "web:build": "node web/build.mjs",
+    "web:serve": "node web/serve.mjs",
+    "web:phone": "node scripts/web-sync/phone-standin.mjs",
+    "web:drive": "node scripts/web-sync/drive.mjs"
   },
   "dependencies": {
     "chrono-node": "2.10.1",

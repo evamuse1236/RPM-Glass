@@ -72,3 +72,19 @@ Each account has one authoritative device and one current snapshot with up to fo
 `RPM_WEB_ORIGIN` specifies the allowed production origin, such as `https://planner.example.com`. Local development also allows HTTP origins on localhost and 127.0.0.1 with an explicit port. Responses vary by Origin and expose ETag. Preflight allows Authorization, Content-Type, and If-None-Match. No wildcard origin or credentialed cookies are enabled. Authenticated planner and browser endpoints allow 120 validated operations per token per minute. Malformed requests fail validation before quota charging. Link exchanges also have a global bound of 30 attempts per minute to limit code guessing. The phone can revoke each browser independently. No AI credential leaves the phone.
 
 This feature requires a Convex deployment and `RPM_WEB_ORIGIN` configuration before live use. The build brief explicitly excludes deployment, emulator, and phone verification. Automated tests prove local contracts and transport behavior; live end-to-end sync and the Cloud dialog remain UNVERIFIED until the orchestrator verifies them.
+
+## The website
+
+`web/app/` is the browser planner. It links with the phone's code, shows Today (with the Inbox and the next seven days) and the Blocks with each Result and Purpose, and sends Capture, complete, reopen, reschedule, move to a Block, Trash, a glass of water and Undo. It looks like the phone app because it uses the same `android-companion/theme.css` and fonts. Below 56rem it has a Today and Blocks tab bar; wider, both show side by side.
+
+A change shows "waiting for phone" on its row until the phone applies it and the newer snapshot arrives. Only then does "Saved on the phone" appear, with Undo. A conflict or rejection shows the phone's words on that row. Changes made while the server is unreachable stay in the browser's outbox and are resent with the same command ID and body.
+
+Run it locally against a real Convex backend:
+
+1. `CONVEX_AGENT_MODE=anonymous npx convex dev` starts a local backend; its HTTP actions answer on `http://127.0.0.1:3211`.
+2. `npm run web:phone` pairs a stand-in phone and syncs every 3 seconds. It runs the phone's own command code (`web-sync-commands.mjs`) on the `rpmctl` seed. Its Capture model files the exact words as one task; no AI service is called.
+3. `RPM_SYNC_SERVER=http://127.0.0.1:3211 npm run web:build`, then `npm run web:serve` serves `web/dist` on `http://127.0.0.1:5178`.
+4. `npm run web:phone -- --link-code` prints a code to link the browser.
+5. `npm run web:drive` links a headless Chrome, drives each action at phone (412px) and laptop (1280px) widths, checks the results and saves screenshots under `.verify/evidence/web-<time>/`.
+
+Hosting: `web/dist` is a static folder. Build it with `RPM_SYNC_SERVER` set to the deployment's `.convex.site` URL and set `RPM_WEB_ORIGIN` on Convex to the site's origin. No deployment exists yet.
