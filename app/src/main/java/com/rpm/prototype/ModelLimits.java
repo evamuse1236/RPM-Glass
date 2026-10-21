@@ -5,6 +5,7 @@ import java.util.Map;
 /** Which chat models the phone may call on each AI service, how many tokens each may ask for, and how long it may take. */
 final class ModelLimits {
     static final String HAIKU="anthropic/claude-haiku-5.5",SONNET="anthropic/claude-sonnet-5.5";
+    static final String MERCURY="inception/mercury-3";
     static final String CLAUDE_HAIKU="claude-haiku-5-5",CLAUDE_SONNET="claude-sonnet-5-5";
     static final int MAX_BODY_CHARS=2000000;
     private static final class Limit {final int maxTokens,readTimeoutMs;Limit(int maxTokens,int readTimeoutMs){this.maxTokens=maxTokens;this.readTimeoutMs=readTimeoutMs;}}
@@ -12,6 +13,7 @@ final class ModelLimits {
     private static final Map<String,Limit> OPENROUTER=Map.of(
         HAIKU,HAIKU_LIMIT,
         SONNET,SONNET_LIMIT,
+        MERCURY,new Limit(4000,17000),
         "openai/gpt-6-luna",new Limit(3500,30000),
         "openai/gpt-5.6-luna",new Limit(3500,30000));
     private static final Map<String,Limit> CLAUDE=Map.of(CLAUDE_HAIKU,HAIKU_LIMIT,CLAUDE_SONNET,SONNET_LIMIT);

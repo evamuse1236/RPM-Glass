@@ -48,7 +48,7 @@ export async function runCase(test,{modules:m,directory,mode,transport='cli',rep
    if(record?.isError){const error=new Error('CLI transport could not obtain a model response; captured words are safe');error.code='TRANSPORT_ERROR';throw error;}
    const models=Object.keys(record?.modelUsage??{}),requested=m.claude.CLAUDE_API_MODELS[options.route.model];
    if(!modelOverride&&transport==='cli'&&!models.some(id=>id===requested||id.startsWith(requested+'-')))throw new Error('CLI returned an unexpected model');
-   Object.assign(options.run,{service:transport==='api'?'anthropic':'cli',provider:transport==='api'?'API transport':'CLI transport',servedModel:record?.servedModel??(models.join(',')||requested),
+   Object.assign(options.run,{service:record?.service??(transport==='api'?'anthropic':'cli'),provider:transport==='api'?'API transport':'CLI transport',servedModel:record?.servedModel??(models.join(',')||requested),
     inputTokens:record?.usage?.input_tokens??null,outputTokens:record?.usage?.output_tokens??null,cost:record?.costUSD??null});
    return result.output;
   }catch(error){if(error.record)call.record=error.record;call.error=m.errors.userMessage(error);throw error;}
