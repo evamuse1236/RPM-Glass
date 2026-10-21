@@ -38,7 +38,7 @@ test('a model read draws as its receipt will: the Block it chose, else Inbox, wi
  const data={entries:[],planner:{areas:[{id:'a1',title:'Studies',colorIndex:3}],goals:[{id:'g1',areaId:'a1'}],projects:[{id:'p1',goalId:'g1',title:'Term 1'}],blocks:[{id:'b1',title:'RM critical review',projectId:'p1'}]}};
  const op=(opId,fields)=>({opId,kind:'create',entity:'task',fields:fields.map(([name,value])=>({name,op:'set',value}))});
  const rows=previewRows(data,[op('t1',[['title','Past paper section B'],['blockId','b1'],['must',true],['time','Thursday at 5 pm']]),op('t2',[['title','Email Prof Rao'],['alert','off']]),{opId:'u1',kind:'update',entity:'task',fields:[]}],
-  {items:[{opId:'t1',status:'parsed',planned:'2026-10-22T11:30:00.000Z',plannedDate:'2026-10-22'}]});
+  {items:[{opId:'t1',status:'parsed',planned:'2026-10-22T11:30:00.000Z',plannedDate:'2026-10-22'}]},now);
  assert.equal(rows.length,2,'only new tasks form');
  assert.deepEqual([rows[0].where,rows[0].tone,rows[0].must,splitWhen(rows[0].when).day],['RM critical review','area-3',true,'Thu 22 Oct']);
  assert.deepEqual([rows[1].where,rows[1].tone,rows[1].alert,rows[1].when],['Inbox',null,null,null]);

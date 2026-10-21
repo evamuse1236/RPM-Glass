@@ -28,13 +28,13 @@ export function pendingRow({id=null,title='',planned=null,plannedDate=null,minut
   alert:alert==='off'?null:alert,minutes,repeat:repeatOf({recurrence,repeatAfterDays}),must:must===true,renamedFrom:null};
 }
 
-export function previewRows(data,operations=[],schedule=null){
+export function previewRows(data,operations=[],schedule=null,reference=new Date()){
  return operations.filter(op=>op.kind==='create'&&op.entity==='task').map(op=>{
   const value=name=>op.fields.find(f=>f.name===name&&f.op==='set')?.value??null;
   const item=schedule?.items?.find(i=>i.opId===op.opId),timed=item&&item.status!=='review';
   const blockId=value('blockId'),block=blockId&&!String(blockId).startsWith('$')?describeLink(data,'blockId',blockId):null;
   return pendingRow({id:op.opId,title:value('title')??'',planned:timed?item.planned:null,plannedDate:timed?item.plannedDate:null,minutes:value('minutes'),
-   alert:value('alert'),recurrence:value('recurrence'),repeatAfterDays:value('repeatAfterDays'),must:value('must'),where:block?.title??'Inbox',tone:block?.tone??null});
+   alert:value('alert'),recurrence:value('recurrence'),repeatAfterDays:value('repeatAfterDays'),must:value('must'),where:block?.title??'Inbox',tone:block?.tone??null},reference);
  });
 }
 
