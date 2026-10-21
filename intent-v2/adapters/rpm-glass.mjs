@@ -57,7 +57,8 @@ export function createRpmPlanAdapter({changePlanner,readCalendar,undo,maxTimeDra
  }
  async function undoPlan({data,receipt}){
   if(typeof undo!=='function')throw new Error('Inject the existing companion-tools undo function');
-  if(data.undo?.id!==receipt.undoId)throw new Error('A newer change exists; inspect current plans before undoing');
+  let record=data.undo;while(record&&record.id!==receipt.undoId)record=record.previous;
+  if(!record)throw new Error('A newer change exists; inspect current plans before undoing');
   // Legacy snapshots may restore unrelated top-level data. Keep this pilot's audit ledger.
   const intent=data.intentV2;const result=undo(data,receipt.undoId);data.intentV2=intent;return {text:result.text};
  }

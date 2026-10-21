@@ -3,7 +3,7 @@ import {validateFollowUp} from './follow-up.mjs';
 import {intentState} from './repository.mjs';
 import {sourceUnits,guardsFor,checkGuards,findEntity,contextEntity} from './context.mjs';
 import {interpretTurn} from './interpret.mjs';
-import {ident,activeStatus,conversation,safeQuestion,actOnDraft,undoCommitted} from './draft-actions.mjs';
+import {ident,activeStatus,conversation,safeQuestion,actOnDraft,undoCommitted,editCommittedItem,undoEdit} from './draft-actions.mjs';
 import {quickAnswer} from './quick-answer.mjs';
 import {inputSummary} from './input-summary.mjs';
 import {focusFor,focusOf,questionFor,openQuestion} from './conversation-focus.mjs';
@@ -191,5 +191,7 @@ export class IntentHarness {
   return this.repository.transact(`forget:${ident(actionId)}`,{memoryId,conversationId},data=>{conversation(data,conversationId);const m=intentState(data).approvedMemories.find(m=>m.id===memoryId);if(!m)throw new Error('Memory not found');m.archived=true;return {status:'forgotten',memoryId};});
  }
  undo(input){return undoCommitted(this,input);}
+ editItem(action,{actionId}={}){return editCommittedItem(this,action,{actionId});}
+ undoEdit(action,{actionId}={}){return undoEdit(this,action,{actionId});}
 }
 

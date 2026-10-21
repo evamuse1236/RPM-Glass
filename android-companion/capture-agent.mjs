@@ -84,6 +84,8 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
    const started=clock(),result=await service.nextStep(action,{actionId});
    return {...result,applied:await settle(actionId,result,{started})};
   }
+  if(action.kind==='edit-item')return service.editItem(action,{actionId});
+  if(action.kind==='undo-edit')return service.undoEdit(action,{actionId});
   const result=await service.act(action,{actionId});
   const draft=await draftOf(action.draftId),messageId=draft?.sourceMessageIds?.at(-1);
   if(draft?.status==='draft'&&messageId)await settle(messageId,{status:'interpreted',draftId:draft.id,modelRuns:[]},{started:clock()});

@@ -96,3 +96,50 @@ export async function undoCommitted(h,{draftId,conversationId,actionId}){
   d.status='undone';d.revision++;return {status:'undone',draftId,receipt};
  });
 }
+/** Fields a chip on a saved item may change, per kind. */
+export const EDITABLE_FIELDS={task:['title','purpose','time','minutes','blockId','recurrence','alert','must'],block:['title','purpose','projectId'],project:['title','purpose','goalId'],goal:['title','purpose','areaId'],area:['title','purpose']};
+const savedItem=(draft,entity,id)=>(draft.receipt?.changes??[]).some(c=>c.type!=='delete'&&String(c.id)===String(id)&&(c.collection===({task:'tasks',block:'blocks',project:'projects',goal:'goals',area:'areas'})[entity]));
+const undoChain=(record,id)=>{while(record&&record.id!==id)record=record.previous;return record??null;};
+/** A chip tap on an item Capture already saved: one update through the plan adapter, with its own Undo.
+ * The capture's own Undo stays reachable underneath, so it still takes back the whole capture. */
+export async function editCommittedItem(h,action,{actionId}={}){
+ ident(actionId);if(!action||typeof action!=='object')throw new Error('A typed action is required');
+ const result=await h.repository.transact(`edit:${actionId}`,action,async data=>{
+  conversation(data,action.conversationId);const draft=intentState(data).drafts[action.draftId];
+  if(!draft||draft.conversationId!==action.conversationId||draft.status!=='committed')throw new Error('This capture is no longer open for changes');
+  if(!EDITABLE_FIELDS[action.entity]?.includes(action.field))throw new Error('This field cannot be changed here');
+  if(!savedItem(draft,action.entity,action.id))throw new Error('This item is not part of this capture');
+  const field={name:action.field,op:action.clear?'clear':'set',value:action.clear?null:action.value,origin:'stated',evidence:null};validateField(field,action.entity);
+  // Each edit sits directly on the capture's own Undo, so the chain stays two snapshots deep.
+  const captureUndo=undoChain(data.undo,draft.receipt.undoId);
+  if(!captureUndo)throw new Error('A newer change exists; change it in the planner');
+  const at=h.clock().toISOString(),n=(draft.edits?.length??0)+1;
+  const targetId=action.entity==='task'?Number(action.id):action.id;
+  const edit={...structuredClone(draft),id:`${draft.id}:edit:${n}`,revision:1,timeAnchorAt:at,guards:{},review:null,question:null,missing:[],notes:[],schedulePreview:null,
+   operations:[{opId:'edit',kind:'update',entity:action.entity,targetId,fields:[{...field,sourceMessageId:null,userActionId:actionId}]}]};
+  delete edit.receipt;delete edit.edits;delete edit.applied;
+  let applied=await h.applyPlan({data,draft:structuredClone(edit),approval:{actionId,reviewToken:null,at}});
+  // The person picked this exact value; a clash warning is shown on the card, not asked again.
+  if(applied.status==='review'){edit.review=applied.review;applied=await h.applyPlan({data,draft:structuredClone(edit),approval:{actionId,reviewToken:applied.review.token,at}});}
+  if(applied.status!=='committed')throw new Error('Plan adapter did not confirm a commit candidate');
+  data.undo.previous=captureUndo;
+  const record={undoId:applied.receipt.undoId,entity:action.entity,id:String(action.id),field:action.field,label:typeof action.label==='string'?action.label.slice(0,80):null,at};
+  draft.edits=[...(draft.edits??[]),record];draft.revision++;draft.updated=at;
+  return {status:'edited',draftId:draft.id,edit:record};
+ });
+ h.emit({type:result.status,...result});return result;
+}
+/** Undo for one chip change: only that change comes back; the capture's Undo stays available. */
+export async function undoEdit(h,action,{actionId}={}){
+ ident(actionId);
+ const result=await h.repository.transact(`undo-edit:${actionId}`,action,async data=>{
+  conversation(data,action.conversationId);const draft=intentState(data).drafts[action.draftId];
+  const edit=(draft?.edits??[]).find(e=>e.undoId===action.undoId&&!e.undone);
+  if(!draft||draft.conversationId!==action.conversationId||draft.status!=='committed'||!edit)throw new Error('That change was already undone');
+  if(data.undo?.id!==edit.undoId)throw new Error('A newer change exists; inspect current plans before undoing');
+  await h.undoPlan({data,receipt:{undoId:edit.undoId}});
+  edit.undone=true;draft.revision++;draft.updated=h.clock().toISOString();
+  return {status:'edit-undone',draftId:draft.id,undoId:edit.undoId};
+ });
+ h.emit({type:result.status,...result});return result;
+}

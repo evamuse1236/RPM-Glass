@@ -136,6 +136,8 @@ export function propose(data,args,{raw,conversationId,now=new Date()}={}){
   return {text,entryIds:ids,receipts:ids.map(id=>entryView(data.entries.find(e=>e.id===id))),memories:remembered.map(id=>data.memories.find(m=>m.id===id)),undoId:data.undo.id,suggestions:ids.length?[{label:'Change time',text:`Change the time for ${ids.map(id=>'#'+id).join(' and ')}.`},{label:'Add purpose',text:`Add a purpose to #${ids[0]}.`}]:[]};
 }
 export function undo(data,id){
-  if(!data.undo||data.undo.id!==id)throw new Error('Only the latest change can be undone.');
-  restoreSnapshot(data,data.undo.before);data.undo=null;return {text:'Undone. The previous state is restored.'};
+  // A Capture chip edit keeps the capture's own Undo underneath it (`previous`); undoing the capture also drops the edit.
+  let record=data.undo;while(record&&record.id!==id)record=record.previous;
+  if(!record)throw new Error('Only the latest change can be undone.');
+  restoreSnapshot(data,record.before);data.undo=record.previous??null;return {text:'Undone. The previous state is restored.'};
 }
