@@ -45,9 +45,13 @@ export function cardKind(capture){
  * Whether a change can still be undone from its card: a planner change while it is the newest Undo, or a change
  * that only set drafts aside (no planner record), which Undo can always bring back.
  */
+/** The newest chip edit on a capture that has not been undone, or null. */
+export const latestEdit=draft=>[...(draft?.edits??[])].reverse().find(e=>!e.undone)??null;
+
 export function canUndoChange(draft,undoId){
  const receipt=draft?.receipt;
  if(!receipt)return false;
+ if(undoId&&latestEdit(draft)?.undoId===undoId)return true;
  return receipt.undoId?receipt.undoId===undoId:!!(receipt.parkedDrafts?.length||receipt.draftEdits?.length);
 }
 

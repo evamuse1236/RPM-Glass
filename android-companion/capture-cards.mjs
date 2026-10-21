@@ -102,16 +102,20 @@ export function alsoHeard(capture,on){
 }
 
 /** New items: "Added · Call the bank · Today, 10:30 AM · Inbox" with Undo, and a countdown before Capture closes. */
-export function receiptCard(capture,{canUndo,on}){
+export function receiptCard(capture,{canUndo,on,undoId}){
  const draft=capture.draft,node=card('receipt');
  const rows=draft.lines?.length?draft.lines:[{verb:'Saved',title:capture.raw}];
+ const chips=on.chips&&rows.some(r=>r.edit)?on.chips:null;
+ if(chips?.held(draft.id))node.classList.replace('enter','kept');
  node.append(kicker(draft.confirm==='kept'?'Kept':tally(rows),{name:'check_circle',tone:'done'}));
- node.append(lines(rows));
+ node.append(chips?chips.items(capture,node):lines(rows));
  if(capture.reply&&!capture.reply.startsWith('Draft ready to review.'))node.append(answerText(capture.reply));
  appendReceiptHelp(node,draft,on);
  if(draft.applied?.warning)node.append(warnLine(draft.applied.warning));
  const also=alsoHeard(capture,on);
  if(also)node.append(also);
+ const change=chips?.changeRow(capture,undoId);
+ if(change)node.append(change);
  const countdown=el('span','countdown');
  countdown.setAttribute('aria-live','off');
  node.append(actionsRow(countdown,canUndo?button('Undo',()=>on.undo(draft),{role:'text',iconName:'undo'}):null,

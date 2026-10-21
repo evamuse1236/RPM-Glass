@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createSendIdentity,draftToKeep,actionPresentation,cardKind,canUndoChange} from './capture-session.mjs';
+import {createSendIdentity,draftToKeep,actionPresentation,cardKind,canUndoChange,latestEdit} from './capture-session.mjs';
 test('a retried send keeps the exact words and its message ID',()=>{
  let n=0;const ids=createSendIdentity(()=>'id-'+(++n));
  const raw='  Print the worksheets, twenty minutes.  ';
@@ -46,4 +46,13 @@ test('Undo shows for the newest planner change, and for a change that only set d
  assert.equal(canUndoChange({receipt:{undoId:null,parkedDrafts:[{id:'d0',status:'draft'}]}},'u2'),true);
  assert.equal(canUndoChange({receipt:{undoId:null}},null),false);
  assert.equal(canUndoChange({},'u1'),false);
+});
+
+test('after a chip edit the footer Undo still shows, and the change row follows the newest edit not undone',()=>{
+ const draft={receipt:{undoId:'u1'},edits:[{undoId:'e1',field:'time'},{undoId:'e2',field:'alert',undone:true}]};
+ assert.equal(latestEdit(draft).undoId,'e1');
+ assert.equal(canUndoChange(draft,'e1'),true,'the edit chained on the capture keeps Undo');
+ assert.equal(canUndoChange(draft,'u1'),true,'after that edit is undone the capture Undo is back');
+ assert.equal(canUndoChange(draft,'e2'),false,'an undone edit is not the newest change');
+ assert.equal(latestEdit({receipt:{}}),null);
 });

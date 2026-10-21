@@ -8,6 +8,7 @@ import {installComposer,listeningCard} from './capture-composer.mjs';
 import {installForming} from './capture-forming.mjs';
 import {createSendIdentity,draftToKeep,cardKind,canUndoChange} from './capture-session.mjs';
 import {el,button} from './capture-dom.mjs';
+import {createChipCard} from './capture-chip-card.mjs';
 import {userMessage} from './user-message.mjs';
 import {actionIdFor} from '../intent-v2/src/suggestions.mjs';
 
@@ -117,8 +118,9 @@ export function mountCapture(platform){
 
  const action=a=>{
   if(a.kind==='open'){s.focusedDraftId=a.draftId;}
-  return turn({type:'intentAction',action:a,actionId:actionIdFor(a)}).then(()=>{if(a.kind==='open')message.focus({preventScroll:true});});
+  return turn({type:'intentAction',action:a,actionId:actionIdFor(a)}).then(data=>{if(a.kind==='open')message.focus({preventScroll:true});return data;});
  };
+ const chips=createChipCard({act:a=>{s.keepScroll=true;return action(a);},refresh:()=>{render();s.keepScroll=false;},choices:()=>s.state?.choices});
  const on={
   retry:()=>turn({type:'intentRetry',messageId:latest()?.messageId}),
   edit:text=>{
@@ -132,12 +134,13 @@ export function mountCapture(platform){
   choose:a=>{const id=actionIdFor(a);return turn({type:'intentChoose',action:a,actionId:id,messageId:id,label:latest()?.clarification?.choices.find(c=>c.id===a.choiceId)?.label??null});},
   keepNote:(c,note,keep)=>turn({type:'keepNote',messageId:c.messageId,sourceId:note.sourceId,keep,actionId:`note:${crypto.randomUUID()}`}),
   action,
+  chips,
   openPlanner:()=>platform.openPlans(),
  };
 
  function scheduleAutoClose(){
   cancelAutoClose();
-  if(message.value.trim())return;
+  if(message.value.trim()||chips.held(latest()?.draft?.id))return;
   const ends=Date.now()+AUTO_CLOSE_MS;
   const tick=()=>{const node=content.querySelector('.countdown'),left=Math.ceil((ends-Date.now())/1000);if(node)node.textContent=left>0?`Closing in ${left}s`:'';};
   tick();s.countdown=setInterval(tick,250);
@@ -169,7 +172,7 @@ export function mountCapture(platform){
   switch(kind){
    case 'pending':case 'words-kept':return wordsKeptCard({raw:c.raw,error:c.lastError?userMessage(c.lastError):null,aiEnabled},retry);
    case 'confirm':return confirmCard(c,{canUndo,on});
-   case 'receipt':return receiptCard(c,{canUndo,on});
+   case 'receipt':return receiptCard(c,{canUndo,on,undoId:s.state.undoId});
    case 'undone':return undoneCard(c,on);
    case 'parked':return parkedCard(c,on);
    case 'open':return openCard(c,on);
@@ -213,10 +216,10 @@ export function mountCapture(platform){
   const c=conversation();
   s.conversationId=c.id;storage.set('rpm-conversation',c.id);
   s.lastKey=captureRenderKey({...s.state,intent:page()});
-  const nodes=viewCards();
+  const nodes=viewCards(),top=content.scrollTop;
   content.replaceChildren(...nodes);
   if(s.problem&&!content.querySelector('.problem'))status(s.problem,true);
-  content.scrollTop=0;
+  content.scrollTop=s.keepScroll?top:0;
   keepChoicesInView(content);
   const kind=s.listening?'listening':s.request?'pending':s.failure?'error':nodes[0]?.classList[2]??'idle';
   panel.dataset.view=s.view;panel.dataset.busy=String(s.busy);panel.dataset.state=kind;
@@ -264,6 +267,7 @@ export function mountCapture(platform){
  window.addEventListener('rpm-calendar-ready',()=>{if(s.state&&!s.busy&&s.view==='chat'&&content.querySelector('.answer'))render();});
  window.rpmHandleBack=()=>{
   if(sheet.close())return true;
+  if(chips.closeTray())return true;
   if(s.view!=='chat'){setView('chat');return true;}
   return false;
  };
