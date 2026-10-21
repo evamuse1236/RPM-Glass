@@ -54,3 +54,11 @@ Execution checks cover schema validation, durable exact words before model work 
 Every case directory contains the seed, current/final store, per-turn inputs, model outputs, traces and assertions. `results.json` and `report.md` aggregate pass rates, overlapping failure classes, routes, latency and usage. Token fields retain uncached input, output and cache counts separately. Dollar figures use CLI-reported estimates or API token usage and published rates, not billing receipts. A killed process may report no usage; do not interpret missing usage as free. An optional isolated Sonnet judge in CLI mode scores meaning without changing deterministic verdicts. It sees the seeded entities and all canonical saved entities after the capture, including edited existing tasks, as well as new tasks, body logs and draft receipts. It never sees the developer's reasoning or code changes. Fuzzy mismatches still need inspection before treating the overall rate as a product-quality estimate.
 
 The [19 October API results](api-results-2026-10-19.md) record the two live workloads, every failed case-run, receipt and Undo evidence, and differences from the phone.
+
+The `varied-2026-10-21.json` expansion has 44 cases. Twelve carry `heldout` and are excluded by default, including from `--only` unless explicitly unlocked. Freeze their inputs and expectations before tuning, and inspect their outputs only at the final evaluation:
+
+```sh
+npm run stress:capture -- --transport api --repeat 3 --include-heldout
+```
+
+A case passes the three-repeat evaluation only when all three runs pass. The expansion also checks exact repeat patterns, Project links, agenda day and unresolved create details; those are saved-state assertions, not a model judge's scores.

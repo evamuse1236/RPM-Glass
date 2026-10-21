@@ -9,7 +9,8 @@
     "corpus/smart.json",
     "corpus/round3.json",
     "corpus/everyday.json",
-    "corpus/adversary.json"
+    "corpus/adversary.json",
+    "corpus/varied-2026-10-21.json"
   ],
   "hardest": [
     "nine-relative-times",

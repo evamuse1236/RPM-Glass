@@ -20,6 +20,11 @@ export function evaluateCase(test,{before,after,turns,states,validate,schema}){
   failures.push(...checkExpectation(allowed,context).filter(f=>f.type==='invented item').map(f=>({...f,turn:i+1})));
  }
  const last=turns.at(-1);
+ for(const field of test.expect.missing??[])if(!last?.draft?.missing?.some(m=>m.field===field))failures.push({type:'missing detail lost',detail:`Expected missing ${field}`});
+ if(test.expect.card){
+  const expected=test.expect.card,card=last?.capture?.card;
+  if(!card||card.kind!==expected.kind||card.day!==expected.day)failures.push({type:'wrong answer',detail:`Expected ${expected.kind} on ${expected.day}`});
+ }
  if(test.expect.flip!==undefined&&last?.draft?.nextStep?.label!==test.expect.flip)failures.push({type:'missing flip',detail:`Expected ${test.expect.flip}, got ${last?.draft?.nextStep?.label??'no chip'}`});
  failures.push(...checkExpectation(test.expect,{before,after,draft:last?.draft,focusDraft:last?.focusDraft,questions:visibleQuestions(last??{})}));
  if(!turns.every(t=>after.intentV2?.captures?.[t.capture?.messageId]?.raw===t.text))failures.push({type:'words lost',detail:'A later turn lost an earlier raw capture'});

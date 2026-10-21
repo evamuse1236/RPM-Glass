@@ -104,7 +104,9 @@ function checkFields(expected,row,fail,after){
  if(expected.alert!==undefined&&alert!==expected.alert)fail('lost item',`${row.title}: alert ${alert}, expected ${expected.alert}`);
  if(expected.minutes!==undefined&&row.minutes!==expected.minutes)fail('wrong time',`${row.title}: duration ${row.minutes}, expected ${expected.minutes}`);
  if(expected.priority!==undefined&&row.priority!==expected.priority)fail('lost item',`${row.title}: priority ${row.priority}, expected ${expected.priority}`);
+ for(const name of ['recurrence','repeatAfterDays'])if(expected[name]!==undefined&&(row[name]??null)!==expected[name])fail('wrong repeat',`${row.title}: ${name} ${row[name]??null}, expected ${expected[name]}`);
  if(expected.blockWords&&!matchesWords(after.planner?.blocks?.find(b=>b.id===row.blockId)?.title,expected.blockWords))fail('lost item',`${row.title}: not filed under the requested Result ${expected.blockWords.join(' + ')}`);
+ if(expected.projectWords&&!matchesWords(after.planner?.projects?.find(p=>p.id===row.projectId)?.title,expected.projectWords))fail('lost item',`${row.title}: not filed under the requested Project ${expected.projectWords.join(' + ')}`);
 }
 
 export function visibleQuestions(turn){

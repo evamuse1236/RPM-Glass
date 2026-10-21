@@ -17,7 +17,7 @@ export function parseOptions(args){
  const invalid=message=>Object.assign(new Error(message),{code:'INVALID_OPTIONS'});
  for(let i=0;i<args.length;i++){
   const name=args[i];
-  if(['--judge','--hardest','--probe-only','--help'].includes(name)){options[name.slice(2)]=true;continue;}
+  if(['--judge','--hardest','--probe-only','--help','--include-heldout'].includes(name)){options[name.slice(2)]=true;continue;}
   if(!['--repo','--only','--repeat','--concurrency','--out','--transport'].includes(name)||!args[i+1]||args[i+1].startsWith('--'))throw invalid(`Unknown or incomplete option ${name}`);
   options[name.slice(2)]=args[++i];
  }
@@ -33,6 +33,13 @@ export async function loadCorpus(){
  const cases=files.flatMap(f=>JSON.parse(f));
  const ids=new Set();for(const c of cases){if(ids.has(c.id))throw new Error(`Duplicate case ${c.id}`);ids.add(c.id);}
  return {manifest,cases,hash:createHash('sha256').update(JSON.stringify(manifest)+files.join('')).digest('hex')};
+}
+
+export function selectCases(cases,manifest,options){
+ const ids=options.only?.split(',')??(options.hardest?manifest.hardest:null);
+ if(ids?.some(id=>!cases.some(c=>c.id===id)))throw new Error('Unknown case ID in --only');
+ if(!options['include-heldout']&&ids?.some(id=>cases.find(c=>c.id===id)?.tags.includes('heldout')))throw new Error('Held-out cases require --include-heldout');
+ return cases.filter(c=>(!ids||ids.includes(c.id))&&(options['include-heldout']||!c.tags.includes('heldout')));
 }
 
 async function sourceHash(repo){
@@ -64,12 +71,10 @@ export async function judgeCase(result,{mode}){
 
 async function main(){
  const options=parseOptions(process.argv.slice(2));
- if(options.help){console.log('npm run stress:capture -- [--transport cli|api] [--repo PATH] [--only id,id] [--hardest] [--repeat N] [--concurrency 3] [--judge (cli only)] [--out PATH] [--probe-only (cli only)]');return;}
+ if(options.help){console.log('npm run stress:capture -- [--transport cli|api] [--repo PATH] [--only id,id] [--hardest] [--repeat N] [--concurrency 3] [--include-heldout] [--judge (cli only)] [--out PATH] [--probe-only (cli only)]');return;}
  process.env.TZ='Asia/Kolkata';
  const {manifest,cases,hash}=await loadCorpus();
- const selectedIds=options.only?.split(',')??(options.hardest?manifest.hardest:null);
- if(selectedIds?.some(id=>!cases.some(c=>c.id===id)))throw new Error('Unknown case ID in --only');
- const selected=selectedIds?cases.filter(c=>selectedIds.includes(c.id)):cases;
+ const selected=selectCases(cases,manifest,options);
  const id=new Date().toISOString().replace(/[:.]/g,'-');
  const directory=path.resolve(options.out??path.join(root,'.verify/capture-stress',id));
  await mkdir(directory,{recursive:true});
