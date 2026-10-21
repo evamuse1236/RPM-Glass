@@ -44,9 +44,9 @@ export function comparisonSummary(results){
 }
 
 async function main(){
- const args=process.argv.slice(2),options={n:10,out:'.verify/capture-stress/compare-models-'+new Date().toISOString().replace(/[:.]/g,'-'),budget:0.5};
+ const args=process.argv.slice(2),options={n:10,out:'.verify/capture-stress/compare-models-'+new Date().toISOString().replace(/[:.]/g,'-'),budget:0.5,models:'haiku,'+'inception/mercury-3'};
  for(let i=0;i<args.length;i++){
-  if(!['--n','--out','--budget'].includes(args[i])||!args[i+1])throw new Error('Use --n 1..10 --out PATH --budget USD');
+  if(!['--n','--out','--budget','--models'].includes(args[i])||!args[i+1])throw new Error('Use --n 1..10 --out PATH --budget USD --models haiku,<openrouter id>,...');
   options[args[i].slice(2)]=args[++i];
  }
  options.n=Number(options.n);options.budget=Number(options.budget);
@@ -64,11 +64,12 @@ async function main(){
   if(report.reservedUSD+reserve>options.budget)throw new Error('Comparison budget exhausted');
   report.reservedUSD+=reserve;return fetch(url,init);
  };
- for(const [name,route] of [['haiku',{model:adapters.policy.HAIKU_MODEL,effort:'none',timeoutMs:25000,maxTokens:4000}],['mercury',adapters.policy.MERCURY_QUICK_ROUTE]]){
+ const routes=options.models.split(',').map(id=>id==='haiku'?['haiku',{model:adapters.policy.HAIKU_MODEL,effort:'none',timeoutMs:25000,maxTokens:4000}]:[id,id===adapters.policy.MERCURY_MODEL?adapters.policy.MERCURY_QUICK_ROUTE:{model:id,effort:'none',timeoutMs:15000,maxTokens:4000}]);
+ for(const [name,route] of routes){
   const results=[];
   for(const id of report.caseIds){
    const test=cases.find(c=>c.id===id);
-   const result=await runCase(test,{modules:adapters,directory:path.join(directory,name,id),transport:'api',modelOverride:(input,o)=>{
+   const result=await runCase(test,{modules:adapters,directory:path.join(directory,name.replace(/[^a-z0-9.-]/gi,'_'),id),transport:'api',modelOverride:(input,o)=>{
     // Compare the two quick models on identical inputs and budgets, including any repair input.
     const options={prompt:adapters.prompt.intentSystemPrompt,input,route,signal:o.signal,deadline:Math.min(o.deadline,Date.now()+route.timeoutMs),adapters,fetchImpl:budgetFetch};
     return name==='haiku'?apiCall(options):mercuryCall(options);
