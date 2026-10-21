@@ -31,7 +31,9 @@ function phone({second='task'}={}){
  const agent=createCaptureAgent({service,traces,clock:()=>NOW});
  return {backend,inputs,service,traces,agent};
 }
-const send=async(p,messageId,text)=>p.agent.capture({messageId,conversationId:(await p.backend.load()).conversations[0].id,text});
+// Stage the historical unresolved draft without auto-apply; the tests exercise
+// clarification and removal of proposals saved by an earlier build.
+const send=async(p,messageId,text)=>(messageId==='m0'?p.service:p.agent).capture({messageId,conversationId:(await p.backend.load()).conversations[0].id,text});
 const view=async p=>intentViewFromData(await p.backend.load(),{now:NOW});
 
 test('the 19 Oct conversation: focus survives, "Both" needs no model, one change, one Undo restores both',async()=>{

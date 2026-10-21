@@ -61,3 +61,13 @@ test('a named subject or explicit saved-item reference still allows updates',asy
   const {draft}=await captured(s,raw);assert.equal(draft.operations[0].kind,'update');
  }
 });
+
+test('weak provenance for a new title is a notice and does not hide a later saved-target conflict',async()=>{
+ const weak=operation([field('title','Wispr freelance bot',clarification)],{opId:'weak',entity:'project'});
+ const s=setup(async()=>turn(clarification,[weak]),{seed:fixture(),clock:()=>new Date(NOW)});
+ const {result,draft}=await captured(s,clarification);assert.equal(result.status,'interpreted');assert.ok(draft.notes.length);
+ await s.harness.act(actionFor(draft),{actionId:'save-with-notice'});
+ assert.equal((await s.repository.load()).intentV2.drafts[draft.id].status,'committed');
+ const blocked=setup(async()=>turn(clarification,[weak,...bad(clarification).operations]),{seed:fixture(),clock:()=>new Date(NOW)});
+ const attempt=await captured(blocked,clarification);assert.equal(attempt.result.status,'captured');assert.match(attempt.result.error,/FOLLOW_UP_TARGET/);assert.equal(blocked.adapter.calls,0);
+});

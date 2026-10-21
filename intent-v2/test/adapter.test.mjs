@@ -17,3 +17,15 @@ test('adapter does not overwrite a pending legacy transaction',async()=>{const d
 test('structured request uses required fields, strict schema, no mutating tools or mandatory reasoning effort',()=>{const body=structuredRequest({model:'vendor/test-model',prompt:'p',input:{}});assert.equal(body.response_format.json_schema.strict,true);assert.equal(body.provider.require_parameters,true);assert.equal(body.provider.allow_fallbacks,false);assert.equal(body.tools,undefined);assert.equal(body.reasoning,undefined);});
 test('provider model aliases are not treated as semantic validation',()=>{assert.deepEqual(readStructuredResponse({model:'resolved-alias',choices:[{finish_reason:'stop',message:{content:JSON.stringify(turn())}}]}),turn());});
 test('truncated provider output cannot create a plan',()=>{assert.throws(()=>readStructuredResponse({choices:[{finish_reason:'length',message:{content:'{}'}}]}),/complete interpretation/);});
+
+test('compiler omits unknown create fields and records each missing slot once',()=>{
+ const d=draft([operation([field('title','Lesson'),field('time',null,null,'stated','unknown'),field('purpose',null,null,'stated','unknown')])]);
+ const [compiled]=compilePlannerOperations(d,approval);
+ assert.ok(!Object.hasOwn(compiled.fields,'time'));assert.ok(!Object.hasOwn(compiled.fields,'purpose'));
+ assert.deepEqual(d.missing,[{opId:'task1',field:'time'},{opId:'task1',field:'purpose'}]);
+ compilePlannerOperations(d,approval);assert.equal(d.missing.length,2);
+});
+
+test('compiler still refuses an unknown field on a saved-item change',()=>{
+ assert.throws(()=>compilePlannerOperations(draft([operation([field('time',null,null,'stated','unknown')],{kind:'update',targetId:'1'})]),approval),/resolve this field/);
+});

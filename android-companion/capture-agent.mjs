@@ -1,5 +1,5 @@
 import {intentState} from '../intent-v2/src/repository.mjs';
-import {draftFollowUpProblem} from '../intent-v2/src/follow-up.mjs';
+import {draftFollowUpProblem,blocksFollowUp} from '../intent-v2/src/follow-up.mjs';
 import {openQuestion} from '../intent-v2/src/conversation-focus.mjs';
 import {beforeRows,needsConfirm} from './capture-receipt.mjs';
 import {modelRun,interpretedSummary} from './capture-trace.mjs';
@@ -11,7 +11,7 @@ const failure=(stage,error)=>({stage,code:error?.code??null,message:userMessage(
 /**
  * Capture acts, then confirms: the words are saved first, the model reads them, and whatever it proposes applies
  * straight away. New items get a receipt with Undo; changes to saved items also apply, then wait for Keep or Undo.
- * A draft that still needs an answer (an AM/PM, a time that couldn't be read) waits for it. Every capture leaves one trace.
+ * Missing details on creates become receipt data; questions about saved items still wait. Every capture leaves one trace.
  */
 export function createCaptureAgent({service,traces,clock=()=>new Date()}){
  const {repository}=service;
@@ -21,14 +21,16 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
  async function apply(draftId){
   const data=await repository.load(),state=intentState(data),draft=state.drafts[draftId];
   if(!draft||draft.status!=='draft')return {status:draft?.status==='committed'?'applied':'skipped'};
-  if(openQuestion(state,draft.conversationId)||draft.question||draft.operations.some(op=>op.fields.some(f=>f.op==='unknown')))return {status:'needs-answer'};
-  if(draft.schedulePreview?.items?.some(i=>i.status==='review'))return {status:'needs-time'};
-  if(draftFollowUpProblem(data,draft))return {status:'needs-check'};
+  if(openQuestion(state,draft.conversationId)||(draft.question&&draft.operations.some(o=>o.opId===draft.question.opId&&o.kind!=='create'))||draft.operations.some(op=>op.kind!=='create'&&op.fields.some(f=>f.op==='unknown')))return {status:'needs-answer'};
+  if(draft.schedulePreview?.items?.some(i=>i.status==='review'&&draft.operations.some(o=>o.opId===i.opId&&o.kind!=='create')))return {status:'needs-time'};
+  if(blocksFollowUp(draftFollowUpProblem(data,draft)))return {status:'needs-check'};
   const before=beforeRows(data,draft),confirm=needsConfirm(draft);
   const commit=d=>service.act({conversationId:d.conversationId,draftId,revision:d.revision,kind:'commit',...(d.review?{reviewToken:d.review.token}:{})},{actionId:`auto-${draftId}-${d.revision}`});
   let result=await commit(draft),warning=null;
   if(result.status==='review'){const held=await draftOf(draftId);warning=held.review?.question??null;result=await commit(held);}
   if(result.status!=='committed')return {status:'skipped'};
+  const committed=await draftOf(draftId);
+  warning=[warning,...(committed.notes??[])].filter(Boolean).join(' ')||null;
   const unapplied=draft.sourceMessageIds.flatMap(id=>intentState(data).captures[id]?.unapplied??[]);
   if(unapplied.length)warning=[warning,...unapplied.map(x=>`${x.title}: ${x.field} was not applied. ${x.reason} Your original words are saved.`)].filter(Boolean).join(' ');
   const applied={at:clock().toISOString(),auto:true,needsConfirm:confirm,warning,before};

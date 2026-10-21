@@ -25,18 +25,31 @@ for(const c of newCapturePreviews)test(c.name,async()=>{
  await service.undo({draftId:draft.id,conversationId,actionId:messageId+'-undo'});data=await backend.load();assert.equal(data.entries.length,0);assert.equal(data.intentV2.captures[messageId].raw,c.raw);
 });
 
-// An unresolved or contradictory time is held for review; a field correction regenerates the preview and unlocks Add.
+// Saved-item times still require review; creates save without the unresolved time.
 const reviewedTimeCorrections=[
- {name:'unresolved time blocks Add and forged commit; field correction refreshes preview',raw:'Read today from 2 to 3',fields:[field('title','Read','Read'),field('time','today from 2 to 3','today from 2 to 3')],correction:{field:'time',value:'today 2pm-3pm'}},
- {name:'conflicting duration is reviewed and a duration edit regenerates time preview',raw:'Read today 2pm-3pm for 30 minutes',fields:[field('title','Read','Read'),field('time','today 2pm-3pm','today 2pm-3pm'),field('minutes',30,'30 minutes')],correction:{field:'minutes',value:60}}
+ {name:'an unresolved saved-item time blocks commit; field correction refreshes preview',raw:'Read today from 2 to 3',fields:[field('title','Read','Read'),field('time','today from 2 to 3','today from 2 to 3')],correction:{field:'time',value:'today 2pm-3pm'}},
+ {name:'a saved-item duration conflict is reviewed and a duration edit regenerates time preview',raw:'Read today 2pm-3pm for 30 minutes',fields:[field('title','Read','Read'),field('time','today 2pm-3pm','today 2pm-3pm'),field('minutes',30,'30 minutes')],correction:{field:'minutes',value:60}}
 ];
 for(const c of reviewedTimeCorrections)test(c.name,async()=>{
- const {backend,service}=serviceFor(async()=>turn(c.raw,[operation(c.fields)]),freshStore(),{clock:()=>new Date(2026,8,27,12,1)}),conversationId=(await backend.load()).conversations[0].id;
- let result=await service.capture({messageId:'review-source',conversationId,text:c.raw}),draft=result.intent.captures[0].draft;
+ const seed=freshStore();editPlan(seed,{type:'saveTask',fields:{title:'Read',planned:new Date(2026,8,27,9).toISOString()}});
+ const {backend,service}=serviceFor(async()=>turn(c.raw,[operation(c.fields,{kind:'update',targetId:'1'})]),seed,{clock:()=>new Date(2026,8,27,12,1)}),conversationId=(await backend.load()).conversations[0].id;
+ let result=await service.capture({messageId:'review-source',conversationId,text:'Move '+c.raw}),draft=result.intent.captures[0].draft;
  assert.equal(draft.schedulePreview.items[0].status,'review');assert.equal(draft.actions.some(a=>a.action.kind==='commit'),false);
- const identity={conversationId,draftId:draft.id,revision:draft.revision};await assert.rejects(service.act({...identity,kind:'commit'},{actionId:'forged-save'}),/time|schedule/i);assert.equal((await backend.load()).entries.length,0);
+ const identity={conversationId,draftId:draft.id,revision:draft.revision};await assert.rejects(service.act({...identity,kind:'commit'},{actionId:'forged-save'}),/time|schedule/i);assert.deepEqual((await backend.load()).entries,seed.entries);
  result=await service.act({...identity,kind:'set-field',opId:'task1',...c.correction},{actionId:'correct-field'});draft=result.intent.captures[0].draft;assert.equal(draft.schedulePreview.items[0].status,'parsed');assert.equal(draft.schedulePreview.items[0].minutes,60);assert.equal(draft.actions[0].action.kind,'commit');
  await service.act(draft.actions[0].action,{actionId:'corrected-save'});assert.equal((await backend.load()).entries[0].minutes,60);
+});
+
+for(const c of reviewedTimeCorrections)test(`a create saves without unresolved schedule: ${c.raw}`,async()=>{
+ const {backend,service}=serviceFor(async()=>turn(c.raw,[operation(c.fields)]),freshStore(),{clock:()=>new Date(2026,8,27,12,1)}),conversationId=(await backend.load()).conversations[0].id;
+ const result=await service.capture({messageId:'create-review',conversationId,text:c.raw}),draft=result.intent.captures[0].draft;
+ assert.equal(draft.schedulePreview.items[0].status,'review');
+ const committed=await service.act({kind:'commit',conversationId,draftId:draft.id,revision:draft.revision},{actionId:'save-incomplete'});
+ assert.equal(committed.status,'committed');
+ const saved=(await service.view()).captures[0].draft,data=await backend.load();
+ assert.equal(data.entries.length,1);assert.equal(data.entries[0].planned,null);assert.equal(data.entries[0].raw,c.raw);
+ assert.deepEqual(saved.missing,[{opId:'task1',field:'time'}]);assert.ok(saved.notes.includes(draft.schedulePreview.items[0].reason));
+ await service.undo({draftId:draft.id,conversationId,actionId:'undo-incomplete'});assert.equal((await backend.load()).entries.length,0);
 });
 
 // A clock-only edit of a saved task keeps its saved future day; preview, reply and commit agree without an extra question.
