@@ -54,7 +54,7 @@
 .nest-rings { flex: none; inline-size: 64px; block-size: 64px; }
 .nest-rings circle { fill: none; }
 .nest-track { stroke: var(--surface-container-highest); }
-.nest-value { stroke: var(--tone); stroke-linecap: round; }
+.nest-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; }
 .project-blocks { display: grid; gap: var(--s1); padding: 0 var(--s3) var(--s3); }
 .project-block {
   display: flex;
@@ -72,7 +72,7 @@
 .project-block-count { color: var(--on-surface-variant); white-space: nowrap; }
 .seg-ring :is(path, circle) { fill: none; stroke-width: 6; }
 .seg-off { stroke: var(--surface-container-highest); }
-.seg-on { stroke: var(--tone, var(--primary)); }
+.seg-on { stroke: var(--progress, var(--primary)); }
 .seg-arc { stroke-linecap: round; }
 /* One facts line on a Block card: deadline, the Musts' time left, tasks done. */
 .card-facts { margin-top: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
