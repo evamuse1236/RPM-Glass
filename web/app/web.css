@@ -45,6 +45,12 @@ html:has(dialog:modal) { overflow: clip; }
 .capture-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
 .capture-head h2 { font: var(--title-large); }
 .capture-sheet .filled-btn { justify-self: end; }
+.capture-history { display: grid; gap: var(--s2); margin-block-start: var(--s4); padding-block-start: var(--s4); border-block-start: 1px solid var(--outline-variant); }
+.capture-history h3 { margin: 0; font: var(--title-small); color: var(--on-surface-variant); }
+.capture-history ol { display: grid; gap: var(--s3); margin: 0; padding: 0; list-style: none; }
+.capture-history p { margin: 0; overflow-wrap: break-word; }
+.capture-said { font: var(--body-large); }
+.capture-outcome { font: var(--body-medium); color: var(--on-surface-variant); }
 
 @media (width >= 600px) {
   .planner-view :is(#nav-bar, #dock, #now-host) { --inset-page: max(var(--s4), (100% - var(--column)) / 2); }

@@ -11,11 +11,12 @@ const {values: opts} = parseArgs({options: {
   chrome: {type: 'string', default: '/usr/bin/chromium'},
   state: {type: 'string', default: '.verify/web-sync/phone.json'},
   'no-code': {type: 'boolean', default: false},
+  only: {type: 'string'},
   out: {type: 'string', default: `.verify/evidence/web-${new Date().toISOString().replace(/[:.]/g, '-')}`},
 }});
 mkdirSync(opts.out, {recursive: true});
 const results = [];
-const check = (ok, label) => { results.push({ok: !!ok, label}); console.log(ok ? 'PASS' : 'FAIL', label); };
+const check = (ok, label) => { results.push({ok: ok === null ? null : !!ok, label}); console.log(ok === null ? 'SKIP' : ok ? 'PASS' : 'FAIL', label); };
 const PLANNER = `!!document.querySelector('#nav-bar .nav-item') && !!document.querySelector('.spine-card')`;
 
 const b = await openBrowser({chrome: opts.chrome, out: opts.out});
@@ -41,7 +42,7 @@ try {
   }
   await sleep(500);
   await b.capture('today-412');
-  await runChecks({b, check, state: opts.state, site: opts.site});
+  await runChecks({b, check, state: opts.state, site: opts.site, only: opts.only});
 } catch (error) {
   check(false, `drive stopped: ${error.message}`);
   await b.capture('stopped').catch(() => {});
@@ -49,6 +50,6 @@ try {
 check(b.errors.length === 0, `no script errors in the page${b.errors.length ? `: ${b.errors.join(' | ')}` : ''}`);
 writeFileSync(join(opts.out, 'results.json'), JSON.stringify(results, null, 1));
 b.close();
-const failed = results.filter(r => !r.ok).length;
-console.log(`${results.length - failed} of ${results.length} checks passed. Evidence: ${opts.out}`);
+const failed = results.filter(r => r.ok === false).length, skipped = results.filter(r => r.ok === null).length;
+console.log(`${results.length - failed - skipped} of ${results.length - skipped} checks passed${skipped ? `, ${skipped} not run` : ''}. Evidence: ${opts.out}`);
 process.exit(failed ? 1 : 0);

@@ -27,7 +27,8 @@ export async function openBrowser({chrome: binary, out}) {
   });
   const cdp = (method, params = {}) => new Promise((resolve, reject) => {
     const id = ++seq;
-    waiting.set(id, msg => msg.error ? reject(new Error(`${method}: ${msg.error.message}`)) : resolve(msg.result));
+    const timer = setTimeout(() => { waiting.delete(id); reject(new Error(`${method} got no reply in 20 s`)); }, 20000);
+    waiting.set(id, msg => { clearTimeout(timer); msg.error ? reject(new Error(`${method}: ${msg.error.message}`)) : resolve(msg.result); });
     socket.send(JSON.stringify({id, method, params}));
   });
   const js = async expression => {
@@ -54,14 +55,42 @@ export async function openBrowser({chrome: binary, out}) {
   const center = async selector => js(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null;
     el.scrollIntoView({block: 'center'}); const r = el.getBoundingClientRect(); return {x: r.x + r.width / 2, y: r.y + r.height / 2}; })()`);
   const mouse = (type, {x, y}) => cdp('Input.dispatchMouseEvent', {type, x, y, button: 'left', clickCount: 1, pointerType: 'mouse'});
+  const coverAt = (selector, {x, y}) => js(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); const top = document.elementFromPoint(${x}, ${y});
+    if (!el || !top || el.contains(top) || top.contains(el)) return '';
+    return top.tagName.toLowerCase() + (top.className && typeof top.className === 'string' ? '.' + top.className.trim().split(/\\s+/).join('.') : '') + ' "' + (top.textContent ?? '').trim().slice(0, 40) + '"'; })()`);
   const tap = async selector => {
     const at = await center(selector);
     if (!at) throw new Error(`nothing matches ${selector}`);
     await sleep(60);
-    const point = await center(selector);
+    let point = await center(selector);
+    let cover = await coverAt(selector, point);
+    for (const until = Date.now() + 8000; cover && Date.now() < until;) {
+      await sleep(250);
+      point = await center(selector);
+      cover = await coverAt(selector, point);
+    }
+    if (cover) throw new Error(`${selector} is covered by ${cover}`);
     await mouse('mouseMoved', point); await mouse('mousePressed', point); await mouse('mouseReleased', point);
     await sleep(120);
   };
+  const box = async selector => js(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null;
+    el.scrollIntoView({block: 'center'}); const r = el.getBoundingClientRect(); return {x: r.x, y: r.y, width: r.width, height: r.height}; })()`);
+  const held = (type, {x, y}) => cdp('Input.dispatchMouseEvent', {type, x, y, button: 'left', buttons: 1, clickCount: 1, pointerType: 'mouse'});
+  const drag = async (start, moves, {hold = 0, steps = 12} = {}) => {
+    await mouse('mouseMoved', start); await held('mousePressed', start);
+    await sleep(hold || 30);
+    let point = start;
+    for (const [dx, dy] of moves) {
+      const from = point;
+      for (let i = 1; i <= steps; i++) { point = {x: from.x + dx * i / steps, y: from.y + dy * i / steps}; await held('mouseMoved', point); await sleep(16); }
+    }
+    await mouse('mouseReleased', point);
+    await sleep(250);
+  };
+  const press = (name, modifiers, keyCode) => Promise.all([
+    cdp('Input.dispatchKeyEvent', {type: 'keyDown', key: name, code: name, windowsVirtualKeyCode: keyCode, modifiers}),
+    cdp('Input.dispatchKeyEvent', {type: 'keyUp', key: name, code: name, windowsVirtualKeyCode: keyCode, modifiers}),
+  ]);
   const type = async (selector, text) => {
     await js(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); el.focus(); el.select?.(); return true; })()`);
     await cdp('Input.insertText', {text});
@@ -72,5 +101,5 @@ export async function openBrowser({chrome: binary, out}) {
   ]);
   await cdp('Page.enable'); await cdp('Runtime.enable');
   const close = () => { socket.close(); chrome.kill(); };
-  return {cdp, js, until, capture, viewport, tap, type, key, errors, close};
+  return {cdp, js, until, capture, viewport, tap, type, key, errors, close, box, drag, press};
 }

@@ -90,11 +90,31 @@ function render() {
   $('banner').hidden = !banner;
   $('banner').textContent = banner ?? '';
   renderNotes(waiting);
+  if ($('capture-sheet').open) renderCaptureHistory();
   remark();
+}
+
+function renderCaptureHistory() {
+  const captures = (client.state.snapshot?.captures ?? []).filter(c => c.text).slice(-10).reverse();
+  $('capture-history').hidden = !captures.length;
+  $('capture-list').replaceChildren(...captures.map(capture => {
+    const item = document.createElement('li');
+    const said = document.createElement('p');
+    said.className = 'capture-said';
+    said.textContent = capture.text;
+    item.append(said, ...(capture.receipt ?? []).map(line => {
+      const outcome = document.createElement('p');
+      outcome.className = 'capture-outcome';
+      outcome.textContent = line.text;
+      return outcome;
+    }));
+    return item;
+  }));
 }
 
 function openCapture() {
   const sheet = $('capture-sheet');
+  renderCaptureHistory();
   $('capture-text').value = localStorage.getItem(DRAFT) ?? '';
   $('capture-problem').hidden = true;
   sheet.showModal();
