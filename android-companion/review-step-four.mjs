@@ -1,4 +1,4 @@
-import {setMust, focusCandidates} from './review-state.mjs';
+import {focusCandidates} from './review-state.mjs';
 import {blockTasks, shiftDay} from './planner-state.mjs';
 import {dueInfo, duration, plural} from './planner/format.mjs';
 import {el, icon, button, capital, whenText, heading, emptyState, factsLine, dueFact, mustFact} from './review-ui.mjs';
@@ -110,7 +110,7 @@ function mustList(api, blockId, now) {
   for (const task of open) {
     // The whole row toggles Must (like a checklist); only a Must shows its star, so nothing reads as "favourite".
     const label = task.must ? 'Must. Tap to unmark' : 'Mark as Must';
-    const toggle = () => api.run(d => setMust(d, task.id, !task.must), task.must ? 'No longer a Must' : 'Marked Must');
+    const toggle = () => api.run({type: 'saveTask', id: task.id, fields: {must: !task.must}}, task.must ? 'No longer a Must' : 'Marked Must');
     const row = button('', toggle, 'wr-must-row' + (task.must ? ' on' : ''));
     row.setAttribute('role', 'switch');
     row.setAttribute('aria-checked', String(!!task.must));

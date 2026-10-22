@@ -6,7 +6,7 @@
  * next three days, soonest first (every other deadline and calendar clash); the rest of the day as one time-ordered
  * agenda (tasks, calendar events and the free time between); the Inbox.
  */
-import {localDay, shiftDay, planner, editPlan, tasks, blockDue, timelineItems} from '../planner-state.mjs';
+import {localDay, shiftDay, tasks, blockDue, timelineItems} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
 import {setClarityPreference} from '../planner-clarity.mjs';
 import {resultStatus, inboxTasks} from '../review-state.mjs';
@@ -198,14 +198,7 @@ function gapCard(app, gap, {block, slots}, now) {
   for (const {task} of slots) card.append(taskRow(app, task));
   const range = timeRange(slots[0].start, slots.at(-1).end);
   const words = `Schedule ${slots.length > 1 ? 'from' : 'at'} ${clock(slots[0].start)}`;
-  const plan = button(words, () => app.commit(data => {
-    let undo = null;
-    for (const {task, start} of slots) {
-      editPlan(data, {type: 'saveTask', id: task.id, fields: {planned: start.toISOString()}});
-      undo ??= planner(data).undo;
-    }
-    data.planner.undo = undo;
-  }, {label: `Scheduled ${range}`}).catch(() => {}), 'filled-btn next-action');
+  const plan = button(words, () => app.commit({type: 'batch', ops: slots.map(({task, start}) => ({type: 'saveTask', id: task.id, fields: {planned: start.toISOString()}}))}, {label: `Scheduled ${range}`}).catch(() => {}), 'filled-btn next-action');
   plan.setAttribute('aria-label', `Schedule ${slots.map(s => s.task.title).join(' and ')} for ${range}`);
   card.append(plan);
   return card;

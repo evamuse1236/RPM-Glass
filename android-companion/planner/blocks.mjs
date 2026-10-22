@@ -1,6 +1,6 @@
 /** Blocks list and Block detail: Result, its deadline, Purpose, your verdict, progress, the ordered Plan. */
 import {blockTasks, blockDue, localDay} from '../planner-state.mjs';
-import {weekStart, weekFocus, resultStatus, markAchieved} from '../review-state.mjs';
+import {weekStart, weekFocus, resultStatus} from '../review-state.mjs';
 import {el, icon, button, labelButton, emptyState, areaDot, attrs, sectionHeader} from './dom.mjs';
 import {duration, plural, dateText, dueInfo, timeLeft} from './format.mjs';
 
@@ -220,7 +220,7 @@ function achievedSheet(app, block) {
   evidence.maxLength = 200;
   actions.append(button('Cancel', () => app.closeSheet(), 'text-btn'),
     labelButton('emoji_events', 'Mark achieved', () => app.commit(
-      data => markAchieved(data, block.id, {achieved: true, evidence: evidence.value}),
+      {type: 'markAchieved', id: block.id, achieved: true, evidence: evidence.value},
       {label: 'Result achieved'}).catch(() => {}), 'filled-btn'));
 }
 
@@ -244,7 +244,7 @@ function achievedControl(app, block, status) {
   panel.append(head);
   if (status.evidence) panel.append(el('p', '', status.evidence));
   panel.append(button('Mark not achieved', () => app.commit(
-    data => markAchieved(data, block.id, {achieved: false}), {label: 'Result marked not achieved'}).catch(() => {}),
+    {type: 'markAchieved', id: block.id, achieved: false}, {label: 'Result marked not achieved'}).catch(() => {}),
   'text-btn'));
   return panel;
 }

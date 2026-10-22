@@ -1,0 +1,19 @@
+# Shared emulator lifecycle
+
+These rules apply when launching, reusing or recovering an rpmctl emulator run.
+
+| Rule | Enforced by |
+|---|---|
+| All worktrees share one warm emulator on port 5580: a second `launch` reuses it (no new boot), wipes the app's data, installs its own APK and seeds its own data. While another run holds it, `launch` says who and refuses, or queues with `--wait`. A run idle for 20 min can be taken over, and a warm emulator with no run stops itself after 20 min. | `.claude/skills/verify-rpm-glass/lifecycle.test.mjs` (`a second worktree reuses the warm emulator`, `busy message naming it, or waits in the queue`), `ownership.test.mjs` (`idle past the limit`, `the reaper stops the warm emulator`) |
+| A boot with no emulator running deletes the disk overlays a crashed emulator left in `ANDROID_TMP`. | `.claude/skills/verify-rpm-glass/lifecycle.test.mjs` (`a crashed emulator left`) |
+| `launch` builds the APK before it takes the emulator, with `ANDROID_HOME` from rpmctl's SDK lookup (a new worktree has no `local.properties`), and a launch that fails after boot releases the emulator warm. | `.claude/skills/verify-rpm-glass/lifecycle.test.mjs` (`builds before it takes the emulator`, `fails after boot releases the shared emulator warm`) |
+| Leases live in one folder per user (`~/.cache/rpmctl-leases`), whatever `TMPDIR` a shell sets, so agents with different TMPDIRs still exclude each other. | `.claude/skills/verify-rpm-glass/ownership.test.mjs` (`the lease folder is the same whatever TMPDIR`) |
+| In a cloud session the Stop hook never asks for emulator proof: a web change needs a browser screenshot (`browser-shot.mjs`, no page errors, the current bundle), and a native change is shown as UNVERIFIED (needs a PC emulator run) while the stop goes through. | `scripts/rules/cloud.test.mjs` (runs the hook with `CLAUDE_CODE_REMOTE_SESSION_ID` set and unset) |
+| A cloud session starts with the Android SDK the build needs (platform-tools, platform 36, build-tools 35.0.0) and `ANDROID_HOME` set, within 10 minutes; it skips pieces already there. | SessionStart hook in `.claude/settings.json` (`scripts/agent/cloud-setup.mjs`); `scripts/rules/cloud.test.mjs` covers the skip and off-cloud paths |
+| In a cloud session Gradle fetches Maven Central from Google's mirror (when it answers), uses 2 workers and retries downloads, so a Maven Central 429 does not fail the build; elsewhere nothing changes. | `scripts/agent/cloud.mjs` (`GRADLE_CLOUD`, `MIRROR_INIT`, written by the SessionStart hook), `scripts/build-debug.sh`; `scripts/rules/cloud.test.mjs` |
+| Scenarios never run on a stale app: an APK older than native code, another checkout's APK, or web code newer than the last install or sync is refused. | `.claude/skills/verify-rpm-glass/freshness.test.mjs`, `rpmctl scenario` |
+| On Windows, rpmctl starts the emulator's netsimd itself with no console, so no netsim window pops up. | `.claude/skills/verify-rpm-glass/lifecycle.test.mjs` (`netsimToStart`) |
+| rpmctl boots the emulator on the host GPU; software rendering (swiftshader, guest) is refused unless `RPM_ALLOW_SOFTWARE_GPU=1`, because it used 8.2 CPU cores against 0.68 to scroll Settings. | `.claude/skills/verify-rpm-glass/lifecycle.test.mjs` (`gpuMode`) |
+| rpmctl starts the emulator with `ANDROID_TMP` on disk (`~/.cache/android-tmp`), because `/tmp` is RAM with a per-user quota and the emulator leaves multi-GB disk files there. | `.claude/skills/verify-rpm-glass/lifecycle.test.mjs` (`emulatorEnv`) |
+| One agent drives one emulator | Machine-wide rpmctl lease for the worktree and ports, plus the run owner token (missing tokens warn for one compatibility release) |
+| Run emulator tests on GitHub Actions by default; use the local emulator for interactive driving. CI adopts only an explicitly selected read-only emulator. | `.github/workflows/emulator.yml`, `npm run ci:emulator`, rpmctl adoption and lifecycle tests in `npm test` |

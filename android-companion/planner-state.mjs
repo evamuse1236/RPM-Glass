@@ -29,8 +29,17 @@ export function validatePlanner(data){
   return data;
 }
 
+/** Planner commits cross runtimes as JSON data, never executable mutators. */
+export function assertPlanOp(op) {
+  const json = value => value === null || ['string', 'boolean'].includes(typeof value) || typeof value === 'number' && Number.isFinite(value)
+    || Array.isArray(value) && value.every(json)
+    || value && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype && Object.values(value).filter(item => item !== undefined).every(json);
+  if (!op || typeof op !== 'object' || Array.isArray(op) || typeof op.type !== 'string' || !json(op)) throw new Error('Planning actions must be JSON data ops.');
+}
+
 /** Validate on a copy, commit once, keep a single complete undo plus compact receipts. */
 export function editPlan(data,op,now=new Date()){
+  assertPlanOp(op);
   const next=structuredClone(data);next.planner??=freshPlanner();migrateReviewData(next);const p=next.planner,before=snap(data),at=now.toISOString();let result;
   if(op.type==='undo'){
     if(!p.undo)throw new Error('No planning change to undo.');
@@ -38,6 +47,16 @@ export function editPlan(data,op,now=new Date()){
     // Review progress is where the user is in the flow, not a plan change: Undo never rewinds it.
     migrateReviewData(next);next.planner.reviews=p.reviews;
     validatePlanner(next);Object.assign(data,next);return null;
+  }
+  if(op.type==='batch'){
+    if(!Array.isArray(op.ops)||!op.ops.length||op.ops.length>60||op.ops.some(child=>['undo','batch','reviewProgress'].includes(child.type)))throw new Error('Invalid planning batch.');
+    for(const child of op.ops)result=editPlan(next,child,now);
+    // Child edits replace the planner; retain their events and the single pre-batch Undo.
+    next.planner.undo=op.keepUndo?data.planner?.undo??null:before;
+    Object.assign(data,next);return result;
+  }
+  if(op.type==='reviewProgress'){
+    result=REVIEW_OPS.reviewProgress(next,op,at);validatePlanner(next);Object.assign(data,next);return result;
   }
   if(op.type==='rateAreas'){
     for(const rating of op.ratings){const a=one(p.areas,rating.id);if(typeof rating.rating!=='number'||rating.rating<0||rating.rating>10||rating.rating*2%1)throw new Error('Choose a whole or half-step rating.');a.rating=rating.rating;}
@@ -139,7 +158,7 @@ export function editPlan(data,op,now=new Date()){
     result=BODY_OPS[op.type](next,op,at);
   }else throw new Error('Unknown planning action.');
   for(const task of next.entries){if(task.blockId&&task.purpose){task.revisions??=[];task.revisions.push({at,reason:'Task purpose retained in notes',before:{purpose:task.purpose,notes:task.notes??''}});task.notes=[task.notes,'Previous task purpose: '+task.purpose].filter(Boolean).join('\n\n');task.purpose='';}}
-  validatePlanner(next);p.events.push({id:randomUUID(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=before;next.undo=null;
+  validatePlanner(next);p.events.push({id:randomUUID(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=op.keepUndo?data.planner?.undo??null:before;next.undo=null;
   Object.assign(data,next);return result;
 }
 

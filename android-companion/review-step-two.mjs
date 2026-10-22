@@ -1,4 +1,4 @@
-import {inboxTasks, addInboxTask} from './review-state.mjs';
+import {inboxTasks} from './review-state.mjs';
 import {planner} from './planner-state.mjs';
 import {areaTone} from './planner-ux.mjs';
 import {areaDot} from './planner/dom.mjs';
@@ -77,7 +77,7 @@ function quickAdd(api) {
     ui.draft = '';
     input.value = '';
     sync();
-    api.run(d => addInboxTask(d, words, api.now()), 'Added to Inbox');
+    api.run({type: 'saveTask', fields: {title: words}}, 'Added to Inbox');
   });
   form.append(icon('add'), input, send);
   return form;

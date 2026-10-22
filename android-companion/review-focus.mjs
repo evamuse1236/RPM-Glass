@@ -1,4 +1,3 @@
-import {saveReviewProgress} from './review-state.mjs';
 import {MAX_FOCUS, icon, button} from './review-ui.mjs';
 
 /** A checkbox row that puts a Result in this week's Results (a draft, saved quietly): Carry in step 1, Pick in step 4. */
@@ -21,5 +20,5 @@ export function setFocus(api, ids) {
   ui.focusHint = ids.length > MAX_FOCUS ? 'Five is the most for one week. Unpick one to swap it.' : '';
   ui.focus = [...new Set(ids)].slice(0, MAX_FOCUS);
   api.render();
-  api.run(d => saveReviewProgress(d, api.week, {focusDraft: ui.focus}), null);
+  api.run({type: 'reviewProgress', week: api.week, patch: {focusDraft: ui.focus}}, null);
 }

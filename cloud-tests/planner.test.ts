@@ -162,3 +162,27 @@ describe("Planner snapshots and command delivery",()=>{
     expect((await sync(t,device.token,{snapshot:snapshot(44),acks:[ack]})).status).toBe(200);
   });
 });
+
+describe("Store-shaped planner v2",()=>{
+  it("publishes v2, delivers plan ops unchanged and rejects model ops or deep snapshot leaks",async()=>{
+    const t=setup(), device=await phone(t), web=await linked(t,device.token);
+    const data=snapshot();
+    expect(data.schemaVersion).toBe(2);
+    expect((await sync(t,device.token,{snapshot:data,acks:[]})).status).toBe(200);
+    const op={type:"saveTask",id:1,fields:{notes:"From the browser",recurrence:"days",repeatDays:[1,3]}};
+    const plan={...command(),type:"plan",args:{op}};
+    expect((await enqueue(t,web.token,plan)).status).toBe(202);
+    expect((await (await sync(t,device.token)).json()).commands).toEqual([plan]);
+    for(const type of ["aiDraft","acceptDraft","dismissDraft","undo"]){
+      expect((await enqueue(t,web.token,{...command(2),type:"plan",args:{op:{type}}})).status).toBe(400);
+      expect((await enqueue(t,web.token,{...command(2),type:"plan",args:{op:{type:"batch",ops:[{type}]}}})).status).toBe(400);
+    }
+    const unsafe:any=structuredClone(data);unsafe.planner.body.runs[0].marks[unsafe.planner.body.routines[0].steps[0].id].token="private";
+    expect((await sync(t,device.token,{snapshot:unsafe,acks:[]})).status).toBe(400);
+    const unknown:any=structuredClone(data);unknown.entries[0].alertIntent.unknown=true;
+    expect((await sync(t,device.token,{snapshot:unknown,acks:[]})).status).toBe(400);
+    expect((await sync(t,device.token,{snapshot:{...data,schemaVersion:1},acks:[]})).status).toBe(400);
+    const read=await (await request(t,"/v1/web/snapshot",web.token,undefined,"GET")).json();
+    expect(read.planner.body.runs[0].marks).toEqual(data.planner.body.runs[0].marks);
+  });
+});

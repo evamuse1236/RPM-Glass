@@ -1,4 +1,4 @@
-import {groupTasks, focusCandidates, rankResults} from './review-state.mjs';
+import {focusCandidates, rankResults} from './review-state.mjs';
 import {planner} from './planner-state.mjs';
 import {dueInfo} from './planner/format.mjs';
 import {el, icon, button, iconButton, heading, emptyState, sectionHead, textField} from './review-ui.mjs';
@@ -71,7 +71,7 @@ function sortRow(api, task, suggested) {
   item.append(el('span', 'wr-row-title', name));
   let chip;
   if (suggested) {
-    chip = button(suggested.title, () => api.run(d => groupTasks(d, [task.id], suggested.blockId), 'Added to ' + suggested.title),
+    chip = button(suggested.title, () => api.run({type: 'groupTasks', ids: [task.id], blockId: suggested.blockId}, 'Added to ' + suggested.title),
       'wr-chip wr-suggest', 'add');
     chip.setAttribute('aria-label', `Add "${name}" to ${suggested.title}`);
   } else {
@@ -96,7 +96,7 @@ function groupedRow(api, task, kept = false) {
   item.append(icon(kept ? 'inbox' : 'subdirectory_arrow_right'), el('span', 'wr-row-title', name));
   const back = kept
     ? iconButton('undo', `Sort "${name}" after all`, () => keep(api, task.id, false), 'wr-icon-btn wr-unmove')
-    : iconButton('close', `Move "${name}" back to the Inbox`, () => api.run(d => groupTasks(d, [task.id], null), 'Moved to Inbox'), 'wr-icon-btn wr-unmove');
+    : iconButton('close', `Move "${name}" back to the Inbox`, () => api.run({type: 'groupTasks', ids: [task.id], blockId: null}, 'Moved to Inbox'), 'wr-icon-btn wr-unmove');
   back.dataset.key = 'unmove:' + task.id;
   item.append(back);
   return item;
@@ -156,7 +156,7 @@ function resultChooser(api, task) {
     option.append(icon('stacks'), text);
     option.addEventListener('click', () => {
       ui.sheet = null;
-      api.run(d => groupTasks(d, [task.id], c.blockId), 'Added to ' + c.title);
+      api.run({type: 'groupTasks', ids: [task.id], blockId: c.blockId}, 'Added to ' + c.title);
     });
     list.append(option);
   }
@@ -183,7 +183,7 @@ function newResultForm(api, task) {
     const fields = {title: ui.newBlock.title.trim(), purpose: ui.newBlock.purpose.trim()};
     if (!fields.title || !fields.purpose) return;
     ui.sheet = null;
-    api.run(d => groupTasks(d, [task.id], fields), 'New Result: ' + fields.title);
+    api.run({type: 'groupTasks', ids: [task.id], newBlock: fields}, 'New Result: ' + fields.title);
   });
   form.append(result, purpose, actions);
   return [sheetTitle('New Result'), el('p', 'wr-sheet-sub', task.title ?? task.raw), form];

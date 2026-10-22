@@ -44,7 +44,7 @@ function mountSettingsScreen(app, host) {
 function mountReview(app, host) {
   const ctx = {
     getData: () => app.data(),
-    commit: (mutator, label) => app.commit(mutator, {label: label ?? null, undo: label != null, keepSheet: true}),
+    commit: (op, label) => app.commit(op, {label: label ?? null, undo: label != null, keepSheet: true}),
     close: () => {
       app.state.stack = [];
       app.state.tab = 'today';

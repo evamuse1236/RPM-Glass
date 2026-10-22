@@ -8,7 +8,7 @@ import {DAY, checkDay, dateKey, dueAt} from './review-dates.mjs';
 import {oneOff} from './review-planning.mjs';
 export {migrateReviewData};
 export {weekStart, reviewWeek, taskDate} from './review-dates.mjs';
-export {WAKING, freeMinutes, calendarClashes, weekCapacity, placedMusts, mustPlacements, placeMusts, rankResults, clashKey, clashDecision, clashTitle, clashTask, decideClash} from './review-planning.mjs';
+export {WAKING, freeMinutes, calendarClashes, weekCapacity, placedMusts, mustPlacements, placeMusts, rankResults, clashKey, clashDecision, clashTitle, clashTask, decideClash, clashOp} from './review-planning.mjs';
 
 export const REVIEW_STEPS = 4;
 
@@ -80,6 +80,7 @@ export function activeInRange(task, from, to) {
   };
   if (inside(task.completedAt)) return true;
   if ((task.completions ?? []).some(c => inside(c.completed))) return true;
+  if ((task.reviewActivityDays ?? []).some(inside)) return true;
   if ((task.revisions ?? []).some(r => r.snapshot?.done === true && inside(r.at))) return true;
   return inside(task.planned) || inside(task.plannedDate);
 }
@@ -155,13 +156,7 @@ export function groupTask(data, taskId, target) {
 /** Moves several tasks in one change with one Undo: into a Block (id), a new Block ({title, purpose}) or the Inbox (null). */
 export function groupTasks(data, taskIds, target) {
   if (!taskIds.length) throw new Error('Choose a task first.');
-  let undo = null, blockId = target ?? null;
-  for (const id of taskIds) {
-    groupTask(data, id, blockId);
-    undo ??= planner(data).undo;
-    if (blockId && typeof blockId === 'object') blockId = data.entries.find(t => t.id === id).blockId;
-  }
-  data.planner.undo = undo;
+  const blockId = editPlan(data, {type: 'groupTasks', ids: taskIds, ...(target && typeof target === 'object' ? {newBlock: target} : {blockId: target ?? null})});
   const n = taskIds.length === 1 ? 'Task' : `${taskIds.length} tasks`;
   if (!blockId) return `${n} moved to Inbox`;
   const name = blockById(data, blockId).title;
@@ -220,35 +215,12 @@ export function reviewProgress(data, week) {
   };
 }
 
-const PROGRESS_KEYS = ['step', 'finishedAt', 'focusDraft', 'inboxIds', 'keptIds', 'clashes'];
-
-/** Saves progress without touching Undo: the last plan change stays undoable. Keeps the 12 most recent reviews. */
+/** Saves navigation progress while preserving the last plan Undo. */
 export function saveReviewProgress(data, week, patch, now = new Date()) {
-  checkDay(week);
-  data.planner ??= structuredClone(planner(data));
-  migrateReviewData(data);
-  const reviews = data.planner.reviews;
-  const at = now.toISOString();
-  const record = reviews[week] ?? {step: 1, startedAt: at};
-  for (const key of PROGRESS_KEYS) if (key in patch) record[key] = patch[key];
-  if (record.step != null && (!Number.isInteger(record.step) || record.step < 1 || record.step > REVIEW_STEPS)) {
-    throw new Error('Invalid review step.');
-  }
-  if (record.focusDraft != null && (!Array.isArray(record.focusDraft) || record.focusDraft.length > 5)) {
-    throw new Error('Choose up to five Results for a week.');
-  }
-  if (record.keptIds != null && !Array.isArray(record.keptIds)) throw new Error('Invalid review progress.');
-  if (record.clashes != null && (typeof record.clashes !== 'object' || Object.values(record.clashes).some(v => !['a', 'b', 'later'].includes(v)))) {
-    throw new Error('Invalid review progress.');
-  }
-  record.updatedAt = at;
-  reviews[week] = record;
-  for (const old of Object.keys(reviews).sort().slice(0, -12)) delete reviews[old];
-  return null;
+  return editPlan(data, {type: 'reviewProgress', week: checkDay(week), patch}, now);
 }
 
 export function finishReview(data, week, focusIds, now = new Date()) {
-  const receipt = setWeekFocus(data, week, focusIds);
-  saveReviewProgress(data, week, {step: REVIEW_STEPS, finishedAt: now.toISOString(), focusDraft: null}, now);
-  return receipt;
+  editPlan(data, {type: 'finishReview', week: checkDay(week), ids: focusIds}, now);
+  return focusIds.length === 1 ? '1 Result for this week' : focusIds.length ? `${focusIds.length} Results for this week` : "Cleared this week's Results";
 }

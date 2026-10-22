@@ -3,6 +3,8 @@ import {stable} from '../intent-v2/src/context.mjs';
 import {editPlan} from './planner-state.mjs';
 import {userMessage} from './user-message.mjs';
 import {validateCommand, validateSnapshot} from '../web/contract/validate.mjs';
+import {targets, targetRecord} from './web-sync-targets.mjs';
+export {targets} from './web-sync-targets.mjs';
 import {buildSnapshot} from './web-sync-snapshot.mjs';
 
 const records = data => ((data.webSync ??= {}).commands ??= {});
@@ -18,8 +20,14 @@ const keysFor = command => {
 };
 function conflict(data, command, snapshots) {
   if (['capture', 'log-water', 'log-meal', 'undo'].includes(command.type)) return null;
+  const planTargets = command.type === 'plan' ? targets(command.args.op) : null;
+  if (planTargets?.length === 0) return null;
   const current = buildSnapshot(data), base = command.baseRevision === current.revision ? current : snapshots.find(s => s.revision === command.baseRevision);
   if (!base) return 'That saved version is no longer available. Refresh the planner and try again.';
+  if (planTargets) {
+    if (planTargets.some(target => stable(targetRecord(base, target)) !== stable(targetRecord(current, target)))) return 'That plan record changed on the phone. Refresh the planner and try again.';
+    return null;
+  }
   const before = base.tasks.find(t => t.id === command.args.taskId), now = current.tasks.find(t => t.id === command.args.taskId);
   if (!before || !now) return 'That task is no longer available. Refresh the planner.';
   const changed = ['archive', 'restore'].includes(command.type) ? stable(before) !== stable(now) : keysFor(command).some(key => stable(before[key]) !== stable(now[key]));
@@ -32,6 +40,7 @@ function conflict(data, command, snapshots) {
 }
 function operation(command) {
   const {type, args: a} = command;
+  if (type === 'plan') return a.op;
   if (type === 'complete') return {type: 'saveTask', id: a.taskId, occurrence: a.occurrence, fields: {done: true}};
   if (type === 'uncomplete') return {type: 'reopenTask', id: a.taskId, occurrence: a.occurrence};
   if (type === 'reschedule') return {type: 'saveTask', id: a.taskId, fields: {planned: a.time, plannedDate: a.day}};
@@ -56,7 +65,7 @@ export function createWebSyncProcessor({backend, capture, clock = () => new Date
     const captureUndo = status === 'applied' && command.type === 'capture' && draft?.status === 'committed' ? {undoGuard: await guard(data), undoCapture: {draftId: draft.id, conversationId: draft.conversationId}} : {};
     records(data)[command.id] = {...records(data)[command.id], signature: stable(command), state: 'final', result,
       ...captureUndo,
-      ...(status === 'applied' && command.type !== 'capture' && command.type !== 'undo' ? {undoGuard: await guard(data)} : {})};
+      ...(status === 'applied' && command.type !== 'capture' && command.type !== 'undo' && !(command.type === 'plan' && (command.args.op.keepUndo || command.args.op.type === 'reviewProgress')) ? {undoGuard: await guard(data)} : {})};
     return result;
   }
   async function captureCommand(command) {

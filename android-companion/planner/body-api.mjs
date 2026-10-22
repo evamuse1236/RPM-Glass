@@ -2,7 +2,6 @@
  * The store the Routine, water and meal screens use, on the planner's real data: reads come from `planner.body`
  * (body-store.mjs), and every change is one editPlan op saved through the phone, in order, with one Undo step.
  */
-import {editPlan} from '../planner-state.mjs';
 import {bodyOf} from '../body-store.mjs';
 import {localDay} from '../body-state.mjs';
 import {mealPlanSlots} from '../day-parts.mjs';
@@ -24,12 +23,7 @@ function saver(app) {
   let queue = Promise.resolve();
   const once = async (op, keepUndo) => {
     while (app.saving) await pause(30);
-    const change = keepUndo ? data => {
-      const undo = data.planner?.undo ?? null;
-      const id = editPlan(data, op);
-      data.planner.undo = undo;
-      return id;
-    } : op;
+    const change = keepUndo ? {...op, keepUndo: true} : op;
     return app.commit(change, {label: null, keepSheet: true, undo: false});
   };
   return (op, {keepUndo = false} = {}) => {
@@ -64,7 +58,7 @@ export function bodyApi(app) {
     runFor: (id, day = today()) => read().runs.find(r => r.routineId === id && r.day === day) ?? null,
     saveRun: run => save({type: 'saveRoutineRun', run}),
     skipDay: (id, day = today()) => save({type: 'skipRoutineDay', routineId: id, day}),
-    saveRoutine: routine => save({type: 'saveRoutine', routine}),
+    saveRoutine: ({id, name, start, end, days, steps}) => save({type: 'saveRoutine', routine: {...(id ? {id} : {}), name, start, end, days, steps}}),
     deleteRoutine: id => save({type: 'removeRoutine', id}),
     water: () => ({...read().water, busy: busyEvents(app.state.calendar)}),
     drink: () => save(drinkOp()),
@@ -73,7 +67,8 @@ export function bodyApi(app) {
     setWaterFields: fields => save({type: 'setWater', fields}),
     meals: () => read().meals.map(withGuess),
     meal: id => withGuess(read().meals.find(m => m.id === id)),
-    async saveMeal(meal) {
+    async saveMeal({id: existingId, name, slot, at, state}) {
+      const meal = {name, slot, ...(existingId ? {id: existingId} : {}), ...(at ? {at} : {}), ...(state ? {state} : {})};
       const id = await save({type: 'saveMeal', meal});
       return api.meal(id);
     },

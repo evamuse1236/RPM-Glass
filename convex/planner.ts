@@ -1,3 +1,4 @@
+import { validateCommand, validateSnapshot } from "../web/contract/validate.mjs";
 import { v } from "convex/values";
 import { internalMutation } from "./functions";
 import { fail, phoneAuth, webAuth, consumeQuota, unauthorized, type PlannerCtx } from "./plannerAuth";
@@ -57,6 +58,7 @@ export const phone = internalMutation({args:{tokenHash:v.string(),op:v.union(v.l
     if(!session || session.account!==account || session.device!==device._id)return unauthorized();
     return revoke(ctx,session);
   }
+  if(args.snapshot!==undefined)validateSnapshot(args.snapshot);
   return syncPlanner(ctx,device,account,args.snapshot,args.snapshotIdentity,args.acks??[]);
 }});
 
@@ -108,6 +110,7 @@ export const browser = internalMutation({args:{tokenHash:v.string(),op:v.union(v
     const page = commands.slice(0,100);
     return {commands:page.map(receipt),cursor:page.at(-1)?.cursor??args.since??0,hasMore:commands.length>100};
   }
+  validateCommand(args.command);
   const identityId = args.command.id.toLowerCase();
   const existing = await ctx.db.query("webCommands").withIndex("by_account_id",q=>q.eq("account",session.account).eq("commandId",identityId)).unique();
   if(existing) {

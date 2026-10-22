@@ -168,7 +168,7 @@ export function clashTask(data, clash) {
  * Records which event stays (`keep` 'a' or 'b') as a task on Today, since calendars are read-only: the user's own
  * task that names the clash keeps its words and gains the decision in its notes; otherwise a new 15-minute task says it.
  */
-export function decideClash(data, clash, keep, now = new Date()) {
+export function clashOp(data, clash, keep, now = new Date()) {
   const existing = clashTask(data, clash);
   const note = DECIDED + clashDecision(clash, keep) + '.';
   const notes = [...String(existing?.notes ?? '').split('\n\n').filter(p => p && !p.startsWith(DECIDED)), note].join('\n\n');
@@ -176,6 +176,9 @@ export function decideClash(data, clash, keep, now = new Date()) {
   if (!existing || !taskDate(existing)) fields.plannedDate = localDay(now);
   if (!existing) Object.assign(fields, {title: clashTitle(clash, keep), minutes: 15});
   else if (existing.title === clashTitle(clash, keep === 'b' ? 'a' : 'b')) fields.title = clashTitle(clash, keep);
-  editPlan(data, existing ? {type: 'saveTask', id: existing.id, fields} : {type: 'saveTask', fields}, now);
+  return existing ? {type: 'saveTask', id: existing.id, fields} : {type: 'saveTask', fields};
+}
+export function decideClash(data, clash, keep, now = new Date()) {
+  editPlan(data, clashOp(data, clash, keep, now), now);
   return 'Decision added to Today';
 }

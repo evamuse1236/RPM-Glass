@@ -1,4 +1,4 @@
-import {taskDate, weekCapacity, placedMusts, mustPlacements, placeMusts, decideClash, clashKey, clashDecision} from './review-state.mjs';
+import {taskDate, weekCapacity, placedMusts, mustPlacements, clashOp, clashKey, clashDecision} from './review-state.mjs';
 import {localDay} from './planner-state.mjs';
 import {clock, duration, plural, timeRange} from './planner/format.mjs';
 import {READABLE, el, icon, button, hours, dayName, weekday, whenText, dueWords} from './review-ui.mjs';
@@ -97,7 +97,7 @@ function placementBox(api, placements) {
     list.append(row);
   }
   const go = button(placements.length === 1 ? 'Give it this day' : 'Give them these days',
-    () => api.run(d => placeMusts(d, placements), placements.length === 1 ? 'Must given a day' : `${placements.length} Musts given a day`), 'wr-btn-tonal');
+    () => api.run({type: 'batch', ops: placements.map(p => ({type: 'saveTask', id: p.taskId, fields: {plannedDate: p.day}}))}, placements.length === 1 ? 'Must given a day' : `${placements.length} Musts given a day`), 'wr-btn-tonal');
   go.dataset.key = 'place';
   box.append(list, go);
   return box;
@@ -239,7 +239,7 @@ export function clashRow(api, clash) {
     ui.clashOpen = null;
     if (keep === 'later') { api.render(); api.saveProgress(); return; }
     api.saveProgress();
-    api.run(d => decideClash(d, clash, keep, api.now()), 'Decision added to Today');
+    api.run(clashOp(api.data(), clash, keep, api.now()), 'Decision added to Today');
   };
   for (const [keep, label, said] of [['a', clash.a.title, 'Keep ' + clash.a.title], ['b', clash.b.title, 'Keep ' + clash.b.title], ['later', 'Later', 'Decide later']]) {
     const chip = button(label, () => decide(keep), 'wr-chip wr-choice' + (choice === keep ? ' sel' : ''));

@@ -83,11 +83,16 @@ public class SyncManagerTest {
     }
     @Test public void snapshotBoundaryRejectsKeysTokensAndTracesAtAnyDepth()throws Exception {
         PlannerSyncProtocol.validateSnapshot(snapshot());
-        for(String field:List.of("apiKey","openrouter_key","token","traces","password","Authorization")){
-            JSONObject unsafe=snapshot();unsafe.getJSONArray("tasks").getJSONObject(0).put(field,"private");
+        JSONObject safe=snapshot();safe.getJSONObject("planner").getJSONObject("reviews").put("2026-10-19",new JSONObject().put("step",1).put("startedAt","2026-10-19T00:00:00Z").put("updatedAt","2026-10-19T00:00:00Z").put("clashes",new JSONObject().put("2026-10-19|Trace lecture|Rotate token","a")));
+        PlannerSyncProtocol.validateSnapshot(safe);
+        for(String field:List.of("apiKey","openrouter_key","token","traces","password","Authorization","undo","modelPayload","history","unexpected")){
+            JSONObject unsafe=snapshot();unsafe.getJSONArray("entries").getJSONObject(0).getJSONObject("alertIntent").put(field,"private");
             assertThrows(field,JSONException.class,()->PlannerSyncProtocol.validateSnapshot(unsafe));
         }
         assertThrows(JSONException.class,()->PlannerSyncProtocol.validateSnapshot(snapshot().put("phone",new JSONObject())));
+        assertThrows(JSONException.class,()->PlannerSyncProtocol.validateSnapshot(snapshot().put("schemaVersion",1)));
+        JSONObject nested=snapshot();nested.getJSONObject("planner").getJSONObject("context").put("unexpected",true);
+        assertThrows(JSONException.class,()->PlannerSyncProtocol.validateSnapshot(nested));
     }
     @Test public void timingUsesOneSecondTwentySecondsAndTheAndroidMinimum() {
         assertEquals(1000,PlannerSyncProtocol.DEBOUNCE_MS);assertEquals(20000,PlannerSyncProtocol.FOREGROUND_MS);assertEquals(900000,PlannerSyncProtocol.BACKGROUND_MS);

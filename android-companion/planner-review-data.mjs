@@ -155,4 +155,29 @@ function groupTaskOp(next, op, at) {
   return target;
 }
 
-export const REVIEW_OPS = {markAchieved: markAchievedOp, setWeekFocus: setWeekFocusOp, reviewTask: reviewTaskOp, groupTask: groupTaskOp};
+function reviewProgressOp(next, op, at) {
+  if (typeof op.week !== 'string' || !DAY.test(op.week)) throw new Error('Choose a valid week.');
+  const reviews = next.planner.reviews, patch = op.patch;
+  const record = reviews[op.week] ?? {step: 1, startedAt: at};
+  for (const key of ['step', 'finishedAt', 'focusDraft', 'inboxIds', 'keptIds', 'clashes']) if (key in patch) record[key] = structuredClone(patch[key]);
+  if (!Number.isInteger(record.step) || record.step < 1 || record.step > 4) throw new Error('Invalid review step.');
+  if (record.focusDraft != null && (!Array.isArray(record.focusDraft) || record.focusDraft.length > 5)) throw new Error('Choose up to five Results for a week.');
+  if (record.keptIds != null && !Array.isArray(record.keptIds) || record.clashes != null && (typeof record.clashes !== 'object' || Object.values(record.clashes).some(v => !['a', 'b', 'later'].includes(v)))) throw new Error('Invalid review progress.');
+  record.updatedAt = at;
+  reviews[op.week] = record;
+  for (const old of Object.keys(reviews).sort().slice(0, -12)) delete reviews[old];
+  return null;
+}
+function finishReviewOp(next, op, at) {
+  setWeekFocusOp(next, op);
+  reviewProgressOp(next, {week: op.week, patch: {step: 4, finishedAt: at, focusDraft: null}}, at);
+  return op.week;
+}
+function groupTasksOp(next, op, at) {
+  if (!op.ids?.length) throw new Error('Choose a task first.');
+  let blockId = op.blockId ?? null;
+  for (const [index, id] of op.ids.entries()) blockId = groupTaskOp(next, {id, blockId, ...(index === 0 && op.newBlock ? {newBlock: op.newBlock} : {})}, at);
+  return blockId;
+}
+
+export const REVIEW_OPS = {reviewProgress: reviewProgressOp, finishReview: finishReviewOp, groupTasks: groupTasksOp, markAchieved: markAchievedOp, setWeekFocus: setWeekFocusOp, reviewTask: reviewTaskOp, groupTask: groupTaskOp};

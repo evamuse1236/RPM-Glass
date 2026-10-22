@@ -2,9 +2,9 @@
 // Renders into the container the planner gives it and talks to the app only through `ctx`
 // (getData, commit, close, openBlock, openCapture, now, day; optional sortInbox, readCalendar, openTask, archiveTask, deleteTask, scheduleTask).
 // Plan changes go through ctx.commit with a label, so they save, re-render and offer Undo.
-// Review progress (step, draft choice of Results) is saved with ctx.commit(mutator, null):
+// Review progress (step, draft choice of Results) is saved with ctx.commit(op, null):
 // a null label means "save quietly"; it changes no plan data and keeps the last Undo intact.
-import {REVIEW_STEPS, reviewWeek, inboxTasks, focusCandidates, weekFocus, reviewProgress, saveReviewProgress, finishReview, weekCapacity, clashTask, clashKey} from './review-state.mjs';
+import {REVIEW_STEPS, reviewWeek, inboxTasks, focusCandidates, weekFocus, reviewProgress, weekCapacity, clashTask, clashKey} from './review-state.mjs';
 import {calendarRows} from './planner-calendar.mjs';
 import {plural} from './planner/format.mjs';
 import {animateRerender, sharedAxis, ghost, reducedMotion, releaseTail, waitMotion, MOTION, DURATION, EASE} from './surface-motion.mjs';
@@ -86,11 +86,11 @@ export function mountWeeklyReview(container, ctx) {
 function createActions(ctx, week, ui, render) {
   const data = () => ctx.getData();
   let queue = Promise.resolve();
-  function run(mutator, label) {
+  function run(op, label) {
     const job = queue.then(async () => {
       ui.busy = true;
       try {
-        await ctx.commit(mutator, label);
+        await ctx.commit(op, label);
       } catch (error) {
         ui.hint = userMessage(error, 'That change could not be saved.');
       } finally {
@@ -102,7 +102,7 @@ function createActions(ctx, week, ui, render) {
   }
   const saveProgress = (patch = {}) => {
     const progress = {step: ui.step, focusDraft: ui.focus, inboxIds: ui.inboxIds, keptIds: ui.kept, clashes: ui.clashes, ...patch};
-    return run(d => saveReviewProgress(d, week, progress, ctx.now()), null);
+    return run({type: 'reviewProgress', week, patch: progress}, null);
   };
   const groupList = () => {
     const ids = new Set([...ui.inboxIds, ...inboxTasks(data()).map(t => t.id)]);
@@ -122,7 +122,7 @@ function createActions(ctx, week, ui, render) {
   async function finish() {
     ui.hint = '';
     const ids = ui.focus.filter(id => focusCandidates(data(), week, ui.focus).some(c => c.blockId === id));
-    await run(d => finishReview(d, week, ids, ctx.now()), ids.length ? `${plural(ids.length, 'Result')} for this week` : 'Weekly review finished');
+    await run({type: 'finishReview', week, ids}, ids.length ? `${plural(ids.length, 'Result')} for this week` : 'Weekly review finished');
     if (!ui.hint) ctx.close();
   }
   async function openBlock(blockId) {

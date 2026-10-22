@@ -1,3 +1,6 @@
 * text=auto eol=lf
 *.bat text eol=crlf
 android-companion/assets/fonts/*.txt -text
+
+# Synthetic snapshot generated from scripts/gauntlet/seed.mjs.
+web/fixtures/snapshot.json linguist-generated=true

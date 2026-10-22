@@ -587,6 +587,47 @@
         "baseRevision",
         "createdAt"
       ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        },
+        "type": {
+          "const": "plan"
+        },
+        "args": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "$ref": "plan-ops.schema.json"
+            }
+          },
+          "required": [
+            "op"
+          ]
+        },
+        "baseRevision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "args",
+        "baseRevision",
+        "createdAt"
+      ]
     }
   ]
 }

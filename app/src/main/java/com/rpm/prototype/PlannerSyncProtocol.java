@@ -44,19 +44,114 @@ final class PlannerSyncProtocol {
         if(!seen.isEmpty())throw new JSONException("Incomplete command results");
     }
     static void validateSnapshot(JSONObject snapshot)throws JSONException {
-        Set<String> fields=Set.of("schemaVersion","revision","savedAt","tasks","blocks","projects","areas","goals","drafts","captures","body");
-        if(snapshot.length()!=fields.size()||snapshot.getInt("schemaVersion")!=1||snapshot.getLong("revision")<0)throw new JSONException("Invalid planner snapshot");
+        Set<String> fields=Set.of("schemaVersion","revision","savedAt","tasks","blocks","projects","areas","goals","drafts","captures","body","entries","planner");
+        if(snapshot.length()!=fields.size()||snapshot.getInt("schemaVersion")!=2||snapshot.getLong("revision")<0)throw new JSONException("Invalid planner snapshot");
         for(String field:fields)if(!snapshot.has(field))throw new JSONException("Incomplete planner snapshot");
-        checkPrivateFields(snapshot);
+        checkSnapshotFields(snapshot, "");
     }
-    private static void checkPrivateFields(Object value)throws JSONException {
+    // Field boundaries mirror snapshot.schema.json. JSON value/date validation also runs in JS and Convex.
+    private static String allowedFields(String path)throws JSONException {
+        switch(path){
+            case "":
+                return "schemaVersion,revision,savedAt,tasks,blocks,projects,areas,goals,drafts,captures,body,entries,planner";
+            case "tasks[]":
+                return "id,title,raw,notes,purpose,planned,plannedDate,minutes,alert,blockId,must,priority,done,archived,archiveDisposition,recurrence,repeatAfterDays,completedAt,completedOccurrences";
+            case "blocks[]":
+            case "projects[]":
+            case "areas[]":
+            case "goals[]":
+                return "id,title,purpose,notes,archived,projectId,goalId,areaId,year,horizon,period,rating,colorIndex";
+            case "drafts[]":
+            case "planner.drafts[]":
+                return "id,status,title,reply,receipt,taskIds";
+            case "drafts[].receipt[]":
+            case "captures[].receipt[]":
+            case "planner.drafts[].receipt[]":
+                return "text";
+            case "captures[]":
+                return "id,text,status,createdAt,receipt";
+            case "body":
+                return "water,meals,mealPlan,routines,runs";
+            case "body.water":
+            case "planner.body.water":
+                return "settings,glasses,snoozedUntil";
+            case "body.water.settings":
+            case "planner.body.water.settings":
+                return "goal,intervalMinutes,from,until,glassMl,snoozeMinutes,reminders";
+            case "body.meals[]":
+                return "id,name,slot,at";
+            case "body.mealPlan":
+            case "planner.body.mealPlan":
+                return "slots";
+            case "body.mealPlan.slots[]":
+            case "planner.body.mealPlan.slots[]":
+                return "slot,at,on,name";
+            case "body.routines[]":
+                return "id,name,start,end,days,steps,archived";
+            case "body.routines[].steps[]":
+            case "planner.body.routines[].steps[]":
+                return "id,title";
+            case "body.runs[]":
+            case "planner.body.runs[]":
+                return "routineId,day,marks,skippedDay";
+            case "body.runs[].marks[]":
+                return "stepId,state,at";
+            case "entries[]":
+                return "id,title,raw,notes,purpose,planned,plannedDate,minutes,blockId,must,priority,done,archived,archiveDisposition,recurrence,repeatAfterDays,completedAt,completedOccurrences,kind,state,created,source,durationSource,leverage,alertIntent,repeatDays,completions,reviewChoice,reviewActivityDays";
+            case "entries[].alertIntent":
+                return "type,lead";
+            case "entries[].completions[]":
+                return "occurrence,completed";
+            case "entries[].reviewChoice":
+                return "week,choice,at,cleared";
+            case "entries[].reviewChoice.cleared":
+                return "planned,plannedDate";
+            case "planner":
+                return "schema,reviewVersion,uxVersion,blocks,projects,areas,goals,context,weeks,reviews,body,drafts,events";
+            case "planner.blocks[]":
+            case "planner.projects[]":
+            case "planner.areas[]":
+            case "planner.goals[]":
+                return "id,title,purpose,notes,archived,projectId,goalId,areaId,year,horizon,period,rating,colorIndex,created,achieved,achievedAt,evidence";
+            case "planner.context":
+                return "vision,goals,coreValues,approved,updated";
+            case "planner.weeks.*":
+                return "focus,verdicts";
+            case "planner.reviews.*":
+                return "step,finishedAt,focusDraft,inboxIds,keptIds,clashes,startedAt,updatedAt";
+            case "planner.body":
+                return "water,meals,mealPlan,routines,runs,schema,mealGuesses";
+            case "planner.body.meals[]":
+                return "id,name,slot,at,created,state";
+            case "planner.body.routines[]":
+                return "id,name,start,end,days,steps,archived,created,updated";
+            case "planner.body.runs[].marks.*":
+                return "state,at";
+            case "planner.body.mealGuesses.*":
+                return "status,by,at,kcal,protein";
+            case "planner.events[]":
+                return "";
+            case "planner.weeks":
+            case "planner.weeks.*.verdicts":
+            case "planner.reviews":
+            case "planner.reviews.*.clashes":
+            case "planner.body.runs[].marks":
+            case "planner.body.mealGuesses":
+                return "*";
+            default: throw new JSONException("Unknown planner snapshot record");
+        }
+    }
+    private static void checkSnapshotFields(Object value,String path)throws JSONException {
         if(value instanceof JSONObject){
             JSONObject object=(JSONObject)value;
+            String allowed=allowedFields(path);
+            Set<String> fields=new java.util.HashSet<>(java.util.Arrays.asList(allowed.split(",")));
             for(java.util.Iterator<String> keys=object.keys();keys.hasNext();){
-                String key=keys.next();String normalized=key.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z]","");
-                if(normalized.contains("token")||normalized.contains("trace")||normalized.contains("secret")||normalized.contains("key")||Set.of("authorization","password").contains(normalized))throw new JSONException("Private data cannot enter planner sync");
-                checkPrivateFields(object.get(key));
+                String key=keys.next();
+                if(!allowed.equals("*")&&!fields.contains(key))throw new JSONException("Unknown planner snapshot field");
+                String child=allowed.equals("*")?"*":key;
+                checkSnapshotFields(object.get(key),path.isEmpty()?child:path+"."+child);
             }
-        }else if(value instanceof JSONArray){JSONArray array=(JSONArray)value;for(int i=0;i<array.length();i++)checkPrivateFields(array.get(i));}
+        }else if(value instanceof JSONArray){JSONArray array=(JSONArray)value;for(int i=0;i<array.length();i++)checkSnapshotFields(array.get(i),path+"[]");}
     }
 }

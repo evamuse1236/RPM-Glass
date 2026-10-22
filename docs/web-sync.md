@@ -1,4 +1,4 @@
-# Web planner sync v1
+# Web planner sync v2
 
 The phone is the only writer of planner data. A browser reads a snapshot and queues commands. A queued command is not a saved planner change. The phone applies it with the same planner operations and Capture entry point that a tap uses, then publishes the result.
 
@@ -6,14 +6,17 @@ The phone is the only writer of planner data. A browser reads a snapshot and que
 
 `web/contract/snapshot.schema.json` and `web/contract/command.schema.json` are JSON Schema draft 7 contracts. Unknown fields are rejected at every object boundary. Times are RFC 3339 instants with offsets. A day is `YYYY-MM-DD`. Task IDs are positive integers; planner entity IDs are strings. Revisions are nonnegative safe integers from the phone's companion store version.
 
-The snapshot has `schemaVersion: 1`, `revision`, `savedAt`, `tasks`, `blocks`, `projects`, `areas`, `goals`, `drafts`, `captures`, and `body`. Blocks' titles are Results; their `purpose` is the reason. Tasks retain `raw`, `must`, and `priority`. Completing a task does not establish that a Result was achieved. Archived tasks retain `archiveDisposition` for Trash and restore. `body` includes water settings and glasses, meals, the meal plan, routines, and runs. Missing body settings use the phone's defaults. Captures include only the latest 50 texts, statuses, and receipt text lines. Drafts expose summaries, not executable model instructions. Credentials, tokens, traces, undo snapshots, model payloads, and conversation history are excluded by projection and validation.
+The snapshot has `schemaVersion: 2`, `revision`, `savedAt`, `entries`, `planner` and `captures`. `entries` is the store-shaped plan-task list, including recurrence days, alert type/lead, completions and review choices. `planner` contains `schema`, `reviewVersion`, `uxVersion`, `blocks`, `projects`, `areas`, `goals`, `context`, `weeks`, `reviews`, `body`, `drafts` and `events`. Routine runs retain their step-ID-keyed marks; meal state and safe nutrition summaries survive. Drafts expose summaries only. `events` is always empty: the planner does not read its private mutation log. `reviewActivityDays` is a task's compact activity-day summary for weekly review; revision payloads stay local.
 
-`web/fixtures/snapshot.json` projects the same `scripts/gauntlet/seed.mjs` data used by `rpmctl seed`, anchored to 19 October 2026 in Asia/Kolkata. The seed has no Capture journal or unaccepted drafts, so those lists are empty. The fixture is synthetic, not an export of a person's phone.
+The legacy `tasks`, `blocks`, `projects`, `areas`, `goals`, `drafts` and `body` summaries remain temporarily so the existing Site and old command types work without UI edits. New runtimes read `entries` and `planner` directly. Blocks' titles are Results; task completion does not establish achievement. Missing body settings use phone defaults. Captures expose only the latest 50 exact texts, statuses and receipt lines. Credentials, tokens, traces, Undo, model payloads, conversations, memories and history are excluded by deep projection and validation, including map values. Java additionally checks the v2 field boundaries before upload.
+
+`web/fixtures/snapshot.json` projects the same `scripts/gauntlet/seed.mjs` data used by `rpmctl seed`, anchored to 19 October 2026 in Asia/Kolkata. The seed has no Capture journal or unaccepted drafts, so those lists are empty. The fixture is synthetic, not an export of a person's phone. Regenerate it with `node scripts/web-sync/snapshot-fixture.mjs`.
 
 Commands have `{id, type, args, baseRevision, createdAt}`. Generate a fresh UUID for an action; retry the exact same body with that UUID. `baseRevision` is the snapshot revision the user acted on. Reusing an ID with different content returns HTTP 409. The following table defines `args`.
 
 | Type | Args |
 |---|---|
+| `plan` | `{op}` using the allowlisted `editPlan` JSON op (see below) |
 | `capture` | `{text}` with exact raw words, at most 12,000 characters |
 | `complete`, `uncomplete` | `{taskId, occurrence?}` for an optional recurring occurrence |
 | `reschedule` | `{taskId, time, day}`; exactly one may be non-null, both null clears scheduling |
@@ -23,6 +26,19 @@ Commands have `{id, type, args, baseRevision, createdAt}`. Generate a fresh UUID
 | `log-water` | `{at}` |
 | `log-meal` | `{name, slot, at}`; slot is breakfast, lunch, snack, or dinner |
 | `undo` | `{commandId}` identifying an applied command |
+
+`plan` uses the same `editPlan(data, op, clock())` as a phone tap. Its exact variants are in `plan-ops.schema.json` (`$defs.planOp`, referenced by `command.schema.json`) and `validate.d.mts` (`PlanOp`). They cover task edits/reopening/archive/restore/move/reorder, existing-Block sorting, entity edits/removal, Block archive, Area ratings, context, all `BODY_OPS`, and review decisions/progress. `aiDraft`, `acceptDraft`, `dismissDraft` and `undo` are rejected, including inside batches. Browser Undo uses the existing `undo` command and its durable receipt/guard.
+
+The new ops are:
+
+- `{type: 'batch', ops: [op, ...], keepUndo?: boolean}`: 1–60 non-batch, non-progress ops, atomic with one Undo. A child cannot contain a function or a model/draft/Undo op on the wire.
+- `{type: 'groupTasks', ids: [taskId, ...], blockId: string | null}` or `{type: 'groupTasks', ids: [taskId, ...], newBlock: {title, purpose?, projectId?}}`: move several tasks, optionally creating one shared Block, with one Undo.
+- `{type: 'reviewProgress', week: 'YYYY-MM-DD', patch: {step?, finishedAt?, focusDraft?, inboxIds?, keptIds?, clashes?}}`: quiet navigation progress, retaining the last plan Undo. `step` is 1–4, `finishedAt` an instant or null, `focusDraft` up to five Block IDs or null, ID lists are task IDs, and `clashes` maps clash IDs to `a`, `b` or `later`.
+- `{type: 'finishReview', week: 'YYYY-MM-DD', ids: [blockId, ...]}`: set up to five Results and finish progress as one plan change.
+
+Every leaf op accepts optional `keepUndo: boolean`, used for saves such as nutrition estimates which retain the prior Undo. Quiet progress and an op with `keepUndo: true` do not earn a browser Undo receipt for someone else's earlier change. The phone runtime and planner commit reject executable mutators; an AST regression test also checks every direct planner commit/review-run call.
+
+`targets(op)` names task/entity/group, context, week/review, routine/run, water-setting, meal/guess and meal-slot records. The phone compares whole public target records, including priority groups and unlink cascades. New records and water/meal logs need no retained base. Other ops conflict if their base is unavailable or a target changed; unrelated records can change independently.
 
 The phone rejects invalid operations and reports conflicts when relevant target state differs from the base snapshot. Unrelated changes may proceed. An unavailable base revision is a conflict for edits that need comparison. Capture and new water or meal logs are additive. Undo is guarded against later changes and never restores an old whole planner over newer phone edits. The phone persists command results with local changes before acknowledging, so a lost HTTP response cannot apply a task edit twice. Capture reuses a stable message ID and its normal saved journal on retries.
 

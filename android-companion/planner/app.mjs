@@ -1,4 +1,5 @@
 /** Planner state, navigation and the save path shared by every screen module. */
+import {assertPlanOp} from '../planner-state.mjs';
 import {animateRerender, settleRerender, sharedAxis, fadeThrough, ghost, reducedMotion, snapshotRows, landRows,
   releaseTail, MOTION} from '../surface-motion.mjs';
 import {planner, localDay, editPlan} from '../planner-state.mjs';
@@ -308,12 +309,13 @@ export function render(app, {reset = false, direction = '', keepHead = false} = 
 }
 
 /**
- * Apply a planner op (or a review mutator function) through the native save path. `render: false` leaves the screen
+ * Apply a planner data op through the native save path. `render: false` leaves the screen
  * to the caller (a completed row re-renders the page once its tick has been seen). A sheet that closes after the save
  * leaves first; the snackbar follows once it is gone, never over the leaving sheet.
  */
 export async function commit(app, op, {keepSheet = false, label = 'Saved', undo = true, render: redraw = true,
   pending = null} = {}) {
+  assertPlanOp(op);
   if (app.saving) return undefined;
   app.saving = true;
   try {

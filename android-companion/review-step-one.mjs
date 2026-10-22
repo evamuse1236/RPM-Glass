@@ -1,4 +1,4 @@
-import {reviewSummary, markAchieved, decideLeftover, leftoverChoice} from './review-state.mjs';
+import {reviewSummary, leftoverChoice} from './review-state.mjs';
 import {plural} from './planner/format.mjs';
 import {VERDICTS, VERDICT_RECEIPTS, CHOICES, el, icon, button, weekLabel, dueChip, heading, emptyState, sectionHead, factsLine, dueFact, mustFact} from './review-ui.mjs';
 import {focusCheck, setFocus} from './review-focus.mjs';
@@ -75,7 +75,7 @@ function verdictControl(api, summary, result) {
     const option = button('', () => {
       if (selected) return;
       const achieved = value === 'achieved';
-      api.run(d => markAchieved(d, result.blockId, {achieved, week: summary.lastWeek, verdict: value}), VERDICT_RECEIPTS[value]);
+      api.run({type: 'markAchieved', id: result.blockId, achieved, week: summary.lastWeek, verdict: value}, VERDICT_RECEIPTS[value]);
     }, 'wr-seg-btn' + (selected ? ' sel' : ''));
     option.setAttribute('role', 'radio');
     option.setAttribute('aria-checked', String(selected));
@@ -100,7 +100,7 @@ function evidenceField(api, summary, result) {
   const save = () => {
     const evidence = input.value.trim();
     if (evidence === result.evidence) return;
-    api.run(d => markAchieved(d, result.blockId, {achieved: true, evidence, week: summary.lastWeek}), 'Saved with the win');
+    api.run({type: 'markAchieved', id: result.blockId, achieved: true, evidence, week: summary.lastWeek}, 'Saved with the win');
   };
   input.addEventListener('change', save);
   input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
@@ -165,7 +165,7 @@ function leftoverRow(api, task) {
   for (const [value, label] of CHOICES) {
     const selected = current === value;
     const option = button(label, () => {
-      if (!selected) api.run(d => decideLeftover(d, task.id, value, api.week), decisionLabel(value));
+      if (!selected) api.run({type: 'reviewTask', id: task.id, choice: value, week: api.week}, decisionLabel(value));
     }, 'wr-seg-btn' + (selected ? ' sel' : ''));
     option.setAttribute('role', 'radio');
     option.setAttribute('aria-checked', String(selected));

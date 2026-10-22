@@ -1,6 +1,5 @@
 /** Step 1's deck (prototype round4 r1): each undecided Result is one large card. A swipe right is Achieved and a swipe
  * left Not yet; Not yet, Partly and Achieved below do the same. Each verdict saves with Undo, which brings the card back. */
-import {markAchieved} from './review-state.mjs';
 import {planner} from './planner-state.mjs';
 import {areaTone} from './planner-ux.mjs';
 import {lockAxis, releaseSide, nearEdge, vibrate, SWIPE_COMMIT} from './task-swipe.mjs';
@@ -24,7 +23,7 @@ export function swipeVerdict(dx) {
 
 export function judge(api, summary, result, verdict) {
   api.ui.deckEnter = true;
-  return api.run(d => markAchieved(d, result.blockId, {achieved: verdict === 'achieved', week: summary.lastWeek, verdict}),
+  return api.run({type: 'markAchieved', id: result.blockId, achieved: verdict === 'achieved', week: summary.lastWeek, verdict},
     VERDICT_RECEIPTS[verdict]);
 }
 
