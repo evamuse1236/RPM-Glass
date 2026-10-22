@@ -21,6 +21,8 @@ export function createClient({server, storage = globalThis.localStorage, fetchIm
   const saved = JSON.parse(storage.getItem(KEY) ?? 'null') ?? {};
   const state = {server: saved.server ?? server, token: saved.token ?? null, cursor: saved.cursor ?? 0, outbox: saved.outbox ?? [],
     snapshot: saved.snapshot ?? null, etag: saved.etag ?? null, phoneMissing: false, offline: null, unlinked: false};
+  // The shared planner needs v2; refetch an older cache even if its revision/ETag is unchanged.
+  if (state.snapshot && state.snapshot.schemaVersion !== 2) { state.snapshot = null; state.etag = null; }
   const listeners = new Set();
   const persist = () => storage.setItem(KEY, JSON.stringify({server: state.server, token: state.token, cursor: state.cursor, outbox: state.outbox, snapshot: state.snapshot, etag: state.etag}));
   const emit = () => { persist(); listeners.forEach(fn => fn(state)); };

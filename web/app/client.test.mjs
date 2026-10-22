@@ -39,6 +39,19 @@ function fakeServer() {
 }
 const command = () => ({id: crypto.randomUUID(), type: 'log-water', args: {at: new Date().toISOString()}, baseRevision: 42, createdAt: new Date().toISOString()});
 
+test('upgrading a v1 browser cache refetches the same revision and preserves queued changes', async () => {
+  const server=fakeServer(),storage=memoryStorage(),queued=command();
+  storage.setItem('rpm.web.v1',JSON.stringify({server:'http://sync.test',token:server.token,cursor:0,
+    snapshot:{...fixture,schemaVersion:1},etag:'"rpm-42"',outbox:[{command:queued,status:'sending',newRevision:null}]}));
+  const client=createClient({server:'http://sync.test',storage,fetchImpl:server.fetch});
+  assert.equal(client.state.snapshot,null);assert.equal(client.state.etag,null);
+  assert.equal(client.state.token,server.token);
+  await client.tick();
+  assert.deepEqual(server.posts,[queued]);
+  assert.deepEqual(client.state.snapshot,fixture);
+  assert.equal(client.state.outbox[0].command.id,queued.id);
+});
+
 test('linking stores the token and loads the phone snapshot; a wrong code throws and stays unlinked', async () => {
   const server = fakeServer(), client = createClient({server: 'http://sync.test', storage: memoryStorage(), fetchImpl: server.fetch});
   await assert.rejects(client.link('WRONG222'));
