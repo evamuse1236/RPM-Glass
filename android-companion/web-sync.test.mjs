@@ -166,7 +166,7 @@ function realCapture(backend, model) {
   return createCaptureAgent({service, traces, clock: () => now});
 }
 test('Capture enters the real agent, keeps exact words before the model, and retries without duplicate effects', async () => {
-  const backend = createMemoryBackend(freshStore()); let calls = 0; const raw = '  Call the bank at 10:30 am  ';
+  const backend = createMemoryBackend(freshStore()); let calls = 0; const raw = '  Call the bank at 10:30 am because I need the fee refunded  ';
   const capture = realCapture(backend, async () => {
     calls++; const data = await backend.load(); assert.equal(data.webSync.commands[command.id].state, 'processing'); assert.equal(data.intentV2.captures[command.id].raw, raw);
     return turn(raw, [operation([field('title', 'Call the bank', 'Call the bank'), field('time', '10:30 am', '10:30 am')])]);
@@ -179,7 +179,7 @@ test('Capture enters the real agent, keeps exact words before the model, and ret
 });
 
 test('Capture resumes a saved interpreted draft after a crash without asking the model again', async () => {
-  const backend = createMemoryBackend(freshStore()), command = cmd('capture', {text: 'Call the bank at 10:30 am'}); let calls = 0, failFinish = true;
+  const backend = createMemoryBackend(freshStore()), command = cmd('capture', {text: 'Call the bank at 10:30 am because I need the fee refunded'}); let calls = 0, failFinish = true;
   const wrapped = {load: () => backend.load(), async save(expected, next) {
     if (failFinish && next.webSync?.commands[command.id]?.state === 'final') { failFinish = false; throw new Error('Transport interrupted before receipt'); }
     return backend.save(expected, next);
@@ -191,7 +191,7 @@ test('Capture resumes a saved interpreted draft after a crash without asking the
 });
 
 test('Capture Undo uses its normal agent and recovers after losing its final receipt', async () => {
-  const backend = createMemoryBackend(freshStore()), command = cmd('capture', {text: 'Call the bank at 10:30 am'});
+  const backend = createMemoryBackend(freshStore()), command = cmd('capture', {text: 'Call the bank at 10:30 am because I need the fee refunded'});
   const undoCommand = cmd('undo', {commandId: command.id}); let failFinish = true, calls = 0;
   const wrapped = {load: () => backend.load(), async save(expected, next) {
     if (failFinish && next.webSync?.commands[undoCommand.id]?.state === 'final') { failFinish = false; throw new Error('Lost undo receipt'); }
@@ -206,6 +206,21 @@ test('Capture Undo uses its normal agent and recovers after losing its final rec
   const resumed = setup(null, wrapped, capture).processor, result = await resumed.process(undoCommand);
   assert.equal(result.status, 'applied'); assert.deepEqual(await resumed.process(undoCommand), result); assert.equal(calls, 1);
   assert.equal(Object.values((await backend.load()).intentV2.drafts)[0].status, 'undone');
+});
+
+test('local Capture preserves words, retry safety and Undo', async () => {
+  const backend = createMemoryBackend(freshStore()); let calls = 0;
+  const capture = realCapture(backend, async () => { calls++; });
+  const processor = setup(null, backend, capture).processor, command = cmd('capture', {text: '  Call the bank at 10:30 am  '});
+  const applied = await processor.process(command);
+  assert.equal(applied.status, 'applied');
+  const resumed = setup(null, backend, capture).processor;
+  assert.deepEqual(await resumed.process(command), applied);
+  assert.equal((await resumed.snapshot()).captures[0].text, command.args.text);
+  assert.equal((await backend.load()).entries.length, 1);
+  assert.equal((await resumed.process(cmd('undo', {commandId: command.id}))).status, 'applied');
+  assert.equal((await backend.load()).entries.length, 0);
+  assert.equal(calls, 0);
 });
 
 test('a newer phone edit prevents Capture Undo from restoring its older planner', async () => {

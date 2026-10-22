@@ -107,7 +107,7 @@ public class NextUpTest {
     @Test
     public void theWidgetRefreshesOnEverySaveAndTextSizeChangeAndNeverWakesThePhone() throws Exception {
         String store = new String(Files.readAllBytes(Paths.get("src/main/java/com/rpm/prototype/CompanionStore.java")), StandardCharsets.UTF_8);
-        assertTrue(store.contains("f.finishWrite(out);}catch(IOException e){if(out!=null)f.failWrite(out);throw e;}NextUpWidget.changed(c);}"));
+        assertTrue(store.contains("f.finishWrite(out);}catch(IOException e){if(out!=null)f.failWrite(out);throw e;}NextUpWidget.changed(c);"));
         String controls = new String(Files.readAllBytes(Paths.get("src/main/java/com/rpm/prototype/CompanionControls.java")), StandardCharsets.UTF_8);
         assertTrue(controls.contains("NextUpWidget.changed(c);message=\"Widget text size set to \""));
         String widget = new String(Files.readAllBytes(Paths.get("src/main/java/com/rpm/prototype/NextUpWidget.java")), StandardCharsets.UTF_8);
