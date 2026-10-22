@@ -91,25 +91,29 @@ This feature requires a Convex deployment and `RPM_WEB_ORIGIN` configuration bef
 
 ## The website
 
-`web/app/` is the browser planner. It links with the phone's code, shows Today (with the Inbox and the next seven days) and the Blocks with each Result and Purpose, and sends Capture, complete, reopen, reschedule, move to a Block, Trash, a glass of water and Undo. It looks like the phone app because it uses the same `android-companion/theme.css` and fonts. Below 56rem it has a Today and Blocks tab bar; wider, both show side by side.
+`web/app/` runs the phone's own planner (`android-companion/planner.mjs`) in the browser through `mountPlanner`. It has the same screens, the same `editPlan` ops and the same stylesheets. The design is in `docs/web-site-design.md`, and the feature list in `docs/web-site-parity.md`. On screens 600px and wider the planner sits in a 720px column.
 
-A change shows "waiting for phone" on its row until the phone applies it and the newer snapshot arrives. Only then does "Saved on the phone" appear, with Undo. A conflict or rejection shows the phone's words on that row. Changes made while the server is unreachable stay in the browser's outbox and are resent with the same command ID and body.
+- `plan-queue.mjs` lays the browser's unsent ops over the phone's snapshot with `editPlan`, so a change shows at once. Each op goes to the phone as one `plan` command on the revision the user saw.
+- `sync-marks.mjs` marks a row "Waiting for your phone" until the phone applies the op and the newer snapshot arrives. A refused op shows the phone's words on that row. A note at the top counts the waiting changes.
+- `web-native.mjs` answers the planner's native calls: Capture opens the Site's typed Capture, calendar reads say not connected, and model calls say the AI runs on the phone.
+- The Site's menu items (Check for changes, and Unlink for a browser linked with a code) join the planner's More menu through `mountPlanner({menuItems})`.
+- Unsent commands stay in the browser's outbox and are resent with the same command ID and body.
 
-Run it locally against a real Convex backend:
+### Run it locally
 
-1. `CONVEX_AGENT_MODE=anonymous npx convex dev` starts a local backend; its HTTP actions answer on `http://127.0.0.1:3211`.
-2. `npm run web:phone` pairs a stand-in phone and syncs every 3 seconds. It runs the phone's own command code (`web-sync-commands.mjs`) on the `rpmctl` seed. Its Capture model files the exact words as one task; no AI service is called.
-3. `RPM_SYNC_SERVER=http://127.0.0.1:3211 npm run web:build`, then `npm run web:serve` serves `web/dist` on `http://127.0.0.1:5178`.
-4. `npm run web:phone -- --link-code` prints a code to link the browser.
-5. `npm run web:drive` links a headless Chrome, drives each action at phone (412px) and laptop (1280px) widths, checks the results and saves screenshots under `.verify/evidence/web-<time>/`.
+`npm run web:local` starts a local Convex, pairs a fresh stand-in phone, makes the Site key after the phone pairs, builds, and serves the Site on `http://127.0.0.1:5179/`. Logs go to `.verify/web-sync/`. The stand-in runs the phone's own command code (`web-sync-commands.mjs`) on the `rpmctl` seed; its Capture model files the exact words as one task, and no AI service is called.
 
-Hosting on ChatGPT Sites (no link code): ChatGPT sign-in already limits a private Site to its owner, so the Site holds the browser key and the page opens straight to the planner.
+`npm run web:drive -- --no-code --site http://127.0.0.1:5179/` drives every planner feature in a headless Chrome. Each check confirms that the stand-in phone saved the change and that the page settled. Screenshots at 412px and 1280px go to `.verify/evidence/web-<time>/`. The checks live in `scripts/web-sync/drive-*.mjs`, one file per area.
 
-1. `npm run web:build` (with `RPM_SYNC_SERVER` unset) also writes `web/dist-site/server/index.js`, a Sites Worker with the page's files inside it. It answers `/v1/site` and forwards `/v1/*` to the sync server. When the page sends `Bearer site`, it adds the Site's key; the key never reaches the page, and the page can't revoke it.
+A Site key belongs to the phone that synced last when the key was made. After a phone pairs again, make a new key; an old key reads the old phone. `web:local` does this for you.
+
+### Hosting on ChatGPT Sites
+
+ChatGPT sign-in already limits a private Site to its owner, so the Site holds the browser key and the page opens straight to the planner.
+
+1. `npm run web:build` (with `RPM_SYNC_SERVER` unset) writes `web/dist-site/server/index.js`, a Sites Worker with the page's files inside it. It answers `/v1/site` and forwards `/v1/*` to the sync server. When the page sends `Bearer site`, the Worker adds the Site's key. The key never reaches the page, and the page can't revoke it.
 2. `npx convex run admin:createWebSession '{"label":"ChatGPT Site"}'` makes that key for the phone that synced last. The phone lists and revokes it like any linked browser.
-3. On the Site, set `RPM_SYNC_SERVER` to the deployment's `.convex.site` URL and `RPM_WEB_TOKEN` (secret) to the key. No CORS setting is needed: the Worker calls Convex server to server.
-4. Without `RPM_WEB_TOKEN` the page shows the link-code screen and the Worker passes the code's token through.
-
-Local proof: `RPM_SYNC_SERVER=http://127.0.0.1:3211 RPM_WEB_TOKEN=<key> node scripts/web-sync/site-local.mjs`, then `npm run web:drive -- --no-code --site http://127.0.0.1:5179/`.
+3. On the Site, set `RPM_SYNC_SERVER` to the deployment's `.convex.site` URL and `RPM_WEB_TOKEN` (secret) to the key. No CORS setting is needed, because the Worker calls Convex server to server.
+4. Without `RPM_WEB_TOKEN` the page shows the link-code screen, and the Worker passes the code's token through. `npm run web:phone -- --link-code` prints a code for a local test.
 
 Other hosts: build with `RPM_SYNC_SERVER` set to the `.convex.site` URL, serve `web/dist`, and set `RPM_WEB_ORIGIN` on Convex to the site's origin.

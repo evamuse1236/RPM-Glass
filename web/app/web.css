@@ -58,4 +58,5 @@ html:has(dialog:modal) { overflow: clip; }
   .planner-view .top-bar:is(.detail-bar, .search-bar) { padding-inline-start: calc(var(--gutter) + var(--s1)); }
   .planner-view #planner:is([data-scrolled=true], [data-view=today]) .top-bar { background: linear-gradient(var(--surface-container), var(--surface-container)) 50% 0 / min(100%, var(--column)) 100% no-repeat; }
   .capture-sheet { inline-size: min(100% - 2 * var(--s6), 560px); margin: auto; border-radius: var(--shape-xl); }
+  .planner-view .wr > * { inline-size: min(100%, var(--column)); margin-inline: auto; }
 }
