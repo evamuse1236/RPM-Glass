@@ -5,10 +5,11 @@ The owner approved leaving all exclusions out, merging and publishing the Site, 
 ## Publication and phone
 
 - Private Site: https://rpm-planner.evamuse.chatgpt.site (owner-only audience preserved).
-- Sites deployment: `appgdep_6ada973783e0819188388864986c2aac`, succeeded.
-- Site source commit: `ab1808b61410075bdab6e584b2098118c6be9ada` in the separate Sites source repository.
+- Sites deployment: `appgdep_6ada991311d48191b09a245d80ed9053`, succeeded.
+- Site source commit: `ee64be8aba1bc6cf7da8bd22039188c9d5812e3e` in the separate Sites source repository.
 - Production Convex: `neat-emu-821`; deployed the v2 snapshot/plan contract and guarded v1 upgrade. Upgrade compares all legacy saved fields; regenerated receipt wording may differ. Older v1 snapshots are omitted from the upgraded phone's command bases.
 - Snapshot receipts use the saved timestamp, so a later upload of an unchanged revision keeps its identity. Regression coverage advances the clock by two days.
+- Browsers discard a cached v1 snapshot and its ETag while keeping credentials and queued commands; a regression test refetches v2 at the same revision and sends the original queued command.
 - Physical S24 FE: `com.rpm.prototype`, version `0.33-site-parity`, code 33. Updated with `adb install -r`; no uninstall or app-data reset.
 - `rpmctl doctor --serial <phone>` passed every check, including version, installed APK, signing, normal phone display, launch and no app crash/ANR. Actual signer matched the original installed app (`02620d8a…`); the CI phone-key constant (`525fee39…`) describes a different key and was not used for this installation.
 - All 37 stored entries preserved. `companion.json` is byte-for-byte identical before and after the update: SHA-256 `73925dcf51d7ee899cadaf0e4b7aaedff9486e20c2b53a21a02a9a2a6fc1d538`.
