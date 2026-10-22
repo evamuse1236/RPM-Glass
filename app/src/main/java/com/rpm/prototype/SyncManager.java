@@ -44,7 +44,7 @@ final class SyncManager {
     static boolean sync(Context c){
         if(!configured(c)||prefs(c).getBoolean("auth_error",false))return false;
         try{
-            Connection connection=new Connection(prefs(c).getAll());String token=decrypt(connection.encrypted);
+            Connection connection=new Connection(prefs(c).getAll());String token=unlock(connection.encrypted,SyncManager::decrypt);
             PlannerSyncProtocol.Guard guard=()->connection.check(c);boolean plannerRetry=false;
             try(PlannerCommandHost host=new PlannerCommandHost(c,guard)){PlannerSyncProtocol.sync(payload->{JSONObject response=post(connection.url+"/v1/planner/sync",payload,token);guard.check();if(payload.has("snapshot"))prefs(c).edit().putLong("planner_revision",payload.getJSONObject("snapshot").getLong("revision")).apply();return response;},host,guard);}
             catch(Unauthorized revoked){throw revoked;}
@@ -64,6 +64,7 @@ final class SyncManager {
             }
         }catch(Unauthorized ex){prefs(c).edit().putBoolean("auth_error",true).apply();status(c,"Connection revoked or invalid · pair again",false);return false;}
         catch(Rejected ex){status(c,"Cloud rejected a batch · data remains on phone",false);return false;}
+        catch(LostKey ex){prefs(c).edit().putBoolean("auth_error",true).apply();status(c,"This phone lost its sync key · pair again",false);return false;}
         catch(Exception ex){status(c,"Waiting to sync · data is saved on this phone",false);return true;}
     }
     static void validateAck(JSONArray sent,JSONArray ack)throws JSONException{
@@ -86,9 +87,17 @@ final class SyncManager {
     private static void status(Context c,String text,boolean success){if(!configured(c))return;SharedPreferences.Editor edit=prefs(c).edit().putString("status",text);if(success)edit.putLong("last_success",System.currentTimeMillis());edit.apply();}
     static final class Unauthorized extends IOException{}
     static final class Rejected extends IOException{}
+    static final class LostKey extends IOException{}
+    interface Unlocker{String open(String encrypted)throws Exception;}
+    static String unlock(String encrypted,Unlocker unlocker)throws IOException{
+        try{return unlocker.open(encrypted);}
+        catch(java.security.GeneralSecurityException|IllegalArgumentException lost){throw new LostKey();}
+        catch(IOException e){throw e;}
+        catch(Exception e){throw new IOException(e);}
+    }
     static JSONObject web(Context c,String method,String path,JSONObject payload)throws Exception{
         if(!configured(c))throw new IOException("Pair this phone with Convex first");
-        Connection connection=new Connection(prefs(c).getAll());JSONObject result=request(connection.url+path,method,payload,decrypt(connection.encrypted));connection.check(c);return result;
+        Connection connection=new Connection(prefs(c).getAll());JSONObject result=request(connection.url+path,method,payload,unlock(connection.encrypted,SyncManager::decrypt));connection.check(c);return result;
     }
     static JSONObject post(String url,JSONObject payload,String token)throws Exception{
         return request(url,"POST",payload,token);

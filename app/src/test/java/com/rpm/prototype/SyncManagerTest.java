@@ -70,6 +70,11 @@ public class SyncManagerTest {
         },()->{});
         assertEquals(List.of(false,true),cancellation);assertEquals(3,uploads[0]);
     }
+    @Test public void aLoginTheKeystoreCanNoLongerUnlockAsksToPairAgain() {
+        org.junit.Assert.assertThrows(SyncManager.LostKey.class,()->SyncManager.unlock("iv:data",s->{throw new javax.crypto.AEADBadTagException();}));
+        org.junit.Assert.assertThrows(SyncManager.LostKey.class,()->SyncManager.unlock("iv:data",s->{throw new java.security.UnrecoverableKeyException();}));
+        org.junit.Assert.assertThrows(java.io.IOException.class,()->SyncManager.unlock("broken",s->{throw new java.io.IOException("Connection needs pairing");}));
+    }
     @Test public void credentialsAreCapturedAsOneConnection() {
         Map<String,Object> saved=new HashMap<>();saved.put("url","https://first.convex.site");saved.put("token","fixture-first-token");
         SyncManager.Connection connection=new SyncManager.Connection(saved);
