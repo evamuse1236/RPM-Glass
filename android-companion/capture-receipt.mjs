@@ -62,12 +62,12 @@ function updateVerb(op,old,row){
  * One line per applied change, from the saved receipt and the plan as it is now: "Added · Call the bank ·
  * Today, 10:30 AM · Inbox", "Moved · Run · Today, 7:00 AM → Today, 6:00 AM". Never from the model's prose.
  */
-export function receiptLines(data,draft){
+export function receiptLines(data,draft,reference=new Date()){
  const changes=draft?.receipt?.changes??[],ops=draft?.operations??[],before=draft?.applied?.before??{};
  const creates={};
  const parked=(draft?.receipt?.parkedDrafts??[]).map(p=>({verb:'Set aside',entity:'draft',id:p.id,title:draftTitle(data,data.intentV2?.drafts?.[p.id]),when:null,was:null,where:null,alert:null,minutes:null,must:false,renamedFrom:null}));
  return [...changes.map(change=>{
-  if(['water','meals'].includes(change.collection))return {verb:change.state==='skipped'?'Skipped':'Logged',entity:change.collection==='water'?'water':'meal',id:change.id,title:change.title,when:whenOf({planned:change.at}),was:null,where:null,alert:null,minutes:null,must:false,renamedFrom:null};
+  if(['water','meals'].includes(change.collection))return {verb:change.state==='skipped'?'Skipped':'Logged',entity:change.collection==='water'?'water':'meal',id:change.id,title:change.title,when:whenOf({planned:change.at},reference),was:null,where:null,alert:null,minutes:null,must:false,renamedFrom:null};
   const entity=Object.keys(COLLECTION).find(k=>COLLECTION[k]===change.collection)??'task';
   let op;
   if(change.type==='create'){const list=ops.filter(o=>o.kind==='create'&&o.entity===entity);op=list[creates[entity]=(creates[entity]??-1)+1];}
@@ -75,8 +75,8 @@ export function receiptLines(data,draft){
   const row=rows(data,change.collection).find(r=>String(r.id)===String(change.id));
   const old=before[`${entity}:${change.id}`]??null;
   const verb=change.type==='update'?updateVerb(op,old,row):(typeof VERB[change.type]==='string'?VERB[change.type]:VERB[change.type]?.[change.collection])??'Changed';
-  const when=entity==='task'&&change.type!=='delete'?whenOf(row):null;
-  const was=verb==='Moved'&&old&&(old.planned!==row?.planned||old.plannedDate!==row?.plannedDate)?whenOf(old)??'No date':null;
+  const when=entity==='task'&&change.type!=='delete'?whenOf(row,reference):null;
+  const was=verb==='Moved'&&old&&(old.planned!==row?.planned||old.plannedDate!==row?.plannedDate)?whenOf(old,reference)??'No date':null;
   const where=entity==='task'&&(change.type==='create'||verb==='Moved'&&old?.blockId!==row?.blockId)?blockTitle(data,row?.blockId)??'Inbox':null;
   const alert=entity==='task'&&change.type!=='delete'?alertOf(row):null;
   const minutes=entity==='task'&&change.type==='create'?row?.minutes??null:null;

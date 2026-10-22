@@ -6,7 +6,7 @@ import {validateSnapshot} from '../web/contract/validate.mjs';
 
 const string = value => typeof value === 'string' ? value : '';
 const nullable = value => value ?? null;
-const receipt = (data, draft) => receiptLines(data, draft).map(line => ({text: [line.verb, line.title, line.was && `${line.was} to ${line.when}`, !line.was && line.when, line.where, line.alert].filter(Boolean).join(' · ')}));
+const receipt = (data, draft) => receiptLines(data, draft, new Date(data.syncSavedAt ?? '1970-01-01T00:00:00.000Z')).map(line => ({text: [line.verb, line.title, line.was && `${line.was} to ${line.when}`, !line.was && line.when, line.where, line.alert].filter(Boolean).join(' · ')}));
 function task(row) {
   return {id: row.id, title: string(row.title ?? row.raw), raw: string(row.raw), notes: string(row.notes), purpose: string(row.purpose),
     planned: nullable(row.planned), plannedDate: nullable(row.plannedDate), minutes: nullable(row.minutes), alert: nullable(row.alertIntent?.type ?? row.alert), blockId: nullable(row.blockId),

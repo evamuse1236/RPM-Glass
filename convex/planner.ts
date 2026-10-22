@@ -6,6 +6,10 @@ import { fail, phoneAuth, webAuth, consumeQuota, unauthorized, type PlannerCtx }
 import type { Doc, Id } from "./_generated/dataModel";
 
 type Ack = {id:string;status:"applied"|"rejected"|"conflict";message:string;newRevision:number};
+function legacyContent({schemaVersion,entries,planner,...snapshot}:any) {
+  // Receipt wording was derived from the wall clock in v1; all saved fields must match.
+  return {...snapshot,captures:snapshot.captures.map(({receipt,...record}:any)=>record),drafts:snapshot.drafts.map(({receipt,...record}:any)=>record)};
+}
 const ack = v.object({id:v.string(),status:v.union(v.literal("applied"),v.literal("rejected"),v.literal("conflict")),message:v.string(),newRevision:v.number()});
 function receipt(command:Doc<"webCommands">) {
   return {id:command.payload.id,status:command.status,message:command.message,newRevision:command.newRevision,cursor:command.cursor};
@@ -68,7 +72,7 @@ async function syncPlanner(ctx:PlannerCtx,device:Doc<"devices">,account:Id<"acco
   const latest = retained[0];
   // A phone upgrade can enrich the current revision without changing any v1 field.
   const upgrade = snapshot!==undefined && latest?.payload.schemaVersion===1 && snapshot.schemaVersion===2
-    && canonicalJson({...latest.payload,schemaVersion:2,entries:snapshot.entries,planner:snapshot.planner})===canonicalJson(snapshot);
+    && canonicalJson(legacyContent(latest.payload))===canonicalJson(legacyContent(snapshot));
   if(snapshot!==undefined && (latest && (snapshot.revision<latest.revision || snapshot.revision===latest.revision && identity!==latest.identity && !upgrade))) {
     return fail(409,"snapshot_conflict","The published planner revision cannot be replaced");
   }
