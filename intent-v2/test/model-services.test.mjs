@@ -29,7 +29,7 @@ test('with a Claude key, an everyday capture goes to the Anthropic API on Haiku 
  const p=phone(),run={};
  assert.deepEqual(await transport(p.native)(input('Buy milk'),{route:route('Buy milk'),run}),turn());
  const [call]=p.models();assert.equal(p.models().length,1);
- assert.equal(call.service,'anthropic');assert.equal(call.body.model,'claude-haiku-5-5');assert.equal(call.body.system,'the prompt');
+ assert.equal(call.service,'anthropic');assert.equal(call.body.model,'claude-haiku-5-5');assert.deepEqual(call.body.system,[{type:'text',text:'the prompt',cache_control:{type:'ephemeral'}}]);
  assert.deepEqual(call.body.thinking,{type:'disabled'});assert.equal(call.body.output_config.format.type,'json_schema');assert.equal(call.body.output_config.effort,undefined);
  assert.equal(/maxLength|maxItems/.test(JSON.stringify(call.body.output_config.format.schema)),false);
  assert.equal(call.body.response_format,undefined);assert.equal(call.body.provider,undefined);
@@ -48,6 +48,7 @@ for(const failure of ['down',401,403,429,500,503,529])
   const [first,second]=p.models();assert.equal(p.models().length,2);
   assert.deepEqual([first.service,second.service],['anthropic','openrouter']);
   assert.equal(second.body.model,HAIKU_MODEL);assert.notEqual(first.requestId,second.requestId);
+  assert.deepEqual(second.body.messages[0].content,first.body.system);
   assert.equal(run.service,'openrouter');assert.equal(run.serviceFallback,`anthropic ${failure==='down'?'unreachable':failure}`);assert.equal(run.requestId,second.requestId);
  });
 

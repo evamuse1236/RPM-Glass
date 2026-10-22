@@ -1,7 +1,7 @@
 import {coalesceRefresh} from './surface-refresh.mjs';
 import {installDiagnostics} from './diagnostics.mjs';
 import {applyClarityPreferences} from './planner-clarity.mjs';
-import {describeLink,blockChoices,dayLoad} from './capture-context.mjs';
+import {describeLink,blockChoices,dayLoad,editChoices} from './capture-context.mjs';
 import {calendarRows} from './planner-calendar.mjs';
 import {dueInfo} from './planner/format.mjs';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
@@ -16,6 +16,7 @@ import {executeCaptureAction,goalDraftAction,receiptsForMessage} from './capture
 import {createIntentService,intentViewFromData} from './intent-service.mjs';
 import {createCaptureAgent} from './capture-agent.mjs';
 import {createTraceStore} from './capture-trace.mjs';
+import {storedCopy} from './stored-copy.mjs';
 import {planSnapshot} from './capture-snapshot.mjs';
 import {dayAgenda,nextItem,bodyToday} from './capture-agenda.mjs';
 import {userMessage} from './user-message.mjs';
@@ -30,18 +31,19 @@ const waiting=new Map(),session=crypto.randomUUID();let serial=0,data,busy=false
 const diagnostics=installDiagnostics({sessionId:session});
 window.rpmBridgeResult=(id,result,error)=>{const p=waiting.get(id);if(!p)return;waiting.delete(id);clearTimeout(p.timer);error?p.reject(new Error(error)):p.resolve(result);};
 export function native(action,payload={}){if(['model','decision'].includes(action)&&!payload.requestId)payload={...payload,requestId:action+':'+crypto.randomUUID()};return new Promise((resolve,reject)=>{const id=session+':'+(++serial),timeout=action==='model'?Math.min(Math.max(Number(payload.timeoutMs)||38000,5000),100000):action==='decision'?16000:action==='dictate'?120000:10000;const timer=setTimeout(()=>{waiting.delete(id);if(['model','decision'].includes(action))native('cancelModel',{requestId:payload.requestId}).catch(()=>{});reject(new Error('The phone did not respond. Your last saved data is intact.'));},timeout);waiting.set(id,{resolve,reject,timer});window.RpmNative.invoke(id,action,JSON.stringify(payload));});}
+const stored=storedCopy(native);
 const ready=(async()=>{const legacy=await native('legacyEntries').catch(error=>{diagnostics.emit('exception','error',{error},{operation:'legacy.import',outcome:'error'});return null;});
 // Capture and the planner can start together; if the other one saved first, reload and redo the idempotent upgrades.
-for(let attempt=1;;attempt++){const saved=await native('load');phone=saved.phone;data=saved.data??freshStore();const uxChanged=migratePlannerUX(data);const reviewChanged=reviewState.migrateReviewData?.(data);const legacyChanged=!!legacy&&!legacy.done&&importLegacyEntries(data,legacy)>0;if(!(uxChanged||reviewChanged||legacyChanged||!saved.data))break;try{await save();break;}catch(error){if(attempt>=3)throw error;}}
+for(let attempt=1;;attempt++){const saved=await stored.load();phone=saved.phone;data=saved.data??freshStore();const uxChanged=migratePlannerUX(data);const reviewChanged=reviewState.migrateReviewData?.(data);const legacyChanged=!!legacy&&!legacy.done&&importLegacyEntries(data,legacy)>0;if(!(uxChanged||reviewChanged||legacyChanged||!saved.data))break;try{await save();break;}catch(error){if(attempt>=3)throw error;}}
 if(legacy&&!legacy.done)native('legacyImported').catch(()=>{});if(data.inFlight){const cid=data.inFlight.conversationId;data.inFlight=null;const c=cid?data.conversations.find(x=>x.id===cid):data.conversations.find(x=>x.messages.at(-1)?.role==='user');if(c)c.messages.push({id:crypto.randomUUID(),role:'assistant',at:new Date().toISOString(),text:'The previous request was interrupted. Your message is saved; no unfinished changes were applied. You can retry.',error:'interrupted'});await save();}})();
 ready.catch(error=>{diagnostics.emit('exception','error',{error},{operation:'app.load',outcome:'error'});const host=document.getElementById('workspace')??document.getElementById('content');if(!host)return;const message=document.createElement('p'),retry=document.createElement('button');message.className='error';message.setAttribute('role','alert');message.textContent='Your plan could not be opened. '+userMessage(error,'');retry.textContent='Try again';retry.addEventListener('click',()=>location.reload());host.replaceChildren(message,retry);if(location.pathname==='/index.html')native('captureSize',{height:300,width:innerWidth}).catch(()=>{});});
-async function save(){const expected=data.version;const next={...data,version:expected+1};const result=await native('save',{expected,data:next});data=next;phone=result;}
-const intentBackend={load:async()=>{const latest=await native('load');phone=latest.phone;if(latest.data)data=latest.data;return structuredClone(data);},save:async(expected,next)=>{if(data.version!==expected){const error=new Error('Version conflict');error.code='VERSION_CONFLICT';throw error;}const result=await native('save',{expected,data:next});data=structuredClone(next);phone=result;}};
+async function save(){const expected=data.version;const next={...data,version:expected+1};const result=await native('save',{expected,data:next});stored.remember(next);data=next;phone=result;}
+const intentBackend={load:async()=>{const latest=await stored.load();phone=latest.phone;if(latest.data)data=latest.data;return structuredClone(data);},save:async(expected,next)=>{if(data.version!==expected){const error=new Error('Version conflict');error.code='VERSION_CONFLICT';throw error;}const result=await native('save',{expected,data:next});stored.remember(next);data=structuredClone(next);phone=result;}};
 const calendarEvents=()=>native('calendarRead',{anchor:Date.now()}).then(value=>value?.status==='ready'?calendarRows(value):[],()=>[]);
 const intentService=createIntentService({backend:intentBackend,native,changePlanner,undo,readCalendar:anchor=>native('calendarRead',{anchor}),editPlan,snapshot:async({data})=>planSnapshot(data,{now:new Date(),events:await calendarEvents()}),onEvent:event=>{window.dispatchEvent(new CustomEvent('rpm-intent-event',{detail:event}));diagnostics.emit('intent',event.error?'error':'info',event,{operation:'intent.'+event.type,operationId:event.messageId??event.draftId??'',outcome:event.error?'error':''});}});
 const traces=createTraceStore({emit:trace=>diagnostics.emit('capture-trace',trace.likelyMistake?'warn':'info',trace,{operation:'capture.trace',operationId:trace.id,outcome:trace.outcome??trace.applied?.status??''})});
 const agent=createCaptureAgent({service:intentService,traces});
-const view=()=>({version:data.version,csrf:'native-local',busy,aiEnabled:phone.hasKey,model:HAIKU_MODEL,captureMode:'glass',intent:intentViewFromData(data),entries:data.entries.map(entryView),memories:data.memories,history:data.history,conversations:data.conversations,pending:data.pending,undoId:data.undo?.id??null,imported:data.imported,phone});
+const view=()=>({version:data.version,csrf:'native-local',busy,aiEnabled:phone.hasKey,model:HAIKU_MODEL,captureMode:'glass',intent:intentViewFromData(data),entries:data.entries.map(entryView),memories:data.memories,history:data.history,conversations:data.conversations,pending:data.pending,undoId:data.undo?.id??null,choices:editChoices(data),imported:data.imported,phone});
 const response=(value,status=200)=>({ok:status<400,status,json:async()=>value});
 const captureFocus=()=>{let f={};try{f=JSON.parse(localStorage.getItem('rpm-capture-context')??'{}');}catch{}return f;};
 window.fetch=async(url,options={})=>{
@@ -60,6 +62,8 @@ window.fetch=async(url,options={})=>{
       const raw=`${b.type} this ${b.collection} record`;const result=propose(data,{operations:[{type:b.type,collection:b.collection,id:b.id,fields:{},evidence:[raw]}],continuation:false,question:null,choices:[]},{raw,conversationId:cid});c.messages.push({role:'assistant',id:crypto.randomUUID(),at:at(),...result});
     }else if(b.type==='intentRetry'){
       busy=true;await diagnostics.track('capture.retry',{operationId:b.messageId,conversationId:cid},()=>agent.retry(b.messageId));busy=false;return response(view());
+    }else if(b.type==='intentChoose'){
+      busy=true;await diagnostics.track('capture.choose',{operationId:b.actionId,conversationId:cid},()=>agent.choose(b.action,{actionId:b.actionId}));busy=false;return response(view());
     }else if(b.type==='intentAction'){
       busy=true;await diagnostics.track('capture.action',{operationId:b.actionId,draftId:b.action?.draftId,action:b.action?.kind},()=>agent.act(b.action,{actionId:b.actionId}));busy=false;return response(view());
     }else if(b.type==='intentUndo'){
@@ -88,6 +92,7 @@ window.RPM_PLATFORM.clearPlanningFocus=()=>localStorage.removeItem('rpm-capture-
 window.RPM_PLATFORM.captureAction=async action=>{const latest=await native('load');phone=latest.phone;if(latest.data)data=latest.data;return executeCaptureAction(data,action,native);};
 window.RPM_PLATFORM.suggestionAction=(suggestion,sourceRaw,at)=>goalDraftAction(suggestion,sourceRaw,at?new Date(at):new Date());
 window.RPM_PLATFORM.receiptsForMessage=message=>receiptsForMessage(data,message,entryView);
+window.RPM_PLATFORM.previewCapture=(text,{conversationId,signal}={})=>ready.then(()=>phone.hasKey?agent.preview({conversationId,text},{signal}):{status:'silent',rows:[]});
 window.RPM_PLATFORM.describeLink=(field,value)=>describeLink(data,field,value);
 // A Block's Result deadline for Capture's proposals and Block picker: dueInfo() with its stored value, or null.
 window.RPM_PLATFORM.blockDue=id=>{const due=blockDue(data,id);return due&&{...dueInfo(due.value),value:due.value};};

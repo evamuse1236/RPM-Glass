@@ -27,7 +27,7 @@ function fakeTurn(input) {
   const said = input.sourceUnits.map(u => u.text).join(' ');
   const tasks = (input.context?.entities ?? []).filter(e => e.entity === 'task');
   const unit = input.sourceUnits[0];
-  const base = {schemaVersion: 1, memoryCandidates: [], question: null};
+  const base = {schemaVersion: 1, memoryCandidates: [], question: null, clarification: null};
   if (/what(?:'|’)?s planned|timetable|my day look/i.test(said)) {
     const d = new Date(), day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     return {...base, mode: 'query', draftMode: 'none', reply: 'Two classes and a workshop prep block. The evening is open.', operations: [],
@@ -53,7 +53,7 @@ function fakeTurn(input) {
     return {opId: 'task' + (i + 1), sourceId: unit.id, kind: 'create', entity: 'task', targetId: null, fields};
   });
   return {schemaVersion: 1, mode: 'capture', draftMode: 'new', reply: 'Here is what I heard.',
-    decisions: input.sourceUnits.map(u => ({sourceId: u.id, disposition: 'action', note: null})), operations, question: null, memoryCandidates: [], card: null};
+    decisions: input.sourceUnits.map(u => ({sourceId: u.id, disposition: 'action', note: null})), operations, question: null, clarification: null, memoryCandidates: [], card: null};
 }
 
 // The week's real commitments, read-only as PlannerCalendar.java returns them (start/end in epoch ms).

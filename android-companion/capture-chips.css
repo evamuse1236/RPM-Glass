@@ -1,0 +1,56 @@
+.chip-items{display:grid;gap:12px;margin:0;padding:0;list-style:none}
+.chip-item{display:grid;gap:8px;min-inline-size:0}
+
+.item-head{display:flex;align-items:center;gap:12px;min-block-size:40px;padding:0;border:0;border-radius:var(--r-tile);background:none;color:var(--bar-on);font:var(--body-large);text-align:start;cursor:pointer}
+.item-head .ms{font-size:24px;color:var(--bar-primary)}
+.item-title{flex:1;min-inline-size:0;overflow-wrap:break-word}
+.item-head.failed{color:var(--bar-error)}
+.item-head:focus-visible,.edit-chip:focus-visible,.item-compact:focus-visible,.tray-pick:focus-visible{outline:2px solid var(--bar-primary);outline-offset:2px}
+
+.item-chips{display:flex;flex-wrap:wrap;gap:8px;min-inline-size:0}
+.edit-chip{position:relative;display:inline-flex;align-items:center;gap:4px;max-inline-size:100%;min-block-size:var(--chip-block);padding:0 16px 0 12px;border:1px solid transparent;border-radius:var(--r-tile);background:var(--bar-highest);color:var(--bar-on);font:var(--label-large);white-space:nowrap;cursor:pointer}
+.edit-chip::after{content:"";position:absolute;inset:-4px 0}
+.edit-chip .ms{font-size:20px;color:var(--bar-primary)}
+.edit-chip .chip-label{min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.edit-chip.empty{background:transparent;border:1px dashed color-mix(in oklch,var(--bar-on-variant) 60%,transparent);color:var(--bar-on-variant)}
+.edit-chip.empty .ms{color:var(--bar-on-variant)}
+.edit-chip.lit{background:var(--bar-accent);color:var(--bar-on-accent)}
+.edit-chip.lit .ms{color:var(--bar-on-accent)}
+.edit-chip.must .ms{color:var(--bar-warn)}
+.edit-chip.open{border:1px solid var(--bar-primary)}
+.edit-chip.failed{border:1px solid var(--bar-error)}
+.edit-chip.read-only{cursor:default}
+.edit-chip.read-only::after{content:none}
+
+.chip-tray{display:grid;grid-template-rows:0fr}
+.chip-tray.open{grid-template-rows:1fr}
+.chip-tray:not(.open){visibility:hidden}
+.tray-inner{display:grid;gap:8px;min-block-size:0;overflow:clip;border-radius:var(--r-control);background:var(--bar-high)}
+.chip-tray.open .tray-inner{padding:8px 12px}
+.chip-tray .tiles{padding:0}
+.tray-picks{display:flex;flex-wrap:wrap;gap:8px}
+.tray-picks.long{max-block-size:200px;overflow:auto;overscroll-behavior:contain;scrollbar-width:none}
+.tray-picks.long::-webkit-scrollbar{display:none}
+.chip-tray .tiles.tray-picks{flex-wrap:nowrap}
+.tray-pick{flex:none;white-space:nowrap}
+.tray-pick.current{background:var(--bar-accent);color:var(--bar-on-accent)}
+.time-range{inline-size:100%;min-block-size:40px;margin:0;accent-color:var(--bar-primary)}
+.tray-text,.item-title-edit{box-sizing:border-box;inline-size:100%;min-block-size:40px;padding:8px 12px;border:0;border-radius:8px;background:var(--bar-highest);color:var(--bar-on);font:var(--body-large);resize:none;field-sizing:content;overflow:hidden}
+.tray-text:focus-visible,.item-title-edit:focus-visible{outline:2px solid var(--bar-primary);outline-offset:0}
+
+.item-compact{display:flex;align-items:center;gap:12px;inline-size:100%;min-block-size:40px;padding:0;border:0;background:none;color:var(--bar-on-variant);font:var(--body-medium);text-align:start;cursor:pointer}
+.item-compact .ms{font-size:20px}
+.item-compact .item-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.change-row{display:flex;align-items:center;gap:8px;min-block-size:40px;padding:0 0 0 12px;border-radius:8px;background:var(--bar-high);color:var(--bar-on);font:var(--body-medium)}
+.change-row>.ms{font-size:20px;color:var(--bar-on-variant)}
+.change-label{flex:1;min-inline-size:0}
+
+@media (prefers-reduced-motion:no-preference){
+  .chip-tray{transition:grid-template-rows var(--dur-short3) var(--ease-emphasized-accelerate),visibility 0s linear var(--dur-short3)}
+  .chip-tray.open{transition:grid-template-rows var(--dur-short4) var(--ease-emphasized-decelerate),visibility 0s}
+  .edit-chip{transition:scale var(--dur-short3) var(--ease-standard),background-color var(--dur-short3) var(--ease-standard)}
+  .edit-chip:not(.read-only):active{scale:.97}
+  .edit-chip.pop{animation:fact-pop var(--dur-medium2) var(--ease-spring)}
+  .edit-chip.saving,.item-head.saving{background:linear-gradient(90deg,var(--bar-highest),color-mix(in oklch,var(--bar-highest),var(--bar-on) 16%),var(--bar-highest)) 0 0/200% 100%;animation:fact-shimmer 1100ms linear infinite}
+}

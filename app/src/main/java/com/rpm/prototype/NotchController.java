@@ -18,8 +18,6 @@ import android.util.Log;
 import android.view.WindowManager;
 
 import com.rpm.prototype.NotchFrame.Mode;
-import com.rpm.prototype.PillPriority.Item;
-import com.rpm.prototype.PillPriority.Kind;
 
 import java.io.File;
 import java.time.ZoneId;
@@ -29,8 +27,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The one island: reads the planner store when it changes and every few minutes, and redraws the pill, the open island
- * or an alert island. Rendering the same frame twice does nothing, so window events and ticks cost no relayout.
+ * The one island: reads the planner store when it changes and every few minutes, and redraws the pill and its two drops,
+ * the task or habit island, or an alert island. Rendering the same frame twice does nothing, so window events and ticks
+ * cost no relayout.
  */
 final class NotchController implements NotchPill.Gestures {
     static final String TAG = "RpmNotch";
@@ -56,8 +55,7 @@ final class NotchController implements NotchPill.Gestures {
         return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    final PillPriority priority = new PillPriority();
-    boolean expanded;
+    final IslandState state = new IslandState();
     private NotchPill pill;
     private StoreObserver observer;
     private NotchData data = NotchData.EMPTY;
@@ -69,7 +67,6 @@ final class NotchController implements NotchPill.Gestures {
     private boolean registered;
     private static final ExecutorService reader = Executors.newSingleThreadExecutor();
     private static final Handler handler = new Handler(Looper.getMainLooper());
-    private final Runnable emphasisEnd = () -> safely("emphasis end", this::render);
     private final SharedPreferences.OnSharedPreferenceChangeListener prefsChanged =
             (p, key) -> safely("setting changed", ENABLED.equals(key) ? this::reload : this::render);
     private final BroadcastReceiver system = new BroadcastReceiver() {
@@ -84,10 +81,14 @@ final class NotchController implements NotchPill.Gestures {
 
     private final Context service;
     final NotchAlerting alerting;
+    final NotchRunner runner;
+    final NotchChanges changes;
 
     NotchController(Context serviceContext) {
         service = serviceContext;
         alerting = new NotchAlerting(serviceContext, this, reader, handler);
+        runner = new NotchRunner(serviceContext);
+        changes = new NotchChanges(serviceContext, this, handler, runner);
     }
 
     /** Runs {@code body} so one exception is logged instead of killing the process and the service with it. */
@@ -126,6 +127,7 @@ final class NotchController implements NotchPill.Gestures {
     }
 
     void detach() {
+        AlarmHeadsUp.notchCanShow(false);
         if (pill != null) pill.hide();
         pill = null;
         if (observer != null) observer.stopWatching();
@@ -136,16 +138,18 @@ final class NotchController implements NotchPill.Gestures {
             prefs(service).unregisterOnSharedPreferenceChangeListener(prefsChanged);
         }
         registered = false;
-        expanded = false;
-        handler.removeCallbacks(emphasisEnd);
+        state.close();
+        changes.detach();
+        runner.release();
     }
 
     /** Reads the store and calendar off the main thread, then redraws with them. */
     void reload() {
         if (pill == null) return;
         readAt = SystemClock.elapsedRealtime();
+        NotchData last = data;
         reader.execute(() -> {
-            NotchData next = NotchData.read(service);
+            NotchData next = NotchData.read(service, last);
             handler.post(() -> safely("data loaded", () -> {
                 data = next;
                 render();
@@ -173,50 +177,62 @@ final class NotchController implements NotchPill.Gestures {
     }
 
     void setExpanded(boolean expand) {
-        if (expand != expanded) NotchActions.log(service, expand ? "notch.expand" : "notch.collapse", "ok", null);
-        expanded = expand;
+        if (expand) runner.warm();
+        if (expand != state.expanded() || state.habit()) NotchActions.log(service, expand ? "notch.expand" : "notch.collapse", "ok", null);
+        state.expand(expand);
+        render();
+    }
+
+    void openHabit() {
+        runner.warm();
+        NotchActions.log(service, "notch.habit", "opened", NotchActions.payload("habit", scene == null || scene.topHabit == null ? "" : scene.topHabit.name()));
+        state.openHabit();
         render();
     }
 
     void render() {
-        handler.removeCallbacks(emphasisEnd);
         if (pill == null) return;
         if (!enabled(service)) {
-            expanded = false;
+            AlarmHeadsUp.notchCanShow(false);
+            state.close();
             pill.hide();
             return;
         }
         scene = new NotchScene(data, System.currentTimeMillis(), snoozes(), ZoneId.systemDefault(), DateFormat.is24HourFormat(service));
-        long now = SystemClock.uptimeMillis();
-        if (scene.hero != null) priority.show(Kind.TASK, scene.pillValue, now);
-        else priority.dismiss(Kind.TASK);
-        if (scene.waterDue()) priority.show(Kind.WATER, scene.waterValue(), now);
-        else priority.dismiss(Kind.WATER);
-        if (scene.habit != null) priority.show(Kind.HABIT, NotchScene.habitValue(scene.habit), now);
-        else priority.dismiss(Kind.HABIT);
-        Item primary = priority.primary(now);
-        if (primary == null) expanded = false;
+        if (state.expanded() && scene.hero == null || state.habit() && scene.topHabit == null) state.close();
         NotchAlert alert = alerting.alert();
         NotchFrame.Note note = alerting.note();
-        Mode mode = alert != null ? (alert.type == NotchAlert.Type.ALARM ? Mode.ALARM : Mode.REMINDER) : expanded ? Mode.OPEN : Mode.PILL;
-        boolean something = primary != null || note != null || alert != null;
-        if (something && !locked && screenOn && !landscape) pill.show(new NotchFrame(mode, primary, priority.secondary(now), scene, alert, note), actions);
+        NotchReceipt receipt = changes.receipt();
+        boolean showable = IslandState.showable(locked, screenOn, landscape);
+        AlarmHeadsUp.notchCanShow(showable);
+        if (!showable) state.hidden();
+        Mode mode = state.mode(alert, receipt);
+        NotchFrame frame = new NotchFrame(mode, scene, alert, note, state.managed(), receipt);
+        if ((mode != Mode.PILL || frame.showsPill()) && showable) pill.show(frame, actions);
         else pill.hide();
-        long next = priority.nextChangeAt(now);
-        if (next != Long.MAX_VALUE) handler.postAtTime(emphasisEnd, next);
     }
 
     @Override
-    public void onGesture(Mode mode, IslandGesture.Result result) {
-        NotchActions.log(service, "notch.gesture", result.name().toLowerCase(java.util.Locale.ROOT), NotchActions.payload("on", mode.name()));
+    public void onGesture(Mode mode, IslandGesture.Result result, NotchFrame.Side side) {
+        NotchActions.log(service, "notch.gesture", result.name().toLowerCase(java.util.Locale.ROOT), NotchActions.payload("on", mode.name(), "drop", side.name()));
         switch (mode) {
             case PILL:
-                if (result == IslandGesture.Result.TAP || result == IslandGesture.Result.RIGHT || result == IslandGesture.Result.DOWN) setExpanded(true);
+                if (result == IslandGesture.Result.TAP || result == IslandGesture.Result.RIGHT || result == IslandGesture.Result.DOWN) openDrop(side);
                 else if (result == IslandGesture.Result.LEFT) snoozePill();
-                else if (result == IslandGesture.Result.LONG_PRESS) openHero();
+                else if (result == IslandGesture.Result.LONG_PRESS) holdDrop(side);
                 break;
             case OPEN:
+            case HABIT:
                 if (result == IslandGesture.Result.UP) setExpanded(false);
+                break;
+            case MANAGE:
+                if (result == IslandGesture.Result.UP) {
+                    state.leaveManaged();
+                    render();
+                }
+                break;
+            case RECEIPT:
+                if (result == IslandGesture.Result.UP) changes.dismiss();
                 break;
             case REMINDER:
                 if (result == IslandGesture.Result.TAP || result == IslandGesture.Result.RIGHT) actions.openAlert();
@@ -233,7 +249,26 @@ final class NotchController implements NotchPill.Gestures {
 
     @Override
     public void onOutsideTap(Mode mode) {
-        if (mode == Mode.OPEN) setExpanded(false);
+        if (mode == Mode.OPEN || mode == Mode.HABIT || mode == Mode.MANAGE) setExpanded(false);
+    }
+
+    private void openDrop(NotchFrame.Side side) {
+        if (scene == null) return;
+        Mode opens = new NotchFrame(Mode.PILL, scene, null, alerting.note()).opens(side);
+        if (opens == Mode.HABIT) openHabit();
+        else if (opens == Mode.OPEN) setExpanded(true);
+    }
+
+    private void holdDrop(NotchFrame.Side side) {
+        if (scene == null) return;
+        if (new NotchFrame(Mode.PILL, scene, null, alerting.note()).opens(side) != Mode.HABIT) {
+            openHero();
+            return;
+        }
+        state.close();
+        if (scene.topHabit == NotchHabits.Habit.WATER) NotchActions.openWater(service);
+        else NotchActions.logMeal(service, scene.meal);
+        render();
     }
 
     /** Swipe left on the pill: the island's own Snooze, shown on the pill as "+10m" for 2 s. */
@@ -250,7 +285,7 @@ final class NotchController implements NotchPill.Gestures {
     /** Long press on the pill: the current task in the planner, or the day when the pill shows a nudge or an event. */
     private void openHero() {
         NotchDay.Slot hero = scene == null ? null : scene.hero;
-        expanded = false;
+        state.close();
         NotchActions.openTask(service, hero == null ? 0 : hero.task.id);
         render();
     }
@@ -270,16 +305,82 @@ final class NotchController implements NotchPill.Gestures {
     private final NotchContent.Actions actions = new NotchContent.Actions() {
         @Override
         public void done() {
-            NotchDay.Slot hero = scene == null ? null : scene.hero;
-            expanded = false;
-            if (hero != null && !hero.task.fixed) NotchActions.complete(service, hero);
-            render();
+            changes.done(scene == null ? null : scene.hero);
         }
 
         @Override
         public void drink() {
-            expanded = false;
-            NotchActions.drink(service);
+            if (scene != null) changes.drink(scene.water, false);
+        }
+
+        @Override
+        public void habitGlass() {
+            if (scene != null) changes.drink(scene.water, true);
+        }
+
+        @Override
+        public void habitLater() {
+            if (scene == null || scene.topHabit == null) return;
+            String key = scene.topHabit == NotchHabits.Habit.WATER ? NotchScene.WATER_SNOOZE : NotchScene.mealSnooze(scene.meal);
+            prefs(service).edit().putLong(SNOOZE + key, System.currentTimeMillis() + scene.snoozeMinutes * NotchDay.MIN).apply();
+            NotchActions.log(service, "notch.snooze", "ok", NotchActions.payload("what", scene.topHabit.name().toLowerCase(java.util.Locale.ROOT), "minutes", scene.snoozeMinutes));
+            state.close();
+            render();
+        }
+
+        @Override
+        public void doneAlert() {
+            alerting.done(changes);
+        }
+
+        @Override
+        public void manage(NotchDay.Slot slot) {
+            if (slot == null || slot.task.alert.isEmpty()) return;
+            state.manage(new NotchFrame.Managed(slot, NotchDay.clock(slot.start, ZoneId.systemDefault(), DateFormat.is24HourFormat(service))));
+            NotchActions.log(service, "notch.manage_alert", "shown", NotchActions.payload("taskId", slot.task.id, "alert", slot.task.alert));
+            render();
+        }
+
+        @Override
+        public void doneSlot(NotchDay.Slot slot) {
+            changes.done(slot);
+        }
+
+        @Override
+        public void setAlert(String type) {
+            if (state.managed() != null) changes.setAlert(state.managed().slot, type);
+        }
+
+        @Override
+        public void doneManaged() {
+            if (state.managed() != null) changes.done(state.managed().slot);
+        }
+
+        @Override
+        public void openManaged() {
+            if (state.managed() == null) return;
+            long id = state.managed().slot.task.id;
+            state.close();
+            NotchActions.openTask(service, id);
+            render();
+        }
+
+        @Override
+        public void undo() {
+            changes.undo();
+        }
+
+        @Override
+        public void openHero() {
+            NotchController.this.openHero();
+        }
+
+        @Override
+        public void snoozeRoutine() {
+            if (scene.habit == null) return;
+            prefs(service).edit().putLong(SNOOZE + NotchScene.routineSnooze(scene.habit.routine.id),
+                    System.currentTimeMillis() + scene.snoozeMinutes * NotchDay.MIN).apply();
+            NotchActions.log(service, "notch.snooze", "ok", NotchActions.payload("what", "routine", "minutes", scene.snoozeMinutes));
             render();
         }
 
@@ -300,7 +401,7 @@ final class NotchController implements NotchPill.Gestures {
                 edit.putLong(SNOOZE + NotchScene.routineSnooze(scene.habit.routine.id), until);
                 what.append("routine");
             }
-            expanded = false;
+            state.close();
             edit.apply();
             NotchActions.log(service, "notch.snooze", "ok", NotchActions.payload("what", what.toString().trim(), "minutes", scene.snoozeMinutes));
             render();
@@ -308,15 +409,8 @@ final class NotchController implements NotchPill.Gestures {
 
         @Override
         public void logMeal() {
-            expanded = false;
+            state.close();
             NotchActions.logMeal(service, scene.meal);
-            render();
-        }
-
-        @Override
-        public void openPlan() {
-            expanded = false;
-            NotchActions.openTask(service, 0);
             render();
         }
 

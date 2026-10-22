@@ -1,4 +1,11 @@
-import {adb, shell, appPid, UserError, PACKAGE} from './device.mjs';
+import {adb, shell, appPid, foregroundActivity, UserError, PACKAGE} from './device.mjs';
+
+// Android freezes a cached background app, so its WebView stops answering DevTools. Name that case when a read fails.
+export function foregroundNote(top) {
+  if (!top) return '';
+  if (top.startsWith(`${PACKAGE}/`)) return ` (RPM is in front: ${top})`;
+  return ` RPM is not in front (${top} is), and Android freezes background apps; a page that closes itself (Capture after its countdown) ends here.`;
+}
 
 // Debug builds expose each WebView over Chrome DevTools Protocol on an abstract socket named after the app's pid.
 export async function pageTargets(serial, port) {
@@ -8,7 +15,7 @@ export async function pageTargets(serial, port) {
   if (!shell(serial, 'cat /proc/net/unix').includes(socket))
     throw new UserError(`No WebView debug socket for pid ${pid}.`, 'Install the debug APK (`launch --build`); release builds do not expose WebView debugging.');
   adb(serial, ['forward', `tcp:${port}`, `localabstract:${socket}`]);
-  const res = await fetch(`http://127.0.0.1:${port}/json`, {signal: AbortSignal.timeout(8000)}).catch(e => { throw new UserError(`DevTools did not answer on port ${port}: ${e.message}`, 'If the app is in the background, bring it forward with `rpmctl open capture`. Otherwise run `doctor`; if another tool holds the port, pass --cdp-port.'); });
+  const res = await fetch(`http://127.0.0.1:${port}/json`, {signal: AbortSignal.timeout(8000)}).catch(e => { throw new UserError(`DevTools did not answer on port ${port}: ${e.message}.${foregroundNote(foregroundActivity(serial))}`, 'If the app is in the background, bring it forward with `rpmctl open capture`. Otherwise run `doctor`; if another tool holds the port, pass --cdp-port.'); });
   return (await res.json()).filter(t => t.type === 'page').map(t => ({...t, view: JSON.parse(t.description || '{}')}));
 }
 
@@ -18,7 +25,7 @@ export async function visiblePage(serial, port) {
     shown = (await pageTargets(serial, port)).filter(p => p.view.visible && p.view.attached && p.url.startsWith('https://rpm.local/'));
     if (shown.length) break;
   }
-  if (!shown.length) throw new UserError('No RPM WebView is on screen.', 'Run `open capture` or `open planner`, then retry. `ui --native` shows what is on screen instead.');
+  if (!shown.length) throw new UserError(`No RPM WebView is on screen.${foregroundNote(foregroundActivity(serial))}`, 'Run `open capture` or `open planner`, then retry. `ui --native` shows what is on screen instead.');
   return shown.at(-1);
 }
 
@@ -91,7 +98,7 @@ export const SNAPSHOT = function snapshot(all) {
 };
 
 // Finds one element by role/name/css. Exact (case-insensitive) name beats substring; ambiguity is an error that lists the candidates.
-export const LOCATE = function locate({role, name, css, nth, scroll}) {
+export const LOCATE = function locate({role, name, css, nth, scroll, exact}) {
   const snap = (window.__rpmSnapshot)(true);
   let pool;
   if (css) {
@@ -106,7 +113,7 @@ export const LOCATE = function locate({role, name, css, nth, scroll}) {
   pool = snap.elements.filter(e => !role || e.role === role);
   const want = (name ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
   let hits = pool.filter(e => e.name.toLowerCase() === want);
-  if (!hits.length && want) hits = pool.filter(e => e.name.toLowerCase().includes(want));
+  if (!hits.length && want && !exact) hits = pool.filter(e => e.name.toLowerCase().includes(want));
   if (!hits.length) return {error: `No ${role ?? 'element'} named "${name}" on screen`, candidates: pool.filter(e => e.role !== 'text').slice(0, 40).map(e => `${e.role} "${e.name}"`)};
   if (hits.length > 1 && nth === undefined) {
     const same = hits.filter(e => e.name.toLowerCase() === hits[0].name.toLowerCase() && e.role === hits[0].role);
@@ -117,9 +124,16 @@ export const LOCATE = function locate({role, name, css, nth, scroll}) {
   const [x, , w] = hit.rect;
   if (scroll && (!hit.inView || x < 0 || x + w > innerWidth)) {
     window.__rpmEls[hit.ref].scrollIntoView({block: 'center', inline: 'nearest'});
-    return locate({role, name, css, nth, scroll: false});
+    return locate({role, name, css, nth, exact, scroll: false});
   }
-  return {match: hit, viewport: [innerWidth, innerHeight]};
+  return {match: {...hit, coveredBy: coverOf(window.__rpmEls[hit.ref], hit.rect)}, viewport: [innerWidth, innerHeight]};
+
+  function coverOf(el, [left, top, width, height]) {
+    const front = document.elementFromPoint(left + width / 2, top + height / 2);
+    if (!front || !el || el.contains(front) || front.contains(el) || front.control === el) return null;
+    const classes = typeof front.className === 'string' && front.className.trim() ? '.' + front.className.trim().split(/\s+/).join('.') : '';
+    return front.tagName.toLowerCase() + (front.id ? '#' + front.id : '') + classes;
+  }
 };
 
 export async function inPage(serial, port) {

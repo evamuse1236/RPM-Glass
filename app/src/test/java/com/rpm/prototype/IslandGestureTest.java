@@ -8,15 +8,22 @@ import com.rpm.prototype.IslandGesture.Result;
 
 import org.junit.Test;
 
-/** A tap on the pill always opens it; swipes need the playground's distances. */
+/** A tap on a drop always opens its island; swipes need the playground's distances. */
 public class IslandGestureTest {
     private static final float D = 450f / 160f;
     private static final NotchAnchor S24 = NotchAnchor.fromCutout(506, 24, 574, 92, 92, D);
 
+    private static IslandShape drops(NotchAnchor a, boolean task, boolean habit) {
+        int keep = Math.max(NotchAnchor.dp(24, D), a.holeWidth + NotchAnchor.dp(12, D));
+        int drop = NotchGeometry.dropHeight(a.pillHeight, D);
+        int taskSide = task ? NotchGeometry.dropSide(keep, NotchGeometry.taskDropWidth(drop), a.pillHeight, drop, D) : 0;
+        int habitSide = habit ? NotchGeometry.dropSide(keep, drop, a.pillHeight, drop, D) : 0;
+        int[] sides = NotchGeometry.pillSides(taskSide, habitSide, NotchGeometry.bareSide(keep, a.pillHeight));
+        return IslandShape.pill(a, 1080, sides[0], sides[1], D);
+    }
+
     private static IslandShape pill() {
-        int keep = Math.max(NotchAnchor.dp(24, D), S24.holeDiameter + NotchAnchor.dp(12, D));
-        int side = NotchAnchor.pillSide(110, 130, keep, NotchAnchor.dp(IslandShape.MIN_PILL_WIDTH_DP, D));
-        return IslandShape.pill(S24, 1080, side, keep, false, D);
+        return drops(S24, true, true);
     }
 
     private static float dp(float v) {

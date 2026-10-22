@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {PACKAGE, UserError, adb, shell, sleep, waitFor, foregroundActivity, displayInfo, nativeNodes, dismissAnr} from './device.mjs';
-import {inPage, toDevice} from './page.mjs';
+import {inPage, toDevice, pageTargets} from './page.mjs';
 import {DISPLAYS, evidenceDir, journal, target, openLauncher} from './runtime.mjs';
 import {wipeAppDataKeepingSync} from './sync.mjs';
 
@@ -9,13 +9,27 @@ import {wipeAppDataKeepingSync} from './sync.mjs';
 // every tap. Answer Wait and try once more before reporting the element as missing.
 // Opens Capture's More menu and waits for the item, since the menu animates in and a slow emulator takes a while.
 async function openMenuItem(serial, cdpPort, item) {
+  const find = () => tapElement(serial, cdpPort, {name: item, role: 'button', exact: true}, true);
   for (let attempt = 0; attempt < 2; attempt++) {
+    try { return await settled(find); } catch (e) { if (!(e instanceof UserError)) throw e; }
     touch(serial, (await tapElement(serial, cdpPort, {name: 'More: planner, history, settings', role: 'button'})).at);
     for (const until = Date.now() + 6000; Date.now() < until; await sleep(300)) {
-      try { return await tapElement(serial, cdpPort, {name: item, role: 'button'}, true); } catch (e) { if (!(e instanceof UserError)) throw e; }
+      try { return await settled(find); } catch (e) { if (!(e instanceof UserError)) throw e; }
     }
   }
   throw new UserError(`Capture's More menu did not show "${item}".`, 'Run `rpmctl shot menu` and `rpmctl ui` to see the screen.');
+}
+
+/** A sheet that is still sliding in moves its items; tap only once two reads 150 ms apart agree within 2 px. */
+export async function settled(locate, {wait = sleep, tries = 12} = {}) {
+  let last = await locate();
+  for (let i = 0; i < tries; i++) {
+    await wait(150);
+    const next = await locate();
+    if (Math.abs(next.at[0] - last.at[0]) <= 2 && Math.abs(next.at[1] - last.at[1]) <= 2) return next;
+    last = next;
+  }
+  throw new UserError('The menu item kept moving.', 'Run `rpmctl shot menu` to see the screen, then retry.');
 }
 
 async function tapElement(serial, cdpPort, query, retried = false) {
@@ -28,6 +42,7 @@ async function locateForTap(serial, cdpPort, query) {
   try {
     const found = await page.evaluate(`(q) => window.__rpmLocate(q)`, {...query, scroll: true});
     if (found.error) throw new UserError(found.error + (found.candidates ? `. On screen: ${found.candidates.join(', ')}` : ''), 'Run `rpmctl ui` to see names, then retry with --role/--nth or --css.');
+    if (found.match.coveredBy) throw new UserError(`"${found.match.name}" is covered by ${found.match.coveredBy}, so a tap there lands on that instead`, 'Fix the layout so nothing sits on top of the control, or close what covers it first.');
     const dpr = await page.evaluate('devicePixelRatio');
     const [x, y, w, h] = found.match.rect;
     const at = toDevice(page, dpr, [x + w / 2, y + h / 2]);
@@ -184,7 +199,10 @@ export const driveCommands = {
         finally { page.close(); }
       } catch (e) { if (!(e instanceof UserError)) throw e; }
       if (found !== !!args.gone) return {ok: true, [args.gone ? 'gone' : 'found']: args.name ?? args.css, ms: timeout - (until - Date.now())};
-      if (Date.now() > until) throw new UserError(`"${args.name ?? args.css}" ${args.gone ? 'still on screen' : 'did not appear'} after ${timeout}ms.`, 'Run `rpmctl ui` and `rpmctl shot` to see the current screen.');
+      if (Date.now() > until) {
+        const pages = (await pageTargets(serial, cdpPort).catch(() => [])).map(p => ({url: p.url, visible: p.view?.visible, attached: p.view?.attached}));
+        throw new UserError(`"${args.name ?? args.css}" ${args.gone ? 'still on screen' : 'did not appear'} after ${timeout}ms. Pages: ${JSON.stringify(pages)}`, 'Run `rpmctl ui` and `rpmctl shot` to see the current screen.');
+      }
       await sleep(300);
     }
   },
@@ -194,13 +212,16 @@ export const driveCommands = {
     const name = args._[0] === 'reset' ? 'phone' : args._[0];
     const d = DISPLAYS[name];
     if (!d) throw new UserError(`Unknown display "${args._[0] ?? ''}".`, `One of ${Object.keys(DISPLAYS).join(', ')}, reset.`);
+    const scale = args.fontScale === undefined ? d.fontScale : String(args.fontScale);
+    if (!/^(0\.85|1(\.\d+)?|2(\.0)?)$/.test(scale) || Number(scale) > 2)
+      throw new UserError(`Font scale "${scale}" is not one Android offers.`, 'Use 0.85 to 2.0. Normal text (1.0) is the default; check larger text only when the user asks for it.');
     const before = displayInfo(serial);
-    shell(serial, `settings put system font_scale ${d.fontScale}`);
+    shell(serial, `settings put system font_scale ${scale}`);
     shell(serial, `settings put system user_rotation ${d.rotation}`);
     shell(serial, d.size ? `wm size ${d.size}` : 'wm size reset');
     shell(serial, d.density ? `wm density ${d.density}` : 'wm density reset');
     await sleep(2000);
-    const out = {ok: true, display: name, note: d.note, before, after: displayInfo(serial)};
+    const out = {ok: true, display: name, note: scale === d.fontScale ? d.note : `${d.note}, text at ${Math.round(scale * 100)}% (asked for by the user)`, before, after: displayInfo(serial)};
     journal(state, {command: 'display', result: out});
     return out;
   },

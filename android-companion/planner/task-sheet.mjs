@@ -1,40 +1,25 @@
-import {localDay} from '../planner-state.mjs';
+import {localDay, conflicts} from '../planner-state.mjs';
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
+import {resultStatus} from '../review-state.mjs';
 import {reducedMotion} from '../surface-motion.mjs';
 import {el, icon, button, iconButton} from './dom.mjs';
 import {duration} from './format.mjs';
 import {openSheet, closeSheet, isSheetOpen} from './sheet.mjs';
 import {toggleDone} from './task-row.mjs';
-import {whenOf, whenFields, whenLabel, repeatValue, repeatLabel} from './task-values.mjs';
-import {NEEDS_TIME, alertText, clashText, findTask, saver, scheduleCheck, syncText} from './sheet-parts.mjs';
-import {archiveTask, deleteTask, duplicateTask, undoLastCompletion, movePicker} from './task-actions.mjs';
+import {whenOf, whenFields, whenLabel, repeatLabel, startNowValue, clockOf, leadLabel} from './task-values.mjs';
+import {NEEDS_TIME, alertText, clashText, findTask, saver, scheduleCheck, suggestBlock, syncText} from './sheet-parts.mjs';
+import {archiveTask, deleteTask, duplicateTask, undoLastCompletion} from './task-actions.mjs';
 import {RETURN_FADE, RETURN_HOLD, inboxShowing, markReturned, showInbox} from './task-lists.mjs';
+import {recentBlock, rememberBlock} from './task-fields.mjs';
 import {taskHead} from './task-head.mjs';
-import {taskFacts} from './task-facts.mjs';
+import {taskTabs} from './task-tabs.mjs';
+import {presetFields, toggleRepeatDay} from './task-tabs-model.mjs';
+import {busySpans} from './time-ruler.mjs';
 import {factRow, textRow} from './fact-rows.mjs';
 
 /** The ring's pop and the struck title hold this long before the sheet leaves. */
 const COMPLETE_HOLD = 300;
 const idle = async app => { while (app.saving) await new Promise(done => setTimeout(done, 16)); };
-
-/** "Part of <Result>" with its Area hue and Purpose; it opens Move to Block over the sheet. */
-function blockRow(app, onOpen) {
-  const node = button('', onOpen, 'block-row');
-  const copy = el('span', 'block-copy');
-  const result = el('span', 'block-result');
-  const purpose = el('span', 'block-purpose');
-  copy.append(result, purpose);
-  node.append(icon('target', {cls: 'block-icon'}), copy, icon('chevron_right', {cls: 'block-chevron'}));
-  node.paint = t => {
-    const {block, area} = app.context(t);
-    if (block) node.dataset.tone = app.tone(area);
-    else delete node.dataset.tone;
-    result.textContent = block ? block.title : 'No block';
-    purpose.textContent = block ? block.purpose || 'Add a Purpose to this Block' : 'Choose a Block';
-    node.setAttribute('aria-label', block ? `Part of ${block.title}. Change Block` : 'No block. Choose a Block');
-  };
-  return node;
-}
 
 /** A footer action: a 24dp icon over its caption. */
 function tool(symbol, label, onClick, cls = '') {
@@ -44,9 +29,9 @@ function tool(symbol, label, onClick, cls = '') {
 }
 
 /**
- * Task sheet: one level, nothing folded. The header holds the ring, the title and the Must star; then a row each for
- * the day, time, length, alert and repeat; the Block; notes and who could help; and a footer of actions. Every change
- * saves at once with Undo. `occurrence` is the repeat being looked at; `focus: 'date'` puts focus on the day.
+ * Task sheet. The header holds the icon pill, the title, the Must star and the ring; then four tabs (When, Alert,
+ * Repeat, Block) with When open; then Purpose, notes and who could help; and a footer of actions. Every change saves
+ * at once with Undo. `occurrence` is the repeat being looked at; `focus: 'date'` or `'length'` puts focus on that choice.
  */
 export function openTask(app, id, occurrence, {focus = null, motion = 'forward', fromInbox = inboxShowing(app)} = {}) {
   const task = findTask(app, id);
@@ -62,7 +47,6 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
   const {body, actions, header} = openSheet(app, 'Task', {variant: 'detail sheet-task', showTitle: false, motion});
   const save = saver(app);
   const commit = (fields, label) => save({type: 'saveTask', id, fields}, label);
-  const reopen = () => openTask(app, id, occurrence, {motion: 'back', fromInbox});
 
   const goBack = () => {
     if (body.contains(document.activeElement)) document.activeElement.blur();
@@ -109,11 +93,18 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
     },
   });
   header.querySelector('.sheet-close').before(head.row);
+  const startable = t => startNowValue(t, {repeating: repeats(t)});
+  const start = button('', () => {
+    const value = startable(live());
+    if (value) setWhen(value, 'Started at ' + clockOf(value.day, value.time));
+  }, 'assist-chip task-start');
+  start.append(icon('play_arrow'), el('span', 'chip-label', 'Start now'));
+  head.row.append(start);
   if (fromInbox) header.prepend(iconButton('arrow_back', 'Back to Inbox', goBack, {cls: 'sheet-back'}));
 
   let checkToken = 0;
   let checkedSlot = null;
-  const slotOf = t => `${t.planned}|${t.minutes}|${t.recurrence}|${t.repeatAfterDays}`;
+  const slotOf = t => `${t.planned}|${t.minutes}|${t.recurrence}|${t.repeatDays}|${t.repeatAfterDays}`;
   const recheck = async () => {
     const token = ++checkToken;
     try {
@@ -121,29 +112,59 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
       checkedSlot = t && slotOf(t);
       const {clashes, risk} = t?.planned ? await scheduleCheck(app, id, {}) : {clashes: [], risk: null};
       if (token !== checkToken || !body.isConnected) return;
-      facts.clash.replaceChildren(icon(clashes.length ? 'event_busy' : 'info'), el('span', '', clashes.length ? clashText(clashes) : risk ?? ''));
-      facts.clash.classList.toggle('is-clash', !!clashes.length);
-      facts.clash.hidden = !(clashes.length || risk);
+      tabs.clash.replaceChildren(icon(clashes.length ? 'event_busy' : 'info'), el('span', '', clashes.length ? clashText(clashes) : risk ?? ''));
+      tabs.clash.classList.toggle('is-clash', !!clashes.length);
+      tabs.clash.hidden = !(clashes.length || risk);
+      paint(live() ?? t);
     } catch {}
   };
 
-  const now = t => ({...whenOf(t, when(t)), minutes: t.minutes ?? null, alert: t.alertIntent?.type ?? 'off',
-    repeat: repeatValue(t), every: t.repeatAfterDays ?? null, repeating: repeats(t)});
+  const recent = recentBlock();
+  const suggested = suggestBlock(app, task, task.blockId)?.id ?? null;
+  const busyOn = day => {
+    if (!day) return [];
+    try {
+      return busySpans(conflicts(app.data(), new Date(`${day}T00:00`).toISOString(), 24 * 60, app.state.calendar ?? [], id), day);
+    } catch {
+      return [];
+    }
+  };
+  const now = t => {
+    const at = whenOf(t, when(t));
+    return {...at, minutes: t.minutes ?? null, alert: t.alertIntent?.type ?? 'off', lead: t.alertIntent?.lead ?? 0,
+      repeating: repeats(t), task: t, busy: busyOn(at.day), blockId: t.blockId ?? null, blocks: app.activeBlocks(),
+      statusOf: blockId => resultStatus(app.data(), blockId),
+      toneOf: blockId => (blockId ? app.tone(app.blockArea(app.p().blocks.find(b => b.id === blockId))) : null),
+      suggested, recent};
+  };
   const setWhen = (value, label) => {
     const t = live();
     if (!t) return;
     if (repeats(t) && !(value.day && value.time)) {
-      facts.error('day', NEEDS_TIME + ' Turn off Repeat first.');
-      facts.paint(now(t));
+      tabs.error('day', NEEDS_TIME + ' Turn off Repeat first.');
+      tabs.paint(now(t));
       return;
     }
-    facts.error('day', '');
-    facts.paint({...now(t), ...value});
+    tabs.error('day', '');
+    tabs.paint({...now(t), ...value, busy: busyOn(value.day)});
     commit(whenFields(value), label).then(saved => { if (saved !== undefined) recheck(); });
   };
+  const setRepeat = fields => {
+    const t = live();
+    if ((fields.recurrence || fields.repeatAfterDays) && !t?.planned) {
+      tabs.error('repeat', NEEDS_TIME + ' Choose them in When first.');
+      tabs.paint(now(t));
+      return;
+    }
+    tabs.error('repeat', '');
+    const words = repeatLabel(fields);
+    commit(fields, fields.recurrence || fields.repeatAfterDays
+      ? 'Repeats: ' + (fields.recurrence === 'days' ? words : words.toLowerCase()) : 'Repeat turned off');
+  };
   const current = () => whenOf(live(), when(live()));
-  const facts = taskFacts({
+  const tabs = taskTabs({
     get: () => now(live() ?? task),
+    tick: () => app.api.native('haptic', {kind: 'tick'}).catch(() => {}),
     pick: {
       day: day => {
         if (!day) return setWhen({day: '', time: ''}, 'Date removed');
@@ -155,36 +176,30 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
         setWhen(value, time ? 'Moved to ' + whenLabel(value) : 'Time removed');
       },
       minutes: minutes => {
-        facts.paint({...now(live()), minutes});
+        tabs.paint({...now(live()), minutes});
         commit({minutes}, minutes == null ? 'Length removed' : 'Length ' + duration(minutes))
           .then(saved => { if (saved !== undefined && live()?.planned) recheck(); });
       },
       alert: value => commit({alert: value}, value === 'off' ? 'Alert off' : alertText(value, live()) + ' set'),
-      repeat: (value, every) => {
-        const t = live();
-        if (value && !t?.planned) {
-          facts.error('repeat', NEEDS_TIME + ' Choose them above first.');
-          facts.paint(now(t));
-          return;
-        }
-        facts.error('repeat', '');
-        const fields = {recurrence: value === 'after' ? null : value || null, repeatAfterDays: value === 'after' ? every : null};
-        commit(fields, value ? 'Repeats: ' + repeatLabel(fields).toLowerCase() : 'Repeat turned off');
+      lead: minutes => commit({alertLead: minutes}, 'Alert ' + leadLabel(minutes).toLowerCase()),
+      repeatDay: day => setRepeat(toggleRepeatDay(live(), day)),
+      repeatPreset: (preset, every) => setRepeat(presetFields(preset, live(), every)),
+      block: (blockId, title) => {
+        rememberBlock(blockId);
+        save({type: 'moveTask', id, blockId}, blockId ? 'Moved to ' + title : 'Moved to Inbox');
       },
     },
   });
 
-  const block = blockRow(app, () => movePicker(app, live() ?? task, {back: reopen}));
   const notes = textRow(body, 'notes', 'Notes', task.notes, value => commit({notes: value}, 'Notes saved'));
   const helper = textRow(body, 'group', 'Who could help', task.leverage, value => commit({leverage: value}, 'Saved'));
   const why = textRow(body, 'favorite', 'Why', task.purpose, value => commit({purpose: value}, 'Why saved'));
-  const fields = [...body.children];
-  const facets = el('div', 'task-facts');
-  facets.append(...facts.rows);
-  body.replaceChildren(facets, block, ...fields);
+  const details = el('div', 'task-details');
+  details.append(why.closest('.edit-row'), notes.closest('.edit-row'), helper.closest('.edit-row'));
   if (task.raw && task.raw !== task.title) {
-    body.append(factRow('format_quote', el('p', 'original-words', task.raw), {cls: 'original-row'}));
+    details.append(factRow('format_quote', el('p', 'original-words', task.raw), {cls: 'original-row'}));
   }
+  body.replaceChildren(tabs.node, details);
 
   actions.setAttribute('role', 'toolbar');
   actions.setAttribute('aria-label', 'Task actions');
@@ -200,8 +215,13 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
 
   const paint = t => {
     if (!completing) head.paint(t);
-    facts.paint(now(t));
-    block.paint(t);
+    const {area} = app.context(t);
+    for (const host of [head.row, tabs.node]) {
+      if (area) host.dataset.tone = app.tone(area);
+      else delete host.dataset.tone;
+    }
+    start.hidden = completing || !startable(t);
+    tabs.paint(now(t));
     syncText(notes, t.notes);
     syncText(helper, t.leverage);
     syncText(why, t.purpose);
@@ -209,9 +229,10 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
     undoLast.hidden = !(t.completions?.length && repeats(t));
   };
   paint(task);
-  facts.reveal();
+  tabs.reveal();
   for (const field of [notes, helper, why]) field.grow();
-  if (focus === 'date') body.querySelector('[aria-label=Day] button.chip[aria-pressed=true]')?.focus({preventScroll: true});
+  if (focus) tabs.focus(focus);
+  if (task.planned) recheck();
 
   app.sheet.live = () => body.isConnected && isSheetOpen(app);
   app.sheet.sync = () => {
@@ -220,7 +241,7 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
     if (!t) return false;
     app.sheet.version = app.data().version;
     paint(t);
-    if (slotOf(t) !== checkedSlot && !facts.clash.hidden) recheck();
+    if (slotOf(t) !== checkedSlot && !tabs.clash.hidden) recheck();
     return true;
   };
   app.sheet.onBack = () => {

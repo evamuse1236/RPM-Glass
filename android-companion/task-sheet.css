@@ -21,14 +21,14 @@
   padding: 4px var(--s4) 4px 0;
   mask-image: linear-gradient(to right, black calc(100% - var(--s4)), transparent);
 }
-.chip-row.chip-wrap { flex-wrap: wrap; overflow: visible; padding: 4px 0; }
+.chip-row.chip-wrap { flex-wrap: wrap; overflow: visible; padding: 4px 0; margin-inline-end: 0; mask-image: none; }
 
 .chip {
   position: relative;
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s2);
   min-block-size: var(--chip-block);
   padding-inline: 12px;
   border: 1px solid var(--outline-variant);
@@ -41,7 +41,7 @@
   cursor: pointer;
 }
 .chip::after { content: ""; position: absolute; inset: -4px 0; }
-.chip-icon { font-size: calc(18px / var(--text-scale, 1)); }
+.chip-icon { font-size: calc(20px / var(--text-scale, 1)); }
 .chip:not([aria-pressed=true]) > .chip-check { display: none; }
 .chip[aria-pressed=true] { background: var(--secondary-container); color: var(--on-secondary-container); border-color: transparent; }
 .chip[aria-pressed=true] > .chip-icon { font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24; }
@@ -145,8 +145,6 @@
 .sheet-task .sheet-header { align-items: flex-start; padding-inline: var(--s1); }
 .sheet-task .sheet-body { display: flex; flex-direction: column; gap: var(--row-gap); padding: var(--s2) var(--s4) var(--s4); }
 .sheet-task .sheet-body > *, .habit-editor .sheet-body > * { flex-shrink: 0; }
-.task-facts { display: flex; flex-direction: column; gap: var(--row-gap); }
-.task-facts .field-alert, .task-facts .field-error { margin: 0; }
 
 .task-head {
   flex: 1;
@@ -176,36 +174,13 @@
   overflow-wrap: anywhere;
 }
 .task-title-field:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+/* Start now sits under the title, aligned with its text; it hides while the task is running, done or repeating. */
+.task-start { grid-column: 2; justify-self: start; margin: 0 0 var(--s2) var(--s1); }
+.task-start .ms { color: var(--primary); }
+.task-start:active { background: color-mix(in oklch, var(--on-surface) 12%, transparent); }
+.task-start:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .task-head.is-done .task-title-field { text-decoration: line-through; color: var(--on-surface-variant); }
 
-.block-row {
-  display: grid;
-  grid-template-columns: calc(var(--row-icon) - 4px) minmax(0, 1fr) auto;
-  align-items: center;
-  inline-size: 100%;
-  min-block-size: 56px;
-  padding-block: var(--s2);
-  padding-inline-end: var(--s2);
-  border-inline-start: 4px solid var(--tone, var(--outline-variant));
-  border-radius: var(--shape-md);
-  background: var(--surface-container);
-  color: var(--on-surface);
-  text-align: start;
-}
-.block-icon { justify-self: center; font-size: calc(24px / var(--text-scale, 1)); color: var(--tone, var(--on-surface-variant)); }
-.block-chevron { font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
-.block-copy { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; }
-.block-result { font: var(--title-small); overflow-wrap: anywhere; }
-.block-purpose {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-  font: var(--body-small);
-  color: var(--on-surface-variant);
-}
-.block-row:active { background: var(--surface-container-high); }
-.block-row:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 .sheet-task .sheet-actions {
   display: grid;
@@ -235,7 +210,6 @@
 .tool-btn:active { background: var(--row-press); }
 .tool-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 
-:root[data-large-text=true] .block-purpose { -webkit-line-clamp: 3; }
 :root[data-large-text=true] .stepper-row .edit-label { flex-basis: 100%; }
 :root[data-large-text=true] .stepper-value { font: var(--title-large); }
 
@@ -246,9 +220,39 @@
   }
   .chip[aria-pressed=true] { transition-duration: var(--dur-press), var(--dur-short3), var(--dur-short3), var(--dur-short3), var(--dur-short3); }
   .edit-row, .edit-pair, .edit-chips { transition: opacity var(--dur-short3) var(--ease-standard); }
-  .tool-btn, .stepper-btn, .block-row, .time-button, .switch-btn, .task-ring, .must-star {
+  .tool-btn, .stepper-btn, .time-button, .switch-btn, .task-ring, .must-star {
     transition: scale var(--dur-press) var(--ease-standard), background-color var(--dur-press) var(--ease-standard);
   }
-  :is(.chip, .tool-btn, .stepper-btn, .block-row, .time-button, .switch-btn, .task-ring, .must-star):active { scale: .97; }
+  :is(.chip, .tool-btn, .stepper-btn, .time-button, .switch-btn, .task-ring, .must-star):active { scale: .97; }
   .task-head.swipe-settling { transition: translate var(--dur-settle) var(--ease-emphasized); }
+}
+
+.fact-slider {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: var(--touch);
+  margin: calc((var(--chip-block) - var(--touch)) / 2) 0;
+  appearance: none;
+  background: transparent;
+  touch-action: pan-y;
+}
+.fact-slider::-webkit-slider-runnable-track { block-size: 4px; border-radius: 2px; background: var(--outline-variant); }
+.fact-slider::-moz-range-track { block-size: 4px; border-radius: 2px; background: var(--outline-variant); }
+.fact-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  inline-size: 28px;
+  block-size: 28px;
+  margin-block-start: -12px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--primary);
+}
+.fact-slider::-moz-range-thumb { inline-size: 28px; block-size: 28px; border: 0; border-radius: 50%; background: var(--primary); }
+.fact-slider[data-unset]::-webkit-slider-thumb { opacity: .38; }
+.fact-slider[data-unset]::-moz-range-thumb { opacity: .38; }
+.fact-slider:active::-webkit-slider-thumb { box-shadow: 0 0 0 8px color-mix(in oklch, var(--primary) 14%, transparent); }
+.fact-slider:disabled { opacity: .38; }
+.fact-slider:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--r-control); }
+@media (prefers-reduced-motion: no-preference) {
+  .fact-slider::-webkit-slider-thumb { transition: box-shadow var(--dur-short3) var(--ease-standard); }
 }

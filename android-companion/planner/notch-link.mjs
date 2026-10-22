@@ -1,31 +1,16 @@
-/** Links from the phone's notch into the planner. The notch only reads the store; every change goes through here. */
-import {tasks} from '../planner-state.mjs';
-import {occurrences, repeats} from '../planner-recurrence.mjs';
-import {toggleDone} from './task-row.mjs';
-import {openMealSheet} from './meals.mjs';
-import {bodyApi} from './body-api.mjs';
-import {drink} from './water.mjs';
-
 /**
- * The notch's Done: ticks the task (or, for a repeating task, the occurrence starting at `start`) with the planner's
- * own completion, so its "Task completed · Undo" bar is the way back. A task already done or changed is left alone.
+ * The notch's and the widget's links into the planner. Glass, Done and alert changes save in place on the phone
+ * (notch-actions.mjs); only the meal row, Open, a task's sheet and water's sheet open the planner.
  */
-export function completeFromNotch(app, {complete, start}) {
-  const task = tasks(app.data()).find(t => t.id === complete);
-  const open = task && !task.done && task.state !== 'cancelled';
-  if (open && !repeats(task)) return toggleDone(app, task);
-  const hit = open && Number.isFinite(start) ? occurrences(task, start, start + 1).find(o => o.start === start) : null;
-  if (hit) return toggleDone(app, hit, hit.occurrence);
-  app.notice('Already done or changed');
-  return undefined;
-}
+import {openMealSheet} from './meals.mjs';
+import {openWaterSheet} from './water.mjs';
+import {bodyApi} from './body-api.mjs';
 
-/** The notch's Log meal: opens the meal sheet on `slot` (breakfast, lunch, snack or dinner), or on the next free slot. */
+/** Opens the meal sheet on `slot` (breakfast, lunch, snack or dinner), or on the next free slot. */
 export function openMealFromNotch(app, {slot} = {}) {
   return openMealSheet(app, bodyApi(app), {slot: slot ?? null});
 }
 
-/** The notch's Glass: logs one glass with the planner's own save, so its "Glass logged · Undo" bar is the way back. */
-export function drinkFromNotch(app) {
-  return drink(app, bodyApi(app));
+export function openWaterFromLink(app) {
+  return openWaterSheet(app, bodyApi(app));
 }

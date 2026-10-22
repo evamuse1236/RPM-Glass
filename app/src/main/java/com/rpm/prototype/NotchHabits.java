@@ -8,8 +8,8 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Today's routines and meals for the notch, by the rules of routineState and mealRowState in body-state.mjs. */
 final class NotchHabits {
+    private static final List<String> MEAL_ORDER = java.util.Arrays.asList("breakfast", "lunch", "snack", "dinner");
     private NotchHabits() {}
 
     /** Where one routine stands today. */
@@ -83,14 +83,68 @@ final class NotchHabits {
         return "dinner";
     }
 
-    /** The meal slot for now when nothing is logged for it today, else null. */
-    static String unloggedMeal(List<NotchBody.Meal> meals, long now, ZoneId zone) {
+    static String unloggedMeal(NotchBody body, long now, ZoneId zone) {
         LocalDate day = Instant.ofEpochMilli(now).atZone(zone).toLocalDate();
-        String slot = slot(now, zone);
-        for (NotchBody.Meal m : meals) {
-            if (Instant.ofEpochMilli(m.at).atZone(zone).toLocalDate().equals(day) && slot.equals(m.slot)) return null;
+        String selected = null;
+        long earliest = Long.MAX_VALUE;
+        for (NotchBody.MealSlot slot : body.mealPlan) {
+            long start = at(day, slot.at, zone);
+            if (!slot.on || now < start || now >= start + 120 * NotchDay.MIN) continue;
+            boolean logged = false;
+            for (NotchBody.Meal m : body.meals) {
+                if (slot.slot.equals(m.slot) && Instant.ofEpochMilli(m.at).atZone(zone).toLocalDate().equals(day)) {
+                    logged = true;
+                    break;
+                }
+            }
+            if (!logged && (start < earliest || (start == earliest && MEAL_ORDER.indexOf(slot.slot) < MEAL_ORDER.indexOf(selected)))) {
+                selected = slot.slot;
+                earliest = start;
+            }
         }
-        return slot;
+        return selected;
+    }
+
+    enum Habit { WATER, MEAL }
+
+    static Habit top(boolean waterDue, String dueMeal) {
+        if (waterDue) return Habit.WATER;
+        return dueMeal == null ? null : Habit.MEAL;
+    }
+
+    static final class MealMeter {
+        final List<String> slots;
+        final List<Integer> logged;
+
+        MealMeter(List<String> slots, List<Integer> logged) {
+            this.slots = slots;
+            this.logged = logged;
+        }
+
+        String key() {
+            return slots + "" + logged;
+        }
+    }
+
+    static MealMeter mealMeter(NotchBody body, long now, ZoneId zone) {
+        LocalDate day = Instant.ofEpochMilli(now).atZone(zone).toLocalDate();
+        List<String> slots = new ArrayList<>();
+        for (NotchBody.MealSlot s : body.mealPlan) if (s.on) slots.add(s.slot);
+        List<Integer> logged = new ArrayList<>();
+        for (int i = 0; i < slots.size(); i++) {
+            for (NotchBody.Meal m : body.meals) {
+                if (!m.skipped && slots.get(i).equals(m.slot) && Instant.ofEpochMilli(m.at).atZone(zone).toLocalDate().equals(day)) {
+                    logged.add(i);
+                    break;
+                }
+            }
+        }
+        return new MealMeter(slots, logged);
+    }
+
+    static String mealName(NotchBody body, String slot) {
+        for (NotchBody.MealSlot planned : body.mealPlan) if (planned.slot.equals(slot)) return planned.name;
+        return slotName(slot);
     }
 
     static String slotName(String slot) {

@@ -1,0 +1,483 @@
+{
+  "date": "2026-10-19",
+  "pricing": "Existing harness apiCost token-price estimate, not a billing receipt.",
+  "runs": [
+    {
+      "name": "before",
+      "id": "2026-10-19T12-23-21-520Z",
+      "revision": "3bf9e2a011d58baa6abf0cfdc9113a2b84503d1e",
+      "sourceHash": "4e9d3e6a97dfdb10adf272d51dc03b9c1e0cc34fe928d4fa531cccb7358bade3",
+      "corpusHash": "c0086c67573ac613ddf459dc4ef100adcc8472397b03f71d9478d09a84d8afef",
+      "sourceStable": true,
+      "passed": 54,
+      "runs": 60,
+      "modelCalls": 88,
+      "costUSD": 0.6688067000000002,
+      "usage": {
+        "input": 1198295,
+        "output": 80208,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.6688067000000002,
+        "calls": 88
+      },
+      "callFailures": 0,
+      "failures": [
+        {
+          "id": "nine-relative-times",
+          "repeat": 1,
+          "classes": [
+            "lost item",
+            "repeated question"
+          ]
+        },
+        {
+          "id": "smart-bare-in-five",
+          "repeat": 1,
+          "classes": [
+            "wrong time"
+          ]
+        },
+        {
+          "id": "smart-remind-in-five",
+          "repeat": 1,
+          "classes": [
+            "wrong time"
+          ]
+        },
+        {
+          "id": "smart-alarm-ten",
+          "repeat": 1,
+          "classes": [
+            "lost item",
+            "repeated question"
+          ]
+        },
+        {
+          "id": "smart-bare-at-six",
+          "repeat": 1,
+          "classes": [
+            "repeated question",
+            "invented item",
+            "lost item"
+          ]
+        },
+        {
+          "id": "smart-tomorrow-morning",
+          "repeat": 1,
+          "classes": [
+            "lost item",
+            "repeated question"
+          ]
+        }
+      ],
+      "artifactDirectory": ".verify/capture-smart/before"
+    },
+    {
+      "name": "new-after",
+      "id": "2026-10-19T12-34-10-124Z",
+      "revision": "1b253eca0f6e90fc0ccb8218325aa1f737ff7758",
+      "sourceHash": "c7f4001200508770f4de8eda6a158a0c9b4962c175c5c4adea3eccddb5613547",
+      "corpusHash": "c0086c67573ac613ddf459dc4ef100adcc8472397b03f71d9478d09a84d8afef",
+      "sourceStable": true,
+      "passed": 16,
+      "runs": 30,
+      "modelCalls": 31,
+      "costUSD": 0.08148879999999999,
+      "usage": {
+        "input": 460233,
+        "output": 8155,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.08148879999999999,
+        "calls": 31
+      },
+      "callFailures": 0,
+      "failures": [
+        {
+          "id": "smart-bare-in-five",
+          "repeat": 1,
+          "classes": [
+            "repeated question"
+          ]
+        },
+        {
+          "id": "smart-bare-in-five",
+          "repeat": 2,
+          "classes": [
+            "repeated question"
+          ]
+        },
+        {
+          "id": "smart-bare-in-five",
+          "repeat": 3,
+          "classes": [
+            "repeated question"
+          ]
+        },
+        {
+          "id": "smart-remind-in-five",
+          "repeat": 1,
+          "classes": [
+            "repeated question"
+          ]
+        },
+        {
+          "id": "smart-alarm-ten",
+          "repeat": 2,
+          "classes": [
+            "repeated question"
+          ]
+        },
+        {
+          "id": "smart-alarm-ten",
+          "repeat": 3,
+          "classes": [
+            "repeated question"
+          ]
+        },
+        {
+          "id": "smart-bare-at-six",
+          "repeat": 1,
+          "classes": [
+            "repeated question"
+          ]
+        },
+        {
+          "id": "smart-bare-at-six",
+          "repeat": 2,
+          "classes": [
+            "lost item"
+          ]
+        },
+        {
+          "id": "smart-bare-at-six",
+          "repeat": 3,
+          "classes": [
+            "repeated question"
+          ]
+        },
+        {
+          "id": "smart-tomorrow-morning",
+          "repeat": 1,
+          "classes": [
+            "repeated question"
+          ]
+        },
+        {
+          "id": "smart-wake-seven",
+          "repeat": 1,
+          "classes": [
+            "lost item"
+          ]
+        },
+        {
+          "id": "smart-wake-seven",
+          "repeat": 3,
+          "classes": [
+            "lost item"
+          ]
+        },
+        {
+          "id": "smart-explicit-hours",
+          "repeat": 2,
+          "classes": [
+            "repeated question"
+          ]
+        },
+        {
+          "id": "smart-explicit-hours",
+          "repeat": 3,
+          "classes": [
+            "repeated question"
+          ]
+        }
+      ],
+      "artifactDirectory": ".verify/capture-smart/new-after"
+    },
+    {
+      "name": "new-final",
+      "id": "2026-10-19T12-36-32-312Z",
+      "revision": "1b253eca0f6e90fc0ccb8218325aa1f737ff7758",
+      "sourceHash": "08ccb403c99754038100924624e8788a324e54a41fecadffcd037fc8e71b06e3",
+      "corpusHash": "c0086c67573ac613ddf459dc4ef100adcc8472397b03f71d9478d09a84d8afef",
+      "sourceStable": true,
+      "passed": 30,
+      "runs": 30,
+      "modelCalls": 30,
+      "costUSD": 0.048734799999999995,
+      "usage": {
+        "input": 445398,
+        "output": 8390,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.048734799999999995,
+        "calls": 30
+      },
+      "callFailures": 0,
+      "failures": [],
+      "artifactDirectory": ".verify/capture-smart/new-final"
+    },
+    {
+      "name": "after",
+      "id": "2026-10-19T12-45-42-549Z",
+      "revision": "9fec9cc9ecbbf53af3b09b6808910ac76c84992c",
+      "sourceHash": "e18b3dc727f8eb5b9fca2423222278150d49c0ee0ac30e3156f48d2d2c01655c",
+      "corpusHash": "c0086c67573ac613ddf459dc4ef100adcc8472397b03f71d9478d09a84d8afef",
+      "sourceStable": true,
+      "passed": 58,
+      "runs": 60,
+      "modelCalls": 83,
+      "costUSD": 0.5369042000000002,
+      "usage": {
+        "input": 1256132,
+        "output": 77459,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.5369042000000002,
+        "calls": 83
+      },
+      "callFailures": 0,
+      "failures": [
+        {
+          "id": "nine-relative-times",
+          "repeat": 1,
+          "classes": [
+            "lost item",
+            "repeated question"
+          ]
+        },
+        {
+          "id": "goal-not-action",
+          "repeat": 1,
+          "classes": [
+            "invented item",
+            "lost item"
+          ]
+        }
+      ],
+      "artifactDirectory": ".verify/capture-smart/after"
+    },
+    {
+      "name": "repeat-final",
+      "id": "2026-10-19T12-45-42-504Z",
+      "revision": "9fec9cc9ecbbf53af3b09b6808910ac76c84992c",
+      "sourceHash": "e18b3dc727f8eb5b9fca2423222278150d49c0ee0ac30e3156f48d2d2c01655c",
+      "corpusHash": "c0086c67573ac613ddf459dc4ef100adcc8472397b03f71d9478d09a84d8afef",
+      "sourceStable": true,
+      "passed": 30,
+      "runs": 30,
+      "modelCalls": 30,
+      "costUSD": 0.04877130000000001,
+      "usage": {
+        "input": 447678,
+        "output": 8007,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.04877130000000001,
+        "calls": 30
+      },
+      "callFailures": 0,
+      "failures": [],
+      "artifactDirectory": ".verify/capture-smart/repeat-final"
+    },
+    {
+      "name": "verified-full",
+      "id": "2026-10-19T12-51-12-210Z",
+      "revision": "afbaa38766d467a8ec46948328e2dd0d58c8f7f0",
+      "sourceHash": "ec7d8422f851bd3002000a84baeebe8e584806a2dd6c8fef08a69d87fa21b2f4",
+      "corpusHash": "c0086c67573ac613ddf459dc4ef100adcc8472397b03f71d9478d09a84d8afef",
+      "sourceStable": true,
+      "passed": 56,
+      "runs": 60,
+      "modelCalls": 83,
+      "costUSD": 0.5379092000000002,
+      "usage": {
+        "input": 1255459,
+        "output": 76575,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.5379092000000002,
+        "calls": 83
+      },
+      "callFailures": 0,
+      "failures": [
+        {
+          "id": "nine-relative-times",
+          "repeat": 1,
+          "classes": [
+            "lost item",
+            "repeated question"
+          ]
+        },
+        {
+          "id": "pronouns-parcel",
+          "repeat": 1,
+          "classes": [
+            "invented item",
+            "wrong time"
+          ]
+        },
+        {
+          "id": "dinner-exact-four-turns",
+          "repeat": 1,
+          "classes": [
+            "invented item",
+            "focus lost"
+          ]
+        },
+        {
+          "id": "goal-not-action",
+          "repeat": 1,
+          "classes": [
+            "invented item"
+          ]
+        }
+      ],
+      "artifactDirectory": ".verify/capture-smart/verified-full"
+    },
+    {
+      "name": "verified-repeat",
+      "id": "2026-10-19T12-51-12-691Z",
+      "revision": "afbaa38766d467a8ec46948328e2dd0d58c8f7f0",
+      "sourceHash": "ec7d8422f851bd3002000a84baeebe8e584806a2dd6c8fef08a69d87fa21b2f4",
+      "corpusHash": "c0086c67573ac613ddf459dc4ef100adcc8472397b03f71d9478d09a84d8afef",
+      "sourceStable": true,
+      "passed": 30,
+      "runs": 30,
+      "modelCalls": 30,
+      "costUSD": 0.04882030000000001,
+      "usage": {
+        "input": 447678,
+        "output": 8105,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.04882030000000001,
+        "calls": 30
+      },
+      "callFailures": 0,
+      "failures": [],
+      "artifactDirectory": ".verify/capture-smart/verified-repeat"
+    },
+    {
+      "name": "final-full",
+      "id": "2026-10-19T12-55-54-332Z",
+      "revision": "b0d7772c4d0928bfb9e498fdbb78d2a9fdc0c989",
+      "sourceHash": "33dea5e05099041bcc0ae58a53999bdd1cd401eb6bd41fb04c1ea4ed3c13c7a0",
+      "corpusHash": "c0086c67573ac613ddf459dc4ef100adcc8472397b03f71d9478d09a84d8afef",
+      "sourceStable": true,
+      "passed": 58,
+      "runs": 60,
+      "modelCalls": 81,
+      "costUSD": 0.4645477000000001,
+      "usage": {
+        "input": 1238421,
+        "output": 73966,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.4645477000000001,
+        "calls": 81
+      },
+      "callFailures": 0,
+      "failures": [
+        {
+          "id": "nine-relative-times",
+          "repeat": 1,
+          "classes": [
+            "lost item",
+            "repeated question"
+          ]
+        },
+        {
+          "id": "goal-not-action",
+          "repeat": 1,
+          "classes": [
+            "invented item",
+            "lost item"
+          ]
+        }
+      ],
+      "artifactDirectory": ".verify/capture-smart/final-full"
+    },
+    {
+      "name": "final-repeat",
+      "id": "2026-10-19T12-55-54-332Z",
+      "revision": "b0d7772c4d0928bfb9e498fdbb78d2a9fdc0c989",
+      "sourceHash": "33dea5e05099041bcc0ae58a53999bdd1cd401eb6bd41fb04c1ea4ed3c13c7a0",
+      "corpusHash": "c0086c67573ac613ddf459dc4ef100adcc8472397b03f71d9478d09a84d8afef",
+      "sourceStable": true,
+      "passed": 30,
+      "runs": 30,
+      "modelCalls": 30,
+      "costUSD": 0.048971799999999996,
+      "usage": {
+        "input": 452208,
+        "output": 7502,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.048971799999999996,
+        "calls": 30
+      },
+      "callFailures": 0,
+      "failures": [],
+      "artifactDirectory": ".verify/capture-smart/final-repeat"
+    },
+    {
+      "name": "final-regressions",
+      "id": "2026-10-19T12-55-54-333Z",
+      "revision": "b0d7772c4d0928bfb9e498fdbb78d2a9fdc0c989",
+      "sourceHash": "33dea5e05099041bcc0ae58a53999bdd1cd401eb6bd41fb04c1ea4ed3c13c7a0",
+      "corpusHash": "c0086c67573ac613ddf459dc4ef100adcc8472397b03f71d9478d09a84d8afef",
+      "sourceStable": true,
+      "passed": 9,
+      "runs": 9,
+      "modelCalls": 16,
+      "costUSD": 0.0667083,
+      "usage": {
+        "input": 246323,
+        "output": 12997,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUSD": 0.0667083,
+        "calls": 16
+      },
+      "callFailures": 0,
+      "failures": [],
+      "artifactDirectory": ".verify/capture-smart/final-regressions"
+    }
+  ],
+  "cli": [
+    {
+      "name": "cli-before",
+      "calls": 2,
+      "costUSD": 0.0363744,
+      "artifact": ".verify/capture-smart/cli-before.json"
+    },
+    {
+      "name": "cli-final",
+      "calls": 6,
+      "costUSD": 0.0112758,
+      "artifact": ".verify/capture-smart/cli-final.json"
+    },
+    {
+      "name": "cli-proof",
+      "calls": 7,
+      "costUSD": 0.0118989,
+      "artifact": ".verify/capture-smart/cli-proof.json"
+    },
+    {
+      "name": "cli-verified",
+      "calls": 4,
+      "costUSD": 0.006547900000000001,
+      "artifact": ".verify/capture-smart/cli-verified.json"
+    },
+    {
+      "name": "cli-final-source",
+      "calls": 2,
+      "costUSD": 0.0032534,
+      "artifact": ".verify/capture-smart/cli-final-source.json"
+    }
+  ],
+  "totalCalls": 523,
+  "totalCostUSD": 2.621013500000001
+}

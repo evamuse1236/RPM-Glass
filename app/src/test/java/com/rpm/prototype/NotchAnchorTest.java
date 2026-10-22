@@ -15,7 +15,7 @@ public class NotchAnchorTest {
         NotchAnchor a = NotchAnchor.fromCutout(506, 24, 574, 92, S24_STATUS_BAR, S24_DENSITY);
         assertTrue(a.fromCutout);
         assertEquals(540, a.centerX);
-        assertEquals(68, a.holeDiameter);
+        assertEquals(68, a.holeWidth);
         assertEquals(24 - Math.round(4 * 2.8125f), a.pillTop());
         assertEquals(92, a.pillBottom());
         assertEquals(92 - 13, a.pillHeight);
@@ -24,9 +24,18 @@ public class NotchAnchorTest {
     @Test
     public void holeBelowTheStatusBarStaysInsideThePill() {
         NotchAnchor a = NotchAnchor.fromCutout(479, 0, 601, 132, S24_STATUS_BAR, S24_DENSITY);
-        assertEquals(122, a.holeDiameter);
+        assertEquals(122, a.holeWidth);
         assertEquals(NotchAnchor.dp(2, S24_DENSITY), a.pillTop());
         assertEquals(132, a.pillBottom());
+    }
+
+    @Test
+    public void aWideNotchKeepsItsWholeWidthClear() {
+        NotchAnchor a = NotchAnchor.fromCutout(315, 0, 765, 84, 84, S24_DENSITY);
+        assertEquals("the ring and the value sit beside the notch, never under it", 450, a.holeWidth);
+        assertEquals(540, a.centerX);
+        assertEquals(NotchAnchor.dp(2, S24_DENSITY), a.pillTop());
+        assertEquals(84, a.pillBottom());
     }
 
     @Test
@@ -38,15 +47,14 @@ public class NotchAnchorTest {
     }
 
     @Test
-    public void collapsedPillIsCentredOnThePhoneCamera() {
+    public void withBothDropsThePillIsCentredOnThePhoneCamera() {
         NotchAnchor a = NotchAnchor.fromCutout(506, 24, 574, 92, S24_STATUS_BAR, S24_DENSITY);
-        int keep = 102, minWidth = NotchAnchor.dp(140, S24_DENSITY);
-        for (int[] leadTrail : new int[][] {{110, 130}, {110, 60}, {110, 400}}) {
-            int side = NotchAnchor.pillSide(leadTrail[0], leadTrail[1], keep, minWidth);
-            int left = a.centerX - keep / 2 - side, right = left + side + keep + side;
-            assertEquals("lead " + leadTrail[0] + " trail " + leadTrail[1], a.centerX, (left + right) / 2);
-            assertTrue(right - left >= minWidth);
-            assertTrue(side >= leadTrail[0] && side >= leadTrail[1]);
+        int keep = 102;
+        for (int[] sides : new int[][] {{110, 130}, {130, 60}, {110, 400}}) {
+            int[] both = NotchGeometry.pillSides(sides[0], sides[1], NotchGeometry.bareSide(keep, a.pillHeight));
+            IslandShape p = IslandShape.pill(a, 1080, both[0], both[1], S24_DENSITY);
+            assertEquals("task " + sides[0] + " habit " + sides[1], a.centerX, (p.left + p.right) / 2f, 0.5f);
+            assertTrue(both[0] >= sides[0] && both[0] >= sides[1]);
         }
     }
 

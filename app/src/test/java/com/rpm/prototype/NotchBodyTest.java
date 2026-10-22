@@ -70,9 +70,13 @@ public class NotchBodyTest {
     }
 
     @Test
-    public void noBodyMeansNoWaterRoutinesOrMeals() throws Exception {
-        assertSame(NotchBody.ABSENT, NotchBody.parse(store(null)));
-        assertSame(NotchBody.ABSENT, NotchBody.parse(null));
+    public void aStoreWithoutBodyReadsAsTheDefaultsLikeThePlanner() throws Exception {
+        for (NotchBody body : new NotchBody[]{NotchBody.parse(store(null)), NotchBody.parse(null)}) {
+            assertTrue(body.present);
+            assertTrue(body.water.reminders);
+            assertEquals(8, body.water.goal);
+            assertEquals(3, body.mealPlan.size());
+        }
         assertFalse(NotchBody.ABSENT.present);
     }
 
@@ -92,21 +96,21 @@ public class NotchBodyTest {
     }
 
     @Test
-    public void mealNotLoggedFollowsTheSlotForNow() throws Exception {
+    public void mealNotLoggedFollowsThePlanForToday() throws Exception {
         NotchBody body = NotchBody.parse(store(BODY));
-        assertNull(NotchHabits.unloggedMeal(body.meals, at("2026-10-18T09:00"), KOLKATA));
-        assertEquals("lunch", NotchHabits.unloggedMeal(body.meals, at("2026-10-18T13:00"), KOLKATA));
+        assertNull(NotchHabits.unloggedMeal(body, at("2026-10-18T09:00"), KOLKATA));
+        assertEquals("lunch", NotchHabits.unloggedMeal(body, at("2026-10-18T13:00"), KOLKATA));
         assertEquals("Lunch", NotchHabits.slotName("lunch"));
         assertEquals("dinner", NotchHabits.slot(at("2026-10-18T02:00"), KOLKATA));
     }
 
     @Test
-    public void waterRemindersOffKeepTheCountButNeverNudge() throws Exception {
+    public void rawWaterStatusKeepsPlannerTimingWhenRemindersAreOff() throws Exception {
         NotchBody body = NotchBody.parse(store(BODY.replace("\"reminders\":true", "\"reminders\":false")));
         NotchWater.Status s = NotchWater.status(body.glasses, body.water, java.util.Collections.emptyList(), 0, at("2026-10-18T20:00"), KOLKATA);
         assertEquals(2, s.count);
-        assertFalse(s.pending);
-        assertEquals(0, s.nextAt);
+        assertTrue(s.pending);
+        assertEquals(at("2026-10-18T12:00"), s.nextAt);
     }
 
     @Test

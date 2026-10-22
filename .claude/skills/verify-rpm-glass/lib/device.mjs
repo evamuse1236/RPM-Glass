@@ -2,6 +2,7 @@ import {spawn, spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import {fileURLToPath} from 'node:url';
 
 export const PACKAGE = 'com.rpm.prototype';
 export const LAUNCHER = `${PACKAGE}/.CompanionActivity`;
@@ -43,12 +44,64 @@ export function devices() {
   });
 }
 
+/** On Windows the emulator starts netsimd itself, which opens a console window. Starting it first, with no console, lets the emulator reuse it. */
+export function netsimToStart({platform = process.platform, exe, running}) {
+  return platform === 'win32' && !!exe && !running;
+}
+
+const netsimRunning = () => spawnSync('tasklist', ['/FI', 'IMAGENAME eq netsimd.exe', '/FO', 'CSV', '/NH'], {encoding: 'utf8', windowsHide: true}).stdout?.includes('netsimd.exe');
+
+export function startNetsim() {
+  const exe = path.join(path.dirname(emulatorPath()), 'netsimd.exe');
+  if (!netsimToStart({exe: fs.existsSync(exe) ? exe : null, running: process.platform === 'win32' && netsimRunning()})) return null;
+  const ini = path.join(os.tmpdir(), 'netsim.ini');
+  const before = fs.existsSync(ini) ? fs.statSync(ini).mtimeMs : 0;
+  const child = spawn(exe, [], {detached: true, stdio: 'ignore', windowsHide: true});
+  child.unref();
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  for (const until = Date.now() + 10000; Date.now() < until; Atomics.wait(pause, 0, 0, 200)) {
+    if (fs.existsSync(ini) && fs.statSync(ini).mtimeMs > before) return child.pid;
+  }
+  return child.pid;
+}
+
+/** Software rendering scrolled Settings at 8.2 CPU cores against 0.68 with the host GPU (2026-10-20). The emulator prints "Your GPU cannot be used" even when the host GPU works. */
+export function gpuMode(requested = 'host', env = process.env) {
+  if (!/swiftshader|guest|software/i.test(requested) || env.RPM_ALLOW_SOFTWARE_GPU === '1') return requested;
+  throw new UserError(`--gpu ${requested} draws on the CPU and uses about 12x more CPU than the host GPU.`,
+    'Drop --gpu. The startup line "Your GPU cannot be used for hardware rendering" is harmless when the screen draws. If the host-GPU emulator stays black, crashes, or goes offline (log: "error null ctx"), relaunch with RPM_ALLOW_SOFTWARE_GPU=1 and say so in the reply.');
+}
+
+export function emulatorEnv(env = process.env, home = os.homedir(), platform = process.platform) {
+  if (env.ANDROID_TMP || platform === 'win32') return env;
+  return {...env, ANDROID_TMP: path.join(home, '.cache', 'android-tmp')};
+}
+
+const qemuRunning = () => process.platform !== 'linux' || fs.readdirSync('/proc').some(p => /^\d+$/.test(p) && (() => { try { return fs.readFileSync(`/proc/${p}/comm`, 'utf8').startsWith('qemu-system'); } catch { return false; } })());
+
+/** Overlays left by an emulator that crashed; a clean exit deletes its own. Only rpmctl's folder, and only when no emulator runs. */
+export function staleOverlays(dir, {emulatorRunning}) {
+  if (emulatorRunning || !fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter(f => /^emulator-\w+\.qcow2$/.test(f)).map(f => path.join(dir, f));
+}
+
 export function startEmulator({avd, port, logFile, gpu}) {
-  const args = ['-avd', avd, '-port', String(port), '-read-only', '-no-window', '-no-audio', '-no-boot-anim', '-gpu', gpu, '-no-snapshot-save'];
+  const args = ['-avd', avd, '-port', String(port), '-read-only', '-no-window', '-no-audio', '-no-boot-anim', '-gpu', gpuMode(gpu), '-no-snapshot-save'];
   const log = fs.openSync(logFile, 'a');
-  const child = spawn(emulatorPath(), args, {detached: true, stdio: ['ignore', log, log], windowsHide: true});
+  const env = emulatorEnv();
+  if (env.ANDROID_TMP) fs.mkdirSync(env.ANDROID_TMP, {recursive: true});
+  if (env.ANDROID_TMP && !process.env.ANDROID_TMP) for (const f of staleOverlays(env.ANDROID_TMP, {emulatorRunning: qemuRunning()})) fs.rmSync(f, {force: true});
+  const child = spawn(emulatorPath(), args, {detached: true, stdio: ['ignore', log, log], windowsHide: true, env});
   child.unref();
   return {pid: child.pid, args};
+}
+
+/** Starts the detached watcher that stops the shared emulator once no run has used it for the idle time. */
+export function spawnReaper(port) {
+  const script = path.join(path.dirname(fileURLToPath(import.meta.url)), 'reaper.mjs');
+  const child = spawn(process.execPath, [script, String(port)], {detached: true, stdio: 'ignore', windowsHide: true});
+  child.unref();
+  return child.pid;
 }
 
 export function processAlive(pid) {
@@ -130,9 +183,37 @@ export function processImage(pid) {
 
 export const avdName = serial => adb(serial, ['emu', 'avd', 'name'], {allowFail: true, timeout: 10000}).split('\n')[0].trim();
 
+export function attachedProcess(pid, {proc = '/proc'} = {}) {
+  try {
+    const args = fs.readFileSync(path.join(proc, String(pid), 'cmdline'), 'utf8').split('\0').filter(Boolean);
+    const stat = fs.readFileSync(path.join(proc, String(pid), 'stat'), 'utf8');
+    const started = stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19];
+    const port = args[args.indexOf('-port') + 1];
+    const avd = args.includes('-avd') ? args[args.indexOf('-avd') + 1] : args.find(a => a.startsWith('@'))?.slice(1);
+    if (!/emulator|qemu/i.test(path.basename(args[0] ?? '')) || !args.includes('-read-only') || !started || !avd || !/^\d+$/.test(port ?? '')) return null;
+    return {pid: Number(pid), port: Number(port), avd, started};
+  } catch { return null; }
+}
+
+export function adoptEmulator(serial, {platform = process.platform, proc = '/proc', list = devices, name = avdName} = {}) {
+  if (platform !== 'linux' || !/^emulator-\d+$/.test(serial ?? ''))
+    throw new UserError('Attach needs a Linux emulator serial such as emulator-5554.', 'Use --attach emulator-5554 on the CI runner; use normal launch on Windows.');
+  const port = Number(serial.slice('emulator-'.length));
+  if (!list().some(d => d.serial === serial && d.state === 'device'))
+    throw new UserError(`${serial} is not online.`, 'Start the CI emulator before attaching.');
+  const matches = fs.readdirSync(proc).filter(p => /^\d+$/.test(p)).map(pid => attachedProcess(pid, {proc})).filter(p => p?.port === port);
+  if (matches.length !== 1 || matches[0].avd !== name(serial))
+    throw new UserError(`Cannot identify one read-only emulator process for ${serial}.`, 'Start the runner emulator with -port, -read-only, and an explicit AVD.');
+  return matches[0];
+}
+
 // The recorded pid must still be an emulator process (pids get reused) and the serial must be running the AVD it booted.
 export function ownsEmulator(state, serial = state?.serial) {
   if (!state || state.serial !== serial) return false;
+  if (state.mode === 'attached') {
+    const current = attachedProcess(state.pid);
+    if (!current || current.started !== state.processStarted || current.port !== state.port || current.avd !== state.avd) return false;
+  }
   if (!/emulator|qemu/i.test(processImage(state.pid) ?? '')) return false;
   return avdName(serial) === state.avd;
 }

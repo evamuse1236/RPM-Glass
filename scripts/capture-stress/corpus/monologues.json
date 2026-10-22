@@ -1,0 +1,111 @@
+[
+  {
+    "id": "monologue-purifier",
+    "tags": [
+      "monologue",
+      "500-words",
+      "venting",
+      "buried-task",
+      "hypothetical"
+    ],
+    "turns": [
+      {
+        "text": "Okay I am going to talk for a bit because if I try to compress this into one neat sentence I will forget the sentence while deciding which words belong in it. This morning started normally enough. I woke up, found one sock inside my pillow cover somehow, made tea, and stood near the sink looking at the purifier light. That light has been blinking for days. I remember noticing it on Saturday when I was washing a cup, then I remember telling myself that noticing the problem was almost the same as dealing with it. Obviously it was not, but my brain gave me the little relief feeling anyway.\n\nThen in class somebody was talking about maintenance budgets and I spent half the lecture thinking about the purifier, which is ridiculous because this is not a major infrastructure project, it is a machine on the kitchen wall. I came home with three pages of notes about something else and one tiny circle in the margin that was supposed to mean filter. Now I cannot tell whether I was drawing a filter or a potato. None of that class stuff is a request to create tasks, by the way. It is just the route my head took to arrive here.\n\nI think the annoying part is that the purifier was working when my parents visited and now I have this feeling that I have somehow failed at being an adult because a light is blinking. Amma would laugh if I told her that. She says every house has one thing making a noise and one thing waiting for a man with a bag of tools. Last month it was the fan at home. The electrician came, tightened something, drank tea, and left. I was not involved in that repair and there is nothing for me to follow up there. It is just the memory that keeps coming up.\n\nMy flatmate thought we should order bottled water forever, which sounds like a decision made by someone who has not carried the bottles up these stairs. We were joking about moving to a hotel where someone else handles every broken thing. We are not booking any hotel or planning a trip. We were tired and dramatic after dinner. I also found an old flight screenshot while looking for the purifier warranty. That was from the cancelled Pune trip in July. Please do not revive that trip from this story. The screenshot only confused me for ten minutes before I noticed the date.\n\nThere is a practical point buried in this and I am nearly there. I have the warranty PDF now, it is in the folder already, and the serial number photograph is readable. Those bits are finished. I do not need reminders to find or scan them. The result I care about in ordinary human terms is being able to fill a glass without wondering if I am making a stupid choice, and having enough energy for college rather than carrying water cans. But I am not asking for a whole result block or a grand health project right now. One action is enough to get this moving.\n\nPlease add call the water purifier technician tomorrow at six in the evening. Tomorrow means Tuesday, and six means after class, not six in the morning. That is the only task from this entire ramble. I will talk about the filter light and explain that I already have the warranty. I am not asking you to make separate tasks for every sentence I might say on that call. Also do not call the technician for me. I just want the saved reminder so that when six comes I see it and can do the phone call myself."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "call",
+            "purifier",
+            "technician"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "time": "18:00"
+        }
+      ],
+      "forbidden": [
+        [
+          "hotel"
+        ],
+        [
+          "flight"
+        ],
+        [
+          "warranty"
+        ],
+        [
+          "scan"
+        ]
+      ],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "monologue-loan",
+    "tags": [
+      "monologue",
+      "500-words",
+      "purpose",
+      "must",
+      "buried-task"
+    ],
+    "turns": [
+      {
+        "text": "I need to say this out loud before I open another tab. Every time I sit down to deal with money I suddenly notice that the desk is dusty or my browser bookmarks are a mess. Yesterday I spent almost an hour rearranging bookmarks called important, important new, and actually important. They all had the same three pages. It was funny for about five seconds and then I felt quite sad because I had used the little bit of attention I had on arranging the doorway to the work rather than doing the work. That is a description of yesterday, not an instruction to clean bookmarks today.\n\nThe thing bothering me is the education loan statement. There is a processing charge that looks wrong. I have already downloaded the statement and highlighted the line. I do not want you to add download statement because that would give me a nice easy thing to tick and then I would pretend I had made progress. The actual contact with another human is the bit I am avoiding. I keep imagining that the person at the branch will say something obvious and I will sound foolish. Then I remember that asking about my own money is allowed and I get annoyed at myself for needing to remember that.\n\nPapa was telling me about the time his bank deducted a charge twice and he had to visit the branch. His story had a cheque book, a missing stamp, and someone called Mr Sharma who knew everything but was always at lunch. That happened years ago. Please do not turn his old story into errands for me. I do not have a cheque to deposit or a stamp to buy. I am saying it because it made the whole thing feel more complicated than it probably is. I have also been thinking about how money conversations at home get mixed with guilt even when nobody is trying to make anybody feel guilty.\n\nAt one point this morning I thought maybe I should just change banks, book a ticket home, sit with Papa, and sort out all my finances in one dramatic weekend. That was an escape fantasy. I am not travelling, I am not booking a flight, and I am not opening a new bank account. I caught myself before doing any of that. I made tea instead and read the statement again. The charge is still there. Drinking tea did not remove it, unsurprisingly. I can laugh at that now but I was genuinely wound up about it ten minutes ago.\n\nWhat I want in the larger sense is to understand what I owe without this low buzzing panic. That is a feeling and a direction, not me asking you to build an elaborate financial life plan in the app. There are probably other useful things I could do later. Later is allowed to stay later. I want one small action with a time attached, because an untimed note about the bank will join all the other notes about the bank and become wallpaper. It needs to be a task I can recognise when I am tired, with the actual person or office named in it.\n\nSo please add email the education loan officer tomorrow at eleven in the morning about the processing charge. Just that one email task. Mark it as a must because I need a clear answer before I make this month's payment. The purpose is to stop the money anxiety from eating the energy I need for class. Do not mark any payment complete and do not change my existing Raj call or either gym session. Those have nothing to do with this. I am going to attach the statement when I write the email myself, so there is no separate attachment task either. Okay, I think that is finally the actual request."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "email",
+            "loan",
+            "officer"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "time": "11:00",
+          "must": true,
+          "purposeWords": [
+            "energy"
+          ]
+        }
+      ],
+      "forbidden": [
+        [
+          "flight"
+        ],
+        [
+          "cheque"
+        ],
+        [
+          "stamp"
+        ],
+        [
+          "download",
+          "statement"
+        ],
+        [
+          "attach"
+        ]
+      ],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": [
+        101,
+        102,
+        103,
+        104,
+        105,
+        106
+      ]
+    }
+  }
+]

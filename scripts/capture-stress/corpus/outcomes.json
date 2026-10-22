@@ -1,0 +1,410 @@
+[
+  {
+    "id": "result-purpose-must",
+    "tags": [
+      "result",
+      "purpose",
+      "must"
+    ],
+    "turns": [
+      {
+        "text": "I want an RPM block called Hostel room ready for Amma's visit. The purpose is that she feels welcome, not that my room looks like Instagram. Under that put wash the bedsheet tomorrow, that is a must. Buying flowers is optional, add it too but do not mark it must."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "room",
+            "amma"
+          ],
+          "entity": "block",
+          "purposeWords": [
+            "welcome"
+          ]
+        },
+        {
+          "words": [
+            "wash",
+            "bedsheet"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "must": true,
+          "blockWords": ["room", "amma"]
+        },
+        {
+          "words": [
+            "flower"
+          ],
+          "entity": "task",
+          "must": false,
+          "blockWords": ["room", "amma"]
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 3,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "goal-not-action",
+    "tags": [
+      "goal",
+      "result",
+      "purpose"
+    ],
+    "turns": [
+      {
+        "text": "My goal for 2026 is to run five kilometres without stopping. This matters because I want energy to go exploring with my friends. Capture that as a yearly goal, please. I am not asking you to schedule daily runs yet."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "run",
+            "kilomet"
+          ],
+          "entity": "goal",
+          "purposeWords": [
+            "energy"
+          ]
+        }
+      ],
+      "forbidden": [
+        [
+          "daily",
+          "run"
+        ]
+      ],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "result-without-checklist",
+    "tags": [
+      "result",
+      "purpose"
+    ],
+    "turns": [
+      {
+        "text": "Create an RPM block, Scholarship documents ready to submit. My purpose is paying for next term without constantly borrowing from home. I have not chosen actions yet, so leave it as a result with that purpose."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "scholarship",
+            "document"
+          ],
+          "entity": "block",
+          "purposeWords": [
+            "term"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "priority-not-must",
+    "tags": [
+      "priority",
+      "must"
+    ],
+    "turns": [
+      {
+        "text": "Add email the scholarship office tomorrow. Put it first among anything you create from this capture, but I am not calling it a must. Also add print my ID copy tomorrow. Two tasks, no new result block."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "email",
+            "scholarship"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "must": false
+        },
+        {
+          "words": [
+            "print",
+            "id"
+          ],
+          "entity": "task",
+          "day": "2026-10-20"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 2,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "water-two-glasses",
+    "tags": [
+      "water",
+      "health",
+      "no-action"
+    ],
+    "turns": [
+      {
+        "text": "I just drank two glasses of water, haan two, not two litres. Log those now. That is a log, I am not asking for a drink water task."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [
+        [
+          "drink",
+          "water"
+        ]
+      ],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": [],
+      "health": {
+        "waterDelta": 2
+      }
+    }
+  },
+  {
+    "id": "skip-lunch",
+    "tags": [
+      "meals",
+      "health",
+      "no-action"
+    ],
+    "turns": [
+      {
+        "text": "Mark today's lunch skipped. Breakfast happened, dinner is still on. I am travelling through lunch so do not add a task about cooking it."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [
+        [
+          "cook",
+          "lunch"
+        ]
+      ],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": [],
+      "health": {
+        "mealSkipped": "lunch"
+      }
+    }
+  },
+  {
+    "id": "water-and-task",
+    "tags": [
+      "water",
+      "health",
+      "task"
+    ],
+    "turns": [
+      {
+        "text": "Log two glasses of water I have just finished. Also add refill the water bottle today at 2 pm, because otherwise I sit through the whole lecture thirsty."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "refill",
+            "bottle"
+          ],
+          "entity": "task",
+          "day": "2026-10-19",
+          "time": "14:00"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": [],
+      "health": {
+        "waterDelta": 2
+      }
+    }
+  },
+  {
+    "id": "thinking-not-permission",
+    "tags": [
+      "draft",
+      "no-action",
+      "journaling"
+    ],
+    "turns": [
+      {
+        "text": "Maybe I should delete all my tasks and start again, that is the mood right now. Please do not actually delete anything. I just need to say I feel overwhelmed."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": [
+        101,
+        102,
+        103,
+        104,
+        105,
+        106
+      ]
+    }
+  },
+  {
+    "id": "tomorrow-not-yesterday",
+    "tags": [
+      "hinglish",
+      "relative-times",
+      "correction"
+    ],
+    "turns": [
+      {
+        "text": "Kal I was telling Aditya about the insurance form, that part is yesterday. Now the actual task is submit the insurance form kal subah, tomorrow morning at 9:30. Please do not put it in the past."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "insurance",
+            "form"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "time": "09:30"
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "result-vs-event",
+    "tags": [
+      "result",
+      "calendar",
+      "readonly"
+    ],
+    "turns": [
+      {
+        "text": "Dentist tomorrow at eleven is already a calendar commitment, keep it as that. Separately create the RPM result Dental reimbursement documents ready. Its purpose is recovering the clinic money without chasing it for months. No extra dentist task."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "dental",
+            "reimbursement"
+          ],
+          "entity": "block",
+          "purposeWords": [
+            "money"
+          ]
+        }
+      ],
+      "forbidden": [
+        [
+          "dentist"
+        ]
+      ],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": [
+        101,
+        102,
+        103,
+        104,
+        105,
+        106
+      ]
+    }
+  },
+  {
+    "id": "must-reversal",
+    "tags": [
+      "must",
+      "contradiction",
+      "reversal"
+    ],
+    "turns": [
+      {
+        "text": "Add tidy my desk tomorrow. Make it a must, actually no, I am doing that thing where everything becomes essential. Leave tidy my desk as an ordinary task, not a must."
+      }
+    ],
+    "expect": {
+      "created": [
+        {
+          "words": [
+            "tidy",
+            "desk"
+          ],
+          "entity": "task",
+          "day": "2026-10-20",
+          "must": false
+        }
+      ],
+      "forbidden": [],
+      "maxNew": 1,
+      "question": "forbidden",
+      "changes": [],
+      "unchanged": []
+    }
+  },
+  {
+    "id": "question-no-task",
+    "tags": [
+      "questions",
+      "no-action"
+    ],
+    "turns": [
+      {
+        "text": "What does must mean here? If I put something first does that automatically make it a must? I am asking about the app, do not change my tasks while answering."
+      }
+    ],
+    "expect": {
+      "created": [],
+      "forbidden": [],
+      "maxNew": 0,
+      "question": "allowed",
+      "changes": [],
+      "unchanged": [
+        101,
+        102,
+        103,
+        104,
+        105,
+        106
+      ]
+    }
+  }
+]

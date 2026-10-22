@@ -33,11 +33,26 @@ export function cardKind(capture){
  if(!capture)return 'empty';
  const draft=capture.draft;
  if(capture.status==='captured')return capture.lastError?'words-kept':'pending';
+ if(capture.clarification?.open)return 'question';
  if(!draft)return capture.card?'answer':capture.reply?'answer':'saved';
  if(draft.status==='committed')return draft.confirm==='pending'?'confirm':'receipt';
  if(draft.status==='undone')return 'undone';
  if(draft.status==='parked')return 'parked';
  return 'open';
+}
+
+/**
+ * Whether a change can still be undone from its card: a planner change while it is the newest Undo, or a change
+ * that only set drafts aside (no planner record), which Undo can always bring back.
+ */
+/** The newest chip edit on a capture that has not been undone, or null. */
+export const latestEdit=draft=>[...(draft?.edits??[])].reverse().find(e=>!e.undone)??null;
+
+export function canUndoChange(draft,undoId){
+ const receipt=draft?.receipt;
+ if(!receipt)return false;
+ if(undoId&&latestEdit(draft)?.undoId===undoId)return true;
+ return receipt.undoId?receipt.undoId===undoId:!!(receipt.parkedDrafts?.length||receipt.draftEdits?.length);
 }
 
 /** Button roles for draft actions, in increasing emphasis. */

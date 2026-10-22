@@ -1,0 +1,4 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item><shape android:shape="oval"><solid android:color="@color/rpm_primary"/></shape></item>
+    <item android:drawable="@drawable/sym_task_alt" android:left="10dp" android:top="10dp" android:right="10dp" android:bottom="10dp"/>
+</layer-list>

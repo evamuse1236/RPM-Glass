@@ -49,8 +49,8 @@ function parseTask(e, blocks) {
   const planned = time(e.planned);
   if (!planned) return null;
   return {id: Number(e.id) || 0, title: String(e.title ?? e.raw ?? ''), block: e.blockId == null ? null : blocks.get(String(e.blockId)) ?? null,
-    planned, minutes: e.minutes == null || !Number.isFinite(Number(e.minutes)) ? 30 : Math.trunc(Number(e.minutes)), recurrence: e.recurrence ?? '',
-    completed: new Set(e.completedOccurrences ?? []), fixed: false, alert: alertType(e)};
+    planned, minutes: e.minutes == null || !Number.isFinite(Number(e.minutes)) ? 30 : Math.trunc(Number(e.minutes)), recurrence: e.recurrence ?? '', repeatDays: e.repeatDays ?? [],
+    completed: new Set(e.completedOccurrences ?? []), fixed: false, alert: alertType(e), purpose: String(e.purpose ?? '').trim()};
 }
 
 export function parseNotchData(data, events) {
@@ -68,13 +68,13 @@ export function parseNotchData(data, events) {
 
 function candidates(task, now) {
   const r = task.recurrence, base = new Date(task.planned);
-  if (!['daily', 'weekly', 'weekdays'].includes(r)) return [task.planned];
+  if (!['daily', 'weekly', 'weekdays', 'days'].includes(r)) return [task.planned];
   const out = [], today = dayStart(now);
   for (let back = 1; back >= 0; back--) {
     const d = new Date(today); d.setDate(d.getDate() - back);
     const days = epochDay(d) - epochDay(base);
     if (days < 0 || (r === 'weekly' && days % 7 !== 0)) continue;
-    if (r === 'weekdays' && (d.getDay() === 0 || d.getDay() === 6)) continue;
+    if (r === 'weekdays' && (d.getDay() === 0 || d.getDay() === 6) || r === 'days' && !task.repeatDays.includes(d.getDay())) continue;
     const at = new Date(base); at.setDate(at.getDate() + days);
     out.push(at.getTime());
   }
@@ -123,6 +123,12 @@ export function clock(at, h24) {
   if (h24) return `${d.getHours()}:${mm}`;
   return `${d.getHours() % 12 || 12}:${mm} ${d.getHours() < 12 ? 'AM' : 'PM'}`;
 }
+
+/** "4:30 PM" without its " PM"; a 24-hour clock is left alone. */
+export const dropAmPm = text => text.replace(/ [AP]M$/, '');
+
+/** The pill's clock: "4:30" within 12 hours of now, "4:30 PM" further away. */
+export const shortClock = (at, now, h24) => Math.abs(at - now) <= 12 * 60 * MIN ? dropAmPm(clock(at, h24)) : clock(at, h24);
 
 export function waterStatus(glasses, s, busy, snoozedUntil, now) {
   const day = localDay(now);

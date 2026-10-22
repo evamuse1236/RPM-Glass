@@ -1,4 +1,5 @@
 /** Field checks shared by every planner op: each throws the words the user sees. */
+import {capitalizeTitle} from '../cli/title.mjs';
 export const text = (v, max = 2000) => {
   if (typeof v !== 'string' || v.length > max) throw new Error('Text is too long or invalid.');
   return v.trim();
@@ -6,7 +7,7 @@ export const text = (v, max = 2000) => {
 export const title = v => {
   const s = text(v, 200);
   if (!s) throw new Error('Add a title.');
-  return s;
+  return capitalizeTitle(s);
 };
 export const integer = (v, min, max) => {
   if (!Number.isInteger(v) || v < min || v > max) throw new Error('Choose a valid number.');
@@ -18,3 +19,8 @@ export const one = (rows, id) => {
   return r;
 };
 export const link = (rows, id) => (id == null || id === '' ? null : one(rows, id).id);
+/** Days of the week a repeat lands on, 0 (Sunday) to 6 (Saturday): unique and in order. */
+export const weekdays = v => {
+  if (!Array.isArray(v) || v.some(d => !Number.isInteger(d) || d < 0 || d > 6)) throw new Error('Choose valid days.');
+  return [...new Set(v)].sort((a, b) => a - b);
+};

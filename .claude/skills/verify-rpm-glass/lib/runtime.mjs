@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {LAUNCHER, UserError, adb, devices, waitFor, appPid, ownsEmulator} from './device.mjs';
-import {defaultPorts, requireOwner, assertLease} from './ownership.mjs';
+import {defaultPorts, requireOwner, touchLease} from './ownership.mjs';
 
 const SKILL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ROOT = path.resolve(SKILL, '../../..');
@@ -12,9 +12,7 @@ const EVIDENCE = path.join(WORK, 'evidence');
 const APK = path.join(ROOT, 'app/build/outputs/apk/debug/app-debug.apk');
 const DEFAULTS = {avd: 'Galaxy_S24_FE_API_36', ...defaultPorts(ROOT), gpu: 'host'};
 const DISPLAYS = {
-  phone: {fontScale: '1.0', rotation: 0, size: null, density: null, note: 'S24 FE portrait, default text'},
-  'large-text': {fontScale: '1.3', rotation: 0, size: null, density: null, note: '130% system text'},
-  'max-text': {fontScale: '2.0', rotation: 0, size: null, density: null, note: '200% system text (Android maximum)'},
+  phone: {fontScale: '1.0', rotation: 0, size: null, density: null, note: 'S24 FE portrait at One UI default: 384dp wide (density 450), 100% text'},
   landscape: {fontScale: '1.0', rotation: 1, size: null, density: null, note: 'S24 FE rotated'},
   wide: {fontScale: '1.0', rotation: 0, size: '1600x2560', density: 320, note: '800dp-wide tablet/unfolded width'},
 };
@@ -41,8 +39,15 @@ const writeState = s => {
   fs.renameSync(temporary, STATE);
 };
 
+/** The other checkout whose APK this run installs, so its evidence check finds the screenshots; null for this checkout's own APK. */
+function apkCheckout(apk, root = ROOT) {
+  const parts = path.resolve(apk).split(path.join(path.sep, 'app', 'build', 'outputs', 'apk', path.sep));
+  const other = parts.length > 1 ? parts[0] : null;
+  return other && other !== path.resolve(root) && fs.existsSync(path.join(other, '.git')) ? other : null;
+}
+
 function evidenceDir(state) {
-  const dir = path.join(EVIDENCE, state?.runId ?? `adhoc-${new Date().toISOString().slice(0, 10)}`);
+  const dir = path.join(state?.appCheckout ? path.join(state.appCheckout, '.verify', 'evidence') : EVIDENCE, state?.runId ?? `adhoc-${new Date().toISOString().slice(0, 10)}`);
   fs.mkdirSync(dir, {recursive: true});
   return dir;
 }
@@ -60,11 +65,11 @@ function devtoolsPort(serial, args) {
 
 function target(args, {mutates}) {
   const state = readState();
-  if (mutates) { requireOwner(state, args); if (state) assertLease(state); }
+  if (mutates) { requireOwner(state, args); if (state) touchLease(state); }
   const serial = args.serial ?? state?.serial;
   if (!serial) throw new UserError('No emulator launched by rpmctl.', 'Run `rpmctl launch` (or pass --serial for a read-only look at another device).');
   const owned = !!state && state.serial === serial && devices().some(d => d.serial === serial && d.state === 'device') && ownsEmulator(state, serial);
-  if (mutates && !owned) throw new UserError(`${serial} was not launched by rpmctl (or its emulator has exited); refusing to change it.`,
+  if (mutates && !owned) throw new UserError(`${serial} was not launched or explicitly adopted by rpmctl (or its emulator has exited); refusing to change it.`,
     args.serial ? 'Mutating commands only run on the owned emulator. Drop --serial, or use doctor/ui/shot/logs/state for read-only checks.' : 'Run `rpmctl launch`.');
   if (!devices().some(d => d.serial === serial && d.state === 'device')) throw new UserError(`${serial} is not online in adb.`, owned ? 'Run `rpmctl doctor`; if the emulator hung, `rpmctl cleanup` then `rpmctl launch`.' : 'Connect the device and check `adb devices`.');
   // Each device gets its own DevTools port, so a read-only look at a phone can never redirect a command meant for the emulator.
@@ -101,4 +106,4 @@ function errorLines(serial, since) {
     || (pid && l.includes(` ${pid} `) && /\sE\s/.test(l) && !/eglCodecCommon|EGL_emulation|HostConnection|ashmem|MESA|Frame latency is negative|simple_file_enumerator|simple_index_file/.test(l))).slice(-120);
 }
 
-export {SKILL, ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, DISPLAYS, parseArgs, readState, writeState, evidenceDir, journal, devtoolsPort, target, viaShell, openLauncher, errorLines};
+export {SKILL, ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, DISPLAYS, parseArgs, readState, writeState, evidenceDir, apkCheckout, journal, devtoolsPort, target, viaShell, openLauncher, errorLines};

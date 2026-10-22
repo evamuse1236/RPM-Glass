@@ -1,17 +1,19 @@
 import {captureRenderKey} from './surface-refresh.mjs';
-import {pendingCard,wordsKeptCard,receiptCard,confirmCard,undoneCard,parkedCard,savedCard,openCard,card,withProblem} from './capture-cards.mjs';
+import {pendingCard,wordsKeptCard,receiptCard,confirmCard,undoneCard,parkedCard,savedCard,openCard,questionCard,card,withProblem} from './capture-cards.mjs';
 import {answerCard} from './capture-answers.mjs';
 import {historyView,contextView} from './capture-views.mjs';
 import {installSheet} from './capture-sheet.mjs';
-import {installCapturePresentation,createRevealTracker,enter} from './capture-presentation.mjs';
+import {installCapturePresentation,createRevealTracker,enter,keepChoicesInView} from './capture-presentation.mjs';
 import {installComposer,listeningCard} from './capture-composer.mjs';
-import {createSendIdentity,draftToKeep,cardKind} from './capture-session.mjs';
+import {installForming} from './capture-forming.mjs';
+import {createSendIdentity,draftToKeep,cardKind,canUndoChange} from './capture-session.mjs';
 import {el,button} from './capture-dom.mjs';
+import {createChipCard} from './capture-chip-card.mjs';
 import {userMessage} from './user-message.mjs';
 import {actionIdFor} from '../intent-v2/src/suggestions.mjs';
 
 const ACTIVE=new Set(['draft','review']);
-const WAITING=new Set(['words-kept','confirm','open']);
+const WAITING=new Set(['words-kept','confirm','open','question']);
 const AUTO_CLOSE_MS=6000;
 const SLOW_MS=8000;
 
@@ -27,6 +29,7 @@ const storage={
 export function mountCapture(platform){
  const $=id=>document.getElementById(id);
  const panel=$('panel'),content=$('content'),message=$('message');
+ new ResizeObserver(()=>keepChoicesInView(content)).observe(content);
  const s={state:null,busy:false,view:'chat',conversationId:storage.get('rpm-conversation'),focusedDraftId:null,historyLimit:30,
   showArchived:false,lastKey:null,request:null,failure:null,problem:null,listening:false,autoClose:null,countdown:null,slowTimer:null};
  const identity=createSendIdentity(),reveal=createRevealTracker(),seen=new Set();
@@ -48,7 +51,6 @@ export function mountCapture(platform){
  const captures=()=>page().captures??[];
  const latest=()=>captures()[0]??null;
  const answerDraft=()=>{const d=latest()?.draft;return d&&ACTIVE.has(d.status)&&d.question?d.id:null;};
- const focusForSend=()=>s.focusedDraftId??answerDraft();
 
  async function post(payload){
   const body={...payload,version:s.state.version,conversationId:conversation().id};
@@ -62,21 +64,21 @@ export function mountCapture(platform){
   cancelAutoClose();
   const words=payload.type==='message'?payload.text:null;
   if(words!==null){
-   const pending=identity.forText(words,focusForSend());
+   const pending=identity.forText(words,s.focusedDraftId);
    payload={...payload,messageId:pending.messageId,focusDraftId:pending.focusDraftId};
    seen.add(pending.messageId);
   }
   if(payload.messageId)seen.add(payload.messageId);
   const tapped=captures().find(c=>c.draft&&c.draft.id===(payload.draftId??payload.action?.draftId));
   if(tapped)seen.add(tapped.messageId);
-  const card=payload.type==='message'||payload.type==='intentRetry';
+  const card=['message','intentRetry','intentChoose'].includes(payload.type);
   s.busy=true;s.failure=null;s.problem=null;status('');
   if(card){
    s.view='chat';reveal.begin();
-   s.request={payload,phase:payload.type==='intentRetry'?'sorting':'saving',slow:false,text:words??captures().find(c=>c.messageId===payload.messageId)?.raw??''};
+   s.request={payload,phase:payload.type==='intentRetry'?'sorting':'saving',slow:false,text:words??payload.label??captures().find(c=>c.messageId===payload.messageId)?.raw??''};
    s.slowTimer=setTimeout(()=>{if(s.request){s.request.slow=true;render();}},SLOW_MS);
   }
-  if(words!==null&&message.value===words){composer.set('',{focus:false});rememberComposer('');}
+  if(words!==null&&message.value===words){forming.sent();composer.set('',{focus:false});rememberComposer('');}
   render();
   try{
    const data=await post(payload);
@@ -116,8 +118,9 @@ export function mountCapture(platform){
 
  const action=a=>{
   if(a.kind==='open'){s.focusedDraftId=a.draftId;}
-  return turn({type:'intentAction',action:a,actionId:actionIdFor(a)}).then(()=>{if(a.kind==='open')message.focus({preventScroll:true});});
+  return turn({type:'intentAction',action:a,actionId:actionIdFor(a)}).then(data=>{if(a.kind==='open')message.focus({preventScroll:true});return data;});
  };
+ const chips=createChipCard({act:a=>{s.keepScroll=true;return action(a);},refresh:()=>{render();s.keepScroll=false;},choices:()=>s.state?.choices});
  const on={
   retry:()=>turn({type:'intentRetry',messageId:latest()?.messageId}),
   edit:text=>{
@@ -128,14 +131,16 @@ export function mountCapture(platform){
   undo:d=>turn({type:'intentUndo',draftId:d.id,actionId:`undo:${d.id}:${d.revision}`}),
   keep:async d=>{if(await turn({type:'intentKeep',draftId:d.id,actionId:`keep:${d.id}:${d.revision}`}))scheduleAutoClose();},
   resume:d=>turn({type:'intentResume',draftId:d.id,actionId:`resume:${d.id}:${d.revision}`}),
+  choose:a=>{const id=actionIdFor(a);return turn({type:'intentChoose',action:a,actionId:id,messageId:id,label:latest()?.clarification?.choices.find(c=>c.id===a.choiceId)?.label??null});},
   keepNote:(c,note,keep)=>turn({type:'keepNote',messageId:c.messageId,sourceId:note.sourceId,keep,actionId:`note:${crypto.randomUUID()}`}),
   action,
+  chips,
   openPlanner:()=>platform.openPlans(),
  };
 
  function scheduleAutoClose(){
   cancelAutoClose();
-  if(message.value.trim())return;
+  if(message.value.trim()||chips.held(latest()?.draft?.id))return;
   const ends=Date.now()+AUTO_CLOSE_MS;
   const tick=()=>{const node=content.querySelector('.countdown'),left=Math.ceil((ends-Date.now())/1000);if(node)node.textContent=left>0?`Closing in ${left}s`:'';};
   tick();s.countdown=setInterval(tick,250);
@@ -161,16 +166,17 @@ export function mountCapture(platform){
   return node;
  }
  function captureCard(c,kind){
-  const canUndo=!!c.draft?.receipt?.undoId&&c.draft.receipt.undoId===s.state.undoId;
+  const canUndo=canUndoChange(c.draft,s.state.undoId);
   const aiEnabled=!!s.state.aiEnabled;
   const retry={...on,retry:()=>turn({type:'intentRetry',messageId:c.messageId})};
   switch(kind){
    case 'pending':case 'words-kept':return wordsKeptCard({raw:c.raw,error:c.lastError?userMessage(c.lastError):null,aiEnabled},retry);
    case 'confirm':return confirmCard(c,{canUndo,on});
-   case 'receipt':return receiptCard(c,{canUndo,on});
+   case 'receipt':return receiptCard(c,{canUndo,on,undoId:s.state.undoId});
    case 'undone':return undoneCard(c,on);
    case 'parked':return parkedCard(c,on);
    case 'open':return openCard(c,on);
+   case 'question':return questionCard(c,on);
    case 'answer':return answerCard(c,{platform,on});
    default:return savedCard(c,on);
   }
@@ -210,17 +216,21 @@ export function mountCapture(platform){
   const c=conversation();
   s.conversationId=c.id;storage.set('rpm-conversation',c.id);
   s.lastKey=captureRenderKey({...s.state,intent:page()});
-  const nodes=viewCards();
+  const nodes=viewCards(),top=content.scrollTop;
   content.replaceChildren(...nodes);
   if(s.problem&&!content.querySelector('.problem'))status(s.problem,true);
-  content.scrollTop=0;
+  content.scrollTop=s.keepScroll?top:0;
+  keepChoicesInView(content);
   const kind=s.listening?'listening':s.request?'pending':s.failure?'error':nodes[0]?.classList[2]??'idle';
   panel.dataset.view=s.view;panel.dataset.busy=String(s.busy);panel.dataset.state=kind;
   content.setAttribute('aria-busy',String(s.busy));
-  message.placeholder=answerDraft()?'Or answer in your own words':s.focusedDraftId?'Tell me what to change':'Capture a thought';
+  message.placeholder=answerDraft()||latest()?.clarification?.open?'Or answer in your own words':s.focusedDraftId?'Tell me what to change':'Capture a thought';
   for(const b of content.querySelectorAll('button'))if(!b.closest('.view-head'))b.disabled=s.busy;
   $('send').disabled=s.busy;$('dictate').disabled=s.busy||s.listening;
+  formNow();
  }
+ const replying=()=>!!(answerDraft()||latest()?.clarification?.open||s.focusedDraftId);
+ const formNow=()=>forming.update(message.value,{enabled:!!s.state?.aiEnabled,visible:!!s.state&&s.view==='chat'&&!s.listening&&!replying()});
  function settle(cardRequest){
   if(!cardRequest||s.view!=='chat')return;
   const node=content.querySelector('[data-reply-key]');
@@ -243,12 +253,13 @@ export function mountCapture(platform){
   }catch(error){s.listening=false;render();status(userMessage(error),true);}
  }
 
+ const forming=installForming({host:$('forming'),platform,conversationId:()=>conversation().id});
  installCapturePresentation({action:platform.action});
  const send=text=>{setView('chat');return turn({type:'message',text});};
  const sheet=installSheet({platform,send,setView,prefill:text=>{setView('chat');if(!message.value.trim())composer.set(text);else message.focus({preventScroll:true});}});
  const composer=installComposer({
   onSubmit:text=>{if(!s.busy)send(text);},
-  onInput:text=>{rememberComposer(text);if(s.state&&!s.busy&&$('status').textContent&&!$('status').classList.contains('error'))status('');},
+  onInput:text=>{rememberComposer(text);formNow();if(s.state&&!s.busy&&$('status').textContent&&!$('status').classList.contains('error'))status('');},
   onVoice:voice,
  });
  window.rpmStartVoice=(tries=25)=>{setView('chat');if((s.busy||!s.state)&&tries>0){setTimeout(()=>window.rpmStartVoice(tries-1),200);return;}voice();};
@@ -256,6 +267,7 @@ export function mountCapture(platform){
  window.addEventListener('rpm-calendar-ready',()=>{if(s.state&&!s.busy&&s.view==='chat'&&content.querySelector('.answer'))render();});
  window.rpmHandleBack=()=>{
   if(sheet.close())return true;
+  if(chips.closeTray())return true;
   if(s.view!=='chat'){setView('chat');return true;}
   return false;
  };

@@ -1,0 +1,270 @@
+[
+  {
+    "id": "defaults-before-water-window",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T02:29:59.000Z",
+    "body": {},
+    "busy": [],
+    "expected": {"top": null,
+      "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T02:30:00.000Z", "pending": false},
+      "meal": null,
+      "mealPlan": [{"slot": "breakfast", "at": "08:30", "on": true, "name": "Breakfast"}, {"slot": "lunch", "at": "13:00", "on": true, "name": "Lunch"}, {"slot": "dinner", "at": "20:00", "on": true, "name": "Dinner"}]
+    }
+  },
+  {
+    "id": "breakfast-start-is-inclusive",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T03:00:00.000Z",
+    "body": {},
+    "busy": [],
+    "expected": {"top": "water", "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T02:30:00.000Z", "pending": true}, "meal": "breakfast"}
+  },
+  {
+    "id": "breakfast-last-second-in-window",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T04:59:59.000Z",
+    "body": {},
+    "busy": [],
+    "expected": {"top": "water", "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T02:30:00.000Z", "pending": true}, "meal": "breakfast"}
+  },
+  {
+    "id": "breakfast-two-hour-end-is-exclusive",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T05:00:00.000Z",
+    "body": {},
+    "busy": [],
+    "expected": {"top": "water", "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T02:30:00.000Z", "pending": true}, "meal": null}
+  },
+  {
+    "id": "custom-water-window-clamps-an-early-glass-and-lunch-waits",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T07:29:59.000Z",
+    "body": {"water": {"settings": {"from": "13:00", "until": "14:00", "intervalMinutes": 30}, "glasses": ["2026-10-18T05:30:00.000Z"]}},
+    "busy": [],
+    "expected": {"top": null, "water": {"count": 1, "goal": 8, "nextAt": "2026-10-18T07:30:00.000Z", "pending": false}, "meal": null}
+  },
+  {
+    "id": "disabled-breakfast-has-no-placeholder",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T03:30:00.000Z",
+    "body": {"mealPlan": {"slots": [{"slot": "breakfast", "at": "08:30", "on": false}]}},
+    "busy": [],
+    "expected": {"top": "water",
+      "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T02:30:00.000Z", "pending": true},
+      "meal": null,
+      "mealPlan": [{"slot": "breakfast", "at": "08:30", "on": false, "name": "Breakfast"}]
+    }
+  },
+  {
+    "id": "lunch-moved-earlier",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T05:45:00.000Z",
+    "body": {"mealPlan": {"slots": [{"slot": "lunch", "at": "11:00", "on": true}]}},
+    "busy": [],
+    "expected": {"top": "water", "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T02:30:00.000Z", "pending": true}, "meal": "lunch"}
+  },
+  {
+    "id": "breakfast-moved-later",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T04:30:00.000Z",
+    "body": {"mealPlan": {"slots": [{"slot": "breakfast", "at": "11:00", "on": true}]}},
+    "busy": [],
+    "expected": {"top": "water", "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T02:30:00.000Z", "pending": true}, "meal": null}
+  },
+  {
+    "id": "named-snack-trims-name-and-defaults-on",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T10:30:00.000Z",
+    "body": {"mealPlan": {"slots": [{"slot": "snack", "at": "16:00", "name": "  Tea and fruit  "}]}},
+    "busy": [],
+    "expected": {"top": "water",
+      "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T02:30:00.000Z", "pending": true},
+      "meal": "snack",
+      "mealPlan": [{"slot": "snack", "at": "16:00", "on": true, "name": "Tea and fruit"}]
+    }
+  },
+  {
+    "id": "today-log-suppresses-meal-and-water-counts-today-only",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T03:30:00.000Z",
+    "body": {
+      "water": {"glasses": ["2026-10-17T03:00:00.000Z", "2026-10-18T03:00:00.000Z"]},
+      "meals": [{"id": "today", "name": "Poha", "slot": "breakfast", "at": "2026-10-18T02:45:00.000Z"}]
+    },
+    "busy": [],
+    "expected": {"top": null, "water": {"count": 1, "goal": 8, "nextAt": "2026-10-18T04:30:00.000Z", "pending": false}, "meal": null}
+  },
+  {
+    "id": "yesterday-log-does-not-suppress-todays-meal",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T03:30:00.000Z",
+    "body": {
+      "water": {"glasses": ["2026-10-17T03:00:00.000Z"]},
+      "meals": [{"id": "yesterday", "name": "Poha", "slot": "breakfast", "at": "2026-10-17T02:45:00.000Z"}]
+    },
+    "busy": [],
+    "expected": {"top": "water", "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T02:30:00.000Z", "pending": true}, "meal": "breakfast"}
+  },
+  {
+    "id": "overlapping-meals-select-earliest-planned-time",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T07:45:00.000Z",
+    "body": {"mealPlan": {"slots": [{"slot": "snack", "at": "12:45", "on": true}, {"slot": "breakfast", "at": "13:00", "on": true}, {"slot": "lunch", "at": "12:00", "on": true}]}},
+    "busy": [],
+    "expected": {"top": "water",
+      "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T02:30:00.000Z", "pending": true},
+      "meal": "lunch",
+      "mealPlan": [{"slot": "lunch", "at": "12:00", "on": true, "name": "Lunch"}, {"slot": "snack", "at": "12:45", "on": true, "name": "Snack"}, {"slot": "breakfast", "at": "13:00", "on": true, "name": "Breakfast"}]
+    }
+  },
+  {
+    "id": "same-time-meals-use-canonical-slot-order",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T07:30:00.000Z",
+    "body": {"mealPlan": {"slots": [{"slot": "dinner", "at": "13:00", "on": true}, {"slot": "snack", "at": "13:00", "on": true}, {"slot": "lunch", "at": "13:00", "on": true}, {"slot": "breakfast", "at": "13:00", "on": true}]}},
+    "busy": [],
+    "expected": {"top": "water", "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T02:30:00.000Z", "pending": true}, "meal": "breakfast"}
+  },
+  {
+    "id": "explicit-empty-meal-plan-stays-empty",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T03:30:00.000Z",
+    "body": {"mealPlan": {"slots": []}},
+    "busy": [],
+    "expected": {"top": "water", "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T02:30:00.000Z", "pending": true}, "meal": null, "mealPlan": []}
+  },
+  {
+    "id": "water-window-start-is-due",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T02:30:00.000Z",
+    "body": {},
+    "busy": [],
+    "expected": {"top": "water", "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T02:30:00.000Z", "pending": true}, "meal": null}
+  },
+  {
+    "id": "water-one-second-before-next-due",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T04:29:59.000Z",
+    "body": {"water": {"settings": {"intervalMinutes": 30}, "glasses": ["2026-10-18T04:00:00.000Z"]}},
+    "busy": [],
+    "expected": {"top": "meal", "water": {"count": 1, "goal": 8, "nextAt": "2026-10-18T04:30:00.000Z", "pending": false}, "meal": "breakfast"}
+  },
+  {
+    "id": "water-next-due-is-inclusive",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T04:30:00.000Z",
+    "body": {"water": {"glasses": ["2026-10-18T03:00:00.000Z"]}},
+    "busy": [],
+    "expected": {"top": "water", "water": {"count": 1, "goal": 8, "nextAt": "2026-10-18T04:30:00.000Z", "pending": true}, "meal": "breakfast"}
+  },
+  {
+    "id": "water-candidate-one-second-before-window-end",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T16:29:59.000Z",
+    "body": {"water": {"glasses": ["2026-10-18T14:59:59.000Z"]}},
+    "busy": [],
+    "expected": {"top": "water", "water": {"count": 1, "goal": 8, "nextAt": "2026-10-18T16:29:59.000Z", "pending": true}, "meal": "dinner"}
+  },
+  {
+    "id": "water-candidate-at-window-end-is-excluded",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T16:30:00.000Z",
+    "body": {"water": {"glasses": ["2026-10-18T15:00:00.000Z"]}},
+    "busy": [],
+    "expected": {"top": null, "water": {"count": 1, "goal": 8, "nextAt": null, "pending": false}, "meal": null}
+  },
+  {
+    "id": "past-window-keeps-an-earlier-unfulfilled-water-due",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T16:31:00.000Z",
+    "body": {},
+    "busy": [],
+    "expected": {"top": "water", "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T02:30:00.000Z", "pending": true}, "meal": null}
+  },
+  {
+    "id": "snooze-holds-an-already-due-glass",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T03:30:00.000Z",
+    "body": {"water": {"snoozedUntil": "2026-10-18T03:45:00.000Z"}},
+    "busy": [],
+    "expected": {"top": "meal", "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T03:45:00.000Z", "pending": false}, "meal": "breakfast"}
+  },
+  {
+    "id": "snooze-expiry-is-due",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T03:45:00.000Z",
+    "body": {"water": {"snoozedUntil": "2026-10-18T03:45:00.000Z"}},
+    "busy": [],
+    "expected": {"top": "water", "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T03:45:00.000Z", "pending": true}, "meal": "breakfast"}
+  },
+  {
+    "id": "snooze-cannot-pull-the-next-glass-earlier",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T04:15:00.000Z",
+    "body": {"water": {"glasses": ["2026-10-18T03:00:00.000Z"], "snoozedUntil": "2026-10-18T04:00:00.000Z"}},
+    "busy": [],
+    "expected": {"top": "meal", "water": {"count": 1, "goal": 8, "nextAt": "2026-10-18T04:30:00.000Z", "pending": false}, "meal": "breakfast"}
+  },
+  {
+    "id": "busy-windows-chain-even-in-reverse-order",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T04:15:00.000Z",
+    "body": {},
+    "busy": [{"title": "Second", "start": "2026-10-18T03:30:00.000Z", "end": "2026-10-18T04:30:00.000Z"}, {"title": "First", "start": "2026-10-18T02:30:00.000Z", "end": "2026-10-18T03:30:00.000Z"}],
+    "expected": {"top": "meal", "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T04:30:00.000Z", "pending": false}, "meal": "breakfast"}
+  },
+  {
+    "id": "busy-endpoint-releases-the-glass",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T04:30:00.000Z",
+    "body": {},
+    "busy": [{"title": "Second", "start": "2026-10-18T03:30:00.000Z", "end": "2026-10-18T04:30:00.000Z"}, {"title": "First", "start": "2026-10-18T02:30:00.000Z", "end": "2026-10-18T03:30:00.000Z"}],
+    "expected": {"top": "water", "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T04:30:00.000Z", "pending": true}, "meal": "breakfast"}
+  },
+  {
+    "id": "currently-busy-pauses-an-earlier-due-glass",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T03:30:00.000Z",
+    "body": {},
+    "busy": [{"title": "Meeting", "start": "2026-10-18T03:30:00.000Z", "end": "2026-10-18T04:30:00.000Z"}],
+    "expected": {"top": "meal", "water": {"count": 0, "goal": 8, "nextAt": "2026-10-18T02:30:00.000Z", "pending": false}, "meal": "breakfast"}
+  },
+  {
+    "id": "goal-reached-stops-water",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T04:15:00.000Z",
+    "body": {"water": {"settings": {"goal": 2}, "glasses": ["2026-10-18T04:00:00.000Z", "2026-10-18T03:00:00.000Z"]}},
+    "busy": [],
+    "expected": {"top": "meal", "water": {"count": 2, "goal": 2, "nextAt": null, "pending": false}, "meal": "breakfast"}
+  },
+  {
+    "id": "reminders-off-does-not-change-pure-water-status",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-18T04:00:00.000Z",
+    "body": {"water": {"settings": {"reminders": false}, "glasses": ["2026-10-18T02:30:00.000Z"]}},
+    "busy": [],
+    "expected": {"top": "water", "water": {"count": 1, "goal": 8, "nextAt": "2026-10-18T04:00:00.000Z", "pending": true}, "meal": "breakfast"}
+  },
+  {
+    "id": "kolkata-logs-use-local-day-across-utc-midnight",
+    "timezone": "Asia/Kolkata",
+    "now": "2026-10-19T03:30:00.000Z",
+    "body": {
+      "water": {"glasses": ["2026-10-18T18:00:00.000Z", "2026-10-18T20:00:00.000Z"]},
+      "meals": [{"id": "local-today", "name": "Early meal", "slot": "breakfast", "at": "2026-10-18T20:00:00.000Z"}]
+    },
+    "busy": [],
+    "expected": {"top": "water", "water": {"count": 1, "goal": 8, "nextAt": "2026-10-19T02:30:00.000Z", "pending": true}, "meal": null}
+  },
+  {
+    "id": "los-angeles-keeps-local-yesterday-out-of-todays-logs",
+    "timezone": "America/Los_Angeles",
+    "now": "2026-10-19T04:00:00.000Z",
+    "body": {
+      "water": {"glasses": ["2026-10-18T06:00:00.000Z", "2026-10-19T02:00:00.000Z"]},
+      "meals": [{"id": "local-yesterday", "name": "Dinner", "slot": "dinner", "at": "2026-10-18T04:00:00.000Z"}]
+    },
+    "busy": [],
+    "expected": {"top": "water", "water": {"count": 1, "goal": 8, "nextAt": "2026-10-19T03:30:00.000Z", "pending": true}, "meal": "dinner"}
+  }
+]

@@ -1,10 +1,13 @@
 /** Integration with the inspected RPM-Glass changePlanner/undo APIs.
  * Inject the real functions; no duplicate planner database or date parser.
  */
+import {prepareCreates} from '../src/draft-actions.mjs';
 import {intentState} from '../src/repository.mjs';
 import {checkGuards} from '../src/context.mjs';
-const collections={task:'tasks',block:'blocks',project:'projects',goal:'goals',area:'areas'};
+import {BODY_INTENTS} from '../src/body-intent.mjs';
+const collections={task:'tasks',block:'blocks',project:'projects',goal:'goals',area:'areas',...Object.fromEntries(Object.entries(BODY_INTENTS).map(([entity,body])=>[entity,body.collection]))};
 export function compilePlannerOperations(draft,approval){
+ prepareCreates(draft);
  const byId=new Map(draft.operations.map(o=>[o.opId,o])),ordered=[],visiting=new Set(),done=new Set();
  function visit(op){if(done.has(op.opId))return;if(visiting.has(op.opId))throw new Error('Cyclic plan references');visiting.add(op.opId);
   for(const f of op.fields)if(f.op==='set'&&['blockId','projectId','goalId','areaId'].includes(f.name)&&String(f.value).startsWith('$')){const parent=byId.get(f.value.slice(1));if(!parent)throw new Error('Missing referenced operation');visit(parent);}
@@ -40,6 +43,8 @@ export function createRpmPlanAdapter({changePlanner,readCalendar,undo,maxTimeDra
    return {status:'review',review:{token:working.pending.scheduleReview,question:working.pending.question,choices:working.pending.choices??[]}};
   }
   if(!result.undoId)throw new Error('No canonical commit receipt returned');
+  // The adapter's temporary approval is never a user proposal to restore with Undo.
+  if(acceptReview&&working.undo?.before)working.undo.before.pending=null;
   // Retain genuine original words, not the adapter's approval protocol, as task raw text.
   for(const [i,compiled] of operations.entries())if(compiled.type==='create'&&compiled.collection==='tasks'){
    const changed=result.plannerChanges?.[i],entry=working.entries.find(e=>e.id===changed?.id);
@@ -48,11 +53,12 @@ export function createRpmPlanAdapter({changePlanner,readCalendar,undo,maxTimeDra
   // Receipt snapshots must also show genuine source words and estimate provenance.
   for(const r of result.plannerReceipts??[]){const e=working.entries.find(e=>e.id===r.entry?.id);if(e&&r.entry){r.entry.raw=e.raw;r.entry.durationSource=e.durationSource;}}
   for(const key of ['entries','planner','undo'])data[key]=working[key];
-  return {status:'committed',receipt:{undoId:result.undoId,entryIds:result.entryIds??[],changes:result.plannerChanges??[],plannerReceipts:result.plannerReceipts??[],savedAt:approval.at,delivery:'Check native phone status; not a delivery confirmation'}};
+  return {status:'committed',receipt:{undoId:result.undoId,entryIds:result.entryIds??[],changes:(result.plannerChanges??[]).map((change,index)=>({...change,opId:operations[index]?.ref??null})),plannerReceipts:result.plannerReceipts??[],savedAt:approval.at,delivery:'Check native phone status; not a delivery confirmation'}};
  }
  async function undoPlan({data,receipt}){
   if(typeof undo!=='function')throw new Error('Inject the existing companion-tools undo function');
-  if(data.undo?.id!==receipt.undoId)throw new Error('A newer change exists; inspect current plans before undoing');
+  let record=data.undo;while(record&&record.id!==receipt.undoId)record=record.previous;
+  if(!record)throw new Error('A newer change exists; inspect current plans before undoing');
   // Legacy snapshots may restore unrelated top-level data. Keep this pilot's audit ledger.
   const intent=data.intentV2;const result=undo(data,receipt.undoId);data.intentV2=intent;return {text:result.text};
  }

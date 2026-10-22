@@ -7,7 +7,7 @@ import {field,operation,turn} from '../intent-v2/test/helpers.mjs';
 import {PROMPT_VERSION} from '../intent-v2/prompts/capture-agent.mjs';
 import {HAIKU_MODEL} from '../intent-v2/src/model-policy.mjs';
 import {changePlanner} from './planner-tools.mjs';
-import {editPlan} from './planner-state.mjs';
+import {editPlan,planner} from './planner-state.mjs';
 import {createIntentService,intentViewFromData} from './intent-service.mjs';
 import {createCaptureAgent} from './capture-agent.mjs';
 import {createTraceStore} from './capture-trace.mjs';
@@ -26,7 +26,7 @@ const conversationOf=async backend=>(await backend.load()).conversations[0].id;
 const withTask=(fields)=>{const seed=freshStore();editPlan(seed,{type:'saveTask',fields:{title:'Run',...fields}},NOW);return seed;};
 
 test('the exact words are saved before the model is asked anything',async()=>{
- const raw='Call the bank at 10:30 am';let seenAtCall=null;
+ const raw='Call the bank at 10:30 am about the joint account';let seenAtCall=null;
  const s=agentFor(async()=>{const data=await s.backend.load();seenAtCall={raw:Object.values(data.intentV2.captures)[0]?.raw,entries:data.entries.length};return turn(raw,[operation([field('title','Call the bank','Call the bank'),field('time','10:30 am','10:30 am')])]);});
  await s.agent.capture({messageId:'m-bank',conversationId:await conversationOf(s.backend),text:raw});
  assert.deepEqual(seenAtCall,{raw,entries:0});
@@ -83,7 +83,7 @@ test('a delete moves the task to Trash and asks for Keep or Undo',async()=>{
 });
 
 test('a model failure keeps the words for Retry, and Retry applies them',async()=>{
- let fail=true;const raw='Buy printer ink';
+ let fail=true;const raw='Buy printer ink, the waterproof kind';
  const s=agentFor(async()=>{if(fail){const e=new Error('Connection failed');e.code='TRANSPORT_ERROR';throw e;}return turn(raw,[operation([field('title','Buy printer ink','Buy printer ink')])]);});
  const r=await s.agent.capture({messageId:'m-ink',conversationId:await conversationOf(s.backend),text:raw});
  assert.equal(r.status,'captured');assert.equal(r.applied,null);
@@ -96,7 +96,7 @@ test('a model failure keeps the words for Retry, and Retry applies them',async()
 });
 
 test('the trace records words, model, prompt version, latency, actions and what applied, and never a key',async()=>{
- const raw='Call the bank at 10:30 am';
+ const raw='Call the bank at 10:30 am about the joint account';
  const s=agentFor(async(input,{route,run})=>{Object.assign(run,{provider:'Anthropic',inputTokens:1200,outputTokens:90});return turn(raw,[operation([field('title','Call the bank','Call the bank'),field('time','10:30 am','10:30 am')])]);});
  s.service.harness.modelPolicy=()=>({model:HAIKU_MODEL,effort:'none',timeoutMs:1000,reason:'capture'});
  await s.agent.capture({messageId:'m-trace',conversationId:await conversationOf(s.backend),text:raw});
@@ -118,16 +118,20 @@ test('a question gets an answer card and changes nothing',async()=>{
  assert.equal(s.traces.get('m-q').applied.status,'answered');
 });
 
-test('an unclear clock waits for its answer, then applies',async()=>{
- const raw='Call Alex at 7';
- const s=agentFor(async()=>turn(raw,[operation([field('title','Call Alex','Call Alex'),field('time',null,null,'stated','unknown')])],{question:{opId:'task1',field:'time',prompt:'Morning or evening?',options:[{label:'7 AM',value:'7 am'},{label:'7 PM',value:'7 pm'}]}}));
+test('an unknown create time saves immediately with missing data, its question as a note and Undo',async()=>{
+ const raw='Call Alex at tea time';
+ const s=agentFor(async()=>turn(raw,[operation([field('title','Call Alex','Call Alex'),field('time',null,null,'stated','unknown')])],{question:{opId:'task1',field:'time',prompt:'Morning or evening?',options:[]}}));
  const conversationId=await conversationOf(s.backend);
  const r=await s.agent.capture({messageId:'m-alex',conversationId,text:raw});
- assert.equal(r.applied.status,'needs-answer');assert.equal((await s.backend.load()).entries.length,0);
- const card=await latest(s.backend),answer=card.draft.actions.find(a=>a.action.kind==='answer'&&a.action.value==='7 pm');
- await s.agent.act(answer.action,{actionId:'answer-1'});
- const data=await s.backend.load();assert.equal(data.entries.length,1);assert.equal(new Date(data.entries[0].planned).getUTCHours(),13);
- assert.equal(s.traces.get('m-alex').applied.status,'applied');
+ assert.equal(r.applied.status,'applied');
+ const data=await s.backend.load(),card=await latest(s.backend);
+ assert.equal(data.entries.length,1);assert.equal(data.entries[0].planned,null);assert.equal(data.entries[0].raw,raw);
+ assert.deepEqual(card.draft.missing,[{opId:'task1',field:'time'}]);
+ assert.equal(card.draft.question,null);assert.ok(card.draft.notes.includes('Morning or evening?'));
+ assert.ok(!card.draft.operations[0].fields.some(f=>f.name==='time'));
+ await s.agent.undo({draftId:r.draftId,conversationId,actionId:'undo-missing'});
+ assert.equal((await s.backend.load()).entries.length,0);
+ assert.equal((await s.backend.load()).intentV2.captures['m-alex'].raw,raw);
 });
 
 test('an edit of an earlier capture can target the task it made, even when no word matches',async()=>{
@@ -139,4 +143,66 @@ test('an edit of an earlier capture can target the task it made, even when no wo
  assert.equal(r.applied.status,'applied');
  assert.equal(seen.snapshot.recentlyCaptured[0].id,String(id));assert.equal(seen.snapshot.recentlyCaptured[0].fromWords,'call the bank at 10:30');
  assert.equal(new Date((await s.backend.load()).entries[0].planned).getUTCHours(),11);
+});
+
+test('one ramble creates linked kinds, reminders and alarms with one Undo',async()=>{
+ const raw='Create a Project called Studio launch and a Life area called Creative work. My Result is First episode published, because I want to share my craft. Put it in Studio launch. Under it, remind me to Write outline tomorrow at 10am and set an alarm to Record intro tomorrow at 11am.';
+ const output=()=>turn(raw,[
+  operation([field('title','Write outline','Write outline'),field('blockId','$result',null,'suggested'),field('time','tomorrow at 10am','tomorrow at 10am'),field('alert','reminder','remind me')],{opId:'outline',sourceId:'s3'}),
+  operation([field('title','Record intro','Record intro'),field('blockId','$result',null,'suggested'),field('time','tomorrow at 11am','tomorrow at 11am'),field('alert','alarm','alarm')],{opId:'record',sourceId:'s3'}),
+  operation([field('title','First episode published','First episode published'),field('purpose','I want to share my craft','I want to share my craft'),field('projectId','$studio',null,'suggested')],{opId:'result',entity:'block',sourceId:'s1'}),
+  operation([field('title','Studio launch','Studio launch')],{opId:'studio',entity:'project'}),
+  operation([field('title','Creative work','Creative work')],{opId:'creative',entity:'area'}),
+ ]);
+ const s=agentFor(async()=>output()),conversationId=await conversationOf(s.backend);
+ const before=await s.backend.load();
+ const result=await s.agent.capture({messageId:'ramble',conversationId,text:raw});
+ assert.equal(result.applied.status,'applied');assert.equal(result.applied.needsConfirm,false);
+ const data=await s.backend.load(),card=await latest(s.backend);
+ assert.equal(card.draft.receipt.changes.length,5);
+ const project=data.planner.projects.find(p=>p.title==='Studio launch'),block=data.planner.blocks.find(b=>b.title==='First episode published');
+ assert.ok(project);assert.equal(block.projectId,project.id);assert.equal(block.purpose,'I want to share my craft');
+ assert.equal(data.planner.areas.find(a=>a.title==='Creative work').title,'Creative work');
+ assert.deepEqual(data.entries.map(e=>[e.title,e.blockId,e.alertIntent.type,e.raw]),[
+  ['Write outline',block.id,'reminder',raw],['Record intro',block.id,'alarm',raw],
+ ]);
+ assert.equal(data.entries[0].planned,'2026-09-17T04:30:00.000Z');assert.equal(data.entries[1].planned,'2026-09-17T05:30:00.000Z');
+ assert.deepEqual(card.draft.missing,[]);
+ await s.agent.undo({draftId:result.draftId,conversationId,actionId:'undo-ramble'});
+ const after=await s.backend.load();
+ assert.deepEqual(after.entries,before.entries);
+ for(const collection of ['blocks','projects','areas'])assert.deepEqual(planner(after)[collection],planner(before)[collection]);
+ assert.equal(after.intentV2.captures.ramble.raw,raw);
+});
+
+test('an unreadable create time saves undated with its review notice and one Undo',async()=>{
+ const raw='Call Alex at tea time',s=agentFor(async()=>turn(raw,[operation([field('title','Call Alex','Call Alex'),field('time','tea time','tea time')])]));
+ const conversationId=await conversationOf(s.backend);
+ const result=await s.agent.capture({messageId:'review-time',conversationId,text:raw});
+ assert.equal(result.applied.status,'applied');
+ const data=await s.backend.load(),card=await latest(s.backend);
+ assert.equal(data.entries[0].planned,null);assert.equal(data.entries[0].raw,raw);
+ assert.deepEqual(card.draft.missing,[{opId:'task1',field:'time'}]);
+ assert.equal(card.draft.schedulePreview.items[0].status,'review');
+ assert.ok(card.draft.notes.includes(card.draft.schedulePreview.items[0].reason));assert.ok(card.draft.applied.warning);
+ await s.agent.undo({draftId:result.draftId,conversationId,actionId:'undo-review-time'});
+ assert.equal((await s.backend.load()).entries.length,0);
+});
+
+test('a follow-up provenance concern saves a create with a notice and Undo',async()=>{
+ const raw='Make it into a project',s=agentFor(async()=>turn(raw,[operation([field('title','Freelance studio',raw)],{entity:'project'})]));
+ const conversationId=await conversationOf(s.backend);
+ const result=await s.agent.capture({messageId:'follow-notice',conversationId,text:raw});
+ assert.equal(result.applied.status,'applied');assert.equal(result.calls,1);
+ const card=await latest(s.backend);assert.match(card.draft.notes.join(' '),/title.*original words/i);
+ assert.equal((await s.backend.load()).planner.projects[0].title,'Freelance studio');
+ await s.agent.undo({draftId:result.draftId,conversationId,actionId:'undo-follow-notice'});
+ assert.equal(planner(await s.backend.load()).projects.length,0);
+});
+
+test('a time review on a saved task still blocks and leaves saved data untouched',async()=>{
+ const seed=withTask({planned:'2026-09-17T07:30:00.000Z'}),raw='Move Run to tea time';
+ const s=agentFor(async()=>turn(raw,[operation([field('time','tea time','tea time')],{kind:'update',targetId:'1'})]),{seed});
+ const result=await s.agent.capture({messageId:'saved-review',conversationId:await conversationOf(s.backend),text:raw});
+ assert.equal(result.applied.status,'needs-time');assert.deepEqual((await s.backend.load()).entries,seed.entries);
 });

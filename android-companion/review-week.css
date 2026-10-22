@@ -1,47 +1,47 @@
 /* Buttons */
 .wr-btn-filled,.wr-btn-tonal,.wr-btn-text{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:var(--shape-full);font:var(--label-large);text-align:center}
 .wr-btn-filled{min-height:48px;padding:8px 24px;background-color:var(--primary);color:var(--on-primary);font-weight:600;transition:background-color var(--dur-medium) var(--ease-standard),color var(--dur-medium) var(--ease-standard)}
-.wr-btn-tonal{min-height:40px;padding:6px 20px;background-color:var(--secondary-container);color:var(--on-secondary-container)}
-.wr-btn-text{min-height:40px;padding:6px 12px;background-color:transparent;color:var(--primary)}
+.wr-btn-tonal{min-height:40px;padding:8px 20px;background-color:var(--secondary-container);color:var(--on-secondary-container)}
+.wr-btn-text{min-height:40px;padding:8px 12px;background-color:transparent;color:var(--primary)}
 .wr-btn-tonal::after,.wr-btn-text::after,.wr-new .wr-btn-filled::after{content:"";position:absolute;inset:-4px 0}
-.wr-btn-filled .ms,.wr-btn-tonal .ms,.wr-btn-text .ms{font-size:18px}
+.wr-btn-filled .ms,.wr-btn-tonal .ms,.wr-btn-text .ms{font-size:20px}
 .wr-btn-tonal .ms{margin-left:-4px}
 
 /* Step 4: the week at a glance (strip, one summary line that opens per Result), what to look at, then Result cards */
-.wr-summary{border:1px solid var(--outline-variant);border-radius:20px;padding:6px 16px 4px}
+.wr-summary{border:1px solid var(--outline-variant);border-radius:20px;padding:8px 16px 4px}
 .wr-summary-line{font:var(--body-medium);color:var(--on-surface-variant);padding:4px 0 12px}
 .wr-summary-note{font:var(--body-small);color:var(--on-surface-variant);padding:0 0 12px}
 .wr-summary-warn{color:var(--error)}
 /* Day strip: today to Sunday, Calendar-style day buttons; marks are words ("Due", "Clash"), a tap shows the day */
-.wr-strip{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;margin:6px -10px 0}
-.wr .wr-strip-day{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;padding:6px 0 6px;border:0;border-radius:var(--shape-md);background-color:transparent;color:var(--on-surface);font:inherit}
+.wr-strip{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;margin:8px -12px 0}
+.wr .wr-strip-day{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;padding:8px 0 8px;border:0;border-radius:var(--shape-md);background-color:transparent;color:var(--on-surface);font:inherit}
 .wr-strip-letter{font:var(--label-small);color:var(--on-surface-variant)}
 .wr-strip-num{width:28px;height:28px;display:grid;place-items:center;border-radius:50%;font:var(--title-small)}
 .wr-strip-day.today .wr-strip-num{background:var(--primary);color:var(--on-primary)}
 .wr .wr-strip-day.sel{background-color:var(--secondary-container);color:var(--on-secondary-container)}
-.wr-strip-must,.wr-strip-mark{display:flex;align-items:center;gap:3px;min-height:16px;font:var(--label-small);white-space:nowrap}
+.wr-strip-must,.wr-strip-mark{display:flex;align-items:center;gap:4px;min-height:16px;font:var(--label-small);white-space:nowrap}
 .wr-strip-must{gap:0}
 .wr-strip-must .ms{font-size:12px;line-height:16px}
 .wr-strip-mark{color:var(--on-surface-variant);font-weight:500}
 .wr-strip-mark.clash{color:var(--error)}
-.wr-dot{width:6px;height:6px;border-radius:50%;background:var(--error)}
+.wr-dot{width:8px;height:8px;border-radius:50%;background:var(--error)}
 .wr .ms.must{color:var(--must)}
 .wr .wr-strip-day.over{background-color:var(--error-container);color:var(--on-error-container)}
 .wr-strip-day.over .wr-strip-mark,.wr-strip-day.over .wr-strip-letter{color:var(--on-error-container)}
-.wr-strip-note{font:var(--body-small);color:var(--on-surface-variant);padding:4px 0 10px;text-wrap:pretty}
-.wr-strip-note .ms{font-size:14px;vertical-align:-2px}
+.wr-strip-note{font:var(--body-small);color:var(--on-surface-variant);padding:4px 0 12px;text-wrap:pretty}
+.wr-strip-note .ms{font-size:16px;vertical-align:-2px}
 /* One day from the strip */
-.wr-day{padding:8px 0 10px}
+.wr-day{padding:8px 0 12px}
 .wr-day-head{font:var(--body-medium);color:var(--on-surface-variant)}
 .wr-day-head b{font-weight:500;color:var(--on-surface)}
-.wr-day-list{list-style:none;display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 12px;padding:8px 0 0;font:var(--body-medium)}
+.wr-day-list{list-style:none;display:grid;grid-template-columns:max-content minmax(0,1fr);gap:8px 12px;padding:8px 0 0;font:var(--body-medium)}
 .wr-day-list li{display:contents}
 .wr-day-lead{display:inline-flex;align-items:center;gap:2px;font-weight:500;white-space:nowrap}
 .wr-day-lead .ms{font-size:16px}
 .wr-day-text{min-width:0;text-wrap:pretty}
 .wr .wr-day-empty{display:block;grid-column:1/-1;color:var(--on-surface-variant)}
 /* The one summary line: Must time and whether it fits; it opens to a row per Result */
-.wr-week-toggle{width:calc(100% + 24px);display:flex;align-items:center;gap:12px;min-height:56px;margin:0 -12px;padding:6px 12px;border:0;border-top:1px solid var(--outline-variant);border-radius:0;background-color:transparent;color:var(--on-surface);text-align:left;font:inherit}
+.wr-week-toggle{width:calc(100% + 24px);display:flex;align-items:center;gap:12px;min-height:56px;margin:0 -12px;padding:8px 12px;border:0;border-top:1px solid var(--outline-variant);border-radius:0;background-color:transparent;color:var(--on-surface);text-align:left;font:inherit}
 .wr-week-toggle>.ms{flex:none;color:var(--on-surface-variant)}
 .wr-week-text{flex:1;min-width:0;display:flex;flex-direction:column}
 .wr-week-head{font:var(--title-small)}
@@ -49,11 +49,11 @@
 .wr-week-toggle.over .wr-week-head{color:var(--error)}
 /* One row per picked Result: its deadline and Must time as its card says them; words carry the verdict */
 .wr-ladder{list-style:none;padding:0 0 8px}
-.wr-ladder li{display:flex;align-items:center;gap:12px;min-height:48px;padding:6px 0}
+.wr-ladder li{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 0}
 .wr-ladder-text{flex:1;min-width:0;display:flex;flex-direction:column}
 .wr-ladder-when{font:var(--body-medium);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wr-ladder-must{font:var(--body-small);color:var(--on-surface-variant);text-wrap:pretty}
-.wr-ladder-state{flex:none;font:var(--label-medium);border-radius:var(--shape-sm);padding:4px 10px}
+.wr-ladder-state{flex:none;font:var(--label-medium);border-radius:var(--shape-sm);padding:4px 12px}
 .wr-ladder .fits .wr-ladder-state{background:var(--tertiary-container);color:var(--on-tertiary-container)}
 .wr-ladder .tight .wr-ladder-state{background:var(--surface-container-highest);color:var(--on-surface);font-weight:600}
 .wr-ladder .over .wr-ladder-must{color:var(--error)}
@@ -63,8 +63,8 @@
 .wr-place-head{font:var(--label-medium);color:var(--on-surface-variant)}
 .wr-place-list{list-style:none;padding:0;align-self:stretch}
 .wr-place-list li{display:flex;align-items:center;gap:8px;min-height:36px;font:var(--body-medium)}
-.wr-place-list .ms{flex:none;font-size:18px}
-.wr-place-title{flex:1;min-width:0;padding:6px 0;text-wrap:pretty}
+.wr-place-list .ms{flex:none;font-size:20px}
+.wr-place-title{flex:1;min-width:0;padding:8px 0;text-wrap:pretty}
 .wr-place-day{flex:none;font:var(--label-large)}
 .wr-place .wr-btn-tonal{margin-top:4px}
 /* Calendar clashes: plain rows as Today's At risk; an open clash asks which event stays */
@@ -77,7 +77,7 @@
 .wr-risk.done .wr-risk-lead{color:var(--on-surface);font-weight:500}
 .wr-risk-sub{color:var(--on-surface-variant);font:var(--body-small);overflow-wrap:anywhere;text-wrap:pretty}
 .wr-risk .wr-btn-text{flex:none;margin:-4px -8px 0 0}
-.wr-ask-small{font:var(--body-small);color:var(--on-surface);margin-top:6px}
+.wr-ask-small{font:var(--body-small);color:var(--on-surface);margin-top:8px}
 .wr-choices{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .wr-flag{font:var(--body-medium);color:var(--tertiary)}
 .wr .wr-choice{color:var(--on-surface);border-color:var(--outline)}
@@ -86,7 +86,7 @@
 .wr-results>li+li{border-top:1px solid var(--outline-variant)}
 .wr-result-row{display:flex;align-items:flex-start;padding:4px 0 4px 4px}
 .wr-result-row>.wr-check{margin-top:2px}
-.wr .wr-result-main{flex:1;min-width:0;display:flex;align-items:flex-start;gap:8px;min-height:56px;padding:10px 12px 10px 4px;border:0;border-radius:var(--shape-lg);background-color:transparent;color:var(--on-surface);text-align:left;font:inherit}
+.wr .wr-result-main{flex:1;min-width:0;display:flex;align-items:flex-start;gap:8px;min-height:56px;padding:12px 12px 12px 4px;border:0;border-radius:var(--shape-lg);background-color:transparent;color:var(--on-surface);text-align:left;font:inherit}
 .wr-result-main>.ms{flex:none;color:var(--on-surface-variant)}
 .wr-result-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .wr-result-title{font:var(--title-medium);overflow-wrap:anywhere;text-wrap:pretty}

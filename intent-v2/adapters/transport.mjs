@@ -1,5 +1,6 @@
 import {TURN_SCHEMA,validate} from '../src/schema.mjs';
 import {CLAUDE_API_MODELS,claudeRequest,readClaudeResponse,claudeUsageOf} from './claude.mjs';
+import {shortHash} from '../src/hash.mjs';
 /** Pass fetchImpl only on Node/server. Android uses nativeModelTransport instead;
  * never store an API key in localStorage or expose it to a WebView prompt.
  */
@@ -18,9 +19,10 @@ export function providerSchema(schema){
 export function structuredRequest({model,prompt,input,maxTokens=3000,providerNames=[],effort}){
  if(typeof model!=='string'||!model.includes('/'))throw new Error('Configure and verify a supported OpenRouter model ID');
  if(effort!==undefined&&!['none','high'].includes(effort))throw new Error('Unsupported reasoning effort');
- const claude=isClaude(model);
+ const claude=isClaude(model),mercury=model==='inception/mercury-3';
+ if(mercury)providerNames=[]; // Capture's Claude provider pins cannot serve Mercury.
  const reasoning=effort&&!(claude&&effort==='none')?{reasoning:{effort,exclude:true}}:{};
- return {model,...reasoning,messages:[{role:'system',content:prompt},{role:'user',content:JSON.stringify(input)}],response_format:{type:'json_schema',json_schema:{name:'rpm_intent_v1',strict:true,schema:claude?providerSchema(TURN_SCHEMA):TURN_SCHEMA}},max_tokens:maxTokens,provider:{require_parameters:true,allow_fallbacks:claude&&providerNames.length>1,...(providerNames.length?{only:providerNames}:{})}};
+ return {model,...reasoning,messages:[{role:'system',content:claude?[{type:'text',text:prompt,cache_control:{type:'ephemeral'}}]:prompt},{role:'user',content:JSON.stringify(input)}],response_format:{type:'json_schema',json_schema:{name:'rpm_intent_v1',strict:true,schema:claude||mercury?providerSchema(TURN_SCHEMA):TURN_SCHEMA}},max_tokens:maxTokens,provider:{require_parameters:true,allow_fallbacks:claude&&providerNames.length>1,...(providerNames.length?{only:providerNames}:{})}};
 }
 /** OpenRouter may answer with a dated snapshot of the requested model ("…-20261001"). */
 const sameModel=(answered,requested)=>answered===requested||typeof answered==='string'&&answered.startsWith(requested+'-');
@@ -33,7 +35,7 @@ export function readStructuredResponse(body,{model,providerNames=[]}={}){
  }catch(error){error.code='INVALID_MODEL_RESPONSE';throw error;}
 }
 /** What one model call cost and who served it, for the capture trace. Never the content. */
-export const usageOf=body=>({provider:body?.provider??null,servedModel:body?.model??null,inputTokens:body?.usage?.prompt_tokens??null,outputTokens:body?.usage?.completion_tokens??null,cost:body?.usage?.cost??null});
+export const usageOf=body=>({provider:body?.provider??null,servedModel:body?.model??null,inputTokens:body?.usage?.prompt_tokens??null,outputTokens:body?.usage?.completion_tokens??null,cacheReadTokens:body?.usage?.prompt_tokens_details?.cached_tokens??null,cost:body?.usage?.cost??null});
 /** Claude answers first; OpenRouter is tried once when Claude has no key, cannot be reached, refuses the key, is busy or fails. */
 export const MODEL_SERVICES=Object.freeze(['anthropic','openrouter']);
 const fallsBack=status=>status===401||status===403||status===429||status>=500;
@@ -41,6 +43,7 @@ const REFUSED='The AI service refused your key. Add a new Claude or OpenRouter k
 export function nativeModelTransport({native,model,prompt,providerNames=[],effort,requestIdFactory=()=>`intent-model:${crypto.randomUUID()}`}={}){
  return async(input,{signal,route,run}={})=>{
   const selectedEffort=route?.effort??effort,selectedModel=route?.model??model,maxTokens=route?.maxTokens;
+  const selectedProviders=selectedModel==='inception/mercury-3'?[]:providerNames;
   const baseId=requestIdFactory(input);if(typeof baseId!=='string'||!baseId||baseId.length>140||!/^[A-Za-z0-9:_-]+$/.test(baseId))throw new Error('Invalid native model request ID');
   let current=null;const cancelled=()=>{if(current)native('cancelModel',{requestId:current}).catch(()=>{});};
   if(signal?.aborted)throw new DOMException('Interpretation cancelled','AbortError');
@@ -52,7 +55,9 @@ export function nativeModelTransport({native,model,prompt,providerNames=[],effor
     const requestId=service==='anthropic'?baseId:`${baseId}:${service}`;current=requestId;
     const body=service==='anthropic'
      ?claudeRequest({model:selectedModel,prompt,input,schema:providerSchema(TURN_SCHEMA),effort:selectedEffort,...(maxTokens?{maxTokens}:{})})
-     :structuredRequest({model:selectedModel,prompt,input,providerNames,effort:selectedEffort,...(maxTokens?{maxTokens}:{})});
+     :structuredRequest({model:selectedModel,prompt,input,providerNames:selectedProviders,effort:selectedEffort,...(maxTokens?{maxTokens}:{})});
+    // The whole request as sent, system prompt and schema included; the key is added natively and never seen here.
+    if(run){const sent=JSON.stringify(body);Object.assign(run,{requestBytes:sent.length,requestHash:shortHash(sent)});}
     let r;
     try{r=await native('model',{requestId,service,body,...(route?.timeoutMs?{timeoutMs:route.timeoutMs+2000}:{})});}
     catch(error){if(signal?.aborted)throw new DOMException('Late native response ignored','AbortError');failure={service,error};continue;}
@@ -63,7 +68,7 @@ export function nativeModelTransport({native,model,prompt,providerNames=[],effor
     if(r.status<200||r.status>=300)throw new Error(`Native model request failed (${r.status})`);
     const claude=service==='anthropic';
     if(run)Object.assign(run,{requestId,service,serviceFallback:failure?`${failure.service} ${failure.status??'unreachable'}`:null,...(claude?claudeUsageOf(r.body):usageOf(r.body))});
-    return claude?readClaudeResponse(r.body,{model:selectedModel}):readStructuredResponse(r.body,{model:selectedModel,providerNames});
+    return claude?readClaudeResponse(r.body,{model:selectedModel}):readStructuredResponse(r.body,{model:selectedModel,providerNames:selectedProviders});
    }
    if(failure?.error)throw failure.error;
    if(failure?.status===401||failure?.status===403)throw new Error(REFUSED);

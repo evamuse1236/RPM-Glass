@@ -3,9 +3,9 @@ import {MODEL_POLICY_VERSION} from '../intent-v2/src/model-policy.mjs';
 
 export const TRACE_KEY='rpm-capture-traces';
 export const TRACE_LIMIT=100;
-const MODEL_FIELDS=['model','effort','reason','attempt','ms','ok','error','escalated','fellBack','provider','servedModel','inputTokens','outputTokens','cost','requestId','service','serviceFallback'];
+const MODEL_FIELDS=['model','effort','reason','attempt','ms','ok','error','escalated','fellBack','provider','servedModel','inputTokens','outputTokens','cacheReadTokens','cacheWriteTokens','cost','requestId','service','serviceFallback','requestBytes','requestHash','input','completion','preview','reused'];
 
-/** One model call as the trace keeps it: routing, timing, outcome and usage. Never the prompt or an API key. */
+/** One model call as the trace keeps it: routing, timing, outcome, usage and a word-free summary of its input. Never the prompt or an API key. */
 export const modelRun=run=>Object.fromEntries(MODEL_FIELDS.filter(k=>run?.[k]!==undefined).map(k=>[k,run[k]]));
 
 /** What the model read from the words: its mode, reply, card and each operation in compact form. */

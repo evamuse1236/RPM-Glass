@@ -54,17 +54,17 @@
 .wr-card-note{font:var(--body-small);color:var(--on-surface-variant);margin-top:12px!important}
 
 /* Step 1: a judged Result. Only the chosen segment carries colour; the Wins card is the one celebration. */
-.wr-progress-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:10px 0 12px}
+.wr-progress-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:12px 0 12px}
 .wr-mini-bar{flex:none;width:56px;height:4px;border-radius:2px;background:var(--surface-container-highest);overflow:hidden}
 .wr-mini-bar>span{display:block;height:100%;background:var(--primary);transform-origin:left;transform:scaleX(var(--value,0))}
 .wr-progress-text{font:var(--body-small);color:var(--on-surface-variant)}
 .wr-ask{margin:-4px 0 12px!important;font:var(--body-medium);color:var(--on-surface-variant);text-wrap:pretty}
 /* Segmented buttons (M3): one decision per row. Every selected option looks the same: secondary container, a check, the label. */
 .wr-seg{display:grid;grid-auto-columns:1fr;grid-auto-flow:column;border:1px solid var(--outline);border-radius:var(--shape-full);overflow:hidden}
-.wr-seg-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:0;min-height:40px;padding:0 10px;border:0;background-color:transparent;color:var(--on-surface);font:var(--label-large)}
+.wr-seg-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:0;min-height:40px;padding:0 12px;border:0;background-color:transparent;color:var(--on-surface);font:var(--label-large)}
 .wr-seg-btn+.wr-seg-btn{border-left:1px solid var(--outline)}
 .wr-seg-btn .wr-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.wr-seg-btn .ms{font-size:18px;margin-left:-2px}
+.wr-seg-btn .ms{font-size:20px;margin-left:-2px}
 .wr-seg-btn.sel{background-color:var(--secondary-container);color:var(--on-secondary-container)}
 .wr-seg.sm{flex:none;margin-left:auto}
 .wr-seg.sm .wr-seg-btn{min-height:32px;padding:0 12px}
@@ -98,7 +98,7 @@
 /* Evidence and form fields: outlined text field */
 .wr-field{display:flex;flex-direction:column;gap:4px;margin-top:16px}
 .wr-field-label{font:var(--label-medium);color:var(--on-surface-variant);padding-left:4px}
-.wr-input{width:100%;min-height:48px;border:1px solid var(--outline);border-radius:var(--shape-sm);background:transparent;padding:10px 14px;font:var(--body-large);color:var(--on-surface)}
+.wr-input{width:100%;min-height:48px;border:1px solid var(--outline);border-radius:var(--shape-sm);background:transparent;padding:12px 16px;font:var(--body-large);color:var(--on-surface)}
 .wr-input::placeholder{color:var(--on-surface-variant);opacity:.8}
 .wr-input:focus{outline:none;border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
 
@@ -110,20 +110,20 @@
 .wr-left-title.dropped{color:var(--on-surface-variant);text-decoration:line-through}
 
 /* Chips (M3 filter chips: 32dp, 8dp corners, 48dp touch area) */
-.wr-chip{position:relative;flex:none;display:inline-flex;align-items:center;gap:6px;min-height:32px;max-width:240px;padding:0 12px;border:1px solid var(--outline-variant);border-radius:var(--shape-sm);background-color:transparent;color:var(--on-surface-variant);font:var(--label-large)}
-.wr-chip::after{content:"";position:absolute;inset:-8px -3px}
-.wr-chip .ms{font-size:18px;margin-left:-4px}
+.wr-chip{position:relative;flex:none;display:inline-flex;align-items:center;gap:8px;min-height:32px;max-width:240px;padding:0 12px;border:1px solid var(--outline-variant);border-radius:var(--shape-sm);background-color:transparent;color:var(--on-surface-variant);font:var(--label-large)}
+.wr-chip::after{content:"";position:absolute;inset:-8px -4px}
+.wr-chip .ms{font-size:20px;margin-left:-4px}
 .wr-chip .wr-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wr-chip.sel{background-color:var(--secondary-container);border-color:var(--secondary-container);color:var(--on-secondary-container)}
 
 /* Wins summary */
 .wr-wins{background:var(--tertiary-container);color:var(--on-tertiary-container);border-radius:20px;padding:16px}
-.wr-wins-head{display:flex;align-items:center;gap:10px}
+.wr-wins-head{display:flex;align-items:center;gap:12px}
 .wr-wins-head h3{font:var(--title-medium)}
 .wr-wins-list{list-style:none;padding:8px 0 0}
-.wr-wins-list li{display:flex;align-items:flex-start;gap:10px;padding:4px 0;font:var(--body-medium)}
-.wr-wins-list .ms{font-size:18px;margin-top:1px}
-.wr-wins-note{font:var(--body-small);margin-top:6px!important}
+.wr-wins-list li{display:flex;align-items:flex-start;gap:12px;padding:4px 0;font:var(--body-medium)}
+.wr-wins-list .ms{font-size:20px;margin-top:1px}
+.wr-wins-note{font:var(--body-small);margin-top:8px!important}
 
 /* Step 2: inline quick add and the Inbox list */
 .wr-add{display:flex;align-items:center;gap:4px;min-height:56px;padding:0 4px 0 16px;border-radius:var(--shape-full);background:var(--surface-container-high);color:var(--on-surface-variant)}
@@ -140,7 +140,7 @@
 .wr-list{list-style:none;margin:0;padding:4px 0;background:var(--surface-container);border-radius:20px}
 .wr-list-item{position:relative;display:flex;align-items:stretch;min-height:52px;font:var(--body-large);--swipe-offset:0px}
 .wr-list-item+.wr-list-item{border-top:1px solid var(--outline-variant)}
-.wr .wr-list-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;min-height:52px;padding:10px 16px;border:0;border-radius:0;background-color:var(--surface-container);color:var(--on-surface);font:inherit;text-align:left}
+.wr .wr-list-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;min-height:52px;padding:12px 16px;border:0;border-radius:0;background-color:var(--surface-container);color:var(--on-surface);font:inherit;text-align:left}
 .wr-list-item:first-child .wr-list-text{border-radius:20px 20px 0 0}
 .wr-list-item:last-child .wr-list-text{border-radius:0 0 20px 20px}
 .wr-list-item:only-child .wr-list-text{border-radius:20px}
@@ -164,8 +164,8 @@
 .wr-choose{flex:none}
 .wr-row{display:flex;align-items:center;gap:4px;min-height:48px;padding:0 4px}
 .wr-row.sub{padding-left:20px;min-height:44px}
-.wr-row.sub>.ms{font-size:18px;color:var(--on-surface-variant);margin-right:8px}
-.wr-row.sub .wr-row-title{font:var(--body-medium);padding:6px 0}
+.wr-row.sub>.ms{font-size:20px;color:var(--on-surface-variant);margin-right:8px}
+.wr-row.sub .wr-row-title{font:var(--body-medium);padding:8px 0}
 .wr-formed-head{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 16px 4px}
 .wr-row.sub+.wr-formed-head{border-top:1px solid var(--outline-variant);margin-top:4px}
 .wr-target-title{font:var(--title-small);overflow-wrap:anywhere}
@@ -174,7 +174,7 @@
 /* Step 3: the bottom sheet that chooses a task's Result */
 .wr-layer{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:flex-end}
 .wr-scrim{position:absolute;inset:0;background:var(--scrim);opacity:.32}
-.wr-sheet{position:relative;max-height:min(80%,640px);overflow-y:auto;overscroll-behavior:contain;padding:0 16px 24px;border-radius:28px 28px 0 0;background:var(--surface-container-low);box-shadow:var(--elev-3);animation:wr-up var(--dur-medium3) var(--ease-emphasized-decelerate) both}
+.wr-sheet{position:relative;max-height:min(80%,640px);overflow-y:auto;overscroll-behavior:contain;padding:0 16px 24px;border:1px solid var(--float-border);border-block-end:0;border-radius:var(--r-outer) var(--r-outer) 0 0;background:var(--surface-container-low);box-shadow:var(--float-shadow);animation:wr-up var(--dur-medium3) var(--ease-emphasized-decelerate) both}
 /* The sheet rises from the bottom edge and its scrim fades with it, once: re-renders while it is open don't replay it. */
 .wr-scrim{animation:wr-scrim var(--dur-medium3) var(--ease-emphasized-decelerate) both}
 @keyframes wr-up{from{transform:translateY(100%)}to{transform:none}}

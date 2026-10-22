@@ -23,6 +23,8 @@
   --now:#0b57d0;        /* the task happening now */
   --success:#146c2e;
   /* Area identity: Google palette hues, readable on surface in both themes */
+  /* Today's habit pills and the habit circle; --on-tone is the icon on any pill */
+  --tone-meal:#e37400;--tone-routine:#1e8e3e;--tone-water:#1a73e8;--on-tone:#ffffff;
   --area-0:#1e8e3e;--area-1:#e37400;--area-2:#1a73e8;--area-3:#a142f4;--area-4:#d93025;--area-5:#12b5cb;--area-6:#f538a0;--area-7:#9aa0a6;
 
   /* type: Google Sans Flex, M3 scale */
@@ -39,14 +41,35 @@
   --label-large:500 14px/20px var(--font);
   --label-medium:500 12px/16px var(--font);
   --label-small:500 11px/16px var(--font);
+  /* Today (approved 2026-10-20): the big date, row titles, the day numbers, footnotes and the habit circle's count */
+  --title-date:700 28px/34px var(--font);
+  --title-row:600 16px/22px var(--font);
+  --day-number:600 17px/22px var(--font);
+  --footnote:400 13px/18px var(--font);
+  --footnote-label:500 13px/18px var(--font);
+  --caption-strong:600 11px/13px var(--font);
 
   /* shape */
   --shape-xs:4px;--shape-sm:8px;--shape-md:12px;--shape-lg:16px;--shape-xl:28px;--shape-full:999px;
-  --card-radius:24px;
+  --card-radius:var(--r-group);
+  /* floats (tab bar, Capture composer, sheets, FAB): concentric corners, inner = outer − inset */
+  --r-outer:36px;--r-group:20px;--r-control:12px;--r-tile:8px;--inset-page:16px;
+  --float-border:color-mix(in oklch, var(--outline-variant) 60%, transparent);
+  --float-surface:var(--surface-container);
+  --glass-blur:12px;--glass-saturate:1.14;--glass-border:oklch(0% none none / 8%);
+  /* sheets: the page tone in light; in dark one step up (the tab bar's tone), so a sheet has an edge over the scrim */
+  --sheet-surface:var(--surface-container-low);--sheet-raised:var(--surface-container-high);--sheet-card:var(--surface-container);
+  --float-shadow:0 2px 8px rgba(0,0,0,.10),0 1px 2px rgba(0,0,0,.08);
 
   /* spacing and touch */
   --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--s8:32px;--touch:48px;
-  --chip-block:40px;--row-gap:var(--s3);--row-icon:40px;
+  --chip-block:40px;
+  /* Add beside the tab bar, a round 60dp button */
+  --fab:60px;
+  /* keylines: text after a 40dp icon column, text after a 56dp leading slot */
+  --key-icon-text:56px;--key-text:72px;
+  /* the M3 switch thumb: 16dp inset 6 when off, 24dp at 22 from the start when on */
+  --switch-off-inset:6px;--switch-on-start:22px;--row-gap:var(--s3);--row-icon:40px;
 
   /* elevation (used sparingly: FAB, floating Capture panel, snackbar) */
   --elev-1:0 1px 2px rgba(0,0,0,.3),0 1px 3px 1px rgba(0,0,0,.15);
@@ -69,9 +92,10 @@
   /* Capture's dark bar and + sheet (Claude Design, 2026-10-18): dark in both themes, built from the dark roles above */
   --bar:#171719;--bar-high:#282a2c;--bar-highest:#333537;
   --bar-on:#e3e3e3;--bar-on-variant:#c4c7c5;--bar-outline:#444746;
-  --bar-accent:#0842a0;--bar-on-accent:#d3e3fd;--bar-primary:#a8c7fa;
+  --bar-accent:#0842a0;--bar-on-accent:#d3e3fd;--bar-primary:#a8c7fa;--bar-on-primary:#062e6f;
   --bar-error:#f2b8b5;--bar-warn:#fdd663;--bar-success:#6dd58c;
   --bar-shadow:0 4px 16px rgba(0,0,0,.28),0 1px 3px rgba(0,0,0,.3);
+  --bar-area-0:#81c995;--bar-area-1:#fcad70;--bar-area-2:#8ab4f8;--bar-area-3:#d7aefb;--bar-area-4:#f28b82;--bar-area-5:#78d9ec;--bar-area-6:#ff8bcb;--bar-area-7:#bdc1c6;--bar-on-tone:#131314;
 }
 /* Dark: follows the system unless Settings → Theme pins light or dark (data-appearance on <html>). */
 @media (prefers-color-scheme:dark){:root:not([data-appearance=light]){
@@ -87,6 +111,9 @@
   --inverse-surface:#e3e3e3;--inverse-on-surface:#303030;--inverse-primary:#0b57d0;
   --must:#fdd663;--now:#a8c7fa;--success:#6dd58c;
   --area-0:#81c995;--area-1:#fcad70;--area-2:#8ab4f8;--area-3:#d7aefb;--area-4:#f28b82;--area-5:#78d9ec;--area-6:#ff8bcb;--area-7:#bdc1c6;
+  --tone-meal:#fcad70;--tone-routine:#81c995;--tone-water:#8ab4f8;--on-tone:#131314;
+  --float-border:#444746;--float-surface:#282a2c;--float-shadow:none;--sheet-surface:#282a2c;--sheet-raised:#333537;--sheet-card:#333537;
+  --glass-blur:16px;--glass-saturate:1.08;--glass-border:oklch(100% none none / 8%);
 }}
 :root[data-appearance=dark]{
   color-scheme:dark;
@@ -101,6 +128,9 @@
   --inverse-surface:#e3e3e3;--inverse-on-surface:#303030;--inverse-primary:#0b57d0;
   --must:#fdd663;--now:#a8c7fa;--success:#6dd58c;
   --area-0:#81c995;--area-1:#fcad70;--area-2:#8ab4f8;--area-3:#d7aefb;--area-4:#f28b82;--area-5:#78d9ec;--area-6:#ff8bcb;--area-7:#bdc1c6;
+  --tone-meal:#fcad70;--tone-routine:#81c995;--tone-water:#8ab4f8;--on-tone:#131314;
+  --float-border:#444746;--float-surface:#282a2c;--float-shadow:none;--sheet-surface:#282a2c;--sheet-raised:#333537;--sheet-card:#333537;
+  --glass-blur:16px;--glass-saturate:1.08;--glass-border:oklch(100% none none / 8%);
 }
 
 /* Base */

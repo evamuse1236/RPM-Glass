@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
-import {PACKAGE, UserError, adb, shell, devices, startEmulator, processAlive, killTree, sleep, waitFor, appPid, foregroundActivity, displayInfo, nativeNodes, dismissAnr, sdkRoot, processImage, ownsEmulator} from './device.mjs';
+import {PACKAGE, UserError, adb, shell, devices, startEmulator, startNetsim, processAlive, killTree, sleep, waitFor, appPid, foregroundActivity, displayInfo, nativeNodes, dismissAnr, spawnReaper, sdkRoot, processImage, ownsEmulator, adoptEmulator} from './device.mjs';
 import {pageTargets} from './page.mjs';
 import {builtAssetsSha, clearSynced} from './sync.mjs';
-import {ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, readState, writeState, evidenceDir, journal, devtoolsPort, viaShell, openLauncher, errorLines} from './runtime.mjs';
-import {portsFor, requireOwner, takeLease, updateLease, assertLease, releaseLease} from './ownership.mjs';
+import {ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, readState, writeState, evidenceDir, apkCheckout, journal, devtoolsPort, viaShell, openLauncher, errorLines} from './runtime.mjs';
+import {portsFor, requireOwner, takeLease, updateLease, assertLease, releaseLease, readEmulator, saveEmulator, dropEmulator, IDLE_MS} from './ownership.mjs';
 
 const SOURCES = ['app/src/main', 'android-companion', 'chat-prototype', 'cli', 'intent-v2/src', 'intent-v2/adapters', 'intent-v2/prompts', 'scripts/build-companion-assets.mjs', 'app/build.gradle'];
 const sha256 = buf => crypto.createHash('sha256').update(buf).digest('hex');
@@ -38,8 +38,11 @@ function signer(apk) {
 
 function build() {
   const gradlew = path.join(ROOT, process.platform === 'win32' ? 'gradlew.bat' : 'gradlew');
-  const r = spawnSync(...viaShell(gradlew, ['-q', 'assembleDebug']), {cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024});
+  const env = {...process.env, ANDROID_HOME: process.env.ANDROID_HOME || sdkRoot()};
+  const r = spawnSync(...viaShell(gradlew, ['-q', 'assembleDebug']), {cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024, env});
   if (r.status !== 0) throw new UserError(`Gradle assembleDebug failed:\n${(r.stderr || r.stdout).trim().slice(-2000)}`, 'Fix the build error above, run `npm ci` if node_modules is missing, then `rpmctl launch --build`.');
+  const now = new Date();
+  if (fs.existsSync(APK)) fs.utimesSync(APK, now, now);
 }
 
 function install(serial, apk) {
@@ -55,31 +58,97 @@ function install(serial, apk) {
   throw new UserError(`APK install failed: ${err.trim().slice(0, 500)}`, 'Run `rpmctl doctor`; rebuild with `rpmctl launch --build`.');
 }
 
+async function queueForLease(leaseState, args) {
+  const until = Date.now() + (args.wait === true ? 900 : Number(args.wait)) * 1000;
+  for (;;) {
+    await sleep(15000);
+    try { return takeLease(leaseState); }
+    catch (e) {
+      if (!/lease is busy/.test(e.message) || Date.now() >= until) throw e;
+      console.error(`${e.message} Waiting in the queue.`);
+    }
+  }
+}
+
+const isEmulator = pid => /emulator|qemu/i.test(processImage(pid) ?? '');
+
+function warmEmulator(port, serial) {
+  const record = readEmulator(port);
+  if (!record) return null;
+  const online = devices().some(d => d.serial === serial && d.state === 'device');
+  if (online && ownsEmulator({serial, pid: record.pid, avd: record.avd}, serial)) return record;
+  if (!isEmulator(record.pid)) dropEmulator(port);
+  return null;
+}
+
+function keepWarm(state) {
+  fs.rmSync(STATE, {force: true});
+  releaseLease(state);
+  const shared = readEmulator(state.port);
+  if (shared?.pid !== state.pid) return;
+  const reaperPid = processAlive(shared.reaperPid) ? shared.reaperPid : spawnReaper(state.port);
+  saveEmulator(state.port, {...shared, releasedAt: new Date().toISOString(), reaperPid});
+}
+
+function handOver(serial) {
+  shell(serial, `am force-stop ${PACKAGE}`, {allowFail: true});
+  if (shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).includes('package:'))
+    adb(serial, ['shell', `run-as ${PACKAGE} sh -c 'rm -rf files shared_prefs databases app_webview cache; mkdir -p files'`], {allowFail: true});
+  clearSynced(serial);
+  for (const command of ['settings put system font_scale 1.0', 'settings put system user_rotation 0', 'wm size reset', 'wm density reset'])
+    shell(serial, command, {allowFail: true});
+}
+
 export const lifecycleCommands = {
   async launch(args) {
     let state = readState();
     requireOwner(state, args);
-    const {port, cdpPort} = portsFor(args, state ?? DEFAULTS), serial = `emulator-${port}`;
+    const attached = args.attach === undefined ? null : adoptEmulator(args.attach);
+    if (attached && (args.port !== undefined && Number(args.port) !== attached.port || args.avd !== undefined && args.avd !== attached.avd))
+      throw new UserError('Attach conflicts with --port or --avd.', 'Use the serial and AVD started by the runner.');
+    if (state && attached && (state.mode !== 'attached' || state.pid !== attached.pid || state.processStarted !== attached.started))
+      throw new UserError('A different rpmctl run is already recorded.', 'Run cleanup with its owner before attaching another emulator.');
+    const {port, cdpPort} = portsFor({...args, ...(attached ? {port: attached.port} : {})}, state ?? DEFAULTS), serial = `emulator-${port}`;
     if (state && (state.port !== port || state.cdpPort !== cdpPort))
       throw new UserError('This worktree already has a run with different ports.', 'Run `rpmctl cleanup` with its owner token before changing --port or --cdp-port.');
     const t0 = Date.now();
     const startedAt = new Date().toISOString();
+    const apk = args.apk ? path.resolve(String(args.apk)) : APK;
     const leaseState = {...state, port, cdpPort, worktree: ROOT,
       owner: state && /emulator|qemu/i.test(processImage(state.pid) ?? '') ? state.owner ?? crypto.randomUUID() : crypto.randomUUID(),
-      startedAt: state?.startedAt ?? startedAt};
-    takeLease(leaseState);
+      startedAt: state?.startedAt ?? startedAt, appCheckout: apkCheckout(apk)};
+    if (!args.apk && (args.build || (!args.noBuild && apkStale()))) build();
+    try { takeLease(leaseState); }
+    catch (e) { if (!args.wait || !/lease is busy/.test(e.message)) throw e; await queueForLease(leaseState, args); }
+    let emulator = "kept this run's emulator";
     try {
       if (state && !(state.serial === serial && ownsEmulator(state, serial))) {
-        if (/emulator|qemu/i.test(processImage(state.pid) ?? '')) throw new UserError(`An rpmctl emulator is already running as ${state.serial}.`, 'Use it (drop --port), or run `rpmctl cleanup` first.');
+        if (isEmulator(state.pid)) throw new UserError(`An rpmctl emulator is already running as ${state.serial}.`, 'Use it (drop --port), or run `rpmctl cleanup` first.');
         fs.rmSync(STATE, {force: true}); state = null;
       }
-      if (!state) {
-        if (devices().some(d => d.serial === serial)) throw new UserError(`${serial} is already running and was not started by rpmctl.`, `Pick a free port: rpmctl launch --port ${port + 10}. Never drive an instance you did not start.`);
+      const lastDriver = state?.shared ? readEmulator(port)?.owner : null;
+      if (lastDriver && lastDriver !== state.owner) { fs.rmSync(STATE, {force: true}); state = null; }
+      const warm = state || attached ? null : warmEmulator(port, serial);
+      if (warm) {
         const runId = `${startedAt.replace(/[:.]/g, '-').slice(0, 19)}-${crypto.randomBytes(3).toString('hex')}`;
-        state = {...leaseState, pid: undefined, serial, avd: args.avd ?? DEFAULTS.avd, runId};
+        state = {...leaseState, pid: warm.pid, serial, avd: warm.avd, emulatorArgs: warm.emulatorArgs, runId, shared: true,
+          installedSha256: warm.installedSha256, webSha256: warm.webSha256};
+        writeState(state);
+        updateLease(state, {launching: true});
+        handOver(serial);
+        emulator = `reused the warm emulator booted ${warm.bootedAt}; app data wiped for this run`;
+      } else if (!state) {
+        if (!attached && devices().some(d => d.serial === serial)) throw new UserError(`${serial} is already running and was not started by rpmctl.`, `Pick a free port: rpmctl launch --port ${port + 10}. Never drive an instance you did not start or explicitly adopt.`);
+        const runId = `${startedAt.replace(/[:.]/g, '-').slice(0, 19)}-${crypto.randomBytes(3).toString('hex')}`;
+        state = {...leaseState, pid: undefined, serial, avd: args.avd ?? DEFAULTS.avd, runId, shared: !attached};
         const log = path.join(evidenceDir(state), 'emulator.log');
-        const {pid, args: emuArgs} = startEmulator({avd: state.avd, port, logFile: log, gpu: args.gpu ?? DEFAULTS.gpu});
-        Object.assign(state, {pid, emulatorArgs: emuArgs});
+        if (attached) Object.assign(state, {mode: 'attached', pid: attached.pid, avd: attached.avd, processStarted: attached.started, emulatorArgs: ['-read-only']});
+        else {
+          startNetsim();
+          const {pid, args: emuArgs} = startEmulator({avd: state.avd, port, logFile: log, gpu: args.gpu ?? DEFAULTS.gpu});
+          Object.assign(state, {pid, emulatorArgs: emuArgs});
+        }
+        const {pid} = state;
         if (!pid) throw new UserError('The emulator process did not start.', 'Check the emulator log, then retry `rpmctl launch`.');
         writeState(state);
         updateLease(state, {launching: true});
@@ -88,27 +157,37 @@ export const lifecycleCommands = {
         shell(serial, 'input keyevent 82', {allowFail: true});
         shell(serial, 'settings put global stay_on_while_plugged_in 7', {allowFail: true});
         shell(serial, 'settings put system accelerometer_rotation 0', {allowFail: true});
+        if (!attached) saveEmulator(port, {pid: state.pid, serial, port, avd: state.avd, emulatorArgs: state.emulatorArgs, bootedAt: new Date().toISOString(), bootedBy: ROOT});
+        emulator = 'booted';
       } else { Object.assign(state, leaseState); writeState(state); }
-      const apk = args.apk ? path.resolve(String(args.apk)) : APK;
-      if (!args.apk && (args.build || (!args.noBuild && apkStale()))) build();
       if (!fs.existsSync(apk)) throw new UserError(`No APK at ${apk}.`, 'Run `rpmctl launch --build`.');
       const apkHash = sha256(fs.readFileSync(apk));
       const installed = shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).includes('package:');
       const installResult = args.noInstall ? (installed ? 'skipped (kept what the emulator had)' : 'skipped (not installed)')
         : state.installedSha256 === apkHash && installed ? 'already-installed' : install(serial, apk);
-      if (!args.noInstall && installResult !== 'already-installed') { clearSynced(serial); state.webSha256 = builtAssetsSha(); }
+      if (!args.noInstall && installResult !== 'already-installed') { clearSynced(serial); state.webSha256 = builtAssetsSha(state.appCheckout ?? ROOT); }
       if (!args.noInstall) state.installedSha256 = apkHash;
+      state.syncedAt = null;
+      const shared = readEmulator(port);
+      if (shared?.pid === state.pid) saveEmulator(port, {...shared, installedSha256: state.installedSha256, webSha256: state.webSha256, owner: state.owner, releasedAt: null});
       state.appLogSince = shell(serial, "date '+%m-%d %H:%M:%S.000'").trim();
       writeState(state);
       dismissAnr(serial);
       await openLauncher(serial);
       await sleep(2500);
       const anr = dismissAnr(serial);
-      const out = {ok: true, serial, pid: state.pid, owner: state.owner, port, cdpPort, runId: state.runId, evidence: evidenceDir(state), install: installResult,
+      const out = {ok: true, serial, pid: state.pid, owner: state.owner, port, cdpPort, runId: state.runId, emulator, evidence: evidenceDir(state), install: installResult,
         apk: {path: path.relative(ROOT, apk), ...(args.apk ? {} : gradleVersion()), sha256: apkHash}, dismissedAnr: anr, seconds: Math.round((Date.now() - t0) / 1000),
         next: 'rpmctl doctor'};
       journal(state, {command: 'launch', result: out});
       return out;
+    } catch (error) {
+      const saved = readState();
+      if (saved?.shared && saved.owner === leaseState.owner && readEmulator(port)?.pid === saved.pid && processAlive(saved.pid)) {
+        journal(saved, {command: 'launch', failed: error.message, keptWarm: true});
+        keepWarm(saved);
+      }
+      throw error;
     } finally {
       const saved = readState();
       if (saved?.owner === leaseState.owner) updateLease(saved);
@@ -185,8 +264,16 @@ export const lifecycleCommands = {
     assertLease(state);
     const dir = evidenceDir(state);
     adb(null, ['forward', '--remove', `tcp:${state.cdpPort}`], {allowFail: true});
+    const shared = readEmulator(state.port);
+    const ownsShared = shared?.pid === state.pid;
+    if (state.shared && !args.stop && !args.keepEmulator) {
+      journal(state, {command: 'cleanup', keptWarm: true});
+      keepWarm(state);
+      return {ok: true, emulator: `kept warm for the next run on ${state.serial}; it stops after ${IDLE_MS / 60000} min with no run (\`rpmctl cleanup --stop\` stops it now)`,
+        evidence: dir, evidenceFiles: fs.readdirSync(dir).length};
+    }
     let killed = false;
-    if (!args.keepEmulator) {
+    if (!args.keepEmulator && state.mode !== 'attached') {
       const ours = /emulator|qemu/i.test(processImage(state.pid) ?? '');
       if (ours && devices().some(d => d.serial === state.serial) && ownsEmulator(state)) adb(state.serial, ['emu', 'kill'], {allowFail: true});
       if (ours) {
@@ -197,11 +284,12 @@ export const lifecycleCommands = {
     }
     journal(state, {command: 'cleanup', killedEmulator: killed});
     if (!args.keepEmulator) {
-      if (processAlive(state.pid) && /emulator|qemu/i.test(processImage(state.pid) ?? ''))
+      if (state.mode !== 'attached' && processAlive(state.pid) && /emulator|qemu/i.test(processImage(state.pid) ?? ''))
         throw new UserError('The emulator is still running; its lease and state were kept.', 'Retry `rpmctl cleanup` with the same owner token.');
       fs.rmSync(STATE, {force: true});
       releaseLease(state);
+      if (ownsShared) dropEmulator(state.port);
     }
-    return {ok: true, emulator: args.keepEmulator ? 'kept' : killed ? `stopped pid ${state.pid}` : 'already gone (nothing killed)', evidence: dir, evidenceFiles: fs.readdirSync(dir).length};
+    return {ok: true, emulator: args.keepEmulator ? 'kept' : state.mode === 'attached' ? 'detached (runner stops it)' : killed ? `stopped pid ${state.pid}` : 'already gone (nothing killed)', evidence: dir, evidenceFiles: fs.readdirSync(dir).length};
   },
 };

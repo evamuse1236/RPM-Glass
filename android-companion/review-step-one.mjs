@@ -2,6 +2,7 @@ import {reviewSummary, markAchieved, decideLeftover, leftoverChoice} from './rev
 import {plural} from './planner/format.mjs';
 import {VERDICTS, VERDICT_RECEIPTS, CHOICES, el, icon, button, weekLabel, dueChip, heading, emptyState, sectionHead, factsLine, dueFact, mustFact} from './review-ui.mjs';
 import {focusCheck, setFocus} from './review-focus.mjs';
+import {deckOf, deckTally, resultDeck} from './review-deck.mjs';
 
 /* ---------- step 1: last week's Results ---------- */
 export function stepOne(api) {
@@ -15,20 +16,21 @@ export function stepOne(api) {
     return parts;
   }
   if (judged.length) {
-    const decided = judged.filter(r => r.verdict).length;
+    const deck = deckOf(judged);
     const wins = judged.filter(r => r.verdict === 'achieved');
-    const tally = el('p', 'wr-tally tnum');
-    tally.setAttribute('aria-live', 'polite');
-    tally.append(el('span', '', decided === judged.length ? `All ${judged.length} decided` : `${decided} of ${judged.length} decided`));
-    parts.push(tally);
-    for (const result of judged) parts.push(resultCard(api, summary, result));
-    if (wins.length) parts.push(winsCard(wins));
+    parts.push(deckTally(judged));
+    if (deck.length) parts.push(...resultDeck(api, summary, judged));
+    else {
+      if (wins.length) parts.push(winsCard(wins));
+      parts.push(sectionHead('Your verdicts', judged.length));
+      for (const result of judged) parts.push(resultCard(api, summary, result));
+    }
   }
   if (running.length) parts.push(...runningList(api, running));
   return parts;
 }
 
-/** One card per Result to judge. Only the chosen segment carries colour; the Wins card below is the one celebration. */
+/** A decided Result once the deck is done: its verdict (changeable), evidence for a win, Carry and the leftover tasks. */
 function resultCard(api, summary, result) {
   const win = result.verdict === 'achieved';
   const card = el('article', 'wr-card wr-result');

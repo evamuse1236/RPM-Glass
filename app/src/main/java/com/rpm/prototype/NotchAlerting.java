@@ -119,7 +119,7 @@ final class NotchAlerting {
 
     private void show(NotchAlert next, long forMs) {
         alert = next;
-        owner.expanded = false;
+        owner.state.close();
         handler.removeCallbacks(alertEnd);
         handler.postDelayed(alertEnd, forMs);
         NotchActions.log(service, next.type == NotchAlert.Type.ALARM ? "notch.alarm" : "notch.reminder", "shown", NotchActions.payload("taskId", next.taskId));
@@ -191,6 +191,22 @@ final class NotchAlerting {
         alert = null;
         handler.removeCallbacks(alertEnd);
         showSnoozed(NotchAlert.SNOOZE_MINUTES);
+    }
+
+    /**
+     * Done: a ringing alarm stops (as Stop does) and a reminder's notification goes away; then the task is ticked in
+     * place. Its Undo brings the task back; the alarm stays stopped.
+     */
+    void done(NotchChanges changes) {
+        if (alert == null) return;
+        NotchAlert shown = alert;
+        if (shown.type == NotchAlert.Type.ALARM) CompanionAlarmService.answer(shown.taskId, false);
+        else service.getSystemService(NotificationManager.class).cancel("companion-reminder", (int) shown.taskId);
+        NotchActions.log(service, shown.type == NotchAlert.Type.ALARM ? "notch.alarm_done" : "notch.reminder_done", "ok",
+                NotchActions.payload("taskId", shown.taskId));
+        alert = null;
+        handler.removeCallbacks(alertEnd);
+        changes.doneAt(shown.taskId, shown.title, shown.when);
     }
 
     /** Stop: silences the alarm and returns to the pill. */

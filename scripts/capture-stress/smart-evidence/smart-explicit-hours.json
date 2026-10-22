@@ -1,0 +1,495 @@
+{
+  "id": "smart-explicit-hours",
+  "before": {
+    "pass": true,
+    "failures": [],
+    "turns": [
+      {
+        "words": "set a reminder in 2 hours",
+        "modelCalls": [
+          {
+            "route": "quick",
+            "output": {
+              "schemaVersion": 1,
+              "mode": "capture",
+              "draftMode": "new",
+              "reply": "Got it. I'll set a reminder for 2 hours from now, at 12:00 PM.",
+              "decisions": [
+                {
+                  "sourceId": "s0",
+                  "disposition": "action",
+                  "note": null
+                }
+              ],
+              "operations": [
+                {
+                  "opId": "op1",
+                  "sourceId": "s0",
+                  "kind": "create",
+                  "entity": "task",
+                  "targetId": null,
+                  "fields": [
+                    {
+                      "name": "title",
+                      "op": "set",
+                      "value": "Reminder",
+                      "origin": "suggested",
+                      "evidence": null
+                    },
+                    {
+                      "name": "time",
+                      "op": "set",
+                      "value": "in 2 hours",
+                      "origin": "stated",
+                      "evidence": "in 2 hours"
+                    },
+                    {
+                      "name": "alert",
+                      "op": "set",
+                      "value": "reminder",
+                      "origin": "stated",
+                      "evidence": "set a reminder"
+                    }
+                  ]
+                }
+              ],
+              "question": null,
+              "clarification": null,
+              "memoryCandidates": [],
+              "card": null
+            },
+            "usage": {
+              "input_tokens": 13389,
+              "output_tokens": 283,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 0,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              }
+            },
+            "costUSD": 0.0014804
+          }
+        ],
+        "trace": {
+          "id": "stress-smart-explicit-hours-1",
+          "at": "2026-10-19T04:30:00.000Z",
+          "attempts": 1,
+          "latencyMs": 0,
+          "outcome": null,
+          "models": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "effort": "none",
+              "reason": "capture",
+              "attempt": 0,
+              "ms": 1976,
+              "ok": true,
+              "provider": "API transport",
+              "servedModel": "claude-haiku-5-5",
+              "inputTokens": 13389,
+              "outputTokens": 283,
+              "cost": 0.0014804,
+              "service": "anthropic",
+              "input": {
+                "bytes": 6670,
+                "hash": "4874399b4fa1dce9",
+                "units": 1,
+                "messageCount": 1,
+                "messages": [
+                  {
+                    "id": "seed-dinner",
+                    "role": "user",
+                    "hash": "d97e9286890ca358"
+                  }
+                ],
+                "focus": null,
+                "question": null,
+                "entityCount": 14,
+                "entityIds": [
+                  "task:101",
+                  "task:102",
+                  "task:103",
+                  "task:104",
+                  "task:105",
+                  "task:106",
+                  "block:block-1",
+                  "block:block-2",
+                  "block:block-3",
+                  "block:block-4",
+                  "block:block-5",
+                  "block:block-6",
+                  "block:block-7",
+                  "block:block-8"
+                ],
+                "truncated": {
+                  "olderMessages": 0,
+                  "droppedMessages": 0,
+                  "clippedMessages": 0,
+                  "entities": 0,
+                  "snapshot": {}
+                },
+                "snapshotHash": "f92151df6c8a5155"
+              }
+            }
+          ],
+          "applied": {
+            "status": "applied",
+            "draftId": "draft-stress-smart-explicit-hours-1",
+            "entryIds": [
+              107
+            ]
+          },
+          "errors": []
+        },
+        "result": {
+          "status": "interpreted",
+          "draftId": "draft-stress-smart-explicit-hours-1",
+          "applied": {
+            "status": "applied",
+            "needsConfirm": false,
+            "warning": null,
+            "undoId": "3ae48b75-1d21-4e37-9615-36c7430dbf24",
+            "entryIds": [
+              107
+            ],
+            "changes": [
+              {
+                "type": "create",
+                "collection": "tasks",
+                "id": 107,
+                "title": "Reminder"
+              }
+            ]
+          }
+        },
+        "draft": {
+          "status": "committed",
+          "operations": [
+            {
+              "opId": "op1",
+              "sourceId": "s0",
+              "kind": "create",
+              "entity": "task",
+              "targetId": null,
+              "fields": [
+                {
+                  "name": "title",
+                  "op": "set",
+                  "value": "Reminder",
+                  "origin": "suggested",
+                  "evidence": null,
+                  "sourceMessageId": "stress-smart-explicit-hours-1",
+                  "evidenceSourceId": null
+                },
+                {
+                  "name": "time",
+                  "op": "set",
+                  "value": "in 2 hours",
+                  "origin": "stated",
+                  "evidence": "in 2 hours",
+                  "sourceMessageId": "stress-smart-explicit-hours-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "alert",
+                  "op": "set",
+                  "value": "reminder",
+                  "origin": "stated",
+                  "evidence": "set a reminder",
+                  "sourceMessageId": "stress-smart-explicit-hours-1",
+                  "evidenceSourceId": "s0"
+                }
+              ],
+              "sourceMessageIds": [
+                "stress-smart-explicit-hours-1"
+              ]
+            }
+          ],
+          "question": null,
+          "schedulePreview": {
+            "anchorAt": "2026-10-19T04:30:00.000Z",
+            "timezone": "Asia/Kolkata",
+            "items": [
+              {
+                "opId": "op1",
+                "title": "Reminder",
+                "source": "in 2 hours",
+                "status": "parsed",
+                "planned": "2026-10-19T06:30:00.000Z",
+                "plannedDate": null,
+                "end": null,
+                "minutes": null,
+                "label": "Mon, Oct 19, 12:00 PM",
+                "reason": null,
+                "assumptions": []
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "saved": [
+      {
+        "title": "Reminder",
+        "planned": "2026-10-19T06:30:00.000Z",
+        "plannedDate": null,
+        "alert": "reminder",
+        "raw": "set a reminder in 2 hours"
+      }
+    ]
+  },
+  "after": {
+    "pass": true,
+    "failures": [],
+    "turns": [
+      {
+        "words": "set a reminder in 2 hours",
+        "modelCalls": [
+          {
+            "route": "quick",
+            "output": {
+              "schemaVersion": 1,
+              "mode": "capture",
+              "draftMode": "new",
+              "reply": "Reminder in 2 hours. I'll set it for 12:30 today, with the title to name later.",
+              "decisions": [
+                {
+                  "sourceId": "s0",
+                  "disposition": "action",
+                  "note": null
+                }
+              ],
+              "operations": [
+                {
+                  "opId": "op1",
+                  "sourceId": "s0",
+                  "kind": "create",
+                  "entity": "task",
+                  "targetId": null,
+                  "fields": [
+                    {
+                      "name": "title",
+                      "op": "set",
+                      "value": "Reminder",
+                      "origin": "suggested",
+                      "evidence": null
+                    },
+                    {
+                      "name": "time",
+                      "op": "set",
+                      "value": "in 2 hours",
+                      "origin": "stated",
+                      "evidence": "in 2 hours"
+                    },
+                    {
+                      "name": "alert",
+                      "op": "set",
+                      "value": "reminder",
+                      "origin": "stated",
+                      "evidence": "set a reminder"
+                    }
+                  ]
+                }
+              ],
+              "question": null,
+              "clarification": null,
+              "memoryCandidates": [],
+              "card": null
+            },
+            "usage": {
+              "input_tokens": 15049,
+              "output_tokens": 284,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 0,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              }
+            },
+            "costUSD": 0.0016469000000000002
+          }
+        ],
+        "trace": {
+          "id": "stress-smart-explicit-hours-1",
+          "at": "2026-10-19T04:30:00.000Z",
+          "attempts": 1,
+          "latencyMs": 0,
+          "outcome": null,
+          "models": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "effort": "none",
+              "reason": "capture",
+              "attempt": 0,
+              "ms": 1880,
+              "ok": true,
+              "provider": "API transport",
+              "servedModel": "claude-haiku-5-5",
+              "inputTokens": 15049,
+              "outputTokens": 284,
+              "cost": 0.0016469000000000002,
+              "service": "anthropic",
+              "input": {
+                "bytes": 6670,
+                "hash": "4874399b4fa1dce9",
+                "units": 1,
+                "messageCount": 1,
+                "messages": [
+                  {
+                    "id": "seed-dinner",
+                    "role": "user",
+                    "hash": "d97e9286890ca358"
+                  }
+                ],
+                "focus": null,
+                "question": null,
+                "entityCount": 14,
+                "entityIds": [
+                  "task:101",
+                  "task:102",
+                  "task:103",
+                  "task:104",
+                  "task:105",
+                  "task:106",
+                  "block:block-1",
+                  "block:block-2",
+                  "block:block-3",
+                  "block:block-4",
+                  "block:block-5",
+                  "block:block-6",
+                  "block:block-7",
+                  "block:block-8"
+                ],
+                "truncated": {
+                  "olderMessages": 0,
+                  "droppedMessages": 0,
+                  "clippedMessages": 0,
+                  "entities": 0,
+                  "snapshot": {}
+                },
+                "snapshotHash": "f92151df6c8a5155"
+              },
+              "completion": "short-reminder"
+            }
+          ],
+          "applied": {
+            "status": "applied",
+            "draftId": "draft-stress-smart-explicit-hours-1",
+            "entryIds": [
+              107
+            ]
+          },
+          "errors": []
+        },
+        "result": {
+          "status": "interpreted",
+          "draftId": "draft-stress-smart-explicit-hours-1",
+          "applied": {
+            "status": "applied",
+            "needsConfirm": false,
+            "warning": null,
+            "undoId": "cbdb3d70-5c98-4e05-ae2d-3420c8ec6b77",
+            "entryIds": [
+              107
+            ],
+            "changes": [
+              {
+                "type": "create",
+                "collection": "tasks",
+                "id": 107,
+                "title": "Reminder"
+              }
+            ]
+          }
+        },
+        "draft": {
+          "status": "committed",
+          "operations": [
+            {
+              "opId": "short-alert",
+              "sourceId": "s0",
+              "kind": "create",
+              "entity": "task",
+              "targetId": null,
+              "fields": [
+                {
+                  "name": "title",
+                  "value": "Reminder",
+                  "evidence": null,
+                  "origin": "suggested",
+                  "op": "set",
+                  "sourceMessageId": "stress-smart-explicit-hours-1",
+                  "evidenceSourceId": null
+                },
+                {
+                  "name": "time",
+                  "value": "in 2 hours",
+                  "evidence": "in 2 hours",
+                  "origin": "stated",
+                  "op": "set",
+                  "sourceMessageId": "stress-smart-explicit-hours-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "alert",
+                  "value": "reminder",
+                  "evidence": "set a reminder in 2 hours",
+                  "origin": "stated",
+                  "op": "set",
+                  "sourceMessageId": "stress-smart-explicit-hours-1",
+                  "evidenceSourceId": "s0"
+                }
+              ],
+              "sourceMessageIds": [
+                "stress-smart-explicit-hours-1"
+              ]
+            }
+          ],
+          "question": null,
+          "schedulePreview": {
+            "anchorAt": "2026-10-19T04:30:00.000Z",
+            "timezone": "Asia/Kolkata",
+            "items": [
+              {
+                "opId": "short-alert",
+                "title": "Reminder",
+                "source": "in 2 hours",
+                "status": "parsed",
+                "planned": "2026-10-19T06:30:00.000Z",
+                "plannedDate": null,
+                "end": null,
+                "minutes": null,
+                "label": "Mon, Oct 19, 12:00 PM",
+                "reason": null,
+                "assumptions": []
+              }
+            ]
+          },
+          "nextStep": {
+            "text": null,
+            "label": "Name it",
+            "action": {
+              "kind": "next-step",
+              "conversationId": "stress",
+              "draftId": "draft-stress-smart-explicit-hours-1",
+              "revision": 2,
+              "step": "name",
+              "targetId": "107",
+              "guard": "1d17c574fe451486"
+            }
+          }
+        }
+      }
+    ],
+    "saved": [
+      {
+        "title": "Reminder",
+        "planned": "2026-10-19T06:30:00.000Z",
+        "plannedDate": null,
+        "alert": "reminder",
+        "raw": "set a reminder in 2 hours"
+      }
+    ]
+  }
+}

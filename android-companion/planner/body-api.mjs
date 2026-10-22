@@ -7,6 +7,7 @@ import {bodyOf} from '../body-store.mjs';
 import {localDay} from '../body-state.mjs';
 import {mealPlanSlots} from '../day-parts.mjs';
 import {guessMeal} from './meal-guess.mjs';
+import {drinkOp} from '../notch-ops.mjs';
 
 const apis = new WeakMap();
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -66,7 +67,7 @@ export function bodyApi(app) {
     saveRoutine: routine => save({type: 'saveRoutine', routine}),
     deleteRoutine: id => save({type: 'removeRoutine', id}),
     water: () => ({...read().water, busy: busyEvents(app.state.calendar)}),
-    drink: () => save({type: 'drinkWater', at: new Date().toISOString()}),
+    drink: () => save(drinkOp()),
     snooze: () => save({type: 'snoozeWater', until: new Date(Date.now() + read().water.settings.snoozeMinutes * 60000).toISOString()}),
     setWater: (key, value) => save({type: 'setWater', fields: {[key]: value}}),
     setWaterFields: fields => save({type: 'setWater', fields}),

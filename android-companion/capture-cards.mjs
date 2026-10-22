@@ -2,8 +2,9 @@ import {el,icon,button} from './capture-dom.mjs';
 import {scheduleText} from './capture-content.mjs';
 import {actionPresentation} from './capture-session.mjs';
 import {line,lines,tally} from './capture-lines.mjs';
+import {attachSwipe} from './task-swipe.mjs';
 
-const ENTITY={task:'Task',block:'Block',project:'Project',goal:'Goal',area:'Area'};
+const ENTITY={task:'Task',block:'Block',project:'Project',goal:'Goal',area:'Area',draft:'Draft'};
 const KEEPABLE=new Set(['idea','preference','question']);
 const NOTE_ICON={idea:'lightbulb',reflection:'chat',preference:'tune',question:'help',reference:'info',existing:'check_circle'};
 
@@ -101,14 +102,20 @@ export function alsoHeard(capture,on){
 }
 
 /** New items: "Added · Call the bank · Today, 10:30 AM · Inbox" with Undo, and a countdown before Capture closes. */
-export function receiptCard(capture,{canUndo,on}){
+export function receiptCard(capture,{canUndo,on,undoId}){
  const draft=capture.draft,node=card('receipt');
  const rows=draft.lines?.length?draft.lines:[{verb:'Saved',title:capture.raw}];
+ const chips=on.chips&&rows.some(r=>r.edit)?on.chips:null;
+ if(chips?.held(draft.id))node.classList.replace('enter','kept');
  node.append(kicker(draft.confirm==='kept'?'Kept':tally(rows),{name:'check_circle',tone:'done'}));
- node.append(lines(rows));
+ node.append(chips?chips.items(capture,node):lines(rows));
+ if(capture.reply&&!capture.reply.startsWith('Draft ready to review.'))node.append(answerText(capture.reply));
+ appendReceiptHelp(node,draft,on);
  if(draft.applied?.warning)node.append(warnLine(draft.applied.warning));
  const also=alsoHeard(capture,on);
  if(also)node.append(also);
+ const change=chips?.changeRow(capture,undoId);
+ if(change)node.append(change);
  const countdown=el('span','countdown');
  countdown.setAttribute('aria-live','off');
  node.append(actionsRow(countdown,canUndo?button('Undo',()=>on.undo(draft),{role:'text',iconName:'undo'}):null,
@@ -128,12 +135,23 @@ export function confirmCard(capture,{canUndo,on}){
  const count=draft.lines?.length??0;
  node.append(kicker(draft.mode==='plan'?'Plan applied. Keep it?':count>1?`${count} changes made. Keep them?`:'Changed. Keep it?',{name:'edit_note',tone:'change'}));
  node.append(lines(draft.lines??[]));
- if(capture.reply&&draft.mode==='plan')node.append(el('p','card-text',capture.reply));
+ if(capture.reply&&!capture.reply.startsWith('Draft ready to review.'))node.append(el('p','card-text',capture.reply));
+ appendReceiptHelp(node,draft,on);
  if(draft.applied?.warning)node.append(warnLine(draft.applied.warning));
  node.append(words(capture.raw));
  node.append(actionsRow(canUndo?button('Undo',()=>on.undo(draft),{role:'text',iconName:'undo'}):el('span','quiet','Changed since; Undo is in the planner.'),
   button('Keep',()=>on.keep(draft),{role:'filled',iconName:'check'})));
  return node;
+}
+
+function appendReceiptHelp(node,draft,on){
+ const help=draft.nextStep;if(!help)return;
+ if(help.text)node.append(el('p','quiet',help.text));
+ if(help.action){
+  const chips=el('div','chips'),chip=el('button','chip',help.label);
+  chip.type='button';chip.addEventListener('click',()=>on.action(help.action));
+  chips.append(chip);node.append(chips);
+ }
 }
 
 export function undoneCard(capture,on){
@@ -179,7 +197,7 @@ export function openCard(capture,on){
  for(const op of draft.operations){
   const preview=draft.schedulePreview?.items?.find(p=>p.opId===op.opId);
   const when=scheduleText(preview,{timeZone:draft.schedulePreview?.timezone});
-  const verb=op.kind==='create'?'New':op.kind==='complete'?'Done':op.kind==='archive'?'Trash':'Change';
+  const verb=op.kind==='create'?'New':op.kind==='complete'?'Done':op.entity==='draft'?'Set aside':op.kind==='archive'?'Trash':'Change';
   list.append(line({verb,title:opTitle(op),when:when??null,was:null,where:null,minutes:null}));
  }
  if(draft.operations.length)node.append(list);
@@ -188,8 +206,9 @@ export function openCard(capture,on){
  if(answers.length){
   const chips=el('div','chips');
   for(const a of answers){
-   const chip=el('button','chip',a.label);
+   const chip=el('button','chip');
    chip.type='button';
+   chip.append(icon(answerIcon(draft.question?.field)),el('span','',a.label));
    chip.addEventListener('click',()=>on.action(a.action));
    chips.append(chip);
   }
@@ -197,6 +216,38 @@ export function openCard(capture,on){
  }
  const rest=(draft.actions??[]).filter(a=>a.action.kind!=='answer').map(a=>({a,p:actionPresentation(a,draft)})).sort((x,y)=>x.p.order-y.p.order);
  node.append(actionsRow(...rest.map(({a,p})=>button(p.label,()=>on.action(a.action),{role:p.role,iconName:p.icon??null}))));
+ return node;
+}
+
+/** The choice a right swipe on an open question picks: the first one the card offers; none once it is answered. */
+export const swipeChoice=q=>q?.actions?.[0]??null;
+/** The 18px icon before each "Which one?" chip: what choosing it does. */
+export const choiceIcon=action=>({remove:'delete',complete:'check_circle'})[action]??'arrow_forward';
+/** The 18px icon before each answer chip of a field question: the kind of value it sets. */
+export const answerIcon=field=>({time:'schedule',minutes:'timer',blockId:'target',recurrence:'repeat',alert:'notifications',title:'edit'})[field]??'chat_bubble';
+
+/**
+ * "Which one?": the question, the words it answers, and one chip per choice, each led by what choosing does. A tap
+ * answers it with no model call; a right swipe on the card answers with the first chip, outlined so the pick is visible.
+ */
+export function questionCard(capture,on){
+ const q=capture.clarification,node=card('question');
+ node.append(kicker(NEED.question,{name:'help',tone:'change'}),el('p','card-title',q.prompt));
+ if(capture.draft?.lines?.length)node.append(lines(capture.draft.lines));
+ node.append(words(capture.raw));
+ const chips=el('div','chips');
+ const first=swipeChoice(q);
+ for(const a of q.actions){
+  const chip=el('button','chip');
+  chip.type='button';
+  chip.setAttribute('aria-label',`Choose ${a.label}`);
+  if(a===first)chip.classList.add('chip-first');
+  chip.append(icon(choiceIcon(q.action)),el('span','',a.label));
+  chip.addEventListener('click',()=>on.choose(a.action));
+  chips.append(chip);
+ }
+ node.append(chips);
+ if(first)attachSwipe(node,{right:{kind:'choose',word:first.label,symbol:choiceIcon(q.action),run:()=>on.choose(first.action)}});
  return node;
 }
 

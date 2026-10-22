@@ -12,9 +12,19 @@ Run `npm ci` once, then `npm test`. It needs Node 22 and a JDK 17 (`java` and `j
 
 The device checks in `app/src/androidTest/` are not part of `npm test`. They need an emulator or phone and are run by hand before a phone release with `./gradlew connectedDebugAndroidTest`. `scripts/build-debug.sh` builds the debug APK, runs lint and assembles the test APK.
 
-## Driving the real app
+## Run emulator tests on GitHub Actions
 
-`npm test` does not open the app. To see a change on Android, use the `verify-rpm-glass` skill in `.claude/skills/verify-rpm-glass/`. Its CLI boots a read-only emulator sized like the Galaxy S24 FE, installs the debug build from this checkout, and drives Capture and the planner by accessible name:
+Use GitHub Actions by default so the laptop does not need to run an emulator. Commit and push the current branch, then run `npm run ci:emulator`. To select scenarios, run `npm run ci:emulator -- capture-keeps-words plan-add-in-place`. The helper requires `gh` signed in with Actions access and refuses an unpushed commit or tracked local changes.
+
+The helper dispatches `.github/workflows/emulator.yml` on your current branch, waits for that exact run, prints its conclusion and URL, and downloads artifacts to `.verify/evidence/ci-<run-id>/`. The `rpm-emulator-evidence` artifact contains scenario screenshots, screen metadata, results and logcat, including after a failed run. Read `scenarios.json` for each scenario's outcome. A recorded known bug may fail as described until its exception expires. If it passes, CI warns about `known-bug-fixed` and continues. Other failures fail the job.
+
+The workflow runs on pull requests and main pushes too. It builds the debug APK, uses an API 36 Play Store x86_64 emulator with KVM, and caches Gradle and a clean AVD snapshot. Its display matches the local S24 FE setup at 1080 by 2340 pixels and 450 dpi. Each job has a 20-minute limit; a new run cancels an older run for the same branch or pull request.
+
+For a newly added workflow that GitHub has not registered, first trigger a run from a pull request or a temporary branch push trigger. The helper uses its numeric workflow ID so the branch workflow can be dispatched without changing main.
+
+## Drive the real app interactively
+
+`npm test` does not open the app. When automated scenarios do not cover the changed feature, use the local emulator as a fallback with the `verify-rpm-glass` skill in `.claude/skills/verify-rpm-glass/`. Its CLI boots a read-only emulator sized like the Galaxy S24 FE, installs the debug build from this checkout, and drives Capture and the planner by accessible name:
 
 ```bash
 node .claude/skills/verify-rpm-glass/rpmctl.mjs launch

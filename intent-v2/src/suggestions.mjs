@@ -1,13 +1,12 @@
 import {stable} from './context.mjs';
+import {shortHash} from './hash.mjs';
 
-const fnv=(text,seed)=>{let h=seed>>>0;for(let i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}return h.toString(16).padStart(8,'0');};
 /**
  * The request ID for one tap on a chip: the same tap always gets the same ID, and it is always a short local ID.
  * An answer's value is the model's words ("tomorrow at 6:00 AM"), so it is hashed, never pasted in.
  */
 export function actionIdFor(action){
- const key=stable(action);
- return `${action.kind}:${action.revision}:${fnv(key,0x811c9dc5)}${fnv(key,0x01000193)}`;
+ return `${action.kind}:${action.revision}:${shortHash(stable(action))}`;
 }
 /** Chips are capabilities bound to a conversation, draft and revision, not prose. */
 export function draftActions(draft,{now=new Date()}={}){
@@ -22,6 +21,11 @@ export function draftActions(draft,{now=new Date()}={}){
  if(draft.schedulePreview?.items?.some(item=>item.status==='review'))return [{label:'Edit the time',action:action('open')},{label:'Leave as draft',action:action('dismiss')}];
  if(draft.review)return [{label:'Keep this time',action:action('commit',{reviewToken:draft.review.token})},{label:'Leave as draft',action:action('dismiss')}];
  return [{label:'Save this plan',action:action('commit')},{label:'Edit the draft',action:action('open')},{label:'Not now',action:action('dismiss')}];
+}
+/** Choice chips for a capture's open question: each tap is bound to the question's ID and revision. */
+export function choiceActions(capture){
+ const q=capture?.clarification;if(!q)return [];
+ return q.choices.map(c=>({label:c.label,action:{kind:'choose',conversationId:capture.conversationId,messageId:capture.messageId,questionId:q.id,revision:q.revision,choiceId:c.id}}));
 }
 export function checkAction(draft,action){
  if(!draft||draft.conversationId!==action.conversationId||draft.id!==action.draftId)throw new Error('This action belongs to another conversation or draft');

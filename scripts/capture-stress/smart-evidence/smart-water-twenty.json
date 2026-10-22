@@ -1,0 +1,481 @@
+{
+  "id": "smart-water-twenty",
+  "before": {
+    "pass": true,
+    "failures": [],
+    "turns": [
+      {
+        "words": "in 20 minutes remind me to drink water",
+        "modelCalls": [
+          {
+            "route": "quick",
+            "output": {
+              "schemaVersion": 1,
+              "mode": "capture",
+              "draftMode": "new",
+              "reply": "Got it. I'll set a reminder to drink water in 20 minutes.",
+              "decisions": [
+                {
+                  "sourceId": "s0",
+                  "disposition": "action",
+                  "note": null
+                }
+              ],
+              "operations": [
+                {
+                  "opId": "op1",
+                  "sourceId": "s0",
+                  "kind": "create",
+                  "entity": "task",
+                  "targetId": null,
+                  "fields": [
+                    {
+                      "name": "title",
+                      "op": "set",
+                      "value": "Drink water",
+                      "origin": "stated",
+                      "evidence": "remind me to drink water"
+                    },
+                    {
+                      "name": "time",
+                      "op": "set",
+                      "value": "in 20 minutes",
+                      "origin": "stated",
+                      "evidence": "in 20 minutes"
+                    },
+                    {
+                      "name": "alert",
+                      "op": "set",
+                      "value": "reminder",
+                      "origin": "stated",
+                      "evidence": "remind me"
+                    }
+                  ]
+                }
+              ],
+              "question": null,
+              "clarification": null,
+              "memoryCandidates": [],
+              "card": null
+            },
+            "usage": {
+              "input_tokens": 13391,
+              "output_tokens": 284,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 0,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              }
+            },
+            "costUSD": 0.0014811000000000002
+          }
+        ],
+        "trace": {
+          "id": "stress-smart-water-twenty-1",
+          "at": "2026-10-19T04:30:00.000Z",
+          "attempts": 1,
+          "latencyMs": 0,
+          "outcome": null,
+          "models": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "effort": "none",
+              "reason": "capture",
+              "attempt": 0,
+              "ms": 2526,
+              "ok": true,
+              "provider": "API transport",
+              "servedModel": "claude-haiku-5-5",
+              "inputTokens": 13391,
+              "outputTokens": 284,
+              "cost": 0.0014811000000000002,
+              "service": "anthropic",
+              "input": {
+                "bytes": 6681,
+                "hash": "b3e07e96b31fc964",
+                "units": 1,
+                "messageCount": 1,
+                "messages": [
+                  {
+                    "id": "seed-dinner",
+                    "role": "user",
+                    "hash": "d97e9286890ca358"
+                  }
+                ],
+                "focus": null,
+                "question": null,
+                "entityCount": 14,
+                "entityIds": [
+                  "task:101",
+                  "task:102",
+                  "task:103",
+                  "task:104",
+                  "task:105",
+                  "task:106",
+                  "block:block-1",
+                  "block:block-2",
+                  "block:block-3",
+                  "block:block-4",
+                  "block:block-5",
+                  "block:block-6",
+                  "block:block-7",
+                  "block:block-8"
+                ],
+                "truncated": {
+                  "olderMessages": 0,
+                  "droppedMessages": 0,
+                  "clippedMessages": 0,
+                  "entities": 0,
+                  "snapshot": {}
+                },
+                "snapshotHash": "f92151df6c8a5155"
+              }
+            }
+          ],
+          "applied": {
+            "status": "applied",
+            "draftId": "draft-stress-smart-water-twenty-1",
+            "entryIds": [
+              107
+            ]
+          },
+          "errors": []
+        },
+        "result": {
+          "status": "interpreted",
+          "draftId": "draft-stress-smart-water-twenty-1",
+          "applied": {
+            "status": "applied",
+            "needsConfirm": false,
+            "warning": null,
+            "undoId": "6be2f4f1-c576-4984-80a6-350451991c29",
+            "entryIds": [
+              107
+            ],
+            "changes": [
+              {
+                "type": "create",
+                "collection": "tasks",
+                "id": 107,
+                "title": "Drink water"
+              }
+            ]
+          }
+        },
+        "draft": {
+          "status": "committed",
+          "operations": [
+            {
+              "opId": "op1",
+              "sourceId": "s0",
+              "kind": "create",
+              "entity": "task",
+              "targetId": null,
+              "fields": [
+                {
+                  "name": "title",
+                  "op": "set",
+                  "value": "Drink water",
+                  "origin": "stated",
+                  "evidence": "remind me to drink water",
+                  "sourceMessageId": "stress-smart-water-twenty-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "time",
+                  "op": "set",
+                  "value": "in 20 minutes",
+                  "origin": "stated",
+                  "evidence": "in 20 minutes",
+                  "sourceMessageId": "stress-smart-water-twenty-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "alert",
+                  "op": "set",
+                  "value": "reminder",
+                  "origin": "stated",
+                  "evidence": "remind me",
+                  "sourceMessageId": "stress-smart-water-twenty-1",
+                  "evidenceSourceId": "s0"
+                }
+              ],
+              "sourceMessageIds": [
+                "stress-smart-water-twenty-1"
+              ]
+            }
+          ],
+          "question": null,
+          "schedulePreview": {
+            "anchorAt": "2026-10-19T04:30:00.000Z",
+            "timezone": "Asia/Kolkata",
+            "items": [
+              {
+                "opId": "op1",
+                "title": "Drink water",
+                "source": "in 20 minutes",
+                "status": "parsed",
+                "planned": "2026-10-19T04:50:00.000Z",
+                "plannedDate": null,
+                "end": null,
+                "minutes": null,
+                "label": "Mon, Oct 19, 10:20 AM",
+                "reason": null,
+                "assumptions": []
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "saved": [
+      {
+        "title": "Drink water",
+        "planned": "2026-10-19T04:50:00.000Z",
+        "plannedDate": null,
+        "alert": "reminder",
+        "raw": "in 20 minutes remind me to drink water"
+      }
+    ]
+  },
+  "after": {
+    "pass": true,
+    "failures": [],
+    "turns": [
+      {
+        "words": "in 20 minutes remind me to drink water",
+        "modelCalls": [
+          {
+            "route": "quick",
+            "output": {
+              "schemaVersion": 1,
+              "mode": "capture",
+              "draftMode": "new",
+              "reply": "Got it, a water reminder in 20 minutes.",
+              "decisions": [
+                {
+                  "sourceId": "s0",
+                  "disposition": "action",
+                  "note": null
+                }
+              ],
+              "operations": [
+                {
+                  "opId": "op1",
+                  "sourceId": "s0",
+                  "kind": "create",
+                  "entity": "task",
+                  "targetId": null,
+                  "fields": [
+                    {
+                      "name": "title",
+                      "op": "set",
+                      "value": "Drink water",
+                      "origin": "stated",
+                      "evidence": "remind me to drink water"
+                    },
+                    {
+                      "name": "time",
+                      "op": "set",
+                      "value": "in 20 minutes",
+                      "origin": "stated",
+                      "evidence": "in 20 minutes"
+                    },
+                    {
+                      "name": "alert",
+                      "op": "set",
+                      "value": "reminder",
+                      "origin": "stated",
+                      "evidence": "remind me"
+                    }
+                  ]
+                }
+              ],
+              "question": null,
+              "clarification": null,
+              "memoryCandidates": [],
+              "card": null
+            },
+            "usage": {
+              "input_tokens": 15051,
+              "output_tokens": 277,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 0,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              }
+            },
+            "costUSD": 0.0016436
+          }
+        ],
+        "trace": {
+          "id": "stress-smart-water-twenty-1",
+          "at": "2026-10-19T04:30:00.000Z",
+          "attempts": 1,
+          "latencyMs": 0,
+          "outcome": null,
+          "models": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "effort": "none",
+              "reason": "capture",
+              "attempt": 0,
+              "ms": 2032,
+              "ok": true,
+              "provider": "API transport",
+              "servedModel": "claude-haiku-5-5",
+              "inputTokens": 15051,
+              "outputTokens": 277,
+              "cost": 0.0016436,
+              "service": "anthropic",
+              "input": {
+                "bytes": 6681,
+                "hash": "b3e07e96b31fc964",
+                "units": 1,
+                "messageCount": 1,
+                "messages": [
+                  {
+                    "id": "seed-dinner",
+                    "role": "user",
+                    "hash": "d97e9286890ca358"
+                  }
+                ],
+                "focus": null,
+                "question": null,
+                "entityCount": 14,
+                "entityIds": [
+                  "task:101",
+                  "task:102",
+                  "task:103",
+                  "task:104",
+                  "task:105",
+                  "task:106",
+                  "block:block-1",
+                  "block:block-2",
+                  "block:block-3",
+                  "block:block-4",
+                  "block:block-5",
+                  "block:block-6",
+                  "block:block-7",
+                  "block:block-8"
+                ],
+                "truncated": {
+                  "olderMessages": 0,
+                  "droppedMessages": 0,
+                  "clippedMessages": 0,
+                  "entities": 0,
+                  "snapshot": {}
+                },
+                "snapshotHash": "f92151df6c8a5155"
+              }
+            }
+          ],
+          "applied": {
+            "status": "applied",
+            "draftId": "draft-stress-smart-water-twenty-1",
+            "entryIds": [
+              107
+            ]
+          },
+          "errors": []
+        },
+        "result": {
+          "status": "interpreted",
+          "draftId": "draft-stress-smart-water-twenty-1",
+          "applied": {
+            "status": "applied",
+            "needsConfirm": false,
+            "warning": null,
+            "undoId": "515c39da-1766-4fe1-a574-ca446878f48f",
+            "entryIds": [
+              107
+            ],
+            "changes": [
+              {
+                "type": "create",
+                "collection": "tasks",
+                "id": 107,
+                "title": "Drink water"
+              }
+            ]
+          }
+        },
+        "draft": {
+          "status": "committed",
+          "operations": [
+            {
+              "opId": "op1",
+              "sourceId": "s0",
+              "kind": "create",
+              "entity": "task",
+              "targetId": null,
+              "fields": [
+                {
+                  "name": "title",
+                  "op": "set",
+                  "value": "Drink water",
+                  "origin": "stated",
+                  "evidence": "remind me to drink water",
+                  "sourceMessageId": "stress-smart-water-twenty-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "time",
+                  "op": "set",
+                  "value": "in 20 minutes",
+                  "origin": "stated",
+                  "evidence": "in 20 minutes",
+                  "sourceMessageId": "stress-smart-water-twenty-1",
+                  "evidenceSourceId": "s0"
+                },
+                {
+                  "name": "alert",
+                  "op": "set",
+                  "value": "reminder",
+                  "origin": "stated",
+                  "evidence": "remind me",
+                  "sourceMessageId": "stress-smart-water-twenty-1",
+                  "evidenceSourceId": "s0"
+                }
+              ],
+              "sourceMessageIds": [
+                "stress-smart-water-twenty-1"
+              ]
+            }
+          ],
+          "question": null,
+          "schedulePreview": {
+            "anchorAt": "2026-10-19T04:30:00.000Z",
+            "timezone": "Asia/Kolkata",
+            "items": [
+              {
+                "opId": "op1",
+                "title": "Drink water",
+                "source": "in 20 minutes",
+                "status": "parsed",
+                "planned": "2026-10-19T04:50:00.000Z",
+                "plannedDate": null,
+                "end": null,
+                "minutes": null,
+                "label": "Mon, Oct 19, 10:20 AM",
+                "reason": null,
+                "assumptions": []
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "saved": [
+      {
+        "title": "Drink water",
+        "planned": "2026-10-19T04:50:00.000Z",
+        "plannedDate": null,
+        "alert": "reminder",
+        "raw": "in 20 minutes remind me to drink water"
+      }
+    ]
+  }
+}

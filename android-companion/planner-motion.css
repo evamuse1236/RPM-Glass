@@ -1,7 +1,11 @@
 /* ---------- 7. Large text (200%) and reduced motion ---------- */
-:root[data-large-text=true] .week-number { min-width: 1.6em; height: 1.6em; font-size: 15px; }
+:root[data-large-text=true] .week-number { min-width: 1.6em; height: 1.6em; font-size: 16px; }
 :root[data-large-text=true] #nav-bar { grid-template-columns: 1fr 1fr 1.3fr .9fr; padding-inline: 0; }
-:root[data-large-text=true] .nav-pill { min-width: 56px; }
+:root[data-large-text=true] #planner:has(> #dock:not([hidden]) .fab:not([hidden])) :is(#nav-bar, #now-host) { inset-inline-end: var(--inset-page); }
+:root[data-large-text=true] #dock { inset-block-end: calc(var(--nav-measured, var(--nav)) + var(--s3)); }
+:root[data-large-text=true] #planner:has(> #dock:not([hidden]) .fab:not([hidden])) .page { padding-bottom: calc(var(--nav-measured, var(--nav)) + var(--fab) + var(--s3) + var(--s4)); }
+:root[data-large-text=true] #planner[data-habit=true] .page { padding-bottom: calc(var(--nav-measured, var(--nav)) + var(--fab) + var(--touch) + 2 * var(--s3) + var(--s4)); }
+:root[data-large-text=true] #planner:has(> #dock:not([hidden]) .fab:not([hidden])) ~ #sheet[hidden] ~ #snackbar { right: calc(var(--inset-page) + var(--fab) + var(--s3)); }
 /* Large text: a row's action moves under its words instead of squeezing them. */
 :root[data-large-text=true] .today-row { grid-template-columns: auto 1fr; }
 :root[data-large-text=true] .today-row-headline { grid-column: 2; }
@@ -27,7 +31,7 @@
 :root[data-large-text=true] .settings-value { max-width: none; text-align: left; }
 :root[data-large-text=true] .top-title { font-size: 24px; }
 @media (prefers-reduced-motion: reduce) {
-  .progress > span, .wheel-track > span, #fab-host, .fab { transition: none; }
+  .progress > span { transition: none; }
   .plan-list .task-row, .task-row.lifted, .inline-edit { transition: none; scale: none; }
   .rating-slider::-webkit-slider-thumb { transition: none; }
 }
@@ -45,9 +49,8 @@
   pointer-events: none;
 }
 .motion-ghost-inner { transform: translateY(var(--ghost-scroll, 0px)); }
-.motion-ghost-bar, .motion-ghost-nav { height: 100%; }
-.motion-ghost-nav #nav-bar { height: 100%; }
-.motion-ghost-fab { display: grid; place-items: center; }
+.motion-ghost-bar, .motion-ghost-nav, .motion-ghost-dock { height: 100%; }
+.motion-ghost-nav #nav-bar, .motion-ghost-dock #dock { inset: 0; }
 /* A removed row collapsing in place, and a new row opening. */
 .motion-ghost { overflow: hidden; pointer-events: none; }
 /* Old words fading out over a row whose words changed in place (surface-motion.mjs fadeWords). */
@@ -59,7 +62,7 @@
 /* The surface is opaque within 50ms (no see-through menu) while it grows from its anchor over 150ms; its items come
    in with it. */
 @keyframes menu-in { 0% { opacity: 0; transform: scale(.9, .7); } 33% { opacity: 1; } 100% { opacity: 1; transform: none; } }
-:root[data-reduce-motion=true] .progress > span, :root[data-reduce-motion=true] #fab-host, :root[data-reduce-motion=true] .fab { transition: none; }
+:root[data-reduce-motion=true] .progress > span { transition: none; }
 @media (prefers-reduced-motion: reduce) { .field-fold, .field-fold.open { transition: none; } }
 :root[data-reduce-motion=true] .field-fold, :root[data-reduce-motion=true] .field-fold.open { transition: none; }
 :root[data-reduce-motion=true] :is(.plan-list .task-row, .task-row.lifted, .inline-edit) { transition: none; scale: none; }

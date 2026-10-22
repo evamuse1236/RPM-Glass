@@ -10,8 +10,8 @@ android {
         applicationId "com.rpm.prototype"
         minSdk 26
         targetSdk 36
-        versionCode 29
-        versionName "0.29-task-sheet-habits"
+        versionCode 31
+        versionName "0.31-apple"
         testInstrumentationRunner "com.rpm.prototype.OfflineTests"
     }
     compileOptions {
@@ -44,3 +44,7 @@ tasks.register('bundleCompanion', Exec) {
     outputs.dir('src/main/assets/companion')
 }
 tasks.named('preBuild').configure { dependsOn 'bundleCompanion' }
+
+tasks.withType(Test).configureEach {
+    inputs.file(rootProject.file('fixtures/habit-cases.json'))
+}

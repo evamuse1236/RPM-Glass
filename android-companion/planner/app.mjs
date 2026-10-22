@@ -23,8 +23,9 @@ export function createApp(api, renderers) {
     topBar: document.getElementById('top-bar'),
     scroll: document.getElementById('planner-scroll'),
     work: document.getElementById('workspace'),
-    fab: document.getElementById('fab-host'),
+    now: document.getElementById('now-host'),
     nav: document.getElementById('nav-bar'),
+    dock: document.getElementById('dock'),
     sheet: document.getElementById('sheet'),
     snackbar: document.getElementById('snackbar'),
   };
@@ -42,11 +43,11 @@ export function createApp(api, renderers) {
       period: now.getMonth() + 1,
       dayLayout: preferences.dayLayout,
       projectFilter: null,
+      projectOpen: null,
       blockFilter: null,
       blockStatus: 'active',
       lifeFilter: null,
       completedOpen: false,
-      wheel: 'bars',
       focusedTaskId: null,
       focusedBlockId: null,
       calendar: [],
@@ -217,25 +218,24 @@ function stageScreen(app, kind, top) {
   return stage;
 }
 
-/** The FAB and the navigation bar leave and arrive with the page instead of snapping. */
+/** The navigation bar and the dock beside it (Add and the habit circle) leave and arrive with the page instead of snapping. */
+const FLOATS = ['nav', 'dock'];
 function shellBefore(app) {
-  const {fab, nav, planner} = app.dom;
-  const button = !fab.hidden && fab.firstElementChild;
-  return {fab: button ? {node: button.cloneNode(true), rect: button.getBoundingClientRect(),
-    label: button.getAttribute('aria-label')} : null,
-  nav: nav.hidden ? null : {rect: nav.getBoundingClientRect(), node: nav.cloneNode(true)}, host: planner};
+  const floats = {};
+  for (const name of FLOATS) {
+    const node = app.dom[name];
+    floats[name] = node.hidden ? null : {rect: node.getBoundingClientRect(), node: node.cloneNode(true)};
+  }
+  return {floats, host: app.dom.planner};
 }
 
 function shellAfter(app, before, motion, outgoing, incoming) {
-  const {fab, nav} = app.dom;
-  const button = !fab.hidden && fab.firstElementChild;
   if (!motion) return;
-  // The FAB belongs to its page: it rides the page's own transition (the same layers, the same motion), leaving with
-  // the outgoing page and arriving with the incoming one, with no motion of its own on top.
-  if (before.fab && !button) outgoing.push(ghost([before.fab.node], before.fab.rect, before.host, {cls: 'motion-ghost-fab'}));
-  else if (button && !before.fab) incoming.push(button);
-  if (before.nav && nav.hidden) outgoing.push(ghost([before.nav.node], before.nav.rect, before.host, {cls: 'motion-ghost-nav'}));
-  else if (!before.nav && !nav.hidden) incoming.push(nav);
+  for (const name of FLOATS) {
+    const node = app.dom[name], was = before.floats[name];
+    if (was && node.hidden) outgoing.push(ghost([was.node], was.rect, before.host, {cls: 'motion-ghost-' + name}));
+    else if (!was && !node.hidden) incoming.push(node);
+  }
 }
 
 /**

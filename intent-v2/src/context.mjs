@@ -12,7 +12,13 @@ export function sourceUnits(raw){
  if(units.length>100)throw new Error('This capture needs chunked interpretation; the original remains saved');
  return units;
 }
-export function entityRows(data,entity){return entity==='task'?(data.entries??[]).filter(e=>!e.archived&&(e.kind??'plan')==='plan'):(data.planner?.[{block:'blocks',project:'projects',goal:'goals',area:'areas'}[entity]]??[]);}
+/** A draft has no title of its own: its first proposal's title, or the saved item that proposal changes. */
+export function draftTitle(data,draft){
+ const op=draft?.operations?.[0];if(!op)return 'Draft';
+ return op.fields.find(f=>f.name==='title'&&f.op==='set')?.value??(op.targetId!==null&&op.entity!=='draft'?findEntity(data,op.entity,op.targetId)?.title:null)??'Draft';
+}
+export const draftEntity=(data,draft)=>({entity:'draft',id:draft.id,title:draftTitle(data,draft),status:draft.status,revision:draft.revision});
+export function entityRows(data,entity){if(entity==='draft')return Object.values(data.intentV2?.drafts??{}).map(d=>({...d,title:draftTitle(data,d)}));return entity==='task'?(data.entries??[]).filter(e=>!e.archived&&(e.kind??'plan')==='plan'):(data.planner?.[{block:'blocks',project:'projects',goal:'goals',area:'areas'}[entity]]??[]);}
 export function findEntity(data,entity,id){return entityRows(data,entity).find(x=>String(x.id)===String(id));}
 export function stable(value){if(Array.isArray(value))return '['+value.map(stable).join(',')+']';if(value&&typeof value==='object')return '{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+stable(value[k])).join(',')+'}';return JSON.stringify(value);}
 // Function words match every title, which crowds the context with unrelated tasks; they carry no topic.
@@ -29,29 +35,34 @@ export function localStamp(value,timezone){
  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(value)).map(p=>[p.type,p.value]));
  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
 }
+/** A task's alert as the model reads it: alarm or reminder, or nothing when it is off. */
+export const alertOf=row=>{const type=row?.alertIntent?.type??row?.alert??null;return type&&type!=='off'?type:null;};
 export function contextEntity(entity,row,timezone,data=null){
  const startLocal=localStamp(row.planned,timezone),minutes=Number.isInteger(row.minutes)&&row.minutes>0?row.minutes:null;
- return {entity,id:String(row.id),title:row.title,purpose:row.purpose??null,planned:row.planned??null,plannedDate:row.plannedDate??null,savedLocalDate:startLocal?.slice(0,10)??row.plannedDate??null,startLocal,endLocal:startLocal&&minutes?localStamp(new Date(Date.parse(row.planned)+minutes*60000).toISOString(),timezone):null,minutes,blockId:row.blockId??null,projectId:row.projectId??null,goalId:row.goalId??null,done:!!row.done,...(entity==='block'&&data?{dueLocal:blockDue(data,row.id,timezone)}:{})};
+ return {entity,id:String(row.id),title:row.title,purpose:row.purpose??null,planned:row.planned??null,plannedDate:row.plannedDate??null,savedLocalDate:startLocal?.slice(0,10)??row.plannedDate??null,startLocal,endLocal:startLocal&&minutes?localStamp(new Date(Date.parse(row.planned)+minutes*60000).toISOString(),timezone):null,minutes,blockId:row.blockId??null,projectId:row.projectId??null,goalId:row.goalId??null,done:!!row.done,...(entity==='task'&&alertOf(row)?{alert:alertOf(row)}:{}),...(entity==='block'&&data?{dueLocal:blockDue(data,row.id,timezone)}:{})};
 }
-export function buildContext(data,{raw,messageId=null,conversationId,focus={},now=new Date(),maxChars=14000,timezone=Intl.DateTimeFormat().resolvedOptions().timeZone}={}){
+/** `meta`, when given, receives what the model is not shown: each kept message's ID and what was cut to fit. */
+export function buildContext(data,{raw,messageId=null,conversationId,focus={},now=new Date(),maxChars=14000,timezone=Intl.DateTimeFormat().resolvedOptions().timeZone,meta=null}={}){
  const at=+now,result={timezone,now:now.toISOString(),nowLocal:localStamp(now.toISOString(),timezone),scheduleCoverage:{records:'retrieved subset of saved RPM records',calendar:'not read',canAssertFreeTime:false},focus,entities:[],memories:[],recentMessages:[]};
- const add=(key,item)=>{const next={...result,[key]:[...result[key],item]};if(JSON.stringify(next).length<=maxChars)result[key].push(item);};
+ const add=(key,item)=>{const next={...result,[key]:[...result[key],item]};if(JSON.stringify(next).length>maxChars)return false;result[key].push(item);return true;};
  const conversation=(data.conversations??[]).find(c=>c.id===conversationId&&!c.archived);
  const excludedEntries=new Set((data.entries??[]).filter(e=>e.archived).map(e=>e.id));
  const forgotten=[...(data.memories??[]),...(data.intentV2?.approvedMemories??[])].filter(m=>m.archived).flatMap(m=>[m.source,m.evidence]).flat().filter(x=>typeof x==='string'&&x.length>4);
  const excludedRaw=(data.history??[]).filter(h=>h.archived||(h.entryIds??[]).some(id=>excludedEntries.has(id))).flatMap(h=>[h.raw,h.response]).filter(Boolean);
- const pilotMessages=Object.values(data.intentV2?.captures??{}).filter(c=>c.conversationId===conversationId&&!c.archived&&(messageId?c.messageId!==messageId:c.raw!==raw)&&Date.parse(c.at)<=at).flatMap(c=>[{role:'user',text:c.raw,at:c.at},...(c.reply?[{role:'assistant',text:c.reply,at:c.at}]:[])]);
- const messages=[...(conversation?.messages??[]),...pilotMessages].sort((a,b)=>String(a.at??'').localeCompare(String(b.at??''))).filter(m=>(!m.at||Date.parse(m.at)<=at)&&!(m.entryIds??[]).some(id=>excludedEntries.has(id))&&!excludedRaw.includes(m.text)&&!forgotten.some(s=>String(m.text??'').includes(s))).slice(-6);
+ const pilotMessages=Object.values(data.intentV2?.captures??{}).filter(c=>c.conversationId===conversationId&&!c.archived&&(messageId?c.messageId!==messageId:c.raw!==raw)&&Date.parse(c.at)<=at).flatMap(c=>[{id:c.messageId??null,role:'user',text:c.raw,at:c.at},...(c.reply?[{id:c.messageId?c.messageId+':reply':null,role:'assistant',text:c.reply,at:c.at}]:[])]);
+ const eligible=[...(conversation?.messages??[]),...pilotMessages].sort((a,b)=>String(a.at??'').localeCompare(String(b.at??''))).filter(m=>(!m.at||Date.parse(m.at)<=at)&&!(m.entryIds??[]).some(id=>excludedEntries.has(id))&&!excludedRaw.includes(m.text)&&!forgotten.some(s=>String(m.text??'').includes(s)));
+ const messages=eligible.slice(-6),kept=[];
  // Reserve the budget for the nearest conversation before broad task retrieval.
- for(const m of [...messages].reverse())add('recentMessages',{role:m.role,text:String(m.text??'').slice(0,700)});
+ for(const m of [...messages].reverse())if(add('recentMessages',{role:m.role,text:String(m.text??'').slice(0,700)}))kept.unshift(m);
  result.recentMessages.reverse();
  const candidates=[];
+ const pointed=new Set((focus.targets??[]).map(t=>`${t.entity}:${t.id}`));
  for(const entity of ['task','block','project','goal','area'])for(const row of entityRows(data,entity)){
-  const focusId=focus[entity+'Id'];
-  const score=(String(focusId??'')===String(row.id)?100:0)+relevance(row.title??'',raw)*10+(entity==='task'&&!row.done&&row.state!=='cancelled'?2:0);
+  const score=(pointed.has(`${entity}:${row.id}`)?100:0)+relevance(row.title??'',raw)*10+(entity==='task'&&!row.done&&row.state!=='cancelled'?2:0);
   if(score>0)candidates.push({entity,row,score});
  }
- for(const {entity,row} of candidates.sort((a,b)=>b.score-a.score).slice(0,16))add('entities',contextEntity(entity,row,timezone,data));
+ let entitiesDropped=Math.max(0,candidates.length-16);
+ for(const {entity,row} of candidates.sort((a,b)=>b.score-a.score).slice(0,16))if(!add('entities',contextEntity(entity,row,timezone,data)))entitiesDropped++;
  // Every open Block, with its Purpose and deadline, so a new task can be filed under the Result it serves
  // even when the words share none of the Block's title ("the excel" belongs to the DAD workbook).
  for(const row of entityRows(data,'block').filter(b=>!b.archived&&!b.achieved).slice(0,24))
@@ -68,6 +79,7 @@ export function buildContext(data,{raw,messageId=null,conversationId,focus={},no
   for(const part of value.split(/\n\s*\n/).filter(x=>relevance(x,raw)>0).slice(0,2))add('memories',{id:`approved-context:${field}`,text:part.slice(0,1000),source:'User-approved planning context'});
  }
 
+ if(meta)Object.assign(meta,{messages:kept.map(m=>({id:m.id??null,role:m.role})),truncated:{olderMessages:eligible.length-messages.length,droppedMessages:messages.length-kept.length,clippedMessages:kept.filter(m=>String(m.text??'').length>700).length,entities:entitiesDropped}});
  return result;
 }
 export function guardsFor(data,operations){

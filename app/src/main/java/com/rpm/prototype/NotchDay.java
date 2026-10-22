@@ -1,6 +1,5 @@
 package com.rpm.prototype;
 
-import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -31,12 +30,30 @@ final class NotchDay {
         final Set<String> completedOccurrences;
         /** A calendar event: fixed, not the person's to tick off. */
         final boolean fixed;
+        /** "alarm", "reminder", or "" for no alert (NotchData.alertType). */
+        final String alert;
+        /** Why the person does it, in their words; "" when they gave none. */
+        final String purpose;
+        final int tone;
 
         Task(long id, String title, String block, Instant planned, int minutes, String recurrence, Set<String> completedOccurrences) {
-            this(id, title, block, planned, minutes, recurrence, completedOccurrences, false);
+            this(id, title, block, planned, minutes, recurrence, completedOccurrences, false, "");
         }
 
-        Task(long id, String title, String block, Instant planned, int minutes, String recurrence, Set<String> completedOccurrences, boolean fixed) {
+        Task(long id, String title, String block, Instant planned, int minutes, String recurrence, Set<String> completedOccurrences, boolean fixed,
+             String alert) {
+            this(id, title, block, planned, minutes, recurrence, completedOccurrences, fixed, alert, "");
+        }
+
+        Task(long id, String title, String block, Instant planned, int minutes, String recurrence, Set<String> completedOccurrences, boolean fixed,
+             String alert, String purpose) {
+            this(id, title, block, planned, minutes, recurrence, completedOccurrences, fixed, alert, purpose, -1);
+        }
+
+        Task(long id, String title, String block, Instant planned, int minutes, String recurrence, Set<String> completedOccurrences, boolean fixed,
+             String alert, String purpose, int tone) {
+            this.tone = tone;
+            this.purpose = purpose == null ? "" : purpose.trim();
             this.id = id;
             this.title = title;
             this.block = block;
@@ -45,6 +62,7 @@ final class NotchDay {
             this.recurrence = recurrence;
             this.completedOccurrences = completedOccurrences;
             this.fixed = fixed;
+            this.alert = alert;
         }
     }
 
@@ -62,6 +80,11 @@ final class NotchDay {
 
         boolean runningAt(long now) {
             return start <= now && now < end;
+        }
+
+        /** The alert this occurrence still has to give: its type when it asked for one and has not started yet, else "". */
+        String alertAt(long now) {
+            return start > now ? task.alert : "";
         }
     }
 
@@ -84,20 +107,19 @@ final class NotchDay {
         return slots;
     }
 
-    /** One-time tasks have their own time; daily, weekly and weekday repeats keep the first time's local clock. */
+    /** One-time tasks have their own time; every calendar repeat (Repeats) keeps the first time's local clock. */
     private static List<ZonedDateTime> candidates(Task task, LocalDate day, ZoneId zone) {
         List<ZonedDateTime> out = new ArrayList<>();
         ZonedDateTime base = task.planned.atZone(zone);
         String r = task.recurrence;
-        if (!"daily".equals(r) && !"weekly".equals(r) && !"weekdays".equals(r)) {
+        if (!Repeats.repeating(r)) {
             out.add(base);
             return out;
         }
         for (LocalDate d = day.minusDays(1); !d.isAfter(day); d = d.plusDays(1)) {
             long days = d.toEpochDay() - base.toLocalDate().toEpochDay();
             if (days < 0 || ("weekly".equals(r) && days % 7 != 0)) continue;
-            DayOfWeek dow = d.getDayOfWeek();
-            if ("weekdays".equals(r) && (dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY)) continue;
+            if (!Repeats.on(r, d.getDayOfWeek())) continue;
             out.add(base.plusDays(days));
         }
         return out;
@@ -138,5 +160,16 @@ final class NotchDay {
 
     static String clock(long at, ZoneId zone, boolean h24) {
         return DateTimeFormatter.ofPattern(h24 ? "H:mm" : "h:mm a", Locale.US).format(Instant.ofEpochMilli(at).atZone(zone));
+    }
+
+    /** The pill's clock: "4:30" within 12 hours of {@code now}, "4:30 PM" further away. */
+    static String shortClock(long at, long now, ZoneId zone, boolean h24) {
+        String full = clock(at, zone, h24);
+        return Math.abs(at - now) <= 12 * 60 * MIN ? dropAmPm(full) : full;
+    }
+
+    /** "4:30 PM" without its " PM"; a 24-hour clock is left alone. */
+    static String dropAmPm(String clock) {
+        return clock.endsWith(" AM") || clock.endsWith(" PM") ? clock.substring(0, clock.length() - 3) : clock;
     }
 }

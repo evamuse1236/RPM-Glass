@@ -1,12 +1,14 @@
 /** Task rows in the style of Google Tasks: circle check, title, supporting time and duration, a star on Musts only. */
 import {blockTasks, localDay} from '../planner-state.mjs';
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
+import {completionOp} from '../notch-ops.mjs';
 import {reorderTask} from '../planner-ux.mjs';
 import {attachRowGestures} from './row-gestures.mjs';
 import {reducedMotion, waitMotion} from '../surface-motion.mjs';
 import {el, icon, button} from './dom.mjs';
 import {commitInPlace} from './inline-edit.mjs';
 import {clock, duration, dayName} from './format.mjs';
+import {repeatLabel} from './task-values.mjs';
 export {dayName};
 
 const REPEAT_NAMES = {daily: 'Daily', weekdays: 'Weekdays', weekly: 'Weekly'};
@@ -20,7 +22,7 @@ export function taskWhen(task) {
 
 export function isOverdue(task, when = taskWhen(task)) {
   if (task.done) return false;
-  if (when) return when + (task.minutes ?? 30) * 60000 < Date.now();
+  if (when) return when + (task.minutes ?? 0) * 60000 < Date.now();
   return !!task.plannedDate && task.plannedDate < localDay();
 }
 
@@ -42,7 +44,8 @@ function supportingLine(task, options) {
   else if (day) parts.push(day);
   else if (!when && options.anytime) parts.push('Anytime');
   if (task.minutes != null) parts.push(duration(task.minutes));
-  const rule = task.repeatAfterDays ? 'After completion' : REPEAT_NAMES[task.recurrence];
+  const rule = task.repeatAfterDays ? 'After completion'
+    : task.recurrence === 'days' ? repeatLabel(task).replace(/^Every /, '') : REPEAT_NAMES[task.recurrence];
   if (rule) parts.push(rule);
   if (options.context) parts.push(options.context);
   const text = parts.join(' · ');
@@ -99,7 +102,7 @@ export function taskRow(app, task, options = {}) {
   // What the row's handlers act on: a re-render may keep this very node (and its running animations) in place of an
   // identical rebuilt row only when this matches (see animateRerender).
   row.__closure = JSON.stringify([task.id, task.title, !!task.done, task.occurrence ?? null, task.planned ?? null,
-    task.plannedDate ?? null, task.recurrence ?? null, task.repeatAfterDays ?? null, task.blockId ?? null, !!task.must]);
+    task.plannedDate ?? null, task.recurrence ?? null, task.repeatDays ?? null, task.repeatAfterDays ?? null, task.blockId ?? null, !!task.must]);
   row.__options = options;
   return row;
 }
@@ -325,10 +328,7 @@ function markRow(app, task, done) {
 export async function toggleDone(app, task, when, {carried = false, keepSheet = false} = {}) {
   if (app.saving) return false;
   const completing = !task.done;
-  const occurrence = when ?? task.occurrence ?? (repeats(task) ? nextOccurrence(task) : task.planned);
-  const op = task.done
-    ? {type: 'reopenTask', id: task.id, occurrence: when ?? task.occurrence}
-    : {type: 'saveTask', id: task.id, fields: {done: true}, occurrence};
+  const op = completionOp(task, when);
   const linger = completing && !repeats(task);
   // Timed on the animation clock from the tap, so the collapse overlaps the tick whatever the save takes.
   const collapse = linger ? waitMotion(carried ? 0 : COLLAPSE_AFTER) : null;

@@ -56,7 +56,7 @@ public final class OfflineTests extends Instrumentation {
             check(parsed.plannedAt!=null&&parsed.minutes==30,"parser on Android");check(CaptureParser.correctionMinutes("Actually, twenty")==20,"correction on Android");
             final Throwable[] problem={null};runOnMainSync(()->{try{
                 RemoteViews remote=new RemoteViews(c.getPackageName(),R.layout.widget);View widget=remote.apply(c,new FrameLayout(c));
-                check(widget.findViewById(R.id.checkin)!=null,"widget Check in target");check(widget.findViewById(R.id.capture)!=null,"widget Capture target");check(widget.findViewById(R.id.remind)!=null,"widget Remind target");check(widget.findViewById(R.id.open)!=null,"widget Open target");
+                check(widget.findViewById(R.id.open)!=null,"widget Open target");check(widget.findViewById(R.id.capture)!=null,"widget Capture target");check(widget.findViewById(R.id.voice)!=null,"widget Voice target");
                 check(Reminders.intent(c,90001).equals(Reminders.intent(c,90001)),"stable reminder identity");check(!Reminders.intent(c,90001).equals(Reminders.intent(c,90002)),"independent reminder identities");
                 Reminders.schedule(c,90001,System.currentTimeMillis()+3600000);Reminders.cancel(c,90001);check(true,"inexact scheduling and cancel without exact permission");
                 check(!Reminders.intent(c,90001).equals(Alarms.trigger(c,90001)),"alarm and reminder cannot replace each other");

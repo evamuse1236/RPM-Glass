@@ -76,6 +76,8 @@ function startVoice() {
 function applyDevice() {
   const d = device();
   screen.style.colorScheme = d.dark ? 'dark' : 'light';
+  screen.dataset.wallpaper = d.wallpaper;
+  for (const b of document.querySelectorAll('[data-wallpaper]')) b.setAttribute('aria-pressed', String(b.dataset.wallpaper === d.wallpaper));
   for (const b of document.querySelectorAll('[data-text-scale]')) b.setAttribute('aria-pressed', String(Number(b.dataset.textScale) === d.textScale));
   for (const b of document.querySelectorAll('[data-dark]')) b.setAttribute('aria-pressed', String(b.dataset.dark === String(d.dark)));
   layoutFrames();
@@ -125,6 +127,7 @@ for (const b of document.querySelectorAll('[data-alert]')) b.addEventListener('c
 $('notch-animate').addEventListener('click', () => notch.animateOpen());
 for (const b of document.querySelectorAll('[data-text-scale]')) b.addEventListener('click', () => { setDevice({textScale: Number(b.dataset.textScale)}); applyDevice(); reloadPages(); });
 for (const b of document.querySelectorAll('[data-dark]')) b.addEventListener('click', () => { setDevice({dark: b.dataset.dark === 'true'}); applyDevice(); reloadPages(); });
+for (const b of document.querySelectorAll('[data-wallpaper]')) b.addEventListener('click', () => { setDevice({wallpaper: b.dataset.wallpaper}); applyDevice(); });
 screen.addEventListener('click', event => { if (screen.dataset.view === 'notch' && notch.expanded() && !notch.contains(event.target)) notch.setExpanded(false); });
 $('notch-time').addEventListener('change', event => { setShell({notchTime: event.target.value}); notch.paint(); });
 $('notch-live').addEventListener('click', () => { $('notch-time').value = ''; setShell({notchTime: ''}); notch.paint(); });

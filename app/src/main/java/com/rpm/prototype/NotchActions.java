@@ -8,33 +8,11 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
- * The panel's controls. Done, Glass and Log meal go through the planner, so its own save, log and Undo apply; the notch
- * never writes companion.json. Every action writes one diagnostics event (and a logcat line).
+ * The island's links into the planner: the meal row, Open, a task's sheet and water's sheet. Glass, Done and alert changes save in
+ * place (NotchChanges); only these open the planner. Every action writes one diagnostics event (and a logcat line).
  */
 final class NotchActions {
     private NotchActions() {}
-
-    /** Done goes through the planner's own completion, so its "Task completed · Undo" bar is the way back. */
-    static void complete(Context c, NotchDay.Slot slot) {
-        try {
-            planner(c, new JSONObject().put("view", "day").put("complete", slot.task.id).put("start", slot.start));
-            log(c, "notch.done", "opened", payload("taskId", slot.task.id, "start", slot.start, "repeats", !slot.task.recurrence.isEmpty()));
-        } catch (JSONException | RuntimeException e) {
-            log(c, "notch.done", "error", payload("taskId", slot.task.id, "error", e.getClass().getSimpleName()));
-            Log.e(NotchController.TAG, "could not open Done in the planner", e);
-        }
-    }
-
-    /** Logs one glass through the planner's own save, so its "Glass logged · Undo" bar is the way back. */
-    static void drink(Context c) {
-        try {
-            planner(c, new JSONObject().put("view", "water").put("drink", true));
-            log(c, "notch.drink", "opened", null);
-        } catch (JSONException | RuntimeException e) {
-            log(c, "notch.drink", "error", payload("error", e.getClass().getSimpleName()));
-            Log.e(NotchController.TAG, "could not log a glass in the planner", e);
-        }
-    }
 
     /** Opens the meal log in the planner, for {@code slot} (the meal not logged yet, or null). */
     static void logMeal(Context c, String slot) {
@@ -49,6 +27,16 @@ final class NotchActions {
         }
     }
 
+    static void openWater(Context c) {
+        try {
+            planner(c, new JSONObject().put("view", "water"));
+            log(c, "notch.open_water", "opened", null);
+        } catch (JSONException | RuntimeException e) {
+            log(c, "notch.open_water", "error", payload("error", e.getClass().getSimpleName()));
+            Log.e(NotchController.TAG, "could not open water in the planner", e);
+        }
+    }
+
     /** Opens a task's sheet in the planner, or the day's plan when {@code taskId} is 0 (a calendar event or a nudge). */
     static void openTask(Context c, long taskId) {
         try {
@@ -60,6 +48,17 @@ final class NotchActions {
             log(c, "notch.open_task", "error", payload("taskId", taskId, "error", e.getClass().getSimpleName()));
             Log.e(NotchController.TAG, "could not open the task in the planner", e);
         }
+    }
+
+    /** A request for NotchRunner: {@code request("done", "id", 4, "start", 1700000000000L)}. */
+    static JSONObject request(String action, Object... pairs) {
+        JSONObject r = payload(pairs);
+        try {
+            r.put("action", action);
+        } catch (JSONException e) {
+            Log.w(NotchController.TAG, "notch request incomplete", e);
+        }
+        return r;
     }
 
     /** One structured line: logcat always, and the app's diagnostics log when the person has it connected. */
@@ -82,7 +81,11 @@ final class NotchActions {
 
     /** CLEAR_TOP without SINGLE_TOP recreates an open planner, so it always reads the new target. */
     private static void planner(Context c, JSONObject target) {
-        c.startActivity(new Intent(c, PlannerActivity.class).setAction("com.rpm.notch.open").putExtra("plannerTarget", target.toString())
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
+        c.startActivity(plannerIntent(c, target, "com.rpm.notch.open"));
+    }
+
+    static Intent plannerIntent(Context c, JSONObject target, String action) {
+        return new Intent(c, PlannerActivity.class).setAction(action).putExtra("plannerTarget", target.toString())
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
     }
 }

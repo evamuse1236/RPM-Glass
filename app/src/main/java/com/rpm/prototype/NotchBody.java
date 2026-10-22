@@ -21,14 +21,14 @@ import java.util.Set;
  *   routines: [{id, name, start: "HH:MM", end: "HH:MM", days: [0..6, Sunday = 0], steps: [{id, title}], archived?}],
  *   runs:     [{routineId, day: "YYYY-MM-DD", marks: {stepId: {state: "done"|"skipped", at}}, skippedDay?}],
  *   water:    {settings: {goal, intervalMinutes, from, until, snoozeMinutes, reminders}, glasses: [ISO], snoozedUntil: ISO|null},
- *   meals:    [{id, name, slot: "breakfast"|"lunch"|"snack"|"dinner", at: ISO}]
+ *   meals:    [{id, name, slot: "breakfast"|"lunch"|"snack"|"dinner", at: ISO, state?: "skipped"}]
  * }
  * </pre>
  */
 final class NotchBody {
-    /** No {@code planner.body} yet: the notch shows no water, routines or meals. */
+    /** Before the store is first read: no water, routines or meals. A read store without {@code planner.body} parses as defaults. */
     static final NotchBody ABSENT = new NotchBody(false, Collections.emptyList(), new NotchWater.Settings(), 0,
-            Collections.emptyList(), Collections.emptyMap(), Collections.emptyList());
+            Collections.emptyList(), Collections.emptyMap(), Collections.emptyList(), mealPlan(null));
 
     static final class Step {
         final String id;
@@ -74,10 +74,26 @@ final class NotchBody {
     static final class Meal {
         final String slot;
         final long at;
+        final boolean skipped;
 
-        Meal(String slot, long at) {
+        Meal(String slot, long at, boolean skipped) {
             this.slot = slot;
             this.at = at;
+            this.skipped = skipped;
+        }
+    }
+
+    static final class MealSlot {
+        final String slot;
+        final int at;
+        final boolean on;
+        final String name;
+
+        MealSlot(String slot, int at, boolean on, String name) {
+            this.slot = slot;
+            this.at = at;
+            this.on = on;
+            this.name = name;
         }
     }
 
@@ -89,9 +105,10 @@ final class NotchBody {
     final List<Routine> routines;
     private final Map<String, Run> runs;
     final List<Meal> meals;
+    final List<MealSlot> mealPlan;
 
     private NotchBody(boolean present, List<Long> glasses, NotchWater.Settings water, long waterSnoozedUntil,
-                      List<Routine> routines, Map<String, Run> runs, List<Meal> meals) {
+                      List<Routine> routines, Map<String, Run> runs, List<Meal> meals, List<MealSlot> mealPlan) {
         this.present = present;
         this.glasses = glasses;
         this.water = water;
@@ -99,6 +116,7 @@ final class NotchBody {
         this.routines = routines;
         this.runs = runs;
         this.meals = meals;
+        this.mealPlan = mealPlan;
     }
 
     /** The run of {@code routineId} on {@code day} (YYYY-MM-DD), or null when nothing is marked yet. */
@@ -109,7 +127,7 @@ final class NotchBody {
     static NotchBody parse(JSONObject data) {
         JSONObject planner = data == null ? null : data.optJSONObject("planner");
         JSONObject body = planner == null ? null : planner.optJSONObject("body");
-        if (body == null) return ABSENT;
+        if (body == null) body = new JSONObject();
         JSONObject water = body.optJSONObject("water");
         if (water == null) water = new JSONObject();
         List<Long> glasses = new ArrayList<>();
@@ -119,7 +137,8 @@ final class NotchBody {
             if (at != 0) glasses.add(at);
         }
         return new NotchBody(true, glasses, settings(water.optJSONObject("settings")), NotchData.time(water.opt("snoozedUntil")),
-                routines(body.optJSONArray("routines")), runs(body.optJSONArray("runs")), meals(body.optJSONArray("meals")));
+                routines(body.optJSONArray("routines")), runs(body.optJSONArray("runs")), meals(body.optJSONArray("meals")),
+                mealPlan(body.optJSONObject("mealPlan")));
     }
 
     private static NotchWater.Settings settings(JSONObject o) {
@@ -177,8 +196,28 @@ final class NotchBody {
         for (int i = 0; a != null && i < a.length(); i++) {
             JSONObject m = a.optJSONObject(i);
             long at = m == null ? 0 : NotchData.time(m.opt("at"));
-            if (at != 0) out.add(new Meal(m.optString("slot"), at));
+            if (at != 0) out.add(new Meal(m.optString("slot"), at, "skipped".equals(m.optString("state"))));
         }
+        return out;
+    }
+
+    private static List<MealSlot> mealPlan(JSONObject plan) {
+        List<MealSlot> out = new ArrayList<>();
+        JSONArray slots = plan == null ? null : plan.optJSONArray("slots");
+        if (slots == null) {
+            out.add(new MealSlot("breakfast", 8 * 60 + 30, true, "Breakfast"));
+            out.add(new MealSlot("lunch", 13 * 60, true, "Lunch"));
+            out.add(new MealSlot("dinner", 20 * 60, true, "Dinner"));
+        } else for (int i = 0; i < slots.length(); i++) {
+            JSONObject s = slots.optJSONObject(i);
+            if (s == null) continue;
+            String slot = s.optString("slot");
+            int at = minutes(s.optString("at"));
+            if (at < 0 || !("breakfast".equals(slot) || "lunch".equals(slot) || "snack".equals(slot) || "dinner".equals(slot))) continue;
+            String name = s.optString("name", "").trim();
+            out.add(new MealSlot(slot, at, !Boolean.FALSE.equals(s.opt("on")), name.isEmpty() ? NotchHabits.slotName(slot) : name));
+        }
+        out.sort((a, b) -> Integer.compare(a.at, b.at));
         return out;
     }
 

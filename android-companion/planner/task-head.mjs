@@ -1,9 +1,10 @@
 /**
- * The task sheet's header row: the completion ring, the title and the Must star. The row swipes right to complete:
+ * The task sheet's header row: the task's icon pill, the title, the Must star and the completion ring. The row swipes right to complete:
  * it follows the finger, the ring fills at 60% of the way, and letting go past 96px completes.
  */
 import {reducedMotion} from '../surface-motion.mjs';
 import {lockAxis} from '../task-swipe.mjs';
+import {taskSymbol} from '../task-symbol.mjs';
 import {el, icon, button} from './dom.mjs';
 import {syncText} from './sheet-parts.mjs';
 
@@ -60,12 +61,16 @@ export function taskHead({task, onToggle, onMust, onTitle, onEnter}) {
   must.setAttribute('role', 'switch');
   must.setAttribute('aria-label', 'Must');
   must.append(icon('star'));
-  row.append(ring, title, must);
+  const pill = el('span', 'task-pill');
+  pill.append(icon(taskSymbol(task.title), {fill: true}));
+  row.append(pill, title, must, ring);
   installSwipe(row, ring, title, onToggle);
 
   const paint = t => {
     task = t;
     syncText(title, t.title);
+    const symbol = taskSymbol(t.title);
+    if (pill.firstElementChild.textContent !== symbol) pill.firstElementChild.textContent = symbol;
     ring.setAttribute('aria-checked', String(!!t.done));
     ring.setAttribute('aria-label', `Mark ${t.title} ${t.done ? 'incomplete' : 'complete'}`);
     ringIcon(ring, !!t.done);

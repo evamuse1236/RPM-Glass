@@ -1,0 +1,57 @@
+/* Life: the Wheel of Life (life-wheel.mjs). */
+.wheel-card {
+  margin: var(--s1) var(--gutter) 0;
+  padding: var(--s4) var(--s4) var(--s3);
+  border-radius: var(--card-radius);
+  background: var(--surface-container-low);
+  border: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
+}
+.wheel-copy h2 { font: var(--title-medium); }
+.wheel-copy p { font: var(--body-medium); color: var(--on-surface-variant); text-wrap: pretty; }
+.wheel-plot { position: relative; inline-size: min(100% - 128px, 240px); aspect-ratio: 1; margin: 32px auto; }
+.wheel-svg { display: block; inline-size: 100%; block-size: 100%; overflow: visible; touch-action: none; cursor: pointer; }
+.wheel-track { fill: var(--surface-container-highest); stroke: var(--surface-container-low); stroke-width: 2; }
+.wheel-wedge { fill: var(--tone); stroke: var(--surface-container-low); stroke-width: 2; stroke-linejoin: round; }
+.wheel-ring { fill: none; stroke: var(--surface-container-low); stroke-opacity: .6; stroke-width: 1; pointer-events: none; }
+.wheel-average {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  translate: -50% -50%;
+  padding: 0 var(--s1);
+  border-radius: var(--shape-full);
+  background: var(--surface-container-low);
+  font: var(--title-medium);
+  font-weight: 600;
+  pointer-events: none;
+}
+.wheel-label {
+  position: absolute;
+  inset-inline-start: calc(50% + var(--x) * (50% + 8px));
+  inset-block-start: calc(50% + var(--y) * (50% + 8px));
+  translate: calc(-50% + var(--x) * 50%) calc(-50% + var(--y) * 50%);
+  inline-size: max-content;
+  max-inline-size: 72px;
+  font: var(--label-medium);
+  color: var(--on-surface-variant);
+  text-align: center;
+  text-wrap: balance;
+  pointer-events: none;
+}
+.wheel-label b { margin-inline-start: var(--s1); color: var(--on-surface); font-weight: 600; }
+.wheel-areas { padding-block: var(--s1) var(--s2); }
+.wheel-area {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  min-block-size: 32px;
+  padding: var(--s1) var(--s3);
+  border-radius: var(--r-tile);
+  background: var(--surface-container-high);
+  font: var(--label-large);
+}
+.wheel-area::after { content: ""; position: absolute; inset: -8px 0; }
+.wheel-area:active { background: var(--row-press); }
+.wheel-area-goals { color: var(--on-surface-variant); font-weight: 400; }
+.wheel-card .tonal-btn { margin-top: var(--s2); }

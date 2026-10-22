@@ -106,6 +106,8 @@ button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(
     linear-gradient(170deg, oklch(42% 0.09 270), oklch(30% 0.06 230));
 }
 
+.screen[data-wallpaper="black"] > .home { background: oklch(12% 0.004 270); }
+
 .dim { position: absolute; inset: 0; background: oklch(0% 0 none / 0.12); }
 
 .page { position: absolute; border: 0; background: transparent; }
@@ -145,8 +147,6 @@ button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(
   font: 600 12px/1.3 system-ui, sans-serif;
   color: oklch(100% 0 none);
   pointer-events: none;
-}
-.copy-badge {
   inset-block-end: 28px;
   justify-self: center;
   padding: 6px 10px;
@@ -154,7 +154,7 @@ button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(
   background: oklch(0% 0 none / 0.55);
   border: 1px dashed oklch(100% 0 none / 0.7);
 }
-.notch-empty { inset-block-start: 120px; }
+.notch-empty { inset-block-end: 64px; }
 
 /* Chrome takes an iframe's colour scheme from its owner's layout box; a frame loaded under display:none paints opaque. */
 .screen > :is(.capture-page, .planner-surface) { visibility: hidden; }

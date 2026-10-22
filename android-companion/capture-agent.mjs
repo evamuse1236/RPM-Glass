@@ -1,5 +1,6 @@
 import {intentState} from '../intent-v2/src/repository.mjs';
-import {draftFollowUpProblem} from '../intent-v2/src/follow-up.mjs';
+import {draftFollowUpProblem,blocksFollowUp} from '../intent-v2/src/follow-up.mjs';
+import {openQuestion} from '../intent-v2/src/conversation-focus.mjs';
 import {beforeRows,needsConfirm} from './capture-receipt.mjs';
 import {modelRun,interpretedSummary} from './capture-trace.mjs';
 import {userMessage} from './user-message.mjs';
@@ -10,7 +11,7 @@ const failure=(stage,error)=>({stage,code:error?.code??null,message:userMessage(
 /**
  * Capture acts, then confirms: the words are saved first, the model reads them, and whatever it proposes applies
  * straight away. New items get a receipt with Undo; changes to saved items also apply, then wait for Keep or Undo.
- * A draft that still needs an answer (an AM/PM, a time that couldn't be read) waits for it. Every capture leaves one trace.
+ * Missing details on creates become receipt data; questions about saved items still wait. Every capture leaves one trace.
  */
 export function createCaptureAgent({service,traces,clock=()=>new Date()}){
  const {repository}=service;
@@ -18,18 +19,23 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
 
  /** Commit a ready draft. A schedule clash is applied too and kept on the receipt as a warning. */
  async function apply(draftId){
-  const data=await repository.load(),draft=intentState(data).drafts[draftId];
+  const data=await repository.load(),state=intentState(data),draft=state.drafts[draftId];
   if(!draft||draft.status!=='draft')return {status:draft?.status==='committed'?'applied':'skipped'};
-  if(draft.question||draft.operations.some(op=>op.fields.some(f=>f.op==='unknown')))return {status:'needs-answer'};
-  if(draft.schedulePreview?.items?.some(i=>i.status==='review'))return {status:'needs-time'};
-  if(draftFollowUpProblem(data,draft))return {status:'needs-check'};
+  if(openQuestion(state,draft.conversationId)||(draft.question&&draft.operations.some(o=>o.opId===draft.question.opId&&o.kind!=='create'))||draft.operations.some(op=>op.kind!=='create'&&op.fields.some(f=>f.op==='unknown')))return {status:'needs-answer'};
+  if(draft.schedulePreview?.items?.some(i=>i.status==='review'&&draft.operations.some(o=>o.opId===i.opId&&o.kind!=='create')))return {status:'needs-time'};
+  if(blocksFollowUp(draftFollowUpProblem(data,draft)))return {status:'needs-check'};
   const before=beforeRows(data,draft),confirm=needsConfirm(draft);
   const commit=d=>service.act({conversationId:d.conversationId,draftId,revision:d.revision,kind:'commit',...(d.review?{reviewToken:d.review.token}:{})},{actionId:`auto-${draftId}-${d.revision}`});
   let result=await commit(draft),warning=null;
   if(result.status==='review'){const held=await draftOf(draftId);warning=held.review?.question??null;result=await commit(held);}
   if(result.status!=='committed')return {status:'skipped'};
+  const committed=await draftOf(draftId);
+  warning=[warning,...(committed.notes??[])].filter(Boolean).join(' ')||null;
+  const unapplied=draft.sourceMessageIds.flatMap(id=>intentState(data).captures[id]?.unapplied??[]);
+  if(unapplied.length)warning=[warning,...unapplied.map(x=>`${x.title}: ${x.field} was not applied. ${x.reason} Your original words are saved.`)].filter(Boolean).join(' ');
   const applied={at:clock().toISOString(),auto:true,needsConfirm:confirm,warning,before};
-  await repository.transact(`applied:${draftId}`,{draftId},current=>{const d=intentState(current).drafts[draftId];if(d){d.applied=applied;d.confirm=confirm?'pending':null;}return {status:'applied'};});
+  const nextStep=await service.help?.(draftId).catch(()=>null);
+  await repository.transact(`applied:${draftId}`,{draftId},current=>{const d=intentState(current).drafts[draftId];if(d){d.applied=applied;d.confirm=confirm?'pending':null;if(nextStep)d.nextStep=nextStep;}return {status:'applied'};});
   const receipt=result.receipt??(await draftOf(draftId))?.receipt;
   return {status:'applied',needsConfirm:confirm,warning,undoId:receipt?.undoId??null,entryIds:receipt?.entryIds??[],changes:(receipt?.changes??[]).map(({type,collection,id,title})=>({type,collection,id,title}))};
  }
@@ -46,6 +52,7 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
   const trace={id:messageId,at:capture?.at??clock().toISOString(),conversationId:capture?.conversationId??null,words:capture?.raw??null,
    attempts:(previous?.attempts??0)+1,latencyMs:ms(started,clock),
    models:[...(previous?.models??[]),...(result?.modelRuns??(previous?[]:capture?.modelRuns??[])).map(modelRun)].slice(-8),
+   localInterpretation:capture?.localInterpretation??null,timeInferences:capture?.timeInferences??[],
    interpreted:interpretedSummary(capture,draft),applied:{status,draftId:capture?.draftId??null,...(applied?.status==='applied'?applied:{})},
    errors:[...(previous?.errors??[]),...errors].slice(-8)};
   traces.put({...previous,...trace});
@@ -66,8 +73,19 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
   const started=clock(),result=await service.retry(messageId);
   return {...result,applied:await settle(messageId,result,{started})};
  }
+ /** A choice chip: its words are saved as a capture, read against the open question, then applied like any capture. */
+ async function choose(action,{actionId}){
+  const started=clock(),result=await service.choose(action,{actionId});
+  return {...result,applied:await settle(actionId,result,{started})};
+ }
  /** An answer chip, a field edit or Dara's own "Add anyway": acted on, then applied when nothing else is open. */
  async function act(action,{actionId}){
+  if(action.kind==='next-step'){
+   const started=clock(),result=await service.nextStep(action,{actionId});
+   return {...result,applied:await settle(actionId,result,{started})};
+  }
+  if(action.kind==='edit-item')return service.editItem(action,{actionId});
+  if(action.kind==='undo-edit')return service.undoEdit(action,{actionId});
   const result=await service.act(action,{actionId});
   const draft=await draftOf(action.draftId),messageId=draft?.sourceMessageIds?.at(-1);
   if(draft?.status==='draft'&&messageId)await settle(messageId,{status:'interpreted',draftId:draft.id,modelRuns:[]},{started:clock()});
@@ -88,5 +106,15 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
   const d=await draftOf(input.draftId);if(d)traces.outcome(d.sourceMessageIds.at(-1),'undone',{confirm:d.confirm??null});
   return result;
  }
- return {capture,retry,act,confirm,undo,apply};
+ async function preview(input,{signal}={}){
+  const started=clock(),result=await service.preview(input,{signal});
+  if(result.run){
+   const run=result.run;
+   traces.put({id:`preview:${run.requestId??started.getTime()}`,kind:'preview',at:started.toISOString(),conversationId:input.conversationId,words:null,attempts:1,
+    latencyMs:ms(started,clock),models:[modelRun(run)],localInterpretation:null,timeInferences:[],interpreted:null,applied:{status:'preview',read:result.status},
+    errors:run.ok?[]:[{stage:'preview',code:run.error??null,message:null}]});
+  }
+  return {status:result.status,rows:result.rows};
+ }
+ return {capture,retry,choose,act,confirm,undo,apply,preview};
 }

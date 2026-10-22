@@ -32,12 +32,13 @@
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowNoTitle">true</item>
-        <item name="android:backgroundDimEnabled">true</item>
-        <item name="android:backgroundDimAmount">0.24</item>
+        <item name="android:backgroundDimEnabled">false</item>
         <item name="android:windowCloseOnTouchOutside">false</item>
     </style>
 
     <!-- Home-screen widget (RemoteViews): 24dp icons in 40-48dp targets. -->
+    <style name="WidgetDayArt"><item name="android:visibility">visible</item></style>
+    <style name="WidgetNightArt"><item name="android:visibility">gone</item></style>
     <style name="WidgetIcon">
         <item name="android:layout_width">24dp</item>
         <item name="android:layout_height">24dp</item>

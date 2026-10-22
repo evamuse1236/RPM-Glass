@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {intentModelPolicy,HAIKU_MODEL,SONNET_MODEL,CLAUDE_PROVIDERS,HARD_CHANGE_COUNT} from '../src/model-policy.mjs';
+import {intentModelPolicy,HAIKU_MODEL,SONNET_MODEL,MERCURY_MODEL,MERCURY_QUICK_ROUTE,QUICK_CAPTURE_MODEL,CLAUDE_PROVIDERS,HARD_CHANGE_COUNT,MODEL_POLICY_VERSION,MODEL_ROUTES} from '../src/model-policy.mjs';
 import {nativeModelTransport,providerSchema} from '../adapters/transport.mjs';
 import {buildContext,sourceUnits} from '../src/context.mjs';
 import {setup,turn,operation,field,captured,seed} from './helpers.mjs';
@@ -17,7 +17,50 @@ for(const raw of ['What’s my timetable today?','Do I have a free hour at 5 pm?
  test(`a quick question stays on Haiku: ${raw}`,()=>{const r=route(raw);assert.equal(r.model,HAIKU_MODEL);assert.equal(r.reason,'question');});
 for(const raw of ['Re-plan my week around the exam','Sort my Inbox: place loose tasks into Blocks','Help me make Friday’s fractions lesson ready.','Suggest three steps','How should I prepare?','What should I do first tonight?','Plan my day tomorrow'])
  test(`a hard request goes to Sonnet at high effort: ${raw}`,()=>{const r=route(raw);assert.equal(r.model,SONNET_MODEL);assert.equal(r.effort,'high');assert.ok(r.timeoutMs>=route('Buy milk').timeoutMs*3);});
+test('a reply to an open question or a focused draft gets careful Haiku; a re-plan still goes to Sonnet',()=>{
+ const asked={sourceUnits:sourceUnits('That one only'),openQuestion:{id:'q-m1',choices:[]},activeDraft:null};
+ assert.deepEqual([intentModelPolicy({input:asked}).model,intentModelPolicy({input:asked}).effort,intentModelPolicy({input:asked}).reason],[HAIKU_MODEL,'high','answer_to_question']);
+ const answering={sourceUnits:sourceUnits('8 pm'),activeDraft:{id:'d0',question:{prompt:'7 AM or 7 PM?'}}};
+ assert.equal(intentModelPolicy({input:answering}).reason,'answer_to_question');
+ const editing={sourceUnits:sourceUnits('make it 5 pm'),activeDraft:{id:'d0',question:null}};
+ assert.deepEqual([intentModelPolicy({input:editing}).effort,intentModelPolicy({input:editing}).reason],['high','focused_draft']);
+ assert.equal(intentModelPolicy({input:{...asked,sourceUnits:sourceUnits('Re-plan my week')}}).model,SONNET_MODEL);
+});
 test('a repair attempt always uses Sonnet',()=>{const r=intentModelPolicy({input:input('Buy milk'),attempt:1});assert.equal(r.model,SONNET_MODEL);assert.equal(r.reason,'repair');});
+
+test('long captures get a bounded Haiku reading without changing short routes or hard request priority',()=>{
+ const short=route('x'.repeat(1499)),long=route('x'.repeat(1500));
+ assert.deepEqual([short.model,short.effort,short.timeoutMs,short.maxTokens],[HAIKU_MODEL,'none',25000,4000]);
+ assert.deepEqual([long.model,long.effort,long.timeoutMs,long.maxTokens,long.reason],[HAIKU_MODEL,'none',90000,16000,'long_capture']);
+ const focused=intentModelPolicy({input:{...input('x'.repeat(1500)),activeDraft:{id:'d0'}}});
+ assert.equal(focused.timeoutMs,90000);assert.equal(focused.maxTokens,16000);assert.equal(focused.reason,'focused_draft');assert.equal(focused.effort,'high');
+ const answered=intentModelPolicy({input:{...input('x'.repeat(1500)),openQuestion:{id:'q0'}}});assert.equal(answered.effort,'high');assert.equal(answered.maxTokens,16000);
+ assert.equal(route('Keep this '+ 'x'.repeat(1500)).effort,'none');
+ assert.equal(route('Re-plan my week '+ 'x'.repeat(1500)).model,SONNET_MODEL);
+ assert.equal(intentModelPolicy({input:input('x'.repeat(1500)),attempt:1}).model,SONNET_MODEL);
+ assert.deepEqual([route('make it 5 pm').effort,route('make it 5 pm').timeoutMs],['high',35000]);
+});
+
+test('the versioned budgets reserve room for thinking and JSON on long captures',()=>{
+ assert.equal(MODEL_POLICY_VERSION,'rpm-claude-v5');
+ assert.deepEqual(Object.fromEntries(Object.entries(MODEL_ROUTES).map(([name,r])=>[name,r.maxTokens])),{quick:4000,careful:6000,long:16000,longCareful:16000,hard:16000});
+ assert.equal(route('x'.repeat(1500)).version,MODEL_POLICY_VERSION);
+});
+
+test('Mercury is opt-in, goes directly to OpenRouter and cannot inherit Claude provider pins',async()=>{
+ assert.equal(QUICK_CAPTURE_MODEL,HAIKU_MODEL);assert.equal(MODEL_ROUTES.quick.model,HAIKU_MODEL);
+ assert.deepEqual(MERCURY_QUICK_ROUTE,{model:MERCURY_MODEL,effort:'none',timeoutMs:15000,maxTokens:4000});
+ const calls=[],run={};
+ const model=nativeModelTransport({model:HAIKU_MODEL,prompt:'p',providerNames:CLAUDE_PROVIDERS,native:async(action,p)=>{
+  calls.push(p);assert.equal(action,'model');assert.equal(p.service,'openrouter');assert.equal(p.body.model,MERCURY_MODEL);
+  assert.deepEqual(p.body.provider,{require_parameters:true,allow_fallbacks:false});assert.equal(p.timeoutMs,17000);
+  assert.equal(p.body.response_format.json_schema.strict,true);
+  assert.equal(/maxLength|maxItems|"type":\[/.test(JSON.stringify(p.body.response_format.json_schema.schema)),false);
+  return {status:200,body:{...answer(turn(),MERCURY_MODEL).body,provider:'Inception'}};
+ }});
+ assert.deepEqual(await model(input('Buy milk'),{route:MERCURY_QUICK_ROUTE,run}),turn());
+ assert.equal(calls.length,1);assert.equal(run.service,'openrouter');assert.equal(run.provider,'Inception');
+});
 test('more than three changes to saved items is a re-plan; three or fewer stay quick',()=>{
  const updates=n=>turn('Move them',Array.from({length:n},(_,i)=>operation([field('time','6am','Move them')],{opId:'u'+i,kind:'update',targetId:String(i+1)})));
  assert.equal(intentModelPolicy({input:input('Move them'),output:updates(HARD_CHANGE_COUNT+1)}).model,SONNET_MODEL);

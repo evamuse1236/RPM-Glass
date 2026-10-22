@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RPM notch redesign mock</title>
+<link rel="stylesheet" href="notch-redesign.css">
+</head>
+<body>
+<div class="stage">
+  <div class="phone" id="phone" data-mode="pill" data-ts="1">
+    <div class="status"><span>4:15</span><span>5G ▮</span></div>
+    <div class="date">Mon, Oct 19</div>
+    <div class="cam"></div>
+    <div class="split" id="split"><div class="ring-in" style="position:relative;inline-size:28px;block-size:28px;--kc:var(--water)"><svg viewBox="0 0 36 36"><circle class="track" cx="18" cy="18" r="16.5"/><circle class="arc" id="splitArc" cx="18" cy="18" r="16.5" stroke-dasharray="103.67" stroke-dashoffset="64.8"/></svg><span class="glyph" data-g="drop"></span></div></div>
+    <div class="island" id="island" role="button" tabindex="0" aria-label="Notch">
+      <div class="band-btn" id="undoBox"><button class="undo" id="undo">Undo</button></div>
+      <div class="band-btn" id="stopBox"><button class="stop" id="stop" aria-label="Stop the alarm"><i></i></button></div>
+
+      <div class="face" data-face="open" style="--kc:var(--task)">
+        <p class="title" id="heroTitle">Group call: merge sections</p>
+        <p class="line" id="heroLine">Block · 45 min left</p>
+        <div class="controls"><button class="primary" id="heroDone"><span data-g="check"></span>Done</button></div>
+        <div class="rows">
+          <button class="row" data-row="next" style="--kc:var(--t60)"><span class="g" data-g="task"></span><span class="tt" id="nextTitle">Past paper 2019, section B</span><span class="v" id="nextAt">5:30 PM</span></button>
+          <button class="row" data-row="water" style="--kc:var(--water)"><span class="g" data-g="drop"></span><span class="tt">Water</span><span class="v"><span class="dots" id="dots"></span><span id="waterV">3/8</span><span class="g" data-g="plus"></span></span></button>
+          <button class="row" data-row="meal" style="--kc:var(--meal)"><span class="g" data-g="meal"></span><span class="tt">Lunch</span><span class="v">Log</span></button>
+        </div>
+      </div>
+
+      <div class="face" data-face="reminder" style="--kc:var(--t70)">
+        <p class="title">Call the bank about the fee</p>
+        <p class="line">Reminder · 5:30 PM</p>
+        <div class="controls" style="--kc:var(--task)"><button class="primary" data-act="alertDone"><span data-g="check"></span>Done</button><button class="secondary" data-act="snooze">Snooze 10 min</button></div>
+      </div>
+
+      <div class="face" data-face="alarm" style="--kc:var(--alarm)">
+        <p class="title">Leave for the airport</p>
+        <p class="line">Ringing · 2:48 AM</p>
+        <div class="controls"><button class="primary" data-act="alertDone"><span data-g="check"></span>Done</button><button class="secondary" data-act="snooze">Snooze 10 min</button></div>
+      </div>
+
+      <div class="face receipt" data-face="receipt">
+        <p class="big" id="rBig">Glass logged</p>
+        <p class="small" id="rSmall">4 of 8 today</p>
+      </div>
+    </div>
+    <div class="ring" id="ring"><svg viewBox="0 0 36 36"><circle class="disc" cx="18" cy="18" r="18"/><circle class="track" id="track" cx="18" cy="18" r="16.5"/><circle class="arc" id="arc" cx="18" cy="18" r="16.5" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg><span class="glyph" id="glyph"></span></div>
+    <div class="value" id="value"></div>
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+
+  <div class="panel">
+    <div>
+      <h1>Notch redesign mock</h1>
+      <p>Tap the pill to open it. Hold it to jump to the planner. Tap the dark area to close. Each fix comes from Apple's Dynamic Island guidance.</p>
+    </div>
+    <div><h2>Show</h2><div class="chips" id="modes">
+      <button data-mode="pill" aria-pressed="true">Pill</button>
+      <button data-mode="open">Open</button>
+      <button data-mode="reminder">Reminder</button>
+      <button data-mode="alarm">Alarm</button>
+    </div></div>
+    <div><h2>Try</h2><div class="chips">
+      <button id="tick">Wait 1 minute</button>
+      <button id="splitT" aria-pressed="false">Water due too</button>
+      <button id="tsT" aria-pressed="false">Text 200%</button>
+      <button id="rmT" aria-pressed="false">Reduce motion</button>
+    </div></div>
+    <div><h2>What changed</h2><p>One 16 px margin on all four sides, and every inner corner is the island's 36 px corner minus that margin (20 px). The ring and the minutes travel from the pill into the island and sit beside the camera. One button per item. Water and meal rows log in one tap, with Undo. The pill says "45m" or "5:30", not "5:30 PM".</p></div>
+  </div>
+</div>
+
+<script src="notch-redesign.js"></script>
+</body>
+</html>

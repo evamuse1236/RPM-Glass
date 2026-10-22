@@ -10,7 +10,7 @@ export const bundleOptions={absWorkingDir:root,entryPoints:['android-companion/r
 }}]};
 // Every page and stylesheet in android-companion/ ships; CompanionActivity.ASSETS must list the same names.
 // A stylesheet with parts ships as one file, its parts appended in order, so the asset list names it once.
-export const STYLE_PARTS={'planner.css':['planner-rows.css','planner-today.css','planner-pages.css','planner-sheets.css','planner-menus.css','planner-motion.css','body.css','day.css','habits.css','fabs.css','block-add.css','task-sheet.css','gestures.css'],'review.css':['review-week.css']};
+export const STYLE_PARTS={'planner.css':['planner-rows.css','planner-today.css','planner-pages.css','life-wheel.css','planner-sheets.css','planner-menus.css','planner-motion.css','body.css','day.css','habits.css','block-add.css','task-sheet.css','task-tabs.css','gestures.css','dock.css'],'review.css':['review-week.css','review-deck.css']};
 const parts=new Set(Object.values(STYLE_PARTS).flat());
 const source=file=>fs.readFileSync(path.join(root,'android-companion',file),'utf8');
 export const shippedText=file=>[file,...(STYLE_PARTS[file]??[])].map(source).join('\n');
@@ -20,6 +20,8 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
 const out=path.join(root,'app/src/main/assets/companion');fs.rmSync(out,{recursive:true,force:true});fs.mkdirSync(out,{recursive:true});
 await build({...bundleOptions,outfile:path.join(out,'runtime.js')});
 await build({...bundleOptions,entryPoints:['android-companion/sync-runtime.mjs'],outfile:path.join(out,'sync.js')});
+// The notch's own saves run the planner's change logic in a WebView with no screen (NotchRunner.java).
+await build({...bundleOptions,entryPoints:['android-companion/notch-actions.mjs'],outfile:path.join(out,'notch-actions.js')});
 for(const file of fs.readdirSync(path.join(root,'android-companion')).filter(f=>/\.(html|css)$/.test(f)&&!parts.has(f)))fs.writeFileSync(path.join(out,file),shippedText(file));
 fs.copyFileSync(path.join(root,'android-companion/assets/butterfly.png'),path.join(out,'butterfly.png'));
 for(const file of fs.readdirSync(path.join(root,'android-companion/assets/fonts')))fs.copyFileSync(path.join(root,'android-companion/assets/fonts',file),path.join(out,file));

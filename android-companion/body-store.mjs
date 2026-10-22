@@ -151,6 +151,7 @@ function saveMeal(next, op, at) {
   const name = text(fields.name ?? '', 200);
   if (!name) throw new Error('Type what you ate.');
   if (!SLOTS.includes(fields.slot)) throw new Error('Choose breakfast, lunch, snack or dinner.');
+  if (fields.state != null && !['logged', 'skipped'].includes(fields.state)) throw new Error('Choose logged or skipped for the meal.');
   let meal = fields.id ? one(body.meals, fields.id) : null;
   if (!meal) {
     meal = {id: randomUUID(), created: at};
@@ -158,6 +159,8 @@ function saveMeal(next, op, at) {
   }
   if (meal.name !== undefined && meal.name !== name) delete body.mealGuesses[meal.id];
   Object.assign(meal, {name, slot: fields.slot, at: instant(fields.at ?? meal.at ?? at)});
+  if (fields.state === 'skipped') { meal.state = 'skipped'; delete body.mealGuesses[meal.id]; }
+  else delete meal.state;
   return meal.id;
 }
 
@@ -172,7 +175,8 @@ function removeMeal(next, op) {
 /** Jev's (or the agent's) nutrition guess, stored beside the meal, never in it. */
 function setMealGuess(next, op, at) {
   const body = bodyFor(next);
-  one(body.meals, op.id);
+  const meal = one(body.meals, op.id);
+  if (meal.state === 'skipped') throw new Error('A skipped meal has no nutrition estimate.');
   const guess = op.guess ?? {};
   if (!['pending', 'ready', 'failed'].includes(guess.status)) throw new Error('Invalid meal guess.');
   const saved = {status: guess.status, by: text(guess.by ?? 'Jev', 60), at};
@@ -235,7 +239,7 @@ export function validateBody(p) {
   for (const run of body.runs ?? []) if (!ids.has(run.routineId) || !DAY.test(run.day)) throw new Error('Invalid routine data.');
   const meals = new Set();
   for (const m of body.meals ?? []) {
-    if (typeof m.id !== 'string' || meals.has(m.id) || !SLOTS.includes(m.slot) || !Number.isFinite(Date.parse(m.at))) throw new Error('Invalid meal data.');
+    if (typeof m.id !== 'string' || meals.has(m.id) || !SLOTS.includes(m.slot) || !Number.isFinite(Date.parse(m.at)) || m.state != null && !['logged', 'skipped'].includes(m.state)) throw new Error('Invalid meal data.');
     meals.add(m.id);
   }
   const water = body.water;

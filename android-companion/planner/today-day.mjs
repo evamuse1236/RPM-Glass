@@ -1,20 +1,22 @@
 /**
- * Today's main body on the real plan: the spine (spine-model.mjs, drawn by spine-view.mjs) with the day's tasks,
- * calendar events, Routines, water, meals and Result deadlines. It opens at now; a floating Now button returns there.
+ * Today's sheet on the real plan: the anytime chips, then the timeline (spine-model.mjs, drawn by spine-view.mjs) with
+ * the day's tasks, calendar events, Routines, meals and Result deadlines. It opens with now in view; a floating Now
+ * button returns there.
  */
 import {buildSpine} from '../spine-model.mjs';
-import {waterStatus, routineOn, routineState, doneAll} from '../body-state.mjs';
+import {routineOn, routineState, doneAll, usualMeals} from '../body-state.mjs';
 import {localDay, blockDue, timelineItems} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
-import {spineList, spineRow} from './spine-view.mjs';
+import {spineList, spineRow, anytimeChips} from './spine-view.mjs';
+import {anytimeLabel} from '../spine-model.mjs';
 import {el, icon, button, emptyState} from './dom.mjs';
 import {dueInfo} from './format.mjs';
-import {openSheet} from './sheet.mjs';
 import {notice} from './snackbar.mjs';
-import {toggleDone, taskRow} from './task-row.mjs';
+import {toggleDone} from './task-row.mjs';
 import {attachRowGestures} from './row-gestures.mjs';
+import {attachSpineDrag} from './spine-drag-ui.mjs';
+import {repeats} from '../planner-recurrence.mjs';
 import {openRunSheet} from './routines.mjs';
-import {drink, openWaterSheet} from './water.mjs';
 import {openMealSheet} from './meals.mjs';
 import {holdToEdit} from './habits.mjs';
 import {bodyApi} from './body-api.mjs';
@@ -28,7 +30,7 @@ function dayTask(app, task, done) {
   const at = task.start ?? (task.planned ? Date.parse(task.occurrence ?? task.planned) : null);
   const start = at != null && localDay(at) === app.state.day ? at : null;
   const block = app.p().blocks.find(b => b.id === task.blockId);
-  return {id: task.id, title: task.title, start, minutes: task.minutes ?? 30, done, must: !!task.must, result: block?.title ?? null,
+  return {id: task.id, title: task.title, start, minutes: task.minutes ?? null, done, must: !!task.must, result: block?.title ?? null,
     tone: app.tone(app.context(task).area), occurrence: task.occurrence, ref: task};
 }
 
@@ -46,13 +48,12 @@ function spineModel(app) {
   const listed = dayTasks(data, day);
   const tasks = [...listed.active.map(t => dayTask(app, t, false)), ...listed.completed.map(t => dayTask(app, t, true))];
   const events = timelineItems(data, day, calendar).filter(item => item.source === 'calendar');
-  const water = body.water();
   const deadlines = openResults(data).filter(block => dueDay(data, block) === day)
     .map(block => ({id: block.id, title: block.title, at: +dueInfo(blockDue(data, block.id).value, now).at}));
   return {
     model: buildSpine({day, now: +now, live, tasks, events: events.filter(e => !e.allDay), deadlines,
       routines: dayRoutines(body, day, now), meals: body.meals().filter(m => localDay(m.at) === day),
-      water: {...water, status: waterStatus({...water, now})}, window: water.settings, mealPlan: body.mealPlan()}),
+      window: body.water().settings, mealPlan: body.mealPlan()}),
     allDay: events.filter(e => e.allDay),
   };
 }
@@ -72,6 +73,21 @@ async function toggleRoutine(app, body, row) {
   notice(app, row.done ? `${routine.name} reopened` : `${routine.name} done`, {undo: true});
 }
 
+/** Swipe right on a meal not yet logged: log it now as the usual food for that meal, with Undo; with none yet, the sheet. */
+async function logMealNow(app, body, row) {
+  const [usual] = usualMeals(body.meals(), row.slot);
+  if (!usual) return openMealSheet(app, body, {mealId: null, slot: row.slot});
+  try {
+    await body.saveMeal({name: usual, slot: row.slot, at: new Date().toISOString()});
+  } catch {
+    notice(app, "Couldn't save that. Try again.");
+    return false;
+  }
+  app.render();
+  notice(app, `${row.label.split(' · ')[0]} logged · ${usual}`, {undo: true});
+  return true;
+}
+
 function toggleTask(app, row) {
   const node = app.dom.work.querySelector(`.spine-row[data-key="${CSS.escape(row.key)}"]`);
   node?.classList.toggle('done', !row.done);
@@ -80,11 +96,16 @@ function toggleTask(app, row) {
   return toggleDone(app, row.task.ref, row.task.occurrence);
 }
 
+/** A timed task that does not repeat can be moved and resized on the spine; a repeat is changed from its sheet. */
+const movable = row => row.start != null && !row.done && !repeats(row.task.ref);
+
 function handlers(app) {
   const body = bodyApi(app);
   return {
     toggleTask: row => toggleTask(app, row),
-    gestures: (card, row) => attachRowGestures(app, card, row.task.ref, {leave: false, complete: () => toggleTask(app, row)}),
+    gestures: (card, row) => attachRowGestures(app, card, row.task.ref, {leave: false, hold: !movable(row),
+      complete: () => toggleTask(app, row)}),
+    drag: (card, row) => { if (movable(row)) attachSpineDrag(app, card, row, {dayStart: Date.parse(app.state.day + 'T00:00:00')}); },
     openTask: task => app.actions.openTask(task.id, task.occurrence),
     openEvent: event => app.actions.calendarDetails(event),
     resolve(row) {
@@ -94,36 +115,27 @@ function handlers(app) {
     },
     toggleRoutine: row => toggleRoutine(app, body, row),
     openRoutine: id => openRunSheet(app, body, id, app.state.day),
-    openWater: () => openWaterSheet(app, body),
-    drink: () => drink(app, body),
     openMeal: row => openMealSheet(app, body, {mealId: row.meal?.id ?? null, slot: row.slot}),
-    holdHabit: (node, id) => holdToEdit(app, node, id),
+    holdHabit: (node, id, sides) => holdToEdit(app, node, id, sides),
+    logMealNow: row => logMealNow(app, body, row),
     plan: row => app.actions.addTask({planned: new Date(row.plan).toISOString(), plannedDate: app.state.day}),
   };
 }
 
-function anytimeSheet(app) {
-  const {body} = openSheet(app, 'Anytime', {variant: 'choice'});
-  const paint = () => body.replaceChildren(...spineModel(app).model.anytime.tasks.map(task => taskRow(app, task.ref, {anytime: true})));
-  paint();
-  app.sheetRefresh = paint;
-}
-
-function chips(app, model, allDay) {
+/** All-day events and the tasks with no time, as one strip of chips above the timeline. */
+function chips(app, allDay, anytime, on) {
   const row = el('div', 'spine-chips');
+  row.dataset.key = 'chips';
+  row.setAttribute('role', 'group');
+  row.setAttribute('aria-label', anytime.length ? anytimeLabel(anytime, app.state.day === localDay()) : 'All day');
   for (const event of allDay) {
     const chip = button('', () => app.actions.calendarDetails(event), 'spine-chip outlined');
+    chip.dataset.key = 'allday:' + (event.id ?? event.title);
     chip.append(icon('event'), el('span', 'chip-label', event.title));
     chip.setAttribute('aria-label', `${event.title}, all day, calendar event`);
     row.append(chip);
   }
-  const {anytime} = model;
-  if (anytime.label) {
-    const chip = button('', () => anytimeSheet(app), 'spine-chip');
-    chip.append(el('span', 'chip-label', anytime.label), icon('chevron_right'));
-    chip.setAttribute('aria-label', `${anytime.label}, no time set. Open the list`);
-    row.append(chip);
-  }
+  row.append(...anytimeChips(anytime, on));
   return row.children.length ? row : null;
 }
 
@@ -131,15 +143,15 @@ export function renderDay(app, page) {
   const {model, allDay} = spineModel(app);
   state.model = model;
   state.app = app;
-  page.classList.add('day-page');
-  const top = chips(app, model, allDay);
+  const on = handlers(app);
+  const top = chips(app, allDay, model.anytime, on);
   if (top) page.append(top);
   if (model.empty) {
     page.append(emptyState({symbol: 'wb_sunny', title: model.nowKey ? 'Nothing planned for today' : 'Nothing planned for this day',
       body: 'Start with a Result that matters, then choose its first task.', action: () => app.actions.newEntity('blocks'),
       label: 'Plan a Block', secondary: button('Add a task', () => app.actions.addTask({plannedDate: app.state.day}), 'text-btn')}));
   }
-  page.append(spineList(model, handlers(app)));
+  page.append(spineList(model, on));
   state.timer ??= setInterval(tick, 30000);
   requestAnimationFrame(() => watchNow(app));
 }
@@ -155,17 +167,19 @@ function watchNow(app) {
   const target = nowNode(app);
   root.dataset.nowOff = 'false';
   if (!target) return;
-  const covered = app.dom.work.querySelector('.day-page .date-line')?.offsetHeight ?? 0;
   state.observer = new IntersectionObserver(([entry]) => { root.dataset.nowOff = String(!entry.isIntersecting); },
-    {root: app.dom.scroll, rootMargin: `-${covered}px 0px 0px 0px`});
+    {root: app.dom.scroll});
   state.observer.observe(target);
 }
 
-/** Where Today opens: now, 160 px below the top of the page. */
+/** Where Today opens: at the top when now is already in view above the tab bar, otherwise now 160 px below the top. */
 export function dayScroll(app) {
   const target = nowNode(app);
   if (!target) return 0;
-  return Math.max(0, target.getBoundingClientRect().top - app.dom.scroll.getBoundingClientRect().top + app.dom.scroll.scrollTop - OPEN_OFFSET);
+  const view = app.dom.scroll.getBoundingClientRect();
+  const top = target.getBoundingClientRect().top - view.top + app.dom.scroll.scrollTop;
+  const room = view.height - (parseFloat(getComputedStyle(app.dom.planner).getPropertyValue('--nav-measured')) || 0);
+  return top + target.offsetHeight <= room ? 0 : Math.max(0, top - OPEN_OFFSET);
 }
 
 export function jumpToNow(app) {

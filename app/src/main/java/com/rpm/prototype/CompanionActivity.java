@@ -30,8 +30,8 @@ public class CompanionActivity extends Activity {
     private final Runnable syncRefresh=()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmPhoneRefresh?.()",null);};
     void syncChanged(){syncRefresh.run();}
     private final ModelRequests modelRequests=new ModelRequests();private final ModelGateway models=new ModelGateway(this);
-    @Override public void onCreate(Bundle saved){super.onCreate(saved);expanded=saved!=null&&saved.getBoolean("expanded");getWindow().setBackgroundDrawableResource(android.R.color.transparent);getWindow().setDimAmount(.12f);getWindow().addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE|WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
-        if(planning()){expanded=true;getWindow().setDimAmount(0);getWindow().setBackgroundDrawableResource(R.color.rpm_surface);}
+    @Override public void onCreate(Bundle saved){super.onCreate(saved);expanded=saved!=null&&saved.getBoolean("expanded");getWindow().setBackgroundDrawableResource(android.R.color.transparent);getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE|WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+        if(planning()){expanded=true;getWindow().setBackgroundDrawableResource(R.color.rpm_surface);}
         web=new WebView(this);if(!planning())web.setAlpha(0);web.setBackgroundColor(planning()?getColor(R.color.rpm_surface):Color.TRANSPARENT);WebSettings s=web.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setAllowFileAccess(false);s.setAllowContentAccess(false);s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);s.setMediaPlaybackRequiresUserGesture(true);s.setSupportMultipleWindows(false);s.setJavaScriptCanOpenWindowsAutomatically(false);s.setSafeBrowsingEnabled(true);applyTextScale();
         settingsController=new CompanionSettingsController(this,this::settingsChanged);
         web.setWebChromeClient(new WebChromeClient(){@Override public boolean onConsoleMessage(ConsoleMessage message){if(!diagnosticReady)Diagnostics.chrome(CompanionActivity.this,message);return false;}});
@@ -89,8 +89,9 @@ public class CompanionActivity extends Activity {
     @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);if(intent.getBooleanExtra("reload",false))web.reload();else if(!planning())arrive();}
     // The widget's mic opens Capture already listening (once: a reload afterwards only focuses the field); anything else opens the keyboard.
     private void arrive(){if(web==null)return;if(!"com.rpm.widget.voice".equals(getIntent().getAction())){openKeyboard();return;}getIntent().setAction("com.rpm.widget.capture");web.post(()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmStartVoice?window.rpmStartVoice():(window.rpmPendingVoice=true)",null);});}
-    @Override protected void onResume(){super.onResume();applyTextScale();if(settingsController!=null)settingsController.onResume();work.execute(()->{try{JSONObject d=CompanionStore.read(this);if(d!=null)CompanionAlerts.reconcile(this,d,false);}catch(Exception ignored){}runOnUiThread(this::settingsChanged);});}
-    @Override protected void onPause(){if(settingsController!=null)settingsController.onPause();super.onPause();}
+    private android.content.BroadcastReceiver notchSaved;
+    @Override protected void onResume(){super.onResume();notchSaved=NotchRunner.onSaved(this,()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmPhoneRefresh?.()",null);});applyTextScale();if(settingsController!=null)settingsController.onResume();work.execute(()->{NotchSetup.check(this);try{JSONObject d=CompanionStore.read(this);if(d!=null)CompanionAlerts.reconcile(this,d,false);}catch(Exception ignored){}runOnUiThread(this::settingsChanged);});}
+    @Override protected void onPause(){unregisterReceiver(notchSaved);if(settingsController!=null)settingsController.onPause();super.onPause();}
     @Override public void onConfigurationChanged(android.content.res.Configuration c){super.onConfigurationChanged(c);size();applyTextScale();settingsChanged();}
     @Override protected void onActivityResult(int request,int result,Intent intent){super.onActivityResult(request,result,intent);if(request==302 && voiceRequest!=null){String id=voiceRequest;voiceRequest=null;try{ArrayList<String> words=intent==null?null:intent.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS);reply(id,new JSONObject().put("text",result==RESULT_OK&&words!=null&&!words.isEmpty()?words.get(0):""),null);}catch(JSONException error){reply(id,null,"Voice input could not be read.");}return;}if(settingsController!=null)settingsController.onActivityResult(request,result,intent);}
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){super.onRequestPermissionsResult(request,permissions,results);if(settingsController!=null)settingsController.onRequestPermissionsResult(request);settingsChanged();}
@@ -123,7 +124,7 @@ public class CompanionActivity extends Activity {
             }catch(Exception e){reply(id,null,e.getMessage());return;}
             work.execute(()->{BridgeCallRecord log=new BridgeCallRecord(action,p);try{Object result;
                 switch(action){
-                    case "load":result=new JSONObject().put("data",Optional.ofNullable(CompanionStore.read(CompanionActivity.this)).orElse(null)).put("phone",phoneStatus());break;
+                    case "load":result=CompanionStore.loadReply(CompanionActivity.this,p,phoneStatus());break;
                     case "save":CompanionStore.write(CompanionActivity.this,p.getJSONObject("data"),p.getInt("expected"));result=phoneStatus();break;
                     case "status":result=phoneStatus();break;
                     case "surface":if(!planning())throw new IllegalArgumentException("Unsupported phone action.");boolean dark=p.getBoolean("dark");runOnUiThread(()->{if(!closing&&web!=null)CompanionSurface.paintPlannerBars(CompanionActivity.this,root,web,dark);});result=new JSONObject();break;
