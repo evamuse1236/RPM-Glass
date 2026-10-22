@@ -87,4 +87,13 @@ Run it locally against a real Convex backend:
 4. `npm run web:phone -- --link-code` prints a code to link the browser.
 5. `npm run web:drive` links a headless Chrome, drives each action at phone (412px) and laptop (1280px) widths, checks the results and saves screenshots under `.verify/evidence/web-<time>/`.
 
-Hosting: `web/dist` is a static folder. Build it with `RPM_SYNC_SERVER` set to the deployment's `.convex.site` URL and set `RPM_WEB_ORIGIN` on Convex to the site's origin. No deployment exists yet.
+Hosting on ChatGPT Sites (no link code): ChatGPT sign-in already limits a private Site to its owner, so the Site holds the browser key and the page opens straight to the planner.
+
+1. `npm run web:build` (with `RPM_SYNC_SERVER` unset) also writes `web/dist-site/server/index.js`, a Sites Worker with the page's files inside it. It answers `/v1/site` and forwards `/v1/*` to the sync server. When the page sends `Bearer site`, it adds the Site's key; the key never reaches the page, and the page can't revoke it.
+2. `npx convex run admin:createWebSession '{"label":"ChatGPT Site"}'` makes that key for the phone that synced last. The phone lists and revokes it like any linked browser.
+3. On the Site, set `RPM_SYNC_SERVER` to the deployment's `.convex.site` URL and `RPM_WEB_TOKEN` (secret) to the key. No CORS setting is needed: the Worker calls Convex server to server.
+4. Without `RPM_WEB_TOKEN` the page shows the link-code screen and the Worker passes the code's token through.
+
+Local proof: `RPM_SYNC_SERVER=http://127.0.0.1:3211 RPM_WEB_TOKEN=<key> node scripts/web-sync/site-local.mjs`, then `npm run web:drive -- --no-code --site http://127.0.0.1:5179/`.
+
+Other hosts: build with `RPM_SYNC_SERVER` set to the `.convex.site` URL, serve `web/dist`, and set `RPM_WEB_ORIGIN` on Convex to the site's origin.

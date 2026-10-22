@@ -88,6 +88,7 @@ function announce() {
 function render() {
   const linked = !!client.state.token && !client.state.unlinked;
   $('link-view').hidden = linked; $('planner-view').hidden = !linked;
+  document.querySelector('[data-menu=unlink]').hidden = client.state.token === 'site';
   if (!linked) {
     if (client.state.unlinked) { $('link-problem').hidden = false; $('link-problem').textContent = 'This browser was unlinked. Make a new code on the phone to link it again.'; }
     return;
@@ -176,6 +177,7 @@ $('link-form').addEventListener('submit', async event => {
 });
 
 client.subscribe(render);
+await client.connect();
 render();
 let busy = false;
 const loop = async () => {

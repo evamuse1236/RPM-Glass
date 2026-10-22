@@ -86,3 +86,18 @@ test('a revoked browser shows as unlinked', async () => {
   await client.refresh();
   assert.equal(client.state.unlinked, true);
 });
+
+test('on a Site that holds the phone key the planner opens without a code', async () => {
+  const server = fakeServer(), base = server.fetch;
+  server.fetch = async (url, init) => new URL(url).pathname === '/v1/site' ? json(200, {site: true})
+    : base(url, {...init, headers: {...init.headers, ...(init.headers.Authorization === 'Bearer site' ? {Authorization: `Bearer ${server.token}`} : {})}});
+  const client = createClient({server: 'http://sync.test', storage: memoryStorage(), fetchImpl: server.fetch});
+  await client.connect();
+  assert.equal(client.state.token, 'site'); assert.equal(client.state.snapshot.revision, 42);
+});
+
+test('on a plain host with no Site key the link screen stays', async () => {
+  const server = fakeServer(), client = createClient({server: 'http://sync.test', storage: memoryStorage(), fetchImpl: server.fetch});
+  await client.connect();
+  assert.equal(client.state.token, null);
+});

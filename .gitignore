@@ -39,3 +39,4 @@ __pycache__/
 
 # Built web planner (node web/build.mjs)
 /web/dist/
+/web/dist-site/

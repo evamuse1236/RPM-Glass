@@ -88,6 +88,15 @@ export function createClient({server, storage = globalThis.localStorage, fetchIm
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     /** An entry is settled once the phone has decided and, if applied, the snapshot shows it. */
     settled: entry => FINAL.has(entry.status) && (entry.status !== 'applied' || (state.snapshot?.revision ?? -1) >= entry.newRevision),
+    /** On a ChatGPT Site the Site holds the phone's key, so the page opens without a code. */
+    async connect() {
+      if (state.token) return;
+      const reply = await call('/v1/site', {auth: false}).catch(() => null);
+      if (!reply?.data?.site) return;
+      Object.assign(state, {token: 'site', cursor: 0, outbox: [], snapshot: null, etag: null, unlinked: false, phoneMissing: false});
+      emit();
+      await refresh();
+    },
     async link(code, label) {
       const {data} = await call('/v1/web/link', {method: 'POST', auth: false, body: {code: code.trim().toUpperCase(), ...(label ? {label} : {})}});
       Object.assign(state, {token: data.token, cursor: 0, outbox: [], snapshot: null, etag: null, unlinked: false, phoneMissing: false});

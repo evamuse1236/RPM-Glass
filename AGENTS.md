@@ -70,4 +70,5 @@ For an authorized phone release, compare the working tree, branch, and installed
 | The website reports a change as saved only after the phone applies it and the newer snapshot arrives; until then the row says it is waiting for the phone. | `web/app/client.test.mjs`, `npm run web:drive` |
 | The website resends an unsent change with the same command ID and body after a network failure or reload. | `web/app/client.test.mjs` |
 | Every website action builds a command the contract accepts, on the snapshot revision the user saw. | `web/app/view.test.mjs` |
+| On the ChatGPT Site the planner opens without a link code: the Site holds the key, adds it only for `Bearer site`, never sends it to the page, and the page can't revoke it. The key reads the phone that synced last. | `web/site-worker.test.mjs`, `web/app/client.test.mjs`, `cloud-tests/webAdminSession.test.ts`, `npm run web:drive -- --no-code` |
 | Model-backed paths without a key, Samsung behavior and real widget placement are reported as UNVERIFIED, not as passing. | Judgment: `verify-rpm-glass` SKILL.md proof standards |

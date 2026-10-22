@@ -8,6 +8,7 @@ import {parseArgs} from 'node:util';
 const {values: opts} = parseArgs({options: {
   site: {type: 'string', default: 'http://127.0.0.1:5178/'},
   chrome: {type: 'string', default: '/usr/bin/chromium'},
+  'no-code': {type: 'boolean', default: false},
   out: {type: 'string', default: `.verify/evidence/web-${new Date().toISOString().replace(/[:.]/g, '-')}`},
 }});
 mkdirSync(opts.out, {recursive: true});
@@ -56,6 +57,10 @@ socket.addEventListener('message', ({data}) => { const msg = JSON.parse(data); i
 
 await viewport(412, 915, 'light');
 await cdp('Page.navigate', {url: opts.site});
+if (opts['no-code']) {
+  check(await until(`document.querySelectorAll('#today-lists [data-task]').length > 0`), 'the Site opens straight to the phone planner, with no code');
+  check(await js(`document.getElementById('link-view').hidden && document.querySelector('[data-menu=unlink]').hidden`), 'the link screen and Unlink stay hidden');
+} else {
 await until(`!document.getElementById('link-view').hidden`);
 await capture('phone-link');
 
@@ -66,6 +71,7 @@ await capture('phone-link-wrong-code');
 const {code} = JSON.parse(execFileSync('node', ['scripts/web-sync/phone-standin.mjs', '--link-code'], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}));
 await js(`document.getElementById('link-code').value = ${JSON.stringify(code.toLowerCase())}; document.getElementById('link-form').requestSubmit(); true`);
 check(await until(`document.querySelectorAll('#today-lists [data-task]').length > 0`), 'linking with a phone code shows the phone planner');
+}
 await sleep(400);
 await capture('phone-today');
 
