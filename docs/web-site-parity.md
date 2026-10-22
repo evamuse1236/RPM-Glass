@@ -4,7 +4,7 @@ Source: `.claude/skills/verify-rpm-glass/features/*.md` (inventoried 2026-10-22)
 
 "Before" is the Site at `e9e6bfb`. "Needs" is what the Site needs under the chosen design (the phone planner running on the Site). Every row that says **planner UI** comes with the shared modules; it still needs its op in the `plan` allowlist, its data in snapshot v2, and a drive check. "Status" names the drive checks that pass, with their screenshot numbers: `NN-<check>-412.png` / `NN-<check>-1280.png` in `.verify/evidence/web-2026-10-22T16-21-31-795Z/` (230 of 230 passed, 1 not run because of the time of day).
 
-Left-out rows are proposals until the owner agrees.
+All left-out rows, including native surfaces, are owner-approved exclusions as of 2026-10-23. See `docs/web-site-feature-map.md` for the user-facing navigation map and the separate exclusion list. Approval does not change any UNVERIFIED status below.
 
 ## Today
 
@@ -22,7 +22,7 @@ Left-out rows are proposals until the owner agrees.
 | Water habit circle and Water sheet | glass only | body ops (`drinkWater`, `setWater`, `snoozeWater`) || Works: water-glass 207/208, water-goal 212/213 |
 | List layout (lead card, Coming up, Add to today, Agenda) | partly | planner UI; layout kept in the browser || Works: today-list 23/24 |
 | Inbox row, Empty day, top bar (Search, Capture, More) | partly | planner UI || Works: inbox-add 62/63, search 134/135; Empty day UNVERIFIED |
-| Clash row and Resolve | no | **left out**: needs the phone's calendar || Left out (needs owner OK) |
+| Clash row and Resolve | no | **left out**: needs the phone's calendar || Owner-approved exclusion (2026-10-23) |
 
 ## Tasks
 
@@ -51,7 +51,7 @@ Left-out rows are proposals until the owner agrees.
 | Inbox sheet, Add task in Inbox, Move to a Block | partly | planner UI || Works: inbox-add 62/63, inbox-move-to-block 89/90 |
 | Trash sheet with Restore | Trash only (no restore list) | `restoreTask` op || Works: trash-restore 56/57 |
 | Search tasks, Blocks, Projects, Goals | no | planner UI (read only) || Works: search 134/135 |
-| Sort with Jev, Suggest a Purpose | no | **left out**: model runs on the phone; the Site says so || Left out (needs owner OK) |
+| Sort with Jev, Suggest a Purpose | no | **left out**: model runs on the phone; the Site says so || Owner-approved exclusion (2026-10-23) |
 
 ## Projects and Life
 
@@ -75,8 +75,8 @@ Left-out rows are proposals until the owner agrees.
 | Step 2 Empty your head (add to Inbox) | no | `saveTask` op || Works: review-inbox-add 190/191 |
 | Step 3 Sort the Inbox into Results | no | `moveTask`, `saveEntity` ops || Works: review-sort 193/194 |
 | Step 4 pick Results, Must, Finish | no | named finish op || Works: review-pick 196/197, review-must 199/200, review-finish 202/203 |
-| Ask Jev in review | no | **left out**: model runs on the phone || Left out (needs owner OK) |
-| Calendar sections in the review | no | **left out**: needs the phone's calendar || Left out (needs owner OK) |
+| Ask Jev in review | no | **left out**: model runs on the phone || Owner-approved exclusion (2026-10-23) |
+| Calendar sections in the review | no | **left out**: needs the phone's calendar || Owner-approved exclusion (2026-10-23) |
 
 ## Habits
 
@@ -93,8 +93,8 @@ Left-out rows are proposals until the owner agrees.
 |---|---|---|---|
 | Capture the exact words, filed by the phone | yes | `capture` command || Works: capture 242/243 |
 | Capture history with outcomes | no | snapshot `captures` (exists) || Works: capture-history 244/245 |
-| Forming cards, questions, receipts with Keep or Undo | no | **left out**: model-backed and live on the phone; the Site shows the phone's receipt after it files || Left out (needs owner OK) |
-| Voice input | no | **left out**: Android speech || Left out (needs owner OK) |
+| Forming cards, questions, receipts with Keep or Undo | no | **left out**: model-backed and live on the phone; the Site shows the phone's receipt after it files || Owner-approved exclusion (2026-10-23) |
+| Voice input | no | **left out**: Android speech || Owner-approved exclusion (2026-10-23) |
 
 ## Settings
 
@@ -102,10 +102,10 @@ Left-out rows are proposals until the owner agrees.
 |---|---|---|---|
 | Theme, tab bar transparency | no | planner UI; kept in the browser || Works: theme 246/247, transparency 248/249 |
 | About | no | planner UI || Works: about 250/251 |
-| Alarm and reminder sounds, notification permissions, exact alarms | no | **left out**: Android settings || Left out (needs owner OK) |
-| Widget text size, floating butterfly, notch | no | **left out**: Android only || Left out (needs owner OK) |
-| AI key, diagnostics pairing, backups, context import and export, Earlier screens | no | **left out**: phone only, by design (no AI credential leaves the phone) || Left out (needs owner OK) |
+| Alarm and reminder sounds, notification permissions, exact alarms | no | **left out**: Android settings || Owner-approved exclusion (2026-10-23) |
+| Widget text size, floating butterfly, notch | no | **left out**: Android only || Owner-approved exclusion (2026-10-23) |
+| AI key, diagnostics pairing, backups, context import and export, Earlier screens | no | **left out**: phone only, by design (no AI credential leaves the phone) || Owner-approved exclusion (2026-10-23) |
 
 ## Native surfaces (not planner pages)
 
-The notch, the home-screen widgets, the floating butterfly, alert notifications and the ringing alarm page live on the phone. **Left out**: a browser has no equivalent. Changes made on the Site still reach them through the phone.
+The notch, the home-screen widgets, the floating butterfly, alert notifications and the ringing alarm page live on the phone. **Owner-approved exclusion (2026-10-23)**: a browser has no equivalent. Changes made on the Site still reach them through the phone; live native behavior remains UNVERIFIED by the website drive.
