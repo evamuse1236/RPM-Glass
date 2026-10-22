@@ -74,10 +74,10 @@ final class EntryDialogs {
     }
     static void edit(Activity a,Store s,long id,Runnable changed) {
         JSONObject e=s.get(id);LinearLayout form=Ui.column(a);Ui.pad(form,20);
-        EditText title=Ui.input(a,"Title");title.setText(e.optString("title"));Ui.field(form,"Title",title);
+        EditText title=Ui.input(a);title.setText(e.optString("title"));Ui.field(form,"Title",title);
         form.addView(Ui.text(a,e.optString("kind").equals("plan")?"Estimated minutes (not measured)":"Reported actual minutes (optional)",14,Ui.MUTED));
-        EditText duration=Ui.input(a,"Minutes");duration.setInputType(2);duration.setText(e.isNull("minutes")?"":e.optString("minutes"));form.addView(duration);
-        EditText notes=Ui.input(a,"Notes (optional)");notes.setText(e.optString("notes"));Ui.field(form,"Notes · optional",notes);
+        EditText duration=Ui.input(a);duration.setInputType(2);duration.setText(e.isNull("minutes")?"":e.optString("minutes"));form.addView(duration);
+        EditText notes=Ui.input(a);notes.setText(e.optString("notes"));Ui.field(form,"Notes · optional",notes);
         ScrollView scroll=new ScrollView(a);scroll.addView(form);
         AlertDialog dialog=new AlertDialog.Builder(a).setTitle("Edit entry").setView(scroll).setNegativeButton("Cancel",null).setPositiveButton("Save",null).create();
         dialog.setOnShowListener(d->dialog.getButton(-1).setOnClickListener(v->{

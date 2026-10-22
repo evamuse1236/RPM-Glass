@@ -58,6 +58,7 @@ final class Ui {
     static ImageView iconView(Context c,int resource,int tint){ImageView i=new ImageView(c);i.setImageDrawable(icon(c,resource,tint));i.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);i.setLayoutParams(new LinearLayout.LayoutParams(dp(c,24),dp(c,24)));return i;}
     static ImageButton iconButton(Context c,int resource,String label,Runnable action){ImageButton b=new ImageButton(c);b.setImageDrawable(icon(c,resource,NAVY));b.setContentDescription(label);b.setTooltipText(label);b.setBackground(ripple(c,bg(Color.TRANSPARENT,24,c)));padding(b,12,12,12,12);b.setLayoutParams(new LinearLayout.LayoutParams(dp(c,48),dp(c,48)));b.setOnClickListener(v->action.run());return b;}
     static void buttonIcon(Button b,int resource,boolean primary){b.setCompoundDrawablesRelative(icon(b.getContext(),resource,primary?ON_ACCENT:NAVY),null,null,null);b.setCompoundDrawablePadding(dp(b.getContext(),8));}
+    static EditText input(Context c){return input(c,null);}
     static EditText input(Context c,String hint){
         EditText e=new EditText(c);e.setImeOptions(android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI|android.view.inputmethod.EditorInfo.IME_FLAG_NO_FULLSCREEN);e.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(15000)});e.setHint(hint);e.setTextColor(NAVY);e.setHintTextColor(MUTED);e.setTextSize(16);e.setIncludeFontPadding(false);e.setLineSpacing(0,1.2f);
         e.setBackground(outline(c,SURFACE,12));padding(e,16,16,16,16);e.setMinHeight(dp(c,56));

@@ -47,7 +47,7 @@ public final class CloudActivity extends Activity {
         if(!paired||pairingExpanded){
         Ui.gap(body,24);body.addView(Ui.heading(this,paired?"Pair again if needed":"One-time pairing",19));
         url=Ui.input(this,"https://your-deployment.convex.site");url.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);url.setText(SyncManager.prefs(this).getString("url",getString(R.string.convex_default_url)));Ui.field(body,"Deployment address",url);
-        code=Ui.input(this,"Pairing code");code.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);Ui.field(body,"One-time pairing code",code);
+        code=Ui.input(this);code.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);Ui.field(body,"One-time pairing code",code);
         body.addView(Ui.text(this,"Use the short-lived code generated during Convex setup. Your deployment admin key is never needed on the phone.",14,Ui.MUTED));
         connect=Ui.button(this,"Connect & sync",true,()->{
             String address=url.getText().toString().trim(),secret=code.getText().toString().trim();
