@@ -72,4 +72,6 @@ Open a task from Today, a Block, Inbox or Search. Its sheet opens on **When**, w
 
 The parity record reports **230 of 230 checks passed, one not run**, with 412px and 1280px screenshots under `.verify/evidence/web-2026-10-22T16-21-31-795Z/`. The time-dependent gap check passed in `.verify/evidence/web-2026-10-22T14-46-29-450Z/`. These are browser drives against a synthetic local stand-in using the phone's command code, not a physical phone installation or a live AI service.
 
-Live end-to-end phone sync and the Cloud dialog remain **UNVERIFIED** in the sync record. Android headless execution, model-backed paths, Samsung behavior and actual home-screen widget placement remain **UNVERIFIED** by this website evidence. This map records existing evidence; it does not establish a deployment, merge or phone release.
+Release check, 2026-10-23: the private Site is deployed at https://rpm-planner.evamuse.chatgpt.site. The physical S24 FE runs `0.33-site-parity` (33), with matching signing and APK checks and its planner file preserved byte for byte. The phone published snapshot v2 and the Site read it successfully without a link code. See [release evidence](web-site-release-2026-10-23.md).
+
+Browser commands applied by the physical phone, the Cloud dialog, model-backed paths, Samsung-specific behavior and actual home-screen widget placement remain **UNVERIFIED**. No test command was sent to the owner's real planner; command effects retain the synthetic stand-in evidence above.
