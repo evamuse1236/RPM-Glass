@@ -10,8 +10,8 @@ android {
         applicationId "com.rpm.prototype"
         minSdk 26
         targetSdk 36
-        versionCode 31
-        versionName "0.31-apple"
+        versionCode 32
+        versionName "0.32-sync"
         testInstrumentationRunner "com.rpm.prototype.OfflineTests"
     }
     compileOptions {
