@@ -1,6 +1,7 @@
 import { validateCommand, validateSnapshot } from "../web/contract/validate.mjs";
 import { v } from "convex/values";
 import { internalMutation } from "./functions";
+import { canonicalJson } from "./security";
 import { fail, phoneAuth, webAuth, consumeQuota, unauthorized, type PlannerCtx } from "./plannerAuth";
 import type { Doc, Id } from "./_generated/dataModel";
 
@@ -65,7 +66,10 @@ export const phone = internalMutation({args:{tokenHash:v.string(),op:v.union(v.l
 async function syncPlanner(ctx:PlannerCtx,device:Doc<"devices">,account:Id<"accounts">,snapshot:any,identity:string|undefined,acks:Ack[]) {
   const retained = await ctx.db.query("plannerSnapshots").withIndex("by_account_revision",q=>q.eq("account",account)).order("desc").take(5);
   const latest = retained[0];
-  if(snapshot!==undefined && (latest && (snapshot.revision<latest.revision || snapshot.revision===latest.revision && identity!==latest.identity))) {
+  // A phone upgrade can enrich the current revision without changing any v1 field.
+  const upgrade = snapshot!==undefined && latest?.payload.schemaVersion===1 && snapshot.schemaVersion===2
+    && canonicalJson({...latest.payload,schemaVersion:2,entries:snapshot.entries,planner:snapshot.planner})===canonicalJson(snapshot);
+  if(snapshot!==undefined && (latest && (snapshot.revision<latest.revision || snapshot.revision===latest.revision && identity!==latest.identity && !upgrade))) {
     return fail(409,"snapshot_conflict","The published planner revision cannot be replaced");
   }
   const changes:Array<{command:Doc<"webCommands">;ack:Ack}> = [];
@@ -80,7 +84,8 @@ async function syncPlanner(ctx:PlannerCtx,device:Doc<"devices">,account:Id<"acco
     if(duplicate && JSON.stringify(duplicate.ack)!==JSON.stringify(ack))return fail(409,"command_conflict","Conflicting command results");
     if(!duplicate)changes.push({command,ack});
   }
-  if(snapshot!==undefined && (!latest || snapshot.revision>latest.revision)) {
+  if(upgrade)await ctx.db.patch(latest._id,{payload:snapshot,identity:identity!});
+  else if(snapshot!==undefined && (!latest || snapshot.revision>latest.revision)) {
     await ctx.db.insert("plannerSnapshots",{account,revision:snapshot.revision,payload:snapshot,identity:identity!});
     if(retained.length===5)await ctx.db.delete(retained[4]._id);
   }
@@ -93,7 +98,7 @@ async function syncPlanner(ctx:PlannerCtx,device:Doc<"devices">,account:Id<"acco
   }
   await ctx.db.patch(device._id,{lastSyncAt:Date.now()});
   const snapshots = await ctx.db.query("plannerSnapshots").withIndex("by_account_revision",q=>q.eq("account",account)).order("desc").take(5);
-  return {commands:pending.map(command=>command.payload),snapshots:snapshots.map(row=>row.payload),revokedCommandIds};
+  return {commands:pending.map(command=>command.payload),snapshots:snapshots.map(row=>row.payload).filter(payload=>payload.schemaVersion===2),revokedCommandIds};
 }
 
 export const browser = internalMutation({args:{tokenHash:v.string(),op:v.union(v.literal("snapshot"),v.literal("enqueue"),v.literal("commands"),v.literal("revoke")),command:v.optional(v.any()),identity:v.optional(v.string()),since:v.optional(v.number())},handler:async(ctx,args)=>{

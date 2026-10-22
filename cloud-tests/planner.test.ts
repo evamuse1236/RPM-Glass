@@ -2,6 +2,25 @@ import { describe, expect, it } from "vitest";
 import { setup, phone, linked, request, snapshot, sync, enqueue, command, poll } from "./plannerHelpers";
 
 describe("Planner snapshots and command delivery",()=>{
+  it("enriches a v1 snapshot once at the same revision while preserving every legacy field",async()=>{
+    const t=setup(), device=await phone(t), web=await linked(t,device.token), current=snapshot();
+    await sync(t,device.token,{snapshot:current,acks:[]});
+    const {entries,planner,...legacy}=current;
+    const v1={...legacy,schemaVersion:1};
+    await t.run(async ctx=>{
+      const row=(await ctx.db.query("plannerSnapshots").collect())[0];
+      await ctx.db.patch(row._id,{payload:v1,identity:"legacy"});
+      await ctx.db.insert("plannerSnapshots",{account:row.account,revision:41,payload:{...v1,revision:41},identity:"older"});
+    });
+    expect((await sync(t,device.token,{snapshot:{...current,savedAt:"2026-10-19T08:00:00+05:30"},acks:[]})).status).toBe(409);
+    const upgraded=await sync(t,device.token,{snapshot:current,acks:[]});
+    expect(upgraded.status).toBe(200);
+    expect((await upgraded.json()).snapshots).toEqual([current]);
+    expect(await (await request(t,"/v1/web/snapshot",web.token,undefined,"GET")).json()).toEqual(current);
+    expect((await sync(t,device.token,{snapshot:current,acks:[]})).status).toBe(200);
+    expect((await sync(t,device.token,{snapshot:{...current,planner:{...planner,context:{...planner.context,vision:"Changed"}}},acks:[]})).status).toBe(409);
+    expect(await t.run(ctx=>ctx.db.query("plannerSnapshots").collect())).toHaveLength(2);
+  });
   it("keeps one current snapshot and four older revisions without reinterpreting legacy events",async()=>{
     const t=setup(), device=await phone(t), web=await linked(t,device.token);
     for(let revision=40;revision<=46;revision++)expect((await sync(t,device.token,{snapshot:snapshot(revision),acks:[]})).status).toBe(200);
