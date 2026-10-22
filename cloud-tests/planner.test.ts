@@ -3,9 +3,9 @@ import { setup, phone, linked, request, snapshot, sync, enqueue, command, poll }
 
 describe("Planner snapshots and command delivery",()=>{
   it("enriches a v1 snapshot once at the same revision while preserving every legacy field",async()=>{
-    const t=setup(), device=await phone(t), web=await linked(t,device.token), current=snapshot();
-    current.drafts=[{id:"draft",status:"committed",title:"Saved task",reply:"",receipt:[{text:"Today"}],taskIds:[]}];
-    current.captures=[{id:"capture",text:"Exact words",status:"interpreted",createdAt:current.savedAt,receipt:[{text:"Today"}]}];
+    const t=setup(), device=await phone(t), web=await linked(t,device.token), base=snapshot();
+    const current={...base,drafts:[{id:"draft",status:"committed",title:"Saved task",reply:"",receipt:[{text:"Today"}],taskIds:[]}],
+      captures:[{id:"capture",text:"Exact words",status:"interpreted",createdAt:base.savedAt,receipt:[{text:"Today"}]}]};
     await sync(t,device.token,{snapshot:current,acks:[]});
     const {entries,planner,...legacy}=current;
     const v1={...legacy,schemaVersion:1,captures:legacy.captures.map(row=>({...row,receipt:[{text:"Yesterday"}]})),drafts:legacy.drafts.map(row=>({...row,receipt:[{text:"Yesterday"}]}))};
