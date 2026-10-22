@@ -74,10 +74,12 @@ if (opts['link-code']) {
 }
 
 let acks = [];
+let synced = false;
 async function syncOnce() {
   for (let round = 0; round < 20; round++) {
     const reply = await call('/v1/planner/sync', state.token, {snapshot: await processor.snapshot(), acks});
     acks = [];
+    if (!synced) { synced = true; log('Synced with', opts.site); }
     const command = reply.commands[0];
     if (!command) return;
     if (+opts['delay-ms']) await new Promise(r => setTimeout(r, +opts['delay-ms']));

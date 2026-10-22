@@ -25,7 +25,8 @@
     "web:build": "node web/build.mjs",
     "web:serve": "node web/serve.mjs",
     "web:phone": "node scripts/web-sync/phone-standin.mjs",
-    "web:drive": "node scripts/web-sync/drive.mjs"
+    "web:drive": "node scripts/web-sync/drive.mjs",
+    "web:local": "node scripts/web-sync/local.mjs"
   },
   "dependencies": {
     "chrono-node": "2.10.1",
