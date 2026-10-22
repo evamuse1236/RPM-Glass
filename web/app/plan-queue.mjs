@@ -1,5 +1,6 @@
 import {assertPlanOp, editPlan} from '../../android-companion/planner-state.mjs';
 import {targets} from '../../android-companion/web-sync-targets.mjs';
+import {withIds} from '../../android-companion/new-id.mjs';
 import {validateCommand, validatePlanOp} from '../contract/validate.mjs';
 
 const KEY = 'rpm.web.plan.v1';
@@ -47,12 +48,9 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
   const snapshot = () => client.state.snapshot;
 
   function edit(store, rec, op) {
-    const c = globalThis.crypto;
-    const original = c?.randomUUID;
-    let i = 0;
-    rec.uuids ??= [];
-    if (original) c.randomUUID = () => { rec.uuids[i] ??= original.call(c); return rec.uuids[i++]; };
-    try { return editPlan(store, op, new Date(rec.at)); } finally { if (original) delete c.randomUUID; }
+    const {result, ids} = withIds(rec.uuids ?? [], () => editPlan(store, op, new Date(rec.at)));
+    rec.uuids ??= ids;
+    return result;
   }
 
   function replay(store, rec) {
@@ -68,7 +66,7 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
 
   function command(rec) {
     const base = {id: rec.id, createdAt: rec.at, baseRevision: rec.baseRevision};
-    return validateCommand(rec.kind === 'undo' ? {...base, type: 'undo', args: {commandId: rec.targetId}} : {...base, type: 'plan', args: {op: rec.op}});
+    return validateCommand(rec.kind === 'undo' ? {...base, type: 'undo', args: {commandId: rec.targetId}} : {...base, type: 'plan', args: {op: rec.op, ids: rec.uuids ?? []}});
   }
 
   function settle() {
@@ -177,7 +175,7 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
       Object.assign(rec, {targets: list, ids: [...targetIds(list), ...created], created, held: !!earlier, sent: !earlier, after: earlier?.id ?? null});
       records.push(rec);
       view = {...store, version};
-      if (op.type !== 'reviewProgress' && !(op.type === 'batch' && op.keepUndo)) lastUndo = {commandId: rec.id, ids: rec.ids, targets: list, restore: {entries: store.planner.undo.entries, planner: store.planner.undo.planner}};
+      if (op.type !== 'reviewProgress' && !op.keepUndo) lastUndo = {commandId: rec.id, ids: rec.ids, targets: list, restore: {entries: store.planner.undo.entries, planner: store.planner.undo.planner}};
       persist();
       if (rec.held) listeners.forEach(fn => fn({foreign: false, createdSaved: false, sends: []}));
       else client.send(command(rec));

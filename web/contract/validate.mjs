@@ -45,9 +45,10 @@ function matches(schema, value, root = schema) {
     if (value.length > (schema.maxItems ?? Infinity) || value.length < (schema.minItems ?? 0)) return false;
     if (schema.items && !value.every(item => matches(schema.items, item, root))) return false;
   } else if (value && typeof value === 'object') {
-    if ((schema.required ?? []).some(key => !Object.hasOwn(value, key))) return false;
-    if (Object.keys(value).length < (schema.minProperties ?? 0) || Object.keys(value).length > (schema.maxProperties ?? Infinity)) return false;
-    for (const key of Object.keys(value)) {
+    const keys = Object.keys(value).filter(key => value[key] !== undefined);
+    if ((schema.required ?? []).some(key => !keys.includes(key))) return false;
+    if (keys.length < (schema.minProperties ?? 0) || keys.length > (schema.maxProperties ?? Infinity)) return false;
+    for (const key of keys) {
       if (schema.propertyNames && !matches(schema.propertyNames, key, root)) return false;
       if (!Object.hasOwn(schema.properties ?? {}, key)) {
         if (schema.additionalProperties === false || typeof schema.additionalProperties === 'object' && !matches(schema.additionalProperties, value[key], root)) return false;

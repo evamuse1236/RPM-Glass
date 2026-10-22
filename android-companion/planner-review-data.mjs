@@ -1,4 +1,4 @@
-import {randomUUID} from 'node:crypto';
+import {newId} from './new-id.mjs';
 import {repeats} from './planner-recurrence.mjs';
 import {text, title, one, link} from './planner-fields.mjs';
 import {tasks, blockTasks, localDay} from './planner-state.mjs';
@@ -141,7 +141,7 @@ function groupTaskOp(next, op, at) {
   const e = one(tasks(next), op.id);
   let target = op.blockId ?? null;
   if (op.newBlock) {
-    const block = {id: randomUUID(), created: at, title: title(op.newBlock.title), purpose: text(op.newBlock.purpose ?? ''), notes: '', projectId: link(p.projects, op.newBlock.projectId), achieved: false, achievedAt: null, evidence: ''};
+    const block = {id: newId(), created: at, title: title(op.newBlock.title), purpose: text(op.newBlock.purpose ?? ''), notes: '', projectId: link(p.projects, op.newBlock.projectId), achieved: false, achievedAt: null, evidence: ''};
     p.blocks.push(block);
     target = block.id;
   } else target = link(p.blocks, target);

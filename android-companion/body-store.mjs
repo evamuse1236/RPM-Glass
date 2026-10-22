@@ -3,7 +3,7 @@
  * change is an editPlan op, so it is validated, saved through the phone, logged and undoable like a task edit.
  * A store without `planner.body` reads as empty with the default water settings; the first change creates it.
  */
-import {randomUUID} from 'node:crypto';
+import {newId} from './new-id.mjs';
 import {WATER_DEFAULTS, SLOTS, validateRoutine, minutesOf} from './body-state.mjs';
 import {MEAL_TIMES, SNACK_TIME} from './day-parts.mjs';
 import {text, title, integer, one} from './planner-fields.mjs';
@@ -64,11 +64,11 @@ function saveRoutine(next, op, at) {
   const days = [...new Set(fields.days)].sort();
   if (days.some(d => !Number.isInteger(d) || d < 0 || d > 6)) throw new Error('Pick at least one day');
   const steps = fields.steps.filter(step => String(step.title ?? '').trim()).map(step => ({
-    id: typeof step.id === 'string' && step.id ? step.id : randomUUID(), title: title(step.title)}));
+    id: typeof step.id === 'string' && step.id ? step.id : newId(), title: title(step.title)}));
   if (new Set(steps.map(s => s.id)).size !== steps.length) throw new Error('Each step needs its own place.');
   let routine = fields.id ? one(body.routines, fields.id) : null;
   if (!routine) {
-    routine = {id: randomUUID(), created: at};
+    routine = {id: newId(), created: at};
     body.routines.push(routine);
   }
   Object.assign(routine, {name: title(fields.name), start: clock(fields.start), end: clock(fields.end), days, steps, updated: at});
@@ -154,7 +154,7 @@ function saveMeal(next, op, at) {
   if (fields.state != null && !['logged', 'skipped'].includes(fields.state)) throw new Error('Choose logged or skipped for the meal.');
   let meal = fields.id ? one(body.meals, fields.id) : null;
   if (!meal) {
-    meal = {id: randomUUID(), created: at};
+    meal = {id: newId(), created: at};
     body.meals.push(meal);
   }
   if (meal.name !== undefined && meal.name !== name) delete body.mealGuesses[meal.id];

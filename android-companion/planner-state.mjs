@@ -1,4 +1,4 @@
-import {randomUUID} from 'node:crypto';
+import {newId} from './new-id.mjs';
 import {occurrences,completeTask,repeats} from './planner-recurrence.mjs';
 import {text,title,integer,weekdays,one,link} from './planner-fields.mjs';
 import {REVIEW_VERSION,REVIEW_OPS,migrateReviewData,validateReviewData,forgetBlockInWeeks,keepCompletionTime} from './planner-review-data.mjs';
@@ -64,7 +64,7 @@ export function editPlan(data,op,now=new Date()){
     one(p.blocks,op.id).archived=op.archived!==false;result=op.id;
   }else if(op.type==='saveEntity'){
     if(!['projects','blocks','areas','goals'].includes(op.collection))throw new Error('Unknown planning group.');
-    let r=op.id?one(p[op.collection],op.id):{id:randomUUID(),created:at};
+    let r=op.id?one(p[op.collection],op.id):{id:newId(),created:at};
     r.title=title(op.fields.title);r.purpose=text(op.fields.purpose??'');r.notes=text(op.fields.notes??'',8000);
     if(op.collection==='blocks')r.projectId=link(p.projects,op.fields.projectId);
     if(op.collection==='projects')r.goalId=link(p.goals,op.fields.goalId);
@@ -142,10 +142,10 @@ export function editPlan(data,op,now=new Date()){
   }else if(op.type==='aiDraft'){
     if(!Array.isArray(op.blocks)||!op.blocks.length||op.blocks.length>12)throw new Error('The AI returned an invalid set of blocks.');
     const assigned=new Set(),ids=[];
-    for(const b of op.blocks){if(!Array.isArray(b.taskIds)||b.taskIds.length>60)throw new Error('The AI returned invalid task links.');const projectId=link(p.projects,b.projectId);let row=b.blockId?one(p.blocks,b.blockId):{id:randomUUID(),title:title(b.title),projectId,purpose:'',notes:'',created:at};if(!b.blockId)p.blocks.push(row);ids.push(row.id);let rank=blockTasks(next,row.id).length;
+    for(const b of op.blocks){if(!Array.isArray(b.taskIds)||b.taskIds.length>60)throw new Error('The AI returned invalid task links.');const projectId=link(p.projects,b.projectId);let row=b.blockId?one(p.blocks,b.blockId):{id:newId(),title:title(b.title),projectId,purpose:'',notes:'',created:at};if(!b.blockId)p.blocks.push(row);ids.push(row.id);let rank=blockTasks(next,row.id).length;
       for(const id of b.taskIds){if(assigned.has(id))throw new Error('The AI assigned a task twice.');const e=one(tasks(next),id);if(e.done)throw new Error('A completed task cannot be sorted by this draft.');assigned.add(id);e.blockId=row.id;e.priority=++rank;}
     }
-    p.drafts.push({id:randomUUID(),at,status:'unreviewed',proposed:op.blocks.map(b=>({blockId:b.blockId??null,title:text(b.title??'',200),projectId:b.projectId??null,taskIds:[...b.taskIds]})),blockIds:[...new Set(ids)],initial:arrangement(next),final:null});p.drafts=p.drafts.slice(-40);
+    p.drafts.push({id:newId(),at,status:'unreviewed',proposed:op.blocks.map(b=>({blockId:b.blockId??null,title:text(b.title??'',200),projectId:b.projectId??null,taskIds:[...b.taskIds]})),blockIds:[...new Set(ids)],initial:arrangement(next),final:null});p.drafts=p.drafts.slice(-40);
   }else if(op.type==='acceptDraft'){
     const draft=one(p.drafts,op.id);if(draft.status!=='unreviewed')throw new Error('This draft was already reviewed.');draft.status='accepted';draft.acceptedAt=at;draft.final=arrangement(next);
   }else if(op.type==='dismissDraft'){
@@ -158,7 +158,7 @@ export function editPlan(data,op,now=new Date()){
     result=BODY_OPS[op.type](next,op,at);
   }else throw new Error('Unknown planning action.');
   for(const task of next.entries){if(task.blockId&&task.purpose){task.revisions??=[];task.revisions.push({at,reason:'Task purpose retained in notes',before:{purpose:task.purpose,notes:task.notes??''}});task.notes=[task.notes,'Previous task purpose: '+task.purpose].filter(Boolean).join('\n\n');task.purpose='';}}
-  validatePlanner(next);p.events.push({id:randomUUID(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=op.keepUndo?data.planner?.undo??null:before;next.undo=null;
+  validatePlanner(next);p.events.push({id:newId(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=op.keepUndo?data.planner?.undo??null:before;next.undo=null;
   Object.assign(data,next);return result;
 }
 

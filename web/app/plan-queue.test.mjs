@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import fixture from '../fixtures/snapshot.json' with {type: 'json'};
 import {validateCommand} from '../contract/validate.mjs';
 import {editPlan} from '../../android-companion/planner-state.mjs';
+import {withIds} from '../../android-companion/new-id.mjs';
+import {completionOp} from '../../android-companion/notch-ops.mjs';
 import {createPlanQueue, storeFrom, WAITING} from './plan-queue.mjs';
 
 const FINAL = new Set(['applied', 'rejected', 'conflict']);
@@ -36,7 +38,7 @@ function phone(client) {
       if (status !== 'applied') { Object.assign(entry, {status, message}); client.emit(); return; }
       const {command} = entry;
       const before = structuredClone({entries: store.entries, planner: store.planner});
-      if (command.type === 'plan') { editPlan(store, command.args.op); applied.set(command.id, before); }
+      if (command.type === 'plan') { withIds(command.args.ids, () => editPlan(store, command.args.op)); applied.set(command.id, before); }
       else Object.assign(store, structuredClone(applied.get(command.args.commandId)));
       const revision = client.state.snapshot.revision + 1;
       Object.assign(entry, {status: 'applied', newRevision: revision});
@@ -188,4 +190,35 @@ test('pending changes survive a reload and are laid over the snapshot again', ()
   again.start();
   assert.equal(again.data().entries.find(e => e.id === 3).title, 'Kept');
   assert.ok(again.pendingIds().has(3));
+});
+
+test('a record made in the browser is sent with the ids it was given, so the phone saves it under the same id, on every resend', () => {
+  const client = fakeClient(), storage = memory();
+  const first = createPlanQueue({client, storage});
+  first.start();
+  first.commit({type: 'saveEntity', collection: 'projects', fields: {title: 'Made here'}});
+  const made = first.data().planner.projects.find(p => p.title === 'Made here');
+  const [command] = client.sent();
+  assert.deepEqual(validateCommand(command), command);
+  assert.equal(command.args.ids[0], made.id);
+  const again = createPlanQueue({client: {...client, subscribe() {}}, storage});
+  again.start();
+  assert.equal(again.data().planner.projects.find(p => p.title === 'Made here').id, made.id);
+  const device = phone(client);
+  device.apply(0);
+  assert.equal(device.store.planner.projects.find(p => p.title === 'Made here').id, made.id);
+});
+
+test('a one-time task ticked and then unticked in the browser reaches the phone both times', () => {
+  const {client, queue, device} = setup();
+  queue.commit(completionOp(task(queue, 3)));
+  device.apply(0);
+  assert.equal(task(queue, 3).done, true);
+  queue.commit(completionOp(task(queue, 3)));
+  assert.equal(task(queue, 3).done, false);
+  assert.equal(client.sent().length, 2);
+  assert.equal(client.sent()[1].args.op.type, 'reopenTask');
+  device.apply(1);
+  assert.equal(task(queue, 3).done, false);
+  assert.equal(queue.pendingIds().size, 0);
 });

@@ -1,160 +1,122 @@
 import {createClient, problemText} from './client.mjs';
-import {plannerView, commandFor, savedLabel} from './view.mjs';
+import {createPlanQueue} from './plan-queue.mjs';
+import {createWebNative, PHONE, sortPreview} from './web-native.mjs';
+import {savedLabel, sentLabel, watchRows} from './sync-marks.mjs';
+import {userMessage} from '../../android-companion/user-message.mjs';
+import {applyClarityPreferences} from '../../android-companion/planner-clarity.mjs';
+import {mountPlanner} from '../../android-companion/planner.mjs';
 
 const server = new URLSearchParams(location.search).get('server') ?? globalThis.RPM_SYNC_SERVER ?? location.origin;
 const client = createClient({server});
+const queue = createPlanQueue({client});
 const $ = id => document.getElementById(id);
-const esc = text => String(text ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]);
-let view = null, sheetTask = null, lastSnack = null, dismissed = new Set();
+const DRAFT = 'rpm.web.capture.v1';
+const SLOW = 30000;
+const dismissed = new Set();
+let ui = null;
+let remark = () => {};
 
-const PENDING_TEXT = {complete: 'Completing', uncomplete: 'Reopening', reschedule: 'Rescheduling', 'move-to-block': 'Moving', archive: 'Moving to Trash', restore: 'Restoring', edit: 'Saving'};
 const unsettled = () => client.state.outbox.filter(e => !client.settled(e));
-const pendingFor = id => unsettled().find(e => e.command.args.taskId === id);
-const problemFor = id => client.state.outbox.find(e => e.command.args.taskId === id && ['rejected', 'conflict'].includes(e.status) && !dismissed.has(e.command.id));
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-function taskRow(task, {showResult = true} = {}) {
-  const pending = pendingFor(task.id), problem = problemFor(task.id);
-  const meta = pending ? `<span class="waiting"><span class="ms spin" aria-hidden="true">sync</span>${PENDING_TEXT[pending.command.type] ?? 'Sending'} · waiting for phone</span>` : esc(task.meta);
-  return `<li class="task${task.done ? ' done' : ''}${task.overdue ? ' overdue' : ''}${pending ? ' pending' : ''}" data-task="${task.id}">
-    <button class="check" type="button" data-act="${task.done ? 'uncomplete' : 'complete'}" ${pending ? 'disabled' : ''} aria-label="${task.done ? 'Reopen' : 'Complete'}: ${esc(task.title)}">
-      <span class="ms${task.done ? ' fill' : ''}" aria-hidden="true">${task.done ? 'check_circle' : 'radio_button_unchecked'}</span></button>
-    <button class="task-open" type="button" data-act="open" aria-label="Change ${esc(task.title)}">
-      <span class="task-title">${esc(task.title)}</span>
-      ${meta ? `<span class="task-meta tnum">${meta}</span>` : ''}
-      ${showResult && task.result ? `<span class="task-result">${esc(task.result.title)}</span>` : ''}
-      ${problem ? `<span class="task-problem" role="alert">${esc(problem.message)}</span>` : ''}
-    </button>
-    ${task.must ? '<span class="ms fill must" role="img" aria-label="Must">star</span>' : ''}
-  </li>`;
+function mount() {
+  if (ui || !queue.data()) return;
+  const root = document.documentElement;
+  applyClarityPreferences();
+  root.dataset.reduceMotion = String(PHONE.reducedMotion);
+  root.dataset.largeText = 'false';
+  root.style.setProperty('--text-scale', String(PHONE.fontScale));
+  ui = mountPlanner({getData: () => queue.data(), getPhone: () => PHONE, native: createWebNative({openCapture}), sortPreview,
+    label: sentLabel, commit: async op => queue.commit(op)});
+  if (location.hash === '#ideas') ui.goalIdeas();
+  else if (location.hash.startsWith('#open=')) try { ui.openView(JSON.parse(decodeURIComponent(location.hash.slice(6)))); } catch {}
+  remark = watchRows([$('workspace'), $('sheet')], queue);
 }
-const list = (title, rows, empty, opts) => `<section class="group"><h2 class="group-title">${title}${rows.length ? ` <span class="count tnum">${rows.length}</span>` : ''}</h2>
-  ${rows.length ? `<ul class="tasks">${rows.map(r => taskRow(r, opts)).join('')}</ul>` : `<p class="empty">${empty}</p>`}</section>`;
 
-function renderPlanner() {
-  const snapshot = client.state.snapshot;
-  if (!snapshot) {
-    $('today-title').textContent = new Date().toLocaleDateString('en-US', {weekday: 'long', day: 'numeric', month: 'long'});
-    $('today-lists').innerHTML = `<p class="empty">${client.state.phoneMissing ? 'Your phone has not sent its planner yet. Open RPM on the phone with Cloud connected.' : 'Loading your planner.'}</p>`;
-    return;
+function noteItem({icon, text, tone, onDismiss}) {
+  const item = document.createElement('li');
+  item.className = `note ${tone}`;
+  const glyph = document.createElement('span');
+  glyph.className = 'ms';
+  glyph.setAttribute('aria-hidden', 'true');
+  glyph.textContent = icon;
+  const words = document.createElement('p');
+  words.textContent = text;
+  item.append(glyph, words);
+  if (onDismiss) {
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'icon-btn';
+    close.setAttribute('aria-label', 'Dismiss');
+    close.innerHTML = '<span class="ms" aria-hidden="true">close</span>';
+    close.addEventListener('click', onDismiss);
+    item.append(close);
   }
-  view = plannerView(snapshot);
-  $('today-title').textContent = view.dateLabel;
-  const waterPending = unsettled().some(e => e.command.type === 'log-water');
-  $('habits').innerHTML = `<div class="habit">
-      <span class="ms" aria-hidden="true">water_full</span>
-      <span class="habit-text"><span class="habit-name">Water</span><span class="tnum">${view.water.glasses} of ${view.water.goal} glasses${waterPending ? ' · waiting for phone' : ''}</span></span>
-      <button class="btn tonal" type="button" data-act="water" ${waterPending ? 'disabled' : ''}><span class="ms" aria-hidden="true">add</span>Glass</button>
-    </div>`;
-  $('today-lists').innerHTML = list('Today', view.agenda, 'Nothing planned for today.')
-    + list('Next 7 days', view.upcoming, 'Nothing planned this week.')
-    + list('Inbox', view.inbox, 'Inbox is clear.')
-    + (view.doneToday.length ? `<details class="group done-group"><summary class="group-title">Completed today <span class="count tnum">${view.doneToday.length}</span></summary><ul class="tasks">${view.doneToday.map(r => taskRow(r)).join('')}</ul></details>` : '');
-  const sentCaptures = client.state.outbox.filter(e => e.command.type === 'capture' && !dismissed.has(e.command.id) && !client.settled(e));
-  $('captures').innerHTML = sentCaptures.map(e => `<p class="capture-sent"><span class="ms spin" aria-hidden="true">sync</span><span>“${esc(e.command.args.text.trim())}” · ${e.status === 'sending' ? 'sending' : 'waiting for phone'}</span></p>`).join('');
-  $('results').innerHTML = view.results.map(r => `<article class="result-card">
-      ${r.project ? `<p class="result-project">${esc(r.project)}</p>` : ''}
-      <h2 class="result-title">${esc(r.title)}</h2>
-      ${r.purpose ? `<p class="result-purpose">${esc(r.purpose)}</p>` : ''}
-      <p class="result-facts tnum">${r.done} of ${r.total} done${r.mustsLeft ? ` · <span class="ms fill must" role="img" aria-label="Musts">star</span> ${r.mustsLeft} left` : ''}</p>
-      ${r.plan.length ? `<ul class="tasks">${r.plan.map(t => taskRow(t, {showResult: false})).join('')}</ul>` : '<p class="empty">Every task is done. Only you decide if the Result is achieved.</p>'}
-    </article>`).join('');
+  return item;
 }
 
-function renderStatus() {
-  const s = client.state, waiting = unsettled();
-  const parts = [s.snapshot ? savedLabel(s.snapshot.savedAt, new Date()) : 'Connecting'];
-  if (waiting.length) parts.push(`${waiting.length} waiting for phone`);
-  $('sync-line').textContent = parts.join(' · ');
-  const old = waiting.filter(e => Date.now() - Date.parse(e.command.createdAt) > 30000);
-  const banner = s.offline ?? (old.length ? 'Your phone has not picked up these changes yet. It does when RPM is open, or about every 15 minutes in the background.' : null);
-  $('banner').hidden = !banner; $('banner').textContent = banner ?? '';
-}
-
-function snack(text, undoId) {
-  const bar = $('snackbar'); lastSnack = undoId ?? null;
-  $('snackbar-text').textContent = text; $('snackbar-action').hidden = !undoId; bar.hidden = false;
-  clearTimeout(snack.timer); snack.timer = setTimeout(() => { bar.hidden = true; }, undoId ? 6000 : 4000);
-}
-const announced = new Set();
-function announce() {
-  for (const e of client.state.outbox) {
-    if (announced.has(e.command.id) || !client.settled(e)) continue;
-    announced.add(e.command.id);
-    if (e.status === 'applied') snack(e.command.type === 'undo' ? 'Undone on the phone' : e.command.type === 'capture' ? 'Capture saved on the phone' : 'Saved on the phone', ['undo', 'capture'].includes(e.command.type) ? null : e.command.id);
-    else if (!e.command.args.taskId) snack(e.message);
+function renderNotes() {
+  const notes = queue.problems().map((p, i) => noteItem({icon: 'error', tone: 'problem', text: userMessage(p.message), onDismiss: () => queue.dismissProblem(i)}));
+  for (const entry of client.state.outbox.filter(e => e.command.type === 'capture' && !dismissed.has(e.command.id))) {
+    const words = `“${entry.command.args.text.trim().slice(0, 80)}”`;
+    if (!client.settled(entry)) notes.push(noteItem({icon: 'schedule', tone: 'waiting', text: `Capture ${words} is waiting for your phone.`}));
+    else if (entry.status !== 'applied') notes.push(noteItem({icon: 'error', tone: 'problem', text: userMessage(entry.message || 'Your phone did not save this capture.'),
+      onDismiss: () => { dismissed.add(entry.command.id); render(); }}));
   }
+  $('notes').replaceChildren(...notes);
+  $('notes').hidden = notes.length === 0;
 }
 
 function render() {
-  const linked = !!client.state.token && !client.state.unlinked;
-  $('link-view').hidden = linked; $('planner-view').hidden = !linked;
-  document.querySelector('[data-menu=unlink]').hidden = client.state.token === 'site';
-  if (!linked) {
-    if (client.state.unlinked) { $('link-problem').hidden = false; $('link-problem').textContent = 'This browser was unlinked. Make a new code on the phone to link it again.'; }
-    return;
-  }
-  renderStatus(); renderPlanner(); announce();
-  if (sheetTask && $('task-sheet').open) fillSheet();
+  const s = client.state;
+  const linked = !!s.token && !s.unlinked;
+  $('link-view').hidden = linked;
+  $('planner-view').hidden = !linked;
+  $('link-unlinked').hidden = !s.unlinked;
+  if (!linked) return;
+  $('menu-unlink').hidden = s.token === 'site';
+  mount();
+  const waiting = unsettled();
+  $('sync-line').textContent = [s.snapshot ? savedLabel(s.snapshot.savedAt) : 'Connecting', waiting.length ? `${plural(waiting.length, 'change')} waiting for your phone` : null].filter(Boolean).join(' · ');
+  const slow = waiting.some(e => Date.now() - Date.parse(e.command.createdAt) > SLOW);
+  const banner = s.offline ?? (s.phoneMissing && !s.snapshot ? 'Your phone has not sent its planner yet. Open RPM on the phone with Cloud connected.'
+    : slow ? 'Your phone has not picked up these changes yet. It does when RPM is open, or about every 15 minutes in the background.' : null);
+  $('banner').hidden = !banner;
+  $('banner').textContent = banner ?? '';
+  renderNotes();
+  remark();
 }
 
-const send = (command) => client.send(command).then(render);
-const findTask = id => [view.agenda, view.upcoming, view.inbox, view.doneToday, ...view.results.map(r => r.plan)].flat().find(t => t.id === id);
-
-function fillSheet() {
-  const task = findTask(sheetTask) ?? null;
-  if (!task) { $('task-sheet').close(); return; }
-  $('sheet-title').textContent = task.title;
-  $('sheet-result').innerHTML = task.result ? `<span class="ms" aria-hidden="true">target</span><span><span class="sheet-result-title">${esc(task.result.title)}</span>${task.result.purpose ? `<span class="sheet-purpose">${esc(task.result.purpose)}</span>` : ''}</span>` : '<span class="ms" aria-hidden="true">inbox</span><span>No block</span>';
-  const pending = pendingFor(task.id);
-  $('sheet-when').textContent = pending ? 'Waiting for the phone to save the last change.' : task.meta || 'No date';
-  $('sheet-block').innerHTML = `<option value="">No block (Inbox)</option>` + view.resultChoices.map(b => `<option value="${esc(b.id)}" ${b.id === task.blockId ? 'selected' : ''}>${esc(b.title)}</option>`).join('');
-  for (const el of $('task-sheet').querySelectorAll('button[value]:not([value=close]), select')) el.disabled = !!pending;
+function openCapture() {
+  const sheet = $('capture-sheet');
+  $('capture-text').value = localStorage.getItem(DRAFT) ?? '';
+  $('capture-problem').hidden = true;
+  sheet.showModal();
+  $('capture-text').focus();
 }
 
-document.addEventListener('click', event => {
-  const target = event.target.closest('[data-act]');
-  if (!target || !client.state.snapshot) return;
-  const act = target.dataset.act;
-  if (act === 'water') { send({id: crypto.randomUUID(), type: 'log-water', args: {at: new Date().toISOString()}, baseRevision: client.state.snapshot.revision, createdAt: new Date().toISOString()}); return; }
-  const id = +target.closest('[data-task]').dataset.task, task = findTask(id);
-  if (act === 'open') { sheetTask = id; fillSheet(); $('task-sheet').showModal(); return; }
-  dismissed.add(problemFor(id)?.command.id);
-  send(commandFor(act, task, client.state.snapshot));
-});
-
-$('task-sheet').addEventListener('close', () => {
-  const value = $('task-sheet').returnValue, task = findTask(sheetTask);
-  $('task-sheet').returnValue = '';
-  if (task && value && value !== 'close') send(commandFor(value, task, client.state.snapshot));
-});
-$('sheet-block').addEventListener('change', event => {
-  const task = findTask(sheetTask);
-  send({id: crypto.randomUUID(), type: 'move-to-block', args: {taskId: task.id, blockId: event.target.value || null}, baseRevision: client.state.snapshot.revision, createdAt: new Date().toISOString()});
-  $('task-sheet').close();
-});
-
-$('capture-form').addEventListener('submit', event => {
-  event.preventDefault();
-  const field = $('capture-text'), text = field.value;
-  if (!text.trim() || !client.state.snapshot) return;
-  field.value = '';
-  send({id: crypto.randomUUID(), type: 'capture', args: {text}, baseRevision: client.state.snapshot.revision, createdAt: new Date().toISOString()});
-});
+$('capture-text').addEventListener('input', event => localStorage.setItem(DRAFT, event.target.value));
 $('capture-text').addEventListener('keydown', event => {
   if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); $('capture-form').requestSubmit(); }
 });
-
-$('snackbar-action').addEventListener('click', () => {
-  if (!lastSnack) return;
-  $('snackbar').hidden = true;
-  send({id: crypto.randomUUID(), type: 'undo', args: {commandId: lastSnack}, baseRevision: client.state.snapshot.revision, createdAt: new Date().toISOString()});
+$('capture-close').addEventListener('click', () => $('capture-sheet').close());
+$('capture-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const text = $('capture-text').value;
+  const snapshot = client.state.snapshot;
+  if (!text.trim()) return;
+  if (!snapshot) { $('capture-problem').hidden = false; $('capture-problem').textContent = 'Your plan has not arrived from your phone yet.'; return; }
+  client.send({id: crypto.randomUUID(), type: 'capture', args: {text}, baseRevision: snapshot.revision, createdAt: new Date().toISOString()});
+  localStorage.removeItem(DRAFT);
+  $('capture-text').value = '';
+  $('capture-sheet').close();
 });
 
-for (const tab of document.querySelectorAll('.nav-item')) tab.addEventListener('click', () => {
-  $('panes').dataset.tab = tab.dataset.tab;
-  document.querySelectorAll('.nav-item').forEach(t => t.toggleAttribute('aria-current', t === tab));
-  document.querySelectorAll('.nav-item[aria-current]').forEach(t => t.setAttribute('aria-current', 'page'));
-  scrollTo({top: 0});
+queue.subscribe(({foreign, createdSaved}) => {
+  if (!ui) return render();
+  if (foreign) dispatchEvent(new Event('rpm-data-refresh'));
+  else if (createdSaved && $('sheet').hidden) ui.render();
+  render();
 });
 
 $('app-menu').addEventListener('click', async event => {
@@ -167,16 +129,18 @@ $('app-menu').addEventListener('click', async event => {
 
 $('link-form').addEventListener('submit', async event => {
   event.preventDefault();
-  const code = $('link-code').value.trim(), problem = $('link-problem');
+  const code = $('link-code').value.trim();
+  const problem = $('link-problem');
   if (!/^[A-Za-z2-9]{8}$/.test(code)) { problem.hidden = false; problem.textContent = 'Type all eight letters and numbers from your phone.'; return; }
   problem.hidden = true;
-  const button = event.target.querySelector('button[type=submit]'); button.disabled = true;
+  const button = event.target.querySelector('button[type=submit]');
+  button.disabled = true;
   try { await client.link(code, `${navigator.userAgentData?.platform ?? 'Browser'} web`); $('link-code').value = ''; }
   catch (error) { problem.hidden = false; problem.textContent = problemText(error); }
   finally { button.disabled = false; render(); }
 });
 
-client.subscribe(render);
+queue.start();
 await client.connect();
 render();
 let busy = false;
@@ -187,4 +151,5 @@ const loop = async () => {
 };
 loop();
 setInterval(loop, 3000);
+setInterval(render, SLOW);
 document.addEventListener('visibilitychange', loop);

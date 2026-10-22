@@ -1,6 +1,7 @@
 import {createRepository} from '../intent-v2/src/repository.mjs';
 import {stable} from '../intent-v2/src/context.mjs';
 import {editPlan} from './planner-state.mjs';
+import {withIds} from './new-id.mjs';
 import {userMessage} from './user-message.mjs';
 import {validateCommand, validateSnapshot} from '../web/contract/validate.mjs';
 import {targets, targetRecord} from './web-sync-targets.mjs';
@@ -38,6 +39,11 @@ function conflict(data, command, snapshots) {
   }
   return null;
 }
+function applyPlan(data, command, now) {
+  const taken = JSON.stringify([data.planner ?? null, (data.entries ?? []).map(entry => entry.id)]);
+  return withIds(command.args.ids ?? [], () => editPlan(data, operation(command), now), id => !taken.includes(id));
+}
+
 function operation(command) {
   const {type, args: a} = command;
   if (type === 'plan') return a.op;
@@ -140,7 +146,7 @@ export function createWebSyncProcessor({backend, capture, clock = () => new Date
         const target = records(data)[command.args.commandId];
         if (!target?.undoGuard || target.result?.status !== 'applied' || target.undoGuard !== await guard(data) || !data.planner?.undo) return finish(data, command, 'conflict', 'The plan changed since that action. Undo it on the phone after reviewing the current plan.');
       }
-      try { editPlan(data, operation(command), clock()); }
+      try { applyPlan(data, command, clock()); }
       catch (error) { return finish(data, command, 'rejected', userMessage(error)); }
       return finish(data, command, 'applied', command.type === 'undo' ? 'Change undone on the phone.' : 'Saved on the phone.');
     });

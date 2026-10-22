@@ -56,12 +56,15 @@ const model = async ({sourceUnits: units}) => {
   return {schemaVersion: 1, mode: 'capture', draftMode: 'new', reply: 'Saved your words as a task.',
     decisions: units.map(u => ({sourceId: u.id, disposition: 'action', note: null})),
     operations: [{opId: 'task1', sourceId: units[0].id, kind: 'create', entity: 'task', targetId: null, fields: [{name: 'title', value: title, evidence: units[0].text.trim(), origin: 'stated', op: 'set'}]}],
-    question: null, memoryCandidates: [], card: null};
+    question: null, clarification: null, memoryCandidates: [], card: null};
 };
 const service = createIntentService({backend, model, changePlanner, undo, editPlan, readCalendar: async () => ({status: 'not_selected', events: []})});
 const memory = new Map();
 const capture = createCaptureAgent({service, traces: createTraceStore({storage: {getItem: k => memory.get(k) ?? null, setItem: (k, v) => memory.set(k, v)}})});
-const processor = createWebSyncProcessor({backend, capture});
+const logged = name => async (...args) => {
+  try { return await capture[name](...args); } catch (error) { log(`capture ${name} failed:`, error.stack ?? error); throw error; }
+};
+const processor = createWebSyncProcessor({backend, capture: {...capture, capture: logged('capture'), apply: logged('apply')}});
 
 if (!state.token) { state.token = await pair(); saveState(await backend.load()); log('Paired with', opts.site); }
 if (opts['link-code']) {

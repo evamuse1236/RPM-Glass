@@ -317,6 +317,7 @@ export async function commit(app, op, {keepSheet = false, label = 'Saved', undo 
   pending = null} = {}) {
   assertPlanOp(op);
   if (app.saving) return undefined;
+  label = label && (app.api.label?.(label) ?? label);
   app.saving = true;
   try {
     if (isSheetOpen(app) && app.sheet.version !== app.data().version) {

@@ -214,6 +214,12 @@ function aboutSection() {
   return section;
 }
 
+function phoneOnlySection(text) {
+  const section = group('On your phone', 'phone-only');
+  section.append(el('p', 'settings-note', text));
+  return section;
+}
+
 function render(ctx) {
   if (ctx.destroyed || !ctx.state) return;
   const focus = document.activeElement?.dataset?.action;
@@ -224,7 +230,8 @@ function render(ctx) {
   notice.setAttribute('aria-live', 'polite');
   notice.hidden = !ctx.noticeText;
   notice.classList.toggle('error', ctx.noticeError);
-  page.append(notice, soundsSection(ctx), widgetsSection(ctx), accountSection(ctx), diagnosticsSection(ctx), aboutSection());
+  if (ctx.state.phoneOnly) page.append(notice, phoneOnlySection(ctx.state.phoneOnly), aboutSection());
+  else page.append(notice, soundsSection(ctx), widgetsSection(ctx), accountSection(ctx), diagnosticsSection(ctx), aboutSection());
   if (ctx.state.working) page.querySelectorAll('button,input').forEach(node => { node.disabled = true; });
   ctx.host.replaceChildren(page);
   if (focus) ctx.host.querySelector(`[data-action="${focus}"]`)?.focus({preventScroll: true});
@@ -260,7 +267,7 @@ async function refresh(ctx) {
     if (!ctx.openedSection) {
       ctx.openedSection = true;
       const initial = settingsSectionAction(ctx.options.section);
-      if (initial) await act(ctx, initial);
+      if (initial && !next.phoneOnly) await act(ctx, initial);
     }
   } catch (error) {
     if (ctx.destroyed) return;

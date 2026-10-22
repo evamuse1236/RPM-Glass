@@ -131,7 +131,7 @@ export function notice(app, message, options = {}) {
         app.render();
         app.sheetRefresh?.();
         app.mounted?.controller?.refresh?.();
-        notice(app, 'Change undone');
+        notice(app, app.api.label?.('Change undone') ?? 'Change undone');
       } catch (error) {
         notice(app, userMessage(error));
       }

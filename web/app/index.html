@@ -8,88 +8,60 @@
 <link rel="preload" href="/google-sans-flex.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/material-symbols-rounded.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/theme.css">
-<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/planner.css">
+<link rel="stylesheet" href="/review.css">
+<link rel="stylesheet" href="/web.css">
 <script type="module" src="/app.js"></script>
 </head>
 <body>
-<div id="link-view" class="link-view" hidden>
+<section id="link-view" class="link-view" hidden>
   <form id="link-form" class="link-card" novalidate>
     <span class="ms link-icon" aria-hidden="true">devices</span>
     <h1>Link this browser to your phone</h1>
+    <p id="link-unlinked" hidden>This browser was unlinked. Make a new code on the phone to link it again.</p>
     <ol class="link-steps">
       <li>On your phone, open RPM, then Settings, Cloud, Link a web browser.</li>
       <li>Type the eight-letter code it shows.</li>
     </ol>
     <label class="field">
-      <span class="field-label">Code from your phone</span>
-      <input id="link-code" name="code" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="8" required pattern="[A-Za-z2-9]{8}" inputmode="text">
+      <span class="field-label">Link code</span>
+      <input id="link-code" name="code" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="8" required pattern="[A-Za-z2-9]{8}">
     </label>
     <p id="link-problem" class="problem" role="alert" hidden></p>
-    <button class="btn filled" type="submit">Link browser</button>
+    <button type="submit" class="filled-btn">Link browser</button>
     <p class="fineprint">Your phone stays in charge. Changes you make here are sent to it, and it saves them.</p>
   </form>
-</div>
-
-<div id="planner-view" class="planner" hidden>
-  <header class="top-bar">
+</section>
+<div id="planner-view" class="planner-view" hidden>
+  <header class="web-bar">
     <span class="brand">RPM</span>
     <p id="sync-line" class="sync-line" role="status"></p>
-    <button id="menu-button" class="icon-btn" type="button" aria-label="More options" popovertarget="app-menu"><span class="ms" aria-hidden="true">more_vert</span></button>
+    <button id="menu-button" class="icon-btn" type="button" popovertarget="app-menu" aria-label="More"><span class="ms" aria-hidden="true">more_vert</span></button>
     <div id="app-menu" class="menu" popover>
-      <button type="button" class="menu-item" data-menu="refresh"><span class="ms" aria-hidden="true">refresh</span>Check for changes</button>
-      <button type="button" class="menu-item danger" data-menu="unlink"><span class="ms" aria-hidden="true">link_off</span>Unlink this browser</button>
+      <button class="menu-item" type="button" data-menu="refresh"><span class="ms" aria-hidden="true">sync</span>Check for changes</button>
+      <button id="menu-unlink" class="menu-item danger" type="button" data-menu="unlink"><span class="ms" aria-hidden="true">link_off</span>Unlink this browser</button>
     </div>
   </header>
-
-  <div id="banner" class="banner" role="status" hidden></div>
-
-  <main id="panes" class="panes" data-tab="today">
-    <section class="pane pane-today" id="pane-today" aria-labelledby="today-title">
-      <h1 id="today-title" class="page-title"></h1>
-      <form id="capture-form" class="capture">
-        <label class="sr-only" for="capture-text">Capture a thought</label>
-        <span class="ms" aria-hidden="true">edit_note</span>
-        <textarea id="capture-text" rows="1" placeholder="Capture a thought" maxlength="12000"></textarea>
-        <button class="icon-btn send" type="submit" aria-label="Send to phone"><span class="ms" aria-hidden="true">send</span></button>
-      </form>
-      <div id="captures"></div>
-      <div id="habits" class="habits"></div>
-      <div id="today-lists"></div>
-    </section>
-    <section class="pane pane-results" id="pane-results" aria-labelledby="results-title">
-      <h1 id="results-title" class="page-title">Blocks</h1>
-      <div id="results"></div>
-    </section>
-  </main>
-
-  <nav class="nav-bar" aria-label="Destinations">
-    <button type="button" class="nav-item" data-tab="today" aria-current="page"><span class="pill"><span class="ms" aria-hidden="true">today</span></span>Today</button>
-    <button type="button" class="nav-item" data-tab="results"><span class="pill"><span class="ms" aria-hidden="true">target</span></span>Blocks</button>
-  </nav>
-
-  <div id="snackbar" class="snackbar" role="status" hidden><span id="snackbar-text"></span><button id="snackbar-action" type="button" class="btn text inverse" hidden>Undo</button></div>
-
-  <dialog id="task-sheet" class="sheet" aria-labelledby="sheet-title">
-    <form method="dialog" class="sheet-body">
-      <span class="handle" aria-hidden="true"></span>
-      <h2 id="sheet-title" class="sheet-title"></h2>
-      <div id="sheet-result" class="sheet-result"></div>
-      <p id="sheet-when" class="sheet-when"></p>
-      <div class="sheet-group" role="group" aria-label="Day">
-        <button class="chip" value="today">Today</button>
-        <button class="chip" value="tomorrow">Tomorrow</button>
-        <button class="chip" value="unschedule">No date</button>
-      </div>
-      <label class="field">
-        <span class="field-label">Block</span>
-        <select id="sheet-block"></select>
-      </label>
-      <div class="sheet-actions">
-        <button class="btn text danger" value="archive"><span class="ms" aria-hidden="true">delete</span>Move to Trash</button>
-        <button class="btn tonal" value="close">Close</button>
-      </div>
-    </form>
-  </dialog>
+  <p id="banner" class="banner" role="status" hidden></p>
+  <ul id="notes" class="notes" aria-live="polite" hidden></ul>
+  <main id="planner" data-view="today"><header id="top-bar" class="top-bar"></header><div id="planner-scroll"><section id="workspace" aria-label="Plan"><div class="page" aria-busy="true"><p class="skeleton" role="status">Loading your plan…</p><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div></div></section></div><div id="now-host" hidden></div><nav id="nav-bar" aria-label="Planning"></nav><div id="dock"></div></main>
+  <section id="sheet" hidden role="dialog" aria-modal="true" aria-label="Edit plan"></section>
+  <div id="snackbar" role="status" aria-live="polite" hidden></div>
 </div>
+<dialog id="capture-sheet" class="capture-sheet" aria-labelledby="capture-title">
+  <form id="capture-form" method="dialog">
+    <div class="capture-head">
+      <h2 id="capture-title">Capture</h2>
+      <button id="capture-close" class="icon-btn" type="button" aria-label="Close"><span class="ms" aria-hidden="true">close</span></button>
+    </div>
+    <label class="field">
+      <span class="sr-only">What's on your mind</span>
+      <textarea id="capture-text" rows="4" maxlength="12000" placeholder="Type what's on your mind"></textarea>
+    </label>
+    <p id="capture-problem" class="problem" role="alert" hidden></p>
+    <p class="fineprint">Your phone sorts it the next time it syncs.</p>
+    <button type="submit" class="filled-btn">Send to phone</button>
+  </form>
+</dialog>
 </body>
 </html>

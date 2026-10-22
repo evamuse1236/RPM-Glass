@@ -140,3 +140,20 @@ test('revocation rejects an unstarted plan, while an applied plan keeps its true
   assert.deepEqual(await setup(null, backend).processor.process(allowed, {revoked: true}), first);
   assert.equal((await backend.load()).entries.length, 1);
 });
+
+test('a Project made in the browser keeps its id when the phone applies it; a taken or bad id falls back to a fresh one', async () => {
+  const data = seedStore(now).data, {backend, processor} = setup(data);
+  const op = {type: 'saveEntity', collection: 'projects', fields: {title: 'Browser project'}};
+  const ids = [randomUUID(), randomUUID()];
+  const made = {...command(op, data.version), args: {op, ids}};
+  assert.deepEqual(validateCommand(made), made);
+  assert.equal((await processor.process(made)).status, 'applied');
+  const saved = await backend.load();
+  assert.equal(saved.planner.projects.find(p => p.title === 'Browser project').id, ids[0]);
+  const again = {...command(op, saved.version), args: {op: {...op, fields: {title: 'Second'}}, ids}};
+  assert.equal((await processor.process(again)).status, 'applied');
+  const second = (await backend.load()).planner.projects.find(p => p.title === 'Second').id;
+  assert.notEqual(second, ids[0]);
+  assert.match(second, /^[0-9a-f-]{36}$/);
+  assert.throws(() => validateCommand({...made, args: {op, ids: ['not-an-id']}}));
+});
