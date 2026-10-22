@@ -42,6 +42,7 @@ function rootMenu(app, anchor) {
   items.push(
     {label: 'Archive', icon: 'archive', onClick: () => actions.trash(true)},
     {label: 'Trash', icon: 'delete', onClick: () => actions.trash(false)},
+    ...(app.api.menuItems?.() ?? []),
     {divider: true},
     {label: 'Settings', icon: 'settings', onClick: () => app.openSettings()},
   );

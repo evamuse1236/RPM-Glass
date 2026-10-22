@@ -2,7 +2,7 @@ import {readFileSync} from 'node:fs';
 import {sleep} from './cdp.mjs';
 
 const q = JSON.stringify;
-const PAGE_WORDS = `((document.getElementById('sync-line')?.textContent ?? '') + ' ' + (document.getElementById('notes')?.textContent ?? ''))`;
+const PAGE_WORDS = `(document.getElementById('notes')?.textContent ?? '')`;
 const WAITING = `/waiting for your phone/i.test(${PAGE_WORDS}) || !!document.querySelector('[data-sync=waiting]')`;
 const SETTLED = `!/waiting for your phone/i.test(${PAGE_WORDS}) && !document.querySelector('[data-sync]')
   && !(JSON.parse(localStorage.getItem('rpm.web.plan.v1') || '{}').records ?? []).length`;

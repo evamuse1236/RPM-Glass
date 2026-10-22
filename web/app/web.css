@@ -22,10 +22,7 @@ html:has(dialog:modal) { overflow: clip; }
 
 .planner-view { --column: 720px; --column-inset: max(var(--inset-page), (100% - var(--column)) / 2); display: flex; flex-direction: column; block-size: 100%; }
 .planner-view > #planner { flex: 1; min-block-size: 0; height: auto; }
-.web-bar { flex: none; display: flex; align-items: center; gap: var(--s3); min-block-size: 48px; padding-inline: var(--column-inset) calc(var(--column-inset) - var(--s2)); background: var(--surface); }
-.brand { font: var(--title-medium); color: var(--primary); }
-.sync-line { flex: 1; min-inline-size: 0; margin: 0; font: var(--body-small); color: var(--on-surface-variant); text-align: end; text-wrap: balance; }
-#banner, #notes { margin: 0 var(--column-inset) var(--s2); }
+#banner, #notes { margin: var(--s2) var(--column-inset) 0; }
 #banner { padding: var(--s3) var(--s4); border-radius: var(--shape-md); background: var(--surface-container-high); font: var(--body-medium); }
 #notes { display: grid; gap: var(--s2); padding: 0; list-style: none; }
 #notes .note { display: flex; align-items: center; gap: var(--s3); min-block-size: 48px; padding-inline: var(--s4) var(--s1); border-radius: var(--shape-md); background: var(--surface-container-high); }
@@ -34,16 +31,6 @@ html:has(dialog:modal) { overflow: clip; }
 #notes .note.problem .icon-btn { color: inherit; }
 #notes .note.waiting .ms { color: var(--on-surface-variant); }
 
-#app-menu { margin: 0; inset: auto; position-area: bottom span-left; padding-block: var(--s2); border: 0; border-radius: var(--shape-xs); background: var(--surface-container); color: var(--on-surface); box-shadow: var(--elev-3); min-inline-size: 224px; }
-#app-menu:popover-open { display: grid; }
-#app-menu .menu-item { display: flex; align-items: center; gap: var(--s3); min-block-size: 48px; padding-inline: var(--s3) var(--s4); border: 0; background: none; color: inherit; font: var(--body-large); text-align: start; cursor: pointer; }
-#app-menu .menu-item .ms { color: var(--on-surface-variant); }
-#app-menu .menu-item.danger, #app-menu .menu-item.danger .ms { color: var(--error); }
-#app-menu .menu-item:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
-#app-menu .menu-item:active { background: color-mix(in oklch, currentColor 12%, transparent); }
-@media (hover: hover) and (pointer: fine) {
-  #app-menu .menu-item:hover { background: color-mix(in oklch, currentColor 8%, transparent); }
-}
 
 [data-sync]::after { content: attr(data-sync-message); font: var(--body-small); color: var(--on-surface-variant); }
 [data-sync=problem]::after { color: var(--error); }

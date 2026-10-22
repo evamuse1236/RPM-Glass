@@ -24,7 +24,11 @@ try {
   await b.cdp('Page.navigate', {url: opts.site});
   if (opts['no-code']) {
     check(await b.until(PLANNER), 'the Site opens straight to the phone planner, with no code');
-    check(await b.js(`document.getElementById('link-view').hidden && document.getElementById('menu-unlink').hidden`), 'the link screen and Unlink stay hidden');
+    await b.tap('.top-bar [aria-label="More options"]');
+    await b.until(`[...document.querySelectorAll('.menu-item')].some(n => n.textContent.includes('Check for changes'))`);
+    check(await b.js(`document.getElementById('link-view').hidden && ![...document.querySelectorAll('.menu-item')].some(n => n.textContent.includes('Unlink'))`),
+      'the link screen and Unlink stay hidden; More has Check for changes');
+    await b.key('Escape');
   } else {
     await b.until(`!document.getElementById('link-view').hidden`);
     await b.capture('link');

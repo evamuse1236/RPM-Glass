@@ -12,6 +12,7 @@ const queue = createPlanQueue({client});
 const $ = id => document.getElementById(id);
 const DRAFT = 'rpm.web.capture.v1';
 const SLOW = 30000;
+const QUIET = 3600000;
 const dismissed = new Set();
 let ui = null;
 let remark = () => {};
@@ -27,11 +28,16 @@ function mount() {
   root.dataset.largeText = 'false';
   root.style.setProperty('--text-scale', String(PHONE.fontScale));
   ui = mountPlanner({getData: () => queue.data(), getPhone: () => PHONE, native: createWebNative({openCapture}), sortPreview,
-    label: sentLabel, commit: async op => queue.commit(op)});
+    label: sentLabel, commit: async op => queue.commit(op), menuItems});
   if (location.hash === '#ideas') ui.goalIdeas();
   else if (location.hash.startsWith('#open=')) try { ui.openView(JSON.parse(decodeURIComponent(location.hash.slice(6)))); } catch {}
   remark = watchRows([$('workspace'), $('sheet')], queue);
 }
+
+const menuItems = () => [
+  {label: 'Check for changes', icon: 'sync', onClick: () => client.tick()},
+  ...(client.state.token === 'site' ? [] : [{label: 'Unlink this browser', icon: 'link_off', onClick: async () => { await client.unlink(); $('link-problem').hidden = true; }}]),
+];
 
 function noteItem({icon, text, tone, onDismiss}) {
   const item = document.createElement('li');
@@ -55,8 +61,9 @@ function noteItem({icon, text, tone, onDismiss}) {
   return item;
 }
 
-function renderNotes() {
-  const notes = queue.problems().map((p, i) => noteItem({icon: 'error', tone: 'problem', text: userMessage(p.message), onDismiss: () => queue.dismissProblem(i)}));
+function renderNotes(waiting) {
+  const notes = waiting.length ? [noteItem({icon: 'schedule', tone: 'waiting', text: `${plural(waiting.length, 'change')} waiting for your phone`})] : [];
+  notes.push(...queue.problems().map((p, i) => noteItem({icon: 'error', tone: 'problem', text: userMessage(p.message), onDismiss: () => queue.dismissProblem(i)})));
   for (const entry of client.state.outbox.filter(e => e.command.type === 'capture' && !dismissed.has(e.command.id))) {
     const words = `“${entry.command.args.text.trim().slice(0, 80)}”`;
     if (!client.settled(entry)) notes.push(noteItem({icon: 'schedule', tone: 'waiting', text: `Capture ${words} is waiting for your phone.`}));
@@ -74,16 +81,15 @@ function render() {
   $('planner-view').hidden = !linked;
   $('link-unlinked').hidden = !s.unlinked;
   if (!linked) return;
-  $('menu-unlink').hidden = s.token === 'site';
   mount();
   const waiting = unsettled();
-  $('sync-line').textContent = [s.snapshot ? savedLabel(s.snapshot.savedAt) : 'Connecting', waiting.length ? `${plural(waiting.length, 'change')} waiting for your phone` : null].filter(Boolean).join(' · ');
   const slow = waiting.some(e => Date.now() - Date.parse(e.command.createdAt) > SLOW);
   const banner = s.offline ?? (s.phoneMissing && !s.snapshot ? 'Your phone has not sent its planner yet. Open RPM on the phone with Cloud connected.'
-    : slow ? 'Your phone has not picked up these changes yet. It does when RPM is open, or about every 15 minutes in the background.' : null);
+    : slow ? 'Your phone has not picked up these changes yet. It does when RPM is open, or about every 15 minutes in the background.'
+    : s.snapshot && Date.now() - Date.parse(s.snapshot.savedAt) > QUIET ? `${savedLabel(s.snapshot.savedAt)}. Changes since then on the phone are not shown yet.` : null);
   $('banner').hidden = !banner;
   $('banner').textContent = banner ?? '';
-  renderNotes();
+  renderNotes(waiting);
   remark();
 }
 
@@ -117,14 +123,6 @@ queue.subscribe(({foreign, createdSaved}) => {
   if (foreign) dispatchEvent(new Event('rpm-data-refresh'));
   else if (createdSaved && $('sheet').hidden) ui.render();
   render();
-});
-
-$('app-menu').addEventListener('click', async event => {
-  const item = event.target.closest('[data-menu]');
-  if (!item) return;
-  $('app-menu').hidePopover();
-  if (item.dataset.menu === 'refresh') await client.tick();
-  if (item.dataset.menu === 'unlink') { await client.unlink(); $('link-problem').hidden = true; }
 });
 
 $('link-form').addEventListener('submit', async event => {
