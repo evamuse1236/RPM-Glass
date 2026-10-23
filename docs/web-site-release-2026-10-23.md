@@ -24,4 +24,6 @@ Local private backup and doctor/preservation reports are under `.verify/releases
 
 No test command was sent to the owner's real planner. Physical-phone browser command effects, live model paths, Cloud-dialog interactions, Samsung-specific behavior and actual home-screen widget placement remain **UNVERIFIED**. Physical snapshot publication and the live Site's snapshot read were verified separately from the stand-in command drive.
 
-The full emulator run and merge result are recorded below when complete.
+The full local `rpmctl scenario --all` passed all seven scenarios on `295b8ec`, with no uncommitted app changes. Evidence: `.verify/evidence/2026-10-23T03-24-09-a23055/`; screenshots 05–21 show the full suite. `npm run check:evidence` and the main checkout's merge gate passed.
+
+The earlier GitHub run [39869593696](https://github.com/evamuse1236/RPM-Glass/actions/runs/39869593696) failed its 30-second Capture receipt wait while the screen still said it was reading; the other six scenarios passed. The exact release APK subsequently passed the targeted Capture scenario and the full local suite. No app fix, known-bug exception or merge bypass was used for that failure.
