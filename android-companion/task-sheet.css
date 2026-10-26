@@ -50,15 +50,18 @@
 .chip[aria-disabled=true], .edit-chips.is-off .chip { opacity: .38; pointer-events: none; }
 .picker-chip input:not([type=number]) { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; opacity: 0; cursor: pointer; }
 .number-chip input {
-  inline-size: calc(4ch + 4px);
+  field-sizing: content;
+  min-inline-size: calc(4ch + 4px);
+  padding-inline: 0;
   border: 0;
   border-block-end: 1px solid var(--outline);
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: end;
-  -moz-appearance: textfield;
+  appearance: textfield;
 }
+.number-chip input::-webkit-inner-spin-button, .number-chip input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .number-chip input::placeholder { color: var(--on-surface-variant); }
 .number-chip input:focus-visible { outline: 0; border-block-end: 2px solid var(--primary); }
 

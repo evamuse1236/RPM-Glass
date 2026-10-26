@@ -54,3 +54,14 @@ test('Blocks: the Next eyebrow is sentence case in label-medium primary', () => 
   assert.match(read('planner-pages.css'), /\.next-title \.overline \{ text-transform: none; letter-spacing: 0; color: var\(--primary\); \}/);
   assert.match(read('planner.css'), /\.overline \{[^}]*font: var\(--label-medium\);/);
 });
+
+test('the Other length chip shows its whole word on a desktop browser: no spin buttons, and the field fits its placeholder', () => {
+  const css = read('task-sheet.css');
+  const rule = css.match(/\.number-chip input \{([^}]*)\}/)[1];
+  assert.match(rule, /field-sizing: content;/);
+  assert.match(rule, /min-inline-size: calc\(4ch \+ 4px\);/);
+  assert.match(rule, /padding-inline: 0;/);
+  assert.match(rule, /appearance: textfield;/);
+  assert.doesNotMatch(rule, /(^|[^-])inline-size:/, 'a fixed width cuts the placeholder');
+  assert.match(css, /\.number-chip input::-webkit-inner-spin-button, \.number-chip input::-webkit-outer-spin-button \{ -webkit-appearance: none; margin: 0; \}/);
+});
