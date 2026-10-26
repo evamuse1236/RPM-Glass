@@ -12,7 +12,7 @@ mkdirSync(out, {recursive: true});
 await build({...bundleOptions, entryPoints: [here('./app/main.mjs')], minify: true, outfile: `${out}app.js`,
   define: {'globalThis.RPM_SYNC_SERVER': JSON.stringify(server)}});
 for (const file of ['planner.css', 'review.css']) writeFileSync(`${out}${file}`, shippedText(file));
-for (const [from, to] of [['./app/index.html', 'index.html'], ['./app/web.css', 'web.css'], ['./app/day-grid.css', 'day-grid.css'], ['./app/task-pane.css', 'task-pane.css'],['../android-companion/theme.css', 'theme.css'],
+for (const [from, to] of [['./app/index.html', 'index.html'], ['./app/web.css', 'web.css'], ['./app/day-grid.css', 'day-grid.css'], ['./app/task-pane.css', 'task-pane.css'], ['./app/wide-pages.css', 'wide-pages.css'],['../android-companion/theme.css', 'theme.css'],
   ['../android-companion/assets/fonts/google-sans-flex.woff2', 'google-sans-flex.woff2'], ['../android-companion/assets/fonts/material-symbols-rounded.woff2', 'material-symbols-rounded.woff2']])
   copyFileSync(here(from), `${out}${to}`);
 console.log(`Built web/dist for ${server ?? 'the same origin'}`);
