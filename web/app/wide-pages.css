@@ -2,6 +2,8 @@
   #sheet[data-inline] .sheet-header:has(> h2:not(.visually-hidden)) { min-block-size: 64px; }
   #sheet[data-inline][aria-label=Inbox] :is([data-key=inbox-note], .sheet-actions) { display: none; }
 
+  #planner .date-button { font: var(--headline-medium); letter-spacing: -.01em; }
+
   #planner .tabs { padding-inline: var(--s2); }
   #planner .tab { flex: 0 0 auto; text-align: center; }
   #planner .tab[aria-selected=true]::after { inset-inline: var(--s4); }

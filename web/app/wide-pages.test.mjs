@@ -36,3 +36,9 @@ test('on wide Life puts the wheel on the left and each Area with its rating and 
   assert.match(css, /\.page:has\(> \.life-areas\) \{\n    display: grid;\n    grid-template-columns: minmax\(0, 480px\) minmax\(0, 1fr\);/);
   assert.match(css, /\.page:has\(> \.life-areas\) \.wheel-areas \{ display: none; \}/);
 });
+
+test('on wide every page title has one weight: the Today date uses the same headline as Blocks, Projects and Life', () => {
+  const css = read('./wide-pages.css');
+  assert.match(css, /#planner \.date-button \{ font: var\(--headline-medium\); letter-spacing: -\.01em; \}/);
+  assert.match(read('../../android-companion/planner.css'), /\.top-title \{[^}]*font: var\(--headline-medium\);/);
+});
