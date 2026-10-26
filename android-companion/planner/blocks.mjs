@@ -123,9 +123,12 @@ export function blockCard(app, block, {focus = false, project = true} = {}) {
   }
   const must = mustLeft(status, {words: false});
   if (must) parts.push(must);
-  parts.push(el('span', '', status.total ? `${status.done} of ${status.total} done` : count));
+  const done = el('span', '', status.total ? `${status.done} of ${status.total} done` : count);
+  const ownLine = parts.length && app.api.wide?.();
+  if (!ownLine) parts.push(done);
   appendFacts(facts, parts);
   main.append(facts);
+  if (ownLine) main.append(el('span', 'card-facts tnum', done.textContent));
   main.setAttribute('aria-label', `Result: ${block.title}. ${due ? due.text + '. ' : ''}`
     + `${must ? duration(status.mustMinutes) + ' of Musts left. ' : ''}${count}. Open Block`);
   card.append(main);
