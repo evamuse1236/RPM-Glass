@@ -217,9 +217,12 @@ final class NotchController implements NotchPill.Gestures {
         NotchActions.log(service, "notch.gesture", result.name().toLowerCase(java.util.Locale.ROOT), NotchActions.payload("on", mode.name(), "drop", side.name()));
         switch (mode) {
             case PILL:
-                if (result == IslandGesture.Result.TAP || result == IslandGesture.Result.RIGHT || result == IslandGesture.Result.DOWN) openDrop(side);
-                else if (result == IslandGesture.Result.LEFT) snoozePill();
-                else if (result == IslandGesture.Result.LONG_PRESS) holdDrop(side);
+                switch (IslandGesture.pillAction(result)) {
+                    case OPEN: openDrop(side); break;
+                    case LATER: snoozePill(); break;
+                    case HOLD: holdDrop(side); break;
+                    default: break;
+                }
                 break;
             case OPEN:
             case HABIT:
@@ -271,15 +274,15 @@ final class NotchController implements NotchPill.Gestures {
         render();
     }
 
-    /** Swipe left on the pill: the island's own Snooze, shown on the pill as "+10m" for 2 s. */
     private void snoozePill() {
-        if (scene == null || !scene.canSnooze()) {
-            NotchActions.log(service, "notch.snooze", "nothing_due", null);
-            return;
-        }
-        int minutes = scene.snoozeMinutes;
-        actions.snooze();
-        alerting.showSnoozed(minutes);
+        snoozeHabit();
+    }
+
+    private void snoozeHabit() {
+        if (!NotchSnooze.later(scene, prefs(service), System.currentTimeMillis())) return;
+        NotchActions.log(service, "notch.snooze", "ok", NotchActions.payload("what", scene.topHabit.name().toLowerCase(java.util.Locale.ROOT), "minutes", scene.snoozeMinutes));
+        state.close();
+        render();
     }
 
     /** Long press on the pill: the current task in the planner, or the day when the pill shows a nudge or an event. */
@@ -320,12 +323,7 @@ final class NotchController implements NotchPill.Gestures {
 
         @Override
         public void habitLater() {
-            if (scene == null || scene.topHabit == null) return;
-            String key = scene.topHabit == NotchHabits.Habit.WATER ? NotchScene.WATER_SNOOZE : NotchScene.mealSnooze(scene.meal);
-            prefs(service).edit().putLong(SNOOZE + key, System.currentTimeMillis() + scene.snoozeMinutes * NotchDay.MIN).apply();
-            NotchActions.log(service, "notch.snooze", "ok", NotchActions.payload("what", scene.topHabit.name().toLowerCase(java.util.Locale.ROOT), "minutes", scene.snoozeMinutes));
-            state.close();
-            render();
+            snoozeHabit();
         }
 
         @Override
@@ -381,29 +379,6 @@ final class NotchController implements NotchPill.Gestures {
             prefs(service).edit().putLong(SNOOZE + NotchScene.routineSnooze(scene.habit.routine.id),
                     System.currentTimeMillis() + scene.snoozeMinutes * NotchDay.MIN).apply();
             NotchActions.log(service, "notch.snooze", "ok", NotchActions.payload("what", "routine", "minutes", scene.snoozeMinutes));
-            render();
-        }
-
-        /** Holds the due water and routine nudges here for the snooze time; the planner's own data is untouched. */
-        @Override
-        public void snooze() {
-            long until = System.currentTimeMillis() + scene.snoozeMinutes * NotchDay.MIN;
-            SharedPreferences.Editor edit = prefs(service).edit();
-            StringBuilder what = new StringBuilder();
-            for (Map.Entry<String, ?> e : prefs(service).getAll().entrySet()) {
-                if (e.getKey().startsWith(SNOOZE) && !(e.getValue() instanceof Long && (Long) e.getValue() > System.currentTimeMillis())) edit.remove(e.getKey());
-            }
-            if (scene.waterDue()) {
-                edit.putLong(SNOOZE + NotchScene.WATER_SNOOZE, until);
-                what.append("water ");
-            }
-            if (scene.habit != null) {
-                edit.putLong(SNOOZE + NotchScene.routineSnooze(scene.habit.routine.id), until);
-                what.append("routine");
-            }
-            state.close();
-            edit.apply();
-            NotchActions.log(service, "notch.snooze", "ok", NotchActions.payload("what", what.toString().trim(), "minutes", scene.snoozeMinutes));
             render();
         }
 

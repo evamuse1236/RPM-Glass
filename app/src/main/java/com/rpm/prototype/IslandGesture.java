@@ -6,10 +6,24 @@ package com.rpm.prototype;
  */
 final class IslandGesture {
     enum Result { NONE, TAP, LONG_PRESS, LEFT, RIGHT, UP, DOWN }
+    enum PillAction { NONE, OPEN, LATER, HOLD }
+
+    static PillAction pillAction(Result result) {
+        switch (result) {
+            case TAP:
+            case DOWN: return PillAction.OPEN;
+            case UP:
+            case RIGHT:
+            case LEFT: return PillAction.LATER;
+            case LONG_PRESS: return PillAction.HOLD;
+            default: return PillAction.NONE;
+        }
+    }
 
     static final float SLOP_DP = 8;
     static final float COMMIT_X_DP = 90;
     static final float COMMIT_Y_DP = 48;
+    static final float PILL_UP_DP = 24;
     static final float FLICK_DP = 24;
     static final float FLICK_DP_PER_MS = 0.5f;
     static final long LONG_PRESS_MS = 500;
@@ -17,6 +31,7 @@ final class IslandGesture {
     private final float density;
     private boolean active;
     private boolean longPressed;
+    private boolean pill;
     private Boolean horizontal;
     private float startX;
     private float startY;
@@ -28,6 +43,11 @@ final class IslandGesture {
 
     /** Starts a touch. False when it lands outside {@code touch}: the island does not own it. */
     boolean down(Box touch, float x, float y, long at) {
+        return down(touch, x, y, at, false);
+    }
+
+    boolean down(Box touch, float x, float y, long at, boolean pill) {
+        this.pill = pill;
         active = touch.contains(x, y);
         longPressed = false;
         horizontal = null;
@@ -61,7 +81,7 @@ final class IslandGesture {
         if (horizontal == null) return Result.TAP;
         float d = horizontal ? x - startX : y - startY;
         float speed = Math.abs(d) / Math.max(1, at - startAt);
-        float commit = (horizontal ? COMMIT_X_DP : COMMIT_Y_DP) * density;
+        float commit = (horizontal ? COMMIT_X_DP : pill && d < 0 ? PILL_UP_DP : COMMIT_Y_DP) * density;
         boolean far = Math.abs(d) >= commit || (Math.abs(d) >= FLICK_DP * density && speed >= FLICK_DP_PER_MS * density);
         if (!far) return Result.NONE;
         if (horizontal) return d > 0 ? Result.RIGHT : Result.LEFT;

@@ -87,6 +87,18 @@ public class IslandGestureTest {
     }
 
     @Test
+    public void aSlowTwentyEightDpSwipeUpFitsInsideThePillPad() {
+        IslandShape p = pill();
+        IslandGesture g = new IslandGesture(D);
+        float x = (p.left + p.right) / 2f;
+        float y = p.touch.bottom - dp(2);
+        assertTrue(p.touch.contains(x, y - dp(28)));
+        assertTrue(g.down(p.touch, x, y, 0, true));
+        g.move(x, y - dp(28));
+        assertEquals(Result.UP, g.up(x, y - dp(28), 400));
+    }
+
+    @Test
     public void aQuickFlickCommitsEarly() {
         IslandShape p = pill();
         float x = (p.left + p.right) / 2f, y = (p.top + p.bottom) / 2f;

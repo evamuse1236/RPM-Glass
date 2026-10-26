@@ -346,7 +346,7 @@ final class IslandView extends ViewGroup {
                 NotchController.safely("outside tap", listener::onOutsideTap);
                 return true;
             case MotionEvent.ACTION_DOWN:
-                if (now == null || !gesture.down(now.touch, screenX(e), screenY(e), e.getEventTime())) {
+                if (now == null || !gesture.down(now.touch, screenX(e), screenY(e), e.getEventTime(), pressable)) {
                     NotchController.safely("outside tap", listener::onOutsideTap);
                     return false;
                 }

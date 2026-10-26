@@ -27,8 +27,6 @@ final class NotchContent {
 
         void habitLater();
 
-        void snooze();
-
         /** Holds the due routine's nudge here for the snooze time; water stays due. */
         void snoozeRoutine();
 
