@@ -2,6 +2,7 @@
 // and what to use instead. Run: npm run check:rules [-- --root <checkout>] (the root flag replays a rule on an old tree).
 // An exception goes on the offending line as `rules-allow <rule-id>: <reason>`.
 import fs from 'node:fs';
+import ts from 'typescript';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -35,7 +36,30 @@ function rawErrorReads(text) {
   return line => read.test(line) || destructure.test(line) || fromError.test(line);
 }
 
+function taskIdAllocations(text) {
+  const source = ts.createSourceFile('task.mjs', text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS), lines = new Set();
+  const visit = node => {
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+      const left = node.left, right = node.right;
+      const max = ts.isNumericLiteral(left) && left.text === '1' ? right : ts.isNumericLiteral(right) && right.text === '1' ? left : null;
+      if (max && ts.isCallExpression(max) && max.expression.getText(source) === 'Math.max' && /\bid\b|\bids\b|taskIds/.test(max.getText(source)))
+        lines.add(source.getLineAndCharacterOfPosition(node.getStart(source)).line);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return (_line, index) => lines.has(index);
+}
+
 export const RULES = [
+  {
+    id: 'task-id-counter',
+    rule: 'Phone task IDs come from the durable counter, never a maximum of current entries.',
+    files: root => ['android-companion', 'chat-prototype', 'intent-v2/src', 'intent-v2/adapters'].flatMap(dir => files(root, dir,
+      p => p.endsWith('.mjs') && !p.endsWith('.test.mjs') && path.basename(p) !== 'task-ids.mjs')),
+    matcher: taskIdAllocations,
+    fix: 'Use nextTaskId(data) from android-companion/task-ids.mjs.',
+  },
   {
     id: 'raw-error-text',
     rule: 'An error reaches the screen only through userMessage(error), so a script fault never shows as raw text.',
@@ -61,7 +85,7 @@ export function check(root, rules = RULES) {
     const text = fs.readFileSync(file, 'utf8');
     const matches = r.matcher(text);
     text.split('\n').forEach((line, i) => {
-      if (matches(line) && !line.includes(`rules-allow ${r.id}:`))
+      if (matches(line, i) && !line.includes(`rules-allow ${r.id}:`))
         problems.push(`rule ${r.id}: ${path.relative(root, file).replace(/\\/g, '/')}:${i + 1}: ${r.rule} ${r.fix}`);
     });
   }

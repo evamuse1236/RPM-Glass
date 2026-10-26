@@ -56,3 +56,17 @@ test('inline-style-attribute flags a style attribute in markup, which the compan
     assert.match(problems[0], /^rule inline-style-attribute: android-companion\/planner\/meter\.mjs:1: .*setProperty/);
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });
+
+test('task-id-counter rejects max-plus-one entry allocation but permits unrelated maxima and the allocator', () => {
+  const root = tree({
+    'android-companion/new-task.mjs': 'const id = Math.max(0, ...data.entries.map(e => e.id)) + 1;',
+    'chat-prototype/other.mjs': 'const id = 1 + Math.max(0,\n ...data.entries.map(e => e.id));',
+    'android-companion/priority.mjs': 'const priority = Math.max(0, ...data.entries.map(e => e.priority)) + 1;',
+    'android-companion/task-ids.mjs': 'const id = Math.max(0, ...data.entries.map(e => e.id)) + 1;',
+  });
+  try {
+    const problems = check(root);
+    assert.equal(problems.length, 2);
+    assert.ok(problems.every(p => p.startsWith('rule task-id-counter:') && p.includes('nextTaskId(data)')));
+  } finally { fs.rmSync(root, {recursive: true, force: true}); }
+});

@@ -52,13 +52,13 @@ export function createRpmPlanAdapter({changePlanner,readCalendar,undo,maxTimeDra
   }
   // Receipt snapshots must also show genuine source words and estimate provenance.
   for(const r of result.plannerReceipts??[]){const e=working.entries.find(e=>e.id===r.entry?.id);if(e&&r.entry){r.entry.raw=e.raw;r.entry.durationSource=e.durationSource;}}
-  for(const key of ['entries','planner','undo'])data[key]=working[key];
+  for(const key of ['entries','planner','undo','sync'])data[key]=working[key];
   return {status:'committed',receipt:{undoId:result.undoId,entryIds:result.entryIds??[],changes:(result.plannerChanges??[]).map((change,index)=>({...change,opId:operations[index]?.ref??null})),plannerReceipts:result.plannerReceipts??[],savedAt:approval.at,delivery:'Check native phone status; not a delivery confirmation'}};
  }
  async function undoPlan({data,receipt}){
   if(typeof undo!=='function')throw new Error('Inject the existing companion-tools undo function');
   let record=data.undo;while(record&&record.id!==receipt.undoId)record=record.previous;
-  if(!record)throw new Error('A newer change exists; inspect current plans before undoing');
+  if(!record)throw new Error(data.undoMessage ?? 'A newer change exists; inspect current plans before undoing');
   // Legacy snapshots may restore unrelated top-level data. Keep this pilot's audit ledger.
   const intent=data.intentV2;const result=undo(data,receipt.undoId);data.intentV2=intent;return {text:result.text};
  }
