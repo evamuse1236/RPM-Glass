@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "npm run test:js && npm run check:rules && npm run test:cloud && npm run typecheck:cloud && npm run test:java",
-    "test:js": "node --import ./scripts/test-tz.mjs --test --test-concurrency=4 android-companion/*.test.mjs cli/*.test.mjs chat-prototype/*.test.mjs intent-v2/test/*.test.mjs playground/*.test.mjs web/*.test.mjs web/app/*.test.mjs .claude/skills/verify-rpm-glass/*.test.mjs scripts/capture-stress/*.test.mjs scripts/ci/*.test.mjs",
+    "test:js": "node --import ./scripts/test-tz.mjs --test --test-concurrency=4 android-companion/*.test.mjs cli/*.test.mjs chat-prototype/*.test.mjs intent-v2/test/*.test.mjs playground/*.test.mjs web/*.test.mjs web/app/*.test.mjs web/contract/*.test.mjs .claude/skills/verify-rpm-glass/*.test.mjs scripts/capture-stress/*.test.mjs scripts/ci/*.test.mjs",
     "ci:emulator": "node scripts/ci/emulator.mjs",
     "stress:capture": "node scripts/capture-stress/run.mjs",
     "test:java": "bash scripts/test-parser.sh && node scripts/test-unit.mjs",

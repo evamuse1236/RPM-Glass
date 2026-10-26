@@ -1,0 +1,560 @@
+{
+  "source": "web/fixtures/snapshot.json",
+  "keys": [
+    "area:area-1",
+    "area:area-2",
+    "area:area-3",
+    "area:area-4",
+    "block:block-1",
+    "block:block-2",
+    "block:block-3",
+    "block:block-4",
+    "block:block-5",
+    "block:block-6",
+    "block:block-7",
+    "block:block-8",
+    "context:main",
+    "glass:2026-10-19T02:40:00.000Z#0",
+    "glass:2026-10-19T04:35:00.000Z#0",
+    "glass:2026-10-19T07:10:00.000Z#0",
+    "goal:goal-1",
+    "goal:goal-2",
+    "meal:001a5c59-063c-416e-a235-4abce32e61ed",
+    "mealSlot:breakfast",
+    "mealSlot:dinner",
+    "mealSlot:lunch",
+    "project:project-1",
+    "project:project-2",
+    "project:project-3",
+    "routine:71f5da87-9e4d-4e42-add1-5519e60af133",
+    "run:71f5da87-9e4d-4e42-add1-5519e60af133|2026-10-19",
+    "task:1",
+    "task:10",
+    "task:11",
+    "task:12",
+    "task:13",
+    "task:14",
+    "task:15",
+    "task:16",
+    "task:17",
+    "task:18",
+    "task:19",
+    "task:2",
+    "task:20",
+    "task:21",
+    "task:22",
+    "task:23",
+    "task:24",
+    "task:25",
+    "task:26",
+    "task:27",
+    "task:28",
+    "task:29",
+    "task:3",
+    "task:30",
+    "task:31",
+    "task:32",
+    "task:33",
+    "task:34",
+    "task:35",
+    "task:4",
+    "task:5",
+    "task:6",
+    "task:7",
+    "task:8",
+    "task:9",
+    "waterSettings:main",
+    "waterSnooze:main",
+    "week:2026-10-12"
+  ],
+  "groups": {
+    "task": {
+      "schedule": [
+        "planned",
+        "plannedDate",
+        "recurrence",
+        "repeatDays",
+        "repeatAfterDays",
+        "completedOccurrences"
+      ],
+      "completion": [
+        "done",
+        "state",
+        "completedAt",
+        "completions"
+      ],
+      "archive": [
+        "archived",
+        "archiveDisposition"
+      ],
+      "alertIntent": [
+        "alertIntent"
+      ],
+      "order": [
+        "blockId",
+        "priority"
+      ],
+      "id": [
+        "id"
+      ],
+      "title": [
+        "title"
+      ],
+      "raw": [
+        "raw"
+      ],
+      "notes": [
+        "notes"
+      ],
+      "purpose": [
+        "purpose"
+      ],
+      "minutes": [
+        "minutes"
+      ],
+      "must": [
+        "must"
+      ],
+      "kind": [
+        "kind"
+      ],
+      "created": [
+        "created"
+      ],
+      "source": [
+        "source"
+      ],
+      "durationSource": [
+        "durationSource"
+      ],
+      "leverage": [
+        "leverage"
+      ],
+      "reviewChoice": [
+        "reviewChoice"
+      ],
+      "reviewActivityDays": [
+        "reviewActivityDays"
+      ]
+    },
+    "block": {
+      "id": [
+        "id"
+      ],
+      "title": [
+        "title"
+      ],
+      "purpose": [
+        "purpose"
+      ],
+      "notes": [
+        "notes"
+      ],
+      "archived": [
+        "archived"
+      ],
+      "projectId": [
+        "projectId"
+      ],
+      "goalId": [
+        "goalId"
+      ],
+      "areaId": [
+        "areaId"
+      ],
+      "year": [
+        "year"
+      ],
+      "horizon": [
+        "horizon"
+      ],
+      "period": [
+        "period"
+      ],
+      "rating": [
+        "rating"
+      ],
+      "colorIndex": [
+        "colorIndex"
+      ],
+      "created": [
+        "created"
+      ],
+      "achieved": [
+        "achieved"
+      ],
+      "achievedAt": [
+        "achievedAt"
+      ],
+      "evidence": [
+        "evidence"
+      ]
+    },
+    "project": {
+      "id": [
+        "id"
+      ],
+      "title": [
+        "title"
+      ],
+      "purpose": [
+        "purpose"
+      ],
+      "notes": [
+        "notes"
+      ],
+      "archived": [
+        "archived"
+      ],
+      "projectId": [
+        "projectId"
+      ],
+      "goalId": [
+        "goalId"
+      ],
+      "areaId": [
+        "areaId"
+      ],
+      "year": [
+        "year"
+      ],
+      "horizon": [
+        "horizon"
+      ],
+      "period": [
+        "period"
+      ],
+      "rating": [
+        "rating"
+      ],
+      "colorIndex": [
+        "colorIndex"
+      ],
+      "created": [
+        "created"
+      ],
+      "achieved": [
+        "achieved"
+      ],
+      "achievedAt": [
+        "achievedAt"
+      ],
+      "evidence": [
+        "evidence"
+      ]
+    },
+    "area": {
+      "id": [
+        "id"
+      ],
+      "title": [
+        "title"
+      ],
+      "purpose": [
+        "purpose"
+      ],
+      "notes": [
+        "notes"
+      ],
+      "archived": [
+        "archived"
+      ],
+      "projectId": [
+        "projectId"
+      ],
+      "goalId": [
+        "goalId"
+      ],
+      "areaId": [
+        "areaId"
+      ],
+      "year": [
+        "year"
+      ],
+      "horizon": [
+        "horizon"
+      ],
+      "period": [
+        "period"
+      ],
+      "rating": [
+        "rating"
+      ],
+      "colorIndex": [
+        "colorIndex"
+      ],
+      "created": [
+        "created"
+      ],
+      "achieved": [
+        "achieved"
+      ],
+      "achievedAt": [
+        "achievedAt"
+      ],
+      "evidence": [
+        "evidence"
+      ]
+    },
+    "goal": {
+      "period": [
+        "year",
+        "horizon",
+        "period"
+      ],
+      "id": [
+        "id"
+      ],
+      "title": [
+        "title"
+      ],
+      "purpose": [
+        "purpose"
+      ],
+      "notes": [
+        "notes"
+      ],
+      "archived": [
+        "archived"
+      ],
+      "projectId": [
+        "projectId"
+      ],
+      "goalId": [
+        "goalId"
+      ],
+      "areaId": [
+        "areaId"
+      ],
+      "rating": [
+        "rating"
+      ],
+      "colorIndex": [
+        "colorIndex"
+      ],
+      "created": [
+        "created"
+      ],
+      "achieved": [
+        "achieved"
+      ],
+      "achievedAt": [
+        "achievedAt"
+      ],
+      "evidence": [
+        "evidence"
+      ]
+    },
+    "context": {
+      "vision": [
+        "vision"
+      ],
+      "goals": [
+        "goals"
+      ],
+      "coreValues": [
+        "coreValues"
+      ],
+      "approved": [
+        "approved"
+      ],
+      "updated": [
+        "updated"
+      ]
+    },
+    "week": {
+      "focus": [
+        "focus"
+      ],
+      "verdicts": [
+        "verdicts"
+      ]
+    },
+    "review": {
+      "step": [
+        "step"
+      ],
+      "finishedAt": [
+        "finishedAt"
+      ],
+      "focusDraft": [
+        "focusDraft"
+      ],
+      "inboxIds": [
+        "inboxIds"
+      ],
+      "keptIds": [
+        "keptIds"
+      ],
+      "clashes": [
+        "clashes"
+      ],
+      "startedAt": [
+        "startedAt"
+      ],
+      "updatedAt": [
+        "updatedAt"
+      ]
+    },
+    "waterSettings": {
+      "goal": [
+        "goal"
+      ],
+      "intervalMinutes": [
+        "intervalMinutes"
+      ],
+      "from": [
+        "from"
+      ],
+      "until": [
+        "until"
+      ],
+      "glassMl": [
+        "glassMl"
+      ],
+      "snoozeMinutes": [
+        "snoozeMinutes"
+      ],
+      "reminders": [
+        "reminders"
+      ]
+    },
+    "waterSnooze": {
+      "value": []
+    },
+    "glass": {
+      "value": []
+    },
+    "meal": {
+      "id": [
+        "id"
+      ],
+      "name": [
+        "name"
+      ],
+      "slot": [
+        "slot"
+      ],
+      "at": [
+        "at"
+      ],
+      "created": [
+        "created"
+      ],
+      "state": [
+        "state"
+      ]
+    },
+    "routine": {
+      "id": [
+        "id"
+      ],
+      "name": [
+        "name"
+      ],
+      "start": [
+        "start"
+      ],
+      "end": [
+        "end"
+      ],
+      "days": [
+        "days"
+      ],
+      "steps": [
+        "steps"
+      ],
+      "archived": [
+        "archived"
+      ],
+      "created": [
+        "created"
+      ],
+      "updated": [
+        "updated"
+      ]
+    },
+    "mealSlot": {
+      "slot": [
+        "slot"
+      ],
+      "at": [
+        "at"
+      ],
+      "on": [
+        "on"
+      ],
+      "name": [
+        "name"
+      ]
+    },
+    "run": {
+      "routineId": [
+        "routineId"
+      ],
+      "day": [
+        "day"
+      ],
+      "marks": [
+        "marks"
+      ],
+      "skippedDay": [
+        "skippedDay"
+      ]
+    },
+    "mealGuess": {
+      "status": [
+        "status"
+      ],
+      "by": [
+        "by"
+      ],
+      "at": [
+        "at"
+      ],
+      "kcal": [
+        "kcal"
+      ],
+      "protein": [
+        "protein"
+      ]
+    },
+    "capture": {
+      "id": [
+        "id"
+      ],
+      "text": [
+        "text"
+      ],
+      "status": [
+        "status"
+      ],
+      "createdAt": [
+        "createdAt"
+      ],
+      "receipt": [
+        "receipt"
+      ]
+    },
+    "draft": {
+      "id": [
+        "id"
+      ],
+      "status": [
+        "status"
+      ],
+      "title": [
+        "title"
+      ],
+      "reply": [
+        "reply"
+      ],
+      "receipt": [
+        "receipt"
+      ],
+      "taskIds": [
+        "taskIds"
+      ]
+    }
+  }
+}
