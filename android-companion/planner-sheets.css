@@ -229,10 +229,7 @@
 .quick-mirror { position: absolute; inset: 0; color: transparent; overflow: hidden; pointer-events: none; }
 .quick-mirror mark { color: transparent; background: var(--secondary-container); border-radius: var(--shape-xs);
   box-shadow: 0 0 0 2px var(--secondary-container); }
-/* One row per meaning, every chip labelled: the day; Time, Estimate and Repeat; the Block; Must. A row that does not
-   fit (a set time with its day, large text) wraps onto a second line: nothing is ever cut off. */
 .sheet .quick-row { flex-wrap: wrap; row-gap: 0; column-gap: var(--s2); overflow: visible; padding: 0; }
-/* Details is a plain text row under the chips: its icon lines up with the chips' icons. */
 .quick-details {
   display: flex;
   align-items: center;

@@ -61,8 +61,8 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 
 - Task detail combines completion, editable title and meta, Must, a tappable Part-of panel with Result/Purpose/breadcrumb, notes, and differing original capture text.
 - The task sheet completes with the ring in its header (named `Mark <title> complete`); its footer toolbar `Task actions` holds Ask Capture, Duplicate, Archive and Delete, each with Undo.
-- Quick add opens with its title focused and the real keyboard visible. Day, Time, Estimate, Repeat, Block and Must are optional labelled chips, one row per meaning; Details is a text row under them. An unassigned task may keep an optional Why.
-- Typed shortcuts are intentionally deferred. Do not claim or infer them from ordinary text.
+- Quick add opens with its title focused and the real keyboard visible. Day, Time and Block are optional labelled chips, one row each. One More options text row under them holds Estimate, Repeat, Must and the details; its label names what is set. An unassigned task may keep an optional Why.
+- A day and time typed in the title ("call mom at 8 PM today") set the Day and Time chips and are highlighted in the title.
 
 ### Capture
 

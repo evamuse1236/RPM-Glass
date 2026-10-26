@@ -1,10 +1,10 @@
 import {localDay} from '../planner-state.mjs';
 import {el, icon, button, labelButton} from './dom.mjs';
-import {duration} from './format.mjs';
+import {quickOptions} from './quick-options.mjs';
 import {reducedMotion, EASE, DURATION, MOTION} from '../surface-motion.mjs';
 import {openSheet, isSheetOpen, discardDraft, rememberValue} from './sheet.mjs';
-import {whenOf, whenFields, whenLabel, clockOf, dayPresets, repeatLabel, parseWhen, blockMatches, hashToken, hashTag, withoutTag, foldGroup, fold, foldFor, choiceChip, markChips, chipRow, dateChooser, durationChooser, repeatChooser, alertChooser, blockChooser, recentBlock, rememberBlock} from './task-fields.mjs';
-import {readLabel, NEEDS_TIME, inlineText, saver, scheduleCheck, suggestBlock, syncText} from './sheet-parts.mjs';
+import {whenOf, whenFields, whenLabel, clockOf, dayPresets, parseWhen, blockMatches, hashToken, hashTag, withoutTag, foldGroup, fold, foldFor, choiceChip, markChips, chipRow, dateChooser, blockChooser, recentBlock, rememberBlock} from './task-fields.mjs';
+import {readLabel, NEEDS_TIME, saver, scheduleCheck, suggestBlock} from './sheet-parts.mjs';
 import {openTask} from './task-sheet.mjs';
 
 const DRAFT = 'task:new';
@@ -131,7 +131,6 @@ function quickAdd(app, overrides = {}) {
     if (!s.day) s.time = '';
     changed();
   };
-  // One row per meaning: the day; then the time, the estimate and the repeat; then the Block; then Must; then Details.
   const whenChips = chipRow('quick-row quick-days');
   for (const [label, day, aria] of dayPresets()) whenChips.append(choiceChip(label, day, value => pickDay(value), {aria}));
   const timeChip = button('', null, 'assist-chip');
@@ -193,48 +192,8 @@ function quickAdd(app, overrides = {}) {
   };
 
   const timeChips = chipRow('quick-row quick-times');
-  const durationChip = button('', null, 'assist-chip');
-  durationChip.append(icon('timer'), el('span', 'chip-label'));
-  const mustChips = chipRow('quick-row');
-  const mustChip = button('', () => { s.must = !s.must; changed(); }, 'assist-chip must-chip');
-  mustChip.append(icon('star'), el('span', 'chip-label', 'Must'));
-  mustChips.append(mustChip);
-  const repeatChip = button('', null, 'assist-chip');
-  repeatChip.append(icon('repeat'), el('span', 'chip-label'));
-  timeChips.append(timeChip, durationChip, repeatChip);
-  const detailsChip = button('', null, 'quick-details');
-  detailsChip.append(icon('notes'), el('span', 'chip-label', 'Details'), icon('expand_more', {cls: 'quick-details-open'}));
-  const durationFold = foldFor(group, durationChip, inner => durationChooser(inner, {
-    get: () => s.minutes,
-    pick: minutes => { s.minutes = minutes; group.close(); changed(); },
-  }));
-  const repeatFold = foldFor(group, repeatChip, inner => repeatChooser(inner, {
-    get: () => ({value: s.repeat, every: s.every}),
-    pick: (value, every) => {
-      Object.assign(s, {repeat: value, every});
-      if (value !== 'after') group.close();
-      changed();
-    },
-  }));
-  let notes, why, alertRow;
-  const detailsFold = foldFor(group, detailsChip, inner => {
-    notes = inlineText(inner, 'notes', 'Add details', s.notes, () => {});
-    notes.addEventListener('input', () => { s.notes = notes.value; remember(); });
-    why = inlineText(inner, 'favorite', 'Why? (optional)', s.why, () => {});
-    why.addEventListener('input', () => { s.why = why.value; remember(); });
-    alertRow = el('div', 'alert-choices');
-    alertChooser(alertRow, {get: () => s.alert, pick: value => { s.alert = value; changed(); }});
-    inner.append(alertRow);
-    const refresh = () => {
-      syncText(notes, s.notes);
-      syncText(why, s.why);
-      why.closest('.detail-row').hidden = !!s.blockId;
-      alertRow.hidden = !s.time;
-      markChips(alertRow, s.alert);
-    };
-    refresh();
-    return refresh;
-  });
+  timeChips.append(timeChip);
+  const more = quickOptions(s, {body, group, changed: () => changed(), remember: () => remember()});
 
   // "#" and part of a Block's name offers the matching Blocks as chips; choosing one takes the "#word" out of the
   // title. Not choosing leaves the words as typed.
@@ -281,8 +240,7 @@ function quickAdd(app, overrides = {}) {
 
   const error = el('p', 'sheet-error');
   error.setAttribute('role', 'alert');
-  body.append(nameWrap, hashFold.node, whenChips, timeChips, whenFold.node, durationFold.node, repeatFold.node,
-    blockChips, blockFold.node, mustChips, detailsChip, detailsFold.node, error);
+  body.append(nameWrap, hashFold.node, whenChips, timeChips, whenFold.node, blockChips, blockFold.node, more.row, more.node, error);
 
   const paint = () => {
     markChips(whenChips, s.day);
@@ -291,16 +249,7 @@ function quickAdd(app, overrides = {}) {
     timeChip.classList.toggle('on', !!s.time || (!!s.day && !preset));
     timeChip.setAttribute('aria-label', timeChip.classList.contains('on') ? 'Time: ' + timeChip.textContent.trim() : 'Time');
     paintBlocks();
-    durationChip.querySelector('.chip-label').textContent = s.minutes == null ? 'Estimate' : duration(s.minutes);
-    durationChip.classList.toggle('on', s.minutes != null);
-    mustChip.classList.toggle('on', s.must);
-    mustChip.setAttribute('aria-pressed', String(s.must));
-    mustChip.querySelector('.ms').classList.toggle('fill', s.must);
-    repeatChip.querySelector('.chip-label').textContent = s.repeat ? repeatLabel(s.repeat === 'after'
-      ? {repeatAfterDays: s.every} : {recurrence: s.repeat}) : 'Repeat';
-    repeatChip.classList.toggle('on', !!s.repeat);
-    repeatChip.setAttribute('aria-label', s.repeat ? 'Repeat: ' + repeatChip.textContent.trim() : 'Repeat');
-    detailsChip.classList.toggle('on', !!(s.notes || s.why || s.alert !== 'off'));
+    more.paint();
     // What the words set says so on its chip (marked, and named as read from the words), once.
     for (const chip of whenChips.querySelectorAll('.choice-chip')) {
       const read = !!parsed && chip.dataset.value === s.day;
@@ -409,6 +358,7 @@ function quickAdd(app, overrides = {}) {
     tagDismissed = null;
     Object.assign(s, {must: false, repeat: '', every: 1, notes: '', why: '', alert: 'off'});
     name.value = '';
+    more.close();
     group.close();
     changed();
     grow();
@@ -427,7 +377,7 @@ function quickAdd(app, overrides = {}) {
     if (!leaving) paint();
     return true;
   };
-  app.sheet.onBack = () => app.sheet.live() && group.onBack();
+  app.sheet.onBack = () => app.sheet.live() && (more.close() || group.onBack());
   requestAnimationFrame(() => {
     name.focus();
     app.api.native('keyboard', {field: 'Task'}).catch(() => {});
