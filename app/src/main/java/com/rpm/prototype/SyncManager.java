@@ -26,10 +26,13 @@ final class SyncManager {
         Connection(Map<String,?> saved){url=validateUrl((String)saved.getOrDefault("url",null));encrypted=(String)saved.get("token");}
         void check(Context c)throws IOException{Map<String,?> current=prefs(c).getAll();if(Thread.currentThread().isInterrupted()||!url.equals(current.get("url"))||!Objects.equals(encrypted,current.get("token")))throw new IOException("Connection changed");}
     }
-    static String validateUrl(String raw){
+    static String validateUrl(String raw){return validateUrl(raw,BuildConfig.DEBUG);}
+    static String validateUrl(String raw,boolean allowEmulatorHost){
         String value=raw.trim().replaceAll("/+$","");
         try{URI uri=new URI(value);
-            if(!"https".equals(uri.getScheme())||uri.getHost()==null||!uri.getHost().matches("[a-z0-9-]+\\.convex\\.site")||uri.getPort()!=-1||uri.getRawQuery()!=null||uri.getRawFragment()!=null||uri.getUserInfo()!=null||!(uri.getPath()==null||uri.getPath().isEmpty()))throw new IllegalArgumentException();
+            boolean deployment="https".equals(uri.getScheme())&&uri.getHost()!=null&&uri.getHost().matches("[a-z0-9-]+\\.convex\\.site")&&uri.getPort()==-1;
+            boolean emulatorHost=allowEmulatorHost&&"http".equals(uri.getScheme())&&"10.0.2.2".equals(uri.getHost())&&uri.getPort()>0;
+            if(!(deployment||emulatorHost)||uri.getRawQuery()!=null||uri.getRawFragment()!=null||uri.getUserInfo()!=null||!(uri.getPath()==null||uri.getPath().isEmpty()))throw new IllegalArgumentException();
         }catch(Exception e){throw new IllegalArgumentException("Use the HTTPS .convex.site deployment URL");}
         return value;
     }
