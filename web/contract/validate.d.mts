@@ -44,7 +44,9 @@ export interface Planner {
   reviews: Record<string, ReviewPatch & {step: number; startedAt: string; updatedAt: string}>;
   body: Body; drafts: Draft[]; events: never[];
 }
+export interface Conflict {id: string; key: string; group: string; kept: unknown; lost: unknown; lostFrom: 'phone' | 'server'; at: string}
 export interface Snapshot {
+  conflicts?: Conflict[];
   schemaVersion: 2; revision: number; savedAt: string; entries: StoreTask[]; planner: Planner; captures: Capture[];
   tasks: Task[]; blocks: Entity[]; projects: Entity[]; areas: Entity[]; goals: Entity[]; drafts: Draft[]; body: LegacyBody;
 }
@@ -93,8 +95,8 @@ export type PlanOp = LeafPlanOp
   | {type: 'reviewProgress'; week: string; patch: ReviewPatch; keepUndo?: boolean}
   | {type: 'batch'; ops: LeafPlanOp[]; keepUndo?: boolean};
 type CommandArgs =
-  | {type: 'plan'; args: {op: PlanOp}}
-  | {type: 'capture'; args: {text: string}}
+  | {type: 'plan'; args: {op: PlanOp; ids?: (string | number)[]}}
+  | {type: 'capture'; args: {text: string}; timezone?: string}
   | {type: 'complete' | 'uncomplete'; args: {taskId: number; occurrence?: string | null}}
   | {type: 'reschedule'; args: {taskId: number; time: string | null; day: string | null}}
   | {type: 'edit'; args: {taskId: number; fields: {title?: string; notes?: string; time?: string | null; minutes?: number | null; alert?: Alert}}}
@@ -107,3 +109,5 @@ export type Command = {id: string; baseRevision: number; createdAt: string} & Co
 export function validateSnapshot(value: unknown): Snapshot;
 export function validateCommand(value: unknown): Command;
 export function validatePlanOp(value: unknown): PlanOp;
+
+export function validateRecord(key: string, value: unknown): unknown;

@@ -1,6 +1,7 @@
 import { httpActionGeneric, makeFunctionReference, type HttpRouter } from "convex/server";
-import { validateCommand, validateSnapshot } from "../web/contract/validate.mjs";
+import { validateCommand } from "../web/contract/validate.mjs";
 import { canonicalJson, randomSecret, sha256 } from "./security";
+import { validatePush, validatePull } from "./plannerProtocol";
 declare const process:{env:Record<string,string|undefined>};
 
 class RequestFailure extends Error {
@@ -63,15 +64,6 @@ function linkCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   return [...crypto.getRandomValues(new Uint8Array(8))].map(value=>alphabet[value%alphabet.length]).join("");
 }
-function acks(value:unknown) {
-  if(!Array.isArray(value) || value.length>100)invalid();
-  return value.map(item=>{
-    const ack = object(item,["id","status","message","newRevision"]);
-    if(typeof ack.id!=="string" || !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(ack.id) || !["applied","rejected","conflict"].includes(ack.status) || typeof ack.message!=="string" || ack.message.length<1 || ack.message.length>2000 || !Number.isSafeInteger(ack.newRevision) || ack.newRevision<0)invalid();
-    return {id:ack.id,status:ack.status,message:ack.message,newRevision:ack.newRevision};
-  });
-}
-
 export function registerPlannerRoutes(http:HttpRouter) {
   const routes = [
     ["/v1/web/link","POST","link"], ["/v1/web/link-code","POST","link-code"],
@@ -79,6 +71,7 @@ export function registerPlannerRoutes(http:HttpRouter) {
     ["/v1/web/commands","POST","enqueue"], ["/v1/web/session","DELETE","self-revoke"],
     ["/v1/web/sessions","GET","sessions"], ["/v1/web/revoke","POST","revoke"],
     ["/v1/planner/sync","POST","sync"],
+    ["/v1/planner/push","POST","push"], ["/v1/planner/pull","POST","pull"],
   ] as const;
   for(const path of new Set(routes.map(route=>route[0])))http.route({path,method:"OPTIONS",handler:httpActionGeneric(async(_ctx,request)=>{
     const origin = request.headers.get("Origin");
@@ -89,6 +82,7 @@ export function registerPlannerRoutes(http:HttpRouter) {
     try {
       const origin = request.headers.get("Origin");
       if(origin && !originAllowed(origin))throw new RequestFailure(403,"origin_forbidden","This browser origin is not allowed");
+      if(op==="sync")return response(request,{error:{code:"upgrade_required",message:"Update the phone app to sync this planner"}},410);
       let result:any, rawToken:string|undefined, code:string|undefined;
       if(op==="link") {
         const value = object(await body(request),["code","label"]);
@@ -97,7 +91,12 @@ export function registerPlannerRoutes(http:HttpRouter) {
         result = await ctx.runMutation(makeFunctionReference<"mutation">("planner:exchange"),{codeHash:await sha256(value.code),tokenHash:await sha256(rawToken),label:value.label?.trim()??"Web browser"});
       } else {
         const tokenHash = await token(request);
-        if(["link-code","sessions","revoke","sync"].includes(op)) {
+        if(op==="push" || op==="pull") {
+          const raw=await body(request);
+          if(op==="push" && new TextEncoder().encode(JSON.stringify(raw)).length>800000)throw new RequestFailure(413,"body_too_large","Push part exceeds 800 KB");
+          const value=checked(op==="push"?validatePush:validatePull,raw);
+          result=await ctx.runMutation(makeFunctionReference<"mutation">(`phoneSync:${op}`),{tokenHash,...value as Record<string,any>});
+        } else if(["link-code","sessions","revoke"].includes(op)) {
           const args:Record<string,any> = {op,tokenHash};
           if(op==="link-code") {
             object(await body(request),[]);
@@ -107,14 +106,6 @@ export function registerPlannerRoutes(http:HttpRouter) {
             const value = object(await body(request),["sessionId"]);
             if(typeof value.sessionId!=="string" || value.sessionId.length>160)invalid();
             args.sessionId = value.sessionId;
-          }
-          if(op==="sync") {
-            const value = object(await body(request),["snapshot","acks"]);
-            args.acks = acks(value.acks);
-            if(value.snapshot!==undefined) {
-              args.snapshot = checked(validateSnapshot,value.snapshot);
-              args.snapshotIdentity = await sha256(canonicalJson(args.snapshot));
-            }
           }
           result = await ctx.runMutation(makeFunctionReference<"mutation">("planner:phone"),args);
         } else {
