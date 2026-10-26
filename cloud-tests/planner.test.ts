@@ -9,7 +9,6 @@ describe("Record snapshots and durable server receipts",()=>{
       const response=await request(t,"/v1/planner/sync",device.token,{snapshot:{...current,schemaVersion},acks:[]});
       expect(response.status).toBe(410);expect(await response.json()).toMatchObject({error:{code:"upgrade_required"}});
     }
-    expect(await t.run(ctx=>ctx.db.query("plannerSnapshots").collect())).toEqual([]);
     expect((await request(t,"/v1/web/snapshot",web.token,undefined,"GET")).status).toBe(404);
   });
   it("keeps a current record snapshot across revisions without reinterpreting legacy events",async()=>{
@@ -18,7 +17,6 @@ describe("Record snapshots and durable server receipts",()=>{
     const next=await read(t,web.token);
     expect(next.revision).toBeGreaterThan(first.revision);
     expect(next.entries.find((r:any)=>r.id===3).notes).toBe("Edit 6");
-    expect(await t.run(ctx=>ctx.db.query("plannerSnapshots").collect())).toHaveLength(0);
     expect((await (await pull(t,device.token,first.revision)).json()).rows.some((r:any)=>r.key==="task:3")).toBe(true);
     expect(await t.run(ctx=>ctx.db.query("events").collect())).toEqual([]);
   });

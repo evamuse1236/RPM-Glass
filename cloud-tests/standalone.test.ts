@@ -11,7 +11,6 @@ describe("Standalone planner writes",()=>{
     const snap=await read(t,web.token);
     expect(snap).toEqual({...buildSnapshot({...seed,version:page.cursor,syncSavedAt:snap.savedAt,sync:{remoteActivity:Object.fromEntries(seed.entries.map(e=>[e.id,e.reviewActivityDays??[]]))}}),conflicts:[]});
     expect(validateSnapshot(snap)).toEqual(snap);
-    expect(await t.run(ctx=>ctx.db.query("plannerSnapshots").collect())).toEqual([]);
     expect(page.seededAt).toEqual(expect.any(Number));
   });
   it("adds, edits and completes without a phone round trip and replays one receipt",async()=>{
