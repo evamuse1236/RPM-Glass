@@ -293,7 +293,7 @@ export function openSheet(app, title, {draftKey = null, seed = null, variant = '
   }
   if (!node.contains(document.activeElement)) app.sheet.returnFocus = document.activeElement;
 
-  const inline = Boolean(app.api.inlineSheet?.());
+  const inline = Boolean(app.api.wide?.());
   node.toggleAttribute('data-inline', inline);
   node.setAttribute('aria-modal', String(!inline));
   node.hidden = false;

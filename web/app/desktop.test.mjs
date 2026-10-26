@@ -28,12 +28,12 @@ const labelOf = node => node.querySelector('.side-label')?.textContent;
 
 test('the wide layout in CSS uses the same query the script reads', () => {
   assert.ok(css.includes(`@media ${WIDE} {`));
-  assert.match(main, /inlineSheet: isWide/);
+  assert.match(main, /wide: isWide/);
   assert.match(main, /onWidthChange\(\(\) => ui\.closeSheet\(\)\)/);
 });
 
 test('only the website asks for the inline pane; the phone keeps the modal sheet', () => {
-  assert.match(sheet, /const inline = Boolean\(app\.api\.inlineSheet\?\.\(\)\);/);
+  assert.match(sheet, /const inline = Boolean\(app\.api\.wide\?\.\(\)\);/);
   assert.match(sheet, /node\.setAttribute\('aria-modal', String\(!inline\)\);/);
   assert.match(sheet, /scrim\.hidden = inline;/);
   assert.match(sheet, /app\.dom\.planner\.inert = !inline;/);
@@ -42,7 +42,7 @@ test('only the website asks for the inline pane; the phone keeps the modal sheet
   }
   const phone = read('../../android-companion/runtime.mjs');
   assert.match(phone, /mountPlanner\(/);
-  assert.doesNotMatch(phone, /inlineSheet/);
+  assert.doesNotMatch(phone, /\bwide:/);
 });
 
 test('the inline pane has no drag, no motion and a visible close', () => {

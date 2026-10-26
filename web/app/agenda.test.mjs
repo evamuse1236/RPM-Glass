@@ -2,8 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {freshStore} from '../../chat-prototype/companion-state.mjs';
-import {editPlan} from '../../android-companion/planner-state.mjs';
-import {inboxTasks} from '../../android-companion/review-state.mjs';
+import {editPlan, inboxRows} from '../../android-companion/planner-state.mjs';
 import {agendaModel} from './agenda.mjs';
 
 const SATURDAY_10_AM_KOLKATA = new Date('2026-10-03T10:00:00+05:30');
@@ -25,9 +24,9 @@ function seed() {
 test('the Today side panel counts the whole Inbox and lists only the first four', () => {
   const {d} = seed();
   const {inbox} = agendaModel(d, SATURDAY_10_AM_KOLKATA);
-  assert.equal(inbox.count, inboxTasks(d).length);
+  assert.equal(inbox.count, inboxRows(d).length);
   assert.equal(inbox.count, 8);
-  assert.deepEqual(inbox.tasks, inboxTasks(d).slice(0, 4));
+  assert.deepEqual(inbox.tasks, inboxRows(d).slice(0, 4));
 });
 
 test("today's Musts come soonest first and leave out tasks that are not a Must", () => {

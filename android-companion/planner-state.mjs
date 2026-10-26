@@ -10,6 +10,10 @@ export const freshPlanner=()=>({schema:1,projects:[],blocks:[],areas:[],goals:[]
 export function planner(data){return data.planner??freshPlanner();}
 export const tasks=data=>data.entries.filter(e=>!e.archived&&(e.kind??'plan')==='plan');
 export const blockTasks=(data,id)=>tasks(data).filter(e=>(e.blockId??null)===(id??null)).sort((a,b)=>(a.priority??Infinity)-(b.priority??Infinity)||a.id-b.id);
+/** The Inbox page's rows: open tasks with no Block. Every Inbox count reads this, so they all match the page. */
+export const inboxRows=data=>blockTasks(data,null).filter(t=>!t.done);
+/** Blocks in one run per Project, Projects in first-seen order, Blocks keeping their order within it. */
+export const byProject=blocks=>{const rank=new Map();for(const b of blocks){const k=b.projectId??null;if(!rank.has(k))rank.set(k,rank.size);}return blocks.toSorted((a,b)=>rank.get(a.projectId??null)-rank.get(b.projectId??null));};
 /** A Result's deadline is derived, never stored: its latest open, dated, one-time task ({value: local 'YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM', task}). */
 export function blockDue(data,id){let best=null;for(const t of blockTasks(data,id)){if(t.done||t.recurrence||t.repeatAfterDays)continue;const value=t.planned?localStamp(t.planned):t.plannedDate;if(!value)continue;const at=Date.parse(value.length===10?value+'T23:59':value);if(!best||at>best.at)best={at,value,task:t};}return best&&{value:best.value,task:best.task};}
 const localStamp=iso=>{const d=new Date(iso);return localDay(d)+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};

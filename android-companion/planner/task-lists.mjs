@@ -1,4 +1,4 @@
-import {tasks, blockTasks} from '../planner-state.mjs';
+import {tasks, blockTasks, inboxRows} from '../planner-state.mjs';
 import {el, icon, button, labelButton, emptyState} from './dom.mjs';
 import {duration} from './format.mjs';
 import {animateRerender, reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
@@ -44,7 +44,7 @@ export function showInbox(app, {motion = 'forward'} = {}) {
   // Fills a host with the rows: the body itself at first, then a detached copy that animateRerender reconciles in by
   // key (it needs the new content returned as an element, so unchanged rows stay and the changed ones move).
   const draw = (host = el('div')) => {
-    const rows = blockTasks(app.data(), null).filter(task => !task.done);
+    const rows = inboxRows(app.data());
     host.replaceChildren();
     if (!rows.length) {
       host.append(emptyState({symbol: 'inbox', title: 'Inbox is empty',

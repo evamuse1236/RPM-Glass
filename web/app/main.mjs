@@ -5,10 +5,10 @@ import {savedLabel, sentLabel, watchRows} from './sync-marks.mjs';
 import {userMessage} from '../../android-companion/user-message.mjs';
 import {applyClarityPreferences} from '../../android-companion/planner-clarity.mjs';
 import {mountPlanner} from '../../android-companion/planner.mjs';
+import {inboxRows} from '../../android-companion/planner-state.mjs';
 import {isWide, onWidthChange} from './desktop.mjs';
 import {mountSidebar} from './sidebar.mjs';
 import {mountAgenda} from './agenda.mjs';
-import {inboxTasks} from '../../android-companion/review-state.mjs';
 import {FINE, mountRowTools} from './pointer.mjs';
 import {mountShortcuts} from './shortcuts.mjs';
 import {captureNotes, dismissedNotes} from './capture-notes.mjs';
@@ -36,10 +36,10 @@ function mount() {
   root.dataset.largeText = 'false';
   root.style.setProperty('--text-scale', String(PHONE.fontScale));
   ui = mountPlanner({getData: () => queue.data(), getPhone: () => PHONE, native: createWebNative({openCapture}), sortPreview,
-    label: sentLabel, commit: async op => queue.commit(op), menuItems, inlineSheet: isWide});
+    label: sentLabel, commit: async op => queue.commit(op), menuItems, wide: isWide});
   const sidebar = mountSidebar($('sidebar'), $('planner'), ui);
   const agenda = mountAgenda($('agenda'), $('planner'), ui, () => queue.data());
-  glance = () => { sidebar.setInbox(inboxTasks(queue.data()).length); agenda(); };
+  glance = () => { sidebar.setInbox(inboxRows(queue.data()).length); agenda(); };
   if (matchMedia(FINE).matches) mountRowTools(document);
   mountShortcuts(document, ui, {work: $('workspace'), sheet: $('sheet'), dialog: $('keys-sheet')});
   onWidthChange(() => ui.closeSheet());

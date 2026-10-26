@@ -1,5 +1,4 @@
-import {blockTasks, localDay, shiftDay} from '../../android-companion/planner-state.mjs';
-import {inboxTasks} from '../../android-companion/review-state.mjs';
+import {blockTasks, inboxRows, localDay, shiftDay} from '../../android-companion/planner-state.mjs';
 import {dayTasks} from '../../android-companion/planner-ux.mjs';
 import {dueSoon, openResults} from '../../android-companion/planner/today-model.mjs';
 import {taskWhen} from '../../android-companion/planner/task-row.mjs';
@@ -14,7 +13,7 @@ const byTime = (a, b) => (taskWhen(a) ?? Infinity) - (taskWhen(b) ?? Infinity);
 
 export function agendaModel(data, now = new Date()) {
   const today = localDay(now);
-  const inbox = inboxTasks(data);
+  const inbox = inboxRows(data);
   const musts = dayTasks(data, today, +now).active.filter(task => task.must).sort(byTime);
   const soon = dueSoon(data, now)[0];
   const block = soon?.block ?? openResults(data)[0] ?? null;

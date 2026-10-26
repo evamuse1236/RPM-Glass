@@ -1,5 +1,5 @@
 /** Blocks list and Block detail: Result, its deadline, Purpose, your verdict, progress, the ordered Plan. */
-import {blockTasks, blockDue, localDay} from '../planner-state.mjs';
+import {blockTasks, blockDue, localDay, inboxRows, byProject} from '../planner-state.mjs';
 import {weekStart, weekFocus, resultStatus} from '../review-state.mjs';
 import {el, icon, button, labelButton, emptyState, areaDot, attrs, sectionHeader} from './dom.mjs';
 import {duration, plural, dateText, dueInfo, timeLeft} from './format.mjs';
@@ -157,6 +157,7 @@ function filterChip(app, label, value, options, onSelect) {
   return chip;
 }
 
+/** Wide screens show one section per Project, each in the order of its most urgent Block. */
 export function renderBlocks(app, page) {
   const {state} = app;
   const filters = el('div', 'chip-row filters');
@@ -181,7 +182,8 @@ export function renderBlocks(app, page) {
   // from the same Project sit under one Area and Project line, as Calendar's schedule names a day once; a Project
   // filter already names it, so then there is no line at all.
   let last;
-  for (const block of byDeadline(app.data(), blocks, focus)) {
+  const ordered = byDeadline(app.data(), blocks, focus);
+  for (const block of app.api.wide?.() ? byProject(ordered) : ordered) {
     if (!state.blockFilter && block.projectId !== last) {
       const head = el('div', 'project-run');
       head.append(eyebrow(app, block));
@@ -199,7 +201,7 @@ export function renderBlocks(app, page) {
       label: 'New Block',
     }));
   }
-  const inbox = blockTasks(app.data(), null).filter(task => !task.done).length;
+  const inbox = inboxRows(app.data()).length;
   const row = button('', () => app.actions.inbox(), 'list-item inbox-row');
   row.append(icon('inbox', {cls: 'leading'}));
   const copy = el('span', 'list-copy');
