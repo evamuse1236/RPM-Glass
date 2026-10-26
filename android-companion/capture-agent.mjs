@@ -23,7 +23,7 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
   if(!draft||draft.status!=='draft')return {status:draft?.status==='committed'?'applied':'skipped'};
   if(openQuestion(state,draft.conversationId)||(draft.question&&draft.operations.some(o=>o.opId===draft.question.opId&&o.kind!=='create'))||draft.operations.some(op=>op.kind!=='create'&&op.fields.some(f=>f.op==='unknown')))return {status:'needs-answer'};
   if(draft.schedulePreview?.items?.some(i=>i.status==='review'&&draft.operations.some(o=>o.opId===i.opId&&o.kind!=='create')))return {status:'needs-time'};
-  if(blocksFollowUp(draftFollowUpProblem(data,draft)))return {status:'needs-check'};
+  if(draft.reviewReason||blocksFollowUp(draftFollowUpProblem(data,draft)))return {status:'needs-check'};
   const before=beforeRows(data,draft),confirm=needsConfirm(draft);
   const commit=d=>service.act({conversationId:d.conversationId,draftId,revision:d.revision,kind:'commit',...(d.review?{reviewToken:d.review.token}:{})},{actionId:`auto-${draftId}-${d.revision}`});
   let result=await commit(draft),warning=null;

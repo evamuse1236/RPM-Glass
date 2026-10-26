@@ -62,3 +62,22 @@ test('a running range captured between minute ticks keeps a saveable whole-minut
  const at=new Date(2026,9,26,10,13,27),p=interpretTime('Meeting today from 10am to 11am',at);
  assert.equal(p.planned,at.toISOString());assert.equal(p.minutes,47);
 });
+
+for(const [text,minutes,hour,minute] of [
+ ['11am to 1230',90,12,30],['11 am to 1215',75,12,15],
+ ['11pm to 1230',90,0,30],['11 pm to 1215',75,0,15],
+ ['12 am to 1210',10,0,10],['9 am to 1030',90,10,30],
+])test(`a four-digit end selects the shortest positive range: ${text}`,()=>{
+ const p=interpretTime(`tomorrow ${text}`,new Date(2026,9,26,10,13));
+ assert.equal(p.status,'parsed');assert.equal(p.minutes,minutes);
+ assert.equal(new Date(p.end).getHours(),hour);assert.equal(new Date(p.end).getMinutes(),minute);
+});
+
+for(const text of ['Keep it in the inbox for now','From now on drink more water','Not now','Until now I forgot to call'])test(`an idiomatic now supplies no start time: ${text}`,()=>{
+ const p=interpretTime(text,new Date(2026,9,26,10,13));assert.notEqual(p.status,'parsed');assert.equal(p.planned,null);
+});
+for(const text of ['right now','now for 30 min','from now till 1 hour'])test(`a literal now time phrase starts now: ${text}`,()=>{
+ const at=new Date(2026,9,26,10,13),p=interpretTime(text,at);
+ assert.equal(p.status,'parsed');assert.equal(p.planned,at.toISOString());
+ if(text==='from now till 1 hour'){assert.equal(p.minutes,60);assert.equal(p.end,new Date(+at+3600000).toISOString());}
+});

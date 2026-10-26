@@ -101,6 +101,7 @@ export class IntentHarness {
      break;
     }catch(error){
      run.error=error.code??'INVALID_OUTPUT';
+     if(['NO_REMOVAL_INTENT','INVALID_SOURCE'].includes(error.code))throw error;
      if(error.code==='UNSUPPORTED_TIME'){
       if(held){parsed=held;run.keptValidParts=true;break;}
       throw error;
@@ -125,7 +126,7 @@ export class IntentHarness {
    const result=await this.repository.transact(`interpret:${messageId}`,{messageId},current=>{
     conversation(current,capture.conversationId);const state=intentState(current),saved=state.captures[messageId];
     if(saved.status==='interpreted')return {messageId,draftId:saved.draftId??null,status:'interpreted'};
-    if(!parsed.operations.length&&!parsed.discarded?.length&&/\b(?:marked (?:done|complete)|saved|completed|removed|deleted|archived)\b/i.test(parsed.reply))parsed.reply='Nothing changed.';
+    if(parsed.mode==='capture'&&!parsed.question&&!parsed.clarification&&!parsed.decisions.some(d=>['existing','question','reflection'].includes(d.disposition))&&!parsed.operations.length&&!parsed.discarded?.length&&/\b(?:marked (?:done|complete)|saved|completed|removed|deleted|archived)\b/i.test(parsed.reply))parsed.reply='Nothing changed.';
     let draftId=null;
     if(!parsed.clarification&&parsed.discarded?.length)draftId=stageProposalRemoval(state,{data,capture,activeDraft,parsed,now:this.clock().toISOString(),refreshSchedule:this.refreshSchedule});
     else if(!parsed.clarification&&parsed.draftMode!=='none'&&parsed.operations.length){
@@ -135,8 +136,8 @@ export class IntentHarness {
      const newGuards=guardsFor(data,parsed.operations); // Baseline is pre-call data, not a newer, silently changed target.
      const timeChanged=parsed.operations.some(op=>op.fields.some(f=>f.name==='time'&&f.sourceMessageId===messageId));
      const timeAnchorAt=previous&&!timeChanged?(previous.timeAnchorAt??previous.created):capture.at,sourceRaw=[...(previous?.sourceMessageIds??[]).map(id=>state.captures[id]?.raw??''),capture.raw].join('\n'),schedulePreview=this.refreshSchedule?.({data:current,draft:{operations:parsed.operations,conversationId:capture.conversationId,raw:sourceRaw},anchor:new Date(timeAnchorAt)})??previous?.schedulePreview??null;
-     parsed.reply=this.normalizeReply?.({parsed,schedulePreview})??parsed.reply;
-     state.drafts[draftId]={id:draftId,conversationId:capture.conversationId,revision:(previous?.revision??0)+1,status:'draft',created:previous?.created??capture.at,updated:this.clock().toISOString(),operations:parsed.operations,guards:{...newGuards,...previous?.guards},question:parsed.question??safeQuestion(parsed.operations),notes:[...new Set([...(previous?.notes??[]),parsed.notice].filter(Boolean))],mode:parsed.mode,review:null,sourceMessageIds:[...new Set([...(previous?.sourceMessageIds??[]),messageId])],reply:parsed.reply,timeAnchorAt,schedulePreview};
+     parsed.reply=parsed.reviewReason??this.normalizeReply?.({parsed,schedulePreview})??parsed.reply;
+     state.drafts[draftId]={reviewReason:parsed.reviewReason??null,id:draftId,conversationId:capture.conversationId,revision:(previous?.revision??0)+1,status:'draft',created:previous?.created??capture.at,updated:this.clock().toISOString(),operations:parsed.operations,guards:{...newGuards,...previous?.guards},question:parsed.question??safeQuestion(parsed.operations),notes:[...new Set([...(previous?.notes??[]),parsed.notice].filter(Boolean))],mode:parsed.mode,review:null,sourceMessageIds:[...new Set([...(previous?.sourceMessageIds??[]),messageId])],reply:parsed.reply,timeAnchorAt,schedulePreview};
     }
     if(parsed.notice)parsed.reply=[parsed.reply,parsed.notice].filter(Boolean).join(' ');
     saved.status='interpreted';saved.draftId=draftId;saved.decisions=withNotes(parsed.decisions,units);saved.reply=parsed.reply;saved.memoryCandidates=parsed.memoryCandidates;saved.card=parsed.card??null;saved.calls=calls;if(modelRuns.length)saved.modelRuns=modelRuns;delete saved.lastError;

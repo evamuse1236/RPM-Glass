@@ -47,5 +47,6 @@ export function readOutput(output,{input,units,messageId,visibleEntities,activeD
  const existing=completeExistingItems(output,input),reminder=completeShortReminder(existing,input),water=completeWaterLog(reminder,input),completed=orphanChoiceTurn(water,input);
  const completion=completed===output?null:completed!==water?'closed-choice':water!==reminder?'water-log':reminder!==existing?'short-reminder':'existing-item';
  checkRemovalWords(completed,input);
- return {parsed:interpretTurn(completed,{units,messageId,visibleEntities,activeDraft}),completion};
+ const {reviewReason,...turn}=completed;
+ return {parsed:{...interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}),...(reviewReason?{reviewReason}:{})},completion};
 }
