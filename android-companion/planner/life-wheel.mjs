@@ -60,7 +60,9 @@ function plot(app, areas) {
   });
   svg.append(...values);
   for (const k of RINGS) svg.append(node('circle', {cx: WHEEL.centre, cy: WHEEL.centre, r: radiusFor(k), class: 'wheel-ring'}));
-  const average = el('span', 'wheel-average tnum', averageOf(areas.map(a => a.rating)) ?? '–');
+  const none = app.api.wide?.() ? '' : '–';
+  const average = el('span', 'wheel-average tnum', averageOf(areas.map(a => a.rating)) ?? none);
+  average.dataset.none = none;
   average.setAttribute('aria-hidden', 'true');
   const labels = areas.map((area, i) => {
     const label = el('span', 'wheel-label');
@@ -88,7 +90,7 @@ function bindDrag(app, areas, svg, values, labels, average) {
   const show = (i, rating) => {
     values[i].setAttribute('d', wedgePath(i, n, radiusFor(rating)));
     labels[i].lastChild.textContent = rating == null ? '' : String(rating);
-    average.textContent = averageOf(areas.map((a, j) => (j === i ? rating : a.rating))) ?? '–';
+    average.textContent = averageOf(areas.map((a, j) => (j === i ? rating : a.rating))) ?? average.dataset.none;
   };
   const set = (event, i) => {
     const rating = ratingAt(read(event).distance);

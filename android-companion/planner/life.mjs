@@ -57,9 +57,12 @@ function areaGoals(app, areas, loose) {
   const list = el('section', 'life-areas');
   for (const area of areas) {
     const goals = app.p().goals.filter(g => g.areaId === area.id && g.year === app.state.year);
-    list.append(listItem({leading: initialAvatar(app, area), headline: area.title, cls: 'life-area',
-      trailing: el('span', 'life-rating tnum', area.rating == null ? 'Not rated' : `${area.rating} / 10`),
-      onClick: () => app.openArea(area.id)}));
+    const row = el('div', 'life-area-row');
+    row.dataset.tone = app.tone(area);
+    const value = el('span', 'life-rating tnum', area.rating == null ? '' : `${area.rating}`);
+    row.append(listItem({leading: initialAvatar(app, area), headline: area.title, cls: 'life-area',
+      onClick: () => app.openArea(area.id)}), ratingInput(app, area, rating => { value.textContent = rating; }), value);
+    list.append(row);
     for (const goal of goals) list.append(goalRow(app, goal, 'nested'));
   }
   if (loose.length) list.append(sectionHeader('Goals with no Area'), ...loose.map(goal => goalRow(app, goal)));
@@ -128,11 +131,8 @@ export function renderLife(app, page) {
  * ticks and a hollow handle waits at its start, so it reads as something to drag but never as a value ("Not rated"
  * says so); the first touch puts the handle where the finger is, filled.
  */
-function ratingSlider(app, area) {
-  const row = el('div', 'rating-row');
-  row.dataset.tone = app.tone(area);
-  const label = el('span', 'overline', 'Your rating');
-  const output = el('strong', 'tnum', area.rating == null ? 'Not rated' : `${area.rating} / 10`);
+/** A 0–10 slider in the Area's colour that saves on release with Undo; `show` writes the value it is set to. */
+function ratingInput(app, area, show) {
   const input = el('input', 'rating-slider');
   input.type = 'range';
   input.min = 0;
@@ -140,9 +140,6 @@ function ratingSlider(app, area) {
   input.step = area.rating == null || Number.isInteger(area.rating) ? 1 : 0.5;
   input.value = area.rating ?? 0;
   input.classList.toggle('unrated', area.rating == null);
-  const ticks = el('span', 'rating-ticks');
-  ticks.setAttribute('aria-hidden', 'true');
-  for (let i = 0; i <= 10; i++) ticks.append(el('i'));
   input.setAttribute('aria-label', `${area.title} rating, 0 to 10`);
   input.setAttribute('aria-valuetext', area.rating == null ? 'Not rated' : `${area.rating} of 10`);
   const paint = () => input.style.setProperty('--value', String(Number(input.value) / 10));
@@ -153,7 +150,7 @@ function ratingSlider(app, area) {
       input.value = Math.round(Number(input.value));
     }
     input.classList.remove('unrated');
-    output.textContent = `${input.value} / 10`;
+    show(input.value);
     input.setAttribute('aria-valuetext', `${input.value} of 10`);
     paint();
   });
@@ -169,7 +166,19 @@ function ratingSlider(app, area) {
     persist(app, {type: 'rateAreas', ratings: [{id: area.id, rating}]}, {label: `${area.title} rated ${rating}`})
       .catch(() => {});
   });
-  row.append(label, output, input, ticks, el('span', 'rating-note', 'How it feels right now, not how many tasks are done'));
+  return input;
+}
+
+function ratingSlider(app, area) {
+  const row = el('div', 'rating-row');
+  row.dataset.tone = app.tone(area);
+  const output = el('strong', 'tnum', area.rating == null ? 'Not rated' : `${area.rating} / 10`);
+  const input = ratingInput(app, area, value => { output.textContent = `${value} / 10`; });
+  const ticks = el('span', 'rating-ticks');
+  ticks.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i <= 10; i++) ticks.append(el('i'));
+  row.append(el('span', 'overline', 'Your rating'), output, input, ticks,
+    el('span', 'rating-note', 'How it feels right now, not how many tasks are done'));
   return row;
 }
 

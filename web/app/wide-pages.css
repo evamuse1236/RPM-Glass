@@ -38,6 +38,45 @@
   #planner .page:has(> .life-areas) .wheel-areas { display: none; }
   #planner .life-areas { display: grid; align-content: start; padding-block: var(--s1); padding-inline-end: var(--gutter); }
   #planner .life-area .list-headline { font: var(--title-small); }
-  #planner .life-rating { font: var(--body-medium); color: var(--on-surface-variant); }
+  #planner .life-area-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 200px) var(--s6);
+    align-items: center;
+    column-gap: var(--s3);
+    padding-inline-end: var(--s2);
+  }
+  #planner .life-area-row .rating-slider { grid-area: auto; }
+  #planner .life-rating { font: var(--title-small); text-align: end; }
+  #planner .wheel-average:empty { display: none; }
+
+  .planner-view #planner[data-view=projects] .page > .project-card {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+    align-items: start;
+  }
+  #planner[data-view=projects] .project-card .project-toggle { border-radius: var(--card-radius); }
+  #planner[data-view=projects] .project-blocks {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: var(--s2);
+    padding: var(--s3);
+  }
+  #planner[data-view=projects] .project-blocks > p { grid-column: 1 / -1; align-self: center; }
+  #planner .project-block-copy { flex: 1; display: grid; min-inline-size: 0; }
+  #planner .project-block-next {
+    overflow: clip;
+    font: var(--body-small);
+    color: var(--on-surface-variant);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   #planner .list-item.nested { padding-inline-start: calc(var(--s8) + var(--s6)); }
+  .planner-view > #sheet[data-inline] { --sheet-surface: light-dark(var(--surface-container-low), var(--surface-container)); }
+  #sheet .tonal-btn[data-key=inbox-jev] { background: transparent; color: var(--primary); }
+  #planner :is(.spine-row.done, .spine-meal.past) .spine-pill { color: var(--on-surface-variant); }
+  #planner:is([data-view=blocks], [data-view=projects], [data-view=life]) #planner-scroll {
+    animation: page-fade linear both;
+    animation-timeline: scroll(self block);
+    mask-image: linear-gradient(to bottom, black calc(100% - var(--page-fade)), transparent);
+  }
 }

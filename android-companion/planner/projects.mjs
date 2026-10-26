@@ -1,5 +1,5 @@
 /** Projects list and Project detail. Lists summarise; Block cards appear only one level down. */
-import {tasks} from '../planner-state.mjs';
+import {blockTasks, tasks} from '../planner-state.mjs';
 import {el, icon, button, iconButton, labelButton, emptyState, sectionHeader} from './dom.mjs';
 import {segmentRing, nestRings} from './rings.mjs';
 import {plural, doneStats} from './format.mjs';
@@ -24,12 +24,18 @@ export function toggleProject(state, id) {
   return state.projectOpen;
 }
 
-function blockRow(app, block) {
+function blockRow(app, block, wide) {
   const {done, total} = blockStats(app, block);
   const row = button('', () => app.openBlock(block.id), 'project-block');
   row.dataset.key = 'project-block:' + block.id;
-  row.append(segmentRing(done, total), el('span', 'project-block-name', block.title),
-    el('span', 'project-block-count tnum', `${done}/${total}`));
+  const name = el('span', 'project-block-name', block.title);
+  const next = wide ? blockTasks(app.data(), block.id).find(task => !task.done) : null;
+  let copy = name;
+  if (next) {
+    copy = el('span', 'project-block-copy');
+    copy.append(name, el('span', 'project-block-next', next.title));
+  }
+  row.append(segmentRing(done, total), copy, el('span', 'project-block-count tnum', `${done}/${total}`));
   row.setAttribute('aria-label', `${block.title}, ${done} of ${plural(total, 'task')} done. Open Block`);
   return row;
 }
@@ -59,7 +65,7 @@ function projectCard(app, project) {
   if (open) {
     const list = el('div', 'project-blocks');
     list.dataset.key = 'project-blocks:' + project.id;
-    for (const block of ordered) list.append(blockRow(app, block));
+    for (const block of ordered) list.append(blockRow(app, block, wide));
     if (!ordered.length) list.append(el('p', 'quiet', 'No Blocks in this Project yet.'));
     card.append(list);
   }

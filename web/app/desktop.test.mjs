@@ -122,6 +122,6 @@ test('a wide window shows Search in the top bar and only the sidebar opens Captu
 
 test('Capture on a wide window sits on a full scrim and has no helper line', () => {
   const wide = css.slice(css.indexOf(`@media ${WIDE}`));
-  assert.match(wide, /\.capture-sheet::backdrop \{[^}]*background: var\(--scrim\)/);
+  assert.match(wide, /\.capture-sheet::backdrop \{[^}]*background: light-dark\(var\(--scrim\), /);
   assert.doesNotMatch(read('./index.html'), /capture-hint|capture-help/);
 });

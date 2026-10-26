@@ -26,6 +26,11 @@ test('on wide each Project card lists its Blocks and opens the Project; the phon
   assert.match(source, /const wide = Boolean\(app\.api\.wide\?\.\(\)\);\n  const open = wide \|\| app\.state\.projectOpen === project\.id;/);
   assert.match(source, /if \(!wide\) toggle\.setAttribute\('aria-expanded'/);
   assert.match(source, /if \(!wide\) head\.append\(iconButton\('chevron_right'/);
+  assert.match(source, /const next = wide \? blockTasks\(app\.data\(\), block\.id\)\.find\(task => !task\.done\) : null;/);
+  assert.match(source, /copy\.append\(name, el\('span', 'project-block-next', next\.title\)\);/);
+  const css = read('./wide-pages.css');
+  assert.match(css, /\.page > \.project-card \{\n    grid-column: 1 \/ -1;\n    display: grid;\n    grid-template-columns: minmax\(0, 320px\) minmax\(0, 1fr\);/);
+  assert.match(css, /\.project-blocks \{\n    grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 280px\), 1fr\)\);/);
 });
 
 test('on wide Life puts the wheel on the left and each Area with its rating and Goals on the right', () => {
@@ -35,6 +40,26 @@ test('on wide Life puts the wheel on the left and each Area with its rating and 
   const css = read('./wide-pages.css');
   assert.match(css, /\.page:has\(> \.life-areas\) \{\n    display: grid;\n    grid-template-columns: minmax\(0, 480px\) minmax\(0, 1fr\);/);
   assert.match(css, /\.page:has\(> \.life-areas\) \.wheel-areas \{ display: none; \}/);
+  const start = source.indexOf('function areaGoals');
+  const goals = source.slice(start, source.indexOf('\nfunction', start + 1));
+  assert.match(goals, /ratingInput\(app, area, rating => \{ value\.textContent = rating; \}\)/);
+  assert.doesNotMatch(goals, /Not rated/);
+  assert.match(css, /\.life-area-row \{\n    display: grid;\n    grid-template-columns: minmax\(0, 1fr\) minmax\(120px, 200px\) var\(--s6\);/);
+  assert.match(css, /\.life-area-row \.rating-slider \{ grid-area: auto; \}/);
+  assert.match(read('../../android-companion/planner/life-wheel.mjs'), /const none = app\.api\.wide\?\.\(\) \? '' : '–';/);
+  assert.match(css, /\.wheel-average:empty \{ display: none; \}/);
+});
+
+test('on wide the Inbox pane matches the page, Sort with Jev is a text button, a past meal icon is legible, and long pages fade at the foot', () => {
+  const css = read('./wide-pages.css');
+  assert.match(css, /#sheet\[data-inline\] \{ --sheet-surface: light-dark\(var\(--surface-container-low\), var\(--surface-container\)\); \}/);
+  assert.match(css, /\.tonal-btn\[data-key=inbox-jev\] \{ background: transparent; color: var\(--primary\); \}/);
+  assert.match(css, /:is\(\.spine-row\.done, \.spine-meal\.past\) \.spine-pill \{ color: var\(--on-surface-variant\); \}/);
+  assert.match(css, /#planner-scroll \{\n    animation: page-fade linear both;\n    animation-timeline: scroll\(self block\);/);
+  const web = read('./web.css');
+  assert.match(web, /@property --page-fade \{ syntax: "<length>"; inherits: false; initial-value: 0px; \}/);
+  assert.match(web, /\[data-view=projects\]\) \.page \{ display: grid; grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 360px\), 1fr\)\); align-items: stretch;/);
+  assert.match(web, /\.capture-sheet::backdrop \{ background: light-dark\(var\(--scrim\), color-mix\(in oklch, var\(--scrim\), oklch\(0 0 none\) 35%\)\); \}/);
 });
 
 test('on wide every page title has one weight: the Today date uses the same headline as Blocks, Projects and Life', () => {
