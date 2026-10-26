@@ -1,5 +1,5 @@
 import {DESTINATIONS} from '../../android-companion/planner/shell.mjs';
-import {button, el, icon} from '../../android-companion/planner/dom.mjs';
+import {button, el, icon, iconButton} from '../../android-companion/planner/dom.mjs';
 
 function entry(glyph, label, onClick, cls = 'side-item') {
   const node = button('', onClick, cls);
@@ -14,15 +14,14 @@ export function activeEntry(ui) {
 
 export function mountSidebar(nav, planner, ui) {
   const items = new Map(DESTINATIONS.map(([tab, glyph, label]) => [tab, entry(glyph, label, () => ui.goTab(tab))]));
-  items.set('inbox', entry('inbox', 'Inbox', () => ui.inbox()));
-  items.set('search', entry('search', 'Search', () => ui.openSearch()));
-  items.set('capture', entry('mic', 'Capture', () => ui.capture()));
-  const add = entry('add', 'Add task', () => ui.add(), 'side-add');
+  const inbox = entry('inbox', 'Inbox', () => ui.inbox());
+  const count = el('span', 'side-count tnum');
+  inbox.append(count);
+  const top = el('div', 'side-top');
+  top.append(entry('add', 'Add task', () => ui.add(), 'side-add'), iconButton('mic', 'Capture', () => ui.capture(), {cls: 'side-capture'}));
   const tabs = el('div', 'side-group');
-  tabs.append(...DESTINATIONS.map(([tab]) => items.get(tab)));
-  const tools = el('div', 'side-group');
-  tools.append(items.get('inbox'), items.get('search'), items.get('capture'));
-  nav.replaceChildren(add, tabs, tools);
+  tabs.append(...DESTINATIONS.map(([tab]) => items.get(tab)), inbox);
+  nav.replaceChildren(top, tabs);
   const sync = () => {
     const active = activeEntry(ui);
     for (const [key, node] of items) {
@@ -34,4 +33,5 @@ export function mountSidebar(nav, planner, ui) {
   new MutationObserver(sync).observe(planner, {attributes: true, attributeFilter: ['data-view', 'data-detail']});
   sync();
   nav.hidden = false;
+  return {setInbox: n => { count.textContent = n ? String(n) : ''; }};
 }

@@ -7,6 +7,8 @@ import {applyClarityPreferences} from '../../android-companion/planner-clarity.m
 import {mountPlanner} from '../../android-companion/planner.mjs';
 import {isWide, onWidthChange} from './desktop.mjs';
 import {mountSidebar} from './sidebar.mjs';
+import {mountAgenda} from './agenda.mjs';
+import {inboxTasks} from '../../android-companion/review-state.mjs';
 import {FINE, mountRowTools} from './pointer.mjs';
 import {mountShortcuts} from './shortcuts.mjs';
 import {captureNotes, dismissedNotes} from './capture-notes.mjs';
@@ -21,6 +23,7 @@ const QUIET = 3600000;
 const dismissed = dismissedNotes(localStorage);
 let ui = null;
 let remark = () => {};
+let glance = () => {};
 
 const unsettled = () => client.state.outbox.filter(e => !client.settled(e));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -34,7 +37,9 @@ function mount() {
   root.style.setProperty('--text-scale', String(PHONE.fontScale));
   ui = mountPlanner({getData: () => queue.data(), getPhone: () => PHONE, native: createWebNative({openCapture}), sortPreview,
     label: sentLabel, commit: async op => queue.commit(op), menuItems, inlineSheet: isWide});
-  mountSidebar($('sidebar'), $('planner'), ui);
+  const sidebar = mountSidebar($('sidebar'), $('planner'), ui);
+  const agenda = mountAgenda($('agenda'), $('planner'), ui, () => queue.data());
+  glance = () => { sidebar.setInbox(inboxTasks(queue.data()).length); agenda(); };
   if (matchMedia(FINE).matches) mountRowTools(document);
   mountShortcuts(document, ui, {work: $('workspace'), sheet: $('sheet'), dialog: $('keys-sheet')});
   onWidthChange(() => ui.closeSheet());
@@ -105,6 +110,7 @@ function render() {
   $('banner').textContent = banner ?? '';
   renderNotes(waiting);
   if ($('capture-sheet').open) renderCaptureHistory();
+  glance();
   remark();
 }
 

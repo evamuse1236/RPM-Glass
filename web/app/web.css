@@ -68,33 +68,71 @@ html:has(dialog:modal) { overflow: clip; }
   .planner-view .wr > * { inline-size: min(100%, var(--column)); margin-inline: auto; }
 }
 
-#sidebar { display: none; }
+#sidebar, #agenda { display: none; }
+.side-top { display: flex; align-items: center; gap: var(--s2); padding-inline-start: var(--s1); }
 .side-group { display: grid; gap: var(--s1); }
-.side-item, .side-add { display: flex; align-items: center; gap: var(--s3); min-block-size: 56px; padding-inline: var(--s4) var(--s6); font: var(--label-large); text-align: start; }
-.side-item { border-radius: var(--shape-full); color: var(--on-surface-variant); }
-.side-item[aria-current=page] { background: var(--secondary-container); color: var(--on-secondary-container); }
-.side-add { justify-self: start; border-radius: var(--shape-lg); background: var(--primary); color: var(--on-primary); box-shadow: var(--float-shadow); }
-.side-item:active { background: color-mix(in oklch, var(--on-surface) 12%, transparent); }
-.side-add:active { background: color-mix(in oklch, var(--on-primary) 12%, var(--primary)); }
-:is(.side-item, .side-add):focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.side-item, .side-add { display: flex; align-items: center; gap: var(--s3); font: var(--label-large); text-align: start; }
+.side-item { min-block-size: 40px; padding-inline: var(--s4) var(--s5); border-radius: var(--shape-full); color: var(--on-surface-variant); }
+.side-item[aria-current=page] { background: color-mix(in oklch, var(--secondary-container) 72%, transparent); color: var(--on-secondary-container); }
+.side-count { margin-inline-start: auto; font: var(--label-medium); }
+.side-add { min-block-size: 48px; padding-inline: var(--s4) var(--s5); border-radius: var(--shape-lg); background: var(--primary-container); color: var(--on-primary-container); }
+.side-capture { color: var(--on-surface-variant); border-radius: var(--shape-full); }
+.side-item:active, .side-capture:active { background: color-mix(in oklch, var(--on-surface) 12%, transparent); }
+.side-add:active { background: color-mix(in oklch, var(--on-primary-container) 12%, var(--primary-container)); }
+:is(.side-item, .side-add, .side-capture):focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) {
-  .side-item:hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
+  :is(.side-item, .side-capture):hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
   .side-item[aria-current=page]:hover { background: color-mix(in oklch, var(--on-secondary-container) 8%, var(--secondary-container)); }
-  .side-add:hover { background: color-mix(in oklch, var(--on-primary) 8%, var(--primary)); }
+  .side-add:hover { background: color-mix(in oklch, var(--on-primary-container) 8%, var(--primary-container)); }
+}
+
+.agenda-section { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; padding-block: var(--s2); border-radius: var(--shape-lg); background: var(--surface-container-low); }
+.agenda-head { display: flex; align-items: center; gap: var(--s2); min-block-size: 40px; padding-inline: var(--s4) var(--s3); color: var(--on-surface); text-align: start; }
+.agenda-head h2 { margin: 0; font: var(--title-small); }
+.agenda-head .trailing { margin-inline-start: auto; color: var(--on-surface-variant); }
+:is(.agenda-count, .agenda-due) { font: var(--label-medium); color: var(--on-surface-variant); }
+.agenda-section .list-item { --gutter: var(--s4); min-block-size: 48px; padding-block: var(--s1); }
+.agenda-section .list-headline { font: var(--body-medium); }
+.agenda-section .list-supporting:empty { display: none; }
+.agenda-day .list-supporting { white-space: nowrap; overflow: clip; text-overflow: ellipsis; }
+.agenda-task .must { color: var(--must); }
+.agenda-day.free .list-headline { color: var(--on-surface-variant); }
+button.agenda-head:active { background: color-mix(in oklch, var(--on-surface) 12%, transparent); }
+:is(.agenda-head, .agenda-section .list-item):focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+@media (hover: hover) and (pointer: fine) {
+  :is(button.agenda-head, .agenda-section button.list-item):hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
 }
 
 @media (width >= 1080px) {
-  .planner-view { --side: 280px; --pane: 400px; display: grid; grid-template-columns: var(--side) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
+  .planner-view { --side: 256px; --pane: 400px; --agenda: clamp(360px, 100% - var(--side) - 880px, 720px); --column: 100%; display: grid; grid-template-columns: var(--side) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); column-gap: var(--s6); }
+  .planner-view:has(> #agenda:not([hidden])) { grid-template-columns: var(--side) minmax(0, 1fr) var(--agenda); }
   .planner-view:has(> #sheet[data-inline]:not([hidden])) { grid-template-columns: var(--side) minmax(0, 1fr) var(--pane); }
-  #sidebar { display: flex; flex-direction: column; gap: var(--s6); grid-column: 1; grid-row: 1 / -1; padding: var(--s4) var(--s3); overflow-y: auto; scrollbar-width: none; }
+  .planner-view:has(> #sheet[data-inline]:not([hidden])) > #agenda { display: none; }
+  #sidebar { display: flex; flex-direction: column; gap: var(--s4); grid-column: 1; grid-row: 1 / -1; padding: var(--s4) var(--s3); overflow-y: auto; scrollbar-width: none; }
+  #agenda:not([hidden]) { display: grid; grid-column: 3; grid-row: 1 / -1; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); align-content: start; align-items: start; gap: var(--s3); padding: var(--s4) var(--s4) var(--s4) 0; overflow-y: auto; scrollbar-width: none; }
   .planner-view > :is(#banner, #notes, #planner) { grid-column: 2; }
   .planner-view > #planner { grid-row: 3; }
+  .planner-view .page { max-width: none; margin-inline: 0; }
+  .planner-view #planner:is([data-view=blocks], [data-view=projects]) .page { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); align-items: start; gap: var(--s3); padding-inline: var(--gutter); }
+  .planner-view #planner:is([data-view=blocks], [data-view=projects]) .page > :not(.block-card, .project-card) { grid-column: 1 / -1; }
+  .planner-view #planner:is([data-view=blocks], [data-view=projects]) .page > :is(.block-card, .project-card) { width: auto; margin: 0; }
   .planner-view > #sheet[data-inline] { position: relative; grid-column: 3; grid-row: 1 / -1; inset: auto; max-inline-size: none; max-block-size: none; block-size: auto; margin: 0; border: 0; border-inline-start: 1px solid var(--outline-variant); border-radius: 0; box-shadow: none; }
   .planner-view > #sheet[data-inline] .sheet-handle { display: none; }
   .planner-view > #sheet[data-inline] .sheet-close { position: relative; inline-size: auto; block-size: auto; overflow: visible; clip-path: none; }
-  .planner-view :is(#nav-bar, #dock .fab), .planner-view .top-actions :is([aria-label=Search], [aria-label=Capture]) { display: none; }
+  .planner-view :is(#nav-bar, #dock .fab), .planner-view .top-actions [aria-label=Capture] { display: none; }
   #planner-view #planner ~ #snackbar#snackbar { inset-inline: calc(var(--side) + var(--s4)) var(--s4); inset-block-end: var(--s4); }
   #planner-view #sheet[data-inline]:not([hidden]) ~ #snackbar#snackbar { inset-inline-end: calc(var(--pane) + var(--s4)); }
+  .capture-sheet { inline-size: min(100% - 2 * var(--s6), 640px); border: 1px solid var(--outline-variant); background: var(--surface-container-high); }
+  .capture-sheet::backdrop { background: var(--scrim); }
+  .capture-history li:nth-child(n + 4) { display: none; }
+}
+@media (width >= 1080px) and (prefers-reduced-motion: no-preference) {
+  .capture-sheet[open] { transition: opacity var(--dur-short4) var(--ease-standard-decelerate), scale var(--dur-short4) var(--ease-standard-decelerate); }
+  .capture-sheet[open]::backdrop { transition: opacity var(--dur-short4) var(--ease-standard-decelerate); }
+  @starting-style {
+    .capture-sheet[open] { opacity: 0; scale: .96; }
+    .capture-sheet[open]::backdrop { opacity: 0; }
+  }
 }
 
 @media (pointer: fine) {

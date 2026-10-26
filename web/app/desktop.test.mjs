@@ -21,7 +21,7 @@ function fakeUi() {
   const ui = {state: {tab: 'today', current: null}, calls};
   ui.tab = () => ui.state.tab;
   ui.current = () => ui.state.current;
-  for (const name of ['goTab', 'inbox', 'openSearch', 'capture', 'add']) ui[name] = (...args) => calls.push([name, ...args]);
+  for (const name of ['goTab', 'inbox', 'capture', 'add']) ui[name] = (...args) => calls.push([name, ...args]);
   return ui;
 }
 const labelOf = node => node.querySelector('.side-label')?.textContent;
@@ -54,23 +54,30 @@ test('the inline pane has no drag, no motion and a visible close', () => {
   assert.match(wide, /#nav-bar, #dock \.fab/);
 });
 
-test('the sidebar holds Add, the four tabs, Inbox, Search and Capture, and each one acts', () => {
+test('the sidebar holds Add task and Capture, then the four tabs and Inbox, and each one acts', () => {
   const nav = new FakeElement('nav');
   nav.hidden = true;
   const ui = fakeUi();
-  mountSidebar(nav, new FakeElement('main'), ui);
+  const sidebar = mountSidebar(nav, new FakeElement('main'), ui);
   assert.equal(nav.hidden, false);
-  const [add, tabs, tools] = nav.children;
+  const [top, tabs] = nav.children;
+  const [add, capture] = top.children;
   assert.equal(labelOf(add), 'Add task');
-  assert.deepEqual(tabs.children.map(labelOf), DESTINATIONS.map(([, , label]) => label));
-  assert.deepEqual(tools.children.map(labelOf), ['Inbox', 'Search', 'Capture']);
+  assert.equal(capture.getAttribute('aria-label'), 'Capture');
+  assert.deepEqual(tabs.children.map(labelOf), [...DESTINATIONS.map(([, , label]) => label), 'Inbox']);
   add.click();
+  capture.click();
   tabs.children[1].click();
-  tools.children.forEach(node => node.click());
-  assert.deepEqual(ui.calls, [['add'], ['goTab', DESTINATIONS[1][0]], ['inbox'], ['openSearch'], ['capture']]);
+  tabs.children.at(-1).click();
+  assert.deepEqual(ui.calls, [['add'], ['capture'], ['goTab', DESTINATIONS[1][0]], ['inbox']]);
+  const count = tabs.children.at(-1).querySelector('.side-count');
+  sidebar.setInbox(3);
+  assert.equal(count.textContent, '3');
+  sidebar.setInbox(0);
+  assert.equal(count.textContent, '');
 });
 
-test('the sidebar marks the open tab, and Search while searching', () => {
+test('the sidebar marks the open tab, and no tab while searching', () => {
   const nav = new FakeElement('nav');
   const planner = new FakeElement('main');
   const ui = fakeUi();
@@ -88,7 +95,7 @@ test('the sidebar marks the open tab, and Search while searching', () => {
   ui.state.current = {kind: 'search'};
   assert.equal(activeEntry(ui), 'search');
   observer.fn();
-  assert.deepEqual(current(), ['Search']);
+  assert.deepEqual(current(), []);
 });
 
 test('denser rows apply only to a fine pointer', () => {
@@ -96,4 +103,25 @@ test('denser rows apply only to a fine pointer', () => {
   assert.match(fine, /\.task-row \{ min-block-size: 40px; \}/);
   assert.match(fine, /\.spine-row \{ min-block-size: 40px; \}/);
   assert.doesNotMatch(css.slice(0, css.indexOf('@media (pointer: fine)')), /\.task-row \{ min-block-size/);
+});
+
+test('a wide window anchors the planner to the sidebar and fills the width', () => {
+  const wide = css.slice(css.indexOf(`@media ${WIDE}`));
+  assert.match(wide, /\.planner-view \.page \{ max-width: none; margin-inline: 0; \}/);
+  assert.match(wide, /column-gap: var\(--s6\)/);
+  assert.match(wide, /\.planner-view:has\(> #agenda:not\(\[hidden\]\)\) \{ grid-template-columns: var\(--side\) minmax\(0, 1fr\) var\(--agenda\); \}/);
+  assert.match(wide, /#sheet\[data-inline\]:not\(\[hidden\]\)\) > #agenda \{ display: none; \}/);
+  assert.match(wide, /\[data-view=blocks\], \[data-view=projects\]\) \.page \{ display: grid; grid-template-columns: repeat\(auto-fill/);
+});
+
+test('a wide window shows Search in the top bar and only the sidebar opens Capture', () => {
+  const wide = css.slice(css.indexOf(`@media ${WIDE}`));
+  assert.match(wide, /\.top-actions \[aria-label=Capture\] \{ display: none; \}/);
+  assert.doesNotMatch(wide, /aria-label=Search/);
+});
+
+test('Capture on a wide window sits on a full scrim and has no helper line', () => {
+  const wide = css.slice(css.indexOf(`@media ${WIDE}`));
+  assert.match(wide, /\.capture-sheet::backdrop \{[^}]*background: var\(--scrim\)/);
+  assert.doesNotMatch(read('./index.html'), /capture-hint|capture-help/);
 });
