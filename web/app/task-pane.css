@@ -21,7 +21,9 @@
     padding-inline-end: var(--s3);
     font: var(--title-large);
   }
-  #sheet[data-inline] .sheet-header:has(> .task-head) ~ .sheet-body { flex: 0 1 auto; }
+  #sheet[data-inline] .tab-row { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2fr); }
+  #sheet[data-inline] .tab-value { overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+  #sheet[data-inline] .number-chip input:not(:focus-visible) { border-block-end-color: transparent; }
   #sheet[data-inline] .task-start {
     grid-area: start;
     display: grid;

@@ -29,13 +29,15 @@ function blockRow(app, block, wide) {
   const row = button('', () => app.openBlock(block.id), 'project-block');
   row.dataset.key = 'project-block:' + block.id;
   const name = el('span', 'project-block-name', block.title);
-  const next = wide ? blockTasks(app.data(), block.id).find(task => !task.done) : null;
-  let copy = name;
-  if (next) {
-    copy = el('span', 'project-block-copy');
-    copy.append(name, el('span', 'project-block-next', next.title));
+  if (!wide) {
+    row.append(segmentRing(done, total), name, el('span', 'project-block-count tnum', `${done}/${total}`));
+  } else {
+    const next = blockTasks(app.data(), block.id).find(task => !task.done);
+    const copy = el('span', 'project-block-copy');
+    copy.append(name, el('span', 'project-block-next', next?.title ?? (total ? 'All done' : 'No tasks yet')));
+    row.title = block.title;
+    row.append(...(total ? [segmentRing(done, total), copy, el('span', 'project-block-count tnum', `${done}/${total}`)] : [copy]));
   }
-  row.append(segmentRing(done, total), copy, el('span', 'project-block-count tnum', `${done}/${total}`));
   row.setAttribute('aria-label', `${block.title}, ${done} of ${plural(total, 'task')} done. Open Block`);
   return row;
 }
@@ -57,7 +59,7 @@ function projectCard(app, project) {
   const copy = el('span', 'project-copy');
   copy.append(el('span', 'project-area', area?.title ?? 'No area'), el('span', 'card-title', project.title),
     el('span', 'card-meta tnum', meta));
-  toggle.append(nestRings(ordered.map(block => blockStats(app, block)), `${stats.done} of ${stats.total} tasks done`), copy);
+  toggle.append(nestRings(wide ? [stats] : ordered.map(block => blockStats(app, block)), `${stats.done} of ${stats.total} tasks done`), copy);
   const head = el('div', 'project-head');
   head.append(toggle);
   if (!wide) head.append(iconButton('chevron_right', `Open ${project.title}`, () => app.openProject(project.id), {cls: 'project-open'}));

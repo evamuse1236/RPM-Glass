@@ -59,7 +59,7 @@ function areaGoals(app, areas, loose) {
     const goals = app.p().goals.filter(g => g.areaId === area.id && g.year === app.state.year);
     const row = el('div', 'life-area-row');
     row.dataset.tone = app.tone(area);
-    const value = el('span', 'life-rating tnum', area.rating == null ? '' : `${area.rating}`);
+    const value = el('span', 'life-rating tnum', area.rating == null ? '–' : `${area.rating}`);
     row.append(listItem({leading: initialAvatar(app, area), headline: area.title, cls: 'life-area',
       onClick: () => app.openArea(area.id)}), ratingInput(app, area, rating => { value.textContent = rating; }), value);
     list.append(row);

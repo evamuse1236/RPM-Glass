@@ -79,8 +79,10 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
     return undefined;
   };
 
+  const wide = Boolean(app.api.wide?.());
   const head = taskHead({
     task,
+    tips: wide,
     onToggle: toggle,
     onMust: on => {
       head.setMust(on);
@@ -93,14 +95,15 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
     },
   });
   head.row.dataset.task = String(id);
-  header.querySelector('.sheet-close').before(head.row);
+  const close = header.querySelector('.sheet-close');
+  close.before(head.row);
+  if (wide) close.title = 'Close';
   const startable = t => startNowValue(t, {repeating: repeats(t)});
   const start = button('', () => {
     const value = startable(live());
     if (value) setWhen(value, 'Started at ' + clockOf(value.day, value.time));
   }, 'assist-chip task-start');
   start.append(icon('play_arrow'), el('span', 'chip-label', 'Start now'));
-  const wide = Boolean(app.api.wide?.());
   if (wide) start.title = 'Start now';
   head.row.append(start);
   if (fromInbox) header.prepend(iconButton('arrow_back', 'Back to Inbox', goBack, {cls: 'sheet-back'}));

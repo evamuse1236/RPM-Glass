@@ -109,7 +109,7 @@ export function renderAgenda(host, data, ui, now = new Date(), split = isSplit()
     head('Tomorrow', {count: tomorrow.count, onClick: () => ui.openView({view: 'day', date: tomorrow.day})}),
     ...tomorrow.tasks.map(task => timedItem(task, ui))) : null;
   const week = model.week.length ? section('agenda-week', head('Week'), ...model.week.flatMap(day => weekDay(day, ui))) : null;
-  host.replaceChildren(...(split ? [column(inbox, ...blocks), column(ahead, week)] : [column(inbox, ...blocks, week)]));
+  host.replaceChildren(column(inbox, ...blocks, ahead, week));
 }
 
 /** The Today side panel on a wide window: shown only on Today, redrawn on every snapshot. */

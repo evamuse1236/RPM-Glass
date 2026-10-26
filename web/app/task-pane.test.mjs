@@ -35,7 +35,22 @@ test('the wide task pane puts its icons on one row above a full-width title of a
   assert.match(css, /grid-template-areas: "pill \. start must ring close" "title title title title title title";/);
   assert.match(css, /\.task-title-field \{\s+grid-area: title;\s+max-block-size: calc\(2lh \+ var\(--s4\)\);[^}]*font: var\(--title-large\);/);
   assert.match(css, /\.sheet-header:has\(> \.task-head\) > \.sheet-close \{ position: absolute;/);
-  assert.match(css, /\.sheet-header:has\(> \.task-head\) ~ \.sheet-body \{ flex: 0 1 auto; \}/);
+  assert.doesNotMatch(css, /~ \.sheet-body \{ flex: 0 1 auto; \}/, 'the tools sit at the foot of the pane, not mid-pane above an empty strip');
+});
+
+test('on wide the task pane names its icons on hover, spells out the Block, and draws no line under an idle Other field', () => {
+  const sheet = read('../../android-companion/planner/task-sheet.mjs');
+  assert.match(sheet, /const wide = Boolean\(app\.api\.wide\?\.\(\)\);\n  const head = taskHead\(\{\n    task,\n    tips: wide,/);
+  assert.match(sheet, /if \(wide\) close\.title = 'Close';/);
+  assert.match(sheet, /if \(wide\) start\.title = 'Start now';/);
+  const head = read('../../android-companion/planner/task-head.mjs');
+  assert.match(head, /if \(tips\) must\.title = 'Must';/);
+  assert.match(head, /if \(tips\) ring\.title = t\.done \? 'Mark incomplete' : 'Mark complete';/);
+  assert.match(read('../../android-companion/planner/task-tabs.mjs'), /setTab\('block', wide \? blockTitle\?\.trim\(\) \|\| 'Inbox' : blockShort\(blockTitle\), 'stacks'\);/);
+  const css = read('./task-pane.css');
+  assert.match(css, /#sheet\[data-inline\] \.tab-row \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\) minmax\(0, 2fr\); \}/);
+  assert.match(css, /#sheet\[data-inline\] \.tab-value \{ overflow: clip; text-overflow: ellipsis; white-space: nowrap; \}/);
+  assert.match(css, /#sheet\[data-inline\] \.number-chip input:not\(:focus-visible\) \{ border-block-end-color: transparent; \}/);
 });
 
 test('while the task pane is open, the task card or chip on Today is outlined, and only on wide', async () => {

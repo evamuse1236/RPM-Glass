@@ -105,7 +105,8 @@ export function taskTabs({get, pick, tick = () => {}, remote = false, wide = fal
     setTab('when', whenShort(now), 'schedule');
     setTab('alert', shownAlert.text, shownAlert.symbol);
     setTab('repeat', repeatShort(now.task), 'repeat');
-    setTab('block', blockShort(now.blocks.find(b => b.id === now.blockId)?.title), 'stacks');
+    const blockTitle = now.blocks.find(b => b.id === now.blockId)?.title;
+    setTab('block', wide ? blockTitle?.trim() || 'Inbox' : blockShort(blockTitle), 'stacks');
     when.paint(now);
     alert.paint(now);
     repeat.paint(now);

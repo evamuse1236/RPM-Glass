@@ -40,13 +40,15 @@
   #planner .life-area .list-headline { font: var(--title-small); }
   #planner .life-area-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(120px, 200px) var(--s6);
+    grid-template-columns: minmax(0, 280px) minmax(120px, 480px) var(--s6);
     align-items: center;
     column-gap: var(--s3);
     padding-inline-end: var(--s2);
   }
   #planner .life-area-row .rating-slider { grid-area: auto; }
   #planner .life-rating { font: var(--title-small); text-align: end; }
+  #planner .life-area-row:has(.rating-slider.unrated) .life-rating { color: var(--on-surface-variant); }
+  #planner .wheel-copy p { display: none; }
   #planner .wheel-average:empty { display: none; }
 
   .planner-view #planner[data-view=projects] .page > .project-card {
@@ -62,14 +64,11 @@
     padding: var(--s3);
   }
   #planner[data-view=projects] .project-blocks > p { grid-column: 1 / -1; align-self: center; }
-  #planner .project-block-copy { flex: 1; display: grid; min-inline-size: 0; }
-  #planner .project-block-next {
-    overflow: clip;
-    font: var(--body-small);
-    color: var(--on-surface-variant);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+  #planner .project-block-copy { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); min-inline-size: 0; }
+  #planner .project-block:not(:has(.seg-ring)) { padding-inline-start: calc(var(--s8) + var(--s5)); }
+  #planner .project-block-count { flex: none; inline-size: 40px; text-align: end; }
+  #planner :is(.project-block-name, .project-block-next) { overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+  #planner .project-block-next { font: var(--body-small); color: var(--on-surface-variant); }
   #planner .list-item.nested { padding-inline-start: calc(var(--s8) + var(--s6)); }
   .planner-view > #sheet[data-inline] { --sheet-surface: light-dark(var(--surface-container-low), var(--surface-container)); }
   #sheet .tonal-btn[data-key=inbox-jev] { background: transparent; color: var(--primary); }
