@@ -147,10 +147,10 @@ $('capture-form').addEventListener('submit', event => {
   $('capture-sheet').close();
 });
 
-queue.subscribe(({foreign, createdSaved}) => {
+queue.subscribe(({foreign, redraw}) => {
   if (!ui) return render();
-  if (foreign) dispatchEvent(new Event('rpm-data-refresh'));
-  else if (createdSaved && $('sheet').hidden) ui.render();
+  if (foreign && !$('sheet').hidden) dispatchEvent(new Event('rpm-data-refresh'));
+  else if ((foreign || redraw) && $('sheet').hidden) ui.render();
   render();
 });
 
