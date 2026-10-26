@@ -8,7 +8,7 @@ import {localDay} from './planner-state.mjs';
 
 installFakeDom();
 const said='call mom at 8pm and buy milk tomorrow';
-const titles=host=>host.querySelectorAll('.forming-title').map(n=>n.textContent);
+const titles=host=>[...host.querySelectorAll('.forming-title')].map(n=>n.textContent);
 
 function screen(){
  const host=new FakeElement('div'),content=new FakeElement('div');
@@ -64,7 +64,7 @@ test('when the receipt is ready the held cards hand over to its saved rows, in o
  assert.equal(land(s.content),true);
  assert.equal(s.host.children.length,0,'no unsaved copy is left behind');
  assert.equal(s.host.getAttribute('aria-busy'),null);
- assert.deepEqual(card.querySelectorAll('.item-title').map(n=>n.textContent),['Call mom','Buy milk']);
+ assert.deepEqual([...card.querySelectorAll('.item-title')].map(n=>n.textContent),['Call mom','Buy milk']);
  assert.ok(card.classList.contains('kept'),'the saved card does not enter a second time');
 });
 
@@ -114,7 +114,13 @@ test('Capture no longer shows a waiting card after Send',()=>{
  assert.match(app,/keep:wordsOnly\(request\)/);
 });
 
-const pills=host=>host.querySelectorAll('.forming-pill').map(n=>n.firstChild.textContent);
+test('only a Send that did not reach the phone shows Not saved yet and puts the words back',()=>{
+ const app=fs.readFileSync(new URL('./capture-app.mjs',import.meta.url),'utf8');
+ assert.match(app,/try\{data=await post\(payload\);\}\s*catch\(error\)\{/);
+ assert.equal(app.match(/s\.failure=\{/g)?.length,1);
+});
+
+const pills=host=>[...host.querySelectorAll('.forming-pill')].map(n=>n.firstChild.textContent);
 
 test('a streamed change to a saved item adds no card; a new Project or Block forms with its own icon',()=>{
  const s=screen();

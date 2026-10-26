@@ -73,7 +73,7 @@ test('a tap in the card outside the tray closes it, a tap inside keeps it',()=>{
 test('a pick saves at once through edit-item, shows the new value while saving, then pops',async()=>{
  const h=harness([task(1,{planned:at(today,'18:00')})]);
  h.chip('time').click();
- const pick=h.tray().querySelectorAll('.tray-pick').find(b=>/^7\sPM$/.test(b.textContent));
+ const pick=[...h.tray().querySelectorAll('.tray-pick')].find(b=>/^7\sPM$/.test(b.textContent));
  pick.click();
  assert.deepEqual({...h.sent[0],label:undefined},{kind:'edit-item',conversationId:'c1',draftId:'d1',entity:'task',id:'1',field:'time',value:`${today} 19:00`,label:undefined});
  assert.match(h.sent[0].label,/^Time set to 7\sPM$/);
@@ -88,7 +88,7 @@ test('a pick saves at once through edit-item, shows the new value while saving, 
 test('a failed save marks the chip and keeps the value it had',async()=>{
  const h=harness([task(1,{planned:at(today,'18:00')})],{result:()=>null});
  h.chip('alert').click();
- h.tray().querySelectorAll('.tray-pick').find(b=>b.textContent==='Alarm').click();
+ [...h.tray().querySelectorAll('.tray-pick')].find(b=>b.textContent==='Alarm').click();
  h.settle(); await new Promise(r=>setImmediate(r));
  assert.ok(h.chip('alert').classList.contains('failed'));
  assert.equal(label(h.chip('alert')),'Add alert');
@@ -97,7 +97,7 @@ test('a failed save marks the chip and keeps the value it had',async()=>{
 test('tapping the value a field already has only closes the tray',()=>{
  const h=harness([task(1,{planned:at(today,'18:00'),alert:'reminder'})]);
  h.chip('alert').click();
- h.tray().querySelectorAll('.tray-pick').find(b=>b.textContent==='Reminder').click();
+ [...h.tray().querySelectorAll('.tray-pick')].find(b=>b.textContent==='Reminder').click();
  assert.equal(h.sent.length,0); assert.equal(h.tray().inert,true);
 });
 
@@ -135,7 +135,7 @@ test('the change row undoes only the newest edit, and hides once another change 
 test('items after the third are compact rows, and after the sixth a "+N more" row',()=>{
  const rows=Array.from({length:8},(_,i)=>task(i+1,{},`Task ${i+1}`));
  const h=harness(rows);
- const items=h.card.querySelectorAll('ul.chip-items > li');
+ const items=[...h.card.querySelectorAll('ul.chip-items > li')];
  assert.equal(items.filter(li=>!li.classList.contains('compact')).length,FULL_ITEMS);
  assert.equal(items.length,SHOWN_ITEMS+1);
  assert.equal(items.at(-1).textContent,`+${rows.length-SHOWN_ITEMS} more`);
@@ -143,8 +143,8 @@ test('items after the third are compact rows, and after the sixth a "+N more" ro
  assert.equal(compact.getAttribute('aria-label'),'Task: Task 4. Show details');
  compact.click();
  h.render();
- assert.equal(h.card.querySelectorAll('ul.chip-items > li').filter(li=>!li.classList.contains('compact')).length,FULL_ITEMS+1,'an opened item stays open');
- h.card.querySelectorAll('ul.chip-items > li').at(-1).querySelector('button').click();
+ assert.equal([...h.card.querySelectorAll('ul.chip-items > li')].filter(li=>!li.classList.contains('compact')).length,FULL_ITEMS+1,'an opened item stays open');
+ [...h.card.querySelectorAll('ul.chip-items > li')].at(-1).querySelector('button').click();
  h.render();
  assert.equal(h.card.querySelectorAll('ul.chip-items > li').length,rows.length);
 });

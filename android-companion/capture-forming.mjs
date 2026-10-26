@@ -119,9 +119,9 @@ function glide(item,from,still){
 }
 
 function pairUp(cards,items){
- const pairs=new Map(),free=new Set(items);
+ const list=[...items],pairs=new Map(),free=new Set(list);
  for(const c of cards){
-  const item=c.op&&items.find(n=>free.has(n)&&n.dataset.op===c.op);
+  const item=c.op&&list.find(n=>free.has(n)&&n.dataset.op===c.op);
   if(item){free.delete(item);pairs.set(c,item);}
  }
  for(const c of cards){
@@ -192,9 +192,8 @@ export function installForming({host,platform,conversationId}){
   lift(){
    if(!held)return ()=>false;
    const cards=held.map(h=>({op:h.op,node:h.node,from:h.node.getBoundingClientRect?.()??null}));
-   return (content,{keep=false}={})=>{
-    const rows=held.map(h=>h.row);
-    held=null;host.removeAttribute('aria-busy');
+   const rows=held.map(h=>h.row);
+   const handOver=(content,keep)=>{
     const pairs=pairUp(cards,content.querySelectorAll('.chip-items > li[data-op]')),still=reducedMotion();
     if(keep&&!pairs.size){
      if(text.trim())draw(gate.state());else{kept=true;paintForming(host,rows);}
@@ -209,6 +208,16 @@ export function installForming({host,platform,conversationId}){
     }
     if(text.trim())draw(gate.state());
     return pairs.size>0;
+   };
+   return (content,{keep=false}={})=>{
+    held=null;host.removeAttribute('aria-busy');
+    try{return handOver(content,keep);}
+    catch(error){
+     console.error(error);
+     kept=false;leaving.clear();host.replaceChildren();
+     if(text.trim())draw(gate.state());
+     return false;
+    }
    };
   },
   release(){held=null;host.removeAttribute('aria-busy');},

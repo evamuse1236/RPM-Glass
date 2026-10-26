@@ -31,6 +31,14 @@ function matcher(selector){
  return node=>alternatives.some(parts=>chainMatches(parts,node));
 }
 
+/** Like a real NodeList: indexable and iterable, with forEach but no array methods. */
+class FakeNodeList{
+ constructor(nodes){nodes.forEach((n,i)=>{this[i]=n;});this.length=nodes.length;}
+ item(i){return this[i]??null;}
+ forEach(fn,self){for(let i=0;i<this.length;i++)fn.call(self,this[i],i,this);}
+ *[Symbol.iterator](){for(let i=0;i<this.length;i++)yield this[i];}
+}
+
 export class FakeElement{
  constructor(tag){
   this.tagName=tag.toLowerCase();this.children=[];this.parentNode=null;this.className='';
@@ -74,7 +82,7 @@ export class FakeElement{
  querySelectorAll(selector){
   const m=matcher(selector),out=[];
   const walk=n=>n.children.forEach(c=>{if(m(c))out.push(c);walk(c);});
-  walk(this);return out;
+  walk(this);return new FakeNodeList(out);
  }
  querySelector(selector){return this.querySelectorAll(selector)[0]??null;}
  addEventListener(type,fn){if(!this.listeners.has(type))this.listeners.set(type,[]);this.listeners.get(type).push(fn);}

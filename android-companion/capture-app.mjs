@@ -79,17 +79,9 @@ export function mountCapture(platform){
   }
   if(words!==null&&message.value===words){composer.set('',{focus:false});rememberComposer('');}
   render();
-  try{
-   const data=await post(payload);
-   s.state=data;
-   if(words!==null)identity.settle();
-   const land=forming.lift(),request=endRequest();
-   if(words!==null)rememberComposer(message.value);
-   if(s.focusedDraftId&&!ACTIVE.has(findDraft(s.focusedDraftId)?.status))s.focusedDraftId=null;
-   render();
-   settle(card,land(content,{keep:wordsOnly(request)}));
-   return data;
-  }catch(error){
+  let data;
+  try{data=await post(payload);}
+  catch(error){
    const land=forming.lift(),request=endRequest();
    const saved=!!request&&captures().some(c=>c.messageId===request.payload.messageId);
    if(!saved)forming.release();
@@ -103,6 +95,14 @@ export function mountCapture(platform){
    if(saved)land(content,{keep:wordsOnly(request)});
    return null;
   }
+  s.state=data;
+  if(words!==null)identity.settle();
+  const land=forming.lift(),request=endRequest();
+  if(words!==null)rememberComposer(message.value);
+  if(s.focusedDraftId&&!ACTIVE.has(findDraft(s.focusedDraftId)?.status))s.focusedDraftId=null;
+  render();
+  settle(card,land(content,{keep:wordsOnly(request)}));
+  return data;
  }
  const wordsOnly=request=>{
   const c=request&&captures().find(c=>c.messageId===request.payload.messageId);
