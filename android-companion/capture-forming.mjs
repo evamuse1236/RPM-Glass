@@ -129,10 +129,11 @@ function pairUp(cards,items){
 }
 
 export function installForming({host,platform,conversationId}){
- let text='',shown=true,held=null,reading=false;
+ let text='',shown=true,held=null,reading=false,kept=false;
  const leaving=new Set();
  const draw=state=>{
-  if(held)return;
+  if(held||kept&&shown&&!text.trim())return;
+  kept=false;
   for(const node of leaving)node.remove();
   leaving.clear();
   if(!shown||!text.trim()){host.replaceChildren();return;}
@@ -155,8 +156,9 @@ export function installForming({host,platform,conversationId}){
   update(next,{enabled,visible}){text=next;shown=visible;gate.type(visible?next:'',{enabled:enabled&&visible});},
   hold(words,{reading:read=false}={}){
    if(!words.trim())return false;
-   const kept=words===text?gate.state().rows:null,rows=kept??instantRows(words);
+   const guess=words===text?gate.state().rows:null,rows=guess??instantRows(words);
    host.setAttribute('aria-busy','true');
+   kept=false;
    held=(rows.length?rows:[pendingRow({title:words.trim()})]).map(row=>({op:null,row}));
    reading=read;text='';
    gate.sent();
@@ -176,9 +178,11 @@ export function installForming({host,platform,conversationId}){
   lift(){
    if(!held)return ()=>false;
    const cards=held.map((h,i)=>{const node=host.children[i];return {op:h.op,node,from:node.getBoundingClientRect?.()??null};});
-   return content=>{
+   return (content,{keep=false}={})=>{
+    const rows=held.map(h=>h.row);
     held=null;host.removeAttribute('aria-busy');
     const pairs=pairUp(cards,content.querySelectorAll('.chip-items > li[data-op]')),still=reducedMotion();
+    if(keep&&!pairs.size){kept=true;paintForming(host,rows);return false;}
     for(const c of cards){
      const item=pairs.get(c);
      if(!item){leave(c.node,still);continue;}

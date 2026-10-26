@@ -83,12 +83,11 @@ export function mountCapture(platform){
    const data=await post(payload);
    s.state=data;
    if(words!==null)identity.settle();
-   const land=forming.lift();
-   endRequest();
+   const land=forming.lift(),request=endRequest();
    if(words!==null)rememberComposer(message.value);
    if(s.focusedDraftId&&!ACTIVE.has(findDraft(s.focusedDraftId)?.status))s.focusedDraftId=null;
    render();
-   settle(card,land(content));
+   settle(card,land(content,{keep:wordsOnly(request)}));
    return data;
   }catch(error){
    const land=forming.lift(),request=endRequest();
@@ -101,10 +100,14 @@ export function mountCapture(platform){
    }else{s.problem=text;if(words!==null)rememberComposer(message.value);}
    reveal.settle(null,{failed:true});
    render();
-   if(saved)land(content);
+   if(saved)land(content,{keep:wordsOnly(request)});
    return null;
   }
  }
+ const wordsOnly=request=>{
+  const c=request&&captures().find(c=>c.messageId===request.payload.messageId);
+  return !!c&&['pending','words-kept'].includes(cardKind(c));
+ };
  function endRequest(){
   const request=s.request;
   s.busy=false;s.request=null;

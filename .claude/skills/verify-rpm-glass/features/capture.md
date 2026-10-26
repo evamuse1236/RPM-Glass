@@ -34,7 +34,7 @@ Preconditions:
 - `rpmctl open capture` has been run and the bar shows the field `Capture a thought`.
 
 - **Open.** Run `rpmctl shot capture-empty`. The bar shows the textarea named `Capture a thought`, a `More` button (three dots) and a round `Voice input` button. `Send` replaces `Voice input` once something is typed. There is no header.
-- **Send with no key.** Type words, then press `rpmctl key enter`. A card above the bar shows a green check and the words quoted on one line (a button named `Your words are saved: <words>`; a tap shows them all), with buttons `Edit`, `Retry` and `Connect an AI key`. Run `rpmctl shot capture-keyless-saved`.
+- **Send with no key.** Type words, then press `rpmctl key enter`. A card above the bar shows a green check and the words quoted on one line (a button named `Your words are saved: <words>`; a tap shows them all), with buttons `Edit`, `Retry` and `Connect an AI key`. The dashed cards that formed while typing (named `Not saved yet: <title>`) stay below it until new words are typed. Run `rpmctl shot capture-keyless-saved`.
 - **Readback.** Run `rpmctl state files/companion.json`. Under `intentV2.captures`, one entry has `raw` equal to the typed words and `status` `captured`, with a `lastError`. No task with that title exists in `entries`.
 - **Edit the kept words.** With the field empty, tap `Edit`. The words return to the field.
 - **Connect.** Tap `Connect an AI key`. The planner opens its Settings with the `Connect OpenRouter` dialog. Cancel it, then run `rpmctl open capture`.

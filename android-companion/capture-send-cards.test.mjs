@@ -78,6 +78,22 @@ test('a held card the model dropped leaves; with nothing streamed the cards stil
  assert.equal(s.host.children.length,0);
 });
 
+test('with no AI key the cards stay after the words are saved, until new words are typed',()=>{
+ const s=screen();
+ s.forming.hold(said);
+ const kept=s.host.children.slice();
+ const land=s.forming.lift();
+ const card=new FakeElement('section');card.className='card enter failure';
+ s.content.replaceChildren(card);
+ assert.equal(land(s.content,{keep:true}),false);
+ assert.deepEqual(s.host.children,kept,'the same cards stay');
+ assert.equal(s.host.getAttribute('aria-busy'),null);
+ s.forming.update('',{enabled:false,visible:true});
+ assert.deepEqual(s.host.children,kept,'an empty field does not clear them');
+ s.forming.update('water the plants tonight',{enabled:false,visible:true});
+ assert.deepEqual(titles(s.host),['Water the plants']);
+});
+
 test('a failed send lets the cards form again from the words put back',()=>{
  const s=screen();
  s.forming.hold(said);
@@ -95,4 +111,5 @@ test('Capture no longer shows a waiting card after Send',()=>{
  assert.doesNotMatch(app,/pendingCard|Reading them now/);
  assert.doesNotMatch(cards,/pendingCard|Reading them now|Saving your words/);
  assert.match(app,/type==='partial'/);
+ assert.match(app,/keep:wordsOnly\(request\)/);
 });
