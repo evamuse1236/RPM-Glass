@@ -66,7 +66,7 @@ export function validateSnapshot(value) {
 export function validateCommand(value) {
   if (!matches(commandSchema, value) || value.type === 'reschedule' && value.args.time !== null && value.args.day !== null) throw new Error('Invalid browser command');
   if (value.type === 'capture') {
-    try { new Intl.DateTimeFormat('en', {timeZone: value.args.timezone ?? value.timezone ?? 'Asia/Kolkata'}); }
+    try { new Intl.DateTimeFormat('en', {timeZone: value.timezone ?? 'Asia/Kolkata'}); }
     catch { throw new Error('Invalid browser command'); }
   }
   return value;

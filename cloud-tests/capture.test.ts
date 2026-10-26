@@ -76,9 +76,9 @@ describe("durable server Capture",()=>{
   const s=await start();for(let i=0;i<3;i++){expect(await s.t.mutation(claim,{captureId:s.row._id})).not.toBeNull();vi.setSystemTime(Date.now()+300001);}
   await s.t.mutation(recover,{});expect((await rows(s))[0]).toMatchObject({attempts:3,status:"words-kept"});expect(await s.t.mutation(claim,{captureId:s.row._id})).toBeNull();
  });
- it("accepts args.timezone and rejects invalid IANA names before saving",async()=>{
-  const s=await seeded();expect((await enqueue(s.t,s.web.token,{...command(),type:"capture",args:{text,timezone:"America/New_York"}})).status).toBe(202);
-  expect((await enqueue(s.t,s.web.token,{...command(2),type:"capture",args:{text,timezone:"Mars/Olympus"}})).status).toBe(400);
+ it("accepts the command timezone and rejects invalid IANA names before saving",async()=>{
+  const s=await seeded();expect((await enqueue(s.t,s.web.token,{...command(),type:"capture",args:{text},timezone:"America/New_York"})).status).toBe(202);
+  expect((await enqueue(s.t,s.web.token,{...command(2),type:"capture",args:{text},timezone:"Mars/Olympus"})).status).toBe(400);
  });
  it("two worker invocations make only one model call and one task",async()=>{
   const s=await start();await Promise.all([s.t.action(run,{captureId:s.row._id}),s.t.action(run,{captureId:s.row._id})]);
