@@ -1,5 +1,5 @@
 /** Projects list and Project detail. Lists summarise; Block cards appear only one level down. */
-import {tasks} from '../planner-state.mjs';
+import {blockTasks, tasks} from '../planner-state.mjs';
 import {el, icon, button, iconButton, labelButton, emptyState, sectionHeader} from './dom.mjs';
 import {segmentRing, nestRings} from './rings.mjs';
 import {plural, doneStats} from './format.mjs';
@@ -24,12 +24,20 @@ export function toggleProject(state, id) {
   return state.projectOpen;
 }
 
-function blockRow(app, block) {
+function blockRow(app, block, wide) {
   const {done, total} = blockStats(app, block);
   const row = button('', () => app.openBlock(block.id), 'project-block');
   row.dataset.key = 'project-block:' + block.id;
-  row.append(segmentRing(done, total), el('span', 'project-block-name', block.title),
-    el('span', 'project-block-count tnum', `${done}/${total}`));
+  const name = el('span', 'project-block-name', block.title);
+  if (!wide) {
+    row.append(segmentRing(done, total), name, el('span', 'project-block-count tnum', `${done}/${total}`));
+  } else {
+    const next = blockTasks(app.data(), block.id).find(task => !task.done);
+    const copy = el('span', 'project-block-copy');
+    copy.append(name, el('span', 'project-block-next', next?.title ?? (total ? 'All done' : 'No tasks yet')));
+    row.title = block.title;
+    row.append(...(total ? [segmentRing(done, total), copy, el('span', 'project-block-count tnum', `${done}/${total}`)] : [copy]));
+  }
   row.setAttribute('aria-label', `${block.title}, ${done} of ${plural(total, 'task')} done. Open Block`);
   return row;
 }
@@ -38,26 +46,28 @@ function projectCard(app, project) {
   const area = app.projectArea(project);
   const {blocks, stats} = projectTasks(app, project);
   const ordered = byDeadline(app.data(), blocks);
-  const open = app.state.projectOpen === project.id;
+  const wide = Boolean(app.api.wide?.());
+  const open = wide || app.state.projectOpen === project.id;
   const card = el('article', 'project-card' + (open ? ' open' : ''));
   card.dataset.projectId = project.id;
   card.dataset.tone = app.tone(area);
   const meta = `${plural(blocks.length, 'Block')} · ${stats.done} of ${stats.total} done`;
-  const toggle = button('', () => { toggleProject(app.state, project.id); app.render(); }, 'project-toggle');
-  toggle.setAttribute('aria-expanded', String(open));
-  toggle.setAttribute('aria-label', `${project.title}, ${area?.title ?? 'No area'}. ${meta}. ${open ? 'Hide' : 'Show'} Blocks`);
+  const toggle = wide ? button('', () => app.openProject(project.id), 'project-toggle')
+    : button('', () => { toggleProject(app.state, project.id); app.render(); }, 'project-toggle');
+  if (!wide) toggle.setAttribute('aria-expanded', String(open));
+  toggle.setAttribute('aria-label', `${project.title}, ${area?.title ?? 'No area'}. ${meta}. ${wide ? 'Open Project' : open ? 'Hide Blocks' : 'Show Blocks'}`);
   const copy = el('span', 'project-copy');
   copy.append(el('span', 'project-area', area?.title ?? 'No area'), el('span', 'card-title', project.title),
     el('span', 'card-meta tnum', meta));
-  toggle.append(nestRings(ordered.map(block => blockStats(app, block)), `${stats.done} of ${stats.total} tasks done`), copy);
+  toggle.append(nestRings(wide ? [stats] : ordered.map(block => blockStats(app, block)), `${stats.done} of ${stats.total} tasks done`), copy);
   const head = el('div', 'project-head');
-  head.append(toggle, iconButton('chevron_right', `Open ${project.title}`, () => app.openProject(project.id),
-    {cls: 'project-open'}));
+  head.append(toggle);
+  if (!wide) head.append(iconButton('chevron_right', `Open ${project.title}`, () => app.openProject(project.id), {cls: 'project-open'}));
   card.append(head);
   if (open) {
     const list = el('div', 'project-blocks');
     list.dataset.key = 'project-blocks:' + project.id;
-    for (const block of ordered) list.append(blockRow(app, block));
+    for (const block of ordered) list.append(blockRow(app, block, wide));
     if (!ordered.length) list.append(el('p', 'quiet', 'No Blocks in this Project yet.'));
     card.append(list);
   }

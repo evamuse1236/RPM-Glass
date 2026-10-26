@@ -31,7 +31,7 @@ export async function fileBackend(file,seed){
 
 export async function runCase(test,{modules:m,directory,mode,transport='cli',repeat=1,modelOverride,fetchImpl}){
  const started=Date.now();await mkdir(directory,{recursive:true});
- const {data,events}=seedFixture({seedStore:m.seed.seedStore,editPlan:m.editor.editPlan,intentState:m.state.intentState});
+ const {data,events}=seedFixture({seedStore:m.seed.seedStore,editPlan:m.editor.editPlan,intentState:m.state.intentState,saved:test.saved});
  await writeFile(path.join(directory,'seed.json'),JSON.stringify({data,events},null,2));
  const before=structuredClone(data),backend=await fileBackend(path.join(directory,'store.json'),data);
  let tick=0,currentText='',currentMessage='',turnCalls=[];

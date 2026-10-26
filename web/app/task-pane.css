@@ -1,0 +1,68 @@
+@media (width >= 1080px) {
+  #sheet[data-inline] .sheet-header:has(> .task-head) { position: relative; }
+  #sheet[data-inline] .sheet-header:has(> .task-head) > .sheet-close { position: absolute; inset-block-start: 0; inset-inline-end: var(--s1); }
+  #sheet[data-inline] .task-head {
+    grid-template-columns: 40px minmax(0, 1fr) repeat(3, var(--touch));
+    grid-template-areas: "pill . must ring close" "title title title title title";
+    align-items: center;
+    column-gap: var(--s1);
+  }
+  #sheet[data-inline] .task-head:has(> .task-start:not([hidden])) {
+    grid-template-columns: 40px minmax(0, 1fr) repeat(4, var(--touch));
+    grid-template-areas: "pill . start must ring close" "title title title title title title";
+  }
+  #sheet[data-inline] .task-head .task-pill { grid-area: pill; margin-block-start: 0; }
+  #sheet[data-inline] .task-head .must-star { grid-area: must; }
+  #sheet[data-inline] .task-head .task-ring { grid-area: ring; }
+  #sheet[data-inline] .task-head .task-title-field {
+    grid-area: title;
+    max-block-size: calc(2lh + var(--s4));
+    padding-block: var(--s2);
+    padding-inline-end: var(--s3);
+    font: var(--title-large);
+  }
+  #sheet[data-inline] .tab-row { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2fr); }
+  #sheet[data-inline] .tab-btn { grid-template-columns: minmax(0, 1fr); }
+  #sheet[data-inline] .tab-value { overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+  #sheet[data-inline] .number-chip input:not(:focus-visible) { border-block-end-color: transparent; }
+  #sheet[data-inline] .task-start {
+    grid-area: start;
+    display: grid;
+    place-content: center;
+    inline-size: var(--touch);
+    block-size: var(--touch);
+    min-block-size: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--shape-full);
+    background: transparent;
+  }
+  #sheet[data-inline] .task-start .ms { font-size: calc(24px / var(--text-scale, 1)); }
+  #sheet[data-inline] .task-start .chip-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: clip; clip-path: inset(50%); white-space: nowrap; }
+
+  #sheet[data-inline] .chip-row[aria-label=Length] { flex-wrap: nowrap; gap: 0; }
+  #sheet[data-inline] .chip-row[aria-label=Length] > .chip {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-inline-size: 0;
+    padding-inline: var(--s1);
+    border-radius: 0;
+    font: var(--label-medium);
+  }
+  #sheet[data-inline] .chip-row[aria-label=Length] > .chip + .chip { border-inline-start-width: 0; }
+  #sheet[data-inline] .chip-row[aria-label=Length] > .chip:first-child { border-start-start-radius: var(--r-control); border-end-start-radius: var(--r-control); }
+  #sheet[data-inline] .chip-row[aria-label=Length] > .chip:last-child { border-start-end-radius: var(--r-control); border-end-end-radius: var(--r-control); }
+  #sheet[data-inline] .chip-row[aria-label=Length] .chip-check { display: none; }
+
+  #sheet[data-inline] .ruler-track { mask-image: linear-gradient(to right, transparent, black var(--s8), black calc(100% - var(--s8)), transparent); }
+  #sheet[data-inline] .ruler-length { inset-block: calc(var(--s8) + var(--s1)) calc(var(--s6) + var(--s1)); }
+  #sheet[data-inline] .ruler-centre {
+    background: linear-gradient(var(--on-surface) 0 var(--s4), transparent 0 calc(var(--s8) + var(--s1)), var(--on-surface) 0);
+  }
+  #planner .spine-card[data-open], #planner .spine-chip[data-open] { outline: 2px solid var(--primary); outline-offset: -2px; }
+}
+@media (width >= 1080px) and (hover: hover) and (pointer: fine) {
+  #sheet[data-inline] .task-start:hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
+  #sheet[data-inline] .chip-row[aria-label=Length] > .chip:not([aria-pressed=true]):hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
+}

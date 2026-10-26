@@ -34,16 +34,21 @@ function readDueClock(input,data){
 export function readSimpleCapture(input,{data}){
  if(input.activeDraft||input.openQuestion||input.sourceUnits.length!==1)return null;
  const water=completeWaterLog(null,input);if(water)return {turn:water,kind:'water-log'};
- const due=readDueClock(input,data);if(due)return due;
  const unit=input.sourceUnits[0],raw=unit.text.trim();
+ const completed=!raw.includes('?')&&raw.match(/^(?:i(?:['’]m| am)?\s+)?(?:done|finished|completed)\s+with\s+(.+?)[.!]*$/i),completionWords=completed?tokens(completed[1]):[];
+ const matches=completionWords.length?(data.entries??[]).filter(e=>(e.kind??'plan')==='plan'&&!e.archived&&e.state!=='cancelled'&&completionWords.every(word=>tokens(e.title).includes(word))):[];
+ if(matches.length===1&&!matches[0].done)return {kind:'complete-task',entities:[contextEntity('task',matches[0],input.context.timezone)],turn:{schemaVersion:1,mode:'capture',draftMode:'new',reply:'',decisions:[{sourceId:unit.id,disposition:'action',note:null}],
+  operations:[{opId:'complete-task',sourceId:unit.id,kind:'complete',entity:'task',targetId:String(matches[0].id),fields:[]}],question:null,clarification:null,memoryCandidates:[],card:null}};
+ const due=readDueClock(input,data);if(due)return due;
  if(raw.length>160||/[?;,&+\n]/.test(raw)||/\b(?:and|or|also|plus|then|but|because|so|if|not|never|don't|dont|maybe|perhaps|might|should|would|could|every|daily|weekly|done|finished|already|yesterday|last|ago|earlier|instead|again|another|it|that|this|them)\b/i.test(raw))return null;
  let rest=raw.replace(/[.!]$/,'').replace(/^(?:please\s+)?(?:add\s+)?/i,'');
  const must=rest.match(/^must\b/i)?.[0]??null;rest=rest.replace(/^must\s+/i,'');
  const suffix=rest.match(/\s+((?:(?:today|tomorrow|tonight|(?:next\s+)?(?:mon|tues|wednes|thurs|fri|satur|sun)day)(?:\s+(?:morning|afternoon|evening|night))?(?:\s+(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm)?)?|later today|(?:after|before) (?:breakfast|lunch|dinner|bed)|at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?|\d{1,2}(?::\d{2})?\s*(?:am|pm)))$/i);
- const time=suffix?.[1]??null;if(suffix)rest=rest.slice(0,suffix.index);
+ const range=rest.match(/^(?:(meeting|task)\s+)?((?:from\s+)?\d[\d\s:apm.]*(?:to|until|till|[–—-])\s*\d[\d\s:apm.]*)$/i);
+ const time=range?.[2]??suffix?.[1]??null;if(range)rest=range[1]??'Task';else if(suffix)rest=rest.slice(0,suffix.index);
  const duration=rest.match(/\s+for (\d{1,4}) minutes?$/i);let minutes=null;
  if(duration){minutes=Number(duration[1]);if(minutes<1||minutes>1440)return null;rest=rest.slice(0,duration.index);}
- if(!/^(?:(?:call|buy|email|print|charge|collect|submit|pay|practice|clean|book|read|write|wash|return|finish)\s+[\p{L}][\p{L}\p{M}'’ -]{0,90}|gym)$/iu.test(rest))return null;
+ if(!/^(?:(?:call|buy|email|print|charge|collect|submit|pay|practice|clean|book|read|write|wash|return|finish)\s+[\p{L}][\p{L}\p{M}'’ -]{0,90}|gym|meeting|task)$/iu.test(rest))return null;
  // A time word left inside the title means the suffix did not consume the request.
  if(/\b(?:at|today|tomorrow|tonight|morning|afternoon|evening|night|before|after|in|during|until|by|next|weeks?|weekends?|months?|years?|later|soon|someday|sometime|minutes?|hours?)\b/i.test(rest))return null;
  // Use the full saved store. Shared subject words, family aliases, and open
@@ -51,12 +56,12 @@ export function readSimpleCapture(input,{data}){
  const subject=tokens(family(rest)).slice(1);
  const related=(data.entries??[]).filter(e=>(e.kind??'plan')==='plan'&&!e.archived&&e.state!=='cancelled')
   .some(e=>tokens(family(e.title)).some(t=>subject.includes(t))||family(e.title).toLowerCase().startsWith(rest.toLowerCase()));
- if(related||(data.planner?.blocks??[]).some(b=>!b.archived&&!b.achieved))return null;
+ if(related||!range&&(data.planner?.blocks??[]).some(b=>!b.archived&&!b.achieved))return null;
  if(time){
   const parsed=interpretTime(time,new Date(input.context.now),{subject:rest,evidence:raw,inferBareClock:true});
   if(!['parsed','date_only'].includes(parsed.status))return null;
  }
- const fields=[field('title',capitalizeTitle(rest),rest)];
+ const fields=[field('title',capitalizeTitle(rest),range&&!range[1]?null:rest,range&&!range[1]?'suggested':'stated')];
  if(time)fields.push(field('time',time,time));
  if(minutes!==null)fields.push(field('minutes',minutes,duration[0].trim()));
  if(must)fields.push(field('must',true,must));

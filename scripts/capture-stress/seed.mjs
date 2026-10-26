@@ -1,12 +1,12 @@
 export const NOW='2026-10-19T04:30:00.000Z';
 export const TIMEZONE='Asia/Kolkata';
 
-export function seedFixture({seedStore,editPlan,intentState}){
+export function seedFixture({seedStore,editPlan,intentState,saved}){
  const {data}=seedStore(new Date(NOW));
  data.entries=[];
  data.conversations=[{id:'stress',title:'New conversation',messages:[],archived:false}];
  data.history=[];data.pending=null;data.undo=null;delete data.intentV2;
- const tasks=[
+ const tasks=saved?saved.map(t=>[t.id,t.title,t.planned??null,t.minutes??null,t]):[
   [101,'Call Raj','2026-10-19T16:00:00+05:30',20],
   [102,'Gym morning','2026-10-20T07:00:00+05:30',45],
   [103,'Gym evening','2026-10-20T19:00:00+05:30',45],
@@ -14,8 +14,8 @@ export function seedFixture({seedStore,editPlan,intentState}){
   [105,'Buy groceries','2026-10-20T18:00:00+05:30',30],
   [106,'Call Amma','2026-10-19T20:00:00+05:30',20],
  ];
- for(const [id,title,planned,minutes] of tasks){
-  const created=editPlan(data,{type:'saveTask',fields:{title,planned:new Date(planned).toISOString(),minutes,...(id===104?{alert:'alarm'}:{})}},new Date(NOW));
+ for(const [id,title,planned,minutes,extra] of tasks){
+  const created=editPlan(data,{type:'saveTask',fields:{title,...(planned?{planned:new Date(planned).toISOString()}:{}),...(extra?.plannedDate?{plannedDate:extra.plannedDate}:{}),...(minutes?{minutes}:{}),...(id===104||extra?.alert?{alert:extra?.alert??'alarm'}:{})}},new Date(NOW));
   data.entries.find(e=>e.id===created).id=id;
  }
  const state=intentState(data);

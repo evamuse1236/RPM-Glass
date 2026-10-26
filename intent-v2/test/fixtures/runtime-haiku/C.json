@@ -1,0 +1,54 @@
+{
+  "raw": "I want to have a shower tomorrow evening at 6:00 p.m.",
+  "now": "2026-10-26T19:18:00.000Z",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "schemaVersion": 1,
+    "mode": "capture",
+    "draftMode": "new",
+    "reply": "Got it. A shower tomorrow evening at 6:00 PM is on your list.",
+    "decisions": [
+      {
+        "sourceId": "s0",
+        "disposition": "action",
+        "note": null
+      }
+    ],
+    "operations": [
+      {
+        "opId": "op1",
+        "sourceId": "s0",
+        "kind": "create",
+        "entity": "task",
+        "targetId": null,
+        "fields": [
+          {
+            "name": "title",
+            "op": "set",
+            "value": "Have a shower",
+            "origin": "stated",
+            "evidence": "have a shower"
+          },
+          {
+            "name": "time",
+            "op": "set",
+            "value": "tomorrow evening at 6:00 p.m.",
+            "origin": "stated",
+            "evidence": "tomorrow evening at 6:00 p.m."
+          },
+          {
+            "name": "alert",
+            "op": "set",
+            "value": "reminder",
+            "origin": "suggested",
+            "evidence": null
+          }
+        ]
+      }
+    ],
+    "question": null,
+    "clarification": null,
+    "memoryCandidates": [],
+    "card": null
+  }
+}

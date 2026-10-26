@@ -5,10 +5,13 @@ import {watchRows} from './sync-marks.mjs';
 import {userMessage} from '../../android-companion/user-message.mjs';
 import {applyClarityPreferences} from '../../android-companion/planner-clarity.mjs';
 import {mountPlanner} from '../../android-companion/planner.mjs';
+import {inboxRows} from '../../android-companion/planner-state.mjs';
 import {isWide, onWidthChange} from './desktop.mjs';
 import {mountSidebar} from './sidebar.mjs';
+import {mountAgenda} from './agenda.mjs';
 import {FINE, mountRowTools} from './pointer.mjs';
 import {mountShortcuts} from './shortcuts.mjs';
+import {markOpenCard} from './open-card.mjs';
 import {captureNotes, captureOutcome, dismissedNotes} from './capture-notes.mjs';
 import {conflictNotes} from './conflict-notes.mjs';
 
@@ -20,6 +23,7 @@ const DRAFT = 'rpm.web.capture.v1';
 const dismissed = dismissedNotes(localStorage);
 let ui = null;
 let remark = () => {};
+let glance = () => {};
 
 const unconfirmed = () => client.state.outbox.filter(e => !['applied', 'rejected', 'conflict'].includes(e.status));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -32,11 +36,14 @@ function mount() {
   root.dataset.largeText = 'false';
   root.style.setProperty('--text-scale', String(PHONE.fontScale));
   ui = mountPlanner({getData: () => queue.data(), getPhone: () => PHONE, native: createWebNative({openCapture}), sortPreview,
-    commit: async op => queue.commit(op), menuItems, inlineSheet: isWide});
-  mountSidebar($('sidebar'), $('planner'), ui);
+    commit: async op => queue.commit(op), menuItems, wide: isWide});
+  const sidebar = mountSidebar($('sidebar'), $('planner'), ui);
+  const agenda = mountAgenda($('agenda'), $('planner'), ui, () => queue.data());
+  glance = () => { sidebar.setInbox(inboxRows(queue.data()).length); agenda(); };
   if (matchMedia(FINE).matches) mountRowTools(document);
   mountShortcuts(document, ui, {work: $('workspace'), sheet: $('sheet'), dialog: $('keys-sheet')});
-  onWidthChange(() => ui.closeSheet());
+  onWidthChange(() => { ui.closeSheet(); ui.render(); });
+  markOpenCard($('workspace'), $('sheet'));
   if (location.hash === '#ideas') ui.goalIdeas();
   else if (location.hash.startsWith('#open=')) try { ui.openView(JSON.parse(decodeURIComponent(location.hash.slice(6)))); } catch {}
   remark = watchRows([$('workspace'), $('sheet')], queue);
@@ -100,6 +107,7 @@ function render() {
   $('banner').textContent = banner ?? '';
   renderNotes();
   if ($('capture-sheet').open) renderCaptureHistory();
+  glance();
   remark();
 }
 

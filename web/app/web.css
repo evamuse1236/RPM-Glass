@@ -1,6 +1,8 @@
 html, body { scrollbar-width: none; }
 body { font: var(--body-medium); color: var(--on-surface); }
 html:has(dialog:modal) { overflow: clip; }
+@property --page-fade { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@keyframes page-fade { from, 99% { --page-fade: var(--s8); } to { --page-fade: 0px; } }
 :is(.link-view, .capture-sheet) :is(h1, h2, p, ol) { margin: 0; }
 .sr-only { position: absolute; inline-size: 1px; block-size: 1px; overflow: clip; clip-path: inset(50%); white-space: nowrap; }
 
@@ -68,33 +70,93 @@ html:has(dialog:modal) { overflow: clip; }
   .planner-view .wr > * { inline-size: min(100%, var(--column)); margin-inline: auto; }
 }
 
-#sidebar { display: none; }
+#sidebar, #agenda { display: none; }
+.side-top { display: flex; align-items: center; gap: var(--s2); padding-inline-start: var(--s1); }
 .side-group { display: grid; gap: var(--s1); }
-.side-item, .side-add { display: flex; align-items: center; gap: var(--s3); min-block-size: 56px; padding-inline: var(--s4) var(--s6); font: var(--label-large); text-align: start; }
-.side-item { border-radius: var(--shape-full); color: var(--on-surface-variant); }
-.side-item[aria-current=page] { background: var(--secondary-container); color: var(--on-secondary-container); }
-.side-add { justify-self: start; border-radius: var(--shape-lg); background: var(--primary); color: var(--on-primary); box-shadow: var(--float-shadow); }
-.side-item:active { background: color-mix(in oklch, var(--on-surface) 12%, transparent); }
-.side-add:active { background: color-mix(in oklch, var(--on-primary) 12%, var(--primary)); }
-:is(.side-item, .side-add):focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.side-item, .side-add { display: flex; align-items: center; gap: var(--s3); font: var(--label-large); text-align: start; }
+.side-item { min-block-size: 40px; padding-inline: var(--s4) var(--s5); border-radius: var(--shape-full); color: var(--on-surface-variant); }
+.side-item[aria-current=page] { background: color-mix(in oklch, var(--secondary-container) 72%, transparent); color: var(--on-secondary-container); }
+.side-count { margin-inline-start: auto; font: var(--label-medium); }
+.side-add { min-block-size: 48px; padding-inline: var(--s4) var(--s5); border-radius: var(--shape-lg); background: light-dark(var(--primary), var(--primary-container)); color: light-dark(var(--on-primary), var(--on-primary-container)); }
+.side-capture { color: var(--on-surface-variant); border-radius: var(--shape-full); }
+.side-item:active, .side-capture:active { background: color-mix(in oklch, var(--on-surface) 12%, transparent); }
+.side-add:active { background: color-mix(in oklch, light-dark(var(--on-primary), var(--on-primary-container)) 12%, light-dark(var(--primary), var(--primary-container))); }
+:is(.side-item, .side-add, .side-capture):focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) {
-  .side-item:hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
+  :is(.side-item, .side-capture):hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
   .side-item[aria-current=page]:hover { background: color-mix(in oklch, var(--on-secondary-container) 8%, var(--secondary-container)); }
-  .side-add:hover { background: color-mix(in oklch, var(--on-primary) 8%, var(--primary)); }
+  .side-add:hover { background: color-mix(in oklch, light-dark(var(--on-primary), var(--on-primary-container)) 8%, light-dark(var(--primary), var(--primary-container))); }
+}
+
+.agenda-section { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; padding-block: var(--s2); border-radius: var(--shape-lg); background: var(--surface-container-low); }
+.agenda-head { display: flex; align-items: center; gap: var(--s2); min-block-size: 40px; padding-inline: var(--s4) var(--s3); color: var(--on-surface); text-align: start; }
+.agenda-words { display: grid; flex: 1; min-inline-size: 0; padding-block: var(--s2); }
+.agenda-head h2 { overflow: clip; margin: 0; font: var(--title-small); text-overflow: ellipsis; white-space: nowrap; }
+.agenda-head .trailing { margin-inline-start: auto; color: var(--on-surface-variant); }
+:is(.agenda-count, .agenda-due) { font: var(--label-medium); color: var(--on-surface-variant); }
+.agenda-section .list-item { --gutter: var(--s4); min-block-size: 48px; padding-block: var(--s1); }
+.agenda-section .list-headline { font: var(--body-medium); }
+.agenda-section .list-supporting:empty { display: none; }
+.agenda-day { display: flex; align-items: baseline; gap: var(--s2); min-block-size: 32px; padding: var(--s2) var(--s4) 0; font: var(--label-large); color: var(--on-surface-variant); text-align: start; }
+.agenda-line .list-headline { overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+.agenda-time { flex: none; font: var(--label-medium); color: var(--on-surface-variant); }
+.agenda-more { justify-self: start; min-block-size: 32px; margin-inline-start: calc(var(--s4) + 24px + var(--s2)); padding-inline: var(--s2); border-radius: var(--shape-full); font: var(--label-medium); color: var(--primary); }
+.agenda-task .must { color: var(--must); }
+:is(button.agenda-head, .agenda-day, .agenda-more):active { background: color-mix(in oklch, var(--on-surface) 12%, transparent); }
+:is(.agenda-head, .agenda-day, .agenda-more, .agenda-section .list-item):focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+@media (hover: hover) and (pointer: fine) {
+  :is(button.agenda-head, .agenda-day, .agenda-more, .agenda-section button.list-item):hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
 }
 
 @media (width >= 1080px) {
-  .planner-view { --side: 280px; --pane: 400px; display: grid; grid-template-columns: var(--side) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
+  .planner-view { --side: 256px; --pane: 400px; --agenda: clamp(400px, 100% - var(--side) - 720px, 440px); --column: 100%; display: grid; grid-template-columns: var(--side) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); column-gap: var(--s6); }
+  .planner-view:has(> #agenda:not([hidden])) { grid-template-columns: var(--side) minmax(0, 1fr) var(--agenda); }
   .planner-view:has(> #sheet[data-inline]:not([hidden])) { grid-template-columns: var(--side) minmax(0, 1fr) var(--pane); }
-  #sidebar { display: flex; flex-direction: column; gap: var(--s6); grid-column: 1; grid-row: 1 / -1; padding: var(--s4) var(--s3); overflow-y: auto; scrollbar-width: none; }
+  .planner-view:has(> #sheet[data-inline]:not([hidden])) > #agenda { display: none; }
+  #sidebar { display: flex; flex-direction: column; gap: var(--s4); grid-column: 1; grid-row: 1 / -1; padding: var(--s4) var(--s3); overflow-y: auto; scrollbar-width: none; }
+  #agenda:not([hidden]) { display: flex; grid-column: 3; grid-row: 1 / -1; align-items: start; gap: var(--s3); padding: var(--s4) var(--s4) var(--s4) 0; overflow-y: auto; scrollbar-width: none; }
+  .agenda-col { display: flex; flex: 1; flex-direction: column; gap: var(--s3); min-inline-size: 0; }
+  .planner-view:has(> #agenda:not([hidden])) .inbox-row { display: none; }
   .planner-view > :is(#banner, #notes, #planner) { grid-column: 2; }
   .planner-view > #planner { grid-row: 3; }
+  .planner-view .page { max-width: none; margin-inline: 0; }
+  .planner-view :is(.spine-card, .spine-free) { grid-template-columns: var(--spine-pill) var(--spine-ring) minmax(0, 1fr); }
+  .planner-view :is(.spine-check, .spine-action) { grid-column: 2; justify-self: center; }
+  .planner-view :is(.spine-open, .spine-resolve, .spine-deadline .spine-copy, .spine-free-label) { grid-column: 3; }
+  .planner-view .spine-open { padding-inline-start: 0; }
+  .planner-view .spine-row.spine-gap { min-block-size: 32px; }
+  .planner-view .spine-free > * { grid-row: 1; }
+  .planner-view .spine-free .spine-action.icon-btn { min-block-size: 32px; }
+  .planner-view .spine-copy { flex-flow: row wrap; column-gap: var(--s2); }
+  .planner-view .spine-title { flex-basis: 100%; order: -1; }
+  .planner-view .spine-when ~ .spine-line::before { content: "·"; margin-inline-end: var(--s2); }
+  .planner-view #planner:is([data-view=blocks], [data-view=projects]) .page { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); align-items: start; gap: var(--s3); padding-inline: var(--gutter); }
+  .planner-view #planner:is([data-view=blocks], [data-view=projects]) .page > :not(.block-card, .project-card) { grid-column: 1 / -1; }
+  .planner-view #planner:is([data-view=blocks], [data-view=projects]) .page > :is(.block-card, .project-card) { width: auto; margin: 0; }
   .planner-view > #sheet[data-inline] { position: relative; grid-column: 3; grid-row: 1 / -1; inset: auto; max-inline-size: none; max-block-size: none; block-size: auto; margin: 0; border: 0; border-inline-start: 1px solid var(--outline-variant); border-radius: 0; box-shadow: none; }
   .planner-view > #sheet[data-inline] .sheet-handle { display: none; }
   .planner-view > #sheet[data-inline] .sheet-close { position: relative; inline-size: auto; block-size: auto; overflow: visible; clip-path: none; }
-  .planner-view :is(#nav-bar, #dock .fab), .planner-view .top-actions :is([aria-label=Search], [aria-label=Capture]) { display: none; }
+  .planner-view > #sheet[data-inline] [aria-label='More choices'] { gap: 0 var(--s1); }
+  .planner-view > #sheet[data-inline] [aria-label='More choices'] > .chip { border-color: transparent; background: none; color: var(--on-surface-variant); padding-inline: var(--s2); }
+  .planner-view :is(#nav-bar, #dock .fab), .planner-view .top-actions [aria-label=Capture] { display: none; }
   #planner-view #planner ~ #snackbar#snackbar { inset-inline: calc(var(--side) + var(--s4)) var(--s4); inset-block-end: var(--s4); }
   #planner-view #sheet[data-inline]:not([hidden]) ~ #snackbar#snackbar { inset-inline-end: calc(var(--pane) + var(--s4)); }
+  .capture-sheet { inline-size: min(100% - 2 * var(--s6), 640px); border: 1px solid var(--outline-variant); background: var(--surface-container-high); }
+  .capture-sheet::backdrop { background: light-dark(var(--scrim), color-mix(in oklch, var(--scrim), oklch(0 0 none) 35%)); }
+  .capture-history li:nth-child(n + 4) { display: none; }
+}
+
+@media (width >= 1680px) {
+  .planner-view { --agenda: clamp(440px, 100% - var(--side) - 760px, 880px); }
+}
+
+@media (width >= 1080px) and (prefers-reduced-motion: no-preference) {
+  .capture-sheet[open] { transition: opacity var(--dur-short4) var(--ease-standard-decelerate), scale var(--dur-short4) var(--ease-standard-decelerate); }
+  .capture-sheet[open]::backdrop { transition: opacity var(--dur-short4) var(--ease-standard-decelerate); }
+  @starting-style {
+    .capture-sheet[open] { opacity: 0; scale: .96; }
+    .capture-sheet[open]::backdrop { opacity: 0; }
+  }
 }
 
 @media (pointer: fine) {
@@ -110,7 +172,6 @@ html:has(dialog:modal) { overflow: clip; }
   .spine-card { position: relative; }
   :is(.task-row, .spine-card):is(:hover, :focus-within) > .row-tools { display: flex; }
   .row-tools { position: absolute; inset-block-start: 50%; inset-inline-end: var(--s1); translate: 0 -50%; z-index: 1; gap: var(--s1); padding: var(--s1); border-radius: var(--shape-full); background: var(--surface-container-high); box-shadow: var(--float-shadow); }
-  .spine-card > .row-tools { inset-inline-end: var(--spine-ring); }
   .row-tools .icon-btn { inline-size: 40px; block-size: 40px; min-inline-size: 0; min-block-size: 0; border-radius: var(--shape-full); color: var(--on-surface-variant); }
   .row-tools .icon-btn:hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); color: var(--on-surface); }
   .row-tools .icon-btn:active { background: color-mix(in oklch, var(--on-surface) 12%, transparent); }

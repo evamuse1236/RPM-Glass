@@ -1,4 +1,4 @@
-import {readFile,writeFile,mkdir,readdir} from 'node:fs/promises';
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
@@ -8,6 +8,7 @@ import {isolationProbe,cliCall,usageTotals} from './cli.mjs';
 import {targetModules,runCase} from './runtime.mjs';
 import {summarize,reportMarkdown} from './report.mjs';
 import {entities} from './checks.mjs';
+import {captureSourceHash as sourceHash,recordCaptureRun} from '../agent/capture-eval.mjs';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(here,'../..');
@@ -33,20 +34,6 @@ export async function loadCorpus(){
  const cases=files.flatMap(f=>JSON.parse(f));
  const ids=new Set();for(const c of cases){if(ids.has(c.id))throw new Error(`Duplicate case ${c.id}`);ids.add(c.id);}
  return {manifest,cases,hash:createHash('sha256').update(JSON.stringify(manifest)+files.join('')).digest('hex')};
-}
-
-async function sourceHash(repo){
- const files=[];
- for(const base of ['intent-v2/src','intent-v2/prompts','intent-v2/adapters','android-companion','chat-prototype','cli']){
-  const dir=path.join(repo,base);
-  const walk=async directory=>{for(const entry of await readdir(directory,{withFileTypes:true})){
-   const file=path.join(directory,entry.name);
-   if(entry.isDirectory()&&!['node_modules','experiments'].includes(entry.name))await walk(file);
-   else if(entry.isFile()&&entry.name.endsWith('.mjs')&&!entry.name.endsWith('.test.mjs'))files.push(file);
-  }};await walk(dir);
- }
- const hash=createHash('sha256');for(const file of files.sort()){hash.update(path.relative(repo,file).replaceAll('\\','/'));hash.update(await readFile(file));}
- return hash.digest('hex');
 }
 
 export async function judgeInput(result){
@@ -101,6 +88,7 @@ async function main(){
  run.summary=summarize(results);run.probeUsage=usageTotals(probe.attempts);
  run.judgeUsage=usageTotals(results.map(r=>r.judge?.record).filter(Boolean));
  await writeFile(path.join(directory,'results.json'),JSON.stringify(run,null,2));
+ recordCaptureRun(options.repo,directory);
  await writeFile(path.join(directory,'report.md'),reportMarkdown(run));
  console.log(`${run.summary.passed}/${results.length} passed; ${run.summary.usage.calls} model calls; ${(run.wallMs/1000).toFixed(1)} seconds. ${path.join(directory,'report.md')}`);
  if(!run.sourceStable)throw new Error('Target source changed during run; do not use this report as a baseline');

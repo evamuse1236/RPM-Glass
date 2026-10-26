@@ -19,7 +19,7 @@ function ringIcon(ring, done) {
 }
 
 /** `onToggle()` ticks or reopens; `onMust(on)` and `onTitle(words)` save. Returns {row, title, paint(task), showDone()}. */
-export function taskHead({task, onToggle, onMust, onTitle, onEnter}) {
+export function taskHead({task, onToggle, onMust, onTitle, onEnter, tips = false}) {
   const row = el('div', 'task-head');
   const ring = button('', () => onToggle(), 'icon-btn task-ring');
   ring.setAttribute('role', 'checkbox');
@@ -60,6 +60,7 @@ export function taskHead({task, onToggle, onMust, onTitle, onEnter}) {
   const must = button('', () => onMust(must.getAttribute('aria-checked') !== 'true'), 'icon-btn must-star');
   must.setAttribute('role', 'switch');
   must.setAttribute('aria-label', 'Must');
+  if (tips) must.title = 'Must';
   must.append(icon('star'));
   const pill = el('span', 'task-pill');
   pill.append(icon(taskSymbol(task.title), {fill: true}));
@@ -73,6 +74,7 @@ export function taskHead({task, onToggle, onMust, onTitle, onEnter}) {
     if (pill.firstElementChild.textContent !== symbol) pill.firstElementChild.textContent = symbol;
     ring.setAttribute('aria-checked', String(!!t.done));
     ring.setAttribute('aria-label', `Mark ${t.title} ${t.done ? 'incomplete' : 'complete'}`);
+    if (tips) ring.title = t.done ? 'Mark incomplete' : 'Mark complete';
     ringIcon(ring, !!t.done);
     row.classList.toggle('is-done', !!t.done);
     must.setAttribute('aria-checked', String(!!t.must));

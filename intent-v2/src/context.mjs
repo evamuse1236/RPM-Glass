@@ -4,9 +4,9 @@ export function sourceUnits(raw){
  const units=[];const re=/[^\n.!?;]+(?:[.!?;]+|$)|[^\n]+/g;
  // Sentence boundaries are aids, not a claim that every action is a sentence.
  // Keep exact substrings and spans; multi-action sentences remain one unit.
- for(const m of raw.matchAll(re)){
-  const text=m[0].trim();if(!text)continue;
-  const start=m.index+m[0].indexOf(text);units.push({id:`s${units.length}`,text,start,end:start+text.length});
+ for(const m of raw.replace(/\b[ap]\.m\b/gi,part=>part.replace('.','_')).matchAll(re)){
+  const text=raw.slice(m.index,m.index+m[0].length).trim();if(!text)continue;
+  const start=m.index+m[0].length-m[0].trimStart().length;units.push({id:`s${units.length}`,text,start,end:start+text.length});
  }
  if(!units.length)units.push({id:'s0',text:raw,start:0,end:raw.length});
  if(units.length>100)throw new Error('This capture needs chunked interpretation; the original remains saved');

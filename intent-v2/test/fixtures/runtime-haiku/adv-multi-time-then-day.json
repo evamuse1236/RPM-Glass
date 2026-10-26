@@ -1,0 +1,93 @@
+{
+  "id": "adv-multi-time-then-day",
+  "outputs": [
+    [
+      {
+        "schemaVersion": 1,
+        "mode": "capture",
+        "draftMode": "new",
+        "reply": "",
+        "decisions": [
+          {
+            "sourceId": "s0",
+            "disposition": "action",
+            "note": null
+          }
+        ],
+        "operations": [
+          {
+            "opId": "op1",
+            "sourceId": "s0",
+            "kind": "create",
+            "entity": "task",
+            "targetId": null,
+            "fields": [
+              {
+                "name": "title",
+                "op": "set",
+                "value": "Pay college fees",
+                "origin": "stated",
+                "evidence": "pay college fees"
+              },
+              {
+                "name": "time",
+                "op": "set",
+                "value": "at 3",
+                "origin": "stated",
+                "evidence": "at 3"
+              },
+              {
+                "name": "alert",
+                "op": "set",
+                "value": "reminder",
+                "origin": "stated",
+                "evidence": "add"
+              }
+            ]
+          }
+        ],
+        "question": null,
+        "clarification": null,
+        "memoryCandidates": [],
+        "card": null
+      }
+    ],
+    [
+      {
+        "schemaVersion": 1,
+        "mode": "capture",
+        "draftMode": "new",
+        "reply": "Got it, moving that to tomorrow.",
+        "decisions": [
+          {
+            "sourceId": "s0",
+            "disposition": "action",
+            "note": null
+          }
+        ],
+        "operations": [
+          {
+            "opId": "op1",
+            "sourceId": "s0",
+            "kind": "update",
+            "entity": "task",
+            "targetId": "107",
+            "fields": [
+              {
+                "name": "time",
+                "op": "set",
+                "value": "tomorrow at 3",
+                "origin": "stated",
+                "evidence": "wait tomorrow not today"
+              }
+            ]
+          }
+        ],
+        "question": null,
+        "clarification": null,
+        "memoryCandidates": [],
+        "card": null
+      }
+    ]
+  ]
+}

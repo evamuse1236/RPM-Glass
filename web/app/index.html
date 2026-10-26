@@ -11,6 +11,8 @@
 <link rel="stylesheet" href="/planner.css">
 <link rel="stylesheet" href="/review.css">
 <link rel="stylesheet" href="/web.css">
+<link rel="stylesheet" href="/task-pane.css">
+<link rel="stylesheet" href="/wide-pages.css">
 <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -37,6 +39,7 @@
   <p id="banner" class="banner" role="status" hidden></p>
   <ul id="notes" class="notes" aria-live="polite" hidden></ul>
   <main id="planner" data-view="today"><header id="top-bar" class="top-bar"></header><div id="planner-scroll"><section id="workspace" aria-label="Plan"><div class="page" aria-busy="true"><p class="skeleton" role="status">Loading your plan…</p><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div></div></section></div><div id="now-host" hidden></div><nav id="nav-bar" aria-label="Planning"></nav><div id="dock"></div></main>
+  <aside id="agenda" class="agenda" aria-label="At a glance" hidden></aside>
   <section id="sheet" hidden role="dialog" aria-modal="true" aria-label="Edit plan"></section>
   <div id="snackbar" role="status" aria-live="polite" hidden></div>
 </div>
@@ -51,7 +54,6 @@
       <textarea id="capture-text" rows="4" maxlength="12000" placeholder="Type what's on your mind"></textarea>
     </label>
     <p id="capture-problem" class="problem" role="alert" hidden></p>
-    <p class="fineprint">Capture sorts it into your plan.</p>
     <button type="submit" class="filled-btn">Send</button>
   </form>
   <section id="capture-history" class="capture-history" aria-labelledby="capture-history-title" hidden>

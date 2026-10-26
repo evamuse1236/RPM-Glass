@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readdirSync, readFileSync} from 'node:fs';
 import {join} from 'node:path';
 
-const STYLES = 'android-companion';
+const STYLES = ['android-companion', 'web/app'];
 const TOKENS = 'theme.css';
 
 export const SCALE = Object.freeze({
@@ -42,8 +42,8 @@ export function offScale(css, file = 'inline.css') {
 }
 
 test('every padding, margin, gap, size, stroke, icon and radius comes from the size scale', () => {
-  const files = readdirSync(STYLES).filter(name => name.endsWith('.css') && name !== TOKENS);
-  const problems = files.flatMap(name => offScale(readFileSync(join(STYLES, name), 'utf8'), name));
+  const files = STYLES.flatMap(dir => readdirSync(dir).filter(name => name.endsWith('.css') && name !== TOKENS).map(name => join(dir, name)));
+  const problems = files.flatMap(file => offScale(readFileSync(file, 'utf8'), file));
   assert.deepEqual(problems, [], 'Use a token from theme.css or a value from SCALE in scripts/rules/size-scale.test.mjs.');
 });
 

@@ -17,6 +17,7 @@ function inferClocks(parsed,input,now,sourceOperations){
   const subject=clockSubject(op,sourceOperations,input);
   for(const f of op.fields){
    if(f.name!=='time'||!['set','unknown'].includes(f.op)||f.sourceMessageId!==input.messageId)continue;
+   if(f.op==='set'&&typeof f.value==='string'&&ownsSource&&source?.text.includes(f.value)&&!input.sourceUnits.some(u=>f.evidence&&u.text.includes(f.evidence)))f.evidence=f.value;
    let proof=f.evidence;
    if(!proof&&ownsSource&&source){
     const title=op.fields.find(f=>f.name==='title'&&f.op==='set'&&f.origin==='stated')?.evidence;
@@ -26,7 +27,7 @@ function inferClocks(parsed,input,now,sourceOperations){
    if(!proof||!input.sourceUnits.some(u=>u.text.includes(proof)))continue;
    if(/^\d{1,2}$/.test(proof.trim())&&!new RegExp(`\\b(?:at|to|by|around|about)\\s+${proof.trim()}\\b|\\b${proof.trim()}\\s+baje\\b`,'i').test(source?.text??''))continue;
    let time=interpretTime(clockWords(proof),now,{subject,inferBareClock:true});
-   if(time.status!=='parsed'||!time.inference)continue;
+   if(time.status!=='parsed'||!time.inference&&f.evidence)continue;
    const owner=source??input.sourceUnits.find(u=>u.text.includes(proof)),whole=owner&&interpretTime(clockWords(owner.text),now,{subject,inferBareClock:true});
    if(!f.evidence&&!whole?.matched.some(m=>Number.isInteger(m.known.hour)))continue;
    if(ownsSource&&whole.status==='parsed'){
@@ -68,6 +69,10 @@ function recoverNearWindow(parsed,input,sourceOperations,now){
  for(const op of parsed.operations){
   if(op.entity!=='task'||!['create','update'].includes(op.kind)||sourceOperations.filter(o=>o.sourceId===op.sourceId).length!==1)continue;
   const source=input.sourceUnits.find(u=>u.id===op.sourceId),match=source?.text.match(/\bthodi\s+der\s+mein\b/i);
+  const window=op.fields.find(f=>f.name==='time'&&f.op==='set');
+  if(op.kind==='create'&&window&&source&&/\b(?:this|next|coming)\s+(?:week|weekend|month)\b/i.test(window.value)&&interpretTime(source.text,now).status==='none'&&interpretTime(window.value,now).status==='none'){
+   Object.assign(window,{op:'unknown',value:null});if(parsed.question?.opId===op.opId&&parsed.question.field==='time')parsed.question=null;continue;
+  }
   if(!match||statedDays(source.text,now).length||/\d|\b(?:kal|parso|aaj|or|and|aur|ya|not|nahi|at|baje|am|pm|half|quarter|thirty|fifteen|forty|fifty)\b/i.test(source.text))continue;
   const f=op.fields.find(f=>f.name==='time'&&f.op==='unknown');
   if(!f)continue;
@@ -98,7 +103,7 @@ function normalizeInheritedClocks(parsed,input,now,sourceOperations){
   const target=input.context.entities.find(e=>e.entity==='task'&&e.id===op.targetId);
   if(!target)continue;
   const source=input.sourceUnits.find(u=>u.id===op.sourceId);
-  const sameDay=sourceOperations.filter(o=>o.sourceId===op.sourceId).length===1&&source?.text.match(/\b(?:make|move|push|change)\s+(?:it|that)\s+(?:to\s+)?((?:the\s+)?day after(?: tomorrow)?|today|tomorrow|(?:next\s+)?(?:mon|tues|wednes|thurs|fri|satur|sun)day)(?:\s+instead)?[\s,]+same time[.!?]*$/i);
+  const sameDay=sourceOperations.filter(o=>o.sourceId===op.sourceId).length===1&&(source?.text.match(/\b(?:make|move|push|change)\s+(?:it|that)\s+(?:to\s+)?((?:the\s+)?day after(?: tomorrow)?|today|tomorrow|(?:next\s+)?(?:mon|tues|wednes|thurs|fri|satur|sun)day)(?:\s+instead)?[\s,]+same time[.!?]*$/i)||source?.text.match(/^(?:wait\s+)?(today|tomorrow)\s+not\s+(?:today|tomorrow)[.!?]*$/i));
   for(const f of op.fields){
    if(f.name==='time'&&f.op==='set'&&sameDay&&interpretTime(sameDay[1],now).status==='date_only'){
     Object.assign(f,{value:sameDay[1],origin:'stated',evidence:sameDay[1],sourceMessageId:input.messageId,evidenceSourceId:source.id});delete f.inference;continue;
@@ -116,6 +121,31 @@ function normalizeInheritedClocks(parsed,input,now,sourceOperations){
    if(value.plannedDate!==proof.plannedDate)continue;
    f.value=f.evidence;
   }
+ }
+}
+function isolateTaskClock(parsed,input,sourceOperations,now){
+ for(const op of parsed.operations){
+  if(op.kind!=='create'||op.entity!=='task'||sourceOperations.filter(o=>o.sourceId===op.sourceId).length<2)continue;
+  const title=op.fields.find(f=>f.name==='title'&&f.origin==='stated')?.evidence,field=op.fields.find(f=>f.name==='time'&&f.op==='set');
+  if(!title||!field)continue;
+  const source=input.sourceUnits.find(u=>u.id===op.sourceId),clauses=source?.text.split(/\b(?:and|also|then|aur)\b/i).filter(c=>c.includes(title))??[];
+  if(clauses.length!==1||statedDays(clauses[0],now).length||!statedDays(field.value,now).length)continue;
+  const time=interpretTime(clauses[0],now);
+  if(time.status!=='parsed'||time.inference||time.end)continue;
+  Object.assign(field,{value:clauses[0].trim(),origin:'stated',evidence:clauses[0].trim(),evidenceSourceId:source.id});
+ }
+}
+function recoverStatedStart(parsed,input,sourceOperations,now){
+ for(const op of parsed.operations){
+  if(op.entity!=='task'||op.kind!=='create'||sourceOperations.filter(o=>o.sourceId===op.sourceId).length!==1)continue;
+  const source=input.sourceUnits.find(u=>u.id===op.sourceId),text=source?.text??'';
+  if(/\b(?:and|or|also|then|but|because|so|aur)\b/i.test(text)||!(/\bnow\b/i.test(text)||/\bfrom\s+\d.+\b(?:to|until|till)\s+\d/i.test(text)))continue;
+  const time=interpretTime(text,now);
+  if(time.status!=='parsed'||!time.end&&time.planned!==now.toISOString())continue;
+  const field=op.fields.find(f=>f.name==='time');
+  const value={name:'time',op:'set',value:text,origin:'stated',evidence:text,sourceMessageId:input.messageId,evidenceSourceId:source.id};
+  if(field)Object.assign(field,value);else op.fields.push(value);
+  if(parsed.question?.opId===op.opId&&parsed.question.field==='time')parsed.question=null;
  }
 }
 // A bare clock said with its part of day ("in the morning like 9 or 10", "shaam ko 7") has stated its AM/PM.
@@ -142,6 +172,8 @@ function withPart(c,evidence=''){
 /** A bare clock uses its own evidence and the capture anchor, never another action's period. */
 export function validateIntentTimes(parsed,{input,sourceOperations=parsed.operations}){
  const now=new Date(input.context.now),raw=input.sourceUnits.map(u=>u.text).join('\n');
+ isolateTaskClock(parsed,input,sourceOperations,now);
+ recoverStatedStart(parsed,input,sourceOperations,now);
  recoverNearWindow(parsed,input,sourceOperations,now);
  preferDueClock(parsed,input,now,sourceOperations);
  normalizeInheritedClocks(parsed,input,now,sourceOperations);
@@ -151,6 +183,10 @@ export function validateIntentTimes(parsed,{input,sourceOperations=parsed.operat
   if(field.name!=='time'||field.op!=='set'||field.origin!=='stated'||(field.sourceMessageId&&field.sourceMessageId!==input.messageId))continue;
   if(!field.evidence?.trim()||!input.sourceUnits.some(u=>u.text.includes(field.evidence)))throw Object.assign(new Error('The time has no exact source evidence.'),{code:'UNSUPPORTED_TIME'});
   const source=input.sourceUnits.find(u=>u.id===op.sourceId)?.text??field.evidence;
+  const target=input.context.entities.find(e=>e.entity==='task'&&e.id===op.targetId);
+  const shift=/\b(?:shift|move|push)\b[^.!?]*\b(?:by\s+)?(?:an?|one|1)\s+hour(?:\s+later)?\b/i.test(field.evidence)&&!/\b(?:not|never|earlier|before)\b/i.test(field.evidence);
+  const named=target&&(/\bboth calls\b/i.test(field.evidence)&&/\bcall\b/i.test(target.title)||field.evidence.toLowerCase().includes(target.title.toLowerCase()));
+  if(op.kind==='update'&&target?.planned&&shift&&named&&interpretTime(field.value,now).planned===new Date(Date.parse(target.planned)+3600000).toISOString())continue;
   if(/\bnow\b/i.test(field.value)&&interpretTime(field.value,now).planned===now.toISOString()&&interpretTime(source,now).planned!==now.toISOString())throw Object.assign(new Error('These words do not ask to start now.'),{code:'UNSUPPORTED_TIME'});
   const alert=op.fields.some(f=>f.name==='alert'&&f.op==='set'&&['reminder','alarm'].includes(f.value))||input.context.entities.some(e=>e.entity==='task'&&e.id===op.targetId&&['reminder','alarm'].includes(e.alert));
   const proof=alert?normalizeReminderTime(field.evidence??''):field.evidence??'';

@@ -1,0 +1,54 @@
+{
+  "raw": "Exercise now 30 min",
+  "now": "2026-10-26T19:18:00.000Z",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "schemaVersion": 1,
+    "mode": "capture",
+    "draftMode": "new",
+    "reply": "Got it. A 30-minute workout now.",
+    "decisions": [
+      {
+        "sourceId": "s0",
+        "disposition": "action",
+        "note": null
+      }
+    ],
+    "operations": [
+      {
+        "opId": "op1",
+        "sourceId": "s0",
+        "kind": "create",
+        "entity": "task",
+        "targetId": null,
+        "fields": [
+          {
+            "name": "title",
+            "op": "set",
+            "value": "Exercise",
+            "origin": "stated",
+            "evidence": "Exercise"
+          },
+          {
+            "name": "time",
+            "op": "set",
+            "value": "now",
+            "origin": "stated",
+            "evidence": "now"
+          },
+          {
+            "name": "minutes",
+            "op": "set",
+            "value": 30,
+            "origin": "stated",
+            "evidence": "30 min"
+          }
+        ]
+      }
+    ],
+    "question": null,
+    "clarification": null,
+    "memoryCandidates": [],
+    "card": null
+  }
+}
