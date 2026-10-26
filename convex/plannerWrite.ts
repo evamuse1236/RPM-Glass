@@ -2,6 +2,8 @@
 import { editPlan, validatePlanner } from "../android-companion/planner-state.mjs";
 // @ts-expect-error Shared ID source is JavaScript.
 import { withIds } from "../android-companion/new-id.mjs";
+// @ts-expect-error Shared task ID ranges are JavaScript.
+import { initializeTaskIds, SERVER_TASK_IDS } from "../android-companion/task-ids.mjs";
 // @ts-expect-error Shared user-facing error boundary is JavaScript.
 import { userMessage } from "../android-companion/user-message.mjs";
 import { applyRecord, groupsOf } from "../web/contract/records.mjs";
@@ -71,6 +73,8 @@ export async function applyPlan(ctx:PlannerCtx,account:Id<"accounts">,command:Do
       const rows=await rowsFor(ctx,account), owner=(await ctx.db.get(account))!;
       const taken=new Set(rows.filter(row=>row.key.startsWith("task:")).map(row=>Number(row.key.slice(5))));
       const known=new Set<number>(store.entries.map((entry:any)=>entry.id));
+      store.sync={taskIdRange:SERVER_TASK_IDS};
+      initializeTaskIds(store).nextTaskId=Math.max(store.sync.nextTaskId,owner.nextTaskId??SERVER_TASK_IDS[0]);
       const ids=command.payload.args.ids??[], used=new Set<string>();
       const takenEntities=JSON.stringify([store.planner??null,store.entries.map((entry:any)=>entry.id)]);
       withIds(ids.filter((id:any)=>typeof id==="string"),()=>editPlan(store,operation(command.payload),now), (id:string)=>{

@@ -45,3 +45,17 @@ test('Capture saves its allocated counter and Undo leaves it in place', () => {
   undo(data, first.undoId);
   assert.equal(propose(data, args, {raw: 'Call Jo'}).entryIds[0], first.entryIds[0] + 1);
 });
+
+test('a store with the server range takes IDs from 1,000,000,000 up and never from the phone range', async () => {
+  const {nextTaskId, SERVER_TASK_IDS} = await import('./task-ids.mjs');
+  const data = {entries: [{id: 5}, {id: 1000000003}], sync: {taskIdRange: SERVER_TASK_IDS}};
+  assert.equal(nextTaskId(data), 1000000004);
+  const fresh = {entries: [{id: 7}], sync: {taskIdRange: SERVER_TASK_IDS}};
+  assert.equal(nextTaskId(fresh), 1000000000);
+});
+
+test('a phone store ignores server-range IDs and stays below 1,000,000,000', async () => {
+  const {nextTaskId} = await import('./task-ids.mjs');
+  assert.equal(nextTaskId({entries: [{id: 5}, {id: 1000000003}]}), 6);
+  assert.throws(() => nextTaskId({entries: [], sync: {nextTaskId: 1000000000}}), /exhausted/);
+});

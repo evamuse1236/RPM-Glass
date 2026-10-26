@@ -1,6 +1,7 @@
 import {assertPlanOp, editPlan} from '../../android-companion/planner-state.mjs';
 import {targets} from '../../android-companion/web-sync-targets.mjs';
 import {withIds} from '../../android-companion/new-id.mjs';
+import {SERVER_TASK_IDS} from '../../android-companion/task-ids.mjs';
 import {validateCommand, validatePlanOp} from '../contract/validate.mjs';
 
 const KEY = 'rpm.web.plan.v1';
@@ -11,7 +12,7 @@ export const FALLBACK = 'Your phone did not save this change.';
 
 /** The planner's store as the phone last saved it. */
 export function storeFrom(snapshot) {
-  return {version: snapshot.revision, entries: structuredClone(snapshot.entries).map(entry => ({revisions: [], ...entry})), planner: structuredClone(snapshot.planner)};
+  return {version: snapshot.revision, entries: structuredClone(snapshot.entries).map(entry => ({revisions: [], ...entry})), planner: structuredClone(snapshot.planner), sync: {taskIdRange: SERVER_TASK_IDS}};
 }
 
 function idsOf(store) {
