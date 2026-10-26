@@ -54,3 +54,18 @@ Execution checks cover schema validation, durable exact words before model work 
 Every case directory contains the seed, current/final store, per-turn inputs, model outputs, traces and assertions. `results.json` and `report.md` aggregate pass rates, overlapping failure classes, routes, latency and usage. Token fields retain uncached input, output and cache counts separately. Dollar figures use CLI-reported estimates or API token usage and published rates, not billing receipts. A killed process may report no usage; do not interpret missing usage as free. An optional isolated Sonnet judge in CLI mode scores meaning without changing deterministic verdicts. It sees the seeded entities and all canonical saved entities after the capture, including edited existing tasks, as well as new tasks, body logs and draft receipts. It never sees the developer's reasoning or code changes. Fuzzy mismatches still need inspection before treating the overall rate as a product-quality estimate.
 
 The [19 October API results](api-results-2026-10-19.md) record the two live workloads, every failed case-run, receipt and Undo evidence, and differences from the phone.
+
+## Phrase-pipeline experiment (default remains current)
+
+`--pipeline current|phrase` selects the implementation inside this checkout. `current` is the default; it preserves the production readers, prompt and guards. `phrase` is the opt-in prototype exposed by `createIntentService({pipeline: 'phrase', ...})`. It uses the same file backend, model routing, canonical planner writer, receipt and Undo. No app setting or production switch is activated.
+
+```bash
+secret run --env ANTHROPIC_API_KEY=anthropic -- npm run stress:capture -- --transport api --concurrency 3 --pipeline current --out /tmp/rpm-fix/redesign-current-full
+secret run --env ANTHROPIC_API_KEY=anthropic -- npm run stress:capture -- --transport api --concurrency 3 --pipeline phrase --out /tmp/rpm-fix/redesign-phrase-full
+```
+
+For repeated real-phrase runs, supply the IDs from `corpus/real-2026-10-27.json` to `--only` with `--repeat 3`. The selected pipeline's own schema validates model responses, including in execution checks. Prompts, schema, transport, routes, raw outputs and saved state remain in the case artifacts. Corpus words and expectations are unchanged.
+
+The prototype removes model mutation replies and replaces time field/value/evidence pairs and numeric minutes with one copied `timePhrase`. Code parses it against the capture timestamp and passes its result internally to the canonical writer. Unreadable create times save undated with the phrase and review reason retained. Exact words, visible-target validation, conflict checks, original schema for non-time fields, receipts and Undo remain. Mutation summaries are generated inside the commit transaction from its actual receipt.
+
+The phrase path skips the current local capture/reminder/bulk readers so the experiment measures the model extraction shape consistently; deterministic choice handling and quick query cards remain. Speculative model previews are disabled for the prototype. Compare model-call counts and end-to-end latency as well as per-call model latency. It removes the old completion/recovery and clock-comparison guards from that path; their implementations remain for the control pipeline. This prototype is an experiment, not evidence of native phone behavior or authorization to switch production.

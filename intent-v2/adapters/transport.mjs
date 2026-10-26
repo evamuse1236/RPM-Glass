@@ -16,22 +16,22 @@ export function providerSchema(schema){
  if(Array.isArray(rest.type)){const {type,...other}=rest;return {anyOf:type.map(t=>({type:t})),...providerSchema(other)};}
  return Object.fromEntries(Object.entries(rest).map(([k,v])=>[k,k==='enum'?v:providerSchema(v)]));
 }
-export function structuredRequest({model,prompt,input,maxTokens=3000,providerNames=[],effort}){
+export function structuredRequest({model,prompt,input,schema=TURN_SCHEMA,maxTokens=3000,providerNames=[],effort}){
  if(typeof model!=='string'||!model.includes('/'))throw new Error('Configure and verify a supported OpenRouter model ID');
  if(effort!==undefined&&!['none','medium','high'].includes(effort))throw new Error('Unsupported reasoning effort');
  const claude=isClaude(model),mercury=model==='inception/mercury-3';
  if(mercury)providerNames=[]; // Capture's Claude provider pins cannot serve Mercury.
  const reasoning=effort&&!(claude&&effort==='none')?{reasoning:{effort,exclude:true}}:{};
- return {model,...reasoning,messages:[{role:'system',content:claude?[{type:'text',text:prompt,cache_control:{type:'ephemeral'}}]:prompt},{role:'user',content:JSON.stringify(input)}],response_format:{type:'json_schema',json_schema:{name:'rpm_intent_v1',strict:true,schema:claude||mercury?providerSchema(TURN_SCHEMA):TURN_SCHEMA}},max_tokens:maxTokens,provider:{require_parameters:true,allow_fallbacks:claude&&providerNames.length>1,...(providerNames.length?{only:providerNames}:{})}};
+ return {model,...reasoning,messages:[{role:'system',content:claude?[{type:'text',text:prompt,cache_control:{type:'ephemeral'}}]:prompt},{role:'user',content:JSON.stringify(input)}],response_format:{type:'json_schema',json_schema:{name:'rpm_intent_v1',strict:true,schema:claude||mercury?providerSchema(schema):schema}},max_tokens:maxTokens,provider:{require_parameters:true,allow_fallbacks:claude&&providerNames.length>1,...(providerNames.length?{only:providerNames}:{})}};
 }
 /** OpenRouter may answer with a dated snapshot of the requested model ("…-20261001"). */
 const sameModel=(answered,requested)=>answered===requested||typeof answered==='string'&&answered.startsWith(requested+'-');
-export function readStructuredResponse(body,{model,providerNames=[]}={}){
+export function readStructuredResponse(body,{model,providerNames=[],schema=TURN_SCHEMA}={}){
  if(model&&!sameModel(body?.model,model))throw new Error('Unexpected model; capture is retained');
  if(providerNames.length&&!providerNames.includes(body?.provider))throw new Error('Unexpected provider; capture is retained');
  try{
  const choice=body?.choices?.[0];if(choice?.finish_reason!=='stop'||choice.message?.refusal)throw new Error('Provider did not return a complete interpretation');
- const result=JSON.parse(choice.message.content);validate(result,TURN_SCHEMA);return result;
+ const result=JSON.parse(choice.message.content);validate(result,schema);return result;
  }catch(error){error.code='INVALID_MODEL_RESPONSE';throw error;}
 }
 /** What one model call cost and who served it, for the capture trace. Never the content. */
@@ -40,7 +40,7 @@ export const usageOf=body=>({provider:body?.provider??null,servedModel:body?.mod
 export const MODEL_SERVICES=Object.freeze(['anthropic','openrouter']);
 const fallsBack=status=>status===401||status===403||status===429||status>=500;
 const REFUSED='The AI service refused your key. Add a new Claude or OpenRouter key in Settings, then tap Retry.';
-export function nativeModelTransport({native,model,prompt,providerNames=[],effort,requestIdFactory=()=>`intent-model:${crypto.randomUUID()}`}={}){
+export function nativeModelTransport({native,model,prompt,schema=TURN_SCHEMA,providerNames=[],effort,requestIdFactory=()=>`intent-model:${crypto.randomUUID()}`}={}){
  return async(input,{signal,route,run,onPartial}={})=>{
   const selectedEffort=route?.effort??effort,selectedModel=route?.model??model,maxTokens=route?.maxTokens;
   const selectedProviders=selectedModel==='inception/mercury-3'?[]:providerNames;
@@ -54,8 +54,8 @@ export function nativeModelTransport({native,model,prompt,providerNames=[],effor
    for(const service of services){
     const requestId=service==='anthropic'?baseId:`${baseId}:${service}`;current=requestId;
     const body=service==='anthropic'
-     ?claudeRequest({model:selectedModel,prompt,input,schema:providerSchema(TURN_SCHEMA),effort:selectedEffort,...(maxTokens?{maxTokens}:{})})
-     :structuredRequest({model:selectedModel,prompt,input,providerNames:selectedProviders,effort:selectedEffort,...(maxTokens?{maxTokens}:{})});
+     ?claudeRequest({model:selectedModel,prompt,input,schema:providerSchema(schema),effort:selectedEffort,...(maxTokens?{maxTokens}:{})})
+     :structuredRequest({model:selectedModel,prompt,input,schema,providerNames:selectedProviders,effort:selectedEffort,...(maxTokens?{maxTokens}:{})});
     const streaming=typeof onPartial==='function'&&native.supportsStreaming===true;
     if(streaming)body.stream=true;
     let text='';const chunks={onChunk:chunk=>{if(!signal?.aborted){text+=chunk;onPartial?.(text);}}};
@@ -73,7 +73,7 @@ export function nativeModelTransport({native,model,prompt,providerNames=[],effor
     if(r.status<200||r.status>=300)throw new Error(`Native model request failed (${r.status})`);
     const claude=service==='anthropic';
     if(run)Object.assign(run,{requestId,service,serviceFallback:failure?`${failure.service} ${failure.status??'unreachable'}`:null,...(claude?claudeUsageOf(r.body):usageOf(r.body))});
-    return claude?readClaudeResponse(r.body,{model:selectedModel}):readStructuredResponse(r.body,{model:selectedModel,providerNames:selectedProviders});
+    return claude?readClaudeResponse(r.body,{model:selectedModel,schema}):readStructuredResponse(r.body,{model:selectedModel,providerNames:selectedProviders,schema});
    }
    if(failure?.error)throw failure.error;
    if(failure?.status===401||failure?.status===403)throw new Error(REFUSED);

@@ -13,15 +13,16 @@ const here=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(here,'../..');
 const git=(repo,...args)=>execFileSync('git',args,{cwd:repo,encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();
 export function parseOptions(args){
- const options={repo:root,repeat:1,concurrency:3,transport:'cli'};
+ const options={repo:root,repeat:1,concurrency:3,transport:'cli',pipeline:'current'};
  const invalid=message=>Object.assign(new Error(message),{code:'INVALID_OPTIONS'});
  for(let i=0;i<args.length;i++){
   const name=args[i];
   if(['--judge','--hardest','--probe-only','--help'].includes(name)){options[name.slice(2)]=true;continue;}
-  if(!['--repo','--only','--repeat','--concurrency','--out','--transport'].includes(name)||!args[i+1]||args[i+1].startsWith('--'))throw invalid(`Unknown or incomplete option ${name}`);
+  if(!['--pipeline','--repo','--only','--repeat','--concurrency','--out','--transport'].includes(name)||!args[i+1]||args[i+1].startsWith('--'))throw invalid(`Unknown or incomplete option ${name}`);
   options[name.slice(2)]=args[++i];
  }
  for(const key of ['repeat','concurrency']){options[key]=Number(options[key]);if(!Number.isSafeInteger(options[key])||options[key]<1||options[key]>100)throw invalid(`${key} must be an integer from 1 to 100`);}
+ if(!['current','phrase'].includes(options.pipeline))throw invalid('--pipeline must be current or phrase');
  if(!['cli','api'].includes(options.transport))throw invalid('--transport must be cli or api');
  if(options.transport==='api'&&(options.judge||options['probe-only']))throw invalid('--judge and --probe-only require --transport cli');
  options.repo=path.resolve(options.repo);return options;
@@ -64,7 +65,7 @@ export async function judgeCase(result,{mode}){
 
 async function main(){
  const options=parseOptions(process.argv.slice(2));
- if(options.help){console.log('npm run stress:capture -- [--transport cli|api] [--repo PATH] [--only id,id] [--hardest] [--repeat N] [--concurrency 3] [--judge (cli only)] [--out PATH] [--probe-only (cli only)]');return;}
+ if(options.help){console.log('npm run stress:capture -- [--pipeline current|phrase] [--transport cli|api] [--repo PATH] [--only id,id] [--hardest] [--repeat N] [--concurrency 3] [--judge (cli only)] [--out PATH] [--probe-only (cli only)]');return;}
  process.env.TZ='Asia/Kolkata';
  const {manifest,cases,hash}=await loadCorpus();
  const selectedIds=options.only?.split(',')??(options.hardest?manifest.hardest:null);
@@ -89,7 +90,7 @@ async function main(){
  await Promise.all(Array.from({length:Math.min(options.concurrency,jobs.length)},async()=>{
   while(cursor<jobs.length){
    const {test,repeat}=jobs[cursor++];
-   const result=await runCase(test,{modules,directory:path.join(directory,`${test.id}-${repeat}`),mode:probe.mode,transport:options.transport,repeat});
+   const result=await runCase(test,{modules,directory:path.join(directory,`${test.id}-${repeat}`),mode:probe.mode,transport:options.transport,pipeline:options.pipeline,repeat});
    if(options.judge){try{result.judge=await judgeCase(result,{mode:probe.mode});}catch{result.judge={error:'Judge transport failed'};}}
    results.push(result);
    await writeFile(path.join(result.artifacts.directory,'result.json'),JSON.stringify(result,null,2));

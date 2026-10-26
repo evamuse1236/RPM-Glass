@@ -1,3 +1,4 @@
+import {receiptReply} from './phrase-pipeline.mjs';
 import {intentState} from './repository.mjs';
 import {guardsFor,checkGuards,stable} from './context.mjs';
 import {draftFollowUpProblem,blocksFollowUp,FOLLOW_UP_NOTICE} from './follow-up.mjs';
@@ -78,7 +79,8 @@ export async function actOnDraft(h,action,{actionId}={}){
   if(applied.status!=='committed')throw new Error('Plan adapter did not confirm a commit candidate');
   const receipt=parked.length?{...applied.receipt,parkedDrafts:parked.map(d=>{const was=d.status;d.status='parked';d.parkedBy=draft.id;d.revision++;return {id:d.id,status:was};})}:applied.receipt;
   draft.missing=kept.missing;draft.notes=kept.notes;draft.question=kept.question;
-  draft.status='committed';draft.revision++;draft.receipt=receipt;if(skipped.size)draft.skipped=[...skipped];draft.approvedAt=h.clock().toISOString();
+  draft.status='committed';draft.revision++;draft.receipt=receipt;
+  if(draft.pipeline==='phrase'){draft.reply=receiptReply(receipt);for(const id of draft.sourceMessageIds)if(state.captures[id])state.captures[id].reply=draft.reply;}if(skipped.size)draft.skipped=[...skipped];draft.approvedAt=h.clock().toISOString();
   return {status:'committed',draftId:draft.id,receipt};
  });
  h.emit({type:result.status,...result});return result;

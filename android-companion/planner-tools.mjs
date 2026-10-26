@@ -54,7 +54,7 @@ export async function changePlanner(data,args,meta,readCalendar=async()=>({statu
  if(args.question){if(independentCreate)throw new Error('This new item still needs an answer. Finish or dismiss the open proposal first.');return hold(data,args,meta,args.question);}
  const copy=structuredClone(data);copy.pending=null;const refs=new Map(),changes=[];
  const resolve=value=>typeof value==='string'&&value.startsWith('$')?(refs.has(value)?refs.get(value):(()=>{throw new Error('Unknown new-item reference '+value);})()):value;
- for(const op of args.operations){let targetId=resolve(op.id),f={...op.fields};for(const k of ['blockId','projectId','goalId','areaId'])if(k in f)f[k]=resolve(f[k]);
+ for(const [opIndex,op] of args.operations.entries()){let targetId=resolve(op.id),f={...op.fields};for(const k of ['blockId','projectId','goalId','areaId'])if(k in f)f[k]=resolve(f[k]);
   if(op.type==='create'&&op.id!==null)throw new Error('New records must use id null and an optional ref.');
   if(op.type!=='create'&&targetId==null)throw new Error('Choose an existing record ID.');
   let bodyLog=null;
@@ -68,7 +68,7 @@ export async function changePlanner(data,args,meta,readCalendar=async()=>({statu
     const time=f.time;delete f.time;
     if('recurrence'in f)f.repeatAfterDays=null;else if('repeatAfterDays'in f)f.recurrence=null;
     // Apply scheduling first so a new recurring task is never temporarily invalid.
-    if('time'in op.fields){const resolved=resolvePlannerTime(copy,{id:old?.id??null,title:f.title??old?.title,time,minutes:f.minutes,evidence:op.evidence},{...meta,raw:evidence});
+    if('time'in op.fields){const resolved=meta.timeReads?.[opIndex]??resolvePlannerTime(copy,{id:old?.id??null,title:f.title??old?.title,time,minutes:f.minutes,evidence:op.evidence},{...meta,raw:evidence});
      if(resolved.status==='review'){if(independentCreate)throw new Error('This new item needs a scheduling answer. Finish or dismiss the open proposal first.');return hold(data,args,meta,resolved.question,resolved.choices);}
      f.planned=resolved.planned;f.plannedDate=resolved.plannedDate;if(resolved.minutes!==null)f.minutes=resolved.minutes;
     }

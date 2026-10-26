@@ -43,7 +43,7 @@ export function apiCost(model,usage){
 }
 const servedModel=(model,requested)=>typeof model==='string'&&(model===requested||model.startsWith(requested+'-')&&/^\d{8}(?:T\d{6}Z)?$/.test(model.slice(requested.length+1)))?model:null;
 
-export async function apiCall({prompt,input,route,deadline,signal,adapters,fetchImpl=fetch}){
+export async function apiCall({prompt,schema=undefined,input,route,deadline,signal,adapters,fetchImpl=fetch}){
  const started=Date.now(),requested=adapters.claude.CLAUDE_API_MODELS[route.model];
  const record={transport:'API transport',requestedModel:requested??null,servedModel:null,status:null,stopReason:null,ms:0,isError:false,usage:null,costUSD:null,responseShape:null};
  const fail=code=>{record.isError=true;record.error=code;record.ms=Date.now()-started;
@@ -58,7 +58,7 @@ export async function apiCall({prompt,input,route,deadline,signal,adapters,fetch
   if(signal?.aborted||timeoutMs===0)controller.abort();
   const key=process.env.ANTHROPIC_API_KEY;
   if(!key||controller.signal.aborted)throw fail('TRANSPORT_ERROR');
-  const body=adapters.claude.claudeRequest({model:route.model,prompt,input,schema:adapters.transport.providerSchema(adapters.schema.TURN_SCHEMA),maxTokens:route.maxTokens,effort:route.effort});
+  const body=adapters.claude.claudeRequest({model:route.model,prompt,input,schema:adapters.transport.providerSchema(schema??adapters.schema.TURN_SCHEMA),maxTokens:route.maxTokens,effort:route.effort});
   const response=await fetchImpl(API_ENDPOINT,{method:'POST',redirect:'error',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':API_VERSION},body:JSON.stringify(body),signal:controller.signal});
   record.status=Number.isInteger(response.status)&&response.status>=100&&response.status<=599?response.status:null;
   if(controller.signal.aborted||record.status===null||record.status<200||record.status>=300)throw fail('TRANSPORT_ERROR');
@@ -70,7 +70,7 @@ export async function apiCall({prompt,input,route,deadline,signal,adapters,fetch
   record.servedModel=servedModel(value?.model,requested);
   if(!record.servedModel)throw fail('TRANSPORT_ERROR');
   let output;
-  try{output=adapters.claude.readClaudeResponse(value,{model:route.model});}catch(localError){
+  try{output=adapters.claude.readClaudeResponse(value,{model:route.model,schema:schema??adapters.schema.TURN_SCHEMA});}catch(localError){
    const error=fail('INVALID_MODEL_RESPONSE');
    error.message=localError.message.replaceAll(key,'[redacted]');
    const fault=[TypeError,ReferenceError,SyntaxError,RangeError,EvalError,URIError].find(type=>localError instanceof type);

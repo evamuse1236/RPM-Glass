@@ -11,13 +11,13 @@ export function claudeRequest({model,prompt,input,schema,maxTokens=3000,effort})
   ...(effort==='none'?{thinking:{type:NO_THINKING[id]}}:{})};
 }
 const sameModel=(answered,requested)=>answered===requested||typeof answered==='string'&&answered.startsWith(requested+'-');
-export function readClaudeResponse(body,{model}={}){
+export function readClaudeResponse(body,{model,schema=TURN_SCHEMA}={}){
  const id=CLAUDE_API_MODELS[model]??model;
  if(id&&!sameModel(body?.model,id))throw new Error('Unexpected model; capture is retained');
  try{
   if(!['end_turn','stop_sequence'].includes(body?.stop_reason))throw new Error('Provider did not return a complete interpretation');
   const text=(body.content??[]).find(block=>block?.type==='text')?.text;
-  const result=JSON.parse(text);validate(result,TURN_SCHEMA);return result;
+  const result=JSON.parse(text);validate(result,schema);return result;
  }catch(error){error.code='INVALID_MODEL_RESPONSE';throw error;}
 }
 /** What one Claude call cost and who served it, for the capture trace. Never the content. */

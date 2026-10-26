@@ -1,3 +1,4 @@
+import {readPhraseOutput} from './phrase-pipeline.mjs';
 import {partialEmitter} from './partial-output.mjs';
 import {userMessage} from '../../android-companion/user-message.mjs';
 import {validateFollowUp} from './follow-up.mjs';
@@ -17,9 +18,9 @@ import {withNotes} from './source-notes.mjs';
 const STALE_FOCUS='STALE_FOCUS';
 /** Orchestration only. The model never receives a mutating function or persistence key. */
 export class IntentHarness {
- constructor({repository,model,applyPlan,undoPlan=null,refreshSchedule=null,modelPolicy=null,snapshot=null,normalizeReply=null,validateInterpretation=null,recoverInterpretation=null,onEvent=()=>{},clock=()=>new Date(),timezone='Asia/Kolkata',timeoutMs=12000,maxRepairCalls=1}={}){
+ constructor({pipeline='current',repository,model,applyPlan,undoPlan=null,refreshSchedule=null,modelPolicy=null,snapshot=null,normalizeReply=null,validateInterpretation=null,recoverInterpretation=null,onEvent=()=>{},clock=()=>new Date(),timezone='Asia/Kolkata',timeoutMs=12000,maxRepairCalls=1}={}){
   if(!repository||!model||!applyPlan)throw new Error('repository, model and applyPlan are required');
-  Object.assign(this,{repository,model,applyPlan,undoPlan,refreshSchedule,modelPolicy,snapshot,normalizeReply,validateInterpretation,recoverInterpretation,onEvent,clock,timezone,timeoutMs,maxRepairCalls});this.running=new Map();this.reads=createPreviewReads({clock});
+  Object.assign(this,{pipeline,repository,model,applyPlan,undoPlan,refreshSchedule,modelPolicy,snapshot,normalizeReply,validateInterpretation,recoverInterpretation,onEvent,clock,timezone,timeoutMs,maxRepairCalls});this.running=new Map();this.reads=createPreviewReads({clock});
  }
  emit(event){try{this.onEvent(event);}catch{/* Telemetry/UI must never break persistence. */}}
  async capture(input,{localTurn=null,validateLocal=null}={}){
@@ -72,7 +73,8 @@ export class IntentHarness {
   const quick=activeDraft?null:quickAnswer(capture.raw,{now:new Date(capture.at),timezone:capture.timezone});
   if(quick)return this.#answerLocally(messageId,units,quick);
   const {input,context,meta,local,calendarReady}=await prepareRead(data,capture,{activeDraft,question,units,snapshot:this.snapshot});
-  const localReminder=local?.turn??null;
+  if(this.pipeline==='phrase')input.original=capture.raw;
+  const localReminder=this.pipeline==='phrase'?null:local?.turn??null;
   if(localReminder){
    await calendarReady;
    const parsed=interpretTurn(localReminder,{units,messageId,visibleEntities:context.entities,activeDraft});
@@ -92,10 +94,10 @@ export class IntentHarness {
     const run={...(route??{}),attempt,ms:null,ok:false,input:inputSummary({...input,repair},meta),...(reused?{reused:'preview',requestId:reused.run.requestId,service:reused.run.service}:{})};modelRuns.push(run);const started=Date.now();
     try{
      const output=reused?reused.output:await Promise.race([this.model({...input,repair},{signal:controller.signal,deadline,route,run,onPartial:text=>partial.push(text)}),timeout]).finally(()=>{run.ms=Date.now()-started;});run.ok=true;if(reused)run.ms=0;
-     const read=readOutput(output,{input,units,messageId,visibleEntities:context.entities,activeDraft});
+     const read=(this.pipeline==='phrase'?readPhraseOutput:readOutput)(output,{input,units,messageId,visibleEntities:context.entities,activeDraft});
      if(read.completion)run.completion=read.completion;
      parsed=read.parsed;
-     validateFollowUp(parsed,{input});
+     if(this.pipeline!=='phrase')validateFollowUp(parsed,{input});
      held=this.recoverInterpretation?.(parsed,{input,activeDraft})??held;
      this.validateInterpretation?.(parsed,{input});
      // A fast run that turns out to be a plan or a large edit gets one stronger follow-up, sharing the repair allowance.
@@ -140,7 +142,7 @@ export class IntentHarness {
      const timeChanged=parsed.operations.some(op=>op.fields.some(f=>f.name==='time'&&f.sourceMessageId===messageId));
      const timeAnchorAt=previous&&!timeChanged?(previous.timeAnchorAt??previous.created):capture.at,sourceRaw=[...(previous?.sourceMessageIds??[]).map(id=>state.captures[id]?.raw??''),capture.raw].join('\n'),schedulePreview=this.refreshSchedule?.({data:current,draft:{operations:parsed.operations,conversationId:capture.conversationId,raw:sourceRaw},anchor:new Date(timeAnchorAt)})??previous?.schedulePreview??null;
      parsed.reply=parsed.reviewReason??this.normalizeReply?.({parsed,schedulePreview})??parsed.reply;
-     state.drafts[draftId]={reviewReason:parsed.reviewReason??null,id:draftId,conversationId:capture.conversationId,revision:(previous?.revision??0)+1,status:'draft',created:previous?.created??capture.at,updated:this.clock().toISOString(),operations:parsed.operations,guards:{...newGuards,...previous?.guards},question:parsed.question??safeQuestion(parsed.operations),notes:[...new Set([...(previous?.notes??[]),parsed.notice].filter(Boolean))],mode:parsed.mode,review:null,sourceMessageIds:[...new Set([...(previous?.sourceMessageIds??[]),messageId])],reply:parsed.reply,timeAnchorAt,schedulePreview};
+     state.drafts[draftId]={pipeline:this.pipeline,reviewReason:parsed.reviewReason??null,id:draftId,conversationId:capture.conversationId,revision:(previous?.revision??0)+1,status:'draft',created:previous?.created??capture.at,updated:this.clock().toISOString(),operations:parsed.operations,guards:{...newGuards,...previous?.guards},question:parsed.question??safeQuestion(parsed.operations),notes:[...new Set([...(previous?.notes??[]),parsed.notice,...(this.pipeline==='phrase'?schedulePreview?.items?.map(t=>t.reason)??[]:[])].filter(Boolean))],mode:parsed.mode,review:null,sourceMessageIds:[...new Set([...(previous?.sourceMessageIds??[]),messageId])],reply:parsed.reply,timeAnchorAt,schedulePreview};
     }
     if(parsed.notice)parsed.reply=[parsed.reply,parsed.notice].filter(Boolean).join(' ');
     saved.status='interpreted';saved.draftId=draftId;saved.decisions=withNotes(parsed.decisions,units);saved.reply=parsed.reply;saved.memoryCandidates=parsed.memoryCandidates;saved.card=parsed.card??null;saved.calls=calls;if(modelRuns.length)saved.modelRuns=modelRuns;delete saved.lastError;
@@ -183,7 +185,7 @@ export class IntentHarness {
   });
   this.emit({type:'ready',...result});return {...result,modelRuns:[]};
  }
- preview(input,options){return previewRead(this,input,options);}
+ preview(input,options){return this.pipeline==='phrase'?Promise.resolve({status:'silent'}):previewRead(this,input,options);}
  act(action,{actionId}={}){return actOnDraft(this,action,{actionId});}
  async resume(draftId,{conversationId,actionId}={}){
   return this.repository.transact(`resume:${ident(actionId)}`,{draftId,conversationId},data=>{conversation(data,conversationId);const d=intentState(data).drafts[draftId];if(!d||d.conversationId!==conversationId||d.status!=='parked')throw new Error('No parked draft here');d.status=d.review?'review':'draft';d.revision++;return {status:d.status,draftId,revision:d.revision};});

@@ -1,3 +1,4 @@
+import {PHRASE_SCHEMA,phrasePrompt,phraseSchedule} from '../intent-v2/src/phrase-pipeline.mjs';
 import {draftFollowUpProblem,blocksFollowUp,FOLLOW_UP_NOTICE} from '../intent-v2/src/follow-up.mjs';
 import {validateIntentTimes,retainSupportedTimes} from './intent-time-guard.mjs';
 import {HAIKU_MODEL,CLAUDE_PROVIDERS,intentModelPolicy,captureReply} from '../intent-v2/src/model-policy.mjs';
@@ -68,10 +69,13 @@ export function createIntentService(options={}){
  const {backend,native,model,changePlanner,undo,readCalendar,editPlan,snapshot=null,onEvent=()=>{},clock=()=>new Date(),timezone=Intl.DateTimeFormat().resolvedOptions().timeZone}=options;
  if(!backend||typeof backend.load!=='function'||typeof backend.save!=='function')throw new Error('A shared versioned backend is required');
  if(typeof changePlanner!=='function'||typeof undo!=='function'||typeof readCalendar!=='function'||typeof editPlan!=='function')throw new Error('Inject RPM planner, Undo, calendar and editor contracts');
+ const pipeline=options.pipeline??'current';
+ if(!['current','phrase'].includes(pipeline))throw new Error('Unknown Capture pipeline');
+ const experimental=pipeline==='phrase';
  const repository=createRepository(backend);
  const adapter=createRpmPlanAdapter({changePlanner,undo,readCalendar});
- const interpret=model??nativeModelTransport({native,model:HAIKU_MODEL,prompt:intentSystemPrompt,providerNames:CLAUDE_PROVIDERS,effort:'none'});
- const harness=new IntentHarness({repository,...adapter,model:interpret,modelPolicy:intentModelPolicy,snapshot,normalizeReply:captureReply,validateInterpretation:validateIntentTimes,recoverInterpretation:retainSupportedTimes,refreshSchedule:args=>({...refreshSchedulePreview(args),timezone}),onEvent,clock,timezone});
+ const interpret=model??nativeModelTransport({native,model:HAIKU_MODEL,prompt:experimental?phrasePrompt:intentSystemPrompt,...(experimental?{schema:PHRASE_SCHEMA}:{}),providerNames:CLAUDE_PROVIDERS,effort:'none'});
+ const harness=new IntentHarness({pipeline,repository,...adapter,model:interpret,modelPolicy:intentModelPolicy,snapshot,normalizeReply:experimental?null:captureReply,validateInterpretation:experimental?null:validateIntentTimes,recoverInterpretation:experimental?null:retainSupportedTimes,refreshSchedule:args=>({...((experimental?phraseSchedule:refreshSchedulePreview)(args)),timezone}),onEvent,clock,timezone});
 
  async function view({conversationId=null,offset=0,limit=20}={}){
   return intentViewFromData(await repository.load(),{conversationId,offset,limit,now:clock()});

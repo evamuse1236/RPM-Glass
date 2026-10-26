@@ -12,7 +12,7 @@ export async function targetModules(repo){
  const files={service:'android-companion/intent-service.mjs',agent:'android-companion/capture-agent.mjs',trace:'android-companion/capture-trace.mjs',
   planner:'android-companion/planner-tools.mjs',editor:'android-companion/planner-state.mjs',undo:'chat-prototype/companion-tools.mjs',
   snapshot:'android-companion/capture-snapshot.mjs',seed:'scripts/gauntlet/seed.mjs',state:'intent-v2/src/repository.mjs',
-  prompt:'intent-v2/prompts/intent-system.mjs',schema:'intent-v2/src/schema.mjs',claude:'intent-v2/adapters/claude.mjs',
+  phrase:'intent-v2/src/phrase-pipeline.mjs',prompt:'intent-v2/prompts/intent-system.mjs',schema:'intent-v2/src/schema.mjs',claude:'intent-v2/adapters/claude.mjs',
   transport:'intent-v2/adapters/transport.mjs',policy:'intent-v2/src/model-policy.mjs',errors:'android-companion/user-message.mjs'};
  return Object.fromEntries(await Promise.all(Object.entries(files).map(async([key,file])=>[key,await import(pathToFileURL(path.join(repo,file)).href)])));
 }
@@ -29,7 +29,8 @@ export async function fileBackend(file,seed){
  };
 }
 
-export async function runCase(test,{modules:m,directory,mode,transport='cli',repeat=1,modelOverride,fetchImpl}){
+export async function runCase(test,{modules:m,directory,mode,transport='cli',repeat=1,pipeline='current',modelOverride,fetchImpl}){
+ const schema=pipeline==='phrase'?m.phrase.PHRASE_SCHEMA:m.schema.TURN_SCHEMA,prompt=pipeline==='phrase'?m.phrase.phrasePrompt:m.prompt.intentSystemPrompt;
  const started=Date.now();await mkdir(directory,{recursive:true});
  const {data,events}=seedFixture({seedStore:m.seed.seedStore,editPlan:m.editor.editPlan,intentState:m.state.intentState,saved:test.saved});
  await writeFile(path.join(directory,'seed.json'),JSON.stringify({data,events},null,2));
@@ -41,7 +42,7 @@ export async function runCase(test,{modules:m,directory,mode,transport='cli',rep
   const call={routeUsed,route:structuredClone(options.route),savedBeforeModel:(await backend.load()).intentV2?.captures?.[currentMessage]?.raw===currentText};
   turnCalls.push(call);
   try{
-   const result=modelOverride?await modelOverride(input,options):transport==='api'?await apiCall({prompt:m.prompt.intentSystemPrompt,input,route:options.route,deadline:options.deadline,signal:options.signal,adapters:m,fetchImpl}):await cliCall({prompt:m.prompt.intentSystemPrompt,input,schema:m.schema.TURN_SCHEMA,
+   const result=modelOverride?await modelOverride(input,options):transport==='api'?await apiCall({prompt,schema,input,route:options.route,deadline:options.deadline,signal:options.signal,adapters:m,fetchImpl}):await cliCall({prompt,schema,input,
     model:m.claude.CLAUDE_API_MODELS[options.route.model],effort:options.route.effort,mode,signal:options.signal,timeoutMs:Math.max(1,options.deadline-Date.now())});
    Object.assign(call,result);
    const record=result.record;
@@ -53,7 +54,7 @@ export async function runCase(test,{modules:m,directory,mode,transport='cli',rep
    return result.output;
   }catch(error){if(error.record)call.record=error.record;call.error=m.errors.userMessage(error);throw error;}
  };
- const service=m.service.createIntentService({backend,model,changePlanner:m.planner.changePlanner,undo:m.undo.undo,editPlan:m.editor.editPlan,
+ const service=m.service.createIntentService({pipeline,backend,model,changePlanner:m.planner.changePlanner,undo:m.undo.undo,editPlan:m.editor.editPlan,
   readCalendar:async()=>({status:'ready',start:Date.parse('2026-10-01'),end:Date.parse('2026-12-01'),events}),
   snapshot:async({data})=>m.snapshot.planSnapshot(data,{now:clock(),timezone:TIMEZONE,events}),clock,timezone:TIMEZONE});
  let traceJson='[]';
@@ -84,7 +85,7 @@ export async function runCase(test,{modules:m,directory,mode,transport='cli',rep
   await writeFile(path.join(directory,`turn-${index+1}.json`),JSON.stringify({input,observation,state:after},null,2));
  }
  const after=await backend.load();
- const unique=evaluateCase(test,{before,after,turns,states,validate:m.schema.validate,schema:m.schema.TURN_SCHEMA});
+ const unique=evaluateCase(test,{before,after,turns,states,validate:m.schema.validate,schema});
  await writeFile(path.join(directory,'final.json'),JSON.stringify(after,null,2));
  return {id:test.id,repeat,tags:test.tags,now:test.now??NOW,pass:unique.length===0,ms:Date.now()-started,failures:unique,expect:test.expect,turns,
   artifacts:{directory,final:path.join(directory,'final.json')},saved:{newTasks:after.entries.filter(e=>!before.entries.some(b=>b.id===e.id)),health:after.planner.body}};

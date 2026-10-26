@@ -6,7 +6,7 @@ import {intentState} from '../src/repository.mjs';
 import {checkGuards} from '../src/context.mjs';
 import {BODY_INTENTS} from '../src/body-intent.mjs';
 const collections={task:'tasks',block:'blocks',project:'projects',goal:'goals',area:'areas',...Object.fromEntries(Object.entries(BODY_INTENTS).map(([entity,body])=>[entity,body.collection]))};
-export function compilePlannerOperations(draft,approval){
+export function compilePlannerOperations(draft,approval,timeReads=null){
  prepareCreates(draft);
  const byId=new Map(draft.operations.map(o=>[o.opId,o])),ordered=[],visiting=new Set(),done=new Set();
  function visit(op){if(done.has(op.opId))return;if(visiting.has(op.opId))throw new Error('Cyclic plan references');visiting.add(op.opId);
@@ -15,6 +15,7 @@ export function compilePlannerOperations(draft,approval){
  }
  draft.operations.forEach(visit);
  return ordered.map(op=>{
+  timeReads?.push(draft.schedulePreview?.items?.find(t=>t.opId===op.opId)??null);
   const fields={};for(const f of op.fields){if(f.op==='unknown')throw new Error('Unknown is not clear; resolve this field');fields[f.name]=f.op==='clear'?null:f.value;}
   if(op.kind==='create'&&op.entity==='task'&&!Object.hasOwn(fields,'minutes'))fields.minutes=null;
   const target=op.targetId===null?null:op.entity==='task'?Number(op.targetId):op.targetId;
@@ -29,7 +30,7 @@ export function createRpmPlanAdapter({changePlanner,readCalendar,undo,maxTimeDra
   checkGuards(data,draft.guards);
   const capture=intentState(data).captures[draft.sourceMessageIds[0]],anchor=new Date(draft.timeAnchorAt??capture.at);
   if(draft.operations.some(o=>o.fields.some(f=>f.name==='time'&&f.op==='set'))&&Date.parse(approval.at)-+anchor>maxTimeDraftAgeMs)throw new Error('STALE_TIME_REVIEW: refresh time interpretation before saving this older draft');
-  const operations=compilePlannerOperations(draft,approval),approvalText=`Reviewed draft ${draft.id} revision ${draft.revision}; action ${approval.actionId}`;
+  const timeReads=[],operations=compilePlannerOperations(draft,approval,timeReads),approvalText=`Reviewed draft ${draft.id} revision ${draft.revision}; action ${approval.actionId}`;
   const originals=draft.sourceMessageIds.map(id=>intentState(data).captures[id]?.raw??'').join('\n');
   const working=structuredClone(data),acceptReview=!!draft.review&&approval.reviewToken===draft.review.token;
   const proof=originals+'\n[Structured user approval]\n'+approvalText;
@@ -37,7 +38,7 @@ export function createRpmPlanAdapter({changePlanner,readCalendar,undo,maxTimeDra
   const args={operations,continuation:acceptReview,question:null,choices:[]};
   // Cache identical reads only within this one validation pass. Recheck on every commit attempt.
   const reads=new Map();const calendar=anchor=>{const key=String(anchor);if(!reads.has(key))reads.set(key,Promise.resolve(readCalendar(anchor)));return reads.get(key);};
-  const result=await changePlanner(working,args,{raw:acceptReview?'save anyway':proof,conversationId:draft.conversationId,now:anchor},calendar);
+  const result=await changePlanner(working,args,{raw:acceptReview?'save anyway':proof,conversationId:draft.conversationId,now:anchor,...(draft.pipeline==='phrase'?{timeReads}:{})},calendar);
   if(working.pending){
    if(!working.pending.scheduleReview)throw new Error(`TIME_NEEDS_REVIEW: ${working.pending.question}`);
    return {status:'review',review:{token:working.pending.scheduleReview,question:working.pending.question,choices:working.pending.choices??[]}};
@@ -49,6 +50,11 @@ export function createRpmPlanAdapter({changePlanner,readCalendar,undo,maxTimeDra
   for(const [i,compiled] of operations.entries())if(compiled.type==='create'&&compiled.collection==='tasks'){
    const changed=result.plannerChanges?.[i],entry=working.entries.find(e=>e.id===changed?.id);
    if(entry){entry.raw=originals;entry.source='intent-v2';entry.intentApproval={draftId:draft.id,revision:draft.revision,actionId:approval.actionId};if(compiled.fields.minutes===null&&entry.minutes===null)entry.durationSource='unknown';}
+  }
+  if(draft.pipeline==='phrase')for(const change of result.plannerChanges??[]){
+   const entry=working.entries.find(e=>e.id===change.id);if(!entry)continue;
+   const time=timeReads[result.plannerChanges.indexOf(change)];
+   if(time){entry.interpretation={...(entry.interpretation??{}),source:time.source,end:time.end,minutes:time.minutes,reference:anchor.toISOString()};if(time.reason)entry.notes=[entry.notes,time.reason].filter(Boolean).join('\n');}
   }
   // Receipt snapshots must also show genuine source words and estimate provenance.
   for(const r of result.plannerReceipts??[]){const e=working.entries.find(e=>e.id===r.entry?.id);if(e&&r.entry){r.entry.raw=e.raw;r.entry.durationSource=e.durationSource;}}

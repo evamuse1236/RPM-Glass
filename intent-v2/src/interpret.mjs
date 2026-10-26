@@ -58,13 +58,13 @@ function checkClarification(c,visible){
   }
  }
 }
-export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}={}){
+export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft,phrasePipeline=false}={}){
  validate(turn,TURN_SCHEMA);
  turn=structuredClone(turn);
  for(const op of turn.operations){
   if(op.entity!=='task')continue;
   const alert=op.fields.find(f=>f.name==='alert'&&f.op==='set'&&['reminder','alarm'].includes(f.value))??visibleEntities.find(e=>e.entity==='task'&&e.id===op.targetId&&['reminder','alarm'].includes(e.alert));
-  if(alert)for(const f of op.fields)if(f.name==='time'&&f.op==='set'&&typeof f.value==='string')f.value=normalizeReminderTime(f.value);
+  if(alert&&!phrasePipeline)for(const f of op.fields)if(f.name==='time'&&f.op==='set'&&typeof f.value==='string')f.value=normalizeReminderTime(f.value);
   if(op.kind!=='create')continue;
   const title=op.fields.find(f=>f.name==='title');
   if(!alert||title?.op==='set')continue;
@@ -117,7 +117,7 @@ export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}
    }else old.set(op.opId,op);
   }merged=[...old.values()];
  }
- completeExplicitReasons(merged,{units,messageId,visibleEntities});
+ if(!phrasePipeline)completeExplicitReasons(merged,{units,messageId,visibleEntities});
  merged=collapseCreates(merged,turn.question);
  if(merged.length>30)throw new Error('A draft supports at most 30 operations');
  for(const op of merged){
