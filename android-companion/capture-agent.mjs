@@ -60,6 +60,7 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
  }
 
  async function capture(input){
+  if(service.withStore)return service.withStore(scoped=>createCaptureAgent({service:scoped,traces,clock}).capture(input));
   const started=clock();let result=null;
   try{result=await service.capture(input);}
   catch(error){
@@ -70,11 +71,13 @@ export function createCaptureAgent({service,traces,clock=()=>new Date()}){
   return {...result,applied:await settle(input.messageId,result,{started})};
  }
  async function retry(messageId){
+  if(service.withStore)return service.withStore(scoped=>createCaptureAgent({service:scoped,traces,clock}).retry(messageId));
   const started=clock(),result=await service.retry(messageId);
   return {...result,applied:await settle(messageId,result,{started})};
  }
  /** A choice chip: its words are saved as a capture, read against the open question, then applied like any capture. */
  async function choose(action,{actionId}){
+  if(service.withStore)return service.withStore(scoped=>createCaptureAgent({service:scoped,traces,clock}).choose(action,{actionId}));
   const started=clock(),result=await service.choose(action,{actionId});
   return {...result,applied:await settle(actionId,result,{started})};
  }

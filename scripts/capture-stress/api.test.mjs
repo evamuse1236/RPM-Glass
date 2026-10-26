@@ -42,8 +42,9 @@ test('API endpoint, headers, maximum timeout and budgets stay aligned with Java 
  const gateway=await readFile(path.join(repo,'app/src/main/java/com/rpm/prototype/ModelGateway.java'),'utf8');
  const limits=await readFile(path.join(repo,'app/src/main/java/com/rpm/prototype/ModelLimits.java'),'utf8');
  assert.ok(gateway.includes(API_ENDPOINT));assert.ok(gateway.includes(`"anthropic-version","${API_VERSION}"`));
- assert.ok(gateway.includes('"x-api-key",key'));assert.ok(gateway.includes('"Content-Type","application/json"'));
- assert.ok(gateway.includes('setInstanceFollowRedirects(false)'));assert.ok(gateway.includes('setConnectTimeout(8000)'));assert.ok(gateway.includes('setReadTimeout(readTimeout)'));
+ assert.ok(gateway.includes('"x-api-key",key'));assert.ok(gateway.includes('MediaType.get("application/json")'));
+ const client=await readFile(path.join(repo,'app/src/main/java/com/rpm/prototype/ModelHttpClient.java'),'utf8');
+ assert.ok(client.includes('followRedirects(false)'));assert.ok(client.includes('followSslRedirects(false)'));assert.ok(client.includes('connectTimeout(8,TimeUnit.SECONDS)'));assert.ok(client.includes('readTimeout(timeout,TimeUnit.MILLISECONDS)'));assert.ok(gateway.includes('ModelHttpClient.call(builder.build(),readTimeout)'));
  const nativeLimits={};
  for(const [name,model] of [['HAIKU',adapters.policy.HAIKU_MODEL],['SONNET',adapters.policy.SONNET_MODEL]]){
   const match=limits.match(new RegExp(`${name}_LIMIT\\s*=\\s*new Limit\\((\\d+),(\\d+)\\)`));

@@ -22,12 +22,14 @@ final class ModelRequests {
 
     static final class Request {
         private volatile boolean cancelled;
-        private volatile HttpURLConnection connection;
-        void attach(HttpURLConnection value)throws InterruptedIOException {
-            connection=value;
-            if(cancelled){value.disconnect();check();}
+        private volatile Runnable cancelCall;
+        void attach(Runnable value)throws InterruptedIOException {
+            cancelCall=value;
+            if(cancelled){value.run();check();}
         }
+        void attach(HttpURLConnection value)throws InterruptedIOException {attach(value::disconnect);}
+        void detach(){cancelCall=null;}
         void check()throws InterruptedIOException {if(cancelled)throw new InterruptedIOException("Interpretation cancelled; your thought is saved.");}
-        void cancel() {cancelled=true;HttpURLConnection value=connection;if(value!=null)value.disconnect();}
+        void cancel() {cancelled=true;Runnable pending=cancelCall;if(pending!=null)pending.run();}
     }
 }

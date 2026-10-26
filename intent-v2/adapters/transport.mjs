@@ -41,7 +41,7 @@ export const MODEL_SERVICES=Object.freeze(['anthropic','openrouter']);
 const fallsBack=status=>status===401||status===403||status===429||status>=500;
 const REFUSED='The AI service refused your key. Add a new Claude or OpenRouter key in Settings, then tap Retry.';
 export function nativeModelTransport({native,model,prompt,providerNames=[],effort,requestIdFactory=()=>`intent-model:${crypto.randomUUID()}`}={}){
- return async(input,{signal,route,run}={})=>{
+ return async(input,{signal,route,run,onPartial}={})=>{
   const selectedEffort=route?.effort??effort,selectedModel=route?.model??model,maxTokens=route?.maxTokens;
   const selectedProviders=selectedModel==='inception/mercury-3'?[]:providerNames;
   const baseId=requestIdFactory(input);if(typeof baseId!=='string'||!baseId||baseId.length>140||!/^[A-Za-z0-9:_-]+$/.test(baseId))throw new Error('Invalid native model request ID');
@@ -56,10 +56,15 @@ export function nativeModelTransport({native,model,prompt,providerNames=[],effor
     const body=service==='anthropic'
      ?claudeRequest({model:selectedModel,prompt,input,schema:providerSchema(TURN_SCHEMA),effort:selectedEffort,...(maxTokens?{maxTokens}:{})})
      :structuredRequest({model:selectedModel,prompt,input,providerNames:selectedProviders,effort:selectedEffort,...(maxTokens?{maxTokens}:{})});
+    const streaming=typeof onPartial==='function'&&native.supportsStreaming===true;
+    if(streaming)body.stream=true;
+    let text='';const chunks={onChunk:chunk=>{if(!signal?.aborted){text+=chunk;onPartial?.(text);}}};
     // The whole request as sent, system prompt and schema included; the key is added natively and never seen here.
-    if(run){const sent=JSON.stringify(body);Object.assign(run,{requestBytes:sent.length,requestHash:shortHash(sent)});}
+    const record=()=>{if(run){const sent=JSON.stringify(body);Object.assign(run,{requestBytes:sent.length,requestHash:shortHash(sent)});}};record();
     let r;
-    try{r=await native('model',{requestId,service,body,...(route?.timeoutMs?{timeoutMs:route.timeoutMs+2000}:{})});}
+    try{r=await native('model',{requestId,service,body,...(route?.timeoutMs?{timeoutMs:route.timeoutMs+2000}:{})},chunks);
+     if(streaming&&[400,422].includes(r?.status)){delete body.stream;record();r=await native('model',{requestId,service,body,...(route?.timeoutMs?{timeoutMs:route.timeoutMs+2000}:{})});}
+    }
     catch(error){if(signal?.aborted)throw new DOMException('Late native response ignored','AbortError');failure={service,error};continue;}
     if(signal?.aborted)throw new DOMException('Late native response ignored','AbortError');
     if(r?.missingKey)continue;

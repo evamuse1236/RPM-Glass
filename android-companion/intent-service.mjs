@@ -2,7 +2,7 @@ import {draftFollowUpProblem,blocksFollowUp,FOLLOW_UP_NOTICE} from '../intent-v2
 import {validateIntentTimes,retainSupportedTimes} from './intent-time-guard.mjs';
 import {HAIKU_MODEL,CLAUDE_PROVIDERS,intentModelPolicy,captureReply} from '../intent-v2/src/model-policy.mjs';
 import {IntentHarness} from '../intent-v2/src/harness.mjs';
-import {createRepository,intentState} from '../intent-v2/src/repository.mjs';
+import {createRepository,intentState,captureBackend} from '../intent-v2/src/repository.mjs';
 import {createRpmPlanAdapter} from '../intent-v2/adapters/rpm-glass.mjs';
 import {nativeModelTransport} from '../intent-v2/adapters/transport.mjs';
 import {draftActions,choiceActions} from '../intent-v2/src/suggestions.mjs';
@@ -64,7 +64,8 @@ export function intentViewFromData(data,{conversationId=null,offset=0,limit=20,n
  * Production integration around RPM's canonical store. The supplied backend must
  * compare-and-swap `save(expectedVersion,nextData)` and share the runtime's owner.
  */
-export function createIntentService({backend,native,model,changePlanner,undo,readCalendar,editPlan,snapshot=null,onEvent=()=>{},clock=()=>new Date(),timezone=Intl.DateTimeFormat().resolvedOptions().timeZone}={}){
+export function createIntentService(options={}){
+ const {backend,native,model,changePlanner,undo,readCalendar,editPlan,snapshot=null,onEvent=()=>{},clock=()=>new Date(),timezone=Intl.DateTimeFormat().resolvedOptions().timeZone}=options;
  if(!backend||typeof backend.load!=='function'||typeof backend.save!=='function')throw new Error('A shared versioned backend is required');
  if(typeof changePlanner!=='function'||typeof undo!=='function'||typeof readCalendar!=='function'||typeof editPlan!=='function')throw new Error('Inject RPM planner, Undo, calendar and editor contracts');
  const repository=createRepository(backend);
@@ -76,6 +77,7 @@ export function createIntentService({backend,native,model,changePlanner,undo,rea
   return intentViewFromData(await repository.load(),{conversationId,offset,limit,now:clock()});
  }
  async function capture(input){
+  if(!options.scoped)return withStore(service=>service.capture(input));
   validId(input?.messageId,'Message ID');validId(input?.conversationId,'Conversation ID');
   // Capacity is checked without writing; the harness transaction revalidates all
   // identity and conversation invariants and writes the raw source before AI work.
@@ -145,5 +147,10 @@ export function createIntentService({backend,native,model,changePlanner,undo,rea
   });
   return {...result,intent:await view({conversationId:ensureIntent(await repository.load()).captures[messageId]?.conversationId})};
  }
- return {repository,harness,capture,retry,act,choose,undo:undoDraft,editItem,undoEdit,resume,view,sort,keepNote,help,nextStep,preview};
+ function withStore(work){
+  const scoped=createIntentService({...options,backend:captureBackend(backend),scoped:true});
+  scoped.harness.reads=harness.reads;scoped.harness.running=harness.running;
+  return work(scoped);
+ }
+ return {...(!options.scoped?{withStore}:{}),repository,harness,capture,retry,act,choose,undo:undoDraft,editItem,undoEdit,resume,view,sort,keepNote,help,nextStep,preview};
 }
