@@ -97,3 +97,14 @@ html:has(dialog:modal) { overflow: clip; }
   .list-item { min-block-size: 48px; padding-block: var(--s1); }
   .spine-row { min-block-size: 40px; }
 }
+
+.row-tools { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .spine-card { position: relative; }
+  :is(.task-row, .spine-card):is(:hover, :focus-within) > .row-tools { display: flex; }
+  .row-tools { position: absolute; inset-block-start: 50%; inset-inline-end: var(--s1); translate: 0 -50%; z-index: 1; gap: var(--s1); padding: var(--s1); border-radius: var(--shape-full); background: var(--surface-container-high); box-shadow: var(--float-shadow); }
+  .spine-card > .row-tools { inset-inline-end: var(--spine-ring); }
+  .row-tools .icon-btn { inline-size: 40px; block-size: 40px; min-inline-size: 0; min-block-size: 0; border-radius: var(--shape-full); color: var(--on-surface-variant); }
+  .row-tools .icon-btn:hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); color: var(--on-surface); }
+  .row-tools .icon-btn:active { background: color-mix(in oklch, var(--on-surface) 12%, transparent); }
+}

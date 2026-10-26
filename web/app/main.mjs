@@ -7,6 +7,7 @@ import {applyClarityPreferences} from '../../android-companion/planner-clarity.m
 import {mountPlanner} from '../../android-companion/planner.mjs';
 import {isWide, onWidthChange} from './desktop.mjs';
 import {mountSidebar} from './sidebar.mjs';
+import {FINE, mountRowTools} from './pointer.mjs';
 
 const server = new URLSearchParams(location.search).get('server') ?? globalThis.RPM_SYNC_SERVER ?? location.origin;
 const client = createClient({server});
@@ -32,6 +33,7 @@ function mount() {
   ui = mountPlanner({getData: () => queue.data(), getPhone: () => PHONE, native: createWebNative({openCapture}), sortPreview,
     label: sentLabel, commit: async op => queue.commit(op), menuItems, inlineSheet: isWide});
   mountSidebar($('sidebar'), $('planner'), ui);
+  if (matchMedia(FINE).matches) mountRowTools(document);
   onWidthChange(() => ui.closeSheet());
   if (location.hash === '#ideas') ui.goalIdeas();
   else if (location.hash.startsWith('#open=')) try { ui.openView(JSON.parse(decodeURIComponent(location.hash.slice(6)))); } catch {}
