@@ -108,7 +108,7 @@ export function renderAgenda(host, data, ui, now = new Date(), split = isSplit()
     return section('agenda-next', open, ...tasks.map(task => taskItem(task, ui, now)));
   });
   const {tomorrow} = model;
-  const ahead = tomorrow?.count ? section('agenda-tomorrow',
+  const ahead = tomorrow?.tasks.length ? section('agenda-tomorrow',
     head('Tomorrow', {count: tomorrow.count, onClick: () => ui.openView({view: 'day', date: tomorrow.day})}),
     ...tomorrow.tasks.map(task => timedItem(task, ui))) : null;
   const week = model.week.length ? section('agenda-week', head('Week'), ...model.week.flatMap(day => weekDay(day, ui))) : null;

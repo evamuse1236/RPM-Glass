@@ -28,7 +28,7 @@ When Vishwajit asks for a finished APK, follow the global `juno` skill: build th
 
 ## Rules and what enforces them
 
-Before changing Capture, read `docs/rules/capture.md`. Before changing the notch, read `docs/rules/notch.md`. Each holds that area's rules and checks; the table below holds the rest.
+Before changing Capture, read `docs/rules/capture.md`. Before changing the notch, read `docs/rules/notch.md`. Before changing the website (`web/`), read `docs/rules/website.md`. Each holds that area's rules and checks; the table below holds the rest.
 
 | Rule | Enforced by |
 |---|---|
@@ -44,7 +44,7 @@ Before changing Capture, read `docs/rules/capture.md`. Before changing the notch
 | Every stylesheet Capture and the planner link is served by the native asset allowlist. | `android-companion/companion-assets.test.mjs` |
 | Dates are honest and compact ("2:30 pm to 3 pm", "Time not set"). | `android-companion/capture-content.test.mjs` |
 | No page shows a scrollbar. | `android-companion/companion-assets.test.mjs` |
-| Every padding, margin, gap, size, stroke, icon and radius in a stylesheet comes from one scale; tokens live only in `theme.css`. | `scripts/rules/size-scale.test.mjs` |
+| Every padding, margin, gap, size, stroke, icon and radius in a stylesheet (the app's and the website's `web/app`) comes from one scale; tokens live only in `theme.css`. | `scripts/rules/size-scale.test.mjs` |
 | The planner's tab bar is glass whose transparency Settings sets (Solid to 60%, 20% by default); the choice is kept and applied on every page start. | `android-companion/planner-clarity.test.mjs`, `android-companion/floating-layout.test.mjs` |
 | Task rows swipe right to complete and left to schedule (in the Inbox the choices end with Move to Block); a drag locks to one axis after 8px; no swipe starts within 24dp of a screen edge; Delete is never a swipe. On Today a timed card held still for 250ms lifts and moves in 15-minute steps, its time label (with the card's length) 12dp above the card and never over its title; the gutter shows only the time and the countdown; a timed card that has not ended has a knurl that changes the length; a vertical drag before the lift scrolls and never moves a card. A meal row's swipe word ("Log now") shows only once it fits whole. A sideways drag along the tab bar slides its pill and opens the tab it is let go on. | `android-companion/task-swipe.test.mjs`, `android-companion/spine-drag.test.mjs`, `android-companion/nav-drag.test.mjs` |
 | On a "Which one?" card every chip leads with an icon for what choosing does; the first has a primary outline, and a right swipe on the card picks it with the same action as tapping it; an answered question offers no swipe. The Capture field is body-large (16/24), Send is #A8C7FA with a #062E6F icon, and response cards have a 1px outline border. | `android-companion/capture-question-swipe.test.mjs`, `android-companion/capture-look.test.mjs` |
@@ -88,9 +88,4 @@ Before changing Capture, read `docs/rules/capture.md`. Before changing the notch
 | Existing device pairing, events, and records survive additive account migration and token rotation. | `cloud-tests/webHttp.test.ts` |
 | The headless sync bundle runs with eval blocked and applies through the normal versioned native save bridge. | `android-companion/web-sync-runtime.test.mjs` with a simulated bridge; Android execution remains UNVERIFIED until driven |
 | Each command is acknowledged before the next starts, and pairing credentials come from one connection snapshot. | `SyncManagerTest.anAppliedCommandIsAcknowledgedBeforeTheNextCommandCanFail`, `SyncManagerTest.credentialsAreCapturedAsOneConnection` |
-| The website reports a change as saved only after the phone applies it and the newer snapshot arrives; until then the row says it is waiting for the phone. | `web/app/client.test.mjs`, `npm run web:drive` |
-| The website resends an unsent change with the same command ID and body after a network failure or reload. | `web/app/client.test.mjs` |
-| Every website action builds a command the contract accepts, on the snapshot revision the user saw. | `web/app/plan-queue.test.mjs` |
-| A Project, Block or other record made in the browser keeps its id when the phone saves it: the command carries the ids the browser used, fixed at the first edit; the phone uses each one only if it is a UUID not yet in the store. | `web/app/plan-queue.test.mjs`, `android-companion/web-sync-plan.test.mjs` (`keeps its id`) |
-| On the ChatGPT Site the planner opens without a link code: the Site holds the key, adds it only for `Bearer site`, never sends it to the page, and the page can't revoke it. The key reads the phone that synced last. | `web/site-worker.test.mjs`, `web/app/client.test.mjs`, `cloud-tests/webAdminSession.test.ts`, `npm run web:drive -- --no-code` |
 | Model-backed paths without a key, Samsung behavior and real widget placement are reported as UNVERIFIED, not as passing. | Judgment: `verify-rpm-glass` SKILL.md proof standards |

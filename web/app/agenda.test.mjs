@@ -105,6 +105,7 @@ test('a very wide window gives Tomorrow and the Week their own column beside Inb
   const source = readFileSync(new URL('./agenda.mjs', import.meta.url), 'utf8');
   assert.match(source, /split \? \[column\(ahead, week\), column\(inbox, \.\.\.blocks\)\] : \[column\(inbox, \.\.\.blocks, week\)\]/);
   assert.match(source, /const WEEK = 6;/);
+  assert.match(source, /const ahead = tomorrow\?\.tasks\.length \? section\(/, 'Tomorrow hides when every task it has is already on screen');
   const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
   assert.match(css, /--agenda: clamp\(400px, 100% - var\(--side\) - 720px, 440px\);/);
   assert.match(css, /@media \(width >= 1680px\) \{\n  \.planner-view \{ --agenda: clamp\(440px, 100% - var\(--side\) - 760px, 880px\); \}/,

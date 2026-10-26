@@ -43,7 +43,7 @@ function mount() {
   glance = () => { sidebar.setInbox(inboxRows(queue.data()).length); agenda(); };
   if (matchMedia(FINE).matches) mountRowTools(document);
   mountShortcuts(document, ui, {work: $('workspace'), sheet: $('sheet'), dialog: $('keys-sheet')});
-  onWidthChange(() => ui.closeSheet());
+  onWidthChange(() => { ui.closeSheet(); ui.render(); });
   markOpenCard($('workspace'), $('sheet'));
   if (location.hash === '#ideas') ui.goalIdeas();
   else if (location.hash.startsWith('#open=')) try { ui.openView(JSON.parse(decodeURIComponent(location.hash.slice(6)))); } catch {}

@@ -29,7 +29,7 @@ const labelOf = node => node.querySelector('.side-label')?.textContent;
 test('the wide layout in CSS uses the same query the script reads', () => {
   assert.ok(css.includes(`@media ${WIDE} {`));
   assert.match(main, /wide: isWide/);
-  assert.match(main, /onWidthChange\(\(\) => ui\.closeSheet\(\)\)/);
+  assert.match(main, /onWidthChange\(\(\) => \{ ui\.closeSheet\(\); ui\.render\(\); \}\)/, 'crossing 1080px redraws the page in its new layout');
 });
 
 test('only the website asks for the inline pane; the phone keeps the modal sheet', () => {
