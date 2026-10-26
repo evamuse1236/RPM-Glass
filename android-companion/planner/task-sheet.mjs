@@ -163,6 +163,7 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
   };
   const current = () => whenOf(live(), when(live()));
   const tabs = taskTabs({
+    remote: !!app.api.getPhone().remote,
     get: () => now(live() ?? task),
     tick: () => app.api.native('haptic', {kind: 'tick'}).catch(() => {}),
     pick: {

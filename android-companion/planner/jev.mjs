@@ -97,6 +97,10 @@ export async function aiAction(app, action, blockId = null) {
   const status = el('p', 'sheet-note', 'Preparing a suggestion…');
   status.setAttribute('role', 'status');
   body.append(status);
+  if (app.api.getPhone().remote) {
+    status.textContent = 'Suggestions run in RPM on your phone.';
+    return;
+  }
   if (!app.api.getPhone().hasKey) {
     status.textContent = 'Connect your AI key in Settings to get suggestions. Your plans stay saved.';
     actions.append(button('Open Settings', () => app.openSettings('ai_connection'), 'filled-btn'));

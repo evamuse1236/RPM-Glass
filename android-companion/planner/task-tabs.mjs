@@ -38,7 +38,7 @@ function pressed(node, on) {
  */
 const wrapRow = label => { const row = chipRow(label); row.classList.add('chip-wrap'); return row; };
 
-export function taskTabs({get, pick, tick = () => {}}) {
+export function taskTabs({get, pick, tick = () => {}, remote = false}) {
   const node = el('div', 'task-tabs');
   const row = el('div', 'tab-row');
   row.setAttribute('role', 'tablist');
@@ -87,7 +87,7 @@ export function taskTabs({get, pick, tick = () => {}}) {
   });
 
   const when = whenPanel(panels.when, pick, tick);
-  const alert = alertPanel(panels.alert, pick);
+  const alert = alertPanel(panels.alert, pick, remote);
   const repeat = repeatPanel(panels.repeat, pick);
   const block = blockPanel(panels.block, pick, get);
   node.append(row, ...Object.values(panels));
@@ -189,7 +189,7 @@ function whenPanel(host, pick, tick) {
   return {paint, error, clash, days, lengths, dayPicker: dayPicker.input, reveal};
 }
 
-function alertPanel(host, pick) {
+export function alertPanel(host, pick, remote) {
   const kinds = el('div', 'alert-kinds');
   kinds.setAttribute('role', 'group');
   kinds.setAttribute('aria-label', 'Alert');
@@ -212,7 +212,8 @@ function alertPanel(host, pick) {
     }));
   }
   const note = el('p', 'field-alert', 'An alert needs a day and a time. Set them in When.');
-  host.append(kinds, leads, note);
+  const rings = el('p', 'field-alert', 'Alert rings on your phone');
+  host.append(kinds, leads, note, ...(remote ? [rings] : []));
   const paint = now => {
     const off = !now.day || !now.time;
     kinds.classList.toggle('is-off', off);
@@ -223,6 +224,7 @@ function alertPanel(host, pick) {
     leads.hidden = now.alert === 'off' || off;
     markChips(leads, String(now.lead ?? 0));
     note.hidden = !off;
+    rings.hidden = off || now.alert === 'off';
   };
   return {paint};
 }

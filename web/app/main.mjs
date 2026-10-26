@@ -9,6 +9,7 @@ import {isWide, onWidthChange} from './desktop.mjs';
 import {mountSidebar} from './sidebar.mjs';
 import {FINE, mountRowTools} from './pointer.mjs';
 import {mountShortcuts} from './shortcuts.mjs';
+import {captureNotes} from './capture-notes.mjs';
 
 const server = new URLSearchParams(location.search).get('server') ?? globalThis.RPM_SYNC_SERVER ?? location.origin;
 const client = createClient({server});
@@ -47,16 +48,22 @@ const menuItems = () => [
   ...(client.state.token === 'site' ? [] : [{label: 'Unlink this browser', icon: 'link_off', onClick: async () => { await client.unlink(); $('link-problem').hidden = true; }}]),
 ];
 
-function noteItem({icon, text, tone, onDismiss}) {
+function noteItem({icon, text, tone, lines = [], onDismiss}) {
   const item = document.createElement('li');
   item.className = `note ${tone}`;
   const glyph = document.createElement('span');
   glyph.className = 'ms';
   glyph.setAttribute('aria-hidden', 'true');
   glyph.textContent = icon;
-  const words = document.createElement('p');
-  words.textContent = text;
-  item.append(glyph, words);
+  const body = document.createElement('div');
+  body.className = 'note-body';
+  for (const [i, line] of [text, ...lines].entries()) {
+    const words = document.createElement('p');
+    if (i) words.className = 'note-outcome';
+    words.textContent = line;
+    body.append(words);
+  }
+  item.append(glyph, body);
   if (onDismiss) {
     const close = document.createElement('button');
     close.type = 'button';
@@ -72,12 +79,10 @@ function noteItem({icon, text, tone, onDismiss}) {
 function renderNotes(waiting) {
   const notes = waiting.length ? [noteItem({icon: 'schedule', tone: 'waiting', text: `${plural(waiting.length, 'change')} waiting for your phone`})] : [];
   notes.push(...queue.problems().map((p, i) => noteItem({icon: 'error', tone: 'problem', text: userMessage(p.message), onDismiss: () => queue.dismissProblem(i)})));
-  for (const entry of client.state.outbox.filter(e => e.command.type === 'capture' && !dismissed.has(e.command.id))) {
-    const words = `“${entry.command.args.text.trim().slice(0, 80)}”`;
-    if (!client.settled(entry)) notes.push(noteItem({icon: 'schedule', tone: 'waiting', text: `Capture ${words} is waiting for your phone.`}));
-    else if (entry.status !== 'applied') notes.push(noteItem({icon: 'error', tone: 'problem', text: userMessage(entry.message || 'Your phone did not save this capture.'),
-      onDismiss: () => { dismissed.add(entry.command.id); render(); }}));
-  }
+  const {outbox, snapshot} = client.state;
+  notes.push(...captureNotes({outbox, captures: snapshot?.captures, settled: client.settled, dismissed}).map(note => noteItem({...note,
+    text: note.tone === 'problem' ? userMessage(note.text) : note.text,
+    onDismiss: note.dismissible ? () => { dismissed.add(note.id); render(); } : null})));
   $('notes').replaceChildren(...notes);
   $('notes').hidden = notes.length === 0;
 }
