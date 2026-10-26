@@ -54,7 +54,7 @@ final class PlannerCommandHost implements AutoCloseable,PlannerSyncProtocol.Runn
                     switch(action){
                         case "input":value=input;break;
                         case "load":value=new JSONObject().put("data",CompanionStore.read(context));break;
-                        case "save":synchronized(CompanionStore.LOCK){guard.check();CompanionStore.write(context,p.getJSONObject("data"),p.getInt("expected"));}value=new JSONObject();break;
+                        case "save":synchronized(CompanionStore.LOCK){guard.check();CompanionStore.write(context,p.getJSONObject("data"),p.getInt("expected"),p.optString("origin","local"));}value=new JSONObject();break;
                         case "calendarRead":value=PlannerCalendar.read(context,p.optLong("anchor",System.currentTimeMillis()));break;
                         case "model":case "decision":
                             requestId=p.optString("requestId",id);request=requests.register(requestId);

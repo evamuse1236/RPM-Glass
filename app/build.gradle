@@ -14,6 +14,8 @@ android {
         versionName "0.33-site-parity"
         testInstrumentationRunner "com.rpm.prototype.OfflineTests"
     }
+    sourceSets.main.assets.srcDir(layout.buildDirectory.dir("generated/syncAssets"))
+    testOptions { unitTests.includeAndroidResources = true }
     compileOptions {
         coreLibraryDesugaringEnabled true
         sourceCompatibility JavaVersion.VERSION_17
@@ -37,6 +39,7 @@ dependencies {
     testImplementation "com.squareup.okhttp3:mockwebserver:4.12.0"
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
     testImplementation "junit:junit:4.13.2"
+    testImplementation "org.robolectric:robolectric:4.16.1"
     testImplementation "org.json:json:20240303"
 }
 tasks.register('bundleCompanion', Exec) {
@@ -45,8 +48,12 @@ tasks.register('bundleCompanion', Exec) {
     inputs.files(fileTree('../android-companion'), fileTree('../chat-prototype'), fileTree('../cli'), fileTree('../intent-v2/src'), fileTree('../intent-v2/adapters'), fileTree('../intent-v2/prompts'), fileTree('../web/contract'), file('../scripts/build-companion-assets.mjs'))
     outputs.dir('src/main/assets/companion')
 }
-tasks.named('preBuild').configure { dependsOn 'bundleCompanion' }
+tasks.register('bundleSyncContract', Copy) {
+    from rootProject.file('web/contract/records.json')
+    into layout.buildDirectory.dir('generated/syncAssets/sync')
+}
+tasks.named('preBuild').configure { dependsOn 'bundleCompanion', 'bundleSyncContract' }
 
 tasks.withType(Test).configureEach {
-    inputs.file(rootProject.file('fixtures/habit-cases.json'))
+    inputs.files(rootProject.file('fixtures/habit-cases.json'), rootProject.file('fixtures/record-keys.json'), rootProject.file('web/fixtures/snapshot.json'), rootProject.file('web/contract/records.json'))
 }
