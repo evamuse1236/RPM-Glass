@@ -214,7 +214,7 @@ final class NotchRunner {
                             result = new JSONObject().put("data", Optional.<Object>ofNullable(CompanionStore.read(context)).orElse(JSONObject.NULL));
                             break;
                         case "save":
-                            CompanionStore.write(context, p.getJSONObject("data"), p.getInt("expected"));
+                            CompanionStore.write(context, p.getJSONObject("data"), p.getInt("expected"), p.optString("origin", "local"));
                             context.sendBroadcast(new android.content.Intent(CHANGED).setPackage(context.getPackageName()));
                             result = new JSONObject();
                             break;

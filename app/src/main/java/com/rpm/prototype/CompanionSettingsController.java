@@ -108,7 +108,7 @@ final class CompanionSettingsController {
         }
         Uri uri=intent.getData();if(uri==null){notifyChanged();return;}
         if(request==PICK_AUDIO){background(()->AlertSounds.importAlarm(activity,uri,false),"Alarm sound saved.",false);return;}
-        if(request==IMPORT_CONTEXT){background(()->{try(InputStream in=activity.getContentResolver().openInputStream(uri)){if(in==null)throw new IOException("Could not open that context file.");CompanionStore.importCopy(activity,new JSONObject(CompanionStore.readText(in)));}},"Context imported. Saved alerts from the copy remain off.",true);return;}
+        if(request==IMPORT_CONTEXT){background(()->{try(InputStream in=activity.getContentResolver().openInputStream(uri)){if(in==null)throw new IOException("Could not open that context file.");CompanionStore.importCopy(activity,new JSONObject(CompanionStore.readText(in)),modifiedAt(uri));}},"Context imported. Saved alerts from the copy remain off.",true);return;}
         if(request==EXPORT_CONTEXT)background(()->{JSONObject data=CompanionStore.read(activity);if(data==null)throw new IOException("No saved context to export.");try(OutputStream out=activity.getContentResolver().openOutputStream(uri)){if(out==null)throw new IOException("Could not open that file.");out.write(data.toString(2).getBytes(StandardCharsets.UTF_8));}},"Context exported. Keep this personal file private.",false);
     }
 
@@ -159,7 +159,16 @@ final class CompanionSettingsController {
         File[] files=activity.getFilesDir().listFiles((dir,name)->name.startsWith("companion-before-import-")&&name.endsWith(".json"));
         if(files==null||files.length==0){error("No pre-import backups yet.");return;}
         Arrays.sort(files,Comparator.comparing(File::getName).reversed());String[] names=Arrays.stream(files).map(File::getName).toArray(String[]::new);
-        new AlertDialog.Builder(activity).setTitle("Restore a backup (alerts disarmed)").setItems(names,(d,w)->background(()->{try(InputStream in=new FileInputStream(files[w])){CompanionStore.importCopy(activity,new JSONObject(CompanionStore.readText(in)));}},"Backup restored. Its saved alerts remain off.",true)).setNegativeButton("Cancel",null).show();
+        new AlertDialog.Builder(activity).setTitle("Restore a backup (alerts disarmed)").setItems(names,(d,w)->background(()->{try(InputStream in=new FileInputStream(files[w])){CompanionStore.importCopy(activity,new JSONObject(CompanionStore.readText(in)),files[w].lastModified());}},"Backup restored. Its saved alerts remain off.",true)).setNegativeButton("Cancel",null).show();
+    }
+
+    private long modifiedAt(Uri uri){
+        if("file".equals(uri.getScheme()))return new File(uri.getPath()).lastModified();
+        String column=android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED;
+        try(android.database.Cursor cursor=activity.getContentResolver().query(uri,new String[]{column},null,null,null)){
+            if(cursor!=null&&cursor.moveToFirst()&&!cursor.isNull(0))return cursor.getLong(0);
+        }catch(RuntimeException ignored){}
+        return 0;
     }
 
     private interface Work {void run()throws Exception;}
