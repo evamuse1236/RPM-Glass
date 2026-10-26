@@ -67,23 +67,28 @@ export async function run(t) {
 
     await network(t, false);
     t.facts.offline = t.shell('dumpsys connectivity | grep -m1 "Active default network"').trim();
-    const frozen = await until('the phone to hold its first offline outbox', async () => {
+    // An offline phone freezes its unsent edits into an outbox; the edit after that is the case that once lost the website's edit.
+    const editTitle = async (from, to) => {
+      await t.do('key', 'home');
+      await t.do('open', 'planner');
+      await openBlock(t);
+      await t.do('tap', '--role', 'button', '--name', from);
+      await t.do('tap', '--role', 'textbox', '--name', 'Task title');
+      await t.read(() => document.activeElement.select());
+      await t.do('type', to);
+      await t.do('key', 'enter');
+      await until(`the phone to save "${to}"`, async () => ({done: byTitle((await t.store()).entries, to)?.id === task.id}), {timeout: 15000, every: 500});
+      if (t.keyboardShown()) await t.do('key', 'back');
+      await t.do('key', 'back');
+      await t.do('wait', '--role', 'button', '--name', 'Blocks');
+    };
+    await editTitle(T_TITLE, 'Phone draft');
+    const frozen = await until('the phone to freeze its offline edit into an outbox', async () => {
       const store = await t.store();
-      return {done: !!store.sync?.outbox, version: store.version};
+      return {done: !!store.sync?.outbox?.changes?.some(change => change.key === `task:${task.id}`), version: store.version};
     }, {timeout: 45000, every: 1000});
-    await t.do('key', 'home');
-    await t.do('open', 'planner');
     t.facts.offlineOutboxVersion = frozen.version;
-    await openBlock(t);
-    await t.do('tap', '--role', 'button', '--name', T_TITLE);
-    await t.do('tap', '--role', 'textbox', '--name', 'Task title');
-    await t.read(() => document.activeElement.select());
-    await t.do('type', 'Phone title');
-    await t.do('key', 'enter');
-    await until('the phone to save its title', async () => ({done: byTitle((await t.store()).entries, 'Phone title')?.id === task.id}), {timeout: 15000, every: 500});
-    if (t.keyboardShown()) await t.do('key', 'back');
-    await t.do('key', 'back');
-    await t.do('wait', '--role', 'button', '--name', 'Blocks');
+    await editTitle('Phone draft', 'Phone title');
     await sleep(5000);
     const whileOffline = await site.snapshot();
     t.facts.serverTitleWhileOffline = whileOffline.entries.find(e => e.id === task.id)?.title;
