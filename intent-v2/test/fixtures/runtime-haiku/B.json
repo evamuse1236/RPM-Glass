@@ -1,0 +1,47 @@
+{
+  "raw": "Task from 12 am to 1210",
+  "now": "2026-10-26T19:18:00.000Z",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "schemaVersion": 1,
+    "mode": "capture",
+    "draftMode": "new",
+    "reply": "Got it. I've set this up as a task from 12 am to 12:10, so it will be scheduled for the start of the day.",
+    "decisions": [
+      {
+        "sourceId": "s0",
+        "disposition": "action",
+        "note": null
+      }
+    ],
+    "operations": [
+      {
+        "opId": "op1",
+        "sourceId": "s0",
+        "kind": "create",
+        "entity": "task",
+        "targetId": null,
+        "fields": [
+          {
+            "name": "title",
+            "op": "set",
+            "value": "Task",
+            "origin": "suggested",
+            "evidence": null
+          },
+          {
+            "name": "time",
+            "op": "set",
+            "value": "from 12 am to 1210",
+            "origin": "stated",
+            "evidence": "from 12 am to 1210"
+          }
+        ]
+      }
+    ],
+    "question": null,
+    "clarification": null,
+    "memoryCandidates": [],
+    "card": null
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "raw": "shaam 7 baje walk karna hai",
+  "now": "2026-10-19T16:26:00+05:30",
+  "output": {
+    "schemaVersion": 1,
+    "mode": "capture",
+    "draftMode": "new",
+    "reply": "Shaam 7 baje walk, noted. Is that 7 PM today?",
+    "decisions": [
+      {
+        "sourceId": "s0",
+        "disposition": "action",
+        "note": null
+      }
+    ],
+    "operations": [
+      {
+        "opId": "op1",
+        "sourceId": "s0",
+        "kind": "create",
+        "entity": "task",
+        "targetId": null,
+        "fields": [
+          {
+            "name": "title",
+            "op": "set",
+            "value": "Walk",
+            "origin": "stated",
+            "evidence": "walk karna hai"
+          },
+          {
+            "name": "time",
+            "op": "set",
+            "value": "shaam 7 baje",
+            "origin": "stated",
+            "evidence": "shaam 7 baje"
+          },
+          {
+            "name": "alert",
+            "op": "set",
+            "value": "reminder",
+            "origin": "suggested",
+            "evidence": null
+          }
+        ]
+      }
+    ],
+    "question": null,
+    "clarification": null,
+    "memoryCandidates": [],
+    "card": null
+  }
+}

@@ -4,7 +4,7 @@ import {mkdtemp,rm,readdir,stat,readFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {matchesWords,checkExpectation,checkExecution} from './checks.mjs';
+import {matchesWords,checkExpectation,checkExecution,checkClaims} from './checks.mjs';
 import {parseOptions,loadCorpus} from './run.mjs';
 import {targetModules,runCase} from './runtime.mjs';
 import {TURN_SCHEMA,validate} from '../../intent-v2/src/schema.mjs';
@@ -224,4 +224,44 @@ test('an explicitly requested then retracted item is allowed only at its checkpo
  assert.ok(check(first).some(f=>f.type==='retraction ignored'));
  const bad=structuredClone(after);bad.entries.push({id:3,title:'Invented flight'});
  assert.ok(check(bad).some(f=>f.type==='invented item'));
+});
+
+test('a reply that claims a change the saved data does not show is a false claim',()=>{
+ const before=empty(),saved={...empty(),entries:[bank()]};
+ assert.ok(checkClaims('Saved Buy milk for tomorrow.',{before,after:before}).some(f=>f.type==='false claim'));
+ assert.deepEqual(checkClaims('Saved Buy milk for tomorrow.',{before,after:saved}),[]);
+ assert.deepEqual(checkClaims('I have not saved anything yet.',{before,after:before}),[]);
+ assert.deepEqual(checkClaims('Nothing archived. Anything else?',{before,after:before}),[]);
+ assert.deepEqual(checkClaims('Added to your draft.',{before,after:before,pending:true}),[]);
+ const planner=structuredClone(before);planner.planner.body.water.glasses.push({at:1});
+ assert.deepEqual(checkClaims('Logged.',{before,after:planner}),[]);
+});
+
+test('optional created items and changes may be absent but nothing else slips in; reply words are checked',()=>{
+ assert.deepEqual(compare({created:[{words:['bank']},{words:['gym'],optional:true}],maxNew:2}),[]);
+ assert.ok(compare({created:[{words:['bank']},{words:['gym']}],maxNew:2}).some(f=>f.type==='lost item'));
+ const ask=reply=>checkExpectation(expectation({created:[],maxNew:0,replyWords:['milk']}),{before:empty(),after:empty(),questions:[],reply});
+ assert.deepEqual(ask('Yes, Buy milk is on your list.'),[]);
+ assert.ok(ask('Not sure.').some(f=>f.detail.includes('Reply does not mention')));
+});
+
+test('anyTask accepts a moved saved task or a new one; scheduled needs a planned time',()=>{
+ const moved={...empty(),entries:[{id:1,kind:'plan',title:'Gym',planned:'2026-10-20T12:30:00Z'}]};
+ const check=(rows,extra)=>checkExpectation(expectation({created:[{words:['gym'],optional:true}],maxNew:1,anyTask:[{words:['gym'],day:'2026-10-20'}],...extra}),{before:empty(),after:{...empty(),entries:rows},questions:[]});
+ assert.deepEqual(check(moved.entries),[]);
+ assert.ok(check([{id:1,kind:'plan',title:'Gym',planned:'2026-10-19T12:30:00Z'}]).some(f=>f.detail.includes('No active task')));
+ assert.ok(check([{id:1,kind:'plan',title:'Gym'}],{anyTask:[],created:[{words:['gym'],scheduled:true}]}).some(f=>f.type==='wrong time'));
+});
+
+test('existing state and a promise to leave it alone are not claims of a new save',()=>{
+ const before={...empty(),entries:[bank()]};
+ for(const reply of ['Yes. Buy milk is saved for tomorrow at 10:00 AM.','The dentist visit stays. Nothing will be removed.','I will not remove anything.','Nothing is being deleted.','Nothing was removed.','Nothing has been removed.'])
+  assert.deepEqual(checkClaims(reply,{before,after:before}),[]);
+ assert.ok(checkClaims('Buy milk is saved for tomorrow, and I added eggs.',{before,after:before}).length);
+});
+
+test('word retention receipts and references to saved tasks do not claim planner changes',()=>{
+ const before=empty();
+ for(const reply of ['Your original words are saved.','I can see your saved tasks, but not your calendar.'])assert.deepEqual(checkClaims(reply,{before,after:before}),[]);
+ assert.ok(checkClaims('Saved task Buy milk.',{before,after:before}).length);
 });

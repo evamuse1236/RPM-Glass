@@ -52,7 +52,7 @@ export function nativeModelTransport({native,model,prompt,providerNames=[],effor
   let failure=null;
   try{
    for(const service of services){
-    const requestId=service==='anthropic'?baseId:`${baseId}:${service}`;current=requestId;
+    let requestId=service==='anthropic'?baseId:`${baseId}:${service}`;current=requestId;
     const body=service==='anthropic'
      ?claudeRequest({model:selectedModel,prompt,input,schema:providerSchema(TURN_SCHEMA),effort:selectedEffort,...(maxTokens?{maxTokens}:{})})
      :structuredRequest({model:selectedModel,prompt,input,providerNames:selectedProviders,effort:selectedEffort,...(maxTokens?{maxTokens}:{})});
@@ -63,7 +63,7 @@ export function nativeModelTransport({native,model,prompt,providerNames=[],effor
     const record=()=>{if(run){const sent=JSON.stringify(body);Object.assign(run,{requestBytes:sent.length,requestHash:shortHash(sent)});}};record();
     let r;
     try{r=await native('model',{requestId,service,body,...(route?.timeoutMs?{timeoutMs:route.timeoutMs+2000}:{})},chunks);
-     if(streaming&&[400,422].includes(r?.status)){delete body.stream;record();r=await native('model',{requestId,service,body,...(route?.timeoutMs?{timeoutMs:route.timeoutMs+2000}:{})});}
+     if(streaming&&[400,422].includes(r?.status)){delete body.stream;requestId+=':plain';current=requestId;record();r=await native('model',{requestId,service,body,...(route?.timeoutMs?{timeoutMs:route.timeoutMs+2000}:{})});}
     }
     catch(error){if(signal?.aborted)throw new DOMException('Late native response ignored','AbortError');failure={service,error};continue;}
     if(signal?.aborted)throw new DOMException('Late native response ignored','AbortError');

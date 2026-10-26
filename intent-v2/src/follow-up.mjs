@@ -1,5 +1,6 @@
 import {interpretTime,statedDays,durationFromText} from '../../cli/interpret.mjs';
 import {buildContext} from './context.mjs';
+import {readFormingClause} from './forming.mjs';
 
 /** Effort hint only: this never grants permission to change a saved record. */
 export function isContextualFollowUp(raw=''){
@@ -67,37 +68,55 @@ export function draftFollowUpProblem(data,draft){
 }
 
 export function completeExistingItems(output,input){
- if(!output?.decisions?.some(d=>d.disposition==='existing'))return output;
+ if(!output?.decisions)return output;
  const turn=structuredClone(output),now=new Date(input.context.now);
+ for(const op of turn.mode==='capture'?[...(turn.operations??[])]:[]){
+  const title=op.fields?.find(f=>f.name==='title'&&f.op==='set')?.value;
+  const unit=input.sourceUnits.find(u=>u.id===op.sourceId),decision=turn.decisions.find(d=>d.sourceId===op.sourceId);
+  if(op.kind!=='create'||op.entity!=='task'||!title||!unit||!decision||turn.question||turn.clarification||/\b(?:another|again|second|extra|new task)\b/i.test(unit.text))continue;
+  if(op.fields.some(f=>!['title','time','minutes'].includes(f.name)&&f.origin!=='suggested'))continue;
+  const time=interpretTime(unit.text,now,{inferBareClock:true,subject:title}),minutes=durationFromText(unit.text);
+  const period=time.normalized?.match(/\b(morning|afternoon|evening|night)\b/i)?.[1];
+  const bare=op.fields.length===1&&normalize(unit.text)===normalize(title);
+  const detailed=(['parsed','date_only'].includes(time.status)||minutes!==null)&&(output.operations??[]).filter(o=>o.sourceId===op.sourceId).length===1;
+  if(!bare&&!detailed)continue;
+  const matches=input.context.entities.filter(e=>e.entity==='task'&&!e.done&&(normalize(e.title)===normalize(title)||normalize(e.title).startsWith(normalize(title)+' '))
+   &&(bare||(!time.plannedDate||e.savedLocalDate===time.plannedDate)&&(!time.planned||e.planned===time.planned)&&(minutes===null||e.minutes===minutes)&&(!period||normalize(e.title).split(' ').includes(period))));
+  if(matches.length!==1)continue;
+  turn.operations=turn.operations.filter(o=>o!==op);decision.disposition='existing';decision.note=`Already on your list: ${matches[0].title}`;
+  if(!turn.operations.length){turn.draftMode='none';turn.reply=decision.note;}
+ }
+ if(!turn.decisions.some(d=>d.disposition==='existing'))return output;
  for(const decision of turn.decisions){
   if(decision.disposition!=='existing')continue;
   const unit=input.sourceUnits.find(u=>u.id===decision.sourceId);
   if(!unit){const error=new Error('The answer referred to a missing source. Your original words are saved; try again.');error.code='INVALID_SOURCE';throw error;}
   const raw=unit.text;
   if(turn.mode!=='capture'||turn.clarification||turn.question||/\?|^(?:who|what|when|where|why|how|is|are|do|does|did|can|could|would|should)\b/i.test(raw))continue;
-  const title=decision.note?.match(/^Already on your list:\s*(.+)$/i)?.[1].trim();
+  const title=readFormingClause(raw,{now}).title;
+  const namedTitle=decision.note?.match(/^Already on your list:\s*(.+)$/i)?.[1].trim()??title;
   const time=interpretTime(raw,now),days=statedDays(raw,now),minutes=durationFromText(raw);
   const tasks=input.context.entities.filter(e=>e.entity==='task');
   const same=tasks.filter(e=>normalize(e.title)===normalize(title??raw));
-  const matches=tasks.filter(e=>same.includes(e)||title&&normalize(e.title).startsWith(normalize(title)+' '));
+  const matches=tasks.filter(e=>same.includes(e)||normalize(e.title)===normalize(namedTitle)||normalize(e.title).startsWith(normalize(title)+' '));
   const scheduled=e=>(!days.length||days.includes(e.savedLocalDate))&&(!time.planned||e.planned===time.planned)&&(minutes===null||e.minutes===minutes);
   if(matches.some(scheduled))continue;
   if(/^(?:done|finished|complete|sent it)[.!\s]*$/i.test(raw)){decision.disposition='reflection';turn.reply='Nothing changed.';continue;}
-  if(turn.operations.length||turn.reply.trim()||!title||!normalize(raw).startsWith(normalize(title))||/[?]|\b(?:not|never|don't|instead|or)\b/i.test(raw))continue;
+  if(turn.operations.length||!title||!normalize(raw).startsWith(normalize(title))||/[?]|\b(?:not|never|don't|instead|or)\b/i.test(raw))continue;
   const field=(name,value,evidence)=>({name,op:'set',value,origin:'stated',evidence});
   const fields=[];
   if(['parsed','date_only'].includes(time.status))fields.push(field('time',raw,raw));
   if(minutes!==null)fields.push(field('minutes',minutes,raw));
-  if(same.length>1)continue;
-  if(!same.length){
+  const target=same.length===1?same[0]:null;
+  if(!target){
    if(!fields.length)continue;
-   const name=raw.slice(0,title.length);fields.unshift(field('title',name,name));
+   const name=raw.slice(0,title.length);fields.unshift(field('title',title,name));
   }else{
    if(!fields.length)continue;
    turn.reviewReason='Review this change to the saved task before saving.';
   }
-  decision.note=null;decision.disposition='action';turn.draftMode='new';
-  turn.operations.push({opId:`existing-${decision.sourceId}`,sourceId:decision.sourceId,kind:same.length?'update':'create',entity:'task',targetId:same[0]?.id??null,fields});
+  turn.reply='';decision.note=null;decision.disposition='action';turn.draftMode='new';
+  turn.operations.push({opId:`existing-${decision.sourceId}`,sourceId:decision.sourceId,kind:target?'update':'create',entity:'task',targetId:target?.id??null,fields});
  }
  return turn;
 }

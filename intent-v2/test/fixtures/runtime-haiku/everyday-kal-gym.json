@@ -1,0 +1,49 @@
+{
+  "id": "everyday-kal-gym",
+  "outputs": [
+    [
+      {
+        "schemaVersion": 1,
+        "mode": "capture",
+        "draftMode": "new",
+        "reply": "Gym tomorrow morning. Your saved Gym morning task is at 7:00 AM on Oct 20, so I'll add a new task for it.",
+        "decisions": [
+          {
+            "sourceId": "s0",
+            "disposition": "action",
+            "note": null
+          }
+        ],
+        "operations": [
+          {
+            "opId": "op1",
+            "sourceId": "s0",
+            "kind": "create",
+            "entity": "task",
+            "targetId": null,
+            "fields": [
+              {
+                "name": "title",
+                "op": "set",
+                "value": "Gym",
+                "origin": "stated",
+                "evidence": "gym jaana hai"
+              },
+              {
+                "name": "time",
+                "op": "set",
+                "value": "kal subah",
+                "origin": "stated",
+                "evidence": "kal subah"
+              }
+            ]
+          }
+        ],
+        "question": null,
+        "clarification": null,
+        "memoryCandidates": [],
+        "card": null
+      }
+    ]
+  ]
+}

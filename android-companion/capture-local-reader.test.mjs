@@ -89,3 +89,32 @@ test('saved due-clock reading consumes the whole clock and keeps uncertain corre
   assert.equal(s.calls(),1,clock);assert.equal((await s.backend.load()).entries[0].planned,'2026-10-21T17:00:00+05:30');
  }
 });
+
+for(const [text,title,date,minutes] of [
+ ['11am to 1230','Task','2026-10-19T05:30:00.000Z',90],
+ ['Meeting from 10am to 11am','Meeting','2026-10-19T04:30:00.000Z',60],
+ ['Task from 12 am to 1210','Task','2026-10-19T18:30:00.000Z',10],
+])test(`an unambiguous literal range saves locally with a receipt: ${text}`,async()=>{
+ const s=await fixture(),result=await s.agent.capture({messageId:'range',conversationId:s.conversationId,text});
+ assert.equal(s.calls(),0);assert.equal(result.applied.status,'applied');
+ const data=await s.backend.load(),task=data.entries[0];assert.equal(task.title,title);assert.equal(task.planned,date);assert.equal(task.minutes,minutes);assert.equal(task.raw,text);
+ assert.ok(result.applied.undoId);
+ await s.agent.undo({draftId:result.draftId,conversationId:s.conversationId,actionId:'undo-range'});assert.equal((await s.backend.load()).entries.length,0);
+});
+
+test('done with one uniquely named saved task completes locally with Undo',async()=>{
+ const seed=freshStore();editPlan(seed,{type:'saveTask',fields:{title:'Collect laundry',plannedDate:'2026-10-20'}},now);
+ const s=await fixture(seed),text='done with laundry',result=await s.agent.capture({messageId:'complete',conversationId:s.conversationId,text});
+ assert.equal(s.calls(),0);assert.equal(result.applied.status,'applied');assert.equal((await s.backend.load()).entries[0].done,true);
+ assert.equal((await s.backend.load()).intentV2.captures.complete.raw,text);
+ await s.agent.undo({draftId:result.draftId,conversationId:s.conversationId,actionId:'undo-complete'});assert.equal((await s.backend.load()).entries[0].done,false);
+});
+
+test('a completion needs one subject and cannot be a question or a negation',async()=>{
+ for(const text of ['Done','not done with laundry','done with laundry?','done with the']){
+  const seed=freshStore();editPlan(seed,{type:'saveTask',fields:{title:'Collect laundry'}},now);
+  const s=await fixture(seed);await s.agent.capture({messageId:'uncertain',conversationId:s.conversationId,text});assert.equal(s.calls(),1,text);assert.equal((await s.backend.load()).entries[0].done,false);
+ }
+ const seed=freshStore();for(const title of ['Collect laundry','Wash laundry'])editPlan(seed,{type:'saveTask',fields:{title}},now);
+ const s=await fixture(seed);await s.agent.capture({messageId:'ambiguous',conversationId:s.conversationId,text:'done with laundry'});assert.equal(s.calls(),1);assert.equal((await s.backend.load()).entries.some(e=>e.done),false);
+});

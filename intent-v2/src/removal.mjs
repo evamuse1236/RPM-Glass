@@ -36,9 +36,18 @@ export function removalOperations(targets,{sourceId}){
 
 export function checkRemovalWords(turn,input){
  for(const op of turn.operations??[]){
-  if(op.kind!=='archive'||input.openQuestion?.action==='remove')continue;
-  const text=input.sourceUnits.map(u=>u.text).join(' ');
-  if(/\b(?:delete|remove|archive|trash|cancel|discard|drop|forget|set aside|get rid of|scrap|clear|no longer needed)\b/i.test(text)||op.entity==='draft'&&/\b(?:never mind|not now)\b/i.test(text))continue;
+  if(op.kind!=='archive')continue;
+  const text=input.sourceUnits.find(u=>u.id===op.sourceId)?.text??'';
+  const target=input.context.entities.find(e=>e.entity===op.entity&&e.id===op.targetId);
+  const removals=[...text.matchAll(/\b(?:delete|remove|archive|trash|cancel|discard|drop|forget|set aside|get rid of|scrap|clear|no longer needed)\b/gi)];
+  const allowed=removals.some(match=>{
+   if(/\b(?:don['’]t|do not|never|not)\s*$/i.test(text.slice(0,match.index)))return false;
+   const subject=match[0].toLowerCase()==='no longer needed'?text.slice(0,match.index):text.slice(match.index+match[0].length).split(/[,.;!?]|\band (?:also )?/i)[0];
+   if(/^(?:(?:it|this|that|them|both|all|the (?:task|draft|one))\b|\s*$)/i.test(subject.trim()))return true;
+   const words=target?.title?.toLowerCase().match(/[\p{L}\p{N}]+/gu)??[];
+   return words.some(word=>!['the','a','task','draft','with','and','to','for'].includes(word)&&subject.toLowerCase().includes(word))||!!target?.title&&!input.sourceUnits.some(u=>u.text.toLowerCase().includes(target.title.toLowerCase()));
+  });
+  if(allowed||op.entity==='draft'&&/\b(?:never mind|not now)\b/i.test(text))continue;
   const error=new Error('Archive needs a request to remove the item. Your original words are saved.');error.code='NO_REMOVAL_INTENT';throw error;
  }
 }
