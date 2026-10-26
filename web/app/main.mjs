@@ -1,7 +1,7 @@
 import {createClient, problemText} from './client.mjs';
 import {createPlanQueue} from './plan-queue.mjs';
 import {createWebNative, PHONE, sortPreview} from './web-native.mjs';
-import {savedLabel, sentLabel, watchRows} from './sync-marks.mjs';
+import {watchRows} from './sync-marks.mjs';
 import {userMessage} from '../../android-companion/user-message.mjs';
 import {applyClarityPreferences} from '../../android-companion/planner-clarity.mjs';
 import {mountPlanner} from '../../android-companion/planner.mjs';
@@ -9,20 +9,19 @@ import {isWide, onWidthChange} from './desktop.mjs';
 import {mountSidebar} from './sidebar.mjs';
 import {FINE, mountRowTools} from './pointer.mjs';
 import {mountShortcuts} from './shortcuts.mjs';
-import {captureNotes, dismissedNotes} from './capture-notes.mjs';
+import {captureNotes, captureOutcome, dismissedNotes} from './capture-notes.mjs';
+import {conflictNotes} from './conflict-notes.mjs';
 
 const server = new URLSearchParams(location.search).get('server') ?? globalThis.RPM_SYNC_SERVER ?? location.origin;
 const client = createClient({server});
 const queue = createPlanQueue({client});
 const $ = id => document.getElementById(id);
 const DRAFT = 'rpm.web.capture.v1';
-const SLOW = 30000;
-const QUIET = 3600000;
 const dismissed = dismissedNotes(localStorage);
 let ui = null;
 let remark = () => {};
 
-const unsettled = () => client.state.outbox.filter(e => !client.settled(e));
+const unconfirmed = () => client.state.outbox.filter(e => !['applied', 'rejected', 'conflict'].includes(e.status));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 function mount() {
@@ -33,7 +32,7 @@ function mount() {
   root.dataset.largeText = 'false';
   root.style.setProperty('--text-scale', String(PHONE.fontScale));
   ui = mountPlanner({getData: () => queue.data(), getPhone: () => PHONE, native: createWebNative({openCapture}), sortPreview,
-    label: sentLabel, commit: async op => queue.commit(op), menuItems, inlineSheet: isWide});
+    commit: async op => queue.commit(op), menuItems, inlineSheet: isWide});
   mountSidebar($('sidebar'), $('planner'), ui);
   if (matchMedia(FINE).matches) mountRowTools(document);
   mountShortcuts(document, ui, {work: $('workspace'), sheet: $('sheet'), dialog: $('keys-sheet')});
@@ -76,12 +75,12 @@ function noteItem({icon, text, tone, lines = [], onDismiss}) {
   return item;
 }
 
-function renderNotes(waiting) {
-  const changes = waiting.filter(entry => entry.command.type !== 'capture');
-  const notes = changes.length ? [noteItem({icon: 'schedule', tone: 'waiting', text: `${plural(changes.length, 'change')} waiting for your phone`})] : [];
+function renderNotes() {
+  const changes = unconfirmed().filter(entry => entry.command.type !== 'capture');
+  const notes = changes.length ? [noteItem({icon: 'schedule', tone: 'waiting', text: `${plural(changes.length, 'change')} not saved yet`})] : [];
   notes.push(...queue.problems().map((p, i) => noteItem({icon: 'error', tone: 'problem', text: userMessage(p.message), onDismiss: () => queue.dismissProblem(i)})));
   const {outbox, snapshot} = client.state;
-  notes.push(...captureNotes({outbox, captures: snapshot?.captures, settled: client.settled, dismissed}).map(note => noteItem({...note,
+  notes.push(...[...captureNotes({outbox, captures: snapshot?.captures, dismissed}), ...conflictNotes({conflicts: snapshot?.conflicts, snapshot, dismissed})].map(note => noteItem({...note,
     text: note.tone === 'problem' ? userMessage(note.text) : note.text,
     onDismiss: note.dismissible ? () => { dismissed.add(note.id); render(); } : null})));
   $('notes').replaceChildren(...notes);
@@ -96,14 +95,10 @@ function render() {
   $('link-unlinked').hidden = !s.unlinked;
   if (!linked) return;
   mount();
-  const waiting = unsettled();
-  const slow = waiting.some(e => Date.now() - Date.parse(e.command.createdAt) > SLOW);
-  const banner = s.offline ?? (s.phoneMissing && !s.snapshot ? 'Your phone has not sent its planner yet. Open RPM on the phone with Cloud connected.'
-    : slow ? 'Your phone has not picked up these changes yet. It does when RPM is open, or about every 15 minutes in the background.'
-    : s.snapshot && Date.now() - Date.parse(s.snapshot.savedAt) > QUIET ? `${savedLabel(s.snapshot.savedAt)}. Changes since then on the phone are not shown yet.` : null);
+  const banner = s.offline ?? (s.phoneMissing && !s.snapshot ? 'Your phone has not synced yet.' : null);
   $('banner').hidden = !banner;
   $('banner').textContent = banner ?? '';
-  renderNotes(waiting);
+  renderNotes();
   if ($('capture-sheet').open) renderCaptureHistory();
   remark();
 }
@@ -116,10 +111,10 @@ function renderCaptureHistory() {
     const said = document.createElement('p');
     said.className = 'capture-said';
     said.textContent = capture.text;
-    item.append(said, ...(capture.receipt ?? []).map(line => {
+    item.append(said, ...captureOutcome(capture).map(line => {
       const outcome = document.createElement('p');
       outcome.className = 'capture-outcome';
-      outcome.textContent = line.text;
+      outcome.textContent = line;
       return outcome;
     }));
     return item;
@@ -145,8 +140,8 @@ $('capture-form').addEventListener('submit', event => {
   const text = $('capture-text').value;
   const snapshot = client.state.snapshot;
   if (!text.trim()) return;
-  if (!snapshot) { $('capture-problem').hidden = false; $('capture-problem').textContent = 'Your plan has not arrived from your phone yet.'; return; }
-  client.send({id: crypto.randomUUID(), type: 'capture', args: {text}, baseRevision: snapshot.revision, createdAt: new Date().toISOString()});
+  if (!snapshot) { $('capture-problem').hidden = false; $('capture-problem').textContent = 'Your phone has not synced yet.'; return; }
+  client.send({id: crypto.randomUUID(), type: 'capture', args: {text}, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, baseRevision: snapshot.revision, createdAt: new Date().toISOString()});
   localStorage.removeItem(DRAFT);
   $('capture-text').value = '';
   $('capture-sheet').close();
@@ -183,5 +178,5 @@ const loop = async () => {
 };
 loop();
 setInterval(loop, 3000);
-setInterval(render, SLOW);
+setInterval(render, 60000);
 document.addEventListener('visibilitychange', loop);

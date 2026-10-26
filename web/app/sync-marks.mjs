@@ -1,6 +1,6 @@
 import {userMessage} from '../../android-companion/user-message.mjs';
 
-export const WAITING_TEXT = 'Waiting for your phone';
+export const WAITING_TEXT = 'Saving';
 const ROWS = '[data-task-id],[data-block-id],[data-project-id],.spine-row[data-key]';
 
 const rowId = node => node.dataset.taskId ?? node.dataset.blockId ?? node.dataset.projectId ?? node.dataset.key?.match(/^task:(\d+)/)?.[1] ?? null;
@@ -10,7 +10,7 @@ function set(node, name, value) {
   else if (node.getAttribute(name) !== value) node.setAttribute(name, value);
 }
 
-/** Each planner row with a change the phone has not saved says so; a row the phone refused shows the phone's words. */
+/** Each planner row with a change not yet saved says so; a row whose change was refused says why. */
 export function markRows(root, queue) {
   const pending = new Set([...queue.pendingIds()].map(String));
   const problems = queue.problems();
@@ -31,16 +31,3 @@ export function watchRows(roots, queue) {
   run();
   return run;
 }
-
-export function savedLabel(savedAt, now = new Date()) {
-  const at = Date.parse(savedAt);
-  if (!Number.isFinite(at) || at <= 0) return 'Not saved from your phone yet';
-  const minutes = Math.round((+now - at) / 60000);
-  if (minutes < 1) return 'Phone saved just now';
-  if (minutes < 60) return `Phone saved ${minutes} min ago`;
-  const time = new Date(at).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}).toLowerCase();
-  const sameDay = new Date(at).toDateString() === now.toDateString();
-  return `Phone saved ${sameDay ? '' : `${new Date(at).toLocaleDateString('en-US', {weekday: 'short'})} `}${time}`;
-}
-
-export const sentLabel = text => text === 'Saved' ? 'Sent to your phone' : text === 'Change undone' ? 'Undo sent to your phone' : text.replace(/ saved$/, ' sent to your phone');

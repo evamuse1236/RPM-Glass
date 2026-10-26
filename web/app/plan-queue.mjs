@@ -7,8 +7,8 @@ import {validateCommand, validatePlanOp} from '../contract/validate.mjs';
 const KEY = 'rpm.web.plan.v1';
 const FAILED = new Set(['rejected', 'conflict']);
 const ID_KEYS = new Set(['id', 'ids', 'blockId', 'projectId', 'goalId', 'areaId', 'taskIds', 'routineId']);
-export const WAITING = 'This is still waiting for your phone. Try again once your phone has saved it.';
-export const FALLBACK = 'Your phone did not save this change.';
+export const WAITING = 'This is still saving. Try again in a moment.';
+export const FALLBACK = 'This change was not saved.';
 
 /** The planner's store as the phone last saved it. */
 export function storeFrom(snapshot) {
@@ -163,7 +163,7 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
       assertPlanOp(op);
       validatePlanOp(op);
       const snap = snapshot();
-      if (!snap || !view) throw new Error('Your plan has not arrived from your phone yet.');
+      if (!snap || !view) throw new Error('Your phone has not synced yet.');
       const baseIds = idsOf(snap);
       const before = idsOf(view);
       if (named(op).some(id => before.has(id) && !baseIds.has(id))) throw new Error(WAITING);

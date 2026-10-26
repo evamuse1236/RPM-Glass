@@ -16,7 +16,7 @@ export function problemText(error) {
   return 'Can\'t reach the sync server. Your changes wait here and send when it is back.';
 }
 
-/** Browser side of docs/web-sync.md. The phone is the only writer; this keeps a durable outbox and reads snapshots. */
+/** Browser side of docs/web-sync.md: keeps a durable outbox of commands and reads snapshots. */
 export function createClient({server, storage = globalThis.localStorage, fetchImpl = globalThis.fetch.bind(globalThis)}) {
   const saved = JSON.parse(storage.getItem(KEY) ?? 'null') ?? {};
   const state = {server: saved.server ?? server, token: saved.token ?? null, cursor: saved.cursor ?? 0, outbox: saved.outbox ?? [],
@@ -88,7 +88,7 @@ export function createClient({server, storage = globalThis.localStorage, fetchIm
   return {
     state,
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-    /** An entry is settled once the phone has decided and, if applied, the snapshot shows it. */
+    /** An entry is settled once the server has decided and, if applied, the snapshot shows it. */
     settled: entry => FINAL.has(entry.status) && (entry.status !== 'applied' || (state.snapshot?.revision ?? -1) >= entry.newRevision),
     /** On a ChatGPT Site the Site holds the phone's key, so the page opens without a code. */
     async connect() {
