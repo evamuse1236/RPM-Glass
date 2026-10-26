@@ -1,0 +1,894 @@
+{
+  "task": {
+    "path": [
+      "entries"
+    ],
+    "shape": "list",
+    "key": {
+      "fields": [
+        "id"
+      ]
+    },
+    "schema": [
+      "$defs",
+      "entry"
+    ],
+    "groups": {
+      "schedule": [
+        "planned",
+        "plannedDate",
+        "recurrence",
+        "repeatDays",
+        "repeatAfterDays",
+        "completedOccurrences"
+      ],
+      "completion": [
+        "done",
+        "state",
+        "completedAt",
+        "completions"
+      ],
+      "archive": [
+        "archived",
+        "archiveDisposition"
+      ],
+      "alertIntent": [
+        "alertIntent"
+      ],
+      "order": [
+        "blockId",
+        "priority"
+      ],
+      "id": [
+        "id"
+      ],
+      "title": [
+        "title"
+      ],
+      "raw": [
+        "raw"
+      ],
+      "notes": [
+        "notes"
+      ],
+      "purpose": [
+        "purpose"
+      ],
+      "minutes": [
+        "minutes"
+      ],
+      "must": [
+        "must"
+      ],
+      "kind": [
+        "kind"
+      ],
+      "created": [
+        "created"
+      ],
+      "source": [
+        "source"
+      ],
+      "durationSource": [
+        "durationSource"
+      ],
+      "leverage": [
+        "leverage"
+      ],
+      "reviewChoice": [
+        "reviewChoice"
+      ],
+      "reviewActivityDays": [
+        "reviewActivityDays"
+      ]
+    },
+    "setFields": [
+      "completedOccurrences",
+      "reviewActivityDays"
+    ],
+    "keyedListFields": {
+      "completions": "occurrence"
+    },
+    "filter": {
+      "field": "kind",
+      "default": "plan",
+      "equals": "plan"
+    }
+  },
+  "block": {
+    "path": [
+      "planner",
+      "blocks"
+    ],
+    "shape": "list",
+    "key": {
+      "fields": [
+        "id"
+      ]
+    },
+    "schema": [
+      "$defs",
+      "storeEntity"
+    ],
+    "groups": {
+      "id": [
+        "id"
+      ],
+      "title": [
+        "title"
+      ],
+      "purpose": [
+        "purpose"
+      ],
+      "notes": [
+        "notes"
+      ],
+      "archived": [
+        "archived"
+      ],
+      "projectId": [
+        "projectId"
+      ],
+      "goalId": [
+        "goalId"
+      ],
+      "areaId": [
+        "areaId"
+      ],
+      "year": [
+        "year"
+      ],
+      "horizon": [
+        "horizon"
+      ],
+      "period": [
+        "period"
+      ],
+      "rating": [
+        "rating"
+      ],
+      "colorIndex": [
+        "colorIndex"
+      ],
+      "created": [
+        "created"
+      ],
+      "achieved": [
+        "achieved"
+      ],
+      "achievedAt": [
+        "achievedAt"
+      ],
+      "evidence": [
+        "evidence"
+      ]
+    },
+    "setFields": [],
+    "keyedListFields": {},
+    "order": [
+      "created",
+      "id"
+    ]
+  },
+  "project": {
+    "path": [
+      "planner",
+      "projects"
+    ],
+    "shape": "list",
+    "key": {
+      "fields": [
+        "id"
+      ]
+    },
+    "schema": [
+      "$defs",
+      "storeEntity"
+    ],
+    "groups": {
+      "id": [
+        "id"
+      ],
+      "title": [
+        "title"
+      ],
+      "purpose": [
+        "purpose"
+      ],
+      "notes": [
+        "notes"
+      ],
+      "archived": [
+        "archived"
+      ],
+      "projectId": [
+        "projectId"
+      ],
+      "goalId": [
+        "goalId"
+      ],
+      "areaId": [
+        "areaId"
+      ],
+      "year": [
+        "year"
+      ],
+      "horizon": [
+        "horizon"
+      ],
+      "period": [
+        "period"
+      ],
+      "rating": [
+        "rating"
+      ],
+      "colorIndex": [
+        "colorIndex"
+      ],
+      "created": [
+        "created"
+      ],
+      "achieved": [
+        "achieved"
+      ],
+      "achievedAt": [
+        "achievedAt"
+      ],
+      "evidence": [
+        "evidence"
+      ]
+    },
+    "setFields": [],
+    "keyedListFields": {},
+    "order": [
+      "created",
+      "id"
+    ]
+  },
+  "area": {
+    "path": [
+      "planner",
+      "areas"
+    ],
+    "shape": "list",
+    "key": {
+      "fields": [
+        "id"
+      ]
+    },
+    "schema": [
+      "$defs",
+      "storeEntity"
+    ],
+    "groups": {
+      "id": [
+        "id"
+      ],
+      "title": [
+        "title"
+      ],
+      "purpose": [
+        "purpose"
+      ],
+      "notes": [
+        "notes"
+      ],
+      "archived": [
+        "archived"
+      ],
+      "projectId": [
+        "projectId"
+      ],
+      "goalId": [
+        "goalId"
+      ],
+      "areaId": [
+        "areaId"
+      ],
+      "year": [
+        "year"
+      ],
+      "horizon": [
+        "horizon"
+      ],
+      "period": [
+        "period"
+      ],
+      "rating": [
+        "rating"
+      ],
+      "colorIndex": [
+        "colorIndex"
+      ],
+      "created": [
+        "created"
+      ],
+      "achieved": [
+        "achieved"
+      ],
+      "achievedAt": [
+        "achievedAt"
+      ],
+      "evidence": [
+        "evidence"
+      ]
+    },
+    "setFields": [],
+    "keyedListFields": {},
+    "order": [
+      "created",
+      "id"
+    ]
+  },
+  "goal": {
+    "path": [
+      "planner",
+      "goals"
+    ],
+    "shape": "list",
+    "key": {
+      "fields": [
+        "id"
+      ]
+    },
+    "schema": [
+      "$defs",
+      "storeEntity"
+    ],
+    "groups": {
+      "period": [
+        "year",
+        "horizon",
+        "period"
+      ],
+      "id": [
+        "id"
+      ],
+      "title": [
+        "title"
+      ],
+      "purpose": [
+        "purpose"
+      ],
+      "notes": [
+        "notes"
+      ],
+      "archived": [
+        "archived"
+      ],
+      "projectId": [
+        "projectId"
+      ],
+      "goalId": [
+        "goalId"
+      ],
+      "areaId": [
+        "areaId"
+      ],
+      "rating": [
+        "rating"
+      ],
+      "colorIndex": [
+        "colorIndex"
+      ],
+      "created": [
+        "created"
+      ],
+      "achieved": [
+        "achieved"
+      ],
+      "achievedAt": [
+        "achievedAt"
+      ],
+      "evidence": [
+        "evidence"
+      ]
+    },
+    "setFields": [],
+    "keyedListFields": {},
+    "order": [
+      "created",
+      "id"
+    ]
+  },
+  "context": {
+    "path": [
+      "planner",
+      "context"
+    ],
+    "shape": "single",
+    "key": {
+      "constant": "main"
+    },
+    "schema": [
+      "properties",
+      "planner",
+      "properties",
+      "context"
+    ],
+    "groups": {
+      "vision": [
+        "vision"
+      ],
+      "goals": [
+        "goals"
+      ],
+      "coreValues": [
+        "coreValues"
+      ],
+      "approved": [
+        "approved"
+      ],
+      "updated": [
+        "updated"
+      ]
+    },
+    "setFields": [],
+    "keyedListFields": {}
+  },
+  "week": {
+    "path": [
+      "planner",
+      "weeks"
+    ],
+    "shape": "map",
+    "key": {
+      "mapKey": true
+    },
+    "schema": [
+      "properties",
+      "planner",
+      "properties",
+      "weeks",
+      "additionalProperties"
+    ],
+    "groups": {
+      "focus": [
+        "focus"
+      ],
+      "verdicts": [
+        "verdicts"
+      ]
+    },
+    "setFields": [],
+    "keyedListFields": {}
+  },
+  "review": {
+    "path": [
+      "planner",
+      "reviews"
+    ],
+    "shape": "map",
+    "key": {
+      "mapKey": true
+    },
+    "schema": [
+      "properties",
+      "planner",
+      "properties",
+      "reviews",
+      "additionalProperties"
+    ],
+    "groups": {
+      "step": [
+        "step"
+      ],
+      "finishedAt": [
+        "finishedAt"
+      ],
+      "focusDraft": [
+        "focusDraft"
+      ],
+      "inboxIds": [
+        "inboxIds"
+      ],
+      "keptIds": [
+        "keptIds"
+      ],
+      "clashes": [
+        "clashes"
+      ],
+      "startedAt": [
+        "startedAt"
+      ],
+      "updatedAt": [
+        "updatedAt"
+      ]
+    },
+    "setFields": [],
+    "keyedListFields": {}
+  },
+  "waterSettings": {
+    "path": [
+      "planner",
+      "body",
+      "water",
+      "settings"
+    ],
+    "shape": "single",
+    "key": {
+      "constant": "main"
+    },
+    "schema": [
+      "$defs",
+      "body",
+      "properties",
+      "water",
+      "properties",
+      "settings"
+    ],
+    "groups": {
+      "goal": [
+        "goal"
+      ],
+      "intervalMinutes": [
+        "intervalMinutes"
+      ],
+      "from": [
+        "from"
+      ],
+      "until": [
+        "until"
+      ],
+      "glassMl": [
+        "glassMl"
+      ],
+      "snoozeMinutes": [
+        "snoozeMinutes"
+      ],
+      "reminders": [
+        "reminders"
+      ]
+    },
+    "setFields": [],
+    "keyedListFields": {}
+  },
+  "waterSnooze": {
+    "path": [
+      "planner",
+      "body",
+      "water",
+      "snoozedUntil"
+    ],
+    "shape": "single",
+    "key": {
+      "constant": "main"
+    },
+    "schema": [
+      "$defs",
+      "body",
+      "properties",
+      "water",
+      "properties",
+      "snoozedUntil"
+    ],
+    "groups": {
+      "value": []
+    },
+    "setFields": [],
+    "keyedListFields": {}
+  },
+  "glass": {
+    "path": [
+      "planner",
+      "body",
+      "water",
+      "glasses"
+    ],
+    "shape": "list",
+    "key": {
+      "fields": [
+        "instant",
+        "n"
+      ],
+      "separator": "#",
+      "indexBase": 0
+    },
+    "schema": [
+      "$defs",
+      "body",
+      "properties",
+      "water",
+      "properties",
+      "glasses",
+      "items"
+    ],
+    "groups": {
+      "value": []
+    },
+    "setFields": [],
+    "keyedListFields": {}
+  },
+  "meal": {
+    "path": [
+      "planner",
+      "body",
+      "meals"
+    ],
+    "shape": "list",
+    "key": {
+      "fields": [
+        "id"
+      ]
+    },
+    "schema": [
+      "$defs",
+      "body",
+      "properties",
+      "meals",
+      "items"
+    ],
+    "groups": {
+      "id": [
+        "id"
+      ],
+      "name": [
+        "name"
+      ],
+      "slot": [
+        "slot"
+      ],
+      "at": [
+        "at"
+      ],
+      "created": [
+        "created"
+      ],
+      "state": [
+        "state"
+      ]
+    },
+    "setFields": [],
+    "keyedListFields": {}
+  },
+  "routine": {
+    "path": [
+      "planner",
+      "body",
+      "routines"
+    ],
+    "shape": "list",
+    "key": {
+      "fields": [
+        "id"
+      ]
+    },
+    "schema": [
+      "$defs",
+      "body",
+      "properties",
+      "routines",
+      "items"
+    ],
+    "groups": {
+      "id": [
+        "id"
+      ],
+      "name": [
+        "name"
+      ],
+      "start": [
+        "start"
+      ],
+      "end": [
+        "end"
+      ],
+      "days": [
+        "days"
+      ],
+      "steps": [
+        "steps"
+      ],
+      "archived": [
+        "archived"
+      ],
+      "created": [
+        "created"
+      ],
+      "updated": [
+        "updated"
+      ]
+    },
+    "setFields": [],
+    "keyedListFields": {}
+  },
+  "mealSlot": {
+    "path": [
+      "planner",
+      "body",
+      "mealPlan",
+      "slots"
+    ],
+    "shape": "list",
+    "key": {
+      "fields": [
+        "slot"
+      ]
+    },
+    "schema": [
+      "$defs",
+      "body",
+      "properties",
+      "mealPlan",
+      "properties",
+      "slots",
+      "items"
+    ],
+    "groups": {
+      "slot": [
+        "slot"
+      ],
+      "at": [
+        "at"
+      ],
+      "on": [
+        "on"
+      ],
+      "name": [
+        "name"
+      ]
+    },
+    "setFields": [],
+    "keyedListFields": {}
+  },
+  "run": {
+    "path": [
+      "planner",
+      "body",
+      "runs"
+    ],
+    "shape": "list",
+    "key": {
+      "fields": [
+        "routineId",
+        "day"
+      ],
+      "separator": "|"
+    },
+    "schema": [
+      "$defs",
+      "body",
+      "properties",
+      "runs",
+      "items"
+    ],
+    "groups": {
+      "routineId": [
+        "routineId"
+      ],
+      "day": [
+        "day"
+      ],
+      "marks": [
+        "marks"
+      ],
+      "skippedDay": [
+        "skippedDay"
+      ]
+    },
+    "setFields": [],
+    "keyedListFields": {
+      "marks": "step"
+    }
+  },
+  "mealGuess": {
+    "path": [
+      "planner",
+      "body",
+      "mealGuesses"
+    ],
+    "shape": "map",
+    "key": {
+      "mapKey": true
+    },
+    "schema": [
+      "$defs",
+      "body",
+      "properties",
+      "mealGuesses",
+      "additionalProperties"
+    ],
+    "groups": {
+      "status": [
+        "status"
+      ],
+      "by": [
+        "by"
+      ],
+      "at": [
+        "at"
+      ],
+      "kcal": [
+        "kcal"
+      ],
+      "protein": [
+        "protein"
+      ]
+    },
+    "setFields": [],
+    "keyedListFields": {}
+  },
+  "capture": {
+    "path": [
+      "intentV2",
+      "captures"
+    ],
+    "shape": "map",
+    "key": {
+      "mapKey": true
+    },
+    "schema": [
+      "$defs",
+      "capture"
+    ],
+    "groups": {
+      "id": [
+        "id"
+      ],
+      "text": [
+        "text"
+      ],
+      "status": [
+        "status"
+      ],
+      "createdAt": [
+        "createdAt"
+      ],
+      "receipt": [
+        "receipt"
+      ]
+    },
+    "setFields": [],
+    "keyedListFields": {},
+    "fieldAliases": {
+      "id": "messageId",
+      "text": "raw",
+      "createdAt": "at"
+    }
+  },
+  "draft": {
+    "path": [
+      "planner",
+      "drafts"
+    ],
+    "shape": "list",
+    "key": {
+      "fields": [
+        "id"
+      ]
+    },
+    "schema": [
+      "$defs",
+      "draft"
+    ],
+    "groups": {
+      "id": [
+        "id"
+      ],
+      "status": [
+        "status"
+      ],
+      "title": [
+        "title"
+      ],
+      "reply": [
+        "reply"
+      ],
+      "receipt": [
+        "receipt"
+      ],
+      "taskIds": [
+        "taskIds"
+      ]
+    },
+    "setFields": [],
+    "keyedListFields": {},
+    "alternate": {
+      "path": [
+        "intentV2",
+        "drafts"
+      ],
+      "shape": "map"
+    }
+  }
+}

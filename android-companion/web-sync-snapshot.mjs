@@ -19,12 +19,12 @@ function entity(row) {
   return result;
 }
 function draftSummary(data, draft) {
-  return {id: draft.id, status: string(draft.status), title: string(draft.title ?? draft.proposed?.[0]?.title), reply: string(draft.reply), receipt: receipt(data, draft),
-    taskIds: [...new Set([...(draft.receipt?.entryIds ?? []), ...(draft.proposed ?? []).flatMap(p => p.taskIds ?? [])])].filter(id => Number.isInteger(id) && id > 0)};
+  return {id: draft.id, status: string(draft.status), title: string(draft.title ?? draft.proposed?.[0]?.title), reply: string(draft.reply), receipt: Array.isArray(draft.receipt) ? copy(snapshotSchema.$defs.draft.properties.receipt, draft.receipt) : receipt(data, draft),
+    taskIds: [...new Set([...(draft.taskIds ?? []), ...(draft.receipt?.entryIds ?? []), ...(draft.proposed ?? []).flatMap(p => p.taskIds ?? [])])].filter(id => Number.isInteger(id) && id > 0)};
 }
 // The schema is the deep allowlist for the store-shaped copy. Maps retain identifiers only;
 // each value is projected through its own record schema. Invalid declared values still fail validation.
-function copy(schema, value) {
+export function copy(schema, value) {
   if (schema.$ref) return copy(snapshotSchema.$defs[schema.$ref.slice('#/$defs/'.length)], value);
   if (schema.anyOf) return copy(schema.anyOf.find(s => value === null ? s.type === 'null' : s.type !== 'null'), value);
   if (value == null) return value;
@@ -39,13 +39,13 @@ function copy(schema, value) {
 }
 
 /** Only the declared browser fields cross this boundary. Never spread store objects. */
-export function buildSnapshot(data) {
+export function projectSnapshot(data) {
   const p = data.planner ?? {}, body = bodyOf(data), state = data.intentV2 ?? {};
   const snapshot = {schemaVersion: 2, revision: data.version, savedAt: data.syncSavedAt ?? '1970-01-01T00:00:00.000Z', tasks: (data.entries ?? []).filter(row => (row.kind ?? 'plan') === 'plan').map(task)};
   for (const key of ['blocks', 'projects', 'areas', 'goals']) snapshot[key] = (p[key] ?? []).map(entity);
   snapshot.drafts = [...p.drafts ?? [], ...Object.values(state.drafts ?? {})].map(draft => draftSummary(data, draft));
-  snapshot.captures = Object.values(state.captures ?? {}).sort((a, b) => String(a.at ?? '').localeCompare(String(b.at ?? ''))).slice(-50).map(capture => ({
-    id: capture.messageId, text: string(capture.raw), status: string(capture.status), createdAt: nullable(capture.at), receipt: receipt(data, state.drafts?.[capture.draftId])}));
+  snapshot.captures = Object.values(state.captures ?? {}).sort((a, b) => String(a.at ?? '').localeCompare(String(b.at ?? ''))).map(capture => ({
+    id: capture.messageId, text: string(capture.raw), status: string(capture.status), createdAt: nullable(capture.at), receipt: Array.isArray(capture.receipt) ? copy(snapshotSchema.$defs.capture.properties.receipt, capture.receipt) : receipt(data, state.drafts?.[capture.draftId])}));
   const settings = {};
   for (const key of ['goal', 'intervalMinutes', 'from', 'until', 'glassMl', 'snoozeMinutes', 'reminders']) settings[key] = body.water.settings[key];
   snapshot.body = {water: {settings, glasses: [...body.water.glasses], snoozedUntil: body.water.snoozedUntil},
@@ -55,7 +55,7 @@ export function buildSnapshot(data) {
     runs: body.runs.map(r => ({routineId: r.routineId, day: r.day, marks: Object.entries(r.marks ?? {}).map(([stepId, m]) => ({stepId, state: m.state, at: m.at})), skippedDay: !!r.skippedDay}))};
   snapshot.entries = (data.entries ?? []).filter(row => (row.kind ?? 'plan') === 'plan').map(row => {
     const {alert, ...summary} = task(row);
-    const reviewActivityDays = [...new Set((row.revisions ?? []).filter(r => r.snapshot?.done === true && Number.isFinite(Date.parse(r.at))).map(r => localDay(r.at)))];
+    const reviewActivityDays = [...new Set([...(row.revisions ?? []).filter(r => r.snapshot?.done === true && Number.isFinite(Date.parse(r.at))).map(r => localDay(r.at)), ...data.sync?.remoteActivity?.[row.id] ?? []])].sort();
     return copy(snapshotSchema.$defs.entry, {...row, ...summary, kind: 'plan', alertIntent: {type: alert, ...row.alertIntent}, completions: row.completions ?? [], reviewActivityDays});
   });
   const storeBody = {...body, schema: 1, water: snapshot.body.water, routines: body.routines.map(r => ({...r, archived: !!r.archived})),
@@ -67,5 +67,11 @@ export function buildSnapshot(data) {
     weeks: Object.fromEntries(Object.entries(p.weeks ?? {}).map(([week, record]) => [week, {focus: [], verdicts: {}, ...record}])),
     reviews: p.reviews ?? {}, body: storeBody, drafts: snapshot.drafts, events: [],
   });
+  return snapshot;
+}
+
+export function buildSnapshot(data) {
+  const snapshot = projectSnapshot(data);
+  snapshot.captures = snapshot.captures.slice(-50);
   return validateSnapshot(snapshot);
 }
