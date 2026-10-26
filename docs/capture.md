@@ -24,8 +24,8 @@ This replaces the Capture section of `PRODUCT.md` where they differ. `PRODUCT.md
 
 ## The look
 
-- A dark bar at the bottom (28dp corners, drag handle, no header), large white text, `+` at bottom left, a round filled Send (arrow up; mic when empty) at bottom right. Its colours are the `--bar-*` tokens in `android-companion/theme.css`, dark in both themes.
-- `+` opens a dark sheet over a dimmed screen: tiles Photos, Camera, Files, Planner, History, Context, Settings, and rows What's planned today?, Plan a Result, Sort my Inbox, Weekly review. Photos, Camera and Files say "<name> isn't built yet" above the bar.
+- A dark bar at the bottom (28dp corners, drag handle, no header), large white text, More (three dots) at bottom left, a round filled Send (arrow up; mic when empty) at bottom right. Its colours are the `--bar-*` tokens in `android-companion/theme.css`, dark in both themes.
+- More opens a dark sheet with four rows: Planner, History, Context and Settings. Every row opens a real place.
 - Receipts, Keep/Undo cards and answer cards sit above the bar in the same dark style. Only the result of this session's sends shows on open, plus anything still waiting (kept words, Keep/Undo, an open question).
 - A tap on the empty screen, a swipe down on the handle, or Back closes Capture.
 

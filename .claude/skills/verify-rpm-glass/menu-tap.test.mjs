@@ -11,9 +11,9 @@ const onPage = elements => {
 };
 
 test('an exact lookup never falls back to a name that only contains the word', () => {
-  onPage([{ref: 0, role: 'button', name: 'More: planner, history, settings', rect: [25, 396, 48, 48], inView: true}]);
-  assert.match(LOCATE({role: 'button', name: 'Planner', exact: true}).error, /No button named "Planner"/);
-  assert.equal(LOCATE({role: 'button', name: 'Planner'}).match.name, 'More: planner, history, settings', 'a plain tap still matches substrings');
+  onPage([{ref: 0, role: 'button', name: 'More options', rect: [25, 396, 48, 48], inView: true}]);
+  assert.match(LOCATE({role: 'button', name: 'More', exact: true}).error, /No button named "More"/);
+  assert.equal(LOCATE({role: 'button', name: 'More'}).match.name, 'More options', 'a plain tap still matches substrings');
 });
 
 test('settled taps only once two reads agree, and gives up on an item that keeps moving', async () => {

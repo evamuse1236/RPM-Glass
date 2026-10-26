@@ -61,8 +61,8 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 
 - Task detail combines completion, editable title and meta, Must, a tappable Part-of panel with Result/Purpose/breadcrumb, notes, and differing original capture text.
 - The task sheet completes with the ring in its header (named `Mark <title> complete`); its footer toolbar `Task actions` holds Ask Capture, Duplicate, Archive and Delete, each with Undo.
-- Quick add opens with its title focused and the real keyboard visible. Day, Time, Estimate, Repeat, Block and Must are optional labelled chips, one row per meaning; Details is a text row under them. An unassigned task may keep an optional Why.
-- Typed shortcuts are intentionally deferred. Do not claim or infer them from ordinary text.
+- Quick add opens with its title focused and the real keyboard visible. Day, Time and Block are optional labelled chips, one row each. One More options text row under them holds Estimate, Repeat, Must and the details; its label names what is set. An unassigned task may keep an optional Why.
+- A day and time typed in the title ("call mom at 8 PM today") set the Day and Time chips and are highlighted in the title.
 
 ### Capture
 
@@ -72,7 +72,7 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 - The quiet header contains RPM identity, Expand, and Close. A visible More control near the composer opens the options menu; no top overflow remains.
 - The empty, unfocused composer uses one row. Focus, entered text or enlarged text places the full-width growing field above More, Mic, and Send. More uses `width: max-content` with an 80dp minimum so enlarged or doubled text fits. Effective text-scale layout resynchronizes on phone-status changes.
 - More and a 380ms Send hold open the same menu. Movement beyond 12px cancels the hold, release after activation cannot send, and short-tap send still requires nonempty text and no request in flight. More remains available while a reply is pending.
-- Menu order is About, Assistant settings, Context, History, then Open planner pinned at the bottom. Preserve the exact draft before any menu route and after the Planner round trip; opening the menu or Planner never submits it.
+- Menu order is Planner, History, Context, Settings. Every option opens a real place; nothing unbuilt is listed. Preserve the exact draft before any menu route and after the Planner round trip; opening the menu or Planner never submits it.
 - Three complete starter choices appear only in a truly empty conversation. Hide the greeting and starters while waiting or while a recovery card is present. At normal text the starters may scroll horizontally; at enlarged text they stack and yield before the input when height is short. Voice input uses Android's speech recognizer and shows a labelled Listening state only while active.
 - Idle light drifts over 16s. Waiting uses a 6s aurora drift and a 2.4s contained band. A completed reply is available immediately and reveals once within 220ms. Unchanged resume/status updates retain the current card, disclosure state, scroll and input; they do not replay the response. Reduced motion removes drift, sweep, pulse, scale, lift, and stagger.
 - Proposed tasks and Blocks expose Add, Edit, Dismiss, and Add all. Canonical changes require confirmation and remain undoable.

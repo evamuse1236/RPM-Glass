@@ -19,7 +19,7 @@ Settings is a planner screen with grouped rows for alarm and reminder sounds, no
 ## How to get to it (user POV)
 
 - In the planner, tap `More options` then `Settings`.
-- In Capture, tap `More: planner, history, settings` then `Assistant settings` (opens a settings screen; which one is unconfirmed).
+- In Capture, tap `More` then `Settings`.
 - In Capture, tap `Connect` in the keyless note (opens the AI key dialog directly).
 - In a keyless AI sheet, tap `Open Settings`.
 - In the About page of Capture, tap `Phone settings`.

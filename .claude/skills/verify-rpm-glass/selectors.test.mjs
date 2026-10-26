@@ -15,7 +15,7 @@ function files(dir) {
 
 test('collects literal lookups, including multiline calls, without reading comments or dynamic names', () => {
   const selectors = collectSelectors('calls.mjs', `
-    tapElement(serial, cdpPort, {name: 'More: planner, history, settings', role: 'button'});
+    tapElement(serial, cdpPort, {name: 'More', role: 'button', exact: true});
     openMenuItem(serial, cdpPort, 'Planner');
     t.do('tap', '--role', 'combobox', '--name', 'Add a task to the Plan');
     t.do('wait',
@@ -25,7 +25,7 @@ test('collects literal lookups, including multiline calls, without reading comme
     // t.do('tap', '--name', 'Old comment');
   `);
   assert.deepEqual(selectors.map(({name, role}) => ({name, role})), [
-    {name: 'More: planner, history, settings', role: 'button'}, {name: 'Planner', role: 'button'},
+    {name: 'More', role: 'button'}, {name: 'Planner', role: 'button'},
     {name: 'Add a task to the Plan', role: 'combobox'}, {name: 'Purpose', role: 'textbox'},
     {name: 'Scroll target', role: undefined},
   ]);

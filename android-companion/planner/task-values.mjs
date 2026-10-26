@@ -209,35 +209,45 @@ export const leadLabel = minutes => (minutes ? `${minutes} min before` : 'On tim
 
 const WORDS = {today: 0, tonight: 0, tomorrow: 1, tmr: 1, tmrw: 1};
 const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-const TIME = String.raw`(?:\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm))`;
-// Whole words only: "tomorrow", "friday", "next monday", or a short day with a time ("mon 9am"), so "I sat the exam"
-// or "sun cream" never read as dates.
-const WHEN = new RegExp(String.raw`\b(today|tonight|tomorrow|tmrw?|(?:next\s+)?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)`
-  + String.raw`|(?:next\s+)?(?:sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)(?=\s+(?:at\s+)?\d{1,2}(?::\d{2})?\s*[ap]m))\b${TIME}?`, 'i');
+const CLOCK = String.raw`(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b`;
+const DAY = String.raw`today|tonight|tomorrow|tmrw?|(?:next\s+)?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)`;
+const SHORT_DAY = String.raw`(?:next\s+)?(?:sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)(?=\s+(?:at\s+)?\d{1,2}(?::\d{2})?\s*[ap]m\b)`;
+const DAY_FIRST = new RegExp(String.raw`\b(${DAY}|${SHORT_DAY})\b(?:\s+(?:at\s+)?${CLOCK})?`, 'i');
+const CLOCK_FIRST = new RegExp(String.raw`(?:\bat\s+)?\b${CLOCK}(?:\s+(${DAY})\b)?`, 'i');
+const pad2 = n => String(n).padStart(2, '0');
+
+const dayOf = (word, today) => {
+  word = word.toLowerCase().replace(/\s+/g, ' ');
+  if (word in WORDS) return shiftDay(today, WORDS[word]);
+  const target = WEEKDAYS.indexOf(word.replace('next ', '').slice(0, 3));
+  return shiftDay(today, (target - new Date(today + 'T12:00').getDay() + 7) % 7 || 7); // "next monday" is the coming Monday, as Todoist reads it
+};
+const clockOfWords = (hours, minutes = '0', half = '') => {
+  if (Number(hours) < 1 || Number(hours) > 12 || Number(minutes) > 59) return '';
+  return pad2(Number(hours) % 12 + (half.toLowerCase() === 'pm' ? 12 : 0)) + ':' + pad2(Number(minutes));
+};
 
 /**
- * A date (and time) written in the title, as Quick add offers it: "tomorrow", "friday", "mon 9am", "tonight".
+ * A date (and time) written in the title, as Quick add offers it: "tomorrow", "friday", "mon 9am", "tonight",
+ * "at 8 PM today", "8pm". A time with no day is today, or tomorrow once that time has passed.
  * Returns {day, time, match, start, end} or null. The words stay in the title; the sheet marks the date it read on its
  * chip and highlights the words it came from.
  */
-export function parseWhen(text, today = localDay()) {
-  const found = String(text ?? '').match(WHEN);
-  if (!found) return null;
-  const word = found[1].toLowerCase().replace(/\s+/g, ' ');
-  let day;
-  if (word in WORDS) day = shiftDay(today, WORDS[word]);
-  else {
-    const target = WEEKDAYS.indexOf(word.replace('next ', '').slice(0, 3));
-    const ahead = (target - new Date(today + 'T12:00').getDay() + 7) % 7 || 7;
-    day = shiftDay(today, ahead); // "next monday" reads as the coming Monday, as Todoist reads it
-  }
-  let time = word === 'tonight' ? '19:00' : '';
-  if (found[4]) {
-    const hours = Number(found[2]) % 12 + (found[4].toLowerCase() === 'pm' ? 12 : 0), minutes = Number(found[3] ?? 0);
-    if (Number(found[2]) >= 1 && Number(found[2]) <= 12 && minutes < 60) {
-      time = String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
-    }
-  }
+export function parseWhen(text, today = localDay(), now = new Date()) {
+  text = String(text ?? '');
+  const dayFirst = text.match(DAY_FIRST), clockFirst = text.match(CLOCK_FIRST);
+  const clock = clockFirst && clockOfWords(clockFirst[1], clockFirst[2], clockFirst[3]);
+  let day, time, found;
+  if (clock && (!dayFirst || clockFirst.index < dayFirst.index)) {
+    found = clockFirst;
+    time = clock;
+    const passed = today === localDay(now) && time < `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+    day = found[4] ? dayOf(found[4], today) : shiftDay(today, passed ? 1 : 0);
+  } else if (dayFirst) {
+    found = dayFirst;
+    day = dayOf(found[1], today);
+    time = (found[4] && clockOfWords(found[2], found[3], found[4])) || (found[1].toLowerCase() === 'tonight' ? '19:00' : '');
+  } else return null;
   const match = found[0].trim();
   return {day, time, match, start: found.index, end: found.index + match.length};
 }

@@ -7,13 +7,11 @@ body{font:var(--body-medium);color:var(--bar-on)}
 button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 :focus-visible{outline:2px solid var(--bar-primary);outline-offset:2px}
 
-
 .stack{
   position:absolute;inset-inline:var(--inset-page);inset-block-end:calc(var(--keyboard-inset,0px) + var(--inset-page));
   max-block-size:calc(100% - var(--keyboard-inset,0px) - 2 * var(--inset-page));
   display:flex;flex-direction:column;justify-content:flex-end;gap:8px;
 }
-
 
 .bar{
   flex:none;display:flex;flex-direction:column;
@@ -31,15 +29,15 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
   font:var(--body-large);caret-color:var(--bar-primary);overflow-y:hidden;text-wrap:stable;
 }
 #message::placeholder{color:var(--bar-on-variant);opacity:1}
-/* + at the start, the mic or Send at the end in one cell, so the two cross-fade in place. */
+/* More at the start, the mic or Send at the end in one cell, so the two cross-fade in place. */
 .bar-row{display:grid;grid-template-columns:auto 1fr 48px;align-items:center;gap:4px;padding:0 8px 8px}
 .bar-row>.round{grid-column:3;grid-row:1;justify-self:center}
 .status{flex:1;margin:0;padding-inline:4px;font:var(--body-small);color:var(--bar-on-variant);overflow-wrap:anywhere}
 .status.error{color:var(--bar-error)}
 
-.bar-plus,.round{position:relative;flex:none;display:grid;place-items:center;padding:0;border:0;cursor:pointer;border-radius:50%}
-.bar-plus{inline-size:48px;block-size:48px;background:transparent;color:var(--bar-on)}
-.bar-plus .ms{font-size:28px}
+.bar-more,.round{position:relative;flex:none;display:grid;place-items:center;padding:0;border:0;cursor:pointer;border-radius:50%}
+.bar-more{inline-size:48px;block-size:48px;background:transparent;color:var(--bar-on)}
+.bar-more .ms{font-size:24px}
 .round{inline-size:40px;block-size:40px}
 .round .ms{font-size:24px}
 /* A 48dp target around the 40dp circle. */
@@ -48,10 +46,10 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .send{background:var(--bar-primary);color:var(--bar-on-primary)}
 .mic{background:var(--bar-highest);color:var(--bar-on)}
 .bar[data-has-text=true] .mic,.bar[data-has-text=false] .send{opacity:0;visibility:hidden;pointer-events:none}
-.bar-plus:active,.round:active{scale:.96}
+.bar-more:active,.round:active{scale:.96}
 @media (prefers-reduced-motion:no-preference){
   .round{transition:opacity var(--dur-short3) var(--ease-standard),visibility var(--dur-short3),scale var(--dur-press) var(--ease-standard)}
-  .bar-plus{transition:scale var(--dur-press) var(--ease-standard)}
+  .bar-more{transition:scale var(--dur-press) var(--ease-standard)}
 }
 /* Listening: the mic fills with the accent and a 2dp ring breathes around it (still with reduced motion). */
 .bar[data-state=listening] .mic{background:var(--bar-accent);color:var(--bar-on-accent);box-shadow:0 0 0 2px var(--bar),0 0 0 4px var(--bar-primary)}
@@ -60,20 +58,13 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
   .bar[data-state=listening] .mic{animation:mic-ring 900ms var(--ease-standard) infinite alternate}
 }
 @keyframes mic-ring{to{box-shadow:0 0 0 6px var(--bar),0 0 0 8px var(--bar-primary)}}
-.bar-plus::before,.round::before{content:'';position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0}
-.bar-plus:active::before,.round:active::before,.bar-plus[aria-expanded=true]::before{opacity:.12}
-@media (hover:hover) and (pointer:fine){.bar-plus:hover::before,.round:hover::before{opacity:.08}}
+.bar-more::before,.round::before{content:'';position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0}
+.bar-more:active::before,.round:active::before,.bar-more[aria-expanded=true]::before{opacity:.12}
+@media (hover:hover) and (pointer:fine){.bar-more:hover::before,.round:hover::before{opacity:.08}}
 .round:disabled{opacity:.5;cursor:default}
 .round:disabled::before{opacity:0}
 .bar[data-busy=true] .send .ms{animation:send-pulse 1.2s var(--ease-standard) infinite alternate}
 @keyframes send-pulse{from{opacity:1}to{opacity:.45}}
-
-
-.toast{
-  flex:none;align-self:center;margin:0;padding:8px 16px;border-radius:var(--shape-full);
-  background:var(--bar-high);color:var(--bar-on);font:var(--body-medium);box-shadow:var(--bar-shadow);text-align:center;
-}
-
 
 .scrim{position:absolute;inset:0;background:transparent}
 .sheet{
@@ -90,22 +81,14 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 
 .tiles{display:flex;gap:8px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;padding:0 16px 8px;scroll-padding-inline:16px;scroll-snap-type:x proximity}
 .tiles::-webkit-scrollbar{display:none}
-.tile{
-  position:relative;flex:none;min-inline-size:100px;min-block-size:100px;padding:12px 16px;border:0;border-radius:var(--r-group);scroll-snap-align:start;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
-  background:var(--bar-highest);color:var(--bar-on);font:var(--body-large);cursor:pointer;text-align:center;white-space:nowrap;
-}
-.tile .ms{font-size:24px}
 .sheet-row{
-  position:relative;display:flex;align-items:center;gap:16px;inline-size:100%;min-block-size:64px;padding:8px 16px;
+  position:relative;display:flex;align-items:center;gap:16px;inline-size:100%;min-block-size:56px;padding:8px 16px;
   border:0;background:transparent;color:var(--bar-on);text-align:start;cursor:pointer;
 }
 .sheet-row .ms{font-size:24px;color:var(--bar-on-variant)}
-.row-text{display:flex;flex-direction:column;min-inline-size:0}
 .row-title{font:var(--body-large)}
-.row-sub{font:var(--body-medium);color:var(--bar-on-variant)}
 .rows{padding-block-start:8px}
-.tile::before,.sheet-row::before{content:'';position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0}
-.tile:active::before,.sheet-row:active::before{opacity:.12}
-@media (hover:hover) and (pointer:fine){.tile:hover::before,.sheet-row:hover::before{opacity:.08}}
-@media (prefers-reduced-motion:no-preference){.tile:active,.sheet-row:active{scale:.98}.tile,.sheet-row{transition:scale 160ms var(--ease-standard)}}
+.sheet-row::before{content:'';position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0}
+.sheet-row:active::before{opacity:.12}
+@media (hover:hover) and (pointer:fine){.sheet-row:hover::before{opacity:.08}}
+@media (prefers-reduced-motion:no-preference){.sheet-row:active{scale:.98}.sheet-row{transition:scale 160ms var(--ease-standard)}}

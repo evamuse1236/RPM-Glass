@@ -114,13 +114,10 @@ const scenes = {
       await page.evaluate(() => { window.__modelDelay = 300; });
       await send('Move Reread PMDL session notes to tomorrow at 6 pm');
       await shot(page, `capture-keep-undo-${tone}`);
-      await click(page, page.getByRole('button', {name: 'More: planner, history, settings'}));
+      await send('What’s planned today?');
+      await shot(page, `capture-answer-${tone}`);
+      await click(page, page.getByRole('button', {name: 'More', exact: true}));
       await shot(page, `capture-sheet-${tone}`);
-      await click(page, page.getByRole('button', {name: /What’s planned today/}));
-      await page.waitForTimeout(1200); await shot(page, `capture-answer-${tone}`);
-      await click(page, page.getByRole('button', {name: 'More: planner, history, settings'}));
-      await click(page, page.getByRole('button', {name: 'Photos'}));
-      await shot(page, `capture-not-built-${tone}`);
       await page.close();
       const keyless = await open('/index.html', {dark, width: 390, reset: {hasKey: false}});
       await keyless.getByRole('textbox', {name: 'Capture a thought'}).fill('Buy marigolds for the puja');
