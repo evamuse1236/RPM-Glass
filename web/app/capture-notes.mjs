@@ -1,4 +1,21 @@
 export const RECENT = 3600000;
+export const DISMISSED_MAX = 100;
+const DISMISSED_KEY = 'rpm.web.capture.dismissed.v1';
+
+export function dismissedNotes(storage) {
+  let ids = [];
+  try {
+    const saved = JSON.parse(storage?.getItem(DISMISSED_KEY) ?? '[]');
+    if (Array.isArray(saved)) ids = saved.filter(id => typeof id === 'string').slice(-DISMISSED_MAX);
+  } catch {}
+  return {
+    has: id => ids.includes(id),
+    add(id) {
+      ids = [...ids.filter(saved => saved !== id), id].slice(-DISMISSED_MAX);
+      try { storage?.setItem(DISMISSED_KEY, JSON.stringify(ids)); } catch {}
+    },
+  };
+}
 
 const quote = text => `“${text.trim().slice(0, 80)}”`;
 

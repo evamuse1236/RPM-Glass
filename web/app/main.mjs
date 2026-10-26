@@ -9,7 +9,7 @@ import {isWide, onWidthChange} from './desktop.mjs';
 import {mountSidebar} from './sidebar.mjs';
 import {FINE, mountRowTools} from './pointer.mjs';
 import {mountShortcuts} from './shortcuts.mjs';
-import {captureNotes} from './capture-notes.mjs';
+import {captureNotes, dismissedNotes} from './capture-notes.mjs';
 
 const server = new URLSearchParams(location.search).get('server') ?? globalThis.RPM_SYNC_SERVER ?? location.origin;
 const client = createClient({server});
@@ -18,7 +18,7 @@ const $ = id => document.getElementById(id);
 const DRAFT = 'rpm.web.capture.v1';
 const SLOW = 30000;
 const QUIET = 3600000;
-const dismissed = new Set();
+const dismissed = dismissedNotes(localStorage);
 let ui = null;
 let remark = () => {};
 

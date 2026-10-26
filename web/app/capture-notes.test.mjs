@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {captureNotes, RECENT} from './capture-notes.mjs';
+import {captureNotes, dismissedNotes, DISMISSED_MAX, RECENT} from './capture-notes.mjs';
 
 const main = readFileSync(new URL('./main.mjs', import.meta.url), 'utf8');
 const NOW = Date.parse('2026-10-27T10:00:00Z');
@@ -35,7 +35,41 @@ test('a refused Capture is a problem note; dismissed, old and non-Capture entrie
   assert.deepEqual(run([entry('a', 'applied'), entry('b', 'applied', {ago: RECENT + 1}), plan], {dismissed: new Set(['a'])}), []);
 });
 
+function memoryStorage() {
+  const data = new Map();
+  return {getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, String(value)), data};
+}
+
+test('a dismissed Capture note stays hidden after the page reloads', () => {
+  const storage = memoryStorage();
+  dismissedNotes(storage).add('a');
+  const reloaded = dismissedNotes(storage);
+  assert.deepEqual(run([entry('a', 'applied'), entry('b', 'rejected')], {dismissed: reloaded}).map(note => note.id), ['b']);
+});
+
+test('the browser keeps only the newest dismissed notes, and unreadable saved data starts empty', () => {
+  const storage = memoryStorage();
+  const dismissed = dismissedNotes(storage);
+  for (let i = 0; i <= DISMISSED_MAX; i++) dismissed.add(`n${i}`);
+  const reloaded = dismissedNotes(storage);
+  assert.equal(reloaded.has('n0'), false);
+  assert.equal(reloaded.has('n1'), true);
+  assert.equal(reloaded.has(`n${DISMISSED_MAX}`), true);
+  const [[key, saved]] = [...storage.data];
+  assert.equal(JSON.parse(saved).length, DISMISSED_MAX);
+  for (const junk of ['{', '{"a":1}', '[1,null]']) {
+    const broken = memoryStorage();
+    broken.setItem(key, junk);
+    assert.equal(dismissedNotes(broken).has('a'), false, junk);
+  }
+  const full = {getItem: () => null, setItem: () => { throw new Error('QuotaExceededError'); }};
+  const kept = dismissedNotes(full);
+  kept.add('z');
+  assert.equal(kept.has('z'), true);
+});
+
 test('the website builds its notes from captureNotes and lets a done note be dismissed', () => {
+  assert.match(main, /const dismissed = dismissedNotes\(localStorage\);/);
   assert.match(main, /captureNotes\(\{outbox, captures: snapshot\?\.captures, settled: client\.settled, dismissed\}\)/);
   assert.match(main, /onDismiss: note\.dismissible \? \(\) => \{ dismissed\.add\(note\.id\); render\(\); \} : null/);
   assert.match(main, /note\.tone === 'problem' \? userMessage\(note\.text\)/);

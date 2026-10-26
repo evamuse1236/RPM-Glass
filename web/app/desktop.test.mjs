@@ -78,7 +78,7 @@ test('the sidebar marks the open tab, and Search while searching', () => {
   const observer = observers.at(-1);
   assert.equal(observer.node, planner);
   assert.deepEqual(observer.options.attributeFilter, ['data-view', 'data-detail']);
-  const current = () => nav.querySelectorAll('[aria-current=page]').map(labelOf);
+  const current = () => [...nav.querySelectorAll('[aria-current=page]')].map(labelOf);
   assert.deepEqual(current(), ['Today']);
   assert.ok(nav.children[1].children[0].querySelector('.ms').classList.contains('fill'));
   ui.state.tab = 'blocks';
