@@ -43,7 +43,7 @@ function clickGuard(node) {
  * above the finger, and it saves where it is let go with Undo. Held past 400ms and let go without moving, it opens the
  * quick menu. The knurl at its foot (only on a card that has not ended) drags the length.
  */
-export function attachSpineDrag(app, card, row, {dayStart}) {
+export function attachSpineDrag(app, card, row, {dayStart, scale}) {
   const task = row.task.ref;
   const scroller = app.dom.scroll;
   const haptic = kind => app.api.native('haptic', {kind}).catch(() => {});
@@ -55,7 +55,7 @@ export function attachSpineDrag(app, card, row, {dayStart}) {
     if (!state || !card.classList.contains('lifted')) return;
     const dy = offset();
     card.style.setProperty('--drag-y', dy + 'px');
-    const start = snapStart(row.start, dy, dayStart);
+    const start = snapStart(row.start, dy, dayStart, scale);
     if (shown !== start) {
       if (shown != null) haptic('tick');
       shown = start;
@@ -132,7 +132,7 @@ export function attachSpineDrag(app, card, row, {dayStart}) {
     if (!lifted) return;
     eatClick();
     if (result.drop != null) {
-      const start = snapStart(row.start, dy, dayStart);
+      const start = snapStart(row.start, dy, dayStart, scale);
       if (start === row.start) return;
       haptic('confirm');
       app.commit({type: 'saveTask', id: task.id, fields: {planned: new Date(start).toISOString()}},
@@ -148,10 +148,11 @@ export function attachSpineDrag(app, card, row, {dayStart}) {
     if (!card.classList.contains('lifted')) quickMenu(app, task, card);
   });
 
-  if (hasKnurl(row)) card.append(knurl(app, card, row, haptic));
+  if (hasKnurl(row)) card.append(knurl(app, card, row, haptic, scale));
 }
 
-function knurl(app, card, row, haptic) {
+function knurl(app, card, row, haptic, scale) {
+  const height = value => (scale ? Math.max(24, Math.round(value * scale)) : cardHeight(value));
   const task = row.task.ref;
   const minutes = task.minutes ?? row.minutes ?? 0;
   const node = el('button', 'spine-knurl');
@@ -175,10 +176,10 @@ function knurl(app, card, row, haptic) {
       card.classList.add('resizing');
       label = floatingLabel();
     }
-    const value = snapLength(minutes, dy);
+    const value = snapLength(minutes, dy, scale);
     if (value !== press.value) haptic('tick');
     press.value = value;
-    card.closest('.spine-row')?.style.setProperty('--h', cardHeight(value) + 'px');
+    card.closest('.spine-row')?.style.setProperty('--h', height(value) + 'px');
     placeCardLabel(label, card, duration(value));
   });
   const end = commit => event => {
@@ -191,7 +192,7 @@ function knurl(app, card, row, haptic) {
     if (!moved) return;
     eatClick();
     if (!commit || value === minutes) {
-      card.closest('.spine-row')?.style.setProperty('--h', cardHeight(minutes) + 'px');
+      card.closest('.spine-row')?.style.setProperty('--h', height(minutes) + 'px');
       return;
     }
     haptic('confirm');

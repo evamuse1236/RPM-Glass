@@ -29,26 +29,21 @@ test('the Today side panel counts the whole Inbox and lists only the first four'
   assert.deepEqual(inbox.tasks, inboxRows(d).slice(0, 4));
 });
 
-test("today's Musts come soonest first and leave out tasks that are not a Must", () => {
-  const {musts} = agendaModel(seed().d, SATURDAY_10_AM_KOLKATA);
-  assert.deepEqual(musts.map(t => t.title), ['Read', 'Draft']);
-});
-
-test('the next Block is the one due soonest, with its open tasks', () => {
+test('the next Block is the one due soonest, with its open tasks not already on Today', () => {
   const {d, review} = seed();
   const {next} = agendaModel(d, SATURDAY_10_AM_KOLKATA);
   assert.equal(next.block.id, review);
   assert.ok(next.due);
-  assert.deepEqual(next.tasks.map(t => t.title).sort(), ['Draft', 'Read', 'Submit']);
+  assert.deepEqual(next.tasks.map(t => t.title), ['Submit']);
+  assert.equal('musts' in agendaModel(d, SATURDAY_10_AM_KOLKATA), false);
 });
 
-test('the week shows the six days after today with their task counts', () => {
+test('the week lists only the next six days that hold tasks, with their counts', () => {
   const {week} = agendaModel(seed().d, SATURDAY_10_AM_KOLKATA);
-  assert.deepEqual(week.map(day => day.day), ['2026-10-04', '2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09']);
+  assert.ok(week.every(day => day.count > 0 && day.day > '2026-10-03' && day.day <= '2026-10-09'));
+  assert.equal(week[0].day, '2026-10-04');
   assert.equal(week[0].count, 1);
   assert.deepEqual(week[0].titles, ['Submit']);
-  assert.equal(week[1].count, 1);
-  assert.equal(week[2].count, 0);
 });
 
 test('the panel shows only on a wide window on Today', () => {
@@ -58,8 +53,9 @@ test('the panel shows only on a wide window on Today', () => {
   assert.match(html, /<aside id="agenda"[^>]*hidden/);
 });
 
-test("a long day in the Week ends in an ellipsis inside its card", () => {
+test('a Week day wraps each title on its own line and keeps its count on the day line', () => {
   const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
   assert.match(css, /\.agenda-section \{ display: grid; grid-template-columns: minmax\(0, 1fr\);/);
-  assert.match(css, /\.agenda-day \.list-supporting \{ white-space: nowrap; overflow: clip; text-overflow: ellipsis; \}/);
+  assert.match(css, /\.agenda-day \.list-supporting \{ overflow-wrap: anywhere; \}/);
+  assert.match(css, /\.agenda-day \.list-headline \{ display: flex; align-items: baseline;/);
 });

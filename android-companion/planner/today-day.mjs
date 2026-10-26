@@ -15,6 +15,7 @@ import {notice} from './snackbar.mjs';
 import {toggleDone} from './task-row.mjs';
 import {attachRowGestures} from './row-gestures.mjs';
 import {attachSpineDrag} from './spine-drag-ui.mjs';
+import {gridLayout, GRID_SCALE} from './day-grid.mjs';
 import {repeats} from '../planner-recurrence.mjs';
 import {openRunSheet} from './routines.mjs';
 import {openMealSheet} from './meals.mjs';
@@ -50,12 +51,10 @@ function spineModel(app) {
   const events = timelineItems(data, day, calendar).filter(item => item.source === 'calendar');
   const deadlines = openResults(data).filter(block => dueDay(data, block) === day)
     .map(block => ({id: block.id, title: block.title, at: +dueInfo(blockDue(data, block.id).value, now).at}));
-  return {
-    model: buildSpine({day, now: +now, live, tasks, events: events.filter(e => !e.allDay), deadlines,
-      routines: dayRoutines(body, day, now), meals: body.meals().filter(m => localDay(m.at) === day),
-      window: body.water().settings, mealPlan: body.mealPlan()}),
-    allDay: events.filter(e => e.allDay),
-  };
+  const spine = buildSpine({day, now: +now, live, tasks, events: events.filter(e => !e.allDay), deadlines,
+    routines: dayRoutines(body, day, now), meals: body.meals().filter(m => localDay(m.at) === day),
+    window: body.water().settings, mealPlan: body.mealPlan()});
+  return {model: app.api.wide?.() ? gridLayout(spine, {day, now: +now, live}) : spine, allDay: events.filter(e => e.allDay)};
 }
 
 async function toggleRoutine(app, body, row) {
@@ -105,7 +104,7 @@ function handlers(app) {
     toggleTask: row => toggleTask(app, row),
     gestures: (card, row) => attachRowGestures(app, card, row.task.ref, {leave: false, hold: !movable(row),
       complete: () => toggleTask(app, row)}),
-    drag: (card, row) => { if (movable(row)) attachSpineDrag(app, card, row, {dayStart: Date.parse(app.state.day + 'T00:00:00')}); },
+    drag: (card, row) => { if (movable(row)) attachSpineDrag(app, card, row, {dayStart: Date.parse(app.state.day + 'T00:00:00'), scale: row.top == null ? undefined : GRID_SCALE}); },
     openTask: task => app.actions.openTask(task.id, task.occurrence),
     openEvent: event => app.actions.calendarDetails(event),
     resolve(row) {

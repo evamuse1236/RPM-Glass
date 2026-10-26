@@ -94,9 +94,10 @@ html:has(dialog:modal) { overflow: clip; }
 .agenda-section .list-item { --gutter: var(--s4); min-block-size: 48px; padding-block: var(--s1); }
 .agenda-section .list-headline { font: var(--body-medium); }
 .agenda-section .list-supporting:empty { display: none; }
-.agenda-day .list-supporting { white-space: nowrap; overflow: clip; text-overflow: ellipsis; }
+.agenda-day { align-items: start; padding-block: var(--s2); }
+.agenda-day .list-supporting { overflow-wrap: anywhere; }
+.agenda-day .list-headline { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s2); }
 .agenda-task .must { color: var(--must); }
-.agenda-day.free .list-headline { color: var(--on-surface-variant); }
 button.agenda-head:active { background: color-mix(in oklch, var(--on-surface) 12%, transparent); }
 :is(.agenda-head, .agenda-section .list-item):focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 @media (hover: hover) and (pointer: fine) {

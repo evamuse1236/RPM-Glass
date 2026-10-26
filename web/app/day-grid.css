@@ -1,0 +1,106 @@
+@media (width >= 1080px) {
+  .spine.grid {
+    display: block;
+    block-size: var(--span);
+    margin-block: var(--s3) var(--s6);
+    padding: 0;
+    margin-inline-end: var(--inset-page);
+    background-image: linear-gradient(var(--outline-variant) 0 1px, transparent 1px);
+    background-size: calc(100% - var(--spine-gutter)) var(--hour);
+    background-position: var(--spine-gutter) 0;
+    background-repeat: repeat-y;
+  }
+  .spine.grid::before { content: none; }
+  .spine-hour {
+    position: absolute;
+    inset-block-start: var(--top);
+    inset-inline-start: 0;
+    inline-size: calc(var(--spine-gutter) - var(--s3));
+    translate: 0 -50%;
+    text-align: end;
+    font: var(--label-small);
+    color: var(--on-surface-variant);
+  }
+
+  .spine.grid > .spine-row {
+    position: absolute;
+    z-index: 1;
+    inset-block-start: var(--top);
+    inset-inline-start: calc(var(--spine-gutter) + (100% - var(--spine-gutter)) * var(--lane) / var(--lanes));
+    inline-size: calc((100% - var(--spine-gutter)) / var(--lanes) - var(--s1));
+    block-size: var(--h);
+    min-block-size: 0;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .spine.grid > .spine-row:not(.spine-now) > .spine-gutter { display: none; }
+  .spine.grid .drag-ghost { grid-column: 1; border-radius: var(--r-tile); }
+  .spine.grid > .spine-row[data-sync]::after { grid-column: 1; }
+
+  .spine.grid .spine-card {
+    position: relative;
+    grid-column: 1;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    block-size: var(--h);
+    min-block-size: 0;
+    border-inline-start: 4px solid var(--pill-c);
+    border-radius: var(--r-tile);
+    background: color-mix(in oklch, var(--pill-c) 16%, var(--surface));
+  }
+  .spine.grid :is(.spine-event, .spine-deadline) .spine-card { --pill-c: var(--outline); background: var(--surface-container-high); }
+  .spine.grid .spine-card.lifted { background: var(--surface-container-highest); }
+  .spine.grid .spine-pill { display: none; }
+  .spine.grid .spine-check {
+    grid-column: 1;
+    grid-row: 1;
+    inline-size: 40px;
+    block-size: min(40px, var(--h));
+  }
+  .spine.grid :is(.spine-open, .spine-card > .spine-copy) {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: stretch;
+    align-items: flex-start;
+    min-block-size: 0;
+    padding: var(--s2) var(--s3);
+    overflow: clip;
+  }
+  .spine.grid .spine-check + .spine-open, .spine.grid .spine-open:has(+ .spine-check) { padding-inline-start: 0; }
+  .spine.grid .spine-open { grid-column: 2; }
+  .spine.grid .spine-row:not(.tall) .spine-line { display: none; }
+  .spine.grid .spine-row:not(.tall) .spine-title { white-space: nowrap; text-overflow: ellipsis; overflow: clip; }
+  .spine.grid .short :is(.spine-open, .spine-card > .spine-copy) { padding-block: var(--s1) 0; }
+  .spine.grid .short .spine-when { display: none; }
+  .spine.grid .short .spine-title { font: var(--label-large); }
+  .spine.grid .short .check-ring { scale: 0.75; }
+  .spine.grid .spine-resolve { grid-column: 2; justify-self: start; }
+  .spine.grid .spine-knurl {
+    inset-block-end: 0;
+    inset-inline-start: calc(50% - var(--touch) / 2);
+  }
+  .spine.grid .spine-knurl::before { background: color-mix(in oklch, var(--on-surface-variant) 60%, transparent); }
+
+  .spine.grid > .spine-gap { z-index: 0; inline-size: calc(100% - var(--spine-gutter)); overflow: clip; }
+  .spine.grid > .spine-gap.short { display: none; }
+  .spine.grid .spine-free { display: flex; justify-content: flex-end; align-items: start; block-size: 100%; padding: 0; }
+  .spine.grid .spine-free-label { display: none; }
+
+  .spine.grid > .spine-now {
+    z-index: 3;
+    inset-inline: 0;
+    inline-size: auto;
+    block-size: 0;
+    grid-template-columns: var(--spine-gutter) minmax(0, 1fr);
+    align-items: center;
+    pointer-events: none;
+  }
+  .spine.grid > .spine-now > .spine-gutter { padding-inline-end: var(--s3); color: var(--now); font: var(--label-small); }
+  .spine.grid .spine-free .spine-action { opacity: 0; }
+  .spine.grid .spine-gap:focus-within .spine-action { opacity: 1; }
+}
+@media (width >= 1080px) and (hover: hover) {
+  .spine.grid .spine-gap:hover .spine-action { opacity: 1; }
+  .spine.grid .spine-card:not(:hover, :focus-within, .resizing) > .spine-knurl::before { opacity: 0; }
+}
