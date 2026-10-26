@@ -7,4 +7,18 @@
   #planner .tab[aria-selected=true]::after { inset-inline: var(--s4); }
 
   #planner .wheel-plot { inline-size: min(100% - 128px, 360px); }
+
+  #planner .page:has(> .life-areas) {
+    display: grid;
+    grid-template-columns: minmax(0, 480px) minmax(0, 1fr);
+    column-gap: var(--s4);
+    align-content: start;
+  }
+  #planner .page:has(> .life-areas) > :not(.wheel-card, .life-areas) { grid-column: 1 / -1; }
+  #planner .page:has(> .life-areas) .wheel-card { margin-inline-end: 0; align-self: start; }
+  #planner .page:has(> .life-areas) .wheel-areas { display: none; }
+  #planner .life-areas { display: grid; align-content: start; padding-block: var(--s1); padding-inline-end: var(--gutter); }
+  #planner .life-area .list-headline { font: var(--title-small); }
+  #planner .life-rating { font: var(--body-medium); color: var(--on-surface-variant); }
+  #planner .list-item.nested { padding-inline-start: calc(var(--s8) + var(--s6)); }
 }

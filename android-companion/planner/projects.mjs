@@ -38,21 +38,23 @@ function projectCard(app, project) {
   const area = app.projectArea(project);
   const {blocks, stats} = projectTasks(app, project);
   const ordered = byDeadline(app.data(), blocks);
-  const open = app.state.projectOpen === project.id;
+  const wide = Boolean(app.api.wide?.());
+  const open = wide || app.state.projectOpen === project.id;
   const card = el('article', 'project-card' + (open ? ' open' : ''));
   card.dataset.projectId = project.id;
   card.dataset.tone = app.tone(area);
   const meta = `${plural(blocks.length, 'Block')} · ${stats.done} of ${stats.total} done`;
-  const toggle = button('', () => { toggleProject(app.state, project.id); app.render(); }, 'project-toggle');
-  toggle.setAttribute('aria-expanded', String(open));
-  toggle.setAttribute('aria-label', `${project.title}, ${area?.title ?? 'No area'}. ${meta}. ${open ? 'Hide' : 'Show'} Blocks`);
+  const toggle = wide ? button('', () => app.openProject(project.id), 'project-toggle')
+    : button('', () => { toggleProject(app.state, project.id); app.render(); }, 'project-toggle');
+  if (!wide) toggle.setAttribute('aria-expanded', String(open));
+  toggle.setAttribute('aria-label', `${project.title}, ${area?.title ?? 'No area'}. ${meta}. ${wide ? 'Open Project' : open ? 'Hide Blocks' : 'Show Blocks'}`);
   const copy = el('span', 'project-copy');
   copy.append(el('span', 'project-area', area?.title ?? 'No area'), el('span', 'card-title', project.title),
     el('span', 'card-meta tnum', meta));
   toggle.append(nestRings(ordered.map(block => blockStats(app, block)), `${stats.done} of ${stats.total} tasks done`), copy);
   const head = el('div', 'project-head');
-  head.append(toggle, iconButton('chevron_right', `Open ${project.title}`, () => app.openProject(project.id),
-    {cls: 'project-open'}));
+  head.append(toggle);
+  if (!wide) head.append(iconButton('chevron_right', `Open ${project.title}`, () => app.openProject(project.id), {cls: 'project-open'}));
   card.append(head);
   if (open) {
     const list = el('div', 'project-blocks');

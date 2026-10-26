@@ -52,10 +52,24 @@ function initialAvatar(app, area) {
   return avatar;
 }
 
-function goalRow(app, goal) {
+/** Wide only: each Area with its rating and this year's Goals, beside the wheel. */
+function areaGoals(app, areas, loose) {
+  const list = el('section', 'life-areas');
+  for (const area of areas) {
+    const goals = app.p().goals.filter(g => g.areaId === area.id && g.year === app.state.year);
+    list.append(listItem({leading: initialAvatar(app, area), headline: area.title, cls: 'life-area',
+      trailing: el('span', 'life-rating tnum', area.rating == null ? 'Not rated' : `${area.rating} / 10`),
+      onClick: () => app.openArea(area.id)}));
+    for (const goal of goals) list.append(goalRow(app, goal, 'nested'));
+  }
+  if (loose.length) list.append(sectionHeader('Goals with no Area'), ...loose.map(goal => goalRow(app, goal)));
+  return list;
+}
+
+function goalRow(app, goal, cls = '') {
   const projects = app.p().projects.filter(pr => pr.goalId === goal.id);
   return listItem({leading: 'flag', headline: goal.title, supporting: plural(projects.length, 'Project'),
-    trailing: 'chevron_right', onClick: () => app.openGoal(goal.id)});
+    trailing: 'chevron_right', onClick: () => app.openGoal(goal.id), cls});
 }
 
 function periodGoals(app, page) {
@@ -96,6 +110,10 @@ export function renderLife(app, page) {
       action: () => app.actions.newEntity('areas'), label: 'Add Area'}));
   }
   const loose = app.p().goals.filter(g => !g.areaId && g.year === state.year);
+  if (areas.length && app.api.wide?.()) {
+    page.append(areaGoals(app, areas, loose));
+    return;
+  }
   if (loose.length) {
     page.append(sectionHeader('Goals with no Area'));
     const goals = el('div', 'list');

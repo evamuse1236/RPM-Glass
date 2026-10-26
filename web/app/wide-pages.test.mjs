@@ -20,3 +20,19 @@ test('on wide the Inbox pane drops its note and its repeated Capture and Add tas
   assert.match(css, /\.tab\[aria-selected=true\]::after \{ inset-inline: var\(--s4\); \}/);
   assert.match(read('../../android-companion/planner/task-lists.mjs'), /note\.dataset\.key = 'inbox-note'/);
 });
+
+test('on wide each Project card lists its Blocks and opens the Project; the phone keeps its toggle', () => {
+  const source = read('../../android-companion/planner/projects.mjs');
+  assert.match(source, /const wide = Boolean\(app\.api\.wide\?\.\(\)\);\n  const open = wide \|\| app\.state\.projectOpen === project\.id;/);
+  assert.match(source, /if \(!wide\) toggle\.setAttribute\('aria-expanded'/);
+  assert.match(source, /if \(!wide\) head\.append\(iconButton\('chevron_right'/);
+});
+
+test('on wide Life puts the wheel on the left and each Area with its rating and Goals on the right', () => {
+  const source = read('../../android-companion/planner/life.mjs');
+  assert.match(source, /if \(areas\.length && app\.api\.wide\?\.\(\)\) \{\n    page\.append\(areaGoals\(app, areas, loose\)\);/);
+  assert.match(source, /`\$\{area\.rating\} \/ 10`/);
+  const css = read('./wide-pages.css');
+  assert.match(css, /\.page:has\(> \.life-areas\) \{\n    display: grid;\n    grid-template-columns: minmax\(0, 480px\) minmax\(0, 1fr\);/);
+  assert.match(css, /\.page:has\(> \.life-areas\) \.wheel-areas \{ display: none; \}/);
+});
