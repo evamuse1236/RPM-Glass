@@ -4,36 +4,46 @@ import {dueSoon, openResults} from '../../android-companion/planner/today-model.
 import {taskWhen} from '../../android-companion/planner/task-row.mjs';
 import {clock, dayName} from '../../android-companion/planner/format.mjs';
 import {button, el, icon, listItem} from '../../android-companion/planner/dom.mjs';
-import {isWide, onWidthChange} from './desktop.mjs';
+import {isSplit, isWide, onSplitChange, onWidthChange} from './desktop.mjs';
 
 const SHOWN = 4;
-const AHEAD = 6;
-const TITLES = 3;
+const LINES = 2;
 const TOMORROW = 8;
 
 const byTime = (a, b) => (taskWhen(a) ?? Infinity) - (taskWhen(b) ?? Infinity);
 
-export function agendaModel(data, now = new Date()) {
+export function agendaModel(data, now = new Date(), {split = false} = {}) {
   const today = localDay(now);
-  const inbox = inboxRows(data);
   const listed = dayTasks(data, today, +now);
-  const onToday = new Set([...listed.active, ...listed.completed].map(task => task.id));
-  const soon = dueSoon(data, now)[0];
-  const block = soon?.block ?? openResults(data)[0] ?? null;
-  const week = Array.from({length: AHEAD}, (_, i) => {
-    const day = shiftDay(today, i + 1);
-    const active = dayTasks(data, day, +now).active.sort(byTime);
-    return {day, label: dayName(day), count: active.length, titles: active.slice(0, TITLES).map(task => task.title)};
-  }).filter(day => day.count);
-  const tomorrow = shiftDay(today, 1);
-  const ahead = dayTasks(data, tomorrow, +now).active.sort(byTime);
-  return {
-    inbox: {count: inbox.length, tasks: inbox.slice(0, SHOWN)},
-    next: block && {block, due: soon?.due?.label ?? '',
-      tasks: blockTasks(data, block.id).filter(task => !task.done && !onToday.has(task.id)).slice(0, SHOWN)},
-    week,
-    tomorrow: {day: tomorrow, count: ahead.length, tasks: ahead.slice(0, TOMORROW)},
+  const shown = new Set([...listed.active, ...listed.completed].map(task => task.id));
+  const claim = (tasks, most = Infinity) => {
+    const fresh = [...new Map(tasks.filter(task => !shown.has(task.id)).map(task => [task.id, task])).values()].slice(0, most);
+    for (const task of fresh) shown.add(task.id);
+    return fresh;
   };
+  const inboxAll = inboxRows(data);
+  const inbox = {count: inboxAll.length, tasks: claim(inboxAll, SHOWN)};
+  const tomorrowDay = shiftDay(today, 1);
+  const ahead = dayTasks(data, tomorrowDay, +now).active.sort(byTime);
+  const tomorrow = split ? {day: tomorrowDay, count: ahead.length, tasks: claim(ahead, TOMORROW)} : null;
+  const first = split ? 2 : 1;
+  const week = Array.from({length: split ? 13 : 6}, (_, i) => {
+    const day = shiftDay(today, i + first);
+    const active = dayTasks(data, day, +now).active.sort(byTime);
+    const unseen = active.filter(task => !shown.has(task.id));
+    const tasks = claim(unseen, LINES);
+    return {day, label: dayName(day), count: active.length, tasks, more: unseen.length - tasks.length};
+  }).filter(day => day.tasks.length);
+  const soon = dueSoon(data, now);
+  const results = [...new Map([...soon.map(item => item.block), ...openResults(data)].map(block => [block.id, block])).values()];
+  const blocks = [];
+  for (const block of results) {
+    if (blocks.length === (split ? 3 : 2)) break;
+    const tasks = claim(blockTasks(data, block.id).filter(task => !task.done), SHOWN);
+    if (!tasks.length && blocks.length) continue;
+    blocks.push({block, due: soon.find(item => item.block.id === block.id)?.due?.label ?? '', tasks});
+  }
+  return {inbox, blocks, tomorrow, week};
 }
 
 function when(task, now) {
@@ -51,26 +61,26 @@ function head(title, {count = null, onClick = null} = {}) {
   return node;
 }
 
+const leading = task => task.must ? icon('star', {fill: true, cls: 'leading must'}) : 'radio_button_unchecked';
+
 function taskItem(task, ui, now) {
-  return listItem({leading: task.must ? icon('star', {fill: true, cls: 'leading must'}) : 'radio_button_unchecked',
-    headline: task.title, supporting: when(task, now), onClick: () => ui.taskEditor(task.id), cls: 'agenda-task'});
+  return listItem({leading: leading(task), headline: task.title, supporting: when(task, now),
+    onClick: () => ui.taskEditor(task.id), cls: 'agenda-task'});
 }
 
-function tomorrowItem(task, ui) {
+function timedItem(task, ui) {
   const at = taskWhen(task);
-  return listItem({leading: task.must ? icon('star', {fill: true, cls: 'leading must'}) : 'radio_button_unchecked',
-    headline: task.title, supporting: at ? clock(at) : '', onClick: () => ui.taskEditor(task.id), cls: 'agenda-task'});
+  return listItem({leading: leading(task), headline: task.title, trailing: at ? el('span', 'agenda-time tnum', clock(at)) : null,
+    onClick: () => ui.taskEditor(task.id), cls: 'agenda-task agenda-line'});
 }
 
-function weekDay(day, ui, tomorrow) {
-  const node = button('', () => ui.openView({view: 'day', date: day.day}), 'list-item agenda-day');
-  if (day.day === tomorrow) node.dataset.tomorrow = '';
-  const copy = el('span', 'list-copy');
-  const top = el('span', 'list-headline');
+function weekDay(day, ui) {
+  const open = () => ui.openView({view: 'day', date: day.day});
+  const top = button('', open, 'agenda-day');
   top.append(el('span', '', day.label), el('span', 'agenda-count tnum', String(day.count)));
-  copy.append(top, el('span', 'list-supporting', day.titles.join(', ')));
-  node.append(copy);
-  return node;
+  const rows = [top, ...day.tasks.map(task => timedItem(task, ui))];
+  if (day.more) rows.push(button(`+${day.more}`, open, 'agenda-more'));
+  return rows;
 }
 
 function section(cls, ...children) {
@@ -79,23 +89,27 @@ function section(cls, ...children) {
   return node;
 }
 
-export function renderAgenda(host, data, ui, now = new Date()) {
-  const model = agendaModel(data, now);
-  const sections = [];
-  sections.push(section('agenda-inbox', head('Inbox', {count: model.inbox.count, onClick: () => ui.inbox()}),
-    ...model.inbox.tasks.map(task => taskItem(task, ui, now))));
-  if (model.next) {
-    const {block} = model.next;
+function column(...sections) {
+  const node = el('div', 'agenda-col');
+  node.append(...sections.filter(Boolean));
+  return node;
+}
+
+export function renderAgenda(host, data, ui, now = new Date(), split = isSplit()) {
+  const model = agendaModel(data, now, {split});
+  const inbox = section('agenda-inbox', head('Inbox', {count: model.inbox.count, onClick: () => ui.inbox()}),
+    ...model.inbox.tasks.map(task => taskItem(task, ui, now)));
+  const blocks = model.blocks.map(({block, due, tasks}) => {
     const open = head(block.title, {onClick: () => ui.openView({view: 'rpm', collection: 'blocks', id: block.id})});
-    if (model.next.due) open.querySelector('h2').after(el('span', 'agenda-due', model.next.due));
-    sections.push(section('agenda-next', open, ...model.next.tasks.map(task => taskItem(task, ui, now))));
-  }
+    if (due) open.querySelector('h2').after(el('span', 'agenda-due', due));
+    return section('agenda-next', open, ...tasks.map(task => taskItem(task, ui, now)));
+  });
   const {tomorrow} = model;
-  if (tomorrow.count) sections.push(section('agenda-tomorrow',
+  const ahead = tomorrow?.count ? section('agenda-tomorrow',
     head('Tomorrow', {count: tomorrow.count, onClick: () => ui.openView({view: 'day', date: tomorrow.day})}),
-    ...tomorrow.tasks.map(task => tomorrowItem(task, ui))));
-  if (model.week.length) sections.push(section('agenda-week', head('Week'), ...model.week.map(day => weekDay(day, ui, tomorrow.day))));
-  host.replaceChildren(...sections);
+    ...tomorrow.tasks.map(task => timedItem(task, ui))) : null;
+  const week = model.week.length ? section('agenda-week', head('Week'), ...model.week.flatMap(day => weekDay(day, ui))) : null;
+  host.replaceChildren(...(split ? [column(inbox, ...blocks), column(ahead, week)] : [column(inbox, ...blocks, week)]));
 }
 
 /** The Today side panel on a wide window: shown only on Today, redrawn on every snapshot. */
@@ -107,6 +121,7 @@ export function mountAgenda(host, planner, ui, getData) {
   };
   new MutationObserver(refresh).observe(planner, {attributes: true, attributeFilter: ['data-view']});
   onWidthChange(refresh);
+  onSplitChange(refresh);
   refresh();
   return refresh;
 }
