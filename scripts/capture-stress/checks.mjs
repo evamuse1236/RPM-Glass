@@ -20,7 +20,7 @@ const local=value=>{
 const signature=e=>JSON.stringify({...Object.fromEntries(['title','purpose','notes','planned','plannedDate','minutes','must','archived','done','state','blockId','projectId','goalId','areaId','recurrence','repeatAfterDays'].map(k=>[k,e[k]??null])),alert:e.alertIntent?.type??e.alert??null});
 const draftRows=draft=>(draft?.operations??[]).filter(o=>o.kind==='create').map(o=>({id:o.opId,entity:o.entity,...Object.fromEntries(o.fields.filter(f=>f.op==='set').map(f=>[f.name,f.value])),proposal:true}));
 
-export function checkExpectation(expect,{before,after,draft,focusDraft=draft,questions=[]}){
+export function checkExpectation(expect,{before,after,draft,focusDraft=draft,questions=[],reply=''}){
  const failures=[];const fail=(type,detail)=>failures.push({type,detail});
  const previous=new Map(entities(before).map(e=>[key(e),e]));
  const savedNew=entities(after).filter(e=>!previous.has(key(e))&&active(e));
@@ -33,7 +33,7 @@ export function checkExpectation(expect,{before,after,draft,focusDraft=draft,que
  for(const item of required){
   const candidates=created.filter(e=>(!item.entity||e.entity===item.entity)&&matchesItem(e.title,item));
   const match=candidates.find(e=>item.allowShared||!used.has(key(e)));
-  if(!match){fail('lost item',`Missing ${item.entity??'item'} title containing ${item.words.join(' + ')} in ${expect.scope??'saved'} state`);continue;}
+  if(!match){if(!item.optional)fail('lost item',`Missing ${item.entity??'item'} title containing ${item.words.join(' + ')} in ${expect.scope??'saved'} state`);continue;}
   used.add(key(match));
   checkFields(item,match,fail,after);
  }
@@ -44,6 +44,7 @@ export function checkExpectation(expect,{before,after,draft,focusDraft=draft,que
  for(const words of expect.forbidden??[])for(const row of [...savedNew,...pending])if(matchesWords(row.title,words))fail('retraction ignored',`Retracted title survives: ${row.title}`);
  for(const expected of expect.changes??[]){
   const entity=expected.entity??'task',row=entities(after).find(e=>e.entity===entity&&String(e.id)===String(expected.id));
+  if(expected.optional)continue;
   if(!row){fail('lost item',`Saved ${entity} ${expected.id} disappeared`);continue;}
   if(expected.kind==='archive'&&active(row))fail('focus lost',`${row.title} was not archived`);
   if(expected.kind==='complete'&&!row.done)fail('lost item',`${row.title} was not completed`);
@@ -79,6 +80,12 @@ export function checkExpectation(expect,{before,after,draft,focusDraft=draft,que
    for(const op of current)if(!original.operations.some(o=>o.opId===op.opId))fail('invented item',`Unrequested focused proposal ${op.opId}`);
   }
  }
+ if(expect.replyWords&&!expect.replyWords.some(w=>matchesWords(reply,[w])))fail('lost item',`Reply does not mention ${expect.replyWords.join(' or ')}`);
+ for(const w of expect.replyForbidden??[])if(matchesWords(reply,[w]))fail('false claim',`Reply says ${w}`);
+ for(const item of expect.anyTask??[]){
+  const hit=entities(after).some(e=>e.entity==='task'&&active(e)&&matchesWords(e.title,item.words)&&(item.day===undefined||(local(e.planned)?.day??e.plannedDate??null)===item.day));
+  if(!hit)fail('lost item',`No active task with ${item.words.join(' + ')}${item.day?' on '+item.day:''}`);
+ }
  const questionCount=questions.length;
  if(expect.question==='forbidden'&&questionCount)fail('repeated question','A question was asked when no clarification was allowed');
  if(expect.question==='required'&&!questionCount)fail('lost item','Expected a clarification question');
@@ -96,6 +103,7 @@ function checkFields(expected,row,fail,after){
  if(expected.title!==undefined&&row.title!==expected.title)fail('wrong title',`${row.title}: expected exact title ${expected.title}`);
  if(expected.day!==undefined&&day!==expected.day)fail('wrong time',`${row.title}: day ${day}, expected ${expected.day}`);
  if(expected.time!==undefined&&time!==expected.time)fail('wrong time',`${row.title}: time ${time}, expected ${expected.time}`);
+ if(expected.scheduled!==undefined&&!!(row.planned||row.plannedDate)!==expected.scheduled)fail('wrong time',`${row.title}: scheduled should be ${expected.scheduled}`);
  if(expected.done!==undefined&&!!row.done!==expected.done)fail('lost item',`${row.title}: done should be ${expected.done}`);
  if(expected.must!==undefined&&!!row.must!==expected.must)fail('lost item',`${row.title}: must should be ${expected.must}`);
  if(expected.titleWords&&!matchesWords(row.title,expected.titleWords))fail('lost item',`${row.title}: expected title ${expected.titleWords.join(' + ')}`);
@@ -138,4 +146,15 @@ export function checkExecution(turns,{validate,schema}){
   previousQuestion=qs[0]??null;previousDraft=t.draft?.id??null;
  }
  return failures;
+}
+
+const CLAIM=/(?<!\bnot )(?<!n['’]t )(?<!\bnothing )(?<!\bno )\b(saved|added|scheduled|created|archived|removed|deleted|cleared|completed|marked|renamed|moved|rescheduled)\b/i;
+const stored=data=>JSON.stringify([data.entries??[],data.planner??{},data.intentV2?.drafts??{}]);
+
+// Heuristic: a past-tense claim of change in the reply while entries and planner are identical.
+export function checkClaims(reply,{before,after,pending=false}){
+ const text=String(reply??'');
+ const claim=text.match(CLAIM);
+ if(!claim||pending||stored(before)!==stored(after))return [];
+ return [{type:'false claim',detail:`Reply says "${claim[0]}" but nothing saved changed: ${text.slice(0,120)}`}];
 }
