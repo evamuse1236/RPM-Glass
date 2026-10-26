@@ -12,7 +12,7 @@ async function openMenuItem(serial, cdpPort, item) {
   const find = () => tapElement(serial, cdpPort, {name: item, role: 'button', exact: true}, true);
   for (let attempt = 0; attempt < 2; attempt++) {
     try { return await settled(find); } catch (e) { if (!(e instanceof UserError)) throw e; }
-    touch(serial, (await tapElement(serial, cdpPort, {name: 'More: planner, history, settings', role: 'button'})).at);
+    touch(serial, (await tapElement(serial, cdpPort, {name: 'More', role: 'button', exact: true})).at);
     for (const until = Date.now() + 6000; Date.now() < until; await sleep(300)) {
       try { return await settled(find); } catch (e) { if (!(e instanceof UserError)) throw e; }
     }

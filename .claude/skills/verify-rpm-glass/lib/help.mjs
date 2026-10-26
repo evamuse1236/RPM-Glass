@@ -88,7 +88,7 @@ app process, WebView DevTools reachable, current page, System UI ANR prompt, app
 Output: {ok, checks:[{name, ok, detail, fix?}]}. ok=false names the first fix to apply.`,
   open: `open <surface>
   capture        Launcher icon path (MAIN/LAUNCHER intent): the Capture sheet.
-  planner        Capture sheet -> "More: planner, history, settings" -> "Planner" (taps, like a user).
+  planner        Capture sheet -> "More" -> "Planner" (taps, like a user).
   history        Capture sheet -> More -> "History".
   widget-capture The intent the home-screen widget's Capture bar sends (com.rpm.widget.capture).
   widget-voice   The intent the widget's mic sends (com.rpm.widget.voice); starts voice input.

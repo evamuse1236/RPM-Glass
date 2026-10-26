@@ -256,7 +256,7 @@ export function mountCapture(platform){
  const forming=installForming({host:$('forming'),platform,conversationId:()=>conversation().id});
  installCapturePresentation({action:platform.action});
  const send=text=>{setView('chat');return turn({type:'message',text});};
- const sheet=installSheet({platform,send,setView,prefill:text=>{setView('chat');if(!message.value.trim())composer.set(text);else message.focus({preventScroll:true});}});
+ const sheet=installSheet({platform,setView});
  const composer=installComposer({
   onSubmit:text=>{if(!s.busy)send(text);},
   onInput:text=>{rememberComposer(text);formNow();if(s.state&&!s.busy&&$('status').textContent&&!$('status').classList.contains('error'))status('');},

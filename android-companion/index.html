@@ -16,14 +16,13 @@
 <div id="stack" class="stack">
   <div id="content" class="cards" aria-label="Capture response" aria-live="polite"></div>
   <div id="forming" class="cards forming-list" aria-label="What Capture reads so far"></div>
-  <p id="toast" class="toast" role="status" hidden></p>
   <section id="panel" class="bar" aria-label="RPM Capture" data-view="chat" data-busy="false" data-state="idle" data-has-text="false">
     <div class="grab" aria-hidden="true"></div>
     <form id="composer" class="composer">
       <label class="sr-only" for="message">Capture a thought</label>
       <textarea id="message" rows="1" maxlength="12000" placeholder="Capture a thought" enterkeyhint="send"></textarea>
       <div class="bar-row">
-        <button id="plus" class="bar-plus" type="button" aria-label="More: planner, history, settings" aria-haspopup="dialog" aria-expanded="false" aria-controls="sheet"><span class="ms" aria-hidden="true">add</span></button>
+        <button id="more" class="bar-more" type="button" aria-label="More" aria-haspopup="dialog" aria-expanded="false" aria-controls="sheet"><span class="ms" aria-hidden="true">more_vert</span></button>
         <p id="status" class="status" role="status" aria-live="polite"></p>
         <button id="dictate" class="round mic" type="button" aria-label="Voice input"><span class="ms" aria-hidden="true">mic</span></button>
         <button id="send" class="round send" type="submit" aria-label="Send"><span class="ms" aria-hidden="true">arrow_upward</span></button>
@@ -34,20 +33,11 @@
 <div id="scrim" class="scrim" hidden></div>
 <section id="sheet" class="sheet" role="dialog" aria-modal="true" aria-label="More" hidden>
   <div class="grab" aria-hidden="true"></div>
-  <div class="tiles" role="group" aria-label="Open">
-    <button class="tile" type="button" data-tile="photos"><span class="ms" aria-hidden="true">photo_library</span><span>Photos</span></button>
-    <button class="tile" type="button" data-tile="camera"><span class="ms" aria-hidden="true">photo_camera</span><span>Camera</span></button>
-    <button class="tile" type="button" data-tile="files"><span class="ms" aria-hidden="true">attach_file</span><span>Files</span></button>
-    <button class="tile" type="button" data-tile="planner"><span class="ms" aria-hidden="true">calendar_month</span><span>Planner</span></button>
-    <button class="tile" type="button" data-tile="history"><span class="ms" aria-hidden="true">history</span><span>History</span></button>
-    <button class="tile" type="button" data-tile="context"><span class="ms" aria-hidden="true">psychology</span><span>Context</span></button>
-    <button class="tile" type="button" data-tile="settings"><span class="ms" aria-hidden="true">settings</span><span>Settings</span></button>
-  </div>
   <div class="rows">
-    <button class="sheet-row" type="button" data-row="today"><span class="ms" aria-hidden="true">today</span><span class="row-text"><span class="row-title">What’s planned today?</span><span class="row-sub">Ask about your day</span></span></button>
-    <button class="sheet-row" type="button" data-row="result"><span class="ms" aria-hidden="true">flag</span><span class="row-text"><span class="row-title">Plan a Result</span><span class="row-sub">Result, Purpose, then the Plan</span></span></button>
-    <button class="sheet-row" type="button" data-row="inbox"><span class="ms" aria-hidden="true">inbox</span><span class="row-text"><span class="row-title">Sort my Inbox</span><span class="row-sub">Place loose tasks into Blocks</span></span></button>
-    <button class="sheet-row" type="button" data-row="review"><span class="ms" aria-hidden="true">event_repeat</span><span class="row-text"><span class="row-title">Weekly review</span><span class="row-sub">Look back, then plan next week</span></span></button>
+    <button class="sheet-row" type="button" data-go="planner"><span class="ms" aria-hidden="true">calendar_month</span><span class="row-title">Planner</span></button>
+    <button class="sheet-row" type="button" data-go="history"><span class="ms" aria-hidden="true">history</span><span class="row-title">History</span></button>
+    <button class="sheet-row" type="button" data-go="context"><span class="ms" aria-hidden="true">psychology</span><span class="row-title">Context</span></button>
+    <button class="sheet-row" type="button" data-go="settings"><span class="ms" aria-hidden="true">settings</span><span class="row-title">Settings</span></button>
   </div>
 </section>
 </main>
