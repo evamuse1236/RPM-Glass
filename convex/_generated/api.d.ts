@@ -9,6 +9,7 @@
  */
 
 import type * as admin from "../admin.js";
+import type * as captureSpike from "../captureSpike.js";
 import type * as crons from "../crons.js";
 import type * as diagnosticRedaction from "../diagnosticRedaction.js";
 import type * as diagnostics from "../diagnostics.js";
@@ -28,6 +29,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
+  captureSpike: typeof captureSpike;
   crons: typeof crons;
   diagnosticRedaction: typeof diagnosticRedaction;
   diagnostics: typeof diagnostics;
