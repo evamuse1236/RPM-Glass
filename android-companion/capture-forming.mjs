@@ -2,6 +2,7 @@ import {readForming} from '../intent-v2/src/forming.mjs';
 import {pendingRow} from './capture-receipt.mjs';
 import {rowFacts} from './capture-lines.mjs';
 import {taskSymbol} from './task-symbol.mjs';
+import {KIND_ICON} from './capture-chips.mjs';
 import {el,icon} from './capture-dom.mjs';
 import {EASE,DURATION,MOTION,reducedMotion} from './motion-core.mjs';
 
@@ -86,7 +87,7 @@ function formingCard(){
 }
 
 function paintCard(node,row,{reading}){
- const title=row.title||'Untitled',symbol=taskSymbol(title),pill=node.querySelector('.forming-pill');
+ const title=row.title||'Untitled',symbol=row.entity==='task'?taskSymbol(title):KIND_ICON[row.entity],pill=node.querySelector('.forming-pill');
  if(pill.firstChild.textContent!==symbol)pill.firstChild.textContent=symbol;
  if(row.tone)pill.dataset.tone=row.tone;else delete pill.dataset.tone;
  const heading=node.querySelector('.forming-title');
@@ -103,9 +104,12 @@ export function paintForming(host,rows,{reading=false}={}){
  });
 }
 
+const forms=op=>op?.kind==='create'&&op.opId&&op.title&&KIND_ICON[op.entity];
+
 const opRow=(op,row)=>{
+ if(op.entity!=='task')return {...pendingRow({id:op.opId,title:op.title}),entity:op.entity};
  const when=op.time?instantRows(`${op.title} ${op.time}`)[0]?.when:null;
- return {...(row??pendingRow({title:op.title})),id:op.opId,title:op.title,when:when??row?.when??null,minutes:op.minutes??row?.minutes??null};
+ return {...(row?.entity==='task'?row:pendingRow({title:op.title})),id:op.opId,title:op.title,when:when??row?.when??null,minutes:op.minutes??row?.minutes??null};
 };
 
 function glide(item,from,still){
@@ -142,8 +146,13 @@ export function installForming({host,platform,conversationId}){
  };
  const gate=createReadGate({read:(words,signal)=>platform.previewCapture?.(words,{conversationId:conversationId(),signal})??null,onChange:draw});
  const paintHeld=()=>{
-  paintForming(host,held.map(h=>h.row),{reading});
-  held.forEach((h,i)=>{host.children[i].dataset.op=h.op??'';});
+  held.forEach((h,i)=>{
+   h.node??=formingCard();
+   paintCard(h.node,h.row,{reading:reading&&i===held.length-1});
+   h.node.dataset.op=h.op??'';
+   const after=i?held[i-1].node.nextSibling:host.firstChild;
+   if(h.node!==after)host.insertBefore(h.node,after);
+  });
   host.scrollTop=host.scrollHeight;
  };
  function leave(node,still){
@@ -159,7 +168,11 @@ export function installForming({host,platform,conversationId}){
    const guess=words===text?gate.state().rows:null,rows=guess??instantRows(words);
    host.setAttribute('aria-busy','true');
    kept=false;
-   held=(rows.length?rows:[pendingRow({title:words.trim()})]).map(row=>({op:null,row}));
+   for(const node of leaving)node.remove();
+   leaving.clear();
+   const shown=rows.length?rows:[pendingRow({title:words.trim()})];
+   paintForming(host,shown);
+   held=shown.map((row,i)=>({op:null,row,node:host.children[i]}));
    reading=read;text='';
    gate.sent();
    paintHeld();
@@ -167,22 +180,26 @@ export function installForming({host,platform,conversationId}){
   },
   fill(operations){
    if(!held)return;
-   for(const op of operations){
-    if(!op?.opId||!op.title)continue;
-    let slot=held.find(h=>h.op===op.opId)??held.find(h=>!h.op);
-    if(!slot)held.push(slot={op:null,row:null});
-    slot.op=op.opId;slot.row=opRow(op,slot.row);
-   }
+   const free=held.filter(h=>!operations.some(op=>forms(op)&&op.opId===h.op));
+   const next=operations.filter(forms).map(op=>{
+    const slot=held.find(h=>h.op===op.opId)??free.shift()??{op:null,row:null,node:null};
+    return {...slot,op:op.opId,row:opRow(op,slot.row)};
+   });
+   for(const h of held)if(h.node&&!next.some(n=>n.node===h.node))leave(h.node,reducedMotion());
+   held=next;
    paintHeld();
   },
   lift(){
    if(!held)return ()=>false;
-   const cards=held.map((h,i)=>{const node=host.children[i];return {op:h.op,node,from:node.getBoundingClientRect?.()??null};});
+   const cards=held.map(h=>({op:h.op,node:h.node,from:h.node.getBoundingClientRect?.()??null}));
    return (content,{keep=false}={})=>{
     const rows=held.map(h=>h.row);
     held=null;host.removeAttribute('aria-busy');
     const pairs=pairUp(cards,content.querySelectorAll('.chip-items > li[data-op]')),still=reducedMotion();
-    if(keep&&!pairs.size){kept=true;paintForming(host,rows);return false;}
+    if(keep&&!pairs.size){
+     if(text.trim())draw(gate.state());else{kept=true;paintForming(host,rows);}
+     return false;
+    }
     for(const c of cards){
      const item=pairs.get(c);
      if(!item){leave(c.node,still);continue;}

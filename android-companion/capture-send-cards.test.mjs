@@ -113,3 +113,43 @@ test('Capture no longer shows a waiting card after Send',()=>{
  assert.match(app,/type==='partial'/);
  assert.match(app,/keep:wordsOnly\(request\)/);
 });
+
+const pills=host=>host.querySelectorAll('.forming-pill').map(n=>n.firstChild.textContent);
+
+test('a streamed change to a saved item adds no card; a new Project or Block forms with its own icon',()=>{
+ const s=screen();
+ s.forming.hold('call mom and buy milk');
+ s.forming.fill([
+  {opId:'o1',kind:'create',entity:'task',title:'Call mom'},
+  {opId:'o2',kind:'update',entity:'task',title:'Old task renamed'},
+  {opId:'o3',kind:'create',entity:'project',title:'Home'},
+  {opId:'o4',kind:'create',entity:'block',title:'Errands'},
+ ]);
+ assert.deepEqual(titles(s.host),['Call mom','Home','Errands']);
+ assert.deepEqual(pills(s.host).slice(1),['folder','stacks']);
+ assert.doesNotMatch(s.host.textContent,/Old task renamed|Inbox/);
+ s.forming.hold('move the gym to 6pm');
+ s.forming.fill([{opId:'u1',kind:'update',entity:'task',title:'Gym'}]);
+ assert.deepEqual(titles(s.host),[],'a change shows nothing until its receipt is ready');
+});
+
+test('words typed while a keyless Send waits form their own cards when it lands',()=>{
+ const s=screen();
+ s.forming.update('buy milk please now',{enabled:false,visible:true});
+ s.forming.hold('buy milk please now');
+ const land=s.forming.lift();
+ s.forming.update('water the plants tonight',{enabled:false,visible:true});
+ s.content.replaceChildren(new FakeElement('section'));
+ assert.equal(land(s.content,{keep:true}),false);
+ assert.deepEqual(titles(s.host),['Water the plants']);
+});
+
+test('a line the model merges leaves one card, not the extra guess',()=>{
+ const s=screen();
+ s.forming.hold('Buy milk. Call the bank about the card');
+ assert.equal(s.host.children.length,2);
+ const first=s.host.children[0];
+ s.forming.fill([{opId:'o1',kind:'create',entity:'task',title:'Buy milk and call the bank'}]);
+ assert.deepEqual(titles(s.host),['Buy milk and call the bank']);
+ assert.equal(s.host.children[0],first,'the matched card is filled in place');
+});

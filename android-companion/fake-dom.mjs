@@ -55,6 +55,7 @@ export class FakeElement{
  appendChild(node){this.append(node);return node;}
  remove(){const p=this.parentNode;if(!p)return;p.children.splice(p.children.indexOf(this),1);this.parentNode=null;}
  get firstChild(){return this.children[0]??null;}
+ get nextSibling(){const s=this.parentNode?.children;return s?s[s.indexOf(this)+1]??null:null;}
  get lastElementChild(){return this.children.at(-1)??null;}
  get childNodes(){return [...this.children];}
  replaceChildren(...nodes){this.textContent='';this.append(...nodes);}
