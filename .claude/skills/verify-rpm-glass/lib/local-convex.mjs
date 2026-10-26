@@ -37,7 +37,7 @@ export async function startLocalConvex(root, {logDir = path.join(root, '.verify'
   const logFile = path.join(logDir, 'convex-scenario.log');
   const log = fs.createWriteStream(logFile);
   const [cmd, ...pre] = NODE_24;
-  const child = spawn(cmd, [...pre, '--require', path.join(root, 'scripts/web-sync/convex-json-imports.cjs'), 'node_modules/convex/bin/main.js', 'dev', '--typecheck', 'disable', '--codegen', 'disable'], {cwd: root, env: childEnv(), detached: true, stdio: ['ignore', 'pipe', 'pipe']});
+  const child = spawn(cmd, [...pre, 'node_modules/convex/bin/main.js', 'dev', '--typecheck', 'disable', '--codegen', 'disable'], {cwd: root, env: childEnv(), detached: true, stdio: ['ignore', 'pipe', 'pipe']});
   let text = '', exited = null;
   const exit = new Promise(done => child.on('exit', code => { exited = code; done(); }));
   const read = chunk => { log.write(chunk); text += chunk; };

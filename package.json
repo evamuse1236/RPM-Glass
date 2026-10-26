@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "chrono-node": "2.10.1",
-    "convex": "1.45.0"
+    "convex": "1.48.0"
   },
   "devDependencies": {
     "@edge-runtime/vm": "^5.0.0",

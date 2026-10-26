@@ -1,18 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {execFileSync} from 'node:child_process';
+import {readFileSync} from 'node:fs';
 
-test('local Convex compatibility shim makes real JSON-import metafile inputs readable as paths', () => {
-  const script = `
-    import esbuild from 'esbuild';
-    import {statSync} from 'node:fs';
-    const {metafile} = await esbuild.build({entryPoints:['web/contract/records.mjs'],bundle:true,metafile:true,write:false,platform:'node'});
-    const paths = Object.keys(metafile.inputs);
-    for (const path of paths) statSync(path);
-    console.log(JSON.stringify(paths));
-  `;
-  const paths = JSON.parse(execFileSync(process.execPath, ['--require', './scripts/web-sync/convex-json-imports.cjs', '--input-type=module', '-e', script], {encoding: 'utf8'}));
-  assert.ok(paths.includes('web/contract/records.json'));
-  assert.ok(paths.includes('web/contract/snapshot.schema.json'));
-  assert.ok(paths.every(path => !path.includes(' with {')));
+// Convex before 1.48 could not bundle a Node action that imports JSON with an import attribute (records.json).
+test('Convex is pinned at 1.48.0 or later, so deploys bundle JSON imports with no local patch', () => {
+  const pinned = JSON.parse(readFileSync('package.json', 'utf8')).dependencies?.convex ?? JSON.parse(readFileSync('package.json', 'utf8')).devDependencies?.convex;
+  const [major, minor] = pinned.replace(/^[^\d]*/, '').split('.').map(Number);
+  assert.ok(major > 1 || major === 1 && minor >= 48, `convex ${pinned}`);
 });
