@@ -99,6 +99,8 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
     if (value) setWhen(value, 'Started at ' + clockOf(value.day, value.time));
   }, 'assist-chip task-start');
   start.append(icon('play_arrow'), el('span', 'chip-label', 'Start now'));
+  const wide = Boolean(app.api.wide?.());
+  if (wide) start.title = 'Start now';
   head.row.append(start);
   if (fromInbox) header.prepend(iconButton('arrow_back', 'Back to Inbox', goBack, {cls: 'sheet-back'}));
 
@@ -163,6 +165,7 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
   };
   const current = () => whenOf(live(), when(live()));
   const tabs = taskTabs({
+    wide,
     remote: !!app.api.getPhone().remote,
     get: () => now(live() ?? task),
     tick: () => app.api.native('haptic', {kind: 'tick'}).catch(() => {}),
@@ -180,6 +183,15 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
         tabs.paint({...now(live()), minutes});
         commit({minutes}, minutes == null ? 'Length removed' : 'Length ' + duration(minutes))
           .then(saved => { if (saved !== undefined && live()?.planned) recheck(); });
+      },
+      clear: () => {
+        const t = live();
+        if (!t) return;
+        const repeating = repeats(t);
+        tabs.error('day', '');
+        tabs.paint({...now(t), ...(repeating ? {} : {day: '', time: '', busy: []}), minutes: null});
+        commit(repeating ? {minutes: null} : {...whenFields({day: '', time: ''}), minutes: null}, repeating ? 'Length removed' : 'When cleared')
+          .then(saved => { if (saved !== undefined) recheck(); });
       },
       alert: value => commit({alert: value}, value === 'off' ? 'Alert off' : alertText(value, live()) + ' set'),
       lead: minutes => commit({alertLead: minutes}, 'Alert ' + leadLabel(minutes).toLowerCase()),

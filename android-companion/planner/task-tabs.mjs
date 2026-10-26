@@ -38,7 +38,7 @@ function pressed(node, on) {
  */
 const wrapRow = label => { const row = chipRow(label); row.classList.add('chip-wrap'); return row; };
 
-export function taskTabs({get, pick, tick = () => {}, remote = false}) {
+export function taskTabs({get, pick, tick = () => {}, remote = false, wide = false}) {
   const node = el('div', 'task-tabs');
   const row = el('div', 'tab-row');
   row.setAttribute('role', 'tablist');
@@ -86,7 +86,7 @@ export function taskTabs({get, pick, tick = () => {}, remote = false}) {
     select(stepTab(from, step), {moved: true, focus: true});
   });
 
-  const when = whenPanel(panels.when, pick, tick);
+  const when = whenPanel(panels.when, pick, tick, wide);
   const alert = alertPanel(panels.alert, pick, remote);
   const repeat = repeatPanel(panels.repeat, pick);
   const block = blockPanel(panels.block, pick, get);
@@ -128,7 +128,7 @@ export function taskTabs({get, pick, tick = () => {}, remote = false}) {
   return {node, paint, select, error, clash: when.clash, focus, reveal: () => when.reveal()};
 }
 
-function whenPanel(host, pick, tick) {
+function whenPanel(host, pick, tick, wide) {
   const days = el('div', 'when-days');
   days.setAttribute('role', 'group');
   days.setAttribute('aria-label', 'Day');
@@ -148,7 +148,10 @@ function whenPanel(host, pick, tick) {
   const noTime = chip('No time', 'no-time', () => pick.time(''));
   const noDate = chip('No date', 'no-date', () => pick.day(''));
   const noLength = chip('No length', 'no-length', () => pick.minutes(null));
-  more.append(dayPicker.node, timePicker.node, otherLength.node, noTime, noDate, noLength);
+  const clear = button('', () => pick.clear(), 'chip when-clear');
+  clear.append(icon('backspace', {cls: 'chip-icon'}), el('span', 'chip-label', 'Clear'));
+  clear.setAttribute('aria-label', 'Clear date, time and length');
+  more.append(dayPicker.node, timePicker.node, otherLength.node, ...(wide ? [clear] : [noTime, noDate, noLength]));
   host.append(days, error, ruler.node, clash, lengths, more);
 
   const paint = now => {
@@ -178,6 +181,9 @@ function whenPanel(host, pick, tick) {
     pressed(noDate, !now.day);
     pressed(noLength, now.minutes == null);
     noTime.hidden = now.repeating;
+    clear.hidden = now.minutes == null && (now.repeating || !now.day);
+    if (now.repeating) clear.setAttribute('aria-label', 'Clear length');
+    else clear.setAttribute('aria-label', 'Clear date, time and length');
     timePicker.node.classList.toggle('is-off', !now.day);
     timePicker.input.disabled = !now.day;
     noTime.setAttribute('aria-disabled', String(!now.day));
