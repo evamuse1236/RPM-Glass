@@ -15,3 +15,18 @@
 | "Dinner tonight" | 10:00 PM | 7:00 PM |
 
 A chrono wrapper would need a filter for each row, which is about as much code as the parser it replaces. The highlight already uses the parser's own `start` and `end` offsets, so chrono gives no gain there. Revisit if quick add must read dates such as "next week", "in 3 days" or "Nov 4": chrono reads those, and the small parser does not.
+
+## 2026-10-26 · Capture, notch swipe, quick add, desktop website
+
+Grok sweeps run as T3 sub-agents. Stars and dates are as Grok read them on 2026-10-26.
+
+| Need | Found | Verdict |
+|---|---|---|
+| Time ranges in Capture ("12 am to 1210", a range already running, "now for 30 min") | chrono-node (MIT), already our parser in `cli/interpret.mjs`; Microsoft Recognizers-Text (MIT, JS build 3 years old); Sherlock (MIT, stale since 2023) | Keep chrono. It reads "12 am to 1210" as 00:00–12:10 (Grok measured), so we normalise a 4-digit end to the start's meridiem and start a running range now. Skip the others. |
+| No slow repair loop for model output | BAML schema-aligned parse (Apache-2.0); partial-json-parser-js (MIT); jsonrepair (ISC); Outlines, llguidance, xgrammar (need the model host) | Borrow later for streaming Capture (BACKLOG 2026-10-22). Today we drop an unsupported time and save instead of a Sonnet repair. Constrained decoding does not fit a hosted API. |
+| Dedupe extracted tasks against saved ones | Fuse.js (Apache-2.0); no task-specific library | Skip for now. Exact normalised title (and day) is stricter and safer than fuzzy matching for "Already on your list". |
+| Collapsed notch pill swipe-away at y=0 | Smart Island (GPL-3.0): 16dp collapsed swipe, 40×28dp minimum target, +16dp hit box below; Expressive Cutout (GPL-3.0): 90dp sideways dismiss, window hugs the pill; Islandify (MIT): flick at 2× slop or 500 px/s; AOSP eats ACTION_DOWN at y<1 | Borrow the numbers, not GPL source. Pill swipe up commits at 12dp; up, left and right mean Later. Possible next step: grow the pill's hit box below the status bar. |
+| Quick add that parses words inline | Super Productivity short syntax (MIT): chrono offsets drive the highlight; Vikunja Quick Add Magic (AGPL); Tasks.org `@day` (GPL); highlightable-input (MIT) | Borrow Super Productivity's approach: parser spans drive the mirror highlight. Use our own chrono, no new dependency. |
+| What "+" should do | Material 3 (one primary action per screen; a FAB menu holds only related actions), Material 2 speed dial (3–6 options), NN/g progressive disclosure | "+" adds a task. No stub or navigation options behind it. |
+| Desktop website | Todoist and Linear key maps; tinykeys, hotkeys-js, ctxmenu (MIT); Material rail at 600dp; container queries | Own small key map and menu, one action list per row driving hover, right-click and keys. Layout switches on the planner column's width. |
+| Phone-only writer, web sends commands | Replicache (archived), PowerSync queue, Automerge, Jazz, Evolu, Triplit: all multi-writer | Skip. Our Convex command queue already fits; borrow the "N waiting for the phone" count. |
