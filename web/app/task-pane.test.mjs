@@ -49,6 +49,7 @@ test('on wide the task pane names its icons on hover, spells out the Block, and 
   assert.match(read('../../android-companion/planner/task-tabs.mjs'), /setTab\('block', wide \? blockTitle\?\.trim\(\) \|\| 'Inbox' : blockShort\(blockTitle\), 'stacks'\);/);
   const css = read('./task-pane.css');
   assert.match(css, /#sheet\[data-inline\] \.tab-row \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\) minmax\(0, 2fr\); \}/);
+  assert.match(css, /#sheet\[data-inline\] \.tab-btn \{ grid-template-columns: minmax\(0, 1fr\); \}/, 'a long Block name ends in an ellipsis inside its tab');
   assert.match(css, /#sheet\[data-inline\] \.tab-value \{ overflow: clip; text-overflow: ellipsis; white-space: nowrap; \}/);
   assert.match(css, /#sheet\[data-inline\] \.number-chip input:not\(:focus-visible\) \{ border-block-end-color: transparent; \}/);
 });
