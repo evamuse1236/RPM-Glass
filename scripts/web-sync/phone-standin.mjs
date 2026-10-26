@@ -4,93 +4,76 @@ import {randomUUID} from 'node:crypto';
 import {mkdirSync, readFileSync, writeFileSync, existsSync} from 'node:fs';
 import {dirname, resolve} from 'node:path';
 import {parseArgs} from 'node:util';
-import {createMemoryBackend} from '../../intent-v2/src/repository.mjs';
-import {createWebSyncProcessor} from '../../android-companion/web-sync-commands.mjs';
-import {createIntentService} from '../../android-companion/intent-service.mjs';
-import {createCaptureAgent} from '../../android-companion/capture-agent.mjs';
-import {createTraceStore} from '../../android-companion/capture-trace.mjs';
-import {changePlanner} from '../../android-companion/planner-tools.mjs';
+import {setTimeout} from 'node:timers/promises';
+import {syncReplica} from '../../android-companion/replica-sync.mjs';
 import {editPlan} from '../../android-companion/planner-state.mjs';
-import {undo} from '../../chat-prototype/companion-tools.mjs';
 import {seedStore} from '../gauntlet/seed.mjs';
+import {filePhone} from './phone-store.mjs';
 
-const {values: opts} = parseArgs({options: {
-  site: {type: 'string', default: 'http://127.0.0.1:3211'},
+const {values: opts, positionals} = parseArgs({allowPositionals: true, options: {
+  site: {type: 'string'},
   state: {type: 'string', default: '.verify/web-sync/phone.json'},
-  every: {type: 'string', default: '3'},
-  'link-code': {type: 'boolean', default: false},
-  once: {type: 'boolean', default: false},
-  'delay-ms': {type: 'string', default: '0'},
+  pair: {type: 'boolean'}, sync: {type: 'boolean'}, watch: {type: 'boolean'}, edit: {type: 'string'},
+  'link-code': {type: 'boolean'}, once: {type: 'boolean'},
 }});
+opts.site ??= existsSync('.env.local') ? readFileSync('.env.local', 'utf8').match(/^CONVEX_SITE_URL=(.*)$/m)?.[1]?.trim() : undefined;
+opts.site ??= 'http://127.0.0.1:3211';
 const statePath = resolve(opts.state);
 const log = (...parts) => console.log(new Date().toISOString().slice(11, 19), ...parts);
 
 async function call(path, token, body) {
-  const response = await fetch(new URL(path, opts.site), {method: body === undefined ? 'GET' : 'POST',
-    headers: {'Content-Type': 'application/json', ...(token ? {Authorization: `Bearer ${token}`} : {})}, body: body === undefined ? undefined : JSON.stringify(body)});
-  const text = await response.text();
-  if (!response.ok) throw new Error(`${path} answered ${response.status}: ${text}`);
-  return text ? JSON.parse(text) : null;
+  const response = await fetch(new URL(path, opts.site), {method: 'POST', signal: AbortSignal.timeout(15000),
+    headers: {'Content-Type': 'application/json', ...(token ? {Authorization: `Bearer ${token}`} : {})}, body: JSON.stringify(body)});
+  if (!response.ok) throw new Error(`${path} answered ${response.status}`);
+  return response.json();
 }
 
 async function pair() {
+  const deployment = readFileSync('.env.local', 'utf8').match(/^CONVEX_DEPLOYMENT=(.*)$/m)?.[1]?.trim();
+  if (!/^(anonymous|local):/.test(deployment ?? '') || !['127.0.0.1', 'localhost'].includes(new URL(opts.site).hostname))
+    throw new Error('The stand-in pairs only with local Convex.');
   const out = execFileSync('npx', ['convex', 'run', 'admin:createPairingCode', JSON.stringify({label: 'Stand-in phone'})], {encoding: 'utf8'});
   const {code} = JSON.parse(out.slice(out.indexOf('{')));
   const {token} = await call('/v1/pair', null, {code, installationId: randomUUID()});
   return token;
 }
 
-function loadState() {
-  if (existsSync(statePath)) return JSON.parse(readFileSync(statePath, 'utf8'));
-  const data = seedStore(new Date()).data;
-  data.syncSavedAt = new Date().toISOString();
-  return {token: null, data};
-}
-const state = loadState();
-const saveState = data => { mkdirSync(dirname(statePath), {recursive: true}); writeFileSync(statePath, JSON.stringify({...state, data}, null, 1)); };
-
-const memoryBackend = createMemoryBackend(state.data);
-const backend = {load: memoryBackend.load, save: (expected, next) => memoryBackend.save(expected, {...next, syncSavedAt: new Date().toISOString()})};
-const model = async ({sourceUnits: units}) => {
-  const title = units.map(u => u.text.trim()).join(' ');
-  return {schemaVersion: 1, mode: 'capture', draftMode: 'new', reply: 'Saved your words as a task.',
-    decisions: units.map(u => ({sourceId: u.id, disposition: 'action', note: null})),
-    operations: [{opId: 'task1', sourceId: units[0].id, kind: 'create', entity: 'task', targetId: null, fields: [{name: 'title', value: title, evidence: units[0].text.trim(), origin: 'stated', op: 'set'}]}],
-    question: null, clarification: null, memoryCandidates: [], card: null};
-};
-const service = createIntentService({backend, model, changePlanner, undo, editPlan, readCalendar: async () => ({status: 'not_selected', events: []})});
-const memory = new Map();
-const capture = createCaptureAgent({service, traces: createTraceStore({storage: {getItem: k => memory.get(k) ?? null, setItem: (k, v) => memory.set(k, v)}})});
-const logged = name => async (...args) => {
-  try { return await capture[name](...args); } catch (error) { log(`capture ${name} failed:`, error.stack ?? error); throw error; }
-};
-const processor = createWebSyncProcessor({backend, capture: {...capture, capture: logged('capture'), apply: logged('apply')}});
-
-if (!state.token) { state.token = await pair(); saveState(await backend.load()); log('Paired with', opts.site); }
-if (opts['link-code']) {
-  const {code, expiresAt} = await call('/v1/web/link-code', state.token, {});
-  console.log(JSON.stringify({code, expiresAt: new Date(expiresAt).toISOString()}));
-  process.exit(0);
-}
-
-let acks = [];
-let synced = false;
-async function syncOnce() {
-  for (let round = 0; round < 20; round++) {
-    const reply = await call('/v1/planner/sync', state.token, {snapshot: await processor.snapshot(), acks});
-    acks = [];
-    if (!synced) { synced = true; log('Synced with', opts.site); }
-    const command = reply.commands[0];
-    if (!command) return;
-    if (+opts['delay-ms']) await new Promise(r => setTimeout(r, +opts['delay-ms']));
-    const result = await processor.process(command, {snapshots: reply.snapshots, revoked: reply.revokedCommandIds.includes(command.id)});
-    saveState(await backend.load());
-    log(command.type, command.id.slice(0, 8), '->', result.status, result.message);
-    acks = [result];
+async function main() {
+  if (!existsSync(statePath)) {
+    const data = seedStore(new Date()).data;
+    data.syncSavedAt = new Date().toISOString();
+    mkdirSync(dirname(statePath), {recursive: true});
+    writeFileSync(statePath, JSON.stringify({token: null, data}, null, 1), {mode: 0o600});
+  }
+  const phone = filePhone(statePath);
+  if (opts.edit) {
+    if (positionals.length !== 2) throw new Error('Use --edit <taskId> <field> <value>');
+    const [field, raw] = positionals; let value = raw;
+    if (!['title', 'notes', 'purpose', 'leverage', 'planned', 'plannedDate', 'blockId', 'recurrence', 'alert', 'minutes', 'priority', 'must', 'done', 'alertLead', 'repeatDays', 'repeatAfterDays'].includes(field)) throw new Error('Choose a saveTask field.');
+    if (!['title', 'notes', 'purpose', 'leverage', 'planned', 'plannedDate', 'blockId', 'recurrence', 'alert'].includes(field)) value = JSON.parse(raw);
+    else if (raw === 'null') value = null;
+    const data = await phone.load(), expected = data.version;
+    editPlan(data, {type: 'saveTask', id: Number(opts.edit), fields: {[field]: value}}, new Date());
+    data.version = expected + 1; await phone.save(expected, data);
+    log('Edited', opts.edit, field); return;
+  }
+  if (!phone.token() || opts.pair) {
+    if (phone.token()) throw new Error('This store is already paired; use a new state file to pair again.');
+    await phone.setToken(await pair()); log('Paired with', opts.site);
+  }
+  if (opts['link-code']) {
+    const {code, expiresAt} = await call('/v1/web/link-code', phone.token(), {});
+    console.log(JSON.stringify({code, expiresAt: new Date(expiresAt).toISOString()})); return;
+  }
+  if (opts.pair && !opts.sync && !opts.watch) return;
+  const sync = async () => {
+    await syncReplica({...phone, push: body => call('/v1/planner/push', phone.token(), body), pull: body => call('/v1/planner/pull', phone.token(), body)});
+    log('Synced with', opts.site);
+  };
+  if (!opts.watch) { await sync(); return; }
+  for (;;) {
+    try { await sync(); } catch (error) { log('sync failed:', error.message); }
+    await setTimeout(2000);
   }
 }
-
-do {
-  try { await syncOnce(); } catch (error) { log('sync failed:', error.message); }
-  if (!opts.once) await new Promise(r => setTimeout(r, +opts.every * 1000));
-} while (!opts.once);
+main().catch(error => { console.error(error.message); process.exitCode = 1; });

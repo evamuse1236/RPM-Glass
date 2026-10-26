@@ -46,19 +46,19 @@ final class SyncManager {
         try{
             Connection connection=new Connection(prefs(c).getAll());String token=unlock(connection.encrypted,SyncManager::decrypt);
             PlannerSyncProtocol.Guard guard=()->connection.check(c);boolean plannerRetry=false;
-            try(PlannerCommandHost host=new PlannerCommandHost(c,guard)){PlannerSyncProtocol.sync(payload->{JSONObject response=post(connection.url+"/v1/planner/sync",payload,token);guard.check();if(payload.has("snapshot"))prefs(c).edit().putLong("planner_revision",payload.getJSONObject("snapshot").getLong("revision")).apply();return response;},host,guard);}
+            try(PlannerCommandHost host=new PlannerCommandHost(c,guard,(action,payload)->PlannerSyncProtocol.exchange(connection.url,token,action,payload,guard))){PlannerSyncProtocol.sync(host,guard);}
             catch(Unauthorized revoked){throw revoked;}
             catch(Exception failure){plannerRetry=true;}
             try(Store store=new Store(c)){
             long deadline=android.os.SystemClock.elapsedRealtime()+25000;
             for(int batches=0;batches<8&&android.os.SystemClock.elapsedRealtime()<deadline;batches++){
                 guard.check();
-                JSONArray batch=store.pendingBatch();if(batch.length()==0){status(c,plannerRetry?"Planner waiting to sync · earlier data synced":"Up to date",!plannerRetry);return plannerRetry;}
+                JSONArray batch=store.pendingBatch();if(batch.length()==0){status(c,plannerRetry?"Waiting to sync · data is saved on this phone":"Up to date",!plannerRetry);return plannerRetry;}
                 JSONObject response=post(connection.url+"/v1/sync",new JSONObject().put("events",batch),token);
                 guard.check();
                 JSONArray ack=response.getJSONArray("ack");validateAck(batch,ack);
                 // Delete only the exact acknowledged IDs; newer local edits remain queued.
-                store.acknowledge(ack);status(c,"Synced to Convex",true);
+                store.acknowledge(ack);status(c,plannerRetry?"Waiting to sync · data is saved on this phone":"Up to date",!plannerRetry);
             }
             return plannerRetry||store.pendingCount()>0;
             }
