@@ -247,7 +247,7 @@ function quickAdd(app, overrides = {}) {
     const preset = dayPresets().some(([, day]) => day === s.day);
     timeChip.querySelector('.chip-label').textContent = s.day && !preset ? whenLabel(s) : s.time ? clockOf(s.day, s.time) : 'Time';
     timeChip.classList.toggle('on', !!s.time || (!!s.day && !preset));
-    timeChip.setAttribute('aria-label', timeChip.classList.contains('on') ? 'Time: ' + timeChip.textContent.trim() : 'Time');
+    timeChip.setAttribute('aria-label', timeChip.classList.contains('on') ? 'Time: ' + timeChip.querySelector('.chip-label').textContent : 'Time');
     paintBlocks();
     more.paint();
     // What the words set says so on its chip (marked, and named as read from the words), once.

@@ -53,11 +53,11 @@ export function quickOptions(s, {body, group, changed, remember}) {
     mustChip.classList.toggle('on', s.must);
     mustChip.setAttribute('aria-pressed', String(s.must));
     mustChip.querySelector('.ms').classList.toggle('fill', s.must);
-    repeatChip.querySelector('.chip-label').textContent = s.repeat ? repeatLabel(s.repeat === 'after'
-      ? {repeatAfterDays: s.every} : {recurrence: s.repeat}) : 'Repeat';
+    const repeat = s.repeat && repeatLabel(s.repeat === 'after' ? {repeatAfterDays: s.every} : {recurrence: s.repeat});
+    repeatChip.querySelector('.chip-label').textContent = repeat || 'Repeat';
     repeatChip.classList.toggle('on', !!s.repeat);
-    repeatChip.setAttribute('aria-label', s.repeat ? 'Repeat: ' + repeatChip.textContent.trim() : 'Repeat');
-    const set = [s.minutes != null && duration(s.minutes), s.repeat && repeatChip.textContent.trim(), s.must && 'Must',
+    repeatChip.setAttribute('aria-label', repeat ? 'Repeat: ' + repeat : 'Repeat');
+    const set = [s.minutes != null && duration(s.minutes), repeat, s.must && 'Must',
       (s.notes || s.why) && 'Details', s.alert !== 'off' && 'Alert'].filter(Boolean).join(', ');
     moreRow.querySelector('.chip-label').textContent = set || 'More options';
     moreRow.setAttribute('aria-label', set ? 'More options: ' + set : 'More options');

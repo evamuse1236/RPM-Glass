@@ -22,6 +22,12 @@ test('quick add: the title is 16/24 like Capture; day, Time and Block show, the 
   assert.match(options, /'More options'/);
 });
 
+test('quick add chip names and the More options summary read the chip label, never the icon ligature', () => {
+  for (const file of ['planner/quick-add.mjs', 'planner/quick-options.mjs']) {
+    assert.doesNotMatch(read(file), /Chip\.textContent/, `${file} reads a whole chip, so "schedule" or "repeat" leaks into its words`);
+  }
+});
+
 test('quick add chips are 32dp tall with 8dp corners', () => {
   const css = read('planner.css');
   const chip = css.match(/\n\.filter-chip, \.assist-chip \{([^}]*)\}/)?.[1] ?? '';
