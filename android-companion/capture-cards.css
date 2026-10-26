@@ -77,12 +77,6 @@
 .chip:active{background:color-mix(in oklch,var(--bar-on) 12%,transparent)}
 .chip .ms{font-size:20px;color:var(--bar-primary)}
 
-.pending{flex-direction:row;align-items:center;gap:12px}
-.pending .spinner{flex:none;inline-size:24px;block-size:24px;border-radius:50%;border:2px solid color-mix(in oklch,var(--bar-primary) 30%,transparent);border-block-start-color:var(--bar-primary)}
-@media (prefers-reduced-motion:no-preference){.pending .spinner{animation:spin 900ms linear infinite}}
-@keyframes spin{to{rotate:1turn}}
-.pending-text{display:flex;flex-direction:column;gap:2px;min-inline-size:0}
-
 .agenda{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
 .agenda-row{display:grid;grid-template-columns:72px 1fr;gap:12px;padding-block:8px;border-block-start:1px solid color-mix(in oklch,var(--bar-outline) 70%,transparent)}
 .agenda-row:first-child{border-block-start:0}

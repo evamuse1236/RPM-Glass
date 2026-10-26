@@ -48,20 +48,6 @@ export function opTitle(op){
  return set?.value??op.targetTitle??ENTITY[op.entity]??'Item';
 }
 
-/** While the request runs: "Saving your words", then "Reading your words" once the phone has kept them. */
-export function pendingCard({text,phase='saving',slow=false}){
- const node=card('pending');
- node.setAttribute('role','status');
- const spinner=el('span','spinner');
- spinner.setAttribute('aria-hidden','true');
- const body=el('div','pending-text');
- body.append(el('p','card-title',phase==='saving'?'Saving your words':'Your words are saved'));
- body.append(el('p','quiet',phase==='saving'?'One moment.':slow?'Still reading them. This can take a little longer.':'Reading them now.'));
- if(text)body.append(words(text));
- node.append(spinner,body);
- return node;
-}
-
 /** The model failed, or there is no key. The words stay saved and wait for Retry. */
 export function wordsKeptCard({raw,error,aiEnabled,saved=true},on){
  const node=card('failure');

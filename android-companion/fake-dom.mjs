@@ -40,6 +40,7 @@ export class FakeElement{
  get textContent(){return this.ownText+this.children.map(c=>c.textContent).join('');}
  set textContent(v){this.children.forEach(c=>{c.parentNode=null;});this.children=[];this.ownText=String(v);}
  setAttribute(k,v){this.attrs.set(k,String(v));}
+ removeAttribute(k){this.attrs.delete(k);}
  getAttribute(k){
   if(k.startsWith('data-'))return this.dataset[k.slice(5).replace(/-(\w)/g,(_,c)=>c.toUpperCase())]??null;
   return this.attrs.has(k)?this.attrs.get(k):null;
@@ -51,6 +52,11 @@ export class FakeElement{
    node.parentNode=this;this.children.push(node);
   }
  }
+ appendChild(node){this.append(node);return node;}
+ remove(){const p=this.parentNode;if(!p)return;p.children.splice(p.children.indexOf(this),1);this.parentNode=null;}
+ get firstChild(){return this.children[0]??null;}
+ get lastElementChild(){return this.children.at(-1)??null;}
+ get childNodes(){return [...this.children];}
  replaceChildren(...nodes){this.textContent='';this.append(...nodes);}
  replaceWith(node){
   const p=this.parentNode;if(!p)return;
@@ -83,6 +89,6 @@ export class FakeElement{
 
 /** Installs the fake `document` on globalThis for one test file. */
 export function installFakeDom(){
- globalThis.document={createElement:tag=>new FakeElement(tag)};
+ globalThis.document={createElement:tag=>new FakeElement(tag),documentElement:new FakeElement('html')};
  return globalThis.document;
 }

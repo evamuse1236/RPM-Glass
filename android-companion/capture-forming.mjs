@@ -3,6 +3,7 @@ import {pendingRow} from './capture-receipt.mjs';
 import {rowFacts} from './capture-lines.mjs';
 import {taskSymbol} from './task-symbol.mjs';
 import {el,icon} from './capture-dom.mjs';
+import {EASE,DURATION,MOTION,reducedMotion} from './motion-core.mjs';
 
 export const READ_IDLE_MS=900;
 export const READ_MIN_CHARS=12;
@@ -102,16 +103,93 @@ export function paintForming(host,rows,{reading=false}={}){
  });
 }
 
+const opRow=(op,row)=>{
+ const when=op.time?instantRows(`${op.title} ${op.time}`)[0]?.when:null;
+ return {...(row??pendingRow({title:op.title})),id:op.opId,title:op.title,when:when??row?.when??null,minutes:op.minutes??row?.minutes??null};
+};
+
+function glide(item,from,still){
+ if(still||!from||!item.animate)return;
+ const to=item.getBoundingClientRect(),dx=from.left-to.left,dy=from.top-to.top;
+ if(dx||dy)item.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:'none'}],{duration:DURATION.medium1,easing:EASE.emphasizedDecelerate});
+}
+
+function pairUp(cards,items){
+ const pairs=new Map(),free=new Set(items);
+ for(const c of cards){
+  const item=c.op&&items.find(n=>free.has(n)&&n.dataset.op===c.op);
+  if(item){free.delete(item);pairs.set(c,item);}
+ }
+ for(const c of cards){
+  if(pairs.has(c)||!free.size)continue;
+  const [item]=free;
+  free.delete(item);pairs.set(c,item);
+ }
+ return pairs;
+}
+
 export function installForming({host,platform,conversationId}){
- let text='',shown=true;
+ let text='',shown=true,held=null,reading=false;
+ const leaving=new Set();
  const draw=state=>{
+  if(held)return;
+  for(const node of leaving)node.remove();
+  leaving.clear();
   if(!shown||!text.trim()){host.replaceChildren();return;}
   paintForming(host,state.rows??instantRows(text),{reading:state.reading});
   host.scrollTop=host.scrollHeight;
  };
  const gate=createReadGate({read:(words,signal)=>platform.previewCapture?.(words,{conversationId:conversationId(),signal})??null,onChange:draw});
+ const paintHeld=()=>{
+  paintForming(host,held.map(h=>h.row),{reading});
+  held.forEach((h,i)=>{host.children[i].dataset.op=h.op??'';});
+  host.scrollTop=host.scrollHeight;
+ };
+ function leave(node,still){
+  if(still||!node.animate){node.remove();return;}
+  leaving.add(node);
+  node.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(8px)'}],{duration:MOTION.exit,easing:EASE.emphasizedAccelerate,fill:'forwards'})
+   .finished.catch(()=>{}).then(()=>{if(leaving.delete(node))node.remove();});
+ }
  return {
   update(next,{enabled,visible}){text=next;shown=visible;gate.type(visible?next:'',{enabled:enabled&&visible});},
-  sent(){text='';gate.sent();},
+  hold(words,{reading:read=false}={}){
+   if(!words.trim())return false;
+   const kept=words===text?gate.state().rows:null,rows=kept??instantRows(words);
+   host.setAttribute('aria-busy','true');
+   held=(rows.length?rows:[pendingRow({title:words.trim()})]).map(row=>({op:null,row}));
+   reading=read;text='';
+   gate.sent();
+   paintHeld();
+   return true;
+  },
+  fill(operations){
+   if(!held)return;
+   for(const op of operations){
+    if(!op?.opId||!op.title)continue;
+    let slot=held.find(h=>h.op===op.opId)??held.find(h=>!h.op);
+    if(!slot)held.push(slot={op:null,row:null});
+    slot.op=op.opId;slot.row=opRow(op,slot.row);
+   }
+   paintHeld();
+  },
+  lift(){
+   if(!held)return ()=>false;
+   const cards=held.map((h,i)=>{const node=host.children[i];return {op:h.op,node,from:node.getBoundingClientRect?.()??null};});
+   return content=>{
+    held=null;host.removeAttribute('aria-busy');
+    const pairs=pairUp(cards,content.querySelectorAll('.chip-items > li[data-op]')),still=reducedMotion();
+    for(const c of cards){
+     const item=pairs.get(c);
+     if(!item){leave(c.node,still);continue;}
+     c.node.remove();
+     item.closest('.card')?.classList.replace('enter','kept');
+     glide(item,c.from,still);
+    }
+    if(text.trim())draw(gate.state());
+    return pairs.size>0;
+   };
+  },
+  release(){held=null;host.removeAttribute('aria-busy');},
  };
 }
