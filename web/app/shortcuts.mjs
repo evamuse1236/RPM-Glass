@@ -4,7 +4,7 @@ import {actionRow, rowOpener} from './pointer.mjs';
 
 const OPENERS = '.task-main, .spine-open';
 const LAYERS = 'dialog[open], .menu';
-const TYPING = 'input, textarea, select, [contenteditable=""], [contenteditable=true]';
+const TYPING = 'input, textarea, select, [contenteditable=""], [contenteditable=true], [contenteditable=plaintext-only]';
 
 const visible = node => node.checkVisibility?.() !== false;
 const openers = ctx => [...ctx.work.querySelectorAll(OPENERS)].filter(visible);
@@ -36,9 +36,10 @@ export const KEYS = [
 ];
 
 export function handleKey(event, ctx) {
-  if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return false;
+  if (event.defaultPrevented || event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.isComposing || event.keyCode === 229) return false;
   if (event.target?.closest?.(TYPING) || ctx.root.querySelector(LAYERS)) return false;
-  const entry = KEYS.find(item => item.key === event.key);
+  const key = event.key?.length === 1 ? event.key.toLowerCase() : event.key;
+  const entry = KEYS.find(item => item.key === key);
   if (!entry || (entry.key === 'Escape' && !ctx.sheet.hidden)) return false;
   if (entry.run(ctx) === false) return false;
   event.preventDefault();

@@ -110,6 +110,33 @@ test('keys typed into a field, with a modifier, or under an open dialog or menu 
   assert.deepEqual(calls, []);
 });
 
+test('holding x completes the focused row once, not again for each repeat', () => {
+  const {calls, press} = setup();
+  press('j');
+  press('x');
+  for (let i = 0; i < 5; i++) assert.equal(press('x', {repeat: true}).defaultPrevented, false);
+  assert.deepEqual(calls, [['done', 'a']]);
+});
+
+test('with Caps Lock on, N, J and X still add, move and complete', () => {
+  const {calls, root, rows, press} = setup();
+  assert.ok(press('N').defaultPrevented);
+  press('J');
+  assert.equal(root.activeElement, rows[0].opener);
+  press('X');
+  assert.deepEqual(calls, [['add'], ['done', 'a']]);
+});
+
+test('a plain-text editable, an IME composition key and keyCode 229 count as typing', () => {
+  const {calls, root, press} = setup();
+  const plain = node('div', '', {contenteditable: 'plaintext-only'});
+  root.append(plain);
+  press('n', {}, plain);
+  press('n', {keyCode: 229});
+  press('Process');
+  assert.deepEqual(calls, []);
+});
+
 test('Esc goes back through the planner, but leaves an open sheet to close itself', () => {
   const {sheet, press} = setup();
   let backs = 0;
