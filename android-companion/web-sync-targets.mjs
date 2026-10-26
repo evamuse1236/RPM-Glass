@@ -38,32 +38,3 @@ export function targets(op) {
     default: throw new Error('Unknown planner target.');
   }
 }
-
-export function targetRecord(snapshot, target) {
-  const {entries, planner: p} = snapshot, body = p.body;
-  const byId = rows => rows.find(r => r.id === target.id) ?? null;
-  const group = id => entries.filter(t => !t.archived && (t.blockId ?? null) === id).sort((a, b) => a.id - b.id);
-  switch (target.kind) {
-    case 'task': return byId(entries);
-    case 'entity': return byId(p[target.collection]);
-    case 'group': return group(target.id);
-    case 'taskGroup': { const task = byId(entries); return task ? group(task.blockId) : null; }
-    case 'week': return p.weeks[target.id] ?? null;
-    case 'review': return p.reviews[target.id] ?? null;
-    case 'context': return p.context;
-    case 'routine': return byId(body.routines);
-    case 'run': return body.runs.find(r => r.routineId === target.id && r.day === target.day) ?? null;
-    case 'meal': return byId(body.meals);
-    case 'mealGuess': return body.mealGuesses[target.id] ?? null;
-    case 'mealSlot': return body.mealPlan.slots.find(s => s.slot === target.id) ?? null;
-    case 'waterSettings': return body.water.settings;
-    case 'waterSnooze': return body.water.snoozedUntil;
-    case 'links': {
-      const {collection, id} = target;
-      if (collection === 'blocks') return {tasks: entries.filter(t => t.blockId === id), weeks: Object.entries(p.weeks).filter(([, w]) => w.focus.includes(id) || Object.hasOwn(w.verdicts, id))};
-      const [child, key] = {projects: ['blocks', 'projectId'], goals: ['projects', 'goalId'], areas: ['goals', 'areaId']}[collection];
-      return p[child].filter(row => row[key] === id);
-    }
-    default: throw new Error('Unknown planner target record.');
-  }
-}

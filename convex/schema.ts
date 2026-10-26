@@ -18,8 +18,7 @@ export default defineSchema({
   plannerSnapshots: defineTable({account:v.id("accounts"),revision:v.number(),payload:v.any(),identity:v.string()})
     .index("by_account_revision",["account","revision"]),
   webCommands: defineTable({account:v.id("accounts"),session:v.id("webSessions"),device:v.id("devices"),commandId:v.string(),payload:v.any(),identity:v.string(),status:v.union(v.literal("pending"),v.literal("applied"),v.literal("rejected"),v.literal("conflict")),message:v.string(),newRevision:v.union(v.number(),v.null()),cursor:v.number(),queuedAt:v.number(),inverse:v.optional(v.array(v.object({key:v.string(),rev:v.number(),before:v.any(),after:v.any()})))})
-    .index("by_account_id",["account","commandId"]).index("by_session_cursor",["session","cursor"])
-    .index("by_device_status",["device","status","queuedAt"]),
+    .index("by_account_id",["account","commandId"]).index("by_session_cursor",["session","cursor"]),
   webRateLimits: defineTable({key:v.string(),window:v.number(),count:v.number()}).index("by_key",["key"]),
   diagnosticPairingCodes: defineTable({codeHash:v.string(),label:v.string(),expiresAt:v.number(),usedAt:v.optional(v.number())}).index("by_hash",["codeHash"]),
   diagnosticDevices: defineTable({installationId:v.string(),tokenHash:v.string(),label:v.string(),pairedAt:v.number(),revoked:v.boolean()})
