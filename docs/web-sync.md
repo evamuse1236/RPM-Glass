@@ -70,7 +70,7 @@ The open app syncs on open, every 20 seconds, and one second after a saved chang
 
 ## Capture from the website
 
-The server saves the exact words first, as a `captures` row and a `capture:<id>` record. Then a worker (`convex/captureWorker.ts`, `captureRun.ts`) runs the same Capture agent the phone uses, in the user's time zone (Asia/Kolkata if none is sent). A failed run is tried again, up to three attempts; after that the words stay saved and the command ends with a retry message. If Capture needs an answer, its question shows on the Capture note. The model key is the deployment's `ANTHROPIC_API_KEY`.
+The server saves the exact words first, as a `captures` row and a `capture:<id>` record. Then a worker (`convex/captureWorker.ts`, `captureRun.ts`) runs the same Capture agent the phone uses, in the user's time zone (Asia/Kolkata if none is sent). A failed run is tried again, up to three attempts; after that the words stay saved and the command ends with a retry message. If Capture needs an answer, its question shows on the Capture note, and the next words go to the same conversation. The model key is the deployment's `ANTHROPIC_API_KEY`.
 
 Capture typed on the phone still runs on the phone.
 
