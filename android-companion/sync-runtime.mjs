@@ -1,3 +1,4 @@
+import {syncReplica} from './replica-sync.mjs';
 import {createWebSyncProcessor} from './web-sync-commands.mjs';
 import {createIntentService} from './intent-service.mjs';
 import {createCaptureAgent} from './capture-agent.mjs';
@@ -34,6 +35,16 @@ window.rpmSyncRun=async()=>{
     for(const command of commands)acks.push(await processor.process(command,{snapshots,revoked:revokedCommandIds.includes(command.id)}));
     const current=await backend.load();
     window.RpmSync.complete(JSON.stringify({snapshot:current?await processor.snapshot():null,acks}));
+  }catch{window.RpmSync.failed();}
+};
+window.rpmReplicaRun=async()=>{
+  try{
+    const store=await syncReplica({
+      load:backend.load,
+      save:(expected,data,options)=>native('save',{expected,data,...options}),
+      push:body=>native('push',body),pull:body=>native('pull',body),now:()=>new Date(),
+    });
+    window.RpmSync.complete(JSON.stringify({cursor:store.sync.cursor}));
   }catch{window.RpmSync.failed();}
 };
 await window.rpmSyncRun();

@@ -1,3 +1,4 @@
+import {nextTaskId} from './task-ids.mjs';
 import {tasks} from './planner-state.mjs';
 
 const iso=ms=>Number.isFinite(ms)&&ms>0?new Date(ms).toISOString():null;
@@ -19,7 +20,6 @@ export function importLegacyEntries(data,legacy,now=new Date()){
   const history=new Map();
   for(const r of legacy.revisions??[]){if(!history.has(r.entry_id))history.set(r.entry_id,[]);history.get(r.entry_id).push({at:iso(r.at),reason:text(r.reason)});}
   const at=now.toISOString();
-  let id=Math.max(0,...data.entries.map(e=>e.id),...(data.undo?.before?.entries??[]).map(e=>e.id),...(data.planner?.undo?.entries??[]).map(e=>e.id));
   const copies=[];
   let priority=Math.max(0,...tasks(data).filter(t=>(t.blockId??null)===null).map(t=>t.priority??0));
   // Plan order for the copied No block tasks follows the earlier "next" list: timed first, then newest.
@@ -31,7 +31,7 @@ export function importLegacyEntries(data,legacy,now=new Date()){
       .map(([type,time,status])=>`Earlier screens ${type} at ${localTime(time)} (${status}); it stays with the earlier screens.`);
     const notes=[text(r.notes),project&&`Earlier Result: ${text(project.result)}${project.purpose?' · Purpose: '+project.purpose:''}`,...alerts].filter(Boolean).join('\n\n');
     copies.push({
-      id:++id,kind:checkin?'checkin':'plan',title:text(r.title)||r.raw,raw:r.raw,created:iso(r.created)??at,
+      id:nextTaskId(data),kind:checkin?'checkin':'plan',title:text(r.title)||r.raw,raw:r.raw,created:iso(r.created)??at,
       state:r.done?'done':'active',done:!!r.done,planned:checkin?null:iso(r.planned),plannedDate:null,
       minutes:Number.isFinite(r.minutes)?r.minutes:null,durationSource:text(r.duration_source)||(checkin?'not_reported':'default_estimate'),
       purpose:text(r.purpose),mood:r.mood??null,energy:r.energy??null,notes,

@@ -1,3 +1,4 @@
+import {nextTaskId} from '../android-companion/task-ids.mjs';
 import {randomUUID} from 'node:crypto';
 import {formatTime} from '../cli/interpret.mjs';
 import {editPatch} from '../cli/edits.mjs';
@@ -64,7 +65,7 @@ function normalizeClock(text,entry,now){
   return text;
 }
 function createEntry(data,raw,now){
-  return {id:Math.max(0,...data.entries.map(e=>e.id))+1,kind:'plan',title:'',raw,created:now.toISOString(),state:'active',done:false,planned:null,plannedDate:null,minutes:30,durationSource:'default_estimate',purpose:'',mood:null,energy:null,alert:null,alertIntent:{type:null},recurrence:null,revisions:[],archived:false,source:'conversation'};
+  return {id:nextTaskId(data),kind:'plan',title:'',raw,created:now.toISOString(),state:'active',done:false,planned:null,plannedDate:null,minutes:30,durationSource:'default_estimate',purpose:'',mood:null,energy:null,alert:null,alertIntent:{type:null},recurrence:null,revisions:[],archived:false,source:'conversation'};
 }
 function patchEntry(e,fields,raw,now){
   const patch={};const changes=[];
@@ -128,6 +129,8 @@ export function propose(data,args,{raw,conversationId,now=new Date()}={}){
   }
   if(!args.operations.length)throw new Error('No changes supplied. Use respond for conversation.');
   data.undo={id:randomUUID(),before:recordSnapshot(data),at:now.toISOString()};
+  delete data.undoMessage;
+  if(copy.sync)data.sync=copy.sync;
   for(const k of ['entries','memories','history'])data[k]=copy[k];
   for(const c of data.conversations)c.archived=copy.conversations.find(x=>x.id===c.id).archived;
   data.pending=null;
@@ -138,6 +141,6 @@ export function propose(data,args,{raw,conversationId,now=new Date()}={}){
 export function undo(data,id){
   // A Capture chip edit keeps the capture's own Undo underneath it (`previous`); undoing the capture also drops the edit.
   let record=data.undo;while(record&&record.id!==id)record=record.previous;
-  if(!record)throw new Error('Only the latest change can be undone.');
+  if(!record)throw new Error(data.undoMessage ?? 'Only the latest change can be undone.');
   restoreSnapshot(data,record.before);data.undo=record.previous??null;return {text:'Undone. The previous state is restored.'};
 }

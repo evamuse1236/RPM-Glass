@@ -1,8 +1,11 @@
+import {assertPlanOp,validatePlanner} from './planner-validation.mjs';
+export {assertPlanOp,validatePlanner};
+import {nextTaskId} from './task-ids.mjs';
 import {newId} from './new-id.mjs';
 import {occurrences,completeTask,repeats} from './planner-recurrence.mjs';
 import {text,title,integer,weekdays,one,link} from './planner-fields.mjs';
-import {REVIEW_VERSION,REVIEW_OPS,migrateReviewData,validateReviewData,forgetBlockInWeeks,keepCompletionTime} from './planner-review-data.mjs';
-import {BODY_OPS,validateBody} from './body-store.mjs';
+import {REVIEW_VERSION,REVIEW_OPS,migrateReviewData,forgetBlockInWeeks,keepCompletionTime} from './planner-review-data.mjs';
+import {BODY_OPS} from './body-store.mjs';
 
 export {REVIEW_VERSION,migrateReviewData};
 
@@ -15,34 +18,13 @@ export function blockDue(data,id){let best=null;for(const t of blockTasks(data,i
 const localStamp=iso=>{const d=new Date(iso);return localDay(d)+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
 export function totals(rows){return {all:rows.filter(e=>!e.done).reduce((s,e)=>s+(e.minutes??0),0),must:rows.filter(e=>e.must&&!e.done).reduce((s,e)=>s+(e.minutes??0),0),unknown:rows.filter(e=>!e.done&&e.minutes==null).length};}
 const snap=data=>({entries:structuredClone(data.entries),planner:structuredClone({...planner(data),undo:null})});
-export function validatePlanner(data){
-  const p=planner(data);if(p.schema!==1)throw new Error('Unsupported planner format.');
-  for(const k of ['projects','blocks','areas','goals','events','drafts'])if(!Array.isArray(p[k]))throw new Error('Invalid planning data.');
-  for(const k of ['projects','blocks','areas','goals']){const ids=new Set();for(const r of p[k]){if(typeof r.id!=='string'||ids.has(r.id))throw new Error('Duplicate planning ID.');ids.add(r.id);title(r.title);}}
-  for(const b of p.blocks)link(p.projects,b.projectId);
-  for(const a of p.areas)if(a.rating!=null&&(typeof a.rating!=='number'||!Number.isFinite(a.rating)||a.rating<0||a.rating>10))throw new Error('Choose a life area rating from 0 to 10.');
-  for(const g of p.goals){link(p.areas,g.areaId);integer(g.year,2000,2200);if(!['yearly','quarterly','monthly'].includes(g.horizon??'yearly'))throw new Error('Choose a valid goal horizon.');if(g.horizon==='quarterly'||g.horizon==='monthly')integer(g.period,1,g.horizon==='quarterly'?4:12);}
-  for(const pr of p.projects)link(p.goals,pr.goalId);
-  for(const e of tasks(data)){link(p.blocks,e.blockId);if(e.minutes!=null)integer(e.minutes,1,1440);if(e.priority!=null)integer(e.priority,0,100000);}
-  validateReviewData(p);
-  validateBody(p);
-  return data;
-}
-
-/** Planner commits cross runtimes as JSON data, never executable mutators. */
-export function assertPlanOp(op) {
-  const json = value => value === null || ['string', 'boolean'].includes(typeof value) || typeof value === 'number' && Number.isFinite(value)
-    || Array.isArray(value) && value.every(json)
-    || value && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype && Object.values(value).filter(item => item !== undefined).every(json);
-  if (!op || typeof op !== 'object' || Array.isArray(op) || typeof op.type !== 'string' || !json(op)) throw new Error('Planning actions must be JSON data ops.');
-}
 
 /** Validate on a copy, commit once, keep a single complete undo plus compact receipts. */
 export function editPlan(data,op,now=new Date()){
   assertPlanOp(op);
   const next=structuredClone(data);next.planner??=freshPlanner();migrateReviewData(next);const p=next.planner,before=snap(data),at=now.toISOString();let result;
   if(op.type==='undo'){
-    if(!p.undo)throw new Error('No planning change to undo.');
+    if(!p.undo)throw new Error(data.undoMessage ?? 'No planning change to undo.');
     const restored=p.undo;next.entries=restored.entries;next.planner=restored.planner;next.planner.undo=null;next.undo=null;
     // Review progress is where the user is in the flow, not a plan change: Undo never rewinds it.
     migrateReviewData(next);next.planner.reviews=p.reviews;
@@ -53,6 +35,7 @@ export function editPlan(data,op,now=new Date()){
     for(const child of op.ops)result=editPlan(next,child,now);
     // Child edits replace the planner; retain their events and the single pre-batch Undo.
     next.planner.undo=op.keepUndo?data.planner?.undo??null:before;
+    if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
     Object.assign(data,next);return result;
   }
   if(op.type==='reviewProgress'){
@@ -80,7 +63,7 @@ export function editPlan(data,op,now=new Date()){
     if(op.collection==='areas')for(const g of p.goals)if(g.areaId===op.id)g.areaId=null;
     if(op.collection==='goals')for(const pr of p.projects)if(pr.goalId===op.id)pr.goalId=null;
   }else if(op.type==='saveTask'){
-    const f=op.fields;let e=op.id?one(tasks(next),op.id):{id:Math.max(0,...next.entries.map(e=>e.id))+1,kind:'plan',raw:text(f.title,200),created:at,state:'active',done:false,archived:false,minutes:null,durationSource:'unknown',planned:null,plannedDate:null,alertIntent:{type:null},recurrence:null,revisions:[],source:'planner'};
+    const f=op.fields;let e=op.id?one(tasks(next),op.id):{id:nextTaskId(next),kind:'plan',raw:text(f.title,200),created:at,state:'active',done:false,archived:false,minutes:null,durationSource:'unknown',planned:null,plannedDate:null,alertIntent:{type:null},recurrence:null,revisions:[],source:'planner'};
     const {revisions:ignoredRevisions,...oldFields}=e;const old=structuredClone(oldFields);
     if('title'in f)e.title=title(f.title);
     for(const k of ['purpose','notes','leverage'])if(k in f)e[k]=text(f[k]??'',k==='notes'?16000:2000);
@@ -158,7 +141,7 @@ export function editPlan(data,op,now=new Date()){
     result=BODY_OPS[op.type](next,op,at);
   }else throw new Error('Unknown planning action.');
   for(const task of next.entries){if(task.blockId&&task.purpose){task.revisions??=[];task.revisions.push({at,reason:'Task purpose retained in notes',before:{purpose:task.purpose,notes:task.notes??''}});task.notes=[task.notes,'Previous task purpose: '+task.purpose].filter(Boolean).join('\n\n');task.purpose='';}}
-  validatePlanner(next);p.events.push({id:newId(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=op.keepUndo?data.planner?.undo??null:before;next.undo=null;
+  validatePlanner(next);p.events.push({id:newId(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=op.keepUndo?data.planner?.undo??null:before;next.undo=null;if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
   Object.assign(data,next);return result;
 }
 
