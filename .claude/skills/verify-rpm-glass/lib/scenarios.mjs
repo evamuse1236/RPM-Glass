@@ -28,8 +28,8 @@ export const scenarioCommands = {
     const dir = path.join(SKILL, 'scenarios');
     const mods = [];
     for (const f of fs.readdirSync(dir).filter(f => f.endsWith(".mjs")).sort()) { const m = await import(pathToFileURL(path.join(dir, f)).href); if (m.id && m.run) mods.push(m); }
-    if (args.list) return {ok: true, scenarios: mods.map(m => ({id: m.id, rule: m.rule, enforces: m.enforces, knownBug: m.knownBug ?? null}))};
-    const wanted = args.all ? mods : mods.filter(m => args._.includes(m.id));
+    if (args.list) return {ok: true, scenarios: mods.map(m => ({id: m.id, rule: m.rule, enforces: m.enforces, knownBug: m.knownBug ?? null, inAll: m.inAll !== false}))};
+    const wanted = args.all ? mods.filter(m => m.inAll !== false) : mods.filter(m => args._.includes(m.id));
     if (!wanted.length) throw new UserError('No scenario selected.', `Pass --all or ids from \`rpmctl scenario --list\`: ${mods.map(m => m.id).join(', ')}`);
     const {serial, state} = target(args, {mutates: true});
     const stale = appOnEmulator(state);
