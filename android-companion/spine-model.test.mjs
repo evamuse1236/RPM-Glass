@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {soonText, buildSpine, cardHeight, gapHeight, anytimeLabel} from './spine-model.mjs';
+import {soonText, buildSpine, cardHeight, gapHeight, anytimeLabel, FREE_MINUTES} from './spine-model.mjs';
 import {mealSlots, spanText, gutterTime} from './day-parts.mjs';
 
 const DAY = '2026-10-19';
@@ -27,6 +27,13 @@ test('the day reads in time order, with free time of 10 min or more between fixe
   assert.equal(free.plan, at('15:00'));
   assert.equal(free.height, 32);
   assert.equal(model.rows.find(r => r.key === 'gap:to:' + at('20:00')).plan, null, '45 min free offers no +');
+});
+
+test('on wide every future gap long enough to show offers a +', () => {
+  const model = spine({tasks: [task('Past paper', '16:00', 60), task('Review notes', '18:30', 45)],
+    events: [event('Ward round', '14:00', '15:00')], meals: [], planMinutes: FREE_MINUTES});
+  assert.equal(model.rows.find(r => r.key === 'gap:to:' + at('20:00')).plan, at('19:15'));
+  assert.equal(model.rows.find(r => r.key === 'gap:to:' + at('13:00')).plan, null, 'a past gap offers no +');
 });
 
 test('each row says when above its title; the gutter adds the end from 45 min on', () => {

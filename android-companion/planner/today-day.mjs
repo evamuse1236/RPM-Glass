@@ -3,12 +3,11 @@
  * the day's tasks, calendar events, Routines, meals and Result deadlines. It opens with now in view; a floating Now
  * button returns there.
  */
-import {buildSpine} from '../spine-model.mjs';
+import {anytimeLabel, buildSpine, FREE_MINUTES, PLAN_MINUTES} from '../spine-model.mjs';
 import {routineOn, routineState, doneAll, usualMeals} from '../body-state.mjs';
 import {localDay, blockDue, timelineItems} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
 import {spineList, spineRow, anytimeChips} from './spine-view.mjs';
-import {anytimeLabel} from '../spine-model.mjs';
 import {el, icon, button, emptyState} from './dom.mjs';
 import {dueInfo} from './format.mjs';
 import {notice} from './snackbar.mjs';
@@ -53,7 +52,8 @@ function spineModel(app) {
   return {
     model: buildSpine({day, now: +now, live, tasks, events: events.filter(e => !e.allDay), deadlines,
       routines: dayRoutines(body, day, now), meals: body.meals().filter(m => localDay(m.at) === day),
-      window: body.water().settings, mealPlan: body.mealPlan()}),
+      window: body.water().settings, mealPlan: body.mealPlan(),
+      planMinutes: app.api.wide?.() ? FREE_MINUTES : PLAN_MINUTES}),
     allDay: events.filter(e => e.allDay),
   };
 }

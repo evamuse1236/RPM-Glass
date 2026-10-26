@@ -9,6 +9,7 @@ import {isSplit, isWide, onSplitChange, onWidthChange} from './desktop.mjs';
 const SHOWN = 4;
 const LINES = 2;
 const TOMORROW = 8;
+const WEEK = 6;
 
 const byTime = (a, b) => (taskWhen(a) ?? Infinity) - (taskWhen(b) ?? Infinity);
 
@@ -27,7 +28,7 @@ export function agendaModel(data, now = new Date(), {split = false} = {}) {
   const ahead = dayTasks(data, tomorrowDay, +now).active.sort(byTime);
   const tomorrow = split ? {day: tomorrowDay, count: ahead.length, tasks: claim(ahead, TOMORROW)} : null;
   const first = split ? 2 : 1;
-  const week = Array.from({length: split ? 13 : 6}, (_, i) => {
+  const week = Array.from({length: WEEK}, (_, i) => {
     const day = shiftDay(today, i + first);
     const active = dayTasks(data, day, +now).active.sort(byTime);
     const unseen = active.filter(task => !shown.has(task.id));
@@ -53,9 +54,12 @@ function when(task, now) {
   return task.plannedDate ? dayName(task.plannedDate) : '';
 }
 
-function head(title, {count = null, onClick = null} = {}) {
+function head(title, {count = null, due = '', onClick = null} = {}) {
   const node = onClick ? button('', onClick, 'agenda-head') : el('div', 'agenda-head');
-  node.append(el('h2', '', title));
+  const words = el('span', 'agenda-words');
+  words.append(el('h2', '', title));
+  if (due) words.append(el('span', 'agenda-due', due));
+  node.append(words);
   if (count != null) node.append(el('span', 'agenda-count tnum', String(count)));
   if (onClick) node.append(icon('chevron_right', {cls: 'trailing'}));
   return node;
@@ -100,8 +104,7 @@ export function renderAgenda(host, data, ui, now = new Date(), split = isSplit()
   const inbox = section('agenda-inbox', head('Inbox', {count: model.inbox.count, onClick: () => ui.inbox()}),
     ...model.inbox.tasks.map(task => taskItem(task, ui, now)));
   const blocks = model.blocks.map(({block, due, tasks}) => {
-    const open = head(block.title, {onClick: () => ui.openView({view: 'rpm', collection: 'blocks', id: block.id})});
-    if (due) open.querySelector('h2').after(el('span', 'agenda-due', due));
+    const open = head(block.title, {due, onClick: () => ui.openView({view: 'rpm', collection: 'blocks', id: block.id})});
     return section('agenda-next', open, ...tasks.map(task => taskItem(task, ui, now)));
   });
   const {tomorrow} = model;
@@ -109,7 +112,8 @@ export function renderAgenda(host, data, ui, now = new Date(), split = isSplit()
     head('Tomorrow', {count: tomorrow.count, onClick: () => ui.openView({view: 'day', date: tomorrow.day})}),
     ...tomorrow.tasks.map(task => timedItem(task, ui))) : null;
   const week = model.week.length ? section('agenda-week', head('Week'), ...model.week.flatMap(day => weekDay(day, ui))) : null;
-  host.replaceChildren(column(inbox, ...blocks, ahead, week));
+  const columns = split ? [column(ahead, week), column(inbox, ...blocks)] : [column(inbox, ...blocks, week)];
+  host.replaceChildren(...columns.filter(node => node.childElementCount));
 }
 
 /** The Today side panel on a wide window: shown only on Today, redrawn on every snapshot. */

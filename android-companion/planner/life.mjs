@@ -57,13 +57,16 @@ function areaGoals(app, areas, loose) {
   const list = el('section', 'life-areas');
   for (const area of areas) {
     const goals = app.p().goals.filter(g => g.areaId === area.id && g.year === app.state.year);
+    const group = el('div', 'life-area-group');
+    group.dataset.tone = app.tone(area);
     const row = el('div', 'life-area-row');
-    row.dataset.tone = app.tone(area);
-    const value = el('span', 'life-rating tnum', area.rating == null ? '–' : `${area.rating}`);
+    const value = el('span', 'life-rating tnum', area.rating == null ? '' : `${area.rating}`);
+    const track = el('span', 'life-track');
+    track.append(ratingInput(app, area, rating => { value.textContent = rating; }), ratingTicks());
     row.append(listItem({leading: initialAvatar(app, area), headline: area.title, cls: 'life-area',
-      onClick: () => app.openArea(area.id)}), ratingInput(app, area, rating => { value.textContent = rating; }), value);
-    list.append(row);
-    for (const goal of goals) list.append(goalRow(app, goal, 'nested'));
+      onClick: () => app.openArea(area.id)}), track, value);
+    group.append(row, ...goals.map(goal => goalRow(app, goal, 'nested')));
+    list.append(group);
   }
   if (loose.length) list.append(sectionHeader('Goals with no Area'), ...loose.map(goal => goalRow(app, goal)));
   return list;
@@ -169,15 +172,19 @@ function ratingInput(app, area, show) {
   return input;
 }
 
+function ratingTicks() {
+  const ticks = el('span', 'rating-ticks');
+  ticks.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i <= 10; i++) ticks.append(el('i'));
+  return ticks;
+}
+
 function ratingSlider(app, area) {
   const row = el('div', 'rating-row');
   row.dataset.tone = app.tone(area);
   const output = el('strong', 'tnum', area.rating == null ? 'Not rated' : `${area.rating} / 10`);
   const input = ratingInput(app, area, value => { output.textContent = `${value} / 10`; });
-  const ticks = el('span', 'rating-ticks');
-  ticks.setAttribute('aria-hidden', 'true');
-  for (let i = 0; i <= 10; i++) ticks.append(el('i'));
-  row.append(el('span', 'overline', 'Your rating'), output, input, ticks,
+  row.append(el('span', 'overline', 'Your rating'), output, input, ratingTicks(),
     el('span', 'rating-note', 'How it feels right now, not how many tasks are done'));
   return row;
 }

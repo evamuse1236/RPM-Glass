@@ -93,7 +93,7 @@ test('wide Today rows run to the panel edge with the check leading, beside the t
   assert.match(wide, /\.planner-view \.spine-copy \{ flex-flow: row wrap;/);
 });
 
-test('a very wide window adds Tomorrow, by time, under the Blocks in one narrow column, and Week then starts the day after', () => {
+test('a very wide window gives Tomorrow and the Week their own column beside Inbox and the Blocks, and Week then starts the day after', () => {
   const {d} = seed();
   task(d, {title: 'Stretch', planned: '2026-10-04T02:30:00.000Z'});
   const {tomorrow, week} = agendaModel(d, SATURDAY_10_AM_KOLKATA, {split: true});
@@ -103,9 +103,27 @@ test('a very wide window adds Tomorrow, by time, under the Blocks in one narrow 
   assert.ok(week.every(day => day.day >= '2026-10-05'));
   assert.equal(agendaModel(d, SATURDAY_10_AM_KOLKATA).tomorrow, null);
   const source = readFileSync(new URL('./agenda.mjs', import.meta.url), 'utf8');
-  assert.match(source, /host\.replaceChildren\(column\(inbox, \.\.\.blocks, ahead, week\)\);/);
+  assert.match(source, /split \? \[column\(ahead, week\), column\(inbox, \.\.\.blocks\)\] : \[column\(inbox, \.\.\.blocks, week\)\]/);
+  assert.match(source, /const WEEK = 6;/);
   const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
   assert.match(css, /--agenda: clamp\(400px, 100% - var\(--side\) - 720px, 440px\);/);
+  assert.match(css, /@media \(width >= 1680px\) \{\n  \.planner-view \{ --agenda: clamp\(440px, 100% - var\(--side\) - 760px, 880px\); \}/,
+    'at 1920 the two columns use the width the timeline leaves');
+  assert.ok(css.indexOf('@media (width >= 1680px)') > css.indexOf('@media (width >= 1080px)'), 'the split width overrides the wide one');
+});
+
+test('a Block head keeps its name on one line and its due date on a short line under it', () => {
+  const source = readFileSync(new URL('./agenda.mjs', import.meta.url), 'utf8');
+  assert.match(source, /if \(due\) words\.append\(el\('span', 'agenda-due', due\)\);/);
+  const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
+  assert.match(css, /\.agenda-head h2 \{ overflow: clip; margin: 0; font: var\(--title-small\); text-overflow: ellipsis; white-space: nowrap; \}/);
+});
+
+test('on wide the timeline drops its Inbox footer while the side panel counts the Inbox', () => {
+  const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
+  const wide = css.slice(css.indexOf('@media (width >= 1080px)'));
+  assert.match(wide, /\.planner-view:has\(> #agenda:not\(\[hidden\]\)\) \.inbox-row \{ display: none; \}/);
+  assert.match(css, /\[aria-label='More choices'\] > \.chip \{ border-color: transparent; background: none;/, 'the pane folds its extra pickers into quiet text');
 });
 
 test('on wide a free gap is one compact row with its + beside the words', () => {

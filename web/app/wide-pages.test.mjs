@@ -32,7 +32,7 @@ test('on wide each Project card lists its Blocks and opens the Project; the phon
   assert.match(source, /nestRings\(wide \? \[stats\] : ordered\.map/, 'on wide the Project ring shows the Project, the chips the Blocks');
   const css = read('./wide-pages.css');
   assert.match(css, /\.page > \.project-card \{\n    grid-column: 1 \/ -1;\n    display: grid;\n    grid-template-columns: minmax\(0, 320px\) minmax\(0, 1fr\);/);
-  assert.match(css, /\.project-blocks \{\n    grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 280px\), 1fr\)\);/);
+  assert.match(css, /\.project-blocks \{\n    grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 360px\), 1fr\)\);/);
   assert.match(css, /\.project-block:not\(:has\(\.seg-ring\)\) \{ padding-inline-start: calc\(var\(--s8\) \+ var\(--s5\)\); \}/,
     'a ringless chip lines its words up with the chips that have a ring');
   assert.match(css, /\.project-block-count \{ flex: none; inline-size: 40px; text-align: end; \}/);
@@ -50,10 +50,14 @@ test('on wide Life puts the wheel on the left and each Area with its rating and 
   const goals = source.slice(start, source.indexOf('\nfunction', start + 1));
   assert.match(goals, /ratingInput\(app, area, rating => \{ value\.textContent = rating; \}\)/);
   assert.doesNotMatch(goals, /Not rated/);
-  assert.match(css, /\.life-area-row \{\n    display: grid;\n    grid-template-columns: minmax\(0, 280px\) minmax\(120px, 480px\) var\(--s6\);/, 'the slider sits beside its Area name at any width');
-  assert.match(goals, /area\.rating == null \? '–' : `\$\{area\.rating\}`/, 'every slider shows its value');
+  assert.match(goals, /group\.append\(row, \.\.\.goals\.map\(goal => goalRow\(app, goal, 'nested'\)\)\);/, 'each Goal sits inside its Area');
+  assert.match(css, /\.life-area-group \{\n    display: grid;\n    grid-template-columns: minmax\(0, 240px\) minmax\(0, 1fr\) var\(--s6\);/);
+  assert.match(css, /\.life-area-row \{\n    display: grid;\n    grid-template-columns: subgrid;/, 'every Area lines up its slider and value in one column');
+  assert.match(goals, /area\.rating == null \? '' : `\$\{area\.rating\}`/, 'an unrated Area shows no value, only its ticks');
+  assert.match(goals, /track\.append\(ratingInput\(app, area, rating => \{ value\.textContent = rating; \}\), ratingTicks\(\)\);/);
+  assert.match(css, /\.life-track \.rating-slider\.unrated \+ \.rating-ticks \{ opacity: 1; \}/);
+  assert.match(css, /:not\(:has\(\.rating-slider:not\(\.unrated\)\)\) \.wheel-plot \{ inline-size: min\(100% - 128px, 160px\); \}/, 'with nothing rated the wheel shrinks');
   assert.match(css, /#planner \.wheel-copy p \{ display: none; \}/, 'no drag instruction on wide');
-  assert.match(css, /\.life-area-row \.rating-slider \{ grid-area: auto; \}/);
   assert.match(read('../../android-companion/planner/life-wheel.mjs'), /const none = app\.api\.wide\?\.\(\) \? '' : '–';/);
   assert.match(css, /\.wheel-average:empty \{ display: none; \}/);
 });

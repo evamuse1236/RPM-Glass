@@ -91,7 +91,7 @@ function whenFor(row, now) {
 const keyByFixedEdge = (start, end, now) => (end === now ? 'gap:from:' + start : 'gap:to:' + end);
 
 /** Free time between the fixed rows, cut where a small row or now falls, kept where it lasts 10 min or more. */
-function freeRows(blocks, marks, {from, to, now, live}) {
+function freeRows(blocks, marks, {from, to, now, live, planMinutes}) {
   const free = [];
   let cursor = from;
   for (const block of blocks.filter(row => row.end > row.start).sort((a, b) => a.start - b.start)) {
@@ -109,7 +109,7 @@ function freeRows(blocks, marks, {from, to, now, live}) {
       const past = end <= now;
       rows.push({kind: 'gap', key: keyByFixedEdge(start, end, now), start, end, minutes, height: gapHeight(minutes), past,
         time: gutterTime(start), label: `${duration(minutes)} free`,
-        plan: past || minutes < PLAN_MINUTES ? null : Math.max(start, Math.ceil(now / (15 * MIN)) * 15 * MIN)});
+        plan: past || minutes < planMinutes ? null : Math.max(start, Math.ceil(now / (15 * MIN)) * 15 * MIN)});
     }
   }
   return rows;
@@ -121,7 +121,7 @@ function freeRows(blocks, marks, {from, to, now, live}) {
  * water window, which also bounds the day's free time. `live` is true on today.
  */
 export function buildSpine({day, now, live = true, tasks = [], events = [], routines = [], meals = [], mealPlan = null,
-  deadlines = [], window = WATER_DEFAULTS}) {
+  deadlines = [], window = WATER_DEFAULTS, planMinutes = PLAN_MINUTES}) {
   const eventRows = events.map(event => item('event', 'event:' + (event.id ?? event.title + event.start), event.start, event.end,
     {title: event.title, event, symbol: 'event'}));
   const blocks = [...eventRows, ...routineRows(day, routines), ...taskRows(tasks)];
@@ -142,7 +142,7 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
   for (const row of blocks) row.when = whenFor(row, now);
   for (const row of marks) row.when ??= {kind: 'time', text: gutterTime(row.start)};
 
-  const rows = [...blocks, ...marks, ...freeRows(blocks, marks, {from, to, now, live})];
+  const rows = [...blocks, ...marks, ...freeRows(blocks, marks, {from, to, now, live, planMinutes})];
   if (live && !current.length) rows.push({kind: 'now', key: 'now', start: now, end: now, time: gutterTime(now), label: clockText(now)});
   rows.sort((a, b) => a.start - b.start || RANK[a.kind] - RANK[b.kind] || a.end - b.end);
   const shown = row => row.gutter?.time ?? row.time;

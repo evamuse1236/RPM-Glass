@@ -36,18 +36,33 @@
   #planner .page:has(> .life-areas) > :not(.wheel-card, .life-areas) { grid-column: 1 / -1; }
   #planner .page:has(> .life-areas) .wheel-card { margin-inline-end: 0; align-self: start; }
   #planner .page:has(> .life-areas) .wheel-areas { display: none; }
-  #planner .life-areas { display: grid; align-content: start; padding-block: var(--s1); padding-inline-end: var(--gutter); }
+  #planner .page:has(> .life-areas):not(:has(.rating-slider:not(.unrated))) {
+    grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+  }
+  #planner .page:has(> .life-areas):not(:has(.rating-slider:not(.unrated))) .wheel-plot { inline-size: min(100% - 128px, 160px); }
+  #planner .life-areas { display: grid; gap: var(--s2); align-content: start; padding-block: var(--s1); padding-inline-end: var(--gutter); }
+  #planner .life-area-group {
+    display: grid;
+    grid-template-columns: minmax(0, 240px) minmax(0, 1fr) var(--s6);
+    column-gap: var(--s4);
+    padding-block: var(--s1);
+    border-radius: var(--card-radius);
+    background: var(--surface-container-low);
+    border: 1px solid color-mix(in oklch, var(--outline-variant) 55%, transparent);
+  }
+  #planner .life-area-group > * { grid-column: 1 / -1; }
   #planner .life-area .list-headline { font: var(--title-small); }
   #planner .life-area-row {
     display: grid;
-    grid-template-columns: minmax(0, 280px) minmax(120px, 480px) var(--s6);
+    grid-template-columns: subgrid;
     align-items: center;
-    column-gap: var(--s3);
-    padding-inline-end: var(--s2);
+    padding-inline-end: var(--s4);
   }
-  #planner .life-area-row .rating-slider { grid-area: auto; }
+  #planner .life-track { display: grid; }
+  #planner .life-track > * { grid-area: 1 / 1; }
+  #planner .life-track .rating-slider.unrated + .rating-ticks { opacity: 1; }
   #planner .life-rating { font: var(--title-small); text-align: end; }
-  #planner .life-area-row:has(.rating-slider.unrated) .life-rating { color: var(--on-surface-variant); }
+  #planner .life-area-group > .list-item.nested { padding-inline-start: calc(var(--gutter) + var(--s8) + var(--s2) + var(--s4)); }
   #planner .wheel-copy p { display: none; }
   #planner .wheel-average:empty { display: none; }
 
@@ -59,7 +74,7 @@
   }
   #planner[data-view=projects] .project-card .project-toggle { border-radius: var(--card-radius); }
   #planner[data-view=projects] .project-blocks {
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
     gap: var(--s2);
     padding: var(--s3);
   }
