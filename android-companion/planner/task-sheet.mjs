@@ -92,6 +92,7 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
       notes.setSelectionRange(notes.value.length, notes.value.length);
     },
   });
+  head.row.dataset.task = String(id);
   header.querySelector('.sheet-close').before(head.row);
   const startable = t => startNowValue(t, {repeating: repeats(t)});
   const start = button('', () => {

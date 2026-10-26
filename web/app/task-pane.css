@@ -1,9 +1,29 @@
 @media (width >= 1080px) {
-  #sheet[data-inline] .task-head { column-gap: var(--s1); }
-  #sheet[data-inline] .task-head:has(> .task-start:not([hidden])) { grid-template-columns: 40px minmax(0, 1fr) var(--touch) var(--touch) var(--touch); }
+  #sheet[data-inline] .sheet-header:has(> .task-head) { position: relative; }
+  #sheet[data-inline] .sheet-header:has(> .task-head) > .sheet-close { position: absolute; inset-block-start: 0; inset-inline-end: var(--s1); }
+  #sheet[data-inline] .task-head {
+    grid-template-columns: 40px minmax(0, 1fr) repeat(3, var(--touch));
+    grid-template-areas: "pill . must ring close" "title title title title title";
+    align-items: center;
+    column-gap: var(--s1);
+  }
+  #sheet[data-inline] .task-head:has(> .task-start:not([hidden])) {
+    grid-template-columns: 40px minmax(0, 1fr) repeat(4, var(--touch));
+    grid-template-areas: "pill . start must ring close" "title title title title title title";
+  }
+  #sheet[data-inline] .task-head .task-pill { grid-area: pill; margin-block-start: 0; }
+  #sheet[data-inline] .task-head .must-star { grid-area: must; }
+  #sheet[data-inline] .task-head .task-ring { grid-area: ring; }
+  #sheet[data-inline] .task-head .task-title-field {
+    grid-area: title;
+    max-block-size: calc(2lh + var(--s4));
+    padding-block: var(--s2);
+    padding-inline-end: var(--s3);
+    font: var(--title-large);
+  }
+  #sheet[data-inline] .sheet-header:has(> .task-head) ~ .sheet-body { flex: 0 1 auto; }
   #sheet[data-inline] .task-start {
-    grid-column: 3;
-    grid-row: 1;
+    grid-area: start;
     display: grid;
     place-content: center;
     inline-size: var(--touch);
@@ -37,6 +57,7 @@
   #sheet[data-inline] .ruler-centre {
     background: linear-gradient(var(--on-surface) 0 var(--s4), transparent 0 calc(var(--s8) + var(--s1)), var(--on-surface) 0);
   }
+  #planner .spine-card[data-open], #planner .spine-chip[data-open] { outline: 2px solid var(--primary); outline-offset: -2px; }
 }
 @media (width >= 1080px) and (hover: hover) and (pointer: fine) {
   #sheet[data-inline] .task-start:hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }

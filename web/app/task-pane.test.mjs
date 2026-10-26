@@ -23,8 +23,33 @@ test('on a wide window one Clear replaces No time, No date and No length; the ph
 
 test('Start now sits on the title row and the Length chips join into one segmented row on wide', () => {
   const css = read('./task-pane.css');
-  assert.match(css, /\.task-start \{\s+grid-column: 3;\s+grid-row: 1;/);
+  assert.match(css, /\.task-start \{\s+grid-area: start;/);
   assert.match(css, /\.chip-row\[aria-label=Length\] \{ flex-wrap: nowrap; gap: 0; \}/);
   assert.match(css, /\.ruler-track \{ mask-image:/);
   assert.match(css, /\.ruler-length \{ inset-block: calc\(var\(--s8\) \+ var\(--s1\)\)/);
+});
+
+test('the wide task pane puts its icons on one row above a full-width title of at most two lines, with no band above the tools', () => {
+  const css = read('./task-pane.css');
+  assert.match(css, /grid-template-areas: "pill \. must ring close" "title title title title title";/);
+  assert.match(css, /grid-template-areas: "pill \. start must ring close" "title title title title title title";/);
+  assert.match(css, /\.task-title-field \{\s+grid-area: title;\s+max-block-size: calc\(2lh \+ var\(--s4\)\);[^}]*font: var\(--title-large\);/);
+  assert.match(css, /\.sheet-header:has\(> \.task-head\) > \.sheet-close \{ position: absolute;/);
+  assert.match(css, /\.sheet-header:has\(> \.task-head\) ~ \.sheet-body \{ flex: 0 1 auto; \}/);
+});
+
+test('while the task pane is open, the task card or chip on Today is outlined, and only on wide', async () => {
+  const {opensTask} = await import('./open-card.mjs');
+  assert.equal(opensTask('task:12', 12), true);
+  assert.equal(opensTask('task:302026-10-27T04:30:00.000Z', '30'), true);
+  assert.equal(opensTask('task:302026-10-27T04:30:00.000Z', '3'), false);
+  assert.equal(opensTask('task:Read', 'Read'), true);
+  assert.equal(opensTask('task:123', 12), false);
+  assert.equal(opensTask('task:12', null), false);
+  assert.equal(opensTask('gap:12', 12), false);
+  const css = read('./task-pane.css');
+  const wide = css.slice(0, css.indexOf('\n}\n'));
+  assert.match(wide, /#planner \.spine-card\[data-open\], #planner \.spine-chip\[data-open\] \{ outline: 2px solid var\(--primary\);/);
+  assert.match(read('../../android-companion/planner/task-sheet.mjs'), /head\.row\.dataset\.task = String\(id\);/);
+  assert.match(read('./main.mjs'), /markOpenCard\(\$\('workspace'\), \$\('sheet'\)\);/);
 });

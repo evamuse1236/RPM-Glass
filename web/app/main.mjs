@@ -11,6 +11,7 @@ import {mountSidebar} from './sidebar.mjs';
 import {mountAgenda} from './agenda.mjs';
 import {FINE, mountRowTools} from './pointer.mjs';
 import {mountShortcuts} from './shortcuts.mjs';
+import {markOpenCard} from './open-card.mjs';
 import {captureNotes, dismissedNotes} from './capture-notes.mjs';
 
 const server = new URLSearchParams(location.search).get('server') ?? globalThis.RPM_SYNC_SERVER ?? location.origin;
@@ -43,6 +44,7 @@ function mount() {
   if (matchMedia(FINE).matches) mountRowTools(document);
   mountShortcuts(document, ui, {work: $('workspace'), sheet: $('sheet'), dialog: $('keys-sheet')});
   onWidthChange(() => ui.closeSheet());
+  markOpenCard($('workspace'), $('sheet'));
   if (location.hash === '#ideas') ui.goalIdeas();
   else if (location.hash.startsWith('#open=')) try { ui.openView(JSON.parse(decodeURIComponent(location.hash.slice(6)))); } catch {}
   remark = watchRows([$('workspace'), $('sheet')], queue);
