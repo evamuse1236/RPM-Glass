@@ -11,6 +11,8 @@ import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {BUILT_WEB, builtWeb, isWebSource} from './web-assets.mjs';
 import {isCloud} from './cloud.mjs';
+import {captureEvalEvidence} from './capture-eval.mjs';
+export {CAPTURE_PIPELINE_SOURCES} from './capture-eval.mjs';
 import {sitePublicationGap} from '../web-site/publication.mjs';
 
 const APP_SOURCES = /^(app\/src\/main\/|android-companion\/|chat-prototype\/|intent-v2\/(src|adapters|prompts)\/|cli\/)/;
@@ -196,10 +198,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const hook = process.argv.includes('--hook');
   let input = {};
   if (hook) try { input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'); } catch {}
-  const publicationGap = sitePublicationGap(root);
+  const capture = captureEvalEvidence(root);
+  const publicationGap = capture.gap ?? sitePublicationGap(root);
+  if (capture.report && !hook) console.log(capture.report);
   if (publicationGap) {
     if (hook) {
-      if (!input.stop_hook_active) console.log(JSON.stringify({decision: 'block', reason: publicationGap}));
+      if (!input.stop_hook_active) console.log(JSON.stringify({decision: 'block', reason: publicationGap, ...capture.report ? {systemMessage: capture.report} : {}}));
       process.exit(0);
     }
     console.error(publicationGap);
@@ -208,7 +212,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (isCloud()) {
     const {block, unverified} = cloudGap(root);
     if (hook) {
-      const out = {...block && !input.stop_hook_active ? {decision: 'block', reason: block} : {}, ...unverified ? {systemMessage: unverified} : {}};
+      const out = {...block && !input.stop_hook_active ? {decision: 'block', reason: block} : {}, ...capture.report || unverified ? {systemMessage: [capture.report, unverified].filter(Boolean).join('\n')} : {}};
       if (Object.keys(out).length) console.log(JSON.stringify(out));
       process.exit(0);
     }
@@ -217,7 +221,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   }
   if (hook) {
     const gap = input.stop_hook_active ? null : evidenceGap(root);
-    if (gap) console.log(JSON.stringify({decision: 'block', reason: gap}));
+    if (gap || capture.report) console.log(JSON.stringify({...gap ? {decision: 'block', reason: gap} : {}, ...capture.report ? {systemMessage: capture.report} : {}}));
     process.exit(0);
   }
   const gap = evidenceGap(root);

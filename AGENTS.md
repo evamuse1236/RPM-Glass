@@ -32,7 +32,8 @@ Before changing Capture, read `docs/rules/capture.md`. Before changing the notch
 
 | Rule | Enforced by |
 |---|---|
-| For emulator lifecycle, leases, recovery, build order, host setup and cloud sessions, follow the shared-run rules. | [Lifecycle rules and enforcing tests](docs/rules/emulator-lifecycle.md) |
+| A Capture AI change is proven by a live eval on the real-phrase corpus. | `check:evidence`, `scripts/rules/capture-eval.test.mjs` |
+| Follow shared-run rules for emulator lifecycle, leases, recovery, build order, host setup and cloud sessions. | [Lifecycle rules and enforcing tests](docs/rules/emulator-lifecycle.md) |
 | The check matches the change: web-only needs a sync screenshot and no APK build; native needs an APK built after it and a screenshot with it installed. | `npm run check:evidence` (`scripts/agent/require-evidence.mjs`, Stop hook), `scripts/rules/merge-scenarios.test.mjs` (`the tier follows the change`) |
 | App changes merge into main only after one passing `rpmctl scenario --all` on the merged commit with no uncommitted app edits. `git commit` cannot finish a refused merge. | `npm run check:merge`, via `pre-merge-commit` and `pre-commit` after `npm run hooks:install` (hook files where git ignores config hooks, including cloud git 2.43); `scripts/rules/merge-scenarios.test.mjs` tests both merge paths |
 | Merged website changes are published to the Site. | `check:evidence`, `scripts/rules/site-publication.test.mjs` |
@@ -72,7 +73,7 @@ Before changing Capture, read `docs/rules/capture.md`. Before changing the notch
 | A web-only change can be proven with `rpmctl sync` instead of a new APK; the screenshot must carry the hash of the exact assets now built, and Java changes still need the APK. | `scripts/rules/require-evidence.test.mjs` |
 | Every name an app page uses is declared or imported; a missing import fails `npm test`, not the phone. | `scripts/rules/undefined-names.test.mjs` |
 | A tap only lands on the control it names: `rpmctl tap` refuses when another element covers the control's centre and names what covers it. | `.claude/skills/verify-rpm-glass/lib/page.mjs` (`coverOf`), exercised by every `rpmctl scenario` |
-| "Done" needs proof from the real app: a local build with an rpmctl screenshot newer than the change, or a passing GitHub emulator run (`npm run ci:emulator`) whose commit has the same app files as HEAD and nothing uncommitted. | `scripts/agent/require-evidence.mjs` (Stop hook in `.claude/settings.json`, `npm run check:evidence`), `scripts/rules/require-evidence.test.mjs` |
+| "Done" needs a local build and newer rpmctl screenshot, or passing `npm run ci:emulator` with app files matching HEAD and no uncommitted app edits. | `scripts/agent/require-evidence.mjs` (Stop hook in `.claude/settings.json`, `npm run check:evidence`), `scripts/rules/require-evidence.test.mjs` |
 | A GitHub emulator run builds with the phone's key (repo secret `RPM_DEBUG_KEYSTORE`), so its `rpm-emulator-build` artifact installs over the app from any computer: `gh run download <run> -n rpm-emulator-build`. | `scripts/ci/check-signer.mjs` step in `.github/workflows/emulator.yml`, `scripts/ci/emulator.test.mjs` |
 | A phone release updates the installed app in place: same signing key, and the build matches this checkout. | `rpmctl doctor --serial <phone>` (`installed-signer-matches-local`, `installed-apk-matches-local-build`, `installed-version`) |
 | Drive only an emulator the tooling started or explicitly adopted on the CI runner. | `rpmctl` requires the device identity, lease and owner; `launch --attach` validates the read-only emulator's PID, port, AVD and process start identity |
@@ -94,4 +95,4 @@ Before changing Capture, read `docs/rules/capture.md`. Before changing the notch
 | Every website action builds a command the contract accepts, on the snapshot revision the user saw. | `web/app/plan-queue.test.mjs` |
 | A Project, Block or other record made in the browser keeps its id when the phone saves it: the command carries the ids the browser used, fixed at the first edit; the phone uses each one only if it is a UUID not yet in the store. | `web/app/plan-queue.test.mjs`, `android-companion/web-sync-plan.test.mjs` (`keeps its id`) |
 | On the ChatGPT Site the planner opens without a link code: the Site holds the key, adds it only for `Bearer site`, never sends it to the page, and the page can't revoke it. The key reads the phone that synced last. | `web/site-worker.test.mjs`, `web/app/client.test.mjs`, `cloud-tests/webAdminSession.test.ts`, `npm run web:drive -- --no-code` |
-| Model-backed paths without a key, Samsung behavior and real widget placement are reported as UNVERIFIED, not as passing. | Judgment: `verify-rpm-glass` SKILL.md proof standards |
+| Report keyless model paths, Samsung behavior and real widget placement as UNVERIFIED. | Judgment: `verify-rpm-glass` SKILL.md proof standards |

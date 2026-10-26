@@ -87,7 +87,7 @@ for (const mode of ['config', 'files']) {
   test(`a real merge into main runs the ${mode} hook: it refuses without a scenario run and merges after one`, {skip: !supported && 'this git ignores hook.<name>.event'}, t => {
     const r = repo(t);
     r.write('scripts/web-site/publication.mjs', fs.readFileSync(path.resolve(import.meta.dirname, '../web-site/publication.mjs')));
-    for (const file of ['require-evidence.mjs', 'cloud.mjs', 'web-assets.mjs']) r.write(`scripts/agent/${file}`, fs.readFileSync(path.resolve(import.meta.dirname, '../agent', file)));
+    for (const file of ['require-evidence.mjs', 'capture-eval.mjs', 'cloud.mjs', 'web-assets.mjs']) r.write(`scripts/agent/${file}`, fs.readFileSync(path.resolve(import.meta.dirname, '../agent', file)));
     r.git('add', '.');
     r.git('commit', '-q', '-m', 'scripts');
     assert.equal(installMergeCheck(r.root, {configHooks: mode === 'config'}).mode, mode);
