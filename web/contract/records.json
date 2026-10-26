@@ -836,6 +836,9 @@
       ],
       "receipt": [
         "receipt"
+      ],
+      "question": [
+        "question"
       ]
     },
     "setFields": [],

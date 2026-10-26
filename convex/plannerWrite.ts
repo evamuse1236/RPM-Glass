@@ -39,10 +39,12 @@ function allocateTasks(store:any,known:Set<number>,taken:Set<number>,proposals:n
 }
 async function undo(ctx:PlannerCtx,account:Id<"accounts">,command:Doc<"webCommands">,store:any) {
   const target=await ctx.db.query("webCommands").withIndex("by_account_id",q=>q.eq("account",account).eq("commandId",command.payload.args.commandId.toLowerCase())).unique();
-  if(target?.status!=="applied" || !target.inverse)return null;
+  const capture=await ctx.db.query("captures").withIndex("by_account_message",q=>q.eq("account",account).eq("messageId",target?.payload.id??command.payload.args.commandId)).unique();
+  const inverse=capture?.inverse??target?.inverse;
+  if(target?.status!=="applied" || !inverse)return null;
   const rows=new Map((await rowsFor(ctx,account)).map(row=>[row.key,row]));
   let kept=false;
-  for(const entry of target.inverse) {
+  for(const entry of inverse) {
     const row=rows.get(entry.key), current=row?.value??null;
     if(row?.rev===entry.rev) {applyRecord(store,entry.key,entry.before);continue;}
     if(current===null || entry.before===null || entry.after===null) {kept=true;continue;}

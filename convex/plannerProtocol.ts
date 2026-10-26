@@ -1,4 +1,4 @@
-import kinds from "../web/contract/records.json";
+import kinds from "../web/contract/records.json" with {type:"json"};
 import { validateRecord } from "../web/contract/validate.mjs";
 
 export function object(value:unknown,allowed:string[]):Record<string,any> {

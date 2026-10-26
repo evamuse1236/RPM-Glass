@@ -1,4 +1,5 @@
 import { validateCommand } from "../web/contract/validate.mjs";
+import { makeFunctionReference } from "convex/server";
 import { v } from "convex/values";
 import { internalMutation } from "./functions";
 import { applyPlan } from "./plannerWrite";
@@ -86,8 +87,9 @@ export const browser = internalMutation({args:{tokenHash:v.string(),op:v.union(v
   const command=(await ctx.db.get(commandId))!;
   if(command.payload.type==="capture") {
     const now=new Date().toISOString();
-    await ctx.db.insert("captures",{account:session.account,messageId:command.payload.id,text:command.payload.args.text,timezone:command.payload.timezone??"Asia/Kolkata",status:"saved",attempts:0});
+    const captureId=await ctx.db.insert("captures",{account:session.account,messageId:command.payload.id,text:command.payload.args.text,timezone:command.payload.args.timezone??command.payload.timezone??"Asia/Kolkata",status:"saved",attempts:0});
     await writeRecords(ctx,session.account,[{key:`capture:${command.payload.id}`,value:{id:command.payload.id,text:command.payload.args.text,status:"saved",createdAt:now,receipt:[]}}],now);
+    await ctx.scheduler.runAfter(0,makeFunctionReference<"action">("captureRun:run"),{captureId});
   } else {
     const result=await applyPlan(ctx,session.account,command);
     await ctx.db.patch(commandId,{...result,newRevision:(await ctx.db.get(session.account))!.cursor});

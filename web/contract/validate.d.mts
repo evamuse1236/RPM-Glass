@@ -18,7 +18,7 @@ export interface StoreTask extends Omit<Task, 'alert'> {
   reviewActivityDays?: string[];
 }
 type Draft = {id: string; status: string; title: string; reply: string; receipt: {text: string}[]; taskIds: number[]};
-type Capture = {id: string; text: string; status: string; createdAt: string | null; receipt: {text: string}[]};
+type Capture = {id: string; text: string; status: string; createdAt: string | null; receipt: {text: string}[]; question?: string | null};
 type WaterSettings = {goal: number; intervalMinutes: number; from: string; until: string; glassMl: number; snoozeMinutes: number; reminders: boolean};
 type Step = {id: string; title: string};
 type Routine = {id: string; name: string; start: string; end: string; days: number[]; steps: Step[]; archived: boolean; created?: string; updated?: string};
@@ -96,7 +96,7 @@ export type PlanOp = LeafPlanOp
   | {type: 'batch'; ops: LeafPlanOp[]; keepUndo?: boolean};
 type CommandArgs =
   | {type: 'plan'; args: {op: PlanOp; ids?: (string | number)[]}}
-  | {type: 'capture'; args: {text: string}; timezone?: string}
+  | {type: 'capture'; args: {text: string; timezone?: string}; timezone?: string}
   | {type: 'complete' | 'uncomplete'; args: {taskId: number; occurrence?: string | null}}
   | {type: 'reschedule'; args: {taskId: number; time: string | null; day: string | null}}
   | {type: 'edit'; args: {taskId: number; fields: {title?: string; notes?: string; time?: string | null; minutes?: number | null; alert?: Alert}}}
