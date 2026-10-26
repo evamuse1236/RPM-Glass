@@ -11,6 +11,7 @@ import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {BUILT_WEB, builtWeb, isWebSource} from './web-assets.mjs';
 import {isCloud} from './cloud.mjs';
+import {sitePublicationGap} from '../web-site/publication.mjs';
 
 const APP_SOURCES = /^(app\/src\/main\/|android-companion\/|chat-prototype\/|intent-v2\/(src|adapters|prompts)\/|cli\/)/;
 export const isAppFile = f => APP_SOURCES.test(f) && !/\.test\.(mjs|ts)$/.test(f) && !f.includes('/experiments/') && !f.startsWith(BUILT_WEB);
@@ -195,6 +196,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const hook = process.argv.includes('--hook');
   let input = {};
   if (hook) try { input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'); } catch {}
+  const publicationGap = sitePublicationGap(root);
+  if (publicationGap) {
+    if (hook) {
+      if (!input.stop_hook_active) console.log(JSON.stringify({decision: 'block', reason: publicationGap}));
+      process.exit(0);
+    }
+    console.error(publicationGap);
+    process.exit(1);
+  }
   if (isCloud()) {
     const {block, unverified} = cloudGap(root);
     if (hook) {
