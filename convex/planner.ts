@@ -1,24 +1,19 @@
-import { validateCommand, validateSnapshot } from "../web/contract/validate.mjs";
+import { validateCommand } from "../web/contract/validate.mjs";
 import { v } from "convex/values";
 import { internalMutation } from "./functions";
-import { canonicalJson } from "./security";
+import { applyPlan } from "./plannerWrite";
+import { snapshotFromRecords, writeRecords } from "./records";
 import { fail, phoneAuth, webAuth, consumeQuota, unauthorized, type PlannerCtx } from "./plannerAuth";
 import type { Doc, Id } from "./_generated/dataModel";
 
-type Ack = {id:string;status:"applied"|"rejected"|"conflict";message:string;newRevision:number};
-function legacyContent({schemaVersion,entries,planner,...snapshot}:any) {
-  // Receipt wording was derived from the wall clock in v1; all saved fields must match.
-  return {...snapshot,captures:snapshot.captures.map(({receipt,...record}:any)=>record),drafts:snapshot.drafts.map(({receipt,...record}:any)=>record)};
-}
-const ack = v.object({id:v.string(),status:v.union(v.literal("applied"),v.literal("rejected"),v.literal("conflict")),message:v.string(),newRevision:v.number()});
 function receipt(command:Doc<"webCommands">) {
   return {id:command.payload.id,status:command.status,message:command.message,newRevision:command.newRevision,cursor:command.cursor};
 }
 async function nextCursor(ctx:PlannerCtx,account:Id<"accounts">) {
   const current = await ctx.db.get(account);
   if(!current)throw new Error("Missing planner account");
-  const cursor = current.cursor+1;
-  await ctx.db.patch(account,{cursor});
+  const cursor = (current.commandCursor??current.cursor)+1;
+  await ctx.db.patch(account,{commandCursor:cursor});
   return cursor;
 }
 async function revoke(ctx:PlannerCtx,session:Doc<"webSessions">) {
@@ -39,7 +34,7 @@ export const exchange = internalMutation({args:{codeHash:v.string(),tokenHash:v.
   return {sessionId,accountId:code.account,protocol:1};
 }});
 
-export const phone = internalMutation({args:{tokenHash:v.string(),op:v.union(v.literal("link-code"),v.literal("sessions"),v.literal("revoke"),v.literal("sync")),codeHash:v.optional(v.string()),sessionId:v.optional(v.string()),snapshot:v.optional(v.any()),snapshotIdentity:v.optional(v.string()),acks:v.optional(v.array(ack))},handler:async(ctx,args)=>{
+export const phone = internalMutation({args:{tokenHash:v.string(),op:v.union(v.literal("link-code"),v.literal("sessions"),v.literal("revoke")),codeHash:v.optional(v.string()),sessionId:v.optional(v.string())},handler:async(ctx,args)=>{
   const auth = await phoneAuth(ctx,args.tokenHash);
   if(auth.error)return auth.error;
   const {device,account} = auth;
@@ -63,55 +58,16 @@ export const phone = internalMutation({args:{tokenHash:v.string(),op:v.union(v.l
     if(!session || session.account!==account || session.device!==device._id)return unauthorized();
     return revoke(ctx,session);
   }
-  if(args.snapshot!==undefined)validateSnapshot(args.snapshot);
-  return syncPlanner(ctx,device,account,args.snapshot,args.snapshotIdentity,args.acks??[]);
+  return fail(400,"invalid_request","Unknown phone operation");
 }});
-
-async function syncPlanner(ctx:PlannerCtx,device:Doc<"devices">,account:Id<"accounts">,snapshot:any,identity:string|undefined,acks:Ack[]) {
-  const retained = await ctx.db.query("plannerSnapshots").withIndex("by_account_revision",q=>q.eq("account",account)).order("desc").take(5);
-  const latest = retained[0];
-  // A phone upgrade can enrich the current revision without changing any v1 field.
-  const upgrade = snapshot!==undefined && latest?.payload.schemaVersion===1 && snapshot.schemaVersion===2
-    && canonicalJson(legacyContent(latest.payload))===canonicalJson(legacyContent(snapshot));
-  if(snapshot!==undefined && (latest && (snapshot.revision<latest.revision || snapshot.revision===latest.revision && identity!==latest.identity && !upgrade))) {
-    return fail(409,"snapshot_conflict","The published planner revision cannot be replaced");
-  }
-  const changes:Array<{command:Doc<"webCommands">;ack:Ack}> = [];
-  for(const ack of acks) {
-    const command = await ctx.db.query("webCommands").withIndex("by_account_id",q=>q.eq("account",account).eq("commandId",ack.id.toLowerCase())).unique();
-    if(!command || command.device!==device._id)return fail(409,"command_conflict","The command does not belong to this phone");
-    if(command.status!=="pending") {
-      if(command.status!==ack.status || command.message!==ack.message || command.newRevision!==ack.newRevision)return fail(409,"command_conflict","A command result cannot be replaced");
-      continue;
-    }
-    const duplicate = changes.find(change=>change.command._id===command._id);
-    if(duplicate && JSON.stringify(duplicate.ack)!==JSON.stringify(ack))return fail(409,"command_conflict","Conflicting command results");
-    if(!duplicate)changes.push({command,ack});
-  }
-  if(upgrade)await ctx.db.patch(latest._id,{payload:snapshot,identity:identity!});
-  else if(snapshot!==undefined && (!latest || snapshot.revision>latest.revision)) {
-    await ctx.db.insert("plannerSnapshots",{account,revision:snapshot.revision,payload:snapshot,identity:identity!});
-    if(retained.length===5)await ctx.db.delete(retained[4]._id);
-  }
-  for(const {command,ack} of changes)await ctx.db.patch(command._id,{status:ack.status,message:ack.message,newRevision:ack.newRevision,cursor:await nextCursor(ctx,account)});
-  const pending = await ctx.db.query("webCommands").withIndex("by_device_status",q=>q.eq("device",device._id).eq("status","pending")).take(100);
-  const revokedCommandIds:string[] = [];
-  for(const command of pending) {
-    const session = await ctx.db.get(command.session);
-    if(!session || session.revoked)revokedCommandIds.push(command.payload.id);
-  }
-  await ctx.db.patch(device._id,{lastSyncAt:Date.now()});
-  const snapshots = await ctx.db.query("plannerSnapshots").withIndex("by_account_revision",q=>q.eq("account",account)).order("desc").take(5);
-  return {commands:pending.map(command=>command.payload),snapshots:snapshots.map(row=>row.payload).filter(payload=>payload.schemaVersion===2),revokedCommandIds};
-}
 
 export const browser = internalMutation({args:{tokenHash:v.string(),op:v.union(v.literal("snapshot"),v.literal("enqueue"),v.literal("commands"),v.literal("revoke")),command:v.optional(v.any()),identity:v.optional(v.string()),since:v.optional(v.number())},handler:async(ctx,args)=>{
   const auth = await webAuth(ctx,args.tokenHash);
   if(auth.error)return auth.error;
   const {session} = auth;
   if(args.op==="snapshot") {
-    const snapshot = await ctx.db.query("plannerSnapshots").withIndex("by_account_revision",q=>q.eq("account",session.account)).order("desc").first();
-    return snapshot?{snapshot:snapshot.payload}:fail(404,"no_snapshot","The phone has not published a planner snapshot yet");
+    const account=await ctx.db.get(session.account);
+    return account?.seededAt!==undefined?{snapshot:await snapshotFromRecords(ctx,session.account)}:fail(404,"no_snapshot","The phone has not published a planner snapshot yet");
   }
   if(args.op==="revoke")return revoke(ctx,session);
   if(args.op==="commands") {
@@ -126,6 +82,15 @@ export const browser = internalMutation({args:{tokenHash:v.string(),op:v.union(v
     if(existing.session!==session._id || existing.identity!==args.identity)return fail(409,"command_conflict","This command ID was already used for a different action");
     return receipt(existing);
   }
-  const commandId = await ctx.db.insert("webCommands",{account:session.account,session:session._id,device:session.device,commandId:identityId,payload:args.command,identity:args.identity!,status:"pending",message:"Waiting for phone",newRevision:null,cursor:await nextCursor(ctx,session.account),queuedAt:Date.now()});
+  const commandId = await ctx.db.insert("webCommands",{account:session.account,session:session._id,device:session.device,commandId:identityId,payload:args.command,identity:args.identity!,status:"pending",message:"Words saved. Waiting for Capture.",newRevision:null,cursor:await nextCursor(ctx,session.account),queuedAt:Date.now()});
+  const command=(await ctx.db.get(commandId))!;
+  if(command.payload.type==="capture") {
+    const now=new Date().toISOString();
+    await ctx.db.insert("captures",{account:session.account,messageId:command.payload.id,text:command.payload.args.text,timezone:command.payload.timezone??"Asia/Kolkata",status:"saved",attempts:0});
+    await writeRecords(ctx,session.account,[{key:`capture:${command.payload.id}`,value:{id:command.payload.id,text:command.payload.args.text,status:"saved",createdAt:now,receipt:[]}}],now);
+  } else {
+    const result=await applyPlan(ctx,session.account,command);
+    await ctx.db.patch(commandId,{...result,newRevision:(await ctx.db.get(session.account))!.cursor});
+  }
   return receipt((await ctx.db.get(commandId))!);
 }});

@@ -1,209 +1,140 @@
 import { describe, expect, it } from "vitest";
-import { setup, phone, linked, request, snapshot, sync, enqueue, command, poll } from "./plannerHelpers";
+import { setup, phone, linked, request, snapshot, seed, enqueue, command, poll } from "./plannerHelpers";
+import { push, pull, read, changes, plan, seeded } from "./standaloneHelpers";
 
-describe("Planner snapshots and command delivery",()=>{
-  it("enriches a v1 snapshot once at the same revision while preserving every legacy field",async()=>{
-    const t=setup(), device=await phone(t), web=await linked(t,device.token), base=snapshot();
-    const current={...base,drafts:[{id:"draft",status:"committed",title:"Saved task",reply:"",receipt:[{text:"Today"}],taskIds:[]}],
-      captures:[{id:"capture",text:"Exact words",status:"interpreted",createdAt:base.savedAt,receipt:[{text:"Today"}]}]};
-    await sync(t,device.token,{snapshot:current,acks:[]});
-    const {entries,planner,...legacy}=current;
-    const v1={...legacy,schemaVersion:1,captures:legacy.captures.map(row=>({...row,receipt:[{text:"Yesterday"}]})),drafts:legacy.drafts.map(row=>({...row,receipt:[{text:"Yesterday"}]}))};
-    await t.run(async ctx=>{
-      const row=(await ctx.db.query("plannerSnapshots").collect())[0];
-      await ctx.db.patch(row._id,{payload:v1,identity:"legacy"});
-      await ctx.db.insert("plannerSnapshots",{account:row.account,revision:41,payload:{...v1,revision:41},identity:"older"});
-    });
-    expect((await sync(t,device.token,{snapshot:{...current,savedAt:"2026-10-19T08:00:00+05:30"},acks:[]})).status).toBe(409);
-    const upgraded=await sync(t,device.token,{snapshot:current,acks:[]});
-    expect(upgraded.status).toBe(200);
-    expect((await upgraded.json()).snapshots).toEqual([current]);
-    expect(await (await request(t,"/v1/web/snapshot",web.token,undefined,"GET")).json()).toEqual(current);
-    expect((await sync(t,device.token,{snapshot:current,acks:[]})).status).toBe(200);
-    expect((await sync(t,device.token,{snapshot:{...current,planner:{...planner,context:{...planner.context,vision:"Changed"}}},acks:[]})).status).toBe(409);
-    expect(await t.run(ctx=>ctx.db.query("plannerSnapshots").collect())).toHaveLength(2);
+describe("Record snapshots and durable server receipts",()=>{
+  it("retires v1 snapshot upgrades with an explicit upgrade response and no writes",async()=>{
+    const t=setup(), device=await phone(t), web=await linked(t,device.token), current=snapshot();
+    for(const schemaVersion of [1,2]) {
+      const response=await request(t,"/v1/planner/sync",device.token,{snapshot:{...current,schemaVersion},acks:[]});
+      expect(response.status).toBe(410);expect(await response.json()).toMatchObject({error:{code:"upgrade_required"}});
+    }
+    expect(await t.run(ctx=>ctx.db.query("plannerSnapshots").collect())).toEqual([]);
+    expect((await request(t,"/v1/web/snapshot",web.token,undefined,"GET")).status).toBe(404);
   });
-  it("keeps one current snapshot and four older revisions without reinterpreting legacy events",async()=>{
-    const t=setup(), device=await phone(t), web=await linked(t,device.token);
-    for(let revision=40;revision<=46;revision++)expect((await sync(t,device.token,{snapshot:snapshot(revision),acks:[]})).status).toBe(200);
-    expect((await (await sync(t,device.token)).json()).snapshots.map((item:any)=>item.revision)).toEqual([46,45,44,43,42]);
-    expect(await (await request(t,"/v1/web/snapshot",web.token,undefined,"GET")).json()).toEqual(snapshot(46));
-    expect(await t.run(ctx=>ctx.db.query("plannerSnapshots").collect())).toHaveLength(5);
-    expect((await sync(t,device.token,{snapshot:snapshot(45),acks:[]})).status).toBe(409);
-    expect((await sync(t,device.token,{snapshot:{...snapshot(46),savedAt:"2026-10-19T08:00:00+05:30"},acks:[]})).status).toBe(409);
-    expect((await sync(t,device.token,{snapshot:Object.fromEntries(Object.entries(snapshot(46)).reverse()),acks:[]})).status).toBe(200);
-    expect(await t.run(ctx=>ctx.db.query("plannerSnapshots").collect())).toHaveLength(5);
+  it("keeps a current record snapshot across revisions without reinterpreting legacy events",async()=>{
+    const {t,device,web}=await seeded(), first=await read(t,web.token);
+    for(let n=1;n<=6;n++)expect((await enqueue(t,web.token,plan(n,{type:"saveTask",id:3,fields:{notes:`Edit ${n}`}}))).status).toBe(200);
+    const next=await read(t,web.token);
+    expect(next.revision).toBeGreaterThan(first.revision);
+    expect(next.entries.find((r:any)=>r.id===3).notes).toBe("Edit 6");
+    expect(await t.run(ctx=>ctx.db.query("plannerSnapshots").collect())).toHaveLength(0);
+    expect((await (await pull(t,device.token,first.revision)).json()).rows.some((r:any)=>r.key==="task:3")).toBe(true);
+    expect(await t.run(ctx=>ctx.db.query("events").collect())).toEqual([]);
   });
-  it("keeps enqueue retries idempotent and rejects UUID reuse with different content or session",async()=>{
-    const t=setup(), device=await phone(t), first=await linked(t,device.token), second=await linked(t,device.token);
-    const queued=await enqueue(t,first.token), initial=await queued.json();
-    expect(queued.status).toBe(202);expect(initial).toEqual({id:command().id,status:"pending",message:"Waiting for phone",newRevision:null,cursor:1});
+  it("keeps retries idempotent and rejects UUID reuse with different content or session",async()=>{
+    const {t,device,web:first}=await seeded(), second=await linked(t,device.token);
+    const response=await enqueue(t,first.token), initial=await response.json();
+    expect(response.status).toBe(200);expect(initial).toMatchObject({id:command().id,status:"applied",cursor:1});
     const retry=await enqueue(t,first.token,Object.fromEntries(Object.entries(command()).reverse()));
-    expect(retry.status).toBe(202);expect(await retry.json()).toEqual(initial);
+    expect(retry.status).toBe(200);expect(await retry.json()).toEqual(initial);
     expect((await enqueue(t,first.token,{...command(),args:{taskId:4}})).status).toBe(409);
     expect((await enqueue(t,second.token)).status).toBe(409);
-    const mixedCase={...command(2),id:"ABCDEF12-1234-4234-8234-123456789abc"};
-    expect((await enqueue(t,first.token,mixedCase)).status).toBe(202);
-    expect((await enqueue(t,first.token,{...mixedCase,id:mixedCase.id.toLowerCase()})).status).toBe(409);
+    const mixed={...command(2),id:"ABCDEF12-1234-4234-8234-123456789abc"};
+    expect((await enqueue(t,first.token,mixed)).status).toBe(200);
+    expect((await enqueue(t,first.token,{...mixed,id:mixed.id.toLowerCase()})).status).toBe(409);
     expect(await t.run(ctx=>ctx.db.query("webCommands").collect())).toHaveLength(2);
     expect((await (await poll(t,second.token)).json()).commands).toEqual([]);
   });
-  it("redelivers pending commands, advances ack cursors, and never rewrites a final status",async()=>{
-    const t=setup(), device=await phone(t), web=await linked(t,device.token);
-    await enqueue(t,web.token);
-    for(let attempt=0;attempt<2;attempt++)expect((await (await sync(t,device.token)).json()).commands).toEqual([command()]);
-    const ack={id:command().id,status:"applied",message:"Task completed",newRevision:43};
-    const final=await sync(t,device.token,{snapshot:snapshot(43),acks:[ack]});
-    expect(final.status).toBe(200);expect((await final.json()).commands).toEqual([]);
-    const result=await (await poll(t,web.token,1)).json();
-    expect(result).toEqual({commands:[{...ack,cursor:2}],cursor:2,hasMore:false});
-    const retry=await sync(t,device.token,{snapshot:snapshot(43),acks:[ack]});expect(retry.status).toBe(200);
-    expect(await (await poll(t,web.token,2)).json()).toEqual({commands:[],cursor:2,hasMore:false});
-    const duplicate=await enqueue(t,web.token);expect(duplicate.status).toBe(200);expect((await duplicate.json()).status).toBe("applied");
-    expect((await sync(t,device.token,{snapshot:snapshot(44),acks:[{...ack,status:"rejected"}]})).status).toBe(409);
-    expect((await (await request(t,"/v1/web/snapshot",web.token,undefined,"GET")).json()).revision).toBe(43);
-    expect((await (await poll(t,web.token)).json()).commands[0].status).toBe("applied");
+  it("returns a durable final receipt without phone delivery or acknowledgements",async()=>{
+    const {t,device,web}=await seeded(), applied=await (await enqueue(t,web.token)).json();
+    expect(applied.status).toBe("applied");
+    for(let n=0;n<2;n++) {
+      const pulled=await (await pull(t,device.token)).json();
+      expect(pulled.commands).toBeUndefined();expect(pulled.revokedCommandIds).toBeUndefined();
+      expect(pulled.rows.find((r:any)=>r.key==="task:3").value.done).toBe(true);
+    }
+    expect(await (await poll(t,web.token)).json()).toEqual({commands:[applied],cursor:applied.cursor,hasMore:false});
+    expect(await (await poll(t,web.token,applied.cursor)).json()).toEqual({commands:[],cursor:applied.cursor,hasMore:false});
+    expect(await (await enqueue(t,web.token)).json()).toEqual(applied);
+    const oldAck=await request(t,"/v1/planner/sync",device.token,{acks:[{...applied,status:"rejected"}]});
+    expect(oldAck.status).toBe(410);expect((await (await poll(t,web.token)).json()).commands).toEqual([applied]);
   });
-  it("applies acks atomically when an acknowledgement targets another account",async()=>{
-    const t=setup(), first=await phone(t), second=await phone(t,2), web=await linked(t,first.token), other=await linked(t,second.token);
-    await enqueue(t,web.token,command(1));await enqueue(t,other.token,command(2));
-    const ack=(id:string)=>({id,status:"applied",message:"Saved",newRevision:43});
-    const response=await sync(t,first.token,{snapshot:snapshot(43),acks:[ack(command(1).id),ack(command(2).id)]});
-    expect(response.status).toBe(409);
-    expect((await (await poll(t,web.token)).json()).commands[0].status).toBe("pending");
-    expect(await t.run(ctx=>ctx.db.query("plannerSnapshots").collect())).toHaveLength(0);
-    expect((await (await sync(t,second.token)).json()).commands).toEqual([command(2)]);
+  it("cannot mutate another account using a task or command receipt",async()=>{
+    const {t,device,web}=await seeded(), other=await phone(t,2), session=await linked(t,other.token);
+    const applied=await (await enqueue(t,web.token)).json();
+    const result=await (await enqueue(t,session.token,{...command(2),type:"undo",args:{commandId:applied.id}})).json();
+    expect(result.status).toBe("conflict");
+    expect((await read(t,web.token)).entries.find((r:any)=>r.id===3).done).toBe(true);
+    expect((await (await pull(t,other.token)).json()).rows).toEqual([]);
+    expect((await (await pull(t,device.token)).json()).rows.length).toBeGreaterThan(0);
   });
-  it("scopes snapshots, commands, acknowledgements, and revocation to their account and executor",async()=>{
-    const t=setup(), first=await phone(t), second=await phone(t,2), web=await linked(t,first.token), other=await linked(t,second.token);
-    await sync(t,first.token,{snapshot:snapshot(42),acks:[]});await sync(t,second.token,{snapshot:snapshot(7),acks:[]});
-    await enqueue(t,web.token);await enqueue(t,other.token);
-    expect((await (await request(t,"/v1/web/snapshot",other.token,undefined,"GET")).json()).revision).toBe(7);
+  it("scopes records, commands and revocation to the account and owner",async()=>{
+    const {t,device:first,web}=await seeded(), second=await phone(t,2), other=await linked(t,second.token);
+    const different=snapshot();different.entries[2].notes="Other account";
+    expect((await seed(t,second.token,different)).status).toBe(200);
+    await enqueue(t,web.token);await enqueue(t,other.token,plan(1,{type:"saveTask",id:3,fields:{notes:"Only other"}}));
+    expect((await read(t,web.token)).entries.find((r:any)=>r.id===3).notes).not.toBe("Only other");
+    expect((await read(t,other.token)).entries.find((r:any)=>r.id===3).notes).toBe("Only other");
     expect((await request(t,"/v1/web/revoke",second.token,{sessionId:web.sessionId})).status).toBe(401);
-    const bad=await phone(t,3);
-    const account=await t.run(async ctx=>(await ctx.db.get(first.id))!.account!);
+    const bad=await phone(t,3), account=await t.run(async ctx=>(await ctx.db.get(first.id))!.account!);
     await t.run(ctx=>ctx.db.patch(bad.id,{account}));
-    expect((await sync(t,bad.token,{snapshot:snapshot(99),acks:[]})).status).toBe(409);
-    expect((await (await request(t,"/v1/web/snapshot",web.token,undefined,"GET")).json()).revision).toBe(42);
+    expect((await pull(t,bad.token)).status).toBe(409);
   });
-  it("lists last-seen times, revokes browser access immediately, and marks queued work for phone rejection",async()=>{
-    const t=setup(), device=await phone(t), first=await linked(t,device.token,"Office"), second=await linked(t,device.token,"Home");
-    await enqueue(t,first.token);await enqueue(t,second.token,command(2));
-    await t.run(async ctx=>{const sessions=await ctx.db.query("webSessions").collect();await ctx.db.patch(sessions[0]._id,{lastSeenAt:1});});
-    await poll(t,first.token);
+  it("lists last-seen times and immediately revokes future writes while preserving saved receipts",async()=>{
+    const {t,device,web:first}=await seeded(), second=await linked(t,device.token,"Home");
+    const firstReceipt=await (await enqueue(t,first.token)).json();await enqueue(t,second.token,command(2));
+    await t.run(ctx=>ctx.db.patch(first.sessionId as any,{lastSeenAt:1}));await poll(t,first.token);
     let sessions=(await (await request(t,"/v1/web/sessions",device.token,undefined,"GET")).json()).sessions;
-    expect(sessions.find((item:any)=>item.id===first.sessionId)).toMatchObject({label:"Office",lastSeenAt:expect.any(Number),revoked:false});
-    expect(sessions.find((item:any)=>item.id===first.sessionId).lastSeenAt).toBeGreaterThan(1);
-    expect((await request(t,"/v1/web/revoke",device.token,{sessionId:first.sessionId})).status).toBe(200);
+    expect(sessions.find((s:any)=>s.id===first.sessionId).lastSeenAt).toBeGreaterThan(1);
+    await request(t,"/v1/web/revoke",device.token,{sessionId:first.sessionId});
     expect((await poll(t,first.token)).status).toBe(401);expect((await enqueue(t,first.token,command(3))).status).toBe(401);
-    expect((await t.run(ctx=>ctx.db.query("webCommands").collect())).every(item=>item.status==="pending")).toBe(true);
-    const pulled=await (await sync(t,device.token)).json();
-    expect(pulled.commands).toEqual([command(1),command(2)]);expect(pulled.revokedCommandIds).toEqual([command(1).id]);
-    expect((await t.run(ctx=>ctx.db.query("webCommands").collect())).every(item=>item.status==="pending")).toBe(true);
-    const rejected={id:command(1).id,status:"rejected",message:"Browser access was revoked",newRevision:0};
-    expect((await sync(t,device.token,{acks:[rejected]})).status).toBe(200);
-    const commands=await t.run(ctx=>ctx.db.query("webCommands").collect());
-    expect(commands.find(item=>item.commandId===command().id)).toMatchObject({status:"rejected",message:"Browser access was revoked",newRevision:0,cursor:3});
-    expect((await sync(t,device.token,{acks:[{id:command().id,status:"applied",message:"Saved",newRevision:1}]})).status).toBe(409);
+    expect(await t.run(ctx=>ctx.db.query("webCommands").withIndex("by_account_id",q=>q.eq("account",first.accountId as any).eq("commandId",command().id)).unique())).toMatchObject({status:firstReceipt.status,message:firstReceipt.message,newRevision:firstReceipt.newRevision,cursor:firstReceipt.cursor,payload:{id:firstReceipt.id}});
     sessions=(await (await request(t,"/v1/web/sessions",device.token,undefined,"GET")).json()).sessions;
-    expect(sessions.find((item:any)=>item.id===first.sessionId).revoked).toBe(true);
+    expect(sessions.find((s:any)=>s.id===first.sessionId).revoked).toBe(true);
     expect((await request(t,"/v1/web/session",second.token,undefined,"DELETE")).status).toBe(200);
-    const remaining=await (await sync(t,device.token)).json();
-    expect(remaining.commands).toEqual([command(2)]);expect(remaining.revokedCommandIds).toEqual([command(2).id]);
-    expect((await (await sync(t,device.token,{acks:[{...rejected,id:command(2).id}]})).json()).commands).toEqual([]);
+    expect((await poll(t,second.token)).status).toBe(401);
   });
-  it("pages status changes by cursor and returns only the oldest hundred pending commands",async()=>{
-    const t=setup(), device=await phone(t), web=await linked(t,device.token);
-    for(let number=1;number<=101;number++)expect((await enqueue(t,web.token,command(number))).status).toBe(202);
+  it("pages final receipt cursors even for no-op commands",async()=>{
+    const {t,device,web}=await seeded();
+    for(let n=1;n<=101;n++)expect((await enqueue(t,web.token,plan(n,{type:"saveTask",id:3,fields:{notes:"Same"}}))).status).toBe(200);
     const first=await (await poll(t,web.token)).json();expect(first.commands).toHaveLength(100);expect(first.cursor).toBe(100);expect(first.hasMore).toBe(true);
     const second=await (await poll(t,web.token,first.cursor)).json();expect(second.commands).toHaveLength(1);expect(second.cursor).toBe(101);expect(second.hasMore).toBe(false);
-    const pending=await (await sync(t,device.token)).json();expect(pending.commands).toHaveLength(100);expect(pending.commands[0].id).toBe(command(1).id);expect(pending.commands[99].id).toBe(command(100).id);
-    const ack={id:command(1).id,status:"conflict",message:"Task changed on the phone",newRevision:42};
-    await sync(t,device.token,{acks:[ack]});
-    const changes=await (await poll(t,web.token,101)).json();expect(changes.commands).toEqual([{...ack,cursor:102}]);expect(changes.cursor).toBe(102);
-    const next=await (await sync(t,device.token)).json();expect(next.commands).toHaveLength(100);expect(next.commands[0].id).toBe(command(2).id);expect(next.commands[99].id).toBe(command(101).id);
+    expect(first.commands.every((r:any)=>r.status==="applied")).toBe(true);
+    expect((await (await pull(t,device.token)).json()).commands).toBeUndefined();
   });
-  it("keeps a revoked backlog pending and bounded until the phone acknowledges each rejection",async()=>{
-    const t=setup(), device=await phone(t), web=await linked(t,device.token);
-    for(let number=1;number<=102;number++)await enqueue(t,web.token,command(number));
-    expect((await request(t,"/v1/web/session",web.token,undefined,"DELETE")).status).toBe(200);
-    const first=await (await sync(t,device.token)).json();
-    expect(first.commands).toHaveLength(100);expect(first.revokedCommandIds).toEqual(first.commands.map((item:any)=>item.id));
-    const firstPage=await t.run(ctx=>ctx.db.query("webCommands").collect());
-    expect(firstPage.every(item=>item.status==="pending")).toBe(true);
-    const reject=(item:any)=>({id:item.id,status:"rejected",message:"Browser access was revoked",newRevision:0});
-    const second=await (await sync(t,device.token,{acks:first.commands.map(reject)})).json();
-    expect(second.commands).toEqual([command(101),command(102)]);expect(second.revokedCommandIds).toEqual([command(101).id,command(102).id]);
-    const drained=await (await sync(t,device.token,{acks:second.commands.map(reject)})).json();
-    expect(drained.commands).toEqual([]);expect(drained.revokedCommandIds).toEqual([]);
-    const commands=await t.run(ctx=>ctx.db.query("webCommands").collect());
-    expect(commands).toHaveLength(102);expect(commands.every(item=>item.status==="rejected")).toBe(true);
+  it("a revoked browser leaves applied work saved with no phone backlog to drain",async()=>{
+    const {t,device,web}=await seeded();
+    for(let n=1;n<=102;n++)await enqueue(t,web.token,plan(n,{type:"saveTask",id:3,fields:{notes:`Saved ${n}`}}));
+    await request(t,"/v1/web/session",web.token,undefined,"DELETE");
+    const rows=await t.run(ctx=>ctx.db.query("webCommands").collect());
+    expect(rows).toHaveLength(102);expect(rows.every(row=>row.status==="applied")).toBe(true);
+    const page=await (await pull(t,device.token)).json();expect(page.rows.find((r:any)=>r.key==="task:3").value.notes).toBe("Saved 102");
+    expect(page.revokedCommandIds).toBeUndefined();expect((await enqueue(t,web.token,command(103))).status).toBe(401);
   });
-  it("accepts an executing phone command's result after revocation and marks later queued work",async()=>{
-    const t=setup(), device=await phone(t), web=await linked(t,device.token);
-    await enqueue(t,web.token,command(1));
-    const pulled=await sync(t,device.token,{snapshot:snapshot(42),acks:[]});
-    expect((await pulled.json()).commands).toEqual([command(1)]);
-    await enqueue(t,web.token,command(2));
-    expect((await request(t,"/v1/web/revoke",device.token,{sessionId:web.sessionId})).status).toBe(200);
-    expect((await poll(t,web.token)).status).toBe(401);
-    const ack={id:command(1).id,status:"applied",message:"Task completed",newRevision:43};
-    const applied=await sync(t,device.token,{snapshot:snapshot(43),acks:[ack]});
-    expect(applied.status).toBe(200);
-    const result=await applied.json();
-    expect(result.commands).toEqual([command(2)]);expect(result.revokedCommandIds).toEqual([command(2).id]);expect(result.snapshots[0]).toEqual(snapshot(43));
-    let commands=await t.run(ctx=>ctx.db.query("webCommands").collect());
-    expect(commands.find(item=>item.commandId===command(1).id)).toMatchObject({status:"applied",message:"Task completed",newRevision:43,cursor:3});
-    expect(commands.find(item=>item.commandId===command(2).id)).toMatchObject({status:"pending",cursor:2});
-    const rejected={id:command(2).id,status:"rejected",message:"Browser access was revoked",newRevision:43};
-    expect((await sync(t,device.token,{acks:[rejected]})).status).toBe(200);
-    commands=await t.run(ctx=>ctx.db.query("webCommands").collect());
-    expect(commands.find(item=>item.commandId===command(2).id)).toMatchObject({status:"rejected",message:"Browser access was revoked",newRevision:43,cursor:4});
-    expect((await sync(t,device.token,{snapshot:snapshot(44),acks:[ack]})).status).toBe(200);
-    expect((await sync(t,device.token,{acks:[{...ack,status:"rejected"}]})).status).toBe(409);
-    expect((await (await sync(t,device.token)).json()).snapshots[0]).toEqual(snapshot(44));
+  it("captures stay pending for the server worker through browser revocation",async()=>{
+    const {t,device,web}=await seeded(), capture={...command(),type:"capture",args:{text:"Keep these words"}};
+    const receipt=await (await enqueue(t,web.token,capture)).json();expect(receipt.status).toBe("pending");
+    await request(t,"/v1/web/revoke",device.token,{sessionId:web.sessionId});
+    expect((await enqueue(t,web.token,command(2))).status).toBe(401);
+    expect(await t.run(ctx=>ctx.db.query("captures").first())).toMatchObject({text:capture.args.text,status:"saved"});
+    const page=await (await pull(t,device.token)).json();expect(page.commands).toBeUndefined();
+    expect(page.rows.find((r:any)=>r.key===`capture:${capture.id}`).value.text).toBe(capture.args.text);
   });
-  it("redelivers a locally applied command with revocation metadata after a lost acknowledgement",async()=>{
-    const t=setup(), device=await phone(t), web=await linked(t,device.token);
-    await enqueue(t,web.token);
-    const initial=await (await sync(t,device.token,{snapshot:snapshot(42),acks:[]})).json();
-    expect(initial.commands).toEqual([command()]);expect(initial.revokedCommandIds).toEqual([]);
-    expect((await request(t,"/v1/web/revoke",device.token,{sessionId:web.sessionId})).status).toBe(200);
-    const recovered=await sync(t,device.token,{snapshot:snapshot(43),acks:[]});
-    expect(recovered.status).toBe(200);
-    const redelivered=await recovered.json();
-    expect(redelivered.commands).toEqual([command()]);expect(redelivered.revokedCommandIds).toEqual([command().id]);
-    expect((await t.run(ctx=>ctx.db.query("webCommands").first()))?.status).toBe("pending");
-    const ack={id:command().id,status:"applied",message:"Task completed",newRevision:43};
-    const acknowledged=await sync(t,device.token,{snapshot:snapshot(43),acks:[ack]});
-    expect(acknowledged.status).toBe(200);
-    const result=await acknowledged.json();
-    expect(result.commands).toEqual([]);expect(result.revokedCommandIds).toEqual([]);expect(result.snapshots[0]).toEqual(snapshot(43));
-    expect(await t.run(ctx=>ctx.db.query("webCommands").first())).toMatchObject({status:"applied",message:"Task completed",newRevision:43,cursor:2});
-    expect((await sync(t,device.token,{snapshot:snapshot(44),acks:[ack]})).status).toBe(200);
+  it("recovers a lost response from the receipt after a phone push",async()=>{
+    const {t,device,web}=await seeded(), applied=await (await enqueue(t,web.token)).json();
+    await push(t,device.token,[],2);
+    expect(await (await enqueue(t,web.token)).json()).toEqual(applied);
+    const snapshot=await read(t,web.token);expect(snapshot.entries.find((r:any)=>r.id===3).done).toBe(true);
+    expect((await (await poll(t,web.token)).json()).commands).toEqual([applied]);
   });
 });
 
-describe("Store-shaped planner v2",()=>{
-  it("publishes v2, delivers plan ops unchanged and rejects model ops or deep snapshot leaks",async()=>{
-    const t=setup(), device=await phone(t), web=await linked(t,device.token);
-    const data=snapshot();
-    expect(data.schemaVersion).toBe(2);
-    expect((await sync(t,device.token,{snapshot:data,acks:[]})).status).toBe(200);
-    const op={type:"saveTask",id:1,fields:{notes:"From the browser",recurrence:"days",repeatDays:[1,3]}};
-    const plan={...command(),type:"plan",args:{op}};
-    expect((await enqueue(t,web.token,plan)).status).toBe(202);
-    expect((await (await sync(t,device.token)).json()).commands).toEqual([plan]);
-    for(const type of ["aiDraft","acceptDraft","dismissDraft","undo"]){
-      expect((await enqueue(t,web.token,{...command(2),type:"plan",args:{op:{type}}})).status).toBe(400);
-      expect((await enqueue(t,web.token,{...command(2),type:"plan",args:{op:{type:"batch",ops:[{type}]}}})).status).toBe(400);
+describe("Store-shaped planner v2 boundary",()=>{
+  it("applies plan ops and rejects model ops or deep record leaks",async()=>{
+    const {t,device,web,seed}=await seeded();
+    const edit=plan(1,{type:"saveTask",id:3,fields:{notes:"Browser",recurrence:"days",repeatDays:[1,3],planned:"2026-10-29T08:00:00.000Z"}});
+    expect((await (await enqueue(t,web.token,edit)).json()).status).toBe("applied");
+    for(const type of ["aiDraft","acceptDraft","dismissDraft","undo"]) {
+      expect((await enqueue(t,web.token,plan(2,{type}))).status).toBe(400);
+      expect((await enqueue(t,web.token,plan(2,{type:"batch",ops:[{type}]}))).status).toBe(400);
     }
-    const unsafe:any=structuredClone(data);unsafe.planner.body.runs[0].marks[unsafe.planner.body.routines[0].steps[0].id].token="private";
-    expect((await sync(t,device.token,{snapshot:unsafe,acks:[]})).status).toBe(400);
-    const unknown:any=structuredClone(data);unknown.entries[0].alertIntent.unknown=true;
-    expect((await sync(t,device.token,{snapshot:unknown,acks:[]})).status).toBe(400);
-    expect((await sync(t,device.token,{snapshot:{...data,schemaVersion:1},acks:[]})).status).toBe(400);
-    const read=await (await request(t,"/v1/web/snapshot",web.token,undefined,"GET")).json();
-    expect(read.planner.body.runs[0].marks).toEqual(data.planner.body.runs[0].marks);
+    const unsafe=changes(seed), run=unsafe.find((r:any)=>r.key.startsWith("run:"))!;
+    run.value.marks[Object.keys(run.value.marks)[0]].token="private";
+    expect((await push(t,device.token,unsafe,2)).status).toBe(400);
+    const unknown=changes(seed);unknown.find((r:any)=>r.key.startsWith("task:"))!.value.alertIntent.unknown=true;
+    expect((await push(t,device.token,unknown,2)).status).toBe(400);
+    expect((await read(t,web.token)).entries.find((r:any)=>r.id===3).notes).toBe("Browser");
+    expect((await read(t,web.token)).planner.body.runs[0].marks).toEqual(seed.planner.body.runs[0].marks);
   });
 });

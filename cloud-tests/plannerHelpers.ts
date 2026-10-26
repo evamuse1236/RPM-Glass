@@ -2,6 +2,7 @@ import { convexTest } from "convex-test";
 import { expect } from "vitest";
 import schema from "../convex/schema";
 import { sha256 } from "../convex/security";
+import { projectRecords, groupsOf } from "../web/contract/records.mjs";
 import fixture from "../web/fixtures/snapshot.json";
 
 const modules = import.meta.glob("../convex/**/*.{ts,js}");
@@ -25,6 +26,10 @@ export async function linked(t:Test,phoneToken:string,label="Laptop") {
   expect(exchanged.status).toBe(200);
   return await exchanged.json() as {token:string;sessionId:string;accountId:string;protocol:number};
 }
-export async function sync(t:Test,token:string,value:unknown={acks:[]}) {return request(t,"/v1/planner/sync",token,value);}
+export async function seed(t:Test,token:string,store:any=snapshot(),seq=1) {
+  const input={...store,sync:{remoteActivity:Object.fromEntries(store.entries.map((entry:any)=>[entry.id,entry.reviewActivityDays??[]]))}};
+  const changes=[...projectRecords(input)].map(([key,value])=>({key,value,base:null,baseRev:null,stamps:Object.fromEntries(Object.keys(groupsOf(key.split(":")[0])).map(group=>[group,store.savedAt]))}));
+  return request(t,"/v1/planner/push",token,{seq,part:0,final:true,changes});
+}
 export async function enqueue(t:Test,token:string,value:unknown=command()) {return request(t,"/v1/web/commands",token,value);}
 export async function poll(t:Test,token:string,since=0) {return request(t,`/v1/web/commands?since=${since}`,token,undefined,"GET");}

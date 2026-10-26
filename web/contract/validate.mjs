@@ -1,3 +1,4 @@
+import recordKinds from './records.json' with {type: 'json'};
 import snapshotSchema from './snapshot.schema.json' with {type: 'json'};
 import commandSchema from './command.schema.json' with {type: 'json'};
 import planOpSchema from './plan-ops.schema.json' with {type: 'json'};
@@ -69,5 +70,20 @@ export function validateCommand(value) {
 
 export function validatePlanOp(value) {
   if (!matches(planOpSchema, value)) throw new Error('Invalid planner operation');
+  return value;
+}
+
+export function validateRecord(key, value) {
+  const kind = key.slice(0, key.indexOf(':')), spec = recordKinds[kind];
+  if (!Object.hasOwn(recordKinds, kind) || !key.slice(key.indexOf(':') + 1) || key.length > 400) throw new Error('Invalid planner record key');
+  const rule = spec.key, raw = key.slice(key.indexOf(':') + 1);
+  if (rule.constant && raw !== rule.constant || kind === 'task' && (!/^[1-9][0-9]*$/.test(raw) || Number(raw) >= 2147483648)) throw new Error('Invalid planner record key');
+  if (rule.mapKey && (['week', 'review'].includes(kind) ? !/^\d{4}-\d{2}-\d{2}$/.test(raw) || !dayValid(raw) : raw.length > 160)) throw new Error('Invalid planner map key');
+  if (value === null) return value;
+  const schema = spec.schema.reduce((node, field) => node[field], snapshotSchema);
+  if (!matches(schema, value, snapshotSchema)) throw new Error('Invalid planner record');
+  if (kind === 'capture' && raw !== value.id) throw new Error('Planner record ID does not match its key');
+  if (rule.fields && kind !== 'glass' && raw !== rule.fields.map(field => value[field]).join(rule.separator ?? '')) throw new Error('Planner record ID does not match its key');
+  if (kind === 'glass' && !new RegExp('^' + value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '#[0-9]+$').test(raw)) throw new Error('Invalid glass key');
   return value;
 }
