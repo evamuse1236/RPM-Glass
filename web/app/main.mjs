@@ -77,7 +77,8 @@ function noteItem({icon, text, tone, lines = [], onDismiss}) {
 }
 
 function renderNotes(waiting) {
-  const notes = waiting.length ? [noteItem({icon: 'schedule', tone: 'waiting', text: `${plural(waiting.length, 'change')} waiting for your phone`})] : [];
+  const changes = waiting.filter(entry => entry.command.type !== 'capture');
+  const notes = changes.length ? [noteItem({icon: 'schedule', tone: 'waiting', text: `${plural(changes.length, 'change')} waiting for your phone`})] : [];
   notes.push(...queue.problems().map((p, i) => noteItem({icon: 'error', tone: 'problem', text: userMessage(p.message), onDismiss: () => queue.dismissProblem(i)})));
   const {outbox, snapshot} = client.state;
   notes.push(...captureNotes({outbox, captures: snapshot?.captures, settled: client.settled, dismissed}).map(note => noteItem({...note,

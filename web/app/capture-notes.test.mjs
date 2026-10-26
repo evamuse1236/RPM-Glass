@@ -39,4 +39,5 @@ test('the website builds its notes from captureNotes and lets a done note be dis
   assert.match(main, /captureNotes\(\{outbox, captures: snapshot\?\.captures, settled: client\.settled, dismissed\}\)/);
   assert.match(main, /onDismiss: note\.dismissible \? \(\) => \{ dismissed\.add\(note\.id\); render\(\); \} : null/);
   assert.match(main, /note\.tone === 'problem' \? userMessage\(note\.text\)/);
+  assert.match(main, /const changes = waiting\.filter\(entry => entry\.command\.type !== 'capture'\);/);
 });
