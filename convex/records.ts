@@ -2,14 +2,16 @@ import { groupsOf, projectRecords, storeFromRecords } from "../web/contract/reco
 // @ts-expect-error Shared reducer projection has no TypeScript declaration.
 import { buildSnapshot } from "../android-companion/web-sync-snapshot.mjs";
 import { canonicalJson } from "./security";
+import type { GenericQueryCtx } from "convex/server";
+import type { DataModel } from "./_generated/dataModel";
 import type { PlannerCtx } from "./plannerAuth";
 import type { Id } from "./_generated/dataModel";
 import type { Conflict } from "../web/contract/merge.mjs";
 
 export const equal = (a:any,b:any):boolean => canonicalJson(a)===canonicalJson(b);
 export const groupValue = (value:any,fields:string[]) => fields.length?Object.fromEntries(fields.filter(field=>value?.[field]!==undefined).map(field=>[field,value[field]])):value;
-export const rowsFor = async(ctx:PlannerCtx,account:Id<"accounts">) => (await ctx.db.query("plannerRecords").withIndex("by_account_key",q=>q.eq("account",account)).collect()).sort((a,b)=>a._creationTime-b._creationTime);
-export async function loadStore(ctx:PlannerCtx,account:Id<"accounts">) {
+export const rowsFor = async(ctx:Pick<GenericQueryCtx<DataModel>,"db">,account:Id<"accounts">) => (await ctx.db.query("plannerRecords").withIndex("by_account_key",q=>q.eq("account",account)).collect()).sort((a,b)=>a._creationTime-b._creationTime);
+export async function loadStore(ctx:Pick<GenericQueryCtx<DataModel>,"db">,account:Id<"accounts">) {
   const store=storeFromRecords((await rowsFor(ctx,account)).filter(row=>!row.key.startsWith("conflict:") && row.value!==null).map(row=>[row.key,row.value]));
   for(const run of store.planner.body?.runs??[]) {
     const steps=store.planner.body.routines.find((routine:any)=>routine.id===run.routineId)?.steps??[];
@@ -49,6 +51,7 @@ export async function snapshotFromRecords(ctx:PlannerCtx,account:Id<"accounts">)
   const store=await loadStore(ctx,account);
   const savedAt=Math.max(owner.seededAt??owner.createdAt,...rows.flatMap(row=>Object.values(row.stamps).map(Date.parse)));
   return {...buildSnapshot({...store,version:owner.cursor,syncSavedAt:new Date(savedAt).toISOString()}),
+    captures:rows.filter(row=>row.key.startsWith("capture:") && row.value!==null).map(row=>row.value).sort((a,b)=>String(a.createdAt??"").localeCompare(String(b.createdAt??""))).slice(-50),
     conflicts:rows.filter(row=>row.key.startsWith("conflict:") && row.value!==null).map(row=>({id:row.key,...row.value}))};
 }
 export { projectRecords };
