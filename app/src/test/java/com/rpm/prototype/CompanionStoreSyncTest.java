@@ -57,6 +57,13 @@ public class CompanionStoreSyncTest {
         JSONObject sync=CompanionStore.read(context).getJSONObject("sync");assertFalse(sync.has("cursor"));
         assertEquals("2026-09-01T00:00:00Z",sync.getJSONObject("stamps").getJSONObject("task:1").getString("title"));assertTrue(sync.has("restoredAt"));
     }
+    @Test public void syncWritesDoNotScheduleAnotherSyncButLocalEditsDo()throws Exception {
+        SyncManager.prefs(context).edit().putString("url","https://test.convex.site").putString("token","fixture").commit();
+        android.app.job.JobScheduler scheduler=context.getSystemService(android.app.job.JobScheduler.class);
+        scheduler.cancelAll();
+        CompanionStore.write(context,store(1),0,"sync");assertNull(scheduler.getPendingJob(7401));
+        CompanionStore.write(context,store(2),1,"local");assertNotNull(scheduler.getPendingJob(7401));
+    }
     @Test public void packagedContractMatchesTheGoldenContract()throws Exception {
         try(var in=context.getAssets().open("sync/records.json")){
             SyncStampsTest.assertJson(SyncStampsTest.json("web/contract/records.json"),new JSONObject(CompanionStore.readText(in)));

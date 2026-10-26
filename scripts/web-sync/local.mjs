@@ -6,8 +6,8 @@ import {resolve} from 'node:path';
 const root = resolve(new URL('../..', import.meta.url).pathname);
 const logs = resolve(root, '.verify/web-sync');
 const phoneState = resolve(logs, 'phone.json');
-const SYNC = 'http://127.0.0.1:3211';
-const PORT = 5179;
+let syncUrl;
+const PORT = +(process.env.PORT ?? 5179);
 const children = [];
 
 const deployment = () => {
@@ -54,13 +54,16 @@ process.on('SIGTERM', () => { stopAll(); process.exit(0); });
 
 try {
   refuseRemote();
-  const convex = start('convex', 'npx', ['convex', 'dev'], {CONVEX_AGENT_MODE: 'anonymous'});
+  execFileSync('npm', ['run', 'typecheck:cloud'], {cwd: root, stdio: 'inherit'});
+  const convex = start('convex', process.execPath, ['--require', resolve(root, 'scripts/web-sync/convex-json-imports.cjs'), 'node_modules/convex/bin/main.js', 'dev', '--typecheck', 'disable', '--codegen', 'disable'], {CONVEX_AGENT_MODE: 'anonymous'});
   await convex.waitFor(/Convex functions ready/, 240000);
   refuseRemote();
   if (!/^(anonymous|local):/.test(deployment() ?? '')) throw new Error('npx convex dev did not choose a local deployment');
+  syncUrl = readFileSync(resolve(root, '.env.local'), 'utf8').match(/^CONVEX_SITE_URL=(.*)$/m)?.[1]?.trim();
+  if (!syncUrl || !['127.0.0.1', 'localhost'].includes(new URL(syncUrl).hostname)) throw new Error('Convex did not provide a local HTTP URL');
 
   rmSync(phoneState, {force: true});
-  const phone = start('phone', 'node', ['scripts/web-sync/phone-standin.mjs', '--site', SYNC, '--state', phoneState]);
+  const phone = start('phone', 'node', ['scripts/web-sync/phone-standin.mjs', '--watch', '--site', syncUrl, '--state', phoneState]);
   await phone.waitFor(/Paired with/, 60000);
   await phone.waitFor(/Synced/, 30000);
 
@@ -69,7 +72,7 @@ try {
 
   const {RPM_SYNC_SERVER: _, ...buildEnv} = process.env;
   execFileSync('npm', ['run', 'web:build'], {cwd: root, stdio: 'inherit', env: buildEnv});
-  const site = start('site', 'node', ['scripts/web-sync/site-local.mjs'], {RPM_SYNC_SERVER: SYNC, RPM_WEB_TOKEN: token, PORT: String(PORT)});
+  const site = start('site', 'node', ['scripts/web-sync/site-local.mjs'], {RPM_SYNC_SERVER: syncUrl, RPM_WEB_TOKEN: token, PORT: String(PORT)});
   await site.waitFor(/Site Worker on/, 15000);
   console.log(`Ready: http://127.0.0.1:${PORT}/ reads the stand-in phone. Logs in .verify/web-sync/. Ctrl+C stops everything.`);
 } catch (error) {

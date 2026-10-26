@@ -7,7 +7,7 @@ import {bundleOptions} from '../scripts/build-companion-assets.mjs';
 import {fakeServer, phone} from './test/replica-server.mjs';
 import {projectRecords} from '../web/contract/records.mjs';
 
-test('replica runtime calls native push/pull and CAS saves with sync origin while old processor still boots', async () => {
+test('replica runtime calls native push/pull and CAS saves with sync origin on page load with eval blocked', async () => {
   const output = await build({...bundleOptions, entryPoints: ['android-companion/sync-runtime.mjs'], write: false});
   const p = phone(), server = fakeServer(), actions = [], completions = [];
   const window = {RpmSync: {
@@ -15,8 +15,7 @@ test('replica runtime calls native push/pull and CAS saves with sync origin whil
     invoke: (id, action, payload) => queueMicrotask(async () => {
       const body = JSON.parse(payload); actions.push(action);
       let value;
-      if (action === 'input') value = {commands: [], snapshots: [], revokedCommandIds: []};
-      else if (action === 'load') value = {data: await p.load()};
+      if (action === 'load') value = {data: await p.load()};
       else if (action === 'save') {await p.save(body.expected, body.data, {origin: body.origin}); value = {};}
       else if (action === 'push') value = await server.push(body);
       else if (action === 'pull') value = await server.pull(body);
@@ -26,13 +25,12 @@ test('replica runtime calls native push/pull and CAS saves with sync origin whil
   }};
   const context = vm.createContext({window, crypto: webcrypto, structuredClone, TextEncoder, TextDecoder, setTimeout, clearTimeout, AbortSignal, AbortController, console}, {codeGeneration: {strings: false, wasm: false}});
   await vm.runInContext(`(async()=>{${output.outputFiles[0].text}\n})()`, context);
-  assert.equal(typeof window.rpmSyncRun, 'function');
+  assert.equal(window.rpmSyncRun, undefined);
   assert.equal(typeof window.rpmReplicaRun, 'function');
-  actions.length = 0;
-  await window.rpmReplicaRun();
+
   assert.ok(actions.includes('push'));
   assert.ok(actions.includes('pull'));
   assert.equal(p.saves.length, 2);
   assert.deepEqual(projectRecords(p.data), server.project());
-  assert.equal(completions.length, 2);
+  assert.equal(completions.length, 1);
 });
