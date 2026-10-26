@@ -75,6 +75,7 @@ final class IslandGesture {
 
     Result up(float x, float y, long at) {
         if (!active) return Result.NONE;
+        move(x, y);
         active = false;
         if (longPressed) return Result.NONE;
         move(x, y);
