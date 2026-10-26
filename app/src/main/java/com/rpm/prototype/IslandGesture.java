@@ -23,7 +23,7 @@ final class IslandGesture {
     static final float SLOP_DP = 8;
     static final float COMMIT_X_DP = 90;
     static final float COMMIT_Y_DP = 48;
-    static final float PILL_UP_DP = 24;
+    static final float PILL_UP_DP = 12;
     static final float FLICK_DP = 24;
     static final float FLICK_DP_PER_MS = 0.5f;
     static final long LONG_PRESS_MS = 500;

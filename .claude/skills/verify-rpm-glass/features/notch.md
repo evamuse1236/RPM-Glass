@@ -11,7 +11,7 @@ The notch is a black island around the front camera, drawn by the `RPM Notch` ac
 - `notch-glass` the habit island's `Glass` (or the task island's due water row) logs a glass in place (the planner stays closed). From the habit island the same meter shows the receipt: the new segment draws, the water tips like a glass set down, `Glass logged` over `N of G today`, and `Undo` under it for 5 s. From the water row the band's ring fills one step.
 - `notch-done` the island's `Done` ticks the task in place, a repeating task only at the occurrence shown, with the same receipt and Undo.
 - `notch-alert-rows` the next reminder or alarm still to come today shows as the hero's own alert row, as a chip and a Done circle on its task row, or else as its own row. Tapping it opens the alert's controls: `Turn off` as the primary, then rows `Make it a ringing alarm` or `Make it a reminder`, `Done`, `Open`; each change shows a receipt with Undo.
-- `notch-snooze` swipe up (24dp), left or right on the pill means `Later` for the shown water or meal nudge, without logging it.
+- `notch-snooze` swipe up (12dp), left or right on the pill means `Later` for the shown water or meal nudge, without logging it.
 - `notch-reminder` shows a bell in the band, its time in the band, the task and `Reminder` (tap them to open the task), then two equal pills `Done` and `Snooze 10 min`, for 6 s when a reminder fires; then the pill shows its time.
 - `notch-alarm` shows a pulsing clock and the time in the band, `Ringing`, then `Stop` across the width over `Snooze 10 min` and `Done`, until one is pressed. Done stops the ring and ticks the task; its Undo brings the task back and the ring stays stopped.
 

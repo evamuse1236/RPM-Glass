@@ -89,7 +89,7 @@ A finger on a thing moves that thing, and the value it changes is written next t
 
 ### Notch island
 
-- **Pill: swipe up, left or right = Later for the shown water or meal nudge.** Up commits at 24dp; sideways at 90dp or a 24dp flick. No glass is logged. Tap or pull down opens the drop; long press opens its planner sheet.
+- **Pill: swipe up, left or right = Later for the shown water or meal nudge.** Up commits at 12dp, so a finger in the middle of the pill reaches it; sideways at 90dp or a 24dp flick. No glass is logged. Tap or pull down opens the drop; long press opens its planner sheet.
 - Open island: swipe a row right = its primary (Done / Glass / Log). Drag the island up past 24dp = close.
 - Native (`IslandGesture`), existing 8dp drift rule; `performHapticFeedback`.
 
@@ -139,7 +139,7 @@ Write `transform` on `pointermove`; `will-change` only while dragging. Release 2
 
 1. Spine card: lift, 15-min snap with live label, knurl duration. Decides the 250ms hold and 12dp snap.
 2. Time scrub slider with fine mode.
-3. Notch pill swipe up with a reachable 24dp commit, or right / left for Later.
+3. Notch pill swipe up with a reachable 12dp commit, or right / left for Later.
 
 ## Open questions (the prototypes decide)
 
