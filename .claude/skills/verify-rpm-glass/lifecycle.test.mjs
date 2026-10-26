@@ -28,11 +28,13 @@ async function fixture(t, shared = null) {
       h.events.push(['adb-fixture', serial, args]);
       if (args[0] === 'emu' && !h.keepAlive) h.live = false;
       if (h.failInstall && args[0] === 'install') throw new UserError('Fixture install failed', 'Retry launch.');
+      if (args[0] === 'exec-out') return Buffer.from(h.deviceApk);
+      if (args[0] === 'install') h.deviceApk = fs.readFileSync(args.at(-1), 'utf8');
       return 'Success';
     },
     shell: (serial, command) => {
       h.events.push(['shell-fixture', serial, command]);
-      return command.includes('getprop') ? '1' : command.startsWith('pm path') ? 'package:fixture.apk' : '10-19 12:00:00.000';
+      return command.includes('getprop') ? '1' : command.startsWith('pm path') ? (h.deviceApk == null ? '' : 'package:/data/app/fixture/base.apk') : '10-19 12:00:00.000';
     },
     devices: () => { h.events.push(['devices-fixture']); return h.live ? [{serial: `emulator-${h.port}`, state: 'device'}] : []; },
     startEmulator: args => { h.events.push(['start-fixture', args]); h.starts++; h.live = true; h.port = args.port; return {pid: 7777, args: ['-read-only']}; },
@@ -73,14 +75,15 @@ async function fixture(t, shared = null) {
     dropEmulator: port => ownership.dropEmulator(port, options), IDLE_MS: ownership.IDLE_MS,
   };
   const sync = {builtAssetsSha: () => 'fixture-web', clearSynced: serial => h.events.push(['clear-synced', serial])};
-  globalThis[key] = {device, runtime, leases, sync, page: {pageTargets: unexpected('pageTargets')}};
+  globalThis[key] = {device, runtime, leases, sync, page: {pageTargets: unexpected('pageTargets')}, apk: Object.fromEntries(['gradleVersion', 'newestSource', 'apkStale', 'signer', 'build'].map(name => [name, unexpected(name)]))};
   const moduleUrl = group => 'data:text/javascript,' + encodeURIComponent(Object.keys(globalThis[key][group])
     .map(name => `export const ${name} = globalThis[${JSON.stringify(key)}].${group}.${name};`).join('\n'));
   const rewritten = source.replace("'./device.mjs'", JSON.stringify(moduleUrl('device')))
     .replace("'./runtime.mjs'", JSON.stringify(moduleUrl('runtime')))
     .replace("'./ownership.mjs'", JSON.stringify(moduleUrl('leases')))
     .replace("'./page.mjs'", JSON.stringify(moduleUrl('page')))
-    .replace("'./sync.mjs'", JSON.stringify(moduleUrl('sync')));
+    .replace("'./sync.mjs'", JSON.stringify(moduleUrl('sync')))
+    .replace("'./apk-build.mjs'", JSON.stringify(moduleUrl('apk')));
   const {lifecycleCommands: commands} = await import('data:text/javascript,' + encodeURIComponent(rewritten));
   return {...h, h, commands, readState, options, launchArgs: {_: [], apk, port: 5582, cdpPort: 13002}};
 }
@@ -104,6 +107,19 @@ test('launch prints an owner, remembers overrides and excludes concurrent launch
   assert.equal(again.port, 5582);
   assert.equal(again.cdpPort, 13002);
   assert.equal(f.h.starts, 1);
+});
+
+test('launch installs the build when the device holds another APK, even if state says it installed this one', async t => {
+  const f = await fixture(t);
+  const first = await f.commands.launch(f.launchArgs);
+  assert.equal(first.install, 'installed');
+  const again = await f.commands.launch({_: [], apk: f.apk, owner: first.owner});
+  assert.equal(again.install, 'already-installed');
+  f.h.deviceApk = 'an older apk someone installed by hand';
+  assert.equal(f.readState().installedSha256, again.apk.sha256);
+  const third = await f.commands.launch({_: [], apk: f.apk, owner: first.owner});
+  assert.equal(third.install, 'installed');
+  assert.equal(f.h.deviceApk, 'fixture apk');
 });
 
 test('launch and cleanup reject another owner before any device or process access', async t => {

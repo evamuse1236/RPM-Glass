@@ -8,6 +8,21 @@ import java.util.*;
 import static org.junit.Assert.*;
 
 public class SyncManagerTest {
+    @Test public void aReleaseBuildAcceptsOnlyAnHttpsConvexSite() {
+        assertEquals("https://neat-emu-821.convex.site",SyncManager.validateUrl("https://neat-emu-821.convex.site/",false));
+        for(String bad:new String[]{"http://10.0.2.2:3211","https://10.0.2.2:3211","http://neat-emu-821.convex.site","https://neat-emu-821.convex.site:443","https://neat-emu-821.convex.cloud","http://127.0.0.1:3211","https://neat-emu-821.convex.site/v1"})
+            assertThrows(bad,IllegalArgumentException.class,()->SyncManager.validateUrl(bad,false));
+    }
+    @Test public void aDebugBuildAlsoAcceptsOnlyTheEmulatorsHostWithAPort() {
+        assertEquals("http://10.0.2.2:3211",SyncManager.validateUrl("http://10.0.2.2:3211/",true));
+        assertEquals("https://neat-emu-821.convex.site",SyncManager.validateUrl("https://neat-emu-821.convex.site",true));
+        for(String bad:new String[]{"http://10.0.2.2","http://10.0.2.3:3211","http://localhost:3211","http://10.0.2.2:3211/v1","http://10.0.2.2:3211?x=1","http://u@10.0.2.2:3211","ftp://10.0.2.2:3211"})
+            assertThrows(bad,IllegalArgumentException.class,()->SyncManager.validateUrl(bad,true));
+    }
+    @Test public void theEmulatorHostFollowsTheBuildType() {
+        boolean accepted;try{SyncManager.validateUrl("http://10.0.2.2:3211");accepted=true;}catch(IllegalArgumentException e){accepted=false;}
+        assertEquals(BuildConfig.DEBUG,accepted);
+    }
     @Test public void runsOneReplicaWithGuardsBeforeAndAfter()throws Exception {
         List<String> calls=new ArrayList<>();
         PlannerSyncProtocol.sync(()->{calls.add("replica");return new JSONObject().put("cursor",7);},()->calls.add("guard"));

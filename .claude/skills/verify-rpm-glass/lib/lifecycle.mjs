@@ -1,49 +1,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import {spawnSync} from 'node:child_process';
 import {PACKAGE, UserError, adb, shell, devices, startEmulator, startNetsim, processAlive, killTree, sleep, waitFor, appPid, foregroundActivity, displayInfo, nativeNodes, dismissAnr, spawnReaper, sdkRoot, processImage, ownsEmulator, adoptEmulator} from './device.mjs';
 import {pageTargets} from './page.mjs';
 import {builtAssetsSha, clearSynced} from './sync.mjs';
-import {ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, readState, writeState, evidenceDir, apkCheckout, journal, devtoolsPort, viaShell, openLauncher, errorLines} from './runtime.mjs';
+import {gradleVersion, newestSource, apkStale, signer, build} from './apk-build.mjs';
+import {ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, readState, writeState, evidenceDir, apkCheckout, journal, devtoolsPort, openLauncher, errorLines} from './runtime.mjs';
 import {portsFor, requireOwner, takeLease, updateLease, assertLease, releaseLease, readEmulator, saveEmulator, dropEmulator, IDLE_MS} from './ownership.mjs';
 
-const SOURCES = ['app/src/main', 'android-companion', 'chat-prototype', 'cli', 'intent-v2/src', 'intent-v2/adapters', 'intent-v2/prompts', 'scripts/build-companion-assets.mjs', 'app/build.gradle'];
 const sha256 = buf => crypto.createHash('sha256').update(buf).digest('hex');
-const gradleVersion = () => {
-  const g = fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8');
-  return {versionName: g.match(/versionName "([^"]+)"/)?.[1], versionCode: g.match(/versionCode (\d+)/)?.[1]};
-};
-function newestSource() {
-  let newest = 0, file = null;
-  const walk = p => {
-    const st = fs.statSync(p);
-    if (st.isDirectory()) { for (const f of fs.readdirSync(p)) if (!['node_modules', 'build', 'experiments', '.gradle', 'companion'].includes(f)) walk(path.join(p, f)); }
-    else if (st.mtimeMs > newest) { newest = st.mtimeMs; file = p; }
-  };
-  for (const s of SOURCES) if (fs.existsSync(path.join(ROOT, s))) walk(path.join(ROOT, s));
-  return {mtime: newest, file: file && path.relative(ROOT, file)};
+function installedApk(serial) {
+  const remotePath = shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).match(/package:(\S+base\.apk)/)?.[1];
+  return remotePath ? adb(serial, ['exec-out', 'cat', remotePath], {binary: true}) : null;
 }
-const apkStale = () => !fs.existsSync(APK) || fs.statSync(APK).mtimeMs < newestSource().mtime;
-
-// SHA-256 of the APK's signing certificate, via the SDK's apksigner (needs Java on PATH or JAVA_HOME).
-function signer(apk) {
-  const tools = path.join(sdkRoot(), 'build-tools');
-  const latest = fs.existsSync(tools) ? fs.readdirSync(tools).sort((a, b) => a.localeCompare(b, undefined, {numeric: true})).at(-1) : null;
-  if (!latest) return null;
-  const bin = path.join(tools, latest, process.platform === 'win32' ? 'apksigner.bat' : 'apksigner');
-  const r = spawnSync(...viaShell(bin, ['verify', '--print-certs', apk]), {encoding: 'utf8', windowsHide: true});
-  return r.stdout?.match(/certificate SHA-256 digest: ([0-9a-f]+)/)?.[1] ?? null;
-}
-
-function build() {
-  const gradlew = path.join(ROOT, process.platform === 'win32' ? 'gradlew.bat' : 'gradlew');
-  const env = {...process.env, ANDROID_HOME: process.env.ANDROID_HOME || sdkRoot()};
-  const r = spawnSync(...viaShell(gradlew, ['-q', 'assembleDebug']), {cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024, env});
-  if (r.status !== 0) throw new UserError(`Gradle assembleDebug failed:\n${(r.stderr || r.stdout).trim().slice(-2000)}`, 'Fix the build error above, run `npm ci` if node_modules is missing, then `rpmctl launch --build`.');
-  const now = new Date();
-  if (fs.existsSync(APK)) fs.utimesSync(APK, now, now);
-}
+const installedApkSha = serial => { const bytes = installedApk(serial); return bytes ? sha256(bytes) : null; };
 
 function install(serial, apk) {
   const r = adb(serial, ['install', '-r', '-g', apk], {allowFail: true, timeout: 180000});
@@ -164,7 +134,7 @@ export const lifecycleCommands = {
       const apkHash = sha256(fs.readFileSync(apk));
       const installed = shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).includes('package:');
       const installResult = args.noInstall ? (installed ? 'skipped (kept what the emulator had)' : 'skipped (not installed)')
-        : state.installedSha256 === apkHash && installed ? 'already-installed' : install(serial, apk);
+        : installedApkSha(serial) === apkHash ? 'already-installed' : install(serial, apk);
       if (!args.noInstall && installResult !== 'already-installed') { clearSynced(serial); state.webSha256 = builtAssetsSha(state.appCheckout ?? ROOT); }
       if (!args.noInstall) state.installedSha256 = apkHash;
       state.syncedAt = null;
@@ -221,13 +191,13 @@ export const lifecycleCommands = {
     add('debuggable', installed.debuggable, 'needed for WebView DevTools and `state`', 'Install the debug APK with `rpmctl launch --build`.');
     if (fs.existsSync(APK)) {
       const local = sha256(fs.readFileSync(APK));
-      const remotePath = shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).match(/package:(\S+base\.apk)/)?.[1];
-      const remote = remotePath ? sha256(adb(serial, ['exec-out', 'cat', remotePath], {binary: true})) : null;
+      const installedBytes = installedApk(serial);
+      const remote = installedBytes ? sha256(installedBytes) : null;
       add('installed-apk-matches-local-build', local === remote, {local: local.slice(0, 16), installed: remote?.slice(0, 16)}, owned ? 'The device runs a different build. `rpmctl launch` installs the local one.' : 'The phone runs a different build than this checkout. Compare branch, working tree and installed version before any release (AGENTS.md).');
-      if (remotePath) {
+      if (installedBytes) {
         const pulled = path.join(WORK, 'installed-base.apk');
         fs.mkdirSync(WORK, {recursive: true});
-        fs.writeFileSync(pulled, adb(serial, ['exec-out', 'cat', remotePath], {binary: true}));
+        fs.writeFileSync(pulled, installedBytes);
         const [mine, theirs] = [signer(APK), signer(pulled)];
         fs.rmSync(pulled, {force: true});
         add('installed-signer-matches-local', !!mine && mine === theirs, {local: mine?.slice(0, 16) ?? 'apksigner unavailable', installed: theirs?.slice(0, 16) ?? 'apksigner unavailable'},
