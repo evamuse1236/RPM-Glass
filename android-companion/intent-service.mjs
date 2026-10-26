@@ -134,12 +134,14 @@ export function createIntentService({backend,native,model,changePlanner,undo,rea
    const kept=capture.keptNotes[sourceId];
    if(keep){
     if(kept!=null&&(data.entries??[]).some(e=>e.id===kept&&!e.archived))return {status:'kept',taskId:kept};
-    const id=editPlan(data,{type:'saveTask',fields:{title:decision.note.trim().slice(0,200)}},clock());
-    const entry=data.entries.find(e=>e.id===id);if(entry){entry.raw=capture.raw;entry.source='intent-v2-note';}
-    capture.keptNotes[sourceId]=id;return {status:'kept',taskId:id};
+    const title=decision.note.trim().slice(0,200),sameTitle=value=>value.trim().replace(/\s+/g,' ').toLowerCase();
+    const existing=(data.entries??[]).find(e=>!e.archived&&e.source==='intent-v2-note'&&sameTitle(e.title)===sameTitle(title));
+    const id=existing?.id??editPlan(data,{type:'saveTask',fields:{title}},clock());
+    const entry=data.entries.find(e=>e.id===id);if(entry&&!existing){entry.raw=capture.raw;entry.source='intent-v2-note';}
+    ensureIntent(data).captures[messageId].keptNotes[sourceId]=id;return {status:'kept',taskId:id};
    }
    if(kept!=null&&(data.entries??[]).some(e=>e.id===kept&&!e.archived))editPlan(data,{type:'archiveTask',id:kept},clock());
-   delete capture.keptNotes[sourceId];return {status:'unkept'};
+   delete ensureIntent(data).captures[messageId].keptNotes[sourceId];return {status:'unkept'};
   });
   return {...result,intent:await view({conversationId:ensureIntent(await repository.load()).captures[messageId]?.conversationId})};
  }

@@ -19,11 +19,11 @@ for(const raw of ['Re-plan my week around the exam','Sort my Inbox: place loose 
  test(`a hard request goes to Sonnet at high effort: ${raw}`,()=>{const r=route(raw);assert.equal(r.model,SONNET_MODEL);assert.equal(r.effort,'high');assert.ok(r.timeoutMs>=route('Buy milk').timeoutMs*3);});
 test('a reply to an open question or a focused draft gets careful Haiku; a re-plan still goes to Sonnet',()=>{
  const asked={sourceUnits:sourceUnits('That one only'),openQuestion:{id:'q-m1',choices:[]},activeDraft:null};
- assert.deepEqual([intentModelPolicy({input:asked}).model,intentModelPolicy({input:asked}).effort,intentModelPolicy({input:asked}).reason],[HAIKU_MODEL,'high','answer_to_question']);
+ assert.deepEqual([intentModelPolicy({input:asked}).model,intentModelPolicy({input:asked}).effort,intentModelPolicy({input:asked}).reason],[HAIKU_MODEL,'medium','answer_to_question']);
  const answering={sourceUnits:sourceUnits('8 pm'),activeDraft:{id:'d0',question:{prompt:'7 AM or 7 PM?'}}};
  assert.equal(intentModelPolicy({input:answering}).reason,'answer_to_question');
  const editing={sourceUnits:sourceUnits('make it 5 pm'),activeDraft:{id:'d0',question:null}};
- assert.deepEqual([intentModelPolicy({input:editing}).effort,intentModelPolicy({input:editing}).reason],['high','focused_draft']);
+ assert.deepEqual([intentModelPolicy({input:editing}).effort,intentModelPolicy({input:editing}).reason],['medium','focused_draft']);
  assert.equal(intentModelPolicy({input:{...asked,sourceUnits:sourceUnits('Re-plan my week')}}).model,SONNET_MODEL);
 });
 test('a repair attempt always uses Sonnet',()=>{const r=intentModelPolicy({input:input('Buy milk'),attempt:1});assert.equal(r.model,SONNET_MODEL);assert.equal(r.reason,'repair');});
@@ -33,16 +33,16 @@ test('long captures get a bounded Haiku reading without changing short routes or
  assert.deepEqual([short.model,short.effort,short.timeoutMs,short.maxTokens],[HAIKU_MODEL,'none',25000,4000]);
  assert.deepEqual([long.model,long.effort,long.timeoutMs,long.maxTokens,long.reason],[HAIKU_MODEL,'none',90000,16000,'long_capture']);
  const focused=intentModelPolicy({input:{...input('x'.repeat(1500)),activeDraft:{id:'d0'}}});
- assert.equal(focused.timeoutMs,90000);assert.equal(focused.maxTokens,16000);assert.equal(focused.reason,'focused_draft');assert.equal(focused.effort,'high');
- const answered=intentModelPolicy({input:{...input('x'.repeat(1500)),openQuestion:{id:'q0'}}});assert.equal(answered.effort,'high');assert.equal(answered.maxTokens,16000);
+ assert.equal(focused.timeoutMs,90000);assert.equal(focused.maxTokens,16000);assert.equal(focused.reason,'focused_draft');assert.equal(focused.effort,'medium');
+ const answered=intentModelPolicy({input:{...input('x'.repeat(1500)),openQuestion:{id:'q0'}}});assert.equal(answered.effort,'medium');assert.equal(answered.maxTokens,16000);
  assert.equal(route('Keep this '+ 'x'.repeat(1500)).effort,'none');
  assert.equal(route('Re-plan my week '+ 'x'.repeat(1500)).model,SONNET_MODEL);
  assert.equal(intentModelPolicy({input:input('x'.repeat(1500)),attempt:1}).model,SONNET_MODEL);
- assert.deepEqual([route('make it 5 pm').effort,route('make it 5 pm').timeoutMs],['high',35000]);
+ assert.deepEqual([route('make it 5 pm').effort,route('make it 5 pm').timeoutMs],['medium',35000]);
 });
 
 test('the versioned budgets reserve room for thinking and JSON on long captures',()=>{
- assert.equal(MODEL_POLICY_VERSION,'rpm-claude-v5');
+ assert.equal(MODEL_POLICY_VERSION,'rpm-claude-v6');
  assert.deepEqual(Object.fromEntries(Object.entries(MODEL_ROUTES).map(([name,r])=>[name,r.maxTokens])),{quick:4000,careful:6000,long:16000,longCareful:16000,hard:16000});
  assert.equal(route('x'.repeat(1500)).version,MODEL_POLICY_VERSION);
 });
@@ -127,4 +127,12 @@ test('local schedule context includes saved dates and computed endpoints, with n
  const d=seed();d.entries=[{id:41,kind:'plan',title:'Evening walk',planned:'2026-09-17T13:30:00.000Z',minutes:20},{id:42,kind:'plan',title:'Read',plannedDate:'2026-09-18'}];
  const c=buildContext(d,{raw:'What is planned?',conversationId:'c1',now:new Date('2026-09-17T04:00:00Z'),timezone:'Asia/Kolkata'});
  assert.equal(c.entities[0].startLocal,'2026-09-17 19:00');assert.equal(c.entities[0].endLocal,'2026-09-17 19:20');assert.equal(c.entities[1].savedLocalDate,'2026-09-18');assert.equal(c.entities[1].startLocal,null);assert.equal(c.scheduleCoverage.canAssertFreeTime,false);
+});
+
+test('conversational replies use medium effort while plans retain high effort',()=>{
+ const chat=intentModelPolicy({input:{...input('Keep that thought'),activeDraft:{id:'d0'}}});
+ assert.equal(chat.model,HAIKU_MODEL);assert.equal(chat.effort,'medium');
+ const reflect=intentModelPolicy({input:input('How should I think about feeling tired?'),output:turn('I feel tired',[],{mode:'reflect',draftMode:'none'})});
+ assert.equal(reflect.model,HAIKU_MODEL);assert.notEqual(reflect.effort,'high');
+ assert.equal(route('Plan my day tomorrow').effort,'high');
 });

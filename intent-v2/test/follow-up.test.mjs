@@ -12,7 +12,7 @@ function fixture(){const d=seed();d.entries=[{id:16,kind:'plan',title:'Finish on
 const bad=raw=>turn(raw,[operation([field('title','Finish one WID assessment',raw)],{entity:'project'})]);
 
 test('referential project follow-ups get careful Haiku reasoning, ordinary captures remain none',()=>{
- for(const raw of [follow,clarification,'Turn that idea into a project','Add the one we discussed earlier']){const r=intentModelPolicy({input:{sourceUnits:sourceUnits(raw)}});assert.equal(r.effort,'high',raw);assert.equal(r.model,HAIKU_MODEL,raw);}
+ for(const raw of [follow,clarification,'Turn that idea into a project','Add the one we discussed earlier']){const r=intentModelPolicy({input:{sourceUnits:sourceUnits(raw)}});assert.equal(r.effort,'medium',raw);assert.equal(r.model,HAIKU_MODEL,raw);}
  for(const raw of ['Buy milk','Read tomorrow','Call Alex at 3pm'])assert.equal(intentModelPolicy({input:{sourceUnits:sourceUnits(raw)}}).effort,'none',raw);
 });
 test('recent conversation survives a crowded retrieval budget and excludes future turns',()=>{

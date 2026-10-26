@@ -99,7 +99,7 @@ export function interpretTurn(turn,{units,messageId,visibleEntities,activeDraft}
   const names=new Set();
   const fields=op.fields.map(f=>{
    validateField(f,op.entity);if(names.has(f.name))throw new Error('Duplicate field');names.add(f.name);
-   if(f.op!=='unknown'&&f.origin==='stated'&&(!f.evidence?.trim()||!units.some(u=>u.text.includes(f.evidence))))throw new Error(`No exact current-source evidence for ${f.name}`);
+   if(f.name!=='time'&&f.op!=='unknown'&&f.origin==='stated'&&(!f.evidence?.trim()||!units.some(u=>u.text.includes(f.evidence))))throw new Error(`No exact current-source evidence for ${f.name}`);
    if(f.origin==='suggested'&&f.evidence!==null)throw new Error('Suggestions must not pretend to be quotations');
    return {...f,...(f.name==='title'&&f.op==='set'?{value:capitalizeTitle(f.value)}:{}),sourceMessageId:messageId,evidenceSourceId:f.evidence?(units.find(u=>u.id===op.sourceId&&u.text.includes(f.evidence))??units.find(u=>u.text.includes(f.evidence)))?.id??null:null};
   });

@@ -38,7 +38,7 @@ test('a rejected time keeps valid actions, names the unapplied time on the recei
  assert.equal((await s.backend.load()).entries.length,0);
 });
 
-test('a repair timeout retains the checked parts of the earlier response',async()=>{
+test('unsupported time saves the checked parts without attempting repair',async()=>{
  const raw='Read tomorrow at 9am and buy milk';let calls=0;
  const s=agentFor(async()=>{
   if(++calls===2)return new Promise(()=>{});
@@ -46,7 +46,7 @@ test('a repair timeout retains the checked parts of the earlier response',async(
  });
  s.service.harness.modelPolicy=()=>({timeoutMs:20});
  const result=await s.agent.capture({messageId:'repair-timeout',conversationId:await conversationOf(s.backend),text:raw});
- assert.equal(calls,2);assert.equal(result.applied.status,'applied');
+ assert.equal(calls,1);assert.equal(result.applied.status,'applied');
  const card=await latest(s.backend);
  assert.match(card.draft.applied.warning,/time was not applied/);
  assert.deepEqual((await s.backend.load()).entries.map(e=>e.title),['Read','Buy milk']);
@@ -75,3 +75,15 @@ test('a rejected amendment preserves the draft\'s earlier time and its provenanc
  assert.deepEqual(after,earlier);
 });
 
+
+for(const evidence of ['tomorrow',null,'at 6pm'])test(`shower with missing or mismatched clock evidence ${evidence} saves once without a repair and keeps words and Undo`,async()=>{
+ const raw='I want to have a shower tomorrow evening at 6:00 p.m.';let calls=0;
+ const s=agentFor(async()=>{calls++;return turn(raw,[operation([field('title','Have a shower','have a shower'),field('time','tomorrow at 6pm',evidence)])]);});
+ const conversationId=await conversationOf(s.backend);
+ const result=await s.agent.capture({messageId:'shower',conversationId,text:raw});
+ assert.equal(calls,1);assert.equal(result.applied.status,'applied');
+ const data=await s.backend.load();assert.equal(data.entries[0].title,'Have a shower');assert.equal(data.entries[0].planned,evidence===null?'2026-09-17T12:30:00.000Z':null);
+ assert.equal(data.entries[0].raw,raw);assert.equal(data.intentV2.captures.shower.raw,raw);
+ await s.agent.undo({draftId:result.draftId,conversationId,actionId:'undo-shower'});
+ assert.equal((await s.backend.load()).entries.length,0);
+});

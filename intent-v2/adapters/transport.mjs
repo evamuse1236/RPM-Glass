@@ -18,7 +18,7 @@ export function providerSchema(schema){
 }
 export function structuredRequest({model,prompt,input,maxTokens=3000,providerNames=[],effort}){
  if(typeof model!=='string'||!model.includes('/'))throw new Error('Configure and verify a supported OpenRouter model ID');
- if(effort!==undefined&&!['none','high'].includes(effort))throw new Error('Unsupported reasoning effort');
+ if(effort!==undefined&&!['none','medium','high'].includes(effort))throw new Error('Unsupported reasoning effort');
  const claude=isClaude(model),mercury=model==='inception/mercury-3';
  if(mercury)providerNames=[]; // Capture's Claude provider pins cannot serve Mercury.
  const reasoning=effort&&!(claude&&effort==='none')?{reasoning:{effort,exclude:true}}:{};

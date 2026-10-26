@@ -37,3 +37,10 @@ test('bar transparency snaps to 5% steps within 0 to 60, and 0 makes the bar sol
     assert.equal(root.dataset.barThin,String(kept>30));
   }
 });
+
+test('an unlinked calendar never warns that it could not be checked',async()=>{
+ const {calendarRisk}=await import('./planner-calendar.mjs');
+ for(const value of [{status:'unlinked'},{status:'unavailable',configured:false},{status:'permission_needed',configured:false},{status:'not_selected'}])assert.equal(calendarRisk(value,0,1000),null);
+ assert.match(calendarRisk({status:'stale',configured:true},0,1000),/Calendar could not be fully checked/);
+ assert.match(calendarRisk(null,0,1000),/Calendar could not be fully checked/);
+});

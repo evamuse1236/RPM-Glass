@@ -18,13 +18,18 @@ function clockProblem(component) {
   return null;
 }
 function rangeTime(result,base,text,now) {
-  const {start,end}=result,review=reason=>({...base,status:'review',reason});
+  const review=reason=>({...base,status:'review',reason});
+  if(!hasDay(result.start)){
+    const current=chrono.parse(result.text,now,{forwardDate:false})[0];
+    if(current?.end&&current.end.date()-current.start.date()===result.end.date()-result.start.date()&&current.start.date()<=now&&current.end.date()>now)result=current;
+  }
+  const {start,end}=result;
   if(!clock(start)||!clock(end))return review('Choose a single day and a start and end clock time.');
   // A shared AM/PM suffix is conventional (2–3pm). Two bare clocks are not.
   if(!start.isCertain('meridiem')&&!end.isCertain('meridiem')&&!(result.text.match(/\b\d{1,2}:\d{2}\b/g)?.length>=2))return review('AM or PM? Include it in the range, or use 24-hour times.');
   const problem=clockProblem(start)||clockProblem(end);if(problem)return review(problem);
-  const from=start.date(),to=end.date(),minutes=(to-from)/60000;
-  if(from<=now)return review('That start time is in the past. Choose a future start time.');
+  let from=start.date();const to=end.date(),minutes=(to-from)/60000;
+  if(to<=now)return review('That time range is in the past. Choose a future end time.');
   if(!Number.isInteger(minutes)||minutes<1||minutes>1440)return review('Choose an end after the start, with a duration of 1–1440 minutes.');
   // Chrono rolls a reversed clock to tomorrow. Accept normal overnight clocks,
   // but never silently interpret 3pm–2pm as a 23-hour task.
@@ -36,7 +41,8 @@ function rangeTime(result,base,text,now) {
   if(!hasDay(start))base.assumptions.push('No day specified; using the next occurrence.');
   if(start.isCertain('meridiem')!==end.isCertain('meridiem'))base.assumptions.push('Using the shared AM/PM marker for the range.');
   if(localDate(from)!==localDate(to))base.assumptions.push('The range ends on the following day.');
-  return {...base,status:'parsed',planned:from.toISOString(),plannedDate:localDate(from),end:to.toISOString(),minutes};
+  if(from<now){from=new Date(now);base.assumptions.push('This range is already running; starting now and keeping its stated end.');}
+  return {...base,status:'parsed',planned:from.toISOString(),plannedDate:localDate(from),end:to.toISOString(),minutes:Math.ceil((to-from)/60000)};
 }
 
 /** Small, explicit transliteration vocabulary; untouched source stays in the journal. */
@@ -96,12 +102,12 @@ export function interpretTime(raw, now = new Date(), options = {}) {
   if(localized.reason)return {...base,status:'review',reason:localized.reason,normalized:localized.text};
   // "for 20 minutes" is a duration, while "in 20 minutes" is a start time.
   const normalized=dayOfMonth(localized.text,now).replace(/\b(?:the\s+)?day after tomorrow\b/gi, "in 2 days").replace(/\b(?:the\s+)?day after tmrw\b/gi,"in 2 days").replace(/\b(?:tmrw|tmr)\b/gi,"tomorrow").replace(/\b(\d{1,2})\.(\d{2})\s*([ap]\.?m\.?)/gi,"$1:$2 $3");
-  const rangeText=normalizeSpokenTime(normalized);
+  const rangeText=normalizeSpokenTime(normalized).replace(/(\b\d{1,2}(?::\d{2})?\s*([ap]\.?m\.?)\s*(?:to|until|till|[–—-])\s*)(0[1-9]|1[0-2])([0-5]\d)\b(?!\s*[ap]\.?m)/gi,(_,prefix,period,hour,minute)=>`${prefix}${hour}:${minute} ${period}`);
   base.normalized=rangeText;
   // A window such as "this week", "next week" or "someday" names no day. Chrono would pick one, so keep it undated.
   if(/\b(?:this|next|coming)\s+(?:week|weekend|month)\b|\bsome\s?(?:day|time)\b|\bsoon\b|\blater\b|\beventually\b/i.test(rangeText)
     &&!/\b(?:today|tonight|tomorrow|(?:mon|tues|wednes|thurs|fri|satur|sun)day|\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?|\d{1,2}:\d{2}|\d{4}-\d{2}-\d{2})\b/i.test(rangeText))return base;
-  const text=rangeText.replace(/\bfor\s+(?:(?:\d+(?:\.\d+)?|one|two|three|ten|fifteen|twenty|thirty|forty[- ]five|sixty|half an?)\s+)(?:minutes?|mins?|m\b|hours?|hrs?|h\b)/gi,m=>' '.repeat(m.length));
+  const text=rangeText.replace(/\bnow\s+(\d+\s*(?:minutes?|mins?|hours?|hrs?))\b/gi,'now').replace(/\bfor\s+(?:(?:\d+(?:\.\d+)?|one|two|three|ten|fifteen|twenty|thirty|forty[- ]five|sixty|half an?)\s+)(?:minutes?|mins?|m\b|hours?|hrs?|h\b)/gi,m=>' '.repeat(m.length));
   let results=chrono.parse(text,now,{forwardDate:true});
   // Meal and bedtime windows mean today's routine unless a day was supplied.
   // Keep the window in the interpretation; it never supplies a clock or duration.
@@ -173,6 +179,7 @@ export function interpretTime(raw, now = new Date(), options = {}) {
     if(alternate>now)base.candidates.push({at:alternate.toISOString(),label:formatTime(alternate)});
   }
   if(!explicitDay)base.assumptions.push('No day specified; using the next occurrence.');
+  if(/^now$/i.test(source))return {...base,status:'parsed',planned:now.toISOString(),plannedDate:localDate(now),minutes:durationFromText(raw)};
   if(d<=now)return {...base,status:'review',reason:'That explicit time is in the past. I kept it in your original text instead of moving it silently.'};
   // Reject a clock silently rolled through a DST gap in the machine's local zone.
   const problem=!bareClock&&clockProblem(start);if(problem)return {...base,status:'review',reason:problem};

@@ -1,3 +1,5 @@
+import {completeExistingItems} from './follow-up.mjs';
+import {checkRemovalWords} from './removal.mjs';
 import {intentState} from './repository.mjs';
 import {buildContext,findEntity,contextEntity,draftEntity} from './context.mjs';
 import {activeStatus} from './draft-actions.mjs';
@@ -42,7 +44,8 @@ export function readKey(input){
 }
 
 export function readOutput(output,{input,units,messageId,visibleEntities,activeDraft}){
- const reminder=completeShortReminder(output,input),water=completeWaterLog(reminder,input),completed=orphanChoiceTurn(water,input);
- const completion=completed===output?null:completed!==water?'closed-choice':water!==reminder?'water-log':'short-reminder';
+ const existing=completeExistingItems(output,input),reminder=completeShortReminder(existing,input),water=completeWaterLog(reminder,input),completed=orphanChoiceTurn(water,input);
+ const completion=completed===output?null:completed!==water?'closed-choice':water!==reminder?'water-log':reminder!==existing?'short-reminder':'existing-item';
+ checkRemovalWords(completed,input);
  return {parsed:interpretTurn(completed,{units,messageId,visibleEntities,activeDraft}),completion};
 }

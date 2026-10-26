@@ -20,7 +20,7 @@ export function completeShortReminder(output,input){
   const subjectAction=subject.replace(/\s+after\s+work$/i,'');
   if(subject.length>100||/[.!?;,\n&+]|\b(?:and|also|plus|then|but|because|so|every|daily|weekly|tomorrow|today|at|in|after|before)\b/i.test(subjectAction))return output;
  }
- const relative=/^(?:in\s+\d+\s*(?:minutes?|mins?|hours?|hrs?|days?)?|\d+\s*(?:min(?:ute)?s?|hours?)\s+baad)$/i;
+ const relative=/^(?:in\s+(?:the\s+next\s+)?\d+\s*(?:minutes?|mins?|hours?|hrs?|days?)?|\d+\s*(?:minutes?|mins?|hours?|hrs?)|\d+\s*(?:min(?:ute)?s?|hours?)\s+baad)$/i;
  const clock=/^at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?$/i;
  const day=/^(?:today|tomorrow)(?:\s+(?:morning|afternoon|evening|night))?(?:\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)?$/i;
  if(!relative.test(time)&&!clock.test(time)&&!day.test(time))return output;

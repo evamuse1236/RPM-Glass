@@ -33,3 +33,11 @@ export function removalOperations(targets,{sourceId}){
  }
  return ops;
 }
+
+export function checkRemovalWords(turn,input){
+ for(const op of turn.operations??[]){
+  if(op.kind!=='archive'||input.openQuestion?.action==='remove')continue;
+  const text=input.sourceUnits.find(u=>u.id===op.sourceId)?.text??'';
+  if(!/\b(?:delete|remove|archive|trash|cancel|discard|drop|forget|set aside)\b/i.test(text)||/\b(?:not|never|don't|do not)\b/i.test(text))throw new Error('Archive needs an explicit request to remove the item. Keep the requested action instead.');
+ }
+}

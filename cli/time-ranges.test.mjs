@@ -36,3 +36,29 @@ test('"before" a day lands on the day before it, "by" on the day itself',()=>{
  assert.equal(interpretTime('by the 30th',now).plannedDate,'2026-09-30');
  assert.equal(interpretTime('before tomorrow',now).plannedDate,'2026-09-27');
 });
+
+test('a running meeting starts now and keeps its stated end',()=>{
+ const at=new Date(2026,9,26,10,13),p=interpretTime('Meeting from 10am to 11am',at);
+ assert.equal(p.status,'parsed');assert.equal(p.planned,at.toISOString());
+ assert.equal(p.end,new Date(2026,9,26,11).toISOString());assert.equal(p.minutes,47);
+ assert.ok(p.assumptions.some(a=>/already running/i.test(a)));
+});
+for(const text of ['Exercise now 30 min','Exercise now for 30 min','now'])test(`now starts immediately: ${text}`,()=>{
+ const at=new Date(2026,9,26,10,13,27),p=interpretTime(text,at);
+ assert.equal(p.status,'parsed');assert.equal(p.planned,at.toISOString());
+ if(text!=='now')assert.equal(p.minutes,30);
+});
+
+test('a four-digit range end shares the start meridiem',()=>{
+ const at=new Date(2026,9,25,23),p=interpretTime('Task from 12 am to 1210',at);
+ assert.equal(p.status,'parsed');assert.equal(p.minutes,10);
+ assert.equal(p.planned,new Date(2026,9,26).toISOString());
+ assert.equal(p.end,new Date(2026,9,26,0,10).toISOString());
+ const pm=interpretTime('Task tomorrow from 12 pm to 1210',at);
+ assert.equal(pm.minutes,10);assert.equal(new Date(pm.end).getHours(),12);
+});
+
+test('a running range captured between minute ticks keeps a saveable whole-minute duration',()=>{
+ const at=new Date(2026,9,26,10,13,27),p=interpretTime('Meeting today from 10am to 11am',at);
+ assert.equal(p.planned,at.toISOString());assert.equal(p.minutes,47);
+});

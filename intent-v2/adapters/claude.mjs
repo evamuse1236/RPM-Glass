@@ -5,9 +5,9 @@ export const CLAUDE_API_MODELS=Object.freeze({'anthropic/claude-haiku-5.5':'clau
 const NO_THINKING=Object.freeze({'claude-haiku-5-5':'disabled','claude-sonnet-5-5':'between_tools'});
 export function claudeRequest({model,prompt,input,schema,maxTokens=3000,effort}){
  const id=CLAUDE_API_MODELS[model];if(!id)throw new Error('No Claude API model for '+model);
- if(effort!==undefined&&!['none','high'].includes(effort))throw new Error('Unsupported reasoning effort');
+ if(effort!==undefined&&!['none','medium','high'].includes(effort))throw new Error('Unsupported reasoning effort');
  return {model:id,max_tokens:maxTokens,system:[{type:'text',text:prompt,cache_control:{type:'ephemeral'}}],messages:[{role:'user',content:JSON.stringify(input)}],
-  output_config:{format:{type:'json_schema',schema},...(effort==='high'?{effort:'high'}:{})},
+  output_config:{format:{type:'json_schema',schema},...(effort&&effort!=='none'?{effort}:{})},
   ...(effort==='none'?{thinking:{type:NO_THINKING[id]}}:{})};
 }
 const sameModel=(answered,requested)=>answered===requested||typeof answered==='string'&&answered.startsWith(requested+'-');

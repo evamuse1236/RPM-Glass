@@ -99,3 +99,11 @@ test('the capture trace records which service answered and why it fell back, and
  assert.equal(traced.service,'openrouter');assert.equal(traced.serviceFallback,'anthropic 503');
  assert.equal(/key|authorization|sk-/i.test(JSON.stringify(traced)),false);
 });
+
+for(const missingClaude of [false,true])test(`medium chat effort reaches the provider: OpenRouter=${missingClaude}`,async()=>{
+ const p=phone(missingClaude?{anthropic:'missing'}:{});
+ const r=intentModelPolicy({input:{...input('Keep that thought'),activeDraft:{id:'d0'}}});
+ await transport(p.native)(input('Keep that thought'),{route:r});
+ const body=p.models().at(-1).body;
+ assert.equal(missingClaude?body.reasoning.effort:body.output_config.effort,'medium');
+});

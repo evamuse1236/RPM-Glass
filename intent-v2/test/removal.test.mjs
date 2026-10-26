@@ -67,3 +67,17 @@ test('a draft that closed before the change applies is not set aside twice',asyn
  await s.harness.act(actionFor(await getDraft(s.repository,'draft-m0'),'dismiss'),{actionId:'park'});
  await assert.rejects(s.harness.act(actionFor(await getDraft(s.repository,r.draftId)),{actionId:'commit-1'}),/TARGET_CHANGED|already closed/);
 });
+
+test('a task-like request cannot archive a saved task',async()=>{
+ const raw='Answer Kris and Aria',s=setup(async()=>removal(raw,[archive('task','41')]),{seed:withAlarm()});
+ const result=await s.harness.capture({messageId:'answer',conversationId:'c1',text:raw});
+ assert.equal(result.draftId??null,null);
+ const data=await s.repository.load();assert.equal(data.entries[0].archived,false);
+ assert.equal(data.intentV2.captures.answer.raw,raw);
+});
+for(const reply of ['Marked done.','Saved.','Task completed.','Removed.'])test(`no operations cannot claim ${reply}`,async()=>{
+ const raw='Done ',s=setup(async()=>turn(raw,[],{draftMode:'none',reply}));
+ await s.harness.capture({messageId:'done',conversationId:'c1',text:raw});
+ const data=await s.repository.load();assert.equal(data.intentV2.captures.done.reply,'Nothing changed.');
+ assert.equal(data.intentV2.captures.done.raw,raw);assert.equal(data.entries.length,0);
+});

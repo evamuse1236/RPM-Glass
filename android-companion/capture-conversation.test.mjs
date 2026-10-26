@@ -45,7 +45,7 @@ test('the 19 Oct conversation: focus survives, "Both" needs no model, one change
  await send(p,'m2','That one only');
  assert.equal(p.inputs[2].activeDraft.id,'draft-m0','turn 2 carries the cooking draft as focus');
  assert.equal(p.inputs[2].openQuestion.id,'q-m1');
- assert.equal(p.inputs[2].route.reason,'answer_to_question');assert.equal(p.inputs[2].route.effort,'high');
+ assert.equal(p.inputs[2].route.reason,'answer_to_question');assert.equal(p.inputs[2].route.effort,'medium');
  assert.deepEqual(p.inputs[2].openQuestion.choices.map(c=>c.label),['The cooking draft','Dinner with Asha','Both']);
  assert.equal(p.inputs.length,3);
  const both=await send(p,'m3','Both');

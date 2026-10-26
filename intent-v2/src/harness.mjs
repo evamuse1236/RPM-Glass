@@ -101,6 +101,10 @@ export class IntentHarness {
      break;
     }catch(error){
      run.error=error.code??'INVALID_OUTPUT';
+     if(error.code==='UNSUPPORTED_TIME'){
+      if(held){parsed=held;run.keptValidParts=true;break;}
+      throw error;
+     }
      if(fallback){parsed=fallback;run.fellBack=true;break;}
      if(controller.signal.aborted||attempt===this.maxRepairCalls||error.code==='TIMEOUT'||error.code==='TRANSPORT_ERROR'){
       if(held){parsed=held;run.keptValidParts=true;break;}
@@ -121,6 +125,7 @@ export class IntentHarness {
    const result=await this.repository.transact(`interpret:${messageId}`,{messageId},current=>{
     conversation(current,capture.conversationId);const state=intentState(current),saved=state.captures[messageId];
     if(saved.status==='interpreted')return {messageId,draftId:saved.draftId??null,status:'interpreted'};
+    if(!parsed.operations.length&&!parsed.discarded?.length&&/\b(?:marked (?:done|complete)|saved|completed|removed|deleted|archived)\b/i.test(parsed.reply))parsed.reply='Nothing changed.';
     let draftId=null;
     if(!parsed.clarification&&parsed.discarded?.length)draftId=stageProposalRemoval(state,{data,capture,activeDraft,parsed,now:this.clock().toISOString(),refreshSchedule:this.refreshSchedule});
     else if(!parsed.clarification&&parsed.draftMode!=='none'&&parsed.operations.length){

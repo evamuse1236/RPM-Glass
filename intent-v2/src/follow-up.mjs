@@ -1,3 +1,4 @@
+import {interpretTime,statedDays,durationFromText} from '../../cli/interpret.mjs';
 import {buildContext} from './context.mjs';
 
 /** Effort hint only: this never grants permission to change a saved record. */
@@ -63,4 +64,27 @@ export function draftFollowUpProblem(data,draft){
   const issue=followUpProblem(draft.operations,{messageId,sourceUnits:[{text:c.raw}],context});if(blocksFollowUp(issue))return issue;if(issue)notice=issue;
  }
  return notice;
+}
+
+export function completeExistingItems(output,input){
+ if(!output?.decisions?.some(d=>d.disposition==='existing'))return output;
+ const turn=structuredClone(output),now=new Date(input.context.now);
+ for(const decision of turn.decisions){
+  if(decision.disposition!=='existing')continue;
+  const unit=input.sourceUnits.find(u=>u.id===decision.sourceId),raw=unit.text;
+  const title=decision.note?.replace(/^Already (?:on your list|done):\s*/i,'').trim();
+  const time=interpretTime(raw,now),days=statedDays(raw,now),minutes=durationFromText(raw);
+  const match=input.context.entities.find(e=>e.entity==='task'&&normalize(e.title)===normalize(title)&&(!days.length||days.includes(e.savedLocalDate))&&(!time.planned||e.planned===time.planned)&&(minutes===null||e.minutes===minutes));
+  if(match)continue;
+  decision.note=null;
+  if(/^(?:done|finished|complete|sent it)[.!\s]*$/i.test(raw)){decision.disposition='reflection';turn.reply='Nothing changed.';continue;}
+  decision.disposition='action';turn.mode='capture';turn.draftMode='new';turn.reply='';
+  const field=(name,value,evidence)=>({name,op:'set',value,origin:'stated',evidence});
+  const name=title&&normalize(raw).startsWith(normalize(title))?raw.slice(0,title.length):raw.trim().slice(0,200);
+  const fields=[field('title',name,name)];
+  if(['parsed','date_only'].includes(time.status))fields.push(field('time',raw,raw));
+  if(minutes!==null)fields.push(field('minutes',minutes,raw));
+  turn.operations.push({opId:`existing-${decision.sourceId}`,sourceId:decision.sourceId,kind:'create',entity:'task',targetId:null,fields});
+ }
+ return turn;
 }
