@@ -36,7 +36,7 @@ test('the span covers exactly the words read, so the sheet can highlight them', 
 });
 
 test('numbers that are not a clock are not read as one', () => {
-  for (const words of ['buy 8 eggs', 'room 13pm', 'chapter 8', 'call at 8', 'reply to 3pmail']) {
+  for (const words of ['buy 8 eggs', 'room 13pm', 'chapter 8', 'call at 8', 'reply to 3pmail', 'march on the capital']) {
     assert.equal(read(words), null, words);
   }
 });
