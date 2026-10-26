@@ -150,6 +150,8 @@ export function validateIntentTimes(parsed,{input,sourceOperations=parsed.operat
  for(const op of parsed.operations)for(const field of op.fields){
   if(field.name!=='time'||field.op!=='set'||field.origin!=='stated'||(field.sourceMessageId&&field.sourceMessageId!==input.messageId))continue;
   if(!field.evidence?.trim()||!input.sourceUnits.some(u=>u.text.includes(field.evidence)))throw Object.assign(new Error('The time has no exact source evidence.'),{code:'UNSUPPORTED_TIME'});
+  const source=input.sourceUnits.find(u=>u.id===op.sourceId)?.text??field.evidence;
+  if(/\bnow\b/i.test(field.value)&&interpretTime(field.value,now).planned===now.toISOString()&&interpretTime(source,now).planned!==now.toISOString())throw Object.assign(new Error('These words do not ask to start now.'),{code:'UNSUPPORTED_TIME'});
   const alert=op.fields.some(f=>f.name==='alert'&&f.op==='set'&&['reminder','alarm'].includes(f.value))||input.context.entities.some(e=>e.entity==='task'&&e.id===op.targetId&&['reminder','alarm'].includes(e.alert));
   const proof=alert?normalizeReminderTime(field.evidence??''):field.evidence??'';
   // An unresolved local parse already blocks Save without another model call.

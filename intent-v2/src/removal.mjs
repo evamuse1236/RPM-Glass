@@ -37,7 +37,8 @@ export function removalOperations(targets,{sourceId}){
 export function checkRemovalWords(turn,input){
  for(const op of turn.operations??[]){
   if(op.kind!=='archive'||input.openQuestion?.action==='remove')continue;
-  const text=input.sourceUnits.find(u=>u.id===op.sourceId)?.text??'';
-  if(!/\b(?:delete|remove|archive|trash|cancel|discard|drop|forget|set aside)\b/i.test(text)||/\b(?:not|never|don't|do not)\b/i.test(text))throw new Error('Archive needs an explicit request to remove the item. Keep the requested action instead.');
+  const text=input.sourceUnits.map(u=>u.text).join(' ');
+  if(/\b(?:delete|remove|archive|trash|cancel|discard|drop|forget|set aside|get rid of|scrap|clear|no longer needed)\b/i.test(text)||op.entity==='draft'&&/\b(?:never mind|not now)\b/i.test(text))continue;
+  const error=new Error('Archive needs a request to remove the item. Your original words are saved.');error.code='NO_REMOVAL_INTENT';throw error;
  }
 }

@@ -102,12 +102,16 @@ export function interpretTime(raw, now = new Date(), options = {}) {
   if(localized.reason)return {...base,status:'review',reason:localized.reason,normalized:localized.text};
   // "for 20 minutes" is a duration, while "in 20 minutes" is a start time.
   const normalized=dayOfMonth(localized.text,now).replace(/\b(?:the\s+)?day after tomorrow\b/gi, "in 2 days").replace(/\b(?:the\s+)?day after tmrw\b/gi,"in 2 days").replace(/\b(?:tmrw|tmr)\b/gi,"tomorrow").replace(/\b(\d{1,2})\.(\d{2})\s*([ap]\.?m\.?)/gi,"$1:$2 $3");
-  const rangeText=normalizeSpokenTime(normalized).replace(/(\b\d{1,2}(?::\d{2})?\s*([ap]\.?m\.?)\s*(?:to|until|till|[–—-])\s*)(0[1-9]|1[0-2])([0-5]\d)\b(?!\s*[ap]\.?m)/gi,(_,prefix,period,hour,minute)=>`${prefix}${hour}:${minute} ${period}`);
+  const rangeText=normalizeSpokenTime(normalized).replace(/(\b(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)\s*(?:to|until|till|[–—-])\s*)(0[1-9]|1[0-2])([0-5]\d)\b(?!\s*[ap]\.?m)/gi,(_,prefix,startHour,startMinute,period,hour,minute)=>{
+    const start=(Number(startHour)%12+(/^p/i.test(period)?12:0))*60+Number(startMinute??0),end=Number(hour)%12*60+Number(minute);
+    const am=(end-start+1440)%1440||1440,pm=(end+720-start+1440)%1440||1440;
+    return `${prefix}${hour}:${minute} ${am<pm?'am':'pm'}`;
+  });
   base.normalized=rangeText;
   // A window such as "this week", "next week" or "someday" names no day. Chrono would pick one, so keep it undated.
   if(/\b(?:this|next|coming)\s+(?:week|weekend|month)\b|\bsome\s?(?:day|time)\b|\bsoon\b|\blater\b|\beventually\b/i.test(rangeText)
     &&!/\b(?:today|tonight|tomorrow|(?:mon|tues|wednes|thurs|fri|satur|sun)day|\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?|\d{1,2}:\d{2}|\d{4}-\d{2}-\d{2})\b/i.test(rangeText))return base;
-  const text=rangeText.replace(/\bnow\s+(\d+\s*(?:minutes?|mins?|hours?|hrs?))\b/gi,'now').replace(/\bfor\s+(?:(?:\d+(?:\.\d+)?|one|two|three|ten|fifteen|twenty|thirty|forty[- ]five|sixty|half an?)\s+)(?:minutes?|mins?|m\b|hours?|hrs?|h\b)/gi,m=>' '.repeat(m.length));
+  const text=rangeText.replace(/\b(?:for now|from now on|not now|until now)\b/gi,m=>' '.repeat(m.length)).replace(/\bnow\s+(\d+\s*(?:minutes?|mins?|hours?|hrs?))\b/gi,'now').replace(/\bfor\s+(?:(?:\d+(?:\.\d+)?|one|two|three|ten|fifteen|twenty|thirty|forty[- ]five|sixty|half an?)\s+)(?:minutes?|mins?|m\b|hours?|hrs?|h\b)/gi,m=>' '.repeat(m.length));
   let results=chrono.parse(text,now,{forwardDate:true});
   // Meal and bedtime windows mean today's routine unless a day was supplied.
   // Keep the window in the interpretation; it never supplies a clock or duration.
