@@ -157,3 +157,52 @@ test('server tombstones and conflict rows converge without projecting local-only
   assert.deepEqual(projectRecords(p.data), server.project());
   assert.deepEqual(localChanges(p.data), []);
 });
+
+const offlineThenEdit = async (phoneAt, websiteAt, edit = data => {data.entries[0].title = 'Phone title';}) => {
+  const p = phone(), server = fakeServer(); add(p, 'Original'); await run(p, server);
+  add(p, 'Frozen with the outbox', day(1));
+  await assert.rejects(run(p, server, {push: async () => { throw new Error('offline'); }}));
+  assert.deepEqual(p.data.sync.outbox.changes.map(change => change.key), ['task:2']);
+  p.edit(edit, phoneAt);
+  server.write('task:1', {...server.rows.get('task:1').value, title: 'Website title'}, websiteAt);
+  await run(p, server); await run(p, server);
+  const conflicts = [...server.rows].filter(([key]) => key.startsWith('conflict:')).map(([, row]) => row.value);
+  return {p, server, conflicts};
+};
+
+test('an edit made after an offline freeze still loses to a newer website edit, kept in notes', async () => {
+  const {p, server, conflicts} = await offlineThenEdit(day(2), day(3));
+  assert.equal(task(p, 1).title, 'Website title');
+  assert.match(task(p, 1).notes, /Other version from your phone: 'Phone title'/);
+  assert.equal(conflicts.length, 1);
+  assert.equal(conflicts[0].lostFrom, 'phone');
+  assert.deepEqual(projectRecords(p.data), server.project());
+  assert.deepEqual(localChanges(p.data), []);
+});
+
+test('an edit made after an offline freeze wins over an older website edit, which is kept in notes', async () => {
+  const {p, server, conflicts} = await offlineThenEdit(day(3), day(2));
+  assert.equal(task(p, 1).title, 'Phone title');
+  assert.match(task(p, 1).notes, /Other version from your website: 'Website title'/);
+  assert.equal(conflicts.length, 1);
+  assert.deepEqual(projectRecords(p.data), server.project());
+});
+
+test('a delete made after an offline freeze records the website edit it removes', async () => {
+  const {p, server, conflicts} = await offlineThenEdit(day(2), day(3), data => {data.entries = [];});
+  assert.equal(task(p, 1), undefined);
+  assert.equal(conflicts.length, 1);
+  assert.equal(conflicts[0].lost.title, 'Website title');
+  assert.deepEqual(projectRecords(p.data), server.project());
+});
+
+test('an idle sync with nothing new on either side does not write the store', async () => {
+  const p = phone(), server = fakeServer(); add(p, 'Original'); await run(p, server);
+  const saves = p.saves.length, pushes = server.pushes.length;
+  await run(p, server);
+  assert.equal(p.saves.length, saves);
+  assert.equal(server.pushes.length, pushes);
+  server.write('task:1', {...server.rows.get('task:1').value, title: 'Website title'}, day(3));
+  await run(p, server);
+  assert.equal(task(p, 1).title, 'Website title');
+});

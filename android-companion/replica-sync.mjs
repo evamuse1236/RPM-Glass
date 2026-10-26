@@ -3,11 +3,11 @@ import {validatePlanner} from './planner-validation.mjs';
 import {rebaseUndo} from './undo-rebase.mjs';
 import {initializeTaskIds, PHONE_TASK_ID_CEILING} from './task-ids.mjs';
 import {changedGroups, copyGroups, equal, knownRecord} from './replica-groups.mjs';
+import {changedUnderneath} from './save-retry.mjs';
 
 const dependency = key => ({area: 0, goal: 1, project: 2, block: 3}[key.split(':')[0]] ?? 4);
 const ordered = keys => [...keys].sort((a, b) => dependency(a) - dependency(b) || a.localeCompare(b));
 const valueOf = (records, key) => records.get(key) ?? null;
-const conflict = error => error.code === 'VERSION_CONFLICT' || /Saved (?:context|data) changed|Version conflict/i.test(error.message ?? ''); // rules-allow raw-error-text: classify CAS failures only
 
 export function localChanges(store) {
   const records = projectRecords(store), sync = store.sync ?? {}, base = sync.base ?? {}, changes = [];
@@ -56,6 +56,16 @@ function mergeLive(key, sent, server, live) {
   return copyGroups(key, live, server, changedGroups(key, live, server).filter(group => !moved.has(group)));
 }
 
+// A live edit made after the outbox froze never reached the server. Where the server moved the same group meanwhile,
+// keep the frozen value as that record's base (rev 0 matches no server rev), so the server merges both by the newer-wins rule.
+function frozenAncestor(key, sent, server, live) {
+  if (equal(live, sent) || equal(server, sent) || equal(live, server)) return undefined;
+  if (live === null || server === null || sent === null) return sent;
+  const serverMoved = changedGroups(key, sent, server), differ = changedGroups(key, live, server);
+  const contested = changedGroups(key, sent, live).filter(group => serverMoved.includes(group) && differ.includes(group));
+  return contested.length ? copyGroups(key, server, sent, contested) : undefined;
+}
+
 function freeze(store, initial) {
   const next = structuredClone(store);
   const sync = next.sync = {cursor: 0, base: {}, stamps: {}, outbox: null, seq: 0, remoteActivity: {}, ...next.sync};
@@ -87,12 +97,14 @@ function apply(store, outbox, rows, cursor) {
   const next = structuredClone(store), sync = next.sync, records = projectRecords(store);
   const server = new Map(Object.entries(sync.base).map(([key, row]) => [key, {key, ...row}]));
   for (const row of rows) if (!server.has(row.key) || server.get(row.key).rev <= row.rev) server.set(row.key, row);
-  const applied = [];
+  const applied = [], ancestors = new Map();
   for (const key of ordered(server.keys())) {
     const row = server.get(key);
     if (!knownRecord(key)) continue;
     const sent = outbox.sent[key] ?? null, live = valueOf(records, key);
-    const value = sync.restoredAt && live === null ? row.value : mergeLive(key, sent, row.value, live);
+    const restoring = sync.restoredAt && live === null, value = restoring ? row.value : mergeLive(key, sent, row.value, live);
+    const ancestor = restoring ? undefined : frozenAncestor(key, sent, row.value, live);
+    if (ancestor !== undefined) ancestors.set(key, {rev: 0, value: structuredClone(ancestor)});
     applyRecord(next, key, value);
     if (key.startsWith('task:') && row.value?.id < PHONE_TASK_ID_CEILING)
       sync.nextTaskId = Math.max(sync.nextTaskId, row.value.id + 1);
@@ -100,7 +112,7 @@ function apply(store, outbox, rows, cursor) {
   }
   rebaseUndo(next, applied);
   validatePlanner(next);
-  sync.base = Object.fromEntries([...server].map(([key, {rev, value}]) => [key, {rev, value: structuredClone(value)}]));
+  sync.base = Object.fromEntries([...server].map(([key, {rev, value}]) => [key, ancestors.get(key) ?? {rev, value: structuredClone(value)}]));
   sync.cursor = cursor; sync.outbox = null;
   // Retain edit times only where live groups still differ from the new server base.
   const remaining = localChanges(next), stamps = {};
@@ -118,6 +130,11 @@ export async function syncReplica({load, save, push, pull, now = () => new Date(
   };
   let store = await load(), initial;
   if (!store.sync?.base) initial = await pullAll(pull, 0);
+  else if (!store.sync.outbox && !store.sync.restoredAt && !localChanges(store).length) {
+    // Idle syncs write nothing, so they cannot make a planner save meet a changed version.
+    const news = await pullAll(pull, store.sync.cursor);
+    if (!news.rows.length && news.seededAt != null) return store;
+  }
   for (;;) {
     if (store.sync?.outbox) break;
     const next = freeze(store, initial);
@@ -127,7 +144,7 @@ export async function syncReplica({load, save, push, pull, now = () => new Date(
       for (const change of next.sync.outbox.changes) for (const group of Object.keys(change.stamps)) change.stamps[group] ??= next.syncSavedAt;
     }
     try { await saveNext(store, next); store = next; break; }
-    catch (error) { if (!conflict(error)) throw error; store = await load(); }
+    catch (error) { if (!changedUnderneath(error)) throw error; store = await load(); }
   }
   const outbox = structuredClone(store.sync.outbox), received = [];
   for (const body of partsOf(outbox)) {
@@ -141,6 +158,6 @@ export async function syncReplica({load, save, push, pull, now = () => new Date(
     if (store.sync.outbox?.seq !== outbox.seq) return store;
     const next = apply(store, outbox, received, pulled.cursor);
     try { await saveNext(store, next); return next; }
-    catch (error) { if (!conflict(error)) throw error; }
+    catch (error) { if (!changedUnderneath(error)) throw error; }
   }
 }

@@ -85,5 +85,6 @@ export const pull=internalMutation({args:{tokenHash:v.string(),after:v.number(),
     if(rows.length===args.limit || bytes+size>4000000){hasMore=true;break;}
     rows.push(value);bytes+=size;
   }
+  await ctx.db.patch(auth.device._id,{lastSyncAt:Date.now()});
   return {rows,cursor:rows.at(-1)?.rev??args.after,hasMore,seededAt:(await ctx.db.get(auth.account))!.seededAt??null};
 }});

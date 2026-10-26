@@ -1,4 +1,5 @@
 import {coalesceRefresh} from './surface-refresh.mjs';
+import {retryOnChange} from './save-retry.mjs';
 import {installDiagnostics} from './diagnostics.mjs';
 import {applyClarityPreferences} from './planner-clarity.mjs';
 import {describeLink,blockChoices,dayLoad,editChoices} from './capture-context.mjs';
@@ -116,7 +117,7 @@ if(isPlanner){
   const {mountPlanner}=await import('./planner.mjs');
   const withSort=async run=>{if(busy)throw new Error('Wait for the current save.');busy=true;try{return await run();}finally{busy=false;}};
   const sortPreview={create:(input,options)=>withSort(()=>intentService.sort.create(input,options)),accept:(id,options)=>withSort(()=>intentService.sort.accept(id,options)),dismiss:(id,options)=>withSort(()=>intentService.sort.dismiss(id,options)),get:id=>intentService.sort.get(id),list:options=>intentService.sort.list(options)};
-  const ui=mountPlanner({getData:()=>data,getPhone:()=>phone,native,sortPreview,commit:async op=>{if(busy)throw new Error('Wait for the current save.');busy=true;const before=data;try{data=structuredClone(before);const id=editPlan(data,op);await save();if(/Task$/.test(op?.type??'')&&op.id!=null)traces.handEdit(op.id,{what:op.type});return id;}catch(e){data=before;throw e;}finally{busy=false;}}});
+  const ui=mountPlanner({getData:()=>data,getPhone:()=>phone,native,sortPreview,commit:async op=>{if(busy)throw new Error('Wait for the current save.');busy=true;try{return await retryOnChange(async()=>{const before=data;try{data=structuredClone(before);const id=editPlan(data,op);await save();if(/Task$/.test(op?.type??'')&&op.id!=null)traces.handEdit(op.id,{what:op.type});return id;}catch(e){data=before;throw e;}},async()=>{const latest=await native('load');phone=latest.phone;if(latest.data)data=latest.data;});}finally{busy=false;}}});
   if(location.hash==='#ideas')ui.goalIdeas();
   else if(location.hash.startsWith('#open='))try{ui.openView(JSON.parse(decodeURIComponent(location.hash.slice(6))));}catch{}
 }else {

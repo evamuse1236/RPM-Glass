@@ -22,7 +22,7 @@ test('a crash after push resends the frozen seq and payload without duplicate ef
 });
 
 test('a crash between pull pages applies nothing and retains the old cursor and outbox', async () => {
-  const p = phone(), server = fakeServer(); add(p); await run(p, server);
+  const p = phone(), server = fakeServer(); add(p); await run(p, server); add(p);
   const before = projectRecords(p.data), cursor = p.data.sync.cursor;
   for (let n = 0; n < 505; n++) server.write(`task:${1000000000 + n}`, {id: 1000000000 + n, title: `Remote ${n}`, kind: 'plan'});
   let pages = 0;
