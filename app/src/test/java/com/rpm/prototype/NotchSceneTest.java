@@ -262,6 +262,7 @@ public class NotchSceneTest {
         assertEquals(NotchHabits.Habit.MEAL, due.topHabit);
         assertEquals(Arrays.asList(NotchScene.Control.LOG_MEAL, NotchScene.Control.LATER), due.habitControls());
         assertEquals("Dinner not logged", due.habitLine());
+        assertTrue("a swipe on the pill can send a meal-only nudge away", due.canSnooze());
         Map<String, Long> snoozes = new HashMap<>();
         snoozes.put(NotchScene.mealSnooze("dinner"), at("2026-10-18T20:45"));
         assertNull(scene(data, "2026-10-18T20:30", snoozes).topHabit);

@@ -199,7 +199,7 @@ final class NotchScene {
     }
 
     boolean canSnooze() {
-        return waterDue() || habit != null;
+        return topHabit != null || habit != null;
     }
 
     /** The task island's one control: Done, left out (never greyed) for a calendar event. */

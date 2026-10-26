@@ -213,7 +213,8 @@ const CLOCK = String.raw`(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b`;
 const DAY = String.raw`today|tonight|tomorrow|tmrw?|(?:next\s+)?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)`;
 const SHORT_DAY = String.raw`(?:next\s+)?(?:sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)(?=\s+(?:at\s+)?\d{1,2}(?::\d{2})?\s*[ap]m\b)`;
 const DAY_FIRST = new RegExp(String.raw`\b(${DAY}|${SHORT_DAY})\b(?:\s+(?:at\s+)?${CLOCK})?`, 'i');
-const CLOCK_FIRST = new RegExp(String.raw`(?:\bat\s+)?\b${CLOCK}(?:\s+(${DAY})\b)?`, 'i');
+const TAIL_DAY = String.raw`${DAY}|(?:next\s+)?(?:sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)`;
+const CLOCK_FIRST = new RegExp(String.raw`(?:\bat\s+)?\b${CLOCK}(?:\s+(?:on\s+|this\s+)?(${TAIL_DAY})\b)?`, 'i');
 const pad2 = n => String(n).padStart(2, '0');
 
 const dayOf = (word, today) => {
@@ -242,7 +243,8 @@ export function parseWhen(text, today = localDay(), now = new Date()) {
     found = clockFirst;
     time = clock;
     const passed = today === localDay(now) && time < `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
-    day = found[4] ? dayOf(found[4], today) : shiftDay(today, passed ? 1 : 0);
+    const named = found[4] ?? dayFirst?.[1];
+    day = named ? dayOf(named, today) : shiftDay(today, passed ? 1 : 0);
   } else if (dayFirst) {
     found = dayFirst;
     day = dayOf(found[1], today);

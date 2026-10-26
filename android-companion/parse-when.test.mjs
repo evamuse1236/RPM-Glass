@@ -29,6 +29,15 @@ test('a time may come before or after the day', () => {
   assert.deepEqual(when('report 5pm friday'), {day: '2026-10-30', time: '17:00', match: '5pm friday'});
 });
 
+test('a day joined to the time by on or this, or a short day name, is still read', () => {
+  assert.deepEqual(when('Dinner 8pm on Friday'), {day: '2026-10-30', time: '20:00', match: '8pm on Friday'});
+  assert.deepEqual(when('Call 9am this saturday'), {day: '2026-10-31', time: '09:00', match: '9am this saturday'});
+  assert.deepEqual(when('pay rent 5pm sat'), {day: '2026-10-31', time: '17:00', match: '5pm sat'});
+  assert.deepEqual(when('standup 9am next mon'), {day: '2026-11-02', time: '09:00', match: '9am next mon'});
+  assert.deepEqual(when('lunch at 1pm with sam on friday'), {day: '2026-10-30', time: '13:00', match: 'at 1pm'},
+    'a day further away still sets the day');
+});
+
 test('the span covers exactly the words read, so the sheet can highlight them', () => {
   const words = 'call mom at 8 PM today';
   const found = read(words);
