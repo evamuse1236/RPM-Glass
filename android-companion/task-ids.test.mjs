@@ -59,3 +59,14 @@ test('a phone store ignores server-range IDs and stays below 1,000,000,000', asy
   assert.equal(nextTaskId({entries: [{id: 5}, {id: 1000000003}]}), 6);
   assert.throws(() => nextTaskId({entries: [], sync: {nextTaskId: 1000000000}}), /exhausted/);
 });
+
+test('a counter left behind by entries added another way never hands out an ID in use', () => {
+  const data = {entries: [{id: 101}, {id: 106}], sync: {nextTaskId: 42}};
+  assert.equal(nextTaskId(data), 107);
+  assert.equal(nextTaskId(data), 108);
+});
+
+test('the counter also stays above IDs that only Undo can bring back', () => {
+  const data = {entries: [{id: 3}], planner: {undo: {entries: [{id: 3}, {id: 9}]}}, sync: {nextTaskId: 4}};
+  assert.equal(nextTaskId(data), 10);
+});
