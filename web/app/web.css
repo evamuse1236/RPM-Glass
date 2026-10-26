@@ -51,6 +51,10 @@ html:has(dialog:modal) { overflow: clip; }
 .capture-history p { margin: 0; overflow-wrap: break-word; }
 .capture-said { font: var(--body-large); }
 .capture-outcome { font: var(--body-medium); color: var(--on-surface-variant); }
+.keys-list { display: grid; grid-template-columns: max-content 1fr; align-items: center; gap: var(--s3) var(--s4); margin: var(--s4) 0 0; }
+.keys-list :is(dt, dd) { margin: 0; }
+.keys-list dd { font: var(--body-large); }
+.keys-list kbd { display: inline-grid; place-items: center; min-inline-size: 32px; min-block-size: 32px; padding-inline: var(--s2); border: 1px solid var(--outline-variant); border-radius: var(--shape-sm); background: var(--surface-container-high); color: var(--on-surface); font: var(--label-large); }
 
 @media (width >= 600px) {
   .planner-view :is(#nav-bar, #dock, #now-host) { --inset-page: max(var(--s4), (100% - var(--column)) / 2); }
