@@ -42,3 +42,14 @@ export function createRepository(backend,{maxConflictRetries=2}={}){
  return {load,transact,async receipt(id){return (await load()).intentV2?.transactions?.[id]?.result??null;}};
 }
 export function nativeBackend(native){return {load:async()=>(await native('load')).data,save:async(expected,data)=>native('save',{expected,data})};}
+
+export function captureBackend(backend){
+ let saved=null;
+ return {
+  async load(){if(!saved)saved=await backend.load();return structuredClone(saved);},
+  async save(expected,next){
+   try{await backend.save(expected,next);saved=structuredClone(next);}
+   catch(error){saved=null;throw error;}
+  }
+ };
+}

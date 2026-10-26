@@ -107,3 +107,22 @@ for(const missingClaude of [false,true])test(`medium chat effort reaches the pro
  const body=p.models().at(-1).body;
  assert.equal(missingClaude?body.reasoning.effort:body.output_config.effort,'medium');
 });
+
+for(const mode of ['stream','plain','unsupported'])test(`streaming phone keeps the validated final transport contract: ${mode}`,async()=>{
+ const partials=[],calls=[],run={};
+ const native=async(action,p,callbacks)=>{
+  calls.push(structuredClone(p));
+  if(mode==='unsupported'&&p.body.stream)return {status:400,body:{}};
+  if(mode==='stream'){
+   const text=JSON.stringify(turn());callbacks.onChunk(text.slice(0,20));callbacks.onChunk(text.slice(20));
+  }
+  return claudeAnswer(p.body);
+ };
+ native.supportsStreaming=true;
+ assert.deepEqual(await transport(native)(input('A reason-bearing thought'),{run,onPartial:t=>partials.push(t)}),turn());
+ assert.equal(run.requestBytes,JSON.stringify(calls.at(-1).body).length);
+ assert.equal(calls[0].body.stream,true);
+ assert.equal(partials.length,mode==='stream'?2:0);
+ if(mode==='stream')assert.deepEqual(JSON.parse(partials.at(-1)),turn());
+ if(mode==='unsupported'){assert.equal(calls.length,2);assert.equal(calls[1].body.stream,undefined);}
+});

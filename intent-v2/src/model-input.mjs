@@ -35,7 +35,7 @@ export async function prepareRead(data,capture,{activeDraft,question,units,snaps
  const simple=bulk?null:readSimpleCapture(input,{data});
  for(const e of simple?.entities??[])if(!context.entities.some(x=>x.entity===e.entity&&x.id===e.id))context.entities.push(e);
  const turn=bulk?.turn??simple?.turn??completeShortReminder(null,input);
- return {input,context,meta,local:turn?{turn,kind:bulk?'bulk-move':simple?.kind??'short-reminder'}:null};
+ return {input,context,meta,calendarReady:Promise.resolve(plan?.calendarReady).catch(()=>{}),local:turn?{turn,kind:bulk?'bulk-move':simple?.kind??'short-reminder'}:null};
 }
 
 export function readKey(input){

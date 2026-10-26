@@ -1,3 +1,4 @@
+import {partialEmitter} from './partial-output.mjs';
 import {userMessage} from '../../android-companion/user-message.mjs';
 import {validateFollowUp} from './follow-up.mjs';
 import {intentState} from './repository.mjs';
@@ -70,15 +71,16 @@ export class IntentHarness {
   }
   const quick=activeDraft?null:quickAnswer(capture.raw,{now:new Date(capture.at),timezone:capture.timezone});
   if(quick)return this.#answerLocally(messageId,units,quick);
-  const {input,context,meta,local}=await prepareRead(data,capture,{activeDraft,question,units,snapshot:this.snapshot});
+  const {input,context,meta,local,calendarReady}=await prepareRead(data,capture,{activeDraft,question,units,snapshot:this.snapshot});
   const localReminder=local?.turn??null;
   if(localReminder){
+   await calendarReady;
    const parsed=interpretTurn(localReminder,{units,messageId,visibleEntities:context.entities,activeDraft});
    this.validateInterpretation?.(parsed,{input});
    return this.#stage(messageId,{data,capture,parsed,units,activeDraft,calls:0,modelRuns:[],extra:{localInterpretation:local.kind}});
   }
   if(JSON.stringify(input).length>45000)return {messageId,status:'captured',error:'This thought needs a larger review. The original is kept; no task changed.'};
-  const controller=new AbortController();let timer;
+  const controller=new AbortController(),partial=partialEmitter({messageId,emit:event=>this.emit(event)});let timer;
   let repair=null,parsed,fallback=null,held=null,calls=0;const modelRuns=[];
   try{
    for(let attempt=0;attempt<=this.maxRepairCalls;attempt++){
@@ -89,7 +91,7 @@ export class IntentHarness {
     const reused=attempt===0?await this.reads.take(input):null;if(!reused)calls++;
     const run={...(route??{}),attempt,ms:null,ok:false,input:inputSummary({...input,repair},meta),...(reused?{reused:'preview',requestId:reused.run.requestId,service:reused.run.service}:{})};modelRuns.push(run);const started=Date.now();
     try{
-     const output=reused?reused.output:await Promise.race([this.model({...input,repair},{signal:controller.signal,deadline,route,run}),timeout]).finally(()=>{run.ms=Date.now()-started;});run.ok=true;if(reused)run.ms=0;
+     const output=reused?reused.output:await Promise.race([this.model({...input,repair},{signal:controller.signal,deadline,route,run,onPartial:text=>partial.push(text)}),timeout]).finally(()=>{run.ms=Date.now()-started;});run.ok=true;if(reused)run.ms=0;
      const read=readOutput(output,{input,units,messageId,visibleEntities:context.entities,activeDraft});
      if(read.completion)run.completion=read.completion;
      parsed=read.parsed;
@@ -116,9 +118,10 @@ export class IntentHarness {
      repair={validationError:error.message/* rules-allow raw-error-text: sent back to the model as a repair hint, never shown */};
     }finally{clearTimeout(timer);}
    }
+   await calendarReady;partial.close();
    return await this.#stage(messageId,{data,capture,parsed,units,activeDraft,calls,modelRuns});
-  }catch(error){return this.#needsAttention(messageId,error,{calls,modelRuns});}
-  finally{clearTimeout(timer);controller.abort();}
+  }catch(error){partial.close();return this.#needsAttention(messageId,error,{calls,modelRuns});}
+  finally{partial.close();clearTimeout(timer);controller.abort();}
  }
  /** Save what was read: a draft unless asking which item, the reply, notes, card and any choice question, in one write. */
  async #stage(messageId,{data,capture,parsed,units,activeDraft,calls,modelRuns,extra={}}){
