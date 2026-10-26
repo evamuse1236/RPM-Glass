@@ -57,7 +57,7 @@ function weekDay(day, ui) {
   const copy = el('span', 'list-copy');
   const top = el('span', 'list-headline');
   top.append(el('span', '', day.label), el('span', 'agenda-count tnum', String(day.count)));
-  copy.append(top, ...day.titles.map(title => el('span', 'list-supporting', title)));
+  copy.append(top, el('span', 'list-supporting', day.titles.join(', ')));
   node.append(copy);
   return node;
 }

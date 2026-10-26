@@ -53,9 +53,17 @@ test('the panel shows only on a wide window on Today', () => {
   assert.match(html, /<aside id="agenda"[^>]*hidden/);
 });
 
-test('a Week day wraps each title on its own line and keeps its count on the day line', () => {
+test('a Week day is one line of titles under its day, with the count beside the day name', () => {
   const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
   assert.match(css, /\.agenda-section \{ display: grid; grid-template-columns: minmax\(0, 1fr\);/);
-  assert.match(css, /\.agenda-day \.list-supporting \{ overflow-wrap: anywhere; \}/);
-  assert.match(css, /\.agenda-day \.list-headline \{ display: flex; align-items: baseline;/);
+  assert.match(css, /\.agenda-day \.list-supporting \{ overflow: clip; text-overflow: ellipsis; white-space: nowrap; \}/);
+  assert.match(css, /\.agenda-day \.list-headline \{ display: flex; align-items: baseline; gap: var\(--s2\); \}/);
+  const source = readFileSync(new URL('./agenda.mjs', import.meta.url), 'utf8');
+  assert.match(source, /day\.titles\.join\(', '\)/);
+});
+
+test('wide Today keeps the check near the title: the spine stops at a reading width', () => {
+  const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
+  const wide = css.slice(css.indexOf('@media (width >= 1080px)'));
+  assert.match(wide, /#planner\[data-view=today\] \.spine \{ max-inline-size: 560px; \}/);
 });
