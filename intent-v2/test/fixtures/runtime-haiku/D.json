@@ -1,0 +1,54 @@
+{
+  "raw": "Meeting from 12am to 1am",
+  "now": "2026-10-26T19:18:00.000Z",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "schemaVersion": 1,
+    "mode": "capture",
+    "draftMode": "new",
+    "reply": "Got it. I'll keep a note of that meeting so it's easy to find.",
+    "decisions": [
+      {
+        "sourceId": "s0",
+        "disposition": "action",
+        "note": null
+      }
+    ],
+    "operations": [
+      {
+        "opId": "op1",
+        "sourceId": "s0",
+        "kind": "create",
+        "entity": "task",
+        "targetId": null,
+        "fields": [
+          {
+            "name": "title",
+            "op": "set",
+            "value": "Meeting",
+            "origin": "stated",
+            "evidence": "Meeting"
+          },
+          {
+            "name": "time",
+            "op": "set",
+            "value": "today from 12am to 1am",
+            "origin": "stated",
+            "evidence": "from 12am to 1am"
+          },
+          {
+            "name": "alert",
+            "op": "set",
+            "value": "reminder",
+            "origin": "suggested",
+            "evidence": null
+          }
+        ]
+      }
+    ],
+    "question": null,
+    "clarification": null,
+    "memoryCandidates": [],
+    "card": null
+  }
+}

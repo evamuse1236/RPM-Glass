@@ -1,0 +1,76 @@
+{
+  "raw": "call mom at 8pm and buy milk tomorrow",
+  "now": "2026-10-19T04:30:00.000Z",
+  "output": {
+    "schemaVersion": 1,
+    "mode": "capture",
+    "draftMode": "new",
+    "reply": "Two separate things: a call to Mom at 8 PM, and buying milk. I've set both for tomorrow.",
+    "decisions": [
+      {
+        "sourceId": "s0",
+        "disposition": "action",
+        "note": null
+      }
+    ],
+    "operations": [
+      {
+        "opId": "op1",
+        "sourceId": "s0",
+        "kind": "create",
+        "entity": "task",
+        "targetId": null,
+        "fields": [
+          {
+            "name": "title",
+            "op": "set",
+            "value": "Call Mom",
+            "origin": "stated",
+            "evidence": "call mom"
+          },
+          {
+            "name": "time",
+            "op": "set",
+            "value": "tomorrow at 8pm",
+            "origin": "stated",
+            "evidence": "call mom at 8pm"
+          },
+          {
+            "name": "alert",
+            "op": "set",
+            "value": "reminder",
+            "origin": "suggested",
+            "evidence": null
+          }
+        ]
+      },
+      {
+        "opId": "op2",
+        "sourceId": "s0",
+        "kind": "create",
+        "entity": "task",
+        "targetId": null,
+        "fields": [
+          {
+            "name": "title",
+            "op": "set",
+            "value": "Buy milk",
+            "origin": "stated",
+            "evidence": "buy milk"
+          },
+          {
+            "name": "time",
+            "op": "set",
+            "value": "tomorrow",
+            "origin": "stated",
+            "evidence": "tomorrow"
+          }
+        ]
+      }
+    ],
+    "question": null,
+    "clarification": null,
+    "memoryCandidates": [],
+    "card": null
+  }
+}

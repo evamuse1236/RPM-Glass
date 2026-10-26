@@ -11,10 +11,10 @@ import {changePlanner} from './planner-tools.mjs';
 import {editPlan} from './planner-state.mjs';
 
 const now=new Date(2026,9,26,10,13);
-function phone(raw,title,{note=`Already on your list: ${title}`,reply='',mode='capture',sourceId='s0',operations=[]}={}){
- const seed=freshStore();if(title)editPlan(seed,{type:'saveTask',fields:{title}},now);
+function phone(raw,title,{note=`Already on your list: ${title}`,reply='',mode='capture',sourceId='s0',operations=[],decisions=null}={}){
+ const seed=freshStore();for(const t of Array.isArray(title)?title:title?[title]:[])editPlan(seed,{type:'saveTask',fields:typeof t==='string'?{title:t}:t},now);
  const backend=createMemoryBackend(seed),conversationId=seed.conversations[0].id;let calls=0;
- const model=async()=>{calls++;return turn(raw,operations,{mode,draftMode:operations.length?'new':'none',reply,decisions:[{sourceId,disposition:'existing',note},...(operations.length?[{sourceId:'s1',disposition:'action',note:null}]:[])]});};
+ const model=async()=>{calls++;return turn(raw,operations,{mode,draftMode:operations.length?'new':'none',reply,decisions:decisions??[{sourceId,disposition:'existing',note},...(operations.length?[{sourceId:'s1',disposition:'action',note:null}]:[])]});};
  const service=createIntentService({backend,model,changePlanner,editPlan,undo,readCalendar:async()=>({status:'not_selected',events:[]}),clock:()=>now});
  const agent=createCaptureAgent({service,traces:createTraceStore({storage:null}),clock:()=>now});
  return {backend,service,agent,conversationId,get calls(){return calls;},send:()=>agent.capture({messageId:'m',conversationId,text:raw})};
@@ -56,4 +56,39 @@ test('one existing unit leaves another action and its receipt intact',async()=>{
  const result=await p.send(),data=await p.backend.load();assert.equal(result.applied.status,'applied');
  assert.deepEqual(data.entries.map(e=>e.title),['Exercise daily','Buy bread']);
  assert.ok((await p.service.view()).captures[0].draft.lines.some(l=>l.title==='Buy bread'));
+});
+
+for(const [raw,titles,note,expectedCount] of [
+ ['Gym tomorrow',['Gym'],'Gym',1],
+ ['Gym tomorrow at 6pm',['Gym class'],'Gym class',2],
+ ['Gym at 6pm',['Gym','Gym'],'Gym',3],
+ ['Exercise for 30 min',['Exercise'],'Exercise',1],
+ ['Gym at 6pm',['Gym'],null,1],
+])test(`existing answer retains stated schedule and length: ${raw} / ${titles}`,async()=>{
+ const p=phone(raw,titles,{note:note?`Already on your list: ${note}`:null,reply:'Already saved.'});
+ const result=await p.send();let data=await p.backend.load();
+ assert.equal(p.calls,1);const card=(await p.service.view()).captures[0];
+ assert.doesNotMatch(card.reply,/already saved/i);assert.ok(card.draft);
+ if(expectedCount===1){
+  assert.equal(result.applied.status,'needs-check');assert.equal(data.entries[0].planned,null);
+  await p.agent.act(card.draft.actions.find(a=>a.action.kind==='commit').action,{actionId:'keep-new-details'});
+ }else assert.equal(result.applied.status,'applied');
+ data=await p.backend.load();assert.equal(data.entries.length,expectedCount);
+ const saved=data.entries.at(-1);
+ if(raw.includes('tomorrow'))assert.equal(saved.plannedDate??saved.planned?.slice(0,10),'2026-10-27');
+ if(raw.includes('6pm'))assert.equal(new Date(saved.planned).getHours(),18);
+ if(raw.includes('30 min'))assert.equal(saved.minutes,30);
+});
+
+test('a model create for a bare saved title does not duplicate it beside a new action',async()=>{
+ const raw='Buy milk. Clear the table',p=phone(raw,'Buy milk',{reply:'Added both.',operations:[operation([field('title','Buy milk','Buy milk')]),operation([field('title','Clear the table','Clear the table')],{opId:'clear',sourceId:'s1'})],decisions:[{sourceId:'s0',disposition:'action',note:null},{sourceId:'s1',disposition:'action',note:null}]});
+ const result=await p.send(),data=await p.backend.load();assert.equal(p.calls,1);assert.equal(result.applied.status,'applied');
+ assert.deepEqual(data.entries.map(e=>e.title),['Buy milk','Clear the table']);
+ const card=(await p.service.view()).captures[0];assert.doesNotMatch(card.reply,/added both/i);assert.equal(card.notes[0].disposition,'existing');
+});
+
+test('duplicate prevention keeps an explicitly requested second task',async()=>{
+ const raw='Add another Gym tomorrow',p=phone(raw,[{title:'Gym',plannedDate:'2026-10-27'}],{operations:[operation([field('title','Gym','Gym'),field('time','tomorrow','tomorrow')])],decisions:[{sourceId:'s0',disposition:'action',note:null}]});
+ const result=await p.send();assert.equal(result.applied.status,'applied');assert.equal((await p.backend.load()).entries.length,2);
+ assert.equal((await p.backend.load()).entries[1].plannedDate,'2026-10-27');
 });

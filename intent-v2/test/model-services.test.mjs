@@ -124,5 +124,23 @@ for(const mode of ['stream','plain','unsupported'])test(`streaming phone keeps t
  assert.equal(calls[0].body.stream,true);
  assert.equal(partials.length,mode==='stream'?2:0);
  if(mode==='stream')assert.deepEqual(JSON.parse(partials.at(-1)),turn());
- if(mode==='unsupported'){assert.equal(calls.length,2);assert.equal(calls[1].body.stream,undefined);}
+ if(mode==='unsupported'){assert.equal(calls.length,2);assert.equal(calls[1].body.stream,undefined);assert.notEqual(calls[0].requestId,calls[1].requestId);assert.equal(run.requestId,calls[1].requestId);}
+});
+
+for(const status of [400,422])test(`a rejected stream retries with a fresh cancellable request ID: ${status}`,async()=>{
+ const held=new Set(),calls=[],controller=new AbortController(),run={};let release;
+ const native=async(action,p)=>{
+  calls.push({action,...structuredClone(p)});
+  if(action==='cancelModel')return {};
+  if(held.has(p.requestId))throw new Error('That model request is already running.');
+  held.add(p.requestId);
+  if(p.body.stream)return {status,body:{}};
+  await new Promise(r=>release=r);return claudeAnswer(p.body);
+ };
+ native.supportsStreaming=true;
+ const pending=transport(native)(input('Call mom because I miss her'),{signal:controller.signal,onPartial:()=>{},run});
+ await new Promise(r=>setImmediate(r));
+ assert.equal(calls.length,2);assert.notEqual(calls[0].requestId,calls[1].requestId);
+ controller.abort();release();await assert.rejects(pending,e=>e.name==='AbortError');
+ assert.equal(calls.at(-1).action,'cancelModel');assert.equal(calls.at(-1).requestId,calls[1].requestId);
 });

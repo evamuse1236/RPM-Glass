@@ -22,6 +22,8 @@
     "check:evidence": "node scripts/agent/require-evidence.mjs",
     "check:merge": "node scripts/agent/require-evidence.mjs --merge",
     "hooks:install": "node scripts/agent/install-hooks.mjs",
+    "web:stage": "node scripts/web-site/stage.mjs",
+    "web:published": "node scripts/web-site/published.mjs",
     "web:build": "node web/build.mjs",
     "web:serve": "node web/serve.mjs",
     "web:phone": "node scripts/web-sync/phone-standin.mjs",

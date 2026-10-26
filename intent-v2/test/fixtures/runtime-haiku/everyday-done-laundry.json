@@ -1,0 +1,69 @@
+{
+  "id": "everyday-done-laundry",
+  "outputs": [
+    [
+      {
+        "schemaVersion": 1,
+        "mode": "capture",
+        "draftMode": "new",
+        "reply": "Got it. Tomorrow's laundry collection is noted.",
+        "decisions": [
+          {
+            "sourceId": "s0",
+            "disposition": "action",
+            "note": null
+          }
+        ],
+        "operations": [
+          {
+            "opId": "op1",
+            "sourceId": "s0",
+            "kind": "create",
+            "entity": "task",
+            "targetId": null,
+            "fields": [
+              {
+                "name": "title",
+                "op": "set",
+                "value": "Collect laundry",
+                "origin": "stated",
+                "evidence": "collect laundry"
+              },
+              {
+                "name": "time",
+                "op": "set",
+                "value": "tomorrow",
+                "origin": "stated",
+                "evidence": "tomorrow"
+              }
+            ]
+          }
+        ],
+        "question": null,
+        "clarification": null,
+        "memoryCandidates": [],
+        "card": null
+      }
+    ],
+    [
+      {
+        "schemaVersion": 1,
+        "mode": "capture",
+        "draftMode": "none",
+        "reply": "Glad that's off your plate.",
+        "decisions": [
+          {
+            "sourceId": "s0",
+            "disposition": "existing",
+            "note": "Already done: Collect laundry"
+          }
+        ],
+        "operations": [],
+        "question": null,
+        "clarification": null,
+        "memoryCandidates": [],
+        "card": null
+      }
+    ]
+  ]
+}

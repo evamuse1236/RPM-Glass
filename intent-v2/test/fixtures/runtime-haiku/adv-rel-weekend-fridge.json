@@ -1,0 +1,56 @@
+{
+  "id": "adv-rel-weekend-fridge",
+  "outputs": [
+    [
+      {
+        "schemaVersion": 1,
+        "mode": "capture",
+        "draftMode": "new",
+        "reply": "A weekend fridge clean with no rush is a fine thing to park. I've kept it as a task for Saturday, unhurried.",
+        "decisions": [
+          {
+            "sourceId": "s0",
+            "disposition": "action",
+            "note": null
+          }
+        ],
+        "operations": [
+          {
+            "opId": "op1",
+            "sourceId": "s0",
+            "kind": "create",
+            "entity": "task",
+            "targetId": null,
+            "fields": [
+              {
+                "name": "title",
+                "op": "set",
+                "value": "Clean the fridge",
+                "origin": "stated",
+                "evidence": "clean the fridge"
+              },
+              {
+                "name": "time",
+                "op": "set",
+                "value": "this weekend",
+                "origin": "stated",
+                "evidence": "sometime this weekend"
+              },
+              {
+                "name": "notes",
+                "op": "set",
+                "value": "Sometime this weekend, no rush",
+                "origin": "stated",
+                "evidence": "no rush"
+              }
+            ]
+          }
+        ],
+        "question": null,
+        "clarification": null,
+        "memoryCandidates": [],
+        "card": null
+      }
+    ]
+  ]
+}

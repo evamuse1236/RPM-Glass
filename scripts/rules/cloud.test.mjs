@@ -16,7 +16,8 @@ function repo(t) {
   const root = temp(t, 'rpm-cloud-');
   const git = (...args) => execFileSync('git', args, {cwd: root, stdio: 'ignore'});
   const write = (file, text) => { fs.mkdirSync(path.dirname(path.join(root, file)), {recursive: true}); fs.writeFileSync(path.join(root, file), text); };
-  for (const file of ['require-evidence.mjs', 'cloud.mjs', 'web-assets.mjs']) write(`scripts/agent/${file}`, fs.readFileSync(path.join(here, 'agent', file)));
+  for (const file of ['require-evidence.mjs', 'capture-eval.mjs', 'cloud.mjs', 'web-assets.mjs']) write(`scripts/agent/${file}`, fs.readFileSync(path.join(here, 'agent', file)));
+  write('scripts/web-site/publication.mjs', fs.readFileSync(path.join(here, 'web-site/publication.mjs')));
   write('.gitignore', '.verify/\n');
   write('android-companion/a.mjs', 'export const a = 1;\n');
   write('app/src/main/java/A.java', 'class A {}\n');

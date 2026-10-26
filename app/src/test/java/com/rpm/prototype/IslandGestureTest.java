@@ -112,6 +112,16 @@ public class IslandGestureTest {
     }
 
     @Test
+    public void aSwipeWhoseMovesWereDroppedIsStillASwipeNotATap() {
+        IslandShape p = pill();
+        IslandGesture g = new IslandGesture(D);
+        float x = (p.left + p.right) / 2f;
+        float y = (p.touch.top + p.touch.bottom) / 2f;
+        assertTrue(g.down(p.touch, x, y, 0, false));
+        assertEquals(Result.UP, g.up(x, y - dp(140), 150));
+    }
+
+    @Test
     public void aQuickFlickCommitsEarly() {
         IslandShape p = pill();
         float x = (p.left + p.right) / 2f, y = (p.top + p.bottom) / 2f;
