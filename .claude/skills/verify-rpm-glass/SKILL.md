@@ -103,7 +103,7 @@ Proof standards:
 - Verify side effects: read `state files/companion.json` (or `shared_prefs/...`) after a save, and show the exact stored value.
 - Check the changed screen at `phone`: normal text at phone size. Name the display in the shot label. Check larger text only when the change touches text sizing and the user asks for it: `display phone --font-scale 1.3`.
 - Run `logs --errors` after a drive; a page error or crash fails the proof even if the screen looks right.
-- Model-backed paths (Capture sorting, Jev, Suggest a Purpose) need an OpenRouter key, which the emulator does not have. Without a key, prove the keyless behavior (words saved, "Connect" offered) and mark the model path **UNVERIFIED**.
+- Model-backed paths (Capture sorting, Jev, Suggest a Purpose) need a model key. The user wants them tested on the emulator (2026-10-27): enter the vault key `openrouter-rpm` (or `anthropic`) through the app's AI settings for the live check, and remove it in cleanup. Never print it or pass it on a logged command line. Only when no key can be entered, prove the keyless behavior (words saved, "Connect" offered) and mark the model path **UNVERIFIED**.
 - The emulator is not Samsung One UI. Samsung keyboard, battery limits, audible alarms and real launcher widget placement stay **UNVERIFIED** until checked on the phone.
 
 Reply with the evidence paths (`.verify/evidence/<run-id>/NN-*.png`).
