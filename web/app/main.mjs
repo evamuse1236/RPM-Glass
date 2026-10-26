@@ -5,6 +5,8 @@ import {savedLabel, sentLabel, watchRows} from './sync-marks.mjs';
 import {userMessage} from '../../android-companion/user-message.mjs';
 import {applyClarityPreferences} from '../../android-companion/planner-clarity.mjs';
 import {mountPlanner} from '../../android-companion/planner.mjs';
+import {isWide, onWidthChange} from './desktop.mjs';
+import {mountSidebar} from './sidebar.mjs';
 
 const server = new URLSearchParams(location.search).get('server') ?? globalThis.RPM_SYNC_SERVER ?? location.origin;
 const client = createClient({server});
@@ -28,7 +30,9 @@ function mount() {
   root.dataset.largeText = 'false';
   root.style.setProperty('--text-scale', String(PHONE.fontScale));
   ui = mountPlanner({getData: () => queue.data(), getPhone: () => PHONE, native: createWebNative({openCapture}), sortPreview,
-    label: sentLabel, commit: async op => queue.commit(op), menuItems});
+    label: sentLabel, commit: async op => queue.commit(op), menuItems, inlineSheet: isWide});
+  mountSidebar($('sidebar'), $('planner'), ui);
+  onWidthChange(() => ui.closeSheet());
   if (location.hash === '#ideas') ui.goalIdeas();
   else if (location.hash.startsWith('#open=')) try { ui.openView(JSON.parse(decodeURIComponent(location.hash.slice(6)))); } catch {}
   remark = watchRows([$('workspace'), $('sheet')], queue);

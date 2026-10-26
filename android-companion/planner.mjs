@@ -4,7 +4,7 @@ import {animateLayout, slideScroll} from './surface-motion.mjs';
 import {createApp, TABS} from './planner/app.mjs';
 import {placeNavIndicator, renderShell} from './planner/shell.mjs';
 import {renderScreen, defaultScroll, installSwipe} from './planner/screens.mjs';
-import {dismissSheet, installSheetKeys} from './planner/sheet.mjs';
+import {closeSheet, dismissSheet, installSheetKeys} from './planner/sheet.mjs';
 import {closeMenu} from './planner/menu.mjs';
 import {setDayLayout} from './planner/today.mjs';
 import {openTask, taskEditor, movePicker, archiveTask, deleteTask, showTrash, showInbox, scheduleMenu,
@@ -365,5 +365,14 @@ export function mountPlanner(api) {
     contextEditor: () => contextEditor(app),
     openView: target => openView(app, target),
     tabs: TABS,
+    tab: () => app.state.tab,
+    current: () => app.current(),
+    goTab: tab => app.goTab(tab),
+    openSearch: () => app.openSearch(),
+    capture: () => app.capture(),
+    inbox: () => app.actions.inbox(),
+    add: () => app.actions.addTask(app.state.tab === 'today' && !app.current() ? {plannedDate: app.state.day} : {}),
+    back: () => app.back(),
+    closeSheet: () => closeSheet(app),
   };
 }
