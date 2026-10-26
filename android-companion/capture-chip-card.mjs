@@ -181,8 +181,12 @@ export function createChipCard({act,refresh,choices=()=>null,today=localDay}){
   const draft=capture.draft,rows=draft.lines??[],all=st.showAll.has(draft.id);
   const node=el('ul','chip-items');
   const shown=all||rows.length<=SHOWN_ITEMS?rows:rows.slice(0,SHOWN_ITEMS);
-  node.append(...shown.map((row,i)=>!row.edit?line(row)
-   :i<FULL_ITEMS||all||st.expanded.has(itemKeyOf(draft,row))?fullItem(draft,row):compactItem(draft,row)));
+  node.append(...shown.map((row,i)=>{
+   if(!row.edit)return line(row);
+   const item=i<FULL_ITEMS||all||st.expanded.has(itemKeyOf(draft,row))?fullItem(draft,row):compactItem(draft,row);
+   item.dataset.op=row.edit.opId;
+   return item;
+  }));
   if(shown.length<rows.length){
    const more=el('li','chip-item compact');
    const b=button(`+${rows.length-shown.length} more`,()=>{st.held=draft.id;st.showAll.add(draft.id);node.replaceWith(list(capture));},{role:'text',cls:'item-compact'});
