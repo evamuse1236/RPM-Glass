@@ -10,15 +10,6 @@ function gutter(row) {
   return node;
 }
 
-/** On the wide clock grid (day-grid.mjs) a row sits at its time, in its lane. */
-function place(node, row) {
-  if (row.top == null) return;
-  node.style.setProperty('--top', row.top + 'px');
-  node.style.setProperty('--lane', String(row.lane ?? 0));
-  node.style.setProperty('--lanes', String(row.lanes ?? 1));
-  node.classList.toggle('short', (row.height ?? 0) < 40);
-}
-
 function shell(row, body) {
   const node = el('div', `spine-row spine-${row.kind}`);
   node.dataset.key = row.key;
@@ -26,7 +17,6 @@ function shell(row, body) {
   node.classList.toggle('tall', (row.height ?? 0) > 48);
   if (row.kind === 'task') node.dataset.tone = row.tone;
   if (row.height) node.style.setProperty('--h', row.height + 'px');
-  place(node, row);
   node.append(gutter(row), body);
   return node;
 }
@@ -135,7 +125,6 @@ export function spineRow(row, on) {
     node.append(time, el('span', 'spine-now-line'));
     node.setAttribute('role', 'separator');
     node.setAttribute('aria-label', 'Now, ' + row.label);
-    place(node, row);
     return node;
   }
   return shell(row, BODIES[row.kind](row, on));
@@ -145,17 +134,6 @@ export function spineList(model, on) {
   const list = el('div', 'spine');
   list.setAttribute('role', 'list');
   list.setAttribute('aria-label', 'The day by time');
-  if (model.grid) {
-    list.classList.add('grid');
-    list.style.setProperty('--span', model.grid.span + 'px');
-    list.style.setProperty('--hour', model.grid.hour + 'px');
-    for (const hour of model.grid.hours) {
-      const line = el('span', 'spine-hour tnum', hour.label);
-      line.setAttribute('aria-hidden', 'true');
-      line.style.setProperty('--top', hour.top + 'px');
-      list.append(line);
-    }
-  }
   for (const row of model.rows) {
     const node = spineRow(row, on);
     node.setAttribute('role', node.getAttribute('role') ?? 'listitem');

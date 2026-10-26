@@ -40,16 +40,16 @@ export function pressStep(state, event) {
 }
 
 /** The start a card dragged by `dy` px lands on: snapped to 15 minutes and kept inside its day. */
-export function snapStart(start, dy, dayStart, scale = PX_PER_MIN) {
+export function snapStart(start, dy, dayStart) {
   const step = START_SNAP * MIN;
-  const moved = start + Math.round(dy / scale) * MIN;
+  const moved = start + Math.round(dy / PX_PER_MIN) * MIN;
   const snapped = Math.round(moved / step) * step;
   return Math.min(dayStart + 24 * 60 * MIN - step, Math.max(dayStart, snapped));
 }
 
 /** The length a card's knurl dragged by `dy` px gives: 5-minute steps under 30 minutes, 15-minute steps from there. */
-export function snapLength(minutes, dy, scale = PX_PER_MIN) {
-  const raw = (minutes || 0) + dy / scale;
+export function snapLength(minutes, dy) {
+  const raw = (minutes || 0) + dy / PX_PER_MIN;
   const step = raw < 30 ? 5 : 15;
   return Math.min(MAX_LENGTH, Math.max(MIN_LENGTH, Math.round(raw / step) * step));
 }
