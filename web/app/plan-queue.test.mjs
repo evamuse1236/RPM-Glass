@@ -177,6 +177,55 @@ test('a phone-side change is foreign and bumps the version; this browser\'s own 
   client.emit();
   assert.equal(queue.data().version, 43);
   assert.equal(task(queue, 4).title, 'Edited on the phone');
+});
+
+function phoneEdit(client, id, fields) {
+  const entries = structuredClone(client.state.snapshot.entries);
+  Object.assign(entries.find(e => e.id === id), fields);
+  client.state.snapshot = {...client.state.snapshot, revision: client.state.snapshot.revision + 1, entries};
+  client.emit();
+}
+
+test('Undo after a phone-side change still takes back this browser\'s change, and leaves the phone\'s edit for the server to keep', () => {
+  const {client, queue, device} = setup();
+  queue.commit({type: 'saveTask', id: 3, fields: {done: true}});
+  const planId = client.sent()[0].id;
+  device.apply(0);
+  phoneEdit(client, 4, {title: 'Edited on the phone'});
+  queue.commit({type: 'undo'});
+  assert.equal(task(queue, 4).title, 'Edited on the phone');
+  const undo = client.sent()[1];
+  assert.deepEqual(validateCommand(undo), undo);
+  assert.deepEqual([undo.type, undo.args.commandId, undo.baseRevision], ['undo', planId, 44]);
+  const entries = structuredClone(client.state.snapshot.entries);
+  entries.find(e => e.id === 3).done = false;
+  Object.assign(client.state.outbox[1], {status: 'applied', newRevision: 45});
+  client.state.snapshot = {...client.state.snapshot, revision: 45, entries};
+  const told = [];
+  queue.subscribe(result => told.push(result));
+  client.emit();
+  assert.deepEqual(told.map(r => [r.foreign, r.redraw]), [[false, true]]);
+  assert.equal(task(queue, 3).done, false);
+  assert.equal(task(queue, 4).title, 'Edited on the phone');
+  assert.equal(queue.pendingIds().size, 0);
+  assert.throws(() => queue.commit({type: 'undo'}), {message: 'No planning change to undo.'});
+});
+
+test('Undo of an unsent change after a phone-side change drops it and keeps the phone\'s edit', () => {
+  const {client, queue} = setup();
+  queue.commit({type: 'saveTask', id: 3, fields: {title: 'First'}});
+  queue.commit({type: 'saveTask', id: 3, fields: {title: 'Second'}});
+  phoneEdit(client, 4, {title: 'Edited on the phone'});
+  queue.commit({type: 'undo'});
+  assert.equal(task(queue, 3).title, 'First');
+  assert.equal(task(queue, 4).title, 'Edited on the phone');
+  assert.equal(client.sent().length, 1);
+});
+
+test('a change the phone refused offers no Undo', () => {
+  const {queue, device} = setup();
+  queue.commit({type: 'saveTask', id: 3, fields: {done: true}});
+  device.apply(0, {status: 'conflict', message: 'This task changed on your phone.'});
   assert.throws(() => queue.commit({type: 'undo'}), {message: 'No planning change to undo.'});
 });
 

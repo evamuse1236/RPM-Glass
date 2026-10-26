@@ -56,6 +56,7 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
 
   function replay(store, rec) {
     if (rec.kind === 'undo') {
+      if (!rec.restore) return;
       const reviews = store.planner.reviews;
       Object.assign(store, structuredClone(rec.restore));
       store.planner.reviews = reviews;
@@ -73,13 +74,13 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
   function settle() {
     const sends = [];
     const failed = [];
-    let createdSaved = false;
+    let redraw = false;
     records = records.filter(rec => {
       if (rec.held || !rec.sent || rec.posting) return true;
       const entry = entryOf(rec.id);
       if (entry && !client.settled(entry)) return true;
       if (entry && FAILED.has(entry.status)) failed.push({ids: rec.ids, message: entry.message || FALLBACK});
-      if (rec.created?.length) createdSaved = true;
+      if (rec.created?.length || rec.kind === 'undo' && !rec.restore) redraw = true;
       return false;
     });
     for (const rec of records) {
@@ -95,32 +96,37 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
     }
     records = records.filter(rec => !rec.dropped);
     for (const rec of sends) if (!rec.posting) Object.assign(rec, {held: false, sent: true, posting: true, baseRevision: snapshot().revision});
-    return {sends, failed, createdSaved};
+    return {sends, failed, redraw};
   }
 
   function mine() {
     return new Set(client.state.outbox.filter(e => e.status === 'applied' && ['plan', 'undo'].includes(e.command.type)).map(e => e.newRevision));
   }
 
+  function project() {
+    const store = storeFrom(snapshot());
+    for (const rec of records) { try { replay(store, rec); } catch {} }
+    return {...store, version};
+  }
+
   function rebuild() {
     const snap = snapshot();
     if (!snap) { view = null; return {foreign: false, sends: []}; }
-    const {sends, failed, createdSaved} = settle();
+    const {sends, failed, redraw} = settle();
     const own = mine();
     let foreign = failed.length > 0;
     if (seen !== null && snap.revision > seen) for (let r = seen + 1; r <= snap.revision; r++) if (!own.has(r)) foreign = true;
     if (seen === null || snap.revision !== seen || failed.length || !view) {
-      const store = storeFrom(snap);
-      for (const rec of records) { try { replay(store, rec); } catch {} }
       if (!view) version = snap.revision;
       else if (foreign) version += 1;
-      view = {...store, version};
+      view = project();
     }
-    if (foreign) lastUndo = null;
+    if (lastUndo && FAILED.has(entryOf(lastUndo.commandId)?.status)) lastUndo = null;
+    else if (foreign && lastUndo) lastUndo.restore = null;
     seen = snap.revision;
     problems = [...problems, ...failed].slice(-10);
     persist();
-    return {foreign, createdSaved, sends};
+    return {foreign, redraw, sends};
   }
 
   function onClient() {
@@ -140,6 +146,7 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
     view = {...store, version};
     if (target?.held) {
       records = records.filter(r => r !== target);
+      if (!restore) view = project();
     } else {
       records.push({id: uuid(), kind: 'undo', targetId: commandId, restore, ids, targets: list, at: now().toISOString(), sent: false});
       persist();
@@ -147,7 +154,7 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
       return null;
     }
     persist();
-    listeners.forEach(fn => fn({foreign: false, createdSaved: false, sends: []}));
+    listeners.forEach(fn => fn({foreign: false, redraw: false, sends: []}));
     return null;
   }
 
@@ -156,7 +163,7 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     pendingIds: () => new Set(records.flatMap(r => r.ids)),
     problems: () => problems,
-    dismissProblem(index) { problems = problems.filter((_, i) => i !== index); persist(); listeners.forEach(fn => fn({foreign: false, createdSaved: false, sends: []})); },
+    dismissProblem(index) { problems = problems.filter((_, i) => i !== index); persist(); listeners.forEach(fn => fn({foreign: false, redraw: false, sends: []})); },
     start() { onClient(); },
     commit(op) {
       if (op?.type === 'undo') return undo();
@@ -178,7 +185,7 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
       view = {...store, version};
       if (op.type !== 'reviewProgress' && !op.keepUndo) lastUndo = {commandId: rec.id, ids: rec.ids, targets: list, restore: {entries: store.planner.undo.entries, planner: store.planner.undo.planner}};
       persist();
-      if (rec.held) listeners.forEach(fn => fn({foreign: false, createdSaved: false, sends: []}));
+      if (rec.held) listeners.forEach(fn => fn({foreign: false, redraw: false, sends: []}));
       else client.send(command(rec));
       return result;
     },
