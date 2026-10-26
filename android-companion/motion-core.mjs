@@ -1,6 +1,8 @@
 /** Motion tokens and screen transitions; surface-motion.mjs re-exports them. Storage and navigation never wait on
  * decoration. Every animation starts from what is on screen now, so a tap during a transition redirects it. */
 const running = new Map();
+// Finished motions whose end state stays on the node (fill forwards/both), until stopMotion releases them.
+const held = new WeakMap();
 
 /** M3 easing and duration tokens (androidx MotionTokens). theme.css carries the same values as --ease-* and --dur-*. */
 export const EASE = Object.freeze({
@@ -57,9 +59,9 @@ export const reducedMotion = () => globalThis.document?.documentElement.dataset.
 export const runningNodes = () => [...running.keys()];
 
 export function stopMotion(node) {
-  const previous = running.get(node);
-  if (!previous) return;
+  const previous = [...running.get(node) ?? [], ...held.get(node) ?? []];
   running.delete(node);
+  held.delete(node);
   for (const animation of previous) animation.cancel();
 }
 
@@ -69,7 +71,8 @@ export function playMotion(node, frames, {duration = MOTION.feedback, easing = M
   if (!node) return Promise.resolve(true);
   if (!keep) stopMotion(node);
   if (reducedMotion() || !node.animate) return Promise.resolve(true);
-  const animation = node.animate(frames, {duration, easing, delay, fill: delay && fill === 'none' ? 'backwards' : fill});
+  const options = {duration, easing, delay, fill: delay && fill === 'none' ? 'backwards' : fill};
+  const animation = node.animate(frames, options);
   const list = running.get(node) ?? [];
   list.push(animation);
   running.set(node, list);
@@ -78,6 +81,7 @@ export function playMotion(node, frames, {duration = MOTION.feedback, easing = M
     if (!now?.includes(animation)) return false;
     now.splice(now.indexOf(animation), 1);
     if (!now.length) running.delete(node);
+    if (/forwards|both/.test(options.fill)) held.set(node, [...held.get(node) ?? [], animation]);
     return true;
   }, () => false);
 }

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import './node24.mjs';
 import {execFileSync} from 'node:child_process';
 import {existsSync, mkdirSync, rmSync, writeFileSync} from 'node:fs';
 import {join, resolve} from 'node:path';

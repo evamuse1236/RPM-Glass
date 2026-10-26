@@ -26,14 +26,14 @@ public final class CloudActivity extends Activity {
         }
     }
     private void updatePlannerStatus(int earlier){
-        try{org.json.JSONObject data=CompanionStore.read(this);long local=data==null?0:data.optLong("version"),uploaded=SyncManager.prefs(this).getLong("planner_revision",-1);pendingStatus.setText("Planner revision "+local+(uploaded>=local?" synced":" waiting to sync")+" · "+earlier+" earlier changes queued");}
-        catch(Exception failure){pendingStatus.setText("Planner is saved on this phone · "+earlier+" earlier changes queued");}
+        try{pendingStatus.setText(SyncStatus.planner(CompanionStore.read(this),earlier));}
+        catch(Exception failure){pendingStatus.setText("Planner is saved on this phone"+(earlier>0?" · "+earlier+" earlier changes queued":""));}
     }
     @Override public void onCreate(Bundle state){super.onCreate(state);render();if(state==null&&getIntent().getBooleanExtra("linkWeb",false)&&SyncManager.configured(this))WebLinkDialog.show(this);}
     private void render(){
         Ui.theme(this);LinearLayout root=Ui.column(this);root.setBackgroundColor(Ui.PAPER);root.addView(Ui.toolbar(this,"Cloud sync",this::finish));ScrollView scroll=new ScrollView(this);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));LinearLayout body=Ui.column(this);Ui.padding(body,20,16,20,24);scroll.addView(body);
         
-        body.addView(Ui.text(this,"Your planner saves on this phone first. Convex shares a copy with linked browsers and queues their changes for this phone to apply.",16,Ui.MUTED));
+        body.addView(Ui.text(this,"Your planner works on this phone without a connection. When online, it syncs with the website.",16,Ui.MUTED));
         boolean paired=SyncManager.configured(this);
         try(Store store=new Store(this)){
             LinearLayout status=Ui.card(this);status.addView(Ui.heading(this,paired?"Convex sync":"Connect once",20));
@@ -66,7 +66,7 @@ public final class CloudActivity extends Activity {
         });body.addView(connect);
         }
         Ui.gap(body,24);
-        body.addView(Ui.text(this,"Planner changes sync after saves and about every 20 seconds while RPM is open. Linked browsers send commands for this phone to apply. Background sync runs about every 15 minutes or later when Android allows it. AI keys stay on this phone.",13,Ui.MUTED));
+        body.addView(Ui.text(this,"Planner changes sync after saves and about every 20 seconds while RPM is open, and about every 15 minutes in the background. The website saves even while this phone is offline. If both change the same detail, the newer change wins and the other is added to the task's notes. This phone's AI key stays on this phone.",13,Ui.MUTED));
         setContentView(root);Ui.insets(this,root);
     }
 }

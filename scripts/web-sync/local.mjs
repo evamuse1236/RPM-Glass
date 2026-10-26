@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import './node24.mjs';
 import {rmSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {logs, serveSite, start, startConvex, stopAll} from './local-stack.mjs';
