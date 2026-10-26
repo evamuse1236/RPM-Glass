@@ -1,6 +1,6 @@
 export const ON_PHONE = 'This runs on your phone. Open RPM on your phone to use it.';
 export const PHONE_SETTINGS = 'Sounds, alerts, widgets, the notch, model keys, backups and diagnostics are set in RPM on your phone.';
-export const PHONE = Object.freeze({hasKey: false, debug: false, fontScale: 1, effectiveFontScale: 1, reducedMotion: false});
+export const PHONE = Object.freeze({remote: true, hasKey: false, debug: false, fontScale: 1, effectiveFontScale: 1, reducedMotion: false});
 
 const refuse = () => Promise.reject(new Error(ON_PHONE));
 

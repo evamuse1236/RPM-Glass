@@ -110,8 +110,8 @@ export function taskRow(app, task, options = {}) {
 /** A done one-time task leaves the list, so its row carries off; a repeating one stays and shows its tick. */
 function attachGestures(app, row, task, options) {
   const leave = !repeats(task);
-  attachRowGestures(app, row, task, {leave, inbox: !!options.inbox, hold: !options.plan,
-    complete: () => toggleDone(app, task, task.occurrence, {carried: leave, keepSheet: !!row.closest('.sheet')})});
+  const done = carried => () => toggleDone(app, task, task.occurrence, {carried, keepSheet: !!row.closest('.sheet')});
+  attachRowGestures(app, row, task, {leave, inbox: !!options.inbox, hold: !options.plan, complete: done(leave), tick: done(false)});
 }
 
 const LONG_PRESS = 350;

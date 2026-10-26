@@ -33,6 +33,9 @@ export function isSheetOpen(app) {
   return !app.dom.sheet.hidden && !app.dom.sheet.inert;
 }
 
+const inlinePane = node => node.hasAttribute('data-inline');
+const still = node => reducedMotion() || inlinePane(node);
+
 /* ---------- Motion ----------
  * One sheet and one scrim. The sheet rises from the bottom edge and leaves by sliding down; the scrim's opacity
  * follows the sheet's travel (same curve and duration both ways). Opening while a sheet is showing replaces its
@@ -74,7 +77,7 @@ function moveSheet(node, scrim, from, to, {duration, easing, scrimEasing = easin
   cancelSheetMotion(node);
   node.style.removeProperty('transform');
   scrim.style.removeProperty('opacity');
-  if (reducedMotion()) return Promise.resolve(true);
+  if (still(node)) return Promise.resolve(true);
   const animations = [
     node.animate([{transform: from.transform}, {transform: to.transform}], {duration, easing, fill: 'forwards'}),
     scrim.animate([{opacity: from.opacity}, {opacity: to.opacity}], {duration, easing: scrimEasing, fill: 'forwards'}),
@@ -158,7 +161,7 @@ function installDrag(app, zone) {
   zone.addEventListener('pointerdown', event => {
     if (event.button > 0 || event.target.closest('button,input,textarea,select,a')) return;
     const node = app.dom.sheet;
-    if (!isSheetOpen(app)) return;
+    if (!isSheetOpen(app) || inlinePane(node)) return;
     const scrim = scrimFor(app);
     const pose = new DOMMatrixReadOnly(getComputedStyle(node).transform === 'none' ? undefined : getComputedStyle(node).transform);
     cancelSheetMotion(node);
@@ -249,7 +252,7 @@ function replaceContent(node, oldHeight, oldChildren, back) {
 /** Predictive back on an open sheet: it shrinks toward the bottom edge as the gesture progresses (M3 bottom sheet). */
 export function sheetBackProgress(app, progress) {
   const node = app.dom.sheet;
-  if (!isSheetOpen(app) || reducedMotion()) return false;
+  if (!isSheetOpen(app) || still(node)) return false;
   cancelSheetMotion(node);
   const p = Math.max(0, Math.min(1, progress));
   const rect = node.getBoundingClientRect();
@@ -290,15 +293,18 @@ export function openSheet(app, title, {draftKey = null, seed = null, variant = '
   }
   if (!node.contains(document.activeElement)) app.sheet.returnFocus = document.activeElement;
 
+  const inline = Boolean(app.api.inlineSheet?.());
+  node.toggleAttribute('data-inline', inline);
+  node.setAttribute('aria-modal', String(!inline));
   node.hidden = false;
-  scrim.hidden = false;
+  scrim.hidden = inline;
   const expanded = showing && node.classList.contains('expanded');
   node.className = 'sheet sheet-' + variant + (expanded ? ' expanded' : '');
   node.setAttribute('aria-label', title);
   node.dataset.dirty = 'false';
   node.addEventListener('input', () => { node.dataset.dirty = 'true'; }, {once: true});
   node.replaceChildren();
-  app.dom.planner.inert = true;
+  app.dom.planner.inert = !inline;
 
   const handle = el('div', 'sheet-handle');
   handle.setAttribute('aria-hidden', 'true');
@@ -337,7 +343,7 @@ export function openSheet(app, title, {draftKey = null, seed = null, variant = '
   if (showing) {
     // Hold the old pose until the new content is in (the callers fill it before this microtask runs). The height is
     // not held: the new content measures (and may pin) its own height, and replaceContent morphs to it.
-    if (!reducedMotion()) {
+    if (!still(node)) {
       cancelSheetMotion(node);
       node.style.transform = pose.transform;
       scrim.style.opacity = String(pose.opacity);
@@ -345,7 +351,7 @@ export function openSheet(app, title, {draftKey = null, seed = null, variant = '
     }
     queueMicrotask(begin);
   } else {
-    if (!reducedMotion()) {
+    if (!still(node)) {
       node.style.transform = 'translateY(100vh)';
       scrim.style.opacity = '0';
     }
@@ -429,7 +435,7 @@ export function installSheetKeys(app) {
       dismissSheet(app);
       return;
     }
-    if (event.key !== 'Tab') return;
+    if (event.key !== 'Tab' || inlinePane(app.dom.sheet)) return;
     const nodes = [...app.dom.sheet.querySelectorAll('button,input,select,textarea,[tabindex="0"]')]
       .filter(n => !n.disabled && n.getClientRects().length);
     const first = nodes[0];

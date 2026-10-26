@@ -33,6 +33,7 @@
   </form>
 </section>
 <div id="planner-view" class="planner-view" hidden>
+  <nav id="sidebar" class="sidebar" aria-label="Planning" hidden></nav>
   <p id="banner" class="banner" role="status" hidden></p>
   <ul id="notes" class="notes" aria-live="polite" hidden></ul>
   <main id="planner" data-view="today"><header id="top-bar" class="top-bar"></header><div id="planner-scroll"><section id="workspace" aria-label="Plan"><div class="page" aria-busy="true"><p class="skeleton" role="status">Loading your plan…</p><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div></div></section></div><div id="now-host" hidden></div><nav id="nav-bar" aria-label="Planning"></nav><div id="dock"></div></main>
@@ -57,6 +58,13 @@
     <h3 id="capture-history-title">Recent</h3>
     <ol id="capture-list"></ol>
   </section>
+</dialog>
+<dialog id="keys-sheet" class="capture-sheet keys-sheet" aria-labelledby="keys-title">
+  <div class="capture-head">
+    <h2 id="keys-title">Keyboard shortcuts</h2>
+    <button class="icon-btn keys-close" type="button" aria-label="Close"><span class="ms" aria-hidden="true">close</span></button>
+  </div>
+  <dl class="keys-list"></dl>
 </dialog>
 </body>
 </html>

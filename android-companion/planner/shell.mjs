@@ -12,7 +12,7 @@ import {navDrag} from '../nav-drag.mjs';
 import {paintHabit, watchHabit} from './habit-circle.mjs';
 import {attachSwipe, lockAxis, nearEdge} from '../task-swipe.mjs';
 
-const DESTINATIONS = [
+export const DESTINATIONS = [
   ['today', 'today', 'Today'],
   ['blocks', 'stacks', 'Blocks'],
   ['projects', 'folder', 'Projects'],
