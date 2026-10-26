@@ -67,3 +67,18 @@ test('wide Today keeps the check near the title: the spine stops at a reading wi
   const wide = css.slice(css.indexOf('@media (width >= 1080px)'));
   assert.match(wide, /#planner\[data-view=today\] \.spine \{ max-inline-size: 560px; \}/);
 });
+
+test('a very wide window gives Tomorrow its own column, by time, and Week then skips tomorrow', () => {
+  const {d} = seed();
+  task(d, {title: 'Stretch', planned: '2026-10-04T02:30:00.000Z'});
+  const {tomorrow} = agendaModel(d, SATURDAY_10_AM_KOLKATA);
+  assert.equal(tomorrow.day, '2026-10-04');
+  assert.equal(tomorrow.count, 2);
+  assert.deepEqual(tomorrow.tasks.map(t => t.title), ['Stretch', 'Submit']);
+  const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
+  const wide = css.slice(css.indexOf('@media (width >= 1080px)'));
+  assert.match(wide, /\.agenda-tomorrow \{ display: none; \}/);
+  assert.match(wide, /@media \(width >= 1680px\) \{\s+#agenda:not\(\[hidden\]\) \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[^}]*\}\s+#agenda \.agenda-tomorrow \{ display: grid; \}\s+\.agenda-tomorrow ~ \.agenda-week \.agenda-day\[data-tomorrow\] \{ display: none; \}/);
+  const source = readFileSync(new URL('./agenda.mjs', import.meta.url), 'utf8');
+  assert.match(source, /if \(day\.day === tomorrow\) node\.dataset\.tomorrow = '';/);
+});

@@ -9,6 +9,7 @@ import {isWide, onWidthChange} from './desktop.mjs';
 const SHOWN = 4;
 const AHEAD = 6;
 const TITLES = 3;
+const TOMORROW = 8;
 
 const byTime = (a, b) => (taskWhen(a) ?? Infinity) - (taskWhen(b) ?? Infinity);
 
@@ -24,11 +25,14 @@ export function agendaModel(data, now = new Date()) {
     const active = dayTasks(data, day, +now).active.sort(byTime);
     return {day, label: dayName(day), count: active.length, titles: active.slice(0, TITLES).map(task => task.title)};
   }).filter(day => day.count);
+  const tomorrow = shiftDay(today, 1);
+  const ahead = dayTasks(data, tomorrow, +now).active.sort(byTime);
   return {
     inbox: {count: inbox.length, tasks: inbox.slice(0, SHOWN)},
     next: block && {block, due: soon?.due?.label ?? '',
       tasks: blockTasks(data, block.id).filter(task => !task.done && !onToday.has(task.id)).slice(0, SHOWN)},
     week,
+    tomorrow: {day: tomorrow, count: ahead.length, tasks: ahead.slice(0, TOMORROW)},
   };
 }
 
@@ -52,8 +56,15 @@ function taskItem(task, ui, now) {
     headline: task.title, supporting: when(task, now), onClick: () => ui.taskEditor(task.id), cls: 'agenda-task'});
 }
 
-function weekDay(day, ui) {
+function tomorrowItem(task, ui) {
+  const at = taskWhen(task);
+  return listItem({leading: task.must ? icon('star', {fill: true, cls: 'leading must'}) : 'radio_button_unchecked',
+    headline: task.title, supporting: at ? clock(at) : '', onClick: () => ui.taskEditor(task.id), cls: 'agenda-task'});
+}
+
+function weekDay(day, ui, tomorrow) {
   const node = button('', () => ui.openView({view: 'day', date: day.day}), 'list-item agenda-day');
+  if (day.day === tomorrow) node.dataset.tomorrow = '';
   const copy = el('span', 'list-copy');
   const top = el('span', 'list-headline');
   top.append(el('span', '', day.label), el('span', 'agenda-count tnum', String(day.count)));
@@ -62,8 +73,8 @@ function weekDay(day, ui) {
   return node;
 }
 
-function section(...children) {
-  const node = el('section', 'agenda-section');
+function section(cls, ...children) {
+  const node = el('section', `agenda-section ${cls}`);
   node.append(...children);
   return node;
 }
@@ -71,15 +82,19 @@ function section(...children) {
 export function renderAgenda(host, data, ui, now = new Date()) {
   const model = agendaModel(data, now);
   const sections = [];
-  sections.push(section(head('Inbox', {count: model.inbox.count, onClick: () => ui.inbox()}),
+  sections.push(section('agenda-inbox', head('Inbox', {count: model.inbox.count, onClick: () => ui.inbox()}),
     ...model.inbox.tasks.map(task => taskItem(task, ui, now))));
   if (model.next) {
     const {block} = model.next;
     const open = head(block.title, {onClick: () => ui.openView({view: 'rpm', collection: 'blocks', id: block.id})});
     if (model.next.due) open.querySelector('h2').after(el('span', 'agenda-due', model.next.due));
-    sections.push(section(open, ...model.next.tasks.map(task => taskItem(task, ui, now))));
+    sections.push(section('agenda-next', open, ...model.next.tasks.map(task => taskItem(task, ui, now))));
   }
-  if (model.week.length) sections.push(section(head('Week'), ...model.week.map(day => weekDay(day, ui))));
+  const {tomorrow} = model;
+  if (tomorrow.count) sections.push(section('agenda-tomorrow',
+    head('Tomorrow', {count: tomorrow.count, onClick: () => ui.openView({view: 'day', date: tomorrow.day})}),
+    ...tomorrow.tasks.map(task => tomorrowItem(task, ui))));
+  if (model.week.length) sections.push(section('agenda-week', head('Week'), ...model.week.map(day => weekDay(day, ui, tomorrow.day))));
   host.replaceChildren(...sections);
 }
 
