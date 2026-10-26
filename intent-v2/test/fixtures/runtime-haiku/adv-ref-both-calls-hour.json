@@ -1,0 +1,58 @@
+{
+  "id": "adv-ref-both-calls-hour",
+  "outputs": [
+    [
+      {
+        "schemaVersion": 1,
+        "mode": "plan",
+        "draftMode": "new",
+        "reply": "Both calls move one hour later: Call Raj to 5:00 PM and Call Amma to 9:00 PM today.",
+        "decisions": [
+          {
+            "sourceId": "s0",
+            "disposition": "action",
+            "note": null
+          }
+        ],
+        "operations": [
+          {
+            "opId": "op1",
+            "sourceId": "s0",
+            "kind": "update",
+            "entity": "task",
+            "targetId": "101",
+            "fields": [
+              {
+                "name": "time",
+                "op": "set",
+                "value": "today at 5 pm",
+                "origin": "stated",
+                "evidence": "both calls today shift by an hour"
+              }
+            ]
+          },
+          {
+            "opId": "op2",
+            "sourceId": "s0",
+            "kind": "update",
+            "entity": "task",
+            "targetId": "106",
+            "fields": [
+              {
+                "name": "time",
+                "op": "set",
+                "value": "today at 9 pm",
+                "origin": "stated",
+                "evidence": "both calls today shift by an hour"
+              }
+            ]
+          }
+        ],
+        "question": null,
+        "clarification": null,
+        "memoryCandidates": [],
+        "card": null
+      }
+    ]
+  ]
+}

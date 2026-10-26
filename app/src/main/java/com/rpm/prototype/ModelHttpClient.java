@@ -7,7 +7,7 @@ import okhttp3.*;
 
 final class ModelHttpClient {
     private static final OkHttpClient CLIENT=new OkHttpClient.Builder().connectTimeout(8,TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build();
-    static Call call(Request request,int timeout){return CLIENT.newBuilder().readTimeout(timeout,TimeUnit.MILLISECONDS).build().newCall(request);}
+    static Call call(Request request,int timeout){return CLIENT.newBuilder().retryOnConnectionFailure(request.method().equals("GET")||request.method().equals("HEAD")).readTimeout(timeout,TimeUnit.MILLISECONDS).build().newCall(request);}
     static CompletableFuture<Void> warm(String endpoint){
         CompletableFuture<Void> warmed=new CompletableFuture<>();
         call(new Request.Builder().url(endpoint).head().build(),8000).enqueue(new Callback(){

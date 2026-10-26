@@ -1,0 +1,22 @@
+{
+  "raw": "honestly the workbook is killing me I hate this course I dont even know why I signed up",
+  "now": "2026-10-19T04:30:00.000Z",
+  "output": {
+    "schemaVersion": 1,
+    "mode": "reflect",
+    "draftMode": "none",
+    "reply": "That sounds draining, and it makes sense you'd be fed up when the workbook is due this evening. Want to put the first step on the list so it's smaller in your head?",
+    "decisions": [
+      {
+        "sourceId": "s0",
+        "disposition": "reflection",
+        "note": null
+      }
+    ],
+    "operations": [],
+    "question": null,
+    "clarification": null,
+    "memoryCandidates": [],
+    "card": null
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "id": "hinglish-baad-mein",
+  "outputs": [
+    [
+      {
+        "schemaVersion": 1,
+        "mode": "capture",
+        "draftMode": "new",
+        "reply": "Flight aur hotel dono ko chhod diya hai. Bank ko email kal ke liye rakha hai.",
+        "decisions": [
+          {
+            "sourceId": "s0",
+            "disposition": "reference",
+            "note": "Flight to Pune idea dropped by you."
+          },
+          {
+            "sourceId": "s1",
+            "disposition": "action",
+            "note": null
+          },
+          {
+            "sourceId": "s2",
+            "disposition": "reference",
+            "note": "Hotel booking not wanted."
+          }
+        ],
+        "operations": [
+          {
+            "opId": "op1",
+            "sourceId": "s1",
+            "kind": "create",
+            "entity": "task",
+            "targetId": null,
+            "fields": [
+              {
+                "name": "title",
+                "op": "set",
+                "value": "Email the bank",
+                "origin": "suggested",
+                "evidence": null
+              },
+              {
+                "name": "time",
+                "op": "set",
+                "value": "tomorrow",
+                "origin": "stated",
+                "evidence": "kal"
+              }
+            ]
+          }
+        ],
+        "question": null,
+        "clarification": null,
+        "memoryCandidates": [],
+        "card": null
+      }
+    ]
+  ]
+}

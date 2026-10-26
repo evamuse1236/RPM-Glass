@@ -153,7 +153,7 @@ const stored=data=>JSON.stringify([data.entries??[],data.planner??{},data.intent
 
 // Heuristic: a past-tense claim of change in the reply while entries and planner are identical.
 export function checkClaims(reply,{before,after,pending=false}){
- const text=String(reply??'');
+ const text=String(reply??'').replace(/\bis (?:already )?saved\b/gi,'is on the list').replace(/\byour (?:original )?words are saved\b/gi,'your words are kept').replace(/\b(your|the|these|those) saved (tasks?|items?|records?)\b/gi,'$1 existing $2').replace(/\bnothing (?:(?:will|would) be|(?:is|was)(?: being)?|(?:has|had) been) \w+/gi,'');
  const claim=text.match(CLAIM);
  if(!claim||pending||stored(before)!==stored(after))return [];
  return [{type:'false claim',detail:`Reply says "${claim[0]}" but nothing saved changed: ${text.slice(0,120)}`}];

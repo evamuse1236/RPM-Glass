@@ -252,3 +252,16 @@ test('anyTask accepts a moved saved task or a new one; scheduled needs a planned
  assert.ok(check([{id:1,kind:'plan',title:'Gym',planned:'2026-10-19T12:30:00Z'}]).some(f=>f.detail.includes('No active task')));
  assert.ok(check([{id:1,kind:'plan',title:'Gym'}],{anyTask:[],created:[{words:['gym'],scheduled:true}]}).some(f=>f.type==='wrong time'));
 });
+
+test('existing state and a promise to leave it alone are not claims of a new save',()=>{
+ const before={...empty(),entries:[bank()]};
+ for(const reply of ['Yes. Buy milk is saved for tomorrow at 10:00 AM.','The dentist visit stays. Nothing will be removed.','I will not remove anything.','Nothing is being deleted.','Nothing was removed.','Nothing has been removed.'])
+  assert.deepEqual(checkClaims(reply,{before,after:before}),[]);
+ assert.ok(checkClaims('Buy milk is saved for tomorrow, and I added eggs.',{before,after:before}).length);
+});
+
+test('word retention receipts and references to saved tasks do not claim planner changes',()=>{
+ const before=empty();
+ for(const reply of ['Your original words are saved.','I can see your saved tasks, but not your calendar.'])assert.deepEqual(checkClaims(reply,{before,after:before}),[]);
+ assert.ok(checkClaims('Saved task Buy milk.',{before,after:before}).length);
+});
