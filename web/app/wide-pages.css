@@ -4,6 +4,23 @@
 
   #planner .date-button { font: var(--headline-medium); letter-spacing: -.01em; }
 
+  .planner-view > #banner {
+    z-index: 1;
+    grid-column: 1;
+    grid-row: 3;
+    align-self: end;
+    flex-wrap: nowrap;
+    align-items: start;
+    gap: var(--s3);
+    margin: var(--s3);
+    padding: var(--s3) var(--s4) var(--s3) var(--s3);
+    border-radius: var(--shape-md);
+    font: var(--body-small);
+    color: var(--on-surface-variant);
+  }
+  .planner-view > #banner[hidden] { display: none; }
+  .planner-view > #banner::before { content: 'cloud_sync' / ''; font: 20px/1 'Material Symbols Rounded'; font-feature-settings: 'liga'; color: var(--primary); }
+
   #planner .tabs { padding-inline: var(--s2); }
   #planner .tab { flex: 0 0 auto; text-align: center; }
   #planner .tab[aria-selected=true]::after { inset-inline: var(--s4); }

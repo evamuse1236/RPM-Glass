@@ -42,3 +42,11 @@ test('on wide every page title has one weight: the Today date uses the same head
   assert.match(css, /#planner \.date-button \{ font: var\(--headline-medium\); letter-spacing: -\.01em; \}/);
   assert.match(read('../../android-companion/planner.css'), /\.top-title \{[^}]*font: var\(--headline-medium\);/);
 });
+
+test('on wide the sync note is a small chip at the foot of the sidebar, so it never pushes a page down', () => {
+  const css = read('./wide-pages.css');
+  const rule = css.match(/\.planner-view > #banner \{([^}]*)\}/)[1];
+  for (const decl of ['grid-column: 1;', 'grid-row: 3;', 'align-self: end;', 'flex-wrap: nowrap;']) assert.ok(rule.includes(decl), decl);
+  assert.match(css, /\.planner-view > #banner\[hidden\] \{ display: none; \}/);
+  assert.match(css, /\.planner-view > #banner::before \{ content: 'cloud_sync' \/ '';/);
+});
