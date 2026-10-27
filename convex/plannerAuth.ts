@@ -15,11 +15,11 @@ export async function accountFor(ctx:PlannerCtx,device:Doc<"devices">) {
   return account;
 }
 
-export async function consumeQuota(ctx:PlannerCtx,key:string,limit=120):Promise<Failure|null> {
-  const now = Date.now(), window = Math.floor(now/60000);
+export async function consumeQuota(ctx:PlannerCtx,key:string,limit=120,windowMs=60000):Promise<Failure|null> {
+  const now = Date.now(), window = Math.floor(now/windowMs);
   const quota = await ctx.db.query("webRateLimits").withIndex("by_key",q=>q.eq("key",key)).unique();
   if(quota?.window===window && quota.count>=limit) {
-    return {...fail(429,"rate_limited","Please wait before trying again"),retryAfter:Math.max(1,Math.ceil(((window+1)*60000-now)/1000))};
+    return {...fail(429,"rate_limited","Please wait before trying again"),retryAfter:Math.max(1,Math.ceil(((window+1)*windowMs-now)/1000))};
   }
   if(quota)await ctx.db.patch(quota._id,{window,count:quota.window===window?quota.count+1:1});
   else await ctx.db.insert("webRateLimits",{key,window,count:1});
