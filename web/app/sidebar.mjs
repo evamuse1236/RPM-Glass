@@ -1,4 +1,4 @@
-import {DESTINATIONS} from '../../android-companion/planner/shell.mjs';
+import {DESTINATIONS} from '../../android-companion/planner/destinations.mjs';
 import {button, el, icon, iconButton} from '../../android-companion/planner/dom.mjs';
 
 function entry(glyph, label, onClick, cls = 'side-item') {

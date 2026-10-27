@@ -46,7 +46,7 @@ test('on wide the task pane names its icons on hover, spells out the Block, and 
   const head = read('../../android-companion/planner/task-head.mjs');
   assert.match(head, /if \(tips\) must\.title = 'Must';/);
   assert.match(head, /if \(tips\) ring\.title = t\.done \? 'Mark incomplete' : 'Mark complete';/);
-  assert.match(read('../../android-companion/planner/task-tabs.mjs'), /setTab\('block', wide \? blockTitle\?\.trim\(\) \|\| 'Inbox' : blockShort\(blockTitle\), 'stacks'\);/);
+  assert.match(read('../../android-companion/planner/task-tabs.mjs'), /setTab\('block', wide \? blockTitle\?\.trim\(\) \|\| 'Inbox' : blockShort\(blockTitle\)\);/);
   const css = read('./task-pane.css');
   assert.match(css, /#sheet\[data-inline\] \.tab-row \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\) minmax\(0, 2fr\); \}/);
   assert.match(css, /#sheet\[data-inline\] \.tab-btn \{ grid-template-columns: minmax\(0, 1fr\); \}/, 'a long Block name ends in an ellipsis inside its tab');

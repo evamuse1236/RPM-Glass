@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {FakeElement, installFakeDom} from '../../android-companion/fake-dom.mjs';
-import {DESTINATIONS} from '../../android-companion/planner/shell.mjs';
+import {DESTINATIONS} from '../../android-companion/planner/destinations.mjs';
 import {WIDE} from './desktop.mjs';
 import {activeEntry, mountSidebar} from './sidebar.mjs';
 

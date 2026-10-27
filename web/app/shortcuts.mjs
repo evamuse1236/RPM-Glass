@@ -1,4 +1,4 @@
-import {DESTINATIONS} from '../../android-companion/planner/shell.mjs';
+import {DESTINATIONS} from '../../android-companion/planner/destinations.mjs';
 import {el} from '../../android-companion/planner/dom.mjs';
 import {actionRow, rowOpener} from './pointer.mjs';
 
