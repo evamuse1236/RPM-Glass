@@ -30,7 +30,9 @@
     "web:drive": "node scripts/web-sync/drive.mjs",
     "web:deploy-prod": "node scripts/web-sync/deploy-prod.mjs",
     "web:local": "node scripts/web-sync/local.mjs",
-    "web:drive-offline": "node scripts/web-sync/drive-offline.mjs"
+    "web:drive-offline": "node scripts/web-sync/drive-offline.mjs",
+    "ramble": "scripts/ramble/ramble.sh",
+    "ramble:probe": "RAMBLE_SCRIPT=probe.mjs scripts/ramble/ramble.sh"
   },
   "dependencies": {
     "chrono-node": "2.10.1",
