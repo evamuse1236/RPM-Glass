@@ -95,6 +95,7 @@ export function evidenceGap(root) {
   const web = builtWeb(root);
   const unbuilt = changed.filter(f => changedAt(root, f) > (isWebSource(f) ? Math.max(built, web.at) : built));
   if (unbuilt.length) return `The debug APK is older than changed app code (${list(unbuilt)}), so no screenshot can show it yet. ${how}`;
+  if (!built) return `No debug APK is built, so no rpmctl screenshot can show the changed app code (${list(changed)}). ${how}`;
   const needWeb = changed.some(f => isWebSource(f) && changedAt(root, f) > built);
   const evidence = matchingEvidence(root, crypto.createHash('sha256').update(fs.readFileSync(apk)).digest('hex'), {webSha: web.sha, needWeb});
   if (!evidence) return `No rpmctl screenshot was taken with the current debug APK installed (app code changed: ${list(changed)}). ${how}`;
