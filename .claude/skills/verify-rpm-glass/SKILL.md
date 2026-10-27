@@ -1,13 +1,13 @@
 ---
 name: verify-rpm-glass
-description: Drive the real RPM Android app (com.rpm.prototype, Capture sheet + Planner WebViews + native widget/settings) on an S24 FE-sized emulator and capture proof. Use before saying any app change is done, to reproduce a reported bug, to screenshot a screen at the phone's One UI default size, or to read what the app actually saved. Ships the `rpmctl` CLI (launch, doctor, seed, open, ui, tap, type, key, scroll, wait, display, shot, eval, state, logs, scenario, check, cleanup).
+description: Drive the real RPM Android app (com.rpm.prototype, Capture sheet + Planner WebViews + native widget/settings) on an S24 FE-sized emulator and capture proof. Use before saying any app change is done, to reproduce a reported bug, to screenshot a screen at the phone's One UI default size, or to read what the app actually saved. Ships the `rpmctl` CLI (launch, doctor, seed, open, ui, tap, type, key, scroll, wait, display, shot, eval, state, store, logs, scenario, check, cleanup).
 ---
 
 # Verify RPM on a real Android build
 
 RPM is an Android app. Its Capture sheet (`index.html`) and Planner (`planner.html`) are WebViews inside a Java host; the widget, alarms, settings dialogs and "Earlier RPM screens" are native. A desktop browser preview, a green `npm test` or a passing build does not prove a change on the phone. This skill boots an emulator sized like the user's Galaxy S24 FE (1080 × 2340, 450 dpi, Android 16), installs the debug APK built from this checkout, and drives it with real touches.
 
-All commands go through one CLI. Every command prints one JSON object except `ui --brief`; failures print `{"ok":false,"error","fix"}` and exit 1. Read the `fix`.
+All commands go through one CLI. Every command prints one JSON object except `ui --brief` and `store` (which prints the saved JSON value directly); failures print `{"ok":false,"error","fix"}` and exit 1. Read the `fix`.
 
 ```bash
 RPMCTL="node .claude/skills/verify-rpm-glass/rpmctl.mjs"
@@ -40,6 +40,8 @@ Use the local emulator as a fallback when a feature needs interactive driving or
 $RPMCTL launch            # reuses the shared warm emulator (boots it if none), builds if needed, installs, opens Capture
 export RPMCTL_OWNER=<owner from launch>
 ```
+
+Every successful launch also prints an owner-token reminder to stderr naming `.verify/state.json` and its `owner` field; this avoids repeating the token in the reminder.
 
 Ready when it prints `"ok": true` (cold boot about 1-2 minutes, then about 35 s when the emulator is already up). Its `emulator` field says `booted` or `reused the warm emulator`. The emulator runs `-read-only`: nothing a run does persists into the AVD, so differently signed or stale copies of the app are replaced freely. `launch` refuses a port where an emulator it did not start is running. It is idempotent; rerun it after editing Java or the manifest to rebuild and reinstall (`--build` forces a build).
 
@@ -81,7 +83,9 @@ $RPMCTL tap --role combobox --name "Add a task to the Plan"
 $RPMCTL type "Email Prof. Rao about the citation format"
 $RPMCTL key enter
 $RPMCTL wait --role button --name "Email Prof. Rao"
-$RPMCTL state files/companion.json            # what the app actually saved
+$RPMCTL store                                 # parsed planner store, no wrapper
+$RPMCTL store sync.outbox                     # one dotted path
+$RPMCTL state files/companion.json            # raw file command: {ok, path, json}
 ```
 
 - `tap` finds the element in the visible WebView by exact accessible name (then substring), scrolls it into view if needed, and taps its centre with `adb shell input tap`. Ambiguous names fail and list candidates; add `--role` or `--nth`. Native views (system dialogs, permission prompts, legacy screens) use `--native "Text"`.
@@ -133,6 +137,8 @@ The rule table in `AGENTS.md` names which scenario or check enforces each rule.
 
 A gesture scenario starts on inert space, so no tap or control can fire. It asserts the gesture's own log line, not a screen state that another action could also produce.
 
+Local Convex scenarios use only this worktree’s `.env.local` and `.convex/`. The CLI’s home is isolated at `.verify/convex-home`, so it cannot fall back to another deployment’s credentials in `~/.convex`. Paths that escape the repo and deploy-key overrides are refused.
+
 ## Cleanup
 
 ```bash
@@ -145,7 +151,7 @@ Ends your run: removes the DevTools port forward and `.verify/state.json`, relea
 
 ## A physical phone
 
-`--serial <adb-serial>` points `doctor`, `ui`, `shot`, `logs` and `state` at another device read-only (for example the S24 FE over wireless debugging). Mutating commands require an emulator that rpmctl launched or explicitly adopted with `launch --attach` on Linux. Physical phones stay read-only to this tool. Installing on the phone is a release step: follow `docs/testing.md` and the release rule in `AGENTS.md`, and only when the user asked for it.
+`--serial <adb-serial>` points `doctor`, `ui`, `shot`, `logs`, `state` and `store` at another device read-only (for example the S24 FE over wireless debugging). Mutating commands require an emulator that rpmctl launched or explicitly adopted with `launch --attach` on Linux. Physical phones stay read-only to this tool. Installing on the phone is a release step: follow `docs/testing.md` and the release rule in `AGENTS.md`, and only when the user asked for it.
 
 To reproduce a reported gesture bug, stream `adb -s <phone> logcat -s RpmNotch` while the user does the gesture once. Or read `logs --serial <phone>` right after. Read that log before you infer a cause.
 

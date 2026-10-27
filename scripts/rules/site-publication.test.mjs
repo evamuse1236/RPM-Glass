@@ -75,6 +75,7 @@ fs.writeFileSync('web/dist-site/server/index.js', 'export default {};');`);
   assert.equal(git(site, 'diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD'), 'dist/server/index.js');
   assert.equal(sitePublicationGap(root), publicationMessage);
   assert.equal(run('published').status, 1);
+  put('app/build.gradle', 'versionCode 123'); commit();
   result = run('published', 'deployment-123');
   assert.equal(result.status, 0, result.stderr);
   const marker = JSON.parse(fs.readFileSync(path.join(root, '.verify/site-published.json')));
@@ -142,4 +143,18 @@ test('Stop hook and check:evidence enforce publication before other evidence pat
   const hook = run(['--hook']);
   assert.equal(hook.status, 0, hook.stderr);
   assert.deepEqual(JSON.parse(hook.stdout), {decision: 'block', reason: publicationMessage});
+});
+
+test('staging and publication also guard shared Site build inputs', t => {
+  const {root, put, commit, run} = fixture(t);
+  const mark = sha => {
+    writeReceipt(root, 'site-published.json', {rpmGlassSha: sha, siteCommit: 'site', deploymentId: 'deploy', at: new Date().toISOString()});
+  };
+  for (const file of ['scripts/build-companion-assets.mjs', 'package-lock.json', 'cli/title.mjs', 'intent-v2/src/context.mjs', 'chat-prototype/companion-state.mjs']) {
+    const sha = git(root, 'rev-parse', 'HEAD'); mark(sha);
+    put(file);
+    assert.equal(run('stage').status, 1, 'dirty shared inputs refuse before a build');
+    commit();
+    assert.equal(sitePublicationGap(root), publicationMessage, file);
+  }
 });

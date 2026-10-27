@@ -17,6 +17,7 @@ const commands = {
   shot: evidenceCommands.shot,
   eval: evidenceCommands.eval,
   state: evidenceCommands.state,
+  store: evidenceCommands.store,
   logs: evidenceCommands.logs,
   scenario: args => scenarioCommands.scenario(args, commands),
   check: evidenceCommands.check,
@@ -32,7 +33,7 @@ if (!commands[cmd]) { console.log(JSON.stringify({ok: false, error: `Unknown com
 try {
   const out = await commands[cmd](argv);
   console.log(cmd === 'ui' && argv.brief ? briefUi(out) : JSON.stringify(out, null, 2));
-  process.exit(out.ok === false ? 1 : 0);
+  process.exit(cmd !== 'store' && out?.ok === false ? 1 : 0);
 } catch (e) {
   console.log(JSON.stringify({ok: false, command: cmd, error: e.message, fix: e.fix ?? `Unexpected failure; rerun with the same arguments, then \`rpmctl doctor\`.`, ...(e.fix ? {} : {stack: e.stack?.split('\n').slice(0, 4)})}, null, 2));
   process.exit(1);

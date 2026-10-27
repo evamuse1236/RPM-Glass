@@ -28,6 +28,7 @@
     "web:serve": "node web/serve.mjs",
     "web:phone": "node scripts/web-sync/phone-standin.mjs",
     "web:drive": "node scripts/web-sync/drive.mjs",
+    "web:deploy-prod": "node scripts/web-sync/deploy-prod.mjs",
     "web:local": "node scripts/web-sync/local.mjs",
     "web:drive-offline": "node scripts/web-sync/drive-offline.mjs"
   },

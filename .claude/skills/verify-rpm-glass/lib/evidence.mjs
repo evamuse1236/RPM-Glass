@@ -39,6 +39,20 @@ export const evidenceCommands = {
     try { return {ok: true, path: rel, json: JSON.parse(text)}; } catch { return {ok: true, path: rel, text: text.slice(0, 200000)}; }
   },
 
+  async store(args) {
+    if (args._.length > 1 || args._[0] !== undefined && !/^[\w-]+(?:\.[\w-]+)*$/.test(args._[0]))
+      throw new UserError('Use one dotted store path.', 'e.g. rpmctl store sync.outbox');
+    const saved = await evidenceCommands.state({...args, _: ['files/companion.json']});
+    if (!Object.hasOwn(saved, 'json')) throw new UserError('Planner store is not valid JSON.', 'Retry `rpmctl store`; inspect `rpmctl state files/companion.json`.');
+    let value = saved.json;
+    for (const key of args._[0]?.split('.') ?? []) {
+      if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key))
+        throw new UserError('Store path does not exist.', 'Run `rpmctl store` to see the saved fields.');
+      value = value[key];
+    }
+    return value;
+  },
+
   async logs(args) {
     const {serial, state} = target(args, {mutates: false});
     if (args.errors) return {ok: true, errors: errorLines(serial, state?.appLogSince)};
