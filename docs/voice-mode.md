@@ -31,18 +31,19 @@ Pure modules, used by the phone page, the website and the ramble prototype:
 
 | Tool | Op |
 |---|---|
-| `get_plan` | none; tasks, Blocks, Projects, Areas with ids, priorities and purposes |
-| `save_task` (add or change; `done` completes, `done:false` reopens) | `saveTask`, `reopenTask` |
+| `get_plan` | none; tasks, Blocks, Projects (with `goalId`), Goals (with `areaId`, year), Areas with ids, priorities and purposes |
+| `save_task` (add or change; `done` completes, `done:false` reopens; a time replaces the day and a day replaces the time) | `saveTask`, `reopenTask` |
 | `delete_task` | `archiveTask` (Trash, restorable) |
 | `move_task` (to a Block or the Inbox, optional before) | `moveTask` |
 | `order_block` (task ids in priority order) | `saveTask` with `priority` per task, so a replay never needs the whole Block |
 | `save_block` (title = result, purpose, Project) | `saveEntity` blocks |
 | `delete_block` (its tasks go to the Inbox) | `removeEntity` blocks |
-| `save_project` (title, purpose, Area via a yearly goal link is out of scope) | `saveEntity` projects |
+| `save_project` (title, purpose, `goalId`) | `saveEntity` projects |
+| `save_goal` (title, purpose, `areaId`, year; a new Goal is yearly, this year) | `saveEntity` goals |
 | `save_area` (title, purpose, rating) | `saveEntity` areas |
-| `delete_project`, `delete_area` | `removeEntity` (Blocks stay, unlinked) |
+| `delete_project`, `delete_goal`, `delete_area` | `removeEntity` (Blocks, Projects or Goals stay, unlinked) |
 
-"Add a Block to a Project" is `save_block` with `projectId`; "remove it" sets `projectId: null`. Areas hold goals, not Blocks, in the data model; voice can add and edit Areas, and a Block joins an Area only through a Project's goal, which voice does not create. Removing a task is always Trash, never a hard delete.
+"Add a Block to a Project" is `save_block` with `projectId`; "remove it" sets `projectId: null`. A Block reaches an Area through Project, then Goal, then Area (decided 2026-10-28: no direct link). "Put X in Health" links its Project to a Goal of Health with `save_project goalId`, and adds a yearly Goal first when Health has none this year; a Block with no Project goes into a fitting Project or a new one. The model says what it chose. Blocks have no saved order (decided 2026-10-28): the planner lists them by deadline, so "prioritize a Block" means the order of its tasks (`order_block`) or its Musts, and a request to move a Block itself changes nothing and gets that explanation out loud. Removing a task is always Trash, never a hard delete.
 
 `finish` and `keep_note` are dropped. The phone's mic stops and the ramble is saved when Capture goes to the background. the reply is the spoken sentence, and an idea that is not a task becomes a task only if asked; otherwise the model says so out loud.
 
@@ -75,7 +76,7 @@ The home widget's mic opens Capture already listening (`com.rpm.widget.voice` al
 
 ## Out of scope
 
-Calendar events, goals, habits (water, meals), review steps. The order of Blocks (the data model has no Block order op). Putting a Block in an Area: in the data model a Block joins an Area only through Project, then goal, then Area; voice does not create goals. Hands-free activity detection. A spoken answer to a question without a new press.
+Calendar events, habits (water, meals), review steps. A saved order of Blocks (they sort by deadline). Hands-free activity detection. A spoken answer to a question without a new press.
 
 ## Verification
 

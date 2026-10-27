@@ -23,7 +23,7 @@ export function createRamble({data,timeZone,now=()=>new Date()}){
   if(c.name==='get_plan')return planView(working,timeZone);
   const key=sameAdd(c);
   if(key&&added.has(key))return added.get(key);
-  const {ops:next,change}=toolOps(working,c.name,c.args??{});
+  const {ops:next,change}=toolOps(working,c.name,c.args??{},now());
   if(ops.length+next.length>MAX_RAMBLE_OPS)throw new Error('That is too many changes for one go. Save these, and say the rest next time.');
   let result=null;for(const op of next)result=apply(op)??result;
   if(change.kind==='add'&&change.entity==='task'){change.id=result;created.push(result);}

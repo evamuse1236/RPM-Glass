@@ -116,6 +116,68 @@ test('Blocks, Projects and Areas are added, changed, linked and removed with exi
  assert.equal(data.entries.find(e=>e.id===ids.gym).blockId,null,'a removed Block sends its tasks to the Inbox');
 });
 
+test('a Block joins an Area through a new Goal of this year that holds its Project, and one Undo takes it back', () => {
+ const {data,ids}=day();
+ const project=planner(data).projects[0].id;
+ editPlan(data,{type:'saveEntity',collection:'blocks',id:ids.fit,fields:{title:'Get fit',purpose:'Energy',projectId:project}},NOW);
+ const area=editPlan(data,{type:'saveEntity',collection:'areas',fields:{title:'Health'}},NOW);
+ const r=createRamble({data,timeZone:TZ,now:()=>NOW});r.stop();
+ const [view]=reply(r,tools(call('get_plan')));
+ assert.deepEqual(view.projects.map(x=>x.goalId),[null]);assert.deepEqual(view.goals,[]);
+ const [goal]=reply(r,tools(call('save_goal',{title:'Strong body',areaId:area})));
+ reply(r,tools(call('save_project',{id:project,goalId:goal.saved})));
+ const [again]=reply(r,tools(call('get_plan')));
+ assert.deepEqual(again.goals,[{id:goal.saved,title:'Strong body',purpose:null,areaId:area,year:2026}]);
+ r.receive(turnDone);r.receive(turnDone);
+ assert.deepEqual(r.state.errors,[]);
+ assert.deepEqual(r.state.changes.map(c=>[c.kind,c.entity,c.title]),[['add','goal','Strong body'],['change','project','Health']]);
+ applyRamble(data,r.result(),words);
+ const p=planner(data),saved=p.goals[0];
+ assert.deepEqual([saved.areaId,saved.year,saved.horizon],[area,2026,'yearly']);
+ assert.equal(p.projects[0].goalId,saved.id);
+ undoRamble(data,'m-1',NOW);
+ assert.equal(planner(data).goals.length,0);assert.equal(planner(data).projects[0].goalId,null);
+});
+
+test('changing a Goal keeps its unspoken Area, year and horizon; removing it frees its Projects', () => {
+ const {data}=day();
+ const area=editPlan(data,{type:'saveEntity',collection:'areas',fields:{title:'Health'}},NOW);
+ const goal=editPlan(data,{type:'saveEntity',collection:'goals',fields:{title:'Run',areaId:area,year:2025,horizon:'quarterly',period:3}},NOW);
+ const project=planner(data).projects[0].id;
+ editPlan(data,{type:'saveEntity',collection:'projects',id:project,fields:{title:'Health',goalId:goal}},NOW);
+ const r=createRamble({data,timeZone:TZ,now:()=>NOW});r.stop();
+ reply(r,tools(call('save_goal',{id:goal,title:'Run far'}),call('save_project',{id:project,title:'Body'})));
+ r.receive(turnDone);r.receive(turnDone);
+ const kept=structuredClone(data);applyRamble(kept,r.result(),words);
+ const g=planner(kept).goals[0];
+ assert.deepEqual([g.title,g.areaId,g.year,g.horizon,g.period],['Run far',area,2025,'quarterly',3]);
+ assert.equal(planner(kept).projects[0].goalId,goal,'a Project change that names no Goal keeps its Goal');
+ const d=createRamble({data,timeZone:TZ,now:()=>NOW});d.stop();
+ const [missing,removed]=reply(d,tools(call('save_goal',{title:'Swim',areaId:'area-x'}),call('delete_goal',{id:goal})));
+ assert.match(missing.error,/No area area-x/);assert.equal(removed.saved,null);
+ d.receive(turnDone);d.receive(turnDone);applyRamble(data,d.result(),words);
+ assert.equal(planner(data).goals.length,0);assert.equal(planner(data).projects[0].goalId,null);
+});
+
+test('a time replaces a task\'s day and a day replaces its time, even when the model sends both', () => {
+ const {data,ids}=day();
+ editPlan(data,{type:'saveTask',id:ids.raj,fields:{plannedDate:'2026-10-28'}},NOW);
+ const r=createRamble({data,timeZone:TZ,now:()=>NOW});r.stop();
+ reply(r,tools(call('save_task',{id:ids.raj,start:'2026-10-29T20:00:00+05:30',day:'2026-10-29'}),call('save_task',{id:ids.gym,day:'2026-10-30'})));
+ r.receive(turnDone);r.receive(turnDone);
+ assert.deepEqual(r.state.errors,[]);
+ applyRamble(data,r.result(),words);
+ const raj=data.entries.find(e=>e.id===ids.raj),gym=data.entries.find(e=>e.id===ids.gym);
+ assert.deepEqual([raj.planned,raj.plannedDate],['2026-10-29T14:30:00.000Z',null]);
+ assert.deepEqual([gym.planned,gym.plannedDate],[null,'2026-10-30']);
+});
+
+test('the prompt says Blocks have no order of their own and how voice moves one up', () => {
+ const text=liveSetup(NOW,TZ).systemInstruction.parts[0].text;
+ assert.match(text,/Blocks have no order of their own/);
+ assert.match(text,/To put a Project in an Area, give it a Goal of that Area/);
+});
+
 test('reopening a done task and taking a Block out of its Project', () => {
  const {data,ids}=day();
  const project=planner(data).projects[0].id;
@@ -152,7 +214,7 @@ test('the Live setup carries every tool, the local offset and manual turns', () 
  assert.match(setup.systemInstruction.parts[0].text,/offset \+05:30/);
  assert.equal(setup.realtimeInputConfig.automaticActivityDetection.disabled,true);
  assert.equal(offsetOf(new Date('2026-07-01T12:00:00Z'),'America/New_York'),'-04:00');
- assert.deepEqual(Object.keys(planView(freshStore(),TZ)),['inbox','blocks','projects','areas']);
+ assert.deepEqual(Object.keys(planView(freshStore(),TZ)),['inbox','blocks','projects','goals','areas']);
 });
 
 test('the model asking twice for the same new task in one ramble adds it once and answers with the first id', () => {
