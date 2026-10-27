@@ -61,7 +61,7 @@ public class CompanionActivity extends Activity {
         if(root==null||web==null)return;
         android.util.DisplayMetrics m=getResources().getDisplayMetrics();
         int width=root.getWidth()>0?root.getWidth():m.widthPixels,height=root.getHeight()>0?root.getHeight():m.heightPixels;
-        boolean wide=expanded||effectiveFontScale()>1.3f;int pad=dp(wide?4:12);
+        boolean wide=expanded||getResources().getConfiguration().fontScale>1.3f;int pad=dp(wide?4:12);
         int layoutBottom=Build.VERSION.SDK_INT>=30?systemBottom:insetBottom;
         int availableWidth=Math.max(1,width-insetLeft-insetRight-pad*2),availableHeight=Math.max(1,height-insetTop-layoutBottom-pad-dp(planning()?4:24));
         FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(wide?availableWidth:Math.min(dp(560),availableWidth),availableHeight,Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
@@ -71,9 +71,8 @@ public class CompanionActivity extends Activity {
         web.setLayoutParams(p);
     }
     private void openKeyboard(){if(web==null)return;web.post(()->{if(closing||web==null)return;web.requestFocus();web.evaluateJavascript("document.getElementById('message')?.focus({preventScroll:true})",r->{if(web!=null&&!closing)((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(web,android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);});});}
-    private float effectiveFontScale(){return getResources().getConfiguration().fontScale*(planning()?1f:CompanionControls.widgetTextScale(this)/100f);}
-    private void applyTextScale(){if(web!=null)web.getSettings().setTextZoom(Math.round(effectiveFontScale()*100));}
-    private JSONObject phoneStatus()throws JSONException{return CompanionAlerts.status(this,!planning()).put("reducedMotion",!ValueAnimator.areAnimatorsEnabled()).put("debug",(getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE)!=0);}
+    private void applyTextScale(){if(web!=null)web.getSettings().setTextZoom(CompanionControls.webTextZoom(this));}
+    private JSONObject phoneStatus()throws JSONException{return CompanionAlerts.status(this).put("reducedMotion",!ValueAnimator.areAnimatorsEnabled()).put("debug",(getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE)!=0);}
     private void settingsChanged(){if(closing||web==null)return;applyTextScale();size();web.evaluateJavascript("window.rpmPhoneRefresh?.()",null);web.evaluateJavascript("window.dispatchEvent(new Event('rpm-settings-refresh'))",null);}
     private void openIntegratedSettings(String section){if(web==null)return;if(section==null||section.isBlank())section="settings";String destination=section;if(planning())web.evaluateJavascript("window.rpmOpenSettings?.("+JSONObject.quote(destination)+")",null);else{JSONObject target=new JSONObject();try{target.put("view",destination);}catch(JSONException ignored){}startActivity(new Intent(this,PlannerActivity.class).putExtra("plannerTarget",target.toString()));}}
     @Override public void finish(){
@@ -89,8 +88,10 @@ public class CompanionActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle out){out.putBoolean("expanded",expanded);super.onSaveInstanceState(out);}
     @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);if(intent.getBooleanExtra("reload",false))web.reload();else if(!planning())arrive();}
     // The widget's mic opens Capture already listening (once: a reload afterwards only focuses the field); anything else opens the keyboard.
-    private void arrive(){if(web==null)return;if(!"com.rpm.widget.voice".equals(getIntent().getAction())){openKeyboard();return;}getIntent().setAction("com.rpm.widget.capture");web.post(()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmStartVoice?window.rpmStartVoice():(window.rpmPendingVoice=true)",null);});}
+    private void arrive(){if(web==null)return;shown();if(!"com.rpm.widget.voice".equals(getIntent().getAction())){openKeyboard();return;}getIntent().setAction("com.rpm.widget.capture");web.post(()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmStartVoice?window.rpmStartVoice():(window.rpmPendingVoice=true)",null);});}
     private android.content.BroadcastReceiver notchSaved;
+    private void shown(){if(web!=null&&!planning())web.evaluateJavascript("window.rpmCaptureShown?.()",null);}
+    @Override protected void onRestart(){super.onRestart();shown();}
     @Override protected void onResume(){super.onResume();notchSaved=NotchRunner.onSaved(this,()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmPhoneRefresh?.()",null);});applyTextScale();if(settingsController!=null)settingsController.onResume();work.execute(()->{NotchSetup.check(this);try{JSONObject d=CompanionStore.read(this);if(d!=null)CompanionAlerts.reconcile(this,d,false);}catch(Exception ignored){}runOnUiThread(this::settingsChanged);});}
     @Override protected void onPause(){unregisterReceiver(notchSaved);if(settingsController!=null)settingsController.onPause();super.onPause();}
     @Override public void onConfigurationChanged(android.content.res.Configuration c){super.onConfigurationChanged(c);size();applyTextScale();settingsChanged();}

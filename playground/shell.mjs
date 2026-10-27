@@ -17,7 +17,7 @@ const notch = notchShell({stage: $('notch-stage'), empty: $('notch-empty'), say,
 
 function layoutFrames() {
   const {textScale} = device(), status = S24.statusBarDp, nav = S24.navBarDp, w = 384, h = 832;
-  const wide = captureExpanded || textScale * prefs().widgetTextScale / 100 > 1.3, pad = wide ? 4 : 12;
+  const wide = captureExpanded || textScale > 1.3, pad = wide ? 4 : 12;
   const avail = w - 2 * pad, cw = wide ? avail : Math.min(560, avail);
   Object.assign(frames.capture.style, {insetInlineStart: `${(w - cw) / 2}px`, insetBlockStart: `${status + 24}px`,
     inlineSize: `${cw}px`, blockSize: `${h - status - nav - pad - 24}px`});

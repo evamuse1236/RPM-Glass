@@ -32,6 +32,15 @@ test('response cards have a 1px outline border and 20dp corners in both themes; 
   assert.match(block(read('capture.css'), '.stack'), /gap:8px/);
 });
 
+test('the forming card is a quiet card: same surface and solid 1px edge as the others, no dash, no shadow, body text', () => {
+  const css = read('capture-cards.css');
+  const forming = block(css, '.card.forming');
+  assert.doesNotMatch(forming, /dashed|border-color|background/, 'it keeps the card surface and outline');
+  assert.match(forming, /box-shadow:none/);
+  assert.match(forming, /color:var\(--bar-on-variant\)/);
+  assert.match(block(css, '.forming-title'), /font:var\(--body-large\)/);
+});
+
 test('Capture never darkens what is behind it: no window dim and a clear More scrim (user, 2026-10-21)', () => {
   const styles = read('../app/src/main/res/values/styles.xml');
   assert.match(styles, /backgroundDimEnabled">false</);

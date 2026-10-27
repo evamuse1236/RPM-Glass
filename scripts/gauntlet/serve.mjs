@@ -15,7 +15,7 @@ const port = Number(process.argv[2] ?? 4173);
 let store = null, phone = null;
 const reset = (options = {}) => {
   store = options.empty ? null : seedStore().data;
-  phone = {fontScale: options.fontScale ?? 1, effectiveFontScale: options.fontScale ?? 1, hasKey: options.hasKey ?? true,
+  phone = {fontScale: options.fontScale ?? 1, hasKey: options.hasKey ?? true,
     reducedMotion: false, debug: false, notifications: true, exact: true, overlay: true, delivery: {}, widgetTextScale: 100};
 };
 reset();

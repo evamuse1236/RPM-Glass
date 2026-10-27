@@ -124,7 +124,7 @@ function soundsSection(ctx) {
 
 function widgetsSection(ctx) {
   const section = group('Widgets', 'appearance');
-  slider(ctx, section, 'Widget text size', 'Relative to your Android system font size. The planner keeps its system size.',
+  slider(ctx, section, 'Widget text size', 'Home-screen widgets, relative to your Android font size.',
     safeScale(ctx.state.widgetTextScale), 80, 160, 'set_widget_text_scale');
   if (!ctx.state.overlayAllowed) {
     add(ctx, section, 'Allow floating butterfly', 'Open RPM over your other apps', NEEDS_PERMISSION, 'overlay_permission');

@@ -87,7 +87,7 @@ export function createApp(api, renderers) {
   };
   app.blockArea = block => app.projectArea(app.p().projects.find(pr => pr.id === block?.projectId));
   app.current = () => app.state.stack.at(-1) ?? null;
-  app.largeText = () => (api.getPhone().effectiveFontScale ?? api.getPhone().fontScale ?? 1) >= 1.5;
+  app.largeText = () => (api.getPhone().fontScale ?? 1) >= 1.5;
   app.notice = (message, options) => notice(app, message, options);
   app.render = options => render(app, options);
   app.commit = (op, options) => commit(app, op, options);

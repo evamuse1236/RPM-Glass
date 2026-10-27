@@ -3,7 +3,7 @@
   const device = read('rpm-playground:device'), prefs = read('rpm-playground:prefs');
   const dark = !!device.dark;
   const capture = location.pathname === '/index.html';
-  const zoom = (device.textScale ?? 1) * (capture ? (prefs.widgetTextScale ?? 100) / 100 : 1);
+  const zoom = device.textScale ?? 1;
 
   const scheme = /prefers-color-scheme\s*:\s*dark/;
   const realMatch = window.matchMedia.bind(window);

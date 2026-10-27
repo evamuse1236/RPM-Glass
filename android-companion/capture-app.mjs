@@ -269,6 +269,7 @@ export function mountCapture(platform){
  window.rpmStartVoice=(tries=25)=>{setView('chat');if((s.busy||!s.state)&&tries>0){setTimeout(()=>window.rpmStartVoice(tries-1),200);return;}voice();};
  if(window.rpmPendingVoice){delete window.rpmPendingVoice;window.rpmStartVoice();}
  window.addEventListener('rpm-calendar-ready',()=>{if(s.state&&!s.busy&&s.view==='chat'&&content.querySelector('.answer'))render();});
+ window.rpmCaptureShown=()=>{sheet.close();chips.closeTray();setView('chat');};
  window.rpmHandleBack=()=>{
   if(sheet.close())return true;
   if(chips.closeTray())return true;

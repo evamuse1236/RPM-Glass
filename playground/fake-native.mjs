@@ -8,7 +8,7 @@ const MODEL_FAILURE = 'The OpenRouter connection failed. Check your key and inte
 
 function phoneStatus() {
   const fontScale = device().textScale, widgetTextScale = prefs().widgetTextScale;
-  return {fontScale, effectiveFontScale: fontScale * (planning ? 1 : widgetTextScale / 100), widgetTextScale, hasKey: false,
+  return {fontScale, widgetTextScale, hasKey: false,
     exact: true, notifications: true, overlay: false, delivery: {},
     reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches, debug: true};
 }

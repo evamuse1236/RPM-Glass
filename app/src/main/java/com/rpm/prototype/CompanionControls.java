@@ -10,6 +10,8 @@ final class CompanionControls {
     private static final String APPEARANCE="companion-appearance";
     private static final int DEFAULT_TEXT_SCALE=100,MIN_TEXT_SCALE=80,MAX_TEXT_SCALE=160;
     static int widgetTextScale(Context c){return Math.max(MIN_TEXT_SCALE,Math.min(MAX_TEXT_SCALE,c.getSharedPreferences(APPEARANCE,0).getInt("widget-text-scale",DEFAULT_TEXT_SCALE)));}
+    /** Capture and the planner are app pages: they follow Android's font size only. Widget text size is for home-screen widgets. */
+    static int webTextZoom(Context c){return Math.round(c.getResources().getConfiguration().fontScale*100);}
     static JSONObject read(Context c)throws JSONException {
         NotificationManager notifications=c.getSystemService(NotificationManager.class);
         boolean fullScreenSupported=android.os.Build.VERSION.SDK_INT>=34;
