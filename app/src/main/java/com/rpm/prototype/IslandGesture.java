@@ -3,6 +3,7 @@ package com.rpm.prototype;
 /**
  * Reads one touch on the island as a tap, a long press or a swipe, with the thresholds of playground/notch-gesture.mjs.
  * A touch that starts on the island and stays within the slop is always a tap, wherever it lifts.
+ * On the collapsed pill a touch that is not a swipe or a long press is a tap, so no pill touch is lost.
  */
 final class IslandGesture {
     enum Result { NONE, TAP, LONG_PRESS, LEFT, RIGHT, UP, DOWN }
@@ -84,7 +85,7 @@ final class IslandGesture {
         float speed = Math.abs(d) / Math.max(1, at - startAt);
         float commit = (horizontal ? COMMIT_X_DP : pill && d < 0 ? PILL_UP_DP : COMMIT_Y_DP) * density;
         boolean far = Math.abs(d) >= commit || (Math.abs(d) >= FLICK_DP * density && speed >= FLICK_DP_PER_MS * density);
-        if (!far) return Result.NONE;
+        if (!far) return pill ? Result.TAP : Result.NONE;
         if (horizontal) return d > 0 ? Result.RIGHT : Result.LEFT;
         return d > 0 ? Result.DOWN : Result.UP;
     }
