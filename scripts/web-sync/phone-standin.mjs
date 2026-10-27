@@ -9,6 +9,9 @@ import {syncReplica} from '../../android-companion/replica-sync.mjs';
 import {editPlan} from '../../android-companion/planner-state.mjs';
 import {seedStore} from '../gauntlet/seed.mjs';
 import {filePhone} from './phone-store.mjs';
+import {repoRoot, localPaths, localEnv} from './worktree.mjs';
+const root = repoRoot();
+const {envFile} = localPaths(root);
 
 const {values: opts, positionals} = parseArgs({allowPositionals: true, options: {
   site: {type: 'string'},
@@ -16,7 +19,7 @@ const {values: opts, positionals} = parseArgs({allowPositionals: true, options: 
   pair: {type: 'boolean'}, sync: {type: 'boolean'}, watch: {type: 'boolean'}, edit: {type: 'string'},
   'link-code': {type: 'boolean'}, once: {type: 'boolean'},
 }});
-opts.site ??= existsSync('.env.local') ? readFileSync('.env.local', 'utf8').match(/^CONVEX_SITE_URL=(.*)$/m)?.[1]?.trim() : undefined;
+opts.site ??= existsSync(envFile) ? readFileSync(localPaths(root).envFile, 'utf8').match(/^CONVEX_SITE_URL=(.*)$/m)?.[1]?.trim() : undefined;
 opts.site ??= 'http://127.0.0.1:3211';
 const statePath = resolve(opts.state);
 const log = (...parts) => console.log(new Date().toISOString().slice(11, 19), ...parts);
@@ -29,10 +32,10 @@ async function call(path, token, body) {
 }
 
 async function pair() {
-  const deployment = readFileSync('.env.local', 'utf8').match(/^CONVEX_DEPLOYMENT=(.*)$/m)?.[1]?.trim();
+  const deployment = readFileSync(localPaths(root).envFile, 'utf8').match(/^CONVEX_DEPLOYMENT=(.*)$/m)?.[1]?.trim();
   if (!/^(anonymous|local):/.test(deployment ?? '') || !['127.0.0.1', 'localhost'].includes(new URL(opts.site).hostname))
     throw new Error('The stand-in pairs only with local Convex.');
-  const out = execFileSync('npx', ['convex', 'run', 'admin:createPairingCode', JSON.stringify({label: 'Stand-in phone'})], {encoding: 'utf8'});
+  const out = execFileSync('npx', ['convex', 'run', 'admin:createPairingCode', JSON.stringify({label: 'Stand-in phone'})], {cwd: root, env: localEnv(root), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']});
   const {code} = JSON.parse(out.slice(out.indexOf('{')));
   const {token} = await call('/v1/pair', null, {code, installationId: randomUUID()});
   return token;

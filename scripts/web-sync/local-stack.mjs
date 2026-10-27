@@ -1,29 +1,31 @@
 import {execFileSync, spawn} from 'node:child_process';
 import {createWriteStream, existsSync, mkdirSync, readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
+import {repoRoot, localPaths, localEnv} from './worktree.mjs';
 
-export const root = resolve(new URL('../..', import.meta.url).pathname);
+export const root = repoRoot();
 export const logs = resolve(root, '.verify/web-sync');
 const children = [];
 
 const deployment = () => {
-  const file = resolve(root, '.env.local');
+  const {envFile: file} = localPaths(root);
   if (!existsSync(file)) return null;
   return readFileSync(file, 'utf8').match(/^CONVEX_DEPLOYMENT=(.*)$/m)?.[1]?.trim() ?? '';
 };
 export const refuseRemote = () => {
   const name = deployment();
-  if (name !== null && !/^(anonymous|local):/.test(name)) throw new Error(`.env.local names deployment ${name}; this run only uses local Convex`);
+  if (name !== null && !/^(anonymous|local):/.test(name)) throw new Error('.env.local names a remote deployment; this run only uses local Convex');
 };
 
 export function start(name, command, args, env = {}) {
   mkdirSync(logs, {recursive: true});
   const log = createWriteStream(resolve(logs, `${name}.log`));
-  const child = spawn(command, args, {cwd: root, env: {...process.env, ...env}, detached: true, stdio: ['ignore', 'pipe', 'pipe']});
+  const child = spawn(command, args, {cwd: root, env: {...localEnv(root), ...env}, detached: true, stdio: ['ignore', 'pipe', 'pipe']});
   const lines = [];
   const waiters = new Set();
   const read = chunk => {
-    log.write(chunk);
+    if (name !== 'convex') log.write(chunk);
+    else if (/Convex functions ready/.test(String(chunk))) log.write('Convex functions ready\n');
     lines.push(String(chunk));
     for (const waiter of waiters) waiter();
   };
@@ -46,7 +48,7 @@ export function start(name, command, args, env = {}) {
 
 export const stopAll = () => { for (const child of children.splice(0)) try { process.kill(-child.pid, 'SIGTERM'); } catch {} };
 
-export const convex = (...args) => execFileSync(process.execPath, ['node_modules/convex/bin/main.js', ...args], {cwd: root, encoding: 'utf8'});
+export const convex = (...args) => execFileSync(process.execPath, ['node_modules/convex/bin/main.js', ...args], {cwd: root, env: localEnv(root), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']});
 
 export async function startConvex() {
   refuseRemote();
@@ -55,7 +57,7 @@ export async function startConvex() {
   await server.waitFor(/Convex functions ready/, 240000);
   refuseRemote();
   if (!/^(anonymous|local):/.test(deployment() ?? '')) throw new Error('npx convex dev did not choose a local deployment');
-  const syncUrl = readFileSync(resolve(root, '.env.local'), 'utf8').match(/^CONVEX_SITE_URL=(.*)$/m)?.[1]?.trim();
+  const syncUrl = readFileSync(localPaths(root).envFile, 'utf8').match(/^CONVEX_SITE_URL=(.*)$/m)?.[1]?.trim();
   if (!syncUrl || !['127.0.0.1', 'localhost'].includes(new URL(syncUrl).hostname)) throw new Error('Convex did not provide a local HTTP URL');
   return syncUrl;
 }

@@ -150,6 +150,7 @@ export const lifecycleCommands = {
         apk: {path: path.relative(ROOT, apk), ...(args.apk ? {} : gradleVersion()), sha256: apkHash}, dismissedAnr: anr, seconds: Math.round((Date.now() - t0) / 1000),
         next: 'rpmctl doctor'};
       journal(state, {command: 'launch', result: out});
+      console.error(`Owner token is stored in ${STATE} (owner). Set RPMCTL_OWNER from that file or pass --owner; only the launching agent should drive this run.`);
       return out;
     } catch (error) {
       const saved = readState();

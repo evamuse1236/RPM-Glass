@@ -2,7 +2,7 @@ import {DEFAULTS, DISPLAYS} from './runtime.mjs';
 
 export const HELP = {
   _: `rpmctl drives the RPM Android app (com.rpm.prototype) on an S24 FE-sized emulator that it launches and owns.
-Every command prints one JSON object on stdout, except ui --brief. Failures print {"ok":false,"error","fix"} and exit 1.
+Every command prints JSON on stdout; store prints the saved value directly and ui --brief prints text. Failures print {"ok":false,"error","fix"} and exit 1.
 
 Usage: node .claude/skills/verify-rpm-glass/rpmctl.mjs <command> [options]
 
@@ -24,12 +24,13 @@ Drive
 Evidence
   shot       Screenshot + on-screen element list into the run's evidence folder.
   eval       Read a value from the page with JavaScript.
+  store      Print the saved planner JSON, optionally at a dotted path.
   state      List or read the app's private files (debug build only).
   logs       App logcat, or only crashes and page errors with --errors.
   check      Run the repo's full check suite (npm test + regression checks), logged to evidence.
 
 Global options
-  --serial <s>   Target another device read-only (doctor, ui, shot, logs, state). Mutating commands
+  --serial <s>   Target another device read-only (doctor, ui, shot, logs, state, store). Mutating commands
                  only run on the emulator this tool launched or explicitly adopted.
   --attach <s>   launch only. Adopt a running Linux read-only emulator by serial, preserving leases.
                  cleanup detaches it; the runner remains responsible for stopping it.
@@ -38,7 +39,7 @@ Global options
   --owner <token> Run owner from launch, or set RPMCTL_OWNER. Required for mutating commands,
                  including eval, scenario, cleanup and launch on an existing run. Wrong tokens refuse.
                  For one compatibility release only, a missing token warns instead of refusing.
-                 Read-only ui, shot, state, logs, doctor, check and wait need no token.
+                 Read-only ui, shot, state, store, logs, doctor, check and wait need no token.
 Ports and worktree are reserved by a machine-wide lease under the OS temp folder. A dead emulator's
 lease can be reclaimed; a live launch is also protected. Hash collisions need explicit free ports.
 
@@ -136,9 +137,12 @@ url, display settings, time) into .verify/evidence/<run-id>/. Output: {png, json
   eval: `eval <javascript expression>
 Evaluates in the visible WebView and prints the JSON value. Promises are awaited. Use it to READ state (document,
 localStorage, rendered text); drive the UI with tap/type so the proof follows the user's path.`,
+  store: `store [jsonpath]
+Prints the parsed planner store from files/companion.json directly, without a {json: ...} wrapper.
+An optional dotted path (e.g. sync.outbox or entries.0.title) prints that value. Read-only; debug builds only.`,
   state: `state [relative-path]
 Without a path: lists the app's private files (files/, shared_prefs/, databases/) via run-as.
-With a path (e.g. files/companion.json): prints its text. Debug builds only.`,
+With a path (e.g. files/companion.json): prints {ok, path, json} when JSON parses, otherwise {ok, path, text}. Debug builds only.`,
   logs: `logs [--errors] [--lines N]
 Logcat for the app's process plus WebView console lines (tag chromium). --errors keeps only crashes, ANRs,
 uncaught exceptions and console errors since launch. Default --lines 200.`,

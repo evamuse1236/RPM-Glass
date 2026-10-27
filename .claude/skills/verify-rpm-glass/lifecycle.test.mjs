@@ -88,7 +88,9 @@ async function fixture(t, shared = null) {
   return {...h, h, commands, readState, options, launchArgs: {_: [], apk, port: 5582, cdpPort: 13002}};
 }
 
-test('launch prints an owner, remembers overrides and excludes concurrent launches before boot', async t => {
+test('launch prints an owner reminder every time, remembers overrides and excludes concurrent launches before boot', async t => {
+  const messages = [];
+  t.mock.method(console, 'error', line => messages.push(line));
   const f = await fixture(t);
   let resume;
   f.h.pause = new Promise(resolve => { resume = resolve; });
@@ -107,6 +109,9 @@ test('launch prints an owner, remembers overrides and excludes concurrent launch
   assert.equal(again.port, 5582);
   assert.equal(again.cdpPort, 13002);
   assert.equal(f.h.starts, 1);
+  assert.equal(messages.filter(line => line.includes('Owner token is stored in')).length, 2);
+  assert.ok(messages.some(line => line.includes(f.statePath) && line.includes('RPMCTL_OWNER')));
+  assert.ok(messages.every(line => !line.includes(first.owner)));
 });
 
 test('launch installs the build when the device holds another APK, even if state says it installed this one', async t => {

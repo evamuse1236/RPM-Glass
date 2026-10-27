@@ -1,6 +1,7 @@
 import {execFileSync, spawn} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import {localPaths, localEnv} from '../../../../scripts/web-sync/worktree.mjs';
 
 export const NODE_24 = ['mise', 'exec', 'node@24.22.0', '--', 'node'];
 const PRODUCTION = 'neat-emu-821';
@@ -9,7 +10,7 @@ export function refuseDeployment(envText) {
   if (envText == null) return null;
   if (envText.includes(PRODUCTION)) throw new Error(`.env.local names ${PRODUCTION}; this scenario only runs against local Convex`);
   const name = envText.match(/^CONVEX_DEPLOYMENT=(.*)$/m)?.[1]?.trim() ?? '';
-  if (name && !/^(anonymous|local):/.test(name)) throw new Error(`.env.local names deployment ${name}; this scenario only runs against local Convex`);
+  if (name && !/^(anonymous|local):/.test(name)) throw new Error('.env.local names a remote deployment; this scenario only runs against local Convex');
   return name || null;
 }
 
@@ -17,38 +18,48 @@ export function localSiteUrl(envText) {
   const raw = envText?.match(/^CONVEX_SITE_URL=(.*)$/m)?.[1]?.trim();
   if (!raw) throw new Error('Convex wrote no CONVEX_SITE_URL to .env.local');
   const url = new URL(raw);
-  if (!['127.0.0.1', 'localhost'].includes(url.hostname) || !url.port) throw new Error(`Convex site ${raw} is not a local port`);
+  if (!['127.0.0.1', 'localhost'].includes(url.hostname) || !url.port) throw new Error('Convex site URL is not a local port');
   return {siteUrl: raw.replace(/\/+$/, ''), port: Number(url.port)};
 }
 
-const childEnv = () => {
-  const {CONVEX_DEPLOY_KEY: _key, CONVEX_DEPLOYMENT: _name, ...env} = process.env;
-  return {...env, CONVEX_AGENT_MODE: 'anonymous'};
-};
-
-export async function startLocalConvex(root, {logDir = path.join(root, '.verify', 'web-sync'), timeout = 240000} = {}) {
-  const envFile = path.join(root, '.env.local');
-  const readEnv = () => fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : null;
+export async function startLocalConvex(root, {logDir = path.join(root, '.verify', 'web-sync'), timeout = 240000, reset = true} = {}) {
+  const {envFile, data} = localPaths(root);
+  const readEnv = () => {
+    localPaths(root);
+    return fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : null;
+  };
   refuseDeployment(readEnv());
-  const data = path.join(root, '.convex', 'local', 'default');
-  if (fs.existsSync(data)) for (const name of fs.readdirSync(data)) if (/^convex_local_(backend\.sqlite3|storage)/.test(name)) fs.rmSync(path.join(data, name), {recursive: true, force: true});
+  if (reset && fs.existsSync(data)) for (const name of fs.readdirSync(data)) if (/^convex_local_(backend\.sqlite3|storage)/.test(name)) fs.rmSync(path.join(data, name), {recursive: true, force: true});
 
   fs.mkdirSync(logDir, {recursive: true});
   const logFile = path.join(logDir, 'convex-scenario.log');
   const log = fs.createWriteStream(logFile);
-  const [cmd, ...pre] = NODE_24;
-  const child = spawn(cmd, [...pre, 'node_modules/convex/bin/main.js', 'dev', '--typecheck', 'disable', '--codegen', 'disable'], {cwd: root, env: childEnv(), detached: true, stdio: ['ignore', 'pipe', 'pipe']});
+  // Resolve the installed runtime before isolating HOME; mise's tool store belongs to the user.
+  let node = process.execPath;
+  if (Number(process.versions.node.split('.')[0]) !== 24) {
+    const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('CONVEX_')));
+    try { node = execFileSync(NODE_24[0], [...NODE_24.slice(1), '-p', 'process.execPath'], {cwd: root, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']}).trim(); }
+    catch { throw new Error('Cannot resolve the installed Node 24 runtime.'); }
+  }
+  const child = spawn(node, ['node_modules/convex/bin/main.js', 'dev', '--typecheck', 'disable', '--codegen', 'disable'], {cwd: root, env: localEnv(root), detached: true, stdio: ['ignore', 'pipe', 'pipe']});
   let text = '', exited = null;
   const exit = new Promise(done => child.on('exit', code => { exited = code; done(); }));
-  const read = chunk => { log.write(chunk); text += chunk; };
+  const read = chunk => {
+    text += chunk;
+    // CLI startup output can contain local admin credentials. Log only safe milestones.
+    if (/Convex functions ready/.test(String(chunk))) log.write('Convex functions ready\n');
+  };
   child.stdout.on('data', read);
   child.stderr.on('data', read);
 
   const stop = async () => {
     if (exited === null) {
       try { process.kill(-child.pid, 'SIGTERM'); } catch {}
-      await Promise.race([exit, new Promise(done => setTimeout(done, 10000))]);
-      if (exited === null) try { process.kill(-child.pid, 'SIGKILL'); } catch {}
+      await Promise.race([exit, new Promise(done => { const timer = setTimeout(done, 10000); timer.unref(); })]);
+      if (exited === null) {
+        try { process.kill(-child.pid, 'SIGKILL'); } catch {}
+        await exit;
+      }
     }
     log.end();
   };
@@ -64,7 +75,9 @@ export async function startLocalConvex(root, {logDir = path.join(root, '.verify'
     if (!/^(anonymous|local):/.test(refuseDeployment(env) ?? '')) throw new Error('npx convex dev did not choose a local deployment');
     const {siteUrl, port} = localSiteUrl(env);
     const run = (fn, args = {}) => {
-      const out = execFileSync(NODE_24[0], [...NODE_24.slice(1), 'node_modules/convex/bin/main.js', 'run', fn, JSON.stringify(args)], {cwd: root, env: childEnv(), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']});
+      let out;
+      try { out = execFileSync(node, ['node_modules/convex/bin/main.js', 'run', fn, JSON.stringify(args)], {cwd: root, env: localEnv(root), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']}); }
+      catch { throw new Error('Local Convex command failed; output withheld to protect credentials.'); }
       return JSON.parse(out.slice(out.indexOf('{')));
     };
     return {siteUrl, port, logFile, pid: child.pid, run, stop};
