@@ -634,6 +634,9 @@
                   }
                 ]
               }
+            },
+            "exactTaskIds": {
+              "const": true
             }
           },
           "required": [

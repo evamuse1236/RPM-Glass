@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { seeded, read, request } from "./standaloneHelpers";
+import { seeded, read, request, command, pull, push } from "./standaloneHelpers";
 import { enqueue, poll } from "./plannerHelpers";
-import { command } from "./standaloneHelpers";
+// @ts-expect-error The website queue is JavaScript.
+import { storeFrom } from "../web/app/plan-queue.mjs";
+// @ts-expect-error The shared ramble is JavaScript.
+import { createRamble } from "../android-companion/voice-turn.mjs";
 
 const route = "/v1/web/voice-token";
 const minted = () => vi.fn(async(_url:string,init:any)=>new Response(JSON.stringify({name:"auth_tokens/one-use",setup:JSON.parse(init.body).bidiGenerateContentSetup}),{status:200}));
@@ -94,5 +97,58 @@ describe("voice capture is a journal of the words",()=>{
     const s=await seeded();
     expect((await enqueue(s.t,s.web.token,{...command(1),type:"capture",args:{text:"x",source:"typed"}})).status).toBe(400);
     expect((await enqueue(s.t,s.web.token,voiceCapture(2,"x",{planCommandId:"not-an-id"}))).status).toBe(400);
+  });
+});
+
+function ramble(snapshot:any) {
+  let n=0;
+  const r=createRamble({data:storeFrom(snapshot),timeZone:"Asia/Kolkata",now:()=>new Date("2026-10-28T06:30:00Z")});
+  const call=(name:string,args:any={})=>r.receive({toolCall:{functionCalls:[{id:`c${++n}`,name,args}]}})[0].toolResponse.functionResponses[0].response.result;
+  const block=call("save_block",{title:"Ship the app",purpose:"Users wait"}).saved;
+  const notes=call("save_task",{title:"Write release notes",blockId:block}).saved;
+  const mom=call("save_task",{title:"Call mom"}).saved;
+  call("save_task",{id:mom,title:"Call mom tonight"});
+  return {block,notes,mom,result:r.result()};
+}
+const voicePlan=(n:number,snap:any,result:any,tasks=result.created)=>({...command(n),baseRevision:snap.revision,type:"plan",args:{op:result.batch,ids:[...result.uuids,...tasks],exactTaskIds:true}});
+
+describe("one ramble is one plan command on the browser's ids",()=>{
+  it("a new Block with a task in it, and a new task edited again, land on the records the browser showed, and one Undo takes them all back",async()=>{
+    const s=await seeded(), before=await read(s.t,s.web.token);
+    expect(before.nextTaskId).toBeGreaterThanOrEqual(1000000000);
+    const {block,notes,mom,result}=ramble(before);
+    expect([notes,mom]).toEqual(result.created);
+    const c=voicePlan(1,before,result);
+    expect(await (await enqueue(s.t,s.web.token,c)).json()).toMatchObject({status:"applied"});
+    const after=await read(s.t,s.web.token);
+    expect(after.planner.blocks.find((b:any)=>b.id===block)).toMatchObject({title:"Ship the app"});
+    expect(after.entries.find((e:any)=>e.id===notes)).toMatchObject({title:"Write release notes",blockId:block});
+    expect(after.entries.find((e:any)=>e.id===mom)).toMatchObject({title:"Call mom tonight"});
+    expect(after.entries.filter((e:any)=>!before.entries.some((b:any)=>b.id===e.id)).map((e:any)=>e.id)).toEqual([notes,mom]);
+    expect(await (await enqueue(s.t,s.web.token,{...command(2),type:"undo",args:{commandId:c.id}})).json()).toMatchObject({status:"applied"});
+    const undone=await read(s.t,s.web.token);
+    expect(undone.entries).toEqual(before.entries);
+    expect(undone.planner.blocks).toEqual(before.planner.blocks);
+  });
+  it("is refused whole when the server would give a new task another id, and saves nothing",async()=>{
+    const s=await seeded(), before=await read(s.t,s.web.token), {result}=ramble(before);
+    const answer=await (await enqueue(s.t,s.web.token,voicePlan(1,before,result,result.created.map((id:number)=>id+5)))).json();
+    expect(answer.status).toBe("conflict");
+    const after=await read(s.t,s.web.token);
+    expect(after.entries).toEqual(before.entries);
+    expect(after.planner.blocks).toEqual(before.planner.blocks);
+  });
+  it("the snapshot's next task id skips ids a deleted task once held, so the browser counts like the server",async()=>{
+    const s=await seeded(), first=await read(s.t,s.web.token);
+    expect((await (await enqueue(s.t,s.web.token,{...command(1),baseRevision:first.revision,type:"plan",args:{op:{type:"saveTask",fields:{title:"Short lived"}},ids:[]}})).json()).status).toBe("applied");
+    const made=await read(s.t,s.web.token), id=made.entries.find((e:any)=>e.title==="Short lived").id;
+    const page=await (await pull(s.t,s.device.token)).json(), row=page.rows.find((r:any)=>r.key===`task:${id}`);
+    expect((await push(s.t,s.device.token,[{key:row.key,baseRev:row.rev,base:row.value,value:null,stamps:{}}],2)).status).toBe(200);
+    const gone=await read(s.t,s.web.token);
+    expect(gone.entries.some((e:any)=>e.id===id)).toBe(false);
+    expect(gone.nextTaskId).toBe(id+1);
+    const {notes,result}=ramble(gone);
+    expect(notes).toBe(id+1);
+    expect(await (await enqueue(s.t,s.web.token,voicePlan(3,gone,result))).json()).toMatchObject({status:"applied"});
   });
 });

@@ -1,3 +1,6 @@
+// The AudioWorklet scope supplies these globals; page code never loads this file.
+const {AudioWorkletProcessor, registerProcessor} = /** @type {any} */ (globalThis);
+
 class RpmMic extends AudioWorkletProcessor {
   process(inputs) {
     const channel = inputs[0]?.[0];

@@ -7,7 +7,7 @@ import { initializeTaskIds, SERVER_TASK_IDS } from "../android-companion/task-id
 // @ts-expect-error Shared user-facing error boundary is JavaScript.
 import { userMessage } from "../android-companion/user-message.mjs";
 import { applyRecord, groupsOf } from "../web/contract/records.mjs";
-import { diffRecords, equal, groupValue, loadStore, projectRecords, rowsFor, writeRecords } from "./records";
+import { diffRecords, equal, groupValue, loadStore, nextServerTaskId, projectRecords, rowsFor, writeRecords } from "./records";
 import type { PlannerCtx } from "./plannerAuth";
 import type { Doc, Id } from "./_generated/dataModel";
 
@@ -76,14 +76,18 @@ export async function applyPlan(ctx:PlannerCtx,account:Id<"accounts">,command:Do
       const taken=new Set(rows.filter(row=>row.key.startsWith("task:")).map(row=>Number(row.key.slice(5))));
       const known=new Set<number>(store.entries.map((entry:any)=>entry.id));
       store.sync={taskIdRange:SERVER_TASK_IDS};
-      initializeTaskIds(store).nextTaskId=Math.max(store.sync.nextTaskId,owner.nextTaskId??SERVER_TASK_IDS[0]);
+      initializeTaskIds(store).nextTaskId=Math.max(store.sync.nextTaskId,nextServerTaskId(owner,rows));
       const ids=command.payload.args.ids??[], used=new Set<string>();
       const takenEntities=JSON.stringify([store.planner??null,store.entries.map((entry:any)=>entry.id)]);
       withIds(ids.filter((id:any)=>typeof id==="string"),()=>editPlan(store,operation(command.payload),now), (id:string)=>{
         const valid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) && !takenEntities.includes(id) && !used.has(id);
         if(valid)used.add(id);return valid;
       });
-      nextTaskId=allocateTasks(store,known,taken,ids.filter((id:any)=>typeof id==="number"),owner.nextTaskId??SERVER_TASK_IDS[0]);
+      const proposals=ids.filter((id:any)=>typeof id==="number");
+      // A voice batch may refer to its own new tasks in later steps, so it lands on exactly the IDs the browser showed or not at all.
+      if(command.payload.args.exactTaskIds && (used.size!==ids.filter((id:any)=>typeof id==="string").length || !equal(store.entries.filter((entry:any)=>!known.has(entry.id)).map((entry:any)=>entry.id),proposals)))
+        return {status:"conflict" as const,message:"The plan changed before this was saved. Try again."};
+      nextTaskId=allocateTasks(store,known,taken,proposals,owner.nextTaskId??SERVER_TASK_IDS[0]);
       validatePlanner(store);
     } catch(error) {return {status:"rejected" as const,message:userMessage(error)};}
   }

@@ -1,6 +1,8 @@
 import { groupsOf, projectRecords, storeFromRecords } from "../web/contract/records.mjs";
 // @ts-expect-error Shared reducer projection has no TypeScript declaration.
 import { buildSnapshot } from "../android-companion/web-sync-snapshot.mjs";
+// @ts-expect-error Shared task ID ranges are JavaScript.
+import { SERVER_TASK_IDS } from "../android-companion/task-ids.mjs";
 import { canonicalJson } from "./security";
 import type { GenericQueryCtx } from "convex/server";
 import type { DataModel } from "./_generated/dataModel";
@@ -46,11 +48,17 @@ export async function writeRecords(ctx:PlannerCtx,account:Id<"accounts">,changes
 export async function writeConflicts(ctx:PlannerCtx,account:Id<"accounts">,conflicts:Conflict[],at:string) {
   return writeRecords(ctx,account,conflicts.map(value=>({key:`conflict:${crypto.randomUUID()}`,value})),at);
 }
+/** The ID the server gives its next new task: past every task row, deleted ones included, so a browser can show the same ID. */
+export function nextServerTaskId(owner:{nextTaskId?:number},rows:{key:string}[]) {
+  let next=owner.nextTaskId??SERVER_TASK_IDS[0];
+  for(const row of rows)if(row.key.startsWith("task:")) {const id=Number(row.key.slice(5));if(id>=next && id<SERVER_TASK_IDS[1])next=id+1;}
+  return next;
+}
 export async function snapshotFromRecords(ctx:PlannerCtx,account:Id<"accounts">) {
   const owner=(await ctx.db.get(account))!, rows=await rowsFor(ctx,account);
   const store=await loadStore(ctx,account);
   const savedAt=Math.max(owner.seededAt??owner.createdAt,...rows.flatMap(row=>Object.values(row.stamps).map(Date.parse)));
-  return {...buildSnapshot({...store,version:owner.cursor,syncSavedAt:new Date(savedAt).toISOString()}),
+  return {...buildSnapshot({...store,version:owner.cursor,syncSavedAt:new Date(savedAt).toISOString()}),nextTaskId:nextServerTaskId(owner,rows),
     captures:rows.filter(row=>row.key.startsWith("capture:") && row.value!==null).map(row=>row.value).sort((a,b)=>String(a.createdAt??"").localeCompare(String(b.createdAt??""))).slice(-50),
     conflicts:rows.filter(row=>row.key.startsWith("conflict:") && row.value!==null).map(row=>({id:row.key,...row.value}))};
 }

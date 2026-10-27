@@ -81,7 +81,7 @@ export function startVoice({data,timeZone,setup,token,onChange=()=>{},workletUrl
    socket.onmessage=async e=>{try{receive(JSON.parse(typeof e.data==='string'?e.data:await e.data.text()));}catch(error){finish(userMessage(error));}};
    socket.onclose=()=>{if(!finished)finish('The voice connection closed. Your words are saved.');};
    talkTimer=setTimeout(()=>{if(!stopped&&!finished)stop();},limits.talkMs);
-  }catch(error){if(error instanceof VoiceError){finished=true;clearTimeout(timer);clearTimeout(talkTimer);releaseMic();phase='failed';onChange({...ramble.state,phase:'failed',error:error.message,code:error.code});resolve({...ramble.result(),failed:error.message,code:error.code});}else finish(userMessage(error));}
+  }catch(error){if(error instanceof VoiceError){finished=true;clearTimeout(timer);clearTimeout(talkTimer);releaseMic();phase='failed';onChange({...ramble.state,phase:'failed',error:userMessage(error),code:error.code});resolve({...ramble.result(),failed:userMessage(error),code:error.code});}else finish(userMessage(error));}
  })();
  return {stop,cancel:()=>finish('Cancelled.'),done};
 }
