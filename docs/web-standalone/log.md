@@ -39,3 +39,10 @@ Done condition (pass/fail): the website adds, edits, completes and captures (wit
 3. Unit 6d (E2E): `scripts/web-sync/drive-offline.mjs` on `npm run web:local`: stand-in not syncing; website adds, edits, completes, captures with AI (local Convex env key from the vault); stand-in syncs and shows all four; same-task title conflict: newer kept, other in notes and `conflicts`; website Undo after a phone edit. Screenshots at 412 and 1280 px.
 5. Unit 8: delete `web-sync-commands.mjs`, `web-sync-snapshot.mjs` leftovers, `plannerSnapshots`; rewrite `docs/web-sync.md` and the AGENTS.md web sync rows with their tests; `npm test`; `npm run ci:emulator`.
 6. Release: merge to main after `rpmctl scenario --all` or `ci:emulator`; `npx convex export` backup of prod; check prod pending `webCommands` is 0; deploy Convex prod; set `ANTHROPIC_API_KEY` (approved 2026-10-27) via `secret run`; publish the Site (memory `web-sync-hosting.md`); build the APK and send it with `~/.claude/skills/juno/send-rpm-apk.sh`; report install UNVERIFIED until `dumpsys package` shows it.
+
+## 2026-10-27 retro
+
+- Retro rules: server deploys that break the installed app are not reversible work; a contract file before parallel writers; sub-agent risks are fixed or reported (`~/.claude/CLAUDE.md`). Capture eval judged against `main` (AGENTS.md).
+- Mechanisms: hooks refuse `/tmp` in briefs, deleting a still-used file, and judge the frontend gate by declared paths; rule tests for Node 24 and `withTimeZone`, one task ID range, retry on every shared save; Site publish compares Site inputs; worktree-only Convex credentials; `rpmctl store`; `npm run web:deploy-prod`.
+- Proof: `npm test` green; emulator run 40444961824 passed on the merged commit; Capture eval 62/66 vs `main` 61/66; `web:drive-offline` 25/25; Site version 11 (`appgdep_6ae08f0374308191ae74f750b770f842`).
+- Backlog: `retro-2026-10-27.md`.
