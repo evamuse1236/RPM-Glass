@@ -98,4 +98,13 @@ public class VoiceTokenTest {
         String text=DiagnosticRedaction.text("sent "+KEY+" got auth_tokens/abc-123_x",new String[0]);
         assertFalse(text.contains("AIza"));assertFalse(text.contains("abc-123_x"));assertTrue(text.contains("auth_tokens/[REDACTED]"));
     }
+
+    private static final String NEW_KEY="AQ.Ab8TEST00000000000000000000000000000000000000000";
+    @Test public void keysInGooglesNewerAqFormatAreAcceptedAndRedacted(){
+        assertNull(GeminiKey.problem(KEY));
+        assertNull(GeminiKey.problem(NEW_KEY));
+        assertNotNull(GeminiKey.problem("AQ.short"));
+        assertNotNull(GeminiKey.problem("sk-0000000000000000000000000000000000"));
+        assertFalse(DiagnosticRedaction.text("sent "+NEW_KEY+" ok",new String[0]).contains("Ab8TEST"));
+    }
 }

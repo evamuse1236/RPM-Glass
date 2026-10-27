@@ -11,6 +11,7 @@ final class DiagnosticRedaction {
         return value.replaceAll("(?i)\\bBearer\\s+[^\\s\"'<>]+","Bearer [REDACTED]")
             .replaceAll("\\bsk-[a-zA-Z0-9_-]{12,}","[REDACTED]")
             .replaceAll("\\bAIza[0-9A-Za-z_-]{20,}","[REDACTED]")
+            .replaceAll("\\bAQ\\.[0-9A-Za-z_-]{20,}","[REDACTED]")
             .replaceAll("auth_tokens/[A-Za-z0-9_-]+","auth_tokens/[REDACTED]")
             .replaceAll("\\beyJ[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+","[REDACTED]")
             .replaceAll("(?i)((?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|secret|authorization|cookie|pairing[_-]?code)[\"']?\\s*[:=]\\s*[\"']?)[^\\s,;&\"'<>}]+","$1[REDACTED]")

@@ -23,6 +23,7 @@ test('the Gemini key lives apart from the OpenRouter key and is redacted', () =>
   assert.match(key, /"rpm-gemini-voice"/);
   assert.match(java('Diagnostics'), /GeminiKey\.get\(/, 'diagnostics redacts the stored Gemini key');
   assert.match(java('DiagnosticRedaction'), /AIza/);
+  assert.match(java('DiagnosticRedaction'), /AQ\\\\\./, 'diagnostics redacts keys in the newer AQ. format');
   assert.doesNotMatch(read('android-companion/settings.mjs'), /GeminiKey\.get|geminiKey\b(?!\w)/, 'the page sees only hasGeminiKey');
 });
 
@@ -64,5 +65,5 @@ test('no shipped companion asset carries a Google API key', async () => {
     const file = path.join(built, name);
     if (fs.statSync(file).isFile()) texts.push([file, fs.readFileSync(file, 'latin1')]);
   }
-  for (const [name, text] of texts) assert.doesNotMatch(text, /AIza[0-9A-Za-z_-]{20,}/, `${name} contains a Google API key`);
+  for (const [name, text] of texts) assert.doesNotMatch(text, /AIza[0-9A-Za-z_-]{20,}|\bAQ\.[0-9A-Za-z_-]{20,}/, `${name} contains a Google API key`);
 });
