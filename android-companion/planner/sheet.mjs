@@ -70,7 +70,11 @@ function currentPose(node, scrim) {
     opacity: scrim.hidden ? 0 : Number(getComputedStyle(scrim).opacity)};
 }
 
-const offscreen = node => `translateY(${Math.ceil(node.getBoundingClientRect().height) + 24}px)`;
+const travelled = node => {
+  const transform = getComputedStyle(node).transform;
+  return transform === 'none' ? 0 : new DOMMatrixReadOnly(transform).m42;
+};
+const offscreen = node => `translateY(${Math.ceil(innerHeight - node.getBoundingClientRect().top + travelled(node)) + 24}px)`;
 
 /** Move sheet and scrim together from `from` to `to`. Resolves true when it reached `to`. */
 function moveSheet(node, scrim, from, to, {duration, easing, scrimEasing = easing}) {
@@ -101,6 +105,7 @@ export function closeSheet(app, {duration = MOTION.exit} = {}) {
   const epoch = ++app.sheet.epoch;
   const scrim = scrimFor(app);
   const from = currentPose(node, scrim);
+  if (node.contains(document.activeElement)) document.activeElement.blur();
   node.inert = true;
   scrim.classList.add('leaving');
   app.dom.planner.inert = false;

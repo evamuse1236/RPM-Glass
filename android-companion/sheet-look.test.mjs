@@ -18,8 +18,32 @@ test('quick add: the title is 16/24 like Capture; day, Time and Block show, the 
   assert.doesNotMatch(options, /icon-only/);
   assert.match(options, /moreChips\.append\(durationChip, repeatChip, mustChip\)/, 'Estimate, Repeat and Must sit together behind More options');
   assert.match(options, /inner\.append\(moreChips, durationFold\.node, repeatFold\.node\)/);
-  assert.match(options, /const moreRow = button\('', null, 'quick-details'\)/, 'More options is a plain row, not a chip');
+  assert.match(options, /const moreRow = button\('', null, 'quick-details'\)/, 'More options is one button that opens the rest');
   assert.match(options, /'More options'/);
+});
+
+test('quick add is Capture\'s composer: a floating panel on the bar tokens, Capture\'s chips and a round Send', () => {
+  const css = read('planner-sheets.css');
+  const panel = css.match(/\n\.sheet\.sheet-quick \{([^}]*)\}/)?.[1] ?? '';
+  assert.match(panel, /--sheet-bg: var\(--bar\);/);
+  assert.match(panel, /inset-inline: var\(--inset-page\);/);
+  assert.match(panel, /border: 1px solid var\(--bar-outline\);/);
+  assert.match(panel, /border-radius: var\(--r-outer\);/);
+  assert.match(panel, /color: var\(--bar-on\);/);
+  assert.match(css, /:root\[data-keyboard=open\] \.sheet\.sheet-quick \{ inset-block-end: var\(--inset-page\); \}/, '16dp above the keyboard');
+  assert.match(css, /\.sheet-quick \.send \{ background: var\(--bar-primary\); color: var\(--bar-on-primary\); \}/);
+  assert.match(css, /\.sheet-quick :is\(\.filter-chip, \.assist-chip, \.quick-details\) \{[^}]*border: 1px solid var\(--bar-outline\);/);
+  assert.match(read('theme.css'), /:root\[data-appearance=dark\],\.sheet\.sheet-quick\{/, 'the same dark tokens as Capture in either appearance');
+  const js = read('planner/quick-add.mjs');
+  assert.match(js, /iconButton\('arrow_upward', 'Add', \(\) => submit\(\), \{cls: 'round send'\}\)/);
+  assert.match(js, /iconButton\('mic', 'Capture', \(\) => app\.capture\(\), \{cls: 'round mic'\}\)/);
+  assert.doesNotMatch(js, /'filled-btn'/, 'no Add pill');
+  assert.match(js, /\n  name\.focus\(\{preventScroll: true\}\);\n  app\.api\.native\('keyboard'/, 'the keyboard is asked for while the panel rises, so it opens as one move');
+  const sheet = read('planner/sheet.mjs');
+  assert.match(sheet, /innerHeight - node\.getBoundingClientRect\(\)\.top \+ travelled\(node\)/,
+    'a closing sheet travels past the screen bottom, not its own height, so it never stops mid-screen');
+  assert.match(sheet, /if \(node\.contains\(document\.activeElement\)\) document\.activeElement\.blur\(\);\n  node\.inert = true;/,
+    'the keyboard drops with the sheet');
 });
 
 test('quick add chip names and the More options summary read the chip label, never the icon ligature', () => {

@@ -286,3 +286,42 @@
 .sheet-form .sheet-actions { justify-content: flex-start; }
 .sheet-quick .sheet-header { display: none; }
 .sheet-quick .sheet-body { padding-top: var(--s1); }
+.sheet.sheet-quick {
+  --sheet-bg: var(--bar);
+  inset-inline: var(--inset-page);
+  inset-block-end: var(--nav-gap);
+  color: var(--bar-on);
+  border: 1px solid var(--bar-outline);
+  border-radius: var(--r-outer);
+  box-shadow: var(--bar-shadow);
+}
+:root[data-keyboard=open] .sheet.sheet-quick { inset-block-end: var(--inset-page); }
+.sheet-quick .sheet-handle { display: none; }
+.sheet-quick .quick-title textarea { color: var(--bar-on); caret-color: var(--bar-primary); }
+.sheet-quick .quick-title textarea::placeholder { color: var(--bar-on-variant); }
+.sheet-quick :is(.filter-chip, .assist-chip, .quick-details) {
+  min-block-size: 40px;
+  margin-block: var(--s1);
+  border: 1px solid var(--bar-outline);
+  border-radius: var(--shape-sm);
+  color: var(--bar-on);
+}
+.sheet-quick :is(.filter-chip, .assist-chip)::after { inset: -4px 0; }
+.sheet-quick :is(.filter-chip, .assist-chip, .quick-details):not(.on, [aria-pressed=true]) .ms { color: var(--bar-primary); }
+.sheet-quick :is(.filter-chip, .assist-chip):is(.on, [aria-pressed=true]) {
+  border-color: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+.sheet-quick .quick-details { inline-size: auto; padding-inline: var(--s2) var(--s3); }
+.sheet-quick .sheet-actions { padding: 0 var(--s2) var(--s2); gap: var(--s1); }
+.sheet-quick .round { min-inline-size: 40px; min-block-size: 40px; inline-size: 40px; block-size: 40px; }
+.sheet-quick .round::before { inset: 0; }
+.sheet-quick .round::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; }
+.sheet-quick .round .ms { font-size: 24px; }
+.sheet-quick .send { background: var(--bar-primary); color: var(--bar-on-primary); }
+.sheet-quick .mic { background: var(--bar-highest); color: var(--bar-on); }
+.sheet-quick .round:disabled { opacity: .5; }
+.sheet-quick .round:active { scale: .96; }
+@media (prefers-reduced-motion: no-preference) {
+  .sheet-quick .round { transition: scale var(--dur-press) var(--ease-standard), opacity var(--dur-short) var(--ease-standard); }
+}

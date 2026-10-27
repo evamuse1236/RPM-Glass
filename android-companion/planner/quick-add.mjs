@@ -1,5 +1,5 @@
 import {localDay} from '../planner-state.mjs';
-import {el, icon, button, labelButton} from './dom.mjs';
+import {el, icon, button, iconButton} from './dom.mjs';
 import {quickOptions} from './quick-options.mjs';
 import {reducedMotion, EASE, DURATION, MOTION} from '../surface-motion.mjs';
 import {openSheet, isSheetOpen, discardDraft, rememberValue} from './sheet.mjs';
@@ -364,8 +364,8 @@ function quickAdd(app, overrides = {}) {
     grow();
     name.focus({preventScroll: true});
   };
-  const add = button('Add', () => submit(), 'filled-btn');
-  actions.append(labelButton('mic', 'Capture', () => app.capture(), 'text-btn'), el('span', 'spacer'), add);
+  const add = iconButton('arrow_upward', 'Add', () => submit(), {cls: 'round send'});
+  actions.append(iconButton('mic', 'Capture', () => app.capture(), {cls: 'round mic'}), el('span', 'spacer'), add);
   readTitle();
   paint();
   requestAnimationFrame(grow);
@@ -378,8 +378,6 @@ function quickAdd(app, overrides = {}) {
     return true;
   };
   app.sheet.onBack = () => app.sheet.live() && (more.close() || group.onBack());
-  requestAnimationFrame(() => {
-    name.focus();
-    app.api.native('keyboard', {field: 'Task'}).catch(() => {});
-  });
+  name.focus({preventScroll: true});
+  app.api.native('keyboard', {field: 'Task'}).catch(() => {});
 }

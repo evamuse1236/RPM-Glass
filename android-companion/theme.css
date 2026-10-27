@@ -115,7 +115,7 @@
   --float-border:#444746;--float-surface:#282a2c;--float-shadow:none;--sheet-surface:#282a2c;--sheet-raised:#333537;--sheet-card:#333537;
   --glass-blur:16px;--glass-saturate:1.08;--glass-border:oklch(100% none none / 8%);
 }}
-:root[data-appearance=dark]{
+:root[data-appearance=dark],.sheet.sheet-quick{
   color-scheme:dark;
   --primary:#a8c7fa;--on-primary:#062e6f;--primary-container:#0842a0;--on-primary-container:#d3e3fd;
   --secondary:#7fcfff;--on-secondary:#003355;--secondary-container:#004a77;--on-secondary-container:#c2e7ff;
