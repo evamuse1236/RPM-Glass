@@ -32,6 +32,7 @@ Done condition (pass/fail): the website adds, edits, completes and captures (wit
 | 2026-10-28 | Merged `origin/main` (a32740e) | Website redesign in. Three conflicts resolved; sync rows only in `web-sync.md`. `web:drive-offline` 25/25 on the merge. |
 | 2026-10-28 | Task ID counter | A replayed AI fixture found the counter could fall behind IDs already in the store (gave 42 with tasks up to 106). `nextTaskId` now stays above the store and Undo history. `npm test` passed: JS 1459 + 39, cloud 81, JUnit. Emulator add got ID 36 after 35 seeded. |
 | 2026-10-28 | Live Capture eval | Branch 60/66, `main` 59/66 on the same 22 phrases x 3; the misses are the same hard cases on both. Reports under `.verify/capture-stress/`. |
+| 2026-10-27 | Release | GitHub emulator run 40424571015 passed (after fixing the runner to expect only `inAll` scenarios). Merged to `main` (b70d170). Prod: 0 pending commands, backup `~/.cache/rpm-backups/neat-emu-821-20261027T053955.zip`, dry run on a local copy passed, deployed, `ANTHROPIC_API_KEY` set; `/v1/planner/sync` 410. Site deployed (version 10, `appgdep_6adfefc418f481919731a41672fcd95a`). APK 0.35-web-standalone sent by Juno; install UNVERIFIED. |
 
 ## Next steps (for a resumed session)
 

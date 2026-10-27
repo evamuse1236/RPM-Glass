@@ -23,7 +23,7 @@ try {
   writeReceipt(root, 'site-staged.json', {rpmGlassSha, siteCommit});
   const archive = path.join(root, '.verify', `site-archive-${short}.tar`);
   execFileSync('tar', ['-C', site, '-cf', archive, ...['.openai', 'dist'].filter(entry => fs.existsSync(path.join(site, entry)))]);
-  console.log(`Staged ${siteCommit} in ${site}. Next: deploy through the Sites plugin with the prebuilt archive ${archive} (without it Sites tries a source build and fails on "missing package.json"), then run npm run web:published -- <deployment-id>.`);
+  console.log(`Staged ${siteCommit} in ${site}. Next: push this Site commit to the Sites source repository (its source_repository_credential, a fast-forward; Sites refuses a commit that is not the remote HEAD), deploy through the Sites plugin with the prebuilt archive ${archive} (without it Sites tries a source build and fails on "missing package.json"), then run npm run web:published -- <deployment-id>.`);
 } catch (error) {
   console.error(error.message);
   process.exitCode = 1;
