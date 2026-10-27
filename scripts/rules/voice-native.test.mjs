@@ -40,6 +40,8 @@ test('the voice token is minted only in Java, with checks before the key', () =>
 test('the WebView mic is granted only through MicGrant', () => {
   const voice = java('CompanionVoice');
   assert.match(read('app/src/main/AndroidManifest.xml'), /android\.permission\.RECORD_AUDIO/);
+  assert.match(read('app/src/main/AndroidManifest.xml'), /android\.permission\.MODIFY_AUDIO_SETTINGS/,
+    'the WebView opens no audio source without it: getUserMedia fails with NotReadableError');
   const grants = voice.match(/\.grant\(/g) ?? [];
   assert.equal(grants.length, 2, 'one grant after the check, one after Android says yes');
   assert.match(java('CompanionActivity'), /onPermissionRequest\(PermissionRequest request\)\{voice\.micRequest\(request\);\}/);
