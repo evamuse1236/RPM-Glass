@@ -8,19 +8,36 @@ export function installSheet({platform,setView}){
   settings:()=>platform.action('settings').catch(()=>{}),
  };
  const isOpen=()=>!sheet.hidden;
+ const root=document.documentElement;
+ const keyboardUp=()=>parseFloat(root.style.getPropertyValue('--keyboard-inset'))>0;
+ let waiting=null;
+ // The menu rises once: while the keyboard is up it first drops, then the menu shows in the space it leaves.
+ function afterKeyboard(show){
+  if(!keyboardUp())return show();
+  document.getElementById('message')?.blur();
+  const done=()=>{watch.disconnect();clearTimeout(timer);waiting=null;show();};
+  const watch=new MutationObserver(()=>{if(!keyboardUp())done();});
+  watch.observe(root,{attributes:true,attributeFilter:['style']});
+  const timer=setTimeout(done,400);
+  waiting=()=>{watch.disconnect();clearTimeout(timer);waiting=null;};
+ }
  function open(){
-  scrim.hidden=false;sheet.hidden=false;
+  if(waiting)return;
   more.setAttribute('aria-expanded','true');
-  sheet.querySelector('button')?.focus({preventScroll:true});
+  afterKeyboard(()=>{
+   scrim.hidden=false;sheet.hidden=false;
+   sheet.querySelector('button')?.focus({preventScroll:true});
+  });
  }
  function close({focus=true}={}){
+  if(waiting){waiting();more.setAttribute('aria-expanded','false');return true;}
   if(!isOpen())return false;
   scrim.hidden=true;sheet.hidden=true;
   more.setAttribute('aria-expanded','false');
   if(focus)more.focus({preventScroll:true});
   return true;
  }
- more.addEventListener('click',()=>isOpen()?close():open());
+ more.addEventListener('click',()=>isOpen()||waiting?close():open());
  scrim.addEventListener('click',()=>close());
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&isOpen()){e.preventDefault();close();}});
  for(const row of sheet.querySelectorAll('[data-go]'))row.addEventListener('click',()=>{

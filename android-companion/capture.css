@@ -67,15 +67,17 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 @keyframes send-pulse{from{opacity:1}to{opacity:.45}}
 
 .scrim{position:absolute;inset:0;background:transparent}
+/* More floats like the composer: same inset, surface, edge and corners, so it reads as the composer's own menu. */
 .sheet{
-  position:absolute;inset-inline:0;inset-block-end:0;max-block-size:calc(100% - 24px);overflow-y:auto;overscroll-behavior:contain;
-  padding-block-end:calc(16px + env(safe-area-inset-bottom,0px));
-  background:var(--bar-high);color:var(--bar-on);border-radius:var(--r-outer) var(--r-outer) 0 0;box-shadow:var(--bar-shadow);
+  position:absolute;inset-inline:var(--inset-page);inset-block-end:calc(var(--keyboard-inset,0px) + var(--inset-page));
+  max-block-size:calc(100% - var(--keyboard-inset,0px) - 2 * var(--inset-page));overflow-y:auto;overscroll-behavior:contain;
+  padding-block-end:8px;
+  background:var(--bar);color:var(--bar-on);border:1px solid var(--bar-outline);border-radius:var(--r-outer);box-shadow:var(--bar-shadow);
 }
-.sheet .grab{margin-block:8px 16px}
+.sheet .grab{margin-block:8px 0}
 @media (prefers-reduced-motion:no-preference){
-  .sheet{transition:translate var(--dur-medium3) var(--ease-emphasized-decelerate),display var(--dur-medium3) allow-discrete}
-  @starting-style{.sheet{translate:0 100%}}
+  .sheet{transition:translate var(--dur-medium3) var(--ease-emphasized-decelerate),opacity var(--dur-short3) var(--ease-standard),display var(--dur-medium3) allow-discrete}
+  @starting-style{.sheet{translate:0 24px;opacity:0}}
 }
 :root[data-reduce-motion=true] .sheet{transition:none}
 
