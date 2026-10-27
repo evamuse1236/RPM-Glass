@@ -1,6 +1,7 @@
 // Pure state operations shared by the desktop server and the Android bundle.
 import {randomUUID} from 'node:crypto';
 export const freshStore=()=>({schema:2,version:0,entries:[],memories:[],history:[],conversations:[{id:randomUUID(),title:'New conversation',messages:[],archived:false}],pending:null,undo:null,imported:null});
+export function markInterrupted(data){if(!data.inFlight)return false;const cid=data.inFlight.conversationId;data.inFlight=null;const c=cid?data.conversations.find(x=>x.id===cid):data.conversations.find(x=>x.messages.at(-1)?.role==='user');if(c)c.messages.push({id:randomUUID(),role:'assistant',at:new Date().toISOString(),text:'The previous request was interrupted. Your message is saved; no unfinished changes were applied. You can retry.',error:'interrupted'});return true;}
 export function recordSnapshot(data){return structuredClone({entries:data.entries,memories:data.memories,history:data.history,conversations:data.conversations.map(c=>({id:c.id,archived:c.archived})),pending:data.pending,...(data.planner?{planner:{...data.planner,undo:null}}:{})});}
 export function restoreSnapshot(data,s){
   data.entries=s.entries;data.memories=s.memories;data.pending=s.pending;

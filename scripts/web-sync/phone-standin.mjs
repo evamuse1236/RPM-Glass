@@ -7,6 +7,7 @@ import {parseArgs} from 'node:util';
 import {setTimeout} from 'node:timers/promises';
 import {syncReplica} from '../../android-companion/replica-sync.mjs';
 import {editPlan} from '../../android-companion/planner-state.mjs';
+import {retryOnChange} from '../../android-companion/save-retry.mjs';
 import {seedStore} from '../gauntlet/seed.mjs';
 import {filePhone} from './phone-store.mjs';
 
@@ -52,9 +53,11 @@ async function main() {
     if (!['title', 'notes', 'purpose', 'leverage', 'planned', 'plannedDate', 'blockId', 'recurrence', 'alert', 'minutes', 'priority', 'must', 'done', 'alertLead', 'repeatDays', 'repeatAfterDays'].includes(field)) throw new Error('Choose a saveTask field.');
     if (!['title', 'notes', 'purpose', 'leverage', 'planned', 'plannedDate', 'blockId', 'recurrence', 'alert'].includes(field)) value = JSON.parse(raw);
     else if (raw === 'null') value = null;
-    const data = await phone.load(), expected = data.version;
-    editPlan(data, {type: 'saveTask', id: Number(opts.edit), fields: {[field]: value}}, new Date());
-    data.version = expected + 1; await phone.save(expected, data);
+    await retryOnChange(async () => {
+      const data = await phone.load(), expected = data.version;
+      editPlan(data, {type: 'saveTask', id: Number(opts.edit), fields: {[field]: value}}, new Date());
+      data.version = expected + 1; await phone.save(expected, data);
+    }, async () => {});
     log('Edited', opts.edit, field); return;
   }
   if (!phone.token() || opts.pair) {

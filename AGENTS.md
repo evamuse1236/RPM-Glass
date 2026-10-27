@@ -79,5 +79,7 @@ Before changing Capture, read `docs/rules/capture.md`. Before changing the notch
 | Drive only an emulator the tooling started or explicitly adopted on the CI runner. | `rpmctl` requires the device identity, lease and owner; `launch --attach` validates the read-only emulator's PID, port, AVD and process start identity |
 | Checks run green on a Windows checkout. | `.gitattributes` (LF checkout) and the win32 guards in the file-mode tests |
 | Planner commits carry JSON ops; functions are rejected before saving. Batches keep one Undo; review progress and `keepUndo` retain the prior Undo. | `assertPlanOp` in `planner-state.mjs`, planner commit guard, `android-companion/planner-data-ops.test.mjs` (runtime rejection and AST call-site check) |
+| Every save of the shared store reloads and retries when another writer saved first (`retryOnChange`, or a listed retry loop); an exception names its reason in the test. | `scripts/rules/save-retry.test.mjs`, `android-companion/save-retry.test.mjs`, `chat-prototype/interrupted.test.mjs` |
+| Task ID range numbers live only in `android-companion/task-ids.mjs`; every allocator imports them. | `scripts/rules/task-id-range.test.mjs` |
 | For the website, the server hub and the phone replica, follow the web sync rules. | [Web sync rules and enforcing tests](docs/rules/web-sync.md) |
 | Report keyless model paths, Samsung behavior and real widget placement as UNVERIFIED. | Judgment: `verify-rpm-glass` SKILL.md proof standards |
