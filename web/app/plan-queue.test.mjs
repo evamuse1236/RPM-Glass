@@ -5,7 +5,8 @@ import {validateCommand} from '../contract/validate.mjs';
 import {editPlan} from '../../android-companion/planner-state.mjs';
 import {withIds} from '../../android-companion/new-id.mjs';
 import {completionOp} from '../../android-companion/notch-ops.mjs';
-import {createPlanQueue, storeFrom, WAITING} from './plan-queue.mjs';
+import {createPlanQueue, storeFrom, WAITING, CHANGED} from './plan-queue.mjs';
+import {createRamble} from '../../android-companion/voice-turn.mjs';
 
 const FINAL = new Set(['applied', 'rejected', 'conflict']);
 
@@ -270,4 +271,49 @@ test('a one-time task ticked and then unticked in the browser reaches the phone 
   device.apply(1);
   assert.equal(task(queue, 3).done, false);
   assert.equal(queue.pendingIds().size, 0);
+});
+
+function ramble(data) {
+  let n = 0;
+  const r = createRamble({data: structuredClone(data), timeZone: 'Asia/Kolkata', now: () => new Date('2026-10-19T12:00:00+05:30')});
+  const call = (name, args = {}) => r.receive({toolCall: {functionCalls: [{id: `c${++n}`, name, args}]}})[0].toolResponse.functionResponses[0].response.result;
+  const block = call('save_block', {title: 'Ship the app', purpose: 'Users wait'}).saved;
+  const notes = call('save_task', {title: 'Write release notes', blockId: block}).saved;
+  const mom = call('save_task', {title: 'Call mom'}).saved;
+  call('save_task', {id: mom, title: 'Call mom tonight', start: '2026-10-20T20:00:00+05:30'});
+  return {result: r.result(), block, notes, mom};
+}
+
+test('a voice ramble is one plan command on the ramble\'s own ids, and one Undo takes all of it back', () => {
+  const {client, queue, device} = setup();
+  const before = structuredClone(queue.data().entries);
+  const {result, block, notes, mom} = ramble(queue.data());
+  assert.deepEqual(result.created.sort(), [notes, mom].sort());
+  queue.commit(result.batch, {uuids: result.uuids, tasks: result.created});
+  assert.equal(client.sent().length, 1);
+  const [sent] = client.sent();
+  assert.equal(sent.type, 'plan');
+  assert.equal(sent.args.exactTaskIds, true);
+  assert.deepEqual(sent.args.ids, [...result.uuids, ...queue.data().entries.filter(e => !before.some(b => b.id === e.id)).map(e => e.id)]);
+  assert.equal(task(queue, notes).blockId, block);
+  assert.equal(task(queue, mom).title, 'Call mom tonight');
+  device.apply(0);
+  const server = client.state.snapshot.entries;
+  assert.equal(server.find(e => e.id === notes)?.blockId, block, 'the server has the task in the new Block');
+  assert.equal(server.find(e => e.id === mom)?.title, 'Call mom tonight', 'the server edited the same new task');
+  queue.commit({type: 'undo'});
+  assert.equal(client.sent().length, 2);
+  assert.equal(client.sent()[1].type, 'undo');
+  device.apply(1);
+  assert.deepEqual(client.state.snapshot.entries, before);
+  assert.deepEqual(queue.data().entries, before);
+});
+
+test('a ramble worked out on a plan that has since changed is refused before sending, so its words stay the only record', () => {
+  const {client, queue} = setup();
+  const {result} = ramble(queue.data());
+  queue.commit({type: 'saveTask', fields: {title: 'Typed meanwhile'}});
+  assert.throws(() => queue.commit(result.batch, {uuids: result.uuids, tasks: result.created}), {message: CHANGED});
+  assert.equal(client.sent().length, 1, 'only the typed change was sent');
+  assert.equal(queue.data().entries.some(e => e.title === 'Call mom tonight'), false);
 });

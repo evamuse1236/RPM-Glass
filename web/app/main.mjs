@@ -14,6 +14,7 @@ import {mountShortcuts} from './shortcuts.mjs';
 import {markOpenCard} from './open-card.mjs';
 import {captureNotes, captureOutcome, dismissedNotes} from './capture-notes.mjs';
 import {conflictNotes} from './conflict-notes.mjs';
+import {mountVoice} from './voice-capture.mjs';
 
 const server = new URLSearchParams(location.search).get('server') ?? globalThis.RPM_SYNC_SERVER ?? location.origin;
 const client = createClient({server});
@@ -24,6 +25,11 @@ const dismissed = dismissedNotes(localStorage);
 let ui = null;
 let remark = () => {};
 let glance = () => {};
+const voice = mountVoice({client, queue, render: () => { ui?.render(); render(); }, onRetry: words => {
+  $('capture-text').value = words;
+  localStorage.setItem(DRAFT, words);
+  $('capture-text').focus();
+}});
 
 const unconfirmed = () => client.state.outbox.filter(e => !['applied', 'rejected', 'conflict'].includes(e.status));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -107,6 +113,7 @@ function render() {
   $('banner').textContent = banner ?? '';
   renderNotes();
   if ($('capture-sheet').open) renderCaptureHistory();
+  voice.refresh();
   glance();
   remark();
 }
@@ -134,6 +141,7 @@ function openCapture() {
   renderCaptureHistory();
   $('capture-text').value = localStorage.getItem(DRAFT) ?? '';
   $('capture-problem').hidden = true;
+  voice.opened();
   sheet.showModal();
   $('capture-text').focus();
 }
@@ -143,6 +151,7 @@ $('capture-text').addEventListener('keydown', event => {
   if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); $('capture-form').requestSubmit(); }
 });
 $('capture-close').addEventListener('click', () => $('capture-sheet').close());
+$('capture-sheet').addEventListener('close', () => voice.closed());
 $('capture-form').addEventListener('submit', event => {
   event.preventDefault();
   const text = $('capture-text').value;

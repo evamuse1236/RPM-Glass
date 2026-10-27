@@ -117,6 +117,8 @@ export function createClient({server, storage = globalThis.localStorage, fetchIm
       await deliver(entry); emit();
       return entry;
     },
+    /** A one-use Gemini Live token; the server builds the setup for this time zone. */
+    async voiceToken(timeZone) { return (await call('/v1/web/voice-token', {method: 'POST', body: {timeZone}})).data; },
     refresh, poll,
     async tick() {
       for (const entry of state.outbox.filter(e => e.status === 'sending')) await deliver(entry);

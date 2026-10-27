@@ -107,3 +107,9 @@ test('the website builds its notes from captureNotes and conflictNotes and lets 
   assert.match(main, /note\.tone === 'problem' \? userMessage\(note\.text\)/);
   assert.match(main, /const changes = unconfirmed\(\)\.filter\(entry => entry\.command\.type !== 'capture'\);/);
 });
+
+test('a voice ramble is a journal of the words: once the server has it, it says Words saved and never Sorting', () => {
+  const voice = {...entry('v', 'applied', {message: 'Words saved.'}), command: {...entry('v', 'applied').command, args: {text: 'call mum tomorrow at 5', source: 'voice'}}};
+  assert.deepEqual(run([voice]), [{id: 'v', icon: 'check_circle', tone: 'done', text: said, lines: ['Words saved'], dismissible: true}]);
+  assert.deepEqual(run([{...voice, command: {...voice.command, createdAt: at(RECENT + 1)}}]), []);
+});

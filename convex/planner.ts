@@ -62,6 +62,14 @@ export const phone = internalMutation({args:{tokenHash:v.string(),op:v.union(v.l
   return fail(400,"invalid_request","Unknown phone operation");
 }});
 
+const VOICE_TOKENS_PER_HOUR = 30;
+/** Authenticates a browser for a voice token and spends one of its account's hourly voice tokens. */
+export const voice = internalMutation({args:{tokenHash:v.string()},handler:async(ctx,args)=>{
+  const auth = await webAuth(ctx,args.tokenHash);
+  if(auth.error)return auth.error;
+  return await consumeQuota(ctx,`voice:${auth.session.account}`,VOICE_TOKENS_PER_HOUR,3600000) ?? {ok:true};
+}});
+
 export const browser = internalMutation({args:{tokenHash:v.string(),op:v.union(v.literal("snapshot"),v.literal("enqueue"),v.literal("commands"),v.literal("revoke")),command:v.optional(v.any()),identity:v.optional(v.string()),since:v.optional(v.number())},handler:async(ctx,args)=>{
   const auth = await webAuth(ctx,args.tokenHash);
   if(auth.error)return auth.error;
@@ -86,10 +94,12 @@ export const browser = internalMutation({args:{tokenHash:v.string(),op:v.union(v
   const commandId = await ctx.db.insert("webCommands",{account:session.account,session:session._id,device:session.device,commandId:identityId,payload:args.command,identity:args.identity!,status:"pending",message:"Words saved. Waiting for Capture.",newRevision:null,cursor:await nextCursor(ctx,session.account),queuedAt:Date.now()});
   const command=(await ctx.db.get(commandId))!;
   if(command.payload.type==="capture") {
-    const now=new Date().toISOString();
-    const captureId=await ctx.db.insert("captures",{account:session.account,messageId:command.payload.id,text:command.payload.args.text,timezone:command.payload.timezone??"Asia/Kolkata",status:"saved",attempts:0});
-    await writeRecords(ctx,session.account,[{key:`capture:${command.payload.id}`,value:{id:command.payload.id,text:command.payload.args.text,status:"saved",createdAt:now,receipt:[]}}],now);
-    await ctx.scheduler.runAfter(0,makeFunctionReference<"action">("captureRun:run"),{captureId});
+    // A voice capture is a journal of the words; its changes arrive as their own plan command, so the text model never runs.
+    const now=new Date().toISOString(), voice=command.payload.args.source==="voice", status=voice?"captured":"saved";
+    const captureId=await ctx.db.insert("captures",{account:session.account,messageId:command.payload.id,text:command.payload.args.text,timezone:command.payload.timezone??"Asia/Kolkata",status,attempts:0});
+    await writeRecords(ctx,session.account,[{key:`capture:${command.payload.id}`,value:{id:command.payload.id,text:command.payload.args.text,status,createdAt:now,receipt:[]}}],now);
+    if(voice)await ctx.db.patch(commandId,{status:"applied",message:"Words saved.",newRevision:(await ctx.db.get(session.account))!.cursor});
+    else await ctx.scheduler.runAfter(0,makeFunctionReference<"action">("captureRun:run"),{captureId});
   } else {
     const result=await applyPlan(ctx,session.account,command);
     await ctx.db.patch(commandId,{...result,newRevision:(await ctx.db.get(session.account))!.cursor});

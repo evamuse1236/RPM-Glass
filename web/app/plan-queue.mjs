@@ -9,10 +9,12 @@ const FAILED = new Set(['rejected', 'conflict']);
 const ID_KEYS = new Set(['id', 'ids', 'blockId', 'projectId', 'goalId', 'areaId', 'taskIds', 'routineId']);
 export const WAITING = 'This is still saving. Try again in a moment.';
 export const FALLBACK = 'This change was not saved.';
+export const CHANGED = 'Your plan changed while you talked. Your words are saved.';
+const MAX_IDS = 64;
 
 /** The planner's store as the phone last saved it. */
 export function storeFrom(snapshot) {
-  return {version: snapshot.revision, entries: structuredClone(snapshot.entries).map(entry => ({revisions: [], ...entry})), planner: structuredClone(snapshot.planner), sync: {taskIdRange: SERVER_TASK_IDS}};
+  return {version: snapshot.revision, entries: structuredClone(snapshot.entries).map(entry => ({revisions: [], ...entry})), planner: structuredClone(snapshot.planner), sync: {taskIdRange: SERVER_TASK_IDS, ...(snapshot.nextTaskId ? {nextTaskId: snapshot.nextTaskId} : {})}};
 }
 
 function idsOf(store) {
@@ -48,8 +50,9 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
   const entryOf = id => client.state.outbox.find(e => e.command.id === id);
   const snapshot = () => client.state.snapshot;
 
-  function edit(store, rec, op) {
+  function edit(store, rec, op, seeded = false) {
     const {result, ids} = withIds(rec.uuids ?? [], () => editPlan(store, op, new Date(rec.at)));
+    if (seeded && ids.length !== rec.uuids.length) throw new Error(CHANGED);
     rec.uuids ??= ids;
     return result;
   }
@@ -68,7 +71,7 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
 
   function command(rec) {
     const base = {id: rec.id, createdAt: rec.at, baseRevision: rec.baseRevision};
-    return validateCommand(rec.kind === 'undo' ? {...base, type: 'undo', args: {commandId: rec.targetId}} : {...base, type: 'plan', args: {op: rec.op, ids: rec.uuids ?? []}});
+    return validateCommand(rec.kind === 'undo' ? {...base, type: 'undo', args: {commandId: rec.targetId}} : {...base, type: 'plan', args: {op: rec.op, ids: [...(rec.uuids ?? []), ...(rec.taskIds ?? [])], ...(rec.taskIds ? {exactTaskIds: true} : {})}});
   }
 
   function settle() {
@@ -162,10 +165,16 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
     data: () => view,
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     pendingIds: () => new Set(records.flatMap(r => r.ids)),
+    /** The command a plain Undo would take back now, or null. */
+    lastUndoId: () => lastUndo?.commandId ?? null,
     problems: () => problems,
     dismissProblem(index) { problems = problems.filter((_, i) => i !== index); persist(); listeners.forEach(fn => fn({foreign: false, redraw: false, sends: []})); },
     start() { onClient(); },
-    commit(op) {
+    /**
+     * Saves one change. `ids` replays a change already worked out elsewhere (a voice ramble): `uuids` seeds its new
+     * Block, Project and Area ids, `id` names the command, and `tasks` names its new task ids, which the server must give exactly or refuse.
+     */
+    commit(op, ids = null) {
       if (op?.type === 'undo') return undo();
       assertPlanOp(op);
       validatePlanOp(op);
@@ -174,10 +183,16 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
       const baseIds = idsOf(snap);
       const before = idsOf(view);
       if (named(op).some(id => before.has(id) && !baseIds.has(id))) throw new Error(WAITING);
-      const rec = {id: uuid(), kind: 'plan', op, at: now().toISOString(), baseRevision: snap.revision, sent: true, held: false};
+      const rec = {id: ids?.id ?? uuid(), kind: 'plan', op, at: now().toISOString(), baseRevision: snap.revision, sent: true, held: false};
+      if (ids) rec.uuids = [...ids.uuids];
       const store = structuredClone(view);
-      const result = edit(store, rec, op);
+      const result = edit(store, rec, op, !!ids);
       const created = [...idsOf(store)].filter(id => !before.has(id));
+      if (ids) {
+        const tasks = created.filter(id => typeof id === 'number');
+        if (tasks.length !== ids.tasks.length || tasks.some(id => !ids.tasks.includes(id)) || rec.uuids.length + tasks.length > MAX_IDS) throw new Error(CHANGED);
+        rec.taskIds = tasks;
+      }
       const list = targets(op);
       const earlier = records.filter(r => overlaps(r.targets, list)).at(-1);
       Object.assign(rec, {targets: list, ids: [...targetIds(list), ...created], created, held: !!earlier, sent: !earlier, after: earlier?.id ?? null});

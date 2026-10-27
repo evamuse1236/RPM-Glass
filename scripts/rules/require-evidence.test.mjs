@@ -90,6 +90,17 @@ test('a web-only change proven by a synced screenshot needs no new APK; Java sti
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });
 
+test('a bundled web change with no APK built names the missing APK instead of crashing', () => {
+  const root = repo();
+  try {
+    const now = Date.now();
+    fs.writeFileSync(path.join(root, 'android-companion/planner/app.mjs'), 'export const a = 2;\n');
+    touch(path.join(root, 'android-companion/planner/app.mjs'), now);
+    bundle(root, 'bundle', now + 30000);
+    assert.match(evidenceGap(root), /No debug APK is built.*UNVERIFIED/s);
+  } finally { fs.rmSync(root, {recursive: true, force: true}); }
+});
+
 test('deleting app code also needs proof', () => {
   const root = repo();
   try {

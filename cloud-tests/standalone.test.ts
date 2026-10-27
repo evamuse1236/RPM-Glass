@@ -9,7 +9,7 @@ describe("Standalone planner writes",()=>{
   it("builds the seed snapshot from records without storing snapshots",async()=>{
     const {t,device,web,seed}=await seeded(), page=await (await pull(t,device.token)).json();
     const snap=await read(t,web.token);
-    expect(snap).toEqual({...buildSnapshot({...seed,version:page.cursor,syncSavedAt:snap.savedAt,sync:{remoteActivity:Object.fromEntries(seed.entries.map(e=>[e.id,e.reviewActivityDays??[]]))}}),conflicts:[]});
+    expect(snap).toEqual({...buildSnapshot({...seed,version:page.cursor,syncSavedAt:snap.savedAt,sync:{remoteActivity:Object.fromEntries(seed.entries.map(e=>[e.id,e.reviewActivityDays??[]]))}}),conflicts:[],nextTaskId:snap.nextTaskId});
     expect(validateSnapshot(snap)).toEqual(snap);
     expect(page.seededAt).toEqual(expect.any(Number));
   });

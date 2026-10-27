@@ -2,6 +2,10 @@ import { httpActionGeneric, makeFunctionReference, type HttpRouter } from "conve
 import { validateCommand } from "../web/contract/validate.mjs";
 import { canonicalJson, randomSecret, sha256 } from "./security";
 import { validatePush, validatePull } from "./plannerProtocol";
+// @ts-expect-error Shared voice setup is JavaScript.
+import { liveSetup } from "../android-companion/voice-tools.mjs";
+// @ts-expect-error Shared token minting is JavaScript.
+import { mintVoiceToken } from "../android-companion/voice-token.mjs";
 declare const process:{env:Record<string,string|undefined>};
 
 class RequestFailure extends Error {
@@ -60,6 +64,26 @@ function token(request:Request) {
 function checked(validate:(value:unknown)=>unknown,value:unknown) {
   try{return validate(value);}catch{invalid();}
 }
+function timeZone(value:unknown) {
+  const zone = object(value,["timeZone"]).timeZone;
+  if(typeof zone!=="string" || zone.length>64 || !/^[A-Za-z][A-Za-z0-9_+\-]*(\/[A-Za-z0-9_+\-]+){0,2}$/.test(zone))invalid("Use an IANA time zone");
+  try{new Intl.DateTimeFormat("en-US",{timeZone:zone});}catch{invalid("Use an IANA time zone");}
+  return zone as string;
+}
+/** A one-use Gemini Live token whose setup the server builds; the browser never sends a setup or sees the key. */
+async function voiceToken(ctx:any,request:Request,tokenHash:string) {
+  const zone = timeZone(await body(request));
+  const allowed = await ctx.runMutation(makeFunctionReference<"mutation">("planner:voice"),{tokenHash});
+  if(allowed.error)return allowed;
+  const key = process.env.GEMINI_API_KEY;
+  if(!key)throw new RequestFailure(503,"voice_unavailable","Voice is not set up on this server");
+  try {
+    const {token,expiresAt,url} = await mintVoiceToken(key,liveSetup(new Date(),zone),new Date());
+    return {token,expiresAt,url};
+  } catch {
+    throw new RequestFailure(502,"voice_failed","Voice is unavailable right now.");
+  }
+}
 function linkCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   return [...crypto.getRandomValues(new Uint8Array(8))].map(value=>alphabet[value%alphabet.length]).join("");
@@ -70,6 +94,7 @@ export function registerPlannerRoutes(http:HttpRouter) {
     ["/v1/web/snapshot","GET","snapshot"], ["/v1/web/commands","GET","commands"],
     ["/v1/web/commands","POST","enqueue"], ["/v1/web/session","DELETE","self-revoke"],
     ["/v1/web/sessions","GET","sessions"], ["/v1/web/revoke","POST","revoke"],
+    ["/v1/web/voice-token","POST","voice-token"],
     ["/v1/planner/sync","POST","sync"],
     ["/v1/planner/push","POST","push"], ["/v1/planner/pull","POST","pull"],
   ] as const;
@@ -91,7 +116,9 @@ export function registerPlannerRoutes(http:HttpRouter) {
         result = await ctx.runMutation(makeFunctionReference<"mutation">("planner:exchange"),{codeHash:await sha256(value.code),tokenHash:await sha256(rawToken),label:value.label?.trim()??"Web browser"});
       } else {
         const tokenHash = await token(request);
-        if(op==="push" || op==="pull") {
+        if(op==="voice-token") {
+          result = await voiceToken(ctx,request,tokenHash);
+        } else if(op==="push" || op==="pull") {
           const raw=await body(request);
           if(op==="push" && new TextEncoder().encode(JSON.stringify(raw)).length>800000)throw new RequestFailure(413,"body_too_large","Push part exceeds 800 KB");
           const value=checked(op==="push"?validatePush:validatePull,raw);
