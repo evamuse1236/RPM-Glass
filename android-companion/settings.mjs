@@ -163,6 +163,10 @@ function accountSection(ctx) {
   add(ctx, section, openRouterKey ? 'Replace OpenRouter key' : 'Connect OpenRouter key',
     'Backup when Claude fails; planner suggestions and Jev sorting', openRouterKey ? 'Connected' : 'Not connected', 'connect_openrouter_key');
   if (openRouterKey) add(ctx, section, 'Remove OpenRouter key', 'Plans and conversations stay on this phone', '', 'remove_openrouter_key');
+  const {hasGeminiKey} = ctx.state;
+  add(ctx, section, hasGeminiKey ? 'Replace Gemini key' : 'Connect Gemini key', 'Voice mode talks with Gemini Live',
+    hasGeminiKey ? 'Connected' : 'Not connected', 'connect_gemini_key');
+  if (hasGeminiKey) add(ctx, section, 'Remove Gemini key', 'The mic goes back to system dictation', '', 'remove_gemini_key');
   const history = el('div', 'settings-subgroup');
   history.dataset.section = 'context-history';
   add(ctx, history, 'Import context copy', 'Backs up this phone first; imported alerts stay off', '', 'import_context');

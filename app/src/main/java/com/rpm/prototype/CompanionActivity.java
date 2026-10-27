@@ -18,7 +18,7 @@ import java.util.concurrent.*;
 /** A trusted, bundled conversation surface. All networking is native and HTTPS-only. */
 public class CompanionActivity extends Activity {
     protected boolean planning(){return false;}
-    private String voiceRequest;
+    private final CompanionVoice voice=new CompanionVoice(this,this::reply);
     private volatile boolean diagnosticReady=false;
     private WebView web;private boolean expanded=false,closing=false;
     private double captureHeightCss=300,captureWidthCss=0;
@@ -35,7 +35,9 @@ public class CompanionActivity extends Activity {
         if(planning()){expanded=true;getWindow().setBackgroundDrawableResource(R.color.rpm_surface);}
         web=new WebView(this);if(!planning())web.setAlpha(0);web.setBackgroundColor(planning()?getColor(R.color.rpm_surface):Color.TRANSPARENT);WebSettings s=web.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setAllowFileAccess(false);s.setAllowContentAccess(false);s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);s.setMediaPlaybackRequiresUserGesture(true);s.setSupportMultipleWindows(false);s.setJavaScriptCanOpenWindowsAutomatically(false);s.setSafeBrowsingEnabled(true);applyTextScale();
         settingsController=new CompanionSettingsController(this,this::settingsChanged);
-        web.setWebChromeClient(new WebChromeClient(){@Override public boolean onConsoleMessage(ConsoleMessage message){if(!diagnosticReady)Diagnostics.chrome(CompanionActivity.this,message);return false;}});
+        web.setWebChromeClient(new WebChromeClient(){@Override public boolean onConsoleMessage(ConsoleMessage message){if(!diagnosticReady)Diagnostics.chrome(CompanionActivity.this,message);return false;}
+            @Override public void onPermissionRequest(PermissionRequest request){voice.micRequest(request);}
+            @Override public void onPermissionRequestCanceled(PermissionRequest request){voice.micCanceled(request);}});
         web.addJavascriptInterface(new Bridge(),"RpmNative");web.setWebViewClient(new WebViewClient(){
             @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail detail){
                 try{Diagnostics.recordNow(CompanionActivity.this,Diagnostics.event("crash","error","webview.renderer","error",new JSONObject().put("didCrash",detail.didCrash()).put("priority",detail.rendererPriorityAtExit())));}catch(Exception ignored){}
@@ -73,7 +75,7 @@ public class CompanionActivity extends Activity {
     private void openKeyboard(){if(web==null)return;web.post(()->{if(closing||web==null)return;web.requestFocus();web.evaluateJavascript("document.getElementById('message')?.focus({preventScroll:true})",r->{if(web!=null&&!closing)((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(web,android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);});});}
     private float effectiveFontScale(){return getResources().getConfiguration().fontScale*(planning()?1f:CompanionControls.widgetTextScale(this)/100f);}
     private void applyTextScale(){if(web!=null)web.getSettings().setTextZoom(Math.round(effectiveFontScale()*100));}
-    private JSONObject phoneStatus()throws JSONException{return CompanionAlerts.status(this,!planning()).put("reducedMotion",!ValueAnimator.areAnimatorsEnabled()).put("debug",(getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE)!=0);}
+    private JSONObject phoneStatus()throws JSONException{return CompanionAlerts.status(this,!planning()).put("reducedMotion",!ValueAnimator.areAnimatorsEnabled()).put("debug",(getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE)!=0).put("hasGeminiKey",GeminiKey.has(this));}
     private void settingsChanged(){if(closing||web==null)return;applyTextScale();size();web.evaluateJavascript("window.rpmPhoneRefresh?.()",null);web.evaluateJavascript("window.dispatchEvent(new Event('rpm-settings-refresh'))",null);}
     private void openIntegratedSettings(String section){if(web==null)return;if(section==null||section.isBlank())section="settings";String destination=section;if(planning())web.evaluateJavascript("window.rpmOpenSettings?.("+JSONObject.quote(destination)+")",null);else{JSONObject target=new JSONObject();try{target.put("view",destination);}catch(JSONException ignored){}startActivity(new Intent(this,PlannerActivity.class).putExtra("plannerTarget",target.toString()));}}
     @Override public void finish(){
@@ -92,10 +94,12 @@ public class CompanionActivity extends Activity {
     private void arrive(){if(web==null)return;if(!"com.rpm.widget.voice".equals(getIntent().getAction())){openKeyboard();return;}getIntent().setAction("com.rpm.widget.capture");web.post(()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmStartVoice?window.rpmStartVoice():(window.rpmPendingVoice=true)",null);});}
     private android.content.BroadcastReceiver notchSaved;
     @Override protected void onResume(){super.onResume();notchSaved=NotchRunner.onSaved(this,()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmPhoneRefresh?.()",null);});applyTextScale();if(settingsController!=null)settingsController.onResume();work.execute(()->{NotchSetup.check(this);try{JSONObject d=CompanionStore.read(this);if(d!=null)CompanionAlerts.reconcile(this,d,false);}catch(Exception ignored){}runOnUiThread(this::settingsChanged);});}
-    @Override protected void onPause(){unregisterReceiver(notchSaved);if(settingsController!=null)settingsController.onPause();super.onPause();}
+    @Override protected void onPause(){if(web!=null)web.evaluateJavascript("window.rpmVoiceBackground?.()",null);unregisterReceiver(notchSaved);if(settingsController!=null)settingsController.onPause();super.onPause();}
     @Override public void onConfigurationChanged(android.content.res.Configuration c){super.onConfigurationChanged(c);size();applyTextScale();settingsChanged();}
-    @Override protected void onActivityResult(int request,int result,Intent intent){super.onActivityResult(request,result,intent);if(request==302 && voiceRequest!=null){String id=voiceRequest;voiceRequest=null;try{ArrayList<String> words=intent==null?null:intent.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS);reply(id,new JSONObject().put("text",result==RESULT_OK&&words!=null&&!words.isEmpty()?words.get(0):""),null);}catch(JSONException error){reply(id,null,"Voice input could not be read.");}return;}if(settingsController!=null)settingsController.onActivityResult(request,result,intent);}
-    @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){super.onRequestPermissionsResult(request,permissions,results);if(settingsController!=null)settingsController.onRequestPermissionsResult(request);settingsChanged();}
+    @Override protected void onActivityResult(int request,int result,Intent intent){super.onActivityResult(request,result,intent);if(voice.dictated(request,result,intent))return;if(settingsController!=null)settingsController.onActivityResult(request,result,intent);}
+    @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){super.onRequestPermissionsResult(request,permissions,results);
+        if(voice.permissionResult(request,results))return;
+        if(settingsController!=null)settingsController.onRequestPermissionsResult(request);settingsChanged();}
     @Override protected void onDestroy(){closing=true;modelRequests.cancelAll();if(settingsController!=null){settingsController.destroy();settingsController=null;}if(web!=null){web.removeJavascriptInterface("RpmNative");web.destroy();web=null;}captureInput.shutdown();work.shutdown();super.onDestroy();}
     private void reply(String id,Object value,String error){runOnUiThread(()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmBridgeResult("+JSONObject.quote(id)+","+(value==null?"null":value.toString())+","+(error==null?"null":JSONObject.quote(error))+")",null);});}
     final class Bridge {
@@ -131,7 +135,8 @@ public class CompanionActivity extends Activity {
                     case "surface":if(!planning())throw new IllegalArgumentException("Unsupported phone action.");boolean dark=p.getBoolean("dark");runOnUiThread(()->{if(!closing&&web!=null)CompanionSurface.paintPlannerBars(CompanionActivity.this,root,web,dark);});result=new JSONObject();break;
                     case "legacyEntries":result=LegacyImport.read(CompanionActivity.this);break;
                     case "legacyImported":LegacyImport.markDone(CompanionActivity.this);result=new JSONObject();break;
-                    case "dictate":runOnUiThread(()->{if(voiceRequest!=null){reply(id,null,"Voice input is already open.");return;}voiceRequest=id;try{Intent voice=new Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM).putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT,"Capture your thought");startActivityForResult(voice,302);}catch(ActivityNotFoundException error){voiceRequest=null;reply(id,null,"Voice input is unavailable on this device. You can use keyboard dictation.");}});return;
+                    case "dictate":runOnUiThread(()->voice.dictate(id));return;
+                    case "voiceToken":case "micAccess":case "micSettings":result=voice.invoke(action,p);break;
                     case "haptic":runOnUiThread(()->web.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK));result=new JSONObject();break;
                     case "keyboard":runOnUiThread(()->{web.requestFocus();((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(web,android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);});result=new JSONObject();break;
                     case "appSettings":result=settingsController.read();break;

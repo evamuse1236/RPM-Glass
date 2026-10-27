@@ -33,7 +33,7 @@ final class Diagnostics {
     static void record(Context c,JSONObject event){if(!enabled(c))return;Context app=c.getApplicationContext();WRITER.execute(()->{try{recordNow(app,event);request(app);}catch(Exception ignored){rejected.incrementAndGet();}});}
     static void recordNow(Context c,JSONObject input)throws Exception{
         if(!enabled(c))return;
-        String token=SyncManager.decrypt(connection(c).getString("token",""));String[] keys=CompanionKey.all(c),known=java.util.Arrays.copyOf(keys,keys.length+1);known[keys.length]=token;
+        String token=SyncManager.decrypt(connection(c).getString("token",""));String[] keys=CompanionKey.all(c),known=java.util.Arrays.copyOf(keys,keys.length+2);known[keys.length]=token;try{known[keys.length+1]=GeminiKey.get(c);}catch(Exception ignored){}
         JSONObject event=(JSONObject)DiagnosticRedaction.value(input,0,known);
         event.put("appVersion",c.getPackageManager().getPackageInfo(c.getPackageName(),0).versionName);
         if(!event.optString("eventId").matches("[a-zA-Z0-9-]{16,80}")||event.optString("sessionId").length()>100||event.optString("sessionId").isEmpty()||event.optString("operationId").length()>160||event.optString("operation").length()>100||event.optString("outcome").length()>40||event.optString("kind").length()>40||!Set.of("log","debug","info","warn","error").contains(event.optString("level")))throw new IllegalArgumentException("Invalid diagnostic event");

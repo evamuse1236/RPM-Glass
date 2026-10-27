@@ -28,7 +28,7 @@ final class CompanionSettingsController {
     private static final Set<String> ACTIONS=Set.of(
         "set_widget_text_scale","choose_alarm","preview_alarm","stop_preview","reminder_sound",
         "show_butterfly","hide_butterfly","overlay_permission","notch_toggle","notch_permission","notch_app_info","notifications","exact_alarms",
-        "full_screen_alarms","check_alerts","connect_key","connect_claude_key","connect_openrouter_key","remove_claude_key","remove_openrouter_key","import_context",
+        "full_screen_alarms","check_alerts","connect_key","connect_claude_key","connect_openrouter_key","remove_claude_key","remove_openrouter_key","connect_gemini_key","remove_gemini_key","import_context",
         "export_context","restore_backup","earlier_screens","cloud_web","diagnostics_connect","diagnostics_pause","diagnostics_resume","diagnostics_disconnect","diagnostics_upload"
     );
     private final Activity activity;
@@ -86,6 +86,8 @@ final class CompanionSettingsController {
             case "connect_openrouter_key":runUi(()->keyDialog(CompanionKey.Service.OPENROUTER));message="Enter the key in the secure Android dialog.";break;
             case "remove_claude_key":runUi(()->removeKeyDialog(CompanionKey.Service.CLAUDE));message="Review the secure removal confirmation.";break;
             case "remove_openrouter_key":runUi(()->removeKeyDialog(CompanionKey.Service.OPENROUTER));message="Review the secure removal confirmation.";break;
+            case "connect_gemini_key":runUi(()->keyDialog("Connect Gemini","Gemini API key (AIza…)","Voice mode talks with Gemini Live. Saved encrypted on this phone; never sent to the app's pages.",value->GeminiKey.set(activity,value),"Gemini key connected."));message="Enter the key in the secure Android dialog.";break;
+            case "remove_gemini_key":runUi(()->new AlertDialog.Builder(activity).setTitle("Remove Gemini key?").setMessage("Voice mode stops; the mic uses system dictation again.").setNegativeButton("Keep",null).setPositiveButton("Remove",(d,w)->background(()->GeminiKey.set(activity,null),"Gemini key removed.",false)).show());message="Review the secure removal confirmation.";break;
             case "import_context":runUi(this::importDialog);message="Review the backup notice, then choose a context file.";break;
             case "export_context":runUi(()->activity.startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/json").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"rpm-companion-context.json"),EXPORT_CONTEXT));message="Choose where to save the context copy.";break;
             case "restore_backup":runUi(this::backups);message="Choose a private pre-import backup.";break;
@@ -145,10 +147,14 @@ final class CompanionSettingsController {
 
     private void keyDialog(CompanionKey.Service service){
         boolean claude=service==CompanionKey.Service.CLAUDE;
-        EditText key=new EditText(activity);key.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);key.setSingleLine(true);key.setHint(claude?"Claude API key (sk-ant-…)":"OpenRouter API key (sk-or-…)");key.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);key.setPadding(30,20,30,20);
+        keyDialog(claude?"Connect Claude":"Connect OpenRouter",claude?"Claude API key (sk-ant-…)":"OpenRouter API key (sk-or-…)",(claude?"Capture uses this key first.":"Used when Claude fails, and for planner suggestions and Jev sorting.")+" Saved encrypted on this phone; never bundled in the APK.",value->CompanionKey.set(activity,service,value),claude?"Claude key connected.":"OpenRouter key connected.");
+    }
+    private interface KeySave {void save(String value)throws Exception;}
+    private void keyDialog(String title,String hint,String about,KeySave save,String done){
+        EditText key=new EditText(activity);key.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);key.setSingleLine(true);key.setHint(hint);key.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);key.setPadding(30,20,30,20);
         activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
-        AlertDialog dialog=new AlertDialog.Builder(activity).setTitle(claude?"Connect Claude":"Connect OpenRouter").setMessage((claude?"Capture uses this key first.":"Used when Claude fails, and for planner suggestions and Jev sorting.")+" Saved encrypted on this phone; never bundled in the APK.").setView(key).setNegativeButton("Cancel",null).setPositiveButton("Save key",null).create();
-        dialog.setOnShowListener(d->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{try{CompanionKey.set(activity,service,key.getText().toString());key.setText("");dialog.dismiss();notifyChanged();toast(claude?"Claude key connected.":"OpenRouter key connected.");}catch(IllegalArgumentException e){key.setError(e.getMessage());}catch(Exception e){key.setError("The key could not be saved. Try again.");}}));
+        AlertDialog dialog=new AlertDialog.Builder(activity).setTitle(title).setMessage(about).setView(key).setNegativeButton("Cancel",null).setPositiveButton("Save key",null).create();
+        dialog.setOnShowListener(d->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{try{save.save(key.getText().toString());key.setText("");dialog.dismiss();notifyChanged();toast(done);}catch(IllegalArgumentException e){key.setError(e.getMessage());}catch(Exception e){key.setError("The key could not be saved. Try again.");}}));
         dialog.setOnDismissListener(d->{key.setText("");activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);notifyChanged();});dialog.show();dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
     }
 

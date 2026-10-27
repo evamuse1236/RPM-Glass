@@ -16,7 +16,7 @@ final class CompanionControls {
         return new JSONObject().put("captureBackground","Material")
             .put("widgetTextScale",widgetTextScale(c))
             .put("alarmSound",AlertSounds.alarmName(c)).put("reminderSound",AlertSounds.reminderName(c,CompanionAlerts.REMINDERS))
-            .put("aiConnected",CompanionKey.hasAny(c)).put("claudeKey",CompanionKey.has(c,CompanionKey.Service.CLAUDE)).put("openRouterKey",CompanionKey.has(c,CompanionKey.Service.OPENROUTER)).put("notificationsAllowed",CompanionAlerts.notifications(c,CompanionAlerts.REMINDERS))
+            .put("aiConnected",CompanionKey.hasAny(c)).put("claudeKey",CompanionKey.has(c,CompanionKey.Service.CLAUDE)).put("openRouterKey",CompanionKey.has(c,CompanionKey.Service.OPENROUTER)).put("hasGeminiKey",GeminiKey.has(c)).put("notificationsAllowed",CompanionAlerts.notifications(c,CompanionAlerts.REMINDERS))
             .put("exactAlarmsAllowed",CompanionAlerts.exact(c)).put("overlayAllowed",Settings.canDrawOverlays(c))
             .put("fullScreenSupported",fullScreenSupported).put("fullScreenAllowed",!fullScreenSupported||notifications.canUseFullScreenIntent())
             .put("launcherRunning",ButterflyService.isRunning()).put("notchOn",NotchController.enabled(c)).put("notchServiceOn",NotchAccessibilityService.isOn(c))
