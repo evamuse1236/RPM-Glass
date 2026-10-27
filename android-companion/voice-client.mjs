@@ -57,7 +57,7 @@ export function startVoice({data,timeZone,setup,token,onChange=()=>{},workletUrl
   send({realtimeInput:{activityEnd:{}}});ramble.stop();phase='working';notify();wait(limits.answerMs,'Voice took too long to answer. Your words are saved.');
  }
  function receive(m){
-  if(m.setupComplete){ready=true;send({realtimeInput:{activityStart:{}}});for(const c of queue.splice(0))send(c);if(stopped){stopped=false;stop();}else{phase='listening';notify();}return;}
+  if(m.setupComplete){ready=true;clearTimeout(timer);send({realtimeInput:{activityStart:{}}});for(const c of queue.splice(0))send(c);if(stopped){stopped=false;stop();}else{phase='listening';notify();}return;}
   for(const part of m.serverContent?.modelTurn?.parts??[])if(part.inlineData?.mimeType?.startsWith('audio/pcm'))speaker.play(part.inlineData.data);
   for(const out of ramble.receive(m))send(out);
   if(stopped)wait(limits.answerMs,'Voice took too long to answer. Your words are saved.');

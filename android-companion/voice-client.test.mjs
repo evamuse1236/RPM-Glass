@@ -68,3 +68,13 @@ test('no answer after stopping fails the ramble at the limit', async () => {
  await tick();await tick();await tick();voice.stop();
  assert.match((await voice.done).failed,/too long/);
 });
+
+test('a ramble that talks past the connect limit keeps listening once voice is ready', async () => {
+ const {options}=fakes();let last;
+ const voice=startVoice({...options,limits:{connectMs:20,talkMs:5000,answerMs:1000},data:freshStore(),timeZone:'UTC',setup:{},token:async()=>({token:'t',url:'wss://x'}),onChange:s=>{last=s;}});
+ await tick();await tick();await tick();
+ await new Promise(r=>setTimeout(r,60));
+ assert.equal(last.phase,'listening');
+ voice.stop();fakes.socket.serve({serverContent:{turnComplete:true}});
+ assert.ok(!(await voice.done).failed);
+});
