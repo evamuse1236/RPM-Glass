@@ -95,11 +95,14 @@ export function applyRamble(data,ramble,options){
  return {status:ramble.batch?'applied':'nothing',undo:!!ramble.batch};
 }
 
+/** A ramble can be undone only while its batch is still the newest planner change. */
+export const rambleUndoable=(data,voice)=>!!(voice?.undoEvent&&!voice.undone&&planner(data).undo&&planner(data).events.at(-1)?.id===voice.undoEvent);
+
 /** Undoes a saved ramble only while it is still the newest planner change; otherwise nothing changes. */
 export function undoRamble(data,messageId,now=new Date()){
  const voice=intentState(data).captures[messageId]?.voice;
  if(!voice?.undoEvent||voice.undone)throw new Error('This ramble has nothing to undo.');
- if(!planner(data).undo||planner(data).events.at(-1)?.id!==voice.undoEvent)throw new Error('You changed the plan after this ramble. Undo those changes in the planner.');
+ if(!rambleUndoable(data,voice))throw new Error('You changed the plan after this ramble. Undo those changes in the planner.');
  editPlan(data,{type:'undo'},now);
  intentState(data).captures[messageId].voice.undone=true;
 }

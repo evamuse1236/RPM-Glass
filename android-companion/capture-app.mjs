@@ -173,6 +173,7 @@ export function mountCapture(platform){
   node.append(row);
   return node;
  }
+ async function undoVoice(id){s.problem=await voiceMode.undo(id);await refreshState();}
  function captureCard(c,kind){
   const canUndo=canUndoChange(c.draft,s.state.undoId);
   const aiEnabled=!!s.state.aiEnabled;
@@ -187,7 +188,7 @@ export function mountCapture(platform){
    case 'question':return questionCard(c,on);
    case 'answer':return answerCard(c,{platform,on});
    case 'voice':return voiceCard(c,{rows:platform.voiceRows(c.voice.changes),openPlanner:on.openPlanner,openItem:target=>platform.action('planner',target).catch(()=>{}),
-    discard:async id=>{s.problem=await voiceMode.undo(id);await refreshState();}});
+    discard:undoVoice});
    default:return savedCard(c,on);
   }
  }
@@ -214,7 +215,8 @@ export function mountCapture(platform){
   const back=()=>setView('chat');
   if(s.view==='history'){
    const p=page();
-   return [historyView({captures:p.captures??[],hasMore:p.hasMore,showMore:()=>{s.historyLimit=Math.min(100,s.historyLimit+30);render();},retry:id=>turn({type:'intentRetry',messageId:id}),onBack:back})];
+   return [historyView({captures:p.captures??[],hasMore:p.hasMore,showMore:()=>{s.historyLimit=Math.min(100,s.historyLimit+30);render();},retry:id=>turn({type:'intentRetry',messageId:id}),
+    discard:undoVoice,voiceRows:platform.voiceRows,onBack:back})];
   }
   if(s.view==='context'){
    return [contextView({state:s.state,showArchived:s.showArchived,toggleArchived:()=>{s.showArchived=!s.showArchived;render();},
