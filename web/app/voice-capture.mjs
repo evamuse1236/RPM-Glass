@@ -55,7 +55,7 @@ function changeItem(change, timeZone) {
   icon.setAttribute('aria-hidden', 'true');
   const body = el('div', 'voice-change-body');
   const line = el('p', 'voice-change-title');
-  line.append(el('span', 'voice-change-verb', row.verb), document.createTextNode(` ${row.title}`));
+  line.append(el('span', 'voice-change-verb', row.verb), el('span', null, ` ${row.title}`));
   body.append(line);
   if (row.detail) body.append(el('p', 'voice-change-detail', row.detail));
   item.append(icon, body);
@@ -114,11 +114,12 @@ export function mountVoice({client, queue, render, onRetry, start = startLive, w
     if (!data || queue.pendingIds().size) return refresh();
     const timeZone = zone();
     show({phase: 'connecting', heard: '', changes: []});
-    const live = start({data, timeZone, setup: liveSetup(new Date(), timeZone), token: voiceToken(client, timeZone), workletUrl,
-      onChange: state => { if (session === live && ACTIVE.has(state.phase)) show({...state}); }});
-    session = live;
-    const result = await live.done;
-    if (session !== live) return;
+    const turn = {};
+    session = turn;
+    Object.assign(turn, start({data, timeZone, setup: liveSetup(new Date(), timeZone), token: voiceToken(client, timeZone), workletUrl,
+      onChange: state => { if (session === turn && ACTIVE.has(state.phase)) show({...state}); }}));
+    const result = await turn.done;
+    if (session !== turn) return;
     session = null;
     if (result.code === 'voice_unavailable') { unavailable = true; show(null); return; }
     if (result.code === 'no-mic') { show({phase: 'no-mic'}); return; }

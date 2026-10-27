@@ -130,6 +130,15 @@ describe("one ramble is one plan command on the browser's ids",()=>{
     expect(undone.entries).toEqual(before.entries);
     expect(undone.planner.blocks).toEqual(before.planner.blocks);
   });
+  it("the words go first as a voice capture and the plan on the same base revision still applies",async()=>{
+    const s=await seeded(), before=await read(s.t,s.web.token), {notes,result}=ramble(before);
+    const plan=voicePlan(2,before,result);
+    expect(await (await enqueue(s.t,s.web.token,{...voiceCapture(1,"Ship the app, write release notes"),baseRevision:before.revision,args:{text:"Ship the app, write release notes",source:"voice",planCommandId:plan.id}})).json()).toMatchObject({status:"applied"});
+    expect(await (await enqueue(s.t,s.web.token,plan)).json()).toMatchObject({status:"applied"});
+    const after=await read(s.t,s.web.token);
+    expect(after.entries.find((e:any)=>e.id===notes)).toMatchObject({title:"Write release notes"});
+    expect(after.captures.at(-1)).toMatchObject({text:"Ship the app, write release notes",status:"captured"});
+  });
   it("is refused whole when the server would give a new task another id, and saves nothing",async()=>{
     const s=await seeded(), before=await read(s.t,s.web.token), {result}=ramble(before);
     const answer=await (await enqueue(s.t,s.web.token,voicePlan(1,before,result,result.created.map((id:number)=>id+5)))).json();
