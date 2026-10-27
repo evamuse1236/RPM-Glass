@@ -131,6 +131,8 @@ The rule table in `AGENTS.md` names which scenario or check enforces each rule.
 
 `npm test` checks literal role/name lookups in rpmctl and scenarios against the app's web source before a device run. Failures identify the call to update. Matching uses name substrings, as the driver does; roles beyond button/textbox must be set in the same source file. Keep saved-data titles dynamic, read from `state`, rather than treating seeded words as app labels. This source check cannot prove runtime visibility or accessibility wiring.
 
+A gesture scenario starts on inert space, so no tap or control can fire. It asserts the gesture's own log line, not a screen state that another action could also produce.
+
 ## Cleanup
 
 ```bash
@@ -144,6 +146,8 @@ Ends your run: removes the DevTools port forward and `.verify/state.json`, relea
 ## A physical phone
 
 `--serial <adb-serial>` points `doctor`, `ui`, `shot`, `logs` and `state` at another device read-only (for example the S24 FE over wireless debugging). Mutating commands require an emulator that rpmctl launched or explicitly adopted with `launch --attach` on Linux. Physical phones stay read-only to this tool. Installing on the phone is a release step: follow `docs/testing.md` and the release rule in `AGENTS.md`, and only when the user asked for it.
+
+To reproduce a reported gesture bug, stream `adb -s <phone> logcat -s RpmNotch` while the user does the gesture once. Or read `logs --serial <phone>` right after. Read that log before you infer a cause.
 
 ## Gotchas
 
