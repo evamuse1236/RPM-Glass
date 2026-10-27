@@ -1,3 +1,5 @@
+// AudioWorkletGlobalScope names that the DOM types do not declare.
+const {AudioWorkletProcessor,registerProcessor}=globalThis;
 class RpmMic extends AudioWorkletProcessor {
   process(inputs) {
     const channel = inputs[0]?.[0];

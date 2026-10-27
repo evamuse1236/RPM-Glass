@@ -10,6 +10,7 @@ import {createSendIdentity,draftToKeep,cardKind,canUndoChange} from './capture-s
 import {el,button} from './capture-dom.mjs';
 import {createChipCard} from './capture-chip-card.mjs';
 import {userMessage} from './user-message.mjs';
+import {createVoiceMode,voiceCard} from './capture-voice.mjs';
 import {actionIdFor} from '../intent-v2/src/suggestions.mjs';
 
 const ACTIVE=new Set(['draft','review']);
@@ -32,6 +33,8 @@ export function mountCapture(platform){
  const s={state:null,busy:false,view:'chat',conversationId:storage.get('rpm-conversation'),focusedDraftId:null,historyLimit:30,
   showArchived:false,lastKey:null,request:null,failure:null,problem:null,listening:false,autoClose:null,countdown:null};
  const identity=createSendIdentity(),reveal=createRevealTracker(),seen=new Set();
+ const refreshState=async()=>{try{s.state=await(await fetch('/api/state')).json();}catch{}render();};
+ const voiceMode=createVoiceMode({platform,conversationId:()=>conversation().id,onChange:()=>render(),afterSave:id=>{seen.add(id);refreshState();}});
 
  function rememberComposer(text){
   const kept=draftToKeep(text,{busy:s.busy,pendingText:identity.pending?.text});
@@ -59,7 +62,8 @@ export function mountCapture(platform){
   return data;
  }
  async function turn(payload){
-  if(s.busy||!s.state)return null;
+  if(s.busy||!s.state||voiceMode.active())return null;
+  voiceMode.clear();
   cancelAutoClose();
   const words=payload.type==='message'?payload.text:null;
   if(words!==null){
@@ -182,10 +186,13 @@ export function mountCapture(platform){
    case 'open':return openCard(c,on);
    case 'question':return questionCard(c,on);
    case 'answer':return answerCard(c,{platform,on});
+   case 'voice':return voiceCard(c,{rows:platform.voiceRows(c.voice.changes),openPlanner:on.openPlanner,undo:async id=>{s.problem=await voiceMode.undo(id);await refreshState();}});
    default:return savedCard(c,on);
   }
  }
  function chatCards(){
+  const live=voiceMode.card();
+  if(live)return [live];
   if(s.listening)return [listeningCard(el)];
   if(s.request?.held)return [];
   const out=[];
@@ -225,16 +232,17 @@ export function mountCapture(platform){
   if(s.problem&&!content.querySelector('.problem'))status(s.problem,true);
   content.scrollTop=s.keepScroll?top:0;
   keepChoicesInView(content);
-  const kind=s.listening?'listening':s.request?'pending':s.failure?'error':nodes[0]?.classList[2]??'idle';
+  const phase=voiceMode.live?.phase;
+  const kind=s.listening||phase==='listening'||phase==='connecting'?'listening':s.request?'pending':s.failure?'error':nodes[0]?.classList[2]??'idle';
   panel.dataset.view=s.view;panel.dataset.busy=String(s.busy);panel.dataset.state=kind;
   content.setAttribute('aria-busy',String(s.busy));
   message.placeholder=answerDraft()||latest()?.clarification?.open?'Or answer in your own words':s.focusedDraftId?'Tell me what to change':'Capture a thought';
   for(const b of content.querySelectorAll('button'))if(!b.closest('.view-head'))b.disabled=s.busy;
-  $('send').disabled=s.busy;$('dictate').disabled=s.busy||s.listening;
+  $('send').disabled=s.busy||voiceMode.active();$('dictate').disabled=s.busy||s.listening||voiceMode.active();
   formNow();
  }
  const replying=()=>!!(answerDraft()||latest()?.clarification?.open||s.focusedDraftId);
- const formNow=()=>forming.update(message.value,{enabled:!!s.state?.aiEnabled,visible:!!s.state&&s.view==='chat'&&!s.listening&&!replying()});
+ const formNow=()=>forming.update(message.value,{enabled:!!s.state?.aiEnabled,visible:!!s.state&&s.view==='chat'&&!s.listening&&!voiceMode.active()&&!replying()});
  function settle(cardRequest,morphed){
   if(!cardRequest||s.view!=='chat')return;
   const node=content.querySelector('[data-reply-key]');
@@ -249,6 +257,7 @@ export function mountCapture(platform){
 
  async function voice(){
   if(s.listening||s.busy)return;
+  if(platform.hasGeminiKey?.()){setView('chat');s.problem=null;return voiceMode.begin();}
   s.listening=true;render();
   try{
    const result=await platform.action('dictate');

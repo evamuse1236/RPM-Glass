@@ -102,7 +102,9 @@
 .record.archived .record-text{color:var(--bar-on-variant)}
 .section-title{margin:8px 0 0;font:var(--title-small);color:var(--bar-on-variant)}
 .listening{align-items:center;text-align:center}
-.listening .ms{font-size:40px;color:var(--bar-primary)}
+.listening>.ms{font-size:40px;color:var(--bar-primary)}
+.heard{font:var(--body-large);color:var(--bar-on);overflow-wrap:anywhere}
+.listening .card-actions{justify-content:center}
 
 @media (prefers-reduced-motion:no-preference){
   .card{transition:opacity var(--dur-medium1) var(--ease-standard),translate var(--dur-medium1) var(--ease-emphasized-decelerate)}

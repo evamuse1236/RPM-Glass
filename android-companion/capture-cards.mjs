@@ -12,7 +12,7 @@ export function card(cls=''){
  const node=el('section',['card','enter',cls].filter(Boolean).join(' '));
  return node;
 }
-function kicker(text,{name,tone=''}={}){
+export function kicker(text,{name,tone=''}={}){
  const row=el('p',['kicker',tone].filter(Boolean).join(' '));
  if(name)row.append(icon(name,{fill:tone==='done'}));
  row.append(el('span','',text));
@@ -25,7 +25,7 @@ export function withProblem(node,text){
  node.insertBefore(row,node.children[1]??null);
  return node;
 }
-function actionsRow(...nodes){
+export function actionsRow(...nodes){
  const row=el('div','card-actions');
  row.append(...nodes.filter(Boolean));
  return row;

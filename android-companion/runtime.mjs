@@ -1,5 +1,6 @@
 import {coalesceRefresh} from './surface-refresh.mjs';
 import {retryOnChange} from './save-retry.mjs';
+import {voiceRows} from './capture-voice-rows.mjs';
 import {installDiagnostics} from './diagnostics.mjs';
 import {applyClarityPreferences} from './planner-clarity.mjs';
 import {describeLink,blockChoices,dayLoad,editChoices} from './capture-context.mjs';
@@ -105,6 +106,11 @@ window.RPM_PLATFORM.agenda=day=>dayAgenda(data,{day:day??undefined,events:calend
 window.RPM_PLATFORM.next=()=>nextItem(data,{events:calendarCopy});
 window.RPM_PLATFORM.task=id=>{const e=data.entries.find(x=>String(x.id)===String(id)&&!x.archived);return e&&{...e,block:(data.planner?.blocks??[]).find(b=>b.id===e.blockId)?.title??null};};
 window.RPM_PLATFORM.health=()=>bodyToday(data);
+window.RPM_PLATFORM.hasGeminiKey=()=>!!phone?.hasGeminiKey;
+window.RPM_PLATFORM.voiceData=()=>structuredClone(data);
+window.RPM_PLATFORM.voiceRows=changes=>voiceRows(data,changes);
+// Voice saves change the shared store in place: false from mutate means nothing to save.
+window.RPM_PLATFORM.saveWith=mutate=>retryOnChange(async()=>{const before=data;data=structuredClone(before);try{const out=mutate(data);if(out===false){data=before;return false;}await save();return out;}catch(e){data=before;throw e;}},async()=>{const latest=await stored.load();phone=latest.phone;if(latest.data)data=latest.data;});
 window.rpmPhoneRefresh=coalesceRefresh(async()=>{await ready;if(!busy){const latest=await native('load');phone=latest.phone;if(latest.data&&latest.data.version!==data.version){data=latest.data;window.dispatchEvent(new Event('rpm-data-refresh'));}}window.dispatchEvent(new Event('rpm-phone-status'));});
 await ready;
 applyClarityPreferences();
