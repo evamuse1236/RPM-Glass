@@ -54,6 +54,8 @@ final class CompanionVoice {
         pendingMic=request;activity.getSharedPreferences(MicGrant.PREFS,0).edit().putBoolean(MicGrant.ASKED,true).apply();
         activity.requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},MicGrant.REQUEST);
     });}
+    /** True while Android shows the mic prompt; that prompt pauses the activity but must not stop the ramble. */
+    boolean asking(){return pendingMic!=null;}
     void micCanceled(PermissionRequest request){if(pendingMic==request)pendingMic=null;}
     boolean permissionResult(int request,int[] results){
         if(request!=MicGrant.REQUEST)return false;

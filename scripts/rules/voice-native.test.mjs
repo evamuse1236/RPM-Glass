@@ -67,3 +67,9 @@ test('no shipped companion asset carries a Google API key', async () => {
   }
   for (const [name, text] of texts) assert.doesNotMatch(text, /AIza[0-9A-Za-z_-]{20,}|\bAQ\.[0-9A-Za-z_-]{20,}/, `${name} contains a Google API key`);
 });
+
+test('the mic permission prompt does not stop the ramble that asked for it', () => {
+  const pause = java('CompanionActivity').match(/protected void onPause\(\)\{([^\n]*)/)?.[1] ?? '';
+  assert.match(pause, /!voice\.asking\(\)[^;]*rpmVoiceBackground/, 'onPause skips the background stop while Android asks for the mic');
+  assert.match(java('CompanionVoice'), /boolean asking\(\)\{return pendingMic!=null;\}/);
+});
