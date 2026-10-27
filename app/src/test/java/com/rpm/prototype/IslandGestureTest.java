@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.rpm.prototype.IslandGesture.Result;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 /** A tap on a drop always opens its island; swipes need the playground's distances. */
@@ -119,6 +120,21 @@ public class IslandGestureTest {
         float y = (p.touch.top + p.touch.bottom) / 2f;
         assertTrue(g.down(p.touch, x, y, 0, false));
         assertEquals(Result.UP, g.up(x, y - dp(140), 150));
+    }
+
+    @Test
+    @Ignore("Today a pill tap drifting 8 to 12dp up returns NONE, so the touch is lost; awaiting a gesture fix")
+    public void aPillTapThatDriftsUpBetweenSlopAndThePillsSwipeIsNotLost() {
+        IslandShape p = pill();
+        float x = (p.left + p.right) / 2f;
+        float y = (p.touch.top + p.touch.bottom) / 2f;
+        for (float drift = IslandGesture.SLOP_DP + 0.5f; drift < IslandGesture.PILL_UP_DP; drift += 0.5f) {
+            IslandGesture g = new IslandGesture(D);
+            assertTrue(g.down(p.touch, x, y, 0, true));
+            g.move(x, y - dp(drift));
+            Result r = g.up(x, y - dp(drift), 150);
+            assertTrue("drift " + drift + "dp gave " + r, r == Result.TAP || r == Result.UP);
+        }
     }
 
     @Test
