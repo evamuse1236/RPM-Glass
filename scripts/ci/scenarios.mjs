@@ -15,3 +15,6 @@ export function scenarioOutcome(report, exitCode, expected = null) {
   const warnings = results.filter(r => r.status === 'known-bug-fixed').map(r => `${r.id} passed despite its recorded known bug; review the exception.`);
   return {ok: results.every(r => ['pass', 'known-bug', 'known-bug-fixed'].includes(r.status)), warnings};
 }
+
+/** `--all` runs only scenarios marked inAll; a named scenario runs even when it is not. */
+export const expectedScenarios = (list, args) => args[0] === '--all' ? list.filter(s => s.inAll !== false).map(s => s.id) : args;

@@ -61,3 +61,10 @@ test('the signer check reads the first signer digest and knows the phone key', a
   assert.equal(signerDigest(`Signer (minSdkVersion=24, maxSdkVersion=2147483647) certificate SHA-256 digest: ${PHONE_SIGNER}`), PHONE_SIGNER);
   assert.equal(signerDigest('DOES NOT VERIFY'), null);
 });
+
+test('--all expects only scenarios marked inAll; a named one is expected even when it is not', async () => {
+  const {expectedScenarios} = await import('./scenarios.mjs');
+  const list = [{id: 'a', inAll: true}, {id: 'web-sync-offline', inAll: false}, {id: 'b', inAll: true}];
+  assert.deepEqual(expectedScenarios(list, ['--all']), ['a', 'b']);
+  assert.deepEqual(expectedScenarios(list, ['web-sync-offline']), ['web-sync-offline']);
+});

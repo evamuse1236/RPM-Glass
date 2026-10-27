@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
-import {scenarioArgs, scenarioOutcome} from './scenarios.mjs';
+import {scenarioArgs, scenarioOutcome, expectedScenarios} from './scenarios.mjs';
 import {adbPath} from '../../.claude/skills/verify-rpm-glass/lib/device.mjs';
 
 const evidence = '.verify/evidence';
@@ -32,7 +32,7 @@ try {
   const available = run('scenario-list', ['scenario', '--list']);
   if (available.status !== 0 || !available.report.ok) throw new Error('Could not list scenarios.');
   const ids = available.report.scenarios.map(s => s.id);
-  const expected = args[0] === '--all' ? ids : args;
+  const expected = expectedScenarios(available.report.scenarios, args);
   const unknown = expected.filter(id => !ids.includes(id));
   if (unknown.length) throw new Error(`Unknown scenarios: ${unknown.join(', ')}. See rpmctl scenario --list.`);
   const scenarios = run('scenarios', ['scenario', ...args]);
