@@ -32,7 +32,7 @@ Before changing Capture, read `docs/rules/capture.md`. Before changing the notch
 
 | Rule | Enforced by |
 |---|---|
-| A Capture AI change is proven by a live eval on the real-phrase corpus. | `check:evidence`, `scripts/rules/capture-eval.test.mjs` |
+| A Capture AI change is proven by a live eval on the real-phrase corpus, judged against a run of `main` on the same phrases the same day (the model is not deterministic). A test that fails on the branch is run on a clean `main` worktree before you debug it. | `check:evidence`, `scripts/rules/capture-eval.test.mjs` |
 | Follow shared-run rules for emulator lifecycle, leases, recovery, build order, host setup and cloud sessions. | [Lifecycle rules and enforcing tests](docs/rules/emulator-lifecycle.md) |
 | The check matches the change: web-only needs a sync screenshot and no APK build; native needs an APK built after it and a screenshot with it installed. | `npm run check:evidence` (`scripts/agent/require-evidence.mjs`, Stop hook), `scripts/rules/merge-scenarios.test.mjs` (`the tier follows the change`) |
 | App changes merge into main only after one passing `rpmctl scenario --all` on the merged commit with no uncommitted app edits. `git commit` cannot finish a refused merge. | `npm run check:merge`, via `pre-merge-commit` and `pre-commit` after `npm run hooks:install` (hook files where git ignores config hooks, including cloud git 2.43); `scripts/rules/merge-scenarios.test.mjs` tests both merge paths |
