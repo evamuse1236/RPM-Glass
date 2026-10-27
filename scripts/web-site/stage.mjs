@@ -21,7 +21,9 @@ try {
   git(site, 'commit', '--allow-empty', '-m', `Update Site source: ${git(root, 'log', '-1', '--format=%s')} (RPM-Glass ${short})`);
   const siteCommit = git(site, 'rev-parse', 'HEAD');
   writeReceipt(root, 'site-staged.json', {rpmGlassSha, siteCommit});
-  console.log(`Staged ${siteCommit} in ${site}. Next: deploy through the Sites plugin, then run npm run web:published -- <deployment-id>.`);
+  const archive = path.join(root, '.verify', `site-archive-${short}.tar`);
+  execFileSync('tar', ['-C', site, '-cf', archive, ...['.openai', 'dist'].filter(entry => fs.existsSync(path.join(site, entry)))]);
+  console.log(`Staged ${siteCommit} in ${site}. Next: deploy through the Sites plugin with the prebuilt archive ${archive} (without it Sites tries a source build and fails on "missing package.json"), then run npm run web:published -- <deployment-id>.`);
 } catch (error) {
   console.error(error.message);
   process.exitCode = 1;
