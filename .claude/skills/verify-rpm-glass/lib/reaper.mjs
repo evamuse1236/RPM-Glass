@@ -1,4 +1,4 @@
-import {adb, processAlive, processImage, killTree, sleep} from './device.mjs';
+import {processAlive, processImage, killTree, sleep} from './device.mjs';
 import {readEmulator, dropEmulator, portInUse, IDLE_MS} from './ownership.mjs';
 
 /** What the idle reaper does next for the warm emulator on a port: keep waiting, stop it, or exit because it is gone. */
@@ -19,9 +19,9 @@ if (process.argv[1]?.endsWith('reaper.mjs')) {
     if (step === 'exit') process.exit(0);
     if (step === 'forget') { dropEmulator(port); process.exit(0); }
     if (step === 'wait') continue;
-    adb(record.serial, ['emu', 'kill'], {allowFail: true, timeout: 15000});
-    for (let i = 0; i < 30 && processAlive(record.pid); i++) await sleep(1000);
+    // Don't ask the emulator to exit gracefully (`adb emu kill`): on some host GPUs its gfxstream teardown segfaults and dumps a 1 GB core. It is read-only with no snapshot to save, so SIGKILL loses nothing. See killTree in device.mjs.
     if (isEmulator(record.pid)) killTree(record.pid);
+    for (let i = 0; i < 25 && processAlive(record.pid); i++) await sleep(200);
     if (readEmulator(port)?.pid === record.pid) dropEmulator(port);
     process.exit(0);
   }

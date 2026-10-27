@@ -246,10 +246,10 @@ export const lifecycleCommands = {
     let killed = false;
     if (!args.keepEmulator && state.mode !== 'attached') {
       const ours = /emulator|qemu/i.test(processImage(state.pid) ?? '');
-      if (ours && devices().some(d => d.serial === state.serial) && ownsEmulator(state)) adb(state.serial, ['emu', 'kill'], {allowFail: true});
       if (ours) {
-        await waitFor(() => !processAlive(state.pid), {timeout: 30000, what: 'the emulator to exit'}).catch(() => null);
-        if (/emulator|qemu/i.test(processImage(state.pid) ?? '')) killTree(state.pid);
+        // SIGKILL rather than a graceful `adb emu kill`: a read-only, no-snapshot emulator has nothing to flush, and its gfxstream shutdown drain segfaults on some host GPUs, dumping a 1 GB core. See killTree in device.mjs.
+        killTree(state.pid);
+        await waitFor(() => !processAlive(state.pid), {timeout: 10000, what: 'the emulator to exit'}).catch(() => null);
       }
       killed = ours && !processAlive(state.pid);
     }

@@ -176,7 +176,15 @@ test('a launch whose boot fails keeps the emulator lease for cleanup, and cleanu
   assert.throws(() => ownership.takeLease({...state, owner: 'other'}, f.options), /lease is busy/);
   await f.commands.cleanup({_: [], owner: state.owner, stop: true});
   assert.equal(f.readState(), null);
+  assert.deepEqual(f.h.events.filter(([kind, , args]) => kind === 'adb-fixture' && args?.[0] === 'emu'), [], 'stop never asks the emulator to shut down gracefully');
   assert.deepEqual(fs.readdirSync(f.options.root), []);
+});
+
+test('the emulator is stopped with SIGKILL, never a graceful `adb emu kill` (its GPU teardown segfaults and dumps a 1 GB core)', () => {
+  const source = name => fs.readFileSync(new URL(`./lib/${name}`, import.meta.url), 'utf8');
+  assert.match(source('device.mjs'), /process\.kill\(-pid, 'SIGKILL'\)/);
+  assert.doesNotMatch(source('device.mjs'), /'SIGTERM'/);
+  for (const name of ['lifecycle.mjs', 'reaper.mjs']) assert.doesNotMatch(source(name), /\[\s*'emu'\s*,\s*'kill'\s*\]/, name);
 });
 
 test('keep-emulator retains ownership; a failed stop keeps the state and lease too', async t => {

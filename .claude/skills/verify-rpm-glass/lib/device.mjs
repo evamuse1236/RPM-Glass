@@ -109,10 +109,11 @@ export function processAlive(pid) {
   try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; }
 }
 
+/** SIGKILL, not SIGTERM: our emulators run `-read-only -no-snapshot-save`, so they have nothing to flush, and a catchable signal lets the emulator run its graceful shutdown, which drains gfxstream's GL resources and segfaults on some host GPUs (Intel Arc/Mesa), dumping a 1 GB core. The kernel reaps a SIGKILL without running that teardown. Matches the forceful Windows `taskkill /F`. */
 export function killTree(pid) {
   if (!processAlive(pid)) return false;
   if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], {windowsHide: true});
-  else try { process.kill(-pid, 'SIGTERM'); } catch { process.kill(pid, 'SIGTERM'); }
+  else try { process.kill(-pid, 'SIGKILL'); } catch { process.kill(pid, 'SIGKILL'); }
   return true;
 }
 
