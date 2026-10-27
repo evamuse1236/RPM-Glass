@@ -1,7 +1,7 @@
 import {sleep} from './lib.mjs';
 
 export const id = 'notch-island';
-export const rule = 'With the Notch setting and RPM Notch on, the two drops show around the camera over the home screen; a tap on the task half opens its island and a swipe up closes it, with no crash.';
+export const rule = 'With the Notch setting and RPM Notch on, the two drops show around the camera over the home screen; a tap on the task half opens its island and a swipe up from inert island space logs notch.gesture up and closes it, with no crash.';
 export const enforces = 'Notch redesign (feat/notch-apple, 0f2c254 alert row Done circle); docs/rules/notch.md tap and open rows; user 2026-10-19: "use github actions from now on for emulator tests".';
 
 const PILL = /island drops /;
@@ -37,21 +37,28 @@ export async function run(t) {
   await t.shot('pill');
 
   const width = Number(/(\d+)x\d+/.exec(t.shell('wm size'))?.[1] ?? 1080), x = Math.round(width / 2) - 24;
+  const density = Number(/(\d+)\s*$/.exec(t.shell('wm density').trim())?.[1] ?? 450) / 160;
   const open = async () => {
     const from = notchLog(t).length;
     t.shell(`input tap ${x} 69`);
-    await waitForLog(t, from, /island (expanded|habit) /, '"island expanded" or "island habit" after a tap on the task half');
+    return waitForLog(t, from, /island (expanded|habit) /, '"island expanded" or "island habit" after a tap on the task half');
   };
   await sleep(3000);
-  await open();
+  const expanded = await open();
+  const islandBottom = Number(/window \[0,0\]\[\d+,(\d+)\]/.exec(expanded)?.[1]);
+  t.expect(islandBottom > 0, 'The expanded island did not log its window', [expanded]);
+  const inertX = Math.round(10 * density), inertY = Math.round(islandBottom / 2);
   const beforeClose = notchLog(t).length;
-  t.shell(`input swipe ${x} 700 ${x} 300 150`);
+  t.shell(`input swipe ${inertX} ${inertY} ${inertX} ${inertY - Math.round(140 * density)} 150`);
+  const gesture = await waitForLog(t, beforeClose, /notch\.gesture up \{"on":"OPEN"/, '"notch.gesture up" on the open island after a swipe from its inert left margin');
   const closed = await waitForLog(t, beforeClose, PILL, 'the pill again after a swipe up');
+  const stray = notchLog(t).slice(beforeClose).filter(l => /notch\.gesture (?!up)|notch\.(drink|open_|log_meal|done)/.test(l));
+  t.expect(!stray.length, 'The swipe from inert space also fired a tap or a control', stray);
   await sleep(1000);
   await open();
   await sleep(1200);
   await t.shot('open');
-  Object.assign(t.facts, {pill, closed});
+  Object.assign(t.facts, {pill, gesture, closed});
   const crashes = t.shell('logcat -d -b crash').split('\n').filter(l => /com\.rpm\.prototype/.test(l));
   t.expect(!crashes.length, 'The app crashed while the notch was shown', crashes.slice(0, 5));
   await t.do('open', 'planner', '--timeout', '90000');
