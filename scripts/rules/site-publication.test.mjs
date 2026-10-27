@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
-import {git, sitePublicationGap, publicationMessage, writeReceipt} from '../web-site/publication.mjs';
+import {git, sitePublicationGap, publicationMessage, recordPublication, writeReceipt} from '../web-site/publication.mjs';
 
 const scripts = fileURLToPath(new URL('../web-site/', import.meta.url));
 function fixture(t) {
@@ -109,6 +109,23 @@ test('publication guard detects web and companion changes on main, including del
   writeReceipt(root, 'site-published.json', {rpmGlassSha: base});
   assert.equal(sitePublicationGap(root), publicationMessage, 'incomplete markers fail closed');
   fs.writeFileSync(path.join(root, '.verify/site-published.json'), 'invalid');
+  assert.equal(sitePublicationGap(root), publicationMessage);
+});
+
+test('a publish recorded in another worktree counts on main once main reaches that commit', t => {
+  const {root, put} = fixture(t);
+  const other = path.join(path.dirname(root), 'other');
+  git(root, 'worktree', 'add', '-q', '-b', 'feature', other);
+  fs.mkdirSync(path.join(other, 'web'));
+  fs.writeFileSync(path.join(other, 'web/app.mjs'), 'standalone');
+  git(other, 'add', '.'); git(other, 'commit', '-qm', 'Website on a branch');
+  const sha = git(other, 'rev-parse', 'HEAD');
+  recordPublication(other, {rpmGlassSha: sha, siteCommit: 'site', deploymentId: 'from-other-worktree', at: new Date().toISOString()});
+  assert.equal(sitePublicationGap(root), publicationMessage, 'main has not reached the published commit yet');
+  git(root, 'merge', '-q', '--ff-only', 'feature');
+  assert.equal(sitePublicationGap(root), null);
+  assert.equal(fs.existsSync(path.join(root, '.verify/site-published.json')), false, 'nothing was copied into this checkout');
+  put('web/later.mjs'); git(root, 'add', '.'); git(root, 'commit', '-qm', 'Later website change');
   assert.equal(sitePublicationGap(root), publicationMessage);
 });
 

@@ -1,4 +1,4 @@
-import {assertCleanSources, git, readReceipt, siteDir, writeReceipt} from './publication.mjs';
+import {assertCleanSources, git, readReceipt, recordPublication, siteDir} from './publication.mjs';
 
 try {
   const deploymentId = process.argv[2]?.trim();
@@ -9,7 +9,7 @@ try {
   if (!staged || staged.rpmGlassSha !== git(root, 'rev-parse', 'HEAD') || staged.siteCommit !== git(siteDir(), 'rev-parse', 'HEAD')
     || git(siteDir(), 'status', '--porcelain', '--untracked-files=all'))
     throw new Error('Staged source no longer matches HEAD or the Site repo. Run npm run web:stage and deploy that commit before marking it published.');
-  writeReceipt(root, 'site-published.json', {...staged, deploymentId, at: new Date().toISOString()});
+  recordPublication(root, {...staged, deploymentId, at: new Date().toISOString()});
   console.log(`Recorded Site deployment ${deploymentId} for RPM-Glass ${staged.rpmGlassSha}.`);
 } catch (error) {
   console.error(error.message);

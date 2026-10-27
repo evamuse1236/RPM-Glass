@@ -17,14 +17,24 @@ export function assertCleanSources(root) {
   if (git(root, 'status', '--porcelain', '--untracked-files=all', '--', 'web/', 'android-companion/'))
     throw new Error('Cannot stage Site: RPM-Glass has uncommitted changes under web/ or android-companion/. Commit or stash them first.');
 }
+const logSharedByWorktrees = root => path.resolve(root, git(root, 'rev-parse', '--git-common-dir'), 'rpm-site-published.json');
+const complete = marker => /^[a-f0-9]{40}$/.test(marker?.rpmGlassSha ?? '') && marker.siteCommit && marker.deploymentId && marker.at;
+export function publishedRecords(root) {
+  let shared = [];
+  try { shared = JSON.parse(fs.readFileSync(logSharedByWorktrees(root), 'utf8')); } catch {}
+  return [...Array.isArray(shared) ? shared : [], readReceipt(root, 'site-published.json')].filter(complete);
+}
+export function recordPublication(root, receipt) {
+  fs.writeFileSync(logSharedByWorktrees(root), JSON.stringify([...publishedRecords(root).filter(r => r.deploymentId !== receipt.deploymentId), receipt].slice(-50), null, 2) + '\n');
+  writeReceipt(root, 'site-published.json', receipt);
+}
 export function sitePublicationGap(root) {
   if (git(root, 'branch', '--show-current') !== 'main') return null;
-  const marker = readReceipt(root, 'site-published.json');
-  try {
-    if (!/^[a-f0-9]{40}$/.test(marker?.rpmGlassSha ?? '') || !marker.siteCommit || !marker.deploymentId || !marker.at)
-      return publicationMessage;
-    git(root, 'merge-base', '--is-ancestor', marker.rpmGlassSha, 'HEAD');
-    const files = git(root, 'diff', '--name-only', '--no-renames', '-z', marker.rpmGlassSha, 'HEAD').split('\0');
-    return files.some(isSiteSource) ? publicationMessage : null;
-  } catch { return publicationMessage; }
+  const covers = marker => {
+    try {
+      git(root, 'merge-base', '--is-ancestor', marker.rpmGlassSha, 'HEAD');
+      return !git(root, 'diff', '--name-only', '--no-renames', '-z', marker.rpmGlassSha, 'HEAD').split('\0').some(isSiteSource);
+    } catch { return false; }
+  };
+  return publishedRecords(root).some(covers) ? null : publicationMessage;
 }
