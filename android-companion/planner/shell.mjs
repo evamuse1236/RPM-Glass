@@ -109,7 +109,7 @@ function dock(app, full) {
   if (!host.children.length) {
     const habit = el('div', 'habit-slot');
     const add = iconButton('add', 'Add', () => addSpec(app)?.onClick(), {cls: 'fab'});
-    attachSwipe(add, {hold: () => app.openSearch(), haptic: () => app.api.native('haptic', {kind: 'hold'}).catch(() => {})});
+    attachSwipe(add, {hold: (_, pressed) => (pressed ? afterLift(app.openSearch) : app.openSearch()), haptic: () => app.api.native('haptic', {kind: 'hold'}).catch(() => {})});
     host.append(habit, add);
     watchHabit(app, habit);
   }
@@ -119,6 +119,17 @@ function dock(app, full) {
   if (spec) add.setAttribute('aria-label', spec.label);
   paintHabit(app, host.querySelector('.habit-slot'));
   host.hidden = !!full || (!spec && !host.querySelector('.habit-circle'));
+}
+
+/** Search opens once the finger lifts, so the press never becomes a text selection on the Search page. */
+function afterLift(run) {
+  const go = () => {
+    document.removeEventListener('pointerup', go, true);
+    document.removeEventListener('pointercancel', go, true);
+    setTimeout(run);
+  };
+  document.addEventListener('pointerup', go, true);
+  document.addEventListener('pointercancel', go, true);
 }
 
 /** What the tab bar's Add makes on this tab (Add task on Today); none on a detail page or Values. */

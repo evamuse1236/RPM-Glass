@@ -22,7 +22,7 @@ test('Add is a round 60dp button in the dock beside the tab bar, and the bar end
   const shell = read('planner/shell.mjs');
   assert.match(shell, /host\.append\(habit, add\)/, 'Add and the habit circle live in the dock, not in the tab bar');
   assert.doesNotMatch(shell, /nav\.append\(add\)/);
-  assert.match(shell, /attachSwipe\(add, \{hold: \(\) => app\.openSearch\(\)/, 'a 400ms hold on Add opens Search');
+  assert.match(shell, /attachSwipe\(add, \{hold: \(_, pressed\) => \(pressed \? afterLift\(app\.openSearch\) : app\.openSearch\(\)\)/, 'a 400ms hold on Add opens Search once the finger lifts');
   assert.match(shell, /iconButton\('search', 'Search'/, 'Search is a top-bar button');
 });
 

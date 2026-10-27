@@ -325,3 +325,4 @@
 @media (prefers-reduced-motion: no-preference) {
   .sheet-quick .round { transition: scale var(--dur-press) var(--ease-standard), opacity var(--dur-short) var(--ease-standard); }
 }
+.sheet-quick .quick-row :is(.filter-chip, .assist-chip) { padding-inline: var(--s2); }

@@ -80,7 +80,7 @@ export const vibrate = () => { if (navigator.userActivation?.hasBeenActive) navi
  * and icon in the reveal. `run` acts and may resolve false when nothing happened.
  * `leave` carries the row off its edge first (150ms) and it then collapses where it was; otherwise the row springs back
  * (200ms) as `run` opens its choices. Past SWIPE_COMMIT the reveal fills and its icon grows, with one haptic tick.
- * hold(row) runs when the row is held still for LONG_PRESS ms, on a right click, or on the keyboard's menu key.
+ * hold(row, pressed) runs when the row is held still for LONG_PRESS ms (pressed: the finger is still down), on a right click, or on the keyboard's menu key.
  */
 export function attachSwipe(row, {right = null, left = null, hold = null, haptic = vibrate} = {}) {
   const sides = {right, left};
@@ -110,7 +110,7 @@ export function attachSwipe(row, {right = null, left = null, hold = null, haptic
     start = null;
     if (pressed) eatClick();
     haptic();
-    hold(row);
+    hold(row, pressed);
   };
   row.addEventListener('pointerdown', event => {
     swallow = false;
