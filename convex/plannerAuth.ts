@@ -1,5 +1,7 @@
 import type { GenericMutationCtx } from "convex/server";
 import type { DataModel, Doc } from "./_generated/dataModel";
+// @ts-expect-error Shared allocator is JavaScript.
+import { SERVER_TASK_IDS } from "../android-companion/task-ids.mjs";
 
 export type PlannerCtx = GenericMutationCtx<DataModel>;
 export type Failure = {status:number;error:{code:string;message:string};retryAfter?:number};
@@ -8,7 +10,7 @@ export const unauthorized = () => fail(401,"unauthorized","Credentials are inval
 
 export async function accountFor(ctx:PlannerCtx,device:Doc<"devices">) {
   if(device.account)return device.account;
-  const account = await ctx.db.insert("accounts",{device:device._id,cursor:0,commandCursor:0,nextTaskId:1000000000,createdAt:Date.now()});
+  const account = await ctx.db.insert("accounts",{device:device._id,cursor:0,commandCursor:0,nextTaskId:SERVER_TASK_IDS[0],createdAt:Date.now()});
   await ctx.db.patch(device._id,{account});
   return account;
 }
