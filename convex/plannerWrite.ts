@@ -30,8 +30,8 @@ function allocateTasks(store:any,known:Set<number>,taken:Set<number>,proposals:n
   for(const entry of store.entries)if(!known.has(entry.id)) {
     const proposed=proposals.shift();
     while(taken.has(next))next++;
-    const id=typeof proposed==="number" && Number.isInteger(proposed) && proposed>=1000000000 && proposed<2147483648 && !taken.has(proposed)?proposed:next;
-    if(id>=2147483648)throw new Error("The planner has no task IDs left.");
+    const id=typeof proposed==="number" && Number.isInteger(proposed) && proposed>=SERVER_TASK_IDS[0] && proposed<SERVER_TASK_IDS[1] && !taken.has(proposed)?proposed:next;
+    if(id>=SERVER_TASK_IDS[1])throw new Error("The planner has no task IDs left.");
     replacements.set(entry.id,id);entry.id=id;taken.add(id);next=Math.max(next,id+1);
   }
   for(const review of Object.values(store.planner.reviews) as any[])for(const field of ["inboxIds","keptIds"])if(review[field])review[field]=review[field].map((id:number)=>replacements.get(id)??id);
@@ -83,7 +83,7 @@ export async function applyPlan(ctx:PlannerCtx,account:Id<"accounts">,command:Do
         const valid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) && !takenEntities.includes(id) && !used.has(id);
         if(valid)used.add(id);return valid;
       });
-      nextTaskId=allocateTasks(store,known,taken,ids.filter((id:any)=>typeof id==="number"),owner.nextTaskId??1000000000);
+      nextTaskId=allocateTasks(store,known,taken,ids.filter((id:any)=>typeof id==="number"),owner.nextTaskId??SERVER_TASK_IDS[0]);
       validatePlanner(store);
     } catch(error) {return {status:"rejected" as const,message:userMessage(error)};}
   }

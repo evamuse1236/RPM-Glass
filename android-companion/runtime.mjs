@@ -5,7 +5,7 @@ import {applyClarityPreferences} from './planner-clarity.mjs';
 import {describeLink,blockChoices,dayLoad,editChoices} from './capture-context.mjs';
 import {calendarRows} from './planner-calendar.mjs';
 import {dueInfo} from './planner/format.mjs';
-import {freshStore} from '../chat-prototype/companion-state.mjs';
+import {freshStore,markInterrupted} from '../chat-prototype/companion-state.mjs';
 import {entryView,propose,undo} from '../chat-prototype/companion-tools.mjs';
 import {HAIKU_MODEL} from '../intent-v2/src/model-policy.mjs';
 import {migratePlannerUX} from './planner-ux.mjs';
@@ -37,8 +37,8 @@ native.supportsStreaming=true;
 const stored=storedCopy(native);
 const ready=(async()=>{const legacy=await native('legacyEntries').catch(error=>{diagnostics.emit('exception','error',{error},{operation:'legacy.import',outcome:'error'});return null;});
 // Capture and the planner can start together; if the other one saved first, reload and redo the idempotent upgrades.
-for(let attempt=1;;attempt++){const saved=await stored.load();phone=saved.phone;data=saved.data??freshStore();const uxChanged=migratePlannerUX(data);const reviewChanged=reviewState.migrateReviewData?.(data);const legacyChanged=!!legacy&&!legacy.done&&importLegacyEntries(data,legacy)>0;if(!(uxChanged||reviewChanged||legacyChanged||!saved.data))break;try{await save();break;}catch(error){if(attempt>=3)throw error;}}
-if(legacy&&!legacy.done)native('legacyImported').catch(()=>{});if(data.inFlight){const cid=data.inFlight.conversationId;data.inFlight=null;const c=cid?data.conversations.find(x=>x.id===cid):data.conversations.find(x=>x.messages.at(-1)?.role==='user');if(c)c.messages.push({id:crypto.randomUUID(),role:'assistant',at:new Date().toISOString(),text:'The previous request was interrupted. Your message is saved; no unfinished changes were applied. You can retry.',error:'interrupted'});await save();}})();
+await retryOnChange(async()=>{const saved=await stored.load();phone=saved.phone;data=saved.data??freshStore();const uxChanged=migratePlannerUX(data);const reviewChanged=reviewState.migrateReviewData?.(data);const legacyChanged=!!legacy&&!legacy.done&&importLegacyEntries(data,legacy)>0;if(uxChanged||reviewChanged||legacyChanged||!saved.data)await save();},async()=>{});
+if(legacy&&!legacy.done)native('legacyImported').catch(()=>{});await retryOnChange(async()=>{if(markInterrupted(data))await save();},async()=>{const latest=await stored.load();phone=latest.phone;if(latest.data)data=latest.data;});})();
 ready.catch(error=>{diagnostics.emit('exception','error',{error},{operation:'app.load',outcome:'error'});const host=document.getElementById('workspace')??document.getElementById('content');if(!host)return;const message=document.createElement('p'),retry=document.createElement('button');message.className='error';message.setAttribute('role','alert');message.textContent='Your plan could not be opened. '+userMessage(error,'');retry.textContent='Try again';retry.addEventListener('click',()=>location.reload());host.replaceChildren(message,retry);if(location.pathname==='/index.html')native('captureSize',{height:300,width:innerWidth}).catch(()=>{});});
 async function save(){const expected=data.version;const next={...data,version:expected+1};const result=await native('save',{expected,data:next});stored.remember(next);data=next;phone=result;}
 const intentBackend={load:async()=>{const latest=await stored.load();phone=latest.phone;if(latest.data)data=latest.data;return structuredClone(data);},save:async(expected,next)=>{if(data.version!==expected){const error=new Error('Version conflict');error.code='VERSION_CONFLICT';throw error;}const result=await native('save',{expected,data:next});stored.remember(next);data=structuredClone(next);phone=result;}};
