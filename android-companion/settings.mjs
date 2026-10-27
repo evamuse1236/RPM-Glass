@@ -29,6 +29,19 @@ export const settingsSectionAction = section => {
 
 const NEEDS_PERMISSION = 'Permission needed';
 
+/** A trailing value on one line; a file name ellipsizes before its extension. */
+export function valueText(value) {
+  const node = el('small', 'settings-value');
+  const file = value.match(/^(.+?)(\.[a-z][a-z0-9]{1,3})$/i);
+  if (!file || value === NEEDS_PERMISSION) {
+    node.textContent = value;
+    return node;
+  }
+  node.classList.add('settings-file');
+  node.append(el('span', 'settings-file-name', file[1]), el('span', 'settings-file-ext', file[2]));
+  return node;
+}
+
 /** One list row: headline, supporting text and a trailing value, switch or chevron. */
 function row(label, detail, value, action, {toggle = null, icon = null} = {}) {
   const node = el('button', 'settings-row');
@@ -46,7 +59,7 @@ function row(label, detail, value, action, {toggle = null, icon = null} = {}) {
     track.append(el('span', 'switch-thumb'));
     node.append(track);
   } else if (value) {
-    const trailing = el('small', 'settings-value', value);
+    const trailing = valueText(value);
     if (value === NEEDS_PERMISSION) trailing.classList.add('warning');
     node.append(trailing);
   }

@@ -1,3 +1,4 @@
+import {DESTINATIONS} from './planner/destinations.mjs';
 const APPEARANCES=new Set(['system','light','dark']);
 const DAY_LAYOUTS=new Set(['day','list']);
 export const BAR_TRANSPARENCY=Object.freeze({min:0,max:60,step:5,initial:20});
@@ -72,7 +73,7 @@ function themeDialog(document,current,onChoose){
   return dialog;
 }
 
-/** Settings → Bar transparency: a slider with a live sample of the tab bar over a task row. */
+/** Settings → Bar transparency: a slider with a live sample of the tab bar over two task rows. */
 function transparencyRow(document,current,onChange){
   const wrap=element(document,'div','settings-slider bar-transparency');
   const head=element(document,'div','settings-slider-head');
@@ -84,21 +85,37 @@ function transparencyRow(document,current,onChange){
   const slider=element(document,'input','fact-slider');
   Object.assign(slider,{id:'bar-transparency',type:'range',min:String(BAR_TRANSPARENCY.min),max:String(BAR_TRANSPARENCY.max),step:String(BAR_TRANSPARENCY.step),value:String(current)});
   slider.setAttribute('aria-valuetext',shown(current));
-  const sample=element(document,'div','bar-sample');
-  sample.setAttribute('aria-hidden','true');
-  for(const [tone,title] of [[0,'Group call: merge sections'],[2,'Past paper 2019, section B']]){
-    const line=element(document,'span','bar-sample-line',title);
-    line.style.setProperty('--tone',`var(--area-${tone})`);
-    sample.append(line);
-  }
-  sample.append(element(document,'span','bar-sample-bar','Today   Blocks   Projects   Life'));
   slider.addEventListener('input',()=>{
     const applied=onChange(slider.value);
     output.textContent=shown(applied);
     slider.setAttribute('aria-valuetext',shown(applied));
   });
-  wrap.append(head,slider,element(document,'small','','How much of the page shows through the tab bar.'),sample);
+  wrap.append(head,slider,barSample(document));
   return wrap;
+}
+
+/** A small copy of the tab bar and its Add over two task rows; the root's glass settings style it live. */
+function barSample(document){
+  const sample=element(document,'div','bar-sample');
+  sample.setAttribute('aria-hidden','true');
+  for(const [tone,title,time] of [[0,'Group call: merge sections','4 PM'],[2,'Past paper 2019, section B','6:30 PM']]){
+    const row=element(document,'div','bar-sample-row');
+    row.style.setProperty('--tone',`var(--area-${tone})`);
+    row.append(element(document,'span','bar-sample-title',title),element(document,'span','bar-sample-time tnum',time));
+    sample.append(row);
+  }
+  const bar=element(document,'div','bar-sample-bar');
+  DESTINATIONS.forEach(([,symbol,label],index)=>{
+    const tab=element(document,'span',index?'bar-sample-tab':'bar-sample-tab is-on');
+    tab.append(element(document,'span',index?'ms':'ms fill',symbol),element(document,'span','bar-sample-label',label));
+    bar.append(tab);
+  });
+  const add=element(document,'span','bar-sample-add');
+  add.append(element(document,'span','ms','add'));
+  const dock=element(document,'div','bar-sample-dock');
+  dock.append(bar,add);
+  sample.append(dock);
+  return sample;
 }
 
 /** Adds local planner display choices to the existing native-backed Settings destination. */

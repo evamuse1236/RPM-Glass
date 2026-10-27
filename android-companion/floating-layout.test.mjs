@@ -35,7 +35,7 @@ test('Today has no top bar: its date line holds More options; other tabs show Se
   const {dateWords} = await import('./planner/today-header.mjs');
   assert.equal(dateWords('2026-10-27', '2026-10-27'), '27 October ›');
   assert.equal(dateWords('2027-01-03', '2026-10-27'), '3 January 2027 ›');
-  assert.match(read('dock.css'), /prefers-reduced-transparency: reduce\) \{[^@]*:root\[data-bar-glass=true\] \.fab \{ border: 0; background: var\(--primary\); color: var\(--on-primary\);/);
+  assert.match(read('dock.css'), /prefers-reduced-transparency: reduce\) \{[^@]*:root\[data-bar-glass=true\] :is\(\.fab, \.bar-sample-add\) \{ border: 0; background: var\(--primary\); color: var\(--on-primary\);/);
 });
 
 test('the habit circle is 48dp glass 12dp above Add; the page and the snackbar keep clear of it', () => {
@@ -47,7 +47,7 @@ test('the habit circle is 48dp glass 12dp above Add; the page and the snackbar k
   const circle = rule(css, '.habit-circle');
   assert.match(circle, /inline-size: var\(--touch\)/);
   assert.match(circle, /border-radius: 50%/);
-  assert.match(css, /:root\[data-bar-glass=true\] :is\(\.habit-circle, \.fab\) \{[^}]*backdrop-filter: blur\(var\(--glass-blur\)\)/, 'the same glass as the tab bar');
+  assert.match(css, /:root\[data-bar-glass=true\] :is\(\.habit-circle, \.fab, \.bar-sample-add\) \{[^}]*backdrop-filter: blur\(var\(--glass-blur\)\)/, 'the same glass as the tab bar');
   assert.match(css, /#planner\[data-habit=true\] \.page \{ padding-bottom: calc\(var\(--nav-measured, var\(--nav\)\) \+ var\(--touch\) \+ var\(--s3\) \+ var\(--s4\)\); \}/);
   assert.match(css, /#planner\[data-habit=true\] ~ #sheet\[hidden\] ~ #snackbar \{ right: calc\(var\(--inset-page\) \+ var\(--fab\) \+ var\(--s3\)\); \}/);
 });

@@ -11,13 +11,8 @@ import {openHabits} from './habits.mjs';
 import {navDrag} from '../nav-drag.mjs';
 import {paintHabit, watchHabit} from './habit-circle.mjs';
 import {attachSwipe, lockAxis, nearEdge} from '../task-swipe.mjs';
+import {DESTINATIONS} from './destinations.mjs';
 
-export const DESTINATIONS = [
-  ['today', 'today', 'Today'],
-  ['blocks', 'stacks', 'Blocks'],
-  ['projects', 'folder', 'Projects'],
-  ['life', 'spa', 'Life'],
-];
 const TITLES = {today: 'Today', blocks: 'Blocks', projects: 'Projects', life: 'Life'};
 const DETAIL_NAMES = {blocks: 'Block', projects: 'Project', areas: 'Area', goals: 'Goal'};
 

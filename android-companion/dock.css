@@ -39,17 +39,17 @@
 .habit-circle:active { scale: .96; }
 .habit-circle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-  :root[data-bar-glass=true] :is(.habit-circle, .fab) {
+  :root[data-bar-glass=true] :is(.habit-circle, .fab, .bar-sample-add) {
     border: 1px solid var(--glass-border);
     background: color-mix(in srgb, var(--float-surface) var(--bar-fill, 100%), transparent);
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   }
-  :root[data-bar-glass=true] .fab { color: var(--primary); }
+  :root[data-bar-glass=true] :is(.fab, .bar-sample-add) { color: var(--primary); }
 }
 @media (prefers-reduced-transparency: reduce) {
   :root[data-bar-glass=true] .habit-circle { background: var(--float-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
-  :root[data-bar-glass=true] .fab { border: 0; background: var(--primary); color: var(--on-primary); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :root[data-bar-glass=true] :is(.fab, .bar-sample-add) { border: 0; background: var(--primary); color: var(--on-primary); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-reduce-motion=true]) :is(.fab, .habit-circle) { transition: scale var(--dur-press) var(--ease-standard); }

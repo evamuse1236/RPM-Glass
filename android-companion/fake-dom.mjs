@@ -77,6 +77,7 @@ export class FakeElement{
   node.parentNode?.children.splice(node.parentNode.children.indexOf(node),1);
   this.children.splice(this.children.indexOf(ref),0,node);node.parentNode=this;
  }
+ after(node){this.parentNode?.insertBefore(node,this.nextSibling);}
  matches(selector){return matcher(selector)(this);}
  closest(selector){const m=matcher(selector);for(let n=this;n;n=n.parentNode)if(m(n))return n;return null;}
  querySelectorAll(selector){

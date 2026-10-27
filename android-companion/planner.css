@@ -139,7 +139,7 @@ h1, h2, h3, p { margin: 0; }
 }
 /* Glass, as in T3 Code's composer: Settings → Bar transparency sets --bar-fill (100% is solid). */
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-  :root[data-bar-glass=true] #nav-bar {
+  :root[data-bar-glass=true] :is(#nav-bar, .bar-sample-bar) {
     border-color: var(--glass-border);
     background: color-mix(in srgb, var(--float-surface) var(--bar-fill, 100%), transparent);
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
@@ -147,7 +147,7 @@ h1, h2, h3, p { margin: 0; }
   }
 }
 @media (prefers-reduced-transparency: reduce) {
-  :root[data-bar-glass=true] #nav-bar { background: var(--float-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :root[data-bar-glass=true] :is(#nav-bar, .bar-sample-bar) { background: var(--float-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 :root[data-keyboard=open] :is(#nav-bar, #now-host, #dock) { display: none; }
 :root:not([data-keyboard=open]) #planner:has(> #nav-bar:not([hidden])) #planner-scroll {
