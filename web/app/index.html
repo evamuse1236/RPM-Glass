@@ -54,7 +54,22 @@
       <textarea id="capture-text" rows="4" maxlength="12000" placeholder="Type what's on your mind"></textarea>
     </label>
     <p id="capture-problem" class="problem" role="alert" hidden></p>
-    <button type="submit" class="filled-btn">Send</button>
+    <section id="voice-panel" class="voice-panel" aria-labelledby="voice-status" hidden>
+      <p id="voice-status" class="voice-status" role="status"></p>
+      <p id="voice-heard" class="voice-heard" hidden></p>
+      <ul id="voice-changes" class="voice-changes" hidden></ul>
+      <p id="voice-said" class="voice-said" hidden></p>
+      <p id="voice-note" class="voice-note" hidden></p>
+      <div class="voice-actions">
+        <button id="voice-stop" class="filled-btn" type="button" hidden><span class="ms" aria-hidden="true">stop</span>Stop</button>
+        <button id="voice-undo" class="text-btn" type="button" hidden>Undo</button>
+        <button id="voice-retry" class="text-btn" type="button" hidden>Type it instead</button>
+      </div>
+    </section>
+    <div class="capture-actions">
+      <button id="voice-mic" class="voice-mic" type="button" aria-label="Talk to RPM" aria-pressed="false" hidden><span class="ms" aria-hidden="true">mic</span></button>
+      <button type="submit" class="filled-btn">Send</button>
+    </div>
   </form>
   <section id="capture-history" class="capture-history" aria-labelledby="capture-history-title" hidden>
     <h3 id="capture-history-title">Recent</h3>

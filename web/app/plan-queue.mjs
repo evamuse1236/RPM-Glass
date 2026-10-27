@@ -165,12 +165,14 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
     data: () => view,
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     pendingIds: () => new Set(records.flatMap(r => r.ids)),
+    /** The command a plain Undo would take back now, or null. */
+    lastUndoId: () => lastUndo?.commandId ?? null,
     problems: () => problems,
     dismissProblem(index) { problems = problems.filter((_, i) => i !== index); persist(); listeners.forEach(fn => fn({foreign: false, redraw: false, sends: []})); },
     start() { onClient(); },
     /**
      * Saves one change. `ids` replays a change already worked out elsewhere (a voice ramble): `uuids` seeds its new
-     * Block, Project and Area ids, and `tasks` names its new task ids, which the server must give exactly or refuse.
+     * Block, Project and Area ids, `id` names the command, and `tasks` names its new task ids, which the server must give exactly or refuse.
      */
     commit(op, ids = null) {
       if (op?.type === 'undo') return undo();
@@ -181,7 +183,7 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
       const baseIds = idsOf(snap);
       const before = idsOf(view);
       if (named(op).some(id => before.has(id) && !baseIds.has(id))) throw new Error(WAITING);
-      const rec = {id: uuid(), kind: 'plan', op, at: now().toISOString(), baseRevision: snap.revision, sent: true, held: false};
+      const rec = {id: ids?.id ?? uuid(), kind: 'plan', op, at: now().toISOString(), baseRevision: snap.revision, sent: true, held: false};
       if (ids) rec.uuids = [...ids.uuids];
       const store = structuredClone(view);
       const result = edit(store, rec, op, !!ids);

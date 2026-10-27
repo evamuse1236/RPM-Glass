@@ -56,6 +56,38 @@ html:has(dialog:modal) { overflow: clip; }
 .capture-history p { margin: 0; overflow-wrap: break-word; }
 .capture-said { font: var(--body-large); }
 .capture-outcome { font: var(--body-medium); color: var(--on-surface-variant); }
+.capture-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--s3); }
+.voice-mic { position: relative; display: grid; place-items: center; inline-size: var(--touch); block-size: var(--touch); border: 1px solid var(--outline-variant); border-radius: var(--shape-full); background: var(--surface-container-high); color: var(--primary); }
+.voice-mic::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: currentColor; opacity: 0; transition: opacity var(--dur-short4) var(--ease-standard); }
+.voice-mic:active::before { opacity: .12; }
+.voice-mic:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.voice-mic:disabled { opacity: .5; cursor: default; }
+.voice-mic[aria-pressed=true] { border-color: var(--primary); background: var(--primary); color: var(--on-primary); }
+.capture-sheet form[data-voice]:not([data-voice='']) :is(.field, button[type=submit]) { display: none; }
+.capture-sheet form[data-voice]:not([data-voice='']):not([data-voice=connecting]):not([data-voice=listening]) .voice-mic { display: none; }
+.voice-panel { display: grid; gap: var(--s3); }
+.voice-status { font: var(--title-medium); }
+.voice-heard { font: var(--body-large); color: var(--on-surface-variant); overflow-wrap: break-word; }
+.voice-changes { display: grid; gap: var(--s2); margin: 0; padding: 0; list-style: none; }
+.voice-change { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: var(--s3); padding: var(--s3) var(--s4); border: 1px solid var(--outline-variant); border-radius: var(--shape-md); background: var(--surface-container); }
+.voice-change .ms { color: var(--primary); }
+.voice-change-body { display: grid; gap: var(--s1); min-inline-size: 0; }
+.voice-change-title { font: var(--body-large); overflow-wrap: break-word; }
+.voice-change-verb { font-weight: 500; }
+.voice-change-detail { font: var(--body-medium); color: var(--on-surface-variant); }
+.voice-said { font: var(--body-large); }
+.voice-note { font: var(--body-medium); color: var(--on-surface-variant); }
+.voice-note.voice-note-error { color: var(--error); }
+.voice-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s2); }
+.voice-actions:not(:has(> :not([hidden]))) { display: none; }
+.voice-actions .filled-btn { display: inline-flex; align-items: center; gap: var(--s2); }
+.capture-sheet form[data-voice=working] .voice-change { opacity: .72; }
+@media (prefers-reduced-motion: no-preference) {
+  .capture-sheet form[data-voice=listening] .voice-mic { animation: voice-ring var(--dur-long) var(--ease-standard) infinite alternate; }
+  .voice-change { animation: voice-row-in var(--dur-medium) var(--ease-standard-decelerate) both; }
+}
+@keyframes voice-ring { to { box-shadow: 0 0 0 var(--s1) var(--surface-container-low), 0 0 0 var(--s2) var(--primary); } }
+@keyframes voice-row-in { from { opacity: 0; translate: 0 var(--s2); } }
 .keys-list { display: grid; grid-template-columns: max-content 1fr; align-items: center; gap: var(--s3) var(--s4); margin: var(--s4) 0 0; }
 .keys-list :is(dt, dd) { margin: 0; }
 .keys-list dd { font: var(--body-large); }
