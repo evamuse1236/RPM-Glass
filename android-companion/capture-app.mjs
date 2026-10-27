@@ -186,7 +186,8 @@ export function mountCapture(platform){
    case 'open':return openCard(c,on);
    case 'question':return questionCard(c,on);
    case 'answer':return answerCard(c,{platform,on});
-   case 'voice':return voiceCard(c,{rows:platform.voiceRows(c.voice.changes),openPlanner:on.openPlanner,undo:async id=>{s.problem=await voiceMode.undo(id);await refreshState();}});
+   case 'voice':return voiceCard(c,{rows:platform.voiceRows(c.voice.changes),openPlanner:on.openPlanner,openItem:target=>platform.action('planner',target).catch(()=>{}),
+    discard:async id=>{s.problem=await voiceMode.undo(id);await refreshState();}});
    default:return savedCard(c,on);
   }
  }

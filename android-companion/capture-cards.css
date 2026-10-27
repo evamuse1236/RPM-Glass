@@ -157,3 +157,78 @@
 }
 @keyframes fact-pop{from{opacity:0;scale:.6}70%{opacity:1;scale:1.06}to{opacity:1;scale:1}}
 @keyframes fact-shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
+
+/* Voice: one card from the first word to the receipt. The card keeps a solid edge; when it is taller than the space
+   above the bar, its list scrolls inside it and fades into the card's own colour, never into the wallpaper. */
+.voice-card{flex:0 1 auto;min-block-size:0;gap:0;padding:0;overflow:clip}
+.voice-top{flex:none;display:flex;align-items:center;gap:12px;padding:16px 8px 12px 16px}
+.voice-lead{flex:1;min-inline-size:0;margin:0;font:var(--title-small);color:var(--bar-on);overflow-wrap:anywhere}
+.voice-live .voice-lead{font:var(--body-medium)}
+.voice-stop{background:var(--bar-highest)}
+.voice-stop[hidden]{display:none}
+@property --inner-fade{syntax:"<length>";inherits:false;initial-value:0px}
+@keyframes inner-fade{from{--inner-fade:24px}to{--inner-fade:0px}}
+.voice-scroll{flex:0 1 auto;min-block-size:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;
+  animation:inner-fade linear both;animation-timeline:scroll(self block);mask-image:linear-gradient(to bottom,#000 calc(100% - var(--inner-fade)),transparent)}
+.voice-scroll::-webkit-scrollbar{display:none}
+.spine{list-style:none;margin:0;padding:0 16px 12px;display:flex;flex-direction:column}
+.spine:empty{display:none}
+.spine-row{position:relative}
+.spine-row:not(:last-child)::before{content:'';position:absolute;inset-inline-start:12px;inset-block:32px 0;inline-size:2px;translate:-50% 0;background:var(--bar-outline);transform-origin:top}
+.spine-row.plain,.spine-open{display:grid;grid-template-columns:24px minmax(0,1fr) auto;column-gap:12px;align-items:start;padding-block:4px}
+.spine-glyph{display:grid;inline-size:24px;block-size:24px;place-items:center;color:var(--bar-primary);background:var(--bar)}
+.spine-glyph .ms{font-size:20px}
+.spine-text{display:flex;flex-direction:column;min-inline-size:0}
+.spine-title{font:var(--title-small);overflow-wrap:anywhere}
+.spine-when{font:var(--body-small);color:var(--bar-on-variant);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.spine-when s{text-decoration-thickness:1px}
+.spine-open{inline-size:100%;margin:0;border:0;border-radius:var(--shape-md);background:none;color:inherit;font:inherit;text-align:start;padding-inline:0;cursor:default}
+.spine-chevron{display:none;align-self:center;font-size:20px;color:var(--bar-on-variant)}
+.voice-card.editing .spine-row::before{display:none}
+.voice-card.editing .spine-open{min-block-size:48px;padding:8px 8px 8px 4px;margin-block:4px;background:var(--bar-high);cursor:pointer}
+.voice-card.editing .spine-open .spine-glyph{background:transparent}
+.voice-card.editing .spine-chevron{display:block}
+.voice-card.editing .spine-open:active{background:var(--bar-highest)}
+.spine-open:focus-visible{outline:2px solid var(--bar-primary);outline-offset:2px}
+.voice-card.discarded .spine{opacity:.4}
+.voice-card.discarded .spine-title{text-decoration:line-through}
+.voice-dock{flex:none;display:flex;justify-content:flex-end;padding:0 12px 12px}
+.voice-tools{display:flex;gap:4px;padding:4px;border-radius:var(--shape-full);background:var(--bar-high)}
+.voice-tools .icon-btn{color:var(--bar-on-variant)}
+.voice-tools .icon-btn.danger{color:var(--bar-error)}
+.voice-tools .icon-btn[aria-pressed=true]{background:var(--bar-accent);color:var(--bar-on-accent)}
+.voice-tools .icon-btn:focus-visible,.voice-stop:focus-visible{outline:2px solid var(--bar-primary);outline-offset:2px}
+
+/* The voice orb: Capture's one gradient (user request, 2026-10-28). It swells with the voice through --level. */
+.orb{--level:0;position:relative;flex:none;inline-size:40px;block-size:40px;border-radius:50%;overflow:clip;background:var(--bar-orb-core);
+  scale:calc(1 + var(--level) * .18);box-shadow:0 0 calc(4px + var(--level) * 20px) var(--bar-orb-glow)}
+.orb i{position:absolute;border-radius:42%}
+.orb i:nth-child(1){inset:-24%;background:conic-gradient(from 0deg,var(--bar-primary),var(--bar-accent),var(--bar-area-5),var(--bar-area-3),var(--bar-primary));filter:blur(6px)}
+.orb i:nth-child(2){inset:-8%;border-radius:38%;background:radial-gradient(circle at 30% 30%,var(--bar-on-accent),transparent 55%);mix-blend-mode:screen;filter:blur(6px)}
+.orb i:nth-child(3){inset:24%;border-radius:50%;background:var(--bar-on);opacity:calc(.15 + var(--level) * .5);filter:blur(8px)}
+.orb.done{background:var(--bar-success-core)}
+.orb.done i:nth-child(1){background:conic-gradient(from 0deg,var(--bar-success),var(--bar-success-core),var(--bar-area-5),var(--bar-success))}
+.orb.idle{filter:grayscale(1);opacity:.6}
+.voice-live .w{display:inline}
+@media (prefers-reduced-motion:no-preference){
+  .orb{transition:scale var(--dur-short2) linear,box-shadow var(--dur-short2) linear}
+  .orb i:nth-child(1){animation:orb-spin 6s linear infinite}
+  .orb i:nth-child(2){animation:orb-spin 9s linear infinite reverse}
+  .orb.working i:nth-child(1),.orb.speaking i:nth-child(1){animation-duration:2400ms}
+  .orb.connecting{animation:orb-breathe 1600ms var(--ease-standard) infinite}
+  .orb.done i:nth-child(1){animation-duration:12s}
+  .orb.done{animation:orb-land var(--dur-medium2) var(--ease-spring)}
+  .voice-live .w{animation:word-in 600ms var(--ease-emphasized) both}
+  .spine-row{animation:row-land var(--dur-medium1) var(--ease-emphasized-decelerate) both}
+  .receipt .spine-row{animation:none}
+  .spine-row:not(:last-child)::before{animation:spine-draw var(--dur-medium2) var(--ease-emphasized) both}
+  .spine-open{transition:background-color var(--dur-short3) var(--ease-standard),padding var(--dur-short4) var(--ease-standard)}
+}
+@keyframes orb-spin{to{rotate:1turn}}
+@keyframes orb-breathe{50%{scale:.9;opacity:.7}}
+@keyframes orb-land{from{scale:.9}}
+@keyframes word-in{from{opacity:0;filter:blur(6px)}}
+@keyframes row-land{from{opacity:0;translate:0 8px}}
+@keyframes spine-draw{from{scale:1 0}}
+:root[data-reduce-motion=true] .orb,:root[data-reduce-motion=true] .orb i,:root[data-reduce-motion=true] .voice-live .w,
+:root[data-reduce-motion=true] .spine-row,:root[data-reduce-motion=true] .spine-row::before{animation:none;transition:none}

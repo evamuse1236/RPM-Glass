@@ -36,28 +36,19 @@ test('audio chunks that change nothing on screen do not redraw Capture', async (
  release();
 });
 
-test('the live card stays one node while its phase holds, and its words and rows change in place', async () => {
- const {voice,release}=voiceWith([listening('Call')]);
+const settle=ms=>new Promise(r=>setTimeout(r,ms));
+
+test('one live card holds from the first word to the last change, its words and rows changing in place', async () => {
+ const {voice,release}=voiceWith([listening('Call'),listening('Call mom tomorrow'),working([{title:'Call mom'}]),working([{title:'Call mom'},{title:'Buy milk'}])]);
  voice.begin();
- await new Promise(r=>setTimeout(r,0));
- const first=voice.card();
- assert.match(first.textContent,/Call/);
+ await settle(0);
+ const node=voice.card();
+ assert.equal(voice.card(),node,'asking again returns the same node');
+ await settle(600);
+ assert.equal(node.querySelector('.voice-lead').textContent,'Call mom tomorrow','the words stream in while the changes land');
+ assert.match(node.textContent,/Call mom.*Buy milk/);
+ assert.equal(node.querySelectorAll('.spine-row').length,2,'rows are added, never rebuilt');
  release();
-
- const next=voiceWith([listening('Call'),listening('Call mom tomorrow')]);
- next.voice.begin();
- await new Promise(r=>setTimeout(r,0));
- const a=next.voice.card();
- assert.match(a.textContent,/Call mom tomorrow/);
- assert.equal(next.voice.card(),a,'asking again returns the same node');
- next.release();
-
- const rows=voiceWith([working([{title:'Call mom'}]),working([{title:'Call mom'},{title:'Buy milk'}])]);
- rows.voice.begin();
- await new Promise(r=>setTimeout(r,0));
- const card=rows.voice.card();
- assert.match(card.textContent,/Buy milk/);
- rows.release();
 });
 
 test('placing the cards already on screen leaves them in place, so their entrance does not replay', () => {
@@ -69,4 +60,14 @@ test('placing the cards already on screen leaves them in place, so their entranc
  placeCards(content,[b]);
  assert.equal(replaced,2);
  assert.deepEqual(content.children,[b]);
+});
+
+test('while RPM speaks, its sentence streams in where your words were', async () => {
+ const {voice,release}=voiceWith([working([]),{phase:'speaking',heard:'Call mom tomorrow',said:'Done, mom is set.',changes:[],wordsReady:true}]);
+ voice.begin();
+ await settle(0);
+ const node=voice.card();
+ await settle(600);
+ assert.equal(node.querySelector('.voice-lead').textContent,'Done, mom is set.');
+ release();
 });

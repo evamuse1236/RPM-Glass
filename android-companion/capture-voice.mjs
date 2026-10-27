@@ -1,9 +1,10 @@
 import {startVoice} from './voice-client.mjs';
 import {liveSetup} from './voice-tools.mjs';
 import {recordWords,applyRamble,undoRamble} from './voice-turn.mjs';
-import {el,icon,button} from './capture-dom.mjs';
-import {card,kicker,actionsRow,answerText} from './capture-cards.mjs';
-import {lines,tally} from './capture-lines.mjs';
+import {el,button,iconButton} from './capture-dom.mjs';
+import {card,kicker,actionsRow} from './capture-cards.mjs';
+import {tally} from './capture-lines.mjs';
+import {orb,setLevel,wordStream,spine,spineRow,scrollBox,tools,receiptTools} from './capture-voice-card.mjs';
 import {userMessage} from './user-message.mjs';
 
 export const NO_KEY='Connect a Gemini key in Settings to talk to RPM.';
@@ -25,11 +26,12 @@ export function createVoiceMode({platform,conversationId,onChange,afterSave,star
   if(live&&LIVE.has(live.phase))return;
   const options={messageId:crypto.randomUUID(),conversationId:conversationId(),timeZone};
   let saving=null;
-  show({phase:'connecting',heard:'',rows:[]});
+  face=null;
+  show({phase:'connecting',heard:'',said:'',rows:[]});
   try{
-   session=start({data:platform.voiceData(),timeZone,setup:liveSetup(now(),timeZone),now,workletUrl:'/voice-mic-worklet.js',token,onChange:state=>{
+   session=start({data:platform.voiceData(),timeZone,setup:liveSetup(now(),timeZone),now,workletUrl:'/voice-mic-worklet.js',token,onLevel:value=>face?.level?.(value),onChange:state=>{
     if(state.wordsReady&&state.heard&&!saving)saving=platform.saveWith(data=>recordWords(data,state.heard,{...options,now:now()}));
-    if(LIVE.has(state.phase))show({phase:state.phase,heard:state.heard,rows:platform.voiceRows(state.changes)});
+    if(LIVE.has(state.phase))show({phase:state.phase,heard:state.heard,said:state.said??'',rows:platform.voiceRows(state.changes)});
    }});
    const result=await session.done;
    session=null;
@@ -67,30 +69,33 @@ export function createVoiceMode({platform,conversationId,onChange,afterSave,star
  };
 }
 
-const FACE={connecting:'listening',listening:'listening',working:'working',speaking:'working'};
+const FACE={connecting:'live',listening:'live',working:'live',speaking:'live'};
 const faceOf=live=>FACE[live.phase]??JSON.stringify(live);
+const WAITING={connecting:'Getting ready…',listening:'Start talking.',working:'Saving your changes…',speaking:'Saving your changes…'};
 
-/** The card for one phase of a live ramble. `update` changes its words and rows in place, so the card never blinks. */
+/** One card from the first word to the last change: the orb, your words then RPM's streaming in, the rows landing on the spine. */
 function liveCard(kind,live,on){
- if(kind==='listening'){
-  const node=card('listening');
+ if(kind==='live'){
+  const node=card('voice-card voice-live');
+  node.dataset.morph='voice';
   node.setAttribute('role','status');
-  const heard=el('p','heard');
-  heard.setAttribute('aria-live','polite');
-  node.append(icon('mic',{fill:true}),el('p','card-title','Listening'),heard,actionsRow(button('Done',on.stop,{role:'tonal',iconName:'stop'})));
-  return {node,update:next=>{heard.textContent=next.heard||(next.phase==='connecting'?'Getting ready…':'Start talking.');}};
- }
- if(kind==='working'){
-  const node=card('working');
-  node.setAttribute('role','status');
-  const words=el('p','words');
-  let list=el('ul','lines'),rowsKey='';
-  node.append(kicker('Saving your changes',{name:'graphic_eq'}),words,list);
-  return {node,update:next=>{
-   words.textContent=next.heard;words.hidden=!next.heard;
-   const key=JSON.stringify(next.rows);
-   if(key!==rowsKey){rowsKey=key;const fresh=lines(next.rows);list.replaceWith(fresh);list=fresh;}
-   list.hidden=!next.rows.length;
+  const glow=orb(),lead=el('p','voice-lead'),stopButton=iconButton('stop','Stop and save',on.stop,{cls:'voice-stop',fill:true});
+  lead.setAttribute('aria-live','polite');
+  const top=el('div','voice-top'),rows=el('ul','spine'),words=wordStream(lead);
+  top.append(glow,lead,stopButton);
+  node.append(top,scrollBox(rows));
+  let phase=null,source='heard',count=0;
+  return {node,level:value=>setLevel(glow,value),update:next=>{
+   if(next.phase!==phase){
+    phase=next.phase;
+    glow.className=`orb ${phase}`;
+    stopButton.hidden=phase==='working'||phase==='speaking';
+   }
+   const speaker=phase==='speaking'&&next.said?'said':'heard';
+   if(speaker!==source){source=speaker;words.set('');}
+   words.set(next[source],WAITING[phase]);
+   for(const row of next.rows.slice(count))rows.append(spineRow(row,{}));
+   count=next.rows.length;
   }};
  }
  const node=card(live.phase==='no-mic'?'no-mic':'voice-failed');
@@ -100,15 +105,22 @@ function liveCard(kind,live,on){
  return {node,update(){}};
 }
 
-/** A saved ramble: one row per change with its icon, the spoken sentence, and Undo while it is still the newest change. */
-export function voiceCard(capture,{rows,undo,openPlanner}){
- const voice=capture.voice,node=card('receipt');
- node.classList.add('voice');
- const head=voice.undone?'Undone':rows.length?tally(rows):'Nothing changed';
- node.append(kicker(head,{name:voice.undone?'undo':'check_circle',tone:voice.undone?'':'done'}));
- if(rows.length&&!voice.undone)node.append(lines(rows));
- if(capture.reply)node.append(answerText(capture.reply));
- const canUndo=!!voice.undoEvent&&!voice.undone;
- node.append(actionsRow(canUndo?button('Undo',()=>undo(capture.messageId),{role:'text',iconName:'undo'}):null,button('Open planner',openPlanner,{role:'text'})));
+/**
+ * A saved ramble: what RPM said, the changes on the spine, and Discard, Edit and Open planner as symbols.
+ * It takes the live card's place without an entrance, so the card grows into it.
+ */
+export function voiceCard(capture,{rows,discard,openPlanner,openItem}){
+ const voice=capture.voice,gone=!!voice.undone;
+ const node=card('voice-card receipt voice');
+ node.classList.remove('enter');
+ node.classList.toggle('discarded',gone);
+ node.dataset.morph='voice';
+ const top=el('div','voice-top');
+ const lead=gone?'Discarded. Your words are kept in History.':capture.reply||(rows.length?tally(rows):'Nothing changed');
+ top.append(orb(gone?'idle':'done'),el('p','voice-lead',lead));
+ node.append(scrollBox(top,rows.length?spine(rows,{open:openItem,editing:()=>node.classList.contains('editing')}):''));
+ const canDiscard=!!voice.undoEvent&&!gone;
+ node.append(gone?tools(iconButton('open_in_new','Open planner',openPlanner))
+  :receiptTools(node,{rows,discard:canDiscard?()=>discard(capture.messageId):null,openPlanner,openItem}));
  return node;
 }

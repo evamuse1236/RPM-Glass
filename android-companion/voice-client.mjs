@@ -13,17 +13,25 @@ export function pcm16(samples){
  for(let i=0;i<samples.length;i++){const v=Math.max(-1,Math.min(1,samples[i]));out[i]=v<0?v*0x8000:v*0x7fff;}
  return base64(new Uint8Array(out.buffer));
 }
+/** How loud a chunk is, from 0 to 1, for the voice orb. */
+export function loudness(samples){
+ if(!samples.length)return 0;
+ let sum=0;for(let i=0;i<samples.length;i++)sum+=samples[i]*samples[i];
+ return Math.min(1,Math.sqrt(sum/samples.length)*6);
+}
 const floats=data=>{const bin=atob(data),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);const ints=new Int16Array(bytes.buffer,0,bytes.length>>1),out=new Float32Array(ints.length);for(let i=0;i<ints.length;i++)out[i]=ints[i]/0x8000;return out;};
 
 /** Plays the model's 24 kHz voice chunks back to back. */
-function createSpeaker(AudioContextImpl){
+function createSpeaker(AudioContextImpl,onLevel){
  let context=null,at=0;
  return {
   play(data){
    context??=new AudioContextImpl({sampleRate:OUT_RATE});
    const samples=floats(data),buffer=context.createBuffer(1,samples.length,OUT_RATE);buffer.copyToChannel(samples,0);
    const source=context.createBufferSource();source.buffer=buffer;source.connect(context.destination);
-   at=Math.max(at,context.currentTime);source.start(at);at+=buffer.duration;
+   at=Math.max(at,context.currentTime);source.start(at);
+   const level=loudness(samples);setTimeout(()=>onLevel(level),Math.max(0,(at-context.currentTime)*1000));
+   at+=buffer.duration;
   },
   close(){const c=context;context=null;if(c)setTimeout(()=>c.close().catch(()=>{}),Math.max(0,(at-c.currentTime)*1000)+200);},
  };
@@ -34,9 +42,9 @@ function createSpeaker(AudioContextImpl){
  * key never reaches this code. Resolves `done` with the ramble's result; `onChange(state)` follows each step.
  * Phases: connecting → listening → working → speaking → done | failed.
  */
-export function startVoice({data,timeZone,setup,token,onChange=()=>{},workletUrl,now=()=>new Date(),
+export function startVoice({data,timeZone,setup,token,onChange=()=>{},onLevel=()=>{},workletUrl,now=()=>new Date(),
  media=globalThis.navigator?.mediaDevices,AudioContextImpl=globalThis.AudioContext,AudioWorkletNodeImpl=globalThis.AudioWorkletNode,WebSocketImpl=globalThis.WebSocket,limits=VOICE_LIMITS}){
- const ramble=createRamble({data,timeZone,now}),speaker=createSpeaker(AudioContextImpl),queue=[];
+ const ramble=createRamble({data,timeZone,now}),speaker=createSpeaker(AudioContextImpl,onLevel),queue=[];
  let socket=null,mic=null,micContext=null,ready=false,stopped=false,finished=false,timer=null,talkTimer=null,phase='connecting',resolve;
  const done=new Promise(r=>{resolve=r;});
  const notify=()=>onChange({...ramble.state,phase:phase==='connecting'||phase==='listening'?phase:ramble.state.phase});
@@ -50,7 +58,7 @@ export function startVoice({data,timeZone,setup,token,onChange=()=>{},workletUrl
   try{socket?.close();}catch{}
   notify();resolve(ramble.result());
  }
- function audio(samples){const chunk={realtimeInput:{audio:{data:pcm16(samples),mimeType:`audio/pcm;rate=${IN_RATE}`}}};if(ready)send(chunk);else queue.push(chunk);}
+ function audio(samples){onLevel(loudness(samples));const chunk={realtimeInput:{audio:{data:pcm16(samples),mimeType:`audio/pcm;rate=${IN_RATE}`}}};if(ready)send(chunk);else queue.push(chunk);}
  function stop(){
   if(stopped||finished)return;stopped=true;releaseMic();
   if(!ready){finish('You stopped before voice was ready.');return;}

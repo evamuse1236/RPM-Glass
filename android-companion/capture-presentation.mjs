@@ -1,3 +1,4 @@
+import {EASE,DURATION} from './motion-core.mjs';
 // Presentation only: geometry, insets and motion. This module never saves a
 // plan and never invents request progress.
 
@@ -29,11 +30,19 @@ export function keepChoicesInView(content){
  content.scrollTop=choicesScrollTop(content.getBoundingClientRect(),chips.getBoundingClientRect(),content.scrollTop);
 }
 
-/** Puts the cards in the list. Cards already there in the same order stay, so their entrance does not replay. */
+/**
+ * Puts the cards in the list. Cards already there in the same order stay, so their entrance does not replay.
+ * A first card that takes over from one with the same `data-morph` grows or shrinks from its height instead.
+ */
 export function placeCards(content,nodes){
  const now=content.children;
  if(now.length===nodes.length&&nodes.every((node,i)=>now[i]===node))return;
+ const before=now[0],after=nodes[0];
+ const from=after?.dataset?.morph&&before?.dataset?.morph===after.dataset.morph&&before!==after?before.getBoundingClientRect().height:null;
  content.replaceChildren(...nodes);
+ if(from===null||!after.animate||reducedMotion())return;
+ const to=after.getBoundingClientRect().height;
+ if(Math.abs(to-from)>1)after.animate([{blockSize:`${from}px`},{blockSize:`${to}px`}],{duration:DURATION.medium2,easing:EASE.emphasized});
 }
 
 const prefersReduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
