@@ -103,8 +103,8 @@ export function mountVoice({client, queue, render, onRetry, start = startLive, w
   }
 
   function refresh() {
-    mic.hidden = unavailable;
     const busy = !!view && ACTIVE.has(view.phase), talking = view?.phase === 'connecting' || view?.phase === 'listening';
+    mic.hidden = unavailable || talking;
     mic.disabled = busy ? !talking : queue.pendingIds().size > 0 || !queue.data();
     mic.title = mic.disabled && !busy ? 'Wait for your changes to send' : '';
   }

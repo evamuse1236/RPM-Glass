@@ -52,6 +52,12 @@ test('a denied microphone ends at once with a plain message and never asks for a
  assert.equal(result.code,'no-mic');assert.match(last.error,/Allow the microphone/);assert.equal(asked,false);
 });
 
+test('a microphone that fails for another reason says so, not that permission is missing', async () => {
+ const {options}=fakes();options.media={getUserMedia:async()=>{throw Object.assign(new Error('Could not start audio source'),{name:'NotReadableError'});}};
+ const result=await startVoice({...options,data:freshStore(),timeZone:'UTC',setup:{},token:async()=>({})}).done;
+ assert.equal(result.code,'mic-failed');assert.match(result.failed,/did not start/);
+});
+
 test('a socket that closes mid-answer fails the ramble and keeps the words heard so far', async () => {
  const {options}=fakes();
  const voice=startVoice({...options,data:freshStore(),timeZone:'UTC',setup:{},token:async()=>({token:'t',url:'wss://x'})});

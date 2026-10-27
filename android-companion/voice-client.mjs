@@ -67,7 +67,7 @@ export function startVoice({data,timeZone,setup,token,onChange=()=>{},workletUrl
  (async()=>{
   try{
    try{mic=await media.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true}});}
-   catch(e){throw new VoiceError('no-mic',NO_MIC);}
+   catch(e){throw ['NotAllowedError','SecurityError'].includes(e?.name)?new VoiceError('no-mic',NO_MIC):new VoiceError('mic-failed','The microphone did not start. Close other apps that use it, then try again.');}
    if(finished){releaseMic();return;}
    micContext=new AudioContextImpl({sampleRate:IN_RATE});
    await micContext.audioWorklet.addModule(workletUrl);
