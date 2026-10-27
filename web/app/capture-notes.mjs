@@ -46,8 +46,12 @@ export function captureNotes({outbox, captures = [], dismissed, now = Date.now()
       notes.push({id, icon: 'schedule', tone: 'waiting', text, lines: ['Saving']});
       continue;
     }
-    const capture = captures.find(c => c.id === id);
     const recent = now - Date.parse(createdAt) < RECENT;
+    if (args.source === 'voice' && entry.status === 'applied') {
+      if (recent) notes.push({id, icon: 'check_circle', tone: 'done', text, lines: ['Words saved'], dismissible: true});
+      continue;
+    }
+    const capture = captures.find(c => c.id === id);
     if (!capture && !recent) continue;
     const lines = captureOutcome(capture);
     if (capture?.status === 'needs-answer') notes.push({id, icon: 'help', tone: 'waiting', text, lines, dismissible: true});
