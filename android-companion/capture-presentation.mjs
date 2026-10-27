@@ -29,6 +29,13 @@ export function keepChoicesInView(content){
  content.scrollTop=choicesScrollTop(content.getBoundingClientRect(),chips.getBoundingClientRect(),content.scrollTop);
 }
 
+/** Puts the cards in the list. Cards already there in the same order stay, so their entrance does not replay. */
+export function placeCards(content,nodes){
+ const now=content.children;
+ if(now.length===nodes.length&&nodes.every((node,i)=>now[i]===node))return;
+ content.replaceChildren(...nodes);
+}
+
 const prefersReduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
 
 /** Reduced motion follows Android's animator setting or the web preference. */

@@ -3,7 +3,7 @@ import {wordsKeptCard,receiptCard,confirmCard,undoneCard,parkedCard,savedCard,op
 import {answerCard} from './capture-answers.mjs';
 import {historyView,contextView} from './capture-views.mjs';
 import {installSheet} from './capture-sheet.mjs';
-import {installCapturePresentation,createRevealTracker,enter,keepChoicesInView} from './capture-presentation.mjs';
+import {installCapturePresentation,createRevealTracker,enter,keepChoicesInView,placeCards} from './capture-presentation.mjs';
 import {installComposer,listeningCard} from './capture-composer.mjs';
 import {installForming} from './capture-forming.mjs';
 import {createSendIdentity,draftToKeep,cardKind,canUndoChange} from './capture-session.mjs';
@@ -228,7 +228,7 @@ export function mountCapture(platform){
   s.conversationId=c.id;storage.set('rpm-conversation',c.id);
   s.lastKey=captureRenderKey({...s.state,intent:page()});
   const nodes=viewCards(),top=content.scrollTop;
-  content.replaceChildren(...nodes);
+  placeCards(content,nodes);
   if(s.problem&&!content.querySelector('.problem'))status(s.problem,true);
   content.scrollTop=s.keepScroll?top:0;
   keepChoicesInView(content);

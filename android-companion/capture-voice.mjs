@@ -16,8 +16,8 @@ const LIVE=new Set(['connecting','listening','working','speaking']);
  */
 export function createVoiceMode({platform,conversationId,onChange,afterSave,start=startVoice,now=()=>new Date(),
  timeZone=Intl.DateTimeFormat().resolvedOptions().timeZone,doc=globalThis.document,win=globalThis.window}){
- let live=null,session=null;
- const show=next=>{live=next;onChange();};
+ let live=null,session=null,shown=null,face=null;
+ const show=next=>{live=next;const key=JSON.stringify(next);if(key===shown)return;shown=key;onChange();};
  const token=async setup=>{const reply=await platform.action('voiceToken',{setup});if(reply?.missingKey)throw new Error(NO_KEY);return reply;};
  const stop=()=>session?.stop();
 
@@ -40,7 +40,7 @@ export function createVoiceMode({platform,conversationId,onChange,afterSave,star
    }
    const saved=await platform.saveWith(data=>{const out=applyRamble(data,result,{...options,now:now()});return out.status==='nothing'&&!result.heard?false:out;});
    if(saved===false){show({phase:'failed',error:result.failed||'Voice heard nothing. Try again.'});return;}
-   live=null;afterSave(options.messageId);
+   live=null;shown=null;afterSave(options.messageId);
   }catch(error){session=null;show({phase:'failed',error:userMessage(error)});}
  }
 
@@ -56,37 +56,48 @@ export function createVoiceMode({platform,conversationId,onChange,afterSave,star
   begin,stop,undo,
   get live(){return live;},
   active:()=>!!live&&LIVE.has(live.phase),
-  clear(){if(live&&!LIVE.has(live.phase)){live=null;onChange();}},
-  card:()=>live&&liveCard(live,{stop,begin,settings:()=>platform.action('micSettings')}),
+  clear(){if(live&&!LIVE.has(live.phase)){live=null;shown=null;onChange();}},
+  card(){
+   if(!live){face=null;return null;}
+   const kind=faceOf(live);
+   if(face?.kind!==kind)face={kind,...liveCard(kind,live,{stop,begin,settings:()=>platform.action('micSettings')})};
+   face.update(live);
+   return face.node;
+  },
  };
 }
 
-function liveCard(live,on){
- if(live.phase==='connecting'||live.phase==='listening'){
+const FACE={connecting:'listening',listening:'listening',working:'working',speaking:'working'};
+const faceOf=live=>FACE[live.phase]??JSON.stringify(live);
+
+/** The card for one phase of a live ramble. `update` changes its words and rows in place, so the card never blinks. */
+function liveCard(kind,live,on){
+ if(kind==='listening'){
   const node=card('listening');
   node.setAttribute('role','status');
-  const heard=el('p','heard',live.heard||(live.phase==='connecting'?'Getting ready…':'Start talking.'));
+  const heard=el('p','heard');
   heard.setAttribute('aria-live','polite');
   node.append(icon('mic',{fill:true}),el('p','card-title','Listening'),heard,actionsRow(button('Done',on.stop,{role:'tonal',iconName:'stop'})));
-  return node;
+  return {node,update:next=>{heard.textContent=next.heard||(next.phase==='connecting'?'Getting ready…':'Start talking.');}};
  }
- if(live.phase==='working'||live.phase==='speaking'){
+ if(kind==='working'){
   const node=card('working');
   node.setAttribute('role','status');
-  node.append(kicker('Saving your changes',{name:'graphic_eq'}));
-  if(live.heard)node.append(el('p','words',live.heard));
-  if(live.rows.length)node.append(lines(live.rows));
-  return node;
+  const words=el('p','words');
+  let list=el('ul','lines'),rowsKey='';
+  node.append(kicker('Saving your changes',{name:'graphic_eq'}),words,list);
+  return {node,update:next=>{
+   words.textContent=next.heard;words.hidden=!next.heard;
+   const key=JSON.stringify(next.rows);
+   if(key!==rowsKey){rowsKey=key;const fresh=lines(next.rows);list.replaceWith(fresh);list=fresh;}
+   list.hidden=!next.rows.length;
+  }};
  }
- if(live.phase==='no-mic'){
-  const node=card('no-mic');
-  node.append(kicker(NO_MIC,{name:'mic_off',tone:'error'}),
-   actionsRow(live.canAsk?button('Try again',on.begin,{role:'text',iconName:'mic'}):button('Settings',on.settings,{role:'tonal',iconName:'settings'})));
-  return node;
- }
- const node=card('voice-failed');
- node.append(kicker(live.error,{name:'error',tone:'error'}),actionsRow(button('Try again',on.begin,{role:'text',iconName:'mic'})));
- return node;
+ const node=card(live.phase==='no-mic'?'no-mic':'voice-failed');
+ if(live.phase==='no-mic')node.append(kicker(NO_MIC,{name:'mic_off',tone:'error'}),
+  actionsRow(live.canAsk?button('Try again',on.begin,{role:'text',iconName:'mic'}):button('Settings',on.settings,{role:'tonal',iconName:'settings'})));
+ else node.append(kicker(live.error,{name:'error',tone:'error'}),actionsRow(button('Try again',on.begin,{role:'text',iconName:'mic'})));
+ return {node,update(){}};
 }
 
 /** A saved ramble: one row per change with its icon, the spoken sentence, and Undo while it is still the newest change. */
