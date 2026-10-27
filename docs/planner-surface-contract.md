@@ -24,7 +24,7 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 ### Gestures
 
 - Task rows (Today's spine cards, Block Plan, Inbox, lists): swipe right is **Done**, swipe left is **Schedule** (one-tap date choices). In the Inbox the same choices end with **Move to Block…**, so an Inbox task goes to Today or Tomorrow 9:00 AM in two taps. A drag locks to one axis after 8px, so vertical scrolling never moves a row; letting go before 90dp springs back and changes nothing.
-- Delete is never a swipe. A long press on a task row opens a quick menu with Must, Move to Block and Delete; on Block Plan rows the long press stays the reorder lift, and Delete is in the task sheet's `Task actions`.
+- Delete is never a swipe. A long press on a task row opens a quick menu with Must, Move to Block and Delete; on Block Plan rows the long press stays the reorder lift, and Delete is in the task sheet's ⋮ menu.
 - Week strip: swipe right for the previous week, left for the next; long-press a day for that day's tasks in a sheet; tap a day to open it. On Today, a day-change swipe starts only from the gutter, the date line or empty space.
 - The task sheet's handle drags it down; it closes past 30% of its height or a fast flick.
 - Every gesture has a tap or menu route (the ring, the task sheet's Schedule and ⋮, Must in the sheet), and every change it makes has Undo.
@@ -60,7 +60,7 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 ### Task detail and quick add
 
 - Task detail combines completion, editable title and meta, Must, a tappable Part-of panel with Result/Purpose/breadcrumb, notes, and differing original capture text.
-- The task sheet completes with the ring in its header (named `Mark <title> complete`); its footer toolbar `Task actions` holds Ask Capture, Duplicate, Archive and Delete, each with Undo.
+- The task sheet completes with the ring in its header (named `Mark <title> complete`); Ask Capture is one tonal button under the details, and the header's ⋮ (`More options`) opens the menu `Task actions` with Duplicate, Archive and Delete, each with Undo. There is no footer toolbar.
 - Quick add opens with its title focused and the real keyboard visible. Day, Time and Block are optional labelled chips, one row each. One More options text row under them holds Estimate, Repeat, Must and the details; its label names what is set. An unassigned task may keep an optional Why.
 - A day and time typed in the title ("call mom at 8 PM today") set the Day and Time chips and are highlighted in the title.
 

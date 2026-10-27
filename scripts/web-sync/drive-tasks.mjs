@@ -17,6 +17,7 @@ export async function startNow(k) {
 
 export async function tasks(k) {
   const {b, step, look, stamp, task, openTask, tapShown, tapText, shown, fill, menu, hold, swipe, closeSheet, closeAll, changed} = k;
+  const taskMenu = async item => { await tapShown('.sheet .sheet-more'); await tapText('.menu-item', item); };
   await step('task-sheet-alert', async () => {
     await openTask(BANK);
     await b.tap('#task-tab-alert');
@@ -32,13 +33,13 @@ export async function tasks(k) {
     await b.tap('#task-tab-repeat');
     await tapShown(`.repeat-day[data-value="${new Date().getDay()}"]`);
   }, changed(data => task(data, BANK).recurrence));
-  await look('ask-capture', () => tapText('.tool-btn', 'Ask Capture'), `!!document.querySelector('#capture-text')?.getClientRects().length`,
+  await look('ask-capture', () => tapText('.sheet .ask-capture', 'Ask Capture'), `!!document.querySelector('#capture-text')?.getClientRects().length`,
     'Ask Capture in the task sheet opens Capture');
   await closeAll();
 
   await openTask(BANK);
   await sleep(800);
-  await step('delete-task', () => tapText('.sheet .tool-btn.danger', 'Delete'), data => task(data, BANK).archived === true);
+  await step('delete-task', () => taskMenu('Delete'), data => task(data, BANK).archived === true);
   await closeSheet();
   await step('trash-restore', async () => {
     await menu('Trash');
@@ -76,12 +77,12 @@ export async function tasks(k) {
   await step('task-notes', () => fill('.sheet textarea[aria-label="Notes"]', notes), data => task(data, added)?.notes === notes);
   await step('task-title', () => fill('.sheet textarea.task-title-field', renamed), data => !!task(data, renamed));
   const copies = (data, title) => data.entries.filter(e => e.title === title && !e.archived).length;
-  await step('task-duplicate', () => tapText('.tool-btn', 'Duplicate'), (data, before) => copies(data, renamed) > copies(before, renamed));
+  await step('task-duplicate', () => taskMenu('Duplicate'), (data, before) => copies(data, renamed) > copies(before, renamed));
   await closeAll();
   await step('task-archive', async () => {
     await openInbox(renamed);
     await sleep(600);
-    await tapText('.sheet .tool-btn', 'Archive');
+    await taskMenu('Archive');
   },
     data => data.entries.some(e => e.title === renamed && e.archived && e.archiveDisposition === 'archive'));
   await closeAll();

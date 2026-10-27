@@ -185,33 +185,7 @@
 .task-head.is-done .task-title-field { text-decoration: line-through; color: var(--on-surface-variant); }
 
 
-.sheet-task .sheet-actions {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  gap: 0;
-  padding: 0 var(--s2) env(safe-area-inset-bottom);
-  border-block-start: 1px solid var(--outline-variant);
-}
-.tool-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--s1);
-  min-block-size: 72px;
-  padding: var(--s2) 2px;
-  border-radius: var(--shape-md);
-  color: var(--on-surface-variant);
-}
-.tool-btn[hidden] { display: none; }
-.tool-btn .ms { font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface); }
-.tool-btn.danger .ms { color: var(--error); }
-.tool-label { font: var(--label-small); text-align: center; }
-:root[data-large-text=true] .sheet-task .sheet-actions { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-:root[data-large-text=true] .tool-btn { flex-direction: row; gap: var(--s2); min-block-size: 56px; }
-.tool-btn:active { background: var(--row-press); }
-.tool-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.task-details .ask-capture { align-self: flex-start; margin-block-start: var(--s2); }
 
 :root[data-large-text=true] .stepper-row .edit-label { flex-basis: 100%; }
 :root[data-large-text=true] .stepper-value { font: var(--title-large); }
@@ -223,10 +197,10 @@
   }
   .chip[aria-pressed=true] { transition-duration: var(--dur-press), var(--dur-short3), var(--dur-short3), var(--dur-short3), var(--dur-short3); }
   .edit-row, .edit-pair, .edit-chips { transition: opacity var(--dur-short3) var(--ease-standard); }
-  .tool-btn, .stepper-btn, .time-button, .switch-btn, .task-ring, .must-star {
+  .stepper-btn, .time-button, .switch-btn, .task-ring, .must-star {
     transition: scale var(--dur-press) var(--ease-standard), background-color var(--dur-press) var(--ease-standard);
   }
-  :is(.chip, .tool-btn, .stepper-btn, .time-button, .switch-btn, .task-ring, .must-star):active { scale: .97; }
+  :is(.chip, .stepper-btn, .time-button, .switch-btn, .task-ring, .must-star):active { scale: .97; }
   .task-head.swipe-settling { transition: translate var(--dur-settle) var(--ease-emphasized); }
 }
 

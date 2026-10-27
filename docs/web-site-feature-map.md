@@ -30,11 +30,11 @@ Open a task from Today, a Block, Inbox or Search. Its sheet opens on **When**, w
 | Control | Available actions | Drive coverage |
 |---|---|---|
 | Task details | Edit title, Must and Notes; use the completion ring; record Who could help. | Title, Must and Notes passed. The sheet's ring and Who could help remain **UNVERIFIED**. |
-| When | Choose a day or No date, use the time ruler or Pick a time, change length, Start now. | When tab and Start now passed. |
+| When | Choose a day or No date, use the time ruler, change length, Start now. | When tab and Start now passed. |
 | Alert | Choose No alert, Reminder or Ringing alarm and lead time. | Alert setting passed; actual notification/alarm delivery on the phone is **UNVERIFIED** by this drive. The browser does not ring. |
 | Repeat | Choose weekdays, Every day or After completion. | Repeat setting passed. |
 | Block | Search and choose a Block, or move to Inbox. | Block tab and Inbox's Move to Block passed. |
-| Task actions | Duplicate, Archive, Delete to Trash, Undo last completion, Ask Capture. Swipe right to complete, left to schedule, or hold for the menu. | Duplicate/archive/delete, swipes, hold-menu Must and opening Ask Capture passed. Undo last completion has no separate named check: **UNVERIFIED**. Ask Capture opens typed Capture; it does not prove a model response. |
+| Task actions | Ask Capture button; Duplicate, Archive, Delete to Trash and Undo last completion in the ⋮ menu. Swipe right to complete, left to schedule, or hold for the menu. | Duplicate/archive/delete, swipes, hold-menu Must and opening Ask Capture passed. Undo last completion has no separate named check: **UNVERIFIED**. Ask Capture opens typed Capture; it does not prove a model response. |
 | Quick add | Enter title, day/time, estimate, repeat, Block and Must; use a #Block tag. | Quick add passed; the check is not separate proof of every field combination. |
 
 ## More options and supporting screens

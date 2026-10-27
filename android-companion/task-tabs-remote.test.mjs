@@ -26,6 +26,6 @@ test('on the website the Alert tab says the alert rings on the phone, only while
 
 test('on the phone the Alert tab has no rings note, and the sheet passes the phone\'s remote flag', () => {
   assert.deepEqual(rings(false, base), []);
-  assert.match(read('./planner/task-tabs.mjs'), /alertPanel\(panels\.alert, pick, remote\)/);
+  assert.match(read('./planner/task-tabs.mjs'), /alertPanel\(panels\.alert, pick, remote, /);
   assert.match(read('./planner/task-sheet.mjs'), /remote: !!app\.api\.getPhone\(\)\.remote/);
 });

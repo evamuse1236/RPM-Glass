@@ -29,7 +29,7 @@ All left-out rows, including native surfaces, are owner-approved exclusions as o
 | Feature | Before | Needs | Status |
 |---|---|---|---|
 | Task sheet: title, Must, ring, Notes, Who could help | no | `saveTask` op || Works: task-title 71/72, task-must 65/66, task-notes 68/69; ring and Who could help UNVERIFIED |
-| When tab: day circles, No date, time ruler, Pick a time, length | partly (Today/Tomorrow/No date) | `saveTask` op || Works: task-sheet-when 59/60 |
+| When tab: day circles, No date, time ruler, length | partly (Today/Tomorrow/No date) | `saveTask` op || Works: task-sheet-when 59/60 |
 | Start now chip | no | `saveTask` op || Works: start-now 33/34 |
 | Alert tab (No alert, Reminder, Ringing alarm, lead time) | no | `saveTask` op; the phone schedules the alert || Works: task-sheet-alert 42/43 |
 | Repeat tab (weekdays, Every day, After completion) | no | `saveTask` op || Works: task-sheet-repeat 48/49 |

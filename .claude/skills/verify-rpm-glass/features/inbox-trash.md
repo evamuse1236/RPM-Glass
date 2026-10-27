@@ -22,7 +22,7 @@ The Inbox holds tasks that are not in a Block yet, such as loose captures. The u
 - Tap `More options` then `Inbox` on any root screen.
 - Tap `Inbox` on the empty search screen.
 - Tap `More options` then `Trash` or `Archive`.
-- Delete or archive a task from the task sheet's `Task actions`, then open Trash or Archive.
+- Delete or archive a task from the task sheet's `More options` menu, then open Trash or Archive.
 
 ## Driving it with rpmctl
 
@@ -42,9 +42,9 @@ Preconditions:
 - **Suggested Block.** In the task sheet's `Block` tab, an unassigned task may show `Suggested` beside one Block's title. This was not seen for the sample Inbox titles, so it is **UNVERIFIED** here. Quick add with `#Three` in the title does show such a chip (see the task rows and sheet file).
 - **Sort with Jev (keyless).** Run `rpmctl tap --role button --name "Sort with Jev"`. A dialog `Sort with Jev` reads `Connect your AI key in Settings to get suggestions. Your plans stay saved.` with a button `Open Settings`. `rpmctl key back` closes both sheets and returns to the root screen. The sorting preview with `Apply arrangement` and `Dismiss` is model-backed and **UNVERIFIED**.
 - **Empty.** The `Inbox is empty` state with `New captures land here until you give them a Block.` was not driven: it needs every Inbox task moved or deleted. **UNVERIFIED**.
-- **Delete into Trash.** Open an Inbox task and tap `Delete` in `Task actions`. A snackbar reads `Moved to Trash` with `Undo`. Close the sheet, then `More options` then `Trash`. A dialog `Trash` shows a `Restore` button per row. In the file the entry has `archived` true and `archiveDisposition` `trash`.
+- **Delete into Trash.** Open an Inbox task and tap `More options`, then `Delete`. A snackbar reads `Moved to Trash` with `Undo`. Close the sheet, then `More options` then `Trash`. A dialog `Trash` shows a `Restore` button per row. In the file the entry has `archived` true and `archiveDisposition` `trash`.
 - **Restore.** Run `rpmctl tap --role button --name "Restore"`. A snackbar reads `Task restored` with `Undo`, the sheet closes when the last row is restored, and the file shows `archived` false and `archiveDisposition` null. The task is back in the Inbox or its Block.
-- **Archive.** Archive a Block from its detail `More options` > `Archive Block`, then root `More options` then `Archive`. A dialog `Archive` lists it with `Restore` and the snackbar `Block restored`. An archived task from `Task actions` > `Archive` was not driven.
+- **Archive.** Archive a Block from its detail `More options` > `Archive Block`, then root `More options` then `Archive`. A dialog `Archive` lists it with `Restore` and the snackbar `Block restored`. An archived task from the task sheet's `More options` > `Archive` was not driven.
 - **Empty Trash and Archive.** With nothing deleted, `Trash` shows the heading `Trash is empty` and `Archive` shows `Nothing archived`. Run `rpmctl shot empty-Trash`.
 - **Errors.** Run `rpmctl logs --errors`. Only emulator graphics and Chromium lines appeared.
 

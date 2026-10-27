@@ -2,7 +2,8 @@ import {localDay, conflicts} from '../planner-state.mjs';
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
 import {resultStatus} from '../review-state.mjs';
 import {reducedMotion} from '../surface-motion.mjs';
-import {el, icon, button, iconButton} from './dom.mjs';
+import {el, icon, button, iconButton, labelButton} from './dom.mjs';
+import {openMenu} from './menu.mjs';
 import {duration} from './format.mjs';
 import {openSheet, closeSheet, isSheetOpen} from './sheet.mjs';
 import {toggleDone} from './task-row.mjs';
@@ -21,16 +22,10 @@ import {factRow, textRow} from './fact-rows.mjs';
 const COMPLETE_HOLD = 300;
 const idle = async app => { while (app.saving) await new Promise(done => setTimeout(done, 16)); };
 
-/** A footer action: a 24dp icon over its caption. */
-function tool(symbol, label, onClick, cls = '') {
-  const node = button('', onClick, ('tool-btn ' + cls).trim());
-  node.append(icon(symbol), el('span', 'tool-label', label));
-  return node;
-}
-
 /**
- * Task sheet. The header holds the icon pill, the title, the Must star and the ring; then four tabs (When, Alert,
- * Repeat, Block) with When open; then Purpose, notes and who could help; and a footer of actions. Every change saves
+ * Task sheet. The header holds the icon pill, the title, the Must star, the ring and a More options menu (Duplicate,
+ * Archive, Delete); then four tabs (When, Alert, Repeat, Block) with When open; then Purpose, notes, who could help and
+ * Ask Capture. Every change saves
  * at once with Undo. `occurrence` is the repeat being looked at; `focus: 'date'` or `'length'` puts focus on that choice.
  */
 export function openTask(app, id, occurrence, {focus = null, motion = 'forward', fromInbox = inboxShowing(app)} = {}) {
@@ -44,7 +39,7 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
   const anchor = task.planned;
   const live = () => findTask(app, id);
   const when = t => (repeats(t) ? (occurrence && t.planned === anchor ? occurrence : nextOccurrence(t)) : t.planned);
-  const {body, actions, header} = openSheet(app, 'Task', {variant: 'detail sheet-task', showTitle: false, motion});
+  const {body, header} = openSheet(app, 'Task', {variant: 'detail sheet-task', showTitle: false, motion});
   const save = saver(app);
   const commit = (fields, label) => save({type: 'saveTask', id, fields}, label);
 
@@ -98,6 +93,18 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
   const close = header.querySelector('.sheet-close');
   close.before(head.row);
   if (wide) close.title = 'Close';
+  const after = ok => { if (ok && fromInbox) showInbox(app, {motion: 'back'}); };
+  const more = iconButton('more_vert', 'More options', () => {
+    const t = live() ?? task;
+    openMenu(more, [
+      {label: 'Duplicate', icon: 'content_copy', onClick: () => duplicateTask(app, live() ?? task)},
+      {label: 'Archive', icon: 'archive', onClick: () => archiveTask(app, live() ?? task).then(after)},
+      ...(t.completions?.length && repeats(t) ? [{label: 'Undo last completion', icon: 'undo', onClick: () => undoLastCompletion(app, live() ?? task)}] : []),
+      {divider: true},
+      {label: 'Delete', icon: 'delete', danger: true, onClick: () => deleteTask(app, live() ?? task, {keepSheet: false}).then(after)},
+    ], 'Task actions');
+  }, {cls: 'sheet-more'});
+  close.before(more);
   const startable = t => startNowValue(t, {repeating: repeats(t)});
   const start = button('', () => {
     const value = startable(live());
@@ -216,19 +223,8 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
   if (task.raw && task.raw !== task.title) {
     details.append(factRow('format_quote', el('p', 'original-words', task.raw), {cls: 'original-row'}));
   }
+  details.append(labelButton('auto_awesome', 'Ask Capture', () => app.capture(), 'tonal-btn ask-capture'));
   body.replaceChildren(tabs.node, details);
-
-  actions.setAttribute('role', 'toolbar');
-  actions.setAttribute('aria-label', 'Task actions');
-  const after = ok => { if (ok && fromInbox) showInbox(app, {motion: 'back'}); };
-  const undoLast = tool('undo', 'Undo last completion', () => undoLastCompletion(app, live() ?? task));
-  actions.append(
-    tool('auto_awesome', 'Ask Capture', () => app.capture()),
-    tool('content_copy', 'Duplicate', () => duplicateTask(app, live() ?? task)),
-    tool('archive', 'Archive', () => archiveTask(app, live() ?? task).then(after)),
-    tool('delete', 'Delete', () => deleteTask(app, live() ?? task, {keepSheet: false}).then(after), 'danger'),
-    undoLast,
-  );
 
   const paint = t => {
     if (!completing) head.paint(t);
@@ -243,7 +239,6 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
     syncText(helper, t.leverage);
     syncText(why, t.purpose);
     why.closest('.edit-row').hidden = !!app.context(t).block || (!t.purpose && document.activeElement !== why);
-    undoLast.hidden = !(t.completions?.length && repeats(t));
   };
   paint(task);
   tabs.reveal();
