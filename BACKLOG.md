@@ -30,3 +30,22 @@ Open questions:
 - How long a pause before the model read? (Prototype: 0.9 s.)
 - Does the model read cost too much if it runs on every pause? Maybe only on Enter for short text.
 - Should a wrong chip be removable with one tap before saving?
+
+## 2026-10-27 · Website tests that check the page, not the CSS text (from the gauntlet retro)
+
+About a third of the website tests added in the 2026-10-27 design gauntlet match exact lines of CSS text. They pass `npm test` without proving the layout, and they break on any harmless rewrite.
+
+Idea: a `check:rules` lint that refuses `assert.match` on a stylesheet's source, so tests read computed styles or the rendered page instead.
+
+Open questions:
+- Rewrite the existing CSS-text tests first, or let the lint cover only new ones?
+- Which runner reads computed layout fast enough for `npm test` (jsdom has no layout)?
+
+## 2026-10-27 · Check the published Site's served files (from the gauntlet retro)
+
+The Site is private, so a plain fetch of `/web.css` gets 403 and the Chrome extension did not connect. The published look stays UNVERIFIED after each deploy.
+
+Idea: `npm run web:published` fetches the served bundle with the account token and compares its hash with the staged build before it records the publish.
+
+Open questions:
+- Which token can read a private Site without a browser sign-in?
