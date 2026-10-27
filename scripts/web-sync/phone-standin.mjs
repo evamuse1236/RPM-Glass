@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import './node24.mjs';
 import {execFileSync} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {mkdirSync, readFileSync, writeFileSync, existsSync} from 'node:fs';

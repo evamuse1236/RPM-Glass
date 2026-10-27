@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import './web-sync/node24.mjs';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 const args=process.argv.slice(2),command=args.shift()??'inspect',options={};
