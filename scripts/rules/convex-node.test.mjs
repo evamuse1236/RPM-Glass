@@ -15,6 +15,11 @@ const UNZONED_HANDLERS = new Map();
 const OWN_NODE_PIN = new Map([
   ['.claude/skills/verify-rpm-glass/lib/local-convex.mjs', 'Runs every Convex call through its own NODE_24 mise command; the pin must equal node24.mjs.'],
 ]);
+// Started as a child of an already pinned process, so an import of node24.mjs would only rerun tests that load them.
+const STARTED_ON_PIN = new Map([
+  ['scripts/web-sync/deploy-rehearsal.mjs', 'Started only by deploy-prod-guards.mjs with process.execPath, after deploy-prod.mjs called requireNode24().'],
+  ['scripts/web-sync/deploy-prod-guards.mjs', 'Imported by deploy-prod.mjs (pinned) and by deploy-rehearsal.mjs (started on that Node 24 process).'],
+]);
 
 const LOCAL_METHODS = /^(get|set)(Hours|Minutes|Seconds|Milliseconds|Date|Day|Month|FullYear|Year)$|^getTimezoneOffset$|^toLocale(Date|Time)?String$|^to(Date|Time)String$/;
 const PLANNER_MODULES = /^\.\.\/(android-companion|chat-prototype)\/(?!zoned-time\.mjs$)/;
@@ -166,7 +171,7 @@ test('every script that starts Convex runs on Node 24 through node24.mjs', () =>
     const users = importers.get(file) ?? [];
     return users.length > 0 && users.every(user => pinned(user, new Set([...path, file])));
   };
-  checkAllowed(OWN_NODE_PIN, files.filter(file => launchesConvex(texts.get(file), file) && !pinned(file))
+  checkAllowed(new Map([...OWN_NODE_PIN, ...STARTED_ON_PIN]), files.filter(file => launchesConvex(texts.get(file), file) && !pinned(file))
     .map(file => [file, `add import '${NODE24}' (relative) as the first import`]));
 });
 
