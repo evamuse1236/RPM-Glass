@@ -1,8 +1,8 @@
 import {sleep} from './lib.mjs';
 
 export const id = 'notch-island';
-export const rule = 'With the Notch setting and RPM Notch on, the two drops show around the camera over the home screen; a tap on the task half opens its island and a swipe up from inert island space logs notch.gesture up and closes it, with no crash.';
-export const enforces = 'Notch redesign (feat/notch-apple, 0f2c254 alert row Done circle); docs/rules/notch.md tap and open rows; user 2026-10-19: "use github actions from now on for emulator tests".';
+export const rule = 'With the Notch setting and RPM Notch on, the two drops show around the camera over the home screen; a tap on the task half opens its island and a swipe up from inert island space logs notch.gesture up and closes it; a tap that drifts 10dp up still opens it, with no crash.';
+export const enforces = 'Notch redesign (feat/notch-apple, 0f2c254 alert row Done circle); docs/rules/notch.md tap and open rows; a drift past the 8dp slop was lost (fix/pill-tap-drift); user 2026-10-19: "use github actions from now on for emulator tests".';
 
 const PILL = /island drops /;
 const SERVICE = 'com.rpm.prototype/com.rpm.prototype.NotchAccessibilityService';
@@ -55,10 +55,13 @@ export async function run(t) {
   const stray = notchLog(t).slice(beforeClose).filter(l => /notch\.gesture (?!up)|notch\.(drink|open_|log_meal|done)/.test(l));
   t.expect(!stray.length, 'The swipe from inert space also fired a tap or a control', stray);
   await sleep(1000);
-  await open();
+  const beforeDrift = notchLog(t).length;
+  t.shell(`input swipe ${x} 69 ${x} ${69 - Math.round(10 * density)} 250`);
+  const drifted = await waitForLog(t, beforeDrift, /notch\.gesture tap \{"on":"PILL"/, '"notch.gesture tap" on the pill after a tap that drifted 10dp up');
+  await waitForLog(t, beforeDrift, /island (expanded|habit) /, 'an open island after a tap that drifted 10dp up');
   await sleep(1200);
   await t.shot('open');
-  Object.assign(t.facts, {pill, gesture, closed});
+  Object.assign(t.facts, {pill, gesture, closed, drifted});
   const crashes = t.shell('logcat -d -b crash').split('\n').filter(l => /com\.rpm\.prototype/.test(l));
   t.expect(!crashes.length, 'The app crashed while the notch was shown', crashes.slice(0, 5));
   await t.do('open', 'planner', '--timeout', '90000');

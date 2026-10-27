@@ -6,7 +6,6 @@ import static org.junit.Assert.assertTrue;
 
 import com.rpm.prototype.IslandGesture.Result;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 /** A tap on a drop always opens its island; swipes need the playground's distances. */
@@ -123,17 +122,51 @@ public class IslandGestureTest {
     }
 
     @Test
-    @Ignore("Today a pill tap drifting 8 to 12dp up returns NONE, so the touch is lost; awaiting a gesture fix")
     public void aPillTapThatDriftsUpBetweenSlopAndThePillsSwipeIsNotLost() {
-        IslandShape p = pill();
-        float x = (p.left + p.right) / 2f;
-        float y = (p.touch.top + p.touch.bottom) / 2f;
         for (float drift = IslandGesture.SLOP_DP + 0.5f; drift < IslandGesture.PILL_UP_DP; drift += 0.5f) {
-            IslandGesture g = new IslandGesture(D);
-            assertTrue(g.down(p.touch, x, y, 0, true));
-            g.move(x, y - dp(drift));
-            Result r = g.up(x, y - dp(drift), 150);
-            assertTrue("drift " + drift + "dp gave " + r, r == Result.TAP || r == Result.UP);
+            assertEquals("up " + drift + "dp", Result.TAP, pillDrift(0, -drift, 150));
+        }
+    }
+
+    @Test
+    public void aPillTapThatDriftsDownShortOfASwipeDownStillOpens() {
+        for (float drift = IslandGesture.SLOP_DP + 0.5f; drift < IslandGesture.COMMIT_Y_DP; drift += 0.5f) {
+            assertEquals("down " + drift + "dp", Result.TAP, pillDrift(0, drift, 400));
+        }
+        assertEquals(Result.DOWN, pillDrift(0, IslandGesture.COMMIT_Y_DP + 1, 400));
+    }
+
+    @Test
+    public void aPillTapThatDriftsSidewaysShortOfASwipeStillOpens() {
+        for (float drift = IslandGesture.SLOP_DP + 0.5f; drift < IslandGesture.COMMIT_X_DP; drift += 0.5f) {
+            assertEquals("right " + drift + "dp", Result.TAP, pillDrift(drift, 0, 600));
+            assertEquals("left " + drift + "dp", Result.TAP, pillDrift(-drift, 0, 600));
+        }
+        assertEquals(Result.RIGHT, pillDrift(IslandGesture.COMMIT_X_DP + 1, 0, 600));
+        assertEquals(Result.LEFT, pillDrift(-IslandGesture.COMMIT_X_DP - 1, 0, 600));
+    }
+
+    @Test
+    public void noPillTouchIsLostExceptALongPresssLift() {
+        IslandShape p = pill();
+        for (float x0 = p.left; x0 < p.right; x0 += 9) {
+            for (float y0 = p.touch.top + 1; y0 < p.touch.bottom; y0 += 9) {
+                for (int deg = 0; deg < 360; deg += 15) {
+                    for (float dist = 0; dist <= 140; dist += 3) {
+                        for (long ms : new long[]{30, 150, 900}) {
+                            float x1 = x0 + dp(dist) * (float) Math.cos(Math.toRadians(deg));
+                            float y1 = Math.max(0, y0 + dp(dist) * (float) Math.sin(Math.toRadians(deg)));
+                            for (boolean moves : new boolean[]{true, false}) {
+                                IslandGesture g = new IslandGesture(D);
+                                assertTrue(g.down(p.touch, x0, y0, 0, true));
+                                if (moves) g.move(x1, y1);
+                                Result r = g.up(x1, y1, ms);
+                                assertTrue(deg + "deg " + dist + "dp in " + ms + "ms gave NONE", r != Result.NONE);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -166,6 +199,16 @@ public class IslandGestureTest {
         assertTrue(g.move(x + dp(20), y));
         assertTrue(g.claimed());
         assertFalse(g.longPressAt(900));
+    }
+
+    private static Result pillDrift(float dxDp, float dyDp, long ms) {
+        IslandShape p = pill();
+        float x = (p.left + p.right) / 2f;
+        float y = (p.touch.top + p.touch.bottom) / 2f;
+        IslandGesture g = new IslandGesture(D);
+        assertTrue(g.down(p.touch, x, y, 0, true));
+        g.move(x + dp(dxDp), y + dp(dyDp));
+        return g.up(x + dp(dxDp), y + dp(dyDp), ms);
     }
 
     private static Result swipe(IslandShape p, float x0, float y0, float x1, float y1, long ms) {
