@@ -13,7 +13,7 @@ Today is the planner's home screen. It opens on the **spine**: the whole day in 
 - `today-agenda` lists the rest of the day in time order.
 - `today-complete` ticks a task, with a snackbar and Undo, and moves it under `Completed`.
 - `today-inbox-row` shows the Inbox count and opens the Inbox.
-- `today-topbar` offers `Search`, `Capture` and `More options`; `Add task` is the round button beside the tab bar.
+- `today-topbar` is gone: Today has no top bar. `More options` sits at the end of the date line; `Add task` is the round button beside the tab bar.
 - `today-habit-circle` shows the one habit due now above Add: water first, then the due meal. Tapping water logs a glass with Undo; tapping a meal opens its Log a meal sheet.
 - `today-spine` shows the day by time: the anytime chips, cards with pills and rings, meal rows, free time with +, and the now line.
 - `today-now-button` (`Go to now`) sits on the tab bar's top edge while now is out of view and scrolls back to it.
@@ -37,7 +37,7 @@ Preconditions:
 - `rpmctl open planner` has been run. The heading `Today` is on screen and the `Today` nav button is `aria-current=page`.
 
 - **Header.** Run `rpmctl ui`. The heading is `Today` (visually hidden; the big date is the visible title). A button named `Choose date, <weekday>, <month> <day>` shows today's date, for example `Choose date, Wednesday, October 7`. Run `rpmctl shot today-top`.
-- **Top bar.** The buttons `Search`, `Capture` (drawn as a microphone) and `More options` are in the top bar. The floating tab bar has buttons `Today`, `Blocks`, `Projects`, `Life`. Beside it on the right is the round 60dp button `Add task` (hold it 400ms to open Capture); on Blocks it is `New Block`, on Projects `New Project`, on Life `Add Area`.
+- **Top bar.** Today has no top bar and no microphone button. The date line reads `27 October ›` (the year only when it is not this year) and ends with `More options`. Blocks, Projects and Life have a top bar with `Search` and `More options`. The floating tab bar has buttons `Today`, `Blocks`, `Projects`, `Life`. Beside it on the right is the round 60dp button `Add task` (hold it 400ms to open Search); on Blocks it is `New Block`, on Projects `New Project`, on Life `Add Area`.
 - **Week strip.** The group `Next seven days` holds seven day buttons with names like `Thu, Oct 8, 2 Results due`. The current day is `Wed, Oct 7, today` with `aria-pressed=true`. Run `rpmctl tap --role button --name "Thu, Oct 8"`. The date button now reads `Choose date, Thursday, October 8`, a `Today` jump-back button appears, and the list changes to that day's tasks under a heading `Tomorrow`. The big heading stays `Today`. Run `rpmctl tap --role button --name "Today"` to return.
 - **Date picker.** Run `rpmctl tap --role button --name "Choose date"`. A dialog `Go to date` opens with a field `Date`, a button `Calendars · Not connected`, `Show list`, `Today` and `Go`. Tapping the field opens Android's calendar. Run `rpmctl tap --native "28 October 2026"`, then `rpmctl tap --native "SET"`. The field reads `2026-10-28`. Run `rpmctl tap --role button --name "Go"`. Today shows that day. Close the dialog without choosing with `rpmctl tap --role button --name "Close"`.
 - **Week line.** With no week planned the line is a button named `This week isn't planned, pick 3 to 5 Results. Open weekly review`. Run `rpmctl tap --name "Open weekly review"`. The weekly review opens with `Step 1 of 4: Last week's Results` current (see the weekly review file). `rpmctl key back` returns to Today.

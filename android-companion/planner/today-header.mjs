@@ -4,7 +4,8 @@ import {dayTasks} from '../planner-ux.mjs';
 import {weekStart, reviewWeek, weekFocus, resultStatus} from '../review-state.mjs';
 import {reducedMotion, DURATION, EASE} from '../surface-motion.mjs';
 import {lockAxis, LONG_PRESS} from '../task-swipe.mjs';
-import {el, icon, button, labelButton, emptyState} from './dom.mjs';
+import {el, icon, iconButton, button, labelButton, emptyState} from './dom.mjs';
+import {rootMenu} from './shell.mjs';
 import {clock, longDate, plural, dateText} from './format.mjs';
 import {openSheet} from './sheet.mjs';
 import {taskWhen, taskRow} from './task-row.mjs';
@@ -159,12 +160,11 @@ function daySheet(app, day) {
   actions.append(button('Open day', () => { app.closeSheet(); selectDay(app, day); }, 'filled-btn'));
 }
 
-/** "20. October 2026 ›": the day, the month, and the year in the accent colour with the picker's chevron. */
-function dateWords(day) {
+/** "27 October ›": the year shows only when it is not this year. */
+export function dateWords(day, today = localDay()) {
   const date = new Date(day + 'T12:00');
-  const words = el('span', 'date-words', `${date.getDate()}. ${date.toLocaleDateString([], {month: 'long'})} `);
-  words.append(el('span', 'date-year', `${date.getFullYear()} ›`));
-  return words;
+  const year = day.slice(0, 4) === today.slice(0, 4) ? '' : ` ${date.getFullYear()}`;
+  return `${date.getDate()} ${date.toLocaleDateString('en-GB', {month: 'long'})}${year} ›`;
 }
 
 export function dateHeader(app, week = null) {
@@ -172,10 +172,12 @@ export function dateHeader(app, week = null) {
   const header = el('div', 'day-header');
   const line = el('div', 'date-line');
   const picker = button('', () => app.actions.datePicker(), 'date-button');
-  picker.append(dateWords(day));
+  picker.append(el('span', 'date-words', dateWords(day)));
   picker.setAttribute('aria-label', 'Choose date, ' + longDate(day));
   line.append(picker);
   if (day !== localDay()) line.append(labelButton('today', 'Today', () => selectDay(app, localDay()), 'tonal-btn small'));
+  const more = iconButton('more_vert', 'More options', () => rootMenu(app, more), {cls: 'date-more'});
+  line.append(more);
   header.append(line, weekStrip(app));
   if (week) header.append(week);
   return header;

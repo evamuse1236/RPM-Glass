@@ -21,7 +21,7 @@ export const DESTINATIONS = [
 const TITLES = {today: 'Today', blocks: 'Blocks', projects: 'Projects', life: 'Life'};
 const DETAIL_NAMES = {blocks: 'Block', projects: 'Project', areas: 'Area', goals: 'Goal'};
 
-function rootMenu(app, anchor) {
+export function rootMenu(app, anchor) {
   const {actions, state} = app;
   const items = [
     {label: 'Weekly review', icon: 'event_repeat', onClick: () => app.openReview()},
@@ -55,7 +55,7 @@ function rootBar(app, bar) {
   bar.className = 'top-bar root-bar';
   bar.append(el('h1', state.tab === 'today' ? 'top-title visually-hidden' : 'top-title', TITLES[state.tab]));
   const tools = el('div', 'top-actions');
-  tools.append(iconButton('search', 'Search', () => app.openSearch()), iconButton('mic', 'Capture', () => app.capture()));
+  tools.append(iconButton('search', 'Search', () => app.openSearch()));
   const more = iconButton('more_vert', 'More options', () => rootMenu(app, more));
   tools.append(more);
   bar.append(tools);
@@ -108,13 +108,13 @@ function navigationBar(app) {
   placeNavIndicator(nav);
 }
 
-/** The dock beside the tab bar: the habit circle (Today only) over the round Add. Tap adds; a 400ms hold opens Capture. */
+/** The dock beside the tab bar: the habit circle (Today only) over the round Add. Tap adds; a 400ms hold opens Search. */
 function dock(app, full) {
   const host = app.dom.dock;
   if (!host.children.length) {
     const habit = el('div', 'habit-slot');
     const add = iconButton('add', 'Add', () => addSpec(app)?.onClick(), {cls: 'fab'});
-    attachSwipe(add, {hold: () => app.capture(), haptic: () => app.api.native('haptic', {kind: 'hold'}).catch(() => {})});
+    attachSwipe(add, {hold: () => app.openSearch(), haptic: () => app.api.native('haptic', {kind: 'hold'}).catch(() => {})});
     host.append(habit, add);
     watchHabit(app, habit);
   }
@@ -219,7 +219,7 @@ export function renderShell(app, {keep = false} = {}) {
   dock(app, full);
   nowPill(app);
   const bar = app.dom.topBar;
-  bar.hidden = top?.kind === 'review';
+  bar.hidden = top?.kind === 'review' || (!top && app.state.tab === 'today');
   if (top?.kind === 'search') {
     bar.replaceChildren();
     app.renderers.searchBar(app, bar);

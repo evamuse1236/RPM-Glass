@@ -15,7 +15,7 @@ Search is a full-screen view where the query lives in the top bar. It finds task
 
 ## How to get to it (user POV)
 
-- Tap the `Search` button in the top bar of Today, Blocks, Projects or Life.
+- Hold the round `Add` button beside the tab bar for 400ms on any root tab, or tap the `Search` button in the top bar of Blocks, Projects or Life. Today has no top bar.
 - Tap `Back` or press Android Back to leave search.
 
 ## Driving it with rpmctl
@@ -27,7 +27,7 @@ Preconditions:
 - Baseline state.
 - `rpmctl open planner` has been run, on Today.
 
-- **Open.** Run `rpmctl tap --role button --name "Search"`. The top bar becomes a search field named `Search tasks, Blocks, Projects and Goals` with the placeholder `Search tasks, Blocks, Projects`, a `Back` button, and the keyboard opens. Run `rpmctl shot search-empty`.
+- **Open.** On Blocks, run `rpmctl tap --role button --name "Search"`. The top bar becomes a search field named `Search tasks, Blocks, Projects and Goals` with the placeholder `Search tasks, Blocks, Projects`, a `Back` button, and the keyboard opens. Run `rpmctl shot search-empty`.
 - **Shortcuts.** With nothing typed the page lists two items: `Inbox` (`Tasks not in a Block yet`) and `Capture` (`Say or type what is on your mind`). Tapping `Inbox` opens the Inbox sheet; tapping `Capture` opens Capture.
 - **Task match.** Run `rpmctl type "plagiarism"`. A heading `Tasks` appears with two rows: `Run the plagiarism report and attach it` and `Submit the critical review PDF with the plagiarism report`. Each shows its Block as the supporting text. Run `rpmctl shot search-tasks`.
 - **Group match.** Replace the query: run `rpmctl tap --role button --name "Clear search"`, then `rpmctl type "Term 1"`. Headings `Projects` and `Goals` appear, with rows `Term 1 coursework` and `Finish Term 1 with work I am proud of`. A query that matches a Purpose also matches (try `Calm`, then a word from a Purpose such as `submission`).

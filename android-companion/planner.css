@@ -150,14 +150,11 @@ h1, h2, h3, p { margin: 0; }
   :root[data-bar-glass=true] #nav-bar { background: var(--float-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 :root[data-keyboard=open] :is(#nav-bar, #now-host, #dock) { display: none; }
-/* Content scrolls under the bar. The strip below the bar shows nothing; the page fades back in over the bar's
-   lower half when the bar is solid, and within 8dp when it is glass, so the page shows through the glass. */
 :root:not([data-keyboard=open]) #planner:has(> #nav-bar:not([hidden])) #planner-scroll {
   scroll-padding-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4));
-  -webkit-mask-image: linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--bar-fade, var(--s8))));
-  mask-image: linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--bar-fade, var(--s8))));
+  -webkit-mask-image: linear-gradient(to top, transparent calc(var(--nav-gap) + var(--s6)), #000 calc(var(--nav-gap) + var(--s8)));
+  mask-image: linear-gradient(to top, transparent calc(var(--nav-gap) + var(--s6)), #000 calc(var(--nav-gap) + var(--s8)));
 }
-:root[data-bar-glass=true] { --bar-fade: var(--s2); }
 /* A clearer bar blurs more, so its labels stay readable over busy rows. */
 :root[data-bar-thin=true] { --glass-blur: 24px; --glass-saturate: 1; }
 /* While a snackbar shows, a row scrolled into view also clears the snackbar (its height and a 16dp gap). */

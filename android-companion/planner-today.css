@@ -1,6 +1,6 @@
 /* ---------- 4. Screens ---------- */
 /* Today's list layout. One left edge: every row's text starts at 56dp (16dp margin + 24dp leading + 16dp gap), as in Google Tasks. */
-.day-header { padding-block-end: var(--s6); background: var(--surface-container); }
+.day-header { padding-block: var(--s2) var(--s6); background: var(--surface-container); }
 .date-line { display: flex; align-items: center; gap: var(--s2); padding-inline: var(--inset-page); }
 .date-button {
   display: inline-flex;
@@ -12,7 +12,7 @@
   color: var(--on-surface);
 }
 .date-button:active { background: var(--row-press); }
-.date-year { color: var(--primary); }
+.date-more { margin-inline: auto calc(var(--s1) - var(--inset-page)); }
 .week-strip { display: grid; grid-template-columns: repeat(7, 1fr); margin-block-start: var(--s3); padding-inline: var(--s2); }
 .week-day {
   display: flex;

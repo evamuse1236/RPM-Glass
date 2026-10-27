@@ -7,8 +7,8 @@ let query = '';
 
 export function searchBar(app, bar) {
   bar.className = 'top-bar search-bar';
-  bar.append(iconButton('arrow_back', 'Back', () => app.back()));
   const input = el('input', 'search-input');
+  bar.append(iconButton('arrow_back', 'Back', () => leave(app, input)));
   input.type = 'search';
   input.placeholder = 'Search tasks, Blocks, Projects';
   input.setAttribute('aria-label', 'Search tasks, Blocks, Projects and Goals');
@@ -28,6 +28,20 @@ export function searchBar(app, bar) {
   clear.hidden = !query;
   bar.append(input, clear);
   requestAnimationFrame(() => { if (!query) input.focus(); });
+}
+
+/** The pop plays after the keyboard is down: while the window resizes the WebView draws no frames, so a pop started
+ * with the keyboard up ends unseen and Back looks like a cut. */
+function leave(app, input) {
+  const root = document.documentElement;
+  if (root.dataset.keyboard !== 'open') return app.back();
+  if (input.dataset.leaving) return;
+  input.dataset.leaving = 'true';
+  input.blur();
+  const go = () => { watch.disconnect(); clearTimeout(timer); app.back(); };
+  const watch = new MutationObserver(() => { if (root.dataset.keyboard !== 'open') go(); });
+  watch.observe(root, {attributes: true, attributeFilter: ['data-keyboard']});
+  const timer = setTimeout(go, 400);
 }
 
 function matches(item, q) {

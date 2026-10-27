@@ -22,8 +22,20 @@ test('Add is a round 60dp button in the dock beside the tab bar, and the bar end
   const shell = read('planner/shell.mjs');
   assert.match(shell, /host\.append\(habit, add\)/, 'Add and the habit circle live in the dock, not in the tab bar');
   assert.doesNotMatch(shell, /nav\.append\(add\)/);
-  assert.match(shell, /attachSwipe\(add, \{hold: \(\) => app\.capture\(\)/, 'a 400ms hold on Add opens Capture');
+  assert.match(shell, /attachSwipe\(add, \{hold: \(\) => app\.openSearch\(\)/, 'a 400ms hold on Add opens Search');
   assert.match(shell, /iconButton\('search', 'Search'/, 'Search is a top-bar button');
+});
+
+test('Today has no top bar: its date line holds More options; other tabs show Search and More options, never a mic', async () => {
+  const shell = read('planner/shell.mjs');
+  assert.doesNotMatch(shell, /'mic'/);
+  assert.match(shell, /bar\.hidden = [^;]*\(!top && app\.state\.tab === 'today'\)/);
+  const header = read('planner/today-header.mjs');
+  assert.match(header, /iconButton\('more_vert', 'More options', \(\) => rootMenu\(app, more\), \{cls: 'date-more'\}\)/);
+  const {dateWords} = await import('./planner/today-header.mjs');
+  assert.equal(dateWords('2026-10-27', '2026-10-27'), '27 October ›');
+  assert.equal(dateWords('2027-01-03', '2026-10-27'), '3 January 2027 ›');
+  assert.match(read('dock.css'), /prefers-reduced-transparency: reduce\) \{[^@]*:root\[data-bar-glass=true\] \.fab \{ border: 0; background: var\(--primary\); color: var\(--on-primary\);/);
 });
 
 test('the habit circle is 48dp glass 12dp above Add; the page and the snackbar keep clear of it', () => {
@@ -35,7 +47,7 @@ test('the habit circle is 48dp glass 12dp above Add; the page and the snackbar k
   const circle = rule(css, '.habit-circle');
   assert.match(circle, /inline-size: var\(--touch\)/);
   assert.match(circle, /border-radius: 50%/);
-  assert.match(css, /:root\[data-bar-glass=true\] \.habit-circle \{[^}]*backdrop-filter: blur\(var\(--glass-blur\)\)/, 'the same glass as the tab bar');
+  assert.match(css, /:root\[data-bar-glass=true\] :is\(\.habit-circle, \.fab\) \{[^}]*backdrop-filter: blur\(var\(--glass-blur\)\)/, 'the same glass as the tab bar');
   assert.match(css, /#planner\[data-habit=true\] \.page \{ padding-bottom: calc\(var\(--nav-measured, var\(--nav\)\) \+ var\(--touch\) \+ var\(--s3\) \+ var\(--s4\)\); \}/);
   assert.match(css, /#planner\[data-habit=true\] ~ #sheet\[hidden\] ~ #snackbar \{ right: calc\(var\(--inset-page\) \+ var\(--fab\) \+ var\(--s3\)\); \}/);
 });
@@ -58,8 +70,16 @@ test('nothing shows in the strip under the tab bar, and a row scrolled into view
   const css = read('planner.css');
   assert.match(css, /--nav-gap: max\(var\(--s4\), calc\(env\(safe-area-inset-bottom, 0px\) \+ var\(--s2\)\)\);/);
   assert.match(rule(css, '#nav-bar'), /inset-block-end: var\(--nav-gap\);/);
-  assert.match(css, /mask-image: linear-gradient\(to top, transparent var\(--nav-gap\), #000 calc\(var\(--nav-gap\) \+ var\(--bar-fade, var\(--s8\)\)\)\);/);
-  assert.match(css, /:root\[data-bar-glass=true\] \{ --bar-fade: var\(--s2\); \}/, 'a glass bar lets the page show through it');
+  const mask = css.match(/\n  mask-image: linear-gradient\(to top, transparent calc\(var\(--nav-gap\) \+ var\(--(s\d)\)\), #000 calc\(var\(--nav-gap\) \+ var\(--(s\d)\)\)\);/);
+  assert.ok(mask, 'the page is masked out from the screen bottom to above the bar\'s bottom edge');
+  const theme = read('theme.css');
+  const px = name => Number(theme.match(new RegExp(`--${name}:(\\d+)px`))[1]);
+  const [clear, back] = [px(mask[1]), px(mask[2])];
+  const curl = (radius, up) => radius - Math.sqrt(radius ** 2 - (radius - Math.min(up, radius)) ** 2);
+  assert.ok(curl(64 / 2, clear) < 2 && curl(px('fab') / 2, clear - 2) < 2,
+    'no row shows beside the round ends of the bar or Add (E/03-today.png: a meal icon under the +)');
+  assert.ok(back <= 64 / 2, 'the page is back by the bar\'s middle, so a glass bar shows it');
+  assert.doesNotMatch(css, /--bar-fade/);
   assert.match(css, /#planner\[data-snackbar=true\]:has\(> #nav-bar:not\(\[hidden\]\)\) #planner-scroll \{\n  scroll-padding-block-end: calc\(var\(--nav-measured, var\(--nav\)\) \+ var\(--s4\) \+ var\(--snackbar-h, 48px\) \+ var\(--s4\)\);/);
   assert.match(read('planner.mjs'), /setProperty\('--snackbar-h', snackbar\.offsetHeight \+ 'px'\)/,
     'the snackbar\'s full height, not its size part-way through the entry scale');
