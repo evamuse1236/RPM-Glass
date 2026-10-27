@@ -65,7 +65,7 @@ public class NotchDropsTest {
     public void tonesMatchThePlannersTheme() throws Exception {
         String theme = read("../android-companion/theme.css");
         String light = theme.substring(theme.indexOf(":root{"), theme.indexOf("@media (prefers-color-scheme:dark)"));
-        String dark = theme.substring(theme.indexOf(":root[data-appearance=dark]{"));
+        String dark = theme.substring(theme.indexOf(":root[data-appearance=dark],"));
         for (Object[] mode : new Object[][]{{light, Tones.LIGHT}, {dark, Tones.DARK}}) {
             String block = (String) mode[0];
             Tones t = (Tones) mode[1];
