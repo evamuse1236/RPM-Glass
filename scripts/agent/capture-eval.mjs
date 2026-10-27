@@ -35,7 +35,8 @@ export function recordCaptureRun(root, directory) {
 }
 
 export function captureEvalEvidence(root) {
-  const changed = listed(git(root, 'diff', '--name-only', '--no-renames', '-z', 'main'));
+  const forkPoint = git(root, 'merge-base', 'main', 'HEAD').trim();
+  const changed = listed(git(root, 'diff', '--name-only', '--no-renames', '-z', forkPoint));
   changed.push(...listed(git(root, 'ls-files', '-z', '--others', '--exclude-standard')));
   if (!changed.some(isPipeline)) return {gap: null};
   const ids = readJson(path.join(root, 'scripts/capture-stress/corpus/real-2026-10-27.json'))?.map(c => c.id).filter(id => id.startsWith('real-'));

@@ -75,6 +75,17 @@ test('non-pipeline changes do not require a live eval', t => {
   assert.equal(captureEvalEvidence(root).gap, null);
 });
 
+test('a branch behind main is not blamed for pipeline changes that landed on main', t => {
+  const {root, put, git} = fixture(t);
+  git('switch', '-q', 'main');
+  put('intent-v2/src/model.mjs', 'changed on main'); git('commit', '-qam', 'main capture change');
+  git('switch', '-q', 'feature');
+  put('web/app.mjs', 'website work'); git('add', '.'); git('commit', '-qm', 'website');
+  assert.equal(captureEvalEvidence(root).gap, null);
+  put('intent-v2/src/model.mjs', 'branch edit');
+  assert.ok(captureEvalEvidence(root).gap, 'an edit on the branch still counts');
+});
+
 test('every declared pipeline surface changes the hash, including deletion and native models', t => {
   const {root, put} = fixture(t);
   for (const file of ['intent-v2/prompts/turn.txt', 'cli/interpret.mjs', 'android-companion/intent-service.mjs',
