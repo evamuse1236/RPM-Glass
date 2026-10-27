@@ -154,3 +154,17 @@ test('the Live setup carries every tool, the local offset and manual turns', () 
  assert.equal(offsetOf(new Date('2026-07-01T12:00:00Z'),'America/New_York'),'-04:00');
  assert.deepEqual(Object.keys(planView(freshStore(),TZ)),['inbox','blocks','projects','areas']);
 });
+
+test('the model asking twice for the same new task in one ramble adds it once and answers with the first id', () => {
+ const {data}=day(),r=createRamble({data,timeZone:TZ,now:()=>NOW});
+ r.receive(heard('Buy milk tomorrow'));r.stop();
+ const [first]=reply(r,tools(call('save_task',{title:'Buy milk',day:'2026-10-28'})));
+ const [again]=reply(r,tools(call('save_task',{title:'buy milk ',day:'2026-10-28'})));
+ assert.deepEqual(again,first);
+ const out=r.result();
+ assert.equal(out.created.length,1);
+ assert.equal(out.changes.length,1);
+ assert.equal(out.batch.ops.length,1);
+ const [other]=reply(r,tools(call('save_task',{title:'Buy milk',day:'2026-10-29'})));
+ assert.notEqual(other.saved,first.saved,'the same title on another day is a new task');
+});

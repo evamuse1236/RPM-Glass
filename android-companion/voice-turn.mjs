@@ -16,14 +16,20 @@ export function createRamble({data,timeZone,now=()=>new Date()}){
  const working=structuredClone(data),ops=[],uuids=[],changes=[],created=[],errors=[];
  let heard='',said='',phase='listening',toolsPending=false,error=null,answered=false;
  const apply=op=>{const {result,ids}=withIds([],()=>editPlan(working,op,now()));uuids.push(...ids);ops.push(op);return result;};
+ const added=new Map();
+ const sameAdd=c=>c.name==='save_task'&&c.args?.id==null&&typeof c.args?.title==='string'
+  ?JSON.stringify({...c.args,title:c.args.title.trim().toLowerCase()},Object.keys(c.args).sort()):null;
  const call=c=>{
   if(c.name==='get_plan')return planView(working,timeZone);
+  const key=sameAdd(c);
+  if(key&&added.has(key))return added.get(key);
   const {ops:next,change}=toolOps(working,c.name,c.args??{});
   if(ops.length+next.length>MAX_RAMBLE_OPS)throw new Error('That is too many changes for one go. Save these, and say the rest next time.');
   let result=null;for(const op of next)result=apply(op)??result;
   if(change.kind==='add'&&change.entity==='task'){change.id=result;created.push(result);}
   else if(change.id==null&&change.kind==='add')change.id=result;
   changes.push(change);
+  if(key)added.set(key,{saved:result});
   return {saved:result};
  };
  return {
