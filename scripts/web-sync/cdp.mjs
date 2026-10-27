@@ -6,10 +6,10 @@ import {join} from 'node:path';
 export const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /** A headless Chrome page driven over the DevTools protocol. */
-export async function openBrowser({chrome: binary, out}) {
+export async function openBrowser({chrome: binary, out, args = [], env = process.env}) {
   const port = 9300 + Math.floor(Math.random() * 400);
   const chrome = spawn(binary, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), 'rpm-web-'))}`,
-    '--no-first-run', '--hide-scrollbars', 'about:blank'], {stdio: 'ignore'});
+    '--no-first-run', '--hide-scrollbars', ...args, 'about:blank'], {stdio: 'ignore', env});
   let target;
   for (let i = 0; i < 50 && !target; i++) {
     await sleep(200);
