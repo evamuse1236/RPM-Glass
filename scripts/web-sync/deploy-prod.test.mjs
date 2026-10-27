@@ -62,6 +62,7 @@ test('dry-run rehearses, checks its Site snapshot, and never deploys; normal dep
     assert.equal(f.calls.filter(call => call.args.includes('--inline-query')).length, dryRun ? 1 : 2);
     assert.equal(f.calls.filter(call => call.args[0].endsWith('deploy-rehearsal.mjs')).length, 1);
     assert.deepEqual(fs.readdirSync(path.join(f.root, '.verify')), []);
+    assert.equal(f.calls.find(call => call.cmd === 'unzip').options.env.UNZIP_DISABLE_ZIPBOMB_DETECTION, 'TRUE', 'Convex exports trip the unzip zip-bomb check');
   }
 });
 

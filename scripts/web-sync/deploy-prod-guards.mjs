@@ -60,7 +60,8 @@ export function runDeploy(options, {root = repoRoot(), backupDir = path.join(os.
   if (git('status', '--porcelain', '--untracked-files=all')) throw new Error('Commit source changes before rehearsing and deploying.');
   const oldRef = git('rev-parse', '--verify', options['old-ref'] + '^{commit}');
   const head = git('rev-parse', 'HEAD');
-  run('unzip', ['-tq', backup], {cwd: root, env});
+  // A Convex export's entries overlap, which unzip's zip-bomb check rejects; the CRC test still runs.
+  run('unzip', ['-tq', backup], {cwd: root, env: {...env, UNZIP_DISABLE_ZIPBOMB_DETECTION: 'TRUE'}});
   fs.mkdirSync(path.join(root, '.verify'), {recursive: true});
   const work = fs.mkdtempSync(path.join(root, '.verify', 'deploy-prod-'));
   try {
