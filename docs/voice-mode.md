@@ -54,7 +54,7 @@ A ramble is one press of the mic: start, talk, stop, and the model's answer.
 1. Each tool call runs on a working copy inside `withIds`, so new Block, Project and Area ids are recorded, and the answer carries real ids. A new session opens for every press, so no old id carries over.
 2. As soon as the model starts answering (the transcript is complete), the words are saved in `intentV2.captures[id]` with `source: 'voice'` and `status: 'captured'`.
 3. When the turn ends, one save holds the words' final status and one `batch` op with every change. The capture keeps `voice.undoEvent`, the batch's last planner event.
-4. The ramble's Undo works only while that event is the newest planner change; otherwise it says to undo in the planner. Undo never touches the words.
+4. The ramble's Undo (Discard on the phone) works only while that event is the newest planner change; otherwise it says to undo in the planner. Undo never touches the words. After Capture closes and opens again, History lists the ramble with its changes and offers Discard while it is still the newest change (`rambleUndoable`, decided 2026-10-28).
 5. If the batch fails, the socket drops, or a replay on newer data would give a new task a different id than the model was told, no change is saved and the words stay with `lastError`, so Capture's Retry reads them as text.
 6. A save that meets a newer version reloads and replays the batch with the same ids (`retryOnChange`).
 
@@ -65,7 +65,7 @@ The website does the same through one `plan` command holding the batch (its Undo
 | State | Shows |
 |---|---|
 | `connecting` | mic button busy |
-| `listening` | pulsing mic, "Listening", the words heard so far; tap the mic or Done to stop |
+| `listening` | pulsing mic, "Listening", the words heard so far; tap the mic or Done to stop. Gemini sends its transcript only after Stop (measured 2026-10-28, `scripts/ramble/transcript-timing.mjs`), so the website shows the browser's own interim words (`web/app/live-words.mjs`) until Gemini's words replace them; only Gemini's are saved. The phone shows no live words (decided 2026-10-28). |
 | `working` | "Saving your changes"; each change appears as a row as its tool call lands |
 | `done` | receipt card: one row per change with its icon, the spoken sentence, and Undo |
 | `failed` | "Your words are saved." with Retry (text Capture) |

@@ -76,6 +76,8 @@ async function drive(site) {
   await b.tap('#voice-mic');
   check(await b.until(`${PHASE} === 'listening'`, 20000), 'the mic connects and listens');
   await sleep(6000);
+  const live = await b.js(`(h => h.hidden ? '' : h.textContent)(document.getElementById('voice-heard'))`);
+  check(live ? true : null, `the browser's recognizer shows words while listening: "${live}"`);
   await both('listening');
   await sleep(+opts.talk - 6000);
   await b.tap('#voice-stop');
