@@ -1,16 +1,20 @@
 # Website feature map
 
-As of 2026-10-23. The website runs RPM's shared phone planner, with four main destinations: **Today, Blocks, Projects and Life**. Search, typed Capture and More options sit in the top bar. Desktop uses the same planner in a centred column.
+As of 2026-10-28. The website runs RPM's shared phone planner, with four main destinations: **Today, Blocks, Projects and Life**. Search, typed Capture and More options sit in the top bar. From 1080px wide the website switches to a desktop layout with a sidebar and an inline task pane (see Wide desktop layout below).
 
 This map describes available controls separately from recorded drive coverage. The detailed check names and screenshot numbers are in [Website parity](web-site-parity.md); architecture and sync rules are in [Website design](web-site-design.md) and [Web sync](web-sync.md).
 
 ## How changes reach your phone
 
-- Planner edits appear immediately in the browser, with **Waiting for your phone** on affected rows and a count above the planner. The phone remains the only writer of saved planner data.
-- A change counts as saved only after the phone applies it and a newer snapshot reaches the browser. Rejected or conflicting changes show a reason. Editing the same record on the phone can cause a conflict.
-- Unsent changes survive a reload and retry with the same command ID and body. An offline or force-stopped phone leaves changes waiting. With RPM open, sync is normally about every 20 seconds; background work can take 15 minutes or longer. Capture also waits for the phone's model.
-- Undo sends a guarded request to the phone. It cannot replace newer phone edits with an old whole plan. Archive and Trash offer recovery separately.
-- Theme, tab bar transparency and Today layout are browser preferences. Navigation, search and filters do not edit the phone's plan.
+- The server is the hub. The website saves each change on the server (`convex/plannerWrite.ts`). The phone keeps its own full copy that works offline and syncs both ways. How the physical phone behaves under this model is **UNVERIFIED**.
+- A changed row shows **Saving** until the server answers and a newer snapshot holds the change. A note above the planner counts changes "not saved yet".
+- A refused change shows its reason on the row.
+- Unsent changes survive a reload and a network failure. The website resends them with the same command ID and body.
+- Typed Capture on the website saves your exact words first. Then the server runs Capture and the note shows its progress. Capture typed on the phone still runs on the phone.
+- The phone can be offline or closed and the website still saves. The phone catches up when it syncs. With RPM open it syncs on open, every 20 seconds, and one second after a saved change. In the background Android runs it about every 15 minutes, or later under battery limits. Open-app timing and the background run are **UNVERIFIED** on the physical phone.
+- When the phone and the website change the same part of a record, the newer change wins. The other version goes into the task's notes, and the website shows a note you can dismiss. A phone title and a website note on the same task both survive. `rpmctl scenario web-sync-offline` is the named drive for this on the real app; no passing run is recorded here, so treat it as **UNVERIFIED**.
+- Undo reverses one website change. If a later edit touched the same records, Undo answers "This changed since; Undo it on the phone after reviewing." Archive and Trash offer recovery separately.
+- Theme, tab bar transparency and Today layout are browser preferences. Navigation, search and filters do not edit your plan.
 
 ## Main navigation
 
@@ -25,7 +29,7 @@ The round Add follows the current destination: Add task, New Block, New Project 
 
 ## Task sheet and quick add
 
-Open a task from Today, a Block, Inbox or Search. Its sheet opens on **When**, with **Alert, Repeat and Block** alongside it. Changes queue immediately for the phone with Undo.
+Open a task from Today, a Block, Inbox or Search. Its sheet opens on **When**, with **Alert, Repeat and Block** alongside it. Changes save on the server at once, with Undo.
 
 | Control | Available actions | Drive coverage |
 |---|---|---|
@@ -51,6 +55,42 @@ Open a task from Today, a Block, Inbox or Search. Its sheet opens on **When**, w
 | **Settings** | Choose theme and tab bar transparency locally; view About. Phone-only settings explain where to use them. | Theme persistence, transparency persistence and About passed. |
 | **Check for changes / linking** | More → Check for changes polls for updates. A configured private ChatGPT Site opens without a code and keeps its key on the server. Other sessions use the phone's one-use, ten-minute link code and offer Unlink this browser. The phone can revoke sessions. | No-code and code-link flows have drive/test coverage; they do not prove a production connection to a real phone. |
 
+## Changes since 2026-10-23
+
+All items here are **UNVERIFIED** on the physical phone and the live Site. Each commit named its own test file; those tests pass in `npm test`, but they do not prove the screen.
+
+### Wide desktop layout (1080px and up)
+
+| Change | What you see | Check named by the commit |
+|---|---|---|
+| Sidebar and inline task pane (de6f201, 84ed0c9) | A slim sidebar replaces the tab bar. A task opens in a pane beside the page, with its icons on one row above a full-width title. The sync note is a small chip at the sidebar foot. | `web/app/desktop.test.mjs`, `web/app/task-pane.test.mjs` |
+| Today agenda (3432a7c, cabedec, 4a1995a) | Today is an agenda timeline that fills the window. Each row has one marker on the rail and shows its time once, in the gutter. Meals no longer say "Not logged". Done tasks grey and strike through. | `web/app/agenda.test.mjs`, `android-companion/spine-view.test.mjs` |
+| Tomorrow column (d815b3d, 78a984f) | From 1680px, Today's rail has a Tomorrow column; Week skips tomorrow. A section already shown on Today hides. | `web/app/agenda.test.mjs`, `web/app/wide-planner.test.mjs` |
+| Wide Blocks, Projects and Life (fe2f40e, 8fba8a7, 4a1995a) | Blocks are one grid of 3 to 4 columns; each card names its Project. Each Project is one full-width card with its Blocks and next task. Life shows the wheel left and each Area with its rating and Goals right. | `web/app/wide-pages.test.mjs` |
+
+### Keyboard, hover and right-click
+
+| Change | What you see | Check |
+|---|---|---|
+| Keyboard shortcuts (126e9ca, 4e494ad) | n new task, / search, c Capture, 1 to 4 tabs, j/k move, x complete, e open, z Undo, ? list, Esc back. Keys in a field, with a modifier, or under a dialog are ignored. | `web/app/shortcuts.test.mjs` |
+| Row tools and menu (cbc2933) | Hovering a row shows its tools. Right-click opens the same action list. | `web/app/pointer.test.mjs` |
+
+### Voice (2026-10-28)
+
+| Change | What you see | Check |
+|---|---|---|
+| Talk to RPM in the Capture sheet (615b053, 5cd2603, 10b9660) | A mic sits beside Send. Listening shows your words and one Stop control. Working shows the change rows. Done shows the receipt, the spoken sentence and one Undo. A failed mic says so and keeps your words as typed Capture. A voice capture says "Words saved", never "Sorting". | `web/app/voice-capture.test.mjs`, `web/app/voice-rows.test.mjs` |
+| Token only, no key in the browser (7243628, 4cc230d) | The browser gets a one-use token from the server. No Google key ships in `web/dist` or `web/dist-site`. The mic hides when the server has no key. | `web/build.test.mjs` |
+| Phone voice mode (23de70d, 353d076, f4cbc85) | Capture on the phone has a voice mode. Settings holds the Gemini key. A repeated new task is added once per ramble. | `android-companion/voice-client.test.mjs` |
+
+### Server-side Capture and sync
+
+| Change | What you see | Check |
+|---|---|---|
+| Durable server Capture (607b968, 990d909) | A website Capture runs on the server with atomic receipts and Undo. Words are saved first; outcomes and conflict notes appear in the task notes. | `web/app/capture-notes.test.mjs`, `web/app/conflict-notes.test.mjs` |
+| Stale Undo and sync status (a5eee33, bb1d85a) | A stale Undo no longer replays. Undo stays visible after a snackbar hides. The sync status reads honestly. | `web/app/plan-queue.test.mjs` |
+| Task IDs (b270b6f, 2582135) | The server and browser number new tasks from 1,000,000,000 up, so they never clash with phone IDs. | `scripts/rules/task-id-range.test.mjs` |
+
 ## Owner-approved exclusions
 
 **The owner approved leaving all previously left-out rows out on 2026-10-23.** They are outside the website scope; this approval does not turn an UNVERIFIED feature into a verified one.
@@ -62,7 +102,7 @@ Open a task from Today, a Block, Inbox or Search. Its sheet opens on **When**, w
 | Ask Jev in weekly review | Model tools on the phone. |
 | Calendar sections in weekly review | Phone calendar access. |
 | Capture forming cards, questions and interactive receipts with Keep/Undo | Live model interaction on the phone. The website's typed Capture and returned receipt lines remain available. |
-| Voice input | Android speech on the phone. |
+| Android speech recognition | The phone has its own voice mode in Capture. The website has its own mic (see Voice below). |
 | Alarm/reminder sounds, notification permissions and exact alarms | Android settings. Website task alert choices still sync to the phone. |
 | Widget text size, floating butterfly and notch settings | Phone settings and native surfaces. |
 | AI key, diagnostics pairing, backups, context import/export and Earlier screens | Phone only; AI credentials stay there. |
