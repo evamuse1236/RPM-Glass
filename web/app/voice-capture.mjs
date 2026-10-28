@@ -2,6 +2,7 @@ import {startVoice as startLive, VoiceError} from '../../android-companion/voice
 import {liveSetup} from '../../android-companion/voice-tools.mjs';
 import {userMessage} from '../../android-companion/user-message.mjs';
 import {voiceCount, voiceRow} from './voice-rows.mjs';
+import {liveWords as startLiveWords} from './live-words.mjs';
 
 const SAVED = /\s*Your words are saved\.?/g;
 const ACTIVE = new Set(['connecting', 'listening', 'working', 'speaking']);
@@ -63,12 +64,12 @@ function changeItem(change, timeZone) {
 }
 
 /** The mic in the website's Capture sheet: its button, its panel and the states of docs/voice-mode.md. */
-export function mountVoice({client, queue, render, onRetry, start = startLive, workletUrl = '/voice-mic-worklet.js'}) {
+export function mountVoice({client, queue, render, onRetry, start = startLive, liveWords = startLiveWords, workletUrl = '/voice-mic-worklet.js'}) {
   const $ = id => document.getElementById(id);
   const form = $('capture-form'), mic = $('voice-mic'), panel = $('voice-panel');
   const status = $('voice-status'), heard = $('voice-heard'), list = $('voice-changes'), said = $('voice-said'), note = $('voice-note');
   const stopButton = $('voice-stop'), undoButton = $('voice-undo'), retryButton = $('voice-retry');
-  let session = null, view = null, unavailable = !globalThis.navigator?.mediaDevices?.getUserMedia || typeof globalThis.AudioWorkletNode !== 'function';
+  let session = null, view = null, words = null, spoken = '', unavailable = !globalThis.navigator?.mediaDevices?.getUserMedia || typeof globalThis.AudioWorkletNode !== 'function';
   const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   function show(next) {
@@ -79,14 +80,16 @@ export function mountVoice({client, queue, render, onRetry, start = startLive, w
     mic.setAttribute('aria-pressed', String(phase === 'connecting' || phase === 'listening'));
     mic.setAttribute('aria-label', phase === 'listening' ? 'Stop and save' : 'Talk to RPM');
     mic.querySelector('.ms').textContent = phase === 'listening' || phase === 'connecting' ? 'stop' : 'mic';
+    if (phase === 'listening' && !words) words = liveWords({onWords: text => { spoken = text; if (view?.phase === 'listening' && !view.heard) show(view); }});
+    if (phase !== 'listening' && words) { words.stop(); words = null; spoken = ''; }
     if (!phase) return refresh();
     const changes = next.changes ?? [];
     const failed = phase === 'failed' || phase === 'no-mic';
     status.textContent = {connecting: 'Connecting…', listening: 'Listening', working: 'Saving your changes', speaking: 'Saving your changes',
       done: next.undone ? 'Changes undone' : voiceCount(changes), 'no-mic': 'Allow the microphone to talk to RPM.',
       failed: next.saved ? 'Your words are saved.' : 'Nothing was saved.'}[phase];
-    heard.textContent = next.heard ?? '';
-    heard.hidden = !next.heard || phase === 'done';
+    heard.textContent = next.heard || (phase === 'listening' ? spoken : '');
+    heard.hidden = !heard.textContent || phase === 'done';
     list.replaceChildren(...(phase === 'failed' || next.undone ? [] : changes.map(change => changeItem(change, zone()))));
     list.hidden = !list.children.length;
     said.textContent = phase === 'done' && !next.undone ? next.said ?? '' : '';
