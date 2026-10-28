@@ -16,16 +16,15 @@
 <div id="stack" class="stack">
   <div id="content" class="cards" aria-label="Capture response" aria-live="polite"></div>
   <div id="forming" class="cards forming-list" aria-label="What Capture reads so far"></div>
-  <section id="panel" class="bar" aria-label="RPM Capture" data-view="chat" data-busy="false" data-state="idle" data-has-text="false">
-    <div class="grab" aria-hidden="true"></div>
+  <section id="panel" class="bar" aria-label="RPM Capture" data-view="chat" data-busy="false" data-state="idle" data-has-text="false" data-voice="off">
+    <button id="more" class="handle" type="button" aria-label="More" aria-haspopup="dialog" aria-expanded="false" aria-controls="sheet"><span class="ms" aria-hidden="true">expand_less</span></button>
+    <p id="status" class="status" role="status" aria-live="polite"></p>
     <form id="composer" class="composer">
       <label class="sr-only" for="message">Capture a thought</label>
       <textarea id="message" rows="1" maxlength="12000" placeholder="Capture a thought" enterkeyhint="send"></textarea>
-      <div class="bar-row">
-        <button id="more" class="bar-more" type="button" aria-label="More" aria-haspopup="dialog" aria-expanded="false" aria-controls="sheet"><span class="ms" aria-hidden="true">more_vert</span></button>
-        <p id="status" class="status" role="status" aria-live="polite"></p>
-        <button id="dictate" class="round mic" type="button" aria-label="Voice input"><span class="ms" aria-hidden="true">mic</span></button>
-        <button id="send" class="round send" type="submit" aria-label="Send"><span class="ms" aria-hidden="true">arrow_upward</span></button>
+      <div class="go">
+        <button id="dictate" class="voice-go" type="button" aria-label="Voice input"><span class="ms fill glyph" aria-hidden="true">mic</span></button>
+        <button id="send" class="send" type="submit" aria-label="Send"><span class="ms fill" aria-hidden="true">send</span></button>
       </div>
     </form>
   </section>

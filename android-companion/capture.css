@@ -14,7 +14,7 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 }
 
 .bar{
-  flex:none;display:flex;flex-direction:column;
+  position:relative;flex:none;display:flex;flex-direction:column;margin-block-start:12px;
   background:var(--bar);color:var(--bar-on);
   border:1px solid var(--bar-outline);border-radius:var(--r-outer);box-shadow:var(--bar-shadow);
   touch-action:pan-y;
@@ -22,48 +22,56 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .grab{position:relative;flex:none;inline-size:32px;block-size:4px;border-radius:2px;background:color-mix(in oklch,var(--bar-on) 38%,transparent);margin:8px auto 0;touch-action:none}
 .grab::after{content:'';position:absolute;inset:-8px -48px}
 
-.composer{display:flex;flex-direction:column}
+/* The handle: a small chevron tab on the box's top edge. A tap opens More, a drag down closes Capture. */
+.handle{
+  position:absolute;inset-block-start:-1px;inset-inline-start:50%;translate:-50% -50%;z-index:1;
+  display:grid;place-items:center;inline-size:48px;block-size:24px;padding:0;cursor:pointer;touch-action:none;
+  border:1px solid var(--bar-outline);border-block-end-color:transparent;border-radius:var(--shape-full);
+  background:var(--bar);color:var(--bar-on-variant);
+}
+.handle .ms{font-size:20px}
+/* A 48dp target: the 24dp tab plus the strip under it inside the box. */
+.handle::after{content:'';position:absolute;inset:-8px 0 -16px}
+.handle[aria-expanded=true] .ms{rotate:180deg}
+.handle:active{color:var(--bar-on)}
+@media (prefers-reduced-motion:no-preference){.handle .ms{transition:rotate var(--dur-medium1) var(--ease-standard)}}
+
+/* One line above the field for status and errors; nothing when there is nothing to say. */
+.status{margin:0;padding:12px 20px 0;font:var(--body-small);color:var(--bar-on-variant);white-space:nowrap;overflow:clip;text-overflow:ellipsis}
+.status:empty{display:none}
+.status.error{color:var(--bar-error);white-space:normal;overflow-wrap:anywhere}
+
+/* One row: the words, then one 48dp round button with 8dp of box around it. */
+.composer{display:flex;align-items:flex-end;gap:8px;padding:8px 8px 8px 20px}
 #message{
-  position:relative;display:block;inline-size:100%;min-block-size:40px;margin:0;padding:12px 20px 4px;
+  position:relative;display:block;flex:1;min-inline-size:0;min-block-size:48px;margin:0;padding:12px 0;
   border:0;outline:none;resize:none;background:transparent;color:var(--bar-on);
   font:var(--body-large);caret-color:var(--bar-primary);overflow-y:hidden;text-wrap:stable;
 }
 #message::placeholder{color:var(--bar-on-variant);opacity:1}
-/* More at the start, the mic or Send at the end in one cell, so the two cross-fade in place. */
-.bar-row{display:grid;grid-template-columns:auto 1fr 48px;align-items:center;gap:4px;padding:0 8px 8px}
-.bar-row>.round{grid-column:3;grid-row:1;justify-self:center}
-.status{flex:1;margin:0;padding-inline:4px;font:var(--body-small);color:var(--bar-on-variant);overflow-wrap:anywhere}
-.status.error{color:var(--bar-error)}
 
-.bar-more,.round{position:relative;flex:none;display:grid;place-items:center;padding:0;border:0;cursor:pointer;border-radius:50%}
-.bar-more{inline-size:48px;block-size:48px;background:transparent;color:var(--bar-on)}
-.bar-more .ms{font-size:24px}
-.round{inline-size:40px;block-size:40px}
-.round .ms{font-size:24px}
-/* A 48dp target around the 40dp circle. */
-.round::after{content:'';position:absolute;inset:-4px;border-radius:50%}
+/* The orb and Send share one cell, so they cross-fade in place. */
+.go{flex:none;display:grid;inline-size:48px;block-size:48px}
+.go>button{grid-area:1/1;position:relative;display:grid;place-items:center;inline-size:48px;block-size:48px;padding:0;border:0;border-radius:50%;cursor:pointer}
+.voice-go{background:transparent;color:var(--bar-on)}
+.voice-go .orb{position:absolute;inset:0;inline-size:auto;block-size:auto}
+.voice-go .glyph{position:relative;font-size:24px;text-shadow:0 1px 6px color-mix(in oklch,var(--bar-on-primary) 60%,transparent)}
+.voice-go:disabled{cursor:default}
 /* Send is the one lit control: the bright primary in both themes. */
 .send{background:var(--bar-primary);color:var(--bar-on-primary)}
-.mic{background:var(--bar-highest);color:var(--bar-on)}
-.bar[data-has-text=true] .mic,.bar[data-has-text=false] .send{opacity:0;visibility:hidden;pointer-events:none}
-.bar-more:active,.round:active{scale:.96}
+.send .ms{font-size:24px}
+.send:disabled{opacity:.5;cursor:default}
+.bar[data-has-text=true][data-voice=off] .voice-go,.bar[data-has-text=false] .send,.bar[data-voice=on] .send{opacity:0;scale:.6;visibility:hidden;pointer-events:none}
+.bar[data-voice=on] .voice-go .glyph{opacity:0;scale:.6}
+.go>button:active{scale:.96}
+.send::before{content:'';position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0}
+.send:active::before{opacity:.12}
+@media (hover:hover) and (pointer:fine){.send:hover::before{opacity:.08}}
 @media (prefers-reduced-motion:no-preference){
-  .round{transition:opacity var(--dur-short3) var(--ease-standard),visibility var(--dur-short3),scale var(--dur-press) var(--ease-standard)}
-  .bar-more{transition:scale var(--dur-press) var(--ease-standard)}
+  .go>button{transition:opacity var(--dur-short4) var(--ease-standard),scale var(--dur-medium1) var(--ease-spring),visibility var(--dur-short4)}
+  .voice-go .glyph{transition:opacity var(--dur-short4) var(--ease-standard),scale var(--dur-medium1) var(--ease-spring)}
+  .bar[data-busy=true] .send .ms{animation:send-pulse 1.2s var(--ease-standard) infinite alternate}
 }
-/* Listening: the mic fills with the accent and a 2dp ring breathes around it (still with reduced motion). */
-.bar[data-state=listening] .mic{background:var(--bar-accent);color:var(--bar-on-accent);box-shadow:0 0 0 2px var(--bar),0 0 0 4px var(--bar-primary)}
-.bar[data-state=listening] .mic:disabled{opacity:1}
-@media (prefers-reduced-motion:no-preference){
-  .bar[data-state=listening] .mic{animation:mic-ring 900ms var(--ease-standard) infinite alternate}
-}
-@keyframes mic-ring{to{box-shadow:0 0 0 6px var(--bar),0 0 0 8px var(--bar-primary)}}
-.bar-more::before,.round::before{content:'';position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0}
-.bar-more:active::before,.round:active::before,.bar-more[aria-expanded=true]::before{opacity:.12}
-@media (hover:hover) and (pointer:fine){.bar-more:hover::before,.round:hover::before{opacity:.08}}
-.round:disabled{opacity:.5;cursor:default}
-.round:disabled::before{opacity:0}
-.bar[data-busy=true] .send .ms{animation:send-pulse 1.2s var(--ease-standard) infinite alternate}
 @keyframes send-pulse{from{opacity:1}to{opacity:.45}}
 
 .scrim{position:absolute;inset:0;background:transparent}

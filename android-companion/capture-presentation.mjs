@@ -100,18 +100,19 @@ function installSizeReport(panel,action){
  return report;
 }
 
-/** Drag the bar's handle down to close, like a bottom sheet. */
+/** Drag the bar's handle (#more) down to close, like a bottom sheet; a tap on it still opens More. */
 function installSwipeToClose(panel,close){
- let start=null;
- const zone=e=>!!e.target.closest('.grab');
+ let start=null,dragged=false;
+ const zone=e=>!!e.target.closest('#more');
  panel.addEventListener('pointerdown',e=>{
   if(e.button!==0||!zone(e))return;
-  start={y:e.clientY,id:e.pointerId,dy:0};
+  start={y:e.clientY,id:e.pointerId,dy:0};dragged=false;
   panel.setPointerCapture?.(e.pointerId);
  });
  panel.addEventListener('pointermove',e=>{
   if(!start||e.pointerId!==start.id)return;
   start.dy=Math.max(0,e.clientY-start.y);
+  if(start.dy>8)dragged=true;
   panel.style.transform=start.dy?`translateY(${start.dy}px)`:'';
  });
  const end=e=>{
@@ -125,6 +126,10 @@ function installSwipeToClose(panel,close){
  };
  panel.addEventListener('pointerup',end);
  panel.addEventListener('pointercancel',end);
+ panel.addEventListener('click',e=>{
+  if(!dragged||!zone(e))return;
+  dragged=false;e.preventDefault();e.stopImmediatePropagation();
+ },true);
 }
 
 export function installCapturePresentation({action}){
