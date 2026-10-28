@@ -1,8 +1,8 @@
-/* Today's timeline: a 64dp gutter of times, a 2dp rail behind 40dp coloured pills, the words, and a ring on the right. */
+/* Today's timeline: a 64dp gutter of times, a 2dp rail carrying one ring or disc per row over a tone bar, and the words. */
 :root {
   --spine-gutter: calc(64px * var(--text-scale, 1));
   --spine-pill: 40px;
-  --spine-ring: 44px;
+  --spine-ring: 40px;
 }
 
 .today-sheet {
@@ -52,37 +52,49 @@
 .spine-task { --pill-c: var(--tone); }
 .spine-routine { --pill-c: var(--tone-routine); }
 .spine-meal { --pill-c: var(--tone-meal); }
-:is(.spine-event, .spine-deadline) { --pill-c: var(--surface-container-highest); --on-pill: var(--on-surface-variant); }
+:is(.spine-event, .spine-deadline) { --pill-c: var(--outline-variant); }
 
+/* One marker per row on the rail: the ring for what can be done or logged, a small disc for events and deadlines.
+   Behind it, a 4dp tone bar as long as the item sets the card's height; the time is only in the gutter. */
 .spine-card {
   grid-column: 2;
   display: grid;
-  grid-template-columns: var(--spine-pill) minmax(0, 1fr) var(--spine-ring);
+  grid-template-columns: var(--spine-pill) minmax(0, 1fr);
   align-items: center;
   border-radius: var(--r-group);
   color: var(--on-surface);
   text-align: start;
 }
+.spine-card > * { grid-row: 1; }
 .spine-pill {
   grid-column: 1;
   grid-row: 1 / span 2;
-  position: relative;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  inline-size: var(--spine-pill);
+  justify-self: center;
+  inline-size: 4px;
   block-size: var(--h, 40px);
   border-radius: var(--shape-full);
-  background: var(--pill-c);
-  color: var(--on-pill, var(--on-tone));
+  background: color-mix(in oklch, var(--pill-c) 70%, transparent);
 }
-.spine-pill .ms { font-size: 20px; }
-:is(.spine-row.done, .spine-meal.past) .spine-pill { background: color-mix(in oklch, var(--pill-c) 45%, var(--surface)); }
-.spine-deadline.overdue .spine-pill { color: var(--error); }
+.spine-pill.moment { background: none; }
+:is(.spine-row.done, .spine-row.past) .spine-pill { background: color-mix(in oklch, var(--pill-c) 30%, transparent); }
+
+.spine-check, .spine-disc { grid-column: 1; position: relative; z-index: 1; justify-self: center; }
+.spine-row.tall .spine-card > :is(.spine-check, .spine-disc) { align-self: start; }
+.spine-disc {
+  display: grid;
+  place-items: center;
+  inline-size: 24px;
+  block-size: 24px;
+  border-radius: var(--shape-full);
+  background: var(--surface-container-highest);
+  color: var(--on-surface-variant);
+}
+.spine-row.tall .spine-disc { margin-block-start: var(--s2); }
+.spine-disc .ms { font-size: 16px; }
+.spine-deadline.overdue .spine-disc { color: var(--error); }
 
 .spine-open {
   grid-column: 2;
-  grid-row: 1;
   align-self: stretch;
   display: flex;
   align-items: center;
@@ -92,35 +104,40 @@
   color: inherit;
   text-align: start;
 }
+.spine-row.tall .spine-open { align-items: flex-start; padding-block-start: var(--s2); }
 .spine-open:active { background: var(--row-press); }
 .spine-deadline .spine-copy { grid-column: 2; padding: var(--s1) 0 var(--s1) var(--s3); }
 .spine-copy { display: flex; flex-direction: column; min-inline-size: 0; }
-.spine-when { font: var(--footnote); color: var(--on-surface-variant); }
-.when-soon, .when-now { color: var(--primary); font-weight: 600; }
-.when-late { color: var(--error); }
 .spine-title { font: var(--title-row); overflow-wrap: break-word; text-wrap: pretty; }
-:is(.spine-row.done, .spine-meal.past, .spine-event.past, .spine-routine.past) .spine-title { color: var(--on-surface-variant); font-weight: 500; }
+.spine-meal .spine-title { font: var(--body-large); }
+.spine-row.past:not(.done, .current) .spine-title { color: var(--on-surface-variant); }
+.spine-row.done .spine-title { color: var(--on-surface-variant); font-weight: 400; }
+.spine-row.done:not(.spine-meal) .spine-title {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in oklch, var(--on-surface-variant) 60%, transparent);
+}
 .spine-must { font-size: 16px; margin-inline-start: var(--s1); vertical-align: -2px; color: var(--must); }
-.spine-line { font: var(--footnote); color: var(--on-surface-variant); overflow-wrap: break-word; }
-.line-late, .line-clash { color: var(--error); font-weight: 500; }
+.spine-meta { font: var(--footnote); color: var(--on-surface-variant); overflow-wrap: break-word; }
+.when-soon, .when-now { color: var(--primary); font-weight: 600; }
+.when-late, .line-late, .line-clash { color: var(--error); font-weight: 500; }
 .spine-resolve { position: relative; grid-column: 2; grid-row: 2; justify-self: start; min-block-size: 32px; margin-inline-start: var(--s1); }
 .spine-resolve::after { content: ""; position: absolute; inset: min(0px, (100% - 48px) / 2) 0; }
 
 .spine-check {
-  grid-column: 3;
-  grid-row: 1 / span 2;
-  justify-self: end;
   display: grid;
   place-items: center;
   inline-size: var(--spine-ring);
   block-size: var(--spine-ring);
 }
+.spine-check::after { content: ""; position: absolute; inset: calc((var(--spine-ring) - var(--touch)) / 2); }
 .spine-check .check-ring {
   inline-size: 24px;
   block-size: 24px;
-  border-color: color-mix(in oklch, var(--pill-c) 80%, var(--on-surface-variant));
+  border-color: var(--pill-c);
+  background: var(--surface);
   color: var(--on-tone);
 }
+.spine-meal:not(.done) .check-ring { border-color: color-mix(in oklch, var(--pill-c) 70%, var(--surface)); }
 .spine-check .check-ring .ms { font-size: 16px; opacity: 0; }
 .spine-check:active .check-ring { scale: .9; }
 .spine-row.done .check-ring { background: var(--pill-c); border-color: var(--pill-c); }
@@ -133,16 +150,18 @@
 .spine-free {
   grid-column: 2;
   display: grid;
-  grid-template-columns: var(--spine-pill) minmax(0, 1fr) var(--spine-ring);
+  grid-template-columns: var(--spine-pill) minmax(0, 1fr) var(--touch);
   align-items: center;
   min-inline-size: 0;
   font: var(--footnote);
   color: var(--on-surface-variant);
 }
+.spine-free > * { grid-row: 1; }
 .spine-free-label { grid-column: 2; padding-inline-start: var(--s3); }
 .spine-action { grid-column: 3; justify-self: end; position: relative; }
-.spine-action.icon-btn { min-inline-size: var(--spine-ring); min-block-size: var(--spine-ring); color: var(--on-surface-variant); }
-.spine-action::after { content: ""; position: absolute; inset: min(0px, (100% - 48px) / 2); }
+.spine-action.icon-btn { min-inline-size: var(--touch); min-block-size: 32px; color: var(--on-surface-variant); }
+.spine-action .ms { font-size: 20px; }
+.spine-action::after { content: ""; position: absolute; inset: min(0px, (100% - 48px) / 2) 0; }
 
 .spine-now { z-index: 2; min-block-size: 16px; }
 .spine-now .spine-gutter { font-weight: 700; color: var(--now); }

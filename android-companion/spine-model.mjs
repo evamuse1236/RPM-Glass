@@ -63,7 +63,7 @@ function markRows({day, now, live, meals, mealPlan, deadlines}) {
   for (const due of deadlines) {
     const overdue = due.at < now;
     rows.push(item('deadline', 'due:' + due.id, due.at, due.at, {symbol: 'hourglass_bottom', title: due.title, overdue,
-      when: {kind: overdue ? 'late' : 'time', text: `${overdue ? 'Overdue' : 'Due'} ${gutterTime(due.at)}`},
+      when: {kind: overdue ? 'late' : 'due', text: overdue ? 'Overdue' : 'Due'},
       label: `${overdue ? 'Overdue' : 'Due'} · ${due.title}`}));
   }
   return rows;
@@ -145,8 +145,6 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
   const rows = [...blocks, ...marks, ...freeRows(blocks, marks, {from, to, now, live, planMinutes})];
   if (live && !current.length) rows.push({kind: 'now', key: 'now', start: now, end: now, time: gutterTime(now), label: clockText(now)});
   rows.sort((a, b) => a.start - b.start || RANK[a.kind] - RANK[b.kind] || a.end - b.end);
-  const shown = row => row.gutter?.time ?? row.time;
-  rows.forEach((row, i) => { row.sameTime = i > 0 && shown(rows[i - 1]) === shown(row); });
 
   const anytime = anytimeTasks(tasks.filter(t => t.start == null));
   return {

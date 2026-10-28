@@ -62,11 +62,10 @@ test('on wide Life puts the wheel on the left and each Area with its rating and 
   assert.match(css, /\.wheel-average:empty \{ display: none; \}/);
 });
 
-test('on wide the Inbox pane matches the page, Sort with Jev is a text button, a past meal icon is legible, and long pages fade at the foot', () => {
+test('on wide the Inbox pane matches the page, Sort with Jev is a text button, and long pages fade at the foot', () => {
   const css = read('./wide-pages.css');
   assert.match(css, /#sheet\[data-inline\] \{ --sheet-surface: light-dark\(var\(--surface-container-low\), var\(--surface-container\)\); \}/);
   assert.match(css, /\.tonal-btn\[data-key=inbox-jev\] \{ background: transparent; color: var\(--primary\); \}/);
-  assert.match(css, /:is\(\.spine-row\.done, \.spine-meal\.past\) \.spine-pill \{ color: var\(--on-surface-variant\); \}/);
   assert.match(css, /#planner-scroll \{\n    animation: page-fade linear both;\n    animation-timeline: scroll\(self block\);/);
   const web = read('./web.css');
   assert.match(web, /@property --page-fade \{ syntax: "<length>"; inherits: false; initial-value: 0px; \}/);
@@ -92,4 +91,11 @@ test('the sidebar Add task is a solid button in light and dark', () => {
   const rule = read('./web.css').match(/\n\.side-add \{([^}]*)\}/)[1];
   assert.match(rule, /background: light-dark\(var\(--primary\), var\(--primary-container\)\);/);
   assert.match(rule, /color: light-dark\(var\(--on-primary\), var\(--on-primary-container\)\);/);
+});
+
+test('on wide the Blocks page is one grid of cards: each card names its own Project, so no heading row splits the grid', () => {
+  const source = read('../../android-companion/planner/blocks.mjs');
+  assert.match(source, /if \(!wide && !state\.blockFilter && block\.projectId !== last\) \{/, 'no Project heading rows on wide');
+  assert.match(source, /blockCard\(app, block, \{focus: focus\.has\(block\.id\), project: wide && !state\.blockFilter\}\)/);
+  assert.match(read('./web.css'), /\[data-view=projects\]\) \.page \{ display: grid; grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 360px\), 1fr\)\);/);
 });

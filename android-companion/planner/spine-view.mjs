@@ -1,11 +1,15 @@
-/** Draws the timeline (spine-model.mjs): the gutter times, the rail with each row's pill, the words, and the ring. */
+/**
+ * Draws the timeline (spine-model.mjs): the gutter times, the rail with one marker per row (the ring for what can be
+ * done or logged, a small icon disc for events and deadlines) over a tone bar as long as the item, and the words.
+ * The time shows only in the gutter; the words carry the title and one quiet line.
+ */
 import {el, icon, button, iconButton} from './dom.mjs';
 
 function gutter(row) {
   const node = el('div', 'spine-gutter tnum');
   node.setAttribute('aria-hidden', 'true');
   if (row.kind === 'gap') return node;
-  node.append(el('span', 'spine-time', row.sameTime ? '' : row.gutter?.time ?? row.time ?? ''));
+  node.append(el('span', 'spine-time', row.gutter?.time ?? row.time ?? ''));
   if (row.gutter?.end) node.append(el('span', 'spine-time', row.gutter.end));
   return node;
 }
@@ -21,11 +25,19 @@ function shell(row, body) {
   return node;
 }
 
-/** The coloured capsule on the rail; its height follows the item's length. */
+/** The tone bar on the rail; its height follows the item's length. A moment (meal, deadline) has none. */
 function pill(row) {
   const node = el('span', 'spine-pill');
   node.setAttribute('aria-hidden', 'true');
-  node.append(icon(row.symbol, {fill: true}));
+  node.classList.toggle('moment', !row.minutes);
+  return node;
+}
+
+/** The marker for a row with nothing to tick: a small disc with the event or deadline icon. */
+function disc(row) {
+  const node = el('span', 'spine-disc');
+  node.setAttribute('aria-hidden', 'true');
+  node.append(icon(row.symbol, {fill: row.kind === 'deadline'}));
   return node;
 }
 
@@ -42,22 +54,33 @@ function ring(label, done, onClick, role = 'checkbox') {
   return node;
 }
 
+/** A plain clock time is already in the gutter; only a countdown or a lateness earns words. */
+const LOUD_WHEN = new Set(['soon', 'now', 'late', 'due']);
+/** "Not logged" on every meal says nothing the empty ring does not; it stays in the spoken name. */
+const QUIET_LINE = new Set(['unlogged']);
+
 function words(row) {
   const copy = el('span', 'spine-copy');
-  if (row.when) copy.append(el('span', `spine-when tnum when-${row.when.kind}`, row.when.text));
   const title = el('span', 'spine-title', row.title);
   if (row.must) title.append(icon('star', {fill: true, cls: 'spine-must'}));
   copy.append(title);
-  if (row.line) copy.append(el('span', `spine-line line-${row.line.kind}`, row.line.text));
+  const parts = [];
+  if (row.when && LOUD_WHEN.has(row.when.kind)) parts.push(el('span', `spine-when tnum when-${row.when.kind}`, row.when.text));
+  if (row.line && !QUIET_LINE.has(row.line.kind)) parts.push(el('span', `spine-line line-${row.line.kind}`, row.line.text));
+  if (parts.length) {
+    const line = el('span', 'spine-meta');
+    parts.forEach((part, i) => line.append(...(i ? [' · ', part] : [part])));
+    copy.append(line);
+  }
   return copy;
 }
 
 const spoken = row => [row.title, row.when?.text, row.line?.text, row.done ? 'done' : '', row.must ? 'Must' : '']
   .filter(Boolean).join(', ');
 
-function card(row, ...parts) {
+function card(row, marker, ...parts) {
   const node = el('article', 'spine-card');
-  node.append(pill(row), ...parts);
+  node.append(pill(row), marker, ...parts);
   return node;
 }
 
@@ -69,8 +92,8 @@ function opener(row, onClick, label) {
 }
 
 function taskCard(row, on) {
-  const node = card(row, opener(row, () => on.openTask(row.task), spoken(row) + '. Open task'),
-    ring(`${row.title}, ${row.done ? 'done' : 'not done'}`, row.done, () => on.toggleTask(row)));
+  const node = card(row, ring(`${row.title}, ${row.done ? 'done' : 'not done'}`, row.done, () => on.toggleTask(row)),
+    opener(row, () => on.openTask(row.task), spoken(row) + '. Open task'));
   if (row.line?.kind === 'clash') {
     const resolve = button('Resolve', () => on.resolve(row), 'text-btn spine-resolve');
     resolve.setAttribute('aria-label', `Resolve the clash with ${row.line.with.title}`);
@@ -82,12 +105,12 @@ function taskCard(row, on) {
 }
 
 function eventCard(row, on) {
-  return card(row, opener(row, () => on.openEvent(row.event), `${spoken(row)}, calendar event`));
+  return card(row, disc(row), opener(row, () => on.openEvent(row.event), `${spoken(row)}, calendar event`));
 }
 
 function routineCard(row, on) {
-  const node = card(row, opener(row, () => on.openRoutine(row.routine.id), `${spoken(row)}. Open routine`),
-    ring(`${row.title}, ${row.done ? 'done' : 'mark every step done'}`, row.done, () => on.toggleRoutine(row)));
+  const node = card(row, ring(`${row.title}, ${row.done ? 'done' : 'mark every step done'}`, row.done, () => on.toggleRoutine(row)),
+    opener(row, () => on.openRoutine(row.routine.id), `${spoken(row)}. Open routine`));
   on.holdHabit?.(node, row.routine.id);
   return node;
 }
@@ -95,15 +118,15 @@ function routineCard(row, on) {
 function mealCard(row, on) {
   const open = () => on.openMeal(row);
   const name = row.title.toLowerCase();
-  const node = card(row, opener(row, open, `${row.title}, ${row.when.text}, ${row.line.text}. ${row.meal ? 'Edit meal' : 'Log ' + name}`),
-    row.meal ? ring(`${row.title} logged`, true, open, 'button') : ring(`Log ${name}`, false, open, 'button'));
+  const node = card(row, row.meal ? ring(`${row.title} logged`, true, open, 'button') : ring(`Log ${name}`, false, open, 'button'),
+    opener(row, open, `${row.title}, ${row.when.text}, ${row.line.text}. ${row.meal ? 'Edit meal' : 'Log ' + name}`));
   on.holdHabit?.(node, `meal:${row.slot}`, row.meal ? {} : {right: {kind: 'log', run: () => on.logMealNow(row)}});
   return node;
 }
 
 function deadlineCard(row) {
-  const node = card(row, words(row));
-  node.setAttribute('aria-label', `${row.when.text}, ${row.title}`);
+  const node = card(row, disc(row), words(row));
+  node.setAttribute('aria-label', `${row.when.text} ${row.gutter.time}, ${row.title}`);
   return node;
 }
 

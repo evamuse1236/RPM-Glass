@@ -152,16 +152,8 @@ html:has(dialog:modal) { overflow: clip; }
   .planner-view > :is(#banner, #notes, #planner) { grid-column: 2; }
   .planner-view > #planner { grid-row: 3; }
   .planner-view .page { max-width: none; margin-inline: 0; }
-  .planner-view :is(.spine-card, .spine-free) { grid-template-columns: var(--spine-pill) var(--spine-ring) minmax(0, 1fr); }
-  .planner-view :is(.spine-check, .spine-action) { grid-column: 2; justify-self: center; }
-  .planner-view :is(.spine-open, .spine-resolve, .spine-deadline .spine-copy, .spine-free-label) { grid-column: 3; }
-  .planner-view .spine-open { padding-inline-start: 0; }
   .planner-view .spine-row.spine-gap { min-block-size: 32px; }
-  .planner-view .spine-free > * { grid-row: 1; }
-  .planner-view .spine-free .spine-action.icon-btn { min-block-size: 32px; }
-  .planner-view .spine-copy { flex-flow: row wrap; column-gap: var(--s2); }
-  .planner-view .spine-title { flex-basis: 100%; order: -1; }
-  .planner-view .spine-when ~ .spine-line::before { content: "·"; margin-inline-end: var(--s2); }
+  .planner-view .spine-free { grid-template-columns: var(--spine-pill) auto var(--touch) minmax(0, 1fr); }
   .planner-view #planner:is([data-view=blocks], [data-view=projects]) .page { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); align-items: start; gap: var(--s3); padding-inline: var(--gutter); }
   .planner-view #planner:is([data-view=blocks], [data-view=projects]) .page > :not(.block-card, .project-card) { grid-column: 1 / -1; }
   .planner-view #planner:is([data-view=blocks], [data-view=projects]) .page > :is(.block-card, .project-card) { width: auto; margin: 0; }

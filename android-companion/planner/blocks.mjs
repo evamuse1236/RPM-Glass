@@ -181,19 +181,19 @@ export function renderBlocks(app, page) {
     if (state.blockStatus === 'achieved') return status.achieved;
     return true;
   });
-  // One list in order of urgency; this week's Results carry a badge instead of a separate section. Cards in a row
-  // from the same Project sit under one Area and Project line, as Calendar's schedule names a day once; a Project
-  // filter already names it, so then there is no line at all.
+  // One list by urgency; this week's Results carry a badge. On the phone, cards from one Project sit under one Area and
+  // Project line. On wide the cards fill a grid, so each names its own Project. A Project filter names it already.
   let last;
+  const wide = Boolean(app.api.wide?.());
   const ordered = byDeadline(app.data(), blocks, focus);
-  for (const block of app.api.wide?.() ? byProject(ordered) : ordered) {
-    if (!state.blockFilter && block.projectId !== last) {
+  for (const block of wide ? byProject(ordered) : ordered) {
+    if (!wide && !state.blockFilter && block.projectId !== last) {
       const head = el('div', 'project-run');
       head.append(eyebrow(app, block));
       page.append(head);
       last = block.projectId;
     }
-    page.append(blockCard(app, block, {focus: focus.has(block.id), project: false}));
+    page.append(blockCard(app, block, {focus: focus.has(block.id), project: wide && !state.blockFilter}));
   }
   if (!blocks.length) {
     page.append(emptyState({

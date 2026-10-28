@@ -87,7 +87,6 @@
   #planner .list-item.nested { padding-inline-start: calc(var(--s8) + var(--s6)); }
   .planner-view > #sheet[data-inline] { --sheet-surface: light-dark(var(--surface-container-low), var(--surface-container)); }
   #sheet .tonal-btn[data-key=inbox-jev] { background: transparent; color: var(--primary); }
-  #planner :is(.spine-row.done, .spine-meal.past) .spine-pill { color: var(--on-surface-variant); }
   #planner:is([data-view=blocks], [data-view=projects], [data-view=life]) #planner-scroll {
     animation: page-fade linear both;
     animation-timeline: scroll(self block);

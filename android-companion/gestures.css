@@ -90,7 +90,7 @@
   box-shadow: var(--float-shadow);
   pointer-events: none;
 }
-/* The knurl: a 24 × 4 grip at the foot of a timed task's pill, in a 48 × 20 target; dragging it changes the length. */
+/* The knurl: a 24 × 4 outline-variant grip at the foot of a task's bar (with a mouse, only while hovered), in a 48 × 20 target; dragging it changes the length. */
 .spine-knurl {
   position: absolute;
   z-index: 2;
@@ -104,8 +104,11 @@
   touch-action: none;
   cursor: ns-resize;
 }
-.spine-knurl::before { content: ""; inline-size: 24px; block-size: 4px; border-radius: 2px; background: color-mix(in oklch, var(--on-tone) 70%, transparent); }
-.spine-knurl:active::before, .spine-card.resizing .spine-knurl::before { background: var(--on-tone); }
+.spine-knurl::before { content: ""; inline-size: 24px; block-size: 4px; border-radius: 2px; background: var(--outline-variant); }
+@media (hover: hover) and (pointer: fine) {
+  .spine-card:not(:hover, :focus-within, .resizing) .spine-knurl::before { opacity: 0; }
+}
+.spine-knurl:active::before, .spine-card.resizing .spine-knurl::before { background: var(--pill-c); }
 .spine-card.resizing .spine-pill { outline: 2px solid var(--primary); outline-offset: 2px; }
 /* A meal row's reveal grows with the finger and has the card's 20dp corners on its outer side; its word shows only
    once it fits whole, so "Log now" is never cut mid-word. */

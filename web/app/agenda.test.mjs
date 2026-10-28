@@ -84,13 +84,12 @@ test('the panel shows only on a wide window on Today', () => {
   assert.match(html, /<aside id="agenda"[^>]*hidden/);
 });
 
-test('wide Today rows run to the panel edge with the check leading, beside the title', () => {
+test('wide Today rows keep the phone layout: one ring on the rail beside the title, no second column for the check', () => {
   const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
   const wide = css.slice(css.indexOf('@media (width >= 1080px)'));
   assert.doesNotMatch(wide, /\.spine \{ max-inline-size/);
-  assert.match(wide, /\.planner-view :is\(\.spine-card, \.spine-free\) \{ grid-template-columns: var\(--spine-pill\) var\(--spine-ring\) minmax\(0, 1fr\); \}/);
-  assert.match(wide, /\.planner-view :is\(\.spine-check, \.spine-action\) \{ grid-column: 2;/);
-  assert.match(wide, /\.planner-view \.spine-copy \{ flex-flow: row wrap;/);
+  assert.doesNotMatch(css, /\.spine-check[^{]*\{[^}]*grid-column: 2/, 'the check stays on the rail, as on the phone');
+  assert.doesNotMatch(css, /\.spine-copy \{ flex-flow: row wrap/, 'the row has one meta line under the title, built by the view');
 });
 
 test('a very wide window gives Tomorrow and the Week their own column beside Inbox and the Blocks, and Week then starts the day after', () => {
@@ -127,9 +126,9 @@ test('on wide the timeline drops its Inbox footer while the side panel counts th
   assert.match(css, /\[aria-label='More choices'\] > \.chip \{ border-color: transparent; background: none;/, 'the pane folds its extra pickers into quiet text');
 });
 
-test('on wide a free gap is one compact row with its + beside the words', () => {
+test('on wide a free gap is one compact row with its + right after the words', () => {
   const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
   const wide = css.slice(css.indexOf('@media (width >= 1080px)'));
   assert.match(wide, /\.planner-view \.spine-row\.spine-gap \{ min-block-size: 32px; \}/);
-  assert.match(wide, /\.planner-view \.spine-free > \* \{ grid-row: 1; \}/);
+  assert.match(wide, /\.planner-view \.spine-free \{ grid-template-columns: var\(--spine-pill\) auto var\(--touch\) minmax\(0, 1fr\); \}/);
 });
