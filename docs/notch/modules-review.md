@@ -37,3 +37,9 @@ A fresh-context review of [modules-design.md](modules-design.md) found 3 blocker
 ## Toolchain probe (done 2026-10-28)
 
 Records and sealed interfaces work. AGP 8.13.2, Java 17 and minSdk 26 build them, the JUnit test passes, and `dexdump` finds both in the APK.
+
+## Deliberate changes
+
+Where the arbiter draws a different island from `NotchScene`, measured by `NotchScenesParityTest`:
+
+- A task and an event at the same start: the task is the hero and the event stays a row (the old notch picked the event). Reason: item 12, registry order breaks ties.

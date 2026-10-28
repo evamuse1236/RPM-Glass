@@ -46,7 +46,7 @@ public class NotchAlertRowsTest {
     }
 
     private static NotchScene scene(NotchData data, String local) {
-        return new NotchScene(data, at(local), Collections.emptyMap(), KOLKATA, false);
+        return SceneCases.scene(data, at(local), Collections.emptyMap(), KOLKATA, false);
     }
 
     @Test

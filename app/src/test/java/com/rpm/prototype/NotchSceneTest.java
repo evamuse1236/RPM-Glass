@@ -60,7 +60,7 @@ public class NotchSceneTest {
     }
 
     private static NotchScene scene(NotchData data, String local, Map<String, Long> snoozes) {
-        return new NotchScene(data, at(local), snoozes, KOLKATA, false);
+        return SceneCases.scene(data, at(local), snoozes, KOLKATA, false);
     }
 
     @Test
@@ -101,7 +101,7 @@ public class NotchSceneTest {
         assertEquals("4:30", scene(day(false, null), "2026-10-18T16:20").pillValue);
         assertEquals("more than 12 h away keeps AM/PM", "3:30 PM", scene(day(false, null), "2026-10-18T03:00").pillValue);
         assertEquals("3:30", scene(day(false, null), "2026-10-18T03:31").pillValue);
-        assertEquals("16:30", new NotchScene(day(false, null), at("2026-10-18T16:20"), Collections.emptyMap(), KOLKATA, true).pillValue);
+        assertEquals("16:30", SceneCases.scene(day(false, null), at("2026-10-18T16:20"), Collections.emptyMap(), KOLKATA, true).pillValue);
     }
 
     @Test
