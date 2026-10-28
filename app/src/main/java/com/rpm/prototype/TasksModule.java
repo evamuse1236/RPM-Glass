@@ -1,5 +1,8 @@
 package com.rpm.prototype;
 
+import com.rpm.prototype.NotchOffer.Inputs;
+import com.rpm.prototype.NotchOffer.Offer;
+import com.rpm.prototype.NotchOffer.Row;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,7 +21,7 @@ final class TasksModule implements NotchModule {
         for (NotchDay.Slot s : mine) if (hero == null && s.runningAt(in.now())) hero = s;
         for (NotchDay.Slot s : mine) if (hero == null && s.end > in.now()) hero = s;
         List<Row> rows = new ArrayList<>();
-        for (NotchDay.Slot s : mine) if (s != hero) rows.add(SlotOffers.row(s, in));
-        return new Offer(hero == null ? null : SlotOffers.hero(hero, in), null, rows);
+        for (NotchDay.Slot s : mine) if (s != hero) rows.add(NotchSlotOffers.row(s, in));
+        return new Offer(hero == null ? null : NotchSlotOffers.hero(hero, in), null, rows);
     }
 }

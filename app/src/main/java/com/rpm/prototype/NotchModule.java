@@ -1,5 +1,9 @@
 package com.rpm.prototype;
 
+import com.rpm.prototype.NotchOffer.Inputs;
+import com.rpm.prototype.NotchOffer.LocalState;
+import com.rpm.prototype.NotchOffer.Offer;
+
 /** One use of the notch. Pure: it reads inputs and returns data, and never touches views. */
 interface NotchModule {
     String id();

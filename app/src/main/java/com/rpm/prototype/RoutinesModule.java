@@ -1,5 +1,15 @@
 package com.rpm.prototype;
 
+import com.rpm.prototype.NotchOffer.Act;
+import com.rpm.prototype.NotchOffer.Inputs;
+import com.rpm.prototype.NotchOffer.LocalState;
+import com.rpm.prototype.NotchOffer.Nudge;
+import com.rpm.prototype.NotchOffer.Offer;
+import com.rpm.prototype.NotchOffer.Look;
+import com.rpm.prototype.NotchOffer.Control;
+import com.rpm.prototype.NotchOffer.Circle;
+import com.rpm.prototype.NotchOffer.Trail;
+import com.rpm.prototype.NotchOffer.Row;
 import java.util.List;
 
 /** The first routine with steps due now and not snoozed: a row and a Later-only nudge. */
@@ -24,13 +34,13 @@ final class RoutinesModule implements NotchModule {
         int minutes = in.body().water.snoozeMinutes;
         String snoozeSpoken = "Snooze " + name + " for " + minutes + " minutes";
         Act later = new Act.Local(ID, "later", due.routine.id, null, "+" + minutes + "m");
-        Row row = new Row(Row.Place.NUDGE, 0, false, false, false, Parts.Look.HABIT, name,
+        Row row = new Row(Row.Place.NUDGE, 0, false, false, false, Look.HABIT, name,
                 name + ", " + due.done + " of " + due.total, null,
-                List.of(new Parts.Trail.Value(due.done + "/" + due.total, NotchInk.HABIT)),
-                new Parts.Circle(R.drawable.notch_ic_snooze, NotchInk.HABIT, snoozeSpoken, later));
+                List.of(new Trail.Value(due.done + "/" + due.total, NotchInk.HABIT)),
+                new Circle(R.drawable.notch_ic_snooze, NotchInk.HABIT, snoozeSpoken, later));
         String line = due.done + " of " + due.total + " steps";
         Nudge nudge = new Nudge(null, line, name + ", " + line, null,
-                new Parts.Control(R.drawable.notch_ic_snooze, "Later", snoozeSpoken, later), null);
+                new Control(R.drawable.notch_ic_snooze, "Later", snoozeSpoken, later), null);
         return new Offer(null, nudge, List.of(row));
     }
 

@@ -112,7 +112,7 @@ It lives in `LocalStore` (SharedPreferences `notch`, key `m:focus`, one JSON obj
 
 | File | Fate | Owns |
 |---|---|---|
-| `notch/NotchModule.java`, `Inputs.java`, `LocalState.java`, `Offer.java`, `Parts.java` (Look, Control, Circle, Trail, Meter, Art, ReceiptSpec), `Act.java`, `PlannerRequest.java`, `PlannerTarget.java`, `Scene.java` | new | The module contract and the closed parts vocabulary |
+| `notch/NotchModule.java`, class `NotchOffer` (one file; nested Inputs, LocalState, Offer, Hero, Nudge, Row, Look, Control, Circle, Trail, Meter, Art, ReceiptSpec, Act, PlannerRequest, PlannerTarget, Owned, Scene), `NotchSlotOffers.java` | new | The module contract and the closed parts vocabulary |
 | `notch/NotchModules.java` | new | The one list, module isolation, `apply` routing |
 | `notch/NotchArbiter.java` | new | Every cross-module ranking rule (below). The only place ranking lives |
 | `notch/Tasks.java` | new, from `NotchScene` hero/rows/alert parts | Task hero, Done, alert rows and chips, later task rows |

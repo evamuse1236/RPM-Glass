@@ -1,5 +1,11 @@
 package com.rpm.prototype;
 
+import com.rpm.prototype.NotchOffer.Act;
+import com.rpm.prototype.NotchOffer.Inputs;
+import com.rpm.prototype.NotchOffer.LocalState;
+import com.rpm.prototype.NotchOffer.Offer;
+import com.rpm.prototype.NotchOffer.Owned;
+import com.rpm.prototype.NotchOffer.Scene;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

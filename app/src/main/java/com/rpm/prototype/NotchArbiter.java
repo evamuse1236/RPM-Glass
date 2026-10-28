@@ -1,5 +1,13 @@
 package com.rpm.prototype;
 
+import com.rpm.prototype.NotchOffer.Hero;
+import com.rpm.prototype.NotchOffer.Nudge;
+import com.rpm.prototype.NotchOffer.Offer;
+import com.rpm.prototype.NotchOffer.Owned;
+import com.rpm.prototype.NotchOffer.Look;
+import com.rpm.prototype.NotchOffer.Trail;
+import com.rpm.prototype.NotchOffer.Row;
+import com.rpm.prototype.NotchOffer.Scene;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -32,7 +40,7 @@ final class NotchArbiter {
             while (i < rows.size() && !rows.get(i).alerting()) i++;
             if (i > 0 && i < rows.size()) {
                 Row alert = rows.remove(i);
-                rows.add(0, alert.withLook(Parts.Look.alert(alertOf(alert))));
+                rows.add(0, alert.withLook(Look.alert(alertOf(alert))));
             }
         }
         for (int i = 2; i < rows.size(); i++) {
@@ -79,7 +87,7 @@ final class NotchArbiter {
     }
 
     private static String alertOf(Row r) {
-        for (Parts.Trail t : r.trail()) if (t instanceof Parts.Trail.AlertChip chip) return chip.alert();
+        for (Trail t : r.trail()) if (t instanceof Trail.AlertChip chip) return chip.alert();
         return "";
     }
 }

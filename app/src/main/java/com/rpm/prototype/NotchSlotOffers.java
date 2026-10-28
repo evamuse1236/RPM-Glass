@@ -1,10 +1,22 @@
 package com.rpm.prototype;
 
+import com.rpm.prototype.NotchOffer.Act;
+import com.rpm.prototype.NotchOffer.Hero;
+import com.rpm.prototype.NotchOffer.Inputs;
+import com.rpm.prototype.NotchOffer.Look;
+import com.rpm.prototype.NotchOffer.Control;
+import com.rpm.prototype.NotchOffer.Circle;
+import com.rpm.prototype.NotchOffer.Trail;
+import com.rpm.prototype.NotchOffer.Art;
+import com.rpm.prototype.NotchOffer.ReceiptSpec;
+import com.rpm.prototype.NotchOffer.PlannerRequest;
+import com.rpm.prototype.NotchOffer.PlannerTarget;
+import com.rpm.prototype.NotchOffer.Row;
 import java.util.List;
 
 /** The hero and rows of one task or calendar occurrence, shared by the Tasks and Calendar modules. */
-final class SlotOffers {
-    private SlotOffers() {}
+final class NotchSlotOffers {
+    private NotchSlotOffers() {}
 
     static Hero hero(NotchDay.Slot s, Inputs in) {
         NotchDay.Task task = s.task;
@@ -26,10 +38,10 @@ final class SlotOffers {
             spoken = "Next: " + task.title + " at " + at;
             barSpoken = "Starts at " + at + ", lasts " + in.spoken(s.end - s.start);
         }
-        Parts.Control primary = task.fixed ? null
-                : new Parts.Control(R.drawable.ic_check, "Done", "Done: " + task.title, done(s));
-        Parts.Art drop = task.fixed ? new Parts.Art.Capsule(Parts.Art.NEUTRAL, TaskSymbol.EVENT_ICON)
-                : new Parts.Art.Capsule(task.tone, TaskSymbol.icon(task.title));
+        Control primary = task.fixed ? null
+                : new Control(R.drawable.ic_check, "Done", "Done: " + task.title, done(s));
+        Art drop = task.fixed ? new Art.Capsule(Art.NEUTRAL, TaskSymbol.EVENT_ICON)
+                : new Art.Capsule(task.tone, TaskSymbol.icon(task.title));
         return new Hero(urgency, s.start, look(s), task.title, line, ring, value, spoken, barSpoken, primary,
                 new Act.Open(PlannerTarget.task(task.id)), drop, attached(s, in), row(s, in));
     }
@@ -40,8 +52,8 @@ final class SlotOffers {
         if (alert.isEmpty()) return List.of();
         String at = in.clock(s.start);
         Act manage = manage(s, alert, at);
-        Parts.Circle circle = new Parts.Circle(R.drawable.ic_chevron, NotchInk.WHITE_87, "Change the alert for " + s.task.title, manage);
-        return List.of(new Row(Row.Place.ATTACHED, s.start, true, false, false, Parts.Look.alert(alert), Parts.Look.alertName(alert),
+        Circle circle = new Circle(R.drawable.ic_chevron, NotchInk.WHITE_87, "Change the alert for " + s.task.title, manage);
+        return List.of(new Row(Row.Place.ATTACHED, s.start, true, false, false, Look.alert(alert), Look.alertName(alert),
                 alertSpoken(alert, s.task.title, at), manage, List.of(), circle));
     }
 
@@ -50,19 +62,19 @@ final class SlotOffers {
         boolean alerting = !alert.isEmpty();
         String at = in.clock(s.start);
         String title = s.task.title;
-        Parts.Trail trail = alerting ? new Parts.Trail.AlertChip(alert, at) : new Parts.Trail.Value(at, NotchInk.WHITE_60);
-        Parts.Circle circle = s.task.fixed ? null : new Parts.Circle(R.drawable.ic_check, NotchInk.WHITE_87, "Done: " + title, done(s));
+        Trail trail = alerting ? new Trail.AlertChip(alert, at) : new Trail.Value(at, NotchInk.WHITE_60);
+        Circle circle = s.task.fixed ? null : new Circle(R.drawable.ic_check, NotchInk.WHITE_87, "Done: " + title, done(s));
         return new Row(Row.Place.TIMED, s.start, alerting, false, false, look(s), title,
                 alerting ? alertSpoken(alert, title, at) : title + ", " + at, alerting ? manage(s, alert, at) : null, List.of(trail), circle);
     }
 
-    private static Parts.Look look(NotchDay.Slot s) {
-        return s.task.fixed ? Parts.Look.EVENT : Parts.Look.TASK;
+    private static Look look(NotchDay.Slot s) {
+        return s.task.fixed ? Look.EVENT : Look.TASK;
     }
 
     private static Act done(NotchDay.Slot s) {
         return new Act.Save(new PlannerRequest.Done(s.task.id, s.start, !s.task.recurrence.isEmpty(), false),
-                new Parts.ReceiptSpec(Parts.Look.TASK, "Done", s.task.title, 0f, 1f, null));
+                new ReceiptSpec(Look.TASK, "Done", s.task.title, 0f, 1f, null));
     }
 
     private static Act manage(NotchDay.Slot s, String alert, String at) {
@@ -70,6 +82,6 @@ final class SlotOffers {
     }
 
     static String alertSpoken(String alert, String title, String at) {
-        return Parts.Look.alertName(alert) + " at " + at + " for " + title + ". Opens its controls.";
+        return Look.alertName(alert) + " at " + at + " for " + title + ". Opens its controls.";
     }
 }

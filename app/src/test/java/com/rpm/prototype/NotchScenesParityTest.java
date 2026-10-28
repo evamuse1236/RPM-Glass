@@ -1,5 +1,15 @@
 package com.rpm.prototype;
 
+import com.rpm.prototype.NotchOffer.Act;
+import com.rpm.prototype.NotchOffer.Hero;
+import com.rpm.prototype.NotchOffer.Inputs;
+import com.rpm.prototype.NotchOffer.LocalState;
+import com.rpm.prototype.NotchOffer.Look;
+import com.rpm.prototype.NotchOffer.Trail;
+import com.rpm.prototype.NotchOffer.Meter;
+import com.rpm.prototype.NotchOffer.Art;
+import com.rpm.prototype.NotchOffer.Row;
+import com.rpm.prototype.NotchOffer.Scene;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -23,8 +33,8 @@ import java.util.Objects;
 
 /** Replays every scene NotchSceneTest and NotchAlertRowsTest build, and checks the module arbiter draws the same island. */
 public class NotchScenesParityTest {
-    private static final Parts.Look[] LOOKS = {Parts.Look.TASK, Parts.Look.EVENT, Parts.Look.WATER, Parts.Look.HABIT,
-            Parts.Look.MEAL, Parts.Look.REMINDER, Parts.Look.ALARM};
+    private static final Look[] LOOKS = {Look.TASK, Look.EVENT, Look.WATER, Look.HABIT,
+            Look.MEAL, Look.REMINDER, Look.ALARM};
     private static final String[] LOOK_NAMES = {"TASK", "EVENT", "WATER", "HABIT", "MEAL", "REMINDER", "ALARM"};
 
     @Test
@@ -67,8 +77,8 @@ public class NotchScenesParityTest {
             assertTrue(id + " no module failed", scene.failed().isEmpty());
 
             JSONObject water = expected.getJSONObject("water");
-            Row waterRow = scene.rows().stream().filter(r -> r.look().equals(Parts.Look.WATER)).findFirst().orElseThrow();
-            assertEquals(id + " water row", new Parts.Trail.Dots(water.getInt("count"), water.getInt("goal")), waterRow.trail().get(0));
+            Row waterRow = scene.rows().stream().filter(r -> r.look().equals(Look.WATER)).findFirst().orElseThrow();
+            assertEquals(id + " water row", new Trail.Dots(water.getInt("count"), water.getInt("goal")), waterRow.trail().get(0));
             boolean waterDue = water.getBoolean("pending") && body.water.reminders;
             assertEquals(id + " water due", waterDue, waterRow.due());
 
@@ -141,15 +151,15 @@ public class NotchScenesParityTest {
                 String.valueOf(h.ringPermille()), String.valueOf(h.urgency() == Hero.Urgency.RUNNING));
     }
 
-    private static Parts.Art oldTaskDrop(NotchScene s) {
+    private static Art oldTaskDrop(NotchScene s) {
         if (s.hero == null) return null;
         NotchDay.Task t = s.hero.task;
-        return t.fixed ? new Parts.Art.Capsule(Parts.Art.NEUTRAL, TaskSymbol.EVENT_ICON) : new Parts.Art.Capsule(t.tone, TaskSymbol.icon(t.title));
+        return t.fixed ? new Art.Capsule(Art.NEUTRAL, TaskSymbol.EVENT_ICON) : new Art.Capsule(t.tone, TaskSymbol.icon(t.title));
     }
 
-    private static Parts.Art oldHabitDrop(NotchScene s) {
-        if (s.topHabit == NotchHabits.Habit.WATER) return new Parts.Art.Gauge(new Parts.Meter.Water(s.water.goal, s.water.count));
-        if (s.topHabit == NotchHabits.Habit.MEAL) return new Parts.Art.Gauge(new Parts.Meter.Meals(s.meals.slots, s.meals.logged));
+    private static Art oldHabitDrop(NotchScene s) {
+        if (s.topHabit == NotchHabits.Habit.WATER) return new Art.Gauge(new Meter.Water(s.water.goal, s.water.count));
+        if (s.topHabit == NotchHabits.Habit.MEAL) return new Art.Gauge(new Meter.Meals(s.meals.slots, s.meals.logged));
         return null;
     }
 
@@ -181,21 +191,21 @@ public class NotchScenesParityTest {
             value = in.clock(r.at());
             chip = "hero";
         }
-        for (Parts.Trail t : r.trail()) {
-            if (t instanceof Parts.Trail.AlertChip a) {
+        for (Trail t : r.trail()) {
+            if (t instanceof Trail.AlertChip a) {
                 value = a.at();
                 chip = a.alert();
-            } else if (t instanceof Parts.Trail.Dots d) {
+            } else if (t instanceof Trail.Dots d) {
                 value = d.count() + " of " + d.goal() + (r.due() ? " · due" : "");
-            } else if (t instanceof Parts.Trail.Value v && value.isEmpty()) {
-                value = r.look().equals(Parts.Look.HABIT) ? v.text().replace("/", " of ") : v.text();
+            } else if (t instanceof Trail.Value v && value.isEmpty()) {
+                value = r.look().equals(Look.HABIT) ? v.text().replace("/", " of ") : v.text();
             }
         }
-        if (r.look().equals(Parts.Look.MEAL)) value = "Not logged";
+        if (r.look().equals(Look.MEAL)) value = "Not logged";
         return look + "|" + r.title() + "|" + value + "|" + chip;
     }
 
-    private static String lookName(Parts.Look look) {
+    private static String lookName(Look look) {
         for (int i = 0; i < LOOKS.length; i++) if (LOOKS[i].equals(look)) return LOOK_NAMES[i];
         return String.valueOf(look);
     }

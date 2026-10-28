@@ -1,5 +1,16 @@
 package com.rpm.prototype;
 
+import com.rpm.prototype.NotchOffer.Act;
+import com.rpm.prototype.NotchOffer.Inputs;
+import com.rpm.prototype.NotchOffer.LocalState;
+import com.rpm.prototype.NotchOffer.Nudge;
+import com.rpm.prototype.NotchOffer.Offer;
+import com.rpm.prototype.NotchOffer.Look;
+import com.rpm.prototype.NotchOffer.Control;
+import com.rpm.prototype.NotchOffer.Circle;
+import com.rpm.prototype.NotchOffer.Meter;
+import com.rpm.prototype.NotchOffer.PlannerTarget;
+import com.rpm.prototype.NotchOffer.Row;
 import java.util.List;
 
 /** The meal not logged yet: a row while it is open, and a nudge with Log meal and Later unless it is snoozed. */
@@ -20,16 +31,16 @@ final class MealsModule implements NotchModule {
         String name = NotchHabits.mealName(body, slot);
         Act open = new Act.Open(PlannerTarget.meal(slot));
         String logSpoken = "Log " + name + " in the planner";
-        Row row = new Row(Row.Place.NUDGE, 0, false, false, false, Parts.Look.MEAL, name,
+        Row row = new Row(Row.Place.NUDGE, 0, false, false, false, Look.MEAL, name,
                 name + ", not logged. Log it in the planner", open, List.of(),
-                new Parts.Circle(R.drawable.notch_ic_plus, NotchInk.MEAL, logSpoken, open));
+                new Circle(R.drawable.notch_ic_plus, NotchInk.MEAL, logSpoken, open));
         if (in.local().getLong(UNTIL + slot, 0) > in.now()) return new Offer(null, null, List.of(row));
         NotchHabits.MealMeter meter = NotchHabits.mealMeter(body, in.now(), in.zone());
         int minutes = body.water.snoozeMinutes;
         String line = name + " not logged";
-        Nudge nudge = new Nudge(new Parts.Meter.Meals(meter.slots, meter.logged), line, line + ". Opens the meal.",
-                new Parts.Control(R.drawable.notch_ic_plus, "Log meal", logSpoken, open),
-                new Parts.Control(R.drawable.notch_ic_snooze, "Later", "Snooze " + name + " for " + minutes + " minutes",
+        Nudge nudge = new Nudge(new Meter.Meals(meter.slots, meter.logged), line, line + ". Opens the meal.",
+                new Control(R.drawable.notch_ic_plus, "Log meal", logSpoken, open),
+                new Control(R.drawable.notch_ic_snooze, "Later", "Snooze " + name + " for " + minutes + " minutes",
                         new Act.Local(ID, "later", slot, null, "+" + minutes + "m")),
                 open);
         return new Offer(null, nudge, List.of(row));
