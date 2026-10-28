@@ -33,3 +33,7 @@ A fresh-context review of [modules-design.md](modules-design.md) found 3 blocker
 3. Switch actions to `perform(Act)`. Delete `NotchContent.Actions`. Move snoozes into module local state.
 4. Receipts from `ReceiptSpec`. Delete `NotchScene` and port its tests.
 5. `FocusModule` with `alarmAt`, and the calendar countdown chip. Then a phone drive.
+
+## Toolchain probe (done 2026-10-28)
+
+Records and sealed interfaces work. AGP 8.13.2, Java 17 and minSdk 26 build them, the JUnit test passes, and `dexdump` finds both in the APK.
