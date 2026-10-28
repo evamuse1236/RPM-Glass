@@ -27,6 +27,8 @@ import java.util.Set;
  */
 final class IslandView extends ViewGroup {
     private static final long PRESS_HOLD_MS = 90;
+    /** A fully pulled island is drawn this much smaller, from its top centre, so the pull reads as lifting it away. */
+    private static final float PULL_SHRINK = 0.04f;
     private static final int SHADOW = 0x40000000;
 
     interface Listener {
@@ -76,6 +78,8 @@ final class IslandView extends ViewGroup {
     private boolean fading;
     private final Choreographer.FrameCallback fadeTick = nanos -> NotchController.safely("island fade", this::stepFades);
     private final Spring press = Spring.island(0.002f);
+    /** The island's vertical offset while a finger drags it; it springs back to 0 when the finger lifts. */
+    private final Spring drag = Spring.island(0.5f);
     private final Paint ink = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path body = new Path();
@@ -104,6 +108,7 @@ final class IslandView extends ViewGroup {
         gesture = new IslandGesture(density);
         band = new IslandBand(this);
         press.snapTo(1f);
+        drag.snapTo(0f);
         ink.setColor(Color.BLACK);
         setWillNotDraw(false);
         setClickable(true);
@@ -318,6 +323,9 @@ final class IslandView extends ViewGroup {
         if (now.shadow > 0.01f) ink.setShadowLayer(10 * density, 0f, 4 * density, Color.argb(Math.round(Color.alpha(SHADOW) * now.shadow), 0, 0, 0));
         else ink.clearShadowLayer();
         canvas.save();
+        canvas.translate(0f, drag.value);
+        float pulled = 1f - PULL_SHRINK * Math.abs(drag.value) / (IslandGesture.MAX_FOLLOW_DP * density);
+        canvas.scale(pulled, pulled, x + w / 2f, y);
         canvas.scale(press.value, press.value, x + w / 2f, y + h / 2f);
         canvas.drawPath(body, ink);
         canvas.clipPath(body);
@@ -361,6 +369,7 @@ final class IslandView extends ViewGroup {
             case MotionEvent.ACTION_CANCEL:
                 removeCallbacks(longPress);
                 if (pressable) postDelayed(release, Math.max(0, PRESS_HOLD_MS - (e.getEventTime() - e.getDownTime())));
+                letGo();
                 break;
             default:
                 break;
@@ -403,7 +412,23 @@ final class IslandView extends ViewGroup {
         if (!gesture.move(screenX(e), screenY(e))) return false;
         removeCallbacks(longPress);
         if (pressable) release.run();
+        follow(gesture.pull(screenY(e)));
         return true;
+    }
+
+    /** Draws the island where the finger has pulled it; with animations off it stays put. */
+    private void follow(float y) {
+        if (!ValueAnimator.areAnimatorsEnabled()) return;
+        drag.value = y;
+        drag.target = y;
+        drag.velocity = 0f;
+        invalidate();
+    }
+
+    private void letGo() {
+        if (drag.value == 0f && drag.target == 0f) return;
+        drag.target = 0f;
+        pressFrame();
     }
 
     private float screenX(MotionEvent e) {
@@ -424,6 +449,7 @@ final class IslandView extends ViewGroup {
     private void pressFrame() {
         if (!ValueAnimator.areAnimatorsEnabled()) {
             press.snapTo(press.target);
+            drag.snapTo(drag.target);
             invalidate();
             return;
         }
@@ -436,7 +462,9 @@ final class IslandView extends ViewGroup {
     private void stepPress(long nanos) {
         float dt = pressFrameNanos == 0 ? 1f / 60f : Math.min((nanos - pressFrameNanos) / 1e9f, 1f / 20f);
         pressFrameNanos = nanos;
-        boolean moving = press.step(dt);
+        boolean pressMoving = press.step(dt);
+        boolean dragMoving = drag.step(dt);
+        boolean moving = pressMoving || dragMoving;
         invalidate();
         if (moving) Choreographer.getInstance().postFrameCallback(pressTick);
         else pressing = false;

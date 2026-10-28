@@ -1,4 +1,4 @@
-const SLOP_DP = 8, COMMIT_X_DP = 90, COMMIT_Y_DP = 48, FLICK_DP = 24, FLICK_DP_PER_MS = 0.5, LONG_MS = 500, FOLLOW = 0.35, MAX_FOLLOW_DP = 28;
+const SLOP_DP = 8, COMMIT_X_DP = 90, COMMIT_Y_DP = 48, ISLAND_UP_DP = 24, FLICK_DP = 24, FLICK_DP_PER_MS = 0.5, LONG_MS = 500, FOLLOW = 0.35, MAX_FOLLOW_DP = 28;
 
 const dirOf = (axis, d) => axis === 'x' ? (d > 0 ? 'right' : 'left') : (d > 0 ? 'down' : 'up');
 const reduced = () => document.documentElement.dataset.reduceMotion === 'true' || matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -43,7 +43,8 @@ export function swipeable(el, handlers) {
     swallow = true;
     setTimeout(() => { swallow = false; });
     const d = axis === 'x' ? event.clientX - x : event.clientY - y, speed = Math.abs(d) / Math.max(1, event.timeStamp - t);
-    const far = Math.abs(d) >= (axis === 'x' ? COMMIT_X_DP : COMMIT_Y_DP) || (Math.abs(d) >= FLICK_DP && speed >= FLICK_DP_PER_MS);
+    const commit = axis === 'x' ? COMMIT_X_DP : d < 0 ? ISLAND_UP_DP : COMMIT_Y_DP;
+    const far = Math.abs(d) >= commit || (Math.abs(d) >= FLICK_DP && speed >= FLICK_DP_PER_MS);
     const act = h[dirOf(axis, d)];
     if (far && act) {
       navigator.vibrate?.(10);

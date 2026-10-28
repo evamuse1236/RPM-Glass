@@ -252,7 +252,8 @@ final class NotchController implements NotchPill.Gestures {
 
     @Override
     public void onOutsideTap(Mode mode) {
-        if (mode == Mode.OPEN || mode == Mode.HABIT || mode == Mode.MANAGE) setExpanded(false);
+        if (mode == Mode.RECEIPT) changes.dismiss();
+        else if (mode == Mode.OPEN || mode == Mode.HABIT || mode == Mode.MANAGE) setExpanded(false);
     }
 
     private void openDrop(NotchFrame.Side side) {

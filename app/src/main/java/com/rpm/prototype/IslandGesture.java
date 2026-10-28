@@ -25,6 +25,11 @@ final class IslandGesture {
     static final float COMMIT_X_DP = 90;
     static final float COMMIT_Y_DP = 48;
     static final float PILL_UP_DP = 12;
+    /** An open island closes on a short swipe up: it sits at the screen's top, so a thumb has little room above it. */
+    static final float ISLAND_UP_DP = 24;
+    /** While dragged, the island follows the finger at this share of its travel, up to {@link #MAX_FOLLOW_DP}. */
+    static final float FOLLOW = 0.35f;
+    static final float MAX_FOLLOW_DP = 28;
     static final float FLICK_DP = 24;
     static final float FLICK_DP_PER_MS = 0.5f;
     static final long LONG_PRESS_MS = 500;
@@ -83,11 +88,23 @@ final class IslandGesture {
         if (horizontal == null) return Result.TAP;
         float d = horizontal ? x - startX : y - startY;
         float speed = Math.abs(d) / Math.max(1, at - startAt);
-        float commit = (horizontal ? COMMIT_X_DP : pill && d < 0 ? PILL_UP_DP : COMMIT_Y_DP) * density;
+        float commit = (horizontal ? COMMIT_X_DP : d < 0 ? (pill ? PILL_UP_DP : ISLAND_UP_DP) : COMMIT_Y_DP) * density;
         boolean far = Math.abs(d) >= commit || (Math.abs(d) >= FLICK_DP * density && speed >= FLICK_DP_PER_MS * density);
         if (!far) return pill ? Result.TAP : Result.NONE;
         if (horizontal) return d > 0 ? Result.RIGHT : Result.LEFT;
         return d > 0 ? Result.DOWN : Result.UP;
+    }
+
+    /**
+     * How far the island is drawn from its place while the finger drags it: a share of the vertical travel, fuller
+     * upward (where a swipe closes it) than downward, and capped. Zero for a tap, a sideways drag or the pill.
+     */
+    float pull(float y) {
+        if (!active || pill || horizontal == null || horizontal) return 0f;
+        float d = y - startY;
+        float give = d < 0 ? FOLLOW : FOLLOW / 3f;
+        float max = MAX_FOLLOW_DP * density;
+        return Math.max(-max, Math.min(max, d * give));
     }
 
     void cancel() {

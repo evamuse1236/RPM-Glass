@@ -5,6 +5,7 @@ Rules for the notch pill and island (`IslandView`, `IslandWindow`, `NotchScene`,
 | Rule | Enforced by |
 |---|---|
 | Swiping the collapsed pill up (12dp, reachable from the middle of its 42dp pad), left or right means Later for the shown water or meal nudge, using the habit island's snooze without logging a glass; tap and down still open the drop. | `IslandGestureTest.java` (`aSlowSwipeUpFromThePillsMiddleCommitsBeforeTheScreenTop`), `NotchPillGestureTest.java` |
+| An open island, alert controls or receipt follows a vertical drag (35% of the travel, up to 28dp; a third as much downward), springs back if let go short, and closes on a 24dp swipe up or a flick. A tap outside closes the open island and a receipt alike. The playground copy uses the same numbers. | `IslandGestureTest.java` (`aSlowThirtyDpSwipeUpClosesTheOpenIsland`, `theOpenIslandFollowsTheFingerFullerUpThanDownAndCapped`), `playground/notch-gesture.mjs`, phone drive |
 | The notch pill ends at the status bar's bottom edge, 4dp above the camera hole, and keeps the cutout's whole width clear, so a wide notch is never drawn over. | `NotchAnchorTest.java` (`aWideNotchKeepsItsWholeWidthClear`), `playground/notch-scene.test.mjs` |
 | When the planner store cannot be read, the notch keeps what it showed instead of hiding. | `NotchFrameTest.java` (`anUnreadableStoreKeepsWhatTheIslandShowedInsteadOfHidingIt`) |
 | The notch redraws only when what it shows changes: the same frame twice means no redraw, no animation and no window relayout. | `IslandWindowTest.java`, `NotchFrameTest.java` |

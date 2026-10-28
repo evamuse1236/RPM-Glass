@@ -201,6 +201,51 @@ public class IslandGestureTest {
         assertFalse(g.longPressAt(900));
     }
 
+    private static final Box ISLAND = new Box(0, 0, 1080, 700);
+
+    @Test
+    public void aSlowThirtyDpSwipeUpClosesTheOpenIsland() {
+        IslandGesture g = new IslandGesture(D);
+        assertTrue(g.down(ISLAND, 540, 450, 0, false));
+        g.move(540, 450 - dp(30));
+        assertEquals(Result.UP, g.up(540, 450 - dp(30), 300));
+    }
+
+    @Test
+    public void aTwentyDpSwipeUpOnTheOpenIslandSpringsBack() {
+        IslandGesture g = new IslandGesture(D);
+        assertTrue(g.down(ISLAND, 540, 450, 0, false));
+        g.move(540, 450 - dp(20));
+        assertEquals(Result.NONE, g.up(540, 450 - dp(20), 400));
+    }
+
+    @Test
+    public void theOpenIslandFollowsTheFingerFullerUpThanDownAndCapped() {
+        IslandGesture g = new IslandGesture(D);
+        assertEquals(0f, g.pull(450), 0f);
+        g.down(ISLAND, 540, 450, 0, false);
+        g.move(540, 450 - dp(4));
+        assertEquals("inside the slop the island stays put", 0f, g.pull(450 - dp(4)), 0f);
+        g.move(540, 450 - dp(20));
+        assertEquals(-dp(20) * IslandGesture.FOLLOW, g.pull(450 - dp(20)), 0.01f);
+        assertEquals(-dp(IslandGesture.MAX_FOLLOW_DP), g.pull(450 - dp(300)), 0.01f);
+        assertTrue(Math.abs(g.pull(450 + dp(20))) < Math.abs(g.pull(450 - dp(20))));
+    }
+
+    @Test
+    public void thePillAndSidewaysDragsDoNotFollow() {
+        IslandGesture pill = new IslandGesture(D);
+        IslandShape p = pill();
+        float x = (p.left + p.right) / 2f, y = (p.touch.top + p.touch.bottom) / 2f;
+        pill.down(p.touch, x, y, 0, true);
+        pill.move(x, y - dp(20));
+        assertEquals(0f, pill.pull(y - dp(20)), 0f);
+        IslandGesture side = new IslandGesture(D);
+        side.down(ISLAND, 540, 450, 0, false);
+        side.move(540 + dp(40), 450);
+        assertEquals(0f, side.pull(450), 0f);
+    }
+
     private static Result pillDrift(float dxDp, float dyDp, long ms) {
         IslandShape p = pill();
         float x = (p.left + p.right) / 2f;
