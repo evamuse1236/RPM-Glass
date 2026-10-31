@@ -4,8 +4,8 @@ import path from 'node:path';
 import {PACKAGE, UserError, adb, shell, sleep, waitFor, foregroundActivity, dismissAnr} from './device.mjs';
 import {inPage} from './page.mjs';
 import {driveCommands} from './drive.mjs';
-import {target, openLauncher, errorLines} from './runtime.mjs';
-import {RUN_DIR, armExpression, loadVoiceFixtures, parseVoiceTimeArgs, runVoiceTimes} from './voice-time.mjs';
+import {target, openLauncher, errorLines, readState} from './runtime.mjs';
+import {RUN_DIR, armExpression, isEmulatorDevice, loadVoiceFixtures, parseVoiceTimeArgs, runVoiceTimes} from './voice-time.mjs';
 
 function prefsXml({fixture, delay}) {
   const rows = ['<boolean name="RPM_VOICE_TIMING" value="true" />'];
@@ -14,15 +14,77 @@ function prefsXml({fixture, delay}) {
   return `<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n<map>\n${rows.join('\n')}\n</map>\n`;
 }
 
-function defaultVoiceTimeIo(argv, fixtures) {
-  const {serial, cdpPort} = target(argv, {mutates: true});
+const hasMark = name => `performance.getEntriesByType('mark').some(entry => entry.name==='voice:${name}')`;
+
+/** Reads of the visible page and the log. None of them changes the device. */
+function pageReads(serial, cdpPort, sinceRef) {
   const pageEval = async expression => {
     const page = await inPage(serial, cdpPort);
     try { return await page.evaluate(expression); }
     finally { page.close(); }
   };
+  const until = (expression, {timeout, what}) => waitFor(async () => {
+    try { return (await pageEval(expression)) === true; }
+    catch (e) { if (e instanceof UserError) return false; throw e; }
+  }, {timeout, every: 300, what});
+  return {
+    pageEval,
+    until,
+    capturePage: what => until(`document.readyState==='complete'&&!!document.querySelector('#message')`, {timeout: 45000, what}),
+    now: () => Date.now(),
+    sleep,
+    async waitForStage(name, {timeout = 120000} = {}) { await until(hasMark(name), {timeout, what: `voice stage ${name}`}); },
+    readMarks: () => pageEval(`performance.getEntriesByType('mark').filter(entry => entry.name.startsWith('voice:')).map(entry => ({name: entry.name, startTime: entry.startTime}))`),
+    readClock: () => pageEval(`({timeOrigin: performance.timeOrigin, pageNow: Date.now()})`),
+    readLog: () => adb(serial, ['logcat', '-d', '-t', '400'], {allowFail: true}),
+    async readReceipts() {
+      try { return await pageEval(`[...document.querySelectorAll('.voice-card.receipt')].map(node => node.innerText)`); } catch { return []; }
+    },
+    async countLogErrors() {
+      try { return errorLines(serial, sinceRef.at).length; } catch { return 0; }
+    },
+    async writeRun(run) {
+      fs.mkdirSync(RUN_DIR, {recursive: true});
+      const file = path.join(RUN_DIR, `${run.runId}.json`);
+      fs.writeFileSync(file, JSON.stringify(run, null, 2));
+      run.file = file;
+    },
+  };
+}
+
+/**
+ * A phone: read-only target, real mic, the person's own plan. It never force-stops (that would drop the phone's
+ * reminder alarms), never writes prefs or the store, and never taps Hang up: the person ends the call.
+ */
+function phoneVoiceTimeIo(argv) {
+  const {serial, cdpPort} = target(argv, {mutates: false});
+  const since = {at: null};
+  const reads = pageReads(serial, cdpPort, since);
+  return {
+    ...reads,
+    fixtures: [],
+    async openVoice() {
+      since.at = shell(serial, "date '+%m-%d %H:%M:%S.000'").trim();
+      const t0 = Date.now();
+      await openLauncher(serial, 'com.rpm.widget.voice');
+      await reads.capturePage('Capture to open for voice-time');
+      await reads.pageEval('window.__rpmVoiceTiming=true;true');
+      await reads.until(`${hasMark('T2')}&&!${hasMark('T10')}`, {timeout: 30000, what: 'a new voice session to start'});
+      return t0;
+    },
+    async describeDevice() {
+      const version = /versionName=(\S+)/.exec(shell(serial, `dumpsys package ${PACKAGE}`))?.[1] ?? null;
+      return {buildHash: version, device: serial, networkType: null};
+    },
+  };
+}
+
+/** The emulator rpmctl owns: it may reset the plan, arm the fake mic and tap Hang up. */
+function emulatorVoiceTimeIo(argv, fixtures) {
+  const {serial, cdpPort} = target(argv, {mutates: true});
+  const since = {at: null};
+  const reads = pageReads(serial, cdpPort, since);
   let minted = false;
-  let since = null;
   let storeFile = null;
   const storeData = async () => {
     if (storeFile) return storeFile;
@@ -37,18 +99,13 @@ function defaultVoiceTimeIo(argv, fixtures) {
     adb(serial, ['push', await storeData(), '/data/local/tmp/rpm-voice-store.json']);
     adb(serial, ['shell', 'run-as', PACKAGE, 'cp', '/data/local/tmp/rpm-voice-store.json', 'files/companion.json']);
   };
-  const capturePage = what => waitFor(async () => {
-    try { return await pageEval(`document.readyState==='complete'&&!!document.querySelector('#message')`); }
-    catch (e) { if (e instanceof UserError) return false; throw e; }
-  }, {timeout: 45000, every: 400, what});
   return {
+    ...reads,
     fixtures,
-    now: () => Date.now(),
-    sleep,
     async openVoice({fixture, human}) {
       if (minted) await sleep(3500);
       minted = true;
-      since = shell(serial, "date '+%m-%d %H:%M:%S.000'").trim();
+      since.at = shell(serial, "date '+%m-%d %H:%M:%S.000'").trim();
       dismissAnr(serial);
       const xml = prefsXml({fixture: human ? '' : fixture.id, delay: ''});
       const local = path.join(os.tmpdir(), `rpm-voice-${process.pid}.xml`);
@@ -60,7 +117,7 @@ function defaultVoiceTimeIo(argv, fixtures) {
       await putStore();
       if (argv.warm) {
         await openLauncher(serial, 'com.rpm.widget.capture');
-        await capturePage('Capture to open before a warm voice-time run');
+        await reads.capturePage('Capture to open before a warm voice-time run');
         await sleep(1500);
         shell(serial, 'input keyevent 3');
         await sleep(1200);
@@ -69,67 +126,43 @@ function defaultVoiceTimeIo(argv, fixtures) {
       while (/PlannerActivity/.test(foregroundActivity(serial) ?? '') && backs < 6) { shell(serial, 'input keyevent 4'); backs += 1; await sleep(700); }
       const t0 = Date.now();
       await openLauncher(serial, 'com.rpm.widget.voice');
-      await capturePage('Capture to open for voice-time');
+      await reads.capturePage('Capture to open for voice-time');
       return t0;
     },
     async armAndStart(fixture) {
       const base64 = fs.readFileSync(fixture.wavPath).toString('base64');
-      await pageEval(armExpression({id: fixture.id, base64}));
+      await reads.pageEval(armExpression({id: fixture.id, base64}));
     },
     async playClip(fixture) {
       const base64 = fs.readFileSync(fixture.wavPath).toString('base64');
-      const n = await pageEval(`window.__rpmFakeMicPlay?.(${JSON.stringify({id: fixture.id, base64})}) ?? null`);
+      const n = await reads.pageEval(`window.__rpmFakeMicPlay?.(${JSON.stringify({id: fixture.id, base64})}) ?? null`);
       if (n == null) throw new UserError('The fake mic is not open, so the second clip cannot play.', 'Use a debug build and start voice-time without --human.');
     },
     async hangUp() {
-      const ended = async () => (await pageEval(`performance.getEntriesByType('mark').some(entry => entry.name==='voice:T10')`)) === true;
-      for (let tries = 0; tries < 4 && !(await ended()); tries++) {
+      for (let tries = 0; tries < 4 && (await reads.pageEval(hasMark('T10'))) !== true; tries++) {
         try { await driveCommands.tap({...argv, name: 'Hang up', role: 'button', _: []}); } catch (e) { if (!(e instanceof UserError)) throw e; }
         await sleep(1200);
       }
-    },
-    async readReceipts() {
-      try { return await pageEval(`[...document.querySelectorAll('.voice-card.receipt')].map(node => node.innerText)`); } catch { return []; }
-    },
-    async waitForStage(name) {
-      await waitFor(async () => {
-        try { return (await pageEval(`performance.getEntriesByType('mark').some(entry => entry.name==='voice:${name}')`)) === true; }
-        catch (e) { if (e instanceof UserError) return false; throw e; }
-      }, {timeout: 120000, every: 200, what: `voice stage ${name}`});
-    },
-    async readMarks() {
-      return pageEval(`performance.getEntriesByType('mark').filter(entry => entry.name.startsWith('voice:')).map(entry => ({name: entry.name, startTime: entry.startTime}))`);
-    },
-    async readClock() {
-      return pageEval(`({timeOrigin: performance.timeOrigin, pageNow: Date.now()})`);
-    },
-    async readLog() {
-      return adb(serial, ['logcat', '-d', '-t', '400'], {allowFail: true});
     },
     async describeDevice() {
       const state = target(argv, {mutates: true}).state;
       return {buildHash: state?.webSha256 ?? state?.installedSha256 ?? null, device: serial, networkType: null};
     },
-    async readReceipt() {
-      try {
-        await waitFor(async () => (await pageEval(`!!document.querySelector('.voice-card.receipt')`)) === true, {timeout: 4000, every: 200, what: 'the voice receipt'});
-        return await pageEval(`document.querySelector('.voice-card.receipt')?.innerText ?? null`);
-      } catch { return null; }
-    },
-    async countLogErrors() {
-      try { return errorLines(serial, since).length; } catch { return 0; }
-    },
-    async writeRun(run) {
-      fs.mkdirSync(RUN_DIR, {recursive: true});
-      const file = path.join(RUN_DIR, `${run.runId}.json`);
-      fs.writeFileSync(file, JSON.stringify(run, null, 2));
-      run.file = file;
-    },
   };
 }
 
+const PROPS = ['ro.kernel.qemu', 'ro.boot.qemu', 'ro.hardware'];
+
+/** Asks the device itself; a device that cannot answer is treated as a phone. */
+export function deviceIsEmulator(serial) {
+  if (!serial) return false;
+  const props = {};
+  for (const name of PROPS) props[name] = adb(serial, ['shell', 'getprop', name], {allowFail: true}).trim();
+  return isEmulatorDevice({serial, props});
+}
+
 export async function voiceTime(argv) {
-  const plan = parseVoiceTimeArgs(argv);
-  const fixtures = loadVoiceFixtures();
-  return runVoiceTimes(plan, defaultVoiceTimeIo(argv, fixtures));
+  const emulator = deviceIsEmulator(argv.serial ?? readState()?.serial);
+  const plan = parseVoiceTimeArgs(argv, {emulator});
+  return runVoiceTimes(plan, emulator ? emulatorVoiceTimeIo(argv, loadVoiceFixtures()) : phoneVoiceTimeIo(argv));
 }

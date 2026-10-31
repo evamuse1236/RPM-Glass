@@ -153,7 +153,10 @@ spoken audio (T9#n), plus tap to Gemini listening (T4).
 --fixture is time, two-tasks, change, question, ramble, or all (the default; one session each). --runs prints median and
 p90. The table includes errors and workDone (receipts drawn). --human leaves the mic real and waits for you to hang up.
 Writes .verify/voice-latency/runs/<run-id>.json. A debug build can feed fixtures/voice WAV through RPM_FAKE_MIC. Release builds have no fake mic.
-This command drives the phone. A Gemini key on that phone starts a Live session. Unit tests do not run it.`,
+On a device that is not an emulator (--serial <phone>) it is always --human: it refuses --store, --fixture and the fake mic,
+never resets the plan, force-stops or taps. It opens Capture from the voice widget, records marks per request while you
+talk, and stops when you tap Hang up or after 20 s of quiet. With --session two it expects two requests.
+A Gemini key on the device starts a Live session. Unit tests do not run it.`,
   logs: `logs [--errors] [--lines N]
 Logcat for the app's process plus WebView console lines (tag chromium). --errors keeps only crashes, ANRs,
 uncaught exceptions and console errors since launch. Default --lines 200.`,

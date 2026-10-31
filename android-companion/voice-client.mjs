@@ -1,6 +1,6 @@
 import {createRamble} from './voice-turn.mjs';
 import {userMessage} from './user-message.mjs';
-import {voiceMark, holdStage, beforeStage} from './voice-marks.mjs';
+import {voiceMark, voiceSaidMark, resetSessionMarks, holdStage, beforeStage} from './voice-marks.mjs';
 
 export const VOICE_LIMITS=Object.freeze({connectMs:10000,talkMs:120000,answerMs:30000,quietMs:20000,gapMs:3000});
 const IN_RATE=16000,OUT_RATE=24000,SPEECH_LEVEL=0.12;
@@ -64,6 +64,7 @@ const micError=e=>['NotAllowedError','SecurityError'].includes(e?.name)?new Voic
  * Phases: connecting → listening → working → speaking → done | failed.
  */
 export function startVoice(options){
+ resetSessionMarks();
  if(options.continuous)return startOpenLine(options);
  return startRamble(options);
 }
@@ -171,6 +172,7 @@ function startOpenLine({data,timeZone,setup,token,onChange=()=>{},onLevel=()=>{}
   const sc=m.serverContent,parts=sc?.modelTurn?.parts??[];
   if(sc?.interrupted)speaker.clear();
   if(!ramble&&(m.toolCall||sc?.inputTranscription?.text||sc?.outputTranscription?.text||parts.length)){ramble=createRamble({data:fresh(),timeZone,now});count++;}
+  if(ramble&&sc?.inputTranscription?.text)voiceSaidMark(count);
   if(m.toolCall){replied=true;serverBusy=true;toolsPending=true;holdStage(`T7#${count}`);voiceMark(`T7#${count}`);}
   if(parts.length){replied=true;serverBusy=true;toolsPending=false;}
   for(const part of parts)if(part.inlineData?.mimeType?.startsWith('audio/pcm')&&!hush){

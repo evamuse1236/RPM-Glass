@@ -3,7 +3,11 @@
 Done when, on the S24 FE, the median of 5 runs is under 0.8 s from widget tap to Gemini listening
 and under 1.5 s from Stop to the saved receipt. Stop early after 2 flat rounds or $3 of Gemini spend.
 
-Command: `node .claude/skills/verify-rpm-glass/rpmctl.mjs voice-time --fixture time --runs 5 [--warm] [--serial <phone>]`
+Command (emulator, fake mic): `node .claude/skills/verify-rpm-glass/rpmctl.mjs voice-time --fixture time --runs 5 [--warm]`
+
+Command (phone, a person talks two requests, then taps Hang up or stays quiet 20 s):
+`node .claude/skills/verify-rpm-glass/rpmctl.mjs voice-time --serial <phone> --human --session two`. On a phone voice-time
+refuses `--store` and the fake mic and never resets the plan.
 
 ## Log
 

@@ -84,4 +84,5 @@ Before changing Capture, read `docs/rules/capture.md`. Before changing the notch
 | Every save of the shared store reloads and retries when another writer saved first (`retryOnChange`, or a listed retry loop); an exception names its reason in the test. | `scripts/rules/save-retry.test.mjs`, `android-companion/save-retry.test.mjs`, `chat-prototype/interrupted.test.mjs` |
 | Task ID range numbers live only in `android-companion/task-ids.mjs`; every allocator imports them. | `scripts/rules/task-id-range.test.mjs` |
 | For the website, the server hub and the phone replica, follow the web sync rules. | [Web sync rules and enforcing tests](docs/rules/web-sync.md) |
+| `rpmctl voice-time` on a device that is not an emulator only listens: it refuses `--store` and the fake mic, defaults to `--human`, never resets the plan, force-stops or taps Hang up. | `.claude/skills/verify-rpm-glass/voice-time.test.mjs` |
 | Report keyless model paths, Samsung behavior and real widget placement as UNVERIFIED. | Judgment: `verify-rpm-glass` SKILL.md proof standards |

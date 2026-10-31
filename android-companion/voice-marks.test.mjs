@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {voiceMark, voiceDelayMs, beforeStage, holdStage, markCaptureDrawn, resetVoiceMarks} from './voice-marks.mjs';
+import {voiceMark, voiceDelayMs, beforeStage, holdStage, markCaptureDrawn, resetVoiceMarks, resetSessionMarks, voiceSaidMark} from './voice-marks.mjs';
 
 function host() {
   const marks = [], lines = [];
@@ -49,3 +49,36 @@ test('Capture drawn marks T1 on the next frame, once', () => {
 });
 
 test.after(() => resetVoiceMarks());
+
+function markHost() {
+  const entries = [];
+  return {entries, performance: {
+    mark: name => entries.push({name}),
+    getEntriesByType: () => entries.slice(),
+    clearMarks: name => { for (let i = entries.length - 1; i >= 0; i--) if (entries[i].name === name) entries.splice(i, 1); },
+  }};
+}
+
+test('a new voice session in the same page is timed again, and Capture drawn stays', () => {
+  resetVoiceMarks();
+  const env = markHost();
+  voiceMark('T1', env);
+  voiceMark('T4', env);
+  voiceMark('T10', env);
+  env.performance.mark('other');
+  resetSessionMarks(env);
+  assert.deepEqual(env.entries.map(entry => entry.name), ['voice:T1', 'other']);
+  voiceMark('T4', env);
+  voiceMark('T1', env);
+  assert.deepEqual(env.entries.map(entry => entry.name), ['voice:T1', 'other', 'voice:T4']);
+});
+
+test('heard words mark their request only while timing is on', () => {
+  const off = markHost();
+  voiceSaidMark(2, off);
+  assert.deepEqual(off.entries, []);
+  const on = {...markHost(), __rpmVoiceTiming: true};
+  voiceSaidMark(2, on);
+  voiceSaidMark(2, on);
+  assert.deepEqual(on.entries.map(entry => entry.name), ['voice:said#2', 'voice:said#2']);
+});

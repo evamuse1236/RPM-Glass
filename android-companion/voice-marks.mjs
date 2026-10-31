@@ -25,6 +25,20 @@ export function resetVoiceMarks() {
   try { performance.clearMarks(); } catch { /* optional */ }
 }
 
+/**
+ * Forgets the last voice session's marks so a second session in the same page is timed too. Capture drawn (T1)
+ * stays: it belongs to the page, not the session.
+ */
+export function resetSessionMarks(env = globalThis) {
+  for (const name of [...once]) if (name !== 'T1') once.delete(name);
+  armed.clear();
+  receipts.clear();
+  try {
+    const names = new Set(env.performance.getEntriesByType('mark').map(entry => entry.name).filter(name => name.startsWith('voice:') && name !== 'voice:T1'));
+    for (const name of names) env.performance.clearMarks(name);
+  } catch { /* mark API optional */ }
+}
+
 export function voiceDelayMs(name, env = globalThis) {
   if (env.__rpmVoiceTiming !== true) return 0;
   const delay = env.__rpmVoiceDelay;
@@ -80,6 +94,12 @@ export function voiceMark(name, env = globalThis) {
 export function voiceWordsMark(env = globalThis) {
   if (env.__rpmVoiceTiming !== true) return;
   try { env.performance?.mark?.('voice:words'); } catch { /* mark API optional */ }
+}
+
+/** Marks each time Gemini sends words it heard for request `n`; the last one stands in for the end of a person's speech. */
+export function voiceSaidMark(n, env = globalThis) {
+  if (env.__rpmVoiceTiming !== true) return;
+  try { env.performance?.mark?.(`voice:said#${n}`); } catch { /* mark API optional */ }
 }
 
 export function armVoiceMark(name) {
