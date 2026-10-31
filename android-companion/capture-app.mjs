@@ -1,5 +1,5 @@
 import {captureRenderKey} from './surface-refresh.mjs';
-import {wordsKeptCard,receiptCard,confirmCard,undoneCard,parkedCard,savedCard,openCard,questionCard,card,withProblem} from './capture-cards.mjs';
+import {showCountdown,stopCountdown,wordsKeptCard,receiptCard,confirmCard,undoneCard,parkedCard,savedCard,openCard,questionCard,card,withProblem} from './capture-cards.mjs';
 import {answerCard} from './capture-answers.mjs';
 import {historyView,contextView} from './capture-views.mjs';
 import {installSheet} from './capture-sheet.mjs';
@@ -154,7 +154,7 @@ export function mountCapture(platform){
   cancelAutoClose();
   if(message.value.trim()||chips.held(latest()?.draft?.id))return;
   const ends=Date.now()+AUTO_CLOSE_MS;
-  const tick=()=>{const node=content.querySelector('.countdown'),left=Math.ceil((ends-Date.now())/1000);if(node)node.textContent=left>0?`Closing in ${left}s`:'';};
+  const tick=()=>showCountdown(content.querySelector('.countdown'),Math.ceil((ends-Date.now())/1000));
   tick();s.countdown=setInterval(tick,250);
   s.autoClose=setTimeout(()=>{
    cancelAutoClose();
@@ -164,8 +164,7 @@ export function mountCapture(platform){
  function cancelAutoClose(){
   clearTimeout(s.autoClose);clearInterval(s.countdown);
   s.autoClose=null;s.countdown=null;
-  const node=content.querySelector('.countdown');
-  if(node)node.textContent='';
+  stopCountdown(content.querySelector('.countdown'));
  }
  for(const type of ['pointerdown','keydown','input','wheel'])$('stack').addEventListener(type,cancelAutoClose,{capture:true,passive:true});
 

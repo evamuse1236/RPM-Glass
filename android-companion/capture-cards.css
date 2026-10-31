@@ -54,6 +54,7 @@
 
 .card-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:8px;margin-block-start:-4px}
 .card-actions .countdown{margin-inline-end:auto;font:var(--body-small);color:var(--bar-on-variant)}
+.card-actions .countdown.stopped{visibility:hidden}
 .btn{
   position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-block-size:40px;padding:0 20px;
   border:0;border-radius:var(--shape-full);background:transparent;color:var(--bar-primary);font:var(--label-large);cursor:pointer;text-align:center;overflow-wrap:anywhere;

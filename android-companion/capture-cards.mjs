@@ -32,6 +32,17 @@ export function actionsRow(...nodes){
 }
 const words=raw=>el('p','words',raw);
 
+/** "Closing in 4s" beside Undo. */
+export function showCountdown(node,left){
+ if(!node)return;
+ node.classList.remove('stopped');
+ node.textContent=left>0?`Closing in ${left}s`:'';
+}
+/** A touch stops the countdown. Its words hide but keep their space, so the card never moves under the finger. */
+export function stopCountdown(node){
+ node?.classList.add('stopped');
+}
+
 /** The saved words as one quoted line behind a check; a tap shows them all. */
 function keptWords(raw){
  const row=el('button','kept-words');
