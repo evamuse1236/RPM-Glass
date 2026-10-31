@@ -4,7 +4,7 @@ import {answerCard} from './capture-answers.mjs';
 import {historyView,contextView} from './capture-views.mjs';
 import {installSheet} from './capture-sheet.mjs';
 import {installCapturePresentation,createRevealTracker,enter,keepChoicesInView,placeCards} from './capture-presentation.mjs';
-import {installComposer,listeningCard} from './capture-composer.mjs';
+import {installComposer,listeningCard,orbTap} from './capture-composer.mjs';
 import {installForming} from './capture-forming.mjs';
 import {createSendIdentity,draftToKeep,cardKind,canUndoChange} from './capture-session.mjs';
 import {el,button} from './capture-dom.mjs';
@@ -34,7 +34,7 @@ export function mountCapture(platform){
   showArchived:false,lastKey:null,request:null,failure:null,problem:null,listening:false,autoClose:null,countdown:null};
  const identity=createSendIdentity(),reveal=createRevealTracker(),seen=new Set();
  const refreshState=async()=>{try{s.state=await(await fetch('/api/state')).json();}catch{}render();};
- const voiceMode=createVoiceMode({platform,conversationId:()=>conversation().id,onChange:()=>render(),afterSave:id=>{seen.add(id);refreshState();}});
+ const voiceMode=createVoiceMode({platform,conversationId:()=>conversation().id,onChange:()=>render(),afterSave:id=>{seen.add(id);refreshState();},onLevel:value=>composer.level(value)});
 
  function rememberComposer(text){
   const kept=draftToKeep(text,{busy:s.busy,pendingText:identity.pending?.text});
@@ -241,7 +241,7 @@ export function mountCapture(platform){
   content.setAttribute('aria-busy',String(s.busy));
   message.placeholder=answerDraft()||latest()?.clarification?.open?'Or answer in your own words':s.focusedDraftId?'Tell me what to change':'Capture a thought';
   for(const b of content.querySelectorAll('button'))if(!b.closest('.view-head'))b.disabled=s.busy;
-  $('send').disabled=s.busy||voiceMode.active();$('dictate').disabled=s.busy||s.listening||voiceMode.active();
+  $('send').disabled=s.busy||voiceMode.active();composer.voice({phase,listening:s.listening,busy:s.busy});
   formNow();
  }
  const replying=()=>!!(answerDraft()||latest()?.clarification?.open||s.focusedDraftId);
@@ -276,7 +276,7 @@ export function mountCapture(platform){
  const composer=installComposer({
   onSubmit:text=>{if(!s.busy)send(text);},
   onInput:text=>{rememberComposer(text);formNow();if(s.state&&!s.busy&&$('status').textContent&&!$('status').classList.contains('error'))status('');},
-  onVoice:voice,
+  onVoice:orbTap(voiceMode,voice),
  });
  window.rpmStartVoice=(tries=25)=>{setView('chat');if((s.busy||!s.state)&&tries>0){setTimeout(()=>window.rpmStartVoice(tries-1),200);return;}voice();};
  if(window.rpmPendingVoice){delete window.rpmPendingVoice;window.rpmStartVoice();}

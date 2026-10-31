@@ -1,4 +1,4 @@
-/** Capture's voice card: an orb that follows the voice, the words streaming in, and the changes on a spine. */
+/** Capture's voice card: the words streaming in and the changes on a spine. The composer's orb follows the voice. */
 import {el,icon,iconButton} from './capture-dom.mjs';
 import {reducedMotion} from './capture-presentation.mjs';
 
@@ -80,32 +80,31 @@ export function spine(rows,options){
  return list;
 }
 
-/** The scroll box under the card's top: the card keeps a solid edge and the list scrolls inside it. */
+/** The scroll box under the card's header: the card keeps a solid edge and the list scrolls inside it. */
 export function scrollBox(...children){
  const box=el('div','voice-scroll');
  box.append(...children);
  return box;
 }
 
-export function tools(...buttons){
- const dock=el('div','voice-dock'),capsule=el('div','voice-tools');
- capsule.append(...buttons.filter(Boolean));
- dock.append(capsule);
- return dock;
-}
-
-/** Discard, Edit and Open planner as symbols. Edit with one editable change opens it; with more, rows become buttons. */
-export function receiptTools(node,{rows,discard,openPlanner,openItem}){
- const editable=rows.map(openTarget).filter(Boolean);
+/**
+ * The receipt's pinned header: its title, then Discard, Edit and Open planner as round symbols at the end.
+ * Edit with one editable change opens it; with more, the rows become buttons. A discarded ramble keeps only Open planner.
+ */
+export function receiptHead(node,{title,rows,gone,discard,openPlanner,openItem}){
+ const head=el('div','voice-head'),actions=el('div','voice-actions');
+ const editable=gone?[]:rows.map(openTarget).filter(Boolean);
  let edit=null;
  if(editable.length){
-  edit=iconButton('edit','Edit the changes',()=>{
+  edit=iconButton('edit_square','Edit the changes',()=>{
    if(editable.length===1){openItem(editable[0]);return;}
    const on=node.classList.toggle('editing');
    edit.setAttribute('aria-pressed',String(on));
    for(const b of node.querySelectorAll('.spine-open'))b.tabIndex=on?0:-1;
-  },{pressed:false});
+  },{cls:'tonal',fill:true,pressed:false});
  }
- const bin=discard?iconButton('delete','Discard this ramble',discard,{cls:'danger'}):null;
- return tools(bin,edit,iconButton('open_in_new','Open planner',openPlanner));
+ const undo=discard&&!gone?iconButton('undo','Discard this ramble',discard,{cls:'tonal',fill:true}):null;
+ actions.append(...[undo,edit,iconButton('arrow_outward','Open planner',openPlanner,{cls:'primary'})].filter(Boolean));
+ head.append(el('p','voice-title',title),actions);
+ return head;
 }

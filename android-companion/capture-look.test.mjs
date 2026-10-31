@@ -5,11 +5,13 @@ import fs from 'node:fs';
 const read = path => fs.readFileSync(new URL(path, import.meta.url), 'utf8');
 const block = (css, selector) => css.match(new RegExp(`(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\{([^}]*)\\}`))?.[1] ?? '';
 
-test('the Capture field is body-large (16/24) with 12 20 4 padding, at every text size', () => {
+test('the Capture field is body-large (16/24) on one row with the round button, at every text size', () => {
   const css = read('capture.css');
   const field = block(css, '#message');
   assert.match(field, /font:var\(--body-large\)/);
-  assert.match(field, /padding:12px 20px 4px/);
+  assert.match(field, /padding:12px 0/);
+  assert.match(field, /min-block-size:48px/);
+  assert.match(block(css, '.composer'), /display:flex;align-items:flex-end/);
   assert.doesNotMatch(css, /#message\{font:var\(--title-large\)\}/);
   assert.match(read('theme.css'), /--body-large:400 16px\/24px/);
 });
