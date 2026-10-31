@@ -8,7 +8,7 @@ For UI work, use `DESIGN.md` and the relevant surface contract under `docs/`; va
 
 For a Google Tasks batch, read the installed `tasks` skill and preserve its batch/item ledger. A mock-only integration remains unfinished unless accepted as the requested scope. `docs/rpm-deferred-features.md` is a backlog, not authorization to activate features.
 
-For an authorized phone release, compare the working tree, branch, and installed build so the release preserves newer features and unrelated work. Follow `docs/testing.md` and relevant phone setup guidance. Verify package/version, compatible signing, preserved app data, and actual launch. Report commit/push, APK build, device installation, and external integration activation separately.
+For an authorized phone release, compare the working tree, branch, and installed build so the release preserves newer features and unrelated work. Follow `docs/testing.md` and relevant phone setup guidance. Verify package/version, compatible signing, preserved app data, and actual launch. Report commit/push, APK build, device installation, and external integration activation separately. Each install report also lists the open bugs in the shipped feature that can change or lose the user's data.
 
 When Vishwajit asks for a finished APK, follow the global `juno` skill: build the branch that holds the phone's installed build plus the new work, send it with `~/.claude/skills/juno/send-rpm-apk.sh`, and call the install UNVERIFIED until the phone's `dumpsys package` shows the new version.
 
