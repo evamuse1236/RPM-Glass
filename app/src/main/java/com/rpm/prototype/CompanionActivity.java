@@ -31,7 +31,7 @@ public class CompanionActivity extends Activity {
     void syncChanged(){syncRefresh.run();}
     private final ModelRequests modelRequests=new ModelRequests();private final ModelGateway models=new ModelGateway(this);
     @Override public void onCreate(Bundle saved){super.onCreate(saved);expanded=saved!=null&&saved.getBoolean("expanded");getWindow().setBackgroundDrawableResource(android.R.color.transparent);getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE|WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
-        if(!planning())work.execute(models::warm);
+        if(!planning())work.execute(()->{models.warm();if(GeminiKey.has(this))VoiceToken.warm();});
         if(planning()){expanded=true;getWindow().setBackgroundDrawableResource(R.color.rpm_surface);}
         web=new WebView(this);if(!planning())web.setAlpha(0);web.setBackgroundColor(planning()?getColor(R.color.rpm_surface):Color.TRANSPARENT);WebSettings s=web.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setAllowFileAccess(false);s.setAllowContentAccess(false);s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);s.setMediaPlaybackRequiresUserGesture(true);s.setSupportMultipleWindows(false);s.setJavaScriptCanOpenWindowsAutomatically(false);s.setSafeBrowsingEnabled(true);applyTextScale();
         settingsController=new CompanionSettingsController(this,this::settingsChanged);
@@ -43,7 +43,7 @@ public class CompanionActivity extends Activity {
                 try{Diagnostics.recordNow(CompanionActivity.this,Diagnostics.event("crash","error","webview.renderer","error",new JSONObject().put("didCrash",detail.didCrash()).put("priority",detail.rendererPriorityAtExit())));}catch(Exception ignored){}
                 return false;
             }
-            @Override public void onPageFinished(WebView v,String url){if("https://rpm.local/index.html".equals(url)){arrive();}syncSurfaceInsets();}
+            @Override public void onPageFinished(WebView v,String url){if(BuildConfig.DEBUG)VoiceHarness.arm(v,CompanionActivity.this);if("https://rpm.local/index.html".equals(url)){arrive();}syncSurfaceInsets();}
             @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return true;}
             @Override public WebResourceResponse shouldInterceptRequest(WebView v,WebResourceRequest r){return CompanionSurface.serve(CompanionActivity.this,r);}
         });
@@ -91,7 +91,7 @@ public class CompanionActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle out){out.putBoolean("expanded",expanded);super.onSaveInstanceState(out);}
     @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);if(intent.getBooleanExtra("reload",false))web.reload();else if(!planning())arrive();}
     // The widget's mic opens Capture already listening (once: a reload afterwards only focuses the field); anything else opens the keyboard.
-    private void arrive(){if(web==null)return;if(!"com.rpm.widget.voice".equals(getIntent().getAction())){openKeyboard();return;}getIntent().setAction("com.rpm.widget.capture");web.post(()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmStartVoice?window.rpmStartVoice():(window.rpmPendingVoice=true)",null);});}
+    private void arrive(){if(web==null)return;if(!"com.rpm.widget.voice".equals(getIntent().getAction())){openKeyboard();return;}getIntent().setAction("com.rpm.widget.capture");if(BuildConfig.DEBUG&&VoiceHarness.holding(this))return;web.post(()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmStartVoice?window.rpmStartVoice():(window.rpmPendingVoice=true)",null);});}
     private android.content.BroadcastReceiver notchSaved;
     @Override protected void onResume(){super.onResume();notchSaved=NotchRunner.onSaved(this,()->{if(!closing&&web!=null)web.evaluateJavascript("window.rpmPhoneRefresh?.()",null);});applyTextScale();if(settingsController!=null)settingsController.onResume();work.execute(()->{NotchSetup.check(this);try{JSONObject d=CompanionStore.read(this);if(d!=null)CompanionAlerts.reconcile(this,d,false);}catch(Exception ignored){}runOnUiThread(this::settingsChanged);});}
     @Override protected void onPause(){if(web!=null&&!voice.asking())web.evaluateJavascript("window.rpmVoiceBackground?.()",null);unregisterReceiver(notchSaved);if(settingsController!=null)settingsController.onPause();super.onPause();}

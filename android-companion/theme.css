@@ -93,7 +93,7 @@
   --bar:#171719;--bar-high:#282a2c;--bar-highest:#333537;
   --bar-on:#e3e3e3;--bar-on-variant:#c4c7c5;--bar-outline:#444746;
   --bar-accent:#0842a0;--bar-on-accent:#d3e3fd;--bar-primary:#a8c7fa;--bar-on-primary:#062e6f;
-  --bar-error:#f2b8b5;--bar-warn:#fdd663;--bar-success:#6dd58c;
+  --bar-error:#f2b8b5;--bar-warn:#fdd663;--bar-success:#6dd58c;--bar-success-core:#0f5223;--bar-orb-core:#0b1d3f;--bar-orb-glow:rgba(168,199,250,.45);
   --bar-shadow:0 4px 16px rgba(0,0,0,.28),0 1px 3px rgba(0,0,0,.3);
   --bar-area-0:#81c995;--bar-area-1:#fcad70;--bar-area-2:#8ab4f8;--bar-area-3:#d7aefb;--bar-area-4:#f28b82;--bar-area-5:#78d9ec;--bar-area-6:#ff8bcb;--bar-area-7:#bdc1c6;--bar-on-tone:#131314;
 }

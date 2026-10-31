@@ -1,3 +1,5 @@
+import {EASE,DURATION} from './motion-core.mjs';
+import {markCaptureDrawn} from './voice-marks.mjs';
 // Presentation only: geometry, insets and motion. This module never saves a
 // plan and never invents request progress.
 
@@ -27,6 +29,21 @@ export function keepChoicesInView(content){
  const chips=content.querySelector('.question .chips');
  if(!chips)return;
  content.scrollTop=choicesScrollTop(content.getBoundingClientRect(),chips.getBoundingClientRect(),content.scrollTop);
+}
+
+/**
+ * Puts the cards in the list. Cards already there in the same order stay, so their entrance does not replay.
+ * A first card that takes over from one with the same `data-morph` grows or shrinks from its height instead.
+ */
+export function placeCards(content,nodes){
+ const now=content.children;
+ if(now.length===nodes.length&&nodes.every((node,i)=>now[i]===node))return;
+ const before=now[0],after=nodes[0];
+ const from=after?.dataset?.morph&&before?.dataset?.morph===after.dataset.morph&&before!==after?before.getBoundingClientRect().height:null;
+ content.replaceChildren(...nodes);
+ if(from===null||!after.animate||reducedMotion())return;
+ const to=after.getBoundingClientRect().height;
+ if(Math.abs(to-from)>1)after.animate([{blockSize:`${from}px`},{blockSize:`${to}px`}],{duration:DURATION.medium2,easing:EASE.emphasized});
 }
 
 const prefersReduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -76,6 +93,7 @@ function installSizeReport(panel,action){
    panel.dataset.measured='true';
    // The first report also fades the native window in.
    action?.('captureSize',{height,width,reducedMotion:reducedMotion()}).catch(()=>{last='';});
+   markCaptureDrawn();
   });
  };
  new ResizeObserver(report).observe(panel);
@@ -84,18 +102,19 @@ function installSizeReport(panel,action){
  return report;
 }
 
-/** Drag the bar's handle down to close, like a bottom sheet. */
+/** Drag the bar's handle (#more) down to close, like a bottom sheet; a tap on it still opens More. */
 function installSwipeToClose(panel,close){
- let start=null;
- const zone=e=>!!e.target.closest('.grab');
+ let start=null,dragged=false;
+ const zone=e=>!!e.target.closest('#more');
  panel.addEventListener('pointerdown',e=>{
   if(e.button!==0||!zone(e))return;
-  start={y:e.clientY,id:e.pointerId,dy:0};
+  start={y:e.clientY,id:e.pointerId,dy:0};dragged=false;
   panel.setPointerCapture?.(e.pointerId);
  });
  panel.addEventListener('pointermove',e=>{
   if(!start||e.pointerId!==start.id)return;
   start.dy=Math.max(0,e.clientY-start.y);
+  if(start.dy>8)dragged=true;
   panel.style.transform=start.dy?`translateY(${start.dy}px)`:'';
  });
  const end=e=>{
@@ -109,6 +128,10 @@ function installSwipeToClose(panel,close){
  };
  panel.addEventListener('pointerup',end);
  panel.addEventListener('pointercancel',end);
+ panel.addEventListener('click',e=>{
+  if(!dragged||!zone(e))return;
+  dragged=false;e.preventDefault();e.stopImmediatePropagation();
+ },true);
 }
 
 export function installCapturePresentation({action}){

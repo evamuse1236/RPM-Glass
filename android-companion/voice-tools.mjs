@@ -19,8 +19,10 @@ export const TOOLS=Object.freeze([
  {name:'order_block',description:'Set the priority order of tasks in one Block (or the Inbox with blockId null), most important first. Listed tasks go to the top in that order; the rest keep their order below.',parameters:object({blockId:maybe('string'),ids:{type:'array',items:id}},['blockId','ids'])},
  {name:'save_block',description:'Add an RPM Block (no id) or change one. Title is the result wanted, purpose is why it matters. projectId puts it in a Project; null takes it out.',parameters:object({id:entityId,title:{type:'string'},purpose:{type:'string'},projectId:maybe('string')})},
  {name:'delete_block',description:'Remove a Block. Its tasks move to the Inbox.',parameters:object({id:entityId},['id'])},
- {name:'save_project',description:'Add a Project (no id) or change one.',parameters:object({id:entityId,title:{type:'string'},purpose:{type:'string'}})},
+ {name:'save_project',description:'Add a Project (no id) or change one. goalId puts it under a Goal, and so in that Goal\'s Area; null takes it out.',parameters:object({id:entityId,title:{type:'string'},purpose:{type:'string'},goalId:maybe('string')})},
  {name:'delete_project',description:'Remove a Project. Its Blocks stay, outside any Project.',parameters:object({id:entityId},['id'])},
+ {name:'save_goal',description:'Add a Goal (no id) or change one. A Goal sits in one Area (areaId) and holds Projects. A new Goal is for this year unless year is given.',parameters:object({id:entityId,title:{type:'string'},purpose:{type:'string'},areaId:maybe('string'),year:{type:'integer'}})},
+ {name:'delete_goal',description:'Remove a Goal. Its Projects stay, outside any Goal.',parameters:object({id:entityId},['id'])},
  {name:'save_area',description:'Add a life Area (no id) or change one. rating is 0 to 10.',parameters:object({id:entityId,title:{type:'string'},purpose:{type:'string'},rating:maybe('number')})},
  {name:'delete_area',description:'Remove a life Area.',parameters:object({id:entityId},['id'])},
 ]);
@@ -38,36 +40,59 @@ export function planView(data,timeZone){
  return {
   inbox:blockTasks(data,null).map(task),
   blocks:blocks.map(b=>({id:b.id,title:b.title,purpose:b.purpose||null,projectId:b.projectId??null,tasks:blockTasks(data,b.id).map(task)})),
-  projects:p.projects.filter(live).map(x=>({id:x.id,title:x.title,purpose:x.purpose||null})),
+  projects:p.projects.filter(live).map(x=>({id:x.id,title:x.title,purpose:x.purpose||null,goalId:x.goalId??null})),
+  goals:p.goals.filter(live).map(g=>({id:g.id,title:g.title,purpose:g.purpose||null,areaId:g.areaId??null,year:g.year})),
   areas:p.areas.filter(live).map(a=>({id:a.id,title:a.title,purpose:a.purpose||null,rating:a.rating??null})),
  };
 }
 
-export function systemPrompt(now,timeZone){
+/** Plans bigger than this stay out of the prompt, so the setup stays under the phone's 64 KB limit. */
+export const PLAN_IN_PROMPT_MAX=40000;
+
+const planLines=plan=>plan?`- The plan as it is now is below (the same answer get_plan gives). Save at once; call get_plan only after your own saves, to see their results.
+PLAN: ${plan}`:'- Call get_plan first.';
+
+/** The phone's open line: Gemini ends each request after half a second of quiet, and the session stays open. */
+export const OPEN_LINE_DETECTION=Object.freeze({disabled:false,endOfSpeechSensitivity:'END_SENSITIVITY_HIGH',silenceDurationMs:500});
+const OPENING={
+ once:'They talk, then stop; you change the plan with tools, then say in one short, warm sentence what you did.',
+ open:'The line stays open, so they can add more after each answer. Change the plan with tools, and answer every direct request with one short sentence.',
+};
+
+export function systemPrompt(now,timeZone,{plan=null,continuous=false}={}){
  const today=now.toLocaleString('en-US',{timeZone,weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'numeric',minute:'2-digit'});
- return `You keep a person's RPM planner. They talk, then stop; you change the plan with tools, then say in one short, warm sentence what you did.
+ return `You keep a person's RPM planner. ${continuous?OPENING.open:OPENING.once}
 Now: ${today} (time zone ${timeZone}, offset ${offsetOf(now,timeZone)}).
-RPM: a task is one action. A Block is one result the person wants (title), with a purpose (why it matters) and the tasks that get it. Projects hold Blocks. Areas are parts of life. Priority is the order of tasks inside a Block, most important first. Must marks a task as essential.
-- Call get_plan first.
+RPM: a task is one action. A Block is one result the person wants (title), with a purpose (why it matters) and the tasks that get it. Projects hold Blocks. Areas are parts of life; an Area holds Goals, and a Goal holds Projects. Priority is the order of tasks inside a Block, most important first. Must marks a task as essential. Blocks have no order of their own: the planner lists them by deadline, the latest dated task in each.
+${planLines(plan)}
 - Make every change they asked for: add, change, complete, reopen, remove or move tasks; add, change or remove Blocks, Projects and Areas; give purposes; set priorities.
 - Use their words for titles. Never invent tasks, times or lengths they did not say.
 - "Tomorrow", "tonight", "in 20 minutes" and weekday names count from now. A time without am or pm means the next sensible one.
 - A saved item they name or clearly mean is changed, not added again.
 - To sort tasks into Blocks, put each task in the Block whose result it serves. Leave a task in the Inbox when no Block clearly fits, and say so.
+- To put a Project in an Area, give it a Goal of that Area (save_project goalId). If the Area has no Goal for this year, add one with save_goal, named from their words or else after the Area, and say so. A Block goes into an Area through its Project; if it has none, put it in a fitting Project or add one.
+- If they ask to move, reorder or prioritize a Block itself, change nothing for that request, and say the planner lists Blocks by their deadline, so an earlier date on one of its tasks moves it up.
+- A new item's id is in the answer to its save; never guess an id.
 - Removing is only for what they asked to remove.
 - If something is unclear, make the most likely choice and say what you chose. Never wait for an answer before saving what you are sure of.`;
 }
 
-/** The Gemini Live setup message for one session. Both the phone and the website server build it from here. */
-export function liveSetup(now,timeZone){
+/**
+ * The Gemini Live setup message for one session. Both the phone and the website server build it from here.
+ * `continuous` is the phone's open line; the website keeps one ramble per press.
+ */
+export function liveSetup(now,timeZone,{data=null,continuous=false}={}){
+ let view=null;
+ try{view=data?JSON.stringify(planView(data,timeZone)):null;}catch{view=null;}
+ const plan=view&&view.length<=PLAN_IN_PROMPT_MAX?view:null;
  return {model:`models/${LIVE_MODEL}`,generationConfig:{responseModalities:['AUDIO']},
-  systemInstruction:{parts:[{text:systemPrompt(now,timeZone)}]},
+  systemInstruction:{parts:[{text:systemPrompt(now,timeZone,{plan,continuous})}]},
   tools:[{functionDeclarations:TOOLS.map(t=>({name:t.name,description:t.description,parametersJsonSchema:t.parameters}))}],
-  inputAudioTranscription:{},outputAudioTranscription:{},realtimeInputConfig:{automaticActivityDetection:{disabled:true}}};
+  inputAudioTranscription:{},outputAudioTranscription:{},realtimeInputConfig:{automaticActivityDetection:continuous?{...OPEN_LINE_DETECTION}:{disabled:true}}};
 }
 
 const TASK_FIELDS=[['title','title'],['minutes','minutes'],['blockId','blockId'],['alert','alert'],['alertLead','alertLead'],['repeat','recurrence'],['must','must'],['notes','notes'],['purpose','purpose']];
-const COLLECTION={block:'blocks',project:'projects',area:'areas'};
+const COLLECTION={block:'blocks',project:'projects',goal:'goals',area:'areas'};
 const findTask=(data,taskId)=>{const t=data.entries.find(e=>e.id===taskId&&!e.archived&&(e.kind??'plan')==='plan');if(!t)throw new Error(`No task ${taskId}. Call get_plan.`);return t;};
 const findEntity=(data,kind,entity)=>{const x=planner(data)[COLLECTION[kind]].find(r=>r.id===entity);if(!x)throw new Error(`No ${kind} ${entity}. Call get_plan.`);return x;};
 
@@ -75,12 +100,12 @@ const findEntity=(data,kind,entity)=>{const x=planner(data)[COLLECTION[kind]].fi
  * The planner ops for one tool call against `data`, and the change it makes in plain words.
  * get_plan has no ops. Throws a message the model can read when the call names something missing.
  */
-export function toolOps(data,name,args={}){
+export function toolOps(data,name,args={},now=new Date()){
  if(name==='save_task'){
   const before=args.id!=null?findTask(data,args.id):null,fields={},ops=[];
   for(const [from,to] of TASK_FIELDS)if(from in args)fields[to]=args[from];
   if('start'in args){if(args.start!==null&&!Number.isFinite(Date.parse(args.start)))throw new Error('start must be ISO with an offset.');fields.planned=args.start?new Date(args.start).toISOString():null;}
-  if('day'in args)fields.plannedDate=args.day;
+  if('day'in args&&!args.start){fields.plannedDate=args.day;if(args.day)fields.planned=null;}
   if(args.done===true)fields.done=true;
   if(!before&&!fields.title)throw new Error('A new task needs a title.');
   if(Object.keys(fields).length||!before)ops.push({type:'saveTask',...(before?{id:before.id}:{}),fields});
@@ -105,9 +130,15 @@ export function toolOps(data,name,args={}){
   for(const key of ['title','purpose','notes'])fields[key]=key in args?args[key]:before?.[key]??'';
   if(!fields.title)throw new Error(`A ${kind} needs a title.`);
   if(kind==='block')fields.projectId='projectId'in args?args.projectId:before?.projectId??null;
-  if(kind==='project')fields.goalId=before?.goalId??null;
+  if(kind==='project')fields.goalId='goalId'in args?args.goalId:before?.goalId??null;
+  if(kind==='goal'){
+   Object.assign(fields,{areaId:'areaId'in args?args.areaId:before?.areaId??null,year:args.year??before?.year??now.getFullYear()});
+   if(!before)fields.horizon='yearly';
+  }
   if(kind==='area'&&'rating'in args)fields.rating=args.rating;
   if(fields.projectId)findEntity(data,'project',fields.projectId);
+  if(fields.goalId)findEntity(data,'goal',fields.goalId);
+  if(fields.areaId)findEntity(data,'area',fields.areaId);
   return {ops:[{type:'saveEntity',collection:COLLECTION[kind],...(before?{id:before.id}:{}),fields}],change:{kind:before?'change':'add',entity:kind,id:before?.id??null,title:fields.title,fields:args}};
  }
  if(verb==='delete'&&COLLECTION[kind]){const x=findEntity(data,kind,args.id);return {ops:[{type:'removeEntity',collection:COLLECTION[kind],id:x.id}],change:{kind:'remove',entity:kind,id:x.id,title:x.title}};}

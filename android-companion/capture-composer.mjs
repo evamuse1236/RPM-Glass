@@ -1,5 +1,7 @@
-// The Capture composer: an M3 filled field that is one line when empty and
-// grows with text. The microphone becomes Send as soon as there is text.
+// The Capture composer: one row, the field then one round button. The field is one line when empty and grows
+// with text. At rest the button is the voice orb; it cross-fades to Send as soon as there is text, and while a
+// voice session is open the orb is the voice itself and "Hang up".
+import {orb,setLevel} from './capture-voice-card.mjs';
 
 const MAX_LINES=6;
 const ONE='one',MANY='many';
@@ -52,8 +54,10 @@ export function installComposer({onSubmit,onInput,onVoice}){
  message.addEventListener('beforeinput',e=>{
   if(e.inputType==='insertLineBreak'&&!e.isComposing&&!shiftEnter){e.preventDefault();form.requestSubmit();}
  });
- $('dictate').addEventListener('pointerdown',e=>{if(document.activeElement===message)e.preventDefault();});
- $('dictate').addEventListener('click',onVoice);
+ const dictate=$('dictate'),glow=orb('idle');
+ dictate.insertBefore(glow,dictate.firstChild);
+ dictate.addEventListener('pointerdown',e=>{if(document.activeElement===message)e.preventDefault();});
+ dictate.addEventListener('click',onVoice);
  fit();
  // Android text zoom and width changes alter line wrapping without input events.
  window.addEventListener('rpm-settings-refresh',fit);
@@ -78,8 +82,28 @@ export function installComposer({onSubmit,onInput,onVoice}){
   append(text){
    this.set([message.value.trimEnd(),text].filter(Boolean).join(' '));
   },
+  voice(state){showVoice(panel,dictate,state);},
+  level(value){setLevel(glow,value);},
  };
 }
+
+const LIVE=new Set(['connecting','listening','working','speaking']);
+
+/**
+ * The orb shows the voice: idle at rest, listening (fast spin, swells with the level) and working or speaking.
+ * While a session is open Send stays hidden and the orb is "Hang up": a tap while RPM speaks only cuts the speech.
+ */
+export function showVoice(panel,dictate,{phase=null,listening=false,busy=false}={}){
+ const live=LIVE.has(phase);
+ panel.dataset.voice=live||listening?'on':'off';
+ dictate.querySelector('.orb').className=`orb ${live?phase:listening?'listening':'idle'}`;
+ dictate.setAttribute('aria-label',live?'Hang up':'Voice input');
+ dictate.disabled=busy||listening;
+ if(!live)setLevel(dictate.querySelector('.orb'),0);
+}
+
+/** A tap on the orb: it starts voice, or cuts RPM's speech, or hangs up. */
+export const orbTap=(voiceMode,start)=>()=>voiceMode.active()?voiceMode.stop():start();
 
 /** Android's speech recognizer runs in its own system dialog and returns only final text. */
 export function listeningCard(el){

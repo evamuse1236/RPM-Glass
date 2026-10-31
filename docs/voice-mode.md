@@ -2,6 +2,20 @@
 
 The user talks; Gemini Live changes the plan through tools. Three places: the phone's Capture sheet (opened by the home widget's mic and by the planner's Add hold), and the website's Capture. Approved after the `npm run ramble` prototype (2026-10-27).
 
+## Changed 2026-10-31: the phone keeps the line open
+
+The contract is `docs/voice-always-on.md`. On the phone (`startVoice({continuous: true})`), this page's one-press ramble no longer applies:
+
+- One Live session stays open from the mic tap until the user hangs up, Capture is hidden, or 20 s of quiet. Gemini ends each request itself (`automaticActivityDetection` on, `END_SENSITIVITY_HIGH`, `silenceDurationMs: 500`); there is no Stop, no `activityStart`/`activityEnd` and no 2 min talk limit. `VoiceToken.check` accepts that one detection setting or manual turns, nothing else.
+- Each request is its own ramble with its own capture, batch and Undo, saved with its words in one save on its final idle `turnComplete` (`serverContent.interactionStatus` not `IN_PROGRESS`). The next request's working copy is cloned from the store after that save; its tool calls wait for it. A `toolCallCancellation` drops the named calls' ops. The early save at the first spoken audio is gone.
+- The orb is "Hang up". A tap while RPM speaks only cuts the speech; the next tap hangs up. Hang-up, Capture hidden and quiet save the request in progress first.
+- Uplink audio is dropped while RPM's voice plays (echo); `interrupted` clears the speaker queue.
+- Each saved request plays a short Web Audio tone and gets its own receipt above the live card. Discard shows only while that ramble is the newest change (`voice.canUndo`).
+- `goAway` or a dropped socket saves the request in progress, waits 3 s, and opens a new session from the current store. Old audio is never sent again.
+- Speech with no tool call and no answer before quiet ends shows "Didn’t catch that. Try again."
+
+The website keeps the one-press ramble below, unchanged. Tests: `android-companion/voice-open-line.test.mjs`. Timing: `rpmctl voice-time --session two`.
+
 ## Facts this design rests on (measured 2026-10-27)
 
 - `gemini-3.8-live` over `BidiGenerateContent`: audio out only (`TEXT` closes with 1007), manual activity detection, tools as `functionDeclarations` with `parametersJsonSchema`. 5 of 5 changes right on a 21 s ramble; first change 2.3 to 2.8 s after stop.
@@ -31,18 +45,19 @@ Pure modules, used by the phone page, the website and the ramble prototype:
 
 | Tool | Op |
 |---|---|
-| `get_plan` | none; tasks, Blocks, Projects, Areas with ids, priorities and purposes |
-| `save_task` (add or change; `done` completes, `done:false` reopens) | `saveTask`, `reopenTask` |
+| `get_plan` | none; tasks, Blocks, Projects (with `goalId`), Goals (with `areaId`, year), Areas with ids, priorities and purposes |
+| `save_task` (add or change; `done` completes, `done:false` reopens; a time replaces the day and a day replaces the time) | `saveTask`, `reopenTask` |
 | `delete_task` | `archiveTask` (Trash, restorable) |
 | `move_task` (to a Block or the Inbox, optional before) | `moveTask` |
 | `order_block` (task ids in priority order) | `saveTask` with `priority` per task, so a replay never needs the whole Block |
 | `save_block` (title = result, purpose, Project) | `saveEntity` blocks |
 | `delete_block` (its tasks go to the Inbox) | `removeEntity` blocks |
-| `save_project` (title, purpose, Area via a yearly goal link is out of scope) | `saveEntity` projects |
+| `save_project` (title, purpose, `goalId`) | `saveEntity` projects |
+| `save_goal` (title, purpose, `areaId`, year; a new Goal is yearly, this year) | `saveEntity` goals |
 | `save_area` (title, purpose, rating) | `saveEntity` areas |
-| `delete_project`, `delete_area` | `removeEntity` (Blocks stay, unlinked) |
+| `delete_project`, `delete_goal`, `delete_area` | `removeEntity` (Blocks, Projects or Goals stay, unlinked) |
 
-"Add a Block to a Project" is `save_block` with `projectId`; "remove it" sets `projectId: null`. Areas hold goals, not Blocks, in the data model; voice can add and edit Areas, and a Block joins an Area only through a Project's goal, which voice does not create. Removing a task is always Trash, never a hard delete.
+"Add a Block to a Project" is `save_block` with `projectId`; "remove it" sets `projectId: null`. A Block reaches an Area through Project, then Goal, then Area (decided 2026-10-28: no direct link). "Put X in Health" links its Project to a Goal of Health with `save_project goalId`, and adds a yearly Goal first when Health has none this year; a Block with no Project goes into a fitting Project or a new one. The model says what it chose. Blocks have no saved order (decided 2026-10-28): the planner lists them by deadline, so "prioritize a Block" means the order of its tasks (`order_block`) or its Musts, and a request to move a Block itself changes nothing and gets that explanation out loud. Removing a task is always Trash, never a hard delete.
 
 `finish` and `keep_note` are dropped. The phone's mic stops and the ramble is saved when Capture goes to the background. the reply is the spoken sentence, and an idea that is not a task becomes a task only if asked; otherwise the model says so out loud.
 
@@ -53,7 +68,7 @@ A ramble is one press of the mic: start, talk, stop, and the model's answer.
 1. Each tool call runs on a working copy inside `withIds`, so new Block, Project and Area ids are recorded, and the answer carries real ids. A new session opens for every press, so no old id carries over.
 2. As soon as the model starts answering (the transcript is complete), the words are saved in `intentV2.captures[id]` with `source: 'voice'` and `status: 'captured'`.
 3. When the turn ends, one save holds the words' final status and one `batch` op with every change. The capture keeps `voice.undoEvent`, the batch's last planner event.
-4. The ramble's Undo works only while that event is the newest planner change; otherwise it says to undo in the planner. Undo never touches the words.
+4. The ramble's Undo (Discard on the phone) works only while that event is the newest planner change; otherwise it says to undo in the planner. Undo never touches the words. After Capture closes and opens again, History lists the ramble with its changes and offers Discard while it is still the newest change (`rambleUndoable`, decided 2026-10-28).
 5. If the batch fails, the socket drops, or a replay on newer data would give a new task a different id than the model was told, no change is saved and the words stay with `lastError`, so Capture's Retry reads them as text.
 6. A save that meets a newer version reloads and replays the batch with the same ids (`retryOnChange`).
 
@@ -64,7 +79,7 @@ The website does the same through one `plan` command holding the batch (its Undo
 | State | Shows |
 |---|---|
 | `connecting` | mic button busy |
-| `listening` | pulsing mic, "Listening", the words heard so far; tap the mic or Done to stop |
+| `listening` | pulsing mic, "Listening", the words heard so far; tap the mic or Done to stop. Gemini sends its transcript only after Stop (measured 2026-10-28, `scripts/ramble/transcript-timing.mjs`), so the website shows the browser's own interim words (`web/app/live-words.mjs`) until Gemini's words replace them; only Gemini's are saved. The phone shows no live words (decided 2026-10-28). |
 | `working` | "Saving your changes"; each change appears as a row as its tool call lands |
 | `done` | receipt card: one row per change with its icon, the spoken sentence, and Undo |
 | `failed` | "Your words are saved." with Retry (text Capture) |
@@ -75,7 +90,7 @@ The home widget's mic opens Capture already listening (`com.rpm.widget.voice` al
 
 ## Out of scope
 
-Calendar events, goals, habits (water, meals), review steps. The order of Blocks (the data model has no Block order op). Putting a Block in an Area: in the data model a Block joins an Area only through Project, then goal, then Area; voice does not create goals. Hands-free activity detection. A spoken answer to a question without a new press.
+Calendar events, habits (water, meals), review steps. A saved order of Blocks (they sort by deadline). Hands-free activity detection. A spoken answer to a question without a new press.
 
 ## Verification
 

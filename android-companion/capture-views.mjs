@@ -15,22 +15,32 @@ function shell(title,onBack){
 }
 const when=at=>new Date(at).toLocaleString([],{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
 
-function statusText(capture){
+function statusText(capture,voiceRows){
  const kind=cardKind(capture),lines=capture.draft?.lines??[];
+ if(kind==='voice'){
+  if(capture.voice.undone)return 'Discarded';
+  const rows=voiceRows(capture.voice.changes??[]);
+  return rows.length?rows.map(r=>`${r.verb} ${r.title}`).join(', '):'Nothing changed';
+ }
  if((kind==='receipt'||kind==='confirm')&&lines.length)return lines.map(l=>`${l.verb} ${l.title}`).join(', ');
  return STATUS[kind]??'Saved';
 }
 
-/** Every capture in this conversation, newest first, with what became of it. Words that never got sorted keep Retry. */
-export function historyView({captures,hasMore,showMore,retry,onBack}){
+/**
+ * Every capture in this conversation, newest first, with what became of it. Words that never got sorted keep Retry;
+ * a ramble keeps Discard while it is still the newest plan change.
+ */
+export function historyView({captures,hasMore,showMore,retry,discard,voiceRows,onBack}){
  const node=shell('History',onBack);
  if(!captures.length)node.append(el('p','quiet','Nothing captured yet. Your words appear here as soon as you send them.'));
  for(const c of captures){
   const row=el('div','history-row');
-  row.append(el('p','quiet',when(c.at)),el('p','card-text',c.raw),el('p','quiet',statusText(c)));
-  if(cardKind(c)==='words-kept'){
+  row.append(el('p','quiet',when(c.at)),el('p','card-text',c.raw),el('p','quiet',statusText(c,voiceRows)));
+  const action=cardKind(c)==='words-kept'?button('Retry',()=>retry(c.messageId),{role:'text',iconName:'refresh'})
+   :c.voice?.canUndo?button('Discard',()=>discard(c.messageId),{role:'text',iconName:'delete'}):null;
+  if(action){
    const actions=el('div','card-actions');
-   actions.append(button('Retry',()=>retry(c.messageId),{role:'text',iconName:'refresh'}));
+   actions.append(action);
    row.append(actions);
   }
   node.append(row);

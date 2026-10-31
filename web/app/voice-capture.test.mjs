@@ -102,3 +102,26 @@ test('a server with no key hides the mic for the page', async t => {
   assert.equal(nodes['voice-mic'].hidden, true);
   assert.equal(nodes['voice-panel'].hidden, true);
 });
+
+test('while listening the browser recognizer shows the words at once; Gemini\'s words win, and Stop ends the recognizer', async t => {
+  const nodes = sheet();
+  withMic(t);
+  let say, stopped = 0, onChange, resolve;
+  const voice = mountVoice({client: fakeClient(), queue: fakeQueue(), render() {}, onRetry() {},
+    liveWords: ({onWords}) => { say = onWords; return {stop() { stopped++; }}; },
+    start: options => { onChange = options.onChange; onChange({phase: 'listening', heard: '', changes: []}); return {stop() {}, done: new Promise(r => { resolve = r; })}; }});
+  voice.refresh();
+  nodes['voice-mic'].click();
+  assert.equal(nodes['voice-heard'].hidden, true, 'nothing heard yet');
+  say('Call mom');
+  assert.equal(nodes['voice-heard'].textContent, 'Call mom');
+  assert.equal(nodes['voice-heard'].hidden, false);
+  onChange({phase: 'listening', heard: 'Call Amma at eight', changes: []});
+  say('Call mom at 8');
+  assert.equal(nodes['voice-heard'].textContent, 'Call Amma at eight');
+  onChange({phase: 'working', heard: 'Call Amma at eight', changes: []});
+  assert.equal(stopped, 1);
+  resolve({heard: 'Call Amma at eight', said: '', changes: [], batch: null, uuids: [], created: []});
+  await new Promise(r => setTimeout(r, 0));
+  assert.equal(stopped, 1, 'the recognizer stops once');
+});

@@ -13,6 +13,7 @@ import {intentSystemPrompt} from '../intent-v2/prompts/intent-system.mjs';
 import {formatTime} from '../cli/interpret.mjs';
 import {resolvePlannerTime} from './planner-tools.mjs';
 import {receiptLines,previewRows} from './capture-receipt.mjs';
+import {rambleUndoable} from './voice-turn.mjs';
 import {receiptHelp,currentReceiptHelp,checkReceiptStep} from './capture-next-step.mjs';
 
 const ACTIVE_DRAFTS=new Set(['draft','review']);
@@ -57,7 +58,7 @@ function projectQuestion(state,capture){
  const open=openQuestion(state,capture.conversationId)?.id===q.id;
  return {id:q.id,prompt:q.prompt,action:q.action,open,choices:q.choices.map(c=>({id:c.id,label:c.label})),actions:open?choiceActions(capture):[]};
 }
-function projectCapture(data,state,capture,now){const draft=capture.draftId?state.drafts[capture.draftId]:null;return {clarification:projectQuestion(state,capture),messageId:capture.messageId,conversationId:capture.conversationId,raw:capture.raw,at:capture.at,status:capture.status,reply:draft?.reply??capture.reply??'',lastError:capture.lastError??null,draft:projectDraft(data,draft,now),notes:captureNotes(data,capture),memoryCandidates:structuredClone(capture.memoryCandidates??[]),card:structuredClone(capture.card??null),voice:structuredClone(capture.voice??null)};}
+function projectCapture(data,state,capture,now){const draft=capture.draftId?state.drafts[capture.draftId]:null;return {clarification:projectQuestion(state,capture),messageId:capture.messageId,conversationId:capture.conversationId,raw:capture.raw,at:capture.at,status:capture.status,reply:draft?.reply??capture.reply??'',lastError:capture.lastError??null,draft:projectDraft(data,draft,now),notes:captureNotes(data,capture),memoryCandidates:structuredClone(capture.memoryCandidates??[]),card:structuredClone(capture.card??null),voice:capture.voice?{...structuredClone(capture.voice),canUndo:rambleUndoable(data,capture.voice)}:null};}
 export function intentViewFromData(data,{conversationId=null,offset=0,limit=20,now=new Date()}={}){const state=ensureIntent(data),all=Object.values(state.captures).filter(c=>!conversationId||c.conversationId===conversationId).map((c,i)=>({c,i})).sort((a,b)=>at(b.c.at)-at(a.c.at)||b.i-a.i).map(x=>x.c),start=Number.isInteger(offset)&&offset>=0?offset:0,count=Number.isInteger(limit)&&limit>=0?Math.min(limit,100):20,captures=all.slice(start,start+count);return {captures:captures.map(c=>projectCapture(data,state,c,now)),totalCaptures:all.length,hasMore:start+captures.length<all.length,nextOffset:start+captures.length,storage:{...storageUse(state),limits:INTENT_LIMITS}};}
 
 /**

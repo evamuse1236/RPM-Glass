@@ -4,6 +4,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 export const bundleOptions={absWorkingDir:root,entryPoints:['android-companion/runtime.mjs'],bundle:true,format:'esm',platform:'browser',target:'chrome100',plugins:[{name:'native-boundaries',setup(b){
+  b.onResolve({filter:/voice-fake-mic\.m?js$/},()=>({path:'/voice-fake-mic.js',external:true}));
   b.onResolve({filter:/^node:crypto$/},()=>({path:'crypto',namespace:'native'}));
   b.onResolve({filter:/cli\/openrouter\.mjs$/},()=>({path:'openrouter',namespace:'native'}));
   b.onLoad({filter:/.*/,namespace:'native'},args=>({contents:args.path==='crypto'?'export const randomUUID=()=>globalThis.crypto.randomUUID();':"export const ENDPOINT='https://openrouter.ai/api/v1/chat/completions';"}));

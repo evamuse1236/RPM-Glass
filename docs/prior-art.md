@@ -30,3 +30,19 @@ Grok sweeps run as T3 sub-agents. Stars and dates are as Grok read them on 2026-
 | What "+" should do | Material 3 (one primary action per screen; a FAB menu holds only related actions), Material 2 speed dial (3–6 options), NN/g progressive disclosure | "+" adds a task. No stub or navigation options behind it. |
 | Desktop website | Todoist and Linear key maps; tinykeys, hotkeys-js, ctxmenu (MIT); Material rail at 600dp; container queries | Own small key map and menu, one action list per row driving hover, right-click and keys. Layout switches on the planner column's width. |
 | Phone-only writer, web sends commands | Replicache (archived), PowerSync queue, Automerge, Jazz, Evolu, Triplit: all multi-writer | Skip. Our Convex command queue already fits; borrow the "N waiting for the phone" count. |
+
+## Voice latency for an always-on Gemini Live session (2026-10-31)
+
+Sources: ~/.cache/voice-research/{labs,frameworks,gemini-live}.md (primary docs and framework source, cited there).
+
+| Prior art | Verdict | Why |
+|---|---|---|
+| LiveKit Agents Google realtime plugin: session resumption handle kept and forwarded on reconnect (`realtime_api.py` 1001-1007, 1240-1246) | Borrow | Same pattern keeps our one socket alive past the ~10 min connection limit |
+| Pipecat Gemini Live service: `SessionResumptionConfig`, `_reconnect` with handle, WHEN_IDLE/SILENT scheduling (`gemini_live/llm.py`) | Borrow | Reconnect on goAway; tool result scheduling |
+| LiveKit `prewarm_fnc` | Borrow (idea) | Mint and connect before the user speaks; the tap only unmutes |
+| LiveKit turn detector, Pipecat smart-turn | Skip | Ignored with server turn detection; a second detector only adds a wait |
+| Gemini automatic activity detection, END_SENSITIVITY_HIGH, silenceDurationMs 500 | Adopt | Measured first tool 0.04-0.7 s after speech ends vs 2.7 s after Stop today |
+| Gemini sliding-window compression + session resumption | Adopt | Session longer than 15 min; resume for 2 h |
+| ElevenLabs filler after a wait; web console clears the audio queue on `interrupted` | Borrow | Local earcon on toolCall; barge-in stops our speaker |
+| OpenAI WebRTC/WARP, Deepgram Flux early tools, cascaded ~100 ms TTS | Skip | Needs another provider; user keeps Gemini Live |
+| gemini-3.5-transcribe-live in a second session | Maybe | Measured interim words 1.4 s into a clip; doubles audio input cost |
