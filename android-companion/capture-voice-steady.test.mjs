@@ -42,12 +42,11 @@ test('one live card holds from the first word to the last change, its words and 
  const {voice,release}=voiceWith([listening('Call'),listening('Call mom tomorrow'),working([{title:'Call mom'}]),working([{title:'Call mom'},{title:'Buy milk'}])]);
  voice.begin();
  await settle(0);
- const node=voice.card();
- assert.equal(voice.card(),node,'asking again returns the same node');
+ const [node]=voice.cards();
+ assert.equal(voice.cards()[0],node,'asking again returns the same node');
  await settle(600);
  assert.equal(node.querySelector('.voice-lead').textContent,'Call mom tomorrow','the words stream in while the changes land');
- assert.match(node.textContent,/Call mom.*Buy milk/);
- assert.equal(node.querySelectorAll('.spine-row').length,2,'rows are added, never rebuilt');
+ assert.deepEqual([...node.querySelectorAll('.voice-row .voice-title')].map(cell=>cell.textContent),['Call mom','Buy milk'],'one row per item, in order');
  release();
 });
 
@@ -62,12 +61,13 @@ test('placing the cards already on screen leaves them in place, so their entranc
  assert.deepEqual(content.children,[b]);
 });
 
-test('while RPM speaks, its sentence streams in where your words were', async () => {
+test('while RPM speaks, the card keeps your words and never shows its sentence', async () => {
  const {voice,release}=voiceWith([working([]),{phase:'speaking',heard:'Call mom tomorrow',said:'Done, mom is set.',changes:[],wordsReady:true}]);
  voice.begin();
  await settle(0);
- const node=voice.card();
+ const [node]=voice.cards();
  await settle(600);
- assert.equal(node.querySelector('.voice-lead').textContent,'Done, mom is set.');
+ assert.equal(node.querySelector('.voice-lead').textContent,'Call mom tomorrow');
+ assert.doesNotMatch(node.textContent,/mom is set/);
  release();
 });

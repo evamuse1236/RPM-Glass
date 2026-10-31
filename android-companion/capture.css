@@ -50,12 +50,13 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 }
 #message::placeholder{color:var(--bar-on-variant);opacity:1}
 
-/* The orb and Send share one cell, so they cross-fade in place. */
+/* The voice drop and Send share one cell, so they cross-fade in place. */
 .go{flex:none;display:grid;inline-size:48px;block-size:48px}
 .go>button{grid-area:1/1;position:relative;display:grid;place-items:center;inline-size:48px;block-size:48px;padding:0;border:0;border-radius:50%;cursor:pointer}
 .voice-go{background:transparent;color:var(--bar-on)}
-.voice-go .orb{position:absolute;inset:0;inline-size:auto;block-size:auto}
-.voice-go .glyph{position:relative;font-size:24px;text-shadow:0 1px 6px color-mix(in oklch,var(--bar-on-primary) 60%,transparent)}
+/* The voice drop: a 40px canvas centred in the 48px button (capture-drop.mjs). */
+.voice-go .drop{position:absolute;inset:4px;inline-size:40px;block-size:40px}
+.voice-go .glyph{position:relative;font-size:20px;line-height:1;color:var(--bar-on-primary)}
 .voice-go:disabled{cursor:default}
 /* Send is the one lit control: the bright primary in both themes. */
 .send{background:var(--bar-primary);color:var(--bar-on-primary)}

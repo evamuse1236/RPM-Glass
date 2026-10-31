@@ -89,7 +89,7 @@ test('a mic Android refuses shows the no-mic card, with Settings only when Andro
   const platform=phone(day().data,{micAccess:{granted:false,canAsk}});
   const {voice}=mode(platform,rambleStart({},{code:'no-mic'}));
   await voice.begin();
-  assert.deepEqual(voice.live,{phase:'no-mic',canAsk});
+  assert.deepEqual(voice.failure,{phase:'no-mic',canAsk});
   assert.equal(platform.saves.length,0,'nothing is saved without words');
   assert.equal(voice.active(),false);
  }
@@ -102,7 +102,7 @@ test('a phone with no Gemini key gets a failed card that says how to connect one
  const start=({token})=>({stop(){},cancel(){},done:token({}).then(()=>({}),error=>{throw error;})});
  const {voice}=mode(platform,start);
  await voice.begin();
- assert.deepEqual(voice.live,{phase:'failed',error:NO_KEY});
+ assert.deepEqual(voice.failure,{phase:'failed',error:NO_KEY});
 });
 
 test('leaving Capture hangs up', async () => {

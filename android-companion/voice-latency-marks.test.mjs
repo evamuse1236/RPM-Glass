@@ -108,7 +108,7 @@ test('the stall hook is called for the first audio frame and the first tool call
   clear();
 });
 
-test('Getting ready, the first heard word and the receipt mark when they are drawn', async () => {
+test('the call opening, the first heard word and the receipt mark when they are drawn', async () => {
   clear();
   let captured;
   const start = opts => { captured = opts; return {stop() {}, done: new Promise(() => {})}; };
@@ -118,11 +118,10 @@ test('Getting ready, the first heard word and the receipt mark when they are dra
   voice.begin();
   await tick();
   assert.equal(names().includes('voice:T2'), false);
-  const live = voice.card();
-  assert.match(live.textContent, /Getting ready/);
+  assert.deepEqual(voice.cards(), [], 'Getting ready shows in the field, not as a card');
   assert.ok(names().includes('voice:T2'));
   captured.onChange({phase: 'listening', heard: 'Call Amma', said: '', changes: [], wordsReady: false});
-  voice.card();
+  const [live] = voice.cards();
   await tick();
   assert.match(live.textContent, /Call/);
   assert.ok(names().includes('voice:T5'));
@@ -138,7 +137,7 @@ test('Getting ready, the first heard word and the receipt mark when they are dra
   };
   const mode = createVoiceMode({
     platform: phone, conversationId: () => 'c', onChange() {}, start: saving, doc, win: {}, now: () => new Date('2026-10-27T12:00:00Z'),
-    afterSave(id) { receipt = voiceCard({messageId: id, reply: 'Saved.', voice: {undoEvent: null, undone: false}}, {rows: [], discard() {}, openPlanner() {}, openItem() {}}); },
+    afterSave(id) { receipt = voiceCard({messageId: id, voice: {undoEvent: null, undone: false}}, {rows: [], openItem() {}}); },
     sound() {},
   });
   const pending = mode.begin();
@@ -146,15 +145,15 @@ test('Getting ready, the first heard word and the receipt mark when they are dra
   await saving.last.onRequest({heard: 'Call Amma', said: 'Saved.', changes: [], errors: [], batch: null, uuids: [], created: [], failed: null}, {index: 2});
   saving.resolve({requests: 1, missed: false, failed: null, code: null});
   await pending;
-  assert.match(receipt.textContent, /Saved/);
+  assert.match(receipt.textContent, /Nothing changed/);
   assert.ok(names().includes('voice:T8'));
   assert.ok(names().includes('voice:T8#2'), 'each request marks its own receipt');
   clear();
-  const history = voiceCard({messageId: 'm2', reply: 'History.', voice: {undoEvent: null, undone: false}}, {rows: [], discard() {}, openPlanner() {}, openItem() {}});
-  assert.match(history.textContent, /History/);
+  const history = voiceCard({messageId: 'm2', voice: {undoEvent: null, undone: false}}, {rows: [], openItem() {}});
+  assert.match(history.textContent, /Nothing changed/);
   assert.equal(names().includes('voice:T8'), false);
   armReceiptMark('m3', 'T8#1');
-  voiceCard({messageId: 'm3', reply: 'Armed.', voice: {undoEvent: null, undone: false}}, {rows: [], discard() {}, openPlanner() {}, openItem() {}});
+  voiceCard({messageId: 'm3', voice: {undoEvent: null, undone: false}}, {rows: [], openItem() {}});
   assert.ok(names().includes('voice:T8'));
   clear();
 });

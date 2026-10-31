@@ -9,11 +9,21 @@ import {createVoiceMode} from './capture-voice.mjs';
 const read=path=>fs.readFileSync(new URL(path,import.meta.url),'utf8');
 const html=read('index.html'),css=read('capture.css');
 const panelHtml=html.slice(html.indexOf('<section id="panel"'),html.indexOf('</section>',html.indexOf('<section id="panel"')));
-const styled=node=>Object.assign(node,{style:{setProperty(){}}});
+const styled=node=>{const props={};return Object.assign(node,{style:{props,setProperty(k,v){props[k]=v;}}});};
+const tick=()=>new Promise(r=>setTimeout(r,0));
+
+/** A fake DOM whose new elements carry a style. Reduce Motion is on, so the drop draws each mode still. */
+function styledDom(){
+ const doc=installFakeDom();
+ const create=doc.createElement;
+ doc.createElement=tag=>styled(create(tag));
+ doc.documentElement.dataset.reduceMotion='true';
+ return doc;
+}
 
 /** The composer's own elements, wired the way index.html wires them. */
 function composerDom(){
- const doc=installFakeDom();
+ const doc=styledDom();
  const ids={};
  const make=(tag,id)=>{const node=styled(new FakeElement(tag));node.id=id;ids[id]=node;return node;};
  const panel=make('section','panel'),form=make('form','composer'),message=make('textarea','message'),dictate=make('button','dictate'),send=make('button','send');
@@ -27,13 +37,16 @@ function composerDom(){
  return ids;
 }
 
-test('the composer is one row: the field, then one round button that is the orb at rest and Send with text', () => {
+test('the composer is one row: the field, then one round button that is the drop at rest and Send with text', () => {
  assert.doesNotMatch(panelHtml,/bar-row|more_vert|arrow_upward/);
  assert.match(panelHtml,/<textarea id="message"[^>]*>[\s\S]*<div class="go">\s*<button id="dictate"[^>]*>[\s\S]*mic[\s\S]*<button id="send"[^>]*>[\s\S]*>send</);
  const {panel,message,dictate}=composerDom();
  const inputs=[];
  installComposer({onSubmit(){},onInput:v=>inputs.push(v),onVoice(){}});
- assert.ok(dictate.querySelector('.orb.idle'),'the mic sits on the voice orb');
+ const drop=dictate.querySelector('.drop');
+ assert.ok(drop,'the voice drop sits in the button');
+ assert.equal(drop.dataset.drop,'idle','at rest the drop is the mic button');
+ assert.equal(dictate.querySelector('.orb'),null,'the old orb is gone');
  assert.equal(panel.dataset.hasText,'false');
  message.value='Call mom';
  message.dispatch('input');
@@ -65,25 +78,30 @@ test('the handle is a labelled 48dp button that opens More, and a second tap clo
  assert.equal(ids.more.getAttribute('aria-expanded'),'false');
 });
 
-test('while a session is open the composer orb is "Hang up", follows the voice, and a tap stops the session', async () => {
+test('while a session is open the composer drop is "Hang up", follows the voice, ticks on a save, and a tap stops the session', async () => {
  const {panel,dictate}=composerDom();
  const composer=installComposer({onSubmit(){},onInput(){},onVoice(){}});
- const glow=dictate.querySelector('.orb');
- const levels=[];glow.style={setProperty:(k,v)=>levels.push([k,v])};
+ const drop=dictate.querySelector('.drop');
+ composer.voice({phase:'connecting'});
+ assert.equal(drop.dataset.drop,'listening','the drop listens as the call opens');
  composer.voice({phase:'listening'});
  assert.equal(panel.dataset.voice,'on');
- assert.equal(glow.className,'orb listening');
  assert.equal(dictate.getAttribute('aria-label'),'Hang up');
  assert.equal(dictate.disabled,false,'you can tap it to hang up');
- composer.level(.5);
- assert.deepEqual(levels.at(-1),['--level','0.50']);
  composer.voice({phase:'working'});
- assert.equal(glow.className,'orb working');
+ assert.equal(drop.dataset.drop,'working');
+ composer.voice({phase:'working',moment:{n:1,kind:'writing'}});
+ assert.equal(drop.dataset.saved,'1','a save plays the tick');
+ composer.voice({phase:'working',moment:{n:1,kind:'writing'}});
+ assert.equal(drop.dataset.saved,'1','the same save never ticks twice');
+ composer.voice({phase:'listening',moment:{n:2,kind:'oops'}});
+ assert.equal(drop.dataset.saved,'1','a failed save plays no tick');
+ composer.voice({phase:'speaking'});
+ assert.equal(drop.dataset.drop,'speaking');
  composer.voice({});
  assert.equal(panel.dataset.voice,'off');
- assert.equal(glow.className,'orb idle');
+ assert.equal(drop.dataset.drop,'idle','the drop is the mic button again when the call ends');
  assert.equal(dictate.getAttribute('aria-label'),'Voice input');
- assert.deepEqual(levels.at(-1),['--level','0.00'],'the orb settles when the ramble ends');
 
  let stopped=0,started=0,release;
  const gate=new Promise(r=>{release=r;});
@@ -104,8 +122,8 @@ test('while a session is open the composer orb is "Hang up", follows the voice, 
  release();
 });
 
-test('the live card carries no orb and no Stop: the composer orb does both', async () => {
- installFakeDom();
+test('the live card carries no drop and no Stop: the composer button does both', async () => {
+ styledDom();
  let release;
  const gate=new Promise(r=>{release=r;});
  const start=({onChange})=>{
@@ -116,15 +134,14 @@ test('the live card carries no orb and no Stop: the composer orb does both', asy
  const voice=createVoiceMode({platform,conversationId:()=>'c',onChange(){},afterSave(){},start,doc:null,win:{}});
  voice.begin();
  await new Promise(r=>setTimeout(r,0));
- const node=voice.card();
- assert.equal(node.querySelector('.orb'),null);
+ const [node]=voice.cards();
+ assert.equal(node.querySelector('.drop'),null);
  assert.equal(node.querySelectorAll('button').length,0);
  release();
 });
 
-test('showVoice keeps the orb tappable through a whole session, so a tap while RPM speaks cuts the speech; never while a reply is busy', () => {
- const panel=new FakeElement('section'),dictate=new FakeElement('button'),glow=styled(new FakeElement('span'));
- glow.className='orb idle';dictate.append(glow);
+test('showVoice keeps the button tappable through a whole session, so a tap while RPM speaks cuts the speech; never while a reply is busy', () => {
+ const panel=new FakeElement('section'),dictate=new FakeElement('button');
  for(const phase of ['connecting','listening','working','speaking']){
   showVoice(panel,dictate,{phase});
   assert.equal(dictate.disabled,false,phase);

@@ -37,8 +37,11 @@ function pageReads(serial, cdpPort, sinceRef) {
     readMarks: () => pageEval(`performance.getEntriesByType('mark').filter(entry => entry.name.startsWith('voice:')).map(entry => ({name: entry.name, startTime: entry.startTime}))`),
     readClock: () => pageEval(`({timeOrigin: performance.timeOrigin, pageNow: Date.now()})`),
     readLog: () => adb(serial, ['logcat', '-d', '-t', '400'], {allowFail: true}),
+    /** Per request n (index n - 1): the text of the call table's rows that request changed, or null. */
     async readReceipts() {
-      try { return await pageEval(`[...document.querySelectorAll('.voice-card.receipt')].map(node => node.innerText)`); } catch { return []; }
+      try {
+        return await pageEval(`(() => { const by = {}; for (const row of document.querySelectorAll('.voice-call .voice-row')) for (const n of row.dataset.requests.split(' ')) (by[n] ??= []).push(row.innerText); const last = Math.max(0, ...Object.keys(by).map(Number)); return Array.from({length: last}, (_, i) => by[i + 1]?.join(' | ') ?? null); })()`);
+      } catch { return []; }
     },
     async countLogErrors() {
       try { return errorLines(serial, sinceRef.at).length; } catch { return 0; }

@@ -158,77 +158,54 @@
 @keyframes fact-pop{from{opacity:0;scale:.6}70%{opacity:1;scale:1.06}to{opacity:1;scale:1}}
 @keyframes fact-shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
 
-/* Voice: one card from the first word to the receipt. The card keeps a solid edge; when it is taller than the space
-   above the bar, its list scrolls inside it and fades into the card's own colour, never into the wallpaper. */
+/* Voice: one calm card per call. The words of the open request sit on top and fold away once it saves; under them a
+   table of every item the call changed, each row updated in place. Taller than the space above the bar, the table
+   scrolls inside the card and fades into the card's own colour. */
 .voice-card{flex:0 1 auto;min-block-size:0;gap:0;padding:0;overflow:clip}
-/* Receipt: the title, then Discard, Edit and Open planner as round symbols in the corner. No bottom row. */
-.voice-head{flex:none;display:flex;align-items:center;gap:8px;padding:8px 8px 0 20px}
-.voice-title{flex:1;min-inline-size:0;margin:0;font:var(--title-small);color:var(--bar-on);overflow-wrap:anywhere}
-.voice-actions{flex:none;display:flex}
-/* Each symbol is a 40dp circle inside a 48dp target. */
-.voice-actions .icon-btn::before{content:'';position:absolute;inset:4px;border-radius:50%;background:var(--bar-highest)}
-.voice-actions .icon-btn .ms{position:relative;font-size:20px}
-.voice-actions .icon-btn:active{background:transparent}
-.voice-actions .icon-btn:active::before{background:color-mix(in oklch,var(--bar-highest),var(--bar-on) 12%)}
-.voice-actions .icon-btn[aria-pressed=true]::before{background:var(--bar-accent)}
-.voice-actions .icon-btn[aria-pressed=true]{color:var(--bar-on-accent)}
-.voice-actions .primary{color:var(--bar-on-primary)}
-.voice-actions .primary::before,.voice-actions .primary:active::before{background:var(--bar-primary)}
-.voice-actions .icon-btn:focus-visible{outline:2px solid var(--bar-primary);outline-offset:-2px}
-.voice-sentence{margin:0;padding:4px 20px 12px;font:var(--body-medium);color:var(--bar-on);overflow-wrap:anywhere}
-.voice-lead{margin:0;padding:16px 20px 12px;font:var(--body-medium);color:var(--bar-on);overflow-wrap:anywhere}
+.voice-card>.quiet{margin:0;padding:var(--s4) var(--s5)}
+.voice-fold{flex:none;display:grid;grid-template-rows:0fr}
+.voice-fold.open{grid-template-rows:1fr}
+.voice-fold-inner{min-block-size:0;overflow:clip}
+.voice-lead{margin:0;padding:var(--s4) var(--s5) var(--s3);font:var(--body-medium);color:var(--bar-on);overflow-wrap:anywhere;opacity:0;filter:blur(4px)}
+.voice-fold.open .voice-lead{opacity:1;filter:none}
+.voice-lead .w{display:inline}
 @property --inner-fade{syntax:"<length>";inherits:false;initial-value:0px}
 @keyframes inner-fade{from{--inner-fade:24px}to{--inner-fade:0px}}
-.voice-scroll{flex:0 1 auto;min-block-size:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;
+.voice-table{flex:0 1 auto;min-block-size:0;display:flex;flex-direction:column;padding:var(--s2);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;
   animation:inner-fade linear both;animation-timeline:scroll(self block);mask-image:linear-gradient(to bottom,#000 calc(100% - var(--inner-fade)),transparent)}
-.voice-scroll::-webkit-scrollbar{display:none}
-.spine{list-style:none;margin:0;padding:0 16px 12px;display:flex;flex-direction:column}
-.spine:empty{display:none}
-.spine-row{position:relative}
-.spine-row:not(:last-child)::before{content:'';position:absolute;inset-inline-start:12px;inset-block:32px 0;inline-size:2px;translate:-50% 0;background:var(--bar-outline);transform-origin:top}
-.spine-row.plain,.spine-open{display:grid;grid-template-columns:24px minmax(0,1fr) auto;column-gap:12px;align-items:start;padding-block:4px}
-.spine-glyph{display:grid;inline-size:24px;block-size:24px;place-items:center;color:var(--bar-primary);background:var(--bar)}
-.spine-glyph .ms{font-size:20px}
-.spine-text{display:flex;flex-direction:column;min-inline-size:0}
-.spine-title{font:var(--title-small);overflow-wrap:anywhere}
-.spine-when{font:var(--body-small);color:var(--bar-on-variant);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.spine-when s{text-decoration-thickness:1px}
-.spine-open{inline-size:100%;margin:0;border:0;border-radius:var(--shape-md);background:none;color:inherit;font:inherit;text-align:start;padding-inline:0;cursor:default}
-.spine-chevron{display:none;align-self:center;font-size:20px;color:var(--bar-on-variant)}
-.voice-card.editing .spine-row::before{display:none}
-.voice-card.editing .spine-open{min-block-size:48px;padding:8px 8px 8px 4px;margin-block:4px;background:var(--bar-high);cursor:pointer}
-.voice-card.editing .spine-open .spine-glyph{background:transparent}
-.voice-card.editing .spine-chevron{display:block}
-.voice-card.editing .spine-open:active{background:var(--bar-highest)}
-.spine-open:focus-visible{outline:2px solid var(--bar-primary);outline-offset:2px}
-.voice-card.discarded .spine{opacity:.4}
-.voice-card.discarded .spine-title{text-decoration:line-through}
-
-/* The voice orb: Capture's one gradient (user request, 2026-10-28). It swells with the voice through --level. */
-.orb{--level:0;position:relative;flex:none;inline-size:40px;block-size:40px;border-radius:50%;overflow:clip;background:var(--bar-orb-core);
-  scale:calc(1 + var(--level) * .18);box-shadow:0 0 calc(4px + var(--level) * 20px) var(--bar-orb-glow)}
-.orb i{position:absolute;border-radius:42%}
-.orb i:nth-child(1){inset:-24%;background:conic-gradient(from 0deg,var(--bar-primary),var(--bar-accent),var(--bar-area-5),var(--bar-area-3),var(--bar-primary));filter:blur(6px)}
-.orb i:nth-child(2){inset:-8%;border-radius:38%;background:radial-gradient(circle at 30% 30%,var(--bar-on-accent),transparent 55%);mix-blend-mode:screen;filter:blur(6px)}
-.orb i:nth-child(3){inset:24%;border-radius:50%;background:var(--bar-on);opacity:calc(.15 + var(--level) * .5);filter:blur(8px)}
-.voice-live .w{display:inline}
+.voice-table::-webkit-scrollbar{display:none}
+.voice-table:empty{display:none}
+.voice-row{flex:none;display:grid;grid-template-rows:1fr}
+.voice-row.shut{grid-template-rows:0fr}
+.voice-row-clip{min-block-size:0;overflow:clip}
+.voice-row.shut .voice-row-clip{opacity:0}
+.voice-item{position:relative;display:grid;align-items:center;inline-size:100%;min-block-size:var(--touch);margin:0;padding:var(--s2) var(--s3);border:0;
+  border-radius:var(--r-control);background:transparent;color:var(--bar-on);font:inherit;text-align:start}
+button.voice-item{cursor:pointer}
+button.voice-item:active{background:var(--bar-highest)}
+button.voice-item:focus-visible{outline:2px solid var(--bar-primary);outline-offset:-2px}
+.voice-item.flash{animation:row-flash calc(var(--dur-medium2) * 2) var(--ease-standard) both}
+.voice-lane{display:grid;grid-template-columns:20px minmax(0,1fr) auto;column-gap:var(--s3);align-items:center}
+.voice-glyph{display:grid;place-items:center;color:var(--bar-primary)}
+.voice-glyph .ms{font-size:20px}
+.voice-what{display:flex;flex-direction:column;min-inline-size:0}
+.voice-lane .cell{display:grid;min-inline-size:0}
+.voice-lane .v{grid-area:1/1;min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.voice-title{font:var(--title-small)}
+.voice-note{font:var(--body-small);color:var(--bar-on-variant)}
+.voice-when{display:flex;align-items:center;gap:var(--s1);font:var(--body-medium);font-variant-numeric:tabular-nums;color:var(--bar-on)}
+.voice-alarm{font-size:16px;color:var(--bar-primary)}
+.voice-note[hidden],.voice-alarm[hidden]{display:none}
+.voice-row.gone .voice-title .v{text-decoration:line-through;text-decoration-thickness:1px;color:var(--bar-on-variant)}
+.voice-row.gone .voice-glyph{color:var(--bar-on-variant)}
 @media (prefers-reduced-motion:no-preference){
-  .orb{transition:scale var(--dur-short2) linear,box-shadow var(--dur-short2) linear}
-  .orb i:nth-child(1){animation:orb-spin 6s linear infinite}
-  .orb i:nth-child(2){animation:orb-spin 9s linear infinite reverse}
-  .orb.listening i:nth-child(1),.orb.working i:nth-child(1),.orb.speaking i:nth-child(1){animation-duration:2400ms}
-  .orb.working{animation:orb-breathe 1600ms var(--ease-standard) infinite}
-  .orb.connecting{animation:orb-breathe 1600ms var(--ease-standard) infinite}
-  .voice-live .w{animation:word-in 600ms var(--ease-emphasized) both}
-  .spine-row{animation:row-land var(--dur-medium1) var(--ease-emphasized-decelerate) both}
-  .receipt .spine-row{animation:none}
-  .spine-row:not(:last-child)::before{animation:spine-draw var(--dur-medium2) var(--ease-emphasized) both}
-  .spine-open{transition:background-color var(--dur-short3) var(--ease-standard),padding var(--dur-short4) var(--ease-standard)}
+  .voice-fold{transition:grid-template-rows var(--dur-medium2) var(--ease-emphasized)}
+  .voice-lead{transition:opacity var(--dur-short4) var(--ease-standard),filter var(--dur-short4) var(--ease-standard)}
+  .voice-lead .w{animation:word-in calc(var(--dur-medium2) * 2) var(--ease-emphasized) both}
+  .voice-row{transition:grid-template-rows var(--dur-medium1) var(--ease-emphasized-decelerate)}
+  .voice-row-clip{transition:opacity var(--dur-medium1) var(--ease-emphasized-decelerate)}
+  button.voice-item{transition:background-color var(--dur-short3) var(--ease-standard)}
 }
-@keyframes orb-spin{to{rotate:1turn}}
-@keyframes orb-breathe{50%{scale:.9;opacity:.7}}
 @keyframes word-in{from{opacity:0;filter:blur(6px)}}
-@keyframes row-land{from{opacity:0;translate:0 8px}}
-@keyframes spine-draw{from{scale:1 0}}
-:root[data-reduce-motion=true] .orb,:root[data-reduce-motion=true] .orb i,:root[data-reduce-motion=true] .voice-live .w,
-:root[data-reduce-motion=true] .spine-row,:root[data-reduce-motion=true] .spine-row::before{animation:none;transition:none}
+@keyframes row-flash{from{background:color-mix(in oklch,var(--bar-accent) 60%,transparent)}}
+:root[data-reduce-motion=true] :is(.voice-fold,.voice-lead,.voice-lead .w,.voice-row,.voice-row-clip,.voice-item){animation:none;transition:none}

@@ -92,7 +92,6 @@ test('requests in one session give one capture, one batch and one working Undo e
  s.serve(heard('And call the bank'));s.serve(tools(call('c','save_task',{title:'Call the bank'})));s.serve(idle);
  await ticks();
  assert.equal(saved.length,3);
- assert.deepEqual(mode.receipts(),saved,'each request has its own receipt, oldest first');
  assert.deepEqual(sounds,['chime','chime','chime'],'a sound for each saved request');
  await mode.hangUp();await ended;
  assert.equal(f.log.sockets.length,1,'still one session');
@@ -250,7 +249,7 @@ test('speech that gets no tool call and no answer before quiet shows "Didn’t c
  await ticks();
  f.socket().serve(heard('Mm, what was it'));
  await ended;
- assert.deepEqual(mode.live,{phase:'failed',error:MISSED});
+ assert.deepEqual(mode.failure,{phase:'failed',error:MISSED});
  assert.equal(saved.length,1,'the words are kept');
  assert.equal(MISSED,'Didn’t catch that. Try again.');
 });

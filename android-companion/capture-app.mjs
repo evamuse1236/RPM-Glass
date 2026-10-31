@@ -16,6 +16,8 @@ import {actionIdFor} from '../intent-v2/src/suggestions.mjs';
 const ACTIVE=new Set(['draft','review']);
 const WAITING=new Set(['words-kept','confirm','open','question']);
 const AUTO_CLOSE_MS=6000;
+/** While a call is open the composer's placeholder says what voice is doing. */
+const CALL_WORDS={connecting:'Getting ready',listening:'Listening',working:'Saving',speaking:'RPM is talking'};
 
 const storage={
  get(key){try{return localStorage.getItem(key);}catch{return null;}},
@@ -34,7 +36,9 @@ export function mountCapture(platform){
   showArchived:false,lastKey:null,request:null,failure:null,problem:null,listening:false,autoClose:null,countdown:null};
  const identity=createSendIdentity(),reveal=createRevealTracker(),seen=new Set();
  const refreshState=async()=>{try{s.state=await(await fetch('/api/state')).json();}catch{}render();};
- const voiceMode=createVoiceMode({platform,conversationId:()=>conversation().id,onChange:()=>render(),afterSave:id=>{seen.add(id);refreshState();},onLevel:value=>composer.level(value)});
+ const openItem=target=>platform.action('planner',target).catch(()=>{});
+ const voiceMode=createVoiceMode({platform,conversationId:()=>conversation().id,onChange:()=>render(),afterSave:id=>{seen.add(id);refreshState();},onLevel:value=>composer.level(value),
+  savedRows:id=>{const c=captures().find(x=>x.messageId===id);return !c?.voice?null:c.voice.undone?[]:platform.voiceRows(c.voice.changes);},openItem});
 
  function rememberComposer(text){
   const kept=draftToKeep(text,{busy:s.busy,pendingText:identity.pending?.text});
@@ -187,18 +191,13 @@ export function mountCapture(platform){
    case 'open':return openCard(c,on);
    case 'question':return questionCard(c,on);
    case 'answer':return answerCard(c,{platform,on});
-   case 'voice':return voiceCard(c,{rows:platform.voiceRows(c.voice.changes),openPlanner:on.openPlanner,openItem:target=>platform.action('planner',target).catch(()=>{}),
-    discard:undoVoice});
+   case 'voice':return voiceCard(c,{rows:platform.voiceRows(c.voice.changes),openItem});
    default:return savedCard(c,on);
   }
  }
- function sessionReceipt(id){
-  const c=captures().find(x=>x.messageId===id);
-  return c&&cardKind(c)==='voice'?captureCard(c,'voice'):null;
- }
  function chatCards(){
-  const live=voiceMode.card(),ids=voiceMode.receipts();
-  if(live||ids.length>1)return [...ids.map(sessionReceipt).filter(Boolean),...(live?[live]:[])];
+  const call=voiceMode.cards();
+  if(call)return call;
   if(s.listening)return [listeningCard(el)];
   if(s.request?.held)return [];
   const out=[];
@@ -243,9 +242,9 @@ export function mountCapture(platform){
   const kind=s.listening||phase==='listening'||phase==='connecting'?'listening':s.request?'pending':s.failure?'error':nodes[0]?.classList[2]??'idle';
   panel.dataset.view=s.view;panel.dataset.busy=String(s.busy);panel.dataset.state=kind;
   content.setAttribute('aria-busy',String(s.busy));
-  message.placeholder=answerDraft()||latest()?.clarification?.open?'Or answer in your own words':s.focusedDraftId?'Tell me what to change':'Capture a thought';
+  message.placeholder=voiceMode.active()?CALL_WORDS[phase]:answerDraft()||latest()?.clarification?.open?'Or answer in your own words':s.focusedDraftId?'Tell me what to change':'Capture a thought';
   for(const b of content.querySelectorAll('button'))if(!b.closest('.view-head'))b.disabled=s.busy;
-  $('send').disabled=s.busy||voiceMode.active();composer.voice({phase,listening:s.listening,busy:s.busy});
+  $('send').disabled=s.busy||voiceMode.active();composer.voice({phase:phase??voiceMode.failure?.phase??null,listening:s.listening,busy:s.busy,moment:voiceMode.moment});
   formNow();
  }
  const replying=()=>!!(answerDraft()||latest()?.clarification?.open||s.focusedDraftId);
