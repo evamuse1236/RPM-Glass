@@ -2,6 +2,20 @@
 
 The user talks; Gemini Live changes the plan through tools. Three places: the phone's Capture sheet (opened by the home widget's mic and by the planner's Add hold), and the website's Capture. Approved after the `npm run ramble` prototype (2026-10-27).
 
+## Changed 2026-10-31: the phone keeps the line open
+
+The contract is `docs/voice-always-on.md`. On the phone (`startVoice({continuous: true})`), this page's one-press ramble no longer applies:
+
+- One Live session stays open from the mic tap until the user hangs up, Capture is hidden, or 20 s of quiet. Gemini ends each request itself (`automaticActivityDetection` on, `END_SENSITIVITY_HIGH`, `silenceDurationMs: 500`); there is no Stop, no `activityStart`/`activityEnd` and no 2 min talk limit. `VoiceToken.check` accepts that one detection setting or manual turns, nothing else.
+- Each request is its own ramble with its own capture, batch and Undo, saved with its words in one save on its final idle `turnComplete` (`serverContent.interactionStatus` not `IN_PROGRESS`). The next request's working copy is cloned from the store after that save; its tool calls wait for it. A `toolCallCancellation` drops the named calls' ops. The early save at the first spoken audio is gone.
+- The orb is "Hang up". A tap while RPM speaks only cuts the speech; the next tap hangs up. Hang-up, Capture hidden and quiet save the request in progress first.
+- Uplink audio is dropped while RPM's voice plays (echo); `interrupted` clears the speaker queue.
+- Each saved request plays a short Web Audio tone and gets its own receipt above the live card. Discard shows only while that ramble is the newest change (`voice.canUndo`).
+- `goAway` or a dropped socket saves the request in progress, waits 3 s, and opens a new session from the current store. Old audio is never sent again.
+- Speech with no tool call and no answer before quiet ends shows "Didn’t catch that. Try again."
+
+The website keeps the one-press ramble below, unchanged. Tests: `android-companion/voice-open-line.test.mjs`. Timing: `rpmctl voice-time --session two`.
+
 ## Facts this design rests on (measured 2026-10-27)
 
 - `gemini-3.8-live` over `BidiGenerateContent`: audio out only (`TEXT` closes with 1007), manual activity detection, tools as `functionDeclarations` with `parametersJsonSchema`. 5 of 5 changes right on a 21 s ramble; first change 2.3 to 2.8 s after stop.

@@ -27,6 +27,7 @@ Evidence
   store      Print the saved planner JSON, optionally at a dotted path.
   state      List or read the app's private files (debug build only).
   logs       App logcat, or only crashes and page errors with --errors.
+  voice-time Time one voice capture from the widget mic through the spoken answer (T0 to T10).
   check      Run the repo's full check suite (npm test + regression checks), logged to evidence.
 
 Global options
@@ -143,6 +144,16 @@ An optional dotted path (e.g. sync.outbox or entries.0.title) prints that value.
   state: `state [relative-path]
 Without a path: lists the app's private files (files/, shared_prefs/, databases/) via run-as.
 With a path (e.g. files/companion.json): prints {ok, path, json} when JSON parses, otherwise {ok, path, text}. Debug builds only.`,
+  'voice-time': `voice-time [--runs N] [--fixture <id|all>] [--session two] [--warm] [--human]
+Opens Capture the way the home widget mic does (com.rpm.widget.voice), feeds a fixture clip through the fake mic into one
+open Live session, waits for its receipt, then taps the Hang up orb. Per request it prints the time from the end of the
+clip (speechEnd#n) to the first tool call (T7#n), the change on screen (Trow#n), the receipt (T8#n) and the first
+spoken audio (T9#n), plus tap to Gemini listening (T4).
+--session two plays time, then two-tasks after the first receipt, in the same session.
+--fixture is time, two-tasks, change, question, ramble, or all (the default; one session each). --runs prints median and
+p90. The table includes errors and workDone (receipts drawn). --human leaves the mic real and waits for you to hang up.
+Writes .verify/voice-latency/runs/<run-id>.json. A debug build can feed fixtures/voice WAV through RPM_FAKE_MIC. Release builds have no fake mic.
+This command drives the phone. A Gemini key on that phone starts a Live session. Unit tests do not run it.`,
   logs: `logs [--errors] [--lines N]
 Logcat for the app's process plus WebView console lines (tag chromium). --errors keeps only crashes, ANRs,
 uncaught exceptions and console errors since launch. Default --lines 200.`,

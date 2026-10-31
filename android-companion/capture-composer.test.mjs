@@ -65,7 +65,7 @@ test('the handle is a labelled 48dp button that opens More, and a second tap clo
  assert.equal(ids.more.getAttribute('aria-expanded'),'false');
 });
 
-test('while a ramble is live the composer orb is "Stop and save", follows the voice, and a tap stops the ramble', async () => {
+test('while a session is open the composer orb is "Hang up", follows the voice, and a tap stops the session', async () => {
  const {panel,dictate}=composerDom();
  const composer=installComposer({onSubmit(){},onInput(){},onVoice(){}});
  const glow=dictate.querySelector('.orb');
@@ -73,8 +73,8 @@ test('while a ramble is live the composer orb is "Stop and save", follows the vo
  composer.voice({phase:'listening'});
  assert.equal(panel.dataset.voice,'on');
  assert.equal(glow.className,'orb listening');
- assert.equal(dictate.getAttribute('aria-label'),'Stop and save');
- assert.equal(dictate.disabled,false,'you can tap it to stop');
+ assert.equal(dictate.getAttribute('aria-label'),'Hang up');
+ assert.equal(dictate.disabled,false,'you can tap it to hang up');
  composer.level(.5);
  assert.deepEqual(levels.at(-1),['--level','0.50']);
  composer.voice({phase:'working'});
@@ -122,11 +122,14 @@ test('the live card carries no orb and no Stop: the composer orb does both', asy
  release();
 });
 
-test('showVoice keeps the orb tappable only while it can stop, never while RPM is saving or a reply is busy', () => {
+test('showVoice keeps the orb tappable through a whole session, so a tap while RPM speaks cuts the speech; never while a reply is busy', () => {
  const panel=new FakeElement('section'),dictate=new FakeElement('button'),glow=styled(new FakeElement('span'));
  glow.className='orb idle';dictate.append(glow);
- showVoice(panel,dictate,{phase:'speaking'});
- assert.equal(dictate.disabled,true);
+ for(const phase of ['connecting','listening','working','speaking']){
+  showVoice(panel,dictate,{phase});
+  assert.equal(dictate.disabled,false,phase);
+  assert.equal(dictate.getAttribute('aria-label'),'Hang up');
+ }
  showVoice(panel,dictate,{busy:true});
  assert.equal(dictate.disabled,true);
  showVoice(panel,dictate,{});

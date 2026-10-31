@@ -3,6 +3,7 @@ import {withIds} from './new-id.mjs';
 import {toolOps,planView} from './voice-tools.mjs';
 import {intentState} from '../intent-v2/src/repository.mjs';
 import {userMessage} from './user-message.mjs';
+import {voiceMark,holdStage} from './voice-marks.mjs';
 
 export const MAX_RAMBLE_OPS=60;
 
@@ -13,10 +14,16 @@ export const MAX_RAMBLE_OPS=60;
  * Phases: listening → working (after stop) → speaking (model talks after its tools) → done | failed.
  */
 export function createRamble({data,timeZone,now=()=>new Date()}){
- const working=structuredClone(data),ops=[],uuids=[],changes=[],created=[],errors=[];
- let heard='',said='',phase='listening',toolsPending=false,error=null,answered=false;
- const apply=op=>{const {result,ids}=withIds([],()=>editPlan(working,op,now()));uuids.push(...ids);ops.push(op);return result;};
- const added=new Map();
+ let working=structuredClone(data);
+ const records=[],errors=[],added=new Map();
+ let heard='',said='',phase='listening',toolsPending=false,error=null,answered=false,firstTool=true;
+ const all=key=>records.flatMap(r=>r[key]);
+ const changes=()=>records.map(r=>r.change);
+ const created=()=>records.filter(r=>r.created!=null).map(r=>r.created);
+ const run=(r,uuids=[])=>{
+  const {result,ids}=withIds(uuids,()=>{let out=null;for(const op of r.ops)out=editPlan(working,op,now())??out;return out;});
+  r.uuids=ids;return result;
+ };
  const sameAdd=c=>c.name==='save_task'&&c.args?.id==null&&typeof c.args?.title==='string'
   ?JSON.stringify({...c.args,title:c.args.title.trim().toLowerCase()},Object.keys(c.args).sort()):null;
  const call=c=>{
@@ -24,26 +31,44 @@ export function createRamble({data,timeZone,now=()=>new Date()}){
   const key=sameAdd(c);
   if(key&&added.has(key))return added.get(key);
   const {ops:next,change}=toolOps(working,c.name,c.args??{},now());
-  if(ops.length+next.length>MAX_RAMBLE_OPS)throw new Error('That is too many changes for one go. Save these, and say the rest next time.');
-  let result=null;for(const op of next)result=apply(op)??result;
-  if(change.kind==='add'&&change.entity==='task'){change.id=result;created.push(result);}
+  if(all('ops').length+next.length>MAX_RAMBLE_OPS)throw new Error('That is too many changes for one go. Save these, and say the rest next time.');
+  const r={id:c.id,key,ops:next,uuids:[],change,created:null};
+  const result=run(r);
+  if(change.kind==='add'&&change.entity==='task'){change.id=result;r.created=result;}
   else if(change.id==null&&change.kind==='add')change.id=result;
-  changes.push(change);
+  records.push(r);
   if(key)added.set(key,{saved:result});
   return {saved:result};
  };
+ /** Drops the named calls' changes and replays the rest on a fresh copy with the same new ids. */
+ const cancel=ids=>{
+  const drop=new Set(ids);
+  if(!records.some(r=>drop.has(r.id)))return;
+  const kept=records.filter(r=>!drop.has(r.id));
+  for(const r of records)if(drop.has(r.id)&&r.key)added.delete(r.key);
+  working=structuredClone(data);records.length=0;
+  for(const r of kept){
+   const result=run(r,r.uuids);
+   if(r.created!=null){r.created=result;r.change.id=result;if(r.key)added.set(r.key,{saved:result});}
+   records.push(r);
+  }
+ };
  return {
   /** wordsReady: the model has started answering, so the transcript of what was heard is complete. */
-  get state(){return {phase,heard:heard.trim(),said:said.trim(),changes:[...changes],errors:[...errors],error,wordsReady:answered||phase==='done'||phase==='failed'};},
+  get state(){return {phase,heard:heard.trim(),said:said.trim(),changes:changes(),errors:[...errors],error,wordsReady:answered||phase==='done'||phase==='failed'};},
   stop(){if(phase==='listening')phase='working';},
   fail(reason){if(phase!=='done'){phase='failed';error=String(reason);}},
+  cancel,
   receive(m){
    const out=[],sc=m?.serverContent;
    if(sc?.inputTranscription?.text)heard+=sc.inputTranscription.text;
    if(sc?.outputTranscription?.text)said+=sc.outputTranscription.text;
+   if(m?.toolCallCancellation)cancel(m.toolCallCancellation.ids??[]);
    if(phase!=='listening'&&(m?.toolCall||(sc?.modelTurn?.parts??[]).length))answered=true;
    if(phase==='working'&&!toolsPending&&(sc?.modelTurn?.parts??[]).length)phase='speaking';
    if(m?.toolCall&&!['done','failed'].includes(phase)){
+    if(firstTool){firstTool=false;holdStage('T7');voiceMark('T7');}
+    if(m.toolCall.functionCalls.some(c=>c.name!=='get_plan'))voiceMark('Tsave');
     toolsPending=true;
     const functionResponses=m.toolCall.functionCalls.map(c=>{
      let result;try{result=call(c);}catch(e){const text=userMessage(e);errors.push(`${c.name}: ${text}`);result={error:text};}
@@ -55,7 +80,7 @@ export function createRamble({data,timeZone,now=()=>new Date()}){
    }
    return out;
   },
-  result(){return {heard:heard.trim(),said:said.trim(),changes:[...changes],errors:[...errors],batch:ops.length?{type:'batch',ops:structuredClone(ops)}:null,uuids:[...uuids],created:[...created],failed:phase==='failed'?error??'Voice stopped.':null};},
+  result(){const ops=all('ops');return {heard:heard.trim(),said:said.trim(),changes:changes(),errors:[...errors],batch:ops.length?{type:'batch',ops:structuredClone(ops)}:null,uuids:all('uuids'),created:created(),failed:phase==='failed'?error??'Voice stopped.':null};},
  };
 }
 

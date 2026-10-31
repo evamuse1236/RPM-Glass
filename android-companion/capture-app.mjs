@@ -192,9 +192,13 @@ export function mountCapture(platform){
    default:return savedCard(c,on);
   }
  }
+ function sessionReceipt(id){
+  const c=captures().find(x=>x.messageId===id);
+  return c&&cardKind(c)==='voice'?captureCard(c,'voice'):null;
+ }
  function chatCards(){
-  const live=voiceMode.card();
-  if(live)return [live];
+  const live=voiceMode.card(),ids=voiceMode.receipts();
+  if(live||ids.length>1)return [...ids.map(sessionReceipt).filter(Boolean),...(live?[live]:[])];
   if(s.listening)return [listeningCard(el)];
   if(s.request?.held)return [];
   const out=[];
@@ -278,7 +282,7 @@ export function mountCapture(platform){
   onInput:text=>{rememberComposer(text);formNow();if(s.state&&!s.busy&&$('status').textContent&&!$('status').classList.contains('error'))status('');},
   onVoice:orbTap(voiceMode,voice),
  });
- window.rpmStartVoice=(tries=25)=>{setView('chat');if((s.busy||!s.state)&&tries>0){setTimeout(()=>window.rpmStartVoice(tries-1),200);return;}voice();};
+ window.rpmStartVoice=(tries=25)=>{if(window.__rpmVoiceHoldStart)return;setView('chat');if((s.busy||!s.state)&&tries>0){setTimeout(()=>window.rpmStartVoice(tries-1),200);return;}voice();};
  if(window.rpmPendingVoice){delete window.rpmPendingVoice;window.rpmStartVoice();}
  window.addEventListener('rpm-calendar-ready',()=>{if(s.state&&!s.busy&&s.view==='chat'&&content.querySelector('.answer'))render();});
  window.rpmHandleBack=()=>{

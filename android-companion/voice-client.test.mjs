@@ -45,6 +45,27 @@ test('a ramble streams the mic after setup, answers tool calls, plays the reply 
  assert.deepEqual([...new Set(phases)],['listening','working','speaking','done']);
 });
 
+test('stopping before voice is ready keeps the queued speech and sends it once connected', async () => {
+ const {log,options}=fakes();
+ const voice=startVoice({...options,data:freshStore(),timeZone:'UTC',setup:{model:'models/x'},token:async()=>({token:'t',url:'wss://x'})});
+ await tick();
+ fakes.node.port.onmessage({data:new Float32Array([0.5,-0.5])});
+ voice.stop();
+ assert.equal(log.tracksStopped,1);
+ let settled=false;
+ voice.done.then(()=>{settled=true;});
+ await tick();
+ assert.equal(settled,false,'Done before setupComplete does not drop the turn');
+ await tick();await tick();await tick();
+ assert.ok(log.sent.some(m=>m.realtimeInput?.audio),'queued speech is sent after setup');
+ assert.deepEqual(Object.keys(log.sent.at(-1).realtimeInput),['activityEnd']);
+ fakes.socket.serve({serverContent:{inputTranscription:{text:'Call Amma tomorrow at 6 pm'}}});
+ fakes.socket.serve({serverContent:{turnComplete:true}});
+ const result=await voice.done;
+ assert.equal(result.failed,null);
+ assert.equal(result.heard,'Call Amma tomorrow at 6 pm');
+});
+
 test('a denied microphone ends at once with a plain message and never asks for a token', async () => {
  const {options}=fakes({deny:true});let asked=false,last;
  const voice=startVoice({...options,data:freshStore(),timeZone:'UTC',setup:{},token:async()=>{asked=true;return {};},onChange:s=>{last=s;}});

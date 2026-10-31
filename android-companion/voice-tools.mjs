@@ -46,12 +46,25 @@ export function planView(data,timeZone){
  };
 }
 
-export function systemPrompt(now,timeZone){
+/** Plans bigger than this stay out of the prompt, so the setup stays under the phone's 64 KB limit. */
+export const PLAN_IN_PROMPT_MAX=40000;
+
+const planLines=plan=>plan?`- The plan as it is now is below (the same answer get_plan gives). Save at once; call get_plan only after your own saves, to see their results.
+PLAN: ${plan}`:'- Call get_plan first.';
+
+/** The phone's open line: Gemini ends each request after half a second of quiet, and the session stays open. */
+export const OPEN_LINE_DETECTION=Object.freeze({disabled:false,endOfSpeechSensitivity:'END_SENSITIVITY_HIGH',silenceDurationMs:500});
+const OPENING={
+ once:'They talk, then stop; you change the plan with tools, then say in one short, warm sentence what you did.',
+ open:'The line stays open, so they can add more after each answer. Change the plan with tools, and answer every direct request with one short sentence.',
+};
+
+export function systemPrompt(now,timeZone,{plan=null,continuous=false}={}){
  const today=now.toLocaleString('en-US',{timeZone,weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'numeric',minute:'2-digit'});
- return `You keep a person's RPM planner. They talk, then stop; you change the plan with tools, then say in one short, warm sentence what you did.
+ return `You keep a person's RPM planner. ${continuous?OPENING.open:OPENING.once}
 Now: ${today} (time zone ${timeZone}, offset ${offsetOf(now,timeZone)}).
 RPM: a task is one action. A Block is one result the person wants (title), with a purpose (why it matters) and the tasks that get it. Projects hold Blocks. Areas are parts of life; an Area holds Goals, and a Goal holds Projects. Priority is the order of tasks inside a Block, most important first. Must marks a task as essential. Blocks have no order of their own: the planner lists them by deadline, the latest dated task in each.
-- Call get_plan first.
+${planLines(plan)}
 - Make every change they asked for: add, change, complete, reopen, remove or move tasks; add, change or remove Blocks, Projects and Areas; give purposes; set priorities.
 - Use their words for titles. Never invent tasks, times or lengths they did not say.
 - "Tomorrow", "tonight", "in 20 minutes" and weekday names count from now. A time without am or pm means the next sensible one.
@@ -64,12 +77,18 @@ RPM: a task is one action. A Block is one result the person wants (title), with 
 - If something is unclear, make the most likely choice and say what you chose. Never wait for an answer before saving what you are sure of.`;
 }
 
-/** The Gemini Live setup message for one session. Both the phone and the website server build it from here. */
-export function liveSetup(now,timeZone){
+/**
+ * The Gemini Live setup message for one session. Both the phone and the website server build it from here.
+ * `continuous` is the phone's open line; the website keeps one ramble per press.
+ */
+export function liveSetup(now,timeZone,{data=null,continuous=false}={}){
+ let view=null;
+ try{view=data?JSON.stringify(planView(data,timeZone)):null;}catch{view=null;}
+ const plan=view&&view.length<=PLAN_IN_PROMPT_MAX?view:null;
  return {model:`models/${LIVE_MODEL}`,generationConfig:{responseModalities:['AUDIO']},
-  systemInstruction:{parts:[{text:systemPrompt(now,timeZone)}]},
+  systemInstruction:{parts:[{text:systemPrompt(now,timeZone,{plan,continuous})}]},
   tools:[{functionDeclarations:TOOLS.map(t=>({name:t.name,description:t.description,parametersJsonSchema:t.parameters}))}],
-  inputAudioTranscription:{},outputAudioTranscription:{},realtimeInputConfig:{automaticActivityDetection:{disabled:true}}};
+  inputAudioTranscription:{},outputAudioTranscription:{},realtimeInputConfig:{automaticActivityDetection:continuous?{...OPEN_LINE_DETECTION}:{disabled:true}}};
 }
 
 const TASK_FIELDS=[['title','title'],['minutes','minutes'],['blockId','blockId'],['alert','alert'],['alertLead','alertLead'],['repeat','recurrence'],['must','must'],['notes','notes'],['purpose','purpose']];

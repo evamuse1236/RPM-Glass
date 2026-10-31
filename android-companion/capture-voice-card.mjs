@@ -1,6 +1,7 @@
 /** Capture's voice card: the words streaming in and the changes on a spine. The composer's orb follows the voice. */
 import {el,icon,iconButton} from './capture-dom.mjs';
 import {reducedMotion} from './capture-presentation.mjs';
+import {voiceMark,holdStage} from './voice-marks.mjs';
 
 const GLYPH={Added:'add_task','New Block':'stacks','New Project':'folder','New Goal':'flag','New Area':'category',
  Done:'check',Reopened:'replay','Moved to Trash':'delete',Trash:'delete',Moved:'drive_file_move',Reordered:'swap_vert',Changed:'edit_note'};
@@ -20,18 +21,22 @@ export function setLevel(node,level){node?.style.setProperty('--level',Math.max(
  * Words as they are heard, released at a steady pace (one word every `every` ms, two when far behind), each blurring in.
  * A transcript that rewrites earlier words, or Reduce Motion, shows the new text at once.
  */
-export function wordStream(node,{every=110,reduced=reducedMotion}={}){
+export function wordStream(node,{every=110,reduced=reducedMotion,onWords=()=>{}}={}){
  let shown='',queue=[],timer=null;
  const tick=()=>{
   timer=null;
   for(const word of queue.splice(0,queue.length>12?2:1))node.append(el('span','w',word));
+  if(node.querySelector('.w')){voiceMark('T5');onWords();}
   if(queue.length)timer=setTimeout(tick,every);
  };
  return {
   set(text,placeholder=''){
    if(text&&text===shown)return;
+   if(text&&!shown)holdStage('T5');
    if(!text||!text.startsWith(shown)||reduced()){
-    clearTimeout(timer);timer=null;queue=[];shown=text;node.textContent=text||placeholder;return;
+    clearTimeout(timer);timer=null;queue=[];shown=text;node.textContent=text||placeholder;
+    if(text){voiceMark('T5');onWords();}
+    return;
    }
    if(!shown)node.textContent='';
    queue.push(...text.slice(shown.length).match(/\s*\S+\s*/g)??[]);

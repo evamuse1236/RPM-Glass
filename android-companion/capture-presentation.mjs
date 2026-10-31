@@ -1,4 +1,5 @@
 import {EASE,DURATION} from './motion-core.mjs';
+import {markCaptureDrawn} from './voice-marks.mjs';
 // Presentation only: geometry, insets and motion. This module never saves a
 // plan and never invents request progress.
 
@@ -92,6 +93,7 @@ function installSizeReport(panel,action){
    panel.dataset.measured='true';
    // The first report also fades the native window in.
    action?.('captureSize',{height,width,reducedMotion:reducedMotion()}).catch(()=>{last='';});
+   markCaptureDrawn();
   });
  };
  new ResizeObserver(report).observe(panel);

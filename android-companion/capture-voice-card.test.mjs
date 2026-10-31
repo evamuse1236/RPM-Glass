@@ -40,7 +40,7 @@ test('Edit opens a task, Block or Project in the planner, never a row that went 
 
 const rows=[{verb:'Added',entity:'task',id:1,title:'Call mom',when:'Tomorrow, 8:00 PM',alert:'reminder'},
  {verb:'Done',entity:'task',id:2,title:'Call Raj'},{verb:'Moved to Trash',entity:'task',id:3,title:'Buy groceries'}];
-const capture={messageId:'m',reply:'Done.',voice:{undoEvent:'e',undone:false}};
+const capture={messageId:'m',reply:'Done.',voice:{undoEvent:'e',undone:false,canUndo:true}};
 const byLabel=(node,label)=>[...node.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')===label);
 const labels=node=>[...node.querySelectorAll('.voice-head .voice-actions button')].map(b=>b.getAttribute('aria-label'));
 
@@ -62,6 +62,8 @@ test('the receipt has Discard, Edit and Open planner as labelled symbols in its 
  assert.equal(node.classList.contains('enter'),false,'it grows from the live card instead of fading in');
  byLabel(node,'Discard this ramble').click();
  assert.deepEqual(discarded,['m']);
+ const later=voiceCard({...capture,voice:{...capture.voice,canUndo:false}},{rows,discard(){},openPlanner(){},openItem(){}});
+ assert.deepEqual(labels(later),['Edit the changes','Open planner'],'Discard shows only while this ramble is still the newest change');
  byLabel(node,'Open planner').click();
  assert.deepEqual(opened,['planner']);
 });

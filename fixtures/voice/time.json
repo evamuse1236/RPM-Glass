@@ -1,0 +1,33 @@
+{
+  "id": "time",
+  "phrase": "call Amma tomorrow at 6 pm",
+  "durationMs": 3120,
+  "speech": "edge-tts",
+  "source": {
+    "corpus": "scripts/capture-stress/corpus/smart.json",
+    "id": "smart-clock-tomorrow",
+    "corpusPhrase": "remind me tomorrow at 6 to call mom",
+    "why": "Closest clock phrase in the real-phrase family. The WAV says Call Amma, which is the line this loop measures."
+  },
+  "expected": {
+    "anchor": "Corpus tomorrow for this set is 2026-10-20.",
+    "created": [
+      {
+        "entity": "task",
+        "words": [
+          "call",
+          "amma"
+        ],
+        "day": "2026-10-20",
+        "time": "18:00"
+      }
+    ],
+    "changes": [],
+    "maxNew": 1,
+    "question": "forbidden"
+  },
+  "tts": {
+    "engine": "edge-tts",
+    "voice": "en-US-JennyNeural"
+  }
+}

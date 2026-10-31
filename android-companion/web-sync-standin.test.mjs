@@ -19,6 +19,7 @@ test('stand-in persists replica saves, stamps local edits, and retries a frozen 
   const data = seed(); editPlan(data, {type: 'saveTask', fields: {title: 'Seed task'}});
   const replica = fakeServer(), calls = [], failures = []; let losePull = false;
   const server = createServer(async (req, res) => {
+    if (!req.url.startsWith('/v1/planner/')) { res.writeHead(404); res.end(); return; }
     try {
       assert.equal(req.headers.authorization, 'Bearer synthetic-test-token');
       let text = ''; for await (const bytes of req) text += bytes;

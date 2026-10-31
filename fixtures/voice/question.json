@@ -1,0 +1,33 @@
+{
+  "id": "question",
+  "phrase": "Is buy milk on my list?",
+  "durationMs": 2376,
+  "speech": "edge-tts",
+  "source": {
+    "corpus": "scripts/capture-stress/corpus/real-2026-10-27.json",
+    "id": "real-is-milk-on-my-list"
+  },
+  "needsSaved": [
+    {
+      "id": 202,
+      "title": "Buy milk",
+      "planned": "2026-10-20T10:00:00+05:30"
+    }
+  ],
+  "expected": {
+    "created": [],
+    "changes": [],
+    "maxNew": 0,
+    "question": "allowed",
+    "replyWords": [
+      "milk"
+    ],
+    "unchanged": [
+      202
+    ]
+  },
+  "tts": {
+    "engine": "edge-tts",
+    "voice": "en-US-JennyNeural"
+  }
+}
