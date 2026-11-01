@@ -1,15 +1,15 @@
 # Alerts
 
-Alerts are reminders and ringing alarms attached to a task with a time. A reminder posts a notification at the time. A ringing alarm plays a sound and vibrates, shows a full-screen `Time for your plan` page, and can be snoozed for ten minutes or dismissed. The user sets the alert on the task, grants notification and exact-alarm permission in Settings, and sees a delivery status.
+Alerts are reminders and ringing alarms attached to a task with a time. A reminder posts a notification at the time. A ringing alarm plays a sound and vibrates, rings in the notch (never a full-screen page), and can be snoozed for ten minutes or dismissed. The user sets the alert on the task, grants notification and exact-alarm permission in Settings, and sees a delivery status.
 
 ## Sub-features
 
 - `alert-set` sets `No alert`, `Reminder` or `Ringing alarm` on a task that has a time.
 - `alert-status` shows a delivery status such as `Reminder scheduled · <day, time> · may be delayed`.
-- `alert-permissions` shows `Notifications`, `Exact alarms` and `Lock-screen alarms` as `Allowed` or `Permission needed`.
+- `alert-permissions` shows `Notifications` and `Exact alarms` as `Allowed` or `Permission needed`. There is no full-screen or lock-screen alarm setting.
 - `alert-check` reschedules saved alerts with `Check saved alerts`.
 - `alert-reminder-fire` posts a reminder notification at the time.
-- `alert-alarm-fire` rings the alarm with a full-screen page, Snooze and Dismiss.
+- `alert-alarm-fire` rings the alarm in the notch (Stop, Snooze 10 min, Done) and posts a notification with Snooze and Dismiss. `adb shell dumpsys notification` shows no `fullScreenIntent`.
 - `alert-sound-preview` previews the alarm sound for five seconds.
 - `alert-capture` offers alerts from Capture (model-backed, UNVERIFIED) and shows delivery lines on a receipt.
 
@@ -18,7 +18,7 @@ Alerts are reminders and ringing alarms attached to a task with a time. A remind
 - In the task sheet, tap the `Alert` tab, choose Off, Remind or Alarm, then how long before.
 - In quick add, set a day and time, then choose an alert.
 - In Settings, open `Sounds & alerts`.
-- Wait for the time, then use the notification or the full-screen page.
+- Wait for the time with the screen on, then use the notch or the notification.
 - Say a reminder in Capture (needs the AI key).
 
 ## Driving it with rpmctl
@@ -38,7 +38,7 @@ Preconditions:
 - **Delivery status.** Possible states are `Reminder scheduled · Wed, 4:00 PM · may be delayed`, `Alarm scheduled · Wed, 4:00 PM`, `Not scheduled · allow notifications`, `Not scheduled · allow notifications and exact alarms`, `Not scheduled · add a time`, `Time passed · not scheduled` and `Alert off`. Where the planner shows this line is (unconfirmed). Look in the task sheet's Alert field and on a Capture receipt (`Check alert delivery in Planner.`). Run `rpmctl shot alerts-status`.
 - **Check saved alerts.** In Settings run `rpmctl tap --name "Check saved alerts"`. The status line reads `Saved alert schedules checked.`
 - **Fire a reminder.** Set the task time one or two minutes ahead through the task sheet's `Pick a time` chip in When (a custom time may need `rpmctl tap --native` on a time picker; unconfirmed), set `Reminder`, and wait. Then run `rpmctl key home` and check `rpmctl ui --native` for a notification titled with the task name and the text `Your RPM reminder`. Android may delay it, so allow time. This is a long recipe; mark **UNVERIFIED** if the time cannot be set.
-- **Fire an alarm.** Same, with `Ringing alarm`. At the time, a full-screen page appears headed `Time for your plan` with the task title and buttons `Snooze · 10 minutes` and `Dismiss`. Run `rpmctl ui --native` and `rpmctl shot alarm-ringing`. A notification says `It's time · Snooze for 10 minutes or dismiss`.
+- **Fire an alarm.** Same, with `Ringing alarm`. At the time, the notch opens with the task title over `Ringing` and buttons `Stop`, `Snooze 10 min` and `Done`; no full-screen page appears. Run `rpmctl shot alarm-ringing`. A local alarm (earlier screens) shows the same island without `Done`. Tapping the notification opens `Time for your plan`. A notification says `It's time · Snooze for 10 minutes or dismiss`.
 - **Dismiss.** Run `rpmctl tap --native "Dismiss"`. The page closes and the alert status reads `Alarm dismissed`. `Snooze · 10 minutes` instead reschedules ten minutes later (the status shows the snooze).
 - **Audible sound.** Cannot be heard on the `-no-audio` emulator. The ringing sound and vibration are **UNVERIFIED**. The Settings `Preview alarm sound` only reports that it is playing.
 - **Sound preview.** In Settings run `rpmctl tap --name "Preview alarm sound"`. The status reads `Playing the alarm sound for 5 seconds.` and the row reads `Stop alarm preview`. See the Settings file.
@@ -48,7 +48,7 @@ Preconditions:
 ## Gotchas
 
 - Android may delay reminders; a reminder that arrives a few minutes late is not a failure. An alarm is exact.
-- The exact-alarm and lock-screen permissions are separate from notifications. All three can differ.
+- The exact-alarm permission is separate from notifications. The two can differ.
 - Alerts for a recurring task or an imported task can be disarmed on import (`Imported · not armed on this phone`).
 - Firing needs the clock to reach the task's time. `rpmctl` cannot move the emulator clock, so a firing recipe takes real minutes.
 - The reminder notification text is fixed and does not repeat the task body. The title is the task title.

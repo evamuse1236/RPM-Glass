@@ -37,8 +37,7 @@ final class EntryDialogs {
         long initial=e.isNull("planned")?System.currentTimeMillis()+3600000:e.optLong("planned");
         time(a,Math.max(initial,System.currentTimeMillis()+60000),at->{
             if(at<=System.currentTimeMillis()){Toast.makeText(a,"Choose a future time",Toast.LENGTH_LONG).show();return;}
-            String screen=Alarms.fullScreenAllowed(a)?"":"\nFull-screen alerts are disabled. You can enable them in alarm settings; a notification still provides controls.";
-            new AlertDialog.Builder(a).setTitle("Ringing alarm").setMessage(e.optString("title")+"\n"+Ui.date(at)+"\n\nRings using your phone's alarm volume, even offline. Snooze is 10 minutes. Stops after 10 minutes if unanswered."+screen)
+            new AlertDialog.Builder(a).setTitle("Ringing alarm").setMessage(e.optString("title")+"\n"+Ui.date(at)+"\n\nRings using your phone's alarm volume, even offline. Snooze is 10 minutes. Stops after 10 minutes if unanswered.")
                 .setNegativeButton("Cancel",null).setPositiveButton("Set alarm",(d,w)->{
                     try{ContentValues v=new ContentValues();v.put("alarm",at);v.put("alarm_status","scheduled");s.update(id,v,"User confirmed ringing alarm at "+Ui.date(at));Alarms.schedule(a,id,at);changed.run();Toast.makeText(a,"Ringing alarm set",Toast.LENGTH_LONG).show();}
                     catch(Exception ex){Alarms.cancel(a,id);try{ContentValues v=new ContentValues();v.put("alarm_status","failed");s.update(id,v,"Alarm scheduling failed");changed.run();}catch(Exception ignored){}error(a,ex);}

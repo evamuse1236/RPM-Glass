@@ -8,6 +8,7 @@ import android.widget.LinearLayout;
  * The reminder and ringing-alarm islands (playground/notch-alert.mjs is their copy). The band holds the bell or the
  * pulsing clock and, trailing, the alert's time. Below: the title and line, which open the task. A reminder then has
  * Done and Snooze 10 min as two equal pills; a ringing alarm has Stop across the width over Snooze 10 min and Done.
+ * A local alarm is not a planner task, so it has no Done: a control that cannot act is left out.
  */
 final class NotchAlertViews {
     private final NotchParts parts;
@@ -37,11 +38,11 @@ final class NotchAlertViews {
         col.addView(words(alert.title, alert.ringing(), NotchInk.ALARM, alert.spoken(), actions));
         col.addView(parts.controls(parts.pill(R.drawable.notch_ic_stop, "Stop", "Stop the alarm for " + alert.title, NotchInk.ALARM, true,
                 actions::stopAlert)), parts.controlsAt(false));
-        col.addView(parts.controls(
-                parts.pill(0, "Snooze " + NotchAlert.SNOOZE_MINUTES + " min", "Snooze " + alert.title + " for " + NotchAlert.SNOOZE_MINUTES + " minutes",
-                        NotchInk.ALARM, false, actions::snoozeAlert),
-                parts.pill(R.drawable.ic_check, "Done", "Done: stop the alarm and tick " + alert.title, NotchInk.ALARM, false, actions::doneAlert)),
-                parts.pairUnder());
+        View snooze = parts.pill(0, "Snooze " + NotchAlert.SNOOZE_MINUTES + " min", "Snooze " + alert.title + " for " + NotchAlert.SNOOZE_MINUTES + " minutes",
+                NotchInk.ALARM, false, actions::snoozeAlert);
+        View controls = alert.local ? parts.controls(snooze) : parts.controls(snooze,
+                parts.pill(R.drawable.ic_check, "Done", "Done: stop the alarm and tick " + alert.title, NotchInk.ALARM, false, actions::doneAlert));
+        col.addView(controls, parts.pairUnder());
         return face;
     }
 

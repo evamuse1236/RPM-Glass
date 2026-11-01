@@ -15,8 +15,15 @@ final class NotchAlert {
     final String at;
     /** When it fired (epoch ms): Done ticks the task's occurrence at or just before it. */
     final long when;
+    /** A local alarm (AlarmService, an entry in this phone's store), not a planner task: it has no Done. */
+    final boolean local;
 
     NotchAlert(Type type, long taskId, String title, long at, ZoneId zone, boolean h24) {
+        this(type, taskId, title, at, zone, h24, false);
+    }
+
+    NotchAlert(Type type, long taskId, String title, long at, ZoneId zone, boolean h24, boolean local) {
+        this.local = local;
         this.type = type;
         this.taskId = taskId;
         this.title = title == null || title.isEmpty() ? "RPM task" : title;
@@ -40,6 +47,6 @@ final class NotchAlert {
     }
 
     String key() {
-        return type + ":" + taskId + ":" + title + ":" + at;
+        return type + ":" + (local ? "local:" : "") + taskId + ":" + title + ":" + at;
     }
 }

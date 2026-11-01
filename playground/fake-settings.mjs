@@ -3,7 +3,7 @@ import {prefs, setPrefs} from './store.mjs';
 const NO_SCREEN = ' The playground has no Android screens.';
 const ACTIONS = new Set(['set_widget_text_scale', 'choose_alarm', 'preview_alarm', 'stop_preview', 'reminder_sound',
   'show_butterfly', 'hide_butterfly', 'overlay_permission', 'notch_toggle', 'notch_permission', 'notifications', 'exact_alarms',
-  'full_screen_alarms', 'check_alerts', 'connect_key', 'remove_key', 'import_context',
+  'check_alerts', 'connect_key', 'remove_key', 'import_context',
   'export_context', 'restore_backup', 'earlier_screens', 'diagnostics_connect', 'diagnostics_pause', 'diagnostics_resume',
   'diagnostics_disconnect', 'diagnostics_upload']);
 
@@ -14,7 +14,6 @@ const SCREEN_MESSAGES = {
   notch_permission: 'Opening Android accessibility settings. Turn on RPM Notch there.',
   notifications: 'Opening Android notification controls.',
   exact_alarms: 'Opening Android exact alarm permission.',
-  full_screen_alarms: 'Opening Android lock-screen alarm controls.',
   diagnostics_connect: 'Enter a diagnostic pairing code.',
   connect_key: 'Enter the key in the secure Android dialog.',
   remove_key: 'Review the secure removal confirmation.',
@@ -28,7 +27,7 @@ export function appSettings() {
   const p = prefs();
   return {captureBackground: 'Material', widgetTextScale: p.widgetTextScale, alarmSound: 'Phone default', reminderSound: 'Phone default',
     aiConnected: false, notificationsAllowed: true, exactAlarmsAllowed: true, overlayAllowed: false,
-    fullScreenSupported: true, fullScreenAllowed: true, launcherRunning: false, notchOn: p.notchOn, notchServiceOn: true,
+    launcherRunning: false, notchOn: p.notchOn, notchServiceOn: true,
     backupCount: 0, calendarAccess: 'Read-only; choose calendars in the planner',
     systemBoundary: 'Sound files, keys and permission choices require the person. No secret values are exposed.',
     previewing: false, working: false,

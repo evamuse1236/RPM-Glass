@@ -32,7 +32,7 @@ public final class CompanionAlarmService extends Service {
         PendingIntent screen=PendingIntent.getActivity(this,0,new Intent(this,CompanionRingingActivity.class).putExtra("id",id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_SINGLE_TOP),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         boolean quiet=AlarmHeadsUp.notchShows();
         Notification.Builder b=new Notification.Builder(this,AlarmHeadsUp.channel(quiet)).setSmallIcon(R.drawable.ic_checkin).setContentTitle(title).setContentText(active.size()>1?active.size()+" RPM alarms · open to manage":"It's time · Snooze for 10 minutes or dismiss").setCategory(Notification.CATEGORY_ALARM).setOngoing(true).setVisibility(Notification.VISIBILITY_PUBLIC).setContentIntent(screen).addAction(new Notification.Action.Builder(null,"Snooze 10 min",action(id,"snooze")).build()).addAction(new Notification.Action.Builder(null,"Dismiss",action(id,"dismiss")).build());
-        if(AlarmHeadsUp.fullScreen(quiet)&&(Build.VERSION.SDK_INT<34||getSystemService(NotificationManager.class).canUseFullScreenIntent()))b.setFullScreenIntent(screen,true);return b.build();
+        return b.build();
     }
     private void startSound()throws Exception{
         AudioAttributes attributes=new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build();
