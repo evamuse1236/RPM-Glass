@@ -78,7 +78,7 @@ final class VoiceToken {
         try(Response response=ModelHttpClient.call(request,15000).execute()){
             if(!response.isSuccessful()||response.body()==null)throw new IllegalStateException(response.code()==400||response.code()==401||response.code()==403?"Gemini refused the key. Check it in Settings.":"Voice is unavailable right now.");
             name=new JSONObject(response.body().string()).optString("name","");
-        }catch(java.io.IOException e){throw new IllegalStateException("Voice needs the internet. Check the connection.");}
+        }catch(java.io.IOException e){throw new Offline("Voice needs the internet. Check the connection.");}
         catch(org.json.JSONException e){throw new IllegalStateException("Voice is unavailable right now.");}
         if(!name.startsWith("auth_tokens/"))throw new IllegalStateException("Voice is unavailable right now.");
         return new JSONObject().put("token",name).put("url",LIVE_URL);

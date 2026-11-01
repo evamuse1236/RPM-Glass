@@ -41,7 +41,7 @@ test('a ramble streams the mic after setup, answers tool calls, plays the reply 
  s.serve({serverContent:{turnComplete:true}});
  const result=await voice.done;
  assert.equal(result.heard,'Add pay rent');assert.equal(result.said,'Added pay rent.');assert.equal(result.batch.ops.length,1);
- assert.equal(log.played,1);assert.equal(log.closed,true);
+ assert.equal(log.played,2,"the listening chime, then the reply");assert.equal(log.closed,true);
  assert.deepEqual([...new Set(phases)],['listening','working','speaking','done']);
 });
 

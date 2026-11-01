@@ -13,8 +13,11 @@ export const TOOLS=Object.freeze([
   start:{...maybe('string'),description:'Start date and time, ISO with offset.'},day:{...maybe('string'),description:'A day with no time, YYYY-MM-DD.'},
   minutes:maybe('integer'),blockId:{...maybe('string'),description:'Block id, or null for the Inbox.'},
   alert:{type:['string','null'],enum:['reminder','alarm','off',null]},alertLead:{type:'integer',description:'Minutes before the start.'},
-  repeat:{type:['string','null'],enum:['daily','weekly','weekdays',null]},must:{type:'boolean'},notes:{type:'string'},purpose:{type:'string'},done:{type:'boolean'}})},
- {name:'delete_task',description:'Move a task to Trash. It can be restored.',parameters:object({id},['id'])},
+  repeat:{type:['string','null'],enum:['daily','weekly','weekdays',null]},must:{type:'boolean'},notes:{type:'string'},purpose:{type:'string'},done:{type:'boolean'},
+  pastOk:{type:'boolean',description:'Only after they confirmed a start time that has already passed.'},duplicate:{type:'boolean',description:'Only when they asked for a second task with the same title.'}})},
+ {name:'delete_task',description:'Move a task to Trash. Only when their words ask to delete or remove it. It can be restored.',parameters:object({id},['id'])},
+ {name:'restore_task',description:'Bring a task back from the Trash (ids in the plan\'s trash list). Use this, never save_task, when they ask to restore or bring back a task.',parameters:object({id},['id'])},
+ {name:'undo_last',description:'Undo your own last change, when they say undo that, take it back or that was wrong.',parameters:object({})},
  {name:'move_task',description:'Move a task into a Block, or to the Inbox with blockId null. Put it before another task with beforeId, else last.',parameters:object({id,blockId:maybe('string'),beforeId:maybe('integer')},['id','blockId'])},
  {name:'order_block',description:'Set the priority order of tasks in one Block (or the Inbox with blockId null), most important first. Listed tasks go to the top in that order; the rest keep their order below.',parameters:object({blockId:maybe('string'),ids:{type:'array',items:id}},['blockId','ids'])},
  {name:'save_block',description:'Add an RPM Block (no id) or change one. Title is the result wanted, purpose is why it matters. projectId puts it in a Project; null takes it out.',parameters:object({id:entityId,title:{type:'string'},purpose:{type:'string'},projectId:maybe('string')})},
@@ -34,6 +37,24 @@ export function offsetOf(date,timeZone){
 }
 const localTime=(iso,timeZone)=>new Date(iso).toLocaleString('en-US',{timeZone,weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
 
+const TRASH_IN_VIEW=20;
+const isTask=e=>(e.kind??'plan')==='plan';
+const trashed=data=>data.entries.filter(e=>isTask(e)&&e.archived&&e.archiveDisposition!=='archive');
+
+/** Words that must be in what was heard before a call removes or completes something. A yes answers a question the model asked. */
+export const ASKED=Object.freeze({
+ remove:/\b(delete|deleted|remove|removed|trash|bin|drop|cancel|cancelled|canceled|get rid|erase|scrap|discard|don'?t need|no longer need)\b/i,
+ complete:/\b(done|did|finished|finish|complete|completed|tick|ticked|check(ed)? (it )?off|mark(ed)?)\b/i,
+ yes:/\b(yes|yeah|yep|yup|sure|confirm|confirmed|go ahead|do it|please do)\b/i,
+});
+const NOT_ASKED={remove:'They did not ask to remove this. Change nothing and ask them first.',complete:'They did not say this is done. Change nothing and ask them first.'};
+
+/** Refuses a remove or complete that the heard words do not ask for. */
+export function checkAsked(name,args,heard){
+ const need=name.startsWith('delete_')?'remove':name==='save_task'&&args?.done===true?'complete':null;
+ if(need&&!ASKED[need].test(heard)&&!ASKED.yes.test(heard))throw new Error(NOT_ASKED[need]);
+}
+
 export function planView(data,timeZone){
  const p=planner(data),blocks=p.blocks.filter(live);
  const task=e=>({id:e.id,title:e.title,done:!!e.done,start:e.planned?localTime(e.planned,timeZone):null,day:e.plannedDate??null,minutes:e.minutes??null,alert:e.alertIntent?.type??null,repeat:e.recurrence??null,must:!!e.must,priority:e.priority??null});
@@ -43,6 +64,7 @@ export function planView(data,timeZone){
   projects:p.projects.filter(live).map(x=>({id:x.id,title:x.title,purpose:x.purpose||null,goalId:x.goalId??null})),
   goals:p.goals.filter(live).map(g=>({id:g.id,title:g.title,purpose:g.purpose||null,areaId:g.areaId??null,year:g.year})),
   areas:p.areas.filter(live).map(a=>({id:a.id,title:a.title,purpose:a.purpose||null,rating:a.rating??null})),
+  trash:trashed(data).slice(-TRASH_IN_VIEW).map(e=>({id:e.id,title:e.title})),
  };
 }
 
@@ -73,8 +95,12 @@ ${planLines(plan)}
 - To put a Project in an Area, give it a Goal of that Area (save_project goalId). If the Area has no Goal for this year, add one with save_goal, named from their words or else after the Area, and say so. A Block goes into an Area through its Project; if it has none, put it in a fitting Project or add one.
 - If they ask to move, reorder or prioritize a Block itself, change nothing for that request, and say the planner lists Blocks by their deadline, so an earlier date on one of its tasks moves it up.
 - A new item's id is in the answer to its save; never guess an id.
-- Removing is only for what they asked to remove.
-- If something is unclear, make the most likely choice and say what you chose. Never wait for an answer before saving what you are sure of.`;
+- Removing or completing is only for what their words ask to remove or complete. When unsure, ask before you remove or complete anything.
+- "It", "that" and "them" mean the items you changed last, unless they name another.
+- "Restore" or "bring back" means restore_task from the trash list, never a new task. "Undo that" means undo_last.
+- If what you heard is not a request to you (talking to someone else, a video, half a sentence), change nothing and say nothing.
+- A start time that has already passed today: ask whether they mean another day before you save it.
+- If something else is unclear, make the most likely choice and say what you chose. Never wait for an answer before saving what you are sure of.`;
 }
 
 /**
@@ -93,6 +119,8 @@ export function liveSetup(now,timeZone,{data=null,continuous=false}={}){
 
 const TASK_FIELDS=[['title','title'],['minutes','minutes'],['blockId','blockId'],['alert','alert'],['alertLead','alertLead'],['repeat','recurrence'],['must','must'],['notes','notes'],['purpose','purpose']];
 const COLLECTION={block:'blocks',project:'projects',goal:'goals',area:'areas'};
+const PAST_GRACE_MS=5*60000;
+const sameTitle=(a,b)=>a.trim().toLowerCase()===b.trim().toLowerCase();
 const findTask=(data,taskId)=>{const t=data.entries.find(e=>e.id===taskId&&!e.archived&&(e.kind??'plan')==='plan');if(!t)throw new Error(`No task ${taskId}. Call get_plan.`);return t;};
 const findEntity=(data,kind,entity)=>{const x=planner(data)[COLLECTION[kind]].find(r=>r.id===entity);if(!x)throw new Error(`No ${kind} ${entity}. Call get_plan.`);return x;};
 
@@ -108,10 +136,22 @@ export function toolOps(data,name,args={},now=new Date()){
   if('day'in args&&!args.start){fields.plannedDate=args.day;if(args.day)fields.planned=null;}
   if(args.done===true)fields.done=true;
   if(!before&&!fields.title)throw new Error('A new task needs a title.');
+  if(fields.planned&&!args.pastOk&&Date.parse(fields.planned)<now-PAST_GRACE_MS&&fields.planned!==before?.planned)throw new Error('That time has already passed. Ask them which day they mean, then call again with pastOk true.');
+  if(!before&&!args.duplicate){
+   const binned=trashed(data).findLast(e=>sameTitle(e.title,fields.title));
+   if(binned)throw new Error(`"${binned.title}" is in the Trash as task ${binned.id}. Use restore_task to bring it back.`);
+   const twin=data.entries.find(e=>isTask(e)&&!e.archived&&!e.done&&sameTitle(e.title,fields.title));
+   if(twin)throw new Error(`"${twin.title}" is already saved as task ${twin.id}. Change that one, or call again with duplicate true if they want a second.`);
+  }
   if(Object.keys(fields).length||!before)ops.push({type:'saveTask',...(before?{id:before.id}:{}),fields});
   if(args.done===false&&before?.done)ops.push({type:'reopenTask',id:before.id});
   const kind=!before?'add':args.done===true?'complete':args.done===false?'reopen':'change';
   return {ops,change:{kind,entity:'task',id:before?.id??null,title:fields.title??before.title,fields:args}};
+ }
+ if(name==='restore_task'){
+  const t=data.entries.find(e=>e.id===args.id&&isTask(e)&&e.archived);
+  if(!t)throw new Error(`Task ${args.id} is not in the Trash. Call get_plan.`);
+  return {ops:[{type:'restoreTask',id:t.id}],change:{kind:'restore',entity:'task',id:t.id,title:t.title}};
  }
  if(name==='delete_task'){const t=findTask(data,args.id);return {ops:[{type:'archiveTask',id:t.id}],change:{kind:'remove',entity:'task',id:t.id,title:t.title}};}
  if(name==='move_task'){

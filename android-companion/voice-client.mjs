@@ -24,12 +24,22 @@ export function loudness(samples){
 const floats=data=>{const bin=atob(data),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);const ints=new Int16Array(bytes.buffer,0,bytes.length>>1),out=new Float32Array(ints.length);for(let i=0;i<ints.length;i++)out[i]=ints[i]/0x8000;return out;};
 
 /** Plays the model's 24 kHz voice chunks back to back. `clear` cuts what is queued; `ahead` is true while it plays. */
+const CHIME_SECONDS=0.14,CHIME_GAIN=0.18;
 function createSpeaker(AudioContextImpl,onLevel,onPlayed=()=>{}){
- let context=null,at=0;
+ let context=null,at=0,played=false;
  const playing=new Set();
  return {
+  /** A soft two-note chime that says the mic is live. It is not speech, so it never counts as the answer. */
+  chime(){
+   try{
+    context??=new AudioContextImpl({sampleRate:OUT_RATE});
+    const n=Math.round(OUT_RATE*CHIME_SECONDS),buffer=context.createBuffer(1,n,OUT_RATE),wave=new Float32Array(n);
+    for(let i=0;i<n;i++){const t=i/OUT_RATE;wave[i]=CHIME_GAIN*Math.sin(2*Math.PI*(t<CHIME_SECONDS/2?660:880)*t)*Math.min(1,i/200,(n-i)/400);}
+    buffer.copyToChannel(wave,0);const source=context.createBufferSource();source.buffer=buffer;source.connect(context.destination);source.start();
+   }catch{}
+  },
   play(data){
-   const first=!context;
+   const first=!played;played=true;
    if(first)holdStage('T9');
    context??=new AudioContextImpl({sampleRate:OUT_RATE});
    const samples=floats(data),buffer=context.createBuffer(1,samples.length,OUT_RATE);buffer.copyToChannel(samples,0);
@@ -92,7 +102,7 @@ function startRamble({data,timeZone,setup,token,onChange=()=>{},onLevel=()=>{},w
   send({realtimeInput:{activityEnd:{}}});ramble.stop();phase='working';notify();wait(limits.answerMs,'Voice took too long to answer. Your words are saved.');
  }
  function receive(m){
-  if(m.setupComplete){ready=true;clearTimeout(timer);voiceMark('T4');send({realtimeInput:{activityStart:{}}});for(const c of queue.splice(0))send(c);if(stopped){stopped=false;stop();}else{phase='listening';notify();}return;}
+  if(m.setupComplete){ready=true;clearTimeout(timer);voiceMark('T4');send({realtimeInput:{activityStart:{}}});for(const c of queue.splice(0))send(c);if(stopped){stopped=false;stop();}else{phase='listening';speaker.chime();notify();}return;}
   for(const part of m.serverContent?.modelTurn?.parts??[])if(part.inlineData?.mimeType?.startsWith('audio/pcm'))speaker.play(part.inlineData.data);
   for(const out of ramble.receive(m))send(out);
   if(stopped)wait(limits.answerMs,'Voice took too long to answer. Your words are saved.');
@@ -171,7 +181,7 @@ function startOpenLine({data,timeZone,setup,token,onChange=()=>{},onLevel=()=>{}
   touch();
   const sc=m.serverContent,parts=sc?.modelTurn?.parts??[];
   if(sc?.interrupted)speaker.clear();
-  if(!ramble&&(m.toolCall||sc?.inputTranscription?.text||sc?.outputTranscription?.text||parts.length)){ramble=createRamble({data:fresh(),timeZone,now});count++;}
+  if(!ramble&&(m.toolCall||sc?.inputTranscription?.text||sc?.outputTranscription?.text||parts.length)){ramble=createRamble({data:fresh(),timeZone,now,undoSaved:true});count++;}
   if(ramble&&sc?.inputTranscription?.text)voiceSaidMark(count);
   if(m.toolCall){replied=true;serverBusy=true;toolsPending=true;holdStage(`T7#${count}`);voiceMark(`T7#${count}`);}
   if(parts.length){replied=true;serverBusy=true;toolsPending=false;}
@@ -188,7 +198,7 @@ function startOpenLine({data,timeZone,setup,token,onChange=()=>{},onLevel=()=>{}
   notify();
  }
  function receive(m){
-  if(m.setupComplete){ready=true;clearTimeout(connectTimer);voiceMark('T4');for(const c of queue.splice(0))send(c);touch();notify();return;}
+  if(m.setupComplete){ready=true;clearTimeout(connectTimer);voiceMark('T4');for(const c of queue.splice(0))send(c);speaker.chime();touch();notify();return;}
   if(m.goAway){reconnect();return;}
   if(saving||backlog.length){backlog.push(m);return;}
   handle(m);
