@@ -6,7 +6,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {evidenceGap} from '../agent/require-evidence.mjs';
-import {builtWeb} from '../agent/web-assets.mjs';
+import zlib from 'node:zlib';
+import {apkWebSha, builtWeb} from '../agent/web-assets.mjs';
 
 function repo({branch = 'main'} = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rpm-evidence-'));
@@ -87,6 +88,45 @@ test('a web-only change proven by a synced screenshot needs no new APK; Java sti
     fs.writeFileSync(path.join(root, 'app/src/main/java/A.java'), 'class A {}\n');
     touch(path.join(root, 'app/src/main/java/A.java'), now + 100000);
     assert.match(evidenceGap(root), /debug APK is older than changed app code \(app\/src\/main\/java\/A\.java\)/, 'sync never proves Java');
+  } finally { fs.rmSync(root, {recursive: true, force: true}); }
+});
+
+function zip(entries) {
+  const parts = [], central = [];
+  let offset = 0;
+  for (const [file, content] of Object.entries(entries)) {
+    const raw = Buffer.from(content), data = zlib.deflateRawSync(raw), name = Buffer.from(file);
+    const local = Buffer.alloc(30), entry = Buffer.alloc(46);
+    local.writeUInt32LE(0x04034b50, 0); local.writeUInt16LE(8, 8); local.writeUInt32LE(data.length, 18); local.writeUInt32LE(raw.length, 22); local.writeUInt16LE(name.length, 26);
+    entry.writeUInt32LE(0x02014b50, 0); entry.writeUInt16LE(8, 10); entry.writeUInt32LE(data.length, 20); entry.writeUInt32LE(raw.length, 24); entry.writeUInt16LE(name.length, 28); entry.writeUInt32LE(offset, 42);
+    parts.push(local, name, data);
+    central.push(entry, name);
+    offset += 30 + name.length + data.length;
+  }
+  const directory = Buffer.concat(central), end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(central.length / 2, 8); end.writeUInt16LE(central.length / 2, 10); end.writeUInt32LE(directory.length, 12); end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...parts, directory, end]);
+}
+
+test('a read-only phone shot proves a web-only change when its installed web assets match the build; never Java', () => {
+  const root = repo();
+  try {
+    const now = Date.now();
+    fs.writeFileSync(path.join(root, 'android-companion/planner/app.mjs'), 'export const a = 2;\n');
+    touch(path.join(root, 'android-companion/planner/app.mjs'), now);
+    const built = bundle(root, 'phone bundle', now + 30000);
+    const installed = apkWebSha(zip({'classes.dex': 'dex', 'assets/companion/runtime.js': 'phone bundle', 'assets/companion/sub/x.js': 'nested'}));
+    assert.equal(installed, built, 'the hash read from the installed APK equals the hash of the built assets');
+    shot(root, '01-phone-other-web', {phone: true, webSha256: apkWebSha(zip({'assets/companion/runtime.js': 'older bundle'}))}, now + 60000);
+    assert.match(evidenceGap(root), /No debug APK is built.*rpmctl shot --serial/s, 'a phone running other web assets does not count');
+    shot(root, '02-phone', {phone: true, webSha256: installed}, now + 60000);
+    assert.equal(evidenceGap(root), null);
+    fs.mkdirSync(path.join(root, 'app/src/main/java'), {recursive: true});
+    fs.writeFileSync(path.join(root, 'app/src/main/java/A.java'), 'class A {}\n');
+    touch(path.join(root, 'app/src/main/java/A.java'), now + 100000);
+    build(root, 'native build', now + 120000);
+    shot(root, '03-phone', {phone: true, webSha256: installed}, now + 130000);
+    assert.match(evidenceGap(root), /No rpmctl screenshot was taken with the current debug APK/, 'a phone shot never proves Java');
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });
 

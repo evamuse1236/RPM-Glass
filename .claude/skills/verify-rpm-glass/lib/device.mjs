@@ -37,6 +37,11 @@ export function adb(serial, args, {binary = false, allowFail = false, timeout = 
 
 export const shell = (serial, command, options) => adb(serial, ['shell', command], options);
 
+export function installedApk(serial) {
+  const remotePath = shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).match(/package:(\S+base\.apk)/)?.[1];
+  return remotePath ? adb(serial, ['exec-out', 'cat', remotePath], {binary: true}) : null;
+}
+
 export function devices() {
   return adb(null, ['devices', '-l']).split('\n').slice(1).filter(Boolean).map(line => {
     const [serial, state, ...rest] = line.trim().split(/\s+/);
