@@ -46,7 +46,7 @@ test('a stubbed ramble marks the first audio frame, listening, the tool call, th
   fakes.socket.serve({serverContent: {turnComplete: true}});
   fakes.socket.serve({serverContent: {turnComplete: true}});
   await voice.done;
-  assert.equal(log.played, 1);
+  assert.equal(log.played, 2, 'the listening chime, then the reply');
   for (const mark of ['voice:T3', 'voice:T4', 'voice:T7', 'voice:T9', 'voice:T10']) assert.ok(names().includes(mark), mark);
   clear();
 });
