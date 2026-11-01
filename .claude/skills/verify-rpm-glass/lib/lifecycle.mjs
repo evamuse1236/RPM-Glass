@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import {PACKAGE, UserError, adb, shell, devices, startEmulator, startNetsim, processAlive, killTree, sleep, waitFor, appPid, foregroundActivity, displayInfo, nativeNodes, dismissAnr, spawnReaper, sdkRoot, processImage, ownsEmulator, adoptEmulator} from './device.mjs';
+import {PACKAGE, UserError, adb, shell, devices, startEmulator, startNetsim, processAlive, killTree, sleep, waitFor, appPid, foregroundActivity, displayInfo, nativeNodes, dismissAnr, spawnReaper, sdkRoot, processImage, ownsEmulator, adoptEmulator, installedApk} from './device.mjs';
 import {pageTargets} from './page.mjs';
 import {builtAssetsSha, clearSynced} from './sync.mjs';
 import {gradleVersion, newestSource, apkStale, signer, build} from './apk-build.mjs';
@@ -9,10 +9,6 @@ import {ROOT, WORK, STATE, EVIDENCE, APK, DEFAULTS, readState, writeState, evide
 import {portsFor, requireOwner, takeLease, updateLease, assertLease, releaseLease, readEmulator, saveEmulator, dropEmulator, IDLE_MS} from './ownership.mjs';
 
 const sha256 = buf => crypto.createHash('sha256').update(buf).digest('hex');
-function installedApk(serial) {
-  const remotePath = shell(serial, `pm path ${PACKAGE}`, {allowFail: true}).match(/package:(\S+base\.apk)/)?.[1];
-  return remotePath ? adb(serial, ['exec-out', 'cat', remotePath], {binary: true}) : null;
-}
 const installedApkSha = serial => { const bytes = installedApk(serial); return bytes ? sha256(bytes) : null; };
 
 function install(serial, apk) {
