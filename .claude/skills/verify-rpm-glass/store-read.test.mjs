@@ -36,9 +36,11 @@ test('store reads the saved planner through state and prints whole, dotted, null
     export const target=()=>({serial:'fake-device'});
     export const appPid=()=>null,foregroundActivity=()=>null,displayInfo=()=>null,nativeNodes=()=>[],inPage=()=>null;
     export const ROOT='', readState=()=>null,evidenceDir=()=>'',journal=()=>{},viaShell=()=>[],errorLines=()=>[];
+    export const installedApk=()=>null,SYNC_DIR='',deviceIsEmulator=()=>true,apkWebSha=()=>null;
   `)}`;
   const source = fs.readFileSync(new URL('./lib/evidence.mjs', import.meta.url), 'utf8')
-    .replaceAll("'./device.mjs'", JSON.stringify(fixture)).replaceAll("'./runtime.mjs'", JSON.stringify(fixture)).replaceAll("'./page.mjs'", JSON.stringify(fixture));
+    .replaceAll("'./device.mjs'", JSON.stringify(fixture)).replaceAll("'./runtime.mjs'", JSON.stringify(fixture)).replaceAll("'./page.mjs'", JSON.stringify(fixture))
+    .replaceAll("'./sync.mjs'", JSON.stringify(fixture)).replaceAll("'./voice-time-io.mjs'", JSON.stringify(fixture)).replaceAll("'../../../../scripts/agent/web-assets.mjs'", JSON.stringify(fixture));
   const {evidenceCommands: commands} = await import('data:text/javascript,' + encodeURIComponent(source));
   assert.deepEqual(await commands.store({_: []}), store);
   for (const [field, value] of [['sync.outbox', []], ['entries.0.title', 'Saved title'], ['sync.enabled', false], ['sync.cursor', 0], ['sync.error', null]])
