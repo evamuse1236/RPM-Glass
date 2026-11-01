@@ -67,6 +67,7 @@
   color: var(--on-surface);
 }
 .m3-dialog::backdrop { background: var(--scrim); }
+.m3-dialog .text-field { --sheet-bg: var(--surface-container-high); }
 .m3-dialog h2 { font: var(--headline-small); margin-bottom: var(--s4); }
 .dialog-choice { display: flex; align-items: center; gap: var(--s4); min-height: var(--touch); font: var(--body-large); }
 .dialog-actions { display: flex; justify-content: flex-end; margin-top: var(--s2); }
@@ -105,6 +106,7 @@
 .settings-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .settings-copy strong { font: var(--body-large); font-weight: 400; }
 .settings-copy small { font: var(--body-medium); color: var(--on-surface-variant); }
+.settings-copy small.settings-clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: clip; }
 .settings-value { align-self: start; padding-block-start: 2px; font: var(--body-medium); color: var(--on-surface-variant); text-align: right; max-width: 40%; overflow-wrap: anywhere; }
 .settings-value.warning { color: var(--error); font-weight: 500; }
 .settings-note { padding: var(--s1) var(--gutter); font: var(--body-small); color: var(--on-surface-variant); }

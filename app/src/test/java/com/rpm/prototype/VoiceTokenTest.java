@@ -70,6 +70,29 @@ public class VoiceTokenTest {
         assertNull(rejection(new JSONObject().put("generationConfig",new JSONObject().put("responseModalities",new JSONArray().put("AUDIO")))));
     }
 
+    private static JSONObject spoken(Object speech)throws Exception{return new JSONObject().put("responseModalities",new JSONArray().put("AUDIO")).put("speechConfig",speech);}
+    private static JSONObject voice(Object name)throws Exception{return new JSONObject().put("voiceConfig",new JSONObject().put("prebuiltVoiceConfig",new JSONObject().put("voiceName",name)));}
+
+    @Test public void aChosenVoiceAndAPersonaPromptPassAndNothingWiderDoes()throws Exception{
+        String refused="Voice setup has a field the phone does not allow.";
+        StringBuilder rules=new StringBuilder();while(rules.length()<40_000)rules.append("Rule line. ");
+        StringBuilder persona=new StringBuilder();while(persona.length()<300)persona.append("a calm coach ");
+        String prompt=rules+"\n\nPersona: speak as "+persona.substring(0,300)+"\nThe rules above always win over the persona.";
+        JSONObject chosen=setup().put("generationConfig",spoken(voice("Kore"))).put("systemInstruction",new JSONObject().put("parts",new JSONArray().put(new JSONObject().put("text",prompt))));
+        JSONObject bound=VoiceToken.check(chosen);
+        assertEquals("Kore",bound.getJSONObject("generationConfig").getJSONObject("speechConfig").getJSONObject("voiceConfig").getJSONObject("prebuiltVoiceConfig").getString("voiceName"));
+        assertEquals(prompt,bound.getJSONObject("systemInstruction").getJSONArray("parts").getJSONObject(0).getString("text"));
+        assertEquals(VoiceToken.MODEL,bound.getString("model"));
+        assertNull(rejection(setup().put("generationConfig",spoken(voice("Achernar")))));
+        assertEquals(refused,rejection(setup().put("generationConfig",spoken(voice("kore")))));
+        assertEquals(refused,rejection(setup().put("generationConfig",spoken(voice("Kore; drop")))));
+        assertEquals(refused,rejection(setup().put("generationConfig",spoken(voice(42)))));
+        assertEquals(refused,rejection(setup().put("generationConfig",spoken(voice("Kore").put("languageCode","en-US")))));
+        assertEquals(refused,rejection(setup().put("generationConfig",spoken(new JSONObject().put("voiceConfig",new JSONObject().put("replicatedVoiceConfig",new JSONObject()))))));
+        assertEquals(refused,rejection(setup().put("generationConfig",spoken("Kore"))));
+        assertEquals(refused,rejection(setup().put("generationConfig",new JSONObject().put("responseModalities",new JSONArray().put("AUDIO")).put("temperature",2))));
+    }
+
     @Test public void detectionAllowsManualTurnsAndThePhonesOpenLineAndNothingWider()throws Exception{
         String refused="Voice setup has a field the phone does not allow.";
         assertNull(rejection(setup()));

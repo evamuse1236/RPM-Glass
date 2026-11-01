@@ -40,7 +40,19 @@ final class VoiceToken {
         JSONObject config=setup.optJSONObject("generationConfig");
         JSONArray modalities=config==null?null:config.optJSONArray("responseModalities");
         if(modalities==null||modalities.length()!=1||!"AUDIO".equals(modalities.opt(0)))throw new IllegalArgumentException("Voice setup must answer in audio.");
+        for(Iterator<String> keys=config.keys();keys.hasNext();){String key=keys.next();if(!"responseModalities".equals(key)&&!("speechConfig".equals(key)&&voiceAllowed(config.opt(key))))throw new IllegalArgumentException("Voice setup has a field the phone does not allow.");}
         JSONObject copy=new JSONObject(setup.toString());copy.put("model",MODEL);return copy;
+    }
+
+    /** One prebuilt Gemini voice by name; no cloned voice, language or other speech setting. */
+    static boolean voiceAllowed(Object raw){
+        if(!(raw instanceof JSONObject)||((JSONObject)raw).length()!=1)return false;
+        JSONObject voice=((JSONObject)raw).optJSONObject("voiceConfig");
+        if(voice==null||voice.length()!=1)return false;
+        JSONObject prebuilt=voice.optJSONObject("prebuiltVoiceConfig");
+        if(prebuilt==null||prebuilt.length()!=1)return false;
+        Object name=prebuilt.opt("voiceName");
+        return name instanceof String&&((String)name).matches("[A-Z][a-z]{1,23}");
     }
 
     /** Manual turns (the website's one ramble) or the phone's open line; nothing else. */

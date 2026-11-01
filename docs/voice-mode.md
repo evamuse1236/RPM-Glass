@@ -88,6 +88,17 @@ The website does the same through one `plan` command holding the batch (its Undo
 
 The home widget's mic opens Capture already listening (`com.rpm.widget.voice` already calls `rpmStartVoice`). The planner's Add hold opens the same Capture; its mic is the same button.
 
+## Added 2026-11-01: voice and persona (phone only)
+
+Settings → Account & backup has two rows under the Gemini key:
+
+- **Voice**: Gemini default, or one of 8 prebuilt Live voices, each with Google's one-word feel (`VOICES` in `voice-tools.mjs`). `liveSetup` adds `generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName` only for a name on that list.
+- **Persona**: free text, collapsed to one line and cut at 300 characters (`personaText`). It goes at the end of the system prompt as `Persona: speak as …`, then a line that says the rules above always win. It changes tone and wording only.
+
+Both live in the phone's WebView storage (`rpm-voice:name`, `rpm-voice:persona`, `voice-choice.mjs`); Capture reads them each time voice mode starts. Settings do not sync, so the website keeps Gemini's default voice and no persona.
+
+`VoiceToken.check` allows in `generationConfig` only `responseModalities` and that one voice-name path. Gemini Live has no cloned or custom voice of the user, so the app does not offer one.
+
 ## Out of scope
 
 Calendar events, habits (water, meals), review steps. A saved order of Blocks (they sort by deadline). Hands-free activity detection. A spoken answer to a question without a new press.

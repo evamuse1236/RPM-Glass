@@ -1,5 +1,6 @@
 import {startVoice} from './voice-client.mjs';
 import {liveSetup} from './voice-tools.mjs';
+import {voiceChoice} from './voice-choice.mjs';
 import {applyRamble,undoRamble} from './voice-turn.mjs';
 import {el,button} from './capture-dom.mjs';
 import {card,kicker,actionsRow} from './capture-cards.mjs';
@@ -77,7 +78,7 @@ export function createVoiceMode({platform,conversationId,onChange,afterSave,onLe
   changed();
   try{
    session=(win?.__rpmVoiceStart??start)({continuous:true,data:()=>platform.voiceData(),timeZone,now,workletUrl:'/voice-mic-worklet.js',token,onLevel,onRequest:saveRequest,
-    setup:()=>liveSetup(now(),timeZone,{data:platform.voiceData(),continuous:true}),onChange:hear});
+    setup:()=>liveSetup(now(),timeZone,{data:platform.voiceData(),continuous:true,...voiceChoice()}),onChange:hear});
    const result=await session.done;
    session=null;live=null;
    if(result.code==='no-mic'){
