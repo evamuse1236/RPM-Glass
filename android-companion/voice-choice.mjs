@@ -33,20 +33,44 @@ function shell(document,title){
   return dialog;
 }
 
-/** M3 dialog with one radio per voice; choosing saves at once. */
-export function voiceDialog(document,current,onChoose){
+/** The bundled sample clip for an offered voice, or null for Gemini's default. */
+export const voiceSample=voice=>voiceName(voice)?`voice-${voice.toLowerCase()}.ogg`:null;
+
+/** Plays one sample at a time: a new tap stops the clip before it. */
+function samplePlayer(AudioImpl){
+  let playing=null;
+  const stop=()=>{playing?.pause();playing=null;};
+  return {stop,play(voice){
+    stop();
+    const src=voiceSample(voice);
+    if(!src||!AudioImpl)return;
+    playing=new AudioImpl(src);
+    playing.play()?.catch?.(()=>{});
+  }};
+}
+
+/** M3 dialog with one radio per voice. A tap saves that voice and plays its sample; Done closes the dialog. */
+export function voiceDialog(document,current,onChoose,{AudioImpl=globalThis.Audio}={}){
   const dialog=shell(document,'Voice');
+  const sample=samplePlayer(AudioImpl);
+  dialog.addEventListener('close',()=>sample.stop());
   for(const value of [null,...VOICES.map(v=>v.name)]){
     const row=element(document,'label','dialog-choice');
     const radio=element(document,'input');
     radio.type='radio';
     radio.name='voice';
     radio.checked=value===current;
-    radio.addEventListener('change',()=>{onChoose(value);dialog.close();});
+    radio.addEventListener('change',()=>onChoose(value));
+    radio.addEventListener('click',()=>sample.play(value));
     row.append(radio,element(document,'span','',voiceLabel(value)));
     dialog.append(row);
   }
-  actions(document,dialog);
+  const done=element(document,'button','text-btn','Done');
+  done.type='button';
+  done.addEventListener('click',()=>dialog.close());
+  const row=element(document,'div','dialog-actions');
+  row.append(done);
+  dialog.append(row);
   return dialog;
 }
 

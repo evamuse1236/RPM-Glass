@@ -12,7 +12,8 @@ async function openMenuItem(serial, cdpPort, item) {
   const find = () => tapElement(serial, cdpPort, {name: item, role: 'button', exact: true}, true);
   for (let attempt = 0; attempt < 2; attempt++) {
     try { return await settled(find); } catch (e) { if (!(e instanceof UserError)) throw e; }
-    touch(serial, (await tapElement(serial, cdpPort, {name: 'More', role: 'button', exact: true})).at);
+    // A tap on Capture's handle opens the planner; a hold opens the More sheet.
+    touch(serial, (await tapElement(serial, cdpPort, {name: 'Open planner', role: 'button', exact: true})).at, true);
     for (const until = Date.now() + 6000; Date.now() < until; await sleep(300)) {
       try { return await settled(find); } catch (e) { if (!(e instanceof UserError)) throw e; }
     }
@@ -76,7 +77,7 @@ export const driveCommands = {
       await openLauncher(serial);
       if (!plannerInFront()) {
         await rendered('#message');
-        touch(serial, (await openMenuItem(serial, cdpPort, 'Planner')).at);
+        touch(serial, (await tapElement(serial, cdpPort, {name: 'Open planner', role: 'button', exact: true})).at);
       }
       await rendered('#nav-bar button');
     } else throw new UserError(`Unknown surface "${surface ?? ''}".`, 'One of: capture, planner, history, widget-capture, widget-voice. See `rpmctl open --help`.');

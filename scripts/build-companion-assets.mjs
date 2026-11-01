@@ -26,6 +26,7 @@ await build({...bundleOptions,entryPoints:['android-companion/notch-actions.mjs'
 for(const file of fs.readdirSync(path.join(root,'android-companion')).filter(f=>/\.(html|css)$/.test(f)&&!parts.has(f)))fs.writeFileSync(path.join(out,file),shippedText(file));
 fs.copyFileSync(path.join(root,'android-companion/assets/butterfly.png'),path.join(out,'butterfly.png'));
 fs.copyFileSync(path.join(root,'android-companion/voice-mic-worklet.js'),path.join(out,'voice-mic-worklet.js'));
+for(const file of fs.readdirSync(path.join(root,'android-companion/assets/voices')))fs.copyFileSync(path.join(root,'android-companion/assets/voices',file),path.join(out,file));
 for(const file of fs.readdirSync(path.join(root,'android-companion/assets/fonts')))fs.copyFileSync(path.join(root,'android-companion/assets/fonts',file),path.join(out,file));
 console.log('Bundled offline Android companion assets (no credentials or personal data).');
 }

@@ -102,7 +102,7 @@ function installSizeReport(panel,action){
  return report;
 }
 
-/** Drag the bar's handle (#more) down to close, like a bottom sheet; a tap on it still opens More. */
+/** Drag the bar's handle (#more) down to close, like a bottom sheet; a tap on it still opens the planner. */
 function installSwipeToClose(panel,close){
  let start=null,dragged=false;
  const zone=e=>!!e.target.closest('#more');

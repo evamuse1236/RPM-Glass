@@ -60,22 +60,36 @@ test('the composer is one row: the field, then one round button that is the drop
  assert.match(css,/\n\.go>button\{grid-area:1\/1;[^}]*inline-size:48px;block-size:48px/,'both share one 48dp cell, so they cross-fade in place');
 });
 
-test('the handle is a labelled 48dp button that opens More, and a second tap closes it', () => {
+test('the handle is a labelled 48dp button: a tap opens the planner, a hold or right click opens More', async () => {
  const more=html.match(/<button id="more"[^>]*>.*?<\/button>/)?.[0]??'';
- for(const attr of ['aria-label="More"','aria-haspopup="dialog"','aria-expanded="false"','aria-controls="sheet"'])assert.ok(more.includes(attr),attr);
+ for(const attr of ['aria-label="Open planner"','aria-description="Hold for more"','aria-haspopup="dialog"','aria-expanded="false"','aria-controls="sheet"'])assert.ok(more.includes(attr),attr);
  assert.match(more,/>expand_less</);
  assert.match(css,/\n\.handle::after\{content:'';position:absolute;inset:-8px 0 -16px\}/,'24dp tab plus 24dp below it is a 48dp target');
  const doc=installFakeDom();
  const ids={sheet:new FakeElement('section'),scrim:new FakeElement('div'),more:new FakeElement('button')};
  ids.sheet.hidden=true;ids.scrim.hidden=true;
- doc.getElementById=id=>ids[id];doc.addEventListener=()=>{};
- installSheet({platform:{},setView(){}});
+ const docListeners={};
+ doc.getElementById=id=>ids[id];doc.addEventListener=(type,fn)=>{(docListeners[type]??=[]).push(fn);};
+ let planner=0;
+ installSheet({platform:{openPlans:()=>{planner++;}},setView(){}});
  ids.more.click();
- assert.equal(ids.sheet.hidden,false);
+ assert.equal(planner,1,'a tap opens the planner');
+ assert.equal(ids.sheet.hidden,true,'a tap does not open More');
+ ids.more.dispatch('pointerdown',{button:0,clientX:10,clientY:10});
+ await new Promise(r=>setTimeout(r,450));
+ assert.equal(ids.sheet.hidden,false,'a hold opens More');
  assert.equal(ids.more.getAttribute('aria-expanded'),'true');
  ids.more.click();
- assert.equal(ids.sheet.hidden,true);
- assert.equal(ids.more.getAttribute('aria-expanded'),'false');
+ assert.equal(planner,1,'the click that ends the hold does not open the planner');
+ assert.equal(ids.sheet.hidden,false);
+ ids.more.click();
+ assert.equal(ids.sheet.hidden,true,'a tap while More is open closes it');
+ ids.more.dispatch('pointerdown',{button:0,clientX:10,clientY:10});
+ for(const fn of docListeners.pointerup??[])fn({});
+ await new Promise(r=>setTimeout(r,450));
+ assert.equal(ids.sheet.hidden,true,'a short press is a tap, not a hold');
+ ids.more.dispatch('contextmenu',{preventDefault(){}});
+ assert.equal(ids.sheet.hidden,false,'a right click opens More');
 });
 
 test('while a session is open the composer drop is "Hang up", follows the voice, ticks on a save, and a tap stops the session', async () => {

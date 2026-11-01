@@ -9,9 +9,9 @@ const sheet = html.slice(html.indexOf('<section id="sheet"'), html.indexOf('</se
 const options = [...sheet.matchAll(/<button[^>]*data-go="([^"]+)"[^>]*>.*?<span class="row-title">([^<]+)<\/span><\/button>/g)]
   .map(([, go, label]) => ({go, label}));
 
-test('Capture\'s More button is the handle chevron that opens a dialog, not an overflow or a plus', () => {
+test('Capture\'s handle chevron opens the planner and holds More, not an overflow or a plus', () => {
   const more = html.match(/<button id="more"[^>]*>.*?<\/button>/)?.[0] ?? '';
-  assert.match(more, /aria-label="More"/);
+  assert.match(more, /aria-label="Open planner"/);
   assert.match(more, /<span class="ms" aria-hidden="true">expand_less<\/span>/);
   for (const attr of ['aria-haspopup="dialog"', 'aria-expanded="false"', 'aria-controls="sheet"']) assert.ok(more.includes(attr), attr);
   assert.doesNotMatch(html, /more_vert/, 'no overflow dots');

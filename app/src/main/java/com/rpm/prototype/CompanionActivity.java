@@ -151,7 +151,7 @@ public class CompanionActivity extends Activity {
                     case "arm":CompanionAlerts.arm(CompanionActivity.this,p.getLong("id"));result=new JSONObject();break;
                     case "settings":String settingsSection=p.optString("section","settings");runOnUiThread(()->openIntegratedSettings(settingsSection));result=new JSONObject();break;
                     case "planner":String plannerTarget=p.toString();runOnUiThread(()->startActivity(new Intent(CompanionActivity.this,PlannerActivity.class).putExtra("plannerTarget",plannerTarget)));result=new JSONObject();break;
-                    case "capture":runOnUiThread(()->startActivity(new Intent(CompanionActivity.this,CompanionActivity.class)));result=new JSONObject();break;
+                    case "capture":runOnUiThread(()->{startActivity(new Intent(CompanionActivity.this,CompanionActivity.class).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP));if(CompanionActivity.this instanceof PlannerActivity)finish();});result=new JSONObject();break;
                     case "minimize":runOnUiThread(()->finish());result=new JSONObject();break;
                     case "expand":runOnUiThread(()->{expanded=!expanded;size();});result=new JSONObject();break;
                     default:throw new IllegalArgumentException("Unsupported phone action.");
