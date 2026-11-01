@@ -49,7 +49,7 @@ final class PlannerCommandHost implements AutoCloseable,PlannerSyncProtocol.Runn
                 try{reply(id,dispatch(action,new JSONObject(payload)),null);}
                 catch(Exception failure){
                     if(failure instanceof SyncManager.Unauthorized)result.completeExceptionally(failure);
-                    reply(id,null,"Saved context changed. Reopen RPM before retrying.".equals(failure.getMessage())?"Saved context changed. Reopen RPM before retrying.":"Sync was interrupted. Your saved plan and captured words remain on the phone.");
+                    reply(id,null,failure instanceof SaveConflict?SaveConflict.MESSAGE:"Sync was interrupted. Your saved plan and captured words remain on the phone.");
                 }
             });
         }
