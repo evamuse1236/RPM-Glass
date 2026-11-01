@@ -28,6 +28,7 @@ export async function run(t) {
   const start = notchLog(t).length;
   await t.do('tap', '--name', 'More options');
   await t.do('tap', '--name', 'Settings');
+  await t.do('tap', '--role', 'button', '--name', 'Notch & widgets');
   await t.do('tap', '--role', 'switch', '--name', 'Notch');
   t.shell('am force-stop com.android.settings');
   await t.do('key', 'home');

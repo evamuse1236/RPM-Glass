@@ -3,6 +3,7 @@
 import {el, icon, iconButton, button, labelButton} from './dom.mjs';
 import {openMenu} from './menu.mjs';
 import {FULL_SCREENS} from './app.mjs';
+import {settingsTitle} from '../settings.mjs';
 import {blockSubtitle} from './blocks.mjs';
 import {localDay} from '../planner-state.mjs';
 import {jumpToNow} from './today-day.mjs';
@@ -68,7 +69,7 @@ function detailBar(app, bar, top) {
   bar.className = 'top-bar detail-bar';
   bar.append(iconButton('arrow_back', 'Back', () => app.back()));
   const record = DETAIL_NAMES[top.kind] ? app.p()[top.kind]?.find(item => item.id === top.id) : null;
-  const title = el('h1', 'top-title small', top.kind === 'settings' ? 'Settings' : record?.title ?? '');
+  const title = el('h1', 'top-title small', top.kind === 'settings' ? settingsTitle(top.id) : record?.title ?? '');
   if (DETAIL_NAMES[top.kind]) title.setAttribute('aria-label', `${DETAIL_NAMES[top.kind]}: ${record?.title ?? ''}`);
   // A Block keeps its deadline in view once its title has collapsed into the bar.
   const sub = top.kind === 'blocks' && record ? blockSubtitle(app, record) : '';

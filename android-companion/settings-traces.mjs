@@ -25,6 +25,7 @@ export function captureTraces({store=createTraceStore(),limit=20}={}){
  const traces=store.list().slice(0,limit);
  const box=document.createElement('details');
  box.className='settings-details';
+ box.dataset.count=String(traces.length);
  const mistakes=traces.filter(t=>t.likelyMistake).length;
  box.append(text('summary','',`Recent captures (${traces.length}${mistakes?`, ${mistakes} undone`:''})`));
  if(!traces.length)box.append(text('p','settings-note','No captures recorded on this phone yet.'));

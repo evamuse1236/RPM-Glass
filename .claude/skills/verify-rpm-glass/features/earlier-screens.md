@@ -17,7 +17,7 @@ The earlier screens are the original native RPM screens (Next, History, Results,
 
 ## How to get to it (user POV)
 
-- In the planner, open `More options`, `Settings`, then the row `Earlier RPM screens` under `Account & backup`.
+- In the planner, open `More options`, `Settings`, then `About`, then the row `Earlier RPM screens`.
 - There is no other entry. The screen is not exported, so the system cannot start it directly.
 
 ## Driving it with rpmctl
@@ -29,7 +29,7 @@ Preconditions:
 - Baseline state. The sample plan does not populate the old storage, so most tabs are empty.
 - `rpmctl open planner` has been run and Settings is open.
 
-- **Open.** Run `rpmctl scroll down` until the `Account & backup` group shows, then `rpmctl tap --name "Earlier RPM screens"`. The status line reads `Opening the earlier RPM screens.` and a native screen opens. Run `rpmctl ui --native` and `rpmctl shot earlier-next`.
+- **Open.** In Settings run `rpmctl tap --role button --name "About"`, then `rpmctl tap --name "Earlier RPM screens"`. The status line reads `Opening the earlier RPM screens.` and a native screen opens. Run `rpmctl ui --native` and `rpmctl shot earlier-next`.
 - **Next tab.** The screen shows a date line such as `Wednesday, 7 October`, the title `Next`, and, in the bar, icon buttons `Remind` and `Settings`. Bottom buttons `Check in` and `Capture` sit above a navigation of `Next`, `History`, `Results`; the active one is described `Selected`. The empty state reads `Room for your next thought` and `Capture a next step, or check in with how things are going.`
 - **History tab.** Run `rpmctl tap --native "History"`. The title reads `History`, with chips `All`, `Check-ins`, `Plans`. Run `rpmctl tap --native "Plans"` to filter. The empty state reads `Your story starts here` and `Your saved plans and check-ins will appear here.`
 - **Results tab.** Run `rpmctl tap --native "Results"`. The line `A little direction, when it helps.` and a text button `Add result` show. The empty state reads `What matters to you?` and `Give a result a purpose. Link actions whenever you're ready.`

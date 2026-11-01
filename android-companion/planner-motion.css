@@ -27,8 +27,7 @@
 :root[data-large-text=true] .verdict-row .outlined-btn { grid-column: 2; justify-self: start; }
 :root[data-large-text=true] .project-run .eyebrow { align-items: baseline; }
 :root[data-large-text=true] .project-run .eyebrow span:last-child { display: inline; white-space: normal; }
-:root[data-large-text=true] .settings-row { flex-wrap: wrap; }
-:root[data-large-text=true] .settings-value { max-width: none; text-align: left; }
+:root[data-large-text=true] .settings-value { max-inline-size: 40%; white-space: normal; }
 :root[data-large-text=true] .top-title { font-size: 24px; }
 @media (prefers-reduced-motion: reduce) {
   .progress > span { transition: none; }
