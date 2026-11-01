@@ -145,7 +145,8 @@ final class NotchPill implements IslandView.Listener {
         boolean first = island == null;
         boolean wantTouch = f.mode != Mode.PILL;
         Box window = IslandWindow.stage(shape.window(), displayWidth);
-        Box drawn = first || island.drawnWindow() == null ? window : IslandWindow.stage(island.drawnWindow(), displayWidth);
+        Box toward = first ? null : island.windowToward(shape);
+        Box drawn = toward == null ? window : IslandWindow.stage(toward, displayWidth);
         Box resize = plan.begin(key, window, drawn, !first && ValueAnimator.areAnimatorsEnabled());
         if (first && !attach(window, wantTouch)) {
             plan.forget();

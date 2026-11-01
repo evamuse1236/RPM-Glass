@@ -27,7 +27,10 @@ final class IslandGesture {
     static final float PILL_UP_DP = 12;
     /** An open island closes on a short swipe up: it sits at the screen's top, so a thumb has little room above it. */
     static final float ISLAND_UP_DP = 24;
-    /** While dragged, the island follows the finger at this share of its travel, up to {@link #MAX_FOLLOW_DP}. */
+    /**
+     * While dragged upward the island starts to follow the finger at this share of its travel and stiffens toward
+     * {@link #MAX_FOLLOW_DP}; downward it gives a third as much.
+     */
     static final float FOLLOW = 0.35f;
     static final float MAX_FOLLOW_DP = 28;
     static final float FLICK_DP = 24;
@@ -96,15 +99,28 @@ final class IslandGesture {
     }
 
     /**
-     * How far the island is drawn from its place while the finger drags it: a share of the vertical travel, fuller
-     * upward (where a swipe closes it) than downward, and capped. Zero for a tap, a sideways drag or the pill.
+     * How far the island is drawn from its place while the finger drags it: a rubber band that gives freely at first
+     * and stiffens toward {@link #MAX_FOLLOW_DP}, fuller upward (where a swipe closes it) than downward. Zero for a
+     * tap, a sideways drag or the pill.
      */
     float pull(float y) {
-        if (!active || pill || horizontal == null || horizontal) return 0f;
+        if (!dragging()) return 0f;
         float d = y - startY;
-        float give = d < 0 ? FOLLOW : FOLLOW / 3f;
-        float max = MAX_FOLLOW_DP * density;
-        return Math.max(-max, Math.min(max, d * give));
+        return Math.signum(d) * rubber(Math.abs(d), d < 0 ? FOLLOW : FOLLOW / 3f, MAX_FOLLOW_DP * density);
+    }
+
+    /** iOS's rubber band: {@code x} of travel shows as {@code max·(1 − 1/(x·give/max + 1))}, below {@code max}. */
+    static float rubber(float x, float give, float max) {
+        return max * (1f - 1f / (x * give / max + 1f));
+    }
+
+    /** Whether an upward drag of the open island has passed the point where letting go closes it. */
+    boolean pastClose(float y) {
+        return dragging() && startY - y >= ISLAND_UP_DP * density;
+    }
+
+    private boolean dragging() {
+        return active && !pill && horizontal != null && !horizontal;
     }
 
     void cancel() {

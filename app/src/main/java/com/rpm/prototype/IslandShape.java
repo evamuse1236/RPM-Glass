@@ -76,8 +76,14 @@ final class IslandShape {
         return lerp(a, b, t, t);
     }
 
+    /** Whether {@code b} is larger than {@code a}: a growing morph may pass its target, a shrinking one may not. */
+    static boolean grows(IslandShape a, IslandShape b) {
+        return b.width() * b.height() > a.width() * a.height();
+    }
+
     /** The shape {@code t} of the way through a morph: the width leads when it grows and trails when it shrinks. */
     static IslandShape morph(IslandShape a, IslandShape b, float t) {
+        if (t > 1f) return lerp(a, b, t, t);
         float lead = Math.min(1f, t / WIDTH_SHARE);
         if (b.width() > a.width() + 0.5f) return lerp(a, b, lead, t);
         if (b.width() < a.width() - 0.5f) return lerp(a, b, Math.max(0f, (t - (1f - WIDTH_SHARE)) / WIDTH_SHARE), lead);
@@ -86,7 +92,7 @@ final class IslandShape {
 
     private static IslandShape lerp(IslandShape a, IslandShape b, float tx, float ty) {
         return new IslandShape(mix(a.left, b.left, tx), mix(a.top, b.top, ty), mix(a.right, b.right, tx), mix(a.bottom, b.bottom, ty),
-                mix(a.radius, b.radius, ty), mix(a.shadow, b.shadow, ty), b.touch, b.shadowSide, b.shadowBelow);
+                mix(a.radius, b.radius, ty), mix(a.shadow, b.shadow, Math.min(1f, ty)), b.touch, b.shadowSide, b.shadowBelow);
     }
 
     /**

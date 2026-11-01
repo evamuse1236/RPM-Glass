@@ -356,7 +356,7 @@ test('a changing digit rolls inside a box from its cap top to its baseline, so n
   const roll = band.slice(band.indexOf('text.getTextBounds("0"'), band.indexOf('canvas.restore();'));
   assert.ok(roll.includes('float travel = cap * NotchMotion.ROLL_TRAVEL;'));
   assert.ok(roll.includes('canvas.clipRect(0f, baseline - cap - pad, right, baseline + pad);'));
-  assert.ok(roll.includes('baseline - travel * out') && roll.includes('baseline + travel * (1f - in)'), 'both moving digits are inside the clip');
+  assert.ok(roll.includes('drawRolled(canvas, old, gone,') && roll.includes('drawRolled(canvas, shown, came,'), 'both moving digits are inside the clip');
   const css = readFileSync(new URL('./notch.css', import.meta.url), 'utf8');
   assert.ok(css.includes(`.notch-c { display: inline-block; position: relative; text-box: trim-both cap alphabetic; clip-path: inset(-${pad}em 0); }`));
   assert.ok(css.includes('.notch-o { position: absolute; inset: 0; opacity: 0; text-box: trim-both cap alphabetic; }'));

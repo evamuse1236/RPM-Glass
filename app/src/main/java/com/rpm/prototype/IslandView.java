@@ -9,6 +9,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
+import android.os.Build;
 import android.os.SystemClock;
 import android.view.Choreographer;
 import android.view.HapticFeedbackConstants;
@@ -29,6 +30,9 @@ final class IslandView extends ViewGroup {
     private static final long PRESS_HOLD_MS = 90;
     /** A fully pulled island is drawn this much smaller, from its top centre, so the pull reads as lifting it away. */
     private static final float PULL_SHRINK = 0.04f;
+    /** The tick when an upward drag passes the close point. */
+    private static final int THRESHOLD = Build.VERSION.SDK_INT >= 34
+            ? HapticFeedbackConstants.GESTURE_THRESHOLD_ACTIVATE : HapticFeedbackConstants.CLOCK_TICK;
     private static final int SHADOW = 0x40000000;
 
     interface Listener {
@@ -79,7 +83,7 @@ final class IslandView extends ViewGroup {
     private final Choreographer.FrameCallback fadeTick = nanos -> NotchController.safely("island fade", this::stepFades);
     private final Spring press = Spring.island(0.002f);
     /** The island's vertical offset while a finger drags it; it springs back to 0 when the finger lifts. */
-    private final Spring drag = Spring.island(0.5f);
+    private final IslandDrag drag;
     private final Paint ink = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path body = new Path();
@@ -90,8 +94,11 @@ final class IslandView extends ViewGroup {
     private IslandShape to;
     private IslandShape now;
     private ValueAnimator morph;
+    private Spring.Curve openCurve;
+    private Spring.Curve closeCurve;
     private View face;
     private boolean pressable;
+    private boolean pastClose;
     private boolean pressing;
     private long pressFrameNanos;
     private final Runnable release = () -> {
@@ -106,9 +113,9 @@ final class IslandView extends ViewGroup {
         this.listener = listener;
         density = context.getResources().getDisplayMetrics().density;
         gesture = new IslandGesture(density);
+        drag = new IslandDrag(density);
         band = new IslandBand(this);
         press.snapTo(1f);
-        drag.snapTo(0f);
         ink.setColor(Color.BLACK);
         setWillNotDraw(false);
         setClickable(true);
@@ -117,8 +124,9 @@ final class IslandView extends ViewGroup {
 
     /**
      * Morphs to {@code shape} over {@code ms} while the band's ring and value travel to {@code bandAt}. A null
-     * {@code nextFace} keeps the current content; {@code fade} fades the old face out over 0-90 ms and the new one in
-     * over 90-300 ms as it rises 8dp (a 150 ms cross-fade under Reduce Motion), otherwise the content swaps at once.
+     * {@code nextFace} keeps the current content; {@code fade} fades the old face out over 0-90 ms while the new
+     * face's rows rise 8dp and fade in from 50 ms, each 30 ms after the row above (under Reduce Motion the old face goes
+     * at once and the new one fades in over 150 ms), otherwise the content swaps at once.
      */
     void setScene(IslandShape shape, long ms, NotchMotion motion, View nextFace, RectF faceAt, boolean fade,
                   boolean pressable, NotchBand nextBand, NotchGeometry.Band bandAt) {
@@ -129,9 +137,14 @@ final class IslandView extends ViewGroup {
         morphTo(shape, ms);
     }
 
-    /** The window the island needs this frame, mid-morph included. */
-    Box drawnWindow() {
-        return now == null ? null : now.window();
+    /**
+     * The window the island needs from now until it reaches {@code target}: where it is drawn this frame, and, when it
+     * grows, how far the spring carries it past the target. Null before the first scene.
+     */
+    Box windowToward(IslandShape target) {
+        if (now == null) return null;
+        if (!IslandShape.grows(now, target)) return now.window();
+        return now.window().union(IslandShape.lerp(now, target, 1f + Spring.OVERSHOOT_BOUND).window());
     }
 
     private void morphTo(IslandShape target, long ms) {
@@ -150,7 +163,7 @@ final class IslandView extends ViewGroup {
         }
         ValueAnimator a = ValueAnimator.ofFloat(0f, 1f);
         a.setDuration(ms);
-        a.setInterpolator(IslandBand.STANDARD);
+        a.setInterpolator(curve(IslandShape.grows(from, to), ms));
         a.addUpdateListener(v -> {
             float t = (float) v.getAnimatedValue();
             now = IslandShape.morph(from, to, t);
@@ -182,6 +195,16 @@ final class IslandView extends ViewGroup {
         a.start();
     }
 
+    /** The open spring when the island grows, the critically damped one when it shrinks; built once per duration. */
+    private Spring.Curve curve(boolean grows, long ms) {
+        Spring.Curve c = grows ? openCurve : closeCurve;
+        if (c != null && c.ms == ms) return c;
+        c = new Spring.Curve(grows ? Spring.DAMPING : Spring.CLOSE_DAMPING, ms);
+        if (grows) openCurve = c;
+        else closeCurve = c;
+        return c;
+    }
+
     /** Each face shrinks with the island from its top centre, under the camera, so it always fits inside the island. */
     private void scaleFaces() {
         if (now == null) return;
@@ -207,18 +230,19 @@ final class IslandView extends ViewGroup {
         if (old != null) {
             disable(old);
             dropFades(old);
-            if (fade) fades.add(new Fade(old, 0f, old.getTranslationY(), t, Math.round(motion.faceOutMs() * scale), () -> drop(old)));
+            if (fade && motion.faceOutMs() > 0) fades.add(new Fade(old, 0f, old.getTranslationY(), t, Math.round(motion.faceOutMs() * scale), () -> drop(old)));
             else drop(old);
         }
         if (next == null) return null;
         addView(next, new At(at));
         faces.add(next);
         if (fade) {
-            next.setAlpha(0f);
             float y = motion.riseDp() * density;
-            next.setTranslationY(y);
             long delay = Math.round(motion.faceInDelayMs() * scale);
-            fades.add(new Fade(next, 1f, y, t + delay, Math.round(motion.faceInMs() * scale), null));
+            long ms = Math.round(motion.faceInMs() * scale);
+            ViewGroup rows = motion.moves ? FaceRows.of(next) : null;
+            if (rows == null) arrive(next, y, t + delay, ms);
+            else for (int i = 0; i < rows.getChildCount(); i++) arrive(rows.getChildAt(i), y, t + delay + Math.round(motion.rowDelayMs(i) * scale), ms);
         }
         if (!fades.isEmpty() && !fading) {
             fading = true;
@@ -227,13 +251,20 @@ final class IslandView extends ViewGroup {
         return next;
     }
 
+    private void arrive(View v, float y, long start, long ms) {
+        v.setAlpha(0f);
+        v.setTranslationY(y);
+        fades.add(new Fade(v, 1f, y, start, ms, null));
+    }
+
     private void drop(View v) {
         faces.remove(v);
         removeView(v);
     }
 
+    /** Stops the fades of {@code v} and of its rows. */
     private void dropFades(View v) {
-        for (int i = fades.size() - 1; i >= 0; i--) if (fades.get(i).view == v) fades.remove(i);
+        for (int i = fades.size() - 1; i >= 0; i--) if (FaceRows.within(fades.get(i).view, v)) fades.remove(i);
     }
 
     private void stepFades() {
@@ -323,8 +354,8 @@ final class IslandView extends ViewGroup {
         if (now.shadow > 0.01f) ink.setShadowLayer(10 * density, 0f, 4 * density, Color.argb(Math.round(Color.alpha(SHADOW) * now.shadow), 0, 0, 0));
         else ink.clearShadowLayer();
         canvas.save();
-        canvas.translate(0f, drag.value);
-        float pulled = 1f - PULL_SHRINK * Math.abs(drag.value) / (IslandGesture.MAX_FOLLOW_DP * density);
+        canvas.translate(0f, drag.spring.value);
+        float pulled = 1f - PULL_SHRINK * Math.abs(drag.spring.value) / (IslandGesture.MAX_FOLLOW_DP * density);
         canvas.scale(pulled, pulled, x + w / 2f, y);
         canvas.scale(press.value, press.value, x + w / 2f, y + h / 2f);
         canvas.drawPath(body, ink);
@@ -354,6 +385,8 @@ final class IslandView extends ViewGroup {
                 NotchController.safely("outside tap", listener::onOutsideTap);
                 return true;
             case MotionEvent.ACTION_DOWN:
+                pastClose = false;
+                drag.down();
                 if (now == null || !gesture.down(now.touch, screenX(e), screenY(e), e.getEventTime(), pressable)) {
                     NotchController.safely("outside tap", listener::onOutsideTap);
                     return false;
@@ -369,7 +402,7 @@ final class IslandView extends ViewGroup {
             case MotionEvent.ACTION_CANCEL:
                 removeCallbacks(longPress);
                 if (pressable) postDelayed(release, Math.max(0, PRESS_HOLD_MS - (e.getEventTime() - e.getDownTime())));
-                letGo();
+                if (drag.letGo(e.getEventTime())) pressFrame();
                 break;
             default:
                 break;
@@ -396,7 +429,8 @@ final class IslandView extends ViewGroup {
             case MotionEvent.ACTION_UP:
                 IslandGesture.Result r = gesture.up(screenX(e), screenY(e), e.getEventTime());
                 if (r == IslandGesture.Result.NONE) return true;
-                if (r != IslandGesture.Result.TAP) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+                boolean ticked = r == IslandGesture.Result.UP && pastClose;
+                if (r != IslandGesture.Result.TAP && !ticked) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
                 NotchController.safely("island " + r, () -> listener.onGesture(r));
                 return true;
             case MotionEvent.ACTION_CANCEL:
@@ -412,23 +446,14 @@ final class IslandView extends ViewGroup {
         if (!gesture.move(screenX(e), screenY(e))) return false;
         removeCallbacks(longPress);
         if (pressable) release.run();
-        follow(gesture.pull(screenY(e)));
+        if (ValueAnimator.areAnimatorsEnabled()) {
+            drag.follow(gesture.pull(screenY(e)), e.getEventTime());
+            invalidate();
+        }
+        boolean past = gesture.pastClose(screenY(e));
+        if (past && !pastClose) performHapticFeedback(THRESHOLD);
+        pastClose = past;
         return true;
-    }
-
-    /** Draws the island where the finger has pulled it; with animations off it stays put. */
-    private void follow(float y) {
-        if (!ValueAnimator.areAnimatorsEnabled()) return;
-        drag.value = y;
-        drag.target = y;
-        drag.velocity = 0f;
-        invalidate();
-    }
-
-    private void letGo() {
-        if (drag.value == 0f && drag.target == 0f) return;
-        drag.target = 0f;
-        pressFrame();
     }
 
     private float screenX(MotionEvent e) {
@@ -449,7 +474,7 @@ final class IslandView extends ViewGroup {
     private void pressFrame() {
         if (!ValueAnimator.areAnimatorsEnabled()) {
             press.snapTo(press.target);
-            drag.snapTo(drag.target);
+            drag.spring.snapTo(drag.spring.target);
             invalidate();
             return;
         }
@@ -463,7 +488,7 @@ final class IslandView extends ViewGroup {
         float dt = pressFrameNanos == 0 ? 1f / 60f : Math.min((nanos - pressFrameNanos) / 1e9f, 1f / 20f);
         pressFrameNanos = nanos;
         boolean pressMoving = press.step(dt);
-        boolean dragMoving = drag.step(dt);
+        boolean dragMoving = drag.spring.step(dt);
         boolean moving = pressMoving || dragMoving;
         invalidate();
         if (moving) Choreographer.getInstance().postFrameCallback(pressTick);
