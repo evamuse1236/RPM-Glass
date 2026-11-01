@@ -60,4 +60,38 @@ public class SpringTest {
         assertFalse(s.step(FRAME));
         assertEquals(42f, s.value, 0f);
     }
+
+    @Test
+    public void theClosedFormMatchesASteppedSpring() {
+        Spring s = new Spring(Spring.DAMPING, Spring.STIFFNESS, 0.0001f);
+        s.snapTo(0f);
+        s.target = 1f;
+        for (int frame = 1; frame <= 24; frame++) {
+            s.step(FRAME);
+            assertEquals("frame " + frame, Spring.response(Spring.DAMPING, Spring.STIFFNESS, frame * FRAME), s.value, 0.01f);
+        }
+    }
+
+    @Test
+    public void theOpenCurvePassesItsTargetByUnderFivePercentAndEndsOnIt() {
+        Spring.Curve open = new Spring.Curve(Spring.DAMPING, 350);
+        float peak = 0f;
+        for (int i = 0; i <= 1000; i++) peak = Math.max(peak, open.getInterpolation(i / 1000f));
+        assertTrue("overshoot " + peak, peak > 1.02f && peak < 1.06f);
+        assertTrue("inside the window's reserve", peak <= 1f + Spring.OVERSHOOT_BOUND);
+        assertEquals(0f, open.getInterpolation(0f), 0f);
+        assertEquals(1f, open.getInterpolation(1f), 0f);
+    }
+
+    @Test
+    public void theCloseCurveNeverPassesItsTarget() {
+        Spring.Curve close = new Spring.Curve(Spring.CLOSE_DAMPING, 300);
+        float last = 0f;
+        for (int i = 0; i <= 1000; i++) {
+            float v = close.getInterpolation(i / 1000f);
+            assertTrue("at " + i + ": " + v, v <= 1f && v >= last);
+            last = v;
+        }
+        assertEquals(1f, close.getInterpolation(1f), 0f);
+    }
 }

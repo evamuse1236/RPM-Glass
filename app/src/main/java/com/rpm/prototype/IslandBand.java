@@ -17,7 +17,8 @@ import android.view.animation.PathInterpolator;
 
 /**
  * Draws the band's ring and value over the island. Both travel between the pill and the island with the morph; the
- * ring fills over 400 ms, changed digits roll, and under Reduce Motion the value cross-fades and the ring snaps.
+ * ring fills over 400 ms, changed digits roll in one slot, rightmost first, and under Reduce Motion the value
+ * cross-fades and the ring snaps.
  */
 final class IslandBand {
     static final Interpolator STANDARD = new PathInterpolator(0.2f, 0f, 0f, 1f);
@@ -40,6 +41,10 @@ final class IslandBand {
     private float alphaFrom;
     private String shown = "";
     private String old = "";
+    private boolean[] gone = new boolean[0];
+    private boolean[] came = new boolean[0];
+    /** How many places from the right the rightmost changed character sits; it rolls first. */
+    private int firstMoved;
     private long valueAt = -1;
     private float fillFrom;
     private float fillTo;
@@ -73,6 +78,9 @@ final class IslandBand {
             old = wasShown ? shown : "";
             valueAt = wasShown ? now : -1;
             shown = next.value;
+            gone = NotchMotion.changed(shown, old);
+            came = NotchMotion.changed(old, shown);
+            firstMoved = Math.min(firstChanged(gone), firstChanged(came));
         }
         boolean receipt = !Float.isNaN(next.from);
         if (receipt && next.startedAt != receiptStart) {
@@ -92,7 +100,12 @@ final class IslandBand {
         host.invalidate();
     }
 
-    /** The island's morph, 0 to 1. */
+    private static int firstChanged(boolean[] moved) {
+        for (int r = 0; r < moved.length; r++) if (moved[moved.length - 1 - r]) return r;
+        return Integer.MAX_VALUE;
+    }
+
+    /** The island's morph, 0 to 1; past 1 while the opening spring overshoots, and the ring and value move with it. */
     void morph(float t) {
         this.t = t;
     }
@@ -125,11 +138,11 @@ final class IslandBand {
     }
 
     private int valueColor() {
-        return band == null ? 0 : NotchInk.mix(colorFrom, band.valueColor, t);
+        return band == null ? 0 : NotchInk.mix(colorFrom, band.valueColor, Math.min(1f, t));
     }
 
     private float valueAlpha() {
-        return band == null ? 0f : alphaFrom + ((band.hasValue() ? 1f : 0f) - alphaFrom) * t;
+        return band == null ? 0f : alphaFrom + ((band.hasValue() ? 1f : 0f) - alphaFrom) * Math.min(1f, t);
     }
 
     private boolean moving(long now) {
@@ -218,19 +231,33 @@ final class IslandBand {
             return;
         }
         float scale = span / (float) motion.valueMs();
-        float out = STANDARD.getInterpolation(Math.min(1f, e / (NotchMotion.ROLL_OUT_MS * scale)));
-        float in = STANDARD.getInterpolation(Math.max(0f, Math.min(1f, (e - NotchMotion.ROLL_IN_DELAY_MS * scale) / (NotchMotion.ROLL_IN_MS * scale))));
         text.getTextBounds("0", 0, 1, digit);
         float cap = -digit.top, pad = g.valuePx * NotchMotion.ROLL_PAD;
         float travel = cap * NotchMotion.ROLL_TRAVEL;
-        boolean[] gone = NotchMotion.changed(shown, old);
-        boolean[] came = NotchMotion.changed(old, shown);
         canvas.save();
         canvas.clipRect(0f, baseline - cap - pad, right, baseline + pad);
-        drawChars(canvas, old, gone, right, baseline - travel * out, color, alpha * (1f - out), 0f, 0f);
-        drawChars(canvas, shown, came, right, baseline + travel * (1f - in), color, alpha * in, 0f, 1f);
+        drawRolled(canvas, old, gone, right, baseline, travel, color, alpha, e, scale, true);
+        drawRolled(canvas, shown, came, right, baseline, travel, color, alpha, e, scale, false);
         canvas.restore();
         drawChars(canvas, shown, came, right, baseline, color, alpha, 1f, 0f);
+    }
+
+    /**
+     * Draws the characters of {@code s} marked in {@code moved}, right-aligned at {@code right}, each on its own roll:
+     * a {@code leaving} one rises out of the slot and fades, an arriving one rises into it from below. Both share one
+     * curve and one slot, so the slot is never empty mid-roll.
+     */
+    private void drawRolled(Canvas canvas, String s, boolean[] moved, float right, float baseline, float travel, int color,
+                            float alpha, long e, float scale, boolean leaving) {
+        float x = right;
+        for (int i = s.length() - 1; i >= 0; i--) {
+            x -= text.measureText(s, i, i + 1);
+            if (!moved[i]) continue;
+            int rank = s.length() - 1 - i - firstMoved;
+            float p = STANDARD.getInterpolation(Math.max(0f, Math.min(1f, (e - motion.rollDelayMs(rank) * scale) / (NotchMotion.ROLL_MS * scale))));
+            float y = leaving ? baseline - travel * p : baseline + travel * (1f - p);
+            drawChar(canvas, s, i, x, y, color, alpha * (leaving ? 1f - p : p));
+        }
     }
 
     /**
@@ -240,15 +267,16 @@ final class IslandBand {
     private void drawChars(Canvas canvas, String s, boolean[] moved, float right, float baseline, int color, float alpha, float stillAlpha, float movedAlpha) {
         float x = right;
         for (int i = s.length() - 1; i >= 0; i--) {
-            String c = String.valueOf(s.charAt(i));
-            float w = text.measureText(c);
-            x -= w;
-            float a = moved == null ? movedAlpha : moved[i] ? movedAlpha : stillAlpha;
-            if (a * alpha <= 0.01f) continue;
-            text.setColor(color);
-            text.setAlpha(Math.round(((color >>> 24) & 0xFF) * alpha * a));
-            canvas.drawText(c, x, baseline, text);
+            x -= text.measureText(s, i, i + 1);
+            drawChar(canvas, s, i, x, baseline, color, alpha * (moved == null ? movedAlpha : moved[i] ? movedAlpha : stillAlpha));
         }
+    }
+
+    private void drawChar(Canvas canvas, String s, int i, float x, float baseline, int color, float alpha) {
+        if (alpha <= 0.01f) return;
+        text.setColor(color);
+        text.setAlpha(Math.round(((color >>> 24) & 0xFF) * alpha));
+        canvas.drawText(s, i, i + 1, x, baseline, text);
     }
 
     private Drawable glyph(int id) {

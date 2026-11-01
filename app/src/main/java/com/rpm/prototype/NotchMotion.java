@@ -2,19 +2,28 @@ package com.rpm.prototype;
 
 /**
  * How the island moves (docs/notch-redesign-plan.md section 4). With animations on, shapes morph, the ring and value
- * travel, faces rise 8dp and digits roll. With Reduce Motion (Android's "Remove animations") sizes snap, the ring snaps,
- * and faces and digits cross-fade over 150 ms. Nothing runs longer than 400 ms.
+ * travel, a new face's rows rise 8dp one after another and changed digits roll in one slot, rightmost first. With Reduce
+ * Motion (Android's "Remove animations") sizes snap, the ring snaps, the old face goes at once while the new one fades in over 150 ms, and digits cross-fade over 150 ms. Nothing
+ * runs longer than 400 ms. docs/notch/motion.md lists every detail.
  */
 final class NotchMotion {
     static final long OPEN_MS = 350;
     static final long CLOSE_MS = 300;
     static final long FILL_MS = 400;
     static final long FACE_OUT_MS = 90;
-    static final long FACE_IN_DELAY_MS = 90;
+    /** Row 1 of a new face starts while the old face still fades out, so the island never shows an empty shape. */
+    static final long FACE_IN_DELAY_MS = 50;
     static final long FACE_IN_MS = 210;
-    static final long ROLL_OUT_MS = 150;
-    static final long ROLL_IN_DELAY_MS = 100;
-    static final long ROLL_IN_MS = 150;
+    /** Each row of a new face starts this long after the row above it. */
+    static final long ROW_STAGGER_MS = 30;
+    /** Rows past the fourth start with the fourth. */
+    static final int ROW_STEPS = 4;
+    /** One digit's roll: the old digit leaves upward while the new one enters from below, on one curve. */
+    static final long ROLL_MS = 250;
+    /** Each changed place to the left starts this long after the place to its right. */
+    static final long ROLL_STAGGER_MS = 40;
+    /** Places past the third start with the third. */
+    static final int ROLL_PLACES = 3;
     static final long FADE_MS = 150;
     static final int RISE_DP = 8;
     /** A rolling digit travels 1.15 times its cap height, inside a box from its cap top to its baseline. */
@@ -50,8 +59,9 @@ final class NotchMotion {
         return moves ? RISE_DP : 0;
     }
 
+    /** With Reduce Motion the old face goes at once, so two layouts never show through each other. */
     long faceOutMs() {
-        return moves ? FACE_OUT_MS : FADE_MS;
+        return moves ? FACE_OUT_MS : 0;
     }
 
     long faceInDelayMs() {
@@ -67,9 +77,19 @@ final class NotchMotion {
         return moves;
     }
 
-    /** How long a value change plays: the roll ends at 250 ms, the fade at 150 ms. */
+    /** When row {@code row} (0 at the top) of a new face starts, after the face's own delay. */
+    long rowDelayMs(int row) {
+        return moves ? ROW_STAGGER_MS * Math.min(Math.max(row, 0), ROW_STEPS - 1) : 0;
+    }
+
+    /** When the changed digit {@code rank} places from the rightmost changed one starts to roll. */
+    long rollDelayMs(int rank) {
+        return moves ? ROLL_STAGGER_MS * Math.min(Math.max(rank, 0), ROLL_PLACES - 1) : 0;
+    }
+
+    /** How long a value change plays: the last place's roll ends at 330 ms, the fade at 150 ms. */
     long valueMs() {
-        return moves ? ROLL_IN_DELAY_MS + ROLL_IN_MS : FADE_MS;
+        return moves ? ROLL_MS + rollDelayMs(ROLL_PLACES - 1) : FADE_MS;
     }
 
     boolean pulses() {
