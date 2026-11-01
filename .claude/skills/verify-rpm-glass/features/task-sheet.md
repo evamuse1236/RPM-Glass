@@ -1,6 +1,6 @@
 # Task rows and task sheet
 
-A task row shows a check circle, a title, a time line and a star if it is a Must. Tapping the row opens the task sheet, where each field edits and saves at once with Undo. Rows can be swiped to schedule or delete, and the `Add task` button on Today opens a quick-add sheet that creates a task in one step.
+A task row shows a check circle, a title, a time line and a star if it is a Must. Tapping the row opens the task sheet, where each field edits and saves at once with Undo. Rows can be swiped to schedule or delete, and a hold on the round `Back to Capture` button on Today opens a quick-add sheet that creates a task in one step.
 
 ## Sub-features
 
@@ -22,14 +22,14 @@ A task row shows a check circle, a title, a time line and a star if it is a Must
 - `task-sheet-actions` offers Ask Capture, Duplicate, Archive and Delete in the `Task actions` toolbar.
 - `task-swipe-schedule` swipes a row right to open one-tap date choices.
 - `task-swipe-delete` swipes a row left to delete it, with Undo.
-- `task-quick-add` adds a task from the `Add task` button.
+- `task-quick-add` adds a task by holding the `Back to Capture` button.
 
 ## How to get to it (user POV)
 
 - Tap a task's title in any list: Today, Plan, Inbox, Search, Completed.
 - Tap the `Next` title on a Block card to open its next task.
 - Swipe a task row right or left.
-- Tap `Add task` in the Today top bar, or `Add task` at the bottom of the Inbox sheet.
+- Hold `Back to Capture` on Today, or tap `Add task` at the bottom of the Inbox sheet.
 - Tap `Add a task` in the empty-day state on Today.
 
 ## Driving it with rpmctl
@@ -61,10 +61,10 @@ Preconditions:
 - **Schedule menu.** A left swipe on a row opens a menu `Schedule <title>` that lists radio items `Today, 4:00 PM, current`, `Tomorrow, 4:00 PM`, `Tomorrow morning, 9:00 AM`, `This weekend, Sat 4:00 PM`, `No date` (for an overdue or dated task in some cases) and a plain item `Pick a date…`. Tap `Tomorrow morning`. A snackbar reads `Moved to Tomorrow, 9:00 AM` with `Undo` and `planned` changes.
 - **Swipe left (schedule).** Run `rpmctl scroll left --role button --name "Finish my section of the critical review"`. The row springs back and the menu `Schedule Finish my section of the critical review` opens with the radio items above. `rpmctl key back` closes it without a change. Run `rpmctl shot task-swipe-left`.
 - **Swipe right (done).** Run `rpmctl scroll right --role button --name "Finish my section of the critical review"`. A snackbar reads `Task completed` with `Undo` and the entry's `done` becomes true. Run `rpmctl tap --role button --name "Undo"` in the same shell line, because the snackbar closes after 6 s. Run `rpmctl shot task-swipe-right`. Delete is in the long-press menu (`rpmctl tap --long`), never a swipe.
-- **Quick add.** On Today run `rpmctl tap --role button --name "Add task"`. A sheet `New task` opens with focus in a textbox `Task`, one row per meaning, every chip labelled: day chips (`Today` pressed by default on Today); `Time`; Block chips (`Three morning runs`, `No block` pressed, `Other Blocks`, or `Choose a Block` when no Block chip shows); then a plain `More options` row that unfolds `Estimate`, `Repeat`, `Must` and the details; and buttons `Capture` and `Add`. The title is 16/24, the same size as Capture's field. `Add` is disabled while the title is empty. Run `rpmctl type "Renew library card"` and `rpmctl shot quick-add`.
+- **Quick add.** On Today run `rpmctl tap --role button --name "Back to Capture" --long`. A sheet `New task` opens with focus in a textbox `Task`, one row per meaning, every chip labelled: day chips (`Today` pressed by default on Today); `Time`; Block chips (`Three morning runs`, `No block` pressed, `Other Blocks`, or `Choose a Block` when no Block chip shows); then a plain `More options` row that unfolds `Estimate`, `Repeat`, `Must` and the details; and buttons `Capture` and `Add`. The title is 16/24, the same size as Capture's field. `Add` is disabled while the title is empty. Run `rpmctl type "Renew library card"` and `rpmctl shot quick-add`.
 - **Quick add save.** Press `rpmctl key enter` to add and keep the sheet open for the next task, or tap `Add` to add and close. A snackbar reads `Added to Today` (day chip) and, with a Block, `Added to Today · <Block>`. The file has an entry titled `Renew library card` with `raw` equal to the typed words, `blockId` null and `plannedDate` today.
 - **Quick add with a Block tag.** Type `Renew card #Three` in the Task field. A chip `Suggested Block Three morning runs, read from “#Three”. Tap to remove` appears. Tap it to select the Block (`pressed` true and `No block` unpressed), then tap `Add`. The snackbar reads `Added to Today · Three morning runs` and `blockId` is `block-4`. The title keeps the text `#Three`.
-- **Quick add draft.** Type a title and press `rpmctl key back` twice (the first closes the keyboard). A prompt `Discard changes?` with `Keep editing` and `Discard` shows at the bottom of the sheet. `Keep editing` returns to the typed title. `Discard` closes the sheet and the next `Add task` opens empty.
+- **Quick add draft.** Type a title and press `rpmctl key back` twice (the first closes the keyboard). A prompt `Discard changes?` with `Keep editing` and `Discard` shows at the bottom of the sheet. `Keep editing` returns to the typed title. `Discard` closes the sheet and the next quick add opens empty.
 - **Errors.** Run `rpmctl logs --errors`.
 
 ## Gotchas

@@ -55,7 +55,7 @@ function rootBar(app, bar) {
   bar.className = 'top-bar root-bar';
   bar.append(el('h1', state.tab === 'today' ? 'top-title visually-hidden' : 'top-title', TITLES[state.tab]));
   const tools = el('div', 'top-actions');
-  tools.append(iconButton('search', 'Search', () => app.openSearch()), iconButton('mic', 'Capture', () => app.capture()));
+  tools.append(iconButton('search', 'Search', () => app.openSearch()));
   const more = iconButton('more_vert', 'More options', () => rootMenu(app, more));
   tools.append(more);
   bar.append(tools);
@@ -108,22 +108,25 @@ function navigationBar(app) {
   placeNavIndicator(nav);
 }
 
-/** The dock beside the tab bar: the habit circle (Today only) over the round Add. Tap adds; a 400ms hold opens Capture. */
+/**
+ * The dock beside the tab bar: the habit circle (Today only) over the round Capture button. A tap shrinks the planner
+ * back to the Capture widget; a 400ms hold adds what this tab makes (Add task on Today).
+ */
 function dock(app, full) {
   const host = app.dom.dock;
   if (!host.children.length) {
     const habit = el('div', 'habit-slot');
-    const add = iconButton('add', 'Add', () => addSpec(app)?.onClick(), {cls: 'fab'});
-    attachSwipe(add, {hold: () => app.capture(), haptic: () => app.api.native('haptic', {kind: 'hold'}).catch(() => {})});
-    host.append(habit, add);
+    const fab = iconButton('close_fullscreen', 'Back to Capture', () => app.capture(), {cls: 'fab'});
+    attachSwipe(fab, {hold: () => addSpec(app)?.onClick(), haptic: () => app.api.native('haptic', {kind: 'hold'}).catch(() => {})});
+    host.append(habit, fab);
     watchHabit(app, habit);
   }
   const spec = full ? null : addSpec(app);
-  const add = host.querySelector('.fab');
-  add.hidden = !spec;
-  if (spec) add.setAttribute('aria-label', spec.label);
+  const fab = host.querySelector('.fab');
+  fab.hidden = !!full || !!app.current();
+  fab.setAttribute('aria-description', spec ? `Hold to ${spec.label.toLowerCase()}` : '');
   paintHabit(app, host.querySelector('.habit-slot'));
-  host.hidden = !!full || (!spec && !host.querySelector('.habit-circle'));
+  host.hidden = !!full || (fab.hidden && !host.querySelector('.habit-circle'));
 }
 
 /** What the tab bar's Add makes on this tab (Add task on Today); none on a detail page or Values. */

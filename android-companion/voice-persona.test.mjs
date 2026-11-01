@@ -59,3 +59,37 @@ test('the choice is kept on the phone; clearing it removes the keys',()=>{
   const broken={getItem(){throw new Error('blocked');},setItem(){throw new Error('blocked');},removeItem(){throw new Error('blocked');}};
   assert.deepEqual(setVoice('Kore',broken),{voice:null,persona:''});
 });
+
+test('every offered voice has a bundled sample the app is allowed to serve as audio',async()=>{
+  const {voiceSample}=await import('./voice-choice.mjs');
+  const fs=await import('node:fs');
+  const java=fs.readFileSync(new URL('../app/src/main/java/com/rpm/prototype/CompanionSurface.java',import.meta.url),'utf8');
+  assert.equal(voiceSample(null),null);
+  for(const {name} of VOICES){
+    const file=voiceSample(name);
+    assert.ok(fs.statSync(new URL(`./assets/voices/${file}`,import.meta.url)).size>4000,file);
+    assert.ok(java.includes(`"${file}"`),`${file} is in CompanionSurface.ASSETS`);
+  }
+  assert.match(java,/media-src 'self'/);
+  assert.match(java,/"\.ogg"\)\?"audio\/ogg"/);
+});
+
+test('tapping a voice saves it and plays its sample; the dialog stays open until Done',async()=>{
+  const {installFakeDom}=await import('./fake-dom.mjs');
+  const {voiceDialog}=await import('./voice-choice.mjs');
+  installFakeDom();
+  const played=[],chosen=[];
+  class FakeAudio{constructor(src){this.src=src;}play(){played.push(this.src);return Promise.resolve();}pause(){played.push('stop '+this.src);}}
+  let closed=false;
+  const dialog=voiceDialog(document,null,v=>chosen.push(v),{AudioImpl:FakeAudio});
+  dialog.close=()=>{closed=true;dialog.dispatch('close');};
+  const radios=dialog.querySelectorAll('input');
+  const kore=radios[1+VOICES.findIndex(v=>v.name==='Kore')];
+  kore.click();kore.dispatch('change');
+  assert.deepEqual(chosen,['Kore']);
+  assert.equal(closed,false);
+  radios[0].click();
+  assert.deepEqual(played,['voice-kore.ogg','stop voice-kore.ogg'],'Gemini default has no sample and stops the last one');
+  [...dialog.querySelectorAll('button')].find(b=>b.textContent==='Done').click();
+  assert.equal(closed,true);
+});

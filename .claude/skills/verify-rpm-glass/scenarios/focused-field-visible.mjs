@@ -1,15 +1,15 @@
 import {openBlock, waitForKeyboard, focusCoverage, seededBlockName} from './lib.mjs';
 
 export const id = 'focused-field-visible';
-export const rule = 'The field you are typing into stays visible with the keyboard open: not under the keyboard, the bottom tab bar, a snackbar or the Now pill. Checked on Quick add (Today > Add task) and on the Plan add field of a Block you come back to.';
+export const rule = 'The field you are typing into stays visible with the keyboard open: not under the keyboard, the bottom tab bar, a snackbar or the Now pill. Checked on Quick add (Today > hold Back to Capture) and on the Plan add field of a Block you come back to.';
 export const enforces = 'Covered-content corrections: "I can\'t see the top part, I have to scroll up" (2026-09-28); "docked snackbar never covers rows" (074a8ba); "no FAB over a Must star" (cf4803c); DESIGN.md snackbar rule.';
 
 export async function run(t) {
   await t.do('display', 'phone');
   await t.do('seed');
   await t.do('open', 'planner');
-  await t.do('wait', '--role', 'button', '--name', 'Add task');
-  await t.do('tap', '--role', 'button', '--name', 'Add task');
+  await t.do('wait', '--role', 'button', '--name', 'Back to Capture');
+  await t.do('tap', '--role', 'button', '--name', 'Back to Capture', '--long');
   await t.do('wait', '--role', 'textbox', '--name', 'Task');
   await waitForKeyboard(t);
   const quickAdd = await t.read(focusCoverage);
