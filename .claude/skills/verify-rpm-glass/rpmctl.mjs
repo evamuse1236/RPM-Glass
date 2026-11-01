@@ -8,7 +8,7 @@ import {evidenceCommands} from './lib/evidence.mjs';
 import {scenarioCommands} from './lib/scenarios.mjs';
 import {syncCommands} from './lib/sync.mjs';
 import {briefUi} from './lib/brief.mjs';
-import {voiceTime} from './lib/voice-time-io.mjs';
+import {voiceTime, voiceScript} from './lib/voice-time-io.mjs';
 
 const commands = {
   launch: lifecycleCommands.launch,
@@ -21,6 +21,7 @@ const commands = {
   store: evidenceCommands.store,
   logs: evidenceCommands.logs,
   'voice-time': voiceTime,
+  'voice-script': voiceScript,
   scenario: args => scenarioCommands.scenario(args, commands),
   check: evidenceCommands.check,
   cleanup: lifecycleCommands.cleanup,

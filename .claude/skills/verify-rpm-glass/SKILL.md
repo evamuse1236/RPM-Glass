@@ -110,7 +110,7 @@ Proof standards:
 - Model-backed paths (Capture sorting, Jev, Suggest a Purpose) need a model key. The user wants them tested on the emulator (2026-10-27): enter the vault key `openrouter-rpm` (or `anthropic`) through the app's AI settings for the live check, and remove it in cleanup. Never print it or pass it on a logged command line. Only when no key can be entered, prove the keyless behavior (words saved, "Connect" offered) and mark the model path **UNVERIFIED**.
 - The emulator is not Samsung One UI. Samsung keyboard, battery limits, audible alarms and real launcher widget placement stay **UNVERIFIED** until checked on the phone.
 
-Voice without a model (emulator only, never the phone): `eval "$(cat .claude/skills/verify-rpm-glass/fixtures/voice-script.js)"`, then `eval "window.RPM_PLATFORM.hasGeminiKey=()=>true"` before you tap `#dictate`; with no key the tap opens Android's speech dialog instead. Drive it with `window.__v.ready()`, `hear(text)`, `plan('add'|'retime'|'remove')`, `talk()` and `save()`. Label the result "scripted voice" and reload the page after.
+Voice without a model (emulator only, never the phone): `rpmctl voice-script --plan add,retime,remove` loads `fixtures/voice-script.js`, takes the Gemini path, shoots each step and reloads the page after, even on failure. Label the result "scripted voice".
 
 Voice timing has five separate marks: mic capture starts, the model is ready, the change is saved, the receipt shows, playback starts. Transcription lag needs word timestamps in the source audio; without them, report it as not measured.
 

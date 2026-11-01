@@ -28,6 +28,7 @@ Evidence
   state      List or read the app's private files (debug build only).
   logs       App logcat, or only crashes and page errors with --errors.
   voice-time Time one voice capture from the widget mic through the spoken answer (T0 to T10).
+  voice-script Run a scripted voice call (no model) on the emulator, shoot each step, then reload the page.
   check      Run the repo's full check suite (npm test + regression checks), logged to evidence.
 
 Global options
@@ -157,6 +158,12 @@ On a device that is not an emulator (--serial <phone>) it is always --human: it 
 never resets the plan, force-stops or taps. It opens Capture from the voice widget, records marks per request while you
 talk, and stops when you tap Hang up or after 20 s of quiet. With --session two it expects two requests.
 A Gemini key on the device starts a Live session. Unit tests do not run it.`,
+  'voice-script': `voice-script [fixture] [--plan add,retime,remove]
+Emulator only; a phone is refused before the page changes. Opens Capture, loads fixtures/<fixture>.js (default
+voice-script), stubs RPM_PLATFORM.hasGeminiKey so the tap on #dictate takes the Gemini path, and starts the call.
+Each --plan step (default add) hears a set sentence, proposes the change, shoots scripted-voice-<step>-proposed,
+saves and shoots scripted-voice-<step>-saved. retime and remove change the tasks that add made, so start with add.
+It always reloads the page after, even when a step fails. Label the result "scripted voice"; it is not a model test.`,
   logs: `logs [--errors] [--lines N]
 Logcat for the app's process plus WebView console lines (tag chromium). --errors keeps only crashes, ANRs,
 uncaught exceptions and console errors since launch. Default --lines 200.`,
