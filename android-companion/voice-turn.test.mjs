@@ -4,26 +4,7 @@ import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {editPlan,planner,blockTasks} from './planner-state.mjs';
 import {createRamble,applyRamble,recordWords,undoRamble,MAX_RAMBLE_OPS} from './voice-turn.mjs';
 import {TOOLS,liveSetup,planView,offsetOf} from './voice-tools.mjs';
-
-const TZ='Asia/Kolkata',NOW=new Date('2026-10-27T12:00:00Z');
-let serial=0;
-const call=(name,args={})=>({id:`c${++serial}`,name,args});
-const tools=(...functionCalls)=>({toolCall:{functionCalls}});
-const said=text=>({serverContent:{outputTranscription:{text},modelTurn:{parts:[{inlineData:{mimeType:'audio/pcm',data:'AA=='}}]}}});
-const heard=text=>({serverContent:{inputTranscription:{text}}});
-const turnDone={serverContent:{turnComplete:true}};
-
-function day(){
- const data=freshStore();
- const gym=editPlan(data,{type:'saveTask',fields:{title:'Gym evening',planned:'2026-10-27T13:00:00.000Z'}},NOW);
- const raj=editPlan(data,{type:'saveTask',fields:{title:'Call Raj'}},NOW);
- const milk=editPlan(data,{type:'saveTask',fields:{title:'Buy groceries'}},NOW);
- const fit=editPlan(data,{type:'saveEntity',collection:'blocks',fields:{title:'Get fit',purpose:'Energy'}},NOW);
- editPlan(data,{type:'saveEntity',collection:'projects',fields:{title:'Health'}},NOW);
- return {data,ids:{gym,raj,milk,fit}};
-}
-const reply=(ramble,m)=>ramble.receive(m)[0]?.toolResponse.functionResponses.map(r=>r.response.result);
-const words={messageId:'m-1',timeZone:TZ,now:NOW};
+import {TZ,NOW,call,tools,said,heard,turnDone,day,reply,words} from './voice-turn-fixtures.mjs';
 
 test('one ramble adds, completes, retimes and removes, then one Undo takes it all back and keeps the words', () => {
  const {data,ids}=day(),before={entries:structuredClone(data.entries),planner:structuredClone(data.planner)};

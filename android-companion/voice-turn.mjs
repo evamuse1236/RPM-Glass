@@ -4,8 +4,11 @@ import {toolOps,planView,checkAsked} from './voice-tools.mjs';
 import {intentState} from '../intent-v2/src/repository.mjs';
 import {userMessage} from './user-message.mjs';
 import {voiceMark,holdStage} from './voice-marks.mjs';
+import {secretKey,redactText} from './diagnostics.mjs';
 
 export const MAX_RAMBLE_OPS=60;
+const TRACE_CALLS=20,TRACE_TEXT=200;
+const traced=(v,depth=0)=>typeof v==='string'?redactText(v.length>TRACE_TEXT?v.slice(0,TRACE_TEXT)+'…':v):v===null||typeof v!=='object'?v:depth>3?'…':Array.isArray(v)?v.slice(0,TRACE_CALLS).map(x=>traced(x,depth+1)):Object.fromEntries(Object.entries(v).filter(([k])=>!secretKey.test(k)).map(([k,x])=>[k,traced(x,depth+1)]));
 
 /**
  * One ramble: from the press of the mic to the model's spoken answer.
@@ -17,7 +20,8 @@ export const MAX_RAMBLE_OPS=60;
 export function createRamble({data,timeZone,now=()=>new Date(),undoSaved=false}){
  const base=undoes=>{const copy=structuredClone(data);if(undoes)editPlan(copy,{type:'undo'},now());return copy;};
  let working=base(null);
- const records=[],errors=[],added=new Map();
+ const records=[],errors=[],calls=[],added=new Map();
+ const note=entry=>{calls.push({name:entry.name,args:traced(entry.args??{}),...entry.out});if(calls.length>TRACE_CALLS)calls.shift();};
  const undoneRamble=()=>records.find(r=>r.undoes)?.undoes??null;
  let heard='',said='',phase='listening',toolsPending=false,error=null,answered=false,firstTool=true;
  const all=key=>records.flatMap(r=>r[key]);
@@ -89,7 +93,7 @@ export function createRamble({data,timeZone,now=()=>new Date(),undoSaved=false})
     if(m.toolCall.functionCalls.some(c=>c.name!=='get_plan'))voiceMark('Tsave');
     toolsPending=true;
     const functionResponses=m.toolCall.functionCalls.map(c=>{
-     let result;try{result=call(c);}catch(e){const text=userMessage(e);errors.push(`${c.name}: ${text}`);result={error:text};}
+     let result;try{result=call(c);note({...c,out:{result:c.name==='get_plan'?'plan':traced(result)}});}catch(e){const text=userMessage(e);errors.push(`${c.name}: ${text}`);result={error:text};note({...c,out:{error:traced(text)}});}
      return {id:c.id,name:c.name,response:{result}};
     });
     out.push({toolResponse:{functionResponses}});
@@ -98,7 +102,7 @@ export function createRamble({data,timeZone,now=()=>new Date(),undoSaved=false})
    }
    return out;
   },
-  result(){const ops=all('ops');return {heard:heard.trim(),said:said.trim(),changes:changes(),errors:[...errors],undoes:undoneRamble(),batch:ops.length?{type:'batch',ops:structuredClone(ops)}:null,uuids:all('uuids'),created:created(),failed:phase==='failed'?error??'Voice stopped.':null};},
+  result(){const ops=all('ops');return {heard:heard.trim(),said:said.trim(),changes:changes(),errors:[...errors],calls:structuredClone(calls),undoes:undoneRamble(),batch:ops.length?{type:'batch',ops:structuredClone(ops)}:null,uuids:all('uuids'),created:created(),failed:phase==='failed'?error??'Voice stopped.':null};},
  };
 }
 
@@ -123,7 +127,7 @@ export function applyRamble(data,ramble,options){
  const {messageId,now=new Date()}=options;
  recordWords(data,ramble.heard,options);
  const words=intentState(data).captures[messageId]??=wordsRecord('',options);
- const keep=message=>{words.lastError={message};return {status:'words-kept',error:message};};
+ const keep=message=>{words.lastError=ramble.calls?.length?{message,calls:ramble.calls,reply:ramble.said||null}:{message};return {status:'words-kept',error:message};};
  if(ramble.failed&&!ramble.batch&&!ramble.undoes)return keep(ramble.failed);
  if(ramble.batch||ramble.undoes){
   const next=structuredClone(data),before=taskIds(next);
@@ -138,7 +142,7 @@ export function applyRamble(data,ramble,options){
  }
  const capture=intentState(data).captures[messageId];
  delete capture.lastError;
- Object.assign(capture,{status:'interpreted',draftId:null,reply:ramble.said||null,voice:{changes:ramble.changes,undoEvent:ramble.batch?planner(data).events.at(-1)?.id??null:null,undone:false}});
+ Object.assign(capture,{status:'interpreted',draftId:null,reply:ramble.said||null,voice:{changes:ramble.changes,calls:ramble.calls??[],undoEvent:ramble.batch?planner(data).events.at(-1)?.id??null:null,undone:false}});
  return {status:ramble.batch||ramble.undoes?'applied':'nothing',undo:!!ramble.batch};
 }
 
