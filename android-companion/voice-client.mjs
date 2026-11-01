@@ -171,7 +171,7 @@ function startOpenLine({data,timeZone,setup,token,onChange=()=>{},onLevel=()=>{}
   touch();
   const sc=m.serverContent,parts=sc?.modelTurn?.parts??[];
   if(sc?.interrupted)speaker.clear();
-  if(!ramble&&(m.toolCall||sc?.inputTranscription?.text||sc?.outputTranscription?.text||parts.length)){ramble=createRamble({data:fresh(),timeZone,now});count++;}
+  if(!ramble&&(m.toolCall||sc?.inputTranscription?.text||sc?.outputTranscription?.text||parts.length)){ramble=createRamble({data:fresh(),timeZone,now,undoSaved:true});count++;}
   if(ramble&&sc?.inputTranscription?.text)voiceSaidMark(count);
   if(m.toolCall){replied=true;serverBusy=true;toolsPending=true;holdStage(`T7#${count}`);voiceMark(`T7#${count}`);}
   if(parts.length){replied=true;serverBusy=true;toolsPending=false;}

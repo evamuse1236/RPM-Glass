@@ -92,13 +92,13 @@ test('a dropped connection keeps the words with an error and saves no changes', 
 });
 
 test('a tool call naming something missing answers the model with the problem and saves nothing for it', () => {
- const {data}=day(),r=createRamble({data,timeZone:TZ,now:()=>NOW});r.stop();
+ const {data}=day(),r=createRamble({data,timeZone:TZ,now:()=>NOW});r.receive(heard('delete task 999'));r.stop();
  const [answer]=reply(r,tools(call('delete_task',{id:999})));
  assert.match(answer.error,/No task 999/);assert.equal(r.result().batch,null);assert.equal(r.state.errors.length,1);
 });
 
 test('Blocks, Projects and Areas are added, changed, linked and removed with existing planner ops', () => {
- const {data,ids}=day(),r=createRamble({data,timeZone:TZ,now:()=>NOW});r.stop();
+ const {data,ids}=day(),r=createRamble({data,timeZone:TZ,now:()=>NOW});r.receive(heard('Sort out health, then remove the Block and the Project'));r.stop();
  const project=planner(data).projects[0].id;
  reply(r,tools(call('save_block',{id:ids.fit,title:'Get fit',purpose:'Feel strong',projectId:project})));
  const [area]=reply(r,tools(call('save_area',{title:'Health',purpose:'Body',rating:6})));
@@ -152,7 +152,7 @@ test('changing a Goal keeps its unspoken Area, year and horizon; removing it fre
  const g=planner(kept).goals[0];
  assert.deepEqual([g.title,g.areaId,g.year,g.horizon,g.period],['Run far',area,2025,'quarterly',3]);
  assert.equal(planner(kept).projects[0].goalId,goal,'a Project change that names no Goal keeps its Goal');
- const d=createRamble({data,timeZone:TZ,now:()=>NOW});d.stop();
+ const d=createRamble({data,timeZone:TZ,now:()=>NOW});d.receive(heard('Add Swim and delete the Run goal'));d.stop();
  const [missing,removed]=reply(d,tools(call('save_goal',{title:'Swim',areaId:'area-x'}),call('delete_goal',{id:goal})));
  assert.match(missing.error,/No area area-x/);assert.equal(removed.saved,null);
  d.receive(turnDone);d.receive(turnDone);applyRamble(data,d.result(),words);
@@ -214,7 +214,7 @@ test('the Live setup carries every tool, the local offset and manual turns', () 
  assert.match(setup.systemInstruction.parts[0].text,/offset \+05:30/);
  assert.equal(setup.realtimeInputConfig.automaticActivityDetection.disabled,true);
  assert.equal(offsetOf(new Date('2026-07-01T12:00:00Z'),'America/New_York'),'-04:00');
- assert.deepEqual(Object.keys(planView(freshStore(),TZ)),['inbox','blocks','projects','goals','areas']);
+ assert.deepEqual(Object.keys(planView(freshStore(),TZ)),['inbox','blocks','projects','goals','areas','trash']);
 });
 
 test('the model asking twice for the same new task in one ramble adds it once and answers with the first id', () => {
@@ -229,4 +229,71 @@ test('the model asking twice for the same new task in one ramble adds it once an
  assert.equal(out.batch.ops.length,1);
  const [other]=reply(r,tools(call('save_task',{title:'Buy milk',day:'2026-10-29'})));
  assert.notEqual(other.saved,first.saved,'the same title on another day is a new task');
+});
+
+const ramble=(data,words,undoSaved=true)=>{const r=createRamble({data,timeZone:TZ,now:()=>NOW,undoSaved});r.receive(heard(words));r.stop();return r;};
+
+test('31 Oct: voice removes or completes only when the words ask, and a yes answers its question', () => {
+ const {data,ids}=day();
+ const [binned]=reply(ramble(data,'el juego'),tools(call('delete_task',{id:ids.gym})));
+ assert.match(binned.error,/did not ask to remove/);
+ const r=ramble(data,'it needs at least 10 GB');
+ const [ticked]=reply(r,tools(call('save_task',{id:ids.raj,done:true})));
+ assert.match(ticked.error,/did not say this is done/);assert.equal(r.result().batch,null);
+ assert.equal(reply(ramble(data,'yes, go ahead'),tools(call('delete_task',{id:ids.gym})))[0].saved,ids.gym);
+ assert.equal(reply(ramble(data,'I finished calling Raj'),tools(call('save_task',{id:ids.raj,done:true})))[0].saved,ids.raj);
+});
+
+test('31 Oct: "restore them" brings tasks back from the Trash and never adds copies', () => {
+ const {data,ids}=day();
+ editPlan(data,{type:'archiveTask',id:ids.gym},NOW);
+ assert.deepEqual(planView(data,TZ).trash,[{id:ids.gym,title:'Gym evening'}]);
+ const r=ramble(data,'restore them');
+ const [copy,back]=reply(r,tools(call('save_task',{title:'gym evening'}),call('restore_task',{id:ids.gym})));
+ assert.match(copy.error,/in the Trash as task \d+\. Use restore_task/);
+ assert.equal(back.saved,ids.gym);r.receive(turnDone);r.receive(turnDone);
+ applyRamble(data,r.result(),words);
+ const gyms=data.entries.filter(e=>e.title==='Gym evening');
+ assert.deepEqual(gyms.map(e=>e.archived),[false],'one live Gym task, no copies');
+});
+
+test('a second task with a saved title is refused unless they ask for a duplicate', () => {
+ const {data}=day();
+ const [twin,second]=reply(ramble(data,'add call raj'),tools(call('save_task',{title:'Call Raj'}),call('save_task',{title:'Call Raj',duplicate:true})));
+ assert.match(twin.error,/already saved as task/);assert.equal(typeof second.saved,'number');
+});
+
+test('a start time that has passed is refused until they confirm it', () => {
+ const {data,ids}=day(),past='2026-10-27T15:00:00+05:30';
+ const r=ramble(data,"it's not for tomorrow, it's today at 3");
+ const [asked,saved]=reply(r,tools(call('save_task',{id:ids.raj,start:past}),call('save_task',{id:ids.raj,start:past,pastOk:true})));
+ assert.match(asked.error,/already passed/);assert.equal(saved.saved,ids.raj);
+});
+
+test('"undo that" drops the last change in this ramble, or takes back the previous voice change', () => {
+ const {data,ids}=day();
+ const r=ramble(data,'add swim, call it off, undo that');
+ reply(r,tools(call('save_task',{title:'Swim'})));
+ assert.deepEqual(reply(r,tools(call('undo_last'))),[{undone:'Swim'}]);
+ assert.equal(r.result().batch,null);
+ const first=ramble(data,'move gym to tomorrow at 7 pm');
+ reply(first,tools(call('save_task',{id:ids.gym,start:'2026-10-28T19:00:00+05:30'})));first.receive(turnDone);first.receive(turnDone);
+ applyRamble(data,first.result(),words);
+ const moved=data.entries.find(e=>e.id===ids.gym).planned;assert.notEqual(moved,'2026-10-27T13:00:00.000Z');
+ const second=ramble(data,'undo that');
+ assert.deepEqual(reply(second,tools(call('undo_last'))),[{undone:'Gym evening'}]);
+ second.receive(turnDone);second.receive(turnDone);
+ assert.equal(applyRamble(data,second.result(),{...words,messageId:'m-2'}).status,'applied');
+ assert.equal(data.entries.find(e=>e.id===ids.gym).planned,'2026-10-27T13:00:00.000Z');
+ assert.equal(data.intentV2.captures['m-1'].voice.undone,true);
+ assert.match(reply(ramble(data,'undo that'),tools(call('undo_last')))[0].error,/no voice change to undo/);
+ assert.match(reply(ramble(data,'undo that',false),tools(call('undo_last')))[0].error,/Use the Undo button/,'one press per ramble cannot undo a saved one');
+});
+
+test('the prompt says what "it" means, ignores speech that is not a request, and asks before removing', () => {
+ const prompt=liveSetup(NOW,TZ).systemInstruction.parts[0].text;
+ assert.match(prompt,/"It", "that" and "them" mean the items you changed last/);
+ assert.match(prompt,/not a request to you.*change nothing/);
+ assert.match(prompt,/ask before you remove or complete/);
+ assert.ok(TOOLS.some(t=>t.name==='restore_task')&&TOOLS.some(t=>t.name==='undo_last'));
 });

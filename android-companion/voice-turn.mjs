@@ -1,6 +1,6 @@
 import {editPlan,planner} from './planner-state.mjs';
 import {withIds} from './new-id.mjs';
-import {toolOps,planView} from './voice-tools.mjs';
+import {toolOps,planView,checkAsked} from './voice-tools.mjs';
 import {intentState} from '../intent-v2/src/repository.mjs';
 import {userMessage} from './user-message.mjs';
 import {voiceMark,holdStage} from './voice-marks.mjs';
@@ -13,9 +13,12 @@ export const MAX_RAMBLE_OPS=60;
  * client messages to send back. Tool calls run at once on a working copy, so answers carry real ids.
  * Phases: listening → working (after stop) → speaking (model talks after its tools) → done | failed.
  */
-export function createRamble({data,timeZone,now=()=>new Date()}){
- let working=structuredClone(data);
+/** undoSaved: undo_last may take back the previous saved ramble (the phone's open line saves each one). */
+export function createRamble({data,timeZone,now=()=>new Date(),undoSaved=false}){
+ const base=undoes=>{const copy=structuredClone(data);if(undoes)editPlan(copy,{type:'undo'},now());return copy;};
+ let working=base(null);
  const records=[],errors=[],added=new Map();
+ const undoneRamble=()=>records.find(r=>r.undoes)?.undoes??null;
  let heard='',said='',phase='listening',toolsPending=false,error=null,answered=false,firstTool=true;
  const all=key=>records.flatMap(r=>r[key]);
  const changes=()=>records.map(r=>r.change);
@@ -26,8 +29,23 @@ export function createRamble({data,timeZone,now=()=>new Date()}){
  };
  const sameAdd=c=>c.name==='save_task'&&c.args?.id==null&&typeof c.args?.title==='string'
   ?JSON.stringify({...c.args,title:c.args.title.trim().toLowerCase()},Object.keys(c.args).sort()):null;
+ /** Undo inside this ramble drops its last change; otherwise it takes back the previous ramble while that is still the newest change. */
+ const undoLast=c=>{
+  const last=records.filter(r=>r.ops.length).at(-1);
+  if(last){cancel([last.id]);return {undone:last.change.title};}
+  if(!undoSaved)throw new Error('Nothing to undo in this answer. Use the Undo button for an earlier one.');
+  if(undoneRamble())throw new Error('Your last change is already undone.');
+  const prev=Object.entries(intentState(data).captures).find(([,x])=>rambleUndoable(data,x?.voice));
+  if(!prev)throw new Error('There is no voice change to undo. Say what to change instead.');
+  const [messageId,capture]=prev,title=capture.voice.changes.map(x=>x.title).join(', ');
+  working=base(messageId);
+  records.push({id:c.id,key:null,ops:[],uuids:[],change:{kind:'undo',entity:'change',id:null,title},created:null,undoes:messageId});
+  return {undone:title};
+ };
  const call=c=>{
   if(c.name==='get_plan')return planView(working,timeZone);
+  if(c.name==='undo_last')return undoLast(c);
+  checkAsked(c.name,c.args??{},heard);
   const key=sameAdd(c);
   if(key&&added.has(key))return added.get(key);
   const {ops:next,change}=toolOps(working,c.name,c.args??{},now());
@@ -46,7 +64,7 @@ export function createRamble({data,timeZone,now=()=>new Date()}){
   if(!records.some(r=>drop.has(r.id)))return;
   const kept=records.filter(r=>!drop.has(r.id));
   for(const r of records)if(drop.has(r.id)&&r.key)added.delete(r.key);
-  working=structuredClone(data);records.length=0;
+  working=base(kept.find(r=>r.undoes)?.undoes??null);records.length=0;
   for(const r of kept){
    const result=run(r,r.uuids);
    if(r.created!=null){r.created=result;r.change.id=result;if(r.key)added.set(r.key,{saved:result});}
@@ -80,7 +98,7 @@ export function createRamble({data,timeZone,now=()=>new Date()}){
    }
    return out;
   },
-  result(){const ops=all('ops');return {heard:heard.trim(),said:said.trim(),changes:changes(),errors:[...errors],batch:ops.length?{type:'batch',ops:structuredClone(ops)}:null,uuids:all('uuids'),created:created(),failed:phase==='failed'?error??'Voice stopped.':null};},
+  result(){const ops=all('ops');return {heard:heard.trim(),said:said.trim(),changes:changes(),errors:[...errors],undoes:undoneRamble(),batch:ops.length?{type:'batch',ops:structuredClone(ops)}:null,uuids:all('uuids'),created:created(),failed:phase==='failed'?error??'Voice stopped.':null};},
  };
 }
 
@@ -101,15 +119,19 @@ export function recordWords(data,heard,options){
  * A replay on newer data must give new tasks the ids the model was told, or nothing is applied.
  */
 export function applyRamble(data,ramble,options){
- if(!ramble.heard&&!ramble.batch)return {status:'nothing'};
+ if(!ramble.heard&&!ramble.batch&&!ramble.undoes)return {status:'nothing'};
  const {messageId,now=new Date()}=options;
  recordWords(data,ramble.heard,options);
  const words=intentState(data).captures[messageId]??=wordsRecord('',options);
  const keep=message=>{words.lastError={message};return {status:'words-kept',error:message};};
- if(ramble.failed&&!ramble.batch)return keep(ramble.failed);
- if(ramble.batch){
+ if(ramble.failed&&!ramble.batch&&!ramble.undoes)return keep(ramble.failed);
+ if(ramble.batch||ramble.undoes){
   const next=structuredClone(data),before=taskIds(next);
-  try{withIds(ramble.uuids,()=>editPlan(next,ramble.batch,now));}catch(e){return keep(userMessage(e));}
+  if(ramble.undoes){
+   if(!rambleUndoable(next,intentState(next).captures[ramble.undoes]?.voice))return keep('You changed the plan after that. Undo it in the planner.');
+   editPlan(next,{type:'undo'},now);intentState(next).captures[ramble.undoes].voice.undone=true;
+  }
+  if(ramble.batch)try{withIds(ramble.uuids,()=>editPlan(next,ramble.batch,now));}catch(e){return keep(userMessage(e));}
   const made=[...taskIds(next)].filter(id=>!before.has(id));
   if(made.length!==ramble.created.length||made.some(id=>!ramble.created.includes(id)))return keep('Your plan changed while you talked. Your words are saved.');
   Object.assign(data,next);
@@ -117,7 +139,7 @@ export function applyRamble(data,ramble,options){
  const capture=intentState(data).captures[messageId];
  delete capture.lastError;
  Object.assign(capture,{status:'interpreted',draftId:null,reply:ramble.said||null,voice:{changes:ramble.changes,undoEvent:ramble.batch?planner(data).events.at(-1)?.id??null:null,undone:false}});
- return {status:ramble.batch?'applied':'nothing',undo:!!ramble.batch};
+ return {status:ramble.batch||ramble.undoes?'applied':'nothing',undo:!!ramble.batch};
 }
 
 /** A ramble can be undone only while its batch is still the newest planner change. */
