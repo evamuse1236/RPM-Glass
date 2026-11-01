@@ -26,16 +26,17 @@ false) shapes snap and content cross-fades over 150 ms.
 The island uses one spring everywhere: `Spring.DAMPING` 0.72 and `Spring.STIFFNESS` 520 (unit mass). In Apple's terms
 that is a response of 2π/√520 = 276 ms and a bounce of 1 − 0.72 = 0.28, just under "noticeably bouncy". A step
 overshoots by exp(−πζ/√(1−ζ²)) = 3.8%. The press, the drag and the opening morph all use it, so they feel like one
-material.
+material. The closing morph uses the same stiffness with damping 1.0 (critically damped): the same speed, but it
+cannot pass its target, so a shrinking island never undershoots and shows the camera hole.
 
 ## Details
 
 | # | Detail | Trigger | Spring / curve | Duration | Reduce Motion | Class | Verdict |
 |---|---|---|---|---|---|---|---|
 | 1 | Elastic open | The island grows (pill to island, or island to a larger island) | The spring's closed-form step response (ζ 0.72, k 520), played by the morph's ValueAnimator; passes the target by 3.8% and settles | 350 ms | Size snaps | `Spring.Curve`, `IslandView.morphTo`, `IslandShape.morph` | Kept, new |
-| 2 | Firm close | The island shrinks (back to the pill, or to a smaller island) | `IslandBand.STANDARD` cubic (0.2, 0, 0, 1), no bounce, so an undershoot can never show the camera hole | 300 ms | Size snaps | `IslandView.morphTo` | Kept, existing |
-| 3 | Rows arrive in turn | A new face comes in | Each row of the face fades in and rises 8dp on the STANDARD curve, 30 ms after the row above it; up to 4 steps, the rest come with the 4th | 90 ms delay + 210 ms per row, 390 ms in all | One 150 ms cross-fade of the whole face, no rise | `IslandView.swap`, `NotchMotion.rowDelayMs` | Kept, new |
-| 4 | Odometer digits | The band's value changes ("9m" to "10m") | Each changed digit rolls up on STANDARD; the rightmost changed digit starts first and each place to its left 40 ms later, up to 3 places | 250 ms + 80 ms stagger = 330 ms | Old value fades out while the new one fades in, 150 ms | `IslandBand.drawValue`, `NotchMotion.rollDelayMs` | Kept, stagger new |
+| 2 | Firm close | The island shrinks (back to the pill, or to a smaller island) | The same spring critically damped (ζ 1.0, k 520): no bounce, so an undershoot can never show the camera hole | 300 ms | Size snaps | `Spring.Curve`, `IslandView.morphTo` | Kept, curve new |
+| 3 | Rows arrive in turn | A new face comes in | Each row of the face fades in and rises 8dp on the STANDARD curve, 30 ms after the row above it; up to 4 steps, the rest come with the 4th. Row 1 starts at 50 ms, while the old face is still fading out, so the island is never an empty black shape | 50 ms delay + 90 ms stagger + 210 ms, 350 ms in all | The old face goes at once and the new face fades in over 150 ms, no rise | `IslandView.swap`, `NotchMotion.rowDelayMs` | Kept, new |
+| 4 | Odometer digits | The band's value changes ("9m" to "10m") | Each changed digit rolls up on STANDARD: the old digit leaves upward and the new one enters from below on the same curve, in one slot clipped to the line box. The rightmost changed digit starts first and each place to its left 40 ms later, up to 3 places | 250 ms + 80 ms stagger = 330 ms | Old value fades out while the new one fades in, 150 ms | `IslandBand.drawValue`, `NotchMotion.rollDelayMs` | Kept, stagger new |
 | 5 | Rubber-band pull | The finger drags the open island up or down | Resistance curve d·(1 − 1/(x·c/d + 1)), d = 28dp, c = 0.35 up and 0.117 down: follows at 0.35 near the start and stiffens toward 28dp instead of hitting a hard stop | Live with the finger | The island stays put | `IslandGesture.pull` | Kept, new |
 | 6 | Release keeps velocity | The finger lifts after a drag | The drag spring (ζ 0.72, k 520) starts with the finger's last speed, capped at 600 dp/s | About 250 ms to rest | Snaps home | `IslandView.follow`, `IslandView.letGo` | Kept, new |
 | 7 | Threshold tick | An upward drag passes the close point (24dp) | Haptic only: `GESTURE_THRESHOLD_ACTIVATE` on Android 14+, `CLOCK_TICK` before; once per crossing, and the release then skips its second buzz | Instant | Same haptic (haptics are not motion) | `IslandView.claim`, `IslandGesture.pastClose` | Kept, new |
@@ -48,6 +49,7 @@ material.
 
 - Press: the island shrinks to 0.97 on touch-down on the same spring, and comes back after at least 90 ms.
 - Faces fade out over 90 ms and the new one fades in from 8dp below.
+- The band's ring and value travel with the island's morph, from the pill's spot to the open island's spot.
 - The band's ring fills over 400 ms; the alarm ring pulses to 1.06 every 1.2 s while an alarm rings.
 - Long press and committed swipes give a haptic.
 

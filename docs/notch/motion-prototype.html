@@ -29,8 +29,8 @@
   .face .btns { gap: 8px; }
   .face .btn { flex: 1; block-size: 30px; border-radius: 15px; background: oklch(27% 0.005 285); display: grid; place-items: center; font-size: 13px; }
   .pillface { display: flex; align-items: center; justify-content: space-between; padding-inline: 12px; block-size: 100%; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .val { display: inline-flex; block-size: 18px; overflow: clip; }
-  .digit { display: inline-block; position: relative; inline-size: 0.62em; block-size: 18px; }
+  .val { display: inline-flex; line-height: 1.25; }
+  .digit { display: inline-block; position: relative; inline-size: 0.62em; block-size: 1.25em; overflow: clip; }
   .digit span { position: absolute; inset-inline-start: 0; inset-block-start: 0; }
   .ring { inline-size: 14px; block-size: 14px; border-radius: 50%; border: 2px solid oklch(78% 0.17 65); }
   aside { inline-size: 384px; max-inline-size: 100%; }
@@ -81,9 +81,12 @@ function response(t) {
   const wd = W * Math.sqrt(1 - Z * Z);
   return 1 - Math.exp(-Z * W * t) * (Math.cos(wd * t) + (Z * W / wd) * Math.sin(wd * t));
 }
-function springCurve(ms) {
-  const s = ms / 1000, end = response(s);
-  return f => response(f * s) + f * (1 - end);
+function settle(t) {
+  return 1 - Math.exp(-W * t) * (1 + W * t);
+}
+function springCurve(ms, step = response) {
+  const s = ms / 1000, end = step(s);
+  return f => step(f * s) + f * (1 - end);
 }
 function cubic(x1, y1, x2, y2) {
   return x => {
@@ -165,22 +168,22 @@ function fadeIn(el, delay, ms, rise) {
 function swapFace(html, stagger) {
   const old = island.lastElementChild;
   if (old) {
-    if (reduce) animate(150, x => x, p => old.style.opacity = 1 - p, () => old.remove());
+    if (reduce) old.remove();
     else animate(90, STANDARD, p => old.style.opacity = 1 - p, () => old.remove());
   }
   island.insertAdjacentHTML('beforeend', html);
   const face = island.lastElementChild;
   if (reduce) { face.style.opacity = 0; animate(150, x => x, p => face.style.opacity = p); return; }
   const rows = face.querySelectorAll('.row');
-  if (stagger && rows.length > 1) rows.forEach((row, i) => fadeIn(row, 90 + Math.min(i, 3) * 30, 210, 8));
-  else fadeIn(face, 90, 210, 8);
+  if (stagger && rows.length > 1) rows.forEach((row, i) => fadeIn(row, 50 + Math.min(i, 3) * 30, 210, 8));
+  else fadeIn(face, 50, 210, 8);
 }
 function morphTo(target, ms) {
   if (morph) morph.token.dead = true;
   const from = { ...shape };
   if (reduce) { shape = { ...target }; morph = null; draw(); return; }
   const grow = target.w + target.h > from.w + from.h;
-  const ease = grow ? springCurve(ms) : STANDARD;
+  const ease = springCurve(ms, grow ? response : settle);
   morph = { grow, p: 0 };
   morph.token = animate(ms, ease, (t, f) => { morph.p = f; shape = morphShape(from, target, t); draw(); },
     () => { shape = { ...target }; morph = null; draw(); });
@@ -213,9 +216,11 @@ function roll() {
       continue;
     }
     const delay = Math.min(rank++, 2) * 40;
-    n.style.transform = 'translateY(115%)';
-    later(delay, () => animate(150, STANDARD, p => o.style.transform = `translateY(${-115 * p}%)`));
-    later(delay + 100, () => animate(150, STANDARD, p => n.style.transform = `translateY(${115 * (1 - p)}%)`));
+    n.style.transform = 'translateY(100%)';
+    later(delay, () => animate(250, STANDARD, p => {
+      o.style.transform = `translateY(${-100 * p}%)`;
+      n.style.transform = `translateY(${100 * (1 - p)}%)`;
+    }));
   }
   val.insertAdjacentHTML('beforeend', suffix);
 }
