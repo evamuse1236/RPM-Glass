@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notch motion</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: oklch(93.5% 0.005 285); --ink: oklch(22% 0.005 285); --muted: oklch(52% 0.01 285);
+    --line: oklch(83% 0.01 285); --on: var(--ink); --on-ink: oklch(100% 0 none);
+    --sky: linear-gradient(oklch(60% 0.07 265), oklch(76% 0.04 265));
+    --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: oklch(18% 0.004 285); --ink: oklch(94% 0.005 285); --muted: oklch(70% 0.01 285); --line: oklch(32% 0.01 285); --on-ink: var(--bg); }
+  }
+  :root[data-theme="dark"] { --bg: oklch(18% 0.004 285); --ink: oklch(94% 0.005 285); --muted: oklch(70% 0.01 285); --line: oklch(32% 0.01 285); --on-ink: var(--bg); }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, sans-serif; padding: 16px; -webkit-tap-highlight-color: transparent; }
+  main { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; }
+  .phone { inline-size: 384px; max-inline-size: 100%; block-size: 300px; background: var(--sky); border-radius: 28px; position: relative; overflow: clip; flex: none; }
+  .status { position: absolute; inset-block-start: 14px; inset-inline: 26px; display: flex; justify-content: space-between; color: oklch(100% 0 none); font-weight: 600; font-size: 13px; }
+  .island { position: absolute; background: oklch(0% 0 none); color: oklch(100% 0 none); overflow: clip; touch-action: none; cursor: grab; box-shadow: 0 6px 16px oklch(0% 0 none / 0.35); }
+  .face { position: absolute; inset: 0; padding: 14px 18px; transform-origin: top center; }
+  .face .row { display: flex; align-items: center; gap: 10px; block-size: 30px; }
+  .face .title { font-weight: 600; font-size: 15px; }
+  .face .sub { color: oklch(72% 0.01 285); font-size: 13px; }
+  .face .btns { gap: 8px; }
+  .face .btn { flex: 1; block-size: 30px; border-radius: 15px; background: oklch(27% 0.005 285); display: grid; place-items: center; font-size: 13px; }
+  .pillface { display: flex; align-items: center; justify-content: space-between; padding-inline: 12px; block-size: 100%; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .val { display: inline-flex; block-size: 18px; overflow: clip; }
+  .digit { display: inline-block; position: relative; inline-size: 0.62em; block-size: 18px; }
+  .digit span { position: absolute; inset-inline-start: 0; inset-block-start: 0; }
+  .ring { inline-size: 14px; block-size: 14px; border-radius: 50%; border: 2px solid oklch(78% 0.17 65); }
+  aside { inline-size: 384px; max-inline-size: 100%; }
+  h1 { font-size: 17px; margin: 0 0 12px; }
+  .group { margin-block-end: 14px; }
+  .group h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 6px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; }
+  button { font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; text-align: start; cursor: pointer; min-block-size: 36px; }
+  button[aria-pressed="true"] { background: var(--on); color: var(--on-ink); border-color: var(--on); }
+  button:active { transform: scale(0.97); }
+  :focus-visible { outline: max(2px, 0.08em) solid currentColor; outline-offset: 0.25em; }
+  @media (hover: hover) and (pointer: fine) { button:hover { background: color-mix(in oklch, var(--ink) 8%, transparent); } }
+  @media (prefers-reduced-motion: no-preference) { button { transition: transform 160ms var(--ease-out); } }
+  .log { font: 12px/1.4 ui-monospace, monospace; color: var(--muted); min-block-size: 1.4em; }
+</style>
+</head>
+<body>
+<main>
+  <div class="phone" id="phone">
+    <div class="status"><span>9:41</span><span>5G</span></div>
+    <div class="island" id="island"></div>
+  </div>
+  <aside>
+    <h1>Notch motion</h1>
+    <div class="group"><h2>Kept</h2><div class="grid">
+      <button data-act="open">1 Elastic open</button>
+      <button data-act="close">2 Firm close</button>
+      <button data-act="rows">3 Rows arrive in turn</button>
+      <button data-act="roll">4 Odometer digits</button>
+      <button data-act="drag">5–7 Drag the island</button>
+    </div></div>
+    <div class="group"><h2>Cut</h2><div class="grid">
+      <button data-cut="bloom" aria-pressed="false">8 Content bloom</button>
+      <button data-cut="blur" aria-pressed="false">9 Blur in</button>
+      <button data-cut="squash" aria-pressed="false">10 Squash</button>
+      <button data-cut="breathe" aria-pressed="false">11 Idle breathing</button>
+    </div></div>
+    <div class="group"><h2>Settings</h2><div class="grid">
+      <button id="rm" aria-pressed="false">Reduce Motion</button>
+      <button id="slow" aria-pressed="false">Slow ×5</button>
+    </div></div>
+    <div class="log" id="log" aria-live="polite"></div>
+  </aside>
+</main>
+<script>
+const Z = 0.72, K = 520, W = Math.sqrt(K);
+function response(t) {
+  const wd = W * Math.sqrt(1 - Z * Z);
+  return 1 - Math.exp(-Z * W * t) * (Math.cos(wd * t) + (Z * W / wd) * Math.sin(wd * t));
+}
+function springCurve(ms) {
+  const s = ms / 1000, end = response(s);
+  return f => response(f * s) + f * (1 - end);
+}
+function cubic(x1, y1, x2, y2) {
+  return x => {
+    let lo = 0, hi = 1, t = x;
+    for (let i = 0; i < 20; i++) {
+      t = (lo + hi) / 2;
+      const cx = 3 * x1 * t * (1 - t) ** 2 + 3 * x2 * t * t * (1 - t) + t ** 3;
+      if (cx < x) lo = t; else hi = t;
+    }
+    return 3 * y1 * t * (1 - t) ** 2 + 3 * y2 * t * t * (1 - t) + t ** 3;
+  };
+}
+const STANDARD = cubic(0.2, 0, 0, 1);
+const PILL = { w: 126, h: 34, top: 11, r: 17 };
+const OPEN = { w: 360, h: 168, top: 8, r: 34 };
+const island = document.getElementById('island');
+const log = document.getElementById('log');
+const cut = { bloom: false, blur: false, squash: false, breathe: false };
+let reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let slow = 1, open = false, shape = { ...PILL }, value = 9, pull = 0, morph = null, breatheT = 0;
+
+function lerpShape(a, b, tx, ty) {
+  return { w: a.w + (b.w - a.w) * tx, h: a.h + (b.h - a.h) * ty, top: a.top + (b.top - a.top) * ty, r: a.r + (b.r - a.r) * ty };
+}
+function morphShape(a, b, t) {
+  if (t > 1) return lerpShape(a, b, t, t);
+  const lead = Math.min(1, t / 0.7);
+  return b.w > a.w ? lerpShape(a, b, lead, t) : lerpShape(a, b, Math.max(0, (t - 0.3) / 0.7), lead);
+}
+function draw() {
+  let { w, h, top, r } = shape;
+  if (cut.squash && morph && morph.grow) {
+    const k = Math.sin(Math.min(1, morph.p) * Math.PI) * 0.06;
+    w *= 1 - k; h *= 1 + k;
+  }
+  const scale = cut.breathe && !morph && open ? 1 + 0.02 * Math.sin(breatheT / 3000 * 2 * Math.PI) : 1;
+  const s = island.style;
+  s.inlineSize = w + 'px';
+  s.blockSize = h + 'px';
+  s.insetInlineStart = (384 - w) / 2 + 'px';
+  s.insetBlockStart = top + pull + 'px';
+  s.borderRadius = r + 'px';
+  s.transform = scale !== 1 ? `scale(${scale})` : '';
+  const face = island.lastElementChild;
+  if (face && face.dataset.big) face.style.scale = Math.min(1, w / OPEN.w);
+}
+const digits = n => String(n).split('').map(c => `<span class="digit"><span>${c}</span></span>`).join('');
+const pillFace = () => `<div class="face pillface"><span class="ring"></span><span class="val" id="val">${digits(value)}<span>m</span></span></div>`;
+const bigFace = () => `<div class="face" data-big="1">
+  <div class="row"><span class="ring"></span><span class="title">Deep work</span></div>
+  <div class="row sub">Writing the motion spec</div>
+  <div class="row"><span class="title val" id="val">${digits(value)}<span>m left</span></span></div>
+  <div class="row btns"><span class="btn">Pause</span><span class="btn">Done</span></div>
+  <div class="row sub">Next: Review at 4 PM</div>
+</div>`;
+function later(ms, fn) { setTimeout(fn, ms * slow); }
+function animate(ms, ease, onFrame, onEnd) {
+  const start = performance.now(), dur = ms * slow, token = {};
+  function frame(now) {
+    if (token.dead) return;
+    const f = Math.min(1, (now - start) / dur);
+    onFrame(ease(f), f);
+    if (f < 1) requestAnimationFrame(frame); else if (onEnd) onEnd();
+  }
+  requestAnimationFrame(frame);
+  return token;
+}
+function fadeIn(el, delay, ms, rise) {
+  const paint = p => {
+    el.style.opacity = p;
+    let tr = `translateY(${rise * (1 - p)}px)`;
+    if (cut.bloom) tr += ` scale(${0.96 + 0.04 * p})`;
+    el.style.transform = tr;
+    if (cut.blur) el.style.filter = `blur(${6 * (1 - p)}px)`;
+  };
+  paint(0);
+  later(delay, () => animate(ms, STANDARD, paint));
+}
+function swapFace(html, stagger) {
+  const old = island.lastElementChild;
+  if (old) {
+    if (reduce) animate(150, x => x, p => old.style.opacity = 1 - p, () => old.remove());
+    else animate(90, STANDARD, p => old.style.opacity = 1 - p, () => old.remove());
+  }
+  island.insertAdjacentHTML('beforeend', html);
+  const face = island.lastElementChild;
+  if (reduce) { face.style.opacity = 0; animate(150, x => x, p => face.style.opacity = p); return; }
+  const rows = face.querySelectorAll('.row');
+  if (stagger && rows.length > 1) rows.forEach((row, i) => fadeIn(row, 90 + Math.min(i, 3) * 30, 210, 8));
+  else fadeIn(face, 90, 210, 8);
+}
+function morphTo(target, ms) {
+  if (morph) morph.token.dead = true;
+  const from = { ...shape };
+  if (reduce) { shape = { ...target }; morph = null; draw(); return; }
+  const grow = target.w + target.h > from.w + from.h;
+  const ease = grow ? springCurve(ms) : STANDARD;
+  morph = { grow, p: 0 };
+  morph.token = animate(ms, ease, (t, f) => { morph.p = f; shape = morphShape(from, target, t); draw(); },
+    () => { shape = { ...target }; morph = null; draw(); });
+}
+function setOpen(next, stagger = true) {
+  open = next;
+  morphTo(next ? OPEN : PILL, next ? 350 : 300);
+  swapFace(next ? bigFace() : pillFace(), stagger);
+}
+function roll() {
+  const old = String(value);
+  value = value >= 12 ? 9 : value + 1;
+  const next = String(value);
+  const val = document.getElementById('val');
+  const width = Math.max(old.length, next.length);
+  const a = old.padStart(width, ' '), b = next.padStart(width, ' ');
+  const suffix = val.lastElementChild.outerHTML;
+  val.innerHTML = '';
+  let rank = 0;
+  for (let i = width - 1; i >= 0; i--) {
+    const d = document.createElement('span');
+    d.className = 'digit';
+    d.innerHTML = `<span>${a[i]}</span><span>${b[i]}</span>`;
+    const [o, n] = d.children;
+    val.prepend(d);
+    if (a[i] === b[i]) { n.remove(); continue; }
+    if (reduce) {
+      n.style.opacity = 0;
+      animate(150, x => x, p => { o.style.opacity = 1 - p; n.style.opacity = p; });
+      continue;
+    }
+    const delay = Math.min(rank++, 2) * 40;
+    n.style.transform = 'translateY(115%)';
+    later(delay, () => animate(150, STANDARD, p => o.style.transform = `translateY(${-115 * p}%)`));
+    later(delay + 100, () => animate(150, STANDARD, p => n.style.transform = `translateY(${115 * (1 - p)}%)`));
+  }
+  val.insertAdjacentHTML('beforeend', suffix);
+}
+
+const FOLLOW = 0.35, MAX = 28, CLOSE = 24;
+const rubber = (x, give) => MAX * (1 - 1 / (x * give / MAX + 1));
+let drag = null, past = false, springRaf = 0;
+island.addEventListener('pointerdown', e => {
+  if (!open) { setOpen(true); return; }
+  cancelAnimationFrame(springRaf);
+  drag = { y: e.clientY, lastT: e.timeStamp, v: 0 };
+  past = false;
+  island.setPointerCapture(e.pointerId);
+});
+island.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const d = e.clientY - drag.y;
+  const crossed = -d >= CLOSE;
+  if (crossed && !past) { log.textContent = 'tick: past the close point'; if (navigator.vibrate) navigator.vibrate(8); }
+  past = crossed;
+  if (reduce) return;
+  const next = Math.sign(d) * rubber(Math.abs(d), d < 0 ? FOLLOW : FOLLOW / 3);
+  const dt = (e.timeStamp - drag.lastT) / 1000;
+  if (dt > 0) drag.v = (next - pull) / dt;
+  drag.lastT = e.timeStamp;
+  pull = next;
+  draw();
+});
+island.addEventListener('pointerup', e => {
+  if (!drag) return;
+  const d = e.clientY - drag.y;
+  let v = e.timeStamp - drag.lastT > 50 ? 0 : Math.max(-600, Math.min(600, drag.v));
+  drag = null;
+  if (-d >= CLOSE) { pull = 0; setOpen(false); return; }
+  if (reduce) { pull = 0; draw(); return; }
+  log.textContent = `release at ${Math.round(v)} dp/s`;
+  let last = performance.now();
+  const c = 2 * Z * W;
+  function step(now) {
+    const dt = Math.min(0.05, (now - last) / 1000 / slow); last = now;
+    for (let i = 0; i < dt * 1000; i++) { v += (-K * pull - c * v) * 0.001; pull += v * 0.001; }
+    draw();
+    if (Math.abs(pull) > 0.05 || Math.abs(v) > 1) springRaf = requestAnimationFrame(step);
+    else { pull = 0; draw(); }
+  }
+  springRaf = requestAnimationFrame(step);
+});
+function breathe(now) { breatheT = now; if (cut.breathe) { draw(); requestAnimationFrame(breathe); } }
+
+document.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
+  const act = b.dataset.act;
+  log.textContent = '';
+  if (act === 'open') { open = false; shape = { ...PILL }; island.innerHTML = pillFace(); draw(); setOpen(true, false); }
+  if (act === 'close') { open = true; shape = { ...OPEN }; island.innerHTML = bigFace(); draw(); setOpen(false); }
+  if (act === 'rows') { if (open) { island.innerHTML = ''; swapFace(bigFace(), true); } else setOpen(true); }
+  if (act === 'roll') roll();
+  if (act === 'drag' && !open) setOpen(true);
+}));
+document.querySelectorAll('[data-cut]').forEach(b => b.addEventListener('click', () => {
+  const k = b.dataset.cut;
+  cut[k] = !cut[k];
+  b.setAttribute('aria-pressed', cut[k]);
+  if (k === 'breathe' && cut[k]) requestAnimationFrame(breathe);
+  draw();
+}));
+const rm = document.getElementById('rm');
+rm.setAttribute('aria-pressed', reduce);
+rm.addEventListener('click', () => { reduce = !reduce; rm.setAttribute('aria-pressed', reduce); });
+const slowBtn = document.getElementById('slow');
+slowBtn.addEventListener('click', () => { slow = slow === 1 ? 5 : 1; slowBtn.setAttribute('aria-pressed', slow !== 1); });
+
+island.innerHTML = pillFace();
+draw();
+window.proto = { setOpen, roll, cut, get shape() { return shape; }, set reduce(v) { reduce = v; }, set slow(v) { slow = v; } };
+</script>
+</body>
+</html>
