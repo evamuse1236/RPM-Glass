@@ -87,32 +87,45 @@ final class NotchAlerting {
         show(new NotchAlert(NotchAlert.Type.REMINDER, id, title, at, ZoneId.systemDefault(), DateFormat.is24HourFormat(service)), REMINDER_MS);
     }
 
-    /** Asks the alarm service what rings now: the first ringing alarm shows; none left ends the alarm island. */
+    /**
+     * Asks both alarm services what rings now: the first planner alarm shows, else the first local alarm; none left
+     * ends the alarm island.
+     */
     private void readAlarm() {
         Set<Long> ids = CompanionAlarmService.activeIds();
+        boolean local = ids.isEmpty();
+        if (local) ids = AlarmService.activeIds();
         if (ids.isEmpty()) {
             if (alert != null && alert.type == NotchAlert.Type.ALARM) end();
             return;
         }
         long id = ids.iterator().next();
-        if (alert != null && alert.type == NotchAlert.Type.ALARM && alert.taskId == id) return;
+        if (alert != null && alert.type == NotchAlert.Type.ALARM && alert.taskId == id && alert.local == local) return;
         reader.execute(() -> {
             String title = "RPM alarm";
             long at = System.currentTimeMillis();
             try {
-                JSONObject d = CompanionStore.read(service);
-                JSONObject e = d == null ? null : CompanionAlerts.entry(d, id);
-                if (e != null) title = e.optString("title", e.optString("raw", title));
-                JSONObject row = CompanionAlerts.ledger(service).optJSONObject(String.valueOf(id));
-                if (row != null && row.optLong("at") > 0) at = row.optLong("at");
+                if (local) {
+                    try (Store s = new Store(service)) {
+                        JSONObject e = s.get(id);
+                        title = e.optString("title", title);
+                        if (e.optLong("alarm") > 0) at = e.optLong("alarm");
+                    }
+                } else {
+                    JSONObject d = CompanionStore.read(service);
+                    JSONObject e = d == null ? null : CompanionAlerts.entry(d, id);
+                    if (e != null) title = e.optString("title", e.optString("raw", title));
+                    JSONObject row = CompanionAlerts.ledger(service).optJSONObject(String.valueOf(id));
+                    if (row != null && row.optLong("at") > 0) at = row.optLong("at");
+                }
             } catch (Exception e) {
                 Log.w(NotchController.TAG, "alarm details unreadable; island shows a plain title", e);
             }
             String shownTitle = title;
             long shownAt = at;
             handler.post(() -> NotchController.safely("alarm shown", () -> {
-                if (!CompanionAlarmService.activeIds().contains(id)) return;
-                show(new NotchAlert(NotchAlert.Type.ALARM, id, shownTitle, shownAt, ZoneId.systemDefault(), DateFormat.is24HourFormat(service)), ALARM_MS);
+                if (!(local ? AlarmService.activeIds() : CompanionAlarmService.activeIds()).contains(id)) return;
+                show(new NotchAlert(NotchAlert.Type.ALARM, id, shownTitle, shownAt, ZoneId.systemDefault(), DateFormat.is24HourFormat(service), local), ALARM_MS);
             }));
         });
     }
@@ -166,7 +179,8 @@ final class NotchAlerting {
     void openTask() {
         if (alert == null) return;
         NotchAlert shown = alert;
-        NotchActions.openTask(service, shown.taskId);
+        if (shown.local) service.startActivity(new Intent(service, MainActivity.class).putExtra("entry", shown.taskId).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        else NotchActions.openTask(service, shown.taskId);
         if (shown.type == NotchAlert.Type.REMINDER) end();
     }
 
@@ -175,7 +189,7 @@ final class NotchAlerting {
         if (alert == null) return;
         NotchAlert shown = alert;
         if (shown.type == NotchAlert.Type.ALARM) {
-            CompanionAlarmService.answer(shown.taskId, true);
+            answer(shown, true);
         } else {
             service.getSystemService(NotificationManager.class).cancel("companion-reminder", (int) shown.taskId);
             reader.execute(() -> {
@@ -198,7 +212,7 @@ final class NotchAlerting {
      * place. Its Undo brings the task back; the alarm stays stopped.
      */
     void done(NotchChanges changes) {
-        if (alert == null) return;
+        if (alert == null || alert.local) return;
         NotchAlert shown = alert;
         if (shown.type == NotchAlert.Type.ALARM) CompanionAlarmService.answer(shown.taskId, false);
         else service.getSystemService(NotificationManager.class).cancel("companion-reminder", (int) shown.taskId);
@@ -212,8 +226,17 @@ final class NotchAlerting {
     /** Stop: silences the alarm and returns to the pill. */
     void stop() {
         if (alert == null || alert.type != NotchAlert.Type.ALARM) return;
-        CompanionAlarmService.answer(alert.taskId, false);
+        answer(alert, false);
         NotchActions.log(service, "notch.alarm_stop", "ok", NotchActions.payload("taskId", alert.taskId));
         end();
+    }
+
+    /** Snoozes or stops a ringing alarm through its own service, as the notification's buttons do. */
+    private void answer(NotchAlert alarm, boolean snooze) {
+        if (!alarm.local) {
+            CompanionAlarmService.answer(alarm.taskId, snooze);
+            return;
+        }
+        service.startService(new Intent(service, AlarmService.class).setAction(snooze ? "SNOOZE" : "STOP").putExtra("id", alarm.taskId));
     }
 }

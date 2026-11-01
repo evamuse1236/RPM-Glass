@@ -10,6 +10,8 @@ import java.util.*;
 
 public final class AlarmService extends Service {
     static volatile boolean running=false;
+    private static volatile AlarmService current;
+    private static volatile Set<Long> ringing=Set.of();
     private static final int NOTIFICATION=4301;
     private final LinkedHashMap<Long,Long> active=new LinkedHashMap<>();
     private final Handler handler=new Handler(Looper.getMainLooper());
@@ -17,7 +19,12 @@ public final class AlarmService extends Service {
     private Vibrator vibrator;
     private PowerManager.WakeLock wakeLock;
     private AudioFocusRequest focus;
-    @Override public void onCreate(){super.onCreate();running=true;Alarms.channel(this);}
+    @Override public void onCreate(){super.onCreate();running=true;current=this;CompanionAlerts.channels(this);}
+    /** Ids of the local alarms ringing now; the notch reads them on each RING_CHANGED broadcast. */
+    static Set<Long> activeIds(){return ringing;}
+    /** The notch changed whether it can show an alarm: post the ringing notification again on the matching channel. */
+    static void repost(){AlarmService s=current;if(s!=null)s.handler.post(()->{if(!s.active.isEmpty())s.repostNow();});}
+    private void changed(){ringing=Collections.unmodifiableSet(new LinkedHashSet<>(active.keySet()));sendBroadcast(new Intent(CompanionAlarmService.RING_CHANGED).setPackage(getPackageName()));}
     @Override public IBinder onBind(Intent intent){return null;}
     @Override public int onStartCommand(Intent intent,int flags,int startId){
         if(intent==null){stopSelf();return START_NOT_STICKY;}
@@ -27,21 +34,20 @@ public final class AlarmService extends Service {
             JSONObject e=s.get(id);
             if(!e.optString("alarm_status").equals("scheduled")||e.optLong("alarm")>System.currentTimeMillis()+1000){if(active.isEmpty())stopSelf();return START_NOT_STICKY;}
             // Start foreground immediately before preparing sound or doing further work.
-            startForeground(NOTIFICATION,notification(id,e.optString("title"),true));
-            long startedAt=SystemClock.elapsedRealtime();active.put(id,startedAt);ContentValues v=new ContentValues();v.put("alarm_status","ringing");s.update(id,v,"Local ringing alarm started");
+            startForeground(NOTIFICATION,notification(id,e.optString("title")));
+            long startedAt=SystemClock.elapsedRealtime();active.put(id,startedAt);changed();ContentValues v=new ContentValues();v.put("alarm_status","ringing");s.update(id,v,"Local ringing alarm started");
             if(player==null)startSound();else if(wakeLock!=null)wakeLock.acquire(11*60*1000L);
             handler.postDelayed(()->{if(active.containsKey(id)&&active.get(id)==startedAt){recordEnd(id,"timed_out","Alarm auto-stopped after 10 minutes");active.remove(id);refreshOrStop();}},10*60*1000);
         }catch(Exception ex){active.remove(id);try(Store s=new Store(this)){ContentValues v=new ContentValues();v.put("alarm_status","failed");s.update(id,v,"Alarm could not start");}catch(Exception ignored){}refreshOrStop();}
         return START_NOT_STICKY;
     }
     private PendingIntent action(long id,String name){Intent i=new Intent(this,AlarmService.class).setAction(name).setData(Uri.parse("rpm://alarm-action/"+name+"/"+id)).putExtra("id",id);return PendingIntent.getService(this,0,i,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);}
-    private Notification notification(long id,String title,boolean fullScreen){
-        Notification.Builder b=new Notification.Builder(this,Alarms.CHANNEL).setSmallIcon(R.drawable.ic_notification).setContentTitle(title)
+    private Notification notification(long id,String title){
+        Notification.Builder b=new Notification.Builder(this,AlarmHeadsUp.channel(AlarmHeadsUp.notchShows())).setSmallIcon(R.drawable.ic_notification).setContentTitle(title)
             .setContentText(active.size()>1?"Multiple alarms · tap to manage":"Ringing alarm · snooze or dismiss").setCategory(Notification.CATEGORY_ALARM)
-            .setOngoing(true).setVisibility(Notification.VISIBILITY_PRIVATE).setContentIntent(Alarms.open(this,id))
+            .setOngoing(true).setVisibility(Notification.VISIBILITY_PUBLIC).setContentIntent(Alarms.open(this,id))
             .addAction(new Notification.Action.Builder(null,"Snooze 10 min",action(id,"SNOOZE")).build())
             .addAction(new Notification.Action.Builder(null,"Dismiss",action(id,"STOP")).build());
-        if(fullScreen&&Alarms.fullScreenAllowed(this))b.setFullScreenIntent(Alarms.open(this,id),true);
         return b.build();
     }
     private void startSound()throws Exception{
@@ -60,9 +66,10 @@ public final class AlarmService extends Service {
         }else recordEnd(id,"dismissed","User dismissed ringing alarm");
         active.remove(id);refreshOrStop();
     }
-    private void refreshOrStop(){if(active.isEmpty()){stopForeground(STOP_FOREGROUND_REMOVE);stopSelf();}else{long next=active.keySet().iterator().next();try(Store s=new Store(this)){startForeground(NOTIFICATION,notification(next,s.get(next).optString("title"),false));}}}
+    private void refreshOrStop(){changed();if(active.isEmpty()){stopForeground(STOP_FOREGROUND_REMOVE);stopSelf();}else repostNow();}
+    private void repostNow(){long next=active.keySet().iterator().next();try(Store s=new Store(this)){startForeground(NOTIFICATION,notification(next,s.get(next).optString("title")));}}
     @Override public void onDestroy(){
         handler.removeCallbacksAndMessages(null);if(player!=null){player.release();player=null;}if(vibrator!=null)vibrator.cancel();if(wakeLock!=null&&wakeLock.isHeld())wakeLock.release();if(focus!=null)getSystemService(AudioManager.class).abandonAudioFocusRequest(focus);
-        for(long id:active.keySet())recordEnd(id,"interrupted","Alarm service ended before dismissal");active.clear();running=false;super.onDestroy();
+        for(long id:active.keySet())recordEnd(id,"interrupted","Alarm service ended before dismissal");active.clear();changed();current=null;running=false;super.onDestroy();
     }
 }

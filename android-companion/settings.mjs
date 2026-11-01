@@ -113,10 +113,6 @@ function soundsSection(ctx) {
     ctx.state.notificationsAllowed ? 'Allowed' : NEEDS_PERMISSION, 'notifications');
   add(ctx, section, 'Exact alarms', 'Required for alarms at the chosen time',
     ctx.state.exactAlarmsAllowed ? 'Allowed' : NEEDS_PERMISSION, 'exact_alarms');
-  if (ctx.state.fullScreenSupported) {
-    add(ctx, section, 'Lock-screen alarms', 'Controls full-screen ringing alerts',
-      ctx.state.fullScreenAllowed ? 'Allowed' : NEEDS_PERMISSION, 'full_screen_alarms');
-  }
   add(ctx, section, 'Check saved alerts', 'Retry scheduling after permission changes', '', 'check_alerts');
   section.append(el('p', 'settings-note',
     'Android battery restrictions can delay reminders. Keep RPM installed for saved alarms to ring.'));
