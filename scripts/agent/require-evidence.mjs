@@ -1,5 +1,6 @@
 // "Done" needs proof from the real app, matched to the change (AGENTS.md "Before you say done"):
-// - a web-only change needs an rpmctl screenshot taken after `rpmctl sync` loaded it; no APK build;
+// - a web-only change needs an rpmctl screenshot taken after `rpmctl sync` loaded it, or a read-only phone shot
+//   whose installed web assets match the build; no APK build;
 // - a native change (Java, notch, manifest, cli) needs a debug APK built after it and a screenshot with that APK installed;
 // - merging app changes into main needs one passing `rpmctl scenario --all` on the merged commit (--merge).
 // A passing GitHub emulator run (npm run ci:emulator) on a commit with the same app files as HEAD also counts.
@@ -43,23 +44,27 @@ function changedAt(root, file) {
   return Date.now();
 }
 
-// The newest rpmctl screenshot taken while this exact APK, and these web assets when given, ran on the emulator rpmctl launched.
-export function matchingEvidence(root, apkSha, {webSha = null, needWeb = false} = {}) {
+function newestShot(root, accept) {
   let newest = null;
   const walk = d => { for (const e of fs.existsSync(d) ? fs.readdirSync(d, {withFileTypes: true}) : []) {
     const p = path.join(d, e.name);
     if (e.isDirectory()) { walk(p); continue; }
-    if (!e.name.endsWith('.png')) continue;
+    if (!e.name.endsWith('.png') || fs.statSync(p).size < 1000) continue;
     let meta = null;
     try { meta = JSON.parse(fs.readFileSync(p.replace(/\.png$/, '.json'), 'utf8')); } catch {}
-    if (!(meta?.launchedByRpmctl || meta?.adoptedByRpmctl) || meta.apkSha256 !== apkSha || fs.statSync(p).size < 1000) continue;
-    if (meta.webSha256 ? meta.webSha256 !== webSha : needWeb) continue;
+    if (!meta || !accept(meta)) continue;
     const m = fs.statSync(p).mtimeMs;
     if (!newest || m > newest.mtime) newest = {file: p, mtime: m};
   } };
   walk(path.join(root, '.verify', 'evidence'));
   return newest;
 }
+
+// The newest rpmctl screenshot taken while this exact APK, and these web assets when given, ran on the emulator rpmctl launched.
+export const matchingEvidence = (root, apkSha, {webSha = null, needWeb = false} = {}) => newestShot(root, meta =>
+  (meta.launchedByRpmctl || meta.adoptedByRpmctl) && meta.apkSha256 === apkSha && (meta.webSha256 ? meta.webSha256 === webSha : !needWeb));
+
+const phoneEvidence = (root, webSha) => webSha ? newestShot(root, meta => meta.phone === true && meta.webSha256 === webSha) : null;
 
 export function passingCiRun(root, changed) {
   if (git(root, ['status', '--porcelain', '--', ...changed])?.trim()) return null;
@@ -76,7 +81,8 @@ export function passingCiRun(root, changed) {
 
 export const tierOf = files => files.length && files.every(isWebSource) ? 'web' : 'native';
 const HOW = {
-  web: 'Web-only change: check it in a browser, then `rpmctl sync` on the running emulator (no APK build) and `rpmctl shot` the changed screen at phone size.',
+  web: 'Web-only change: check it in a browser, then `rpmctl sync` on the running emulator (no APK build) and `rpmctl shot` the changed screen at phone size, '
+    + 'or `rpmctl shot --serial <phone>` on a USB phone whose debug APK carries these exact web assets.',
   native: 'Native change (Java, notch, manifest or cli): `rpmctl launch --build`, then drive the changed feature and `rpmctl shot` it at phone size.',
 };
 const howFor = files => `${HOW[tierOf(files)]} Use the verify-rpm-glass skill (node .claude/skills/verify-rpm-glass/rpmctl.mjs) and put the evidence paths in the reply. `
@@ -95,6 +101,8 @@ export function evidenceGap(root) {
   const web = builtWeb(root);
   const unbuilt = changed.filter(f => changedAt(root, f) > (isWebSource(f) ? Math.max(built, web.at) : built));
   if (unbuilt.length) return `The debug APK is older than changed app code (${list(unbuilt)}), so no screenshot can show it yet. ${how}`;
+  const phoneShot = tierOf(changed) === 'web' ? phoneEvidence(root, web.sha) : null;
+  if (phoneShot && changed.every(f => changedAt(root, f) <= phoneShot.mtime)) return null;
   if (!built) return `No debug APK is built, so no rpmctl screenshot can show the changed app code (${list(changed)}). ${how}`;
   const needWeb = changed.some(f => isWebSource(f) && changedAt(root, f) > built);
   const evidence = matchingEvidence(root, crypto.createHash('sha256').update(fs.readFileSync(apk)).digest('hex'), {webSha: web.sha, needWeb});

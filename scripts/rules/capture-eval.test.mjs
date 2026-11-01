@@ -86,6 +86,19 @@ test('a branch behind main is not blamed for pipeline changes that landed on mai
   assert.ok(captureEvalEvidence(root).gap, 'an edit on the branch still counts');
 });
 
+test('a stale local main does not blame upstream pipeline changes on a branch cut from origin/main', t => {
+  const {root, put, git} = fixture(t);
+  git('switch', '-q', 'main');
+  put('intent-v2/src/model.mjs', 'changed upstream'); git('commit', '-qam', 'upstream capture change');
+  git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+  git('reset', '-q', '--hard', 'HEAD~1');
+  git('switch', '-q', '-C', 'feature', 'origin/main');
+  put('web/app.mjs', 'website work'); git('add', '.'); git('commit', '-qm', 'website');
+  assert.equal(captureEvalEvidence(root).gap, null);
+  put('intent-v2/src/model.mjs', 'branch edit');
+  assert.ok(captureEvalEvidence(root).gap, 'an edit on the branch still counts');
+});
+
 test('every declared pipeline surface changes the hash, including deletion and native models', t => {
   const {root, put} = fixture(t);
   for (const file of ['intent-v2/prompts/turn.txt', 'cli/interpret.mjs', 'android-companion/intent-service.mjs',

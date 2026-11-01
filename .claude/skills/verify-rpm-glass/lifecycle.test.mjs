@@ -36,6 +36,7 @@ async function fixture(t, shared = null) {
       h.events.push(['shell-fixture', serial, command]);
       return command.includes('getprop') ? '1' : command.startsWith('pm path') ? (h.deviceApk == null ? '' : 'package:/data/app/fixture/base.apk') : '10-19 12:00:00.000';
     },
+    installedApk: () => h.deviceApk == null ? null : Buffer.from(h.deviceApk),
     devices: () => { h.events.push(['devices-fixture']); return h.live ? [{serial: `emulator-${h.port}`, state: 'device'}] : []; },
     startEmulator: args => { h.events.push(['start-fixture', args]); h.starts++; h.live = true; h.port = args.port; return {pid: 7777, args: ['-read-only']}; },
     startNetsim: () => null,

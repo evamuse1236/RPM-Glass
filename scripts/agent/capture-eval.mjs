@@ -35,7 +35,7 @@ export function recordCaptureRun(root, directory) {
 }
 
 export function captureEvalEvidence(root) {
-  const forkPoint = git(root, 'merge-base', 'main', 'HEAD').trim();
+  const forkPoint = ['origin/main', 'main'].map(ref => { try { return git(root, 'merge-base', ref, 'HEAD').trim(); } catch { return ''; } }).find(Boolean);
   const changed = listed(git(root, 'diff', '--name-only', '--no-renames', '-z', forkPoint));
   changed.push(...listed(git(root, 'ls-files', '-z', '--others', '--exclude-standard')));
   if (!changed.some(isPipeline)) return {gap: null};

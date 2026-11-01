@@ -1,9 +1,18 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {PACKAGE, UserError, adb, appPid, foregroundActivity, displayInfo, nativeNodes} from './device.mjs';
+import {PACKAGE, UserError, adb, appPid, foregroundActivity, displayInfo, nativeNodes, installedApk} from './device.mjs';
 import {inPage} from './page.mjs';
 import {ROOT, readState, evidenceDir, journal, target, viaShell, errorLines} from './runtime.mjs';
+import {SYNC_DIR} from './sync.mjs';
+import {deviceIsEmulator} from './voice-time-io.mjs';
+import {apkWebSha} from '../../../../scripts/agent/web-assets.mjs';
+
+function phoneWebSha(serial) {
+  if (adb(serial, ['shell', `run-as ${PACKAGE} ls ${SYNC_DIR} 2>/dev/null`], {allowFail: true}).trim()) return null;
+  const apk = installedApk(serial);
+  return apk ? apkWebSha(apk) : null;
+}
 
 export const evidenceCommands = {
   async shot(args) {
@@ -16,7 +25,8 @@ export const evidenceCommands = {
     let page = null;
     try { const p = await inPage(serial, cdpPort); try { page = await p.evaluate(`(all) => window.__rpmSnapshot(all)`, false); } finally { p.close(); } }
     catch (e) { page = {unavailable: e.message}; }
-    const meta = {label, at: new Date().toISOString(), serial, launchedByRpmctl: !!state && state.mode !== 'attached', adoptedByRpmctl: state?.mode === 'attached', apkSha256: state?.installedSha256 ?? null, webSha256: state?.webSha256 ?? null, activity: foregroundActivity(serial), display: displayInfo(serial), page,
+    const phone = !state && !deviceIsEmulator(serial);
+    const meta = {label, at: new Date().toISOString(), serial, phone, launchedByRpmctl: !!state && state.mode !== 'attached', adoptedByRpmctl: state?.mode === 'attached', apkSha256: state?.installedSha256 ?? null, webSha256: state?.webSha256 ?? (phone ? phoneWebSha(serial) : null), activity: foregroundActivity(serial), display: displayInfo(serial), page,
       native: page?.unavailable ? nativeNodes(serial) : undefined};
     fs.writeFileSync(json, JSON.stringify(meta, null, 2));
     journal(state, {command: 'shot', png, json});
