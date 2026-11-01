@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {PACKAGE, UserError, adb, shell, sleep, waitFor, foregroundActivity, dismissAnr} from './device.mjs';
+import {PACKAGE, UserError, HangError, adb, shell, sleep, waitFor, foregroundActivity, dismissAnr} from './device.mjs';
 import {inPage} from './page.mjs';
 import {driveCommands} from './drive.mjs';
 import {target, openLauncher, errorLines, readState} from './runtime.mjs';
@@ -44,7 +44,7 @@ function pageReads(serial, cdpPort, sinceRef) {
       } catch { return []; }
     },
     async countLogErrors() {
-      try { return errorLines(serial, sinceRef.at).length; } catch { return 0; }
+      try { return errorLines(serial, sinceRef.at).length; } catch (e) { if (e instanceof HangError) throw e; return 0; }
     },
     async writeRun(run) {
       fs.mkdirSync(RUN_DIR, {recursive: true});

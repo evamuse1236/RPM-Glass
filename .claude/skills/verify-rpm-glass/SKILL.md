@@ -7,7 +7,7 @@ description: Drive the real RPM Android app (com.rpm.prototype, Capture sheet + 
 
 RPM is an Android app. Its Capture sheet (`index.html`) and Planner (`planner.html`) are WebViews inside a Java host; the widget, alarms, settings dialogs and "Earlier RPM screens" are native. A desktop browser preview, a green `npm test` or a passing build does not prove a change on the phone. This skill boots an emulator sized like the user's Galaxy S24 FE (1080 × 2340, 450 dpi, Android 16), installs the debug APK built from this checkout, and drives it with real touches.
 
-All commands go through one CLI. Every command prints one JSON object except `ui --brief` and `store` (which prints the saved JSON value directly); failures print `{"ok":false,"error","fix"}` and exit 1. Read the `fix`.
+All commands go through one CLI. Every command prints one JSON object except `ui --brief` and `store` (which prints the saved JSON value directly); failures print `{"ok":false,"error","fix"}` and exit 1. Read the `fix`. Exit 3 means the device hung: see "When the emulator hangs".
 
 ```bash
 RPMCTL="node .claude/skills/verify-rpm-glass/rpmctl.mjs"
@@ -155,7 +155,7 @@ Ends your run: removes the DevTools port forward and `.verify/state.json`, relea
 
 ## When the emulator hangs
 
-On the first adb or emulator timeout (`ETIMEDOUT`, a command with no answer for 60 s), do not retry in the background. Run `cleanup --stop`, tell the user, and prove a web-only change with `node scripts/agent/browser-shot.mjs <label> index.html --eval '<setup js>'` (its output names the PNG under `file`). A native change waits for a fresh `launch` or `npm run ci:emulator`.
+Every adb call times out after 60 s (`RPMCTL_ADB_TIMEOUT_MS` overrides it); rpmctl then exits 3 and the error says `did not answer`. On the first exit 3, or any other emulator timeout, do not retry in the background. Run `cleanup --stop`, tell the user, and prove a web-only change with `node scripts/agent/browser-shot.mjs <label> index.html --eval '<setup js>'` (its output names the PNG under `file`). A native change waits for a fresh `launch` or `npm run ci:emulator`.
 
 ## A physical phone
 

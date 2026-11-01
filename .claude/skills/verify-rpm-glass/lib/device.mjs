@@ -11,6 +11,14 @@ export class UserError extends Error {
   constructor(message, fix) { super(message); this.fix = fix; }
 }
 
+export const HANG_EXIT = 3;
+export const ADB_TIMEOUT_MS = Number(process.env.RPMCTL_ADB_TIMEOUT_MS) || 60000;
+
+// Not a UserError: the wait loops that retry on UserError must stop on a hung device.
+export class HangError extends Error {
+  constructor(message, fix) { super(message); this.fix = fix; this.exitCode = HANG_EXIT; }
+}
+
 export function sdkRoot() {
   const candidates = [process.env.ANDROID_HOME, process.env.ANDROID_SDK_ROOT,
     path.join(os.homedir(), 'AppData/Local/Android/Sdk'), path.join(os.homedir(), 'Library/Android/sdk'), path.join(os.homedir(), 'Android/Sdk')];
@@ -24,9 +32,11 @@ export const adbPath = () => path.join(sdkRoot(), 'platform-tools', exe('adb'));
 export const emulatorPath = () => path.join(sdkRoot(), 'emulator', exe('emulator'));
 
 // Runs adb with an argument array (never through a shell on the host side), so no quoting or MSYS path rewriting applies.
-export function adb(serial, args, {binary = false, allowFail = false, timeout = 60000, input} = {}) {
+export function adb(serial, args, {binary = false, allowFail = false, timeout = ADB_TIMEOUT_MS, input} = {}) {
   const full = serial ? ['-s', serial, ...args] : args;
   const r = spawnSync(adbPath(), full, {encoding: binary ? 'buffer' : 'utf8', maxBuffer: 256 * 1024 * 1024, timeout, input, windowsHide: true});
+  if (r.error?.code === 'ETIMEDOUT') throw new HangError(`adb ${full.join(' ')} did not answer in ${timeout / 1000} s; the device or adb server is hung.`,
+    'Do not retry. Run `rpmctl cleanup --stop`, tell the user, and prove a web-only change with `node scripts/agent/browser-shot.mjs`.');
   if (r.error) throw new UserError(`adb ${full.join(' ')} failed: ${r.error.message}`, 'Check that adb works: run `adb devices`.');
   if (r.status !== 0 && !allowFail) {
     const err = (binary ? r.stderr.toString() : r.stderr) || (binary ? '' : r.stdout);

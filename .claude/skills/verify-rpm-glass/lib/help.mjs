@@ -2,7 +2,7 @@ import {DEFAULTS, DISPLAYS} from './runtime.mjs';
 
 export const HELP = {
   _: `rpmctl drives the RPM Android app (com.rpm.prototype) on an S24 FE-sized emulator that it launches and owns.
-Every command prints JSON on stdout; store prints the saved value directly and ui --brief prints text. Failures print {"ok":false,"error","fix"} and exit 1.
+Every command prints JSON on stdout; store prints the saved value directly and ui --brief prints text. Failures print {"ok":false,"error","fix"} and exit 1; a hung device (adb gave no answer) exits 3.
 
 Usage: node .claude/skills/verify-rpm-glass/rpmctl.mjs <command> [options]
 

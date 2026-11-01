@@ -38,5 +38,5 @@ try {
   process.exit(cmd !== 'store' && out?.ok === false ? 1 : 0);
 } catch (e) {
   console.log(JSON.stringify({ok: false, command: cmd, error: e.message, fix: e.fix ?? `Unexpected failure; rerun with the same arguments, then \`rpmctl doctor\`.`, ...(e.fix ? {} : {stack: e.stack?.split('\n').slice(0, 4)})}, null, 2));
-  process.exit(1);
+  process.exit(e.exitCode ?? 1);
 }
