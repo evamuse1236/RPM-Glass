@@ -2,6 +2,7 @@
 import {automationPreview} from './automation-preview-ui.mjs';
 import {userMessage} from './user-message.mjs';
 import {captureTraces} from './settings-traces.mjs';
+import {voiceChoice,setVoice,setPersona,voiceLabel,voiceDialog,personaDialog} from './voice-choice.mjs';
 
 const el = (tag, cls = '', text = '') => {
   const node = document.createElement(tag);
@@ -151,6 +152,18 @@ function notchRows(ctx, section) {
   }
 }
 
+/** Voice and persona live on this phone, not in native settings; each opens an M3 dialog and saves at once. */
+function voiceRows(ctx, section) {
+  const {voice, persona} = voiceChoice();
+  const open = dialog => { document.body.append(dialog); dialog.showModal(); };
+  const voiceRow = row('Voice', 'How Gemini sounds in voice mode', voiceLabel(voice), 'voice_name');
+  voiceRow.addEventListener('click', () => open(voiceDialog(document, voice, next => { setVoice(next); render(ctx); })));
+  const personaRow = row('Persona', persona || 'Tone and wording for voice mode', persona ? '' : 'None', 'voice_persona');
+  if (persona) personaRow.querySelector('.settings-copy small')?.classList.add('settings-clamp');
+  personaRow.addEventListener('click', () => open(personaDialog(document, persona, next => { setPersona(next); render(ctx); })));
+  section.append(voiceRow, personaRow);
+}
+
 function accountSection(ctx) {
   const section = group('Account & backup', 'ai');
   const cloud = group('Cloud', 'cloud');
@@ -167,6 +180,7 @@ function accountSection(ctx) {
   add(ctx, section, hasGeminiKey ? 'Replace Gemini key' : 'Connect Gemini key', 'Voice mode talks with Gemini Live',
     hasGeminiKey ? 'Connected' : 'Not connected', 'connect_gemini_key');
   if (hasGeminiKey) add(ctx, section, 'Remove Gemini key', 'The mic goes back to system dictation', '', 'remove_gemini_key');
+  voiceRows(ctx, section);
   const history = el('div', 'settings-subgroup');
   history.dataset.section = 'context-history';
   add(ctx, history, 'Import context copy', 'Backs up this phone first; imported alerts stay off', '', 'import_context');
