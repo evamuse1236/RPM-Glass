@@ -1,10 +1,12 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {PACKAGE, UserError, adb, shell, sleep, waitFor, foregroundActivity, dismissAnr} from './device.mjs';
+import {PACKAGE, UserError, HangError, adb, shell, sleep, waitFor, foregroundActivity, dismissAnr} from './device.mjs';
 import {inPage} from './page.mjs';
 import {driveCommands} from './drive.mjs';
+import {evidenceCommands} from './evidence.mjs';
 import {target, openLauncher, errorLines, readState} from './runtime.mjs';
+import {parseVoiceScriptArgs, runVoiceScript} from './voice-script.mjs';
 import {RUN_DIR, armExpression, isEmulatorDevice, loadVoiceFixtures, parseVoiceTimeArgs, runVoiceTimes} from './voice-time.mjs';
 
 function prefsXml({fixture, delay}) {
@@ -44,7 +46,7 @@ function pageReads(serial, cdpPort, sinceRef) {
       } catch { return []; }
     },
     async countLogErrors() {
-      try { return errorLines(serial, sinceRef.at).length; } catch { return 0; }
+      try { return errorLines(serial, sinceRef.at).length; } catch (e) { if (e instanceof HangError) throw e; return 0; }
     },
     async writeRun(run) {
       fs.mkdirSync(RUN_DIR, {recursive: true});
@@ -168,4 +170,30 @@ export async function voiceTime(argv) {
   const emulator = deviceIsEmulator(argv.serial ?? readState()?.serial);
   const plan = parseVoiceTimeArgs(argv, {emulator});
   return runVoiceTimes(plan, emulator ? emulatorVoiceTimeIo(argv, loadVoiceFixtures()) : phoneVoiceTimeIo(argv));
+}
+
+export async function voiceScript(argv) {
+  const plan = parseVoiceScriptArgs(argv);
+  const {serial, cdpPort} = target(argv, {mutates: true});
+  const reads = pageReads(serial, cdpPort, {at: null});
+  return runVoiceScript(plan, {
+    isEmulator: () => deviceIsEmulator(serial),
+    openCapture: () => driveCommands.open({...argv, _: ['capture']}),
+    evaluate: reads.pageEval,
+    async startCall() {
+      await reads.until("(document.getElementById('message')?.blur(), window.__kbClosed = visualViewport.height > innerHeight - 2 ? (window.__kbClosed | 0) + 1 : 0) >= 5", {timeout: 8000, what: 'the keyboard to stay closed (with it open, a tap on the mic lands below it)'});
+      await driveCommands.tap({...argv, css: '#dictate', _: []});
+      await reads.until('!!window.__v?.opts', {timeout: 15000, what: 'the scripted call to start'});
+    },
+    async shot(label) {
+      await sleep(600);
+      return (await evidenceCommands.shot({...argv, _: [label]})).png;
+    },
+    async reload() {
+      const page = await inPage(serial, cdpPort);
+      try { await page.send('Page.reload', {ignoreCache: true}); } finally { page.close(); }
+      await sleep(500);
+      await reads.capturePage('Capture to load again after the scripted call');
+    },
+  });
 }

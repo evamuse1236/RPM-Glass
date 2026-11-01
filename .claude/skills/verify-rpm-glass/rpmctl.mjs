@@ -8,7 +8,7 @@ import {evidenceCommands} from './lib/evidence.mjs';
 import {scenarioCommands} from './lib/scenarios.mjs';
 import {syncCommands} from './lib/sync.mjs';
 import {briefUi} from './lib/brief.mjs';
-import {voiceTime} from './lib/voice-time-io.mjs';
+import {voiceTime, voiceScript} from './lib/voice-time-io.mjs';
 
 const commands = {
   launch: lifecycleCommands.launch,
@@ -21,6 +21,7 @@ const commands = {
   store: evidenceCommands.store,
   logs: evidenceCommands.logs,
   'voice-time': voiceTime,
+  'voice-script': voiceScript,
   scenario: args => scenarioCommands.scenario(args, commands),
   check: evidenceCommands.check,
   cleanup: lifecycleCommands.cleanup,
@@ -38,5 +39,5 @@ try {
   process.exit(cmd !== 'store' && out?.ok === false ? 1 : 0);
 } catch (e) {
   console.log(JSON.stringify({ok: false, command: cmd, error: e.message, fix: e.fix ?? `Unexpected failure; rerun with the same arguments, then \`rpmctl doctor\`.`, ...(e.fix ? {} : {stack: e.stack?.split('\n').slice(0, 4)})}, null, 2));
-  process.exit(1);
+  process.exit(e.exitCode ?? 1);
 }
