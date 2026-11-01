@@ -181,6 +181,7 @@ export async function voiceScript(argv) {
     openCapture: () => driveCommands.open({...argv, _: ['capture']}),
     evaluate: reads.pageEval,
     async startCall() {
+      await reads.until("(document.getElementById('message')?.blur(), window.__kbClosed = visualViewport.height > innerHeight - 2 ? (window.__kbClosed | 0) + 1 : 0) >= 5", {timeout: 8000, what: 'the keyboard to stay closed (with it open, a tap on the mic lands below it)'});
       await driveCommands.tap({...argv, css: '#dictate', _: []});
       await reads.until('!!window.__v?.opts', {timeout: 15000, what: 'the scripted call to start'});
     },
