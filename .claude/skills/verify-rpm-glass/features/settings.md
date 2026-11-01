@@ -1,63 +1,57 @@
 # Settings
 
-Settings is a planner screen with grouped rows for alarm and reminder sounds, notification permissions, widget text size, the floating butterfly, the AI key, backups, diagnostics, theme and About. Rows that need Android hand off to native dialogs or system screens, then report the result in a status line.
+Settings is a short home list of grouped cards. Each row opens one page on the planner's stack, and the top bar shows that page's title with `Back`. Rows that need Android hand off to native dialogs or system screens, then report the result in a status line at the top of the page. Design: `docs/settings/redesign.md`.
 
 ## Sub-features
 
-- `settings-open` opens the screen from the planner menu or the Capture menu.
-- `settings-sounds` shows alarm sound, preview, reminder sound, notifications, exact alarms and `Check saved alerts`.
-- `settings-widget-text` sets the widget text size from 80 to 160 percent.
-- `settings-butterfly` shows the butterfly permission row or switch (see the floating butterfly file).
-- `settings-ai-key` connects, replaces or removes the AI key through native dialogs.
-- `settings-backup` offers import, export and restore of context copies.
-- `settings-earlier` opens the earlier native screens (see the earlier screens file).
-- `settings-diagnostics` shows diagnostics status and the connect dialog.
-- `settings-theme` chooses System default, Light or Dark.
-- `settings-about` shows the About text and `Automation previews`.
-- `settings-back` returns to the previous planner screen.
+- `settings-open` opens the home list from the planner menu or the Capture menu.
+- `settings-attention` shows a red row at the top of home only while something blocks alarms or the notch.
+- `settings-appearance` sets the theme (System, Light, Dark segments) and tab bar transparency.
+- `settings-notch` switches the notch and the floating butterfly (see the floating butterfly file) and sets widget text size.
+- `settings-alerts` shows alarm sound, play, reminder sound, notifications, exact alarms and `Check saved alerts`.
+- `settings-voice` connects the Gemini key and picks voice and persona.
+- `settings-ai-keys` connects, replaces or removes the Claude and OpenRouter keys through native dialogs.
+- `settings-sync` links a web browser and offers export, import and restore.
+- `settings-diagnostics` shows diagnostics status, the connect dialog and recent captures.
+- `settings-about` shows About, `Earlier RPM screens` and `Automation previews`.
+- `settings-back` pops one page; from home it returns to the previous planner screen.
 
 ## How to get to it (user POV)
 
 - In the planner, tap `More options` then `Settings`.
 - In Capture, hold `Open planner` (`--long`) then tap `Settings`.
-- In Capture, tap `Connect` in the keyless note (opens the AI key dialog directly).
-- In a keyless AI sheet, tap `Open Settings`.
-- In the About page of Capture, tap `Phone settings`.
+- In a keyless AI sheet, tap `Open Settings` (opens AI keys and its connect dialog).
 
 ## Driving it with rpmctl
 
 Preconditions:
 
-- After `rpmctl launch`, run `export RPMCTL_OWNER=<owner from launch>` in this agent's shell (PowerShell: `$env:RPMCTL_OWNER = '<owner from launch>'`). Keep it set through cleanup.
+- After `rpmctl launch`, run `export RPMCTL_OWNER=<owner from launch>` in this agent's shell. Keep it set through cleanup.
+- Baseline state: no AI key is connected. `rpmctl open planner` has been run, on Today.
 
-- Baseline state. No AI key is connected.
-- `rpmctl open planner` has been run, on Today.
+Steps:
 
-- **Open.** Run `rpmctl tap --role button --name "More options"` then `rpmctl tap --role menuitem --name "Settings"`. The top bar shows `Back` and the title `Settings`. The bottom navigation is still present. Run `rpmctl shot settings-top`.
-- **Groups.** Scrolling shows headings (level 2) `Appearance`, `Sounds & alerts`, `Widgets`, `Account & backup`, `Diagnostics`, `About`. Use `rpmctl scroll down` between shots.
-- **Appearance.** A row named `Theme` with the value `System default`. Run `rpmctl tap --name "Theme"`. A dialog named `Theme` lists radios `System default`, `Light`, `Dark` and a `Cancel` button. Run `rpmctl tap --name "Dark"`. The app switches to dark colors at once and the row value reads `Dark`. Run `rpmctl shot settings-dark`. Set it back to `System default`.
-- **Tab bar transparency.** Under `Theme` sits a slider named `Tab bar transparency` with the value `20%` and a sample of the tab bar over two task lines. Drag it with `rpmctl scroll right --css "#bar-transparency" --amount 300`: it moves in 5% steps, the value rises (about `50%`) and the sample shows more of the line under the bar. All the way left reads `Solid`. Read the saved value with `rpmctl eval "localStorage.getItem('rpm-clarity:bar-transparency')"`. Go Back to Today and `rpmctl shot today-glass`: rows show blurred through the tab bar and its labels stay readable.
-- **Sounds rows.** Rows are buttons whose names join the label, the detail and the value, for example `Alarm sound Ringing alarms use alarm volume …`, `Preview alarm sound Plays for 5 seconds at alarm volume`, `Reminder sound Android notification channel`, `Notifications Required for reminders and ringing alarms …`, `Exact alarms Required for alarms at the chosen time …`, `Check saved alerts Retry scheduling after permission changes`. A value of `Permission needed` or `Allowed` shows on the right.
-- **Alarm sound.** Run `rpmctl tap --name "Alarm sound"`. The status line reads `Choose an alarm sound on your phone.` and a native dialog `Alarm sound` lists `Choose phone tone`, `Choose audio file`, `Use phone default`. Run `rpmctl ui --native`, then `rpmctl tap --native "Use phone default"`.
-- **Preview.** Run `rpmctl tap --name "Preview alarm sound"`. The status line reads `Playing the alarm sound for 5 seconds.` and the row becomes `Stop alarm preview` with the value `Playing`. Audible output cannot be heard on the `-no-audio` emulator, so the sound is **UNVERIFIED**. Tap `Stop alarm preview` and the line reads `Alarm preview stopped.`
-- **Notifications.** Run `rpmctl tap --name "Notifications"`. The status line reads `Opening Android notification controls.` and an Android settings screen opens. Run `rpmctl ui --native`, then `rpmctl key back` to return.
-- **Exact alarms.** Run `rpmctl tap --name "Exact alarms"`. The status line reads `Opening Android exact alarm permission.` on Android 12 and later, and Android's screen opens. Return with `rpmctl key back`.
-- **Check saved alerts.** Run `rpmctl tap --name "Check saved alerts"`. The status line reads `Saved alert schedules checked.`
-- **Widget text size.** Under `Widgets` there is a slider named `Widget text size` (80 to 160 percent) and a preview text `A clear next action` named `Widget text size preview`. Moving the slider changes the number and the preview size, and on release saves and shows a status line such as `Widget text size set to 120%.` Drive it with `rpmctl tap --xy` on the slider track, or focus it and press `rpmctl key right`. Run `rpmctl shot settings-widget-text`. The home-screen widget itself is **UNVERIFIED**.
-- **Butterfly row.** Under `Widgets`: `Allow floating butterfly` with `Permission needed`, or the switch `Floating butterfly`. See the floating butterfly file.
-- **AI key (keyless).** Under `Account & backup`, a row `Connect AI key` with the value `Not connected` and the detail `OpenRouter · Luna chat + review-only Jev sorting`. Run `rpmctl tap --name "Connect AI key"`. The status line reads `Enter the key in the secure Android dialog.` and a native dialog `Connect OpenRouter` shows with `Cancel` and `Save key`. Run `rpmctl ui --native` and `rpmctl shot settings-key-dialog`, then `rpmctl tap --native "Cancel"`. Entering a key is not done here. With no real key, `Remove AI key` is absent. A connected key, and every model-backed feature, is **UNVERIFIED**.
-- **Backup rows.** `Import context copy`, `Export context` and `Restore a backup` (value `None`). Tapping `Restore a backup` with none saved shows an empty native list or an error dialog (unconfirmed). `Import` shows a native dialog `Replace this companion's context?` with `Cancel` and `Choose file`. Cancel it. `Export` opens a system file picker; cancel with `rpmctl key back`.
-- **Earlier screens.** The row `Earlier RPM screens` opens the older native screens (see that file).
-- **Diagnostics.** The group shows a note and a row `Connect diagnostics` with `Not connected`. Tapping it opens a native dialog `Connect diagnostics` asking for a 32-character code. Cancel it. Pairing is **UNVERIFIED** (needs a code from the owner's database).
-- **About.** The group shows `RPM · Result, Purpose, Plan`, `Capture saves your words and asks before adding tasks or blocks.` and a disclosure `Automation previews`.
-- **Back.** Run `rpmctl tap --role button --name "Back"` or `rpmctl key back`. The previous screen returns. If the alarm preview is playing it stops.
+- **Open.** Run `rpmctl tap --role button --name "More options"` then `rpmctl tap --role menuitem --name "Settings"`. The top bar shows `Back` and `Settings`. Home fits on one phone screen: rows `Appearance`, `Notch & widgets`, `Alarms & reminders`, `Voice`, `AI keys`, `Sync & backup`, `Diagnostics`, `About`, each with a coloured icon tile and a chevron. Values on the right: Appearance `System`, Notch `Off`, Voice `Not set`, AI keys `Not set`, Diagnostics `Off`. Run `rpmctl shot settings-home`.
+- **Attention.** On the emulator exact alarms are not allowed, so a red row `Alarms may not ring` sits above the cards. Tapping it opens `Alarms & reminders`.
+- **Open a page.** Run `rpmctl tap --role button --name "Appearance"`. The title becomes `Appearance`. `rpmctl tap --role button --name "Back"` returns to the home list.
+- **Theme.** On Appearance, a row `Theme` with three segments `System`, `Light`, `Dark`. The radio inputs are see-through, so tap by position: `rpmctl tap --css ".segment:nth-child(3)"` picks Dark. The app turns dark at once; `rpmctl eval "localStorage.getItem('rpm-clarity:appearance')"` reads `dark`, and the home row value reads `Dark`. Set it back with `.segment:nth-child(1)`.
+- **Tab bar transparency.** Below Theme: slider `Tab bar transparency` (`20%`) over a sample of the tab bar. Drag it with `rpmctl scroll right --css "#bar-transparency" --amount 300`; it moves in 5% steps, and all the way left reads `Solid`.
+- **Widget text size.** On `Notch & widgets`, under `Home screen widgets`: slider `Widget text size` (80 to 160 percent) with the preview `A clear next action`. On release it saves and the status line reads, for example, `Widget text size set to 120%.` The home-screen widget itself is **UNVERIFIED**.
+- **Notch & widgets.** A switch `Notch` and the butterfly row (`Floating butterfly` with `Allow`, or its switch). With the notch on but Android not allowing it, rows `Allow RPM Notch` (red `Allow`) and `RPM Notch greyed out?` appear.
+- **Alarms & reminders.** Group `Sounds`: `Alarm sound` (value), `Play alarm sound`, `Reminder sound`. Group `Permissions`: `Notifications` and `Exact alarms` each read `Allowed` or a red `Allow`; then `Check saved alerts`.
+  - `rpmctl tap --name "Alarm sound"`: status `Choose an alarm sound on your phone.` and a native dialog with `Choose phone tone`, `Choose audio file`, `Use phone default` (`rpmctl ui --native`).
+  - `rpmctl tap --name "Play alarm sound"`: status `Playing the alarm sound for 5 seconds.` and the row becomes `Stop alarm sound`. Sound is **UNVERIFIED** on the `-no-audio` emulator.
+  - `Notifications` and `Exact alarms` open Android screens; return with `rpmctl key back`.
+- **Voice.** `Gemini key` (`Not set` or `Connected`), then `Voice` and `Persona`. `Voice` opens the voice dialog; a tap on a voice saves it and plays its sample. With a key, a red `Remove Gemini key` sits in its own card at the end.
+- **AI keys.** `Claude` and `OpenRouter`, each `Not set` or `Connected`. Tapping opens the native key dialog; cancel it. Remove rows show only for connected keys, in a separate card, in red.
+- **Sync & backup.** `Link a web browser`, then a `Backup` group: `Export`, `Import`, `Restore a backup` (`None`). `Import` shows a native dialog `Replace this companion's context?`; cancel it. `Export` opens a system file picker; cancel with `rpmctl key back`.
+- **Diagnostics.** Not connected: one row `Connect diagnostics` that opens a native dialog asking for a 32-character code; cancel it. Below, once a capture exists, a card `Recent captures (N)` that expands (tap with `--css ".settings-details summary"`). Pairing is **UNVERIFIED**.
+- **About.** `RPM` with the tagline, `Earlier RPM screens` (see that file) and an expandable `Automation previews`.
+- **Back.** `rpmctl key back` pops one page. If the alarm sound is playing it stops.
 - **Errors.** Run `rpmctl logs --errors`.
 
 ## Gotchas
 
-- Row names are long and change with state (`Allowed` vs `Permission needed`). Match on the first words.
-- While a native action is running, all rows are disabled for a moment. Wait for the status line instead of tapping again.
-- System screens opened by `Notifications`, `Exact alarms` and `Reminder sound` leave the app. Return with `rpmctl key back`, then `rpmctl doctor` if the page looks stuck.
-- The theme choice may survive `seed` (unconfirmed). Set it back to `System default`.
-- Do not enter a fake key. It would flip the app to the connected state and send real requests.
-- Reseed does not reset settings stored natively (sounds, widget text size). `rpmctl cleanup` ends the emulator and resets them because the emulator is read-only.
+- Row names join the label, detail and value (`Exact alarmsFor alarms at the chosen minuteAllow`). Match on the first words, and use `--role button` with a full page name, since `Voice` also matches other rows.
+- `rpmctl ui` skips see-through elements, so the theme radios and the `<summary>` rows are not listed. Tap them with `--css`.
+- While a native action runs, all rows are disabled for a moment. Wait for the status line before tapping again.

@@ -45,35 +45,10 @@ export function setClarityPreference(name,value,{storage=defaultStorage(),root=g
 }
 
 const element=(document,tag,cls='',text='')=>{const node=document.createElement(tag);node.className=cls;node.textContent=text;return node;};
-const THEME_NAMES={system:'System default',light:'Light',dark:'Dark'};
-
-/** M3 dialog with one radio per theme; choosing applies at once. */
-function themeDialog(document,current,onChoose){
-  const dialog=element(document,'dialog','m3-dialog theme-dialog');
-  dialog.setAttribute('aria-label','Theme');
-  dialog.append(element(document,'h2','','Theme'));
-  for(const value of ['system','light','dark']){
-    const row=element(document,'label','dialog-choice');
-    const radio=element(document,'input');
-    radio.type='radio';
-    radio.name='appearance';
-    radio.checked=value===current;
-    radio.addEventListener('change',()=>{onChoose(value);dialog.close();});
-    row.append(radio,element(document,'span','',THEME_NAMES[value]));
-    dialog.append(row);
-  }
-  const actions=element(document,'div','dialog-actions');
-  const close=element(document,'button','text-btn','Cancel');
-  close.type='button';
-  close.addEventListener('click',()=>dialog.close());
-  actions.append(close);
-  dialog.append(actions);
-  dialog.addEventListener('close',()=>dialog.remove());
-  return dialog;
-}
+export const THEME_NAMES=Object.freeze({system:'System',light:'Light',dark:'Dark'});
 
 /** Settings → Bar transparency: a slider with a live sample of the tab bar over a task row. */
-function transparencyRow(document,current,onChange){
+export function transparencyRow(document,current,onChange){
   const wrap=element(document,'div','settings-slider bar-transparency');
   const head=element(document,'div','settings-slider-head');
   const label=element(document,'label','','Tab bar transparency');
@@ -97,45 +72,6 @@ function transparencyRow(document,current,onChange){
     output.textContent=shown(applied);
     slider.setAttribute('aria-valuetext',shown(applied));
   });
-  wrap.append(head,slider,element(document,'small','','How much of the page shows through the tab bar.'),sample);
+  wrap.append(head,slider,sample);
   return wrap;
-}
-
-/** Adds local planner display choices to the existing native-backed Settings destination. */
-export function mountClaritySettings(host,{storage=defaultStorage(),root=globalThis.document?.documentElement}={}){
-  const document=host.ownerDocument;
-  let destroyed=false;
-  const render=()=>{
-    if(destroyed)return;
-    const page=host.querySelector('.settings-page');
-    if(!page||page.querySelector('[data-section="planner-appearance"]'))return;
-    let preferences=applyClarityPreferences(clarityPreferences(storage),root);
-    const section=element(document,'section','settings-group clarity-settings');
-    section.dataset.section='planner-appearance';
-    section.append(element(document,'h2','','Appearance'));
-    const choice=element(document,'button','settings-row');
-    choice.type='button';
-    const copy=element(document,'span','settings-copy');
-    const value=element(document,'small','',THEME_NAMES[preferences.appearance]);
-    copy.append(element(document,'strong','','Theme'),value);
-    choice.append(copy);
-    section.append(choice);
-    section.append(transparencyRow(document,preferences.barTransparency,value=>{
-      preferences=setClarityPreference('bar-transparency',value,{storage,root});
-      return preferences.barTransparency;
-    }));
-    choice.addEventListener('click',()=>{
-      const dialog=themeDialog(document,preferences.appearance,next=>{
-        preferences=setClarityPreference('appearance',next,{storage,root});
-        value.textContent=THEME_NAMES[next];
-      });
-      document.body.append(dialog);
-      dialog.showModal();
-    });
-    page.querySelector('.settings-notice')?.after(section);
-  };
-  const observer=new MutationObserver(()=>queueMicrotask(render));
-  observer.observe(host,{childList:true,subtree:true});
-  render();
-  return {destroy(){destroyed=true;observer.disconnect();host.querySelector('[data-section="planner-appearance"]')?.remove();}};
 }

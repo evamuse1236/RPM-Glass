@@ -17,7 +17,7 @@ Alerts are reminders and ringing alarms attached to a task with a time. A remind
 
 - In the task sheet, tap the `Alert` tab, choose Off, Remind or Alarm, then how long before.
 - In quick add, set a day and time, then choose an alert.
-- In Settings, open `Sounds & alerts`.
+- In Settings, open `Alarms & reminders`.
 - Wait for the time with the screen on, then use the notch or the notification.
 - Say a reminder in Capture (needs the AI key).
 
@@ -30,7 +30,7 @@ Preconditions:
 - Baseline state. Notification permission is granted at install (`-g`). The exact-alarm permission is (unconfirmed) on the emulator; read the Settings row.
 - A task with a time, for example `Group call: merge sections` (4:00 PM today), open in the task sheet.
 
-- **Permission rows.** Open Settings (`More options` then `Settings`). Under `Sounds & alerts`, run `rpmctl ui`. The rows `Notifications` and `Exact alarms` carry the value `Allowed` or `Permission needed`. Run `rpmctl shot alerts-permissions`.
+- **Permission rows.** Open Settings (`More options` then `Settings`), then `Alarms & reminders`, and run `rpmctl ui`. Under `Permissions`, the rows `Notifications` and `Exact alarms` carry the value `Allowed` or a red `Allow`. Run `rpmctl shot alerts-permissions`.
 - **Choose a reminder.** Run `rpmctl tap --role button --name "Group call: merge sections"`, then `rpmctl tap --name "Alert"`. Chips named `No alert`, `Reminder`, `Ringing alarm` unfold with the current one marked. Run `rpmctl tap --role button --name "Reminder"`. A snackbar reads `Reminder set` or similar (unconfirmed). `rpmctl state files/companion.json` shows the entry with an alert of type reminder.
 - **Choose an alarm.** Run `rpmctl tap --role button --name "Ringing alarm"`. The snackbar reads `Alarm set` or similar. The file shows the alert type alarm.
 - **Turn off.** Run `rpmctl tap --role button --name "No alert"`. The snackbar reads `Alert off`.
@@ -40,8 +40,8 @@ Preconditions:
 - **Fire a reminder.** Set the task time one or two minutes ahead through the task sheet's `Pick a time` chip in When (a custom time may need `rpmctl tap --native` on a time picker; unconfirmed), set `Reminder`, and wait. Then run `rpmctl key home` and check `rpmctl ui --native` for a notification titled with the task name and the text `Your RPM reminder`. Android may delay it, so allow time. This is a long recipe; mark **UNVERIFIED** if the time cannot be set.
 - **Fire an alarm.** Same, with `Ringing alarm`. At the time, the notch opens with the task title over `Ringing` and buttons `Stop`, `Snooze 10 min` and `Done`; no full-screen page appears. Run `rpmctl shot alarm-ringing`. A local alarm (earlier screens) shows the same island without `Done`. Tapping the notification opens `Time for your plan`. A notification says `It's time · Snooze for 10 minutes or dismiss`.
 - **Dismiss.** Run `rpmctl tap --native "Dismiss"`. The page closes and the alert status reads `Alarm dismissed`. `Snooze · 10 minutes` instead reschedules ten minutes later (the status shows the snooze).
-- **Audible sound.** Cannot be heard on the `-no-audio` emulator. The ringing sound and vibration are **UNVERIFIED**. The Settings `Preview alarm sound` only reports that it is playing.
-- **Sound preview.** In Settings run `rpmctl tap --name "Preview alarm sound"`. The status reads `Playing the alarm sound for 5 seconds.` and the row reads `Stop alarm preview`. See the Settings file.
+- **Audible sound.** Cannot be heard on the `-no-audio` emulator. The ringing sound and vibration are **UNVERIFIED**. The Settings `Play alarm sound` only reports that it is playing.
+- **Sound preview.** In Settings > `Alarms & reminders` run `rpmctl tap --name "Play alarm sound"`. The status reads `Playing the alarm sound for 5 seconds.` and the row reads `Stop alarm sound`. See the Settings file.
 - **Recurring alerts.** A task with Repeat set and an alert schedules the next occurrence after each firing, and the status shows `next <time>`. **UNVERIFIED** without waiting for a firing.
 - **Errors.** Run `rpmctl logs --errors`.
 

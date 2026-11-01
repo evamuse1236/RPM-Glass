@@ -45,7 +45,7 @@ public class NotchSetupTest {
                         && setup.indexOf("remove(LAST_POSTED)", clear) - clear < 80);
         assertTrue("the notice offers App info, where Android hides Allow restricted settings",
                 setup.contains("addAction") && setup.contains("ACTION_APPLICATION_DETAILS_SETTINGS"));
-        String settings = new String(Files.readAllBytes(Paths.get("../android-companion/settings.mjs")), StandardCharsets.UTF_8);
+        String settings = new String(Files.readAllBytes(Paths.get("../android-companion/settings-pages.mjs")), StandardCharsets.UTF_8);
         assertTrue("RPM's Settings offers the same route", settings.contains("'notch_app_info'")
                 && source("CompanionSettingsController").contains("case \"notch_app_info\""));
         assertTrue("the in-app switch", source("CompanionSettingsController").contains("NotchSetup.check(activity)"));
