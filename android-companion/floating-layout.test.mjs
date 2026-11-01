@@ -23,7 +23,7 @@ test('the Capture button is a round 60dp button in the dock beside the tab bar, 
   assert.match(shell, /host\.append\(habit, fab\)/, 'the round button and the habit circle live in the dock, not in the tab bar');
   assert.doesNotMatch(shell, /nav\.append\(fab\)/);
   assert.match(shell, /iconButton\('close_fullscreen', 'Back to Capture', \(\) => app\.capture\(\)/, 'a tap goes back to Capture (user, 2026-11-01)');
-  assert.match(shell, /attachSwipe\(fab, \{hold: \(\) => addSpec\(app\)\?\.onClick\(\)/, 'a 400ms hold adds');
+  assert.match(shell, /attachSwipe\(fab, \{hold: \(\) => holdToAdd\(app\)/, 'a 400ms hold adds');
   assert.match(shell, /iconButton\('search', 'Search'/, 'Search is a top-bar button');
 });
 

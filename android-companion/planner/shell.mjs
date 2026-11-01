@@ -118,7 +118,7 @@ function dock(app, full) {
   if (!host.children.length) {
     const habit = el('div', 'habit-slot');
     const fab = iconButton('close_fullscreen', 'Back to Capture', () => app.capture(), {cls: 'fab'});
-    attachSwipe(fab, {hold: () => addSpec(app)?.onClick(), haptic: () => app.api.native('haptic', {kind: 'hold'}).catch(() => {})});
+    attachSwipe(fab, {hold: () => holdToAdd(app), haptic: () => app.api.native('haptic', {kind: 'hold'}).catch(() => {})});
     host.append(habit, fab);
     watchHabit(app, habit);
   }
@@ -128,6 +128,21 @@ function dock(app, full) {
   fab.setAttribute('aria-description', spec ? `Hold to ${spec.label.toLowerCase()}` : '');
   paintHabit(app, host.querySelector('.habit-slot'));
   host.hidden = !!full || (fab.hidden && !host.querySelector('.habit-circle'));
+}
+
+/**
+ * A hold opens the add sheet while the finger is still down. Lifting it can pull focus back to the button on a slow
+ * phone, so once the finger is up the sheet's first text field takes focus again and asks for the keyboard.
+ */
+function holdToAdd(app) {
+  addSpec(app)?.onClick();
+  document.addEventListener('pointerup', () => setTimeout(() => {
+    if (document.activeElement?.matches?.('input:not([type=range]), textarea')) return;
+    const field = document.querySelector('#sheet:not([hidden]) :is(input[type=text], input:not([type]), textarea)');
+    if (!field) return;
+    field.focus({preventScroll: true});
+    app.api.native('keyboard').catch(() => {});
+  }, 50), {once: true, capture: true});
 }
 
 /** What the tab bar's Add makes on this tab (Add task on Today); none on a detail page or Values. */
