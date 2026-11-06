@@ -10,8 +10,8 @@ android {
         applicationId "com.rpm.prototype"
         minSdk 26
         targetSdk 36
-        versionCode 44
-        versionName "0.44-settings"
+        versionCode 45
+        versionName "0.45-agent-rounds"
         testInstrumentationRunner "com.rpm.prototype.OfflineTests"
     }
     sourceSets.main.assets.srcDir(layout.buildDirectory.dir("generated/syncAssets"))

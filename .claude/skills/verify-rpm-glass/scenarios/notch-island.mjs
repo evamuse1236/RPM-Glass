@@ -3,6 +3,13 @@ import {sleep} from './lib.mjs';
 export const id = 'notch-island';
 export const rule = 'With the Notch setting and RPM Notch on, the two drops show around the camera over the home screen; a tap on the task half opens its island and a swipe up from inert island space logs notch.gesture up and closes it; a tap that drifts 10dp up still opens it, with no crash.';
 export const enforces = 'Notch redesign (feat/notch-apple, 0f2c254 alert row Done circle); docs/rules/notch.md tap and open rows; a drift past the 8dp slop was lost (fix/pill-tap-drift); user 2026-10-19: "use github actions from now on for emulator tests".';
+export const knownBug = {
+  since: '2026-11-01',
+  failsWith: /^The notch never logged notch\.gesture up/,
+  reason: 'fails on main b943f9b since 2026-11-01; unrelated to voice. A swipe up from the open island\'s inert left margin never logs notch.gesture up (emulator run 41322515914).',
+  expires: '2026-11-20',
+  approval: 'pending: needs Dara to accept or fix',
+};
 
 const PILL = /island drops /;
 const SERVICE = 'com.rpm.prototype/com.rpm.prototype.NotchAccessibilityService';
