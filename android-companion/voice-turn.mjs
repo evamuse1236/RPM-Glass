@@ -1,6 +1,7 @@
 import {editPlan,planner} from './planner-state.mjs';
 import {withIds} from './new-id.mjs';
-import {toolOps,planView,checkAsked} from './voice-tools.mjs';
+import {toolOps,planView,checkAsked,LIVE_MODEL} from './voice-tools.mjs';
+import {voiceRows,receiptText} from './capture-voice-rows.mjs';
 import {intentState} from '../intent-v2/src/repository.mjs';
 import {userMessage} from './user-message.mjs';
 import {voiceMark,holdStage} from './voice-marks.mjs';
@@ -142,8 +143,26 @@ export function applyRamble(data,ramble,options){
  }
  const capture=intentState(data).captures[messageId];
  delete capture.lastError;
- Object.assign(capture,{status:'interpreted',draftId:null,reply:ramble.said||null,voice:{changes:ramble.changes,calls:ramble.calls??[],undoEvent:ramble.batch?planner(data).events.at(-1)?.id??null:null,undone:false}});
+ Object.assign(capture,{status:'interpreted',draftId:null,reply:ramble.said||null,taskIds:rambleTaskIds(ramble),
+  receipt:voiceRows(data,ramble.changes,now).map(line=>({text:receiptText(line)})),voice:{changes:ramble.changes,calls:ramble.calls??[],undoEvent:ramble.batch?planner(data).events.at(-1)?.id??null:null,undone:false}});
  return {status:ramble.batch||ramble.undoes?'applied':'nothing',undo:!!ramble.batch};
+}
+
+/** The saved tasks a ramble added or changed, in order, once each. */
+export const rambleTaskIds=ramble=>[...new Set((ramble.changes??[]).filter(c=>c.entity==='task'&&Number.isInteger(c.id)).map(c=>c.id))];
+
+/**
+ * One voice request as a capture trace: the words, RPM's reply, each tool call, what applied and the tasks it touched.
+ * `outcome` is applyRamble's answer; `saveError` is why the save itself failed.
+ */
+export function rambleTrace(ramble,outcome,{messageId,at,saveError=null}){
+ const status=saveError?'not-saved':outcome?.status??'nothing';
+ return {id:messageId,kind:'voice',at:at.toISOString(),words:ramble.heard,reply:ramble.said||null,promptVersion:`voice ${LIVE_MODEL}`,policyVersion:null,
+  calls:ramble.calls??[],changes:(ramble.changes??[]).map(({kind,entity,id,title})=>({kind,entity,id,title})),
+  applied:{status,entryIds:status==='applied'?rambleTaskIds(ramble):[],undoes:ramble.undoes??null},
+  errors:[...(ramble.errors??[]).map(message=>({stage:'tool',message})),...(ramble.failed?[{stage:'voice',message:ramble.failed}]:[]),
+   ...(outcome?.error?[{stage:'apply',message:outcome.error}]:[]),...(saveError?[{stage:'save',message:saveError}]:[])],
+  models:[{model:LIVE_MODEL,service:'gemini'}]};
 }
 
 /** A ramble can be undone only while its batch is still the newest planner change. */

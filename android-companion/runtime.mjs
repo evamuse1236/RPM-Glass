@@ -109,6 +109,8 @@ window.RPM_PLATFORM.health=()=>bodyToday(data);
 window.RPM_PLATFORM.hasGeminiKey=()=>!!phone?.hasGeminiKey;
 window.RPM_PLATFORM.voiceData=()=>structuredClone(data);
 window.RPM_PLATFORM.voiceRows=changes=>voiceRows(data,changes);
+window.RPM_PLATFORM.voiceTrace=trace=>traces.put(trace);
+window.RPM_PLATFORM.voiceOutcome=(id,kind)=>traces.outcome(id,kind);
 // Voice saves change the shared store in place: false from mutate means nothing to save.
 window.RPM_PLATFORM.saveWith=mutate=>retryOnChange(async()=>{const before=data;data=structuredClone(before);try{const out=mutate(data);if(out===false){data=before;return false;}await save();return out;}catch(e){data=before;throw e;}},async()=>{const latest=await stored.load();phone=latest.phone;if(latest.data)data=latest.data;});
 window.rpmPhoneRefresh=coalesceRefresh(async()=>{await ready;if(!busy){const latest=await native('load');phone=latest.phone;if(latest.data&&latest.data.version!==data.version){data=latest.data;window.dispatchEvent(new Event('rpm-data-refresh'));}}window.dispatchEvent(new Event('rpm-phone-status'));});
