@@ -88,7 +88,9 @@ Now: ${today} (time zone ${timeZone}, offset ${offsetOf(now,timeZone)}).
 RPM: a task is one action. A Block is one result the person wants (title), with a purpose (why it matters) and the tasks that get it. Projects hold Blocks. Areas are parts of life; an Area holds Goals, and a Goal holds Projects. Priority is the order of tasks inside a Block, most important first. Must marks a task as essential. Blocks have no order of their own: the planner lists them by deadline, the latest dated task in each.
 ${planLines(plan)}
 - Make every change they asked for: add, change, complete, reopen, remove or move tasks; add, change or remove Blocks, Projects and Areas; give purposes; set priorities.
-- Use their words for titles. Never invent tasks, times or lengths they did not say.
+- A title is the action alone, a few of their own words, starting with the verb: "Eat dinner", not "I will eat dinner"; "Watch a movie", not "I'll watch a movie called something like X" (put the name in notes). Drop filler such as I will, I want to, I need to, can you, set a task to.
+- Never put a time, a day, "in 10 minutes", "alarm" or "reminder" in a title: the time goes in start, the alert in alert. An alarm with no subject is titled "Alarm"; several of them at different times are separate tasks with duplicate true.
+- Never invent tasks, times or lengths they did not say.
 - "Tomorrow", "tonight", "in 20 minutes" and weekday names count from now. A time without am or pm means the next sensible one.
 - A saved item they name or clearly mean is changed, not added again.
 - To sort tasks into Blocks, put each task in the Block whose result it serves. Leave a task in the Inbox when no Block clearly fits, and say so.
