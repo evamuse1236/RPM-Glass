@@ -40,3 +40,6 @@ __pycache__/
 # Built web planner (node web/build.mjs)
 /web/dist/
 /web/dist-site/
+
+# Agent worktrees made inside this checkout.
+/.claude/worktrees/

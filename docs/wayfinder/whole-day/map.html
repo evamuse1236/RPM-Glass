@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>RPM fits my whole day · route map</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; min-width: 0; }
+:root {
+  color-scheme: light;
+  interpolate-size: allow-keywords;
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+
+  --paper: oklch(97% 0.006 230);
+  --ink: oklch(24% 0.02 250);
+  --ink-soft: color-mix(in oklch, var(--ink) 70%, var(--paper));
+  --green: oklch(52% 0.12 155);
+  --blue: oklch(50% 0.17 250);
+  --amber: oklch(68% 0.13 70);
+  --fog: oklch(86% 0.01 230);
+  --white: oklch(100% 0 none);
+  --red: oklch(52% 0.18 25);
+
+  --band-decided: color-mix(in oklch, var(--green) 8%, transparent);
+  --band-start: color-mix(in oklch, var(--blue) 8%, transparent);
+  --band-wait: color-mix(in oklch, var(--amber) 9%, transparent);
+  --band-fog: color-mix(in oklch, var(--fog) 60%, transparent);
+
+  --step--1: clamp(0.8333rem, 0.8111rem + 0.1111vw, 0.9rem);
+  --step-0: clamp(1rem, 0.9583rem + 0.2083vw, 1.125rem);
+  --step-1: clamp(1.2rem, 1.1313rem + 0.3438vw, 1.4063rem);
+  --step-3: clamp(1.728rem, 1.5715rem + 0.7823vw, 2.1973rem);
+  --space-s: calc(var(--step-0) * 0.5);
+  --space-m: var(--step-0);
+  --space-l: calc(var(--step-0) * 2);
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  font-family: "Segoe UI Variable Text", "Segoe UI", Roboto, system-ui, sans-serif;
+  font-size: var(--step-0);
+  line-height: 1.5;
+}
+body { margin: 0; min-height: 100svh; background: var(--paper); color: var(--ink); }
+h1, h2, h3 { margin: 0; text-wrap: balance; line-height: 1.2; font-family: "Segoe UI Variable Display", "Segoe UI", Roboto, system-ui, sans-serif; }
+button, a { touch-action: manipulation; }
+button { font: inherit; color: inherit; user-select: none; -webkit-user-select: none; }
+input, textarea, select { font: inherit; font-size: max(16px, 1rem); color: var(--ink); }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+a { color: var(--blue); }
+
+.page { inline-size: min(100%, 92rem); margin-inline: auto; padding-inline: clamp(1rem, 4vw, 3rem); padding-block: var(--space-l) 5rem; display: grid; gap: var(--space-l); container-type: inline-size; }
+
+.head { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-m); }
+.head .titles { flex: 1 1 24rem; display: grid; gap: var(--space-s); }
+.head h1 { font-size: var(--step-3); font-weight: 700; }
+.status { font-size: var(--step-1); font-weight: 400; margin: 0; color: var(--ink-soft); }
+.status b { color: var(--ink); font-weight: 600; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-s); }
+.btn { border: 1px solid color-mix(in oklch, var(--ink) 18%, transparent); background: var(--white); border-radius: 8px; padding-inline: 1rem; min-block-size: 2.75rem; cursor: pointer; font-weight: 500; }
+.btn.go { background: var(--blue); border-color: var(--blue); color: var(--white); }
+.btn:active { scale: 0.97; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.live-note { font-size: var(--step--1); color: var(--ink-soft); margin: 0; flex-basis: 100%; }
+.live-note.on { color: var(--green); }
+
+.strip { display: flex; block-size: 0.875rem; gap: 3px; align-items: stretch; }
+.strip span { border-radius: 3px; }
+.strip .s-decided { background: var(--green); transform-origin: left center; }
+.strip .s-start { background: var(--blue); }
+.strip .s-wait { background: var(--amber); }
+.strip .s-fog { background: repeating-linear-gradient(90deg, var(--fog) 0 6px, transparent 6px 10px); }
+.strip .s-dest { flex: 0 0 0.875rem; background: var(--ink); clip-path: polygon(0 0, 100% 50%, 0 100%); border-radius: 0; }
+.strip-legend { display: flex; flex-wrap: wrap; gap: var(--space-m); font-size: var(--step--1); color: var(--ink-soft); margin-block-start: var(--space-s); }
+.strip-legend i { display: inline-block; inline-size: 0.75rem; block-size: 0.75rem; border-radius: 2px; margin-inline-end: 0.35rem; vertical-align: -0.1em; }
+
+.chart-wrap { position: relative; }
+.chart { display: grid; grid-template-columns: 6.5rem repeat(var(--cols), minmax(0, 1fr)) 5.5rem 13rem; grid-auto-rows: auto; position: relative; }
+.chart > * { padding: var(--space-s); }
+.colhead { font-weight: 600; font-size: var(--step-0); padding-block-end: var(--space-s); align-self: stretch; display: flex; flex-direction: column; justify-content: end; }
+.colhead small { display: block; font-weight: 400; font-size: var(--step--1); color: var(--ink-soft); }
+.lane { font-weight: 600; border-block-start: 1px solid var(--fog); display: flex; align-items: center; }
+.cell { border-block-start: 1px solid var(--fog); display: grid; gap: 12px; align-content: center; min-block-size: 5rem; }
+.b-decided { background: var(--solid); --solid: color-mix(in oklch, var(--green) 8%, var(--paper)); }
+.b-start { background: var(--solid); --solid: color-mix(in oklch, var(--blue) 8%, var(--paper)); }
+.b-wait { background: var(--solid); --solid: color-mix(in oklch, var(--amber) 9%, var(--paper)); }
+.chart .station { position: relative; z-index: 2; background: var(--solid, var(--paper)); }
+svg.edges { z-index: 1; }
+.b-fog { background: var(--band-fog); }
+.fogcol { grid-column: -3; display: flex; flex-direction: column; justify-content: center; gap: 14px; align-items: center; }
+.fogpill { inline-size: 44px; block-size: 20px; border-radius: 999px; background: color-mix(in oklch, var(--ink) 22%, var(--fog)); filter: blur(2px); border: 0; cursor: help; padding: 0; }
+.fogpill:focus-visible { filter: none; }
+.dest { grid-column: -2; display: grid; align-content: center; padding-inline: var(--space-m); }
+.dest .card { background: var(--ink); color: var(--paper); border-radius: 12px; padding: var(--space-m); display: grid; gap: var(--space-s); }
+.dest h2 { font-size: var(--step-0); font-weight: 600; }
+.dest p { margin: 0; font-size: var(--step--1); line-height: 1.45; }
+.dest .card button { justify-self: start; background: transparent; color: var(--paper); border: 1px solid color-mix(in oklch, var(--paper) 40%, transparent); border-radius: 8px; padding-inline: 0.75rem; min-block-size: 2.25rem; cursor: pointer; }
+
+.station { display: grid; grid-template-columns: 28px 1fr; column-gap: 0.6rem; row-gap: 0.1rem; align-items: start; text-align: start; background: transparent; border: 0; padding-block: 0.4rem; padding-inline: 0.25rem; border-radius: 8px; cursor: pointer; min-block-size: 44px; }
+.station:active .mark { scale: 0.96; }
+.station .title { font-weight: 500; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: clip; }
+.station .tag { grid-column: 2; font-size: var(--step--1); color: var(--ink-soft); }
+.mark { inline-size: 28px; block-size: 28px; grid-row: span 2; display: grid; place-items: center; background: var(--white); border: 3px solid var(--blue); flex: none; }
+.mark.you { border-radius: 6px; }
+.mark.agent { border-radius: 50%; }
+.is-decided .mark { background: var(--green); border-color: var(--green); }
+.is-decided .mark svg { inline-size: 14px; block-size: 14px; }
+.is-decided .title { color: var(--ink-soft); }
+.is-start .title { font-weight: 600; }
+.is-doing .mark { background: linear-gradient(90deg, var(--blue) 50%, var(--white) 50%); }
+.is-waiting .mark { border: 2px dashed var(--amber); }
+.is-waiting .title { color: var(--ink-soft); }
+
+svg.edges { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; pointer-events: none; overflow: visible; }
+svg.edges path { fill: none; stroke-width: 2px; }
+svg.edges path.done { stroke: var(--green); opacity: 0.4; }
+svg.edges path.open { stroke: var(--amber); }
+svg.edges.focus path { opacity: 0.15; }
+svg.edges.focus path.hot { opacity: 1; stroke-width: 3px; }
+
+.below { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: var(--space-l); align-items: start; }
+.below section { display: grid; gap: var(--space-s); }
+.below h2, .phone h2 { font-size: var(--step-1); font-weight: 600; display: flex; align-items: baseline; gap: var(--space-s); }
+.below h2 button { font-size: var(--step--1); font-weight: 400; background: none; border: 0; color: var(--blue); cursor: pointer; padding-inline: 0.25rem; min-block-size: 2.25rem; }
+.decided-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-s); }
+.decided-list li { display: grid; grid-template-columns: 1.1rem 1fr; gap: 0.5rem; }
+.decided-list li::before { content: ""; inline-size: 0.7rem; block-size: 0.7rem; margin-block-start: 0.45em; border-radius: 2px; background: var(--green); }
+.decided-list a { font-weight: 600; color: var(--ink); text-decoration-color: color-mix(in oklch, var(--ink) 30%, transparent); }
+.oos { color: var(--ink-soft); }
+.oos li::before { background: var(--fog); }
+.oos s { text-decoration-thickness: 1px; }
+details > summary { cursor: pointer; font-weight: 600; min-block-size: 2.75rem; display: flex; align-items: center; }
+.md { font-size: var(--step-0); }
+.md ul { margin: 0; padding-inline-start: 1.1rem; display: grid; gap: 0.35rem; }
+.md ul ul { margin-block-start: 0.35rem; }
+.md p { margin: 0 0 0.5rem; }
+.md h3 { font-size: var(--step-0); margin-block: 0.75rem 0.25rem; }
+.md code { font-size: 0.88em; background: color-mix(in oklch, var(--ink) 7%, transparent); padding-inline: 0.25rem; border-radius: 4px; overflow-wrap: anywhere; }
+
+.phone { display: none; gap: var(--space-l); position: relative; }
+.phone section { display: grid; gap: var(--space-s); }
+.phone .list { display: grid; gap: 4px; padding-inline-start: 34px; }
+.phone .dest { padding: 0; }
+.phone > section > h2, .phone > details > summary, .phone > .dest, .phone .save-note { margin-inline-start: 34px; }
+
+@container (width < 56rem) {
+  .chart-wrap { display: none; }
+  .phone { display: grid; }
+}
+
+dialog { border: 0; padding: 0; background: var(--white); color: var(--ink); box-shadow: 0 8px 24px color-mix(in oklch, var(--ink) 18%, transparent); overscroll-behavior: contain; max-block-size: 100dvh; }
+dialog::backdrop { background: color-mix(in oklch, var(--ink) 25%, transparent); }
+@media (width >= 56rem) {
+  dialog { margin-inline: auto 0; margin-block: 0; inline-size: 420px; block-size: 100dvh; border-radius: 12px 0 0 12px; }
+}
+@media (width < 56rem) {
+  dialog { margin-block: auto 0; margin-inline: 0; inline-size: 100%; max-inline-size: 100%; max-block-size: 90dvh; border-radius: 12px 12px 0 0; }
+}
+.panel { display: grid; gap: var(--space-m); padding-inline: var(--space-m); padding-block: var(--space-m) var(--space-l); }
+.panel-top { display: flex; align-items: start; gap: var(--space-s); }
+.panel-top h2 { flex: 1; font-size: var(--step-1); font-weight: 600; }
+.close { border: 0; background: none; inline-size: 2.75rem; block-size: 2.75rem; border-radius: 8px; cursor: pointer; font-size: 1.4rem; line-height: 1; flex: none; }
+.close:active { scale: 0.94; }
+.state-line { display: flex; gap: 0.6rem; align-items: center; font-size: var(--step--1); color: var(--ink-soft); }
+.panel .md { max-inline-size: 65ch; line-height: 1.55; }
+.form { display: grid; gap: var(--space-m); }
+.field { display: grid; gap: 0.3rem; font-size: var(--step--1); color: var(--ink-soft); font-weight: 600; }
+.field input, .field select, .field textarea { border: 1px solid color-mix(in oklch, var(--ink) 20%, transparent); border-radius: 8px; padding: 0.55rem; background: var(--paper); font-weight: 400; }
+.field textarea { min-block-size: 12rem; field-sizing: content; max-block-size: 55dvh; text-wrap: stable; line-height: 1.5; }
+.row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: var(--space-s); }
+.deps { display: grid; gap: 0.25rem; font-weight: 400; color: var(--ink); }
+.deps label { display: flex; gap: 0.5rem; align-items: start; min-block-size: 2.25rem; cursor: pointer; }
+.deps input { margin-block-start: 0.3rem; flex: none; }
+.form-actions { display: flex; flex-wrap: wrap; gap: var(--space-s); align-items: center; }
+.save-note { font-size: var(--step--1); color: var(--ink-soft); margin: 0; }
+.save-note.err { color: var(--red); }
+
+.toast { position: fixed; inset-block-end: 1rem; inset-inline: 0; margin-inline: auto; inline-size: fit-content; max-inline-size: calc(100% - 2rem); background: var(--ink); color: var(--paper); padding-block: 0.55rem; padding-inline: 1rem; border-radius: 8px; opacity: 0; pointer-events: none; }
+.toast.show { opacity: 1; }
+
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover { background: color-mix(in oklch, var(--white), var(--ink) 6%); }
+  .btn.go:hover { background: color-mix(in oklch, var(--blue), black 12%); }
+  .station:hover .mark { outline: 1px solid currentColor; outline-offset: 1px; }
+  .station:hover .title { text-decoration: underline; text-decoration-color: color-mix(in oklch, var(--ink) 30%, transparent); }
+  .fogpill:hover { filter: none; }
+  .close:hover { background: var(--paper); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .strip .s-decided { animation: grow 450ms var(--ease-out) both; }
+  .station { animation: fadein 300ms var(--ease-out) 300ms both; }
+  dialog[open] { animation: slide 200ms var(--ease-out); }
+  .btn, .mark { transition: scale 120ms var(--ease-out), background-color 150ms var(--ease-out); }
+  .toast { transition: opacity 200ms var(--ease-out); }
+  @keyframes grow { from { scale: 0 1; } }
+  @keyframes fadein { from { opacity: 0; } }
+  @keyframes slide { from { translate: 0 24px; opacity: 0; } }
+}
+</style>
+</head>
+<body>
+<main class="page" id="page">
+  <header class="head">
+    <div class="titles">
+      <h1 id="title">RPM fits my whole day</h1>
+      <p class="status" id="status"></p>
+    </div>
+    <div class="actions">
+      <button class="btn" id="newQ" type="button">New question</button>
+      <button class="btn go" id="openFolder" type="button">Open folder to edit</button>
+    </div>
+    <p class="live-note" id="liveNote"></p>
+  </header>
+
+  <div>
+    <div class="strip" id="strip" aria-hidden="true"></div>
+    <div class="strip-legend" id="legend"></div>
+  </div>
+
+  <div class="chart-wrap" id="chartWrap">
+    <div class="chart" id="chart"></div>
+    <svg class="edges" id="edges" aria-hidden="true"></svg>
+  </div>
+
+  <div class="phone" id="phone"></div>
+
+  <div class="below" id="below"></div>
+</main>
+
+<dialog id="panel" aria-labelledby="panelTitle"><div class="panel" id="panelBody"></div></dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script id="snapshot" type="application/json">{"builtAt":"2026-10-18T13:24:41.579Z","map":"# Map: RPM fits my whole day\r\n\r\nLabel: wayfinder:map · Tracker: local markdown (tickets in `tickets/`, one file each; `Status`, `Assignee` and `Blocked by` lines at the top)\r\n\r\n## Destination\r\n\r\nA spec, ready to hand to builders piece by piece, for an RPM that covers the whole day: one master plan that coding agents, Google Calendar/Tasks, the LMS, health routines, a notch on the phone, and an always-on agent all read and change.\r\n\r\n## Notes\r\n\r\n- Domain: personal planning. Vocabulary lives in `CONTEXT.md`; product rules in `PRODUCT.md`. New terms so far: RPM calendar, Agent change.\r\n- Skills: `grilling` + `domain-modeling` for grilling tickets, `prototype` for prototypes, `research` for research, `good-css` + `frontend-design` for any notch design, `vm` for VM work.\r\n- Settled while charting (2026-10-18):\r\n  - Convex is the master copy; the phone keeps an offline copy. (ADR candidate.)\r\n  - RPM owns tasks. An \"RPM\" Google calendar and an \"RPM\" task list sync both ways; the latest edit wins and the other version stays in History with Undo. Other calendars stay read-only calendar commitments.\r\n  - RPM rings reminders; the Google copy is silent.\r\n  - LMS deadlines come through the evams project. Research questions are RPM tasks that link to a note path in `C:\\Repos\\personal\\second-brain`.\r\n  - Health in scope: Routines (a named, repeating list of steps, not a Block), water reminders from the phone, meal log (name + time; pick a recent meal or type one). Meal choice is based on a diet goal and budget.\r\n  - Notch: black by default, current task with a symbol on one side, colour signals a change (blue = water). Expanded: next 3 tasks, log a meal, quick capture, ask the agent.\r\n  - Always-on agent on the VM, reached by Telegram. It may change the plan without asking; every Agent change is logged with its reason and can be undone. The agent is Pi (verified on the VM); PicoClaw stays the fallback.\r\n- Standing preference: skipped questions take the recommended answer.\r\n- Execution override (2026-10-18): the user asked to start building what is already decided. Build work happens on separate branches/worktrees as prototypes; nothing ships, merges or installs without the user. Progress: `afk-log.md`.\r\n\r\n## Decisions so far\r\n\r\n\u003c!-- one line per closed ticket -->\r\n\r\n- [What deadline data can evams hand to RPM?](tickets/03-evams-deadline-shape.md): a public JSON feed with stable IDs and IST deadlines, ~6 h fresh; RPM can pull it with no evams change.\r\n- [How do Google Calendar and Google Tasks sync both ways with Convex?](tickets/02-google-sync-mechanics.md): Calendar pushes changes, Tasks must be polled; Tasks keeps dates but not times; OAuth must be production-unverified.\r\n- [Can an agent loop run on the small VM, fast enough?](tickets/01-vm-agent-loop-test.md): yes; Pi + Claude Haiku finished 3 of 3 runs at ~120 MB peak, 11–16 s per 5-step task, nearly all model time. grokbot was checked and rejected.\r\n- [Get Oracle's free Ampere A1 VM](tickets/09-bigger-free-vm.md): not needed; the small VM is enough for now.\r\n- [What exactly are Routines, water reminders and the meal log?](tickets/08-routines-and-meal-log.md): Routines run in fixed windows with tick-off steps; water every 90 min with one-tap glasses; meals logged in one tap from recent favourites; agent estimates kept apart as guesses.\r\n- [How does Pi on the VM talk over Telegram and call RPM tools?](tickets/17-pi-telegram-and-tools.md): a small Node bridge long-polls Telegram and drives Pi in RPC mode; RPM tools come in as a Pi extension; ~180 MB.\r\n- [Read and compare the evams deadline feed](tickets/13-evams-adapter.md): built on a branch; 30 tests pass; live feed has 41 assessments, 11 without a clock time.\r\n- [Build the Telegram bridge for Pi](tickets/18-telegram-bridge.md): built on a branch, 24 tests pass; waits for your bot token and chat ID to go live.\r\n- [Who does RPM's thinking: parsing, sorting and planning?](tickets/20-pi-is-rpms-brain.md): Pi on the phone, not OpenRouter models; it can call Opus or Codex for harder jobs (your decision).\r\n- [Does Capture change the plan by itself, or ask first?](tickets/23-capture-acts-then-confirms.md): by itself; edits, moves and deletes apply, then show Keep or Undo (your decision).\r\n- [Which model answers, and what may it see?](tickets/24-ai-models-and-data.md): Haiku 5.5 for everyday work, Sonnet 5.5 high for hard questions; it may see health and food data (your decision).\r\n\r\n## Not yet specified\r\n\r\n- Health Connect data (sleep, steps, workouts): what it should feed once meal and water logs exist.\r\n- What the agent does on a schedule (morning briefing? weekly review prep? nutrition estimates from the meal log?).\r\n- Where deep planning (weekly review, Blocks, Purposes) happens on the laptop: through the coding agents only, or a view of its own.\r\n\r\n## Out of scope\r\n\r\n- Ordering meals and paying from the agent: tracking comes first; ordering needs meal history to make sense. (Ruled out while charting, 2026-10-18.)\r\n","tickets":{"01-vm-agent-loop-test":"# Can an agent loop run on the small VM, fast enough?\n\nType: wayfinder:task (AFK) · Stream: agent · Status: closed · Assignee: claude · Blocked by: none\n\n## Question\n\nDoes Pi install and run a 4+ tool-call loop on oracle-vm (954 MB) 3 of 3 times, and what are the latencies (network, model call, Pi overhead per turn) and peak memory? If Pi fails, the same for PicoClaw.\n\nEvidence lands in `../../vm-agent-test-2026-10-18.md`.\n\n## Resolution (2026-10-18)\n\nPassed. Pi 1.3.0 with `claude-haiku-5-5` (Anthropic key; no OpenRouter key was available) finished a 5-turn, 4-tool-call task correctly 3 of 3 times on oracle-vm. Peak memory ~120 MB of 954 MB, no swap. A full loop took 10.6–16.2 s, almost all of it model time; Pi adds ~1.5 s at start and under 0.05 s per turn. The VM reaches the API faster than the PC (median 124 ms vs 197 ms). Install: Node 22 + Pi, ~55 s, ~356 MB disk. Not tested: long contexts, many tools, concurrent runs, Telegram. Detail: [vm-agent-test-2026-10-18](../../vm-agent-test-2026-10-18.md). Also checked and rejected: grokbot ([grokbot-evaluation](../research/grokbot-evaluation.md)): a one-person Telegram bridge over xAI's coding CLI, xAI key by default, 250–400 MB guessed.\n","02-google-sync-mechanics":"# How do Google Calendar and Google Tasks sync both ways with Convex?\n\nType: wayfinder:research (AFK) · Stream: google · Status: closed · Assignee: claude · Blocked by: none\n\n## Question\n\nWhat do the Google Calendar API and Google Tasks API offer for two-way sync from a server: push notifications vs polling, sync tokens, rate limits, OAuth for a single personal account, how to tell our own writes from user edits (no echo loops), and what fields survive a round trip (time, all-day, reminders, notes, completion)?\n\n## Resolution (2026-10-18)\n\nCalendar supports push (`events.watch` to an HTTPS URL; Convex HTTP actions should qualify) plus `syncToken` incremental sync; channels expire after ~7 days and need a renewal cron. Tasks has no push: poll with `updatedMin`. Tasks `due` is date-only, with no time, reminders or recurrence. Echo loops are avoided with private extended properties on events and stored etag + hash for tasks. Silent copies: empty reminder overrides and empty calendar default reminders. OAuth must be \"production, unverified\": testing mode kills refresh tokens after 7 days. Polling each minute is far under quota. Five behaviours are unverified until tried live. Detail: [google-sync-mechanics](../research/google-sync-mechanics.md).\n","03-evams-deadline-shape":"# What deadline data can evams hand to RPM?\n\nType: wayfinder:research (AFK) · Stream: lms · Status: closed · Assignee: claude · Blocked by: none\n\n## Question\n\nIn `C:\\Repos\\isdm\\evams`, what assessment and class data exists (fields, IDs, due times, time zone), where it lives (API routes, D1, published JSON, the .ics builder), how fresh it is, and the smallest way for RPM to receive it?\n\n## Resolution (2026-10-18)\n\nevams publishes a public JSON feed at `https://evams.evamuse.chatgpt.site/api/site-data` (no login; fetched, revision 180). Assessments carry stable IDs (`lms-\u003cid>`), and the real deadline is `submissionWindow.closesOn` + `time` (IST, 12-hour text). The feed is up to ~6 h stale and has no \"submitted\" flag; the class timetable in it stops at 2026-10-07. Smallest path: RPM pulls the JSON, with no evams change, and it keeps working while the PC sleeps. Detail: [evams-deadline-shape](../research/evams-deadline-shape.md).\n","04-sync-model":"# How do the phone, Convex and Google stay in step?\n\nType: wayfinder:grilling (HITL) · Stream: google · Status: open · Assignee: none · Blocked by: 02-google-sync-mechanics (closed), 11-google-live-check\n\n## Question\n\nWith Convex as master: how phone edits made offline reach Convex, how Google edits come in, what counts as one edit for latest-wins, what happens to History and Undo across devices, and what moves from the phone's local store to Convex. Also: which RPM items go to the RPM calendar and which to the RPM task list, given that Google Tasks keeps dates but not times. Ends in an ADR.\n","05-agent-door":"# What can the agent and the coding tools call?\n\nType: wayfinder:grilling (HITL) · Stream: agent · Status: open · Assignee: none · Blocked by: 04-sync-model, 01-vm-agent-loop-test\n\n## Question\n\nThe one set of actions that Pi on the VM, Claude Code and Codex use to read and change the plan (list today, capture, move, complete, log meal, read logs). MCP server, HTTP routes on Convex, or the CLI? How each Agent change is recorded with its reason and Undo.\n","06-notch-approach-prototype":"# Which way can the notch actually be built on the Samsung phone?\r\n\r\nType: wayfinder:prototype (HITL) · Stream: notch · Status: open · Assignee: you (phone test) · Blocked by: none\r\n\r\n## Question\r\n\r\nBuild two rough versions on the phone and compare: (a) an Android 16 Live Update (status-bar chip and Now Bar; reliable, but no colour control and no custom expanded view), (b) an accessibility-service overlay pill at the camera cutout (full control, sideload only, Play policy forbids it). Which one meets the notch decisions, or is a mix best?\r\n\r\nResearch so far: [notch-android-feasibility](../research/notch-android-feasibility.md).\r\n\r\n## Spike result (2026-10-18, emulator only)\r\n\r\nBranch `spike/notch-lab` (commit a3601b8), code only in `app/src/debug/`. Evidence: `.verify/evidence/2026-10-18T08-59-14/` in that worktree.\r\n\r\n- Overlay pill (b): works. It draws a black pill above the status bar on an Android 16 emulator, with task name and minutes left (measured, screenshot 09).\r\n- Live Update (a): the notification posts, but the emulator did not promote it to a status-bar chip. It may need Android 16 QPR1. On the Samsung phone: UNVERIFIED.\r\n- `./gradlew assembleDebug lintDebug` passes. `scripts/build-debug.sh` fails on HEAD already (`OfflineTests.java:59`), not from this spike.\r\n\r\nRecommendation: a mix. The overlay pill is the notch; a Live Update is the fallback when the accessibility service is off.\r\n\r\nTo close: install the debug build on the phone, turn on the RPM accessibility service, and check the pill sits on the camera cutout.\r\n\nPrior art read 2026-10-18: [Atoll](../research/notch-atoll.md), [SmartIsland](../research/notch-smartisland.md).\n\n## Round 2 (2026-10-18): prior art applied\n\nCommit cb23fa3 on `spike/notch-lab`. Evidence: `.verify/evidence/2026-10-18T10-07-43/` (side-by-side with Atoll and SmartIsland: `19-ours-vs-reference.png`).\n\n- Pill sits on the real cutout from window insets; the collapsed window is only the pill, so a tap 36 px beside it reaches the app below (measured).\n- Priority: water shows 8 s, then the task returns; the second item becomes a separate black circle (split island).\n- New look: pure black, panel hangs from the top edge, one hero row (tile, title, bar 20m / -25m, five bare controls), three small rows.\n- Hides on the lock screen and in landscape. `assembleDebug lintDebug testDebugUnitTest` pass; 15 new JUnit tests.\n- Seen by Claude: on the emulator the split island covers part of the status bar (a status icon shows between the two shapes). The emulator's cutout is larger than the S24 FE's, so the pill there is 51 dp tall; on the real phone: UNVERIFIED.\n","07-notch-design":"# What does the notch look like and how does it move?\n\nType: wayfinder:prototype (HITL) · Stream: notch · Status: open · Assignee: claude (designing 2026-10-18) · Blocked by: 06-notch-approach-prototype\n\n## Question\n\nStates (collapsed, alert, expanded), colours per kind of change, the symbol set, motion, and tap vs long-press, drawing on Apple's Dynamic Island rules ([notch-apple-design](../research/notch-apple-design.md)). Uses `frontend-design` + `good-css`.\n\n## Prototype (2026-10-18)\n\nOpen [prototypes/notch-options.html](../prototypes/notch-options.html) in Chrome. It shows three directions side by side on mock phones: A Quiet ink (recommended), B Living status (a ring around the camera), C Ticker. Chips at the top switch the state: Idle, Empty, Water, Routine, Meal, Expanded, Meal log, Agent toast. Plan: [notch-design-plan.md](../prototypes/notch-design-plan.md).\n\nTo close: pick A, B or C (or a mix).\n\nPrior art read 2026-10-18: [Atoll](../research/notch-atoll.md), [SmartIsland](../research/notch-smartisland.md).\n","08-routines-and-meal-log":"# What exactly are Routines, water reminders and the meal log?\n\nType: wayfinder:grilling (HITL) · Stream: health · Status: closed · Assignee: claude · Blocked by: none\n\n## Question\n\nRoutine: steps, schedule, skipping, partial completion, how it shows on Today and in the notch. Water: interval, quiet hours, what \"Drank it\" records. Meal log: the recent-meals list, editing a past entry, and what the agent may infer from it. Updates `CONTEXT.md` with Routine, Water reminder, Meal log.\n\n## Resolution (2026-10-18)\n\nAccepted as recommended:\n- **Routine:** runs in a fixed window on set days (\"7:00–7:30, Mon–Fri\"). It is done when the last step is ticked or \"Done all\" is tapped. The notch and Today show progress (\"3/5\"). Skipped steps are recorded as skipped, not failed. A missed Routine doesn't carry over; it is marked missed so the agent can spot patterns. Event-tied routines (\"after I wake up\") wait for health data.\n- **Water reminder:** every 90 minutes, 8 AM–10 PM, paused during busy calendar events and sleep; interval adjustable. \"Drank it\" logs one glass (250 ml, set once) toward a goal of 8; \"Snooze\" waits 15 minutes; the expanded notch shows \"5/8\".\n- **Meal log:** the slot (breakfast, lunch, snack, dinner) is guessed from the time; RPM offers the 6 most frequent meals for that slot plus a box to type one; one tap saves; edit or delete later from History.\n- **Agent on meals:** may add estimates (protein, calories), patterns and next-meal suggestions, stored apart from the user's words and marked as guesses.\n","09-bigger-free-vm":"# Get Oracle's free Ampere A1 VM (only if the small VM fails)\n\nType: wayfinder:task (HITL) · Stream: agent · Status: closed · Assignee: claude · Blocked by: 01-vm-agent-loop-test\n\n## Question\n\nIf ticket 01 fails on memory or CPU: try to create a free Ampere A1 instance (needs your OK: it changes Oracle settings). If capacity never appears, decide on a paid VPS. Close as not needed if 01 passes.\n\n## Resolution (2026-10-18)\n\nNot needed: the small VM passed ticket 01 with ~120 MB peak. Revisit only if real use (long contexts, many tools) outgrows it.\n","10-lms-deadlines-into-rpm":"# How do LMS deadlines become RPM items?\n\nType: wayfinder:grilling (HITL) · Stream: lms · Status: open · Assignee: none · Blocked by: none\n\n## Question\n\nGiven the evams feed ([evams-deadline-shape](../research/evams-deadline-shape.md)): pull the public JSON, add an .ics feed, or have Hermes push? Is an assessment a Result with a deadline, a task, or a calendar commitment? A deadline with no clock time: all-day or 11:59 PM? Should \"submitted\" clear it (needs a step on the PC)? Is the class timetable in scope, or only assessments?\n\nNote (spec draft, 2026-10-18): `PRODUCT.md` says a Result has no deadline field of its own; its deadline comes from its latest dated task. So \"assessment = Result\" means creating a Result plus a deadline task.\n","11-google-live-check":"# Do the five unverified Google behaviours hold up live?\n\nType: wayfinder:task (HITL, then AFK) · Stream: google · Status: open · Assignee: none · Blocked by: none\n\n## Question\n\nBefore the sync model is locked: create a Google Cloud project with OAuth in \"production, unverified\" mode (the user signs in once), then test against a throwaway calendar and task list: (1) empty reminder overrides make events silent, (2) Tasks honours If-Match, (3) tasks.insert accepts a custom id, (4) whether the scopes count as sensitive, (5) a watch channel delivers to a Convex URL. Record results and where the refresh token is stored.\n","12-routine-water-meal-screens":"# Which layout for Routines, water and meals on the phone?\n\nType: wayfinder:prototype (HITL) · Stream: health · Status: open · Assignee: you (pick a layout) · Blocked by: 08-routines-and-meal-log (closed)\n\n## Question\n\nTwo layout options for where Routines, water and meals appear on Today, plus the run sheet, editor, water counter, meal sheet and History rows. Built as a preview page with sample data on a branch; you pick one option.\n\n## Prototype (2026-10-18)\n\nBranch `worktree-agent-a225e47513ed70630` (commit 1568f84), worktree `.claude/worktrees/agent-a225e47513ed70630`. A standalone preview, `android-companion/body-preview.html`, with sample data. It does not change the real Today screen.\n\n- Two Today layouts behind a toggle: 1A \"In the day\" puts the routine, water and lunch among the day's items; 1B \"Body strip\" groups them in one Body section under Do next.\n- Sheets for running a routine, editing it, logging water and meals, and History.\n- 23 new tests pass (re-run by Claude). The full suite went from 447 to 470 passing.\n- Screenshots: `.verify/evidence/body-preview-2026-10-18/` in that worktree (1A, 1B, run sheet, meal saved, History, 1B at 200% text).\n- On a real phone: UNVERIFIED.\n\nTo close: pick 1A or 1B.\n","13-evams-adapter":"# Read and compare the evams deadline feed\n\nType: wayfinder:task (AFK) · Stream: lms · Status: closed · Assignee: gpt · Blocked by: 03-evams-deadline-shape (closed)\n\n## Question\n\nBuild the reading layer only: parse the public feed into deadline items with stable IDs and IST→UTC times, and diff two reads (added, changed, missing). How items become RPM items stays with \"How do LMS deadlines become RPM items?\". Branch `feat/evams-deadline-adapter`.\n\n## Resolution (2026-10-18)\n\nBuilt on branch `feat/evams-deadline-adapter` (commit ab203a3, worktree `C:\\Repos\\rpm\\RPM-Glass-wt-evams`, not merged): `cli/evams-deadlines.mjs` parses the feed (stable `evams:\u003cid>` source IDs, IST→UTC, unknown clocks kept as unknown, submission-window date preferred) and diffs two reads without treating absence as deletion. 30 adapter tests pass (re-run, measured); full JS suite 461 passed per GPT's report. Live feed read: 41 assessments, 30 with a clock, 11 without; some clocks are ranges. Fixture holds assessment fields only (checked: no personal data).\n","14-agent-change-record":"# What does an Agent change record hold, and where do you review it?\n\nType: wayfinder:grilling (HITL) · Stream: agent · Status: open · Assignee: none · Blocked by: none\n\n## Question\n\nThe agent may change the plan without asking, so every Agent change must be provable and undoable. What does one record hold (what changed, before/after, the reason, the agent's evidence, the message that triggered it)? Where do you review them (Telegram digest, a History filter, the notch)? What counts as \"verified\" for each kind of change, and how is a bad change undone, including ones already mirrored to Google?\n","15-recurring-google-events":"# How do repeating events and tasks sync with Google?\n\nType: wayfinder:grilling (HITL) · Stream: google · Status: open · Assignee: none · Blocked by: 04-sync-model\n\n## Question\n\nGoogle Calendar events can repeat; Google Tasks cannot. When you edit one occurrence of a repeating RPM task in Google (move Tuesday's gym), does RPM change only that day or the whole series? What happens to a Routine: is it mirrored at all? What does RPM do with a Google-side series edit (\"all following events\")?\n","16-diet-goal-and-budget":"# What diet goal and food budget does the agent work toward?\n\nType: wayfinder:grilling (HITL) · Stream: health · Status: open · Assignee: none · Blocked by: none\n\n## Question\n\nMeal suggestions use a diet goal and a budget (decided while charting). What is the goal (protein target, calories, a way of eating), how is it set and changed, what is the budget unit (per meal, per day, per week), and what may the agent say when a meal misses the goal? Where do these settings live?\n","17-pi-telegram-and-tools":"# How does Pi on the VM talk over Telegram and call RPM tools?\n\nType: wayfinder:research (AFK) · Stream: agent · Status: closed · Assignee: claude · Blocked by: 01-vm-agent-loop-test (closed)\n\n## Question\n\nPi 1.3.0 runs on oracle-vm. What does Pi offer for running headless as a long-lived service (SDK, RPC, Pi Durable), receiving Telegram messages (existing bridges or a small one we write), calling custom tools (MCP via Codemode, extensions), scheduled jobs, and memory? What is the smallest setup that gives a Telegram chat with Pi that can call one RPM tool, and what would it cost in memory?\n\n## Resolution (2026-10-18)\n\nRun Pi as a long-lived child in RPC mode (`pi --mode rpc`, JSONL on stdin). Pi has no Telegram bridge that fits; write a ~100-line Node bridge that long-polls Telegram (no open port; the VM reached api.telegram.org, measured), accepts only the user's chat ID, and sends each message to Pi as a prompt. Give Pi RPM access through a small extension tool (`pi.registerTool`) that calls an HTTP route, with built-in tools off so it can't read secrets. Schedule jobs with a timer inside the bridge. Sessions persist as JSONL (`--continue`); no cross-session memory. Estimated 170–190 MB total (inferred). Needs from the user: a Telegram bot token (`vm secret set TELEGRAM_BOT_TOKEN`), their chat ID, and OK for `loginctl enable-linger`. Detail: [pi-telegram-and-tools](../research/pi-telegram-and-tools.md).\n","18-telegram-bridge":"# Build the Telegram bridge for Pi\n\nType: wayfinder:task (AFK) · Stream: agent · Status: closed · Assignee: gpt · Blocked by: 17-pi-telegram-and-tools (closed)\n\n## Question\n\nWrite the bridge from the research (long polling, one allowed chat, Pi in RPC mode, timer for scheduled prompts, one stub RPM tool extension) with tests against a fake Telegram and a fake Pi. Branch `feat/pi-telegram-bridge`. Deploying it needs the user's bot token and chat ID.\n\n## Resolution (2026-10-18)\n\nBuilt on branch `feat/pi-telegram-bridge` (commit a9dd102), worktree `C:\\Repos\\rpm\\RPM-Glass-wt-bridge`, folder `agent/telegram-bridge/`. Not deployed.\n\n- Long-polls Telegram, answers one allowed chat only, keeps one Pi RPC child alive and restarts it after a crash, runs scheduled prompts in India time, and adds the `rpm_today` tool.\n- 24/24 bridge tests pass (re-run by Claude). They use a fake Telegram server and a fake Pi, never the real services.\n- The root `npm run test:js` fails 4 tests on the main checkout too (Windows file-permission checks), so the bridge adds no new failures.\n- Pi RPC message shapes were confirmed against Pi v1.3.0 source. The live run on the VM is UNVERIFIED.\n\nTo deploy, the user provides: the bot token (`vm secret set TELEGRAM_BOT_TOKEN`), the numeric chat ID, and an OK for `loginctl enable-linger`.\n","19-today-day-timeline":"# How does Today show the whole day by time?\n\nType: wayfinder:prototype (HITL) · Stream: today · Status: open · Assignee: you (react to it) · Blocked by: none\n\n## Question\n\nThe user wants to \"see the whole day and scroll down to see what is at what time\". Today now shows a Do next card and a \"Later today\" list. What does a time-ordered, scrollable day look like: an hour scale, tasks, calendar events, routines, water and meals at their times, and a now line? Where do untimed tasks and Do next go?\n\nBuilt as a third layout, \"Day\", in the Body preview (ticket 12's worktree), so the three layouts can be compared side by side.\n\n## Prototype (2026-10-18)\n\nCommit 35d216c on the Body preview branch: a third layout, \"Day\", in `android-companion/body-preview.html`. Opens at now; hour rail with 96 px per hour; Do next is the one outlined card; untimed tasks sit in a \"Free until …\" block with \"Schedule from 1:15 PM\"; clashes show \"Clash · Resolve\"; a \"Now\" button appears when you scroll away. 485 tests pass (re-run by Claude). Screenshots: `.verify/evidence/day-timeline-2026-10-18/` in that worktree.\n\nSeen by Claude in the screenshots: the water pill wraps to two lines in a half-width lane at 3 PM. Fix before it ships.\n\nTo close: say whether Day replaces the app's hidden Timeline view, or becomes the Today layout.\n","20-pi-is-rpms-brain":"# Who does RPM's thinking: parsing, sorting and planning?\n\nType: wayfinder:grilling (HITL) · Stream: agent · Status: closed · Assignee: you · Blocked by: none\n\n## Question\n\nToday the app sends each capture to OpenRouter (GPT-6 Luna) to turn words into a task, and sorting uses a separate model. Should that stay, or move?\n\n## Resolution (user, 2026-10-18)\n\nPi on the phone does all of RPM's parsing, sorting and backend thinking, not OpenRouter models. Reason (user's words): \"this gives it stronger capabilities and we can use codex or opus from claude code to make it even smarter and better\".\n\nFacts this rests on (measured):\n- Pi 1.3.0 runs on the phone in Termux: 4.3 s for a prompt with two tool calls, 82 MB, 11 of 11 answers over an hour with the screen off.\n- Pi 1.3.0 has built-in sign-ins \"Anthropic (Claude Pro/Max)\" and \"OpenAI (ChatGPT Plus/Pro)\" (Codex), in `pi-ai/dist/auth/oauth/`.\n\nFollows from it: [How does the RPM app talk to Pi on the phone?](21-app-to-phone-pi.md), [Which models does Pi use for which job?](22-pi-models.md). The VM agent stays for jobs that must run when the phone is off (inferred; revisit in ticket 21).\n","21-app-to-phone-pi":"# How does the RPM app talk to Pi on the phone?\n\nType: wayfinder:prototype (HITL) · Stream: agent · Status: open · Assignee: none · Blocked by: 20-pi-is-rpms-brain (closed)\n\n## Question\n\nRPM is one Android app; Pi runs inside Termux, another app. How does a capture get from RPM to Pi and the answer back, fast and safely?\n\nOptions to prototype:\n- A: a small bridge in Termux keeps one Pi RPC process alive and listens on 127.0.0.1 only, with a shared secret; RPM's native layer calls it.\n- B: RPM starts Pi through Termux's RUN_COMMAND intent for each job (simpler, slower: Pi starts in about 1.5 s).\n- C: bundle Node and Pi inside the RPM app itself (no Termux; bigger APK; most work).\n\nAlso decide: what RPM does when Pi is not running (queue the capture and keep the raw words, which the app already keeps; or fall back to OpenRouter), how every Pi change is logged with Undo, and which jobs stay on the VM because the phone may be off.\n","22-pi-models":"# Which models does Pi use for which job?\r\n\r\nType: wayfinder:research (AFK) · Stream: agent · Status: open · Assignee: none · Blocked by: 20-pi-is-rpms-brain (closed)\r\n\r\n## Question\r\n\r\nFast jobs (turn one capture into a task) want a quick model; hard jobs (re-plan the week, sort a backlog) go to Sonnet 5.5 at high effort (user, 2026-10-18; see [Which model answers, and what may it see?](24-ai-models-and-data.md)). Opus or Codex stay optional. Two routes to the strong models:\r\n- Pi signs in with your Claude Pro/Max or ChatGPT Plus/Pro plan (built into Pi 1.3.0).\r\n- Pi calls Claude Code (`claude -p`) or Codex (`codex exec`) as tools, if they run in Termux.\r\n\r\nFind out: does each route run on the phone, its speed, its limits, and whether each plan's terms allow it (a guess today: using a Claude subscription from a third-party tool may break Anthropic's terms; check the current terms).\r\n","23-capture-acts-then-confirms":"# Does Capture change the plan by itself, or ask first?\n\nType: wayfinder:grilling (HITL) · Stream: capture · Status: closed · Assignee: you · Blocked by: none\n\n## Question\n\nCapture works out what a ramble means: a new task, a reminder, a project, a time change, an edit to an earlier task, or a question. PRODUCT.md said planning changes need review first. Which changes may it make on its own?\n\n## Resolution (user, 2026-10-18)\n\nCapture acts on its own. User's words: \"generally just do it by yourself, for some things change and then just confirm\".\n\nHow we read it (inferred; correct it if wrong):\n- It always saves your exact words first.\n- New tasks, reminders, projects and answers apply straight away. Capture says what it did (\"Added: call bank, 10:30\"), with Undo.\n- Changes to things that already exist (moving, editing, deleting) also apply straight away, then show a one-tap card: Keep or Undo. Deleted items go to Trash, so nothing is lost.\n- Every change is logged with your words, what it decided and whether you pressed Undo. An Undo marks the capture as a likely mistake for review.\n\nReplaces the PRODUCT.md rule that planning changes need review before they apply.\n","24-ai-models-and-data":"# Which model answers, and what may it see?\n\nType: wayfinder:grilling (HITL) · Stream: agent · Status: closed · Assignee: you · Blocked by: 20-pi-is-rpms-brain (closed)\n\n## Question\n\nCapture and the island need a model that reads your plan. Which model does the everyday work, which takes the hard questions, and which of your data may it read?\n\n## Resolution (user, 2026-10-18)\n\n- Everyday work (every capture, quick questions, the island): Claude Haiku 5.5.\n- Hard questions (re-plan the week, sort a backlog, long \"talk to me\" answers): Claude Sonnet 5.5 at high effort.\n- It may see your tasks, calendar, history, health data and food log. The user answered \"yes\" to sending health and food data.\n\nStill open in [Which models does Pi use for which job?](22-pi-models.md): whether these run on an API key or a plan sign-in, and what decides that a question is \"hard\".\n"}}</script>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const SVGNS = 'http://www.w3.org/2000/svg';
+const snap = JSON.parse($('#snapshot').textContent || '{}');
+const state = { dir: null, mapRaw: snap.map || '', tickets: [], snapAt: snap.builtAt };
+const LANES = [['agent', 'Agent and VM'], ['google', 'Google sync'], ['lms', 'LMS'], ['notch', 'Notch'], ['health', 'Health'], ['today', 'Today screen']];
+const TYPES = ['wayfinder:grilling (HITL)', 'wayfinder:prototype (HITL)', 'wayfinder:research (AFK)', 'wayfinder:task (AFK)', 'wayfinder:task (HITL)', 'wayfinder:task (HITL, then AFK)'];
+const laneName = key => LANES.find(l => l[0] === key)?.[1] || key;
+
+function inferStream(id) {
+  if (/vm|agent/.test(id)) return 'agent';
+  if (/google|sync/.test(id)) return 'google';
+  if (/evams|lms/.test(id)) return 'lms';
+  if (/notch/.test(id)) return 'notch';
+  return 'health';
+}
+function parseTicket(id, text) {
+  const lines = text.replace(/\r/g, '').split('\n');
+  const title = (lines[0] || '').replace(/^#\s*/, '').trim();
+  const mi = lines.findIndex(l => /^Type:/.test(l));
+  const meta = {};
+  if (mi >= 0) for (const part of lines[mi].split(' · ')) {
+    const k = part.indexOf(':');
+    if (k > 0) meta[part.slice(0, k).trim().toLowerCase()] = part.slice(k + 1).trim();
+  }
+  const raw = meta['blocked by'] || 'none';
+  const blockedBy = raw.toLowerCase() === 'none' ? [] : raw.split(',').map(s => s.replace(/\(.*?\)/g, '').trim()).filter(Boolean);
+  return {
+    id, title, type: meta.type || TYPES[0], stream: meta.stream || inferStream(id),
+    status: (meta.status || 'open').toLowerCase(), assignee: meta.assignee || 'none', blockedBy,
+    body: lines.slice(mi >= 0 ? mi + 1 : 1).join('\n').replace(/^\n+/, '').trimEnd(),
+  };
+}
+const byId = id => state.tickets.find(t => t.id === id);
+const isClosed = id => byId(id)?.status === 'closed';
+function serializeTicket(t) {
+  const deps = t.blockedBy.length ? t.blockedBy.map(d => d + (isClosed(d) ? ' (closed)' : '')).join(', ') : 'none';
+  return `# ${t.title}\n\nType: ${t.type} · Stream: ${t.stream} · Status: ${t.status} · Assignee: ${t.assignee || 'none'} · Blocked by: ${deps}\n\n${t.body.trim()}\n`;
+}
+function splitMap(raw) {
+  const parts = raw.replace(/\r/g, '').split(/^## /m);
+  return { preamble: parts[0], sections: parts.slice(1).map(p => {
+    const nl = p.indexOf('\n');
+    return { name: p.slice(0, nl).trim(), body: p.slice(nl + 1).replace(/\n+$/, '') };
+  }) };
+}
+const joinMap = m => m.preamble + m.sections.map(s => `## ${s.name}\n\n${s.body.replace(/^\n+/, '')}\n`).join('\n');
+const section = name => splitMap(state.mapRaw).sections.find(s => s.name === name)?.body || '';
+const bullets = body => body.replace(/<!--[\s\S]*?-->/g, '').split('\n').filter(l => /^- /.test(l)).map(l => l.slice(2).trim());
+
+const needsYou = t => /HITL/.test(t.type);
+const claimed = t => t.assignee && !/^(none|you)\b/i.test(t.assignee);
+const openBlockers = t => t.blockedBy.map(byId).filter(b => b && b.status !== 'closed');
+function columns() {
+  const memo = {};
+  const col = t => {
+    if (t.status === 'closed') return 0;
+    if (memo[t.id] != null) return memo[t.id];
+    memo[t.id] = 1;
+    return memo[t.id] = 1 + Math.max(0, ...openBlockers(t).map(col));
+  };
+  return Object.fromEntries(state.tickets.map(t => [t.id, col(t)]));
+}
+function stateOf(t, c) {
+  if (t.status === 'closed') return 'decided';
+  if (c >= 2) return 'waiting';
+  return claimed(t) ? 'doing' : 'start';
+}
+const shortTitle = s => s.replace(/\?$/, '').replace(/^(What|How|Which|Can|Do|Get)\s+/i, '').replace(/^(exactly |the |do |does |an? )+/i, '');
+function tagFor(t, st) {
+  if (st === 'decided') return 'Decided';
+  if (st === 'doing') { const who = t.assignee.split(/[ (]/)[0]; return `${who[0].toUpperCase()}${who.slice(1)} is on it`; }
+  const who = needsYou(t) ? 'needs you' : 'agent alone';
+  return st === 'waiting' ? `${who} · after: ${openBlockers(t).map(b => shortTitle(b.title)).join(', ')}` : who;
+}
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function inline(s) {
+  return esc(s)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, t, u) => {
+      const tm = u.match(/tickets\/([\w-]+)\.md$/);
+      return tm ? `<a href="#" data-ticket="${tm[1]}">${t}</a>` : `<a href="${u}" target="_blank" rel="noopener">${t}</a>`;
+    });
+}
+function md(src) {
+  const lines = src.replace(/<!--[\s\S]*?-->/g, '').split('\n');
+  let html = '', depth = -1, para = [];
+  const flush = () => { if (para.length) { html += `<p>${inline(para.join(' '))}</p>`; para = []; } };
+  const close = to => { while (depth > to) { html += '</li></ul>'; depth--; } };
+  for (const line of lines) {
+    const li = line.match(/^(\s*)- (.*)$/);
+    if (li) {
+      flush();
+      const d = Math.floor(li[1].length / 2);
+      if (d > depth) { while (depth < d) { html += '<ul><li>'; depth++; } } else { close(d); html += '</li><li>'; }
+      html += inline(li[2]);
+    } else if (!line.trim()) flush();
+    else if (/^#{1,6} /.test(line)) { close(-1); flush(); html += `<h3>${inline(line.replace(/^#+ /, ''))}</h3>`; }
+    else { close(-1); para.push(line.trim()); }
+  }
+  close(-1); flush();
+  return html;
+}
+const CHECK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const markHTML = (t, st) => `<span class="mark ${needsYou(t) ? 'you' : 'agent'}">${st === 'decided' ? CHECK : ''}</span>`;
+function stationEl(t, st, tag) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = `station is-${st}`;
+  b.dataset.id = t.id;
+  b.innerHTML = `${markHTML(t, st)}<span class="title">${esc(t.title)}</span><span class="tag">${esc(tag ?? tagFor(t, st))}</span>`;
+  b.addEventListener('click', () => openTicket(t.id));
+  for (const [ev, on] of [['mouseenter', 1], ['focus', 1], ['mouseleave', 0], ['blur', 0]]) b.addEventListener(ev, () => focusEdges(on ? t.id : null));
+  return b;
+}
+
+function render() {
+  const depth = columns();
+  const cols = Object.fromEntries(Object.entries(depth).map(([k, v]) => [k, Math.min(2, v)]));
+  const T = state.tickets;
+  const st = Object.fromEntries(T.map(t => [t.id, stateOf(t, cols[t.id])]));
+  const fogItems = bullets(section('Not yet specified'));
+  const n = { decided: 0, start: 0, doing: 0, waiting: 0 };
+  T.forEach(t => n[st[t.id]]++);
+  const startNow = n.start + n.doing;
+
+  $('#status').innerHTML = `<b>${n.decided} of ${T.length}</b> questions decided. <b>${startNow}</b> you can start now. <b>${fogItems.length}</b> things still in fog.`;
+  $('#liveNote').className = 'live-note' + (state.dir ? ' on' : '');
+  $('#liveNote').textContent = state.dir ? 'Folder open. Saving writes straight into map.md and the ticket files.'
+    : `Showing a snapshot${state.snapAt ? ' from ' + new Date(state.snapAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : ''}. To save edits, open the whole-day folder.`;
+
+  const seg = (cls, k) => k ? `<span class="${cls}" style="flex-grow:${k}"></span>` : '';
+  $('#strip').innerHTML = seg('s-decided', n.decided) + seg('s-start', startNow) + seg('s-wait', n.waiting) + seg('s-fog', fogItems.length) + '<span class="s-dest"></span>';
+  $('#legend').innerHTML = [['var(--green)', `Decided ${n.decided}`], ['var(--blue)', `Start now ${startNow}`], ['var(--amber)', `Waiting ${n.waiting}`], ['var(--fog)', `Fog ${fogItems.length}`]]
+    .map(([c, l]) => `<span><i style="background:${c}"></i>${l}</span>`).join('')
+    + '<span><i style="background:var(--ink);clip-path:polygon(0 0,100% 50%,0 100%)"></i>Destination</span>'
+    + '<span><i style="border:2px solid var(--ink);border-radius:2px"></i>needs you</span><span><i style="border:2px solid var(--ink);border-radius:50%"></i>agent alone</span>';
+
+  const maxCol = 2;
+  const chart = $('#chart');
+  chart.style.setProperty('--cols', maxCol + 1);
+  chart.replaceChildren();
+  const add = (html, cls, style) => { const d = document.createElement('div'); d.className = cls; if (style) d.style.cssText = style; d.innerHTML = html; chart.append(d); return d; };
+  const bandOf = c => c === 0 ? 'b-decided' : c === 1 ? 'b-start' : 'b-wait';
+  add('', 'colhead', 'grid-row:1;grid-column:1');
+  for (let c = 0; c <= maxCol; c++) {
+    const [h, sub] = c === 0 ? ['Decided', 'Closed questions'] : c === 1 ? ['Start now', 'Nothing blocks these'] : ['Waiting', 'Needs something first'];
+    add(`${h}<small>${sub}</small>`, `colhead ${bandOf(c)}`, `grid-row:1;grid-column:${c + 2}`);
+  }
+  add('Not yet charted<small>Fog</small>', 'colhead b-fog', `grid-row:1;grid-column:${maxCol + 3}`);
+  LANES.forEach(([key, name], li) => {
+    add(esc(name), 'lane', `grid-row:${li + 2};grid-column:1`);
+    for (let c = 0; c <= maxCol; c++) {
+      const cell = add('', `cell ${bandOf(c)}`, `grid-row:${li + 2};grid-column:${c + 2}`);
+      T.filter(t => t.stream === key && cols[t.id] === c).sort((a, b) => depth[a.id] - depth[b.id]).forEach(t => cell.append(stationEl(t, st[t.id], st[t.id] === 'waiting' ? (needsYou(t) ? 'needs you' : 'agent alone') : undefined)));
+    }
+  });
+  const fog = add('', 'fogcol b-fog', `grid-row:2 / span ${LANES.length};grid-column:${maxCol + 3}`);
+  fogItems.forEach(f => {
+    const p = document.createElement('button');
+    p.type = 'button'; p.className = 'fogpill'; p.title = f.replace(/\*\*/g, '');
+    p.setAttribute('aria-label', 'In fog: ' + p.title);
+    p.addEventListener('click', () => toast(p.title));
+    fog.append(p);
+  });
+  add(destHTML(), 'dest', `grid-row:1 / span ${LANES.length + 1};grid-column:${maxCol + 4}`);
+
+  renderPhone(depth, st);
+  renderBelow();
+  document.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => openSection(b.dataset.edit));
+  requestAnimationFrame(drawEdges);
+}
+const destHTML = () => `<div class="card"><h2>Destination</h2><p>${inline(section('Destination').trim())}</p><button type="button" data-edit="Destination">Edit</button></div>`;
+function renderPhone(cols, st) {
+  const T = state.tickets;
+  const ph = $('#phone');
+  ph.replaceChildren();
+  const list = items => {
+    const l = document.createElement('div'); l.className = 'list';
+    items.forEach(t => l.append(stationEl(t, st[t.id], `${laneName(t.stream)} · ${tagFor(t, st[t.id])}`)));
+    return l;
+  };
+  const sec = (title, items, empty) => {
+    const s = document.createElement('section');
+    s.innerHTML = `<h2>${title}</h2>${items.length ? '' : `<p class="save-note">${empty}</p>`}`;
+    s.append(list(items));
+    ph.append(s);
+  };
+  sec('Start now', T.filter(t => ['start', 'doing'].includes(st[t.id])), 'Nothing to start. Everything open is waiting on something.');
+  sec('Waiting', T.filter(t => st[t.id] === 'waiting').sort((a, b) => cols[a.id] - cols[b.id]), 'Nothing is waiting.');
+  const decided = T.filter(t => st[t.id] === 'decided');
+  const d = document.createElement('details');
+  d.innerHTML = `<summary>Decided (${decided.length})</summary>`;
+  d.append(list(decided));
+  const dest = document.createElement('section');
+  dest.className = 'dest';
+  dest.innerHTML = destHTML();
+  const rails = document.createElementNS(SVGNS, 'svg');
+  rails.setAttribute('class', 'edges'); rails.id = 'rails'; rails.setAttribute('aria-hidden', 'true');
+  ph.append(d, dest, rails);
+}
+function renderBelow() {
+  const decided = bullets(section('Decisions so far'));
+  const oos = bullets(section('Out of scope'));
+  $('#below').innerHTML = `
+    <section><h2>Decided so far <button type="button" data-edit="Decisions so far">Edit</button></h2>
+      <ul class="decided-list">${decided.map(l => `<li><span>${inline(l)}</span></li>`).join('') || '<li>Nothing yet.</li>'}</ul></section>
+    <section><h2>Out of scope <button type="button" data-edit="Out of scope">Edit</button></h2>
+      <ul class="decided-list oos">${oos.map(l => `<li><s>${inline(l)}</s></li>`).join('')}</ul>
+      <details><summary>Not yet charted (${bullets(section('Not yet specified')).length})</summary><div class="md">${md(section('Not yet specified'))}</div>
+        <button type="button" class="btn" data-edit="Not yet specified">Edit fog</button></details>
+      <details><summary>Settled while charting, and notes</summary><div class="md">${md(section('Notes'))}</div>
+        <button type="button" class="btn" data-edit="Notes">Edit notes</button></details></section>`;
+}
+
+function path(svg, d, from, to) {
+  const p = document.createElementNS(SVGNS, 'path');
+  p.setAttribute('d', d);
+  p.setAttribute('class', isClosed(from) ? 'done' : 'open');
+  p.dataset.from = from; p.dataset.to = to;
+  svg.append(p);
+}
+function drawEdges() {
+  const wrap = $('#chartWrap'), svg = $('#edges');
+  svg.replaceChildren();
+  if (wrap.offsetParent) {
+    const box = wrap.getBoundingClientRect();
+    const stOf = id => wrap.querySelector(`.station[data-id="${id}"]`);
+    for (const t of state.tickets) for (const b of t.blockedBy) {
+      const A = stOf(b), Z = stOf(t.id);
+      if (!A || !Z) continue;
+      const m1 = A.querySelector('.mark').getBoundingClientRect(), m2 = Z.querySelector('.mark').getBoundingClientRect();
+      const y1 = m1.top + m1.height / 2 - box.top, y2 = m2.top + m2.height / 2 - box.top;
+      const x2 = m2.left - box.left;
+      if (A.parentElement.style.gridColumn === Z.parentElement.style.gridColumn) {
+        const x1 = m1.left - box.left, bend = Math.min(x1, x2) - 14;
+        path(svg, `M${x1},${y1} C${bend},${y1} ${bend},${y2} ${x2},${y2}`, b, t.id);
+        continue;
+      }
+      const x1 = m1.right - box.left;
+      const h = Math.max(24, (x2 - x1) * 0.4);
+      path(svg, `M${x1},${y1} C${x1 + h},${y1} ${x2 - h},${y2} ${x2},${y2}`, b, t.id);
+    }
+  }
+  const ph = $('#phone'), rails = $('#rails');
+  if (rails && ph.offsetParent) {
+    rails.replaceChildren();
+    const box = ph.getBoundingClientRect();
+    const vis = id => [...ph.querySelectorAll(`.station[data-id="${id}"] .mark`)].find(m => m.offsetParent);
+    let i = 0;
+    for (const t of state.tickets) for (const b of t.blockedBy) {
+      if (isClosed(b)) continue;
+      const a = vis(b), z = vis(t.id);
+      if (!a || !z) continue;
+      const r1 = a.getBoundingClientRect(), r2 = z.getBoundingClientRect();
+      const x = 6 + 6 * (i++ % 4);
+      const y1 = r1.top + r1.height / 2 - box.top, y2 = r2.top + r2.height / 2 - box.top;
+      path(rails, `M${r1.left - box.left},${y1} H${x} V${y2} H${r2.left - box.left}`, b, t.id);
+    }
+  }
+}
+function focusEdges(id) {
+  for (const svg of document.querySelectorAll('svg.edges')) {
+    svg.classList.toggle('focus', !!id);
+    svg.querySelectorAll('path').forEach(p => p.classList.toggle('hot', !!id && (p.dataset.from === id || p.dataset.to === id)));
+  }
+}
+new ResizeObserver(() => requestAnimationFrame(drawEdges)).observe($('#page'));
+document.addEventListener('toggle', () => requestAnimationFrame(drawEdges), true);
+
+const panel = $('#panel');
+const closeBtn = '<button class="close" type="button" aria-label="Close">×</button>';
+function showPanel() { $('.close', panel).onclick = () => panel.close(); if (!panel.open) panel.showModal(); const h = $('#panelTitle'); h.tabIndex = -1; h.focus(); }
+function openTicket(id) {
+  const t = byId(id);
+  const st = stateOf(t, Math.min(2, columns()[id]));
+  const words = {
+    decided: 'Decided.',
+    start: needsYou(t) ? 'You can start this now. It needs you.' : 'You can start this now. An agent can do it alone.',
+    doing: tagFor(t, st) + '.',
+    waiting: 'Waiting on: ' + openBlockers(t).map(b => `<a href="#" data-ticket="${b.id}">${esc(b.title)}</a>`).join(', '),
+  };
+  $('#panelBody').innerHTML = `
+    <div class="panel-top"><h2 id="panelTitle">${esc(t.title)}</h2>${closeBtn}</div>
+    <div class="state-line is-${st}">${markHTML(t, st)}<span>${words[st]} Stream: ${esc(laneName(t.stream))}.</span></div>
+    <div class="md">${md(t.body)}</div>
+    <div class="form-actions"><button class="btn go" type="button" id="editBtn">Edit</button></div>`;
+  $('#editBtn').onclick = () => editTicket(t);
+  showPanel();
+}
+const saveBlock = () => `<div class="form-actions"><button class="btn go" type="submit" ${state.dir ? '' : 'disabled'}>Save</button><button class="btn" type="button" data-cancel>Cancel</button>
+  <p class="save-note" id="saveNote">${state.dir ? '' : 'Open the folder first to save.'}</p></div>`;
+const saveFailed = err => { const n = $('#saveNote'); n.className = 'save-note err'; n.textContent = `Not saved: ${err.message}. Open the folder again and retry.`; };
+function editTicket(t) {
+  const isNew = !t;
+  t = t || { id: null, title: '', type: TYPES[0], stream: 'agent', status: 'open', assignee: 'none', blockedBy: [], body: '## Question\n\n' };
+  const opt = (v, cur, label = v) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(label)}</option>`;
+  $('#panelBody').innerHTML = `
+    <div class="panel-top"><h2 id="panelTitle">${isNew ? 'New question' : 'Edit question'}</h2>${closeBtn}</div>
+    <form class="form" id="tform">
+      <label class="field">Question <input name="title" required value="${esc(t.title)}"></label>
+      <div class="row2">
+        <label class="field">Kind <select name="type">${[...new Set([...TYPES, t.type])].map(o => opt(o, t.type)).join('')}</select></label>
+        <label class="field">Stream <select name="stream">${LANES.map(([k, l]) => opt(k, t.stream, l)).join('')}</select></label>
+        <label class="field">Status <select name="status">${['open', 'closed'].map(o => opt(o, t.status)).join('')}</select></label>
+        <label class="field">Who is on it <input name="assignee" value="${esc(t.assignee)}" placeholder="none"></label>
+      </div>
+      <fieldset class="field" style="border:0;padding:0;margin:0"><legend>Waits on</legend><div class="deps">${state.tickets.filter(o => o.id !== t.id).map(o =>
+        `<label><input type="checkbox" value="${o.id}" ${t.blockedBy.includes(o.id) ? 'checked' : ''}><span>${esc(o.title)}</span></label>`).join('')}</div></fieldset>
+      <label class="field">Details (markdown) <textarea name="body">${esc(t.body)}</textarea></label>
+      ${saveBlock()}
+    </form>`;
+  $('[data-cancel]', panel).onclick = () => isNew ? panel.close() : openTicket(t.id);
+  $('#tform').onsubmit = async e => {
+    e.preventDefault();
+    const f = e.target;
+    let id = t.id;
+    if (isNew) {
+      const num = String(Math.max(0, ...state.tickets.map(x => parseInt(x.id) || 0)) + 1).padStart(2, '0');
+      id = `${num}-${f.title.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').split('-').slice(0, 5).join('-')}`;
+    }
+    const next = { id, title: f.title.value.trim(), type: f.type.value, stream: f.stream.value, status: f.status.value,
+      assignee: f.assignee.value.trim() || 'none', blockedBy: [...f.querySelectorAll('.deps input:checked')].map(i => i.value), body: f.body.value };
+    try {
+      await persist(`tickets/${id}.md`, serializeTicket(next));
+      if (isNew) state.tickets.push(next); else Object.assign(t, next);
+      state.tickets.sort((a, b) => a.id.localeCompare(b.id));
+      render(); openTicket(id); toast('Saved');
+    } catch (err) { saveFailed(err); }
+  };
+  showPanel();
+}
+function openSection(name) {
+  const m = splitMap(state.mapRaw);
+  const i = m.sections.findIndex(s => s.name === name);
+  $('#panelBody').innerHTML = `
+    <div class="panel-top"><h2 id="panelTitle">Edit: ${esc(name === 'Not yet specified' ? 'Not yet charted' : name)}</h2>${closeBtn}</div>
+    <form class="form" id="sform"><label class="field">Markdown <textarea name="body">${esc(m.sections[i]?.body || '')}</textarea></label>${saveBlock()}</form>`;
+  $('[data-cancel]', panel).onclick = () => panel.close();
+  $('#sform').onsubmit = async e => {
+    e.preventDefault();
+    m.sections[i].body = e.target.body.value.trimEnd();
+    try { await persist('map.md', joinMap(m)); state.mapRaw = joinMap(m); render(); panel.close(); toast('Saved'); }
+    catch (err) { saveFailed(err); }
+  };
+  showPanel();
+}
+panel.addEventListener('click', e => { if (e.target === panel) panel.close(); });
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[data-ticket]');
+  if (a) { e.preventDefault(); openTicket(a.dataset.ticket); }
+});
+$('#newQ').onclick = () => editTicket(null);
+
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 3200); }
+async function persist(file, text) {
+  if (!state.dir) throw new Error('no folder is open');
+  const parts = file.split('/');
+  let d = state.dir;
+  for (const p of parts.slice(0, -1)) d = await d.getDirectoryHandle(p, { create: true });
+  const w = await (await d.getFileHandle(parts.at(-1), { create: true })).createWritable();
+  await w.write(text); await w.close();
+}
+async function loadFrom(dir) {
+  const mapText = await (await (await dir.getFileHandle('map.md')).getFile()).text();
+  const tdir = await dir.getDirectoryHandle('tickets');
+  const tickets = [];
+  for await (const [name, h] of tdir.entries()) if (h.kind === 'file' && name.endsWith('.md')) tickets.push(parseTicket(name.slice(0, -3), await (await h.getFile()).text()));
+  tickets.sort((a, b) => a.id.localeCompare(b.id));
+  Object.assign(state, { dir, mapRaw: mapText, tickets });
+  render();
+}
+$('#openFolder').onclick = async () => {
+  if (!window.showDirectoryPicker) { toast('This browser cannot save files. Use Chrome or Edge.'); return; }
+  try { await loadFrom(await window.showDirectoryPicker({ mode: 'readwrite', id: 'wayfinder-map' })); toast('Folder open. Edits now save.'); }
+  catch (e) { if (e.name !== 'AbortError') toast('Pick the folder that holds map.md and tickets.'); }
+};
+
+state.tickets = Object.entries(snap.tickets || {}).map(([id, txt]) => parseTicket(id, txt)).sort((a, b) => a.id.localeCompare(b.id));
+render();
+</script>
+</body>
+</html>

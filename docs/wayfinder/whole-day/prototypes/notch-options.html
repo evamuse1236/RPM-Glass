@@ -1,0 +1,1318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Notch: three directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=block">
+<style>
+@property --pour {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+:root {
+  --ink: #000000;
+  --on-ink: #FFFFFF;
+  --on-ink-2: #C4C7C5;
+  --track: #333537;
+  --water: #0B57D0;
+  --water-deep: #0842A0;
+  --routine: #6DD58C;
+  --notch-meal: oklch(0.80 0.15 70);
+  --toast-bg: #E3E3E3;
+  --toast-fg: #1F1F1F;
+  --toast-link: #0B57D0;
+  --panel: #1B1B1B;
+  --hair: #333537;
+  --action: #282A2C;
+  --chip-outline: #8E918F;
+  --notch-focus: #A8C7FA;
+  --dot: #444746;
+
+  --page: #F0F4F9;
+  --on-page: #1F1F1F;
+  --on-page-2: #444746;
+  --outline: #747775;
+  --primary: #0B57D0;
+  --selected: #C2E7FF;
+  --on-selected: #001D35;
+  --card: #FFFFFF;
+
+  --lavender: oklch(0.925 0.016 312);
+  --lavender-deep: oklch(0.83 0.06 295);
+  --lock-ink: oklch(0.27 0.045 285);
+  --frame: oklch(0.29 0.012 300);
+  --frame-rim: oklch(0.42 0.015 300);
+
+  --font: "Google Sans Flex", "Roboto Flex", Roboto, system-ui, sans-serif;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-island: cubic-bezier(0.34, 1.25, 0.64, 1);
+  --gutter: clamp(16px, 0.5rem + 2.5vw, 40px);
+
+  scrollbar-gutter: stable;
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+*, *::before, *::after { box-sizing: border-box; min-width: 0; }
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  background: var(--page);
+  color: var(--on-page);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+h1, h2, h3 { text-wrap: balance; }
+svg { display: block; }
+button, input { font: inherit; color: inherit; }
+button { touch-action: manipulation; user-select: none; -webkit-user-select: none; cursor: pointer; }
+input { font-size: max(16px, 1rem); }
+
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.ms {
+  display: none;
+  flex: none;
+  inline-size: 1em;
+  font-family: "Material Symbols Rounded";
+  font-size: 18px;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  overflow: clip;
+  direction: ltr;
+  font-feature-settings: "liga";
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 20;
+}
+.ms.fill { font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 20; }
+.icons-ready .ms { display: inline-block; }
+.icons-ready .ms-alt { display: none; }
+
+
+.page-head { padding: 32px var(--gutter) 0; max-inline-size: calc(72ch + 2 * var(--gutter)); }
+h1 { margin: 0 0 4px; font-size: 28px; line-height: 36px; font-weight: 400; }
+.lede { margin: 0; color: var(--on-page-2); font-size: 16px; line-height: 24px; }
+
+.switcher {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 20;
+  display: flex;
+  gap: 8px;
+  padding: 12px var(--gutter);
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--page);
+}
+.state-chip {
+  flex: none;
+  block-size: 40px;
+  padding-inline: 16px;
+  border: 1px solid var(--outline);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--on-page-2);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+.state-chip[aria-pressed="true"] { background: var(--selected); color: var(--on-selected); border-color: var(--selected); }
+.state-chip:active { scale: 0.97; }
+@media (hover: hover) and (pointer: fine) {
+  .state-chip:hover { background: color-mix(in oklch, var(--on-page-2) 8%, transparent); }
+  .state-chip[aria-pressed="true"]:hover { background: color-mix(in oklch, var(--selected), black 6%); }
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 1fr));
+  gap: 32px;
+  padding: 16px var(--gutter) 32px;
+}
+.direction { display: grid; gap: 16px; align-content: start; justify-items: center; }
+.dir-card { justify-self: stretch; padding: 16px 20px; border-radius: 24px; background: var(--card); }
+.dir-card h2 { margin: 0 0 4px; font-size: 22px; line-height: 28px; font-weight: 400; }
+.dir-card p { margin: 0; color: var(--on-page-2); }
+.phone-slot { justify-self: stretch; display: grid; justify-items: center; }
+.caption { margin: 0; color: var(--on-page-2); font-size: 14px; line-height: 20px; font-variant-numeric: tabular-nums; text-align: center; }
+.dir-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+
+.btn {
+  block-size: 40px;
+  padding-inline: 24px;
+  border-radius: 999px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+.btn.filled { border: 0; background: var(--primary); color: #FFFFFF; }
+.btn.filled:focus-visible { outline-color: var(--primary); }
+.btn.outlined { border: 1px solid var(--outline); background: transparent; color: var(--primary); }
+.btn.outlined[aria-pressed="true"] { background: var(--selected); color: var(--on-selected); border-color: var(--selected); }
+.btn:active { scale: 0.97; }
+@media (hover: hover) and (pointer: fine) {
+  .btn.filled:hover { background: color-mix(in oklch, var(--primary), white 10%); }
+  .btn.outlined:hover { background: color-mix(in oklch, var(--primary) 8%, transparent); }
+}
+
+.page-foot { padding: 0 var(--gutter) 40px; color: var(--on-page-2); }
+.page-foot p { margin: 0 0 4px; }
+kbd { font: inherit; font-weight: 500; }
+
+
+.phone {
+  zoom: var(--fit, 1);
+  position: relative;
+  inline-size: 410px;
+  block-size: 864px;
+  padding: 10px;
+  border-radius: 56px;
+  background: var(--frame);
+  box-shadow: inset 0 0 0 2px var(--frame-rim);
+}
+.phone::before, .phone::after {
+  content: "";
+  position: absolute;
+  inset-inline-end: -3px;
+  inline-size: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--frame);
+}
+.phone::before { inset-block-start: 170px; block-size: 64px; }
+.phone::after { inset-block-start: 260px; block-size: 104px; }
+
+.screen {
+  position: relative;
+  isolation: isolate;
+  inline-size: 390px;
+  block-size: 844px;
+  border-radius: 46px;
+  overflow: clip;
+  color: var(--lock-ink);
+  background:
+    radial-gradient(circle at 112% 96%, var(--lavender-deep) 0 56%, transparent 56.2%),
+    linear-gradient(172deg, oklch(0.935 0.012 320), var(--lavender) 48%, oklch(0.9 0.025 300));
+}
+
+.statusbar {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 2;
+  block-size: 44px;
+  padding-inline: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.sb-start { display: flex; align-items: center; gap: 8px; }
+.sb-end { display: flex; align-items: center; justify-content: flex-end; gap: 2px; inline-size: 88px; white-space: nowrap; }
+.sb-end .ms { font-size: 16px; }
+.sb-time, .sb-end { transition: opacity 150ms var(--ease-out); }
+.statusbar[data-hide-start="true"] .sb-time,
+.statusbar[data-hide-end="true"] .sb-end { opacity: 0; }
+
+.live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  block-size: 24px;
+  padding-inline: 6px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--lock-ink);
+  color: #FFFFFF;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  position: relative;
+}
+.live-chip > * { flex: none; }
+.live-chip .ms { font-size: 14px; }
+.live-chip[hidden] { display: none; }
+.live-chip::after { content: ""; position: absolute; inset: min(0px, (100% - 48px) / 2) 0; }
+.live-chip:active { scale: 0.97; }
+
+.lock { position: absolute; inset-block-start: 116px; inset-inline-start: 36px; }
+.lock-time { margin: 0; font-size: 88px; line-height: 96px; font-weight: 400; letter-spacing: -2px; font-variant-numeric: tabular-nums; }
+.lock-date { margin: 0; font-size: 20px; line-height: 28px; }
+
+.navbar {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  block-size: 48px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  place-items: center;
+  color: oklch(0.42 0.03 290);
+}
+.nb-recents { inline-size: 14px; block-size: 14px; background: repeating-linear-gradient(90deg, currentColor 0 2px, transparent 2px 6px); }
+.nb-home { inline-size: 16px; block-size: 16px; border: 2px solid currentColor; border-radius: 5px; }
+.nb-back { inline-size: 10px; block-size: 10px; border-inline-start: 2px solid currentColor; border-block-end: 2px solid currentColor; rotate: 45deg; }
+
+.camera {
+  position: absolute;
+  z-index: 6;
+  inset-inline-start: 189px;
+  inset-block-start: 16px;
+  inline-size: 12px;
+  block-size: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 38%, oklch(0.3 0.02 270) 0 1.5px, #000000 2.5px);
+  pointer-events: none;
+}
+
+
+.island {
+  position: absolute;
+  z-index: 3;
+  inset-inline-start: 189px;
+  inset-block-start: 16px;
+  inline-size: 12px;
+  block-size: 12px;
+  --geo-d: 250ms;
+  --geo-e: var(--ease-out);
+  --h-delay: 0ms;
+  --o-delay: 0ms;
+}
+.island[data-kind="none"] { opacity: 0; pointer-events: none; }
+
+.island-hit {
+  position: absolute;
+  inset-inline: 0;
+  inset-block: min(0px, (100% - 48px) / 2);
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+}
+.island-hit:focus-visible { outline: 2px solid transparent; }
+.island-hit[hidden] { display: none; }
+
+.island-surface {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  border-radius: var(--r, 6px);
+  background-color: var(--ink);
+  color: var(--on-ink);
+  pointer-events: none;
+}
+.island:has(> .island-hit:focus-visible) > .island-surface { outline: 2px solid var(--notch-focus); outline-offset: 2px; }
+.island-surface :is(button, input) { pointer-events: auto; }
+.island-surface :focus-visible { outline: 2px solid var(--notch-focus); outline-offset: 2px; }
+.island[data-kind="panel"] .island-surface,
+.island[data-kind="toast"] .island-surface { pointer-events: auto; }
+.island[data-bg="water"] .island-surface { background-color: var(--water); }
+.island[data-kind="toast"] .island-surface { background-color: var(--toast-bg); color: var(--toast-fg); }
+.island[data-kind="panel"] .island-surface { background-color: var(--panel); }
+.dir-a .island[data-kind="panel"] .island-surface { background-color: var(--ink); }
+
+.dir-b .island[data-kind="pill"] .island-surface {
+  background-color: var(--ink);
+  background-image: radial-gradient(circle at var(--cam-x, 18px) 50%,
+    var(--ink) 0 12px,
+    var(--water) 12px calc(12px + var(--pour) * 320px),
+    var(--ink) 0);
+}
+.dir-b .island[data-bg="water"] .island-surface { --pour: 1; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .island {
+    transition:
+      inset-inline-start var(--geo-d) var(--geo-e),
+      inset-block-start var(--geo-d) var(--geo-e) var(--h-delay),
+      inline-size var(--geo-d) var(--geo-e),
+      block-size var(--geo-d) var(--geo-e) var(--h-delay),
+      opacity 150ms var(--ease-out) var(--o-delay);
+  }
+  .island-surface {
+    transition:
+      border-radius var(--geo-d) var(--geo-e) var(--h-delay),
+      background-color 250ms var(--ease-out),
+      --pour 400ms var(--ease-out);
+  }
+}
+
+.layer { position: absolute; inset-block-start: 0; inset-inline-start: 0; }
+.layer.leaving { pointer-events: none; }
+
+.pill-layer {
+  display: grid;
+  grid-template-columns: var(--lead) var(--keep) var(--trail);
+  align-items: center;
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.zone { display: flex; align-items: center; gap: 6px; block-size: 100%; }
+.zone.lead { padding-inline-start: 14px; }
+.zone.trail { padding-inline-end: 14px; }
+.zone.trail:has(.pill-btn) { padding-inline-end: 4px; gap: 4px; }
+.dim { color: var(--on-ink-2); font-weight: 400; }
+.good { color: var(--routine); }
+.meal-ic, .meal-text { color: var(--notch-meal); }
+
+.pill-btn {
+  block-size: 28px;
+  padding-inline: 10px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--on-ink);
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.pill-btn.strong { background: var(--water-deep); }
+.pill-btn:active { scale: 0.96; }
+@media (hover: hover) and (pointer: fine) {
+  .pill-btn:hover { background: color-mix(in oklch, var(--on-ink) 12%, transparent); }
+  .pill-btn.strong:hover { background: color-mix(in oklch, var(--water-deep), white 10%); }
+}
+
+.dir-b .zone.lead { padding: 0; }
+.dir-b .zone.trail { padding-inline-start: 8px; gap: 8px; }
+.stack { display: grid; }
+.stack .l1 { font-size: 13px; line-height: 16px; font-weight: 500; }
+.stack .l2 { font-size: 12px; line-height: 14px; font-weight: 400; color: var(--on-ink-2); }
+
+.ring {
+  position: absolute;
+  z-index: 4;
+  inset-inline-start: 184px;
+  inset-block-start: 11px;
+  inline-size: 22px;
+  block-size: 22px;
+  pointer-events: none;
+  transition: opacity 150ms var(--ease-out);
+}
+.ring[data-on="false"] { opacity: 0; }
+.ring circle, .ring-mini circle { fill: none; stroke-width: 2; }
+.ring-track { stroke: var(--track); }
+.ring-arc {
+  stroke: var(--arc, var(--on-ink));
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transform-box: fill-box;
+}
+.ring-arc[data-zero="true"] { stroke-opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .ring-arc { transition: stroke-dashoffset 600ms var(--ease-out), stroke 250ms var(--ease-out); }
+  .ring-arc.no-anim { transition: none; }
+}
+
+.c-card { padding-block-end: 7px; }
+.c-dots {
+  position: absolute;
+  z-index: 1;
+  inset-inline-start: 14px;
+  inset-block-start: 23px;
+  display: flex;
+  gap: 4px;
+  pointer-events: none;
+}
+.icons-ready .c-dots { inset-inline-start: 38px; }
+.c-dots[hidden] { display: none; }
+.c-dots span { inline-size: 4px; block-size: 4px; border-radius: 50%; background: var(--dot); }
+.c-dots span[data-on="true"] { background: var(--on-ink-2); }
+
+.panel-layer {
+  inline-size: 366px;
+  padding: 28px 12px 12px;
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 20px;
+}
+.panel-layer .ms { font-size: 22px; font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; }
+.panel-layer .ms.fill { font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24; }
+
+.ring-row { display: flex; align-items: center; gap: 12px; min-block-size: 48px; padding-inline: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.ring-mini { flex: none; inline-size: 22px; block-size: 22px; }
+
+.act-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.act {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  block-size: 48px;
+  padding-inline: 14px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--action);
+  color: var(--on-ink);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  text-align: start;
+}
+.act:active { scale: 0.97; }
+@media (hover: hover) and (pointer: fine) {
+  .act:hover { background: color-mix(in oklch, var(--action), white 8%); }
+}
+
+.tasks { margin: 0; padding: 0; list-style: none; display: grid; }
+.dir-a .tasks { border-radius: 20px; background: var(--panel); }
+.task { display: flex; align-items: center; gap: 4px; min-block-size: 48px; border-block-start: 1px solid var(--hair); }
+.task:first-child { border-block-start: 0; }
+.task.hi { border-radius: 16px; background: var(--action); border-color: transparent; }
+.task.hi + .task { border-color: transparent; }
+.task.done .task-title { text-decoration: line-through; color: var(--on-ink-2); }
+.tick {
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: 48px;
+  block-size: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--on-ink-2);
+}
+.tick[aria-pressed="true"] { color: var(--routine); }
+.tick:active { scale: 0.94; }
+.task-title { flex: 1; font-size: 16px; line-height: 24px; }
+.task-meta { flex: none; padding-inline-end: 14px; color: var(--on-ink-2); font-size: 13px; line-height: 16px; font-variant-numeric: tabular-nums; }
+
+.meal-head { display: flex; align-items: center; gap: 10px; padding-inline: 4px; }
+.meal-title { margin: 0; font-size: 16px; line-height: 24px; font-weight: 500; }
+.meal-sub { margin: -4px 0 0; padding-inline: 4px 0; color: var(--on-ink-2); display: flex; align-items: center; gap: 2px; }
+.text-btn {
+  position: relative;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--notch-focus);
+  font-weight: 500;
+}
+.text-btn::after { content: ""; position: absolute; inset: -14px 0; }
+.text-btn:active { scale: 0.97; }
+.meal-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.meal-chip {
+  block-size: 40px;
+  padding-inline: 16px;
+  border: 1px solid var(--chip-outline);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--on-ink);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+.meal-chip:active { scale: 0.97; }
+@media (hover: hover) and (pointer: fine) {
+  .meal-chip:hover { background: color-mix(in oklch, var(--on-ink) 8%, transparent); }
+}
+.meal-field {
+  display: flex;
+  align-items: center;
+  block-size: 48px;
+  margin-block-start: 4px;
+  padding-inline: 20px 4px;
+  border-radius: 24px;
+  background: var(--action);
+}
+.meal-field input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--on-ink);
+  font-size: 16px;
+  outline: 2px solid transparent;
+}
+.meal-field input::placeholder { color: var(--on-ink-2); }
+.meal-field:has(input:focus-visible) { outline: 2px solid var(--notch-focus); outline-offset: 2px; }
+.send {
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: 40px;
+  block-size: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--notch-focus);
+  color: #062E6F;
+  font-size: 12px;
+  font-weight: 500;
+}
+.send .ms { font-size: 20px; }
+.send:active { scale: 0.94; }
+
+.toast-layer {
+  display: grid;
+  grid-template-columns: 138px 24px 138px;
+  align-items: center;
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 500;
+}
+.toast-layer .zone.lead { padding-inline-start: 16px; }
+.toast-layer .zone.trail { justify-content: flex-end; padding-inline-end: 4px; }
+.toast-text { text-wrap: balance; }
+.undo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  block-size: 36px;
+  padding-inline: 10px 12px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--toast-link);
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 500;
+}
+.undo::after { content: ""; position: absolute; inset: -6px 0; }
+.undo:active { scale: 0.96; }
+.undo:focus-visible { outline-color: var(--toast-link); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .layer.leaving { animation: fade-out 150ms var(--ease-out) forwards; }
+  .layer.leaving-roll { animation: roll-out 250ms var(--ease-out) forwards; }
+  .enter-fade { animation: fade-in 250ms var(--ease-out) both; }
+  .enter-late { animation: fade-in 250ms var(--ease-out) 150ms both; }
+  .enter-roll { animation: roll-in 250ms var(--ease-out) both; }
+  .enter-unroll .zone.lead { animation: unroll-start 250ms var(--ease-out) both; }
+  .enter-unroll .zone.trail { animation: unroll-end 250ms var(--ease-out) both; }
+  .enter-buttons .pill-btn { animation: fade-in 250ms var(--ease-out) both; }
+  .ring-mini .ring-arc { animation: arc-in 600ms var(--ease-out) 150ms both; }
+}
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes fade-out { to { opacity: 0; } }
+@keyframes roll-out { to { opacity: 0; translate: 0 -16px; } }
+@keyframes roll-in { from { opacity: 0; translate: 0 16px; } }
+@keyframes unroll-end { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes unroll-start { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0 0 0 0); } }
+@keyframes arc-in { from { stroke-dashoffset: 100; } }
+
+::view-transition-old(root),
+::view-transition-new(root) { animation-duration: 150ms; }
+
+.measure {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: -10000px;
+  visibility: hidden;
+  pointer-events: none;
+}
+.measure .zone { inline-size: max-content; block-size: auto; }
+.measure .layer { position: static; }
+</style>
+</head>
+<body>
+
+<header class="page-head">
+  <h1>Notch: three directions</h1>
+  <p class="lede">Same state on all three. Pick the one you want to try first.</p>
+</header>
+
+<nav class="switcher" aria-label="Notch state" id="switcher"></nav>
+
+<main class="gallery" id="gallery"></main>
+
+<footer class="page-foot">
+  <p>Camera position is approximate until measured on the S24 FE.</p>
+  <p>Keys: <kbd>←</kbd> <kbd>→</kbd> change the state. <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> play each direction's moment. <kbd>Esc</kbd> closes a panel.</p>
+</footer>
+
+<div class="measure" id="measure" aria-hidden="true"></div>
+
+<template id="phone-tpl">
+  <section class="direction">
+    <div class="dir-card">
+      <h2 class="dir-name"></h2>
+      <p class="dir-trade"></p>
+    </div>
+    <div class="phone-slot">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar">
+            <div class="sb-start">
+              <span class="sb-time">9:41</span>
+              <button class="live-chip" type="button" hidden></button>
+            </div>
+            <div class="sb-end" aria-hidden="true">
+              <span class="ms">wifi</span><span class="ms">signal_cellular_alt</span><span>100%</span><span class="ms">battery_full</span>
+            </div>
+          </div>
+          <div class="lock" aria-hidden="true">
+            <p class="lock-time">9:41</p>
+            <p class="lock-date">Tuesday, 8 September</p>
+          </div>
+          <div class="island" data-kind="none">
+            <button class="island-hit" type="button"></button>
+            <div class="island-surface"></div>
+          </div>
+          <div class="camera" aria-hidden="true"></div>
+          <div class="navbar" aria-hidden="true"><span class="nb-recents"></span><span class="nb-home"></span><span class="nb-back"></span></div>
+        </div>
+      </div>
+    </div>
+    <p class="caption" aria-live="polite"></p>
+    <div class="dir-actions">
+      <button class="btn filled play" type="button">Play signature moment</button>
+      <button class="btn outlined fallback" type="button" aria-pressed="false">Show fallback chip</button>
+    </div>
+  </section>
+</template>
+
+<script>
+const STATES = [
+  { id: "idle", label: "Idle" },
+  { id: "empty", label: "Empty" },
+  { id: "water", label: "Water" },
+  { id: "routine", label: "Routine" },
+  { id: "meal", label: "Meal" },
+  { id: "expanded", label: "Expanded" },
+  { id: "meallog", label: "Meal log" },
+  { id: "toast", label: "Agent toast" },
+];
+const COLLAPSED = new Set(["idle", "empty", "water", "routine", "meal"]);
+const CAM = { x: 195, y: 22 };
+const SB = { startEnd: 70, endStart: 268 };
+const TASKS = [
+  { t: "Write RM essay", m: "25 min left" },
+  { t: "Gym", m: "7:00 PM" },
+  { t: "Read chapter 4", m: "9:00 PM" },
+];
+const MEALS = ["Dal rice", "Poha", "Paneer wrap", "Maggi", "Thali", "Curd rice"];
+const SLOTS = ["Breakfast", "Lunch", "Snack", "Dinner"];
+const AGENT_TOAST = "Moved Gym to 7 PM";
+
+const reduceMQ = matchMedia("(prefers-reduced-motion: reduce)");
+const reduce = () => reduceMQ.matches;
+function withVT(fn) {
+  if (reduce() && document.startViewTransition) document.startViewTransition(fn);
+  else fn();
+}
+
+const ic = (name, o = {}) =>
+  `<span class="ms${o.fill ? " fill" : ""}${o.cls ? " " + o.cls : ""}" aria-hidden="true">${name}</span>`;
+
+const measureBox = document.getElementById("measure");
+function measure(dirId, html, sel) {
+  measureBox.className = `measure dir-${dirId}`;
+  measureBox.innerHTML = html;
+  const r = measureBox.querySelector(sel).getBoundingClientRect();
+  return { w: Math.ceil(r.width), h: Math.ceil(r.height) };
+}
+const zoneW = (dirId, cls, html) => measure(dirId, `<div class="pill-layer"><div class="zone ${cls}">${html}</div></div>`, ".zone").w;
+
+const ringSVG = (cls, v, color) =>
+  `<svg class="${cls}" viewBox="0 0 22 22" aria-hidden="true"><circle class="ring-track" cx="11" cy="11" r="10"/><circle class="ring-arc" cx="11" cy="11" r="10" pathLength="100" stroke-dashoffset="${100 - v}" style="--arc:${color}"/></svg>`;
+
+
+function panelHTML(ph, { fourth, rows, hi = -1, top = "" }) {
+  const acts = [["meal", "restaurant", "Log a meal"], ["capture", "mic", "Quick capture"], ["agent", "smart_toy", "Ask the agent"], fourth];
+  return `${top}<div class="act-grid">${acts
+    .map(([a, i, l]) => `<button class="act" type="button" data-act="${a}">${ic(i)}<span>${l}</span></button>`)
+    .join("")}</div><ul class="tasks">${rows
+    .map((r, k) => {
+      const done = ph.done.has(r.t);
+      return `<li class="task${k === hi ? " hi" : ""}${done ? " done" : ""}"><button class="tick" type="button" aria-pressed="${done}" aria-label="${r.t} done" data-act="tick" data-task="${r.t}">${ic(done ? "check_circle" : "radio_button_unchecked", { fill: done })}<span class="ms-alt">${done ? "✓" : "○"}</span></button><span class="task-title">${r.t}</span><span class="task-meta">${r.m}</span></li>`;
+    })
+    .join("")}</ul>`;
+}
+
+function mealHTML(ph) {
+  return `<div class="meal-head">${ic("restaurant", { cls: "meal-ic" })}<h3 class="meal-title">${ph.mealSlot}</h3></div>
+    <p class="meal-sub"><span>${ph.slotPicked ? "Picked by you" : "Guessed from the time"} ·</span><button class="text-btn" type="button" data-act="slot">Change</button></p>
+    <div class="meal-chips">${MEALS.map((m) => `<button class="meal-chip" type="button" data-act="log" data-meal="${m}">${m}</button>`).join("")}</div>
+    <form class="meal-field"><input name="meal" placeholder="Type your own" aria-label="Type your own meal" autocomplete="off"><button class="send" type="submit" aria-label="Send">${ic("send", { fill: true })}<span class="ms-alt">Send</span></button></form>`;
+}
+
+function sharedView(s, ph, fourth, extra = {}) {
+  if (s === "expanded") return { kind: "panel", body: panelHTML(ph, { fourth, rows: TASKS, ...extra }) };
+  if (s === "meallog") return { kind: "panel", body: mealHTML(ph) };
+  if (s === "toast") return { kind: "toast", text: ph.toastText || AGENT_TOAST };
+  return { kind: "none" };
+}
+
+function chipFor(ph) {
+  const s = ph.state;
+  const base = COLLAPSED.has(s) ? s : s === "meallog" ? "meal" : ph.rest;
+  if (ph.dir.id === "c" && ph.dir.cycles(ph) && base !== "water" && base !== "empty") {
+    const card = ph.dir.cycles(ph)[ph.cycleIdx];
+    return [card.icon, card.chip];
+  }
+  switch (base) {
+    case "idle": return ["edit_note", "Essay · 25m"];
+    case "water": return ["water_drop", `Water ${ph.water}/8`];
+    case "routine": return ["wb_sunny", "Morning 3/5"];
+    case "meal": return ["restaurant", `${ph.mealSlot}?`];
+    default: return null;
+  }
+}
+
+
+const A = {
+  id: "a",
+  name: "A · Quiet ink",
+  trade: "Calmest, most Apple-like, and closest to what Android can actually show; least visual feedback of progress.",
+  keep: 24,
+  view(s, ph) {
+    switch (s) {
+      case "idle":
+        return { kind: "pill", h: 32, lead: `${ic("edit_note")}<span>Write RM essay</span>`, trail: `<span class="dim">25 min left</span>`, label: "Write RM essay, 25 minutes left. Open the notch panel." };
+      case "water":
+        return {
+          kind: "pill", h: 36, bg: "water",
+          lead: `${ic("water_drop", { fill: true })}<span>Water · ${ph.water}/8</span>`,
+          trail: ph.phase === 1 ? `<button class="pill-btn strong" type="button" data-act="drank">Drank it</button><button class="pill-btn" type="button" data-act="snooze">Snooze 15</button>` : "",
+          label: `Water, ${ph.water} of 8 glasses. Open the notch panel.`,
+        };
+      case "routine":
+        return { kind: "pill", h: 32, lead: `${ic("wb_sunny")}<span>Morning</span>`, trail: `<span class="good">3/5</span>`, label: "Morning routine, 3 of 5 steps. Open the notch panel." };
+      case "meal":
+        return { kind: "pill", h: 32, lead: `${ic("restaurant", { cls: "meal-ic" })}<span>${ph.mealSlot}?</span>`, trail: `<span class="dim">Log it</span>`, label: `${ph.mealSlot} not logged. Log it.` };
+      default:
+        return sharedView(s, ph, ["routine", "wb_sunny", "Routine step"]);
+    }
+  },
+  motion(prev, next) {
+    if (prev === "none" && next === "pill") return { d: 250, e: "out", enter: "unroll" };
+    const m = baseMotion(prev, next);
+    if (m.expand) m.hDelay = 100;
+    if (next === "pill") m.enter = "unroll";
+    return m;
+  },
+  enterState(ph, s) {
+    if (s === "water") ph.later(() => { ph.phase = 1; ph.render({ inPlace: true, enter: "buttons" }); }, 300);
+  },
+  act(ph, a) {
+    if (a === "drank") {
+      ph.water = 6; ph.phase = 2;
+      ph.render({ inPlace: true });
+      ph.later(() => { ph.rest = "idle"; ph.go("idle"); }, 1200);
+      return true;
+    }
+    if (a === "snooze") { ph.rest = "idle"; ph.go("idle"); return true; }
+    return false;
+  },
+  play(ph) {
+    ph.go("empty", { seq: true });
+    ph.seq(() => ph.go("idle", { seq: true }), 450);
+    ph.seq(() => ph.go("water", { seq: true }), 2100);
+    ph.seq(() => ph.go(globalState), 4600);
+  },
+};
+
+
+const two = (a, b) => `<span class="stack"><span class="l1">${a}</span><span class="l2">${b}</span></span>`;
+const B = {
+  id: "b",
+  name: "B · Living status",
+  trade: "The most living: a glance-able count with no reading; needs the accessibility overlay or it collapses to text.",
+  keep: 22,
+  leadW: 7,
+  view(s, ph) {
+    switch (s) {
+      case "idle":
+        return { kind: "pill", h: 36, lead: "", trail: two("Write RM essay", "25 min left"), ring: [44, "var(--on-ink)"], label: "Write RM essay, 25 minutes left. Open the notch panel." };
+      case "water":
+        return {
+          kind: "pill", h: 36, bg: "water", lead: "",
+          trail: `<span class="l1">Water ${ph.water}/8</span>${ph.phase < 2 ? `<button class="pill-btn strong" type="button" data-act="drank">Drank it</button>` : ""}`,
+          ring: [Math.round((ph.water / 8) * 100), "var(--water)"],
+          label: `Water, ${ph.water} of 8 glasses. Open the notch panel.`,
+        };
+      case "routine":
+        return { kind: "pill", h: 36, lead: "", trail: two("Morning routine", "3 of 5 steps"), ring: [60, "var(--routine)"], label: "Morning routine, 3 of 5 steps. Open the notch panel." };
+      case "meal":
+        return { kind: "pill", h: 36, lead: "", trail: two(`${ph.mealSlot}?`, "6 usual meals"), ring: [100, "var(--notch-meal)"], label: `${ph.mealSlot} not logged, 6 usual meals. Log it.` };
+      case "empty":
+        return { kind: "none", ring: [0, "var(--on-ink)"] };
+      case "expanded": {
+        const cap = {
+          water: [Math.round((ph.water / 8) * 100), "var(--water)", `Water · ${ph.water} of 8 glasses`],
+          routine: [60, "var(--routine)", "3 of 5 steps · Morning routine"],
+          meal: [100, "var(--notch-meal)", `${ph.mealSlot}? · 6 usual meals`],
+        }[ph.rest] || [44, "var(--on-ink)", "25 min left · Write RM essay"];
+        const top = `<div class="ring-row">${ringSVG("ring-mini", cap[0], cap[1])}<span>${cap[2]}</span></div>`;
+        return sharedView(s, ph, ["snooze", "water_drop", "Snooze water"], { top });
+      }
+      default:
+        return sharedView(s, ph, ["snooze", "water_drop", "Snooze water"]);
+    }
+  },
+  motion: (prev, next) => baseMotion(prev, next),
+  enterState() {},
+  act(ph, a) {
+    if (a === "drank") {
+      ph.water = 6; ph.phase = 2;
+      ph.render({ inPlace: true, keepRing: true });
+      ph.later(() => { ph.rest = "idle"; ph.go("idle"); }, 1500);
+      return true;
+    }
+    return false;
+  },
+  play(ph) {
+    ph.go("empty", { seq: true });
+    ph.seq(() => ph.go("idle", { seq: true }), 400);
+    ph.seq(() => ph.go("water", { seq: true }), 1900);
+    ph.seq(() => ph.go(globalState), 4400);
+  },
+};
+
+
+const CARDS = {
+  essay: { icon: "edit_note", lead: "Write RM essay", trail: "25 min left", chip: "Essay · 25m" },
+  gym: { icon: "schedule", lead: "Gym", trail: "7:00 PM", chip: "Gym · 7 PM" },
+  watersoon: { icon: "water_drop", lead: "Water", trail: "in 40 min", chip: "Water · 40m" },
+  routine: { icon: "wb_sunny", lead: "Morning · 3/5", trail: "Next: shower", chip: "Morning 3/5" },
+  meal: { icon: "restaurant", lead: "Lunch?", trail: "Tap to log", chip: "Lunch?", meal: true },
+};
+const cardLead = (c) => `${ic(c.icon, { cls: c.meal ? "meal-ic" : "" })}<span class="${c.meal ? "meal-text" : ""}">${c.lead}</span>`;
+const cardTrail = (c) => `<span class="${c.meal ? "meal-text" : "dim"}">${c.trail}</span>`;
+
+const C = {
+  id: "c",
+  name: "C · Ticker",
+  trade: "Shows the most in the smallest pill; constant movement at the top of the screen can distract.",
+  keep: 24,
+  minW: 236,
+  cycles(ph) {
+    const base = COLLAPSED.has(ph.state) ? ph.state : ph.rest;
+    if (base === "idle") return [CARDS.essay, CARDS.gym, CARDS.watersoon];
+    if (base === "routine") return [CARDS.routine, CARDS.essay, CARDS.gym];
+    if (base === "meal") return [CARDS.meal, CARDS.essay, CARDS.gym];
+    return null;
+  },
+  fixedZones() {
+    if (this._zones && this._zones.icons === iconsReady) return this._zones;
+    const leads = Object.values(CARDS).map(cardLead).concat([
+      `${ic("water_drop", { fill: true })}<span>Water · 5/8</span>`,
+      `${ic("check_circle", { fill: true })}<span>Logged · 6/8</span>`,
+    ]);
+    const trails = Object.values(CARDS).map(cardTrail).concat([`<button class="pill-btn strong" type="button">Drank it</button>`]);
+    let lead = Math.max(...leads.map((h) => zoneW("c", "lead", h)));
+    let trail = Math.max(...trails.map((h) => zoneW("c", "trail", h)));
+    const extra = this.minW - (lead + this.keep + trail);
+    if (extra > 0) trail += extra;
+    this._zones = { lead, trail, icons: iconsReady };
+    return this._zones;
+  },
+  view(s, ph) {
+    const cards = this.cycles(ph);
+    if (COLLAPSED.has(s) && cards) {
+      const c = cards[ph.cycleIdx];
+      return { kind: "pill", h: 32, fixed: true, layerCls: "c-card", lead: cardLead(c), trail: cardTrail(c), dots: true, label: `${c.lead}, ${c.trail}. Open this item.` };
+    }
+    if (s === "water") {
+      if (ph.phase === 2) return { kind: "pill", h: 32, bg: "water", fixed: true, lead: `${ic("check_circle", { fill: true })}<span>Logged · 6/8</span>`, trail: "", label: "Water logged, 6 of 8 glasses." };
+      return { kind: "pill", h: 32, bg: "water", fixed: true, lead: `${ic("water_drop", { fill: true })}<span>Water · ${ph.water}/8</span>`, trail: `<button class="pill-btn strong" type="button" data-act="drank">Drank it</button>`, label: `Water, ${ph.water} of 8 glasses. Open the notch panel.` };
+    }
+    if (s === "expanded") {
+      const rest = this.cycles({ state: ph.rest, rest: ph.rest });
+      const rows = rest ? rest.map((c) => ({ t: c.lead, m: c.trail })) : TASKS;
+      return sharedView(s, ph, ["snooze", "water_drop", "Snooze water"], { rows, hi: rest ? ph.cycleIdx : -1 });
+    }
+    return sharedView(s, ph, ["snooze", "water_drop", "Snooze water"]);
+  },
+  motion: (prev, next) => baseMotion(prev, next),
+  enterState(ph) { ph.startCycle(); },
+  act(ph, a) {
+    if (a === "drank") {
+      ph.water = 6; ph.phase = 2;
+      ph.render({ roll: true });
+      ph.later(() => { ph.rest = "idle"; ph.cycleIdx = 0; ph.go("idle", { roll: true }); }, 2000);
+      return true;
+    }
+    return false;
+  },
+  play(ph) {
+    ph.cycleIdx = 0;
+    ph.go("idle", { seq: true, noCycle: true });
+    [1, 2, 0].forEach((i, k) => ph.seq(() => { ph.cycleIdx = i; ph.render({ roll: true }); }, 1200 * (k + 1)));
+    ph.seq(() => ph.go(globalState), 4800);
+  },
+};
+
+function baseMotion(prev, next) {
+  const big = (k) => k === "panel" || k === "toast";
+  if (big(next) && !big(prev)) return { d: 400, e: "island", expand: true, enter: "late" };
+  if (big(prev)) return { d: 250, e: "out", enter: big(next) ? "late" : "fade" };
+  if (prev === "none" && next === "pill") return { d: 400, e: "island", enter: "fade" };
+  return { d: 250, e: "out", enter: "fade" };
+}
+
+
+let globalState = "idle";
+let iconsReady = false;
+const phones = [];
+
+class Phone {
+  constructor(dir, root) {
+    this.dir = dir;
+    this.root = root;
+    this.screen = root.querySelector(".screen");
+    this.island = root.querySelector(".island");
+    this.surface = root.querySelector(".island-surface");
+    this.hit = root.querySelector(".island-hit");
+    this.statusbar = root.querySelector(".statusbar");
+    this.chip = root.querySelector(".live-chip");
+    this.caption = root.querySelector(".caption");
+    this.fallbackBtn = root.querySelector(".fallback");
+    this.state = "idle";
+    this.rest = "idle";
+    this.kind = "none";
+    this.water = 5;
+    this.phase = 0;
+    this.cycleIdx = 0;
+    this.fallback = false;
+    this.mealSlot = "Lunch";
+    this.slotPicked = false;
+    this.toastText = "";
+    this.toastUndo = null;
+    this.done = new Set();
+    this.timers = [];
+    this.seqTimers = [];
+    this.cycleTimer = null;
+
+    if (dir.id === "b") {
+      this.screen.insertAdjacentHTML("beforeend", ringSVG("ring", 0, "var(--on-ink)"));
+      this.ring = this.screen.querySelector(".ring");
+      this.ring.dataset.on = "false";
+    }
+    if (dir.id === "c") {
+      this.surface.insertAdjacentHTML("afterend", `<div class="c-dots" hidden><span></span><span></span><span></span></div>`);
+      this.dots = root.querySelector(".c-dots");
+    }
+
+    this.hit.addEventListener("click", () => withVT(() => this.go(this.state === "meal" ? "meallog" : "expanded")));
+    this.surface.addEventListener("click", (e) => this.onAct(e));
+    this.surface.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const v = e.target.elements.meal.value.trim();
+      if (v) withVT(() => this.logMeal(v));
+    });
+    this.screen.addEventListener("click", (e) => {
+      if (e.target.closest(".island, .live-chip")) return;
+      if (this.kind === "panel") withVT(() => this.go(this.rest));
+    });
+    this.chip.addEventListener("click", () => withVT(() => { this.setFallback(false, false); this.go("expanded"); }));
+    root.querySelector(".play").addEventListener("click", () => this.play());
+    this.fallbackBtn.addEventListener("click", () => withVT(() => this.setFallback(!this.fallback)));
+  }
+
+  later(fn, ms) { this.timers.push(setTimeout(() => withVT(fn), ms)); }
+  seq(fn, ms) { this.seqTimers.push(setTimeout(() => withVT(fn), ms)); }
+  clearTimers() { this.timers.forEach(clearTimeout); this.timers = []; this.stopCycle(); }
+  clearSeq() { this.seqTimers.forEach(clearTimeout); this.seqTimers = []; }
+
+  startCycle() {
+    this.stopCycle();
+    if (!this.dir.cycles || !this.dir.cycles(this) || !COLLAPSED.has(this.state)) return;
+    const every = reduce() ? 12000 : 6000;
+    this.cycleTimer = setInterval(() => withVT(() => {
+      this.cycleIdx = (this.cycleIdx + 1) % 3;
+      this.render({ roll: true });
+    }), every);
+  }
+  stopCycle() { clearInterval(this.cycleTimer); this.cycleTimer = null; }
+
+  go(state, opts = {}) {
+    this.clearTimers();
+    if (!opts.seq) this.clearSeq();
+    const prevState = this.state;
+    if (COLLAPSED.has(state)) {
+      if (state !== this.rest && this.dir.id === "c") this.cycleIdx = 0;
+      this.rest = state;
+    }
+    if (state === "water" && prevState !== "water") this.water = 5;
+    if (state === "toast" && !opts.text) { this.toastText = AGENT_TOAST; this.toastUndo = null; }
+    if (opts.text) { this.toastText = opts.text; this.toastUndo = opts.undo || null; }
+    this.state = state;
+    this.phase = 0;
+    this.render(opts);
+    this.dir.enterState(this, state);
+    if (opts.noCycle) this.stopCycle();
+    if (state === "toast") this.later(() => this.go(this.rest), 4000);
+  }
+
+  setFallback(on, rerender = true) {
+    this.fallback = on;
+    this.fallbackBtn.setAttribute("aria-pressed", String(on));
+    this.fallbackBtn.textContent = on ? "Show notch pill" : "Show fallback chip";
+    if (rerender) this.render({});
+  }
+
+  play() {
+    this.clearSeq();
+    withVT(() => {
+      if (this.fallback) this.setFallback(false, false);
+      this.dir.play(this);
+    });
+  }
+
+  logMeal(name) {
+    this.rest = "idle";
+    this.go("toast", { text: `Logged ${name} for ${this.mealSlot.toLowerCase()}`, undo: "meal" });
+  }
+
+  onAct(e) {
+    const btn = e.target.closest("[data-act]");
+    if (!btn) return;
+    const a = btn.dataset.act;
+    if (a === "tick") {
+      const t = btn.dataset.task;
+      const done = !this.done.has(t);
+      done ? this.done.add(t) : this.done.delete(t);
+      btn.setAttribute("aria-pressed", String(done));
+      btn.closest(".task").classList.toggle("done", done);
+      btn.querySelector(".ms").textContent = done ? "check_circle" : "radio_button_unchecked";
+      btn.querySelector(".ms").classList.toggle("fill", done);
+      btn.querySelector(".ms-alt").textContent = done ? "✓" : "○";
+      return;
+    }
+    withVT(() => {
+      if (this.dir.act(this, a)) return;
+      switch (a) {
+        case "meal": this.go("meallog"); break;
+        case "agent": this.go("toast"); break;
+        case "capture": this.go(this.rest); break;
+        case "snooze": this.rest = "idle"; this.go("idle"); break;
+        case "routine": this.go("routine"); break;
+        case "log": this.logMeal(btn.dataset.meal); break;
+        case "slot": {
+          this.mealSlot = SLOTS[(SLOTS.indexOf(this.mealSlot) + 1) % SLOTS.length];
+          this.slotPicked = true;
+          this.render({ inPlace: true });
+          break;
+        }
+        case "undo": this.go(this.toastUndo || this.rest); break;
+      }
+    });
+  }
+
+  geometry(v) {
+    if (v.kind === "panel") {
+      const h = measure(this.dir.id, `<div class="layer panel-layer">${v.body}</div>`, ".panel-layer").h;
+      return { x: 12, y: 6, w: 366, h, r: 28 };
+    }
+    if (v.kind === "toast") return { x: 45, y: 0, w: 300, h: 44, r: 22 };
+    if (v.kind === "pill") {
+      let lead, trail;
+      if (v.fixed) ({ lead, trail } = this.dir.fixedZones());
+      else {
+        lead = this.dir.leadW ?? zoneW(this.dir.id, "lead", v.lead);
+        trail = zoneW(this.dir.id, "trail", v.trail);
+      }
+      const keep = this.dir.keep;
+      const w = lead + keep + trail;
+      const x = CAM.x - keep / 2 - lead;
+      if (x < 4 || x + w > 386) console.warn(`${this.dir.id} ${this.state}: pill runs off screen`, x, w);
+      return { x, y: CAM.y - v.h / 2, w, h: v.h, r: v.h / 2, lead, keep, trail };
+    }
+    return { x: CAM.x - 6, y: CAM.y - 6, w: 12, h: 12, r: 6 };
+  }
+
+  render(opts = {}) {
+    let v = this.dir.view(this.state, this);
+    const chip = this.fallback ? chipFor(this) : null;
+    if (this.fallback) v = { kind: "none" };
+    const g = this.geometry(v);
+    const prevKind = this.kind;
+    const m = opts.inPlace || opts.roll ? { d: 250, e: "out", enter: opts.enter || "none" } : this.dir.motion(prevKind, v.kind);
+
+    const isl = this.island;
+    isl.style.setProperty("--geo-d", `${m.d}ms`);
+    isl.style.setProperty("--geo-e", m.e === "island" ? "var(--ease-island)" : "var(--ease-out)");
+    isl.style.setProperty("--h-delay", `${m.hDelay || 0}ms`);
+    isl.style.setProperty("--o-delay", v.kind === "none" ? "150ms" : "0ms");
+    isl.dataset.kind = v.kind;
+    isl.dataset.bg = v.bg || "ink";
+    isl.style.insetInlineStart = `${g.x}px`;
+    isl.style.insetBlockStart = `${g.y}px`;
+    isl.style.inlineSize = `${g.w}px`;
+    isl.style.blockSize = `${g.h}px`;
+    this.surface.style.setProperty("--r", `${g.r}px`);
+    if (g.lead !== undefined) this.surface.style.setProperty("--cam-x", `${g.lead + g.keep / 2}px`);
+    this.kind = v.kind;
+
+    this.swapContent(v, g, m, opts);
+
+    this.hit.hidden = v.kind !== "pill";
+    this.hit.setAttribute("aria-label", v.label || "Open the notch panel");
+
+    const hideStart = v.kind === "panel" || (v.kind !== "none" && g.x < SB.startEnd);
+    const hideEnd = v.kind === "panel" || (v.kind !== "none" && g.x + g.w > SB.endStart);
+    this.statusbar.dataset.hideStart = String(hideStart);
+    this.statusbar.dataset.hideEnd = String(hideEnd);
+
+    if (chip) {
+      this.chip.hidden = false;
+      this.chip.innerHTML = `${ic(chip[0])}<span>${chip[1]}</span>`;
+      this.chip.setAttribute("aria-label", `${chip[1]}. Opens the app on the notch panel.`);
+    } else this.chip.hidden = true;
+
+    if (this.ring) this.updateRing(this.fallback ? null : v.ring, opts);
+    if (this.dots) {
+      this.dots.hidden = !v.dots;
+      [...this.dots.children].forEach((d, i) => (d.dataset.on = String(i === this.cycleIdx)));
+    }
+    this.updateCaption(v, g, chip);
+  }
+
+  swapContent(v, g, m, opts) {
+    const old = [...this.surface.children];
+    let html = "";
+    if (v.kind === "pill") {
+      html = `<div class="layer pill-layer ${v.layerCls || ""}" style="inline-size:${g.w}px;block-size:${g.h}px;--lead:${g.lead}px;--keep:${g.keep}px;--trail:${g.trail}px"><div class="zone lead">${v.lead}</div><div></div><div class="zone trail">${v.trail}</div></div>`;
+    } else if (v.kind === "panel") {
+      html = `<div class="layer panel-layer">${v.body}</div>`;
+    } else if (v.kind === "toast") {
+      html = `<div class="layer toast-layer" role="status" style="inline-size:${g.w}px;block-size:${g.h}px"><div class="zone lead"><span class="toast-text">${v.text}</span></div><div></div><div class="zone trail"><button class="undo" type="button" data-act="undo">${ic("undo")}<span>Undo</span></button></div></div>`;
+    }
+    const instant = reduce() || opts.inPlace;
+    old.forEach((el) => {
+      if (instant) { el.remove(); return; }
+      el.classList.add("leaving");
+      if (opts.roll) el.classList.add("leaving-roll");
+      setTimeout(() => el.remove(), opts.roll ? 260 : 160);
+    });
+    if (!html) return;
+    this.surface.insertAdjacentHTML("beforeend", html);
+    const layer = this.surface.lastElementChild;
+    const enter = opts.roll ? "roll" : m.enter;
+    if (enter && enter !== "none") layer.classList.add(`enter-${enter}`);
+  }
+
+  updateRing(ring, opts) {
+    const arc = this.ring.querySelector(".ring-arc");
+    const on = !!ring;
+    this.ring.dataset.on = String(on);
+    if (!on) return;
+    const [val, color] = ring;
+    arc.style.setProperty("--arc", color);
+    arc.dataset.zero = String(val === 0);
+    if (!opts.keepRing && !reduce()) {
+      arc.classList.add("no-anim");
+      arc.setAttribute("stroke-dashoffset", "100");
+      arc.getBoundingClientRect();
+      arc.classList.remove("no-anim");
+    }
+    requestAnimationFrame(() => arc.setAttribute("stroke-dashoffset", String(100 - val)));
+  }
+
+  updateCaption(v, g, chip) {
+    const label = STATES.find((s) => s.id === this.state).label;
+    let text;
+    if (this.fallback) {
+      text = chip
+        ? `${label} · fallback chip ${measure(this.dir.id, `<span class="live-chip">${this.chip.innerHTML}</span>`, ".live-chip").w}×24dp`
+        : `${label} · fallback: no chip`;
+    } else if (v.kind === "none") {
+      text = this.ring && v.ring ? `${label} · ring only, 22×22dp` : `${label} · nothing drawn`;
+    } else {
+      const name = this.state === "toast" && this.toastUndo ? "Meal logged toast" : label;
+      text = `${name} · ${Math.round(g.w)}×${Math.round(g.h)}dp`;
+    }
+    this.caption.textContent = text;
+  }
+}
+
+
+const switcher = document.getElementById("switcher");
+STATES.forEach((s) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "state-chip";
+  b.textContent = s.label;
+  b.dataset.state = s.id;
+  b.setAttribute("aria-pressed", String(s.id === globalState));
+  b.addEventListener("click", () => setGlobal(s.id));
+  switcher.append(b);
+});
+
+function setGlobal(id) {
+  globalState = id;
+  switcher.querySelectorAll(".state-chip").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.state === id)));
+  switcher.querySelector(`[data-state="${id}"]`).scrollIntoView({ block: "nearest", inline: "nearest" });
+  withVT(() => phones.forEach((p) => p.go(id)));
+}
+
+const gallery = document.getElementById("gallery");
+const tpl = document.getElementById("phone-tpl");
+[A, B, C].forEach((dir) => {
+  const node = tpl.content.firstElementChild.cloneNode(true);
+  node.classList.add(`dir-${dir.id}`);
+  node.setAttribute("aria-labelledby", `dir-${dir.id}-name`);
+  node.querySelector(".dir-name").id = `dir-${dir.id}-name`;
+  node.querySelector(".dir-name").textContent = dir.name;
+  node.querySelector(".dir-trade").textContent = dir.trade;
+  gallery.append(node);
+  phones.push(new Phone(dir, node));
+});
+
+const fit = new ResizeObserver((entries) => {
+  entries.forEach((e) => {
+    const slot = e.target;
+    slot.querySelector(".phone").style.setProperty("--fit", String(Math.min(1, slot.clientWidth / 410)));
+  });
+});
+document.querySelectorAll(".phone-slot").forEach((s) => fit.observe(s));
+
+document.addEventListener("keydown", (e) => {
+  if ((e.target instanceof Element && e.target.closest("input, textarea")) || e.metaKey || e.ctrlKey || e.altKey) return;
+  const i = STATES.findIndex((s) => s.id === globalState);
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+    e.preventDefault();
+    const n = (i + (e.key === "ArrowRight" ? 1 : STATES.length - 1)) % STATES.length;
+    setGlobal(STATES[n].id);
+  } else if (["1", "2", "3"].includes(e.key)) {
+    phones[Number(e.key) - 1].play();
+  } else if (e.key === "Escape") {
+    withVT(() => phones.forEach((p) => { if (p.kind === "panel") p.go(p.rest); }));
+  }
+});
+
+reduceMQ.addEventListener("change", () => phones.forEach((p) => p.startCycle()));
+
+function renderAll() { phones.forEach((p) => p.go(p.state)); }
+renderAll();
+
+document.fonts.load('18px "Material Symbols Rounded"', "water_drop").then((faces) => {
+  if (!faces.length) return;
+  iconsReady = true;
+  document.documentElement.classList.add("icons-ready");
+  renderAll();
+});
+</script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 For planning behavior, read `CONTEXT.md` and the relevant part of `PRODUCT.md`. Capture, task, result, purpose, must, priority, and calendar commitment have distinct meanings. Preserve the user's original words and recovery/Undo. Completing actions does not by itself establish that a result was achieved.
 
-For UI work, use `DESIGN.md` and the relevant surface contract under `docs/`; validate the named widget or screen on the S24 FE at phone size with normal text (`rpmctl display phone`). Check larger text only when a change touches text sizing and the user asks for it. A build or web preview alone does not verify a native widget.
+For UI work, use `DESIGN.md` and the relevant surface contract under `docs/`; validate the named widget or screen on the S24 FE at phone size with normal text (`rpmctl display phone`). Check larger text only when a change touches text sizing and the user asks for it. A build or web preview alone does not verify a native widget. To examine how UI/UX feels on the real USB phone (page gallery, density, stutters), use the [glasscheck skill](.claude/skills/glasscheck/SKILL.md) (`npm run phone:ux` / `npm run phone:ux:full`) after T3 `device_open` — not a substitute for `verify-rpm-glass` proof.
 
 `/home/darax/Codex Projects/RPM Agent` is the separate Arden coaching project. Its course study and `docs/rpm-widget-recommendations.md` can inform requested product decisions; recommendations are not already-implemented app features. Keep Arden's persona and memory local to that project.
 
@@ -83,4 +83,14 @@ Before changing Capture, read `docs/rules/capture.md`. Before changing the notch
 | Every save of the shared store reloads and retries when another writer saved first (`retryOnChange`, or a listed retry loop); an exception names its reason in the test. | `scripts/rules/save-retry.test.mjs`, `android-companion/save-retry.test.mjs`, `chat-prototype/interrupted.test.mjs` |
 | Task ID range numbers live only in `android-companion/task-ids.mjs`; every allocator imports them. | `scripts/rules/task-id-range.test.mjs` |
 | For the website, the server hub and the phone replica, follow the web sync rules. | [Web sync rules and enforcing tests](docs/rules/web-sync.md) |
+| A test that patches the real phone's page (a fake mic, a stubbed function) reloads that page before it ends, and never saves to the user's plan; use the emulator for fake-audio drives. A patched mic once replayed a test clip on every real tap (2026-10-28). | Judgment: `verify-rpm-glass` and `glasscheck` drives |
 | Report keyless model paths, Samsung behavior and real widget placement as UNVERIFIED. | Judgment: `verify-rpm-glass` SKILL.md proof standards |
+
+## Work queue
+
+The RPM Glass page in Notion (HQ) holds this project's health and work cards. Agents never edit it by hand.
+
+- At session start, run `hq check rpm-glass` and read the problems it reports.
+- To pick work, run `hq next rpm-glass`, then `hq claim <ref> --agent "<name>"`. Exit 3 means nothing is in Up next; ask Vishwajit what to do.
+- Update cards only through `hq`: `hq note`, `hq ask` (for a decision from Vishwajit), `hq comments`, `hq done`. Card text stays in plain words, with no paths or PR numbers.
+- After you ship a change, run `hq check rpm-glass` again. Details: `hq --help` and Orchy `docs/project-dashboards.md`.

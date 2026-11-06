@@ -17,3 +17,5 @@ For a repeatable test, add `-- --store .verify/my-capture.json --now 2026-10-19T
 The terminal saves reminder and alarm settings. Android notification and alarm delivery require the phone and are not tested here. The older `npm run cli` remains available with its older interpreter; use `npm run capture` to test the current app.
 
 The CLI supports Windows and Linux. Only one session can open a store at a time. Closing or stopping that process releases it automatically.
+
+To compare models on the phone's Capture code: `secret run --env ANTHROPIC_API_KEY=anthropic --env OPENROUTER_API_KEY=openrouter-rpm -- npm run capture:models -- --models haiku,inception/mercury-3`. Phrases live in `scripts/capture-stress/model-phrases.json`. Only Haiku calls are swapped; Sonnet calls stay as on the phone. Results go to `.verify/capture-models/`.
