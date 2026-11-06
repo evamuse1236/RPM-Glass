@@ -1,0 +1,22 @@
+[
+ {"id": "fx-filler-lunch", "kind": "request", "text": "Okay so at 1 pm I will cook lunch and at 3 pm I'll read my novel", "now": "2026-11-03T04:30:00.000Z", "expect": {"titles": [["cook", "lunch"], ["read"]], "min": 2}},
+ {"id": "fx-time-nap", "kind": "request", "text": "Add a nap at 3:30 p.m. today", "now": "2026-11-03T04:30:00.000Z", "expect": {"titles": [["nap"]], "min": 1}},
+ {"id": "fx-time-vitamins", "kind": "request", "text": "Can you add another item, I need to take my vitamins at 10:15 p.m.", "now": "2026-11-03T04:30:00.000Z", "expect": {"titles": [["vitamins"]], "min": 1}},
+ {"id": "fx-want-milk", "kind": "request", "text": "I want to buy milk tomorrow at 8 a.m.", "now": "2026-11-03T04:30:00.000Z", "expect": {"titles": [["milk"]], "min": 1}},
+ {"id": "fx-call-alarm", "kind": "request", "text": "At 6 pm I have to call Ravi, put an alarm for that", "now": "2026-11-03T04:30:00.000Z", "expect": {"titles": [["call", "ravi"]], "min": 1}},
+ {"id": "fx-hinglish-gym", "kind": "request", "text": "Kal subah 7 baje mujhe gym jana hai, ek ghante ke liye", "now": "2026-11-03T04:30:00.000Z", "expect": {"titles": [["gym"]], "min": 1}},
+ {"id": "fx-lead-dentist", "kind": "request", "text": "The dentist is at 11 a.m. tomorrow. Make the alarm 15 minutes before.", "now": "2026-11-03T04:30:00.000Z", "expect": {"titles": [["dentist"]], "lead": 15, "min": 1}},
+ {"id": "fx-alarms-three", "kind": "request", "text": "Set alarms at 6:10, 6:20 and 6:30 tomorrow morning", "now": "2026-11-03T04:30:00.000Z", "expect": {"min": 3, "notime": true}},
+ {"id": "fx-alarm-short", "kind": "request", "text": "Set an alarm in 5 minutes", "now": "2026-11-03T04:30:00.000Z", "expect": {"min": 1, "notime": true}},
+ {"id": "fx-going-to-paint", "kind": "request", "text": "I'm going to paint the balcony from now for two hours", "now": "2026-11-03T04:30:00.000Z", "expect": {"titles": [["paint"]], "min": 1}},
+ {"id": "fx-noise-spanish", "kind": "noise", "text": "la semana", "now": "2026-11-03T04:30:00.000Z", "voice": "es-ES-ElviraNeural"},
+ {"id": "fx-noise-portuguese", "kind": "noise", "text": "na minha casa", "now": "2026-11-03T04:30:00.000Z", "voice": "pt-BR-FranciscaNeural"},
+ {"id": "fx-noise-name", "kind": "noise", "text": "sunita", "now": "2026-11-03T04:30:00.000Z"},
+ {"id": "fx-noise-fragment", "kind": "noise", "text": "lunch with", "now": "2026-11-03T04:30:00.000Z"},
+ {"id": "fx-noise-word", "kind": "noise", "text": "burger", "now": "2026-11-03T04:30:00.000Z"},
+ {"id": "fx-noise-hindi", "kind": "noise", "text": "क्या?", "now": "2026-11-03T04:30:00.000Z"},
+ {"id": "fx-noise-number", "kind": "noise", "text": "at least 20 kilos", "now": "2026-11-03T04:30:00.000Z"},
+ {"id": "fx-noise-other-person", "kind": "noise", "text": "Mom, did you see my charger?", "now": "2026-11-03T04:30:00.000Z"},
+ {"id": "fx-noise-chatter", "kind": "noise", "text": "Hey Google, play some music", "now": "2026-11-03T04:30:00.000Z"},
+ {"id": "fx-noise-thai", "kind": "noise", "text": "ขอบคุณครับ", "now": "2026-11-03T04:30:00.000Z", "voice": "th-TH-PremwadeeNeural"}
+]

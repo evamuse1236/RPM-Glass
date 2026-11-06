@@ -1,0 +1,241 @@
+[
+ {
+  "id": "rounds-reminder-lead-10",
+  "turns": [
+   {
+    "text": "Call Asha tomorrow at 5 pm reminder 10 min before"
+   }
+  ],
+  "expect": {
+   "created": [
+    {
+     "entity": "task",
+     "words": [
+      "call",
+      "asha"
+     ],
+     "day": "2026-10-20",
+     "time": "17:00",
+     "alert": "reminder",
+     "lead": 10,
+     "minutes": null
+    }
+   ],
+   "forbidden": [],
+   "maxNew": 1,
+   "question": "forbidden",
+   "changes": [],
+   "unchanged": [
+    101,
+    102,
+    103,
+    104,
+    105,
+    106
+   ]
+  }
+ },
+ {
+  "id": "rounds-alarm-lead-5",
+  "turns": [
+   {
+    "text": "Dentist at 2 pm set an alarm 5 min before"
+   }
+  ],
+  "expect": {
+   "created": [
+    {
+     "entity": "task",
+     "words": [
+      "dentist"
+     ],
+     "day": "2026-10-19",
+     "time": "14:00",
+     "alert": "alarm",
+     "lead": 5,
+     "minutes": null
+    }
+   ],
+   "forbidden": [],
+   "maxNew": 1,
+   "question": "forbidden",
+   "changes": [],
+   "unchanged": [
+    101,
+    102,
+    103,
+    104,
+    105,
+    106
+   ]
+  }
+ },
+ {
+  "id": "rounds-reminder-and-lead",
+  "turns": [
+   {
+    "text": "Run at 8 pm and 10 min reminder"
+   }
+  ],
+  "expect": {
+   "created": [
+    {
+     "entity": "task",
+     "words": [
+      "run"
+     ],
+     "day": "2026-10-19",
+     "time": "20:00",
+     "alert": "reminder",
+     "lead": 10,
+     "minutes": null
+    }
+   ],
+   "forbidden": [],
+   "maxNew": 1,
+   "question": "forbidden",
+   "changes": [],
+   "unchanged": [
+    101,
+    102,
+    103,
+    104,
+    105,
+    106
+   ]
+  }
+ },
+ {
+  "id": "rounds-bare-clock",
+  "turns": [
+   {
+    "text": "Phone Kiran at 6 pm"
+   }
+  ],
+  "expect": {
+   "created": [
+    {
+     "entity": "task",
+     "words": [
+      "phone",
+      "kiran"
+     ],
+     "day": "2026-10-19",
+     "time": "18:00"
+    }
+   ],
+   "forbidden": [],
+   "maxNew": 1,
+   "question": "forbidden",
+   "changes": [],
+   "unchanged": [
+    101,
+    102,
+    103,
+    104,
+    105,
+    106
+   ]
+  }
+ },
+ {
+  "id": "rounds-now-for-20",
+  "turns": [
+   {
+    "text": "Stretch now for 20 min"
+   }
+  ],
+  "expect": {
+   "created": [
+    {
+     "entity": "task",
+     "words": [
+      "stretch"
+     ],
+     "day": "2026-10-19",
+     "time": "10:00",
+     "minutes": 20
+    }
+   ],
+   "forbidden": [],
+   "maxNew": 1,
+   "question": "forbidden",
+   "changes": [],
+   "unchanged": [
+    101,
+    102,
+    103,
+    104,
+    105,
+    106
+   ]
+  }
+ },
+ {
+  "id": "rounds-now-for-15",
+  "turns": [
+   {
+    "text": "Walk the dog now for 15 minutes"
+   }
+  ],
+  "expect": {
+   "created": [
+    {
+     "entity": "task",
+     "words": [
+      "walk",
+      "dog"
+     ],
+     "day": "2026-10-19",
+     "time": "10:00",
+     "minutes": 15
+    }
+   ],
+   "forbidden": [],
+   "maxNew": 1,
+   "question": "forbidden",
+   "changes": [],
+   "unchanged": [
+    101,
+    102,
+    103,
+    104,
+    105,
+    106
+   ]
+  }
+ },
+ {
+  "id": "rounds-sample-now-5",
+  "turns": [
+   {
+    "text": "Set a sample task now for 5 min"
+   }
+  ],
+  "expect": {
+   "created": [
+    {
+     "entity": "task",
+     "words": [
+      "sample"
+     ],
+     "day": "2026-10-19",
+     "time": "10:00",
+     "minutes": 5
+    }
+   ],
+   "forbidden": [],
+   "maxNew": 1,
+   "question": "forbidden",
+   "changes": [],
+   "unchanged": [
+    101,
+    102,
+    103,
+    104,
+    105,
+    106
+   ]
+  }
+ }
+]

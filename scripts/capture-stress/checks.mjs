@@ -110,7 +110,8 @@ function checkFields(expected,row,fail,after){
  if(expected.purposeWords&&!matchesWords(row.purpose,expected.purposeWords))fail('lost item',`${row.title}: purpose missing ${expected.purposeWords.join(' + ')}`);
  const alert=row.alertIntent?.type??row.alert??null;
  if(expected.alert!==undefined&&alert!==expected.alert)fail('lost item',`${row.title}: alert ${alert}, expected ${expected.alert}`);
- if(expected.minutes!==undefined&&row.minutes!==expected.minutes)fail('wrong time',`${row.title}: duration ${row.minutes}, expected ${expected.minutes}`);
+ if(expected.lead!==undefined&&(row.alertIntent?.lead??null)!==expected.lead)fail('lost item',`${row.title}: alert lead ${row.alertIntent?.lead??null}, expected ${expected.lead}`);
+ if(expected.minutes!==undefined&&(row.minutes??null)!==expected.minutes)fail('wrong time',`${row.title}: duration ${row.minutes}, expected ${expected.minutes}`);
  if(expected.priority!==undefined&&row.priority!==expected.priority)fail('lost item',`${row.title}: priority ${row.priority}, expected ${expected.priority}`);
  if(expected.blockWords&&!matchesWords(after.planner?.blocks?.find(b=>b.id===row.blockId)?.title,expected.blockWords))fail('lost item',`${row.title}: not filed under the requested Result ${expected.blockWords.join(' + ')}`);
 }
