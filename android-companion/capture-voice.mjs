@@ -1,7 +1,7 @@
 import {startVoice} from './voice-client.mjs';
 import {liveSetup} from './voice-tools.mjs';
 import {voiceChoice} from './voice-choice.mjs';
-import {applyRamble,undoRamble} from './voice-turn.mjs';
+import {applyRamble,undoRamble,rambleTrace} from './voice-turn.mjs';
 import {el,button} from './capture-dom.mjs';
 import {card,kicker,actionsRow} from './capture-cards.mjs';
 import {wordStream} from './capture-voice-card.mjs';
@@ -49,10 +49,13 @@ export function createVoiceMode({platform,conversationId,onChange,afterSave,onLe
 
  async function saveRequest(result,{index}){
   const options={messageId:crypto.randomUUID(),conversationId:conversationId(),timeZone};
-  let out;
-  try{out=await platform.saveWith(data=>{const next=applyRamble(data,result,{...options,now:now()});return next.status==='nothing'&&!result.heard?false:next;});}
-  catch(error){saveProblem=userMessage(error);liveRows.delete(index);moment={n:moment.n+1,kind:'oops'};changed();return;}
+  let out,outcome=null;
+  const at=now(),trace=saveError=>{try{platform.voiceTrace?.(rambleTrace(result,outcome,{messageId:options.messageId,at,saveError}));}catch{}};
+  try{out=await platform.saveWith(data=>{const next=applyRamble(data,result,{...options,now:at});outcome=next;return next.status==='nothing'&&!result.heard?false:next;});}
+  catch(error){saveProblem=userMessage(error);trace(saveProblem);liveRows.delete(index);moment={n:moment.n+1,kind:'oops'};changed();return;}
   if(out===false){liveRows.delete(index);changed();return;}
+  trace(null);
+  if(result.undoes&&out.status==='applied')platform.voiceOutcome?.(result.undoes,'undone');
   saved=[...saved,{id:options.messageId,index}];
   armReceiptMark(options.messageId,`T8#${index}`);
   sound();
@@ -94,7 +97,7 @@ export function createVoiceMode({platform,conversationId,onChange,afterSave,onLe
 
  /** One Undo per ramble: it reverts the batch through the same save path, or returns why it cannot. */
  async function undo(messageId){
-  try{await platform.saveWith(data=>{undoRamble(data,messageId,now());return true;});return null;}
+  try{await platform.saveWith(data=>{undoRamble(data,messageId,now());return true;});platform.voiceOutcome?.(messageId,'undone');return null;}
   catch(error){return userMessage(error);}
  }
 

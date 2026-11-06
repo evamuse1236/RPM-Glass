@@ -13,6 +13,9 @@ const find=(list,id)=>id==null?null:(list??[]).find(x=>String(x.id)===String(id)
 const whenOf=(row,reference)=>row?.planned||row?.plannedDate?scheduleText(row.planned?{planned:row.planned}:{plannedDate:row.plannedDate},{reference}):null;
 const blockTitle=(data,id)=>id==null?'Inbox':find(data.planner?.blocks,id)?.title??null;
 
+/** One receipt row as one line of text, the way the hub shows a capture's receipt. */
+export const receiptText=line=>[line.verb,line.title,line.was&&`${line.was} to ${line.when}`,!line.was&&line.when,line.where,line.alert].filter(Boolean).join(' · ');
+
 /** A ramble's changes as Capture receipt rows, read from the saved plan so each row shows what is there now. */
 export function voiceRows(data,changes,reference=new Date()){
  return (changes??[]).map(change=>{

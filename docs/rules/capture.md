@@ -1,6 +1,6 @@
 # Capture rules and what enforces them
 
-Rules for Capture: the composer, cards, the interpreter (`intent-v2`), the model calls, traces and `npm run capture`. AGENTS.md points here. Add a row when a correction becomes a check. Time reading rules (clocks, ranges, "now", reminders) live in `capture-time.md`.
+Rules for Capture: the composer, cards, the interpreter (`intent-v2`), the model calls, traces and `npm run capture`. AGENTS.md points here. Add a row when a correction becomes a check. Time reading rules (clocks, ranges, "now", reminders) live in `capture-time.md`; voice agent traces, titles and noise rules live in `capture-voice.md`.
 
 | Rule | Enforced by |
 |---|---|

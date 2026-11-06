@@ -117,3 +117,31 @@ test('leaving Capture hangs up', async () => {
  assert.equal(stopped,2);
  assert.equal(voice.active(),true,'the session saves and ends on its own after hang-up');
 });
+
+test('each saved voice request leaves one trace with its words, reply, tool calls, what applied and the task ids, and Undo marks it', async () => {
+ const {data,ids}=day(),platform=phone(data),traces=[],outcomes=[];
+ platform.voiceTrace=trace=>traces.push(trace);
+ platform.voiceOutcome=(id,kind)=>outcomes.push([id,kind]);
+ const {voice,ids:saved}=mode(platform,rambleStart(ids));
+ await voice.begin();
+ assert.equal(traces.length,1);
+ const [t]=traces;
+ assert.equal(t.id,saved[0]);assert.equal(t.kind,'voice');
+ assert.match(t.words,/Finish calling Raj/);
+ assert.equal(t.reply,'Done Raj, removed groceries.');
+ assert.deepEqual(t.calls.map(c=>c.name),['get_plan','save_task','delete_task']);
+ assert.deepEqual(t.applied,{status:'applied',entryIds:[ids.raj,ids.milk],undoes:null});
+ assert.deepEqual(t.errors,[]);
+ assert.equal(t.models[0].service,'gemini');
+ assert.equal(await voice.undo(saved[0]),null);
+ assert.deepEqual(outcomes,[[saved[0],'undone']]);
+});
+
+test('a saved voice capture names the tasks it touched and has receipt lines, so the hub can link words to tasks', async () => {
+ const {data,ids}=day(),platform=phone(data);
+ const {voice,ids:saved}=mode(platform,rambleStart(ids));
+ await voice.begin();
+ const capture=platform.store.intentV2.captures[saved[0]];
+ assert.deepEqual(capture.taskIds,[ids.raj,ids.milk]);
+ assert.deepEqual(capture.receipt.map(r=>r.text),['Done · Call Raj','Moved to Trash · Buy groceries']);
+});
