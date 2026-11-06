@@ -1,6 +1,8 @@
 import {planner,blockTasks} from './planner-state.mjs';
 
 export const LIVE_MODEL='gemini-3.8-live';
+/** The person speaks English, Hindi and Marathi; the hint biases recognition toward them (it does not forbid others). */
+export const SPOKEN_LANGUAGES=Object.freeze(['en-IN','hi-IN','mr-IN']);
 
 const live=x=>!x.archived;
 const object=(properties,required=[])=>({type:'object',properties,required,additionalProperties:false});
@@ -101,6 +103,7 @@ ${planLines(plan)}
 - "It", "that" and "them" mean the items you changed last, unless they name another.
 - "Restore" or "bring back" means restore_task from the trash list, never a new task. "Undo that" means undo_last.
 - If what you heard is not a request to you (talking to someone else, a video, half a sentence), change nothing and say nothing.
+- A lone word or a few words with no verb ("pizza", "meeting with", a name) is not a request, even if it could be a task: change nothing and ask in a few words what they want to do. Speech in a language other than English, Hindi or Marathi is noise: change nothing.
 - A start time that has already passed today: ask whether they mean another day before you save it.
 - If something else is unclear, make the most likely choice and say what you chose. Never wait for an answer before saving what you are sure of.${personaLines(persona)}`;
 }
@@ -133,7 +136,7 @@ export function liveSetup(now,timeZone,{data=null,continuous=false,voice=null,pe
  return {model:`models/${LIVE_MODEL}`,generationConfig,
   systemInstruction:{parts:[{text:systemPrompt(now,timeZone,{plan,continuous,persona})}]},
   tools:[{functionDeclarations:TOOLS.map(t=>({name:t.name,description:t.description,parametersJsonSchema:t.parameters}))}],
-  inputAudioTranscription:{},outputAudioTranscription:{},realtimeInputConfig:{automaticActivityDetection:continuous?{...OPEN_LINE_DETECTION}:{disabled:true}}};
+  inputAudioTranscription:{languageCodes:[...SPOKEN_LANGUAGES]},outputAudioTranscription:{},realtimeInputConfig:{automaticActivityDetection:continuous?{...OPEN_LINE_DETECTION}:{disabled:true}}};
 }
 
 const TASK_FIELDS=[['title','title'],['minutes','minutes'],['blockId','blockId'],['alert','alert'],['alertLead','alertLead'],['repeat','recurrence'],['must','must'],['notes','notes'],['purpose','purpose']];
