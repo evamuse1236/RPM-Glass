@@ -7,7 +7,7 @@ import {driveCommands} from './drive.mjs';
 import {evidenceCommands} from './evidence.mjs';
 import {target, openLauncher, errorLines, readState} from './runtime.mjs';
 import {parseVoiceScriptArgs, runVoiceScript} from './voice-script.mjs';
-import {RUN_DIR, armExpression, isEmulatorDevice, loadVoiceFixtures, parseVoiceTimeArgs, runVoiceTimes} from './voice-time.mjs';
+import {RUN_DIR, armExpression, isEmulatorDevice, loadClipFixtures, loadVoiceFixtures, parseVoiceTimeArgs, runVoiceTimes} from './voice-time.mjs';
 
 function prefsXml({fixture, delay}) {
   const rows = ['<boolean name="RPM_VOICE_TIMING" value="true" />'];
@@ -36,6 +36,11 @@ function pageReads(serial, cdpPort, sinceRef) {
     now: () => Date.now(),
     sleep,
     async waitForStage(name, {timeout = 120000} = {}) { await until(hasMark(name), {timeout, what: `voice stage ${name}`}); },
+    async waitForAny(names, {timeout = 120000} = {}) { await until(names.map(name => `(${hasMark(name)})`).join('||'), {timeout, what: `voice stage ${names.join(' or ')}`}); },
+    /** The Capture field names the call: its placeholder reads "RPM is talking" while the voice phase is speaking. */
+    isSpeaking: async () => (await pageEval(`document.querySelector('#message')?.placeholder==='RPM is talking'`).catch(() => false)) === true,
+    /** After a receipt the spoken answer may still be coming: give it a few seconds to start; a silent answer is fine. */
+    async waitForSpokenStart(n) { try { await until(hasMark(`T9#${n}`), {timeout: 8000, what: `spoken answer ${n}`}); } catch (e) { if (!(e instanceof UserError)) throw e; } },
     readMarks: () => pageEval(`performance.getEntriesByType('mark').filter(entry => entry.name.startsWith('voice:')).map(entry => ({name: entry.name, startTime: entry.startTime}))`),
     readClock: () => pageEval(`({timeOrigin: performance.timeOrigin, pageNow: Date.now()})`),
     readLog: () => adb(serial, ['logcat', '-d', '-t', '400'], {allowFail: true}),
@@ -169,6 +174,7 @@ export function deviceIsEmulator(serial) {
 export async function voiceTime(argv) {
   const emulator = deviceIsEmulator(argv.serial ?? readState()?.serial);
   const plan = parseVoiceTimeArgs(argv, {emulator});
+  if (plan.clips) plan.clipFixtures = loadClipFixtures(plan.clips);
   return runVoiceTimes(plan, emulator ? emulatorVoiceTimeIo(argv, loadVoiceFixtures()) : phoneVoiceTimeIo(argv));
 }
 

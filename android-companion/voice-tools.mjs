@@ -1,4 +1,5 @@
 import {planner,blockTasks} from './planner-state.mjs';
+import {TELEGRAM_TOOLS,telegramRules} from './voice-telegram.mjs';
 
 export const LIVE_MODEL='gemini-3.8-live';
 /** The person speaks English, Hindi and Marathi; the hint biases recognition toward them (it does not forbid others). */
@@ -83,7 +84,7 @@ const OPENING={
  open:'The line stays open, so they can add more after each answer. Change the plan with tools, and answer every direct request with one short sentence.',
 };
 
-export function systemPrompt(now,timeZone,{plan=null,continuous=false,persona=''}={}){
+export function systemPrompt(now,timeZone,{plan=null,continuous=false,persona='',telegram=false}={}){
  const today=now.toLocaleString('en-US',{timeZone,weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'numeric',minute:'2-digit'});
  return `You keep a person's RPM planner. ${continuous?OPENING.open:OPENING.once}
 Now: ${today} (time zone ${timeZone}, offset ${offsetOf(now,timeZone)}).
@@ -105,7 +106,7 @@ ${planLines(plan)}
 - If what you heard is not a request to you (talking to someone else, a video, half a sentence), change nothing and say nothing.
 - A lone word or a few words with no verb ("pizza", "meeting with", a name) is not a request, even if it could be a task: change nothing and ask in a few words what they want to do. Speech in a language other than English, Hindi or Marathi is noise: change nothing.
 - A start time that has already passed today: ask whether they mean another day before you save it.
-- If something else is unclear, make the most likely choice and say what you chose. Never wait for an answer before saving what you are sure of.${personaLines(persona)}`;
+- If something else is unclear, make the most likely choice and say what you chose. Never wait for an answer before saving what you are sure of.${telegram?`\n${telegramRules(telegram.bots)}`:''}${personaLines(persona)}`;
 }
 
 /** Gemini Live prebuilt voices offered in Settings, each with its one-word feel from Google's voice list. */
@@ -126,7 +127,7 @@ function personaLines(value){
  * The Gemini Live setup message for one session. Both the phone and the website server build it from here.
  * `continuous` is the phone's open line; the website keeps one ramble per press.
  */
-export function liveSetup(now,timeZone,{data=null,continuous=false,voice=null,persona=''}={}){
+export function liveSetup(now,timeZone,{data=null,continuous=false,voice=null,persona='',telegram=false}={}){
  let view=null;
  try{view=data?JSON.stringify(planView(data,timeZone)):null;}catch{view=null;}
  const plan=view&&view.length<=PLAN_IN_PROMPT_MAX?view:null;
@@ -134,8 +135,8 @@ export function liveSetup(now,timeZone,{data=null,continuous=false,voice=null,pe
  const generationConfig={responseModalities:['AUDIO']};
  if(name)generationConfig.speechConfig={voiceConfig:{prebuiltVoiceConfig:{voiceName:name}}};
  return {model:`models/${LIVE_MODEL}`,generationConfig,
-  systemInstruction:{parts:[{text:systemPrompt(now,timeZone,{plan,continuous,persona})}]},
-  tools:[{functionDeclarations:TOOLS.map(t=>({name:t.name,description:t.description,parametersJsonSchema:t.parameters}))}],
+  systemInstruction:{parts:[{text:systemPrompt(now,timeZone,{plan,continuous,persona,telegram})}]},
+  tools:[{functionDeclarations:[...TOOLS,...(telegram?TELEGRAM_TOOLS:[])].map(t=>({name:t.name,description:t.description,parametersJsonSchema:t.parameters}))}],
   inputAudioTranscription:{languageCodes:[...SPOKEN_LANGUAGES]},outputAudioTranscription:{},realtimeInputConfig:{automaticActivityDetection:continuous?{...OPEN_LINE_DETECTION}:{disabled:true}}};
 }
 

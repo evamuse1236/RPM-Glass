@@ -73,15 +73,18 @@ const micError=e=>['NotAllowedError','SecurityError'].includes(e?.name)?new Voic
  * key never reaches this code. Resolves `done` with the ramble's result; `onChange(state)` follows each step.
  * Phases: connecting → listening → working → speaking → done | failed.
  */
+/** A ramble's answer to the server; a Telegram tool's answer arrives later and is sent then, unless it was dropped. */
+const deliver=(out,send)=>{if(out instanceof Promise)out.then(late=>{if(late)send(late);},()=>{});else send(out);};
+
 export function startVoice(options){
  resetSessionMarks();
  if(options.continuous)return startOpenLine(options);
  return startRamble(options);
 }
 
-function startRamble({data,timeZone,setup,token,onChange=()=>{},onLevel=()=>{},workletUrl,now=()=>new Date(),
+function startRamble({data,timeZone,setup,token,telegram=null,onChange=()=>{},onLevel=()=>{},workletUrl,now=()=>new Date(),
  media=globalThis.navigator?.mediaDevices,AudioContextImpl=globalThis.AudioContext,AudioWorkletNodeImpl=globalThis.AudioWorkletNode,WebSocketImpl=globalThis.WebSocket,limits=VOICE_LIMITS}){
- const ramble=createRamble({data,timeZone,now}),speaker=createSpeaker(AudioContextImpl,onLevel),queue=[];
+ const ramble=createRamble({data,timeZone,now,telegram}),speaker=createSpeaker(AudioContextImpl,onLevel),queue=[];
  let socket=null,mic=null,micContext=null,ready=false,stopped=false,finished=false,timer=null,talkTimer=null,phase='connecting',resolve;
  const done=new Promise(r=>{resolve=r;});
  const notify=()=>onChange({...ramble.state,phase:phase==='connecting'||phase==='listening'?phase:ramble.state.phase});
@@ -104,7 +107,7 @@ function startRamble({data,timeZone,setup,token,onChange=()=>{},onLevel=()=>{},w
  function receive(m){
   if(m.setupComplete){ready=true;clearTimeout(timer);voiceMark('T4');send({realtimeInput:{activityStart:{}}});for(const c of queue.splice(0))send(c);if(stopped){stopped=false;stop();}else{phase='listening';speaker.chime();notify();}return;}
   for(const part of m.serverContent?.modelTurn?.parts??[])if(part.inlineData?.mimeType?.startsWith('audio/pcm'))speaker.play(part.inlineData.data);
-  for(const out of ramble.receive(m))send(out);
+  for(const out of ramble.receive(m))deliver(out,send);
   if(stopped)wait(limits.answerMs,'Voice took too long to answer. Your words are saved.');
   notify();
   if(ramble.state.phase==='done')finish();
@@ -142,7 +145,7 @@ function startRamble({data,timeZone,setup,token,onChange=()=>{},onLevel=()=>{},w
  * the speaker plays. `goAway` or a dropped socket saves the request in progress, waits `gapMs` and opens a new
  * session from `setup()`. `stop()` cuts RPM's speech, or hangs up when it is quiet.
  */
-function startOpenLine({data,timeZone,setup,token,onChange=()=>{},onLevel=()=>{},onRequest=async()=>{},workletUrl,now=()=>new Date(),
+function startOpenLine({data,timeZone,setup,token,telegram=null,onChange=()=>{},onLevel=()=>{},onRequest=async()=>{},workletUrl,now=()=>new Date(),
  media=globalThis.navigator?.mediaDevices,AudioContextImpl=globalThis.AudioContext,AudioWorkletNodeImpl=globalThis.AudioWorkletNode,WebSocketImpl=globalThis.WebSocket,limits=VOICE_LIMITS}){
  const fresh=()=>typeof data==='function'?data():data,setupNow=()=>typeof setup==='function'?setup():setup;
  const quietMs=limits.quietMs??VOICE_LIMITS.quietMs,gapMs=limits.gapMs??VOICE_LIMITS.gapMs;
@@ -181,7 +184,7 @@ function startOpenLine({data,timeZone,setup,token,onChange=()=>{},onLevel=()=>{}
   touch();
   const sc=m.serverContent,parts=sc?.modelTurn?.parts??[];
   if(sc?.interrupted)speaker.clear();
-  if(!ramble&&(m.toolCall||sc?.inputTranscription?.text||sc?.outputTranscription?.text||parts.length)){ramble=createRamble({data:fresh(),timeZone,now,undoSaved:true});count++;}
+  if(!ramble&&(m.toolCall||sc?.inputTranscription?.text||sc?.outputTranscription?.text||parts.length)){ramble=createRamble({data:fresh(),timeZone,now,undoSaved:true,telegram});count++;}
   if(ramble&&sc?.inputTranscription?.text)voiceSaidMark(count);
   if(m.toolCall){replied=true;serverBusy=true;toolsPending=true;holdStage(`T7#${count}`);voiceMark(`T7#${count}`);}
   if(parts.length){replied=true;serverBusy=true;toolsPending=false;}
@@ -189,7 +192,7 @@ function startOpenLine({data,timeZone,setup,token,onChange=()=>{},onLevel=()=>{}
    if(!spoken){spoken=true;voiceMark(`T9#${count}`);}
    speaker.play(part.inlineData.data);
   }
-  if(ramble)for(const out of ramble.receive(m))send(out);
+  if(ramble)for(const out of ramble.receive(m))deliver(out,send);
   if(sc?.turnComplete){
    const status=sc.interactionStatus,idle=status?IDLE.has(status):!toolsPending;
    hush=false;serverBusy=!idle;if(!status)toolsPending=false;

@@ -145,12 +145,17 @@ An optional dotted path (e.g. sync.outbox or entries.0.title) prints that value.
   state: `state [relative-path]
 Without a path: lists the app's private files (files/, shared_prefs/, databases/) via run-as.
 With a path (e.g. files/companion.json): prints {ok, path, json} when JSON parses, otherwise {ok, path, text}. Debug builds only.`,
-  'voice-time': `voice-time [--runs N] [--fixture <id|all>] [--session two] [--warm] [--human]
+  'voice-time': `voice-time [--runs N] [--fixture <id|all>] [--session two] [--clip <a.wav>[,<b.wav>...]] [--warm] [--human]
 Opens Capture the way the home widget mic does (com.rpm.widget.voice), feeds a fixture clip through the fake mic into one
 open Live session, waits for its receipt, then taps the Hang up orb. Per request it prints the time from the end of the
 clip (speechEnd#n) to the first tool call (T7#n), the change on screen (Trow#n), the receipt (T8#n) and the first
 spoken audio (T9#n), plus tap to Gemini listening (T4).
 --session two plays time, then two-tasks after the first receipt, in the same session.
+--clip plays your own WAV files in order in one open session (paths absolute or relative to the repo), for phrases with no
+fixture. Each must be 16 kHz mono 16-bit PCM; other formats are refused. A sibling <name>.json (like fixtures/voice) gives the
+expected save; without it the clip is unlabelled and nothing is compared. A request ends at its receipt (T8) or, with no
+planner change, at its spoken answer (T9); the next clip plays after RPM stops talking plus 600 ms, as a person would wait. Emulator only; refused on a phone, and not combined
+with --fixture, --session or --human.
 --fixture is time, two-tasks, change, question, ramble, or all (the default; one session each). --runs prints median and
 p90. The table includes errors and workDone (receipts drawn). --human leaves the mic real and waits for you to hang up.
 Writes .verify/voice-latency/runs/<run-id>.json. A debug build can feed fixtures/voice WAV through RPM_FAKE_MIC. Release builds have no fake mic.

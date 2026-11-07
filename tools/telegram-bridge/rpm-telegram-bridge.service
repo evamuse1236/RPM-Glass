@@ -1,0 +1,12 @@
+[Unit]
+Description=RPM Telegram bridge (voice agent send and read)
+After=network-online.target
+
+[Service]
+Environment=PATH=%h/.local/bin:%h/.local/share/mise/installs/uv/latest/.mise-bins:/usr/local/bin:/usr/bin
+ExecStart=%h/.local/share/rpm-telegram-bridge/bridge.py serve
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

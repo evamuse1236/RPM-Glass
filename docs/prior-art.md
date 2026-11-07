@@ -46,3 +46,16 @@ Sources: ~/.cache/voice-research/{labs,frameworks,gemini-live}.md (primary docs 
 | ElevenLabs filler after a wait; web console clears the audio queue on `interrupted` | Borrow | Local earcon on toolCall; barge-in stops our speaker |
 | OpenAI WebRTC/WARP, Deepgram Flux early tools, cascaded ~100 ms TTS | Skip | Needs another provider; user keeps Gemini Live |
 | gemini-3.5-transcribe-live in a second session | Maybe | Measured interim words 1.4 s into a clip; doubles audio input cost |
+
+## Telegram by voice: send to my bots, read my chats (2026-11-07)
+
+**Problem:** the phone's voice agent must send Telegram messages as the owner to the owner's bots (Ima and the others), and read the owner's chats (bot replies, unread chats) aloud.
+
+Scouts read primary docs and source on 2026-11-07; stars and dates as the GitHub API gave them.
+
+| Sub-problem | Candidates | Verdict and evidence |
+|---|---|---|
+| Account access | Bot API incl. Bot-to-Bot mode; Telegram Business connected bots; Telethon (MIT, 12k); Kurigram (LGPL); GramJS (MIT, archived); TDLib (BSL, official); mtcute (MIT) | **Telethon user session**, the one pune already holds for `ima-father`. A bot cannot see messages from other bots (core.telegram.org/bots/features), and a Business bot cannot list chats. Measured: `bridge.py check` lists all bots; a read left Ima's unread count at 5. Keep one live copy of the auth key (Telethon FAQ: one session per place), so no second login on the phone. TDLib is the pick if the phone ever needs its own login. |
+| Ready-made bridge | chigwell/telegram-mcp (Apache-2.0, 2k, Telethon, 80+ tools); jgalea/telegram-mcp (MIT); KiaroSama/Telegram-mcp (GPL); chaindead/telegram-mcp (MIT, Go); tolboy/telegram-mcp-tdlib; matskevich/tg-mcp-guarded; sparfenyuk, dryeab (stale or no gates) | **Build a 200-line bridge; borrow ideas.** The phone speaks plain HTTPS from Java, not MCP, and chigwell's 80+ tools are far more surface than two calls. Borrowed: a send allowlist (jgalea, chigwell `TELEGRAM_ALLOWED_CHAT_IDS`), refuse an ambiguous name and ask (chigwell), read without read receipts (KiaroSama ghost mode, gotd/tgmcp), drafts before sends (chaindead). |
+| Phone → home PC | `tailscale serve` HTTPS with identity headers; plain HTTP on the tailnet IP + `whois`; a cloud relay (Convex); MTProto on the phone (TDLib, GramJS) | **`tailscale serve`** in front of a 127.0.0.1-only bridge that requires the owner's `Tailscale-User-Login` (serve.go `addTailscaleIdentityHeaders`). Valid ts.net certificate, so no cleartext exception on Android. Measured: 0.26-0.44 s per warm call from pune; a stranger's login gets 403. Cloud relay skipped: it would have to hold the session. |
+| Voice UX | Android Auto voice messaging; Gemini/Assistant on Android Auto; Android Auto MessagingStyle mark-as-read action; Alexa; Gemini Live NON_BLOCKING tools; LiveKit async tools; Pipecat | **Read back, then a yes** (Android Auto: "reads back the message and recipient, then asks"), first. The user dropped the yes on 2026-11-07: a send goes at once when the words ask for one, only to the owner's bots, and the bot's reply is read back instead. Reading and marking read stay separate (Android Auto mark-as-read is its own action). NON_BLOCKING tools skipped for now: support on the 3.8 Live model is unverified and a read takes under half a second. |

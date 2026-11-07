@@ -6,6 +6,7 @@ import {intentState} from '../intent-v2/src/repository.mjs';
 import {userMessage} from './user-message.mjs';
 import {voiceMark,holdStage} from './voice-marks.mjs';
 import {secretKey,redactText} from './diagnostics.mjs';
+import {TELEGRAM_TOOL_NAMES} from './voice-telegram.mjs';
 
 export const MAX_RAMBLE_OPS=60;
 const TRACE_CALLS=20,TRACE_TEXT=200;
@@ -17,14 +18,18 @@ const traced=(v,depth=0)=>typeof v==='string'?redactText(v.length>TRACE_TEXT?v.s
  * client messages to send back. Tool calls run at once on a working copy, so answers carry real ids.
  * Phases: listening → working (after stop) → speaking (model talks after its tools) → done | failed.
  */
-/** undoSaved: undo_last may take back the previous saved ramble (the phone's open line saves each one). */
-export function createRamble({data,timeZone,now=()=>new Date(),undoSaved=false}){
+/**
+ * undoSaved: undo_last may take back the previous saved ramble (the phone's open line saves each one).
+ * telegram: the call's Telegram link (voice-telegram.mjs). Its tools answer later, so their toolResponse is a Promise.
+ */
+export function createRamble({data,timeZone,now=()=>new Date(),undoSaved=false,telegram=null}){
  const base=undoes=>{const copy=structuredClone(data);if(undoes)editPlan(copy,{type:'undo'},now());return copy;};
  let working=base(null);
  const records=[],errors=[],calls=[],added=new Map();
  const note=entry=>{calls.push({name:entry.name,args:traced(entry.args??{}),...entry.out});if(calls.length>TRACE_CALLS)calls.shift();};
  const undoneRamble=()=>records.find(r=>r.undoes)?.undoes??null;
  let heard='',said='',phase='listening',toolsPending=false,error=null,answered=false,firstTool=true;
+ const ramble={};
  const all=key=>records.flatMap(r=>r[key]);
  const changes=()=>records.map(r=>r.change);
  const created=()=>records.filter(r=>r.created!=null).map(r=>r.created);
@@ -63,11 +68,20 @@ export function createRamble({data,timeZone,now=()=>new Date(),undoSaved=false})
   if(key)added.set(key,{saved:result});
   return {saved:result};
  };
+ const dropped=new Set();
+ /** A Telegram tool: drafts, sends after a yes, or reads. A read is traced by its counts only, never its messages. */
+ const telegramCall=async c=>{
+  if(!telegram)throw new Error('Telegram is not connected on this phone.');
+  const result=await telegram.run(c.name,c.args??{},{heard,request:ramble});
+  if(result?.sent)records.push({id:c.id,key:null,ops:[],uuids:[],change:{kind:'send',entity:'telegram',id:null,title:result.sent.text,to:result.sent.to},created:null});
+  note({...c,out:{result:c.name==='read_telegram'?readCounts(result):sendTrace(result)}});
+  return result;
+ };
  /** Drops the named calls' changes and replays the rest on a fresh copy with the same new ids. */
  const cancel=ids=>{
   const drop=new Set(ids);
   if(!records.some(r=>drop.has(r.id)))return;
-  const kept=records.filter(r=>!drop.has(r.id));
+  const kept=records.filter(r=>!drop.has(r.id)||r.change.kind==='send');
   for(const r of records)if(drop.has(r.id)&&r.key)added.delete(r.key);
   working=base(kept.find(r=>r.undoes)?.undoes??null);records.length=0;
   for(const r of kept){
@@ -89,15 +103,23 @@ export function createRamble({data,timeZone,now=()=>new Date(),undoSaved=false})
    if(m?.toolCallCancellation)cancel(m.toolCallCancellation.ids??[]);
    if(phase!=='listening'&&(m?.toolCall||(sc?.modelTurn?.parts??[]).length))answered=true;
    if(phase==='working'&&!toolsPending&&(sc?.modelTurn?.parts??[]).length)phase='speaking';
+   if(m?.toolCallCancellation)for(const id of m.toolCallCancellation.ids??[])dropped.add(id);
    if(m?.toolCall&&!['done','failed'].includes(phase)){
     if(firstTool){firstTool=false;holdStage('T7');voiceMark('T7');}
     if(m.toolCall.functionCalls.some(c=>c.name!=='get_plan'))voiceMark('Tsave');
     toolsPending=true;
+    const failed=(c,e)=>{const text=userMessage(e);errors.push(`${c.name}: ${text}`);note({...c,out:{error:traced(text)}});return {error:text};};
+    const answer=(c,result)=>({id:c.id,name:c.name,response:{result}});
     const functionResponses=m.toolCall.functionCalls.map(c=>{
-     let result;try{result=call(c);note({...c,out:{result:c.name==='get_plan'?'plan':traced(result)}});}catch(e){const text=userMessage(e);errors.push(`${c.name}: ${text}`);result={error:text};note({...c,out:{error:traced(text)}});}
-     return {id:c.id,name:c.name,response:{result}};
+     if(TELEGRAM_TOOL_NAMES.has(c.name))return telegramCall(c).then(result=>answer(c,result),e=>answer(c,failed(c,e)));
+     let result;try{result=call(c);note({...c,out:{result:c.name==='get_plan'?'plan':traced(result)}});}catch(e){result=failed(c,e);}
+     return answer(c,result);
     });
-    out.push({toolResponse:{functionResponses}});
+    if(functionResponses.some(r=>r instanceof Promise))out.push(Promise.all(functionResponses).then(all=>{
+     const live=all.filter(r=>!dropped.has(r.id));
+     return live.length?{toolResponse:{functionResponses:live}}:null;
+    }));
+    else out.push({toolResponse:{functionResponses}});
    }else if(sc?.turnComplete&&phase!=='listening'){
     if(toolsPending)toolsPending=false;else if(phase!=='failed')phase='done';
    }
@@ -107,6 +129,9 @@ export function createRamble({data,timeZone,now=()=>new Date(),undoSaved=false})
  };
 }
 
+/** A send's trace keeps their own words and only the count of the bot's reply, never its text. */
+const sendTrace=r=>r?.sent?{sent:traced(r.sent),replies:r.reply?.length??0}:traced(r);
+const readCounts=r=>({telegram:'read',chats:r?.chats?.length??(r?.chat?1:0),messages:r?.messages?.length??(r?.chats??[]).reduce((n,c)=>n+(c.messages?.length??0),0)});
 const taskIds=data=>new Set(data.entries.map(e=>e.id));
 const wordsRecord=(heard,{messageId,conversationId=null,timeZone,now=new Date()})=>({messageId,conversationId,raw:heard,at:now.toISOString(),timezone:timeZone,focusDraftId:null,focusRevision:null,focus:null,source:'voice',status:'captured'});
 
@@ -155,9 +180,11 @@ export const rambleTaskIds=ramble=>[...new Set((ramble.changes??[]).filter(c=>c.
  * One voice request as a capture trace: the words, RPM's reply, each tool call, what applied and the tasks it touched.
  * `outcome` is applyRamble's answer; `saveError` is why the save itself failed.
  */
+/** True when RPM read Telegram messages aloud in this request, so its spoken words quote them and stay out of the trace. */
+const readAloud=(calls=[])=>calls.some(c=>c.result?.telegram==='read'||c.result?.replies>0);
 export function rambleTrace(ramble,outcome,{messageId,at,saveError=null}){
  const status=saveError?'not-saved':outcome?.status??'nothing';
- return {id:messageId,kind:'voice',at:at.toISOString(),words:ramble.heard,reply:ramble.said||null,promptVersion:`voice ${LIVE_MODEL}`,policyVersion:null,
+ return {id:messageId,kind:'voice',at:at.toISOString(),words:ramble.heard,reply:readAloud(ramble.calls)?'(Telegram messages read aloud; not kept)':ramble.said||null,promptVersion:`voice ${LIVE_MODEL}`,policyVersion:null,
   calls:ramble.calls??[],changes:(ramble.changes??[]).map(({kind,entity,id,title})=>({kind,entity,id,title})),
   applied:{status,entryIds:status==='applied'?rambleTaskIds(ramble):[],undoes:ramble.undoes??null},
   errors:[...(ramble.errors??[]).map(message=>({stage:'tool',message})),...(ramble.failed?[{stage:'voice',message:ramble.failed}]:[]),
