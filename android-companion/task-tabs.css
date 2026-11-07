@@ -11,7 +11,7 @@
   color: var(--on-tone);
 }
 .task-pill .ms { font-size: calc(20px / var(--text-scale, 1)); }
-.task-head .task-title-field { padding-inline: 0; font: var(--title-row); font-weight: 500; }
+.task-head .task-title-field { padding-inline: 0; font: var(--title-row); }
 .task-head .task-ring { color: var(--tone, var(--on-surface-variant)); }
 .task-head[data-armed=true] .task-ring, .task-head.is-done .task-ring { color: var(--tone, var(--tertiary)); }
 
@@ -95,7 +95,6 @@
 .task-tabs .chip-row.segmented .chip-check { display: none; }
 .task-tabs .chip-row[aria-label='More choices'] { gap: 0; }
 .task-tabs .chip-row[aria-label='More choices'] > .chip { border-color: transparent; background: none; color: var(--on-surface-variant); padding-inline: var(--s2); }
-.task-tabs .chip-row[aria-label='More choices'] > .when-clear { justify-content: center; min-inline-size: var(--touch); margin-inline-start: auto; padding-inline: 0; }
 
 .when-days { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
 .when-day { display: grid; justify-items: center; gap: var(--s1); padding-block: var(--s1); border-radius: var(--r-control); color: var(--on-surface); }
@@ -117,7 +116,7 @@
 
 .time-ruler { display: flex; flex-direction: column; gap: var(--s1); }
 /* The row under the ruler tucks under the grip's touch overhang (12px below the track), so no blank band sits under the bar. */
-.time-ruler:has(+ .field-alert[hidden]) { margin-block-end: calc(-1 * var(--s2)); }
+.time-ruler:has(+ .field-alert[hidden]) { margin-block-end: calc(-1 * var(--s3)); }
 .time-ruler.is-off :is(.ruler-readout, .ruler-rail) { opacity: .38; }
 /* One line: the range, then its length as quiet words that open the exact-length field. */
 .ruler-head { display: flex; align-items: center; gap: var(--s2); min-block-size: var(--touch); }
@@ -129,15 +128,11 @@
   padding: 0;
   border: 0;
   background: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
   font: var(--title-medium);
   font-weight: 400;
-  color: var(--on-surface-variant);
+  color: var(--primary);
   white-space: nowrap;
 }
-.ruler-words-icon { font-size: calc(20px / var(--text-scale, 1)); }
 .ruler-words::after { content: ""; position: absolute; inset: 50% auto auto 50%; inline-size: max(100%, var(--touch)); block-size: var(--touch); translate: -50% -50%; }
 .ruler-words[hidden] { display: none; }
 .ruler-words:focus-visible { border-radius: var(--shape-xs); outline: 2px solid var(--primary); outline-offset: 2px; }
@@ -165,8 +160,6 @@
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
   block-size: 56px;
-  border-radius: var(--r-group);
-  background: var(--sheet-card);
   touch-action: pan-x;
   /* Clear for 16px at each end, then a 32px fade: a tick or hour label at the edge fades to nothing instead of being cut. */
   mask-image: linear-gradient(to right, transparent, transparent var(--s4), black var(--touch), black calc(100% - var(--touch)), transparent calc(100% - var(--s4)), transparent);
@@ -185,38 +178,31 @@
   background: var(--outline-variant);
   scroll-snap-align: center;
 }
-.ruler-tick:is(.is-hour, .is-own) { inset-block-end: 12px; block-size: 16px; }
-.ruler-tick.is-hour { background: var(--outline); }
-.ruler-tick.is-own { background: var(--primary); }
+.ruler-tick.is-hour { block-size: 16px; background: var(--outline); }
+.ruler-tick.is-own { block-size: 16px; background: var(--primary); }
 .ruler-hour {
   position: absolute;
   inset-block-end: 20px;
   inset-inline-start: 50%;
   translate: -50% 0;
-  font: var(--label-medium);
+  font: var(--label-small);
   color: var(--on-surface-variant);
   white-space: nowrap;
 }
-/* Now: a thin line through the tick lane with a dot on top, in the colour Today gives now. */
-.ruler-now { position: absolute; inset-block: 20px 8px; z-index: 1; inline-size: 2px; margin-inline-start: -1px; border-radius: 2px; background: var(--now); }
-.ruler-now::before { content: ""; position: absolute; inset-block-start: -4px; inset-inline-start: 50%; inline-size: 8px; block-size: 8px; translate: -50% 0; border-radius: var(--shape-full); background: var(--now); }
-.ruler-now[hidden] { display: none; }
-/* The length is a tonal pill from the playhead to the knob, laid across the middle of the ticks. */
 .ruler-length {
   position: absolute;
-  inset-block-end: 16px;
+  inset-block-end: 8px;
   inset-inline-start: 50%;
-  z-index: 1;
   block-size: 8px;
-  border-radius: var(--shape-full);
-  background: color-mix(in oklch, var(--primary) 40%, var(--primary-container));
+  border-start-end-radius: var(--shape-full);
+  border-end-end-radius: var(--shape-full);
+  background: var(--primary);
   pointer-events: none;
 }
 .ruler-centre {
   position: absolute;
   inset-block: 24px 8px;
   inset-inline-start: calc(50% - 1px);
-  z-index: 1;
   inline-size: 2px;
   border-radius: 2px;
   background: var(--primary);
@@ -224,8 +210,7 @@
 }
 .ruler-grip {
   position: absolute;
-  inset-block-end: -4px;
-  z-index: 1;
+  inset-block-end: -12px;
   inset-inline-start: 50%;
   display: grid;
   place-items: center;
@@ -301,9 +286,7 @@
 }
 .block-choice .ring { inline-size: 24px; block-size: 24px; }
 .block-choice .ring-track { stroke: var(--outline-variant); }
-.block-choice .ring-done { fill: color-mix(in oklch, var(--success) var(--track-mix), var(--sheet-bg, var(--sheet-surface))); stroke: none; }
-/* Finished reads as done (a full green ring on a green disc), never as the blue of the chosen row. */
-.block-choice .ring:has(.ring-done) .ring-value { stroke: var(--success); }
+.block-choice .ring-done { fill: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--sheet-bg, var(--sheet-surface))); stroke: none; }
 .block-choice-inbox { justify-self: center; font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
 .block-choice-title { overflow: clip; font: var(--body-large); text-overflow: ellipsis; white-space: nowrap; }
 .block-choice .choice-hint { font: var(--label-small); color: var(--on-surface-variant); }

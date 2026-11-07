@@ -34,19 +34,6 @@ export function whenDay({day}, today = localDay()) {
 }
 
 /** What TalkBack hears for the When tab: the day and its time, "Today, 4 PM". */
-/**
- * The When tab's value while another tab is open, when the large readout is off screen: the time, with the day
- * only when it is not today ("4 PM", "Sun 4:30 PM", "Dec 24 9 AM"); the day alone when no time is set.
- */
-export function whenBrief({day, time}, today = localDay()) {
-  if (!day || !time) return whenDay({day}, today);
-  if (day === today) return briefClock(day, time);
-  const date = dateOf(day);
-  const name = Math.abs(daysApart(today, day)) < 7 ? date.toLocaleDateString([], {weekday: 'short'})
-    : date.toLocaleDateString([], {month: 'short', day: 'numeric'});
-  return `${name} ${briefClock(day, time)}`;
-}
-
 export const whenSpoken = ({day, time}, today = localDay()) =>
   [whenDay({day}, today), day && time ? briefClock(day, time) : ''].filter(Boolean).join(', ');
 
