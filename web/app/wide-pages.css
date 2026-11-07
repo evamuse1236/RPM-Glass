@@ -119,23 +119,25 @@
     mask-image: linear-gradient(to bottom, black calc(100% - var(--page-fade)), transparent);
   }
 
-  /* Block detail: the Plan reads like a Google Tasks list in a 560px column, each Must star near its words; the Purpose,
-     due date and progress sit beside it in one card that stays in view while the Plan scrolls. With the Inbox or a
-     task open beside the page there is no room, and the page keeps one column. */
-  .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner[data-view=blocks][data-detail=true] { --column: 928px; }
+  /* Block detail: the Result heads the page across both columns; under it the Plan reads like a Google Tasks list in a
+     560px column, each Must star near its words, and the Purpose, due date and progress sit beside the Plan's first row
+     in one 400px card that stays in view while the Plan scrolls. With the Inbox or a task open beside the page there is
+     no room, and the page keeps one column. */
+  .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner[data-view=blocks][data-detail=true] { --column: 992px; }
   .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner[data-view=blocks][data-detail=true] .page {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 344px);
-    column-gap: var(--s6);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+    column-gap: var(--s8);
     align-content: start;
   }
   .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner[data-view=blocks][data-detail=true] .page > :not(.block-facts) { grid-column: 1; }
+  .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner[data-view=blocks][data-detail=true] .page > .detail-title-text { grid-column: 1 / -1; }
   /* The card spans every row of the Plan column, so the Plan's rows keep their own heights. */
   .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner[data-view=blocks][data-detail=true] .page > .block-facts {
     position: sticky;
     inset-block-start: var(--s2);
     grid-column: 2;
-    grid-row: 1 / span 24;
+    grid-row: 2 / span 24;
     align-self: start;
     margin: var(--s2) 0 0;
     padding-block: var(--s2);
@@ -154,4 +156,24 @@
   }
   .planner-view .search-bar .search-input + .icon-btn { margin-inline-start: calc(-1 * var(--touch) - var(--s1)); }
   .planner-view .search-results { max-inline-size: 560px; }
+  /* The wide check is 40px, so the row starts 8px further in and every title, task or not, shares one edge. */
+  .planner-view .search-results .task-row { padding-inline-start: var(--s3); }
+
+  /* Blocks: the Area names itself in its own tone, so the eyebrow needs no dot; the tally's ring reads at a glance; a
+     chosen filter is a quiet fill, so the page's one strong colour stays on the rail. */
+  #planner[data-view=blocks] .block-card .eyebrow { color: color-mix(in oklch, var(--tone) 78%, var(--on-surface)); }
+  #planner[data-view=blocks] .block-card .eyebrow .area-dot { display: none; }
+  #planner[data-view=blocks] .block-card .card-tally .ring { inline-size: 20px; block-size: 20px; }
+  #planner[data-view=blocks] .filters .filter-chip.on { border-color: transparent; background: var(--surface-container-high); color: var(--on-surface); }
+
+  /* Inbox: Sort with Jev is an assist chip beside the count, an offer about the list rather than a second header action. */
+  #sheet[data-inline].sheet-inbox > .sheet-header > h2 { flex: none; }
+  #sheet[data-inline].sheet-inbox .inbox-jev {
+    min-block-size: 32px;
+    margin-inline: var(--s3) auto;
+    padding-inline: var(--s2) var(--s4);
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--shape-sm);
+    font: var(--label-large);
+  }
 }

@@ -113,6 +113,7 @@
 .card-tally .ring { inline-size: 16px; block-size: 16px; }
 .card-due, .fact-next, .nowrap, .must-left, .week-mark { white-space: nowrap; }
 .card-due.tight { color: var(--error); }
+.card-late { color: var(--error); white-space: nowrap; }
 .ring { flex: none; width: 24px; height: 24px; }
 .ring circle { fill: none; stroke-width: 3; }
 .ring-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
@@ -431,6 +432,8 @@ button.fact-row:active { background: var(--row-press); }
 }
 .search-input::-webkit-search-cancel-button { display: none; }
 .search-results .task-row { padding-inline-start: var(--s1); }
+/* Show more starts its words on the titles' edge. */
+.search-results .search-more { margin-inline-start: calc(var(--s8) + var(--s6) - var(--s3)); }
 /* Must stars share one end column: a 24dp cell 8dp after the words, its edge on the 16dp gutter, level with the check circle. */
 .search-results .must-mark { inline-size: 24px; margin-inline: var(--s2) var(--s3); text-align: center; }
 .search-hit { font-weight: 700; color: inherit; }

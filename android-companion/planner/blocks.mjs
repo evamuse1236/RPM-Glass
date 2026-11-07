@@ -13,7 +13,7 @@ function appendFacts(line, parts) {
     line.append(' ', next);
   });
 }
-import {taskRow, completedSection, toggleDone, taskWhen} from './task-row.mjs';
+import {taskRow, completedSection, toggleDone, taskWhen, isOverdue} from './task-row.mjs';
 import {openSheet, field} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
 import {playMotion, DURATION, EASE} from '../surface-motion.mjs';
@@ -137,12 +137,16 @@ export function blockCard(app, block, {focus = false, project = true} = {}) {
   const line = el('span', 'card-facts tnum');
   const when = el('span', 'card-when');
   if (due) when.append(el('span', 'card-due' + (due.tight ? ' tight' : ''), due.text));
-  if (week) when.append(el('span', 'week-mark', due ? ' · This week' : 'This week'));
+  // An open task past its time makes the Block urgent even when the Result is days away; an overdue Result says it already.
+  const late = due?.overdue ? 0 : blockTasks(app.data(), block.id).filter(task => isOverdue(task)).length;
+  const lateText = late ? `${plural(late, 'task')} overdue` : '';
+  if (late) when.append(...(due ? [' · '] : []), el('span', 'card-late', lateText));
+  if (week) when.append(el('span', 'week-mark', due || late ? ' · This week' : 'This week'));
   line.append(when);
   if (status.total) line.append(taskTally(status, count));
   if (line.textContent) main.append(line);
   main.setAttribute('aria-label', `Result: ${block.title}. ${due ? due.text + '. ' : ''}`
-    + `${count}. ${week ? 'This week. ' : ''}Open Block`);
+    + `${count}. ${late ? lateText + '. ' : ''}${week ? 'This week. ' : ''}Open Block`);
   card.append(main);
   const next = blockTasks(app.data(), block.id).find(task => !task.done);
   if (next) card.append(nextTaskRow(app, next));

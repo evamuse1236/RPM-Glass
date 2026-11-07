@@ -1,6 +1,6 @@
 /** Full-screen search, as in Google Tasks and Calendar: the query lives in the top bar. */
 import {tasks, localDay} from '../planner-state.mjs';
-import {el, iconButton, listItem, sectionHeader, emptyState} from './dom.mjs';
+import {el, button, iconButton, listItem, sectionHeader, emptyState} from './dom.mjs';
 import {taskRow, taskWhen} from './task-row.mjs';
 
 let query = '';
@@ -120,7 +120,16 @@ function drawResults(app, host) {
     count += hits.length;
   }
   const finished = wordFirst(found.filter(task => task.done), q);
-  if (finished.length) host.append(sectionHeader('Done'), ...finished.map(done));
+  if (finished.length) {
+    // Done tasks rarely answer a search, so two show and the rest wait behind one button.
+    const shown = finished.slice(0, 2).map(done);
+    host.append(sectionHeader('Done'), ...shown);
+    const rest = finished.slice(2);
+    if (rest.length) {
+      const more = button(`Show ${rest.length} more`, () => more.replaceWith(...rest.map(done)), 'text-btn show-all search-more');
+      host.append(more);
+    }
+  }
   if (!count) host.append(emptyState({symbol: 'search_off', title: 'No matches', body: 'Try another word.'}));
 }
 
