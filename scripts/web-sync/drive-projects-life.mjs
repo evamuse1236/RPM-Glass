@@ -38,7 +38,7 @@ async function projects(k) {
     await tapText('.menu-item', 'Run three mornings a week');
   }, data => mine(data)?.goalId === 'goal-2');
   const blocksOf = data => planner(data).blocks.filter(x => x.projectId && x.projectId === mine(data)?.id).length;
-  await step('add-block', () => tapText('button.outlined-btn.wide', 'Add Block'), (data, before) => blocksOf(data) > blocksOf(before));
+  await step('add-block', () => tapText('.block-add > button', 'Add Block'), (data, before) => blocksOf(data) > blocksOf(before));
   await closeAll();
   await step('delete-project', async () => {
     await tab('Projects');
