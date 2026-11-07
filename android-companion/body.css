@@ -29,7 +29,8 @@
 :is(.day-chips, .slot-chips) .filter-chip, .usual-chips .assist-chip { min-block-size: 40px; margin-block: var(--s1); }
 :is(.day-chips, .slot-chips) .filter-chip::after, .usual-chips .assist-chip::after { inset: calc(-1 * var(--s1)) 0; }
 .usual-chips .assist-chip { padding-inline: var(--s4); max-inline-size: 100%; }
-.slot-chips .filter-chip { padding-inline: var(--s3); }
+/* The meal choices fill the row edge to edge, like the field under them. */
+.slot-chips .filter-chip { flex: 1 1 auto; justify-content: center; padding-inline: var(--s3); }
 .slot-chips .filter-chip[aria-pressed=true] { padding-inline-start: var(--s2); gap: var(--s1); }
 .usual-chip .chip-label { overflow-wrap: anywhere; padding-block: var(--s2); }
 :is(.day-chips, .slot-chips) .chip-label { padding-block: var(--s1); }
@@ -128,4 +129,11 @@
 :root[data-large-text=true] .step-row .task-main { flex-basis: calc(100% - var(--touch) - var(--s1)); }
 :root[data-large-text=true] .step-action { margin-inline-start: calc(var(--touch) + var(--s1) - var(--s3)); }
 :root[data-large-text=true] .estimate-line { padding-inline-start: 0; }
-.sheet-actions > .body-history-link { margin-block: 0; margin-inline-end: auto; }
+.sheet-actions > .body-history-link { margin-block: 0; }
+.sheet-actions > .meal-plan-link { margin-inline-end: auto; }
+.sheet-meal .sheet-body { padding-block-end: var(--s1); }
+/* Save waits for words as a quiet tonal button, not a grey slab. */
+.sheet-meal .filled-btn:disabled {
+  background: var(--secondary-container);
+  color: color-mix(in srgb, var(--on-secondary-container) 38%, transparent);
+}

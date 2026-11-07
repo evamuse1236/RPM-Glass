@@ -12,6 +12,7 @@ import {factRow, chipRow, chip, markChips, settleChip, switchButton, stepper, ti
   from './fact-rows.mjs';
 
 const STEPPER_SETTLE = 500;
+const glassesText = n => `${n} ${n === 1 ? 'glass' : 'glasses'}`;
 const timeWords = hhmm => clockText(atMinutes('2000-01-01', minutesOf(hhmm)));
 
 /** Saves one change and says so with Undo; a refused change says why. */
@@ -53,8 +54,8 @@ export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Ha
       saved(app, () => body.setWater(key, value), words);
     }, STEPPER_SETTLE);
   };
-  const goal = stepper({label: 'Glasses a day', less: 'Fewer glasses', more: 'More glasses', ...WATER_STEPS.goal,
-    next: (v, d) => stepWater('goal', v, d), onChange: v => later('goal', v, `Glasses a day: ${v}`)});
+  const goal = stepper({label: 'Daily goal', less: 'Fewer glasses', more: 'More glasses', ...WATER_STEPS.goal,
+    next: (v, d) => stepWater('goal', v, d), format: glassesText, onChange: v => later('goal', v, `Daily goal: ${glassesText(v)}`)});
   const sizes = chipRow('Glass size');
   const pickSize = value => {
     settleChip(sizes, markChips(sizes, value));
@@ -78,8 +79,8 @@ export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Ha
       row.inert = off;
     }
   };
-  content.append(factRow('water_drop', labelled('Glasses a day', goal), {cls: 'stepper-row'}),
-    factRow('local_drink', labelled('Glass size', sizes), {cls: 'segment-row'}),
+  content.append(factRow('water_drop', labelled('Daily goal', goal), {cls: 'stepper-row'}),
+    factRow('local_drink', sizes, {cls: 'segment-row'}),
     factRow('notifications', reminders), ...dependent);
 
   const paint = () => {

@@ -38,13 +38,11 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
   const offered = SLOTS.filter(value => value === editing?.slot || plan.find(p => p.slot === value)?.on !== false);
   const slotName = value => plan.find(p => p.slot === value)?.name ?? SLOT_NAMES[value];
   let typed = prefill || editing?.name || '';
-  if (!editing) {
-    header.querySelector('.sheet-close').before(iconButton('tune', 'Edit meals', () => {
-      const back = () => openMealSheet(app, body, {slot, prefill: typed, motion: 'back'});
-      if (plan.some(p => p.slot === slot)) openMealEditor(app, body, slot, {back, backLabel: 'Back to Log a meal'});
-      else openHabits(app, body);
-    }));
-  }
+  const openPlan = () => {
+    const back = () => openMealSheet(app, body, {slot, prefill: typed, motion: 'back'});
+    if (plan.some(p => p.slot === slot)) openMealEditor(app, body, slot, {back, backLabel: 'Back to Log a meal'});
+    else openHabits(app, body);
+  };
   if (editing) {
     const more = iconButton('more_vert', 'More options', () => openMenu(more, [
       {label: 'Delete meal', icon: 'delete', danger: true, onClick: () => body.deleteMeal(editing.id).then(() => {
@@ -107,7 +105,10 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
     const sync = () => { submit.disabled = !input.value.trim(); };
     input.addEventListener('input', () => { typed = input.value; sync(); });
     input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); save(input.value); } });
-    if (!editing) actions.append(button('See history', () => { closeSheet(app); app.openHistory(); }, 'text-btn body-history-link'));
+    if (!editing) {
+      actions.append(button('See history', () => { closeSheet(app); app.openHistory(); }, 'text-btn body-history-link'),
+        button('Meal times', openPlan, 'text-btn meal-plan-link'));
+    }
     actions.append(submit);
     sync();
     paintSlot();

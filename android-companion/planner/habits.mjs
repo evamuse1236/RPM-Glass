@@ -14,14 +14,15 @@ import {openWaterEditor, openMealEditor} from './habit-editors.mjs';
 import {bodyApi} from './body-api.mjs';
 
 const MEAL_PREFIX = 'meal:';
-const MEAL_ICONS = {breakfast: 'breakfast_dining', lunch: 'lunch_dining', dinner: 'dinner_dining', snack: 'bakery_dining'};
-
-/** One habit: its icon, name and summary open the editor. A meal ends in its Show switch, any other in a chevron. */
+/**
+ * One habit: its icon, name and summary open the editor. A meal ends in its Show switch and its time reads as the
+ * value to change; any other ends in a chevron. Chevrons and switches share one trailing edge.
+ */
 function habitRow(symbol, name, summary, open, toggle = null) {
   const row = el('div', 'habit-row');
   const copy = el('span', 'habit-copy');
   const main = button(name, open, 'habit-open');
-  copy.append(main, el('span', 'habit-summary tnum', summary));
+  copy.append(main, el('span', toggle ? 'habit-summary habit-time tnum' : 'habit-summary tnum', summary));
   row.append(icon(symbol, {cls: 'habit-icon'}), copy, toggle ?? icon('chevron_right', {cls: 'habit-chevron'}));
   return row;
 }
@@ -76,7 +77,7 @@ export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) 
         notice(app, on ? `${meal.name} shows on Today` : `${meal.name} hidden from Today`, {undo: true});
       }, {cls: 'habit-switch'});
       show.set(meal.on);
-      rows.push(habitRow(MEAL_ICONS[meal.slot] ?? 'restaurant', meal.name, clockText(atMinutes('2000-01-01', minutesOf(meal.at))),
+      rows.push(habitRow('restaurant', meal.name, clockText(atMinutes('2000-01-01', minutesOf(meal.at))),
         () => openMealEditor(app, body, meal.slot, {back}), show));
     }
     addSnack.hidden = meals.some(m => m.slot === 'snack');
