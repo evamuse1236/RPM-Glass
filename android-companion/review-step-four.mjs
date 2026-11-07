@@ -1,7 +1,7 @@
 import {focusCandidates} from './review-state.mjs';
 import {blockTasks} from './planner-state.mjs';
 import {dueInfo, duration, plural} from './planner/format.mjs';
-import {el, icon, button, whenText, heading, emptyState, factsLine, dueFact, mustFact, split} from './review-ui.mjs';
+import {el, icon, button, whenText, heading, emptyState, sectionHead, factsLine, dueFact, mustFact, split} from './review-ui.mjs';
 import {focusCheck} from './review-focus.mjs';
 import {weekCard, clashRow} from './review-week-card.mjs';
 
@@ -31,21 +31,25 @@ export function stepFour(api) {
   }
   // Then the choice: one quiet list, nearest deadline first. Results with nothing left to do wait behind one row.
   const idle = candidates.filter(c => c.total === c.done && !ui.focusBase.includes(c.blockId));
-  main.push(resultList(api, candidates.filter(c => !idle.includes(c)), now, "This week's Results"));
+  const list = resultList(api, [...candidates.filter(c => !idle.includes(c)), ...(ui.showIdle ? idle : [])], now, "This week's Results");
   if (idle.length) {
+    // The list's last row, as the Inbox's "Show all": it unfolds the rest in place and folds them back.
+    const more = el('li', 'wr-list-more');
     const toggle = button('', () => { ui.showIdle = !ui.showIdle; api.render(); }, 'wr-idle-toggle');
     toggle.setAttribute('aria-expanded', String(ui.showIdle));
     toggle.dataset.key = 'idle';
-    toggle.append(el('span', 'wr-label', `${plural(idle.length, 'Result')} with no open tasks`), icon(ui.showIdle ? 'expand_less' : 'expand_more'));
-    main.push(toggle);
-    if (ui.showIdle) main.push(resultList(api, idle, now, 'Results with no open tasks'));
+    toggle.append(el('span', 'wr-label', ui.showIdle ? 'Show fewer' : `${plural(idle.length, 'Result')} with no open tasks`),
+      icon(ui.showIdle ? 'expand_less' : 'expand_more'));
+    more.append(toggle);
+    list.append(more);
   }
+  main.push(list);
   // Then what the week holds: whether the picked Results' Must time fits.
-  parts.push(...split(main, [weekCard(api, chosen, candidates, now)]));
+  parts.push(...split(main, [sectionHead('Your week'), weekCard(api, chosen, candidates, now)]));
   return parts;
 }
 
-/** Results as one list of rows, as Google Tasks draws them: the circle picks a Result (a check and a light tint once
+/** Results as one list of rows, as Google Tasks draws them: the circle picks a Result (a check and a medium-weight title once
  * picked), the rest of the row opens its Purpose and tasks. No trailing control, so the title has the row's width. */
 function resultList(api, rows, now, label) {
   const list = el('ul', 'wr-list wr-results');

@@ -264,7 +264,10 @@ function measureFoot(foot) {
   const style = document.documentElement.style;
   style.setProperty('--wr-foot', Math.round(innerHeight - foot.getBoundingClientRect().top) + 'px');
   const next = foot.querySelector(':scope > .wr-next') ?? foot;
-  style.setProperty('--wr-next-end', Math.round(innerWidth - next.getBoundingClientRect().right) + 'px');
+  const box = next.getBoundingClientRect();
+  style.setProperty('--wr-next-end', Math.round(innerWidth - box.right) + 'px');
+  style.setProperty('--wr-next-start', Math.round(innerWidth - box.left) + 'px');
+  style.setProperty('--wr-next-mid', Math.round(innerHeight - (box.top + box.bottom) / 2) + 'px');
 }
 
 function topBar(api, existing = null) {

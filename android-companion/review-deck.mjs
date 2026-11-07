@@ -172,12 +172,6 @@ export function deckTally(judged) {
 export function resultDeck(api, summary, judged) {
   const deck = deckOf(judged);
   const stack = el('div', 'wr-deck');
-  for (let depth = Math.min(deck.length - 1, 2); depth >= 1; depth--) {
-    const layer = el('div', 'wr-deck-layer');
-    layer.dataset.depth = String(depth);
-    layer.setAttribute('aria-hidden', 'true');
-    stack.append(layer);
-  }
   stack.append(deckCard(api, summary, deck[0]));
   api.ui.deckEnter = false;
   return [stack, verdictButtons(api, summary, deck[0])];

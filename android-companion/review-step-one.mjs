@@ -28,40 +28,30 @@ export function stepOne(api) {
       if (rest.length) main.push(decidedList(api, summary, rest));
     }
   }
-  const side = deck.length ? upNext(api, deck.slice(1), running) : carryList(api, judged, running);
+  const side = deck.length ? notDueYet(api, running) : carryList(api, judged, running);
   parts.push(...split(main, side));
   return parts;
 }
 
-/** While the deck is open: the Results still to judge after this card, and the ones still running. Read-only, so the
- * card keeps the one action. */
-function upNext(api, rest, running) {
-  const parts = [];
-  if (rest.length) parts.push(sectionHead('Next to judge', rest.length), queueList('Next to judge', rest.map(result => queueRow(result))));
-  if (running.length) {
-    const rows = running.map(result => queueRow(result, [dueFact(result.due, api.now()), mustFact(result.mustMinutes)]));
-    parts.push(sectionHead('Not due yet', running.length), queueList('Not due yet', rows));
-  }
-  return parts;
-}
-
-function queueList(label, rows) {
+/** While the deck is open: the Results still running, which wait for a later review. The tally above the card counts
+ * the ones left to judge, so the card keeps the one action. Progress first, then the deadline: one line each; the
+ * Must time waits for step 4, where it is planned. */
+function notDueYet(api, running) {
+  if (!running.length) return [];
   const list = el('ul', 'wr-queue');
-  list.setAttribute('aria-label', label);
-  list.append(...rows);
-  return list;
-}
-
-function queueRow(result, facts = []) {
-  const item = el('li', 'wr-queue-row');
-  item.dataset.key = 'queue:' + result.blockId;
-  const {ring, words} = resultRing(result);
-  const text = el('span', 'wr-decided-text');
-  const meta = el('span', 'wr-facts tnum');
-  meta.append(...factsLine([...facts, words]));
-  text.append(el('span', 'wr-decided-title', result.title), meta);
-  item.append(ring, text);
-  return item;
+  list.setAttribute('aria-label', 'Not due yet');
+  for (const result of running) {
+    const item = el('li', 'wr-queue-row');
+    item.dataset.key = 'queue:' + result.blockId;
+    const {ring, words} = resultRing(result);
+    const text = el('span', 'wr-decided-text');
+    const meta = el('span', 'wr-facts tnum');
+    meta.append(...factsLine([words, dueFact(result.due, api.now())]));
+    text.append(el('span', 'wr-decided-title', result.title), meta);
+    item.append(ring, text);
+    list.append(item);
+  }
+  return [sectionHead('Not due yet', running.length), list];
 }
 
 /** A verdict's icon in its colour: the same three the deck's buttons use. */

@@ -3,6 +3,11 @@
 #planner .screen-review .page{padding-bottom:0}
 /* The snackbar clears the pinned footer, whose height changes with its hint line (set by weekly-review.mjs). */
 #planner[data-view=review] ~ #snackbar{bottom:calc(var(--wr-foot,72px) + var(--s2))}
+/* On the website's wide layout the footer follows the content, so the snackbar docks in the footer row, centred on
+   the Next it answers to and left of it, instead of floating over the page. */
+@media (width >= 1080px){
+  #planner-view #planner[data-view=review] ~ #snackbar#snackbar#snackbar{inset-block-end:calc(var(--wr-next-mid,36px) - var(--snackbar-h,48px) / 2);inset-inline:auto calc(var(--wr-next-start,var(--s4)) + var(--s4));margin-inline:0}
+}
 #planner[data-view=review][data-snackbar=true] .wr-body{padding-block-end:calc(var(--snackbar-h,48px) + var(--s8))}
 .wr{position:relative;display:flex;flex-direction:column;height:100%;min-height:0;background:var(--surface);color:var(--on-surface);font:var(--body-medium)}
 .wr h1,.wr h2,.wr h3,.wr p{margin:0}
@@ -31,6 +36,8 @@
 
 /* Body */
 .wr-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px 16px 24px}
+/* What runs on under the footer fades out over the body's own end padding, so a cut row reads as more to scroll. */
+.wr-body{mask-image:linear-gradient(to bottom,#000 calc(100% - var(--s6)),transparent)}
 .wr-content{display:flex;flex-direction:column;gap:12px;container-type:inline-size}
 /* Step to step: weekly-review.mjs moves the old and new content on the shared X axis; this copy of the old content
    keeps the body's padding while it slides out. */
@@ -103,6 +110,9 @@
 @container (inline-size >= 840px){
   .wr-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;column-gap:24px}
   .wr-split-side{position:sticky;inset-block-start:0}
+  /* The side's first heading sits on the main column's first line (the tally), not 8px lower. */
+  .wr-split-side>.wr-section-row:first-child{min-block-size:0;padding-block-start:0;margin-block-end:0}
+  .wr-split-side>.wr-section-row:first-child .wr-btn-text{margin-block:calc(var(--s2) * -1)}
 }
 .wr-wins{background:var(--tertiary-container);color:var(--on-tertiary-container);border-radius:20px;padding:16px 16px 8px}
 .wr-wins-head{display:flex;align-items:center;gap:16px;min-block-size:40px}
@@ -167,7 +177,8 @@
    "+ Block" action, whose long Block name takes a second line rather than being cut. */
 .wr .wr-sort-row.suggested{align-items:start;min-block-size:48px;padding-block:12px 4px}
 .wr .wr-sort-take{align-self:start;max-inline-size:calc(100% - 24px);margin-block:0 8px;margin-inline:8px 16px;padding-block:4px;padding-inline:8px 12px;border-color:transparent;border-radius:var(--shape-full);color:var(--primary)}
-.wr-sort-take .ms{margin:0}
+.wr .wr-sort-take{align-items:start}
+.wr-sort-take .ms{margin:0;line-height:20px}
 .wr-sort-take .wr-label{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;text-wrap:pretty}
 /* The first suggested row slides once to show its swipe, then settles */
 @media (prefers-reduced-motion:no-preference){
