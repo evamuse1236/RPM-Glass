@@ -1,8 +1,8 @@
 /**
  * The When tab's time ruler: a strip of the day that slides sideways under a fixed centre line and snaps to the Time
- * row's stops (every half hour from 6:00 AM to 11:00 PM, plus the task's own off-grid time). The task's length is a
- * bar from the centre line, in its own lane under the ticks. Letting go saves the stop under the line. The bar's end
- * grip drags the length in 15-minute steps and saves it when let go; a tap on the length words types an exact one.
+ * row's stops (every half hour from 6:00 AM to 11:00 PM, plus the task's own off-grid time). Busy times are grey
+ * marks in the bar lane; the task's own length is a bar from the centre line. Letting go saves the stop under the
+ * line. The bar's end grip drags the length in 15-minute steps and saves it when let go.
  */
 import {el} from './dom.mjs';
 import {timeChips, nextHalfHour} from './task-values.mjs';
@@ -41,31 +41,33 @@ export function stopAt(scale, offset) {
   return scale.stops.reduce((best, stop) => (Math.abs(minutesOf(stop) - minute) < Math.abs(minutesOf(best) - minute) ? stop : best));
 }
 
-/** "4 – 4:45 PM", or "11:30 AM – 12:30 PM" across noon: one range, the shared AM/PM written once, as Calendar does. */
-export function rangeOf(day, time, to) {
-  const a = briefClock(day, time), b = briefClock(day, to);
-  const [at, am] = a.split('\u00a0'), [, bm] = b.split('\u00a0');
-  return `${am && am === bm ? at : a}\u00a0– ${b}`;
+/** Busy spans of a day as [start, end] minutes from midnight, cut to the day, merged where they touch. */
+export function busySpans(items, day) {
+  const start = new Date(`${day}T00:00`).getTime();
+  const spans = items.map(i => [Math.max(0, (+i.start - start) / 60000), Math.min(24 * 60, (+i.end - start) / 60000)])
+    .filter(([a, b]) => b > a).sort((x, y) => x[0] - y[0]);
+  const merged = [];
+  for (const span of spans) {
+    const last = merged.at(-1);
+    if (last && span[0] <= last[1]) last[1] = Math.max(last[1], span[1]);
+    else merged.push([...span]);
+  }
+  return merged;
 }
 
 /**
  * `save(time)` writes a stop; `saveMinutes(n)` writes a length (null for none); `tick()` runs as the line crosses
- * each stop while sliding and as the grip crosses each step. Returns {node, grip, words, paint({day, time, minutes,
- * off})}; `words` is the length button that opens the exact-length field.
+ * each stop while sliding and as the grip crosses each step. Returns {node, head, grip, paint({day, time, minutes,
+ * busy, off})}; `head` is the readout row, open for a trailing control.
  */
 export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
   const node = el('div', 'time-ruler');
   const head = el('div', 'ruler-head');
   const readout = el('p', 'ruler-readout tnum');
   readout.setAttribute('aria-hidden', 'true');
-  const words = el('button', 'ruler-words tnum');
-  words.type = 'button';
-  const field = el('label', 'ruler-field');
-  const input = el('input', 'tnum');
-  Object.assign(input, {type: 'number', min: 1, max: 1440, step: 1, inputMode: 'numeric'});
-  input.setAttribute('aria-label', 'Length in minutes');
-  field.append(input, el('span', 'ruler-unit', 'min'));
-  field.hidden = true;
+  const start = el('span', 'ruler-start');
+  const end = el('span', 'ruler-end');
+  readout.append(start, end);
   const rail = el('div', 'ruler-rail');
   const track = el('div', 'ruler-track');
   track.tabIndex = 0;
@@ -84,23 +86,22 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
   grip.setAttribute('aria-valuemin', '0');
   grip.setAttribute('aria-valuemax', '1440');
   rail.append(track, length, el('span', 'ruler-centre'), grip);
-  head.append(readout, words, field);
+  head.append(readout);
   node.append(head, rail);
 
-  let state = {day: '', time: '', minutes: null, off: false};
+  let state = {day: '', time: '', minutes: null, busy: [], off: false};
   let scale = rulerScale('');
   let drawn = '';
   let touched = false, holding = false, shown = null;
-  let drag = null, editing = false;
+  let drag = null;
 
   const show = (time, minutes = state.minutes) => {
     const to = time && minutes ? hhmm((minutesOf(time) + minutes) % (24 * 60)) : '';
-    readout.textContent = !state.day ? 'No date' : !time ? 'No time' : to ? rangeOf(state.day, time, to) : briefClock(state.day, time);
-    words.textContent = minutes ? duration(minutes) : 'Add length';
-    words.setAttribute('aria-label', minutes ? `Exact length, ${duration(minutes)}` : 'Add an exact length');
-    words.hidden = editing;
+    start.textContent = !state.day ? 'No date' : !time ? 'No time' : briefClock(state.day, time);
+    end.textContent = to ? 'to ' + briefClock(state.day, to) : '';
+    end.hidden = !to;
     node.classList.toggle('is-unset', !time);
-    track.setAttribute('aria-valuetext', !time ? readout.textContent : to ? `${briefClock(state.day, time)} to ${briefClock(state.day, to)}` : readout.textContent);
+    track.setAttribute('aria-valuetext', [start.textContent, end.textContent].filter(Boolean).join(' '));
     track.setAttribute('aria-valuemax', String(scale.stops.length - 1));
     track.setAttribute('aria-valuenow', String(Math.max(0, scale.stops.indexOf(time || scale.centre))));
   };
@@ -156,36 +157,8 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
     if (next !== now) saveMinutes(next || null);
   });
 
-  /** The exact-length field replaces the words while it is open. Enter or leaving it saves (Back leaves it too, as in
-   * every sheet field), and the snackbar's Undo puts the old length back. */
-  const openField = () => {
-    editing = true;
-    input.value = state.minutes ?? '';
-    words.hidden = true;
-    field.hidden = false;
-    input.focus({preventScroll: true});
-    input.select();
-  };
-  const closeField = keep => {
-    if (!editing) return;
-    editing = false;
-    field.hidden = true;
-    show(state.time);
-    const raw = input.value.trim(), n = Math.round(Number(raw));
-    const next = raw === '' ? null : n >= 1 && n <= 1440 ? n : undefined;
-    if (keep && next !== undefined && next !== (state.minutes ?? null)) saveMinutes(next);
-  };
-  words.addEventListener('click', openField);
-  input.addEventListener('blur', () => closeField(true));
-  input.addEventListener('keydown', event => {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    closeField(true);
-    words.focus({preventScroll: true});
-  });
-
   const draw = () => {
-    const key = scale.stops.join();
+    const key = [scale.stops.join(), state.busy.flat().join()].join('|');
     if (key === drawn) return;
     drawn = key;
     line.style.inlineSize = scale.width + 'px';
@@ -198,7 +171,13 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
       if (at % 120 === 60) mark.classList.add('is-odd');
       return mark;
     });
-    line.replaceChildren(...marks);
+    const busy = state.busy.filter(([a, b]) => b > scale.first && a < scale.last).map(([a, b]) => {
+      const span = el('i', 'ruler-busy');
+      span.style.insetInlineStart = (Math.max(a, scale.first) - scale.first) * PX_PER_MIN + 'px';
+      span.style.inlineSize = (Math.min(b, scale.last) - Math.max(a, scale.first)) * PX_PER_MIN + 'px';
+      return span;
+    });
+    line.replaceChildren(...busy, ...marks);
   };
 
   const place = () => {
@@ -255,5 +234,5 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
     track.setAttribute('aria-disabled', String(!!state.off));
     place();
   };
-  return {node, grip, words, paint};
+  return {node, head, grip, paint};
 }

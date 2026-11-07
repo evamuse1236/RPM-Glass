@@ -24,9 +24,6 @@
   #sheet[data-inline] .number-chip input:not(:focus-visible) { border-block-end-color: transparent; }
   #sheet[data-inline] .number-chip:has(input:placeholder-shown) .chip-unit { display: none; }
   #sheet[data-inline] .task-tabs .chip-row.segmented { padding: 0; background: none; }
-  /* A mouse reads the ruler from further away than a thumb: hour labels a step up and a taller grip, same lanes. */
-  #sheet[data-inline] .ruler-hour { font: var(--label-medium); }
-  #sheet[data-inline] .ruler-grip::before { block-size: 24px; }
   /* Pick a date, Pick a time and Clear share one row; a narrower pane wraps them, never clips. */
   #sheet[data-inline] .task-tabs .chip-row[aria-label='More choices'] { flex-wrap: wrap; justify-content: space-between; }
   #sheet[data-inline] .task-tabs .chip-row[aria-label='More choices'] > .chip { gap: var(--s1); padding-inline: var(--s1); }

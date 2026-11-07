@@ -4,7 +4,8 @@
  */
 import {localDay} from '../planner-state.mjs';
 import {reducedMotion} from '../surface-motion.mjs';
-import {el, icon, button} from './dom.mjs';
+import {el, icon, button, attrs} from './dom.mjs';
+import {progressRing} from './blocks.mjs';
 import {chip, chipRow, pickerChip, markChips, settleChip} from './fact-rows.mjs';
 import {dayChips, repeatShort, repeatDaysOf, REPEAT_DAYS, ALERT_LEADS, leadLabel} from './task-values.mjs';
 import {TABS, stepTab, ALERT_KINDS, REPEAT_PRESETS, whenShort, alertShort, blockShort, presetOf, blockChoices} from './task-tabs-model.mjs';
@@ -30,8 +31,8 @@ function pressed(node, on) {
 }
 
 /**
- * `get()` returns the sheet's current values: {day, time, minutes, alert, lead, repeating, task, blockId, blocks,
- * statusOf, suggested, recent}. `pick` holds day, time, minutes, alert, lead, repeatDay, repeatPreset and
+ * `get()` returns the sheet's current values: {day, time, minutes, alert, lead, repeating, task, busy, blockId, blocks,
+ * statusOf, toneOf, suggested, recent}. `pick` holds day, time, minutes, alert, lead, repeatDay, repeatPreset and
  * block, each saving at once. Returns {node, paint(now), select(tab), error(name, message), clash, focus(what)}.
  */
 const wrapRow = label => { const row = chipRow(label); row.classList.add('chip-wrap'); return row; };
@@ -119,11 +120,11 @@ export function taskTabs({get, pick, tick = () => {}, remote = false, wide = fal
     errors[name].hidden = !message;
   };
 
-  /** `focus('date')` or `focus('length')` puts focus on that choice in When: the length grip, or the length words. */
+  /** `focus('date')` or `focus('length')` puts focus on that choice in When: the length grip, or the exact length. */
   const focus = what => {
     select('when');
     const target = what === 'date' ? when.days.querySelector('[aria-pressed=true]') ?? when.dayPicker
-      : when.grip.hidden ? when.words : when.grip;
+      : when.grip.hidden ? when.exact : when.grip;
     target?.focus({preventScroll: true});
   };
   return {node, paint, select, error, clash: when.clash, focus};
@@ -135,6 +136,13 @@ function whenPanel(host, pick, tick) {
   days.setAttribute('aria-label', 'Day');
   const error = errorSlot();
   const ruler = timeRuler({save: time => pick.time(time), saveMinutes: n => pick.minutes(n), tick});
+  const exact = pickerChip('number', 'timer', 'Length', 'Length in minutes', value => {
+    const n = Math.round(Number(value));
+    if (n >= 1 && n <= 1440) pick.minutes(n);
+  });
+  Object.assign(exact.input, {min: 1, max: 1440});
+  exact.node.classList.add('ruler-exact');
+  ruler.head.append(exact.node);
   const clash = el('p', 'field-alert');
   clash.hidden = true;
   const more = wrapRow('More choices');
@@ -162,7 +170,7 @@ function whenPanel(host, pick, tick) {
       return dot;
     }));
     for (const dot of days.children) pressed(dot, dot.dataset.value === now.day);
-    ruler.paint({day: now.day, time: now.time, minutes: now.minutes, off: !now.day});
+    ruler.paint({day: now.day, time: now.time, minutes: now.minutes, busy: now.busy, off: !now.day});
     clear.hidden = now.minutes == null && (now.repeating || !now.day);
     if (now.repeating) clear.setAttribute('aria-label', 'Clear length');
     else clear.setAttribute('aria-label', 'Clear date, time and length');
@@ -170,23 +178,15 @@ function whenPanel(host, pick, tick) {
     timePicker.input.disabled = !now.day;
     dayPicker.input.value = now.day;
     timePicker.input.value = now.time;
+    if (document.activeElement !== exact.input) exact.input.value = now.minutes ?? '';
   };
-  return {paint, error, clash, days, dayPicker: dayPicker.input, grip: ruler.grip, words: ruler.words};
+  return {paint, error, clash, days, dayPicker: dayPicker.input, grip: ruler.grip, exact: exact.input};
 }
 
 export function alertPanel(host, pick, remote) {
   const kinds = el('div', 'alert-kinds');
   kinds.setAttribute('role', 'group');
   kinds.setAttribute('aria-label', 'Alert');
-  const none = button('', () => {
-    if (kinds.classList.contains('is-off') || none.getAttribute('aria-pressed') === 'true') return;
-    for (const other of kinds.children) pressed(other, other === none);
-    pick.alert('off');
-  }, 'alert-kind');
-  none.dataset.value = 'off';
-  none.setAttribute('aria-label', 'No alert');
-  none.append(icon('notifications_off', {cls: 'alert-kind-icon'}), el('span', 'alert-kind-label', 'Off'));
-  kinds.append(none);
   for (const [value, word, symbol, aria] of ALERT_KINDS) {
     const kind = button('', () => {
       if (kinds.classList.contains('is-off')) return;
@@ -213,7 +213,7 @@ export function alertPanel(host, pick, remote) {
     const off = !now.day || !now.time;
     kinds.classList.toggle('is-off', off);
     for (const kind of kinds.children) {
-      pressed(kind, kind.dataset.value === (now.alert || 'off'));
+      pressed(kind, kind.dataset.value === now.alert);
       kind.setAttribute('aria-disabled', String(off));
     }
     const silent = !now.alert || now.alert === 'off';
@@ -265,6 +265,17 @@ function repeatPanel(host, pick) {
   return {paint, error};
 }
 
+const SVG = 'http://www.w3.org/2000/svg';
+/** A Block's ring; a finished one fills its centre with a tonal disc and a check, as a finished Project does. */
+function blockRing({done, total}) {
+  const ring = progressRing(done, total, `${done} of ${total} done`);
+  if (total && done === total) {
+    ring.append(attrs(document.createElementNS(SVG, 'circle'), {class: 'ring-done', cx: 12, cy: 12, r: 6}),
+      attrs(document.createElementNS(SVG, 'path'), {class: 'ring-check', d: 'M9 12.2L11 14.2L15 10', 'stroke-width': 1.75}));
+  }
+  return ring;
+}
+
 function blockPanel(host, pick, get) {
   const search = el('label', 'block-search');
   const input = el('input');
@@ -279,7 +290,7 @@ function blockPanel(host, pick, get) {
   const paint = now => {
     search.hidden = now.blocks.length < SEARCH_FROM;
     const rows = blockChoices(now.blocks, now.statusOf, search.hidden ? '' : input.value);
-    const key = JSON.stringify([rows, now.suggested, now.recent]);
+    const key = JSON.stringify([rows, now.suggested, now.recent, rows.map(r => now.toneOf(r.id))]);
     refill(list, key, () => rows.map(choice => {
       const option = button('', () => {
         if (option.getAttribute('aria-checked') === 'true') return;
@@ -288,10 +299,11 @@ function blockPanel(host, pick, get) {
       }, 'block-choice');
       option.setAttribute('role', 'radio');
       option.dataset.value = choice.id ?? '';
-      const count = choice.id ? el('span', 'block-choice-count tnum', choice.total ? `${choice.done}/${choice.total}` : '')
-        : icon('inbox', {cls: 'block-choice-inbox'});
+      const tone = now.toneOf(choice.id);
+      if (tone) option.dataset.tone = tone;
+      const ring = choice.id ? blockRing(choice) : icon('inbox', {cls: 'block-choice-inbox'});
       const hint = choice.id && choice.id === now.recent ? 'Recent' : choice.id && choice.id === now.suggested ? 'Suggested' : '';
-      option.append(el('span', 'block-choice-title', choice.title), el('span', 'choice-hint', hint), count);
+      option.append(ring, el('span', 'block-choice-title', choice.title), ...(hint ? [el('span', 'choice-hint', hint)] : []));
       option.setAttribute('aria-label', [choice.title, hint, choice.line].filter(Boolean).join(', '));
       return option;
     }));
