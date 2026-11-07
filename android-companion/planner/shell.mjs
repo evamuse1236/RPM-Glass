@@ -3,6 +3,7 @@
 import {el, icon, iconButton, button, labelButton} from './dom.mjs';
 import {openMenu} from './menu.mjs';
 import {FULL_SCREENS} from './app.mjs';
+import {settingsTitle} from '../settings.mjs';
 import {blockSubtitle} from './blocks.mjs';
 import {localDay} from '../planner-state.mjs';
 import {jumpToNow} from './today-day.mjs';
@@ -55,7 +56,7 @@ function rootBar(app, bar) {
   bar.className = 'top-bar root-bar';
   bar.append(el('h1', state.tab === 'today' ? 'top-title visually-hidden' : 'top-title', TITLES[state.tab]));
   const tools = el('div', 'top-actions');
-  tools.append(iconButton('search', 'Search', () => app.openSearch()), iconButton('mic', 'Capture', () => app.capture()));
+  tools.append(iconButton('search', 'Search', () => app.openSearch()));
   const more = iconButton('more_vert', 'More options', () => rootMenu(app, more));
   tools.append(more);
   bar.append(tools);
@@ -68,7 +69,7 @@ function detailBar(app, bar, top) {
   bar.className = 'top-bar detail-bar';
   bar.append(iconButton('arrow_back', 'Back', () => app.back()));
   const record = DETAIL_NAMES[top.kind] ? app.p()[top.kind]?.find(item => item.id === top.id) : null;
-  const title = el('h1', 'top-title small', top.kind === 'settings' ? 'Settings' : record?.title ?? '');
+  const title = el('h1', 'top-title small', top.kind === 'settings' ? settingsTitle(top.id) : record?.title ?? '');
   if (DETAIL_NAMES[top.kind]) title.setAttribute('aria-label', `${DETAIL_NAMES[top.kind]}: ${record?.title ?? ''}`);
   // A Block keeps its deadline in view once its title has collapsed into the bar.
   const sub = top.kind === 'blocks' && record ? blockSubtitle(app, record) : '';
@@ -108,22 +109,40 @@ function navigationBar(app) {
   placeNavIndicator(nav);
 }
 
-/** The dock beside the tab bar: the habit circle (Today only) over the round Add. Tap adds; a 400ms hold opens Capture. */
+/**
+ * The dock beside the tab bar: the habit circle (Today only) over the round Capture button. A tap shrinks the planner
+ * back to the Capture widget; a 400ms hold adds what this tab makes (Add task on Today).
+ */
 function dock(app, full) {
   const host = app.dom.dock;
   if (!host.children.length) {
     const habit = el('div', 'habit-slot');
-    const add = iconButton('add', 'Add', () => addSpec(app)?.onClick(), {cls: 'fab'});
-    attachSwipe(add, {hold: () => app.capture(), haptic: () => app.api.native('haptic', {kind: 'hold'}).catch(() => {})});
-    host.append(habit, add);
+    const fab = iconButton('close_fullscreen', 'Back to Capture', () => app.capture(), {cls: 'fab'});
+    attachSwipe(fab, {hold: () => holdToAdd(app), haptic: () => app.api.native('haptic', {kind: 'hold'}).catch(() => {})});
+    host.append(habit, fab);
     watchHabit(app, habit);
   }
   const spec = full ? null : addSpec(app);
-  const add = host.querySelector('.fab');
-  add.hidden = !spec;
-  if (spec) add.setAttribute('aria-label', spec.label);
+  const fab = host.querySelector('.fab');
+  fab.hidden = !!full || !!app.current();
+  fab.setAttribute('aria-description', spec ? `Hold to ${spec.label.toLowerCase()}` : '');
   paintHabit(app, host.querySelector('.habit-slot'));
-  host.hidden = !!full || (!spec && !host.querySelector('.habit-circle'));
+  host.hidden = !!full || (fab.hidden && !host.querySelector('.habit-circle'));
+}
+
+/**
+ * A hold opens the add sheet while the finger is still down. Lifting it can pull focus back to the button on a slow
+ * phone, so once the finger is up the sheet's first text field takes focus again and asks for the keyboard.
+ */
+function holdToAdd(app) {
+  addSpec(app)?.onClick();
+  document.addEventListener('pointerup', () => setTimeout(() => {
+    if (document.activeElement?.matches?.('input:not([type=range]), textarea')) return;
+    const field = document.querySelector('#sheet:not([hidden]) :is(input[type=text], input:not([type]), textarea)');
+    if (!field) return;
+    field.focus({preventScroll: true});
+    app.api.native('keyboard').catch(() => {});
+  }, 50), {once: true, capture: true});
 }
 
 /** What the tab bar's Add makes on this tab (Add task on Today); none on a detail page or Values. */

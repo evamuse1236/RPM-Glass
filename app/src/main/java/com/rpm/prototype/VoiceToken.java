@@ -21,6 +21,7 @@ import org.json.JSONObject;
  */
 final class VoiceToken {
     static final String ENDPOINT="https://generativelanguage.googleapis.com/v1alpha/auth_tokens";
+    static final String ORIGIN="https://generativelanguage.googleapis.com/";
     static final String LIVE_URL="wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained";
     static final String MODEL="models/gemini-3.8-live";
     static final int MAX_SETUP_BYTES=64*1024;
@@ -35,10 +36,35 @@ final class VoiceToken {
         JSONObject setup=(JSONObject)raw;
         if(setup.toString().getBytes(StandardCharsets.UTF_8).length>MAX_SETUP_BYTES)throw new IllegalArgumentException("Voice setup is too large.");
         for(Iterator<String> keys=setup.keys();keys.hasNext();)if(!FIELDS.contains(keys.next()))throw new IllegalArgumentException("Voice setup has a field the phone does not allow.");
+        if(setup.has("realtimeInputConfig")&&!detectionAllowed(setup.opt("realtimeInputConfig")))throw new IllegalArgumentException("Voice setup has a field the phone does not allow.");
         JSONObject config=setup.optJSONObject("generationConfig");
         JSONArray modalities=config==null?null:config.optJSONArray("responseModalities");
         if(modalities==null||modalities.length()!=1||!"AUDIO".equals(modalities.opt(0)))throw new IllegalArgumentException("Voice setup must answer in audio.");
+        for(Iterator<String> keys=config.keys();keys.hasNext();){String key=keys.next();if(!"responseModalities".equals(key)&&!("speechConfig".equals(key)&&voiceAllowed(config.opt(key))))throw new IllegalArgumentException("Voice setup has a field the phone does not allow.");}
         JSONObject copy=new JSONObject(setup.toString());copy.put("model",MODEL);return copy;
+    }
+
+    /** One prebuilt Gemini voice by name; no cloned voice, language or other speech setting. */
+    static boolean voiceAllowed(Object raw){
+        if(!(raw instanceof JSONObject)||((JSONObject)raw).length()!=1)return false;
+        JSONObject voice=((JSONObject)raw).optJSONObject("voiceConfig");
+        if(voice==null||voice.length()!=1)return false;
+        JSONObject prebuilt=voice.optJSONObject("prebuiltVoiceConfig");
+        if(prebuilt==null||prebuilt.length()!=1)return false;
+        Object name=prebuilt.opt("voiceName");
+        return name instanceof String&&((String)name).matches("[A-Z][a-z]{1,23}");
+    }
+
+    /** Manual turns (the website's one ramble) or the phone's open line; nothing else. */
+    static boolean detectionAllowed(Object raw){
+        if(!(raw instanceof JSONObject))return false;
+        JSONObject config=(JSONObject)raw;
+        if(config.length()!=1||!(config.opt("automaticActivityDetection") instanceof JSONObject))return false;
+        JSONObject d=config.optJSONObject("automaticActivityDetection");
+        if(d.length()==1)return Boolean.TRUE.equals(d.opt("disabled"));
+        Object silence=d.opt("silenceDurationMs");
+        return d.length()==3&&Boolean.FALSE.equals(d.opt("disabled"))&&"END_SENSITIVITY_HIGH".equals(d.opt("endOfSpeechSensitivity"))
+            &&(silence instanceof Integer||silence instanceof Long)&&((Number)silence).longValue()==500;
     }
 
     static JSONObject body(JSONObject setup,long now)throws Exception{
@@ -48,6 +74,10 @@ final class VoiceToken {
     /** True and records the time when a token may be minted now; false within {@link #GAP_MS} of the last one. */
     static synchronized boolean claim(long now){if(now-last<GAP_MS)return false;last=now;return true;}
     static synchronized void resetForTest(){last=Long.MIN_VALUE/2;}
+
+    /** Opens TLS to Gemini on a background thread. Sends no key and does not count as a mint. */
+    static void warm(){warm(ORIGIN);}
+    static java.util.concurrent.CompletableFuture<Void> warm(String endpoint){return ModelHttpClient.warm(endpoint);}
 
     /** {token,url} for a checked setup, or {missingKey:true} when the phone has no Gemini key. The key is read only after the setup passes. */
     static JSONObject mint(java.util.concurrent.Callable<String> keys,Object rawSetup,String endpoint,long now)throws Exception{
@@ -60,7 +90,7 @@ final class VoiceToken {
         try(Response response=ModelHttpClient.call(request,15000).execute()){
             if(!response.isSuccessful()||response.body()==null)throw new IllegalStateException(response.code()==400||response.code()==401||response.code()==403?"Gemini refused the key. Check it in Settings.":"Voice is unavailable right now.");
             name=new JSONObject(response.body().string()).optString("name","");
-        }catch(java.io.IOException e){throw new IllegalStateException("Voice needs the internet. Check the connection.");}
+        }catch(java.io.IOException e){throw new Offline("Voice needs the internet. Check the connection.");}
         catch(org.json.JSONException e){throw new IllegalStateException("Voice is unavailable right now.");}
         if(!name.startsWith("auth_tokens/"))throw new IllegalStateException("Voice is unavailable right now.");
         return new JSONObject().put("token",name).put("url",LIVE_URL);

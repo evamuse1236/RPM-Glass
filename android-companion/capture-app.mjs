@@ -1,10 +1,10 @@
 import {captureRenderKey} from './surface-refresh.mjs';
-import {wordsKeptCard,receiptCard,confirmCard,undoneCard,parkedCard,savedCard,openCard,questionCard,card,withProblem} from './capture-cards.mjs';
+import {showCountdown,stopCountdown,wordsKeptCard,receiptCard,confirmCard,undoneCard,parkedCard,savedCard,openCard,questionCard,card,withProblem} from './capture-cards.mjs';
 import {answerCard} from './capture-answers.mjs';
 import {historyView,contextView} from './capture-views.mjs';
 import {installSheet} from './capture-sheet.mjs';
-import {installCapturePresentation,createRevealTracker,enter,keepChoicesInView} from './capture-presentation.mjs';
-import {installComposer,listeningCard} from './capture-composer.mjs';
+import {installCapturePresentation,createRevealTracker,enter,keepChoicesInView,placeCards} from './capture-presentation.mjs';
+import {installComposer,listeningCard,orbTap} from './capture-composer.mjs';
 import {installForming} from './capture-forming.mjs';
 import {createSendIdentity,draftToKeep,cardKind,canUndoChange} from './capture-session.mjs';
 import {el,button} from './capture-dom.mjs';
@@ -16,6 +16,8 @@ import {actionIdFor} from '../intent-v2/src/suggestions.mjs';
 const ACTIVE=new Set(['draft','review']);
 const WAITING=new Set(['words-kept','confirm','open','question']);
 const AUTO_CLOSE_MS=6000;
+/** While a call is open the composer's placeholder says what voice is doing. */
+const CALL_WORDS={connecting:'Getting ready',listening:'Listening',working:'Saving',speaking:'RPM is talking'};
 
 const storage={
  get(key){try{return localStorage.getItem(key);}catch{return null;}},
@@ -34,7 +36,9 @@ export function mountCapture(platform){
   showArchived:false,lastKey:null,request:null,failure:null,problem:null,listening:false,autoClose:null,countdown:null};
  const identity=createSendIdentity(),reveal=createRevealTracker(),seen=new Set();
  const refreshState=async()=>{try{s.state=await(await fetch('/api/state')).json();}catch{}render();};
- const voiceMode=createVoiceMode({platform,conversationId:()=>conversation().id,onChange:()=>render(),afterSave:id=>{seen.add(id);refreshState();}});
+ const openItem=target=>platform.action('planner',target).catch(()=>{});
+ const voiceMode=createVoiceMode({platform,conversationId:()=>conversation().id,onChange:()=>render(),afterSave:id=>{seen.add(id);refreshState();},onLevel:value=>composer.level(value),
+  savedRows:id=>{const c=captures().find(x=>x.messageId===id);return !c?.voice?null:c.voice.undone?[]:platform.voiceRows(c.voice.changes);},openItem});
 
  function rememberComposer(text){
   const kept=draftToKeep(text,{busy:s.busy,pendingText:identity.pending?.text});
@@ -150,7 +154,7 @@ export function mountCapture(platform){
   cancelAutoClose();
   if(message.value.trim()||chips.held(latest()?.draft?.id))return;
   const ends=Date.now()+AUTO_CLOSE_MS;
-  const tick=()=>{const node=content.querySelector('.countdown'),left=Math.ceil((ends-Date.now())/1000);if(node)node.textContent=left>0?`Closing in ${left}s`:'';};
+  const tick=()=>showCountdown(content.querySelector('.countdown'),Math.ceil((ends-Date.now())/1000));
   tick();s.countdown=setInterval(tick,250);
   s.autoClose=setTimeout(()=>{
    cancelAutoClose();
@@ -160,8 +164,7 @@ export function mountCapture(platform){
  function cancelAutoClose(){
   clearTimeout(s.autoClose);clearInterval(s.countdown);
   s.autoClose=null;s.countdown=null;
-  const node=content.querySelector('.countdown');
-  if(node)node.textContent='';
+  stopCountdown(content.querySelector('.countdown'));
  }
  for(const type of ['pointerdown','keydown','input','wheel'])$('stack').addEventListener(type,cancelAutoClose,{capture:true,passive:true});
 
@@ -173,6 +176,7 @@ export function mountCapture(platform){
   node.append(row);
   return node;
  }
+ async function undoVoice(id){s.problem=await voiceMode.undo(id);await refreshState();}
  function captureCard(c,kind){
   const canUndo=canUndoChange(c.draft,s.state.undoId);
   const aiEnabled=!!s.state.aiEnabled;
@@ -186,13 +190,13 @@ export function mountCapture(platform){
    case 'open':return openCard(c,on);
    case 'question':return questionCard(c,on);
    case 'answer':return answerCard(c,{platform,on});
-   case 'voice':return voiceCard(c,{rows:platform.voiceRows(c.voice.changes),openPlanner:on.openPlanner,undo:async id=>{s.problem=await voiceMode.undo(id);await refreshState();}});
+   case 'voice':return voiceCard(c,{rows:platform.voiceRows(c.voice.changes),openItem});
    default:return savedCard(c,on);
   }
  }
  function chatCards(){
-  const live=voiceMode.card();
-  if(live)return [live];
+  const call=voiceMode.cards();
+  if(call)return call;
   if(s.listening)return [listeningCard(el)];
   if(s.request?.held)return [];
   const out=[];
@@ -213,7 +217,8 @@ export function mountCapture(platform){
   const back=()=>setView('chat');
   if(s.view==='history'){
    const p=page();
-   return [historyView({captures:p.captures??[],hasMore:p.hasMore,showMore:()=>{s.historyLimit=Math.min(100,s.historyLimit+30);render();},retry:id=>turn({type:'intentRetry',messageId:id}),onBack:back})];
+   return [historyView({captures:p.captures??[],hasMore:p.hasMore,showMore:()=>{s.historyLimit=Math.min(100,s.historyLimit+30);render();},retry:id=>turn({type:'intentRetry',messageId:id}),
+    discard:undoVoice,voiceRows:platform.voiceRows,onBack:back})];
   }
   if(s.view==='context'){
    return [contextView({state:s.state,showArchived:s.showArchived,toggleArchived:()=>{s.showArchived=!s.showArchived;render();},
@@ -228,7 +233,7 @@ export function mountCapture(platform){
   s.conversationId=c.id;storage.set('rpm-conversation',c.id);
   s.lastKey=captureRenderKey({...s.state,intent:page()});
   const nodes=viewCards(),top=content.scrollTop;
-  content.replaceChildren(...nodes);
+  placeCards(content,nodes);
   if(s.problem&&!content.querySelector('.problem'))status(s.problem,true);
   content.scrollTop=s.keepScroll?top:0;
   keepChoicesInView(content);
@@ -236,9 +241,9 @@ export function mountCapture(platform){
   const kind=s.listening||phase==='listening'||phase==='connecting'?'listening':s.request?'pending':s.failure?'error':nodes[0]?.classList[2]??'idle';
   panel.dataset.view=s.view;panel.dataset.busy=String(s.busy);panel.dataset.state=kind;
   content.setAttribute('aria-busy',String(s.busy));
-  message.placeholder=answerDraft()||latest()?.clarification?.open?'Or answer in your own words':s.focusedDraftId?'Tell me what to change':'Capture a thought';
+  message.placeholder=voiceMode.active()?CALL_WORDS[phase]:answerDraft()||latest()?.clarification?.open?'Or answer in your own words':s.focusedDraftId?'Tell me what to change':'Capture a thought';
   for(const b of content.querySelectorAll('button'))if(!b.closest('.view-head'))b.disabled=s.busy;
-  $('send').disabled=s.busy||voiceMode.active();$('dictate').disabled=s.busy||s.listening||voiceMode.active();
+  $('send').disabled=s.busy||voiceMode.active();composer.voice({phase:phase??voiceMode.failure?.phase??null,listening:s.listening,busy:s.busy,moment:voiceMode.moment});
   formNow();
  }
  const replying=()=>!!(answerDraft()||latest()?.clarification?.open||s.focusedDraftId);
@@ -273,9 +278,9 @@ export function mountCapture(platform){
  const composer=installComposer({
   onSubmit:text=>{if(!s.busy)send(text);},
   onInput:text=>{rememberComposer(text);formNow();if(s.state&&!s.busy&&$('status').textContent&&!$('status').classList.contains('error'))status('');},
-  onVoice:voice,
+  onVoice:orbTap(voiceMode,voice),
  });
- window.rpmStartVoice=(tries=25)=>{setView('chat');if((s.busy||!s.state)&&tries>0){setTimeout(()=>window.rpmStartVoice(tries-1),200);return;}voice();};
+ window.rpmStartVoice=(tries=25)=>{if(window.__rpmVoiceHoldStart)return;setView('chat');if((s.busy||!s.state)&&tries>0){setTimeout(()=>window.rpmStartVoice(tries-1),200);return;}voice();};
  if(window.rpmPendingVoice){delete window.rpmPendingVoice;window.rpmStartVoice();}
  window.addEventListener('rpm-calendar-ready',()=>{if(s.state&&!s.busy&&s.view==='chat'&&content.querySelector('.answer'))render();});
  window.rpmHandleBack=()=>{

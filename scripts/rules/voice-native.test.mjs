@@ -13,7 +13,7 @@ const java = name => read(`app/src/main/java/com/rpm/prototype/${name}.java`);
 test('the page may open a socket only to Gemini Live', () => {
   const csp = java('CompanionSurface').match(/Content-Security-Policy",\s*"([^"]+)"/)?.[1]
     ?? java('CompanionSurface').match(/"(default-src[^"]+)"/)?.[1];
-  assert.equal(csp, "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src wss://generativelanguage.googleapis.com; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'");
+  assert.equal(csp, "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; media-src 'self'; connect-src wss://generativelanguage.googleapis.com; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'");
 });
 
 test('the Gemini key lives apart from the OpenRouter key and is redacted', () => {

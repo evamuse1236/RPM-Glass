@@ -1,20 +1,23 @@
-/** Settings: an M3 list inside the planner, backed by native actions. The planner's top bar owns Back. */
-import {automationPreview} from './automation-preview-ui.mjs';
+/**
+ * Settings: a short home of grouped cards, one row per page. Each page is its own planner screen
+ * (`app.push('settings', page)`), so the planner's top bar owns Back and the title. Backed by native actions.
+ */
 import {userMessage} from './user-message.mjs';
-import {captureTraces} from './settings-traces.mjs';
+import {el} from './settings-parts.mjs';
+import {SETTINGS_PAGES, PAGES, homePage, phoneOnlyPage} from './settings-pages.mjs';
 
-const el = (tag, cls = '', text = '') => {
-  const node = document.createElement(tag);
-  if (cls) node.className = cls;
-  if (text) node.textContent = text;
-  return node;
+export {SETTINGS_PAGES};
+
+/** A section a deep link names, mapped to the page that shows it (null = the home list). */
+const SECTION_PAGES = {
+  alarm_sound: 'alerts', reminder_sound: 'alerts', notifications: 'alerts', exact_alarms: 'alerts', sounds: 'alerts',
+  ai_connection: 'ai', ai: 'ai', import_export: 'sync', 'context-history': 'sync', cloud: 'sync',
+  appearance: 'appearance', 'planner-appearance': 'appearance', notch: 'notch', widgets: 'notch',
+  voice: 'voice', diagnostics: 'diagnostics', about: 'about',
 };
-const symbol = name => {
-  const node = el('span', 'ms', name);
-  node.setAttribute('aria-hidden', 'true');
-  return node;
-};
-const safeScale = value => Math.max(80, Math.min(160, Number.isInteger(value) ? value : 100));
+const isPage = page => typeof page === 'string' && Object.hasOwn(SETTINGS_PAGES, page);
+export const settingsTitle = page => isPage(page) ? SETTINGS_PAGES[page].title : 'Settings';
+export const settingsPageFor = section => isPage(section) ? section : Object.hasOwn(SECTION_PAGES, section ?? '') ? SECTION_PAGES[section] : null;
 
 export const settingsSectionAction = section => {
   switch (section) {
@@ -27,39 +30,6 @@ export const settingsSectionAction = section => {
   }
 };
 
-const NEEDS_PERMISSION = 'Permission needed';
-
-/** One list row: headline, supporting text and a trailing value, switch or chevron. */
-function row(label, detail, value, action, {toggle = null, icon = null} = {}) {
-  const node = el('button', 'settings-row');
-  node.type = 'button';
-  node.dataset.action = action;
-  if (icon) node.append(symbol(icon));
-  const copy = el('span', 'settings-copy');
-  copy.append(el('strong', '', label));
-  if (detail) copy.append(el('small', '', detail));
-  node.append(copy);
-  if (toggle !== null) {
-    node.setAttribute('role', 'switch');
-    node.setAttribute('aria-checked', String(toggle));
-    const track = el('span', 'switch');
-    track.append(el('span', 'switch-thumb'));
-    node.append(track);
-  } else if (value) {
-    const trailing = el('small', 'settings-value', value);
-    if (value === NEEDS_PERMISSION) trailing.classList.add('warning');
-    node.append(trailing);
-  }
-  return node;
-}
-
-function group(title, id) {
-  const node = el('section', 'settings-group');
-  node.dataset.section = id;
-  node.append(el('h2', '', title));
-  return node;
-}
-
 function announce(ctx, value, error = false) {
   ctx.noticeText = value ?? '';
   ctx.noticeError = error;
@@ -70,179 +40,24 @@ function announce(ctx, value, error = false) {
   notice.hidden = !ctx.noticeText;
 }
 
-function add(ctx, section, label, detail, value, action, extra) {
-  const node = row(label, detail, value, action, extra);
-  node.addEventListener('click', () => act(ctx, action));
-  section.append(node);
-  return node;
-}
-
-function slider(ctx, section, label, detail, value, min, max, action) {
-  const wrap = el('div', 'settings-slider');
-  wrap.dataset.action = action;
-  const head = el('div', 'settings-slider-head');
-  const output = el('output', 'settings-value', value + '%');
-  head.append(el('label', '', label), output);
-  const input = el('input');
-  input.type = 'range';
-  input.min = String(min);
-  input.max = String(max);
-  input.step = '1';
-  input.value = String(value);
-  input.setAttribute('aria-label', label);
-  const sample = el('p', 'widget-text-preview', 'A clear next action');
-  sample.style.fontSize = value / 100 + 'em';
-  sample.setAttribute('aria-label', 'Widget text size preview');
-  wrap.append(head, input, el('small', '', detail), sample);
-  input.addEventListener('input', () => {
-    output.textContent = input.value + '%';
-    sample.style.fontSize = Number(input.value) / 100 + 'em';
-  });
-  input.addEventListener('change', () => act(ctx, action, {value: Number(input.value)}));
-  section.append(wrap);
-}
-
-function soundsSection(ctx) {
-  const section = group('Sounds & alerts', 'sounds');
-  add(ctx, section, 'Alarm sound', 'Ringing alarms use alarm volume', ctx.state.alarmSound, 'choose_alarm');
-  add(ctx, section, ctx.state.previewing ? 'Stop alarm preview' : 'Preview alarm sound', 'Plays for 5 seconds at alarm volume',
-    ctx.state.previewing ? 'Playing' : '', 'preview_alarm');
-  add(ctx, section, 'Reminder sound', 'Android notification channel', ctx.state.reminderSound, 'reminder_sound');
-  add(ctx, section, 'Notifications', 'Required for reminders and ringing alarms',
-    ctx.state.notificationsAllowed ? 'Allowed' : NEEDS_PERMISSION, 'notifications');
-  add(ctx, section, 'Exact alarms', 'Required for alarms at the chosen time',
-    ctx.state.exactAlarmsAllowed ? 'Allowed' : NEEDS_PERMISSION, 'exact_alarms');
-  if (ctx.state.fullScreenSupported) {
-    add(ctx, section, 'Lock-screen alarms', 'Controls full-screen ringing alerts',
-      ctx.state.fullScreenAllowed ? 'Allowed' : NEEDS_PERMISSION, 'full_screen_alarms');
-  }
-  add(ctx, section, 'Check saved alerts', 'Retry scheduling after permission changes', '', 'check_alerts');
-  section.append(el('p', 'settings-note',
-    'Android battery restrictions can delay reminders. Keep RPM installed for saved alarms to ring.'));
-  return section;
-}
-
-function widgetsSection(ctx) {
-  const section = group('Widgets', 'appearance');
-  slider(ctx, section, 'Widget text size', 'Relative to your Android system font size. The planner keeps its system size.',
-    safeScale(ctx.state.widgetTextScale), 80, 160, 'set_widget_text_scale');
-  if (!ctx.state.overlayAllowed) {
-    add(ctx, section, 'Allow floating butterfly', 'Open RPM over your other apps', NEEDS_PERMISSION, 'overlay_permission');
-  } else {
-    add(ctx, section, 'Floating butterfly', 'Open Capture over your other apps', '',
-      ctx.state.launcherRunning ? 'hide_butterfly' : 'show_butterfly', {toggle: !!ctx.state.launcherRunning});
-  }
-  notchRows(ctx, section);
-  return section;
-}
-
-/** The notch is off until switched on here; Android also needs RPM Notch on in its accessibility settings. */
-function notchRows(ctx, section) {
-  const {notchOn, notchServiceOn} = ctx.state;
-  const detail = !notchOn ? 'Your current task, water and routines around the front camera'
-    : notchServiceOn ? 'On. Tap the pill at the camera to see what is next.'
-      : 'Waiting for Android: allow RPM Notch below';
-  add(ctx, section, 'Notch', detail, '', 'notch_toggle', {toggle: !!notchOn});
-  if (notchOn && !notchServiceOn) {
-    add(ctx, section, 'Allow the notch', 'Android only lets apps draw at the camera through an accessibility service. '
-      + 'Opens Accessibility; turn on RPM Notch there. RPM reads no screen content.', NEEDS_PERMISSION, 'notch_permission');
-    add(ctx, section, 'RPM Notch greyed out?', 'Tap it once in Accessibility, then here: open the menu and Allow restricted settings.',
-      '', 'notch_app_info');
-  }
-}
-
-function accountSection(ctx) {
-  const section = group('Account & backup', 'ai');
-  const cloud = group('Cloud', 'cloud');
-  add(ctx, cloud, 'Link a web browser', 'Cloud pairing, a one-use code and linked browsers', '', 'cloud_web', {icon: 'cloud'});
-  section.append(cloud);
-  const {claudeKey, openRouterKey} = ctx.state;
-  add(ctx, section, claudeKey ? 'Replace Claude key' : 'Connect Claude key', 'Capture asks Claude first',
-    claudeKey ? 'Connected' : 'Not connected', 'connect_claude_key');
-  if (claudeKey) add(ctx, section, 'Remove Claude key', 'Plans and conversations stay on this phone', '', 'remove_claude_key');
-  add(ctx, section, openRouterKey ? 'Replace OpenRouter key' : 'Connect OpenRouter key',
-    'Backup when Claude fails; planner suggestions and Jev sorting', openRouterKey ? 'Connected' : 'Not connected', 'connect_openrouter_key');
-  if (openRouterKey) add(ctx, section, 'Remove OpenRouter key', 'Plans and conversations stay on this phone', '', 'remove_openrouter_key');
-  const {hasGeminiKey} = ctx.state;
-  add(ctx, section, hasGeminiKey ? 'Replace Gemini key' : 'Connect Gemini key', 'Voice mode talks with Gemini Live',
-    hasGeminiKey ? 'Connected' : 'Not connected', 'connect_gemini_key');
-  if (hasGeminiKey) add(ctx, section, 'Remove Gemini key', 'The mic goes back to system dictation', '', 'remove_gemini_key');
-  const history = el('div', 'settings-subgroup');
-  history.dataset.section = 'context-history';
-  add(ctx, history, 'Import context copy', 'Backs up this phone first; imported alerts stay off', '', 'import_context');
-  add(ctx, history, 'Export context', 'Save conversations and plans as a personal JSON file', '', 'export_context');
-  add(ctx, history, 'Restore a backup', 'Pre-import copies saved privately on this phone',
-    ctx.state.backupCount ? String(ctx.state.backupCount) : 'None', 'restore_backup');
-  add(ctx, history, 'Earlier RPM screens', 'Open the original planner', '', 'earlier_screens');
-  history.append(el('p', 'settings-note', 'Plans stay on this phone. Relevant context goes to Claude (or OpenRouter as backup) when you capture; '
-    + 'connected diagnostics upload console output and error details.'));
-  section.append(history);
-  return section;
-}
-
-function diagnosticsSection(ctx) {
-  const section = group('Diagnostics', 'diagnostics');
-  const log = ctx.state.diagnostics ?? {};
-  section.append(el('p', 'settings-note', 'Full app console output, errors and operation records may include capture '
-    + 'content. Connected logs are private and expire after 14 days. Credentials are redacted.'));
-  if (log.connected) {
-    const last = log.lastUpload ? new Date(log.lastUpload).toLocaleString() : 'No upload yet';
-    section.append(el('p', 'settings-note', `${log.message ?? 'Connected'} · ${log.queued ?? 0} queued · ${last}`));
-    if (log.endpoint) section.append(el('p', 'settings-note', log.endpoint));
-    if (log.dropped || log.rejected) {
-      section.append(el('p', 'settings-note', `${(log.dropped ?? 0) + (log.rejected ?? 0)} records lost to queue or capture limits.`));
-    }
-    if (log.authError) add(ctx, section, 'Pair diagnostics again', 'The previous connection was revoked', '', 'diagnostics_connect');
-    else {
-      add(ctx, section, log.paused ? 'Resume logging' : 'Pause logging', 'Controls capture and automatic upload',
-        log.enabled ? 'On' : 'Paused', log.paused ? 'diagnostics_resume' : 'diagnostics_pause');
-    }
-    if (log.enabled) add(ctx, section, 'Upload queued logs', 'Requires an internet connection', '', 'diagnostics_upload');
-    add(ctx, section, 'Disconnect diagnostics', 'Clears queued logs on this phone', '', 'diagnostics_disconnect');
-  } else {
-    add(ctx, section, 'Connect diagnostics', 'Use a code from your private RPM database', 'Not connected', 'diagnostics_connect');
-  }
-  section.append(el('p', 'settings-note', 'Captures app console channels, not the phone’s system log. Offline storage '
-    + 'holds up to 2,000 records or 2 MB; oversized records are truncated.'));
-  section.append(captureTraces());
-  return section;
-}
-
-function aboutSection() {
-  const section = group('About', 'about');
-  section.append(el('p', 'settings-note', 'RPM · Result, Purpose, Plan'),
-    el('p', 'settings-note', 'Capture saves your words first, then applies what you said with Undo.'));
-  const previews = el('details', 'settings-details');
-  previews.append(el('summary', '', 'Automation previews'), automationPreview());
-  section.append(previews);
-  return section;
-}
-
-function phoneOnlySection(text) {
-  const section = group('On your phone', 'phone-only');
-  section.append(el('p', 'settings-note', text));
-  return section;
-}
-
 function render(ctx) {
   if (ctx.destroyed || !ctx.state) return;
   const focus = document.activeElement?.dataset?.action;
   const page = el('div', 'settings-page');
-  page.setAttribute('aria-label', 'Settings');
+  page.dataset.page = ctx.page ?? 'home';
+  page.setAttribute('aria-label', ctx.page ? SETTINGS_PAGES[ctx.page].title : 'Settings');
   const notice = el('p', 'settings-notice', ctx.noticeText);
   notice.setAttribute('role', 'status');
   notice.setAttribute('aria-live', 'polite');
   notice.hidden = !ctx.noticeText;
   notice.classList.toggle('error', ctx.noticeError);
-  if (ctx.state.phoneOnly) page.append(notice, phoneOnlySection(ctx.state.phoneOnly), aboutSection());
-  else page.append(notice, soundsSection(ctx), widgetsSection(ctx), accountSection(ctx), diagnosticsSection(ctx), aboutSection());
+  const sections = ctx.state.phoneOnly ? phoneOnlyPage(ctx.state.phoneOnly) : (PAGES[ctx.page] ?? homePage)(ctx);
+  page.append(notice, ...sections);
   if (ctx.state.working) page.querySelectorAll('button,input').forEach(node => { node.disabled = true; });
   ctx.host.replaceChildren(page);
   if (focus) ctx.host.querySelector(`[data-action="${focus}"]`)?.focus({preventScroll: true});
-  const sectionName = ctx.options.section === 'import_export' ? 'context-history' : ctx.options.section;
-  if (sectionName && !settingsSectionAction(sectionName)) {
-    ctx.host.querySelector(`[data-section="${sectionName}"]`)?.scrollIntoView({block: 'start'});
-  }
+  const section = ctx.options.section;
+  if (section && !settingsSectionAction(section)) ctx.host.querySelector(`[data-section="${section}"]`)?.scrollIntoView({block: 'start'});
 }
 
 function loadError(ctx, message) {
@@ -314,11 +129,15 @@ function destroy(ctx) {
   ctx.host.replaceChildren();
 }
 
-/** Mount Settings as a destination inside PlannerActivity's existing workspace. */
+/**
+ * Mount one Settings page inside PlannerActivity's workspace. `page` is a SETTINGS_PAGES key or null for the home list;
+ * `openPage(page)` pushes a page onto the planner's stack.
+ */
 export function mountSettings(api, host, options = {}) {
   const native = typeof api === 'function' ? api : (action, payload = {}) => api.native(action, payload);
-  const ctx = {native, host, options, state: null, destroyed: false, request: 0,
-    noticeText: '', noticeError: false, openedSection: false};
+  const page = isPage(options.page) ? options.page : null;
+  const ctx = {native, host, options, page, state: null, destroyed: false, request: 0,
+    noticeText: '', noticeError: false, openedSection: false, act, render};
   ctx.onRefresh = () => refresh(ctx);
   ctx.onKey = event => {
     if (event.key !== 'Escape') return;

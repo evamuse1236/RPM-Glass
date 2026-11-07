@@ -7,7 +7,7 @@ const read = path => fs.readFileSync(new URL(path, import.meta.url), 'utf8');
 const plannerCss = () => ['planner.css', ...STYLE_PARTS['planner.css']].map(read).join('\n');
 const rule = (css, selector) => css.match(new RegExp(`(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{([^}]*)\\}`))?.[1] ?? '';
 
-test('Add is a round 60dp button in the dock beside the tab bar, and the bar ends 12dp before it', () => {
+test('the Capture button is a round 60dp button in the dock beside the tab bar, and the bar ends 12dp before it', () => {
   const html = read('planner.html');
   assert.match(html, /<nav id="nav-bar"[^>]*><\/nav>\s*<div id="dock"><\/div>/);
   assert.match(html, /id="now-host"/);
@@ -20,9 +20,10 @@ test('Add is a round 60dp button in the dock beside the tab bar, and the bar end
   assert.match(read('theme.css'), /--fab:60px;/);
   assert.match(css, /#nav-bar \{ inset-inline-end: calc\(var\(--inset-page\) \+ var\(--fab\) \+ var\(--s3\)\); \}/);
   const shell = read('planner/shell.mjs');
-  assert.match(shell, /host\.append\(habit, add\)/, 'Add and the habit circle live in the dock, not in the tab bar');
-  assert.doesNotMatch(shell, /nav\.append\(add\)/);
-  assert.match(shell, /attachSwipe\(add, \{hold: \(\) => app\.capture\(\)/, 'a 400ms hold on Add opens Capture');
+  assert.match(shell, /host\.append\(habit, fab\)/, 'the round button and the habit circle live in the dock, not in the tab bar');
+  assert.doesNotMatch(shell, /nav\.append\(fab\)/);
+  assert.match(shell, /iconButton\('close_fullscreen', 'Back to Capture', \(\) => app\.capture\(\)/, 'a tap goes back to Capture (user, 2026-11-01)');
+  assert.match(shell, /attachSwipe\(fab, \{hold: \(\) => holdToAdd\(app\)/, 'a 400ms hold adds');
   assert.match(shell, /iconButton\('search', 'Search'/, 'Search is a top-bar button');
 });
 

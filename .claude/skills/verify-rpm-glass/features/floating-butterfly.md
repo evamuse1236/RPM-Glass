@@ -4,7 +4,7 @@ The floating butterfly is a small draggable butterfly shown over other apps. Tap
 
 ## Sub-features
 
-- `butterfly-permission` shows `Allow floating butterfly` with `Permission needed` until the overlay permission is granted.
+- `butterfly-permission` shows `Floating butterfly` with the value `Allow` until the overlay permission is granted.
 - `butterfly-switch` shows the `Floating butterfly` switch once allowed, on or off.
 - `butterfly-show` starts the butterfly and a quiet notification.
 - `butterfly-open` opens Capture when the butterfly is tapped.
@@ -14,7 +14,7 @@ The floating butterfly is a small draggable butterfly shown over other apps. Tap
 
 ## How to get to it (user POV)
 
-- Open Settings, find the `Widgets` group, and tap `Allow floating butterfly` or switch `Floating butterfly` on.
+- Open Settings, then `Notch & widgets`, and tap `Floating butterfly` (`Allow`) or switch it on.
 - Leave RPM; the butterfly floats over the home screen and other apps.
 - Tap the butterfly to open Capture; long-press it, or use the `Hide` action on the `RPM butterfly is available` notification, to hide it.
 
@@ -27,8 +27,8 @@ Preconditions:
 - Baseline state, then `rpmctl open planner`, then Settings open (`More options` then `Settings`).
 - The app is installed with runtime permissions granted, but the overlay permission is a separate app setting. Whether it is already granted on the emulator is (unconfirmed); `rpmctl ui` shows which row appears.
 
-- **Not allowed.** If the `Widgets` group shows a button `Allow floating butterfly` with the value `Permission needed` and the detail `Open RPM over your other apps`, the permission is missing. Run `rpmctl shot butterfly-needs-permission`.
-- **Grant.** Run `rpmctl tap --name "Allow floating butterfly"`. The status line reads `Opening Android floating-window permission.` and Android's screen for the RPM overlay permission opens. Run `rpmctl ui --native`, then turn on the allow switch with `rpmctl tap --native "Allow display over other apps"` (label is unconfirmed; use what `ui --native` shows). Return with `rpmctl key back`. The row then becomes a switch named `Floating butterfly` with the detail `Open Capture over your other apps`.
+- **Not allowed.** If `Notch & widgets` shows a button `Floating butterfly` with the value `Allow` and the detail `Open Capture over your other apps`, the permission is missing. Run `rpmctl shot butterfly-needs-permission`.
+- **Grant.** Run `rpmctl tap --role button --name "Floating butterfly"`. The status line reads `Opening Android floating-window permission.` and Android's screen for the RPM overlay permission opens. Run `rpmctl ui --native`, then turn on the allow switch with `rpmctl tap --native "Allow display over other apps"` (label is unconfirmed; use what `ui --native` shows). Return with `rpmctl key back`. The row then becomes a switch named `Floating butterfly` with the detail `Open Capture over your other apps`.
 - **Switch on.** Run `rpmctl tap --role switch --name "Floating butterfly"`. The switch reads `aria-checked=true` and the status line reads `Butterfly started. Leave RPM to see it.` Without the permission the line reads `Allow the floating butterfly in Android Settings first.` Run `rpmctl shot butterfly-switch-on`.
 - **Hidden in app.** While RPM is on screen, `rpmctl ui --native` does not list the butterfly (it is hidden on purpose).
 - **See it.** Run `rpmctl key home`, then `rpmctl ui --native` and `rpmctl shot butterfly-over-home`. A view with the description `RPM butterfly. Tap to chat; drag to move; long press to hide.` is listed, and a quiet notification titled `RPM butterfly is available` with the text `Tap the butterfly to chat. You can hide it here.` is posted (check the notification shade through `rpmctl ui --native` after opening it with `rpmctl key` if available, unconfirmed).

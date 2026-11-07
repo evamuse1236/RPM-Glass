@@ -54,6 +54,7 @@
 
 .card-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:8px;margin-block-start:-4px}
 .card-actions .countdown{margin-inline-end:auto;font:var(--body-small);color:var(--bar-on-variant)}
+.card-actions .countdown.stopped{visibility:hidden}
 .btn{
   position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-block-size:40px;padding:0 20px;
   border:0;border-radius:var(--shape-full);background:transparent;color:var(--bar-primary);font:var(--label-large);cursor:pointer;text-align:center;overflow-wrap:anywhere;
@@ -157,3 +158,55 @@
 }
 @keyframes fact-pop{from{opacity:0;scale:.6}70%{opacity:1;scale:1.06}to{opacity:1;scale:1}}
 @keyframes fact-shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
+
+/* Voice: one calm card per call. The words of the open request sit on top and fold away once it saves; under them a
+   table of every item the call changed, each row updated in place. Taller than the space above the bar, the table
+   scrolls inside the card and fades into the card's own colour. */
+.voice-card{flex:0 1 auto;min-block-size:0;gap:0;padding:0;overflow:clip}
+.voice-card>.quiet{margin:0;padding:var(--s4) var(--s5)}
+.voice-fold{flex:none;display:grid;grid-template-rows:0fr}
+.voice-fold.open{grid-template-rows:1fr}
+.voice-fold-inner{min-block-size:0;overflow:clip}
+.voice-lead{margin:0;padding:var(--s4) var(--s5) var(--s3);font:var(--body-medium);color:var(--bar-on);overflow-wrap:anywhere;opacity:0;filter:blur(4px)}
+.voice-fold.open .voice-lead{opacity:1;filter:none}
+.voice-lead .w{display:inline}
+@property --inner-fade{syntax:"<length>";inherits:false;initial-value:0px}
+@keyframes inner-fade{from{--inner-fade:24px}to{--inner-fade:0px}}
+.voice-table{flex:0 1 auto;min-block-size:0;display:flex;flex-direction:column;padding:var(--s2);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;
+  animation:inner-fade linear both;animation-timeline:scroll(self block);mask-image:linear-gradient(to bottom,#000 calc(100% - var(--inner-fade)),transparent)}
+.voice-table::-webkit-scrollbar{display:none}
+.voice-table:empty{display:none}
+.voice-row{flex:none;display:grid;grid-template-rows:1fr}
+.voice-row.shut{grid-template-rows:0fr}
+.voice-row-clip{min-block-size:0;overflow:clip}
+.voice-row.shut .voice-row-clip{opacity:0}
+.voice-item{position:relative;display:grid;align-items:center;inline-size:100%;min-block-size:var(--touch);margin:0;padding:var(--s2) var(--s3);border:0;
+  border-radius:var(--r-control);background:transparent;color:var(--bar-on);font:inherit;text-align:start}
+button.voice-item{cursor:pointer}
+button.voice-item:active{background:var(--bar-highest)}
+button.voice-item:focus-visible{outline:2px solid var(--bar-primary);outline-offset:-2px}
+.voice-item.flash{animation:row-flash calc(var(--dur-medium2) * 2) var(--ease-standard) both}
+.voice-lane{display:grid;grid-template-columns:20px minmax(0,1fr) auto;column-gap:var(--s3);align-items:center}
+.voice-glyph{display:grid;place-items:center;color:var(--bar-primary)}
+.voice-glyph .ms{font-size:20px}
+.voice-what{display:flex;flex-direction:column;min-inline-size:0}
+.voice-lane .cell{display:grid;min-inline-size:0}
+.voice-lane .v{grid-area:1/1;min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.voice-title{font:var(--title-small)}
+.voice-note{font:var(--body-small);color:var(--bar-on-variant)}
+.voice-when{display:flex;align-items:center;gap:var(--s1);font:var(--body-medium);font-variant-numeric:tabular-nums;color:var(--bar-on)}
+.voice-alarm{font-size:16px;color:var(--bar-primary)}
+.voice-note[hidden],.voice-alarm[hidden]{display:none}
+.voice-row.gone .voice-title .v{text-decoration:line-through;text-decoration-thickness:1px;color:var(--bar-on-variant)}
+.voice-row.gone .voice-glyph{color:var(--bar-on-variant)}
+@media (prefers-reduced-motion:no-preference){
+  .voice-fold{transition:grid-template-rows var(--dur-medium2) var(--ease-emphasized)}
+  .voice-lead{transition:opacity var(--dur-short4) var(--ease-standard),filter var(--dur-short4) var(--ease-standard)}
+  .voice-lead .w{animation:word-in calc(var(--dur-medium2) * 2) var(--ease-emphasized) both}
+  .voice-row{transition:grid-template-rows var(--dur-medium1) var(--ease-emphasized-decelerate)}
+  .voice-row-clip{transition:opacity var(--dur-medium1) var(--ease-emphasized-decelerate)}
+  button.voice-item{transition:background-color var(--dur-short3) var(--ease-standard)}
+}
+@keyframes word-in{from{opacity:0;filter:blur(6px)}}
+@keyframes row-flash{from{background:color-mix(in oklch,var(--bar-accent) 60%,transparent)}}
+:root[data-reduce-motion=true] :is(.voice-fold,.voice-lead,.voice-lead .w,.voice-row,.voice-row-clip,.voice-item){animation:none;transition:none}

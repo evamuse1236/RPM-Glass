@@ -10,7 +10,8 @@
     "corpus/round3.json",
     "corpus/everyday.json",
     "corpus/adversary.json",
-    "corpus/real-2026-10-27.json"
+    "corpus/real-2026-10-27.json",
+    "corpus/agent-rounds.json"
   ],
   "hardest": [
     "nine-relative-times",

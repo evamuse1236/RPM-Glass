@@ -1,7 +1,6 @@
 /** Chooses the screen for the current route and mounts the long-lived ones (Settings, Weekly review). */
 import {localDay, shiftDay} from '../planner-state.mjs';
 import {mountSettings} from '../settings.mjs';
-import {mountClaritySettings} from '../planner-clarity.mjs';
 import {mountWeeklyReview} from '../weekly-review.mjs';
 import {el, emptyState} from './dom.mjs';
 import {renderToday, todayScroll, selectDay} from './today.mjs';
@@ -17,23 +16,21 @@ import {userMessage} from '../user-message.mjs';
 const DETAILS = {blocks: renderBlockDetail, projects: renderProjectDetail, areas: renderAreaDetail, goals: renderGoalDetail};
 const ROOTS = {today: renderToday, blocks: renderBlocks, projects: renderProjects, life: renderLife};
 
+/** One Settings page per planner screen: the home list (id null) or a page; a row on the home list pushes its page. */
 function mountSettingsScreen(app, host) {
   let settings = null;
-  let clarity = null;
+  const section = app.state.settingsSection;
+  app.state.settingsSection = null;
   try {
     settings = mountSettings((action, payload = {}) => app.api.native(action, payload), host,
-      {onBack: () => app.back(), section: app.state.settingsSection});
-    clarity = mountClaritySettings(host);
+      {onBack: () => app.back(), section, page: app.current()?.id ?? null, openPage: page => app.push('settings', page)});
   } catch (error) {
     host.replaceChildren(emptyState({symbol: 'error', title: 'Settings unavailable',
       body: userMessage(error, 'Could not load settings.'), action: () => app.openSettings(), label: 'Try again'}));
   }
   app.mounted = {key: screenKey(app), controller: {
     handleBack: () => settings?.handleBack?.() ?? false,
-    destroy() {
-      clarity?.destroy?.();
-      settings?.destroy?.();
-    },
+    destroy: () => settings?.destroy?.(),
   }};
 }
 

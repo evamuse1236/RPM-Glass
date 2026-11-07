@@ -188,7 +188,7 @@ public final class CaptureActivity extends Activity {
         ask("time",promptTarget,"When should the "+(ringing?"alarm ring":"notification arrive")+"? Type a full time such as tomorrow at 7 am, or choose below.");
     }
     private void alertSettings(){if(!Alarms.notificationsAllowed(this))EntryDialogs.requestNotifications(this);else if(android.os.Build.VERSION.SDK_INT>=31)startActivity(new Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,android.net.Uri.parse("package:"+getPackageName())));}
-    private void confirmAlertTime(long at){if(at<=System.currentTimeMillis()){question="Choose a future time.";showConversation();return;}alertAt=at;JSONObject e=store.get(promptTarget);ask("confirm_alert",promptTarget,e.optString("title")+"\n"+Ui.date(at)+"\n\n"+(ringing?"Ring at your alarm volume. Snooze is 10 minutes; an unanswered alarm stops after 10 minutes.":"Send a notification. Android may delay delivery.")+(ringing&&!Alarms.fullScreenAllowed(this)?" Full-screen alerts are off; use notification controls.":""));}
+    private void confirmAlertTime(long at){if(at<=System.currentTimeMillis()){question="Choose a future time.";showConversation();return;}alertAt=at;JSONObject e=store.get(promptTarget);ask("confirm_alert",promptTarget,e.optString("title")+"\n"+Ui.date(at)+"\n\n"+(ringing?"Ring at your alarm volume. Snooze is 10 minutes; an unanswered alarm stops after 10 minutes.":"Send a notification. Android may delay delivery."));}
     private void scheduleAlert(){
         if(alertAt<=System.currentTimeMillis()){ask("time",promptTarget,"That time has passed. Choose a future time.");return;}
         if(!Alarms.notificationsAllowed(this)||(ringing&&!Alarms.exactAllowed(this))){beginAlert(ringing);return;}

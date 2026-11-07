@@ -31,10 +31,18 @@ final class BridgeCallRecord {
 
     /** Records the failure and returns the words the page may show. */
     String fail(Exception e){
-        outcome=e instanceof java.util.concurrent.CancellationException?"cancelled":"error";
+        outcome=outcomeOf(e);
         try{payload.put("error",new JSONObject().put("type",e.getClass().getSimpleName()).put("message",e.getMessage()).put("stack",android.util.Log.getStackTraceString(e)));}catch(JSONException ignored){}
         String message=(action.equals("model")||action.equals("decision"))?"The OpenRouter connection failed. Check your key and internet connection.":e.getMessage();
         return message==null?"The phone could not finish that action.":message;
+    }
+
+    /** Only "error" is an app fault; the other outcomes are conditions the page already handles. */
+    static String outcomeOf(Exception e){
+        if(e instanceof java.util.concurrent.CancellationException)return "cancelled";
+        if(e instanceof SaveConflict)return "conflict";
+        if(e instanceof Offline)return "offline";
+        return "error";
     }
 
     void record(Context context,String callId,String operationId){

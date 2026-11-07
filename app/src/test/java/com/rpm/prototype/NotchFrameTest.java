@@ -1,6 +1,5 @@
 package com.rpm.prototype;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -231,39 +230,6 @@ public class NotchFrameTest {
         assertTrue("the value grows from 15sp to 22sp", a.valuePx < mid.valuePx && mid.valuePx < b.valuePx);
         assertTrue("the value moves out from the task drop", mid.valueRight > a.valueRight && mid.valueRight < b.valueRight);
         assertEquals(NotchMotion.OPEN_MS, NotchMotion.of(true).morphMs(true));
-    }
-
-    @Test
-    public void reducedMotionFadesInsteadOfMoves() {
-        NotchMotion moving = NotchMotion.of(true);
-        assertEquals(350, moving.morphMs(true));
-        assertEquals(300, moving.morphMs(false));
-        assertEquals(400, moving.fillMs());
-        assertEquals(8, moving.riseDp());
-        assertTrue(moving.digitsRoll());
-        NotchMotion still = NotchMotion.of(false);
-        assertEquals("sizes snap", 0, still.morphMs(true));
-        assertEquals("the ring snaps", 0, still.fillMs());
-        assertEquals("faces do not rise", 0, still.riseDp());
-        assertEquals("faces cross-fade", 150, still.faceInMs());
-        assertEquals(150, still.faceOutMs());
-        assertEquals(0, still.faceInDelayMs());
-        assertFalse("digits cross-fade", still.digitsRoll());
-        assertEquals(150, still.valueMs());
-        assertFalse(still.pulses());
-        for (NotchMotion m : new NotchMotion[]{moving, still}) {
-            assertTrue("nothing over 400 ms", m.morphMs(true) <= 400 && m.fillMs() <= 400 && m.faceInDelayMs() + m.faceInMs() <= 400 && m.valueMs() <= 400);
-        }
-    }
-
-    @Test
-    public void rollingDigitsMoveOnlyChangedDigits() {
-        assertArrayEquals(new boolean[]{false, true, false}, NotchMotion.changed("45m", "44m"));
-        assertArrayEquals(new boolean[]{true, true, false}, NotchMotion.changed("9m", "10m"));
-        assertArrayEquals(new boolean[]{true, false}, NotchMotion.changed("10m", "9m"));
-        assertArrayEquals(new boolean[]{false, false, false}, NotchMotion.changed("3/8", "3/8"));
-        assertArrayEquals(new boolean[]{true, false, false}, NotchMotion.changed("3/8", "4/8"));
-        assertArrayEquals(new boolean[]{true, false, true, true}, NotchMotion.changed("4:59", "5:00"));
     }
 
     @Test

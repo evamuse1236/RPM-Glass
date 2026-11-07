@@ -28,7 +28,7 @@ final class CompanionSettingsController {
     private static final Set<String> ACTIONS=Set.of(
         "set_widget_text_scale","choose_alarm","preview_alarm","stop_preview","reminder_sound",
         "show_butterfly","hide_butterfly","overlay_permission","notch_toggle","notch_permission","notch_app_info","notifications","exact_alarms",
-        "full_screen_alarms","check_alerts","connect_key","connect_claude_key","connect_openrouter_key","remove_claude_key","remove_openrouter_key","connect_gemini_key","remove_gemini_key","import_context",
+        "check_alerts","connect_key","connect_claude_key","connect_openrouter_key","remove_claude_key","remove_openrouter_key","connect_gemini_key","remove_gemini_key","import_context",
         "export_context","restore_backup","earlier_screens","cloud_web","diagnostics_connect","diagnostics_pause","diagnostics_resume","diagnostics_disconnect","diagnostics_upload"
     );
     private final Activity activity;
@@ -75,7 +75,6 @@ final class CompanionSettingsController {
             case "notch_permission":runUi(()->launch(NotchAccessibilityService.settingsIntent()));message="Opening Android accessibility settings. Turn on RPM Notch there.";break;
             case "notifications":runUi(this::openNotifications);message="Opening Android notification controls.";break;
             case "exact_alarms":runUi(()->{if(Build.VERSION.SDK_INT>=31)launch(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,Uri.parse("package:"+activity.getPackageName())));});message=Build.VERSION.SDK_INT>=31?"Opening Android exact alarm permission.":"Exact alarms are already available on this Android version.";break;
-            case "full_screen_alarms":runUi(()->{if(Build.VERSION.SDK_INT>=34)launch(new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,Uri.parse("package:"+activity.getPackageName())));});message=Build.VERSION.SDK_INT>=34?"Opening Android lock-screen alarm controls.":"Lock-screen alarm permission is managed automatically on this Android version.";break;
             case "check_alerts":JSONObject data=CompanionStore.read(activity);if(data!=null)CompanionAlerts.reconcile(activity,data,true);message="Saved alert schedules checked.";notifyChanged();break;
             case "diagnostics_connect":runUi(this::diagnosticDialog);message="Enter a diagnostic pairing code.";break;
             case "diagnostics_pause":Diagnostics.pause(activity,true);message="Diagnostic capture and upload paused. An upload already in progress may finish.";break;

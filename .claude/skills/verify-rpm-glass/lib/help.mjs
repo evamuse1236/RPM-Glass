@@ -2,7 +2,7 @@ import {DEFAULTS, DISPLAYS} from './runtime.mjs';
 
 export const HELP = {
   _: `rpmctl drives the RPM Android app (com.rpm.prototype) on an S24 FE-sized emulator that it launches and owns.
-Every command prints JSON on stdout; store prints the saved value directly and ui --brief prints text. Failures print {"ok":false,"error","fix"} and exit 1.
+Every command prints JSON on stdout; store prints the saved value directly and ui --brief prints text. Failures print {"ok":false,"error","fix"} and exit 1; a hung device (adb gave no answer) exits 3.
 
 Usage: node .claude/skills/verify-rpm-glass/rpmctl.mjs <command> [options]
 
@@ -27,6 +27,8 @@ Evidence
   store      Print the saved planner JSON, optionally at a dotted path.
   state      List or read the app's private files (debug build only).
   logs       App logcat, or only crashes and page errors with --errors.
+  voice-time Time one voice capture from the widget mic through the spoken answer (T0 to T10).
+  voice-script Run a scripted voice call (no model) on the emulator, shoot each step, then reload the page.
   check      Run the repo's full check suite (npm test + regression checks), logged to evidence.
 
 Global options
@@ -89,7 +91,7 @@ app process, WebView DevTools reachable, current page, System UI ANR prompt, app
 Output: {ok, checks:[{name, ok, detail, fix?}]}. ok=false names the first fix to apply.`,
   open: `open <surface>
   capture        Launcher icon path (MAIN/LAUNCHER intent): the Capture sheet.
-  planner        Capture sheet -> "More" -> "Planner" (taps, like a user).
+  planner        Capture's handle "Open planner" (a tap, like a user). A hold on it opens the More sheet.
   history        Capture sheet -> More -> "History".
   widget-capture The intent the home-screen widget's Capture bar sends (com.rpm.widget.capture).
   widget-voice   The intent the widget's mic sends (com.rpm.widget.voice); starts voice input.
@@ -143,6 +145,25 @@ An optional dotted path (e.g. sync.outbox or entries.0.title) prints that value.
   state: `state [relative-path]
 Without a path: lists the app's private files (files/, shared_prefs/, databases/) via run-as.
 With a path (e.g. files/companion.json): prints {ok, path, json} when JSON parses, otherwise {ok, path, text}. Debug builds only.`,
+  'voice-time': `voice-time [--runs N] [--fixture <id|all>] [--session two] [--warm] [--human]
+Opens Capture the way the home widget mic does (com.rpm.widget.voice), feeds a fixture clip through the fake mic into one
+open Live session, waits for its receipt, then taps the Hang up orb. Per request it prints the time from the end of the
+clip (speechEnd#n) to the first tool call (T7#n), the change on screen (Trow#n), the receipt (T8#n) and the first
+spoken audio (T9#n), plus tap to Gemini listening (T4).
+--session two plays time, then two-tasks after the first receipt, in the same session.
+--fixture is time, two-tasks, change, question, ramble, or all (the default; one session each). --runs prints median and
+p90. The table includes errors and workDone (receipts drawn). --human leaves the mic real and waits for you to hang up.
+Writes .verify/voice-latency/runs/<run-id>.json. A debug build can feed fixtures/voice WAV through RPM_FAKE_MIC. Release builds have no fake mic.
+On a device that is not an emulator (--serial <phone>) it is always --human: it refuses --store, --fixture and the fake mic,
+never resets the plan, force-stops or taps. It opens Capture from the voice widget, records marks per request while you
+talk, and stops when you tap Hang up or after 20 s of quiet. With --session two it expects two requests.
+A Gemini key on the device starts a Live session. Unit tests do not run it.`,
+  'voice-script': `voice-script [fixture] [--plan add,retime,remove]
+Emulator only; a phone is refused before the page changes. Opens Capture, loads fixtures/<fixture>.js (default
+voice-script), stubs RPM_PLATFORM.hasGeminiKey so the tap on #dictate takes the Gemini path, and starts the call.
+Each --plan step (default add) hears a set sentence, proposes the change, shoots scripted-voice-<step>-proposed,
+saves and shoots scripted-voice-<step>-saved. retime and remove change the tasks that add made, so start with add.
+It always reloads the page after, even when a step fails. Label the result "scripted voice"; it is not a model test.`,
   logs: `logs [--errors] [--lines N]
 Logcat for the app's process plus WebView console lines (tag chromium). --errors keeps only crashes, ANRs,
 uncaught exceptions and console errors since launch. Default --lines 200.`,

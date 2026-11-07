@@ -99,7 +99,7 @@ function plannerCallers(source) {
 
 test('only Log meal, Open, the task island\'s words and a long press on a drop open the planner; Glass, Done, alert changes and Undo save in place', () => {
   assert.deepEqual(plannerCallers(java('NotchController')).sort(), ['holdDrop', 'holdDrop', 'logMeal', 'openHero', 'openManaged']);
-  assert.deepEqual(plannerCallers(java('NotchAlerting')), ['openTask']);
+  assert.deepEqual(plannerCallers(java('NotchAlerting')), ['openTask', 'openTask'], 'Open: a planner task in the planner, a local alarm at its entry');
   assert.deepEqual(plannerCallers(java('NotchChanges')), []);
   assert.deepEqual(plannerCallers(java('NotchRunner')), []);
   const planner = java('NotchActions').match(/static void (\w+)\(Context c[^)]*\) \{[^]*?\n {4}\}/g).filter(m => /planner\(c,/.test(m));

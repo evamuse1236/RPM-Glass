@@ -33,13 +33,14 @@ function phone(data,{micAccess={granted:false,canAsk:true}}={}){
  return platform;
 }
 
-/** A fake startVoice that plays one ramble: words first, then the changes, then done. */
+/** A fake open line that plays one request (words, then the changes), saves it through onRequest, then hangs up. */
 function rambleStart(ids,{code=null}={}){
- return ({data,onChange})=>{
+ return ({data,onChange,onRequest,continuous})=>{
   let finish;const done=new Promise(resolve=>{finish=resolve;});
-  queueMicrotask(()=>{
-   if(code){onChange({phase:'failed',code});finish({heard:'',said:'',changes:[],errors:[],batch:null,uuids:[],created:[],failed:NO_MIC,code});return;}
-   const r=createRamble({data,timeZone:TZ,now:()=>NOW});
+  assert.equal(continuous,true,'the phone always opens the line');
+  queueMicrotask(async()=>{
+   if(code){onChange({phase:'failed',code});finish({requests:0,missed:false,failed:NO_MIC,code});return;}
+   const r=createRamble({data:data(),timeZone:TZ,now:()=>NOW});
    r.receive({serverContent:{inputTranscription:{text:'Finish calling Raj and delete buy groceries'}}});
    onChange({...r.state,phase:'listening'});
    r.stop();
@@ -49,7 +50,8 @@ function rambleStart(ids,{code=null}={}){
    onChange(r.state);
    r.receive(turnDone);r.receive({serverContent:{outputTranscription:{text:'Done Raj, removed groceries.'}}});r.receive(turnDone);
    onChange(r.state);
-   finish(r.result());
+   await onRequest(r.result(),{index:1});
+   finish({requests:1,missed:false,failed:null,code:null});
   });
   return {stop(){},cancel(){},done};
  };
@@ -57,19 +59,18 @@ function rambleStart(ids,{code=null}={}){
 
 const mode=(platform,start,extra={})=>{
  const ids=[];
- const voice=createVoiceMode({platform,conversationId:()=>'c-1',onChange(){},afterSave:id=>ids.push(id),start,now:()=>NOW,timeZone:TZ,doc:null,win:{},...extra});
+ const voice=createVoiceMode({platform,conversationId:()=>'c-1',onChange(){},afterSave:id=>ids.push(id),start,now:()=>NOW,timeZone:TZ,doc:null,win:{},sound(){},...extra});
  return {voice,ids};
 };
 
-test('the words are saved at wordsReady, before the changes, and the ramble lands as one capture with one Undo', async () => {
+test('a request is saved with its words in one save, as one capture with one Undo', async () => {
  const {data,ids}=day(),platform=phone(data);
  const {voice,ids:saved}=mode(platform,rambleStart(ids));
  await voice.begin();
- assert.equal(platform.saves.length,2,'one save for the words, one for the changes');
- const [words,changes]=platform.saves.map(captures=>Object.values(captures)[0]);
- assert.equal(words.status,'captured','the first save holds only the words');
- assert.match(words.raw,/Finish calling Raj/);
- assert.equal(changes.status,'interpreted');
+ assert.equal(platform.saves.length,1,'the words and the changes are saved together');
+ const [capture0]=platform.saves.map(captures=>Object.values(captures)[0]);
+ assert.match(capture0.raw,/Finish calling Raj/);
+ assert.equal(capture0.status,'interpreted');
  assert.equal(saved.length,1);assert.equal(voice.live,null);
  const task=id=>platform.store.entries.find(e=>e.id===id);
  assert.equal(task(ids.raj).done,true);assert.equal(task(ids.milk).archived,true);
@@ -88,7 +89,7 @@ test('a mic Android refuses shows the no-mic card, with Settings only when Andro
   const platform=phone(day().data,{micAccess:{granted:false,canAsk}});
   const {voice}=mode(platform,rambleStart({},{code:'no-mic'}));
   await voice.begin();
-  assert.deepEqual(voice.live,{phase:'no-mic',canAsk});
+  assert.deepEqual(voice.failure,{phase:'no-mic',canAsk});
   assert.equal(platform.saves.length,0,'nothing is saved without words');
   assert.equal(voice.active(),false);
  }
@@ -101,18 +102,46 @@ test('a phone with no Gemini key gets a failed card that says how to connect one
  const start=({token})=>({stop(){},cancel(){},done:token({}).then(()=>({}),error=>{throw error;})});
  const {voice}=mode(platform,start);
  await voice.begin();
- assert.deepEqual(voice.live,{phase:'failed',error:NO_KEY});
+ assert.deepEqual(voice.failure,{phase:'failed',error:NO_KEY});
 });
 
-test('leaving Capture stops the mic', async () => {
+test('leaving Capture hangs up', async () => {
  let stopped=0;
  const listeners={},doc={visibilityState:'visible',addEventListener:(type,fn)=>{listeners[type]=fn;}},win={};
- const start=()=>({stop(){stopped++;},cancel(){},done:new Promise(()=>{})});
+ const start=()=>({stop(){},hangUp(){stopped++;},cancel(){},done:new Promise(()=>{})});
  const {voice}=mode(phone(day().data),start,{doc,win});
  voice.begin();
  await Promise.resolve();
  doc.visibilityState='hidden';listeners.visibilitychange();
  win.rpmVoiceBackground();
  assert.equal(stopped,2);
- assert.equal(voice.active(),true,'the turn finishes on its own after stop');
+ assert.equal(voice.active(),true,'the session saves and ends on its own after hang-up');
+});
+
+test('each saved voice request leaves one trace with its words, reply, tool calls, what applied and the task ids, and Undo marks it', async () => {
+ const {data,ids}=day(),platform=phone(data),traces=[],outcomes=[];
+ platform.voiceTrace=trace=>traces.push(trace);
+ platform.voiceOutcome=(id,kind)=>outcomes.push([id,kind]);
+ const {voice,ids:saved}=mode(platform,rambleStart(ids));
+ await voice.begin();
+ assert.equal(traces.length,1);
+ const [t]=traces;
+ assert.equal(t.id,saved[0]);assert.equal(t.kind,'voice');
+ assert.match(t.words,/Finish calling Raj/);
+ assert.equal(t.reply,'Done Raj, removed groceries.');
+ assert.deepEqual(t.calls.map(c=>c.name),['get_plan','save_task','delete_task']);
+ assert.deepEqual(t.applied,{status:'applied',entryIds:[ids.raj,ids.milk],undoes:null});
+ assert.deepEqual(t.errors,[]);
+ assert.equal(t.models[0].service,'gemini');
+ assert.equal(await voice.undo(saved[0]),null);
+ assert.deepEqual(outcomes,[[saved[0],'undone']]);
+});
+
+test('a saved voice capture names the tasks it touched and has receipt lines, so the hub can link words to tasks', async () => {
+ const {data,ids}=day(),platform=phone(data);
+ const {voice,ids:saved}=mode(platform,rambleStart(ids));
+ await voice.begin();
+ const capture=platform.store.intentV2.captures[saved[0]];
+ assert.deepEqual(capture.taskIds,[ids.raj,ids.milk]);
+ assert.deepEqual(capture.receipt.map(r=>r.text),['Done · Call Raj','Moved to Trash · Buy groceries']);
 });

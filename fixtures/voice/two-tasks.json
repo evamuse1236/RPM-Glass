@@ -1,0 +1,45 @@
+{
+  "id": "two-tasks",
+  "phrase": "call mom at 8pm and buy milk tomorrow",
+  "durationMs": 3384,
+  "speech": "edge-tts",
+  "source": {
+    "corpus": "scripts/capture-stress/corpus/real-2026-10-27.json",
+    "id": "real-call-mom-buy-milk"
+  },
+  "expected": {
+    "created": [
+      {
+        "entity": "task",
+        "words": [
+          "call",
+          "mom"
+        ],
+        "day": "2026-10-19",
+        "time": "20:00"
+      },
+      {
+        "entity": "task",
+        "words": [
+          "milk"
+        ],
+        "day": "2026-10-20"
+      }
+    ],
+    "changes": [],
+    "maxNew": 2,
+    "question": "forbidden",
+    "unchanged": [
+      101,
+      102,
+      103,
+      104,
+      105,
+      106
+    ]
+  },
+  "tts": {
+    "engine": "edge-tts",
+    "voice": "en-US-JennyNeural"
+  }
+}

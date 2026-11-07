@@ -1,0 +1,47 @@
+{
+  "id": "ramble",
+  "phraseFile": "ramble.txt",
+  "durationMs": 24480,
+  "speech": "edge-tts",
+  "source": {
+    "corpus": "scripts/capture-stress/corpus/monologues.json",
+    "id": "monologue-purifier"
+  },
+  "expected": {
+    "created": [
+      {
+        "entity": "task",
+        "words": [
+          "call",
+          "purifier",
+          "technician"
+        ],
+        "day": "2026-10-20",
+        "time": "18:00"
+      }
+    ],
+    "forbidden": [
+      [
+        "hotel"
+      ],
+      [
+        "flight"
+      ],
+      [
+        "warranty"
+      ],
+      [
+        "scan"
+      ]
+    ],
+    "changes": [],
+    "maxNew": 1,
+    "question": "forbidden"
+  },
+  "tts": {
+    "engine": "edge-tts",
+    "voice": "en-US-JennyNeural"
+  },
+  "phrase": "Okay I am going to talk for a bit because if I try to compress this into one neat sentence I will forget the sentence while deciding which words belong in it. This morning started normally enough. I woke up, found one sock inside my pillow cover somehow, made tea, and stood near the sink looking at the purifier light. That light has been blinking for days. I remember noticing",
+  "phraseNote": "First ~70 words of ramble.txt so a timing run stays near the 21s ramble benchmark. Full monologue remains in ramble.txt."
+}

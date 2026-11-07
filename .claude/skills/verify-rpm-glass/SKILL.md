@@ -7,7 +7,7 @@ description: Drive the real RPM Android app (com.rpm.prototype, Capture sheet + 
 
 RPM is an Android app. Its Capture sheet (`index.html`) and Planner (`planner.html`) are WebViews inside a Java host; the widget, alarms, settings dialogs and "Earlier RPM screens" are native. A desktop browser preview, a green `npm test` or a passing build does not prove a change on the phone. This skill boots an emulator sized like the user's Galaxy S24 FE (1080 × 2340, 450 dpi, Android 16), installs the debug APK built from this checkout, and drives it with real touches.
 
-All commands go through one CLI. Every command prints one JSON object except `ui --brief` and `store` (which prints the saved JSON value directly); failures print `{"ok":false,"error","fix"}` and exit 1. Read the `fix`.
+All commands go through one CLI. Every command prints one JSON object except `ui --brief` and `store` (which prints the saved JSON value directly); failures print `{"ok":false,"error","fix"}` and exit 1. Read the `fix`. Exit 3 means the device hung: see "When the emulator hangs".
 
 ```bash
 RPMCTL="node .claude/skills/verify-rpm-glass/rpmctl.mjs"
@@ -110,6 +110,10 @@ Proof standards:
 - Model-backed paths (Capture sorting, Jev, Suggest a Purpose) need a model key. The user wants them tested on the emulator (2026-10-27): enter the vault key `openrouter-rpm` (or `anthropic`) through the app's AI settings for the live check, and remove it in cleanup. Never print it or pass it on a logged command line. Only when no key can be entered, prove the keyless behavior (words saved, "Connect" offered) and mark the model path **UNVERIFIED**.
 - The emulator is not Samsung One UI. Samsung keyboard, battery limits, audible alarms and real launcher widget placement stay **UNVERIFIED** until checked on the phone.
 
+Voice without a model (emulator only, never the phone): `rpmctl voice-script --plan add,retime,remove` loads `fixtures/voice-script.js`, takes the Gemini path, shoots each step and reloads the page after, even on failure. Label the result "scripted voice".
+
+Voice timing has five separate marks: mic capture starts, the model is ready, the change is saved, the receipt shows, playback starts. Transcription lag needs word timestamps in the source audio; without them, report it as not measured.
+
 Reply with the evidence paths (`.verify/evidence/<run-id>/NN-*.png`).
 
 ## Match the check to the change
@@ -148,6 +152,10 @@ $RPMCTL cleanup
 Ends your run: removes the DevTools port forward and `.verify/state.json`, releases the lease and keeps the emulator warm for the next run. A detached watcher stops the warm emulator after 20 min with no run, so it does not sit on the machine's memory. Evidence stays; the output names the folder. Run `cleanup` after a failed attempt too.
 
 `cleanup --stop` also stops the emulator now (by its recorded pid, never by name). `cleanup --keep-emulator` retains the state and lease for the same owner to resume.
+
+## When the emulator hangs
+
+Every adb call times out after 60 s (`RPMCTL_ADB_TIMEOUT_MS` overrides it); rpmctl then exits 3 and the error says `did not answer`. On the first exit 3, or any other emulator timeout, do not retry in the background. Run `cleanup --stop`, tell the user, and prove a web-only change with `node scripts/agent/browser-shot.mjs <label> index.html --eval '<setup js>'` (its output names the PNG under `file`). A native change waits for a fresh `launch` or `npm run ci:emulator`.
 
 ## A physical phone
 

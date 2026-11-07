@@ -11,14 +11,11 @@ final class CompanionControls {
     private static final int DEFAULT_TEXT_SCALE=100,MIN_TEXT_SCALE=80,MAX_TEXT_SCALE=160;
     static int widgetTextScale(Context c){return Math.max(MIN_TEXT_SCALE,Math.min(MAX_TEXT_SCALE,c.getSharedPreferences(APPEARANCE,0).getInt("widget-text-scale",DEFAULT_TEXT_SCALE)));}
     static JSONObject read(Context c)throws JSONException {
-        NotificationManager notifications=c.getSystemService(NotificationManager.class);
-        boolean fullScreenSupported=android.os.Build.VERSION.SDK_INT>=34;
         return new JSONObject().put("captureBackground","Material")
             .put("widgetTextScale",widgetTextScale(c))
             .put("alarmSound",AlertSounds.alarmName(c)).put("reminderSound",AlertSounds.reminderName(c,CompanionAlerts.REMINDERS))
             .put("aiConnected",CompanionKey.hasAny(c)).put("claudeKey",CompanionKey.has(c,CompanionKey.Service.CLAUDE)).put("openRouterKey",CompanionKey.has(c,CompanionKey.Service.OPENROUTER)).put("hasGeminiKey",GeminiKey.has(c)).put("notificationsAllowed",CompanionAlerts.notifications(c,CompanionAlerts.REMINDERS))
             .put("exactAlarmsAllowed",CompanionAlerts.exact(c)).put("overlayAllowed",Settings.canDrawOverlays(c))
-            .put("fullScreenSupported",fullScreenSupported).put("fullScreenAllowed",!fullScreenSupported||notifications.canUseFullScreenIntent())
             .put("launcherRunning",ButterflyService.isRunning()).put("notchOn",NotchController.enabled(c)).put("notchServiceOn",NotchAccessibilityService.isOn(c))
             .put("backupCount",backupCount(c))
             .put("calendarAccess","Read-only; choose calendars in the planner")

@@ -109,7 +109,7 @@ Implementation uses Android's [inexact alarm guidance](https://developer.android
 
 ## Limits still requiring real-phone verification
 
-Galaxy/One UI installation, audible alarm volume, locked-screen full-screen presentation, Samsung power saving, keyboard dictation, and TalkBack interaction have not been verified on physical hardware. Ten-minute timeout and simultaneous ringing alarms are implemented but have not had full wall-clock/device acceptance tests. Sync uploads automatically but does not restore a new phone or apply cloud edits. Production data will begin arriving only after your phone is paired.
+Galaxy/One UI installation, audible alarm volume, the locked-screen alarm notification, Samsung power saving, keyboard dictation, and TalkBack interaction have not been verified on physical hardware. Ten-minute timeout and simultaneous ringing alarms are implemented but have not had full wall-clock/device acceptance tests. Sync uploads automatically but does not restore a new phone or apply cloud edits. Production data will begin arriving only after your phone is paired.
 
 Final APK SHA-256: `63a0ca4ef720658ce549a250b2e6441ec2db4e9240522a5bb67b1e3e91651765`.
 

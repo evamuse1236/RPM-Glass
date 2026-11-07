@@ -19,6 +19,7 @@ const SAVES_OUTSIDE_RETRY = new Map([
   ['chat-prototype/companion-store.mjs:transaction', 'Exception: the desktop prototype file store has one writer and no compare-and-swap.'],
   ['android-companion/replica-sync.mjs:saveNext', 'Retried: syncReplica reloads and tries again when saveNext meets changedUnderneath.'],
   ['scripts/web-sync/capture-run.mjs:backend.save', 'Retried: a backend for createRepository; also an in-memory spike with one writer.'],
+  ['android-companion/capture-drop.mjs:check', 'Not a store save: ctx.save() keeps the canvas drawing state for the voice orb tick.'],
 ]);
 
 const callee = node => ts.isIdentifier(node.expression) ? node.expression.text

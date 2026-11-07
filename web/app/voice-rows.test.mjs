@@ -14,6 +14,7 @@ test('complete, remove, move and Block changes name what happened', () => {
   assert.deepEqual(voiceRow({kind: 'remove', entity: 'task', id: 3, title: 'Buy groceries'}, tz), {icon: 'delete', verb: 'Moved to Trash', title: 'Buy groceries', detail: ''});
   assert.equal(voiceRow({kind: 'move', entity: 'task', id: 4, title: 'Gym', to: 'Health'}, tz).detail, 'to Health');
   assert.equal(voiceRow({kind: 'add', entity: 'block', id: 'b', title: 'Ship'}, tz).verb, 'Added Block');
+  assert.equal(voiceRow({kind: 'add', entity: 'goal', id: 'g', title: 'Strong body'}, tz).verb, 'Added Goal');
 });
 
 test('a day with no time reads as the day, whatever the time zone', () => {

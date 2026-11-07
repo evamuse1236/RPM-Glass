@@ -1,6 +1,7 @@
 package com.rpm.prototype;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
@@ -205,5 +206,18 @@ public class IslandShapeTest {
         assertEquals(open.touch, mid.touch);
         Box w = p.window().union(open.window());
         assertTrue(w.left <= mid.window().left && w.right >= mid.window().right && w.bottom >= mid.window().bottom);
+    }
+
+    @Test
+    public void aGrowingMorphCanPassItsTargetAndKnowsItGrows() {
+        IslandShape small = drops(S24, false, false);
+        IslandShape big = IslandShape.island(S24, 1080, NotchAnchor.dp(120, D), D);
+        assertTrue(IslandShape.grows(small, big));
+        assertFalse(IslandShape.grows(big, small));
+        assertFalse(IslandShape.grows(big, big));
+        IslandShape past = IslandShape.morph(small, big, 1f + Spring.OVERSHOOT_BOUND);
+        assertTrue("wider than the target", past.width() > big.width());
+        assertTrue("taller than the target", past.height() > big.height());
+        assertEquals("the shape NotchPill reserves room for", IslandShape.lerp(small, big, 1f + Spring.OVERSHOOT_BOUND).window(), past.window());
     }
 }

@@ -1,6 +1,6 @@
 const ICON = {add: 'add_circle', complete: 'check_circle', reopen: 'radio_button_unchecked', change: 'edit', remove: 'delete', move: 'drive_file_move', order: 'format_list_numbered'};
 const VERB = {add: 'Added', complete: 'Done', reopen: 'Reopened', change: 'Changed', remove: 'Moved to Trash', move: 'Moved', order: 'Reordered'};
-const NOUN = {task: '', block: 'Block', project: 'Project', area: 'Area'};
+const NOUN = {task: '', block: 'Block', project: 'Project', goal: 'Goal', area: 'Area'};
 
 function when(fields, timeZone) {
   if (fields?.start) {

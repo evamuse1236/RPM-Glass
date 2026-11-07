@@ -227,9 +227,48 @@ public class IslandGestureTest {
         g.move(540, 450 - dp(4));
         assertEquals("inside the slop the island stays put", 0f, g.pull(450 - dp(4)), 0f);
         g.move(540, 450 - dp(20));
-        assertEquals(-dp(20) * IslandGesture.FOLLOW, g.pull(450 - dp(20)), 0.01f);
-        assertEquals(-dp(IslandGesture.MAX_FOLLOW_DP), g.pull(450 - dp(300)), 0.01f);
+        float max = dp(IslandGesture.MAX_FOLLOW_DP);
+        assertEquals(-IslandGesture.rubber(dp(20), IslandGesture.FOLLOW, max), g.pull(450 - dp(20)), 0.01f);
+        assertTrue("far out the island stays under the cap", -g.pull(450 - dp(300)) < max);
+        assertTrue("and keeps giving a little", -g.pull(450 - dp(300)) > -g.pull(450 - dp(100)));
         assertTrue(Math.abs(g.pull(450 + dp(20))) < Math.abs(g.pull(450 - dp(20))));
+    }
+
+    @Test
+    public void theRubberBandStartsAtTheFollowRateAndStiffensTowardTheCap() {
+        float max = dp(IslandGesture.MAX_FOLLOW_DP);
+        assertEquals(0f, IslandGesture.rubber(0f, IslandGesture.FOLLOW, max), 0f);
+        assertEquals("near the start it follows at 0.35", dp(1) * IslandGesture.FOLLOW,
+                IslandGesture.rubber(dp(1), IslandGesture.FOLLOW, max), dp(1) * 0.02f);
+        float last = 0f;
+        for (int x = 1; x <= 2000; x++) {
+            float r = IslandGesture.rubber(dp(x), IslandGesture.FOLLOW, max);
+            assertTrue("grows at " + x, r > last);
+            assertTrue("under the cap at " + x, r < max);
+            last = r;
+        }
+        assertTrue("approaches the cap", last > max * 0.95f);
+    }
+
+    @Test
+    public void theCloseTickFiresOnlyForAnUpwardIslandDragPast24dp() {
+        IslandGesture g = new IslandGesture(D);
+        g.down(ISLAND, 540, 450, 0, false);
+        g.move(540, 450 - dp(23));
+        assertFalse(g.pastClose(450 - dp(23)));
+        g.move(540, 450 - dp(24));
+        assertTrue(g.pastClose(450 - dp(24)));
+        assertFalse("downward never ticks", g.pastClose(450 + dp(40)));
+        IslandShape p = pill();
+        float x = (p.left + p.right) / 2f, y = (p.touch.top + p.touch.bottom) / 2f;
+        IslandGesture pill = new IslandGesture(D);
+        pill.down(p.touch, x, y, 0, true);
+        pill.move(x, y - dp(40));
+        assertFalse("the pill has no close tick", pill.pastClose(y - dp(40)));
+        IslandGesture side = new IslandGesture(D);
+        side.down(ISLAND, 540, 450, 0, false);
+        side.move(540 + dp(40), 450 - dp(30));
+        assertFalse("a sideways drag has no close tick", side.pastClose(450 - dp(30)));
     }
 
     @Test

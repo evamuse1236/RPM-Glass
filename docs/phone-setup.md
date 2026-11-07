@@ -10,7 +10,7 @@ npx convex run admin:createPairingCode '{"label":"Galaxy S24 FE"}' --prod
 ```
 
 5. View collected records in the [production Convex dashboard](https://dashboard.convex.dev/t/vishwajit1236/rpm/neat-emu-821). `records` contains current entries, projects and revision snapshots. `events` contains upload history; repeated snapshots are not additional activity.
-6. Add the widget through **Settings → Home-screen widget**. Use Remind to save an entry and explicitly choose a notification or ringing alarm. Allow notifications and Alarms & reminders. Full-screen alerts have a separate setting in **Settings → Alarms & reminders / Full-screen alarms**. Test a two-minute alarm on your phone and check alarm volume.
+6. Add the widget through **Settings → Home-screen widget**. Use Remind to save an entry and explicitly choose a notification or ringing alarm. Allow notifications and Alarms & reminders. Alarms ring in the notch, never full screen; on a locked phone they ring with a lock-screen notification. Test a two-minute alarm on your phone and check alarm volume.
 
 The current planner stays in `companion.json` first, including when offline. Earlier screens retain their separate SQLite store and upload path. Pairing is once per installation; the APK contains no Convex admin key. Re-pairing rotates the phone token and preserves its account. Sync does not restore cloud records to a new installation. Use **Settings → Export data** before clearing app data or uninstalling.
 

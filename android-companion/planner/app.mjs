@@ -5,6 +5,7 @@ import {animateRerender, settleRerender, sharedAxis, fadeThrough, ghost, reduced
 import {planner, localDay, editPlan} from '../planner-state.mjs';
 import {taskContext, areaTone} from '../planner-ux.mjs';
 import {clarityPreferences, applyClarityPreferences} from '../planner-clarity.mjs';
+import {settingsPageFor} from '../settings.mjs';
 import {notice} from './snackbar.mjs';
 import {closeSheet, discardDraft, isSheetOpen} from './sheet.mjs';
 import {closeMenu} from './menu.mjs';
@@ -145,16 +146,20 @@ function installNavigation(app) {
   app.openSearch = () => app.push('search');
   app.openReview = () => app.push('review');
   app.openHistory = () => app.push('history');
+  /** Opens Settings at the page that holds `section` (the home list for none); a section with an action runs it. */
   app.openSettings = (section = 'settings') => {
     state.settingsSection = section;
     closeSheet(app);
+    const page = settingsPageFor(section);
     if (app.current()?.kind === 'settings') {
       app.mounted?.controller?.destroy?.();
       app.mounted = null;
+      state.stack.pop();
+      state.stack.push({kind: 'settings', id: page});
       render(app, {reset: true});
       return;
     }
-    app.push('settings');
+    app.push('settings', page);
   };
   app.capture = () => {
     const tab = state.tab;

@@ -1,0 +1,40 @@
+{
+  "id": "change",
+  "phrase": "Move Call Amma to tomorrow at eight, no I mean tomorrow at nine in the evening. Same saved task. Raj's call is unrelated.",
+  "durationMs": 9576,
+  "speech": "edge-tts",
+  "source": {
+    "corpus": "scripts/capture-stress/corpus/saved.json",
+    "id": "amma-correction"
+  },
+  "needsSaved": [
+    {
+      "id": 106,
+      "title": "Call Amma"
+    }
+  ],
+  "expected": {
+    "created": [],
+    "changes": [
+      {
+        "id": 106,
+        "kind": "update",
+        "day": "2026-10-20",
+        "time": "21:00"
+      }
+    ],
+    "maxNew": 0,
+    "question": "forbidden",
+    "unchanged": [
+      101,
+      102,
+      103,
+      104,
+      105
+    ]
+  },
+  "tts": {
+    "engine": "edge-tts",
+    "voice": "en-US-JennyNeural"
+  }
+}

@@ -104,7 +104,7 @@ async function captureSettings(k) {
   const {b, step, look, stamp, tapShown, tapText, shown, menu, tab, closeAll} = k;
   const words = `Drive capture ${stamp} book the dentist`;
   await step('capture', async () => {
-    await tapShown('.top-bar [aria-label="Capture"]'); await shown('#capture-text');
+    await tapShown('#dock .fab[aria-label="Back to Capture"]'); await shown('#capture-text');
     await b.type('#capture-text', words);
     await b.js(`document.getElementById('capture-form').requestSubmit(); true`);
   }, data => data.entries.some(e => (e.title ?? '').includes(words)));
@@ -117,23 +117,24 @@ async function captureSettings(k) {
   const settings = async () => {
     await tab('Today');
     await menu('Settings');
-    if (!await shown('[data-section="planner-appearance"]')) throw new Error('Settings shows no Appearance section');
+    await tapShown('.settings-row[data-action="open_appearance"]');
+    if (!await shown('[data-section="planner-appearance"]')) throw new Error('Settings > Appearance shows no theme control');
   };
   await look('theme', async () => {
     await settings();
     await b.js(`window.__driveTheme = localStorage.getItem('rpm-clarity:appearance'); true`);
-    await tapText('[data-section="planner-appearance"] button.settings-row', 'Theme');
-    await shown('dialog.theme-dialog');
-    await tapText('dialog.theme-dialog label.dialog-choice', localStorageTheme(await b.js(`localStorage.getItem('rpm-clarity:appearance')`)), 'input');
+    await tapText('[data-section="planner-appearance"] .segment', localStorageTheme(await b.js(`localStorage.getItem('rpm-clarity:appearance')`)), 'input');
   }, `localStorage.getItem('rpm-clarity:appearance') !== window.__driveTheme && document.documentElement.dataset.appearance === localStorage.getItem('rpm-clarity:appearance')`,
   'Theme changes the look and keeps the choice');
   await look('transparency', async () => {
     await b.js(`(() => { const s = document.getElementById('bar-transparency'); s.value = s.value === '40' ? '60' : '40';
       window.__driveBar = s.value; s.dispatchEvent(new Event('input', {bubbles: true})); return true; })()`);
   }, `localStorage.getItem('rpm-clarity:bar-transparency') === window.__driveBar`, 'the tab bar slider sets and keeps its transparency');
-  await look('about', () => b.js(`document.querySelector('[data-section="about"]')?.scrollIntoView(); true`),
-    `!!document.querySelector('[data-section="about"]')?.getClientRects().length && /RPM/.test(document.querySelector('[data-section="about"]').textContent)`,
-    'Settings ends with About');
+  await look('about', async () => {
+    await tapShown('.detail-bar [aria-label="Back"]');
+    await tapShown('.settings-row[data-action="open_about"]');
+  }, `!!document.querySelector('[data-section="about"]')?.getClientRects().length && /RPM/.test(document.querySelector('[data-section="about"]').textContent)`,
+    'Settings home opens About');
   await b.js(`(() => { const theme = window.__driveTheme; if (theme) localStorage.setItem('rpm-clarity:appearance', theme); else localStorage.removeItem('rpm-clarity:appearance'); return true; })()`);
   await closeAll();
 }

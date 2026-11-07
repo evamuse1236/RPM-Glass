@@ -1,6 +1,6 @@
 // Browser proof for a web-only change where no emulator runs (a cloud session): bundles the assets, serves them with
 // the gauntlet stand-in for the Android bridge and screenshots one page at S24 FE size (384 x 832 dp, 1080 px wide).
-// Usage: node scripts/agent/browser-shot.mjs <label> [planner.html|index.html] [--width 384]
+// Usage: node scripts/agent/browser-shot.mjs <label> [planner.html|index.html] [--width 384] [--eval '<js run on the page before the shot>']
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -12,6 +12,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const args = process.argv.slice(2);
 const flag = name => { const i = args.indexOf(name); return i < 0 ? null : args.splice(i, 2)[1]; };
 const width = Number(flag('--width') ?? 384);
+const setup = flag('--eval');
 const [label = 'browser', page = 'planner.html'] = args;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const fail = (error, fix) => { console.log(JSON.stringify({ok: false, error, fix}, null, 2)); process.exit(1); };
@@ -62,12 +63,17 @@ await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', {width, height: Math.round(width * 2340 / 1080), deviceScaleFactor: 1080 / width, mobile: true});
 await send('Page.navigate', {url: `http://127.0.0.1:${port}/${page}`});
 await sleep(2500);
+if (setup) {
+  const {exceptionDetails} = await send('Runtime.evaluate', {expression: setup, awaitPromise: true});
+  if (exceptionDetails) pageErrors.push(`--eval: ${exceptionDetails.exception?.description ?? exceptionDetails.text}`);
+  await sleep(600);
+}
 const {data} = await send('Page.captureScreenshot', {format: 'png'});
 
 const runDir = path.join(root, '.verify', 'evidence', `browser-${new Date().toISOString().replace(/[:.]/g, '-')}`);
 fs.mkdirSync(runDir, {recursive: true});
 const file = path.join(runDir, `01-${label.replace(/[^\w-]+/g, '-')}.png`);
 fs.writeFileSync(file, Buffer.from(data, 'base64'));
-fs.writeFileSync(file.replace(/\.png$/, '.json'), JSON.stringify({browser: true, page, widthDp: width, webSha256: builtWeb(root).sha, pageErrors, at: new Date().toISOString()}, null, 2));
+fs.writeFileSync(file.replace(/\.png$/, '.json'), JSON.stringify({browser: true, page, widthDp: width, setup, webSha256: builtWeb(root).sha, pageErrors, at: new Date().toISOString()}, null, 2));
 console.log(JSON.stringify({ok: !pageErrors.length, file: path.relative(root, file), pageErrors}, null, 2));
 process.exit(pageErrors.length ? 1 : 0);

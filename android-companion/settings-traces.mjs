@@ -25,6 +25,7 @@ export function captureTraces({store=createTraceStore(),limit=20}={}){
  const traces=store.list().slice(0,limit);
  const box=document.createElement('details');
  box.className='settings-details';
+ box.dataset.count=String(traces.length);
  const mistakes=traces.filter(t=>t.likelyMistake).length;
  box.append(text('summary','',`Recent captures (${traces.length}${mistakes?`, ${mistakes} undone`:''})`));
  if(!traces.length)box.append(text('p','settings-note','No captures recorded on this phone yet.'));
@@ -33,6 +34,8 @@ export function captureTraces({store=createTraceStore(),limit=20}={}){
   item.className='settings-note';
   item.append(text('strong','',`${new Date(t.at).toLocaleString()} · ${STATUS[t.applied?.status]??t.applied?.status??'Saved'}${t.outcome?` · ${OUTCOME[t.outcome]??t.outcome}`:''}`));
   if(t.words!=null)item.append(text('p','',`“${String(t.words).slice(0,240)}”`));
+  if(t.reply)item.append(text('p','',`RPM: “${String(t.reply).slice(0,240)}”`));
+  if(t.calls?.length)item.append(text('p','',t.calls.map(c=>c.error?`${c.name} (refused)`:c.name).join(', ')));
   for(const run of t.models??[])item.append(text('p','',runLine(run)));
   if(t.latencyMs!=null)item.append(text('p','',`Total ${(t.latencyMs/1000).toFixed(1)} s · ${t.promptVersion}`));
   for(const e of t.errors??[])item.append(text('p','',`${e.stage}: ${userMessage(e)}`));

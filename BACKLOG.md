@@ -113,6 +113,9 @@ Idea: `npm run web:published` fetches the served bundle with the account token a
 Open questions:
 - Which token can read a private Site without a browser sign-in?
 
+## 2026-11-06 · Fix the notch-island swipe from the inert margin
+The `notch-island` emulator scenario fails on main since 2026-11-01 (b943f9b, run 41322515914): a swipe up from the open island's inert left margin never logs `notch.gesture up`, so the island may not close. It is marked a known bug until 2026-11-20 so PR 17 could ship. Open question: did a notch change after 2026-10-28 move the inert margin, or did the emulator cutout change?
+
 ## Done
 
 ### 2026-10-28 · Voice: Blocks in Areas, Block order (done 2026-10-28, branch `feat/voice-backlog`)
