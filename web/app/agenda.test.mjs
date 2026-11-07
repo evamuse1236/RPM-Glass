@@ -21,16 +21,16 @@ function seed() {
   return {d, review};
 }
 
-test('the Today side panel counts the whole Inbox and lists the first four not already on Today', () => {
+test('the Today side panel shows the Inbox as one count row, after the Blocks and before the Week', () => {
   const {d} = seed();
   const {inbox} = agendaModel(d, SATURDAY_10_AM_KOLKATA);
   assert.equal(inbox.count, inboxRows(d).length);
   assert.equal(inbox.count, 8);
-  assert.deepEqual(inbox.tasks, inboxRows(d).filter(t => t.title !== 'Call the bank').slice(0, 4));
+  assert.equal('tasks' in inbox, false);
 });
 
 const ids = model => [
-  ...model.inbox.tasks, ...model.blocks.flatMap(card => card.tasks),
+  ...model.blocks.flatMap(card => card.tasks),
   ...(model.tomorrow?.tasks ?? []), ...model.week.flatMap(day => day.tasks),
 ];
 
@@ -44,7 +44,7 @@ test('the next Block is the one due soonest, and lists only its open tasks no ot
   assert.equal('musts' in model, false);
 });
 
-test('no task shows twice across Inbox, Block, Tomorrow and Week, at any width', () => {
+test('no task shows twice across Block, Tomorrow and Week, at any width', () => {
   const {d} = seed();
   for (const split of [false, true]) {
     const list = ids(agendaModel(d, SATURDAY_10_AM_KOLKATA, {split})).map(t => t.id);
@@ -67,14 +67,12 @@ test('a Week day shows at most two tasks, one per line by time, then +N for the 
   const monday = agendaModel(d, SATURDAY_10_AM_KOLKATA).week.find(day => day.day === '2026-10-05');
   assert.equal(monday.count, 4);
   assert.deepEqual(monday.tasks.map(t => t.title), ['Early', 'Noon']);
-  assert.equal(monday.more, 1, 'Buy stamps already shows in the Inbox card, so +N leaves it out');
-  assert.equal(agendaModel(seed().d, SATURDAY_10_AM_KOLKATA).week.some(day => day.day === '2026-10-05'), false,
-    'a day whose only task shows in another card is not listed');
+  assert.equal(monday.more, 2, 'the Inbox row lists no tasks, so Buy stamps counts in +N');
   const source = readFileSync(new URL('./agenda.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /join\(', '\)/);
   assert.match(source, /button\(`\+\$\{day\.more\}`, open, 'agenda-more'\)/);
   const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
-  assert.match(css, /\.agenda-line \.list-headline \{ overflow: clip; text-overflow: ellipsis; white-space: nowrap; \}/);
+  assert.match(css, /\.agenda-line \.list-headline \{ display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: clip; \}/);
 });
 
 test('the panel shows only on a wide window on Today', () => {
@@ -102,7 +100,7 @@ test('a very wide window gives Tomorrow and the Week their own column beside Inb
   assert.ok(week.every(day => day.day >= '2026-10-05'));
   assert.equal(agendaModel(d, SATURDAY_10_AM_KOLKATA).tomorrow, null);
   const source = readFileSync(new URL('./agenda.mjs', import.meta.url), 'utf8');
-  assert.match(source, /split \? \[column\(ahead, week\), column\(inbox, \.\.\.blocks\)\] : \[column\(inbox, \.\.\.blocks, week\)\]/);
+  assert.match(source, /split \? \[column\(ahead, week\), column\(\.\.\.blocks, inbox\)\] : \[column\(\.\.\.blocks, inbox, week\)\]/);
   assert.match(source, /const WEEK = 6;/);
   assert.match(source, /const ahead = tomorrow\?\.tasks\.length \? section\(/, 'Tomorrow hides when every task it has is already on screen');
   const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');

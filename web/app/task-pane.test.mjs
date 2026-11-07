@@ -79,6 +79,33 @@ test('while the task pane is open, the task card or chip on Today is outlined, a
   assert.match(read('./main.mjs'), /markOpenCard\(\$\('workspace'\), \$\('sheet'\)\);/);
 });
 
+test('opening a task in the pane scrolls its Today card fully into view once, clear of the page fade', async () => {
+  const {markOpenCard} = await import('./open-card.mjs');
+  const card = () => {
+    const attrs = new Set(); const scrolls = [];
+    return {scrolls, hasAttribute: name => attrs.has(name), toggleAttribute: (name, on) => on ? attrs.add(name) : attrs.delete(name),
+      scrollIntoView: options => scrolls.push(options)};
+  };
+  const a = card(); const b = card();
+  const row = (key, target) => ({dataset: {key}, classList: {contains: () => false}, querySelector: () => target});
+  const work = {querySelectorAll: () => [row('task:1', a), row('task:2', b)]};
+  let task = '2';
+  const sheet = {hidden: false, inert: false, querySelector: () => ({dataset: {task}})};
+  const saved = globalThis.MutationObserver;
+  globalThis.MutationObserver = class { observe() {} };
+  try {
+    const run = markOpenCard(work, sheet);
+    run();
+    assert.deepEqual(b.scrolls, [{block: 'nearest'}], 'the open card scrolls once, not on every later change');
+    assert.deepEqual(a.scrolls, []);
+    task = '1'; run();
+    assert.deepEqual(a.scrolls, [{block: 'nearest'}]);
+    assert.equal(b.hasAttribute('data-open'), false);
+  } finally { globalThis.MutationObserver = saved; }
+  assert.match(read('./task-pane.css'), /\[data-open\] \{ outline: 2px solid var\(--primary\); outline-offset: -2px; scroll-margin-block: var\(--s8\); \}/,
+    'the scroll margin matches the 32px page fade');
+});
+
 test('Alert and Repeat say Off and Once only on their tab; a second tap on the chosen choice turns it off', async () => {
   const {ALERT_KINDS, REPEAT_PRESETS} = await import('../../android-companion/planner/task-tabs-model.mjs');
   assert.deepEqual(ALERT_KINDS.map(([value]) => value), ['reminder', 'alarm']);

@@ -56,26 +56,20 @@ html:has(dialog:modal) { overflow: clip; }
 .capture-history p { margin: 0; overflow-wrap: break-word; }
 .capture-said { font: var(--body-large); }
 .capture-outcome { font: var(--body-medium); color: var(--on-surface-variant); }
-#capture-sheet {
-  color-scheme: dark;
-  --on-surface: var(--bar-on); --on-surface-variant: var(--bar-on-variant); --outline: var(--bar-outline); --outline-variant: var(--bar-outline);
-  --surface-container-low: var(--bar); --surface-container: var(--bar-high); --surface-container-high: var(--bar-highest);
-  --primary: var(--bar-primary); --on-primary: var(--bar-on-primary); --error: var(--bar-error);
-  padding: 0; border: 1px solid var(--bar-outline); background: var(--bar); color: var(--bar-on); box-shadow: var(--bar-shadow);
-}
+#capture-sheet { padding: 0; border: 1px solid var(--outline-variant); }
 #capture-sheet form { gap: 0; }
 #capture-problem { padding: var(--s4) var(--s5) 0; }
 #capture-sheet .voice-panel { padding: var(--s5) var(--s5) var(--s2); }
 .capture-composer { display: flex; align-items: flex-end; gap: var(--s2); padding: var(--s2) var(--s2) var(--s2) var(--s5); }
 .capture-composer .field { flex: 1; min-inline-size: 0; }
-#capture-text { min-block-size: 0; max-block-size: calc(6lh + 2 * var(--s3)); padding: var(--s3) 0; border: 0; border-radius: 0; background: none; color: var(--bar-on); font: var(--body-large); }
-#capture-text::placeholder { color: var(--bar-on-variant); }
+#capture-text { min-block-size: 0; max-block-size: calc(6lh + 2 * var(--s3)); padding: var(--s3) 0; border: 0; border-radius: 0; background: none; color: var(--on-surface); font: var(--body-large); }
+#capture-text::placeholder { color: var(--on-surface-variant); }
 #capture-text:focus-visible { outline: 2px solid transparent; }
-.capture-composer .voice-mic { border-color: transparent; background: var(--bar-highest); color: var(--bar-on); }
+.capture-composer .voice-mic { border-color: transparent; background: var(--surface-container-highest); color: var(--on-surface); }
 .capture-send { position: relative; display: grid; flex: none; place-items: center; inline-size: var(--touch); block-size: var(--touch); border-radius: var(--shape-full); background: var(--bar-primary); color: var(--bar-on-primary); }
 .capture-send::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: currentColor; opacity: 0; }
 .capture-send:active::before { opacity: .12; }
-.capture-send:focus-visible { outline: 2px solid var(--bar-primary); outline-offset: 2px; }
+.capture-send:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 #capture-form:has(#capture-text:placeholder-shown):has(#voice-mic:not([hidden])) .capture-send { display: none; }
 #capture-form[data-voice]:not([data-voice='']) .capture-composer { justify-content: flex-end; }
 #capture-form[data-voice]:not([data-voice='']):not([data-voice=connecting]):not([data-voice=listening]) .capture-composer { display: none; }
@@ -125,7 +119,7 @@ html:has(dialog:modal) { overflow: clip; }
   .planner-view .top-bar:is(.detail-bar, .search-bar) { padding-inline-start: calc(var(--gutter) + var(--s1)); }
   .planner-view #planner:is([data-scrolled=true], [data-view=today]) .top-bar { background: linear-gradient(var(--surface-container), var(--surface-container)) 50% 0 / min(100%, var(--column)) 100% no-repeat; }
   .capture-sheet { inline-size: min(100% - 2 * var(--s6), 560px); margin: auto; border-radius: var(--shape-xl); }
-  #capture-sheet { border-radius: var(--r-outer); }
+  #capture-sheet { margin-block: 20dvh auto; border-radius: var(--r-outer); }
   .planner-view .wr > * { inline-size: min(100%, var(--column)); margin-inline: auto; }
 }
 
@@ -157,7 +151,7 @@ html:has(dialog:modal) { overflow: clip; }
 .agenda-section .list-headline { font: var(--body-medium); }
 .agenda-section .list-supporting:empty { display: none; }
 .agenda-day { display: flex; align-items: baseline; gap: var(--s2); min-block-size: 32px; padding: var(--s2) var(--s4) 0; font: var(--label-large); color: var(--on-surface-variant); text-align: start; }
-.agenda-line .list-headline { overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+.agenda-line .list-headline { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: clip; }
 .agenda-time { flex: none; font: var(--label-medium); color: var(--on-surface-variant); }
 .agenda-more { justify-self: start; min-block-size: 32px; margin-inline-start: calc(var(--s4) + 24px + var(--s2)); padding-inline: var(--s2); border-radius: var(--shape-full); font: var(--label-medium); color: var(--primary); }
 .agenda-task .must { color: var(--must); }
@@ -191,10 +185,7 @@ html:has(dialog:modal) { overflow: clip; }
   .planner-view #planner:is([data-view=blocks], [data-view=projects]) .page { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); align-items: start; gap: var(--s3); padding-inline: var(--gutter); }
   .planner-view #planner:is([data-view=blocks], [data-view=projects]) .page > :not(.block-card, .project-card) { grid-column: 1 / -1; }
   .planner-view #planner:is([data-view=blocks], [data-view=projects]) .page > :is(.block-card, .project-card) { width: auto; margin: 0; }
-  /* Block cards in one grid row share its height, each with its Next task at the foot, so no card leaves a gap. */
-  .planner-view #planner[data-view=blocks]:not([data-detail=true]) .page { align-items: stretch; }
-  .planner-view #planner[data-view=blocks] .page > .block-card { display: flex; flex-direction: column; }
-  .planner-view #planner[data-view=blocks] .block-card > .card-main { flex: 1; justify-content: flex-start; }
+  .planner-view .block-card .card-facts:has(.card-due) .week-mark, .planner-view .block-card .next-title .overline { display: none; }
   .planner-view > #sheet[data-inline] { position: relative; grid-column: 3; grid-row: 1 / -1; inset: auto; max-inline-size: none; max-block-size: none; block-size: auto; margin: 0; border: 0; border-inline-start: 1px solid var(--outline-variant); border-radius: 0; box-shadow: none; }
   .planner-view > #sheet[data-inline] .sheet-handle { display: none; }
   .planner-view > #sheet[data-inline] .sheet-close { position: relative; inline-size: auto; block-size: auto; overflow: visible; clip-path: none; }
@@ -216,8 +207,12 @@ html:has(dialog:modal) { overflow: clip; }
   .planner-view { --side: 80px; }
   #sidebar { align-items: center; gap: var(--s6); padding: var(--s4) 0; }
   .side-top { flex-direction: column; gap: var(--s2); padding: 0; }
-  .side-add { justify-content: center; inline-size: 56px; block-size: 56px; min-block-size: 0; padding: 0; }
-  .side-add .side-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: clip; clip-path: inset(50%); white-space: nowrap; }
+  .side-add { flex-direction: column; justify-content: center; gap: var(--s1); inline-size: 80px; min-block-size: 0; padding: 0; border-radius: var(--shape-md); background: none; color: var(--on-surface); font: var(--label-medium); }
+  .side-add > .ms { display: grid; place-items: center; inline-size: 56px; block-size: 56px; border-radius: var(--shape-lg); background: light-dark(var(--primary), var(--primary-container)); color: light-dark(var(--on-primary), var(--on-primary-container)); }
+  .side-add:active { background: none; }
+  .side-add:active > .ms { background: color-mix(in oklch, light-dark(var(--on-primary), var(--on-primary-container)) 12%, light-dark(var(--primary), var(--primary-container))); }
+  .side-capture { inline-size: 56px; block-size: 40px; background: var(--surface-container-highest); color: var(--on-surface); }
+  .side-capture:active { background: color-mix(in oklch, var(--on-surface) 12%, var(--surface-container-highest)); }
   .side-group { justify-items: center; gap: var(--s3); }
   .side-item { position: relative; flex-direction: column; justify-content: center; gap: var(--s1); inline-size: 80px; min-block-size: 56px; padding: 0; border-radius: var(--shape-md); background: none; font: var(--label-medium); }
   .side-item > .ms { display: grid; place-items: center; inline-size: 56px; block-size: 32px; border-radius: var(--shape-full); }
@@ -230,6 +225,9 @@ html:has(dialog:modal) { overflow: clip; }
   #planner-view > #banner { grid-column: 2; grid-row: 1; align-self: start; margin: var(--s3) 0 0; }
 }
 @media (1080px <= width < 1280px) and (hover: hover) and (pointer: fine) {
+  .side-add:hover { background: none; }
+  .side-add:hover > .ms { background: color-mix(in oklch, light-dark(var(--on-primary), var(--on-primary-container)) 8%, light-dark(var(--primary), var(--primary-container))); }
+  .side-capture:hover { background: color-mix(in oklch, var(--on-surface) 8%, var(--surface-container-highest)); }
   .side-item:hover, .side-item[aria-current=page]:hover { background: none; }
   .side-item:hover > .ms { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
   .side-item[aria-current=page]:hover > .ms { background: color-mix(in oklch, var(--on-secondary-container) 8%, var(--secondary-container)); }

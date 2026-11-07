@@ -22,8 +22,7 @@ export function agendaModel(data, now = new Date(), {split = false} = {}) {
     for (const task of fresh) shown.add(task.id);
     return fresh;
   };
-  const inboxAll = inboxRows(data);
-  const inbox = {count: inboxAll.length, tasks: claim(inboxAll, SHOWN)};
+  const inbox = {count: inboxRows(data).length};
   const tomorrowDay = shiftDay(today, 1);
   const ahead = dayTasks(data, tomorrowDay, +now).active.sort(byTime);
   const tomorrow = split ? {day: tomorrowDay, count: ahead.length, tasks: claim(ahead, TOMORROW)} : null;
@@ -101,8 +100,7 @@ function column(...sections) {
 
 export function renderAgenda(host, data, ui, now = new Date(), split = isSplit()) {
   const model = agendaModel(data, now, {split});
-  const inbox = section('agenda-inbox', head('Inbox', {count: model.inbox.count, onClick: () => ui.inbox()}),
-    ...model.inbox.tasks.map(task => taskItem(task, ui, now)));
+  const inbox = section('agenda-inbox', head('Inbox', {count: model.inbox.count, onClick: () => ui.inbox()}));
   const blocks = model.blocks.map(({block, due, tasks}) => {
     const open = head(block.title, {due, onClick: () => ui.openView({view: 'rpm', collection: 'blocks', id: block.id})});
     return section('agenda-next', open, ...tasks.map(task => taskItem(task, ui, now)));
@@ -112,7 +110,7 @@ export function renderAgenda(host, data, ui, now = new Date(), split = isSplit()
     head('Tomorrow', {count: tomorrow.count, onClick: () => ui.openView({view: 'day', date: tomorrow.day})}),
     ...tomorrow.tasks.map(task => timedItem(task, ui))) : null;
   const week = model.week.length ? section('agenda-week', head('Week'), ...model.week.flatMap(day => weekDay(day, ui))) : null;
-  const columns = split ? [column(ahead, week), column(inbox, ...blocks)] : [column(inbox, ...blocks, week)];
+  const columns = split ? [column(ahead, week), column(...blocks, inbox)] : [column(...blocks, inbox, week)];
   host.replaceChildren(...columns.filter(node => node.childElementCount));
 }
 
