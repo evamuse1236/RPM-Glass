@@ -6,7 +6,7 @@
 import {localDay, shiftDay} from '../planner-state.mjs';
 import {reducedMotion} from '../surface-motion.mjs';
 import {el, icon, button} from './dom.mjs';
-import {duration} from './format.mjs';
+import {duration, DATE_LOCALE} from './format.mjs';
 import {DURATIONS, REPEATS, ALERTS, clockOf, dayPresets, timePresets} from './task-values.mjs';
 export {DURATIONS, TIMES, TIME_GRID, timeChips, nextHalfHour, dayChips, REPEATS, ALERTS, whenOf, whenFields, whenLabel, clockOf, dayPresets, schedulePresets, blockMatches, hashToken, hashTag, withoutTag, timePresets, repeatValue, repeatLabel, parseWhen} from './task-values.mjs';
 
@@ -146,7 +146,7 @@ export function dateChooser(host, {get, pickDay, pickTime, today = localDay(), p
     }, 'week-day');
     cell.dataset.value = day;
     cell.classList.toggle('is-today', i === 0);
-    cell.setAttribute('aria-label', date.toLocaleDateString([], {weekday: 'long', month: 'long', day: 'numeric'}));
+    cell.setAttribute('aria-label', date.toLocaleDateString(DATE_LOCALE, {weekday: 'long', month: 'long', day: 'numeric'}));
     cell.append(el('span', 'week-letter', date.toLocaleDateString([], {weekday: 'narrow'})),
       el('span', 'week-number tnum', String(date.getDate())));
     strip.append(cell);

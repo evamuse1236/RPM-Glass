@@ -1,5 +1,8 @@
 import {localDay, shiftDay} from '../planner-state.mjs';
 
+/** Every shown date puts the day first: "7 November 2026", "Sat 7 Nov". */
+export const DATE_LOCALE = 'en-GB';
+
 export const plural = (count, one, many = one + 's') => `${count} ${count === 1 ? one : many}`;
 
 /** "11:00 PM", kept on one line so a wrap never strands "PM". */
@@ -25,11 +28,11 @@ export function timeRange(start, end) {
 }
 
 export function dateText(value) {
-  return new Date(value).toLocaleDateString([], {weekday: 'short', month: 'short', day: 'numeric'});
+  return new Date(value).toLocaleDateString(DATE_LOCALE, {weekday: 'short', month: 'short', day: 'numeric'});
 }
 
 export function longDate(day) {
-  return new Date(day + 'T12:00').toLocaleDateString([], {weekday: 'long', day: 'numeric', month: 'long'});
+  return new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'long', day: 'numeric', month: 'long'});
 }
 
 /** Today / Tomorrow / Yesterday, otherwise a short date. */

@@ -211,7 +211,6 @@ html:has(dialog:modal) { overflow: clip; }
   .planner-view #planner[data-view=today] .top-bar { background: var(--surface); }
   .planner-view #planner[data-view=today] .day-header { background: none; }
   .planner-view #planner[data-view=today] .today-sheet { margin-block-start: 0; border-radius: 0; background: none; }
-  .planner-view .date-dot { display: none; }
   .planner-view .date-year { color: inherit; }
 }
 
