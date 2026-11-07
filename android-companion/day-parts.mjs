@@ -1,5 +1,5 @@
 /** The plain rules under Today's spine: Calendar-style words, routine counts and where each meal sits. */
-import {clockText, atMinutes, minutesOf, mealText, localDay} from './body-state.mjs';
+import {clockText, atMinutes, minutesOf, mealText, localDay, countLine} from './body-state.mjs';
 
 export const MIN = 60000;
 /** Where a meal with nothing logged sits on the day (Dara's times, 2026-10-18). */
@@ -23,7 +23,7 @@ export function routineMeta(state, {done, total, skipped}) {
   if (state === 'missed') return 'Missed';
   if (state === 'empty') return 'No steps yet';
   if (state === 'upcoming') return plural(total, 'step');
-  return `${done} of ${total}${skipped ? ` · ${skipped} skipped` : ''}`;
+  return countLine({done, total, skipped});
 }
 
 /** Where "Add a snack time" puts a new snack. */

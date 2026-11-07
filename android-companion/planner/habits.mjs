@@ -20,7 +20,8 @@ import {openRunSheet} from './routines.mjs';
 import {bodyApi} from './body-api.mjs';
 
 const MEAL_PREFIX = 'meal:';
-/** The Snack time menu item's glyph; in the list every habit leads with today's progress ring instead. */
+/** A meal's glyph: the Snack time menu item and the next meal's log action; in the list every habit leads with today's
+ * progress ring instead. */
 const MEAL_ICON = 'restaurant';
 const timeWords = hhmm => clockText(atMinutes('2000-01-01', minutesOf(hhmm)));
 
@@ -82,8 +83,8 @@ function waterNext(status, settings) {
   return status.nextAt && !status.pending ? ` · next at ${clockText(status.nextAt)}` : '';
 }
 
-/** The next thing's one-tap action: its verb's glyph (drink, tick, start) in the habit's colour, at the chevron's size
- * and place, so every row keeps one right edge and the row itself still opens the editor. */
+/** The next thing's one-tap action: its log glyph (a glass, a meal, start) on a tonal disc in the habit's colour, centred
+ * where the chevron is, so every row keeps one right edge and the row itself still opens the editor. */
 const doButton = (tone, glyph, label, onClick) => iconButton(glyph, label, onClick, {cls: `habit-do tone-${tone}`});
 
 export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) {
@@ -148,7 +149,7 @@ export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) 
       items.push({order: minutesOf(meal.at), due: !eaten && meal.on && at > now ? +at : null, summary,
         row: action => habitRow(progressMark('meal', eaten ? 1 : 0, 1, {off: !meal.on}), meal.name, summary,
           () => openMealEditor(app, body, meal.slot, {back}), {off: !meal.on, action}),
-        act: () => doButton('meal', 'check', `Log ${meal.name.toLowerCase()}`, () => logMealNow(app, body, meal.slot, meal.name))});
+        act: () => doButton('meal', MEAL_ICON, `Log ${meal.name.toLowerCase()}`, () => logMealNow(app, body, meal.slot, meal.name))});
     }
     const next = items.filter(item => item.due !== null).sort((a, b) => a.due - b.due)[0];
     if (next) addSoon(next, now);

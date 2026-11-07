@@ -89,7 +89,8 @@ export function routineState(routine, run, now = new Date()) {
   return {...base, state: 'running'};
 }
 
-const countLine = ({done, total, skipped}) => `${done} of ${total}${skipped ? `, ${skipped} skipped` : ''}`;
+/** A routine's count, as the timeline and every routine line say it: "3 of 5", "3 of 5 · 1 skipped". */
+export const countLine = ({done, total, skipped}) => `${done} of ${total}${skipped ? ` · ${skipped} skipped` : ''}`;
 
 /**
  * The Today row's supporting line as phrases; a phrase with `yields` gives way first with large text.
@@ -111,7 +112,7 @@ export function routineRowParts(routine, run, now = new Date()) {
 
 export const joinParts = parts => parts.filter(Boolean).map(p => p.text).join(' · ');
 
-/** The run sheet's count line: "3 of 5 done", or once every step is ticked or skipped "Done · 4 of 5, 1 skipped". */
+/** The run sheet's count line: "3 of 5 done", or once every step is ticked or skipped "Done · 4 of 5 · 1 skipped". */
 export function runSummary(routine, run) {
   const progress = routineProgress(routine, run);
   return progress.total && !progress.open ? `Done · ${countLine(progress)}` : `${progress.done} of ${progress.total} done`;
@@ -123,7 +124,7 @@ export function missedLine(routine, run, now = new Date()) {
   return state === 'missed' ? `Missed · window ended ${clockText(end)}` : null;
 }
 
-/** History's words for a finished day: "Done", "Partly done · 3 of 5, 1 skipped", "Missed", "Skipped". */
+/** History's words for a finished day: "Done", "Partly done · 3 of 5 · 1 skipped", "Missed", "Skipped". */
 export function routineHistoryText(routine, run, now = new Date()) {
   const {state, progress} = routineState(routine, run, now);
   if (state === 'done') return 'Done';

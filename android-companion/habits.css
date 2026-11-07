@@ -12,17 +12,16 @@
 }
 .habit-icon { inline-size: calc(var(--row-icon) - var(--s2)); font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
 /* Today's progress ring in the habit's own timeline colour (water blue, routine green, meal orange). Nothing done yet:
-   a band of that colour still clear on the sheet (3:1 in dark). Partly done: the share done as an arc over a dim band,
-   so the arc reads. Done: a filled disc with a check. A meal hidden from Today keeps a plain outline. */
+   a 2dp outline in that full colour, as the timeline's ring to tick. Partly done: the share done as an arc over a dim
+   band, the tint only on the part still to do. Done: a filled disc with a check. A meal hidden from Today keeps a
+   plain outline. */
 .tone-water { --ring-c: var(--tone-water); }
 .tone-routine { --ring-c: var(--tone-routine); }
 .tone-meal { --ring-c: var(--tone-meal); }
 .habit-ring { justify-self: center; inline-size: 24px; block-size: 24px; overflow: visible; }
 .habit-ring circle { fill: none; stroke-width: 3; }
-.habit-ring-track {
-  stroke: light-dark(color-mix(in oklch, var(--ring-c) 40%, var(--sheet-surface)), color-mix(in oklch, var(--ring-c) 60%, var(--sheet-surface)));
-}
-.habit-ring:has(.habit-ring-arc) .habit-ring-track { stroke: color-mix(in oklch, var(--ring-c) var(--track-mix), var(--sheet-surface)); }
+.habit-ring .habit-ring-track { stroke: var(--ring-c); stroke-width: 2; }
+.habit-ring:has(.habit-ring-arc) .habit-ring-track { stroke: color-mix(in oklch, var(--ring-c) var(--track-mix), var(--sheet-surface)); stroke-width: 3; }
 .habit-ring-arc { stroke: var(--ring-c); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
 .habit-ring.off .habit-ring-track { stroke: var(--outline-variant); }
 .habit-ring .habit-ring-disc { fill: var(--ring-c); stroke: none; }
@@ -34,10 +33,19 @@
 .habit-soon { color: var(--primary); }
 /* The chevron's glyph sits inside its box: pulled out by that inset, it ends on the sheet's content edge. */
 .habit-chevron { flex: none; margin-inline-end: calc(-1 * var(--s2)); font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
-/* The next thing's action takes the chevron's place: its glyph, chevron-sized in the habit's colour, centred where the
-   chevron's is, with a full touch target above the row's own tap area. */
-.habit-do.icon-btn { z-index: 1; margin-inline-end: calc(var(--s1) - var(--touch) / 2); color: var(--ring-c); }
-.habit-do > .ms { position: relative; font-size: calc(24px / var(--text-scale, 1)); }
+/* The next thing's action takes the chevron's place: a 32dp tonal disc in the habit's colour holding its log glyph,
+   centred where the chevron's centre is, with a full touch target above the row's own tap area. */
+.habit-do.icon-btn {
+  z-index: 1;
+  margin-inline-end: calc(var(--s1) - var(--touch) / 2);
+  color: color-mix(in oklch, var(--ring-c) 75%, var(--on-surface));
+}
+.habit-do.icon-btn::before { inset: var(--s2); background: color-mix(in oklch, var(--ring-c) var(--track-mix), var(--sheet-surface)); opacity: 1; }
+.habit-do.icon-btn:active::before { background: color-mix(in oklch, var(--ring-c) calc(var(--track-mix) * 1.5), var(--sheet-surface)); }
+@media (hover: hover) and (pointer: fine) {
+  .habit-do.icon-btn:hover::before { background: color-mix(in oklch, var(--ring-c) calc(var(--track-mix) * 1.3), var(--sheet-surface)); }
+}
+.habit-do > .ms { position: relative; font-size: calc(20px / var(--text-scale, 1)); }
 .habit-add { display: flex; min-block-size: var(--touch); }
 .habit-add > .habit-icon { color: var(--primary); }
 .habit-add > .habit-open { flex: 1; font: var(--body-large); color: var(--primary); }
@@ -65,18 +73,15 @@
 .water-today > .water-track { margin-block-start: 0; }
 .water-status { grid-column: 1 / -1; font: var(--body-medium); color: var(--on-surface-variant); text-wrap: pretty; }
 .water-count { font: var(--title-medium); color: var(--on-surface); }
-/* A slider row: the label with its value on the row's line (values end in the column the chevron rows' values end
-   in), and the M3 slider across the full width under them. */
-.slider-field {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: 40px auto;
-  align-items: center;
-  column-gap: var(--s3);
-  min-inline-size: 0;
-}
-.slider-field > .slider-value { grid-area: 1 / 2; }
-.slider-field > .rating-slider { grid-area: 2 / 1 / auto / -1; block-size: 40px; }
+/* A slider row: the icon, the label and its value on one 40dp line (values end in the column the chevron rows' values
+   end in), and the M3 slider under them across the whole row, from the edge the water meter starts on, its thumb
+   tucked up under the label. */
+.edit-row.slider-row { grid-template-columns: var(--row-icon) minmax(0, 1fr) auto; grid-template-rows: 40px auto; align-items: center; }
+.slider-row > .edit-icon { padding-block-start: 0; }
+.slider-row > .edit-body, .slider-row .slider-field { display: contents; }
+.slider-field > .edit-label { grid-area: 1 / 2; }
+.slider-field > .slider-value { grid-area: 1 / 3; }
+.slider-field > .rating-slider { grid-area: 2 / 1 / auto / -1; block-size: 40px; margin-block-start: calc(-1 * var(--s5)); }
 .slider-value { font: var(--title-medium); color: var(--on-surface); white-space: nowrap; text-align: end; margin-inline-end: var(--s8); }
 .slider-field > .edit-label { white-space: nowrap; }
 .pick-button select { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; opacity: 0; cursor: pointer; }
