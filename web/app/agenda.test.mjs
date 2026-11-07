@@ -54,6 +54,21 @@ test('the shown day moves with the centre: Coming up leaves out whichever day it
   assert.ok(days.includes('2026-10-03'), 'today shows when another day is in the centre');
 });
 
+test('every item sits under its own day: a Must of another day leaves its Result, and a missed one goes under Overdue', () => {
+  const d = freshStore();
+  const exam = block(d, {title: 'Exam passed', purpose: 'Calm'});
+  task(d, {title: 'Sit the exam', blockId: exam, planned: '2026-10-06T04:30:00.000Z'});
+  task(d, {title: 'Past paper', blockId: exam, planned: '2026-10-03T12:00:00.000Z', must: true});
+  task(d, {title: 'Revise', blockId: exam, planned: '2026-10-03T03:30:00.000Z', must: true});
+  const groups = comingUp(d, SATURDAY_10_AM_KOLKATA, '2026-10-04');
+  const where = Object.fromEntries(groups.flatMap(g => g.items.flatMap(i => [[i.title, g.day], ...(i.musts ?? []).map(m => [m.title, g.day])])));
+  assert.deepEqual(where, {'Revise': 'overdue', 'Past paper': '2026-10-03', 'Exam passed': '2026-10-06'});
+  assert.deepEqual(groups.map(g => g.day), ['overdue', '2026-10-03', '2026-10-06'], 'Overdue first, then the days in order');
+  assert.match(groups[0].items[0].when, /^Sat 3 Oct /, 'a missed Must names its own day');
+  assert.doesNotMatch(groups[1].items[0].when, /Oct/, 'under its own day a Must says only its time');
+  assert.deepEqual(groups[2].items[0].musts, []);
+});
+
 test('an overdue Result heads the list as Overdue; only it reads in the Must amber', () => {
   const d = freshStore();
   const late = block(d, {title: 'Form sent', purpose: 'Calm'});

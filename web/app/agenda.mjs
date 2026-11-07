@@ -6,6 +6,7 @@ import {isWide, onWidthChange} from './desktop.mjs';
 
 const GROUPS = 6;
 const AHEAD = 13;
+const MISSED_DAYS = 7;
 
 const dueValue = task => task.planned ? localStamp(task.planned) : task.plannedDate;
 const timed = value => value.length > 10;
@@ -15,41 +16,48 @@ const timeOf = value => (timed(value) ? clock(new Date(value)) : '');
 
 /**
  * Coming up: the days after today's centre, each named once, holding its Results' deadlines (each Result once, its
- * dated open Musts under it) and its other one-time Musts. Empty days and the day the centre shows are left out;
- * a deadline already past heads the list as Overdue.
+ * open Musts for that same day under it) and its other one-time Musts. Every item sits under its own day. Empty days
+ * and the day the centre shows are left out; what is already past (a deadline, or a Must of the last week not done)
+ * heads the list as Overdue, never under a day still to come.
  */
 export function comingUp(data, now = new Date(), shown = localDay(now)) {
-  const today = localDay(now), last = shiftDay(today, AHEAD);
+  const today = localDay(now), last = shiftDay(today, AHEAD), since = shiftDay(today, -MISSED_DAYS);
   const groups = new Map();
   const group = key => {
     if (!groups.has(key)) groups.set(key, {day: key, items: []});
     return groups.get(key).items;
   };
-  const inWindow = key => key !== shown && key <= last;
+  const keyOf = value => (endOf(value) < +now ? 'overdue' : value.slice(0, 10));
+  const listed = value => value.slice(0, 10) !== shown && (keyOf(value) === 'overdue' ? value.slice(0, 10) >= since : value.slice(0, 10) <= last);
   const held = new Set();
   for (const block of openResults(data)) {
     const value = blockDue(data, block.id)?.value;
     const due = dueInfo(value, now);
     if (!due) continue;
     const day = due.overdue ? 'overdue' : value.slice(0, 10);
+    if (day !== 'overdue' && (day === shown || day > last)) continue;
     const open = blockTasks(data, block.id).filter(task => !task.done);
-    const musts = open.filter(task => task.must && dueValue(task) && dueValue(task).slice(0, 10) !== shown)
+    const musts = open.filter(task => task.must && dueValue(task) && keyOf(dueValue(task)) === day && listed(dueValue(task)))
       .sort((a, b) => order(dueValue(a)).localeCompare(order(dueValue(b))))
       .map(task => ({id: task.id, title: task.title, when: mustWhen(dueValue(task), day, value)}));
-    if (day !== 'overdue' && !inWindow(day)) continue;
     for (const task of musts) held.add(task.id);
     group(day).push({kind: 'result', id: block.id, title: block.title, at: +due.at,
-      when: day === 'overdue' ? dayName(value.slice(0, 10)) + (timed(value) ? ' ' + timeOf(value) : '') : timeOf(value),
-      left: open.length, musts});
+      when: day === 'overdue' ? pastWhen(value) : timeOf(value), left: open.length, musts});
   }
   for (const task of openMusts(data)) {
-    const value = dueValue(task), day = value.slice(0, 10);
-    if (held.has(task.id) || day < today || !inWindow(day)) continue;
-    group(day).push({kind: 'must', id: task.id, title: task.title, at: +new Date(order(value).replace('T24', 'T23:59')), when: timeOf(value)});
+    const value = dueValue(task);
+    if (held.has(task.id) || !listed(value)) continue;
+    const day = keyOf(value);
+    group(day).push({kind: 'must', id: task.id, title: task.title, at: endOf(value), when: day === 'overdue' ? pastWhen(value) : timeOf(value)});
   }
   for (const entry of groups.values()) entry.items.sort((a, b) => (a.kind === b.kind ? a.at - b.at : a.kind === 'result' ? -1 : 1));
   return [...groups.values()].sort((a, b) => (a.day === 'overdue' ? -1 : b.day === 'overdue' ? 1 : a.day.localeCompare(b.day))).slice(0, GROUPS);
 }
+
+/** When a dated item is over: its time, or the end of its day when it has none. */
+const endOf = value => +new Date(order(value).replace('T24', 'T23:59'));
+/** A past item names its own day, since it sits under Overdue. */
+const pastWhen = value => dayName(value.slice(0, 10)) + (timed(value) ? ' ' + timeOf(value) : '');
 
 /** A Must under its Result says its time only when that differs from the deadline above it, and its day when that differs. */
 function mustWhen(value, day, deadline) {
