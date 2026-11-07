@@ -79,6 +79,8 @@
     padding: var(--s3);
   }
   #planner[data-view=projects] .project-blocks > p { grid-column: 1 / -1; align-self: center; }
+  #planner[data-view=projects] .project-blocks { margin: 0; border: 0; }
+  #planner[data-view=projects] .project-block { padding-inline: var(--s3); border-radius: var(--r-control); background: var(--surface); }
   #planner .project-block-copy { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); min-inline-size: 0; }
   #planner .project-block:not(:has(.seg-ring)) { padding-inline-start: calc(var(--s8) + var(--s5)); }
   #planner .project-block-count { flex: none; inline-size: 40px; text-align: end; }

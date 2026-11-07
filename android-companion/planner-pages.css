@@ -53,22 +53,24 @@
 .project-open { flex: none; margin-inline-end: var(--s1); color: var(--on-surface-variant); }
 .nest-rings { flex: none; inline-size: 64px; block-size: 64px; }
 .nest-rings circle { fill: none; }
-.nest-track { stroke: var(--surface-container-highest); }
+/* A ring's track is a dim band of its own colour (Activity rings), so every nested ring reads as one band, light or dark. */
+:is(.nest-track, .ring-track) { stroke: color-mix(in oklch, var(--progress, var(--primary)) 22%, var(--surface-container-highest)); }
 .nest-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; }
-.project-blocks { display: grid; gap: var(--s1); padding: 0 var(--s3) var(--s3); }
+/* An open card lists its Blocks flat on the card under one divider; each ring starts on the card ring's edge. */
+.project-blocks { display: grid; margin-inline: var(--s3); padding-block: var(--s1) var(--s2); border-block-start: 1px solid var(--outline-variant); }
 .project-block {
   display: flex;
   align-items: center;
   gap: var(--s3);
   min-block-size: 48px;
-  padding: var(--s1) var(--s3);
-  border-radius: var(--r-control);
-  background: var(--surface);
+  padding: var(--s1) var(--s1) var(--s1) 0;
+  border-radius: var(--shape-sm);
   font: var(--body-medium);
 }
 .project-block:active { background: var(--row-press); }
 .project-block .seg-ring { flex: none; inline-size: 28px; block-size: 28px; }
-.project-block-name { flex: 1; min-inline-size: 0; overflow-wrap: break-word; text-wrap: pretty; }
+.project-blocks > .quiet { padding: var(--s3) 0; }
+.project-block-name { flex: 1; min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
 .project-block-count { color: var(--on-surface-variant); white-space: nowrap; }
 .seg-ring :is(path, circle) { fill: none; stroke-width: 6; }
 .seg-off { stroke: var(--surface-container-highest); }
@@ -83,7 +85,7 @@
 .ring { flex: none; width: 24px; height: 24px; }
 .ring circle { fill: none; stroke-width: 3; }
 .ring-track { stroke: var(--surface-container-highest); }
-.ring-value { stroke: var(--primary); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
+.ring-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
 .next-task {
   display: flex;
   align-items: center;
@@ -107,7 +109,6 @@
 .project-run .eyebrow { font: var(--label-large); }
 .filters + .project-run { padding-top: var(--s1); }
 .project-run + .block-card { margin-top: var(--s2); }
-.stat-line { padding: 0 var(--gutter) var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
 
 /* Detail pages (Block, Project, Area, Goal) */
 .detail-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s2); padding: 0 var(--gutter); }
@@ -157,6 +158,11 @@
 .project-picker { padding-right: var(--s1); }
 .goal-when-chip { padding-right: var(--s1); }
 .detail-title-text + .block-facts { margin-top: calc(-1 * var(--s2)); }
+/* Project detail: Area and Goal sit on one row under the title; a long Goal shortens with an ellipsis. */
+.detail-title-text + .crumbs.one-line { margin-block-start: calc(-1 * var(--s3)); padding-block-start: 0; }
+.crumbs.one-line { flex-wrap: nowrap; }
+.crumbs.one-line .crumb:last-child { flex: 0 1 auto; min-inline-size: 0; }
+.crumbs.one-line .crumb > span:not(.ms) { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Google Tasks detail rows: the 24dp icon centred on the Plan's check column, the text on the task titles. */
 .fact-row {
   display: flex;

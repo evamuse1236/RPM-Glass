@@ -18,6 +18,15 @@ test('each Block ring\'s arc is its done/total, outermost first, fading inward',
   assert.equal(nestedRings(Array.from({length: 9}, () => ({done: 1, total: 2}))).length, MAX_RINGS);
 });
 
+test('every Project ring has one stroke and one gap, so one Block draws the outer ring of a full set', () => {
+  const full = nestedRings(Array.from({length: MAX_RINGS}, () => ({done: 1, total: 2})));
+  assert.equal(new Set(full.map(r => r.width)).size, 1, 'one stroke weight');
+  assert.equal(new Set(full.slice(1).map((r, i) => full[i].r - r.r)).size, 1, 'one gap');
+  const [one] = nestedRings([{done: 1, total: 2}]);
+  assert.deepEqual([one.r, one.width], [full[0].r, full[0].width]);
+  assert.ok(full.at(-1).r - full.at(-1).width / 2 >= 4, 'the innermost ring keeps an open centre');
+});
+
 test('a Block row\'s segment ring has one arc per task, the done ones on', () => {
   const arcs = ringSegments(2, 5);
   assert.equal(arcs.length, 5);

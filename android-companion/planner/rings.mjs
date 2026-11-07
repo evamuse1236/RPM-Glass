@@ -30,13 +30,14 @@ export function segmentRing(done, total, {cls = '', label = ''} = {}) {
   return svg;
 }
 
-/** The rings for a Project's Blocks ({done, total} each), outermost first, in a 64 viewBox; at most MAX_RINGS. */
+/** The rings for a Project's Blocks ({done, total} each), outermost first, in a 64 viewBox; at most MAX_RINGS. Every
+ * ring has one stroke and one gap, so a one-Block ring is the outer ring of a five-Block set. */
+const RING_WIDTH = 4;
+const RING_STEP = 6;
 export function nestedRings(blocks) {
   const shown = blocks.slice(0, MAX_RINGS), n = shown.length;
-  const step = n > 1 ? Math.min(8, 20 / (n - 1)) : 0;
-  const width = n > 1 ? Math.min(6, step - 2) : 6;
-  return shown.map(({done, total}, i) => ({r: 28 - i * step, width, fraction: total ? done / total : 0,
-    opacity: n > 1 ? 1 - i * 0.5 / (n - 1) : 1}));
+  return shown.map(({done, total}, i) => ({r: 32 - RING_WIDTH / 2 - i * RING_STEP, width: RING_WIDTH,
+    fraction: total ? done / total : 0, opacity: n > 1 ? 1 - i * 0.3 / (n - 1) : 1}));
 }
 
 export function nestRings(blocks, label) {

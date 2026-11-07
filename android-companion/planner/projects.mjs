@@ -30,7 +30,10 @@ function blockRow(app, block, wide) {
   row.dataset.key = 'project-block:' + block.id;
   const name = el('span', 'project-block-name', block.title);
   if (!wide) {
-    row.append(segmentRing(done, total), name, el('span', 'project-block-count tnum', `${done}/${total}`));
+    // The same continuous ring as the card's; a Block with no tasks keeps the hollow ring and shows no 0/0.
+    const ring = progressRing(done, total, '');
+    ring.setAttribute('aria-hidden', 'true');
+    row.append(ring, name, ...(total ? [el('span', 'project-block-count tnum', `${done}/${total}`)] : []));
   } else {
     const next = blockTasks(app.data(), block.id).find(task => !task.done);
     const copy = el('span', 'project-block-copy');
@@ -55,10 +58,10 @@ function projectCard(app, project) {
   const toggle = wide ? button('', () => app.openProject(project.id), 'project-toggle')
     : button('', () => { toggleProject(app.state, project.id); app.render(); }, 'project-toggle');
   if (!wide) toggle.setAttribute('aria-expanded', String(open));
-  toggle.setAttribute('aria-label', `${project.title}, ${area?.title ?? 'No area'}. ${meta}. ${wide ? 'Open Project' : open ? 'Hide Blocks' : 'Show Blocks'}`);
+  toggle.setAttribute('aria-label', `${[project.title, area?.title].filter(Boolean).join(', ')}. ${meta}. ${wide ? 'Open Project' : open ? 'Hide Blocks' : 'Show Blocks'}`);
   const copy = el('span', 'project-copy');
-  copy.append(el('span', 'project-area', area?.title ?? 'No area'), el('span', 'card-title', project.title),
-    el('span', 'card-meta tnum', meta));
+  if (area) copy.append(el('span', 'project-area', area.title));
+  copy.append(el('span', 'card-title', project.title), el('span', 'card-meta tnum', meta));
   toggle.append(nestRings(wide ? [stats] : ordered.map(block => blockStats(app, block)), `${stats.done} of ${stats.total} tasks done`), copy);
   const head = el('div', 'project-head');
   head.append(toggle);
@@ -76,11 +79,6 @@ function projectCard(app, project) {
 
 export function renderProjects(app, page) {
   const {state} = app;
-  const all = tasks(app.data());
-  const stats = doneStats(all);
-  const blocks = app.activeBlocks();
-  page.append(el('p', 'stat-line tnum', [plural(app.p().projects.length, 'Project'), plural(blocks.length, 'Block'),
-    `${stats.done} of ${plural(stats.total, 'task')} done`].join(' · ')));
   const filters = el('div', 'chip-row filters');
   const current = app.p().areas.find(area => area.id === state.projectFilter);
   const chip = button('', null, 'filter-chip dropdown');
@@ -143,18 +141,24 @@ export function renderProjectDetail(app, page, project) {
     options: app.p().goals.map(g => [g.id, g.title]), open: () => app.openGoal(goal.id),
     choose: (goalId, label) => saveEntity(app, 'projects', project, {goalId},
       goalId ? `Linked to ${label}` : 'Unlinked from its Goal').catch(() => {})});
-  page.append(breadcrumbs(app, [[area?.title, 'areas', area?.id, 'spa'],
-    {label: goal?.title ?? 'Link a Goal', icon: 'flag', menu: goalMenu}]));
+  // The Project leads at the largest size; its Area and Goal follow on one quiet row.
   page.append(titleField(app, 'projects', project, 'Project'));
+  const crumbs = breadcrumbs(app, [[area?.title, 'areas', area?.id, 'spa'],
+    {label: goal?.title ?? 'Link a Goal', icon: 'flag', menu: goalMenu}]);
+  crumbs.classList.add('one-line');
+  page.append(crumbs);
   const facts = el('div', 'block-facts');
-  facts.append(purposePanel(app, 'projects', project));
+  facts.dataset.tone = app.tone(area);
+  // The heart marks the Purpose, as on a Block, so its row needs no label.
+  facts.append(purposePanel(app, 'projects', project, 'Purpose', {labelled: false}));
   const notes = notesPanel(app, 'projects', project);
   if (notes) facts.append(notes);
   const {blocks, stats} = projectTasks(app, project);
   if (stats.total) {
     const count = `${stats.done} of ${plural(stats.total, 'task')} done`;
     const {row, copy} = factRow(progressRing(stats.done, stats.total, count), {cls: 'progress-row'});
-    copy.append(el('span', 'list-headline tnum', count), el('span', 'list-supporting', plural(blocks.length, 'Block')));
+    // The Blocks header below gives their count, so this row says only the tasks.
+    copy.append(el('span', 'list-headline tnum', count));
     facts.append(row);
   }
   page.append(facts);

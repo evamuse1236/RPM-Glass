@@ -351,6 +351,7 @@ export function renderBlockDetail(app, page, block) {
   page.append(titleField(app, 'blocks', block, 'Result'));
   // As on its card: the Result, its Purpose, then where it stands, then your verdict, then the Plan.
   const facts = el('div', 'block-facts');
+  facts.dataset.tone = app.tone(app.blockArea(block));
   // The heart marks the Purpose, so its row needs no label; a tap on the row edits it.
   facts.append(purposePanel(app, 'blocks', block, 'Purpose', {labelled: false}));
   const notes = notesPanel(app, 'blocks', block);
