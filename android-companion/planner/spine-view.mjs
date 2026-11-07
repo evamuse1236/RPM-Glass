@@ -4,11 +4,16 @@
  * The time shows only in the gutter; the words carry the title and one quiet line.
  */
 import {el, icon, button, iconButton} from './dom.mjs';
+import {earlierLabel} from '../spine-model.mjs';
 
 function gutter(row) {
   const node = el('div', 'spine-gutter tnum');
   node.setAttribute('aria-hidden', 'true');
   if (row.kind === 'gap') return node;
+  if (row.anytime) {
+    if (row.first) node.append(el('span', 'spine-time spine-anytime', 'Any time'));
+    return node;
+  }
   node.append(el('span', 'spine-time', row.gutter?.time ?? row.time ?? ''));
   if (row.gutter?.end) node.append(el('span', 'spine-time spine-end', row.gutter.end));
   return node;
@@ -17,7 +22,7 @@ function gutter(row) {
 function shell(row, body) {
   const node = el('div', `spine-row spine-${row.kind}`);
   node.dataset.key = row.key;
-  for (const flag of ['past', 'current', 'next', 'done', 'missed', 'overdue']) node.classList.toggle(flag, !!row[flag]);
+  for (const flag of ['past', 'current', 'next', 'done', 'missed', 'overdue', 'late']) node.classList.toggle(flag, !!row[flag]);
   node.classList.toggle('tall', (row.height ?? 0) > 48);
   if (row.kind === 'task') node.dataset.tone = row.tone;
   if (row.height) node.style.setProperty('--h', row.height + 'px');
@@ -55,10 +60,10 @@ function ring(label, done, onClick, role = 'checkbox') {
 }
 
 /** A plain clock time is already in the gutter; only a countdown or a lateness earns words. */
-const LOUD_WHEN = new Set(['soon', 'now', 'late', 'due']);
+const LOUD_WHEN = new Set(['soon', 'now', 'late']);
 /**
- * "Not logged" on every meal says nothing the empty ring does not; it stays in the spoken name. A clash is its own chip,
- * drawn under the words, that names what it clashes with and opens Resolve.
+ * "Not logged" on every meal says nothing the empty ring does not; it stays in the spoken name. A clash is its own small
+ * marker under the words that opens Resolve.
  */
 const QUIET_LINE = new Set(['unlogged', 'clash']);
 
@@ -69,7 +74,11 @@ function words(row) {
   copy.append(title);
   const parts = [];
   if (row.when && LOUD_WHEN.has(row.when.kind)) parts.push(el('span', `spine-when tnum when-${row.when.kind}`, row.when.text));
-  if (row.line && !QUIET_LINE.has(row.line.kind)) parts.push(el('span', `spine-line line-${row.line.kind}`, row.line.text));
+  if (row.line && !QUIET_LINE.has(row.line.kind)) {
+    const line = el('span', `spine-line line-${row.line.kind}`, row.line.text);
+    if (row.line.kind === 'due') line.prepend(icon('hourglass_bottom', {fill: true, cls: 'spine-due'}));
+    parts.push(line);
+  }
   if (parts.length) {
     const line = el('span', 'spine-meta');
     parts.forEach((part, i) => line.append(...(i ? [' · ', part] : [part])));
@@ -78,7 +87,8 @@ function words(row) {
   return copy;
 }
 
-const spoken = row => [row.title, row.when?.text, row.line?.text, row.done ? 'done' : '', row.must ? 'Must' : '']
+const spoken = row => [row.title, row.when?.text, row.line?.kind === 'due' ? `due today, ${row.line.text}` : row.line?.text,
+  row.done ? 'done' : '', row.must ? 'Must' : '']
   .filter(Boolean).join(', ');
 
 function card(row, marker, ...parts) {
@@ -99,7 +109,7 @@ function taskCard(row, on) {
     opener(row, () => on.openTask(row.task), spoken(row) + '. Open task'));
   if (row.line?.kind === 'clash') {
     const resolve = button('', () => on.resolve(row), 'spine-resolve');
-    resolve.append(icon('event_busy'), el('span', '', row.line.text));
+    resolve.append(icon('event_busy'), el('span', '', 'Clash'));
     resolve.setAttribute('aria-label', `Resolve the clash with ${row.line.with.title}`);
     node.append(resolve);
   }
@@ -159,27 +169,73 @@ export function spineRow(row, on) {
   return shell(row, BODIES[row.kind](row, on));
 }
 
-export function spineList(model, on) {
+const listItem = node => {
+  node.setAttribute('role', node.getAttribute('role') ?? 'listitem');
+  return node;
+};
+
+/** The current item's thin progress line: how much of it has gone. */
+function progress(row, now) {
+  const bar = el('span', 'spine-progress');
+  bar.setAttribute('aria-hidden', 'true');
+  bar.style.setProperty('--p', String(Math.min(1, Math.max(0, (now - row.start) / (row.end - row.start)))));
+  return bar;
+}
+
+/** One row of the Now card: the same row as on the timeline, with a progress line while it runs. */
+export function focusRow(row, on, now) {
+  const node = listItem(spineRow(row, on));
+  if (row.current) node.querySelector('.spine-card')?.append(progress(row, now));
+  return node;
+}
+
+/** The Now card at the top of a live day: the item in progress and one late or next task, never more. */
+export function focusCard(model, on) {
+  const rows = model.rows.filter(r => r.focus).sort((a, b) => a.focus - b.focus);
+  if (!rows.length) return null;
+  const card = el('section', 'spine-focus');
+  card.dataset.key = 'focus';
+  card.setAttribute('role', 'list');
+  card.setAttribute('aria-label', 'Now and next');
+  for (const row of rows) card.append(focusRow(row, on, model.now));
+  return card;
+}
+
+/** "Earlier · 2 done": one row that folds the past which needs nothing more, and opens it. */
+export function earlierToggle(rows, open, on) {
+  const node = el('div', 'spine-row spine-earlier');
+  node.dataset.key = 'earlier';
+  const toggle = button('', () => on.toggleEarlier?.(), 'spine-earlier-open');
+  toggle.setAttribute('aria-expanded', String(open));
+  const mark = el('span', 'spine-earlier-mark');
+  mark.setAttribute('aria-hidden', 'true');
+  mark.append(icon('check'));
+  toggle.append(mark, el('span', 'spine-earlier-label', earlierLabel(rows)), icon(open ? 'expand_less' : 'expand_more'));
+  node.append(el('span', 'spine-gutter'), toggle);
+  return node;
+}
+
+/**
+ * The timeline: on a live day the folded past under Earlier, then the rest in time order with the Now line, leaving out
+ * what the Now card shows; then the tasks with no time, under "Any time".
+ * The Now line already spaces the rail, so blank free time right after it, or after another blank stretch, is left out.
+ */
+export function spineList(model, on, {earlierOpen = false} = {}) {
   const list = el('div', 'spine');
   list.setAttribute('role', 'list');
   list.setAttribute('aria-label', 'The day by time');
+  const folded = model.rows.filter(r => r.fold);
+  if (folded.length) list.append(listItem(earlierToggle(folded, earlierOpen, on)));
+  let spacer = false;
   for (const row of model.rows) {
-    const node = spineRow(row, on);
-    node.setAttribute('role', node.getAttribute('role') ?? 'listitem');
+    if (row.focus) continue;
+    const blank = row.kind === 'gap' && row.plan == null;
+    if (blank && spacer && !row.fold) continue;
+    if (!row.fold || earlierOpen) spacer = blank || row.kind === 'now';
+    const node = listItem(spineRow(row, on));
+    if (row.fold) node.hidden = !earlierOpen;
     list.append(node);
   }
+  model.anytime.forEach((row, i) => list.append(listItem(spineRow({...row, anytime: true, first: i === 0}, on))));
   return list;
-}
-
-/** The anytime tasks as one strip of chips; a chip opens its task. */
-export function anytimeChips(tasks, on) {
-  return tasks.map(task => {
-    const chip = button('', () => on.openTask(task.task), 'spine-chip');
-    chip.dataset.key = task.key;
-    chip.dataset.tone = task.tone;
-    chip.classList.toggle('done', task.done);
-    chip.append(icon(task.symbol, {fill: true}), el('span', 'chip-label', task.title));
-    chip.setAttribute('aria-label', `${task.title}${task.must ? ', Must' : ''}${task.done ? ', done' : ''}. Open task`);
-    return chip;
-  });
 }

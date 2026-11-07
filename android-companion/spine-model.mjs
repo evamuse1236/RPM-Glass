@@ -69,21 +69,21 @@ function markRows({day, now, live, meals, mealPlan, deadlines}) {
   return rows;
 }
 
-/** The one line under the title: a clash wins, then Not done, then the Result (or a Routine's count). */
+/** The one line under the title: a clash wins, then the Result (or a Routine's count). An open task past its end says so by its amber ring. */
 function lineFor(row, events, now) {
   if (row.kind === 'task' && !row.done) {
     const clash = row.end > row.start && events.find(e => e.end > e.start && e.start < row.end && row.start < e.end);
     if (clash) return {kind: 'clash', text: `Clash with ${clash.title}`, with: clash};
-    if (row.end <= now) return {kind: 'late', text: 'Not done'};
   }
   if (row.kind === 'routine') return {kind: row.missed ? 'late' : 'count', text: row.count};
   if (row.kind === 'task') return row.task.result ? {kind: 'result', text: row.task.result, tone: row.task.tone ?? 'neutral'} : null;
   return null;
 }
 
-/** The line over the title: how soon the next item starts, how long is left of the one in progress, else its times. */
+/** The line over the title: how soon the next item starts, how long is left of the one in progress, how long ago an open task ended, else its times. */
 function whenFor(row, now) {
   if (row.current) return {kind: 'now', text: `Now · ${duration(Math.max(1, Math.ceil((row.end - now) / MIN)))} left`};
+  if (row.late) return {kind: 'late', text: `Ended ${duration(Math.max(1, Math.round((now - row.end) / MIN)))} ago`};
   if (row.next) return {kind: 'soon', text: row.soon};
   return {kind: 'time', text: spanWords(row.start, row.end)};
 }
@@ -95,7 +95,7 @@ function freeRows(blocks, marks, {from, to, now, live, planMinutes}) {
   const free = [];
   let cursor = from;
   for (const block of blocks.filter(row => row.end > row.start).sort((a, b) => a.start - b.start)) {
-    if (block.start > cursor) free.push([cursor, block.start]);
+    if (Math.min(block.start, to) > cursor) free.push([cursor, Math.min(block.start, to)]);
     cursor = Math.max(cursor, block.end);
   }
   if (to > cursor) free.push([cursor, to]);
@@ -126,13 +126,13 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
     {title: event.title, event, symbol: 'event'}));
   const blocks = [...eventRows, ...routineRows(day, routines), ...taskRows(tasks)];
   let marks = markRows({day, now, live, meals, mealPlan, deadlines});
-  const starts = [...blocks, ...marks].map(r => r.start), ends = [...blocks, ...marks].map(r => r.end);
-  const from = Math.min(+atMinutes(day, minutesOf(window.from ?? '08:00')), ...starts);
-  const to = Math.max(+atMinutes(day, minutesOf(window.until ?? '22:00')), ...ends);
+  const from = +atMinutes(day, minutesOf(window.from ?? '08:00'));
+  const to = +atMinutes(day, minutesOf(window.until ?? '22:00'));
 
   for (const row of blocks) {
     row.past = row.end <= now;
     row.current = live && row.start <= now && now < row.end;
+    row.late = live && row.kind === 'task' && !row.done && row.end <= now;
     row.line = lineFor(row, events, now);
   }
   for (const row of marks) row.past = row.kind === 'meal' ? row.past || (!!row.meal && row.end < now) : row.end < now;
@@ -144,31 +144,55 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
   for (const row of marks) row.when ??= {kind: 'time', text: gutterTime(row.start)};
 
   const rows = [...blocks, ...marks, ...freeRows(blocks, marks, {from, to, now, live, planMinutes})];
-  if (live && !current.length) rows.push({kind: 'now', key: 'now', start: now, end: now, time: gutterTime(now), label: clockText(now)});
+  if (live) rows.push({kind: 'now', key: 'now', start: now, end: now, time: gutterTime(now), label: clockText(now)});
   rows.sort((a, b) => a.start - b.start || RANK[a.kind] - RANK[b.kind] || a.end - b.end);
   fitOverlaps(rows);
+  if (live) {
+    focusRows(blocks, next).forEach((row, i) => { row.focus = i + 1; });
+    for (const row of rows) row.fold = !row.focus && foldable(row);
+  }
 
   const anytime = anytimeTasks(tasks.filter(t => t.start == null));
   return {
     rows,
     anytime,
-    nowKey: live ? (current[0]?.key ?? 'now') : null,
+    now,
+    nowKey: live ? 'now' : null,
     empty: !tasks.length && !events.length,
-    shape: [...rows.map(r => `${r.key}:${r.past ? 1 : 0}${r.current ? 1 : 0}${r.next ? 1 : 0}${r.line?.kind ?? ''}`),
+    shape: [...rows.map(r => `${r.key}:${r.past ? 1 : 0}${r.current ? 1 : 0}${r.next ? 1 : 0}${r.late ? 1 : 0}${r.focus ? 'f' : ''}${r.fold ? 'e' : ''}${r.line?.kind ?? ''}`),
       ...anytime.map(t => `${t.key}:${t.done ? 1 : 0}`)].join('|'),
   };
 }
 
 /**
- * A deadline at the very time an open task of its Result starts is said once, on the task: its line becomes
- * "Due · <Result>" and the deadline's own row goes.
+ * The Now card: the item in progress, then one open task past its end (a Must first, then the latest), else the next
+ * item. With nothing in progress it holds that late task and the next item. Never more than two rows.
+ */
+function focusRows(blocks, next) {
+  const current = blocks.filter(r => r.current && !r.done).sort((a, b) => a.start - b.start)[0];
+  const late = blocks.filter(r => r.late).sort((a, b) => b.must - a.must || b.end - a.end)[0];
+  return (current ? [current, late ?? next] : [late, next]).filter(Boolean);
+}
+
+/** The past that needs nothing more folds under Earlier: done or logged rows, events, free time, Routines and meals that passed. Open tasks and overdue deadlines stay. */
+const foldable = row => !!row.past && !row.late && !row.overdue && row.kind !== 'now';
+
+/** "Earlier · 2 done": the folded past and how much of it was done. */
+export const earlierLabel = rows => {
+  const done = rows.filter(r => r.done).length;
+  return done ? `Earlier · ${done} done` : 'Earlier';
+};
+
+/**
+ * A deadline at the very time an open task of its Result starts is said once, on the task: its Result line takes the
+ * deadline's hourglass and the deadline's own row goes.
  */
 function foldDeadlines(blocks, marks) {
   return marks.filter(mark => {
     if (mark.kind !== 'deadline') return true;
     const task = blocks.find(row => row.kind === 'task' && !row.done && row.start === mark.start
       && row.task.resultId === mark.resultId && row.line?.kind === 'result');
-    if (task) task.line = {...task.line, kind: 'due', text: `Due · ${task.line.text}`};
+    if (task) task.line = {...task.line, kind: 'due'};
     return !task;
   });
 }
@@ -179,22 +203,17 @@ function foldDeadlines(blocks, marks) {
  */
 function fitOverlaps(rows) {
   rows.forEach((row, i) => {
-    const later = rows.slice(i + 1).find(next => next.kind !== 'gap' && next.start <= row.end);
+    const later = rows.slice(i + 1).find(next => next.kind !== 'gap' && next.kind !== 'now' && next.start <= row.end);
     if (!later || !row.gutter) return;
     row.gutter.end = null;
     row.height = Math.min(row.height, cardHeight(minutesBetween(row.start, later.start)));
   });
 }
 
-/** Tasks dated for the day without a time, open ones first: the chips above the timeline. */
+/** Tasks dated for the day without a time, open ones first: the Any time rows under the timeline. */
 function anytimeTasks(untimed) {
   return untimed.map(task => ({kind: 'task', key: 'task:' + task.id + (task.occurrence ?? ''), title: task.title, task,
     done: !!task.done, must: !!task.must, symbol: taskSymbol(task.title), tone: task.tone ?? 'neutral'}))
     .sort((a, b) => a.done - b.done);
 }
 
-/** "2 tasks anytime today": the chip strip's accessible name. */
-export const anytimeLabel = (anytime, live) => {
-  const open = anytime.filter(t => !t.done).length;
-  return open ? `${plural(open, 'task')} anytime ${live ? 'today' : 'this day'}` : `${plural(anytime.length, 'task')} done, no time set`;
-};

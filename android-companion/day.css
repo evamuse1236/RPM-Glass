@@ -5,14 +5,8 @@
   --spine-ring: 40px;
 }
 
-.today-sheet {
-  position: relative;
-  margin-block-start: calc(-1 * var(--s3));
-  padding-block-start: var(--s4);
-  border-start-start-radius: var(--r-group);
-  border-start-end-radius: var(--r-group);
-  background: var(--surface);
-}
+#planner[data-view=today]:not([data-scrolled=true]) .top-bar { background: var(--surface); }
+.today-sheet { position: relative; padding-block-start: var(--s1); background: var(--surface); }
 
 .spine { position: relative; display: flex; flex-direction: column; padding: var(--s1) var(--inset-page) var(--s4) 0; }
 .spine::before {
@@ -74,10 +68,10 @@
   inline-size: 4px;
   block-size: var(--h, 40px);
   border-radius: var(--shape-full);
-  background: color-mix(in oklch, var(--pill-c) 70%, transparent);
+  background: var(--outline-variant);
 }
 .spine-pill.moment { background: none; }
-:is(.spine-row.done, .spine-row.past) .spine-pill { background: color-mix(in oklch, var(--pill-c) 30%, transparent); }
+:is(.spine-row.done, .spine-row.past) .spine-pill { background: var(--surface-container-highest); }
 
 .spine-check, .spine-disc { grid-column: 1; position: relative; z-index: 1; justify-self: center; }
 .spine-row:is(.tall, :has(.spine-resolve)) .spine-card > :is(.spine-check, .spine-disc) { align-self: start; }
@@ -109,9 +103,9 @@
 .spine-open:active { background: var(--row-press); }
 .spine-deadline .spine-copy { grid-column: 2; padding: var(--s1) 0 var(--s1) var(--s3); }
 .spine-copy { display: flex; flex-direction: column; min-inline-size: 0; }
-.spine-title { font: var(--title-row); overflow-wrap: break-word; text-wrap: pretty; }
+.spine-title { font: var(--title-row); overflow-wrap: break-word; text-wrap: wrap; }
 .spine-meal .spine-title { font: var(--body-large); }
-.spine-row.past:not(.done, .current) .spine-title { color: var(--on-surface-variant); }
+.spine-row.past:not(.done, .current, .late) .spine-title { color: var(--on-surface-variant); }
 .spine-row.done .spine-title { color: var(--on-surface-variant); font-weight: 400; }
 .spine-row.done:not(.spine-meal) .spine-title {
   text-decoration: line-through;
@@ -120,7 +114,11 @@
 .spine-must { font-size: 16px; margin-inline-start: var(--s1); vertical-align: -2px; color: var(--must); }
 .spine-meta { font: var(--footnote); color: var(--on-surface-variant); white-space: nowrap; overflow: clip; text-overflow: ellipsis; }
 .when-soon, .when-now { color: var(--primary); font-weight: 600; }
-.when-late, .line-late, .line-clash { color: var(--error); font-weight: 500; }
+.when-late { color: var(--on-surface-variant); }
+.line-due { display: inline-flex; align-items: center; gap: var(--s1); }
+.spine-due { font-size: 16px; color: var(--on-surface-variant); }
+.spine-overdue .spine-due, .spine-row.overdue .spine-due { color: var(--error); }
+/* A clash is a small inline marker under the title, not a pill; its 48dp hit area still opens Resolve. */
 .spine-resolve {
   position: relative;
   grid-column: 2;
@@ -130,18 +128,16 @@
   align-items: center;
   gap: var(--s1);
   max-inline-size: calc(100% - var(--s3));
-  min-block-size: 24px;
+  min-block-size: 20px;
   margin: 0 0 var(--s1) var(--s3);
-  padding-inline: var(--s1) var(--s2);
-  border-radius: var(--shape-full);
-  background: var(--error-container);
-  color: var(--on-error-container);
+  border-radius: var(--r-control);
+  color: var(--error);
   font: var(--label-medium);
 }
 .spine-resolve .ms { font-size: 16px; }
 .spine-resolve span:last-child { min-inline-size: 0; overflow: clip; white-space: nowrap; text-overflow: ellipsis; }
 .spine-resolve::after { content: ""; position: absolute; inset: min(0px, (100% - 48px) / 2) 0; }
-.spine-resolve:active { background: color-mix(in oklch, var(--error-container), var(--on-error-container) 12%); }
+.spine-resolve:active { background: var(--row-press); }
 
 .spine-check {
   display: grid;
@@ -160,11 +156,75 @@
 .spine-meal:not(.done) .check-ring { border-color: color-mix(in oklch, var(--pill-c) 70%, var(--surface)); }
 .spine-check .check-ring .ms { font-size: 16px; opacity: 0; }
 .spine-check:active .check-ring { scale: .9; }
+.spine-row.late:not(.done) .check-ring { border-color: var(--must); }
 .spine-row.done .check-ring { background: var(--pill-c); border-color: var(--pill-c); }
 .spine-row.done .check-ring .ms { opacity: 1; }
 @media (prefers-reduced-motion: no-preference) {
   .spine-check .check-ring { transition: scale var(--dur-press) var(--ease-standard), background-color var(--dur-short3) var(--ease-standard); }
 }
+
+/* The Now card: the item in progress and one late or next task, in a quiet tonal group above the timeline. Its rows are
+   the timeline's rows without the rail or the length bar, so a row reads the same in both places. */
+.spine-focus {
+  --spine-gutter: calc(56px * var(--text-scale, 1));
+  display: flex;
+  flex-direction: column;
+  margin: var(--s1) var(--inset-page) var(--s3) var(--s2);
+  padding-block: var(--s1);
+  padding-inline-end: var(--s3);
+  border-radius: var(--r-group);
+  background: var(--surface-container);
+}
+.spine-focus > * + * { border-block-start: 1px solid var(--outline-variant); }
+.spine-focus .spine-pill { display: none; }
+.spine-focus .spine-row { min-block-size: 56px; }
+.spine-progress {
+  grid-column: 2;
+  grid-row: 2;
+  block-size: 4px;
+  margin: 0 0 var(--s2) var(--s3);
+  border-radius: var(--shape-full);
+  background: color-mix(in oklch, var(--primary) 16%, transparent);
+  overflow: clip;
+}
+.spine-progress::before {
+  content: "";
+  display: block;
+  block-size: 100%;
+  inline-size: calc(var(--p, 0) * 100%);
+  border-radius: inherit;
+  background: var(--primary);
+}
+
+/* Earlier: the finished past folded into one row on the rail. */
+.spine-earlier-open {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: var(--spine-pill) auto auto;
+  justify-content: start;
+  align-items: center;
+  min-block-size: var(--touch);
+  border-radius: var(--r-control);
+  color: var(--on-surface-variant);
+  font: var(--footnote);
+  text-align: start;
+}
+.spine-earlier-mark {
+  justify-self: center;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  inline-size: 24px;
+  block-size: 24px;
+  border-radius: var(--shape-full);
+  background: var(--surface-container-highest);
+}
+.spine-earlier-mark .ms { font-size: 16px; }
+.spine-earlier-label { padding-inline: var(--s3) var(--s1); }
+.spine-earlier-open > .ms { font-size: 20px; }
+.spine-earlier-open:active { background: var(--row-press); }
+.spine-anytime { font-weight: 400; }
 
 .spine-row.spine-gap { min-block-size: var(--h, 32px); }
 .spine-row.spine-gap:not(:has(.spine-free-label)) { min-block-size: var(--s4); }

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {freshStore} from '../../chat-prototype/companion-state.mjs';
-import {editPlan, inboxRows} from '../../android-companion/planner-state.mjs';
+import {editPlan} from '../../android-companion/planner-state.mjs';
 import {agendaModel} from './agenda.mjs';
 
 const SATURDAY_10_AM_KOLKATA = new Date('2026-10-03T10:00:00+05:30');
@@ -21,58 +21,36 @@ function seed() {
   return {d, review};
 }
 
-test('the Today side panel shows the Inbox as one count row, after the Blocks and before the Week', () => {
-  const {d} = seed();
-  const {inbox} = agendaModel(d, SATURDAY_10_AM_KOLKATA);
-  assert.equal(inbox.count, inboxRows(d).length);
-  assert.equal(inbox.count, 8);
-  assert.equal('tasks' in inbox, false);
-});
-
-const ids = model => [
-  ...model.blocks.flatMap(card => card.tasks),
-  ...(model.tomorrow?.tasks ?? []), ...model.week.flatMap(day => day.tasks),
-];
-
-test('the next Block is the one due soonest, and lists only its open tasks no other card shows', () => {
+test('Next lists each open Result with a due date once, soonest first: when, what, tasks left and the next one not on Today', () => {
   const {d, review} = seed();
-  task(d, {title: 'Outline', blockId: review});
-  const model = agendaModel(d, SATURDAY_10_AM_KOLKATA);
-  assert.equal(model.blocks[0].block.id, review);
-  assert.ok(model.blocks[0].due);
-  assert.deepEqual(model.blocks[0].tasks.map(t => t.title), ['Outline']);
-  assert.equal('musts' in model, false);
+  const later = block(d, {title: 'Workbook uploaded', purpose: 'Done early'});
+  task(d, {title: 'Upload the workbook', blockId: later, plannedDate: '2026-10-08'});
+  block(d, {title: 'No date yet', purpose: 'Someday'});
+  const items = agendaModel(d, SATURDAY_10_AM_KOLKATA);
+  assert.deepEqual(items.filter(item => item.kind === 'result').map(item => item.id), [review, later]);
+  const [first] = items;
+  assert.equal(first.left, 3);
+  assert.equal(first.next, 'Submit', 'Draft and Read are on Today already, so Submit is the next one named');
+  assert.match(first.due.label, /^Due tomorrow/);
 });
 
-test('no task shows twice across Block, Tomorrow and Week, at any width', () => {
+test('Next adds a Must due after today that no listed Result holds; a Must due today stays on the timeline only', () => {
   const {d} = seed();
-  for (const split of [false, true]) {
-    const list = ids(agendaModel(d, SATURDAY_10_AM_KOLKATA, {split})).map(t => t.id);
-    assert.equal(new Set(list).size, list.length);
-    assert.equal(ids(agendaModel(d, SATURDAY_10_AM_KOLKATA, {split})).filter(t => t.title === 'Submit').length, 1);
-  }
+  task(d, {title: 'Pay the fees', plannedDate: '2026-10-06', must: true});
+  task(d, {title: 'Today Must', plannedDate: '2026-10-03', must: true});
+  task(d, {title: 'Plain later', plannedDate: '2026-10-06'});
+  const titles = agendaModel(d, SATURDAY_10_AM_KOLKATA).map(item => item.title);
+  assert.deepEqual(titles, ['Critical review submitted', 'Pay the fees']);
+  const list = agendaModel(d, SATURDAY_10_AM_KOLKATA).map(item => item.id);
+  assert.equal(new Set(list).size, list.length);
 });
 
-test('the week lists only the next six days that hold tasks, with their counts', () => {
-  const {week} = agendaModel(seed().d, SATURDAY_10_AM_KOLKATA);
-  assert.ok(week.every(day => day.count > 0 && day.day > '2026-10-03' && day.day <= '2026-10-09'));
-  assert.equal(week[0].day, '2026-10-04');
-  assert.equal(week[0].count, 1);
-  assert.deepEqual(week[0].tasks.map(t => t.title), ['Submit']);
-});
-
-test('a Week day shows at most two tasks, one per line by time, then +N for the rest', () => {
-  const {d} = seed();
-  for (const [title, at] of [['Late', '12:30'], ['Early', '02:30'], ['Noon', '06:30']]) task(d, {title, planned: `2026-10-05T${at}:00.000Z`});
-  const monday = agendaModel(d, SATURDAY_10_AM_KOLKATA).week.find(day => day.day === '2026-10-05');
-  assert.equal(monday.count, 4);
-  assert.deepEqual(monday.tasks.map(t => t.title), ['Early', 'Noon']);
-  assert.equal(monday.more, 2, 'the Inbox row lists no tasks, so Buy stamps counts in +N');
+test('the side panel holds only Next: no Inbox card, Block cards or Week, since the left nav counts the Inbox', () => {
   const source = readFileSync(new URL('./agenda.mjs', import.meta.url), 'utf8');
-  assert.doesNotMatch(source, /join\(', '\)/);
-  assert.match(source, /button\(`\+\$\{day\.more\}`, open, 'agenda-more'\)/);
+  assert.doesNotMatch(source, /Inbox'|inboxRows|'Week'|'Tomorrow'/);
+  assert.match(source, /el\('h2', 'next-head', 'Next'\)/);
   const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
-  assert.match(css, /\.agenda-line \.list-headline \{ display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: clip; \}/);
+  assert.match(css, /\.next-when\.soon \{ color: var\(--must\); \}/);
 });
 
 test('the panel shows only on a wide window on Today', () => {
@@ -90,34 +68,7 @@ test('wide Today rows keep the phone layout: one ring on the rail beside the tit
   assert.doesNotMatch(css, /\.spine-copy \{ flex-flow: row wrap/, 'the row has one meta line under the title, built by the view');
 });
 
-test('a very wide window gives Tomorrow and the Week their own column beside Inbox and the Blocks, and Week then starts the day after', () => {
-  const {d} = seed();
-  task(d, {title: 'Stretch', planned: '2026-10-04T02:30:00.000Z'});
-  const {tomorrow, week} = agendaModel(d, SATURDAY_10_AM_KOLKATA, {split: true});
-  assert.equal(tomorrow.day, '2026-10-04');
-  assert.equal(tomorrow.count, 2);
-  assert.deepEqual(tomorrow.tasks.map(t => t.title), ['Stretch', 'Submit']);
-  assert.ok(week.every(day => day.day >= '2026-10-05'));
-  assert.equal(agendaModel(d, SATURDAY_10_AM_KOLKATA).tomorrow, null);
-  const source = readFileSync(new URL('./agenda.mjs', import.meta.url), 'utf8');
-  assert.match(source, /split \? \[column\(ahead, week\), column\(\.\.\.blocks, inbox\)\] : \[column\(\.\.\.blocks, inbox, week\)\]/);
-  assert.match(source, /const WEEK = 6;/);
-  assert.match(source, /const ahead = tomorrow\?\.tasks\.length \? section\(/, 'Tomorrow hides when every task it has is already on screen');
-  const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
-  assert.match(css, /--agenda: clamp\(400px, 100% - var\(--side\) - 720px, 440px\);/);
-  assert.match(css, /@media \(width >= 1680px\) \{\n  \.planner-view \{ --agenda: clamp\(440px, 100% - var\(--side\) - 760px, 880px\); \}/,
-    'at 1920 the two columns use the width the timeline leaves');
-  assert.ok(css.indexOf('@media (width >= 1680px)') > css.indexOf('@media (width >= 1080px)'), 'the split width overrides the wide one');
-});
-
-test('a Block head keeps its name on one line and its due date on a short line under it', () => {
-  const source = readFileSync(new URL('./agenda.mjs', import.meta.url), 'utf8');
-  assert.match(source, /if \(due\) words\.append\(el\('span', 'agenda-due', due\)\);/);
-  const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
-  assert.match(css, /\.agenda-head h2 \{ overflow: clip; margin: 0; font: var\(--title-small\); text-overflow: ellipsis; white-space: nowrap; \}/);
-});
-
-test('on wide the timeline drops its Inbox footer while the side panel counts the Inbox', () => {
+test('on wide the timeline drops its Inbox footer while the left nav counts the Inbox', () => {
   const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
   const wide = css.slice(css.indexOf('@media (width >= 1080px)'));
   assert.match(wide, /\.planner-view:has\(> #agenda:not\(\[hidden\]\)\) \.inbox-row \{ display: none; \}/);

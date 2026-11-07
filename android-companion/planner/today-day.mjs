@@ -1,13 +1,13 @@
 /**
- * Today's sheet on the real plan: the anytime chips, then the timeline (spine-model.mjs, drawn by spine-view.mjs) with
- * the day's tasks, calendar events, Routines, meals and Result deadlines. It opens with now in view; a floating Now
- * button returns there.
+ * Today's sheet on the real plan: the all-day event chips, the Now card (what is on now and one late or next task), then
+ * the timeline (spine-model.mjs, drawn by spine-view.mjs) with the folded past, the day's tasks, calendar events,
+ * Routines, meals and Result deadlines, and the tasks with no time. A floating Now button returns to now.
  */
-import {anytimeLabel, buildSpine} from '../spine-model.mjs';
+import {buildSpine} from '../spine-model.mjs';
 import {routineOn, routineState, doneAll, usualMeals} from '../body-state.mjs';
 import {localDay, blockDue, timelineItems} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
-import {spineList, spineRow, anytimeChips} from './spine-view.mjs';
+import {spineList, spineRow, focusCard, focusRow, earlierToggle} from './spine-view.mjs';
 import {el, icon, button, emptyState} from './dom.mjs';
 import {dueInfo} from './format.mjs';
 import {notice} from './snackbar.mjs';
@@ -23,7 +23,7 @@ import {openResults} from './today-model.mjs';
 import {dueDay} from './today-header.mjs';
 
 const OPEN_OFFSET = 160;
-const state = {model: null, app: null, observer: null, timer: null};
+const state = {model: null, app: null, observer: null, timer: null, earlierOpen: false};
 
 function dayTask(app, task, done) {
   const at = task.start ?? (task.planned ? Date.parse(task.occurrence ?? task.planned) : null);
@@ -118,15 +118,17 @@ function handlers(app) {
     holdHabit: (node, id, sides) => holdToEdit(app, node, id, sides),
     logMealNow: row => logMealNow(app, body, row),
     plan: row => app.actions.addTask({planned: new Date(row.plan).toISOString(), plannedDate: app.state.day}),
+    toggleEarlier: () => toggleEarlier(app),
   };
 }
 
-/** All-day events and the tasks with no time, as one strip of chips above the timeline. */
-function chips(app, allDay, anytime, on) {
+/** All-day events as one strip of chips above the day. */
+function chips(app, allDay) {
+  if (!allDay.length) return null;
   const row = el('div', 'spine-chips');
   row.dataset.key = 'chips';
   row.setAttribute('role', 'group');
-  row.setAttribute('aria-label', anytime.length ? anytimeLabel(anytime, app.state.day === localDay()) : 'All day');
+  row.setAttribute('aria-label', 'All day');
   for (const event of allDay) {
     const chip = button('', () => app.actions.calendarDetails(event), 'spine-chip outlined');
     chip.dataset.key = 'allday:' + (event.id ?? event.title);
@@ -134,8 +136,23 @@ function chips(app, allDay, anytime, on) {
     chip.setAttribute('aria-label', `${event.title}, all day, calendar event`);
     row.append(chip);
   }
-  row.append(...anytimeChips(anytime, on));
-  return row.children.length ? row : null;
+  return row;
+}
+
+/** Earlier opens and folds in place: its rows are already drawn, only hidden. */
+function toggleEarlier(app) {
+  state.earlierOpen = !state.earlierOpen;
+  const list = app.dom.work.querySelector('.spine');
+  if (!list) return;
+  for (const row of state.model.rows.filter(r => r.fold)) {
+    const node = list.querySelector(`:scope > [data-key="${CSS.escape(row.key)}"]`);
+    if (node) node.hidden = !state.earlierOpen;
+  }
+  const old = list.querySelector(':scope > [data-key="earlier"]');
+  const fresh = earlierToggle(state.model.rows.filter(r => r.fold), state.earlierOpen, handlers(app));
+  fresh.setAttribute('role', 'listitem');
+  old?.replaceWith(fresh);
+  fresh.querySelector('button').focus();
 }
 
 export function renderDay(app, page) {
@@ -143,14 +160,16 @@ export function renderDay(app, page) {
   state.model = model;
   state.app = app;
   const on = handlers(app);
-  const top = chips(app, allDay, model.anytime, on);
+  const top = chips(app, allDay);
   if (top) page.append(top);
+  const card = focusCard(model, on);
+  if (card) page.append(card);
   if (model.empty) {
     page.append(emptyState({symbol: 'wb_sunny', title: model.nowKey ? 'Nothing planned for today' : 'Nothing planned for this day',
       body: 'Start with a Result that matters, then choose its first task.', action: () => app.actions.newEntity('blocks'),
       label: 'Plan a Block', secondary: button('Add a task', () => app.actions.addTask({plannedDate: app.state.day}), 'text-btn')}));
   }
-  page.append(spineList(model, on));
+  page.append(spineList(model, on, {earlierOpen: state.earlierOpen}));
   state.timer ??= setInterval(tick, 30000);
   requestAnimationFrame(() => watchNow(app));
 }
@@ -195,11 +214,14 @@ function tick() {
   if (next.shape !== state.model.shape) return app.render();
   state.model = next;
   const on = handlers(app);
-  for (const row of next.rows) {
-    const old = list.querySelector(`:scope > [data-key="${CSS.escape(row.key)}"]`);
-    const fresh = spineRow(row, on);
-    fresh.setAttribute('role', old?.getAttribute('role') ?? 'listitem');
-    if (old && old.outerHTML !== fresh.outerHTML) old.replaceWith(fresh);
+  const scope = app.dom.work;
+  for (const row of [...next.rows, ...next.anytime.map((t, i) => ({...t, anytime: true, first: i === 0}))]) {
+    const old = scope.querySelector(`:is(.spine, .spine-focus) > [data-key="${CSS.escape(row.key)}"]`);
+    if (!old) continue;
+    const fresh = row.focus ? focusRow(row, on, next.now) : spineRow(row, on);
+    fresh.setAttribute('role', old.getAttribute('role') ?? 'listitem');
+    fresh.hidden = old.hidden;
+    if (old.outerHTML !== fresh.outerHTML) old.replaceWith(fresh);
   }
   watchNow(app);
 }

@@ -7,6 +7,7 @@ import {settingsTitle} from '../settings.mjs';
 import {blockSubtitle} from './blocks.mjs';
 import {localDay} from '../planner-state.mjs';
 import {jumpToNow} from './today-day.mjs';
+import {dateLine} from './today-header.mjs';
 import {bodyApi} from './body-api.mjs';
 import {openHabits} from './habits.mjs';
 import {navDrag} from '../nav-drag.mjs';
@@ -62,6 +63,7 @@ function rootBar(app, bar) {
   const {actions, state} = app;
   bar.className = 'top-bar root-bar';
   bar.append(el('h1', state.tab === 'today' ? 'top-title visually-hidden' : 'top-title', TITLES[state.tab]));
+  if (state.tab === 'today') bar.append(dateLine(app));
   const tools = el('div', 'top-actions');
   tools.append(iconButton('search', 'Search', () => app.openSearch()));
   const more = iconButton('more_vert', 'More options', () => rootMenu(app, more));
