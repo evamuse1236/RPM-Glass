@@ -85,29 +85,33 @@
 .card-facts { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--s2); margin-top: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
 .card-stand > *, .fact-next, .nowrap, .must-left { white-space: nowrap; }
 .week-mark { padding-inline: var(--s1); border-radius: var(--shape-xs); background: var(--secondary-container); color: var(--on-secondary-container); font: var(--label-medium); white-space: nowrap; }
-.card-due { font-weight: 500; color: var(--on-surface); }
 .card-due.tight { color: var(--error); }
 .ring { flex: none; width: 24px; height: 24px; }
 .ring circle { fill: none; stroke-width: 3; }
 .ring-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
-.next-task {
-  display: flex;
-  align-items: center;
-  border-top: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
-  padding: 0 var(--s2) 0 var(--s1);
-}
-.next-task .task-check { margin: 0; }
+/* The Next task sits inside the card under where it stands, no divider: a 16dp ring on the card's text edge, then
+   "Next" and the task. The ring keeps a 48dp hit area; the title wraps rather than cuts. */
+.card-main:has(+ .next-task) { padding-block-end: var(--s1); }
+.next-task { display: flex; align-items: flex-start; gap: var(--s2); padding: 0 var(--s4) var(--s2); }
+.next-task .task-check { position: relative; inline-size: 16px; block-size: 28px; margin: 0; }
+.next-task .task-check::after { content: ""; position: absolute; inset: -8px -16px -12px; }
+.next-task .check-ring { inline-size: 16px; block-size: 16px; }
 .next-title {
   flex: 1;
   min-width: 0;
-  min-height: 52px;
+  min-height: 28px;
   display: flex;
   align-items: baseline;
   gap: var(--s2);
-  padding: var(--s3) var(--s2) var(--s3) 0;
+  padding-block: var(--s1);
+  border-radius: var(--shape-xs);
   font: var(--body-medium);
+  text-align: start;
 }
+.next-title:active { background: var(--row-press); }
 .next-title .overline { text-transform: none; letter-spacing: 0; color: var(--primary); }
+/* Blocks filters are dropdown chips sized to their words: a 12dp lead and the arrow 4dp after the label. */
+#planner[data-view=blocks] .filters .filter-chip.dropdown { padding-inline-start: var(--s3); gap: var(--s1); }
 /* Blocks list: consecutive cards from one Project sit under one Area and Project line. */
 .project-run { padding: var(--s5) var(--gutter) 0 calc(var(--gutter) + var(--s2)); }
 .project-run .eyebrow { font: var(--label-large); }

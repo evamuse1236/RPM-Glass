@@ -1,13 +1,13 @@
 import {MAX_FOCUS, icon, button} from './review-ui.mjs';
 
-/** A checkbox row that puts a Result in this week's Results (a draft, saved quietly): Carry in step 1, Pick in step 4. */
-export function focusCheck(api, blockId, title, cls = 'wr-check') {
+/** A checkbox that puts a Result in this week's Results (a draft, saved quietly): Carry in step 1, Pick in step 4. */
+export function focusCheck(api, blockId, cls, [off, on_]) {
   const on = api.ui.focus.includes(blockId);
   const box = button('', () => toggleFocus(api, blockId), cls + (on ? ' on' : ''));
   box.setAttribute('role', 'checkbox');
   box.setAttribute('aria-checked', String(on));
   box.dataset.key = 'focus:' + blockId;
-  box.append(icon(on ? 'check_box' : 'check_box_outline_blank', on));
+  box.append(icon(on ? on_ : off, on));
   return box;
 }
 function toggleFocus(api, blockId) {

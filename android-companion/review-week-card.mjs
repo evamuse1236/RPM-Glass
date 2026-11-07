@@ -202,7 +202,7 @@ export function clashRow(api, clash) {
   const item = el('li', 'wr-risk wr-clash' + (state === 'decided' || state === 'planned' ? ' done' : ''));
   const text = el('span', 'wr-risk-text');
   const lead = el('span', '');
-  const when = `${dayName(clash.day)}, ${clock(clash.b.start)}`;
+  const when = `${dayName(clash.day)} at ${clock(clash.b.start)}`;
   const reopen = label => {
     const go = button(label, () => { ui.clashOpen = clash.key; api.render(); }, 'wr-btn-text');
     go.dataset.key = 'clash-open:' + clash.key;

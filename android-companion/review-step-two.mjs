@@ -3,7 +3,7 @@ import {planner} from './planner-state.mjs';
 import {areaTone} from './planner-ux.mjs';
 import {areaDot} from './planner/dom.mjs';
 import {attachTaskSwipe} from './task-swipe.mjs';
-import {el, icon, button, iconButton, whenText, heading, sectionHead} from './review-ui.mjs';
+import {el, icon, button, iconButton, whenText, heading} from './review-ui.mjs';
 
 /* ---------- step 2: capture ---------- */
 export function stepTwo(api, ctx) {
@@ -11,12 +11,13 @@ export function stepTwo(api, ctx) {
   const now = api.now();
   const clashIds = new Set(api.clashes().map(c => c.task?.id).filter(Boolean));
   const parts = heading('Empty your head');
-  parts.push(quickAdd(api), ...lenses(api));
-  parts.push(sectionHead('Inbox', inbox.length, button('Open Capture', () => ctx.openCapture(), 'wr-btn-text', 'edit_note')));
+  parts.push(quickAdd(api, ctx), ...lenses(api));
   if (!inbox.length) {
     parts.push(el('p', 'wr-quiet', 'Nothing in the Inbox. Type anything still on your mind above.'));
     return parts;
   }
+  parts.push(inboxToggle(api, inbox.length));
+  if (!api.ui.inboxOpen) return parts;
   const list = el('ul', 'wr-list');
   list.setAttribute('aria-label', 'Inbox');
   for (const task of inbox) {
@@ -58,8 +59,21 @@ export function stepTwo(api, ctx) {
   return parts;
 }
 
-/** Type a thought and press Enter: it lands in the Inbox in your own words, with Undo, and you stay here. */
-function quickAdd(api) {
+/** The Inbox folded to its count: what is already there matters less here than what is still in your head. */
+function inboxToggle(api, count) {
+  const open = Boolean(api.ui.inboxOpen);
+  const toggle = button('', () => { api.ui.inboxOpen = !open; api.render(); }, 'wr-inbox-toggle');
+  toggle.setAttribute('aria-expanded', String(open));
+  toggle.dataset.key = 'inbox-toggle';
+  const text = el('span', 'wr-inbox-text');
+  text.append(el('span', 'wr-inbox-title', 'Inbox'), el('span', 'wr-facts tnum', `${count} already there`));
+  toggle.append(icon('inbox'), text, icon(open ? 'expand_less' : 'expand_more'));
+  return toggle;
+}
+
+/** Type a thought and press Enter: it lands in the Inbox in your own words, with Undo, and you stay here. An empty
+ * field offers Capture (voice and the full composer) in the same place Send takes once there is text. */
+function quickAdd(api, ctx) {
   const {ui} = api;
   const form = el('form', 'wr-add');
   form.noValidate = true;
@@ -73,7 +87,12 @@ function quickAdd(api) {
   input.setAttribute('aria-label', 'Add to the Inbox');
   const send = iconButton('arrow_upward', 'Add to Inbox', null, 'wr-icon-btn wr-add-send');
   send.type = 'submit';
-  const sync = () => { send.disabled = !input.value.trim(); };
+  const capture = iconButton('mic', 'Open Capture', () => ctx.openCapture(), 'wr-icon-btn wr-add-capture');
+  const sync = () => {
+    const empty = !input.value.trim();
+    send.hidden = empty;
+    capture.hidden = !empty;
+  };
   input.addEventListener('input', () => { ui.draft = input.value; sync(); });
   sync();
   form.addEventListener('submit', e => {
@@ -85,7 +104,7 @@ function quickAdd(api) {
     sync();
     api.run({type: 'saveTask', fields: {title: words}}, 'Added to Inbox');
   });
-  form.append(icon('add'), input, send);
+  form.append(icon('add'), input, capture, send);
   return form;
 }
 

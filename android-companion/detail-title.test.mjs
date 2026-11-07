@@ -29,16 +29,29 @@ test('the handover shows the title once: the bar title fades in while the large 
   assert.match(pages, /\.detail-title-text \{ transition: opacity var\(--dur-short\) var\(--ease-standard\); \}/);
 });
 
-test('a collapsed detail bar wraps its title to two lines, never an ellipsis, with a Block\'s deadline under it', () => {
+test('a collapsed detail bar wraps its title to two lines, never an ellipsis, and says nothing under it', () => {
   const shell = read('planner/shell.mjs');
   const detail = body(shell, 'detailBar');
   assert.match(detail, /el\('h1', 'top-title small'/);
-  assert.match(detail, /blockSubtitle\(app, record\)/);
+  assert.match(detail, /classList\.add\('record-title'\)/);
+  assert.doesNotMatch(shell, /blockSubtitle|top-subtitle/, 'the deadline is said once, on the page under the title');
   const css = read('planner.css');
   const small = css.match(/\.top-title\.small \{([^}]*)\}/)[1];
   assert.match(small, /-webkit-line-clamp: 2;/);
   assert.doesNotMatch(small, /nowrap|ellipsis/);
-  const titleText = css.match(/\.top-title\.with-subtitle \.top-title-text \{([^}]*)\}/)[1];
-  assert.match(titleText, /-webkit-line-clamp: 2;/);
-  assert.doesNotMatch(titleText, /nowrap|ellipsis/);
+});
+
+test('a detail bar is one row tall at rest and once its title shows: two title lines fit --top-bar', () => {
+  const css = read('planner.css');
+  const theme = read('theme.css');
+  const token = name => Number(theme.match(new RegExp(`--${name}:\\s*(\\d+)px`))[1]);
+  const lineHeight = name => Number(theme.match(new RegExp(`--${name}:\\s*\\d+ \\d+px/(\\d+)px`))[1]);
+  const barHeight = Number(css.match(/--top-bar:\s*(\d+)px/)[1]);
+  const bar = css.match(/\n\.top-bar \{([^}]*)\}/)[1];
+  assert.match(bar, /min-height: var\(--top-bar\);/);
+  const [top, , bottom] = bar.match(/padding: ([^;]+);/)[1].split(' ').map(v => token(v.match(/--(s\d)/)[1]));
+  assert.match(css, /\.detail-bar \.top-title\.small\.record-title \{ font: var\(--title-medium\); \}/);
+  assert.ok(top + 2 * lineHeight('title-medium') + bottom <= barHeight,
+    'a wrapped record title never grows the bar, so the page title never starts under empty bar space');
+  assert.ok(top + token('touch') + bottom <= barHeight, 'Back and More fit the row too');
 });
