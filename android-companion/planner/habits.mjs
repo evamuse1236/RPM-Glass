@@ -27,11 +27,11 @@ const timeWords = hhmm => clockText(atMinutes('2000-01-01', minutesOf(hhmm)));
 const SVG = 'http://www.w3.org/2000/svg';
 const svgNode = (tag, values) => attrs(document.createElementNS(SVG, tag), values);
 
-/** Today's progress as one ring in the shared progress colour: an arc for the share done (3 of 8 glasses, 3 of 5
- * steps), a filled disc with a check once the habit is done. */
-function progressMark(done, total, {off = false} = {}) {
+/** Today's progress as one ring in the habit's timeline colour (`tone`: water, routine or meal): an arc for the share
+ * done (3 of 8 glasses, 3 of 5 steps), a filled disc with a check once the habit is done. */
+function progressMark(tone, done, total, {off = false} = {}) {
   const complete = total > 0 && done >= total;
-  const svg = svgNode('svg', {class: `habit-ring${complete ? ' done' : ''}${off ? ' off' : ''}`, viewBox: '0 0 24 24'});
+  const svg = svgNode('svg', {class: `habit-ring tone-${tone}${complete ? ' done' : ''}${off ? ' off' : ''}`, viewBox: '0 0 24 24'});
   if (complete) {
     svg.append(svgNode('circle', {class: 'habit-ring-disc', cx: 12, cy: 12, r: 10}),
       svgNode('path', {class: 'habit-ring-check', d: 'M7.5 12.2L10.6 15.2L16.5 9.2'}));
@@ -82,8 +82,9 @@ function waterNext(status, settings) {
   return status.nextAt && !status.pending ? ` · next at ${clockText(status.nextAt)}` : '';
 }
 
-/** The next thing's one-tap action: a tonal round icon button in the chevron's column, so the row keeps its shape. */
-const doButton = (glyph, label, onClick) => iconButton(glyph, label, onClick, {cls: 'habit-do'});
+/** The next thing's one-tap action: its verb's glyph (drink, tick, start) in the habit's colour, at the chevron's size
+ * and place, so every row keeps one right edge and the row itself still opens the editor. */
+const doButton = (tone, glyph, label, onClick) => iconButton(glyph, label, onClick, {cls: `habit-do tone-${tone}`});
 
 export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) {
   const {body: content} = openSheet(app, 'Habits', {variant: 'choice habits', motion});
@@ -120,9 +121,9 @@ export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) 
     const status = waterStatus({...water, settings, now});
     const waterSummary = el('span', 'habit-summary tnum', `${status.count} of ${status.goal} glasses${waterNext(status, settings)}`);
     items.push({order: -1, due: status.pending ? +now : null, nowWords: 'due now', summary: waterSummary,
-      row: action => habitRow(progressMark(status.count, status.goal), 'Water', waterSummary,
+      row: action => habitRow(progressMark('water', status.count, status.goal), 'Water', waterSummary,
         () => openWaterEditor(app, body, {back}), {action}),
-      act: () => doButton('add', 'Log a glass', () => drink(app, body))});
+      act: () => doButton('water', 'water_full', 'Log a glass', () => drink(app, body))});
     for (const routine of body.routines()) {
       const run = body.runFor(routine.id, day);
       const today = routineOn(routine, day) ? routineRowParts(routine, run, now) : undefined;
@@ -133,9 +134,9 @@ export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) 
       const progress = today ? state.progress : {done: 0, total: 0};
       const due = today?.state === 'upcoming' ? +state.start : today?.state === 'running' ? +now : null;
       items.push({order: minutesOf(routine.start), due, summary,
-        row: action => habitRow(progressMark(progress.done, progress.total), routine.name, summary,
+        row: action => habitRow(progressMark('routine', progress.done, progress.total), routine.name, summary,
           () => openRoutineEditor(app, body, routine.id, {back}), {action}),
-        act: () => doButton('play_arrow', `Start ${routine.name}`, () => openRunSheet(app, body, routine.id))});
+        act: () => doButton('routine', 'play_arrow', `Start ${routine.name}`, () => openRunSheet(app, body, routine.id))});
     }
     const logged = body.meals().filter(m => localDay(m.at) === day && m.state !== 'skipped' && String(m.name ?? '').trim())
       .sort((a, b) => new Date(a.at) - new Date(b.at));
@@ -145,9 +146,9 @@ export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) 
       const summary = mealLine(meal, eaten);
       const at = atMinutes(day, minutesOf(meal.at));
       items.push({order: minutesOf(meal.at), due: !eaten && meal.on && at > now ? +at : null, summary,
-        row: action => habitRow(progressMark(eaten ? 1 : 0, 1, {off: !meal.on}), meal.name, summary,
+        row: action => habitRow(progressMark('meal', eaten ? 1 : 0, 1, {off: !meal.on}), meal.name, summary,
           () => openMealEditor(app, body, meal.slot, {back}), {off: !meal.on, action}),
-        act: () => doButton('add', `Log ${meal.name.toLowerCase()}`, () => logMealNow(app, body, meal.slot, meal.name))});
+        act: () => doButton('meal', 'check', `Log ${meal.name.toLowerCase()}`, () => logMealNow(app, body, meal.slot, meal.name))});
     }
     const next = items.filter(item => item.due !== null).sort((a, b) => a.due - b.due)[0];
     if (next) addSoon(next, now);

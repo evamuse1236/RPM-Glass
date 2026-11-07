@@ -11,15 +11,22 @@
   border-radius: var(--shape-md);
 }
 .habit-icon { inline-size: calc(var(--row-icon) - var(--s2)); font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
-/* Today's progress ring, in the one progress colour every ring uses (Blocks, Projects): a dim band of that colour, the
-   share done as an arc, a filled disc with a check once done. A meal hidden from Today keeps a plain outline. */
+/* Today's progress ring in the habit's own timeline colour (water blue, routine green, meal orange). Nothing done yet:
+   a band of that colour still clear on the sheet (3:1 in dark). Partly done: the share done as an arc over a dim band,
+   so the arc reads. Done: a filled disc with a check. A meal hidden from Today keeps a plain outline. */
+.tone-water { --ring-c: var(--tone-water); }
+.tone-routine { --ring-c: var(--tone-routine); }
+.tone-meal { --ring-c: var(--tone-meal); }
 .habit-ring { justify-self: center; inline-size: 24px; block-size: 24px; overflow: visible; }
 .habit-ring circle { fill: none; stroke-width: 3; }
-.habit-ring-track { stroke: color-mix(in oklch, var(--primary) var(--track-mix), var(--surface-container-highest)); }
-.habit-ring-arc { stroke: var(--primary); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
+.habit-ring-track {
+  stroke: light-dark(color-mix(in oklch, var(--ring-c) 40%, var(--sheet-surface)), color-mix(in oklch, var(--ring-c) 60%, var(--sheet-surface)));
+}
+.habit-ring:has(.habit-ring-arc) .habit-ring-track { stroke: color-mix(in oklch, var(--ring-c) var(--track-mix), var(--sheet-surface)); }
+.habit-ring-arc { stroke: var(--ring-c); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
 .habit-ring.off .habit-ring-track { stroke: var(--outline-variant); }
-.habit-ring .habit-ring-disc { fill: var(--primary); stroke: none; }
-.habit-ring-check { fill: none; stroke: var(--on-primary); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.habit-ring .habit-ring-disc { fill: var(--ring-c); stroke: none; }
+.habit-ring-check { fill: none; stroke: var(--on-tone); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .habit-copy { min-inline-size: 0; display: flex; flex-direction: column; padding-block: var(--s2); }
 .habit-open { font: var(--body-large); color: var(--on-surface); text-align: start; overflow-wrap: anywhere; }
 .habit-open::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
@@ -27,11 +34,9 @@
 .habit-soon { color: var(--primary); }
 /* The chevron's glyph sits inside its box: pulled out by that inset, it ends on the sheet's content edge. */
 .habit-chevron { flex: none; margin-inline-end: calc(-1 * var(--s2)); font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
-/* The next thing's action takes the chevron's column: a 40dp tonal circle whose end lines up with the chevron's, above
-   the row's own tap area. */
-.habit-do.icon-btn { z-index: 1; margin-inline-end: calc(-1 * var(--s1)); color: var(--on-secondary-container); }
-.habit-do.icon-btn::before { background: var(--secondary-container); opacity: 1; }
-.habit-do.icon-btn:active::before, .habit-do.icon-btn:hover::before { filter: brightness(.94); }
+/* The next thing's action takes the chevron's place: its glyph, chevron-sized in the habit's colour, centred where the
+   chevron's is, with a full touch target above the row's own tap area. */
+.habit-do.icon-btn { z-index: 1; margin-inline-end: calc(var(--s1) - var(--touch) / 2); color: var(--ring-c); }
 .habit-do > .ms { position: relative; font-size: calc(24px / var(--text-scale, 1)); }
 .habit-add { display: flex; min-block-size: var(--touch); }
 .habit-add > .habit-icon { color: var(--primary); }
@@ -40,7 +45,7 @@
    .habit-meter). */
 .water-track { display: flex; gap: var(--s1); margin-block-start: var(--s2); }
 .water-track > i { flex: 1; block-size: var(--s1); border-radius: var(--shape-full); background: var(--surface-container-highest); }
-.water-track > i.on { background: var(--primary); }
+.water-track > i.on { background: var(--tone-water); }
 /* A meal: when it was eaten and what, or its time. A meal hidden from Today keeps its row, dimmed. */
 .habit-meal-line { display: flex; align-items: center; white-space: pre; }
 .habit-logged { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; }
@@ -50,14 +55,16 @@
 
 /* Editor rows are touch high on an 8dp gap: a 56dp list rhythm. */
 .habit-editor .sheet-body { display: flex; flex-direction: column; gap: var(--s2); padding-inline: var(--s4); }
+/* One way out: a sheet opened from Habits goes back by its arrow (Android Back, Escape), so its Close is not shown. */
+:is(.habit-editor, .sheet-editor) .sheet-header:has(.sheet-back) .sheet-close { display: none; }
 .habit-editor .remove-snack { align-self: flex-end; }
 .sheet-editor .edit-pair { margin-block-end: var(--s2); }
-/* Water today: the count over its meter, the one-tap log 16dp after; space, not a rule, sets the settings apart. */
-.water-today { display: flex; align-items: center; gap: var(--s4); padding-block: 0 var(--s3); }
-.water-progress { flex: 1; min-inline-size: 0; display: flex; flex-direction: column; gap: var(--s2); }
+/* Water today in two lines: the meter with the one-tap log 16dp after it, then the count and the next glass. Space,
+   not a rule, sets the settings apart. */
+.water-today { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s4); padding-block: 0 var(--s3); }
+.water-today > .water-track { margin-block-start: 0; }
+.water-status { grid-column: 1 / -1; font: var(--body-medium); color: var(--on-surface-variant); text-wrap: pretty; }
 .water-count { font: var(--title-medium); color: var(--on-surface); }
-.water-progress > .water-track { margin-block-start: 0; }
-.water-next { font: var(--body-medium); color: var(--on-surface-variant); }
 /* A slider row: the label with its value on the row's line (values end in the column the chevron rows' values end
    in), and the M3 slider across the full width under them. */
 .slider-field {

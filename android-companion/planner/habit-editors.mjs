@@ -31,8 +31,8 @@ async function saved(app, run, words) {
   return true;
 }
 
-/** The sheet header's way back to what opened the editor, by the arrow or Android Back. Every habit sheet keeps its
- * Close at the end, so back sits at the start and Close at the end on every level. */
+/** The sheet header's way back to what opened the editor, by the arrow, Android Back or Escape. It is the sheet's one
+ * exit: habits.css hides Close while the arrow shows; a sheet opened on its own keeps Close. */
 function backTo(app, header, content, back, label) {
   if (!back) return;
   header.prepend(iconButton('arrow_back', label, back, {cls: 'sheet-back'}));
@@ -43,21 +43,21 @@ function backTo(app, header, content, back, label) {
   };
 }
 
-/** When the next glass is due, or why none is coming. */
+/** When the next glass is due, or why none is coming, after the count ("3 of 8 glasses · next at 2:10 PM"). */
 function nextGlass(status, settings) {
-  if (status.reached) return 'Goal reached';
-  if (settings.reminders === false) return 'Reminders off';
-  if (status.pending) return 'Next glass due now';
-  return status.nextAt ? `Next glass at ${clockText(status.nextAt)}` : 'No more reminders today';
+  if (status.reached) return 'goal reached';
+  if (settings.reminders === false) return 'reminders off';
+  if (status.pending) return 'next glass due now';
+  return status.nextAt ? `next at ${clockText(status.nextAt)}` : 'no more reminders today';
 }
 
-/** Water: today's count over its meter and when the next glass is due, with a one-tap log; then the goal, the glass size and a Reminders row that
+/** Water: today's meter with a one-tap log, the count and when the next glass is due; then the goal, the glass size and a Reminders row that
  * opens its own sheet. */
 export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Habits', motion = 'forward'} = {}) {
   const {body: content, header} = openSheet(app, 'Water', {variant: 'choice habit-editor', motion});
   backTo(app, header, content, back, backLabel);
-  const count = el('span', 'water-count tnum');
-  const next = el('span', 'water-next tnum');
+  const count = el('span', 'water-count');
+  const next = el('span', 'water-next');
   const goal = slider({label: 'Daily goal', ...WATER_STEPS.goal, format: glassesText,
     onChange: onGrid('goal', v => saved(app, () => body.setWater('goal', v), `Daily goal: ${glassesText(v)}`))});
   const size = pickButton('Glass size', value => saved(app, () => body.setWater('glassMl', Number(value)), `Glass size: ${value} ml`));
@@ -70,9 +70,9 @@ export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Ha
   log.setAttribute('aria-label', 'Log a glass');
   const today = el('section', 'water-today');
   today.setAttribute('aria-label', 'Today');
-  const progress = el('div', 'water-progress');
-  progress.append(count, meter, next);
-  today.append(progress, log);
+  const status = el('p', 'water-status tnum');
+  status.append(count, ' · ', next);
+  today.append(meter, log, status);
   content.append(today, factRow('water_drop', goal, {cls: 'slider-row'}), factRow('local_drink', size),
     factRow('notifications', reminders));
 
