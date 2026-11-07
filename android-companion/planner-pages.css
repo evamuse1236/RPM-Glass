@@ -56,49 +56,29 @@
 .project-toggle:active { background: var(--row-press); }
 .project-copy { display: grid; gap: 2px; min-inline-size: 0; }
 .project-area { font: var(--label-medium); color: color-mix(in oklch, var(--tone) 78%, var(--on-surface)); overflow-wrap: anywhere; }
-.project-area.no-area { color: var(--on-surface-variant); }
 .project-open { flex: none; margin: var(--s2) var(--s1) 0 0; color: var(--on-surface-variant); }
 .nest-rings { flex: none; inline-size: 64px; block-size: 64px; }
 .nest-rings circle { fill: none; }
 /* A ring's track is a dim band of its own colour (Activity rings), so every nested ring reads as one band, light or dark. */
-:is(.nest-track, .ring-track, .seg-off) { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-highest)); }
+:is(.nest-track, .ring-track) { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-highest)); }
 .nest-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; }
 .nest-rings .nest-done { fill: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container)); }
 .nest-check { fill: none; stroke: var(--progress, var(--primary)); stroke-linecap: round; stroke-linejoin: round; }
-/* An open card lists its Blocks flat under one divider. Each row's ring sits in the column under the Project's rings and
-   its words start on the Project title's edge, so the card keeps one text edge; rows split on that edge. */
-.project-blocks { display: grid; grid-template-columns: minmax(0, 1fr); margin-inline: var(--s3); padding-block: var(--s1); border-block-start: 1px solid var(--outline-variant); }
+/* An open card lists its Blocks flat on the card under one divider, on the card's 16dp text edge. */
+.project-blocks { display: grid; grid-template-columns: minmax(0, 1fr); margin-inline: var(--s4); padding-block: var(--s1) var(--s2); border-block-start: 1px solid var(--outline-variant); }
+/* A Block row: the title, one line with the deadline and tasks done at its end, then the Next task, as on a Block card. */
 .block-line { display: grid; grid-template-columns: minmax(0, 1fr); }
-.block-line-main {
-  display: grid;
-  grid-template-columns: var(--s6) minmax(0, 1fr);
-  align-items: center;
-  column-gap: var(--s4);
-  padding: var(--s3) var(--s4);
-  text-align: start;
-}
-.block-line-main > .seg-ring { inline-size: var(--s6); block-size: var(--s6); }
-.block-line-copy { display: grid; gap: 2px; min-inline-size: 0; }
-.block-line-main:active { background: var(--row-press); }
-.project-blocks .block-line-main { grid-template-columns: calc(2 * var(--s8)) minmax(0, 1fr); padding-inline: 0; border-radius: var(--shape-sm); }
-.project-blocks .block-line-main > .seg-ring { justify-self: center; }
-.project-blocks .block-line + .block-line { position: relative; }
-.project-blocks .block-line + .block-line::before { content: ''; position: absolute; inset: 0 0 auto calc(2 * var(--s8) + var(--s4)); border-block-start: 1px solid var(--outline-variant); }
-/* A Block's glance: the deadline, then the next task's words on the rest of the line. */
-.block-glance { display: flex; min-inline-size: 0; font: var(--body-medium); color: var(--on-surface-variant); }
-.block-glance > .card-due { flex: none; }
-.block-glance > :is(.glance-next, .glance-state) { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
-.block-glance > .glance-next { color: var(--on-surface); }
-:is(.block-glance, .project-block-next) > .card-due + .glance-next::before { content: '·'; margin-inline: var(--s1); color: var(--on-surface-variant); }
-.project-copy .card-due { font: var(--body-medium); color: var(--on-surface-variant); }
+.block-line-main { display: flex; flex-direction: column; padding: var(--s3) var(--s4) 0; text-align: start; }
+.block-line-main:only-child { padding-block-end: var(--s3); }
+.block-line-main:active, .project-blocks .next-title:active { background: var(--row-press); }
+:is(.block-line, .project-copy) .card-due { font: var(--body-medium); color: var(--on-surface-variant); }
 .project-copy .card-due.tight { color: var(--error); }
-/* Project detail: the Blocks sit in one filled group on the gutter, split on the words' edge, ending in Add Block. */
+.project-blocks .block-line-main { padding-inline: 0; border-radius: var(--shape-sm); }
+.project-blocks .next-task { padding-inline: 0; }
+.project-blocks .block-line + .block-line { border-block-start: 1px solid var(--outline-variant); }
+/* Project detail: the Blocks sit in one filled group, split by dividers. */
 .block-lines { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0 var(--gutter); border-radius: var(--card-radius); background: var(--surface-container); overflow: clip; }
-.block-facts + .block-lines { margin-block-start: var(--s4); }
-.block-lines > .block-line + .block-line { position: relative; }
-.block-lines > .block-line + .block-line::before { content: ''; position: absolute; inset: 0 0 auto calc(var(--s4) + var(--s6) + var(--s4)); border-block-start: 1px solid var(--outline-variant); }
-.block-add > .block-line-main { min-block-size: 56px; font: var(--label-large); color: var(--primary); }
-.block-add > .block-line-main > .ms { justify-self: center; }
+.block-lines > .block-line + .block-line { border-block-start: 1px solid var(--outline-variant); }
 .project-block {
   display: flex;
   align-items: center;
@@ -115,6 +95,7 @@
 .project-block-name { flex: 1; min-inline-size: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: clip; }
 .project-block-count { color: var(--on-surface-variant); white-space: nowrap; }
 .seg-ring :is(path, circle) { fill: none; stroke-width: 6; }
+.seg-off { stroke: var(--surface-container-highest); }
 .seg-on { stroke: var(--progress, var(--primary)); }
 .seg-arc { stroke-linecap: round; }
 /* A Block card's last line: when it is due (or This week) at the start, tasks done as a 16dp ring and "2/7" at the end. */
