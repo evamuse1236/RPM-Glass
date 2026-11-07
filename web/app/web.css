@@ -148,27 +148,25 @@ html:has(dialog:modal) { overflow: clip; }
 }
 
 /* Coming up: beside Today on a wide window, the days after the one shown, empty days left out. Each day names
-   itself once; a Result's deadline is said once with its Musts under it. Days part with flat full-width hairlines. */
+   itself once under its full date; each deadline is one row, its Must leading and its Result on a quiet line under it.
+   Words wrap in full, never clipped. Days part with flat full-width hairlines. */
 .agenda-soon { display: grid; flex: 1; grid-template-columns: minmax(0, 1fr); align-content: start; min-inline-size: 0; }
 .soon-head { margin: 0; padding-block: var(--s2) var(--s3); font: var(--title-medium); color: var(--on-surface); }
 .soon-day { display: grid; padding-block: var(--s2); border-block-start: 1px solid var(--outline-variant); }
 .soon-name { margin: 0; padding: var(--s1) var(--s2); font: var(--label-medium); color: var(--on-surface-variant); }
 .soon-name.overdue, .soon-time.overdue { color: var(--must); }
-.soon-result { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; column-gap: var(--s3); align-items: center; padding: var(--s2); color: var(--on-surface); text-align: start; }
+.soon-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; column-gap: var(--s3); align-items: start; min-block-size: 48px; padding: var(--s2); color: var(--on-surface); text-align: start; }
 .soon-mark { display: grid; place-items: center; inline-size: 32px; block-size: 32px; border-radius: var(--shape-full); background: var(--surface-container-highest); color: var(--on-surface-variant); font-size: 20px; }
-.soon-words { display: grid; min-inline-size: 0; }
-.soon-what { overflow: clip; font: var(--body-medium); text-overflow: ellipsis; white-space: nowrap; }
-.soon-left { font: var(--label-medium); color: var(--on-surface-variant); }
-.soon-time { font: var(--label-medium); color: var(--on-surface-variant); white-space: nowrap; }
-.soon-must { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; column-gap: var(--s2); align-items: center; min-block-size: 40px; padding-inline: var(--s2); color: var(--on-surface); text-align: start; }
-/* A Result's Must starts on its Result's title edge, so it reads as part of that Result. */
-.soon-must.nested { padding-inline-start: calc(var(--s2) + 32px + var(--s3)); }
-.soon-star { font-size: 20px; color: var(--must); }
+.soon-star { place-self: start center; padding-block-start: var(--s1); font-size: 20px; color: var(--must); }
+.soon-words { display: grid; min-inline-size: 0; padding-block-start: var(--s1); }
+.soon-what { font: var(--body-medium); overflow-wrap: anywhere; }
+.soon-left { font: var(--label-medium); color: var(--on-surface-variant); overflow-wrap: anywhere; }
+.soon-time { padding-block-start: var(--s1); font: var(--label-medium); color: var(--on-surface-variant); white-space: nowrap; }
 .soon-empty { margin: 0; padding-block: var(--s3); border-block-start: 1px solid var(--outline-variant); font: var(--body-medium); color: var(--on-surface-variant); }
-:is(.soon-result, .soon-must):active { background: var(--row-press); }
-:is(.soon-result, .soon-must):focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.soon-row:active { background: var(--row-press); }
+.soon-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 @media (hover: hover) and (pointer: fine) {
-  :is(.soon-result, .soon-must):hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
+  .soon-row:hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
 }
 
 @media (width >= 1080px) {
@@ -190,6 +188,8 @@ html:has(dialog:modal) { overflow: clip; }
   /* With room around it the Result leads the page at headline-medium, one clear step above the Plan's rows. */
   .planner-view #planner:is([data-view=blocks], [data-view=projects])[data-detail=true] .detail-title-text { font: var(--headline-medium); }
   .planner-view .spine-row.spine-gap { min-block-size: 32px; }
+  /* One line per time in the wide gutter: the pill's length shows how long an item runs. */
+  .planner-view .spine-end { display: none; }
   .planner-view .spine-free { grid-template-columns: var(--spine-pill) auto var(--touch) minmax(0, 1fr); }
   .planner-view #planner:is([data-view=blocks], [data-view=projects]) .page { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); align-items: start; gap: var(--s3); padding-inline: var(--gutter); }
   .planner-view #planner:is([data-view=blocks], [data-view=projects]) .page > :not(.block-card, .project-card) { grid-column: 1 / -1; }

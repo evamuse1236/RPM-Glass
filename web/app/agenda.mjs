@@ -15,10 +15,11 @@ const openMusts = data => tasks(data).filter(task => task.must && !task.done && 
 const timeOf = value => (timed(value) ? clock(new Date(value)) : '');
 
 /**
- * Coming up: the days after today's centre, each named once, holding its Results' deadlines (each Result once, its
- * open Musts for that same day under it) and its other one-time Musts. Every item sits under its own day. Empty days
- * and the day the centre shows are left out; what is already past (a deadline, or a Must of the last week not done)
- * heads the list as Overdue, never under a day still to come.
+ * Coming up: the days after today's centre, each named once, with one row per deadline. A Result's deadline leads with
+ * its open Must for that day (the action), the Result on a quiet second line; with no such Must it leads with the Result.
+ * Other one-time Musts follow, with their Result as the second line when they have one. Every item sits under its own
+ * day. Empty days and the day the centre shows are left out; what is already past (a deadline, or a Must of the last week
+ * not done) heads the list as Overdue, never under a day still to come.
  */
 export function comingUp(data, now = new Date(), shown = localDay(now)) {
   const today = localDay(now), last = shiftDay(today, AHEAD), since = shiftDay(today, -MISSED_DAYS);
@@ -29,28 +30,34 @@ export function comingUp(data, now = new Date(), shown = localDay(now)) {
   };
   const keyOf = value => (endOf(value) < +now ? 'overdue' : value.slice(0, 10));
   const listed = value => value.slice(0, 10) !== shown && (keyOf(value) === 'overdue' ? value.slice(0, 10) >= since : value.slice(0, 10) <= last);
+  const whenOf = (value, day) => (day === 'overdue' ? pastWhen(value) : timeOf(value));
+  const results = new Map(openResults(data).map(block => [block.id, block]));
+  const left = id => blockTasks(data, id).filter(task => !task.done).length;
   const held = new Set();
-  for (const block of openResults(data)) {
+  for (const block of results.values()) {
     const value = blockDue(data, block.id)?.value;
     const due = dueInfo(value, now);
     if (!due) continue;
     const day = due.overdue ? 'overdue' : value.slice(0, 10);
     if (day !== 'overdue' && (day === shown || day > last)) continue;
-    const open = blockTasks(data, block.id).filter(task => !task.done);
-    const musts = open.filter(task => task.must && dueValue(task) && keyOf(dueValue(task)) === day && listed(dueValue(task)))
-      .sort((a, b) => order(dueValue(a)).localeCompare(order(dueValue(b))))
-      .map(task => ({id: task.id, title: task.title, when: mustWhen(dueValue(task), day, value)}));
+    const musts = blockTasks(data, block.id).filter(task => !task.done && task.must && dueValue(task) && keyOf(dueValue(task)) === day
+      && listed(dueValue(task)));
     for (const task of musts) held.add(task.id);
-    group(day).push({kind: 'result', id: block.id, title: block.title, at: +due.at,
-      when: day === 'overdue' ? pastWhen(value) : timeOf(value), left: open.length, musts});
+    const under = {block: block.title, left: left(block.id)};
+    if (!musts.length) group(day).push({kind: 'result', id: block.id, title: block.title, at: +due.at, when: whenOf(value, day), left: under.left});
+    for (const task of musts) {
+      const own = dueValue(task), at = timed(own) ? own : value;
+      group(day).push({kind: 'must', id: task.id, title: task.title, at: endOf(at), when: whenOf(at, day), ...under});
+    }
   }
   for (const task of openMusts(data)) {
     const value = dueValue(task);
     if (held.has(task.id) || !listed(value)) continue;
-    const day = keyOf(value);
-    group(day).push({kind: 'must', id: task.id, title: task.title, at: endOf(value), when: day === 'overdue' ? pastWhen(value) : timeOf(value)});
+    const day = keyOf(value), result = results.get(task.blockId);
+    group(day).push({kind: 'must', id: task.id, title: task.title, at: endOf(value), when: whenOf(value, day),
+      ...(result && {block: result.title, left: left(result.id)})});
   }
-  for (const entry of groups.values()) entry.items.sort((a, b) => (a.kind === b.kind ? a.at - b.at : a.kind === 'result' ? -1 : 1));
+  for (const entry of groups.values()) entry.items.sort((a, b) => a.at - b.at);
   return [...groups.values()].sort((a, b) => (a.day === 'overdue' ? -1 : b.day === 'overdue' ? 1 : a.day.localeCompare(b.day))).slice(0, GROUPS);
 }
 
@@ -59,31 +66,31 @@ const endOf = value => +new Date(order(value).replace('T24', 'T23:59'));
 /** A past item names its own day, since it sits under Overdue. */
 const pastWhen = value => dayName(value.slice(0, 10)) + (timed(value) ? ' ' + timeOf(value) : '');
 
-/** A Must under its Result says its time only when that differs from the deadline above it, and its day when that differs. */
-function mustWhen(value, day, deadline) {
-  if (value.slice(0, 10) === day) return timeOf(value) === timeOf(deadline) ? '' : timeOf(value);
-  return [dayName(value.slice(0, 10)), timeOf(value)].filter(Boolean).join(' ');
-}
-
 const dayName = day => new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'short', day: 'numeric', month: 'short'});
-const groupName = (day, now) => (day === 'overdue' ? 'Overdue' : day === localDay(now) ? 'Today' : day === shiftDay(localDay(now), 1) ? 'Tomorrow' : dayName(day));
+const fullDay = day => new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'short', day: 'numeric', month: 'long'});
+/** A day heading is its full date; the real today and tomorrow (whatever day the centre shows) also say so. */
+export function groupName(day, now) {
+  if (day === 'overdue') return 'Overdue';
+  const word = day === localDay(now) ? 'Today' : day === shiftDay(localDay(now), 1) ? 'Tomorrow' : '';
+  return [word, fullDay(day)].filter(Boolean).join(' · ');
+}
 const star = cls => icon('star', {cls, fill: true});
 
-function resultRow(item, ui, overdue) {
-  const node = button('', () => ui.openView({view: 'rpm', collection: 'blocks', id: item.id}), 'soon-result');
-  node.append(icon('hourglass_empty', {cls: 'soon-mark'}));
+const tasksLeft = n => `${n} ${n === 1 ? 'task' : 'tasks'} left`;
+
+/** One deadline row: a star for a Must or an hourglass for a Result, the title wrapping in full, one quiet line under it. */
+function soonRow(item, ui, overdue) {
+  const must = item.kind === 'must';
+  const node = button('', () => (must ? ui.taskEditor(item.id) : ui.openView({view: 'rpm', collection: 'blocks', id: item.id})), 'soon-row');
+  node.append(must ? star('soon-star') : icon('hourglass_empty', {cls: 'soon-mark'}));
   const words = el('span', 'soon-words');
-  words.append(el('span', 'soon-what', item.title), el('span', 'soon-left', `${item.left} ${item.left === 1 ? 'task' : 'tasks'} left`));
+  words.append(el('span', 'soon-what', item.title));
+  const under = must ? [item.block, item.block && tasksLeft(item.left)].filter(Boolean).join(' · ') : tasksLeft(item.left);
+  if (under) words.append(el('span', 'soon-left', under));
   node.append(words);
   if (item.when) node.append(el('span', `soon-time tnum${overdue ? ' overdue' : ''}`, item.when));
-  node.setAttribute('aria-label', `${item.title}, due ${overdue ? 'since ' : ''}${item.when || 'end of day'}, ${item.left} left`);
-  return node;
-}
-
-function mustRow(item, ui, nested) {
-  const node = button('', () => ui.taskEditor(item.id), `soon-must${nested ? ' nested' : ''}`);
-  node.append(star('soon-star'), el('span', 'soon-what', item.title));
-  if (item.when) node.append(el('span', 'soon-time tnum', item.when));
+  node.setAttribute('aria-label', [item.title, item.block, `${overdue ? 'due since' : 'due'} ${item.when || 'end of day'}`,
+    item.left != null && tasksLeft(item.left)].filter(Boolean).join(', '));
   return node;
 }
 
@@ -98,10 +105,7 @@ export function renderAgenda(host, data, ui, now = new Date()) {
     const name = groupName(day, now);
     section.setAttribute('aria-label', name);
     section.append(el('h3', `soon-name tnum${day === 'overdue' ? ' overdue' : ''}`, name));
-    for (const item of items) {
-      if (item.kind === 'must') section.append(mustRow(item, ui, false));
-      else section.append(resultRow(item, ui, day === 'overdue'), ...item.musts.map(must => mustRow(must, ui, true)));
-    }
+    for (const item of items) section.append(soonRow(item, ui, day === 'overdue'));
     panel.append(section);
   }
   host.replaceChildren(panel);

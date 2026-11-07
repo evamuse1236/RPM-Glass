@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {freshStore} from '../../chat-prototype/companion-state.mjs';
 import {editPlan} from '../../android-companion/planner-state.mjs';
-import {comingUp} from './agenda.mjs';
+import {comingUp, groupName} from './agenda.mjs';
 
 const SATURDAY_10_AM_KOLKATA = new Date('2026-10-03T10:00:00+05:30');
 const block = (d, fields) => editPlan(d, {type: 'saveEntity', collection: 'blocks', fields});
@@ -21,7 +21,7 @@ function seed() {
   return {d, review};
 }
 
-test('Coming up groups by day after the shown day: each Result once with its Musts under it, empty days skipped', () => {
+test('Coming up groups by day after the shown day: one row per deadline, its Must leading and its Result under it, empty days skipped', () => {
   const {d, review} = seed();
   const later = block(d, {title: 'Workbook uploaded', purpose: 'Done early'});
   task(d, {title: 'Upload the workbook', blockId: later, plannedDate: '2026-10-08', must: true});
@@ -36,12 +36,12 @@ test('Coming up groups by day after the shown day: each Result once with its Mus
   assert.deepEqual(sunday.items.map(i => [i.kind, i.id]), [['result', review]]);
   assert.equal(sunday.items[0].left, 3);
   assert.ok(sunday.items[0].when, 'a timed deadline says its time once');
-  assert.deepEqual(sunday.items[0].musts, [], 'Draft and Read are on the shown day, so the centre holds them');
+  assert.ok(!sunday.items.some(i => ['Draft', 'Read'].includes(i.title)), 'Draft and Read are on the shown day, so the centre holds them');
   assert.deepEqual(tuesday.items.map(i => i.title), ['Book the hall', 'Pay the fees'], 'timed first, then untimed');
-  assert.deepEqual(thursday.items.map(i => i.title), ['Workbook uploaded']);
-  assert.deepEqual(thursday.items[0].musts.map(m => m.title), ['Upload the workbook'], 'its Must sits under it, not again on its own');
-  assert.equal(thursday.items[0].musts[0].when, '', 'a Must at the deadline does not say the deadline again');
-  const ids = groups.flatMap(g => g.items.flatMap(i => [i.id, ...(i.musts ?? []).map(m => m.id)]));
+  assert.deepEqual(thursday.items.map(i => [i.kind, i.title, i.block, i.left]), [['must', 'Upload the workbook', 'Workbook uploaded', 1]],
+    'the deadline is one row: its Must leads, its Result and what is left on the line under it');
+  assert.equal(tuesday.items[1].block, undefined, 'a Must with no Result has no second line');
+  const ids = groups.flatMap(g => g.items.map(i => i.id));
   assert.equal(new Set(ids).size, ids.length, 'each item once');
 });
 
@@ -61,12 +61,13 @@ test('every item sits under its own day: a Must of another day leaves its Result
   task(d, {title: 'Past paper', blockId: exam, planned: '2026-10-03T12:00:00.000Z', must: true});
   task(d, {title: 'Revise', blockId: exam, planned: '2026-10-03T03:30:00.000Z', must: true});
   const groups = comingUp(d, SATURDAY_10_AM_KOLKATA, '2026-10-04');
-  const where = Object.fromEntries(groups.flatMap(g => g.items.flatMap(i => [[i.title, g.day], ...(i.musts ?? []).map(m => [m.title, g.day])])));
+  const where = Object.fromEntries(groups.flatMap(g => g.items.map(i => [i.title, g.day])));
   assert.deepEqual(where, {'Revise': 'overdue', 'Past paper': '2026-10-03', 'Exam passed': '2026-10-06'});
   assert.deepEqual(groups.map(g => g.day), ['overdue', '2026-10-03', '2026-10-06'], 'Overdue first, then the days in order');
   assert.match(groups[0].items[0].when, /^Sat 3 Oct /, 'a missed Must names its own day');
   assert.doesNotMatch(groups[1].items[0].when, /Oct/, 'under its own day a Must says only its time');
-  assert.deepEqual(groups[2].items[0].musts, []);
+  assert.equal(groups[0].items[0].block, 'Exam passed', 'a Must away from its deadline still names its Result');
+  assert.equal(groups[2].items[0].kind, 'result', 'a deadline with no Must that day leads with the Result');
 });
 
 test('an overdue Result heads the list as Overdue; only it reads in the Must amber', () => {
@@ -88,7 +89,8 @@ test('the side panel is one Coming up list, no Inbox, no "No Musts" rows; amber 
   const soon = css.slice(css.indexOf('/* Coming up:'), css.indexOf('@media (width >= 1080px)'));
   assert.doesNotMatch(soon, /\.soon-(result|must|day) \{[^}]*border-radius/, 'a rounded row would bend its divider');
   assert.doesNotMatch(soon, /border-inline-start/, 'no side rule that stops short of the column');
-  assert.match(soon, /\.soon-what \{[^}]*text-overflow: ellipsis/, 'a long title ends in an ellipsis');
+  assert.doesNotMatch(soon, /text-overflow: ellipsis/, 'nothing in Coming up is cut short');
+  assert.match(soon, /\.soon-what \{[^}]*overflow-wrap: anywhere/, 'a long title wraps in full, never clipped');
 });
 
 test('the panel shows only on a wide window on Today', () => {
@@ -125,4 +127,11 @@ test('on wide a detail page keeps one 720px column, so Back, its actions and its
   const wide = css.slice(css.indexOf('@media (width >= 1080px)'));
   assert.match(wide, /\.planner-view #planner\[data-detail=true\] \{ --column: 720px; \}/);
   assert.match(wide, /\.planner-view #planner\[data-detail=true\] \.page \{ max-width: var\(--column\); margin-inline: auto; \}/);
+});
+
+test('a day heading is its full date, and Today or Tomorrow names only the real today and tomorrow', () => {
+  assert.equal(groupName('overdue', SATURDAY_10_AM_KOLKATA), 'Overdue');
+  assert.equal(groupName('2026-10-03', SATURDAY_10_AM_KOLKATA), 'Today · Sat 3 October');
+  assert.equal(groupName('2026-10-04', SATURDAY_10_AM_KOLKATA), 'Tomorrow · Sun 4 October');
+  assert.equal(groupName('2026-10-06', SATURDAY_10_AM_KOLKATA), 'Tue 6 October');
 });
