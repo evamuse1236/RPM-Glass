@@ -75,22 +75,30 @@ export function showInbox(app, {motion = 'forward'} = {}) {
     const byWhen = (a, b) => when(a) - when(b);
     const today = rows.filter(task => scheduled(task) && dueToday(task)).sort(byWhen);
     const later = rows.filter(task => scheduled(task) && !dueToday(task)).sort(byWhen);
-    const add = (task, days) => {
+    const add = (task, days, group) => {
       const row = taskRow(app, task, {inbox: true, days});
+      if (group) row.classList.add(group);
       // A redraw while the returned highlight is still fading carries it on (from where it was).
       if (back?.id === task.id && host !== body) markReturned(row, back.elapsed());
       host.append(row);
     };
-    const section = (title, key, list, days) => {
+    const section = (title, key, list, days, group) => {
       if (!list.length) return;
       const head = sectionHeader(title);
       head.classList.add('inbox-scheduled');
+      if (group) head.classList.add(group);
       head.dataset.key = key;
       host.append(head);
-      list.forEach(task => add(task, days));
+      list.forEach(task => add(task, days, group));
     };
     open.forEach(task => add(task, false));
-    section('Scheduled today', 'inbox-scheduled-today', today, false);
+    // Beside the website's Today timeline, today's tasks already show there, so the pane says so in one quiet line.
+    if (today.length) {
+      const onToday = el('p', 'inbox-on-today', `${today.length} more on Today`);
+      onToday.dataset.key = 'inbox-on-today';
+      host.append(onToday);
+    }
+    section('Scheduled today', 'inbox-scheduled-today', today, false, 'inbox-today');
     section(today.length ? 'Scheduled later' : 'Scheduled', 'inbox-scheduled', later, true);
     return host;
   };
