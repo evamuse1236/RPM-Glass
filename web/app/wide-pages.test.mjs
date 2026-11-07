@@ -56,7 +56,8 @@ test('on wide Life puts the wheel on the left and each Area with its rating and 
   assert.match(goals, /area\.rating == null \? '' : `\$\{area\.rating\}`/, 'an unrated Area shows no value, only its ticks');
   assert.match(goals, /track\.append\(ratingInput\(app, area, rating => \{ value\.textContent = rating; \}\), ratingTicks\(\)\);/);
   assert.match(css, /\.life-track \.rating-slider\.unrated \+ \.rating-ticks \{ opacity: 1; \}/);
-  assert.match(css, /:not\(:has\(\.rating-slider:not\(\.unrated\)\)\) \.wheel-plot \{ inline-size: min\(100% - 128px, 160px\); \}/, 'with nothing rated the wheel shrinks');
+  assert.doesNotMatch(css, /\.rating-slider:not\(\.unrated\)/, 'the wheel and its column keep one size whether or not an Area is rated, so the first rating never moves the layout');
+  assert.match(css, /#planner \.wheel-plot \{ inline-size: min\(100% - 128px, 360px\); \}/);
   assert.match(css, /#planner \.wheel-copy p \{ display: none; \}/, 'no drag instruction on wide');
   const wheel = read('../../android-companion/planner/life-wheel.mjs');
   assert.doesNotMatch(wheel, /'–'/, 'an unrated wheel shows no stand-in value in its centre');

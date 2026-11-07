@@ -12,7 +12,9 @@
 .wheel-copy p { flex-basis: 100%; font: var(--body-medium); color: var(--on-surface-variant); text-wrap: pretty; }
 .wheel-plot { position: relative; inline-size: min(100% - 96px, 272px); aspect-ratio: 1; margin: 32px auto; }
 .wheel-svg { display: block; inline-size: 100%; block-size: 100%; overflow: visible; touch-action: none; cursor: pointer; }
-.wheel-track { fill: color-mix(in oklch, var(--tone) var(--track-mix), var(--surface-container-low)); stroke: var(--surface-container-low); stroke-width: 2; }
+/* An unrated wedge is an empty track: a faint wash of its Area's hue under the scale rings, never a filled shape. */
+.wheel-track { fill: color-mix(in oklch, var(--tone) 8%, var(--surface-container-low)); stroke: var(--surface-container-low); stroke-width: 2; }
+.wheel-scale { fill: none; stroke: var(--outline-variant); stroke-width: 1; pointer-events: none; }
 .wheel-wedge { fill: var(--tone); stroke: var(--surface-container-low); stroke-width: 2; stroke-linejoin: round; }
 .wheel-ring { fill: none; stroke: var(--surface-container-low); stroke-opacity: .6; stroke-width: 1; pointer-events: none; }
 .wheel-average {
@@ -42,11 +44,17 @@
   pointer-events: none;
 }
 .wheel-label b { margin-inline-start: var(--s1); color: var(--on-surface); font-weight: 600; }
-/* Phone: each Area is a row with its rating as a number, its Goals indented under its name. The wheel is the one
-   rating control here; the Area's page has the slider. */
-.life-areas { display: grid; gap: var(--s2); padding-block: var(--s2) 0; }
+/* Phone: each Area is a row that opens it; its Goals sit right under it, the flag in the avatar's column and the
+   words on the Area name's edge. Space between Areas, not inside them, groups them. */
+.life-areas { display: grid; gap: var(--s3); padding-block: var(--s2) 0; }
 .life-area .list-headline { font: var(--title-medium); }
-.life-area > .life-rating { flex: none; font: var(--title-medium); font-weight: 600; }
+.life-area-group > .list-item.nested {
+  min-block-size: 48px;
+  gap: var(--s6);
+  padding-block: 0 var(--s1);
+  padding-inline-start: calc(var(--gutter) + var(--s2));
+}
+:is(.life-areas, .area-goals, .goal-projects) .list-headline { text-wrap: pretty; }
 .list-item.add-row .leading, .list-item.add-row .list-headline { color: var(--primary); }
 .list-item.add-row .list-headline { font: var(--label-large); }
 /* On an Area's page a Project sits under its Goal's words: the Goal row's 24dp icon and its gap. */

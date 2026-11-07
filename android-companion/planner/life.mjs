@@ -54,7 +54,7 @@ function initialAvatar(app, area) {
 
 /**
  * Each Area with this year's Goals under the wheel. Wide: beside it, with the rating as a slider on the Area's row.
- * Phone: the wheel is the one rating control, so the row shows the rating as a number and opens the Area.
+ * Phone: the wheel is the one rating control and shows each rating, so the row only names the Area and opens it.
  */
 function areaGoals(app, areas, loose) {
   const wide = app.api.wide?.();
@@ -66,7 +66,7 @@ function areaGoals(app, areas, loose) {
     const row = el('div', 'life-area-row');
     const value = el('span', 'life-rating tnum', area.rating == null ? '' : `${area.rating}`);
     const item = listItem({leading: initialAvatar(app, area), headline: area.title, cls: 'life-area',
-      onClick: () => app.openArea(area.id)});
+      trailing: wide ? null : 'chevron_right', onClick: () => app.openArea(area.id)});
     if (wide) {
       const track = el('span', 'life-track');
       track.append(ratingInput(app, area, rating => { value.textContent = rating; }), ratingTicks());
@@ -74,7 +74,6 @@ function areaGoals(app, areas, loose) {
     } else {
       item.dataset.key = 'life-area:' + area.id;
       item.setAttribute('aria-label', `${area.title}, rating ${area.rating ?? 'not set'}, ${plural(goals.length, 'Goal')}. Open Area`);
-      item.append(value);
       row.append(item);
     }
     group.append(row, ...goals.map(goal => goalRow(app, goal, 'nested')));
@@ -84,11 +83,11 @@ function areaGoals(app, areas, loose) {
   return list;
 }
 
-/** A nested row sits under its parent's words, so its indent says where it belongs and it needs no chevron. */
+/** Every row that opens a page ends in a chevron, nested or not; the indent only says where it belongs. */
 function goalRow(app, goal, cls = '') {
   const projects = app.p().projects.filter(pr => pr.goalId === goal.id);
   return listItem({leading: 'flag', headline: goal.title, supporting: plural(projects.length, 'Project'),
-    trailing: cls === 'nested' ? null : 'chevron_right', onClick: () => app.openGoal(goal.id), cls});
+    trailing: 'chevron_right', onClick: () => app.openGoal(goal.id), cls});
 }
 
 /** A quiet "+ Add …" row in line with the rows above it, in place of a full-width button. */
@@ -222,7 +221,7 @@ export function renderAreaDetail(app, page, area) {
   for (const goal of goals) {
     list.append(goalRow(app, goal));
     for (const project of app.p().projects.filter(pr => pr.goalId === goal.id)) {
-      list.append(listItem({leading: 'folder', headline: project.title, cls: 'nested',
+      list.append(listItem({leading: 'folder', headline: project.title, cls: 'nested', trailing: 'chevron_right',
         onClick: () => app.openProject(project.id)}));
     }
   }
@@ -293,18 +292,20 @@ export function renderGoalDetail(app, page, goal) {
   const notes = notesPanel(app, 'goals', goal);
   if (notes) facts.append(notes);
   page.append(facts);
-  // Each Project shows its ring and count, and the header adds them up into the Goal's progress.
+  // Each Project shows its ring, its Result and its count; with two or more the header adds them up.
   const projects = app.p().projects.filter(pr => pr.goalId === goal.id).map(project => ({project, ...projectTasks(app, project)}));
   const all = projects.reduce((sum, {stats}) => ({done: sum.done + stats.done, total: sum.total + stats.total}), {done: 0, total: 0});
-  const header = sectionHeader('Projects', all.total ? taskProgress(all) : null);
+  const header = sectionHeader('Projects', projects.length > 1 && all.total ? taskProgress(all) : null);
   header.dataset.tone = app.tone(area);
   page.append(header);
   const list = el('div', 'list goal-projects');
   list.dataset.tone = app.tone(area);
   for (const {project, stats} of projects) {
     const count = stats.total ? `${stats.done} of ${plural(stats.total, 'task')} done` : 'No tasks yet';
-    list.append(listItem({leading: progressRing(stats.done, stats.total, count), headline: project.title,
-      supporting: count, trailing: 'chevron_right', onClick: () => app.openProject(project.id)}));
+    const row = listItem({leading: progressRing(stats.done, stats.total, count), headline: project.title,
+      supporting: project.purpose, trailing: 'chevron_right', onClick: () => app.openProject(project.id)});
+    row.querySelector('.list-copy').append(el('span', 'list-supporting goal-project-count tnum', count));
+    list.append(row);
   }
   list.append(addRow('Add Project', () => app.actions.newEntity('projects', {goalId: goal.id})));
   page.append(list);

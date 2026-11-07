@@ -35,10 +35,6 @@
   }
   #planner .page:has(> .life-areas) > :not(.wheel-card, .life-areas) { grid-column: 1 / -1; }
   #planner .page:has(> .life-areas) .wheel-card { margin-inline-end: 0; align-self: start; }
-  #planner .page:has(> .life-areas):not(:has(.rating-slider:not(.unrated))) {
-    grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
-  }
-  #planner .page:has(> .life-areas):not(:has(.rating-slider:not(.unrated))) .wheel-plot { inline-size: min(100% - 128px, 160px); }
   #planner .life-areas { display: grid; gap: var(--s2); align-content: start; padding-block: var(--s1); padding-inline-end: var(--gutter); }
   #planner .life-area-group {
     display: grid;
@@ -61,7 +57,7 @@
   #planner .life-track > * { grid-area: 1 / 1; }
   #planner .life-track .rating-slider.unrated + .rating-ticks { opacity: 1; }
   #planner .life-rating { font: var(--title-small); text-align: end; }
-  #planner .life-area-group > .list-item.nested { padding-inline-start: calc(var(--gutter) + var(--s8) + var(--s2) + var(--s4)); }
+  #planner .life-area-group > .list-item.nested { gap: var(--s4); padding-block: var(--s2); padding-inline-start: calc(var(--gutter) + var(--s8) + var(--s2) + var(--s4)); }
   #planner .wheel-copy p { display: none; }
 
   .planner-view #planner[data-view=projects] .page > .project-card {

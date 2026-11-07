@@ -57,8 +57,9 @@ function plot(app, areas) {
     svg.append(node('path', {d: wedgePath(i, n, WHEEL.outer), class: 'wheel-track', 'data-tone': app.tone(area)}));
     return node('path', {d: wedgePath(i, n, radiusFor(area.rating)), class: 'wheel-wedge', 'data-tone': app.tone(area)});
   });
-  svg.append(...values);
-  for (const k of RINGS) svg.append(node('circle', {cx: WHEEL.centre, cy: WHEEL.centre, r: radiusFor(k), class: 'wheel-ring'}));
+  // The scale shows faintly on the empty tracks under the wedges and as cuts across the filled ones above them.
+  const rings = cls => RINGS.map(k => node('circle', {cx: WHEEL.centre, cy: WHEEL.centre, r: radiusFor(k), class: cls}));
+  svg.append(...rings('wheel-scale'), ...values, ...rings('wheel-ring'));
   const average = el('span', 'wheel-average tnum', averageOf(areas.map(a => a.rating)) ?? '');
   average.setAttribute('aria-hidden', 'true');
   const labels = areas.map((area, i) => {
