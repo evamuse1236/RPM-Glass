@@ -57,7 +57,8 @@ function deadline(item, ui) {
   if (item.kind === 'result') {
     const rest = el('span', 'next-left', left(item));
     if (item.next) {
-      const next = el('span', 'next-task', item.next);
+      const next = el('span', 'next-step');
+      next.append(el('span', 'next-step-words', item.next));
       if (item.nextMust) next.prepend(star('next-star'));
       rest.append(next);
     }
@@ -70,7 +71,7 @@ function deadline(item, ui) {
 const dayName = day => new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'short', day: 'numeric', month: 'short'});
 
 function weekDay({day, items}, ui) {
-  const group = el('section', 'week-day');
+  const group = el('section', 'week-group');
   group.setAttribute('aria-label', dayName(day));
   group.append(el('h3', 'week-name tnum', dayName(day)));
   if (!items.length) group.append(el('p', 'week-none', 'No Musts'));
