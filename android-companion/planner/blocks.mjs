@@ -23,6 +23,7 @@ import {blockAdd} from './block-add.mjs';
 
 export {factRow, purposePanel, notesPanel, revealNotes, titleField, finishDetail, focusTitleOnOpen} from './detail-fields.mjs';
 
+const WEEK_MS = 7 * 864e5;
 const thisWeek = app => weekFocus(app.data(), weekStart(localDay()));
 
 /** The open Must time with the star as its legend ("★ 3 h 50 min of Musts left"), or null when no Must is open. */
@@ -43,11 +44,6 @@ export function deadline(data, block, status, now = new Date()) {
     : `${info.label} · ${timeLeft(info.at, now).replace(' ', '\u00a0')}\u00a0left`};
 }
 
-/** The collapsed top bar's subtitle on Block detail: the deadline line, so it stays in view while the Plan scrolls. */
-export function blockSubtitle(app, block) {
-  return deadline(app.data(), block, resultStatus(app.data(), block.id))?.text ?? '';
-}
-
 /**
  * Urgency order: Results due within the week ahead (or overdue) first, soonest first; then `first` (this week's
  * Results); then the rest. Each later group is ordered by deadline too, and ties keep their order.
@@ -55,7 +51,7 @@ export function blockSubtitle(app, block) {
 export function byDeadline(data, blocks, first = new Set(), now = new Date()) {
   const key = (block, i) => {
     const at = dueInfo(blockDue(data, block.id)?.value, now)?.at.getTime() ?? Infinity;
-    return [at - now < 7 * 864e5 ? 0 : first.has(block.id) ? 1 : 2, at, i, block];
+    return [at - now < WEEK_MS ? 0 : first.has(block.id) ? 1 : 2, at, i, block];
   };
   return blocks.map(key).sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]).map(entry => entry[3]);
 }
@@ -93,6 +89,11 @@ export function progressRing(done, total, label) {
   return svg;
 }
 
+/** One rule at every width: a Result picked for this week shows "This week" unless its deadline is inside the week. */
+export function weekMark(focus, status, due, now = new Date()) {
+  return focus && !status.achieved && !(due && due.at - now < WEEK_MS);
+}
+
 /** A Result card: Area and Project (unless the list already says it), title, Purpose, where it stands, the Next task. */
 export function blockCard(app, block, {focus = false, project = true} = {}) {
   const status = resultStatus(app.data(), block.id);
@@ -113,12 +114,12 @@ export function blockCard(app, block, {focus = false, project = true} = {}) {
   main.append(el('span', 'card-title', block.title));
   main.append(el('span', 'card-purpose', block.purpose || 'Add the Purpose: why this Result matters'));
   // Where it stands on one line: the deadline (error colour when tight) and tasks done; Block detail has the countdown
-  // and the Musts' time. This week's pick is a small tonal mark right after it, so the title keeps the card's width.
+  // and the Musts' time. This week's pick gets a small tonal mark only when no deadline inside the week says it already.
   const due = deadline(app.data(), block, status);
   const count = status.total ? `${status.done} of ${plural(status.total, 'task')} done` : 'No tasks in the Plan yet';
-  const week = focus && !status.achieved;
+  const week = weekMark(focus, status, due);
   const line = el('span', 'card-facts tnum');
-  const when = due && el('b', 'card-due', due.label);
+  const when = due && el('span', 'card-due', due.label);
   when?.classList.toggle('tight', due.tight);
   const facts = el('span', 'card-stand');
   appendFacts(facts, [when, el('span', '', status.total ? `${status.done} of ${status.total} done` : count)].filter(Boolean));

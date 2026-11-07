@@ -93,17 +93,9 @@ h1, h2, h3, p { margin: 0; }
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
-.top-title.with-subtitle { display: flex; flex-direction: column; }
-.top-title.with-subtitle .top-title-text {
-  font: var(--title-medium);
-  overflow: clip;
-  text-wrap: balance;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-.top-subtitle { overflow: clip; white-space: nowrap; text-overflow: ellipsis; }
-.top-subtitle { font: var(--body-medium); color: var(--on-surface-variant); }
+/* A record's collapsed title (Block, Project, Area, Goal) is title-medium: two wrapped lines plus the bar's padding fit
+   --top-bar, so the bar keeps one height at rest and once the title shows. */
+.detail-bar .top-title.small.record-title { font: var(--title-medium); }
 /* Detail titles live in the page; the bar shows them once the page scrolls. */
 .detail-bar .top-title { opacity: 0; transition: opacity var(--dur-short) var(--ease-standard); }
 #planner[data-title-out=true] .detail-bar .top-title,
