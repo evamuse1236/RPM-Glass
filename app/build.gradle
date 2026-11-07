@@ -11,8 +11,8 @@ android {
         applicationId "com.rpm.prototype"
         minSdk 26
         targetSdk 36
-        versionCode 45
-        versionName "0.45-agent-rounds"
+        versionCode 46
+        versionName "0.46-telegram-ui-gauntlet"
         testInstrumentationRunner "com.rpm.prototype.OfflineTests"
         buildConfigField "String", "TELEGRAM_BRIDGE", "\"${rpmTelegramBridge}\""
     }
