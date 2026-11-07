@@ -2,13 +2,14 @@
  * The water and meal editors: bottom sheets in the task sheet's row grammar (icon, then a slider, a picker, a switch
  * or a time). Each change saves at once through the body store with Undo; a slider saves when it is let go.
  */
-import {WATER_DEFAULTS, WATER_STEPS, GLASS_SIZES, stepWater, everyText, clockText, atMinutes, minutesOf, SLOT_NAMES}
-  from '../body-state.mjs';
-import {button, iconButton} from './dom.mjs';
+import {WATER_DEFAULTS, WATER_STEPS, GLASS_SIZES, stepWater, everyText, clockText, atMinutes, minutesOf, SLOT_NAMES,
+  waterStatus} from '../body-state.mjs';
+import {el, icon, button, iconButton} from './dom.mjs';
 import {openSheet, closeSheet, isSheetOpen} from './sheet.mjs';
 import {notice} from './snackbar.mjs';
 import {userMessage} from '../user-message.mjs';
 import {factRow, switchButton, slider, pickButton, timeButton, textRow} from './fact-rows.mjs';
+import {drink} from './water.mjs';
 
 const glassesText = n => `${n} ${n === 1 ? 'glass' : 'glasses'}`;
 const timeWords = hhmm => clockText(atMinutes('2000-01-01', minutesOf(hhmm)));
@@ -63,11 +64,24 @@ export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Ha
       row.inert = off;
     }
   };
-  content.append(factRow('water_drop', goal, {cls: 'slider-row'}), factRow('local_drink', size),
+  const count = el('p', 'water-count tnum');
+  const meter = el('span', 'water-track');
+  meter.setAttribute('aria-hidden', 'true');
+  const log = button('', () => drink(app, body), 'tonal-btn water-log');
+  log.append(icon('add'), el('span', '', '1 glass'));
+  log.setAttribute('aria-label', 'Log a glass');
+  const today = el('section', 'water-today');
+  today.setAttribute('aria-label', 'Today');
+  today.append(count, log, meter);
+  content.append(today, factRow('water_drop', goal, {cls: 'slider-row'}), factRow('local_drink', size),
     factRow('notifications', reminders), ...dependent);
 
   const paint = () => {
     const s = settings();
+    const status = waterStatus({...body.water(), settings: s, now: body.now()});
+    count.textContent = `${status.count} of ${glassesText(status.goal)}`;
+    if (meter.childElementCount !== status.goal) meter.replaceChildren(...Array.from({length: status.goal}, () => el('i')));
+    [...meter.children].forEach((glass, i) => glass.classList.toggle('on', i < status.count));
     if (!content.contains(document.activeElement) || document.activeElement.type !== 'range') {
       goal.set(s.goal);
       every.set(s.intervalMinutes);

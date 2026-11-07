@@ -24,13 +24,22 @@ async function habits(k) {
 
   await look('habits-list', openHabits, `${visibleText('.habit-row', 'Water')} && ${visibleText('.habit-row', 'Lunch')}`,
     'More → Habits lists water, the meals and the routines');
-  await step('water-goal', async () => {
+  const openWater = async () => {
+    await openHabits();
     await tapText('.habit-row', 'Water', 'button.habit-open');
+  };
+  await step('water-goal', async () => {
+    await openWater();
     await shown('input[aria-label="Daily goal"]');
     await b.js(`(() => { const input = document.querySelector('input[aria-label="Daily goal"]');
       input.value = String(Number(input.value) % 20 + 1);
       input.dispatchEvent(new Event('input', {bubbles: true})); input.dispatchEvent(new Event('change', {bubbles: true})); return true; })()`);
   }, changed(data => body(data).water?.settings?.goal));
+  await closeAll();
+  await step('water-editor-glass', async () => {
+    await openWater();
+    await tapShown('.habit-editor .water-log');
+  }, (data, before) => glasses(data) > glasses(before));
   await closeAll();
 
   let lunchAt = '13:30';
@@ -45,11 +54,14 @@ async function habits(k) {
   await closeAll();
 
   const shownOn = data => slot(data, 'breakfast')?.on;
-  await step('meal-show', async () => {
+  const toggleBreakfast = async () => {
     await openHabits();
-    await tapText('.habit-row', 'Breakfast', '.habit-switch');
-  }, changed(shownOn));
-  await step('meal-show-again', () => tapText('.habit-row', 'Breakfast', '.habit-switch'), changed(shownOn));
+    await tapText('.habit-row', 'Breakfast', 'button.habit-open');
+    await tapShown('.sheet .switch-btn[aria-label="Show on Today"]');
+  };
+  await step('meal-show', toggleBreakfast, changed(shownOn));
+  await closeAll();
+  await step('meal-show-again', toggleBreakfast, changed(shownOn));
 
   const addSnack = () => step('add-snack', async () => {
     await openHabits();

@@ -13,10 +13,8 @@
 .habit-open { font: var(--body-large); color: var(--on-surface); text-align: start; overflow-wrap: anywhere; }
 .habit-open::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
 .habit-summary { font: var(--body-medium); color: var(--on-surface-variant); overflow-wrap: anywhere; }
-/* The chevron's glyph sits inside its box: pulled out by that inset, it ends on the switches' edge. */
+/* The chevron's glyph sits inside its box: pulled out by that inset, it ends on the sheet's content edge. */
 .habit-chevron { flex: none; margin-inline-end: calc(-1 * var(--s2)); font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
-.switch-btn.habit-switch { position: relative; z-index: 1; inline-size: auto; flex: none; padding-inline-start: var(--s4); }
-.switch-btn.habit-switch .switch-label { display: none; }
 .habit-add { min-block-size: var(--touch); }
 .habit-add > .habit-icon { color: var(--primary); }
 .habit-add > .habit-open { flex: 1; font: var(--body-large); color: var(--primary); }
@@ -27,41 +25,36 @@
 .water-track { display: flex; gap: var(--s1); margin-block-start: var(--s2); }
 .water-track > i { flex: 1; block-size: var(--s1); border-radius: var(--shape-full); background: var(--surface-container-highest); }
 .water-track > i.on { background: var(--primary); }
-/* A meal: its time as a neutral chip that opens the time picker, then what was eaten today. */
-.habit-meal-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s3); margin-block-start: var(--s1); }
-.habit-time {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s1);
-  block-size: var(--s8);
-  padding-inline: var(--s2) var(--s3);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--shape-sm);
-  font: var(--label-large);
-  color: var(--on-surface-variant);
-}
-.habit-time > .ms { font-size: calc(20px / var(--text-scale, 1)); }
-.habit-time::after { content: ""; position: absolute; inset: calc(-1 * var(--s2)) 0; }
-.habit-time input { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; opacity: 0; cursor: pointer; }
-.habit-time:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
-.habit-time:active { background: var(--row-press); }
-.habit-logged { display: inline-flex; align-items: center; gap: var(--s1); min-inline-size: 0; }
-.habit-logged-mark { font-size: calc(20px / var(--text-scale, 1)); color: var(--primary); }
+/* A meal: its time, then what was eaten today after a check. A meal hidden from Today keeps its row, dimmed. */
+.habit-meal-line { display: flex; align-items: center; white-space: pre; }
+.habit-logged { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; }
+.habit-logged-mark { flex: none; font-size: calc(20px / var(--text-scale, 1)); color: var(--primary); }
+.habit-row.habit-hidden > .habit-icon, .habit-row.habit-hidden .habit-open { color: var(--on-surface-variant); }
 .habit-row:has(.habit-open:active) { background: var(--row-press); }
 .habit-row:has(.habit-open:focus-visible) { outline: 2px solid var(--primary); outline-offset: -2px; }
 
-.habit-editor .sheet-body { display: flex; flex-direction: column; gap: var(--row-gap); padding-inline: var(--s4); }
+/* Editor rows are touch high on an 8dp gap: a 56dp list rhythm. */
+.habit-editor .sheet-body { display: flex; flex-direction: column; gap: var(--s2); padding-inline: var(--s4); }
 .habit-editor .remove-snack { align-self: flex-end; }
 .sheet-editor .edit-pair { margin-block-end: var(--s2); }
-/* A slider row: the label with its value at the end, the M3 slider full width under it. */
+/* Water today: the count with its one-tap log, the meter under both; the settings start below a line. */
+.water-today {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--s3);
+  padding-block: var(--s1) var(--s4);
+  border-block-end: 1px solid var(--outline-variant);
+}
+.water-count { font: var(--title-large); color: var(--on-surface); }
+.water-today > .water-track { grid-column: 1 / -1; margin-block-start: var(--s3); }
+/* A slider row: the label with its value on one touch-high line, its icon centred on it, the M3 slider under it. */
 .slider-field { display: flex; flex-direction: column; min-inline-size: 0; }
-.slider-head { display: flex; align-items: baseline; gap: var(--s2); }
+.slider-head { display: flex; align-items: center; gap: var(--s2); min-block-size: var(--touch); }
 .slider-head > .edit-label { flex: 1; }
 .slider-value { font: var(--title-medium); color: var(--on-surface); white-space: nowrap; }
-.slider-row .rating-slider { inline-size: 100%; margin: 0; }
+.slider-row .rating-slider { inline-size: 100%; block-size: var(--s8); margin: calc(-1 * var(--s2)) 0 0; }
+.habit-editor .slider-row > .edit-icon { padding-block-start: var(--s3); }
 .pick-button select { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; opacity: 0; cursor: pointer; }
 .pick-button:has(select:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
-/* Every editor row is one touch high, so sliders, switches, the glass size and times share a rhythm. */
-.habit-editor .slider-row > .edit-body { min-block-size: var(--touch); justify-content: center; }
+.slider-row > .edit-body { gap: 0; }

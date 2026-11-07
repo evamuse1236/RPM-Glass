@@ -1,5 +1,5 @@
 /** The meal on Today and the meal sheet: the slot guessed from the time, a box to type the meal with up to three
- * recent foods under it as one-tap chips (this meal's usual first), then a Saved state with Jev's nutrition guess
+ * foods this meal had lately under it as one-tap chips, then a Saved state with Jev's nutrition guess
  * kept apart from the user's words. */
 import {guessSlot, usualMeals, estimateText, clockText, SLOTS, SLOT_NAMES} from '../body-state.mjs';
 import {el, icon, button, iconButton} from './dom.mjs';
@@ -94,9 +94,7 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
       renderSaved(saved, words);
     };
     function paintSlot() {
-      const meals = body.meals();
-      const names = [...usualMeals(meals, slot), ...SLOTS.filter(other => other !== slot).flatMap(other => usualMeals(meals, other))]
-        .filter((name, i, all) => all.findIndex(n => n.toLowerCase() === name.toLowerCase()) === i).slice(0, RECENT_CHIPS);
+      const names = usualMeals(body.meals(), slot, RECENT_CHIPS);
       usual.replaceChildren(...names.map(name => {
         const chip = button('', () => save(name), 'assist-chip usual-chip');
         chip.append(icon('history', {cls: 'chip-icon'}), el('span', 'chip-label', name));
