@@ -35,7 +35,10 @@ test('on wide each Project card lists its Blocks and opens the Project; the phon
     'a chip leads with its name, so every name starts on one edge; a Block with no tasks shows no empty ring and no 0/0');
   assert.match(source, /nestRings\(wide \? \[stats\] : ordered\.map/, 'on wide the Project ring shows the Project, the chips the Blocks');
   const css = read('./wide-pages.css');
-  assert.doesNotMatch(css, /\.project-card \{[^}]*grid-column: 1 \/ -1/, 'a Project card is one cell of the page grid');
+  assert.match(css, /\.page > \.project-card \{ grid-column: 1 \/ -1; \}/, 'a Project card runs the full width, so no column holds a hole');
+  assert.match(css, /\.project-block \{\n    display: grid;\n    grid-template-columns: minmax\(0, 5fr\) minmax\(0, 4fr\) 144px 48px;/,
+    'its Block rows are one table whose deadline and tally columns line up from card to card');
+  assert.match(source, /copy\.append\(el\('span', 'project-block-due card-due'/, 'a Block row names its deadline in its own column');
   assert.match(css, /\.project-blocks \{\n    grid-template-columns: minmax\(0, 1fr\);/, 'its Blocks stay open in one column');
   assert.match(css, /\.project-block \{ margin-inline: calc\(-1 \* var\(--s3\)\); padding-inline: var\(--s3\);/,
     'a Block chip\'s words sit on the card\'s text edge');

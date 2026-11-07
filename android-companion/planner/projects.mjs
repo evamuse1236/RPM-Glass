@@ -53,9 +53,14 @@ function blockLine(app, block) {
   return line;
 }
 
-/** The wide list's Block chip: its name and next task, then tasks done as the same ring and "2/7" as every Block row. */
+/**
+ * The wide list's Block row, one line read as a table across every full-width Project card: its name, its next task,
+ * its deadline, then tasks done as the same ring and "2/7" as every Block row.
+ */
 function blockRow(app, block) {
   const {done, total} = blockStats(app, block);
+  const status = resultStatus(app.data(), block.id);
+  const due = deadline(app.data(), block, status);
   const row = button('', () => app.openBlock(block.id), 'project-block');
   row.dataset.key = 'project-block:' + block.id;
   const name = el('span', 'project-block-name', block.title);
@@ -65,8 +70,9 @@ function blockRow(app, block) {
   copy.append(name, ...(next || !total ? [el('span', 'project-block-next', next?.title ?? NO_TASKS)] : []));
   row.title = block.title;
   const count = `${done} of ${plural(total, 'task')} done`;
+  copy.append(el('span', 'project-block-due card-due' + (due?.tight ? ' tight' : ''), due ? due.text : status.achieved ? 'Result achieved' : ''));
   row.append(copy, ...(total ? [taskTally({done, total}, count)] : []));
-  row.setAttribute('aria-label', `${block.title}, ${total ? count : NO_TASKS}. Open Block`);
+  row.setAttribute('aria-label', `${block.title}, ${total ? count : NO_TASKS}. ${due ? due.text + '. ' : ''}Open Block`);
   return row;
 }
 
@@ -99,8 +105,8 @@ function projectCard(app, project, lead = projectLead(app, project)) {
   const copy = el('span', 'project-copy');
   if (area) copy.append(el('span', 'project-area', area.title));
   copy.append(el('span', 'card-title', project.title));
-  // Open on the phone, the first Block row gives the same deadline, so the head does not repeat it.
-  const words = due && (wide || !open) ? due.label : '';
+  // Open, each Block row gives its own deadline (on wide in its own column), so the head does not repeat it.
+  const words = due && !open ? due.label : '';
   if (words) copy.append(el('span', 'card-due tnum' + (due?.tight ? ' tight' : ''), words));
   // Words first on the card's one text edge; the rings close the row, as every progress mark in the Projects tab does.
   toggle.append(copy, nestRings(wide ? [stats] : ordered.map(block => blockStats(app, block)), count, {finished}));
