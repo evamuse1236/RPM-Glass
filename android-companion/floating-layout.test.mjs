@@ -60,8 +60,8 @@ test('nothing shows in the strip under the tab bar, and a row scrolled into view
   assert.match(css, /--nav-gap: max\(var\(--s4\), calc\(env\(safe-area-inset-bottom, 0px\) \+ var\(--s2\)\)\);/);
   assert.match(rule(css, '#nav-bar'), /inset-block-end: var\(--nav-gap\);/);
   const mask = rule(css, ':root:not([data-keyboard=open]) #planner:has(> #nav-bar:not([hidden])) #planner-scroll');
-  assert.match(mask, /linear-gradient\(to top, transparent var\(--nav-gap\), #000 calc\(var\(--nav-gap\) \+ var\(--bar-fade, var\(--s8\)\) - var\(--s4\)\), transparent\)/,
-    'the strip under the bar shows nothing; the page shows through the glass and fades out at its rim, so no word is cut there');
+  assert.match(mask, /linear-gradient\(to top, transparent var\(--nav-gap\), #000 calc\(var\(--nav-gap\) \+ var\(--bar-fade, var\(--s8\)\)\)\)/,
+    'the strip under the bar shows nothing; the page shows through the glass');
   assert.match(mask, /mask-size: [^;]*calc\(100% - var\(--inset-page\) - var\(--bar-end\) - 2 \* var\(--bar-r\)\) var\(--bar-top\)/,
     'below the bar\'s top the page shows only inside the bar, never in the gaps beside it');
   assert.match(mask, /linear-gradient\(to top, transparent max\(var\(--dock-top\), var\(--page-end\)\), #000 calc\(max\(var\(--dock-top\), var\(--page-end\)\) \+ var\(--s6\)\)\)/,
