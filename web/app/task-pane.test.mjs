@@ -122,7 +122,7 @@ test('the Block list marks the chosen Block with one secondary-container row, a 
   assert.match(tabs, /if \(total && done === total\) \{\n    ring\.append\(attrs\(document\.createElementNS\(SVG, 'circle'\), \{class: 'ring-done'/, 'a finished Block fills its ring like a finished Project');
   assert.doesNotMatch(tabs, /mark\.append\(icon\('check'\)\)/, 'the radio carries a dot, never a check that reads as done');
   const css = read('../../android-companion/task-tabs.css');
-  assert.match(css, /\.block-choice\[aria-checked=true\] \{ background: var\(--secondary-container\); color: var\(--on-secondary-container\); \}/, 'the chosen row is a selection, not a success tint');
+  assert.match(css, /\.block-choice\[aria-checked=true\] \{ background: color-mix\(in oklch, var\(--secondary-container\) 50%, transparent\); color: var\(--on-surface\); \}/, 'the chosen row is a light selection tint, not a success tint and not the heaviest thing on the sheet');
   assert.match(css, /\.block-choice \.ring-done \{ fill: color-mix\(in oklch, var\(--success\) var\(--track-mix\), var\(--sheet-bg, var\(--sheet-surface\)\)\);/, 'the done disc is a quiet green that mixes with the sheet the row sits on');
   assert.match(css, /\.block-choice \.ring:has\(\.ring-done\) \.ring-value \{ stroke: var\(--success\); \}/, 'a finished ring is green, never the blue of the chosen row');
   assert.match(css, /\.block-choice \.ring-check \{ fill: none; stroke: var\(--success\);/, 'its small check is green too');

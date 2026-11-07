@@ -229,19 +229,21 @@
   cursor: ew-resize;
 }
 .ruler-grip[hidden] { display: none; }
+/* A 16px knob in a 2px sheet ring keeps clear of the next tick; in dark it takes the bar's own hue. */
 .ruler-grip::before {
   content: "";
-  inline-size: 20px;
-  block-size: 20px;
+  inline-size: 16px;
+  block-size: 16px;
   border-radius: var(--shape-full);
-  background: var(--primary);
+  background: light-dark(var(--primary), color-mix(in oklch, var(--primary) 40%, var(--primary-container)));
   box-shadow: 0 0 0 2px var(--sheet-bg, var(--sheet-surface));
 }
 .ruler-grip.is-empty::before { box-sizing: border-box; border: 2px solid var(--primary); background: var(--sheet-bg, var(--sheet-surface)); }
 .time-ruler.is-sizing .ruler-grip::before { scale: 1.2; }
 .ruler-grip:focus-visible { outline: 2px solid var(--primary); outline-offset: -12px; }
 
-.alert-kinds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s1); padding: var(--s1); border-radius: var(--shape-full); background: var(--sheet-card); }
+/* One outlined pill split in two, like Repeat: at Off both halves are open to pick; the chosen half fills and shows a check. */
+.alert-kinds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--outline); border-radius: var(--shape-full); overflow: clip; }
 .alert-kind {
   display: inline-flex;
   justify-content: center;
@@ -249,15 +251,14 @@
   gap: var(--s2);
   min-block-size: 40px;
   padding-inline: var(--s2);
-  border-radius: var(--shape-full);
-  color: var(--on-surface-variant);
+  color: var(--on-surface);
   font: var(--label-large);
 }
+.alert-kind + .alert-kind { border-inline-start: 1px solid var(--outline); }
 .alert-kind-icon { font-size: calc(20px / var(--text-scale, 1)); }
 .alert-kind[aria-pressed=true] { background: var(--secondary-container); color: var(--on-secondary-container); }
-.alert-kind[aria-pressed=true] .alert-kind-icon { font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24; }
 .alert-kind:active { background: var(--row-press); }
-.alert-kind:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.alert-kind:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .alert-kinds.is-off { opacity: .38; }
 .alert-kinds.is-off .alert-kind { pointer-events: none; }
 :root[data-large-text=true] .alert-kind { flex-direction: column; gap: 0; padding-block: var(--s1); }
@@ -300,11 +301,10 @@
 .block-choice-inbox { justify-self: center; font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
 .block-choice-title { overflow: clip; font: var(--body-large); text-overflow: ellipsis; white-space: nowrap; }
 .block-choice .choice-hint { font: var(--label-small); color: var(--on-surface-variant); }
-.block-choice[aria-checked=true] { background: var(--secondary-container); color: var(--on-secondary-container); }
+.block-choice[aria-checked=true] { background: color-mix(in oklch, var(--secondary-container) 50%, transparent); color: var(--on-surface); }
 /* The chosen Block is the one name you must read whole: it wraps to two lines, the others stay one line. */
 .block-choice[aria-checked=true] { border-radius: var(--r-group); }
-.block-choice[aria-checked=true] .block-choice-title { display: -webkit-box; padding-block: var(--s3); font-weight: 600; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.block-choice[aria-checked=true] .choice-hint { color: inherit; }
+.block-choice[aria-checked=true] .block-choice-title { display: -webkit-box; padding-block: var(--s2); font-weight: 500; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .block-choice:active { background: var(--row-press); }
 .block-choice:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 

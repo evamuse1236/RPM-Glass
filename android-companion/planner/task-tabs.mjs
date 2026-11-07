@@ -187,11 +187,22 @@ export function alertPanel(host, pick, remote) {
   const kinds = el('div', 'alert-kinds');
   kinds.setAttribute('role', 'group');
   kinds.setAttribute('aria-label', 'Alert');
+  const symbols = new Map(ALERT_KINDS.map(([value, , symbol]) => [value, symbol]));
+  /** The chosen half shows a check in place of its icon, as an M3 segmented button does. */
+  const choose = chosen => {
+    for (const kind of kinds.children) {
+      const on = kind.dataset.value === chosen;
+      pressed(kind, on);
+      const glyph = on ? 'check' : symbols.get(kind.dataset.value);
+      const mark = kind.querySelector('.alert-kind-icon');
+      if (mark.textContent !== glyph) mark.textContent = glyph;
+    }
+  };
   for (const [value, word, symbol, aria] of ALERT_KINDS) {
     const kind = button('', () => {
       if (kinds.classList.contains('is-off')) return;
       const next = kind.getAttribute('aria-pressed') === 'true' ? 'off' : value;
-      for (const other of kinds.children) pressed(other, other.dataset.value === next);
+      choose(next);
       pick.alert(next);
     }, 'alert-kind');
     kind.dataset.value = value;
@@ -212,10 +223,8 @@ export function alertPanel(host, pick, remote) {
   const paint = now => {
     const off = !now.day || !now.time;
     kinds.classList.toggle('is-off', off);
-    for (const kind of kinds.children) {
-      pressed(kind, kind.dataset.value === now.alert);
-      kind.setAttribute('aria-disabled', String(off));
-    }
+    choose(now.alert);
+    for (const kind of kinds.children) kind.setAttribute('aria-disabled', String(off));
     const silent = !now.alert || now.alert === 'off';
     leads.hidden = off || silent;
     markChips(leads, silent ? '' : String(now.lead ?? 0));
