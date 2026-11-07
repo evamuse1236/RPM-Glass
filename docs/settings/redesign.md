@@ -44,9 +44,9 @@ Pages (each: grouped cards, a one-line caption under a card only when it changes
 | Appearance | Theme: a 3-way segmented control (System, Light, Dark). Tab bar see-through: slider plus a live sample. Widget text size: slider plus a sample. |
 | Notch & widgets | Notch switch (plus Allow rows while Android blocks it). Floating butterfly switch. |
 | Alarms & reminders | Sounds: Alarm sound, Play alarm sound, Reminder sound. Permissions: Notifications, Exact alarms, each "Allowed" or an error "Allow". Check saved alerts. Caption: battery note. |
-| Voice | Without a Gemini key: one row "Gemini key · Add in AI keys" that opens AI keys, captioned "Until then, the mic uses Android dictation." Voice. Persona. |
+| Voice | Voice. Persona. Without a Gemini key both rows are dimmed with no value, and the caption "Without a key, the mic uses Android dictation." ends in the link "Add a Gemini key in AI keys". The key itself is set only in AI keys. |
 | AI keys | Every key, once: Claude, OpenRouter, Gemini (each: what it does, Connected or Not set). Remove rows in their own card, error text. |
-| Sync & backup | Web sync (On or Off). Export, Import, Restore a backup. Caption: what leaves the phone. |
+| Sync & backup | Plan in a browser (Linked or Not linked). Export, Import, Restore a backup. Caption: what leaves the phone. |
 | Diagnostics | Status, actions, recent captures. One caption. |
 | About | Name and tagline, Earlier RPM screens, Automation previews. |
 

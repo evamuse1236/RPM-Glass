@@ -36,22 +36,23 @@ test('home is one short list of pages; each row pushes its page',async()=>{
   assert.deepEqual(opened,['alerts']);
 });
 
-test('a blocked alarm permission shows one red card with one Allow that starts the fix, and the Alarms row says Not allowed',async()=>{
+test('a blocked alarm permission shows one red card, wholly one button whose Allow starts the fix, and the Alarms row says Not allowed',async()=>{
   const home=await mounted({notificationsAllowed:true,exactAlarmsAllowed:false});
   const alert=home.host.querySelector('.settings-alert');
   assert.equal(alert.querySelector('.settings-label').textContent,'Alarms may not ring');
   assert.equal(alert.querySelector('.settings-detail').textContent,'Exact alarms are off');
-  const allow=alert.querySelector('.settings-alert-action');
-  assert.equal(allow.textContent,'Allow');
-  assert.equal(allow.dataset.action,'exact_alarms');
-  assert.equal(allow.getAttribute('aria-label'),'Allow exact alarms');
+  assert.equal(alert.tagName.toLowerCase(),'button','a tap anywhere on the card starts the fix');
+  assert.equal(alert.querySelector('.settings-alert-action').textContent,'Allow');
+  assert.equal(alert.dataset.action,'exact_alarms');
+  assert.equal(alert.getAttribute('aria-label'),'Allow exact alarms');
+  assert.equal(alert.getAttribute('aria-description'),'Alarms may not ring. Exact alarms are off');
   assert.equal(alert.querySelector('.ms:not(.settings-icon .ms)'),null);
   const row=home.rows.find(r=>r.dataset.action==='open_alerts');
   assert.equal(row.dataset.tone,undefined);
   assert.equal(row.querySelector('.settings-value').textContent,'Not allowed');
   const both=await mounted({});
   assert.equal(both.host.querySelector('.settings-alert .settings-detail').textContent,'Notifications and alarms are off');
-  assert.equal(both.host.querySelector('.settings-alert-action').dataset.action,'notifications');
+  assert.equal(both.host.querySelector('.settings-alert').dataset.action,'notifications');
   const fine=await mounted({notificationsAllowed:true,exactAlarmsAllowed:true});
   assert.equal(fine.host.querySelector('.settings-alert'),null);
   assert.equal(fine.rows.find(r=>r.dataset.action==='open_alerts').querySelector('.settings-value').textContent,'On');
@@ -63,14 +64,14 @@ test('a blocked alarm permission shows one red card with one Allow that starts t
   assert.equal(alerts.rows.find(r=>r.dataset.action==='notifications').querySelector('.settings-value').textContent,'Allowed');
 });
 
-test('every row on the Alarms page ends in one style: a value with a chevron or one action word',async()=>{
+test('every row on the Alarms page ends in one style: a value with a chevron or one primary action word',async()=>{
   const alerts=await mounted({notificationsAllowed:false,exactAlarmsAllowed:false},'alerts');
   const word=action=>alerts.rows.find(r=>r.dataset.action===action).querySelector('.settings-act')?.textContent;
   assert.equal(word('check_alerts'),'Check');
   assert.equal(word('preview_alarm'),'Play');
   assert.ok(!alerts.rows.some(r=>r.querySelector('.settings-trail')));
-  const quiet=action=>alerts.rows.find(r=>r.dataset.action===action).querySelector('.settings-act').classList.contains('quiet');
-  assert.ok(quiet('check_alerts')&&quiet('preview_alarm'),'Check and Play only run a check or a sample, so they are quieter than Allow');
+  const classes=action=>alerts.rows.find(r=>r.dataset.action===action).querySelector('.settings-act').className;
+  assert.deepEqual([classes('check_alerts'),classes('preview_alarm')],['settings-act','settings-act'],'Check and Play are action words like Allow, never value-grey');
 });
 
 test('a missing key reads Not set on its own row, and Voice says what the mic uses without one',async()=>{
@@ -80,13 +81,13 @@ test('a missing key reads Not set on its own row, and Voice says what the mic us
   assert.equal(value('open_ai'),'Not set');
 });
 
-test('Sync & backup shows whether web sync is on, at home and on its page',async()=>{
-  for (const [cloudSync,word] of [[false,'Off'],[true,'On']]) {
+test('Sync & backup says whether a browser is linked, at home and on its page, never Off (backups always work)',async()=>{
+  for (const [cloudSync,word] of [[false,'Not linked'],[true,'Linked']]) {
     const home=await mounted({notificationsAllowed:true,exactAlarmsAllowed:true,cloudSync});
     assert.equal(home.rows.find(r=>r.dataset.action==='open_sync').querySelector('.settings-value').textContent,word);
     const sync=await mounted({cloudSync},'sync');
     const row=sync.rows.find(r=>r.dataset.action==='cloud_web');
-    assert.equal(row.querySelector('.settings-label').textContent,'Web sync');
+    assert.equal(row.querySelector('.settings-label').textContent,'Plan in a browser');
     assert.equal(row.querySelector('.settings-value').textContent,word);
     assert.equal(row.querySelector('.settings-detail'),null);
   }
@@ -101,12 +102,13 @@ test('remove rows show only for connected keys, last, in red',async()=>{
   assert.equal(last.dataset.tone,'error');
 });
 
-test('every key lives once, in AI keys; Voice without a Gemini key offers it in its card and dims the voice rows',async()=>{
+test('every key lives once, in AI keys; Voice without a Gemini key links there from its footnote and dims the voice rows with no value',async()=>{
   const voice=await mounted({},'voice');
-  assert.match(voice.host.querySelector('.settings-group').textContent,/Android dictation/);
-  const add=voice.rows[0];
-  assert.equal(add.dataset.action,'open_ai');
-  assert.equal(add.querySelector('.settings-act').textContent,'Add');
+  const caption=voice.host.querySelector('.settings-caption');
+  assert.match(caption.textContent,/Android dictation/);
+  const add=caption.querySelector('button.settings-link');
+  assert.equal(add.textContent,'Add a Gemini key in AI keys');
+  assert.deepEqual(voice.labels,['Voice','Persona'],'no second key row: the key is set once, in AI keys');
   assert.ok(!voice.rows.some(r=>/gemini_key$/.test(r.dataset.action)));
   add.click();
   assert.deepEqual(voice.opened,['ai']);
@@ -114,6 +116,7 @@ test('every key lives once, in AI keys; Voice without a Gemini key offers it in 
     const idle=voice.rows.find(r=>r.dataset.action===action);
     assert.ok(idle.disabled&&idle.dataset.idle,'a voice choice without a key cannot be opened');
     assert.ok(![...idle.querySelectorAll('.ms')].some(icon=>icon.textContent==='chevron_right'));
+    assert.equal(idle.querySelector('.settings-value'),null,'a dimmed row shows no value');
   }
   const keyed=await mounted({hasGeminiKey:true},'voice');
   assert.deepEqual(keyed.labels,['Voice','Persona']);
