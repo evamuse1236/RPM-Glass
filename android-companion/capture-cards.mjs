@@ -156,9 +156,9 @@ function appendReceiptHelp(node,draft,on,chipRow=null){
  if(chipRow){
   const askTime=help.action.step==='schedule'?chipRow.querySelector?.('.edit-chip.empty[data-chip=time]'):null;
   if(askTime?.replaceWith){
-   // In the missing time's place the offer shows just the time; its name stays "Try 11:45 AM".
+   // In the missing time's place the offer shows just the time with a sparkle, so it reads as a suggestion; its name stays "Try 11:45 AM".
    chip.setAttribute('aria-label',help.label);
-   chip.replaceChildren(icon('schedule'),el('span','tnum',help.label.replace(/^Try\s+/,'')));
+   chip.replaceChildren(icon('auto_awesome'),el('span','tnum',help.label.replace(/^Try\s+/,'')));
    askTime.replaceWith(chip);
   }else chipRow.append(chip);
   return;

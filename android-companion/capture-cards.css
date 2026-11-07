@@ -97,14 +97,19 @@
 .agenda-row:first-child{border-block-start:0}
 .agenda-time{font:var(--label-medium);color:var(--bar-on-variant);font-variant-numeric:tabular-nums;white-space:nowrap}
 .agenda-mark{align-self:start;font-size:16px;color:var(--bar-on-variant);margin-block-start:2px}
-.agenda-row.now :is(.agenda-time,.agenda-mark){color:var(--bar-primary)}
+.agenda-row.now :is(.agenda-time,.agenda-mark,.agenda-end){color:var(--bar-primary)}
 .agenda-row>.agenda-title{grid-column:2/-1}
-.agenda-body{display:flex;flex-direction:column;gap:2px;min-inline-size:0}
-.agenda-title{margin:0;font:var(--body-medium);overflow-wrap:break-word}
-.agenda-title>.must-mark{margin-inline-start:4px;font-size:16px;vertical-align:-2px}
-.agenda-body>.quiet{overflow:clip;white-space:nowrap;text-overflow:ellipsis}
+.agenda-body{display:flex;align-items:baseline;gap:4px;min-inline-size:0}
+.agenda-title{flex:0 1 auto;min-inline-size:0;margin:0;font:var(--body-medium);overflow:clip;white-space:nowrap;text-overflow:ellipsis}
+.agenda-body>.must-mark{flex:none;align-self:center;font-size:16px}
+.agenda-end{flex:none;margin-inline-start:auto;padding-inline-start:8px;font:var(--body-small);color:var(--bar-on-variant);font-variant-numeric:tabular-nums;white-space:nowrap}
 /* The day heading sits a step below the rows it heads: the tasks are the content. */
 .card-title.day-title{font:var(--title-small);color:var(--bar-on-variant)}
+/* The heading row: the title and, at its end, the one link to the planner. The link keeps its 40dp touch target but
+   takes no more height than the title. */
+.card-head{display:flex;align-items:center;gap:8px;min-inline-size:0}
+.card-head>:first-child{flex:1;min-inline-size:0}
+.card-head>.btn{flex:none;margin-block:-8px;margin-inline-end:-12px}
 /* A long day scrolls inside the answer card and fades into the card's own colour, so the card keeps a crisp edge. */
 .card.answer:has(.agenda){flex:0 1 auto;min-block-size:0}
 .card.answer>.lines:has(.agenda){flex:0 1 auto;min-block-size:0}
@@ -218,9 +223,11 @@ button.voice-item{cursor:pointer}
 button.voice-item:active{background:var(--bar-highest)}
 button.voice-item:focus-visible{outline:2px solid var(--bar-primary);outline-offset:-2px}
 .voice-item.flash{animation:row-flash calc(var(--dur-medium2) * 2) var(--ease-standard) both}
-/* Every row is a title and one subtitle line: when, then the note ("Tomorrow, 10:00 AM · Inbox"). The line keeps its
-   height while empty, so every call row is the same height and does not grow when its time or receipt arrives. */
-.voice-lane{display:grid;grid-template-columns:calc(20px + var(--s3)) auto minmax(0,1fr);grid-template-areas:"glyph title title" "glyph when note";grid-template-rows:auto minmax(16px,auto);align-items:center}
+/* A row is a title and one subtitle line: when, then the note ("Tomorrow, 10:00 AM · Inbox"). */
+.voice-lane{display:grid;grid-template-columns:calc(20px + var(--s3)) auto minmax(0,1fr);grid-template-areas:"glyph title title" "glyph when note";grid-template-rows:auto 16px;align-items:center}
+/* A row with nothing for its second line is one line, centred on its icon; the line opens when its time or note arrives. */
+.voice-lane:has(.voice-note[hidden]):has(.voice-when .cell[data-v=""]){grid-template-rows:auto 0px}
+.voice-lane>.voice-when,.voice-lane>.voice-what>.voice-note{align-self:stretch;min-block-size:0;overflow:clip}
 .voice-glyph{grid-area:glyph;display:grid;place-items:center start;color:var(--bar-primary)}
 .voice-glyph .ms{font-size:20px}
 .voice-what{display:contents}
@@ -240,6 +247,7 @@ button.voice-item:focus-visible{outline:2px solid var(--bar-primary);outline-off
   .voice-lead{transition:opacity var(--dur-short4) var(--ease-standard),filter var(--dur-short4) var(--ease-standard)}
   .voice-lead .w{animation:word-in calc(var(--dur-medium2) * 2) var(--ease-emphasized) both}
   .voice-row{transition:grid-template-rows var(--dur-medium1) var(--ease-emphasized-decelerate)}
+  .voice-lane{transition:grid-template-rows var(--dur-medium2) var(--ease-emphasized-decelerate)}
   .voice-row-clip{transition:opacity var(--dur-medium1) var(--ease-emphasized-decelerate)}
   button.voice-item{transition:background-color var(--dur-short3) var(--ease-standard)}
 }

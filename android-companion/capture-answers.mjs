@@ -9,18 +9,17 @@ function agendaTime(item){
  return el('span','agenda-time',item.start==null?'Any time':item.allDay?'All day':shortClock(item.start));
 }
 
-const HOUR=60*60*1000;
-/** A row's context line says only what the title and marker do not: an end time when the item runs an hour or more, and the Block of a Must. */
+/** Every agenda row is one line: the start time in the gutter, the title (cut with an ellipsis) and the Must star. Only
+    the row happening now adds its end time, because that is the one end that matters at a glance. Rows never grow. */
 function agendaRow(item,now){
- const row=el('li',['agenda-row',item.kind==='event'?'event':'',item.done?'done':'',item.start<=now&&(item.end??item.start)>now?'now':''].filter(Boolean).join(' '));
+ const live=item.start!=null&&item.start<=now&&(item.end??item.start)>now;
+ const row=el('li',['agenda-row',item.kind==='event'?'event':'',item.done?'done':'',live?'now':''].filter(Boolean).join(' '));
  row.append(agendaTime(item));
  row.append(icon(item.kind==='event'?'event':item.done?'check_circle':'radio_button_unchecked',{cls:'agenda-mark'}));
- const body=el('div','agenda-body'),title=el('p','agenda-title',item.title);
- if(item.must){const star=icon('star',{fill:true,cls:'must-mark'});star.removeAttribute('aria-hidden');star.setAttribute('role','img');star.setAttribute('aria-label','Must');title.append(star);}
- body.append(title);
- const long=item.end!=null&&item.start!=null&&!item.allDay&&item.end-item.start>=HOUR;
- const sub=[long?`until ${shortClock(item.end)}`:null,item.must?item.block:null].filter(Boolean).join(' · ');
- if(sub)body.append(el('p','quiet',sub));
+ const body=el('div','agenda-body');
+ body.append(el('p','agenda-title',item.title));
+ if(item.must){const star=icon('star',{fill:true,cls:'must-mark'});star.removeAttribute('aria-hidden');star.setAttribute('role','img');star.setAttribute('aria-label','Must');body.append(star);}
+ if(live&&item.end!=null&&!item.allDay)body.append(el('span','agenda-end',`until ${shortClock(item.end)}`));
  row.append(body);
  return row;
 }
@@ -78,13 +77,17 @@ const HEADING={next:'Up next',water:'Water',meals:'Meals today'};
  */
 export function answerCard(capture,{platform,on,now=Date.now()}){
  const node=card('answer'),kind=capture.card?.kind??null;
+ const head=el('div','card-head');
  if(kind==='agenda'){
   const day=capture.card.day??localDay(new Date(now));
   const label=relativeDay(day);
-  node.append(el('p','card-title day-title',label==='Today'||label==='Tomorrow'?`${label}, ${longDate(day).replace(/^\w+,?\s*/,'')}`:longDate(day)));
+  head.append(el('p','card-title day-title',label==='Today'||label==='Tomorrow'?`${label}, ${longDate(day).replace(/^\w+,?\s*/,'')}`:longDate(day)));
  }else if(kind==='task'){
-  node.append(el('p','kicker','Task'));
- }else if(kind)node.append(el('p','card-title',HEADING[kind]));
+  head.append(el('p','kicker','Task'));
+ }else if(kind)head.append(el('p','card-title',HEADING[kind]));
+ /* The planner link shares the heading row, so a short answer never ends in a footer that holds one button. */
+ if(kind==='agenda'||kind==='next'||kind==='task')head.append(button('Open planner',on.openPlanner,{role:'text'}));
+ if(kind)node.append(head);
  if(capture.reply)node.append(answerText(capture.reply));
  if(kind==='agenda'){
   const agenda=platform.agenda?.(capture.card.day)??{timed:[],anytime:[]};
@@ -96,10 +99,5 @@ export function answerCard(capture,{platform,on,now=Date.now()}){
  if(!kind&&!capture.reply)node.append(el('p','quiet','No answer came back. Your words are saved.'));
  const also=alsoHeard({...capture,notes:(capture.notes??[]).filter(n=>n.disposition!=='question')},on);
  if(also)node.append(also);
- if(kind==='agenda'||kind==='next'||kind==='task'){
-  const row=el('div','card-actions');
-  row.append(button('Open planner',on.openPlanner,{role:'text'}));
-  node.append(row);
- }
  return node;
 }
