@@ -69,3 +69,12 @@ test('proposal times and Result deadlines are absolute days, never Tomorrow besi
  assert.equal(dueText({label:'Overdue since Fri, Oct 2',overdue:true}),'Overdue since Fri, Oct 2');
  assert.equal(dueText(null),null);
 });
+test('voice rows show near days in the answer card short words, no ":00" on whole hours',async()=>{
+ const {nearWhen,scheduleText}=await import('./capture-content.mjs');
+ const reference=new Date('2026-10-03T06:00:00');
+ const at=iso=>nearWhen({planned:new Date(iso).toISOString()},{reference}).replace(/\u00a0/g,' ');
+ assert.equal(at('2026-10-04T10:00:00'),'Tomorrow, 10 AM');
+ assert.equal(at('2026-10-03T16:30:00'),'Today, 4:30 PM');
+ assert.equal(at('2026-10-06T09:00:00'),'Tue 6 Oct, 9 AM');
+ assert.equal(nearWhen({plannedDate:'2026-10-03'},{reference}),scheduleText({plannedDate:'2026-10-03'},{reference}));
+});

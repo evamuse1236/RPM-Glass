@@ -119,7 +119,7 @@ export function receiptCard(capture,{canUndo,on,undoId}){
  if(change)node.append(change);
  const countdown=el('span','countdown');
  countdown.setAttribute('aria-live','off');
- node.append(actionsRow(countdown,canUndo?button('Undo',()=>on.undo(draft),{role:'text',iconName:'undo'}):null,
+ node.append(actionsRow(countdown,canUndo?button('Undo',()=>on.undo(draft),{role:'text'}):null,
   button('Open planner',on.openPlanner,{role:'text'})));
  return node;
 }
@@ -145,7 +145,7 @@ export function confirmCard(capture,{canUndo,on}){
  return node;
 }
 
-/** The next step is one more chip: in the item's own chip row when the card holds one item (a suggested time takes the dashed "Add time" chip's place), else a row of its own. */
+/** The next step is one more chip: in the item's own chip row when the card holds one item (a suggested time takes the dashed "Add time" chip's place as a filled offer, "11:45 AM"), else a row of its own. */
 function appendReceiptHelp(node,draft,on,chipRow=null){
  const help=draft.nextStep;if(!help)return;
  if(!help.action){if(help.text)node.append(el('p','quiet',help.text));return;}
@@ -156,9 +156,9 @@ function appendReceiptHelp(node,draft,on,chipRow=null){
  if(chipRow){
   const askTime=help.action.step==='schedule'?chipRow.querySelector?.('.edit-chip.empty[data-chip=time]'):null;
   if(askTime?.replaceWith){
-   chip.replaceChildren(icon('schedule'),el('span','',`${help.label.replace(/^Try\s+/,'')}?`));
+   // In the missing time's place the offer shows the time with the time chip's clock; its tonal fill marks it as a suggestion. Its name stays "Try 11:45 AM".
    chip.setAttribute('aria-label',help.label);
-   chip.classList.add('ask');
+   chip.replaceChildren(icon('schedule'),el('span','tnum',help.label.replace(/^Try\s+/,'')));
    askTime.replaceWith(chip);
   }else chipRow.append(chip);
   return;

@@ -14,17 +14,40 @@
 .wheel-plot[data-label-top] { margin-block-start: var(--s8); }
 .wheel-plot[data-label-bottom] { margin-block-end: var(--s8); }
 .wheel-svg { display: block; inline-size: 100%; block-size: 100%; overflow: visible; touch-action: none; cursor: pointer; }
-/* An unrated wedge is an empty track: a wash of its Area's hue inside a 1dp outline of it, never a filled shape. Dark
-   needs twice the wash to read as much as light does. */
-.wheel-track {
-  fill: light-dark(color-mix(in oklch, var(--tone) 8%, var(--surface-container-low)), color-mix(in oklch, var(--tone) 16%, var(--surface-container-low)));
-  stroke: color-mix(in oklch, var(--tone) 40%, var(--surface-container-low));
-  stroke-width: 1px;
-  vector-effect: non-scaling-stroke;
+/* Each wedge is its Area's own track: a neutral hairline rim at 10 and faint marks at 2, 4, 6 and 8 in the Area's hue,
+   no fill and no straight edges, so the seams are one clean gap. Only a rating fills it; the marks it has passed cut
+   across the fill. The rim stays neutral so the value's edge is the one coloured arc. */
+.wheel-svg path { fill: none; }
+.wheel-rim { stroke: var(--outline-variant); stroke-width: 1; }
+.wheel-scale {
+  stroke: light-dark(color-mix(in oklch, var(--tone) 22%, transparent), color-mix(in oklch, var(--tone) 40%, var(--outline-variant)));
+  stroke-width: 1;
 }
-.wheel-scale { fill: none; stroke: var(--outline-variant); stroke-width: 1; pointer-events: none; }
-.wheel-wedge { fill: var(--tone); stroke: var(--surface-container-low); stroke-width: 2; stroke-linejoin: round; }
-.wheel-ring { fill: none; stroke: var(--surface-container-low); stroke-opacity: .6; stroke-width: 1; pointer-events: none; }
+/* A rating fills its wedge in a light tone of the hue, the M3 slider's track to its handle: the full hue is kept for the
+   fill's outer arc and the thumb, so the value's edge carries the colour and the labels and the centre stay the
+   loudest words. The marks it has passed show through as a faint line of the hue, not a cut. */
+.wheel-svg .wheel-wedge {
+  fill: light-dark(color-mix(in oklch, var(--tone) 34%, var(--surface-container-low)), color-mix(in oklch, var(--tone) 42%, var(--surface-container-low)));
+  stroke: var(--surface-container-low);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.wheel-cut { stroke: color-mix(in oklch, var(--tone) 22%, transparent); stroke-width: 1; }
+.wheel-edge { stroke: var(--tone); stroke-width: 3; }
+/* One thumb, the slider's: a capsule across the wedge with a gap of the card's colour round it, solid in the Area's
+   hue on the fill's edge once rated, hollow at rest while unrated. */
+.wheel-handle { pointer-events: none; }
+.wheel-handle path { stroke-linecap: round; }
+.wheel-handle-halo { stroke: var(--surface-container-low); stroke-width: 13; }
+.wheel-handle-bar { stroke: var(--tone); stroke-width: 8; }
+.wheel-handle-core { stroke: none; stroke-width: 3; }
+.unrated .wheel-handle-core { stroke: var(--surface-container-low); }
+/* Unrated, a faint 1px groove runs from the thumb to the rim: the whole way to drag, never a fill, so it cannot read
+   as a rating and sets no limit short of 10. */
+.wheel-groove { display: none; stroke-width: 1; stroke-linecap: round; }
+.unrated .wheel-groove { display: inline; stroke: light-dark(color-mix(in oklch, var(--tone) 30%, transparent), color-mix(in oklch, var(--tone) 40%, transparent)); }
+/* Until the first rating one quiet line under the wheel says how it works; the header keeps its link. */
+.wheel-hint { margin-block-start: calc(-1 * var(--s1)); font: var(--body-small); color: var(--on-surface-variant); text-align: center; }
 .wheel-average {
   position: absolute;
   inset-block-start: 50%;
@@ -38,21 +61,6 @@
   pointer-events: none;
 }
 .wheel-average:empty { display: none; }
-.wheel-hint {
-  position: absolute;
-  inset-block-start: 50%;
-  inset-inline-start: 50%;
-  translate: -50% -50%;
-  padding: var(--s1);
-  border-radius: var(--shape-full);
-  background: var(--surface-container-low);
-  font: var(--label-small);
-  color: var(--on-surface-variant);
-  text-align: center;
-  white-space: pre;
-  pointer-events: none;
-}
-.wheel-average:not(:empty) + .wheel-hint { display: none; }
 .wheel-label {
   position: absolute;
   inset-inline-start: calc(50% + var(--x) * (50% + 8px));
@@ -77,8 +85,17 @@
   padding-block: 0 var(--s1);
   padding-inline-start: calc(var(--gutter) + var(--s2));
 }
+/* A Goal reads as its Area's child: body text under the Area's title. */
+.life-area-group > .list-item.nested .list-headline { font: var(--body-medium); }
 :is(.life-areas, .area-goals, .goal-projects) :is(.list-headline, .list-supporting) { text-wrap: pretty; }
+/* A Project row is its ring, its name (and on a Goal's page its Result, up to two lines so it is read, not cut), then
+   "done/total" by the chevron, as on a Project card's Block rows. */
+.goal-projects .list-supporting { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: clip; }
+.project-row-end { display: flex; align-items: center; gap: var(--s2); color: var(--on-surface-variant); }
+.project-row-count { font: var(--label-medium); }
 .list-item.add-row .leading, .list-item.add-row .list-headline { color: var(--primary); }
 .list-item.add-row .list-headline { font: var(--label-large); }
-/* On an Area's page a Project sits under its Goal's words: the Goal row's 24dp icon and its gap. */
-.area-goals > .list-item.nested { padding-inline-start: var(--key-icon-text); }
+/* An Area's page keeps one icon column, centred under the avatar like the Purpose and rating rows, and one text edge;
+   a Project tucks under its Goal's words. */
+.area-goals > .list-item, .goal-projects > .list-item { padding-inline-start: var(--s6); }
+.area-goals > .list-item.nested { padding-inline-start: calc(var(--s6) + var(--s6) + var(--s4)); }

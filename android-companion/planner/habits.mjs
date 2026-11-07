@@ -1,47 +1,99 @@
 /**
- * Habits: routines, water and the meal times in one list, each opening its editor. Every editor is one move from
- * where the user is: this list, a long press on the Today row, or the Edit button on the row's own sheet.
+ * Habits: routines, water and the meal times in one list that shows how today is going, each opening its editor.
+ * Every editor is one move from where the user is: this list, a long press on the Today row, or the Edit button on the
+ * row's own sheet.
  */
-import {WATER_DEFAULTS, everyText, rangeText, daysText, clockText, atMinutes, minutesOf} from '../body-state.mjs';
-import {el, icon, button} from './dom.mjs';
+import {WATER_DEFAULTS, rangeText, daysText, clockText, atMinutes, minutesOf, localDay, routineOn,
+  routineRowParts, routineState, joinParts, waterStatus} from '../body-state.mjs';
+import {duration} from './format.mjs';
+import {el, icon, button, iconButton, attrs} from './dom.mjs';
 import {openSheet} from './sheet.mjs';
+import {openMenu} from './menu.mjs';
 import {notice} from './snackbar.mjs';
 import {userMessage} from '../user-message.mjs';
 import {attachSwipe} from '../task-swipe.mjs';
-import {switchButton} from './fact-rows.mjs';
 import {openRoutineEditor} from './routine-editor.mjs';
 import {openWaterEditor, openMealEditor} from './habit-editors.mjs';
+import {drink} from './water.mjs';
+import {logMealNow} from './meals.mjs';
+import {openRunSheet} from './routines.mjs';
 import {bodyApi} from './body-api.mjs';
 
 const MEAL_PREFIX = 'meal:';
+/** A meal's glyph: the Snack time menu item and the next meal's log action; in the list every habit leads with today's
+ * progress ring instead. */
+const MEAL_ICON = 'restaurant';
+const timeWords = hhmm => clockText(atMinutes('2000-01-01', minutesOf(hhmm)));
+
+const SVG = 'http://www.w3.org/2000/svg';
+const svgNode = (tag, values) => attrs(document.createElementNS(SVG, tag), values);
+
+/** Today's progress as one ring in the habit's timeline colour (`tone`: water, routine or meal): an arc for the share
+ * done (3 of 8 glasses, 3 of 5 steps), a filled disc with a check once the habit is done. */
+function progressMark(tone, done, total, {off = false} = {}) {
+  const complete = total > 0 && done >= total;
+  const svg = svgNode('svg', {class: `habit-ring tone-${tone}${complete ? ' done' : ''}${off ? ' off' : ''}`, viewBox: '0 0 24 24'});
+  if (complete) {
+    svg.append(svgNode('circle', {class: 'habit-ring-disc', cx: 12, cy: 12, r: 10}),
+      svgNode('path', {class: 'habit-ring-check', d: 'M7.5 12.2L10.6 15.2L16.5 9.2'}));
+    attrs(svg, {role: 'img', 'aria-label': 'Done today'});
+    return svg;
+  }
+  svg.append(svgNode('circle', {class: 'habit-ring-track', cx: 12, cy: 12, r: 9}));
+  const share = total ? Math.round(done / total * 100) : 0;
+  if (share) svg.append(svgNode('circle', {class: 'habit-ring-arc', cx: 12, cy: 12, r: 9, pathLength: 100, 'stroke-dasharray': `${share} 100`}));
+  svg.setAttribute('aria-hidden', 'true');
+  return svg;
+}
+
 /**
- * One habit: its icon, name and summary open the editor. A meal ends in its divided Show switch; any other ends in a
- * chevron. Chevrons and switches share one trailing edge. A row with no symbol keeps the icon column empty, so the
- * meals share the first meal's icon.
+ * One habit: today's ring, its name and one quiet line of today's state open the editor. The trailing slot holds a
+ * chevron, or on the next thing still to do its one-tap action (log a glass, log the meal, start the routine);
+ * `off` dims a meal hidden from Today.
  */
-function habitRow(symbol, name, summary, open, toggle = null) {
-  const row = el('div', 'habit-row');
+function habitRow(mark, name, summary, open, {off = false, action = null} = {}) {
+  const row = el('div', off ? 'habit-row habit-hidden' : 'habit-row');
   const copy = el('span', 'habit-copy');
-  const main = button(name, open, 'habit-open');
-  copy.append(main, el('span', 'habit-summary tnum', summary));
-  row.append(symbol ? icon(symbol, {cls: 'habit-icon'}) : el('span', 'habit-icon'), copy,
-    toggle ?? icon('chevron_right', {cls: 'habit-chevron'}));
+  copy.append(button(name, open, 'habit-open'));
+  if (summary) copy.append(summary instanceof Node ? summary : el('span', 'habit-summary tnum', summary));
+  row.append(mark, copy, action ?? icon('chevron_right', {cls: 'habit-chevron'}));
   return row;
 }
 
-/** A quiet add row straight under the list it adds to. */
-function addRow(label, onClick) {
-  const row = el('div', 'habit-row habit-add');
-  row.append(icon('add', {cls: 'habit-icon'}), button(label, onClick, 'habit-open'));
-  return row;
+/** A meal's line: when it was eaten and what, else its planned time, or that it is hidden from Today. */
+function mealLine(meal, eaten) {
+  if (eaten) {
+    const line = el('span', 'habit-summary habit-meal-line tnum', `${clockText(new Date(eaten.at))} · `);
+    line.append(el('span', 'habit-logged', eaten.name));
+    return line;
+  }
+  return el('span', 'habit-summary habit-meal-line tnum', timeWords(meal.at) + (meal.on ? '' : ' · Not on Today'));
 }
+
+/** The next thing to do gets one countdown in the primary colour, as the timeline gives its next item. */
+function addSoon({summary, due, nowWords = 'now'}, now) {
+  const minutes = Math.ceil((due - now) / 60000);
+  summary.append(' · ', el('span', 'habit-soon', minutes <= 0 ? nowWords : `in ${duration(minutes)}`));
+}
+
+/** What the Water row says after the count: when the next glass is due, or that reminders are off. */
+function waterNext(status, settings) {
+  if (status.reached) return '';
+  if (settings.reminders === false) return ' · reminders off';
+  return status.nextAt && !status.pending ? ` · next at ${clockText(status.nextAt)}` : '';
+}
+
+/** The next thing's one-tap action: its log glyph (a glass, a meal, start) on a tonal disc in the habit's colour, centred
+ * where the chevron is, so every row keeps one right edge and the row itself still opens the editor. */
+const doButton = (tone, glyph, label, onClick) => iconButton(glyph, label, onClick, {cls: `habit-do tone-${tone}`});
 
 export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) {
   const {body: content} = openSheet(app, 'Habits', {variant: 'choice habits', motion});
   const list = el('div', 'habit-list');
-  content.append(list);
+  const add = el('div', 'habit-row habit-add');
+  content.append(list, add);
   const back = () => openHabits(app, body, {motion: 'back'});
-  const addSnack = addRow('Add snack time', async () => {
+  const addSnack = async () => {
     try {
       await body.setMealSlot('snack', {on: true});
     } catch (error) {
@@ -51,39 +103,58 @@ export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) 
     app.render();
     openMealEditor(app, body, 'snack', {back});
     notice(app, 'Snack time added', {undo: true});
-  });
-  const addRoutine = addRow('Add routine', () => openRoutineEditor(app, body, null, {back}));
+  };
+  const addRoutine = () => openRoutineEditor(app, body, null, {back});
+  const addButton = button('Add habit', () => {
+    if (body.mealTimes().some(m => m.slot === 'snack')) return addRoutine();
+    openMenu(addButton, [{label: 'Routine', icon: 'checklist', onClick: addRoutine},
+      {label: 'Snack time', icon: MEAL_ICON, onClick: addSnack}], 'Add a habit');
+  }, 'habit-open');
+  add.append(icon('add', {cls: 'habit-icon'}), addButton);
 
   const paint = () => {
     if (!content.isConnected) return;
-    const rows = [];
-    for (const routine of [...body.routines()].sort((a, b) => (a.start < b.start ? -1 : 1))) {
-      rows.push(habitRow('checklist', routine.name, `${rangeText(routine.start, routine.end)} · ${daysText(routine.days)}`,
-        () => openRoutineEditor(app, body, routine.id, {back})));
+    const now = body.now(), day = localDay(now);
+    // Water runs all day, so it leads; routines and meals follow by time. `due` marks what is still to do today.
+    const items = [];
+    const water = body.water();
+    const settings = {...WATER_DEFAULTS, ...water.settings};
+    const status = waterStatus({...water, settings, now});
+    const waterSummary = el('span', 'habit-summary tnum', `${status.count} of ${status.goal} glasses${waterNext(status, settings)}`);
+    items.push({order: -1, due: status.pending ? +now : null, nowWords: 'due now', summary: waterSummary,
+      row: action => habitRow(progressMark('water', status.count, status.goal), 'Water', waterSummary,
+        () => openWaterEditor(app, body, {back}), {action}),
+      act: () => doButton('water', 'water_full', 'Log a glass', () => drink(app, body))});
+    for (const routine of body.routines()) {
+      const run = body.runFor(routine.id, day);
+      const today = routineOn(routine, day) ? routineRowParts(routine, run, now) : undefined;
+      const words = today === undefined ? `${rangeText(routine.start, routine.end)} · ${daysText(routine.days)}`
+        : today ? joinParts(today.state === 'partly' ? today.parts.slice(1) : today.parts) : 'Skipped today';
+      const summary = el('span', 'habit-summary tnum', words);
+      const state = routineState(routine, run, now);
+      const progress = today ? state.progress : {done: 0, total: 0};
+      const due = today?.state === 'upcoming' ? +state.start : today?.state === 'running' ? +now : null;
+      items.push({order: minutesOf(routine.start), due, summary,
+        row: action => habitRow(progressMark('routine', progress.done, progress.total), routine.name, summary,
+          () => openRoutineEditor(app, body, routine.id, {back}), {action}),
+        act: () => doButton('routine', 'play_arrow', `Start ${routine.name}`, () => openRunSheet(app, body, routine.id))});
     }
-    const water = {...WATER_DEFAULTS, ...body.water().settings};
-    rows.push(habitRow('water_drop', 'Water', water.reminders === false ? `${water.goal} glasses · reminders off`
-      : `${water.goal} glasses · every ${everyText(water.intervalMinutes)}`, () => openWaterEditor(app, body, {back})));
-    const meals = body.mealTimes();
-    for (const [index, meal] of meals.entries()) {
-      const show = switchButton(`Show ${meal.name}`, async on => {
-        show.set(on);
-        try {
-          await body.setMealSlot(meal.slot, {on});
-        } catch (error) {
-          show.set(!on);
-          notice(app, userMessage(error, "Couldn't save that. Try again."));
-          return;
-        }
-        app.render();
-        notice(app, on ? `${meal.name} shows on Today` : `${meal.name} hidden from Today`, {undo: true});
-      }, {cls: 'habit-switch'});
-      show.set(meal.on);
-      rows.push(habitRow(index ? '' : 'restaurant', meal.name, clockText(atMinutes('2000-01-01', minutesOf(meal.at))),
-        () => openMealEditor(app, body, meal.slot, {back}), show));
+    const logged = body.meals().filter(m => localDay(m.at) === day && m.state !== 'skipped' && String(m.name ?? '').trim())
+      .sort((a, b) => new Date(a.at) - new Date(b.at));
+    const plan = body.mealTimes();
+    for (const meal of plan) {
+      const eaten = logged.filter(m => m.slot === meal.slot).at(-1);
+      const summary = mealLine(meal, eaten);
+      const at = atMinutes(day, minutesOf(meal.at));
+      items.push({order: minutesOf(meal.at), due: !eaten && meal.on && at > now ? +at : null, summary,
+        row: action => habitRow(progressMark('meal', eaten ? 1 : 0, 1, {off: !meal.on}), meal.name, summary,
+          () => openMealEditor(app, body, meal.slot, {back}), {off: !meal.on, action}),
+        act: () => doButton('meal', MEAL_ICON, `Log ${meal.name.toLowerCase()}`, () => logMealNow(app, body, meal.slot, meal.name))});
     }
-    addSnack.hidden = meals.some(m => m.slot === 'snack');
-    list.replaceChildren(...rows, addRoutine, addSnack);
+    const next = items.filter(item => item.due !== null).sort((a, b) => a.due - b.due)[0];
+    if (next) addSoon(next, now);
+    list.replaceChildren(...items.sort((a, b) => a.order - b.order).map(item => item.row(item === next ? item.act() : null)));
+    addButton.textContent = plan.some(m => m.slot === 'snack') ? 'Add routine' : 'Add habit';
   };
   paint();
   app.sheetRefresh = paint;

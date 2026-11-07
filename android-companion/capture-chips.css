@@ -1,5 +1,6 @@
 .chip-items{display:grid;gap:12px;margin:0;padding:0;list-style:none}
-.chip-item{display:grid;gap:8px;min-inline-size:0}
+/* A flex column, not a grid: a closed tray's negative margin can take back the row gap here, which a grid track cannot. */
+.chip-item{display:flex;flex-direction:column;gap:8px;min-inline-size:0}
 
 .item-head{display:flex;align-items:center;gap:12px;min-block-size:40px;padding:0;border:0;border-radius:var(--r-tile);background:none;color:var(--bar-on);font:var(--body-large);text-align:start;cursor:pointer}
 .item-head .ms{font-size:24px;color:var(--bar-primary)}
@@ -7,11 +8,9 @@
 .item-head.failed{color:var(--bar-error)}
 .item-head:focus-visible,.edit-chip:focus-visible,.item-compact:focus-visible,.tray-pick:focus-visible{outline:2px solid var(--bar-primary);outline-offset:2px}
 
-/* One row of compact 32dp chips, set values first; a row too long for the card slides sideways and fades the edge that has more. */
-.item-chips{display:flex;gap:8px;min-inline-size:0;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:none;padding:8px 4px;margin:-8px -4px;
-  animation:cards-edges linear both;animation-timeline:scroll(self inline);mask-image:linear-gradient(to right,transparent,#000 var(--fade-start),#000 calc(100% - var(--fade-end)),transparent)}
-.item-chips::-webkit-scrollbar{display:none}
-.item-chips>*{flex:none}
+/* Compact 32dp chips, set values first; a set too long for one line wraps, so every chip shows whole. */
+.item-chips{display:flex;flex-wrap:wrap;gap:8px;min-inline-size:0}
+.item-chips>*{flex:none;max-inline-size:100%}
 .edit-chip{position:relative;display:inline-flex;align-items:center;gap:4px;max-inline-size:100%;min-block-size:32px;padding:0 12px 0 8px;border:1px solid transparent;border-radius:var(--r-tile);background:var(--bar-highest);color:var(--bar-on);font:var(--label-large);white-space:nowrap;cursor:pointer}
 .edit-chip::after{content:"";position:absolute;inset:-8px 0}
 .edit-chip .ms{font-size:20px;color:var(--bar-primary)}
@@ -25,10 +24,17 @@
 .edit-chip.failed{border:1px solid var(--bar-error)}
 .edit-chip.read-only{cursor:default}
 .edit-chip.read-only::after{content:none}
+/* A set Block is a quiet line under the title in its full name: icon in the title icon's 24dp column, words on the title's edge. */
+.edit-chip.item-where{justify-self:start;gap:12px;min-block-size:24px;margin-block-start:-4px;padding:0;border:0;background:none;color:var(--bar-on-variant);font:var(--body-medium);white-space:normal;text-align:start}
+.edit-chip.item-where .ms{inline-size:24px;text-align:center;color:var(--bar-on-variant)}
+.edit-chip.item-where .chip-label{white-space:normal;overflow:visible;overflow-wrap:anywhere}
+.edit-chip.item-where.open{border:0;color:var(--bar-primary)}
+.edit-chip.item-where.open .ms{color:var(--bar-primary)}
 
 .chip-tray{display:grid;grid-template-rows:0fr}
 .chip-tray.open{grid-template-rows:1fr}
-.chip-tray:not(.open){visibility:hidden}
+/* A closed tray takes back the item's 8dp row gap, so a shut tray adds no empty band above the card's footer. */
+.chip-tray:not(.open){visibility:hidden;margin-block-start:-8px}
 .tray-inner{display:grid;gap:8px;min-block-size:0;overflow:clip;border-radius:var(--r-control);background:var(--bar-high)}
 .chip-tray.open .tray-inner{padding:8px 12px}
 .chip-tray .tiles{padding:0}
@@ -51,8 +57,8 @@
 .change-label{flex:1;min-inline-size:0}
 
 @media (prefers-reduced-motion:no-preference){
-  .chip-tray{transition:grid-template-rows var(--dur-short3) var(--ease-emphasized-accelerate),visibility 0s linear var(--dur-short3)}
-  .chip-tray.open{transition:grid-template-rows var(--dur-short4) var(--ease-emphasized-decelerate),visibility 0s}
+  .chip-tray{transition:grid-template-rows var(--dur-short3) var(--ease-emphasized-accelerate),margin-block-start var(--dur-short3) var(--ease-emphasized-accelerate),visibility 0s linear var(--dur-short3)}
+  .chip-tray.open{transition:grid-template-rows var(--dur-short4) var(--ease-emphasized-decelerate),margin-block-start var(--dur-short4) var(--ease-emphasized-decelerate),visibility 0s}
   .edit-chip{transition:scale var(--dur-short3) var(--ease-standard),background-color var(--dur-short3) var(--ease-standard)}
   .edit-chip:not(.read-only):active{scale:.97}
   .edit-chip.pop{animation:fact-pop var(--dur-medium2) var(--ease-spring)}

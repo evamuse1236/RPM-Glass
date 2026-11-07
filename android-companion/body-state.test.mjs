@@ -39,7 +39,7 @@ test('routine row states use the exact words', () => {
   assert.equal(line(runWith({s0: 'done', s1: 'done', s2: 'done'}), '07:10'), '7:00 – 7:30 AM · 3 of 5 done');
   assert.equal(line(runWith({s0: 'done', s1: 'done', s2: 'done', s3: 'done', s4: 'done'}), '07:20'), 'Done · 5 of 5');
   assert.equal(routineRowParts(routine, runWith({s0: 'done', s1: 'done', s2: 'done', s3: 'done', s4: 'done'}), at('07:20')).filled, true);
-  assert.equal(line(runWith({s0: 'done', s1: 'done', s2: 'done', s3: 'skipped'}), '09:00'), 'Partly done · 3 of 5, 1 skipped');
+  assert.equal(line(runWith({s0: 'done', s1: 'done', s2: 'done', s3: 'skipped'}), '09:00'), 'Partly done · 3 of 5 · 1 skipped');
   assert.equal(line(null, '09:00'), 'Missed · window ended 7:30 AM');
   assert.equal(routineRowParts(routine, null, at('09:00')).parts[1].yields, true);
   assert.equal(routineRowParts(routine, {...runWith({}), skippedDay: true}, at('07:10')), null);
@@ -52,7 +52,7 @@ test('touching a step before the window starts makes it running', () => {
 test('every step ticked or skipped finishes the run', () => {
   const run = runWith({s0: 'done', s1: 'done', s2: 'done', s3: 'done', s4: 'skipped'});
   assert.equal(routineState(routine, run, at('07:10')).state, 'partly');
-  assert.equal(runSummary(routine, run), 'Done · 4 of 5, 1 skipped');
+  assert.equal(runSummary(routine, run), 'Done · 4 of 5 · 1 skipped');
   assert.equal(runSummary(routine, runWith({s0: 'done', s1: 'done', s2: 'done'})), '3 of 5 done');
 });
 
@@ -69,7 +69,7 @@ test('Done all ticks only the untouched steps; skipped steps stay skipped', () =
   const run = doneAll(routine, runWith({s1: 'skipped', s2: 'done'}), at('07:12'));
   assert.deepEqual(routine.steps.map(s => run.marks[s.id].state), ['done', 'skipped', 'done', 'done', 'done']);
   assert.equal(run.marks.s2.at, at('07:05').toISOString());
-  assert.equal(runSummary(routine, run), 'Done · 4 of 5, 1 skipped');
+  assert.equal(runSummary(routine, run), 'Done · 4 of 5 · 1 skipped');
 });
 
 test('Skip the rest skips only the untouched steps, and Put back clears a mark', () => {
@@ -83,7 +83,7 @@ test('Skip the rest skips only the untouched steps, and Put back clears a mark',
 test('routine history words', () => {
   const after = at('23:00');
   assert.equal(routineHistoryText(routine, runWith({s0: 'done', s1: 'done', s2: 'done', s3: 'done', s4: 'done'}), after), 'Done');
-  assert.equal(routineHistoryText(routine, runWith({s0: 'done', s1: 'done', s2: 'done', s3: 'skipped'}), after), 'Partly done · 3 of 5, 1 skipped');
+  assert.equal(routineHistoryText(routine, runWith({s0: 'done', s1: 'done', s2: 'done', s3: 'skipped'}), after), 'Partly done · 3 of 5 · 1 skipped');
   assert.equal(routineHistoryText(routine, runWith({}), after), 'Missed');
 });
 
@@ -214,7 +214,7 @@ test('history groups by day, newest first, and leaves out a routine still runnin
   assert.deepEqual(days.map(d => d.day), [DAY, '2026-10-16']);
   assert.deepEqual(days[0].rows.map(r => r.kind), ['meal', 'water', 'routine']);
   assert.equal(days[0].rows[1].count, 2);
-  assert.equal(days[0].rows[2].text, 'Partly done · 3 of 5, 1 skipped');
+  assert.equal(days[0].rows[2].text, 'Partly done · 3 of 5 · 1 skipped');
   assert.deepEqual(days[1].rows.map(r => r.kind), ['water', 'meal', 'routine']);
   assert.equal(days[1].rows[2].text, 'Missed');
   const running = historyDays({runs: [runWith({s0: 'done'})], routines: [routine]}, at('07:10'));

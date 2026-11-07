@@ -30,7 +30,7 @@ export function timeLabel(day,time){
 
 function chip(key,field,iconName,label,state='filled',extra={}){
  const full=String(label);
- return {key,field,icon:iconName,label:short(full),state,aria:state==='empty'?full:`${NAME[key]}: ${full}. Change`,...extra};
+ return {key,field,icon:iconName,label:short(full),full,state,aria:state==='empty'?full:`${NAME[key]}: ${full}. Change`,...extra};
 }
 const titleIn=(list,id)=>list?.find(x=>String(x.id)===String(id))?.title;
 const purposeChip=e=>e.purpose?chip('purpose','purpose','favorite',e.purpose):chip('purpose','purpose','favorite','Add purpose','empty');

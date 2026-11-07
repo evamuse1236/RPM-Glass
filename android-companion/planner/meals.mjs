@@ -1,6 +1,7 @@
-/** The meal on Today and the meal sheet: the slot guessed from the time, the usual meals for it as one-tap chips, a
- * box to type one, then a Saved state with Jev's nutrition guess kept apart from the user's words. */
-import {guessSlot, usualMeals, estimateText, clockText, SLOTS, SLOT_NAMES, SLOT_PLURALS} from '../body-state.mjs';
+/** The meal on Today and the meal sheet: the slot guessed from the time, a box to type the meal with up to three
+ * foods this meal had lately under it as one-tap chips, then a Saved state with Jev's nutrition guess
+ * kept apart from the user's words. */
+import {guessSlot, usualMeals, estimateText, clockText, SLOTS, SLOT_NAMES} from '../body-state.mjs';
 import {el, icon, button, iconButton} from './dom.mjs';
 import {openSheet, closeSheet, field} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
@@ -9,6 +10,22 @@ import {phraseNodes} from './today-row.mjs';
 import {choiceChip, chipRow, markChips} from './task-fields.mjs';
 import {openMealEditor} from './habit-editors.mjs';
 import {openHabits} from './habits.mjs';
+
+const RECENT_CHIPS = 3;
+
+/** Log a meal now as its usual food, with Undo; a meal with no usual food yet opens the sheet on that meal. */
+export async function logMealNow(app, body, slot, name) {
+  const [usual] = usualMeals(body.meals(), slot);
+  if (!usual) return openMealSheet(app, body, {slot});
+  try {
+    await body.saveMeal({name: usual, slot, at: body.now().toISOString()});
+  } catch {
+    notice(app, "Couldn't save that. Try again.");
+    return;
+  }
+  app.render();
+  notice(app, `${name} logged · ${usual}`, {undo: true});
+}
 
 function estimateLine(estimate) {
   const line = el('div', 'estimate-line');
@@ -49,7 +66,10 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
       app.render();
       notice(app, 'Meal deleted', {undo: true});
     }, () => notice(app, "Couldn't delete. Try again."))},
-  ] : [{label: 'Meal times', icon: 'schedule', onClick: openPlan}]));
+  ] : [
+    {label: 'Meal times', icon: 'schedule', onClick: openPlan},
+    {label: 'See history', icon: 'history', onClick: () => { closeSheet(app); app.openHistory(); }},
+  ]));
   header.querySelector('.sheet-close').before(more);
   const now = body.now();
   const guessed = guessSlot(now);
@@ -64,13 +84,13 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
     slots.setAttribute('aria-label', 'Meal');
     for (const value of offered) slots.append(choiceChip(slotName(value), value, picked => { slot = picked; paintSlot(); }));
     markChips(slots, slot);
-    const usualHead = el('h3', 'field-group-label');
     const usual = el('div', 'chip-row wrap usual-chips');
     const input = field(app, content, 'What you ate', text);
     input.enterKeyHint = 'done';
     const error = el('p', 'sheet-error');
     error.setAttribute('role', 'alert');
-    input.parentElement.before(slots, usualHead, usual);
+    input.parentElement.before(slots);
+    input.parentElement.after(usual);
     content.append(error);
 
     const save = async name => {
@@ -88,12 +108,10 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
       renderSaved(saved, words);
     };
     function paintSlot() {
-      const names = usualMeals(body.meals(), slot);
-      usualHead.textContent = `Your usual ${SLOT_PLURALS[slot]}`;
-      usualHead.hidden = !names.length;
+      const names = usualMeals(body.meals(), slot, RECENT_CHIPS);
       usual.replaceChildren(...names.map(name => {
         const chip = button('', () => save(name), 'assist-chip usual-chip');
-        chip.append(el('span', 'chip-label', name));
+        chip.append(icon('history', {cls: 'chip-icon'}), el('span', 'chip-label', name));
         chip.setAttribute('aria-label', `Save ${name} as ${slotName(slot).toLowerCase()}`);
         return chip;
       }));
@@ -103,9 +121,6 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
     const sync = () => { submit.disabled = !input.value.trim(); };
     input.addEventListener('input', () => { typed = input.value; sync(); });
     input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); save(input.value); } });
-    if (!editing) {
-      actions.append(button('See history', () => { closeSheet(app); app.openHistory(); }, 'text-btn body-history-link'));
-    }
     actions.append(submit);
     sync();
     paintSlot();

@@ -1,30 +1,28 @@
 import {el,icon,button} from './capture-dom.mjs';
 import {card,answerText,alsoHeard} from './capture-cards.mjs';
-import {clock,relativeDay,longDate} from './planner/format.mjs';
+import {clock,shortClock,relativeDay,longDate} from './planner/format.mjs';
 import {scheduleText} from './capture-content.mjs';
 import {localDay} from './planner-state.mjs';
+import {END_MINUTES} from './spine-model.mjs';
 
-/** The gutter stacks the clock over its AM/PM ("10:00" over "AM"), so the column is only as wide as "12:00". */
+/** The gutter reads like Today's: the start ("10 AM", "11:30 AM"), and under it, quieter, the end of anything that lasts
+    END_MINUTES or more, so the title keeps the row's width. */
 function agendaTime(item){
- const text=item.start==null?'Any time':item.allDay?'All day':clock(item.start);
- const [,main,rest]=/^(.*?)(?:[\s ]+(\S+))?$/.exec(text);
- const node=el('span','agenda-time',main);
- if(rest)node.append(' ',el('span','agenda-meridiem',rest));
- return node;
+ const gutter=el('span','agenda-time');
+ gutter.append(el('span','',item.start==null?'Any time':item.allDay?'All day':shortClock(item.start)));
+ if(item.start!=null&&!item.allDay&&item.end!=null&&item.end-item.start>=END_MINUTES*60000)gutter.append(el('span','agenda-end',shortClock(item.end)));
+ return gutter;
 }
 
-/** A row's context line drops the Block when the row above already named it. */
-function agendaRow(item,now,prev){
- const row=el('li',['agenda-row',item.kind==='event'?'event':'',item.done?'done':'',item.start<=now&&(item.end??item.start)>now?'now':''].filter(Boolean).join(' '));
+/** A row is the time gutter, the mark, and the title (up to two lines before an ellipsis), the Must star inline after its last word. */
+function agendaRow(item,now){
+ const live=item.start!=null&&item.start<=now&&(item.end??item.start)>now;
+ const row=el('li',['agenda-row',item.kind==='event'?'event':'',item.done?'done':'',live?'now':''].filter(Boolean).join(' '));
  row.append(agendaTime(item));
  row.append(icon(item.kind==='event'?'event':item.done?'check_circle':'radio_button_unchecked',{cls:'agenda-mark'}));
- const body=el('div','agenda-body'),title=el('p','agenda-title',item.title);
- if(item.must){const star=icon('star',{fill:true,cls:'must-mark'});star.removeAttribute('aria-hidden');star.setAttribute('role','img');star.setAttribute('aria-label','Must');title.append(star);}
- body.append(title);
- const block=item.block&&item.block!==prev?.block?item.block:null;
- const sub=[item.end&&!item.allDay?`until ${clock(item.end)}`:null,block,item.kind==='event'?'Calendar':null].filter(Boolean).join(' · ');
- if(sub)body.append(el('p','quiet',sub));
- row.append(body);
+ const title=el('p','agenda-title',item.title);
+ if(item.must){const star=icon('star',{fill:true,cls:'must-mark'});star.removeAttribute('aria-hidden');star.setAttribute('role','img');star.setAttribute('aria-label','Must');title.append(' ',star);}
+ row.append(title);
  return row;
 }
 
@@ -33,7 +31,7 @@ function agendaCard(agenda,{now}){
  const rows=[...agenda.timed,...agenda.anytime];
  if(!rows.length){node.append(el('p','quiet','Nothing planned yet.'));return node;}
  const list=el('ul','agenda');
- list.append(...rows.map((item,i)=>agendaRow(item,now,rows[i-1])));
+ list.append(...rows.map(item=>agendaRow(item,now)));
  node.append(list);
  return node;
 }
@@ -81,13 +79,17 @@ const HEADING={next:'Up next',water:'Water',meals:'Meals today'};
  */
 export function answerCard(capture,{platform,on,now=Date.now()}){
  const node=card('answer'),kind=capture.card?.kind??null;
+ const head=el('div','card-head');
  if(kind==='agenda'){
   const day=capture.card.day??localDay(new Date(now));
   const label=relativeDay(day);
-  node.append(el('p','card-title day-title',label==='Today'||label==='Tomorrow'?`${label}, ${longDate(day).replace(/^\w+,?\s*/,'')}`:longDate(day)));
+  head.append(el('p','card-title day-title',label==='Today'||label==='Tomorrow'?`${label}, ${longDate(day).replace(/^\w+,?\s*/,'')}`:longDate(day)));
  }else if(kind==='task'){
-  node.append(el('p','kicker','Task'));
- }else if(kind)node.append(el('p','card-title',HEADING[kind]));
+  head.append(el('p','kicker','Task'));
+ }else if(kind)head.append(el('p','card-title',HEADING[kind]));
+ /* The planner link shares the heading row, so a short answer never ends in a footer that holds one button. */
+ if(kind==='agenda'||kind==='next'||kind==='task')head.append(button('Open planner',on.openPlanner,{role:'text'}));
+ if(kind)node.append(head);
  if(capture.reply)node.append(answerText(capture.reply));
  if(kind==='agenda'){
   const agenda=platform.agenda?.(capture.card.day)??{timed:[],anytime:[]};
@@ -99,10 +101,5 @@ export function answerCard(capture,{platform,on,now=Date.now()}){
  if(!kind&&!capture.reply)node.append(el('p','quiet','No answer came back. Your words are saved.'));
  const also=alsoHeard({...capture,notes:(capture.notes??[]).filter(n=>n.disposition!=='question')},on);
  if(also)node.append(also);
- if(kind==='agenda'||kind==='next'||kind==='task'){
-  const row=el('div','card-actions');
-  row.append(button('Open planner',on.openPlanner,{role:'text'}));
-  node.append(row);
- }
  return node;
 }

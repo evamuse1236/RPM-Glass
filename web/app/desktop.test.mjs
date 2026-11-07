@@ -125,3 +125,10 @@ test('Capture on a wide window sits on a full scrim and has no helper line', () 
   assert.match(wide, /\.capture-sheet::backdrop \{[^}]*background: light-dark\(var\(--scrim\), /);
   assert.doesNotMatch(read('./index.html'), /capture-hint|capture-help/);
 });
+
+test('Capture under the day strip covers no chip: the Today sheet moves down while it is open', () => {
+  for (const at of ['@media (width >= 600px)', `@media ${WIDE}`]) {
+    const block = css.slice(css.indexOf(at));
+    assert.match(block, /:root:has\(#capture-sheet\[open\]\) \.today-sheet \{ translate: 0 calc\(var\(--s8\)/, at);
+  }
+});

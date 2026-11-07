@@ -56,12 +56,11 @@ html:has(dialog:modal) { overflow: clip; }
 .capture-history p { margin: 0; overflow-wrap: break-word; }
 .capture-said { font: var(--body-large); }
 .capture-outcome { font: var(--body-medium); color: var(--on-surface-variant); }
-#capture-sheet {
-  color-scheme: dark;
-  --on-surface: var(--bar-on); --on-surface-variant: var(--bar-on-variant); --outline: var(--bar-outline); --outline-variant: var(--bar-outline);
-  --surface-container-low: var(--bar); --surface-container: var(--bar-high); --surface-container-high: var(--bar-highest); --surface-container-highest: var(--bar-highest);
-  --primary: var(--bar-primary); --on-primary: var(--bar-on-primary); --error: var(--bar-error);
-  padding: 0; border: 1px solid var(--bar-outline); background: var(--bar); color: var(--bar-on); box-shadow: var(--bar-shadow);
+#capture-sheet { padding: 0; border: 1px solid light-dark(var(--outline-variant), color-mix(in oklch, var(--outline-variant), var(--on-surface-variant) 30%)); background: light-dark(var(--surface-container-lowest), var(--surface-container-high)); color: var(--on-surface); box-shadow: var(--elev-3); }
+@media (width < 600px) {
+  #capture-sheet { inline-size: auto; margin-block: auto var(--s3); margin-inline: var(--s4); border-radius: var(--r-outer); }
+  #capture-sheet::backdrop { background: linear-gradient(var(--scrim), var(--scrim)), linear-gradient(to top, var(--surface) calc(var(--s3) + var(--s8) * 2), transparent calc(var(--s3) + var(--s8) * 2 + var(--s6))); }
+  :root:has(#capture-sheet[open]) :is(#nav-bar, #dock, #now-host) { visibility: hidden; }
 }
 #capture-sheet form { gap: 0; }
 #capture-problem { padding: var(--s4) var(--s5) 0; }
@@ -71,12 +70,13 @@ html:has(dialog:modal) { overflow: clip; }
 #capture-text { min-block-size: 0; max-block-size: calc(6lh + 2 * var(--s3)); padding: var(--s3) 0; border: 0; border-radius: 0; background: none; color: var(--on-surface); font: var(--body-large); }
 #capture-text::placeholder { color: var(--on-surface-variant); }
 #capture-text:focus-visible { outline: 2px solid transparent; }
-.capture-composer .voice-mic { border-color: transparent; background: var(--surface-container-highest); color: var(--on-surface); }
-.capture-send { position: relative; display: grid; flex: none; place-items: center; inline-size: var(--touch); block-size: var(--touch); border-radius: var(--shape-full); background: var(--bar-primary); color: var(--bar-on-primary); }
+.capture-composer .voice-mic { border-color: transparent; background: var(--primary); color: var(--on-primary); }
+.capture-send { position: relative; display: grid; flex: none; place-items: center; inline-size: var(--touch); block-size: var(--touch); border-radius: var(--shape-full); background: var(--primary); color: var(--on-primary); }
 .capture-send::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: currentColor; opacity: 0; }
 .capture-send:active::before { opacity: .12; }
 .capture-send:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 #capture-form:has(#capture-text:placeholder-shown):has(#voice-mic:not([hidden])) .capture-send { display: none; }
+#capture-form:not([data-voice]:not([data-voice=''])):has(#capture-text:not(:placeholder-shown)) .capture-composer .voice-mic { display: none; }
 #capture-form[data-voice]:not([data-voice='']) .capture-composer { justify-content: flex-end; }
 #capture-form[data-voice]:not([data-voice='']):not([data-voice=connecting]):not([data-voice=listening]) .capture-composer { display: none; }
 #capture-sheet .capture-history { margin: 0; padding: var(--s4) var(--s5); }
@@ -125,7 +125,9 @@ html:has(dialog:modal) { overflow: clip; }
   .planner-view .top-bar:is(.detail-bar, .search-bar) { padding-inline-start: calc(var(--gutter) + var(--s1)); }
   .planner-view #planner:is([data-scrolled=true], [data-view=today]) .top-bar { background: linear-gradient(var(--surface-container), var(--surface-container)) 50% 0 / min(100%, var(--column)) 100% no-repeat; }
   .capture-sheet { inline-size: min(100% - 2 * var(--s6), 560px); margin: auto; border-radius: var(--shape-xl); }
-  #capture-sheet { margin-block: calc(var(--s8) * 7) auto; border-radius: var(--r-outer); }
+  /* Below the top bar (64), the date (to 112) and the day strip (to 204), with clear space: it covers no heading. */
+  #capture-sheet { margin-block: calc(var(--s8) * 7 + var(--s2)) auto; border-radius: var(--r-outer); }
+  :root:has(#capture-sheet[open]) .today-sheet { translate: 0 calc(var(--s8) * 3); }
   .planner-view .wr > * { inline-size: min(100%, var(--column)); margin-inline: auto; }
 }
 
@@ -175,7 +177,8 @@ html:has(dialog:modal) { overflow: clip; }
 }
 
 @media (width >= 1080px) {
-  .planner-view { --side: 224px; --pane: 400px; --agenda: clamp(400px, 100% - var(--side) - 720px, 440px); --column: 100%; display: grid; grid-template-columns: var(--side) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); column-gap: var(--s6); }
+  :root { --side: 224px; --pane: 400px; --agenda: clamp(400px, 100% - var(--side) - 720px, 440px); }
+  .planner-view { --column: 100%; display: grid; grid-template-columns: var(--side) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); column-gap: var(--s6); }
   .planner-view:has(> #agenda:not([hidden])) { grid-template-columns: var(--side) minmax(0, 1fr) var(--agenda); }
   .planner-view:has(> #sheet[data-inline]:not([hidden])) { grid-template-columns: var(--side) minmax(0, 1fr) var(--pane); }
   .planner-view:has(> #sheet[data-inline]:not([hidden])) > #agenda { display: none; }
@@ -210,6 +213,10 @@ html:has(dialog:modal) { overflow: clip; }
   #planner-view #sheet[data-inline]:not([hidden]) ~ #snackbar#snackbar { inset-inline-end: calc(var(--pane) + var(--s4)); }
   .capture-sheet { inline-size: min(100% - 2 * var(--s6), 640px); border: 1px solid var(--outline-variant); background: var(--surface-container-high); }
   .capture-sheet::backdrop { background: light-dark(var(--scrim), color-mix(in oklch, var(--scrim), oklch(0 0 none) 35%)); }
+  #capture-sheet { inset-inline: calc(var(--side) + var(--s6)) var(--s6); inline-size: auto; max-inline-size: 640px; margin-inline: auto; }
+  :root:has(.planner-view > #agenda:not([hidden])) #capture-sheet { inset-inline-end: calc(var(--agenda) + var(--s6)); }
+  :root:has(#capture-sheet[open]) .today-sheet { translate: 0 calc(var(--s8) * 2 + var(--s4)); }
+  :root:has(.planner-view > #sheet[data-inline]:not([hidden])) #capture-sheet { inset-inline-end: calc(var(--pane) + var(--s6)); }
   .capture-history li:nth-child(n + 4) { display: none; }
   .side-capture { inline-size: 56px; block-size: 40px; background: var(--surface-container-highest); color: var(--on-surface); }
   .side-capture:active { background: color-mix(in oklch, var(--on-surface) 12%, var(--surface-container-highest)); }
@@ -253,6 +260,7 @@ html:has(dialog:modal) { overflow: clip; }
 @media (width >= 1080px) and (prefers-reduced-motion: no-preference) {
   .capture-sheet[open] { transition: opacity var(--dur-short4) var(--ease-standard-decelerate), scale var(--dur-short4) var(--ease-standard-decelerate); }
   .capture-sheet[open]::backdrop { transition: opacity var(--dur-short4) var(--ease-standard-decelerate); }
+  .planner-view .today-sheet { transition: translate var(--dur-short4) var(--ease-standard-decelerate); }
   @starting-style {
     .capture-sheet[open] { opacity: 0; scale: .96; }
     .capture-sheet[open]::backdrop { opacity: 0; }
