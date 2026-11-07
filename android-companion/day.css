@@ -7,11 +7,6 @@
 
 #planner[data-view=today]:not([data-scrolled=true]) .top-bar { background: var(--surface); }
 .today-sheet { position: relative; padding-block-start: var(--s1); background: var(--surface); }
-/* The day fills the screen and Inbox rests at its end, so on a short day it still lands above the page's bottom
-   padding, which clears the tab bar, Add and the habit circle. */
-.day-page { display: flex; flex-direction: column; min-block-size: 100%; }
-.day-page > .today-sheet { flex: 1; display: flex; flex-direction: column; }
-.day-page .inbox-row { margin-block-start: auto; }
 
 .spine { position: relative; display: flex; flex-direction: column; padding: var(--s1) var(--inset-page) var(--s4) 0; }
 .spine::before {
