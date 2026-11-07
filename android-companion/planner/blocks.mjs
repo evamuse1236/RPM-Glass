@@ -117,9 +117,11 @@ export function blockCard(app, block, {focus = false, project = true} = {}) {
   card.dataset.blockId = block.id;
   card.dataset.tone = app.tone(app.blockArea(block));
   const main = button('', () => app.openBlock(block.id), 'card-main');
-  if (project || status.achieved) {
+  const named = project && app.p().projects.some(pr => pr.id === block.projectId);
+  if (named || status.achieved) {
     const top = el('span', 'card-top');
-    if (project) top.append(eyebrow(app, block));
+    // A Block outside any Project names no absence: its card simply starts at the title.
+    if (named) top.append(eyebrow(app, block));
     if (status.achieved) {
       const badge = el('span', 'badge success');
       badge.append(icon('emoji_events'), el('span', '', 'Achieved'));
@@ -286,7 +288,7 @@ function achievedControl(app, block, status) {
  * Where the Result stands, as one row by its progress ring: the deadline and its countdown (error colour, in words,
  * when overdue or tight), then tasks done and the open Must time. The Plan below shows the step that sets the deadline.
  */
-function statusRow(status, due) {
+function statusRow(status, due, {wide = false} = {}) {
   const label = status.total ? `${status.done} of ${plural(status.total, 'task')} done` : 'No tasks in the Plan yet';
   const {row, copy} = factRow(progressRing(status.done, status.total, label), {cls: 'status-row'});
   // The same row whatever it says: a new task changes its words in place (they settle in, with no copy of the old).
@@ -295,8 +297,9 @@ function statusRow(status, due) {
   row.classList.toggle('tight', !!due?.tight);
   const must = mustLeft(status);
   const left = !must && status.plannedMinutes ? el('span', 'nowrap', duration(status.plannedMinutes) + ' left') : null;
-  const parts = [due ? el('span', 'nowrap', status.total ? `${status.done} of ${status.total} done` : label) : null,
-    must, left].filter(Boolean);
+  // On wide the ring beside the words says how many are done, so the count shows only when nothing else would.
+  const count = due ? el('span', 'nowrap', status.total ? `${status.done} of ${status.total} done` : label) : null;
+  const parts = [wide && status.total && (must || left) ? null : count, must, left].filter(Boolean);
   copy.append(el('span', 'list-headline due-when tnum', due ? due.text : label));
   // Always two lines, so the first task added changes the words, never the height (nothing below jumps).
   if (!parts.length) {
@@ -398,8 +401,10 @@ export function renderBlockDetail(app, page, block) {
   facts.append(purposePanel(app, 'blocks', block, 'Purpose', {labelled: false}));
   const notes = notesPanel(app, 'blocks', block);
   if (notes) facts.append(notes);
-  facts.append(statusRow(status, deadline(app.data(), block, status)));
-  if (status.achieved) facts.append(achievedControl(app, block, status));
+  // On wide the facts card sits beside the Plan, so the verdict ends the card rather than the page.
+  const wide = Boolean(app.api.wide?.());
+  facts.append(statusRow(status, deadline(app.data(), block, status), {wide}));
+  if (status.achieved || wide) facts.append(achievedControl(app, block, status));
   page.append(facts);
 
   const header = planHeader(app, block);
@@ -411,7 +416,7 @@ export function renderBlockDetail(app, page, block) {
   for (const task of open) list.append(taskRow(app, task, {plan: true, days: true, onReorder}));
   page.append(list, blockAdd(app, block));
   completedSection(app, page, rows.filter(t => t.done), {plan: true, days: true});
-  if (!status.achieved) page.append(achievedControl(app, block, status));
+  if (!status.achieved && !wide) page.append(achievedControl(app, block, status));
   finishDetail(app, page);
 }
 

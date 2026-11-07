@@ -236,12 +236,12 @@
 button.fact-row:active { background: var(--row-press); }
 .fact-row > .leading, .fact-row > .ring { color: var(--on-surface-variant); flex: none; }
 .fact-row .text-btn { align-self: center; flex: none; margin: calc(-1 * var(--s2)) calc(-1 * var(--s2)) calc(-1 * var(--s2)) 0; }
-/* The verdict ends the page, quieter than Add: on-surface-variant words on the 56dp edge, only the trophy in the
+/* The verdict ends the page, quieter than Add: plain on-surface words on the 56dp edge, only the trophy in the
    achieved green. The user's call, never a tick count. */
 #planner[data-view=blocks] .verdict-row {
   display: flex; align-items: center; gap: var(--s1); inline-size: fit-content; min-block-size: var(--touch);
   margin-inline: var(--s1); padding-inline-end: var(--s4); border-radius: var(--shape-full);
-  font: var(--body-large); color: var(--on-surface-variant);
+  font: var(--body-large); color: var(--on-surface);
 }
 #planner[data-view=blocks] .verdict-row > .ms { inline-size: var(--touch); text-align: center; color: var(--tertiary); }
 #planner[data-view=blocks] .verdict-row:active { background: var(--row-press); }

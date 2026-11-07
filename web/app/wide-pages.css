@@ -123,13 +123,13 @@
   }
 
   /* Block detail: the Result heads the page across both columns; under it the Plan reads like a Google Tasks list in a
-     560px column, each Must star near its words, and the Purpose, due date and progress sit beside the Plan's first row
-     in one 400px card that stays in view while the Plan scrolls. With the Inbox or a task open beside the page there is
-     no room, and the page keeps one column. */
-  .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner[data-view=blocks][data-detail=true] { --column: 992px; }
+     528px column, and the Purpose, due date, progress and the verdict sit beside the Plan's first row in one card that
+     takes the rest of the width and stays in view while the Plan scrolls. With the Inbox or a task open beside the
+     page there is no room, and the page keeps one column. */
+  .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner[data-view=blocks][data-detail=true] { --column: 1152px; }
   .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner[data-view=blocks][data-detail=true] .page {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+    grid-template-columns: minmax(0, 528px) minmax(400px, 1fr);
     column-gap: var(--s8);
     align-content: start;
   }
@@ -148,6 +148,17 @@
     background: var(--surface-container);
   }
   .planner-view:has(> #sheet[data-inline]:not([hidden])) #planner[data-view=blocks][data-detail=true] { --column: 560px; }
+  /* The Purpose fills the card's width before it wraps, and the verdict ends the card on the facts' text edge. */
+  #planner[data-view=blocks] .block-facts .purpose-text { text-wrap: pretty; }
+  #planner[data-view=blocks] .block-facts > .verdict-row { margin-inline: 0; }
+  /* Completed names its count and opens beside its words, not across the column. */
+  #planner[data-view=blocks][data-detail=true] .completed-toggle { inline-size: fit-content; justify-content: start; gap: var(--s2); }
+
+  /* A task row on a wide page keeps the whole row as its target, but its words take only their own width, so a Must
+     star sits just after a short title instead of at the far end of the column. */
+  :is(#planner[data-view=blocks] .plan-list, .planner-view .search-results) .task-main { flex: 0 1 auto; }
+  :is(#planner[data-view=blocks] .plan-list, .planner-view .search-results) .task-main::after { content: ""; position: absolute; inset: 0; }
+  :is(#planner[data-view=blocks] .plan-list, .planner-view .search-results) .task-check { position: relative; z-index: 1; }
 
   /* Search: the query sits in a filled field with Clear inside its end; the field and results share one reading width so the Must stars stay near their words. */
   .planner-view .search-bar .search-input {
@@ -162,12 +173,16 @@
   /* The wide check is 40px, so the row starts 8px further in and every title, task or not, shares one edge. */
   .planner-view .search-results .task-row { padding-inline-start: var(--s3); }
 
-  /* Blocks: the Area names itself in its own tone, so the eyebrow needs no dot; the tally's ring reads at a glance; a
-     chosen filter is a quiet fill, so the page's one strong colour stays on the rail. */
-  #planner[data-view=blocks] .block-card .eyebrow { color: color-mix(in oklch, var(--tone) 78%, var(--on-surface)); }
-  #planner[data-view=blocks] .block-card .eyebrow .area-dot { display: none; }
+  /* Blocks: the eyebrow stays the phone's quiet Area dot and words, the tally's ring reads at a glance, and the open
+     circle alone marks the next task, whose words may take two lines. A chosen filter keeps the phone's selected fill. */
   #planner[data-view=blocks] .block-card .card-tally .ring { inline-size: 20px; block-size: 20px; }
-  #planner[data-view=blocks] .filters .filter-chip.on { border-color: transparent; background: var(--surface-container-high); color: var(--on-surface); }
+  #planner[data-view=blocks] .block-card .next-title > .overline { display: none; }
+  #planner[data-view=blocks] .block-card .next-title .next-words {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; text-wrap: pretty;
+  }
+
+  /* Search: each group's name is in the primary colour, so it reads as a heading over the rows. */
+  .planner-view .search-results .section-header h2 { color: var(--primary); }
 
   /* Inbox: Sort with Jev is an assist chip beside the count, an offer about the list rather than a second header action. */
   #sheet[data-inline].sheet-inbox > .sheet-header > h2 { flex: none; }

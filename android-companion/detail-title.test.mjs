@@ -80,15 +80,18 @@ test('a Block bar names its Area · Project beside Back at rest and gives that c
     'the bar keeps identical markup across saves, so its menu reads the Block when tapped, never a stale copy');
 });
 
-test('a Block page keeps Mark Result achieved on the page as its own button under the Plan, never in a menu', () => {
+test('a Block page keeps Mark Result achieved on the page as its own button, last, never in a menu', () => {
   const blocks = read('planner/blocks.mjs');
   assert.match(body(blocks, 'renderBlockDetail'),
-    /page\.append\(list, blockAdd\(app, block\)\);\s*completedSection\([^;]*\);\s*if \(!status\.achieved\) page\.append\(achievedControl\(app, block, status\)\);/,
-    'Completed follows the add field, so the Plan reads as one unit, and the verdict ends the page');
+    /page\.append\(list, blockAdd\(app, block\)\);\s*completedSection\([^;]*\);\s*if \(!status\.achieved && !wide\) page\.append\(achievedControl\(app, block, status\)\);/,
+    'on the phone Completed follows the add field, so the Plan reads as one unit, and the verdict ends the page');
+  assert.match(body(blocks, 'renderBlockDetail'),
+    /facts\.append\(statusRow\([^;]*\);\s*if \(status\.achieved \|\| wide\) facts\.append\(achievedControl\(app, block, status\)\);/,
+    'on the wide website the facts card sits beside the Plan, so the verdict ends that card, after the status line');
   assert.match(body(blocks, 'achievedControl'), /button\('', \(\) => achievedSheet\(app, block\), 'verdict-row'\)/);
   const css = read('planner-pages.css');
-  assert.match(css, /#planner\[data-view=blocks\] \.verdict-row \{[^}]*font: var\(--body-large\); color: var\(--on-surface-variant\);/,
-    'the verdict is quieter than Add: on-surface-variant words, no outline');
+  assert.match(css, /#planner\[data-view=blocks\] \.verdict-row \{[^}]*font: var\(--body-large\); color: var\(--on-surface\);/,
+    'the verdict reads as live but calm: plain on-surface words, no outline or fill (on-surface-variant looked disabled)');
   assert.match(css, /#planner\[data-view=blocks\] \.verdict-row > \.ms \{[^}]*color: var\(--tertiary\);/,
     'only the trophy carries colour, the achieved green');
   assert.doesNotMatch(body(blocks, 'blockMenu'), /achiev/i);
