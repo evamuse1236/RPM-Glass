@@ -64,3 +64,7 @@ The UI gauntlet (branch `gauntlet/ui-components`) ended with these open items. T
 - Life: unrated Area tracks have tick marks but no thumb, so they do not look draggable.
 - Detail top bar: a long Block title now wraps to 2 lines in the collapsed bar (no ellipsis, per default-text-fit). The bar keeps that height while the title is hidden at rest, so about 16dp of empty bar shows above the page title.
 Open question: run another gauntlet on today, nav and task-sheet with a new direction, not more patches?
+
+## 2026-11-07 · Phone signing key does not match CI or pune
+The S24 FE app is signed with the laptop debug key (`02620d8a…`, `dara-laptop:~/.config/.android/debug.keystore`, backup `~/Backups/keys/android-debug-2026-10-20.keystore`). The CI key (`PHONE_SIGNER` `525fee39…` in `scripts/ci/check-signer.mjs`, repo secret `RPM_DEBUG_KEYSTORE`) and pune's `~/.android/debug.keystore` (`8df2ca61…`) both fail `adb install -r` with INSTALL_FAILED_UPDATE_INCOMPATIBLE. Release 0.46 was the CI APK re-signed with the laptop key.
+Fix: set the repo secret to the laptop key and correct `PHONE_SIGNER`, or set `rpm.debugKeystore` in pune's `local.properties`. Open question: which key should be canonical?
