@@ -152,6 +152,9 @@ html:has(dialog:modal) { overflow: clip; }
   .planner-view > :is(#banner, #notes, #planner) { grid-column: 2; }
   .planner-view > #planner { grid-row: 3; }
   .planner-view .page { max-width: none; margin-inline: 0; }
+  /* A detail page keeps one 720px column: Back, its actions and the content it acts on share the column's edges. */
+  .planner-view #planner[data-detail=true] { --column: 720px; }
+  .planner-view #planner[data-detail=true] .page { max-width: var(--column); margin-inline: auto; }
   .planner-view .spine-row.spine-gap { min-block-size: 32px; }
   .planner-view .spine-free { grid-template-columns: var(--spine-pill) auto var(--touch) minmax(0, 1fr); }
   .planner-view #planner:is([data-view=blocks], [data-view=projects]) .page { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); align-items: start; gap: var(--s3); padding-inline: var(--gutter); }

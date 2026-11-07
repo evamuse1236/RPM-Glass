@@ -137,11 +137,13 @@ h1, h2, h3, p { margin: 0; }
   box-shadow: var(--float-shadow);
   touch-action: pan-y;
 }
-/* Glass, as in T3 Code's composer: Settings → Bar transparency sets --bar-fill (100% is solid). */
+/* Glass, as in T3 Code's composer: Settings → Bar transparency sets --bar-fill (100% is solid). Under the labels the
+   glass turns solid over its last 8dp, so no row's words show in the strip below Today, Blocks and the rest. */
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
   :root[data-bar-glass=true] #nav-bar {
     border-color: var(--glass-border);
-    background: color-mix(in srgb, var(--float-surface) var(--bar-fill, 100%), transparent);
+    background: linear-gradient(to top, var(--float-surface) var(--s2), transparent var(--s6)),
+      color-mix(in srgb, var(--float-surface) var(--bar-fill, 100%), transparent);
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   }
@@ -174,6 +176,8 @@ h1, h2, h3, p { margin: 0; }
 :root[data-large-text=true] #planner:has(> #dock:not([hidden]) .fab:not([hidden])) { --bar-end: var(--inset-page); --dock-top: calc(var(--bar-top) + var(--s3) + var(--fab)); }
 :root[data-large-text=true] #planner[data-habit=true]:has(> #dock:not([hidden]) .fab:not([hidden])) { --dock-top: calc(var(--bar-top) + 2 * var(--s3) + var(--fab) + var(--touch)); }
 #planner[data-now-off=true]:not([data-now-aside=true], [data-snackbar=true]):has(> #now-host:not([hidden])) { --now-clear: calc(var(--s4) + 32px); }
+/* While a snackbar shows the page ends at its top, so no row sits cut in half between the snackbar and the bar. */
+#planner[data-snackbar=true] { --now-clear: calc(var(--s4) + var(--snackbar-h, 48px)); }
 #planner[data-now-off=true]:has(> #now-host:not([hidden])) .page::after { content: ""; display: block; block-size: calc(var(--s4) + 32px); }
 /* Between a root tab and a detail page the bar's end glides to its new place with the page's push (300ms), and the
    page's mask follows it, so the tabs slide instead of jumping. */

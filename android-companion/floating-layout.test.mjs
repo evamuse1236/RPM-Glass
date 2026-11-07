@@ -71,6 +71,10 @@ test('nothing shows in the strip under the tab bar, and a row scrolled into view
   assert.match(css, /--page-end: calc\(var\(--bar-top\) \+ var\(--now-clear\)\);/);
   assert.match(css, /#planner\[data-now-off=true\]:not\(\[data-now-aside=true\], \[data-snackbar=true\]\):has\(> #now-host:not\(\[hidden\]\)\) \{ --now-clear: calc\(var\(--s4\) \+ 32px\); \}/,
     'the Now pill never sits on a row');
+  assert.match(css, /#planner\[data-snackbar=true\] \{ --now-clear: calc\(var\(--s4\) \+ var\(--snackbar-h, 48px\)\); \}/,
+    'while a snackbar shows the page ends at its top, so no row sits in the gap between the snackbar and the bar');
+  assert.match(css, /:root\[data-bar-glass=true\] #nav-bar \{[^}]*background: linear-gradient\(to top, var\(--float-surface\) var\(--s2\), transparent var\(--s6\)\),/,
+    'the glass turns solid below the labels, so no row\'s words show under them');
   assert.match(css, /#planner\[data-now-off=true\]:has\(> #now-host:not\(\[hidden\]\)\) \.page::after \{ content: ""; display: block; block-size: calc\(var\(--s4\) \+ 32px\); \}/,
     'the last row still scrolls clear of the Now pill');
   assert.match(mask, /mask-repeat: no-repeat;/);

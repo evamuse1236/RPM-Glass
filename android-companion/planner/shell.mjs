@@ -23,17 +23,16 @@ const TITLES = {today: 'Today', blocks: 'Blocks', projects: 'Projects', life: 'L
 const DETAIL_NAMES = {blocks: 'Block', projects: 'Project', areas: 'Area', goals: 'Goal'};
 
 /**
- * More options in three groups: what this page does, the planner-wide places (review, Archive, Trash), then Settings.
- * The Inbox is not here: its row ends Today and Blocks, Search opens it from any page, and the website has it in the rail.
+ * More options leads with the one ritual (Weekly review), then where this page leads (Calendars, Habits, History on
+ * Today; Jev's sort and the examples on Blocks), then storage and Settings. Today's List view / Day view switch is an
+ * icon in the top bar, beside Search. The Inbox is not here: its row ends Today and Blocks, Search opens it from any
+ * page, and the website has it in the rail.
  */
 function rootMenu(app, anchor) {
   const {actions, state} = app;
   const page = [];
   if (state.tab === 'today') {
-    const list = state.dayLayout === 'list';
     page.push(
-      {label: list ? 'Day view' : 'List view', icon: list ? 'view_day' : 'view_agenda',
-        onClick: () => actions.setDayLayout(list ? 'day' : 'list')},
       {label: 'Calendars', icon: 'calendar_month', onClick: actions.calendar},
       {label: 'Habits', icon: 'self_improvement', onClick: () => openHabits(app, bodyApi(app))},
       {label: 'History', icon: 'history', onClick: () => app.openHistory()},
@@ -46,12 +45,12 @@ function rootMenu(app, anchor) {
     );
   }
   const items = [
+    {label: 'Weekly review', icon: 'event_repeat', onClick: () => app.openReview()},
+    {divider: true},
     ...page,
     ...(page.length ? [{divider: true}] : []),
-    {label: 'Weekly review', icon: 'event_repeat', onClick: () => app.openReview()},
     {label: 'Archive', icon: 'archive', onClick: () => actions.trash(true)},
     {label: 'Trash', icon: 'delete', onClick: () => actions.trash(false)},
-    {divider: true},
     ...(app.api.menuItems?.() ?? []),
     {label: 'Settings', icon: 'settings', onClick: () => app.openSettings()},
   ];
@@ -60,10 +59,15 @@ function rootMenu(app, anchor) {
 }
 
 function rootBar(app, bar) {
-  const {state} = app;
+  const {actions, state} = app;
   bar.className = 'top-bar root-bar';
   bar.append(el('h1', state.tab === 'today' ? 'top-title visually-hidden' : 'top-title', TITLES[state.tab]));
   const tools = el('div', 'top-actions');
+  if (state.tab === 'today') {
+    const list = state.dayLayout === 'list';
+    tools.append(iconButton(list ? 'view_day' : 'view_agenda', list ? 'Day view' : 'List view',
+      () => actions.setDayLayout(list ? 'day' : 'list')));
+  }
   tools.append(iconButton('search', 'Search', () => app.openSearch()));
   const more = iconButton('more_vert', 'More options', () => rootMenu(app, more));
   tools.append(more);
