@@ -24,26 +24,19 @@
 }
 .wheel-svg .wheel-wedge { fill: var(--tone); stroke: var(--surface-container-low); stroke-width: 2; stroke-linejoin: round; }
 .wheel-cut { stroke: var(--surface-container-low); stroke-opacity: .6; stroke-width: 1; }
-/* One handle per wedge, the same pill along the arc rated or not. With no fill under it, it waits by the hub in the
-   Area's hue with a gap of the card's colour round it; on a fill it rides the edge, cut out in the fill's ink. */
+/* One thumb, the slider's: a capsule across the wedge with a gap of the card's colour round it, solid in the Area's
+   hue on the fill's edge once rated, hollow at rest while unrated. */
 .wheel-handle { pointer-events: none; }
 .wheel-handle path { stroke-linecap: round; }
-.wheel-handle-halo { stroke: var(--surface-container-low); stroke-width: 8; }
-.wheel-handle-bar { stroke: var(--tone); stroke-width: 4; }
-.wheel-handle.on-fill .wheel-handle-halo { stroke: none; }
-.wheel-handle.on-fill .wheel-handle-bar { stroke: var(--on-tone); }
-/* Until the first rating the header's end says how to rate; the sheet's link waits out of sight in the tab order and
-   takes the hint's place when it has focus. */
-.wheel-hint { font: var(--body-small); color: var(--on-surface-variant); }
-.wheel-copy:has(.wheel-hint) .text-btn:not(:focus-visible) {
-  position: absolute;
-  inline-size: 1px;
-  block-size: 1px;
-  overflow: clip;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-.wheel-copy:has(.text-btn:focus-visible) .wheel-hint { display: none; }
+.wheel-handle-halo { stroke: var(--surface-container-low); stroke-width: 13; }
+.wheel-handle-bar { stroke: var(--tone); stroke-width: 8; }
+.wheel-handle-core { stroke: none; stroke-width: 3; }
+.unrated .wheel-handle-core { stroke: var(--surface-container-low); }
+/* Unrated, a faint groove runs out from the thumb: the way to drag, never a fill, so it cannot read as a rating. */
+.wheel-groove { display: none; stroke-width: 3; stroke-linecap: round; }
+.unrated .wheel-groove { display: inline; stroke: light-dark(color-mix(in oklch, var(--tone) 30%, transparent), color-mix(in oklch, var(--tone) 40%, transparent)); }
+/* Until the first rating one quiet line under the wheel says how it works; the header keeps its link. */
+.wheel-hint { margin-block-start: calc(-1 * var(--s1)); font: var(--body-small); color: var(--on-surface-variant); text-align: center; }
 .wheel-average {
   position: absolute;
   inset-block-start: 50%;

@@ -1,7 +1,9 @@
 /** The Wheel of Life: one wedge per Area, an empty track (its rim and faint scale marks in the Area's hue) filled from
- * the centre to rating/10. Each wedge has one handle, a pill along its arc: by the hub until rated, on the fill's edge after;
- * dragging a wedge moves it and sets that Area's rating in whole points, saved on release with Undo. "Rate your Areas" stays the keyboard and
- * screen-reader route. The Area list under the card (life.mjs) opens each Area. */
+ * the centre to rating/10. Each wedge is a slider pulled outward, with the same thumb as the Area page's slider: a
+ * capsule across the wedge on the fill's edge, solid once rated. Unrated, there is no fill: a faint groove runs out
+ * along the wedge's middle and a hollow thumb waits at its inner end, so it reads as a slider not yet moved. Dragging a wedge sets that Area's rating in whole points, saved on release
+ * with Undo. "Rate your Areas" stays the keyboard and screen-reader route. The Area list under the card (life.mjs) opens
+ * each Area. */
 import {el, attrs, button} from './dom.mjs';
 import {persist} from './inline-edit.mjs';
 
@@ -67,12 +69,18 @@ export function handlePath(i, n, radius, length = 14, {centre: c} = WHEEL) {
   return `M${p(mid - half)} A${radius} ${radius} 0 0 1 ${p(mid + half)}`;
 }
 
-/** The handle: one short pill along the arc, waiting just outside the hub while unrated (or rated 0) and riding the
- * fill's edge once there is a fill. */
-export const handleD = (i, n, rating) => handlePath(i, n, Math.max(WHEEL.inner + 6, radiusFor(rating) - 3));
+/** Where an unrated wedge's hollow thumb waits, short of the first mark: a place to pull from, not a value. */
+export const REST = radiusFor(1.5);
 
-/** A handle on a fill is cut out of it in the fill's ink; with no fill under it, it is drawn in the Area's hue. */
-export const handleOnFill = rating => (rating ?? 0) > 0;
+/** An unrated wedge's groove: a line along its middle from the waiting thumb out to just inside the rim. */
+export function groovePath(i, n, {centre: c, outer} = WHEEL) {
+  const mid = -Math.PI / 2 + (i + 0.5) * TAU / n;
+  const p = r => `${(c + r * Math.cos(mid)).toFixed(2)} ${(c + r * Math.sin(mid)).toFixed(2)}`;
+  return `M${p(REST)} L${p(outer - 4)}`;
+}
+
+/** The thumb sits on the fill's edge, like a slider's on its track: at rest while unrated, clear of the hub at 0. */
+export const handleD = (i, n, rating) => handlePath(i, n, rating == null ? REST : Math.max(WHEEL.inner + 4, radiusFor(rating)));
 
 export const averageOf = ratings => {
   const rated = ratings.filter(r => r != null);
@@ -92,21 +100,22 @@ function plot(app, areas) {
   const n = areas.length;
   const box = el('div', 'wheel-plot');
   const svg = node('svg', {viewBox: `0 0 ${WHEEL.size} ${WHEEL.size}`, class: 'wheel-svg', role: 'img', 'aria-label': wheelLabel(areas)});
-  // Each wedge in its Area's hue: the rim and faint scale marks as an empty track, the fill only for a rating, the marks
-  // it has passed cut across it, and one handle.
+  // Each wedge in its Area's hue: the rim and faint scale marks as an empty track, the groove while unrated, the fill
+  // only for a rating, the marks it has passed cut across it, and its thumb.
   const wedges = areas.map((area, i) => {
     const g = node('g', {class: 'wheel-wedge-group', 'data-tone': app.tone(area)});
     const {ahead, cuts} = scalePaths(i, n, area.rating);
     const parts = {
+      group: g,
       ahead: node('path', {d: ahead, class: 'wheel-scale'}),
       value: node('path', {d: wedgePath(i, n, radiusFor(area.rating)), class: 'wheel-wedge'}),
       cuts: node('path', {d: cuts, class: 'wheel-cut'}),
       handle: node('g', {class: 'wheel-handle'}),
     };
     const d = handleD(i, n, area.rating);
-    parts.handle.append(node('path', {d, class: 'wheel-handle-halo'}), node('path', {d, class: 'wheel-handle-bar'}));
-    parts.handle.classList.toggle('on-fill', handleOnFill(area.rating));
-    g.append(node('path', {d: arcPath(i, n, WHEEL.outer), class: 'wheel-rim'}), parts.ahead, parts.value, parts.cuts, parts.handle);
+    parts.handle.append(...['halo', 'bar', 'core'].map(part => node('path', {d, class: `wheel-handle-${part}`})));
+    g.classList.toggle('unrated', area.rating == null);
+    g.append(node('path', {d: arcPath(i, n, WHEEL.outer), class: 'wheel-rim'}), node('path', {d: groovePath(i, n), class: 'wheel-groove'}), parts.ahead, parts.value, parts.cuts, parts.handle);
     svg.append(g);
     return parts;
   });
@@ -137,14 +146,14 @@ function bindDrag(app, areas, svg, {wedges, labels, average}) {
     return {x, y, distance: Math.hypot(x, y)};
   };
   const show = (i, rating) => {
-    const {ahead, value, cuts, handle} = wedges[i];
+    const {group, ahead, value, cuts, handle} = wedges[i];
     const scale = scalePaths(i, n, rating);
     ahead.setAttribute('d', scale.ahead);
     cuts.setAttribute('d', scale.cuts);
     value.setAttribute('d', wedgePath(i, n, radiusFor(rating)));
     const d = handleD(i, n, rating);
     for (const path of handle.children) path.setAttribute('d', d);
-    handle.classList.toggle('on-fill', handleOnFill(rating));
+    group.classList.toggle('unrated', rating == null);
     labels[i].lastChild.textContent = rating == null ? '' : String(rating);
     average.textContent = averageOf(areas.map((a, j) => (j === i ? rating : a.rating))) ?? '';
   };
@@ -182,9 +191,8 @@ export function wheelCard(app, areas, rateAreas) {
   const card = el('section', 'wheel-card');
   const copy = el('div', 'wheel-copy');
   copy.append(el('h2', '', 'Wheel of Life'), button('Rate your Areas', () => rateAreas(app), 'text-btn'));
-  // Until the first rating the header says how the wheel works in place of the sheet's link, so the instruction shows
-  // once; the link stays in the tab order and takes the hint's place when it has focus.
-  if (areas.length && areas.every(a => a.rating == null)) copy.append(el('p', 'wheel-hint', 'Drag a wedge to rate'));
   card.append(copy, plot(app, areas));
+  // The header keeps its link in every state; until the first rating one quiet line under the wheel says how it works.
+  if (areas.length && areas.every(a => a.rating == null)) card.append(el('p', 'wheel-hint', 'Drag a wedge outward to rate'));
   return card;
 }

@@ -47,7 +47,8 @@ function periodSwitch(app) {
 
 /**
  * Each Area with this year's Goals under the wheel; every row opens its page and ends in a chevron. Wide: beside the
- * wheel, the Area's row also holds its rating as a slider and its value ("Not rated" until then) before the chevron.
+ * wheel, the Area's row also says its rating once, a slim bar and its value ("Not rated" until then) before the
+ * chevron; dragging is left to the wheel and the Area's page, and "Rate your Areas" stays the keyboard route.
  * Phone: the wheel is the one rating control and shows each rating, so the row only names the Area and opens it.
  */
 function areaGoals(app, areas, loose) {
@@ -62,18 +63,18 @@ function areaGoals(app, areas, loose) {
     const open = () => app.openArea(area.id);
     const item = listItem({leading: initialAvatar(app, area), headline: area.title, cls: 'life-area',
       trailing: wide ? null : 'chevron_right', onClick: open});
+    item.setAttribute('aria-label', `${area.title}, rating ${area.rating ?? 'not set'}, ${plural(goals.length, 'Goal')}. Open Area`);
     if (wide) {
-      const track = el('span', 'life-track');
-      track.append(ratingInput(app, area, rating => { value.textContent = rating; }), ratingTicks());
+      const meter = el('span', `life-meter${area.rating == null ? ' unrated' : ''}`);
+      meter.style.setProperty('--value', String((area.rating ?? 0) / 10));
       // The value and the chevron open the Area too; the name is its one keyboard stop.
       const end = button('', open, 'life-area-end');
       end.tabIndex = -1;
       end.setAttribute('aria-hidden', 'true');
       end.append(value, icon('chevron_right', {cls: 'trailing'}));
-      row.append(item, track, end);
+      row.append(item, meter, end);
     } else {
       item.dataset.key = 'life-area:' + area.id;
-      item.setAttribute('aria-label', `${area.title}, rating ${area.rating ?? 'not set'}, ${plural(goals.length, 'Goal')}. Open Area`);
       row.append(item);
     }
     group.append(row, ...goals.map(goal => goalRow(app, goal, 'nested')));
@@ -223,6 +224,7 @@ export function renderAreaDetail(app, page, area) {
   page.append(sectionHeader(`Goals · ${app.state.year}`));
   const goals = app.p().goals.filter(g => g.areaId === area.id && g.year === app.state.year);
   const list = el('div', 'list area-goals');
+  list.dataset.tone = app.tone(area);
   for (const goal of goals) {
     list.append(goalRow(app, goal, '', {count: false}));
     for (const project of app.p().projects.filter(pr => pr.goalId === goal.id)) list.append(projectRow(app, project, 'nested'));

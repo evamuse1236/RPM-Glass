@@ -275,13 +275,18 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
 .achieved-panel .text-btn { color: inherit; padding-left: 0; }
 .block-facts .achieved-panel { margin: var(--s2) var(--gutter); }
 
-/* Life */
+/* Life. The tabs stay pinned under the top bar, in its colour, so they never show half cut off. */
 .tabs {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  background: var(--surface);
   display: flex;
   border-bottom: 1px solid var(--surface-container-highest);
   overflow-x: auto;
   scrollbar-width: none;
 }
+#planner[data-scrolled=true] .tabs { background: var(--surface-container); }
 .tab {
   flex: 1 0 auto;
   min-height: var(--touch);
@@ -391,37 +396,35 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
 .rating-slider.unrated + .rating-ticks { opacity: .55; }
 .rating-slider.unrated + .rating-ticks i:first-child { visibility: hidden; }
 .rating-slider.unrated:focus-visible { outline: 2px solid var(--primary); outline-offset: -8px; border-radius: var(--shape-xs); }
-/* On Life the handle is a 4dp bar with a gap of the page round it, as in M3's newer sliders: hollow-coloured at the start
-   until rated, the Area's hue after. The same bar on the phone's Area page and the wide Life list. */
-:is(.rating-row, .life-track) .rating-slider { --fill: calc(2px + (100% - 4px) * var(--value, 0)); --gap: var(--surface); }
-:is(.rating-row, .life-track) .rating-slider::-webkit-slider-thumb {
-  width: 4px;
+/* On Life the handle is the wheel's thumb: an 8dp capsule across the track with a gap of the page round it, solid in
+   the Area's hue once rated and hollow (a ring of the hue) until then, so an unrated Area has something to pull and no
+   value at 0. The same thumb as each wedge of the wheel. */
+.rating-row .rating-slider { --fill: calc(4px + (100% - 8px) * var(--value, 0)); --gap: var(--surface); }
+.rating-row .rating-slider::-webkit-slider-thumb {
+  width: 8px;
   height: 24px;
   margin-block-start: calc(var(--s1) * -2.5);
   border-radius: var(--shape-full);
   background: var(--active);
   box-shadow: 0 0 0 4px var(--gap);
 }
-:is(.rating-row, .life-track) .rating-slider::-moz-range-thumb {
-  width: 4px;
+.rating-row .rating-slider::-moz-range-thumb {
+  width: 8px;
   height: 24px;
   border-radius: var(--shape-full);
   background: var(--active);
   box-shadow: 0 0 0 4px var(--gap);
 }
-/* Unrated, the handle is a hollow capsule: something to pull, not a value at 0. */
-:is(.rating-row, .life-track) .rating-slider.unrated::-webkit-slider-thumb {
-  width: 8px;
+.rating-row .rating-slider.unrated::-webkit-slider-thumb {
   background: var(--gap);
-  box-shadow: inset 0 0 0 2px var(--outline), 0 0 0 4px var(--gap);
+  box-shadow: inset 0 0 0 2px var(--active), 0 0 0 4px var(--gap);
 }
-:is(.rating-row, .life-track) .rating-slider.unrated::-moz-range-thumb {
-  width: 8px;
+.rating-row .rating-slider.unrated::-moz-range-thumb {
   background: var(--gap);
-  box-shadow: inset 0 0 0 2px var(--outline), 0 0 0 4px var(--gap);
+  box-shadow: inset 0 0 0 2px var(--active), 0 0 0 4px var(--gap);
 }
-:is(.rating-row, .life-track) .rating-ticks { padding: 0; }
-:is(.rating-row, .life-track) .rating-slider:is(:active, :focus-visible)::-webkit-slider-thumb {
+.rating-row .rating-ticks { padding: 0; }
+.rating-row .rating-slider:is(:active, :focus-visible)::-webkit-slider-thumb {
   box-shadow: 0 0 0 4px var(--gap), 0 0 0 8px color-mix(in oklch, var(--active) 24%, transparent);
 }
 

@@ -28,6 +28,8 @@
   #planner .tabs { padding-inline: var(--s2); }
   #planner .tab { flex: 0 0 auto; text-align: center; }
   #planner .tab[aria-selected=true]::after { inset-inline: var(--s4); }
+  /* The year's arrows hug it at the page's start, over the wheel. */
+  #planner .period-switch { justify-content: start; gap: var(--s2); padding-inline: var(--s2); }
 
   #planner .wheel-plot { inline-size: min(100% - 128px, 420px); }
 
@@ -38,13 +40,13 @@
     align-content: start;
   }
   #planner .page:has(> .life-areas) > :not(.wheel-card, .life-areas) { grid-column: 1 / -1; }
-  /* Each card is as tall as what it holds, so a short Areas list never stretches to the wheel's height. */
-  #planner .page:has(> .life-areas) .wheel-card { align-self: start; margin-inline-end: 0; }
+  /* The two cards end at one height: the shorter one grows at its foot, its rows kept together at the top. */
+  #planner .page:has(> .life-areas) .wheel-card { align-self: stretch; margin-inline-end: 0; }
   #planner .life-areas {
     display: grid;
     gap: 0;
     align-content: start;
-    align-self: start;
+    align-self: stretch;
     margin: var(--s1) var(--gutter) 0 0;
     padding-block: var(--s1);
     border-radius: var(--card-radius);
@@ -60,14 +62,19 @@
   #planner .life-area-group + .life-area-group { border-block-start: 1px solid var(--outline-variant); }
   #planner .life-area-group > * { grid-column: 1 / -1; }
   #planner .life-area .list-headline { font: var(--title-small); }
-  /* The Area's row: its name, the slider, then its value and the chevron, which open the Area as its name does. */
+  /* The Area's row: its name, a slim bar of its rating, then its value and the chevron, which open the Area as its name
+     does. The wheel is where a rating is dragged, so the row only says it. */
   #planner .life-area-row {
     display: grid;
     grid-template-columns: subgrid;
     align-items: center;
     padding-inline-end: var(--s4);
   }
-  #planner .life-track { display: grid; }
+  #planner .life-meter {
+    block-size: var(--s1);
+    border-radius: var(--shape-full);
+    background: linear-gradient(to right, var(--tone) calc(var(--value, 0) * 100%), var(--surface-container-highest) 0);
+  }
   #planner .life-area-end {
     grid-column: 3 / -1;
     display: grid;
@@ -77,15 +84,10 @@
     color: var(--on-surface-variant);
   }
   #planner .life-area-end:active { background: var(--row-press); }
-  #planner .life-track > * { grid-area: 1 / 1; }
-  /* Unrated, the track shows its eleven points and the bar handle waits at the start, as on the phone's Area page; the
-     card's colour makes the gap round the handle. The value says the rating once, so the wheel's names drop theirs. */
-  #planner .life-track .rating-slider { --gap: var(--surface-container-low); }
-  #planner .life-track .rating-slider.unrated + .rating-ticks { opacity: 1; }
-  #planner .life-track .rating-slider.unrated + .rating-ticks i { background: var(--outline-variant); }
+  /* The value says the rating once, so the wheel's names drop theirs. */
   #planner .wheel-label b { display: none; }
   #planner .life-rating { font: var(--title-medium); color: var(--on-surface); text-align: end; }
-  #planner .life-track:has(.unrated) + .life-area-end .life-rating { font: var(--body-medium); color: var(--on-surface-variant); }
+  #planner .life-meter.unrated + .life-area-end .life-rating { font: var(--body-medium); color: var(--on-surface-variant); }
   #planner .life-area-group > .list-item.nested { gap: var(--s4); padding-block: var(--s2); padding-inline-start: calc(var(--gutter) + var(--s8) + var(--s2) + var(--s4)); }
 
   .planner-view #planner[data-view=projects] .page > .project-card {
