@@ -211,6 +211,7 @@ export function alertPanel(host, pick, remote) {
     kinds.append(kind);
   }
   const leads = segmentedRow('Alert time');
+  leads.classList.add('alert-leads');
   for (const n of ALERT_LEADS) {
     leads.append(chip(n ? `${n} min` : leadLabel(n), String(n), (value, chosen) => {
       settleChip(leads, markChips(leads, value) ?? chosen);

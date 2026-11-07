@@ -88,7 +88,7 @@
   border: 0;
   border-radius: 0;
   background: none;
-  font: var(--label-medium);
+  font: var(--label-large);
 }
 .task-tabs .chip-row.segmented > .chip + .chip { border-inline-start: 1px solid var(--outline); }
 .task-tabs .chip-row.segmented > .chip[aria-pressed=true] { background: var(--secondary-container); color: var(--on-secondary-container); }
@@ -261,9 +261,20 @@
 .alert-kind:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .alert-kinds.is-off { opacity: .38; }
 .alert-kinds.is-off .alert-kind { pointer-events: none; }
-/* The lead times sit with the pair as one group, in the pair's type. */
-.alert-kinds + .chip-row.segmented { margin-block-start: calc(-1 * var(--s2)); }
-.task-tabs .alert-kinds + .chip-row.segmented > .chip { font: var(--label-large); }
+/* Type, then when: the lead times are a lighter second level, five equal filter chips 12dp under the pair. */
+.task-tabs .chip-row.alert-leads {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--s2);
+  margin-block-start: calc(-1 * var(--s1));
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+.task-tabs .chip-row.alert-leads > .chip, .task-tabs .chip-row.alert-leads > .chip + .chip { min-block-size: 32px; border: 1px solid var(--outline-variant); border-radius: var(--shape-sm); }
+.task-tabs .chip-row.alert-leads > .chip[aria-pressed=true] { border-color: transparent; }
+.task-tabs .chip-row.alert-leads > .chip::after { inset: calc(-1 * var(--s2)) 0; }
 :root[data-large-text=true] .alert-kind { flex-direction: column; gap: 0; padding-block: var(--s1); }
 
 .repeat-days { display: flex; justify-content: space-between; gap: var(--s1); }

@@ -184,7 +184,7 @@
 .task-title-field:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 /* Start now sits under the title as an outlined assist chip, quieter than the tabs; it hides while the task is running, done or repeating. */
 .task-start { grid-column: 1 / -1; justify-self: start; margin: 0 0 var(--s2); }
-.task-start { padding-inline-end: var(--s3); background: none; color: var(--on-surface); }
+.task-start { padding-inline-end: var(--s3); border-color: light-dark(var(--outline-variant), var(--outline)); background: none; color: var(--on-surface); }
 .task-start .ms { color: var(--primary); }
 .task-start:active { background: var(--row-press); }
 .task-start:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

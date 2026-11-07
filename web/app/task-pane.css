@@ -25,6 +25,9 @@
   #sheet[data-inline] .number-chip input:not(:focus-visible) { border-block-end-color: transparent; }
   #sheet[data-inline] .number-chip:has(input:placeholder-shown) .chip-unit { display: none; }
   #sheet[data-inline] .task-tabs .chip-row.segmented { padding: 0; background: none; }
+  /* Two short words and five lead times read as one compact group under the tabs' left edge, not a pane-wide bar. */
+  #sheet[data-inline] :is(.alert-kinds, .task-tabs .chip-row.alert-leads) { max-inline-size: 336px; }
+  #sheet[data-inline] .task-tabs .chip-row.alert-leads { gap: var(--s1); }
   /* Pick a date, Pick a time and Clear share one row; a narrower pane wraps them, never clips. */
   #sheet[data-inline] .task-tabs .chip-row[aria-label='More choices'] { flex-wrap: wrap; justify-content: space-between; }
   #sheet[data-inline] .task-tabs .chip-row[aria-label='More choices'] > .chip { gap: var(--s1); padding-inline: var(--s1); }
