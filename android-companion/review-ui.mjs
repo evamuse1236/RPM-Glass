@@ -40,7 +40,8 @@ export function iconButton(name, label, onClick, cls = 'wr-icon-btn') {
 }
 /** A strip cell's hours: "12h", "1.5h", "45m". Exact durations are in its accessible label. */
 export const hours = minutes => (minutes < 60 ? `${minutes}m` : `${Math.round(minutes / 30) / 2}h`);
-export const dayName = day => new Date(day + 'T12:00').toLocaleDateString(undefined, {weekday: 'short', day: 'numeric', month: 'short'});
+/** "Monday 9 November": the day written out, day before month. */
+export const dayName = day => new Date(day + 'T12:00').toLocaleDateString('en-GB', {weekday: 'long', day: 'numeric', month: 'long'});
 export const weekday = day => new Date(day + 'T12:00').toLocaleDateString(undefined, {weekday: 'short'});
 export const capital = text => text[0].toUpperCase() + text.slice(1);
 

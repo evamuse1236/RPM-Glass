@@ -144,7 +144,7 @@ function verdictButtons(api, summary, result) {
   return group;
 }
 
-/** "2 of 4 decided" and the count of each verdict so far, each named in words for screen readers. */
+/** "2 of 4 decided" and the count of each verdict given so far (none shown for a verdict not given yet), each named in words for screen readers. */
 export function deckTally(judged) {
   const decided = judged.filter(r => r.verdict).length;
   const tally = el('p', 'wr-tally tnum');
@@ -152,6 +152,7 @@ export function deckTally(judged) {
   tally.append(el('span', '', decided === judged.length ? `All ${judged.length} decided` : `${decided} of ${judged.length} decided`));
   for (const [value, label, symbol] of [...DECK_VERDICTS].reverse()) {
     const n = judged.filter(r => r.verdict === value).length;
+    if (!n) continue;
     const count = el('span', 'wr-tally-count');
     count.dataset.verdict = value;
     count.setAttribute('aria-label', `${n} ${label.toLowerCase()}`);

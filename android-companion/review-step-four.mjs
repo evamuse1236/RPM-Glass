@@ -1,5 +1,5 @@
 import {focusCandidates} from './review-state.mjs';
-import {blockTasks, shiftDay} from './planner-state.mjs';
+import {blockTasks} from './planner-state.mjs';
 import {dueInfo, duration, plural} from './planner/format.mjs';
 import {el, icon, button, whenText, heading, emptyState, factsLine, dueFact, mustFact} from './review-ui.mjs';
 import {focusCheck} from './review-focus.mjs';
@@ -14,7 +14,6 @@ export function stepFour(api) {
   ui.focus = ui.focus.filter(id => candidates.some(c => c.blockId === id));
   const chosen = candidates.filter(c => ui.focus.includes(c.blockId));
   const clashes = api.clashes();
-  const missed = unpickedDue(api, candidates, now);
   const [title] = heading("Pick this week's Results");
   const sub = el('p', 'wr-sub tnum', `${chosen.length} picked · aim for 3 to 5`);
   sub.setAttribute('aria-live', 'polite');
@@ -23,56 +22,46 @@ export function stepFour(api) {
     parts.push(emptyState('flag', 'No Results yet', 'Go back a step and give a task a new Result, then pick it here.'));
     return parts;
   }
-  // The choice first: one quiet list, nearest deadline first. Results with nothing left to do wait behind one row.
-  const idle = candidates.filter(c => c.total === c.done && !ui.focusBase.includes(c.blockId));
-  parts.push(resultList(api, candidates.filter(c => !idle.includes(c)), now, missed, "This week's Results"));
-  if (idle.length) {
-    const toggle = button('', () => { ui.showIdle = !ui.showIdle; api.render(); }, 'wr-idle-toggle');
-    toggle.setAttribute('aria-expanded', String(ui.showIdle));
-    toggle.dataset.key = 'idle';
-    toggle.append(el('span', 'wr-label', `${plural(idle.length, 'Result')} with no open tasks`), icon(ui.showIdle ? 'expand_less' : 'expand_more'));
-    parts.push(toggle);
-    if (ui.showIdle) parts.push(resultList(api, idle, now, missed, 'Results with no open tasks'));
-  }
-  // Then what the week holds: a clash to decide, and whether the picked Results' Must time fits.
+  // A clash first: it needs an answer before the week can be planned around it.
   if (clashes.length) {
     const list = el('ul', 'wr-risks');
     list.setAttribute('aria-label', 'Calendar clashes');
     list.append(...clashes.map(c => clashRow(api, c)));
     parts.push(list);
   }
+  // Then the choice: one quiet list, nearest deadline first. Results with nothing left to do wait behind one row.
+  const idle = candidates.filter(c => c.total === c.done && !ui.focusBase.includes(c.blockId));
+  parts.push(resultList(api, candidates.filter(c => !idle.includes(c)), now, "This week's Results"));
+  if (idle.length) {
+    const toggle = button('', () => { ui.showIdle = !ui.showIdle; api.render(); }, 'wr-idle-toggle');
+    toggle.setAttribute('aria-expanded', String(ui.showIdle));
+    toggle.dataset.key = 'idle';
+    toggle.append(el('span', 'wr-label', `${plural(idle.length, 'Result')} with no open tasks`), icon(ui.showIdle ? 'expand_less' : 'expand_more'));
+    parts.push(toggle);
+    if (ui.showIdle) parts.push(resultList(api, idle, now, 'Results with no open tasks'));
+  }
+  // Then what the week holds: whether the picked Results' Must time fits.
   parts.push(weekCard(api, chosen, candidates, now));
   return parts;
 }
 
-/** Once picking has started, Results due by Sunday (or overdue) with open tasks that aren't picked: flagged on their row. */
-function unpickedDue(api, candidates, now) {
-  const end = new Date(shiftDay(api.week, 7) + 'T00:00');
-  if (!api.ui.focus.length) return new Set();
-  return new Set(candidates.filter(c => !api.ui.focus.includes(c.blockId) && c.due && c.done < c.total && dueInfo(c.due, now).at < end)
-    .map(c => c.blockId));
-}
-
-/** Results as one list of rows: a checkbox picks, the row opens its Purpose and tasks. Only meaning carries colour. */
-function resultList(api, rows, now, missed, label) {
+/** Results as one list of rows: tapping a row picks it (a filled row with a check), the chevron opens its Purpose and tasks. */
+function resultList(api, rows, now, label) {
   const list = el('ul', 'wr-list wr-results');
   list.setAttribute('aria-label', label);
-  for (const c of rows) list.append(resultRow(api, c, now, missed.has(c.blockId)));
+  for (const c of rows) list.append(resultRow(api, c, now));
   return list;
 }
 
-function resultRow(api, c, now, flagged) {
+function resultRow(api, c, now) {
   const {ui} = api;
   const open = ui.expanded === c.blockId;
   const item = el('li', 'wr-result' + (ui.focus.includes(c.blockId) ? ' picked' : ''));
-  const check = focusCheck(api, c.blockId, c.title);
-  check.setAttribute('aria-label', `Pick "${c.title}"`);
-  const main = button('', () => { ui.expanded = open ? null : c.blockId; api.render(); }, 'wr-result-main');
-  main.setAttribute('aria-expanded', String(open));
-  main.dataset.key = 'open:' + c.blockId;
+  const pick = focusCheck(api, c.blockId, 'wr-pick', ['add_circle', 'check_circle']);
+  pick.setAttribute('aria-label', `Pick "${c.title}"`);
   const text = el('span', 'wr-result-text');
   text.append(el('span', 'wr-result-title', c.title));
-  // One facts line, as on the Blocks list: the deadline, the Must time (or why there is none), Carried, Not picked.
+  // One facts line, as on the Blocks list: the deadline, the Must time (or why there is none), Carried.
   const left = c.total - c.done;
   const info = c.due ? dueInfo(c.due, now) : null;
   const must = !c.total ? 'No tasks yet' : !left ? 'All tasks done' : c.mustMinutes ? mustFact(c.mustMinutes)
@@ -81,11 +70,14 @@ function resultRow(api, c, now, flagged) {
   facts.append(...factsLine([dueFact(c.due, now), must, !c.due && left ? `${c.done} of ${c.total} done` : null,
     c.carried ? 'Carried from last week' : null]));
   text.append(facts);
-  if (flagged) text.append(el('span', 'wr-flag', 'Due this week · not picked'));
-  main.append(text, icon(open ? 'expand_less' : 'expand_more'));
+  pick.append(text);
+  const main = button('', () => { ui.expanded = open ? null : c.blockId; api.render(); }, 'wr-result-main');
+  main.setAttribute('aria-expanded', String(open));
+  main.dataset.key = 'open:' + c.blockId;
+  main.append(icon(open ? 'expand_less' : 'expand_more'));
   main.setAttribute('aria-label', `${c.title}. ${open ? 'Hide' : 'Show'} its Purpose and tasks`);
   const row = el('div', 'wr-result-row');
-  row.append(check, main);
+  row.append(pick, main);
   item.append(row);
   if (open) {
     const more = el('div', 'wr-result-more');
