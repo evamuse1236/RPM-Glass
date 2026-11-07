@@ -139,10 +139,10 @@ button.settings-row:active { background: var(--row-press); }
 .settings-row > .settings-trail { color: var(--primary); }
 .settings-row[data-tone=error] .settings-label { color: var(--error); }
 .settings-row[data-tone=error]:has(.settings-value) .settings-label { color: var(--on-surface); }
-/* `warn`: a home row whose page needs the person; its value says so in error colour, once. */
-.settings-row[data-tone=warn] .settings-value { color: var(--error); }
-/* The Allow pill ends on the line the chevron glyphs end on (the chevron box pulls in by s2 and its glyph sits s1 inside). */
-.settings-row[data-tone=error] .settings-value { display: grid; place-items: center; min-block-size: 32px; margin-inline-end: var(--s1); padding-inline: var(--s4);
+/* `warn`: a home row whose page holds a missing permission; the dot names it, the value stays quiet. */
+.settings-row[data-tone=error]:has(.settings-value) .settings-label::after, .settings-row[data-tone=warn] .settings-label::after { content: ""; display: inline-block; inline-size: 8px; block-size: 8px;
+  margin-inline-start: var(--s2); border-radius: 50%; background: var(--error); vertical-align: middle; }
+.settings-row[data-tone=error] .settings-value { display: grid; place-items: center; min-block-size: 32px; padding-inline: var(--s4);
   border-radius: var(--shape-full); background: var(--secondary-container); color: var(--on-secondary-container); font: var(--label-large); }
 .settings-row:not(:has(.settings-icon)) > .ms:first-child { color: var(--primary); }
 .settings-segment-row { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s3) var(--s4) var(--s4); }
@@ -172,15 +172,14 @@ button.settings-row:active { background: var(--row-press); }
 .settings-slider .fact-slider:active::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--surface-container); }
 .settings-slider-ends { display: flex; justify-content: space-between; margin-block-start: calc(var(--s4) * -1); font: var(--label-medium); color: var(--on-surface-variant); }
 .settings-slider .settings-detail { margin-block-start: -4px; }
-/* The sample sits straight on the card: events, then the band the glass bar floats over. No frame of its own. */
-.bar-sample { position: relative; display: grid; grid-template-rows: auto auto 1fr; gap: var(--s1); block-size: 160px; margin-block-start: var(--s2); overflow: clip;
-  border-radius: var(--r-tile); }
+.bar-sample { position: relative; display: grid; grid-template-rows: auto auto 1fr; gap: var(--s1); block-size: 176px; margin-block-start: var(--s2); padding: var(--s3); overflow: clip;
+  border-radius: var(--shape-md); background: var(--surface); outline: 1px solid var(--outline-variant); outline-offset: -1px; }
 .bar-sample-line { display: flex; align-items: center; gap: var(--s3); min-block-size: 40px; padding-inline: var(--s3); border-radius: var(--r-tile);
   background: color-mix(in oklch, var(--tone) 22%, var(--surface)); font: var(--body-medium); color: var(--on-surface); white-space: nowrap; }
 .bar-sample-time { flex: none; font: var(--label-medium); color: var(--on-surface-variant); }
 .bar-sample-title { overflow: clip; text-overflow: ellipsis; }
 /* The bar floats over a block with no words, so the preview shows the glass and never text under a tab label. */
-.bar-sample-band { border-end-start-radius: 0; border-end-end-radius: 0; }
+.bar-sample-band { margin-block-end: calc(var(--s3) * -1); border-end-start-radius: 0; border-end-end-radius: 0; }
 .bar-sample-bar { position: absolute; inset: auto var(--s2) var(--s2); display: flex; justify-content: space-around; padding-block: var(--s1);
   border: 1px solid var(--float-border); border-radius: var(--r-group); background: var(--float-surface); font: var(--label-small); color: var(--on-surface-variant); }
 .bar-sample-tab { display: flex; flex-direction: column; align-items: center; }

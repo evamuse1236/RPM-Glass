@@ -43,7 +43,7 @@ Pages (each: grouped cards, a one-line caption under a card only when it changes
 |---|---|
 | Appearance | Theme: a 3-way segmented control (System, Light, Dark). Tab bar see-through: slider plus a live sample. Widget text size: slider plus a sample. |
 | Notch & widgets | Notch switch (plus Allow rows while Android blocks it). Floating butterfly switch. |
-| Alarms & reminders | Permissions first: Notifications, Exact alarms, each "Allowed" or a tonal "Allow"; Check saved alerts. Then Sounds: Alarm sound, Play alarm sound, Reminder sound. No captions. A blocked permission shows once on home, as a red "N off" value on the row (no banner, no dot). |
+| Alarms & reminders | Sounds: Alarm sound, Play alarm sound, Reminder sound. Permissions: Notifications, Exact alarms, each "Allowed" or an error "Allow". Check saved alerts. Caption: battery note. |
 | Voice | Gemini key. Voice. Persona. Remove Gemini key in its own card, error text. |
 | AI keys | Claude, OpenRouter (each: what it does, Connected or Not connected). Remove rows in their own card, error text. |
 | Sync & backup | Link a web browser. Export, Import, Restore a backup. Caption: what leaves the phone. |

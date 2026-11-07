@@ -82,8 +82,7 @@ function drawResults(app, host) {
   if (!host) return;
   host.replaceChildren();
   const q = query.trim().toLocaleLowerCase();
-  /** A task's Block is its context; a task in no Block says nothing rather than "No block". */
-  const row = task => taskRow(app, task, {context: app.context(task).block?.title ?? ''});
+  const row = task => taskRow(app, task, {context: app.context(task).block?.title ?? 'No block'});
   if (!q) {
     const musts = mustsToday(app);
     if (musts.length) host.append(sectionHeader('Musts for today'), ...musts.map(row));
