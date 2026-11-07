@@ -77,17 +77,21 @@
 .tab-panel > .field-error, .tab-panel > .field-alert { margin: 0; }
 
 .task-tabs .chip-row.segmented { flex-wrap: nowrap; gap: 0; }
+/* One outline (the row's own): segments are borderless with a 1px divider, the chosen one filled. */
+.task-tabs .chip-row.segmented { margin: 0; padding: 0; border: 1px solid var(--outline); border-radius: var(--shape-full); overflow: clip; }
 .task-tabs .chip-row.segmented > .chip {
   flex: 1 1 auto;
   justify-content: center;
   min-inline-size: 0;
+  min-block-size: 40px;
   padding-inline: var(--s1);
+  border: 0;
   border-radius: 0;
-  font: var(--label-medium);
+  background: none;
+  font: var(--label-large);
 }
-.task-tabs .chip-row.segmented > .chip + .chip { border-inline-start-width: 0; }
-.task-tabs .chip-row.segmented > .chip:first-child { border-start-start-radius: var(--r-control); border-end-start-radius: var(--r-control); }
-.task-tabs .chip-row.segmented > .chip:last-child { border-start-end-radius: var(--r-control); border-end-end-radius: var(--r-control); }
+.task-tabs .chip-row.segmented > .chip + .chip { border-inline-start: 1px solid var(--outline); }
+.task-tabs .chip-row.segmented > .chip[aria-pressed=true] { background: var(--secondary-container); color: var(--on-secondary-container); }
 .task-tabs .chip-row.segmented .chip-check { display: none; }
 .task-tabs .chip-row[aria-label='More choices'] { gap: 0; }
 .task-tabs .chip-row[aria-label='More choices'] > .chip { border-color: transparent; background: none; color: var(--on-surface-variant); padding-inline: var(--s2); }
@@ -110,73 +114,136 @@
 .when-day[aria-pressed=true]:active .when-day-number { background: color-mix(in oklab, var(--primary) 88%, var(--on-primary)); }
 .when-day:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 
-.time-ruler { display: flex; flex-direction: column; gap: var(--s2); }
-.time-ruler.is-off { opacity: .38; }
-.ruler-readout { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; column-gap: var(--s2); margin: 0; }
-.ruler-start { font: var(--title-date); font-weight: 600; color: var(--on-surface); }
-.ruler-end { font: var(--title-small); color: var(--on-surface-variant); }
-.time-ruler.is-unset .ruler-start { color: var(--on-surface-variant); }
-.ruler-rail { position: relative; }
+.time-ruler { display: flex; flex-direction: column; gap: var(--s1); }
+/* The row under the ruler tucks under the grip's touch overhang (12px below the track), so no blank band sits under the bar. */
+.time-ruler:has(+ .field-alert[hidden]) { margin-block-end: calc(-1 * var(--s3)); }
+.time-ruler.is-off :is(.ruler-readout, .ruler-rail) { opacity: .38; }
+/* One line: the range, then its length as quiet words that open the exact-length field. */
+.ruler-head { display: flex; align-items: center; gap: var(--s2); min-block-size: var(--touch); }
+.ruler-readout { flex: 0 1 auto; min-inline-size: 0; margin: 0; overflow: clip; font: var(--title-large); color: var(--on-surface); text-overflow: ellipsis; white-space: nowrap; }
+.time-ruler.is-unset .ruler-readout { color: var(--on-surface-variant); }
+.ruler-words {
+  position: relative;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: var(--title-medium);
+  font-weight: 400;
+  color: var(--primary);
+  white-space: nowrap;
+}
+.ruler-words::after { content: ""; position: absolute; inset: 50% auto auto 50%; inline-size: max(100%, var(--touch)); block-size: var(--touch); translate: -50% -50%; }
+.ruler-words[hidden] { display: none; }
+.ruler-words:focus-visible { border-radius: var(--shape-xs); outline: 2px solid var(--primary); outline-offset: 2px; }
+.ruler-words:active { opacity: .7; }
+.ruler-field { display: inline-flex; align-items: baseline; gap: var(--s1); font: var(--title-medium); color: var(--on-surface-variant); }
+.ruler-field[hidden] { display: none; }
+.ruler-field input {
+  inline-size: 56px;
+  padding: 0 0 var(--s1);
+  border: 0;
+  border-block-end: 2px solid var(--primary);
+  background: none;
+  font: inherit;
+  color: var(--on-surface);
+  text-align: end;
+  appearance: textfield;
+}
+.ruler-field input::-webkit-inner-spin-button { appearance: none; }
+/* The field only shows while it has focus; its primary underline is the focus mark (transparent outline for forced colours). */
+.ruler-field input:focus-visible { outline: 2px solid transparent; }
+.ruler-rail { position: relative; overflow-x: clip; }
 .ruler-track {
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
-  block-size: 80px;
-  border-radius: var(--shape-lg);
-  background: var(--sheet-card);
+  block-size: 48px;
   touch-action: pan-x;
-  mask-image: linear-gradient(to right, transparent, black var(--s8), black calc(100% - var(--s8)), transparent);
 }
 .ruler-track::-webkit-scrollbar { display: none; }
 .ruler-track:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .ruler-scale { box-sizing: content-box; inline-size: max-content; block-size: 100%; padding-inline: 50%; }
 .ruler-line { position: relative; block-size: 100%; }
+/* Ticks, the length bar, the start mark and the knob share one axis 12px above the track's bottom; hour labels sit above. */
 .ruler-tick {
   position: absolute;
-  inset-block-end: 32px;
+  inset-block-end: 12px;
   inline-size: 2px;
   block-size: 8px;
   margin-inline-start: -1px;
+  translate: 0 50%;
   border-radius: 2px;
-  background: var(--outline-variant);
+  --tick: var(--outline-variant);
+  /* --fade (set by the script near the edges) thins the tick alone, to 40% at the edge; its hour label keeps full strength. */
+  background: color-mix(in oklch, var(--tick) calc((.4 + .6 * var(--fade, 1)) * 100%), transparent);
   scroll-snap-align: center;
 }
-.ruler-tick.is-hour { block-size: 16px; background: var(--outline); }
-.ruler-tick.is-own { block-size: 16px; background: var(--primary); }
+.ruler-tick.is-hour { --tick: var(--outline); block-size: 16px; }
+.ruler-tick.is-own { --tick: var(--primary); block-size: 16px; }
 .ruler-hour {
   position: absolute;
-  inset-block-end: 20px;
+  inset-block-end: calc(100% + var(--s1));
   inset-inline-start: 50%;
   translate: -50% 0;
   font: var(--label-small);
   color: var(--on-surface-variant);
   white-space: nowrap;
 }
-.ruler-busy { position: absolute; inset-block: var(--s2); border-radius: var(--shape-sm); background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
+/* An hour label is shown whole or not at all: the script drops one that would cross the track's edge. */
+.ruler-hour.is-out { opacity: 0; }
+/* The bar starts with a round cap centred on the start mark and ends under the knob; >= 3:1 on the sheet in light. */
 .ruler-length {
   position: absolute;
   inset-block-end: 8px;
-  inset-inline-start: 50%;
+  inset-inline-start: calc(50% - 4px);
+  box-sizing: content-box;
   block-size: 8px;
-  border-start-end-radius: var(--shape-full);
-  border-end-end-radius: var(--shape-full);
-  background: var(--bar);
+  padding-inline-start: 4px;
+  border-radius: var(--shape-full);
+  background: light-dark(color-mix(in oklch, var(--primary) 70%, var(--primary-container)), color-mix(in oklch, var(--primary) 40%, var(--primary-container)));
   pointer-events: none;
-  --bar: var(--primary);
 }
-.task-tabs[data-tone] .ruler-length { --bar: var(--tone); }
 .ruler-centre {
   position: absolute;
-  inset-block: 32px 8px;
+  inset-block-end: 2px;
   inset-inline-start: calc(50% - 1px);
   inline-size: 2px;
+  block-size: 20px;
   border-radius: 2px;
   background: var(--primary);
   pointer-events: none;
 }
+.ruler-grip {
+  position: absolute;
+  inset-block-end: -12px;
+  inset-inline-start: 50%;
+  display: grid;
+  place-items: center;
+  inline-size: 48px;
+  block-size: 48px;
+  translate: -50% 0;
+  border-radius: var(--shape-full);
+  touch-action: none;
+  cursor: ew-resize;
+}
+.ruler-grip[hidden] { display: none; }
+/* A 20px knob in a 2px sheet ring reads as the grip; in dark it is a step lighter than the bar, short of a pale dot. */
+.ruler-grip::before {
+  content: "";
+  inline-size: 20px;
+  block-size: 20px;
+  border-radius: var(--shape-full);
+  background: light-dark(var(--primary), color-mix(in oklch, var(--primary) 70%, var(--primary-container)));
+  box-shadow: 0 0 0 2px var(--sheet-bg, var(--sheet-surface));
+}
+.ruler-grip.is-empty::before { box-sizing: border-box; border: 2px solid var(--primary); background: var(--sheet-bg, var(--sheet-surface)); }
+.time-ruler.is-sizing .ruler-grip::before { scale: 1.2; }
+.ruler-grip:focus-visible { outline: 2px solid var(--primary); outline-offset: -12px; }
 
-.alert-kinds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s1); padding: var(--s1); border-radius: var(--shape-full); background: var(--sheet-card); }
+/* One outlined pill split in two, like Repeat: at Off both halves are open to pick; the chosen half fills and shows a check. */
+.alert-kinds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--outline); border-radius: var(--shape-full); overflow: clip; }
 .alert-kind {
   display: inline-flex;
   justify-content: center;
@@ -184,17 +251,30 @@
   gap: var(--s2);
   min-block-size: 40px;
   padding-inline: var(--s2);
-  border-radius: var(--shape-full);
-  color: var(--on-surface-variant);
+  color: var(--on-surface);
   font: var(--label-large);
 }
+.alert-kind + .alert-kind { border-inline-start: 1px solid var(--outline); }
 .alert-kind-icon { font-size: calc(20px / var(--text-scale, 1)); }
 .alert-kind[aria-pressed=true] { background: var(--secondary-container); color: var(--on-secondary-container); }
-.alert-kind[aria-pressed=true] .alert-kind-icon { font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24; }
 .alert-kind:active { background: var(--row-press); }
-.alert-kind:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.alert-kind:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .alert-kinds.is-off { opacity: .38; }
 .alert-kinds.is-off .alert-kind { pointer-events: none; }
+/* Type, then when: the lead times are a lighter second level, five equal filter chips 12dp under the pair. */
+.task-tabs .chip-row.alert-leads {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--s2);
+  margin-block-start: calc(-1 * var(--s1));
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+.task-tabs .chip-row.alert-leads > .chip, .task-tabs .chip-row.alert-leads > .chip + .chip { min-block-size: 32px; border: 1px solid var(--outline-variant); border-radius: var(--shape-sm); }
+.task-tabs .chip-row.alert-leads > .chip[aria-pressed=true] { border-color: transparent; }
+.task-tabs .chip-row.alert-leads > .chip::after { inset: calc(-1 * var(--s2)) 0; }
 :root[data-large-text=true] .alert-kind { flex-direction: column; gap: 0; padding-block: var(--s1); }
 
 .repeat-days { display: flex; justify-content: space-between; gap: var(--s1); }
@@ -214,43 +294,33 @@
 .repeat-day:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .repeat-days[hidden] { display: none; }
 
-.block-list { display: flex; flex-direction: column; gap: var(--s1); }
+.block-list { display: flex; flex-direction: column; }
 .block-choice {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) 24px;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
-  column-gap: var(--s3);
-  min-block-size: 56px;
-  padding: var(--s2) var(--s3);
-  border-radius: var(--shape-lg);
-  background: var(--sheet-card);
+  column-gap: var(--s4);
+  min-block-size: 48px;
+  padding-inline: var(--s3) var(--s4);
+  border-radius: var(--shape-full);
   color: var(--on-surface);
   text-align: start;
 }
-.block-choice .ring { inline-size: 32px; block-size: 32px; }
+.block-choice .ring { inline-size: 24px; block-size: 24px; }
 .block-choice .ring-track { stroke: var(--outline-variant); }
-.block-choice .ring-done { fill: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--sheet-card)); stroke: none; }
-.block-choice .ring-check { fill: none; stroke: var(--progress, var(--primary)); stroke-linecap: round; stroke-linejoin: round; }
+.block-choice .ring-done { fill: color-mix(in oklch, var(--success) var(--track-mix), var(--sheet-bg, var(--sheet-surface))); stroke: none; }
+/* Finished reads as done (a full green ring, a small green check), never as the blue of the chosen row. */
+.block-choice .ring:has(.ring-done) .ring-value { stroke: var(--success); }
+.block-choice .ring-check { fill: none; stroke: var(--success); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .block-choice-inbox { justify-self: center; font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
-.block-choice-copy { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; }
-.block-choice-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: clip; font: var(--title-small); font-weight: 600; overflow-wrap: break-word; }
-.block-choice-title .choice-hint { margin-inline-start: var(--s2); font: var(--label-small); color: var(--on-surface-variant); }
-.block-choice-line { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: clip; font: var(--body-small); color: var(--on-surface-variant); overflow-wrap: break-word; }
-.block-choice-mark {
-  display: grid;
-  place-items: center;
-  justify-self: center;
-  inline-size: 20px;
-  block-size: 20px;
-  border: 2px solid var(--outline);
-  border-radius: var(--shape-full);
-}
-.block-choice-mark::after { content: ''; inline-size: var(--s2); block-size: var(--s2); border-radius: var(--shape-full); background: var(--primary); scale: 0; }
-.block-choice[aria-checked=true] .block-choice-mark { border-color: var(--primary); }
-.block-choice[aria-checked=true] .block-choice-mark::after { scale: 1; }
-.block-choice[aria-checked=true] { background: var(--secondary-container); color: var(--on-secondary-container); }
+.block-choice-title { overflow: clip; font: var(--body-large); text-overflow: ellipsis; white-space: nowrap; }
+.block-choice .choice-hint { font: var(--label-small); color: var(--on-surface-variant); }
+.block-choice[aria-checked=true] { background: color-mix(in oklch, var(--secondary-container) 50%, transparent); color: var(--on-surface); }
+/* The chosen Block is the one name you must read whole: it wraps to two lines, the others stay one line. */
+.block-choice[aria-checked=true] { border-radius: var(--r-group); }
+.block-choice[aria-checked=true] .block-choice-title { display: -webkit-box; padding-block: var(--s2); font-weight: 500; white-space: normal; text-wrap: balance; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .block-choice:active { background: var(--row-press); }
-.block-choice:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.block-choice:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 
 .task-details { display: flex; flex-direction: column; gap: var(--row-gap); padding-block-start: var(--s2); border-block-start: 1px solid var(--outline-variant); }
 
@@ -258,6 +328,7 @@
   .tab-row::after { transition: inset-inline-start var(--dur-medium) var(--ease-emphasized), inline-size var(--dur-medium) var(--ease-emphasized), inset-block-start var(--dur-medium) var(--ease-emphasized), inset-block-end var(--dur-medium) var(--ease-emphasized); }
   .tab-btn, .when-day, .alert-kind, .repeat-day, .block-choice { transition: scale var(--dur-press) var(--ease-standard), background-color var(--dur-press) var(--ease-standard), color var(--dur-press) var(--ease-standard); }
   .when-day-number { transition: background-color var(--dur-short) var(--ease-standard), color var(--dur-short) var(--ease-standard); }
-  .block-choice-mark, .block-choice-mark::after { transition: border-color var(--dur-short) var(--ease-standard), scale var(--dur-short) var(--ease-standard); }
+  .ruler-grip::before { transition: scale var(--dur-short) var(--ease-standard); }
+  .ruler-hour { transition: opacity var(--dur-short) var(--ease-standard); }
   :is(.tab-btn, .when-day, .alert-kind, .repeat-day, .block-choice):active { scale: .97; }
 }

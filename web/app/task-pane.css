@@ -20,31 +20,17 @@
     padding-block: var(--s2);
     padding-inline-end: var(--s3);
     font: var(--title-large);
+    font-weight: 600;
   }
-  #sheet[data-inline] .tab-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  #sheet[data-inline] #task-tab-block {
-    grid-column: 1 / -1;
-    grid-template-columns: auto minmax(0, max-content);
-    justify-content: center;
-    align-items: center;
-    column-gap: var(--s2);
-    min-block-size: 48px;
-  }
-  #sheet[data-inline] #task-tab-block .tab-value { white-space: normal; text-wrap: balance; text-align: start; }
   #sheet[data-inline] .number-chip input:not(:focus-visible) { border-block-end-color: transparent; }
   #sheet[data-inline] .number-chip:has(input:placeholder-shown) .chip-unit { display: none; }
-  #sheet[data-inline] .when-days { display: none; }
-  #sheet[data-inline] .ruler-start { font: var(--title-medium); font-weight: 600; }
-  #sheet[data-inline] .ruler-end { font: var(--body-medium); }
   #sheet[data-inline] .task-tabs .chip-row.segmented { padding: 0; background: none; }
-  /* One length strip that fits the 400px pane whole: 30 min to 2 h, plus 15 min or 1 h 30 min only while chosen. */
-  #sheet[data-inline] .task-tabs [aria-label=Length] > .chip { flex: 1 1 0; }
-  #sheet[data-inline] .task-tabs [aria-label=Length] > .chip:is([data-value='15'], [data-value='90']):not([aria-pressed=true]) { display: none; }
-  #sheet[data-inline] .ruler-busy { display: none; }
-  /* Pick a date, Pick a time, Other and a worded Clear share one row; a narrower pane wraps them, never clips. */
+  /* Two short words and five lead times read as one compact group under the tabs' left edge, not a pane-wide bar. */
+  #sheet[data-inline] :is(.alert-kinds, .task-tabs .chip-row.alert-leads) { max-inline-size: 336px; }
+  #sheet[data-inline] .task-tabs .chip-row.alert-leads { gap: var(--s1); }
+  /* Pick a date, Pick a time and Clear share one row; a narrower pane wraps them, never clips. */
   #sheet[data-inline] .task-tabs .chip-row[aria-label='More choices'] { flex-wrap: wrap; justify-content: space-between; }
   #sheet[data-inline] .task-tabs .chip-row[aria-label='More choices'] > .chip { gap: var(--s1); padding-inline: var(--s1); }
-  #sheet[data-inline] .when-clear .chip-icon { display: none; }
   #sheet[data-inline] .sheet-body { flex: 0 1 auto; }
   #sheet[data-inline] .task-start {
     grid-area: start;
@@ -54,6 +40,6 @@
   #planner .spine-card[data-open], #planner .spine-chip[data-open] { outline: 2px solid var(--primary); outline-offset: -2px; scroll-margin-block: var(--s8); }
 }
 @media (width >= 1080px) and (hover: hover) and (pointer: fine) {
-  #sheet[data-inline] .task-start:hover { background: color-mix(in oklch, var(--on-secondary-container) 8%, var(--secondary-container)); }
+  #sheet[data-inline] .task-start:hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
   #sheet[data-inline] .chip-row.segmented > .chip:not([aria-pressed=true]):hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
 }
