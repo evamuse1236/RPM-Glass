@@ -45,7 +45,8 @@ test('each tab shows its value in a few words', () => {
   assert.equal(repeatShort({recurrence: 'daily'}), 'Every day');
   assert.equal(repeatShort({recurrence: 'days', repeatDays: [5, 1, 3]}), 'Mo We Fr');
   assert.equal(repeatShort({repeatAfterDays: 3}), 'After 3 days');
-  assert.equal(blockShort('RM critical review drafted'), 'RM');
+  assert.equal(blockShort('RM critical review drafted'), 'RM critical');
+  assert.equal(blockShort(' Studies '), 'Studies');
   assert.equal(blockShort(null), 'Inbox');
 });
 
@@ -144,9 +145,13 @@ test('the Block list keeps the planner\'s order with done of total and Purpose, 
   assert.equal(task().blockId, block);
 });
 
-test('every chip row in the task tabs wraps, so no chip hides past the right edge', () => {
+test('every chip row in the task tabs wraps or shrinks its segments, so no chip hides past the right edge', () => {
   const source = fs.readFileSync(new URL('./planner/task-tabs.mjs', import.meta.url), 'utf8');
-  const calls = [...source.matchAll(/\b(chipRow|wrapRow)\(/g)].map(m => m[1]);
+  const calls = [...source.matchAll(/\b(chipRow|wrapRow|segmentedRow)\(/g)].map(m => m[1]);
   assert.deepEqual(calls.filter(name => name === 'chipRow'), ['chipRow'], 'only wrapRow itself calls chipRow');
-  assert.ok(calls.filter(name => name === 'wrapRow').length >= 4);
+  assert.match(source, /const segmentedRow = label => \{ const row = wrapRow\(label\);/, 'a segmented row is a wrap row');
+  assert.ok(calls.filter(name => name === 'wrapRow').length >= 2);
+  assert.ok(calls.filter(name => name === 'segmentedRow').length >= 3);
+  const css = fs.readFileSync(new URL('./task-tabs.css', import.meta.url), 'utf8');
+  assert.match(css, /\.task-tabs \.chip-row\.segmented > \.chip \{\n  flex: 1 1 auto;\n  justify-content: center;\n  min-inline-size: 0;/, 'segments shrink to share one row');
 });

@@ -1,4 +1,4 @@
-/* Life: the Wheel of Life (life-wheel.mjs). */
+/* Life: the Wheel of Life (life-wheel.mjs) and the Areas with their Goals under it (life.mjs). */
 .wheel-card {
   margin: var(--s1) var(--gutter) 0;
   padding: var(--s4) var(--s4) var(--s3);
@@ -6,11 +6,23 @@
   background: var(--surface-container-low);
   border: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
 }
+.wheel-copy { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--s2); }
 .wheel-copy h2 { font: var(--title-medium); }
-.wheel-copy p { font: var(--body-medium); color: var(--on-surface-variant); text-wrap: pretty; }
-.wheel-plot { position: relative; inline-size: min(100% - 128px, 240px); aspect-ratio: 1; margin: 32px auto; }
+.wheel-copy .text-btn { margin-inline-end: calc(-1 * var(--s3)); }
+.wheel-plot { position: relative; inline-size: min(100% - 96px, 272px); aspect-ratio: 1; margin: var(--s4) auto var(--s2); }
+/* A name straight above or below the wheel needs its own line of room. */
+.wheel-plot[data-label-top] { margin-block-start: var(--s8); }
+.wheel-plot[data-label-bottom] { margin-block-end: var(--s8); }
 .wheel-svg { display: block; inline-size: 100%; block-size: 100%; overflow: visible; touch-action: none; cursor: pointer; }
-.wheel-track { fill: var(--surface-container-highest); stroke: var(--surface-container-low); stroke-width: 2; }
+/* An unrated wedge is an empty track: a wash of its Area's hue inside a 1dp outline of it, never a filled shape. Dark
+   needs twice the wash to read as much as light does. */
+.wheel-track {
+  fill: light-dark(color-mix(in oklch, var(--tone) 8%, var(--surface-container-low)), color-mix(in oklch, var(--tone) 16%, var(--surface-container-low)));
+  stroke: color-mix(in oklch, var(--tone) 40%, var(--surface-container-low));
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+.wheel-scale { fill: none; stroke: var(--outline-variant); stroke-width: 1; pointer-events: none; }
 .wheel-wedge { fill: var(--tone); stroke: var(--surface-container-low); stroke-width: 2; stroke-linejoin: round; }
 .wheel-ring { fill: none; stroke: var(--surface-container-low); stroke-opacity: .6; stroke-width: 1; pointer-events: none; }
 .wheel-average {
@@ -25,6 +37,22 @@
   font-weight: 600;
   pointer-events: none;
 }
+.wheel-average:empty { display: none; }
+.wheel-hint {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  translate: -50% -50%;
+  padding: var(--s1);
+  border-radius: var(--shape-full);
+  background: var(--surface-container-low);
+  font: var(--label-small);
+  color: var(--on-surface-variant);
+  text-align: center;
+  white-space: pre;
+  pointer-events: none;
+}
+.wheel-average:not(:empty) + .wheel-hint { display: none; }
 .wheel-label {
   position: absolute;
   inset-inline-start: calc(50% + var(--x) * (50% + 8px));
@@ -39,19 +67,18 @@
   pointer-events: none;
 }
 .wheel-label b { margin-inline-start: var(--s1); color: var(--on-surface); font-weight: 600; }
-.wheel-areas { padding-block: var(--s1) var(--s2); }
-.wheel-area {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s2);
-  min-block-size: 32px;
-  padding: var(--s1) var(--s3);
-  border-radius: var(--r-tile);
-  background: var(--surface-container-high);
-  font: var(--label-large);
+/* Phone: each Area is a row that opens it; its Goals sit right under it, the flag in the avatar's column and the
+   words on the Area name's edge. Space between Areas, not inside them, groups them. */
+.life-areas { display: grid; gap: var(--s3); padding-block: var(--s2) 0; }
+.life-area .list-headline { font: var(--title-medium); }
+.life-area-group > .list-item.nested {
+  min-block-size: 48px;
+  gap: var(--s6);
+  padding-block: 0 var(--s1);
+  padding-inline-start: calc(var(--gutter) + var(--s2));
 }
-.wheel-area::after { content: ""; position: absolute; inset: -8px 0; }
-.wheel-area:active { background: var(--row-press); }
-.wheel-area-goals { color: var(--on-surface-variant); font-weight: 400; }
-.wheel-card .tonal-btn { margin-top: var(--s2); }
+:is(.life-areas, .area-goals, .goal-projects) :is(.list-headline, .list-supporting) { text-wrap: pretty; }
+.list-item.add-row .leading, .list-item.add-row .list-headline { color: var(--primary); }
+.list-item.add-row .list-headline { font: var(--label-large); }
+/* On an Area's page a Project sits under its Goal's words: the Goal row's 24dp icon and its gap. */
+.area-goals > .list-item.nested { padding-inline-start: var(--key-icon-text); }

@@ -3,6 +3,7 @@
 #planner .screen-review .page{padding-bottom:0}
 /* The snackbar clears the pinned footer, whose height changes with its hint line (set by weekly-review.mjs). */
 #planner[data-view=review] ~ #snackbar{bottom:calc(var(--wr-foot,72px) + var(--s2))}
+#planner[data-view=review][data-snackbar=true] .wr-body{padding-block-end:calc(var(--snackbar-h,48px) + var(--s8))}
 .wr{position:relative;display:flex;flex-direction:column;height:100%;min-height:0;background:var(--surface);color:var(--on-surface);font:var(--body-medium)}
 .wr h1,.wr h2,.wr h3,.wr p{margin:0}
 .wr ul{margin:0}
@@ -20,7 +21,8 @@
 .wr-icon-btn{flex:none;width:48px;height:48px;display:grid;place-items:center;border:0;border-radius:50%;background-color:transparent;color:var(--on-surface-variant)}
 
 /* Segmented progress: 4dp bars, 48dp tall touch areas */
-.wr-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:0 20px}
+.wr-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:0 20px 8px;border-bottom:1px solid transparent}
+.wr-steps.edge{border-bottom-color:var(--outline-variant)}
 .wr-step{position:relative;height:16px;border:0;padding:0;background-color:transparent;display:flex;align-items:center}
 .wr-step::after{content:"";position:absolute;inset:-16px 0}
 .wr-step i{display:block;width:100%;height:4px;border-radius:2px;background:var(--surface-container-highest);transition:background-color var(--dur-medium) var(--ease-standard)}
@@ -28,7 +30,7 @@
 .wr .wr-step{background-image:none}
 
 /* Body */
-.wr-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:20px 16px 24px}
+.wr-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px 16px 24px}
 .wr-content{display:flex;flex-direction:column;gap:12px}
 /* Step to step: weekly-review.mjs moves the old and new content on the shared X axis; this copy of the old content
    keeps the body's padding while it slides out. */
@@ -58,7 +60,6 @@
 .wr-mini-bar{flex:none;width:56px;height:4px;border-radius:2px;background:var(--surface-container-highest);overflow:hidden}
 .wr-mini-bar>span{display:block;height:100%;background:var(--primary);transform-origin:left;transform:scaleX(var(--value,0))}
 .wr-progress-text{font:var(--body-small);color:var(--on-surface-variant)}
-.wr-ask{margin:-4px 0 12px!important;font:var(--body-medium);color:var(--on-surface-variant);text-wrap:pretty}
 /* Segmented buttons (M3): one decision per row. Every selected option looks the same: secondary container, a check, the label. */
 .wr-seg{display:grid;grid-auto-columns:1fr;grid-auto-flow:column;border:1px solid var(--outline);border-radius:var(--shape-full);overflow:hidden}
 .wr-seg-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:0;min-height:40px;padding:0 12px;border:0;background-color:transparent;color:var(--on-surface);font:var(--label-large)}
@@ -66,9 +67,6 @@
 .wr-seg-btn .wr-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wr-seg-btn .ms{font-size:20px;margin-left:-2px}
 .wr-seg-btn.sel{background-color:var(--secondary-container);color:var(--on-secondary-container)}
-.wr-seg.sm{flex:none;margin-left:auto}
-.wr-seg.sm .wr-seg-btn{min-height:32px;padding:0 12px}
-.wr-seg.sm .wr-seg-btn::after{content:"";position:absolute;inset:-8px 0}
 
 /* A checkbox that puts a Result in this week's Results: Carry (step 1) and Pick (step 4) look and work the same */
 .wr-check,.wr-check-row{border:0;background-color:transparent;color:var(--on-surface-variant);font:inherit;text-align:left}
@@ -104,10 +102,15 @@
 
 /* Unfinished tasks with Carry / Defer / Drop */
 .wr-left{margin-top:12px;padding-top:4px;border-top:1px solid var(--outline-variant)}
-.wr-left-head{font:var(--label-medium);color:var(--on-surface-variant);padding:8px 0 0}
+.wr-left-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:40px;padding:4px 0 0}
+.wr-left-head h4{font:var(--label-medium);color:var(--on-surface-variant)}
 .wr-left-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-height:48px;padding:4px 0}
 .wr-left-title{flex:1 1 120px;min-width:0;font:var(--body-medium);overflow-wrap:anywhere}
 .wr-left-title.dropped{color:var(--on-surface-variant);text-decoration:line-through}
+.wr-left-pick{position:relative;flex:none;margin-left:auto;display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 4px 0 12px;border:1px solid var(--outline-variant);border-radius:var(--shape-sm);background-color:transparent;color:var(--primary);font:var(--label-large)}
+.wr-left-pick.set{border-color:transparent;background-color:var(--secondary-container);color:var(--on-secondary-container)}
+.wr-left-pick .ms{font-size:20px}
+.wr-left-pick::after{content:"";position:absolute;inset:-8px 0}
 
 /* Chips (M3 filter chips: 32dp, 8dp corners, 48dp touch area) */
 .wr-chip{position:relative;flex:none;display:inline-flex;align-items:center;gap:8px;min-height:32px;max-width:240px;padding:0 12px;border:1px solid var(--outline-variant);border-radius:var(--shape-sm);background-color:transparent;color:var(--on-surface-variant);font:var(--label-large)}
@@ -133,8 +136,8 @@
 .wr-add-input::placeholder{color:var(--on-surface-variant)}
 .wr .wr-add-send{background-color:var(--primary);color:var(--on-primary);width:40px;height:40px;margin:4px}
 .wr .wr-add-send:disabled{background-color:transparent;color:var(--on-surface-variant);opacity:.6}
-.wr-lens-head{font:var(--label-medium);color:var(--on-surface-variant);padding:4px 4px 0}
-.wr-lenses{display:flex;flex-wrap:wrap;gap:8px;padding:0 4px;margin-top:-4px}
+.wr-lenses{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0 4px;margin-top:-4px}
+.wr-lens-lead{font:var(--label-large);color:var(--on-surface-variant);padding-inline-end:4px}
 .wr-lens .area-dot{width:8px;height:8px}
 .wr .wr-lens{border-radius:var(--shape-full);background-color:var(--surface-container-low);border-color:var(--outline-variant);color:var(--on-surface)}
 .wr-list{list-style:none;margin:0;padding:4px 0;background:var(--surface-container);border-radius:20px}
@@ -151,17 +154,21 @@
 .wr-list-meta .soon{color:var(--on-surface);font-weight:600}
 .wr-must-tag{display:inline-flex;align-items:center;gap:2px;color:var(--on-surface-variant)}
 .wr-must-tag .ms{font-size:16px;color:var(--must)}
+.wr-clash-tag{display:inline-flex;align-items:center;gap:4px;color:var(--error)}
+.wr-clash-tag .ms{font-size:16px}
 
-/* Step 3: one row per Inbox task, a suggested Result chip under its words and Choose at the end */
-.wr-sort{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:0 4px;min-height:56px;padding:8px 4px 8px 16px}
+/* Step 3: one row per Inbox task, one control: its words, the proposed Result under them, the chooser on tap */
 .wr-sort+.wr-sort{border-top:1px solid var(--outline-variant)}
-.wr-sort>.wr-row-title{padding:8px 0}
-.wr-sort>.wr-suggest{grid-column:1/-1;justify-self:start;margin:0 8px 8px -4px}
+.wr .wr-sort-row{display:flex;align-items:center;gap:8px;inline-size:100%;min-block-size:56px;padding:8px 12px 8px 16px;border:0;border-radius:0;background-color:transparent;color:var(--on-surface);font:inherit;text-align:start}
+.wr-sort:first-child .wr-sort-row{border-start-start-radius:20px;border-start-end-radius:20px}
+.wr-sort:last-child .wr-sort-row{border-end-start-radius:20px;border-end-end-radius:20px}
+.wr-sort-row>.ms{flex:none;color:var(--on-surface-variant)}
+.wr-sort-text{flex:1;display:flex;flex-direction:column;gap:4px;min-inline-size:0}
+.wr-sort-proposal{display:flex;align-items:center;gap:4px;min-inline-size:0;font:var(--body-medium);color:var(--primary)}
+.wr-sort-proposal .ms{flex:none;font-size:16px}
+.wr-sort-label{min-inline-size:0;overflow:clip;text-overflow:ellipsis;white-space:nowrap}
+.wr-leave .wr-sort-proposal{color:var(--on-surface-variant)}
 .wr-row-title{flex:1;min-width:0;overflow-wrap:anywhere;font:var(--body-large);text-wrap:pretty}
-.wr .wr-suggest{max-width:calc(100% - 4px);border-color:var(--outline);color:var(--on-surface)}
-.wr-suggest .ms{color:var(--primary)}
-.wr-leave .ms{color:var(--on-surface-variant)}
-.wr-choose{flex:none}
 .wr-row{display:flex;align-items:center;gap:4px;min-height:48px;padding:0 4px}
 .wr-row.sub{padding-left:20px;min-height:44px}
 .wr-row.sub>.ms{font-size:20px;color:var(--on-surface-variant);margin-right:8px}
@@ -194,5 +201,6 @@
 .wr-option-text{display:flex;flex-direction:column;min-width:0}
 .wr-option-label{font:var(--body-large);overflow-wrap:anywhere}
 .wr-option-detail{font:var(--body-medium);color:var(--on-surface-variant)}
+.wr .wr-option-suggested>.ms{color:var(--primary)}
 .wr-new{padding:0 8px}
 .wr-new-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:16px}

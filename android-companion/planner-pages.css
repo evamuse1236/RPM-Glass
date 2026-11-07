@@ -33,7 +33,7 @@
   color: var(--on-surface-variant);
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   overflow: hidden;
 }
 .card-meta { font: var(--body-small); color: var(--on-surface-variant); margin-top: 2px; }
@@ -53,36 +53,43 @@
 .project-open { flex: none; margin-inline-end: var(--s1); color: var(--on-surface-variant); }
 .nest-rings { flex: none; inline-size: 64px; block-size: 64px; }
 .nest-rings circle { fill: none; }
-.nest-track { stroke: var(--surface-container-highest); }
+/* A ring's track is a dim band of its own colour (Activity rings), so every nested ring reads as one band, light or dark. */
+:is(.nest-track, .ring-track) { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-highest)); }
 .nest-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; }
-.project-blocks { display: grid; gap: var(--s1); padding: 0 var(--s3) var(--s3); }
+/* A Project's empty tracks sit fainter than a Block ring's, so the done arcs carry the card's icon. */
+.nest-track { stroke-opacity: .55; }
+.nest-rings .nest-done { fill: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-low)); }
+.nest-check { fill: none; stroke: var(--progress, var(--primary)); stroke-linecap: round; stroke-linejoin: round; }
+/* An open card lists its Blocks flat on the card under one divider; each ring starts on the card ring's edge. */
+.project-blocks { display: grid; grid-template-columns: minmax(0, 1fr); margin-inline: var(--s3) var(--s6); padding-block: var(--s1) var(--s2); border-block-start: 1px solid var(--outline-variant); }
 .project-block {
   display: flex;
   align-items: center;
   gap: var(--s3);
   min-block-size: 48px;
-  padding: var(--s1) var(--s3);
-  border-radius: var(--r-control);
-  background: var(--surface);
+  padding-block: var(--s1);
+  border-radius: var(--shape-sm);
   font: var(--body-medium);
 }
 .project-block:active { background: var(--row-press); }
 .project-block .seg-ring { flex: none; inline-size: 28px; block-size: 28px; }
-.project-block-name { flex: 1; min-inline-size: 0; overflow-wrap: break-word; text-wrap: pretty; }
+.project-blocks > .quiet { padding: var(--s3) 0; }
+/* A Block's name keeps Dara's words: two lines before it shortens. */
+.project-block-name { flex: 1; min-inline-size: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: clip; }
 .project-block-count { color: var(--on-surface-variant); white-space: nowrap; }
 .seg-ring :is(path, circle) { fill: none; stroke-width: 6; }
 .seg-off { stroke: var(--surface-container-highest); }
 .seg-on { stroke: var(--progress, var(--primary)); }
 .seg-arc { stroke-linecap: round; }
-/* One facts line on a Block card: deadline, the Musts' time left, tasks done. */
-.card-facts { margin-top: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
-.card-facts > *, .fact-next, .nowrap, .must-left { white-space: nowrap; }
+/* Where a Block card stands, on one line: the deadline, tasks done, then This week's pick as a small tonal mark beside them. */
+.card-facts { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--s2); margin-top: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
+.card-stand > *, .fact-next, .nowrap, .must-left { white-space: nowrap; }
+.week-mark { padding-inline: var(--s1); border-radius: var(--shape-xs); background: var(--secondary-container); color: var(--on-secondary-container); font: var(--label-medium); white-space: nowrap; }
 .card-due { font-weight: 500; color: var(--on-surface); }
 .card-due.tight { color: var(--error); }
 .ring { flex: none; width: 24px; height: 24px; }
 .ring circle { fill: none; stroke-width: 3; }
-.ring-track { stroke: var(--surface-container-highest); }
-.ring-value { stroke: var(--primary); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
+.ring-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
 .next-task {
   display: flex;
   align-items: center;
@@ -106,7 +113,6 @@
 .project-run .eyebrow { font: var(--label-large); }
 .filters + .project-run { padding-top: var(--s1); }
 .project-run + .block-card { margin-top: var(--s2); }
-.stat-line { padding: 0 var(--gutter) var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
 
 /* Detail pages (Block, Project, Area, Goal) */
 .detail-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s2); padding: 0 var(--gutter); }
@@ -122,6 +128,9 @@
   text-wrap: balance;
   overflow-wrap: anywhere;
 }
+/* The large title hands over to the bar's title (planner.mjs titleOut): it fades as its first line meets the bar. */
+.detail-title-text { transition: opacity var(--dur-short) var(--ease-standard); }
+#planner[data-title-out=true] .detail-title-text:not(:focus-within) { opacity: 0; }
 .detail-lede { padding: 0 var(--gutter) var(--s3); font: var(--body-large); color: var(--on-surface-variant); }
 /* Edit in place: words look like words until tapped; focus adds a soft tonal field and the M3 active indicator. */
 .inline-edit {
@@ -153,6 +162,28 @@
 .project-picker { padding-right: var(--s1); }
 .goal-when-chip { padding-right: var(--s1); }
 .detail-title-text + .block-facts { margin-top: calc(-1 * var(--s2)); }
+/* Project detail: Area and Goal follow the title as one quiet line of icon and words; the Goal wraps to a second line
+   only when both cannot fit. Each keeps a 48dp hit area around its 32dp line. */
+.detail-title-text + .head-crumbs { margin-block-start: calc(-1 * var(--s2)); padding-block: 0 var(--s2); }
+.head-crumbs { gap: 0 var(--s3); }
+.crumb-quiet {
+  position: relative; display: inline-flex; align-items: center; gap: var(--s1); min-inline-size: 0; min-block-size: 32px;
+  padding: 0; border: 0; border-radius: var(--shape-xs); background: none; color: var(--on-surface-variant); font: var(--body-medium);
+  text-align: start; cursor: pointer;
+}
+.crumb-quiet::after { content: ''; position: absolute; inset: calc(-1 * var(--s2)) calc(-1 * var(--s1)); }
+.crumb-quiet > .ms { flex: none; font-size: 20px; inline-size: 20px; }
+.crumb-quiet > .avatar { inline-size: 16px; block-size: 16px; min-inline-size: 16px; margin-inline: 2px; font: var(--label-small); }
+.head-crumbs[data-tone] .crumb-quiet:first-child > .ms { color: var(--progress); }
+.crumb-quiet > span:not(.ms) { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+.crumb-quiet:active { color: var(--on-surface); }
+.crumb-quiet:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.section-header:has(> .blocks-progress) { align-items: center; }
+.blocks-progress { display: flex; align-items: center; gap: var(--s2); }
+.blocks-progress .ring { inline-size: 20px; block-size: 20px; }
+/* A Project's Purpose runs to the content edge. */
+#planner[data-view=projects] .purpose-text { text-wrap: pretty; }
+#planner:is([data-view=areas], [data-view=goals]) :is(.purpose-text, .title-edit, .detail-title-text) { text-wrap: pretty; }
 /* Google Tasks detail rows: the 24dp icon centred on the Plan's check column, the text on the task titles. */
 .fact-row {
   display: flex;
@@ -167,19 +198,40 @@
 button.fact-row:active { background: var(--row-press); }
 .fact-row > .leading, .fact-row > .ring { color: var(--on-surface-variant); flex: none; }
 .fact-row .text-btn { align-self: center; flex: none; margin: calc(-1 * var(--s2)) calc(-1 * var(--s2)) calc(-1 * var(--s2)) 0; }
-.verdict-row { align-items: center; }
-.fact-row .outlined-btn { flex: none; padding: 0 var(--s4); }
+/* The verdict asks once, as a tonal chip in a 48dp row: the user's call, never a tick count. Its trophy starts on the
+   icons' edge above it; the row's height stays the touch target around the 32dp chip. */
+.fact-row.verdict-row {
+  position: relative;
+  align-items: center;
+  gap: var(--s2);
+  width: fit-content;
+  min-height: 32px;
+  margin: var(--s2) var(--gutter);
+  padding: 0 var(--s4) 0 var(--s2);
+  border-radius: var(--shape-sm);
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+.verdict-row::after { content: ''; position: absolute; inset: calc(-1 * var(--s2)) 0; }
+/* A 20dp trophy in the 24dp icon box, so its centre sits on the icon column above it. */
+.verdict-row > .ms.leading { font-size: 20px; width: 24px; height: 24px; color: inherit; }
+.verdict-row .list-copy { flex: none; }
+.verdict-row .list-headline { font: var(--label-large); }
+button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-secondary-container) 12%, var(--secondary-container)); }
 .fact-label { font: var(--label-medium); color: var(--on-surface-variant); }
 /* The resting hint that a detail field edits in place: a small pencil after its label, gone while editing. */
 .fact-label .label-edit { font-size: 16px; width: 16px; height: 16px; line-height: 16px; margin-left: var(--s1); vertical-align: -2px;
   opacity: .72; transition: opacity var(--dur-short3) var(--ease-standard); }
 .editable-row:focus-within .label-edit { opacity: 0; }
-.purpose-text { font: var(--body-large); overflow-wrap: anywhere; }
-.due-when { font-weight: 500; }
+.purpose-text { font: var(--body-large); overflow-wrap: anywhere; text-wrap: balance; }
+.due-when { font: var(--body-large); }
 .status-row.tight .due-when { color: var(--error); }
 .must-legend { font-size: 16px; color: var(--must); vertical-align: -3px; margin-right: 2px; }
-/* Tall enough for Sort by time (a 48dp text button) whether it shows or not, so it never pushes the Plan. */
-.plan-header { align-items: center; padding: var(--s2) var(--s1) 0 var(--gutter); min-height: calc(var(--touch) + var(--s2)); }
+/* The Plan's header: title-medium, 16dp above it. Sort by time (a 48dp text button) overlaps the header's own line, so
+   the header is the same height whether it shows or not and never pushes the Plan. */
+.plan-header { align-items: center; padding: var(--s4) var(--s1) 0 var(--gutter); }
+.plan-header h2 { font: var(--title-medium); }
+.plan-header .text-btn { margin-block: calc(-1 * var(--s3)); }
 .plan-actions { display: flex; align-items: center; }
 .plan-list { padding: 0 var(--s1); }
 .plan-list .task-row { padding-left: var(--s1); }
@@ -265,22 +317,20 @@ button.fact-row:active { background: var(--row-press); }
 .values-card p { font: var(--body-large); }
 .area-head { display: flex; align-items: center; gap: var(--s1); padding: var(--s3) 0 0 var(--gutter); }
 .area-head .detail-title-text { flex: 1; min-width: 0; padding-left: var(--s2); }
+/* The Area's rating is a plain row like the Purpose above it: the 20dp handle centred on the 24dp icon column. */
 .rating-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0 var(--s2);
-  width: calc(100% - 2 * var(--gutter));
-  margin: var(--s2) var(--gutter) 0;
-  padding: var(--s4) var(--s4) var(--s3);
-  border-radius: 20px;
-  background: var(--surface-container-low);
+  gap: 0 var(--s4);
+  padding-inline: calc(24px + 2px) var(--gutter);
 }
-.rating-row strong { font: var(--title-medium); }
+.rating-row > :is(.rating-slider, .rating-ticks) { grid-column: 1; grid-row: 1; }
+.rating-row strong { grid-column: 2; grid-row: 1; min-inline-size: 56px; font: var(--title-medium); text-align: end; }
+.rating-row .rating-slider.unrated::-webkit-slider-thumb { background: var(--surface); }
 /* M3 slider in the Area's colour: one active-track colour whether resting or dragged, a 20dp handle, 48dp target.
    Unrated: the whole track is inactive and there is no handle until the first touch. */
 .rating-slider {
-  grid-column: 1 / -1;
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
@@ -318,10 +368,7 @@ button.fact-row:active { background: var(--row-press); }
 /* Unrated: a hollow handle at the start and the eleven points as faint ticks, an affordance that is not a value. */
 .rating-slider.unrated::-webkit-slider-thumb { background: var(--surface-container-low); box-shadow: inset 0 0 0 2px var(--outline); }
 .rating-slider.unrated::-moz-range-thumb { background: var(--surface-container-low); box-shadow: inset 0 0 0 2px var(--outline); }
-.rating-slider { grid-row: 2; }
 .rating-ticks {
-  grid-column: 1 / -1;
-  grid-row: 2;
   align-self: center;
   display: flex;
   justify-content: space-between;
@@ -334,7 +381,6 @@ button.fact-row:active { background: var(--row-press); }
 .rating-slider.unrated + .rating-ticks { opacity: .55; }
 .rating-slider.unrated + .rating-ticks i:first-child { visibility: hidden; }
 .rating-slider.unrated:focus-visible { outline: 2px solid var(--primary); outline-offset: -8px; border-radius: var(--shape-xs); }
-.rating-note { grid-column: 1 / -1; grid-row: 3; font: var(--body-medium); color: var(--on-surface-variant); }
 
 
 /* Search */
@@ -349,4 +395,10 @@ button.fact-row:active { background: var(--row-press); }
   -webkit-appearance: none;
 }
 .search-input::-webkit-search-cancel-button { display: none; }
-.search-results .task-row { padding-left: var(--s2); }
+.search-results .task-row { padding-inline-start: var(--s1); }
+.search-results .task-main:has(+ .must-mark) { flex: 0 1 auto; }
+.search-hit { font-weight: 700; color: inherit; }
+/* Done results come last as their title alone, with a quiet tick in place of the filled one (Google Tasks' Completed). */
+.search-results .task-row.done .task-main { min-block-size: 48px; }
+.search-results .task-row.done .check-ring { border-color: transparent; background: transparent; color: var(--on-surface-variant); }
+.search-results .task-row.done .check-ring .ms { font-size: 20px; font-weight: 400; }

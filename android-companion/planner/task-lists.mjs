@@ -39,22 +39,23 @@ export function inboxShowing(app) {
 
 /** Inbox: open tasks that are not in a Block yet. Rows swipe as everywhere; a save updates the rows in place. */
 export function showInbox(app, {motion = 'forward'} = {}) {
-  const {body, actions} = openSheet(app, 'Inbox', {motion});
+  const {body, actions, header} = openSheet(app, 'Inbox', {motion});
   app.sheet.inboxBody = body;
+  // The title counts what is left to sort; Sort with Jev is a labelled chip beside Close, the sheet's lead action.
+  const count = el('span', 'sheet-count');
+  header.querySelector('h2').append(count);
+  const jev = labelButton('auto_awesome', 'Sort with Jev', () => app.actions.jevSort(), 'assist-chip inbox-jev');
+  header.querySelector('.sheet-close').before(jev);
   // Fills a host with the rows: the body itself at first, then a detached copy that animateRerender reconciles in by
   // key (it needs the new content returned as an element, so unchanged rows stay and the changed ones move).
   const draw = (host = el('div')) => {
     const rows = inboxRows(app.data());
     host.replaceChildren();
+    jev.hidden = !rows.length;
+    count.textContent = rows.length ? String(rows.length) : '';
     if (!rows.length) {
       host.append(emptyState({symbol: 'inbox', title: 'Inbox is empty',
         body: 'New captures land here until you give them a Block.'}));
-    } else {
-      const note = el('p', 'sheet-note', 'Tasks not in a Block yet. Give each one a Result, or keep it here.');
-      note.dataset.key = 'inbox-note';
-      const jev = labelButton('auto_awesome', 'Sort with Jev', () => app.actions.jevSort(), 'tonal-btn');
-      jev.dataset.key = 'inbox-jev';
-      host.append(note, jev);
     }
     const back = app.sheet.returned;
     for (const task of rows) {
@@ -67,7 +68,7 @@ export function showInbox(app, {motion = 'forward'} = {}) {
   };
   draw(body);
   actions.append(labelButton('mic', 'Capture', () => app.capture(), 'text-btn'),
-    labelButton('add', 'Add task', () => taskEditor(app, null), 'filled-btn'));
+    labelButton('add', 'Add task', () => taskEditor(app, null), 'tonal-btn'));
   app.sheet.live = () => body.isConnected && isSheetOpen(app);
   app.sheet.sync = () => {
     if (!inboxShowing(app) || app.sheet.inboxBody !== body) return false;

@@ -55,3 +55,26 @@ test('an unlogged meal has no "Not logged" line; its spoken name still says it',
   assert.equal(all(meal, 'spine-meta').length, 0);
   assert.match(all(meal, 'spine-open')[0].getAttribute('aria-label'), /Not logged/);
 });
+
+test('free time has words only where its + offers to plan in it; past and short gaps are bare rail', () => {
+  const day = buildSpine({day: DAY, now: at('12:00'), meals: [],
+    tasks: [{id: 'A', title: 'A', start: at('09:00'), minutes: 30}, {id: 'B', title: 'B', start: at('13:00'), minutes: 30},
+      {id: 'C', title: 'C', start: at('13:50'), minutes: 30}]});
+  const gaps = spineList(day, on).children.filter(r => r.classList.contains('spine-gap'));
+  for (const gap of gaps) {
+    const row = day.rows.find(r => r.key === gap.dataset.key);
+    assert.equal(all(gap, 'spine-free-label').length, row.plan == null ? 0 : 1, `${row.label}${row.past ? ' (past)' : ''}`);
+  }
+  assert.ok(day.rows.some(r => r.kind === 'gap' && r.plan == null && !r.past), 'a short future gap is in the fixture');
+});
+
+test('a clash is one chip under the words that names the event and opens Resolve; the meta line does not repeat it', () => {
+  const clash = buildSpine({day: DAY, now: at('09:00'), meals: [], tasks: [{id: 'Call', title: 'Call', start: at('12:00'), minutes: 15}],
+    events: [{id: 'Session', title: 'Session', start: at('11:30'), end: at('13:30')}]});
+  const call = spineList(clash, on).children.find(r => r.dataset.key === 'task:Call');
+  const chips = all(call, 'spine-resolve');
+  assert.equal(chips.length, 1);
+  assert.equal(chips[0].getAttribute('aria-label'), 'Resolve the clash with Session');
+  assert.match(text(chips[0]), /Clash with Session$/);
+  assert.doesNotMatch(all(call, 'spine-open').map(text).join(), /Clash/);
+});

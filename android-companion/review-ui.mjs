@@ -7,7 +7,6 @@ export const STEPS = [
   {name: 'Sort the Inbox', next: 'Next: pick Results'},
   {name: "This week's Results"},
 ];
-export const VERDICTS = [['achieved', 'Achieved'], ['partly', 'Partly'], ['notyet', 'Not yet']];
 export const VERDICT_RECEIPTS = {achieved: 'Result achieved', partly: 'Marked partly achieved', notyet: 'Marked not achieved yet'};
 export const CHOICES = [['carry', 'Carry'], ['defer', 'Defer'], ['drop', 'Drop']];
 export const MAX_FOCUS = 5;
@@ -41,10 +40,6 @@ export function iconButton(name, label, onClick, cls = 'wr-icon-btn') {
 }
 /** A strip cell's hours: "12h", "1.5h", "45m". Exact durations are in its accessible label. */
 export const hours = minutes => (minutes < 60 ? `${minutes}m` : `${Math.round(minutes / 30) / 2}h`);
-export function weekLabel(day) {
-  const date = new Date(day + 'T12:00:00');
-  return 'Week of ' + date.toLocaleDateString(undefined, {day: 'numeric', month: 'long'});
-}
 export const dayName = day => new Date(day + 'T12:00').toLocaleDateString(undefined, {weekday: 'short', day: 'numeric', month: 'short'});
 export const weekday = day => new Date(day + 'T12:00').toLocaleDateString(undefined, {weekday: 'short'});
 export const capital = text => text[0].toUpperCase() + text.slice(1);
@@ -65,10 +60,11 @@ export function whenText(task, now) {
   return {text: capital(info.overdue ? 'Overdue' : info.label.replace(/^Due /, '')), overdue: info.overdue, soon: info.soon};
 }
 
-export function heading(title, sub) {
+/** A step's one heading, and at most one meta line of facts under it. */
+export function heading(title, meta = '') {
   const h = el('h2', 'wr-title', title);
   h.tabIndex = -1;
-  return [h, el('p', 'wr-sub', sub)];
+  return meta ? [h, el('p', 'wr-sub', meta)] : [h];
 }
 export function emptyState(iconName, title, body) {
   const box = el('div', 'wr-empty');

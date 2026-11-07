@@ -6,6 +6,8 @@ import {migratePlannerUX} from '../../android-companion/planner-ux.mjs';
 import {reviewWeek} from '../../android-companion/review-state.mjs';
 
 export function seedStore(now = new Date()) {
+  // The gauntlet pins its clock: every seeder (shots, the web stand-in) builds the same day from GAUNTLET_NOW.
+  if (process.env.GAUNTLET_NOW) now = new Date(process.env.GAUNTLET_NOW);
   const data = freshStore();
   data.planner = freshPlanner();
   migratePlannerUX(data);

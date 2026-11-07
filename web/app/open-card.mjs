@@ -3,7 +3,7 @@ const OPENERS = '.spine-row[data-key], .spine-chip[data-key]';
 const OCCURRENCE = /^(\d{4}-\d{2}-\d{2}T.*)?$/;
 export const opensTask = (key, id) => id != null && key?.startsWith('task:' + id) === true && OCCURRENCE.test(key.slice(5 + String(id).length));
 
-/** While the task pane is open, the task's card or chip on Today carries `data-open`. */
+/** While the task pane is open, the task's card or chip on Today carries `data-open` and scrolls fully into view. */
 export function markOpenCard(work, sheet) {
   const run = () => {
     const id = sheet.hidden || sheet.inert ? null : sheet.querySelector('.task-head[data-task]')?.dataset.task ?? null;
@@ -11,7 +11,9 @@ export function markOpenCard(work, sheet) {
       const target = node.classList.contains('spine-chip') ? node : node.querySelector('.spine-card');
       if (!target) continue;
       const open = opensTask(node.dataset.key, id);
-      if (open !== target.hasAttribute('data-open')) target.toggleAttribute('data-open', open);
+      if (open === target.hasAttribute('data-open')) continue;
+      target.toggleAttribute('data-open', open);
+      if (open) target.scrollIntoView?.({block: 'nearest'});
     }
   };
   const observer = new MutationObserver(run);

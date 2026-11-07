@@ -159,11 +159,11 @@ function daySheet(app, day) {
   actions.append(button('Open day', () => { app.closeSheet(); selectDay(app, day); }, 'filled-btn'));
 }
 
-/** "20. October 2026 ›": the day, the month, and the year in the accent colour with the picker's chevron. */
+/** "20. October 2026 ›": the day, the month, and the year in the accent colour with the picker's chevron. The website hides the dot and keeps the year in the text colour. */
 function dateWords(day) {
   const date = new Date(day + 'T12:00');
-  const words = el('span', 'date-words', `${date.getDate()}. ${date.toLocaleDateString([], {month: 'long'})} `);
-  words.append(el('span', 'date-year', `${date.getFullYear()} ›`));
+  const words = el('span', 'date-words', String(date.getDate()));
+  words.append(el('span', 'date-dot', '.'), ` ${date.toLocaleDateString([], {month: 'long'})} `, el('span', 'date-year', `${date.getFullYear()} ›`));
   return words;
 }
 

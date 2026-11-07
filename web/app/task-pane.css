@@ -8,7 +8,7 @@
     column-gap: var(--s1);
   }
   #sheet[data-inline] .task-head:has(> .task-start:not([hidden])) {
-    grid-template-columns: 40px minmax(0, 1fr) repeat(4, var(--touch));
+    grid-template-columns: 40px minmax(0, 1fr) auto repeat(3, var(--touch));
     grid-template-areas: "pill . start must ring close" "title title title title title title";
   }
   #sheet[data-inline] .task-head .task-pill { grid-area: pill; margin-block-start: 0; }
@@ -21,48 +21,39 @@
     padding-inline-end: var(--s3);
     font: var(--title-large);
   }
-  #sheet[data-inline] .tab-row { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2fr); }
-  #sheet[data-inline] .tab-btn { grid-template-columns: minmax(0, 1fr); }
-  #sheet[data-inline] .tab-value { overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+  #sheet[data-inline] .tab-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #sheet[data-inline] #task-tab-block {
+    grid-column: 1 / -1;
+    grid-template-columns: auto minmax(0, max-content);
+    justify-content: center;
+    align-items: center;
+    column-gap: var(--s2);
+    min-block-size: 48px;
+  }
+  #sheet[data-inline] #task-tab-block .tab-value { white-space: normal; text-wrap: balance; text-align: start; }
   #sheet[data-inline] .number-chip input:not(:focus-visible) { border-block-end-color: transparent; }
+  #sheet[data-inline] .number-chip:has(input:placeholder-shown) .chip-unit { display: none; }
+  #sheet[data-inline] .when-days { display: none; }
+  #sheet[data-inline] .ruler-start { font: var(--title-medium); font-weight: 600; }
+  #sheet[data-inline] .ruler-end { font: var(--body-medium); }
+  #sheet[data-inline] .task-tabs .chip-row.segmented { padding: 0; background: none; }
+  /* One length strip that fits the 400px pane whole: 30 min to 2 h, plus 15 min or 1 h 30 min only while chosen. */
+  #sheet[data-inline] .task-tabs [aria-label=Length] > .chip { flex: 1 1 0; }
+  #sheet[data-inline] .task-tabs [aria-label=Length] > .chip:is([data-value='15'], [data-value='90']):not([aria-pressed=true]) { display: none; }
+  #sheet[data-inline] .ruler-busy { display: none; }
+  /* Pick a date, Pick a time, Other and a worded Clear share one row; a narrower pane wraps them, never clips. */
+  #sheet[data-inline] .task-tabs .chip-row[aria-label='More choices'] { flex-wrap: wrap; justify-content: space-between; }
+  #sheet[data-inline] .task-tabs .chip-row[aria-label='More choices'] > .chip { gap: var(--s1); padding-inline: var(--s1); }
+  #sheet[data-inline] .when-clear .chip-icon { display: none; }
+  #sheet[data-inline] .sheet-body { flex: 0 1 auto; }
   #sheet[data-inline] .task-start {
     grid-area: start;
-    display: grid;
-    place-content: center;
-    inline-size: var(--touch);
-    block-size: var(--touch);
-    min-block-size: 0;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    border-radius: var(--shape-full);
-    background: transparent;
+    margin: 0 var(--s2) 0 0;
   }
-  #sheet[data-inline] .task-start .ms { font-size: calc(24px / var(--text-scale, 1)); }
-  #sheet[data-inline] .task-start .chip-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: clip; clip-path: inset(50%); white-space: nowrap; }
 
-  #sheet[data-inline] .chip-row[aria-label=Length] { flex-wrap: nowrap; gap: 0; }
-  #sheet[data-inline] .chip-row[aria-label=Length] > .chip {
-    flex: 1 1 auto;
-    justify-content: center;
-    min-inline-size: 0;
-    padding-inline: var(--s1);
-    border-radius: 0;
-    font: var(--label-medium);
-  }
-  #sheet[data-inline] .chip-row[aria-label=Length] > .chip + .chip { border-inline-start-width: 0; }
-  #sheet[data-inline] .chip-row[aria-label=Length] > .chip:first-child { border-start-start-radius: var(--r-control); border-end-start-radius: var(--r-control); }
-  #sheet[data-inline] .chip-row[aria-label=Length] > .chip:last-child { border-start-end-radius: var(--r-control); border-end-end-radius: var(--r-control); }
-  #sheet[data-inline] .chip-row[aria-label=Length] .chip-check { display: none; }
-
-  #sheet[data-inline] .ruler-track { mask-image: linear-gradient(to right, transparent, black var(--s8), black calc(100% - var(--s8)), transparent); }
-  #sheet[data-inline] .ruler-length { inset-block: calc(var(--s8) + var(--s1)) calc(var(--s6) + var(--s1)); }
-  #sheet[data-inline] .ruler-centre {
-    background: linear-gradient(var(--on-surface) 0 var(--s4), transparent 0 calc(var(--s8) + var(--s1)), var(--on-surface) 0);
-  }
-  #planner .spine-card[data-open], #planner .spine-chip[data-open] { outline: 2px solid var(--primary); outline-offset: -2px; }
+  #planner .spine-card[data-open], #planner .spine-chip[data-open] { outline: 2px solid var(--primary); outline-offset: -2px; scroll-margin-block: var(--s8); }
 }
 @media (width >= 1080px) and (hover: hover) and (pointer: fine) {
-  #sheet[data-inline] .task-start:hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
-  #sheet[data-inline] .chip-row[aria-label=Length] > .chip:not([aria-pressed=true]):hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
+  #sheet[data-inline] .task-start:hover { background: color-mix(in oklch, var(--on-secondary-container) 8%, var(--secondary-container)); }
+  #sheet[data-inline] .chip-row.segmented > .chip:not([aria-pressed=true]):hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
 }

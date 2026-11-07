@@ -7,6 +7,9 @@ export function clock(value) {
   return new Date(value).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}).replace(/ /g, '\u00a0');
 }
 
+/** "12 PM", "7:30 PM": a row's time, minutes only when they say something, like the Today gutter. */
+export const shortClock = value => clock(value).replace(/:00(?!\d)/, '');
+
 /** "30 min", "1 h", "1 h 50 min"; one unbreakable phrase, so it never wraps mid-duration. */
 export function duration(minutes) {
   if (minutes == null) return 'No estimate';

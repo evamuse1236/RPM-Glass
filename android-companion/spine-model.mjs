@@ -12,7 +12,7 @@ import {taskSymbol, routineSymbol} from './task-symbol.mjs';
 export const FREE_MINUTES = 10;
 /** Free time this long offers + to plan something in it. */
 export const PLAN_MINUTES = 60;
-/** The gutter shows the end time too once an item lasts this long. */
+/** The gutter shows the end time too once an item lasts this long, unless a later row starts by then. */
 export const END_MINUTES = 45;
 const snap4 = px => Math.round(px / 4) * 4;
 /** Pill heights in dp: 0.72 dp a minute on the 4dp grid, at least 40 and at most 160. */
@@ -63,7 +63,7 @@ function markRows({day, now, live, meals, mealPlan, deadlines}) {
   for (const due of deadlines) {
     const overdue = due.at < now;
     rows.push(item('deadline', 'due:' + due.id, due.at, due.at, {symbol: 'hourglass_bottom', title: due.title, overdue,
-      when: {kind: overdue ? 'late' : 'due', text: overdue ? 'Overdue' : 'Due'},
+      resultId: due.id, when: {kind: overdue ? 'late' : 'due', text: overdue ? 'Overdue' : 'Due'},
       label: `${overdue ? 'Overdue' : 'Due'} · ${due.title}`}));
   }
   return rows;
@@ -125,7 +125,7 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
   const eventRows = events.map(event => item('event', 'event:' + (event.id ?? event.title + event.start), event.start, event.end,
     {title: event.title, event, symbol: 'event'}));
   const blocks = [...eventRows, ...routineRows(day, routines), ...taskRows(tasks)];
-  const marks = markRows({day, now, live, meals, mealPlan, deadlines});
+  let marks = markRows({day, now, live, meals, mealPlan, deadlines});
   const starts = [...blocks, ...marks].map(r => r.start), ends = [...blocks, ...marks].map(r => r.end);
   const from = Math.min(+atMinutes(day, minutesOf(window.from ?? '08:00')), ...starts);
   const to = Math.max(+atMinutes(day, minutesOf(window.until ?? '22:00')), ...ends);
@@ -140,11 +140,13 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
   const next = live ? blocks.filter(r => r.start > now && !r.done).sort((a, b) => a.start - b.start)[0] : null;
   if (next) Object.assign(next, {next: true, soon: soonText(next.start - now)});
   for (const row of blocks) row.when = whenFor(row, now);
+  marks = foldDeadlines(blocks, marks);
   for (const row of marks) row.when ??= {kind: 'time', text: gutterTime(row.start)};
 
   const rows = [...blocks, ...marks, ...freeRows(blocks, marks, {from, to, now, live, planMinutes})];
   if (live && !current.length) rows.push({kind: 'now', key: 'now', start: now, end: now, time: gutterTime(now), label: clockText(now)});
   rows.sort((a, b) => a.start - b.start || RANK[a.kind] - RANK[b.kind] || a.end - b.end);
+  fitOverlaps(rows);
 
   const anytime = anytimeTasks(tasks.filter(t => t.start == null));
   return {
@@ -155,6 +157,33 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
     shape: [...rows.map(r => `${r.key}:${r.past ? 1 : 0}${r.current ? 1 : 0}${r.next ? 1 : 0}${r.line?.kind ?? ''}`),
       ...anytime.map(t => `${t.key}:${t.done ? 1 : 0}`)].join('|'),
   };
+}
+
+/**
+ * A deadline at the very time an open task of its Result starts is said once, on the task: its line becomes
+ * "Due · <Result>" and the deadline's own row goes.
+ */
+function foldDeadlines(blocks, marks) {
+  return marks.filter(mark => {
+    if (mark.kind !== 'deadline') return true;
+    const task = blocks.find(row => row.kind === 'task' && !row.done && row.start === mark.start
+      && row.task.resultId === mark.resultId && row.line?.kind === 'result');
+    if (task) task.line = {...task.line, kind: 'due', text: `Due · ${task.line.text}`};
+    return !task;
+  });
+}
+
+/**
+ * A later row that starts by an item's end follows straight after it: the item's pill stops at that start, so no empty
+ * rail sits between them, and its end time would read after that start, so the gutter keeps only its start.
+ */
+function fitOverlaps(rows) {
+  rows.forEach((row, i) => {
+    const later = rows.slice(i + 1).find(next => next.kind !== 'gap' && next.start <= row.end);
+    if (!later || !row.gutter) return;
+    row.gutter.end = null;
+    row.height = Math.min(row.height, cardHeight(minutesBetween(row.start, later.start)));
+  });
 }
 
 /** Tasks dated for the day without a time, open ones first: the chips above the timeline. */

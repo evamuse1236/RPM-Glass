@@ -23,15 +23,16 @@ function editLabel(text) {
 }
 
 /**
- * Purpose as a labelled detail row (Block, Project, Goal, Area) that edits where it is: tap anywhere on the row
+ * Purpose as a detail row (Block, Project, Goal, Area), labelled unless the page says the heart is enough, that edits where it is: tap anywhere on the row
  * and the caret lands in the words; Enter or leaving saves, with Undo.
  */
-export function purposePanel(app, collection, record, noun = 'Purpose') {
+export function purposePanel(app, collection, record, noun = 'Purpose', {labelled = true} = {}) {
   const {row, copy} = factRow('favorite', {cls: 'purpose-row editable-row'});
   const text = inlineText(app, {key: `${collection}:${record.id}:purpose`, value: record.purpose ?? '', label: noun,
     placeholder: 'Add why this matters to you', multiline: false, maxLength: 2000, cls: 'purpose-text',
     onSave: words => saveEntity(app, collection, record, {purpose: words}, words ? 'Purpose saved' : 'Purpose cleared')});
-  copy.append(editLabel(noun), text);
+  if (labelled) copy.append(editLabel(noun));
+  copy.append(text);
   row.addEventListener('click', event => { if (event.target !== text) focusField(text); });
   row.dataset.keep = 'purpose:' + stampOf(collection, record);
   return row;

@@ -10,6 +10,9 @@ export const SHOWN_ITEMS=6;
 const ENTITY={task:'Task',block:'Block',project:'Project',goal:'Goal',area:'Area'};
 const LONG_LIST=8;
 
+/** Set values lead and the dashed "Add …" chips follow, so a short receipt reads as one row. */
+const setFirst=chips=>[...chips.filter(c=>c.state!=='empty'),...chips.filter(c=>c.state==='empty')];
+
 /**
  * The receipt's created items as a kind icon, a title and chips. A chip tap opens one tray under its item;
  * a choice saves at once through edit-item and gets its own Undo in the change row.
@@ -158,7 +161,7 @@ export function createChipCard({act,refresh,choices=()=>null,today=localDay}){
   const chips=el('div','item-chips');
   chips.setAttribute('role','group');
   chips.setAttribute('aria-label',`${row.title||'Item'} details`);
-  chips.append(...chipsFor(row,opts()).map(c=>chipNode(ctx,c)));
+  chips.append(...setFirst(chipsFor(row,opts())).map(c=>chipNode(ctx,c)));
   ctx.tray=el('div','chip-tray');ctx.tray.inert=true;
   const open=st.open&&ctxOf(st.open)===ctx&&!st.open.endsWith('|title')?st.open:null;
   ctx.node.append(ctx.head,chips,ctx.tray);

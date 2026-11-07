@@ -13,13 +13,28 @@
 .habit-open { font: var(--body-large); color: var(--on-surface); text-align: start; overflow-wrap: anywhere; }
 .habit-open::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
 .habit-summary { font: var(--body-medium); color: var(--on-surface-variant); overflow-wrap: anywhere; }
-.habit-chevron { font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
-.switch-btn.habit-switch { position: relative; z-index: 1; inline-size: auto; flex: none; }
+/* The chevron's glyph sits inside its box: pulled out by that inset, it ends on the switches' edge. */
+.habit-chevron { flex: none; margin-inline-end: calc(-1 * var(--s2)); font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
+.switch-btn.habit-switch { position: relative; z-index: 1; inline-size: auto; flex: none; padding-inline-start: var(--s4); }
+/* The switch is its own target: a divider splits it from the row that opens the meal's editor. */
+.switch-btn.habit-switch::before { content: ""; inline-size: 1px; block-size: var(--s8); background: var(--outline-variant); }
+.habit-add { min-block-size: var(--touch); }
+.habit-add > .habit-icon { color: var(--primary); }
+.habit-add > .habit-open { flex: 1; font: var(--body-large); color: var(--primary); }
 .switch-btn.habit-switch .switch-label { display: none; }
 .habit-row:has(.habit-open:active) { background: var(--row-press); }
 .habit-row:has(.habit-open:focus-visible) { outline: 2px solid var(--primary); outline-offset: -2px; }
-.sheet-choice.habits .sheet-actions { justify-content: flex-start; }
 
 .habit-editor .sheet-body { display: flex; flex-direction: column; gap: var(--row-gap); padding-inline: var(--s4); }
 .habit-editor .remove-snack { align-self: flex-end; }
 .sheet-editor .edit-pair { margin-block-end: var(--s2); }
+/* Glass size: its label on the icon's line, every size in view in one segmented row under it. */
+.segment-row > .edit-body { padding-block-start: var(--s2); }
+.segment-row .chip-row.edit-chips { overflow: visible; margin: 0; padding: 0; gap: 0; mask-image: none; }
+.segment-row .chip.segment { flex: 1 1 0; justify-content: center; min-inline-size: 0; padding-inline: var(--s1); border-radius: 0; }
+.segment-row .chip.segment + .chip.segment { border-inline-start-width: 0; }
+.segment-row .chip.segment:first-child { border-start-start-radius: var(--r-control); border-end-start-radius: var(--r-control); }
+.segment-row .chip.segment:last-child { border-start-end-radius: var(--r-control); border-end-end-radius: var(--r-control); }
+.segment-row .chip.segment .chip-check { display: none; }
+/* Every editor row is one touch high, so steppers, the glass sizes, switches and times share a rhythm. */
+.habit-editor :is(.stepper-row, .segment-row) > .edit-body { min-block-size: var(--touch); justify-content: center; }
