@@ -38,8 +38,11 @@
 @media (prefers-reduced-motion: no-preference) {
   .week-number { transition: scale var(--dur-press) var(--ease-standard); }
 }
-.day-marks { display: flex; align-items: center; justify-content: center; gap: 2px; min-block-size: 12px; }
-.day-dot { inline-size: 4px; block-size: 4px; border-radius: 50%; background: var(--outline); }
+/* One mark per day: a faint dot for tasks, a short primary bar for a Result due, an error dot for a calendar clash. */
+.day-marks { display: flex; align-items: center; justify-content: center; min-block-size: 12px; }
+.day-dot { inline-size: 4px; block-size: 4px; border-radius: var(--shape-full); background: var(--outline-variant); }
+.day-dot[data-mark=due] { inline-size: 12px; background: var(--primary); }
+.day-dot[data-mark=clash] { background: var(--error); }
 /* Where the week's plan stands: one quiet line under the strip that opens the weekly review. */
 .week-line {
   width: 100%;

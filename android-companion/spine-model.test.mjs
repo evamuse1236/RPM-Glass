@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {soonText, buildSpine, cardHeight, gapHeight, earlierLabel, FREE_MINUTES} from './spine-model.mjs';
+import {soonText, buildSpine, cardHeight, gapHeight, earlierLabel, missedLabel, FREE_MINUTES} from './spine-model.mjs';
 import {mealSlots, spanText, gutterTime} from './day-parts.mjs';
 
 const DAY = '2026-10-19';
@@ -87,28 +87,36 @@ test('now inside an item makes it the current row in the Now card; the Now line 
   assert.equal(hero.height, cardHeight(60), 'the Now line does not cut the item short');
 });
 
-test('the Now card holds the item in progress and one late task, a Must first; nothing else', () => {
+test('the Now card holds one item: the one in progress, else the next; never a missed one', () => {
   const model = spine({now: at('11:40'), tasks: [task('Draft', '09:00', 30, {must: true}), task('Call bank', '10:30', 15),
     task('Stretch', '08:00', 15, {done: true}), task('Read', '13:00', 30)], events: [event('Session', '11:30', '12:30')]});
-  const focus = model.rows.filter(r => r.focus).sort((a, b) => a.focus - b.focus).map(r => r.key);
-  assert.deepEqual(focus, ['event:Session', 'task:Draft']);
+  assert.deepEqual(model.rows.filter(r => r.focus).map(r => r.key), ['event:Session']);
+  const quiet = spine({now: at('11:40'), tasks: [task('Draft', '09:00', 30, {must: true}), task('Read', '13:00', 30)]});
+  assert.deepEqual(quiet.rows.filter(r => r.focus).map(r => r.key), ['task:Read'], 'a missed Must is not now; the next item is');
   const calm = spine({now: at('11:40'), tasks: [task('Read', '13:00', 30), task('Lab', '15:00', 30)]});
   assert.deepEqual(calm.rows.filter(r => r.focus).map(r => r.key), ['task:Read'], 'with nothing on, only what is next');
   assert.equal(spine({live: false, now: at('09:00') - 864e5, tasks: [task('Lab', '14:00', 60)]}).rows.some(r => r.focus), false);
 });
 
-test('Earlier folds the past that needs nothing more; open late tasks stay out on the timeline', () => {
+test('the past folds in two: open tasks past their end and overdue deadlines under missed, the rest under Earlier', () => {
   const model = spine({now: at('11:40'), tasks: [task('Draft', '09:00', 30, {must: true}), task('Call bank', '10:30', 15),
-    task('Stretch', '08:00', 15, {done: true}), task('Read', '13:00', 30)], events: [event('Gym', '07:00', '07:30')]});
+    task('Stretch', '08:00', 15, {done: true}), task('Read', '13:00', 30)], events: [event('Gym', '07:00', '07:30')],
+    deadlines: [{id: 'r1', title: 'Submit form', at: at('10:00')}, {id: 'r2', title: 'Post work', at: at('23:00')}]});
   const row = key => model.rows.find(r => r.key === key);
-  assert.equal(row('task:Stretch').fold, true);
-  assert.equal(row('event:Gym').fold, true);
-  assert.equal(row('task:Call bank').fold, false, 'a late task waits for a tick, so it stays out');
-  assert.equal(row('task:Call bank').late, true);
-  assert.equal(row('task:Draft').fold, false, 'the card shows it, so the fold does not');
+  assert.equal(row('task:Stretch').fold, 'earlier');
+  assert.equal(row('event:Gym').fold, 'earlier');
+  assert.equal(row('task:Call bank').fold, 'missed');
+  assert.equal(row('task:Draft').fold, 'missed');
+  assert.equal(row('due:r1').fold, 'missed', 'an overdue deadline still needs a choice');
+  assert.equal(row('due:r2').fold, false);
+  assert.equal(row('task:Read').fold, false);
   assert.equal(row('now').fold, false);
-  assert.equal(earlierLabel(model.rows.filter(r => r.fold)), 'Earlier · 1 done');
+  assert.equal(row('task:Call bank').when.kind, 'time', 'a missed row never says how long ago it ended');
+  assert.ok(model.rows.every(r => !/ago/.test(r.when?.text ?? '')));
+  assert.equal(earlierLabel(model.rows.filter(r => r.fold === 'earlier')), 'Earlier · 1 done');
   assert.equal(earlierLabel([]), 'Earlier');
+  assert.equal(missedLabel(model.rows.filter(r => r.fold === 'missed')), '3 missed');
+  assert.equal(missedLabel([row('task:Call bank')]), '1 missed · Call bank');
 });
 
 test('free time stays inside the waking day, however early or late the items are', () => {
@@ -134,15 +142,16 @@ test('now between items is a line; the gap around it splits, only the future par
   assert.equal(model.rows.find(r => r.key.startsWith('task:Lab')).next, true);
 });
 
-test('a task over an event says Clash in its line; a late task keeps its Result; the event stays plain', () => {
-  const model = spine({now: at('12:00'), tasks: [task('Revise', '09:30', 30), task('Call bank', '10:30', 15), task('Read', '13:00', 30)],
-    events: [event('Reading group', '09:00', '10:00')]});
+test('a task over an event says Clash · the event while it can be fixed; a past one does not; the event stays plain', () => {
+  const model = spine({now: at('12:00'), tasks: [task('Revise', '09:30', 30), task('Call bank', '10:30', 15), task('Read', '13:00', 30),
+    task('Prep', '14:00', 30)], events: [event('Reading group', '09:00', '10:00'), event('RM Session 4', '14:15', '15:00')]});
   const line = id => model.rows.find(r => r.key === 'task:' + id).line;
-  assert.deepEqual(line('Revise').text, 'Clash with Reading group');
+  assert.equal(line('Prep').text, 'Clash · RM Session 4');
+  assert.equal(line('Revise').kind, 'result', 'a clash in the past cannot be fixed, so it is not shown');
   assert.equal(line('Call bank').kind, 'result', 'a late task keeps its Result; the amber ring says it is late');
   const bank = model.rows.find(r => r.key === 'task:Call bank');
   assert.equal(bank.late, true);
-  assert.equal(bank.when.kind, 'late');
+  assert.equal(bank.when.kind, 'time');
   assert.deepEqual(line('Read'), {kind: 'result', text: 'Pass the DAD exam', tone: 'area-3'});
   assert.equal(model.rows.find(r => r.kind === 'event').line, null);
 });

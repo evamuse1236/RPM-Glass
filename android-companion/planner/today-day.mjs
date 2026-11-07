@@ -7,7 +7,7 @@ import {buildSpine} from '../spine-model.mjs';
 import {routineOn, routineState, doneAll, usualMeals} from '../body-state.mjs';
 import {localDay, blockDue, timelineItems} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
-import {spineList, spineRow, focusCard, focusRow, earlierToggle} from './spine-view.mjs';
+import {spineList, spineRow, focusCard, focusRow, foldToggle} from './spine-view.mjs';
 import {el, icon, button, emptyState} from './dom.mjs';
 import {dueInfo} from './format.mjs';
 import {notice} from './snackbar.mjs';
@@ -23,7 +23,7 @@ import {openResults} from './today-model.mjs';
 import {dueDay} from './today-header.mjs';
 
 const OPEN_OFFSET = 160;
-const state = {model: null, app: null, observer: null, timer: null, earlierOpen: false};
+const state = {model: null, app: null, observer: null, timer: null, open: {missed: false, earlier: false}};
 
 function dayTask(app, task, done) {
   const at = task.start ?? (task.planned ? Date.parse(task.occurrence ?? task.planned) : null);
@@ -118,7 +118,7 @@ function handlers(app) {
     holdHabit: (node, id, sides) => holdToEdit(app, node, id, sides),
     logMealNow: row => logMealNow(app, body, row),
     plan: row => app.actions.addTask({planned: new Date(row.plan).toISOString(), plannedDate: app.state.day}),
-    toggleEarlier: () => toggleEarlier(app),
+    toggleFold: group => toggleFold(app, group),
   };
 }
 
@@ -139,17 +139,18 @@ function chips(app, allDay) {
   return row;
 }
 
-/** Earlier opens and folds in place: its rows are already drawn, only hidden. */
-function toggleEarlier(app) {
-  state.earlierOpen = !state.earlierOpen;
+/** "N missed" and Earlier open and fold in place: their rows are already drawn, only hidden. */
+function toggleFold(app, group) {
+  state.open[group] = !state.open[group];
   const list = app.dom.work.querySelector('.spine');
   if (!list) return;
-  for (const row of state.model.rows.filter(r => r.fold)) {
+  const rows = state.model.rows.filter(r => r.fold === group);
+  for (const row of rows) {
     const node = list.querySelector(`:scope > [data-key="${CSS.escape(row.key)}"]`);
-    if (node) node.hidden = !state.earlierOpen;
+    if (node) node.hidden = !state.open[group];
   }
-  const old = list.querySelector(':scope > [data-key="earlier"]');
-  const fresh = earlierToggle(state.model.rows.filter(r => r.fold), state.earlierOpen, handlers(app));
+  const old = list.querySelector(`:scope > [data-key="${group}"]`);
+  const fresh = foldToggle(group, rows, state.open[group], handlers(app));
   fresh.setAttribute('role', 'listitem');
   old?.replaceWith(fresh);
   fresh.querySelector('button').focus();
@@ -169,7 +170,7 @@ export function renderDay(app, page) {
       body: 'Start with a Result that matters, then choose its first task.', action: () => app.actions.newEntity('blocks'),
       label: 'Plan a Block', secondary: button('Add a task', () => app.actions.addTask({plannedDate: app.state.day}), 'text-btn')}));
   }
-  page.append(spineList(model, on, {earlierOpen: state.earlierOpen}));
+  page.append(spineList(model, on, {open: state.open}));
   state.timer ??= setInterval(tick, 30000);
   requestAnimationFrame(() => watchNow(app));
 }

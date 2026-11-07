@@ -7,6 +7,11 @@
 
 #planner[data-view=today]:not([data-scrolled=true]) .top-bar { background: var(--surface); }
 .today-sheet { position: relative; padding-block-start: var(--s1); background: var(--surface); }
+/* The day fills the screen and Inbox rests at its end, so on a short day it still lands above the page's bottom
+   padding, which clears the tab bar, Add and the habit circle. */
+.day-page { display: flex; flex-direction: column; min-block-size: 100%; }
+.day-page > .today-sheet { flex: 1; display: flex; flex-direction: column; }
+.day-page .inbox-row { margin-block-start: auto; }
 
 .spine { position: relative; display: flex; flex-direction: column; padding: var(--s1) var(--inset-page) var(--s4) 0; }
 .spine::before {
@@ -163,10 +168,10 @@
   .spine-check .check-ring { transition: scale var(--dur-press) var(--ease-standard), background-color var(--dur-short3) var(--ease-standard); }
 }
 
-/* The Now card: the item in progress and one late or next task, in a quiet tonal group above the timeline. Its rows are
+/* The Now card: the item in progress, else the next one, in a quiet tonal group above the timeline. Its rows are
    the timeline's rows without the rail or the length bar, so a row reads the same in both places. */
 .spine-focus {
-  --spine-gutter: calc(56px * var(--text-scale, 1));
+  --spine-gutter: calc(72px * var(--text-scale, 1));
   display: flex;
   flex-direction: column;
   margin: var(--s1) var(--inset-page) var(--s3) var(--s2);
@@ -175,9 +180,11 @@
   border-radius: var(--r-group);
   background: var(--surface-container);
 }
-.spine-focus > * + * { border-block-start: 1px solid var(--outline-variant); }
 .spine-focus .spine-pill { display: none; }
 .spine-focus .spine-row { min-block-size: 56px; }
+/* In the card the time is a plain label set in from the card's edge; blue belongs to the Now line alone. */
+.spine-focus .spine-gutter { padding-inline-start: var(--s3); }
+.spine-focus .spine-row.current .spine-gutter { color: var(--on-surface-variant); }
 .spine-progress {
   grid-column: 2;
   grid-row: 2;
@@ -196,20 +203,21 @@
   background: var(--primary);
 }
 
-/* Earlier: the finished past folded into one row on the rail. */
-.spine-earlier-open {
+/* The past folded into rows on the rail: "N missed" (an amber ring, still needs a choice) over "Earlier" (a check). */
+.spine-fold-open {
   grid-column: 2;
   display: grid;
-  grid-template-columns: var(--spine-pill) auto auto;
+  grid-template-columns: var(--spine-pill) minmax(0, auto) auto;
   justify-content: start;
   align-items: center;
+  min-inline-size: 0;
   min-block-size: var(--touch);
   border-radius: var(--r-control);
   color: var(--on-surface-variant);
   font: var(--footnote);
   text-align: start;
 }
-.spine-earlier-mark {
+.spine-fold-mark {
   justify-self: center;
   position: relative;
   z-index: 1;
@@ -220,10 +228,12 @@
   border-radius: var(--shape-full);
   background: var(--surface-container-highest);
 }
-.spine-earlier-mark .ms { font-size: 16px; }
-.spine-earlier-label { padding-inline: var(--s3) var(--s1); }
-.spine-earlier-open > .ms { font-size: 20px; }
-.spine-earlier-open:active { background: var(--row-press); }
+.spine-fold-missed .spine-fold-mark { border: 2px solid var(--must); background: var(--surface); }
+.spine-fold-missed .spine-fold-open { color: var(--on-surface); }
+.spine-fold-mark .ms { font-size: 16px; }
+.spine-fold-label { min-inline-size: 0; padding-inline: var(--s3) var(--s1); overflow: clip; white-space: nowrap; text-overflow: ellipsis; }
+.spine-fold-open > .ms { font-size: 20px; }
+.spine-fold-open:active { background: var(--row-press); }
 .spine-anytime { font-weight: 400; }
 
 .spine-row.spine-gap { min-block-size: var(--h, 32px); }

@@ -76,21 +76,21 @@ test('a clash is one small marker under the words that names the event to TalkBa
   const chips = all(call, 'spine-resolve');
   assert.equal(chips.length, 1);
   assert.equal(chips[0].getAttribute('aria-label'), 'Resolve the clash with Session');
-  assert.match(text(chips[0]), /Clash$/);
+  assert.match(text(chips[0]), /Clash · Session$/);
   assert.doesNotMatch(all(call, 'spine-open').map(text).join(), /Clash/);
 });
 
-test('the Now card holds the item in progress with a progress line, then one late or next task', () => {
+test('the Now card holds only the item in progress, with a progress line; a missed task is not in it', () => {
   const day = buildSpine({day: DAY, now: at('11:40'), meals: [],
     tasks: [{id: 'Draft', title: 'Draft', start: at('10:00'), minutes: 30, must: true}, {id: 'Read', title: 'Read', start: at('13:00'), minutes: 30}],
     events: [{id: 'Session', title: 'Session', start: at('11:30'), end: at('12:30')}]});
   const card = focusCard(day, on);
-  assert.deepEqual(card.children.map(r => r.dataset.key), ['event:Session', 'task:Draft']);
+  assert.deepEqual(card.children.map(r => r.dataset.key), ['event:Session']);
+  assert.equal(card.getAttribute('aria-label'), 'Now');
   assert.equal(all(card.children[0], 'spine-progress').length, 1);
-  assert.equal(all(card.children[1], 'spine-progress').length, 0);
-  assert.ok(card.children[1].classList.contains('late'), 'the late task carries the amber ring');
+  assert.doesNotMatch(text(card), /ago/);
   const list = spineList(day, on).children.map(r => r.dataset.key);
-  assert.ok(!list.includes('event:Session') && !list.includes('task:Draft'), 'what the card shows is not repeated below');
+  assert.ok(!list.includes('event:Session'), 'what the card shows is not repeated below');
   assert.ok(list.includes('now'), 'the Now line still splits the timeline');
   assert.equal(focusCard(buildSpine({day: DAY, live: false, now: at('09:00'), tasks: [{id: 'A', title: 'A', start: at('13:00'), minutes: 30}]}), on), null);
 });
@@ -101,10 +101,27 @@ test('Earlier folds the finished past behind one toggle that says how much was d
   const shut = spineList(day, on).children;
   assert.equal(shut[0].dataset.key, 'earlier');
   assert.match(text(shut[0]), /Earlier · 1 done/);
-  assert.equal(all(shut[0], 'spine-earlier-open')[0].getAttribute('aria-expanded'), 'false');
+  assert.equal(all(shut[0], 'spine-fold-open')[0].getAttribute('aria-expanded'), 'false');
   assert.equal(shut.find(r => r.dataset.key === 'task:Stretch').hidden, true);
-  const open = spineList(day, on, {earlierOpen: true}).children;
+  const open = spineList(day, on, {open: {earlier: true}}).children;
   assert.equal(open.find(r => r.dataset.key === 'task:Stretch').hidden, false);
+});
+
+test('missed tasks fold under one "N missed" row first; opened, they keep their swipe to schedule and never say "ago"', () => {
+  const swiped = [];
+  const spy = new Proxy({}, {get: (_, name) => (name === 'gestures' ? (node, row) => swiped.push(row.key) : () => {})});
+  const day = buildSpine({day: DAY, now: at('11:40'), meals: [],
+    tasks: [{id: 'Draft', title: 'Draft', start: at('09:00'), minutes: 30, must: true}, {id: 'Call', title: 'Call bank', start: at('10:30'), minutes: 15},
+      {id: 'Stretch', title: 'Stretch', start: at('08:00'), minutes: 15, done: true}, {id: 'Read', title: 'Read', start: at('13:00'), minutes: 30}]});
+  const shut = spineList(day, spy).children;
+  assert.deepEqual(shut.slice(0, 4).map(r => r.dataset.key), ['missed', 'task:Draft', 'task:Call', 'earlier']);
+  assert.equal(text(all(shut[0], 'spine-fold-label')[0]), '2 missed');
+  assert.ok(shut.slice(1, 3).every(r => r.hidden), 'missed rows wait behind their row');
+  assert.deepEqual(swiped.filter(k => k !== 'task:Read'), ['task:Draft', 'task:Call'], 'a missed row still swipes left to schedule');
+  const open = spineList(day, on, {open: {missed: true}}).children;
+  assert.ok(open.slice(1, 3).every(r => !r.hidden));
+  assert.equal(open.filter(r => r.dataset.key === 'task:Call').length, 1, 'a missed row is drawn once');
+  assert.doesNotMatch(open.map(text).join(' '), /ago/);
 });
 
 test('tasks with no time are rows at the end of the timeline; only the first says Any time', () => {

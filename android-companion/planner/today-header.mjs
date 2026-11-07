@@ -43,6 +43,9 @@ export const dueDay = (data, block) => blockDue(data, block.id)?.value?.slice(0,
  * deadline or a clash shows one quiet dot (its label names what is there). Today's number sits in a filled circle.
  * Tapping a day opens it, and its deadlines and clash are listed at the top.
  */
+/** One quiet mark per day, the loudest that applies: a calendar clash, then a Result due, then any tasks. */
+export const dayMark = ({clash, due, tasks}) => (clash ? 'clash' : due ? 'due' : tasks ? 'tasks' : null);
+
 function weekStrip(app) {
   const {day, calendar} = app.state;
   const strip = el('div', 'week-strip');
@@ -72,7 +75,12 @@ function weekStrip(app) {
     cell.setAttribute('aria-pressed', String(key === day));
     const marks = el('span', 'day-marks');
     const {active, completed} = dayTasks(data, key);
-    if (due || clash || active.length || completed.length) marks.append(el('span', 'day-dot'));
+    const mark = dayMark({clash, due, tasks: active.length + completed.length});
+    if (mark) {
+      const dot = el('span', 'day-dot');
+      dot.dataset.mark = mark;
+      marks.append(dot);
+    }
     marks.setAttribute('aria-hidden', 'true');
     cell.append(
       el('span', 'week-letter', date.toLocaleDateString([], {weekday: 'short'})),

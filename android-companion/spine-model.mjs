@@ -69,21 +69,23 @@ function markRows({day, now, live, meals, mealPlan, deadlines}) {
   return rows;
 }
 
-/** The one line under the title: a clash wins, then the Result (or a Routine's count). An open task past its end says so by its amber ring. */
+/**
+ * The one line under the title: a clash wins while it can still be fixed, then the Result (or a Routine's count). An
+ * open task past its end says so by its amber ring and sits under "N missed".
+ */
 function lineFor(row, events, now) {
-  if (row.kind === 'task' && !row.done) {
+  if (row.kind === 'task' && !row.done && row.end > now) {
     const clash = row.end > row.start && events.find(e => e.end > e.start && e.start < row.end && row.start < e.end);
-    if (clash) return {kind: 'clash', text: `Clash with ${clash.title}`, with: clash};
+    if (clash) return {kind: 'clash', text: `Clash · ${clash.title}`, with: clash};
   }
   if (row.kind === 'routine') return {kind: row.missed ? 'late' : 'count', text: row.count};
   if (row.kind === 'task') return row.task.result ? {kind: 'result', text: row.task.result, tone: row.task.tone ?? 'neutral'} : null;
   return null;
 }
 
-/** The line over the title: how soon the next item starts, how long is left of the one in progress, how long ago an open task ended, else its times. */
+/** The line over the title: how soon the next item starts, how long is left of the one in progress, else its times. */
 function whenFor(row, now) {
   if (row.current) return {kind: 'now', text: `Now · ${duration(Math.max(1, Math.ceil((row.end - now) / MIN)))} left`};
-  if (row.late) return {kind: 'late', text: `Ended ${duration(Math.max(1, Math.round((now - row.end) / MIN)))} ago`};
   if (row.next) return {kind: 'soon', text: row.soon};
   return {kind: 'time', text: spanWords(row.start, row.end)};
 }
@@ -148,8 +150,9 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
   rows.sort((a, b) => a.start - b.start || RANK[a.kind] - RANK[b.kind] || a.end - b.end);
   fitOverlaps(rows);
   if (live) {
-    focusRows(blocks, next).forEach((row, i) => { row.focus = i + 1; });
-    for (const row of rows) row.fold = !row.focus && foldable(row);
+    const focus = focusRow(blocks, next);
+    if (focus) focus.focus = 1;
+    for (const row of rows) row.fold = row.focus ? false : foldOf(row);
   }
 
   const anytime = anytimeTasks(tasks.filter(t => t.start == null));
@@ -159,23 +162,27 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
     now,
     nowKey: live ? 'now' : null,
     empty: !tasks.length && !events.length,
-    shape: [...rows.map(r => `${r.key}:${r.past ? 1 : 0}${r.current ? 1 : 0}${r.next ? 1 : 0}${r.late ? 1 : 0}${r.focus ? 'f' : ''}${r.fold ? 'e' : ''}${r.line?.kind ?? ''}`),
+    shape: [...rows.map(r => `${r.key}:${r.past ? 1 : 0}${r.current ? 1 : 0}${r.next ? 1 : 0}${r.late ? 1 : 0}${r.focus ? 'f' : ''}${r.fold ? r.fold[0] : ''}${r.line?.kind ?? ''}`),
       ...anytime.map(t => `${t.key}:${t.done ? 1 : 0}`)].join('|'),
   };
 }
 
-/**
- * The Now card: the item in progress, then one open task past its end (a Must first, then the latest), else the next
- * item. With nothing in progress it holds that late task and the next item. Never more than two rows.
- */
-function focusRows(blocks, next) {
-  const current = blocks.filter(r => r.current && !r.done).sort((a, b) => a.start - b.start)[0];
-  const late = blocks.filter(r => r.late).sort((a, b) => b.must - a.must || b.end - a.end)[0];
-  return (current ? [current, late ?? next] : [late, next]).filter(Boolean);
+/** The Now card holds one item: the one in progress, else the next. A missed item is never "now". */
+function focusRow(blocks, next) {
+  return blocks.filter(r => r.current && !r.done).sort((a, b) => a.start - b.start)[0] ?? next ?? null;
 }
 
-/** The past that needs nothing more folds under Earlier: done or logged rows, events, free time, Routines and meals that passed. Open tasks and overdue deadlines stay. */
-const foldable = row => !!row.past && !row.late && !row.overdue && row.kind !== 'now';
+/**
+ * The past folds into two rows. "N missed": open tasks past their end and overdue deadlines, which still need a choice.
+ * "Earlier": what needs nothing more (done or logged rows, events, free time, Routines and meals that passed).
+ */
+const foldOf = row => {
+  if (row.late || (row.overdue && row.kind === 'deadline')) return 'missed';
+  return row.past && row.kind !== 'now' ? 'earlier' : false;
+};
+
+/** "2 missed", or "1 missed · Call bank" when one item says it all. */
+export const missedLabel = rows => (rows.length === 1 ? `1 missed · ${rows[0].title}` : `${rows.length} missed`);
 
 /** "Earlier · 2 done": the folded past and how much of it was done. */
 export const earlierLabel = rows => {

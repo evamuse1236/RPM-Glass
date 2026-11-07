@@ -98,7 +98,8 @@ for (const dark of [false, true]) {
   await shot(page, '10-dinner-on-the-spine');
 
   await scrollTo(page, 0);
-  if (await page.locator('.spine-earlier-open[aria-expanded=false]').count()) await page.locator('.spine-earlier-open').click();
+  const earlier = page.locator('.spine-fold-earlier .spine-fold-open');
+  if (await earlier.count() && await earlier.getAttribute('aria-expanded') === 'false') await earlier.click();
   await page.getByRole('checkbox', {name: /Morning routine/}).click();
   await page.waitForTimeout(700);
   await shot(page, '11-routine-done-with-undo');
