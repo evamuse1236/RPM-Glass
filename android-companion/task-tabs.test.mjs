@@ -4,10 +4,10 @@ import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {editPlan, tasks} from './planner-state.mjs';
 import {occurrences, repeats} from './planner-recurrence.mjs';
 import {TIME_GRID, whenFields, repeatDaysOf, repeatFieldsFor, repeatLabel, repeatShort} from './planner/task-values.mjs';
-import {TABS, stepTab, whenShort, alertShort, blockShort, lengthChoices, presetOf, presetFields, toggleRepeatDay, blockChoices}
+import {TABS, stepTab, whenShort, alertShort, blockShort, presetOf, presetFields, toggleRepeatDay, blockChoices}
   from './planner/task-tabs-model.mjs';
 import fs from 'node:fs';
-import {HALF_HOUR_PX, rulerScale, offsetOf, stopAt, busySpans} from './planner/time-ruler.mjs';
+import {HALF_HOUR_PX, rulerScale, offsetOf, stopAt, busySpans, lengthAt} from './planner/time-ruler.mjs';
 
 const DAY = '2026-10-20';
 const at = (day, time) => new Date(`${day}T${time}`).toISOString();
@@ -84,7 +84,9 @@ test('a day, a slid time and a length each save and Undo puts them back', () => 
   assert.equal(time.undone, time.before);
   const length = saveThenUndo({minutes: 90}, t => t.minutes);
   assert.deepEqual([length.before, length.after, length.undone], [45, 90, 45]);
-  assert.deepEqual(lengthChoices(50), [15, 30, 45, 50, 60, 90, 120]);
+  const px = HALF_HOUR_PX / 30;
+  assert.deepEqual([lengthAt(45, 7 * px, 165), lengthAt(45, 8 * px, 165), lengthAt(30, -60 * px, 165), lengthAt(60, 400 * px, 165)], [45, 60, 0, 165],
+    'the length grip snaps to 15 minutes and stays between none and the rail end');
 });
 
 test('an alert and its lead save, Undo puts back the one before, and a new type keeps the lead', () => {
@@ -151,7 +153,22 @@ test('every chip row in the task tabs wraps or shrinks its segments, so no chip 
   assert.deepEqual(calls.filter(name => name === 'chipRow'), ['chipRow'], 'only wrapRow itself calls chipRow');
   assert.match(source, /const segmentedRow = label => \{ const row = wrapRow\(label\);/, 'a segmented row is a wrap row');
   assert.ok(calls.filter(name => name === 'wrapRow').length >= 2);
-  assert.ok(calls.filter(name => name === 'segmentedRow').length >= 3);
+  assert.ok(calls.filter(name => name === 'segmentedRow').length >= 2);
   const css = fs.readFileSync(new URL('./task-tabs.css', import.meta.url), 'utf8');
   assert.match(css, /\.task-tabs \.chip-row\.segmented > \.chip \{\n  flex: 1 1 auto;\n  justify-content: center;\n  min-inline-size: 0;/, 'segments shrink to share one row');
+});
+
+test('the ruler grip sets the length: a 48dp slider named for TalkBack, arrow keys, a tick per step, saved once on release', () => {
+  const source = fs.readFileSync(new URL('./planner/time-ruler.mjs', import.meta.url), 'utf8');
+  assert.match(source, /grip\.setAttribute\('role', 'slider'\);\n  grip\.setAttribute\('aria-label', 'Length'\);/);
+  assert.match(source, /grip\.setAttribute\('aria-valuetext', minutes \? duration\(minutes\) : 'No length'\);/);
+  assert.match(source, /grip\.setPointerCapture\(event\.pointerId\);/);
+  assert.match(source, /if \(at === drag\.at\) return;\n    drag\.at = at;\n    tick\(\);/, 'one tick per 15-minute step');
+  assert.match(source, /grip\.addEventListener\('pointerup', release\(true\)\);\n  grip\.addEventListener\('pointercancel', release\(false\)\);/, 'saves only when let go');
+  assert.match(source, /grip\.addEventListener\('keydown'[\s\S]*?saveMinutes\(next \|\| null\)/, 'arrow keys step and save');
+  const tabs = fs.readFileSync(new URL('./planner/task-tabs.mjs', import.meta.url), 'utf8');
+  assert.match(tabs, /saveMinutes: n => pick\.minutes\(n\)/, 'the grip saves through pick, with Undo');
+  assert.doesNotMatch(tabs, /segmentedRow\('Length'\)/, 'the ruler is the one length control; no chip row repeats it');
+  const css = fs.readFileSync(new URL('./task-tabs.css', import.meta.url), 'utf8');
+  assert.match(css, /\.ruler-grip \{[^}]*inline-size: 48px;[^}]*block-size: 48px;[^}]*touch-action: none;/, 'a 48dp hit area that the page does not scroll');
 });

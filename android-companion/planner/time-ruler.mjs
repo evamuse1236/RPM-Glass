@@ -1,14 +1,20 @@
 /**
  * The When tab's time ruler: a strip of the day that slides sideways under a fixed centre line and snaps to the Time
  * row's stops (every half hour from 6:00 AM to 11:00 PM, plus the task's own off-grid time). Busy times are grey
- * marks; the task's own length is a bar from the centre line. Letting go saves the stop under the line.
+ * marks in the bar lane; the task's own length is a bar from the centre line. Letting go saves the stop under the
+ * line. The bar's end grip drags the length in 15-minute steps and saves it when let go.
  */
 import {el} from './dom.mjs';
 import {timeChips, nextHalfHour} from './task-values.mjs';
 import {briefClock} from './task-tabs-model.mjs';
+import {duration} from './format.mjs';
 
 export const HALF_HOUR_PX = 32;
 const PX_PER_MIN = HALF_HOUR_PX / 30;
+export const LENGTH_STEP = 15;
+
+/** The length a grip drag lands on: `from` minutes moved by `dx` px, snapped to 15 minutes, kept within 0…`max`. */
+export const lengthAt = (from, dx, max) => Math.max(0, Math.min(max, Math.round((from + dx / PX_PER_MIN) / LENGTH_STEP) * LENGTH_STEP));
 
 export const minutesOf = time => {
   const [h, m] = time.split(':').map(Number);
@@ -50,11 +56,13 @@ export function busySpans(items, day) {
 }
 
 /**
- * `save(time)` writes a stop; `tick()` runs as the line crosses each stop while sliding.
- * Returns {node, paint({day, time, minutes, busy, off})}.
+ * `save(time)` writes a stop; `saveMinutes(n)` writes a length (null for none); `tick()` runs as the line crosses
+ * each stop while sliding and as the grip crosses each step. Returns {node, head, grip, paint({day, time, minutes,
+ * busy, off})}; `head` is the readout row, open for a trailing control.
  */
-export function timeRuler({save, tick = () => {}}) {
+export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
   const node = el('div', 'time-ruler');
+  const head = el('div', 'ruler-head');
   const readout = el('p', 'ruler-readout tnum');
   readout.setAttribute('aria-hidden', 'true');
   const start = el('span', 'ruler-start');
@@ -71,16 +79,24 @@ export function timeRuler({save, tick = () => {}}) {
   scaleNode.append(line);
   track.append(scaleNode);
   const length = el('span', 'ruler-length');
-  rail.append(track, length, el('span', 'ruler-centre'));
-  node.append(readout, rail);
+  const grip = el('span', 'ruler-grip');
+  grip.tabIndex = 0;
+  grip.setAttribute('role', 'slider');
+  grip.setAttribute('aria-label', 'Length');
+  grip.setAttribute('aria-valuemin', '0');
+  grip.setAttribute('aria-valuemax', '1440');
+  rail.append(track, length, el('span', 'ruler-centre'), grip);
+  head.append(readout);
+  node.append(head, rail);
 
   let state = {day: '', time: '', minutes: null, busy: [], off: false};
   let scale = rulerScale('');
   let drawn = '';
   let touched = false, holding = false, shown = null;
+  let drag = null;
 
-  const show = time => {
-    const to = time && state.minutes ? hhmm((minutesOf(time) + state.minutes) % (24 * 60)) : '';
+  const show = (time, minutes = state.minutes) => {
+    const to = time && minutes ? hhmm((minutesOf(time) + minutes) % (24 * 60)) : '';
     start.textContent = !state.day ? 'No date' : !time ? 'No time' : briefClock(state.day, time);
     end.textContent = to ? 'to ' + briefClock(state.day, to) : '';
     end.hidden = !to;
@@ -89,6 +105,57 @@ export function timeRuler({save, tick = () => {}}) {
     track.setAttribute('aria-valuemax', String(scale.stops.length - 1));
     track.setAttribute('aria-valuenow', String(Math.max(0, scale.stops.indexOf(time || scale.centre))));
   };
+
+  /** The longest length the grip can reach: the half of the rail right of the centre line, in whole steps. */
+  const reach = () => Math.max(LENGTH_STEP, Math.floor((rail.clientWidth / 2 - 8) / PX_PER_MIN / LENGTH_STEP) * LENGTH_STEP);
+  const stretch = minutes => {
+    const px = Math.min(minutes ?? 0, reach()) * PX_PER_MIN;
+    length.style.inlineSize = px + 'px';
+    grip.style.insetInlineStart = `calc(50% + ${px}px)`;
+    grip.classList.toggle('is-empty', !minutes);
+    length.hidden = !state.time || !minutes;
+    grip.setAttribute('aria-valuenow', String(minutes ?? 0));
+    grip.setAttribute('aria-valuetext', minutes ? duration(minutes) : 'No length');
+  };
+  const sized = minutes => {
+    show(state.time, minutes);
+    stretch(minutes);
+  };
+  grip.addEventListener('pointerdown', event => {
+    if (state.off || !state.time || event.button > 0) return;
+    event.preventDefault();
+    grip.setPointerCapture(event.pointerId);
+    const from = Math.min(state.minutes ?? 0, reach());
+    drag = {id: event.pointerId, x: event.clientX, from, at: from, max: reach()};
+    node.classList.add('is-sizing');
+  });
+  grip.addEventListener('pointermove', event => {
+    if (!drag || event.pointerId !== drag.id) return;
+    const at = lengthAt(drag.from, event.clientX - drag.x, drag.max);
+    if (at === drag.at) return;
+    drag.at = at;
+    tick();
+    sized(at);
+  });
+  const release = keep => event => {
+    if (!drag || event.pointerId !== drag.id) return;
+    const {at} = drag;
+    drag = null;
+    node.classList.remove('is-sizing');
+    const next = at || null;
+    if (keep && next !== (state.minutes ?? null)) saveMinutes(next);
+    else sized(state.minutes);
+  };
+  grip.addEventListener('pointerup', release(true));
+  grip.addEventListener('pointercancel', release(false));
+  grip.addEventListener('keydown', event => {
+    const step = {ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1}[event.key];
+    if (!step || state.off || !state.time) return;
+    event.preventDefault();
+    const now = state.minutes ?? 0;
+    const next = Math.max(0, Math.min(24 * 60, (Math.round(now / LENGTH_STEP) + step) * LENGTH_STEP));
+    if (next !== now) saveMinutes(next || null);
+  });
 
   const draw = () => {
     const key = [scale.stops.join(), state.busy.flat().join()].join('|');
@@ -153,20 +220,19 @@ export function timeRuler({save, tick = () => {}}) {
     const next = state.time ? scale.stops[Math.max(0, Math.min(scale.stops.length - 1, at + step))] : scale.centre;
     if (next && next !== state.time) save(next);
   });
-  new ResizeObserver(place).observe(track);
+  new ResizeObserver(() => { place(); if (!drag) stretch(state.minutes); }).observe(track);
 
   const paint = next => {
     state = {...state, ...next};
     scale = rulerScale(state.time);
     draw();
     shown = state.time || null;
-    show(state.time);
-    length.hidden = !state.time || !state.minutes;
-    length.style.inlineSize = (state.minutes ?? 0) * PX_PER_MIN + 'px';
+    if (!drag) sized(state.minutes);
+    grip.hidden = !state.time || !!state.off;
     node.classList.toggle('is-off', !!state.off);
     track.inert = !!state.off;
     track.setAttribute('aria-disabled', String(!!state.off));
     place();
   };
-  return {node, paint};
+  return {node, head, grip, paint};
 }

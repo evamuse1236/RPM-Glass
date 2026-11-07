@@ -246,7 +246,6 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
     undoLast.hidden = !(t.completions?.length && repeats(t));
   };
   paint(task);
-  tabs.reveal();
   for (const field of [notes, helper, why]) field.grow();
   if (focus) tabs.focus(focus);
   if (task.planned) recheck();
