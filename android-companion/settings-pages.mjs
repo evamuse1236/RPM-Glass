@@ -28,42 +28,31 @@ function homeValue(ctx, page) {
   const s = ctx.state;
   switch (page) {
     case 'appearance': return THEME_NAMES[clarityPreferences().appearance];
-    case 'notch': return s.notchOn ? 'On' : 'Off';
+    case 'notch': return notchWaiting(s) ? 'Waiting' : s.notchOn ? 'On' : 'Off';
     case 'alerts': return alarmsBlocked(s) ? `${alarmsOff(s)} off` : '';
-    case 'voice': return s.hasGeminiKey ? voiceChoice().voice ?? 'Default' : 'Not set';
-    case 'ai': { const keys = connectedKeys(s); return keys.length ? keys.join(', ') : 'Not set'; }
+    case 'voice': return s.hasGeminiKey ? voiceChoice().voice ?? 'Default' : 'Off';
+    case 'ai': { const keys = connectedKeys(s); return keys.length ? keys.join(', ') : 'None'; }
     case 'diagnostics': { const log = s.diagnostics ?? {}; return !log.connected ? 'Off' : log.paused ? 'Paused' : 'On'; }
     default: return '';
   }
 }
 
+/** A home row whose page needs the person: its value turns red; the page itself holds the fix. */
+const needsYou = (s, page) => (page === 'alerts' && alarmsBlocked(s)) || (page === 'notch' && notchWaiting(s));
+
 export function homePage(ctx) {
   const s = ctx.state;
-  const sections = [];
-  const problems = [];
-  if (alarmsBlocked(s)) problems.push({page: 'alerts', label: 'Alarms may not ring', detail: 'Android has not allowed RPM to ring on time'});
-  if (notchWaiting(s)) problems.push({page: 'notch', label: 'The notch is waiting for Android', detail: 'Allow RPM Notch to show it'});
-  if (problems.length) {
-    const attention = group('', {id: 'attention'});
-    for (const {page, label, detail} of problems) {
-      const node = row({label, detail, icon: 'error', tile: 'red', next: true, tone: 'error', action: `open_${page}`});
-      node.addEventListener('click', () => ctx.options.openPage?.(page));
-      attention.card.append(node);
-    }
-    sections.push(attention);
-  }
-  for (const pages of HOME_GROUPS) {
+  return HOME_GROUPS.map(pages => {
     const section = group();
     for (const page of pages) {
       const {title, icon, tone} = SETTINGS_PAGES[page];
       const node = row({label: title, value: homeValue(ctx, page), icon, tile: tone, next: true, action: `open_${page}`,
-        tone: page === 'alerts' && alarmsBlocked(s) ? 'warn' : null});
+        tone: needsYou(s, page) ? 'warn' : null});
       node.addEventListener('click', () => ctx.options.openPage?.(page));
       section.card.append(node);
     }
-    sections.push(section);
-  }
-  return sections;
+    return section;
+  });
 }
 
 function appearancePage(ctx) {
@@ -104,22 +93,21 @@ function notchPage(ctx) {
   return [notch, butterfly, widgets];
 }
 
-/** A permission says its state once: a quiet Allowed, or a tonal Allow beside a small error dot. */
+/** A permission says its state once: a quiet Allowed, or a tonal Allow that fixes it. */
 const permission = allowed => allowed ? {value: 'Allowed'} : {value: 'Allow', tone: 'error'};
 
+/** Permissions lead: they decide whether anything rings at all. */
 function alertsPage(ctx) {
   const s = ctx.state;
+  const allowed = group('Permissions', {id: 'permissions'});
+  add(ctx, allowed, {label: 'Notifications', ...permission(s.notificationsAllowed), action: 'notifications'});
+  add(ctx, allowed, {label: 'Exact alarms', ...permission(s.exactAlarmsAllowed), action: 'exact_alarms'});
+  add(ctx, allowed, {label: 'Check saved alerts', action: 'check_alerts', trail: 'refresh'});
   const sounds = group('Sounds', {id: 'sounds'});
   add(ctx, sounds, {label: 'Alarm sound', value: s.alarmSound, action: 'choose_alarm', next: true});
-  add(ctx, sounds, {label: s.previewing ? 'Stop alarm sound' : 'Play alarm sound', detail: s.previewing ? 'Playing at alarm volume' : '5 seconds at alarm volume',
-    action: 'preview_alarm', trail: s.previewing ? 'stop' : 'play_arrow'});
+  add(ctx, sounds, {label: s.previewing ? 'Stop alarm sound' : 'Play alarm sound', action: 'preview_alarm', trail: s.previewing ? 'stop' : 'play_arrow'});
   add(ctx, sounds, {label: 'Reminder sound', value: s.reminderSound, action: 'reminder_sound', next: true});
-  const allowed = group('Permissions', {id: 'permissions',
-    caption: 'Battery saving can delay reminders. Keep RPM installed for saved alarms to ring.'});
-  add(ctx, allowed, {label: 'Notifications', detail: 'For reminders and ringing alarms', ...permission(s.notificationsAllowed), action: 'notifications'});
-  add(ctx, allowed, {label: 'Exact alarms', detail: 'For alarms at the chosen minute', ...permission(s.exactAlarmsAllowed), action: 'exact_alarms'});
-  add(ctx, allowed, {label: 'Check saved alerts', detail: 'Schedule them again after a permission change', action: 'check_alerts', trail: 'refresh'});
-  return [sounds, allowed];
+  return [allowed, sounds];
 }
 
 /** Voice and persona live on this phone, not in native settings; each opens an M3 dialog and saves at once. */
@@ -127,8 +115,7 @@ function voicePage(ctx) {
   const s = ctx.state;
   const {voice, persona} = voiceChoice();
   const key = group('', {id: 'voice-key'});
-  add(ctx, key, {label: 'Gemini key', detail: s.hasGeminiKey ? '' : 'Without it, the mic uses Android dictation',
-    value: s.hasGeminiKey ? 'Connected' : 'Not set', action: 'connect_gemini_key', next: true});
+  add(ctx, key, {label: 'Gemini key', value: s.hasGeminiKey ? 'Connected' : 'Not set', action: 'connect_gemini_key', next: true});
   const open = dialog => { document.body.append(dialog); dialog.showModal(); };
   const sound = group('', {id: 'voice'});
   const voiceRow = row({label: 'Voice', value: voice ?? 'Default', action: 'voice_name', next: true});
@@ -165,7 +152,7 @@ function aiPage(ctx) {
 function syncPage(ctx) {
   const cloud = group('', {id: 'cloud'});
   add(ctx, cloud, {label: 'Link a web browser', action: 'cloud_web', next: true});
-  const files = group('Backup', {id: 'context-history', caption: 'Plans stay on this phone.'});
+  const files = group('Backup', {id: 'context-history'});
   add(ctx, files, {label: 'Export', action: 'export_context', next: true});
   add(ctx, files, {label: 'Import', action: 'import_context', next: true});
   add(ctx, files, {label: 'Restore a backup', value: ctx.state.backupCount ? String(ctx.state.backupCount) : 'None', action: 'restore_backup', next: true});
@@ -214,7 +201,7 @@ function aboutPage(ctx) {
 export const PAGES = {appearance: appearancePage, notch: notchPage, alerts: alertsPage, voice: voicePage, ai: aiPage,
   sync: syncPage, diagnostics: diagnosticsPage, about: aboutPage};
 
-/** What a browser can set: the same rows as the phone's home, only for pages that work here, and one line naming the rest. */
+/** What a browser can set: the same rows as the phone's home, only for pages that work here, and a caption naming the rest. */
 const WEB_PAGES = ['appearance', 'about'];
 export function phoneOnlyPage(ctx, text) {
   if (ctx.page === 'appearance') return appearancePage(ctx);
@@ -226,10 +213,6 @@ export function phoneOnlyPage(ctx, text) {
     node.addEventListener('click', () => ctx.options.openPage?.(page));
     section.card.append(node);
   }
-  const phone = group('', {id: 'phone-only'});
-  const note = row({label: 'Set in RPM on your phone', detail: text, icon: 'phone_android', tile: 'grey'});
-  const fact = el('div', note.className);
-  fact.append(...note.childNodes);
-  phone.card.append(fact);
-  return [section, phone];
+  section.append(el('p', 'settings-caption', `${text} are set in RPM on your phone.`));
+  return [section];
 }

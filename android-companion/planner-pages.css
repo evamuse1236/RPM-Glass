@@ -412,10 +412,12 @@ button.fact-row:active { background: var(--row-press); }
   -webkit-appearance: none;
 }
 .search-input::-webkit-search-cancel-button { display: none; }
-.search-results .task-row { padding-inline-start: var(--s1); }
-.search-results .task-main:has(+ .must-mark) { flex: 0 1 auto; }
+.search-results .task-row { padding-inline: var(--s1) var(--s4); }
+/* The Must star keeps one trailing 48dp slot whose end is the page gutter, so every star lines up (Google Tasks). */
+.search-results .must-mark { inline-size: 48px; text-align: end; }
 .search-hit { font-weight: 700; color: inherit; }
 /* Done results come last as their title alone, with a quiet tick in place of the filled one (Google Tasks' Completed). */
 .search-results .task-row.done .task-main { min-block-size: 48px; }
+.search-results .task-row.done .task-title { text-decoration: none; }
 .search-results .task-row.done .check-ring { border-color: transparent; background: transparent; color: var(--on-surface-variant); }
 .search-results .task-row.done .check-ring .ms { font-size: 20px; font-weight: 400; }
