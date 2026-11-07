@@ -159,50 +159,58 @@
   overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
-  block-size: 56px;
+  block-size: 48px;
   touch-action: pan-x;
-  /* Clear for 16px at each end, then a 32px fade: a tick or hour label at the edge fades to nothing instead of being cut. */
-  mask-image: linear-gradient(to right, transparent, transparent var(--s4), black var(--touch), black calc(100% - var(--touch)), transparent calc(100% - var(--s4)), transparent);
 }
 .ruler-track::-webkit-scrollbar { display: none; }
 .ruler-track:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .ruler-scale { box-sizing: content-box; inline-size: max-content; block-size: 100%; padding-inline: 50%; }
 .ruler-line { position: relative; block-size: 100%; }
+/* Ticks, the length bar, the start mark and the knob share one axis 12px above the track's bottom; hour labels sit above. */
 .ruler-tick {
   position: absolute;
-  inset-block-end: 16px;
+  inset-block-end: 12px;
   inline-size: 2px;
   block-size: 8px;
   margin-inline-start: -1px;
+  translate: 0 50%;
   border-radius: 2px;
-  background: var(--outline-variant);
+  --tick: var(--outline-variant);
+  /* --fade (set by the script near the edges) thins the tick alone; its hour label keeps full strength. */
+  background: color-mix(in oklch, var(--tick) calc(var(--fade, 1) * 100%), transparent);
   scroll-snap-align: center;
 }
-.ruler-tick.is-hour { block-size: 16px; background: var(--outline); }
-.ruler-tick.is-own { block-size: 16px; background: var(--primary); }
+.ruler-tick.is-hour { --tick: var(--outline); block-size: 16px; }
+.ruler-tick.is-own { --tick: var(--primary); block-size: 16px; }
 .ruler-hour {
   position: absolute;
-  inset-block-end: 20px;
+  inset-block-end: calc(100% + var(--s1));
   inset-inline-start: 50%;
   translate: -50% 0;
   font: var(--label-small);
   color: var(--on-surface-variant);
   white-space: nowrap;
 }
+/* An hour label is shown whole or not at all: the script drops one that would cross the track's edge. */
+.ruler-hour.is-out { opacity: 0; }
+/* The bar starts with a round cap centred on the start mark and ends under the knob; >= 3:1 on the sheet in light. */
 .ruler-length {
   position: absolute;
   inset-block-end: 8px;
-  inset-inline-start: 50%;
+  inset-inline-start: calc(50% - 4px);
+  box-sizing: content-box;
   block-size: 8px;
+  padding-inline-start: 4px;
   border-radius: var(--shape-full);
-  background: color-mix(in oklch, var(--primary) 40%, var(--primary-container));
+  background: light-dark(color-mix(in oklch, var(--primary) 70%, var(--primary-container)), color-mix(in oklch, var(--primary) 40%, var(--primary-container)));
   pointer-events: none;
 }
 .ruler-centre {
   position: absolute;
-  inset-block: 24px 8px;
+  inset-block-end: 2px;
   inset-inline-start: calc(50% - 1px);
   inline-size: 2px;
+  block-size: 20px;
   border-radius: 2px;
   background: var(--primary);
   pointer-events: none;
@@ -307,5 +315,6 @@
   .tab-btn, .when-day, .alert-kind, .repeat-day, .block-choice { transition: scale var(--dur-press) var(--ease-standard), background-color var(--dur-press) var(--ease-standard), color var(--dur-press) var(--ease-standard); }
   .when-day-number { transition: background-color var(--dur-short) var(--ease-standard), color var(--dur-short) var(--ease-standard); }
   .ruler-grip::before { transition: scale var(--dur-short) var(--ease-standard); }
+  .ruler-hour { transition: opacity var(--dur-short) var(--ease-standard); }
   :is(.tab-btn, .when-day, .alert-kind, .repeat-day, .block-choice):active { scale: .97; }
 }

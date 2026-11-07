@@ -29,10 +29,12 @@ test('Start now sits on the title row on wide; Alert and Repeat chips join into 
   const tabs = read('../../android-companion/task-tabs.css');
   assert.match(tabs, /\.task-tabs \.chip-row\.segmented \{ flex-wrap: nowrap; gap: 0; \}/);
   assert.match(tabs, /\.task-tabs \.chip-row\[aria-label='More choices'\] > \.chip \{ border-color: transparent; background: none;/, 'the pickers and Clear read as one quiet row');
-  assert.match(tabs, /\.ruler-track \{[^}]*mask-image: linear-gradient\(to right, transparent,/, 'the ruler fades out at both ends on every width, so nothing reads as cut off');
-  assert.match(tabs, /\.ruler-tick \{\s+position: absolute;\s+inset-block-end: 16px;/, 'ticks sit in their own lane under the hour labels, just above the length lane');
-  assert.match(tabs, /\.ruler-length \{\s+position: absolute;\s+inset-block-end: 8px;[^}]*block-size: 8px;/, 'the length bar sits in a lane under the ticks');
-  assert.match(tabs, /\.ruler-centre \{\s+position: absolute;\s+inset-block: 24px 8px;/, 'the playhead starts below the hour labels');
+  assert.doesNotMatch(tabs, /\.ruler-track \{[^}]*mask-image/, 'no mask on the track: a mask would fade the hour labels with the ticks');
+  assert.match(tabs, /\.ruler-tick \{\s+position: absolute;\s+inset-block-end: 12px;[^}]*translate: 0 50%;[^}]*var\(--fade, 1\)/, 'ticks centre on the axis and only they fade at the edges');
+  assert.match(tabs, /\.ruler-hour\.is-out \{ opacity: 0; \}/, 'an hour label is whole or gone');
+  assert.match(tabs, /\.ruler-length \{\s+position: absolute;\s+inset-block-end: 8px;\s+inset-inline-start: calc\(50% - 4px\);[^}]*block-size: 8px;\s+padding-inline-start: 4px;[^}]*border-radius: var\(--shape-full\);/, 'the length bar is centred on the tick axis and starts with a round cap on the start mark');
+  assert.match(tabs, /\.ruler-length \{[^}]*background: light-dark\(color-mix\(in oklch, var\(--primary\) 70%/, 'the light bar is strong enough to read (3:1 on the sheet)');
+  assert.match(tabs, /\.ruler-centre \{\s+position: absolute;\s+inset-block-end: 2px;[^}]*block-size: 20px;/, 'the start mark crosses the bar on the same axis');
 });
 
 test('the wide task pane puts its icons on one row above a full-width title of at most two lines, with no band above the tools', () => {

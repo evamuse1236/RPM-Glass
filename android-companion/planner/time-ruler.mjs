@@ -92,6 +92,7 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
   let drawn = '';
   let touched = false, holding = false, shown = null;
   let drag = null, editing = false;
+  let marks = [];
 
   const show = (time, minutes = state.minutes) => {
     const to = time && minutes ? hhmm((minutesOf(time) + minutes) % (24 * 60)) : '';
@@ -189,17 +190,36 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
     if (key === drawn) return;
     drawn = key;
     line.style.inlineSize = scale.width + 'px';
-    const marks = scale.stops.map(stop => {
+    marks = scale.stops.map(stop => {
       const at = minutesOf(stop);
       const mark = el('i', at % 60 ? 'ruler-tick' : 'ruler-tick is-hour');
-      mark.style.insetInlineStart = (at - scale.first) * PX_PER_MIN + 'px';
-      if (at % 60 === 0) mark.append(el('span', 'ruler-hour', briefClock('2026-01-01', stop)));
+      const x = (at - scale.first) * PX_PER_MIN;
+      mark.style.insetInlineStart = x + 'px';
+      const label = at % 60 === 0 ? el('span', 'ruler-hour', briefClock('2026-01-01', stop)) : null;
+      if (label) mark.append(label);
       if (at % 30) mark.classList.add('is-own');
       if (at % 120 === 60) mark.classList.add('is-odd');
-      return mark;
+      return {mark, label, x, half: 0};
     });
-    line.replaceChildren(...marks);
+    line.replaceChildren(...marks.map(({mark}) => mark));
   };
+
+  /** Ticks fade out over the last 32px at each end; an hour label stays at full strength while it fits whole, and is
+   * dropped once any part of it would cross the edge, so no glyph is ever faded or cut. */
+  const fadeEdges = () => {
+    const width = track.clientWidth;
+    if (!width) return;
+    const start = width / 2 - track.scrollLeft;
+    for (const item of marks) {
+      const x = start + item.x, edge = Math.min(x, width - x);
+      item.mark.style.setProperty('--fade', String(Math.max(0, Math.min(1, (edge - 4) / 32))));
+      if (!item.label) continue;
+      item.half ||= item.label.offsetWidth / 2;
+      item.label.classList.toggle('is-out', edge < item.half + 4);
+    }
+  };
+  let fading = 0;
+  const fadeSoon = () => { if (!fading) fading = requestAnimationFrame(() => { fading = 0; fadeEdges(); }); };
 
   const place = () => {
     if (holding || !track.clientWidth) return;
@@ -223,6 +243,7 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
   }
   let quiet = 0;
   track.addEventListener('scroll', () => {
+    fadeSoon();
     const stop = stopAt(scale, track.scrollLeft);
     if (touched && stop !== shown) {
       if (shown != null) tick();
@@ -241,7 +262,7 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
     const next = state.time ? scale.stops[Math.max(0, Math.min(scale.stops.length - 1, at + step))] : scale.centre;
     if (next && next !== state.time) save(next);
   });
-  new ResizeObserver(() => { place(); if (!drag) stretch(state.minutes); }).observe(track);
+  new ResizeObserver(() => { place(); fadeEdges(); if (!drag) stretch(state.minutes); }).observe(track);
 
   const paint = next => {
     state = {...state, ...next};
@@ -254,6 +275,7 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
     track.inert = !!state.off;
     track.setAttribute('aria-disabled', String(!!state.off));
     place();
+    fadeEdges();
   };
   return {node, grip, words, paint};
 }
