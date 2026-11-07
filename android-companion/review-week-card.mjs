@@ -196,8 +196,12 @@ export function clashState(api, clash) {
   return {state: choice === 'later' ? 'later' : 'open'};
 }
 
-/** One compact row per clash: "A vs B" with the day and time under it, then Keep [A] [B] on one line. The error
- * colour sits only on the icon; Later is a text button. A decided clash keeps the row and says what stays. */
+/** One compact row per clash: "A vs B" with its day under it, then one row of choices: a chip per event (its title over
+ * its own time) and Later as the quiet third. The error colour sits only on the icon. A decided clash keeps the row and
+ * says what stays. */
+/** "9 – 10 AM": Calendar's range with whole hours left bare, so two events fit one chip row. */
+const shortRange = (start, end) => timeRange(start, end).replaceAll(':00', '');
+
 export function clashRow(api, clash) {
   const {ui} = api;
   const {state, choice} = clashState(api, clash);
@@ -207,7 +211,6 @@ export function clashRow(api, clash) {
   const title = el('span', 'wr-risk-lead');
   title.append(el('span', 'wr-nowrap', clash.a.title), ' vs ', el('span', 'wr-nowrap', clash.b.title));
   const sub = el('span', 'wr-risk-sub tnum');
-  const when = [`${dayName(clash.day)} · `, el('span', 'wr-nowrap', timeRange(clash.b.start, +clash.a.end < +clash.b.end ? clash.a.end : clash.b.end))];
   const textButton = (label, said, onClick, key) => {
     const go = button(label, onClick, 'wr-btn-text');
     go.setAttribute('aria-label', said);
@@ -224,7 +227,7 @@ export function clashRow(api, clash) {
     item.append(icon('event_available'), text, reopen('Change'));
     return item;
   }
-  sub.append(...when, state === 'later' ? ' · left for later' : '');
+  sub.append(dayName(clash.day), state === 'later' ? ' · left for later' : ' · keep one');
   text.append(title, sub);
   if (state === 'later') {
     item.append(icon('event_busy'), text, reopen('Decide'));
@@ -240,14 +243,14 @@ export function clashRow(api, clash) {
   const choices = el('span', 'wr-choices');
   choices.setAttribute('role', 'group');
   choices.setAttribute('aria-label', 'Which event stays');
-  choices.append(el('span', 'wr-choices-lead', 'Keep'));
   for (const [keep, event] of [['a', clash.a], ['b', clash.b]]) {
     const chip = button('', () => decide(keep), 'wr-chip wr-choice' + (choice === keep ? ' sel' : ''));
-    chip.append(el('span', 'wr-label', event.title));
+    chip.append(el('span', 'wr-label', event.title), el('span', 'wr-choice-time tnum', shortRange(event.start, event.end)));
     chip.setAttribute('aria-label', 'Keep ' + event.title);
     chip.dataset.key = `clash:${keep}:${clash.key}`;
     choices.append(chip);
   }
-  item.append(icon('event_busy'), text, textButton('Later', 'Decide later', () => decide('later'), `clash:later:${clash.key}`), choices);
+  choices.append(textButton('Later', 'Decide later', () => decide('later'), `clash:later:${clash.key}`));
+  item.append(icon('event_busy'), text, choices);
   return item;
 }

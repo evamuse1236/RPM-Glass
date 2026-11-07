@@ -108,14 +108,20 @@ function deckCard(api, summary, result) {
   card.append(el('h3', 'wr-deck-title', result.title));
   if (result.purpose) card.append(el('p', 'wr-deck-purpose', result.purpose));
   const meta = el('div', 'wr-deck-meta');
-  const words = result.total ? `${result.done} of ${plural(result.total, 'task')} done` : 'No tasks';
-  const ring = result.total && result.done === result.total ? doneDisc(words) : progressRing(result.done, result.total, words);
+  const {ring, words} = resultRing(result);
   meta.append(ring, el('span', 'wr-deck-done tnum', words));
   const chip = result.due && dueChip(result.due, api.now());
   if (chip) meta.append(chip);
   card.append(meta);
   attachDeckSwipe(card, verdict => judge(api, summary, result, verdict));
   return card;
+}
+
+/** How far a Result got, as a ring (a filled disc once every task is done) and the words it reads as. */
+export function resultRing(result) {
+  const words = result.total ? `${result.done} of ${plural(result.total, 'task')} done` : 'No tasks';
+  const ring = result.total && result.done === result.total ? doneDisc(words) : progressRing(result.done, result.total, words);
+  return {ring, words};
 }
 
 const SVG = 'http://www.w3.org/2000/svg';

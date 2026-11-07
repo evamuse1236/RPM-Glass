@@ -31,7 +31,7 @@
 
 /* Body */
 .wr-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px 16px 24px}
-.wr-content{display:flex;flex-direction:column;gap:12px}
+.wr-content{display:flex;flex-direction:column;gap:12px;container-type:inline-size}
 /* Step to step: weekly-review.mjs moves the old and new content on the shared X axis; this copy of the old content
    keeps the body's padding while it slides out. */
 .wr-ghost-body{padding:20px 16px 24px;background:var(--surface)}
@@ -91,6 +91,17 @@
 .wr-decided-row>.ms:last-child{flex:none;color:var(--on-surface-variant)}
 .wr-decided-text,.wr-carry-body{flex:1;display:flex;flex-direction:column;gap:2px;min-inline-size:0}
 .wr-decided-title,.wr-carry-title{font:var(--body-large);overflow-wrap:anywhere;text-wrap:pretty}
+/* Step 1 while judging: what comes after this card and what is still running, read-only under the deck */
+.wr-split,.wr-split-main,.wr-split-side{display:flex;flex-direction:column;gap:12px;min-inline-size:0}
+.wr-queue{list-style:none;padding:0;background:var(--surface-container);border-radius:20px;overflow:clip}
+.wr-queue>li+li{border-top:1px solid var(--outline-variant)}
+.wr-queue-row{display:flex;align-items:center;gap:16px;min-block-size:56px;padding:8px 16px;color:var(--on-surface)}
+.wr-queue-row .ring{color:var(--on-surface-variant)}
+.wr-queue-row .wr-decided-title{font:var(--body-large)}
+@container (inline-size >= 840px){
+  .wr-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;column-gap:24px}
+  .wr-split-side{position:sticky;inset-block-start:0}
+}
 .wr-wins{background:var(--tertiary-container);color:var(--on-tertiary-container);border-radius:20px;padding:16px 16px 8px}
 .wr-wins-head{display:flex;align-items:center;gap:16px;min-block-size:40px}
 .wr-wins-head h3{font:var(--title-medium)}
@@ -119,7 +130,7 @@
 .wr .wr-add-send[hidden],.wr .wr-add-capture[hidden]{display:none}
 .wr .wr-add-capture{width:48px;height:48px;color:var(--on-surface-variant)}
 .wr-lenses{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.wr-lens-lead{flex:none;white-space:nowrap;font:var(--label-large);color:var(--on-surface-variant);padding-inline-end:4px}
+.wr-lens-lead{flex:none;white-space:nowrap;font:var(--label-large);color:var(--on-surface-variant);padding-inline:4px}
 .wr-lens .area-dot{width:8px;height:8px}
 .wr .wr-lens{border-radius:var(--shape-full);background-color:var(--surface-container-low);border-color:var(--outline-variant);color:var(--on-surface)}
 .wr-list{list-style:none;margin:0;padding:4px 0;background:var(--surface-container);border-radius:20px}
@@ -129,10 +140,11 @@
 .wr-list-item:first-child .wr-list-text{border-radius:20px 20px 0 0}
 .wr-list-item:last-child .wr-list-text{border-radius:0 0 20px 20px}
 .wr-list-item:only-child .wr-list-text{border-radius:20px}
+.wr-list-more{border-top:1px solid var(--outline-variant)}
+.wr .wr-list-more .wr-idle-toggle{inline-size:100%;border-radius:0 0 20px 20px}
 .wr-list-title{min-width:0;overflow-wrap:anywhere;text-wrap:pretty}
 .wr-nowrap{white-space:nowrap}
 .wr-list-meta{display:flex;flex-wrap:wrap;gap:4px 12px;font:var(--body-small);color:var(--on-surface-variant)}
-.wr-list-meta .soon{color:var(--on-surface);font-weight:600}
 .wr-must-tag{display:inline-flex;align-items:center;gap:2px;color:var(--on-surface-variant)}
 .wr-must-tag .ms{font-size:16px;color:var(--must)}
 .wr-clash-tag{display:inline-flex;align-items:center;gap:4px;color:var(--error)}
@@ -143,17 +155,18 @@
 .wr-sort-list{overflow:clip}
 .wr-sort{position:relative;background-color:var(--surface-container)}
 .wr-sort+.wr-sort{border-top:1px solid var(--outline-variant)}
-.wr-sort-body{display:flex;align-items:center}
+.wr-sort-body{display:grid;grid-template-columns:minmax(0,1fr)}
+.wr-sort-body>*{grid-area:1/1}
 .wr .wr-sort-row{flex:1;display:flex;align-items:center;gap:8px;min-inline-size:0;min-block-size:56px;padding:8px 12px 8px 16px;border:0;border-radius:0;background-color:transparent;color:var(--on-surface);font:inherit;text-align:start}
 .wr-sort:first-child .wr-sort-row{border-start-start-radius:20px;border-start-end-radius:20px}
 .wr-sort:last-child .wr-sort-row{border-end-start-radius:20px;border-end-end-radius:20px}
 .wr-sort-row>.ms{flex:none;color:var(--on-surface-variant)}
 .wr-sort-text{flex:1;display:flex;flex-direction:column;gap:4px;min-inline-size:0}
-.wr-sort-proposal{display:flex;align-items:center;gap:4px;min-inline-size:0;font:var(--body-medium);color:var(--primary)}
-.wr-sort-proposal .ms{flex:none;font-size:16px}
-.wr-sort-label{min-inline-size:0;overflow:clip;text-overflow:ellipsis;white-space:nowrap}
-.wr .wr-sort-add{flex:none;min-height:32px;margin-inline-end:12px;padding:4px 16px}
-.wr-sort-add::after{content:"";position:absolute;inset:-8px -4px}
+/* A suggested row keeps the one row shape (title, chevron); its Result sits under the title as an assist chip */
+.wr .wr-sort-row.suggested{align-items:start;padding-block:12px 56px}
+.wr-sort-row.suggested>.ms{align-self:center}
+.wr .wr-sort-take{align-self:end;justify-self:start;max-inline-size:calc(100% - 72px);margin:0 0 12px 16px;color:var(--on-surface)}
+.wr-sort-take .ms{color:var(--primary)}
 /* The first suggested row slides once to show its swipe, then settles */
 @media (prefers-reduced-motion:no-preference){
   .wr .swipe-peek>:not(.swipe-reveal),.wr .swipe-peek::before{transition:transform var(--dur-medium4) var(--ease-emphasized)}

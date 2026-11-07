@@ -39,7 +39,7 @@ export function stepTwo(api, ctx) {
         must.setAttribute('aria-label', 'Must');
         meta.append(must);
       }
-      if (when) meta.append(el('span', when.overdue ? 'overdue' : when.soon ? 'soon' : '', when.text));
+      if (when) meta.append(el('span', when.overdue ? 'overdue' : '', when.text));
       if (clash) {
         const tag = el('span', 'wr-clash-tag');
         tag.append(icon('event_busy'), el('span', '', 'Clash'));
@@ -56,14 +56,18 @@ export function stepTwo(api, ctx) {
     }
     list.append(item);
   }
+  if (inbox.length > INBOX_PREVIEW) {
+    const more = el('li', 'wr-list-more');
+    more.append(inboxToggle(api, inbox.length));
+    list.append(more);
+  }
   parts.push(list);
-  if (inbox.length > INBOX_PREVIEW) parts.push(inboxToggle(api, inbox.length));
   return parts;
 }
 
 const INBOX_PREVIEW = 4;
 
-/** One quiet row under the newest tasks: the rest of the Inbox, or back to the newest. */
+/** The list's last row: the rest of the Inbox, or back to the newest. */
 function inboxToggle(api, count) {
   const open = Boolean(api.ui.inboxOpen);
   const toggle = button(open ? 'Show fewer' : `Show all ${count}`, () => { api.ui.inboxOpen = !open; api.render(); }, 'wr-idle-toggle');

@@ -79,13 +79,7 @@ function sortRow(api, task, suggested, peek) {
   row.type = 'button';
   const text = el('span', 'wr-sort-text');
   text.append(el('span', 'wr-row-title', name));
-  if (suggested) {
-    const proposal = el('span', 'wr-sort-proposal');
-    proposal.append(icon('stacks'), el('span', 'wr-sort-label', suggested.title));
-    text.append(proposal);
-  }
-  row.append(text);
-  if (!suggested) row.append(icon('chevron_right'));
+  row.append(text, icon('chevron_right'));
   row.setAttribute('aria-label', `Choose a Result for "${name}"`);
   if (suggested) row.setAttribute('aria-description', 'Suggested: ' + suggested.title);
   row.setAttribute('aria-haspopup', 'dialog');
@@ -100,7 +94,8 @@ function sortRow(api, task, suggested, peek) {
   const body = el('div', 'wr-sort-body');
   body.append(row);
   if (suggested) {
-    const add = button('Add', take, 'wr-btn-tonal wr-sort-add');
+    row.classList.add('suggested');
+    const add = button(suggested.title, take, 'wr-chip wr-sort-take', 'add');
     add.setAttribute('aria-label', `Add to "${suggested.title}"`);
     add.dataset.key = 'take:' + task.id;
     body.append(add);

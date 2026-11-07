@@ -1,7 +1,7 @@
 import {focusCandidates} from './review-state.mjs';
 import {blockTasks} from './planner-state.mjs';
 import {dueInfo, duration, plural} from './planner/format.mjs';
-import {el, icon, button, whenText, heading, emptyState, factsLine, dueFact, mustFact} from './review-ui.mjs';
+import {el, icon, button, whenText, heading, emptyState, factsLine, dueFact, mustFact, split} from './review-ui.mjs';
 import {focusCheck} from './review-focus.mjs';
 import {weekCard, clashRow} from './review-week-card.mjs';
 
@@ -17,7 +17,7 @@ export function stepFour(api) {
   const [title] = heading("Pick this week's Results");
   const sub = el('p', 'wr-sub tnum', `${chosen.length} picked · aim for 3 to 5`);
   sub.setAttribute('aria-live', 'polite');
-  const parts = [title, sub];
+  const parts = [title, sub], main = [];
   if (!candidates.length) {
     parts.push(emptyState('flag', 'No Results yet', 'Go back a step and give a task a new Result, then pick it here.'));
     return parts;
@@ -27,21 +27,21 @@ export function stepFour(api) {
     const list = el('ul', 'wr-risks');
     list.setAttribute('aria-label', 'Calendar clashes');
     list.append(...clashes.map(c => clashRow(api, c)));
-    parts.push(list);
+    main.push(list);
   }
   // Then the choice: one quiet list, nearest deadline first. Results with nothing left to do wait behind one row.
   const idle = candidates.filter(c => c.total === c.done && !ui.focusBase.includes(c.blockId));
-  parts.push(resultList(api, candidates.filter(c => !idle.includes(c)), now, "This week's Results"));
+  main.push(resultList(api, candidates.filter(c => !idle.includes(c)), now, "This week's Results"));
   if (idle.length) {
     const toggle = button('', () => { ui.showIdle = !ui.showIdle; api.render(); }, 'wr-idle-toggle');
     toggle.setAttribute('aria-expanded', String(ui.showIdle));
     toggle.dataset.key = 'idle';
     toggle.append(el('span', 'wr-label', `${plural(idle.length, 'Result')} with no open tasks`), icon(ui.showIdle ? 'expand_less' : 'expand_more'));
-    parts.push(toggle);
-    if (ui.showIdle) parts.push(resultList(api, idle, now, 'Results with no open tasks'));
+    main.push(toggle);
+    if (ui.showIdle) main.push(resultList(api, idle, now, 'Results with no open tasks'));
   }
   // Then what the week holds: whether the picked Results' Must time fits.
-  parts.push(weekCard(api, chosen, candidates, now));
+  parts.push(...split(main, [weekCard(api, chosen, candidates, now)]));
   return parts;
 }
 

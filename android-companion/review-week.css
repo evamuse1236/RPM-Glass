@@ -76,9 +76,11 @@
 .wr-risk-lead{font:var(--body-large);overflow-wrap:anywhere;text-wrap:pretty}
 .wr-risk-sub{font:var(--body-small);color:var(--on-surface-variant);overflow-wrap:anywhere;text-wrap:pretty}
 .wr-risk .wr-btn-text{flex:none;margin-top:-4px}
-.wr-choices{grid-column:2/-1;display:flex;align-items:center;gap:8px;min-width:0;margin-top:8px}
-.wr-choices-lead{flex:none;font:var(--label-large);color:var(--on-surface-variant)}
-.wr .wr-choice{flex:0 1 auto;min-width:0}
+.wr-choices{grid-column:2/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0;margin-top:8px}
+.wr .wr-choice{flex:0 1 auto;flex-direction:column;align-items:start;justify-content:center;gap:0;min-width:0;min-height:48px;color:var(--on-surface)}
+.wr-choice-time{font:var(--body-small);color:var(--on-surface-variant)}
+.wr-choice.sel .wr-choice-time{color:inherit}
+.wr-choices .wr-btn-text{margin:0}
 .wr-idle-toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:0 12px 0 16px;border:0;border-radius:var(--shape-full);background-color:transparent;color:var(--on-surface-variant);font:var(--label-large);text-align:left}
 /* Results: one quiet list in the Google Tasks grammar. The circle picks a Result: a filled check and a light tint
    across the whole row. The rest of the row opens its Purpose and tasks, so the title has the row's full width. */
@@ -128,7 +130,6 @@
 :root[data-large-text=true] .wr-title{font:var(--title-large)}
 :root[data-large-text=true] .wr-result-more{padding-left:16px}
 :root[data-large-text=true] .wr-strip{display:none}
-:root[data-large-text=true] .wr-choices{flex-wrap:wrap}
 :root[data-large-text=true] .wr-week-sub,:root[data-large-text=true] .wr-ladder-when{white-space:normal}
 :root[data-large-text=true] .wr-strip-note.legend{display:none}
 :root[data-large-text=true] .wr-nowrap{white-space:normal}

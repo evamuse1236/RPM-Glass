@@ -1,9 +1,9 @@
 import {reviewSummary, leftoverChoice} from './review-state.mjs';
 import {plural} from './planner/format.mjs';
-import {VERDICT_RECEIPTS, CHOICES, el, icon, button, heading, emptyState, sectionHead, factsLine, dueFact, mustFact} from './review-ui.mjs';
+import {VERDICT_RECEIPTS, CHOICES, el, icon, button, heading, emptyState, sectionHead, factsLine, dueFact, mustFact, split} from './review-ui.mjs';
 import {openMenu} from './planner/menu.mjs';
 import {focusCheck, setFocus} from './review-focus.mjs';
-import {DECK_VERDICTS, deckOf, deckTally, resultDeck} from './review-deck.mjs';
+import {DECK_VERDICTS, deckOf, deckTally, resultDeck, resultRing} from './review-deck.mjs';
 
 /* ---------- step 1: last week's Results ---------- */
 export function stepOne(api) {
@@ -17,18 +17,51 @@ export function stepOne(api) {
     return parts;
   }
   const deck = deckOf(judged);
+  const main = [];
   if (judged.length) {
-    parts.push(deckTally(judged));
-    if (deck.length) parts.push(...resultDeck(api, summary, judged));
+    main.push(deckTally(judged));
+    if (deck.length) main.push(...resultDeck(api, summary, judged));
     else {
       const wins = judged.filter(r => r.verdict === 'achieved');
       const rest = judged.filter(r => r.verdict !== 'achieved');
-      if (wins.length) parts.push(winsCard(api, summary, wins));
-      if (rest.length) parts.push(decidedList(api, summary, rest));
+      if (wins.length) main.push(winsCard(api, summary, wins));
+      if (rest.length) main.push(decidedList(api, summary, rest));
     }
   }
-  if (!deck.length) parts.push(...carryList(api, judged, running));
+  const side = deck.length ? upNext(api, deck.slice(1), running) : carryList(api, judged, running);
+  parts.push(...split(main, side));
   return parts;
+}
+
+/** While the deck is open: the Results still to judge after this card, and the ones still running. Read-only, so the
+ * card keeps the one action. */
+function upNext(api, rest, running) {
+  const parts = [];
+  if (rest.length) parts.push(sectionHead('Up next', rest.length), queueList('Up next', rest.map(result => queueRow(result, []))));
+  if (running.length) {
+    const rows = running.map(result => queueRow(result, [dueFact(result.due, api.now()), mustFact(result.mustMinutes)]));
+    parts.push(sectionHead('Still running', running.length), queueList('Still running', rows));
+  }
+  return parts;
+}
+
+function queueList(label, rows) {
+  const list = el('ul', 'wr-queue');
+  list.setAttribute('aria-label', label);
+  list.append(...rows);
+  return list;
+}
+
+function queueRow(result, facts) {
+  const item = el('li', 'wr-queue-row');
+  item.dataset.key = 'queue:' + result.blockId;
+  const {ring, words} = resultRing(result);
+  const text = el('span', 'wr-decided-text');
+  const meta = el('span', 'wr-facts tnum');
+  meta.append(...factsLine([words, ...facts]));
+  text.append(el('span', 'wr-decided-title', result.title), meta);
+  item.append(ring, text);
+  return item;
 }
 
 /** A verdict's icon in its colour: the same three the deck's buttons use. */

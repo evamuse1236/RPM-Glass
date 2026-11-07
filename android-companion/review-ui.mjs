@@ -117,3 +117,15 @@ export function textField(label, placeholder, value, key, onInput) {
 }
 /** A Result's deadline in the words its card uses ("Due tomorrow 11:00 PM", "Overdue since …"). */
 export const dueWords = (value, now) => dueInfo(value, now).label;
+
+/** A step's decisions on one side and what they lead to on the other; a wide window shows them as two columns. */
+export function split(main, side) {
+  if (!main.length || !side.length) return [...main, ...side];
+  const box = el('div', 'wr-split');
+  const first = el('div', 'wr-split-main');
+  const second = el('div', 'wr-split-side');
+  first.append(...main);
+  second.append(...side);
+  box.append(first, second);
+  return [box];
+}
