@@ -33,8 +33,8 @@ export function alertShort({alert, lead}) {
   return {text: lead ? `${lead} min` : 'On time', symbol: alert === 'alarm' ? 'alarm' : 'notifications'};
 }
 
-/** The Block tab's value: the Block's first word, or Inbox. */
-export const blockShort = title => (title ? title.trim().split(/\s+/)[0] : 'Inbox');
+/** The Block tab's value: the Block's first two words, or Inbox. */
+export const blockShort = title => (title ? title.trim().split(/\s+/).slice(0, 2).join(' ') : 'Inbox');
 
 /** Length chips: the six usual ones plus the task's own length in its place. */
 export function lengthChoices(minutes) {

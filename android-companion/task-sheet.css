@@ -142,8 +142,11 @@
 .is-off { opacity: .38; }
 
 .sheet.sheet-task {
-  block-size: min(calc(100dvh - var(--top-bar)), var(--visual-height, 100dvh));
-  max-block-size: var(--visual-height, 100dvh);
+  block-size: auto;
+  max-block-size: min(calc(100dvh - var(--top-bar)), var(--visual-height, 100dvh));
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduce-motion=true]) .sheet.sheet-task { interpolate-size: allow-keywords; transition: block-size var(--dur-medium) var(--ease-emphasized); }
 }
 .sheet-task .sheet-header { align-items: flex-start; padding-inline: var(--s1); }
 .sheet-task .sheet-body { display: flex; flex-direction: column; gap: var(--row-gap); padding: var(--s2) var(--s4) var(--s4); }
@@ -179,8 +182,8 @@
 .task-title-field:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 /* Start now sits under the title, aligned with its text; it hides while the task is running, done or repeating. */
 .task-start { grid-column: 1 / -1; justify-self: start; margin: 0 0 var(--s2); }
-.task-start .ms { color: var(--primary); }
-.task-start:active { background: color-mix(in oklch, var(--on-surface) 12%, transparent); }
+.task-start { padding-inline-end: var(--s3); border-color: transparent; background: var(--secondary-container); color: var(--on-secondary-container); }
+.task-start:active { background: color-mix(in oklch, var(--on-secondary-container) 12%, var(--secondary-container)); }
 .task-start:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .task-head.is-done .task-title-field { text-decoration: line-through; color: var(--on-surface-variant); }
 

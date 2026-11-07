@@ -45,7 +45,8 @@ test('each tab shows its value in a few words', () => {
   assert.equal(repeatShort({recurrence: 'daily'}), 'Every day');
   assert.equal(repeatShort({recurrence: 'days', repeatDays: [5, 1, 3]}), 'Mo We Fr');
   assert.equal(repeatShort({repeatAfterDays: 3}), 'After 3 days');
-  assert.equal(blockShort('RM critical review drafted'), 'RM');
+  assert.equal(blockShort('RM critical review drafted'), 'RM critical');
+  assert.equal(blockShort(' Studies '), 'Studies');
   assert.equal(blockShort(null), 'Inbox');
 });
 

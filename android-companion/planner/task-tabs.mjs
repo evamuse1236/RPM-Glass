@@ -188,18 +188,6 @@ function whenPanel(host, pick, tick) {
   return {paint, error, clash, days, lengths, dayPicker: dayPicker.input, reveal};
 }
 
-const SVG = 'http://www.w3.org/2000/svg';
-/** A finished Block fills its ring's centre with a tonal disc and a check, as a finished Project does. */
-function finishedCheck() {
-  const group = document.createElementNS(SVG, 'g');
-  const disc = document.createElementNS(SVG, 'circle');
-  for (const [k, v] of Object.entries({class: 'ring-done', cx: 12, cy: 12, r: 6})) disc.setAttribute(k, v);
-  const check = document.createElementNS(SVG, 'path');
-  for (const [k, v] of Object.entries({class: 'ring-check', d: 'M9 12.2L11 14.2L15 10'})) check.setAttribute(k, v);
-  group.append(disc, check);
-  return group;
-}
-
 export function alertPanel(host, pick, remote) {
   const kinds = el('div', 'alert-kinds');
   kinds.setAttribute('role', 'group');
@@ -233,8 +221,10 @@ export function alertPanel(host, pick, remote) {
       pressed(kind, kind.dataset.value === now.alert);
       kind.setAttribute('aria-disabled', String(off));
     }
-    leads.hidden = now.alert === 'off' || off;
-    markChips(leads, String(now.lead ?? 0));
+    const silent = !now.alert || now.alert === 'off';
+    leads.hidden = off;
+    for (const lead of leads.children) lead.setAttribute('aria-disabled', String(silent));
+    markChips(leads, silent ? '' : String(now.lead ?? 0));
     note.hidden = !off;
     rings.hidden = off || now.alert === 'off';
   };
@@ -307,7 +297,6 @@ function blockPanel(host, pick, get) {
       const tone = now.toneOf(choice.id);
       if (tone) option.dataset.tone = tone;
       const ring = choice.id ? progressRing(choice.done, choice.total, `${choice.done} of ${choice.total} done`) : icon('inbox', {cls: 'block-choice-inbox'});
-      if (choice.id && choice.total && choice.done === choice.total) ring.append(finishedCheck());
       const copy = el('span', 'block-choice-copy');
       const title = el('span', 'block-choice-title', choice.title);
       const hint = choice.id && choice.id === now.recent ? 'Recent' : choice.id && choice.id === now.suggested ? 'Suggested' : '';
