@@ -350,11 +350,31 @@ function syncTitleOut(app) {
   if (app.dom.planner.dataset.titleOut !== out) app.dom.planner.dataset.titleOut = out;
 }
 
+const TITLE_ROOM_VIEWS = new Set(['blocks', 'projects']);
+const TITLE_ROOM_GAP = 12;
+
+/**
+ * A Block or Project page always scrolls far enough for its large title to leave, however short the page, so the
+ * collapsed bar sits 12dp above the first line of content and never over the empty band the faded title left.
+ */
+function keepTitleRoom(app) {
+  const {planner, work, scroll} = app.dom;
+  const big = work.querySelector('.detail-title-text');
+  const next = big?.nextElementSibling;
+  if (!next || planner.dataset.detail !== 'true' || !TITLE_ROOM_VIEWS.has(planner.dataset.view)) {
+    work.style.minBlockSize = '';
+    return;
+  }
+  const room = next.getBoundingClientRect().top - big.getBoundingClientRect().top - TITLE_ROOM_GAP;
+  work.style.minBlockSize = Math.ceil(scroll.clientHeight + Math.max(0, room)) + 'px';
+}
+
 export function mountPlanner(api) {
   // After every save, Undo or outside change the shell re-renders; an open task sheet then updates its rows in place.
   const shell = (app, options) => {
     renderShell(app, options);
     requestAnimationFrame(() => syncTitleOut(app));
+    requestAnimationFrame(() => keepTitleRoom(app));
     syncSheet(app);
   };
   const app = createApp(api, {shell, screen: renderScreen, defaultScroll, refreshCalendar, searchBar});

@@ -232,14 +232,14 @@
 button.fact-row:active { background: var(--row-press); }
 .fact-row > .leading, .fact-row > .ring { color: var(--on-surface-variant); flex: none; }
 .fact-row .text-btn { align-self: center; flex: none; margin: calc(-1 * var(--s2)) calc(-1 * var(--s2)) calc(-1 * var(--s2)) 0; }
-/* The verdict sits under the Plan it judges, at the add row's weight: the trophy on the add icon's column, the words on
-   the task titles' 56dp edge, primary like "Add or find a task". The user's call, never a tick count. */
+/* The verdict ends the page, quieter than Add: on-surface-variant words on the 56dp edge, only the trophy in the
+   achieved green. The user's call, never a tick count. */
 #planner[data-view=blocks] .verdict-row {
   display: flex; align-items: center; gap: var(--s1); inline-size: fit-content; min-block-size: var(--touch);
   margin-inline: var(--s1); padding-inline-end: var(--s4); border-radius: var(--shape-full);
-  font: var(--body-large); color: var(--primary);
+  font: var(--body-large); color: var(--on-surface-variant);
 }
-#planner[data-view=blocks] .verdict-row > .ms { inline-size: var(--touch); text-align: center; }
+#planner[data-view=blocks] .verdict-row > .ms { inline-size: var(--touch); text-align: center; color: var(--tertiary); }
 #planner[data-view=blocks] .verdict-row:active { background: var(--row-press); }
 .fact-label { font: var(--label-medium); color: var(--on-surface-variant); }
 /* The resting hint that a detail field edits in place: a small pencil after its label, gone while editing. */
@@ -257,6 +257,10 @@ button.fact-row:active { background: var(--row-press); }
 /* A Block's header stays short so the Plan starts high: facts pack on 4dp padding, Plan follows 12dp on. */
 #planner[data-view=blocks] .block-facts > .fact-row { padding-block: var(--s1); }
 #planner[data-view=blocks] .plan-header { padding-block-start: var(--s3); }
+/* Plan and Completed are the page's two section labels, both title-small on-surface-variant, so neither reads as a task. */
+#planner[data-view=blocks] .plan-header h2 { font: var(--title-small); color: var(--on-surface-variant); }
+#planner[data-view=blocks] .inline-add { min-block-size: var(--touch); row-gap: 0; }
+#planner[data-view=blocks] .completed-group { margin-block-start: 0; }
 /* Plan words stop 8dp before a Must star (12dp to its glyph); Completed's label and chevron share the rows' 16dp start and the stars' end. */
 #planner[data-view=blocks] .task-main:has(+ .must-mark) { padding-inline-end: var(--s1); }
 #planner[data-view=blocks] .completed-toggle { padding-inline: var(--s3); }

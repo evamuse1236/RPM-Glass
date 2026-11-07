@@ -410,9 +410,8 @@ export function renderBlockDetail(app, page, block) {
   const onReorder = () => refreshPlanHeader(app, block, header);
   for (const task of open) list.append(taskRow(app, task, {plan: true, days: true, onReorder}));
   page.append(list, blockAdd(app, block));
-  // Achieved is the user's call: a row right under the Plan it judges, above Completed, never in a menu.
-  if (!status.achieved) page.append(achievedControl(app, block, status));
   completedSection(app, page, rows.filter(t => t.done), {plan: true, days: true});
+  if (!status.achieved) page.append(achievedControl(app, block, status));
   finishDetail(app, page);
 }
 
