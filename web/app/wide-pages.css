@@ -3,6 +3,8 @@
   #sheet[data-inline][aria-label=Inbox] .sheet-actions { display: none; }
   #sheet[data-inline].sheet-quick .sheet-header { display: flex; }
   #sheet[data-inline].sheet-quick .sheet-body { flex: 0 1 auto; padding-block-start: 0; }
+  #sheet[data-inline] .quick-row.block-chips { flex-wrap: wrap; row-gap: var(--s2); }
+  #sheet[data-inline] .block-chips > .block-chip { max-inline-size: 100%; }
 
   #planner .date-button { font: var(--headline-medium); letter-spacing: -.01em; }
 

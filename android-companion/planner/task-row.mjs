@@ -7,7 +7,7 @@ import {attachRowGestures} from './row-gestures.mjs';
 import {reducedMotion, waitMotion} from '../surface-motion.mjs';
 import {el, icon, button} from './dom.mjs';
 import {commitInPlace} from './inline-edit.mjs';
-import {clock, duration, dayName} from './format.mjs';
+import {shortClock, duration, dayName} from './format.mjs';
 import {repeatLabel} from './task-values.mjs';
 export {dayName};
 
@@ -40,7 +40,7 @@ function supportingLine(task, options) {
   const lead = leads.length > 0;
   const day = when ? dayName(localDay(new Date(when)), {today: options.days})
     : task.plannedDate ? dayName(task.plannedDate, {today: options.days}) : '';
-  if (when && !options.current) parts.push([day, clock(when)].filter(Boolean).join(' '));
+  if (when && !options.current) parts.push([day, shortClock(when)].filter(Boolean).join(' '));
   else if (day) parts.push(day);
   else if (!when && options.anytime) parts.push('Anytime');
   if (task.minutes != null) parts.push(duration(task.minutes));

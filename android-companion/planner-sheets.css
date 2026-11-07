@@ -234,22 +234,22 @@
 .quick-mirror mark { color: transparent; background: var(--secondary-container); border-radius: var(--shape-xs);
   box-shadow: 0 0 0 2px var(--secondary-container); }
 .sheet .quick-row { flex-wrap: wrap; row-gap: 0; column-gap: var(--s2); overflow: visible; padding: 0; }
-/* More options ends the Block row: a quiet text toggle whose chevron sits on the content edge. */
+/* More options is one row under the chips: its icon on the chip edge, its chevron on the content's end edge; the press
+   tint reaches 8dp past both. */
 .quick-details {
   display: flex;
-  flex: 0 8 auto;
   align-items: center;
-  gap: var(--s1);
-  min-inline-size: 0;
+  gap: var(--s2);
+  inline-size: calc(100% + 2 * var(--s2));
   min-block-size: var(--touch);
-  margin-inline: auto calc(-1 * var(--s2));
+  margin-inline: calc(-1 * var(--s2));
   padding-inline: var(--s2);
   font: var(--label-large);
   color: var(--on-surface-variant);
   border-radius: var(--shape-sm);
 }
 .quick-details .ms { font-size: 20px; }
-.quick-details .chip-label { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+.quick-details .chip-label { flex: 1; min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; text-align: start; }
 .quick-details .quick-details-open { transition: rotate var(--dur-press) var(--ease-standard); }
 .quick-details.is-open .quick-details-open { rotate: 180deg; }
 .quick-details.on { color: var(--on-surface); }
@@ -270,6 +270,8 @@
 .sheet .quick-days .choice-chip[aria-pressed=true] { padding-left: var(--s3); }
 .sheet .quick-days .choice-chip[aria-pressed=true] .chip-check { display: none; }
 .block-chips > .assist-chip { flex: 0 1 auto; min-width: 0; max-width: none; }
+.block-chips > .block-chip { flex: none; max-inline-size: 100%; }
+.block-chips > .block-chip:has(+ .suggest-chip:not([hidden])) { max-inline-size: 50%; }
 .block-chips .chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .suggest-chip .ms { color: var(--primary); }
 :root[data-large-text=true] .sheet .quick-row:is(.quick-days, .block-chips) { flex-wrap: wrap; }
@@ -297,6 +299,7 @@
 .sheet-form .sheet-actions { justify-content: flex-start; }
 .sheet-quick .sheet-header { display: none; }
 .sheet-quick .sheet-body { padding-top: var(--s1); padding-bottom: 0; }
-/* Add details and Why? start on the same edge as More options and the chip icons. */
-.sheet-quick .detail-row { min-block-size: var(--touch); padding: var(--s3) var(--s2); gap: var(--s2); }
+/* One left edge: the chips' outline, the More options, Add details and Why? icons, and Capture's mic. */
+.sheet-quick .detail-row { min-block-size: var(--touch); padding: var(--s3) 0; gap: var(--s2); }
+.sheet-quick .sheet-actions > .text-btn:first-child { margin-inline-start: calc(-1 * var(--s3)); }
 .sheet-quick .detail-row > .ms { font-size: 20px; }
