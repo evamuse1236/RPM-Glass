@@ -43,16 +43,14 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
     if (plan.some(p => p.slot === slot)) openMealEditor(app, body, slot, {back, backLabel: 'Back to Log a meal'});
     else openHabits(app, body);
   };
-  if (editing) {
-    const more = iconButton('more_vert', 'More options', () => openMenu(more, [
-      {label: 'Delete meal', icon: 'delete', danger: true, onClick: () => body.deleteMeal(editing.id).then(() => {
-        closeSheet(app);
-        app.render();
-        notice(app, 'Meal deleted', {undo: true});
-      }, () => notice(app, "Couldn't delete. Try again."))},
-    ]));
-    header.querySelector('.sheet-close').before(more);
-  }
+  const more = iconButton('more_vert', 'More options', () => openMenu(more, editing ? [
+    {label: 'Delete meal', icon: 'delete', danger: true, onClick: () => body.deleteMeal(editing.id).then(() => {
+      closeSheet(app);
+      app.render();
+      notice(app, 'Meal deleted', {undo: true});
+    }, () => notice(app, "Couldn't delete. Try again."))},
+  ] : [{label: 'Meal times', icon: 'schedule', onClick: openPlan}]));
+  header.querySelector('.sheet-close').before(more);
   const now = body.now();
   const guessed = guessSlot(now);
   const firstOffered = [wanted, guessed].find(value => offered.includes(value)) ?? offered[0] ?? guessed;
@@ -106,8 +104,7 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
     input.addEventListener('input', () => { typed = input.value; sync(); });
     input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); save(input.value); } });
     if (!editing) {
-      actions.append(button('See history', () => { closeSheet(app); app.openHistory(); }, 'text-btn body-history-link'),
-        button('Meal times', openPlan, 'text-btn meal-plan-link'));
+      actions.append(button('See history', () => { closeSheet(app); app.openHistory(); }, 'text-btn body-history-link'));
     }
     actions.append(submit);
     sync();

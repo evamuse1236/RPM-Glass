@@ -111,7 +111,7 @@
 .stepper-btn .ms { font-size: calc(20px / var(--text-scale, 1)); }
 .stepper-btn:disabled { opacity: .38; }
 .stepper-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.stepper-value { inline-size: 8ch; font: var(--title-large); text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.stepper-value { inline-size: 9ch; font: var(--title-medium); text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .stepper-row > .edit-body, .chips-row > .edit-body { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: var(--s3); }
 .chips-row > .edit-body > .edit-chips { flex: 1 1 0; min-inline-size: 0; margin-block: 0; }
 .chips-row > .edit-icon { padding-block-start: 12px; }

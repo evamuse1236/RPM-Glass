@@ -80,7 +80,7 @@ export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Ha
     }
   };
   content.append(factRow('water_drop', labelled('Daily goal', goal), {cls: 'stepper-row'}),
-    factRow('local_drink', sizes, {cls: 'segment-row'}),
+    factRow('local_drink', labelled('Glass size', sizes), {cls: 'segment-row'}),
     factRow('notifications', reminders), ...dependent);
 
   const paint = () => {

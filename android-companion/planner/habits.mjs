@@ -15,15 +15,17 @@ import {bodyApi} from './body-api.mjs';
 
 const MEAL_PREFIX = 'meal:';
 /**
- * One habit: its icon, name and summary open the editor. A meal ends in its Show switch and its time reads as the
- * value to change; any other ends in a chevron. Chevrons and switches share one trailing edge.
+ * One habit: its icon, name and summary open the editor. A meal ends in its divided Show switch; any other ends in a
+ * chevron. Chevrons and switches share one trailing edge. A row with no symbol keeps the icon column empty, so the
+ * meals share the first meal's icon.
  */
 function habitRow(symbol, name, summary, open, toggle = null) {
   const row = el('div', 'habit-row');
   const copy = el('span', 'habit-copy');
   const main = button(name, open, 'habit-open');
-  copy.append(main, el('span', toggle ? 'habit-summary habit-time tnum' : 'habit-summary tnum', summary));
-  row.append(icon(symbol, {cls: 'habit-icon'}), copy, toggle ?? icon('chevron_right', {cls: 'habit-chevron'}));
+  copy.append(main, el('span', 'habit-summary tnum', summary));
+  row.append(symbol ? icon(symbol, {cls: 'habit-icon'}) : el('span', 'habit-icon'), copy,
+    toggle ?? icon('chevron_right', {cls: 'habit-chevron'}));
   return row;
 }
 
@@ -39,7 +41,7 @@ export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) 
   const list = el('div', 'habit-list');
   content.append(list);
   const back = () => openHabits(app, body, {motion: 'back'});
-  const addSnack = addRow('Add a snack time', async () => {
+  const addSnack = addRow('Add snack time', async () => {
     try {
       await body.setMealSlot('snack', {on: true});
     } catch (error) {
@@ -50,7 +52,7 @@ export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) 
     openMealEditor(app, body, 'snack', {back});
     notice(app, 'Snack time added', {undo: true});
   });
-  const addRoutine = addRow('New routine', () => openRoutineEditor(app, body, null, {back}));
+  const addRoutine = addRow('Add routine', () => openRoutineEditor(app, body, null, {back}));
 
   const paint = () => {
     if (!content.isConnected) return;
@@ -63,7 +65,7 @@ export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) 
     rows.push(habitRow('water_drop', 'Water', water.reminders === false ? `${water.goal} glasses · reminders off`
       : `${water.goal} glasses · every ${everyText(water.intervalMinutes)}`, () => openWaterEditor(app, body, {back})));
     const meals = body.mealTimes();
-    for (const meal of meals) {
+    for (const [index, meal] of meals.entries()) {
       const show = switchButton(`Show ${meal.name}`, async on => {
         show.set(on);
         try {
@@ -77,7 +79,7 @@ export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) 
         notice(app, on ? `${meal.name} shows on Today` : `${meal.name} hidden from Today`, {undo: true});
       }, {cls: 'habit-switch'});
       show.set(meal.on);
-      rows.push(habitRow('restaurant', meal.name, clockText(atMinutes('2000-01-01', minutesOf(meal.at))),
+      rows.push(habitRow(index ? '' : 'restaurant', meal.name, clockText(atMinutes('2000-01-01', minutesOf(meal.at))),
         () => openMealEditor(app, body, meal.slot, {back}), show));
     }
     addSnack.hidden = meals.some(m => m.slot === 'snack');
