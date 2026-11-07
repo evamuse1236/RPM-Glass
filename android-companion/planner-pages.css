@@ -185,7 +185,9 @@
 .blocks-progress .ring { inline-size: 20px; block-size: 20px; }
 /* A Project's Purpose runs to the content edge. */
 #planner[data-view=projects] .purpose-text { text-wrap: pretty; }
-#planner:is([data-view=areas], [data-view=goals]) :is(.purpose-text, .title-edit, .detail-title-text) { text-wrap: pretty; }
+#planner:is([data-view=areas], [data-view=goals]) :is(.title-edit, .detail-title-text) { text-wrap: pretty; }
+/* An Area's or Goal's Purpose fills its line before it wraps. */
+#planner:is([data-view=areas], [data-view=goals]) .purpose-text { text-wrap: wrap; }
 /* Google Tasks detail rows: the 24dp icon centred on the Plan's check column, the text on the task titles. */
 .fact-row {
   display: flex;
@@ -334,6 +336,8 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
 .rating-row > :is(.rating-slider, .rating-ticks) { grid-column: 2; grid-row: 1; }
 .rating-row strong { grid-column: 3; grid-row: 1; min-inline-size: 4.5rem; font: var(--title-medium); text-align: end; }
 .rating-row .rating-slider.unrated ~ strong { color: var(--on-surface-variant); font: var(--body-medium); }
+/* The value ("Not rated" or "7 / 10") ends where the chevrons below it do. */
+#planner[data-view=areas] .rating-row strong { padding-inline-end: var(--s2); }
 /* M3 slider in the Area's colour: one active-track colour whether resting or dragged, a 20dp handle, 48dp target.
    Unrated: the whole track is inactive and there is no handle until the first touch. */
 .rating-slider {

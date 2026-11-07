@@ -18,16 +18,32 @@
    straight edges, so the seams are one clean gap. Only a rating fills it; the marks it has passed cut across the fill. */
 .wheel-svg path { fill: none; }
 .wheel-rim { stroke: color-mix(in oklch, var(--tone) 45%, var(--outline-variant)); stroke-width: 1.5; }
-.wheel-scale { stroke: color-mix(in oklch, var(--tone) 22%, transparent); stroke-width: 1; }
+.wheel-scale {
+  stroke: light-dark(color-mix(in oklch, var(--tone) 22%, transparent), color-mix(in oklch, var(--tone) 40%, var(--outline-variant)));
+  stroke-width: 1;
+}
 .wheel-svg .wheel-wedge { fill: var(--tone); stroke: var(--surface-container-low); stroke-width: 2; stroke-linejoin: round; }
 .wheel-cut { stroke: var(--surface-container-low); stroke-opacity: .6; stroke-width: 1; }
-/* One handle per wedge, like a slider's: a short bar in the Area's hue with a gap of the card's colour round it. It waits
-   at the wedge's inner edge until rated, then rides the fill's edge. */
+/* One handle per wedge, the same pill along the arc rated or not. With no fill under it, it waits by the hub in the
+   Area's hue with a gap of the card's colour round it; on a fill it rides the edge, cut out in the fill's ink. */
 .wheel-handle { pointer-events: none; }
 .wheel-handle path { stroke-linecap: round; }
 .wheel-handle-halo { stroke: var(--surface-container-low); stroke-width: 8; }
 .wheel-handle-bar { stroke: var(--tone); stroke-width: 4; }
-.wheel-hint { margin-block-start: var(--s1); font: var(--body-small); color: var(--on-surface-variant); text-align: center; }
+.wheel-handle.on-fill .wheel-handle-halo { stroke: none; }
+.wheel-handle.on-fill .wheel-handle-bar { stroke: var(--on-tone); }
+/* Until the first rating the header's end says how to rate; the sheet's link waits out of sight in the tab order and
+   takes the hint's place when it has focus. */
+.wheel-hint { font: var(--body-small); color: var(--on-surface-variant); }
+.wheel-copy:has(.wheel-hint) .text-btn:not(:focus-visible) {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: clip;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.wheel-copy:has(.text-btn:focus-visible) .wheel-hint { display: none; }
 .wheel-average {
   position: absolute;
   inset-block-start: 50%;
@@ -65,9 +81,14 @@
   padding-block: 0 var(--s1);
   padding-inline-start: calc(var(--gutter) + var(--s2));
 }
+/* A Goal reads as its Area's child: body text under the Area's title. */
+.life-area-group > .list-item.nested .list-headline { font: var(--body-medium); }
 :is(.life-areas, .area-goals, .goal-projects) :is(.list-headline, .list-supporting) { text-wrap: pretty; }
-/* A Project row is two lines: its name and its Result; the ring says how far along it is. */
+/* A Project row is its ring, its name (and on a Goal's page one line of its Result), then "done/total" by the
+   chevron, as on a Project card's Block rows. */
 .goal-projects .list-supporting { overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+.project-row-end { display: flex; align-items: center; gap: var(--s2); color: var(--on-surface-variant); }
+.project-row-count { font: var(--label-medium); }
 .list-item.add-row .leading, .list-item.add-row .list-headline { color: var(--primary); }
 .list-item.add-row .list-headline { font: var(--label-large); }
 /* An Area's page keeps one icon column, centred under the avatar like the Purpose and rating rows, and one text edge;

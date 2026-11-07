@@ -1,5 +1,5 @@
 /** The Wheel of Life: one wedge per Area, an empty track (its rim and faint scale marks in the Area's hue) filled from
- * the centre to rating/10. Each wedge has one handle, waiting at its inner edge until rated and on the fill's edge after;
+ * the centre to rating/10. Each wedge has one handle, a pill along its arc: by the hub until rated, on the fill's edge after;
  * dragging a wedge moves it and sets that Area's rating in whole points, saved on release with Undo. "Rate your Areas" stays the keyboard and
  * screen-reader route. The Area list under the card (life.mjs) opens each Area. */
 import {el, attrs, button} from './dom.mjs';
@@ -67,17 +67,12 @@ export function handlePath(i, n, radius, length = 14, {centre: c} = WHEEL) {
   return `M${p(mid - half)} A${radius} ${radius} 0 0 1 ${p(mid + half)}`;
 }
 
-/** An unrated wedge's handle: a short pill from its inner edge pointing outward, the way the wedge is pulled. */
-export function pullPath(i, n, {centre: c, inner} = WHEEL) {
-  const mid = -Math.PI / 2 + (i + 0.5) * TAU / n;
-  const p = r => `${(c + r * Math.cos(mid)).toFixed(2)} ${(c + r * Math.sin(mid)).toFixed(2)}`;
-  return `M${p(inner + 6)} L${p(inner + 16)}`;
-}
+/** The handle: one short pill along the arc, waiting just outside the hub while unrated (or rated 0) and riding the
+ * fill's edge once there is a fill. */
+export const handleD = (i, n, rating) => handlePath(i, n, Math.max(WHEEL.inner + 6, radiusFor(rating) - 3));
 
-/** The handle: pointing outward from the inner edge while unrated; across the fill's edge once rated. */
-export const handleD = (i, n, rating) => (rating == null
-  ? pullPath(i, n)
-  : handlePath(i, n, Math.max(WHEEL.inner + 6, radiusFor(rating) - 3)));
+/** A handle on a fill is cut out of it in the fill's ink; with no fill under it, it is drawn in the Area's hue. */
+export const handleOnFill = rating => (rating ?? 0) > 0;
 
 export const averageOf = ratings => {
   const rated = ratings.filter(r => r != null);
@@ -110,7 +105,7 @@ function plot(app, areas) {
     };
     const d = handleD(i, n, area.rating);
     parts.handle.append(node('path', {d, class: 'wheel-handle-halo'}), node('path', {d, class: 'wheel-handle-bar'}));
-    parts.handle.classList.toggle('unrated', area.rating == null);
+    parts.handle.classList.toggle('on-fill', handleOnFill(area.rating));
     g.append(node('path', {d: arcPath(i, n, WHEEL.outer), class: 'wheel-rim'}), parts.ahead, parts.value, parts.cuts, parts.handle);
     svg.append(g);
     return parts;
@@ -149,7 +144,7 @@ function bindDrag(app, areas, svg, {wedges, labels, average}) {
     value.setAttribute('d', wedgePath(i, n, radiusFor(rating)));
     const d = handleD(i, n, rating);
     for (const path of handle.children) path.setAttribute('d', d);
-    handle.classList.toggle('unrated', rating == null);
+    handle.classList.toggle('on-fill', handleOnFill(rating));
     labels[i].lastChild.textContent = rating == null ? '' : String(rating);
     average.textContent = averageOf(areas.map((a, j) => (j === i ? rating : a.rating))) ?? '';
   };
@@ -187,8 +182,9 @@ export function wheelCard(app, areas, rateAreas) {
   const card = el('section', 'wheel-card');
   const copy = el('div', 'wheel-copy');
   copy.append(el('h2', '', 'Wheel of Life'), button('Rate your Areas', () => rateAreas(app), 'text-btn'));
+  // Until the first rating the header says how the wheel works in place of the sheet's link, so the instruction shows
+  // once; the link stays in the tab order and takes the hint's place when it has focus.
+  if (areas.length && areas.every(a => a.rating == null)) copy.append(el('p', 'wheel-hint', 'Drag a wedge to rate'));
   card.append(copy, plot(app, areas));
-  // Until the first rating nothing on the wheel has moved yet, so one line says how it works.
-  if (areas.length && areas.every(a => a.rating == null)) card.append(el('p', 'wheel-hint', 'Drag a wedge outward to rate'));
   return card;
 }
