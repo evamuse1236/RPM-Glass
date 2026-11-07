@@ -14,16 +14,15 @@ function agendaTime(item){
  return gutter;
 }
 
-/** A row is the time gutter, the mark, and the title (up to two lines before an ellipsis) with the Must star. */
+/** A row is the time gutter, the mark, and the title (up to two lines before an ellipsis), the Must star inline after its last word. */
 function agendaRow(item,now){
  const live=item.start!=null&&item.start<=now&&(item.end??item.start)>now;
  const row=el('li',['agenda-row',item.kind==='event'?'event':'',item.done?'done':'',live?'now':''].filter(Boolean).join(' '));
  row.append(agendaTime(item));
  row.append(icon(item.kind==='event'?'event':item.done?'check_circle':'radio_button_unchecked',{cls:'agenda-mark'}));
- const body=el('div','agenda-body');
- body.append(el('p','agenda-title',item.title));
- if(item.must){const star=icon('star',{fill:true,cls:'must-mark'});star.removeAttribute('aria-hidden');star.setAttribute('role','img');star.setAttribute('aria-label','Must');body.append(star);}
- row.append(body);
+ const title=el('p','agenda-title',item.title);
+ if(item.must){const star=icon('star',{fill:true,cls:'must-mark'});star.removeAttribute('aria-hidden');star.setAttribute('role','img');star.setAttribute('aria-label','Must');title.append(' ',star);}
+ row.append(title);
  return row;
 }
 

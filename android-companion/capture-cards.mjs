@@ -119,7 +119,7 @@ export function receiptCard(capture,{canUndo,on,undoId}){
  if(change)node.append(change);
  const countdown=el('span','countdown');
  countdown.setAttribute('aria-live','off');
- node.append(actionsRow(countdown,canUndo?button('Undo',()=>on.undo(draft),{role:'text',iconName:'undo'}):null,
+ node.append(actionsRow(countdown,canUndo?button('Undo',()=>on.undo(draft),{role:'text'}):null,
   button('Open planner',on.openPlanner,{role:'text'})));
  return node;
 }

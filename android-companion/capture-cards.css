@@ -93,18 +93,19 @@
 
 .agenda{display:grid;grid-template-columns:max-content 16px minmax(0,1fr);column-gap:8px;margin:0;padding:0;list-style:none}
 /* A schedule list: one gutter as wide as its longest time ("11:30 AM" on one line); the marker sits in its own column so wrapped words line up under the title. */
-.agenda-row{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding-block:8px;border-block-start:1px solid color-mix(in oklch,var(--bar-outline) 70%,transparent)}
+.agenda-row{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding-block:var(--s2) var(--s1);border-block-start:1px solid color-mix(in oklch,var(--bar-outline) 70%,transparent)}
 .agenda-row:first-child{border-block-start:0}
-.agenda-time{display:grid;font:var(--label-medium);color:var(--bar-on-variant);font-variant-numeric:tabular-nums;white-space:nowrap}
-/* The end, under the start like Today's gutter: same size, lighter weight, so the start leads. */
-.agenda-end{font-weight:400}
+.agenda-time{display:grid;font:var(--label-medium);color:var(--bar-on);font-variant-numeric:tabular-nums;white-space:nowrap}
+/* The end, under the start like Today's gutter, a step smaller, lighter and muted, so the start leads. */
+.agenda-end{font:var(--label-small);font-weight:400;color:var(--bar-on-variant)}
 .agenda-mark{align-self:start;font-size:16px;color:var(--bar-on-variant);margin-block-start:2px}
-.agenda-row.now :is(.agenda-time,.agenda-mark,.agenda-end){color:var(--bar-primary)}
-.agenda-row>.agenda-title{grid-column:2/-1}
-.agenda-body{display:flex;align-items:flex-start;gap:4px;min-inline-size:0}
+.agenda-row.now :is(.agenda-time,.agenda-mark){color:var(--bar-primary)}
 /* The title has the row: it wraps to a second line before an ellipsis cuts it. */
-.agenda-title{flex:0 1 auto;min-inline-size:0;margin:0;font:var(--body-medium);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:clip;overflow-wrap:break-word;text-wrap:pretty}
-.agenda-body>.must-mark{flex:none;font-size:16px;margin-block-start:2px}
+.agenda-title{min-inline-size:0;margin:0;font:var(--body-medium);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:clip;overflow-wrap:break-word;text-wrap:pretty}
+/* A meal row has no mark: its words start in the mark's column. */
+.agenda-time+.agenda-title{grid-column:2/-1}
+/* The Must star follows the last word, as in Tasks; inline-block keeps a done row's strike off it. */
+.agenda-title>.must-mark{display:inline-block;font-size:16px;vertical-align:-2px}
 /* The day heading sits a step below the rows it heads: the tasks are the content. */
 .card-title.day-title{font:var(--title-small);color:var(--bar-on-variant)}
 /* The heading row: the title and, at its end, the one link to the planner. The link keeps its 40dp touch target but
@@ -226,10 +227,8 @@ button.voice-item{cursor:pointer}
 button.voice-item:active{background:var(--bar-highest)}
 button.voice-item:focus-visible{outline:2px solid var(--bar-primary);outline-offset:-2px}
 .voice-item.flash{animation:row-flash calc(var(--dur-medium2) * 2) var(--ease-standard) both}
-/* A row is a title and one subtitle line: when, then the note ("Tomorrow, 10:00 AM · Inbox"). */
+/* A row is a title and one subtitle line, kept even when empty so rows sit level: when, then the note ("Tomorrow, 10 AM · Inbox"). */
 .voice-lane{display:grid;grid-template-columns:calc(20px + var(--s3)) auto minmax(0,1fr);grid-template-areas:"glyph title title" "glyph when note";grid-template-rows:auto 16px;align-items:center}
-/* A row with nothing for its second line is one line, centred on its icon; the line opens when its time or note arrives. */
-.voice-lane:has(.voice-note[hidden]):has(.voice-when .cell[data-v=""]){grid-template-rows:auto 0px}
 .voice-lane>.voice-when,.voice-lane>.voice-what>.voice-note{align-self:stretch;min-block-size:0;overflow:clip}
 .voice-glyph{grid-area:glyph;display:grid;place-items:center start;color:var(--bar-primary)}
 .voice-glyph .ms{font-size:20px}
@@ -250,7 +249,6 @@ button.voice-item:focus-visible{outline:2px solid var(--bar-primary);outline-off
   .voice-lead{transition:opacity var(--dur-short4) var(--ease-standard),filter var(--dur-short4) var(--ease-standard)}
   .voice-lead .w{animation:word-in calc(var(--dur-medium2) * 2) var(--ease-emphasized) both}
   .voice-row{transition:grid-template-rows var(--dur-medium1) var(--ease-emphasized-decelerate)}
-  .voice-lane{transition:grid-template-rows var(--dur-medium2) var(--ease-emphasized-decelerate)}
   .voice-row-clip{transition:opacity var(--dur-medium1) var(--ease-emphasized-decelerate)}
   button.voice-item{transition:background-color var(--dur-short3) var(--ease-standard)}
 }
