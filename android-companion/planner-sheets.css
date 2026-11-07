@@ -281,6 +281,10 @@
   overflow: hidden;
   field-sizing: content;
 }
+.quick-purpose { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--s2) 0; font: var(--body-medium);
+  color: var(--on-surface-variant); }
+.quick-purpose[hidden] { display: none; }
+.quick-purpose .ms { font-size: 20px; }
 .quick-field::placeholder { color: var(--on-surface-variant); }
 .quick-field:focus-visible { outline: none; border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
 .quick-details:active { background: var(--row-press); }
@@ -309,13 +313,6 @@
 .block-chip .chip-drop { margin-inline-start: calc(-1 * var(--s1)); }
 :root[data-large-text=true] .sheet .quick-row:is(.quick-days, .block-chips) { flex-wrap: wrap; }
 :root[data-large-text=true] .block-chips > .assist-chip { max-width: 80%; }
-/* The Block chip names the whole Result; the Block's Purpose, which the task inherits, sits under it on one line, its
-   heart on the chip's icon column and its words on the chip's label edge. */
-.sheet .quick-row.block-chips { flex-wrap: wrap; }
-.block-purpose { display: flex; flex-basis: 100%; align-items: center; gap: var(--s2); min-inline-size: 0; margin: var(--s1) 0 0; padding-inline: var(--s2) 0; font: var(--body-medium); color: var(--on-surface-variant); }
-.block-purpose[hidden] { display: none; }
-.block-purpose .ms { flex: none; inline-size: 20px; font-size: 16px; text-align: center; }
-.block-purpose span { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
 .sheet-quick .field-fold .fold-inner { padding-left: 0; }
 .must-chip.on .ms { color: var(--must); }
 .alert-choices { margin-top: var(--s1); }

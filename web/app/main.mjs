@@ -43,7 +43,7 @@ function mount() {
   root.style.setProperty('--text-scale', String(PHONE.fontScale));
   ui = mountPlanner({getData: () => queue.data(), getPhone: () => PHONE, native: createWebNative({openCapture}), sortPreview,
     commit: async op => queue.commit(op), menuItems, wide: isWide});
-  const sidebar = mountSidebar($('sidebar'), $('planner'), ui, $('sheet'));
+  const sidebar = mountSidebar($('sidebar'), $('planner'), ui);
   const agenda = mountAgenda($('agenda'), $('planner'), ui, () => queue.data());
   glance = () => { sidebar.setInbox(inboxRows(queue.data()).length); agenda(); };
   if (matchMedia(FINE).matches) mountRowTools(document);

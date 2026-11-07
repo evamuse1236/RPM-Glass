@@ -125,26 +125,3 @@ test('Capture on a wide window sits on a full scrim and has no helper line', () 
   assert.match(wide, /\.capture-sheet::backdrop \{[^}]*background: light-dark\(var\(--scrim\), /);
   assert.doesNotMatch(read('./index.html'), /capture-hint|capture-help/);
 });
-
-test('on a wide window the open Inbox is a page: the sidebar marks it, and a tab closes it first', () => {
-  const nav = new FakeElement('nav');
-  const sheet = new FakeElement('section');
-  const ui = fakeUi();
-  ui.closeSheet = () => { ui.calls.push(['closeSheet']); sheet.hidden = true; };
-  mountSidebar(nav, new FakeElement('main'), ui, sheet);
-  const [sheetObserver] = observers.slice(-2);
-  assert.equal(sheetObserver.node, sheet);
-  const current = () => [...nav.querySelectorAll('[aria-current=page]')].map(labelOf);
-  sheet.hidden = false;
-  sheet.dataset.inline = '';
-  sheet.classList.add('sheet-inbox');
-  sheetObserver.fn();
-  assert.deepEqual(current(), ['Inbox']);
-  nav.children[1].children[1].click();
-  assert.deepEqual(ui.calls, [['closeSheet'], ['goTab', DESTINATIONS[1][0]]]);
-  sheetObserver.fn();
-  assert.deepEqual(current(), ['Today']);
-  const css = read('./wide-pages.css');
-  assert.match(css, /\.planner-view:has\(> #sheet\.sheet-inbox\[data-inline\]:not\(\[hidden\]\)\) > #planner \{ display: none; \}/);
-  assert.match(main, /mountSidebar\(\$\('sidebar'\), \$\('planner'\), ui, \$\('sheet'\)\)/);
-});

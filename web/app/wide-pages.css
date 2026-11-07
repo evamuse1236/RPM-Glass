@@ -1,6 +1,8 @@
 @media (width >= 1080px) {
   #sheet[data-inline] .sheet-header:has(> h2:not(.visually-hidden)) { min-block-size: 64px; }
   #sheet[data-inline][aria-label=Inbox] .sheet-actions { display: none; }
+  #sheet[data-inline].sheet-inbox > .sheet-header { padding-block-start: 0; }
+  #sheet[data-inline].sheet-inbox .task-row { min-block-size: 48px; }
   #sheet[data-inline].sheet-inbox .task-main { padding-block: var(--s3); }
   #sheet[data-inline].sheet-inbox .task-check { margin-block-start: var(--s1); }
   #sheet[data-inline].sheet-quick .sheet-header { display: flex; }
@@ -174,44 +176,4 @@
     border-radius: var(--shape-sm);
     font: var(--label-large);
   }
-
-  /* Quick add and the Inbox leave the agenda where it was, so the day ahead stays in view while tasks are added or filed. */
-  .planner-view:has(> #sheet:is(.sheet-quick, .sheet-inbox)[data-inline]:not([hidden])) { grid-template-columns: var(--side) minmax(0, 1fr); }
-  .planner-view:has(> #agenda:not([hidden])):has(> #sheet:is(.sheet-quick, .sheet-inbox)[data-inline]:not([hidden])) { grid-template-columns: var(--side) minmax(0, 1fr) var(--agenda); }
-  .planner-view:has(> #sheet:is(.sheet-quick, .sheet-inbox)[data-inline]:not([hidden])) > #agenda:not([hidden]) { display: flex; }
-
-  /* Quick add is a floating card over the page, the size of what it asks, not a full-height column: it opens over the
-     main column under the page title, grows downward as options open, and keeps the page beside it live (no scrim). */
-  .planner-view > #sheet.sheet-quick[data-inline] {
-    --sheet-surface: light-dark(var(--surface-container-lowest), var(--surface-container-high));
-    position: fixed;
-    inset: calc(4 * var(--s6) + var(--s4)) var(--s6) auto calc(var(--side) + var(--s6));
-    inline-size: min(100% - var(--side) - 2 * var(--s6), 560px);
-    max-block-size: calc(100dvh - 6 * var(--s6) - var(--s4));
-    margin-inline: auto;
-    border: 1px solid var(--float-border);
-    border-radius: var(--shape-xl);
-    box-shadow: var(--elev-3);
-  }
-  .planner-view:has(> #agenda:not([hidden])) > #sheet.sheet-quick[data-inline] {
-    inset-inline-end: calc(var(--agenda) + 2 * var(--s6));
-    inline-size: min(100% - var(--side) - var(--agenda) - 4 * var(--s6), 560px);
-  }
-  #sheet[data-inline].sheet-quick > .sheet-header { padding-block-start: var(--s2); }
-  #sheet[data-inline].sheet-quick > .sheet-actions { padding-block-end: var(--s4); }
-  #planner-view #sheet.sheet-quick[data-inline]:not([hidden]) ~ #snackbar#snackbar { inset-inline-end: var(--s4); }
-
-  /* The Inbox is a page of its own in the main column: its title reads like the other pages' titles, its rows keep the
-     phone's 16/24 titles in a 720px column, and the sidebar marks Inbox as the page shown. Filing is the one Move to
-     Block tool on the hovered or focused row. */
-  .planner-view:has(> #sheet.sheet-inbox[data-inline]:not([hidden])) > #planner { display: none; }
-  .planner-view > #sheet.sheet-inbox[data-inline] { --sheet-surface: var(--surface); grid-column: 2; border-inline-start: 0; }
-  #sheet[data-inline].sheet-inbox > * { inline-size: min(100%, 720px); }
-  #sheet[data-inline].sheet-inbox > .sheet-header { min-block-size: 72px; padding-block: calc(2 * var(--s6)) var(--s2); }
-  #sheet[data-inline].sheet-inbox > .sheet-header > h2 { font: var(--headline-medium); letter-spacing: -.01em; }
-  #sheet[data-inline].sheet-inbox .sheet-count { font: var(--title-large); color: var(--on-surface-variant); }
-  #sheet[data-inline].sheet-inbox .task-row { min-block-size: 56px; }
-  #sheet[data-inline].sheet-inbox .task-title { font: var(--body-large); }
-  #sheet[data-inline].sheet-inbox .inbox-scheduled { padding-block-start: var(--s6); }
-  #planner-view #sheet.sheet-inbox[data-inline]:not([hidden]) ~ #snackbar#snackbar { inset-inline-end: var(--s4); }
 }
