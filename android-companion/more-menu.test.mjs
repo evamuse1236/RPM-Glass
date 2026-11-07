@@ -24,9 +24,10 @@ test('Today\'s List view and Day view switch lives once, in Go to date under the
     /labelButton\(list \? 'view_day' : 'view_agenda', list \? 'Day view' : 'List view'/);
 });
 
-test('the menu has a 1dp outline-variant edge, so it stands off the page in light', () => {
+test('the menu is one plain M3 surface: surface-container-high lifted by level 2, with no outline under the shadow', () => {
   const css = read('planner-menus.css');
   const menu = css.match(/\n\.menu \{([^}]*)\}/)?.[1] ?? '';
-  assert.match(menu, /border: 1px solid var\(--outline-variant\);/);
   assert.match(menu, /background: var\(--surface-container-high\);/);
+  assert.match(menu, /box-shadow: var\(--elev-2\);/);
+  assert.doesNotMatch(menu, /border:/);
 });
