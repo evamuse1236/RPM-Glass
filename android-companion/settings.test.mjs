@@ -36,25 +36,39 @@ test('home is one short list of pages; each row pushes its page',async()=>{
   assert.deepEqual(opened,['alerts']);
 });
 
-test('a blocked alarm permission is said once: one red row above the list names what to allow, and its page lists Permissions first with a red Allow',async()=>{
+test('a blocked alarm permission shows one red card with one Allow that starts the fix, and the Alarms row says Not allowed',async()=>{
   const home=await mounted({notificationsAllowed:true,exactAlarmsAllowed:false});
-  assert.equal(home.labels[0],'Alarms may not ring');
-  assert.equal(home.rows[0].dataset.tone,'error');
-  assert.equal(home.rows[0].querySelector('.settings-detail').textContent,'Allow exact alarms');
-  const row=home.rows.findLast(r=>r.dataset.action==='open_alerts');
+  const alert=home.host.querySelector('.settings-alert');
+  assert.equal(alert.querySelector('.settings-label').textContent,'Alarms may not ring');
+  assert.equal(alert.querySelector('.settings-detail').textContent,'Exact alarms are off');
+  const allow=alert.querySelector('.settings-alert-action');
+  assert.equal(allow.textContent,'Allow');
+  assert.equal(allow.dataset.action,'exact_alarms');
+  assert.equal(allow.getAttribute('aria-label'),'Allow exact alarms');
+  assert.equal(alert.querySelector('.ms:not(.settings-icon .ms)'),null);
+  const row=home.rows.find(r=>r.dataset.action==='open_alerts');
   assert.equal(row.dataset.tone,undefined);
-  assert.equal(row.querySelector('.settings-value'),null);
+  assert.equal(row.querySelector('.settings-value').textContent,'Not allowed');
   const both=await mounted({});
-  assert.equal(both.rows[0].querySelector('.settings-detail').textContent,'Allow notifications and exact alarms');
+  assert.equal(both.host.querySelector('.settings-alert .settings-detail').textContent,'Notifications and exact alarms are off');
+  assert.equal(both.host.querySelector('.settings-alert-action').dataset.action,'notifications');
   const fine=await mounted({notificationsAllowed:true,exactAlarmsAllowed:true});
-  assert.notEqual(fine.labels[0],'Alarms may not ring');
-  home.rows[0].click();
-  assert.deepEqual(home.opened,['alerts']);
+  assert.equal(fine.host.querySelector('.settings-alert'),null);
+  assert.equal(fine.rows.find(r=>r.dataset.action==='open_alerts').querySelector('.settings-value').textContent,'On');
   const alerts=await mounted({notificationsAllowed:true,exactAlarmsAllowed:false},'alerts');
   assert.deepEqual([...alerts.host.querySelectorAll('.settings-group')].map(g=>g.dataset.section),['permissions','sounds']);
   const exact=alerts.rows.find(r=>r.dataset.action==='exact_alarms');
   assert.equal(exact.dataset.tone,'error');
   assert.equal(exact.querySelector('.settings-value').textContent,'Allow');
+  assert.equal(alerts.rows.find(r=>r.dataset.action==='notifications').querySelector('.settings-value').textContent,'Allowed');
+});
+
+test('every row on the Alarms page ends in one style: a value with a chevron or one action word',async()=>{
+  const alerts=await mounted({notificationsAllowed:false,exactAlarmsAllowed:false},'alerts');
+  const word=action=>alerts.rows.find(r=>r.dataset.action===action).querySelector('.settings-act')?.textContent;
+  assert.equal(word('check_alerts'),'Check');
+  assert.equal(word('preview_alarm'),'Play');
+  assert.ok(!alerts.rows.some(r=>r.querySelector('.settings-trail')));
 });
 
 test('a missing key reads Not set on its own row, and Voice says what the mic uses without one',async()=>{
@@ -73,16 +87,19 @@ test('remove rows show only for connected keys, last, in red',async()=>{
   assert.equal(last.dataset.tone,'error');
 });
 
-test('every key lives once, in AI keys; Voice without a Gemini key links there and says the mic uses dictation',async()=>{
+test('every key lives once, in AI keys; Voice without a Gemini key says the mic uses dictation in one line that links there',async()=>{
   const voice=await mounted({},'voice');
-  const key=voice.rows.find(r=>r.dataset.action==='open_ai');
-  assert.equal(key.querySelector('.settings-value').textContent,'Add in AI keys');
-  assert.match(voice.host.querySelector('.settings-caption').textContent,/Android dictation/);
+  assert.ok(!voice.rows.some(r=>r.dataset.action==='open_ai'));
+  const lead=voice.host.querySelector('.settings-lead');
+  assert.match(lead.textContent,/Android dictation/);
+  const link=lead.querySelector('.settings-link');
+  assert.equal(link.textContent,'Add a Gemini key');
   assert.ok(!voice.rows.some(r=>/gemini_key$/.test(r.dataset.action)));
-  key.click();
+  link.click();
   assert.deepEqual(voice.opened,['ai']);
   const keyed=await mounted({hasGeminiKey:true},'voice');
   assert.deepEqual(keyed.labels,['Voice','Persona']);
+  assert.equal(keyed.host.querySelector('.settings-lead'),null);
   const ai=await mounted({hasGeminiKey:true},'ai');
   assert.ok(ai.rows.some(r=>r.dataset.action==='connect_gemini_key'));
   assert.equal(ai.rows.at(-1).dataset.action,'remove_gemini_key');

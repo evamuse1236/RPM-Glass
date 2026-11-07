@@ -30,6 +30,7 @@ function homeValue(ctx, page) {
   switch (page) {
     case 'appearance': return THEME_NAMES[clarityPreferences().appearance];
     case 'notch': return s.notchOn ? 'On' : 'Off';
+    case 'alerts': return alarmsBlocked(s) ? 'Not allowed' : 'On';
     case 'voice': return s.hasGeminiKey ? voiceChoice().voice ?? 'Default' : 'Dictation';
     case 'ai': { const keys = connectedKeys(s); return keys.length ? keys.join(', ') : 'Not set'; }
     case 'diagnostics': { const log = s.diagnostics ?? {}; return !log.connected ? 'Off' : log.paused ? 'Paused' : 'On'; }
@@ -37,19 +38,41 @@ function homeValue(ctx, page) {
   }
 }
 
+/** A problem card on the home list: what will go wrong, why, and one Allow that starts the fix. */
+function problemCard(ctx, {label, detail, allow, action}) {
+  const card = el('div', 'settings-alert');
+  card.setAttribute('role', 'group');
+  card.setAttribute('aria-label', label);
+  const box = el('span', 'settings-icon');
+  box.dataset.tone = 'red';
+  box.append(symbol('error'));
+  const copy = el('span', 'settings-copy');
+  copy.append(el('span', 'settings-label', label), el('span', 'settings-detail', detail));
+  const fix = el('button', 'tonal-btn settings-alert-action', 'Allow');
+  fix.type = 'button';
+  fix.dataset.action = action;
+  fix.setAttribute('aria-label', allow);
+  fix.addEventListener('click', () => ctx.act(ctx, action));
+  card.append(box, copy, fix);
+  return card;
+}
+
+const capital = text => text.charAt(0).toUpperCase() + text.slice(1);
+
 export function homePage(ctx) {
   const s = ctx.state;
   const sections = [];
   const problems = [];
-  if (alarmsBlocked(s)) problems.push({page: 'alerts', label: 'Alarms may not ring', detail: `Allow ${alarmsOff(s).join(' and ')}`});
-  if (notchWaiting(s)) problems.push({page: 'notch', label: 'The notch is waiting for Android', detail: 'Allow RPM Notch to show it'});
+  if (alarmsBlocked(s)) {
+    const off = alarmsOff(s);
+    problems.push({label: 'Alarms may not ring', detail: `${capital(off.join(' and '))} are off`,
+      allow: `Allow ${off[0]}`, action: s.notificationsAllowed ? 'exact_alarms' : 'notifications'});
+  }
+  if (notchWaiting(s)) problems.push({label: 'The notch is waiting for Android', detail: 'RPM Notch is off in Accessibility',
+    allow: 'Allow RPM Notch', action: 'notch_permission'});
   if (problems.length) {
     const attention = group('', {id: 'attention'});
-    for (const {page, label, detail} of problems) {
-      const node = row({label, detail, icon: 'error', tile: 'red', next: true, tone: 'error', action: `open_${page}`});
-      node.addEventListener('click', () => ctx.options.openPage?.(page));
-      attention.card.append(node);
-    }
+    for (const problem of problems) attention.card.append(problemCard(ctx, problem));
     sections.push(attention);
   }
   for (const pages of HOME_GROUPS) {
@@ -92,8 +115,8 @@ function notchPage(ctx) {
   }
   const butterfly = group('', {id: 'widgets'});
   if (!s.overlayAllowed) {
-    add(ctx, butterfly, {label: 'Floating butterfly', detail: 'Open Capture over your other apps', value: 'Allow',
-      action: 'overlay_permission', next: true});
+    add(ctx, butterfly, {label: 'Floating butterfly', detail: 'Open Capture over your other apps', value: 'Allow', tone: 'error',
+      action: 'overlay_permission'});
   } else {
     add(ctx, butterfly, {label: 'Floating butterfly', detail: 'Open Capture over your other apps',
       action: s.launcherRunning ? 'hide_butterfly' : 'show_butterfly', role: 'switch', toggle: !!s.launcherRunning});
@@ -103,7 +126,7 @@ function notchPage(ctx) {
   return [notch, butterfly, widgets];
 }
 
-/** A permission says its state once: a quiet Allowed, or a tonal Allow on the chevron line. */
+/** A permission says its state once: a quiet Allowed, or the row's one action word, Allow, on the chevrons' edge. */
 const permission = allowed => allowed ? {value: 'Allowed'} : {value: 'Allow', tone: 'error'};
 
 function alertsPage(ctx) {
@@ -112,38 +135,38 @@ function alertsPage(ctx) {
     caption: 'Battery saving can delay reminders.'});
   add(ctx, allowed, {label: 'Notifications', detail: 'For reminders and ringing alarms', ...permission(s.notificationsAllowed), action: 'notifications'});
   add(ctx, allowed, {label: 'Exact alarms', detail: 'For alarms at the chosen minute', ...permission(s.exactAlarmsAllowed), action: 'exact_alarms'});
-  add(ctx, allowed, {label: 'Check saved alerts', detail: 'Run after a permission change', action: 'check_alerts', trail: 'refresh'});
+  add(ctx, allowed, {label: 'Check saved alerts', detail: 'Run after a permission change', action: 'check_alerts', act: 'Check'});
   const sounds = group('Sounds', {id: 'sounds'});
   add(ctx, sounds, {label: 'Alarm sound', value: s.alarmSound, action: 'choose_alarm', next: true});
   add(ctx, sounds, {label: s.previewing ? 'Stop alarm sound' : 'Play alarm sound', detail: s.previewing ? 'Playing at alarm volume' : '5 seconds at alarm volume',
-    action: 'preview_alarm', trail: s.previewing ? 'stop' : 'play_arrow'});
+    action: 'preview_alarm', act: s.previewing ? 'Stop' : 'Play'});
   add(ctx, sounds, {label: 'Reminder sound', value: s.reminderSound, action: 'reminder_sound', next: true});
   return [allowed, sounds];
 }
 
 /** Voice and persona live on this phone, not in native settings; each opens an M3 dialog and saves at once.
- *  The Gemini key lives once, in AI keys; with none, a row links there and a caption says what the mic does meanwhile. */
+ *  The Gemini key lives once, in AI keys; with none, one line above the card says what the mic uses and links there. */
 function voicePage(ctx) {
   const s = ctx.state;
   const {voice, persona} = voiceChoice();
-  const sections = [];
+  const sound = group('', {id: 'voice'});
   if (!s.hasGeminiKey) {
-    const key = group('', {id: 'voice-key', caption: 'Until then, the mic uses Android dictation.'});
-    const keyRow = row({label: 'Gemini key', value: 'Add in AI keys', action: 'open_ai', next: true});
-    keyRow.addEventListener('click', () => ctx.options.openPage?.('ai'));
-    key.card.append(keyRow);
-    sections.push(key);
+    const note = el('p', 'settings-lead', 'The mic uses Android dictation. ');
+    const link = el('button', 'settings-link', 'Add a Gemini key');
+    link.type = 'button';
+    link.dataset.action = 'open_ai';
+    link.addEventListener('click', () => ctx.options.openPage?.('ai'));
+    note.append(link);
+    sound.insertBefore(note, sound.card);
   }
   const open = dialog => { document.body.append(dialog); dialog.showModal(); };
-  const sound = group('', {id: 'voice'});
   const voiceRow = row({label: 'Voice', value: voice ?? 'Default', action: 'voice_name', next: true});
   voiceRow.addEventListener('click', () => open(voiceDialog(document, voice, next => { setVoice(next); ctx.render(ctx); })));
   const personaRow = row({label: 'Persona', detail: persona, value: persona ? '' : 'Not set', action: 'voice_persona', next: true});
   if (persona) personaRow.querySelector('.settings-detail')?.classList.add('settings-clamp');
   personaRow.addEventListener('click', () => open(personaDialog(document, persona, next => { setPersona(next); ctx.render(ctx); })));
   sound.card.append(voiceRow, personaRow);
-  sections.push(sound);
-  return sections;
+  return [sound];
 }
 
 /** Every key in one place: what each one does, and Connected or Not set. */
@@ -167,7 +190,7 @@ function aiPage(ctx) {
 
 function syncPage(ctx) {
   const cloud = group('', {id: 'cloud'});
-  add(ctx, cloud, {label: 'Link a web browser', action: 'cloud_web', next: true});
+  add(ctx, cloud, {label: 'Link a web browser', detail: 'Plan on a computer with the same tasks', action: 'cloud_web', next: true});
   const files = group('Backup', {id: 'context-history', caption: 'Plans stay on this phone.'});
   add(ctx, files, {label: 'Export', action: 'export_context', next: true});
   add(ctx, files, {label: 'Import', action: 'import_context', next: true});
@@ -230,8 +253,6 @@ export function phoneOnlyPage(ctx, text) {
     node.addEventListener('click', () => ctx.options.openPage?.(page));
     section.card.append(node);
   }
-  const note = section.querySelector('.settings-caption');
-  note.classList.add('settings-footnote');
-  note.prepend(symbol('smartphone'));
+  section.querySelector('.settings-caption').classList.add('settings-footnote');
   return [section];
 }

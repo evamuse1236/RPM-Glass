@@ -99,8 +99,16 @@
 .settings-note { padding-block: var(--s1); font: var(--body-small); color: var(--on-surface-variant); overflow-wrap: anywhere; }
 .settings-caption { padding-inline: var(--s4); font: var(--body-small); color: var(--on-surface-variant); text-wrap: pretty; }
 /* The website's note on what is set on the phone: body text with a phone glyph, not a card. */
-.settings-caption.settings-footnote { display: flex; align-items: start; gap: var(--s3); font: var(--body-medium); }
-.settings-footnote .ms { flex: none; inline-size: 32px; font-size: 20px; text-align: center; color: var(--on-surface-variant); }
+.settings-caption.settings-footnote { padding-inline-start: calc(var(--s4) + 32px + var(--s3)); font: var(--body-medium); }
+/* One line above a card that says what happens now, with an inline link to the fix. */
+.settings-lead { padding-inline: var(--s4); font: var(--body-medium); color: var(--on-surface-variant); text-wrap: pretty; }
+.settings-link { display: inline; padding-block: var(--s3); margin-block: calc(var(--s3) * -1); font: inherit; font-weight: 500; color: var(--primary); }
+.settings-link:active { color: color-mix(in oklch, var(--primary) 70%, var(--on-surface)); }
+.settings-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--r-tile); }
+/* A problem on the home list: red tile, red title, the reason, and one tonal Allow that starts the fix. */
+.settings-alert { display: flex; align-items: center; gap: var(--s3); min-block-size: 56px; padding: var(--s3) var(--s3) var(--s3) var(--s4); }
+.settings-alert .settings-label { color: var(--error); }
+.settings-alert-action { flex: none; padding-inline: var(--s4); margin-block: 0; }
 .settings-row {
   --row-indent: var(--s4);
   position: relative;
@@ -141,12 +149,10 @@ button.settings-row:active { background: var(--row-press); }
 /* A value with no chevron after it ends on the same line as the values that have one. */
 .settings-row:not([data-tone=error]) > .settings-value:last-child { margin-inline-end: calc(var(--s6) + var(--s1)); }
 .settings-row > .ms { flex: none; margin-inline-start: calc(var(--s2) * -1); color: var(--outline); }
-.settings-row > .settings-trail { color: var(--primary); }
 .settings-row[data-tone=error] .settings-label { color: var(--error); }
 .settings-row[data-tone=error]:has(.settings-value) .settings-label { color: var(--on-surface); }
-/* A missing permission's Allow is a tonal pill whose end meets the chevrons' line; the pill alone says it, no dot. */
-.settings-row[data-tone=error] .settings-value { display: grid; place-items: center; min-block-size: 32px; padding-inline: var(--s4); margin-inline-end: var(--s2);
-  border-radius: var(--shape-full); background: var(--secondary-container); color: var(--on-secondary-container); font: var(--label-large); }
+/* A row's one action (Allow, Check, Play) is a primary word whose end meets the chevrons' edge; every such row looks the same. */
+:is(.settings-act, .settings-row[data-tone=error] > .settings-value) { flex: none; margin-inline-end: var(--s2); font: var(--label-large); color: var(--primary); }
 .settings-row:not(:has(.settings-icon)) > .ms:first-child { color: var(--primary); }
 .settings-segment-row { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s3) var(--s4) var(--s4); }
 .segmented { display: flex; border: 1px solid var(--outline); border-radius: var(--shape-full); overflow: clip; }

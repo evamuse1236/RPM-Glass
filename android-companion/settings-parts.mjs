@@ -14,10 +14,10 @@ export const symbol = (name, cls = '') => {
 export const safeScale = value => Math.max(80, Math.min(160, Number.isInteger(value) ? value : 100));
 
 /**
- * One list row: an optional icon tile, the title, a line of detail and a trailing value, switch or chevron.
+ * One list row: an optional icon tile, the title, a line of detail and a trailing value, switch, chevron or action word (`act`).
  * `tone: 'error'` marks a row that needs the person (a missing permission) or removes something.
  */
-export function row({label, detail = '', value = '', action, role = null, toggle = null, icon = null, tile = null, next = false, tone = null, trail = null}) {
+export function row({label, detail = '', value = '', action, role = null, toggle = null, icon = null, tile = null, next = false, tone = null, act = null}) {
   const node = el('button', 'settings-row');
   node.type = 'button';
   if (action) node.dataset.action = action;
@@ -42,7 +42,11 @@ export function row({label, detail = '', value = '', action, role = null, toggle
   }
   if (value) node.append(el('span', 'settings-value', value));
   if (next) node.append(symbol('chevron_right'));
-  else if (trail) node.append(symbol(trail, 'settings-trail'));
+  else if (act) {
+    const word = el('span', 'settings-act', act);
+    word.setAttribute('aria-hidden', 'true');
+    node.append(word);
+  }
   return node;
 }
 
