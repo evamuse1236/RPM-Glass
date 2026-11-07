@@ -50,9 +50,9 @@
   border-radius: var(--card-radius) 0 0 var(--card-radius);
   text-align: start;
 }
-/* The closed card ends on its Next task, on the words' edge under the rings. */
-.project-head:has(+ .next-task) .project-toggle { padding-block-end: 0; }
-.project-card > .next-task { padding-inline-start: calc(var(--s3) + 2 * var(--s8) + var(--s4)); }
+/* The closed card ends on its Next task, full width under the rings on their edge, so the task fits on one line. */
+.project-head:has(+ .next-task) .project-toggle { padding-block-end: var(--s1); }
+.project-card > .next-task { padding-inline: var(--s3) var(--s4); }
 .project-toggle:active { background: var(--row-press); }
 .project-copy { display: grid; gap: 2px; min-inline-size: 0; }
 .project-area { font: var(--label-medium); color: color-mix(in oklch, var(--tone) 78%, var(--on-surface)); overflow-wrap: anywhere; }
@@ -60,7 +60,7 @@
 .nest-rings { flex: none; inline-size: 64px; block-size: 64px; }
 .nest-rings circle { fill: none; }
 /* A ring's track is a dim band of its own colour (Activity rings), so every nested ring reads as one band, light or dark. */
-:is(.nest-track, .ring-track) { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-highest)); }
+:is(.nest-track, .ring-track, .seg-off) { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-highest)); }
 .nest-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; }
 .nest-rings .nest-done { fill: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container)); }
 .nest-check { fill: none; stroke: var(--progress, var(--primary)); stroke-linecap: round; stroke-linejoin: round; }
@@ -75,16 +75,21 @@
 .project-copy .card-due.tight { color: var(--error); }
 .project-blocks .block-line-main { padding-inline: 0; border-radius: var(--shape-sm); }
 .project-blocks .next-task { padding-inline: 0; }
-.project-blocks .block-line + .block-line { border-block-start: 1px solid var(--outline-variant); }
 /* Project detail: the Blocks sit in one filled group, split by dividers. */
 .block-lines { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0 var(--gutter); border-radius: var(--card-radius); background: var(--surface-container); overflow: clip; }
-.block-lines > .block-line + .block-line { border-block-start: 1px solid var(--outline-variant); }
+/* Dividers run between the rows' 16dp text edges, on an open card and in Project detail's group alike. */
+.project-blocks .block-line + .block-line { border-block-start: 1px solid var(--outline-variant); }
+.block-lines > .block-line + .block-line {
+  background: linear-gradient(var(--outline-variant), var(--outline-variant)) center top / calc(100% - 2 * var(--s4)) 1px no-repeat;
+}
+/* A Block row's progress is its segment ring alone, an arc per task, at the end of the deadline line. */
+.card-facts > .line-ring { flex: none; inline-size: 20px; block-size: 20px; }
 .block-line > .block-line-main { padding-block-start: var(--s2); }
 .block-line > .block-line-main:only-child { padding-block-end: var(--s2); }
 .block-line > .next-task { padding-block-end: var(--s1); }
 .block-line .next-task .task-check { block-size: 24px; }
 .block-line .next-title { min-block-size: 24px; padding-block: 2px; }
-.block-line .next-title > .overline { display: none; }
+:is(.block-line, .project-card) .next-title > .overline { display: none; }
 :is(.block-line, .project-card) .next-title .next-words { white-space: normal; text-wrap: pretty; }
 .block-add { align-self: flex-start; justify-self: start; margin: var(--s1) var(--gutter) 0; padding-inline: var(--s5) var(--s4); }
 .project-block {
@@ -103,7 +108,6 @@
 .project-block-name { flex: 1; min-inline-size: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: clip; }
 .project-block-count { color: var(--on-surface-variant); white-space: nowrap; }
 .seg-ring :is(path, circle) { fill: none; stroke-width: 6; }
-.seg-off { stroke: var(--surface-container-highest); }
 .seg-on { stroke: var(--progress, var(--primary)); }
 .seg-arc { stroke-linecap: round; }
 /* A Block card's last line: when it is due (or This week) at the start, tasks done as a 16dp ring and "2/7" at the end. */

@@ -108,9 +108,12 @@
   #planner .project-block-count { flex: none; inline-size: 40px; text-align: end; }
   #planner :is(.project-block-name, .project-block-next) { overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
   #planner .project-block-next { font: var(--body-small); color: var(--on-surface-variant); }
-  /* Project detail uses its 720px column for two columns of Block rows, each its own filled tile. */
-  #planner[data-view=projects] .block-lines { grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: var(--s2); inline-size: min(100% - 2 * var(--gutter), var(--column) - 2 * var(--gutter)); min-inline-size: 0; margin-inline: auto; background: none; border-radius: 0; overflow: visible; }
-  #planner[data-view=projects] .block-lines > .block-line { min-inline-size: 0; border: 0; border-radius: var(--card-radius); background: var(--surface-container); overflow: clip; }
+  /* Project detail keeps the phone's one filled group of Block rows across its 720px column, so every row's deadline,
+     ring and Next task sit on the same lines; the wider rows let each task stay on one line. */
+  #planner[data-view=projects] .block-lines { min-inline-size: 0; }
+  /* A chip's count sits on its ring's left, so ring and "2/7" read as one mark and the names start on one edge. */
+  #planner .project-block-count { order: -1; margin-inline-end: calc(var(--s1) - var(--s3)); }
+  #planner .project-block:not(:has(.seg-ring)) .project-block-copy { margin-inline-start: calc(40px + var(--s3)); }
   #planner .list-item.nested { padding-inline-start: calc(var(--s8) + var(--s6)); }
   .planner-view > #sheet[data-inline] { --sheet-surface: light-dark(var(--surface-container-low), var(--surface-container)); }
   #planner:is([data-view=blocks], [data-view=projects], [data-view=life]) #planner-scroll {
