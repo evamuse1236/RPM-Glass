@@ -31,7 +31,8 @@ test('Start now sits on the title row on wide; Alert and Repeat chips join into 
   assert.match(tabs, /\.task-tabs \.chip-row\[aria-label='More choices'\] > \.chip \{ border-color: transparent; background: none;/, 'the pickers and Clear read as one quiet row');
   assert.match(tabs, /\.ruler-track \{[^}]*mask-image: linear-gradient\(to right, transparent,/, 'the ruler fades out at both ends on every width, so nothing reads as cut off');
   assert.match(tabs, /\.ruler-tick \{\s+position: absolute;\s+inset-block-end: 16px;/, 'ticks sit in their own lane under the hour labels, just above the length lane');
-  assert.match(tabs, /\.ruler-length \{\s+position: absolute;\s+inset-block-end: 8px;[^}]*block-size: 8px;/, 'the length bar sits in a lane under the ticks');
+  assert.match(tabs, /\.ruler-length \{\s+position: absolute;\s+inset-block-end: 16px;[^}]*block-size: 8px;[^}]*background: color-mix\(in oklch, var\(--primary\) 40%, var\(--primary-container\)\);/, 'the length is a tonal pill across the middle of the ticks');
+  assert.match(tabs, /\.ruler-grip \{\s+position: absolute;\s+inset-block-end: -4px;/, 'the knob sits centred on the bar');
   assert.match(tabs, /\.ruler-centre \{\s+position: absolute;\s+inset-block: 24px 8px;/, 'the playhead starts below the hour labels');
 });
 
@@ -121,7 +122,8 @@ test('the Block list marks the chosen Block with one secondary-container row, a 
   assert.doesNotMatch(tabs, /mark\.append\(icon\('check'\)\)/, 'the radio carries a dot, never a check that reads as done');
   const css = read('../../android-companion/task-tabs.css');
   assert.match(css, /\.block-choice\[aria-checked=true\] \{ background: var\(--secondary-container\); color: var\(--on-secondary-container\); \}/, 'the chosen row is a selection, not a success tint');
-  assert.match(css, /\.block-choice \.ring-done \{ fill: color-mix\(in oklch, var\(--progress, var\(--primary\)\) var\(--track-mix\), var\(--sheet-bg, var\(--sheet-surface\)\)\);/, 'the done disc mixes with the sheet the row now sits on');
+  assert.match(css, /\.block-choice \.ring-done \{ fill: color-mix\(in oklch, var\(--success\) var\(--track-mix\), var\(--sheet-bg, var\(--sheet-surface\)\)\);/, 'the done disc is a quiet green that mixes with the sheet the row sits on');
+  assert.match(css, /\.block-choice \.ring:has\(\.ring-done\) \.ring-value \{ stroke: var\(--success\); \}/, 'a finished ring is green, never the blue of the chosen row');
   assert.doesNotMatch(css, /block-choice-mark|block-choice-line/, 'one selection mark (the filled row) and no purpose line');
   assert.doesNotMatch(css, /\.block-choice \.ring-value \{/, 'the ring keeps the shared Area or primary progress colour');
   assert.match(css, /\.block-choice-title \{ overflow: clip; font: var\(--body-large\); text-overflow: ellipsis; white-space: nowrap; \}/, 'a long Block name ends in an ellipsis on its one line');

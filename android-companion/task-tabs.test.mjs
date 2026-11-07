@@ -4,7 +4,7 @@ import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {editPlan, tasks} from './planner-state.mjs';
 import {occurrences, repeats} from './planner-recurrence.mjs';
 import {TIME_GRID, whenFields, repeatDaysOf, repeatFieldsFor, repeatLabel, repeatShort} from './planner/task-values.mjs';
-import {TABS, stepTab, whenDay, whenSpoken, alertShort, blockShort, presetOf, presetFields, toggleRepeatDay, blockChoices}
+import {TABS, stepTab, whenDay, whenBrief, whenSpoken, alertShort, blockShort, presetOf, presetFields, toggleRepeatDay, blockChoices}
   from './planner/task-tabs-model.mjs';
 import fs from 'node:fs';
 import {HALF_HOUR_PX, rulerScale, offsetOf, stopAt, rangeOf, lengthAt} from './planner/time-ruler.mjs';
@@ -41,6 +41,9 @@ test('each tab shows its value in a few words', () => {
   assert.equal(whenDay({day: '2026-12-24', time: ''}, DAY), 'Dec 24');
   assert.equal(whenDay({day: '', time: ''}, DAY), 'No date');
   assert.match(whenSpoken({day: DAY, time: '16:00'}, DAY), /^Today, 4\sPM$/, 'TalkBack still hears the time on the tab');
+  assert.match(whenBrief({day: DAY, time: '16:00'}, DAY), /^4\sPM$/, 'off the When tab the tab says the time');
+  assert.match(whenBrief({day: '2026-10-21', time: '16:30'}, DAY), /^\w{3} 4:30\sPM$/, 'another day leads with its short name');
+  assert.equal(whenBrief({day: '2026-10-21', time: ''}, DAY), 'Tomorrow', 'no time: the day alone');
   assert.deepEqual(alertShort({alert: 'off', lead: 10}), {text: 'Off', symbol: 'notifications_off'});
   assert.deepEqual(alertShort({alert: 'reminder', lead: 10}), {text: '10 min', symbol: 'notifications'});
   assert.equal(alertShort({alert: 'alarm', lead: 0}).text, 'On time');

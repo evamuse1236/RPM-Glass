@@ -8,7 +8,7 @@ import {el, icon, button, attrs} from './dom.mjs';
 import {progressRing} from './blocks.mjs';
 import {chip, chipRow, pickerChip, markChips, settleChip} from './fact-rows.mjs';
 import {dayChips, repeatShort, repeatDaysOf, REPEAT_DAYS, ALERT_LEADS, leadLabel} from './task-values.mjs';
-import {TABS, stepTab, ALERT_KINDS, REPEAT_PRESETS, whenDay, whenSpoken, alertShort, blockShort, presetOf, blockChoices} from './task-tabs-model.mjs';
+import {TABS, stepTab, ALERT_KINDS, REPEAT_PRESETS, whenDay, whenBrief, whenSpoken, alertShort, blockShort, presetOf, blockChoices} from './task-tabs-model.mjs';
 import {timeRuler} from './time-ruler.mjs';
 
 const SEARCH_FROM = 7;
@@ -45,6 +45,7 @@ export function taskTabs({get, pick, tick = () => {}, remote = false, wide = fal
   row.setAttribute('aria-label', 'Task details');
   const tabs = {}, panels = {};
   let current = 'when';
+  let shown = null;
 
   const select = (key, {moved = false, focus = false} = {}) => {
     const changed = key !== current;
@@ -55,6 +56,7 @@ export function taskTabs({get, pick, tick = () => {}, remote = false, wide = fal
       tab.node.tabIndex = on ? 0 : -1;
       panels[name].hidden = !on;
     }
+    if (shown && changed) paintWhen(shown);
     if (focus) tabs[key].node.focus({preventScroll: true});
     if (moved && changed && !reducedMotion()) {
       panels[key].animate([{opacity: 0, translate: '0 8px'}, {opacity: 1, translate: '0 0'}],
@@ -100,9 +102,15 @@ export function taskTabs({get, pick, tick = () => {}, remote = false, wide = fal
     tab.node.setAttribute('aria-label', `${tab.name}, ${spoken}`);
   };
 
+  /** On When the large readout says the time, so the tab names the day; on any other tab the tab says the time. */
+  function paintWhen(now) {
+    setTab('when', current === 'when' ? whenDay(now) : whenBrief(now), 'schedule', whenSpoken(now));
+  }
+
   const paint = now => {
+    shown = now;
     const shownAlert = alertShort(now);
-    setTab('when', whenDay(now), 'schedule', whenSpoken(now));
+    paintWhen(now);
     setTab('alert', shownAlert.text, shownAlert.symbol);
     setTab('repeat', repeatShort(now.task), 'repeat');
     const blockTitle = now.blocks.find(b => b.id === now.blockId)?.title;
@@ -142,8 +150,9 @@ function whenPanel(host, pick, tick) {
   const dayPicker = pickerChip('date', 'edit_calendar', 'Pick a date', 'Pick a date', value => pick.day(value));
   const timePicker = pickerChip('time', 'keyboard', 'Pick a time', 'Pick a time', value => pick.time(value));
   const clear = button('', () => pick.clear(), 'chip when-clear');
-  clear.append(icon('backspace', {cls: 'chip-icon'}), el('span', 'chip-label', 'Clear'));
+  clear.append(icon('backspace', {cls: 'chip-icon'}));
   clear.setAttribute('aria-label', 'Clear date, time and length');
+  clear.title = 'Clear';
   more.append(dayPicker.node, timePicker.node, clear);
   host.append(days, error, ruler.node, clash, more);
 

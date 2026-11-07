@@ -1,15 +1,16 @@
 /**
  * The When tab's time ruler: a strip of the day that slides sideways under a fixed centre line and snaps to the Time
  * row's stops (every half hour from 6:00 AM to 11:00 PM, plus the task's own off-grid time). The task's length is a
- * bar from the centre line, in its own lane under the ticks. Letting go saves the stop under the line. The bar's end
+ * tonal bar from the centre line across the ticks, and on today a thin mark shows now. Letting go saves the stop under the line. The bar's end
  * grip drags the length in 15-minute steps and saves it when let go; a tap on the length words types an exact one.
  */
-import {el} from './dom.mjs';
+import {el, icon} from './dom.mjs';
+import {localDay} from '../planner-state.mjs';
 import {timeChips, nextHalfHour} from './task-values.mjs';
 import {briefClock} from './task-tabs-model.mjs';
 import {duration} from './format.mjs';
 
-export const HALF_HOUR_PX = 32;
+export const HALF_HOUR_PX = 40;
 const PX_PER_MIN = HALF_HOUR_PX / 30;
 export const LENGTH_STEP = 15;
 
@@ -60,6 +61,8 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
   readout.setAttribute('aria-hidden', 'true');
   const words = el('button', 'ruler-words tnum');
   words.type = 'button';
+  const wordsText = el('span');
+  words.append(wordsText, icon('expand_more', {cls: 'ruler-words-icon'}));
   const field = el('label', 'ruler-field');
   const input = el('input', 'tnum');
   Object.assign(input, {type: 'number', min: 1, max: 1440, step: 1, inputMode: 'numeric'});
@@ -74,6 +77,8 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
   track.setAttribute('aria-valuemin', '0');
   const scaleNode = el('div', 'ruler-scale');
   const line = el('div', 'ruler-line');
+  const nowMark = el('i', 'ruler-now');
+  nowMark.hidden = true;
   scaleNode.append(line);
   track.append(scaleNode);
   const length = el('span', 'ruler-length');
@@ -96,7 +101,7 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
   const show = (time, minutes = state.minutes) => {
     const to = time && minutes ? hhmm((minutesOf(time) + minutes) % (24 * 60)) : '';
     readout.textContent = !state.day ? 'No date' : !time ? 'No time' : to ? rangeOf(state.day, time, to) : briefClock(state.day, time);
-    words.textContent = minutes ? duration(minutes) : 'Add length';
+    wordsText.textContent = minutes ? duration(minutes) : 'Add length';
     words.setAttribute('aria-label', minutes ? `Exact length, ${duration(minutes)}` : 'Add an exact length');
     words.hidden = editing;
     node.classList.toggle('is-unset', !time);
@@ -198,7 +203,14 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
       if (at % 120 === 60) mark.classList.add('is-odd');
       return mark;
     });
-    line.replaceChildren(...marks);
+    line.replaceChildren(...marks, nowMark);
+  };
+
+  /** The thin now mark, only when the ruler shows today and now falls inside its span. */
+  const markNow = () => {
+    const now = new Date(), minute = now.getHours() * 60 + now.getMinutes();
+    nowMark.hidden = state.day !== localDay(now) || minute < scale.first || minute > scale.last;
+    nowMark.style.insetInlineStart = (minute - scale.first) * PX_PER_MIN + 'px';
   };
 
   const place = () => {
@@ -247,6 +259,7 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
     state = {...state, ...next};
     scale = rulerScale(state.time);
     draw();
+    markNow();
     shown = state.time || null;
     if (!drag) sized(state.minutes);
     grip.hidden = !state.time || !!state.off;
