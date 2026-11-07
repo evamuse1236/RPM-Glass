@@ -56,24 +56,24 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .go{flex:none;display:grid;inline-size:48px;block-size:48px}
 .go>button{grid-area:1/1;position:relative;display:grid;place-items:center;inline-size:48px;block-size:48px;padding:0;border:0;border-radius:50%;cursor:pointer}
 .voice-go{background:transparent;color:var(--bar-on)}
-/* At rest the orb is a 48dp tonal disc, the same size as Send, so typing swaps fill and glyph but never the size. */
-.bar[data-voice=off] .voice-go{background:var(--bar-accent)}
+/* At rest the orb is the same 48dp #A8C7FA disc as Send, so the first keystroke swaps only the icon. */
+.bar[data-voice=off] .voice-go{background:var(--bar-primary)}
 /* At rest the drop waits behind the glyph; it shows once a call starts. */
 .bar[data-voice=off] .voice-go .drop{opacity:0}
 /* The voice drop: a 40px canvas centred in the 48px button (capture-drop.mjs). */
 .voice-go .drop{position:absolute;inset:4px;inline-size:40px;block-size:40px}
-.voice-go .glyph{position:relative;font-size:20px;line-height:1;color:var(--bar-on-accent)}
+.voice-go .glyph{position:relative;font-size:24px;line-height:1;color:var(--bar-on-primary)}
 .voice-go:disabled{cursor:default}
-/* Send is the one lit control: the bright primary in both themes. */
+/* Send and the resting orb are the one lit control: the bright primary in both themes. */
 .send{background:var(--bar-primary);color:var(--bar-on-primary)}
 .send .ms{font-size:24px}
 .send:disabled{opacity:.5;cursor:default}
 .bar[data-has-text=true][data-voice=off] .voice-go,.bar[data-has-text=false] .send,.bar[data-voice=on] .send{opacity:0;scale:.6;visibility:hidden;pointer-events:none}
 .bar[data-voice=on] .voice-go .glyph{opacity:0;scale:.6}
 .go>button:active{scale:.96}
-.send::before{content:'';position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0}
-.send:active::before{opacity:.12}
-@media (hover:hover) and (pointer:fine){.send:hover::before{opacity:.08}}
+.send::before,.bar[data-voice=off] .voice-go::before{content:'';position:absolute;inset:0;border-radius:inherit;background:var(--bar-on-primary);opacity:0}
+.send:active::before,.bar[data-voice=off] .voice-go:active::before{opacity:.12}
+@media (hover:hover) and (pointer:fine){.send:hover::before,.bar[data-voice=off] .voice-go:hover::before{opacity:.08}}
 @media (prefers-reduced-motion:no-preference){
   .go>button{transition:opacity var(--dur-short4) var(--ease-standard),scale var(--dur-medium1) var(--ease-spring),visibility var(--dur-short4)}
   .voice-go .glyph{transition:opacity var(--dur-short4) var(--ease-standard),scale var(--dur-medium1) var(--ease-spring)}
@@ -85,7 +85,7 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .sheet{
   position:absolute;inset-inline:0;inset-block-end:0;z-index:2;max-block-size:calc(100% - 24px);overflow-y:auto;overscroll-behavior:contain;
   padding-block-end:calc(8px + env(safe-area-inset-bottom,0px));
-  background:var(--bar-high);color:var(--bar-on);border-radius:var(--r-outer) var(--r-outer) 0 0;box-shadow:var(--bar-shadow);
+  background:var(--bar-high);color:var(--bar-on);border-radius:var(--r-group) var(--r-group) 0 0;box-shadow:var(--bar-shadow);
 }
 .sheet .grab{margin-block:8px}
 @media (prefers-reduced-motion:no-preference){

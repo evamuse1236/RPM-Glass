@@ -4,14 +4,25 @@ import {clock,relativeDay,longDate} from './planner/format.mjs';
 import {scheduleText} from './capture-content.mjs';
 import {localDay} from './planner-state.mjs';
 
-function agendaRow(item,now){
+/** The gutter stacks the clock over its AM/PM ("10:00" over "AM"), so the column is only as wide as "12:00". */
+function agendaTime(item){
+ const text=item.start==null?'Any time':item.allDay?'All day':clock(item.start);
+ const [,main,rest]=/^(.*?)(?:[\s ]+(\S+))?$/.exec(text);
+ const node=el('span','agenda-time',main);
+ if(rest)node.append(' ',el('span','agenda-meridiem',rest));
+ return node;
+}
+
+/** A row's context line drops the Block when the row above already named it. */
+function agendaRow(item,now,prev){
  const row=el('li',['agenda-row',item.kind==='event'?'event':'',item.done?'done':'',item.start<=now&&(item.end??item.start)>now?'now':''].filter(Boolean).join(' '));
- row.append(el('span','agenda-time',item.start==null?'Any time':item.allDay?'All day':clock(item.start)));
+ row.append(agendaTime(item));
  row.append(icon(item.kind==='event'?'event':item.done?'check_circle':'radio_button_unchecked',{cls:'agenda-mark'}));
  const body=el('div','agenda-body'),title=el('p','agenda-title',item.title);
  if(item.must){const star=icon('star',{fill:true,cls:'must-mark'});star.removeAttribute('aria-hidden');star.setAttribute('role','img');star.setAttribute('aria-label','Must');title.append(star);}
  body.append(title);
- const sub=[item.end&&!item.allDay?`until ${clock(item.end)}`:null,item.block,item.kind==='event'?'Calendar':null].filter(Boolean).join(' · ');
+ const block=item.block&&item.block!==prev?.block?item.block:null;
+ const sub=[item.end&&!item.allDay?`until ${clock(item.end)}`:null,block,item.kind==='event'?'Calendar':null].filter(Boolean).join(' · ');
  if(sub)body.append(el('p','quiet',sub));
  row.append(body);
  return row;
@@ -22,7 +33,7 @@ function agendaCard(agenda,{now}){
  const rows=[...agenda.timed,...agenda.anytime];
  if(!rows.length){node.append(el('p','quiet','Nothing planned yet.'));return node;}
  const list=el('ul','agenda');
- list.append(...rows.map(item=>agendaRow(item,now)));
+ list.append(...rows.map((item,i)=>agendaRow(item,now,rows[i-1])));
  node.append(list);
  return node;
 }
@@ -73,7 +84,7 @@ export function answerCard(capture,{platform,on,now=Date.now()}){
  if(kind==='agenda'){
   const day=capture.card.day??localDay(new Date(now));
   const label=relativeDay(day);
-  node.append(el('p','card-title',label==='Today'||label==='Tomorrow'?`${label}, ${longDate(day).replace(/^\w+,?\s*/,'')}`:longDate(day)));
+  node.append(el('p','card-title day-title',label==='Today'||label==='Tomorrow'?`${label}, ${longDate(day).replace(/^\w+,?\s*/,'')}`:longDate(day)));
  }else if(kind==='task'){
   node.append(el('p','kicker','Task'));
  }else if(kind)node.append(el('p','card-title',HEADING[kind]));

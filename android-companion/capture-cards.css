@@ -43,15 +43,20 @@
 .receipt>.kicker{font:var(--title-medium);color:var(--bar-on)}
 .receipt>.kicker .ms{font-size:24px}
 .receipt.single .item-head>.ms:first-child{color:var(--bar-success)}
-/* A suggested next step joins the chip row above it: same height and shape as the item's chips, tinted as an offer. */
+/* A suggested next step joins the chip row above it: same height and shape as the item's chips, tinted as an offer.
+   A suggested time stands in for the missing time, so it is dashed like the other "Add …" chips. */
 .suggest-row{margin-block-start:-4px}
-.suggest-chip{position:relative;display:inline-flex;align-items:center;gap:4px;min-block-size:var(--chip-block);padding:0 16px 0 12px;border:0;border-radius:var(--r-tile);
+.suggest-chip{position:relative;display:inline-flex;align-items:center;gap:4px;min-block-size:32px;padding:0 12px 0 8px;border:0;border-radius:var(--r-tile);
   background:color-mix(in oklch,var(--bar-primary) 16%,transparent);color:var(--bar-on);font:var(--label-large);cursor:pointer;text-align:start;overflow-wrap:anywhere}
-.suggest-chip::after{content:'';position:absolute;inset:-4px 0}
+.suggest-chip::after{content:'';position:absolute;inset:-8px 0}
 .suggest-chip .ms{font-size:20px;color:var(--bar-primary)}
 .suggest-chip:active{background:color-mix(in oklch,var(--bar-primary) 24%,transparent)}
 .suggest-chip:focus-visible{outline:2px solid var(--bar-primary);outline-offset:2px}
 @media (hover:hover) and (pointer:fine){.suggest-chip:hover{background:color-mix(in oklch,var(--bar-primary) 22%,transparent)}}
+.suggest-chip.ask{white-space:nowrap;background:transparent;border:1px dashed color-mix(in oklch,var(--bar-on-variant) 60%,transparent);color:var(--bar-on-variant)}
+.suggest-chip.ask .ms{color:var(--bar-on-variant)}
+.suggest-chip.ask:active{background:color-mix(in oklch,var(--bar-on) 12%,transparent)}
+@media (hover:hover) and (pointer:fine){.suggest-chip.ask:hover{background:color-mix(in oklch,var(--bar-on) 8%,transparent)}}
 .kept-words{display:flex;align-items:center;gap:12px;inline-size:100%;min-block-size:40px;padding:0;border:0;border-radius:8px;background:none;color:inherit;text-align:start;cursor:pointer}
 .kept-words .ms{flex:none;font-size:24px;color:var(--bar-success)}
 .kept-words .words{-webkit-line-clamp:1}
@@ -88,18 +93,21 @@
 .chip:active{background:color-mix(in oklch,var(--bar-on) 12%,transparent)}
 .chip .ms{font-size:20px;color:var(--bar-primary)}
 
-.agenda{display:grid;grid-template-columns:max-content 16px minmax(0,1fr);column-gap:12px;margin:0;padding:0;list-style:none}
-/* One gutter as wide as the widest time; the marker sits in its own column so wrapped words line up under the title. */
+.agenda{display:grid;grid-template-columns:max-content 16px minmax(0,1fr);column-gap:8px;margin:0;padding:0;list-style:none}
+/* A schedule list: one gutter as wide as "12:00" with its AM/PM below; the marker sits in its own column so wrapped words line up under the title. */
 .agenda-row{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding-block:8px;border-block-start:1px solid color-mix(in oklch,var(--bar-outline) 70%,transparent)}
 .agenda-row:first-child{border-block-start:0}
-.agenda-time{font:var(--label-large);color:var(--bar-on-variant);font-variant-numeric:tabular-nums}
+.agenda-time{padding-inline-end:4px;font:var(--label-large);color:var(--bar-on-variant);font-variant-numeric:tabular-nums}
+.agenda-meridiem{display:block;font:var(--label-small);color:var(--bar-on-variant)}
 .agenda-mark{align-self:start;font-size:16px;color:var(--bar-on-variant);margin-block-start:4px}
-.agenda-row.now :is(.agenda-time,.agenda-mark){color:var(--bar-primary)}
+.agenda-row.now :is(.agenda-time,.agenda-meridiem,.agenda-mark){color:var(--bar-primary)}
 .agenda-row>.agenda-title{grid-column:2/-1}
 .agenda-body{display:flex;flex-direction:column;gap:2px;min-inline-size:0}
-.agenda-title{margin:0;font:var(--body-large);overflow-wrap:break-word;text-wrap:balance}
+.agenda-title{margin:0;font:var(--body-large);overflow-wrap:break-word;text-wrap:pretty}
 .agenda-title>.must-mark{margin-inline-start:4px;vertical-align:-4px}
-.agenda-body>.quiet{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:clip;text-wrap:pretty}
+.agenda-body>.quiet{overflow:clip;white-space:nowrap;text-overflow:ellipsis}
+/* The day heading sits a step below the rows it heads: the tasks are the content. */
+.card-title.day-title{font:var(--title-small);color:var(--bar-on-variant)}
 /* A long day scrolls inside the answer card and fades into the card's own colour, so the card keeps a crisp edge. */
 .card.answer:has(.agenda){flex:0 1 auto;min-block-size:0}
 .card.answer>.lines:has(.agenda){flex:0 1 auto;min-block-size:0}

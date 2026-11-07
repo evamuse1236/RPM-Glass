@@ -158,6 +158,7 @@ function appendReceiptHelp(node,draft,on,chipRow=null){
   if(askTime?.replaceWith){
    chip.replaceChildren(icon('schedule'),el('span','',`${help.label.replace(/^Try\s+/,'')}?`));
    chip.setAttribute('aria-label',help.label);
+   chip.classList.add('ask');
    askTime.replaceWith(chip);
   }else chipRow.append(chip);
   return;
