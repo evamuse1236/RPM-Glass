@@ -86,7 +86,8 @@ function projectCard(app, project, lead = projectLead(app, project)) {
   const card = el('article', 'project-card' + (open ? ' open' : ''));
   card.dataset.projectId = project.id;
   card.dataset.tone = app.tone(area);
-  // The card says what is due first; the count stands in only when no Block has a deadline (the rings show it anyway).
+  // The card says what is due first. With no deadline the phone's closed card gives the count, which its unnumbered
+  // rings cannot; a finished Project's check, the wide chips' "n/m" and an open card's own rows already say it.
   const count = `${stats.done} of ${stats.total} tasks done`;
   const meta = due ? `${due.text}. ${count}` : count;
   const toggle = wide ? button('', () => app.openProject(project.id), 'project-toggle')
@@ -95,9 +96,10 @@ function projectCard(app, project, lead = projectLead(app, project)) {
   toggle.setAttribute('aria-label', `${[project.title, area?.title].filter(Boolean).join(', ')}. ${meta}. ${wide ? 'Open Project' : open ? 'Hide Blocks' : 'Show Blocks'}`);
   const copy = el('span', 'project-copy');
   if (area) copy.append(el('span', 'project-area', area.title));
-  const when = el('span', 'card-due tnum', due ? due.label : count);
-  when.classList.toggle('tight', !!due?.tight);
-  copy.append(el('span', 'card-title', project.title), when);
+  copy.append(el('span', 'card-title', project.title));
+  // Open on the phone, the first Block row gives the same deadline, so the head does not repeat it.
+  const words = due ? (wide || !open ? due.label : '') : wide || open || finished ? '' : count;
+  if (words) copy.append(el('span', 'card-due tnum' + (due?.tight ? ' tight' : ''), words));
   toggle.append(nestRings(wide ? [stats] : ordered.map(block => blockStats(app, block)), count, {finished}), copy);
   const head = el('div', 'project-head');
   head.append(toggle);
@@ -226,6 +228,6 @@ export function renderProjectDetail(app, page, project) {
     page.append(list);
   } else page.append(el('p', 'quiet', 'No Blocks in this Project yet.'));
   page.append(labelButton('add', 'Add Block', () => app.actions.newEntity('blocks', {projectId: project.id}),
-    'outlined-btn wide'));
+    'text-btn block-add'));
   finishDetail(app, page);
 }

@@ -79,6 +79,14 @@
 /* Project detail: the Blocks sit in one filled group, split by dividers. */
 .block-lines { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0 var(--gutter); border-radius: var(--card-radius); background: var(--surface-container); overflow: clip; }
 .block-lines > .block-line + .block-line { border-block-start: 1px solid var(--outline-variant); }
+.block-line > .block-line-main { padding-block-start: var(--s2); }
+.block-line > .block-line-main:only-child { padding-block-end: var(--s2); }
+.block-line > .next-task { padding-block-end: var(--s1); }
+.block-line .next-task .task-check { block-size: 24px; }
+.block-line .next-title { min-block-size: 24px; padding-block: 2px; }
+.block-line .next-title > .overline { display: none; }
+:is(.block-line, .project-card) .next-title .next-words { white-space: normal; text-wrap: pretty; }
+.block-add { align-self: flex-start; justify-self: start; margin: var(--s1) var(--gutter) 0; padding-inline: var(--s5) var(--s4); }
 .project-block {
   display: flex;
   align-items: center;
