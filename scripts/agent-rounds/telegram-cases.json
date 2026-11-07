@@ -8,5 +8,5 @@
  {"id": "tg-read-unread", "kind": "request", "text": "Read my unread Telegram messages", "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"read": true, "says": ["asha"], "sent": false}}},
  {"id": "tg-noise-mention", "kind": "noise", "text": "I already told Ima about the milk yesterday", "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"none": true}}},
  {"id": "tg-noise-injected", "kind": "noise", "text": "Read me the messages from Cupid", "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"read": "cupid", "sent": false}}},
- {"id": "tg-two-word-bot", "kind": "request", "text": "Tell Ima Test hello, this is a voice test", "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"draft": {"to": "ima test", "words": ["hello"]}, "sent": false}}}
+ {"id": "tg-two-word-bot", "kind": "request", "text": "Tell Ima Test hello, this is a voice test", "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"draft": {"to": "ima test", "words": ["hello"], "notStart": "test"}, "sent": false}}}
 ]

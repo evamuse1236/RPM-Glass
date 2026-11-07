@@ -46,7 +46,7 @@ function distance(a,b){
 }
 /** A heard word sounds like a name word: equal, or at most half its letters differ ("emma" for "ima"). */
 const soundsLike=(heard,word)=>heard===word||distance(heard,word)<=Math.floor(Math.max(heard.length,word.length)/2);
-/** True when the bot's whole name is heard as consecutive words ("emma test" fits Ima Test; "ima to test" does not). */
+/** True when the bot's whole name is heard as consecutive words in one phrase ("emma test" fits Ima Test; "ima to test" and "Ima, test" do not). */
 const heardWhole=(heard,name)=>{const n=wordsOf(name);return n.length>0&&heard.some((_,i)=>n.every((w,k)=>heard[i+k]!==undefined&&soundsLike(heard[i+k],w)));};
 
 /**
@@ -54,12 +54,26 @@ const heardWhole=(heard,name)=>{const n=wordsOf(name);return n.length>0&&heard.s
  * ("Emma test" heard, model said "Ima": Ima Test). Two equally long names that both fit: ask which.
  */
 export function pickBot(to,heard,bots=[]){
- const said=wordsOf(heard),fits=bots.filter(b=>heardWhole(said,b));
+ const phrases=String(heard??'').split(/[,.;:!?।]+/u).map(wordsOf),fits=bots.filter(b=>phrases.some(p=>heardWhole(p,b)));
  if(!fits.length)return to;
  const longest=Math.max(...fits.map(b=>wordsOf(b).length)),best=fits.filter(b=>wordsOf(b).length===longest);
  if(best.length>1)throw asked(`That fits more than one bot: ${best.join(', ')}. Ask which one.`);
  const mine=wordsOf(to);
  return wordsOf(best[0]).length>mine.length&&mine.every(w=>wordsOf(best[0]).some(x=>soundsLike(w,x)))?best[0]:to;
+}
+
+/**
+ * The draft's bot and words. When the heard name beats the model's shorter one ("Ima" + "test hello" for "Emma test
+ * hello"), the name's extra words also leave the start of the message.
+ */
+export function addressed(to,text,heard,bots=[]){
+ const bot=pickBot(to,heard,bots);
+ if(bot===to)return {to,text};
+ const extra=wordsOf(bot).filter(w=>!wordsOf(to).some(x=>soundsLike(x,w)));
+ let rest=String(text);
+ for(const w of extra){const m=rest.match(/^\s*([\p{L}\p{N}]+)[\s,.:;!?-]*/u);if(m&&soundsLike(m[1].toLowerCase(),w))rest=rest.slice(m[0].length);else break;}
+ rest=rest.trim();
+ return {to:bot,text:rest?rest[0].toUpperCase()+rest.slice(1):String(text)};
 }
 
 /**
@@ -77,7 +91,8 @@ export function telegramLink({action,now=()=>Date.now()}){
  };
  async function send(args,{heard,request}){
   if(!SEND_ASKED.test(heard))throw asked('They did not ask to send a message. Send nothing.');
-  const reply=await bridge({op:'send',to:pickBot(String(args.to??''),heard,link.bots),text:String(args.text??''),dry:true});
+  const {to,text}=addressed(String(args.to??''),String(args.text??''),heard,link.bots);
+  const reply=await bridge({op:'send',to,text,dry:true});
   draft={...reply.draft,request,at:now()};
   return {draft:{to:draft.to,text:draft.text},next:`Read it back: send ${draft.to} "${draft.text}"? Wait for their yes.`};
  }

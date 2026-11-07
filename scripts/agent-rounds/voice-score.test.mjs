@@ -32,3 +32,9 @@ test('a Telegram case passes on a clean draft to the named bot, a send only when
  assert.deepEqual(scoreVoice({kind:'noise',expect:{telegram:{none:true}}},{created:[],ops:0,telegram:[{op:'read'}]}),{noise:true,tgNone:false});
  assert.deepEqual(scoreVoice({kind:'noise'},{created:[],ops:0,telegram:[{op:'send',to:'Ima',text:'x'}]}),{noise:false},'a real send on noise fails noise');
 });
+
+test('a draft that keeps a piece of the bot name at its start fails', () => {
+ const c={expect:{telegram:{draft:{to:'ima test',words:['hello'],notStart:'test'}}}};
+ assert.equal(telegramTargets(c,{telegram:[{op:'send',dry:true,to:'Ima Test',text:'test hello'}]}).tgDraft,false);
+ assert.equal(telegramTargets(c,{telegram:[{op:'send',dry:true,to:'Ima Test',text:'Hello'}]}).tgDraft,true);
+});

@@ -41,12 +41,14 @@ export function createVoiceMode({platform,conversationId,onChange,afterSave,onLe
  let saved=[],liveRows=new Map(),heard={request:0,text:''},moment={n:0,kind:null};
  const telegram=telegramLink({action:(name,payload)=>platform.action(name,payload)});
  let withTelegram=false;
- Promise.resolve().then(()=>platform.action('telegram',{op:'connected'})).then(async r=>{
+ const telegramKnown=Promise.resolve().then(()=>platform.action('telegram',{op:'connected'})).then(r=>{
   if(r?.connected!==true)return;
   withTelegram={bots:[]};
-  const named=await platform.action('telegram',{op:'bots'}).catch(()=>null);
-  if(Array.isArray(named?.bots)){withTelegram={bots:named.bots};telegram.bots=named.bots;}
+  platform.action('telegram',{op:'bots'}).then(named=>{if(Array.isArray(named?.bots)){withTelegram={bots:named.bots};telegram.bots=named.bots;}},()=>{});
  },()=>{});
+ /** `connected` is the phone's own check (no network) and settles in milliseconds; the bot names arrive later. A call waits for the check at most this long, so its tools never depend on a race. */
+ const TELEGRAM_WAIT_MS=1500;
+ const telegramChecked=Promise.race([telegramKnown.then(()=>{}),new Promise(r=>setTimeout(r,TELEGRAM_WAIT_MS))]);
  const changed=()=>{const key=JSON.stringify([live,failure,saved.length,[...liveRows],heard,moment.n]);if(key===shown)return;shown=key;onChange();};
  const token=async setup=>{const reply=await platform.action('voiceToken',{setup});if(reply?.missingKey)throw new Error(NO_KEY);return reply;};
  const stop=()=>session?.stop();
@@ -89,6 +91,8 @@ export function createVoiceMode({platform,conversationId,onChange,afterSave,onLe
   live={phase:'connecting',request:0};
   changed();
   try{
+   await telegramChecked;
+   if(doc?.visibilityState==='hidden'){live=null;calling=false;changed();return;}
    session=(win?.__rpmVoiceStart??start)({continuous:true,telegram,data:()=>platform.voiceData(),timeZone,now,workletUrl:'/voice-mic-worklet.js',token,onLevel,onRequest:saveRequest,
     setup:()=>liveSetup(now(),timeZone,{data:platform.voiceData(),continuous:true,telegram:withTelegram,...voiceChoice()}),onChange:hear});
    const result=await session.done;

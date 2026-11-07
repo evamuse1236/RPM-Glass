@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {telegramLink,pickBot,TELEGRAM_TOOLS,SEND_ASKED,SEND_YES,DRAFT_TTL_MS} from './voice-telegram.mjs';
+import {telegramLink,pickBot,addressed,TELEGRAM_TOOLS,SEND_ASKED,SEND_YES,DRAFT_TTL_MS} from './voice-telegram.mjs';
 import {liveSetup} from './voice-tools.mjs';
 import {createRamble,rambleTrace} from './voice-turn.mjs';
 import {voiceRows} from './capture-voice-rows.mjs';
@@ -106,6 +106,7 @@ test('the bot comes from the whole name heard, so "Emma test" drafts to Ima Test
  assert.equal(pickBot('Ima','Tell Emma test hello, this is a voice test',bots),'Ima Test');
  assert.equal(pickBot('Ima','Tell Ima to test the oven',bots),'Ima','"ima to test" is not the name Ima Test');
  assert.equal(pickBot('Ima','Tell Ima to order milk',bots),'Ima');
+ assert.equal(pickBot('Ima','Tell Ima, test message: hi',bots),'Ima','a comma between the words splits the name');
  assert.equal(pickBot('Pantry','मां को बोलो pantri ko',bots),'Pantry');
  assert.throws(()=>pickBot('Pantry','tell pantry test hello',['Pantry Test','Pantri Test']),/more than one bot: Pantry Test, Pantri Test/);
  const {calls,action}=bridge(),link=telegramLink({action,now:()=>NOW.getTime()});
@@ -114,7 +115,7 @@ test('the bot comes from the whole name heard, so "Emma test" drafts to Ima Test
  assert.equal(calls.at(-1).to,'Ima Test');
 });
 
-test('a call started before the phone knew about Telegram still gets the link, so its tools never say "not connected"', async () => {
+test('a call started before the phone knew about Telegram waits for it, then gets the tools and the link', async () => {
  const {createVoiceMode}=await import('./capture-voice.mjs');
  let resolveConnected,seen=null;
  const platform={voiceData:()=>emptyPlan(),voiceRows:()=>[],saveWith:async()=>false,
@@ -123,11 +124,20 @@ test('a call started before the phone knew about Telegram still gets the link, s
  const voice=createVoiceMode({platform,conversationId:()=>'c',onChange(){},afterSave(){},start,doc:null,win:{}});
  voice.begin();
  await new Promise(r=>setTimeout(r,0));
- assert.ok(seen?.telegram,'the session has a Telegram link from the start');
+ assert.equal(seen,null,'the call waits for the phone to say whether Telegram is there');
  resolveConnected({connected:true});
  await new Promise(r=>setTimeout(r,0));
+ assert.ok(seen?.telegram,'the session has its Telegram link');
  const names=seen.setup().tools[0].functionDeclarations.map(f=>f.name);
  assert.ok(names.includes('read_telegram'),'the setup built at connect offers Telegram once the phone knows');
  assert.deepEqual(await seen.telegram.run('read_telegram',{chat:'Ima'},{heard:'what did Ima say',request:{}}),{chat:'Ima',messages:[]});
  assert.deepEqual(seen.telegram.bots,['Ima']);
+});
+
+test("when the heard name beats the model's shorter one, the extra name words leave the message", () => {
+ const bots=['Ima','Ima Test','Pantry'];
+ assert.deepEqual(addressed('Ima','test hello! This is a voice test from RPM','Tell Emma test hello, this is a voice test from RPM',bots),{to:'Ima Test',text:'Hello! This is a voice test from RPM'});
+ assert.deepEqual(addressed('Ima','Order milk','Tell Ima to order milk',bots),{to:'Ima',text:'Order milk'});
+ assert.deepEqual(addressed('Ima Test','hello','Tell Ima Test hello',bots),{to:'Ima Test',text:'hello'});
+ assert.deepEqual(addressed('Ima','test','Tell Emma test test',bots),{to:'Ima Test',text:'test'},'a message that is only the name keeps its words');
 });

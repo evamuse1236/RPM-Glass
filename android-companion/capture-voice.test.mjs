@@ -111,7 +111,7 @@ test('leaving Capture hangs up', async () => {
  const start=()=>({stop(){},hangUp(){stopped++;},cancel(){},done:new Promise(()=>{})});
  const {voice}=mode(phone(day().data),start,{doc,win});
  voice.begin();
- await Promise.resolve();
+ await new Promise(r=>setTimeout(r,0));
  doc.visibilityState='hidden';listeners.visibilitychange();
  win.rpmVoiceBackground();
  assert.equal(stopped,2);
