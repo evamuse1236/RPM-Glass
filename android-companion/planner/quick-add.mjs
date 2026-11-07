@@ -183,6 +183,10 @@ function quickAdd(app, overrides = {}) {
     suggested: suggested?.id ?? null,
   }));
   blockChips.append(blockChip);
+  // A task in a Block takes the Block's Purpose: it shows whole under the chip, read-only, with the app's Purpose heart.
+  const blockWhy = el('p', 'block-purpose');
+  blockWhy.append(icon('favorite'), el('span'));
+  blockChips.append(blockWhy);
   const paintBlocks = () => {
     suggested = s.blockPicked ? null : suggestBlock(app, {title: name.value});
     const chosen = app.activeBlocks().find(b => b.id === target());
@@ -193,10 +197,14 @@ function quickAdd(app, overrides = {}) {
     const read = !!tag && !!chosen && chosen.id === tag.block.id;
     blockChip.classList.toggle('from-words', read);
     blockChip.setAttribute('aria-label', `Block: ${chosen?.title ?? 'Inbox'}${guess ? ', suggested' : ''}${read ? `, read from “${tag.match}”` : ''}. Choose a Block`);
+
+    const purpose = chosen?.purpose?.trim() ?? '';
+    blockWhy.hidden = !purpose;
+    blockWhy.lastChild.textContent = purpose;
+    blockWhy.setAttribute('aria-label', purpose ? `Purpose of ${chosen.title}: ${purpose}` : '');
   };
 
-  const more = quickOptions(s, {body, group, target, changed: () => changed(), remember: () => remember(),
-    purposeOf: id => app.activeBlocks().find(block => block.id === id)?.purpose?.trim() ?? ''});
+  const more = quickOptions(s, {body, group, target, changed: () => changed(), remember: () => remember()});
 
   // "#" and part of a Block's name offers the matching Blocks as chips; choosing one takes the "#word" out of the
   // title. Not choosing leaves the words as typed.

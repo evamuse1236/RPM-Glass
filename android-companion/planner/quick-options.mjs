@@ -20,7 +20,7 @@ function quickField(host, placeholder, name, value, keep) {
  * More options: one row under the chips. Opened, it gives way to what it held: Estimate, Repeat and Must as chips
  * that carry on the chips above, then the details and the Purpose as plain fields.
  */
-export function quickOptions(s, {body, group, target, purposeOf, changed, remember}) {
+export function quickOptions(s, {body, group, target, changed, remember}) {
   const options = foldGroup(body);
   const durationChip = button('', null, 'assist-chip');
   durationChip.append(icon('timer'), el('span', 'chip-label'));
@@ -53,18 +53,11 @@ export function quickOptions(s, {body, group, target, purposeOf, changed, rememb
     inner.append(alertRow);
     const notes = quickField(inner, 'Details', 'Details', s.notes, value => { s.notes = value; remember(); });
     const why = quickField(inner, 'Purpose: why it matters', 'Purpose', s.why, value => { s.why = value; remember(); });
-    // A task in a Block takes the Block's Purpose, shown read-only where the field would be.
-    const blockWhy = el('p', 'quick-purpose');
-    blockWhy.append(icon('flag'), el('span'));
-    inner.append(blockWhy);
+    // A task in a Block takes the Block's Purpose, which the Block chip shows; only an Inbox task has its own.
     const refresh = () => {
       syncText(notes, s.notes);
       syncText(why, s.why);
-      const inherited = target() ? purposeOf(target()) : '';
       why.hidden = !!target();
-      blockWhy.hidden = !inherited;
-      blockWhy.lastChild.textContent = inherited || '';
-      blockWhy.setAttribute('aria-label', inherited ? 'Purpose, from the Block: ' + inherited : '');
       alertRow.hidden = !s.time;
       markChips(alertRow, s.alert);
     };

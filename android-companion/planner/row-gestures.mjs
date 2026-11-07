@@ -53,6 +53,8 @@ export function attachRowGestures(app, row, task, {complete, tick = complete, le
   const actions = rowActions(app, task, row, {tick, inbox});
   row.rowActions = actions;
   row.rowTitle = task.title;
+  // A pointer's hover tools: an Inbox row offers only filing, one icon, never a column of them.
+  if (inbox) row.rowTools = ['move'];
   attachSwipe(row, {
     right: {kind: 'done', leave, run: complete},
     left: {...(inbox ? INBOX_LEFT : {kind: 'schedule'}), run: actions[1].run},

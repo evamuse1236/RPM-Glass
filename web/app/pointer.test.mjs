@@ -81,6 +81,26 @@ test('the row tools follow the mouse and keyboard focus, and each tool runs its 
   assert.ok(swipeStopped);
 });
 
+test('an Inbox row hovered or focused shows one tool, Move to Block, and the right click still has every action', () => {
+  const app = fakeApp();
+  const root = new FakeElement('main');
+  const {row, title, opener} = listRow(app, {id: 'a', title: 'Renew passport'}, {inbox: true});
+  row.rowTools = ['move'];
+  root.append(row);
+  const tools = mountRowTools(root);
+  title.dispatch('pointerover', {pointerType: 'mouse'});
+  assert.deepEqual(tools.children.map(node => node.getAttribute('aria-label')), ['Move to Block']);
+  opener.dispatch('focusin');
+  assert.equal(tools.parentNode, row);
+  tools.children[0].dispatch('click', {stopPropagation() {}});
+  assert.deepEqual(app.calls.map(([name]) => name), ['movePicker']);
+  title.dispatch('contextmenu', {clientX: 300, clientY: 120, stopPropagation() {}});
+  assert.deepEqual(labels(openedMenu()), ['Complete', 'Schedule', 'Move to Block', 'Mark as Must', '—', 'Delete']);
+  closeMenu();
+  const gestures = readFileSync(new URL('../../android-companion/planner/row-gestures.mjs', import.meta.url), 'utf8');
+  assert.match(gestures, /if \(inbox\) row\.rowTools = \['move'\];/, 'every Inbox row gets the single filing tool');
+});
+
 test('a right click on a row opens every row action, Delete set apart, and focus returns to the row', () => {
   const app = fakeApp();
   const root = new FakeElement('main');

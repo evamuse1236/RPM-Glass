@@ -70,8 +70,11 @@ export function showInbox(app, {motion = 'forward'} = {}) {
     const scheduled = task => !!(task.planned || task.plannedDate || repeats(task));
     const dueToday = task => (task.planned ? localDay(new Date(task.planned)) : task.plannedDate) === localDay();
     const open = rows.filter(task => !scheduled(task));
-    const today = rows.filter(task => scheduled(task) && dueToday(task));
-    const later = rows.filter(task => scheduled(task) && !dueToday(task));
+    const when = task => (task.planned ? new Date(task.planned).getTime()
+      : task.plannedDate ? new Date(task.plannedDate + 'T23:59:59').getTime() : Infinity);
+    const byWhen = (a, b) => when(a) - when(b);
+    const today = rows.filter(task => scheduled(task) && dueToday(task)).sort(byWhen);
+    const later = rows.filter(task => scheduled(task) && !dueToday(task)).sort(byWhen);
     const add = (task, days) => {
       const row = taskRow(app, task, {inbox: true, days});
       // A redraw while the returned highlight is still fading carries it on (from where it was).
