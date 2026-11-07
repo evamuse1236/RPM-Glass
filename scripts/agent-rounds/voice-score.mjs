@@ -40,14 +40,14 @@ const has=(text,words)=>{const t=String(text??'').toLowerCase();return words.eve
 export const MESSAGE_FILLER=/^(tell|ask|send|message|text|ping|please)\b|\b(send (a|this) message|saying that)\b/i;
 
 /**
- * Telegram targets for a case's `expect.telegram`: `draft` {to, words, notStart} (a dry send to that bot, the words in it, no filler),
+ * Telegram targets for a case's `expect.telegram`: `draft` {to, words, notStart} (a send to that bot, the words in it, no filler),
  * `sent` (true: a real send happened; false: none did), `read` (true, or the chat it must read), `says` (words the spoken
  * answer must hold) and `none` (no Telegram call at all). `run.telegram` is the fake bridge's log.
  */
 export function telegramTargets(c,run){
  const want=c.expect?.telegram,log=run.telegram??[],out={};
  if(!want)return out;
- if(want.draft){const d=log.filter(x=>x.op==='send'&&x.dry).at(-1);out.tgDraft=!!d&&has(d.to,[want.draft.to])&&has(d.text,want.draft.words??[])&&!MESSAGE_FILLER.test(String(d.text).trim())&&!(want.draft.notStart&&String(d.text).trim().toLowerCase().startsWith(want.draft.notStart));}
+ if(want.draft){const d=log.filter(x=>x.op==='send').at(-1);out.tgDraft=!!d&&has(d.to,[want.draft.to])&&has(d.text,want.draft.words??[])&&!MESSAGE_FILLER.test(String(d.text).trim())&&!(want.draft.notStart&&String(d.text).trim().toLowerCase().startsWith(want.draft.notStart));}
  if(want.sent!=null)out.tgSent=log.some(x=>x.op==='send'&&!x.dry)===want.sent;
  if(want.read!=null)out.tgRead=log.some(x=>x.op==='read'&&(want.read===true||has(x.chat,[want.read])));
  if(want.says)out.tgSays=has(run.said,want.says);

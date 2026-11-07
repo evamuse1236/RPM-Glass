@@ -22,7 +22,7 @@ The app reads the URL at build time: `rpm.telegramBridge=https://<pc>.<tailnet>.
 
 | Call | Body | Answer |
 |---|---|---|
-| `POST /send` | `{to, text, dry}` | `{draft:{to,username,text}}` when `dry`, else `{sent:{to,username,text,id}}` |
+| `POST /send` | `{to, text, dry}` | `{sent:{to,username,text,id}}`; `dry` only resolves the bot (`{draft:…}`) and sends nothing. The phone sends at once, then reads the chat with `waitSeconds` for the reply. |
 | `POST /read` | `{chat?, limit?, waitSeconds?}` | one chat's newest messages, or the unread chats (at most 6, 3 messages each) |
 | `POST /bots` | | `{bots:[names]}`: the bots a send may go to, for the voice prompt |
 | `GET /health` | | `{ok}` |

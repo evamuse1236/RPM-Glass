@@ -74,7 +74,7 @@ export function createRamble({data,timeZone,now=()=>new Date(),undoSaved=false,t
   if(!telegram)throw new Error('Telegram is not connected on this phone.');
   const result=await telegram.run(c.name,c.args??{},{heard,request:ramble});
   if(result?.sent)records.push({id:c.id,key:null,ops:[],uuids:[],change:{kind:'send',entity:'telegram',id:null,title:result.sent.text,to:result.sent.to},created:null});
-  note({...c,out:{result:c.name==='read_telegram'?readCounts(result):traced(result)}});
+  note({...c,out:{result:c.name==='read_telegram'?readCounts(result):sendTrace(result)}});
   return result;
  };
  /** Drops the named calls' changes and replays the rest on a fresh copy with the same new ids. */
@@ -129,6 +129,8 @@ export function createRamble({data,timeZone,now=()=>new Date(),undoSaved=false,t
  };
 }
 
+/** A send's trace keeps their own words and only the count of the bot's reply, never its text. */
+const sendTrace=r=>r?.sent?{sent:traced(r.sent),replies:r.reply?.length??0}:traced(r);
 const readCounts=r=>({telegram:'read',chats:r?.chats?.length??(r?.chat?1:0),messages:r?.messages?.length??(r?.chats??[]).reduce((n,c)=>n+(c.messages?.length??0),0)});
 const taskIds=data=>new Set(data.entries.map(e=>e.id));
 const wordsRecord=(heard,{messageId,conversationId=null,timeZone,now=new Date()})=>({messageId,conversationId,raw:heard,at:now.toISOString(),timezone:timeZone,focusDraftId:null,focusRevision:null,focus:null,source:'voice',status:'captured'});
@@ -178,9 +180,11 @@ export const rambleTaskIds=ramble=>[...new Set((ramble.changes??[]).filter(c=>c.
  * One voice request as a capture trace: the words, RPM's reply, each tool call, what applied and the tasks it touched.
  * `outcome` is applyRamble's answer; `saveError` is why the save itself failed.
  */
+/** True when RPM read Telegram messages aloud in this request, so its spoken words quote them and stay out of the trace. */
+const readAloud=(calls=[])=>calls.some(c=>c.result?.telegram==='read'||c.result?.replies>0);
 export function rambleTrace(ramble,outcome,{messageId,at,saveError=null}){
  const status=saveError?'not-saved':outcome?.status??'nothing';
- return {id:messageId,kind:'voice',at:at.toISOString(),words:ramble.heard,reply:ramble.said||null,promptVersion:`voice ${LIVE_MODEL}`,policyVersion:null,
+ return {id:messageId,kind:'voice',at:at.toISOString(),words:ramble.heard,reply:readAloud(ramble.calls)?'(Telegram messages read aloud; not kept)':ramble.said||null,promptVersion:`voice ${LIVE_MODEL}`,policyVersion:null,
   calls:ramble.calls??[],changes:(ramble.changes??[]).map(({kind,entity,id,title})=>({kind,entity,id,title})),
   applied:{status,entryIds:status==='applied'?rambleTaskIds(ramble):[],undoes:ramble.undoes??null},
   errors:[...(ramble.errors??[]).map(message=>({stage:'tool',message})),...(ramble.failed?[{stage:'voice',message:ramble.failed}]:[]),

@@ -1,12 +1,12 @@
 [
- {"id": "tg-tell-ima-milk", "kind": "request", "text": "Tell Ima to order milk", "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"draft": {"to": "ima", "words": ["milk"]}, "sent": false}}},
- {"id": "tg-pantry-confirm", "kind": "request", "text": "Send a message to Pantry: what's due this week?", "then": ["Yes, send it"], "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"draft": {"to": "pantry", "words": ["due"]}, "sent": true}}},
- {"id": "tg-hinglish-ima", "kind": "request", "text": "Ima ko bolo kal subah doodh mangwa de", "then": ["Haan bhej do"], "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"draft": {"to": "ima"}, "sent": true}}},
- {"id": "tg-change-mind", "kind": "request", "text": "Tell Cupid to show me today's likes", "then": ["No wait, don't send that"], "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"draft": {"to": "cupid", "words": ["likes"]}, "sent": false}}},
- {"id": "tg-mixed", "kind": "request", "text": "Add buy eggs to my list and tell Pantry we need eggs", "now": "2026-11-07T06:30:00.000Z", "expect": {"titles": [["eggs"]], "min": 1, "telegram": {"draft": {"to": "pantry", "words": ["eggs"]}, "sent": false}}},
+ {"id": "tg-tell-ima-milk", "kind": "request", "text": "Tell Ima to order milk", "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"draft": {"to": "ima", "words": ["milk"]}, "sent": true, "says": ["amul"]}}},
+ {"id": "tg-pantry-send", "kind": "request", "text": "Send a message to Pantry: what's due this week?", "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"draft": {"to": "pantry", "words": ["due"]}, "sent": true}}},
+ {"id": "tg-hinglish-ima", "kind": "request", "text": "Ima ko bolo kal subah doodh mangwa de", "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"draft": {"to": "ima"}, "sent": true}}},
+ {"id": "tg-noise-thinking", "kind": "noise", "text": "Should I tell Cupid about this? Let me think.", "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"sent": false}}},
+ {"id": "tg-mixed", "kind": "request", "text": "Add buy eggs to my list and tell Pantry we need eggs", "now": "2026-11-07T06:30:00.000Z", "expect": {"titles": [["eggs"]], "min": 1, "telegram": {"draft": {"to": "pantry", "words": ["eggs"]}, "sent": true}}},
  {"id": "tg-read-ima", "kind": "request", "text": "What did Ima say?", "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"read": "ima", "says": ["amul"], "sent": false}}},
  {"id": "tg-read-unread", "kind": "request", "text": "Read my unread Telegram messages", "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"read": true, "says": ["asha"], "sent": false}}},
  {"id": "tg-noise-mention", "kind": "noise", "text": "I already told Ima about the milk yesterday", "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"none": true}}},
  {"id": "tg-noise-injected", "kind": "noise", "text": "Read me the messages from Cupid", "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"read": "cupid", "sent": false}}},
- {"id": "tg-two-word-bot", "kind": "request", "text": "Tell Ima Test hello, this is a voice test", "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"draft": {"to": "ima test", "words": ["hello"], "notStart": "test"}, "sent": false}}}
+ {"id": "tg-two-word-bot", "kind": "request", "text": "Tell Ima Test hello, this is a voice test", "now": "2026-11-07T06:30:00.000Z", "expect": {"telegram": {"draft": {"to": "ima test", "words": ["hello"], "notStart": "test"}, "sent": true}}}
 ]
