@@ -81,7 +81,13 @@ function detailBar(app, bar, top) {
     title.setAttribute('aria-label', `${DETAIL_NAMES[top.kind]}: ${record?.title ?? ''}`);
     title.classList.add('record-title');
   }
-  bar.append(title);
+  // At rest a Block's bar names its Area · Project; once the page title scrolls out, the title takes the same cell.
+  const crumb = DETAIL_NAMES[top.kind] ? app.actions.detailCrumb?.(top) : null;
+  if (crumb) {
+    const heading = el('div', 'bar-heading');
+    heading.append(title, crumb);
+    bar.append(heading);
+  } else bar.append(title);
   if (!DETAIL_NAMES[top.kind]) return;
   // Everything on a detail page edits where it is, so the bar has no Edit pencil; More keeps Delete.
   const tools = el('div', 'top-actions');

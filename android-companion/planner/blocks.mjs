@@ -93,6 +93,15 @@ export function progressRing(done, total, label) {
   return svg;
 }
 
+/** Tasks done at the end of a Block's line: a 16dp ring (read as "2 of 7 tasks done") and "2/7". */
+export function taskTally(status, count) {
+  const tally = el('span', 'card-tally');
+  const figures = el('span', '', `${status.done}/${status.total}`);
+  figures.setAttribute('aria-hidden', 'true');
+  tally.append(progressRing(status.done, status.total, count), figures);
+  return tally;
+}
+
 /** One rule at every width: a Result picked for this week shows "This week" unless its deadline is inside the week. */
 export function weekMark(focus, status, due, now = new Date()) {
   return focus && !status.achieved && !(due && due.at - now < WEEK_MS);
@@ -119,24 +128,20 @@ export function blockCard(app, block, {focus = false, project = true} = {}) {
     main.append(top);
   }
   const count = status.total ? `${status.done} of ${plural(status.total, 'task')} done` : 'No tasks in the Plan yet';
-  // Tasks done is the ring at the title's end, as on Block detail; the words under the Purpose are only the deadline.
-  const head = el('span', 'card-head');
-  head.append(el('span', 'card-title', block.title));
-  if (status.total) head.append(progressRing(status.done, status.total, count));
-  main.append(head);
+  // The title and Purpose take the card's full width; where it stands is one line under them: the deadline (with the
+  // hours left inside the last day, error colour when tight) or This week, and tasks done as a ring and "2/7" at its end.
+  main.append(el('span', 'card-title', block.title));
   main.append(el('span', 'card-purpose', block.purpose || 'Add the Purpose: why this Result matters'));
-  // The deadline (error colour when tight); Block detail has the Musts' time. This week's pick gets a small tonal mark
-  // only when no deadline inside the week says it already. A Plan with no tasks says so, as the ring cannot.
   const due = deadline(app.data(), block, status);
   const week = weekMark(focus, status, due);
-  const when = due ? el('span', 'card-due', due.label) : !status.total ? el('span', '', count) : null;
-  when?.classList.toggle('tight', !!due?.tight);
-  if (when || week) {
-    const line = el('span', 'card-facts tnum');
-    if (when) line.append(when);
-    if (week) line.append(el('span', 'week-mark', 'This week'));
-    main.append(line);
-  }
+  const line = el('span', 'card-facts tnum');
+  const when = el('span', 'card-when');
+  if (due) when.append(el('span', 'card-due' + (due.tight ? ' tight' : ''), due.text));
+  if (week) when.append(el('span', 'week-mark', due ? ' · This week' : 'This week'));
+  if (!status.total) when.append(count);
+  line.append(when);
+  if (status.total) line.append(taskTally(status, count));
+  main.append(line);
   main.setAttribute('aria-label', `Result: ${block.title}. ${due ? due.text + '. ' : ''}`
     + `${count}. ${week ? 'This week. ' : ''}Open Block`);
   card.append(main);
@@ -240,14 +245,15 @@ function achievedSheet(app, block) {
       {label: 'Result achieved'}).catch(() => {}), 'filled-btn'));
 }
 
-/** The verdict is the user's own call, apart from the tick count: one row that asks for it; once marked, the green
- * achieved panel. */
+/** The verdict is the user's own call, apart from the tick count: one outlined button that asks for it; once marked,
+ * the green achieved panel under the Result. */
 function achievedControl(app, block, status) {
   if (!status.achieved) {
-    const {row, copy} = factRow('emoji_events', {cls: 'verdict-row', onClick: () => achievedSheet(app, block)});
-    copy.append(el('span', 'list-headline', 'Mark Result achieved'));
-    row.__closure = stampOf('blocks', block);
-    return row;
+    const verdict = button('', () => achievedSheet(app, block), 'outlined-btn verdict-row');
+    verdict.append(icon('emoji_events'), el('span', '', 'Mark Result achieved'));
+    verdict.dataset.key = 'verdict';
+    verdict.__closure = stampOf('blocks', block);
+    return verdict;
   }
   const panel = el('section', 'achieved-panel');
   panel.setAttribute('aria-label', 'Result achieved');
@@ -330,41 +336,48 @@ function refreshPlanHeader(app, block, header) {
   }
 }
 
-/** The Area · Project line: one tap opens the Projects as a menu that moves the Block in one more tap. */
-function projectLine(app, block, project) {
+/**
+ * The Area · Project line in the detail bar, beside Back: one tap opens the Projects as a menu that moves the Block in
+ * one more tap. The bar keeps identical markup across saves, so the menu reads the Block and its Project when tapped.
+ */
+export function blockCrumb(app, blockId) {
+  const now = () => {
+    const block = app.p().blocks.find(b => b.id === blockId);
+    return {block, project: block && app.p().projects.find(pr => pr.id === block.projectId)};
+  };
+  const {block, project} = now();
+  if (!block) return null;
   const crumb = button('', null, 'crumb crumb-link project-picker');
   crumb.append(eyebrow(app, block), icon('arrow_drop_down', {cls: 'crumb-drop'}));
   crumb.setAttribute('aria-haspopup', 'menu');
   crumb.setAttribute('aria-label', `Project: ${project?.title ?? 'No project'}. Change Project`);
   crumb.addEventListener('click', () => {
+    const {block: current, project: home} = now();
+    if (!current) return;
     const move = (projectId, name) => () => {
-      if ((block.projectId ?? null) === projectId) return;
-      saveEntity(app, 'blocks', block, {projectId}, projectId ? `Moved to ${name}` : 'Moved out of its Project')
+      if ((current.projectId ?? null) === projectId) return;
+      saveEntity(app, 'blocks', current, {projectId}, projectId ? `Moved to ${name}` : 'Moved out of its Project')
         .catch(() => {});
     };
     const items = [];
-    if (project) items.push({label: 'Open ' + project.title, icon: 'folder_open', onClick: () => app.openProject(project.id)},
+    if (home) items.push({label: 'Open ' + home.title, icon: 'folder_open', onClick: () => app.openProject(home.id)},
       {divider: true});
     for (const pr of app.p().projects) {
-      items.push({label: pr.title, icon: pr.id === block.projectId ? 'check' : NO_ICON, onClick: move(pr.id, pr.title)});
+      items.push({label: pr.title, icon: pr.id === current.projectId ? 'check' : NO_ICON, onClick: move(pr.id, pr.title)});
     }
-    items.push({label: 'No project', icon: block.projectId ? NO_ICON : 'check', onClick: move(null)});
+    items.push({label: 'No project', icon: current.projectId ? NO_ICON : 'check', onClick: move(null)});
     openMenu(crumb, items, 'Project');
   });
-  crumb.__closure = stampOf('blocks', block) + JSON.stringify(project ?? null);
   return crumb;
 }
 
 export function renderBlockDetail(app, page, block) {
-  const project = app.p().projects.find(pr => pr.id === block.projectId);
   const status = resultStatus(app.data(), block.id);
   const rows = blockTasks(app.data(), block.id);
   const open = rows.filter(t => !t.done);
-  const head = el('div', 'detail-head');
-  head.append(projectLine(app, block, project));
-  page.append(head);
+  // The Area · Project line sits in the bar (blockCrumb), so the page opens on the Result itself.
   page.append(titleField(app, 'blocks', block, 'Result'));
-  // As on its card: the Result, its Purpose, then where it stands, then your verdict, then the Plan.
+  // As on its card: the Result, its Purpose, then where it stands, then the Plan; the verdict closes the page.
   const facts = el('div', 'block-facts');
   facts.dataset.tone = app.tone(app.blockArea(block));
   // The heart marks the Purpose, so its row needs no label; a tap on the row edits it.
@@ -372,7 +385,7 @@ export function renderBlockDetail(app, page, block) {
   const notes = notesPanel(app, 'blocks', block);
   if (notes) facts.append(notes);
   facts.append(statusRow(status, deadline(app.data(), block, status)));
-  facts.append(achievedControl(app, block, status));
+  if (status.achieved) facts.append(achievedControl(app, block, status));
   page.append(facts);
 
   const header = planHeader(app, block);
@@ -384,6 +397,8 @@ export function renderBlockDetail(app, page, block) {
   for (const task of open) list.append(taskRow(app, task, {plan: true, days: true, onReorder}));
   page.append(list, blockAdd(app, block));
   completedSection(app, page, rows.filter(t => t.done), {plan: true, days: true});
+  // Achieved is the user's call once the Plan is worked: an outlined button after it, never in a menu.
+  if (!status.achieved) page.append(achievedControl(app, block, status));
   finishDetail(app, page);
 }
 

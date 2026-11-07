@@ -4,7 +4,7 @@ import {el, icon, button, iconButton, labelButton, emptyState, sectionHeader} fr
 import {segmentRing, nestRings} from './rings.mjs';
 import {plural, doneStats} from './format.mjs';
 import {openMenu} from './menu.mjs';
-import {purposePanel, notesPanel, titleField, finishDetail, byDeadline, progressRing, deadline, nextTaskRow} from './blocks.mjs';
+import {purposePanel, notesPanel, titleField, finishDetail, byDeadline, progressRing, deadline, nextTaskRow, taskTally} from './blocks.mjs';
 import {resultStatus} from '../review-state.mjs';
 import {saveEntity, NO_ICON} from './inline-edit.mjs';
 
@@ -26,8 +26,9 @@ export function toggleProject(state, id) {
 }
 
 /**
- * One Block as a compact row: the title with its ring at the end, one line with the deadline, then the Next task. The
- * same row on an open Project card and on Project detail; the Purpose waits one tap away, on the Block.
+ * One Block as a compact row, as on a Block card: the title across the row, one line with the deadline (hours left
+ * inside the last day) and tasks done as a ring and "2/7" at its end, then the Next task. The same row on an open
+ * Project card and on Project detail; the Purpose waits one tap away, on the Block.
  */
 function blockLine(app, block) {
   const status = resultStatus(app.data(), block.id);
@@ -36,19 +37,13 @@ function blockLine(app, block) {
   line.dataset.tone = app.tone(app.blockArea(block));
   const main = button('', () => app.openBlock(block.id), 'block-line-main');
   const count = status.total ? `${status.done} of ${plural(status.total, 'task')} done` : 'No tasks in the Plan yet';
-  const head = el('span', 'card-head');
-  // A Block with no tasks keeps its place in the ring column as a dotted empty ring.
-  const ring = progressRing(status.done, status.total, count);
-  ring.classList.toggle('empty', !status.total);
-  head.append(el('span', 'card-title', block.title), ring);
-  main.append(head);
+  main.append(el('span', 'card-title', block.title));
   const due = deadline(app.data(), block, status);
-  const words = due ? due.label : status.achieved ? 'Result achieved' : !status.total ? count : '';
-  if (words) {
-    const when = el('span', 'card-due tnum', words);
-    when.classList.toggle('tight', !!due?.tight);
-    main.append(when);
-  }
+  const facts = el('span', 'card-facts tnum');
+  const words = due ? due.text : status.achieved ? 'Result achieved' : !status.total ? count : '';
+  facts.append(el('span', 'card-due' + (due?.tight ? ' tight' : ''), words));
+  if (status.total) facts.append(taskTally(status, count));
+  main.append(facts);
   main.setAttribute('aria-label', `${block.title}, ${count}. ${due ? due.text + '. ' : ''}Open Block`);
   line.append(main);
   const next = status.achieved ? null : blockTasks(app.data(), block.id).find(task => !task.done);

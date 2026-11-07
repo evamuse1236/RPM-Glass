@@ -101,6 +101,12 @@ h1, h2, h3, p { margin: 0; }
 #planner[data-title-out=true] .detail-bar .top-title,
 #planner[data-view=settings] .detail-bar .top-title { opacity: 1; }
 .top-actions { display: flex; align-items: center; flex: none; margin-inline-start: auto; }
+/* A Block's bar: at rest its Area · Project line beside Back; once the page title scrolls out, the title takes that cell. */
+.bar-heading { flex: 1; min-inline-size: 0; display: grid; align-items: center; }
+.bar-heading > * { grid-area: 1 / 1; }
+.bar-heading > .crumb { justify-self: start; margin: 0; padding-inline: var(--s1); transition: opacity var(--dur-short) var(--ease-standard), visibility var(--dur-short); }
+.bar-heading > .crumb .eyebrow { font: var(--label-large); }
+#planner[data-title-out=true] .bar-heading > .crumb { opacity: 0; visibility: hidden; }
 
 .icon-btn {
   min-width: var(--touch);

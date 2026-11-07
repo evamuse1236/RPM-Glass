@@ -55,3 +55,22 @@ test('a detail bar is one row tall at rest and once its title shows: two title l
     'a wrapped record title never grows the bar, so the page title never starts under empty bar space');
   assert.ok(top + token('touch') + bottom <= barHeight, 'Back and More fit the row too');
 });
+
+test('a Block bar names its Area · Project beside Back at rest and gives that cell to the title once it scrolls out', () => {
+  const shell = read('planner/shell.mjs');
+  assert.match(body(shell, 'detailBar'), /app\.actions\.detailCrumb\?\.\(top\)[\s\S]*?el\('div', 'bar-heading'\)[\s\S]*?heading\.append\(title, crumb\)/);
+  const bar = read('planner.css');
+  assert.match(bar, /\.bar-heading > \* \{ grid-area: 1 \/ 1; \}/, 'the crumb and the title share one cell, so the bar keeps one height');
+  assert.match(bar, /#planner\[data-title-out=true\] \.bar-heading > \.crumb \{ opacity: 0; visibility: hidden; \}/,
+    'never both at once, and a hidden crumb takes no tap');
+  const blocks = read('planner/blocks.mjs');
+  assert.match(body(blocks, 'blockCrumb'), /crumb\.addEventListener\('click', \(\) => \{\s*const \{block: current, project: home\} = now\(\);/,
+    'the bar keeps identical markup across saves, so its menu reads the Block when tapped, never a stale copy');
+});
+
+test('a Block page keeps Mark Result achieved on the page as its own button, never in a menu', () => {
+  const blocks = read('planner/blocks.mjs');
+  assert.match(body(blocks, 'renderBlockDetail'), /if \(!status\.achieved\) page\.append\(achievedControl\(app, block, status\)\);\s*finishDetail/);
+  assert.match(body(blocks, 'achievedControl'), /button\('', \(\) => achievedSheet\(app, block\), 'outlined-btn verdict-row'\)/);
+  assert.doesNotMatch(body(blocks, 'blockMenu'), /achiev/i);
+});

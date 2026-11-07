@@ -15,14 +15,17 @@ const card = wide => {
 };
 
 for (const wide of [false, true]) {
-  test(`${wide ? 'on wide' : 'on the phone'} a Block card says the deadline on one line and tasks done as a ring on its title row; the Musts' time is Block detail's`, () => {
+  test(`${wide ? 'on wide' : 'on the phone'} a Block card says the deadline on one line, with tasks done as a ring and "0/3" at its end; the title has the row to itself; the Musts' time is Block detail's`, () => {
     const main = card(wide);
-    const [line, ...rest] = main.children.filter(c => c.className.includes('card-facts')).map(c => c.textContent);
-    assert.match(line, /^Overdue since [^·]*$/);
-    assert.doesNotMatch(line, /done|Musts/);
+    assert.ok(main.children.some(c => c.className === 'card-title'), 'the title is its own line, with no ring beside it');
+    const [line, ...rest] = main.children.filter(c => c.className.includes('card-facts'));
     assert.deepEqual(rest, []);
-    const head = main.children.find(c => c.className.includes('card-head'));
-    const ring = head.children.find(c => c.getAttribute?.('role') === 'progressbar');
+    const [when, tally] = line.children;
+    assert.match(when.textContent, /^Overdue since [^·]*$/);
+    assert.doesNotMatch(line.textContent, /done|Musts/);
+    assert.equal(tally.className, 'card-tally');
+    const ring = tally.children.find(c => c.getAttribute?.('role') === 'progressbar');
     assert.equal(ring.getAttribute('aria-label'), '0 of 3 tasks done');
+    assert.equal(tally.textContent, '0/3');
   });
 }

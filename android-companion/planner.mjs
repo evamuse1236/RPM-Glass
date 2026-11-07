@@ -8,7 +8,7 @@ import {closeSheet, dismissSheet, installSheetKeys} from './planner/sheet.mjs';
 import {closeMenu} from './planner/menu.mjs';
 import {openTask, taskEditor, movePicker, archiveTask, deleteTask, showTrash, showInbox, scheduleMenu,
   closeSchedule} from './planner/task-sheets.mjs';
-import {entityEditor, contextEditor, detailMenu} from './planner/entities.mjs';
+import {entityEditor, contextEditor, detailMenu, detailCrumb} from './planner/entities.mjs';
 import {refreshCalendar, calendarDetails, calendarEditor, datePicker, resolveClash} from './planner/calendar-ui.mjs';
 import {aiAction, examples} from './planner/jev.mjs';
 import {searchBar} from './planner/search.mjs';
@@ -34,6 +34,7 @@ function installActions(app) {
     editEntity: (collection, id) => entityEditor(app, collection, id),
     contextEditor: () => contextEditor(app),
     detailMenu: top => detailMenu(app, top),
+    detailCrumb: top => detailCrumb(app, top),
     calendar: () => calendarEditor(app),
     calendarDetails: event => calendarDetails(app, event),
     resolveClash: items => resolveClash(app, items),

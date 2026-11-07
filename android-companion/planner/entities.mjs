@@ -1,7 +1,7 @@
 /** Create and edit Blocks, Projects, Areas and Goals; the reviewed life context; detail overflow menus. */
 import {el, button} from './dom.mjs';
 import {openSheet, field, select, checkbox} from './sheet.mjs';
-import {blockMenu, revealNotes, focusTitleOnOpen} from './blocks.mjs';
+import {blockMenu, blockCrumb, revealNotes, focusTitleOnOpen} from './blocks.mjs';
 import {persist} from './inline-edit.mjs';
 import {userMessage} from '../user-message.mjs';
 
@@ -190,6 +190,11 @@ function deleteEntity(app, kind, id) {
   actions.append(button('Keep', () => app.closeSheet(), 'text-btn'),
     button('Delete', () => app.commit({type: 'removeEntity', collection: kind, id}, {label: name + ' deleted'})
       .then(() => app.back()).catch(() => {}), 'filled-btn danger'));
+}
+
+/** What a detail bar shows beside Back at rest: a Block's Area · Project line; other pages show nothing there. */
+export function detailCrumb(app, top) {
+  return top.kind === 'blocks' ? blockCrumb(app, top.id) : null;
 }
 
 export function detailMenu(app, top) {
