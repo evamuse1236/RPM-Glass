@@ -161,10 +161,14 @@ export function createChipCard({act,refresh,choices=()=>null,today=localDay}){
   const chips=el('div','item-chips');
   chips.setAttribute('role','group');
   chips.setAttribute('aria-label',`${row.title||'Item'} details`);
-  chips.append(...setFirst(chipsFor(row,opts())).map(c=>chipNode(ctx,c)));
+  const all=chipsFor(row,opts()),where=all.find(c=>c.key==='block'&&c.state!=='empty');
+  chips.append(...setFirst(all.filter(c=>c!==where)).map(c=>chipNode(ctx,c)));
   ctx.tray=el('div','chip-tray');ctx.tray.inert=true;
   const open=st.open&&ctxOf(st.open)===ctx&&!st.open.endsWith('|title')?st.open:null;
-  ctx.node.append(ctx.head,chips,ctx.tray);
+  // A set Block reads in full as a quiet line under the title, not as a cut chip; it opens the same Block tray.
+  const line=where&&chipNode(ctx,{...where,label:where.full});
+  line?.classList.add('item-where');
+  ctx.node.append(...[ctx.head,line,chips,ctx.tray].filter(Boolean));
   if(open)fillTray(ctx,open);
   return ctx.node;
  }

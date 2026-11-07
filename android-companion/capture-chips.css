@@ -23,6 +23,12 @@
 .edit-chip.failed{border:1px solid var(--bar-error)}
 .edit-chip.read-only{cursor:default}
 .edit-chip.read-only::after{content:none}
+/* A set Block is a quiet line under the title in its full name: icon in the title icon's 24dp column, words on the title's edge. */
+.edit-chip.item-where{justify-self:start;gap:12px;min-block-size:24px;margin-block-start:-4px;padding:0;border:0;background:none;color:var(--bar-on-variant);font:var(--body-medium);white-space:normal;text-align:start}
+.edit-chip.item-where .ms{inline-size:24px;text-align:center;color:var(--bar-on-variant)}
+.edit-chip.item-where .chip-label{white-space:normal;overflow:visible;overflow-wrap:anywhere}
+.edit-chip.item-where.open{border:0;color:var(--bar-primary)}
+.edit-chip.item-where.open .ms{color:var(--bar-primary)}
 
 .chip-tray{display:grid;grid-template-rows:0fr}
 .chip-tray.open{grid-template-rows:1fr}

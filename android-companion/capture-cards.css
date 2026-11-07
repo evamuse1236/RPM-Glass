@@ -44,12 +44,13 @@
 .receipt>.kicker .ms{font-size:24px}
 .receipt.single .item-head>.ms:first-child{color:var(--bar-success)}
 /* A suggested next step joins the chip row above it: same height and shape as the item's chips, tinted as an offer.
-   A suggested time stands in for the missing time chip as the same tonal offer, worded "Try 11:45 AM". */
+   A suggested time stands in for the missing time chip: the same dashed shape in primary, worded "11:45 AM?". */
 .suggest-row{margin-block-start:-4px}
 .suggest-chip{position:relative;display:inline-flex;align-items:center;gap:4px;min-block-size:32px;padding:0 12px 0 8px;border:0;border-radius:var(--r-tile);
   background:color-mix(in oklch,var(--bar-primary) 16%,transparent);color:var(--bar-on);font:var(--label-large);white-space:nowrap;cursor:pointer;text-align:start}
 .suggest-chip::after{content:'';position:absolute;inset:-8px 0}
 .suggest-chip .ms{font-size:20px;color:var(--bar-primary)}
+.suggest-chip.ask{border:1px dashed color-mix(in oklch,var(--bar-primary) 70%,transparent);background:transparent;color:var(--bar-primary)}
 .suggest-chip:active{background:color-mix(in oklch,var(--bar-primary) 24%,transparent)}
 .suggest-chip:focus-visible{outline:2px solid var(--bar-primary);outline-offset:2px}
 @media (hover:hover) and (pointer:fine){.suggest-chip:hover{background:color-mix(in oklch,var(--bar-primary) 22%,transparent)}}
@@ -199,6 +200,8 @@
 .voice-fold-inner{min-block-size:0;overflow:clip}
 .voice-lead{margin:0;padding:var(--s4) var(--s5) var(--s2);font:var(--body-medium);color:var(--bar-on);overflow-wrap:break-word;text-wrap:pretty;opacity:0;filter:blur(4px)}
 .voice-fold.open .voice-lead{opacity:1;filter:none}
+/* One rhythm: the table's own 8dp edge plus a row's 8dp padding is the gap under the transcript, the same gap as between rows. */
+.voice-fold:has(+.voice-table:not(:empty)) .voice-lead{padding-block-end:0}
 .voice-lead .w{display:inline}
 @property --inner-fade{syntax:"<length>";inherits:false;initial-value:0px}
 @keyframes inner-fade{from{--inner-fade:24px}to{--inner-fade:0px}}
