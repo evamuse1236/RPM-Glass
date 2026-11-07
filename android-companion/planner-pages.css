@@ -28,8 +28,6 @@
 }
 .eyebrow span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-title { font: var(--title-medium); overflow-wrap: anywhere; text-wrap: pretty; }
-/* This week's pick: a quiet word at the title's end, on its first line; the title wraps around it. */
-.week-mark { float: inline-end; margin-inline-start: var(--s3); font: var(--label-medium); line-height: inherit; color: var(--primary); }
 .card-purpose {
   font: var(--body-medium);
   color: var(--on-surface-variant);
@@ -76,9 +74,10 @@
 .seg-off { stroke: var(--surface-container-highest); }
 .seg-on { stroke: var(--progress, var(--primary)); }
 .seg-arc { stroke-linecap: round; }
-/* Where a Block card stands: the deadline on its own line, then tasks done and the Musts' time left. */
-.card-facts { margin-top: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
-.card-facts > *, .fact-next, .nowrap, .must-left { white-space: nowrap; }
+/* Where a Block card stands, on one line: the deadline and tasks done, then This week's pick at its end. */
+.card-facts { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--s3); margin-top: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
+.card-stand > *, .fact-next, .nowrap, .must-left { white-space: nowrap; }
+.week-mark { margin-inline-start: auto; font: var(--label-medium); color: var(--primary); white-space: nowrap; }
 .card-due { font-weight: 500; color: var(--on-surface); }
 .card-due.tight { color: var(--error); }
 .ring { flex: none; width: 24px; height: 24px; }
@@ -169,20 +168,39 @@
 button.fact-row:active { background: var(--row-press); }
 .fact-row > .leading, .fact-row > .ring { color: var(--on-surface-variant); flex: none; }
 .fact-row .text-btn { align-self: center; flex: none; margin: calc(-1 * var(--s2)) calc(-1 * var(--s2)) calc(-1 * var(--s2)) 0; }
-/* The verdict asks once, as an action row: the user's call, never a tick count. */
-.verdict-row { align-items: center; }
-.verdict-row .list-headline { color: var(--primary); }
+/* The verdict asks once, as a tonal chip in a 48dp row: the user's call, never a tick count. Its trophy starts on the
+   icons' edge above it; the row's height stays the touch target around the 32dp chip. */
+.fact-row.verdict-row {
+  position: relative;
+  align-items: center;
+  gap: var(--s2);
+  width: fit-content;
+  min-height: 32px;
+  margin: var(--s2) var(--gutter);
+  padding: 0 var(--s4) 0 var(--s2);
+  border-radius: var(--shape-sm);
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+.verdict-row::after { content: ''; position: absolute; inset: calc(-1 * var(--s2)) 0; }
+.verdict-row > .ms.leading { font-size: 20px; width: 20px; height: 20px; color: inherit; }
+.verdict-row .list-copy { flex: none; }
+.verdict-row .list-headline { font: var(--label-large); }
+button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-secondary-container) 12%, var(--secondary-container)); }
 .fact-label { font: var(--label-medium); color: var(--on-surface-variant); }
 /* The resting hint that a detail field edits in place: a small pencil after its label, gone while editing. */
 .fact-label .label-edit { font-size: 16px; width: 16px; height: 16px; line-height: 16px; margin-left: var(--s1); vertical-align: -2px;
   opacity: .72; transition: opacity var(--dur-short3) var(--ease-standard); }
 .editable-row:focus-within .label-edit { opacity: 0; }
 .purpose-text { font: var(--body-large); overflow-wrap: anywhere; }
-.due-when { font-weight: 500; }
+.due-when { font: var(--body-large); }
 .status-row.tight .due-when { color: var(--error); }
 .must-legend { font-size: 16px; color: var(--must); vertical-align: -3px; margin-right: 2px; }
-/* Tall enough for Sort by time (a 48dp text button) whether it shows or not, so it never pushes the Plan. */
-.plan-header { align-items: center; padding: var(--s2) var(--s1) 0 var(--gutter); min-height: calc(var(--touch) + var(--s2)); }
+/* The Plan's header: title-medium, 16dp above it. Sort by time (a 48dp text button) overlaps the header's own line, so
+   the header is the same height whether it shows or not and never pushes the Plan. */
+.plan-header { align-items: center; padding: var(--s4) var(--s1) 0 var(--gutter); }
+.plan-header h2 { font: var(--title-medium); }
+.plan-header .text-btn { margin-block: calc(-1 * var(--s3)); }
 .plan-actions { display: flex; align-items: center; }
 .plan-list { padding: 0 var(--s1); }
 .plan-list .task-row { padding-left: var(--s1); }

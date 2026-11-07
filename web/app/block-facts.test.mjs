@@ -16,10 +16,10 @@ const facts = wide => {
 };
 
 for (const wide of [false, true]) {
-  test(`${wide ? 'on wide' : 'on the phone'} a Block card puts the deadline alone, then tasks done and the Musts left in Block detail's words`, () => {
-    const [due, progress, ...rest] = facts(wide);
-    assert.match(due, /^Overdue since [^·]*$/);
-    assert.match(progress, /^0 of 3 done · .*1\sh of Musts left$/);
+  test(`${wide ? 'on wide' : 'on the phone'} a Block card says where it stands on one line: the deadline, then tasks done; the Musts' time is Block detail's`, () => {
+    const [line, ...rest] = facts(wide);
+    assert.match(line, /^Overdue since [^·]* · 0 of 3 done$/);
+    assert.doesNotMatch(line, /Musts/);
     assert.deepEqual(rest, []);
   });
 }
