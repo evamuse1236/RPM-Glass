@@ -182,10 +182,11 @@
   overflow-wrap: anywhere;
 }
 .task-title-field:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
-/* Start now sits under the title, aligned with its text; it hides while the task is running, done or repeating. */
+/* Start now sits under the title as an outlined assist chip, quieter than the tabs; it hides while the task is running, done or repeating. */
 .task-start { grid-column: 1 / -1; justify-self: start; margin: 0 0 var(--s2); }
-.task-start { padding-inline-end: var(--s3); border-color: transparent; background: var(--secondary-container); color: var(--on-secondary-container); }
-.task-start:active { background: color-mix(in oklch, var(--on-secondary-container) 12%, var(--secondary-container)); }
+.task-start { padding-inline-end: var(--s3); background: none; color: var(--on-surface); }
+.task-start .ms { color: var(--primary); }
+.task-start:active { background: var(--row-press); }
 .task-start:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .task-head.is-done .task-title-field { text-decoration: line-through; color: var(--on-surface-variant); }
 

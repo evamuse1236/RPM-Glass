@@ -176,8 +176,8 @@
   translate: 0 50%;
   border-radius: 2px;
   --tick: var(--outline-variant);
-  /* --fade (set by the script near the edges) thins the tick alone; its hour label keeps full strength. */
-  background: color-mix(in oklch, var(--tick) calc(var(--fade, 1) * 100%), transparent);
+  /* --fade (set by the script near the edges) thins the tick alone, to 40% at the edge; its hour label keeps full strength. */
+  background: color-mix(in oklch, var(--tick) calc((.4 + .6 * var(--fade, 1)) * 100%), transparent);
   scroll-snap-align: center;
 }
 .ruler-tick.is-hour { --tick: var(--outline); block-size: 16px; }
@@ -229,13 +229,13 @@
   cursor: ew-resize;
 }
 .ruler-grip[hidden] { display: none; }
-/* A 16px knob in a 2px sheet ring keeps clear of the next tick; in dark it takes the bar's own hue. */
+/* A 20px knob in a 2px sheet ring reads as the grip; in dark it is a step lighter than the bar, short of a pale dot. */
 .ruler-grip::before {
   content: "";
-  inline-size: 16px;
-  block-size: 16px;
+  inline-size: 20px;
+  block-size: 20px;
   border-radius: var(--shape-full);
-  background: light-dark(var(--primary), color-mix(in oklch, var(--primary) 40%, var(--primary-container)));
+  background: light-dark(var(--primary), color-mix(in oklch, var(--primary) 70%, var(--primary-container)));
   box-shadow: 0 0 0 2px var(--sheet-bg, var(--sheet-surface));
 }
 .ruler-grip.is-empty::before { box-sizing: border-box; border: 2px solid var(--primary); background: var(--sheet-bg, var(--sheet-surface)); }
@@ -261,6 +261,9 @@
 .alert-kind:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .alert-kinds.is-off { opacity: .38; }
 .alert-kinds.is-off .alert-kind { pointer-events: none; }
+/* The lead times sit with the pair as one group, in the pair's type. */
+.alert-kinds + .chip-row.segmented { margin-block-start: calc(-1 * var(--s2)); }
+.task-tabs .alert-kinds + .chip-row.segmented > .chip { font: var(--label-large); }
 :root[data-large-text=true] .alert-kind { flex-direction: column; gap: 0; padding-block: var(--s1); }
 
 .repeat-days { display: flex; justify-content: space-between; gap: var(--s1); }
@@ -304,7 +307,7 @@
 .block-choice[aria-checked=true] { background: color-mix(in oklch, var(--secondary-container) 50%, transparent); color: var(--on-surface); }
 /* The chosen Block is the one name you must read whole: it wraps to two lines, the others stay one line. */
 .block-choice[aria-checked=true] { border-radius: var(--r-group); }
-.block-choice[aria-checked=true] .block-choice-title { display: -webkit-box; padding-block: var(--s2); font-weight: 500; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.block-choice[aria-checked=true] .block-choice-title { display: -webkit-box; padding-block: var(--s2); font-weight: 500; white-space: normal; text-wrap: balance; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .block-choice:active { background: var(--row-press); }
 .block-choice:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 

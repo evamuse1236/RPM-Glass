@@ -37,6 +37,6 @@
   #planner .spine-card[data-open], #planner .spine-chip[data-open] { outline: 2px solid var(--primary); outline-offset: -2px; scroll-margin-block: var(--s8); }
 }
 @media (width >= 1080px) and (hover: hover) and (pointer: fine) {
-  #sheet[data-inline] .task-start:hover { background: color-mix(in oklch, var(--on-secondary-container) 8%, var(--secondary-container)); }
+  #sheet[data-inline] .task-start:hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
   #sheet[data-inline] .chip-row.segmented > .chip:not([aria-pressed=true]):hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
 }
