@@ -6,8 +6,8 @@ export const el = (tag, cls = '', text = '') => {
   if (text) node.textContent = text;
   return node;
 };
-export const symbol = name => {
-  const node = el('span', 'ms', name);
+export const symbol = (name, cls = '') => {
+  const node = el('span', cls ? `ms ${cls}` : 'ms', name);
   node.setAttribute('aria-hidden', 'true');
   return node;
 };
@@ -42,7 +42,7 @@ export function row({label, detail = '', value = '', action, role = null, toggle
   }
   if (value) node.append(el('span', 'settings-value', value));
   if (next) node.append(symbol('chevron_right'));
-  else if (trail) node.append(symbol(trail));
+  else if (trail) node.append(symbol(trail, 'settings-trail'));
   return node;
 }
 

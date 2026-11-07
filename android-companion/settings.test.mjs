@@ -36,10 +36,17 @@ test('home is one short list of pages; each row pushes its page',async()=>{
   assert.deepEqual(opened,['alerts']);
 });
 
-test('a blocked alarm permission puts one red row above the list and a red Allow on its page',async()=>{
+test('a blocked alarm permission puts one red row above the list, a dot and "N off" on its home row, and a red Allow on its page',async()=>{
   const home=await mounted({notificationsAllowed:true,exactAlarmsAllowed:false});
   assert.equal(home.labels[0],'Alarms may not ring');
   assert.equal(home.rows[0].dataset.tone,'error');
+  const row=home.rows.findLast(r=>r.dataset.action==='open_alerts');
+  assert.equal(row.dataset.tone,'warn');
+  assert.equal(row.querySelector('.settings-value').textContent,'1 off');
+  const both=await mounted({});
+  assert.equal(both.rows.findLast(r=>r.dataset.action==='open_alerts').querySelector('.settings-value').textContent,'2 off');
+  const fine=await mounted({notificationsAllowed:true,exactAlarmsAllowed:true});
+  assert.equal(fine.rows.findLast(r=>r.dataset.action==='open_alerts').dataset.tone,undefined);
   home.rows[0].click();
   assert.deepEqual(home.opened,['alerts']);
   const alerts=await mounted({notificationsAllowed:true,exactAlarmsAllowed:false},'alerts');

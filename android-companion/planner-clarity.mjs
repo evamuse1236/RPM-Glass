@@ -63,12 +63,15 @@ export function transparencyRow(document,current,onChange){
   trackFill(slider);
   const sample=element(document,'div','bar-sample');
   sample.setAttribute('aria-hidden','true');
-  for(const [tone,title,time] of [[0,'Group call: merge sections','11:00'],[2,'Past paper 2019, section B','12:00'],[1,'Lunch with Meera','13:00']]){
+  for(const [tone,title,time] of [[0,'Group call','11:00'],[2,'Past paper','12:00']]){
     const line=element(document,'span','bar-sample-line');
     line.style.setProperty('--tone',`var(--area-${tone})`);
     line.append(element(document,'span','bar-sample-time tnum',time),element(document,'span','bar-sample-title',title));
     sample.append(line);
   }
+  const band=element(document,'span','bar-sample-line bar-sample-band');
+  band.style.setProperty('--tone','var(--area-1)');
+  sample.append(band);
   const bar=element(document,'span','bar-sample-bar');
   for(const [glyph,name] of [['today','Today'],['stacks','Blocks'],['folder','Projects'],['spa','Life']]){
     const tab=element(document,'span','bar-sample-tab');

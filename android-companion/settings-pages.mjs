@@ -18,7 +18,8 @@ export const SETTINGS_PAGES = Object.freeze({
 });
 const HOME_GROUPS = [['appearance', 'notch'], ['alerts', 'voice', 'ai'], ['sync', 'diagnostics', 'about']];
 
-const alarmsBlocked = s => !s.notificationsAllowed || !s.exactAlarmsAllowed;
+const alarmsOff = s => [s.notificationsAllowed, s.exactAlarmsAllowed].filter(allowed => !allowed).length;
+const alarmsBlocked = s => alarmsOff(s) > 0;
 const notchWaiting = s => !!s.notchOn && !s.notchServiceOn;
 const connectedKeys = s => [s.claudeKey && 'Claude', s.openRouterKey && 'OpenRouter'].filter(Boolean);
 
@@ -28,6 +29,7 @@ function homeValue(ctx, page) {
   switch (page) {
     case 'appearance': return THEME_NAMES[clarityPreferences().appearance];
     case 'notch': return s.notchOn ? 'On' : 'Off';
+    case 'alerts': return alarmsBlocked(s) ? `${alarmsOff(s)} off` : '';
     case 'voice': return s.hasGeminiKey ? voiceChoice().voice ?? 'Default' : 'Not set';
     case 'ai': { const keys = connectedKeys(s); return keys.length ? keys.join(', ') : 'Not set'; }
     case 'diagnostics': { const log = s.diagnostics ?? {}; return !log.connected ? 'Off' : log.paused ? 'Paused' : 'On'; }
@@ -54,7 +56,8 @@ export function homePage(ctx) {
     const section = group();
     for (const page of pages) {
       const {title, icon, tone} = SETTINGS_PAGES[page];
-      const node = row({label: title, value: homeValue(ctx, page), icon, tile: tone, next: true, action: `open_${page}`});
+      const node = row({label: title, value: homeValue(ctx, page), icon, tile: tone, next: true, action: `open_${page}`,
+        tone: page === 'alerts' && alarmsBlocked(s) ? 'warn' : null});
       node.addEventListener('click', () => ctx.options.openPage?.(page));
       section.card.append(node);
     }
@@ -216,12 +219,17 @@ const WEB_PAGES = ['appearance', 'about'];
 export function phoneOnlyPage(ctx, text) {
   if (ctx.page === 'appearance') return appearancePage(ctx);
   if (ctx.page === 'about') return aboutPage(null);
-  const section = group('', {id: 'phone-only', caption: text});
+  const section = group('', {id: 'web-pages'});
   for (const page of WEB_PAGES) {
     const {title, icon, tone} = SETTINGS_PAGES[page];
     const node = row({label: title, value: page === 'appearance' ? THEME_NAMES[clarityPreferences().appearance] : '', icon, tile: tone, next: true, action: `open_${page}`});
     node.addEventListener('click', () => ctx.options.openPage?.(page));
     section.card.append(node);
   }
-  return [section];
+  const phone = group('', {id: 'phone-only'});
+  const note = row({label: 'Set in RPM on your phone', detail: text, icon: 'phone_android', tile: 'grey'});
+  const fact = el('div', note.className);
+  fact.append(...note.childNodes);
+  phone.card.append(fact);
+  return [section, phone];
 }

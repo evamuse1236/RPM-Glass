@@ -86,7 +86,7 @@ function handle(action, payload) {
     case 'status': return phone;
     case 'legacyEntries': return {done: true, entries: []};
     case 'captureDraft': return payload.text == null ? {present: false} : {};
-    case 'appSettings': return {};
+    case 'appSettings': return {alarmSound: 'Phone default', reminderSound: 'Phone default'};
     case 'calendarList': return {permitted: true, selected: [1], calendars: [{id: 1, name: 'College', account: 'student', color: -16746133}]};
     case 'calendarRead': return calendar(payload.anchor);
     case 'dictate': return {text: 'call mom sunday evening'}; // stands in for Android's speech recognizer

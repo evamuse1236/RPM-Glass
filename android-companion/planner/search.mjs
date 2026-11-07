@@ -1,7 +1,7 @@
 /** Full-screen search, as in Google Tasks and Calendar: the query lives in the top bar. */
-import {tasks} from '../planner-state.mjs';
+import {tasks, localDay} from '../planner-state.mjs';
 import {el, iconButton, listItem, sectionHeader, emptyState} from './dom.mjs';
-import {taskRow} from './task-row.mjs';
+import {taskRow, taskWhen} from './task-row.mjs';
 
 let query = '';
 
@@ -34,14 +34,26 @@ function matches(item, q) {
   return (item.title + ' ' + (item.purpose ?? '') + ' ' + (item.notes ?? '')).toLocaleLowerCase().includes(q);
 }
 
-/** Bolds each place the query appears in a row's title. */
+const wordChar = /[\p{L}\p{N}]/u;
+/** Where the query starts a word in `text`, as the Block add field matches; a hit inside a word is not one. */
+export function wordStarts(text, q) {
+  const lower = text.toLocaleLowerCase(), found = [];
+  if (!q) return found;
+  for (let hit = lower.indexOf(q); hit !== -1; hit = lower.indexOf(q, hit + 1)) {
+    if (hit && wordChar.test(lower[hit - 1])) continue;
+    found.push(hit);
+    hit += q.length - 1;
+  }
+  return found;
+}
+
+/** Bolds each word the query starts in a row's title; a match inside a word stays listed but plain. */
 function markHits(node, q) {
   if (!node) return;
   const text = node.textContent;
-  const lower = text.toLocaleLowerCase();
   const parts = [];
   let at = 0;
-  for (let hit = lower.indexOf(q); hit !== -1 && q; hit = lower.indexOf(q, at)) {
+  for (const hit of wordStarts(text, q)) {
     if (hit > at) parts.push(text.slice(at, hit));
     parts.push(el('strong', 'search-hit', text.slice(hit, hit + q.length)));
     at = hit + q.length;
@@ -54,14 +66,29 @@ function markHits(node, q) {
 const byTitle = (a, b) => a.title.localeCompare(b.title, undefined, {numeric: true, sensitivity: 'base'});
 /** Display order only, the same on phone and website: open before done, Musts first, then by title. Nothing is dropped. */
 export const searchOrder = (a, b) => !!a.done - !!b.done || (!a.done && !!b.must - !!a.must) || byTitle(a, b);
+/** Display order only: within a run, titles with a word that starts with the query come before other matches. */
+export const wordFirst = (list, q) => list.map((item, i) => [item, wordStarts(item.title, q).length ? 0 : 1, i])
+  .sort((a, b) => a[1] - b[1] || a[2] - b[2]).map(([item]) => item);
+
+/** Open Musts due today or earlier, soonest first: what Search offers before a word is typed. */
+function mustsToday(app) {
+  const today = localDay();
+  const day = task => { const when = taskWhen(task); return when ? localDay(new Date(when)) : task.plannedDate ?? null; };
+  return tasks(app.data()).filter(task => task.must && !task.done && day(task) && day(task) <= today)
+    .sort((a, b) => (taskWhen(a) ?? Infinity) - (taskWhen(b) ?? Infinity) || byTitle(a, b));
+}
 
 function drawResults(app, host) {
   if (!host) return;
   host.replaceChildren();
   const q = query.trim().toLocaleLowerCase();
+  const row = task => taskRow(app, task, {context: app.context(task).block?.title ?? 'No block'});
   if (!q) {
-    host.append(listItem({leading: 'inbox', headline: 'Inbox', onClick: () => app.actions.inbox()}));
-    host.append(listItem({leading: 'mic', headline: 'Capture', onClick: () => app.capture()}));
+    const musts = mustsToday(app);
+    if (musts.length) host.append(sectionHeader('Musts for today'), ...musts.map(row));
+    host.append(sectionHeader('Go to'),
+      listItem({leading: 'inbox', headline: 'Inbox', onClick: () => app.actions.inbox()}),
+      listItem({leading: 'mic', headline: 'Capture', onClick: () => app.capture()}));
     return;
   }
   const p = app.p();
@@ -71,28 +98,27 @@ function drawResults(app, host) {
     ['Goals', 'flag', p.goals, g => app.openGoal(g.id), g => String(g.year)],
     ['Areas', 'spa', p.areas, a => app.openArea(a.id), a => a.purpose],
   ];
-  let count = 0;
   const found = tasks(app.data()).filter(task => matches(task, q)).sort(searchOrder).slice(0, 30);
-  const row = task => {
-    const node = taskRow(app, task, {context: app.context(task).block?.title ?? 'No block'});
-    markHits(node.querySelector('.task-title'), q);
-    return node;
-  };
-  const open = found.filter(task => !task.done), done = found.filter(task => task.done);
-  if (open.length) host.append(sectionHeader('Tasks'), ...open.map(row));
-  if (done.length) host.append(sectionHeader('Done'), ...done.map(row));
-  count += found.length;
-  for (const [label, symbol, items, open, supporting] of groups) {
-    const hits = items.filter(item => matches(item, q)).slice(0, 30);
+  const hit = task => { const node = row(task); markHits(node.querySelector('.task-title'), q); return node; };
+  /** A done row is its title alone: its time and Block no longer help to find it. */
+  const done = task => { const node = hit(task); node.querySelector('.task-supporting')?.remove(); return node; };
+  const open = found.filter(task => !task.done);
+  if (open.length) host.append(sectionHeader('Tasks'),
+    ...[...wordFirst(open.filter(task => task.must), q), ...wordFirst(open.filter(task => !task.must), q)].map(hit));
+  let count = found.length;
+  for (const [label, symbol, items, go, supporting] of groups) {
+    const hits = wordFirst(items.filter(item => matches(item, q)).slice(0, 30), q);
     if (!hits.length) continue;
     host.append(sectionHeader(label));
     for (const item of hits) {
-      const node = listItem({leading: symbol, headline: item.title, supporting: supporting(item) ?? '', onClick: () => open(item)});
+      const node = listItem({leading: symbol, headline: item.title, supporting: supporting(item) ?? '', onClick: () => go(item)});
       markHits(node.querySelector('.list-headline'), q);
       host.append(node);
     }
     count += hits.length;
   }
+  const finished = wordFirst(found.filter(task => task.done), q);
+  if (finished.length) host.append(sectionHeader('Done'), ...finished.map(done));
   if (!count) host.append(emptyState({symbol: 'search_off', title: 'No matches', body: 'Try another word.'}));
 }
 
@@ -101,4 +127,3 @@ export function renderSearch(app, page) {
   page.append(results);
   drawResults(app, results);
 }
-

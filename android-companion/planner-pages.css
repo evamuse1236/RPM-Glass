@@ -398,3 +398,7 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
 .search-results .task-row { padding-inline-start: var(--s1); }
 .search-results .task-main:has(+ .must-mark) { flex: 0 1 auto; }
 .search-hit { font-weight: 700; color: inherit; }
+/* Done results come last as their title alone, with a quiet tick in place of the filled one (Google Tasks' Completed). */
+.search-results .task-row.done .task-main { min-block-size: 48px; }
+.search-results .task-row.done .check-ring { border-color: transparent; background: transparent; color: var(--on-surface-variant); }
+.search-results .task-row.done .check-ring .ms { font-size: 20px; font-weight: 400; }
