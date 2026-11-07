@@ -13,7 +13,7 @@ function shell(title,onBack){
  node.append(head);
  return node;
 }
-const when=at=>new Date(at).toLocaleString([],{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
+const when=at=>new Date(at).toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit',hour12:true});
 
 function statusText(capture,voiceRows){
  const kind=cardKind(capture),lines=capture.draft?.lines??[];
