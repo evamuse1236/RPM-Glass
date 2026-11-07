@@ -179,9 +179,12 @@ html:has(dialog:modal) { overflow: clip; }
   .planner-view > :is(#banner, #notes, #planner) { grid-column: 2; }
   .planner-view > #planner { grid-row: 3; }
   .planner-view .page { max-width: none; margin-inline: 0; }
-  /* A detail page keeps one 720px column: Back, its actions and the content it acts on share the column's edges. */
+  /* A detail page keeps one 720px column that starts on the root pages' content edge, so a push does not jump the
+     content sideways: Back, its actions and the content it acts on share the column's edges. */
   .planner-view #planner[data-detail=true] { --column: 720px; }
-  .planner-view #planner[data-detail=true] .page { max-width: var(--column); margin-inline: auto; }
+  .planner-view #planner[data-detail=true] .page { max-width: var(--column); margin-inline: 0; }
+  .planner-view #planner[data-detail=true] .top-bar { padding-inline: var(--s1) max(var(--s1), 100% - var(--column) + var(--s1)); }
+  .planner-view #planner[data-detail=true][data-scrolled=true] .top-bar { background-position: 0 0; }
   /* Block detail reads like a Google Tasks list: a 560px column keeps each Must star near its row's words. */
   .planner-view #planner[data-view=blocks][data-detail=true] { --column: 560px; }
   /* With room around it the Result leads the page at headline-medium, one clear step above the Plan's rows. */

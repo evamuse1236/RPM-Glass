@@ -71,12 +71,17 @@ h1, h2, h3, p { margin: 0; }
   display: flex;
   align-items: center;
   gap: var(--s1);
-  padding: var(--s2) var(--s1) var(--s1) var(--s5);
+  padding: var(--s2) var(--s1) var(--s2) var(--s5);
   background: var(--surface);
   transition: background-color var(--dur-medium) var(--ease-standard);
 }
 #planner[data-scrolled=true] .top-bar, #planner[data-view=today] .top-bar { background: var(--surface-container); }
 .detail-bar, .search-bar { padding-left: var(--s1); }
+.detail-bar { padding-block-end: var(--s1); }
+/* Every root bar is one 64dp row: the title in the date's type, with Search and More options. A detail bar keeps
+   Back and More options on that same row however tall its title grows, so the icons hold still on push and pop. */
+.root-bar .top-title { font: var(--title-date); letter-spacing: -.02em; }
+.detail-bar > .icon-btn, .detail-bar > .top-actions { align-self: flex-start; }
 .top-title {
   flex: 1;
   min-width: 0;
@@ -201,7 +206,7 @@ h1, h2, h3, p { margin: 0; }
   mask-image:
     radial-gradient(circle at calc(var(--inset-page) + var(--bar-r)) calc(100% - var(--nav-gap) - var(--bar-r)), rgb(0 0 0 / var(--bar-ends, 100%)) calc(var(--bar-r) - 1px), transparent var(--bar-r)),
     radial-gradient(circle at calc(100% - var(--bar-end) - var(--bar-r)) calc(100% - var(--nav-gap) - var(--bar-r)), rgb(0 0 0 / var(--bar-ends, 100%)) calc(var(--bar-r) - 1px), transparent var(--bar-r)),
-    linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--bar-fade, var(--s8)))),
+    linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--bar-fade, var(--s8)) - var(--s4)), transparent),
     linear-gradient(to top, transparent max(var(--dock-top), var(--page-end)), #000 calc(max(var(--dock-top), var(--page-end)) + var(--s6))),
     linear-gradient(to right, #000 calc(100% - var(--s3)), transparent),
     linear-gradient(to top, transparent var(--page-end), #000 calc(var(--page-end) + var(--s6)));

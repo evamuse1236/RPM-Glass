@@ -46,7 +46,6 @@ function rootMenu(app, anchor) {
   }
   const items = [
     {label: 'Weekly review', icon: 'event_repeat', onClick: () => app.openReview()},
-    {divider: true},
     ...page,
     ...(page.length ? [{divider: true}] : []),
     {label: 'Archive', icon: 'archive', onClick: () => actions.trash(true)},

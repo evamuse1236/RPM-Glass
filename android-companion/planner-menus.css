@@ -39,9 +39,8 @@
   overflow-y: auto;
   padding: var(--s2) 0;
   border-radius: var(--shape-md);
-  border: 1px solid var(--outline-variant);
-  background: var(--surface-container-high);
-  box-shadow: var(--elev-3);
+  background: var(--surface-container);
+  box-shadow: var(--elev-2);
 }
 .menu-item {
   display: flex;

@@ -131,9 +131,10 @@ test('on wide a free gap is one compact row with its + right after the words', (
   assert.match(wide, /\.planner-view \.spine-free \{ grid-template-columns: var\(--spine-pill\) auto var\(--touch\) minmax\(0, 1fr\); \}/);
 });
 
-test('on wide a detail page keeps one 720px column, so Back, its actions and its content share the same edges', () => {
+test('on wide a detail page keeps one 720px column on the root pages\' start edge, so Back, its actions and its content share the same edges', () => {
   const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
   const wide = css.slice(css.indexOf('@media (width >= 1080px)'));
   assert.match(wide, /\.planner-view #planner\[data-detail=true\] \{ --column: 720px; \}/);
-  assert.match(wide, /\.planner-view #planner\[data-detail=true\] \.page \{ max-width: var\(--column\); margin-inline: auto; \}/);
+  assert.match(wide, /\.planner-view #planner\[data-detail=true\] \.page \{ max-width: var\(--column\); margin-inline: 0; \}/);
+  assert.match(wide, /\.planner-view #planner\[data-detail=true\] \.top-bar \{ padding-inline: var\(--s1\) max\(var\(--s1\), 100% - var\(--column\) \+ var\(--s1\)\); \}/);
 });
