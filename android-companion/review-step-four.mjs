@@ -18,7 +18,7 @@ export function stepFour(api) {
   // Nothing blocks Finish; the counts say what is still open.
   const open = clashes.filter(c => clashState(api, c).state === 'open').length;
   const todo = [open && `${plural(open, 'clash', 'clashes')} to decide`, missed.size && `${plural(missed.size, 'Result')} due this week not picked`].filter(Boolean);
-  const [title] = heading("Pick this week's Results", '');
+  const [title] = heading("Pick this week's Results");
   const sub = el('p', 'wr-sub tnum', `${chosen.length} picked · aim for 3 to 5.` + (todo.length ? ` ${capital(todo.join(' · '))}.` : ''));
   sub.setAttribute('aria-live', 'polite');
   const parts = [title, sub];

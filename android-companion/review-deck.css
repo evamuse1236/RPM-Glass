@@ -14,11 +14,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--s2);
-  min-block-size: 280px;
-  padding: var(--s6) var(--s6) var(--s4);
+  padding: var(--s6);
   border-radius: 28px;
-  background: color-mix(in oklch, var(--tone) 12%, var(--surface-container-low));
-  border: 1px solid color-mix(in oklch, var(--tone) 28%, var(--outline-variant));
+  background: var(--surface-container);
   touch-action: pan-y;
   user-select: none;
   overflow: clip;
@@ -26,11 +24,8 @@
 .wr-deck-count { font: var(--label-medium); color: color-mix(in oklch, var(--tone) 70%, var(--on-surface)); }
 .wr-deck-title { font: var(--headline-small); overflow-wrap: break-word; text-wrap: pretty; }
 .wr-deck-purpose { font: var(--body-medium); color: var(--on-surface-variant); text-wrap: pretty; }
-.wr-deck-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3) var(--s4); margin-block-start: auto; padding-block-start: var(--s4); }
-.wr-deck-meta .seg-ring { flex: none; inline-size: 88px; block-size: 88px; }
-.wr-deck-meta .seg-ring :is(path, circle) { stroke-width: 4; }
-.wr-deck-done { display: grid; font: var(--body-medium); color: var(--on-surface-variant); }
-.wr-deck-done b { font: var(--headline-small); font-weight: 500; color: var(--on-surface); }
+.wr-deck-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); padding-block-start: var(--s2); }
+.wr-deck-done { font: var(--body-medium); color: var(--on-surface-variant); }
 .wr-deck-stamp {
   position: absolute;
   inset-block-start: var(--s4);

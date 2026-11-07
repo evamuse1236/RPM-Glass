@@ -10,7 +10,7 @@ export function stepTwo(api, ctx) {
   const inbox = inboxTasks(api.data());
   const now = api.now();
   const clashIds = new Set(api.clashes().map(c => c.task?.id).filter(Boolean));
-  const parts = heading('Empty your head', 'Every idea, want and to-do, in your own words. Sorting comes next.');
+  const parts = heading('Empty your head');
   parts.push(quickAdd(api), ...lenses(api));
   parts.push(sectionHead('Inbox', inbox.length, button('Open Capture', () => ctx.openCapture(), 'wr-btn-text', 'edit_note')));
   if (!inbox.length) {
@@ -103,5 +103,5 @@ function lenses(api) {
     chip.append(areaDot(areaTone(area, planner(api.data()).areas)), el('span', 'wr-label', area.title + '?'));
     row.append(chip);
   }
-  return [el('p', 'wr-lens-head', 'Stuck? Ask yourself about each Area'), row];
+  return [row];
 }

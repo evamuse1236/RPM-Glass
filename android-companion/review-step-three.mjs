@@ -12,14 +12,13 @@ export function stepThree(api, ctx) {
   const toSort = loose.filter(t => !ui.kept.includes(t.id));
   const kept = loose.filter(t => ui.kept.includes(t.id));
   if (ui.sheet && !loose.some(t => t.id === ui.sheet.taskId)) ui.sheet = null;
-  const parts = heading('Sort the Inbox', 'Give each task the Result it serves, or leave errands in the Inbox.');
+  const parts = heading('Sort the Inbox');
   if (!rows.length) {
     parts.push(emptyState('done_all', 'Nothing to sort', 'Your Inbox is empty, so every task already has a Result.'));
     return parts;
   }
   const jev = ctx.sortInbox && toSort.length ? button('Ask Jev', () => ctx.sortInbox(), 'wr-btn-text', 'auto_awesome') : null;
   parts.push(sectionHead('To sort', toSort.length, jev));
-  if (jev) parts.push(el('p', 'wr-section-note', 'Jev proposes; nothing moves until you confirm.'));
   if (toSort.length) {
     const candidates = focusCandidates(api.data(), api.week, []);
     const list = el('ul', 'wr-list wr-sort-list');

@@ -1,15 +1,16 @@
 import {reviewSummary, leftoverChoice} from './review-state.mjs';
 import {plural} from './planner/format.mjs';
-import {VERDICTS, VERDICT_RECEIPTS, CHOICES, el, icon, button, weekLabel, dueChip, heading, emptyState, sectionHead, factsLine, dueFact, mustFact} from './review-ui.mjs';
+import {VERDICT_RECEIPTS, CHOICES, el, icon, button, dueChip, heading, emptyState, sectionHead, factsLine, dueFact, mustFact} from './review-ui.mjs';
+import {openMenu} from './planner/menu.mjs';
 import {focusCheck, setFocus} from './review-focus.mjs';
-import {deckOf, deckTally, resultDeck} from './review-deck.mjs';
+import {DECK_VERDICTS, deckOf, deckTally, resultDeck} from './review-deck.mjs';
 
 /* ---------- step 1: last week's Results ---------- */
 export function stepOne(api) {
   const summary = reviewSummary(api.data(), api.week, api.now());
   const judged = summary.results.filter(r => !r.running);
   const running = summary.results.filter(r => r.running);
-  const parts = heading("How did last week's Results go?", `${weekLabel(summary.lastWeek)}. Ticked tasks don't decide it; you do.`);
+  const parts = heading("How did last week's Results go?");
   if (!summary.results.length) {
     const body = "Once you choose this week's Results in step 4, next week's review starts here.";
     parts.push(emptyState('history', 'Nothing to look back on yet', body));
@@ -37,8 +38,6 @@ function resultCard(api, summary, result) {
   card.append(el('h3', 'wr-card-title', result.title));
   if (result.purpose) card.append(el('p', 'wr-card-purpose', result.purpose));
   card.append(progressMeta(result, win ? null : result.due, api.now()));
-  // A neutral question, not a hint towards Achieved: ticked tasks are activity, the Result is the user's call.
-  if (!result.verdict && result.total && result.done === result.total) card.append(el('p', 'wr-ask', 'Every task is ticked. Did the Result itself happen?'));
   card.append(verdictControl(api, summary, result));
   if (win) card.append(evidenceField(api, summary, result));
   if (result.verdict === 'partly' || result.verdict === 'notyet') card.append(carryRow(api, result), leftoverList(api, result));
@@ -65,12 +64,12 @@ function progressMeta(result, due, now) {
   return row;
 }
 
-/** One segmented button per Result: a single decision, not three loose chips. The chosen verdict carries colour and a word. */
+/** One segmented button per Result, in the deck's order (Not yet, Partly, Achieved). The chosen one carries the tint. */
 function verdictControl(api, summary, result) {
   const group = el('div', 'wr-seg wr-verdicts');
   group.setAttribute('role', 'radiogroup');
   group.setAttribute('aria-label', `Did "${result.title}" happen?`);
-  for (const [value, label] of VERDICTS) {
+  for (const [value, label] of DECK_VERDICTS) {
     const selected = result.verdict === value;
     const option = button('', () => {
       if (selected) return;
@@ -80,7 +79,6 @@ function verdictControl(api, summary, result) {
     option.setAttribute('role', 'radio');
     option.setAttribute('aria-checked', String(selected));
     option.dataset.key = `verdict:${result.blockId}:${value}`;
-    if (selected) option.append(icon('check'));
     option.append(el('span', 'wr-label', label));
     group.append(option);
   }
@@ -137,42 +135,47 @@ function runningList(api, running) {
   const all = running.length > 1 && left.length
     ? button(running.length === 2 ? 'Carry both' : `Carry all ${running.length}`, () => setFocus(api, [...api.ui.focus, ...left.map(r => r.blockId)]), 'wr-btn-tonal', 'redo')
     : null;
-  return [sectionHead('Still running', running.length, all),
-    el('p', 'wr-section-note', "Their deadlines haven't come yet, so there's nothing to judge. Checked ones join this week's Results."), list];
+  return [sectionHead('Still running', running.length, all), list];
 }
 
+/** The open tasks of a Partly or Not yet Result: one menu per row, and one Carry for all that are not carried yet. */
 function leftoverList(api, result) {
   const box = el('div', 'wr-left');
-  if (!result.leftovers.length) {
+  const tasks = result.leftovers.map(id => api.data().entries.find(t => t.id === id)).filter(Boolean);
+  if (!tasks.length) {
     box.append(el('p', 'wr-card-note', 'No open tasks left.'));
     return box;
   }
-  box.append(el('p', 'wr-left-head', 'Unfinished tasks'));
-  for (const id of result.leftovers) {
-    const task = api.data().entries.find(t => t.id === id);
-    if (task) box.append(leftoverRow(api, task));
+  const head = el('div', 'wr-left-head');
+  head.append(el('h4', '', 'Unfinished tasks'));
+  const open = tasks.filter(task => leftoverChoice(task, api.week) !== 'carry');
+  if (tasks.length > 1 && open.length) {
+    const label = open.length < tasks.length ? 'Carry the rest' : 'Carry all';
+    const ops = open.map(task => ({type: 'reviewTask', id: task.id, choice: 'carry', week: api.week}));
+    head.append(button(label, () => api.run({type: 'batch', ops}, 'Carried into this week'), 'wr-btn-text'));
   }
+  box.append(head);
+  for (const task of tasks) box.append(leftoverRow(api, task));
   return box;
 }
 
+const CHOICE_ICONS = {carry: 'redo', defer: 'event_upcoming', drop: 'archive'};
 function leftoverRow(api, task) {
   const row = el('div', 'wr-left-row');
   const current = leftoverChoice(task, api.week);
-  row.append(el('span', 'wr-left-title' + (current === 'drop' ? ' dropped' : ''), task.title ?? task.raw ?? 'Task'));
-  const seg = el('div', 'wr-seg sm');
-  seg.setAttribute('role', 'radiogroup');
-  seg.setAttribute('aria-label', `What to do with "${task.title}"`);
-  for (const [value, label] of CHOICES) {
-    const selected = current === value;
-    const option = button(label, () => {
-      if (!selected) api.run({type: 'reviewTask', id: task.id, choice: value, week: api.week}, decisionLabel(value));
-    }, 'wr-seg-btn' + (selected ? ' sel' : ''));
-    option.setAttribute('role', 'radio');
-    option.setAttribute('aria-checked', String(selected));
-    option.dataset.key = `left:${task.id}:${value}`;
-    seg.append(option);
-  }
-  row.append(seg);
+  const title = task.title ?? task.raw ?? 'Task';
+  row.append(el('span', 'wr-left-title' + (current === 'drop' ? ' dropped' : ''), title));
+  const label = CHOICES.find(([value]) => value === current)?.[1];
+  const pick = button(label ?? 'Choose', () => openMenu(pick, CHOICES.map(([value, word]) => ({
+    label: word,
+    icon: value === current ? 'check' : CHOICE_ICONS[value],
+    onClick: () => { if (value !== current) api.run({type: 'reviewTask', id: task.id, choice: value, week: api.week}, decisionLabel(value)); },
+  })), `What to do with "${title}"`), 'wr-left-pick' + (current ? ' set' : ''));
+  pick.append(icon('arrow_drop_down'));
+  pick.setAttribute('aria-haspopup', 'menu');
+  pick.setAttribute('aria-label', `What to do with "${title}": ${label ?? 'not decided'}`);
+  pick.dataset.key = 'left:' + task.id;
+  row.append(pick);
   return row;
 }
 const decisionLabel = value => ({carry: 'Carried into this week', defer: 'Deferred', drop: 'Dropped. It stays in Archive'})[value];
