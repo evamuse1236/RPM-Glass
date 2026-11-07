@@ -4,7 +4,7 @@
  * The time shows only in the gutter; the words carry the title and one quiet line.
  */
 import {el, icon, button, iconButton} from './dom.mjs';
-import {earlierLabel, missedMusts} from '../spine-model.mjs';
+import {earlierLabel, earlierSpoken} from '../spine-model.mjs';
 
 function gutter(row) {
   const node = el('div', 'spine-gutter tnum');
@@ -189,17 +189,13 @@ export function focusRow(row, on, now) {
   return node;
 }
 
-/** The Any time rows under the timeline, less the one the Now card shows; only the first says "Any time". */
-export const anytimeRows = model => model.anytime.filter(row => !row.focus).map((row, i) => ({...row, anytime: true, first: i === 0}));
+/** The Any time rows under the timeline; only the first says "Any time". */
+export const anytimeRows = model => model.anytime.map((row, i) => ({...row, anytime: true, first: i === 0}));
 
-/** The Now card's one row, from the timeline or from Any time. */
-export const focusOf = model => model.rows.find(r => r.focus)
-  ?? (row => row && {...row, anytime: true, first: true})(model.anytime.find(r => r.focus));
+/** The Now card's one row. */
+export const focusOf = model => model.rows.find(r => r.focus);
 
-/**
- * The Now card at the top of a live day: the item in progress, else the next one; in the evening the first open
- * Any-time task (or a missed Must). One item.
- */
+/** The Now card at the top of a live day: the item in progress, else the next timed one. One item, or no card. */
 export function focusCard(model, on) {
   const row = focusOf(model);
   if (!row) return null;
@@ -212,31 +208,26 @@ export function focusCard(model, on) {
 }
 
 /**
- * One row that folds the past and opens it in place: "Earlier · 2 done · 1 missed", with a star count when missed
- * rows are Musts. An amber ring while anything was missed (it still needs a choice), else a check.
+ * One row that folds the past and opens it in place: "Earlier · 4". Its marker on the rail is a neutral disc with
+ * the chevron, so it never reads as a ring to tick or a meal to log.
  */
 export function foldToggle(rows, open, on) {
-  const missed = rows.some(r => r.fold === 'missed'), musts = missedMusts(rows);
-  const node = el('div', `spine-row spine-fold spine-fold-earlier${missed ? ' spine-fold-missed' : ''}`);
+  const node = el('div', 'spine-row spine-fold spine-fold-earlier');
   node.dataset.key = 'earlier';
   const toggle = button('', () => on.toggleFold?.(), 'spine-fold-open');
   toggle.setAttribute('aria-expanded', String(open));
+  toggle.setAttribute('aria-label', earlierSpoken(rows));
   const mark = el('span', 'spine-fold-mark');
   mark.setAttribute('aria-hidden', 'true');
-  if (!missed) mark.append(icon('check'));
-  const label = el('span', 'spine-fold-label', earlierLabel(rows));
-  if (musts) {
-    label.append(` · ${musts}`, icon('star', {fill: true, cls: 'spine-must'}));
-    toggle.setAttribute('aria-label', `${earlierLabel(rows)}, ${musts} ${musts === 1 ? 'Must' : 'Musts'}`);
-  }
-  toggle.append(mark, label, icon(open ? 'expand_less' : 'expand_more'));
+  mark.append(icon(open ? 'expand_less' : 'expand_more'));
+  toggle.append(mark, el('span', 'spine-fold-label tnum', earlierLabel(rows)));
   node.append(el('span', 'spine-gutter'), toggle);
   return node;
 }
 
 /**
  * The timeline: on a live day one Earlier row folds the past (done and missed alike, drawn hidden in time order so it
- * opens in place), then the rest with the Now line, leaving out what the Now card shows; then the tasks with no time,
+ * opens in place; a missed Must stays out of it), then the rest with the Now line, leaving out what the Now card shows; then the tasks with no time,
  * under "Any time". The Now line already spaces the rail, so blank free time right after it, or after another blank
  * stretch, is left out.
  */

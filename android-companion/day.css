@@ -197,12 +197,11 @@
   background: var(--primary);
 }
 
-/* The past folded into one row on the rail: "Earlier · 1 done · 1 missed", an amber ring while anything was missed
-   (it still needs a choice), else a check. */
+/* The past folded into one row on the rail: "Earlier · 4", its marker a neutral disc holding the chevron. */
 .spine-fold-open {
   grid-column: 2;
   display: grid;
-  grid-template-columns: var(--spine-pill) minmax(0, auto) auto;
+  grid-template-columns: var(--spine-pill) minmax(0, auto);
   justify-content: start;
   align-items: center;
   min-inline-size: 0;
@@ -223,11 +222,8 @@
   border-radius: var(--shape-full);
   background: var(--surface-container-highest);
 }
-.spine-fold-missed .spine-fold-mark { border: 2px solid var(--must); background: var(--surface); }
-.spine-fold-missed .spine-fold-open { color: var(--on-surface); }
-.spine-fold-mark .ms { font-size: 16px; }
+.spine-fold-mark .ms { font-size: 20px; color: var(--on-surface-variant); }
 .spine-fold-label { min-inline-size: 0; padding-inline: var(--s3) var(--s1); overflow: clip; white-space: nowrap; text-overflow: ellipsis; }
-.spine-fold-open > .ms { font-size: 20px; }
 .spine-fold-open:active { background: var(--row-press); }
 .spine-anytime { font-weight: 400; }
 

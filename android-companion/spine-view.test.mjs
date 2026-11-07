@@ -80,13 +80,13 @@ test('a clash is one small marker under the words that names the event to TalkBa
   assert.doesNotMatch(all(call, 'spine-open').map(text).join(), /Clash/);
 });
 
-test('a clash with the event the Now card names says only until when; TalkBack still hears the name', () => {
+test('a clash names its event on the row, even when the Now card shows it', () => {
   const clash = buildSpine({day: DAY, now: at('09:00'), meals: [], tasks: [{id: 'Call', title: 'Call', start: at('12:00'), minutes: 15}],
     events: [{id: 'Session', title: 'Session', start: at('11:30'), end: at('13:30')}]});
   assert.match(text(focusCard(clash, on)), /Session/);
   const call = drawn(clash).find(r => r.dataset.key === 'task:Call');
   const [chip] = all(call, 'spine-resolve');
-  assert.match(text(chip), /Clash · until 1:30\sPM$/);
+  assert.match(text(chip), /Clash · Session$/);
   assert.equal(chip.getAttribute('aria-label'), 'Resolve the clash with Session');
 });
 
@@ -110,14 +110,15 @@ test('Earlier folds the finished past behind one toggle that says how much was d
     tasks: [{id: 'Stretch', title: 'Stretch', start: at('08:00'), minutes: 15, done: true}, {id: 'Read', title: 'Read', start: at('13:00'), minutes: 30}]});
   const shut = spineList(day, on).children;
   assert.equal(shut[0].dataset.key, 'earlier');
-  assert.match(text(shut[0]), /Earlier · 1 done/);
+  assert.match(text(shut[0]), /Earlier · 2$/);
+  assert.equal(all(shut[0], 'spine-fold-open')[0].getAttribute('aria-label'), 'Earlier, 1 done');
   assert.equal(all(shut[0], 'spine-fold-open')[0].getAttribute('aria-expanded'), 'false');
   assert.equal(shut.find(r => r.dataset.key === 'task:Stretch').hidden, true);
   const open = spineList(day, on, {open: {earlier: true}}).children;
   assert.equal(open.find(r => r.dataset.key === 'task:Stretch').hidden, false);
 });
 
-test('missed and done fold into one Earlier row before the now line; missed Musts are starred; opened, missed rows keep their swipe', () => {
+test('missed and done fold into one neutral Earlier row before the now line; a missed Must stays out as its own row; missed rows keep their swipe', () => {
   const swiped = [];
   const spy = new Proxy({}, {get: (_, name) => (name === 'gestures' ? (node, row) => swiped.push(row.key) : () => {})});
   const day = buildSpine({day: DAY, now: at('11:40'), meals: [],
@@ -129,14 +130,21 @@ test('missed and done fold into one Earlier row before the now line; missed Must
   assert.equal(keys[0], 'earlier');
   assert.ok(keys.indexOf('task:Draft') < keys.indexOf('now') && keys.indexOf('task:Call') < keys.indexOf('now'));
   assert.deepEqual(keys.filter(k => ['task:Stretch', 'task:Draft', 'task:Call'].includes(k)), ['task:Stretch', 'task:Draft', 'task:Call'], 'time order');
-  assert.match(text(all(shut[0], 'spine-fold-label')[0]), /^Earlier · 1 done · 2 missed · 1/);
-  assert.equal(all(shut[0], 'spine-must').length, 1, 'the missed Must is starred');
-  assert.match(all(shut[0], 'spine-fold-open')[0].getAttribute('aria-label'), /1 Must/);
-  assert.ok(shut.filter(r => ['task:Stretch', 'task:Draft', 'task:Call'].includes(r.dataset.key)).every(r => r.hidden));
+  assert.equal(text(all(shut[0], 'spine-fold-label')[0]), 'Earlier · 3', 'Stretch, Breakfast and Call bank');
+  assert.equal(all(shut[0], 'spine-must').length, 0, 'no star count in the fold');
+  assert.equal(all(shut[0], 'spine-check').length, 0, 'the fold has no ring');
+  assert.equal(all(shut[0], 'spine-fold-mark')[0].textContent, 'expand_more', 'its marker is the chevron');
+  assert.equal(all(shut[0], 'spine-fold-open')[0].getAttribute('aria-label'), 'Earlier, 1 done, 1 missed');
+  const draft = shut.find(r => r.dataset.key === 'task:Draft');
+  assert.ok(!draft.hidden, 'the missed Must shows without opening the fold');
+  assert.equal(all(draft, 'spine-must').length, 1, 'with its star');
+  assert.ok(draft.classList.contains('late'));
+  assert.ok(shut.filter(r => ['task:Stretch', 'task:Call'].includes(r.dataset.key)).every(r => r.hidden));
   assert.deepEqual(swiped.filter(k => k !== 'task:Read'), ['task:Draft', 'task:Call'], 'a missed row still swipes left to schedule');
   const open = spineList(day, on, {open: {earlier: true}}).children;
   assert.ok(open.filter(r => ['task:Draft', 'task:Call'].includes(r.dataset.key)).every(r => !r.hidden));
   assert.equal(open.filter(r => r.dataset.key === 'task:Call').length, 1, 'a missed row is drawn once');
+  assert.equal(all(open[0], 'spine-fold-mark')[0].textContent, 'expand_less');
   assert.doesNotMatch(open.map(text).join(' '), /ago/);
 });
 
@@ -151,12 +159,9 @@ test('tasks with no time are rows at the end of the timeline; only the first say
   assert.equal(all(loose, 'spine-check').length, 1, 'a ring ticks it like any task');
 });
 
-test('with nothing timed live or next, the Now card holds an open Any-time Must first, else the first Any-time task', () => {
-  const evening = (tasks) => buildSpine({day: DAY, now: at('21:40'), meals: [], tasks});
-  const must = evening([{id: 'Loose', title: 'Loose', start: null}, {id: 'Key', title: 'Key', start: null, must: true}]);
-  const card = focusCard(must, on);
-  assert.deepEqual(card.children.map(r => r.dataset.key), ['task:Key']);
-  const list = spineList(must, on).children.map(r => r.dataset.key);
-  assert.ok(!list.includes('task:Key') && list.includes('task:Loose'), 'the card is not repeated below');
-  assert.deepEqual(focusCard(evening([{id: 'Loose', title: 'Loose', start: null}]), on).children.map(r => r.dataset.key), ['task:Loose']);
+test('with nothing timed live or next there is no Now card; Any-time tasks stay rows under the timeline', () => {
+  const evening = buildSpine({day: DAY, now: at('21:40'), meals: [], tasks: [{id: 'Loose', title: 'Loose', start: null}, {id: 'Key', title: 'Key', start: null, must: true}]});
+  assert.equal(focusCard(evening, on), null);
+  const list = spineList(evening, on).children.map(r => r.dataset.key);
+  assert.ok(list.includes('task:Key') && list.includes('task:Loose'));
 });

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {soonText, buildSpine, cardHeight, gapHeight, earlierLabel, missedMusts, FREE_MINUTES} from './spine-model.mjs';
+import {soonText, buildSpine, cardHeight, gapHeight, earlierLabel, earlierSpoken, FREE_MINUTES} from './spine-model.mjs';
 import {mealSlots, spanText, gutterTime} from './day-parts.mjs';
 
 const DAY = '2026-10-19';
@@ -98,7 +98,7 @@ test('the Now card holds one item: the one in progress, else the next; never a m
   assert.equal(spine({live: false, now: at('09:00') - 864e5, tasks: [task('Lab', '14:00', 60)]}).rows.some(r => r.focus), false);
 });
 
-test('the past folds in two: open tasks past their end and overdue deadlines under missed, the rest under Earlier', () => {
+test('the past folds in two: open tasks past their end and overdue deadlines under missed, the rest under Earlier; a missed Must stays out', () => {
   const model = spine({now: at('11:40'), tasks: [task('Draft', '09:00', 30, {must: true}), task('Call bank', '10:30', 15),
     task('Stretch', '08:00', 15, {done: true}), task('Read', '13:00', 30)], events: [event('Gym', '07:00', '07:30')],
     deadlines: [{id: 'r1', title: 'Submit form', at: at('10:00')}, {id: 'r2', title: 'Post work', at: at('23:00')}]});
@@ -106,34 +106,36 @@ test('the past folds in two: open tasks past their end and overdue deadlines und
   assert.equal(row('task:Stretch').fold, 'earlier');
   assert.equal(row('event:Gym').fold, 'earlier');
   assert.equal(row('task:Call bank').fold, 'missed');
-  assert.equal(row('task:Draft').fold, 'missed');
+  assert.equal(row('task:Draft').fold, false, 'a missed Must is its own row, not folded away');
+  assert.equal(row('task:Draft').late, true);
   assert.equal(row('due:r1').fold, 'missed', 'an overdue deadline still needs a choice');
   assert.equal(row('due:r2').fold, false);
   assert.equal(row('task:Read').fold, false);
   assert.equal(row('now').fold, false);
   assert.equal(row('task:Call bank').when.kind, 'time', 'a missed row never says how long ago it ended');
   assert.ok(model.rows.every(r => !/ago/.test(r.when?.text ?? '')));
-  assert.equal(earlierLabel(model.rows.filter(r => r.fold === 'earlier')), 'Earlier · 1 done');
+  assert.equal(earlierLabel(model.rows.filter(r => r.fold === 'earlier')), 'Earlier · 3', 'one word and a count of items (Stretch, Gym, Breakfast), free time not counted');
   assert.equal(earlierLabel([]), 'Earlier');
   const folded = model.rows.filter(r => r.fold);
-  assert.equal(earlierLabel(folded), 'Earlier · 1 done · 3 missed', 'one row names both');
-  assert.equal(missedMusts(folded), 1);
+  assert.equal(earlierLabel(folded), 'Earlier · 5');
+  assert.equal(earlierSpoken(folded), 'Earlier, 1 done, 2 missed', 'TalkBack hears what is in it');
 });
 
-test('with nothing timed live or next, the focus falls to an open Any-time Must, then an Any-time task, then a missed Must', () => {
+test('with nothing timed live or next there is no Now card: an Any-time task or a missed Must is not now', () => {
   const late = at('23:50');
-  const must = spine({now: late, tasks: [task('Loose', null, 0), task('Key', null, 0, {must: true})]});
-  assert.deepEqual(must.rows.filter(r => r.focus).map(r => r.key).concat(must.anytime.filter(t => t.focus).map(t => t.key)), ['task:Key']);
+  const loose = spine({now: late, tasks: [task('Loose', null, 0), task('Key', null, 0, {must: true})]});
+  assert.equal(loose.rows.some(r => r.focus), false);
+  assert.equal(loose.anytime.some(t => t.focus), false);
   const missed = spine({now: late, tasks: [task('Draft', '09:00', 30, {must: true})]});
   const draft = missed.rows.find(r => r.key === 'task:Draft');
-  assert.equal(draft.focus, 1);
-  assert.equal(draft.fold, false, 'the focus is never folded away');
+  assert.equal(draft.focus, undefined);
+  assert.equal(draft.fold, false, 'the missed Must stays on the timeline');
 });
 
-test('a clash with the event the Now card shows names only when it ends', () => {
+test('a clash names the event it clashes with, even when the Now card shows that event', () => {
   const model = spine({now: at('09:00'), tasks: [task('Call', '12:00', 15)], events: [event('Session', '11:30', '13:30')]});
   const call = model.rows.find(r => r.key === 'task:Call');
-  assert.match(call.line.text, /^Clash · until 1:30\sPM$/);
+  assert.equal(call.line.text, 'Clash · Session');
   assert.equal(call.line.with.title, 'Session');
 });
 

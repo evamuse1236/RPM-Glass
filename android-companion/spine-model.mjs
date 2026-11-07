@@ -152,10 +152,8 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
   const anytime = anytimeTasks(tasks.filter(t => t.start == null));
   if (live) {
     for (const row of rows) row.fold = foldOf(row);
-    const focus = focusRow(blocks, next) ?? anytime.find(t => !t.done && t.must) ?? anytime.find(t => !t.done)
-      ?? rows.find(r => r.fold === 'missed' && r.kind === 'task' && r.must);
+    const focus = focusRow(blocks, next);
     if (focus) Object.assign(focus, {focus: 1, fold: false});
-    if (focus?.event) untilFor(rows, focus.event);
   }
 
   return {
@@ -165,43 +163,39 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
     nowKey: live ? 'now' : null,
     empty: !tasks.length && !events.length,
     shape: [...rows.map(r => `${r.key}:${r.past ? 1 : 0}${r.current ? 1 : 0}${r.next ? 1 : 0}${r.late ? 1 : 0}${r.focus ? 'f' : ''}${r.fold ? r.fold[0] : ''}${r.line?.kind ?? ''}`),
-      ...anytime.map(t => `${t.key}:${t.done ? 1 : 0}${t.focus ? 'f' : ''}`)].join('|'),
+      ...anytime.map(t => `${t.key}:${t.done ? 1 : 0}`)].join('|'),
   };
 }
 
 /**
- * The Now card holds one item: the one in progress, else the next timed one. With nothing timed ahead (the evening) it
- * holds the first open Any-time Must, else the first open Any-time task, else a missed Must, so the day always says
- * what to do next.
+ * The Now card holds one item: the one in progress, else the next timed one. Nothing timed ahead (the evening), no
+ * card: an Any-time task or a missed one is not "now".
  */
 function focusRow(blocks, next) {
   return blocks.filter(r => r.current && !r.done).sort((a, b) => a.start - b.start)[0] ?? next ?? null;
 }
 
-/** A clash with the event the Now card shows names it once, there; the row under it says only when the clash ends. */
-function untilFor(rows, event) {
-  for (const row of rows) {
-    if (row.line?.kind === 'clash' && row.line.with === event) row.line = {...row.line, text: `Clash · until ${gutterTime(event.end)}`};
-  }
-}
-
 /**
  * The past folds into one row, "Earlier": what needs nothing more (done or logged rows, events, free time, Routines and
- * meals that passed) and what was missed (open tasks past their end and overdue deadlines, `fold` 'missed').
+ * meals that passed) and what was missed (open tasks past their end and overdue deadlines, `fold` 'missed'). A missed
+ * Must stays out, as its own row before the Now line, since it is the one miss that matters most.
  */
 const foldOf = row => {
+  if (row.late && row.must) return false;
   if (row.late || (row.overdue && row.kind === 'deadline')) return 'missed';
   return row.past && row.kind !== 'now' ? 'earlier' : false;
 };
 
-/** "Earlier · 2 done · 3 missed": the folded past, how much of it was done and how much was missed. */
-export const earlierLabel = rows => {
-  const done = rows.filter(r => r.done).length, missed = rows.filter(r => r.fold === 'missed').length;
-  return ['Earlier', done && `${done} done`, missed && `${missed} missed`].filter(Boolean).join(' · ');
-};
+const items = rows => rows.filter(r => r.kind !== 'gap');
 
-/** How many of the missed rows are Musts: the fold stars them, so the most important misses still show. */
-export const missedMusts = rows => rows.filter(r => r.fold === 'missed' && r.must).length;
+/** "Earlier · 4": the fold's one word and how many items it holds. */
+export const earlierLabel = rows => ['Earlier', items(rows).length].filter(Boolean).join(' · ');
+
+/** "Earlier, 1 done, 3 missed": what TalkBack hears for the fold. */
+export const earlierSpoken = rows => {
+  const done = rows.filter(r => r.done).length, missed = rows.filter(r => r.fold === 'missed').length;
+  return ['Earlier', done && `${done} done`, missed && `${missed} missed`].filter(Boolean).join(', ');
+};
 
 /**
  * A deadline at the very time an open task of its Result starts is said once, on the task: its Result line takes the
