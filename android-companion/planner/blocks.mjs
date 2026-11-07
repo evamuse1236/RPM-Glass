@@ -138,16 +138,26 @@ export function blockCard(app, block, {focus = false, project = true} = {}) {
   const when = el('span', 'card-when');
   if (due) when.append(el('span', 'card-due' + (due.tight ? ' tight' : ''), due.text));
   if (week) when.append(el('span', 'week-mark', due ? ' · This week' : 'This week'));
-  if (!status.total) when.append(count);
   line.append(when);
   if (status.total) line.append(taskTally(status, count));
-  main.append(line);
+  if (line.textContent) main.append(line);
   main.setAttribute('aria-label', `Result: ${block.title}. ${due ? due.text + '. ' : ''}`
     + `${count}. ${week ? 'This week. ' : ''}Open Block`);
   card.append(main);
   const next = blockTasks(app.data(), block.id).find(task => !task.done);
   if (next) card.append(nextTaskRow(app, next));
+  else if (!status.total) card.append(firstTaskRow(app, block));
   return card;
+}
+
+/** An empty Plan ends its card in an action, in the Next row's place: quick add, already filed in this Block. */
+function firstTaskRow(app, block) {
+  const row = el('div', 'next-task first-task');
+  const add = button('', () => app.actions.addTask({blockId: block.id}), 'next-title');
+  add.append(icon('add'), el('span', 'next-words', 'Add the first task'));
+  add.setAttribute('aria-label', `Add the first task to ${block.title}`);
+  row.append(add);
+  return row;
 }
 
 /** "Next" and the task on one line, with its 16dp check: the same row on Block cards and a Project's Block rows. */
@@ -245,11 +255,11 @@ function achievedSheet(app, block) {
       {label: 'Result achieved'}).catch(() => {}), 'filled-btn'));
 }
 
-/** The verdict is the user's own call, apart from the tick count: one outlined button that asks for it; once marked,
- * the green achieved panel under the Result. */
+/** The verdict is the user's own call, apart from the tick count: one quiet row under the add field that asks for it,
+ * at the add row's weight; once marked, the green achieved panel under the Result. */
 function achievedControl(app, block, status) {
   if (!status.achieved) {
-    const verdict = button('', () => achievedSheet(app, block), 'outlined-btn verdict-row');
+    const verdict = button('', () => achievedSheet(app, block), 'verdict-row');
     verdict.append(icon('emoji_events'), el('span', '', 'Mark Result achieved'));
     verdict.dataset.key = 'verdict';
     verdict.__closure = stampOf('blocks', block);
@@ -377,7 +387,7 @@ export function renderBlockDetail(app, page, block) {
   const open = rows.filter(t => !t.done);
   // The Area · Project line sits in the bar (blockCrumb), so the page opens on the Result itself.
   page.append(titleField(app, 'blocks', block, 'Result'));
-  // As on its card: the Result, its Purpose, then where it stands, then the Plan; the verdict closes the page.
+  // As on its card: the Result, its Purpose, then where it stands, then the Plan and the verdict under it.
   const facts = el('div', 'block-facts');
   facts.dataset.tone = app.tone(app.blockArea(block));
   // The heart marks the Purpose, so its row needs no label; a tap on the row edits it.
@@ -396,9 +406,9 @@ export function renderBlockDetail(app, page, block) {
   const onReorder = () => refreshPlanHeader(app, block, header);
   for (const task of open) list.append(taskRow(app, task, {plan: true, days: true, onReorder}));
   page.append(list, blockAdd(app, block));
-  completedSection(app, page, rows.filter(t => t.done), {plan: true, days: true});
-  // Achieved is the user's call once the Plan is worked: an outlined button after it, never in a menu.
+  // Achieved is the user's call: a row right under the Plan it judges, above Completed, never in a menu.
   if (!status.achieved) page.append(achievedControl(app, block, status));
+  completedSection(app, page, rows.filter(t => t.done), {plan: true, days: true});
   finishDetail(app, page);
 }
 

@@ -130,6 +130,9 @@
 .next-title:active { background: var(--row-press); }
 .next-title .overline { text-transform: none; letter-spacing: 0; color: var(--primary); }
 .next-title .next-words { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+/* An empty Plan's card ends in its first action instead: a 20dp add and the words in primary, on the Next row's line. */
+.first-task .next-title { align-items: center; color: var(--primary); }
+.first-task .ms { font-size: 20px; }
 /* Blocks filters are dropdown chips sized to their words: a 12dp lead and the arrow 4dp after the label. */
 #planner[data-view=blocks] .filters .filter-chip.dropdown { padding-inline-start: var(--s3); gap: var(--s1); }
 /* Blocks list: consecutive cards from one Project sit under one Area and Project line. */
@@ -220,8 +223,15 @@
 button.fact-row:active { background: var(--row-press); }
 .fact-row > .leading, .fact-row > .ring { color: var(--on-surface-variant); flex: none; }
 .fact-row .text-btn { align-self: center; flex: none; margin: calc(-1 * var(--s2)) calc(-1 * var(--s2)) calc(-1 * var(--s2)) 0; }
-/* The verdict closes a Block's page: one outlined button on the 16dp edge, the user's call, never a tick count. */
-#planner[data-view=blocks] .verdict-row { display: flex; inline-size: fit-content; margin: var(--s4) var(--gutter) 0; }
+/* The verdict sits under the Plan it judges, at the add row's weight: the trophy on the add icon's column, the words on
+   the task titles' 56dp edge, primary like "Add or find a task". The user's call, never a tick count. */
+#planner[data-view=blocks] .verdict-row {
+  display: flex; align-items: center; gap: var(--s1); inline-size: fit-content; min-block-size: var(--touch);
+  margin-inline: var(--s1); padding-inline-end: var(--s4); border-radius: var(--shape-full);
+  font: var(--body-large); color: var(--primary);
+}
+#planner[data-view=blocks] .verdict-row > .ms { inline-size: var(--touch); text-align: center; }
+#planner[data-view=blocks] .verdict-row:active { background: var(--row-press); }
 .fact-label { font: var(--label-medium); color: var(--on-surface-variant); }
 /* The resting hint that a detail field edits in place: a small pencil after its label, gone while editing. */
 .fact-label .label-edit { font-size: 16px; width: 16px; height: 16px; line-height: 16px; margin-left: var(--s1); vertical-align: -2px;

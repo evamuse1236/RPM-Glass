@@ -68,9 +68,13 @@ test('a Block bar names its Area · Project beside Back at rest and gives that c
     'the bar keeps identical markup across saves, so its menu reads the Block when tapped, never a stale copy');
 });
 
-test('a Block page keeps Mark Result achieved on the page as its own button, never in a menu', () => {
+test('a Block page keeps Mark Result achieved on the page as its own button under the Plan, never in a menu', () => {
   const blocks = read('planner/blocks.mjs');
-  assert.match(body(blocks, 'renderBlockDetail'), /if \(!status\.achieved\) page\.append\(achievedControl\(app, block, status\)\);\s*finishDetail/);
-  assert.match(body(blocks, 'achievedControl'), /button\('', \(\) => achievedSheet\(app, block\), 'outlined-btn verdict-row'\)/);
+  assert.match(body(blocks, 'renderBlockDetail'),
+    /page\.append\(list, blockAdd\(app, block\)\);[^;]*?if \(!status\.achieved\) page\.append\(achievedControl\(app, block, status\)\);\s*completedSection/,
+    'the verdict follows the add field and comes before Completed, so it sits by the Plan it judges and clears the tab bar');
+  assert.match(body(blocks, 'achievedControl'), /button\('', \(\) => achievedSheet\(app, block\), 'verdict-row'\)/);
+  assert.match(read('planner-pages.css'), /#planner\[data-view=blocks\] \.verdict-row \{[^}]*font: var\(--body-large\); color: var\(--primary\);/,
+    'the verdict has the add row\'s weight: primary body-large words, no outline');
   assert.doesNotMatch(body(blocks, 'blockMenu'), /achiev/i);
 });
