@@ -98,6 +98,8 @@ for (const dark of [false, true]) {
   await shot(page, '10-dinner-on-the-spine');
 
   await scrollTo(page, 0);
+  const earlier = page.locator('.spine-fold-earlier .spine-fold-open');
+  if (await earlier.count() && await earlier.getAttribute('aria-expanded') === 'false') await earlier.click();
   await page.getByRole('checkbox', {name: /Morning routine/}).click();
   await page.waitForTimeout(700);
   await shot(page, '11-routine-done-with-undo');
@@ -107,7 +109,7 @@ for (const dark of [false, true]) {
   await page.waitForTimeout(700);
   log.push(`after Undo: ${Object.values((await body()).runs[0].marks).map(m => m.state).join(',')}`);
 
-  await page.locator('.spine-chip').filter({hasText: 'anytime'}).click();
+  await page.locator('.spine-row').filter({has: page.locator('.spine-anytime')}).locator('.spine-open').first().click();
   await page.waitForTimeout(600);
   await shot(page, '12-anytime-sheet');
   await page.close();

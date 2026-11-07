@@ -373,6 +373,7 @@ export function mountPlanner(api) {
     openView: target => openView(app, target),
     tabs: TABS,
     tab: () => app.state.tab,
+    day: () => app.state.day,
     current: () => app.current(),
     goTab: tab => app.goTab(tab),
     openSearch: () => app.openSearch(),

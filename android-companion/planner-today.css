@@ -1,19 +1,19 @@
 /* ---------- 4. Screens ---------- */
 /* Today's list layout. One left edge: every row's text starts at 56dp (16dp margin + 24dp leading + 16dp gap), as in Google Tasks. */
-.day-header { padding-block-end: var(--s6); background: var(--surface-container); }
-.date-line { display: flex; align-items: center; gap: var(--s2); padding-inline: var(--inset-page); }
+.day-header { padding-block-end: var(--s1); }
+/* The date sits in the top bar's row, before Search and More. */
+.date-line { flex: 1; min-inline-size: 0; display: flex; align-items: center; gap: var(--s2); }
 .date-button {
   display: inline-flex;
   align-items: center;
   min-block-size: var(--touch);
   border-radius: var(--r-control);
-  font: var(--title-date);
-  letter-spacing: -.02em;
+  font: var(--title-large);
   color: var(--on-surface);
+  white-space: nowrap;
 }
 .date-button:active { background: var(--row-press); }
-.date-year { color: var(--primary); }
-.week-strip { display: grid; grid-template-columns: repeat(7, 1fr); margin-block-start: var(--s3); padding-inline: var(--s2); }
+.week-strip { display: grid; grid-template-columns: repeat(7, 1fr); padding-inline: var(--s2); }
 .week-day {
   display: flex;
   flex-direction: column;
@@ -38,11 +38,9 @@
 @media (prefers-reduced-motion: no-preference) {
   .week-number { transition: scale var(--dur-press) var(--ease-standard); }
 }
-.day-marks { display: flex; align-items: center; justify-content: center; gap: 2px; min-block-size: 12px; }
-.day-dot { inline-size: 4px; block-size: 4px; border-radius: 50%; background: var(--tone); }
-.day-due, .day-clash { font-size: 12px; line-height: 1; inline-size: 1em; overflow: clip; color: var(--on-surface-variant); }
-.day-count { font: var(--label-small); color: var(--on-surface-variant); }
-.day-clash { color: var(--error); }
+/* One quiet mark of one meaning: a neutral dot under another day that still holds an open Must or a Result's deadline. */
+.day-marks { display: flex; align-items: center; justify-content: center; min-block-size: 12px; }
+.day-dot { inline-size: 4px; block-size: 4px; border-radius: var(--shape-full); background: var(--on-surface-variant); }
 /* Where the week's plan stands: one quiet line under the strip that opens the weekly review. */
 .week-line {
   width: 100%;

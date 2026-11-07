@@ -1,18 +1,17 @@
-/** Today's head: a band with the big date and the next seven days (with one line on the week's plan in the list layout). */
+/** Today's head: the date in the top bar's row, then the next seven days (with one line on the week's plan in the list layout). */
 import {localDay, shiftDay, blockDue} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
 import {weekStart, reviewWeek, weekFocus, resultStatus} from '../review-state.mjs';
 import {reducedMotion, DURATION, EASE} from '../surface-motion.mjs';
 import {lockAxis, LONG_PRESS} from '../task-swipe.mjs';
-import {el, icon, button, labelButton, emptyState} from './dom.mjs';
-import {clock, longDate, plural, dateText} from './format.mjs';
+import {el, icon, button, emptyState} from './dom.mjs';
+import {clock, longDate, plural, dateText, DATE_LOCALE} from './format.mjs';
 import {openSheet} from './sheet.mjs';
 import {taskWhen, taskRow} from './task-row.mjs';
 import {phrase, sep} from './today-row.mjs';
-import {openResults, clashes} from './today-model.mjs';
+import {openResults} from './today-model.mjs';
 
 const SELECTED = '.week-strip .week-day[aria-pressed=true] .week-number';
-const MAX_DOTS = 5;
 const dayGap = (from, to) => Math.round((Date.parse(to + 'T12:00') - Date.parse(from + 'T12:00')) / 864e5);
 /** The first day of the strip that shows `day`: seven days running forward from today, a week at a time. */
 export const stripStart = (day, today = localDay()) => shiftDay(today, 7 * Math.floor(dayGap(today, day) / 7));
@@ -40,13 +39,16 @@ export function selectDay(app, day, direction = '') {
 export const dueDay = (data, block) => blockDue(data, block.id)?.value?.slice(0, 10);
 
 /**
- * Seven days running forward from today, as far ahead as Dara plans; swiping steps a week. Each day shows one dot per
- * task in its Area's colour (up to five), after the hourglass for Results' deadlines (with their count when more than
- * one) and the clash mark. Today's number sits in a filled circle. Tapping a day opens it, and its deadlines and clash
- * are listed at the top.
+ * Seven days running forward from today, as far ahead as Dara plans; swiping steps a week. Another day that still holds an
+ * open Must or a Result's deadline shows one small neutral dot (its label names what is there); only the chosen day shows
+ * its own work below, so only its disc carries no dot. Today keeps its dot while another day is open. A clash shows in the day itself.
+ * Today's number sits in a filled circle. Tapping a day opens it.
  */
+/** One mark of one meaning: a day you are not looking at (`key` is not the open `day`) still holds an open Must or a deadline. */
+export const dayMark = ({due, musts, key, day}) => (key !== day && (due || musts) ? 'key' : null);
+
 function weekStrip(app) {
-  const {day, calendar} = app.state;
+  const {day} = app.state;
   const strip = el('div', 'week-strip');
   strip.setAttribute('role', 'group');
   strip.setAttribute('aria-label', 'Next seven days');
@@ -58,9 +60,6 @@ function weekStrip(app) {
     const value = dueDay(data, block);
     if (value) dues.set(value, (dues.get(value) ?? 0) + 1);
   }
-  const from = new Date(Math.max(Date.now(), +new Date(first + 'T00:00')));
-  const clashDays = new Set(clashes(data, calendar ?? [], from, new Date(shiftDay(first, 7) + 'T00:00'))
-    .map(({items}) => localDay(items[1].start)));
   for (let i = 0; i < 7; i++) {
     const key = shiftDay(first, i);
     const date = new Date(key + 'T12:00');
@@ -68,18 +67,15 @@ function weekStrip(app) {
     cell.dataset.day = key;
     cell.classList.toggle('is-today', key === today);
     cell.classList.toggle('is-past', key < today);
-    const due = dues.get(key) ?? 0, clash = clashDays.has(key);
+    const due = dues.get(key) ?? 0, musts = dayTasks(data, key).active.filter(task => task.must).length;
     cell.setAttribute('aria-label', dateText(date) + (key === today ? ', today' : '')
-      + (due ? `, ${plural(due, 'Result')} due` : '') + (clash ? ', calendar clash' : ''));
+      + (due ? `, ${plural(due, 'Result')} due` : '') + (musts ? `, ${plural(musts, 'Must')}` : ''));
     cell.setAttribute('aria-pressed', String(key === day));
     const marks = el('span', 'day-marks');
-    if (due) marks.append(icon('hourglass_bottom', {fill: true, cls: 'day-due'}));
-    if (due > 1) marks.append(el('span', 'day-count tnum', String(due)));
-    if (clash) marks.append(icon('event_busy', {cls: 'day-clash'}));
-    const {active, completed} = dayTasks(data, key);
-    for (const task of [...active, ...completed].slice(0, MAX_DOTS - marks.children.length)) {
+    const mark = dayMark({due, musts, key, day});
+    if (mark) {
       const dot = el('span', 'day-dot');
-      dot.dataset.tone = app.tone(app.context(task).area);
+      dot.dataset.mark = mark;
       marks.append(dot);
     }
     marks.setAttribute('aria-hidden', 'true');
@@ -159,36 +155,39 @@ function daySheet(app, day) {
   actions.append(button('Open day', () => { app.closeSheet(); selectDay(app, day); }, 'filled-btn'));
 }
 
-/** "20. October 2026 ›": the day, the month, and the year in the accent colour with the picker's chevron. The website hides the dot and keeps the year in the text colour. */
+/** "20 October 2026 ›": the day, the month and the year with the picker's chevron, all in the text colour. */
 function dateWords(day) {
   const date = new Date(day + 'T12:00');
-  const words = el('span', 'date-words', String(date.getDate()));
-  words.append(el('span', 'date-dot', '.'), ` ${date.toLocaleDateString([], {month: 'long'})} `, el('span', 'date-year', `${date.getFullYear()} ›`));
-  return words;
+  return el('span', 'date-words', `${date.getDate()} ${date.toLocaleDateString(DATE_LOCALE, {month: 'long'})} ${date.getFullYear()} ›`);
 }
 
-export function dateHeader(app, week = null) {
+/** The date that opens the picker, with Today on another day; it sits in the top bar's row beside Search and More. */
+export function dateLine(app) {
   const {day} = app.state;
-  const header = el('div', 'day-header');
   const line = el('div', 'date-line');
   const picker = button('', () => app.actions.datePicker(), 'date-button');
   picker.append(dateWords(day));
   picker.setAttribute('aria-label', 'Choose date, ' + longDate(day));
   line.append(picker);
-  if (day !== localDay()) line.append(labelButton('today', 'Today', () => selectDay(app, localDay()), 'tonal-btn small'));
-  header.append(line, weekStrip(app));
+  if (day !== localDay()) line.append(button('Today', () => selectDay(app, localDay()), 'tonal-btn small'));
+  return line;
+}
+
+export function dateHeader(app, week = null) {
+  const header = el('div', 'day-header');
+  header.append(weekStrip(app));
   if (week) header.append(week);
   return header;
 }
 
-/** The rounded sheet that overlaps the date band; Today's content goes in it. */
+/** Today's content under the strip. */
 export function todaySheet() {
   const sheet = el('div', 'today-sheet');
   sheet.dataset.key = 'today-sheet';
   return sheet;
 }
 
-const weekName = (week, month = 'long') => 'week of ' + new Date(week + 'T12:00').toLocaleDateString([], {month, day: 'numeric'});
+const weekName = (week, month = 'long') => 'week of ' + new Date(week + 'T12:00').toLocaleDateString(DATE_LOCALE, {month, day: 'numeric'});
 const capital = text => text[0].toUpperCase() + text.slice(1);
 /** The user's own "Weekly review" task today, named on the week line while the coming week needs a plan. */
 const reviewTask = active => active.find(task => !task.blockId && task.title.trim().toLowerCase() === 'weekly review');

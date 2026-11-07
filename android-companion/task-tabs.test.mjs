@@ -38,7 +38,7 @@ test('each tab shows its value in a few words', () => {
   assert.equal(whenDay({day: DAY, time: '16:00'}, DAY), 'Today', 'the tab names the day; the ruler readout owns the time');
   assert.equal(whenDay({day: '2026-10-22', time: '09:30'}, DAY), 'Thu 22');
   assert.equal(whenDay({day: '2026-10-21', time: ''}, DAY), 'Tomorrow');
-  assert.equal(whenDay({day: '2026-12-24', time: ''}, DAY), 'Dec 24');
+  assert.equal(whenDay({day: '2026-12-24', time: ''}, DAY), '24 Dec');
   assert.equal(whenDay({day: '', time: ''}, DAY), 'No date');
   assert.match(whenSpoken({day: DAY, time: '16:00'}, DAY), /^Today, 4\sPM$/, 'TalkBack still hears the time on the tab');
   assert.match(whenBrief({day: DAY, time: '16:00'}, DAY), /^4\sPM$/, 'off the When tab the tab says the time');

@@ -19,7 +19,7 @@ export const inboxRows=data=>blockTasks(data,null).filter(t=>!t.done);
 export const byProject=blocks=>{const rank=new Map();for(const b of blocks){const k=b.projectId??null;if(!rank.has(k))rank.set(k,rank.size);}return blocks.toSorted((a,b)=>rank.get(a.projectId??null)-rank.get(b.projectId??null));};
 /** A Result's deadline is derived, never stored: its latest open, dated, one-time task ({value: local 'YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM', task}). */
 export function blockDue(data,id){let best=null;for(const t of blockTasks(data,id)){if(t.done||t.recurrence||t.repeatAfterDays)continue;const value=t.planned?localStamp(t.planned):t.plannedDate;if(!value)continue;const at=Date.parse(value.length===10?value+'T23:59':value);if(!best||at>best.at)best={at,value,task:t};}return best&&{value:best.value,task:best.task};}
-const localStamp=iso=>{const d=new Date(iso);return localDay(d)+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
+export const localStamp=iso=>{const d=new Date(iso);return localDay(d)+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
 export function totals(rows){return {all:rows.filter(e=>!e.done).reduce((s,e)=>s+(e.minutes??0),0),must:rows.filter(e=>e.must&&!e.done).reduce((s,e)=>s+(e.minutes??0),0),unknown:rows.filter(e=>!e.done&&e.minutes==null).length};}
 const snap=data=>({entries:structuredClone(data.entries),planner:structuredClone({...planner(data),undo:null})});
 

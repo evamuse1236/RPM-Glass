@@ -147,24 +147,31 @@ html:has(dialog:modal) { overflow: clip; }
   .side-add:hover { background: color-mix(in oklch, light-dark(var(--on-primary), var(--on-primary-container)) 8%, light-dark(var(--primary), var(--primary-container))); }
 }
 
-.agenda-section { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; padding-block: var(--s2); border-radius: var(--shape-lg); background: var(--surface-container-low); }
-.agenda-head { display: flex; align-items: center; gap: var(--s2); min-block-size: 40px; padding-inline: var(--s4) var(--s3); color: var(--on-surface); text-align: start; }
-.agenda-words { display: grid; flex: 1; min-inline-size: 0; padding-block: var(--s2); }
-.agenda-head h2 { overflow: clip; margin: 0; font: var(--title-small); text-overflow: ellipsis; white-space: nowrap; }
-.agenda-head .trailing { margin-inline-start: auto; color: var(--on-surface-variant); }
-:is(.agenda-count, .agenda-due) { font: var(--label-medium); color: var(--on-surface-variant); }
-.agenda-section .list-item { --gutter: var(--s4); min-block-size: 48px; padding-block: var(--s1); }
-.agenda-section .list-headline { font: var(--body-medium); }
-.agenda-section .list-supporting:empty { display: none; }
-.agenda-day { display: flex; align-items: baseline; gap: var(--s2); min-block-size: 32px; padding: var(--s2) var(--s4) 0; font: var(--label-large); color: var(--on-surface-variant); text-align: start; }
-.agenda-line .list-headline { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: clip; }
-.agenda-time { flex: none; font: var(--label-medium); color: var(--on-surface-variant); }
-.agenda-more { justify-self: start; min-block-size: 32px; margin-inline-start: calc(var(--s4) + 24px + var(--s2)); padding-inline: var(--s2); border-radius: var(--shape-full); font: var(--label-medium); color: var(--primary); }
-.agenda-task .must { color: var(--must); }
-:is(button.agenda-head, .agenda-day, .agenda-more):active { background: color-mix(in oklch, var(--on-surface) 12%, transparent); }
-:is(.agenda-head, .agenda-day, .agenda-more, .agenda-section .list-item):focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+/* Coming up: beside Today on a wide window, the days after the one shown, empty days left out. Each day names
+   itself once under its full date; each deadline is one row, its Must leading and its Result on a quiet line under it.
+   Words wrap in full, never clipped. Days part with flat full-width hairlines. */
+.agenda-soon { display: grid; flex: 1; grid-template-columns: minmax(0, 1fr); align-content: start; min-inline-size: 0; }
+.soon-head { margin: 0; padding-block: var(--s2) var(--s3); font: var(--title-medium); color: var(--on-surface); }
+.soon-day { display: grid; padding-block: var(--s2); border-block-start: 1px solid var(--outline-variant); }
+.soon-name { margin: 0; padding: var(--s1) var(--s2); font: var(--label-medium); color: var(--on-surface-variant); }
+.soon-name.overdue, .soon-time.overdue { color: var(--must); }
+.soon-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; column-gap: var(--s3); align-items: start; min-block-size: 48px; padding: var(--s2); color: var(--on-surface); text-align: start; }
+/* The time has its own column beside the title; the quiet line under it runs the row's full width. */
+.soon-row > :is(.soon-mark, .soon-star) { grid-row: 1 / span 2; }
+.soon-mark { display: grid; place-items: center; inline-size: 32px; block-size: 32px; border-radius: var(--shape-full); background: var(--surface-container-highest); color: var(--on-surface-variant); font-size: 20px; }
+.soon-star { place-self: start center; padding-block-start: var(--s1); font-size: 20px; color: var(--must); }
+.soon-words { display: contents; }
+.soon-what { grid-column: 2; grid-row: 1; padding-block-start: var(--s1); font: var(--body-medium); overflow-wrap: anywhere; }
+/* One line: the Result ends in an ellipsis, "· 3 tasks left" stays whole. */
+.soon-left { grid-column: 2 / -1; grid-row: 2; display: flex; min-inline-size: 0; font: var(--label-medium); color: var(--on-surface-variant); white-space: nowrap; }
+.soon-block { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; }
+.soon-count { flex: none; }
+.soon-time { grid-column: 3; grid-row: 1; padding-block-start: var(--s1); font: var(--label-medium); color: var(--on-surface-variant); white-space: nowrap; }
+.soon-empty { margin: 0; padding-block: var(--s3); border-block-start: 1px solid var(--outline-variant); font: var(--body-medium); color: var(--on-surface-variant); }
+.soon-row:active { background: var(--row-press); }
+.soon-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 @media (hover: hover) and (pointer: fine) {
-  :is(button.agenda-head, .agenda-day, .agenda-more, .agenda-section button.list-item):hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
+  .soon-row:hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
 }
 
 @media (width >= 1080px) {
@@ -174,7 +181,6 @@ html:has(dialog:modal) { overflow: clip; }
   .planner-view:has(> #sheet[data-inline]:not([hidden])) > #agenda { display: none; }
   #sidebar { display: flex; flex-direction: column; gap: var(--s4); grid-column: 1; grid-row: 1 / -1; padding: var(--s4) var(--s3); overflow-y: auto; scrollbar-width: none; }
   #agenda:not([hidden]) { display: flex; grid-column: 3; grid-row: 1 / -1; align-items: start; gap: var(--s3); padding: var(--s4) var(--s4) var(--s4) 0; overflow-y: auto; scrollbar-width: none; }
-  .agenda-col { display: flex; flex: 1; flex-direction: column; gap: var(--s3); min-inline-size: 0; }
   .planner-view:has(> #agenda:not([hidden])) .inbox-row { display: none; }
   .planner-view > :is(#banner, #notes, #planner) { grid-column: 2; }
   .planner-view > #planner { grid-row: 3; }
@@ -211,16 +217,10 @@ html:has(dialog:modal) { overflow: clip; }
   .planner-view #planner[data-view=today] .top-bar { background: var(--surface); }
   .planner-view #planner[data-view=today] .day-header { background: none; }
   .planner-view #planner[data-view=today] .today-sheet { margin-block-start: 0; border-radius: 0; background: none; }
-  .planner-view .date-dot { display: none; }
-  .planner-view .date-year { color: inherit; }
 }
 
 @media (width >= 1080px) and (hover: hover) and (pointer: fine) {
   .side-capture:hover { background: color-mix(in oklch, var(--on-surface) 8%, var(--surface-container-highest)); }
-}
-
-@media (width >= 1680px) {
-  .planner-view { --agenda: clamp(440px, 100% - var(--side) - 760px, 880px); }
 }
 
 @media (1080px <= width < 1280px) {

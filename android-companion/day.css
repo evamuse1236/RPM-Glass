@@ -5,14 +5,26 @@
   --spine-ring: 40px;
 }
 
-.today-sheet {
-  position: relative;
-  margin-block-start: calc(-1 * var(--s3));
-  padding-block-start: var(--s4);
-  border-start-start-radius: var(--r-group);
-  border-start-end-radius: var(--r-group);
-  background: var(--surface);
+#planner[data-view=today]:not([data-scrolled=true]) .top-bar { background: var(--surface); }
+/* Scrolled, the bar's own surface fades into the page below it, so rows slide under a soft edge, not a hard cut. */
+#planner[data-view=today] .top-bar { position: relative; z-index: 1; }
+#planner[data-view=today] .top-bar::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 100%;
+  block-size: var(--s3);
+  background: linear-gradient(var(--surface-container), color-mix(in oklch, var(--surface-container) 0%, transparent));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-medium) var(--ease-standard);
 }
+#planner[data-view=today][data-scrolled=true] .top-bar::after { opacity: 1; }
+/* A scroll that stops near the Now card settles with the card wholly in view under the bar; the page top is a snap point too, so a load stays at the top. A "card gone" point is left out: on a short day it clamps to the scroll end and wins over the card. */
+#planner[data-view=today] #planner-scroll { scroll-snap-type: y proximity; }
+#planner[data-view=today] #workspace { scroll-snap-align: start; }
+.spine-focus { scroll-snap-align: start; scroll-margin-block-start: var(--s2); }
+.today-sheet { position: relative; padding-block-start: var(--s1); background: var(--surface); }
 
 .spine { position: relative; display: flex; flex-direction: column; padding: var(--s1) var(--inset-page) var(--s4) 0; }
 .spine::before {
@@ -45,7 +57,7 @@
   text-align: end;
   white-space: nowrap;
 }
-.spine-row:is(.tall, :has(.spine-resolve)) .spine-gutter { justify-content: space-between; padding-block: var(--s3); }
+.spine-row:is(.tall, .owed, :has(.spine-resolve)) .spine-gutter { justify-content: space-between; padding-block: var(--s3); }
 .spine-end { font-weight: 400; }
 :root[data-large-text=true] .spine-gutter { white-space: normal; overflow-wrap: break-word; }
 .spine-row.current .spine-gutter { color: var(--now); font-weight: 700; }
@@ -74,13 +86,13 @@
   inline-size: 4px;
   block-size: var(--h, 40px);
   border-radius: var(--shape-full);
-  background: color-mix(in oklch, var(--pill-c) 70%, transparent);
+  background: var(--outline-variant);
 }
 .spine-pill.moment { background: none; }
-:is(.spine-row.done, .spine-row.past) .spine-pill { background: color-mix(in oklch, var(--pill-c) 30%, transparent); }
+:is(.spine-row.done, .spine-row.past) .spine-pill { background: var(--surface-container-highest); }
 
 .spine-check, .spine-disc { grid-column: 1; position: relative; z-index: 1; justify-self: center; }
-.spine-row:is(.tall, :has(.spine-resolve)) .spine-card > :is(.spine-check, .spine-disc) { align-self: start; }
+.spine-row:is(.tall, .owed, :has(.spine-resolve)) .spine-card > :is(.spine-check, .spine-disc) { align-self: start; }
 .spine-disc {
   display: grid;
   place-items: center;
@@ -90,7 +102,7 @@
   background: var(--surface-container-highest);
   color: var(--on-surface-variant);
 }
-.spine-row:is(.tall, :has(.spine-resolve)) .spine-disc { margin-block-start: var(--s2); }
+.spine-row:is(.tall, .owed, :has(.spine-resolve)) .spine-disc { margin-block-start: var(--s2); }
 .spine-disc .ms { font-size: 16px; }
 .spine-deadline.overdue .spine-disc { color: var(--error); }
 
@@ -105,13 +117,13 @@
   color: inherit;
   text-align: start;
 }
-.spine-row:is(.tall, :has(.spine-resolve)) .spine-open { align-items: flex-start; padding-block-start: var(--s2); }
+.spine-row:is(.tall, .owed, :has(.spine-resolve)) .spine-open { align-items: flex-start; padding-block-start: var(--s2); }
 .spine-open:active { background: var(--row-press); }
 .spine-deadline .spine-copy { grid-column: 2; padding: var(--s1) 0 var(--s1) var(--s3); }
 .spine-copy { display: flex; flex-direction: column; min-inline-size: 0; }
-.spine-title { font: var(--title-row); overflow-wrap: break-word; text-wrap: pretty; }
+.spine-title { font: var(--title-row); overflow-wrap: break-word; text-wrap: wrap; }
 .spine-meal .spine-title { font: var(--body-large); }
-.spine-row.past:not(.done, .current) .spine-title { color: var(--on-surface-variant); }
+.spine-row.past:not(.done, .current, .late) .spine-title { color: var(--on-surface-variant); }
 .spine-row.done .spine-title { color: var(--on-surface-variant); font-weight: 400; }
 .spine-row.done:not(.spine-meal) .spine-title {
   text-decoration: line-through;
@@ -120,7 +132,11 @@
 .spine-must { font-size: 16px; margin-inline-start: var(--s1); vertical-align: -2px; color: var(--must); }
 .spine-meta { font: var(--footnote); color: var(--on-surface-variant); white-space: nowrap; overflow: clip; text-overflow: ellipsis; }
 .when-soon, .when-now { color: var(--primary); font-weight: 600; }
-.when-late, .line-late, .line-clash { color: var(--error); font-weight: 500; }
+.when-late { color: var(--on-surface-variant); }
+.spine-row:is(.must, .spine-deadline) .when-late { color: var(--error); }
+.spine-due { margin-inline-end: var(--s1); font-size: 16px; vertical-align: -3px; color: var(--on-surface-variant); }
+.spine-overdue .spine-due, .spine-row.overdue .spine-due { color: var(--error); }
+/* A clash is a small inline marker under the title, not a pill; its 48dp hit area still opens Resolve. */
 .spine-resolve {
   position: relative;
   grid-column: 2;
@@ -130,18 +146,16 @@
   align-items: center;
   gap: var(--s1);
   max-inline-size: calc(100% - var(--s3));
-  min-block-size: 24px;
+  min-block-size: 20px;
   margin: 0 0 var(--s1) var(--s3);
-  padding-inline: var(--s1) var(--s2);
-  border-radius: var(--shape-full);
-  background: var(--error-container);
-  color: var(--on-error-container);
+  border-radius: var(--r-control);
+  color: var(--error);
   font: var(--label-medium);
 }
 .spine-resolve .ms { font-size: 16px; }
 .spine-resolve span:last-child { min-inline-size: 0; overflow: clip; white-space: nowrap; text-overflow: ellipsis; }
 .spine-resolve::after { content: ""; position: absolute; inset: min(0px, (100% - 48px) / 2) 0; }
-.spine-resolve:active { background: color-mix(in oklch, var(--error-container), var(--on-error-container) 12%); }
+.spine-resolve:active { background: var(--row-press); }
 
 .spine-check {
   display: grid;
@@ -160,11 +174,87 @@
 .spine-meal:not(.done) .check-ring { border-color: color-mix(in oklch, var(--pill-c) 70%, var(--surface)); }
 .spine-check .check-ring .ms { font-size: 16px; opacity: 0; }
 .spine-check:active .check-ring { scale: .9; }
+.spine-row.late:not(.done) .check-ring { border-color: var(--outline); }
+.spine-row.late.must:not(.done) .check-ring { border-color: var(--error); }
 .spine-row.done .check-ring { background: var(--pill-c); border-color: var(--pill-c); }
 .spine-row.done .check-ring .ms { opacity: 1; }
 @media (prefers-reduced-motion: no-preference) {
   .spine-check .check-ring { transition: scale var(--dur-press) var(--ease-standard), background-color var(--dur-short3) var(--ease-standard); }
 }
+
+/* The Now card: the item in progress, else the next one, in a quiet tonal group above the timeline. Its rows are
+   the timeline's rows without the rail or the length bar, so a row reads the same in both places. */
+.spine-focus {
+  --spine-gutter: calc(64px * var(--text-scale, 1) - var(--s2));
+  display: flex;
+  flex-direction: column;
+  margin: var(--s1) var(--inset-page) var(--s3) var(--s2);
+  padding-block: var(--s1);
+  padding-inline-end: var(--s3);
+  border-radius: var(--r-group);
+  background: var(--surface-container);
+}
+.spine-focus .spine-pill { display: none; }
+.spine-focus .spine-row { min-block-size: 56px; }
+/* The card starts 8dp in, and its gutter is 8dp narrower, so its marker sits on the rail's line. The card shows no
+   clock time: "Now · 1 h 50 min left" or "in 20 min" already says when, and "11:30 AM" cannot fit inside the card's
+   edge on one line. The gutter keeps its width so the words line up with the timeline's titles. */
+.spine-focus .spine-gutter { visibility: hidden; }
+.spine-focus .spine-row.current .spine-gutter { color: var(--on-surface-variant); }
+.spine-progress {
+  grid-column: 2;
+  grid-row: 2;
+  block-size: 4px;
+  margin: 0 0 var(--s2) var(--s3);
+  border-radius: var(--shape-full);
+  background: color-mix(in oklch, var(--primary) 16%, transparent);
+  overflow: clip;
+}
+.spine-progress::before {
+  content: "";
+  display: block;
+  block-size: 100%;
+  inline-size: calc(var(--p, 0) * 100%);
+  border-radius: inherit;
+  background: var(--primary);
+}
+
+/* What is still owed from earlier: a quiet header on the page edge (its surface hides the rail behind it), then the
+   missed rows on the rail in clock order with "2 h late"; a Must's ring and lateness take the error tone, the rest stay
+   neutral. No length bar; each row keeps the timeline's rhythm, its time and ring on the title's first line. */
+.spine-owed-head {
+  position: relative;
+  z-index: 1;
+  padding: var(--s2) 0 var(--s1) var(--inset-page);
+  background: var(--surface);
+  font: var(--label-large);
+  color: var(--on-surface-variant);
+}
+.spine-owed-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s2); }
+.spine-owed-hint { display: none; font: var(--label-small); color: var(--on-surface-variant); }
+@media (pointer: coarse) { .spine-owed-hint { display: inline; } }
+.spine-row.owed .spine-pill { display: none; }
+.spine-row.owed .spine-open { padding-block-end: var(--s3); }
+
+/* The one text button on the rail that opens rows in place: "Show 2 more · 1 done". */
+.spine-fold-open {
+  grid-column: 2;
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+  min-block-size: var(--touch);
+  padding-inline: calc(var(--spine-pill) + var(--s3)) var(--s3);
+  border-radius: var(--r-control);
+  color: var(--primary);
+  font: var(--label-large);
+  text-align: start;
+}
+.spine-fold-label { min-inline-size: 0; overflow: clip; white-space: nowrap; text-overflow: ellipsis; }
+.spine-fold-open:active { background: var(--row-press); }
+@media (hover: hover) and (pointer: fine) { .spine-fold-open:hover { background: var(--row-press); } }
+.spine-fold-open:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.spine-anytime { font-weight: 400; }
 
 .spine-row.spine-gap { min-block-size: var(--h, 32px); }
 .spine-row.spine-gap:not(:has(.spine-free-label)) { min-block-size: var(--s4); }

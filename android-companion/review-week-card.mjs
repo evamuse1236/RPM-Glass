@@ -1,6 +1,6 @@
 import {taskDate, weekCapacity, placedMusts, mustPlacements, clashOp, clashKey, clashDecision} from './review-state.mjs';
 import {localDay} from './planner-state.mjs';
-import {clock, duration, plural, timeRange} from './planner/format.mjs';
+import {clock, duration, plural, timeRange, DATE_LOCALE} from './planner/format.mjs';
 import {READABLE, el, icon, button, hours, dayName, weekday, whenText, dueWords} from './review-ui.mjs';
 
 /**
@@ -154,7 +154,7 @@ function dayDetail(api, d, due, placed, clashes, now) {
   box.setAttribute('aria-live', 'polite');
   const head = el('p', 'wr-day-head');
   const today = d.day === localDay(now);
-  head.append(el('b', '', today ? 'Today' : new Date(d.day + 'T12:00').toLocaleDateString(undefined, {weekday: 'long', day: 'numeric', month: 'long'})));
+  head.append(el('b', '', today ? 'Today' : new Date(d.day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'long', day: 'numeric', month: 'long'})));
   if (d.free != null) head.append(` · ${duration(d.free)} free ${today ? 'until 10\u00a0PM' : 'from 8\u00a0AM to 10\u00a0PM'}`);
   box.append(head);
   const list = el('ul', 'wr-day-list');
