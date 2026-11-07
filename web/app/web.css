@@ -270,6 +270,7 @@ html:has(dialog:modal) { overflow: clip; }
   .task-check { inline-size: 40px; block-size: 40px; margin-block-start: 0; }
   .task-main { min-block-size: 40px; padding-block: var(--s1); }
   .sheet .task-main { padding-block-start: var(--s2); }
+  .task-row > .inbox-move { min-block-size: 40px; min-inline-size: 40px; margin-block-start: 0; }
   .list-item { min-block-size: 48px; padding-block: var(--s1); }
   .spine-row { min-block-size: 40px; }
 }

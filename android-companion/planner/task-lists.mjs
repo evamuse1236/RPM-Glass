@@ -1,5 +1,6 @@
 import {tasks, blockTasks, inboxRows} from '../planner-state.mjs';
-import {el, icon, button, labelButton, emptyState} from './dom.mjs';
+import {el, icon, button, iconButton, labelButton, sectionHeader, emptyState} from './dom.mjs';
+import {repeats} from '../planner-recurrence.mjs';
 import {duration} from './format.mjs';
 import {animateRerender, reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
 import {openSheet, isSheetOpen} from './sheet.mjs';
@@ -41,10 +42,10 @@ export function inboxShowing(app) {
 export function showInbox(app, {motion = 'forward'} = {}) {
   const {body, actions, header} = openSheet(app, 'Inbox', {motion});
   app.sheet.inboxBody = body;
-  // The title counts what is left to sort; Sort with Jev is a labelled chip beside Close, the sheet's lead action.
+  // The title counts what is left to sort; Sort with Jev is a quiet text button beside Close.
   const count = el('span', 'sheet-count');
   header.querySelector('h2').append(count);
-  const jev = labelButton('auto_awesome', 'Sort with Jev', () => app.actions.jevSort(), 'assist-chip inbox-jev');
+  const jev = labelButton('auto_awesome', 'Sort with Jev', () => app.actions.jevSort(), 'text-btn inbox-jev');
   header.querySelector('.sheet-close').before(jev);
   // Fills a host with the rows: the body itself at first, then a detached copy that animateRerender reconciles in by
   // key (it needs the new content returned as an element, so unchanged rows stay and the changed ones move).
@@ -58,16 +59,32 @@ export function showInbox(app, {motion = 'forward'} = {}) {
         body: 'New captures land here until you give them a Block.'}));
     }
     const back = app.sheet.returned;
-    for (const task of rows) {
-      const row = taskRow(app, task, {inbox: true});
+    // What still needs a decision comes first; tasks that already have a day, time or repeat wait under Scheduled.
+    const scheduled = task => !!(task.planned || task.plannedDate || repeats(task));
+    const open = rows.filter(task => !scheduled(task));
+    const later = rows.filter(scheduled);
+    const add = task => {
+      const row = taskRow(app, task, {inbox: true, days: scheduled(task)});
+      // Each row files itself: the trailing button opens the same Block list as the left swipe.
+      row.append(iconButton('drive_file_move', `Move ${task.title} to a Block`,
+        () => app.actions.movePicker(task), {cls: 'inbox-move'}));
       // A redraw while the returned highlight is still fading carries it on (from where it was).
       if (back?.id === task.id && host !== body) markReturned(row, back.elapsed());
       host.append(row);
+    };
+    open.forEach(add);
+    if (later.length) {
+      const head = sectionHeader('Scheduled');
+      head.classList.add('inbox-scheduled');
+      head.dataset.key = 'inbox-scheduled';
+      host.append(head);
+      later.forEach(add);
     }
     return host;
   };
   draw(body);
-  actions.append(labelButton('mic', 'Capture', () => app.capture(), 'text-btn'),
+  // The same footer as quick add: Capture on the leading edge, the one add action on the trailing edge.
+  actions.append(labelButton('mic', 'Capture', () => app.capture(), 'text-btn'), el('span', 'spacer'),
     labelButton('add', 'Add task', () => taskEditor(app, null), 'tonal-btn'));
   app.sheet.live = () => body.isConnected && isSheetOpen(app);
   app.sheet.sync = () => {

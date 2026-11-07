@@ -15,11 +15,11 @@ test('quick add: the title is 16/24 like Capture; day, Time and Block show, the 
   assert.doesNotMatch(js, /blockChips\.append\(more\.row\)/, 'More options is its own row, never the end of the Block row');
   assert.match(js, /whenChips\.append\(timeChip\)/, 'Time ends the day row');
   assert.match(js, /timeChip\.append\(icon\('schedule'\), el\('span', 'chip-label'\)\)/);
-  assert.match(js, /blockChip\.append\(icon\('stacks'\), el\('span', 'chip-label', 'Inbox'\)\)/, 'one Block chip names its value, the Inbox by default');
-  assert.match(js, /const label = chosen\?\.title \?\? 'Inbox';/);
+  assert.match(js, /blockChip\.append\(icon\('inbox', \{cls: 'block-mark'\}\), el\('span', 'chip-label', 'Inbox'\)/, 'one Block chip names its value, the Inbox by default');
+  assert.match(js, /textContent = chosen \? blockShort\(chosen\.title\) : 'Inbox';/, 'the chip names the Block short, so no name is cut');
   assert.match(js, /button\('', null, 'assist-chip block-chip on'\)/, 'the Block chip always holds a value (a Block or the Inbox), so it is filled');
-  assert.match(js, /textContent = suggested\.title;/, 'the suggestion names its whole Block; the row cuts it with an ellipsis');
-  assert.match(js, /blockChips\.append\(blockChip, suggestChip\)/);
+  assert.match(js, /blockChips\.append\(blockChip\);/, 'one Block chip: a suggestion fills it, never a second chip');
+  assert.doesNotMatch(js, /suggestChip/, 'no second chip competes with the Block chip');
   assert.doesNotMatch(js, /'No block'/, 'no chip stands for "no choice"; the list holds No block');
   const options = read('planner/quick-options.mjs');
   assert.doesNotMatch(options, /icon-only/);

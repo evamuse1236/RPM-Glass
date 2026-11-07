@@ -20,7 +20,7 @@ test('on wide the Inbox pane drops its repeated Capture and Add task, and the Li
   assert.match(css, /\.tab\[aria-selected=true\]::after \{ inset-inline: var\(--s4\); \}/);
   const inbox = read('../../android-companion/planner/task-lists.mjs');
   assert.doesNotMatch(inbox, /sheet-note/, 'the Inbox title says what it holds; no sentence sits above the tasks');
-  assert.match(inbox, /labelButton\('auto_awesome', 'Sort with Jev', [^\n]*'assist-chip inbox-jev'\)/, 'Sort with Jev is a labelled header chip beside Close');
+  assert.match(inbox, /labelButton\('auto_awesome', 'Sort with Jev', [^\n]*'text-btn inbox-jev'\)/, 'Sort with Jev is a labelled text button beside Close');
   assert.match(inbox, /count\.textContent = rows\.length \? String\(rows\.length\) : ''/, 'the title counts the tasks left to sort');
   assert.match(inbox, /header\.querySelector\('\.sheet-close'\)\.before\(jev\)/);
 });

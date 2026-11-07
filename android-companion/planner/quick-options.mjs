@@ -1,9 +1,26 @@
 import {el, icon, button} from './dom.mjs';
 import {duration} from './format.mjs';
 import {repeatLabel, foldGroup, foldFor, markChips, chipRow, durationChooser, repeatChooser, alertChooser} from './task-fields.mjs';
-import {inlineText, syncText} from './sheet-parts.mjs';
+import {syncText} from './sheet-parts.mjs';
 
-export function quickOptions(s, {body, group, changed, remember}) {
+/** A plain text field on the sheet: its placeholder names it, it grows with the words, and each word is kept. */
+function quickField(host, placeholder, name, value, keep) {
+  const input = el('textarea', 'quick-field');
+  input.rows = 1;
+  input.placeholder = placeholder;
+  input.value = value ?? '';
+  input.setAttribute('aria-label', name);
+  // The field grows with its words through CSS field-sizing.
+  input.addEventListener('input', () => keep(input.value));
+  host.append(input);
+  return input;
+}
+
+/**
+ * More options: one row under the chips. Opened, it gives way to what it held: Estimate, Repeat and Must as chips
+ * that carry on the chips above, then the details and the Purpose as plain fields.
+ */
+export function quickOptions(s, {body, group, target, changed, remember}) {
   const options = foldGroup(body);
   const durationChip = button('', null, 'assist-chip');
   durationChip.append(icon('timer'), el('span', 'chip-label'));
@@ -11,7 +28,7 @@ export function quickOptions(s, {body, group, changed, remember}) {
   mustChip.append(icon('star'), el('span', 'chip-label', 'Must'));
   const repeatChip = button('', null, 'assist-chip');
   repeatChip.append(icon('repeat'), el('span', 'chip-label'));
-  const moreChips = chipRow('quick-row');
+  const moreChips = chipRow('quick-row more-chips');
   moreChips.append(durationChip, repeatChip, mustChip);
   const durationFold = foldFor(options, durationChip, inner => durationChooser(inner, {
     get: () => s.minutes,
@@ -29,23 +46,25 @@ export function quickOptions(s, {body, group, changed, remember}) {
   moreRow.append(icon('tune'), el('span', 'chip-label', 'More options'), icon('expand_more', {cls: 'quick-details-open'}));
   const moreFold = foldFor(group, moreRow, inner => {
     inner.append(moreChips, durationFold.node, repeatFold.node);
-    const notes = inlineText(inner, 'notes', 'Add details', s.notes, () => {});
-    notes.addEventListener('input', () => { s.notes = notes.value; remember(); });
-    const why = inlineText(inner, 'favorite', 'Why?', s.why, () => {});
-    why.addEventListener('input', () => { s.why = why.value; remember(); });
     const alertRow = el('div', 'alert-choices');
     alertChooser(alertRow, {get: () => s.alert, pick: value => { s.alert = value; changed(); }});
     inner.append(alertRow);
+    const notes = quickField(inner, 'Details', 'Details', s.notes, value => { s.notes = value; remember(); });
+    const why = quickField(inner, 'Purpose: why it matters', 'Purpose', s.why, value => { s.why = value; remember(); });
     const refresh = () => {
       syncText(notes, s.notes);
       syncText(why, s.why);
-      why.closest('.detail-row').hidden = !!s.blockId;
+      // A task in a Block takes the Block's Purpose.
+      why.hidden = !!target();
       alertRow.hidden = !s.time;
       markChips(alertRow, s.alert);
     };
     refresh();
     return refresh;
   });
+
+  // The row gives way to the choices it opened; focus moves to the first of them.
+  moreRow.addEventListener('click', () => { if (moreRow.classList.contains('is-open')) durationChip.focus({preventScroll: true}); });
 
   const paint = () => {
     durationChip.querySelector('.chip-label').textContent = s.minutes == null ? 'Estimate' : duration(s.minutes);
