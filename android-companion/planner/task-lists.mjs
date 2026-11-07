@@ -1,5 +1,5 @@
 import {tasks, blockTasks, inboxRows} from '../planner-state.mjs';
-import {el, icon, button, labelButton, iconButton, emptyState} from './dom.mjs';
+import {el, icon, button, labelButton, emptyState} from './dom.mjs';
 import {duration} from './format.mjs';
 import {animateRerender, reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
 import {openSheet, isSheetOpen} from './sheet.mjs';
@@ -41,7 +41,10 @@ export function inboxShowing(app) {
 export function showInbox(app, {motion = 'forward'} = {}) {
   const {body, actions, header} = openSheet(app, 'Inbox', {motion});
   app.sheet.inboxBody = body;
-  const jev = iconButton('auto_awesome', 'Sort with Jev', () => app.actions.jevSort(), {cls: 'inbox-jev'});
+  // The title counts what is left to sort; Sort with Jev is a labelled chip beside Close, the sheet's lead action.
+  const count = el('span', 'sheet-count');
+  header.querySelector('h2').append(count);
+  const jev = labelButton('auto_awesome', 'Sort with Jev', () => app.actions.jevSort(), 'assist-chip inbox-jev');
   header.querySelector('.sheet-close').before(jev);
   // Fills a host with the rows: the body itself at first, then a detached copy that animateRerender reconciles in by
   // key (it needs the new content returned as an element, so unchanged rows stay and the changed ones move).
@@ -49,6 +52,7 @@ export function showInbox(app, {motion = 'forward'} = {}) {
     const rows = inboxRows(app.data());
     host.replaceChildren();
     jev.hidden = !rows.length;
+    count.textContent = rows.length ? String(rows.length) : '';
     if (!rows.length) {
       host.append(emptyState({symbol: 'inbox', title: 'Inbox is empty',
         body: 'New captures land here until you give them a Block.'}));
@@ -64,7 +68,7 @@ export function showInbox(app, {motion = 'forward'} = {}) {
   };
   draw(body);
   actions.append(labelButton('mic', 'Capture', () => app.capture(), 'text-btn'),
-    labelButton('add', 'Add task', () => taskEditor(app, null), 'filled-btn'));
+    labelButton('add', 'Add task', () => taskEditor(app, null), 'tonal-btn'));
   app.sheet.live = () => body.isConnected && isSheetOpen(app);
   app.sheet.sync = () => {
     if (!inboxShowing(app) || app.sheet.inboxBody !== body) return false;

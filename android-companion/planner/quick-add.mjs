@@ -6,6 +6,7 @@ import {openSheet, isSheetOpen, discardDraft, rememberValue} from './sheet.mjs';
 import {whenOf, whenFields, whenLabel, clockOf, dayPresets, parseWhen, blockMatches, hashToken, hashTag, withoutTag, foldGroup, fold, foldFor, choiceChip, markChips, chipRow, dateChooser, blockChooser, recentBlock, rememberBlock} from './task-fields.mjs';
 import {readLabel, NEEDS_TIME, saver, scheduleCheck, suggestBlock} from './sheet-parts.mjs';
 import {openTask} from './task-sheet.mjs';
+import {blockShort} from './task-tabs-model.mjs';
 
 const DRAFT = 'task:new';
 const shortDay = day => {
@@ -156,10 +157,11 @@ function quickAdd(app, overrides = {}) {
     },
   }));
 
-  // Block: one chip names where the task goes (its Block, or the Inbox) and opens the list; beside it, one sparkle
-  // chip offers the Block the words point to, while that is not already the choice.
+  // Block: one filled chip names where the task goes (its Block's first two words, or the Inbox) and opens the list;
+  // beside it, one outlined sparkle chip offers the Block the words point to, while that is not already the choice.
+  // More options ends the same row.
   const blockChips = chipRow('quick-row block-chips');
-  const blockChip = button('', null, 'assist-chip block-chip');
+  const blockChip = button('', null, 'assist-chip block-chip on');
   blockChip.append(icon('stacks'), el('span', 'chip-label', 'Inbox'));
   const pickBlock = id => {
     forgetTag();
@@ -183,20 +185,20 @@ function quickAdd(app, overrides = {}) {
     const chosen = blocks.find(b => b.id === s.blockId);
     const suggested = suggestBlock(app, {title: name.value});
     const label = chosen?.title ?? 'Inbox';
-    blockChip.querySelector('.chip-label').textContent = label;
-    blockChip.classList.toggle('on', !!chosen);
+    blockChip.querySelector('.chip-label').textContent = blockShort(chosen?.title);
     const read = !!tag && !!chosen && chosen.id === tag.block.id;
     blockChip.classList.toggle('from-words', read);
     blockChip.setAttribute('aria-label', `Block: ${label}${read ? `, read from “${tag.match}”` : ''}. Choose a Block`);
     offered = suggested && suggested.id !== s.blockId ? suggested.id : null;
     suggestChip.hidden = !offered;
     if (offered) {
-      suggestChip.querySelector('.chip-label').textContent = suggested.title;
+      suggestChip.querySelector('.chip-label').textContent = blockShort(suggested.title);
       suggestChip.setAttribute('aria-label', `Suggested Block ${suggested.title}`);
     }
   };
 
   const more = quickOptions(s, {body, group, changed: () => changed(), remember: () => remember()});
+  blockChips.append(more.row);
 
   // "#" and part of a Block's name offers the matching Blocks as chips; choosing one takes the "#word" out of the
   // title. Not choosing leaves the words as typed.
@@ -243,7 +245,7 @@ function quickAdd(app, overrides = {}) {
 
   const error = el('p', 'sheet-error');
   error.setAttribute('role', 'alert');
-  body.append(nameWrap, hashFold.node, whenChips, whenFold.node, blockChips, blockFold.node, more.row, more.node, error);
+  body.append(nameWrap, hashFold.node, whenChips, whenFold.node, blockChips, blockFold.node, more.node, error);
 
   const paint = () => {
     markChips(whenChips, s.day);

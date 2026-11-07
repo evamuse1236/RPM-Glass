@@ -26,7 +26,7 @@ export function quickOptions(s, {body, group, changed, remember}) {
     },
   }));
   const moreRow = button('', null, 'quick-details');
-  moreRow.append(icon('tune'), el('span', 'chip-label', 'More options'), icon('expand_more', {cls: 'quick-details-open'}));
+  moreRow.append(el('span', 'chip-label', 'More'), icon('expand_more', {cls: 'quick-details-open'}));
   const moreFold = foldFor(group, moreRow, inner => {
     inner.append(moreChips, durationFold.node, repeatFold.node);
     const notes = inlineText(inner, 'notes', 'Add details', s.notes, () => {});
@@ -59,7 +59,7 @@ export function quickOptions(s, {body, group, changed, remember}) {
     repeatChip.setAttribute('aria-label', repeat ? 'Repeat: ' + repeat : 'Repeat');
     const set = [s.minutes != null && duration(s.minutes), repeat, s.must && 'Must',
       (s.notes || s.why) && 'Details', s.alert !== 'off' && 'Alert'].filter(Boolean).join(', ');
-    moreRow.querySelector('.chip-label').textContent = set || 'More options';
+    moreRow.querySelector('.chip-label').textContent = set || 'More';
     moreRow.setAttribute('aria-label', set ? 'More options: ' + set : 'More options');
     moreRow.classList.toggle('on', !!set);
     options.current?.refresh();

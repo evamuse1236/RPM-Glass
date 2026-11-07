@@ -86,6 +86,10 @@
 .discard-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); width: 100%; justify-content: flex-end; }
 .discard-controls p { flex: 1 1 auto; font: var(--body-large); }
 .sheet .task-row { margin: 0 calc(-1 * var(--s4)); }
+/* On a sheet a task's title starts level with its ring, and a longer title wraps below it, as in Google Tasks. */
+.sheet .task-main { justify-content: flex-start; padding-block: var(--s4) var(--s2); }
+.sheet-count { margin-inline-start: var(--s2); color: var(--on-surface-variant); }
+.inbox-jev .ms { color: var(--primary); }
 .sheet-dialog .sheet-body { padding-bottom: var(--s2); }
 
 .detail-title {
@@ -205,13 +209,13 @@
 /* Quick add: the title, then the likeliest choices as chips; the rest unfold under their chip. */
 /* The title wraps (all of the user's words stay in view). Behind it, a copy of the words, drawn with the same font and
    wrapping, highlights what the sheet read from them (a day, a #Block) in the colour of the chips it marked. */
-.quick-title { display: block; position: relative; margin: 0 0 var(--s1); }
+.quick-title { display: block; position: relative; margin: 0; }
 .quick-title textarea, .quick-mirror {
   display: block;
   width: 100%;
   border: 0;
-  padding: var(--s2) 0;
-  min-height: 48px;
+  padding: var(--s2) 0 var(--s1);
+  min-height: 36px;
   font: var(--body-large);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -230,19 +234,22 @@
 .quick-mirror mark { color: transparent; background: var(--secondary-container); border-radius: var(--shape-xs);
   box-shadow: 0 0 0 2px var(--secondary-container); }
 .sheet .quick-row { flex-wrap: wrap; row-gap: 0; column-gap: var(--s2); overflow: visible; padding: 0; }
+/* More options ends the Block row: a quiet text toggle whose chevron sits on the content edge. */
 .quick-details {
   display: flex;
+  flex: 0 8 auto;
   align-items: center;
-  gap: var(--s2);
-  inline-size: 100%;
+  gap: var(--s1);
+  min-inline-size: 0;
   min-block-size: var(--touch);
+  margin-inline: auto calc(-1 * var(--s2));
   padding-inline: var(--s2);
   font: var(--label-large);
   color: var(--on-surface-variant);
   border-radius: var(--shape-sm);
 }
 .quick-details .ms { font-size: 20px; }
-.quick-details .chip-label { flex: 1; text-align: start; }
+.quick-details .chip-label { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
 .quick-details .quick-details-open { transition: rotate var(--dur-press) var(--ease-standard); }
 .quick-details.is-open .quick-details-open { rotate: 180deg; }
 .quick-details.on { color: var(--on-surface); }
@@ -263,7 +270,6 @@
 .sheet .quick-days .choice-chip[aria-pressed=true] { padding-left: var(--s3); }
 .sheet .quick-days .choice-chip[aria-pressed=true] .chip-check { display: none; }
 .block-chips > .assist-chip { flex: 0 1 auto; min-width: 0; max-width: none; }
-.block-chips > .block-chip:not(.on) { flex: none; }
 .block-chips .chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .suggest-chip .ms { color: var(--primary); }
 :root[data-large-text=true] .sheet .quick-row:is(.quick-days, .block-chips) { flex-wrap: wrap; }
@@ -292,5 +298,5 @@
 .sheet-quick .sheet-header { display: none; }
 .sheet-quick .sheet-body { padding-top: var(--s1); padding-bottom: 0; }
 /* Add details and Why? start on the same edge as More options and the chip icons. */
-.sheet-quick .detail-row { padding-inline: var(--s2); gap: var(--s2); }
+.sheet-quick .detail-row { min-block-size: var(--touch); padding: var(--s3) var(--s2); gap: var(--s2); }
 .sheet-quick .detail-row > .ms { font-size: 20px; }
