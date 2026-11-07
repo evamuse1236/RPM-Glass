@@ -1,17 +1,15 @@
 /**
- * The water and meal editors: bottom sheets in the task sheet's row grammar (icon, then a stepper, chips, a switch or
- * a time). Each change saves at once through the body store with Undo; a stepper saves once the presses stop.
+ * The water and meal editors: bottom sheets in the task sheet's row grammar (icon, then a slider, a picker, a switch
+ * or a time). Each change saves at once through the body store with Undo; a slider saves when it is let go.
  */
 import {WATER_DEFAULTS, WATER_STEPS, GLASS_SIZES, stepWater, everyText, clockText, atMinutes, minutesOf, SLOT_NAMES}
   from '../body-state.mjs';
-import {el, button, iconButton} from './dom.mjs';
+import {button, iconButton} from './dom.mjs';
 import {openSheet, closeSheet, isSheetOpen} from './sheet.mjs';
 import {notice} from './snackbar.mjs';
 import {userMessage} from '../user-message.mjs';
-import {factRow, chipRow, chip, markChips, settleChip, switchButton, stepper, timeButton, textRow}
-  from './fact-rows.mjs';
+import {factRow, switchButton, slider, pickButton, timeButton, textRow} from './fact-rows.mjs';
 
-const STEPPER_SETTLE = 500;
 const glassesText = n => `${n} ${n === 1 ? 'glass' : 'glasses'}`;
 const timeWords = hhmm => clockText(atMinutes('2000-01-01', minutesOf(hhmm)));
 
@@ -28,10 +26,11 @@ async function saved(app, run, words) {
   return true;
 }
 
-/** The sheet header's way back to what opened the editor, by the arrow or Android Back. */
+/** The sheet header's way back to what opened the editor, by the arrow or Android Back. The side panel on a wide
+ * screen has no scrim to tap, so it keeps its Close too. */
 function backTo(app, header, content, back, label) {
   if (!back) return;
-  header.querySelector('.sheet-close')?.remove();
+  if (!app.api.wide?.()) header.querySelector('.sheet-close')?.remove();
   header.prepend(iconButton('arrow_back', label, back, {cls: 'sheet-back'}));
   app.sheet.onBack = () => {
     if (!content.isConnected || !isSheetOpen(app)) return false;
@@ -40,59 +39,41 @@ function backTo(app, header, content, back, label) {
   };
 }
 
-const labelled = (text, control) => [el('span', 'edit-label', text), control];
-
 export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Habits', motion = 'forward'} = {}) {
-  const {body: content, header} = openSheet(app, 'Edit water', {variant: 'choice habit-editor', motion});
+  const {body: content, header} = openSheet(app, 'Water', {variant: 'choice habit-editor', motion});
   backTo(app, header, content, back, backLabel);
   const settings = () => ({...WATER_DEFAULTS, ...body.water().settings});
-  const pending = {};
-  const later = (key, value, words) => {
-    clearTimeout(pending[key]);
-    pending[key] = setTimeout(() => {
-      delete pending[key];
-      saved(app, () => body.setWater(key, value), words);
-    }, STEPPER_SETTLE);
-  };
-  const goal = stepper({label: 'Daily goal', less: 'Fewer glasses', more: 'More glasses', ...WATER_STEPS.goal,
-    next: (v, d) => stepWater('goal', v, d), format: glassesText, onChange: v => later('goal', v, `Daily goal: ${glassesText(v)}`)});
-  const sizes = chipRow('Glass size');
-  const pickSize = value => {
-    settleChip(sizes, markChips(sizes, value));
-    saved(app, () => body.setWater('glassMl', Number(value)), `Glass size: ${value} ml`);
-  };
+  const onGrid = (key, onValue) => v => onValue(stepWater(key, v, 0));
+  const goal = slider({label: 'Daily goal', ...WATER_STEPS.goal, format: glassesText,
+    onChange: onGrid('goal', v => saved(app, () => body.setWater('goal', v), `Daily goal: ${glassesText(v)}`))});
+  const size = pickButton('Glass size', value => saved(app, () => body.setWater('glassMl', Number(value)), `Glass size: ${value} ml`));
   const reminders = switchButton('Reminders', on => {
     reminders.set(on);
     paintOff(!on);
     saved(app, () => body.setWater('reminders', on), on ? 'Water reminders on' : 'Water reminders off');
   });
-  const every = stepper({label: 'Every', less: 'Shorter interval', more: 'Longer interval', ...WATER_STEPS.intervalMinutes,
-    next: (v, d) => stepWater('intervalMinutes', v, d), format: everyText,
-    onChange: v => later('intervalMinutes', v, `Reminders every ${everyText(v)}`)});
+  const every = slider({label: 'Every', ...WATER_STEPS.intervalMinutes, format: everyText,
+    onChange: onGrid('intervalMinutes', v => saved(app, () => body.setWater('intervalMinutes', v), `Reminders every ${everyText(v)}`))});
   const from = timeButton('From', value => saved(app, () => body.setWater('from', value), `Reminders from ${timeWords(value)}`));
   const until = timeButton('Until', value => saved(app, () => body.setWater('until', value), `Reminders until ${timeWords(value)}`));
-  const dependent = [factRow('timer', labelled('Every', every), {cls: 'stepper-row'}), factRow('wb_sunny', from),
-    factRow('bedtime', until)];
+  const dependent = [factRow('timer', every, {cls: 'slider-row'}), factRow('wb_sunny', from), factRow('bedtime', until)];
   const paintOff = off => {
     for (const row of dependent) {
       row.classList.toggle('is-off', off);
       row.inert = off;
     }
   };
-  content.append(factRow('water_drop', labelled('Daily goal', goal), {cls: 'stepper-row'}),
-    factRow('local_drink', labelled('Glass size', sizes), {cls: 'segment-row'}),
+  content.append(factRow('water_drop', goal, {cls: 'slider-row'}), factRow('local_drink', size),
     factRow('notifications', reminders), ...dependent);
 
   const paint = () => {
     const s = settings();
-    if (!pending.goal) goal.set(s.goal);
-    if (!pending.intervalMinutes) every.set(s.intervalMinutes);
-    const offered = [...new Set([...GLASS_SIZES, s.glassMl])].sort((a, b) => a - b);
-    if (sizes.dataset.values !== offered.join('|')) {
-      sizes.dataset.values = offered.join('|');
-      sizes.replaceChildren(...offered.map(ml => chip(`${ml} ml`, String(ml), pickSize, {cls: 'tnum segment'})));
+    if (!content.contains(document.activeElement) || document.activeElement.type !== 'range') {
+      goal.set(s.goal);
+      every.set(s.intervalMinutes);
     }
-    markChips(sizes, String(s.glassMl));
+    const offered = [...new Set([...GLASS_SIZES, s.glassMl])].sort((a, b) => a - b);
+    size.set(offered.map(ml => ({value: String(ml), words: `${ml} ml`})), String(s.glassMl));
     reminders.set(s.reminders !== false);
     paintOff(s.reminders === false);
     from.set(s.from, timeWords(s.from));

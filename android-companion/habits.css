@@ -16,25 +16,52 @@
 /* The chevron's glyph sits inside its box: pulled out by that inset, it ends on the switches' edge. */
 .habit-chevron { flex: none; margin-inline-end: calc(-1 * var(--s2)); font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
 .switch-btn.habit-switch { position: relative; z-index: 1; inline-size: auto; flex: none; padding-inline-start: var(--s4); }
-/* The switch is its own target: a divider splits it from the row that opens the meal's editor. */
-.switch-btn.habit-switch::before { content: ""; inline-size: 1px; block-size: var(--s8); background: var(--outline-variant); }
+.switch-btn.habit-switch .switch-label { display: none; }
 .habit-add { min-block-size: var(--touch); }
 .habit-add > .habit-icon { color: var(--primary); }
 .habit-add > .habit-open { flex: 1; font: var(--body-large); color: var(--primary); }
-.switch-btn.habit-switch .switch-label { display: none; }
+/* The meals are their own group: space, not a line, sets them apart from routines and water. */
+.habit-list.habit-meals { margin-block-start: var(--s2); }
+/* Water: today's glasses as a slim segmented track under the count, one segment per glass of the goal (not the
+   Today circle's .habit-meter). */
+.water-track { display: flex; gap: var(--s1); margin-block-start: var(--s2); }
+.water-track > i { flex: 1; block-size: var(--s1); border-radius: var(--shape-full); background: var(--surface-container-highest); }
+.water-track > i.on { background: var(--primary); }
+/* A meal: its time as a neutral chip that opens the time picker, then what was eaten today. */
+.habit-meal-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s3); margin-block-start: var(--s1); }
+.habit-time {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  block-size: var(--s8);
+  padding-inline: var(--s2) var(--s3);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--shape-sm);
+  font: var(--label-large);
+  color: var(--on-surface-variant);
+}
+.habit-time > .ms { font-size: calc(20px / var(--text-scale, 1)); }
+.habit-time::after { content: ""; position: absolute; inset: calc(-1 * var(--s2)) 0; }
+.habit-time input { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; opacity: 0; cursor: pointer; }
+.habit-time:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
+.habit-time:active { background: var(--row-press); }
+.habit-logged { display: inline-flex; align-items: center; gap: var(--s1); min-inline-size: 0; }
+.habit-logged-mark { font-size: calc(20px / var(--text-scale, 1)); color: var(--primary); }
 .habit-row:has(.habit-open:active) { background: var(--row-press); }
 .habit-row:has(.habit-open:focus-visible) { outline: 2px solid var(--primary); outline-offset: -2px; }
 
 .habit-editor .sheet-body { display: flex; flex-direction: column; gap: var(--row-gap); padding-inline: var(--s4); }
 .habit-editor .remove-snack { align-self: flex-end; }
 .sheet-editor .edit-pair { margin-block-end: var(--s2); }
-/* Glass size: its label on the icon's line, every size in view in one segmented row under it. */
-.segment-row > .edit-body { padding-block-start: var(--s2); }
-.segment-row .chip-row.edit-chips { overflow: visible; margin: 0; padding: 0; gap: 0; mask-image: none; }
-.segment-row .chip.segment { flex: 1 1 0; justify-content: center; min-inline-size: 0; padding-inline: var(--s1); border-radius: 0; }
-.segment-row .chip.segment + .chip.segment { border-inline-start-width: 0; }
-.segment-row .chip.segment:first-child { border-start-start-radius: var(--r-control); border-end-start-radius: var(--r-control); }
-.segment-row .chip.segment:last-child { border-start-end-radius: var(--r-control); border-end-end-radius: var(--r-control); }
-.segment-row .chip.segment .chip-check { display: none; }
-/* Every editor row is one touch high, so steppers, the glass sizes, switches and times share a rhythm. */
-.habit-editor :is(.stepper-row, .segment-row) > .edit-body { min-block-size: var(--touch); justify-content: center; }
+/* A slider row: the label with its value at the end, the M3 slider full width under it. */
+.slider-field { display: flex; flex-direction: column; min-inline-size: 0; }
+.slider-head { display: flex; align-items: baseline; gap: var(--s2); }
+.slider-head > .edit-label { flex: 1; }
+.slider-value { font: var(--title-medium); color: var(--on-surface); white-space: nowrap; }
+.slider-row .rating-slider { inline-size: 100%; margin: 0; }
+.pick-button select { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; opacity: 0; cursor: pointer; }
+.pick-button:has(select:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* Every editor row is one touch high, so sliders, switches, the glass size and times share a rhythm. */
+.habit-editor .slider-row > .edit-body { min-block-size: var(--touch); justify-content: center; }

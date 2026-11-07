@@ -26,7 +26,10 @@ async function habits(k) {
     'More → Habits lists water, the meals and the routines');
   await step('water-goal', async () => {
     await tapText('.habit-row', 'Water', 'button.habit-open');
-    await tapShown('[aria-label="More glasses"]');
+    await shown('input[aria-label="Daily goal"]');
+    await b.js(`(() => { const input = document.querySelector('input[aria-label="Daily goal"]');
+      input.value = String(Number(input.value) % 20 + 1);
+      input.dispatchEvent(new Event('input', {bubbles: true})); input.dispatchEvent(new Event('change', {bubbles: true})); return true; })()`);
   }, changed(data => body(data).water?.settings?.goal));
   await closeAll();
 
@@ -50,7 +53,8 @@ async function habits(k) {
 
   const addSnack = () => step('add-snack', async () => {
     await openHabits();
-    await tapText('.sheet button', 'Add snack time');
+    await tapText('.habit-add button', 'Add');
+    await tapText('.menu-item', 'Snack time');
   }, data => !!slot(data, 'snack'));
   const removeSnack = () => step('remove-snack', async () => {
     await openHabits();
@@ -66,7 +70,8 @@ async function habits(k) {
   const routineOf = data => (body(data).routines ?? []).find(r => r.name === routine);
   await step('routine-new', async () => {
     await openHabits();
-    await tapText('.sheet button', 'Add routine');
+    await tapText('.habit-add button', 'Add');
+    if (await shown('.menu-item', 1000)) await tapText('.menu-item', 'Routine');
     await k.mark('label.text-field', 'Name', 'input');
     await typeInto('[data-drive]', routine, false);
     await typeInto('input[aria-label="Add a step"]', 'Stretch for five minutes');
