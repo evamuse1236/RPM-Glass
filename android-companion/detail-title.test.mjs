@@ -29,11 +29,16 @@ test('the handover shows the title once: the bar title fades in while the large 
   assert.match(pages, /\.detail-title-text \{ transition: opacity var\(--dur-short\) var\(--ease-standard\); \}/);
 });
 
-test('a Block\'s collapsed bar keeps its title on one line with its deadline under it', () => {
+test('a collapsed detail bar wraps its title to two lines, never an ellipsis, with a Block\'s deadline under it', () => {
   const shell = read('planner/shell.mjs');
   const detail = body(shell, 'detailBar');
   assert.match(detail, /el\('h1', 'top-title small'/);
   assert.match(detail, /blockSubtitle\(app, record\)/);
   const css = read('planner.css');
-  assert.match(css, /\.top-title\.small \{[^}]*white-space: nowrap;[^}]*text-overflow: ellipsis;/);
+  const small = css.match(/\.top-title\.small \{([^}]*)\}/)[1];
+  assert.match(small, /-webkit-line-clamp: 2;/);
+  assert.doesNotMatch(small, /nowrap|ellipsis/);
+  const titleText = css.match(/\.top-title\.with-subtitle \.top-title-text \{([^}]*)\}/)[1];
+  assert.match(titleText, /-webkit-line-clamp: 2;/);
+  assert.doesNotMatch(titleText, /nowrap|ellipsis/);
 });

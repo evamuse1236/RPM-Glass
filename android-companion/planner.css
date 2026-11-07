@@ -86,13 +86,23 @@ h1, h2, h3, p { margin: 0; }
 }
 .top-title.small {
   font: var(--title-large);
-  padding-left: var(--s1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  padding-inline-start: var(--s1);
+  overflow: clip;
+  text-wrap: balance;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .top-title.with-subtitle { display: flex; flex-direction: column; }
-.top-title-text, .top-subtitle { overflow: hidden; text-overflow: ellipsis; }
+.top-title.with-subtitle .top-title-text {
+  font: var(--title-medium);
+  overflow: clip;
+  text-wrap: balance;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.top-subtitle { overflow: clip; white-space: nowrap; text-overflow: ellipsis; }
 .top-subtitle { font: var(--body-medium); color: var(--on-surface-variant); }
 /* Detail titles live in the page; the bar shows them once the page scrolls. */
 .detail-bar .top-title { opacity: 0; transition: opacity var(--dur-short) var(--ease-standard); }
