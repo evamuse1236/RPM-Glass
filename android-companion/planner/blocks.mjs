@@ -113,7 +113,7 @@ export function blockCard(app, block, {focus = false, project = true} = {}) {
   main.append(el('span', 'card-title', block.title));
   main.append(el('span', 'card-purpose', block.purpose || 'Add the Purpose: why this Result matters'));
   // Where it stands on one line: the deadline (error colour when tight) and tasks done; Block detail has the countdown
-  // and the Musts' time. This week's pick is a quiet word at that line's end, so the title keeps the card's width.
+  // and the Musts' time. This week's pick is a small tonal mark right after it, so the title keeps the card's width.
   const due = deadline(app.data(), block, status);
   const count = status.total ? `${status.done} of ${plural(status.total, 'task')} done` : 'No tasks in the Plan yet';
   const week = focus && !status.achieved;

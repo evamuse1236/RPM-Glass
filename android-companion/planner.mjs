@@ -153,11 +153,7 @@ function installNativeHooks(app) {
     }
     const scrolled = String(top > 4);
     if (app.dom.planner.dataset.scrolled !== scrolled) app.dom.planner.dataset.scrolled = scrolled;
-    // A detail page's large title hands over to the bar only once its text has scrolled fully out of view.
-    const big = app.dom.work.querySelector('.detail-title-text');
-    const out = String(big ? big.getBoundingClientRect().bottom - parseFloat(getComputedStyle(big).paddingBottom)
-      <= app.dom.scroll.getBoundingClientRect().top : scrolled === 'true');
-    if (app.dom.planner.dataset.titleOut !== out) app.dom.planner.dataset.titleOut = out;
+    syncTitleOut(app);
   }, {passive: true});
   // --nav-measured: the room the floating tab bar takes at the bottom (its height plus its gap to the edge); 0 while
   // the keyboard hides it.
@@ -341,10 +337,23 @@ export function syncSheet(app) {
   }
 }
 
+/**
+ * A detail page's large title hands over to the bar's title as soon as its first line meets the bar's edge, and fades
+ * out (planner-pages.css), so no letter is ever cut under the bar, even on a page too short to scroll it away. Runs on
+ * every scroll and in the frame after every render (the shell draws before the page), so a page opened at the top never inherits the last page's handover.
+ */
+function syncTitleOut(app) {
+  const big = app.dom.work.querySelector('.detail-title-text');
+  const out = String(big ? big.getBoundingClientRect().top + parseFloat(getComputedStyle(big).paddingTop)
+    < app.dom.scroll.getBoundingClientRect().top : app.dom.scroll.scrollTop > 4);
+  if (app.dom.planner.dataset.titleOut !== out) app.dom.planner.dataset.titleOut = out;
+}
+
 export function mountPlanner(api) {
   // After every save, Undo or outside change the shell re-renders; an open task sheet then updates its rows in place.
   const shell = (app, options) => {
     renderShell(app, options);
+    requestAnimationFrame(() => syncTitleOut(app));
     syncSheet(app);
   };
   const app = createApp(api, {shell, screen: renderScreen, defaultScroll, refreshCalendar, searchBar});

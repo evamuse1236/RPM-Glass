@@ -33,7 +33,7 @@
   color: var(--on-surface-variant);
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   overflow: hidden;
 }
 .card-meta { font: var(--body-small); color: var(--on-surface-variant); margin-top: 2px; }
@@ -74,10 +74,10 @@
 .seg-off { stroke: var(--surface-container-highest); }
 .seg-on { stroke: var(--progress, var(--primary)); }
 .seg-arc { stroke-linecap: round; }
-/* Where a Block card stands, on one line: the deadline and tasks done, then This week's pick at its end. */
-.card-facts { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--s3); margin-top: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
+/* Where a Block card stands, on one line: the deadline, tasks done, then This week's pick as a small tonal mark beside them. */
+.card-facts { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--s2); margin-top: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
 .card-stand > *, .fact-next, .nowrap, .must-left { white-space: nowrap; }
-.week-mark { margin-inline-start: auto; font: var(--label-medium); color: var(--primary); white-space: nowrap; }
+.week-mark { padding-inline: var(--s1); border-radius: var(--shape-xs); background: var(--secondary-container); color: var(--on-secondary-container); font: var(--label-medium); white-space: nowrap; }
 .card-due { font-weight: 500; color: var(--on-surface); }
 .card-due.tight { color: var(--error); }
 .ring { flex: none; width: 24px; height: 24px; }
@@ -123,6 +123,9 @@
   text-wrap: balance;
   overflow-wrap: anywhere;
 }
+/* The large title hands over to the bar's title (planner.mjs titleOut): it fades as its first line meets the bar. */
+.detail-title-text { transition: opacity var(--dur-short) var(--ease-standard); }
+#planner[data-title-out=true] .detail-title-text:not(:focus-within) { opacity: 0; }
 .detail-lede { padding: 0 var(--gutter) var(--s3); font: var(--body-large); color: var(--on-surface-variant); }
 /* Edit in place: words look like words until tapped; focus adds a soft tonal field and the M3 active indicator. */
 .inline-edit {
@@ -183,7 +186,8 @@ button.fact-row:active { background: var(--row-press); }
   color: var(--on-secondary-container);
 }
 .verdict-row::after { content: ''; position: absolute; inset: calc(-1 * var(--s2)) 0; }
-.verdict-row > .ms.leading { font-size: 20px; width: 20px; height: 20px; color: inherit; }
+/* A 20dp trophy in the 24dp icon box, so its centre sits on the icon column above it. */
+.verdict-row > .ms.leading { font-size: 20px; width: 24px; height: 24px; color: inherit; }
 .verdict-row .list-copy { flex: none; }
 .verdict-row .list-headline { font: var(--label-large); }
 button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-secondary-container) 12%, var(--secondary-container)); }
@@ -192,7 +196,7 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
 .fact-label .label-edit { font-size: 16px; width: 16px; height: 16px; line-height: 16px; margin-left: var(--s1); vertical-align: -2px;
   opacity: .72; transition: opacity var(--dur-short3) var(--ease-standard); }
 .editable-row:focus-within .label-edit { opacity: 0; }
-.purpose-text { font: var(--body-large); overflow-wrap: anywhere; }
+.purpose-text { font: var(--body-large); overflow-wrap: anywhere; text-wrap: balance; }
 .due-when { font: var(--body-large); }
 .status-row.tight .due-when { color: var(--error); }
 .must-legend { font-size: 16px; color: var(--must); vertical-align: -3px; margin-right: 2px; }

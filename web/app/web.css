@@ -157,6 +157,8 @@ html:has(dialog:modal) { overflow: clip; }
   .planner-view #planner[data-detail=true] .page { max-width: var(--column); margin-inline: auto; }
   /* Block detail reads like a Google Tasks list: a 560px column keeps each Must star near its row's words. */
   .planner-view #planner[data-view=blocks][data-detail=true] { --column: 560px; }
+  /* With room around it the Result leads the page at headline-medium, one clear step above the Plan's rows. */
+  .planner-view #planner[data-view=blocks][data-detail=true] .detail-title-text { font: var(--headline-medium); }
   .planner-view .spine-row.spine-gap { min-block-size: 32px; }
   .planner-view .spine-free { grid-template-columns: var(--spine-pill) auto var(--touch) minmax(0, 1fr); }
   .planner-view #planner:is([data-view=blocks], [data-view=projects]) .page { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); align-items: start; gap: var(--s3); padding-inline: var(--gutter); }
