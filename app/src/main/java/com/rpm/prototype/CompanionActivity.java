@@ -136,7 +136,7 @@ public class CompanionActivity extends Activity {
                     case "legacyEntries":result=LegacyImport.read(CompanionActivity.this);break;
                     case "legacyImported":LegacyImport.markDone(CompanionActivity.this);result=new JSONObject();break;
                     case "dictate":runOnUiThread(()->voice.dictate(id));return;
-                    case "voiceToken":case "micAccess":case "micSettings":result=voice.invoke(action,p);break;
+                    case "voiceToken":case "micAccess":case "micSettings":case "telegram":result=voice.invoke(action,p);break;
                     case "haptic":runOnUiThread(()->web.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK));result=new JSONObject();break;
                     case "keyboard":runOnUiThread(()->{web.requestFocus();((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(web,android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);});result=new JSONObject();break;
                     case "appSettings":result=settingsController.read();break;

@@ -34,7 +34,8 @@ test('the voice token is minted only in Java, with checks before the key', () =>
   const mint = token.slice(token.indexOf('static JSONObject mint('));
   assert.ok(mint.indexOf('check(rawSetup)') < mint.indexOf('keys.call()'), 'the setup is checked before the key is read');
   assert.match(java('CompanionVoice'), /case "voiceToken":return VoiceToken\.mint\(\(\)->GeminiKey\.get\(/);
-  assert.match(java('CompanionActivity'), /case "voiceToken":case "micAccess":case "micSettings":result=voice\.invoke\(action,p\)/);
+  assert.match(java('CompanionActivity'), /case "voiceToken":case "micAccess":case "micSettings":case "telegram":result=voice\.invoke\(action,p\)/);
+  assert.match(java('CompanionVoice'), /case "telegram":return TelegramBridge\.call\(p,BuildConfig\.TELEGRAM_BRIDGE\);/);
 });
 
 test('the WebView mic is granted only through MicGrant', () => {

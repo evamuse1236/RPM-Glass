@@ -5,6 +5,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {UserError} from './lib/device.mjs';
 import {
+  clipPaths, wavDurationMs, loadClipFixtures, clipSessions,
   parseVoiceTimeArgs, alignMarks, requestGaps, marksFromLog, alignLogMarks, savedMatched,
   runVoiceTimes, armExpression, percentile, FIXTURE_ORDER, isEmulatorDevice, heardEnds, HUMAN_WAIT_MS,
 } from './lib/voice-time.mjs';
@@ -219,4 +220,69 @@ test('a person who said only one of two requests fails the run without touching 
   assert.deepEqual(report.runs[0].problems, ['heard 1 of 2 requests']);
   assert.ok(!io.events.some(event => ['armAndStart', 'playClip', 'hangUp'].includes(event)));
   assert.deepEqual(heardEnds({entries: [{name: 'voice:said#1', startTime: 10}, {name: 'voice:said#1', startTime: 90}, {name: 'voice:said#1', startTime: 50}], timeOrigin: 0, pageNow: 0, cliNow: 0}, {'T7#1': 60}), {'speechEnd#1': 50});
+});
+
+function wav({rate = 16000, channels = 1, bits = 16, tag = 1, samples = 16000} = {}) {
+  const data = Buffer.alloc(samples * (bits / 8) * channels), head = Buffer.alloc(44);
+  head.write('RIFF', 0, 'latin1'); head.writeUInt32LE(36 + data.length, 4); head.write('WAVEfmt ', 8, 'latin1');
+  head.writeUInt32LE(16, 16); head.writeUInt16LE(tag, 20); head.writeUInt16LE(channels, 22); head.writeUInt32LE(rate, 24);
+  head.writeUInt32LE(rate * channels * bits / 8, 28); head.writeUInt16LE(channels * bits / 8, 32); head.writeUInt16LE(bits, 34);
+  head.write('data', 36, 'latin1'); head.writeUInt32LE(data.length, 40);
+  return Buffer.concat([head, data]);
+}
+
+test('--clip parses a comma list, refuses an empty one and any mix with --fixture, --session or --human', () => {
+  assert.deepEqual(clipPaths('a.wav, /x/b.wav,'), ['a.wav', '/x/b.wav']);
+  assert.deepEqual(parseVoiceTimeArgs({clip: 'a.wav,b.wav'}, EMU).clips, ['a.wav', 'b.wav']);
+  assert.equal(parseVoiceTimeArgs({clip: 'a.wav'}, EMU).fixture, null);
+  assert.equal('clips' in parseVoiceTimeArgs({session: 'two'}, EMU), false);
+  for (const argv of [{clip: true}, {clip: ','}, {clip: 'a.wav', fixture: 'time'}, {clip: 'a.wav', session: 'two'}, {clip: 'a.wav', human: true}]) {
+    assert.throws(() => parseVoiceTimeArgs(argv, EMU), UserError, JSON.stringify(argv));
+  }
+});
+
+test('--clip refuses a WAV that is not 16 kHz mono 16-bit PCM, with a fix', () => {
+  assert.equal(wavDurationMs(wav({samples: 8000}), 'ok.wav'), 500);
+  for (const bad of [wav({rate: 44100}), wav({channels: 2}), wav({bits: 8}), wav({tag: 3}), Buffer.from('not a wav at all')]) {
+    assert.throws(() => wavDurationMs(bad, 'bad.wav'), error => error instanceof UserError && /bad\.wav/.test(error.message) && /ffmpeg/.test(error.fix ?? ''));
+  }
+});
+
+test('--clip is refused on a phone, as --fixture is', () => {
+  assert.throws(() => parseVoiceTimeArgs({clip: 'a.wav'}), UserError);
+  assert.throws(() => parseVoiceTimeArgs({clip: 'a.wav'}, {emulator: false}), UserError);
+});
+
+test('clip files load with an optional sibling .json, relative or absolute', async () => {
+  const fs = await import('node:fs'), os = await import('node:os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'clips-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'one.wav'), wav());
+    fs.writeFileSync(path.join(dir, 'one.json'), JSON.stringify({expected: {created: [{words: ['milk']}], changes: []}}));
+    fs.writeFileSync(path.join(dir, 'two.wav'), wav({samples: 8000}));
+    const [one, two] = loadClipFixtures(['one.wav', path.join(dir, 'two.wav')], {root: dir});
+    assert.deepEqual([one.id, one.durationMs, one.waitFor], ['one', 1000, 'receipt']);
+    assert.deepEqual([two.id, two.durationMs, two.waitFor, two.expected], ['two', 500, 'any', null]);
+    assert.throws(() => loadClipFixtures(['missing.wav'], {root: dir}), UserError);
+  } finally { fs.rmSync(dir, {recursive: true, force: true}); }
+});
+
+test('a clip list builds the same per-session plan as --session two, and unlabelled requests end at T8 or T9', async () => {
+  const labelled = [time, twoTasks];
+  const viaSession = clipSessions(parseVoiceTimeArgs({session: 'two'}, EMU), labelled);
+  const plan = {...parseVoiceTimeArgs({clip: 'a.wav,b.wav'}, EMU), clipFixtures: labelled};
+  assert.deepEqual(clipSessions(plan, labelled), viaSession);
+  assert.equal(viaSession.length, 1);
+  const io = sessionIo(labelled, {receipts: ['Added\nCall Amma\nSun 1 Nov, 6:00 PM', 'Added\nBuy milk']});
+  const report = await runVoiceTimes(plan, io);
+  assert.deepEqual(io.events, ['open', ['start', 'time'], ['wait', 'T8#1'], ['play', 'two-tasks'], ['wait', 'T8#2'], 'hang up', ['wait', 'T10']]);
+  assert.equal(report.ok, true);
+  const open = [{id: 'q1', durationMs: 1000, expected: null, waitFor: 'any'}, {id: 'q2', durationMs: 1000, expected: null, waitFor: 'any'}];
+  const quiet = sessionIo(open, {missing: ['T7#1', 'T8#1', 'T7#2', 'T8#2']});
+  const waited = [];
+  quiet.waitForAny = async names => { waited.push(names); };
+  const answered = await runVoiceTimes({...parseVoiceTimeArgs({clip: 'a.wav,b.wav'}, EMU), clipFixtures: open}, quiet);
+  assert.deepEqual(waited, [['T8#1', 'T9#1'], ['T8#2', 'T9#2']]);
+  assert.equal(answered.ok, true);
+  assert.equal(answered.workDone, 2);
 });

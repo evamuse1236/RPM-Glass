@@ -4,7 +4,7 @@ import {reducedMotion} from './capture-presentation.mjs';
 import {openTarget} from './capture-voice-card.mjs';
 import {EASE,DURATION} from './motion-core.mjs';
 
-const ICON={task:'task_alt',block:'stacks',project:'folder',goal:'flag',area:'category'};
+const ICON={task:'task_alt',block:'stacks',project:'folder',goal:'flag',area:'category',telegram:'send'};
 const GONE=new Set(['Moved to Trash','Trash']);
 const SAYS=new Set(['Done','Reopened','Moved']);
 const NEW=new Set(['Added','New Block','New Project','New Goal','New Area']);
@@ -33,6 +33,7 @@ const gone=row=>GONE.has(row.verb);
 /** The second line: a new task's Block, the verb for Done, Reopened, Moved and the Trash, and nothing for a plain change. */
 export function rowNote(row){
  if(gone(row))return 'Moved to Trash';
+ if(row.entity==='telegram')return row.where?`Sent to ${row.where}`:'Sent';
  if(SAYS.has(row.verb))return row.verb;
  if(row.entity==='task'&&row.added)return row.where??'';
  return '';

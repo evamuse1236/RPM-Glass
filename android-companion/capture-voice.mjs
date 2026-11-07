@@ -1,5 +1,6 @@
 import {startVoice} from './voice-client.mjs';
 import {liveSetup} from './voice-tools.mjs';
+import {telegramLink} from './voice-telegram.mjs';
 import {voiceChoice} from './voice-choice.mjs';
 import {applyRamble,undoRamble,rambleTrace} from './voice-turn.mjs';
 import {el,button} from './capture-dom.mjs';
@@ -38,6 +39,9 @@ export function createVoiceMode({platform,conversationId,onChange,afterSave,onLe
  savedRows=()=>null,openItem=()=>{}}){
  let live=null,shown=null,session=null,call=null,calling=false,failure=null,failureFace=null,saveProblem=null;
  let saved=[],liveRows=new Map(),heard={request:0,text:''},moment={n:0,kind:null};
+ const telegram=telegramLink({action:(name,payload)=>platform.action(name,payload)});
+ let withTelegram=false;
+ Promise.resolve().then(()=>platform.action('telegram',{op:'connected'})).then(r=>{withTelegram=r?.connected===true;},()=>{});
  const changed=()=>{const key=JSON.stringify([live,failure,saved.length,[...liveRows],heard,moment.n]);if(key===shown)return;shown=key;onChange();};
  const token=async setup=>{const reply=await platform.action('voiceToken',{setup});if(reply?.missingKey)throw new Error(NO_KEY);return reply;};
  const stop=()=>session?.stop();
@@ -80,8 +84,8 @@ export function createVoiceMode({platform,conversationId,onChange,afterSave,onLe
   live={phase:'connecting',request:0};
   changed();
   try{
-   session=(win?.__rpmVoiceStart??start)({continuous:true,data:()=>platform.voiceData(),timeZone,now,workletUrl:'/voice-mic-worklet.js',token,onLevel,onRequest:saveRequest,
-    setup:()=>liveSetup(now(),timeZone,{data:platform.voiceData(),continuous:true,...voiceChoice()}),onChange:hear});
+   session=(win?.__rpmVoiceStart??start)({continuous:true,telegram:withTelegram?telegram:null,data:()=>platform.voiceData(),timeZone,now,workletUrl:'/voice-mic-worklet.js',token,onLevel,onRequest:saveRequest,
+    setup:()=>liveSetup(now(),timeZone,{data:platform.voiceData(),continuous:true,telegram:withTelegram,...voiceChoice()}),onChange:hear});
    const result=await session.done;
    session=null;live=null;
    if(result.code==='no-mic'){

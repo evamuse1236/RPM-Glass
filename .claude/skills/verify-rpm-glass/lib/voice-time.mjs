@@ -21,23 +21,71 @@ export function isEmulatorDevice({serial, props = {}}) {
 /** On a phone voice-time only listens to a person: no fake mic, no plan replaced. */
 function phoneGuard(argv) {
   if (argv.store !== undefined) throw new UserError('voice-time never replaces the plan on a phone, so --store runs only on an emulator.', 'Drop --store. On the phone voice-time saves what you say, like any capture.');
+  if (argv.clip !== undefined) throw new UserError('--clip plays WAV files through the fake mic, which runs only on an emulator.', 'Drop --clip. On the phone voice-time uses the real mic and waits for you to talk.');
   if (argv.fixture !== undefined || argv.human === false || argv.human === 'false') throw new UserError('The fake mic runs only on an emulator.', 'Drop --fixture. On the phone voice-time uses the real mic and waits for you to talk.');
 }
 
 export function parseVoiceTimeArgs(argv, {fixtureIds = FIXTURE_ORDER, emulator = false} = {}) {
   if (!emulator) phoneGuard(argv);
   const human = !emulator || argv.human === true || argv.human === 'true';
+  const clips = argv.clip === undefined ? null : clipPaths(argv.clip);
+  if (clips && (human || argv.fixture !== undefined || argv.session !== undefined)) throw new UserError('--clip cannot be combined with --human, --fixture or --session.', 'Use --clip alone: rpmctl voice-time --clip a.wav,b.wav');
   const runs = argv.runs === undefined ? 1 : Number(argv.runs);
   if (!Number.isInteger(runs) || runs < 1) throw new UserError('`--runs` must be a positive integer.', 'Example: rpmctl voice-time --runs 10 --fixture all');
-  const fixture = human ? null : String(argv.fixture ?? 'all');
-  if (!human && fixture !== 'all' && !fixtureIds.includes(fixture)) {
+  const fixture = human || clips ? null : String(argv.fixture ?? 'all');
+  if (!human && !clips && fixture !== 'all' && !fixtureIds.includes(fixture)) {
     throw new UserError(`Unknown voice fixture "${fixture}".`, `One of: ${fixtureIds.join(', ')}, all.`);
   }
   const warm = argv.warm === true || argv.warm === 'true';
   const store = !emulator ? null : argv.store === undefined || argv.store === true ? 'seed' : String(argv.store);
   const session = argv.session === undefined ? null : String(argv.session);
   if (session !== null && !SESSION_CLIPS[session]) throw new UserError(`Unknown voice session "${session}".`, `One of: ${Object.keys(SESSION_CLIPS).join(', ')}.`);
-  return {runs, fixture, human, warm, store, session, emulator, percentiles: argv.runs !== undefined};
+  return {runs, fixture, human, warm, store, session, emulator, percentiles: argv.runs !== undefined, ...(clips ? {clips} : {})};
+}
+
+/** `--clip a.wav,b.wav` as a list of paths; the flag needs at least one. */
+export function clipPaths(value) {
+  const paths = typeof value === 'string' ? value.split(',').map(item => item.trim()).filter(Boolean) : [];
+  if (!paths.length) throw new UserError('`--clip` needs one or more WAV files.', 'Example: rpmctl voice-time --clip clips/one.wav,clips/two.wav');
+  return paths;
+}
+
+/** The fixtures use 16 kHz mono 16-bit PCM; the fake mic feeds bytes as they are. Returns the clip length in ms. */
+export function wavDurationMs(bytes, name = 'clip') {
+  const bad = why => new UserError(`${name} is not a 16 kHz mono 16-bit PCM WAV (${why}).`, 'Convert it: ffmpeg -i in.wav -ar 16000 -ac 1 -c:a pcm_s16le out.wav');
+  if (bytes.length < 12 || bytes.toString('latin1', 0, 4) !== 'RIFF' || bytes.toString('latin1', 8, 12) !== 'WAVE') throw bad('not a RIFF/WAVE file');
+  let fmt = null;
+  for (let at = 12; at + 8 <= bytes.length;) {
+    const id = bytes.toString('latin1', at, at + 4), size = bytes.readUInt32LE(at + 4), body = at + 8;
+    if (id === 'fmt ' && size >= 16) fmt = {tag: bytes.readUInt16LE(body), channels: bytes.readUInt16LE(body + 2), rate: bytes.readUInt32LE(body + 4), bits: bytes.readUInt16LE(body + 14)};
+    if (id === 'data') {
+      if (!fmt) throw bad('no fmt chunk before the audio');
+      if (fmt.tag !== 1) throw bad('not PCM');
+      if (fmt.channels !== 1) throw bad(`${fmt.channels} channels`);
+      if (fmt.rate !== 16000) throw bad(`${fmt.rate} Hz`);
+      if (fmt.bits !== 16) throw bad(`${fmt.bits}-bit`);
+      return Math.round((Math.min(size, bytes.length - body) / 2 / 16000) * 1000);
+    }
+    at = body + size + (size % 2);
+  }
+  throw bad('no audio data');
+}
+
+/**
+ * Fixtures for `--clip` files. A sibling .json (like fixtures/voice) gives the words and expected save; without one
+ * the clip is unlabelled: nothing is compared, and either a receipt or a spoken answer ends its request.
+ */
+export function loadClipFixtures(paths, {root = ROOT} = {}) {
+  return paths.map(item => {
+    const wavPath = path.resolve(root, item);
+    if (!fs.existsSync(wavPath)) throw new UserError(`Clip not found: ${item}`, 'Give a WAV path, absolute or relative to the repo.');
+    const durationMs = wavDurationMs(fs.readFileSync(wavPath), item);
+    const jsonPath = wavPath.replace(/\.wav$/i, '') + '.json';
+    const raw = fs.existsSync(jsonPath) ? JSON.parse(fs.readFileSync(jsonPath, 'utf8')) : null;
+    const id = path.basename(wavPath).replace(/\.wav$/i, '');
+    const changes = !!(raw?.expected?.created?.length || raw?.expected?.changes?.length);
+    return {...(raw ?? {}), id, durationMs, wavPath, expected: raw?.expected ?? null, waitFor: changes ? 'receipt' : 'any'};
+  });
 }
 
 export function loadVoiceFixtures(dir = FIXTURE_DIR) {
@@ -150,7 +198,7 @@ export async function oneSessionRun({plan, clips, io, index}) {
   const problems = [];
   for (let n = 1; n <= clips.length; n++) {
     if (n > 1) await io.playClip(clips[n - 1]);
-    try { await io.waitForStage(`T8#${n}`); } catch (error) { if (!(error instanceof UserError)) throw error; problems.push(`request ${n} drew no receipt`); break; }
+    try { await (clips[n - 1].waitFor === 'any' && io.waitForAny ? io.waitForAny([`T8#${n}`, `T9#${n}`]) : io.waitForStage(`T8#${n}`)); } catch (error) { if (!(error instanceof UserError)) throw error; problems.push(clips[n - 1].waitFor === 'any' ? `request ${n} drew no receipt or spoken answer` : `request ${n} drew no receipt`); break; }
   }
   await io.hangUp();
   await io.waitForStage('T10');
@@ -167,9 +215,10 @@ export async function oneSessionRun({plan, clips, io, index}) {
     marks, listening: delta(marks.T4, marks.T0), requests, receipts, problems,
     logErrors: await io.countLogErrors(),
   };
-  const missing = [marks.T4, ...requests.flatMap(r => [marks[`speechEnd#${r.n}`], marks[`T7#${r.n}`], marks[`T8#${r.n}`]])].filter(v => v == null).length;
+  const answered = n => clips[n - 1].waitFor === 'any' ? marks[`T8#${n}`] ?? marks[`T9#${n}`] : marks[`T8#${n}`];
+  const missing = [marks.T4, ...requests.flatMap(r => [marks[`speechEnd#${r.n}`], ...(clips[r.n - 1].waitFor === 'any' ? [] : [marks[`T7#${r.n}`]]), answered(r.n)])].filter(v => v == null).length;
   run.errors = run.logErrors + problems.length + missing + requests.filter(r => r.receiptRight === false).length;
-  run.workDone = requests.filter(r => r.toReceipt != null).length;
+  run.workDone = requests.filter(r => answered(r.n) != null).length;
   await io.writeRun(run);
   return run;
 }
@@ -248,7 +297,8 @@ export async function humanSessionRun({plan, io, index}) {
   return run;
 }
 
-function clipSessions(plan, fixtures) {
+export function clipSessions(plan, fixtures) {
+  if (plan.clipFixtures) return [plan.clipFixtures];
   const byId = id => fixtures.find(item => item.id === id);
   const sessions = plan.session ? [SESSION_CLIPS[plan.session].map(byId)] : (plan.fixture === 'all' ? fixtures : fixtures.filter(item => item.id === plan.fixture)).map(fixture => [fixture]);
   if (!sessions.length || sessions.some(clips => clips.some(clip => !clip))) throw new UserError(`Unknown voice fixture "${plan.fixture}".`, `One of: ${FIXTURE_ORDER.join(', ')}, all.`);

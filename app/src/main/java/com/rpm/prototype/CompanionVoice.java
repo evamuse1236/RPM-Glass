@@ -35,12 +35,13 @@ final class CompanionVoice {
         return true;
     }
 
-    /** voiceToken, micAccess and micSettings bridge actions; runs on a work thread. */
+    /** voiceToken, micAccess, micSettings and telegram bridge actions; runs on a work thread. */
     JSONObject invoke(String action,JSONObject p)throws Exception{
         switch(action){
             case "voiceToken":return VoiceToken.mint(()->GeminiKey.get(activity),p.opt("setup"),VoiceToken.ENDPOINT,System.currentTimeMillis());
             case "micAccess":boolean granted=micGranted();
                 return new JSONObject().put("granted",granted).put("canAsk",granted||!activity.getSharedPreferences(MicGrant.PREFS,0).getBoolean(MicGrant.ASKED,false)||activity.shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO));
+            case "telegram":return TelegramBridge.call(p,BuildConfig.TELEGRAM_BRIDGE);
             case "micSettings":activity.runOnUiThread(()->activity.startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.fromParts("package",activity.getPackageName(),null))));return new JSONObject();
             default:throw new IllegalArgumentException("Unsupported phone action.");
         }

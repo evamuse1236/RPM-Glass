@@ -3,6 +3,7 @@ def rpmLocalProperties = new Properties()
 def rpmLocalFile = rootProject.file('local.properties')
 if (rpmLocalFile.exists()) rpmLocalFile.withInputStream { rpmLocalProperties.load(it) }
 def rpmDebugKeystore = rpmLocalProperties.getProperty('rpm.debugKeystore')
+def rpmTelegramBridge = rpmLocalProperties.getProperty('rpm.telegramBridge') ?: System.getenv('RPM_TELEGRAM_BRIDGE') ?: ''
 android {
     namespace "com.rpm.prototype"
     compileSdk 36
@@ -13,6 +14,7 @@ android {
         versionCode 45
         versionName "0.45-agent-rounds"
         testInstrumentationRunner "com.rpm.prototype.OfflineTests"
+        buildConfigField "String", "TELEGRAM_BRIDGE", "\"${rpmTelegramBridge}\""
     }
     sourceSets.main.assets.srcDir(layout.buildDirectory.dir("generated/syncAssets"))
     buildFeatures { buildConfig true }
