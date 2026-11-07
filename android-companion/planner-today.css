@@ -38,7 +38,7 @@
 @media (prefers-reduced-motion: no-preference) {
   .week-number { transition: scale var(--dur-press) var(--ease-standard); }
 }
-/* One quiet mark of one meaning: a neutral dot under a day that holds a Must or a Result's deadline. */
+/* One quiet mark of one meaning: a neutral dot under another day that still holds an open Must or a Result's deadline. */
 .day-marks { display: flex; align-items: center; justify-content: center; min-block-size: 12px; }
 .day-dot { inline-size: 4px; block-size: 4px; border-radius: var(--shape-full); background: var(--on-surface-variant); }
 /* Where the week's plan stands: one quiet line under the strip that opens the weekly review. */

@@ -4,7 +4,7 @@ import {dayTasks} from '../planner-ux.mjs';
 import {weekStart, reviewWeek, weekFocus, resultStatus} from '../review-state.mjs';
 import {reducedMotion, DURATION, EASE} from '../surface-motion.mjs';
 import {lockAxis, LONG_PRESS} from '../task-swipe.mjs';
-import {el, icon, button, labelButton, emptyState} from './dom.mjs';
+import {el, icon, button, emptyState} from './dom.mjs';
 import {clock, longDate, plural, dateText, DATE_LOCALE} from './format.mjs';
 import {openSheet} from './sheet.mjs';
 import {taskWhen, taskRow} from './task-row.mjs';
@@ -39,12 +39,13 @@ export function selectDay(app, day, direction = '') {
 export const dueDay = (data, block) => blockDue(data, block.id)?.value?.slice(0, 10);
 
 /**
- * Seven days running forward from today, as far ahead as Dara plans; swiping steps a week. A day that holds a Must or a
- * Result's deadline shows one small neutral dot (its label names what is there); a clash shows in the day itself.
+ * Seven days running forward from today, as far ahead as Dara plans; swiping steps a week. Another day that still holds an
+ * open Must or a Result's deadline shows one small neutral dot (its label names what is there); today and the chosen day
+ * show their own work below, so their disc carries no dot. A clash shows in the day itself.
  * Today's number sits in a filled circle. Tapping a day opens it.
  */
-/** One mark of one meaning: the day holds a Must or a Result's deadline. */
-export const dayMark = ({due, musts}) => (due || musts ? 'key' : null);
+/** One mark of one meaning: a day you are not looking at still holds an open Must or a Result's deadline. */
+export const dayMark = ({due, musts, shown = false}) => (!shown && (due || musts) ? 'key' : null);
 
 function weekStrip(app) {
   const {day} = app.state;
@@ -71,7 +72,7 @@ function weekStrip(app) {
       + (due ? `, ${plural(due, 'Result')} due` : '') + (musts ? `, ${plural(musts, 'Must')}` : ''));
     cell.setAttribute('aria-pressed', String(key === day));
     const marks = el('span', 'day-marks');
-    const mark = dayMark({due, musts});
+    const mark = dayMark({due, musts, shown: key === today || key === day});
     if (mark) {
       const dot = el('span', 'day-dot');
       dot.dataset.mark = mark;
@@ -168,7 +169,7 @@ export function dateLine(app) {
   picker.append(dateWords(day));
   picker.setAttribute('aria-label', 'Choose date, ' + longDate(day));
   line.append(picker);
-  if (day !== localDay()) line.append(labelButton('today', 'Today', () => selectDay(app, localDay()), 'tonal-btn small'));
+  if (day !== localDay()) line.append(button('Today', () => selectDay(app, localDay()), 'tonal-btn small'));
   return line;
 }
 
