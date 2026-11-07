@@ -39,28 +39,29 @@
   overflow: hidden;
 }
 .card-meta { font: var(--body-small); color: var(--on-surface-variant); margin-top: 2px; }
-.project-head { display: flex; align-items: flex-start; }
+/* A Project card keeps one 16dp text edge: Area, title, deadline and the Next task start on it; the Block rings close the
+   head on the right, the chevron after them, both centred on the head. */
+.project-head { display: flex; align-items: center; }
 .project-toggle {
   flex: 1;
   min-inline-size: 0;
   display: flex;
   align-items: center;
-  gap: var(--s4);
-  padding: var(--s3) 0 var(--s3) var(--s3);
+  gap: var(--s3);
+  padding: var(--s3) 0 var(--s3) var(--s4);
   border-radius: var(--card-radius) 0 0 var(--card-radius);
   text-align: start;
 }
-/* The closed card ends on its Next task, full width under the rings on their edge, so the task fits on one line. */
 .project-head:has(+ .next-task) .project-toggle { padding-block-end: var(--s1); }
-.project-card > .next-task { padding-inline: var(--s3) var(--s4); }
+.project-card > .next-task { padding-inline: var(--s4); }
 .project-toggle:active { background: var(--row-press); }
-.project-copy { display: grid; gap: 2px; min-inline-size: 0; }
+.project-copy { flex: 1; display: grid; gap: 2px; min-inline-size: 0; }
 .project-area { font: var(--label-medium); color: color-mix(in oklch, var(--tone) 78%, var(--on-surface)); overflow-wrap: anywhere; }
-.project-open { flex: none; margin: var(--s2) var(--s1) 0 0; color: var(--on-surface-variant); }
-.nest-rings { flex: none; inline-size: 64px; block-size: 64px; }
+.project-open { flex: none; margin-inline-end: var(--s1); color: var(--on-surface-variant); }
+.nest-rings { flex: none; inline-size: 56px; block-size: 56px; }
 .nest-rings circle { fill: none; }
 /* A ring's track is a dim band of its own colour (Activity rings), so every nested ring reads as one band, light or dark. */
-:is(.nest-track, .ring-track, .seg-off) { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-highest)); }
+:is(.nest-track, .ring-track) { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-highest)); }
 .nest-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; }
 .nest-rings .nest-done { fill: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container)); }
 .nest-check { fill: none; stroke: var(--progress, var(--primary)); stroke-linecap: round; stroke-linejoin: round; }
@@ -82,8 +83,6 @@
 .block-lines > .block-line + .block-line {
   background: linear-gradient(var(--outline-variant), var(--outline-variant)) center top / calc(100% - 2 * var(--s4)) 1px no-repeat;
 }
-/* A Block row's progress is its segment ring alone, an arc per task, at the end of the deadline line. */
-.card-facts > .line-ring { flex: none; inline-size: 20px; block-size: 20px; }
 .block-line > .block-line-main { padding-block-start: var(--s2); }
 .block-line > .block-line-main:only-child { padding-block-end: var(--s2); }
 .block-line > .next-task { padding-block-end: var(--s1); }
@@ -91,7 +90,7 @@
 .block-line .next-title { min-block-size: 24px; padding-block: 2px; }
 :is(.block-line, .project-card) .next-title > .overline { display: none; }
 :is(.block-line, .project-card) .next-title .next-words { white-space: normal; text-wrap: pretty; }
-.block-add { align-self: flex-start; justify-self: start; margin: var(--s1) var(--gutter) 0; padding-inline: var(--s5) var(--s4); }
+:is(.block-add, .project-add) { align-self: flex-start; justify-self: start; margin: var(--s1) var(--gutter) 0; padding-inline: var(--s5) var(--s4); }
 .project-block {
   display: flex;
   align-items: center;
@@ -102,14 +101,9 @@
   font: var(--body-medium);
 }
 .project-block:active { background: var(--row-press); }
-.project-block .seg-ring { flex: none; inline-size: 28px; block-size: 28px; }
 .project-blocks > .quiet { padding: var(--s3) 0; }
 /* A Block's name keeps Dara's words: two lines before it shortens. */
 .project-block-name { flex: 1; min-inline-size: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: clip; }
-.project-block-count { color: var(--on-surface-variant); white-space: nowrap; }
-.seg-ring :is(path, circle) { fill: none; stroke-width: 6; }
-.seg-on { stroke: var(--progress, var(--primary)); }
-.seg-arc { stroke-linecap: round; }
 /* A Block card's last line: when it is due (or This week) at the start, tasks done as a 16dp ring and "2/7" at the end. */
 .card-facts { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); font: var(--body-medium); color: var(--on-surface-variant); }
 .card-when { min-inline-size: 0; }
@@ -214,7 +208,7 @@
 .crumb-quiet > span:not(.ms) { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
 .crumb-quiet:active { color: var(--on-surface); }
 .crumb-quiet:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.section-header:has(> .blocks-progress) { align-items: center; }
+.section-header:has(> :is(.blocks-progress, .card-tally)) { align-items: center; }
 .blocks-progress { display: flex; align-items: center; gap: var(--s2); }
 .blocks-progress .ring { inline-size: 20px; block-size: 20px; }
 /* A Project's Purpose runs to the content edge. */

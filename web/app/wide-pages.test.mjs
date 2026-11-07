@@ -31,15 +31,14 @@ test('on wide each Project card lists its Blocks and opens the Project; the phon
   assert.match(source, /if \(!wide\) toggle\.setAttribute\('aria-expanded'/);
   assert.match(source, /if \(!wide\) head\.append\(iconButton\('chevron_right'/);
   assert.match(source, /const next = blockTasks\(app\.data\(\), block\.id\)\.find\(task => !task\.done\);/);
-  assert.match(source, /row\.append\(\.\.\.\(total \? \[segmentRing\(done, total\), copy, el\('span', 'project-block-count tnum'/,
-    'a Block with no tasks shows no empty ring and no 0/0');
+  assert.match(source, /row\.append\(copy, \.\.\.\(total \? \[taskTally\(\{done, total\}, count\)\] : \[\]\)\);/,
+    'a chip leads with its name, so every name starts on one edge; a Block with no tasks shows no empty ring and no 0/0');
   assert.match(source, /nestRings\(wide \? \[stats\] : ordered\.map/, 'on wide the Project ring shows the Project, the chips the Blocks');
   const css = read('./wide-pages.css');
-  assert.match(css, /\.page > \.project-card \{\n    grid-column: 1 \/ -1;\n    display: grid;\n    grid-template-columns: minmax\(0, 320px\) minmax\(0, 1fr\);/);
-  assert.match(css, /\.project-blocks \{\n    grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 360px\), 1fr\)\);/);
-  assert.match(css, /\.project-block:not\(:has\(\.seg-ring\)\) \{ padding-inline-start: calc\(var\(--s8\) \+ var\(--s5\)\); \}/,
-    'a ringless chip lines its words up with the chips that have a ring');
-  assert.match(css, /\.project-block-count \{ flex: none; inline-size: 40px; text-align: end; \}/);
+  assert.doesNotMatch(css, /\.project-card \{[^}]*grid-column: 1 \/ -1/, 'a Project card is one cell of the page grid');
+  assert.match(css, /\.project-blocks \{\n    grid-template-columns: minmax\(0, 1fr\);/, 'its Blocks stay open in one column');
+  assert.match(css, /\.project-block \{ margin-inline: calc\(-1 \* var\(--s3\)\); padding-inline: var\(--s3\);/,
+    'a Block chip\'s words sit on the card\'s text edge');
   assert.match(css, /:is\(\.project-block-name, \.project-block-next\) \{ overflow: clip; text-overflow: ellipsis; white-space: nowrap; \}/);
 });
 
