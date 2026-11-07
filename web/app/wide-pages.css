@@ -144,13 +144,14 @@
   }
   .planner-view:has(> #sheet[data-inline]:not([hidden])) #planner[data-view=blocks][data-detail=true] { --column: 560px; }
 
-  /* Search: the query sits in a filled field with Clear inside its end; every Must star ends on the page edge. */
+  /* Search: the query sits in a filled field with Clear inside its end; the field and results share one reading width so the Must stars stay near their words. */
   .planner-view .search-bar .search-input {
     block-size: var(--touch);
     padding-inline: var(--s4) calc(var(--touch) + var(--s1));
     border-radius: var(--shape-full);
     background: var(--surface-container-high);
+    max-inline-size: calc(560px - var(--touch));
   }
   .planner-view .search-bar .search-input + .icon-btn { margin-inline-start: calc(-1 * var(--touch) - var(--s1)); }
-  .planner-view .search-results .task-main:has(+ .must-mark) { flex: 1; }
+  .planner-view .search-results { max-inline-size: 560px; }
 }

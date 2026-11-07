@@ -423,9 +423,11 @@ button.fact-row:active { background: var(--row-press); }
 }
 .search-input::-webkit-search-cancel-button { display: none; }
 .search-results .task-row { padding-inline-start: var(--s1); }
-.search-results .task-main:has(+ .must-mark) { flex: 0 1 auto; }
+/* Must stars share one end column: a 24dp cell 8dp after the words, its edge on the 16dp gutter, level with the check circle. */
+.search-results .must-mark { inline-size: 24px; margin-inline: var(--s2) var(--s3); text-align: center; }
 .search-hit { font-weight: 700; color: inherit; }
 /* Done results come last as their title alone, with a quiet tick in place of the filled one (Google Tasks' Completed). */
 .search-results .task-row.done .task-main { min-block-size: 48px; }
+.search-results .task-row.done .task-title { text-decoration: none; }
 .search-results .task-row.done .check-ring { border-color: transparent; background: transparent; color: var(--on-surface-variant); }
 .search-results .task-row.done .check-ring .ms { font-size: 20px; font-weight: 400; }

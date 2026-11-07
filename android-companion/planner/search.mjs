@@ -82,10 +82,12 @@ function drawResults(app, host) {
   if (!host) return;
   host.replaceChildren();
   const q = query.trim().toLocaleLowerCase();
-  const row = task => taskRow(app, task, {context: app.context(task).block?.title ?? 'No block'});
+  const row = task => taskRow(app, task, {context: app.context(task).block?.title ?? ''});
   if (!q) {
     const musts = mustsToday(app);
-    if (musts.length) host.append(sectionHeader('Musts for today'), ...musts.map(row));
+    /** Under "Musts for today" every row is a Must, so the heading says it and the rows drop the star. */
+    const must = task => { const node = row(task); node.querySelector('.must-mark')?.remove(); return node; };
+    if (musts.length) host.append(sectionHeader('Musts for today'), ...musts.map(must));
     host.append(sectionHeader('Go to'),
       listItem({leading: 'inbox', headline: 'Inbox', onClick: () => app.actions.inbox()}),
       listItem({leading: 'mic', headline: 'Capture', onClick: () => app.capture()}));
