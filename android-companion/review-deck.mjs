@@ -27,8 +27,7 @@ export function judge(api, summary, result, verdict) {
     VERDICT_RECEIPTS[verdict]);
 }
 
-/** The Area a Result's Block sits in, through its Project and Goal, and that Area's hue. */
-export function resultArea(data, blockId) {
+function resultArea(data, blockId) {
   const p = planner(data);
   const project = p.projects.find(pr => pr.id === p.blocks.find(b => b.id === blockId)?.projectId);
   const goal = p.goals.find(g => g.id === project?.goalId);
@@ -173,6 +172,12 @@ export function deckTally(judged) {
 export function resultDeck(api, summary, judged) {
   const deck = deckOf(judged);
   const stack = el('div', 'wr-deck');
+  for (let depth = Math.min(deck.length - 1, 2); depth >= 1; depth--) {
+    const layer = el('div', 'wr-deck-layer');
+    layer.dataset.depth = String(depth);
+    layer.setAttribute('aria-hidden', 'true');
+    stack.append(layer);
+  }
   stack.append(deckCard(api, summary, deck[0]));
   api.ui.deckEnter = false;
   return [stack, verdictButtons(api, summary, deck[0])];

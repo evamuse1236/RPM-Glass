@@ -123,6 +123,9 @@ function lenses(api) {
   const row = el('div', 'wr-lenses');
   row.setAttribute('role', 'group');
   row.setAttribute('aria-label', 'Prompts, one per Area');
+  const lead = el('span', 'wr-lens-lead', 'Think about');
+  lead.setAttribute('aria-hidden', 'true');
+  row.append(lead);
   for (const area of areas) {
     const chip = button('', () => {
       ui.lens = area.title;

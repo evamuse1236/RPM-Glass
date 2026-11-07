@@ -127,7 +127,7 @@ html:has(dialog:modal) { overflow: clip; }
   .capture-sheet { inline-size: min(100% - 2 * var(--s6), 560px); margin: auto; border-radius: var(--shape-xl); }
   #capture-sheet { margin-block: calc(var(--s8) * 7) auto; border-radius: var(--r-outer); }
   .planner-view .wr > * { inline-size: min(100%, var(--column)); margin-inline: auto; }
-  .planner-view .wr { --column: 1120px; }
+  .planner-view .wr { --column: 960px; }
   .planner-view .wr .wr-next { flex: none; margin-inline-start: auto; padding-inline: var(--s6); }
 }
 

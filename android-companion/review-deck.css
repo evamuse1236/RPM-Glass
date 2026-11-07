@@ -1,7 +1,14 @@
 /* Weekly review step 1: the deck of last week's Results (review-deck.mjs). */
 .wr-body { overflow-x: hidden; }
-.wr-deck { display: grid; margin-block-end: var(--s1); }
+.wr-deck { display: grid; margin-block-end: var(--s6); }
 .wr-deck > * { grid-area: 1 / 1; }
+.wr-deck-layer {
+  border-radius: 28px;
+  background: var(--surface-container);
+  transform-origin: 50% 100%;
+}
+.wr-deck-layer[data-depth="1"] { translate: 0 8px; scale: .95; }
+.wr-deck-layer[data-depth="2"] { translate: 0 16px; scale: .9; opacity: .6; }
 .wr-deck-card {
   position: relative;
   display: flex;

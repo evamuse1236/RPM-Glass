@@ -131,10 +131,10 @@
 .wr .wr-add-send{background-color:var(--primary);color:var(--on-primary);width:40px;height:40px;margin:4px}
 .wr .wr-add-send[hidden],.wr .wr-add-capture[hidden]{display:none}
 .wr .wr-add-capture{width:48px;height:48px;color:var(--on-surface-variant)}
-.wr-lenses{display:flex;align-items:center;gap:8px;margin-inline:-16px;padding-inline:16px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none}
-.wr-lenses::-webkit-scrollbar{display:none}
+.wr-lenses{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.wr-lens-lead{flex:none;white-space:nowrap;font:var(--label-large);color:var(--on-surface-variant);padding-inline:4px}
 .wr-lens .area-dot{width:8px;height:8px}
-.wr .wr-lens{gap:4px;padding-inline:8px 12px;border-radius:var(--shape-full);background-color:var(--surface-container-low);border-color:var(--outline-variant);color:var(--on-surface)}
+.wr .wr-lens{border-radius:var(--shape-full);background-color:var(--surface-container-low);border-color:var(--outline-variant);color:var(--on-surface)}
 .wr-list{list-style:none;margin:0;padding:4px 0;background:var(--surface-container);border-radius:20px}
 .wr-list-item{position:relative;display:flex;align-items:stretch;min-height:52px;font:var(--body-large);--swipe-offset:0px}
 .wr-list-item+.wr-list-item{border-top:1px solid var(--outline-variant)}
@@ -166,9 +166,8 @@
 /* A suggested row keeps the one row shape (title, chevron on its first line); its Result follows as a quiet
    "+ Block" action, whose long Block name takes a second line rather than being cut. */
 .wr .wr-sort-row.suggested{align-items:start;min-block-size:48px;padding-block:12px 4px}
-.wr .wr-sort-take{align-self:start;max-inline-size:calc(100% - 24px);margin-block:0 8px;margin-inline:8px 16px;padding-block:4px;padding-inline:8px 12px;gap:4px;border-color:transparent;border-radius:var(--shape-full);color:var(--on-surface-variant);font:var(--body-medium)}
-.wr-sort-take .ms{margin:0;color:var(--primary)}
-.wr-sort-take .area-dot{width:8px;height:8px;margin-inline:4px}
+.wr .wr-sort-take{align-self:start;max-inline-size:calc(100% - 24px);margin-block:0 8px;margin-inline:8px 16px;padding-block:4px;padding-inline:8px 12px;border-color:transparent;border-radius:var(--shape-full);color:var(--primary)}
+.wr-sort-take .ms{margin:0}
 .wr-sort-take .wr-label{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;text-wrap:pretty}
 /* The first suggested row slides once to show its swipe, then settles */
 @media (prefers-reduced-motion:no-preference){
