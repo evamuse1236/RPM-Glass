@@ -6,7 +6,6 @@ import {openSheet, isSheetOpen, discardDraft, rememberValue} from './sheet.mjs';
 import {whenOf, whenFields, whenLabel, clockOf, dayPresets, parseWhen, blockMatches, hashToken, hashTag, withoutTag, foldGroup, fold, foldFor, choiceChip, markChips, chipRow, dateChooser, blockChooser, recentBlock, rememberBlock} from './task-fields.mjs';
 import {readLabel, NEEDS_TIME, saver, scheduleCheck, suggestBlock} from './sheet-parts.mjs';
 import {openTask} from './task-sheet.mjs';
-import {blockShort} from './task-tabs-model.mjs';
 
 const DRAFT = 'task:new';
 const shortDay = day => {
@@ -163,9 +162,9 @@ function quickAdd(app, overrides = {}) {
     },
   }));
 
-  // Block: one filled chip names where the task goes and opens the list. Until the user chooses, the Block the words
-  // point to is the choice, shown with a sparkle; otherwise the chosen Block, or the Inbox. The chip says the Block's
-  // short name whole, never cut.
+  // Block: one chip names where the task goes and opens the list. Until the user chooses, the Block the words point
+  // to is the choice, shown with a sparkle; otherwise the chosen Block, or the Inbox. The chip names the whole Result
+  // (ellipsised at the row's end), and the Block's Purpose sits under it on one line: the task inherits it.
   const blockChips = chipRow('quick-row block-chips');
   const blockChip = button('', null, 'assist-chip block-chip on');
   blockChip.append(icon('inbox', {cls: 'block-mark'}), el('span', 'chip-label', 'Inbox'), icon('arrow_drop_down', {cls: 'chip-drop'}));
@@ -183,11 +182,18 @@ function quickAdd(app, overrides = {}) {
     suggested: suggested?.id ?? null,
   }));
   blockChips.append(blockChip);
+  const blockWhy = el('p', 'block-purpose');
+  blockWhy.append(icon('favorite'), el('span'));
+  blockChips.append(blockWhy);
   const paintBlocks = () => {
     suggested = s.blockPicked ? null : suggestBlock(app, {title: name.value});
     const chosen = app.activeBlocks().find(b => b.id === target());
     const guess = !!chosen && !s.blockPicked;
-    blockChip.querySelector('.chip-label').textContent = chosen ? blockShort(chosen.title) : 'Inbox';
+    blockChip.querySelector('.chip-label').textContent = chosen?.title ?? 'Inbox';
+    const purpose = chosen?.purpose?.trim() ?? '';
+    blockWhy.hidden = !purpose;
+    blockWhy.lastChild.textContent = purpose;
+    blockWhy.setAttribute('aria-label', purpose ? 'Purpose, from the Block: ' + purpose : '');
     blockChip.querySelector('.block-mark').textContent = guess ? 'auto_awesome' : chosen ? 'stacks' : 'inbox';
     blockChip.classList.toggle('suggested', guess);
     const read = !!tag && !!chosen && chosen.id === tag.block.id;
@@ -195,8 +201,7 @@ function quickAdd(app, overrides = {}) {
     blockChip.setAttribute('aria-label', `Block: ${chosen?.title ?? 'Inbox'}${guess ? ', suggested' : ''}${read ? `, read from “${tag.match}”` : ''}. Choose a Block`);
   };
 
-  const more = quickOptions(s, {body, group, target, changed: () => changed(), remember: () => remember(),
-    purposeOf: id => app.activeBlocks().find(block => block.id === id)?.purpose?.trim() ?? ''});
+  const more = quickOptions(s, {body, group, target, changed: () => changed(), remember: () => remember()});
 
   // "#" and part of a Block's name offers the matching Blocks as chips; choosing one takes the "#word" out of the
   // title. Not choosing leaves the words as typed.
