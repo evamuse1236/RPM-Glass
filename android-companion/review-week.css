@@ -86,7 +86,7 @@
 .wr-results>li+li{border-top:1px solid var(--outline-variant)}
 .wr-result-row{display:flex;align-items:flex-start;padding:4px 0 4px 4px}
 .wr-result-row>.wr-check{margin-top:2px}
-.wr .wr-result-main{flex:1;min-width:0;display:flex;align-items:flex-start;gap:8px;min-height:56px;padding:12px 12px 12px 4px;border:0;border-radius:var(--shape-lg);background-color:transparent;color:var(--on-surface);text-align:left;font:inherit}
+.wr .wr-result-main{flex:1;min-width:0;display:flex;align-items:flex-start;gap:4px;min-height:56px;padding:12px 8px 12px 4px;border:0;border-radius:var(--shape-lg);background-color:transparent;color:var(--on-surface);text-align:left;font:inherit}
 .wr-result-main>.ms{flex:none;color:var(--on-surface-variant)}
 .wr-result-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .wr-result-title{font:var(--title-medium);overflow-wrap:anywhere;text-wrap:pretty}
@@ -132,7 +132,6 @@
 :root[data-large-text=true] .wr-risk{flex-wrap:wrap}
 :root[data-large-text=true] .wr-week-sub,:root[data-large-text=true] .wr-ladder-when{white-space:normal}
 :root[data-large-text=true] .wr-strip-note.legend{display:none}
-:root[data-large-text=true] .wr-suggest .wr-label{white-space:normal;text-align:left;padding:4px 0}
 :root[data-large-text=true] .wr-nowrap{white-space:normal}
 :root[data-large-text=true] .wr-left-row{padding:8px 0}
 :root[data-large-text=true] .wr-row{flex-wrap:wrap;padding-bottom:8px}

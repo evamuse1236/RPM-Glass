@@ -154,6 +154,7 @@ function renderReview(root, api, ctx) {
     body = el('div', 'wr-body');
     content = el('div', 'wr-content');
     body.append(content);
+    keepEndClearOfSnackbar(body);
   }
   const active = root.contains(document.activeElement) ? document.activeElement.dataset.key : null;
   const stepChange = ui.stepChanged && !first;
@@ -231,6 +232,22 @@ function renderReview(root, api, ctx) {
     root.querySelector(`.wr-body [data-key="${CSS.escape(active)}"], .wr-foot [data-key="${CSS.escape(active)}"]`)
       ?.focus({preventScroll: true});
   }
+}
+
+/** While the snackbar shows, the body gains its height as end padding (review.css); a body read to its end scrolls on
+ * by that much, so the last row is never left under the snackbar. */
+function keepEndClearOfSnackbar(body) {
+  const planner = document.getElementById('planner');
+  if (!planner) return;
+  const observer = new MutationObserver(() => {
+    if (!body.isConnected) return observer.disconnect();
+    if (planner.dataset.snackbar !== 'true') return;
+    const room = (document.getElementById('snackbar')?.offsetHeight || 48) + 16;
+    if (body.scrollHeight - body.scrollTop - body.clientHeight <= room) {
+      body.scrollTo({top: body.scrollHeight, behavior: reducedMotion() ? 'auto' : 'smooth'});
+    }
+  });
+  observer.observe(planner, {attributes: true, attributeFilter: ['data-snackbar']});
 }
 
 /* ---------- frame: top bar, progress, footer ----------

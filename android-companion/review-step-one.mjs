@@ -31,7 +31,7 @@ export function stepOne(api) {
   return parts;
 }
 
-/** A decided Result once the deck is done: its verdict (changeable), evidence for a win, Carry and the leftover tasks. */
+/** A decided Result once the deck is done: its verdict (changeable), evidence for a win and the leftover tasks. */
 function resultCard(api, summary, result) {
   const win = result.verdict === 'achieved';
   const card = el('article', 'wr-card wr-result');
@@ -40,7 +40,7 @@ function resultCard(api, summary, result) {
   card.append(progressMeta(result, win ? null : result.due, api.now()));
   card.append(verdictControl(api, summary, result));
   if (win) card.append(evidenceField(api, summary, result));
-  if (result.verdict === 'partly' || result.verdict === 'notyet') card.append(carryRow(api, result), leftoverList(api, result));
+  if (result.verdict === 'partly' || result.verdict === 'notyet') card.append(leftoverList(api, result));
   else if (win && result.leftovers.length) {
     card.append(el('p', 'wr-card-note', `${plural(result.leftovers.length, 'open task')} stay with this Result.`));
   }
@@ -104,13 +104,6 @@ function evidenceField(api, summary, result) {
   input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
   wrap.append(input);
   return wrap;
-}
-
-function carryRow(api, result) {
-  const row = focusCheck(api, result.blockId, result.title, 'wr-check-row');
-  row.setAttribute('aria-label', `Carry "${result.title}" into this week`);
-  row.append(el('span', 'wr-label', 'Carry into this week'));
-  return row;
 }
 
 /** Results whose deadline is still ahead: nothing to judge yet, only whether to carry them (one tap for all). */

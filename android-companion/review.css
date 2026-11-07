@@ -3,6 +3,7 @@
 #planner .screen-review .page{padding-bottom:0}
 /* The snackbar clears the pinned footer, whose height changes with its hint line (set by weekly-review.mjs). */
 #planner[data-view=review] ~ #snackbar{bottom:calc(var(--wr-foot,72px) + var(--s2))}
+#planner[data-view=review][data-snackbar=true] .wr-body{padding-block-end:calc(var(--snackbar-h,48px) + var(--s8))}
 .wr{position:relative;display:flex;flex-direction:column;height:100%;min-height:0;background:var(--surface);color:var(--on-surface);font:var(--body-medium)}
 .wr h1,.wr h2,.wr h3,.wr p{margin:0}
 .wr ul{margin:0}
@@ -135,7 +136,8 @@
 .wr-add-input::placeholder{color:var(--on-surface-variant)}
 .wr .wr-add-send{background-color:var(--primary);color:var(--on-primary);width:40px;height:40px;margin:4px}
 .wr .wr-add-send:disabled{background-color:transparent;color:var(--on-surface-variant);opacity:.6}
-.wr-lenses{display:flex;flex-wrap:wrap;gap:8px;padding:0 4px;margin-top:-4px}
+.wr-lenses{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0 4px;margin-top:-4px}
+.wr-lens-lead{font:var(--label-large);color:var(--on-surface-variant);padding-inline-end:4px}
 .wr-lens .area-dot{width:8px;height:8px}
 .wr .wr-lens{border-radius:var(--shape-full);background-color:var(--surface-container-low);border-color:var(--outline-variant);color:var(--on-surface)}
 .wr-list{list-style:none;margin:0;padding:4px 0;background:var(--surface-container);border-radius:20px}
@@ -152,17 +154,21 @@
 .wr-list-meta .soon{color:var(--on-surface);font-weight:600}
 .wr-must-tag{display:inline-flex;align-items:center;gap:2px;color:var(--on-surface-variant)}
 .wr-must-tag .ms{font-size:16px;color:var(--must)}
+.wr-clash-tag{display:inline-flex;align-items:center;gap:4px;color:var(--error)}
+.wr-clash-tag .ms{font-size:16px}
 
-/* Step 3: one row per Inbox task, a suggested Result chip under its words and Choose at the end */
-.wr-sort{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:0 4px;min-height:56px;padding:8px 4px 8px 16px}
+/* Step 3: one row per Inbox task, one control: its words, the proposed Result under them, the chooser on tap */
 .wr-sort+.wr-sort{border-top:1px solid var(--outline-variant)}
-.wr-sort>.wr-row-title{padding:8px 0}
-.wr-sort>.wr-suggest{grid-column:1/-1;justify-self:start;margin:0 8px 8px -4px}
+.wr .wr-sort-row{display:flex;align-items:center;gap:8px;inline-size:100%;min-block-size:56px;padding:8px 12px 8px 16px;border:0;border-radius:0;background-color:transparent;color:var(--on-surface);font:inherit;text-align:start}
+.wr-sort:first-child .wr-sort-row{border-start-start-radius:20px;border-start-end-radius:20px}
+.wr-sort:last-child .wr-sort-row{border-end-start-radius:20px;border-end-end-radius:20px}
+.wr-sort-row>.ms{flex:none;color:var(--on-surface-variant)}
+.wr-sort-text{flex:1;display:flex;flex-direction:column;gap:4px;min-inline-size:0}
+.wr-sort-proposal{display:flex;align-items:center;gap:4px;min-inline-size:0;font:var(--body-medium);color:var(--primary)}
+.wr-sort-proposal .ms{flex:none;font-size:16px}
+.wr-sort-label{min-inline-size:0;overflow:clip;text-overflow:ellipsis;white-space:nowrap}
+.wr-leave .wr-sort-proposal{color:var(--on-surface-variant)}
 .wr-row-title{flex:1;min-width:0;overflow-wrap:anywhere;font:var(--body-large);text-wrap:pretty}
-.wr .wr-suggest{max-width:calc(100% - 4px);border-color:var(--outline);color:var(--on-surface)}
-.wr-suggest .ms{color:var(--primary)}
-.wr-leave .ms{color:var(--on-surface-variant)}
-.wr-choose{flex:none}
 .wr-row{display:flex;align-items:center;gap:4px;min-height:48px;padding:0 4px}
 .wr-row.sub{padding-left:20px;min-height:44px}
 .wr-row.sub>.ms{font-size:20px;color:var(--on-surface-variant);margin-right:8px}
@@ -195,5 +201,6 @@
 .wr-option-text{display:flex;flex-direction:column;min-width:0}
 .wr-option-label{font:var(--body-large);overflow-wrap:anywhere}
 .wr-option-detail{font:var(--body-medium);color:var(--on-surface-variant)}
+.wr .wr-option-suggested>.ms{color:var(--primary)}
 .wr-new{padding:0 8px}
 .wr-new-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:16px}

@@ -95,7 +95,7 @@ export function attachDeckSwipe(card, onVerdict, haptic = vibrate) {
   });
 }
 
-function deckCard(api, summary, result, position, count) {
+function deckCard(api, summary, result) {
   const card = el('article', 'wr-deck-card');
   card.dataset.key = 'deck:' + result.blockId;
   const {area, tone} = resultArea(api.data(), result.blockId);
@@ -103,16 +103,32 @@ function deckCard(api, summary, result, position, count) {
   if (api.ui.deckEnter && !reducedMotion()) card.classList.add('enter');
   const stamp = el('span', 'wr-deck-stamp');
   stamp.setAttribute('aria-hidden', 'true');
-  card.append(stamp, el('span', 'wr-deck-count tnum', [area?.title, `Result ${position} of ${count}`].filter(Boolean).join(' · ')), el('h3', 'wr-deck-title', result.title));
+  card.append(stamp);
+  if (area?.title) card.append(el('span', 'wr-deck-count', area.title));
+  card.append(el('h3', 'wr-deck-title', result.title));
   if (result.purpose) card.append(el('p', 'wr-deck-purpose', result.purpose));
   const meta = el('div', 'wr-deck-meta');
   const words = result.total ? `${result.done} of ${plural(result.total, 'task')} done` : 'No tasks';
-  meta.append(progressRing(result.done, result.total, words), el('span', 'wr-deck-done tnum', words));
+  const ring = result.total && result.done === result.total ? doneDisc(words) : progressRing(result.done, result.total, words);
+  meta.append(ring, el('span', 'wr-deck-done tnum', words));
   const chip = result.due && dueChip(result.due, api.now());
   if (chip) meta.append(chip);
   card.append(meta);
   attachDeckSwipe(card, verdict => judge(api, summary, result, verdict));
   return card;
+}
+
+const SVG = 'http://www.w3.org/2000/svg';
+
+/** Every task done: a filled disc with a check, so a full ring never reads as an empty radio button. */
+function doneDisc(label) {
+  const svg = document.createElementNS(SVG, 'svg');
+  const set = (node, values) => { for (const [k, v] of Object.entries(values)) node.setAttribute(k, v); return node; };
+  set(svg, {class: 'ring wr-ring-full', viewBox: '0 0 24 24', role: 'progressbar', 'aria-label': label,
+    'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': 100});
+  svg.append(set(document.createElementNS(SVG, 'circle'), {class: 'wr-ring-disc', cx: 12, cy: 12, r: 10.5}),
+    set(document.createElementNS(SVG, 'path'), {class: 'wr-ring-check', d: 'M7.5 12.4L10.6 15.4L16.5 9.2'}));
+  return svg;
 }
 
 function verdictButtons(api, summary, result) {
@@ -154,7 +170,7 @@ export function resultDeck(api, summary, judged) {
     layer.setAttribute('aria-hidden', 'true');
     stack.append(layer);
   }
-  stack.append(deckCard(api, summary, deck[0], judged.length - deck.length + 1, judged.length));
+  stack.append(deckCard(api, summary, deck[0]));
   api.ui.deckEnter = false;
   return [stack, verdictButtons(api, summary, deck[0])];
 }
