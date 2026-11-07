@@ -7,7 +7,7 @@ import {UserError} from './lib/device.mjs';
 import {
   clipPaths, wavDurationMs, loadClipFixtures, clipSessions,
   parseVoiceTimeArgs, alignMarks, requestGaps, marksFromLog, alignLogMarks, savedMatched,
-  runVoiceTimes, armExpression, percentile, FIXTURE_ORDER, isEmulatorDevice, heardEnds, HUMAN_WAIT_MS,
+  runVoiceTimes, armExpression, percentile, FIXTURE_ORDER, isEmulatorDevice, heardEnds, HUMAN_WAIT_MS, waitUntilRpmQuiet,
 } from './lib/voice-time.mjs';
 
 const EMU = {emulator: true};
@@ -285,4 +285,29 @@ test('a clip list builds the same per-session plan as --session two, and unlabel
   assert.deepEqual(waited, [['T8#1', 'T9#1'], ['T8#2', 'T9#2']]);
   assert.equal(answered.ok, true);
   assert.equal(answered.workDone, 2);
+});
+
+test('the next clip waits until the page stops saying RPM is talking, then a 600 ms pause', async () => {
+  const io = sessionIo([time, twoTasks], {receipts: ['Added\nCall Amma\nSun 1 Nov, 6:00 PM', 'Added\nBuy milk']});
+  const speakingUntil = 9000;
+  let playedAt = null;
+  io.isSpeaking = async () => io.now() < speakingUntil;
+  io.playClip = async fixture => { playedAt = io.now(); io.events.push(['play', fixture.id]); };
+  await runVoiceTimes(parseVoiceTimeArgs({session: 'two'}, EMU), io);
+  assert.ok(playedAt >= speakingUntil + 600, `played at ${playedAt}`);
+  assert.ok(playedAt < speakingUntil + 600 + 300, `played at ${playedAt}`);
+});
+
+test('speech that starts inside the pause restarts the pause', async () => {
+  const io = sessionIo([time, twoTasks]);
+  const answers = [false, true, true, false, false];
+  io.isSpeaking = async () => answers.length ? answers.shift() : false;
+  await waitUntilRpmQuiet({io, n: 1});
+  assert.equal(io.events.filter(e => e[0] === 'sleep' && e[1] === 600).length, 2);
+});
+
+test('a page that never stops speaking fails at the wait limit instead of playing over RPM', async () => {
+  const io = sessionIo([time, twoTasks]);
+  io.isSpeaking = async () => true;
+  await assert.rejects(waitUntilRpmQuiet({io, n: 1}), UserError);
 });

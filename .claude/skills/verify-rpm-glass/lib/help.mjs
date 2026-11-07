@@ -154,7 +154,7 @@ spoken audio (T9#n), plus tap to Gemini listening (T4).
 --clip plays your own WAV files in order in one open session (paths absolute or relative to the repo), for phrases with no
 fixture. Each must be 16 kHz mono 16-bit PCM; other formats are refused. A sibling <name>.json (like fixtures/voice) gives the
 expected save; without it the clip is unlabelled and nothing is compared. A request ends at its receipt (T8) or, with no
-planner change, at its spoken answer (T9), then the next clip plays. Emulator only; refused on a phone, and not combined
+planner change, at its spoken answer (T9); the next clip plays after RPM stops talking plus 600 ms, as a person would wait. Emulator only; refused on a phone, and not combined
 with --fixture, --session or --human.
 --fixture is time, two-tasks, change, question, ramble, or all (the default; one session each). --runs prints median and
 p90. The table includes errors and workDone (receipts drawn). --human leaves the mic real and waits for you to hang up.

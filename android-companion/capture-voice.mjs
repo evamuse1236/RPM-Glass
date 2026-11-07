@@ -45,7 +45,7 @@ export function createVoiceMode({platform,conversationId,onChange,afterSave,onLe
   if(r?.connected!==true)return;
   withTelegram={bots:[]};
   const named=await platform.action('telegram',{op:'bots'}).catch(()=>null);
-  if(Array.isArray(named?.bots))withTelegram={bots:named.bots};
+  if(Array.isArray(named?.bots)){withTelegram={bots:named.bots};telegram.bots=named.bots;}
  },()=>{});
  const changed=()=>{const key=JSON.stringify([live,failure,saved.length,[...liveRows],heard,moment.n]);if(key===shown)return;shown=key;onChange();};
  const token=async setup=>{const reply=await platform.action('voiceToken',{setup});if(reply?.missingKey)throw new Error(NO_KEY);return reply;};
@@ -89,7 +89,7 @@ export function createVoiceMode({platform,conversationId,onChange,afterSave,onLe
   live={phase:'connecting',request:0};
   changed();
   try{
-   session=(win?.__rpmVoiceStart??start)({continuous:true,telegram:withTelegram?telegram:null,data:()=>platform.voiceData(),timeZone,now,workletUrl:'/voice-mic-worklet.js',token,onLevel,onRequest:saveRequest,
+   session=(win?.__rpmVoiceStart??start)({continuous:true,telegram,data:()=>platform.voiceData(),timeZone,now,workletUrl:'/voice-mic-worklet.js',token,onLevel,onRequest:saveRequest,
     setup:()=>liveSetup(now(),timeZone,{data:platform.voiceData(),continuous:true,telegram:withTelegram,...voiceChoice()}),onChange:hear});
    const result=await session.done;
    session=null;live=null;

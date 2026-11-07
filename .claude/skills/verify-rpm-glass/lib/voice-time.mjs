@@ -192,12 +192,35 @@ export function requestGaps(marks, n) {
   };
 }
 
+/** A person waits for RPM to finish talking, then pauses a moment. The phone sends no mic audio while RPM speaks. */
+export const AFTER_SPEECH_PAUSE_MS = 600;
+export const SPEAKING_POLL_MS = 250;
+export const SPEAKING_WAIT_MS = 120000;
+
+/**
+ * Before the next clip: request n has its answer (the caller waited), its spoken audio had a short grace to start,
+ * the page no longer says RPM is talking, and 600 ms of quiet passed. Speech that starts inside the pause restarts it.
+ */
+export async function waitUntilRpmQuiet({io, n}) {
+  if (!io.isSpeaking) return;
+  await io.waitForSpokenStart?.(n);
+  const limit = io.now() + SPEAKING_WAIT_MS;
+  for (;;) {
+    while (await io.isSpeaking()) {
+      if (io.now() > limit) throw new UserError(`RPM was still speaking ${SPEAKING_WAIT_MS / 1000} s after request ${n}.`, 'The next clip would be dropped; check the voice answer.');
+      await io.sleep(SPEAKING_POLL_MS);
+    }
+    await io.sleep(AFTER_SPEECH_PAUSE_MS);
+    if (!(await io.isSpeaking())) return;
+  }
+}
+
 export async function oneSessionRun({plan, clips, io, index}) {
   const t0 = await io.openVoice({human: false, fixture: clips[0]});
   await io.armAndStart(clips[0]);
   const problems = [];
   for (let n = 1; n <= clips.length; n++) {
-    if (n > 1) await io.playClip(clips[n - 1]);
+    if (n > 1) { await waitUntilRpmQuiet({io, n: n - 1}); await io.playClip(clips[n - 1]); }
     try { await (clips[n - 1].waitFor === 'any' && io.waitForAny ? io.waitForAny([`T8#${n}`, `T9#${n}`]) : io.waitForStage(`T8#${n}`)); } catch (error) { if (!(error instanceof UserError)) throw error; problems.push(clips[n - 1].waitFor === 'any' ? `request ${n} drew no receipt or spoken answer` : `request ${n} drew no receipt`); break; }
   }
   await io.hangUp();

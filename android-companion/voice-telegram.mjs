@@ -21,7 +21,7 @@ export const botNames=list=>(Array.isArray(list)?list:[]).filter(x=>typeof x==='
 /** The Telegram lines of the prompt, with their bots' names when the phone knows them. */
 export function telegramRules(bots=[]){
  const names=botNames(bots);
- return TELEGRAM_RULES+(names.length?`\n- Their bots: ${names.join(', ')}. Speech is often misheard (Emma, Eema or मां for Ima): when a name they say sounds like one of these, use that bot's name. A name like no bot here is a person; read_telegram can read people's chats, but never send to them.`:'');
+ return TELEGRAM_RULES+(names.length?`\n- Their bots: ${names.join(', ')}. Speech is often misheard (Emma, Eema or मां for Ima): when a name they say sounds like one of these, use that bot's name, and the bot whose whole name fits best ("Emma test" is Ima Test, not Ima). A name like no bot here is a person; read_telegram can read people's chats, but never send to them.`:'');
 }
 
 export const TELEGRAM_RULES=`- Telegram: send_telegram only drafts. Then say, in one sentence, the bot's name and their exact words, and ask "Send it?". Call confirm_telegram only when their next words say yes. If they change the words or the bot, draft again. Never send to anyone but their bots.
@@ -38,6 +38,30 @@ export const DRAFT_TTL_MS=3*60e3;
 
 const asked=reason=>Object.assign(new Error(reason),{telegram:true});
 
+const wordsOf=text=>String(text??'').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+function distance(a,b){
+ const row=Array.from({length:b.length+1},(_,j)=>j);
+ for(let i=1;i<=a.length;i++){let prev=row[0];row[0]=i;for(let j=1;j<=b.length;j++){const next=row[j];row[j]=Math.min(row[j]+1,row[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));prev=next;}}
+ return row[b.length];
+}
+/** A heard word sounds like a name word: equal, or at most half its letters differ ("emma" for "ima"). */
+const soundsLike=(heard,word)=>heard===word||distance(heard,word)<=Math.floor(Math.max(heard.length,word.length)/2);
+/** True when the bot's whole name is heard as consecutive words ("emma test" fits Ima Test; "ima to test" does not). */
+const heardWhole=(heard,name)=>{const n=wordsOf(name);return n.length>0&&heard.some((_,i)=>n.every((w,k)=>heard[i+k]!==undefined&&soundsLike(heard[i+k],w)));};
+
+/**
+ * The bot a draft goes to. The model's `to` stands, unless the words heard hold a longer bot name that contains it
+ * ("Emma test" heard, model said "Ima": Ima Test). Two equally long names that both fit: ask which.
+ */
+export function pickBot(to,heard,bots=[]){
+ const said=wordsOf(heard),fits=bots.filter(b=>heardWhole(said,b));
+ if(!fits.length)return to;
+ const longest=Math.max(...fits.map(b=>wordsOf(b).length)),best=fits.filter(b=>wordsOf(b).length===longest);
+ if(best.length>1)throw asked(`That fits more than one bot: ${best.join(', ')}. Ask which one.`);
+ const mine=wordsOf(to);
+ return wordsOf(best[0]).length>mine.length&&mine.every(w=>wordsOf(best[0]).some(x=>soundsLike(w,x)))?best[0]:to;
+}
+
 /**
  * One voice call's Telegram link. `action(name,payload)` is the platform bridge; `now` is the clock.
  * Each request (ramble) calls `run(name,args,{heard,request})` with its own `request` token, so a draft and its yes
@@ -53,7 +77,7 @@ export function telegramLink({action,now=()=>Date.now()}){
  };
  async function send(args,{heard,request}){
   if(!SEND_ASKED.test(heard))throw asked('They did not ask to send a message. Send nothing.');
-  const reply=await bridge({op:'send',to:String(args.to??''),text:String(args.text??''),dry:true});
+  const reply=await bridge({op:'send',to:pickBot(String(args.to??''),heard,link.bots),text:String(args.text??''),dry:true});
   draft={...reply.draft,request,at:now()};
   return {draft:{to:draft.to,text:draft.text},next:`Read it back: send ${draft.to} "${draft.text}"? Wait for their yes.`};
  }
@@ -65,7 +89,9 @@ export function telegramLink({action,now=()=>Date.now()}){
   const reply=await bridge({op:'send',to:pending.username??pending.to,text:pending.text});
   return {sent:{to:reply.sent.to,text:reply.sent.text}};
  }
- return {
+ const link={
+  /** The owner's bot names, once the phone has them; they let a heard name beat the model's guess. */
+  bots:[],
   get draft(){return draft&&{to:draft.to,text:draft.text};},
   run(name,args,context){
    if(name==='send_telegram')return send(args??{},context);
@@ -74,4 +100,5 @@ export function telegramLink({action,now=()=>Date.now()}){
    return Promise.reject(asked(`Unknown tool ${name}.`));
   },
  };
+ return link;
 }
