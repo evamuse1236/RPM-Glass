@@ -30,7 +30,7 @@ function dayTask(app, task, done) {
   const start = at != null && localDay(at) === app.state.day ? at : null;
   const block = app.p().blocks.find(b => b.id === task.blockId);
   return {id: task.id, title: task.title, start, minutes: task.minutes ?? null, done, must: !!task.must, result: block?.title ?? null,
-    tone: app.tone(app.context(task).area), occurrence: task.occurrence, ref: task};
+    resultId: block?.id ?? null, tone: app.tone(app.context(task).area), occurrence: task.occurrence, ref: task};
 }
 
 function dayRoutines(body, day, now) {

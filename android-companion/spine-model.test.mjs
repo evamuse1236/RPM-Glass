@@ -47,6 +47,27 @@ test('each row says when above its title; the gutter adds the end from 45 min on
   assert.equal(row('Lab').tone, 'area-3');
 });
 
+test('the gutter runs forward: an end time goes when a later row starts by then', () => {
+  const model = spine({now: at('09:00'), meals: [], tasks: [task('Finish', '10:00', 90), task('Call', '12:00', 15)],
+    events: [event('Session', '11:30', '13:30'), event('Lab', '15:00', '16:00')]});
+  const end = key => model.rows.find(r => r.key === key).gutter.end;
+  assert.equal(end('task:Finish'), null, 'Session starts at 11:30, the moment Finish ends');
+  assert.equal(end('event:Session'), null, 'Call starts at 12 PM, inside Session');
+  assert.equal(end('event:Lab'), '4 PM', 'nothing starts inside Lab');
+  const times = model.rows.filter(r => r.gutter).flatMap(r => [r.start, ...(r.gutter.end ? [r.end] : [])]);
+  assert.deepEqual(times, [...times].sort((a, b) => a - b));
+});
+
+test('a deadline at the time an open task of its Result starts is said once, on the task', () => {
+  const model = spine({now: at('09:00'), meals: [],
+    tasks: [task('Submit', '23:00', 0, {resultId: 'r1', result: 'Review drafted'}), task('Upload', '20:00', 0, {resultId: 'r2', result: 'Post work'})],
+    deadlines: [{id: 'r1', title: 'Review drafted', at: at('23:00')}, {id: 'r2', title: 'Post work', at: at('23:59')}]});
+  const keys = model.rows.map(r => r.key);
+  assert.ok(!keys.includes('due:r1'), 'the deadline at the task’s own time folds into it');
+  assert.ok(keys.includes('due:r2'), 'a deadline at another time keeps its row');
+  assert.deepEqual(model.rows.find(r => r.key === 'task:Submit').line, {kind: 'due', text: 'Due · Review drafted', tone: 'area-3'});
+});
+
 test('now inside an item makes it the current row: its when line counts down, no separate line', () => {
   const model = spine({events: [event('Ward round', '14:00', '15:00')]});
   const hero = model.rows.find(r => r.kind === 'event');

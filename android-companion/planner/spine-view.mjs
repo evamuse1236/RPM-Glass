@@ -10,7 +10,7 @@ function gutter(row) {
   node.setAttribute('aria-hidden', 'true');
   if (row.kind === 'gap') return node;
   node.append(el('span', 'spine-time', row.gutter?.time ?? row.time ?? ''));
-  if (row.gutter?.end) node.append(el('span', 'spine-time', row.gutter.end));
+  if (row.gutter?.end) node.append(el('span', 'spine-time spine-end', row.gutter.end));
   return node;
 }
 
@@ -56,8 +56,11 @@ function ring(label, done, onClick, role = 'checkbox') {
 
 /** A plain clock time is already in the gutter; only a countdown or a lateness earns words. */
 const LOUD_WHEN = new Set(['soon', 'now', 'late', 'due']);
-/** "Not logged" on every meal says nothing the empty ring does not; it stays in the spoken name. */
-const QUIET_LINE = new Set(['unlogged']);
+/**
+ * "Not logged" on every meal says nothing the empty ring does not; it stays in the spoken name. A clash is its own chip,
+ * drawn under the words, that opens Resolve.
+ */
+const QUIET_LINE = new Set(['unlogged', 'clash']);
 
 function words(row) {
   const copy = el('span', 'spine-copy');
@@ -95,7 +98,8 @@ function taskCard(row, on) {
   const node = card(row, ring(`${row.title}, ${row.done ? 'done' : 'not done'}`, row.done, () => on.toggleTask(row)),
     opener(row, () => on.openTask(row.task), spoken(row) + '. Open task'));
   if (row.line?.kind === 'clash') {
-    const resolve = button('Resolve', () => on.resolve(row), 'text-btn spine-resolve');
+    const resolve = button('', () => on.resolve(row), 'spine-resolve');
+    resolve.append(icon('event_busy'), el('span', '', 'Clash'));
     resolve.setAttribute('aria-label', `Resolve the clash with ${row.line.with.title}`);
     node.append(resolve);
   }
@@ -130,10 +134,12 @@ function deadlineCard(row) {
   return node;
 }
 
+/** Free time is space on the rail; it gets words only where its + offers to plan something in it. */
 function gapBody(row, on) {
   const body = el('div', 'spine-free');
+  if (row.plan == null) return body;
   body.append(el('span', 'spine-free-label tnum', row.label));
-  if (row.plan != null) body.append(iconButton('add', `Plan something in ${row.label.replace('free', 'of free time')}`, () => on.plan(row), {cls: 'spine-action'}));
+  body.append(iconButton('add', `Plan something in ${row.label.replace('free', 'of free time')}`, () => on.plan(row), {cls: 'spine-action'}));
   return body;
 }
 
