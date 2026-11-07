@@ -53,7 +53,9 @@ export const convex = (...args) => execFileSync(process.execPath, ['node_modules
 export async function startConvex() {
   refuseRemote();
   execFileSync('npm', ['run', 'typecheck:cloud'], {cwd: root, stdio: 'inherit'});
-  const server = start('convex', process.execPath, ['node_modules/convex/bin/main.js', 'dev', '--typecheck', 'disable', '--codegen', 'disable'], {CONVEX_AGENT_MODE: 'anonymous'});
+  const {RPM_CONVEX_CLOUD_PORT: cloud, RPM_CONVEX_SITE_PORT: site} = process.env;
+  const ports = cloud && site ? ['--local-cloud-port', cloud, '--local-site-port', site] : [];
+  const server = start('convex', process.execPath, ['node_modules/convex/bin/main.js', 'dev', '--typecheck', 'disable', '--codegen', 'disable', ...ports], {CONVEX_AGENT_MODE: 'anonymous'});
   await server.waitFor(/Convex functions ready/, 240000);
   refuseRemote();
   if (!/^(anonymous|local):/.test(deployment() ?? '')) throw new Error('npx convex dev did not choose a local deployment');
