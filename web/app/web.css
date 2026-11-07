@@ -56,7 +56,33 @@ html:has(dialog:modal) { overflow: clip; }
 .capture-history p { margin: 0; overflow-wrap: break-word; }
 .capture-said { font: var(--body-large); }
 .capture-outcome { font: var(--body-medium); color: var(--on-surface-variant); }
-.capture-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--s3); }
+#capture-sheet {
+  color-scheme: dark;
+  --on-surface: var(--bar-on); --on-surface-variant: var(--bar-on-variant); --outline: var(--bar-outline); --outline-variant: var(--bar-outline);
+  --surface-container-low: var(--bar); --surface-container: var(--bar-high); --surface-container-high: var(--bar-highest);
+  --primary: var(--bar-primary); --on-primary: var(--bar-on-primary); --error: var(--bar-error);
+  padding: 0; border: 1px solid var(--bar-outline); background: var(--bar); color: var(--bar-on); box-shadow: var(--bar-shadow);
+}
+#capture-sheet form { gap: 0; }
+#capture-problem { padding: var(--s4) var(--s5) 0; }
+#capture-sheet .voice-panel { padding: var(--s5) var(--s5) var(--s2); }
+.capture-composer { display: flex; align-items: flex-end; gap: var(--s2); padding: var(--s2) var(--s2) var(--s2) var(--s5); }
+.capture-composer .field { flex: 1; min-inline-size: 0; }
+#capture-text { min-block-size: 0; max-block-size: calc(6lh + 2 * var(--s3)); padding: var(--s3) 0; border: 0; border-radius: 0; background: none; color: var(--bar-on); font: var(--body-large); }
+#capture-text::placeholder { color: var(--bar-on-variant); }
+#capture-text:focus-visible { outline: 2px solid transparent; }
+.capture-composer .voice-mic { border-color: transparent; background: var(--bar-highest); color: var(--bar-on); }
+.capture-send { position: relative; display: grid; flex: none; place-items: center; inline-size: var(--touch); block-size: var(--touch); border-radius: var(--shape-full); background: var(--bar-primary); color: var(--bar-on-primary); }
+.capture-send::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: currentColor; opacity: 0; }
+.capture-send:active::before { opacity: .12; }
+.capture-send:focus-visible { outline: 2px solid var(--bar-primary); outline-offset: 2px; }
+#capture-form:has(#capture-text:placeholder-shown):has(#voice-mic:not([hidden])) .capture-send { display: none; }
+#capture-form[data-voice]:not([data-voice='']) .capture-composer { justify-content: flex-end; }
+#capture-form[data-voice]:not([data-voice='']):not([data-voice=connecting]):not([data-voice=listening]) .capture-composer { display: none; }
+#capture-sheet .capture-history { margin: 0; padding: var(--s4) var(--s5); }
+@media (hover: hover) and (pointer: fine) {
+  .capture-send:hover::before, .capture-composer .voice-mic:hover::before { opacity: .08; }
+}
 .voice-mic { position: relative; display: grid; place-items: center; inline-size: var(--touch); block-size: var(--touch); border: 1px solid var(--outline-variant); border-radius: var(--shape-full); background: var(--surface-container-high); color: var(--primary); }
 .voice-mic::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: currentColor; opacity: 0; transition: opacity var(--dur-short4) var(--ease-standard); }
 .voice-mic:active::before { opacity: .12; }
@@ -99,6 +125,7 @@ html:has(dialog:modal) { overflow: clip; }
   .planner-view .top-bar:is(.detail-bar, .search-bar) { padding-inline-start: calc(var(--gutter) + var(--s1)); }
   .planner-view #planner:is([data-scrolled=true], [data-view=today]) .top-bar { background: linear-gradient(var(--surface-container), var(--surface-container)) 50% 0 / min(100%, var(--column)) 100% no-repeat; }
   .capture-sheet { inline-size: min(100% - 2 * var(--s6), 560px); margin: auto; border-radius: var(--shape-xl); }
+  #capture-sheet { border-radius: var(--r-outer); }
   .planner-view .wr > * { inline-size: min(100%, var(--column)); margin-inline: auto; }
 }
 
@@ -183,6 +210,29 @@ html:has(dialog:modal) { overflow: clip; }
 
 @media (width >= 1680px) {
   .planner-view { --agenda: clamp(440px, 100% - var(--side) - 760px, 880px); }
+}
+
+@media (1080px <= width < 1280px) {
+  .planner-view { --side: 80px; }
+  #sidebar { align-items: center; gap: var(--s6); padding: var(--s4) 0; }
+  .side-top { flex-direction: column; gap: var(--s2); padding: 0; }
+  .side-add { justify-content: center; inline-size: 56px; block-size: 56px; min-block-size: 0; padding: 0; }
+  .side-add .side-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: clip; clip-path: inset(50%); white-space: nowrap; }
+  .side-group { justify-items: center; gap: var(--s3); }
+  .side-item { position: relative; flex-direction: column; justify-content: center; gap: var(--s1); inline-size: 80px; min-block-size: 56px; padding: 0; border-radius: var(--shape-md); background: none; font: var(--label-medium); }
+  .side-item > .ms { display: grid; place-items: center; inline-size: 56px; block-size: 32px; border-radius: var(--shape-full); }
+  .side-item[aria-current=page] { background: none; color: var(--on-surface); }
+  .side-item[aria-current=page] > .ms { background: var(--secondary-container); color: var(--on-secondary-container); }
+  .side-item:active { background: none; }
+  .side-item:active > .ms { background: color-mix(in oklch, var(--on-surface) 12%, transparent); }
+  .side-count { position: absolute; inset-block-start: 0; inset-inline-start: calc(50% + var(--s2)); display: grid; place-items: center; min-inline-size: 16px; block-size: 16px; margin: 0; padding-inline: var(--s1); border-radius: var(--shape-full); background: var(--primary); color: var(--on-primary); font: var(--label-small); }
+  .side-count:empty { display: none; }
+  #planner-view > #banner { grid-column: 2; grid-row: 1; align-self: start; margin: var(--s3) 0 0; }
+}
+@media (1080px <= width < 1280px) and (hover: hover) and (pointer: fine) {
+  .side-item:hover, .side-item[aria-current=page]:hover { background: none; }
+  .side-item:hover > .ms { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
+  .side-item[aria-current=page]:hover > .ms { background: color-mix(in oklch, var(--on-secondary-container) 8%, var(--secondary-container)); }
 }
 
 @media (width >= 1080px) and (prefers-reduced-motion: no-preference) {

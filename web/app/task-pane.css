@@ -32,6 +32,8 @@
   }
   #sheet[data-inline] #task-tab-block .tab-value { white-space: normal; text-wrap: balance; text-align: start; }
   #sheet[data-inline] .number-chip input:not(:focus-visible) { border-block-end-color: transparent; }
+  #sheet[data-inline] .number-chip:has(input:placeholder-shown) .chip-unit { display: none; }
+  #sheet[data-inline] .when-days { display: none; }
   #sheet[data-inline] .task-start {
     grid-area: start;
     margin: 0 var(--s2) 0 0;

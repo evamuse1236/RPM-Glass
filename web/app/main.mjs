@@ -150,7 +150,12 @@ $('capture-text').addEventListener('input', event => localStorage.setItem(DRAFT,
 $('capture-text').addEventListener('keydown', event => {
   if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); $('capture-form').requestSubmit(); }
 });
-$('capture-close').addEventListener('click', () => $('capture-sheet').close());
+$('capture-sheet').addEventListener('click', event => {
+  const sheet = event.currentTarget;
+  const box = sheet.getBoundingClientRect();
+  const outside = event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom;
+  if (event.target === sheet && outside) sheet.close();
+});
 $('capture-sheet').addEventListener('close', () => voice.closed());
 $('capture-form').addEventListener('submit', event => {
   event.preventDefault();
