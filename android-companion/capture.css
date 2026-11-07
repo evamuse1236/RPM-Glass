@@ -61,17 +61,18 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .bar[data-voice=off] .voice-go{background:var(--bar-primary)}
 /* At rest the drop waits hidden; it shows once a call starts. */
 .bar[data-voice=off] .voice-go .drop{opacity:0}
-/* The voice drop (capture-drop.mjs) stays in the button's markup, but in a call it is drawn at 24dp at the start of
-   the field, beside the status placeholder: the call's phase reads with its words and the disc keeps one meaning. */
+/* The voice drop (capture-drop.mjs) stays in the button's markup, but in a call it is drawn at 32dp at the start of
+   the field, beside the status placeholder: big enough that its listening dot and talking dots read at a glance,
+   and the call's phase reads with its words while the disc keeps one meaning. */
 .composer{position:relative}
-.voice-go .drop{position:absolute;inset-inline-start:20px;inset-block-end:20px;inline-size:24px;block-size:24px;pointer-events:none}
-.bar[data-voice=on] #message{padding-inline-start:32px}
-/* During a call the button is Hang up: a quiet error-tinted disc with the call_end glyph. It stays put when pressed
-   (static, no scale) so the drop it holds does not move with the press. */
-.bar[data-voice=on] .voice-go{position:static;background:color-mix(in oklch,var(--bar-error) 18%,var(--bar-high));scale:none}
-.bar[data-voice=on] .voice-go:active{background:color-mix(in oklch,var(--bar-error) 30%,var(--bar-high))}
+.voice-go .drop{position:absolute;inset-inline-start:16px;inset-block-end:16px;inline-size:32px;block-size:32px;pointer-events:none}
+.bar[data-voice=on] #message{padding-inline-start:40px}
+/* During a call the button is Hang up: a filled #F2B8B5 disc with a dark call_end glyph, as heavy as the resting mic disc.
+   It stays put when pressed (static, no scale) so the drop it holds does not move with the press. */
+.bar[data-voice=on] .voice-go{position:static;background:var(--bar-error);scale:none}
+.bar[data-voice=on] .voice-go:active{background:color-mix(in oklch,var(--bar-on-error) 12%,var(--bar-error))}
 .voice-go .glyph{grid-area:1/1;position:relative;font-size:24px;line-height:1;color:var(--bar-on-primary)}
-.voice-go .glyph.call{color:var(--bar-error)}
+.voice-go .glyph.call{color:var(--bar-on-error)}
 .bar[data-voice=off] .voice-go .glyph.call,.bar[data-voice=on] .voice-go .glyph.mic{opacity:0;scale:.6}
 .voice-go:disabled{cursor:default}
 /* Send and the resting orb are the one lit control: the bright primary in both themes. */

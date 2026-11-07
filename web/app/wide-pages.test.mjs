@@ -76,7 +76,7 @@ test('on wide the Inbox pane matches the page, and long pages fade at the foot',
   const web = read('./web.css');
   assert.match(web, /@property --page-fade \{ syntax: "<length>"; inherits: false; initial-value: 0px; \}/);
   assert.match(web, /\[data-view=projects\]\) \.page \{ display: grid; grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 360px\), 1fr\)\); align-items: start;/);
-  assert.match(web, /\.capture-sheet::backdrop \{ background: light-dark\(color-mix\(in oklch, var\(--scrim\), oklch\(0 0 none\) 16%\), color-mix\(in oklch, var\(--scrim\), oklch\(0 0 none\) 35%\)\); \}/);
+  assert.match(web, /\.capture-sheet::backdrop \{ background: light-dark\(var\(--scrim\), color-mix\(in oklch, var\(--scrim\), oklch\(0 0 none\) 35%\)\); \}/);
 });
 
 test('on wide every page title has one weight: the Today date uses the same headline as Blocks, Projects and Life', () => {

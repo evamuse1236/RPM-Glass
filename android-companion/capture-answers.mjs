@@ -1,28 +1,25 @@
 import {el,icon,button} from './capture-dom.mjs';
 import {card,answerText,alsoHeard} from './capture-cards.mjs';
-import {clock,relativeDay,longDate} from './planner/format.mjs';
+import {clock,shortClock,relativeDay,longDate} from './planner/format.mjs';
 import {scheduleText} from './capture-content.mjs';
 import {localDay} from './planner-state.mjs';
 
-/** The gutter stacks the clock over its AM/PM ("10:00" over "AM"), so the column is only as wide as "12:00". */
+/** The gutter reads like Today's: "10 AM", "11:30 AM" on one line, minutes only when they say something. */
 function agendaTime(item){
- const text=item.start==null?'Any time':item.allDay?'All day':clock(item.start);
- const [,main,rest]=/^(.*?)(?:[\s ]+(\S+))?$/.exec(text);
- const node=el('span','agenda-time',main);
- if(rest)node.append(' ',el('span','agenda-meridiem',rest));
- return node;
+ return el('span','agenda-time',item.start==null?'Any time':item.allDay?'All day':shortClock(item.start));
 }
 
-/** A row's context line drops the Block when the row above already named it. */
-function agendaRow(item,now,prev){
+const HOUR=60*60*1000;
+/** A row's context line says only what the title and marker do not: an end time when the item runs an hour or more, and the Block of a Must. */
+function agendaRow(item,now){
  const row=el('li',['agenda-row',item.kind==='event'?'event':'',item.done?'done':'',item.start<=now&&(item.end??item.start)>now?'now':''].filter(Boolean).join(' '));
  row.append(agendaTime(item));
  row.append(icon(item.kind==='event'?'event':item.done?'check_circle':'radio_button_unchecked',{cls:'agenda-mark'}));
  const body=el('div','agenda-body'),title=el('p','agenda-title',item.title);
  if(item.must){const star=icon('star',{fill:true,cls:'must-mark'});star.removeAttribute('aria-hidden');star.setAttribute('role','img');star.setAttribute('aria-label','Must');title.append(star);}
  body.append(title);
- const block=item.block&&item.block!==prev?.block?item.block:null;
- const sub=[item.end&&!item.allDay?`until ${clock(item.end)}`:null,block,item.kind==='event'?'Calendar':null].filter(Boolean).join(' · ');
+ const long=item.end!=null&&item.start!=null&&!item.allDay&&item.end-item.start>=HOUR;
+ const sub=[long?`until ${shortClock(item.end)}`:null,item.must?item.block:null].filter(Boolean).join(' · ');
  if(sub)body.append(el('p','quiet',sub));
  row.append(body);
  return row;
@@ -33,7 +30,7 @@ function agendaCard(agenda,{now}){
  const rows=[...agenda.timed,...agenda.anytime];
  if(!rows.length){node.append(el('p','quiet','Nothing planned yet.'));return node;}
  const list=el('ul','agenda');
- list.append(...rows.map((item,i)=>agendaRow(item,now,rows[i-1])));
+ list.append(...rows.map(item=>agendaRow(item,now)));
  node.append(list);
  return node;
 }

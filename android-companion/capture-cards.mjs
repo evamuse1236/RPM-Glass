@@ -145,7 +145,7 @@ export function confirmCard(capture,{canUndo,on}){
  return node;
 }
 
-/** The next step is one more chip: in the item's own chip row when the card holds one item (a suggested time takes the dashed "Add time" chip's place, worded "11:45 AM?"), else a row of its own. */
+/** The next step is one more chip: in the item's own chip row when the card holds one item (a suggested time takes the dashed "Add time" chip's place as a filled offer, "11:45 AM"), else a row of its own. */
 function appendReceiptHelp(node,draft,on,chipRow=null){
  const help=draft.nextStep;if(!help)return;
  if(!help.action){if(help.text)node.append(el('p','quiet',help.text));return;}
@@ -156,10 +156,9 @@ function appendReceiptHelp(node,draft,on,chipRow=null){
  if(chipRow){
   const askTime=help.action.step==='schedule'?chipRow.querySelector?.('.edit-chip.empty[data-chip=time]'):null;
   if(askTime?.replaceWith){
-   // In the missing time's place the offer reads as a question ("11:45 AM?"); its name stays "Try 11:45 AM".
-   chip.classList.add('ask');
+   // In the missing time's place the offer shows just the time; its name stays "Try 11:45 AM".
    chip.setAttribute('aria-label',help.label);
-   chip.replaceChildren(icon('schedule'),el('span','tnum',`${help.label.replace(/^Try\s+/,'')}?`));
+   chip.replaceChildren(icon('schedule'),el('span','tnum',help.label.replace(/^Try\s+/,'')));
    askTime.replaceWith(chip);
   }else chipRow.append(chip);
   return;
