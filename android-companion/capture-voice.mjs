@@ -41,7 +41,12 @@ export function createVoiceMode({platform,conversationId,onChange,afterSave,onLe
  let saved=[],liveRows=new Map(),heard={request:0,text:''},moment={n:0,kind:null};
  const telegram=telegramLink({action:(name,payload)=>platform.action(name,payload)});
  let withTelegram=false;
- Promise.resolve().then(()=>platform.action('telegram',{op:'connected'})).then(r=>{withTelegram=r?.connected===true;},()=>{});
+ Promise.resolve().then(()=>platform.action('telegram',{op:'connected'})).then(async r=>{
+  if(r?.connected!==true)return;
+  withTelegram={bots:[]};
+  const named=await platform.action('telegram',{op:'bots'}).catch(()=>null);
+  if(Array.isArray(named?.bots))withTelegram={bots:named.bots};
+ },()=>{});
  const changed=()=>{const key=JSON.stringify([live,failure,saved.length,[...liveRows],heard,moment.n]);if(key===shown)return;shown=key;onChange();};
  const token=async setup=>{const reply=await platform.action('voiceToken',{setup});if(reply?.missingKey)throw new Error(NO_KEY);return reply;};
  const stop=()=>session?.stop();

@@ -24,6 +24,7 @@ The app reads the URL at build time: `rpm.telegramBridge=https://<pc>.<tailnet>.
 |---|---|---|
 | `POST /send` | `{to, text, dry}` | `{draft:{to,username,text}}` when `dry`, else `{sent:{to,username,text,id}}` |
 | `POST /read` | `{chat?, limit?, waitSeconds?}` | one chat's newest messages, or the unread chats (at most 6, 3 messages each) |
+| `POST /bots` | | `{bots:[names]}`: the bots a send may go to, for the voice prompt |
 | `GET /health` | | `{ok}` |
 
 Errors are `{error}` with words the voice agent can say (404 for an unknown or unclear name, 403 for a caller that is not the owner).

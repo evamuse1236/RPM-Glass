@@ -91,6 +91,9 @@ class Bridge:
         sent = await self.client.send_message(bot["id"], text)
         return {"sent": {"to": logic.label(bot), "username": bot["username"], "text": text, "id": sent.id}}
 
+    async def bots(self, body):
+        return {"bots": [logic.label(c) for c in logic.send_targets(await self.dialogs())]}
+
     async def read_chat(self, body):
         chat = logic.pick(body.get("chat"), await self.dialogs())
         limit = logic.bounded(body.get("limit"), 5, 1, logic.LIMIT_MAX)
@@ -138,6 +141,7 @@ def app_for(bridge, owner, allow_local):
     app = web.Application(client_max_size=64 * 1024)
     app.router.add_post("/send", lambda r: guard(r, bridge.send))
     app.router.add_post("/read", lambda r: guard(r, bridge.read))
+    app.router.add_post("/bots", lambda r: guard(r, bridge.bots))
     app.router.add_get("/health", lambda r: web.json_response({"ok": bridge.client.is_connected()}))
     return app
 

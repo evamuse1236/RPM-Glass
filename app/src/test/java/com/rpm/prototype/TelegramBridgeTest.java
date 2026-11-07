@@ -70,6 +70,16 @@ public class TelegramBridgeTest {
         }
     }
 
+    @Test public void botsAsksForTheNamesAndForwardsNothing()throws Exception{
+        try(MockWebServer server=new MockWebServer()){
+            server.enqueue(new MockResponse().setBody("{\"bots\":[\"Ima\",\"Pantry\"]}"));
+            assertEquals("Pantry",TelegramBridge.call(op("bots").put("chat","x"),BASE,to(server)).getJSONArray("bots").getString(1));
+            RecordedRequest request=server.takeRequest();
+            assertEquals("/bots",request.getPath());
+            assertEquals(0,new JSONObject(request.getBody().readUtf8()).length());
+        }
+    }
+
     @Test public void failuresComeBackAsPlainWords()throws Exception{
         try(MockWebServer server=new MockWebServer()){
             server.enqueue(new MockResponse().setResponseCode(404).setBody("{\"error\":\"No bot called Zed.\"}"));

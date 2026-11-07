@@ -41,6 +41,7 @@ final class TelegramBridge {
                 if(p.has("waitSeconds"))body.put("waitSeconds",p.optInt("waitSeconds"));
                 return post(base,"/read",body,transport);
             }
+            case "bots":return post(base,"/bots",new JSONObject(),transport);
             default:throw new IllegalArgumentException("Unsupported phone action.");
         }
     }

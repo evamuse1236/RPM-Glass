@@ -1,5 +1,5 @@
 import {planner,blockTasks} from './planner-state.mjs';
-import {TELEGRAM_TOOLS,TELEGRAM_RULES} from './voice-telegram.mjs';
+import {TELEGRAM_TOOLS,telegramRules} from './voice-telegram.mjs';
 
 export const LIVE_MODEL='gemini-3.8-live';
 /** The person speaks English, Hindi and Marathi; the hint biases recognition toward them (it does not forbid others). */
@@ -106,7 +106,7 @@ ${planLines(plan)}
 - If what you heard is not a request to you (talking to someone else, a video, half a sentence), change nothing and say nothing.
 - A lone word or a few words with no verb ("pizza", "meeting with", a name) is not a request, even if it could be a task: change nothing and ask in a few words what they want to do. Speech in a language other than English, Hindi or Marathi is noise: change nothing.
 - A start time that has already passed today: ask whether they mean another day before you save it.
-- If something else is unclear, make the most likely choice and say what you chose. Never wait for an answer before saving what you are sure of.${telegram?`\n${TELEGRAM_RULES}`:''}${personaLines(persona)}`;
+- If something else is unclear, make the most likely choice and say what you chose. Never wait for an answer before saving what you are sure of.${telegram?`\n${telegramRules(telegram.bots)}`:''}${personaLines(persona)}`;
 }
 
 /** Gemini Live prebuilt voices offered in Settings, each with its one-word feel from Google's voice list. */

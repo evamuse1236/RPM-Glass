@@ -52,3 +52,6 @@ Open questions:
 
 ## 2026-11-06 · Fix the notch-island swipe from the inert margin
 The `notch-island` emulator scenario fails on main since 2026-11-01 (b943f9b, run 41322515914): a swipe up from the open island's inert left margin never logs `notch.gesture up`, so the island may not close. It is marked a known bug until 2026-11-20 so PR 17 could ship. Open question: did a notch change after 2026-10-28 move the inert margin, or did the emulator cutout change?
+
+## 2026-11-07 · Voice refuses "Read me the messages from Ima Test"
+Gemini Live answers "I'm just a language model and can't help with that" to "Read me the messages from Ima Test" every time (6 of 6, text mode), while "What did Ima Test say?" and "Read me the messages from Pantry" work. The word "Test" in a chat name seems to trip a canned refusal. Open questions: does renaming the test bot fix it, or a tool description that names Ima Test? Does it also happen on the phone's mic?
