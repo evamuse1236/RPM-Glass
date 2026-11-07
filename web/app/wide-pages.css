@@ -34,17 +34,26 @@
     align-content: start;
   }
   #planner .page:has(> .life-areas) > :not(.wheel-card, .life-areas) { grid-column: 1 / -1; }
-  #planner .page:has(> .life-areas) .wheel-card { margin-inline-end: 0; align-self: start; }
-  #planner .life-areas { display: grid; gap: var(--s2); align-content: start; padding-block: var(--s1); padding-inline-end: var(--gutter); }
-  #planner .life-area-group {
+  /* The wheel and the Areas are two cards of one height; the wheel centres in its card when the list runs longer. */
+  #planner .page:has(> .life-areas) .wheel-card { display: flex; flex-direction: column; margin-inline-end: 0; }
+  #planner .page:has(> .life-areas) .wheel-plot { margin-block: auto; }
+  #planner .life-areas {
     display: grid;
-    grid-template-columns: minmax(0, 240px) minmax(0, 1fr) var(--s6);
-    column-gap: var(--s4);
+    gap: 0;
+    align-content: start;
+    margin: var(--s1) var(--gutter) 0 0;
     padding-block: var(--s1);
     border-radius: var(--card-radius);
     background: var(--surface-container-low);
     border: 1px solid color-mix(in oklch, var(--outline-variant) 55%, transparent);
   }
+  #planner .life-area-group {
+    display: grid;
+    grid-template-columns: minmax(0, 240px) minmax(0, 1fr) var(--s6);
+    column-gap: var(--s4);
+    padding-block: var(--s1);
+  }
+  #planner .life-area-group + .life-area-group { border-block-start: 1px solid var(--outline-variant); }
   #planner .life-area-group > * { grid-column: 1 / -1; }
   #planner .life-area .list-headline { font: var(--title-small); }
   #planner .life-area-row {
@@ -55,10 +64,17 @@
   }
   #planner .life-track { display: grid; }
   #planner .life-track > * { grid-area: 1 / 1; }
+  /* Unrated, the track waits with faint ticks and no handle, so nothing reads as a 0; pointing at it or focusing it
+     shows the hollow handle where a drag starts. */
   #planner .life-track .rating-slider.unrated + .rating-ticks { opacity: 1; }
+  #planner .life-track .rating-slider.unrated + .rating-ticks i { background: var(--outline-variant); }
+  #planner .life-track .rating-slider.unrated:not(:focus-visible)::-webkit-slider-thumb { background: transparent; box-shadow: none; }
+  @media (hover: hover) and (pointer: fine) {
+    #planner .life-track .rating-slider.unrated:hover::-webkit-slider-thumb { background: var(--surface-container-low); box-shadow: inset 0 0 0 2px var(--outline); }
+  }
   #planner .life-rating { font: var(--title-small); text-align: end; }
   #planner .life-area-group > .list-item.nested { gap: var(--s4); padding-block: var(--s2); padding-inline-start: calc(var(--gutter) + var(--s8) + var(--s2) + var(--s4)); }
-  #planner .wheel-copy p { display: none; }
+  #planner .wheel-hint { display: none; }
 
   .planner-view #planner[data-view=projects] .page > .project-card {
     grid-column: 1 / -1;

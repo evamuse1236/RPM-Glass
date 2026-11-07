@@ -9,11 +9,19 @@
 .wheel-copy { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--s2); }
 .wheel-copy h2 { font: var(--title-medium); }
 .wheel-copy .text-btn { margin-inline-end: calc(-1 * var(--s3)); }
-.wheel-copy p { flex-basis: 100%; font: var(--body-medium); color: var(--on-surface-variant); text-wrap: pretty; }
-.wheel-plot { position: relative; inline-size: min(100% - 96px, 272px); aspect-ratio: 1; margin: 32px auto; }
+.wheel-plot { position: relative; inline-size: min(100% - 96px, 272px); aspect-ratio: 1; margin: var(--s4) auto var(--s2); }
+/* A name straight above or below the wheel needs its own line of room. */
+.wheel-plot[data-label-top] { margin-block-start: var(--s8); }
+.wheel-plot[data-label-bottom] { margin-block-end: var(--s8); }
 .wheel-svg { display: block; inline-size: 100%; block-size: 100%; overflow: visible; touch-action: none; cursor: pointer; }
-/* An unrated wedge is an empty track: a faint wash of its Area's hue under the scale rings, never a filled shape. */
-.wheel-track { fill: color-mix(in oklch, var(--tone) 8%, var(--surface-container-low)); stroke: var(--surface-container-low); stroke-width: 2; }
+/* An unrated wedge is an empty track: a wash of its Area's hue inside a 1dp outline of it, never a filled shape. Dark
+   needs twice the wash to read as much as light does. */
+.wheel-track {
+  fill: light-dark(color-mix(in oklch, var(--tone) 8%, var(--surface-container-low)), color-mix(in oklch, var(--tone) 16%, var(--surface-container-low)));
+  stroke: color-mix(in oklch, var(--tone) 40%, var(--surface-container-low));
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
 .wheel-scale { fill: none; stroke: var(--outline-variant); stroke-width: 1; pointer-events: none; }
 .wheel-wedge { fill: var(--tone); stroke: var(--surface-container-low); stroke-width: 2; stroke-linejoin: round; }
 .wheel-ring { fill: none; stroke: var(--surface-container-low); stroke-opacity: .6; stroke-width: 1; pointer-events: none; }
@@ -30,6 +38,21 @@
   pointer-events: none;
 }
 .wheel-average:empty { display: none; }
+.wheel-hint {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  translate: -50% -50%;
+  padding: var(--s1);
+  border-radius: var(--shape-full);
+  background: var(--surface-container-low);
+  font: var(--label-small);
+  color: var(--on-surface-variant);
+  text-align: center;
+  white-space: pre;
+  pointer-events: none;
+}
+.wheel-average:not(:empty) + .wheel-hint { display: none; }
 .wheel-label {
   position: absolute;
   inset-inline-start: calc(50% + var(--x) * (50% + 8px));
@@ -54,7 +77,7 @@
   padding-block: 0 var(--s1);
   padding-inline-start: calc(var(--gutter) + var(--s2));
 }
-:is(.life-areas, .area-goals, .goal-projects) .list-headline { text-wrap: pretty; }
+:is(.life-areas, .area-goals, .goal-projects) :is(.list-headline, .list-supporting) { text-wrap: pretty; }
 .list-item.add-row .leading, .list-item.add-row .list-headline { color: var(--primary); }
 .list-item.add-row .list-headline { font: var(--label-large); }
 /* On an Area's page a Project sits under its Goal's words: the Goal row's 24dp icon and its gap. */

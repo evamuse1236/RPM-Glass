@@ -102,6 +102,14 @@ export function renderProjects(app, page) {
   }
 }
 
+/** An Area's letter in its own colour: the one mark an Area has wherever it is named. */
+export function initialAvatar(app, area) {
+  const avatar = el('span', 'avatar', (area.title.trim()[0] ?? '?').toUpperCase());
+  avatar.dataset.tone = app.tone(area);
+  avatar.setAttribute('aria-hidden', 'true');
+  return avatar;
+}
+
 /** Assist chips for Area › Goal. A part may carry `menu` (items) to open instead of navigating. `quiet` draws each as icon
  * and words with no outline or arrow, so Area and Goal share one line under a title. */
 export function breadcrumbs(app, parts, {quiet = false} = {}) {
@@ -111,7 +119,7 @@ export function breadcrumbs(app, parts, {quiet = false} = {}) {
     const [label, kind, id, symbol, menu] = Array.isArray(part) ? part : [part.label, part.kind, part.id, part.icon, part.menu];
     if (!label) continue;
     const chip = button('', null, quiet ? 'crumb crumb-quiet' : 'assist-chip crumb');
-    chip.append(icon(symbol), el('span', '', label));
+    chip.append(typeof symbol === 'string' ? icon(symbol) : symbol, el('span', '', label));
     if (menu) {
       if (!quiet) chip.append(icon('arrow_drop_down', {cls: 'crumb-drop'}));
       chip.setAttribute('aria-haspopup', 'menu');
@@ -147,7 +155,7 @@ export function renderProjectDetail(app, page, project) {
       goalId ? `Linked to ${label}` : 'Unlinked from its Goal').catch(() => {})});
   // The Project leads at the largest size; its Area and Goal follow on one quiet line of icon and words.
   page.append(titleField(app, 'projects', project, 'Project'));
-  const crumbs = breadcrumbs(app, [[area?.title, 'areas', area?.id, 'spa'],
+  const crumbs = breadcrumbs(app, [area && [area.title, 'areas', area.id, initialAvatar(app, area)],
     {label: goal?.title ?? 'Link a Goal', icon: 'flag', menu: goalMenu}], {quiet: true});
   crumbs.classList.add('head-crumbs');
   crumbs.dataset.tone = app.tone(area);

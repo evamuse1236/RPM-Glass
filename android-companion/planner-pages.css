@@ -173,6 +173,7 @@
 }
 .crumb-quiet::after { content: ''; position: absolute; inset: calc(-1 * var(--s2)) calc(-1 * var(--s1)); }
 .crumb-quiet > .ms { flex: none; font-size: 20px; inline-size: 20px; }
+.crumb-quiet > .avatar { inline-size: 16px; block-size: 16px; min-inline-size: 16px; margin-inline: 2px; font: var(--label-small); }
 .head-crumbs[data-tone] .crumb-quiet:first-child > .ms { color: var(--progress); }
 .crumb-quiet > span:not(.ms) { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
 .crumb-quiet:active { color: var(--on-surface); }
@@ -316,23 +317,20 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
 .values-card p { font: var(--body-large); }
 .area-head { display: flex; align-items: center; gap: var(--s1); padding: var(--s3) 0 0 var(--gutter); }
 .area-head .detail-title-text { flex: 1; min-width: 0; padding-left: var(--s2); }
+/* The Area's rating is a plain row like the Purpose above it: the 20dp handle centred on the 24dp icon column. */
 .rating-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0 var(--s2);
-  width: calc(100% - 2 * var(--gutter));
-  margin: var(--s2) var(--gutter) 0;
-  padding: var(--s4) var(--s4) var(--s3);
-  border-radius: 20px;
-  background: var(--surface-container-low);
+  gap: 0 var(--s4);
+  padding-inline: calc(24px + 2px) var(--gutter);
 }
-.rating-row h2 { font: var(--title-small); }
-.rating-row strong { font: var(--title-medium); }
+.rating-row > :is(.rating-slider, .rating-ticks) { grid-column: 1; grid-row: 1; }
+.rating-row strong { grid-column: 2; grid-row: 1; min-inline-size: 56px; font: var(--title-medium); text-align: end; }
+.rating-row .rating-slider.unrated::-webkit-slider-thumb { background: var(--surface); }
 /* M3 slider in the Area's colour: one active-track colour whether resting or dragged, a 20dp handle, 48dp target.
    Unrated: the whole track is inactive and there is no handle until the first touch. */
 .rating-slider {
-  grid-column: 1 / -1;
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
@@ -370,10 +368,7 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
 /* Unrated: a hollow handle at the start and the eleven points as faint ticks, an affordance that is not a value. */
 .rating-slider.unrated::-webkit-slider-thumb { background: var(--surface-container-low); box-shadow: inset 0 0 0 2px var(--outline); }
 .rating-slider.unrated::-moz-range-thumb { background: var(--surface-container-low); box-shadow: inset 0 0 0 2px var(--outline); }
-.rating-slider { grid-row: 2; }
 .rating-ticks {
-  grid-column: 1 / -1;
-  grid-row: 2;
   align-self: center;
   display: flex;
   justify-content: space-between;

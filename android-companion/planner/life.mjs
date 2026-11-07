@@ -3,7 +3,7 @@ import {el, button, iconButton, labelButton, emptyState, listItem, sectionHeader
 import {plural} from './format.mjs';
 import {openSheet} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
-import {breadcrumbs, parentMenu, projectTasks} from './projects.mjs';
+import {breadcrumbs, parentMenu, projectTasks, initialAvatar} from './projects.mjs';
 import {purposePanel, notesPanel, titleField, finishDetail, progressRing} from './blocks.mjs';
 import {persist, saveEntity, NO_ICON} from './inline-edit.mjs';
 import {wheelCard} from './life-wheel.mjs';
@@ -43,13 +43,6 @@ function periodSwitch(app) {
   row.append(iconButton('chevron_left', 'Previous period', () => shiftLifePeriod(app, -1)),
     el('h2', 'tnum', label), iconButton('chevron_right', 'Next period', () => shiftLifePeriod(app, 1)));
   return row;
-}
-
-function initialAvatar(app, area) {
-  const avatar = el('span', 'avatar', (area.title.trim()[0] ?? '?').toUpperCase());
-  avatar.dataset.tone = app.tone(area);
-  avatar.setAttribute('aria-hidden', 'true');
-  return avatar;
 }
 
 /**
@@ -195,13 +188,13 @@ function ratingTicks() {
   return ticks;
 }
 
-/** The Area's rating: its value beside the words once rated; unrated, the hollow handle and ticks say so. */
+/** The Area's rating as one plain row under its Purpose: the handle on the icon column, the value at the end once rated. */
 function ratingSlider(app, area) {
   const row = el('div', 'rating-row');
   row.dataset.tone = app.tone(area);
   const output = el('strong', 'tnum', area.rating == null ? '' : `${area.rating} / 10`);
   const input = ratingInput(app, area, value => { output.textContent = `${value} / 10`; });
-  row.append(el('h2', '', 'Your rating'), output, input, ratingTicks());
+  row.append(input, ratingTicks(), output);
   return row;
 }
 
@@ -281,7 +274,8 @@ export function renderGoalDetail(app, page, goal) {
       areaId ? `Moved to ${label}` : 'Moved out of its Area').catch(() => {})});
   // The Goal leads; its Area and when it is for follow as one quiet line, as on a Project.
   page.append(titleField(app, 'goals', goal, 'Goal'));
-  const crumbs = breadcrumbs(app, [{label: area?.title ?? 'Choose an Area', icon: 'spa', menu: areaMenu}], {quiet: true});
+  const crumbs = breadcrumbs(app, [{label: area?.title ?? 'Choose an Area', icon: area ? initialAvatar(app, area) : 'spa',
+    menu: areaMenu}], {quiet: true});
   crumbs.classList.add('head-crumbs');
   crumbs.dataset.tone = app.tone(area);
   crumbs.append(...goalWhen(app, goal).children);

@@ -58,7 +58,7 @@ test('on wide Life puts the wheel on the left and each Area with its rating and 
   assert.match(css, /\.life-track \.rating-slider\.unrated \+ \.rating-ticks \{ opacity: 1; \}/);
   assert.doesNotMatch(css, /\.rating-slider:not\(\.unrated\)/, 'the wheel and its column keep one size whether or not an Area is rated, so the first rating never moves the layout');
   assert.match(css, /#planner \.wheel-plot \{ inline-size: min\(100% - 128px, 360px\); \}/);
-  assert.match(css, /#planner \.wheel-copy p \{ display: none; \}/, 'no drag instruction on wide');
+  assert.match(css, /#planner \.wheel-hint \{ display: none; \}/, 'no drag instruction on wide');
   const wheel = read('../../android-companion/planner/life-wheel.mjs');
   assert.doesNotMatch(wheel, /'–'/, 'an unrated wheel shows no stand-in value in its centre');
   assert.equal(wheel.match(/averageOf\(areas\.map\([^;]*\?\? ''/g)?.length, 2, 'the centre shows the average of rated Areas or nothing');
