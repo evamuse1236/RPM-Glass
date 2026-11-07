@@ -28,6 +28,8 @@
 }
 .eyebrow span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-title { font: var(--title-medium); overflow-wrap: anywhere; text-wrap: pretty; }
+/* This week's pick: a quiet word at the title's end, on its first line; the title wraps around it. */
+.week-mark { float: inline-end; margin-inline-start: var(--s3); font: var(--label-medium); line-height: inherit; color: var(--primary); }
 .card-purpose {
   font: var(--body-medium);
   color: var(--on-surface-variant);
@@ -74,7 +76,7 @@
 .seg-off { stroke: var(--surface-container-highest); }
 .seg-on { stroke: var(--progress, var(--primary)); }
 .seg-arc { stroke-linecap: round; }
-/* One facts line on a Block card: deadline, the Musts' time left, tasks done. */
+/* Where a Block card stands: the deadline on its own line, then tasks done and the Musts' time left. */
 .card-facts { margin-top: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
 .card-facts > *, .fact-next, .nowrap, .must-left { white-space: nowrap; }
 .card-due { font-weight: 500; color: var(--on-surface); }
@@ -167,8 +169,9 @@
 button.fact-row:active { background: var(--row-press); }
 .fact-row > .leading, .fact-row > .ring { color: var(--on-surface-variant); flex: none; }
 .fact-row .text-btn { align-self: center; flex: none; margin: calc(-1 * var(--s2)) calc(-1 * var(--s2)) calc(-1 * var(--s2)) 0; }
+/* The verdict asks once, as an action row: the user's call, never a tick count. */
 .verdict-row { align-items: center; }
-.fact-row .outlined-btn { flex: none; padding: 0 var(--s4); }
+.verdict-row .list-headline { color: var(--primary); }
 .fact-label { font: var(--label-medium); color: var(--on-surface-variant); }
 /* The resting hint that a detail field edits in place: a small pencil after its label, gone while editing. */
 .fact-label .label-edit { font-size: 16px; width: 16px; height: 16px; line-height: 16px; margin-left: var(--s1); vertical-align: -2px;

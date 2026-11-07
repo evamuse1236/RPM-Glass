@@ -51,7 +51,9 @@
 @keyframes check-pop { 0% { transform: scale(.85); } 55% { transform: scale(1.15); } 100% { transform: none; } }
 @keyframes check-in { from { opacity: 0; transform: scale(.4); } }
 @keyframes strike-in { from { text-decoration-color: transparent; color: var(--on-surface); } }
-.must-mark { color: var(--must); margin: 16px var(--s3) 0 var(--s1); }
+/* The Must star takes only its own width: the title runs up to it (20dp glyph, 4dp apart). */
+.must-mark { flex: none; inline-size: 20px; block-size: 24px; font-size: 20px; line-height: 24px; color: var(--must); margin: var(--s4) 0 0 var(--s1); }
+.task-main:has(+ .must-mark) { padding-inline-end: 0; }
 /* The Now row: a soft primary tint, lighter in dark so it does not shout. */
 :root { --current-row: color-mix(in srgb, var(--primary-container) 55%, transparent); }
 @media (prefers-color-scheme: dark) {
