@@ -9,7 +9,7 @@ function entry(glyph, label, onClick, cls = 'side-item') {
 
 export function activeEntry(ui) {
   const kind = ui.current()?.kind;
-  return kind === 'search' ? 'search' : ui.tab();
+  return kind === 'search' || kind === 'settings' ? kind : ui.tab();
 }
 
 export function mountSidebar(nav, planner, ui) {

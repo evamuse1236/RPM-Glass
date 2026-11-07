@@ -1,3 +1,4 @@
+import {trackFill,sliderEnds} from './settings-parts.mjs';
 const APPEARANCES=new Set(['system','light','dark']);
 const DAY_LAYOUTS=new Set(['day','list']);
 export const BAR_TRANSPARENCY=Object.freeze({min:0,max:60,step:5,initial:20});
@@ -47,7 +48,7 @@ export function setClarityPreference(name,value,{storage=defaultStorage(),root=g
 const element=(document,tag,cls='',text='')=>{const node=document.createElement(tag);node.className=cls;node.textContent=text;return node;};
 export const THEME_NAMES=Object.freeze({system:'System',light:'Light',dark:'Dark'});
 
-/** Settings → Bar transparency: a slider with a live sample of the tab bar over a task row. */
+/** Settings → Bar transparency: a slider with a live sample of the tab bar over a few rows of the day. */
 export function transparencyRow(document,current,onChange){
   const wrap=element(document,'div','settings-slider bar-transparency');
   const head=element(document,'div','settings-slider-head');
@@ -59,19 +60,33 @@ export function transparencyRow(document,current,onChange){
   const slider=element(document,'input','fact-slider');
   Object.assign(slider,{id:'bar-transparency',type:'range',min:String(BAR_TRANSPARENCY.min),max:String(BAR_TRANSPARENCY.max),step:String(BAR_TRANSPARENCY.step),value:String(current)});
   slider.setAttribute('aria-valuetext',shown(current));
+  trackFill(slider);
   const sample=element(document,'div','bar-sample');
   sample.setAttribute('aria-hidden','true');
-  for(const [tone,title] of [[0,'Group call: merge sections'],[2,'Past paper 2019, section B']]){
-    const line=element(document,'span','bar-sample-line',title);
+  for(const [tone,title,time] of [[0,'Group call','11:00'],[2,'Past paper','12:00']]){
+    const line=element(document,'span','bar-sample-line');
     line.style.setProperty('--tone',`var(--area-${tone})`);
+    line.append(element(document,'span','bar-sample-time tnum',time),element(document,'span','bar-sample-title',title));
     sample.append(line);
   }
-  sample.append(element(document,'span','bar-sample-bar','Today   Blocks   Projects   Life'));
+  const band=element(document,'span','bar-sample-line bar-sample-band');
+  band.style.setProperty('--tone','var(--area-1)');
+  sample.append(band);
+  const bar=element(document,'span','bar-sample-bar');
+  for(const [glyph,name] of [['today','Today'],['stacks','Blocks'],['folder','Projects'],['spa','Life']]){
+    const tab=element(document,'span','bar-sample-tab');
+    const pill=element(document,'span','bar-sample-pill');
+    pill.append(element(document,'span',name==='Today'?'ms fill':'ms',glyph));
+    tab.append(pill,element(document,'span','',name));
+    bar.append(tab);
+  }
+  sample.append(bar);
   slider.addEventListener('input',()=>{
+    trackFill(slider);
     const applied=onChange(slider.value);
     output.textContent=shown(applied);
     slider.setAttribute('aria-valuetext',shown(applied));
   });
-  wrap.append(head,slider,sample);
+  wrap.append(head,slider,sliderEnds(document,'Solid',`${BAR_TRANSPARENCY.max}%`),sample);
   return wrap;
 }

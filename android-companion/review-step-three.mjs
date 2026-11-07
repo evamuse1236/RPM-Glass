@@ -12,14 +12,13 @@ export function stepThree(api, ctx) {
   const toSort = loose.filter(t => !ui.kept.includes(t.id));
   const kept = loose.filter(t => ui.kept.includes(t.id));
   if (ui.sheet && !loose.some(t => t.id === ui.sheet.taskId)) ui.sheet = null;
-  const parts = heading('Sort the Inbox', 'Give each task the Result it serves, or leave errands in the Inbox.');
+  const parts = heading('Sort the Inbox');
   if (!rows.length) {
     parts.push(emptyState('done_all', 'Nothing to sort', 'Your Inbox is empty, so every task already has a Result.'));
     return parts;
   }
   const jev = ctx.sortInbox && toSort.length ? button('Ask Jev', () => ctx.sortInbox(), 'wr-btn-text', 'auto_awesome') : null;
   parts.push(sectionHead('To sort', toSort.length, jev));
-  if (jev) parts.push(el('p', 'wr-section-note', 'Jev proposes; nothing moves until you confirm.'));
   if (toSort.length) {
     const candidates = focusCandidates(api.data(), api.week, []);
     const list = el('ul', 'wr-list wr-sort-list');
@@ -63,30 +62,28 @@ function keep(api, taskId, on) {
   api.saveProgress();
 }
 
-/** One Inbox task: its words, then one tap: the suggested Result when the words clearly point to one, else Leave in Inbox. */
+/** One Inbox task as one control: its words, the proposed Result (or Leave in Inbox) under them, and a tap that opens the chooser. */
 function sortRow(api, task, suggested) {
   const {ui} = api;
   const name = task.title ?? task.raw;
   const item = el('li', 'wr-sort');
-  item.append(el('span', 'wr-row-title', name));
-  let chip;
-  if (suggested) {
-    chip = button(suggested.title, () => api.run({type: 'groupTasks', ids: [task.id], blockId: suggested.blockId}, 'Added to ' + suggested.title),
-      'wr-chip wr-suggest', 'add');
-    chip.setAttribute('aria-label', `Add "${name}" to ${suggested.title}`);
-  } else {
-    chip = button('Leave in Inbox', () => keep(api, task.id, true), 'wr-chip wr-suggest wr-leave', 'inbox');
-    chip.setAttribute('aria-label', `Leave "${name}" in the Inbox`);
-  }
-  chip.dataset.key = 'suggest:' + task.id;
-  const choose = button('Choose', () => {
+  const row = el('button', 'wr-sort-row' + (suggested ? '' : ' wr-leave'));
+  row.type = 'button';
+  const text = el('span', 'wr-sort-text');
+  const proposal = el('span', 'wr-sort-proposal');
+  proposal.append(icon(suggested ? 'stacks' : 'inbox'), el('span', 'wr-sort-label', suggested ? suggested.title : 'Leave in Inbox'));
+  text.append(el('span', 'wr-row-title', name), proposal);
+  row.append(text, icon('arrow_drop_down'));
+  row.setAttribute('aria-label', `Choose a Result for "${name}"`);
+  row.setAttribute('aria-description', suggested ? 'Suggested: ' + suggested.title : 'Suggested: Leave in Inbox');
+  row.setAttribute('aria-haspopup', 'dialog');
+  row.dataset.key = 'choose:' + task.id;
+  row.addEventListener('click', () => {
     Object.assign(ui, {sheet: {kind: 'add', taskId: task.id}});
     api.render();
     document.querySelector('.wr-sheet .wr-sheet-title')?.focus({preventScroll: true});
-  }, 'wr-btn-text wr-choose');
-  choose.setAttribute('aria-label', `Choose a Result for "${name}"`);
-  choose.dataset.key = 'choose:' + task.id;
-  item.append(choose, chip);
+  });
+  item.append(row);
   return item;
 }
 
@@ -145,8 +142,9 @@ function resultChooser(api, task) {
   const leave = button('Leave in Inbox', () => keep(api, task.id, true), 'wr-option wr-option-action', 'inbox');
   leave.dataset.key = 'sheet:keep';
   list.append(fresh, leave);
-  for (const c of rankResults(api.data(), task, focusCandidates(api.data(), api.week, [])).ranked) {
-    const option = el('button', 'wr-option');
+  const {ranked, suggested} = rankResults(api.data(), task, focusCandidates(api.data(), api.week, []));
+  for (const c of ranked) {
+    const option = el('button', 'wr-option' + (c.blockId === suggested?.blockId ? ' wr-option-suggested' : ''));
     option.type = 'button';
     option.dataset.key = 'sheet:' + c.blockId;
     const text = el('span', 'wr-option-text');
