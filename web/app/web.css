@@ -127,6 +127,7 @@ html:has(dialog:modal) { overflow: clip; }
   .capture-sheet { inline-size: min(100% - 2 * var(--s6), 560px); margin: auto; border-radius: var(--shape-xl); }
   /* Below the top bar (64), the date (to 112) and the day strip (to 204), with clear space: it covers no heading. */
   #capture-sheet { margin-block: calc(var(--s8) * 7 + var(--s2)) auto; border-radius: var(--r-outer); }
+  :root:has(#capture-sheet[open]) .today-sheet { translate: 0 calc(var(--s8) * 3); }
   .planner-view .wr > * { inline-size: min(100%, var(--column)); margin-inline: auto; }
 }
 
@@ -214,6 +215,7 @@ html:has(dialog:modal) { overflow: clip; }
   .capture-sheet::backdrop { background: light-dark(var(--scrim), color-mix(in oklch, var(--scrim), oklch(0 0 none) 35%)); }
   #capture-sheet { inset-inline: calc(var(--side) + var(--s6)) var(--s6); inline-size: auto; max-inline-size: 640px; margin-inline: auto; }
   :root:has(.planner-view > #agenda:not([hidden])) #capture-sheet { inset-inline-end: calc(var(--agenda) + var(--s6)); }
+  :root:has(#capture-sheet[open]) .today-sheet { translate: 0 calc(var(--s8) * 2 + var(--s4)); }
   :root:has(.planner-view > #sheet[data-inline]:not([hidden])) #capture-sheet { inset-inline-end: calc(var(--pane) + var(--s6)); }
   .capture-history li:nth-child(n + 4) { display: none; }
   .side-capture { inline-size: 56px; block-size: 40px; background: var(--surface-container-highest); color: var(--on-surface); }
@@ -258,6 +260,7 @@ html:has(dialog:modal) { overflow: clip; }
 @media (width >= 1080px) and (prefers-reduced-motion: no-preference) {
   .capture-sheet[open] { transition: opacity var(--dur-short4) var(--ease-standard-decelerate), scale var(--dur-short4) var(--ease-standard-decelerate); }
   .capture-sheet[open]::backdrop { transition: opacity var(--dur-short4) var(--ease-standard-decelerate); }
+  .planner-view .today-sheet { transition: translate var(--dur-short4) var(--ease-standard-decelerate); }
   @starting-style {
     .capture-sheet[open] { opacity: 0; scale: .96; }
     .capture-sheet[open]::backdrop { opacity: 0; }

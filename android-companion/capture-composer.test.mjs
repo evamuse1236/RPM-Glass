@@ -60,6 +60,11 @@ test('the composer is one row: the field, then one round button that is the drop
  assert.match(css,/\n\.go>button\{grid-area:1\/1;[^}]*inline-size:48px;block-size:48px/,'both share one 48dp cell, so they cross-fade in place');
 });
 
+test('in a call the handle fades out and keeps its space, so nothing moves at hang-up', () => {
+ assert.match(css,/\n\.bar\[data-voice=on\] \.handle\{opacity:0;visibility:hidden;pointer-events:none\}/);
+ assert.doesNotMatch(css,/data-voice=on\][^{]*\.handle\{[^}]*display:none/);
+});
+
 test('the handle is a labelled 48dp button: a tap opens the planner, a hold or right click opens More', async () => {
  const more=html.match(/<button id="more"[^>]*>.*?<\/button>/)?.[0]??'';
  for(const attr of ['aria-label="Open planner"','aria-description="Hold for more"','aria-haspopup="dialog"','aria-expanded="false"','aria-controls="sheet"'])assert.ok(more.includes(attr),attr);
