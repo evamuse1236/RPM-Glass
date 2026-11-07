@@ -91,13 +91,9 @@
 .sheet-count { margin-inline-start: var(--s2); color: var(--on-surface-variant); }
 .inbox-jev .ms { color: var(--primary); }
 .inbox-jev { padding-inline: var(--s3); }
-/* Each Inbox row files itself with a quiet trailing button, centred on the title's first line. */
-.task-row > .inbox-move { margin-block-start: var(--s1); }
-.inbox-move .ms { font-size: 20px; }
-/* With a mouse, the hover tools (which hold Move) take the button's place, so Move never shows twice. */
-@media (hover: hover) and (pointer: fine) {
-  .task-row:has(> .row-tools):is(:hover, :focus-within) > .inbox-move { display: none; }
-}
+/* The Inbox closes with its ✕ (and still drags by its header), so it has no grab pill. */
+.sheet-inbox > .sheet-handle { display: none; }
+.sheet-inbox > .sheet-header { padding-block-start: var(--s3); }
 /* Tasks that already have a day, time or repeat wait below a quiet Scheduled label. */
 .sheet .section-header.inbox-scheduled { padding: var(--s4) 0 var(--s1); }
 .inbox-scheduled h2 { color: var(--on-surface-variant); }
@@ -264,8 +260,11 @@
 .quick-details .quick-details-open { transition: rotate var(--dur-press) var(--ease-standard); }
 .quick-details.is-open .quick-details-open { rotate: 180deg; }
 .quick-details.on { color: var(--on-surface); }
-/* Opened, the row gives its place to the options it held. */
-.quick-details.is-open { display: none; }
+/* Opened, the row stays above what it holds and names the way back. */
+.quick-details-fewer { display: none; flex: 1; text-align: start; }
+.quick-details.is-open .chip-label { display: none; }
+.quick-details.is-open .quick-details-fewer { display: block; }
+.quick-details.is-open { color: var(--on-surface); }
 .sheet .quick-row.more-chips { flex-wrap: wrap; }
 /* Details and Purpose are plain outlined fields: the words a person types are the content, so no icon row leads them. */
 .quick-field {
@@ -282,6 +281,10 @@
   overflow: hidden;
   field-sizing: content;
 }
+.quick-purpose { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--s2) 0; font: var(--body-medium);
+  color: var(--on-surface-variant); }
+.quick-purpose[hidden] { display: none; }
+.quick-purpose .ms { font-size: 20px; }
 .quick-field::placeholder { color: var(--on-surface-variant); }
 .quick-field:focus-visible { outline: none; border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
 .quick-details:active { background: var(--row-press); }
@@ -305,6 +308,8 @@
 .block-chips .chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* One Block chip holds the choice. A guess from the words shows a primary sparkle; the drop arrow says a tap opens the list. */
 .block-chip.suggested .block-mark { color: var(--primary); }
+/* A Block Jev suggested stays outlined until the person picks it, so it never reads as their own choice. */
+.sheet .block-chip.suggested { background: transparent; border-color: var(--outline); color: var(--on-surface); }
 .block-chip .chip-drop { margin-inline-start: calc(-1 * var(--s1)); }
 :root[data-large-text=true] .sheet .quick-row:is(.quick-days, .block-chips) { flex-wrap: wrap; }
 :root[data-large-text=true] .block-chips > .assist-chip { max-width: 80%; }

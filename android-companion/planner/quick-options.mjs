@@ -20,7 +20,7 @@ function quickField(host, placeholder, name, value, keep) {
  * More options: one row under the chips. Opened, it gives way to what it held: Estimate, Repeat and Must as chips
  * that carry on the chips above, then the details and the Purpose as plain fields.
  */
-export function quickOptions(s, {body, group, target, changed, remember}) {
+export function quickOptions(s, {body, group, target, purposeOf, changed, remember}) {
   const options = foldGroup(body);
   const durationChip = button('', null, 'assist-chip');
   durationChip.append(icon('timer'), el('span', 'chip-label'));
@@ -44,6 +44,8 @@ export function quickOptions(s, {body, group, target, changed, remember}) {
   }));
   const moreRow = button('', null, 'quick-details');
   moreRow.append(icon('tune'), el('span', 'chip-label', 'More options'), icon('expand_more', {cls: 'quick-details-open'}));
+  // Opened, the row stays as the way back.
+  moreRow.querySelector('.quick-details-open').before(el('span', 'quick-details-fewer', 'Fewer options'));
   const moreFold = foldFor(group, moreRow, inner => {
     inner.append(moreChips, durationFold.node, repeatFold.node);
     const alertRow = el('div', 'alert-choices');
@@ -51,11 +53,18 @@ export function quickOptions(s, {body, group, target, changed, remember}) {
     inner.append(alertRow);
     const notes = quickField(inner, 'Details', 'Details', s.notes, value => { s.notes = value; remember(); });
     const why = quickField(inner, 'Purpose: why it matters', 'Purpose', s.why, value => { s.why = value; remember(); });
+    // A task in a Block takes the Block's Purpose, shown read-only where the field would be.
+    const blockWhy = el('p', 'quick-purpose');
+    blockWhy.append(icon('flag'), el('span'));
+    inner.append(blockWhy);
     const refresh = () => {
       syncText(notes, s.notes);
       syncText(why, s.why);
-      // A task in a Block takes the Block's Purpose.
+      const inherited = target() ? purposeOf(target()) : '';
       why.hidden = !!target();
+      blockWhy.hidden = !inherited;
+      blockWhy.lastChild.textContent = inherited || '';
+      blockWhy.setAttribute('aria-label', inherited ? 'Purpose, from the Block: ' + inherited : '');
       alertRow.hidden = !s.time;
       markChips(alertRow, s.alert);
     };

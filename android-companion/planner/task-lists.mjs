@@ -1,11 +1,17 @@
-import {tasks, blockTasks, inboxRows} from '../planner-state.mjs';
-import {el, icon, button, iconButton, labelButton, sectionHeader, emptyState} from './dom.mjs';
+import {tasks, blockTasks, inboxRows, localDay} from '../planner-state.mjs';
+import {el, icon, button, labelButton, sectionHeader, emptyState} from './dom.mjs';
 import {repeats} from '../planner-recurrence.mjs';
 import {duration} from './format.mjs';
 import {animateRerender, reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
 import {openSheet, isSheetOpen} from './sheet.mjs';
 import {taskRow} from './task-row.mjs';
 import {taskEditor} from './quick-add.mjs';
+import {INBOX_LEFT} from './row-gestures.mjs';
+import {peekSwipe} from '../task-swipe.mjs';
+
+const PEEKED = 'rpm.inbox.peeked';
+const peeked = () => { try { return localStorage.getItem(PEEKED) === '1'; } catch { return true; } };
+const notePeeked = () => { try { localStorage.setItem(PEEKED, '1'); } catch {} };
 
 export function showTrash(app, archive = false) {
   const {body} = openSheet(app, archive ? 'Archive' : 'Trash');
@@ -40,9 +46,9 @@ export function inboxShowing(app) {
 
 /** Inbox: open tasks that are not in a Block yet. Rows swipe as everywhere; a save updates the rows in place. */
 export function showInbox(app, {motion = 'forward'} = {}) {
-  const {body, actions, header} = openSheet(app, 'Inbox', {motion});
+  const {body, actions, header, sheet} = openSheet(app, 'Inbox', {motion});
+  sheet.classList.add('sheet-inbox');
   app.sheet.inboxBody = body;
-  // The title counts what is left to sort; Sort with Jev is a quiet text button beside Close.
   const count = el('span', 'sheet-count');
   header.querySelector('h2').append(count);
   const jev = labelButton('auto_awesome', 'Sort with Jev', () => app.actions.jevSort(), 'text-btn inbox-jev');
@@ -60,32 +66,40 @@ export function showInbox(app, {motion = 'forward'} = {}) {
     }
     const back = app.sheet.returned;
     // What still needs a decision comes first; tasks that already have a day, time or repeat wait under Scheduled.
+    // Today's are said once, in their header, so their rows drop the word.
     const scheduled = task => !!(task.planned || task.plannedDate || repeats(task));
+    const dueToday = task => (task.planned ? localDay(new Date(task.planned)) : task.plannedDate) === localDay();
     const open = rows.filter(task => !scheduled(task));
-    const later = rows.filter(scheduled);
-    const add = task => {
-      const row = taskRow(app, task, {inbox: true, days: scheduled(task)});
-      // Each row files itself: the trailing button opens the same Block list as the left swipe.
-      row.append(iconButton('drive_file_move', `Move ${task.title} to a Block`,
-        () => app.actions.movePicker(task), {cls: 'inbox-move'}));
+    const today = rows.filter(task => scheduled(task) && dueToday(task));
+    const later = rows.filter(task => scheduled(task) && !dueToday(task));
+    const add = (task, days) => {
+      const row = taskRow(app, task, {inbox: true, days});
       // A redraw while the returned highlight is still fading carries it on (from where it was).
       if (back?.id === task.id && host !== body) markReturned(row, back.elapsed());
       host.append(row);
     };
-    open.forEach(add);
-    if (later.length) {
-      const head = sectionHeader('Scheduled');
+    const section = (title, key, list, days) => {
+      if (!list.length) return;
+      const head = sectionHeader(title);
       head.classList.add('inbox-scheduled');
-      head.dataset.key = 'inbox-scheduled';
+      head.dataset.key = key;
       host.append(head);
-      later.forEach(add);
-    }
+      list.forEach(task => add(task, days));
+    };
+    open.forEach(task => add(task, false));
+    section('Scheduled today', 'inbox-scheduled-today', today, false);
+    section(today.length ? 'Scheduled later' : 'Scheduled', 'inbox-scheduled', later, true);
     return host;
   };
   draw(body);
-  // The same footer as quick add: Capture on the leading edge, the one add action on the trailing edge.
+  // Filing is the left swipe; the first row shows it once, then never again.
+  const first = body.querySelector('.task-row');
+  if (first && !peeked()) {
+    notePeeked();
+    requestAnimationFrame(() => { if (first.isConnected) peekSwipe(first, INBOX_LEFT, 'left', 168, 900); });
+  }
   actions.append(labelButton('mic', 'Capture', () => app.capture(), 'text-btn'), el('span', 'spacer'),
-    labelButton('add', 'Add task', () => taskEditor(app, null), 'tonal-btn'));
+    labelButton('add', 'Add task', () => taskEditor(app, null), 'text-btn'));
   app.sheet.live = () => body.isConnected && isSheetOpen(app);
   app.sheet.sync = () => {
     if (!inboxShowing(app) || app.sheet.inboxBody !== body) return false;

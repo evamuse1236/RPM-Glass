@@ -54,7 +54,7 @@ function quickAdd(app, overrides = {}) {
   const name = el('textarea', 'quick-input');
   name.rows = 1;
   name.maxLength = 200;
-  name.placeholder = 'New task';
+  name.placeholder = 'What needs doing?';
   name.enterKeyHint = 'done';
   name.value = draft.Task ?? '';
   name.setAttribute('aria-label', 'Task');
@@ -195,7 +195,8 @@ function quickAdd(app, overrides = {}) {
     blockChip.setAttribute('aria-label', `Block: ${chosen?.title ?? 'Inbox'}${guess ? ', suggested' : ''}${read ? `, read from “${tag.match}”` : ''}. Choose a Block`);
   };
 
-  const more = quickOptions(s, {body, group, target, changed: () => changed(), remember: () => remember()});
+  const more = quickOptions(s, {body, group, target, changed: () => changed(), remember: () => remember(),
+    purposeOf: id => app.activeBlocks().find(block => block.id === id)?.purpose?.trim() ?? ''});
 
   // "#" and part of a Block's name offers the matching Blocks as chips; choosing one takes the "#word" out of the
   // title. Not choosing leaves the words as typed.

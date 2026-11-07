@@ -1,6 +1,10 @@
 @media (width >= 1080px) {
   #sheet[data-inline] .sheet-header:has(> h2:not(.visually-hidden)) { min-block-size: 64px; }
   #sheet[data-inline][aria-label=Inbox] .sheet-actions { display: none; }
+  #sheet[data-inline].sheet-inbox > .sheet-header { padding-block-start: 0; }
+  #sheet[data-inline].sheet-inbox .task-row { min-block-size: 48px; }
+  #sheet[data-inline].sheet-inbox .task-main { padding-block: var(--s3); }
+  #sheet[data-inline].sheet-inbox .task-check { margin-block-start: var(--s1); }
   #sheet[data-inline].sheet-quick .sheet-header { display: flex; }
   #sheet[data-inline].sheet-quick .sheet-body { flex: 0 1 auto; padding-block-start: 0; }
   #sheet[data-inline] .quick-row.block-chips { flex-wrap: wrap; row-gap: var(--s2); }
