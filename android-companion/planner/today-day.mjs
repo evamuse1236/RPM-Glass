@@ -7,7 +7,7 @@ import {buildSpine} from '../spine-model.mjs';
 import {routineOn, routineState, doneAll, usualMeals} from '../body-state.mjs';
 import {localDay, blockDue, timelineItems} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
-import {spineList, spineRow, focusCard, focusRow, foldToggle} from './spine-view.mjs';
+import {spineList, spineRow, focusCard, focusRow, foldToggle, anytimeRows, focusOf} from './spine-view.mjs';
 import {el, icon, button, emptyState} from './dom.mjs';
 import {dueInfo} from './format.mjs';
 import {notice} from './snackbar.mjs';
@@ -23,7 +23,7 @@ import {openResults} from './today-model.mjs';
 import {dueDay} from './today-header.mjs';
 
 const OPEN_OFFSET = 160;
-const state = {model: null, app: null, observer: null, timer: null, open: {missed: false, earlier: false}};
+const state = {model: null, app: null, observer: null, timer: null, open: {earlier: false}};
 
 function dayTask(app, task, done) {
   const at = task.start ?? (task.planned ? Date.parse(task.occurrence ?? task.planned) : null);
@@ -118,7 +118,7 @@ function handlers(app) {
     holdHabit: (node, id, sides) => holdToEdit(app, node, id, sides),
     logMealNow: row => logMealNow(app, body, row),
     plan: row => app.actions.addTask({planned: new Date(row.plan).toISOString(), plannedDate: app.state.day}),
-    toggleFold: group => toggleFold(app, group),
+    toggleFold: () => toggleFold(app),
   };
 }
 
@@ -139,18 +139,18 @@ function chips(app, allDay) {
   return row;
 }
 
-/** "N missed" and Earlier open and fold in place: their rows are already drawn, only hidden. */
-function toggleFold(app, group) {
-  state.open[group] = !state.open[group];
+/** Earlier opens and folds in place: its rows are already drawn, only hidden. */
+function toggleFold(app) {
+  const open = state.open.earlier = !state.open.earlier;
   const list = app.dom.work.querySelector('.spine');
   if (!list) return;
-  const rows = state.model.rows.filter(r => r.fold === group);
+  const rows = state.model.rows.filter(r => r.fold);
   for (const row of rows) {
     const node = list.querySelector(`:scope > [data-key="${CSS.escape(row.key)}"]`);
-    if (node) node.hidden = !state.open[group];
+    if (node) node.hidden = !open;
   }
-  const old = list.querySelector(`:scope > [data-key="${group}"]`);
-  const fresh = foldToggle(group, rows, state.open[group], handlers(app));
+  const old = list.querySelector(':scope > [data-key="earlier"]');
+  const fresh = foldToggle(rows, open, handlers(app));
   fresh.setAttribute('role', 'listitem');
   old?.replaceWith(fresh);
   fresh.querySelector('button').focus();
@@ -216,7 +216,7 @@ function tick() {
   state.model = next;
   const on = handlers(app);
   const scope = app.dom.work;
-  for (const row of [...next.rows, ...next.anytime.map((t, i) => ({...t, anytime: true, first: i === 0}))]) {
+  for (const row of [...next.rows.filter(r => !r.focus), ...anytimeRows(next), focusOf(next)].filter(Boolean)) {
     const old = scope.querySelector(`:is(.spine, .spine-focus) > [data-key="${CSS.escape(row.key)}"]`);
     if (!old) continue;
     const fresh = row.focus ? focusRow(row, on, next.now) : spineRow(row, on);

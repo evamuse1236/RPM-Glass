@@ -115,8 +115,7 @@
 .spine-meta { font: var(--footnote); color: var(--on-surface-variant); white-space: nowrap; overflow: clip; text-overflow: ellipsis; }
 .when-soon, .when-now { color: var(--primary); font-weight: 600; }
 .when-late { color: var(--on-surface-variant); }
-.line-due { display: inline-flex; align-items: center; gap: var(--s1); }
-.spine-due { font-size: 16px; color: var(--on-surface-variant); }
+.spine-due { margin-inline-end: var(--s1); font-size: 16px; vertical-align: -3px; color: var(--on-surface-variant); }
 .spine-overdue .spine-due, .spine-row.overdue .spine-due { color: var(--error); }
 /* A clash is a small inline marker under the title, not a pill; its 48dp hit area still opens Resolve. */
 .spine-resolve {
@@ -166,7 +165,7 @@
 /* The Now card: the item in progress, else the next one, in a quiet tonal group above the timeline. Its rows are
    the timeline's rows without the rail or the length bar, so a row reads the same in both places. */
 .spine-focus {
-  --spine-gutter: calc(72px * var(--text-scale, 1));
+  --spine-gutter: calc(64px * var(--text-scale, 1) - var(--s2));
   display: flex;
   flex-direction: column;
   margin: var(--s1) var(--inset-page) var(--s3) var(--s2);
@@ -177,8 +176,8 @@
 }
 .spine-focus .spine-pill { display: none; }
 .spine-focus .spine-row { min-block-size: 56px; }
-/* In the card the time is a plain label set in from the card's edge; blue belongs to the Now line alone. */
-.spine-focus .spine-gutter { padding-inline-start: var(--s3); }
+/* The card starts 8dp in, and its gutter is 8dp narrower, so its time ends on the timeline's time keyline and its
+   marker sits on the rail's line. Blue belongs to the Now line alone. */
 .spine-focus .spine-row.current .spine-gutter { color: var(--on-surface-variant); }
 .spine-progress {
   grid-column: 2;
@@ -198,7 +197,8 @@
   background: var(--primary);
 }
 
-/* The past folded into rows on the rail: "N missed" (an amber ring, still needs a choice) over "Earlier" (a check). */
+/* The past folded into one row on the rail: "Earlier · 1 done · 1 missed", an amber ring while anything was missed
+   (it still needs a choice), else a check. */
 .spine-fold-open {
   grid-column: 2;
   display: grid;

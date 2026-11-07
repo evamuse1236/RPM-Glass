@@ -149,13 +149,15 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
   if (live) rows.push({kind: 'now', key: 'now', start: now, end: now, time: gutterTime(now), label: clockText(now)});
   rows.sort((a, b) => a.start - b.start || RANK[a.kind] - RANK[b.kind] || a.end - b.end);
   fitOverlaps(rows);
+  const anytime = anytimeTasks(tasks.filter(t => t.start == null));
   if (live) {
-    const focus = focusRow(blocks, next);
-    if (focus) focus.focus = 1;
-    for (const row of rows) row.fold = row.focus ? false : foldOf(row);
+    for (const row of rows) row.fold = foldOf(row);
+    const focus = focusRow(blocks, next) ?? anytime.find(t => !t.done && t.must) ?? anytime.find(t => !t.done)
+      ?? rows.find(r => r.fold === 'missed' && r.kind === 'task' && r.must);
+    if (focus) Object.assign(focus, {focus: 1, fold: false});
+    if (focus?.event) untilFor(rows, focus.event);
   }
 
-  const anytime = anytimeTasks(tasks.filter(t => t.start == null));
   return {
     rows,
     anytime,
@@ -163,32 +165,43 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
     nowKey: live ? 'now' : null,
     empty: !tasks.length && !events.length,
     shape: [...rows.map(r => `${r.key}:${r.past ? 1 : 0}${r.current ? 1 : 0}${r.next ? 1 : 0}${r.late ? 1 : 0}${r.focus ? 'f' : ''}${r.fold ? r.fold[0] : ''}${r.line?.kind ?? ''}`),
-      ...anytime.map(t => `${t.key}:${t.done ? 1 : 0}`)].join('|'),
+      ...anytime.map(t => `${t.key}:${t.done ? 1 : 0}${t.focus ? 'f' : ''}`)].join('|'),
   };
 }
 
-/** The Now card holds one item: the one in progress, else the next. A missed item is never "now". */
+/**
+ * The Now card holds one item: the one in progress, else the next timed one. With nothing timed ahead (the evening) it
+ * holds the first open Any-time Must, else the first open Any-time task, else a missed Must, so the day always says
+ * what to do next.
+ */
 function focusRow(blocks, next) {
   return blocks.filter(r => r.current && !r.done).sort((a, b) => a.start - b.start)[0] ?? next ?? null;
 }
 
+/** A clash with the event the Now card shows names it once, there; the row under it says only when the clash ends. */
+function untilFor(rows, event) {
+  for (const row of rows) {
+    if (row.line?.kind === 'clash' && row.line.with === event) row.line = {...row.line, text: `Clash · until ${gutterTime(event.end)}`};
+  }
+}
+
 /**
- * The past folds into two rows. "N missed": open tasks past their end and overdue deadlines, which still need a choice.
- * "Earlier": what needs nothing more (done or logged rows, events, free time, Routines and meals that passed).
+ * The past folds into one row, "Earlier": what needs nothing more (done or logged rows, events, free time, Routines and
+ * meals that passed) and what was missed (open tasks past their end and overdue deadlines, `fold` 'missed').
  */
 const foldOf = row => {
   if (row.late || (row.overdue && row.kind === 'deadline')) return 'missed';
   return row.past && row.kind !== 'now' ? 'earlier' : false;
 };
 
-/** "2 missed", or "1 missed · Call bank" when one item says it all. */
-export const missedLabel = rows => (rows.length === 1 ? `1 missed · ${rows[0].title}` : `${rows.length} missed`);
-
-/** "Earlier · 2 done": the folded past and how much of it was done. */
+/** "Earlier · 2 done · 3 missed": the folded past, how much of it was done and how much was missed. */
 export const earlierLabel = rows => {
-  const done = rows.filter(r => r.done).length;
-  return done ? `Earlier · ${done} done` : 'Earlier';
+  const done = rows.filter(r => r.done).length, missed = rows.filter(r => r.fold === 'missed').length;
+  return ['Earlier', done && `${done} done`, missed && `${missed} missed`].filter(Boolean).join(' · ');
 };
+
+/** How many of the missed rows are Musts: the fold stars them, so the most important misses still show. */
+export const missedMusts = rows => rows.filter(r => r.fold === 'missed' && r.must).length;
 
 /**
  * A deadline at the very time an open task of its Result starts is said once, on the task: its Result line takes the

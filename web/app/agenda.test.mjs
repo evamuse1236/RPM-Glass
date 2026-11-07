@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {freshStore} from '../../chat-prototype/companion-state.mjs';
 import {editPlan} from '../../android-companion/planner-state.mjs';
-import {agendaModel, weekModel} from './agenda.mjs';
+import {comingUp} from './agenda.mjs';
 
 const SATURDAY_10_AM_KOLKATA = new Date('2026-10-03T10:00:00+05:30');
 const block = (d, fields) => editPlan(d, {type: 'saveEntity', collection: 'blocks', fields});
@@ -21,49 +21,59 @@ function seed() {
   return {d, review};
 }
 
-test('Next lists each open Result with a due date once, soonest first: when, what, tasks left and the next one not on Today', () => {
+test('Coming up groups by day after the shown day: each Result once with its Musts under it, empty days skipped', () => {
   const {d, review} = seed();
   const later = block(d, {title: 'Workbook uploaded', purpose: 'Done early'});
-  task(d, {title: 'Upload the workbook', blockId: later, plannedDate: '2026-10-08'});
+  task(d, {title: 'Upload the workbook', blockId: later, plannedDate: '2026-10-08', must: true});
   block(d, {title: 'No date yet', purpose: 'Someday'});
-  const items = agendaModel(d, SATURDAY_10_AM_KOLKATA);
-  assert.deepEqual(items.filter(item => item.kind === 'result').map(item => item.id), [review, later]);
-  const [first] = items;
-  assert.equal(first.left, 3);
-  assert.equal(first.next, 'Submit', 'Draft and Read are on Today already, so Submit is the next one named');
-  assert.match(first.due.label, /^Due tomorrow/);
-});
-
-test('a Must in the next six days sits under its day in This week; a later one joins Next; a Must due today stays on the timeline only', () => {
-  const {d} = seed();
   task(d, {title: 'Pay the fees', plannedDate: '2026-10-06', must: true});
   task(d, {title: 'Book the hall', planned: '2026-10-06T03:30:00.000Z', must: true});
-  task(d, {title: 'Renew the visa', plannedDate: '2026-10-20', must: true});
   task(d, {title: 'Today Must', plannedDate: '2026-10-03', must: true});
   task(d, {title: 'Plain later', plannedDate: '2026-10-06'});
-  const titles = agendaModel(d, SATURDAY_10_AM_KOLKATA).map(item => item.title);
-  assert.deepEqual(titles, ['Critical review submitted', 'Renew the visa']);
-  const week = weekModel(d, SATURDAY_10_AM_KOLKATA);
-  assert.deepEqual(week.map(day => day.day), ['2026-10-04', '2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09']);
-  assert.deepEqual(week[2].items.map(item => item.title), ['Book the hall', 'Pay the fees'], 'timed first, then untimed');
-  assert.ok(week[2].items[0].time, 'a timed Must shows its time');
-  assert.equal(week.flatMap(day => day.items).length, 2, 'Today Must and plain tasks stay out of the week');
-  const list = agendaModel(d, SATURDAY_10_AM_KOLKATA).map(item => item.id);
-  assert.equal(new Set(list).size, list.length);
+  const groups = comingUp(d, SATURDAY_10_AM_KOLKATA);
+  assert.deepEqual(groups.map(g => g.day), ['2026-10-04', '2026-10-06', '2026-10-08'], 'today (shown) and empty days are left out');
+  const [sunday, tuesday, thursday] = groups;
+  assert.deepEqual(sunday.items.map(i => [i.kind, i.id]), [['result', review]]);
+  assert.equal(sunday.items[0].left, 3);
+  assert.ok(sunday.items[0].when, 'a timed deadline says its time once');
+  assert.deepEqual(sunday.items[0].musts, [], 'Draft and Read are on the shown day, so the centre holds them');
+  assert.deepEqual(tuesday.items.map(i => i.title), ['Book the hall', 'Pay the fees'], 'timed first, then untimed');
+  assert.deepEqual(thursday.items.map(i => i.title), ['Workbook uploaded']);
+  assert.deepEqual(thursday.items[0].musts.map(m => m.title), ['Upload the workbook'], 'its Must sits under it, not again on its own');
+  assert.equal(thursday.items[0].musts[0].when, '', 'a Must at the deadline does not say the deadline again');
+  const ids = groups.flatMap(g => g.items.flatMap(i => [i.id, ...(i.musts ?? []).map(m => m.id)]));
+  assert.equal(new Set(ids).size, ids.length, 'each item once');
 });
 
-test('the side panel holds Next then This week, no Inbox; amber marks only an overdue deadline; Musts carry a star', () => {
+test('the shown day moves with the centre: Coming up leaves out whichever day it shows', () => {
+  const {d} = seed();
+  task(d, {title: 'Pay the fees', plannedDate: '2026-10-06', must: true});
+  task(d, {title: 'Today Must', plannedDate: '2026-10-03', must: true});
+  const days = comingUp(d, SATURDAY_10_AM_KOLKATA, '2026-10-06').map(g => g.day);
+  assert.ok(!days.includes('2026-10-06'));
+  assert.ok(days.includes('2026-10-03'), 'today shows when another day is in the centre');
+});
+
+test('an overdue Result heads the list as Overdue; only it reads in the Must amber', () => {
+  const d = freshStore();
+  const late = block(d, {title: 'Form sent', purpose: 'Calm'});
+  task(d, {title: 'Send', blockId: late, plannedDate: '2026-10-01'});
+  const [first] = comingUp(d, SATURDAY_10_AM_KOLKATA);
+  assert.equal(first.day, 'overdue');
+  assert.deepEqual(first.items.map(i => i.title), ['Form sent']);
+});
+
+test('the side panel is one Coming up list, no Inbox, no "No Musts" rows; amber marks only what is overdue', () => {
   const source = readFileSync(new URL('./agenda.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /Inbox'|inboxRows/);
-  assert.match(source, /el\('h2', 'next-head', 'Next'\)[\s\S]*el\('h2', 'next-head', 'This week'\)/);
-  assert.match(source, /item\.due\.overdue \? ' overdue'/);
-  assert.match(source, /if \(item\.nextMust\) next\.prepend\(star/);
+  assert.doesNotMatch(source, /No Musts|'This week'|'Next'/);
+  assert.match(source, /el\('h2', 'soon-head', 'Coming up'\)/);
   const css = readFileSync(new URL('./web.css', import.meta.url), 'utf8');
-  assert.match(css, /\.next-when\.overdue \{ color: var\(--must\); \}/);
-  assert.doesNotMatch(css, /\.next-when\.soon/);
-  const next = css.slice(css.indexOf('/* Next: the deadlines ahead'), css.indexOf('@media (width >= 1080px)'));
-  assert.doesNotMatch(next, /\.next-item \{[^}]*border-radius/, 'a rounded row would bend its divider');
-  assert.doesNotMatch(next, /\.agenda-next \{[^}]*border-inline-start/, 'no side rule that stops short of the column');
+  assert.match(css, /\.soon-name\.overdue, \.soon-time\.overdue \{ color: var\(--must\); \}/);
+  const soon = css.slice(css.indexOf('/* Coming up:'), css.indexOf('@media (width >= 1080px)'));
+  assert.doesNotMatch(soon, /\.soon-(result|must|day) \{[^}]*border-radius/, 'a rounded row would bend its divider');
+  assert.doesNotMatch(soon, /border-inline-start/, 'no side rule that stops short of the column');
+  assert.match(soon, /\.soon-what \{[^}]*text-overflow: ellipsis/, 'a long title ends in an ellipsis');
 });
 
 test('the panel shows only on a wide window on Today', () => {

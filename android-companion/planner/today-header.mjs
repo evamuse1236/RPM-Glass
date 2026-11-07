@@ -9,7 +9,7 @@ import {clock, longDate, plural, dateText, DATE_LOCALE} from './format.mjs';
 import {openSheet} from './sheet.mjs';
 import {taskWhen, taskRow} from './task-row.mjs';
 import {phrase, sep} from './today-row.mjs';
-import {openResults, clashes} from './today-model.mjs';
+import {openResults} from './today-model.mjs';
 
 const SELECTED = '.week-strip .week-day[aria-pressed=true] .week-number';
 const dayGap = (from, to) => Math.round((Date.parse(to + 'T12:00') - Date.parse(from + 'T12:00')) / 864e5);
@@ -39,15 +39,15 @@ export function selectDay(app, day, direction = '') {
 export const dueDay = (data, block) => blockDue(data, block.id)?.value?.slice(0, 10);
 
 /**
- * Seven days running forward from today, as far ahead as Dara plans; swiping steps a week. A day with tasks, a Result's
- * deadline or a clash shows one quiet dot (its label names what is there). Today's number sits in a filled circle.
- * Tapping a day opens it, and its deadlines and clash are listed at the top.
+ * Seven days running forward from today, as far ahead as Dara plans; swiping steps a week. A day that holds a Must or a
+ * Result's deadline shows one small neutral dot (its label names what is there); a clash shows in the day itself.
+ * Today's number sits in a filled circle. Tapping a day opens it.
  */
-/** One quiet mark per day, the loudest that applies: a calendar clash, then a Result due, then any tasks. */
-export const dayMark = ({clash, due, tasks}) => (clash ? 'clash' : due ? 'due' : tasks ? 'tasks' : null);
+/** One mark of one meaning: the day holds a Must or a Result's deadline. */
+export const dayMark = ({due, musts}) => (due || musts ? 'key' : null);
 
 function weekStrip(app) {
-  const {day, calendar} = app.state;
+  const {day} = app.state;
   const strip = el('div', 'week-strip');
   strip.setAttribute('role', 'group');
   strip.setAttribute('aria-label', 'Next seven days');
@@ -59,9 +59,6 @@ function weekStrip(app) {
     const value = dueDay(data, block);
     if (value) dues.set(value, (dues.get(value) ?? 0) + 1);
   }
-  const from = new Date(Math.max(Date.now(), +new Date(first + 'T00:00')));
-  const clashDays = new Set(clashes(data, calendar ?? [], from, new Date(shiftDay(first, 7) + 'T00:00'))
-    .map(({items}) => localDay(items[1].start)));
   for (let i = 0; i < 7; i++) {
     const key = shiftDay(first, i);
     const date = new Date(key + 'T12:00');
@@ -69,13 +66,12 @@ function weekStrip(app) {
     cell.dataset.day = key;
     cell.classList.toggle('is-today', key === today);
     cell.classList.toggle('is-past', key < today);
-    const due = dues.get(key) ?? 0, clash = clashDays.has(key);
+    const due = dues.get(key) ?? 0, musts = dayTasks(data, key).active.filter(task => task.must).length;
     cell.setAttribute('aria-label', dateText(date) + (key === today ? ', today' : '')
-      + (due ? `, ${plural(due, 'Result')} due` : '') + (clash ? ', calendar clash' : ''));
+      + (due ? `, ${plural(due, 'Result')} due` : '') + (musts ? `, ${plural(musts, 'Must')}` : ''));
     cell.setAttribute('aria-pressed', String(key === day));
     const marks = el('span', 'day-marks');
-    const {active, completed} = dayTasks(data, key);
-    const mark = dayMark({clash, due, tasks: active.length + completed.length});
+    const mark = dayMark({due, musts});
     if (mark) {
       const dot = el('span', 'day-dot');
       dot.dataset.mark = mark;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {soonText, buildSpine, cardHeight, gapHeight, earlierLabel, missedLabel, FREE_MINUTES} from './spine-model.mjs';
+import {soonText, buildSpine, cardHeight, gapHeight, earlierLabel, missedMusts, FREE_MINUTES} from './spine-model.mjs';
 import {mealSlots, spanText, gutterTime} from './day-parts.mjs';
 
 const DAY = '2026-10-19';
@@ -115,8 +115,26 @@ test('the past folds in two: open tasks past their end and overdue deadlines und
   assert.ok(model.rows.every(r => !/ago/.test(r.when?.text ?? '')));
   assert.equal(earlierLabel(model.rows.filter(r => r.fold === 'earlier')), 'Earlier · 1 done');
   assert.equal(earlierLabel([]), 'Earlier');
-  assert.equal(missedLabel(model.rows.filter(r => r.fold === 'missed')), '3 missed');
-  assert.equal(missedLabel([row('task:Call bank')]), '1 missed · Call bank');
+  const folded = model.rows.filter(r => r.fold);
+  assert.equal(earlierLabel(folded), 'Earlier · 1 done · 3 missed', 'one row names both');
+  assert.equal(missedMusts(folded), 1);
+});
+
+test('with nothing timed live or next, the focus falls to an open Any-time Must, then an Any-time task, then a missed Must', () => {
+  const late = at('23:50');
+  const must = spine({now: late, tasks: [task('Loose', null, 0), task('Key', null, 0, {must: true})]});
+  assert.deepEqual(must.rows.filter(r => r.focus).map(r => r.key).concat(must.anytime.filter(t => t.focus).map(t => t.key)), ['task:Key']);
+  const missed = spine({now: late, tasks: [task('Draft', '09:00', 30, {must: true})]});
+  const draft = missed.rows.find(r => r.key === 'task:Draft');
+  assert.equal(draft.focus, 1);
+  assert.equal(draft.fold, false, 'the focus is never folded away');
+});
+
+test('a clash with the event the Now card shows names only when it ends', () => {
+  const model = spine({now: at('09:00'), tasks: [task('Call', '12:00', 15)], events: [event('Session', '11:30', '13:30')]});
+  const call = model.rows.find(r => r.key === 'task:Call');
+  assert.match(call.line.text, /^Clash · until 1:30\sPM$/);
+  assert.equal(call.line.with.title, 'Session');
 });
 
 test('free time stays inside the waking day, however early or late the items are', () => {
