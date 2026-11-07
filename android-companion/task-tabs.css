@@ -76,8 +76,8 @@
 .tab-panel[hidden] { display: none; }
 .tab-panel > .field-error, .tab-panel > .field-alert { margin: 0; }
 
-.task-tabs .chip-row[aria-label=Length] { flex-wrap: nowrap; gap: 0; }
-.task-tabs .chip-row[aria-label=Length] > .chip {
+.task-tabs .chip-row.segmented { flex-wrap: nowrap; gap: 0; }
+.task-tabs .chip-row.segmented > .chip {
   flex: 1 1 auto;
   justify-content: center;
   min-inline-size: 0;
@@ -85,10 +85,10 @@
   border-radius: 0;
   font: var(--label-medium);
 }
-.task-tabs .chip-row[aria-label=Length] > .chip + .chip { border-inline-start-width: 0; }
-.task-tabs .chip-row[aria-label=Length] > .chip:first-child { border-start-start-radius: var(--r-control); border-end-start-radius: var(--r-control); }
-.task-tabs .chip-row[aria-label=Length] > .chip:last-child { border-start-end-radius: var(--r-control); border-end-end-radius: var(--r-control); }
-.task-tabs .chip-row[aria-label=Length] .chip-check { display: none; }
+.task-tabs .chip-row.segmented > .chip + .chip { border-inline-start-width: 0; }
+.task-tabs .chip-row.segmented > .chip:first-child { border-start-start-radius: var(--r-control); border-end-start-radius: var(--r-control); }
+.task-tabs .chip-row.segmented > .chip:last-child { border-start-end-radius: var(--r-control); border-end-end-radius: var(--r-control); }
+.task-tabs .chip-row.segmented .chip-check { display: none; }
 .task-tabs .chip-row[aria-label='More choices'] { gap: 0; }
 .task-tabs .chip-row[aria-label='More choices'] > .chip { border-color: transparent; background: none; color: var(--on-surface-variant); padding-inline: var(--s2); }
 
@@ -126,6 +126,7 @@
   border-radius: var(--shape-lg);
   background: var(--sheet-card);
   touch-action: pan-x;
+  mask-image: linear-gradient(to right, transparent, black var(--s8), black calc(100% - var(--s8)), transparent);
 }
 .ruler-track::-webkit-scrollbar { display: none; }
 .ruler-track:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
@@ -152,7 +153,7 @@
   color: var(--on-surface-variant);
   white-space: nowrap;
 }
-.ruler-busy { position: absolute; inset-block-end: 20px; block-size: 4px; border-radius: var(--shape-full); background: color-mix(in oklch, var(--on-surface-variant) 56%, transparent); }
+.ruler-busy { position: absolute; inset-block: var(--s2); border-radius: var(--shape-sm); background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
 .ruler-length {
   position: absolute;
   inset-block-end: 8px;
@@ -173,17 +174,6 @@
   border-radius: 2px;
   background: var(--primary);
   pointer-events: none;
-}
-.ruler-centre::before {
-  content: "";
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline-start: 50%;
-  translate: -50% -50%;
-  inline-size: 8px;
-  block-size: 8px;
-  border-radius: var(--shape-full);
-  background: var(--primary);
 }
 
 .alert-kinds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s1); padding: var(--s1); border-radius: var(--shape-full); background: var(--sheet-card); }
@@ -239,6 +229,8 @@
 }
 .block-choice .ring { inline-size: 32px; block-size: 32px; }
 .block-choice .ring-track { stroke: var(--outline-variant); }
+.block-choice .ring-done { fill: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--sheet-card)); stroke: none; }
+.block-choice .ring-check { fill: none; stroke: var(--progress, var(--primary)); stroke-linecap: round; stroke-linejoin: round; }
 .block-choice-inbox { justify-self: center; font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
 .block-choice-copy { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; }
 .block-choice-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: clip; font: var(--title-small); font-weight: 600; overflow-wrap: break-word; }
@@ -247,17 +239,16 @@
 .block-choice-mark {
   display: grid;
   place-items: center;
-  inline-size: 24px;
-  block-size: 24px;
+  justify-self: center;
+  inline-size: 20px;
+  block-size: 20px;
   border: 2px solid var(--outline);
   border-radius: var(--shape-full);
-  color: var(--on-tone);
 }
-.block-choice-mark .ms { font-size: 16px; opacity: 0; }
-.block-choice[aria-checked=true] .block-choice-mark { border-color: transparent; background: var(--tone, var(--primary)); }
-.block-choice[aria-checked=true] .block-choice-mark .ms { opacity: 1; }
-.block-choice:not([data-tone])[aria-checked=true] .block-choice-mark { color: var(--on-primary); }
-.block-choice[aria-checked=true] { background: color-mix(in oklch, var(--progress, var(--primary)) 12%, var(--sheet-card)); }
+.block-choice-mark::after { content: ''; inline-size: var(--s2); block-size: var(--s2); border-radius: var(--shape-full); background: var(--primary); scale: 0; }
+.block-choice[aria-checked=true] .block-choice-mark { border-color: var(--primary); }
+.block-choice[aria-checked=true] .block-choice-mark::after { scale: 1; }
+.block-choice[aria-checked=true] { background: var(--secondary-container); color: var(--on-secondary-container); }
 .block-choice:active { background: var(--row-press); }
 .block-choice:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
@@ -266,6 +257,7 @@
 @media (prefers-reduced-motion: no-preference) {
   .tab-row::after { transition: inset-inline-start var(--dur-medium) var(--ease-emphasized), inline-size var(--dur-medium) var(--ease-emphasized), inset-block-start var(--dur-medium) var(--ease-emphasized), inset-block-end var(--dur-medium) var(--ease-emphasized); }
   .tab-btn, .when-day, .alert-kind, .repeat-day, .block-choice { transition: scale var(--dur-press) var(--ease-standard), background-color var(--dur-press) var(--ease-standard), color var(--dur-press) var(--ease-standard); }
-  .when-day-number, .block-choice-mark { transition: background-color var(--dur-short) var(--ease-standard), color var(--dur-short) var(--ease-standard); }
+  .when-day-number { transition: background-color var(--dur-short) var(--ease-standard), color var(--dur-short) var(--ease-standard); }
+  .block-choice-mark, .block-choice-mark::after { transition: border-color var(--dur-short) var(--ease-standard), scale var(--dur-short) var(--ease-standard); }
   :is(.tab-btn, .when-day, .alert-kind, .repeat-day, .block-choice):active { scale: .97; }
 }

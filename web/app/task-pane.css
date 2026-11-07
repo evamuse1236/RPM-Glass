@@ -21,17 +21,25 @@
     padding-inline-end: var(--s3);
     font: var(--title-large);
   }
-  #sheet[data-inline] .tab-row { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2fr); }
+  #sheet[data-inline] .tab-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #sheet[data-inline] #task-tab-block {
+    grid-column: 1 / -1;
+    grid-template-columns: auto minmax(0, max-content);
+    justify-content: center;
+    align-items: center;
+    column-gap: var(--s2);
+    min-block-size: 48px;
+  }
+  #sheet[data-inline] #task-tab-block .tab-value { white-space: normal; text-wrap: balance; text-align: start; }
   #sheet[data-inline] .number-chip input:not(:focus-visible) { border-block-end-color: transparent; }
   #sheet[data-inline] .task-start {
     grid-area: start;
     margin: 0 var(--s2) 0 0;
   }
 
-  #sheet[data-inline] .ruler-track { mask-image: linear-gradient(to right, transparent, black var(--s8), black calc(100% - var(--s8)), transparent); }
   #planner .spine-card[data-open], #planner .spine-chip[data-open] { outline: 2px solid var(--primary); outline-offset: -2px; }
 }
 @media (width >= 1080px) and (hover: hover) and (pointer: fine) {
   #sheet[data-inline] .task-start:hover { background: color-mix(in oklch, var(--on-secondary-container) 8%, var(--secondary-container)); }
-  #sheet[data-inline] .chip-row[aria-label=Length] > .chip:not([aria-pressed=true]):hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
+  #sheet[data-inline] .chip-row.segmented > .chip:not([aria-pressed=true]):hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
 }

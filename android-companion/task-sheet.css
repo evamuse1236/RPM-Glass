@@ -145,6 +145,7 @@
   block-size: auto;
   max-block-size: min(calc(100dvh - var(--top-bar)), var(--visual-height, 100dvh));
 }
+.sheet-scrim:has(+ .sheet-task) { -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-reduce-motion=true]) .sheet.sheet-task { interpolate-size: allow-keywords; transition: block-size var(--dur-medium) var(--ease-emphasized); }
 }

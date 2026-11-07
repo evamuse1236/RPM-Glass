@@ -25,11 +25,11 @@ test('one Clear replaces No time, No date and No length on every width', () => {
 test('Start now sits on the title row on wide; the Length chips join into one segmented row and the ruler keeps its lanes on every width', () => {
   const css = read('./task-pane.css');
   assert.match(css, /\.task-start \{\s+grid-area: start;/);
-  assert.match(css, /\.ruler-track \{ mask-image:/);
   assert.doesNotMatch(css, /\.ruler-(length|centre) \{/, 'the wide pane keeps the shared ruler lanes');
   const tabs = read('../../android-companion/task-tabs.css');
-  assert.match(tabs, /\.task-tabs \.chip-row\[aria-label=Length\] \{ flex-wrap: nowrap; gap: 0; \}/);
+  assert.match(tabs, /\.task-tabs \.chip-row\.segmented \{ flex-wrap: nowrap; gap: 0; \}/);
   assert.match(tabs, /\.task-tabs \.chip-row\[aria-label='More choices'\] > \.chip \{ border-color: transparent; background: none;/, 'the pickers and Clear read as one quiet row');
+  assert.match(tabs, /\.ruler-track \{[^}]*mask-image: linear-gradient\(to right, transparent,/, 'the ruler fades out at both ends on every width, so nothing reads as cut off');
   assert.match(tabs, /\.ruler-tick \{\s+position: absolute;\s+inset-block-end: 32px;/, 'ticks sit in their own lane under the hour labels');
   assert.match(tabs, /\.ruler-length \{\s+position: absolute;\s+inset-block-end: 8px;[^}]*block-size: 8px;/, 'the length bar sits in a lane under the ticks');
   assert.match(tabs, /\.ruler-centre \{\s+position: absolute;\s+inset-block: 32px 8px;/, 'the playhead starts below the hour labels');
@@ -54,9 +54,11 @@ test('on wide the task pane names its icons on hover, spells out the Block, and 
   assert.match(head, /if \(tips\) ring\.title = t\.done \? 'Mark incomplete' : 'Mark complete';/);
   assert.match(read('../../android-companion/planner/task-tabs.mjs'), /setTab\('block', wide \? blockTitle\?\.trim\(\) \|\| 'Inbox' : blockShort\(blockTitle\), 'stacks'\);/);
   const css = read('./task-pane.css');
-  assert.match(css, /#sheet\[data-inline\] \.tab-row \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\) minmax\(0, 2fr\); \}/);
+  assert.match(css, /#sheet\[data-inline\] \.tab-row \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\); \}/, 'on wide When, Alert and Repeat share one row of equal tabs');
+  assert.match(css, /#sheet\[data-inline\] #task-tab-block \{\n    grid-column: 1 \/ -1;/, 'on wide the Block tab takes its own full row');
+  assert.match(css, /#sheet\[data-inline\] #task-tab-block \.tab-value \{[^}]*white-space: normal;/, 'on wide the Block name is shown whole, never ellipsized');
   const tabs = read('../../android-companion/task-tabs.css');
-  assert.match(tabs, /\.tab-btn \{[^}]*grid-template-columns: minmax\(0, 1fr\);/, 'a long Block name ends in an ellipsis inside its tab, on every width');
+  assert.match(tabs, /\.tab-btn \{[^}]*grid-template-columns: minmax\(0, 1fr\);/, 'on the phone a long Block name ends in an ellipsis inside its tab');
   assert.match(tabs, /\.tab-value \{ max-inline-size: 100%; overflow: clip; font: var\(--label-medium\); text-overflow: ellipsis; white-space: nowrap; \}/);
   assert.match(css, /#sheet\[data-inline\] \.number-chip input:not\(:focus-visible\) \{ border-block-end-color: transparent; \}/);
 });
@@ -86,11 +88,14 @@ test('Alert and Repeat say Off and Once only on their tab; a second tap on the c
   assert.match(tabs, /const next = chosen\.getAttribute\('aria-pressed'\) === 'true' \? 'once' : choice;/);
 });
 
-test('the Block list tints the chosen Block behind its radio, lets a full ring say a Block is finished, and keeps each row to two lines of each', () => {
+test('the Block list marks the chosen Block with a secondary-container row and a radio dot, a finished Block with a tonal disc and check, and keeps each row to two lines of each', () => {
   const tabs = read('../../android-companion/planner/task-tabs.mjs');
-  assert.doesNotMatch(tabs, /finishedCheck/, 'a finished Block shows its full ring, not a second check beside the radio');
+  assert.match(tabs, /if \(total && done === total\) \{\n    ring\.append\(attrs\(document\.createElementNS\(SVG, 'circle'\), \{class: 'ring-done'/, 'a finished Block fills its ring like a finished Project');
+  assert.doesNotMatch(tabs, /mark\.append\(icon\('check'\)\)/, 'the radio carries a dot, never a check that reads as done');
   const css = read('../../android-companion/task-tabs.css');
-  assert.match(css, /\.block-choice\[aria-checked=true\] \{ background: color-mix\(in oklch, var\(--progress, var\(--primary\)\) 12%, var\(--sheet-card\)\); \}/);
+  assert.match(css, /\.block-choice\[aria-checked=true\] \{ background: var\(--secondary-container\); color: var\(--on-secondary-container\); \}/, 'the chosen row is a selection, not a success tint');
+  assert.match(css, /\.block-choice \.ring-done \{ fill: color-mix\(in oklch, var\(--progress, var\(--primary\)\) var\(--track-mix\), var\(--sheet-card\)\);/);
+  assert.match(css, /\.block-choice\[aria-checked=true\] \.block-choice-mark \{ border-color: var\(--primary\); \}/);
   assert.doesNotMatch(css, /\.block-choice \.ring-value \{/, 'the ring keeps the shared Area or primary progress colour');
   assert.match(css, /\.block-choice-title \{ display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;/);
   assert.match(css, /\.block-choice-line \{ display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;/);
