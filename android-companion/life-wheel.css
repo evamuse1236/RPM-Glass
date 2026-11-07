@@ -14,10 +14,11 @@
 .wheel-plot[data-label-top] { margin-block-start: var(--s8); }
 .wheel-plot[data-label-bottom] { margin-block-end: var(--s8); }
 .wheel-svg { display: block; inline-size: 100%; block-size: 100%; overflow: visible; touch-action: none; cursor: pointer; }
-/* Each wedge is its Area's own track: a rim at 10 and faint marks at 2, 4, 6 and 8 in the Area's hue, no fill and no
-   straight edges, so the seams are one clean gap. Only a rating fills it; the marks it has passed cut across the fill. */
+/* Each wedge is its Area's own track: a neutral hairline rim at 10 and faint marks at 2, 4, 6 and 8 in the Area's hue,
+   no fill and no straight edges, so the seams are one clean gap. Only a rating fills it; the marks it has passed cut
+   across the fill. The rim stays neutral so the value's edge is the one coloured arc. */
 .wheel-svg path { fill: none; }
-.wheel-rim { stroke: color-mix(in oklch, var(--tone) 45%, var(--outline-variant)); stroke-width: 1.5; }
+.wheel-rim { stroke: var(--outline-variant); stroke-width: 1; }
 .wheel-scale {
   stroke: light-dark(color-mix(in oklch, var(--tone) 22%, transparent), color-mix(in oklch, var(--tone) 40%, var(--outline-variant)));
   stroke-width: 1;
@@ -41,9 +42,9 @@
 .wheel-handle-bar { stroke: var(--tone); stroke-width: 8; }
 .wheel-handle-core { stroke: none; stroke-width: 3; }
 .unrated .wheel-handle-core { stroke: var(--surface-container-low); }
-/* Unrated, a short faint groove runs out from the thumb to the middle of the scale: the way to drag, never a fill, so
-   it cannot read as a rating, and too short to line up with its neighbours into a cross. */
-.wheel-groove { display: none; stroke-width: 3; stroke-linecap: round; }
+/* Unrated, a faint 1px groove runs from the thumb to the rim: the whole way to drag, never a fill, so it cannot read
+   as a rating and sets no limit short of 10. */
+.wheel-groove { display: none; stroke-width: 1; stroke-linecap: round; }
 .unrated .wheel-groove { display: inline; stroke: light-dark(color-mix(in oklch, var(--tone) 30%, transparent), color-mix(in oklch, var(--tone) 40%, transparent)); }
 /* Until the first rating one quiet line under the wheel says how it works; the header keeps its link. */
 .wheel-hint { margin-block-start: calc(-1 * var(--s1)); font: var(--body-small); color: var(--on-surface-variant); text-align: center; }

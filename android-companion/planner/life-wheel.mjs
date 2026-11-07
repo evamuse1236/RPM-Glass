@@ -1,7 +1,7 @@
-/** The Wheel of Life: one wedge per Area, an empty track (its rim and faint scale marks in the Area's hue) filled from
+/** The Wheel of Life: one wedge per Area, an empty track (a neutral rim and faint scale marks in the Area's hue) filled from
  * the centre to rating/10 in a light tone of the hue, its outer arc and thumb in the full hue. Each wedge is a slider pulled outward, with the same thumb as the Area page's slider: a
  * capsule across the wedge on the fill's edge, solid once rated. Unrated, there is no fill: a faint groove runs out
- * along the wedge's middle and a hollow thumb waits at its inner end, so it reads as a slider not yet moved. Dragging a wedge sets that Area's rating in whole points, saved on release
+ * along the wedge's middle to the rim and a hollow thumb waits at its inner end, so it reads as a slider not yet moved. Dragging a wedge sets that Area's rating in whole points, saved on release
  * with Undo. "Rate your Areas" stays the keyboard and screen-reader route. The Area list under the card (life.mjs) opens
  * each Area. */
 import {el, attrs, button} from './dom.mjs';
@@ -72,9 +72,9 @@ export function handlePath(i, n, radius, length = 14, {centre: c} = WHEEL) {
 /** Where an unrated wedge's hollow thumb waits, short of the first mark: a place to pull from, not a value. */
 export const REST = radiusFor(1.5);
 
-/** An unrated wedge's groove: a short line along its middle from the waiting thumb out to the middle of the scale, so
- * it points the way to drag without running hub to rim and lining up with its neighbours into a cross. */
-export const GROOVE_END = radiusFor(5);
+/** An unrated wedge's groove: a faint line along its middle from the waiting thumb out to the rim, the whole way to
+ * drag, so it implies no limit short of 10. */
+export const GROOVE_END = WHEEL.outer;
 export function groovePath(i, n, {centre: c} = WHEEL) {
   const mid = -Math.PI / 2 + (i + 0.5) * TAU / n;
   const p = r => `${(c + r * Math.cos(mid)).toFixed(2)} ${(c + r * Math.sin(mid)).toFixed(2)}`;

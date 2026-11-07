@@ -338,10 +338,9 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
   padding-inline: var(--s6) var(--gutter);
 }
 .rating-row > .ms { grid-column: 1; grid-row: 1; color: var(--on-surface-variant); }
-.rating-row > :is(.rating-slider, .rating-ticks) { grid-column: 2; grid-row: 1; }
+.rating-row > .rating-slider { grid-column: 2; grid-row: 1; }
 .rating-row strong { grid-column: 3; grid-row: 1; min-inline-size: 4.5rem; font: var(--title-medium); text-align: end; }
-.rating-row .rating-slider.unrated ~ strong { color: var(--on-surface-variant); font: var(--body-medium); }
-/* The value ("Not rated" or "7 / 10") ends where the chevrons below it do. */
+/* The value ("7 / 10") ends where the chevrons below it do; unrated, its slot stays empty so the track never moves. */
 #planner[data-view=areas] .rating-row strong { padding-inline-end: var(--s2); }
 /* M3 slider in the Area's colour: one active-track colour whether resting or dragged, a 20dp handle, 48dp target.
    Unrated: the whole track is inactive and there is no handle until the first touch. */
@@ -380,26 +379,19 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
 .rating-slider:focus-visible { outline: none; }
 .rating-slider.unrated::-webkit-slider-runnable-track { background: var(--inactive); }
 .rating-slider.unrated::-moz-range-progress { background: transparent; }
-/* Unrated: a hollow handle at the start and the eleven points as faint ticks, an affordance that is not a value. */
+/* Unrated: a hollow handle at the start, an affordance that is not a value. */
 .rating-slider.unrated::-webkit-slider-thumb { background: var(--surface-container-low); box-shadow: inset 0 0 0 2px var(--outline); }
 .rating-slider.unrated::-moz-range-thumb { background: var(--surface-container-low); box-shadow: inset 0 0 0 2px var(--outline); }
-.rating-ticks {
-  align-self: center;
-  display: flex;
-  justify-content: space-between;
-  padding: 0 8px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--dur-short3) var(--ease-standard);
-}
-.rating-ticks i { width: 4px; height: 4px; border-radius: 50%; background: var(--outline); }
-.rating-slider.unrated + .rating-ticks { opacity: .55; }
-.rating-slider.unrated + .rating-ticks i:first-child { visibility: hidden; }
 .rating-slider.unrated:focus-visible { outline: 2px solid var(--primary); outline-offset: -8px; border-radius: var(--shape-xs); }
 /* On Life the handle is the wheel's thumb: an 8dp capsule across the track with a gap of the page round it, solid in
    the Area's hue once rated and hollow (a ring of the hue) until then, so an unrated Area has something to pull and no
    value at 0. The same thumb as each wedge of the wheel. */
-.rating-row .rating-slider { --fill: calc(4px + (100% - 8px) * var(--value, 0)); --gap: var(--surface); }
+/* The track is the wide Life list's (life-meter): a darker inactive track in dark so it reads on the page. */
+.rating-row .rating-slider {
+  --fill: calc(4px + (100% - 8px) * var(--value, 0));
+  --gap: var(--surface);
+  --inactive: light-dark(var(--surface-container-highest), var(--outline-variant));
+}
 .rating-row .rating-slider::-webkit-slider-thumb {
   width: 8px;
   height: 24px;
@@ -423,7 +415,6 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
   background: var(--gap);
   box-shadow: inset 0 0 0 2px var(--active), 0 0 0 4px var(--gap);
 }
-.rating-row .rating-ticks { padding: 0; }
 .rating-row .rating-slider:is(:active, :focus-visible)::-webkit-slider-thumb {
   box-shadow: 0 0 0 4px var(--gap), 0 0 0 8px color-mix(in oklch, var(--active) 24%, transparent);
 }

@@ -75,7 +75,7 @@
     block-size: var(--s1);
     margin-inline-end: var(--s4);
     border-radius: var(--shape-full);
-    background: linear-gradient(to right, var(--tone) calc(var(--s1) + (100% - var(--s2)) * var(--value, 0)), var(--surface-container-highest) 0);
+    background: linear-gradient(to right, var(--tone) calc(var(--s1) + (100% - var(--s2)) * var(--value, 0)), light-dark(var(--surface-container-highest), var(--outline-variant)) 0);
   }
   /* The slider's capsule thumb with a gap of the card round it: solid at the rating, hollow at the start until rated. */
   #planner .life-meter::after {

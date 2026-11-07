@@ -148,8 +148,8 @@ export function renderLife(app, page) {
 
 /**
  * The Area's rating as a slider on the page: drag or arrow keys, saved when let go, with Undo. It moves in whole
- * points (a half point saved earlier shows as it is until touched). Unrated, the track shows its eleven points as faint
- * ticks and a hollow handle waits at its start, so it reads as something to drag but never as a value; the first
+ * points (a half point saved earlier shows as it is until touched). Unrated, the track is empty and a hollow handle
+ * waits at its start, so it reads as something to drag but never as a value; the first
  * touch puts the handle where the finger is, filled.
  */
 /** A 0–10 slider in the Area's colour that saves on release with Undo; `show` writes the value it is set to. */
@@ -190,24 +190,18 @@ function ratingInput(app, area, show) {
   return input;
 }
 
-function ratingTicks() {
-  const ticks = el('span', 'rating-ticks');
-  ticks.setAttribute('aria-hidden', 'true');
-  for (let i = 0; i <= 10; i++) ticks.append(el('i'));
-  return ticks;
-}
-
 /** The Area's rating as one row under its Purpose, like it: an icon in the icon column, the track on the text edge
- * with a hollow handle parked at the start until rated, and the value in the chevron column ("Not rated" until then). */
+ * with a hollow handle parked at the start until rated, and the value in the chevron column once there is one. The
+ * track and thumb are the wide Life list's: no ticks, and no "Not rated" words, since the hollow thumb says it. */
 function ratingSlider(app, area) {
   const row = el('div', 'rating-row');
   row.dataset.tone = app.tone(area);
   const icon = el('span', 'ms', 'speed');
   icon.setAttribute('aria-hidden', 'true');
-  const output = el('strong', 'tnum', area.rating == null ? 'Not rated' : `${area.rating} / 10`);
+  const output = el('strong', 'tnum', area.rating == null ? '' : `${area.rating} / 10`);
   output.setAttribute('aria-hidden', 'true');
   const input = ratingInput(app, area, value => { output.textContent = `${value} / 10`; });
-  row.append(icon, input, ratingTicks(), output);
+  row.append(icon, input, output);
   return row;
 }
 
