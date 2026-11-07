@@ -8,7 +8,7 @@ import {el, icon, button, attrs} from './dom.mjs';
 import {progressRing} from './blocks.mjs';
 import {chip, chipRow, pickerChip, markChips, settleChip} from './fact-rows.mjs';
 import {dayChips, repeatShort, repeatDaysOf, REPEAT_DAYS, ALERT_LEADS, leadLabel} from './task-values.mjs';
-import {TABS, stepTab, ALERT_KINDS, REPEAT_PRESETS, whenShort, alertShort, blockShort, presetOf, blockChoices} from './task-tabs-model.mjs';
+import {TABS, stepTab, ALERT_KINDS, REPEAT_PRESETS, whenDay, whenSpoken, alertShort, blockShort, presetOf, blockChoices} from './task-tabs-model.mjs';
 import {timeRuler} from './time-ruler.mjs';
 
 const SEARCH_FROM = 7;
@@ -31,7 +31,7 @@ function pressed(node, on) {
 }
 
 /**
- * `get()` returns the sheet's current values: {day, time, minutes, alert, lead, repeating, task, busy, blockId, blocks,
+ * `get()` returns the sheet's current values: {day, time, minutes, alert, lead, repeating, task, blockId, blocks,
  * statusOf, toneOf, suggested, recent}. `pick` holds day, time, minutes, alert, lead, repeatDay, repeatPreset and
  * block, each saving at once. Returns {node, paint(now), select(tab), error(name, message), clash, focus(what)}.
  */
@@ -93,16 +93,16 @@ export function taskTabs({get, pick, tick = () => {}, remote = false, wide = fal
   node.append(row, ...Object.values(panels));
   select('when');
 
-  const setTab = (key, text, symbol) => {
+  const setTab = (key, text, symbol, spoken = text) => {
     const tab = tabs[key];
     if (tab.value.textContent !== text) tab.value.textContent = text;
     if (tab.glyph.textContent !== symbol) tab.glyph.textContent = symbol;
-    tab.node.setAttribute('aria-label', `${tab.name}, ${text}`);
+    tab.node.setAttribute('aria-label', `${tab.name}, ${spoken}`);
   };
 
   const paint = now => {
     const shownAlert = alertShort(now);
-    setTab('when', whenShort(now), 'schedule');
+    setTab('when', whenDay(now), 'schedule', whenSpoken(now));
     setTab('alert', shownAlert.text, shownAlert.symbol);
     setTab('repeat', repeatShort(now.task), 'repeat');
     const blockTitle = now.blocks.find(b => b.id === now.blockId)?.title;
@@ -120,11 +120,11 @@ export function taskTabs({get, pick, tick = () => {}, remote = false, wide = fal
     errors[name].hidden = !message;
   };
 
-  /** `focus('date')` or `focus('length')` puts focus on that choice in When: the length grip, or the exact length. */
+  /** `focus('date')` or `focus('length')` puts focus on that choice in When: the length grip, or the length words. */
   const focus = what => {
     select('when');
     const target = what === 'date' ? when.days.querySelector('[aria-pressed=true]') ?? when.dayPicker
-      : when.grip.hidden ? when.exact : when.grip;
+      : when.grip.hidden ? when.words : when.grip;
     target?.focus({preventScroll: true});
   };
   return {node, paint, select, error, clash: when.clash, focus};
@@ -136,13 +136,6 @@ function whenPanel(host, pick, tick) {
   days.setAttribute('aria-label', 'Day');
   const error = errorSlot();
   const ruler = timeRuler({save: time => pick.time(time), saveMinutes: n => pick.minutes(n), tick});
-  const exact = pickerChip('number', 'timer', 'Length', 'Length in minutes', value => {
-    const n = Math.round(Number(value));
-    if (n >= 1 && n <= 1440) pick.minutes(n);
-  });
-  Object.assign(exact.input, {min: 1, max: 1440});
-  exact.node.classList.add('ruler-exact');
-  ruler.head.append(exact.node);
   const clash = el('p', 'field-alert');
   clash.hidden = true;
   const more = wrapRow('More choices');
@@ -170,7 +163,7 @@ function whenPanel(host, pick, tick) {
       return dot;
     }));
     for (const dot of days.children) pressed(dot, dot.dataset.value === now.day);
-    ruler.paint({day: now.day, time: now.time, minutes: now.minutes, busy: now.busy, off: !now.day});
+    ruler.paint({day: now.day, time: now.time, minutes: now.minutes, off: !now.day});
     clear.hidden = now.minutes == null && (now.repeating || !now.day);
     if (now.repeating) clear.setAttribute('aria-label', 'Clear length');
     else clear.setAttribute('aria-label', 'Clear date, time and length');
@@ -178,9 +171,8 @@ function whenPanel(host, pick, tick) {
     timePicker.input.disabled = !now.day;
     dayPicker.input.value = now.day;
     timePicker.input.value = now.time;
-    if (document.activeElement !== exact.input) exact.input.value = now.minutes ?? '';
   };
-  return {paint, error, clash, days, dayPicker: dayPicker.input, grip: ruler.grip, exact: exact.input};
+  return {paint, error, clash, days, dayPicker: dayPicker.input, grip: ruler.grip, words: ruler.words};
 }
 
 export function alertPanel(host, pick, remote) {
@@ -266,12 +258,11 @@ function repeatPanel(host, pick) {
 }
 
 const SVG = 'http://www.w3.org/2000/svg';
-/** A Block's ring; a finished one fills its centre with a tonal disc and a check, as a finished Project does. */
+/** A Block's ring; a finished one fills solid with a tonal disc (no gap, no check), so it never reads as a chosen radio. */
 function blockRing({done, total}) {
   const ring = progressRing(done, total, `${done} of ${total} done`);
   if (total && done === total) {
-    ring.append(attrs(document.createElementNS(SVG, 'circle'), {class: 'ring-done', cx: 12, cy: 12, r: 6}),
-      attrs(document.createElementNS(SVG, 'path'), {class: 'ring-check', d: 'M9 12.2L11 14.2L15 10', 'stroke-width': 1.75}));
+    ring.append(attrs(document.createElementNS(SVG, 'circle'), {class: 'ring-done', cx: 12, cy: 12, r: 8}));
   }
   return ring;
 }
