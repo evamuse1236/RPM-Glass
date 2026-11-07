@@ -151,11 +151,47 @@ h1, h2, h3, p { margin: 0; }
 }
 :root[data-keyboard=open] :is(#nav-bar, #now-host, #dock) { display: none; }
 /* Content scrolls under the bar. The strip below the bar shows nothing; the page fades back in over the bar's
-   lower half when the bar is solid, and within 8dp when it is glass, so the page shows through the glass. */
+   lower half when the bar is solid, and within 8dp when it is glass, so the page shows through the glass.
+   Beside the bar, and behind the dock (Add and the habit circle), the page shows nothing either: it fades out over
+   the 16dp above the bar's top, and above the dock's top on its column, so no cut-off words sit around the floating
+   controls. While the Now pill shows, the page ends at the pill's top the same way, and gains that much room at its
+   end so the last row still scrolls clear. Layers, top first: the capsule's two round ends and its middle (the
+   glass), everything above the dock, and the band above the bar left of the dock (an x fade intersected with a y fade). */
+@property --now-clear { syntax: "<length>"; inherits: true; initial-value: 0px; }
+#planner {
+  --bar-top: var(--nav-measured, var(--nav));
+  --bar-end: var(--inset-page);
+  --dock-end: var(--inset-page);
+  --dock-top: var(--bar-top);
+  --bar-r: calc((var(--bar-top) - var(--nav-gap)) / 2);
+  --page-end: calc(var(--bar-top) + var(--now-clear));
+}
+#planner:has(> #dock:not([hidden]) .fab:not([hidden])) {
+  --bar-end: calc(var(--inset-page) + var(--fab) + var(--s3));
+  --dock-end: calc(var(--inset-page) + var(--fab) + var(--s3));
+}
+#planner[data-habit=true]:has(> #dock:not([hidden]) .fab:not([hidden])) { --dock-top: calc(var(--nav-gap) + 2px + var(--fab) + var(--s3) + var(--touch)); }
+:root[data-large-text=true] #planner:has(> #dock:not([hidden]) .fab:not([hidden])) { --bar-end: var(--inset-page); --dock-top: calc(var(--bar-top) + var(--s3) + var(--fab)); }
+:root[data-large-text=true] #planner[data-habit=true]:has(> #dock:not([hidden]) .fab:not([hidden])) { --dock-top: calc(var(--bar-top) + 2 * var(--s3) + var(--fab) + var(--touch)); }
+#planner[data-now-off=true]:not([data-now-aside=true], [data-snackbar=true]):has(> #now-host:not([hidden])) { --now-clear: calc(var(--s4) + 32px); }
+#planner[data-now-off=true]:has(> #now-host:not([hidden])) .page::after { content: ""; display: block; block-size: calc(var(--s4) + 32px); }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduce-motion=true]) #planner { transition: --now-clear var(--dur-short3) var(--ease-standard); }
+}
 :root:not([data-keyboard=open]) #planner:has(> #nav-bar:not([hidden])) #planner-scroll {
   scroll-padding-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4));
-  -webkit-mask-image: linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--bar-fade, var(--s8))));
-  mask-image: linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--bar-fade, var(--s8))));
+  mask-image:
+    radial-gradient(circle at calc(var(--inset-page) + var(--bar-r)) calc(100% - var(--nav-gap) - var(--bar-r)), #000 calc(var(--bar-r) - 1px), transparent var(--bar-r)),
+    radial-gradient(circle at calc(100% - var(--bar-end) - var(--bar-r)) calc(100% - var(--nav-gap) - var(--bar-r)), #000 calc(var(--bar-r) - 1px), transparent var(--bar-r)),
+    linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--bar-fade, var(--s8)))),
+    linear-gradient(to top, transparent max(var(--dock-top), var(--page-end)), #000 calc(max(var(--dock-top), var(--page-end)) + var(--s4))),
+    linear-gradient(to right, #000 calc(100% - var(--s3)), transparent),
+    linear-gradient(to top, transparent var(--page-end), #000 calc(var(--page-end) + var(--s4)));
+  mask-size: 100% 100%, 100% 100%, calc(100% - var(--inset-page) - var(--bar-end) - 2 * var(--bar-r)) var(--bar-top), 100% 100%,
+    calc(100% - var(--dock-end) + var(--s3)) 100%, calc(100% - var(--dock-end) + var(--s3)) 100%;
+  mask-position: 0 0, 0 0, calc(var(--inset-page) + var(--bar-r)) 100%, 0 0, 0 0, 0 0;
+  mask-repeat: no-repeat;
+  mask-composite: add, add, add, add, intersect, add;
 }
 :root[data-bar-glass=true] { --bar-fade: var(--s2); }
 /* A clearer bar blurs more, so its labels stay readable over busy rows. */

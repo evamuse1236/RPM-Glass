@@ -45,7 +45,7 @@
   text-align: end;
   white-space: nowrap;
 }
-.spine-row.tall .spine-gutter { justify-content: space-between; padding-block: var(--s3); }
+.spine-row:is(.tall, :has(.spine-resolve)) .spine-gutter { justify-content: space-between; padding-block: var(--s3); }
 .spine-end { font-weight: 400; }
 :root[data-large-text=true] .spine-gutter { white-space: normal; overflow-wrap: break-word; }
 .spine-row.current .spine-gutter { color: var(--now); font-weight: 700; }
@@ -80,7 +80,7 @@
 :is(.spine-row.done, .spine-row.past) .spine-pill { background: color-mix(in oklch, var(--pill-c) 30%, transparent); }
 
 .spine-check, .spine-disc { grid-column: 1; position: relative; z-index: 1; justify-self: center; }
-.spine-row.tall .spine-card > :is(.spine-check, .spine-disc) { align-self: start; }
+.spine-row:is(.tall, :has(.spine-resolve)) .spine-card > :is(.spine-check, .spine-disc) { align-self: start; }
 .spine-disc {
   display: grid;
   place-items: center;
@@ -90,7 +90,7 @@
   background: var(--surface-container-highest);
   color: var(--on-surface-variant);
 }
-.spine-row.tall .spine-disc { margin-block-start: var(--s2); }
+.spine-row:is(.tall, :has(.spine-resolve)) .spine-disc { margin-block-start: var(--s2); }
 .spine-disc .ms { font-size: 16px; }
 .spine-deadline.overdue .spine-disc { color: var(--error); }
 
@@ -105,7 +105,7 @@
   color: inherit;
   text-align: start;
 }
-.spine-row.tall .spine-open { align-items: flex-start; padding-block-start: var(--s2); }
+.spine-row:is(.tall, :has(.spine-resolve)) .spine-open { align-items: flex-start; padding-block-start: var(--s2); }
 .spine-open:active { background: var(--row-press); }
 .spine-deadline .spine-copy { grid-column: 2; padding: var(--s1) 0 var(--s1) var(--s3); }
 .spine-copy { display: flex; flex-direction: column; min-inline-size: 0; }
@@ -118,7 +118,7 @@
   text-decoration-color: color-mix(in oklch, var(--on-surface-variant) 60%, transparent);
 }
 .spine-must { font-size: 16px; margin-inline-start: var(--s1); vertical-align: -2px; color: var(--must); }
-.spine-meta { font: var(--footnote); color: var(--on-surface-variant); overflow-wrap: break-word; }
+.spine-meta { font: var(--footnote); color: var(--on-surface-variant); white-space: nowrap; overflow: clip; text-overflow: ellipsis; }
 .when-soon, .when-now { color: var(--primary); font-weight: 600; }
 .when-late, .line-late, .line-clash { color: var(--error); font-weight: 500; }
 .spine-resolve {

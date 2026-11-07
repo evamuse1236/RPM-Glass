@@ -59,7 +59,23 @@ test('nothing shows in the strip under the tab bar, and a row scrolled into view
   const css = read('planner.css');
   assert.match(css, /--nav-gap: max\(var\(--s4\), calc\(env\(safe-area-inset-bottom, 0px\) \+ var\(--s2\)\)\);/);
   assert.match(rule(css, '#nav-bar'), /inset-block-end: var\(--nav-gap\);/);
-  assert.match(css, /mask-image: linear-gradient\(to top, transparent var\(--nav-gap\), #000 calc\(var\(--nav-gap\) \+ var\(--bar-fade, var\(--s8\)\)\)\);/);
+  const mask = rule(css, ':root:not([data-keyboard=open]) #planner:has(> #nav-bar:not([hidden])) #planner-scroll');
+  assert.match(mask, /linear-gradient\(to top, transparent var\(--nav-gap\), #000 calc\(var\(--nav-gap\) \+ var\(--bar-fade, var\(--s8\)\)\)\)/,
+    'the strip under the bar shows nothing; the page shows through the glass');
+  assert.match(mask, /mask-size: [^;]*calc\(100% - var\(--inset-page\) - var\(--bar-end\) - 2 \* var\(--bar-r\)\) var\(--bar-top\)/,
+    'below the bar\'s top the page shows only inside the bar, never in the gaps beside it');
+  assert.match(mask, /linear-gradient\(to top, transparent max\(var\(--dock-top\), var\(--page-end\)\), #000 calc\(max\(var\(--dock-top\), var\(--page-end\)\) \+ var\(--s4\)\)\)/,
+    'nothing shows behind Add or the habit circle');
+  assert.match(mask, /linear-gradient\(to top, transparent var\(--page-end\), #000 calc\(var\(--page-end\) \+ var\(--s4\)\)\)/,
+    'beside the bar the page ends at the bar\'s top, or at the Now pill\'s top while it shows');
+  assert.match(css, /--page-end: calc\(var\(--bar-top\) \+ var\(--now-clear\)\);/);
+  assert.match(css, /#planner\[data-now-off=true\]:not\(\[data-now-aside=true\], \[data-snackbar=true\]\):has\(> #now-host:not\(\[hidden\]\)\) \{ --now-clear: calc\(var\(--s4\) \+ 32px\); \}/,
+    'the Now pill never sits on a row');
+  assert.match(css, /#planner\[data-now-off=true\]:has\(> #now-host:not\(\[hidden\]\)\) \.page::after \{ content: ""; display: block; block-size: calc\(var\(--s4\) \+ 32px\); \}/,
+    'the last row still scrolls clear of the Now pill');
+  assert.match(mask, /mask-repeat: no-repeat;/);
+  assert.match(mask, /mask-composite: add, add, add, add, intersect, add;/);
+  assert.match(css, /#planner\[data-habit=true\]:has\(> #dock:not\(\[hidden\]\) \.fab:not\(\[hidden\]\)\) \{ --dock-top: calc\(var\(--nav-gap\) \+ 2px \+ var\(--fab\) \+ var\(--s3\) \+ var\(--touch\)\); \}/);
   assert.match(css, /:root\[data-bar-glass=true\] \{ --bar-fade: var\(--s2\); \}/, 'a glass bar lets the page show through it');
   assert.match(css, /#planner\[data-snackbar=true\]:has\(> #nav-bar:not\(\[hidden\]\)\) #planner-scroll \{\n  scroll-padding-block-end: calc\(var\(--nav-measured, var\(--nav\)\) \+ var\(--s4\) \+ var\(--snackbar-h, 48px\) \+ var\(--s4\)\);/);
   assert.match(read('planner.mjs'), /setProperty\('--snackbar-h', snackbar\.offsetHeight \+ 'px'\)/,
