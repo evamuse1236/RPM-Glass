@@ -4,9 +4,9 @@
  * The time shows only in the gutter; the words carry the title and one quiet line.
  */
 import {el, icon, button, iconButton} from './dom.mjs';
-import {owedRows, owedLabel, doneLabel, doneSpoken} from '../spine-model.mjs';
+import {owedRows, owedLabel, foldWords} from '../spine-model.mjs';
 
-/** The still-to-do group shows this many rows, then "+N more". */
+/** The still-to-do group shows this many rows; the rest open with the done past from one line. */
 export const OWED_CAP = 3;
 
 function gutter(row) {
@@ -25,7 +25,7 @@ function gutter(row) {
 function shell(row, body) {
   const node = el('div', `spine-row spine-${row.kind}`);
   node.dataset.key = row.key;
-  for (const flag of ['past', 'current', 'next', 'done', 'missed', 'overdue', 'late']) node.classList.toggle(flag, !!row[flag]);
+  for (const flag of ['past', 'current', 'next', 'done', 'missed', 'overdue', 'late', 'must']) node.classList.toggle(flag, !!row[flag]);
   node.classList.toggle('tall', (row.height ?? 0) > 48);
   node.classList.toggle('owed', row.fold === 'missed');
   if (row.kind === 'task') node.dataset.tone = row.tone;
@@ -211,26 +211,25 @@ export function focusCard(model, on) {
   return card;
 }
 
-/** A quiet text line on the rail that opens or folds rows in place: "Show 3 done", "+2 more". */
-function toggleLine(key, label, spokenLabel, open, on) {
-  const node = el('div', `spine-row spine-fold spine-fold-${key}`);
-  node.dataset.key = key;
-  const toggle = button('', () => on.toggleFold?.(key), 'spine-fold-open');
+/**
+ * The one text button on the rail that opens or folds rows in place: the owed rows past the first three and the done
+ * past ("Show 2 more · 1 done"). Its rows are drawn hidden, so it opens in place.
+ */
+export function foldToggle(model, open, on) {
+  const hidden = Math.max(0, owedRows(model.rows).length - OWED_CAP);
+  const {label, spoken} = foldWords(hidden, model.rows.filter(r => r.fold === 'earlier'), open);
+  const node = el('div', 'spine-row spine-fold spine-fold-earlier');
+  node.dataset.key = 'earlier';
+  const toggle = button('', () => on.toggleFold?.('earlier'), 'spine-fold-open');
   toggle.setAttribute('aria-expanded', String(open));
-  toggle.setAttribute('aria-label', spokenLabel);
+  toggle.setAttribute('aria-label', spoken);
   toggle.append(el('span', 'spine-fold-label tnum', label));
   node.append(el('span', 'spine-gutter'), toggle);
   return node;
 }
 
-/** "Show 3 done": the finished past, drawn hidden in time order so it opens in place. */
-export const foldToggle = (rows, open, on) => toggleLine('earlier', doneLabel(rows, open), doneSpoken(rows, open), open, on);
-
-/** "+2 more" under the still-to-do group's first rows. */
-export const moreToggle = (owed, open, on) => {
-  const label = open ? 'Show fewer' : `+${owed.length - OWED_CAP} more`;
-  return toggleLine('owed-more', label, open ? 'Show fewer still to do' : `${owed.length - OWED_CAP} more still to do`, open, on);
-};
+/** Rows the fold line opens: owed rows past the first three, then the done past. */
+export const foldedRows = model => [...owedRows(model.rows).slice(OWED_CAP), ...model.rows.filter(r => r.fold === 'earlier')];
 
 /** The group's header: "Still to do · 4". */
 function owedHead(owed) {
@@ -246,8 +245,8 @@ function owedHead(owed) {
 }
 
 /**
- * The timeline. On a live day it opens with what is still owed from earlier ("Still to do · 4": Musts first, at most
- * three rows, then "+N more"), then one "Show N done" line that opens the finished past in place, then the rest with
+ * The timeline. On a live day it opens with what is still owed from earlier ("Still to do · 4": clock order, at most
+ * three rows), then one line ("Show 1 more · 2 done") that opens the rest of them and the finished past in place, then the rest with
  * the Now line, leaving out what the Now card shows; then the tasks with no time, under "Any time". The Now line already
  * spaces the rail, so blank free time right after it, or after another blank stretch, is left out.
  */
@@ -260,13 +259,12 @@ export function spineList(model, on, {open = {}} = {}) {
     list.append(listItem(owedHead(owed)));
     owed.forEach((row, i) => {
       const node = listItem(spineRow(row, on));
-      if (i >= OWED_CAP) node.hidden = !open.owed;
+      if (i >= OWED_CAP) node.hidden = !open.earlier;
       list.append(node);
     });
-    if (owed.length > OWED_CAP) list.append(listItem(moreToggle(owed, !!open.owed, on)));
   }
   const past = model.rows.filter(r => r.fold === 'earlier');
-  if (past.some(r => r.kind !== 'gap')) list.append(listItem(foldToggle(past, !!open.earlier, on)));
+  if (owed.length > OWED_CAP || past.some(r => r.kind !== 'gap')) list.append(listItem(foldToggle(model, !!open.earlier, on)));
   let spacer = false;
   for (const row of model.rows) {
     if (row.focus || row.fold === 'missed') continue;

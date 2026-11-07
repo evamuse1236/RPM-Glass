@@ -64,7 +64,12 @@ test('every item sits under its own day: a Must of another day leaves its Result
   const where = Object.fromEntries(groups.flatMap(g => g.items.map(i => [i.title, g.day])));
   assert.deepEqual(where, {'Revise': 'overdue', 'Past paper': '2026-10-03', 'Exam passed': '2026-10-06'});
   assert.deepEqual(groups.map(g => g.day), ['overdue', '2026-10-03', '2026-10-06'], 'Overdue first, then the days in order');
-  assert.match(groups[0].items[0].when, /^Sat 3 Oct /, 'a missed Must names its own day');
+  assert.equal(groups[0].items[0].when.replace(/\s/g, ' '), '9:00 AM', 'a Must missed today shows only its time, as other rows do; the day is not said twice');
+  task(d, {title: 'Older', planned: '2026-09-30T03:30:00.000Z', must: true});
+  task(d, {title: 'Oldest', planned: '2026-09-26T03:30:00.000Z', must: true});
+  const when = Object.fromEntries(comingUp(d, SATURDAY_10_AM_KOLKATA, '2026-10-04')[0].items.map(i => [i.title, i.when.replace(/\s/g, ' ')]));
+  assert.equal(when.Older, 'Wednesday, 9:00 AM', 'this past week names its weekday');
+  assert.equal(when.Oldest, 'Sat 26 September, 9:00 AM', 'older names its full date');
   assert.doesNotMatch(groups[1].items[0].when, /Oct/, 'under its own day a Must says only its time');
   assert.equal(groups[0].items[0].block, 'Exam passed', 'a Must away from its deadline still names its Result');
   assert.equal(groups[2].items[0].kind, 'result', 'a deadline with no Must that day leads with the Result');

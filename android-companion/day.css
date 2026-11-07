@@ -20,6 +20,10 @@
   transition: opacity var(--dur-medium) var(--ease-standard);
 }
 #planner[data-view=today][data-scrolled=true] .top-bar::after { opacity: 1; }
+/* A scroll that stops near the Now card settles with the card wholly in view under the bar; the page top is a snap point too, so a load stays at the top. A "card gone" point is left out: on a short day it clamps to the scroll end and wins over the card. */
+#planner[data-view=today] #planner-scroll { scroll-snap-type: y proximity; }
+#planner[data-view=today] #workspace { scroll-snap-align: start; }
+.spine-focus { scroll-snap-align: start; scroll-margin-block-start: var(--s2); }
 .today-sheet { position: relative; padding-block-start: var(--s1); background: var(--surface); }
 
 .spine { position: relative; display: flex; flex-direction: column; padding: var(--s1) var(--inset-page) var(--s4) 0; }
@@ -53,7 +57,7 @@
   text-align: end;
   white-space: nowrap;
 }
-.spine-row:is(.tall, :has(.spine-resolve)) .spine-gutter { justify-content: space-between; padding-block: var(--s3); }
+.spine-row:is(.tall, .owed, :has(.spine-resolve)) .spine-gutter { justify-content: space-between; padding-block: var(--s3); }
 .spine-end { font-weight: 400; }
 :root[data-large-text=true] .spine-gutter { white-space: normal; overflow-wrap: break-word; }
 .spine-row.current .spine-gutter { color: var(--now); font-weight: 700; }
@@ -88,7 +92,7 @@
 :is(.spine-row.done, .spine-row.past) .spine-pill { background: var(--surface-container-highest); }
 
 .spine-check, .spine-disc { grid-column: 1; position: relative; z-index: 1; justify-self: center; }
-.spine-row:is(.tall, :has(.spine-resolve)) .spine-card > :is(.spine-check, .spine-disc) { align-self: start; }
+.spine-row:is(.tall, .owed, :has(.spine-resolve)) .spine-card > :is(.spine-check, .spine-disc) { align-self: start; }
 .spine-disc {
   display: grid;
   place-items: center;
@@ -98,7 +102,7 @@
   background: var(--surface-container-highest);
   color: var(--on-surface-variant);
 }
-.spine-row:is(.tall, :has(.spine-resolve)) .spine-disc { margin-block-start: var(--s2); }
+.spine-row:is(.tall, .owed, :has(.spine-resolve)) .spine-disc { margin-block-start: var(--s2); }
 .spine-disc .ms { font-size: 16px; }
 .spine-deadline.overdue .spine-disc { color: var(--error); }
 
@@ -113,7 +117,7 @@
   color: inherit;
   text-align: start;
 }
-.spine-row:is(.tall, :has(.spine-resolve)) .spine-open { align-items: flex-start; padding-block-start: var(--s2); }
+.spine-row:is(.tall, .owed, :has(.spine-resolve)) .spine-open { align-items: flex-start; padding-block-start: var(--s2); }
 .spine-open:active { background: var(--row-press); }
 .spine-deadline .spine-copy { grid-column: 2; padding: var(--s1) 0 var(--s1) var(--s3); }
 .spine-copy { display: flex; flex-direction: column; min-inline-size: 0; }
@@ -128,7 +132,8 @@
 .spine-must { font-size: 16px; margin-inline-start: var(--s1); vertical-align: -2px; color: var(--must); }
 .spine-meta { font: var(--footnote); color: var(--on-surface-variant); white-space: nowrap; overflow: clip; text-overflow: ellipsis; }
 .when-soon, .when-now { color: var(--primary); font-weight: 600; }
-.when-late { color: var(--error); }
+.when-late { color: var(--on-surface-variant); }
+.spine-row:is(.must, .spine-deadline) .when-late { color: var(--error); }
 .spine-due { margin-inline-end: var(--s1); font-size: 16px; vertical-align: -3px; color: var(--on-surface-variant); }
 .spine-overdue .spine-due, .spine-row.overdue .spine-due { color: var(--error); }
 /* A clash is a small inline marker under the title, not a pill; its 48dp hit area still opens Resolve. */
@@ -169,7 +174,8 @@
 .spine-meal:not(.done) .check-ring { border-color: color-mix(in oklch, var(--pill-c) 70%, var(--surface)); }
 .spine-check .check-ring .ms { font-size: 16px; opacity: 0; }
 .spine-check:active .check-ring { scale: .9; }
-.spine-row.late:not(.done) .check-ring { border-color: var(--error); }
+.spine-row.late:not(.done) .check-ring { border-color: var(--outline); }
+.spine-row.late.must:not(.done) .check-ring { border-color: var(--error); }
 .spine-row.done .check-ring { background: var(--pill-c); border-color: var(--pill-c); }
 .spine-row.done .check-ring .ms { opacity: 1; }
 @media (prefers-reduced-motion: no-preference) {
@@ -212,7 +218,8 @@
 }
 
 /* What is still owed from earlier: a quiet header on the page edge (its surface hides the rail behind it), then the
-   missed rows on the rail with an error ring and "2 h late"; no length bar, as they sit out of time order. */
+   missed rows on the rail in clock order with "2 h late"; a Must's ring and lateness take the error tone, the rest stay
+   neutral. No length bar; each row keeps the timeline's rhythm, its time and ring on the title's first line. */
 .spine-owed-head {
   position: relative;
   z-index: 1;
@@ -225,8 +232,9 @@
 .spine-owed-hint { display: none; font: var(--label-small); color: var(--on-surface-variant); }
 @media (pointer: coarse) { .spine-owed-hint { display: inline; } }
 .spine-row.owed .spine-pill { display: none; }
+.spine-row.owed .spine-open { padding-block-end: var(--s3); }
 
-/* A quiet text line on the rail that opens rows in place: "Show 3 done", "+2 more". */
+/* The one text button on the rail that opens rows in place: "Show 2 more · 1 done". */
 .spine-fold-open {
   grid-column: 2;
   justify-self: start;
@@ -236,13 +244,13 @@
   min-block-size: var(--touch);
   padding-inline: calc(var(--spine-pill) + var(--s3)) var(--s3);
   border-radius: var(--r-control);
-  color: var(--on-surface-variant);
+  color: var(--primary);
   font: var(--label-large);
   text-align: start;
 }
 .spine-fold-label { min-inline-size: 0; overflow: clip; white-space: nowrap; text-overflow: ellipsis; }
 .spine-fold-open:active { background: var(--row-press); }
-@media (hover: hover) and (pointer: fine) { .spine-fold-open:hover { color: var(--on-surface); } }
+@media (hover: hover) and (pointer: fine) { .spine-fold-open:hover { background: var(--row-press); } }
 .spine-fold-open:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .spine-anytime { font-weight: 400; }
 

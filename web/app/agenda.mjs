@@ -30,7 +30,7 @@ export function comingUp(data, now = new Date(), shown = localDay(now)) {
   };
   const keyOf = value => (endOf(value) < +now ? 'overdue' : value.slice(0, 10));
   const listed = value => value.slice(0, 10) !== shown && (keyOf(value) === 'overdue' ? value.slice(0, 10) >= since : value.slice(0, 10) <= last);
-  const whenOf = (value, day) => (day === 'overdue' ? pastWhen(value) : timeOf(value));
+  const whenOf = (value, day) => (day === 'overdue' ? pastWhen(value, today) : timeOf(value));
   const results = new Map(openResults(data).map(block => [block.id, block]));
   const left = id => blockTasks(data, id).filter(task => !task.done).length;
   const held = new Set();
@@ -63,10 +63,17 @@ export function comingUp(data, now = new Date(), shown = localDay(now)) {
 
 /** When a dated item is over: its time, or the end of its day when it has none. */
 const endOf = value => +new Date(order(value).replace('T24', 'T23:59'));
-/** A past item names its own day, since it sits under Overdue. */
-const pastWhen = value => dayName(value.slice(0, 10)) + (timed(value) ? ' ' + timeOf(value) : '');
+/**
+ * A past item under Overdue says when it was due as other rows do: today, only its time; this past week, its weekday;
+ * older, its full date.
+ */
+const pastWhen = (value, today) => {
+  const day = value.slice(0, 10), time = timed(value) ? timeOf(value) : '';
+  if (day === today) return time || 'Today';
+  const name = day >= shiftDay(today, -6) ? new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'long'}) : fullDay(day);
+  return [name, time].filter(Boolean).join(', ');
+};
 
-const dayName = day => new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'short', day: 'numeric', month: 'short'});
 const fullDay = day => new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'short', day: 'numeric', month: 'long'});
 /** A day heading is its full date; the real today and tomorrow (whatever day the centre shows) also say so. */
 export function groupName(day, now) {
@@ -85,8 +92,12 @@ function soonRow(item, ui, overdue) {
   node.append(must ? star('soon-star') : icon('hourglass_empty', {cls: 'soon-mark'}));
   const words = el('span', 'soon-words');
   words.append(el('span', 'soon-what', item.title));
-  const under = must ? [item.block, item.block && tasksLeft(item.left)].filter(Boolean).join(' · ') : tasksLeft(item.left);
-  if (under) words.append(el('span', 'soon-left', under));
+  const count = item.left != null && (!must || item.block) ? tasksLeft(item.left) : '';
+  if (item.block || count) {
+    const under = el('span', 'soon-left', must && item.block ? item.block : '');
+    if (count) under.append(el('span', 'soon-count', (under.textContent ? ' · ' : '') + count));
+    words.append(under);
+  }
   node.append(words);
   if (item.when) node.append(el('span', `soon-time tnum${overdue ? ' overdue' : ''}`, item.when));
   node.setAttribute('aria-label', [item.title, item.block, `${overdue ? 'due since' : 'due'} ${item.when || 'end of day'}`,

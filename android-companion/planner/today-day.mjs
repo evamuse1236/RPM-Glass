@@ -3,11 +3,11 @@
  * the timeline (spine-model.mjs, drawn by spine-view.mjs) with the folded past, the day's tasks, calendar events,
  * Routines, meals and Result deadlines, and the tasks with no time. A floating Now button returns to now.
  */
-import {buildSpine, owedRows} from '../spine-model.mjs';
+import {buildSpine} from '../spine-model.mjs';
 import {routineOn, routineState, doneAll, usualMeals} from '../body-state.mjs';
 import {localDay, blockDue, timelineItems} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
-import {spineList, spineRow, focusCard, focusRow, foldToggle, moreToggle, OWED_CAP, anytimeRows, focusOf} from './spine-view.mjs';
+import {spineList, spineRow, focusCard, focusRow, foldToggle, foldedRows, anytimeRows, focusOf} from './spine-view.mjs';
 import {el, icon, button, emptyState} from './dom.mjs';
 import {dueInfo} from './format.mjs';
 import {notice} from './snackbar.mjs';
@@ -23,7 +23,7 @@ import {openResults} from './today-model.mjs';
 import {dueDay} from './today-header.mjs';
 
 const OPEN_OFFSET = 160;
-const state = {model: null, app: null, observer: null, timer: null, open: {earlier: false, owed: false}};
+const state = {model: null, app: null, observer: null, timer: null, open: {earlier: false}};
 
 function dayTask(app, task, done) {
   const at = task.start ?? (task.planned ? Date.parse(task.occurrence ?? task.planned) : null);
@@ -139,21 +139,17 @@ function chips(app, allDay) {
   return row;
 }
 
-/** "Show N done" and "+N more" open and fold in place: their rows are already drawn, only hidden. */
+/** The fold line opens and folds in place: its rows are already drawn, only hidden. */
 function toggleFold(app, key) {
-  const owedKey = key === 'owed-more';
-  const flag = owedKey ? 'owed' : 'earlier';
-  const open = state.open[flag] = !state.open[flag];
+  const open = state.open.earlier = !state.open.earlier;
   const list = app.dom.work.querySelector('.spine');
   if (!list) return;
-  const owed = owedRows(state.model.rows);
-  const rows = owedKey ? owed.slice(OWED_CAP) : state.model.rows.filter(r => r.fold === 'earlier');
-  for (const row of rows) {
+  for (const row of foldedRows(state.model)) {
     const node = list.querySelector(`:scope > [data-key="${CSS.escape(row.key)}"]`);
     if (node) node.hidden = !open;
   }
   const old = list.querySelector(`:scope > [data-key="${key}"]`);
-  const fresh = owedKey ? moreToggle(owed, open, handlers(app)) : foldToggle(rows, open, handlers(app));
+  const fresh = foldToggle(state.model, open, handlers(app));
   fresh.setAttribute('role', 'listitem');
   old?.replaceWith(fresh);
   fresh.querySelector('button').focus();

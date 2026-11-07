@@ -193,18 +193,18 @@ export function lateText(ms) {
 }
 
 /**
- * A missed row says how late it is and nothing else; out of time order in its group, it keeps only its start in the
- * gutter and a short card.
+ * A missed row says how late it is, then its Result as on any row (a clash is over once both have passed); it keeps
+ * only its start in the gutter and a short card with no length bar.
  */
 function owe(row, now) {
   row.height = cardHeight(0);
   row.when = {kind: 'late', text: lateText(now - row.start)};
-  if (row.line?.kind !== 'due') row.line = null;
+  if (row.line && row.line.kind !== 'due' && row.line.kind !== 'result') row.line = null;
   if (row.gutter) row.gutter.end = null;
 }
 
-/** The missed rows in the order the group lists them: Musts first, then by time. */
-export const owedRows = rows => rows.filter(r => r.fold === 'missed').sort((a, b) => (b.must ? 1 : 0) - (a.must ? 1 : 0) || a.start - b.start);
+/** The missed rows in clock order, as the gutter reads; a Must stands out by its star and error ring, not by place. */
+export const owedRows = rows => rows.filter(r => r.fold === 'missed').sort((a, b) => a.start - b.start);
 
 /** "Still to do · 4": the group's quiet header. */
 export const owedLabel = rows => `Still to do · ${rows.length}`;
@@ -215,6 +215,19 @@ const items = rows => rows.filter(r => r.kind !== 'gap');
 export const doneLabel = (rows, open = false) => {
   const all = items(rows), done = all.filter(r => r.done).length;
   return `${open ? 'Hide' : 'Show'} ${done || all.length} ${done ? 'done' : 'earlier'}`;
+};
+
+/**
+ * The one line under the still-to-do group that opens what it hides: the owed rows past the first few and the finished
+ * past. "Show 2 more · 1 done", "Show 2 more", or only the past's "Show 1 done"; open, "Show less" (or "Hide 1 done").
+ */
+export const foldWords = (hidden, past, open = false) => {
+  if (!hidden) return {label: doneLabel(past, open), spoken: doneSpoken(past, open)};
+  const all = items(past), done = all.filter(r => r.done).length;
+  const rest = all.length ? (done ? `${done} done` : `${all.length} earlier`) : '';
+  if (open) return {label: 'Show less', spoken: 'Show less: hide the extra still to do' + (rest ? ' and earlier' : '')};
+  return {label: ['Show ' + hidden + ' more', rest].filter(Boolean).join(' · '),
+    spoken: [`Show ${hidden} more still to do`, rest && `and earlier: ${rest}`].filter(Boolean).join(', ')};
 };
 
 /** "Show earlier: 1 done, 2 more": what TalkBack hears for that line. */

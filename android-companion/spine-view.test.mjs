@@ -120,7 +120,7 @@ test('the done past folds behind one quiet Show done line at the top of the rail
   assert.equal(text(open[0]), 'Hide 1 done');
 });
 
-test('what is owed sits in one group at the top: Musts first, "N h late", error ring, three rows then +N more; each keeps its swipe', () => {
+test('what is owed sits in one group at the top: clock order, "N h late", three rows, then one line opens the rest and the done past; each keeps its swipe', () => {
   const swiped = [];
   const spy = new Proxy({}, {get: (_, name) => (name === 'gestures' ? (node, row) => swiped.push(row.key) : () => {})});
   const owedTask = (id, time, extra) => ({id, title: id, start: at(time), minutes: 15, ...extra});
@@ -129,28 +129,32 @@ test('what is owed sits in one group at the top: Musts first, "N h late", error 
       owedTask('Stretch', '08:00', {done: true}), {id: 'Read', title: 'Read', start: at('22:00'), minutes: 30}]});
   const shut = spineList(day, spy).children;
   const keys = shut.map(r => r.dataset.key);
-  assert.deepEqual(keys.slice(0, 7), ['owed', 'task:Draft', 'task:Call', 'task:Group', 'task:Review', 'owed-more', 'earlier'],
-    'header, Musts first then time order, +N more, then the done line');
+  assert.deepEqual(keys.slice(0, 6), ['owed', 'task:Call', 'task:Draft', 'task:Group', 'task:Review', 'earlier'],
+    'header, the rows in clock order, then one fold line');
+  assert.ok(!keys.includes('owed-more'), 'never two expander lines');
   assert.equal(text(all(shut[0], 'spine-owed-label')[0]), 'Still to do · 4');
   assert.equal(text(all(shut[0], 'spine-owed-hint')[0]), 'Swipe left to plan', 'a quiet hint names the swipe');
   assert.equal(shut[0].getAttribute('role'), 'heading');
-  const draft = shut[1];
-  assert.ok(draft.classList.contains('owed') && draft.classList.contains('late'));
+  const draft = shut[2];
+  assert.ok(draft.classList.contains('owed') && draft.classList.contains('late') && draft.classList.contains('must'), 'a Must is marked for its error tone');
+  assert.ok(!shut[1].classList.contains('must'), 'other late rows stay neutral');
   assert.equal(all(draft, 'spine-must').length, 1, 'a Must keeps its star');
   assert.match(text(draft), /5 h late/);
   assert.doesNotMatch(text(draft), /Missed|ago/);
   assert.deepEqual(shut.slice(1, 5).map(r => !!r.hidden), [false, false, false, true], 'three rows show, the fourth waits');
-  assert.equal(text(shut[5]), '+1 more');
+  assert.equal(text(shut[5]), 'Show 1 more · 1 done');
   assert.equal(all(shut[5], 'spine-fold-open')[0].getAttribute('aria-expanded'), 'false');
+  assert.equal(shut.find(r => r.dataset.key === 'task:Stretch').hidden, true);
   assert.equal(keys.filter(k => k === 'task:Call').length, 1, 'an owed row is drawn once');
   assert.ok(keys.indexOf('now') > keys.indexOf('earlier'), 'the rest of the day follows the group');
-  assert.deepEqual(swiped.filter(k => k !== 'task:Read' && k !== 'task:Stretch'), ['task:Draft', 'task:Call', 'task:Group', 'task:Review'],
+  assert.deepEqual(swiped.filter(k => k !== 'task:Read' && k !== 'task:Stretch'), ['task:Call', 'task:Draft', 'task:Group', 'task:Review'],
     'an owed row still swipes left to schedule');
-  const open = spineList(day, on, {open: {owed: true}}).children;
+  const open = spineList(day, on, {open: {earlier: true}}).children;
   assert.equal(open.find(r => r.dataset.key === 'task:Review').hidden, false);
-  assert.equal(text(open.find(r => r.dataset.key === 'owed-more')), 'Show fewer');
+  assert.equal(open.find(r => r.dataset.key === 'task:Stretch').hidden, false);
+  assert.equal(text(open.find(r => r.dataset.key === 'earlier')), 'Show less');
   const few = spineList(buildSpine({day: DAY, now: at('11:40'), meals: [], tasks: [owedTask('Call', '10:30')]}), on).children;
-  assert.ok(!few.some(r => r.dataset.key === 'owed-more'), 'no more line for three or fewer');
+  assert.ok(!few.some(r => r.dataset.key === 'earlier' && /more/.test(text(r))), 'no more count for three or fewer');
 });
 
 test('tasks with no time are rows at the end of the timeline; only the first says Any time', () => {
