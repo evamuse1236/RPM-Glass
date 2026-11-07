@@ -2,7 +2,7 @@
 import {blockTasks, blockDue, localDay, inboxRows, byProject} from '../planner-state.mjs';
 import {weekStart, weekFocus, resultStatus} from '../review-state.mjs';
 import {el, icon, button, labelButton, emptyState, areaDot, attrs, sectionHeader} from './dom.mjs';
-import {duration, plural, dateText, dueInfo, timeLeft} from './format.mjs';
+import {duration, plural, dateText, dueInfo, timeLeft, clock, shortClock} from './format.mjs';
 
 /** A wrapped facts line never ends on a dangling dot: each fact after the first carries its own. */
 function appendFacts(line, parts) {
@@ -23,7 +23,7 @@ import {blockAdd} from './block-add.mjs';
 
 export {factRow, purposePanel, notesPanel, revealNotes, titleField, finishDetail, focusTitleOnOpen} from './detail-fields.mjs';
 
-const WEEK_MS = 7 * 864e5;
+const DAY_MS = 864e5, WEEK_MS = 7 * DAY_MS;
 const thisWeek = app => weekFocus(app.data(), weekStart(localDay()));
 
 /** The open Must time with the star as its legend ("★ 3 h 50 min of Musts left"), or null when no Must is open. */
@@ -34,14 +34,18 @@ function mustLeft(status) {
   return node;
 }
 
-/** Deadline with its countdown; `tight` when the open Musts need a quarter or more of the clock time left. */
+/**
+ * The deadline in the Plan's compact words ("Due tomorrow 11 PM"), said once: the hours left join it only inside the
+ * last day. `tight` when the open Musts need a quarter or more of the clock time left.
+ */
 export function deadline(data, block, status, now = new Date()) {
   const due = blockDue(data, block.id);
   const info = due && dueInfo(due.value, now);
   if (!info || status.achieved) return null;
   const tight = info.overdue || status.mustMinutes * 60000 * 4 >= info.at - now;
-  return {...info, task: due.task, tight, text: info.overdue ? info.label
-    : `${info.label} · ${timeLeft(info.at, now).replace(' ', '\u00a0')}\u00a0left`};
+  const label = info.label.replace(clock(info.at), shortClock(info.at));
+  return {...info, label, task: due.task, tight, text: info.overdue || info.at - now >= DAY_MS ? label
+    : `${label} · ${timeLeft(info.at, now).replace(' ', '\u00a0')}\u00a0left`};
 }
 
 /**
@@ -94,7 +98,10 @@ export function weekMark(focus, status, due, now = new Date()) {
   return focus && !status.achieved && !(due && due.at - now < WEEK_MS);
 }
 
-/** A Result card: Area and Project (unless the list already says it), title, Purpose, where it stands, the Next task. */
+/**
+ * A Result card: Area and Project (unless the list already says it), the title with its progress ring, Purpose, the
+ * deadline, then the Next task on one line.
+ */
 export function blockCard(app, block, {focus = false, project = true} = {}) {
   const status = resultStatus(app.data(), block.id);
   const card = el('article', 'block-card');
@@ -111,21 +118,25 @@ export function blockCard(app, block, {focus = false, project = true} = {}) {
     }
     main.append(top);
   }
-  main.append(el('span', 'card-title', block.title));
-  main.append(el('span', 'card-purpose', block.purpose || 'Add the Purpose: why this Result matters'));
-  // Where it stands on one line: the deadline (error colour when tight) and tasks done; Block detail has the countdown
-  // and the Musts' time. This week's pick gets a small tonal mark only when no deadline inside the week says it already.
-  const due = deadline(app.data(), block, status);
   const count = status.total ? `${status.done} of ${plural(status.total, 'task')} done` : 'No tasks in the Plan yet';
+  // Tasks done is the ring at the title's end, as on Block detail; the words under the Purpose are only the deadline.
+  const head = el('span', 'card-head');
+  head.append(el('span', 'card-title', block.title));
+  if (status.total) head.append(progressRing(status.done, status.total, count));
+  main.append(head);
+  main.append(el('span', 'card-purpose', block.purpose || 'Add the Purpose: why this Result matters'));
+  // The deadline (error colour when tight); Block detail has the Musts' time. This week's pick gets a small tonal mark
+  // only when no deadline inside the week says it already. A Plan with no tasks says so, as the ring cannot.
+  const due = deadline(app.data(), block, status);
   const week = weekMark(focus, status, due);
-  const line = el('span', 'card-facts tnum');
-  const when = due && el('span', 'card-due', due.label);
-  when?.classList.toggle('tight', due.tight);
-  const facts = el('span', 'card-stand');
-  appendFacts(facts, [when, el('span', '', status.total ? `${status.done} of ${status.total} done` : count)].filter(Boolean));
-  line.append(facts);
-  if (week) line.append(el('span', 'week-mark', 'This week'));
-  main.append(line);
+  const when = due ? el('span', 'card-due', due.label) : !status.total ? el('span', '', count) : null;
+  when?.classList.toggle('tight', !!due?.tight);
+  if (when || week) {
+    const line = el('span', 'card-facts tnum');
+    if (when) line.append(when);
+    if (week) line.append(el('span', 'week-mark', 'This week'));
+    main.append(line);
+  }
   main.setAttribute('aria-label', `Result: ${block.title}. ${due ? due.text + '. ' : ''}`
     + `${count}. ${week ? 'This week. ' : ''}Open Block`);
   card.append(main);
@@ -138,7 +149,7 @@ export function blockCard(app, block, {focus = false, project = true} = {}) {
     check.setAttribute('aria-label', `Mark ${next.title} complete`);
     check.append(el('span', 'check-ring'));
     const open = button('', () => app.actions.openTask(next.id), 'next-title');
-    open.append(el('span', 'overline', 'Next'), el('span', '', next.title));
+    open.append(el('span', 'overline', 'Next'), el('span', 'next-words', next.title));
     row.append(check, open);
     card.append(row);
   }

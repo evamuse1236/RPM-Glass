@@ -7,19 +7,22 @@ import {seed} from '../../android-companion/review-fixtures.mjs';
 installFakeDom();
 const {blockCard} = await import('../../android-companion/planner/blocks.mjs');
 
-const facts = wide => {
+const card = wide => {
   const {d, home} = seed();
   const block = planner(d).blocks.find(b => b.id === home);
   const app = {data: () => d, tone: () => 'a', blockArea: () => null, openBlock() {}, api: {wide: () => wide}};
-  const main = blockCard(app, block, {project: false}).children.find(c => c.className.includes('card-main'));
-  return main.children.filter(c => c.className.includes('card-facts')).map(c => c.textContent);
+  return blockCard(app, block, {project: false}).children.find(c => c.className.includes('card-main'));
 };
 
 for (const wide of [false, true]) {
-  test(`${wide ? 'on wide' : 'on the phone'} a Block card says where it stands on one line: the deadline, then tasks done; the Musts' time is Block detail's`, () => {
-    const [line, ...rest] = facts(wide);
-    assert.match(line, /^Overdue since [^·]* · 0 of 3 done$/);
-    assert.doesNotMatch(line, /Musts/);
+  test(`${wide ? 'on wide' : 'on the phone'} a Block card says the deadline on one line and tasks done as a ring on its title row; the Musts' time is Block detail's`, () => {
+    const main = card(wide);
+    const [line, ...rest] = main.children.filter(c => c.className.includes('card-facts')).map(c => c.textContent);
+    assert.match(line, /^Overdue since [^·]*$/);
+    assert.doesNotMatch(line, /done|Musts/);
     assert.deepEqual(rest, []);
+    const head = main.children.find(c => c.className.includes('card-head'));
+    const ring = head.children.find(c => c.getAttribute?.('role') === 'progressbar');
+    assert.equal(ring.getAttribute('aria-label'), '0 of 3 tasks done');
   });
 }

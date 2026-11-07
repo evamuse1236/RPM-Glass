@@ -9,6 +9,8 @@
   border: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
   overflow: hidden;
 }
+/* A Block card is one filled surface, no outline (Material picks one), 8dp from the next. */
+.block-card { margin-block-start: var(--s2); border: 0; background: var(--surface-container); }
 .card-main {
   display: flex;
   flex-direction: column;
@@ -28,6 +30,10 @@
 }
 .eyebrow span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-title { font: var(--title-medium); overflow-wrap: anywhere; text-wrap: pretty; }
+/* Tasks done is a 20dp ring at the title's end, centred on its first line, as on Block detail. */
+.card-head { display: flex; align-items: flex-start; gap: var(--s3); }
+.card-head .card-title { flex: 1; min-inline-size: 0; }
+.card-head .ring { inline-size: 20px; block-size: 20px; margin-block-start: 2px; }
 .card-purpose {
   font: var(--body-medium);
   color: var(--on-surface-variant);
@@ -81,16 +87,16 @@
 .seg-off { stroke: var(--surface-container-highest); }
 .seg-on { stroke: var(--progress, var(--primary)); }
 .seg-arc { stroke-linecap: round; }
-/* Where a Block card stands, on one line: the deadline, tasks done, then This week's pick as a small tonal mark beside them. */
-.card-facts { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--s2); margin-top: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
-.card-stand > *, .fact-next, .nowrap, .must-left { white-space: nowrap; }
+/* A Block card's deadline, then This week's pick as a small tonal mark beside it. */
+.card-facts { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--s2); font: var(--body-medium); color: var(--on-surface-variant); }
+.card-due, .fact-next, .nowrap, .must-left { white-space: nowrap; }
 .week-mark { padding-inline: var(--s1); border-radius: var(--shape-xs); background: var(--secondary-container); color: var(--on-secondary-container); font: var(--label-medium); white-space: nowrap; }
 .card-due.tight { color: var(--error); }
 .ring { flex: none; width: 24px; height: 24px; }
 .ring circle { fill: none; stroke-width: 3; }
 .ring-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
 /* The Next task sits inside the card under where it stands, no divider: a 16dp ring on the card's text edge, then
-   "Next" and the task. The ring keeps a 48dp hit area; the title wraps rather than cuts. */
+   "Next" and the task on one line (the Block's Plan has it whole). The ring keeps a 48dp hit area. */
 .card-main:has(+ .next-task) { padding-block-end: var(--s1); }
 .next-task { display: flex; align-items: flex-start; gap: var(--s2); padding: 0 var(--s4) var(--s2); }
 .next-task .task-check { position: relative; inline-size: 16px; block-size: 28px; margin: 0; }
@@ -110,6 +116,7 @@
 }
 .next-title:active { background: var(--row-press); }
 .next-title .overline { text-transform: none; letter-spacing: 0; color: var(--primary); }
+.next-title .next-words { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
 /* Blocks filters are dropdown chips sized to their words: a 12dp lead and the arrow 4dp after the label. */
 #planner[data-view=blocks] .filters .filter-chip.dropdown { padding-inline-start: var(--s3); gap: var(--s1); }
 /* Blocks list: consecutive cards from one Project sit under one Area and Project line. */
@@ -235,6 +242,13 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
    the header is the same height whether it shows or not and never pushes the Plan. */
 .plan-header { align-items: center; padding: var(--s4) var(--s1) 0 var(--gutter); }
 .plan-header h2 { font: var(--title-medium); }
+/* A Block's header stays short so the Plan starts high: facts pack on 4dp padding, the verdict hugs them, Plan follows 12dp on. */
+#planner[data-view=blocks] .block-facts > .fact-row:not(.verdict-row) { padding-block: var(--s1); }
+#planner[data-view=blocks] .block-facts > .verdict-row { margin-block: var(--s1) 0; }
+#planner[data-view=blocks] .plan-header { padding-block-start: var(--s3); }
+/* Plan words stop 8dp before a Must star (12dp to its glyph); Completed's label and chevron share the rows' 16dp start and the stars' end. */
+#planner[data-view=blocks] .task-main:has(+ .must-mark) { padding-inline-end: var(--s1); }
+#planner[data-view=blocks] .completed-toggle { padding-inline: var(--s3) var(--s2); }
 .plan-header .text-btn { margin-block: calc(-1 * var(--s3)); }
 .plan-actions { display: flex; align-items: center; }
 .plan-list { padding: 0 var(--s1); }
