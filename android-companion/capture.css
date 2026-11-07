@@ -32,6 +32,11 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
   border:1px solid var(--bar-edge);border-block-end:0;border-radius:var(--r-control) var(--r-control) 0 0;
   background:var(--bar);color:var(--bar-on);
 }
+/* Two concave 8dp fillets join the tab's sides to the box's top edge, so tab and box share one outline. */
+.handle::before{content:'';position:absolute;inset-inline:-12px;inset-block-end:0;block-size:12px;pointer-events:none;
+  background:linear-gradient(var(--bar),var(--bar)) bottom/100% 1px no-repeat,
+    radial-gradient(circle at .5px .5px,transparent 7.25px,var(--bar-edge) 7.75px 8.25px,var(--bar) 8.75px) left 3px bottom 1px/9px 9px no-repeat,
+    radial-gradient(circle at 8.5px .5px,transparent 7.25px,var(--bar-edge) 7.75px 8.25px,var(--bar) 8.75px) right 3px bottom 1px/9px 9px no-repeat}
 .handle .ms{font-size:20px}
 /* A 48dp target: the 24dp tab plus the strip under it inside the box. */
 .handle::after{content:'';position:absolute;inset:-8px 0 -16px}

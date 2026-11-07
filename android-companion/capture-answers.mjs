@@ -3,14 +3,18 @@ import {card,answerText,alsoHeard} from './capture-cards.mjs';
 import {clock,shortClock,relativeDay,longDate} from './planner/format.mjs';
 import {scheduleText} from './capture-content.mjs';
 import {localDay} from './planner-state.mjs';
+import {END_MINUTES} from './spine-model.mjs';
 
-/** The gutter reads like Today's: "10 AM", "11:30 AM" on one line, minutes only when they say something. */
+/** The gutter reads like Today's: the start ("10 AM", "11:30 AM"), and under it, quieter, the end of anything that lasts
+    END_MINUTES or more, so the title keeps the row's width. */
 function agendaTime(item){
- return el('span','agenda-time',item.start==null?'Any time':item.allDay?'All day':shortClock(item.start));
+ const gutter=el('span','agenda-time');
+ gutter.append(el('span','',item.start==null?'Any time':item.allDay?'All day':shortClock(item.start)));
+ if(item.start!=null&&!item.allDay&&item.end!=null&&item.end-item.start>=END_MINUTES*60000)gutter.append(el('span','agenda-end',shortClock(item.end)));
+ return gutter;
 }
 
-/** Every agenda row is one line: the start time in the gutter, the title (cut with an ellipsis) and the Must star. Only
-    the row happening now adds its end time, because that is the one end that matters at a glance. Rows never grow. */
+/** A row is the time gutter, the mark, and the title (up to two lines before an ellipsis) with the Must star. */
 function agendaRow(item,now){
  const live=item.start!=null&&item.start<=now&&(item.end??item.start)>now;
  const row=el('li',['agenda-row',item.kind==='event'?'event':'',item.done?'done':'',live?'now':''].filter(Boolean).join(' '));
@@ -19,7 +23,6 @@ function agendaRow(item,now){
  const body=el('div','agenda-body');
  body.append(el('p','agenda-title',item.title));
  if(item.must){const star=icon('star',{fill:true,cls:'must-mark'});star.removeAttribute('aria-hidden');star.setAttribute('role','img');star.setAttribute('aria-label','Must');body.append(star);}
- if(live&&item.end!=null&&!item.allDay)body.append(el('span','agenda-end',`until ${shortClock(item.end)}`));
  row.append(body);
  return row;
 }
