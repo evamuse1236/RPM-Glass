@@ -27,11 +27,15 @@
 .habit-soon { color: var(--primary); }
 /* The chevron's glyph sits inside its box: pulled out by that inset, it ends on the sheet's content edge. */
 .habit-chevron { flex: none; margin-inline-end: calc(-1 * var(--s2)); font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
+/* The next thing's action takes the chevron's column: a 40dp tonal circle whose end lines up with the chevron's, above
+   the row's own tap area. */
+.habit-do.icon-btn { z-index: 1; margin-inline-end: calc(-1 * var(--s1)); color: var(--on-secondary-container); }
+.habit-do.icon-btn::before { background: var(--secondary-container); opacity: 1; }
+.habit-do.icon-btn:active::before, .habit-do.icon-btn:hover::before { filter: brightness(.94); }
+.habit-do > .ms { position: relative; font-size: calc(24px / var(--text-scale, 1)); }
 .habit-add { display: flex; min-block-size: var(--touch); }
 .habit-add > .habit-icon { color: var(--primary); }
 .habit-add > .habit-open { flex: 1; font: var(--body-large); color: var(--primary); }
-/* The meals are their own group: space, not a line, sets them apart from routines and water. */
-.habit-list.habit-meals { margin-block-start: var(--s2); }
 /* Water's sheet: today's glasses as a slim segmented track, one segment per glass of the goal (not the Today circle's
    .habit-meter). */
 .water-track { display: flex; gap: var(--s1); margin-block-start: var(--s2); }
@@ -53,6 +57,7 @@
 .water-progress { flex: 1; min-inline-size: 0; display: flex; flex-direction: column; gap: var(--s2); }
 .water-count { font: var(--title-medium); color: var(--on-surface); }
 .water-progress > .water-track { margin-block-start: 0; }
+.water-next { font: var(--body-medium); color: var(--on-surface-variant); }
 /* A slider row: the label with its value on the row's line (values end in the column the chevron rows' values end
    in), and the M3 slider across the full width under them. */
 .slider-field {

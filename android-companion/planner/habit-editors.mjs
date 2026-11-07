@@ -43,12 +43,21 @@ function backTo(app, header, content, back, label) {
   };
 }
 
-/** Water: today's count over its meter with a one-tap log, then the goal, the glass size and a Reminders row that
+/** When the next glass is due, or why none is coming. */
+function nextGlass(status, settings) {
+  if (status.reached) return 'Goal reached';
+  if (settings.reminders === false) return 'Reminders off';
+  if (status.pending) return 'Next glass due now';
+  return status.nextAt ? `Next glass at ${clockText(status.nextAt)}` : 'No more reminders today';
+}
+
+/** Water: today's count over its meter and when the next glass is due, with a one-tap log; then the goal, the glass size and a Reminders row that
  * opens its own sheet. */
 export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Habits', motion = 'forward'} = {}) {
   const {body: content, header} = openSheet(app, 'Water', {variant: 'choice habit-editor', motion});
   backTo(app, header, content, back, backLabel);
   const count = el('span', 'water-count tnum');
+  const next = el('span', 'water-next tnum');
   const goal = slider({label: 'Daily goal', ...WATER_STEPS.goal, format: glassesText,
     onChange: onGrid('goal', v => saved(app, () => body.setWater('goal', v), `Daily goal: ${glassesText(v)}`))});
   const size = pickButton('Glass size', value => saved(app, () => body.setWater('glassMl', Number(value)), `Glass size: ${value} ml`));
@@ -62,7 +71,7 @@ export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Ha
   const today = el('section', 'water-today');
   today.setAttribute('aria-label', 'Today');
   const progress = el('div', 'water-progress');
-  progress.append(count, meter);
+  progress.append(count, meter, next);
   today.append(progress, log);
   content.append(today, factRow('water_drop', goal, {cls: 'slider-row'}), factRow('local_drink', size),
     factRow('notifications', reminders));
@@ -71,6 +80,7 @@ export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Ha
     const s = waterSettings(body);
     const status = waterStatus({...body.water(), settings: s, now: body.now()});
     count.textContent = `${status.count} of ${glassesText(status.goal)}`;
+    next.textContent = nextGlass(status, s);
     if (meter.childElementCount !== status.goal) meter.replaceChildren(...Array.from({length: status.goal}, () => el('i')));
     [...meter.children].forEach((glass, i) => glass.classList.toggle('on', i < status.count));
     if (!sliding(content)) goal.set(s.goal);

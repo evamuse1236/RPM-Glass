@@ -13,6 +13,20 @@ import {openHabits} from './habits.mjs';
 
 const RECENT_CHIPS = 3;
 
+/** Log a meal now as its usual food, with Undo; a meal with no usual food yet opens the sheet on that meal. */
+export async function logMealNow(app, body, slot, name) {
+  const [usual] = usualMeals(body.meals(), slot);
+  if (!usual) return openMealSheet(app, body, {slot});
+  try {
+    await body.saveMeal({name: usual, slot, at: body.now().toISOString()});
+  } catch {
+    notice(app, "Couldn't save that. Try again.");
+    return;
+  }
+  app.render();
+  notice(app, `${name} logged · ${usual}`, {undo: true});
+}
+
 function estimateLine(estimate) {
   const line = el('div', 'estimate-line');
   line.hidden = !estimate;
