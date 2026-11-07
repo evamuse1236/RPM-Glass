@@ -194,9 +194,8 @@
   inset-block-end: 8px;
   inset-inline-start: 50%;
   block-size: 8px;
-  border-start-end-radius: var(--shape-full);
-  border-end-end-radius: var(--shape-full);
-  background: var(--primary);
+  border-radius: var(--shape-full);
+  background: color-mix(in oklch, var(--primary) 40%, var(--primary-container));
   pointer-events: none;
 }
 .ruler-centre {
@@ -286,7 +285,10 @@
 }
 .block-choice .ring { inline-size: 24px; block-size: 24px; }
 .block-choice .ring-track { stroke: var(--outline-variant); }
-.block-choice .ring-done { fill: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--sheet-bg, var(--sheet-surface))); stroke: none; }
+.block-choice .ring-done { fill: color-mix(in oklch, var(--success) var(--track-mix), var(--sheet-bg, var(--sheet-surface))); stroke: none; }
+/* Finished reads as done (a full green ring, a small green check), never as the blue of the chosen row. */
+.block-choice .ring:has(.ring-done) .ring-value { stroke: var(--success); }
+.block-choice .ring-check { fill: none; stroke: var(--success); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .block-choice-inbox { justify-self: center; font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
 .block-choice-title { overflow: clip; font: var(--body-large); text-overflow: ellipsis; white-space: nowrap; }
 .block-choice .choice-hint { font: var(--label-small); color: var(--on-surface-variant); }

@@ -115,17 +115,19 @@ test('Alert and Repeat say Off and Once only on their tab; a second tap on the c
   assert.match(tabs, /const next = chosen\.getAttribute\('aria-pressed'\) === 'true' \? 'once' : choice;/);
 });
 
-test('the Block list marks the chosen Block with one secondary-container row, a finished Block with a quiet tonal disc (no check), and wraps only the chosen name', () => {
+test('the Block list marks the chosen Block with one secondary-container row, a finished Block with a green ring and small green check, and wraps only the chosen name', () => {
   const tabs = read('../../android-companion/planner/task-tabs.mjs');
   assert.match(tabs, /if \(total && done === total\) \{\n    ring\.append\(attrs\(document\.createElementNS\(SVG, 'circle'\), \{class: 'ring-done'/, 'a finished Block fills its ring like a finished Project');
   assert.doesNotMatch(tabs, /mark\.append\(icon\('check'\)\)/, 'the radio carries a dot, never a check that reads as done');
   const css = read('../../android-companion/task-tabs.css');
   assert.match(css, /\.block-choice\[aria-checked=true\] \{ background: var\(--secondary-container\); color: var\(--on-secondary-container\); \}/, 'the chosen row is a selection, not a success tint');
-  assert.match(css, /\.block-choice \.ring-done \{ fill: color-mix\(in oklch, var\(--progress, var\(--primary\)\) var\(--track-mix\), var\(--sheet-bg, var\(--sheet-surface\)\)\);/, 'the done disc mixes with the sheet the row now sits on');
+  assert.match(css, /\.block-choice \.ring-done \{ fill: color-mix\(in oklch, var\(--success\) var\(--track-mix\), var\(--sheet-bg, var\(--sheet-surface\)\)\);/, 'the done disc is a quiet green that mixes with the sheet the row sits on');
+  assert.match(css, /\.block-choice \.ring:has\(\.ring-done\) \.ring-value \{ stroke: var\(--success\); \}/, 'a finished ring is green, never the blue of the chosen row');
+  assert.match(css, /\.block-choice \.ring-check \{ fill: none; stroke: var\(--success\);/, 'its small check is green too');
   assert.doesNotMatch(css, /block-choice-mark|block-choice-line/, 'one selection mark (the filled row) and no purpose line');
   assert.doesNotMatch(css, /\.block-choice \.ring-value \{/, 'the ring keeps the shared Area or primary progress colour');
   assert.match(css, /\.block-choice-title \{ overflow: clip; font: var\(--body-large\); text-overflow: ellipsis; white-space: nowrap; \}/, 'a long Block name ends in an ellipsis on its one line');
-  assert.doesNotMatch(tabs + css, /ring-check/, 'a finished Block shows no check: a check next to the chosen row reads as the selection');
+  assert.doesNotMatch(css, /\.ring-check \{[^}]*(--primary|--on-secondary-container)/, 'the finished check is green, never the chosen row\'s colour, so it never reads as the selection');
   assert.match(css, /\.block-choice\[aria-checked=true\] \.block-choice-title \{ display: -webkit-box;[^}]*white-space: normal;[^}]*-webkit-line-clamp: 2; \}/, 'the chosen Block name wraps whole to two lines');
   assert.match(read('../../android-companion/task-sheet.css'), /\.task-start \{ grid-column: 1 \/ -1; justify-self: start; margin: 0 0 var\(--s2\); \}/, 'Start now starts on the content edge');
 });

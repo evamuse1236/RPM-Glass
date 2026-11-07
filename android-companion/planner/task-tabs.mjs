@@ -8,7 +8,7 @@ import {el, icon, button, attrs} from './dom.mjs';
 import {progressRing} from './blocks.mjs';
 import {chip, chipRow, pickerChip, markChips, settleChip} from './fact-rows.mjs';
 import {dayChips, repeatShort, repeatDaysOf, REPEAT_DAYS, ALERT_LEADS, leadLabel} from './task-values.mjs';
-import {TABS, stepTab, ALERT_KINDS, REPEAT_PRESETS, whenDay, whenSpoken, alertShort, blockShort, presetOf, blockChoices} from './task-tabs-model.mjs';
+import {TABS, stepTab, ALERT_KINDS, REPEAT_PRESETS, whenDay, whenBrief, whenSpoken, alertShort, blockShort, presetOf, blockChoices} from './task-tabs-model.mjs';
 import {timeRuler} from './time-ruler.mjs';
 
 const SEARCH_FROM = 7;
@@ -45,6 +45,7 @@ export function taskTabs({get, pick, tick = () => {}, remote = false, wide = fal
   row.setAttribute('aria-label', 'Task details');
   const tabs = {}, panels = {};
   let current = 'when';
+  let shown = null;
 
   const select = (key, {moved = false, focus = false} = {}) => {
     const changed = key !== current;
@@ -55,6 +56,7 @@ export function taskTabs({get, pick, tick = () => {}, remote = false, wide = fal
       tab.node.tabIndex = on ? 0 : -1;
       panels[name].hidden = !on;
     }
+    if (shown && changed) paintWhen(shown);
     if (focus) tabs[key].node.focus({preventScroll: true});
     if (moved && changed && !reducedMotion()) {
       panels[key].animate([{opacity: 0, translate: '0 8px'}, {opacity: 1, translate: '0 0'}],
@@ -100,9 +102,15 @@ export function taskTabs({get, pick, tick = () => {}, remote = false, wide = fal
     tab.node.setAttribute('aria-label', `${tab.name}, ${spoken}`);
   };
 
+  /** On When the large readout says the time, so the tab names the day; on any other tab the tab says the time. */
+  function paintWhen(now) {
+    setTab('when', current === 'when' ? whenDay(now) : whenBrief(now), 'schedule', whenSpoken(now));
+  }
+
   const paint = now => {
+    shown = now;
     const shownAlert = alertShort(now);
-    setTab('when', whenDay(now), 'schedule', whenSpoken(now));
+    paintWhen(now);
     setTab('alert', shownAlert.text, shownAlert.symbol);
     setTab('repeat', repeatShort(now.task), 'repeat');
     const blockTitle = now.blocks.find(b => b.id === now.blockId)?.title;
@@ -258,11 +266,12 @@ function repeatPanel(host, pick) {
 }
 
 const SVG = 'http://www.w3.org/2000/svg';
-/** A Block's ring; a finished one fills solid with a tonal disc (no gap, no check), so it never reads as a chosen radio. */
+/** A Block's ring; a finished one is a full green ring on a quiet green disc with a small check, never the chosen row's blue. */
 function blockRing({done, total}) {
   const ring = progressRing(done, total, `${done} of ${total} done`);
   if (total && done === total) {
-    ring.append(attrs(document.createElementNS(SVG, 'circle'), {class: 'ring-done', cx: 12, cy: 12, r: 8}));
+    ring.append(attrs(document.createElementNS(SVG, 'circle'), {class: 'ring-done', cx: 12, cy: 12, r: 8}),
+      attrs(document.createElementNS(SVG, 'path'), {class: 'ring-check', d: 'M8.5 12.25l2.5 2.5 4.5-4.75'}));
   }
   return ring;
 }
