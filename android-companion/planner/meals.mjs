@@ -68,17 +68,14 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
     slots.setAttribute('aria-label', 'Meal');
     for (const value of offered) slots.append(choiceChip(slotName(value), value, picked => { slot = picked; paintSlot(); }));
     markChips(slots, slot);
-    const helper = el('p', 'body-helper tnum', `Guessed from the time · ${clockText(now)}`);
     const usualHead = el('h3', 'field-group-label');
     const usual = el('div', 'chip-row wrap usual-chips');
-    const nothing = el('p', 'body-helper');
-    const input = field(app, content, 'Or type what you ate', text);
+    const input = field(app, content, 'What you ate', text);
     input.enterKeyHint = 'done';
     const error = el('p', 'sheet-error');
     error.setAttribute('role', 'alert');
-    input.parentElement.before(slots, helper, usualHead, usual, nothing);
+    input.parentElement.before(slots, usualHead, usual);
     content.append(error);
-    if (!editing) content.append(button('See history', () => { closeSheet(app); app.openHistory(); }, 'text-btn body-history-link'));
 
     const save = async name => {
       const words = name.trim();
@@ -95,7 +92,6 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
       renderSaved(saved, words);
     };
     function paintSlot() {
-      helper.hidden = !!editing || slot !== guessed;
       const names = usualMeals(body.meals(), slot);
       usualHead.textContent = `Your usual ${SLOT_PLURALS[slot]}`;
       usualHead.hidden = !names.length;
@@ -106,13 +102,12 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
         return chip;
       }));
       usual.hidden = !names.length;
-      nothing.textContent = `Nothing usual for ${slotName(slot).toLowerCase()} yet. Type it once and it'll be here next time.`;
-      nothing.hidden = !!names.length;
     }
     const submit = button('Save', () => save(input.value), 'filled-btn');
     const sync = () => { submit.disabled = !input.value.trim(); };
     input.addEventListener('input', () => { typed = input.value; sync(); });
     input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); save(input.value); } });
+    if (!editing) actions.append(button('See history', () => { closeSheet(app); app.openHistory(); }, 'text-btn body-history-link'));
     actions.append(submit);
     sync();
     paintSlot();

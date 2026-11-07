@@ -88,7 +88,7 @@ for (const dark of [false, true]) {
   await page.getByRole('button', {name: 'Log dinner'}).click();
   await page.waitForTimeout(700);
   await shot(page, '09-log-dinner-sheet');
-  await page.getByLabel('Or type what you ate').fill('Rajma chawal');
+  await page.getByLabel('What you ate').fill('Rajma chawal');
   await page.getByRole('button', {name: 'Save', exact: true}).click();
   await page.waitForTimeout(900);
   const dinner = (await body()).meals.find(m => m.slot === 'dinner');

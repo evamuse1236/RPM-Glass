@@ -8,7 +8,7 @@ import {el, button, iconButton} from './dom.mjs';
 import {openSheet, closeSheet, isSheetOpen} from './sheet.mjs';
 import {notice} from './snackbar.mjs';
 import {userMessage} from '../user-message.mjs';
-import {factRow, chipRow, chip, markChips, settleChip, revealChip, switchButton, stepper, timeButton, textRow}
+import {factRow, chipRow, chip, markChips, settleChip, switchButton, stepper, timeButton, textRow}
   from './fact-rows.mjs';
 
 const STEPPER_SETTLE = 500;
@@ -30,6 +30,7 @@ async function saved(app, run, words) {
 /** The sheet header's way back to what opened the editor, by the arrow or Android Back. */
 function backTo(app, header, content, back, label) {
   if (!back) return;
+  header.querySelector('.sheet-close')?.remove();
   header.prepend(iconButton('arrow_back', label, back, {cls: 'sheet-back'}));
   app.sheet.onBack = () => {
     if (!content.isConnected || !isSheetOpen(app)) return false;
@@ -69,9 +70,8 @@ export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Ha
     onChange: v => later('intervalMinutes', v, `Reminders every ${everyText(v)}`)});
   const from = timeButton('From', value => saved(app, () => body.setWater('from', value), `Reminders from ${timeWords(value)}`));
   const until = timeButton('Until', value => saved(app, () => body.setWater('until', value), `Reminders until ${timeWords(value)}`));
-  const hours = el('div', 'edit-pair');
-  hours.append(factRow('wb_sunny', from), factRow('bedtime', until));
-  const dependent = [factRow('timer', labelled('Every', every), {cls: 'stepper-row'}), hours];
+  const dependent = [factRow('timer', labelled('Every', every), {cls: 'stepper-row'}), factRow('wb_sunny', from),
+    factRow('bedtime', until)];
   const paintOff = off => {
     for (const row of dependent) {
       row.classList.toggle('is-off', off);
@@ -79,7 +79,7 @@ export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Ha
     }
   };
   content.append(factRow('water_drop', labelled('Glasses a day', goal), {cls: 'stepper-row'}),
-    factRow('local_drink', labelled('Glass size', sizes), {cls: 'chips-row'}),
+    factRow('local_drink', labelled('Glass size', sizes), {cls: 'segment-row'}),
     factRow('notifications', reminders), ...dependent);
 
   const paint = () => {
@@ -89,7 +89,7 @@ export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Ha
     const offered = [...new Set([...GLASS_SIZES, s.glassMl])].sort((a, b) => a - b);
     if (sizes.dataset.values !== offered.join('|')) {
       sizes.dataset.values = offered.join('|');
-      sizes.replaceChildren(...offered.map(ml => chip(`${ml} ml`, String(ml), pickSize, {cls: 'tnum'})));
+      sizes.replaceChildren(...offered.map(ml => chip(`${ml} ml`, String(ml), pickSize, {cls: 'tnum segment'})));
     }
     markChips(sizes, String(s.glassMl));
     reminders.set(s.reminders !== false);
@@ -98,7 +98,6 @@ export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Ha
     until.set(s.until, timeWords(s.until));
   };
   paint();
-  revealChip(sizes, sizes.querySelector('[aria-pressed=true]'));
   app.sheetRefresh = () => { if (content.isConnected) paint(); };
 }
 

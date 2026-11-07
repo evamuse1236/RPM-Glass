@@ -14,26 +14,31 @@ import {openWaterEditor, openMealEditor} from './habit-editors.mjs';
 import {bodyApi} from './body-api.mjs';
 
 const MEAL_PREFIX = 'meal:';
+const MEAL_ICONS = {breakfast: 'breakfast_dining', lunch: 'lunch_dining', dinner: 'dinner_dining', snack: 'bakery_dining'};
 
-/** One habit: its icon, name and summary open the editor; a meal also has its Show switch. */
-function habitRow(symbol, name, summary, open, trailing = null) {
+/** One habit: its icon, name and summary open the editor. A meal ends in its Show switch, any other in a chevron. */
+function habitRow(symbol, name, summary, open, toggle = null) {
   const row = el('div', 'habit-row');
   const copy = el('span', 'habit-copy');
   const main = button(name, open, 'habit-open');
   copy.append(main, el('span', 'habit-summary tnum', summary));
-  row.append(icon(symbol, {cls: 'habit-icon'}), copy);
-  if (trailing) row.append(trailing);
-  row.append(icon('chevron_right', {cls: 'habit-chevron'}));
+  row.append(icon(symbol, {cls: 'habit-icon'}), copy, toggle ?? icon('chevron_right', {cls: 'habit-chevron'}));
+  return row;
+}
+
+/** A quiet add row straight under the list it adds to. */
+function addRow(label, onClick) {
+  const row = el('div', 'habit-row habit-add');
+  row.append(icon('add', {cls: 'habit-icon'}), button(label, onClick, 'habit-open'));
   return row;
 }
 
 export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) {
-  const {body: content, actions, sheet} = openSheet(app, 'Habits', {variant: 'choice habits', motion});
-  sheet.classList.add('expanded');
+  const {body: content} = openSheet(app, 'Habits', {variant: 'choice habits', motion});
   const list = el('div', 'habit-list');
   content.append(list);
   const back = () => openHabits(app, body, {motion: 'back'});
-  const addSnack = button('Add a snack time', async () => {
+  const addSnack = addRow('Add a snack time', async () => {
     try {
       await body.setMealSlot('snack', {on: true});
     } catch (error) {
@@ -43,8 +48,8 @@ export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) 
     app.render();
     openMealEditor(app, body, 'snack', {back});
     notice(app, 'Snack time added', {undo: true});
-  }, 'text-btn');
-  actions.append(button('New routine', () => openRoutineEditor(app, body, null, {back}), 'text-btn'), addSnack);
+  });
+  const addRoutine = addRow('New routine', () => openRoutineEditor(app, body, null, {back}));
 
   const paint = () => {
     if (!content.isConnected) return;
@@ -71,11 +76,11 @@ export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) 
         notice(app, on ? `${meal.name} shows on Today` : `${meal.name} hidden from Today`, {undo: true});
       }, {cls: 'habit-switch'});
       show.set(meal.on);
-      rows.push(habitRow('restaurant', meal.name, clockText(atMinutes('2000-01-01', minutesOf(meal.at))),
+      rows.push(habitRow(MEAL_ICONS[meal.slot] ?? 'restaurant', meal.name, clockText(atMinutes('2000-01-01', minutesOf(meal.at))),
         () => openMealEditor(app, body, meal.slot, {back}), show));
     }
-    list.replaceChildren(...rows);
     addSnack.hidden = meals.some(m => m.slot === 'snack');
+    list.replaceChildren(...rows, addRoutine, addSnack);
   };
   paint();
   app.sheetRefresh = paint;

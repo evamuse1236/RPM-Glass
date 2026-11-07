@@ -7,7 +7,7 @@
 .edit-row[hidden] { display: none; }
 .edit-icon { font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); padding-block-start: 8px; }
 .edit-row:has(> .edit-body > :is(.switch-btn, .time-button)) > .edit-icon,
-.stepper-row > .edit-icon, .edit-pair .edit-icon { padding-block-start: 12px; }
+.edit-pair .edit-icon { padding-block-start: 12px; }
 .edit-body { display: flex; flex-direction: column; gap: var(--s1); min-inline-size: 0; }
 .edit-label { font: var(--body-large); color: var(--on-surface); overflow-wrap: anywhere; }
 
@@ -97,19 +97,21 @@
 
 .stepper { display: inline-flex; align-items: center; gap: var(--s2); margin-inline-start: auto; }
 .stepper-btn {
+  position: relative;
   display: grid;
   place-items: center;
   flex: none;
-  inline-size: var(--touch);
-  block-size: var(--touch);
+  inline-size: var(--chip-block);
+  block-size: var(--chip-block);
   border-radius: 50%;
   background: var(--surface-container-high);
   color: var(--on-surface);
 }
-.stepper-btn .ms { font-size: calc(24px / var(--text-scale, 1)); }
+.stepper-btn::after { content: ""; position: absolute; inset: calc(-1 * var(--s1)); }
+.stepper-btn .ms { font-size: calc(20px / var(--text-scale, 1)); }
 .stepper-btn:disabled { opacity: .38; }
 .stepper-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.stepper-value { min-inline-size: 3ch; font: var(--display-small); text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.stepper-value { inline-size: 7ch; font: var(--title-large); text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .stepper-row > .edit-body, .chips-row > .edit-body { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: var(--s3); }
 .chips-row > .edit-body > .edit-chips { flex: 1 1 0; min-inline-size: 0; margin-block: 0; }
 .chips-row > .edit-icon { padding-block-start: 12px; }
@@ -214,7 +216,6 @@
 .tool-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 
 :root[data-large-text=true] .stepper-row .edit-label { flex-basis: 100%; }
-:root[data-large-text=true] .stepper-value { font: var(--title-large); }
 
 @media (prefers-reduced-motion: no-preference) {
   .chip {
