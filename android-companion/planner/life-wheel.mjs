@@ -1,5 +1,5 @@
 /** The Wheel of Life: one wedge per Area, an empty track (its rim and faint scale marks in the Area's hue) filled from
- * the centre to rating/10. Each wedge is a slider pulled outward, with the same thumb as the Area page's slider: a
+ * the centre to rating/10 in a light tone of the hue, its outer arc and thumb in the full hue. Each wedge is a slider pulled outward, with the same thumb as the Area page's slider: a
  * capsule across the wedge on the fill's edge, solid once rated. Unrated, there is no fill: a faint groove runs out
  * along the wedge's middle and a hollow thumb waits at its inner end, so it reads as a slider not yet moved. Dragging a wedge sets that Area's rating in whole points, saved on release
  * with Undo. "Rate your Areas" stays the keyboard and screen-reader route. The Area list under the card (life.mjs) opens
@@ -72,12 +72,18 @@ export function handlePath(i, n, radius, length = 14, {centre: c} = WHEEL) {
 /** Where an unrated wedge's hollow thumb waits, short of the first mark: a place to pull from, not a value. */
 export const REST = radiusFor(1.5);
 
-/** An unrated wedge's groove: a line along its middle from the waiting thumb out to just inside the rim. */
-export function groovePath(i, n, {centre: c, outer} = WHEEL) {
+/** An unrated wedge's groove: a short line along its middle from the waiting thumb out to the middle of the scale, so
+ * it points the way to drag without running hub to rim and lining up with its neighbours into a cross. */
+export const GROOVE_END = radiusFor(5);
+export function groovePath(i, n, {centre: c} = WHEEL) {
   const mid = -Math.PI / 2 + (i + 0.5) * TAU / n;
   const p = r => `${(c + r * Math.cos(mid)).toFixed(2)} ${(c + r * Math.sin(mid)).toFixed(2)}`;
-  return `M${p(REST)} L${p(outer - 4)}`;
+  return `M${p(REST)} L${p(GROOVE_END)}`;
 }
+
+/** A rated wedge's edge: the fill's outer arc in the Area's full hue, the track's active end, as a slider's active track
+ * meets its thumb. Nothing at 0 or unrated. */
+export const edgePath = (i, n, rating) => (rating > 0 ? arcPath(i, n, radiusFor(rating), 1.5) : '');
 
 /** The thumb sits on the fill's edge, like a slider's on its track: at rest while unrated, clear of the hub at 0. */
 export const handleD = (i, n, rating) => handlePath(i, n, rating == null ? REST : Math.max(WHEEL.inner + 4, radiusFor(rating)));
@@ -110,12 +116,13 @@ function plot(app, areas) {
       ahead: node('path', {d: ahead, class: 'wheel-scale'}),
       value: node('path', {d: wedgePath(i, n, radiusFor(area.rating)), class: 'wheel-wedge'}),
       cuts: node('path', {d: cuts, class: 'wheel-cut'}),
+      edge: node('path', {d: edgePath(i, n, area.rating), class: 'wheel-edge'}),
       handle: node('g', {class: 'wheel-handle'}),
     };
     const d = handleD(i, n, area.rating);
     parts.handle.append(...['halo', 'bar', 'core'].map(part => node('path', {d, class: `wheel-handle-${part}`})));
     g.classList.toggle('unrated', area.rating == null);
-    g.append(node('path', {d: arcPath(i, n, WHEEL.outer), class: 'wheel-rim'}), node('path', {d: groovePath(i, n), class: 'wheel-groove'}), parts.ahead, parts.value, parts.cuts, parts.handle);
+    g.append(node('path', {d: arcPath(i, n, WHEEL.outer), class: 'wheel-rim'}), node('path', {d: groovePath(i, n), class: 'wheel-groove'}), parts.ahead, parts.value, parts.cuts, parts.edge, parts.handle);
     svg.append(g);
     return parts;
   });
@@ -146,11 +153,12 @@ function bindDrag(app, areas, svg, {wedges, labels, average}) {
     return {x, y, distance: Math.hypot(x, y)};
   };
   const show = (i, rating) => {
-    const {group, ahead, value, cuts, handle} = wedges[i];
+    const {group, ahead, value, cuts, edge, handle} = wedges[i];
     const scale = scalePaths(i, n, rating);
     ahead.setAttribute('d', scale.ahead);
     cuts.setAttribute('d', scale.cuts);
     value.setAttribute('d', wedgePath(i, n, radiusFor(rating)));
+    edge.setAttribute('d', edgePath(i, n, rating));
     const d = handleD(i, n, rating);
     for (const path of handle.children) path.setAttribute('d', d);
     group.classList.toggle('unrated', rating == null);

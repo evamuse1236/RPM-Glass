@@ -22,8 +22,17 @@
   stroke: light-dark(color-mix(in oklch, var(--tone) 22%, transparent), color-mix(in oklch, var(--tone) 40%, var(--outline-variant)));
   stroke-width: 1;
 }
-.wheel-svg .wheel-wedge { fill: var(--tone); stroke: var(--surface-container-low); stroke-width: 2; stroke-linejoin: round; }
-.wheel-cut { stroke: var(--surface-container-low); stroke-opacity: .6; stroke-width: 1; }
+/* A rating fills its wedge in a light tone of the hue, the M3 slider's track to its handle: the full hue is kept for the
+   fill's outer arc and the thumb, so the value's edge carries the colour and the labels and the centre stay the
+   loudest words. The marks it has passed show through as a faint line of the hue, not a cut. */
+.wheel-svg .wheel-wedge {
+  fill: light-dark(color-mix(in oklch, var(--tone) 34%, var(--surface-container-low)), color-mix(in oklch, var(--tone) 42%, var(--surface-container-low)));
+  stroke: var(--surface-container-low);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.wheel-cut { stroke: color-mix(in oklch, var(--tone) 22%, transparent); stroke-width: 1; }
+.wheel-edge { stroke: var(--tone); stroke-width: 3; }
 /* One thumb, the slider's: a capsule across the wedge with a gap of the card's colour round it, solid in the Area's
    hue on the fill's edge once rated, hollow at rest while unrated. */
 .wheel-handle { pointer-events: none; }
@@ -32,7 +41,8 @@
 .wheel-handle-bar { stroke: var(--tone); stroke-width: 8; }
 .wheel-handle-core { stroke: none; stroke-width: 3; }
 .unrated .wheel-handle-core { stroke: var(--surface-container-low); }
-/* Unrated, a faint groove runs out from the thumb: the way to drag, never a fill, so it cannot read as a rating. */
+/* Unrated, a short faint groove runs out from the thumb to the middle of the scale: the way to drag, never a fill, so
+   it cannot read as a rating, and too short to line up with its neighbours into a cross. */
 .wheel-groove { display: none; stroke-width: 3; stroke-linecap: round; }
 .unrated .wheel-groove { display: inline; stroke: light-dark(color-mix(in oklch, var(--tone) 30%, transparent), color-mix(in oklch, var(--tone) 40%, transparent)); }
 /* Until the first rating one quiet line under the wheel says how it works; the header keeps its link. */
@@ -77,9 +87,9 @@
 /* A Goal reads as its Area's child: body text under the Area's title. */
 .life-area-group > .list-item.nested .list-headline { font: var(--body-medium); }
 :is(.life-areas, .area-goals, .goal-projects) :is(.list-headline, .list-supporting) { text-wrap: pretty; }
-/* A Project row is its ring, its name (and on a Goal's page one line of its Result), then "done/total" by the
-   chevron, as on a Project card's Block rows. */
-.goal-projects .list-supporting { overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+/* A Project row is its ring, its name (and on a Goal's page its Result, up to two lines so it is read, not cut), then
+   "done/total" by the chevron, as on a Project card's Block rows. */
+.goal-projects .list-supporting { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: clip; }
 .project-row-end { display: flex; align-items: center; gap: var(--s2); color: var(--on-surface-variant); }
 .project-row-count { font: var(--label-medium); }
 .list-item.add-row .leading, .list-item.add-row .list-headline { color: var(--primary); }

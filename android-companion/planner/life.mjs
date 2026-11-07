@@ -46,10 +46,11 @@ function periodSwitch(app) {
 }
 
 /**
- * Each Area with this year's Goals under the wheel; every row opens its page and ends in a chevron. Wide: beside the
- * wheel, the Area's row also says its rating once, a slim bar and its value ("Not rated" until then) before the
- * chevron; dragging is left to the wheel and the Area's page, and "Rate your Areas" stays the keyboard route.
- * Phone: the wheel is the one rating control and shows each rating, so the row only names the Area and opens it.
+ * Each Area with this year's Goals under the wheel; every row opens its page and ends in a chevron. The wheel's names
+ * carry each rating's number at every width. Wide: beside the wheel, the Area's row also draws its rating as the Area
+ * page's slider at rest, a slim bar with the same capsule thumb (hollow at the start until rated, so no row needs to
+ * say "Not rated"); dragging is left to the wheel and the Area's page, and "Rate your Areas" stays the keyboard route.
+ * Phone: the wheel is the one rating control, so the row only names the Area and opens it.
  */
 function areaGoals(app, areas, loose) {
   const wide = app.api.wide?.();
@@ -59,7 +60,6 @@ function areaGoals(app, areas, loose) {
     const group = el('div', 'life-area-group');
     group.dataset.tone = app.tone(area);
     const row = el('div', 'life-area-row');
-    const value = el('span', 'life-rating tnum', area.rating == null ? 'Not rated' : `${area.rating}`);
     const open = () => app.openArea(area.id);
     const item = listItem({leading: initialAvatar(app, area), headline: area.title, cls: 'life-area',
       trailing: wide ? null : 'chevron_right', onClick: open});
@@ -67,11 +67,11 @@ function areaGoals(app, areas, loose) {
     if (wide) {
       const meter = el('span', `life-meter${area.rating == null ? ' unrated' : ''}`);
       meter.style.setProperty('--value', String((area.rating ?? 0) / 10));
-      // The value and the chevron open the Area too; the name is its one keyboard stop.
+      // The chevron opens the Area too; the name, whose label says the rating, is its one keyboard stop.
       const end = button('', open, 'life-area-end');
       end.tabIndex = -1;
       end.setAttribute('aria-hidden', 'true');
-      end.append(value, icon('chevron_right', {cls: 'trailing'}));
+      end.append(icon('chevron_right', {cls: 'trailing'}));
       row.append(item, meter, end);
     } else {
       item.dataset.key = 'life-area:' + area.id;
