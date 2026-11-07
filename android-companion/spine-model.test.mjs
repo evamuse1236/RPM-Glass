@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {soonText, buildSpine, cardHeight, gapHeight, earlierLabel, earlierSpoken, FREE_MINUTES} from './spine-model.mjs';
+import {soonText, buildSpine, cardHeight, gapHeight, owedRows, owedLabel, doneLabel, doneSpoken, lateText, FREE_MINUTES} from './spine-model.mjs';
 import {mealSlots, spanText, gutterTime} from './day-parts.mjs';
 
 const DAY = '2026-10-19';
@@ -98,7 +98,7 @@ test('the Now card holds one item: the one in progress, else the next; never a m
   assert.equal(spine({live: false, now: at('09:00') - 864e5, tasks: [task('Lab', '14:00', 60)]}).rows.some(r => r.focus), false);
 });
 
-test('the past folds in two: open tasks past their end and overdue deadlines under missed, the rest under Earlier; a missed Must stays out', () => {
+test('the past splits in two: open tasks past their end (Musts too) and overdue deadlines are owed, the rest folds behind Show done', () => {
   const model = spine({now: at('11:40'), tasks: [task('Draft', '09:00', 30, {must: true}), task('Call bank', '10:30', 15),
     task('Stretch', '08:00', 15, {done: true}), task('Read', '13:00', 30)], events: [event('Gym', '07:00', '07:30')],
     deadlines: [{id: 'r1', title: 'Submit form', at: at('10:00')}, {id: 'r2', title: 'Post work', at: at('23:00')}]});
@@ -106,19 +106,27 @@ test('the past folds in two: open tasks past their end and overdue deadlines und
   assert.equal(row('task:Stretch').fold, 'earlier');
   assert.equal(row('event:Gym').fold, 'earlier');
   assert.equal(row('task:Call bank').fold, 'missed');
-  assert.equal(row('task:Draft').fold, false, 'a missed Must is its own row, not folded away');
+  assert.equal(row('task:Draft').fold, 'missed', 'a missed Must is owed too, and leads the group');
   assert.equal(row('task:Draft').late, true);
   assert.equal(row('due:r1').fold, 'missed', 'an overdue deadline still needs a choice');
   assert.equal(row('due:r2').fold, false);
   assert.equal(row('task:Read').fold, false);
   assert.equal(row('now').fold, false);
-  assert.equal(row('task:Call bank').when.kind, 'time', 'a missed row never says how long ago it ended');
-  assert.ok(model.rows.every(r => !/ago/.test(r.when?.text ?? '')));
-  assert.equal(earlierLabel(model.rows.filter(r => r.fold === 'earlier')), 'Earlier · 3', 'one word and a count of items (Stretch, Gym, Breakfast), free time not counted');
-  assert.equal(earlierLabel([]), 'Earlier');
-  const folded = model.rows.filter(r => r.fold);
-  assert.equal(earlierLabel(folded), 'Earlier · 5');
-  assert.equal(earlierSpoken(folded), 'Earlier, 1 done, 2 missed', 'TalkBack hears what is in it');
+  assert.deepEqual(row('task:Call bank').when, {kind: 'late', text: '1 h late'}, 'an owed row says how late it is, never "Missed"');
+  assert.deepEqual(row('task:Draft').when, {kind: 'late', text: '2 h late'}, 'lateness counts from the start, in whole hours begun');
+  assert.equal(row('task:Call bank').line, null, 'an owed row shows only its lateness');
+  assert.equal(row('task:Call bank').gutter.end, null, 'its gutter keeps one time on one line');
+  assert.equal(row('task:Call bank').height, cardHeight(0), 'out of time order, it has no length bar');
+  assert.ok(model.rows.every(r => !/ago|Missed/.test(r.when?.text ?? '')));
+  assert.equal(lateText(20 * 60e3), '20 min late');
+  const owed = owedRows(model.rows);
+  assert.deepEqual(owed.map(r => r.key), ['task:Draft', 'due:r1', 'task:Call bank'], 'Musts first, then by time');
+  assert.equal(owedLabel(owed), 'Still to do · 3');
+  const past = model.rows.filter(r => r.fold === 'earlier');
+  assert.equal(doneLabel(past), 'Show 1 done', 'counts what was done (Stretch); Gym and Breakfast open with it');
+  assert.equal(doneLabel(past, true), 'Hide 1 done');
+  assert.equal(doneLabel(past.filter(r => !r.done)), 'Show 2 earlier', 'nothing done: it names the past instead');
+  assert.equal(doneSpoken(past), 'Show earlier: 1 done, 2 more', 'TalkBack hears what is in it');
 });
 
 test('with nothing timed live or next there is no Now card: an Any-time task or a missed Must is not now', () => {
@@ -129,7 +137,7 @@ test('with nothing timed live or next there is no Now card: an Any-time task or 
   const missed = spine({now: late, tasks: [task('Draft', '09:00', 30, {must: true})]});
   const draft = missed.rows.find(r => r.key === 'task:Draft');
   assert.equal(draft.focus, undefined);
-  assert.equal(draft.fold, false, 'the missed Must stays on the timeline');
+  assert.equal(draft.fold, 'missed', 'the missed Must is owed, not now');
 });
 
 test('a clash names the event it clashes with, even when the Now card shows that event', () => {
@@ -167,11 +175,11 @@ test('a task over an event says Clash · the event while it can be fixed; a past
     task('Prep', '14:00', 30)], events: [event('Reading group', '09:00', '10:00'), event('RM Session 4', '14:15', '15:00')]});
   const line = id => model.rows.find(r => r.key === 'task:' + id).line;
   assert.equal(line('Prep').text, 'Clash · RM Session 4');
-  assert.equal(line('Revise').kind, 'result', 'a clash in the past cannot be fixed, so it is not shown');
-  assert.equal(line('Call bank').kind, 'result', 'a late task keeps its Result; the amber ring says it is late');
+  assert.equal(line('Revise'), null, 'a clash in the past cannot be fixed, so it is not shown');
+  assert.equal(line('Call bank'), null, 'a late task shows only its lateness; the error ring says it is late');
   const bank = model.rows.find(r => r.key === 'task:Call bank');
   assert.equal(bank.late, true);
-  assert.equal(bank.when.kind, 'time');
+  assert.equal(bank.when.kind, 'late');
   assert.deepEqual(line('Read'), {kind: 'result', text: 'Pass the DAD exam', tone: 'area-3'});
   assert.equal(model.rows.find(r => r.kind === 'event').line, null);
 });

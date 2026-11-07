@@ -7,11 +7,12 @@ installFakeDom();
 const {dayMark, dateLine} = await import('./planner/today-header.mjs');
 
 test('a week-strip day carries one mark of one meaning: another day still holds an open Must or a deadline', () => {
-  assert.equal(dayMark({due: 2, musts: 0}), 'key');
-  assert.equal(dayMark({due: 0, musts: 1}), 'key');
-  assert.equal(dayMark({due: 1, musts: 3}), 'key');
-  assert.equal(dayMark({due: 0, musts: 0}), null);
-  assert.equal(dayMark({due: 1, musts: 2, shown: true}), null, 'today and the chosen day show their work below, so no dot');
+  assert.equal(dayMark({due: 2, musts: 0, key: '2026-11-09', day: '2026-11-08'}), 'key');
+  assert.equal(dayMark({due: 0, musts: 1, key: '2026-11-09', day: '2026-11-08'}), 'key');
+  assert.equal(dayMark({due: 1, musts: 3, key: '2026-11-09', day: '2026-11-08'}), 'key');
+  assert.equal(dayMark({due: 0, musts: 0, key: '2026-11-09', day: '2026-11-08'}), null);
+  assert.equal(dayMark({due: 1, musts: 2, key: '2026-11-08', day: '2026-11-08'}), null, 'the chosen day shows its work below, so no dot');
+  assert.equal(dayMark({due: 0, musts: 1, key: '2026-11-07', day: '2026-11-08'}), 'key', 'today keeps its dot while another day is open');
 });
 
 test('the mark is one small neutral dot, with no colour variants', () => {

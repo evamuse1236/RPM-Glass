@@ -71,7 +71,7 @@ function markRows({day, now, live, meals, mealPlan, deadlines}) {
 
 /**
  * The one line under the title: a clash wins while it can still be fixed, then the Result (or a Routine's count). An
- * open task past its end says so by its amber ring and sits under "N missed".
+ * open task past its end says only how late it is (see `owe`).
  */
 function lineFor(row, events, now) {
   if (row.kind === 'task' && !row.done && row.end > now) {
@@ -152,6 +152,7 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
   const anytime = anytimeTasks(tasks.filter(t => t.start == null));
   if (live) {
     for (const row of rows) row.fold = foldOf(row);
+    for (const row of rows) if (row.fold === 'missed') owe(row, now);
     const focus = focusRow(blocks, next);
     if (focus) Object.assign(focus, {focus: 1, fold: false});
   }
@@ -176,25 +177,50 @@ function focusRow(blocks, next) {
 }
 
 /**
- * The past folds into one row, "Earlier": what needs nothing more (done or logged rows, events, free time, Routines and
- * meals that passed) and what was missed (open tasks past their end and overdue deadlines, `fold` 'missed'). A missed
- * Must stays out, as its own row before the Now line, since it is the one miss that matters most.
+ * The past splits in two. What is still owed (`fold` 'missed': open tasks past their end and overdue deadlines) sits in
+ * one group under the Now card; the rest (done or logged rows, events, free time, Routines and meals that passed,
+ * `fold` 'earlier') hides behind one "Show N done" line.
  */
 const foldOf = row => {
-  if (row.late && row.must) return false;
   if (row.late || (row.overdue && row.kind === 'deadline')) return 'missed';
   return row.past && row.kind !== 'now' ? 'earlier' : false;
 };
 
+/** "40 min late", then whole hours ("2 h late"), counted from the item's start. */
+export function lateText(ms) {
+  const minutes = Math.max(1, Math.round(ms / MIN));
+  return minutes < 60 ? `${minutes} min late` : `${Math.floor(minutes / 60)} h late`;
+}
+
+/**
+ * A missed row says how late it is and nothing else; out of time order in its group, it keeps only its start in the
+ * gutter and a short card.
+ */
+function owe(row, now) {
+  row.height = cardHeight(0);
+  row.when = {kind: 'late', text: lateText(now - row.start)};
+  if (row.line?.kind !== 'due') row.line = null;
+  if (row.gutter) row.gutter.end = null;
+}
+
+/** The missed rows in the order the group lists them: Musts first, then by time. */
+export const owedRows = rows => rows.filter(r => r.fold === 'missed').sort((a, b) => (b.must ? 1 : 0) - (a.must ? 1 : 0) || a.start - b.start);
+
+/** "Still to do · 4": the group's quiet header. */
+export const owedLabel = rows => `Still to do · ${rows.length}`;
+
 const items = rows => rows.filter(r => r.kind !== 'gap');
 
-/** "Earlier · 4": the fold's one word and how many items it holds. */
-export const earlierLabel = rows => ['Earlier', items(rows).length].filter(Boolean).join(' · ');
+/** "Show 3 done" (or "Show 2 earlier" when nothing in it was done): the line that opens the finished past. */
+export const doneLabel = (rows, open = false) => {
+  const all = items(rows), done = all.filter(r => r.done).length;
+  return `${open ? 'Hide' : 'Show'} ${done || all.length} ${done ? 'done' : 'earlier'}`;
+};
 
-/** "Earlier, 1 done, 3 missed": what TalkBack hears for the fold. */
-export const earlierSpoken = rows => {
-  const done = rows.filter(r => r.done).length, missed = rows.filter(r => r.fold === 'missed').length;
-  return ['Earlier', done && `${done} done`, missed && `${missed} missed`].filter(Boolean).join(', ');
+/** "Show earlier: 1 done, 2 more": what TalkBack hears for that line. */
+export const doneSpoken = (rows, open = false) => {
+  const all = items(rows), done = all.filter(r => r.done).length, rest = all.length - done;
+  return `${open ? 'Hide' : 'Show'} earlier: ${[done && `${done} done`, rest && `${rest} more`].filter(Boolean).join(', ')}`;
 };
 
 /**

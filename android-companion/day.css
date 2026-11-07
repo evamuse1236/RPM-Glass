@@ -6,6 +6,20 @@
 }
 
 #planner[data-view=today]:not([data-scrolled=true]) .top-bar { background: var(--surface); }
+/* Scrolled, the bar's own surface fades into the page below it, so rows slide under a soft edge, not a hard cut. */
+#planner[data-view=today] .top-bar { position: relative; z-index: 1; }
+#planner[data-view=today] .top-bar::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 100%;
+  block-size: var(--s3);
+  background: linear-gradient(var(--surface-container), color-mix(in oklch, var(--surface-container) 0%, transparent));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-medium) var(--ease-standard);
+}
+#planner[data-view=today][data-scrolled=true] .top-bar::after { opacity: 1; }
 .today-sheet { position: relative; padding-block-start: var(--s1); background: var(--surface); }
 
 .spine { position: relative; display: flex; flex-direction: column; padding: var(--s1) var(--inset-page) var(--s4) 0; }
@@ -114,7 +128,7 @@
 .spine-must { font-size: 16px; margin-inline-start: var(--s1); vertical-align: -2px; color: var(--must); }
 .spine-meta { font: var(--footnote); color: var(--on-surface-variant); white-space: nowrap; overflow: clip; text-overflow: ellipsis; }
 .when-soon, .when-now { color: var(--primary); font-weight: 600; }
-.when-late { color: var(--on-surface-variant); }
+.when-late { color: var(--error); }
 .spine-due { margin-inline-end: var(--s1); font-size: 16px; vertical-align: -3px; color: var(--on-surface-variant); }
 .spine-overdue .spine-due, .spine-row.overdue .spine-due { color: var(--error); }
 /* A clash is a small inline marker under the title, not a pill; its 48dp hit area still opens Resolve. */
@@ -155,7 +169,7 @@
 .spine-meal:not(.done) .check-ring { border-color: color-mix(in oklch, var(--pill-c) 70%, var(--surface)); }
 .spine-check .check-ring .ms { font-size: 16px; opacity: 0; }
 .spine-check:active .check-ring { scale: .9; }
-.spine-row.late:not(.done) .check-ring { border-color: var(--must); }
+.spine-row.late:not(.done) .check-ring { border-color: var(--error); }
 .spine-row.done .check-ring { background: var(--pill-c); border-color: var(--pill-c); }
 .spine-row.done .check-ring .ms { opacity: 1; }
 @media (prefers-reduced-motion: no-preference) {
@@ -197,34 +211,39 @@
   background: var(--primary);
 }
 
-/* The past folded into one row on the rail: "Earlier · 4", its marker a neutral disc holding the chevron. */
+/* What is still owed from earlier: a quiet header on the page edge (its surface hides the rail behind it), then the
+   missed rows on the rail with an error ring and "2 h late"; no length bar, as they sit out of time order. */
+.spine-owed-head {
+  position: relative;
+  z-index: 1;
+  padding: var(--s2) 0 var(--s1) var(--inset-page);
+  background: var(--surface);
+  font: var(--label-large);
+  color: var(--on-surface-variant);
+}
+.spine-owed-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s2); }
+.spine-owed-hint { display: none; font: var(--label-small); color: var(--on-surface-variant); }
+@media (pointer: coarse) { .spine-owed-hint { display: inline; } }
+.spine-row.owed .spine-pill { display: none; }
+
+/* A quiet text line on the rail that opens rows in place: "Show 3 done", "+2 more". */
 .spine-fold-open {
   grid-column: 2;
-  display: grid;
-  grid-template-columns: var(--spine-pill) minmax(0, auto);
-  justify-content: start;
+  justify-self: start;
+  display: flex;
   align-items: center;
   min-inline-size: 0;
   min-block-size: var(--touch);
+  padding-inline: calc(var(--spine-pill) + var(--s3)) var(--s3);
   border-radius: var(--r-control);
   color: var(--on-surface-variant);
-  font: var(--footnote);
+  font: var(--label-large);
   text-align: start;
 }
-.spine-fold-mark {
-  justify-self: center;
-  position: relative;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  inline-size: 24px;
-  block-size: 24px;
-  border-radius: var(--shape-full);
-  background: var(--surface-container-highest);
-}
-.spine-fold-mark .ms { font-size: 20px; color: var(--on-surface-variant); }
-.spine-fold-label { min-inline-size: 0; padding-inline: var(--s3) var(--s1); overflow: clip; white-space: nowrap; text-overflow: ellipsis; }
+.spine-fold-label { min-inline-size: 0; overflow: clip; white-space: nowrap; text-overflow: ellipsis; }
 .spine-fold-open:active { background: var(--row-press); }
+@media (hover: hover) and (pointer: fine) { .spine-fold-open:hover { color: var(--on-surface); } }
+.spine-fold-open:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .spine-anytime { font-weight: 400; }
 
 .spine-row.spine-gap { min-block-size: var(--h, 32px); }

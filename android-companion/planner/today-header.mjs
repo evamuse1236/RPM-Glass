@@ -40,12 +40,12 @@ export const dueDay = (data, block) => blockDue(data, block.id)?.value?.slice(0,
 
 /**
  * Seven days running forward from today, as far ahead as Dara plans; swiping steps a week. Another day that still holds an
- * open Must or a Result's deadline shows one small neutral dot (its label names what is there); today and the chosen day
- * show their own work below, so their disc carries no dot. A clash shows in the day itself.
+ * open Must or a Result's deadline shows one small neutral dot (its label names what is there); only the chosen day shows
+ * its own work below, so only its disc carries no dot. Today keeps its dot while another day is open. A clash shows in the day itself.
  * Today's number sits in a filled circle. Tapping a day opens it.
  */
-/** One mark of one meaning: a day you are not looking at still holds an open Must or a Result's deadline. */
-export const dayMark = ({due, musts, shown = false}) => (!shown && (due || musts) ? 'key' : null);
+/** One mark of one meaning: a day you are not looking at (`key` is not the open `day`) still holds an open Must or a deadline. */
+export const dayMark = ({due, musts, key, day}) => (key !== day && (due || musts) ? 'key' : null);
 
 function weekStrip(app) {
   const {day} = app.state;
@@ -72,7 +72,7 @@ function weekStrip(app) {
       + (due ? `, ${plural(due, 'Result')} due` : '') + (musts ? `, ${plural(musts, 'Must')}` : ''));
     cell.setAttribute('aria-pressed', String(key === day));
     const marks = el('span', 'day-marks');
-    const mark = dayMark({due, musts, shown: key === today || key === day});
+    const mark = dayMark({due, musts, key, day});
     if (mark) {
       const dot = el('span', 'day-dot');
       dot.dataset.mark = mark;

@@ -105,47 +105,52 @@ test('the Now card holds only the item in progress, with a progress line; a miss
   assert.equal(focusCard(buildSpine({day: DAY, live: false, now: at('09:00'), tasks: [{id: 'A', title: 'A', start: at('13:00'), minutes: 30}]}), on), null);
 });
 
-test('Earlier folds the finished past behind one toggle that says how much was done', () => {
+test('the done past folds behind one quiet Show done line at the top of the rail that opens it in place', () => {
   const day = buildSpine({day: DAY, now: at('11:40'), meals: [],
     tasks: [{id: 'Stretch', title: 'Stretch', start: at('08:00'), minutes: 15, done: true}, {id: 'Read', title: 'Read', start: at('13:00'), minutes: 30}]});
   const shut = spineList(day, on).children;
   assert.equal(shut[0].dataset.key, 'earlier');
-  assert.match(text(shut[0]), /Earlier · 2$/);
-  assert.equal(all(shut[0], 'spine-fold-open')[0].getAttribute('aria-label'), 'Earlier, 1 done');
+  assert.equal(text(shut[0]), 'Show 1 done');
+  assert.equal(all(shut[0], 'spine-fold-open')[0].getAttribute('aria-label'), 'Show earlier: 1 done, 1 more', 'Stretch, and Breakfast opens with it');
   assert.equal(all(shut[0], 'spine-fold-open')[0].getAttribute('aria-expanded'), 'false');
+  assert.equal(all(shut[0], 'spine-check').length, 0, 'the line has no ring');
   assert.equal(shut.find(r => r.dataset.key === 'task:Stretch').hidden, true);
   const open = spineList(day, on, {open: {earlier: true}}).children;
   assert.equal(open.find(r => r.dataset.key === 'task:Stretch').hidden, false);
+  assert.equal(text(open[0]), 'Hide 1 done');
 });
 
-test('missed and done fold into one neutral Earlier row before the now line; a missed Must stays out as its own row; missed rows keep their swipe', () => {
+test('what is owed sits in one group at the top: Musts first, "N h late", error ring, three rows then +N more; each keeps its swipe', () => {
   const swiped = [];
   const spy = new Proxy({}, {get: (_, name) => (name === 'gestures' ? (node, row) => swiped.push(row.key) : () => {})});
-  const day = buildSpine({day: DAY, now: at('11:40'), meals: [],
-    tasks: [{id: 'Draft', title: 'Draft', start: at('09:00'), minutes: 30, must: true}, {id: 'Call', title: 'Call bank', start: at('10:30'), minutes: 15},
-      {id: 'Stretch', title: 'Stretch', start: at('08:00'), minutes: 15, done: true}, {id: 'Read', title: 'Read', start: at('13:00'), minutes: 30}]});
+  const owedTask = (id, time, extra) => ({id, title: id, start: at(time), minutes: 15, ...extra});
+  const day = buildSpine({day: DAY, now: at('21:30'), meals: [],
+    tasks: [owedTask('Call', '10:30'), owedTask('Draft', '16:00', {must: true}), owedTask('Group', '17:00'), owedTask('Review', '18:00'),
+      owedTask('Stretch', '08:00', {done: true}), {id: 'Read', title: 'Read', start: at('22:00'), minutes: 30}]});
   const shut = spineList(day, spy).children;
   const keys = shut.map(r => r.dataset.key);
-  assert.equal(keys.filter(k => k === 'earlier' || k === 'missed').length, 1, 'one fold row');
-  assert.equal(keys[0], 'earlier');
-  assert.ok(keys.indexOf('task:Draft') < keys.indexOf('now') && keys.indexOf('task:Call') < keys.indexOf('now'));
-  assert.deepEqual(keys.filter(k => ['task:Stretch', 'task:Draft', 'task:Call'].includes(k)), ['task:Stretch', 'task:Draft', 'task:Call'], 'time order');
-  assert.equal(text(all(shut[0], 'spine-fold-label')[0]), 'Earlier · 3', 'Stretch, Breakfast and Call bank');
-  assert.equal(all(shut[0], 'spine-must').length, 0, 'no star count in the fold');
-  assert.equal(all(shut[0], 'spine-check').length, 0, 'the fold has no ring');
-  assert.equal(all(shut[0], 'spine-fold-mark')[0].textContent, 'expand_more', 'its marker is the chevron');
-  assert.equal(all(shut[0], 'spine-fold-open')[0].getAttribute('aria-label'), 'Earlier, 1 done, 1 missed');
-  const draft = shut.find(r => r.dataset.key === 'task:Draft');
-  assert.ok(!draft.hidden, 'the missed Must shows without opening the fold');
-  assert.equal(all(draft, 'spine-must').length, 1, 'with its star');
-  assert.ok(draft.classList.contains('late'));
-  assert.ok(shut.filter(r => ['task:Stretch', 'task:Call'].includes(r.dataset.key)).every(r => r.hidden));
-  assert.deepEqual(swiped.filter(k => k !== 'task:Read'), ['task:Draft', 'task:Call'], 'a missed row still swipes left to schedule');
-  const open = spineList(day, on, {open: {earlier: true}}).children;
-  assert.ok(open.filter(r => ['task:Draft', 'task:Call'].includes(r.dataset.key)).every(r => !r.hidden));
-  assert.equal(open.filter(r => r.dataset.key === 'task:Call').length, 1, 'a missed row is drawn once');
-  assert.equal(all(open[0], 'spine-fold-mark')[0].textContent, 'expand_less');
-  assert.doesNotMatch(open.map(text).join(' '), /ago/);
+  assert.deepEqual(keys.slice(0, 7), ['owed', 'task:Draft', 'task:Call', 'task:Group', 'task:Review', 'owed-more', 'earlier'],
+    'header, Musts first then time order, +N more, then the done line');
+  assert.equal(text(all(shut[0], 'spine-owed-label')[0]), 'Still to do · 4');
+  assert.equal(text(all(shut[0], 'spine-owed-hint')[0]), 'Swipe left to plan', 'a quiet hint names the swipe');
+  assert.equal(shut[0].getAttribute('role'), 'heading');
+  const draft = shut[1];
+  assert.ok(draft.classList.contains('owed') && draft.classList.contains('late'));
+  assert.equal(all(draft, 'spine-must').length, 1, 'a Must keeps its star');
+  assert.match(text(draft), /5 h late/);
+  assert.doesNotMatch(text(draft), /Missed|ago/);
+  assert.deepEqual(shut.slice(1, 5).map(r => !!r.hidden), [false, false, false, true], 'three rows show, the fourth waits');
+  assert.equal(text(shut[5]), '+1 more');
+  assert.equal(all(shut[5], 'spine-fold-open')[0].getAttribute('aria-expanded'), 'false');
+  assert.equal(keys.filter(k => k === 'task:Call').length, 1, 'an owed row is drawn once');
+  assert.ok(keys.indexOf('now') > keys.indexOf('earlier'), 'the rest of the day follows the group');
+  assert.deepEqual(swiped.filter(k => k !== 'task:Read' && k !== 'task:Stretch'), ['task:Draft', 'task:Call', 'task:Group', 'task:Review'],
+    'an owed row still swipes left to schedule');
+  const open = spineList(day, on, {open: {owed: true}}).children;
+  assert.equal(open.find(r => r.dataset.key === 'task:Review').hidden, false);
+  assert.equal(text(open.find(r => r.dataset.key === 'owed-more')), 'Show fewer');
+  const few = spineList(buildSpine({day: DAY, now: at('11:40'), meals: [], tasks: [owedTask('Call', '10:30')]}), on).children;
+  assert.ok(!few.some(r => r.dataset.key === 'owed-more'), 'no more line for three or fewer');
 });
 
 test('tasks with no time are rows at the end of the timeline; only the first says Any time', () => {
