@@ -76,10 +76,11 @@ function areaGoals(app, areas, loose) {
   return list;
 }
 
-/** Every row that opens a page ends in a chevron, nested or not; the indent only says where it belongs. */
-function goalRow(app, goal, cls = '') {
+/** Every row that opens a page ends in a chevron, nested or not; the indent only says where it belongs. Where the
+ * Goal's Projects are listed right under it, the row leaves out their count. */
+function goalRow(app, goal, cls = '', {count = true} = {}) {
   const projects = app.p().projects.filter(pr => pr.goalId === goal.id);
-  return listItem({leading: 'flag', headline: goal.title, supporting: plural(projects.length, 'Project'),
+  return listItem({leading: 'flag', headline: goal.title, supporting: count ? plural(projects.length, 'Project') : null,
     trailing: 'chevron_right', onClick: () => app.openGoal(goal.id), cls});
 }
 
@@ -188,13 +189,17 @@ function ratingTicks() {
   return ticks;
 }
 
-/** The Area's rating as one plain row under its Purpose: the handle on the icon column, the value at the end once rated. */
+/** The Area's rating as one row under its Purpose, like it: an icon in the icon column, the track on the text edge
+ * with its handle parked at the start until rated, and the value at the end ("—" until rated). */
 function ratingSlider(app, area) {
   const row = el('div', 'rating-row');
   row.dataset.tone = app.tone(area);
-  const output = el('strong', 'tnum', area.rating == null ? '' : `${area.rating} / 10`);
+  const icon = el('span', 'ms', 'speed');
+  icon.setAttribute('aria-hidden', 'true');
+  const output = el('strong', 'tnum', area.rating == null ? '—' : `${area.rating} / 10`);
+  output.setAttribute('aria-hidden', 'true');
   const input = ratingInput(app, area, value => { output.textContent = `${value} / 10`; });
-  row.append(input, ratingTicks(), output);
+  row.append(icon, input, ratingTicks(), output);
   return row;
 }
 
@@ -212,7 +217,7 @@ export function renderAreaDetail(app, page, area) {
   const goals = app.p().goals.filter(g => g.areaId === area.id && g.year === app.state.year);
   const list = el('div', 'list area-goals');
   for (const goal of goals) {
-    list.append(goalRow(app, goal));
+    list.append(goalRow(app, goal, '', {count: false}));
     for (const project of app.p().projects.filter(pr => pr.goalId === goal.id)) {
       list.append(listItem({leading: 'folder', headline: project.title, cls: 'nested', trailing: 'chevron_right',
         onClick: () => app.openProject(project.id)}));
@@ -234,6 +239,8 @@ function taskProgress({done, total}) {
 const monthName = period => new Date(2000, (period ?? 1) - 1, 1).toLocaleDateString([], {month: 'long'});
 export const horizonLabel = goal => ({quarterly: `Quarter ${goal.period}`, monthly: monthName(goal.period)}[goal.horizon]
   ?? 'Yearly goal');
+/** The same stretch as it reads before the year on a Goal's facts line: "Q4 2026", "November 2026", "Whole year 2026". */
+const horizonShort = goal => ({quarterly: `Q${goal.period}`, monthly: monthName(goal.period)}[goal.horizon] ?? 'Whole year');
 
 /**
  * When a Goal is for: its stretch (year, quarter or month) and its year, each quiet words on the Goal's facts line
@@ -242,24 +249,29 @@ export const horizonLabel = goal => ({quarterly: `Quarter ${goal.period}`, month
 function goalWhen(app, goal) {
   const line = el('div', 'goal-when');
   const save = (patch, label) => saveEntity(app, 'goals', goal, patch, label).catch(() => {});
-  const chip = (text, name, items) => {
+  const chip = (text, name, items, {icon = null, spoken = text} = {}) => {
     const node = button('', null, 'crumb crumb-quiet goal-when-chip');
+    if (icon) {
+      const glyph = el('span', 'ms', icon);
+      glyph.setAttribute('aria-hidden', 'true');
+      node.append(glyph);
+    }
     node.append(el('span', '', text));
     node.setAttribute('aria-haspopup', 'menu');
-    node.setAttribute('aria-label', `${name}: ${text}. Change`);
+    node.setAttribute('aria-label', `${name}: ${spoken}. Change`);
     node.addEventListener('click', () => openMenu(node, items(), name));
     return node;
   };
   const is = (horizon, period = null) => (goal.horizon ?? 'yearly') === horizon && (horizon === 'yearly' || goal.period === period);
   const option = (label, horizon, period = null) => ({label, icon: is(horizon, period) ? 'check' : NO_ICON,
     onClick: () => { if (!is(horizon, period)) save({horizon, period}, `Goal moved to ${label}`); }});
-  line.append(chip(horizonLabel(goal), 'Goal for', () => [
+  line.append(chip(horizonShort(goal), 'Goal for', () => [
     option('The whole year', 'yearly'),
     {divider: true},
     ...[1, 2, 3, 4].map(q => option(`Quarter ${q}`, 'quarterly', q)),
     {divider: true},
     ...Array.from({length: 12}, (_, i) => option(monthName(i + 1), 'monthly', i + 1)),
-  ]));
+  ], {icon: 'event', spoken: horizonLabel(goal)}));
   line.append(chip(String(goal.year), 'Year', () => [-1, 0, 1, 2].map(delta => goal.year + delta).map(year => ({
     label: String(year), icon: year === goal.year ? 'check' : NO_ICON,
     onClick: () => { if (year !== goal.year) save({year}, `Goal moved to ${year}`); }}))));

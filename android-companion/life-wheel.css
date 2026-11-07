@@ -14,17 +14,18 @@
 .wheel-plot[data-label-top] { margin-block-start: var(--s8); }
 .wheel-plot[data-label-bottom] { margin-block-end: var(--s8); }
 .wheel-svg { display: block; inline-size: 100%; block-size: 100%; overflow: visible; touch-action: none; cursor: pointer; }
-/* An unrated wedge is an empty track: a wash of its Area's hue inside a 1dp outline of it, never a filled shape. Dark
-   needs twice the wash to read as much as light does. */
-.wheel-track {
-  fill: light-dark(color-mix(in oklch, var(--tone) 8%, var(--surface-container-low)), color-mix(in oklch, var(--tone) 16%, var(--surface-container-low)));
-  stroke: color-mix(in oklch, var(--tone) 40%, var(--surface-container-low));
-  stroke-width: 1px;
-  vector-effect: non-scaling-stroke;
-}
-.wheel-scale { fill: none; stroke: var(--outline-variant); stroke-width: 1; pointer-events: none; }
+/* An unrated wedge is an empty track: a hairline outline and no fill, so it never reads as rated. Only a rating fills
+   it, in its Area's hue; ring cuts mark 2 to 10 across the fill. */
+.wheel-track { fill: none; stroke: var(--outline-variant); stroke-width: 1px; vector-effect: non-scaling-stroke; }
 .wheel-wedge { fill: var(--tone); stroke: var(--surface-container-low); stroke-width: 2; stroke-linejoin: round; }
 .wheel-ring { fill: none; stroke: var(--surface-container-low); stroke-opacity: .6; stroke-width: 1; pointer-events: none; }
+/* One handle per wedge, like a slider's: a short bar with a gap of the card's colour round it. It waits at the hub in
+   the outline colour until rated, then rides the fill's edge in the Area's hue. */
+.wheel-handle { pointer-events: none; }
+.wheel-handle path { fill: none; stroke-linecap: round; }
+.wheel-handle-halo { stroke: var(--surface-container-low); stroke-width: 8; }
+.wheel-handle-bar { stroke: var(--tone); stroke-width: 4; }
+.wheel-handle.unrated .wheel-handle-bar { stroke: var(--outline); }
 .wheel-average {
   position: absolute;
   inset-block-start: 50%;
@@ -38,21 +39,6 @@
   pointer-events: none;
 }
 .wheel-average:empty { display: none; }
-.wheel-hint {
-  position: absolute;
-  inset-block-start: 50%;
-  inset-inline-start: 50%;
-  translate: -50% -50%;
-  padding: var(--s1);
-  border-radius: var(--shape-full);
-  background: var(--surface-container-low);
-  font: var(--label-small);
-  color: var(--on-surface-variant);
-  text-align: center;
-  white-space: pre;
-  pointer-events: none;
-}
-.wheel-average:not(:empty) + .wheel-hint { display: none; }
 .wheel-label {
   position: absolute;
   inset-inline-start: calc(50% + var(--x) * (50% + 8px));
@@ -80,5 +66,7 @@
 :is(.life-areas, .area-goals, .goal-projects) :is(.list-headline, .list-supporting) { text-wrap: pretty; }
 .list-item.add-row .leading, .list-item.add-row .list-headline { color: var(--primary); }
 .list-item.add-row .list-headline { font: var(--label-large); }
-/* On an Area's page a Project sits under its Goal's words: the Goal row's 24dp icon and its gap. */
-.area-goals > .list-item.nested { padding-inline-start: var(--key-icon-text); }
+/* An Area's page keeps one icon column, centred under the avatar like the Purpose and rating rows, and one text edge;
+   a Project tucks under its Goal's words. */
+.area-goals > .list-item, .goal-projects > .list-item { padding-inline-start: var(--s6); }
+.area-goals > .list-item.nested { padding-inline-start: calc(var(--s6) + var(--s6) + var(--s4)); }

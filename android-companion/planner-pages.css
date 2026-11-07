@@ -161,6 +161,8 @@
 .crumb-drop { font-size: 20px; color: var(--on-surface-variant); margin-left: -2px; }
 .project-picker { padding-right: var(--s1); }
 .goal-when-chip { padding-right: var(--s1); }
+/* The stretch and its year read as one phrase ("Q4 2026"), so the year sits a word space after it. */
+.goal-when-chip + .goal-when-chip { margin-inline-start: calc(-1 * var(--s2)); }
 .detail-title-text + .block-facts { margin-top: calc(-1 * var(--s2)); }
 /* Project detail: Area and Goal follow the title as one quiet line of icon and words; the Goal wraps to a second line
    only when both cannot fit. Each keeps a 48dp hit area around its 32dp line. */
@@ -316,18 +318,20 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
 }
 .values-card p { font: var(--body-large); }
 .area-head { display: flex; align-items: center; gap: var(--s1); padding: var(--s3) 0 0 var(--gutter); }
-.area-head .detail-title-text { flex: 1; min-width: 0; padding-left: var(--s2); }
-/* The Area's rating is a plain row like the Purpose above it: the 20dp handle centred on the 24dp icon column. */
+.area-head .detail-title-text { flex: 1; min-width: 0; padding-left: var(--s1); }
+/* The Area's rating is a row like the Purpose above it: its icon in the icon column, the track on the text edge and
+   the value at the end. */
 .rating-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: var(--s6) minmax(0, 1fr) auto;
   align-items: center;
   gap: 0 var(--s4);
-  padding-inline: calc(24px + 2px) var(--gutter);
+  padding-inline: var(--s6) var(--gutter);
 }
-.rating-row > :is(.rating-slider, .rating-ticks) { grid-column: 1; grid-row: 1; }
-.rating-row strong { grid-column: 2; grid-row: 1; min-inline-size: 56px; font: var(--title-medium); text-align: end; }
-.rating-row .rating-slider.unrated::-webkit-slider-thumb { background: var(--surface); }
+.rating-row > .ms { grid-column: 1; grid-row: 1; color: var(--on-surface-variant); }
+.rating-row > :is(.rating-slider, .rating-ticks) { grid-column: 2; grid-row: 1; }
+.rating-row strong { grid-column: 3; grid-row: 1; min-inline-size: var(--s8); font: var(--title-medium); text-align: end; }
+.rating-row .rating-slider.unrated ~ strong { color: var(--on-surface-variant); font-weight: 400; }
 /* M3 slider in the Area's colour: one active-track colour whether resting or dragged, a 20dp handle, 48dp target.
    Unrated: the whole track is inactive and there is no handle until the first touch. */
 .rating-slider {
@@ -381,6 +385,30 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
 .rating-slider.unrated + .rating-ticks { opacity: .55; }
 .rating-slider.unrated + .rating-ticks i:first-child { visibility: hidden; }
 .rating-slider.unrated:focus-visible { outline: 2px solid var(--primary); outline-offset: -8px; border-radius: var(--shape-xs); }
+/* On Life the handle is a 4dp bar with a gap of the page round it, as in M3's newer sliders: hollow-coloured at the start
+   until rated, the Area's hue after. The same bar on the phone's Area page and the wide Life list. */
+:is(.rating-row, .life-track) .rating-slider { --fill: calc(2px + (100% - 4px) * var(--value, 0)); --gap: var(--surface); }
+:is(.rating-row, .life-track) .rating-slider::-webkit-slider-thumb {
+  width: 4px;
+  height: 24px;
+  margin-block-start: calc(var(--s1) * -2.5);
+  border-radius: var(--shape-full);
+  background: var(--active);
+  box-shadow: 0 0 0 4px var(--gap);
+}
+:is(.rating-row, .life-track) .rating-slider::-moz-range-thumb {
+  width: 4px;
+  height: 24px;
+  border-radius: var(--shape-full);
+  background: var(--active);
+  box-shadow: 0 0 0 4px var(--gap);
+}
+:is(.rating-row, .life-track) .rating-slider.unrated::-webkit-slider-thumb { background: var(--outline); box-shadow: 0 0 0 4px var(--gap); }
+:is(.rating-row, .life-track) .rating-slider.unrated::-moz-range-thumb { background: var(--outline); box-shadow: 0 0 0 4px var(--gap); }
+:is(.rating-row, .life-track) .rating-ticks { padding: 0; }
+:is(.rating-row, .life-track) .rating-slider:is(:active, :focus-visible)::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px var(--gap), 0 0 0 8px color-mix(in oklch, var(--active) 24%, transparent);
+}
 
 
 /* Search */
