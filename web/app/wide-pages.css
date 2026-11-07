@@ -1,6 +1,8 @@
 @media (width >= 1080px) {
   #sheet[data-inline] .sheet-header:has(> h2:not(.visually-hidden)) { min-block-size: 64px; }
-  #sheet[data-inline][aria-label=Inbox] :is([data-key=inbox-note], .sheet-actions) { display: none; }
+  #sheet[data-inline][aria-label=Inbox] .sheet-actions { display: none; }
+  #sheet[data-inline].sheet-quick .sheet-header { display: flex; }
+  #sheet[data-inline].sheet-quick .sheet-body { flex: 0 1 auto; padding-block-start: 0; }
 
   #planner .date-button { font: var(--headline-medium); letter-spacing: -.01em; }
 
@@ -98,7 +100,6 @@
   #planner .project-block-next { font: var(--body-small); color: var(--on-surface-variant); }
   #planner .list-item.nested { padding-inline-start: calc(var(--s8) + var(--s6)); }
   .planner-view > #sheet[data-inline] { --sheet-surface: light-dark(var(--surface-container-low), var(--surface-container)); }
-  #sheet .tonal-btn[data-key=inbox-jev] { background: transparent; color: var(--primary); }
   #planner:is([data-view=blocks], [data-view=projects], [data-view=life]) #planner-scroll {
     animation: page-fade linear both;
     animation-timeline: scroll(self block);

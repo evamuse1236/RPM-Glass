@@ -31,7 +31,7 @@ export function quickOptions(s, {body, group, changed, remember}) {
     inner.append(moreChips, durationFold.node, repeatFold.node);
     const notes = inlineText(inner, 'notes', 'Add details', s.notes, () => {});
     notes.addEventListener('input', () => { s.notes = notes.value; remember(); });
-    const why = inlineText(inner, 'favorite', 'Why? (optional)', s.why, () => {});
+    const why = inlineText(inner, 'favorite', 'Why?', s.why, () => {});
     why.addEventListener('input', () => { s.why = why.value; remember(); });
     const alertRow = el('div', 'alert-choices');
     alertChooser(alertRow, {get: () => s.alert, pick: value => { s.alert = value; changed(); }});

@@ -255,14 +255,19 @@
 .quick-row .choice-chip[aria-pressed=true], .choice-chips .choice-chip[aria-pressed=true], .quick-row .assist-chip { padding-left: var(--s2); }
 .quick-row .choice-chip { max-width: 80%; }
 .quick-row .choice-chip .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* The Block chips keep one line (the picker icon stays with them): a long Block name shortens with an ellipsis, so a
-   suggestion appearing as the title is typed never wraps the row and grows the sheet. Large text may still wrap. */
-.sheet .quick-row.block-chips { flex-wrap: nowrap; }
-.block-chips > .choice-chip { flex: 0 1 auto; min-width: 0; max-width: none; }
-.block-chips > .choice-chip[data-value=""], .block-chips > .list-chip { flex: none; }
-.block-chips .chip-label { min-width: 0; }
-:root[data-large-text=true] .sheet .quick-row.block-chips { flex-wrap: wrap; }
-:root[data-large-text=true] .block-chips > .choice-chip { max-width: 80%; }
+/* The days and Time keep one row, sliding sideways once a chosen time makes it longer. The chosen day shows by its
+   tone alone, so choosing never changes a chip's width. The Block row keeps one line too: a long Block name shortens
+   with an ellipsis. Large text may wrap both. */
+.sheet .quick-row:is(.quick-days, .block-chips) { flex-wrap: nowrap; }
+.sheet .quick-row.quick-days { overflow-x: auto; margin-inline: calc(-1 * var(--inset-page)); padding-inline: var(--inset-page); }
+.sheet .quick-days .choice-chip[aria-pressed=true] { padding-left: var(--s3); }
+.sheet .quick-days .choice-chip[aria-pressed=true] .chip-check { display: none; }
+.block-chips > .assist-chip { flex: 0 1 auto; min-width: 0; max-width: none; }
+.block-chips > .block-chip:not(.on) { flex: none; }
+.block-chips .chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggest-chip .ms { color: var(--primary); }
+:root[data-large-text=true] .sheet .quick-row:is(.quick-days, .block-chips) { flex-wrap: wrap; }
+:root[data-large-text=true] .block-chips > .assist-chip { max-width: 80%; }
 .sheet-quick .field-fold .fold-inner { padding-left: 0; }
 .must-chip.on .ms { color: var(--must); }
 .alert-choices { margin-top: var(--s1); }
@@ -285,4 +290,7 @@
 .choice-row .trailing { color: inherit; }
 .sheet-form .sheet-actions { justify-content: flex-start; }
 .sheet-quick .sheet-header { display: none; }
-.sheet-quick .sheet-body { padding-top: var(--s1); }
+.sheet-quick .sheet-body { padding-top: var(--s1); padding-bottom: 0; }
+/* Add details and Why? start on the same edge as More options and the chip icons. */
+.sheet-quick .detail-row { padding-inline: var(--s2); gap: var(--s2); }
+.sheet-quick .detail-row > .ms { font-size: 20px; }

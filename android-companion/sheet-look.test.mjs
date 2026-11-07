@@ -10,10 +10,14 @@ test('quick add: the title is 16/24 like Capture; day, Time and Block show, the 
   assert.doesNotMatch(css, /icon-only/, 'no chip shows only its icon');
   const js = read('planner/quick-add.mjs');
   assert.doesNotMatch(js, /icon-only/);
-  assert.match(js, /body\.append\(nameWrap, hashFold\.node, whenChips, timeChips, whenFold\.node, blockChips, blockFold\.node, more\.row, more\.node, error\)/,
-    'rows: day; Time; Block; then one More options row');
-  assert.match(js, /timeChips\.append\(timeChip\)/);
-  assert.match(js, /ids\.length \? 'Other' : 'Choose Block'/, 'the Block list chip keeps a word beside a Block chip');
+  assert.match(js, /body\.append\(nameWrap, hashFold\.node, whenChips, whenFold\.node, blockChips, blockFold\.node, more\.row, more\.node, error\)/,
+    'rows: the days and Time; the Block; then one More options row');
+  assert.match(js, /whenChips\.append\(timeChip\)/, 'Time ends the day row');
+  assert.match(js, /timeChip\.append\(icon\('schedule'\), el\('span', 'chip-label'\)\)/);
+  assert.match(js, /blockChip\.append\(icon\('stacks'\), el\('span', 'chip-label', 'Inbox'\)\)/, 'one Block chip names its value, the Inbox by default');
+  assert.match(js, /const label = chosen\?\.title \?\? 'Inbox';/);
+  assert.match(js, /blockChips\.append\(blockChip, suggestChip\)/);
+  assert.doesNotMatch(js, /'No block'/, 'no chip stands for "no choice"; the list holds No block');
   const options = read('planner/quick-options.mjs');
   assert.doesNotMatch(options, /icon-only/);
   assert.match(options, /moreChips\.append\(durationChip, repeatChip, mustChip\)/, 'Estimate, Repeat and Must sit together behind More options');

@@ -13,12 +13,15 @@ test('the wide page styles apply only on a wide window and load after the task p
   assert.match(read('../build.mjs'), /'\.\/app\/wide-pages\.css', 'wide-pages\.css'/);
 });
 
-test('on wide the Inbox pane drops its note and its repeated Capture and Add task, and the Life tab line sits under its word', () => {
+test('on wide the Inbox pane drops its repeated Capture and Add task, and the Life tab line sits under its word', () => {
   const css = read('./wide-pages.css');
-  assert.match(css, /\[aria-label=Inbox\] :is\(\[data-key=inbox-note\], \.sheet-actions\) \{ display: none; \}/);
+  assert.match(css, /\[aria-label=Inbox\] \.sheet-actions \{ display: none; \}/);
   assert.match(css, /\.sheet-header:has\(> h2:not\(\.visually-hidden\)\) \{ min-block-size: 64px; \}/);
   assert.match(css, /\.tab\[aria-selected=true\]::after \{ inset-inline: var\(--s4\); \}/);
-  assert.match(read('../../android-companion/planner/task-lists.mjs'), /note\.dataset\.key = 'inbox-note'/);
+  const inbox = read('../../android-companion/planner/task-lists.mjs');
+  assert.doesNotMatch(inbox, /sheet-note/, 'the Inbox title says what it holds; no sentence sits above the tasks');
+  assert.match(inbox, /iconButton\('auto_awesome', 'Sort with Jev'/, 'Sort with Jev is a header icon beside Close');
+  assert.match(inbox, /header\.querySelector\('\.sheet-close'\)\.before\(jev\)/);
 });
 
 test('on wide each Project card lists its Blocks and opens the Project; the phone keeps its toggle', () => {
@@ -65,10 +68,9 @@ test('on wide Life puts the wheel on the left and each Area with its rating and 
   assert.match(read('../../android-companion/life-wheel.css'), /\.wheel-average:empty \{ display: none; \}/);
 });
 
-test('on wide the Inbox pane matches the page, Sort with Jev is a text button, and long pages fade at the foot', () => {
+test('on wide the Inbox pane matches the page, and long pages fade at the foot', () => {
   const css = read('./wide-pages.css');
   assert.match(css, /#sheet\[data-inline\] \{ --sheet-surface: light-dark\(var\(--surface-container-low\), var\(--surface-container\)\); \}/);
-  assert.match(css, /\.tonal-btn\[data-key=inbox-jev\] \{ background: transparent; color: var\(--primary\); \}/);
   assert.match(css, /#planner-scroll \{\n    animation: page-fade linear both;\n    animation-timeline: scroll\(self block\);/);
   const web = read('./web.css');
   assert.match(web, /@property --page-fade \{ syntax: "<length>"; inherits: false; initial-value: 0px; \}/);
