@@ -59,4 +59,5 @@ The UI gauntlet (branch `gauntlet/ui-components`) ended with these open items. T
 - Task pane: the time shows 3 times, and 2 controls set the length. Could the ruler's green bar drag to set the length, so the chips go?
 - Today date format: the phone shows "7. November 2026 ›" (per `docs/design/today.md`), the website shows "7 November 2026 ›". Which one is right?
 - Life: unrated Area tracks have tick marks but no thumb, so they do not look draggable.
+- Detail top bar: a long Block title now wraps to 2 lines in the collapsed bar (no ellipsis, per default-text-fit). The bar keeps that height while the title is hidden at rest, so about 16dp of empty bar shows above the page title.
 Open question: run another gauntlet on today, nav and task-sheet with a new direction, not more patches?
