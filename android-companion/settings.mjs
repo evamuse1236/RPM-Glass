@@ -51,7 +51,7 @@ function render(ctx) {
   notice.setAttribute('aria-live', 'polite');
   notice.hidden = !ctx.noticeText;
   notice.classList.toggle('error', ctx.noticeError);
-  const sections = ctx.state.phoneOnly ? phoneOnlyPage(ctx.state.phoneOnly) : (PAGES[ctx.page] ?? homePage)(ctx);
+  const sections = ctx.state.phoneOnly ? phoneOnlyPage(ctx, ctx.state.phoneOnly) : (PAGES[ctx.page] ?? homePage)(ctx);
   page.append(notice, ...sections);
   if (ctx.state.working) page.querySelectorAll('button,input').forEach(node => { node.disabled = true; });
   ctx.host.replaceChildren(page);

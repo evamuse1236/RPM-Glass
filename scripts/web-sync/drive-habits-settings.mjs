@@ -50,7 +50,7 @@ async function habits(k) {
 
   const addSnack = () => step('add-snack', async () => {
     await openHabits();
-    await tapText('.sheet button', 'Add a snack time');
+    await tapText('.sheet button', 'Add snack time');
   }, data => !!slot(data, 'snack'));
   const removeSnack = () => step('remove-snack', async () => {
     await openHabits();
@@ -66,7 +66,7 @@ async function habits(k) {
   const routineOf = data => (body(data).routines ?? []).find(r => r.name === routine);
   await step('routine-new', async () => {
     await openHabits();
-    await tapText('.sheet button', 'New routine');
+    await tapText('.sheet button', 'Add routine');
     await k.mark('label.text-field', 'Name', 'input');
     await typeInto('[data-drive]', routine, false);
     await typeInto('input[aria-label="Add a step"]', 'Stretch for five minutes');

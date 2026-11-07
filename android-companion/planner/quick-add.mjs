@@ -8,6 +8,10 @@ import {readLabel, NEEDS_TIME, saver, scheduleCheck, suggestBlock} from './sheet
 import {openTask} from './task-sheet.mjs';
 
 const DRAFT = 'task:new';
+const shortDay = day => {
+  const date = new Date(day + 'T12:00');
+  return `${date.toLocaleDateString([], {weekday: 'short'})} ${date.getDate()}`;
+};
 
 
 /** Quick add (no id) or, for an existing task, the task sheet itself: there is no separate editor. */
@@ -17,8 +21,8 @@ export function taskEditor(app, id, overrides = {}) {
 }
 
 /**
- * Quick add: the title first, then the likeliest choices as chips that need no opening (Today, Tomorrow, the next
- * weekend or week; the suggested and recent Block; Must), the rest unfolding under their chip. A day written in the
+ * Quick add: the title first, then one row of days and Time and one row for the Block (its value chip, and the
+ * suggested Block), the rest unfolding under their chip. A day written in the
  * title ("tomorrow", "fri 9am") is read into the date and shown, removable. Add keeps the sheet open, with the day
  * and Block kept for the next task.
  */
@@ -46,7 +50,7 @@ function quickAdd(app, overrides = {}) {
   const name = el('textarea', 'quick-input');
   name.rows = 1;
   name.maxLength = 200;
-  name.placeholder = 'New task';
+  name.placeholder = app.api.wide?.() ? 'Title' : 'New task';
   name.enterKeyHint = 'done';
   name.value = draft.Task ?? '';
   name.setAttribute('aria-label', 'Task');
@@ -132,9 +136,12 @@ function quickAdd(app, overrides = {}) {
     changed();
   };
   const whenChips = chipRow('quick-row quick-days');
-  for (const [label, day, aria] of dayPresets()) whenChips.append(choiceChip(label, day, value => pickDay(value), {aria}));
+  for (const [index, [label, day, aria]] of dayPresets().entries()) {
+    whenChips.append(choiceChip(index < 2 ? label : shortDay(day), day, value => pickDay(value), {aria}));
+  }
   const timeChip = button('', null, 'assist-chip');
   timeChip.append(icon('schedule'), el('span', 'chip-label'));
+  whenChips.append(timeChip);
   const whenFold = foldFor(group, timeChip, inner => dateChooser(inner, {
     presets: false,
     noDate: true,
@@ -149,50 +156,46 @@ function quickAdd(app, overrides = {}) {
     },
   }));
 
-  // Block chips: the chosen one, the one the words point to, the recent one, No block, then the full list.
+  // Block: one filled chip names where the task goes (its Block, or the Inbox) and opens the list; beside it, one
+  // outlined sparkle chip offers the Block the words point to, while that is not already the choice. A long name ends
+  // in an ellipsis where the row runs out.
   const blockChips = chipRow('quick-row block-chips');
-  const listChip = button('', null, 'assist-chip list-chip');
-  listChip.append(icon('stacks'), el('span', 'chip-label', 'Choose Block'));
+  const blockChip = button('', null, 'assist-chip block-chip on');
+  blockChip.append(icon('stacks'), el('span', 'chip-label', 'Inbox'));
   const pickBlock = id => {
     forgetTag();
-    // Tapping the marked Block chip again takes the task out of it (as the day chips do).
-    s.blockId = id && id === s.blockId && !blockFold.isOpen ? null : id || null;
+    s.blockId = id || null;
     group.close();
     changed();
   };
-  const blockFold = foldFor(group, listChip, inner => blockChooser(inner, {
+  const blockFold = foldFor(group, blockChip, inner => blockChooser(inner, {
     blocks: () => app.activeBlocks(),
     get: () => s.blockId,
     pick: pickBlock,
     recent: recentBlock(),
     suggested: suggestBlock(app, {title: name.value})?.id ?? null,
   }));
-  let blockKey = null;
+  let offered = null;
+  const suggestChip = button('', () => pickBlock(offered), 'assist-chip suggest-chip');
+  suggestChip.append(icon('auto_awesome'), el('span', 'chip-label'));
+  blockChips.append(blockChip, suggestChip);
   const paintBlocks = () => {
     const blocks = app.activeBlocks();
-    const byId = id => blocks.find(b => b.id === id);
+    const chosen = blocks.find(b => b.id === s.blockId);
     const suggested = suggestBlock(app, {title: name.value});
-    const ids = [...new Set([s.blockId, suggested?.id, recentBlock()].filter(id => id && byId(id)))].slice(0, 2);
-    const key = ids.join('|') + '|' + (suggested?.id ?? '');
-    if (key !== blockKey) {
-      blockKey = key;
-      blockChips.replaceChildren(...ids.map(id => {
-        const chip = choiceChip(byId(id).title, id, pickBlock);
-        if (id === suggested?.id) {
-          chip.prepend(icon('auto_awesome', {cls: 'chip-lead'}));
-          chip.setAttribute('aria-label', `Suggested Block ${byId(id).title}`);
-        }
-        return chip;
-      }), choiceChip('No block', '', pickBlock), listChip);
-      // With a Block chip showing, the full list's chip says "Other", so the row stays on one line and stays labelled.
-      listChip.querySelector('.chip-label').textContent = ids.length ? 'Other' : 'Choose Block';
-      listChip.setAttribute('aria-label', ids.length ? 'Other Blocks' : 'Choose a Block');
+    const label = chosen?.title ?? 'Inbox';
+    blockChip.querySelector('.chip-label').textContent = label;
+    const read = !!tag && !!chosen && chosen.id === tag.block.id;
+    blockChip.classList.toggle('from-words', read);
+    blockChip.setAttribute('aria-label', `Block: ${label}${read ? `, read from “${tag.match}”` : ''}. Choose a Block`);
+    offered = suggested && suggested.id !== s.blockId ? suggested.id : null;
+    suggestChip.hidden = !offered;
+    if (offered) {
+      suggestChip.querySelector('.chip-label').textContent = suggested.title;
+      suggestChip.setAttribute('aria-label', `Suggested Block ${suggested.title}`);
     }
-    markChips(blockChips, s.blockId ?? '');
   };
 
-  const timeChips = chipRow('quick-row quick-times');
-  timeChips.append(timeChip);
   const more = quickOptions(s, {body, group, changed: () => changed(), remember: () => remember()});
 
   // "#" and part of a Block's name offers the matching Blocks as chips; choosing one takes the "#word" out of the
@@ -240,7 +243,7 @@ function quickAdd(app, overrides = {}) {
 
   const error = el('p', 'sheet-error');
   error.setAttribute('role', 'alert');
-  body.append(nameWrap, hashFold.node, whenChips, timeChips, whenFold.node, blockChips, blockFold.node, more.row, more.node, error);
+  body.append(nameWrap, hashFold.node, whenChips, whenFold.node, blockChips, blockFold.node, more.row, more.node, error);
 
   const paint = () => {
     markChips(whenChips, s.day);
@@ -258,11 +261,6 @@ function quickAdd(app, overrides = {}) {
     }
     if (parsed && !whenChips.querySelector('.from-words')) {
       timeChip.setAttribute('aria-label', `${timeChip.getAttribute('aria-label')}, read from “${parsed.match}”`);
-    }
-    for (const chip of blockChips.querySelectorAll('.choice-chip')) {
-      const read = !!tag && chip.dataset.value === String(tag.block.id) && s.blockId === tag.block.id;
-      chip.classList.toggle('from-words', read);
-      readLabel(chip, read && `, read from “${tag.match}”. Tap to remove`);
     }
     paintMirror();
     paintHash();

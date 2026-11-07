@@ -56,10 +56,11 @@
   --r-outer:36px;--r-group:20px;--r-control:12px;--r-tile:8px;--inset-page:16px;
   --float-border:color-mix(in oklch, var(--outline-variant) 60%, transparent);
   --float-surface:var(--surface-container);
-  --glass-blur:12px;--glass-saturate:1.14;--glass-border:oklch(0% none none / 8%);
+  --glass-blur:16px;--glass-saturate:1.14;--glass-border:oklch(0% none none / 8%);
+  --track-mix:22%;
   /* sheets: the page tone in light; in dark one step up (the tab bar's tone), so a sheet has an edge over the scrim */
   --sheet-surface:var(--surface-container-low);--sheet-raised:var(--surface-container-high);--sheet-card:var(--surface-container);
-  --float-shadow:0 2px 8px rgba(0,0,0,.10),0 1px 2px rgba(0,0,0,.08);
+  --float-shadow:0 2px 8px oklch(0% none none / 8%);
 
   /* spacing and touch */
   --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--s8:32px;--touch:48px;
@@ -114,6 +115,7 @@
   --tone-meal:#fcad70;--tone-routine:#81c995;--tone-water:#8ab4f8;--on-tone:#131314;
   --float-border:#444746;--float-surface:#282a2c;--float-shadow:none;--sheet-surface:#282a2c;--sheet-raised:#333537;--sheet-card:#333537;
   --glass-blur:16px;--glass-saturate:1.08;--glass-border:oklch(100% none none / 8%);
+  --track-mix:34%;
 }}
 :root[data-appearance=dark]{
   color-scheme:dark;
@@ -131,6 +133,7 @@
   --tone-meal:#fcad70;--tone-routine:#81c995;--tone-water:#8ab4f8;--on-tone:#131314;
   --float-border:#444746;--float-surface:#282a2c;--float-shadow:none;--sheet-surface:#282a2c;--sheet-raised:#333537;--sheet-card:#333537;
   --glass-blur:16px;--glass-saturate:1.08;--glass-border:oklch(100% none none / 8%);
+  --track-mix:34%;
 }
 
 /* Base */

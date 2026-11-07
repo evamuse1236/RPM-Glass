@@ -15,14 +15,11 @@ const facts = wide => {
   return main.children.filter(c => c.className.includes('card-facts')).map(c => c.textContent);
 };
 
-test('on wide a Block card puts "N of M done" on its own line, so it never wraps alone after the Musts', () => {
-  const [first, done] = facts(true);
-  assert.match(first, /^Overdue since .*1\sh$/);
-  assert.equal(done, '0 of 3 done');
-});
-
-test('on the phone a Block card keeps one facts line', () => {
-  const lines = facts(false);
-  assert.equal(lines.length, 1);
-  assert.match(lines[0], /1\sh · 0 of 3 done$/);
-});
+for (const wide of [false, true]) {
+  test(`${wide ? 'on wide' : 'on the phone'} a Block card says where it stands on one line: the deadline, then tasks done; the Musts' time is Block detail's`, () => {
+    const [line, ...rest] = facts(wide);
+    assert.match(line, /^Overdue since [^·]* · 0 of 3 done$/);
+    assert.doesNotMatch(line, /Musts/);
+    assert.deepEqual(rest, []);
+  });
+}

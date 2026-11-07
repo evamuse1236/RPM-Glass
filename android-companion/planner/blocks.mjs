@@ -26,10 +26,10 @@ export {factRow, purposePanel, notesPanel, revealNotes, titleField, finishDetail
 const thisWeek = app => weekFocus(app.data(), weekStart(localDay()));
 
 /** The open Must time with the star as its legend ("★ 3 h 50 min of Musts left"), or null when no Must is open. */
-export function mustLeft(status, {words = true} = {}) {
+function mustLeft(status) {
   if (!status.mustMinutes) return null;
   const node = el('span', 'must-left');
-  node.append(icon('star', {fill: true, cls: 'must-legend'}), duration(status.mustMinutes) + (words ? ' of Musts left' : ''));
+  node.append(icon('star', {fill: true, cls: 'must-legend'}), duration(status.mustMinutes) + ' of Musts left');
   return node;
 }
 
@@ -93,44 +93,40 @@ export function progressRing(done, total, label) {
   return svg;
 }
 
-/** A Result card: Area and Project (unless the list already says it), title, Purpose, one facts line, the Next task. */
+/** A Result card: Area and Project (unless the list already says it), title, Purpose, where it stands, the Next task. */
 export function blockCard(app, block, {focus = false, project = true} = {}) {
   const status = resultStatus(app.data(), block.id);
   const card = el('article', 'block-card');
   card.dataset.blockId = block.id;
   card.dataset.tone = app.tone(app.blockArea(block));
   const main = button('', () => app.openBlock(block.id), 'card-main');
-  const badge = status.achieved ? el('span', 'badge success') : focus ? el('span', 'badge', 'Picked for this week') : null;
-  if (status.achieved) badge.append(icon('emoji_events'), el('span', '', 'Achieved'));
-  if (project || badge) {
+  if (project || status.achieved) {
     const top = el('span', 'card-top');
     if (project) top.append(eyebrow(app, block));
-    if (badge) top.append(badge);
+    if (status.achieved) {
+      const badge = el('span', 'badge success');
+      badge.append(icon('emoji_events'), el('span', '', 'Achieved'));
+      top.append(badge);
+    }
     main.append(top);
   }
   main.append(el('span', 'card-title', block.title));
   main.append(el('span', 'card-purpose', block.purpose || 'Add the Purpose: why this Result matters'));
-  // One facts line: the deadline (error colour when tight), the Musts' time left, tasks done. The day in the
-  // deadline says how near it is, so cards carry no countdown; Block detail has it.
+  // Where it stands on one line: the deadline (error colour when tight) and tasks done; Block detail has the countdown
+  // and the Musts' time. This week's pick is a small tonal mark right after it, so the title keeps the card's width.
   const due = deadline(app.data(), block, status);
-  const facts = el('span', 'card-facts tnum');
   const count = status.total ? `${status.done} of ${plural(status.total, 'task')} done` : 'No tasks in the Plan yet';
-  const parts = [];
-  if (due) {
-    const when = el('b', 'card-due', due.label);
-    when.classList.toggle('tight', due.tight);
-    parts.push(when);
-  }
-  const must = mustLeft(status, {words: false});
-  if (must) parts.push(must);
-  const done = el('span', '', status.total ? `${status.done} of ${status.total} done` : count);
-  const ownLine = parts.length && app.api.wide?.();
-  if (!ownLine) parts.push(done);
-  appendFacts(facts, parts);
-  main.append(facts);
-  if (ownLine) main.append(el('span', 'card-facts tnum', done.textContent));
+  const week = focus && !status.achieved;
+  const line = el('span', 'card-facts tnum');
+  const when = due && el('b', 'card-due', due.label);
+  when?.classList.toggle('tight', due.tight);
+  const facts = el('span', 'card-stand');
+  appendFacts(facts, [when, el('span', '', status.total ? `${status.done} of ${status.total} done` : count)].filter(Boolean));
+  line.append(facts);
+  if (week) line.append(el('span', 'week-mark', 'This week'));
+  main.append(line);
   main.setAttribute('aria-label', `Result: ${block.title}. ${due ? due.text + '. ' : ''}`
-    + `${must ? duration(status.mustMinutes) + ' of Musts left. ' : ''}${count}. Open Block`);
+    + `${count}. ${week ? 'This week. ' : ''}Open Block`);
   card.append(main);
   const next = blockTasks(app.data(), block.id).find(task => !task.done);
   if (next) {
@@ -181,7 +177,7 @@ export function renderBlocks(app, page) {
     if (state.blockStatus === 'achieved') return status.achieved;
     return true;
   });
-  // One list by urgency; this week's Results carry a badge. On the phone, cards from one Project sit under one Area and
+  // One list by urgency; this week's Results carry a mark by the title. On the phone, cards from one Project sit under one Area and
   // Project line. On wide the cards fill a grid, so each names its own Project. A Project filter names it already.
   let last;
   const wide = Boolean(app.api.wide?.());
@@ -229,16 +225,13 @@ function achievedSheet(app, block) {
       {label: 'Result achieved'}).catch(() => {}), 'filled-btn'));
 }
 
-/** The verdict is a question about the Result, apart from the tick count; once marked, the green achieved panel. */
+/** The verdict is the user's own call, apart from the tick count: one row that asks for it; once marked, the green
+ * achieved panel. */
 function achievedControl(app, block, status) {
   if (!status.achieved) {
-    const {row, copy} = factRow('emoji_events', {cls: 'verdict-row'});
-    copy.append(el('span', 'list-headline', 'Is this Result achieved?'),
-      el('span', 'list-supporting', 'Ticked tasks don’t decide it'));
-    const mark = button('Mark achieved', () => achievedSheet(app, block), 'outlined-btn');
-    mark.setAttribute('aria-label', 'Mark Result achieved');
-    mark.__closure = stampOf('blocks', block);
-    row.append(mark);
+    const {row, copy} = factRow('emoji_events', {cls: 'verdict-row', onClick: () => achievedSheet(app, block)});
+    copy.append(el('span', 'list-headline', 'Mark Result achieved'));
+    row.__closure = stampOf('blocks', block);
     return row;
   }
   const panel = el('section', 'achieved-panel');
@@ -358,7 +351,9 @@ export function renderBlockDetail(app, page, block) {
   page.append(titleField(app, 'blocks', block, 'Result'));
   // As on its card: the Result, its Purpose, then where it stands, then your verdict, then the Plan.
   const facts = el('div', 'block-facts');
-  facts.append(purposePanel(app, 'blocks', block));
+  facts.dataset.tone = app.tone(app.blockArea(block));
+  // The heart marks the Purpose, so its row needs no label; a tap on the row edits it.
+  facts.append(purposePanel(app, 'blocks', block, 'Purpose', {labelled: false}));
   const notes = notesPanel(app, 'blocks', block);
   if (notes) facts.append(notes);
   facts.append(statusRow(status, deadline(app.data(), block, status)));

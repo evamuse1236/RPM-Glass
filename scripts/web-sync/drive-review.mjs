@@ -48,19 +48,12 @@ export async function review(k) {
   let sorted = '';
   await step('review-sort', async () => {
     await goStep(3);
-    const add = '[aria-label="Inbox tasks to sort"] button[aria-label^="Add \\""]';
-    if (await shown(add, 2500)) {
-      const label = await labelOf(b, add);
-      sorted = label.match(/^Add "(.*)" to /)[1];
-      await tapText('button', label);
-      return;
-    }
     const choose = '[aria-label="Inbox tasks to sort"] button[aria-label^="Choose a Result for"]';
     const label = await labelOf(b, choose);
     sorted = label.match(/"(.*)"$/)[1];
     await tapText('button', label);
     await shown('.wr-picker button');
-    await b.tap('.wr-picker button:not(.wr-btn-text)');
+    await b.tap('.wr-picker .wr-option:not(.wr-option-action)');
   }, data => !!task(data, sorted)?.blockId);
 
   await step('review-pick', async () => {

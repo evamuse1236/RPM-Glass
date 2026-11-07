@@ -4,10 +4,10 @@ import {el, icon, button, iconButton, labelButton, emptyState, sectionHeader} fr
 import {segmentRing, nestRings} from './rings.mjs';
 import {plural, doneStats} from './format.mjs';
 import {openMenu} from './menu.mjs';
-import {blockCard, purposePanel, notesPanel, titleField, finishDetail, byDeadline, factRow, progressRing} from './blocks.mjs';
+import {blockCard, purposePanel, notesPanel, titleField, finishDetail, byDeadline, progressRing} from './blocks.mjs';
 import {saveEntity, NO_ICON} from './inline-edit.mjs';
 
-function projectTasks(app, project) {
+export function projectTasks(app, project) {
   const blocks = app.activeBlocks().filter(block => block.projectId === project.id);
   const rows = tasks(app.data()).filter(task => blocks.some(block => block.id === task.blockId));
   return {blocks, rows, stats: doneStats(rows)};
@@ -30,11 +30,15 @@ function blockRow(app, block, wide) {
   row.dataset.key = 'project-block:' + block.id;
   const name = el('span', 'project-block-name', block.title);
   if (!wide) {
-    row.append(segmentRing(done, total), name, el('span', 'project-block-count tnum', `${done}/${total}`));
+    // The same continuous ring as the card's; a Block with no tasks keeps the hollow ring and shows no 0/0.
+    const ring = progressRing(done, total, '');
+    ring.setAttribute('aria-hidden', 'true');
+    row.append(ring, name, ...(total ? [el('span', 'project-block-count tnum', `${done}/${total}`)] : []));
   } else {
     const next = blockTasks(app.data(), block.id).find(task => !task.done);
     const copy = el('span', 'project-block-copy');
-    copy.append(name, el('span', 'project-block-next', next?.title ?? (total ? 'All done' : 'No tasks yet')));
+    // A finished Block's ring and count already say it is done, so its chip gives no second line.
+    copy.append(name, ...(next || !total ? [el('span', 'project-block-next', next?.title ?? 'No tasks yet')] : []));
     row.title = block.title;
     row.append(...(total ? [segmentRing(done, total), copy, el('span', 'project-block-count tnum', `${done}/${total}`)] : [copy]));
   }
@@ -51,15 +55,17 @@ function projectCard(app, project) {
   const card = el('article', 'project-card' + (open ? ' open' : ''));
   card.dataset.projectId = project.id;
   card.dataset.tone = app.tone(area);
-  const meta = `${plural(blocks.length, 'Block')} · ${stats.done} of ${stats.total} done`;
+  const meta = `${plural(blocks.length, 'Block')} · ${stats.done} of ${stats.total} tasks done`;
+  const finished = stats.total > 0 && stats.done === stats.total;
   const toggle = wide ? button('', () => app.openProject(project.id), 'project-toggle')
     : button('', () => { toggleProject(app.state, project.id); app.render(); }, 'project-toggle');
   if (!wide) toggle.setAttribute('aria-expanded', String(open));
-  toggle.setAttribute('aria-label', `${project.title}, ${area?.title ?? 'No area'}. ${meta}. ${wide ? 'Open Project' : open ? 'Hide Blocks' : 'Show Blocks'}`);
+  toggle.setAttribute('aria-label', `${[project.title, area?.title].filter(Boolean).join(', ')}. ${meta}. ${wide ? 'Open Project' : open ? 'Hide Blocks' : 'Show Blocks'}`);
   const copy = el('span', 'project-copy');
-  copy.append(el('span', 'project-area', area?.title ?? 'No area'), el('span', 'card-title', project.title),
-    el('span', 'card-meta tnum', meta));
-  toggle.append(nestRings(wide ? [stats] : ordered.map(block => blockStats(app, block)), `${stats.done} of ${stats.total} tasks done`), copy);
+  if (area) copy.append(el('span', 'project-area', area.title));
+  copy.append(el('span', 'card-title', project.title), el('span', 'card-meta tnum', meta));
+  toggle.append(nestRings(wide ? [stats] : ordered.map(block => blockStats(app, block)), `${stats.done} of ${stats.total} tasks done`,
+    {finished}), copy);
   const head = el('div', 'project-head');
   head.append(toggle);
   if (!wide) head.append(iconButton('chevron_right', `Open ${project.title}`, () => app.openProject(project.id), {cls: 'project-open'}));
@@ -76,11 +82,6 @@ function projectCard(app, project) {
 
 export function renderProjects(app, page) {
   const {state} = app;
-  const all = tasks(app.data());
-  const stats = doneStats(all);
-  const blocks = app.activeBlocks();
-  page.append(el('p', 'stat-line tnum', [plural(app.p().projects.length, 'Project'), plural(blocks.length, 'Block'),
-    `${stats.done} of ${plural(stats.total, 'task')} done`].join(' · ')));
   const filters = el('div', 'chip-row filters');
   const current = app.p().areas.find(area => area.id === state.projectFilter);
   const chip = button('', null, 'filter-chip dropdown');
@@ -101,17 +102,26 @@ export function renderProjects(app, page) {
   }
 }
 
-/** Assist chips for Area › Goal. A part may carry `menu` (items) to open instead of navigating. */
-export function breadcrumbs(app, parts) {
+/** An Area's letter in its own colour: the one mark an Area has wherever it is named. */
+export function initialAvatar(app, area) {
+  const avatar = el('span', 'avatar', (area.title.trim()[0] ?? '?').toUpperCase());
+  avatar.dataset.tone = app.tone(area);
+  avatar.setAttribute('aria-hidden', 'true');
+  return avatar;
+}
+
+/** Assist chips for Area › Goal. A part may carry `menu` (items) to open instead of navigating. `quiet` draws each as icon
+ * and words with no outline or arrow, so Area and Goal share one line under a title. */
+export function breadcrumbs(app, parts, {quiet = false} = {}) {
   const line = el('nav', 'crumbs');
   line.setAttribute('aria-label', 'Breadcrumb');
   for (const part of parts.filter(Boolean)) {
     const [label, kind, id, symbol, menu] = Array.isArray(part) ? part : [part.label, part.kind, part.id, part.icon, part.menu];
     if (!label) continue;
-    const chip = button('', null, 'assist-chip crumb');
-    chip.append(icon(symbol), el('span', '', label));
+    const chip = button('', null, quiet ? 'crumb crumb-quiet' : 'assist-chip crumb');
+    chip.append(typeof symbol === 'string' ? icon(symbol) : symbol, el('span', '', label));
     if (menu) {
-      chip.append(icon('arrow_drop_down', {cls: 'crumb-drop'}));
+      if (!quiet) chip.append(icon('arrow_drop_down', {cls: 'crumb-drop'}));
       chip.setAttribute('aria-haspopup', 'menu');
       chip.addEventListener('click', () => openMenu(chip, menu(), label));
     } else {
@@ -143,22 +153,31 @@ export function renderProjectDetail(app, page, project) {
     options: app.p().goals.map(g => [g.id, g.title]), open: () => app.openGoal(goal.id),
     choose: (goalId, label) => saveEntity(app, 'projects', project, {goalId},
       goalId ? `Linked to ${label}` : 'Unlinked from its Goal').catch(() => {})});
-  page.append(breadcrumbs(app, [[area?.title, 'areas', area?.id, 'spa'],
-    {label: goal?.title ?? 'Link a Goal', icon: 'flag', menu: goalMenu}]));
+  // The Project leads at the largest size; its Area and Goal follow on one quiet line of icon and words.
   page.append(titleField(app, 'projects', project, 'Project'));
+  const crumbs = breadcrumbs(app, [area && [area.title, 'areas', area.id, initialAvatar(app, area)],
+    {label: goal?.title ?? 'Link a Goal', icon: 'flag', menu: goalMenu}], {quiet: true});
+  crumbs.classList.add('head-crumbs');
+  crumbs.dataset.tone = app.tone(area);
+  page.append(crumbs);
   const facts = el('div', 'block-facts');
-  facts.append(purposePanel(app, 'projects', project));
+  facts.dataset.tone = app.tone(area);
+  // The heart marks the Purpose, as on a Block, so its row needs no label.
+  facts.append(purposePanel(app, 'projects', project, 'Purpose', {labelled: false}));
   const notes = notesPanel(app, 'projects', project);
   if (notes) facts.append(notes);
+  page.append(facts);
+  // The Blocks header carries the Project's progress, so no separate row repeats it; the cards below give the count.
   const {blocks, stats} = projectTasks(app, project);
+  let progress = null;
   if (stats.total) {
     const count = `${stats.done} of ${plural(stats.total, 'task')} done`;
-    const {row, copy} = factRow(progressRing(stats.done, stats.total, count), {cls: 'progress-row'});
-    copy.append(el('span', 'list-headline tnum', count), el('span', 'list-supporting', plural(blocks.length, 'Block')));
-    facts.append(row);
+    progress = el('span', 'blocks-progress tnum');
+    progress.append(progressRing(stats.done, stats.total, count), el('small', '', count));
   }
-  page.append(facts);
-  page.append(sectionHeader('Blocks', el('small', '', blocks.length ? String(blocks.length) : '')));
+  const header = sectionHeader('Blocks', progress);
+  header.dataset.tone = app.tone(area);
+  page.append(header);
   // The page already names the Project, so its Block cards leave that line out.
   for (const block of byDeadline(app.data(), blocks)) page.append(blockCard(app, block, {project: false}));
   if (!blocks.length) page.append(el('p', 'quiet', 'No Blocks in this Project yet.'));

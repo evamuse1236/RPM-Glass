@@ -54,7 +54,7 @@ export async function blocks(k) {
 
   await step('result-achieved', async () => {
     await openBlock('block-5');
-    await tapShown('button.outlined-btn[aria-label="Mark Result achieved"]');
+    await tapShown('button.verdict-row');
     await tapText('button.filled-btn', 'Mark achieved');
   }, data => block(data, 'block-5').achieved === true);
   await closeAll();

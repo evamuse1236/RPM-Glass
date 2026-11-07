@@ -38,23 +38,19 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
   const offered = SLOTS.filter(value => value === editing?.slot || plan.find(p => p.slot === value)?.on !== false);
   const slotName = value => plan.find(p => p.slot === value)?.name ?? SLOT_NAMES[value];
   let typed = prefill || editing?.name || '';
-  if (!editing) {
-    header.querySelector('.sheet-close').before(iconButton('tune', 'Edit meals', () => {
-      const back = () => openMealSheet(app, body, {slot, prefill: typed, motion: 'back'});
-      if (plan.some(p => p.slot === slot)) openMealEditor(app, body, slot, {back, backLabel: 'Back to Log a meal'});
-      else openHabits(app, body);
-    }));
-  }
-  if (editing) {
-    const more = iconButton('more_vert', 'More options', () => openMenu(more, [
-      {label: 'Delete meal', icon: 'delete', danger: true, onClick: () => body.deleteMeal(editing.id).then(() => {
-        closeSheet(app);
-        app.render();
-        notice(app, 'Meal deleted', {undo: true});
-      }, () => notice(app, "Couldn't delete. Try again."))},
-    ]));
-    header.querySelector('.sheet-close').before(more);
-  }
+  const openPlan = () => {
+    const back = () => openMealSheet(app, body, {slot, prefill: typed, motion: 'back'});
+    if (plan.some(p => p.slot === slot)) openMealEditor(app, body, slot, {back, backLabel: 'Back to Log a meal'});
+    else openHabits(app, body);
+  };
+  const more = iconButton('more_vert', 'More options', () => openMenu(more, editing ? [
+    {label: 'Delete meal', icon: 'delete', danger: true, onClick: () => body.deleteMeal(editing.id).then(() => {
+      closeSheet(app);
+      app.render();
+      notice(app, 'Meal deleted', {undo: true});
+    }, () => notice(app, "Couldn't delete. Try again."))},
+  ] : [{label: 'Meal times', icon: 'schedule', onClick: openPlan}]));
+  header.querySelector('.sheet-close').before(more);
   const now = body.now();
   const guessed = guessSlot(now);
   const firstOffered = [wanted, guessed].find(value => offered.includes(value)) ?? offered[0] ?? guessed;
@@ -68,17 +64,14 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
     slots.setAttribute('aria-label', 'Meal');
     for (const value of offered) slots.append(choiceChip(slotName(value), value, picked => { slot = picked; paintSlot(); }));
     markChips(slots, slot);
-    const helper = el('p', 'body-helper tnum', `Guessed from the time · ${clockText(now)}`);
     const usualHead = el('h3', 'field-group-label');
     const usual = el('div', 'chip-row wrap usual-chips');
-    const nothing = el('p', 'body-helper');
-    const input = field(app, content, 'Or type what you ate', text);
+    const input = field(app, content, 'What you ate', text);
     input.enterKeyHint = 'done';
     const error = el('p', 'sheet-error');
     error.setAttribute('role', 'alert');
-    input.parentElement.before(slots, helper, usualHead, usual, nothing);
+    input.parentElement.before(slots, usualHead, usual);
     content.append(error);
-    if (!editing) content.append(button('See history', () => { closeSheet(app); app.openHistory(); }, 'text-btn body-history-link'));
 
     const save = async name => {
       const words = name.trim();
@@ -95,7 +88,6 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
       renderSaved(saved, words);
     };
     function paintSlot() {
-      helper.hidden = !!editing || slot !== guessed;
       const names = usualMeals(body.meals(), slot);
       usualHead.textContent = `Your usual ${SLOT_PLURALS[slot]}`;
       usualHead.hidden = !names.length;
@@ -106,13 +98,14 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
         return chip;
       }));
       usual.hidden = !names.length;
-      nothing.textContent = `Nothing usual for ${slotName(slot).toLowerCase()} yet. Type it once and it'll be here next time.`;
-      nothing.hidden = !!names.length;
     }
     const submit = button('Save', () => save(input.value), 'filled-btn');
     const sync = () => { submit.disabled = !input.value.trim(); };
     input.addEventListener('input', () => { typed = input.value; sync(); });
     input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); save(input.value); } });
+    if (!editing) {
+      actions.append(button('See history', () => { closeSheet(app); app.openHistory(); }, 'text-btn body-history-link'));
+    }
     actions.append(submit);
     sync();
     paintSlot();

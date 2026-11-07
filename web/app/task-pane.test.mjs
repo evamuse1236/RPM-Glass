@@ -12,21 +12,27 @@ test('the task pane styles apply only on a wide window', () => {
   assert.match(read('../build.mjs'), /'\.\/app\/task-pane\.css', 'task-pane\.css'/);
 });
 
-test('on a wide window one Clear replaces No time, No date and No length; the phone keeps all three', () => {
+test('one Clear replaces No time, No date and No length on every width', () => {
   const tabs = read('../../android-companion/planner/task-tabs.mjs');
-  assert.match(tabs, /\.\.\.\(wide \? \[clear\] : \[noTime, noDate, noLength\]\)/);
+  assert.match(tabs, /more\.append\(dayPicker\.node, timePicker\.node, otherLength\.node, clear\);/);
+  assert.doesNotMatch(tabs, /'No time'|'No date'|'No length'/, 'the When tab offers no separate No chips');
   assert.match(tabs, /button\('', \(\) => pick\.clear\(\)/);
   const sheet = read('../../android-companion/planner/task-sheet.mjs');
   assert.match(sheet, /const wide = Boolean\(app\.api\.wide\?\.\(\)\);/);
   assert.match(sheet, /\{\.\.\.whenFields\(\{day: '', time: ''\}\), minutes: null\}/);
 });
 
-test('Start now sits on the title row and the Length chips join into one segmented row on wide', () => {
+test('Start now sits on the title row on wide; the Length chips join into one segmented row and the ruler keeps its lanes on every width', () => {
   const css = read('./task-pane.css');
   assert.match(css, /\.task-start \{\s+grid-area: start;/);
-  assert.match(css, /\.chip-row\[aria-label=Length\] \{ flex-wrap: nowrap; gap: 0; \}/);
-  assert.match(css, /\.ruler-track \{ mask-image:/);
-  assert.match(css, /\.ruler-length \{ inset-block: calc\(var\(--s8\) \+ var\(--s1\)\)/);
+  assert.doesNotMatch(css, /\.ruler-(length|centre) \{/, 'the wide pane keeps the shared ruler lanes');
+  const tabs = read('../../android-companion/task-tabs.css');
+  assert.match(tabs, /\.task-tabs \.chip-row\.segmented \{ flex-wrap: nowrap; gap: 0; \}/);
+  assert.match(tabs, /\.task-tabs \.chip-row\[aria-label='More choices'\] > \.chip \{ border-color: transparent; background: none;/, 'the pickers and Clear read as one quiet row');
+  assert.match(tabs, /\.ruler-track \{[^}]*mask-image: linear-gradient\(to right, transparent,/, 'the ruler fades out at both ends on every width, so nothing reads as cut off');
+  assert.match(tabs, /\.ruler-tick \{\s+position: absolute;\s+inset-block-end: 32px;/, 'ticks sit in their own lane under the hour labels');
+  assert.match(tabs, /\.ruler-length \{\s+position: absolute;\s+inset-block-end: 8px;[^}]*block-size: 8px;/, 'the length bar sits in a lane under the ticks');
+  assert.match(tabs, /\.ruler-centre \{\s+position: absolute;\s+inset-block: 32px 8px;/, 'the playhead starts below the hour labels');
 });
 
 test('the wide task pane puts its icons on one row above a full-width title of at most two lines, with no band above the tools', () => {
@@ -48,9 +54,12 @@ test('on wide the task pane names its icons on hover, spells out the Block, and 
   assert.match(head, /if \(tips\) ring\.title = t\.done \? 'Mark incomplete' : 'Mark complete';/);
   assert.match(read('../../android-companion/planner/task-tabs.mjs'), /setTab\('block', wide \? blockTitle\?\.trim\(\) \|\| 'Inbox' : blockShort\(blockTitle\), 'stacks'\);/);
   const css = read('./task-pane.css');
-  assert.match(css, /#sheet\[data-inline\] \.tab-row \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\) minmax\(0, 2fr\); \}/);
-  assert.match(css, /#sheet\[data-inline\] \.tab-btn \{ grid-template-columns: minmax\(0, 1fr\); \}/, 'a long Block name ends in an ellipsis inside its tab');
-  assert.match(css, /#sheet\[data-inline\] \.tab-value \{ overflow: clip; text-overflow: ellipsis; white-space: nowrap; \}/);
+  assert.match(css, /#sheet\[data-inline\] \.tab-row \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\); \}/, 'on wide When, Alert and Repeat share one row of equal tabs');
+  assert.match(css, /#sheet\[data-inline\] #task-tab-block \{\n    grid-column: 1 \/ -1;/, 'on wide the Block tab takes its own full row');
+  assert.match(css, /#sheet\[data-inline\] #task-tab-block \.tab-value \{[^}]*white-space: normal;/, 'on wide the Block name is shown whole, never ellipsized');
+  const tabs = read('../../android-companion/task-tabs.css');
+  assert.match(tabs, /\.tab-btn \{[^}]*grid-template-columns: minmax\(0, 1fr\);/, 'on the phone a long Block name ends in an ellipsis inside its tab');
+  assert.match(tabs, /\.tab-value \{ max-inline-size: 100%; overflow: clip; font: var\(--label-medium\); text-overflow: ellipsis; white-space: nowrap; \}/);
   assert.match(css, /#sheet\[data-inline\] \.number-chip input:not\(:focus-visible\) \{ border-block-end-color: transparent; \}/);
 });
 
@@ -68,4 +77,54 @@ test('while the task pane is open, the task card or chip on Today is outlined, a
   assert.match(wide, /#planner \.spine-card\[data-open\], #planner \.spine-chip\[data-open\] \{ outline: 2px solid var\(--primary\);/);
   assert.match(read('../../android-companion/planner/task-sheet.mjs'), /head\.row\.dataset\.task = String\(id\);/);
   assert.match(read('./main.mjs'), /markOpenCard\(\$\('workspace'\), \$\('sheet'\)\);/);
+});
+
+test('opening a task in the pane scrolls its Today card fully into view once, clear of the page fade', async () => {
+  const {markOpenCard} = await import('./open-card.mjs');
+  const card = () => {
+    const attrs = new Set(); const scrolls = [];
+    return {scrolls, hasAttribute: name => attrs.has(name), toggleAttribute: (name, on) => on ? attrs.add(name) : attrs.delete(name),
+      scrollIntoView: options => scrolls.push(options)};
+  };
+  const a = card(); const b = card();
+  const row = (key, target) => ({dataset: {key}, classList: {contains: () => false}, querySelector: () => target});
+  const work = {querySelectorAll: () => [row('task:1', a), row('task:2', b)]};
+  let task = '2';
+  const sheet = {hidden: false, inert: false, querySelector: () => ({dataset: {task}})};
+  const saved = globalThis.MutationObserver;
+  globalThis.MutationObserver = class { observe() {} };
+  try {
+    const run = markOpenCard(work, sheet);
+    run();
+    assert.deepEqual(b.scrolls, [{block: 'nearest'}], 'the open card scrolls once, not on every later change');
+    assert.deepEqual(a.scrolls, []);
+    task = '1'; run();
+    assert.deepEqual(a.scrolls, [{block: 'nearest'}]);
+    assert.equal(b.hasAttribute('data-open'), false);
+  } finally { globalThis.MutationObserver = saved; }
+  assert.match(read('./task-pane.css'), /\[data-open\] \{ outline: 2px solid var\(--primary\); outline-offset: -2px; scroll-margin-block: var\(--s8\); \}/,
+    'the scroll margin matches the 32px page fade');
+});
+
+test('Alert and Repeat say Off and Once only on their tab; a second tap on the chosen choice turns it off', async () => {
+  const {ALERT_KINDS, REPEAT_PRESETS} = await import('../../android-companion/planner/task-tabs-model.mjs');
+  assert.deepEqual(ALERT_KINDS.map(([value]) => value), ['reminder', 'alarm']);
+  assert.deepEqual(REPEAT_PRESETS.map(([value]) => value), ['weekdays', 'daily', 'after']);
+  const tabs = read('../../android-companion/planner/task-tabs.mjs');
+  assert.match(tabs, /const next = kind\.getAttribute\('aria-pressed'\) === 'true' \? 'off' : value;/);
+  assert.match(tabs, /const next = chosen\.getAttribute\('aria-pressed'\) === 'true' \? 'once' : choice;/);
+});
+
+test('the Block list marks the chosen Block with a secondary-container row and a radio dot, a finished Block with a tonal disc and check, and keeps each row to two lines of each', () => {
+  const tabs = read('../../android-companion/planner/task-tabs.mjs');
+  assert.match(tabs, /if \(total && done === total\) \{\n    ring\.append\(attrs\(document\.createElementNS\(SVG, 'circle'\), \{class: 'ring-done'/, 'a finished Block fills its ring like a finished Project');
+  assert.doesNotMatch(tabs, /mark\.append\(icon\('check'\)\)/, 'the radio carries a dot, never a check that reads as done');
+  const css = read('../../android-companion/task-tabs.css');
+  assert.match(css, /\.block-choice\[aria-checked=true\] \{ background: var\(--secondary-container\); color: var\(--on-secondary-container\); \}/, 'the chosen row is a selection, not a success tint');
+  assert.match(css, /\.block-choice \.ring-done \{ fill: color-mix\(in oklch, var\(--progress, var\(--primary\)\) var\(--track-mix\), var\(--sheet-card\)\);/);
+  assert.match(css, /\.block-choice\[aria-checked=true\] \.block-choice-mark \{ border-color: var\(--primary\); \}/);
+  assert.doesNotMatch(css, /\.block-choice \.ring-value \{/, 'the ring keeps the shared Area or primary progress colour');
+  assert.match(css, /\.block-choice-title \{ display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;/);
+  assert.match(css, /\.block-choice-line \{ display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;/);
+  assert.match(read('../../android-companion/task-sheet.css'), /\.task-start \{ grid-column: 1 \/ -1; justify-self: start; margin: 0 0 var\(--s2\); \}/, 'Start now starts on the content edge');
 });

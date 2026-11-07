@@ -10,7 +10,7 @@ export function stepTwo(api, ctx) {
   const inbox = inboxTasks(api.data());
   const now = api.now();
   const clashIds = new Set(api.clashes().map(c => c.task?.id).filter(Boolean));
-  const parts = heading('Empty your head', 'Every idea, want and to-do, in your own words. Sorting comes next.');
+  const parts = heading('Empty your head');
   parts.push(quickAdd(api), ...lenses(api));
   parts.push(sectionHead('Inbox', inbox.length, button('Open Capture', () => ctx.openCapture(), 'wr-btn-text', 'edit_note')));
   if (!inbox.length) {
@@ -37,7 +37,13 @@ export function stepTwo(api, ctx) {
         meta.append(must);
       }
       if (when) meta.append(el('span', when.overdue ? 'overdue' : when.soon ? 'soon' : '', when.text));
-      if (clash) meta.append(el('span', '', 'Calendar clash · you decide it in step 4'));
+      if (clash) {
+        const tag = el('span', 'wr-clash-tag');
+        tag.append(icon('event_busy'), el('span', '', 'Clash'));
+        tag.setAttribute('role', 'img');
+        tag.setAttribute('aria-label', 'Calendar clash, decided in step 4');
+        meta.append(tag);
+      }
       text.append(meta);
     }
     item.append(text);
@@ -92,6 +98,9 @@ function lenses(api) {
   const row = el('div', 'wr-lenses');
   row.setAttribute('role', 'group');
   row.setAttribute('aria-label', 'Prompts, one per Area');
+  const lead = el('span', 'wr-lens-lead', 'Think about');
+  lead.setAttribute('aria-hidden', 'true');
+  row.append(lead);
   for (const area of areas) {
     const chip = button('', () => {
       ui.lens = area.title;
@@ -100,8 +109,8 @@ function lenses(api) {
     }, 'wr-chip wr-lens');
     chip.setAttribute('aria-label', `Prompt: ${area.title}, anything due, stuck or wanted?`);
     chip.dataset.key = 'lens:' + area.id;
-    chip.append(areaDot(areaTone(area, planner(api.data()).areas)), el('span', 'wr-label', area.title + '?'));
+    chip.append(areaDot(areaTone(area, planner(api.data()).areas)), el('span', 'wr-label', area.title));
     row.append(chip);
   }
-  return [el('p', 'wr-lens-head', 'Stuck? Ask yourself about each Area'), row];
+  return [row];
 }

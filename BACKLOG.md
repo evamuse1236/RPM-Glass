@@ -55,3 +55,12 @@ The `notch-island` emulator scenario fails on main since 2026-11-01 (b943f9b, ru
 
 ## 2026-11-07 · Voice refuses "Read me the messages from Ima Test"
 Gemini Live answers "I'm just a language model and can't help with that" to "Read me the messages from Ima Test" every time (6 of 6, text mode), while "What did Ima Test say?" and "Read me the messages from Pantry" work. The word "Test" in a chat name seems to trip a canned refusal. Open questions: does renaming the test bot fix it, or a tool description that names Ima Test? Does it also happen on the phone's mic?
+
+## 2026-11-07 · UI gauntlet leftovers (website and phone)
+The UI gauntlet (branch `gauntlet/ui-components`) ended with these open items. Today, nav and the task sheet stopped at 7/7–7/8, below the target of 8.
+- Website Capture: is it a dark bar in both themes, or does it follow the page theme? Blind judges preferred a light bar twice, but a light bar was lost on the scrim. The bar is also centred on the window, not on the timeline column, so it crosses the side panel.
+- Task pane: the time shows 3 times, and 2 controls set the length. Could the ruler's green bar drag to set the length, so the chips go?
+- Today date format: the phone shows "7. November 2026 ›" (per `docs/design/today.md`), the website shows "7 November 2026 ›". Which one is right?
+- Life: unrated Area tracks have tick marks but no thumb, so they do not look draggable.
+- Detail top bar: a long Block title now wraps to 2 lines in the collapsed bar (no ellipsis, per default-text-fit). The bar keeps that height while the title is hidden at rest, so about 16dp of empty bar shows above the page title.
+Open question: run another gauntlet on today, nav and task-sheet with a new direction, not more patches?

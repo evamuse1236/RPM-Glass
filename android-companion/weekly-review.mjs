@@ -154,6 +154,7 @@ function renderReview(root, api, ctx) {
     body = el('div', 'wr-body');
     content = el('div', 'wr-content');
     body.append(content);
+    keepEndClearOfSnackbar(body);
   }
   const active = root.contains(document.activeElement) ? document.activeElement.dataset.key : null;
   const stepChange = ui.stepChanged && !first;
@@ -185,7 +186,7 @@ function renderReview(root, api, ctx) {
       footer(api, foot);
       const back = foot.querySelector(':scope > .wr-back');
       if (back && !hadBack) back.animate([{opacity: 0}, {opacity: 1}], {duration: DURATION.short3, easing: EASE.standardDecelerate});
-      document.documentElement.style.setProperty('--wr-foot', foot.offsetHeight + 'px');
+      measureFoot(foot);
     });
   } else if (!deferFrame) {
     ui.frameToken = (ui.frameToken ?? 0) + 1;
@@ -216,11 +217,14 @@ function renderReview(root, api, ctx) {
     const outgoing = ghost([column], bodyRect, root, {cls: 'wr-ghost-body', scrollTop: oldScroll});
     sharedAxis([outgoing], [content], {back: !!ui.stepBack});
   }
-  // A hairline over the footer only while content continues underneath it (no fade over the last card).
-  const edge = () => foot.classList.toggle('edge', body.scrollTop + body.clientHeight < body.scrollHeight - 2);
+  // A hairline over the footer while content continues underneath it, and under the step bar once content has scrolled under it.
+  const edge = () => {
+    foot.classList.toggle('edge', body.scrollTop + body.clientHeight < body.scrollHeight - 2);
+    progress?.classList.toggle('edge', body.scrollTop > 2);
+  };
   body.onscroll = edge;
   edge();
-  document.documentElement.style.setProperty('--wr-foot', foot.offsetHeight + 'px');
+  measureFoot(foot);
   if (ui.stepChanged) {
     ui.stepChanged = false;
     root.querySelector('.wr-body .wr-title')?.focus({preventScroll: true});
@@ -230,8 +234,29 @@ function renderReview(root, api, ctx) {
   }
 }
 
+/** While the snackbar shows, the body gains its height as end padding (review.css); a body read to its end scrolls on
+ * by that much, so the last row is never left under the snackbar. */
+function keepEndClearOfSnackbar(body) {
+  const planner = document.getElementById('planner');
+  if (!planner) return;
+  const observer = new MutationObserver(() => {
+    if (!body.isConnected) return observer.disconnect();
+    if (planner.dataset.snackbar !== 'true') return;
+    const room = (document.getElementById('snackbar')?.offsetHeight || 48) + 16;
+    if (body.scrollHeight - body.scrollTop - body.clientHeight <= room) {
+      body.scrollTo({top: body.scrollHeight, behavior: reducedMotion() ? 'auto' : 'smooth'});
+    }
+  });
+  observer.observe(planner, {attributes: true, attributeFilter: ['data-snackbar']});
+}
+
 /* ---------- frame: top bar, progress, footer ----------
  * Built once and updated in place, so they never flash or replay while the step body changes under them. */
+/** The snackbar's gap to the window's bottom edge: the footer and whatever sits below it (the gesture inset). */
+function measureFoot(foot) {
+  document.documentElement.style.setProperty('--wr-foot', Math.round(innerHeight - foot.getBoundingClientRect().top) + 'px');
+}
+
 function topBar(api, existing = null) {
   if (existing) {
     const count = existing.querySelector('.wr-bar-count');

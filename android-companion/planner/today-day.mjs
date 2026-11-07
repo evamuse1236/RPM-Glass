@@ -3,7 +3,7 @@
  * the day's tasks, calendar events, Routines, meals and Result deadlines. It opens with now in view; a floating Now
  * button returns there.
  */
-import {anytimeLabel, buildSpine, FREE_MINUTES, PLAN_MINUTES} from '../spine-model.mjs';
+import {anytimeLabel, buildSpine} from '../spine-model.mjs';
 import {routineOn, routineState, doneAll, usualMeals} from '../body-state.mjs';
 import {localDay, blockDue, timelineItems} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
@@ -30,7 +30,7 @@ function dayTask(app, task, done) {
   const start = at != null && localDay(at) === app.state.day ? at : null;
   const block = app.p().blocks.find(b => b.id === task.blockId);
   return {id: task.id, title: task.title, start, minutes: task.minutes ?? null, done, must: !!task.must, result: block?.title ?? null,
-    tone: app.tone(app.context(task).area), occurrence: task.occurrence, ref: task};
+    resultId: block?.id ?? null, tone: app.tone(app.context(task).area), occurrence: task.occurrence, ref: task};
 }
 
 function dayRoutines(body, day, now) {
@@ -52,8 +52,7 @@ function spineModel(app) {
   return {
     model: buildSpine({day, now: +now, live, tasks, events: events.filter(e => !e.allDay), deadlines,
       routines: dayRoutines(body, day, now), meals: body.meals().filter(m => localDay(m.at) === day),
-      window: body.water().settings, mealPlan: body.mealPlan(),
-      planMinutes: app.api.wide?.() ? FREE_MINUTES : PLAN_MINUTES}),
+      window: body.water().settings, mealPlan: body.mealPlan()}),
     allDay: events.filter(e => e.allDay),
   };
 }

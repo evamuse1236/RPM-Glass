@@ -74,8 +74,9 @@ const scenes = {
         await scroll(page, 900); await rest(); await shot(page, 'review-1-scrolled');
       },
       async 3() {
-        // One suggestion accepted, then the chooser opened for a task with no clear match.
-        await click(page, page.getByRole('button', {name: /^Add "Check the LMS/}));
+        // The suggested Result picked from the chooser, then the chooser opened for a task with no clear match.
+        await click(page, page.getByRole('button', {name: /^Choose a Result for "Check the LMS/}));
+        await click(page, page.locator('.wr-picker .wr-option-suggested'));
         await page.waitForTimeout(6000); // let the Undo snackbar time out
         await rest(); await shot(page, 'review-3');
         await click(page, page.getByRole('button', {name: /^Choose a Result for "Buy a new notebook/}));

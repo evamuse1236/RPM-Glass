@@ -13,12 +13,16 @@ test('the wide page styles apply only on a wide window and load after the task p
   assert.match(read('../build.mjs'), /'\.\/app\/wide-pages\.css', 'wide-pages\.css'/);
 });
 
-test('on wide the Inbox pane drops its note and its repeated Capture and Add task, and the Life tab line sits under its word', () => {
+test('on wide the Inbox pane drops its repeated Capture and Add task, and the Life tab line sits under its word', () => {
   const css = read('./wide-pages.css');
-  assert.match(css, /\[aria-label=Inbox\] :is\(\[data-key=inbox-note\], \.sheet-actions\) \{ display: none; \}/);
+  assert.match(css, /\[aria-label=Inbox\] \.sheet-actions \{ display: none; \}/);
   assert.match(css, /\.sheet-header:has\(> h2:not\(\.visually-hidden\)\) \{ min-block-size: 64px; \}/);
   assert.match(css, /\.tab\[aria-selected=true\]::after \{ inset-inline: var\(--s4\); \}/);
-  assert.match(read('../../android-companion/planner/task-lists.mjs'), /note\.dataset\.key = 'inbox-note'/);
+  const inbox = read('../../android-companion/planner/task-lists.mjs');
+  assert.doesNotMatch(inbox, /sheet-note/, 'the Inbox title says what it holds; no sentence sits above the tasks');
+  assert.match(inbox, /labelButton\('auto_awesome', 'Sort with Jev', [^\n]*'assist-chip inbox-jev'\)/, 'Sort with Jev is a labelled header chip beside Close');
+  assert.match(inbox, /count\.textContent = rows\.length \? String\(rows\.length\) : ''/, 'the title counts the tasks left to sort');
+  assert.match(inbox, /header\.querySelector\('\.sheet-close'\)\.before\(jev\)/);
 });
 
 test('on wide each Project card lists its Blocks and opens the Project; the phone keeps its toggle', () => {
@@ -45,7 +49,7 @@ test('on wide Life puts the wheel on the left and each Area with its rating and 
   assert.match(source, /`\$\{area\.rating\} \/ 10`/);
   const css = read('./wide-pages.css');
   assert.match(css, /\.page:has\(> \.life-areas\) \{\n    display: grid;\n    grid-template-columns: minmax\(0, 480px\) minmax\(0, 1fr\);/);
-  assert.match(css, /\.page:has\(> \.life-areas\) \.wheel-areas \{ display: none; \}/);
+  assert.doesNotMatch(read('../../android-companion/planner/life-wheel.mjs'), /wheel-area\b/, 'the Areas list under the wheel is the one way to an Area, so the wheel card has no second row of Area chips');
   const start = source.indexOf('function areaGoals');
   const goals = source.slice(start, source.indexOf('\nfunction', start + 1));
   assert.match(goals, /ratingInput\(app, area, rating => \{ value\.textContent = rating; \}\)/);
@@ -56,16 +60,18 @@ test('on wide Life puts the wheel on the left and each Area with its rating and 
   assert.match(goals, /area\.rating == null \? '' : `\$\{area\.rating\}`/, 'an unrated Area shows no value, only its ticks');
   assert.match(goals, /track\.append\(ratingInput\(app, area, rating => \{ value\.textContent = rating; \}\), ratingTicks\(\)\);/);
   assert.match(css, /\.life-track \.rating-slider\.unrated \+ \.rating-ticks \{ opacity: 1; \}/);
-  assert.match(css, /:not\(:has\(\.rating-slider:not\(\.unrated\)\)\) \.wheel-plot \{ inline-size: min\(100% - 128px, 160px\); \}/, 'with nothing rated the wheel shrinks');
-  assert.match(css, /#planner \.wheel-copy p \{ display: none; \}/, 'no drag instruction on wide');
-  assert.match(read('../../android-companion/planner/life-wheel.mjs'), /const none = app\.api\.wide\?\.\(\) \? '' : '–';/);
-  assert.match(css, /\.wheel-average:empty \{ display: none; \}/);
+  assert.doesNotMatch(css, /\.rating-slider:not\(\.unrated\)/, 'the wheel and its column keep one size whether or not an Area is rated, so the first rating never moves the layout');
+  assert.match(css, /#planner \.wheel-plot \{ inline-size: min\(100% - 128px, 360px\); \}/);
+  assert.match(css, /#planner \.wheel-hint \{ display: none; \}/, 'no drag instruction on wide');
+  const wheel = read('../../android-companion/planner/life-wheel.mjs');
+  assert.doesNotMatch(wheel, /'–'/, 'an unrated wheel shows no stand-in value in its centre');
+  assert.equal(wheel.match(/averageOf\(areas\.map\([^;]*\?\? ''/g)?.length, 2, 'the centre shows the average of rated Areas or nothing');
+  assert.match(read('../../android-companion/life-wheel.css'), /\.wheel-average:empty \{ display: none; \}/);
 });
 
-test('on wide the Inbox pane matches the page, Sort with Jev is a text button, and long pages fade at the foot', () => {
+test('on wide the Inbox pane matches the page, and long pages fade at the foot', () => {
   const css = read('./wide-pages.css');
   assert.match(css, /#sheet\[data-inline\] \{ --sheet-surface: light-dark\(var\(--surface-container-low\), var\(--surface-container\)\); \}/);
-  assert.match(css, /\.tonal-btn\[data-key=inbox-jev\] \{ background: transparent; color: var\(--primary\); \}/);
   assert.match(css, /#planner-scroll \{\n    animation: page-fade linear both;\n    animation-timeline: scroll\(self block\);/);
   const web = read('./web.css');
   assert.match(web, /@property --page-fade \{ syntax: "<length>"; inherits: false; initial-value: 0px; \}/);

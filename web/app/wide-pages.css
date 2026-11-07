@@ -1,6 +1,10 @@
 @media (width >= 1080px) {
   #sheet[data-inline] .sheet-header:has(> h2:not(.visually-hidden)) { min-block-size: 64px; }
-  #sheet[data-inline][aria-label=Inbox] :is([data-key=inbox-note], .sheet-actions) { display: none; }
+  #sheet[data-inline][aria-label=Inbox] .sheet-actions { display: none; }
+  #sheet[data-inline].sheet-quick .sheet-header { display: flex; }
+  #sheet[data-inline].sheet-quick .sheet-body { flex: 0 1 auto; padding-block-start: 0; }
+  #sheet[data-inline] .quick-row.block-chips { flex-wrap: wrap; row-gap: var(--s2); }
+  #sheet[data-inline] .block-chips > .block-chip { max-inline-size: 100%; }
 
   #planner .date-button { font: var(--headline-medium); letter-spacing: -.01em; }
 
@@ -34,22 +38,26 @@
     align-content: start;
   }
   #planner .page:has(> .life-areas) > :not(.wheel-card, .life-areas) { grid-column: 1 / -1; }
-  #planner .page:has(> .life-areas) .wheel-card { margin-inline-end: 0; align-self: start; }
-  #planner .page:has(> .life-areas) .wheel-areas { display: none; }
-  #planner .page:has(> .life-areas):not(:has(.rating-slider:not(.unrated))) {
-    grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
-  }
-  #planner .page:has(> .life-areas):not(:has(.rating-slider:not(.unrated))) .wheel-plot { inline-size: min(100% - 128px, 160px); }
-  #planner .life-areas { display: grid; gap: var(--s2); align-content: start; padding-block: var(--s1); padding-inline-end: var(--gutter); }
-  #planner .life-area-group {
+  /* The wheel and the Areas are two cards of one height; the wheel centres in its card when the list runs longer. */
+  #planner .page:has(> .life-areas) .wheel-card { display: flex; flex-direction: column; margin-inline-end: 0; }
+  #planner .page:has(> .life-areas) .wheel-plot { margin-block: auto; }
+  #planner .life-areas {
     display: grid;
-    grid-template-columns: minmax(0, 240px) minmax(0, 1fr) var(--s6);
-    column-gap: var(--s4);
+    gap: 0;
+    align-content: start;
+    margin: var(--s1) var(--gutter) 0 0;
     padding-block: var(--s1);
     border-radius: var(--card-radius);
     background: var(--surface-container-low);
     border: 1px solid color-mix(in oklch, var(--outline-variant) 55%, transparent);
   }
+  #planner .life-area-group {
+    display: grid;
+    grid-template-columns: minmax(0, 240px) minmax(0, 1fr) var(--s6);
+    column-gap: var(--s4);
+    padding-block: var(--s1);
+  }
+  #planner .life-area-group + .life-area-group { border-block-start: 1px solid var(--outline-variant); }
   #planner .life-area-group > * { grid-column: 1 / -1; }
   #planner .life-area .list-headline { font: var(--title-small); }
   #planner .life-area-row {
@@ -60,11 +68,17 @@
   }
   #planner .life-track { display: grid; }
   #planner .life-track > * { grid-area: 1 / 1; }
+  /* Unrated, the track waits with faint ticks and no handle, so nothing reads as a 0; pointing at it or focusing it
+     shows the hollow handle where a drag starts. */
   #planner .life-track .rating-slider.unrated + .rating-ticks { opacity: 1; }
+  #planner .life-track .rating-slider.unrated + .rating-ticks i { inline-size: 2px; block-size: 12px; border-radius: var(--shape-full); background: var(--outline); }
+  #planner .life-track .rating-slider.unrated:not(:focus-visible)::-webkit-slider-thumb { background: transparent; box-shadow: none; }
+  @media (hover: hover) and (pointer: fine) {
+    #planner .life-track .rating-slider.unrated:hover::-webkit-slider-thumb { background: var(--surface-container-low); box-shadow: inset 0 0 0 2px var(--outline); }
+  }
   #planner .life-rating { font: var(--title-small); text-align: end; }
-  #planner .life-area-group > .list-item.nested { padding-inline-start: calc(var(--gutter) + var(--s8) + var(--s2) + var(--s4)); }
-  #planner .wheel-copy p { display: none; }
-  #planner .wheel-average:empty { display: none; }
+  #planner .life-area-group > .list-item.nested { gap: var(--s4); padding-block: var(--s2); padding-inline-start: calc(var(--gutter) + var(--s8) + var(--s2) + var(--s4)); }
+  #planner .wheel-hint { display: none; }
 
   .planner-view #planner[data-view=projects] .page > .project-card {
     grid-column: 1 / -1;
@@ -79,6 +93,8 @@
     padding: var(--s3);
   }
   #planner[data-view=projects] .project-blocks > p { grid-column: 1 / -1; align-self: center; }
+  #planner[data-view=projects] .project-blocks { margin: 0; border: 0; }
+  #planner[data-view=projects] .project-block { padding-inline: var(--s3); border-radius: var(--r-control); background: var(--surface); }
   #planner .project-block-copy { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); min-inline-size: 0; }
   #planner .project-block:not(:has(.seg-ring)) { padding-inline-start: calc(var(--s8) + var(--s5)); }
   #planner .project-block-count { flex: none; inline-size: 40px; text-align: end; }
@@ -86,7 +102,6 @@
   #planner .project-block-next { font: var(--body-small); color: var(--on-surface-variant); }
   #planner .list-item.nested { padding-inline-start: calc(var(--s8) + var(--s6)); }
   .planner-view > #sheet[data-inline] { --sheet-surface: light-dark(var(--surface-container-low), var(--surface-container)); }
-  #sheet .tonal-btn[data-key=inbox-jev] { background: transparent; color: var(--primary); }
   #planner:is([data-view=blocks], [data-view=projects], [data-view=life]) #planner-scroll {
     animation: page-fade linear both;
     animation-timeline: scroll(self block);

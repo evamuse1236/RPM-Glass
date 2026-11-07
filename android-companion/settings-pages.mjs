@@ -18,7 +18,8 @@ export const SETTINGS_PAGES = Object.freeze({
 });
 const HOME_GROUPS = [['appearance', 'notch'], ['alerts', 'voice', 'ai'], ['sync', 'diagnostics', 'about']];
 
-const alarmsBlocked = s => !s.notificationsAllowed || !s.exactAlarmsAllowed;
+const alarmsOff = s => [s.notificationsAllowed, s.exactAlarmsAllowed].filter(allowed => !allowed).length;
+const alarmsBlocked = s => alarmsOff(s) > 0;
 const notchWaiting = s => !!s.notchOn && !s.notchServiceOn;
 const connectedKeys = s => [s.claudeKey && 'Claude', s.openRouterKey && 'OpenRouter'].filter(Boolean);
 
@@ -28,6 +29,7 @@ function homeValue(ctx, page) {
   switch (page) {
     case 'appearance': return THEME_NAMES[clarityPreferences().appearance];
     case 'notch': return s.notchOn ? 'On' : 'Off';
+    case 'alerts': return alarmsBlocked(s) ? `${alarmsOff(s)} off` : '';
     case 'voice': return s.hasGeminiKey ? voiceChoice().voice ?? 'Default' : 'Not set';
     case 'ai': { const keys = connectedKeys(s); return keys.length ? keys.join(', ') : 'Not set'; }
     case 'diagnostics': { const log = s.diagnostics ?? {}; return !log.connected ? 'Off' : log.paused ? 'Paused' : 'On'; }
@@ -54,7 +56,8 @@ export function homePage(ctx) {
     const section = group();
     for (const page of pages) {
       const {title, icon, tone} = SETTINGS_PAGES[page];
-      const node = row({label: title, value: homeValue(ctx, page), icon, tile: tone, next: true, action: `open_${page}`});
+      const node = row({label: title, value: homeValue(ctx, page), icon, tile: tone, next: true, action: `open_${page}`,
+        tone: page === 'alerts' && alarmsBlocked(s) ? 'warn' : null});
       node.addEventListener('click', () => ctx.options.openPage?.(page));
       section.card.append(node);
     }
@@ -101,6 +104,7 @@ function notchPage(ctx) {
   return [notch, butterfly, widgets];
 }
 
+/** A permission says its state once: a quiet Allowed, or a tonal Allow beside a small error dot. */
 const permission = allowed => allowed ? {value: 'Allowed'} : {value: 'Allow', tone: 'error'};
 
 function alertsPage(ctx) {
@@ -108,13 +112,13 @@ function alertsPage(ctx) {
   const sounds = group('Sounds', {id: 'sounds'});
   add(ctx, sounds, {label: 'Alarm sound', value: s.alarmSound, action: 'choose_alarm', next: true});
   add(ctx, sounds, {label: s.previewing ? 'Stop alarm sound' : 'Play alarm sound', detail: s.previewing ? 'Playing at alarm volume' : '5 seconds at alarm volume',
-    action: 'preview_alarm'});
+    action: 'preview_alarm', trail: s.previewing ? 'stop' : 'play_arrow'});
   add(ctx, sounds, {label: 'Reminder sound', value: s.reminderSound, action: 'reminder_sound', next: true});
   const allowed = group('Permissions', {id: 'permissions',
     caption: 'Battery saving can delay reminders. Keep RPM installed for saved alarms to ring.'});
   add(ctx, allowed, {label: 'Notifications', detail: 'For reminders and ringing alarms', ...permission(s.notificationsAllowed), action: 'notifications'});
   add(ctx, allowed, {label: 'Exact alarms', detail: 'For alarms at the chosen minute', ...permission(s.exactAlarmsAllowed), action: 'exact_alarms'});
-  add(ctx, allowed, {label: 'Check saved alerts', detail: 'Schedule them again after a permission change', action: 'check_alerts'});
+  add(ctx, allowed, {label: 'Check saved alerts', detail: 'Schedule them again after a permission change', action: 'check_alerts', trail: 'refresh'});
   return [sounds, allowed];
 }
 
@@ -123,13 +127,13 @@ function voicePage(ctx) {
   const s = ctx.state;
   const {voice, persona} = voiceChoice();
   const key = group('', {id: 'voice-key'});
-  add(ctx, key, {label: 'Gemini key', detail: s.hasGeminiKey ? 'For voice mode' : 'Without it, the mic uses Android dictation',
+  add(ctx, key, {label: 'Gemini key', detail: s.hasGeminiKey ? '' : 'Without it, the mic uses Android dictation',
     value: s.hasGeminiKey ? 'Connected' : 'Not set', action: 'connect_gemini_key', next: true});
   const open = dialog => { document.body.append(dialog); dialog.showModal(); };
   const sound = group('', {id: 'voice'});
   const voiceRow = row({label: 'Voice', value: voice ?? 'Default', action: 'voice_name', next: true});
   voiceRow.addEventListener('click', () => open(voiceDialog(document, voice, next => { setVoice(next); ctx.render(ctx); })));
-  const personaRow = row({label: 'Persona', detail: persona || 'Tone and wording', value: persona ? '' : 'None', action: 'voice_persona', next: true});
+  const personaRow = row({label: 'Persona', detail: persona, value: persona ? '' : 'None', action: 'voice_persona', next: true});
   if (persona) personaRow.querySelector('.settings-detail')?.classList.add('settings-clamp');
   personaRow.addEventListener('click', () => open(personaDialog(document, persona, next => { setPersona(next); ctx.render(ctx); })));
   sound.card.append(voiceRow, personaRow);
@@ -160,10 +164,10 @@ function aiPage(ctx) {
 
 function syncPage(ctx) {
   const cloud = group('', {id: 'cloud'});
-  add(ctx, cloud, {label: 'Link a web browser', detail: 'Pair with a one-use code', action: 'cloud_web', next: true});
+  add(ctx, cloud, {label: 'Link a web browser', action: 'cloud_web', next: true});
   const files = group('Backup', {id: 'context-history', caption: 'Plans stay on this phone.'});
-  add(ctx, files, {label: 'Export', detail: 'Conversations and plans as a JSON file', action: 'export_context', next: true});
-  add(ctx, files, {label: 'Import', detail: 'Backs up this phone first', action: 'import_context', next: true});
+  add(ctx, files, {label: 'Export', action: 'export_context', next: true});
+  add(ctx, files, {label: 'Import', action: 'import_context', next: true});
   add(ctx, files, {label: 'Restore a backup', value: ctx.state.backupCount ? String(ctx.state.backupCount) : 'None', action: 'restore_backup', next: true});
   return [cloud, files];
 }
@@ -210,8 +214,22 @@ function aboutPage(ctx) {
 export const PAGES = {appearance: appearancePage, notch: notchPage, alerts: alertsPage, voice: voicePage, ai: aiPage,
   sync: syncPage, diagnostics: diagnosticsPage, about: aboutPage};
 
-export function phoneOnlyPage(text) {
-  const section = group('', {id: 'phone-only'});
-  section.card.append(row({label: 'On your phone', detail: text}));
-  return [section, ...aboutPage(null)];
+/** What a browser can set: the same rows as the phone's home, only for pages that work here, and one line naming the rest. */
+const WEB_PAGES = ['appearance', 'about'];
+export function phoneOnlyPage(ctx, text) {
+  if (ctx.page === 'appearance') return appearancePage(ctx);
+  if (ctx.page === 'about') return aboutPage(null);
+  const section = group('', {id: 'web-pages'});
+  for (const page of WEB_PAGES) {
+    const {title, icon, tone} = SETTINGS_PAGES[page];
+    const node = row({label: title, value: page === 'appearance' ? THEME_NAMES[clarityPreferences().appearance] : '', icon, tile: tone, next: true, action: `open_${page}`});
+    node.addEventListener('click', () => ctx.options.openPage?.(page));
+    section.card.append(node);
+  }
+  const phone = group('', {id: 'phone-only'});
+  const note = row({label: 'Set in RPM on your phone', detail: text, icon: 'phone_android', tile: 'grey'});
+  const fact = el('div', note.className);
+  fact.append(...note.childNodes);
+  phone.card.append(fact);
+  return [section, phone];
 }

@@ -7,9 +7,13 @@
 .item-head.failed{color:var(--bar-error)}
 .item-head:focus-visible,.edit-chip:focus-visible,.item-compact:focus-visible,.tray-pick:focus-visible{outline:2px solid var(--bar-primary);outline-offset:2px}
 
-.item-chips{display:flex;flex-wrap:wrap;gap:8px;min-inline-size:0}
-.edit-chip{position:relative;display:inline-flex;align-items:center;gap:4px;max-inline-size:100%;min-block-size:var(--chip-block);padding:0 16px 0 12px;border:1px solid transparent;border-radius:var(--r-tile);background:var(--bar-highest);color:var(--bar-on);font:var(--label-large);white-space:nowrap;cursor:pointer}
-.edit-chip::after{content:"";position:absolute;inset:-4px 0}
+/* One row of compact 32dp chips, set values first; a row too long for the card slides sideways and fades the edge that has more. */
+.item-chips{display:flex;gap:8px;min-inline-size:0;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:none;padding:8px 4px;margin:-8px -4px;
+  animation:cards-edges linear both;animation-timeline:scroll(self inline);mask-image:linear-gradient(to right,transparent,#000 var(--fade-start),#000 calc(100% - var(--fade-end)),transparent)}
+.item-chips::-webkit-scrollbar{display:none}
+.item-chips>*{flex:none}
+.edit-chip{position:relative;display:inline-flex;align-items:center;gap:4px;max-inline-size:100%;min-block-size:32px;padding:0 12px 0 8px;border:1px solid transparent;border-radius:var(--r-tile);background:var(--bar-highest);color:var(--bar-on);font:var(--label-large);white-space:nowrap;cursor:pointer}
+.edit-chip::after{content:"";position:absolute;inset:-8px 0}
 .edit-chip .ms{font-size:20px;color:var(--bar-primary)}
 .edit-chip .chip-label{min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .edit-chip.empty{background:transparent;border:1px dashed color-mix(in oklch,var(--bar-on-variant) 60%,transparent);color:var(--bar-on-variant)}

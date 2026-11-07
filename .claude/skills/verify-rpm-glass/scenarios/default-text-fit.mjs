@@ -7,9 +7,7 @@ export const enforces = 'AGENTS.md "One UI default text" row (user 2026-10-19: o
 // Titles and action labels that are cut: ellipsis or clipping where the text is wider or taller than its box.
 // Secondary lines (a card's Purpose, a subtitle, a breadcrumb) may be shortened; the contract says to drop
 // metadata before cutting a title. Visually hidden screen-reader text is skipped.
-export const EXCEPTIONS = [
-  {cls: 'top-title-text', reason: "The collapsed top-bar title on a detail page repeats the page heading, which wraps in full. It is cut at every text size. Contract: never clip a title.", approval: 'pending: needs Dara to accept this or fix it', expires: '2026-11-07'},
-];
+export const EXCEPTIONS = [];
 function clipped(exceptions) {
   const out = [];
   const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight && !el.closest('[hidden],[inert],[aria-hidden="true"]'); };
