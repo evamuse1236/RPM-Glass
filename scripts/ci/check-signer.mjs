@@ -3,7 +3,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
-export const PHONE_SIGNER = '525fee39663b1984f55e3f7367eb783968166009a0210293bc4b0b4e8fb00bf1';
+export const PHONE_SIGNER = '02620d8ae0ca0622e0d29f7a21086d89a3f4e29956a825972ccd739b97788db2';
 
 export function signerDigest(apksignerOutput) {
   return /certificate SHA-256 digest: ([0-9a-f]{64})/.exec(apksignerOutput)?.[1] ?? null;
