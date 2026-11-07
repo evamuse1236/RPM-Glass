@@ -1,5 +1,5 @@
 .habit-list { display: flex; flex-direction: column; margin-inline: calc(-1 * var(--s2)); }
-/* A habit row: today's mark, the words, the chevron; water's meter runs under the words to the chevron's edge. */
+/* A habit row: today's ring, the words, the chevron. Every row is one height. */
 .habit-row {
   position: relative;
   display: grid;
@@ -11,15 +11,15 @@
   border-radius: var(--shape-md);
 }
 .habit-icon { inline-size: calc(var(--row-icon) - var(--s2)); font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
-/* The mark is the Today timeline's ring in the habit's tone: hollow until done, then filled with a check. */
-.habit-mark { justify-self: center; --mark-c: var(--on-surface-variant); border-color: color-mix(in oklch, var(--mark-c) 70%, var(--surface)); color: var(--on-tone); }
-.habit-mark .ms { opacity: 0; }
-.habit-mark.done { background: var(--mark-c); border-color: var(--mark-c); }
-.habit-mark.done .ms { opacity: 1; }
-.habit-mark.tone-meal { --mark-c: var(--tone-meal); }
-.habit-mark.tone-routine { --mark-c: var(--tone-routine); }
-.habit-mark.tone-water { --mark-c: var(--tone-water); }
-.habit-mark.tone-off { --mark-c: var(--outline-variant); }
+/* Today's progress ring, in the one progress colour every ring uses (Blocks, Projects): a dim band of that colour, the
+   share done as an arc, a filled disc with a check once done. A meal hidden from Today keeps a plain outline. */
+.habit-ring { justify-self: center; inline-size: 24px; block-size: 24px; overflow: visible; }
+.habit-ring circle { fill: none; stroke-width: 3; }
+.habit-ring-track { stroke: color-mix(in oklch, var(--primary) var(--track-mix), var(--surface-container-highest)); }
+.habit-ring-arc { stroke: var(--primary); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
+.habit-ring.off .habit-ring-track { stroke: var(--outline-variant); }
+.habit-ring .habit-ring-disc { fill: var(--primary); stroke: none; }
+.habit-ring-check { fill: none; stroke: var(--on-primary); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .habit-copy { min-inline-size: 0; display: flex; flex-direction: column; padding-block: var(--s2); }
 .habit-open { font: var(--body-large); color: var(--on-surface); text-align: start; overflow-wrap: anywhere; }
 .habit-open::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
@@ -32,12 +32,11 @@
 .habit-add > .habit-open { flex: 1; font: var(--body-large); color: var(--primary); }
 /* The meals are their own group: space, not a line, sets them apart from routines and water. */
 .habit-list.habit-meals { margin-block-start: var(--s2); }
-/* Water: today's glasses as a slim segmented track, one segment per glass of the goal (not the Today circle's
-   .habit-meter). In the list it sits under the words and ends where the chevron ends. */
+/* Water's sheet: today's glasses as a slim segmented track, one segment per glass of the goal (not the Today circle's
+   .habit-meter). */
 .water-track { display: flex; gap: var(--s1); margin-block-start: var(--s2); }
 .water-track > i { flex: 1; block-size: var(--s1); border-radius: var(--shape-full); background: var(--surface-container-highest); }
 .water-track > i.on { background: var(--primary); }
-.habit-row > .water-track { grid-column: 2 / -1; margin-block: calc(-1 * var(--s1)) var(--s3); }
 /* A meal: when it was eaten and what, or its time. A meal hidden from Today keeps its row, dimmed. */
 .habit-meal-line { display: flex; align-items: center; white-space: pre; }
 .habit-logged { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; }
@@ -49,22 +48,24 @@
 .habit-editor .sheet-body { display: flex; flex-direction: column; gap: var(--s2); padding-inline: var(--s4); }
 .habit-editor .remove-snack { align-self: flex-end; }
 .sheet-editor .edit-pair { margin-block-end: var(--s2); }
-/* The count rides in the header beside the title, quieter than it. */
-.sheet-count { margin-inline-start: var(--s3); font: var(--body-large); color: var(--on-surface-variant); }
-/* Water today: the meter with its one-tap log on one line; space, not a rule, sets the settings apart. */
+/* Water today: the count over its meter, the one-tap log 16dp after; space, not a rule, sets the settings apart. */
 .water-today { display: flex; align-items: center; gap: var(--s4); padding-block: 0 var(--s3); }
-.water-today > .water-track { flex: 1; margin-block-start: 0; }
-/* A slider row: label, M3 slider and value on one touch-high line, like a Life rating. */
+.water-progress { flex: 1; min-inline-size: 0; display: flex; flex-direction: column; gap: var(--s2); }
+.water-count { font: var(--title-medium); color: var(--on-surface); }
+.water-progress > .water-track { margin-block-start: 0; }
+/* A slider row: the label with its value on the row's line (values end in the column the chevron rows' values end
+   in), and the M3 slider across the full width under them. */
 .slider-field {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: 40px auto;
   align-items: center;
   column-gap: var(--s3);
   min-inline-size: 0;
-  min-block-size: var(--touch);
 }
-.slider-value { font: var(--title-medium); color: var(--on-surface); white-space: nowrap; text-align: end; }
+.slider-field > .slider-value { grid-area: 1 / 2; }
+.slider-field > .rating-slider { grid-area: 2 / 1 / auto / -1; block-size: 40px; }
+.slider-value { font: var(--title-medium); color: var(--on-surface); white-space: nowrap; text-align: end; margin-inline-end: var(--s8); }
 .slider-field > .edit-label { white-space: nowrap; }
-.slider-row > .edit-icon { padding-block-start: var(--s3); }
 .pick-button select { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; opacity: 0; cursor: pointer; }
 .pick-button:has(select:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }

@@ -6,7 +6,7 @@
 import {WATER_DEFAULTS, everyText, rangeText, daysText, clockText, atMinutes, minutesOf, localDay, routineOn,
   routineRowParts, routineState, joinParts, waterStatus} from '../body-state.mjs';
 import {duration} from './format.mjs';
-import {el, icon, button} from './dom.mjs';
+import {el, icon, button, attrs} from './dom.mjs';
 import {openSheet} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
 import {notice} from './snackbar.mjs';
@@ -17,41 +17,42 @@ import {openWaterEditor, openMealEditor} from './habit-editors.mjs';
 import {bodyApi} from './body-api.mjs';
 
 const MEAL_PREFIX = 'meal:';
-/** The Snack time menu item's glyph; in the list every habit leads with today's done mark instead. */
+/** The Snack time menu item's glyph; in the list every habit leads with today's progress ring instead. */
 const MEAL_ICON = 'restaurant';
 const timeWords = hhmm => clockText(atMinutes('2000-01-01', minutesOf(hhmm)));
 
-/** Today's mark, as on the Today timeline: a ring in the habit's tone, filled with a check once it is done. */
-function doneMark(tone, done) {
-  const mark = el('span', `habit-mark check-ring tone-${tone}${done ? ' done' : ''}`);
-  mark.append(icon('check'));
-  if (done) {
-    mark.setAttribute('role', 'img');
-    mark.setAttribute('aria-label', 'Done today');
-  } else mark.setAttribute('aria-hidden', 'true');
-  return mark;
+const SVG = 'http://www.w3.org/2000/svg';
+const svgNode = (tag, values) => attrs(document.createElementNS(SVG, tag), values);
+
+/** Today's progress as one ring in the shared progress colour: an arc for the share done (3 of 8 glasses, 3 of 5
+ * steps), a filled disc with a check once the habit is done. */
+function progressMark(done, total, {off = false} = {}) {
+  const complete = total > 0 && done >= total;
+  const svg = svgNode('svg', {class: `habit-ring${complete ? ' done' : ''}${off ? ' off' : ''}`, viewBox: '0 0 24 24'});
+  if (complete) {
+    svg.append(svgNode('circle', {class: 'habit-ring-disc', cx: 12, cy: 12, r: 10}),
+      svgNode('path', {class: 'habit-ring-check', d: 'M7.5 12.2L10.6 15.2L16.5 9.2'}));
+    attrs(svg, {role: 'img', 'aria-label': 'Done today'});
+    return svg;
+  }
+  svg.append(svgNode('circle', {class: 'habit-ring-track', cx: 12, cy: 12, r: 9}));
+  const share = total ? Math.round(done / total * 100) : 0;
+  if (share) svg.append(svgNode('circle', {class: 'habit-ring-arc', cx: 12, cy: 12, r: 9, pathLength: 100, 'stroke-dasharray': `${share} 100`}));
+  svg.setAttribute('aria-hidden', 'true');
+  return svg;
 }
 
 /**
- * One habit: today's mark, its name and one quiet line of today's state open the editor, with a chevron on the
- * shared right edge. `extra` runs under the line to that edge (water's meter); `off` dims a meal hidden from Today.
+ * One habit: today's ring, its name and one quiet line of today's state open the editor, with a chevron on the
+ * shared right edge; `off` dims a meal hidden from Today.
  */
-function habitRow(mark, name, summary, open, {extra = null, off = false} = {}) {
+function habitRow(mark, name, summary, open, {off = false} = {}) {
   const row = el('div', off ? 'habit-row habit-hidden' : 'habit-row');
   const copy = el('span', 'habit-copy');
   copy.append(button(name, open, 'habit-open'));
   if (summary) copy.append(summary instanceof Node ? summary : el('span', 'habit-summary tnum', summary));
   row.append(mark, copy, icon('chevron_right', {cls: 'habit-chevron'}));
-  if (extra) row.append(extra);
   return row;
-}
-
-/** Today's glasses against the goal: one segment per glass, drunk ones filled. */
-function waterMeter(count, goal) {
-  const meter = el('span', 'water-track');
-  meter.setAttribute('aria-hidden', 'true');
-  for (let i = 0; i < goal; i++) meter.append(el('i', i < count ? 'on' : ''));
-  return meter;
 }
 
 /** A meal's line: when it was eaten and what, else its planned time, or that it is hidden from Today. */
@@ -107,16 +108,18 @@ export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) 
       const words = today === undefined ? `${rangeText(routine.start, routine.end)} · ${daysText(routine.days)}`
         : today ? joinParts(today.state === 'partly' ? today.parts.slice(1) : today.parts) : 'Skipped today';
       const summary = el('span', 'habit-summary tnum', words);
-      if (today?.state === 'upcoming') upcoming.push({summary, at: routineState(routine, null, now).start});
-      rows.push(habitRow(doneMark('routine', today?.state === 'done'), routine.name, summary,
+      const state = routineState(routine, body.runFor(routine.id, day), now);
+      if (today?.state === 'upcoming') upcoming.push({summary, at: state.start});
+      const progress = today ? state.progress : {done: 0, total: 0};
+      rows.push(habitRow(progressMark(progress.done, progress.total), routine.name, summary,
         () => openRoutineEditor(app, body, routine.id, {back})));
     }
     const water = body.water();
     const settings = {...WATER_DEFAULTS, ...water.settings};
     const status = waterStatus({...water, settings, now});
     const every = settings.reminders === false ? 'reminders off' : `every ${everyText(settings.intervalMinutes)}`;
-    rows.push(habitRow(doneMark('water', status.reached), 'Water', `${status.count} of ${status.goal} glasses · ${every}`,
-      () => openWaterEditor(app, body, {back}), {extra: waterMeter(status.count, status.goal)}));
+    rows.push(habitRow(progressMark(status.count, status.goal), 'Water', `${status.count} of ${status.goal} glasses · ${every}`,
+      () => openWaterEditor(app, body, {back})));
     list.replaceChildren(...rows);
 
     const logged = body.meals().filter(m => localDay(m.at) === day && m.state !== 'skipped' && String(m.name ?? '').trim())
@@ -127,7 +130,7 @@ export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) 
       const summary = mealLine(meal, eaten);
       const at = atMinutes(day, minutesOf(meal.at));
       if (!eaten && meal.on && at > now) upcoming.push({summary, at});
-      return habitRow(doneMark(meal.on ? 'meal' : 'off', !!eaten), meal.name, summary,
+      return habitRow(progressMark(eaten ? 1 : 0, 1, {off: !meal.on}), meal.name, summary,
         () => openMealEditor(app, body, meal.slot, {back}), {off: !meal.on});
     }));
     const next = upcoming.sort((a, b) => a.at - b.at)[0];

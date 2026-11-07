@@ -31,11 +31,10 @@ async function saved(app, run, words) {
   return true;
 }
 
-/** The sheet header's way back to what opened the editor, by the arrow or Android Back. The side panel on a wide
- * screen has no scrim to tap, so it keeps its Close too. */
+/** The sheet header's way back to what opened the editor, by the arrow or Android Back. Every habit sheet keeps its
+ * Close at the end, so back sits at the start and Close at the end on every level. */
 function backTo(app, header, content, back, label) {
   if (!back) return;
-  if (!app.api.wide?.()) header.querySelector('.sheet-close')?.remove();
   header.prepend(iconButton('arrow_back', label, back, {cls: 'sheet-back'}));
   app.sheet.onBack = () => {
     if (!content.isConnected || !isSheetOpen(app)) return false;
@@ -44,13 +43,12 @@ function backTo(app, header, content, back, label) {
   };
 }
 
-/** Water: today's glasses with a one-tap log, then the goal, the glass size and a Reminders row that opens its own
- * sheet. The count sits in the header, so the meter needs no line under it. */
+/** Water: today's count over its meter with a one-tap log, then the goal, the glass size and a Reminders row that
+ * opens its own sheet. */
 export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Habits', motion = 'forward'} = {}) {
   const {body: content, header} = openSheet(app, 'Water', {variant: 'choice habit-editor', motion});
   backTo(app, header, content, back, backLabel);
-  const count = el('span', 'sheet-count tnum');
-  header.querySelector('h2').append(count);
+  const count = el('span', 'water-count tnum');
   const goal = slider({label: 'Daily goal', ...WATER_STEPS.goal, format: glassesText,
     onChange: onGrid('goal', v => saved(app, () => body.setWater('goal', v), `Daily goal: ${glassesText(v)}`))});
   const size = pickButton('Glass size', value => saved(app, () => body.setWater('glassMl', Number(value)), `Glass size: ${value} ml`));
@@ -63,7 +61,9 @@ export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Ha
   log.setAttribute('aria-label', 'Log a glass');
   const today = el('section', 'water-today');
   today.setAttribute('aria-label', 'Today');
-  today.append(meter, log);
+  const progress = el('div', 'water-progress');
+  progress.append(count, meter);
+  today.append(progress, log);
   content.append(today, factRow('water_drop', goal, {cls: 'slider-row'}), factRow('local_drink', size),
     factRow('notifications', reminders));
 
