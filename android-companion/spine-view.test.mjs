@@ -5,7 +5,7 @@ import {buildSpine} from './spine-model.mjs';
 
 installFakeDom();
 Object.defineProperty(FakeElement.prototype, 'style', {get() { return this.styles ??= {setProperty() {}}; }});
-const {spineList, focusCard} = await import('./planner/spine-view.mjs');
+const {spineList, focusCard, foldedRows} = await import('./planner/spine-view.mjs');
 
 const DAY = '2026-10-19';
 const at = time => +new Date(`${DAY}T${time}`);
@@ -173,4 +173,17 @@ test('with nothing timed live or next there is no Now card; Any-time tasks stay 
   assert.equal(focusCard(evening, on), null);
   const list = spineList(evening, on).children.map(r => r.dataset.key);
   assert.ok(list.includes('task:Key') && list.includes('task:Loose'));
+});
+
+test('a late Must never waits behind the fold line; the line counts only the rows that are not Musts', () => {
+  const owedTask = (id, time, extra) => ({id, title: id, start: at(time), minutes: 15, ...extra});
+  const day = buildSpine({day: DAY, now: at('21:30'), meals: [],
+    tasks: [owedTask('Read', '10:00', {must: true}), owedTask('Bank', '12:00'), owedTask('Group', '16:00'), owedTask('Paper', '17:30', {must: true})]});
+  const shut = spineList(day, on).children;
+  const row = key => shut.find(r => r.dataset.key === key);
+  assert.equal(!!row('task:Paper').hidden, false, 'the second Must shows though it is the fourth late row');
+  assert.equal(row('task:Group').hidden, true);
+  assert.deepEqual(shut.slice(1, 5).map(r => r.dataset.key), ['task:Read', 'task:Bank', 'task:Paper', 'task:Group'], 'shown rows in clock order, then the folded one');
+  assert.match(text(row('earlier')), /^Show 1 more/);
+  assert.deepEqual(foldedRows(day).filter(r => r.fold === 'missed').map(r => r.key), ['task:Group']);
 });

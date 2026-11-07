@@ -186,7 +186,7 @@ const foldOf = row => {
   return row.past && row.kind !== 'now' ? 'earlier' : false;
 };
 
-/** "40 min late", then whole hours ("2 h late"), counted from the item's start. */
+/** "40 min late", then whole hours ("2 h late"), counted from the item's end. */
 export function lateText(ms) {
   const minutes = Math.max(1, Math.round(ms / MIN));
   return minutes < 60 ? `${minutes} min late` : `${Math.floor(minutes / 60)} h late`;
@@ -198,13 +198,24 @@ export function lateText(ms) {
  */
 function owe(row, now) {
   row.height = cardHeight(0);
-  row.when = {kind: 'late', text: lateText(now - row.start)};
+  row.when = {kind: 'late', text: lateText(now - row.end)};
   if (row.line && row.line.kind !== 'due' && row.line.kind !== 'result') row.line = null;
   if (row.gutter) row.gutter.end = null;
 }
 
 /** The missed rows in clock order, as the gutter reads; a Must stands out by its star and error ring, not by place. */
 export const owedRows = rows => rows.filter(r => r.fold === 'missed').sort((a, b) => a.start - b.start);
+
+/**
+ * The owed rows the group shows and the ones its fold line hides. Every Must shows; the other rows fill the rest of
+ * the cap in clock order, and only they fold. Both lists keep clock order.
+ */
+export const owedSplit = (rows, cap) => {
+  const owed = owedRows(rows);
+  let room = Math.max(0, cap - owed.filter(r => r.must).length);
+  const shown = owed.filter(r => r.must || (room > 0 && room--));
+  return {shown, hidden: owed.filter(r => !shown.includes(r))};
+};
 
 /** "Still to do · 4": the group's quiet header. */
 export const owedLabel = rows => `Still to do · ${rows.length}`;

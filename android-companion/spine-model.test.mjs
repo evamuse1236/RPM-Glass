@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {soonText, buildSpine, cardHeight, gapHeight, owedRows, owedLabel, doneLabel, doneSpoken, foldWords, lateText, FREE_MINUTES} from './spine-model.mjs';
+import {soonText, buildSpine, cardHeight, gapHeight, owedRows, owedSplit, owedLabel, doneLabel, doneSpoken, foldWords, lateText, FREE_MINUTES} from './spine-model.mjs';
 import {mealSlots, spanText, gutterTime} from './day-parts.mjs';
 
 const DAY = '2026-10-19';
@@ -112,8 +112,8 @@ test('the past splits in two: open tasks past their end (Musts too) and overdue 
   assert.equal(row('due:r2').fold, false);
   assert.equal(row('task:Read').fold, false);
   assert.equal(row('now').fold, false);
-  assert.deepEqual(row('task:Call bank').when, {kind: 'late', text: '1 h late'}, 'an owed row says how late it is, never "Missed"');
-  assert.deepEqual(row('task:Draft').when, {kind: 'late', text: '2 h late'}, 'lateness counts from the start, in whole hours begun');
+  assert.deepEqual(row('task:Call bank').when, {kind: 'late', text: '55 min late'}, 'an owed row says how late it is from its end, never "Missed"');
+  assert.deepEqual(row('task:Draft').when, {kind: 'late', text: '2 h late'}, 'lateness counts from the end (9:30), in whole hours');
   assert.equal(row('task:Call bank').line?.kind, 'result', 'an owed row keeps its Result line after its lateness');
   assert.equal(row('task:Call bank').gutter.end, null, 'its gutter keeps one time on one line');
   assert.equal(row('task:Call bank').height, cardHeight(0), 'out of time order, it has no length bar');
@@ -246,4 +246,18 @@ test('only the next item says how soon it starts', () => {
   const soon = model.rows.filter(r => r.soon).map(r => [r.key, plain(r.soon)]);
   assert.deepEqual(soon, [['task:Read', 'in 40 min']]);
   assert.deepEqual([1, 59, 60, 89, 91, 235].map(m => soonText(m * 60000)), ['in 1 min', 'in 59 min', 'in 1 h', 'in 1 h', 'in 2 h', 'in 4 h']);
+});
+
+test('the still-to-do group never folds a Must: every Must shows, other rows fill the cap in clock order, and only they fold', () => {
+  const model = spine({now: at('21:30'), tasks: [task('Read', '10:00', 30, {must: true}), task('Bank', '12:00', 15),
+    task('Group', '16:00', 45), task('Paper', '17:30', 30, {must: true}), task('Email', '18:00', 15)]});
+  const keys = rows => rows.map(r => r.key);
+  const {shown, hidden} = owedSplit(model.rows, 3);
+  assert.deepEqual(keys(shown), ['task:Read', 'task:Bank', 'task:Paper'], 'both Musts show, the earliest other row fills the cap');
+  assert.deepEqual(keys(hidden), ['task:Group', 'task:Email'], 'only rows that are not Musts fold, in clock order');
+  const musts = owedSplit(spine({now: at('21:30'), tasks: ['08:00', '09:00', '10:00', '11:00'].map((t, i) => task('M' + i, t, 15, {must: true}))
+    .concat(task('Bank', '12:00', 15))}).rows, 3);
+  assert.equal(musts.shown.length, 4, 'more Musts than the cap all show');
+  assert.deepEqual(keys(musts.hidden), ['task:Bank']);
+  assert.equal(model.rows.find(r => r.key === 'task:Group').when.text, '4 h late', 'Group ended at 4:45 PM: lateness counts from its end');
 });

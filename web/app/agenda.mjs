@@ -94,8 +94,9 @@ function soonRow(item, ui, overdue) {
   words.append(el('span', 'soon-what', item.title));
   const count = item.left != null && (!must || item.block) ? tasksLeft(item.left) : '';
   if (item.block || count) {
-    const under = el('span', 'soon-left', must && item.block ? item.block : '');
-    if (count) under.append(el('span', 'soon-count', (under.textContent ? ' · ' : '') + count));
+    const under = el('span', 'soon-left');
+    if (must && item.block) under.append(el('span', 'soon-block', item.block));
+    if (count) under.append(el('span', 'soon-count', (under.textContent ? '\u00a0· ' : '') + count));
     words.append(under);
   }
   node.append(words);

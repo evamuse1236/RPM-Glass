@@ -94,7 +94,10 @@ test('the side panel is one Coming up list, no Inbox, no "No Musts" rows; amber 
   const soon = css.slice(css.indexOf('/* Coming up:'), css.indexOf('@media (width >= 1080px)'));
   assert.doesNotMatch(soon, /\.soon-(result|must|day) \{[^}]*border-radius/, 'a rounded row would bend its divider');
   assert.doesNotMatch(soon, /border-inline-start/, 'no side rule that stops short of the column');
-  assert.doesNotMatch(soon, /text-overflow: ellipsis/, 'nothing in Coming up is cut short');
+  assert.doesNotMatch(soon.replace(/\.soon-block \{[^}]*\}/, ''), /text-overflow: ellipsis/, 'only the Result on the quiet line is cut short');
+  assert.match(soon, /\.soon-left \{ grid-column: 2 \/ -1;[^}]*white-space: nowrap/, 'the quiet line is one line under the title and the time');
+  assert.match(soon, /\.soon-count \{ flex: none; \}/, '"· 3 tasks left" stays whole');
+  assert.match(soon, /\.soon-time \{ grid-column: 3;/, 'the time keeps its own column');
   assert.match(soon, /\.soon-what \{[^}]*overflow-wrap: anywhere/, 'a long title wraps in full, never clipped');
 });
 

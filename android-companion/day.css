@@ -197,7 +197,9 @@
 .spine-focus .spine-pill { display: none; }
 .spine-focus .spine-row { min-block-size: 56px; }
 /* The card starts 8dp in, and its gutter is 8dp narrower, so its time ends on the timeline's time keyline and its
-   marker sits on the rail's line. Blue belongs to the Now line alone. */
+   marker sits on the rail's line. The time keeps 12dp inside the card's edge; "11:30 AM" breaks before "AM" to fit
+   and never crosses the edge. Blue belongs to the Now line alone. */
+.spine-focus .spine-gutter { padding-inline-start: var(--s3); white-space: normal; }
 .spine-focus .spine-row.current .spine-gutter { color: var(--on-surface-variant); }
 .spine-progress {
   grid-column: 2;
