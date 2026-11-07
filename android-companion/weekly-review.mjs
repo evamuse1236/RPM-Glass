@@ -32,7 +32,8 @@ export function mountWeeklyReview(container, ctx) {
     newBlock: {title: '', purpose: ''},
     draft: '',
     lens: null,
-    inboxOpen: false, // step 2: the Inbox list unfolded from its count
+    inboxOpen: false, // step 2: the whole Inbox shown, not only its newest tasks
+    sortPeeked: false, // step 3: the first suggested row has shown its swipe once
     expanded: null, // step 4: the Result opened to its Purpose and tasks
     weekOpen: false, // step 4: the week summary expanded to one row per picked Result
     showIdle: false,

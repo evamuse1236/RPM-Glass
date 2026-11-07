@@ -196,44 +196,40 @@ export function clashState(api, clash) {
   return {state: choice === 'later' ? 'later' : 'open'};
 }
 
+/** One compact row per clash: "A vs B" with the day and time under it, then Keep [A] [B] on one line. The error
+ * colour sits only on the icon; Later is a text button. A decided clash keeps the row and says what stays. */
 export function clashRow(api, clash) {
   const {ui} = api;
   const {state, choice} = clashState(api, clash);
-  const item = el('li', 'wr-risk wr-clash' + (state === 'decided' || state === 'planned' ? ' done' : ''));
+  const done = state === 'decided' || state === 'planned';
+  const item = el('li', 'wr-risk wr-clash' + (done ? ' done' : ''));
   const text = el('span', 'wr-risk-text');
-  const lead = el('span', '');
-  const when = `${dayName(clash.day)} at ${clock(clash.b.start)}`;
-  const reopen = label => {
-    const go = button(label, () => { ui.clashOpen = clash.key; api.render(); }, 'wr-btn-text');
-    go.dataset.key = 'clash-open:' + clash.key;
+  const title = el('span', 'wr-risk-lead');
+  title.append(el('span', 'wr-nowrap', clash.a.title), ' vs ', el('span', 'wr-nowrap', clash.b.title));
+  const sub = el('span', 'wr-risk-sub tnum');
+  const when = [`${dayName(clash.day)} · `, el('span', 'wr-nowrap', timeRange(clash.b.start, +clash.a.end < +clash.b.end ? clash.a.end : clash.b.end))];
+  const textButton = (label, said, onClick, key) => {
+    const go = button(label, onClick, 'wr-btn-text');
+    go.setAttribute('aria-label', said);
+    go.dataset.key = key;
     return go;
   };
-  if (state === 'decided' || state === 'planned') {
-    lead.append(el('b', 'wr-risk-lead', 'Clash decided'), ' · ' + when);
-    const sub = el('span', 'wr-risk-sub');
-    const [stays, other] = choice === 'b' ? [clash.b, clash.a] : [clash.a, clash.b];
-    if (state === 'decided') sub.append('Keep ', el('span', 'wr-nowrap', stays.title), ', move or skip ', el('span', 'wr-nowrap', other.title));
-    else sub.append(clash.task.title);
-    sub.append(' · ', el('span', 'wr-nowrap', `a task for ${whenText(clash.task, api.now())?.text ?? 'Today'}`));
-    text.append(lead, sub);
+  const reopen = label => textButton(label, label === 'Change' ? 'Change the clash decision' : 'Decide the clash now',
+    () => { ui.clashOpen = clash.key; api.render(); }, 'clash-open:' + clash.key);
+  if (done) {
+    const stays = choice === 'b' ? clash.b : clash.a;
+    const task = `a task for ${whenText(clash.task, api.now())?.text ?? 'Today'}`;
+    sub.append(state === 'decided' ? `Keep ${stays.title} · ${task}` : `${clash.task.title} · ${task}`);
+    text.append(title, sub);
     item.append(icon('event_available'), text, reopen('Change'));
     return item;
   }
-  lead.append(el('b', 'wr-risk-lead', 'Clash'), ' · ' + when);
-  // Each event with its time stays whole, so a range never breaks across lines.
-  const both = el('span', 'wr-risk-sub');
-  both.append(el('span', 'wr-nowrap', `${clash.a.title} ${timeRange(clash.a.start, clash.a.end)}`), ' overlaps ',
-    el('span', 'wr-nowrap', `${clash.b.title} ${timeRange(clash.b.start, clash.b.end)}`));
+  sub.append(...when, state === 'later' ? ' · left for later' : '');
+  text.append(title, sub);
   if (state === 'later') {
-    both.append('. Left for later.');
-    text.append(lead, both);
     item.append(icon('event_busy'), text, reopen('Decide'));
     return item;
   }
-  text.append(lead, both, el('span', 'wr-ask-small', 'Which one stays? Your answer goes on Today as a task.'));
-  const choices = el('span', 'wr-choices');
-  choices.setAttribute('role', 'group');
-  choices.setAttribute('aria-label', 'Which event stays');
   const decide = keep => {
     ui.clashes = {...ui.clashes, [clash.key]: keep};
     ui.clashOpen = null;
@@ -241,13 +237,17 @@ export function clashRow(api, clash) {
     api.saveProgress();
     api.run(clashOp(api.data(), clash, keep, api.now()), 'Decision added to Today');
   };
-  for (const [keep, label, said] of [['a', clash.a.title, 'Keep ' + clash.a.title], ['b', clash.b.title, 'Keep ' + clash.b.title], ['later', 'Later', 'Decide later']]) {
-    const chip = button(label, () => decide(keep), 'wr-chip wr-choice' + (choice === keep ? ' sel' : ''));
-    chip.setAttribute('aria-label', said);
+  const choices = el('span', 'wr-choices');
+  choices.setAttribute('role', 'group');
+  choices.setAttribute('aria-label', 'Which event stays');
+  choices.append(el('span', 'wr-choices-lead', 'Keep'));
+  for (const [keep, event] of [['a', clash.a], ['b', clash.b]]) {
+    const chip = button('', () => decide(keep), 'wr-chip wr-choice' + (choice === keep ? ' sel' : ''));
+    chip.append(el('span', 'wr-label', event.title));
+    chip.setAttribute('aria-label', 'Keep ' + event.title);
     chip.dataset.key = `clash:${keep}:${clash.key}`;
     choices.append(chip);
   }
-  text.append(choices);
-  item.append(icon('event_busy'), text);
+  item.append(icon('event_busy'), text, textButton('Later', 'Decide later', () => decide('later'), `clash:later:${clash.key}`), choices);
   return item;
 }

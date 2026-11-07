@@ -45,7 +45,8 @@ export function stepFour(api) {
   return parts;
 }
 
-/** Results as one list of rows: tapping a row picks it (a filled row with a check), the chevron opens its Purpose and tasks. */
+/** Results as one list of rows, as Google Tasks draws them: the circle picks a Result (a check and a light tint once
+ * picked), the rest of the row opens its Purpose and tasks. No trailing control, so the title has the row's width. */
 function resultList(api, rows, now, label) {
   const list = el('ul', 'wr-list wr-results');
   list.setAttribute('aria-label', label);
@@ -56,8 +57,8 @@ function resultList(api, rows, now, label) {
 function resultRow(api, c, now) {
   const {ui} = api;
   const open = ui.expanded === c.blockId;
-  const item = el('li', 'wr-result' + (ui.focus.includes(c.blockId) ? ' picked' : ''));
-  const pick = focusCheck(api, c.blockId, 'wr-pick', ['add_circle', 'check_circle']);
+  const item = el('li', 'wr-result' + (ui.focus.includes(c.blockId) ? ' picked' : '') + (open ? ' open' : ''));
+  const pick = focusCheck(api, c.blockId, 'wr-pick', ['radio_button_unchecked', 'check_circle']);
   pick.setAttribute('aria-label', `Pick "${c.title}"`);
   const text = el('span', 'wr-result-text');
   text.append(el('span', 'wr-result-title', c.title));
@@ -70,11 +71,10 @@ function resultRow(api, c, now) {
   facts.append(...factsLine([dueFact(c.due, now), must, !c.due && left ? `${c.done} of ${c.total} done` : null,
     c.carried ? 'Carried from last week' : null]));
   text.append(facts);
-  pick.append(text);
   const main = button('', () => { ui.expanded = open ? null : c.blockId; api.render(); }, 'wr-result-main');
   main.setAttribute('aria-expanded', String(open));
   main.dataset.key = 'open:' + c.blockId;
-  main.append(icon(open ? 'expand_less' : 'expand_more'));
+  main.append(text);
   main.setAttribute('aria-label', `${c.title}. ${open ? 'Hide' : 'Show'} its Purpose and tasks`);
   const row = el('div', 'wr-result-row');
   row.append(pick, main);

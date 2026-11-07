@@ -3,7 +3,7 @@ import {planner} from './planner-state.mjs';
 import {areaTone} from './planner-ux.mjs';
 import {areaDot} from './planner/dom.mjs';
 import {attachTaskSwipe} from './task-swipe.mjs';
-import {el, icon, button, iconButton, whenText, heading} from './review-ui.mjs';
+import {el, icon, button, iconButton, whenText, heading, sectionHead} from './review-ui.mjs';
 
 /* ---------- step 2: capture ---------- */
 export function stepTwo(api, ctx) {
@@ -16,11 +16,13 @@ export function stepTwo(api, ctx) {
     parts.push(el('p', 'wr-quiet', 'Nothing in the Inbox. Type anything still on your mind above.'));
     return parts;
   }
-  parts.push(inboxToggle(api, inbox.length));
-  if (!api.ui.inboxOpen) return parts;
+  // The newest few show at once, so what was just added is in view; the rest wait behind one row.
+  const newest = [...inbox].sort((a, b) => Number(b.id) - Number(a.id));
+  const shown = api.ui.inboxOpen ? newest : newest.slice(0, INBOX_PREVIEW);
+  parts.push(sectionHead('Inbox', inbox.length));
   const list = el('ul', 'wr-list');
   list.setAttribute('aria-label', 'Inbox');
-  for (const task of inbox) {
+  for (const task of shown) {
     const item = el('li', 'wr-list-item');
     // Tap to edit (the planner's task sheet, with Delete in its menu); swipe as in every task list.
     const text = button('', ctx.openTask ? () => ctx.openTask(task.id) : null, 'wr-list-text');
@@ -55,19 +57,19 @@ export function stepTwo(api, ctx) {
     list.append(item);
   }
   parts.push(list);
-  if (ctx.openTask) parts.push(el('p', 'wr-section-note wr-hint', 'Tap a task to edit it. Swipe right to schedule it, left to delete it.'));
+  if (inbox.length > INBOX_PREVIEW) parts.push(inboxToggle(api, inbox.length));
   return parts;
 }
 
-/** The Inbox folded to its count: what is already there matters less here than what is still in your head. */
+const INBOX_PREVIEW = 4;
+
+/** One quiet row under the newest tasks: the rest of the Inbox, or back to the newest. */
 function inboxToggle(api, count) {
   const open = Boolean(api.ui.inboxOpen);
-  const toggle = button('', () => { api.ui.inboxOpen = !open; api.render(); }, 'wr-inbox-toggle');
+  const toggle = button(open ? 'Show fewer' : `Show all ${count}`, () => { api.ui.inboxOpen = !open; api.render(); }, 'wr-idle-toggle');
   toggle.setAttribute('aria-expanded', String(open));
   toggle.dataset.key = 'inbox-toggle';
-  const text = el('span', 'wr-inbox-text');
-  text.append(el('span', 'wr-inbox-title', 'Inbox'), el('span', 'wr-facts tnum', `${count} already there`));
-  toggle.append(icon('inbox'), text, icon(open ? 'expand_less' : 'expand_more'));
+  toggle.append(icon(open ? 'expand_less' : 'expand_more'));
   return toggle;
 }
 

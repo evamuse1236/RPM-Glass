@@ -67,35 +67,28 @@
 .wr-place-title{flex:1;min-width:0;padding:8px 0;text-wrap:pretty}
 .wr-place-day{flex:none;font:var(--label-large)}
 .wr-place .wr-btn-tonal{margin-top:4px}
-/* Calendar clashes come first, each a tonal error card that asks which event stays; a decided one turns quiet */
+/* Calendar clashes come first: one compact row each, the error colour only on its icon, Keep [A] [B] on one line */
 .wr-risks{list-style:none;padding:0;display:flex;flex-direction:column;gap:8px}
-.wr-risk{display:flex;align-items:flex-start;gap:16px;min-height:56px;padding:12px 16px;border-radius:20px;background:var(--error-container);color:var(--on-error-container)}
-.wr-risk.done{background:var(--surface-container);color:var(--on-surface)}
-.wr-risk>.ms{flex:none;margin-top:2px}
+.wr-risk{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;column-gap:16px;padding:12px 8px 12px 16px;border-radius:20px;background:var(--surface-container);color:var(--on-surface)}
+.wr-risk>.ms{flex:none;margin-top:2px;color:var(--error)}
 .wr-risk.done>.ms{color:var(--on-surface-variant)}
-.wr-risk-text{flex:1;min-width:0;display:flex;flex-direction:column;font:var(--body-medium)}
-.wr-risk-lead{font-weight:500}
-.wr-risk-sub{color:color-mix(in oklch,currentColor 80%,transparent);font:var(--body-small);overflow-wrap:anywhere;text-wrap:pretty}
-.wr-risk.done .wr-risk-sub{color:var(--on-surface-variant)}
-.wr-risk .wr-btn-text{flex:none;margin:-4px -8px 0 0}
-.wr-risk:not(.done) .wr-btn-text{color:var(--on-error-container)}
-.wr-ask-small{font:var(--body-small);margin-top:8px}
-.wr-choices{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-.wr .wr-choice{color:var(--on-error-container);border-color:color-mix(in oklch,var(--on-error-container) 40%,transparent)}
-.wr .wr-choice.sel{background-color:var(--on-error-container);border-color:var(--on-error-container);color:var(--error-container)}
+.wr-risk-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.wr-risk-lead{font:var(--body-large);overflow-wrap:anywhere;text-wrap:pretty}
+.wr-risk-sub{font:var(--body-small);color:var(--on-surface-variant);overflow-wrap:anywhere;text-wrap:pretty}
+.wr-risk .wr-btn-text{flex:none;margin-top:-4px}
+.wr-choices{grid-column:2/-1;display:flex;align-items:center;gap:8px;min-width:0;margin-top:8px}
+.wr-choices-lead{flex:none;font:var(--label-large);color:var(--on-surface-variant)}
+.wr .wr-choice{flex:0 1 auto;min-width:0}
 .wr-idle-toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:0 12px 0 16px;border:0;border-radius:var(--shape-full);background-color:transparent;color:var(--on-surface-variant);font:var(--label-large);text-align:left}
-/* Results: one quiet list; tapping a row picks it, and a picked row fills tonal with a check. The chevron opens it. */
-.wr-results{padding:4px}
-.wr-result.picked{border-radius:16px}
-.wr-results>li+li.picked,.wr-results>li.picked+li{margin-top:4px}
-.wr-result.picked{background:var(--secondary-container);color:var(--on-secondary-container)}
-.wr-results>li:not(.picked)+li:not(.picked){border-top:1px solid var(--outline-variant)}
-.wr-result-row{display:flex;align-items:flex-start}
-.wr .wr-pick{flex:1;min-width:0;display:flex;align-items:flex-start;gap:16px;min-height:56px;padding:12px 4px 12px 16px;border:0;border-radius:16px;background-color:transparent;color:inherit;text-align:start;font:inherit}
-.wr-pick>.ms{flex:none;color:var(--on-surface-variant)}
-.wr-pick.on>.ms{color:var(--on-secondary-container)}
-.wr .wr-result-main{flex:none;display:grid;place-items:center;width:48px;height:48px;margin:4px 4px 0 0;border:0;border-radius:var(--shape-full);background-color:transparent;color:var(--on-surface-variant)}
-.picked .wr-facts,.picked .wr-result-main{color:color-mix(in oklch,var(--on-secondary-container) 72%,transparent)}
+/* Results: one quiet list in the Google Tasks grammar. The circle picks a Result: a filled check and a light tint
+   across the whole row. The rest of the row opens its Purpose and tasks, so the title has the row's full width. */
+.wr-results{padding:0;overflow:clip}
+.wr-results>li+li{border-top:1px solid var(--outline-variant)}
+.wr-result.picked{background:color-mix(in oklch,var(--secondary-container) 56%,var(--surface-container))}
+.wr-result-row{display:flex;align-items:stretch}
+.wr .wr-pick{flex:none;display:grid;place-items:start center;width:56px;padding:12px 0 0;border:0;background-color:transparent;color:var(--on-surface-variant)}
+.wr .wr-pick.on{color:var(--primary)}
+.wr .wr-result-main{flex:1;min-width:0;display:flex;min-height:56px;padding:12px 16px 12px 0;border:0;background-color:transparent;color:inherit;text-align:start;font:inherit}
 .wr-result-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .wr-result-title{font:var(--title-medium);overflow-wrap:anywhere;text-wrap:pretty}
 .wr-result-more{padding:0 16px 8px 56px}
@@ -135,7 +128,7 @@
 :root[data-large-text=true] .wr-title{font:var(--title-large)}
 :root[data-large-text=true] .wr-result-more{padding-left:16px}
 :root[data-large-text=true] .wr-strip{display:none}
-:root[data-large-text=true] .wr-risk{flex-wrap:wrap}
+:root[data-large-text=true] .wr-choices{flex-wrap:wrap}
 :root[data-large-text=true] .wr-week-sub,:root[data-large-text=true] .wr-ladder-when{white-space:normal}
 :root[data-large-text=true] .wr-strip-note.legend{display:none}
 :root[data-large-text=true] .wr-nowrap{white-space:normal}

@@ -73,6 +73,33 @@ function reveal(row, {kind, word: named, symbol: drawn}, side) {
   return layer;
 }
 
+/**
+ * A one-time hint that a row swipes: it slides `px` toward `side` over the reveal `spec` names, then settles back.
+ * The page's stylesheet times `.swipe-peek`. Nothing moves under Reduce Motion, and a touch ends the hint at once.
+ */
+export function peekSwipe(row, spec, side, px = 48, hold = 600) {
+  if (reducedMotion() || row.dataset.swipe) return;
+  const offset = v => row.style.setProperty('--swipe-offset', v + 'px');
+  const timers = [];
+  const end = () => {
+    timers.forEach(clearTimeout);
+    if (!row.classList.contains('swipe-peek')) return;
+    row.classList.remove('swipe-peek');
+    row.querySelector(':scope > .swipe-reveal')?.remove();
+    for (const name of ['--swipe-offset', '--swipe-surface', '--swipe-edge']) row.style.removeProperty(name);
+    delete row.dataset.swipe;
+  };
+  reveal(row, spec, side);
+  row.dataset.swipe = side;
+  row.classList.add('swipe-peek');
+  offset(0);
+  row.addEventListener('pointerdown', end, {once: true, capture: true});
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    offset(side === 'right' ? px : -px);
+    timers.push(setTimeout(() => { offset(0); timers.push(setTimeout(end, hold)); }, hold));
+  }));
+}
+
 export const vibrate = () => { if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(10); };
 
 /**
