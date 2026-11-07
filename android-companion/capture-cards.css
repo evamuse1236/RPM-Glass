@@ -44,19 +44,15 @@
 .receipt>.kicker .ms{font-size:24px}
 .receipt.single .item-head>.ms:first-child{color:var(--bar-success)}
 /* A suggested next step joins the chip row above it: same height and shape as the item's chips, tinted as an offer.
-   A suggested time stands in for the missing time, so it is dashed like the other "Add …" chips. */
+   A suggested time stands in for the missing time chip as the same tonal offer, worded "Try 11:45 AM". */
 .suggest-row{margin-block-start:-4px}
 .suggest-chip{position:relative;display:inline-flex;align-items:center;gap:4px;min-block-size:32px;padding:0 12px 0 8px;border:0;border-radius:var(--r-tile);
-  background:color-mix(in oklch,var(--bar-primary) 16%,transparent);color:var(--bar-on);font:var(--label-large);cursor:pointer;text-align:start;overflow-wrap:anywhere}
+  background:color-mix(in oklch,var(--bar-primary) 16%,transparent);color:var(--bar-on);font:var(--label-large);white-space:nowrap;cursor:pointer;text-align:start}
 .suggest-chip::after{content:'';position:absolute;inset:-8px 0}
 .suggest-chip .ms{font-size:20px;color:var(--bar-primary)}
 .suggest-chip:active{background:color-mix(in oklch,var(--bar-primary) 24%,transparent)}
 .suggest-chip:focus-visible{outline:2px solid var(--bar-primary);outline-offset:2px}
 @media (hover:hover) and (pointer:fine){.suggest-chip:hover{background:color-mix(in oklch,var(--bar-primary) 22%,transparent)}}
-.suggest-chip.ask{white-space:nowrap;background:transparent;border:1px dashed color-mix(in oklch,var(--bar-on-variant) 60%,transparent);color:var(--bar-on-variant)}
-.suggest-chip.ask .ms{color:var(--bar-on-variant)}
-.suggest-chip.ask:active{background:color-mix(in oklch,var(--bar-on) 12%,transparent)}
-@media (hover:hover) and (pointer:fine){.suggest-chip.ask:hover{background:color-mix(in oklch,var(--bar-on) 8%,transparent)}}
 .kept-words{display:flex;align-items:center;gap:12px;inline-size:100%;min-block-size:40px;padding:0;border:0;border-radius:8px;background:none;color:inherit;text-align:start;cursor:pointer}
 .kept-words .ms{flex:none;font-size:24px;color:var(--bar-success)}
 .kept-words .words{-webkit-line-clamp:1}
@@ -141,6 +137,7 @@
   .btn,.chip,.suggest-chip{transition:scale 160ms var(--ease-standard)}
 }
 :root[data-reduce-motion=true] .card{transition:none}
+:root[data-reduce-motion=true] .card.forming::after{content:none}
 
 /* "Which one?": every chip leads with what choosing does (delete, done); the first, which a right swipe picks, has a
    primary outline and a filled icon. The card slides over a reveal that names it (task-swipe.mjs). */
@@ -167,7 +164,7 @@
 
 .forming-list{flex-shrink:1}
 /* The kind disc sits beside the title and the chips start on the title's edge, as they will on the receipt. */
-.card.forming{display:grid;grid-template-columns:32px minmax(0,1fr);align-items:center;gap:8px 12px;padding:12px;border-style:dashed;border-color:color-mix(in oklch,var(--bar-on-variant) 60%,transparent)}
+.card.forming{position:relative;overflow:clip;display:grid;grid-template-columns:32px minmax(0,1fr);align-items:center;gap:8px 12px;padding:12px}
 .forming-head{display:contents}
 .forming .facts{grid-column:2}
 .forming-pill{flex:none;display:grid;place-items:center;inline-size:32px;block-size:32px;border-radius:var(--shape-full);background:var(--pill,var(--bar-highest));color:var(--on-pill,var(--bar-on))}
@@ -184,9 +181,12 @@
 .fact-reading .ms{font-size:16px;color:var(--bar-primary)}
 @media (prefers-reduced-motion:no-preference){
   .fact.pop{animation:fact-pop var(--dur-medium2) var(--ease-spring)}
+  /* While RPM reads, a short light runs along the card's bottom edge. */
+  .card.forming:has(.fact-reading)::after{content:'';position:absolute;inset-inline:0;inset-block-end:0;block-size:2px;background:linear-gradient(90deg,transparent,var(--bar-primary),transparent) 0 0/50% 100% no-repeat;animation:forming-sweep 1600ms var(--ease-standard) infinite}
   .fact-reading .fact-now{background:linear-gradient(90deg,var(--bar-on-variant),var(--bar-on),var(--bar-on-variant)) 0 0/200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:fact-shimmer 1100ms linear infinite}
 }
 @keyframes fact-pop{from{opacity:0;scale:.6}70%{opacity:1;scale:1.06}to{opacity:1;scale:1}}
+@keyframes forming-sweep{from{background-position:-100% 0}to{background-position:200% 0}}
 @keyframes fact-shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
 
 /* Voice: one calm card per call. The words of the open request sit on top and fold away once it saves; under them a
@@ -197,7 +197,7 @@
 .voice-fold{flex:none;display:grid;grid-template-rows:0fr}
 .voice-fold.open{grid-template-rows:1fr}
 .voice-fold-inner{min-block-size:0;overflow:clip}
-.voice-lead{margin:0;padding:var(--s4) var(--s5) var(--s3);font:var(--body-medium);color:var(--bar-on);overflow-wrap:anywhere;opacity:0;filter:blur(4px)}
+.voice-lead{margin:0;padding:var(--s4) var(--s5) var(--s2);font:var(--body-medium);color:var(--bar-on);overflow-wrap:break-word;text-wrap:pretty;opacity:0;filter:blur(4px)}
 .voice-fold.open .voice-lead{opacity:1;filter:none}
 .voice-lead .w{display:inline}
 @property --inner-fade{syntax:"<length>";inherits:false;initial-value:0px}
@@ -216,15 +216,18 @@ button.voice-item{cursor:pointer}
 button.voice-item:active{background:var(--bar-highest)}
 button.voice-item:focus-visible{outline:2px solid var(--bar-primary);outline-offset:-2px}
 .voice-item.flash{animation:row-flash calc(var(--dur-medium2) * 2) var(--ease-standard) both}
-.voice-lane{display:grid;grid-template-columns:20px minmax(0,1fr) auto;column-gap:var(--s3);align-items:center}
-.voice-glyph{display:grid;place-items:center;color:var(--bar-primary)}
+/* Every row is a title and one subtitle line: when, then the note ("Tomorrow, 10:00 AM · Inbox"). */
+.voice-lane{display:grid;grid-template-columns:calc(20px + var(--s3)) auto minmax(0,1fr);grid-template-areas:"glyph title title" "glyph when note";align-items:center}
+.voice-glyph{grid-area:glyph;display:grid;place-items:center start;color:var(--bar-primary)}
 .voice-glyph .ms{font-size:20px}
-.voice-what{display:flex;flex-direction:column;min-inline-size:0}
+.voice-what{display:contents}
 .voice-lane .cell{display:grid;min-inline-size:0}
 .voice-lane .v{grid-area:1/1;min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.voice-title{font:var(--title-small)}
-.voice-note{font:var(--body-small);color:var(--bar-on-variant)}
-.voice-when{display:flex;align-items:center;gap:var(--s1);font:var(--body-medium);font-variant-numeric:tabular-nums;color:var(--bar-on)}
+.voice-title{grid-area:title;font:var(--title-small)}
+.voice-note{grid-area:note;font:var(--body-small);color:var(--bar-on-variant)}
+.voice-when{grid-area:when;display:flex;align-items:center;gap:var(--s1);min-inline-size:0;font:var(--body-small);font-variant-numeric:tabular-nums;color:var(--bar-on-variant)}
+.voice-lane:has(.voice-note:not([hidden])) .voice-when:has(.cell:not([data-v=""]))::after{content:'·';margin-inline-end:var(--s1)}
+.voice-lane:has(.voice-when .cell[data-v=""]) .voice-note{grid-column:2/4}
 .voice-alarm{font-size:16px;color:var(--bar-primary)}
 .voice-note[hidden],.voice-alarm[hidden]{display:none}
 .voice-row.gone .voice-title .v{text-decoration:line-through;text-decoration-thickness:1px;color:var(--bar-on-variant)}

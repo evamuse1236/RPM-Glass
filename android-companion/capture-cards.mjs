@@ -156,9 +156,7 @@ function appendReceiptHelp(node,draft,on,chipRow=null){
  if(chipRow){
   const askTime=help.action.step==='schedule'?chipRow.querySelector?.('.edit-chip.empty[data-chip=time]'):null;
   if(askTime?.replaceWith){
-   chip.replaceChildren(icon('schedule'),el('span','',`${help.label.replace(/^Try\s+/,'')}?`));
-   chip.setAttribute('aria-label',help.label);
-   chip.classList.add('ask');
+   chip.replaceChildren(icon('schedule'),el('span','',help.label));
    askTime.replaceWith(chip);
   }else chipRow.append(chip);
   return;

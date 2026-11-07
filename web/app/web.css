@@ -56,12 +56,11 @@ html:has(dialog:modal) { overflow: clip; }
 .capture-history p { margin: 0; overflow-wrap: break-word; }
 .capture-said { font: var(--body-large); }
 .capture-outcome { font: var(--body-medium); color: var(--on-surface-variant); }
-#capture-sheet {
-  color-scheme: dark;
-  --on-surface: var(--bar-on); --on-surface-variant: var(--bar-on-variant); --outline: var(--bar-outline); --outline-variant: var(--bar-outline);
-  --surface-container-low: var(--bar); --surface-container: var(--bar-high); --surface-container-high: var(--bar-highest); --surface-container-highest: var(--bar-highest);
-  --primary: var(--bar-primary); --on-primary: var(--bar-on-primary); --error: var(--bar-error);
-  padding: 0; border: 1px solid var(--bar-outline); background: var(--bar); color: var(--bar-on); box-shadow: var(--bar-shadow);
+#capture-sheet { padding: 0; border: 1px solid var(--outline-variant); background: var(--surface-container-high); color: var(--on-surface); box-shadow: var(--elev-3); }
+@media (width < 600px) {
+  #capture-sheet { inline-size: auto; margin-block: auto var(--s3); margin-inline: var(--s4); border-radius: var(--r-outer); }
+  #capture-sheet::backdrop { background: var(--scrim); }
+  :root:has(#capture-sheet[open]) :is(#nav-bar, #dock, #now-host) { visibility: hidden; }
 }
 #capture-sheet form { gap: 0; }
 #capture-problem { padding: var(--s4) var(--s5) 0; }
@@ -71,8 +70,8 @@ html:has(dialog:modal) { overflow: clip; }
 #capture-text { min-block-size: 0; max-block-size: calc(6lh + 2 * var(--s3)); padding: var(--s3) 0; border: 0; border-radius: 0; background: none; color: var(--on-surface); font: var(--body-large); }
 #capture-text::placeholder { color: var(--on-surface-variant); }
 #capture-text:focus-visible { outline: 2px solid transparent; }
-.capture-composer .voice-mic { border-color: transparent; background: var(--surface-container-highest); color: var(--on-surface); }
-.capture-send { position: relative; display: grid; flex: none; place-items: center; inline-size: var(--touch); block-size: var(--touch); border-radius: var(--shape-full); background: var(--bar-primary); color: var(--bar-on-primary); }
+.capture-composer .voice-mic { border-color: transparent; background: var(--primary); color: var(--on-primary); }
+.capture-send { position: relative; display: grid; flex: none; place-items: center; inline-size: var(--touch); block-size: var(--touch); border-radius: var(--shape-full); background: var(--primary); color: var(--on-primary); }
 .capture-send::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: currentColor; opacity: 0; }
 .capture-send:active::before { opacity: .12; }
 .capture-send:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
