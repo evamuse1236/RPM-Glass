@@ -5,7 +5,7 @@ import {weekStart, reviewWeek, weekFocus, resultStatus} from '../review-state.mj
 import {reducedMotion, DURATION, EASE} from '../surface-motion.mjs';
 import {lockAxis, LONG_PRESS} from '../task-swipe.mjs';
 import {el, icon, button, labelButton, emptyState} from './dom.mjs';
-import {clock, longDate, plural, dateText} from './format.mjs';
+import {clock, longDate, plural, dateText, DATE_LOCALE} from './format.mjs';
 import {openSheet} from './sheet.mjs';
 import {taskWhen, taskRow} from './task-row.mjs';
 import {phrase, sep} from './today-row.mjs';
@@ -159,11 +159,11 @@ function daySheet(app, day) {
   actions.append(button('Open day', () => { app.closeSheet(); selectDay(app, day); }, 'filled-btn'));
 }
 
-/** "20. October 2026 ›": the day, the month, and the year in the accent colour with the picker's chevron. The website hides the dot and keeps the year in the text colour. */
+/** "20 October 2026 ›": the day, the month, and the year in the accent colour with the picker's chevron. The website keeps the year in the text colour. */
 function dateWords(day) {
   const date = new Date(day + 'T12:00');
-  const words = el('span', 'date-words', String(date.getDate()));
-  words.append(el('span', 'date-dot', '.'), ` ${date.toLocaleDateString([], {month: 'long'})} `, el('span', 'date-year', `${date.getFullYear()} ›`));
+  const words = el('span', 'date-words', `${date.getDate()} ${date.toLocaleDateString(DATE_LOCALE, {month: 'long'})} `);
+  words.append(el('span', 'date-year', `${date.getFullYear()} ›`));
   return words;
 }
 
@@ -188,7 +188,7 @@ export function todaySheet() {
   return sheet;
 }
 
-const weekName = (week, month = 'long') => 'week of ' + new Date(week + 'T12:00').toLocaleDateString([], {month, day: 'numeric'});
+const weekName = (week, month = 'long') => 'week of ' + new Date(week + 'T12:00').toLocaleDateString(DATE_LOCALE, {month, day: 'numeric'});
 const capital = text => text[0].toUpperCase() + text.slice(1);
 /** The user's own "Weekly review" task today, named on the week line while the coming week needs a plan. */
 const reviewTask = active => active.find(task => !task.blockId && task.title.trim().toLowerCase() === 'weekly review');

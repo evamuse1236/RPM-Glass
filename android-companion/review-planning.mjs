@@ -1,6 +1,7 @@
 import {planner, tasks, blockTasks, blockDue, editPlan, shiftDay, localDay} from './planner-state.mjs';
 import {repeats} from './planner-recurrence.mjs';
 import {checkDay, taskDate, dueAt} from './review-dates.mjs';
+import {DATE_LOCALE} from './planner/format.mjs';
 
 export const oneOff = rows => rows.filter(t => !repeats(t));
 
@@ -150,7 +151,7 @@ export function rankResults(data, task, candidates) {
 }
 
 /* ---------- calendar clash: the review can't move events, so the decision becomes a task on Today ---------- */
-const clashDay = day => new Date(day + 'T12:00').toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'});
+const clashDay = day => new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'short', month: 'short', day: 'numeric'});
 /** A stable key for a clash, for remembering the decision in review progress. */
 export const clashKey = ({day, a, b}) => `${day}|${a.title}|${b.title}`;
 const sides = (clash, keep) => (keep === 'b' ? [clash.b, clash.a] : [clash.a, clash.b]);

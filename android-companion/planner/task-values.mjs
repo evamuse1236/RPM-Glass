@@ -1,5 +1,5 @@
 import {localDay, shiftDay} from '../planner-state.mjs';
-import {clock, relativeDay, timeValue} from './format.mjs';
+import {clock, relativeDay, timeValue, DATE_LOCALE} from './format.mjs';
 
 export const DURATIONS = [15, 30, 45, 60, 90, 120, 180];
 export const TIMES = ['09:00', '14:00', '19:00'];
@@ -120,7 +120,7 @@ export function withoutTag(text, {start, end}) {
   return (text.slice(0, start) + text.slice(end)).replace(/\s{2,}/g, ' ').trim();
 }
 
-const longDay = day => new Date(day + 'T12:00').toLocaleDateString([], {weekday: 'long', month: 'long', day: 'numeric'});
+const longDay = day => new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'long', month: 'long', day: 'numeric'});
 
 /** The Time row's chips: the half-hour grid, with the task's own time inserted in clock order when it is off the grid. */
 export function timeChips(current = '') {
@@ -140,14 +140,14 @@ export function nextHalfHour(now = new Date()) {
  */
 export function dayChips(today = localDay(), current = '') {
   const date = day => new Date(day + 'T12:00');
-  const spoken = day => date(day).toLocaleDateString([], {weekday: 'long', month: 'short', day: 'numeric'});
+  const spoken = day => date(day).toLocaleDateString(DATE_LOCALE, {weekday: 'long', month: 'short', day: 'numeric'});
   const chips = [{label: 'Today', day: today, aria: ''}, {label: 'Tomorrow', day: shiftDay(today, 1), aria: ''}];
   for (let i = 2; i < 7; i++) {
     const day = shiftDay(today, i);
     chips.push({label: date(day).toLocaleDateString([], {weekday: 'short'}), day, aria: spoken(day)});
   }
   if (current && !chips.some(c => c.day === current)) {
-    const label = date(current).toLocaleDateString([], {weekday: 'short', month: 'short', day: 'numeric'});
+    const label = date(current).toLocaleDateString(DATE_LOCALE, {weekday: 'short', month: 'short', day: 'numeric'});
     chips.splice(current < today ? 0 : 2, 0, {label, day: current, aria: spoken(current)});
   }
   return chips;
