@@ -9,7 +9,6 @@ export function stepTab(current, step) {
   const keys = TABS.map(([key]) => key);
   return keys[(keys.indexOf(current) + step + keys.length) % keys.length];
 }
-export const LENGTHS = Object.freeze([15, 30, 45, 60, 90, 120]);
 export const REPEAT_PRESETS = Object.freeze([['weekdays', 'Weekdays'], ['daily', 'Every day'], ['after', 'After completion']]);
 export const ALERT_KINDS = Object.freeze([['reminder', 'Remind', 'notifications', 'Reminder'],
   ['alarm', 'Alarm', 'alarm', 'Ringing alarm']]);
@@ -35,11 +34,6 @@ export function alertShort({alert, lead}) {
 
 /** The Block tab's value: the Block's first two words, or Inbox. */
 export const blockShort = title => (title ? title.trim().split(/\s+/).slice(0, 2).join(' ') : 'Inbox');
-
-/** Length chips: the six usual ones plus the task's own length in its place. */
-export function lengthChoices(minutes) {
-  return minutes != null && !LENGTHS.includes(minutes) ? [...LENGTHS, minutes].sort((a, b) => a - b) : [...LENGTHS];
-}
 
 /** The Repeat preset that matches the task, or '' for chosen days. */
 export function presetOf(task) {
