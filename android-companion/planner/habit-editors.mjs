@@ -8,11 +8,15 @@ import {el, icon, button, iconButton} from './dom.mjs';
 import {openSheet, closeSheet, isSheetOpen} from './sheet.mjs';
 import {notice} from './snackbar.mjs';
 import {userMessage} from '../user-message.mjs';
-import {factRow, switchButton, slider, pickButton, timeButton, textRow} from './fact-rows.mjs';
+import {factRow, switchButton, slider, moreButton, pickButton, timeButton, textRow} from './fact-rows.mjs';
 import {drink} from './water.mjs';
 
 const glassesText = n => `${n} ${n === 1 ? 'glass' : 'glasses'}`;
 const timeWords = hhmm => clockText(atMinutes('2000-01-01', minutesOf(hhmm)));
+const waterSettings = body => ({...WATER_DEFAULTS, ...body.water().settings});
+const onGrid = (key, onValue) => v => onValue(stepWater(key, v, 0));
+/** A slider being dragged keeps its own value; a repaint would yank it. */
+const sliding = content => content.contains(document.activeElement) && document.activeElement.type === 'range';
 
 /** Saves one change and says so with Undo; a refused change says why. */
 async function saved(app, run, words) {
@@ -40,14 +44,48 @@ function backTo(app, header, content, back, label) {
   };
 }
 
+/** Water: today's glasses with a one-tap log, then the goal, the glass size and a Reminders row that opens its own
+ * sheet. The count sits in the header, so the meter needs no line under it. */
 export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Habits', motion = 'forward'} = {}) {
   const {body: content, header} = openSheet(app, 'Water', {variant: 'choice habit-editor', motion});
   backTo(app, header, content, back, backLabel);
-  const settings = () => ({...WATER_DEFAULTS, ...body.water().settings});
-  const onGrid = (key, onValue) => v => onValue(stepWater(key, v, 0));
+  const count = el('span', 'sheet-count tnum');
+  header.querySelector('h2').append(count);
   const goal = slider({label: 'Daily goal', ...WATER_STEPS.goal, format: glassesText,
     onChange: onGrid('goal', v => saved(app, () => body.setWater('goal', v), `Daily goal: ${glassesText(v)}`))});
   const size = pickButton('Glass size', value => saved(app, () => body.setWater('glassMl', Number(value)), `Glass size: ${value} ml`));
+  const again = () => openWaterEditor(app, body, {back, backLabel, motion: 'back'});
+  const reminders = moreButton('Reminders', () => openWaterReminders(app, body, again));
+  const meter = el('span', 'water-track');
+  meter.setAttribute('aria-hidden', 'true');
+  const log = button('', () => drink(app, body), 'tonal-btn water-log');
+  log.append(icon('add'), el('span', '', '1 glass'));
+  log.setAttribute('aria-label', 'Log a glass');
+  const today = el('section', 'water-today');
+  today.setAttribute('aria-label', 'Today');
+  today.append(meter, log);
+  content.append(today, factRow('water_drop', goal, {cls: 'slider-row'}), factRow('local_drink', size),
+    factRow('notifications', reminders));
+
+  const paint = () => {
+    const s = waterSettings(body);
+    const status = waterStatus({...body.water(), settings: s, now: body.now()});
+    count.textContent = `${status.count} of ${glassesText(status.goal)}`;
+    if (meter.childElementCount !== status.goal) meter.replaceChildren(...Array.from({length: status.goal}, () => el('i')));
+    [...meter.children].forEach((glass, i) => glass.classList.toggle('on', i < status.count));
+    if (!sliding(content)) goal.set(s.goal);
+    const offered = [...new Set([...GLASS_SIZES, s.glassMl])].sort((a, b) => a - b);
+    size.set(offered.map(ml => ({value: String(ml), words: `${ml} ml`})), String(s.glassMl));
+    reminders.set(s.reminders === false ? 'Off' : `Every ${everyText(s.intervalMinutes)}`);
+  };
+  paint();
+  app.sheetRefresh = () => { if (content.isConnected) paint(); };
+}
+
+/** Water reminders: the switch, then how often and between which times; those dim and lock while reminders are off. */
+function openWaterReminders(app, body, back) {
+  const {body: content, header} = openSheet(app, 'Water reminders', {variant: 'choice habit-editor', motion: 'forward'});
+  backTo(app, header, content, back, 'Back to Water');
   const reminders = switchButton('Reminders', on => {
     reminders.set(on);
     paintOff(!on);
@@ -64,30 +102,10 @@ export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Ha
       row.inert = off;
     }
   };
-  const count = el('p', 'water-count tnum');
-  const meter = el('span', 'water-track');
-  meter.setAttribute('aria-hidden', 'true');
-  const log = button('', () => drink(app, body), 'tonal-btn water-log');
-  log.append(icon('add'), el('span', '', '1 glass'));
-  log.setAttribute('aria-label', 'Log a glass');
-  const today = el('section', 'water-today');
-  today.setAttribute('aria-label', 'Today');
-  today.append(count, log, meter);
-  content.append(today, factRow('water_drop', goal, {cls: 'slider-row'}), factRow('local_drink', size),
-    factRow('notifications', reminders), ...dependent);
-
+  content.append(factRow('notifications', reminders), ...dependent);
   const paint = () => {
-    const s = settings();
-    const status = waterStatus({...body.water(), settings: s, now: body.now()});
-    count.textContent = `${status.count} of ${glassesText(status.goal)}`;
-    if (meter.childElementCount !== status.goal) meter.replaceChildren(...Array.from({length: status.goal}, () => el('i')));
-    [...meter.children].forEach((glass, i) => glass.classList.toggle('on', i < status.count));
-    if (!content.contains(document.activeElement) || document.activeElement.type !== 'range') {
-      goal.set(s.goal);
-      every.set(s.intervalMinutes);
-    }
-    const offered = [...new Set([...GLASS_SIZES, s.glassMl])].sort((a, b) => a - b);
-    size.set(offered.map(ml => ({value: String(ml), words: `${ml} ml`})), String(s.glassMl));
+    const s = waterSettings(body);
+    if (!sliding(content)) every.set(s.intervalMinutes);
     reminders.set(s.reminders !== false);
     paintOff(s.reminders === false);
     from.set(s.from, timeWords(s.from));

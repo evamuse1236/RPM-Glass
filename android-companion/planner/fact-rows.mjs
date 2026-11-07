@@ -136,8 +136,9 @@ export function switchButton(label, onToggle, {cls = ''} = {}) {
 }
 
 /**
- * A number on an M3 slider under its label and value: "Daily goal ····· 8 glasses". Dragging rewrites the value as it
- * moves; `onChange(value)` runs once it is let go (or a key moves it), so the caller saves one change.
+ * A number on an M3 slider, all on one touch-high line: "Daily goal ──●── 8 glasses". The value keeps the width of
+ * its longest words, so the track never moves under the finger. Dragging rewrites the value as it moves;
+ * `onChange(value)` runs once it is let go (or a key moves it), so the caller saves one change.
  */
 export function slider({label, min, max, step, format = String, onChange}) {
   const node = el('div', 'slider-field');
@@ -146,6 +147,9 @@ export function slider({label, min, max, step, format = String, onChange}) {
   input.type = 'range';
   Object.assign(input, {min, max, step});
   input.setAttribute('aria-label', label);
+  let widest = 0;
+  for (let v = min; v <= max; v += step) widest = Math.max(widest, format(v).length);
+  value.style.minInlineSize = `${widest}ch`;
   const paint = () => {
     const words = format(Number(input.value));
     value.textContent = words;
@@ -154,10 +158,20 @@ export function slider({label, min, max, step, format = String, onChange}) {
   };
   input.addEventListener('input', paint);
   input.addEventListener('change', () => onChange(Number(input.value)));
-  const head = el('span', 'slider-head');
-  head.append(el('span', 'edit-label', label), value);
-  node.append(head, input);
+  node.append(el('span', 'edit-label', label), input, value);
   node.set = v => { input.value = v; paint(); };
+  return node;
+}
+
+/** A row that opens a further sheet and shows its value: "Reminders Every 90 min ›". */
+export function moreButton(label, onOpen) {
+  const text = el('span', 'time-value tnum');
+  const node = button('', onOpen, 'time-button more-button');
+  node.append(el('span', 'time-label', label), text, icon('chevron_right', {cls: 'time-chevron'}));
+  node.set = words => {
+    text.textContent = words;
+    node.setAttribute('aria-label', `${label}, ${words}`);
+  };
   return node;
 }
 
