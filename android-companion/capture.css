@@ -16,8 +16,10 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .bar{
   position:relative;flex:none;display:flex;flex-direction:column;margin-block-start:12px;
   background:var(--bar);color:var(--bar-on);
-  border:1px solid var(--bar-outline);border-radius:var(--r-outer);box-shadow:var(--bar-shadow);
+  border:1px solid var(--bar-edge);border-radius:var(--r-outer);box-shadow:var(--bar-shadow);
   touch-action:pan-y;
+  /* One tone above the card outline, so the bar keeps an edge on a dark home screen. */
+  --bar-edge:color-mix(in oklch,var(--bar-outline),var(--bar-on-variant) 30%);
 }
 .grab{position:relative;flex:none;inline-size:32px;block-size:4px;border-radius:2px;background:color-mix(in oklch,var(--bar-on) 38%,transparent);margin:8px auto 0;touch-action:none}
 .grab::after{content:'';position:absolute;inset:-8px -48px}
@@ -26,8 +28,8 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .handle{
   position:absolute;inset-block-start:-1px;inset-inline-start:50%;translate:-50% -50%;z-index:1;
   display:grid;place-items:center;inline-size:48px;block-size:24px;padding:0;cursor:pointer;touch-action:none;
-  border:1px solid var(--bar-outline);border-block-end-color:transparent;border-radius:var(--shape-full);
-  background:var(--bar);color:var(--bar-on-variant);
+  border:1px solid var(--bar-edge);border-block-end-color:transparent;border-radius:var(--shape-full);
+  background:var(--bar);color:var(--bar-on);
 }
 .handle .ms{font-size:20px}
 /* A 48dp target: the 24dp tab plus the strip under it inside the box. */
@@ -54,11 +56,13 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .go{flex:none;display:grid;inline-size:48px;block-size:48px}
 .go>button{grid-area:1/1;position:relative;display:grid;place-items:center;inline-size:48px;block-size:48px;padding:0;border:0;border-radius:50%;cursor:pointer}
 .voice-go{background:transparent;color:var(--bar-on)}
-/* At rest the orb is the same 48dp primary disc as Send, so typing swaps the glyph and never the size. */
-.bar[data-voice=off] .voice-go{background:var(--bar-primary)}
+/* At rest the orb is a 48dp tonal disc, the same size as Send, so typing swaps fill and glyph but never the size. */
+.bar[data-voice=off] .voice-go{background:var(--bar-accent)}
+/* At rest the drop waits behind the glyph; it shows once a call starts. */
+.bar[data-voice=off] .voice-go .drop{opacity:0}
 /* The voice drop: a 40px canvas centred in the 48px button (capture-drop.mjs). */
 .voice-go .drop{position:absolute;inset:4px;inline-size:40px;block-size:40px}
-.voice-go .glyph{position:relative;font-size:20px;line-height:1;color:var(--bar-on-primary)}
+.voice-go .glyph{position:relative;font-size:20px;line-height:1;color:var(--bar-on-accent)}
 .voice-go:disabled{cursor:default}
 /* Send is the one lit control: the bright primary in both themes. */
 .send{background:var(--bar-primary);color:var(--bar-on-primary)}
@@ -80,7 +84,7 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .scrim{position:absolute;inset:0;z-index:2;background:transparent}
 .sheet{
   position:absolute;inset-inline:0;inset-block-end:0;z-index:2;max-block-size:calc(100% - 24px);overflow-y:auto;overscroll-behavior:contain;
-  padding-block-end:calc(16px + env(safe-area-inset-bottom,0px));
+  padding-block-end:calc(8px + env(safe-area-inset-bottom,0px));
   background:var(--bar-high);color:var(--bar-on);border-radius:var(--r-outer) var(--r-outer) 0 0;box-shadow:var(--bar-shadow);
 }
 .sheet .grab{margin-block:8px}
@@ -93,7 +97,7 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .tiles{display:flex;gap:8px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;padding:0 16px 8px;scroll-padding-inline:16px;scroll-snap-type:x proximity}
 .tiles::-webkit-scrollbar{display:none}
 .sheet-row{
-  position:relative;display:flex;align-items:center;gap:16px;inline-size:100%;min-block-size:56px;padding:8px 16px;
+  position:relative;display:flex;align-items:center;gap:16px;inline-size:100%;min-block-size:48px;padding:8px 16px;
   border:0;background:transparent;color:var(--bar-on);text-align:start;cursor:pointer;
 }
 .sheet-row .ms{font-size:24px;color:var(--bar-on-variant)}

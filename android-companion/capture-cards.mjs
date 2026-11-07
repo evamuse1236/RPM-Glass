@@ -145,7 +145,7 @@ export function confirmCard(capture,{canUndo,on}){
  return node;
 }
 
-/** The next step is one more chip: in the item's own chip row when the card holds one item, else a row of its own. */
+/** The next step is one more chip: in the item's own chip row when the card holds one item (a suggested time takes the dashed "Add time" chip's place), else a row of its own. */
 function appendReceiptHelp(node,draft,on,chipRow=null){
  const help=draft.nextStep;if(!help)return;
  if(!help.action){if(help.text)node.append(el('p','quiet',help.text));return;}
@@ -153,7 +153,15 @@ function appendReceiptHelp(node,draft,on,chipRow=null){
  chip.type='button';chip.append(icon('lightbulb'),el('span','',help.label));
  if(help.text)chip.setAttribute('aria-description',help.text);
  chip.addEventListener('click',()=>on.action(help.action));
- if(chipRow){chipRow.append(chip);return;}
+ if(chipRow){
+  const askTime=help.action.step==='schedule'?chipRow.querySelector?.('.edit-chip.empty[data-chip=time]'):null;
+  if(askTime?.replaceWith){
+   chip.replaceChildren(icon('schedule'),el('span','',`${help.label.replace(/^Try\s+/,'')}?`));
+   chip.setAttribute('aria-label',help.label);
+   askTime.replaceWith(chip);
+  }else chipRow.append(chip);
+  return;
+ }
  const row=el('div','chips suggest-row');
  row.append(chip);node.append(row);
 }

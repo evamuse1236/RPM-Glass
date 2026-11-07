@@ -7,9 +7,8 @@ import {localDay} from './planner-state.mjs';
 function agendaRow(item,now){
  const row=el('li',['agenda-row',item.kind==='event'?'event':'',item.done?'done':'',item.start<=now&&(item.end??item.start)>now?'now':''].filter(Boolean).join(' '));
  row.append(el('span','agenda-time',item.start==null?'Any time':item.allDay?'All day':clock(item.start)));
- const body=el('div','agenda-body'),title=el('p','agenda-title');
- const name=el('span','',item.title);
- title.append(icon(item.kind==='event'?'event':item.done?'check_circle':'radio_button_unchecked'),name);
+ row.append(icon(item.kind==='event'?'event':item.done?'check_circle':'radio_button_unchecked',{cls:'agenda-mark'}));
+ const body=el('div','agenda-body'),title=el('p','agenda-title',item.title);
  if(item.must){const star=icon('star',{fill:true,cls:'must-mark'});star.removeAttribute('aria-hidden');star.setAttribute('role','img');star.setAttribute('aria-label','Must');title.append(star);}
  body.append(title);
  const sub=[item.end&&!item.allDay?`until ${clock(item.end)}`:null,item.block,item.kind==='event'?'Calendar':null].filter(Boolean).join(' · ');
