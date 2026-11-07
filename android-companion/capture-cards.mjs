@@ -104,10 +104,14 @@ export function receiptCard(capture,{canUndo,on,undoId}){
  const rows=draft.lines?.length?draft.lines:[{verb:'Saved',title:capture.raw}];
  const chips=on.chips&&rows.some(r=>r.edit)?on.chips:null;
  if(chips?.held(draft.id))node.classList.replace('enter','kept');
- node.append(kicker(draft.confirm==='kept'?'Kept':tally(rows),{name:'check_circle',tone:'done'}));
- node.append(chips?chips.items(capture,node):lines(rows));
+ const status=kicker(draft.confirm==='kept'?'Kept':tally(rows),{name:'check_circle',tone:'done'});
+ // One item says its status once, through its own tinted icon; the word stays for screen readers.
+ if(rows.length===1&&chips){status.classList.add('sr-only');node.classList.add('single');}
+ node.append(status);
+ const items=chips?chips.items(capture,node):lines(rows);
+ node.append(items);
  if(capture.reply&&!capture.reply.startsWith('Draft ready to review.'))node.append(answerText(capture.reply));
- appendReceiptHelp(node,draft,on);
+ appendReceiptHelp(node,draft,on,status.classList.contains('sr-only')?items.querySelector?.('.item-chips'):null);
  if(draft.applied?.warning)node.append(warnLine(draft.applied.warning));
  const also=alsoHeard(capture,on);
  if(also)node.append(also);
@@ -141,14 +145,17 @@ export function confirmCard(capture,{canUndo,on}){
  return node;
 }
 
-function appendReceiptHelp(node,draft,on){
+/** The next step is one more chip: in the item's own chip row when the card holds one item, else a row of its own. */
+function appendReceiptHelp(node,draft,on,chipRow=null){
  const help=draft.nextStep;if(!help)return;
- if(help.text)node.append(el('p','quiet',help.text));
- if(help.action){
-  const chips=el('div','chips'),chip=el('button','chip',help.label);
-  chip.type='button';chip.addEventListener('click',()=>on.action(help.action));
-  chips.append(chip);node.append(chips);
- }
+ if(!help.action){if(help.text)node.append(el('p','quiet',help.text));return;}
+ const chip=el('button','suggest-chip');
+ chip.type='button';chip.append(icon('lightbulb'),el('span','',help.label));
+ if(help.text)chip.setAttribute('aria-description',help.text);
+ chip.addEventListener('click',()=>on.action(help.action));
+ if(chipRow){chipRow.append(chip);return;}
+ const row=el('div','chips suggest-row');
+ row.append(chip);node.append(row);
 }
 
 export function undoneCard(capture,on){

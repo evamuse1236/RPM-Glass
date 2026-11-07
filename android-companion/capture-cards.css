@@ -42,6 +42,16 @@
 .fact-was+.fact-now::before{content:'→ ';color:var(--bar-on-variant)}
 .receipt>.kicker{font:var(--title-medium);color:var(--bar-on)}
 .receipt>.kicker .ms{font-size:24px}
+.receipt.single .item-head>.ms:first-child{color:var(--bar-success)}
+/* A suggested next step joins the chip row above it: same height and shape as the item's chips, tinted as an offer. */
+.suggest-row{margin-block-start:-4px}
+.suggest-chip{position:relative;display:inline-flex;align-items:center;gap:4px;min-block-size:var(--chip-block);padding:0 16px 0 12px;border:0;border-radius:var(--r-tile);
+  background:color-mix(in oklch,var(--bar-primary) 16%,transparent);color:var(--bar-on);font:var(--label-large);cursor:pointer;text-align:start;overflow-wrap:anywhere}
+.suggest-chip::after{content:'';position:absolute;inset:-4px 0}
+.suggest-chip .ms{font-size:20px;color:var(--bar-primary)}
+.suggest-chip:active{background:color-mix(in oklch,var(--bar-primary) 24%,transparent)}
+.suggest-chip:focus-visible{outline:2px solid var(--bar-primary);outline-offset:2px}
+@media (hover:hover) and (pointer:fine){.suggest-chip:hover{background:color-mix(in oklch,var(--bar-primary) 22%,transparent)}}
 .kept-words{display:flex;align-items:center;gap:12px;inline-size:100%;min-block-size:40px;padding:0;border:0;border-radius:8px;background:none;color:inherit;text-align:start;cursor:pointer}
 .kept-words .ms{flex:none;font-size:24px;color:var(--bar-success)}
 .kept-words .words{-webkit-line-clamp:1}
@@ -86,6 +96,15 @@
 .agenda-body{display:flex;flex-direction:column;gap:2px;min-inline-size:0}
 .agenda-title{display:flex;gap:4px;align-items:baseline;font:var(--body-large);overflow-wrap:anywhere}
 .agenda-title>.ms{font-size:16px;color:var(--bar-on-variant);align-self:flex-start;margin-block-start:4px}
+.agenda-title>span{min-inline-size:0}
+.agenda-title>.must-mark{flex:none;color:var(--bar-warn)}
+.agenda-body>.quiet{overflow:clip;white-space:nowrap;text-overflow:ellipsis}
+/* A long day scrolls inside the answer card and fades into the card's own colour, so the card keeps a crisp edge. */
+.card.answer:has(.agenda){flex:0 1 auto;min-block-size:0}
+.card.answer>.lines:has(.agenda){flex:0 1 auto;min-block-size:0}
+.card.answer .agenda{min-block-size:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;
+  animation:inner-fade linear both;animation-timeline:scroll(self block);mask-image:linear-gradient(to bottom,#000 calc(100% - var(--inner-fade)),transparent)}
+.card.answer .agenda::-webkit-scrollbar{display:none}
 .agenda-row.done .agenda-title{color:var(--bar-on-variant);text-decoration:line-through}
 .agenda-row.event .agenda-title .ms{color:var(--bar-primary)}
 .big-number{font:var(--display-small);font-variant-numeric:tabular-nums}
@@ -110,8 +129,8 @@
 @media (prefers-reduced-motion:no-preference){
   .card{transition:opacity var(--dur-medium1) var(--ease-standard),translate var(--dur-medium1) var(--ease-emphasized-decelerate)}
   @starting-style{.card.enter{opacity:0;translate:0 8px}}
-  .btn:active,.chip:active{scale:.97}
-  .btn,.chip{transition:scale 160ms var(--ease-standard)}
+  .btn:active,.chip:active,.suggest-chip:active{scale:.97}
+  .btn,.chip,.suggest-chip{transition:scale 160ms var(--ease-standard)}
 }
 :root[data-reduce-motion=true] .card{transition:none}
 
@@ -148,7 +167,7 @@
 .forming-pill[data-tone=area-2]{--pill:var(--bar-area-2)}.forming-pill[data-tone=area-3]{--pill:var(--bar-area-3)}
 .forming-pill[data-tone=area-4]{--pill:var(--bar-area-4)}.forming-pill[data-tone=area-5]{--pill:var(--bar-area-5)}
 .forming-pill[data-tone=area-6]{--pill:var(--bar-area-6)}.forming-pill[data-tone=area-7]{--pill:var(--bar-area-7)}
-.forming-title{flex:1;min-inline-size:0;font:var(--title-medium);overflow-wrap:break-word}
+.forming-title{flex:1;min-inline-size:0;font:var(--body-large);color:var(--bar-on-variant);overflow-wrap:break-word}
 .forming .facts:empty{display:none}
 .fact-reading{color:var(--bar-on-variant)}
 .fact-reading .ms{color:var(--bar-primary)}

@@ -1,6 +1,6 @@
 import {el,icon,button} from './capture-dom.mjs';
 import {card,answerText,alsoHeard} from './capture-cards.mjs';
-import {clock,relativeDay,longDate,plural} from './planner/format.mjs';
+import {clock,relativeDay,longDate} from './planner/format.mjs';
 import {scheduleText} from './capture-content.mjs';
 import {localDay} from './planner-state.mjs';
 
@@ -9,8 +9,8 @@ function agendaRow(item,now){
  row.append(el('span','agenda-time',item.start==null?'Any time':item.allDay?'All day':clock(item.start)));
  const body=el('div','agenda-body'),title=el('p','agenda-title');
  const name=el('span','',item.title);
- if(item.must){const star=icon('star',{fill:true,cls:'must-mark'});star.removeAttribute('aria-hidden');star.setAttribute('role','img');star.setAttribute('aria-label','Must');name.append(' ',star);}
  title.append(icon(item.kind==='event'?'event':item.done?'check_circle':'radio_button_unchecked'),name);
+ if(item.must){const star=icon('star',{fill:true,cls:'must-mark'});star.removeAttribute('aria-hidden');star.setAttribute('role','img');star.setAttribute('aria-label','Must');title.append(star);}
  body.append(title);
  const sub=[item.end&&!item.allDay?`until ${clock(item.end)}`:null,item.block,item.kind==='event'?'Calendar':null].filter(Boolean).join(' · ');
  if(sub)body.append(el('p','quiet',sub));
@@ -82,8 +82,6 @@ export function answerCard(capture,{platform,on,now=Date.now()}){
  if(kind==='agenda'){
   const agenda=platform.agenda?.(capture.card.day)??{timed:[],anytime:[]};
   node.append(agendaCard(agenda,{now}));
-  const count=agenda.timed.length+agenda.anytime.length;
-  if(count>6)node.append(el('p','quiet',plural(count,'item')));
  }
  if(kind==='next')node.append(nextCard(platform.next?.()??null,{now}));
  if(kind==='task')node.append(taskCard(platform.task?.(capture.card.targetId)??null));

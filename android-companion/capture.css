@@ -54,6 +54,8 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .go{flex:none;display:grid;inline-size:48px;block-size:48px}
 .go>button{grid-area:1/1;position:relative;display:grid;place-items:center;inline-size:48px;block-size:48px;padding:0;border:0;border-radius:50%;cursor:pointer}
 .voice-go{background:transparent;color:var(--bar-on)}
+/* At rest the orb is the same 48dp primary disc as Send, so typing swaps the glyph and never the size. */
+.bar[data-voice=off] .voice-go{background:var(--bar-primary)}
 /* The voice drop: a 40px canvas centred in the 48px button (capture-drop.mjs). */
 .voice-go .drop{position:absolute;inset:4px;inline-size:40px;block-size:40px}
 .voice-go .glyph{position:relative;font-size:20px;line-height:1;color:var(--bar-on-primary)}
@@ -75,13 +77,13 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 }
 @keyframes send-pulse{from{opacity:1}to{opacity:.45}}
 
-.scrim{position:absolute;inset:0;background:transparent}
+.scrim{position:absolute;inset:0;z-index:2;background:transparent}
 .sheet{
-  position:absolute;inset-inline:0;inset-block-end:0;max-block-size:calc(100% - 24px);overflow-y:auto;overscroll-behavior:contain;
+  position:absolute;inset-inline:0;inset-block-end:0;z-index:2;max-block-size:calc(100% - 24px);overflow-y:auto;overscroll-behavior:contain;
   padding-block-end:calc(16px + env(safe-area-inset-bottom,0px));
   background:var(--bar-high);color:var(--bar-on);border-radius:var(--r-outer) var(--r-outer) 0 0;box-shadow:var(--bar-shadow);
 }
-.sheet .grab{margin-block:8px 16px}
+.sheet .grab{margin-block:8px}
 @media (prefers-reduced-motion:no-preference){
   .sheet{transition:translate var(--dur-medium3) var(--ease-emphasized-decelerate),display var(--dur-medium3) allow-discrete}
   @starting-style{.sheet{translate:0 100%}}
@@ -96,7 +98,6 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 }
 .sheet-row .ms{font-size:24px;color:var(--bar-on-variant)}
 .row-title{font:var(--body-large)}
-.rows{padding-block-start:8px}
 .sheet-row::before{content:'';position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0}
 .sheet-row:active::before{opacity:.12}
 @media (hover:hover) and (pointer:fine){.sheet-row:hover::before{opacity:.08}}
