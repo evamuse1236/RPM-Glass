@@ -11,8 +11,8 @@ android {
         applicationId "com.rpm.prototype"
         minSdk 26
         targetSdk 36
-        versionCode 47
-        versionName "0.47-nav-rim"
+        versionCode 48
+        versionName "0.48-task-sheet"
         testInstrumentationRunner "com.rpm.prototype.OfflineTests"
         buildConfigField "String", "TELEGRAM_BRIDGE", "\"${rpmTelegramBridge}\""
     }
