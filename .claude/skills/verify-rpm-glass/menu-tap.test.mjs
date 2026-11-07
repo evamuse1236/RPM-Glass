@@ -25,3 +25,18 @@ test('settled taps only once two reads agree, and gives up on an item that keeps
   let y = 0;
   await assert.rejects(settled(async () => ({at: [0, y += 50]}), {wait: async () => {}, tries: 3}), /kept moving/);
 });
+
+test('a tap scrolls a control that is only partly on screen, and refuses one whose centre stays off the page', () => {
+  const scrolled = [];
+  const peek = {ref: 0, role: 'combobox', name: 'Add a task to the Plan', rect: [20, 730, 309, 48], inView: true};
+  onPage([peek]);
+  window.__rpmEls = {0: {scrollIntoView: () => scrolled.push('add')}};
+  const found = LOCATE({role: 'combobox', name: 'Add a task to the Plan', scroll: true});
+  assert.deepEqual(scrolled, ['add'], 'a control cut by the bottom edge is scrolled into view before the tap');
+  assert.equal(found.match.offScreen, true, 'a centre at y 754 on a 748 page is off screen, so the tap would land outside the WebView');
+  assert.equal(found.match.coveredBy, null);
+  onPage([{...peek, rect: [20, 500, 309, 48]}]);
+  window.__rpmEls = {0: {scrollIntoView: () => scrolled.push('again')}};
+  assert.equal(LOCATE({role: 'combobox', name: 'Add a task to the Plan', scroll: true}).match.offScreen, false);
+  assert.deepEqual(scrolled, ['add'], 'a control wholly on screen is tapped where it is');
+});

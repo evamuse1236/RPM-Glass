@@ -43,6 +43,7 @@ async function locateForTap(serial, cdpPort, query) {
   try {
     const found = await page.evaluate(`(q) => window.__rpmLocate(q)`, {...query, scroll: true});
     if (found.error) throw new UserError(found.error + (found.candidates ? `. On screen: ${found.candidates.join(', ')}` : ''), 'Run `rpmctl ui` to see names, then retry with --role/--nth or --css.');
+    if (found.match.offScreen) throw new UserError(`"${found.match.name}" is still off the screen after scrolling (rect ${found.match.rect.join(',')} in a ${found.viewport.join('x')} page), so a tap there lands outside the page`, 'Fix the layout so the page can scroll the control into view.');
     if (found.match.coveredBy) throw new UserError(`"${found.match.name}" is covered by ${found.match.coveredBy}, so a tap there lands on that instead`, 'Fix the layout so nothing sits on top of the control, or close what covers it first.');
     const dpr = await page.evaluate('devicePixelRatio');
     const [x, y, w, h] = found.match.rect;

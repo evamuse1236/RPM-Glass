@@ -98,6 +98,7 @@ export const SNAPSHOT = function snapshot(all) {
 };
 
 // Finds one element by role/name/css. Exact (case-insensitive) name beats substring; ambiguity is an error that lists the candidates.
+// With `scroll`, an element not wholly on screen is scrolled to the centre first; `offScreen` marks a centre that still lies outside the page, where a tap would miss it.
 export const LOCATE = function locate({role, name, css, nth, scroll, exact}) {
   const snap = (window.__rpmSnapshot)(true);
   let pool;
@@ -108,7 +109,8 @@ export const LOCATE = function locate({role, name, css, nth, scroll, exact}) {
     if (!el) return {error: `Only ${els.length} element(s) match css ${css}`};
     if (scroll) el.scrollIntoView({block: 'center', inline: 'nearest'});
     const r = el.getBoundingClientRect();
-    return {match: {role: el.tagName.toLowerCase(), name: (el.getAttribute('aria-label') || el.innerText || '').trim().slice(0, 80), rect: [r.left, r.top, r.width, r.height]}, viewport: [innerWidth, innerHeight]};
+    const [cx, cy] = [r.left + r.width / 2, r.top + r.height / 2];
+    return {match: {role: el.tagName.toLowerCase(), name: (el.getAttribute('aria-label') || el.innerText || '').trim().slice(0, 80), rect: [r.left, r.top, r.width, r.height], offScreen: cx < 0 || cy < 0 || cx >= innerWidth || cy >= innerHeight}, viewport: [innerWidth, innerHeight]};
   }
   pool = snap.elements.filter(e => !role || e.role === role);
   const want = (name ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -121,12 +123,15 @@ export const LOCATE = function locate({role, name, css, nth, scroll, exact}) {
   }
   const hit = hits[nth ?? 0];
   if (!hit) return {error: `Only ${hits.length} match(es) for "${name}"`};
-  const [x, , w] = hit.rect;
-  if (scroll && (!hit.inView || x < 0 || x + w > innerWidth)) {
+  const [x, y, w, h] = hit.rect;
+  const whole = x >= 0 && y >= 0 && x + w <= innerWidth && y + h <= innerHeight;
+  if (scroll && !whole) {
     window.__rpmEls[hit.ref].scrollIntoView({block: 'center', inline: 'nearest'});
     return locate({role, name, css, nth, exact, scroll: false});
   }
-  return {match: {...hit, coveredBy: coverOf(window.__rpmEls[hit.ref], hit.rect)}, viewport: [innerWidth, innerHeight]};
+  const [cx, cy] = [x + w / 2, y + h / 2];
+  const offScreen = cx < 0 || cy < 0 || cx >= innerWidth || cy >= innerHeight;
+  return {match: {...hit, offScreen, coveredBy: offScreen ? null : coverOf(window.__rpmEls[hit.ref], hit.rect)}, viewport: [innerWidth, innerHeight]};
 
   function coverOf(el, [left, top, width, height]) {
     const front = document.elementFromPoint(left + width / 2, top + height / 2);
