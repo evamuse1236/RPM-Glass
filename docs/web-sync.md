@@ -76,7 +76,7 @@ Capture typed on the phone still runs on the phone.
 
 ## Link codes, CORS and quotas
 
-A link code has eight characters from an unambiguous uppercase alphabet. It lasts ten minutes and works once. The phone shows it under Settings, Cloud, Link a web browser, which also lists browsers with last-seen times and a revoke control. A new code cancels earlier unused codes. A revoked browser can't write; work it already saved stays saved.
+A link code has eight characters from an unambiguous uppercase alphabet. It lasts ten minutes and works once. The phone shows it under Settings, Sync & backup, Web sync, which also lists browsers with last-seen times and a revoke control. A new code cancels earlier unused codes. A revoked browser can't write; work it already saved stays saved.
 
 `RPM_WEB_ORIGIN` sets the allowed production origin, such as `https://planner.example.com`. Local runs also allow `http://localhost` and `http://127.0.0.1` with an explicit port. Preflight allows Authorization, Content-Type and If-None-Match. There is no wildcard origin and no cookie. Each token gets 120 operations a minute; a malformed request fails before it is counted. Link attempts have a global limit of 30 a minute.
 

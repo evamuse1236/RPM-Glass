@@ -33,12 +33,13 @@ function homeValue(ctx, page) {
     case 'alerts': return alarmsBlocked(s) ? 'Not allowed' : 'On';
     case 'voice': return s.hasGeminiKey ? voiceChoice().voice ?? 'Default' : 'Dictation';
     case 'ai': { const keys = connectedKeys(s); return keys.length ? keys.join(', ') : 'Not set'; }
+    case 'sync': return s.cloudSync ? 'On' : 'Off';
     case 'diagnostics': { const log = s.diagnostics ?? {}; return !log.connected ? 'Off' : log.paused ? 'Paused' : 'On'; }
     default: return '';
   }
 }
 
-/** A problem card on the home list: what will go wrong, why, and one Allow that starts the fix. */
+/** A problem card on the home list: what will go wrong, why, and one Allow, styled like every row's action word, that starts the fix. */
 function problemCard(ctx, {label, detail, allow, action}) {
   const card = el('div', 'settings-alert');
   card.setAttribute('role', 'group');
@@ -48,7 +49,7 @@ function problemCard(ctx, {label, detail, allow, action}) {
   box.append(symbol('error'));
   const copy = el('span', 'settings-copy');
   copy.append(el('span', 'settings-label', label), el('span', 'settings-detail', detail));
-  const fix = el('button', 'tonal-btn settings-alert-action', 'Allow');
+  const fix = el('button', 'settings-alert-action', 'Allow');
   fix.type = 'button';
   fix.dataset.action = action;
   fix.setAttribute('aria-label', allow);
@@ -65,7 +66,7 @@ export function homePage(ctx) {
   const problems = [];
   if (alarmsBlocked(s)) {
     const off = alarmsOff(s);
-    problems.push({label: 'Alarms may not ring', detail: `${capital(off.join(' and '))} are off`,
+    problems.push({label: 'Alarms may not ring', detail: off.length > 1 ? 'Notifications and alarms are off' : `${capital(off[0])} are off`,
       allow: `Allow ${off[0]}`, action: s.notificationsAllowed ? 'exact_alarms' : 'notifications'});
   }
   if (notchWaiting(s)) problems.push({label: 'The notch is waiting for Android', detail: 'RPM Notch is off in Accessibility',
@@ -135,36 +136,39 @@ function alertsPage(ctx) {
     caption: 'Battery saving can delay reminders.'});
   add(ctx, allowed, {label: 'Notifications', detail: 'For reminders and ringing alarms', ...permission(s.notificationsAllowed), action: 'notifications'});
   add(ctx, allowed, {label: 'Exact alarms', detail: 'For alarms at the chosen minute', ...permission(s.exactAlarmsAllowed), action: 'exact_alarms'});
-  add(ctx, allowed, {label: 'Check saved alerts', detail: 'Run after a permission change', action: 'check_alerts', act: 'Check'});
+  add(ctx, allowed, {label: 'Check saved alerts', detail: 'Run after a permission change', action: 'check_alerts', act: 'Check', quiet: true});
   const sounds = group('Sounds', {id: 'sounds'});
   add(ctx, sounds, {label: 'Alarm sound', value: s.alarmSound, action: 'choose_alarm', next: true});
   add(ctx, sounds, {label: s.previewing ? 'Stop alarm sound' : 'Play alarm sound', detail: s.previewing ? 'Playing at alarm volume' : '5 seconds at alarm volume',
-    action: 'preview_alarm', act: s.previewing ? 'Stop' : 'Play'});
+    action: 'preview_alarm', act: s.previewing ? 'Stop' : 'Play', quiet: true});
   add(ctx, sounds, {label: 'Reminder sound', value: s.reminderSound, action: 'reminder_sound', next: true});
   return [allowed, sounds];
 }
 
 /** Voice and persona live on this phone, not in native settings; each opens an M3 dialog and saves at once.
- *  The Gemini key lives once, in AI keys; with none, one line above the card says what the mic uses and links there. */
+ *  The Gemini key lives once, in AI keys. With none, the card starts with a Gemini key row whose Add opens AI keys,
+ *  Voice and Persona rest dimmed because dictation ignores them, and the caption says what the mic uses. */
 function voicePage(ctx) {
   const s = ctx.state;
   const {voice, persona} = voiceChoice();
-  const sound = group('', {id: 'voice'});
-  if (!s.hasGeminiKey) {
-    const note = el('p', 'settings-lead', 'The mic uses Android dictation. ');
-    const link = el('button', 'settings-link', 'Add a Gemini key');
-    link.type = 'button';
-    link.dataset.action = 'open_ai';
-    link.addEventListener('click', () => ctx.options.openPage?.('ai'));
-    note.append(link);
-    sound.insertBefore(note, sound.card);
+  const keyed = !!s.hasGeminiKey;
+  const sound = group('', {id: 'voice', caption: keyed ? '' : 'Without a key, the mic uses Android dictation.'});
+  if (!keyed) {
+    const key = row({label: 'Gemini key', action: 'open_ai', act: 'Add'});
+    key.setAttribute('aria-label', 'Add a Gemini key in AI keys');
+    key.addEventListener('click', () => ctx.options.openPage?.('ai'));
+    sound.card.append(key);
   }
   const open = dialog => { document.body.append(dialog); dialog.showModal(); };
-  const voiceRow = row({label: 'Voice', value: voice ?? 'Default', action: 'voice_name', next: true});
-  voiceRow.addEventListener('click', () => open(voiceDialog(document, voice, next => { setVoice(next); ctx.render(ctx); })));
-  const personaRow = row({label: 'Persona', detail: persona, value: persona ? '' : 'Not set', action: 'voice_persona', next: true});
+  const voiceRow = row({label: 'Voice', value: voice ?? 'Default', action: 'voice_name', next: keyed});
+  const personaRow = row({label: 'Persona', detail: persona, value: persona ? '' : 'Not set', action: 'voice_persona', next: keyed});
   if (persona) personaRow.querySelector('.settings-detail')?.classList.add('settings-clamp');
-  personaRow.addEventListener('click', () => open(personaDialog(document, persona, next => { setPersona(next); ctx.render(ctx); })));
+  if (keyed) {
+    voiceRow.addEventListener('click', () => open(voiceDialog(document, voice, next => { setVoice(next); ctx.render(ctx); })));
+    personaRow.addEventListener('click', () => open(personaDialog(document, persona, next => { setPersona(next); ctx.render(ctx); })));
+  } else {
+    for (const idle of [voiceRow, personaRow]) { idle.disabled = true; idle.dataset.idle = 'true'; }
+  }
   sound.card.append(voiceRow, personaRow);
   return [sound];
 }
@@ -190,7 +194,7 @@ function aiPage(ctx) {
 
 function syncPage(ctx) {
   const cloud = group('', {id: 'cloud'});
-  add(ctx, cloud, {label: 'Link a web browser', detail: 'Plan on a computer with the same tasks', action: 'cloud_web', next: true});
+  add(ctx, cloud, {label: 'Web sync', value: ctx.state.cloudSync ? 'On' : 'Off', action: 'cloud_web', next: true});
   const files = group('Backup', {id: 'context-history', caption: 'Plans stay on this phone.'});
   add(ctx, files, {label: 'Export', action: 'export_context', next: true});
   add(ctx, files, {label: 'Import', action: 'import_context', next: true});

@@ -50,7 +50,7 @@ test('a blocked alarm permission shows one red card with one Allow that starts t
   assert.equal(row.dataset.tone,undefined);
   assert.equal(row.querySelector('.settings-value').textContent,'Not allowed');
   const both=await mounted({});
-  assert.equal(both.host.querySelector('.settings-alert .settings-detail').textContent,'Notifications and exact alarms are off');
+  assert.equal(both.host.querySelector('.settings-alert .settings-detail').textContent,'Notifications and alarms are off');
   assert.equal(both.host.querySelector('.settings-alert-action').dataset.action,'notifications');
   const fine=await mounted({notificationsAllowed:true,exactAlarmsAllowed:true});
   assert.equal(fine.host.querySelector('.settings-alert'),null);
@@ -69,6 +69,8 @@ test('every row on the Alarms page ends in one style: a value with a chevron or 
   assert.equal(word('check_alerts'),'Check');
   assert.equal(word('preview_alarm'),'Play');
   assert.ok(!alerts.rows.some(r=>r.querySelector('.settings-trail')));
+  const quiet=action=>alerts.rows.find(r=>r.dataset.action===action).querySelector('.settings-act').classList.contains('quiet');
+  assert.ok(quiet('check_alerts')&&quiet('preview_alarm'),'Check and Play only run a check or a sample, so they are quieter than Allow');
 });
 
 test('a missing key reads Not set on its own row, and Voice says what the mic uses without one',async()=>{
@@ -76,6 +78,18 @@ test('a missing key reads Not set on its own row, and Voice says what the mic us
   const value=action=>home.rows.find(r=>r.dataset.action===action).querySelector('.settings-value')?.textContent;
   assert.equal(value('open_voice'),'Dictation');
   assert.equal(value('open_ai'),'Not set');
+});
+
+test('Sync & backup shows whether web sync is on, at home and on its page',async()=>{
+  for (const [cloudSync,word] of [[false,'Off'],[true,'On']]) {
+    const home=await mounted({notificationsAllowed:true,exactAlarmsAllowed:true,cloudSync});
+    assert.equal(home.rows.find(r=>r.dataset.action==='open_sync').querySelector('.settings-value').textContent,word);
+    const sync=await mounted({cloudSync},'sync');
+    const row=sync.rows.find(r=>r.dataset.action==='cloud_web');
+    assert.equal(row.querySelector('.settings-label').textContent,'Web sync');
+    assert.equal(row.querySelector('.settings-value').textContent,word);
+    assert.equal(row.querySelector('.settings-detail'),null);
+  }
 });
 
 test('remove rows show only for connected keys, last, in red',async()=>{
@@ -87,19 +101,23 @@ test('remove rows show only for connected keys, last, in red',async()=>{
   assert.equal(last.dataset.tone,'error');
 });
 
-test('every key lives once, in AI keys; Voice without a Gemini key says the mic uses dictation in one line that links there',async()=>{
+test('every key lives once, in AI keys; Voice without a Gemini key offers it in its card and dims the voice rows',async()=>{
   const voice=await mounted({},'voice');
-  assert.ok(!voice.rows.some(r=>r.dataset.action==='open_ai'));
-  const lead=voice.host.querySelector('.settings-lead');
-  assert.match(lead.textContent,/Android dictation/);
-  const link=lead.querySelector('.settings-link');
-  assert.equal(link.textContent,'Add a Gemini key');
+  assert.match(voice.host.querySelector('.settings-group').textContent,/Android dictation/);
+  const add=voice.rows[0];
+  assert.equal(add.dataset.action,'open_ai');
+  assert.equal(add.querySelector('.settings-act').textContent,'Add');
   assert.ok(!voice.rows.some(r=>/gemini_key$/.test(r.dataset.action)));
-  link.click();
+  add.click();
   assert.deepEqual(voice.opened,['ai']);
+  for (const action of ['voice_name','voice_persona']) {
+    const idle=voice.rows.find(r=>r.dataset.action===action);
+    assert.ok(idle.disabled&&idle.dataset.idle,'a voice choice without a key cannot be opened');
+    assert.ok(![...idle.querySelectorAll('.ms')].some(icon=>icon.textContent==='chevron_right'));
+  }
   const keyed=await mounted({hasGeminiKey:true},'voice');
   assert.deepEqual(keyed.labels,['Voice','Persona']);
-  assert.equal(keyed.host.querySelector('.settings-lead'),null);
+  assert.ok(!keyed.rows.some(r=>r.disabled||r.dataset.action==='open_ai'));
   const ai=await mounted({hasGeminiKey:true},'ai');
   assert.ok(ai.rows.some(r=>r.dataset.action==='connect_gemini_key'));
   assert.equal(ai.rows.at(-1).dataset.action,'remove_gemini_key');

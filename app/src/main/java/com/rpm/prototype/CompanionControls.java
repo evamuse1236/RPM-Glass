@@ -17,7 +17,7 @@ final class CompanionControls {
             .put("aiConnected",CompanionKey.hasAny(c)).put("claudeKey",CompanionKey.has(c,CompanionKey.Service.CLAUDE)).put("openRouterKey",CompanionKey.has(c,CompanionKey.Service.OPENROUTER)).put("hasGeminiKey",GeminiKey.has(c)).put("notificationsAllowed",CompanionAlerts.notifications(c,CompanionAlerts.REMINDERS))
             .put("exactAlarmsAllowed",CompanionAlerts.exact(c)).put("overlayAllowed",Settings.canDrawOverlays(c))
             .put("launcherRunning",ButterflyService.isRunning()).put("notchOn",NotchController.enabled(c)).put("notchServiceOn",NotchAccessibilityService.isOn(c))
-            .put("backupCount",backupCount(c))
+            .put("backupCount",backupCount(c)).put("cloudSync",SyncManager.configured(c))
             .put("calendarAccess","Read-only; choose calendars in the planner")
             .put("systemBoundary","Sound files, keys and permission choices require the person. No secret values are exposed.");
     }

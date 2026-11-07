@@ -15,9 +15,10 @@ export const safeScale = value => Math.max(80, Math.min(160, Number.isInteger(va
 
 /**
  * One list row: an optional icon tile, the title, a line of detail and a trailing value, switch, chevron or action word (`act`).
+ * An action word is primary when it fixes something missing (Allow, Add) and `quiet` when it only runs a check or a sample.
  * `tone: 'error'` marks a row that needs the person (a missing permission) or removes something.
  */
-export function row({label, detail = '', value = '', action, role = null, toggle = null, icon = null, tile = null, next = false, tone = null, act = null}) {
+export function row({label, detail = '', value = '', action, role = null, toggle = null, icon = null, tile = null, next = false, tone = null, act = null, quiet = false}) {
   const node = el('button', 'settings-row');
   node.type = 'button';
   if (action) node.dataset.action = action;
@@ -43,7 +44,7 @@ export function row({label, detail = '', value = '', action, role = null, toggle
   if (value) node.append(el('span', 'settings-value', value));
   if (next) node.append(symbol('chevron_right'));
   else if (act) {
-    const word = el('span', 'settings-act', act);
+    const word = el('span', quiet ? 'settings-act quiet' : 'settings-act', act);
     word.setAttribute('aria-hidden', 'true');
     node.append(word);
   }
