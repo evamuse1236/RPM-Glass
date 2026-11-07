@@ -18,7 +18,7 @@ The desktop browser companion runs through Node.js with its own visual system an
 
 RPM is a personal planning and check-in tool that keeps the reason for work visible while the user acts. A task belongs to a Result, the Result has a Purpose, and its ordered tasks form the Plan. The product should help the user move between today's actions, Blocks, Projects, Goals, and Areas without turning planning into a questionnaire or treating completed actions as proof that an outcome was achieved.
 
-Capture turns messy thoughts into tasks and Blocks. The assistant may interpret, ask, and propose, but the user's wording is saved first and canonical planning changes require review.
+Capture turns messy thoughts into tasks, Blocks, reminders, edits and answers. The user's wording is saved first. Then Capture applies what it understood on its own and says what it did, with Undo. Edits, moves and deletes of existing items apply too, then show a one-tap Keep or Undo card (decided 2026-10-18, [ticket](docs/wayfinder/whole-day/tickets/23-capture-acts-then-confirms.md); the current build still proposes first). Everyday work runs on Claude Haiku 5.5 and hard questions on Sonnet 5.5 at high effort; the model may read health and food data ([ticket](docs/wayfinder/whole-day/tickets/24-ai-models-and-data.md)).
 
 ## Current Android scope (confirmed 2026-09-27)
 

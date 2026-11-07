@@ -1,5 +1,40 @@
 # Prior art
 
+## Capture's model and a Jev decision step (2026-10-27)
+
+**Measured** with `npm run capture:models` (the phone's Capture code, 14 phrases, one run each, saved under `.verify/capture-models/`):
+
+| Model | Read | Median | Slowest | Sonnet redo | Wrong saves |
+|---|---|---|---|---|---|
+| Haiku 5.5, direct to Anthropic (the phone's path) | 14/14 | 1.9 s | 4.3 s | 0 | none seen |
+| Mercury 3 | 14/14 | 2.5 s | 9.1 s | 1 | dropped times on messy phrases |
+| MiniMax M3 | 14/14 | 2.5 s | 9.2 s | 2 | trashed "Call Raj" for "Get rid of the shower task" |
+| GPT-6.1 Terra | 14/14 | 3.0 s | 5.2 s | 0 | none seen; asked what the garbled dinner ramble meant |
+| Reflection Beam 1.0 (reasoning cannot be turned off) | 14/14 | 3.2 s | 22.1 s | 3 | twice used all 4,000 reply tokens on reasoning |
+| GPT-6 Luna | 13/14 | 2.8 s | 25 s (timed out on the dinner ramble) | 0 | none seen |
+| Jev Router | 13/14 | 7.3 s | 36.5 s | 2 | one time-out |
+| Liquid LFM 2.5 (2.6B free, 2.6B paid, 24B) | smoke test only | 11–13 s | | every time | read the wrong item; ran out of tokens |
+
+**Broader test, three setups** (`node scripts/capture-stress/setups.mjs`, 88 graded cases from the real, everyday, conversation, basic and smart sets, one run each, `.verify/capture-setups/broad-2026-10-27/`):
+
+| Setup | Passed | First read, median / p90 | Backup calls (time) | Terra cost |
+|---|---|---|---|---|
+| Haiku, Sonnet backup (the phone) | 83/88 | 2.3 s / 5.1 s | 11 (2.3–5.9 s) | — |
+| Terra only | 81/88 | 3.5 s / 4.6 s | 0 | $0.27 |
+| Haiku, Terra backup | 81/88 | 2.4 s / 5.5 s | 10 (3.8–7.8 s) | $0.06 |
+
+Terra lost 6 of 22 real phrases (merged "call mom" into Call Amma, split "Answer Kris and Aria", changed an existing Exercise) and won the clarification, follow-up and clock-edit cases Haiku failed. As a backup it was slower than Sonnet. Two-case gaps are inside one-run noise.
+
+**Verdict: keep Haiku direct.** No tested model is faster on the phone's path, and the two close ones break our safety checks more often.
+
+**Jev (TypeSafe's decision model)** answers typed questions (choice, yes/no, score) with probabilities, without writing text. A three-question prototype on the same phrases took a median of 0.81 s and about $0.00003 a call. Message kind was sensible on 13 of 14 phrases; "must ask first" and "draft matches" were not usable without tuned thresholds. Projects read: jev-cookbook (median 391 ms), laya-jev-lab (median 525 ms), HA-Jev (one call, many questions), reflex and jev-preflight (check after the work), jcm-router, switchboard, prismhq/jev-router, LiteLLM (route before the call, 2.5–5 s timeouts, no measured gain).
+
+A second prototype let Jev label each part of the phrase (task, detail, question, change, filler; alert; what each time means) while `chrono-node` and a duration pattern read the times in code. One Jev call per phrase, median 0.83 s. It got all 7 clean phrases right, labelled questions and changes correctly, and turned both messy dictations into garbage titles.
+
+**ScaleDown Extract** (non-generative span extractor on OpenRouter, probed 27 Oct with title, time, duration, reminder and question fields): median 1.45 s, one call 21.8 s. Right on the clean phrases (shower, call mom plus buy milk, exercise 30 min, buy milk plus clear the table); returned nothing for "Answer Kris and Aria", "Task from 12 am to 1210", "Done" and "Get rid of the shower task". Over the network it is not much faster than Haiku, which does the whole job. Xing4.0-29B-Intent exists (Hugging Face weights; only the general Xing4.0 is on OpenRouter) and is too large for the phone.
+
+**Verdict: borrow later, not now.** A routing step before every call adds 0.3–1 s and only saves the failed first call, so it pays off only if many captures need a redo; none have since 0.34. The useful shape is a check on the draft that runs only when a local check fails, before any Sonnet redo, with thresholds tuned on a labelled set of real phrases.
+
 ## Quick add's date reading (`parseWhen`, 2026-10-26)
 
 **Considered:** chrono-node 2.10.1. It is already in `package.json`, `cli/interpret.mjs` uses it, and it is already inside `runtime.js`, so the planner could import it with no new asset. Super Productivity (MIT) bases its quick add on it.
