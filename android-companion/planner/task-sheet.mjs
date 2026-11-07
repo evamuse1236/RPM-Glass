@@ -1,4 +1,4 @@
-import {localDay, conflicts} from '../planner-state.mjs';
+import {localDay} from '../planner-state.mjs';
 import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
 import {resultStatus} from '../review-state.mjs';
 import {reducedMotion} from '../surface-motion.mjs';
@@ -14,7 +14,6 @@ import {recentBlock, rememberBlock} from './task-fields.mjs';
 import {taskHead} from './task-head.mjs';
 import {taskTabs} from './task-tabs.mjs';
 import {presetFields, toggleRepeatDay} from './task-tabs-model.mjs';
-import {busySpans} from './time-ruler.mjs';
 import {factRow, textRow} from './fact-rows.mjs';
 
 /** The ring's pop and the struck title hold this long before the sheet leaves. */
@@ -127,20 +126,11 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
 
   const recent = recentBlock();
   const suggested = suggestBlock(app, task, task.blockId)?.id ?? null;
-  const busyOn = day => {
-    if (!day) return [];
-    try {
-      return busySpans(conflicts(app.data(), new Date(`${day}T00:00`).toISOString(), 24 * 60, app.state.calendar ?? [], id), day);
-    } catch {
-      return [];
-    }
-  };
   const now = t => {
     const at = whenOf(t, when(t));
     return {...at, minutes: t.minutes ?? null, alert: t.alertIntent?.type ?? 'off', lead: t.alertIntent?.lead ?? 0,
-      repeating: repeats(t), task: t, busy: busyOn(at.day), blockId: t.blockId ?? null, blocks: app.activeBlocks(),
+      repeating: repeats(t), task: t, blockId: t.blockId ?? null, blocks: app.activeBlocks(),
       statusOf: blockId => resultStatus(app.data(), blockId),
-      toneOf: blockId => (blockId ? app.tone(app.blockArea(app.p().blocks.find(b => b.id === blockId))) : null),
       suggested, recent};
   };
   const setWhen = (value, label) => {
@@ -152,7 +142,7 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
       return;
     }
     tabs.error('day', '');
-    tabs.paint({...now(t), ...value, busy: busyOn(value.day)});
+    tabs.paint({...now(t), ...value});
     commit(whenFields(value), label).then(saved => { if (saved !== undefined) recheck(); });
   };
   const setRepeat = fields => {
@@ -193,7 +183,7 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
         if (!t) return;
         const repeating = repeats(t);
         tabs.error('day', '');
-        tabs.paint({...now(t), ...(repeating ? {} : {day: '', time: '', busy: []}), minutes: null});
+        tabs.paint({...now(t), ...(repeating ? {} : {day: '', time: ''}), minutes: null});
         commit(repeating ? {minutes: null} : {...whenFields({day: '', time: ''}), minutes: null}, repeating ? 'Length removed' : 'When cleared')
           .then(saved => { if (saved !== undefined) recheck(); });
       },

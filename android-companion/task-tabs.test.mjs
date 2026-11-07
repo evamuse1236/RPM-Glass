@@ -7,9 +7,10 @@ import {TIME_GRID, whenFields, repeatDaysOf, repeatFieldsFor, repeatLabel, repea
 import {TABS, stepTab, whenShort, alertShort, blockShort, presetOf, presetFields, toggleRepeatDay, blockChoices}
   from './planner/task-tabs-model.mjs';
 import fs from 'node:fs';
-import {HALF_HOUR_PX, rulerScale, offsetOf, stopAt, busySpans, lengthAt} from './planner/time-ruler.mjs';
+import {HALF_HOUR_PX, rulerScale, offsetOf, stopAt, rangeOf, lengthAt} from './planner/time-ruler.mjs';
 
 const DAY = '2026-10-20';
+const read = file => fs.readFileSync(new URL(`./${file}`, import.meta.url), 'utf8');
 const at = (day, time) => new Date(`${day}T${time}`).toISOString();
 const store = () => {
   const d = freshStore();
@@ -68,11 +69,14 @@ test('the ruler snaps every half hour from 6:00 AM to 11:00 PM and keeps an off-
   assert.equal(rulerScale('', new Date(`${DAY}T13:10`)).centre, '13:30', 'with no time the ruler opens on the next half hour');
 });
 
-test('busy marks are the day\'s other tasks and events, merged and cut to the day', () => {
-  const spans = busySpans([{start: Date.parse(at(DAY, '10:00')), end: Date.parse(at(DAY, '11:00'))},
-    {start: Date.parse(at(DAY, '10:30')), end: Date.parse(at(DAY, '11:30'))},
-    {start: Date.parse(at('2026-10-19', '23:00')), end: Date.parse(at(DAY, '01:00'))}], DAY);
-  assert.deepEqual(spans, [[0, 60], [600, 690]]);
+test('the readout is one range with the shared AM or PM written once, and the length is words that open an exact field', () => {
+  assert.equal(rangeOf(DAY, '16:00', '16:45'), '4\u00a0– 4:45\u00a0PM');
+  assert.equal(rangeOf(DAY, '11:30', '12:30'), '11:30\u00a0AM\u00a0– 12:30\u00a0PM', 'across noon both halves keep AM and PM');
+  const ruler = read('planner/time-ruler.mjs');
+  assert.doesNotMatch(ruler, /busy/i, 'no busy marks: the clash line names an overlap in words');
+  assert.match(ruler, /words\.addEventListener\('click', openField\);/, 'a tap on the length words opens the exact field');
+  assert.match(ruler, /field\.hidden = true;/, 'the exact field is hidden until asked for');
+  assert.doesNotMatch(read('planner/task-tabs.mjs'), /ruler-exact|pickerChip\('timer'/, 'no second always-visible length control');
 });
 
 test('a day, a slid time and a length each save and Undo puts them back', () => {
