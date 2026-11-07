@@ -6,7 +6,6 @@ import {placeNavIndicator, renderShell} from './planner/shell.mjs';
 import {renderScreen, defaultScroll, installSwipe} from './planner/screens.mjs';
 import {closeSheet, dismissSheet, installSheetKeys} from './planner/sheet.mjs';
 import {closeMenu} from './planner/menu.mjs';
-import {setDayLayout} from './planner/today.mjs';
 import {openTask, taskEditor, movePicker, archiveTask, deleteTask, showTrash, showInbox, scheduleMenu,
   closeSchedule} from './planner/task-sheets.mjs';
 import {entityEditor, contextEditor, detailMenu} from './planner/entities.mjs';
@@ -39,7 +38,6 @@ function installActions(app) {
     calendarDetails: event => calendarDetails(app, event),
     resolveClash: items => resolveClash(app, items),
     datePicker: () => datePicker(app),
-    setDayLayout: value => setDayLayout(app, value),
     jevSort: () => aiAction(app, 'sort'),
     purposeIdea: blockId => aiAction(app, 'purpose', blockId),
     examples: () => examples(app),

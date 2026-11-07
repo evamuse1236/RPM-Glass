@@ -46,11 +46,11 @@ h1, h2, h3, p { margin: 0; }
   scroll-padding-top: var(--s4);
 }
 /* The page ends above the floating tab bar (--nav-measured: its height plus its gap to the screen's edge). */
-.page { padding: 0 0 calc(var(--nav-measured, var(--nav)) + var(--s4)); max-width: 720px; margin: 0 auto; }
+.page { padding: 0 0 calc(var(--nav-measured, var(--nav)) + var(--s6)); max-width: 720px; margin: 0 auto; }
 #planner:has(> #nav-bar[hidden]) .page { padding-bottom: var(--s8); }
-#planner[data-habit=true] .page { padding-bottom: calc(var(--nav-measured, var(--nav)) + var(--touch) + var(--s3) + var(--s4)); }
+#planner[data-habit=true] .page { padding-bottom: calc(var(--nav-measured, var(--nav)) + var(--touch) + var(--s3) + var(--s6)); }
 /* While a snackbar shows, the page ends above it too, so the last row can always scroll clear of it. */
-#planner[data-snackbar=true] .page { padding-bottom: calc(var(--nav-measured, var(--nav)) + var(--snackbar-h, 48px) + var(--s8)); }
+#planner[data-snackbar=true] .page { padding-bottom: calc(var(--nav-measured, var(--nav)) + var(--s4) + var(--snackbar-h, 48px) + var(--s6)); }
 /* Weekly review: a focused full-height route; the review scrolls its own body. */
 #planner[data-view=review] #planner-scroll { overflow: hidden; }
 #planner[data-view=review] #workspace { height: 100%; }
@@ -155,7 +155,7 @@ h1, h2, h3, p { margin: 0; }
 /* Content scrolls under the bar. The strip below the bar shows nothing; the page fades back in over the bar's
    lower half when the bar is solid, and within 8dp when it is glass, so the page shows through the glass.
    Beside the bar, and behind the dock (Add and the habit circle), the page shows nothing either: it fades out over
-   the 16dp above the bar's top, and above the dock's top on its column, so no cut-off words sit around the floating
+   the 24dp above the bar's top, and above the dock's top on its column, so no cut-off words sit around the floating
    controls. While the Now pill shows, the page ends at the pill's top the same way, and gains that much room at its
    end so the last row still scrolls clear. Layers, top first: the capsule's two round ends and its middle (the
    glass), everything above the dock, and the band above the bar left of the dock (an x fade intersected with a y fade). */
@@ -187,14 +187,14 @@ h1, h2, h3, p { margin: 0; }
   :root:not([data-reduce-motion=true]) #nav-bar { transition: inset-inline-end var(--dur-medium2) var(--ease-emphasized); }
 }
 :root:not([data-keyboard=open]) #planner:has(> #nav-bar:not([hidden])) #planner-scroll {
-  scroll-padding-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4));
+  scroll-padding-block-end: calc(var(--nav-measured, var(--nav)) + var(--s6));
   mask-image:
     radial-gradient(circle at calc(var(--inset-page) + var(--bar-r)) calc(100% - var(--nav-gap) - var(--bar-r)), rgb(0 0 0 / var(--bar-ends, 100%)) calc(var(--bar-r) - 1px), transparent var(--bar-r)),
     radial-gradient(circle at calc(100% - var(--bar-end) - var(--bar-r)) calc(100% - var(--nav-gap) - var(--bar-r)), rgb(0 0 0 / var(--bar-ends, 100%)) calc(var(--bar-r) - 1px), transparent var(--bar-r)),
     linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--bar-fade, var(--s8)))),
-    linear-gradient(to top, transparent max(var(--dock-top), var(--page-end)), #000 calc(max(var(--dock-top), var(--page-end)) + var(--s4))),
+    linear-gradient(to top, transparent max(var(--dock-top), var(--page-end)), #000 calc(max(var(--dock-top), var(--page-end)) + var(--s6))),
     linear-gradient(to right, #000 calc(100% - var(--s3)), transparent),
-    linear-gradient(to top, transparent var(--page-end), #000 calc(var(--page-end) + var(--s4)));
+    linear-gradient(to top, transparent var(--page-end), #000 calc(var(--page-end) + var(--s6)));
   mask-size: 100% 100%, 100% 100%, calc(100% - var(--inset-page) - var(--bar-end) - 2 * var(--bar-r)) var(--bar-top), 100% 100%,
     calc(100% - var(--dock-end) + var(--s3)) 100%, calc(100% - var(--dock-end) + var(--s3)) 100%;
   mask-position: 0 0, 0 0, calc(var(--inset-page) + var(--bar-r)) 100%, 0 0, 0 0, 0 0;
@@ -204,9 +204,9 @@ h1, h2, h3, p { margin: 0; }
 :root[data-bar-glass=true] { --bar-fade: calc(var(--nav-measured, var(--nav)) - var(--nav-gap)); --bar-ends: 30%; }
 /* A clearer bar blurs more, so its labels stay readable over busy rows. */
 :root[data-bar-thin=true] { --glass-blur: 24px; --glass-saturate: 1; }
-/* While a snackbar shows, a row scrolled into view also clears the snackbar (its height and a 16dp gap). */
+/* While a snackbar shows, a row scrolled into view also clears the snackbar (its height and a 24dp gap). */
 :root:not([data-keyboard=open]) #planner[data-snackbar=true]:has(> #nav-bar:not([hidden])) #planner-scroll {
-  scroll-padding-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4) + var(--snackbar-h, 48px) + var(--s4));
+  scroll-padding-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4) + var(--snackbar-h, 48px) + var(--s6));
 }
 .nav-item {
   position: relative;
@@ -267,7 +267,7 @@ h1, h2, h3, p { margin: 0; }
   overflow: hidden; /* the ticker's words slide inside the bar */
 }
 #planner[data-view=settings] ~ #snackbar, #planner[data-view=search] ~ #snackbar { bottom: var(--s4); }
-#planner[data-habit=true] ~ #sheet[hidden] ~ #snackbar { right: calc(var(--inset-page) + var(--fab) + var(--s3)); }
+#planner:has(> #dock:not([hidden]) .fab:not([hidden])) ~ #sheet[hidden] ~ #snackbar { right: calc(var(--inset-page) + var(--fab) + var(--s3)); }
 /* The review pins its own button footer, so the snackbar sits above it. */
 #planner[data-view=review] ~ #snackbar { bottom: calc(var(--s4) + var(--key-text)); }
 /* While a sheet is open the snackbar docks just above the sheet's action bar and the sheet's content ends above it:

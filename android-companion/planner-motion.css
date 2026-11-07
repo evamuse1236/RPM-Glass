@@ -3,9 +3,8 @@
 :root[data-large-text=true] #nav-bar { grid-template-columns: 1fr 1fr 1.3fr .9fr; padding-inline: 0; }
 :root[data-large-text=true] #planner:has(> #dock:not([hidden]) .fab:not([hidden])) :is(#nav-bar, #now-host) { inset-inline-end: var(--inset-page); }
 :root[data-large-text=true] #dock { inset-block-end: calc(var(--nav-measured, var(--nav)) + var(--s3)); }
-:root[data-large-text=true] #planner:has(> #dock:not([hidden]) .fab:not([hidden])) .page { padding-bottom: calc(var(--nav-measured, var(--nav)) + var(--fab) + var(--s3) + var(--s4)); }
-:root[data-large-text=true] #planner[data-habit=true] .page { padding-bottom: calc(var(--nav-measured, var(--nav)) + var(--fab) + var(--touch) + 2 * var(--s3) + var(--s4)); }
-:root[data-large-text=true] #planner:has(> #dock:not([hidden]) .fab:not([hidden])) ~ #sheet[hidden] ~ #snackbar { right: calc(var(--inset-page) + var(--fab) + var(--s3)); }
+:root[data-large-text=true] #planner:has(> #dock:not([hidden]) .fab:not([hidden])) .page { padding-bottom: calc(var(--nav-measured, var(--nav)) + var(--fab) + var(--s3) + var(--s6)); }
+:root[data-large-text=true] #planner[data-habit=true] .page { padding-bottom: calc(var(--nav-measured, var(--nav)) + var(--fab) + var(--touch) + 2 * var(--s3) + var(--s6)); }
 /* Large text: a row's action moves under its words instead of squeezing them. */
 :root[data-large-text=true] .today-row { grid-template-columns: auto 1fr; }
 :root[data-large-text=true] .today-row-headline { grid-column: 2; }

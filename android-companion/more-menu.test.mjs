@@ -12,13 +12,16 @@ test('More options leads with Weekly review, then the page\'s places, then stora
   const items = menu.slice(menu.indexOf('const items = ['));
   assert.deepEqual(labels(items.slice(0, items.indexOf('];'))),
     ['Weekly review', '—', 'page', '—', 'Archive', 'Trash', 'web', 'Settings']);
-  assert.doesNotMatch(menu, /List view|Day view|setDayLayout/, 'the layout switch is in the top bar, not the menu');
+  assert.doesNotMatch(menu, /List view|Day view|setDayLayout/, 'the layout switch is under the date title, not the menu');
 });
 
-test('Today\'s top bar switches List view and Day view beside Search', () => {
+test('Today\'s List view and Day view switch lives once, in Go to date under the date title', () => {
   const shell = read('planner/shell.mjs');
-  const bar = shell.slice(shell.indexOf('function rootBar'));
-  assert.match(bar, /if \(state\.tab === 'today'\) \{\s*const list = state\.dayLayout === 'list';\s*tools\.append\(iconButton\(list \? 'view_day' : 'view_agenda', list \? 'Day view' : 'List view',\s*\(\) => actions\.setDayLayout\(list \? 'day' : 'list'\)\)\);\s*\}\s*tools\.append\(iconButton\('search', 'Search'/);
+  const bar = shell.slice(shell.indexOf('function rootBar'), shell.indexOf('function detailBar'));
+  assert.doesNotMatch(bar, /List view|Day view|view_agenda|setDayLayout/, 'the top bar holds Search and More options on every root');
+  const picker = read('planner/calendar-ui.mjs');
+  assert.match(picker.slice(picker.indexOf('export function datePicker')),
+    /labelButton\(list \? 'view_day' : 'view_agenda', list \? 'Day view' : 'List view'/);
 });
 
 test('the menu has a 1dp outline-variant edge, so it stands off the page in light', () => {

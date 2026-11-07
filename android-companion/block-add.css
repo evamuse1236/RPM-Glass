@@ -14,7 +14,7 @@
   list-style: none;
   border-radius: var(--shape-md);
   background: var(--surface-container-low);
-  scroll-margin-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4));
+  scroll-margin-block-end: calc(var(--nav-measured, var(--nav)) + var(--s6));
 }
 .add-result {
   display: grid;
