@@ -94,7 +94,11 @@
   }
   #planner[data-view=projects] .project-blocks > p { grid-column: 1 / -1; align-self: center; }
   #planner[data-view=projects] .project-blocks { margin: 0; border: 0; }
-  #planner[data-view=projects] .project-block { padding-inline: var(--s3); border-radius: var(--r-control); background: var(--surface); }
+  /* A Block is a plain row on its Project's card, no second fill inside the first; pointing at it shows the state layer. */
+  #planner[data-view=projects] .project-block { padding-inline: var(--s3); border-radius: var(--r-control); background: none; }
+  @media (hover: hover) and (pointer: fine) {
+    #planner[data-view=projects] .project-block:hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
+  }
   #planner .project-block-copy { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); min-inline-size: 0; }
   #planner .project-block:not(:has(.seg-ring)) { padding-inline-start: calc(var(--s8) + var(--s5)); }
   #planner .project-block-count { flex: none; inline-size: 40px; text-align: end; }
@@ -110,4 +114,39 @@
     animation-timeline: scroll(self block);
     mask-image: linear-gradient(to bottom, black calc(100% - var(--page-fade)), transparent);
   }
+
+  /* Block detail: the Plan reads like a Google Tasks list in a 560px column, each Must star near its words; the Purpose,
+     due date and progress sit beside it in one card that stays in view while the Plan scrolls. With the Inbox or a
+     task open beside the page there is no room, and the page keeps one column. */
+  .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner[data-view=blocks][data-detail=true] { --column: 928px; }
+  .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner[data-view=blocks][data-detail=true] .page {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 344px);
+    column-gap: var(--s6);
+    align-content: start;
+  }
+  .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner[data-view=blocks][data-detail=true] .page > :not(.block-facts) { grid-column: 1; }
+  /* The card spans every row of the Plan column, so the Plan's rows keep their own heights. */
+  .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner[data-view=blocks][data-detail=true] .page > .block-facts {
+    position: sticky;
+    inset-block-start: var(--s2);
+    grid-column: 2;
+    grid-row: 1 / span 24;
+    align-self: start;
+    margin: var(--s2) 0 0;
+    padding-block: var(--s2);
+    border-radius: var(--card-radius);
+    background: var(--surface-container);
+  }
+  .planner-view:has(> #sheet[data-inline]:not([hidden])) #planner[data-view=blocks][data-detail=true] { --column: 560px; }
+
+  /* Search: the query sits in a filled field with Clear inside its end; every Must star ends on the page edge. */
+  .planner-view .search-bar .search-input {
+    block-size: var(--touch);
+    padding-inline: var(--s4) calc(var(--touch) + var(--s1));
+    border-radius: var(--shape-full);
+    background: var(--surface-container-high);
+  }
+  .planner-view .search-bar .search-input + .icon-btn { margin-inline-start: calc(-1 * var(--touch) - var(--s1)); }
+  .planner-view .search-results .task-main:has(+ .must-mark) { flex: 1; }
 }
