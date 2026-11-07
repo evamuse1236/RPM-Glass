@@ -86,7 +86,7 @@ export function taskTabs({get, pick, tick = () => {}, remote = false, wide = fal
     select(stepTab(from, step), {moved: true, focus: true});
   });
 
-  const when = whenPanel(panels.when, pick, tick, wide);
+  const when = whenPanel(panels.when, pick, tick);
   const alert = alertPanel(panels.alert, pick, remote);
   const repeat = repeatPanel(panels.repeat, pick);
   const block = blockPanel(panels.block, pick, get);
@@ -129,7 +129,7 @@ export function taskTabs({get, pick, tick = () => {}, remote = false, wide = fal
   return {node, paint, select, error, clash: when.clash, focus, reveal: () => when.reveal()};
 }
 
-function whenPanel(host, pick, tick, wide) {
+function whenPanel(host, pick, tick) {
   const days = el('div', 'when-days');
   days.setAttribute('role', 'group');
   days.setAttribute('aria-label', 'Day');
@@ -146,13 +146,10 @@ function whenPanel(host, pick, tick, wide) {
     if (n >= 1 && n <= 1440) pick.minutes(n);
   });
   Object.assign(otherLength.input, {min: 1, max: 1440});
-  const noTime = chip('No time', 'no-time', () => pick.time(''));
-  const noDate = chip('No date', 'no-date', () => pick.day(''));
-  const noLength = chip('No length', 'no-length', () => pick.minutes(null));
   const clear = button('', () => pick.clear(), 'chip when-clear');
   clear.append(icon('backspace', {cls: 'chip-icon'}), el('span', 'chip-label', 'Clear'));
   clear.setAttribute('aria-label', 'Clear date, time and length');
-  more.append(dayPicker.node, timePicker.node, otherLength.node, ...(wide ? [clear] : [noTime, noDate, noLength]));
+  more.append(dayPicker.node, timePicker.node, otherLength.node, clear);
   host.append(days, error, ruler.node, clash, lengths, more);
 
   const paint = now => {
@@ -178,22 +175,29 @@ function whenPanel(host, pick, tick, wide) {
         pick.minutes(Number(value));
       })));
     markChips(lengths, now.minutes == null ? '' : String(now.minutes));
-    pressed(noTime, !!now.day && !now.time);
-    pressed(noDate, !now.day);
-    pressed(noLength, now.minutes == null);
-    noTime.hidden = now.repeating;
     clear.hidden = now.minutes == null && (now.repeating || !now.day);
     if (now.repeating) clear.setAttribute('aria-label', 'Clear length');
     else clear.setAttribute('aria-label', 'Clear date, time and length');
     timePicker.node.classList.toggle('is-off', !now.day);
     timePicker.input.disabled = !now.day;
-    noTime.setAttribute('aria-disabled', String(!now.day));
     dayPicker.input.value = now.day;
     timePicker.input.value = now.time;
     otherLength.input.value = now.minutes != null && !lengthChoices(null).includes(now.minutes) ? now.minutes : '';
   };
   const reveal = () => revealChip(lengths, lengths.querySelector('button.chip[aria-pressed=true]'));
   return {paint, error, clash, days, lengths, dayPicker: dayPicker.input, reveal};
+}
+
+const SVG = 'http://www.w3.org/2000/svg';
+/** A finished Block fills its ring's centre with a tonal disc and a check, as a finished Project does. */
+function finishedCheck() {
+  const group = document.createElementNS(SVG, 'g');
+  const disc = document.createElementNS(SVG, 'circle');
+  for (const [k, v] of Object.entries({class: 'ring-done', cx: 12, cy: 12, r: 6})) disc.setAttribute(k, v);
+  const check = document.createElementNS(SVG, 'path');
+  for (const [k, v] of Object.entries({class: 'ring-check', d: 'M9 12.2L11 14.2L15 10'})) check.setAttribute(k, v);
+  group.append(disc, check);
+  return group;
 }
 
 export function alertPanel(host, pick, remote) {
@@ -203,8 +207,9 @@ export function alertPanel(host, pick, remote) {
   for (const [value, word, symbol, aria] of ALERT_KINDS) {
     const kind = button('', () => {
       if (kinds.classList.contains('is-off')) return;
-      for (const other of kinds.children) pressed(other, other === kind);
-      pick.alert(value);
+      const next = kind.getAttribute('aria-pressed') === 'true' ? 'off' : value;
+      for (const other of kinds.children) pressed(other, other.dataset.value === next);
+      pick.alert(next);
     }, 'alert-kind');
     kind.dataset.value = value;
     kind.setAttribute('aria-label', aria);
@@ -250,8 +255,9 @@ function repeatPanel(host, pick) {
   const every = el('input');
   for (const [value, text] of REPEAT_PRESETS) {
     presets.append(chip(text, value, (choice, chosen) => {
-      settleChip(presets, markChips(presets, choice) ?? chosen);
-      pick.repeatPreset(choice, Number(every.value) || 1);
+      const next = chosen.getAttribute('aria-pressed') === 'true' ? 'once' : choice;
+      settleChip(presets, markChips(presets, next));
+      pick.repeatPreset(next, Number(every.value) || 1);
     }));
   }
   const after = el('label', 'after-days');
@@ -267,7 +273,7 @@ function repeatPanel(host, pick) {
   const paint = now => {
     const on = new Set(now.task?.repeatAfterDays ? [] : repeatDaysOf(now.task));
     for (const circle of circles.children) pressed(circle, on.has(Number(circle.dataset.value)));
-    circles.classList.toggle('is-after', !!now.task?.repeatAfterDays);
+    circles.hidden = !!now.task?.repeatAfterDays;
     markChips(presets, presetOf(now.task));
     after.hidden = !now.task?.repeatAfterDays;
     if (document.activeElement !== every) every.value = now.task?.repeatAfterDays ?? 1;
@@ -301,6 +307,7 @@ function blockPanel(host, pick, get) {
       const tone = now.toneOf(choice.id);
       if (tone) option.dataset.tone = tone;
       const ring = choice.id ? progressRing(choice.done, choice.total, `${choice.done} of ${choice.total} done`) : icon('inbox', {cls: 'block-choice-inbox'});
+      if (choice.id && choice.total && choice.done === choice.total) ring.append(finishedCheck());
       const copy = el('span', 'block-choice-copy');
       const title = el('span', 'block-choice-title', choice.title);
       const hint = choice.id && choice.id === now.recent ? 'Recent' : choice.id && choice.id === now.suggested ? 'Suggested' : '';

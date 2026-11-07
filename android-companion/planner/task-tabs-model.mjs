@@ -10,8 +10,8 @@ export function stepTab(current, step) {
   return keys[(keys.indexOf(current) + step + keys.length) % keys.length];
 }
 export const LENGTHS = Object.freeze([15, 30, 45, 60, 90, 120]);
-export const REPEAT_PRESETS = Object.freeze([['once', 'Once'], ['weekdays', 'Weekdays'], ['daily', 'Every day'], ['after', 'After completion']]);
-export const ALERT_KINDS = Object.freeze([['off', 'Off', 'notifications_off', 'No alert'], ['reminder', 'Remind', 'notifications', 'Reminder'],
+export const REPEAT_PRESETS = Object.freeze([['weekdays', 'Weekdays'], ['daily', 'Every day'], ['after', 'After completion']]);
+export const ALERT_KINDS = Object.freeze([['reminder', 'Remind', 'notifications', 'Reminder'],
   ['alarm', 'Alarm', 'alarm', 'Ringing alarm']]);
 
 /** "4 PM", "4:30 PM": a clock without ":00". */

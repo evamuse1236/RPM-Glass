@@ -12,21 +12,27 @@ test('the task pane styles apply only on a wide window', () => {
   assert.match(read('../build.mjs'), /'\.\/app\/task-pane\.css', 'task-pane\.css'/);
 });
 
-test('on a wide window one Clear replaces No time, No date and No length; the phone keeps all three', () => {
+test('one Clear replaces No time, No date and No length on every width', () => {
   const tabs = read('../../android-companion/planner/task-tabs.mjs');
-  assert.match(tabs, /\.\.\.\(wide \? \[clear\] : \[noTime, noDate, noLength\]\)/);
+  assert.match(tabs, /more\.append\(dayPicker\.node, timePicker\.node, otherLength\.node, clear\);/);
+  assert.doesNotMatch(tabs, /'No time'|'No date'|'No length'/, 'the When tab offers no separate No chips');
   assert.match(tabs, /button\('', \(\) => pick\.clear\(\)/);
   const sheet = read('../../android-companion/planner/task-sheet.mjs');
   assert.match(sheet, /const wide = Boolean\(app\.api\.wide\?\.\(\)\);/);
   assert.match(sheet, /\{\.\.\.whenFields\(\{day: '', time: ''\}\), minutes: null\}/);
 });
 
-test('Start now sits on the title row and the Length chips join into one segmented row on wide', () => {
+test('Start now sits on the title row on wide; the Length chips join into one segmented row and the ruler keeps its lanes on every width', () => {
   const css = read('./task-pane.css');
   assert.match(css, /\.task-start \{\s+grid-area: start;/);
-  assert.match(css, /\.chip-row\[aria-label=Length\] \{ flex-wrap: nowrap; gap: 0; \}/);
   assert.match(css, /\.ruler-track \{ mask-image:/);
-  assert.match(css, /\.ruler-length \{ inset-block: calc\(var\(--s8\) \+ var\(--s1\)\)/);
+  assert.doesNotMatch(css, /\.ruler-(length|centre) \{/, 'the wide pane keeps the shared ruler lanes');
+  const tabs = read('../../android-companion/task-tabs.css');
+  assert.match(tabs, /\.task-tabs \.chip-row\[aria-label=Length\] \{ flex-wrap: nowrap; gap: 0; \}/);
+  assert.match(tabs, /\.task-tabs \.chip-row\[aria-label='More choices'\] > \.chip \{ border-color: transparent; background: none;/, 'the pickers and Clear read as one quiet row');
+  assert.match(tabs, /\.ruler-tick \{\s+position: absolute;\s+inset-block-end: 24px;/, 'ticks sit in their own lane under the hour labels');
+  assert.match(tabs, /\.ruler-length \{\s+position: absolute;\s+inset-block-end: 8px;[^}]*block-size: 8px;/, 'the length bar sits in a lane under the ticks');
+  assert.match(tabs, /\.ruler-centre \{\s+position: absolute;\s+inset-block: 32px 8px;/, 'the playhead starts below the hour labels');
 });
 
 test('the wide task pane puts its icons on one row above a full-width title of at most two lines, with no band above the tools', () => {
@@ -68,4 +74,23 @@ test('while the task pane is open, the task card or chip on Today is outlined, a
   assert.match(wide, /#planner \.spine-card\[data-open\], #planner \.spine-chip\[data-open\] \{ outline: 2px solid var\(--primary\);/);
   assert.match(read('../../android-companion/planner/task-sheet.mjs'), /head\.row\.dataset\.task = String\(id\);/);
   assert.match(read('./main.mjs'), /markOpenCard\(\$\('workspace'\), \$\('sheet'\)\);/);
+});
+
+test('Alert and Repeat say Off and Once only on their tab; a second tap on the chosen choice turns it off', async () => {
+  const {ALERT_KINDS, REPEAT_PRESETS} = await import('../../android-companion/planner/task-tabs-model.mjs');
+  assert.deepEqual(ALERT_KINDS.map(([value]) => value), ['reminder', 'alarm']);
+  assert.deepEqual(REPEAT_PRESETS.map(([value]) => value), ['weekdays', 'daily', 'after']);
+  const tabs = read('../../android-companion/planner/task-tabs.mjs');
+  assert.match(tabs, /const next = kind\.getAttribute\('aria-pressed'\) === 'true' \? 'off' : value;/);
+  assert.match(tabs, /const next = chosen\.getAttribute\('aria-pressed'\) === 'true' \? 'once' : choice;/);
+});
+
+test('the Block list marks the chosen Block by its radio alone, checks a finished Block, and keeps each row to two lines of each', () => {
+  const tabs = read('../../android-companion/planner/task-tabs.mjs');
+  assert.match(tabs, /if \(choice\.id && choice\.total && choice\.done === choice\.total\) ring\.append\(finishedCheck\(\)\);/);
+  const css = read('../../android-companion/task-tabs.css');
+  assert.doesNotMatch(css, /\.block-choice\[aria-checked=true\] \{ background/, 'the chosen row has no fill on top of its check');
+  assert.match(css, /\.block-choice-title \{ display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;/);
+  assert.match(css, /\.block-choice-line \{ display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;/);
+  assert.match(read('../../android-companion/task-sheet.css'), /\.task-start \{ grid-column: 1 \/ -1; justify-self: start; margin: 0 0 var\(--s2\); \}/, 'Start now starts on the content edge');
 });
