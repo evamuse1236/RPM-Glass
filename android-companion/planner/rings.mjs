@@ -22,16 +22,17 @@ export function nestedRings(blocks) {
   });
 }
 
-/** A finished Project fills its open centre with a tonal disc and a check, so 5 of 5 never reads as an empty outline. */
+/** A finished Project draws a check in its open centre, as thin as an inner ring, so 5 of 5 reads as done without a
+ * filled shape that would outweigh the rings of Projects still running. */
 export function finishedMark(rings) {
   const inner = rings.at(-1), r = inner.r - inner.width / 2 - RING_GAP;
   const k = Math.min(r / 12, 1.2);
   const at = (x, y) => `${(32 + (x - 12) * k).toFixed(2)} ${(32 + (y - 12) * k).toFixed(2)}`;
-  return {r, check: `M${at(6.5, 12.5)}L${at(10, 16)}L${at(17.5, 8.5)}`, checkWidth: Math.max(1.5, k * 2)};
+  return {r, check: `M${at(6.5, 12.5)}L${at(10, 16)}L${at(17.5, 8.5)}`};
 }
 
 export function nestRings(blocks, label, {finished = false} = {}) {
-  const svg = node('svg', {class: 'nest-rings', viewBox: '0 0 64 64', role: 'img', 'aria-label': label});
+  const svg = node('svg', {class: finished ? 'nest-rings finished' : 'nest-rings', viewBox: '0 0 64 64', role: 'img', 'aria-label': label});
   const rings = nestedRings(blocks);
   for (const {r, width, fraction, opacity} of rings) {
     svg.append(node('circle', {cx: 32, cy: 32, r, 'stroke-width': width, class: 'nest-track'}));
@@ -41,9 +42,8 @@ export function nestRings(blocks, label, {finished = false} = {}) {
     }
   }
   if (finished && rings.length) {
-    const {r, check, checkWidth} = finishedMark(rings);
-    svg.append(node('circle', {cx: 32, cy: 32, r, class: 'nest-done'}),
-      node('path', {d: check, 'stroke-width': checkWidth, class: 'nest-check'}));
+    const {check} = finishedMark(rings);
+    svg.append(node('path', {d: check, 'stroke-width': INNER_WIDTH, class: 'nest-check'}));
   }
   return svg;
 }

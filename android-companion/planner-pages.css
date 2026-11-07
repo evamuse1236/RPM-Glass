@@ -54,16 +54,26 @@
 }
 .project-head:has(+ .next-task) .project-toggle { padding-block-end: var(--s1); }
 .project-card > .next-task { padding-inline: var(--s4); }
+/* With no deadline line, the Next task moves up under the title: the rings reach down beside it, so its words keep clear
+   of the rings' column (they wrap, never cut). */
+.project-card:not(:has(.card-due)) > .project-head:has(+ .next-task) .nest-rings { margin-block-end: calc(-1 * var(--s3)); }
+.project-card:not(:has(.card-due)) > .next-task { padding-inline-end: calc(56px + var(--touch) + var(--s3) + var(--s1)); }
 .project-toggle:active { background: var(--row-press); }
-.project-copy { flex: 1; display: grid; gap: 2px; min-inline-size: 0; }
+.project-copy { flex: 1; align-self: start; display: grid; gap: 2px; min-inline-size: 0; }
+/* With no Area the overline's line stays empty, so every card's title sits on the same line. */
+.project-copy:not(:has(> .project-area))::before { content: ""; block-size: 16px; }
 .project-area { font: var(--label-medium); color: color-mix(in oklch, var(--tone) 78%, var(--on-surface)); overflow-wrap: anywhere; }
 .project-open { flex: none; margin-inline-end: var(--s1); color: var(--on-surface-variant); }
-.nest-rings { flex: none; inline-size: 56px; block-size: 56px; }
+/* The rings may reach 4dp into the head's padding, so a card with no deadline line has no empty band under its title. */
+.nest-rings { flex: none; inline-size: 56px; block-size: 56px; margin-block: calc(-1 * var(--s1)); }
 .nest-rings circle { fill: none; }
 /* A ring's track is a dim band of its own colour (Activity rings), so every nested ring reads as one band, light or dark. */
 :is(.nest-track, .ring-track) { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-highest)); }
+/* A Project card's rings are thin and nested, so an empty one needs a stronger band than a lone Block ring to read. */
+.nest-rings .nest-track { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--nest-track-mix), var(--surface-container-highest)); }
 .nest-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; }
-.nest-rings .nest-done { fill: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container)); }
+/* A finished Project rests: its full rings sit in a calmer tone with a thin check, never heavier than one still running. */
+.nest-rings.finished .nest-value { stroke: color-mix(in oklch, var(--progress, var(--primary)) 64%, var(--surface-container)); }
 .nest-check { fill: none; stroke: var(--progress, var(--primary)); stroke-linecap: round; stroke-linejoin: round; }
 /* An open card lists its Blocks flat on the card under one divider, on the card's 16dp text edge. */
 .project-blocks { display: grid; grid-template-columns: minmax(0, 1fr); margin-inline: var(--s4); padding-block: var(--s1) var(--s2); border-block-start: 1px solid var(--outline-variant); }
@@ -109,6 +119,8 @@
 .card-when { min-inline-size: 0; }
 .card-tally { display: inline-flex; align-items: center; gap: var(--s1); flex: none; font: var(--label-medium); }
 .card-tally .ring { inline-size: 16px; block-size: 16px; }
+/* In a Project, "2/7" shares a line with a 14sp deadline or the Blocks heading, so it is set at that size, not as a footnote. */
+.block-line .card-tally, .section-header > .card-tally { font: var(--label-large); }
 .card-due, .fact-next, .nowrap, .must-left, .week-mark { white-space: nowrap; }
 .card-due.tight { color: var(--error); }
 .card-late { color: var(--error); white-space: nowrap; }

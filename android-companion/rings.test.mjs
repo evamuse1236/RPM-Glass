@@ -18,7 +18,7 @@ test('each Block ring\'s arc is its done/total, outermost first, fading inward',
   assert.equal(nestedRings(Array.from({length: 9}, () => ({done: 1, total: 2}))).length, MAX_RINGS);
 });
 
-test('every Project card\'s outer ring has one weight, inner rings are thinner with one gap, and a finished Project fills its centre', () => {
+test('every Project card\'s outer ring has one weight, inner rings are thinner with one gap, and a finished Project marks its open centre with a check', () => {
   const full = nestedRings(Array.from({length: MAX_RINGS}, () => ({done: 1, total: 2})));
   const [one] = nestedRings([{done: 1, total: 2}]);
   assert.deepEqual([one.r, one.width], [full[0].r, full[0].width], 'a one-Block ring is the outer ring of a full set');
@@ -30,7 +30,7 @@ test('every Project card\'s outer ring has one weight, inner rings are thinner w
   assert.ok(full.at(-1).r - full.at(-1).width / 2 >= 8, 'the innermost ring keeps an open centre');
   for (const rings of [full, [one]]) {
     const {r} = finishedMark(rings), inner = rings.at(-1);
-    assert.ok(r > 0 && r < inner.r - inner.width / 2, 'the finished disc sits inside the innermost ring');
+    assert.ok(r > 0 && r < inner.r - inner.width / 2, 'the finished check sits inside the innermost ring');
   }
 });
 
