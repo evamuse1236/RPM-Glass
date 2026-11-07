@@ -9,8 +9,8 @@
   border: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
   overflow: hidden;
 }
-/* A Block card is one filled surface, no outline (Material picks one), 8dp from the next. */
-.block-card { margin-block-start: var(--s2); border: 0; background: var(--surface-container); }
+/* Block and Project cards are one filled surface, no outline (Material picks one), 8dp from the next. */
+:is(.block-card, .project-card) { margin-block-start: var(--s2); border: 0; background: var(--surface-container); }
 .card-main {
   display: flex;
   flex-direction: column;
@@ -43,7 +43,7 @@
   overflow: hidden;
 }
 .card-meta { font: var(--body-small); color: var(--on-surface-variant); margin-top: 2px; }
-.project-head { display: flex; align-items: center; }
+.project-head { display: flex; align-items: flex-start; }
 .project-toggle {
   flex: 1;
   min-inline-size: 0;
@@ -52,22 +52,39 @@
   gap: var(--s4);
   padding: var(--s3) 0 var(--s3) var(--s3);
   border-radius: var(--card-radius) 0 0 var(--card-radius);
+  text-align: start;
 }
+/* The closed card ends on its Next task, on the words' edge under the rings. */
+.project-head:has(+ .next-task) .project-toggle { padding-block-end: 0; }
+.project-card > .next-task { padding-inline-start: calc(var(--s3) + 2 * var(--s8) + var(--s4)); }
 .project-toggle:active { background: var(--row-press); }
 .project-copy { display: grid; gap: 2px; min-inline-size: 0; }
 .project-area { font: var(--label-medium); color: color-mix(in oklch, var(--tone) 78%, var(--on-surface)); overflow-wrap: anywhere; }
-.project-open { flex: none; margin-inline-end: var(--s1); color: var(--on-surface-variant); }
+.project-open { flex: none; margin: var(--s2) var(--s1) 0 0; color: var(--on-surface-variant); }
 .nest-rings { flex: none; inline-size: 64px; block-size: 64px; }
 .nest-rings circle { fill: none; }
 /* A ring's track is a dim band of its own colour (Activity rings), so every nested ring reads as one band, light or dark. */
 :is(.nest-track, .ring-track) { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-highest)); }
 .nest-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; }
-/* A Project's empty tracks sit fainter than a Block ring's, so the done arcs carry the card's icon. */
-.nest-track { stroke-opacity: .55; }
-.nest-rings .nest-done { fill: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-low)); }
+.nest-rings .nest-done { fill: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container)); }
 .nest-check { fill: none; stroke: var(--progress, var(--primary)); stroke-linecap: round; stroke-linejoin: round; }
-/* An open card lists its Blocks flat on the card under one divider; each ring starts on the card ring's edge. */
-.project-blocks { display: grid; grid-template-columns: minmax(0, 1fr); margin-inline: var(--s3) var(--s6); padding-block: var(--s1) var(--s2); border-block-start: 1px solid var(--outline-variant); }
+/* An open card lists its Blocks flat on the card under one divider, on the card's 16dp text edge. */
+.project-blocks { display: grid; grid-template-columns: minmax(0, 1fr); margin-inline: var(--s4); padding-block: var(--s1) var(--s2); border-block-start: 1px solid var(--outline-variant); }
+/* A Block row: title with its ring at the end, one deadline line, then the Next task, as on a Block card. */
+.block-line { display: grid; grid-template-columns: minmax(0, 1fr); }
+.block-line-main { display: flex; flex-direction: column; padding: var(--s3) var(--s4) 0; text-align: start; }
+.block-line-main:only-child { padding-block-end: var(--s3); }
+.block-line-main:active, .project-blocks .next-title:active { background: var(--row-press); }
+:is(.block-line, .project-copy) .card-due { font: var(--body-medium); color: var(--on-surface-variant); }
+:is(.block-line, .project-copy) .card-due.tight { color: var(--error); }
+.project-blocks .block-line-main { padding-inline: 0; border-radius: var(--shape-sm); }
+.project-blocks .next-task { padding-inline: 0; }
+.project-blocks .block-line + .block-line { border-block-start: 1px solid var(--outline-variant); }
+/* Project detail: the Blocks sit in one filled group, split by dividers. */
+.block-lines { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0 var(--gutter); border-radius: var(--card-radius); background: var(--surface-container); overflow: clip; }
+.block-lines > .block-line + .block-line { border-block-start: 1px solid var(--outline-variant); }
+/* A Block with no tasks shows its ring as dots: there is nothing yet to count. */
+.ring.empty .ring-track { stroke-dasharray: 0 8.33; stroke-linecap: round; }
 .project-block {
   display: flex;
   align-items: center;
@@ -194,6 +211,8 @@
 .blocks-progress .ring { inline-size: 20px; block-size: 20px; }
 /* A Project's Purpose runs to the content edge. */
 #planner[data-view=projects] .purpose-text { text-wrap: pretty; }
+/* Project detail keeps one 16dp edge: the heart starts on it, as the Area's letter does on the line above. */
+#planner[data-view=projects] .block-facts > .fact-row { gap: var(--s3); padding-inline-start: var(--gutter); }
 #planner:is([data-view=areas], [data-view=goals]) :is(.purpose-text, .title-edit, .detail-title-text) { text-wrap: pretty; }
 /* Google Tasks detail rows: the 24dp icon centred on the Plan's check column, the text on the task titles. */
 .fact-row {

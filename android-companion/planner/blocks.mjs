@@ -141,19 +141,22 @@ export function blockCard(app, block, {focus = false, project = true} = {}) {
     + `${count}. ${week ? 'This week. ' : ''}Open Block`);
   card.append(main);
   const next = blockTasks(app.data(), block.id).find(task => !task.done);
-  if (next) {
-    const row = el('div', 'next-task');
-    const check = button('', () => toggleDone(app, next), 'task-check');
-    check.setAttribute('role', 'checkbox');
-    check.setAttribute('aria-checked', 'false');
-    check.setAttribute('aria-label', `Mark ${next.title} complete`);
-    check.append(el('span', 'check-ring'));
-    const open = button('', () => app.actions.openTask(next.id), 'next-title');
-    open.append(el('span', 'overline', 'Next'), el('span', 'next-words', next.title));
-    row.append(check, open);
-    card.append(row);
-  }
+  if (next) card.append(nextTaskRow(app, next));
   return card;
+}
+
+/** "Next" and the task on one line, with its 16dp check: the same row on Block cards and a Project's Block rows. */
+export function nextTaskRow(app, next) {
+  const row = el('div', 'next-task');
+  const check = button('', () => toggleDone(app, next), 'task-check');
+  check.setAttribute('role', 'checkbox');
+  check.setAttribute('aria-checked', 'false');
+  check.setAttribute('aria-label', `Mark ${next.title} complete`);
+  check.append(el('span', 'check-ring'));
+  const open = button('', () => app.actions.openTask(next.id), 'next-title');
+  open.append(el('span', 'overline', 'Next'), el('span', 'next-words', next.title));
+  row.append(check, open);
+  return row;
 }
 
 function filterChip(app, label, value, options, onSelect) {

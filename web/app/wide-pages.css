@@ -100,6 +100,9 @@
   #planner .project-block-count { flex: none; inline-size: 40px; text-align: end; }
   #planner :is(.project-block-name, .project-block-next) { overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
   #planner .project-block-next { font: var(--body-small); color: var(--on-surface-variant); }
+  /* Project detail uses its 720px column for two columns of Block rows, each its own filled tile. */
+  #planner[data-view=projects] .block-lines { grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: var(--s2); inline-size: min(100% - 2 * var(--gutter), var(--column) - 2 * var(--gutter)); min-inline-size: 0; margin-inline: auto; background: none; border-radius: 0; overflow: visible; }
+  #planner[data-view=projects] .block-lines > .block-line { min-inline-size: 0; border: 0; border-radius: var(--card-radius); background: var(--surface-container); overflow: clip; }
   #planner .list-item.nested { padding-inline-start: calc(var(--s8) + var(--s6)); }
   .planner-view > #sheet[data-inline] { --sheet-surface: light-dark(var(--surface-container-low), var(--surface-container)); }
   #planner:is([data-view=blocks], [data-view=projects], [data-view=life]) #planner-scroll {

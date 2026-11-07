@@ -4,7 +4,8 @@ import {el, icon, button, iconButton, labelButton, emptyState, sectionHeader} fr
 import {segmentRing, nestRings} from './rings.mjs';
 import {plural, doneStats} from './format.mjs';
 import {openMenu} from './menu.mjs';
-import {blockCard, purposePanel, notesPanel, titleField, finishDetail, byDeadline, progressRing} from './blocks.mjs';
+import {purposePanel, notesPanel, titleField, finishDetail, byDeadline, progressRing, deadline, nextTaskRow} from './blocks.mjs';
+import {resultStatus} from '../review-state.mjs';
 import {saveEntity, NO_ICON} from './inline-edit.mjs';
 
 export function projectTasks(app, project) {
@@ -24,56 +25,95 @@ export function toggleProject(state, id) {
   return state.projectOpen;
 }
 
-function blockRow(app, block, wide) {
+/**
+ * One Block as a compact row: the title with its ring at the end, one line with the deadline, then the Next task. The
+ * same row on an open Project card and on Project detail; the Purpose waits one tap away, on the Block.
+ */
+function blockLine(app, block) {
+  const status = resultStatus(app.data(), block.id);
+  const line = el('div', 'block-line');
+  line.dataset.key = 'block-line:' + block.id;
+  line.dataset.tone = app.tone(app.blockArea(block));
+  const main = button('', () => app.openBlock(block.id), 'block-line-main');
+  const count = status.total ? `${status.done} of ${plural(status.total, 'task')} done` : 'No tasks in the Plan yet';
+  const head = el('span', 'card-head');
+  // A Block with no tasks keeps its place in the ring column as a dotted empty ring.
+  const ring = progressRing(status.done, status.total, count);
+  ring.classList.toggle('empty', !status.total);
+  head.append(el('span', 'card-title', block.title), ring);
+  main.append(head);
+  const due = deadline(app.data(), block, status);
+  const words = due ? due.label : status.achieved ? 'Result achieved' : !status.total ? count : '';
+  if (words) {
+    const when = el('span', 'card-due tnum', words);
+    when.classList.toggle('tight', !!due?.tight);
+    main.append(when);
+  }
+  main.setAttribute('aria-label', `${block.title}, ${count}. ${due ? due.text + '. ' : ''}Open Block`);
+  line.append(main);
+  const next = status.achieved ? null : blockTasks(app.data(), block.id).find(task => !task.done);
+  if (next) line.append(nextTaskRow(app, next));
+  return line;
+}
+
+/** The wide list's Block chip: its segment ring, name and next task. */
+function blockRow(app, block) {
   const {done, total} = blockStats(app, block);
   const row = button('', () => app.openBlock(block.id), 'project-block');
   row.dataset.key = 'project-block:' + block.id;
   const name = el('span', 'project-block-name', block.title);
-  if (!wide) {
-    // The same continuous ring as the card's; a Block with no tasks keeps the hollow ring and shows no 0/0.
-    const ring = progressRing(done, total, '');
-    ring.setAttribute('aria-hidden', 'true');
-    row.append(ring, name, ...(total ? [el('span', 'project-block-count tnum', `${done}/${total}`)] : []));
-  } else {
-    const next = blockTasks(app.data(), block.id).find(task => !task.done);
-    const copy = el('span', 'project-block-copy');
-    // A finished Block's ring and count already say it is done, so its chip gives no second line.
-    copy.append(name, ...(next || !total ? [el('span', 'project-block-next', next?.title ?? 'No tasks yet')] : []));
-    row.title = block.title;
-    row.append(...(total ? [segmentRing(done, total), copy, el('span', 'project-block-count tnum', `${done}/${total}`)] : [copy]));
-  }
+  const next = blockTasks(app.data(), block.id).find(task => !task.done);
+  const copy = el('span', 'project-block-copy');
+  // A finished Block's ring and count already say it is done, so its chip gives no second line.
+  copy.append(name, ...(next || !total ? [el('span', 'project-block-next', next?.title ?? 'No tasks yet')] : []));
+  row.title = block.title;
+  row.append(...(total ? [segmentRing(done, total), copy, el('span', 'project-block-count tnum', `${done}/${total}`)] : [copy]));
   row.setAttribute('aria-label', `${block.title}, ${done} of ${plural(total, 'task')} done. Open Block`);
   return row;
 }
 
-function projectCard(app, project) {
-  const area = app.projectArea(project);
+/** What a Project card leads with: its soonest-due Block's deadline and the next open task (that Block's first). */
+function projectLead(app, project) {
   const {blocks, stats} = projectTasks(app, project);
   const ordered = byDeadline(app.data(), blocks);
+  const dated = ordered.map(block => [block, deadline(app.data(), block, resultStatus(app.data(), block.id))])
+    .find(([, due]) => due);
+  const open = block => blockTasks(app.data(), block.id).find(task => !task.done);
+  const next = (dated && open(dated[0])) ?? ordered.map(open).find(Boolean) ?? null;
+  return {blocks, stats, ordered, due: dated?.[1] ?? null, next, finished: stats.total > 0 && stats.done === stats.total};
+}
+
+function projectCard(app, project, lead = projectLead(app, project)) {
+  const area = app.projectArea(project);
+  const {stats, ordered, due, next, finished} = lead;
   const wide = Boolean(app.api.wide?.());
   const open = wide || app.state.projectOpen === project.id;
   const card = el('article', 'project-card' + (open ? ' open' : ''));
   card.dataset.projectId = project.id;
   card.dataset.tone = app.tone(area);
-  const meta = `${plural(blocks.length, 'Block')} · ${stats.done} of ${stats.total} tasks done`;
-  const finished = stats.total > 0 && stats.done === stats.total;
+  // The card says what is due first; the count stands in only when no Block has a deadline (the rings show it anyway).
+  const count = `${stats.done} of ${stats.total} tasks done`;
+  const meta = due ? `${due.text}. ${count}` : count;
   const toggle = wide ? button('', () => app.openProject(project.id), 'project-toggle')
     : button('', () => { toggleProject(app.state, project.id); app.render(); }, 'project-toggle');
   if (!wide) toggle.setAttribute('aria-expanded', String(open));
   toggle.setAttribute('aria-label', `${[project.title, area?.title].filter(Boolean).join(', ')}. ${meta}. ${wide ? 'Open Project' : open ? 'Hide Blocks' : 'Show Blocks'}`);
   const copy = el('span', 'project-copy');
   if (area) copy.append(el('span', 'project-area', area.title));
-  copy.append(el('span', 'card-title', project.title), el('span', 'card-meta tnum', meta));
-  toggle.append(nestRings(wide ? [stats] : ordered.map(block => blockStats(app, block)), `${stats.done} of ${stats.total} tasks done`,
-    {finished}), copy);
+  const when = el('span', 'card-due tnum', due ? due.label : count);
+  when.classList.toggle('tight', !!due?.tight);
+  copy.append(el('span', 'card-title', project.title), when);
+  toggle.append(nestRings(wide ? [stats] : ordered.map(block => blockStats(app, block)), count, {finished}), copy);
   const head = el('div', 'project-head');
   head.append(toggle);
   if (!wide) head.append(iconButton('chevron_right', `Open ${project.title}`, () => app.openProject(project.id), {cls: 'project-open'}));
   card.append(head);
+  // Closed, the card ends on the one task to do next; open, each Block row carries its own.
+  if (!open && next) card.append(nextTaskRow(app, next));
   if (open) {
     const list = el('div', 'project-blocks');
     list.dataset.key = 'project-blocks:' + project.id;
-    for (const block of ordered) list.append(blockRow(app, block, wide));
+    for (const block of ordered) list.append(wide ? blockRow(app, block) : blockLine(app, block));
     if (!ordered.length) list.append(el('p', 'quiet', 'No Blocks in this Project yet.'));
     card.append(list);
   }
@@ -94,7 +134,12 @@ export function renderProjects(app, page) {
   filters.append(chip);
   page.append(filters);
   const projects = app.p().projects.filter(pr => !state.projectFilter || app.projectArea(pr)?.id === state.projectFilter);
-  for (const project of projects) page.append(projectCard(app, project));
+  // Soonest due first, then Projects with no deadline, finished ones last; ties keep the user's order.
+  const rank = ({due, finished}) => [finished ? 2 : due ? 0 : 1, due?.at.getTime() ?? Infinity];
+  const leads = projects.map((project, i) => ({project, i, lead: projectLead(app, project)}))
+    .map(entry => ({...entry, key: rank(entry.lead)}))
+    .sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1] || a.i - b.i);
+  for (const {project, lead} of leads) page.append(projectCard(app, project, lead));
   if (!projects.length) {
     page.append(emptyState({symbol: 'folder', title: app.p().projects.length ? 'No Projects in this Area' : 'Connect your Blocks',
       body: 'A Project gives related Results a shared home.', action: () => app.actions.newEntity('projects'),
@@ -178,9 +223,13 @@ export function renderProjectDetail(app, page, project) {
   const header = sectionHeader('Blocks', progress);
   header.dataset.tone = app.tone(area);
   page.append(header);
-  // The page already names the Project, so its Block cards leave that line out.
-  for (const block of byDeadline(app.data(), blocks)) page.append(blockCard(app, block, {project: false}));
-  if (!blocks.length) page.append(el('p', 'quiet', 'No Blocks in this Project yet.'));
+  // Compact Block rows, soonest due first; each opens its Block, where the Purpose and Plan live.
+  if (blocks.length) {
+    const list = el('div', 'block-lines');
+    list.dataset.key = 'block-lines:' + project.id;
+    for (const block of byDeadline(app.data(), blocks)) list.append(blockLine(app, block));
+    page.append(list);
+  } else page.append(el('p', 'quiet', 'No Blocks in this Project yet.'));
   page.append(labelButton('add', 'Add Block', () => app.actions.newEntity('blocks', {projectId: project.id}),
     'outlined-btn wide'));
   finishDetail(app, page);
