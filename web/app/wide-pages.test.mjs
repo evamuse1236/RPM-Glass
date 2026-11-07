@@ -48,7 +48,7 @@ test('on wide Life puts the wheel on the left and each Area with its rating and 
   assert.match(source, /if \(areas\.length && app\.api\.wide\?\.\(\)\) \{\n    page\.append\(areaGoals\(app, areas, loose\)\);/);
   assert.match(source, /`\$\{area\.rating\} \/ 10`/);
   const css = read('./wide-pages.css');
-  assert.match(css, /\.page:has\(> \.life-areas\) \{\n    display: grid;\n    grid-template-columns: minmax\(0, 480px\) minmax\(0, 1fr\);/);
+  assert.match(css, /\.page:has\(> \.life-areas\) \{\n    display: grid;\n    grid-template-columns: minmax\(0, 560px\) minmax\(360px, 1fr\);/);
   assert.doesNotMatch(read('../../android-companion/planner/life-wheel.mjs'), /wheel-area\b/, 'the Areas list under the wheel is the one way to an Area, so the wheel card has no second row of Area chips');
   const start = source.indexOf('function areaGoals');
   const goals = source.slice(start, source.indexOf('\nfunction', start + 1));
@@ -61,9 +61,9 @@ test('on wide Life puts the wheel on the left and each Area with its rating and 
   assert.match(goals, /track\.append\(ratingInput\(app, area, rating => \{ value\.textContent = rating; \}\), ratingTicks\(\)\);/);
   assert.match(css, /\.life-track \.rating-slider\.unrated \+ \.rating-ticks \{ opacity: 1; \}/);
   assert.doesNotMatch(css, /\.rating-slider:not\(\.unrated\)/, 'the wheel and its column keep one size whether or not an Area is rated, so the first rating never moves the layout');
-  assert.match(css, /#planner \.wheel-plot \{ inline-size: min\(100% - 128px, 360px\); \}/);
+  assert.match(css, /#planner \.wheel-plot \{ inline-size: min\(100% - 128px, 420px\); \}/);
   const wheel = read('../../android-companion/planner/life-wheel.mjs');
-  assert.doesNotMatch(wheel, /wheel-hint|to rate'/, 'no drag instruction on any width: each wedge shows its own handle');
+  assert.match(wheel, /areas\.length && areas\.every\(a => a\.rating == null\)\) card\.append\(el\('p', 'wheel-hint'/, 'the drag hint shows only while no Area is rated');
   assert.doesNotMatch(wheel, /'–'/, 'an unrated wheel shows no stand-in value in its centre');
   assert.equal(wheel.match(/averageOf\(areas\.map\([^;]*\?\? ''/g)?.length, 2, 'the centre shows the average of rated Areas or nothing');
   assert.match(read('../../android-companion/life-wheel.css'), /\.wheel-average:empty \{ display: none; \}/);

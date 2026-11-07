@@ -319,6 +319,8 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
 .values-card p { font: var(--body-large); }
 .area-head { display: flex; align-items: center; gap: var(--s1); padding: var(--s3) 0 0 var(--gutter); }
 .area-head .detail-title-text { flex: 1; min-width: 0; padding-left: var(--s1); }
+/* The title's line box hangs below its letters; lifting the avatar by half the margin centres it on the word. */
+.area-head > .avatar { margin-block-end: var(--s2); }
 /* The Area's rating is a row like the Purpose above it: its icon in the icon column, the track on the text edge and
    the value at the end. */
 .rating-row {
@@ -330,8 +332,8 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
 }
 .rating-row > .ms { grid-column: 1; grid-row: 1; color: var(--on-surface-variant); }
 .rating-row > :is(.rating-slider, .rating-ticks) { grid-column: 2; grid-row: 1; }
-.rating-row strong { grid-column: 3; grid-row: 1; min-inline-size: var(--s8); font: var(--title-medium); text-align: end; }
-.rating-row .rating-slider.unrated ~ strong { color: var(--on-surface-variant); font-weight: 400; }
+.rating-row strong { grid-column: 3; grid-row: 1; min-inline-size: 4.5rem; font: var(--title-medium); text-align: end; }
+.rating-row .rating-slider.unrated ~ strong { color: var(--on-surface-variant); font: var(--body-medium); }
 /* M3 slider in the Area's colour: one active-track colour whether resting or dragged, a 20dp handle, 48dp target.
    Unrated: the whole track is inactive and there is no handle until the first touch. */
 .rating-slider {
@@ -403,8 +405,17 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
   background: var(--active);
   box-shadow: 0 0 0 4px var(--gap);
 }
-:is(.rating-row, .life-track) .rating-slider.unrated::-webkit-slider-thumb { background: var(--outline); box-shadow: 0 0 0 4px var(--gap); }
-:is(.rating-row, .life-track) .rating-slider.unrated::-moz-range-thumb { background: var(--outline); box-shadow: 0 0 0 4px var(--gap); }
+/* Unrated, the handle is a hollow capsule: something to pull, not a value at 0. */
+:is(.rating-row, .life-track) .rating-slider.unrated::-webkit-slider-thumb {
+  width: 8px;
+  background: var(--gap);
+  box-shadow: inset 0 0 0 2px var(--outline), 0 0 0 4px var(--gap);
+}
+:is(.rating-row, .life-track) .rating-slider.unrated::-moz-range-thumb {
+  width: 8px;
+  background: var(--gap);
+  box-shadow: inset 0 0 0 2px var(--outline), 0 0 0 4px var(--gap);
+}
 :is(.rating-row, .life-track) .rating-ticks { padding: 0; }
 :is(.rating-row, .life-track) .rating-slider:is(:active, :focus-visible)::-webkit-slider-thumb {
   box-shadow: 0 0 0 4px var(--gap), 0 0 0 8px color-mix(in oklch, var(--active) 24%, transparent);

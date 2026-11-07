@@ -29,11 +29,11 @@
   #planner .tab { flex: 0 0 auto; text-align: center; }
   #planner .tab[aria-selected=true]::after { inset-inline: var(--s4); }
 
-  #planner .wheel-plot { inline-size: min(100% - 128px, 360px); }
+  #planner .wheel-plot { inline-size: min(100% - 128px, 420px); }
 
   #planner .page:has(> .life-areas) {
     display: grid;
-    grid-template-columns: minmax(0, 480px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 560px) minmax(360px, 1fr);
     column-gap: var(--s4);
     align-content: start;
   }
@@ -74,7 +74,7 @@
   #planner .life-track .rating-slider.unrated + .rating-ticks { opacity: 1; }
   #planner .life-track .rating-slider.unrated + .rating-ticks i { background: var(--outline-variant); }
   #planner .wheel-label b { display: none; }
-  #planner .life-rating { font: var(--title-small); text-align: end; }
+  #planner .life-rating { font: var(--title-medium); text-align: end; }
   #planner .life-area-group > .list-item.nested { gap: var(--s4); padding-block: var(--s2); padding-inline-start: calc(var(--gutter) + var(--s8) + var(--s2) + var(--s4)); }
 
   .planner-view #planner[data-view=projects] .page > .project-card {

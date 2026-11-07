@@ -190,13 +190,13 @@ function ratingTicks() {
 }
 
 /** The Area's rating as one row under its Purpose, like it: an icon in the icon column, the track on the text edge
- * with its handle parked at the start until rated, and the value at the end ("—" until rated). */
+ * with a hollow handle parked at the start until rated, and the value in the chevron column ("Not rated" until then). */
 function ratingSlider(app, area) {
   const row = el('div', 'rating-row');
   row.dataset.tone = app.tone(area);
   const icon = el('span', 'ms', 'speed');
   icon.setAttribute('aria-hidden', 'true');
-  const output = el('strong', 'tnum', area.rating == null ? '—' : `${area.rating} / 10`);
+  const output = el('strong', 'tnum', area.rating == null ? 'Not rated' : `${area.rating} / 10`);
   output.setAttribute('aria-hidden', 'true');
   const input = ratingInput(app, area, value => { output.textContent = `${value} / 10`; });
   row.append(icon, input, ratingTicks(), output);
@@ -298,7 +298,7 @@ export function renderGoalDetail(app, page, goal) {
   const notes = notesPanel(app, 'goals', goal);
   if (notes) facts.append(notes);
   page.append(facts);
-  // Each Project shows its ring, its Result and its count; with two or more the header adds them up.
+  // Each Project shows its ring (which names its count) and its Result; with two or more the header adds them up.
   const projects = app.p().projects.filter(pr => pr.goalId === goal.id).map(project => ({project, ...projectTasks(app, project)}));
   const all = projects.reduce((sum, {stats}) => ({done: sum.done + stats.done, total: sum.total + stats.total}), {done: 0, total: 0});
   const header = sectionHeader('Projects', projects.length > 1 && all.total ? taskProgress(all) : null);
@@ -310,7 +310,6 @@ export function renderGoalDetail(app, page, goal) {
     const count = stats.total ? `${stats.done} of ${plural(stats.total, 'task')} done` : 'No tasks yet';
     const row = listItem({leading: progressRing(stats.done, stats.total, count), headline: project.title,
       supporting: project.purpose, trailing: 'chevron_right', onClick: () => app.openProject(project.id)});
-    row.querySelector('.list-copy').append(el('span', 'list-supporting goal-project-count tnum', count));
     list.append(row);
   }
   list.append(addRow('Add Project', () => app.actions.newEntity('projects', {goalId: goal.id})));
