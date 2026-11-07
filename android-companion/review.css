@@ -54,8 +54,10 @@
 /* A checkbox that puts a Result in this week's Results: Carry (step 1) and Pick (step 4) look and work the same */
 
 /* One facts line, as the Blocks list writes it; each fact stays whole */
-.wr-facts{font:var(--body-medium);color:var(--on-surface-variant);text-wrap:pretty}
+.wr-facts{display:flex;flex-wrap:wrap;column-gap:12px;overflow:clip;font:var(--body-medium);color:var(--on-surface-variant)}
+/* Each fact's dot sits in the gap before it; a fact that starts a line has its dot clipped, so no line ends on "·". */
 .wr-facts>*{white-space:nowrap}
+.wr-facts>*::before{content:"·" / "";display:inline-block;inline-size:12px;margin-inline-start:-12px;text-align:center}
 .wr-due-text{font-weight:400;color:inherit}
 .wr-must-fact .ms{font-size:16px;vertical-align:-3px;margin-right:2px}
 
@@ -155,18 +157,18 @@
 .wr-sort-list{overflow:clip}
 .wr-sort{position:relative;background-color:var(--surface-container)}
 .wr-sort+.wr-sort{border-top:1px solid var(--outline-variant)}
-.wr-sort-body{display:grid;grid-template-columns:minmax(0,1fr)}
-.wr-sort-body>*{grid-area:1/1}
+.wr-sort-body{display:flex;flex-direction:column}
 .wr .wr-sort-row{flex:1;display:flex;align-items:center;gap:8px;min-inline-size:0;min-block-size:56px;padding:8px 12px 8px 16px;border:0;border-radius:0;background-color:transparent;color:var(--on-surface);font:inherit;text-align:start}
 .wr-sort:first-child .wr-sort-row{border-start-start-radius:20px;border-start-end-radius:20px}
 .wr-sort:last-child .wr-sort-row{border-end-start-radius:20px;border-end-end-radius:20px}
 .wr-sort-row>.ms{flex:none;color:var(--on-surface-variant)}
 .wr-sort-text{flex:1;display:flex;flex-direction:column;gap:4px;min-inline-size:0}
-/* A suggested row keeps the one row shape (title, chevron); its Result sits under the title as an assist chip */
-.wr .wr-sort-row.suggested{align-items:start;padding-block:12px 56px}
-.wr-sort-row.suggested>.ms{align-self:center}
-.wr .wr-sort-take{align-self:end;justify-self:start;max-inline-size:calc(100% - 72px);margin:0 0 12px 16px;color:var(--on-surface)}
-.wr-sort-take .ms{color:var(--primary)}
+/* A suggested row keeps the one row shape (title, chevron on its first line); its Result follows as a quiet
+   "+ Block" action, whose long Block name takes a second line rather than being cut. */
+.wr .wr-sort-row.suggested{align-items:start;min-block-size:48px;padding-block:12px 4px}
+.wr .wr-sort-take{align-self:start;max-inline-size:calc(100% - 24px);margin-block:0 8px;margin-inline:8px 16px;padding-block:4px;padding-inline:8px 12px;border-color:transparent;border-radius:var(--shape-full);color:var(--primary)}
+.wr-sort-take .ms{margin:0}
+.wr-sort-take .wr-label{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;text-wrap:pretty}
 /* The first suggested row slides once to show its swipe, then settles */
 @media (prefers-reduced-motion:no-preference){
   .wr .swipe-peek>:not(.swipe-reveal),.wr .swipe-peek::before{transition:transform var(--dur-medium4) var(--ease-emphasized)}

@@ -84,10 +84,9 @@ export function sectionHead(title, count, action = null) {
   if (action) row.append(action);
   return row;
 }
-/** One facts line, as the Blocks list writes it: parts joined by " · ", each kept whole, a line only breaking after a dot. */
+/** One facts line: each part kept whole; review.css draws the " · " between parts, never at a line end. */
 export function factsLine(parts) {
-  const nodes = parts.filter(Boolean).map(part => (typeof part === 'string' ? el('span', '', part) : part));
-  return nodes.flatMap((node, i) => (i < nodes.length - 1 ? [node, '\u00a0· '] : [node]));
+  return parts.filter(Boolean).map(part => (typeof part === 'string' ? el('span', '', part) : part));
 }
 /** The deadline in the words every card uses ("Due tomorrow 11:00 PM"), in medium weight; error colour once past. */
 export function dueFact(value, now) {

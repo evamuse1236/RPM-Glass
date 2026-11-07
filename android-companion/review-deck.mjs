@@ -119,8 +119,9 @@ function deckCard(api, summary, result) {
 
 /** How far a Result got, as a ring (a filled disc once every task is done) and the words it reads as. */
 export function resultRing(result) {
-  const words = result.total ? `${result.done} of ${plural(result.total, 'task')} done` : 'No tasks';
-  const ring = result.total && result.done === result.total ? doneDisc(words) : progressRing(result.done, result.total, words);
+  const words = result.total ? `${result.done} of ${result.total} done` : 'No tasks';
+  const said = result.total ? `${result.done} of ${plural(result.total, 'task')} done` : words;
+  const ring = result.total && result.done === result.total ? doneDisc(said) : progressRing(result.done, result.total, said);
   return {ring, words};
 }
 

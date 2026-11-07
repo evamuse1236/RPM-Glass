@@ -37,10 +37,10 @@ export function stepOne(api) {
  * card keeps the one action. */
 function upNext(api, rest, running) {
   const parts = [];
-  if (rest.length) parts.push(sectionHead('Up next', rest.length), queueList('Up next', rest.map(result => queueRow(result, []))));
+  if (rest.length) parts.push(sectionHead('Next to judge', rest.length), queueList('Next to judge', rest.map(result => queueRow(result))));
   if (running.length) {
     const rows = running.map(result => queueRow(result, [dueFact(result.due, api.now()), mustFact(result.mustMinutes)]));
-    parts.push(sectionHead('Still running', running.length), queueList('Still running', rows));
+    parts.push(sectionHead('Not due yet', running.length), queueList('Not due yet', rows));
   }
   return parts;
 }
@@ -52,13 +52,13 @@ function queueList(label, rows) {
   return list;
 }
 
-function queueRow(result, facts) {
+function queueRow(result, facts = []) {
   const item = el('li', 'wr-queue-row');
   item.dataset.key = 'queue:' + result.blockId;
   const {ring, words} = resultRing(result);
   const text = el('span', 'wr-decided-text');
   const meta = el('span', 'wr-facts tnum');
-  meta.append(...factsLine([words, ...facts]));
+  meta.append(...factsLine([...facts, words]));
   text.append(el('span', 'wr-decided-title', result.title), meta);
   item.append(ring, text);
   return item;
@@ -100,7 +100,7 @@ function verdictRow(api, summary, result, facts) {
   return row;
 }
 
-const taskCount = result => (result.total ? `${result.done} of ${plural(result.total, 'task')} done` : 'No tasks');
+const taskCount = result => (result.total ? `${result.done} of ${result.total} done` : 'No tasks');
 
 /** Partly and Not yet, one compact row each: the coloured verdict icon, the title, and how far it got. */
 function decidedList(api, summary, results) {

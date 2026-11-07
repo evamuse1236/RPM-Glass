@@ -157,6 +157,11 @@ function renderReview(root, api, ctx) {
     content = el('div', 'wr-content');
     body.append(content);
     keepEndClearOfSnackbar(body);
+    // On the website the footer follows short content up, so the snackbar's place is measured whenever the body resizes.
+    new ResizeObserver(() => {
+      const footNow = root.querySelector(':scope > .wr-foot');
+      if (footNow) measureFoot(footNow);
+    }).observe(body);
   }
   const active = root.contains(document.activeElement) ? document.activeElement.dataset.key : null;
   const stepChange = ui.stepChanged && !first;
@@ -256,7 +261,10 @@ function keepEndClearOfSnackbar(body) {
  * Built once and updated in place, so they never flash or replay while the step body changes under them. */
 /** The snackbar's gap to the window's bottom edge: the footer and whatever sits below it (the gesture inset). */
 function measureFoot(foot) {
-  document.documentElement.style.setProperty('--wr-foot', Math.round(innerHeight - foot.getBoundingClientRect().top) + 'px');
+  const style = document.documentElement.style;
+  style.setProperty('--wr-foot', Math.round(innerHeight - foot.getBoundingClientRect().top) + 'px');
+  const next = foot.querySelector(':scope > .wr-next') ?? foot;
+  style.setProperty('--wr-next-end', Math.round(innerWidth - next.getBoundingClientRect().right) + 'px');
 }
 
 function topBar(api, existing = null) {
