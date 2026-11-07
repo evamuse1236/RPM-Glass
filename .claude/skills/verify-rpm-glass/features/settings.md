@@ -9,7 +9,7 @@ Settings is a short home list of grouped cards. Each row opens one page on the p
 - `settings-appearance` sets the theme (System, Light, Dark segments) and tab bar transparency.
 - `settings-notch` switches the notch and the floating butterfly (see the floating butterfly file) and sets widget text size.
 - `settings-alerts` shows alarm sound, play, reminder sound, notifications, exact alarms and `Check saved alerts`.
-- `settings-voice` connects the Gemini key and picks voice and persona.
+- `settings-voice` connects the Gemini key (in AI keys) and picks voice and persona.
 - `settings-ai-keys` connects, replaces or removes the Claude and OpenRouter keys through native dialogs.
 - `settings-sync` links a web browser and offers export, import and restore.
 - `settings-diagnostics` shows diagnostics status, the connect dialog and recent captures.
@@ -42,7 +42,7 @@ Steps:
   - `rpmctl tap --name "Alarm sound"`: status `Choose an alarm sound on your phone.` and a native dialog with `Choose phone tone`, `Choose audio file`, `Use phone default` (`rpmctl ui --native`).
   - `rpmctl tap --name "Play alarm sound"`: status `Playing the alarm sound for 5 seconds.` and the row becomes `Stop alarm sound`. Sound is **UNVERIFIED** on the `-no-audio` emulator.
   - `Notifications` and `Exact alarms` open Android screens; return with `rpmctl key back`.
-- **Voice.** `Gemini key` (`Not set` or `Connected`), then `Voice` and `Persona`. `Voice` opens the voice dialog; a tap on a voice saves it and plays its sample. With a key, a red `Remove Gemini key` sits in its own card at the end.
+- **Voice.** Without a key, `Gemini key` (`Add in AI keys`) opens AI keys; then `Voice` and `Persona`. `Voice` opens the voice dialog; a tap on a voice saves it and plays its sample. The key itself is set and removed in **AI keys** (`Gemini`, red `Remove Gemini key` last).
 - **AI keys.** `Claude` and `OpenRouter`, each `Not set` or `Connected`. Tapping opens the native key dialog; cancel it. Remove rows show only for connected keys, in a separate card, in red.
 - **Sync & backup.** `Link a web browser`, then a `Backup` group: `Export`, `Import`, `Restore a backup` (`None`). `Import` shows a native dialog `Replace this companion's context?`; cancel it. `Export` opens a system file picker; cancel with `rpmctl key back`.
 - **Diagnostics.** Not connected: one row `Connect diagnostics` that opens a native dialog asking for a 32-character code; cancel it. Below, once a capture exists, a card `Recent captures (N)` that expands (tap with `--css ".settings-details summary"`). Pairing is **UNVERIFIED**.

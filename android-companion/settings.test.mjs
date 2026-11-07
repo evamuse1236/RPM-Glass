@@ -40,12 +40,12 @@ test('a blocked alarm permission is said once: one red row above the list names 
   const home=await mounted({notificationsAllowed:true,exactAlarmsAllowed:false});
   assert.equal(home.labels[0],'Alarms may not ring');
   assert.equal(home.rows[0].dataset.tone,'error');
-  assert.equal(home.rows[0].querySelector('.settings-detail').textContent,'Allow exact alarms so they ring on time');
+  assert.equal(home.rows[0].querySelector('.settings-detail').textContent,'Allow exact alarms');
   const row=home.rows.findLast(r=>r.dataset.action==='open_alerts');
   assert.equal(row.dataset.tone,undefined);
   assert.equal(row.querySelector('.settings-value'),null);
   const both=await mounted({});
-  assert.equal(both.rows[0].querySelector('.settings-detail').textContent,'Allow notifications and exact alarms so they ring on time');
+  assert.equal(both.rows[0].querySelector('.settings-detail').textContent,'Allow notifications and exact alarms');
   const fine=await mounted({notificationsAllowed:true,exactAlarmsAllowed:true});
   assert.notEqual(fine.labels[0],'Alarms may not ring');
   home.rows[0].click();
@@ -71,4 +71,21 @@ test('remove rows show only for connected keys, last, in red',async()=>{
   const last=one.rows.at(-1);
   assert.equal(last.dataset.action,'remove_claude_key');
   assert.equal(last.dataset.tone,'error');
+});
+
+test('every key lives once, in AI keys; Voice without a Gemini key links there and says the mic uses dictation',async()=>{
+  const voice=await mounted({},'voice');
+  const key=voice.rows.find(r=>r.dataset.action==='open_ai');
+  assert.equal(key.querySelector('.settings-value').textContent,'Add in AI keys');
+  assert.match(voice.host.querySelector('.settings-caption').textContent,/Android dictation/);
+  assert.ok(!voice.rows.some(r=>/gemini_key$/.test(r.dataset.action)));
+  key.click();
+  assert.deepEqual(voice.opened,['ai']);
+  const keyed=await mounted({hasGeminiKey:true},'voice');
+  assert.deepEqual(keyed.labels,['Voice','Persona']);
+  const ai=await mounted({hasGeminiKey:true},'ai');
+  assert.ok(ai.rows.some(r=>r.dataset.action==='connect_gemini_key'));
+  assert.equal(ai.rows.at(-1).dataset.action,'remove_gemini_key');
+  const home=await mounted({notificationsAllowed:true,exactAlarmsAllowed:true,hasGeminiKey:true});
+  assert.equal(home.rows.find(r=>r.dataset.action==='open_ai').querySelector('.settings-value').textContent,'Gemini');
 });

@@ -3,7 +3,7 @@ import {automationPreview} from './automation-preview-ui.mjs';
 import {captureTraces} from './settings-traces.mjs';
 import {voiceChoice,setVoice,setPersona,voiceDialog,personaDialog} from './voice-choice.mjs';
 import {clarityPreferences,setClarityPreference,transparencyRow,THEME_NAMES} from './planner-clarity.mjs';
-import {el, safeScale, row, group, add, slider, segmented} from './settings-parts.mjs';
+import {el, safeScale, row, group, add, slider, segmented, symbol} from './settings-parts.mjs';
 
 /** The pages Settings opens, in home order. `tone` picks the icon tile colour. */
 export const SETTINGS_PAGES = Object.freeze({
@@ -22,7 +22,7 @@ const HOME_GROUPS = [['appearance', 'notch'], ['alerts', 'voice', 'ai'], ['sync'
 const alarmsOff = s => [!s.notificationsAllowed && 'notifications', !s.exactAlarmsAllowed && 'exact alarms'].filter(Boolean);
 const alarmsBlocked = s => alarmsOff(s).length > 0;
 const notchWaiting = s => !!s.notchOn && !s.notchServiceOn;
-const connectedKeys = s => [s.claudeKey && 'Claude', s.openRouterKey && 'OpenRouter'].filter(Boolean);
+const connectedKeys = s => [s.claudeKey && 'Claude', s.openRouterKey && 'OpenRouter', s.hasGeminiKey && 'Gemini'].filter(Boolean);
 
 /** What each home row says on its right: the one fact worth seeing before opening the page. */
 function homeValue(ctx, page) {
@@ -41,7 +41,7 @@ export function homePage(ctx) {
   const s = ctx.state;
   const sections = [];
   const problems = [];
-  if (alarmsBlocked(s)) problems.push({page: 'alerts', label: 'Alarms may not ring', detail: `Allow ${alarmsOff(s).join(' and ')} so they ring on time`});
+  if (alarmsBlocked(s)) problems.push({page: 'alerts', label: 'Alarms may not ring', detail: `Allow ${alarmsOff(s).join(' and ')}`});
   if (notchWaiting(s)) problems.push({page: 'notch', label: 'The notch is waiting for Android', detail: 'Allow RPM Notch to show it'});
   if (problems.length) {
     const attention = group('', {id: 'attention'});
@@ -109,10 +109,10 @@ const permission = allowed => allowed ? {value: 'Allowed'} : {value: 'Allow', to
 function alertsPage(ctx) {
   const s = ctx.state;
   const allowed = group('Permissions', {id: 'permissions',
-    caption: 'Battery saving can delay reminders. Keep RPM installed for saved alarms to ring.'});
+    caption: 'Battery saving can delay reminders.'});
   add(ctx, allowed, {label: 'Notifications', detail: 'For reminders and ringing alarms', ...permission(s.notificationsAllowed), action: 'notifications'});
   add(ctx, allowed, {label: 'Exact alarms', detail: 'For alarms at the chosen minute', ...permission(s.exactAlarmsAllowed), action: 'exact_alarms'});
-  add(ctx, allowed, {label: 'Check saved alerts', detail: 'Schedule them again after a permission change', action: 'check_alerts', trail: 'refresh'});
+  add(ctx, allowed, {label: 'Check saved alerts', detail: 'Run after a permission change', action: 'check_alerts', trail: 'refresh'});
   const sounds = group('Sounds', {id: 'sounds'});
   add(ctx, sounds, {label: 'Alarm sound', value: s.alarmSound, action: 'choose_alarm', next: true});
   add(ctx, sounds, {label: s.previewing ? 'Stop alarm sound' : 'Play alarm sound', detail: s.previewing ? 'Playing at alarm volume' : '5 seconds at alarm volume',
@@ -121,13 +121,19 @@ function alertsPage(ctx) {
   return [allowed, sounds];
 }
 
-/** Voice and persona live on this phone, not in native settings; each opens an M3 dialog and saves at once. */
+/** Voice and persona live on this phone, not in native settings; each opens an M3 dialog and saves at once.
+ *  The Gemini key lives once, in AI keys; with none, a row links there and a caption says what the mic does meanwhile. */
 function voicePage(ctx) {
   const s = ctx.state;
   const {voice, persona} = voiceChoice();
-  const key = group('', {id: 'voice-key'});
-  add(ctx, key, {label: 'Gemini key', detail: s.hasGeminiKey ? '' : 'Without it, the mic uses Android dictation',
-    value: s.hasGeminiKey ? 'Connected' : 'Not set', action: 'connect_gemini_key', next: true});
+  const sections = [];
+  if (!s.hasGeminiKey) {
+    const key = group('', {id: 'voice-key', caption: 'Until then, the mic uses Android dictation.'});
+    const keyRow = row({label: 'Gemini key', value: 'Add in AI keys', action: 'open_ai', next: true});
+    keyRow.addEventListener('click', () => ctx.options.openPage?.('ai'));
+    key.card.append(keyRow);
+    sections.push(key);
+  }
   const open = dialog => { document.body.append(dialog); dialog.showModal(); };
   const sound = group('', {id: 'voice'});
   const voiceRow = row({label: 'Voice', value: voice ?? 'Default', action: 'voice_name', next: true});
@@ -136,26 +142,24 @@ function voicePage(ctx) {
   if (persona) personaRow.querySelector('.settings-detail')?.classList.add('settings-clamp');
   personaRow.addEventListener('click', () => open(personaDialog(document, persona, next => { setPersona(next); ctx.render(ctx); })));
   sound.card.append(voiceRow, personaRow);
-  const sections = [key, sound];
-  if (s.hasGeminiKey) {
-    const remove = group();
-    add(ctx, remove, {label: 'Remove Gemini key', detail: 'The mic goes back to Android dictation', tone: 'error', action: 'remove_gemini_key'});
-    sections.push(remove);
-  }
+  sections.push(sound);
   return sections;
 }
 
+/** Every key in one place: what each one does, and Connected or Not set. */
 function aiPage(ctx) {
   const s = ctx.state;
   const keys = group('', {id: 'ai'});
   const state = on => on ? 'Connected' : 'Not set';
   add(ctx, keys, {label: 'Claude', detail: 'Capture asks Claude first', value: state(s.claudeKey), action: 'connect_claude_key', next: true});
   add(ctx, keys, {label: 'OpenRouter', detail: 'Backup, suggestions and Jev sorting', value: state(s.openRouterKey), action: 'connect_openrouter_key', next: true});
+  add(ctx, keys, {label: 'Gemini', detail: 'Talk to RPM by voice', value: state(s.hasGeminiKey), action: 'connect_gemini_key', next: true});
   const sections = [keys];
-  if (s.claudeKey || s.openRouterKey) {
+  if (s.claudeKey || s.openRouterKey || s.hasGeminiKey) {
     const remove = group('', {caption: 'Plans and conversations stay on this phone.'});
     if (s.claudeKey) add(ctx, remove, {label: 'Remove Claude key', tone: 'error', action: 'remove_claude_key'});
     if (s.openRouterKey) add(ctx, remove, {label: 'Remove OpenRouter key', tone: 'error', action: 'remove_openrouter_key'});
+    if (s.hasGeminiKey) add(ctx, remove, {label: 'Remove Gemini key', detail: 'The mic goes back to Android dictation', tone: 'error', action: 'remove_gemini_key'});
     sections.push(remove);
   }
   return sections;
@@ -226,5 +230,8 @@ export function phoneOnlyPage(ctx, text) {
     node.addEventListener('click', () => ctx.options.openPage?.(page));
     section.card.append(node);
   }
+  const note = section.querySelector('.settings-caption');
+  note.classList.add('settings-footnote');
+  note.prepend(symbol('smartphone'));
   return [section];
 }
