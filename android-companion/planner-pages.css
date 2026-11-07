@@ -54,16 +54,16 @@
 .nest-rings { flex: none; inline-size: 64px; block-size: 64px; }
 .nest-rings circle { fill: none; }
 /* A ring's track is a dim band of its own colour (Activity rings), so every nested ring reads as one band, light or dark. */
-:is(.nest-track, .ring-track) { stroke: color-mix(in oklch, var(--progress, var(--primary)) 22%, var(--surface-container-highest)); }
+:is(.nest-track, .ring-track) { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-highest)); }
 .nest-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; }
 /* An open card lists its Blocks flat on the card under one divider; each ring starts on the card ring's edge. */
-.project-blocks { display: grid; margin-inline: var(--s3); padding-block: var(--s1) var(--s2); border-block-start: 1px solid var(--outline-variant); }
+.project-blocks { display: grid; grid-template-columns: minmax(0, 1fr); margin-inline: var(--s3) var(--s6); padding-block: var(--s1) var(--s2); border-block-start: 1px solid var(--outline-variant); }
 .project-block {
   display: flex;
   align-items: center;
   gap: var(--s3);
   min-block-size: 48px;
-  padding: var(--s1) var(--s1) var(--s1) 0;
+  padding-block: var(--s1);
   border-radius: var(--shape-sm);
   font: var(--body-medium);
 }
@@ -84,7 +84,6 @@
 .card-due.tight { color: var(--error); }
 .ring { flex: none; width: 24px; height: 24px; }
 .ring circle { fill: none; stroke-width: 3; }
-.ring-track { stroke: var(--surface-container-highest); }
 .ring-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
 .next-task {
   display: flex;
@@ -158,11 +157,15 @@
 .project-picker { padding-right: var(--s1); }
 .goal-when-chip { padding-right: var(--s1); }
 .detail-title-text + .block-facts { margin-top: calc(-1 * var(--s2)); }
-/* Project detail: Area and Goal sit on one row under the title; a long Goal shortens with an ellipsis. */
-.detail-title-text + .crumbs.one-line { margin-block-start: calc(-1 * var(--s3)); padding-block-start: 0; }
-.crumbs.one-line { flex-wrap: nowrap; }
-.crumbs.one-line .crumb:last-child { flex: 0 1 auto; min-inline-size: 0; }
-.crumbs.one-line .crumb > span:not(.ms) { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Project detail: Area and Goal follow the title; a Goal too long for the Area's row takes its own row, and only a Goal wider than the page shortens. */
+.detail-title-text + .head-crumbs { margin-block-start: calc(-1 * var(--s3)); padding-block-start: 0; }
+.head-crumbs .crumb { min-inline-size: 0; max-inline-size: 100%; }
+.head-crumbs .crumb > span:not(.ms) { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.section-header:has(> .blocks-progress) { align-items: center; }
+.blocks-progress { display: flex; align-items: center; gap: var(--s2); }
+.blocks-progress .ring { inline-size: 20px; block-size: 20px; }
+/* A Project's Purpose runs to the content edge. */
+#planner[data-view=projects] .purpose-text { text-wrap: pretty; }
 /* Google Tasks detail rows: the 24dp icon centred on the Plan's check column, the text on the task titles. */
 .fact-row {
   display: flex;

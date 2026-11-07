@@ -24,7 +24,8 @@ test('every Project ring has one stroke and one gap, so one Block draws the oute
   assert.equal(new Set(full.slice(1).map((r, i) => full[i].r - r.r)).size, 1, 'one gap');
   const [one] = nestedRings([{done: 1, total: 2}]);
   assert.deepEqual([one.r, one.width], [full[0].r, full[0].width]);
-  assert.ok(full.at(-1).r - full.at(-1).width / 2 >= 4, 'the innermost ring keeps an open centre');
+  assert.ok(full[0].r - full[1].r - full[0].width >= full[0].width, 'the gap between rings is at least a stroke wide');
+  assert.ok(full.at(-1).r - full.at(-1).width / 2 >= 8, 'the innermost ring keeps an open centre');
 });
 
 test('a Block row\'s segment ring has one arc per task, the done ones on', () => {
@@ -47,6 +48,7 @@ test('progress is drawn in the Area colour, or primary blue with no Area; never 
   const css = ['planner.css', 'planner-pages.css'].map(f => fs.readFileSync(new URL(`./${f}`, import.meta.url), 'utf8')).join('\n');
   assert.ok(css.includes('[data-tone] { --tone: var(--outline); --progress: var(--primary); }'));
   assert.ok(css.includes('[data-tone^=area-] { --progress: var(--tone); }'));
+  assert.doesNotMatch(css, /\.ring-track \{ stroke: var\(--surface-container-highest\)/, 'no later rule turns a Block ring\'s track gray');
   for (const stroke of ['.nest-value {', '.seg-on {']) {
     const start = css.indexOf(stroke);
     assert.ok(start >= 0, stroke);

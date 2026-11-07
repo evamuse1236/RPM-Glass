@@ -32,8 +32,8 @@ export function segmentRing(done, total, {cls = '', label = ''} = {}) {
 
 /** The rings for a Project's Blocks ({done, total} each), outermost first, in a 64 viewBox; at most MAX_RINGS. Every
  * ring has one stroke and one gap, so a one-Block ring is the outer ring of a five-Block set. */
-const RING_WIDTH = 4;
-const RING_STEP = 6;
+const RING_WIDTH = 2.5;
+const RING_STEP = 5;
 export function nestedRings(blocks) {
   const shown = blocks.slice(0, MAX_RINGS), n = shown.length;
   return shown.map(({done, total}, i) => ({r: 32 - RING_WIDTH / 2 - i * RING_STEP, width: RING_WIDTH,

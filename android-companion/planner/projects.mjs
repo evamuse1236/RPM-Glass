@@ -4,7 +4,7 @@ import {el, icon, button, iconButton, labelButton, emptyState, sectionHeader} fr
 import {segmentRing, nestRings} from './rings.mjs';
 import {plural, doneStats} from './format.mjs';
 import {openMenu} from './menu.mjs';
-import {blockCard, purposePanel, notesPanel, titleField, finishDetail, byDeadline, factRow, progressRing} from './blocks.mjs';
+import {blockCard, purposePanel, notesPanel, titleField, finishDetail, byDeadline, progressRing} from './blocks.mjs';
 import {saveEntity, NO_ICON} from './inline-edit.mjs';
 
 function projectTasks(app, project) {
@@ -141,11 +141,11 @@ export function renderProjectDetail(app, page, project) {
     options: app.p().goals.map(g => [g.id, g.title]), open: () => app.openGoal(goal.id),
     choose: (goalId, label) => saveEntity(app, 'projects', project, {goalId},
       goalId ? `Linked to ${label}` : 'Unlinked from its Goal').catch(() => {})});
-  // The Project leads at the largest size; its Area and Goal follow on one quiet row.
+  // The Project leads at the largest size; its Area and Goal follow as quiet chips, the Goal on its own row when it is long.
   page.append(titleField(app, 'projects', project, 'Project'));
   const crumbs = breadcrumbs(app, [[area?.title, 'areas', area?.id, 'spa'],
     {label: goal?.title ?? 'Link a Goal', icon: 'flag', menu: goalMenu}]);
-  crumbs.classList.add('one-line');
+  crumbs.classList.add('head-crumbs');
   page.append(crumbs);
   const facts = el('div', 'block-facts');
   facts.dataset.tone = app.tone(area);
@@ -153,16 +153,18 @@ export function renderProjectDetail(app, page, project) {
   facts.append(purposePanel(app, 'projects', project, 'Purpose', {labelled: false}));
   const notes = notesPanel(app, 'projects', project);
   if (notes) facts.append(notes);
+  page.append(facts);
+  // The Blocks header carries the Project's progress, so no separate row repeats it; the cards below give the count.
   const {blocks, stats} = projectTasks(app, project);
+  let progress = null;
   if (stats.total) {
     const count = `${stats.done} of ${plural(stats.total, 'task')} done`;
-    const {row, copy} = factRow(progressRing(stats.done, stats.total, count), {cls: 'progress-row'});
-    // The Blocks header below gives their count, so this row says only the tasks.
-    copy.append(el('span', 'list-headline tnum', count));
-    facts.append(row);
+    progress = el('span', 'blocks-progress tnum');
+    progress.append(progressRing(stats.done, stats.total, count), el('small', '', count));
   }
-  page.append(facts);
-  page.append(sectionHeader('Blocks', el('small', '', blocks.length ? String(blocks.length) : '')));
+  const header = sectionHeader('Blocks', progress);
+  header.dataset.tone = app.tone(area);
+  page.append(header);
   // The page already names the Project, so its Block cards leave that line out.
   for (const block of byDeadline(app.data(), blocks)) page.append(blockCard(app, block, {project: false}));
   if (!blocks.length) page.append(el('p', 'quiet', 'No Blocks in this Project yet.'));
