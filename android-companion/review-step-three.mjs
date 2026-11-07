@@ -3,6 +3,8 @@ import {planner} from './planner-state.mjs';
 import {dueInfo} from './planner/format.mjs';
 import {el, icon, button, iconButton, heading, emptyState, sectionHead, textField} from './review-ui.mjs';
 import {attachSwipe, peekSwipe} from './task-swipe.mjs';
+import {areaDot} from './planner/dom.mjs';
+import {resultArea} from './review-deck.mjs';
 
 /* ---------- step 3: sort the Inbox into Results ---------- */
 export function stepThree(api, ctx) {
@@ -95,7 +97,9 @@ function sortRow(api, task, suggested, peek) {
   body.append(row);
   if (suggested) {
     row.classList.add('suggested');
-    const add = button(suggested.title, take, 'wr-chip wr-sort-take', 'add');
+    // A quiet suggestion: only the + is primary; the Block reads as a Block by its Area dot, as Blocks lists draw it.
+    const add = button('', take, 'wr-chip wr-sort-take', 'add');
+    add.append(areaDot(resultArea(api.data(), suggested.blockId).tone), el('span', 'wr-label', suggested.title));
     add.setAttribute('aria-label', `Add to "${suggested.title}"`);
     add.dataset.key = 'take:' + task.id;
     body.append(add);

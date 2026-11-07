@@ -30,16 +30,22 @@ export function stepFour(api) {
     main.push(list);
   }
   // Then the choice: one quiet list, nearest deadline first. Results with nothing left to do wait behind one row.
+  // The toggle is the list's last row, so the card ends on its own edge; opened, those Results join the end of
+  // the same card and the row reads "Show fewer", as the Inbox list in step 2 does.
   const idle = candidates.filter(c => c.total === c.done && !ui.focusBase.includes(c.blockId));
-  main.push(resultList(api, candidates.filter(c => !idle.includes(c)), now, "This week's Results"));
+  const shown = [...candidates.filter(c => !idle.includes(c)), ...(ui.showIdle ? idle : [])];
+  const list = resultList(api, shown, now, "This week's Results");
   if (idle.length) {
     const toggle = button('', () => { ui.showIdle = !ui.showIdle; api.render(); }, 'wr-idle-toggle');
     toggle.setAttribute('aria-expanded', String(ui.showIdle));
     toggle.dataset.key = 'idle';
-    toggle.append(el('span', 'wr-label', `${plural(idle.length, 'Result')} with no open tasks`), icon(ui.showIdle ? 'expand_less' : 'expand_more'));
-    main.push(toggle);
-    if (ui.showIdle) main.push(resultList(api, idle, now, 'Results with no open tasks'));
+    const words = ui.showIdle ? 'Show fewer' : `${plural(idle.length, 'Result')} with no open tasks`;
+    toggle.append(el('span', 'wr-label', words), icon(ui.showIdle ? 'expand_less' : 'expand_more'));
+    const more = el('li', 'wr-list-more');
+    more.append(toggle);
+    list.append(more);
   }
+  main.push(list);
   // Then what the week holds: whether the picked Results' Must time fits.
   parts.push(...split(main, [weekCard(api, chosen, candidates, now)]));
   return parts;

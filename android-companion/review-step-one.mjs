@@ -39,7 +39,7 @@ function upNext(api, rest, running) {
   const parts = [];
   if (rest.length) parts.push(sectionHead('Next to judge', rest.length), queueList('Next to judge', rest.map(result => queueRow(result))));
   if (running.length) {
-    const rows = running.map(result => queueRow(result, [dueFact(result.due, api.now()), mustFact(result.mustMinutes)]));
+    const rows = running.map(result => queueRow(result, [dueFact(result.due, api.now())]));
     parts.push(sectionHead('Not due yet', running.length), queueList('Not due yet', rows));
   }
   return parts;
@@ -52,13 +52,14 @@ function queueList(label, rows) {
   return list;
 }
 
+/** Progress first, then the deadline: one line. The Must time waits for step 4, where it is planned. */
 function queueRow(result, facts = []) {
   const item = el('li', 'wr-queue-row');
   item.dataset.key = 'queue:' + result.blockId;
   const {ring, words} = resultRing(result);
   const text = el('span', 'wr-decided-text');
   const meta = el('span', 'wr-facts tnum');
-  meta.append(...factsLine([...facts, words]));
+  meta.append(...factsLine([words, ...facts]));
   text.append(el('span', 'wr-decided-title', result.title), meta);
   item.append(ring, text);
   return item;
