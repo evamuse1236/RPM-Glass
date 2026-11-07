@@ -22,31 +22,39 @@ export const DESTINATIONS = [
 const TITLES = {today: 'Today', blocks: 'Blocks', projects: 'Projects', life: 'Life'};
 const DETAIL_NAMES = {blocks: 'Block', projects: 'Project', areas: 'Area', goals: 'Goal'};
 
+/**
+ * More options in three groups: what this page does, the planner-wide places (review, Archive, Trash), then Settings.
+ * The Inbox is not here: its row ends Today and Blocks, Search opens it from any page, and the website has it in the rail.
+ */
 function rootMenu(app, anchor) {
   const {actions, state} = app;
-  const items = [
-    {label: 'Weekly review', icon: 'event_repeat', onClick: () => app.openReview()},
-    {label: 'Inbox', icon: 'inbox', onClick: actions.inbox},
-  ];
+  const page = [];
   if (state.tab === 'today') {
     const list = state.dayLayout === 'list';
-    items.push({label: list ? 'Show day' : 'Show list', icon: list ? 'view_day' : 'view_agenda',
-      onClick: () => actions.setDayLayout(list ? 'day' : 'list')});
-    items.push({label: 'Habits', icon: 'self_improvement', onClick: () => openHabits(app, bodyApi(app))});
-    items.push({label: 'History', icon: 'history', onClick: () => app.openHistory()});
-    items.push({label: 'Calendars', icon: 'calendar_month', onClick: actions.calendar});
+    page.push(
+      {label: list ? 'Day view' : 'List view', icon: list ? 'view_day' : 'view_agenda',
+        onClick: () => actions.setDayLayout(list ? 'day' : 'list')},
+      {label: 'Calendars', icon: 'calendar_month', onClick: actions.calendar},
+      {label: 'Habits', icon: 'self_improvement', onClick: () => openHabits(app, bodyApi(app))},
+      {label: 'History', icon: 'history', onClick: () => app.openHistory()},
+    );
   }
   if (state.tab === 'blocks') {
-    items.push({label: 'Sort Inbox with Jev', icon: 'auto_awesome', onClick: actions.jevSort});
-    items.push({label: 'Result, Purpose, Plan', icon: 'lightbulb', onClick: actions.examples});
+    page.push(
+      {label: 'Sort Inbox with Jev', icon: 'auto_awesome', onClick: actions.jevSort},
+      {label: 'Result, Purpose, Plan', icon: 'lightbulb', onClick: actions.examples},
+    );
   }
-  items.push(
+  const items = [
+    ...page,
+    ...(page.length ? [{divider: true}] : []),
+    {label: 'Weekly review', icon: 'event_repeat', onClick: () => app.openReview()},
     {label: 'Archive', icon: 'archive', onClick: () => actions.trash(true)},
     {label: 'Trash', icon: 'delete', onClick: () => actions.trash(false)},
-    ...(app.api.menuItems?.() ?? []),
     {divider: true},
+    ...(app.api.menuItems?.() ?? []),
     {label: 'Settings', icon: 'settings', onClick: () => app.openSettings()},
-  );
+  ];
   if (app.api.getPhone().debug) items.push({label: 'Component gallery', icon: 'widgets', onClick: actions.gallery});
   openMenu(anchor, items);
 }
@@ -100,6 +108,10 @@ function navigationBar(app) {
       nav.append(item);
     }
     attachNavDrag(app, nav);
+    const pillFollowsBarWidth = (on) => (event) => { if (event.target === nav) nav.toggleAttribute('data-resizing', on); };
+    nav.addEventListener('transitionrun', pillFollowsBarWidth(true));
+    nav.addEventListener('transitionend', pillFollowsBarWidth(false));
+    nav.addEventListener('transitioncancel', pillFollowsBarWidth(false));
   }
   for (const item of nav.querySelectorAll('.nav-item')) {
     const on = item.dataset.tab === app.state.tab;

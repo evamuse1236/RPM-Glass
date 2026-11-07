@@ -134,7 +134,7 @@ export function datePicker(app) {
   const date = field(app, body, 'Date', state.day, 'date');
   body.append(labelButton('calendar_month', `Calendars · ${state.calendarState}`, () => calendarEditor(app), 'list-btn'));
   const list = state.dayLayout === 'list';
-  body.append(labelButton(list ? 'view_day' : 'view_agenda', list ? 'Show day' : 'Show list', () => {
+  body.append(labelButton(list ? 'view_day' : 'view_agenda', list ? 'Day view' : 'List view', () => {
     app.closeSheet();
     setDayLayout(app, list ? 'day' : 'list');
   }, 'list-btn'));

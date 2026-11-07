@@ -45,9 +45,9 @@ export async function today(k) {
 
   await look('today-list', async () => {
     await tapShown('.date-button');
-    await tapText('.sheet .list-btn', 'Show list');
+    await tapText('.sheet .list-btn', 'List view');
   }, `localStorage.getItem('rpm-clarity:today-layout') === 'list' && !document.querySelector('.spine-card') && !!document.querySelector('.agenda')`,
-  'Show list swaps the day spine for the list layout');
+  'List view swaps the day spine for the list layout');
   const slots = data => data?.entries.filter(e => e.planned).map(e => e.id + e.planned).join();
   if (await shown('.gap-card .next-action', 2000)) await step('gap-schedule-at', () => b.tap('.gap-card .next-action'), changed(slots));
   else k.check(null, 'gap-schedule-at: not run, because no free gap fits a due task at this hour, so Today shows no Schedule at card');
@@ -58,8 +58,8 @@ export async function today(k) {
   await tapShown('.wr-icon-btn[aria-label="Close review"]').catch(() => closeAll());
   await look('today-day', async () => {
     await tapShown('.date-button');
-    await tapText('.sheet .list-btn', 'Show day');
-  }, `localStorage.getItem('rpm-clarity:today-layout') !== 'list' && !!document.querySelector('.spine-card')`, 'Show day brings the day spine back');
+    await tapText('.sheet .list-btn', 'Day view');
+  }, `localStorage.getItem('rpm-clarity:today-layout') !== 'list' && !!document.querySelector('.spine-card')`, 'Day view brings the day spine back');
 
   const planned = `Drive gap plan ${stamp}`;
   await step('free-time-plan', async () => {

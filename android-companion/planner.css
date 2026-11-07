@@ -175,8 +175,12 @@ h1, h2, h3, p { margin: 0; }
 :root[data-large-text=true] #planner[data-habit=true]:has(> #dock:not([hidden]) .fab:not([hidden])) { --dock-top: calc(var(--bar-top) + 2 * var(--s3) + var(--fab) + var(--touch)); }
 #planner[data-now-off=true]:not([data-now-aside=true], [data-snackbar=true]):has(> #now-host:not([hidden])) { --now-clear: calc(var(--s4) + 32px); }
 #planner[data-now-off=true]:has(> #now-host:not([hidden])) .page::after { content: ""; display: block; block-size: calc(var(--s4) + 32px); }
+/* Between a root tab and a detail page the bar's end glides to its new place with the page's push (300ms), and the
+   page's mask follows it, so the tabs slide instead of jumping. */
+@property --bar-end { syntax: "<length>"; inherits: true; initial-value: 0px; }
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-reduce-motion=true]) #planner { transition: --now-clear var(--dur-short3) var(--ease-standard); }
+  :root:not([data-reduce-motion=true]) #planner { transition: --now-clear var(--dur-short3) var(--ease-standard), --bar-end var(--dur-medium2) var(--ease-emphasized); }
+  :root:not([data-reduce-motion=true]) #nav-bar { transition: inset-inline-end var(--dur-medium2) var(--ease-emphasized); }
 }
 :root:not([data-keyboard=open]) #planner:has(> #nav-bar:not([hidden])) #planner-scroll {
   scroll-padding-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4));
@@ -234,6 +238,7 @@ h1, h2, h3, p { margin: 0; }
   .nav-item { transition: scale var(--dur-press) var(--ease-standard); }
   #nav-bar[data-placed] .nav-indicator { transition: translate var(--dur-medium1) var(--ease-emphasized), inline-size var(--dur-medium1) var(--ease-emphasized); }
   #nav-bar[data-dragging] .nav-indicator { transition-duration: 60ms; }
+  #nav-bar[data-resizing] .nav-indicator { transition: none; }
 }
 
 /* ---------- Snackbar ---------- */

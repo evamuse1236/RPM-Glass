@@ -19,7 +19,6 @@ The Inbox holds tasks that are not in a Block yet, such as loose captures. The u
 
 - Tap the `Inbox, 6 tasks not in a Block yet` row at the bottom of Today.
 - Tap the `Inbox` row at the bottom of the Blocks list.
-- Tap `More options` then `Inbox` on any root screen.
 - Tap `Inbox` on the empty search screen.
 - Tap `More options` then `Trash` or `Archive`.
 - Delete or archive a task from the task sheet's `Task actions`, then open Trash or Archive.
@@ -34,7 +33,7 @@ Preconditions:
 - `rpmctl open planner` has been run. It reopens the last tab used, so check the heading and wait a couple of seconds before the first tap.
 
 - **From Blocks.** Run `rpmctl tap --role button --name "Blocks"`, wait, then `rpmctl scroll down`, then `rpmctl tap --role button --name "Inbox"`. A dialog `Inbox` opens with the note `Tasks not in a Block yet. Give each one a Result, or keep it here.`, a button `Sort with Jev`, seven task rows, and bottom buttons `Capture` and `Add task`. Run `rpmctl shot inbox`.
-- **From More options.** Run `rpmctl tap --role button --name "More options"`, then `rpmctl tap --role menuitem --name "Inbox"`. The same sheet opens.
+- **From Search.** Run `rpmctl tap --role button --name "Search"`, then `rpmctl tap --name "Inbox"`. The same sheet opens. More options has no Inbox entry.
 - **From Today.** Run `rpmctl scroll down` then `rpmctl tap --name "Inbox, 6 tasks"`. Same sheet.
 - **Rows.** Rows read like `Buy a new notebook for RM, 30 min, part of No block`, each with a checkbox `Mark <title> complete`. The sample titles are `Ask the group which district we picked`, `Check the LMS for the critical review article again`, `Send the RI budget to Mariyam`, `Buy a new notebook for RM`, `Call home on Sunday`, `Clear 5 Oct morning clash: DAD exam vs GWBC` and `Weekly review`.
 - **Add.** Run `rpmctl tap --role button --name "Add task"`. The quick-add sheet opens (see the task rows and sheet file). Run `rpmctl type "Pay the phone bill"` and `rpmctl key enter`. A snackbar reads `Added to Inbox`; `rpmctl state files/companion.json` has the entry with `blockId` null and `plannedDate` null. Close the sheet with `rpmctl key back`; the Inbox shows one more row.

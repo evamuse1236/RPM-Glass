@@ -39,7 +39,7 @@
   overflow-y: auto;
   padding: var(--s2) 0;
   border-radius: var(--shape-md);
-  background: var(--surface-container);
+  background: var(--surface-container-high);
   box-shadow: var(--elev-3);
 }
 .menu-item {

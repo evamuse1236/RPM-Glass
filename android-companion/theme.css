@@ -56,7 +56,7 @@
   --r-outer:36px;--r-group:20px;--r-control:12px;--r-tile:8px;--inset-page:16px;
   --float-border:color-mix(in oklch, var(--outline-variant) 60%, transparent);
   --float-surface:var(--surface-container);
-  --glass-blur:12px;--glass-saturate:1.14;--glass-border:oklch(0% none none / 8%);
+  --glass-blur:16px;--glass-saturate:1.14;--glass-border:oklch(0% none none / 8%);
   /* sheets: the page tone in light; in dark one step up (the tab bar's tone), so a sheet has an edge over the scrim */
   --sheet-surface:var(--surface-container-low);--sheet-raised:var(--surface-container-high);--sheet-card:var(--surface-container);
   --float-shadow:0 2px 8px rgba(0,0,0,.10),0 1px 2px rgba(0,0,0,.08);
