@@ -1,6 +1,6 @@
 /** What the task sheet's four tabs show and save, apart from the DOM: their short values, choices and saved fields. */
 import {localDay, shiftDay} from '../planner-state.mjs';
-import {clock} from './format.mjs';
+import {clock, DATE_LOCALE} from './format.mjs';
 import {repeatDaysOf, repeatFieldsFor} from './task-values.mjs';
 
 export const TABS = Object.freeze([['when', 'When'], ['alert', 'Alert'], ['repeat', 'Repeat'], ['block', 'Block']]);
@@ -30,7 +30,7 @@ export function whenDay({day}, today = localDay()) {
   const date = dateOf(day);
   return Math.abs(daysApart(today, day)) < 7
     ? `${date.toLocaleDateString([], {weekday: 'short'})} ${date.getDate()}`
-    : date.toLocaleDateString([], {month: 'short', day: 'numeric'});
+    : date.toLocaleDateString(DATE_LOCALE, {month: 'short', day: 'numeric'});
 }
 
 /**
@@ -42,7 +42,7 @@ export function whenBrief({day, time}, today = localDay()) {
   if (day === today) return briefClock(day, time);
   const date = dateOf(day);
   const name = Math.abs(daysApart(today, day)) < 7 ? date.toLocaleDateString([], {weekday: 'short'})
-    : date.toLocaleDateString([], {month: 'short', day: 'numeric'});
+    : date.toLocaleDateString(DATE_LOCALE, {month: 'short', day: 'numeric'});
   return `${name} ${briefClock(day, time)}`;
 }
 
