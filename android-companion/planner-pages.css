@@ -395,4 +395,6 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
   -webkit-appearance: none;
 }
 .search-input::-webkit-search-cancel-button { display: none; }
-.search-results .task-row { padding-left: var(--s2); }
+.search-results .task-row { padding-inline-start: var(--s1); }
+.search-results .task-main:has(+ .must-mark) { flex: 0 1 auto; }
+.search-hit { font-weight: 700; color: inherit; }

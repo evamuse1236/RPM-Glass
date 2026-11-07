@@ -17,7 +17,7 @@ export const safeScale = value => Math.max(80, Math.min(160, Number.isInteger(va
  * One list row: an optional icon tile, the title, a line of detail and a trailing value, switch or chevron.
  * `tone: 'error'` marks a row that needs the person (a missing permission) or removes something.
  */
-export function row({label, detail = '', value = '', action, role = null, toggle = null, icon = null, tile = null, next = false, tone = null}) {
+export function row({label, detail = '', value = '', action, role = null, toggle = null, icon = null, tile = null, next = false, tone = null, trail = null}) {
   const node = el('button', 'settings-row');
   node.type = 'button';
   if (action) node.dataset.action = action;
@@ -42,8 +42,27 @@ export function row({label, detail = '', value = '', action, role = null, toggle
   }
   if (value) node.append(el('span', 'settings-value', value));
   if (next) node.append(symbol('chevron_right'));
-  else if (action && !value && !tone) node.dataset.kind = 'action';
+  else if (trail) node.append(symbol(trail));
   return node;
+}
+
+/** Paints a range's active track: `--fill` is how far along the thumb sits. */
+export function trackFill(input) {
+  const span = Number(input.max) - Number(input.min);
+  input.style.setProperty('--fill', (span ? (Number(input.value) - Number(input.min)) / span * 100 : 0) + '%');
+}
+
+/** The words at a slider's two ends. */
+export function sliderEnds(document, start, end) {
+  const ends = document.createElement('div');
+  ends.className = 'settings-slider-ends';
+  ends.setAttribute('aria-hidden', 'true');
+  for (const text of [start, end]) {
+    const word = document.createElement('span');
+    word.textContent = text;
+    ends.append(word);
+  }
+  return ends;
 }
 
 /** A titled group: an optional heading, one inset card of rows, and an optional caption under it. */
@@ -82,8 +101,10 @@ export function slider(ctx, section, label, detail, value, min, max, action) {
   const sample = el('p', 'widget-text-preview', 'A clear next action');
   sample.style.fontSize = value / 100 + 'em';
   sample.setAttribute('aria-label', 'Widget text size preview');
-  wrap.append(head, el('span', 'settings-detail', detail), input, sample);
+  trackFill(input);
+  wrap.append(head, el('span', 'settings-detail', detail), input, sliderEnds(document, min + '%', max + '%'), sample);
   input.addEventListener('input', () => {
+    trackFill(input);
     output.textContent = input.value + '%';
     sample.style.fontSize = Number(input.value) / 100 + 'em';
   });
@@ -91,7 +112,7 @@ export function slider(ctx, section, label, detail, value, min, max, action) {
   section.card.append(wrap);
 }
 
-/** A row of three radio segments; choosing applies at once. */
+/** A connected segmented button of radio segments under its label; the chosen one carries a check. Choosing applies at once. */
 export function segmented(name, label, options, current, onChoose) {
   const wrap = el('div', 'settings-segment-row');
   wrap.append(el('span', 'settings-label', label));
@@ -106,7 +127,7 @@ export function segmented(name, label, options, current, onChoose) {
     input.value = value;
     input.checked = value === current;
     input.addEventListener('change', () => onChoose(value));
-    option.append(input, el('span', '', text));
+    option.append(input, symbol('check'), el('span', '', text));
     seg.append(option);
   }
   wrap.append(seg);

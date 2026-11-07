@@ -34,15 +34,34 @@ function matches(item, q) {
   return (item.title + ' ' + (item.purpose ?? '') + ' ' + (item.notes ?? '')).toLocaleLowerCase().includes(q);
 }
 
+/** Bolds each place the query appears in a row's title. */
+function markHits(node, q) {
+  if (!node) return;
+  const text = node.textContent;
+  const lower = text.toLocaleLowerCase();
+  const parts = [];
+  let at = 0;
+  for (let hit = lower.indexOf(q); hit !== -1 && q; hit = lower.indexOf(q, at)) {
+    if (hit > at) parts.push(text.slice(at, hit));
+    parts.push(el('strong', 'search-hit', text.slice(hit, hit + q.length)));
+    at = hit + q.length;
+  }
+  if (!parts.length) return;
+  if (at < text.length) parts.push(text.slice(at));
+  node.replaceChildren(...parts);
+}
+
+const byTitle = (a, b) => a.title.localeCompare(b.title, undefined, {numeric: true, sensitivity: 'base'});
+/** Display order only, the same on phone and website: open before done, Musts first, then by title. Nothing is dropped. */
+export const searchOrder = (a, b) => !!a.done - !!b.done || (!a.done && !!b.must - !!a.must) || byTitle(a, b);
+
 function drawResults(app, host) {
   if (!host) return;
   host.replaceChildren();
   const q = query.trim().toLocaleLowerCase();
   if (!q) {
-    host.append(listItem({leading: 'inbox', headline: 'Inbox', supporting: 'Tasks not in a Block yet',
-      onClick: () => app.actions.inbox()}));
-    host.append(listItem({leading: 'mic', headline: 'Capture', supporting: 'Say or type what is on your mind',
-      onClick: () => app.capture()}));
+    host.append(listItem({leading: 'inbox', headline: 'Inbox', onClick: () => app.actions.inbox()}));
+    host.append(listItem({leading: 'mic', headline: 'Capture', onClick: () => app.capture()}));
     return;
   }
   const p = app.p();
@@ -53,21 +72,24 @@ function drawResults(app, host) {
     ['Areas', 'spa', p.areas, a => app.openArea(a.id), a => a.purpose],
   ];
   let count = 0;
-  const found = tasks(app.data()).filter(task => matches(task, q)).slice(0, 30);
-  if (found.length) {
-    host.append(sectionHeader('Tasks'));
-    for (const task of found) {
-      host.append(taskRow(app, task, {context: app.context(task).block?.title ?? 'No block'}));
-    }
-    count += found.length;
-  }
+  const found = tasks(app.data()).filter(task => matches(task, q)).sort(searchOrder).slice(0, 30);
+  const row = task => {
+    const node = taskRow(app, task, {context: app.context(task).block?.title ?? 'No block'});
+    markHits(node.querySelector('.task-title'), q);
+    return node;
+  };
+  const open = found.filter(task => !task.done), done = found.filter(task => task.done);
+  if (open.length) host.append(sectionHeader('Tasks'), ...open.map(row));
+  if (done.length) host.append(sectionHeader('Done'), ...done.map(row));
+  count += found.length;
   for (const [label, symbol, items, open, supporting] of groups) {
     const hits = items.filter(item => matches(item, q)).slice(0, 30);
     if (!hits.length) continue;
     host.append(sectionHeader(label));
     for (const item of hits) {
-      host.append(listItem({leading: symbol, headline: item.title, supporting: supporting(item) ?? '',
-        onClick: () => open(item)}));
+      const node = listItem({leading: symbol, headline: item.title, supporting: supporting(item) ?? '', onClick: () => open(item)});
+      markHits(node.querySelector('.list-headline'), q);
+      host.append(node);
     }
     count += hits.length;
   }
