@@ -129,6 +129,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--s1);
+  max-inline-size: calc(100% - var(--s3));
   min-block-size: 24px;
   margin: 0 0 var(--s1) var(--s3);
   padding-inline: var(--s1) var(--s2);
@@ -138,6 +139,7 @@
   font: var(--label-medium);
 }
 .spine-resolve .ms { font-size: 16px; }
+.spine-resolve span:last-child { min-inline-size: 0; overflow: clip; white-space: nowrap; text-overflow: ellipsis; }
 .spine-resolve::after { content: ""; position: absolute; inset: min(0px, (100% - 48px) / 2) 0; }
 .spine-resolve:active { background: color-mix(in oklch, var(--error-container), var(--on-error-container) 12%); }
 

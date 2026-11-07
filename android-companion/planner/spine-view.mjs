@@ -58,7 +58,7 @@ function ring(label, done, onClick, role = 'checkbox') {
 const LOUD_WHEN = new Set(['soon', 'now', 'late', 'due']);
 /**
  * "Not logged" on every meal says nothing the empty ring does not; it stays in the spoken name. A clash is its own chip,
- * drawn under the words, that opens Resolve.
+ * drawn under the words, that names what it clashes with and opens Resolve.
  */
 const QUIET_LINE = new Set(['unlogged', 'clash']);
 
@@ -99,7 +99,7 @@ function taskCard(row, on) {
     opener(row, () => on.openTask(row.task), spoken(row) + '. Open task'));
   if (row.line?.kind === 'clash') {
     const resolve = button('', () => on.resolve(row), 'spine-resolve');
-    resolve.append(icon('event_busy'), el('span', '', 'Clash'));
+    resolve.append(icon('event_busy'), el('span', '', row.line.text));
     resolve.setAttribute('aria-label', `Resolve the clash with ${row.line.with.title}`);
     node.append(resolve);
   }

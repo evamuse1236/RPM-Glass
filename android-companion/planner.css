@@ -181,8 +181,8 @@ h1, h2, h3, p { margin: 0; }
 :root:not([data-keyboard=open]) #planner:has(> #nav-bar:not([hidden])) #planner-scroll {
   scroll-padding-block-end: calc(var(--nav-measured, var(--nav)) + var(--s4));
   mask-image:
-    radial-gradient(circle at calc(var(--inset-page) + var(--bar-r)) calc(100% - var(--nav-gap) - var(--bar-r)), #000 calc(var(--bar-r) - 1px), transparent var(--bar-r)),
-    radial-gradient(circle at calc(100% - var(--bar-end) - var(--bar-r)) calc(100% - var(--nav-gap) - var(--bar-r)), #000 calc(var(--bar-r) - 1px), transparent var(--bar-r)),
+    radial-gradient(circle at calc(var(--inset-page) + var(--bar-r)) calc(100% - var(--nav-gap) - var(--bar-r)), rgb(0 0 0 / var(--bar-ends, 100%)) calc(var(--bar-r) - 1px), transparent var(--bar-r)),
+    radial-gradient(circle at calc(100% - var(--bar-end) - var(--bar-r)) calc(100% - var(--nav-gap) - var(--bar-r)), rgb(0 0 0 / var(--bar-ends, 100%)) calc(var(--bar-r) - 1px), transparent var(--bar-r)),
     linear-gradient(to top, transparent var(--nav-gap), #000 calc(var(--nav-gap) + var(--bar-fade, var(--s8)))),
     linear-gradient(to top, transparent max(var(--dock-top), var(--page-end)), #000 calc(max(var(--dock-top), var(--page-end)) + var(--s4))),
     linear-gradient(to right, #000 calc(100% - var(--s3)), transparent),
@@ -193,7 +193,7 @@ h1, h2, h3, p { margin: 0; }
   mask-repeat: no-repeat;
   mask-composite: add, add, add, add, intersect, add;
 }
-:root[data-bar-glass=true] { --bar-fade: var(--s2); }
+:root[data-bar-glass=true] { --bar-fade: calc(var(--nav-measured, var(--nav)) - var(--nav-gap)); --bar-ends: 30%; }
 /* A clearer bar blurs more, so its labels stay readable over busy rows. */
 :root[data-bar-thin=true] { --glass-blur: 24px; --glass-saturate: 1; }
 /* While a snackbar shows, a row scrolled into view also clears the snackbar (its height and a 16dp gap). */

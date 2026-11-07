@@ -76,7 +76,9 @@ test('nothing shows in the strip under the tab bar, and a row scrolled into view
   assert.match(mask, /mask-repeat: no-repeat;/);
   assert.match(mask, /mask-composite: add, add, add, add, intersect, add;/);
   assert.match(css, /#planner\[data-habit=true\]:has\(> #dock:not\(\[hidden\]\) \.fab:not\(\[hidden\]\)\) \{ --dock-top: calc\(var\(--nav-gap\) \+ 2px \+ var\(--fab\) \+ var\(--s3\) \+ var\(--touch\)\); \}/);
-  assert.match(css, /:root\[data-bar-glass=true\] \{ --bar-fade: var\(--s2\); \}/, 'a glass bar lets the page show through it');
+  assert.match(css, /:root\[data-bar-glass=true\] \{ --bar-fade: calc\(var\(--nav-measured, var\(--nav\)\) - var\(--nav-gap\)\); --bar-ends: 30%; \}/,
+    'a glass bar shows the page fading in across its height, so colour shows through and no words can be read under its labels');
+  assert.equal(mask.match(/radial-gradient\([^;]*?rgb\(0 0 0 \/ var\(--bar-ends, 100%\)\)/g)?.length, 2, 'the bar\'s round ends fade the page too');
   assert.match(css, /#planner\[data-snackbar=true\]:has\(> #nav-bar:not\(\[hidden\]\)\) #planner-scroll \{\n  scroll-padding-block-end: calc\(var\(--nav-measured, var\(--nav\)\) \+ var\(--s4\) \+ var\(--snackbar-h, 48px\) \+ var\(--s4\)\);/);
   assert.match(read('planner.mjs'), /setProperty\('--snackbar-h', snackbar\.offsetHeight \+ 'px'\)/,
     'the snackbar\'s full height, not its size part-way through the entry scale');

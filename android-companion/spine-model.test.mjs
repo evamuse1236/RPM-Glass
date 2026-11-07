@@ -58,6 +58,14 @@ test('the gutter runs forward: an end time goes when a later row starts by then'
   assert.deepEqual(times, [...times].sort((a, b) => a - b));
 });
 
+test('a row that starts inside an item follows it at once: the item\'s pill stops at that start', () => {
+  const model = spine({now: at('09:00'), meals: [], tasks: [task('Call', '12:00', 15)],
+    events: [event('Session', '11:30', '13:30'), event('Lab', '15:00', '16:00')]});
+  const height = key => model.rows.find(r => r.key === key).height;
+  assert.equal(height('event:Session'), cardHeight(30), 'Call starts 30 min in, so no empty rail sits under Session');
+  assert.equal(height('event:Lab'), cardHeight(60), 'nothing starts inside Lab');
+});
+
 test('a deadline at the time an open task of its Result starts is said once, on the task', () => {
   const model = spine({now: at('09:00'), meals: [],
     tasks: [task('Submit', '23:00', 0, {resultId: 'r1', result: 'Review drafted'}), task('Upload', '20:00', 0, {resultId: 'r2', result: 'Post work'})],

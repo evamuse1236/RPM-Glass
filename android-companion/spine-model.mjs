@@ -146,7 +146,7 @@ export function buildSpine({day, now, live = true, tasks = [], events = [], rout
   const rows = [...blocks, ...marks, ...freeRows(blocks, marks, {from, to, now, live, planMinutes})];
   if (live && !current.length) rows.push({kind: 'now', key: 'now', start: now, end: now, time: gutterTime(now), label: clockText(now)});
   rows.sort((a, b) => a.start - b.start || RANK[a.kind] - RANK[b.kind] || a.end - b.end);
-  dropOverlappedEnds(rows);
+  fitOverlaps(rows);
 
   const anytime = anytimeTasks(tasks.filter(t => t.start == null));
   return {
@@ -173,10 +173,16 @@ function foldDeadlines(blocks, marks) {
   });
 }
 
-/** An end time that a later row starts by would read after that row's start, so the gutter keeps only starts there. */
-function dropOverlappedEnds(rows) {
+/**
+ * A later row that starts by an item's end follows straight after it: the item's pill stops at that start, so no empty
+ * rail sits between them, and its end time would read after that start, so the gutter keeps only its start.
+ */
+function fitOverlaps(rows) {
   rows.forEach((row, i) => {
-    if (row.gutter?.end && rows.slice(i + 1).some(later => later.kind !== 'gap' && later.start <= row.end)) row.gutter.end = null;
+    const later = rows.slice(i + 1).find(next => next.kind !== 'gap' && next.start <= row.end);
+    if (!later || !row.gutter) return;
+    row.gutter.end = null;
+    row.height = Math.min(row.height, cardHeight(minutesBetween(row.start, later.start)));
   });
 }
 
