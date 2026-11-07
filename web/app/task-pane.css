@@ -37,9 +37,14 @@
   #sheet[data-inline] .ruler-start { font: var(--title-medium); font-weight: 600; }
   #sheet[data-inline] .ruler-end { font: var(--body-medium); }
   #sheet[data-inline] .task-tabs .chip-row.segmented { padding: 0; background: none; }
-  #sheet[data-inline] .when-clear .chip-label { display: none; }
-  #sheet[data-inline] .task-tabs .chip-row[aria-label='More choices'] { flex-wrap: nowrap; justify-content: space-between; }
-  #sheet[data-inline] .task-tabs .chip-row[aria-label='More choices'] > .chip { padding-inline: var(--s1); }
+  /* One length strip that fits the 400px pane whole: 30 min to 2 h, plus 15 min or 1 h 30 min only while chosen. */
+  #sheet[data-inline] .task-tabs [aria-label=Length] > .chip { flex: 1 1 0; }
+  #sheet[data-inline] .task-tabs [aria-label=Length] > .chip:is([data-value='15'], [data-value='90']):not([aria-pressed=true]) { display: none; }
+  #sheet[data-inline] .ruler-busy { display: none; }
+  /* Pick a date, Pick a time, Other and a worded Clear share one row; a narrower pane wraps them, never clips. */
+  #sheet[data-inline] .task-tabs .chip-row[aria-label='More choices'] { flex-wrap: wrap; justify-content: space-between; }
+  #sheet[data-inline] .task-tabs .chip-row[aria-label='More choices'] > .chip { gap: var(--s1); padding-inline: var(--s1); }
+  #sheet[data-inline] .when-clear .chip-icon { display: none; }
   #sheet[data-inline] .sheet-body { flex: 0 1 auto; }
   #sheet[data-inline] .task-start {
     grid-area: start;
