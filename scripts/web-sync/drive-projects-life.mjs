@@ -77,8 +77,8 @@ async function life(k) {
   await look('area-detail', async () => {
     await tab('Life');
     await tapText('.tabs [role=tab]', 'Vision');
-    await tapShown('button.wheel-area[aria-label^="Studies"]');
-  }, `!!document.querySelector('input.rating-slider[aria-label^="Studies"]')`, 'a tap on an Area chip opens that Area');
+    await tapText('button.life-area', 'Studies');
+  }, `!!document.querySelector('input.rating-slider[aria-label^="Studies"]')`, 'a tap on an Area row under the wheel opens that Area');
   await closeAll();
 
   const health = data => planner(data).areas.find(a => a.id === 'area-2');
@@ -86,7 +86,7 @@ async function life(k) {
   await step('life-rating', async () => {
     rating = health(readPhone()).rating === 7 ? 6 : 7;
     await tab('Life');
-    await tapShown('button.wheel-area[aria-label^="Health"]');
+    await tapText('button.life-area', 'Health');
     await shown('input.rating-slider');
     await b.js(`(() => { const s = document.querySelector('input.rating-slider'); s.value = ${rating};
       s.dispatchEvent(new Event('input', {bubbles: true})); s.dispatchEvent(new Event('change', {bubbles: true})); return true; })()`);

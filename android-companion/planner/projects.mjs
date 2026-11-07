@@ -7,7 +7,7 @@ import {openMenu} from './menu.mjs';
 import {blockCard, purposePanel, notesPanel, titleField, finishDetail, byDeadline, progressRing} from './blocks.mjs';
 import {saveEntity, NO_ICON} from './inline-edit.mjs';
 
-function projectTasks(app, project) {
+export function projectTasks(app, project) {
   const blocks = app.activeBlocks().filter(block => block.projectId === project.id);
   const rows = tasks(app.data()).filter(task => blocks.some(block => block.id === task.blockId));
   return {blocks, rows, stats: doneStats(rows)};

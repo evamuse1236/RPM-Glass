@@ -182,6 +182,7 @@
 .blocks-progress .ring { inline-size: 20px; block-size: 20px; }
 /* A Project's Purpose runs to the content edge. */
 #planner[data-view=projects] .purpose-text { text-wrap: pretty; }
+#planner:is([data-view=areas], [data-view=goals]) :is(.purpose-text, .title-edit, .detail-title-text) { text-wrap: pretty; }
 /* Google Tasks detail rows: the 24dp icon centred on the Plan's check column, the text on the task titles. */
 .fact-row {
   display: flex;
@@ -326,6 +327,7 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
   border-radius: 20px;
   background: var(--surface-container-low);
 }
+.rating-row h2 { font: var(--title-small); }
 .rating-row strong { font: var(--title-medium); }
 /* M3 slider in the Area's colour: one active-track colour whether resting or dragged, a 20dp handle, 48dp target.
    Unrated: the whole track is inactive and there is no handle until the first touch. */
@@ -384,7 +386,6 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
 .rating-slider.unrated + .rating-ticks { opacity: .55; }
 .rating-slider.unrated + .rating-ticks i:first-child { visibility: hidden; }
 .rating-slider.unrated:focus-visible { outline: 2px solid var(--primary); outline-offset: -8px; border-radius: var(--shape-xs); }
-.rating-note { grid-column: 1 / -1; grid-row: 3; font: var(--body-medium); color: var(--on-surface-variant); }
 
 
 /* Search */

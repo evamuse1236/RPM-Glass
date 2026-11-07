@@ -35,7 +35,6 @@
   }
   #planner .page:has(> .life-areas) > :not(.wheel-card, .life-areas) { grid-column: 1 / -1; }
   #planner .page:has(> .life-areas) .wheel-card { margin-inline-end: 0; align-self: start; }
-  #planner .page:has(> .life-areas) .wheel-areas { display: none; }
   #planner .page:has(> .life-areas):not(:has(.rating-slider:not(.unrated))) {
     grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
   }
@@ -64,7 +63,6 @@
   #planner .life-rating { font: var(--title-small); text-align: end; }
   #planner .life-area-group > .list-item.nested { padding-inline-start: calc(var(--gutter) + var(--s8) + var(--s2) + var(--s4)); }
   #planner .wheel-copy p { display: none; }
-  #planner .wheel-average:empty { display: none; }
 
   .planner-view #planner[data-view=projects] .page > .project-card {
     grid-column: 1 / -1;

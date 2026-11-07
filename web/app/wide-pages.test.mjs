@@ -45,7 +45,7 @@ test('on wide Life puts the wheel on the left and each Area with its rating and 
   assert.match(source, /`\$\{area\.rating\} \/ 10`/);
   const css = read('./wide-pages.css');
   assert.match(css, /\.page:has\(> \.life-areas\) \{\n    display: grid;\n    grid-template-columns: minmax\(0, 480px\) minmax\(0, 1fr\);/);
-  assert.match(css, /\.page:has\(> \.life-areas\) \.wheel-areas \{ display: none; \}/);
+  assert.doesNotMatch(read('../../android-companion/planner/life-wheel.mjs'), /wheel-area\b/, 'the Areas list under the wheel is the one way to an Area, so the wheel card has no second row of Area chips');
   const start = source.indexOf('function areaGoals');
   const goals = source.slice(start, source.indexOf('\nfunction', start + 1));
   assert.match(goals, /ratingInput\(app, area, rating => \{ value\.textContent = rating; \}\)/);
@@ -58,8 +58,10 @@ test('on wide Life puts the wheel on the left and each Area with its rating and 
   assert.match(css, /\.life-track \.rating-slider\.unrated \+ \.rating-ticks \{ opacity: 1; \}/);
   assert.match(css, /:not\(:has\(\.rating-slider:not\(\.unrated\)\)\) \.wheel-plot \{ inline-size: min\(100% - 128px, 160px\); \}/, 'with nothing rated the wheel shrinks');
   assert.match(css, /#planner \.wheel-copy p \{ display: none; \}/, 'no drag instruction on wide');
-  assert.match(read('../../android-companion/planner/life-wheel.mjs'), /const none = app\.api\.wide\?\.\(\) \? '' : '–';/);
-  assert.match(css, /\.wheel-average:empty \{ display: none; \}/);
+  const wheel = read('../../android-companion/planner/life-wheel.mjs');
+  assert.doesNotMatch(wheel, /'–'/, 'an unrated wheel shows no stand-in value in its centre');
+  assert.equal(wheel.match(/averageOf\(areas\.map\([^;]*\?\? ''/g)?.length, 2, 'the centre shows the average of rated Areas or nothing');
+  assert.match(read('../../android-companion/life-wheel.css'), /\.wheel-average:empty \{ display: none; \}/);
 });
 
 test('on wide the Inbox pane matches the page, Sort with Jev is a text button, and long pages fade at the foot', () => {

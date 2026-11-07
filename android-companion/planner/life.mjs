@@ -1,10 +1,10 @@
-/** Life: Vision / Quarter / Month / Values, the Wheel of Life with its Area chips (life-wheel.mjs), Areas and Goals. */
-import {el, icon, button, iconButton, labelButton, emptyState, listItem, sectionHeader} from './dom.mjs';
+/** Life: Vision / Quarter / Month / Values, the Wheel of Life (life-wheel.mjs) over each Area with its Goals. */
+import {el, button, iconButton, labelButton, emptyState, listItem, sectionHeader} from './dom.mjs';
 import {plural} from './format.mjs';
 import {openSheet} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
-import {breadcrumbs, parentMenu} from './projects.mjs';
-import {purposePanel, notesPanel, titleField, finishDetail} from './blocks.mjs';
+import {breadcrumbs, parentMenu, projectTasks} from './projects.mjs';
+import {purposePanel, notesPanel, titleField, finishDetail, progressRing} from './blocks.mjs';
 import {persist, saveEntity, NO_ICON} from './inline-edit.mjs';
 import {wheelCard} from './life-wheel.mjs';
 
@@ -52,8 +52,12 @@ function initialAvatar(app, area) {
   return avatar;
 }
 
-/** Wide only: each Area with its rating and this year's Goals, beside the wheel. */
+/**
+ * Each Area with this year's Goals under the wheel. Wide: beside it, with the rating as a slider on the Area's row.
+ * Phone: the wheel is the one rating control, so the row shows the rating as a number and opens the Area.
+ */
 function areaGoals(app, areas, loose) {
+  const wide = app.api.wide?.();
   const list = el('section', 'life-areas');
   for (const area of areas) {
     const goals = app.p().goals.filter(g => g.areaId === area.id && g.year === app.state.year);
@@ -61,10 +65,18 @@ function areaGoals(app, areas, loose) {
     group.dataset.tone = app.tone(area);
     const row = el('div', 'life-area-row');
     const value = el('span', 'life-rating tnum', area.rating == null ? '' : `${area.rating}`);
-    const track = el('span', 'life-track');
-    track.append(ratingInput(app, area, rating => { value.textContent = rating; }), ratingTicks());
-    row.append(listItem({leading: initialAvatar(app, area), headline: area.title, cls: 'life-area',
-      onClick: () => app.openArea(area.id)}), track, value);
+    const item = listItem({leading: initialAvatar(app, area), headline: area.title, cls: 'life-area',
+      onClick: () => app.openArea(area.id)});
+    if (wide) {
+      const track = el('span', 'life-track');
+      track.append(ratingInput(app, area, rating => { value.textContent = rating; }), ratingTicks());
+      row.append(item, track, value);
+    } else {
+      item.dataset.key = 'life-area:' + area.id;
+      item.setAttribute('aria-label', `${area.title}, rating ${area.rating ?? 'not set'}, ${plural(goals.length, 'Goal')}. Open Area`);
+      item.append(value);
+      row.append(item);
+    }
     group.append(row, ...goals.map(goal => goalRow(app, goal, 'nested')));
     list.append(group);
   }
@@ -72,11 +84,15 @@ function areaGoals(app, areas, loose) {
   return list;
 }
 
+/** A nested row sits under its parent's words, so its indent says where it belongs and it needs no chevron. */
 function goalRow(app, goal, cls = '') {
   const projects = app.p().projects.filter(pr => pr.goalId === goal.id);
   return listItem({leading: 'flag', headline: goal.title, supporting: plural(projects.length, 'Project'),
-    trailing: 'chevron_right', onClick: () => app.openGoal(goal.id), cls});
+    trailing: cls === 'nested' ? null : 'chevron_right', onClick: () => app.openGoal(goal.id), cls});
 }
+
+/** A quiet "+ Add …" row in line with the rows above it, in place of a full-width button. */
+const addRow = (label, onClick) => listItem({leading: 'add', headline: label, cls: 'add-row', onClick});
 
 function periodGoals(app, page) {
   const {state} = app;
@@ -120,7 +136,8 @@ export function renderLife(app, page) {
     page.append(areaGoals(app, areas, loose));
     return;
   }
-  if (loose.length) {
+  if (areas.length) page.append(areaGoals(app, areas, loose));
+  else if (loose.length) {
     page.append(sectionHeader('Goals with no Area'));
     const goals = el('div', 'list');
     for (const goal of loose) goals.append(goalRow(app, goal));
@@ -131,8 +148,8 @@ export function renderLife(app, page) {
 /**
  * The Area's rating as a slider on the page: drag or arrow keys, saved when let go, with Undo. It moves in whole
  * points (a half point saved earlier shows as it is until touched). Unrated, the track shows its eleven points as faint
- * ticks and a hollow handle waits at its start, so it reads as something to drag but never as a value ("Not rated"
- * says so); the first touch puts the handle where the finger is, filled.
+ * ticks and a hollow handle waits at its start, so it reads as something to drag but never as a value; the first
+ * touch puts the handle where the finger is, filled.
  */
 /** A 0–10 slider in the Area's colour that saves on release with Undo; `show` writes the value it is set to. */
 function ratingInput(app, area, show) {
@@ -179,13 +196,13 @@ function ratingTicks() {
   return ticks;
 }
 
+/** The Area's rating: its value beside the words once rated; unrated, the hollow handle and ticks say so. */
 function ratingSlider(app, area) {
   const row = el('div', 'rating-row');
   row.dataset.tone = app.tone(area);
-  const output = el('strong', 'tnum', area.rating == null ? 'Not rated' : `${area.rating} / 10`);
+  const output = el('strong', 'tnum', area.rating == null ? '' : `${area.rating} / 10`);
   const input = ratingInput(app, area, value => { output.textContent = `${value} / 10`; });
-  row.append(el('span', 'overline', 'Your rating'), output, input, ratingTicks(),
-    el('span', 'rating-note', 'How it feels right now, not how many tasks are done'));
+  row.append(el('h2', '', 'Your rating'), output, input, ratingTicks());
   return row;
 }
 
@@ -194,38 +211,48 @@ export function renderAreaDetail(app, page, area) {
   head.append(initialAvatar(app, area), titleField(app, 'areas', area, 'Area'));
   page.append(head);
   const facts = el('div', 'block-facts');
-  facts.append(purposePanel(app, 'areas', area));
+  facts.append(purposePanel(app, 'areas', area, 'Purpose', {labelled: false}));
   const notes = notesPanel(app, 'areas', area);
   if (notes) facts.append(notes);
   page.append(facts);
   page.append(ratingSlider(app, area));
   page.append(sectionHeader(`Goals · ${app.state.year}`));
   const goals = app.p().goals.filter(g => g.areaId === area.id && g.year === app.state.year);
-  const list = el('div', 'list');
+  const list = el('div', 'list area-goals');
   for (const goal of goals) {
     list.append(goalRow(app, goal));
     for (const project of app.p().projects.filter(pr => pr.goalId === goal.id)) {
       list.append(listItem({leading: 'folder', headline: project.title, cls: 'nested',
-        trailing: 'chevron_right', onClick: () => app.openProject(project.id)}));
+        onClick: () => app.openProject(project.id)}));
     }
   }
+  list.append(addRow('Add Goal', () => app.actions.newEntity('goals', {areaId: area.id})));
   page.append(list);
-  if (!goals.length) page.append(el('p', 'quiet', `No Goals for ${app.state.year} yet.`));
-  page.append(labelButton('add', 'Add Goal', () => app.actions.newEntity('goals', {areaId: area.id}), 'outlined-btn wide'));
   finishDetail(app, page);
+}
+
+/** A ring and "N of M tasks done", the same words a Project's Blocks header uses. */
+function taskProgress({done, total}) {
+  const count = `${done} of ${plural(total, 'task')} done`;
+  const node = el('span', 'blocks-progress tnum');
+  node.append(progressRing(done, total, count), el('small', '', count));
+  return node;
 }
 
 const monthName = period => new Date(2000, (period ?? 1) - 1, 1).toLocaleDateString([], {month: 'long'});
 export const horizonLabel = goal => ({quarterly: `Quarter ${goal.period}`, monthly: monthName(goal.period)}[goal.horizon]
   ?? 'Yearly goal');
 
-/** When a Goal is for: its stretch (year, quarter or month) and its year, each an anchored menu that saves in one tap. */
+/**
+ * When a Goal is for: its stretch (year, quarter or month) and its year, each quiet words on the Goal's facts line
+ * that open an anchored menu and save in one tap.
+ */
 function goalWhen(app, goal) {
   const line = el('div', 'goal-when');
   const save = (patch, label) => saveEntity(app, 'goals', goal, patch, label).catch(() => {});
   const chip = (text, name, items) => {
-    const node = button('', null, 'assist-chip goal-when-chip');
-    node.append(el('span', '', text), icon('arrow_drop_down', {cls: 'crumb-drop'}));
+    const node = button('', null, 'crumb crumb-quiet goal-when-chip');
+    node.append(el('span', '', text));
     node.setAttribute('aria-haspopup', 'menu');
     node.setAttribute('aria-label', `${name}: ${text}. Change`);
     node.addEventListener('click', () => openMenu(node, items(), name));
@@ -253,24 +280,34 @@ export function renderGoalDetail(app, page, goal) {
     options: app.p().areas.map(a => [a.id, a.title]), open: () => app.openArea(area.id),
     choose: (areaId, label) => saveEntity(app, 'goals', goal, {areaId},
       areaId ? `Moved to ${label}` : 'Moved out of its Area').catch(() => {})});
-  const crumbs = breadcrumbs(app, [{label: area?.title ?? 'Choose an Area', icon: 'spa', menu: areaMenu}]);
+  // The Goal leads; its Area and when it is for follow as one quiet line, as on a Project.
+  page.append(titleField(app, 'goals', goal, 'Goal'));
+  const crumbs = breadcrumbs(app, [{label: area?.title ?? 'Choose an Area', icon: 'spa', menu: areaMenu}], {quiet: true});
+  crumbs.classList.add('head-crumbs');
+  crumbs.dataset.tone = app.tone(area);
   crumbs.append(...goalWhen(app, goal).children);
   page.append(crumbs);
-  page.append(titleField(app, 'goals', goal, 'Goal'));
   const facts = el('div', 'block-facts');
-  facts.append(purposePanel(app, 'goals', goal));
+  facts.dataset.tone = app.tone(area);
+  facts.append(purposePanel(app, 'goals', goal, 'Purpose', {labelled: false}));
   const notes = notesPanel(app, 'goals', goal);
   if (notes) facts.append(notes);
   page.append(facts);
-  page.append(sectionHeader('Projects'));
-  const list = el('div', 'list');
-  for (const project of app.p().projects.filter(pr => pr.goalId === goal.id)) {
-    list.append(listItem({leading: 'folder', headline: project.title, supporting: project.purpose ?? '',
-      trailing: 'chevron_right', onClick: () => app.openProject(project.id)}));
+  // Each Project shows its ring and count, and the header adds them up into the Goal's progress.
+  const projects = app.p().projects.filter(pr => pr.goalId === goal.id).map(project => ({project, ...projectTasks(app, project)}));
+  const all = projects.reduce((sum, {stats}) => ({done: sum.done + stats.done, total: sum.total + stats.total}), {done: 0, total: 0});
+  const header = sectionHeader('Projects', all.total ? taskProgress(all) : null);
+  header.dataset.tone = app.tone(area);
+  page.append(header);
+  const list = el('div', 'list goal-projects');
+  list.dataset.tone = app.tone(area);
+  for (const {project, stats} of projects) {
+    const count = stats.total ? `${stats.done} of ${plural(stats.total, 'task')} done` : 'No tasks yet';
+    list.append(listItem({leading: progressRing(stats.done, stats.total, count), headline: project.title,
+      supporting: count, trailing: 'chevron_right', onClick: () => app.openProject(project.id)}));
   }
+  list.append(addRow('Add Project', () => app.actions.newEntity('projects', {goalId: goal.id})));
   page.append(list);
-  page.append(labelButton('add', 'Add Project', () => app.actions.newEntity('projects', {goalId: goal.id}),
-    'outlined-btn wide'));
   finishDetail(app, page);
 }
 

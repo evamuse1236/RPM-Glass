@@ -53,7 +53,7 @@ Mode: Operate. Android phone, trusted offline WebView, native private storage an
 ### Life
 
 - Vision is the default view; Quarter, Month, and Values are scrollable 48dp tabs.
-- The Wheel of Life has one wedge per Area in its persistent hue, filled from the centre to rating/10, faint rings at 2, 4, 6, 8 and 10, the average in the middle and the Area names with their ratings round it. Dragging a wedge out or in sets its rating in whole points, saved on release with Undo. Area chips with their Goal count sit under it and open the Area; "Rate your Areas" opens the sheet of sliders, the keyboard and screen-reader route.
+- The Wheel of Life has one wedge per Area in its persistent hue, filled from the centre to rating/10 over a faint track of the same hue, faint rings at 2, 4, 6, 8 and 10, the average of rated Areas in the middle (nothing while none is rated) and the Area names with their ratings round it. Dragging a wedge out or in sets its rating in whole points, saved on release with Undo. Under the card each Area is a row with its rating as a number and its Goals indented under it; a tap opens the Area. "Rate your Areas" in the card's header opens the sheet of sliders, the keyboard and screen-reader route, and the drag hint shows only until the first rating.
 - Ratings are reflective 0–10 values (whole points on the wheel, half steps in the sheet). They do not derive from task completion.
 - Area detail shows its description, rating, yearly Goals, and linked Projects as rows rather than nested cards.
 

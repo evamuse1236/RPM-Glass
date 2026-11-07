@@ -1,8 +1,7 @@
-/** The Wheel of Life (prototype round4 l1): one wedge per Area in its tone, filled from the centre to rating/10. Dragging a
- * wedge sets that Area's rating in whole points and saves it on release with Undo; "Rate your Areas" stays the
- * keyboard and screen-reader route. Area chips under the wheel open each Area. */
-import {el, attrs, button, labelButton} from './dom.mjs';
-import {plural} from './format.mjs';
+/** The Wheel of Life (prototype round4 l1): one wedge per Area on a faint track in its tone, filled from the centre to
+ * rating/10. Dragging a wedge sets that Area's rating in whole points and saves it on release with Undo; "Rate your
+ * Areas" stays the keyboard and screen-reader route. The Area list under the card (life.mjs) opens each Area. */
+import {el, attrs, button} from './dom.mjs';
 import {persist} from './inline-edit.mjs';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -55,14 +54,12 @@ function plot(app, areas) {
   const box = el('div', 'wheel-plot');
   const svg = node('svg', {viewBox: `0 0 ${WHEEL.size} ${WHEEL.size}`, class: 'wheel-svg', role: 'img', 'aria-label': wheelLabel(areas)});
   const values = areas.map((area, i) => {
-    svg.append(node('path', {d: wedgePath(i, n, WHEEL.outer), class: 'wheel-track'}));
+    svg.append(node('path', {d: wedgePath(i, n, WHEEL.outer), class: 'wheel-track', 'data-tone': app.tone(area)}));
     return node('path', {d: wedgePath(i, n, radiusFor(area.rating)), class: 'wheel-wedge', 'data-tone': app.tone(area)});
   });
   svg.append(...values);
   for (const k of RINGS) svg.append(node('circle', {cx: WHEEL.centre, cy: WHEEL.centre, r: radiusFor(k), class: 'wheel-ring'}));
-  const none = app.api.wide?.() ? '' : '–';
-  const average = el('span', 'wheel-average tnum', averageOf(areas.map(a => a.rating)) ?? none);
-  average.dataset.none = none;
+  const average = el('span', 'wheel-average tnum', averageOf(areas.map(a => a.rating)) ?? '');
   average.setAttribute('aria-hidden', 'true');
   const labels = areas.map((area, i) => {
     const label = el('span', 'wheel-label');
@@ -90,7 +87,7 @@ function bindDrag(app, areas, svg, values, labels, average) {
   const show = (i, rating) => {
     values[i].setAttribute('d', wedgePath(i, n, radiusFor(rating)));
     labels[i].lastChild.textContent = rating == null ? '' : String(rating);
-    average.textContent = averageOf(areas.map((a, j) => (j === i ? rating : a.rating))) ?? average.dataset.none;
+    average.textContent = averageOf(areas.map((a, j) => (j === i ? rating : a.rating))) ?? '';
   };
   const set = (event, i) => {
     const rating = ratingAt(read(event).distance);
@@ -122,28 +119,12 @@ function bindDrag(app, areas, svg, values, labels, average) {
   svg.addEventListener('pointercancel', end(false));
 }
 
-function areaChips(app, areas) {
-  const row = el('div', 'chip-row wrap wheel-areas');
-  for (const area of areas) {
-    const goals = app.p().goals.filter(g => g.areaId === area.id && g.year === app.state.year).length;
-    const chip = button('', () => app.openArea(area.id), 'wheel-area');
-    chip.dataset.key = 'wheel-area:' + area.id;
-    chip.dataset.tone = app.tone(area);
-    const dot = el('span', 'area-dot');
-    dot.setAttribute('aria-hidden', 'true');
-    chip.append(dot, el('span', 'wheel-area-name', area.title));
-    chip.append(el('span', 'wheel-area-goals', plural(goals, 'Goal')));
-    chip.setAttribute('aria-label', `${area.title}, rating ${area.rating ?? 'not set'}, ${plural(goals, 'Goal')}. Open Area`);
-    row.append(chip);
-  }
-  return row;
-}
-
 export function wheelCard(app, areas, rateAreas) {
   const card = el('section', 'wheel-card');
   const copy = el('div', 'wheel-copy');
-  copy.append(el('h2', '', 'Wheel of Life'), el('p', '', 'Drag a wedge out or in to rate it from 0 to 10'));
-  card.append(copy, plot(app, areas), areaChips(app, areas),
-    labelButton('tune', 'Rate your Areas', () => rateAreas(app), 'tonal-btn'));
+  copy.append(el('h2', '', 'Wheel of Life'), button('Rate your Areas', () => rateAreas(app), 'text-btn'));
+  // How to rate shows only until the first rating; after that the wedges say it.
+  if (areas.every(area => area.rating == null)) copy.append(el('p', '', 'Drag a wedge out to rate it from 0 to 10'));
+  card.append(copy, plot(app, areas));
   return card;
 }
