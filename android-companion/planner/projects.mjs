@@ -37,7 +37,8 @@ function blockRow(app, block, wide) {
   } else {
     const next = blockTasks(app.data(), block.id).find(task => !task.done);
     const copy = el('span', 'project-block-copy');
-    copy.append(name, el('span', 'project-block-next', next?.title ?? (total ? 'All done' : 'No tasks yet')));
+    // A finished Block's ring and count already say it is done, so its chip gives no second line.
+    copy.append(name, ...(next || !total ? [el('span', 'project-block-next', next?.title ?? 'No tasks yet')] : []));
     row.title = block.title;
     row.append(...(total ? [segmentRing(done, total), copy, el('span', 'project-block-count tnum', `${done}/${total}`)] : [copy]));
   }
@@ -54,7 +55,8 @@ function projectCard(app, project) {
   const card = el('article', 'project-card' + (open ? ' open' : ''));
   card.dataset.projectId = project.id;
   card.dataset.tone = app.tone(area);
-  const meta = `${plural(blocks.length, 'Block')} · ${stats.done} of ${stats.total} done`;
+  const meta = `${plural(blocks.length, 'Block')} · ${stats.done} of ${stats.total} tasks done`;
+  const finished = stats.total > 0 && stats.done === stats.total;
   const toggle = wide ? button('', () => app.openProject(project.id), 'project-toggle')
     : button('', () => { toggleProject(app.state, project.id); app.render(); }, 'project-toggle');
   if (!wide) toggle.setAttribute('aria-expanded', String(open));
@@ -62,7 +64,8 @@ function projectCard(app, project) {
   const copy = el('span', 'project-copy');
   if (area) copy.append(el('span', 'project-area', area.title));
   copy.append(el('span', 'card-title', project.title), el('span', 'card-meta tnum', meta));
-  toggle.append(nestRings(wide ? [stats] : ordered.map(block => blockStats(app, block)), `${stats.done} of ${stats.total} tasks done`), copy);
+  toggle.append(nestRings(wide ? [stats] : ordered.map(block => blockStats(app, block)), `${stats.done} of ${stats.total} tasks done`,
+    {finished}), copy);
   const head = el('div', 'project-head');
   head.append(toggle);
   if (!wide) head.append(iconButton('chevron_right', `Open ${project.title}`, () => app.openProject(project.id), {cls: 'project-open'}));
@@ -99,17 +102,18 @@ export function renderProjects(app, page) {
   }
 }
 
-/** Assist chips for Area › Goal. A part may carry `menu` (items) to open instead of navigating. */
-export function breadcrumbs(app, parts) {
+/** Assist chips for Area › Goal. A part may carry `menu` (items) to open instead of navigating. `quiet` draws each as icon
+ * and words with no outline or arrow, so Area and Goal share one line under a title. */
+export function breadcrumbs(app, parts, {quiet = false} = {}) {
   const line = el('nav', 'crumbs');
   line.setAttribute('aria-label', 'Breadcrumb');
   for (const part of parts.filter(Boolean)) {
     const [label, kind, id, symbol, menu] = Array.isArray(part) ? part : [part.label, part.kind, part.id, part.icon, part.menu];
     if (!label) continue;
-    const chip = button('', null, 'assist-chip crumb');
+    const chip = button('', null, quiet ? 'crumb crumb-quiet' : 'assist-chip crumb');
     chip.append(icon(symbol), el('span', '', label));
     if (menu) {
-      chip.append(icon('arrow_drop_down', {cls: 'crumb-drop'}));
+      if (!quiet) chip.append(icon('arrow_drop_down', {cls: 'crumb-drop'}));
       chip.setAttribute('aria-haspopup', 'menu');
       chip.addEventListener('click', () => openMenu(chip, menu(), label));
     } else {
@@ -141,11 +145,12 @@ export function renderProjectDetail(app, page, project) {
     options: app.p().goals.map(g => [g.id, g.title]), open: () => app.openGoal(goal.id),
     choose: (goalId, label) => saveEntity(app, 'projects', project, {goalId},
       goalId ? `Linked to ${label}` : 'Unlinked from its Goal').catch(() => {})});
-  // The Project leads at the largest size; its Area and Goal follow as quiet chips, the Goal on its own row when it is long.
+  // The Project leads at the largest size; its Area and Goal follow on one quiet line of icon and words.
   page.append(titleField(app, 'projects', project, 'Project'));
   const crumbs = breadcrumbs(app, [[area?.title, 'areas', area?.id, 'spa'],
-    {label: goal?.title ?? 'Link a Goal', icon: 'flag', menu: goalMenu}]);
+    {label: goal?.title ?? 'Link a Goal', icon: 'flag', menu: goalMenu}], {quiet: true});
   crumbs.classList.add('head-crumbs');
+  crumbs.dataset.tone = app.tone(area);
   page.append(crumbs);
   const facts = el('div', 'block-facts');
   facts.dataset.tone = app.tone(area);

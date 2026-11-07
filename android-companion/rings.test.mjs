@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {nestedRings, ringSegments, MAX_RINGS, MAX_SEGMENTS} from './planner/rings.mjs';
+import {nestedRings, finishedMark, ringSegments, MAX_RINGS, MAX_SEGMENTS} from './planner/rings.mjs';
 import {toggleProject} from './planner/projects.mjs';
 
 test('each Block ring\'s arc is its done/total, outermost first, fading inward', () => {
@@ -18,14 +18,20 @@ test('each Block ring\'s arc is its done/total, outermost first, fading inward',
   assert.equal(nestedRings(Array.from({length: 9}, () => ({done: 1, total: 2}))).length, MAX_RINGS);
 });
 
-test('every Project ring has one stroke and one gap, so one Block draws the outer ring of a full set', () => {
+test('every Project card\'s outer ring has one weight, inner rings are thinner with one gap, and a finished Project fills its centre', () => {
   const full = nestedRings(Array.from({length: MAX_RINGS}, () => ({done: 1, total: 2})));
-  assert.equal(new Set(full.map(r => r.width)).size, 1, 'one stroke weight');
-  assert.equal(new Set(full.slice(1).map((r, i) => full[i].r - r.r)).size, 1, 'one gap');
   const [one] = nestedRings([{done: 1, total: 2}]);
-  assert.deepEqual([one.r, one.width], [full[0].r, full[0].width]);
-  assert.ok(full[0].r - full[1].r - full[0].width >= full[0].width, 'the gap between rings is at least a stroke wide');
+  assert.deepEqual([one.r, one.width], [full[0].r, full[0].width], 'a one-Block ring is the outer ring of a full set');
+  assert.ok(full.slice(1).every(r => r.width < full[0].width && r.width >= 2), 'inner rings step down, never under 2');
+  assert.equal(new Set(full.slice(1).map(r => r.width)).size, 1, 'one inner weight');
+  const gaps = full.slice(1).map((r, i) => full[i].r - full[i].width / 2 - (r.r + r.width / 2));
+  assert.equal(new Set(gaps).size, 1, 'one gap');
+  assert.ok(gaps[0] >= full[0].width, 'the gap between rings is at least the outer stroke wide');
   assert.ok(full.at(-1).r - full.at(-1).width / 2 >= 8, 'the innermost ring keeps an open centre');
+  for (const rings of [full, [one]]) {
+    const {r} = finishedMark(rings), inner = rings.at(-1);
+    assert.ok(r > 0 && r < inner.r - inner.width / 2, 'the finished disc sits inside the innermost ring');
+  }
 });
 
 test('a Block row\'s segment ring has one arc per task, the done ones on', () => {

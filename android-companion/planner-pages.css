@@ -56,6 +56,10 @@
 /* A ring's track is a dim band of its own colour (Activity rings), so every nested ring reads as one band, light or dark. */
 :is(.nest-track, .ring-track) { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-highest)); }
 .nest-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; }
+/* A Project's empty tracks sit fainter than a Block ring's, so the done arcs carry the card's icon. */
+.nest-track { stroke-opacity: .55; }
+.nest-rings .nest-done { fill: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-low)); }
+.nest-check { fill: none; stroke: var(--progress, var(--primary)); stroke-linecap: round; stroke-linejoin: round; }
 /* An open card lists its Blocks flat on the card under one divider; each ring starts on the card ring's edge. */
 .project-blocks { display: grid; grid-template-columns: minmax(0, 1fr); margin-inline: var(--s3) var(--s6); padding-block: var(--s1) var(--s2); border-block-start: 1px solid var(--outline-variant); }
 .project-block {
@@ -70,7 +74,8 @@
 .project-block:active { background: var(--row-press); }
 .project-block .seg-ring { flex: none; inline-size: 28px; block-size: 28px; }
 .project-blocks > .quiet { padding: var(--s3) 0; }
-.project-block-name { flex: 1; min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+/* A Block's name keeps Dara's words: two lines before it shortens. */
+.project-block-name { flex: 1; min-inline-size: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: clip; }
 .project-block-count { color: var(--on-surface-variant); white-space: nowrap; }
 .seg-ring :is(path, circle) { fill: none; stroke-width: 6; }
 .seg-off { stroke: var(--surface-container-highest); }
@@ -157,10 +162,21 @@
 .project-picker { padding-right: var(--s1); }
 .goal-when-chip { padding-right: var(--s1); }
 .detail-title-text + .block-facts { margin-top: calc(-1 * var(--s2)); }
-/* Project detail: Area and Goal follow the title; a Goal too long for the Area's row takes its own row, and only a Goal wider than the page shortens. */
-.detail-title-text + .head-crumbs { margin-block-start: calc(-1 * var(--s3)); padding-block-start: 0; }
-.head-crumbs .crumb { min-inline-size: 0; max-inline-size: 100%; }
-.head-crumbs .crumb > span:not(.ms) { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Project detail: Area and Goal follow the title as one quiet line of icon and words; the Goal wraps to a second line
+   only when both cannot fit. Each keeps a 48dp hit area around its 32dp line. */
+.detail-title-text + .head-crumbs { margin-block-start: calc(-1 * var(--s2)); padding-block: 0 var(--s2); }
+.head-crumbs { gap: 0 var(--s3); }
+.crumb-quiet {
+  position: relative; display: inline-flex; align-items: center; gap: var(--s1); min-inline-size: 0; min-block-size: 32px;
+  padding: 0; border: 0; border-radius: var(--shape-xs); background: none; color: var(--on-surface-variant); font: var(--body-medium);
+  text-align: start; cursor: pointer;
+}
+.crumb-quiet::after { content: ''; position: absolute; inset: calc(-1 * var(--s2)) calc(-1 * var(--s1)); }
+.crumb-quiet > .ms { flex: none; font-size: 20px; inline-size: 20px; }
+.head-crumbs[data-tone] .crumb-quiet:first-child > .ms { color: var(--progress); }
+.crumb-quiet > span:not(.ms) { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+.crumb-quiet:active { color: var(--on-surface); }
+.crumb-quiet:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .section-header:has(> .blocks-progress) { align-items: center; }
 .blocks-progress { display: flex; align-items: center; gap: var(--s2); }
 .blocks-progress .ring { inline-size: 20px; block-size: 20px; }
