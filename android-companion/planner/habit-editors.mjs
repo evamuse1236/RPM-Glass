@@ -1,19 +1,22 @@
 /**
- * The water and meal editors: bottom sheets in the task sheet's row grammar (icon, then a stepper, chips, a switch or
- * a time). Each change saves at once through the body store with Undo; a stepper saves once the presses stop.
+ * The water and meal editors: bottom sheets in the task sheet's row grammar (icon, then a slider, a picker, a switch
+ * or a time). Each change saves at once through the body store with Undo; a slider saves when it is let go.
  */
-import {WATER_DEFAULTS, WATER_STEPS, GLASS_SIZES, stepWater, everyText, clockText, atMinutes, minutesOf, SLOT_NAMES}
-  from '../body-state.mjs';
-import {el, button, iconButton} from './dom.mjs';
+import {WATER_DEFAULTS, WATER_STEPS, GLASS_SIZES, stepWater, everyText, clockText, atMinutes, minutesOf, SLOT_NAMES,
+  waterStatus} from '../body-state.mjs';
+import {el, icon, button, iconButton} from './dom.mjs';
 import {openSheet, closeSheet, isSheetOpen} from './sheet.mjs';
 import {notice} from './snackbar.mjs';
 import {userMessage} from '../user-message.mjs';
-import {factRow, chipRow, chip, markChips, settleChip, switchButton, stepper, timeButton, textRow}
-  from './fact-rows.mjs';
+import {factRow, switchButton, slider, moreButton, pickButton, timeButton, textRow} from './fact-rows.mjs';
+import {drink} from './water.mjs';
 
-const STEPPER_SETTLE = 500;
 const glassesText = n => `${n} ${n === 1 ? 'glass' : 'glasses'}`;
 const timeWords = hhmm => clockText(atMinutes('2000-01-01', minutesOf(hhmm)));
+const waterSettings = body => ({...WATER_DEFAULTS, ...body.water().settings});
+const onGrid = (key, onValue) => v => onValue(stepWater(key, v, 0));
+/** A slider being dragged keeps its own value; a repaint would yank it. */
+const sliding = content => content.contains(document.activeElement) && document.activeElement.type === 'range';
 
 /** Saves one change and says so with Undo; a refused change says why. */
 async function saved(app, run, words) {
@@ -28,10 +31,10 @@ async function saved(app, run, words) {
   return true;
 }
 
-/** The sheet header's way back to what opened the editor, by the arrow or Android Back. */
+/** The sheet header's way back to what opened the editor, by the arrow, Android Back or Escape. It is the sheet's one
+ * exit: habits.css hides Close while the arrow shows; a sheet opened on its own keeps Close. */
 function backTo(app, header, content, back, label) {
   if (!back) return;
-  header.querySelector('.sheet-close')?.remove();
   header.prepend(iconButton('arrow_back', label, back, {cls: 'sheet-back'}));
   app.sheet.onBack = () => {
     if (!content.isConnected || !isSheetOpen(app)) return false;
@@ -40,59 +43,79 @@ function backTo(app, header, content, back, label) {
   };
 }
 
-const labelled = (text, control) => [el('span', 'edit-label', text), control];
+/** When the next glass is due, or why none is coming, after the count ("3 of 8 glasses · next at 2:10 PM"). */
+function nextGlass(status, settings) {
+  if (status.reached) return 'goal reached';
+  if (settings.reminders === false) return 'reminders off';
+  if (status.pending) return 'next glass due now';
+  return status.nextAt ? `next at ${clockText(status.nextAt)}` : 'no more reminders today';
+}
 
+/** Water: today's meter with a one-tap log, the count and when the next glass is due; then the goal, the glass size and a Reminders row that
+ * opens its own sheet. */
 export function openWaterEditor(app, body, {back = null, backLabel = 'Back to Habits', motion = 'forward'} = {}) {
-  const {body: content, header} = openSheet(app, 'Edit water', {variant: 'choice habit-editor', motion});
+  const {body: content, header} = openSheet(app, 'Water', {variant: 'choice habit-editor', motion});
   backTo(app, header, content, back, backLabel);
-  const settings = () => ({...WATER_DEFAULTS, ...body.water().settings});
-  const pending = {};
-  const later = (key, value, words) => {
-    clearTimeout(pending[key]);
-    pending[key] = setTimeout(() => {
-      delete pending[key];
-      saved(app, () => body.setWater(key, value), words);
-    }, STEPPER_SETTLE);
+  const count = el('span', 'water-count');
+  const next = el('span', 'water-next');
+  const goal = slider({label: 'Daily goal', ...WATER_STEPS.goal, format: glassesText,
+    onChange: onGrid('goal', v => saved(app, () => body.setWater('goal', v), `Daily goal: ${glassesText(v)}`))});
+  const size = pickButton('Glass size', value => saved(app, () => body.setWater('glassMl', Number(value)), `Glass size: ${value} ml`));
+  const again = () => openWaterEditor(app, body, {back, backLabel, motion: 'back'});
+  const reminders = moreButton('Reminders', () => openWaterReminders(app, body, again));
+  const meter = el('span', 'water-track');
+  meter.setAttribute('aria-hidden', 'true');
+  const log = button('', () => drink(app, body), 'tonal-btn water-log');
+  log.append(icon('add'), el('span', '', '1 glass'));
+  log.setAttribute('aria-label', 'Log a glass');
+  const today = el('section', 'water-today');
+  today.setAttribute('aria-label', 'Today');
+  const status = el('p', 'water-status tnum');
+  status.append(count, ' · ', next);
+  today.append(meter, log, status);
+  content.append(today, factRow('water_drop', goal, {cls: 'slider-row'}), factRow('local_drink', size),
+    factRow('notifications', reminders));
+
+  const paint = () => {
+    const s = waterSettings(body);
+    const status = waterStatus({...body.water(), settings: s, now: body.now()});
+    count.textContent = `${status.count} of ${glassesText(status.goal)}`;
+    next.textContent = nextGlass(status, s);
+    if (meter.childElementCount !== status.goal) meter.replaceChildren(...Array.from({length: status.goal}, () => el('i')));
+    [...meter.children].forEach((glass, i) => glass.classList.toggle('on', i < status.count));
+    if (!sliding(content)) goal.set(s.goal);
+    const offered = [...new Set([...GLASS_SIZES, s.glassMl])].sort((a, b) => a - b);
+    size.set(offered.map(ml => ({value: String(ml), words: `${ml} ml`})), String(s.glassMl));
+    reminders.set(s.reminders === false ? 'Off' : `Every ${everyText(s.intervalMinutes)}`);
   };
-  const goal = stepper({label: 'Daily goal', less: 'Fewer glasses', more: 'More glasses', ...WATER_STEPS.goal,
-    next: (v, d) => stepWater('goal', v, d), format: glassesText, onChange: v => later('goal', v, `Daily goal: ${glassesText(v)}`)});
-  const sizes = chipRow('Glass size');
-  const pickSize = value => {
-    settleChip(sizes, markChips(sizes, value));
-    saved(app, () => body.setWater('glassMl', Number(value)), `Glass size: ${value} ml`);
-  };
+  paint();
+  app.sheetRefresh = () => { if (content.isConnected) paint(); };
+}
+
+/** Water reminders: the switch, then how often and between which times; those dim and lock while reminders are off. */
+function openWaterReminders(app, body, back) {
+  const {body: content, header} = openSheet(app, 'Water reminders', {variant: 'choice habit-editor', motion: 'forward'});
+  backTo(app, header, content, back, 'Back to Water');
   const reminders = switchButton('Reminders', on => {
     reminders.set(on);
     paintOff(!on);
     saved(app, () => body.setWater('reminders', on), on ? 'Water reminders on' : 'Water reminders off');
   });
-  const every = stepper({label: 'Every', less: 'Shorter interval', more: 'Longer interval', ...WATER_STEPS.intervalMinutes,
-    next: (v, d) => stepWater('intervalMinutes', v, d), format: everyText,
-    onChange: v => later('intervalMinutes', v, `Reminders every ${everyText(v)}`)});
+  const every = slider({label: 'Every', ...WATER_STEPS.intervalMinutes, format: everyText,
+    onChange: onGrid('intervalMinutes', v => saved(app, () => body.setWater('intervalMinutes', v), `Reminders every ${everyText(v)}`))});
   const from = timeButton('From', value => saved(app, () => body.setWater('from', value), `Reminders from ${timeWords(value)}`));
   const until = timeButton('Until', value => saved(app, () => body.setWater('until', value), `Reminders until ${timeWords(value)}`));
-  const dependent = [factRow('timer', labelled('Every', every), {cls: 'stepper-row'}), factRow('wb_sunny', from),
-    factRow('bedtime', until)];
+  const dependent = [factRow('timer', every, {cls: 'slider-row'}), factRow('wb_sunny', from), factRow('bedtime', until)];
   const paintOff = off => {
     for (const row of dependent) {
       row.classList.toggle('is-off', off);
       row.inert = off;
     }
   };
-  content.append(factRow('water_drop', labelled('Daily goal', goal), {cls: 'stepper-row'}),
-    factRow('local_drink', labelled('Glass size', sizes), {cls: 'segment-row'}),
-    factRow('notifications', reminders), ...dependent);
-
+  content.append(factRow('notifications', reminders), ...dependent);
   const paint = () => {
-    const s = settings();
-    if (!pending.goal) goal.set(s.goal);
-    if (!pending.intervalMinutes) every.set(s.intervalMinutes);
-    const offered = [...new Set([...GLASS_SIZES, s.glassMl])].sort((a, b) => a - b);
-    if (sizes.dataset.values !== offered.join('|')) {
-      sizes.dataset.values = offered.join('|');
-      sizes.replaceChildren(...offered.map(ml => chip(`${ml} ml`, String(ml), pickSize, {cls: 'tnum segment'})));
-    }
-    markChips(sizes, String(s.glassMl));
+    const s = waterSettings(body);
+    if (!sliding(content)) every.set(s.intervalMinutes);
     reminders.set(s.reminders !== false);
     paintOff(s.reminders === false);
     from.set(s.from, timeWords(s.from));

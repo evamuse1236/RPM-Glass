@@ -1,5 +1,5 @@
 /** Life: Vision / Quarter / Month / Values, the Wheel of Life (life-wheel.mjs) over each Area with its Goals. */
-import {el, button, iconButton, labelButton, emptyState, listItem, sectionHeader} from './dom.mjs';
+import {el, button, icon, iconButton, labelButton, emptyState, listItem, sectionHeader} from './dom.mjs';
 import {plural} from './format.mjs';
 import {openSheet} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
@@ -46,8 +46,11 @@ function periodSwitch(app) {
 }
 
 /**
- * Each Area with this year's Goals under the wheel. Wide: beside it, with the rating as a slider on the Area's row.
- * Phone: the wheel is the one rating control and shows each rating, so the row only names the Area and opens it.
+ * Each Area with this year's Goals under the wheel; every row opens its page and ends in a chevron. The wheel's names
+ * carry each rating's number at every width. Wide: beside the wheel, the Area's row also draws its rating as the Area
+ * page's slider at rest, a slim bar with the same capsule thumb (hollow at the start until rated, so no row needs to
+ * say "Not rated"); dragging is left to the wheel and the Area's page, and "Rate your Areas" stays the keyboard route.
+ * Phone: the wheel is the one rating control, so the row only names the Area and opens it.
  */
 function areaGoals(app, areas, loose) {
   const wide = app.api.wide?.();
@@ -57,16 +60,21 @@ function areaGoals(app, areas, loose) {
     const group = el('div', 'life-area-group');
     group.dataset.tone = app.tone(area);
     const row = el('div', 'life-area-row');
-    const value = el('span', 'life-rating tnum', area.rating == null ? '' : `${area.rating}`);
+    const open = () => app.openArea(area.id);
     const item = listItem({leading: initialAvatar(app, area), headline: area.title, cls: 'life-area',
-      trailing: wide ? null : 'chevron_right', onClick: () => app.openArea(area.id)});
+      trailing: wide ? null : 'chevron_right', onClick: open});
+    item.setAttribute('aria-label', `${area.title}, rating ${area.rating ?? 'not set'}, ${plural(goals.length, 'Goal')}. Open Area`);
     if (wide) {
-      const track = el('span', 'life-track');
-      track.append(ratingInput(app, area, rating => { value.textContent = rating; }), ratingTicks());
-      row.append(item, track, value);
+      const meter = el('span', `life-meter${area.rating == null ? ' unrated' : ''}`);
+      meter.style.setProperty('--value', String((area.rating ?? 0) / 10));
+      // The chevron opens the Area too; the name, whose label says the rating, is its one keyboard stop.
+      const end = button('', open, 'life-area-end');
+      end.tabIndex = -1;
+      end.setAttribute('aria-hidden', 'true');
+      end.append(icon('chevron_right', {cls: 'trailing'}));
+      row.append(item, meter, end);
     } else {
       item.dataset.key = 'life-area:' + area.id;
-      item.setAttribute('aria-label', `${area.title}, rating ${area.rating ?? 'not set'}, ${plural(goals.length, 'Goal')}. Open Area`);
       row.append(item);
     }
     group.append(row, ...goals.map(goal => goalRow(app, goal, 'nested')));
@@ -76,10 +84,11 @@ function areaGoals(app, areas, loose) {
   return list;
 }
 
-/** Every row that opens a page ends in a chevron, nested or not; the indent only says where it belongs. */
-function goalRow(app, goal, cls = '') {
+/** Every row that opens a page ends in a chevron, nested or not; the indent only says where it belongs. Where the
+ * Goal's Projects are listed right under it, the row leaves out their count. */
+function goalRow(app, goal, cls = '', {count = true} = {}) {
   const projects = app.p().projects.filter(pr => pr.goalId === goal.id);
-  return listItem({leading: 'flag', headline: goal.title, supporting: plural(projects.length, 'Project'),
+  return listItem({leading: 'flag', headline: goal.title, supporting: count ? plural(projects.length, 'Project') : null,
     trailing: 'chevron_right', onClick: () => app.openGoal(goal.id), cls});
 }
 
@@ -139,8 +148,8 @@ export function renderLife(app, page) {
 
 /**
  * The Area's rating as a slider on the page: drag or arrow keys, saved when let go, with Undo. It moves in whole
- * points (a half point saved earlier shows as it is until touched). Unrated, the track shows its eleven points as faint
- * ticks and a hollow handle waits at its start, so it reads as something to drag but never as a value; the first
+ * points (a half point saved earlier shows as it is until touched). Unrated, the track is empty and a hollow handle
+ * waits at its start, so it reads as something to drag but never as a value; the first
  * touch puts the handle where the finger is, filled.
  */
 /** A 0–10 slider in the Area's colour that saves on release with Undo; `show` writes the value it is set to. */
@@ -181,20 +190,18 @@ function ratingInput(app, area, show) {
   return input;
 }
 
-function ratingTicks() {
-  const ticks = el('span', 'rating-ticks');
-  ticks.setAttribute('aria-hidden', 'true');
-  for (let i = 0; i <= 10; i++) ticks.append(el('i'));
-  return ticks;
-}
-
-/** The Area's rating as one plain row under its Purpose: the handle on the icon column, the value at the end once rated. */
+/** The Area's rating as one row under its Purpose, like it: an icon in the icon column, the track on the text edge
+ * with a hollow handle parked at the start until rated, and the value in the chevron column once there is one. The
+ * track and thumb are the wide Life list's: no ticks, and no "Not rated" words, since the hollow thumb says it. */
 function ratingSlider(app, area) {
   const row = el('div', 'rating-row');
   row.dataset.tone = app.tone(area);
+  const icon = el('span', 'ms', 'speed');
+  icon.setAttribute('aria-hidden', 'true');
   const output = el('strong', 'tnum', area.rating == null ? '' : `${area.rating} / 10`);
+  output.setAttribute('aria-hidden', 'true');
   const input = ratingInput(app, area, value => { output.textContent = `${value} / 10`; });
-  row.append(input, ratingTicks(), output);
+  row.append(icon, input, output);
   return row;
 }
 
@@ -211,16 +218,33 @@ export function renderAreaDetail(app, page, area) {
   page.append(sectionHeader(`Goals · ${app.state.year}`));
   const goals = app.p().goals.filter(g => g.areaId === area.id && g.year === app.state.year);
   const list = el('div', 'list area-goals');
+  list.dataset.tone = app.tone(area);
   for (const goal of goals) {
-    list.append(goalRow(app, goal));
-    for (const project of app.p().projects.filter(pr => pr.goalId === goal.id)) {
-      list.append(listItem({leading: 'folder', headline: project.title, cls: 'nested', trailing: 'chevron_right',
-        onClick: () => app.openProject(project.id)}));
-    }
+    list.append(goalRow(app, goal, '', {count: false}));
+    for (const project of app.p().projects.filter(pr => pr.goalId === goal.id)) list.append(projectRow(app, project, 'nested'));
   }
   list.append(addRow('Add Goal', () => app.actions.newEntity('goals', {areaId: area.id})));
   page.append(list);
   finishDetail(app, page);
+}
+
+/**
+ * One Project row on the Area and Goal pages: its ring, its name (and on a Goal's page its Result), "done/total" by
+ * the chevron as on a Project card's Block rows, and the chevron that opens it.
+ */
+function projectRow(app, project, cls = '', {result = false} = {}) {
+  const {stats} = projectTasks(app, project);
+  const spoken = stats.total ? `${stats.done} of ${plural(stats.total, 'task')} done` : 'No tasks yet';
+  const end = el('span', 'project-row-end');
+  if (stats.total) {
+    const count = el('span', 'project-row-count tnum', `${stats.done}/${stats.total}`);
+    count.setAttribute('aria-hidden', 'true');
+    end.append(count);
+  }
+  end.append(icon('chevron_right', {cls: 'trailing'}));
+  return listItem({leading: progressRing(stats.done, stats.total, spoken), headline: project.title,
+    supporting: result ? project.purpose : '', trailing: end, onClick: () => app.openProject(project.id),
+    cls: ['project-row', cls].filter(Boolean).join(' ')});
 }
 
 /** A ring and "N of M tasks done", the same words a Project's Blocks header uses. */
@@ -234,6 +258,8 @@ function taskProgress({done, total}) {
 const monthName = period => new Date(2000, (period ?? 1) - 1, 1).toLocaleDateString([], {month: 'long'});
 export const horizonLabel = goal => ({quarterly: `Quarter ${goal.period}`, monthly: monthName(goal.period)}[goal.horizon]
   ?? 'Yearly goal');
+/** The same stretch as it reads before the year on a Goal's facts line: "Q4 2026", "November 2026", "Whole year 2026". */
+const horizonShort = goal => ({quarterly: `Q${goal.period}`, monthly: monthName(goal.period)}[goal.horizon] ?? 'Whole year');
 
 /**
  * When a Goal is for: its stretch (year, quarter or month) and its year, each quiet words on the Goal's facts line
@@ -242,24 +268,29 @@ export const horizonLabel = goal => ({quarterly: `Quarter ${goal.period}`, month
 function goalWhen(app, goal) {
   const line = el('div', 'goal-when');
   const save = (patch, label) => saveEntity(app, 'goals', goal, patch, label).catch(() => {});
-  const chip = (text, name, items) => {
+  const chip = (text, name, items, {icon = null, spoken = text} = {}) => {
     const node = button('', null, 'crumb crumb-quiet goal-when-chip');
+    if (icon) {
+      const glyph = el('span', 'ms', icon);
+      glyph.setAttribute('aria-hidden', 'true');
+      node.append(glyph);
+    }
     node.append(el('span', '', text));
     node.setAttribute('aria-haspopup', 'menu');
-    node.setAttribute('aria-label', `${name}: ${text}. Change`);
+    node.setAttribute('aria-label', `${name}: ${spoken}. Change`);
     node.addEventListener('click', () => openMenu(node, items(), name));
     return node;
   };
   const is = (horizon, period = null) => (goal.horizon ?? 'yearly') === horizon && (horizon === 'yearly' || goal.period === period);
   const option = (label, horizon, period = null) => ({label, icon: is(horizon, period) ? 'check' : NO_ICON,
     onClick: () => { if (!is(horizon, period)) save({horizon, period}, `Goal moved to ${label}`); }});
-  line.append(chip(horizonLabel(goal), 'Goal for', () => [
+  line.append(chip(horizonShort(goal), 'Goal for', () => [
     option('The whole year', 'yearly'),
     {divider: true},
     ...[1, 2, 3, 4].map(q => option(`Quarter ${q}`, 'quarterly', q)),
     {divider: true},
     ...Array.from({length: 12}, (_, i) => option(monthName(i + 1), 'monthly', i + 1)),
-  ]));
+  ], {icon: 'event', spoken: horizonLabel(goal)}));
   line.append(chip(String(goal.year), 'Year', () => [-1, 0, 1, 2].map(delta => goal.year + delta).map(year => ({
     label: String(year), icon: year === goal.year ? 'check' : NO_ICON,
     onClick: () => { if (year !== goal.year) save({year}, `Goal moved to ${year}`); }}))));
@@ -294,13 +325,7 @@ export function renderGoalDetail(app, page, goal) {
   page.append(header);
   const list = el('div', 'list goal-projects');
   list.dataset.tone = app.tone(area);
-  for (const {project, stats} of projects) {
-    const count = stats.total ? `${stats.done} of ${plural(stats.total, 'task')} done` : 'No tasks yet';
-    const row = listItem({leading: progressRing(stats.done, stats.total, count), headline: project.title,
-      supporting: project.purpose, trailing: 'chevron_right', onClick: () => app.openProject(project.id)});
-    row.querySelector('.list-copy').append(el('span', 'list-supporting goal-project-count tnum', count));
-    list.append(row);
-  }
+  for (const {project} of projects) list.append(projectRow(app, project, '', {result: true}));
   list.append(addRow('Add Project', () => app.actions.newEntity('projects', {goalId: goal.id})));
   page.append(list);
   finishDetail(app, page);

@@ -1,6 +1,6 @@
 // The Capture composer: one row, the field then one round button. The field is one line when empty and grows
-// with text. At rest the button is the voice drop; it cross-fades to Send as soon as there is text, and while a
-// voice session is open the drop follows the call and the button is "Hang up".
+// with text. At rest the button is the mic disc; it cross-fades to Send as soon as there is text, and while a
+// voice session is open the button is "Hang up" (call_end) and its drop, drawn beside the status, follows the call.
 import {dropNode,dropPlayer,dropDirector} from './capture-drop.mjs';
 
 const MAX_LINES=6;
@@ -92,7 +92,7 @@ const LIVE=new Set(['connecting','listening','working','speaking']);
 
 /**
  * While a session is open Send stays hidden and the voice button is "Hang up": a tap while RPM speaks only cuts the
- * speech. The drop (capture-drop.mjs) shows the call's phase.
+ * speech. The drop (capture-drop.mjs) shows the call's phase at the start of the field.
  */
 export function showVoice(panel,dictate,{phase=null,listening=false,busy=false}={}){
  const live=LIVE.has(phase);

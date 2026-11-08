@@ -217,6 +217,8 @@
 .crumb-drop { font-size: 20px; color: var(--on-surface-variant); margin-left: -2px; }
 .project-picker { padding-right: var(--s1); }
 .goal-when-chip { padding-right: var(--s1); }
+/* The stretch and its year read as one phrase ("Q4 2026"), so the year sits a word space after it. */
+.goal-when-chip + .goal-when-chip { margin-inline-start: calc(-1 * var(--s2)); }
 .detail-title-text + .block-facts { margin-top: calc(-1 * var(--s2)); }
 /* Project detail: Area and Goal follow the title as one quiet line of icon and words; the Goal wraps to a second line
    only when both cannot fit. Each keeps a 48dp hit area around its 32dp line. */
@@ -261,7 +263,9 @@
   #planner[data-view=projects] .head-crumbs + .block-facts { margin-block-start: -2px; }
   #planner[data-view=projects] .block-facts + .section-header { margin-block-start: calc(-1 * var(--s2)); padding-inline-end: calc(var(--gutter) + var(--s4)); }
 }
-#planner:is([data-view=areas], [data-view=goals]) :is(.purpose-text, .title-edit, .detail-title-text) { text-wrap: pretty; }
+#planner:is([data-view=areas], [data-view=goals]) :is(.title-edit, .detail-title-text) { text-wrap: pretty; }
+/* An Area's or Goal's Purpose fills its line before it wraps. */
+#planner:is([data-view=areas], [data-view=goals]) .purpose-text { text-wrap: wrap; }
 /* Google Tasks detail rows: the 24dp icon centred on the Plan's check column, the text on the task titles. */
 .fact-row {
   display: flex;
@@ -355,13 +359,18 @@ button.fact-row:active { background: var(--row-press); }
 .achieved-panel .text-btn { color: inherit; padding-left: 0; }
 .block-facts .achieved-panel { margin: var(--s2) var(--gutter); }
 
-/* Life */
+/* Life. The tabs stay pinned under the top bar, in its colour, so they never show half cut off. */
 .tabs {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  background: var(--surface);
   display: flex;
   border-bottom: 1px solid var(--surface-container-highest);
   overflow-x: auto;
   scrollbar-width: none;
 }
+#planner[data-scrolled=true] .tabs { background: var(--surface-container); }
 .tab {
   flex: 1 0 auto;
   min-height: var(--touch);
@@ -400,18 +409,23 @@ button.fact-row:active { background: var(--row-press); }
 }
 .values-card p { font: var(--body-large); }
 .area-head { display: flex; align-items: center; gap: var(--s1); padding: var(--s3) 0 0 var(--gutter); }
-.area-head .detail-title-text { flex: 1; min-width: 0; padding-left: var(--s2); }
-/* The Area's rating is a plain row like the Purpose above it: the 20dp handle centred on the 24dp icon column. */
+.area-head .detail-title-text { flex: 1; min-width: 0; padding-left: var(--s1); }
+/* The title's line box hangs below its letters; lifting the avatar by half the margin centres it on the word. */
+.area-head > .avatar { margin-block-end: var(--s2); }
+/* The Area's rating is a row like the Purpose above it: its icon in the icon column, the track on the text edge and
+   the value at the end. */
 .rating-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: var(--s6) minmax(0, 1fr) auto;
   align-items: center;
   gap: 0 var(--s4);
-  padding-inline: calc(24px + 2px) var(--gutter);
+  padding-inline: var(--s6) var(--gutter);
 }
-.rating-row > :is(.rating-slider, .rating-ticks) { grid-column: 1; grid-row: 1; }
-.rating-row strong { grid-column: 2; grid-row: 1; min-inline-size: 56px; font: var(--title-medium); text-align: end; }
-.rating-row .rating-slider.unrated::-webkit-slider-thumb { background: var(--surface); }
+.rating-row > .ms { grid-column: 1; grid-row: 1; color: var(--on-surface-variant); }
+.rating-row > .rating-slider { grid-column: 2; grid-row: 1; }
+.rating-row strong { grid-column: 3; grid-row: 1; min-inline-size: 4.5rem; font: var(--title-medium); text-align: end; }
+/* The value ("7 / 10") ends where the chevrons below it do; unrated, its slot stays empty so the track never moves. */
+#planner[data-view=areas] .rating-row strong { padding-inline-end: var(--s2); }
 /* M3 slider in the Area's colour: one active-track colour whether resting or dragged, a 20dp handle, 48dp target.
    Unrated: the whole track is inactive and there is no handle until the first touch. */
 .rating-slider {
@@ -449,22 +463,45 @@ button.fact-row:active { background: var(--row-press); }
 .rating-slider:focus-visible { outline: none; }
 .rating-slider.unrated::-webkit-slider-runnable-track { background: var(--inactive); }
 .rating-slider.unrated::-moz-range-progress { background: transparent; }
-/* Unrated: a hollow handle at the start and the eleven points as faint ticks, an affordance that is not a value. */
+/* Unrated: a hollow handle at the start, an affordance that is not a value. */
 .rating-slider.unrated::-webkit-slider-thumb { background: var(--surface-container-low); box-shadow: inset 0 0 0 2px var(--outline); }
 .rating-slider.unrated::-moz-range-thumb { background: var(--surface-container-low); box-shadow: inset 0 0 0 2px var(--outline); }
-.rating-ticks {
-  align-self: center;
-  display: flex;
-  justify-content: space-between;
-  padding: 0 8px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--dur-short3) var(--ease-standard);
-}
-.rating-ticks i { width: 4px; height: 4px; border-radius: 50%; background: var(--outline); }
-.rating-slider.unrated + .rating-ticks { opacity: .55; }
-.rating-slider.unrated + .rating-ticks i:first-child { visibility: hidden; }
 .rating-slider.unrated:focus-visible { outline: 2px solid var(--primary); outline-offset: -8px; border-radius: var(--shape-xs); }
+/* On Life the handle is the wheel's thumb: an 8dp capsule across the track with a gap of the page round it, solid in
+   the Area's hue once rated and hollow (a ring of the hue) until then, so an unrated Area has something to pull and no
+   value at 0. The same thumb as each wedge of the wheel. */
+/* The track is the wide Life list's (life-meter): a darker inactive track in dark so it reads on the page. */
+.rating-row .rating-slider {
+  --fill: calc(4px + (100% - 8px) * var(--value, 0));
+  --gap: var(--surface);
+  --inactive: light-dark(var(--surface-container-highest), var(--outline-variant));
+}
+.rating-row .rating-slider::-webkit-slider-thumb {
+  width: 8px;
+  height: 24px;
+  margin-block-start: calc(var(--s1) * -2.5);
+  border-radius: var(--shape-full);
+  background: var(--active);
+  box-shadow: 0 0 0 4px var(--gap);
+}
+.rating-row .rating-slider::-moz-range-thumb {
+  width: 8px;
+  height: 24px;
+  border-radius: var(--shape-full);
+  background: var(--active);
+  box-shadow: 0 0 0 4px var(--gap);
+}
+.rating-row .rating-slider.unrated::-webkit-slider-thumb {
+  background: var(--gap);
+  box-shadow: inset 0 0 0 2px var(--active), 0 0 0 4px var(--gap);
+}
+.rating-row .rating-slider.unrated::-moz-range-thumb {
+  background: var(--gap);
+  box-shadow: inset 0 0 0 2px var(--active), 0 0 0 4px var(--gap);
+}
+.rating-row .rating-slider:is(:active, :focus-visible)::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px var(--gap), 0 0 0 8px color-mix(in oklch, var(--active) 24%, transparent);
+}
 
 
 /* Search */

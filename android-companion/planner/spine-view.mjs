@@ -4,11 +4,19 @@
  * The time shows only in the gutter; the words carry the title and one quiet line.
  */
 import {el, icon, button, iconButton} from './dom.mjs';
+import {owedRows, owedSplit, owedLabel, foldWords} from '../spine-model.mjs';
+
+/** The still-to-do group shows this many rows; the rest open with the done past from one line. */
+export const OWED_CAP = 3;
 
 function gutter(row) {
   const node = el('div', 'spine-gutter tnum');
   node.setAttribute('aria-hidden', 'true');
   if (row.kind === 'gap') return node;
+  if (row.anytime) {
+    if (row.first) node.append(el('span', 'spine-time spine-anytime', 'Any time'));
+    return node;
+  }
   node.append(el('span', 'spine-time', row.gutter?.time ?? row.time ?? ''));
   if (row.gutter?.end) node.append(el('span', 'spine-time spine-end', row.gutter.end));
   return node;
@@ -17,8 +25,9 @@ function gutter(row) {
 function shell(row, body) {
   const node = el('div', `spine-row spine-${row.kind}`);
   node.dataset.key = row.key;
-  for (const flag of ['past', 'current', 'next', 'done', 'missed', 'overdue']) node.classList.toggle(flag, !!row[flag]);
+  for (const flag of ['past', 'current', 'next', 'done', 'missed', 'overdue', 'late', 'must']) node.classList.toggle(flag, !!row[flag]);
   node.classList.toggle('tall', (row.height ?? 0) > 48);
+  node.classList.toggle('owed', row.fold === 'missed');
   if (row.kind === 'task') node.dataset.tone = row.tone;
   if (row.height) node.style.setProperty('--h', row.height + 'px');
   node.append(gutter(row), body);
@@ -55,10 +64,10 @@ function ring(label, done, onClick, role = 'checkbox') {
 }
 
 /** A plain clock time is already in the gutter; only a countdown or a lateness earns words. */
-const LOUD_WHEN = new Set(['soon', 'now', 'late', 'due']);
+const LOUD_WHEN = new Set(['soon', 'now', 'late']);
 /**
- * "Not logged" on every meal says nothing the empty ring does not; it stays in the spoken name. A clash is its own chip,
- * drawn under the words, that names what it clashes with and opens Resolve.
+ * "Not logged" on every meal says nothing the empty ring does not; it stays in the spoken name. A clash is its own small
+ * marker under the words that opens Resolve.
  */
 const QUIET_LINE = new Set(['unlogged', 'clash']);
 
@@ -69,7 +78,11 @@ function words(row) {
   copy.append(title);
   const parts = [];
   if (row.when && LOUD_WHEN.has(row.when.kind)) parts.push(el('span', `spine-when tnum when-${row.when.kind}`, row.when.text));
-  if (row.line && !QUIET_LINE.has(row.line.kind)) parts.push(el('span', `spine-line line-${row.line.kind}`, row.line.text));
+  if (row.line && !QUIET_LINE.has(row.line.kind)) {
+    const line = el('span', `spine-line line-${row.line.kind}`, row.line.text);
+    if (row.line.kind === 'due') line.prepend(icon('hourglass_bottom', {fill: true, cls: 'spine-due'}));
+    parts.push(line);
+  }
   if (parts.length) {
     const line = el('span', 'spine-meta');
     parts.forEach((part, i) => line.append(...(i ? [' · ', part] : [part])));
@@ -78,7 +91,8 @@ function words(row) {
   return copy;
 }
 
-const spoken = row => [row.title, row.when?.text, row.line?.text, row.done ? 'done' : '', row.must ? 'Must' : '']
+const spoken = row => [row.title, row.when?.text, row.line?.kind === 'due' ? `due today, ${row.line.text}` : row.line?.text,
+  row.done ? 'done' : '', row.must ? 'Must' : '']
   .filter(Boolean).join(', ');
 
 function card(row, marker, ...parts) {
@@ -159,27 +173,109 @@ export function spineRow(row, on) {
   return shell(row, BODIES[row.kind](row, on));
 }
 
-export function spineList(model, on) {
+const listItem = node => {
+  node.setAttribute('role', node.getAttribute('role') ?? 'listitem');
+  return node;
+};
+
+/** The current item's thin progress line: how much of it has gone. */
+function progress(row, now) {
+  const bar = el('span', 'spine-progress');
+  bar.setAttribute('aria-hidden', 'true');
+  bar.style.setProperty('--p', String(Math.min(1, Math.max(0, (now - row.start) / (row.end - row.start)))));
+  return bar;
+}
+
+/** One row of the Now card: the same row as on the timeline, with a progress line while it runs. */
+export function focusRow(row, on, now) {
+  const node = listItem(spineRow(row, on));
+  if (row.current) node.querySelector('.spine-card')?.append(progress(row, now));
+  return node;
+}
+
+/** The Any time rows under the timeline; only the first says "Any time". */
+export const anytimeRows = model => model.anytime.map((row, i) => ({...row, anytime: true, first: i === 0}));
+
+/** The Now card's one row. */
+export const focusOf = model => model.rows.find(r => r.focus);
+
+/** The Now card at the top of a live day: the item in progress, else the next timed one. One item, or no card. */
+export function focusCard(model, on) {
+  const row = focusOf(model);
+  if (!row) return null;
+  const card = el('section', 'spine-focus');
+  card.dataset.key = 'focus';
+  card.setAttribute('role', 'list');
+  card.setAttribute('aria-label', row.current ? 'Now' : 'Next');
+  card.append(focusRow(row, on, model.now));
+  return card;
+}
+
+/**
+ * The one text button on the rail that opens or folds rows in place: the owed rows that do not fit (never a Must) and the done
+ * past ("Show 2 more · 1 done"). Its rows are drawn hidden, so it opens in place.
+ */
+export function foldToggle(model, open, on) {
+  const {hidden} = owedSplit(model.rows, OWED_CAP);
+  const {label, spoken} = foldWords(hidden.length, model.rows.filter(r => r.fold === 'earlier'), open);
+  const node = el('div', 'spine-row spine-fold spine-fold-earlier');
+  node.dataset.key = 'earlier';
+  const toggle = button('', () => on.toggleFold?.('earlier'), 'spine-fold-open');
+  toggle.setAttribute('aria-expanded', String(open));
+  toggle.setAttribute('aria-label', spoken);
+  toggle.append(el('span', 'spine-fold-label tnum', label));
+  node.append(el('span', 'spine-gutter'), toggle);
+  return node;
+}
+
+/** Rows the fold line opens: the owed rows past the cap (never a Must), then the done past. */
+export const foldedRows = model => [...owedSplit(model.rows, OWED_CAP).hidden, ...model.rows.filter(r => r.fold === 'earlier')];
+
+/** The group's header: "Still to do · 4". */
+function owedHead(owed) {
+  const node = el('div', 'spine-owed-head');
+  node.dataset.key = 'owed';
+  node.setAttribute('role', 'heading');
+  node.setAttribute('aria-level', '2');
+  node.setAttribute('aria-label', `Still to do from earlier, ${owed.length}`);
+  const hint = el('span', 'spine-owed-hint', 'Swipe left to plan');
+  hint.setAttribute('aria-hidden', 'true');
+  node.append(el('span', 'spine-owed-label', owedLabel(owed)), hint);
+  return node;
+}
+
+/**
+ * The timeline. On a live day it opens with what is still owed from earlier ("Still to do · 4": clock order, at most
+ * three rows, more only for Musts), then one line ("Show 1 more · 2 done") that opens the rest of them and the finished past in place, then the rest with
+ * the Now line, leaving out what the Now card shows; then the tasks with no time, under "Any time". The Now line already
+ * spaces the rail, so blank free time right after it, or after another blank stretch, is left out.
+ */
+export function spineList(model, on, {open = {}} = {}) {
   const list = el('div', 'spine');
   list.setAttribute('role', 'list');
   list.setAttribute('aria-label', 'The day by time');
+  const owed = owedRows(model.rows), {shown, hidden} = owedSplit(model.rows, OWED_CAP);
+  if (owed.length) {
+    list.append(listItem(owedHead(owed)));
+    for (const row of [...shown, ...hidden]) {
+      const node = listItem(spineRow(row, on));
+      if (hidden.includes(row)) node.hidden = !open.earlier;
+      list.append(node);
+    }
+  }
+  const past = model.rows.filter(r => r.fold === 'earlier');
+  if (hidden.length || past.some(r => r.kind !== 'gap')) list.append(listItem(foldToggle(model, !!open.earlier, on)));
+  let spacer = false;
   for (const row of model.rows) {
-    const node = spineRow(row, on);
-    node.setAttribute('role', node.getAttribute('role') ?? 'listitem');
+    if (row.focus || row.fold === 'missed') continue;
+    const folded = row.fold === 'earlier';
+    const blank = row.kind === 'gap' && row.plan == null;
+    if (blank && spacer && !folded) continue;
+    if (!folded || open.earlier) spacer = blank || row.kind === 'now';
+    const node = listItem(spineRow(row, on));
+    if (folded) node.hidden = !open.earlier;
     list.append(node);
   }
+  anytimeRows(model).forEach(row => list.append(listItem(spineRow(row, on))));
   return list;
-}
-
-/** The anytime tasks as one strip of chips; a chip opens its task. */
-export function anytimeChips(tasks, on) {
-  return tasks.map(task => {
-    const chip = button('', () => on.openTask(task.task), 'spine-chip');
-    chip.dataset.key = task.key;
-    chip.dataset.tone = task.tone;
-    chip.classList.toggle('done', task.done);
-    chip.append(icon(task.symbol, {fill: true}), el('span', 'chip-label', task.title));
-    chip.setAttribute('aria-label', `${task.title}${task.must ? ', Must' : ''}${task.done ? ', done' : ''}. Open task`);
-    return chip;
-  });
 }

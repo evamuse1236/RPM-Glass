@@ -59,12 +59,22 @@ Gemini Live answers "I'm just a language model and can't help with that" to "Rea
 ## 2026-11-07 · UI gauntlet leftovers (website and phone)
 The UI gauntlet (branch `gauntlet/ui-components`) ended with these open items. Today, nav and the task sheet stopped at 7/7–7/8, below the target of 8.
 - Website Capture: is it a dark bar in both themes, or does it follow the page theme? Blind judges preferred a light bar twice, but a light bar was lost on the scrim. The bar is also centred on the window, not on the timeline column, so it crosses the side panel.
+  Done 2026-11-08 (PR #23): the bar follows the page theme, and on wide it sits over the main column.
 - Task pane: the time shows 3 times, and 2 controls set the length. Could the ruler's green bar drag to set the length, so the chips go?
-- Today date format: the phone shows "7. November 2026 ›" (per `docs/design/today.md`), the website shows "7 November 2026 ›". Which one is right?
+- Today date format: decided 2026-11-07, "7 November 2026" everywhere (gauntlet round 2, thread A).
 - Life: unrated Area tracks have tick marks but no thumb, so they do not look draggable.
+  Done 2026-11-08 (PR #23): an unrated Area shows a hollow thumb on a faint groove, on the wheel and the slider.
 - Detail top bar: a long Block title now wraps to 2 lines in the collapsed bar (no ellipsis, per default-text-fit). The bar keeps that height while the title is hidden at rest, so about 16dp of empty bar shows above the page title.
 Open question: run another gauntlet on today, nav and task-sheet with a new direction, not more patches?
 
 ## 2026-11-07 · Phone signing key does not match CI or pune
 The S24 FE app is signed with the laptop debug key (`02620d8a…`, `dara-laptop:~/.config/.android/debug.keystore`, backup `~/Backups/keys/android-debug-2026-10-20.keystore`). The CI key (`PHONE_SIGNER` `525fee39…` in `scripts/ci/check-signer.mjs`, repo secret `RPM_DEBUG_KEYSTORE`) and pune's `~/.android/debug.keystore` (`8df2ca61…`) both fail `adb install -r` with INSTALL_FAILED_UPDATE_INCOMPATIBLE. Release 0.46 was the CI APK re-signed with the laptop key.
 Done 2026-11-07: the laptop key is canonical. CI signs with secret `RPM_PHONE_KEYSTORE`, `PHONE_SIGNER` is `02620d8a…`, and pune builds with `~/.android/rpm-phone.keystore`.
+
+## 2026-11-08 · Website drive failures (pre-existing)
+`node scripts/web-sync/drive.mjs --only habits-settings` fails the same way on `origin/main` as on the gauntlet branch (main: 26 of 40 checks pass).
+- Every step reports "waiting for the phone", but the phone saves.
+- The `capture` save step fails.
+- `capture-history` fails because the top-bar Capture button is hidden at 412px.
+Logs: `~/.cache/gauntlet2-c/drive-main.log` and `drive-branch.log`.
+Open question: is the drive harness out of date, or is web sync slow?

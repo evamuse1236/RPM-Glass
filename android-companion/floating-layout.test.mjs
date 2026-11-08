@@ -60,14 +60,16 @@ test('nothing shows in the strip under the tab bar, and a row scrolled into view
   assert.match(css, /--nav-gap: max\(var\(--s4\), calc\(env\(safe-area-inset-bottom, 0px\) \+ var\(--s2\)\)\);/);
   assert.match(rule(css, '#nav-bar'), /inset-block-end: var\(--nav-gap\);/);
   const mask = rule(css, ':root:not([data-keyboard=open]) #planner:has(> #nav-bar:not([hidden])) #planner-scroll');
-  assert.match(mask, /linear-gradient\(to top, transparent var\(--nav-gap\), #000 calc\(var\(--nav-gap\) \+ var\(--bar-fade, var\(--s8\)\)\)\)/,
-    'the strip under the bar shows nothing; the page shows through the glass');
+  assert.match(mask, /linear-gradient\(to top, transparent var\(--nav-gap\), #000 calc\(var\(--nav-gap\) \+ var\(--bar-fade, var\(--s8\)\) - var\(--s6\)\), transparent calc\(100% - var\(--s1\)\)\)/,
+    'the strip under the bar shows nothing; the page shows through the glass and is gone again 4dp under its rim, so no word is cut there');
+  assert.match(mask, /rgb\(0 0 0 \/ var\(--bar-ends, 100%\)\) calc\(var\(--bar-r\) - var\(--s4\)\), transparent calc\(var\(--bar-r\) - var\(--s1\)\)/,
+    'the bar\'s round ends fade out before their rim too');
   assert.match(mask, /mask-size: [^;]*calc\(100% - var\(--inset-page\) - var\(--bar-end\) - 2 \* var\(--bar-r\)\) var\(--bar-top\)/,
     'below the bar\'s top the page shows only inside the bar, never in the gaps beside it');
-  assert.match(mask, /linear-gradient\(to top, transparent max\(var\(--dock-top\), var\(--page-end\)\), #000 calc\(max\(var\(--dock-top\), var\(--page-end\)\) \+ var\(--s6\)\)\)/,
+  assert.match(mask, /linear-gradient\(to top, transparent calc\(max\(var\(--dock-top\), var\(--page-end\)\) \+ var\(--s2\)\), #000 calc\(max\(var\(--dock-top\), var\(--page-end\)\) \+ var\(--s6\)\)\)/,
     'nothing shows behind Add or the habit circle');
-  assert.match(mask, /linear-gradient\(to top, transparent var\(--page-end\), #000 calc\(var\(--page-end\) \+ var\(--s6\)\)\)/,
-    'beside the bar the page ends at the bar\'s top, or at the Now pill\'s top while it shows');
+  assert.match(mask, /linear-gradient\(to top, transparent calc\(var\(--page-end\) \+ var\(--s2\)\), #000 calc\(var\(--page-end\) \+ var\(--s6\)\)\)/,
+    'beside the bar the page ends 8dp above the bar\'s top, or above the Now pill\'s top while it shows, so no word is cut at a rim');
   assert.match(css, /--page-end: calc\(var\(--bar-top\) \+ var\(--now-clear\)\);/);
   assert.match(css, /#planner\[data-now-off=true\]:not\(\[data-now-aside=true\], \[data-snackbar=true\]\):has\(> #now-host:not\(\[hidden\]\)\) \{ --now-clear: calc\(var\(--s4\) \+ 32px\); \}/,
     'the Now pill never sits on a row');

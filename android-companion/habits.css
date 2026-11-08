@@ -1,40 +1,88 @@
 .habit-list { display: flex; flex-direction: column; margin-inline: calc(-1 * var(--s2)); }
+/* A habit row: today's ring, the words, the chevron. Every row is one height. */
 .habit-row {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: calc(var(--row-icon) - var(--s2)) minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--s2);
+  column-gap: var(--s2);
   min-block-size: 56px;
   padding-inline: var(--s2);
   border-radius: var(--shape-md);
 }
 .habit-icon { inline-size: calc(var(--row-icon) - var(--s2)); font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
-.habit-copy { flex: 1; min-inline-size: 0; display: flex; flex-direction: column; padding-block: var(--s2); }
+/* Today's progress ring in the habit's own timeline colour (water blue, routine green, meal orange). Nothing done yet:
+   a 2dp outline in that full colour, as the timeline's ring to tick. Partly done: the share done as an arc over a dim
+   band, the tint only on the part still to do. Done: a filled disc with a check. A meal hidden from Today keeps a
+   plain outline. */
+.tone-water { --ring-c: var(--tone-water); }
+.tone-routine { --ring-c: var(--tone-routine); }
+.tone-meal { --ring-c: var(--tone-meal); }
+.habit-ring { justify-self: center; inline-size: 24px; block-size: 24px; overflow: visible; }
+.habit-ring circle { fill: none; stroke-width: 3; }
+.habit-ring .habit-ring-track { stroke: var(--ring-c); stroke-width: 2; }
+.habit-ring:has(.habit-ring-arc) .habit-ring-track { stroke: color-mix(in oklch, var(--ring-c) var(--track-mix), var(--sheet-surface)); stroke-width: 3; }
+.habit-ring-arc { stroke: var(--ring-c); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
+.habit-ring.off .habit-ring-track { stroke: var(--outline-variant); }
+.habit-ring .habit-ring-disc { fill: var(--ring-c); stroke: none; }
+.habit-ring-check { fill: none; stroke: var(--on-tone); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.habit-copy { min-inline-size: 0; display: flex; flex-direction: column; padding-block: var(--s2); }
 .habit-open { font: var(--body-large); color: var(--on-surface); text-align: start; overflow-wrap: anywhere; }
 .habit-open::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
-.habit-summary { font: var(--body-medium); color: var(--on-surface-variant); overflow-wrap: anywhere; }
-/* The chevron's glyph sits inside its box: pulled out by that inset, it ends on the switches' edge. */
+.habit-summary { font: var(--body-medium); color: var(--on-surface-variant); overflow-wrap: anywhere; text-wrap: pretty; }
+.habit-soon { color: var(--primary); }
+/* The chevron's glyph sits inside its box: pulled out by that inset, it ends on the sheet's content edge. */
 .habit-chevron { flex: none; margin-inline-end: calc(-1 * var(--s2)); font-size: calc(24px / var(--text-scale, 1)); color: var(--on-surface-variant); }
-.switch-btn.habit-switch { position: relative; z-index: 1; inline-size: auto; flex: none; padding-inline-start: var(--s4); }
-/* The switch is its own target: a divider splits it from the row that opens the meal's editor. */
-.switch-btn.habit-switch::before { content: ""; inline-size: 1px; block-size: var(--s8); background: var(--outline-variant); }
-.habit-add { min-block-size: var(--touch); }
+/* The next thing's action takes the chevron's place: a 32dp tonal disc in the habit's colour holding its log glyph,
+   centred where the chevron's centre is, with a full touch target above the row's own tap area. */
+.habit-do.icon-btn {
+  z-index: 1;
+  margin-inline-end: calc(var(--s1) - var(--touch) / 2);
+  color: color-mix(in oklch, var(--ring-c) 75%, var(--on-surface));
+}
+.habit-do.icon-btn::before { inset: var(--s2); background: color-mix(in oklch, var(--ring-c) var(--track-mix), var(--sheet-surface)); opacity: 1; }
+.habit-do.icon-btn:active::before { background: color-mix(in oklch, var(--ring-c) calc(var(--track-mix) * 1.5), var(--sheet-surface)); }
+@media (hover: hover) and (pointer: fine) {
+  .habit-do.icon-btn:hover::before { background: color-mix(in oklch, var(--ring-c) calc(var(--track-mix) * 1.3), var(--sheet-surface)); }
+}
+.habit-do > .ms { position: relative; font-size: calc(20px / var(--text-scale, 1)); }
+.habit-add { display: flex; min-block-size: var(--touch); }
 .habit-add > .habit-icon { color: var(--primary); }
 .habit-add > .habit-open { flex: 1; font: var(--body-large); color: var(--primary); }
-.switch-btn.habit-switch .switch-label { display: none; }
+/* Water's sheet: today's glasses as a slim segmented track, one segment per glass of the goal (not the Today circle's
+   .habit-meter). */
+.water-track { display: flex; gap: var(--s1); margin-block-start: var(--s2); }
+.water-track > i { flex: 1; block-size: var(--s1); border-radius: var(--shape-full); background: var(--surface-container-highest); }
+.water-track > i.on { background: var(--tone-water); }
+/* A meal: when it was eaten and what, or its time. A meal hidden from Today keeps its row, dimmed. */
+.habit-meal-line { display: flex; align-items: center; white-space: pre; }
+.habit-logged { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; }
+.habit-row.habit-hidden .habit-open { color: var(--on-surface-variant); }
 .habit-row:has(.habit-open:active) { background: var(--row-press); }
 .habit-row:has(.habit-open:focus-visible) { outline: 2px solid var(--primary); outline-offset: -2px; }
 
-.habit-editor .sheet-body { display: flex; flex-direction: column; gap: var(--row-gap); padding-inline: var(--s4); }
+/* Editor rows are touch high on an 8dp gap: a 56dp list rhythm. */
+.habit-editor .sheet-body { display: flex; flex-direction: column; gap: var(--s2); padding-inline: var(--s4); }
+/* One way out: a sheet opened from Habits goes back by its arrow (Android Back, Escape), so its Close is not shown. */
+:is(.habit-editor, .sheet-editor) .sheet-header:has(.sheet-back) .sheet-close { display: none; }
 .habit-editor .remove-snack { align-self: flex-end; }
 .sheet-editor .edit-pair { margin-block-end: var(--s2); }
-/* Glass size: its label on the icon's line, every size in view in one segmented row under it. */
-.segment-row > .edit-body { padding-block-start: var(--s2); }
-.segment-row .chip-row.edit-chips { overflow: visible; margin: 0; padding: 0; gap: 0; mask-image: none; }
-.segment-row .chip.segment { flex: 1 1 0; justify-content: center; min-inline-size: 0; padding-inline: var(--s1); border-radius: 0; }
-.segment-row .chip.segment + .chip.segment { border-inline-start-width: 0; }
-.segment-row .chip.segment:first-child { border-start-start-radius: var(--r-control); border-end-start-radius: var(--r-control); }
-.segment-row .chip.segment:last-child { border-start-end-radius: var(--r-control); border-end-end-radius: var(--r-control); }
-.segment-row .chip.segment .chip-check { display: none; }
-/* Every editor row is one touch high, so steppers, the glass sizes, switches and times share a rhythm. */
-.habit-editor :is(.stepper-row, .segment-row) > .edit-body { min-block-size: var(--touch); justify-content: center; }
+/* Water today in two lines: the meter with the one-tap log 16dp after it, then the count and the next glass. Space,
+   not a rule, sets the settings apart. */
+.water-today { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s4); padding-block: 0 var(--s3); }
+.water-today > .water-track { margin-block-start: 0; }
+.water-status { grid-column: 1 / -1; font: var(--body-medium); color: var(--on-surface-variant); text-wrap: pretty; }
+.water-count { font: var(--title-medium); color: var(--on-surface); }
+/* A slider row: the icon, the label and its value on one 40dp line (values end in the column the chevron rows' values
+   end in), and the M3 slider under them across the whole row, from the edge the water meter starts on, its thumb
+   tucked up under the label. */
+.edit-row.slider-row { grid-template-columns: var(--row-icon) minmax(0, 1fr) auto; grid-template-rows: 40px auto; align-items: center; }
+.slider-row > .edit-icon { padding-block-start: 0; }
+.slider-row > .edit-body, .slider-row .slider-field { display: contents; }
+.slider-field > .edit-label { grid-area: 1 / 2; }
+.slider-field > .slider-value { grid-area: 1 / 3; }
+.slider-field > .rating-slider { grid-area: 2 / 1 / auto / -1; block-size: 40px; margin-block-start: calc(-1 * var(--s5)); }
+.slider-value { font: var(--title-medium); color: var(--on-surface); white-space: nowrap; text-align: end; margin-inline-end: var(--s8); }
+.slider-field > .edit-label { white-space: nowrap; }
+.pick-button select { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; opacity: 0; cursor: pointer; }
+.pick-button:has(select:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }

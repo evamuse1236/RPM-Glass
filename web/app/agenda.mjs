@@ -1,119 +1,127 @@
-import {blockTasks, inboxRows, localDay, shiftDay} from '../../android-companion/planner-state.mjs';
-import {dayTasks} from '../../android-companion/planner-ux.mjs';
-import {dueSoon, openResults} from '../../android-companion/planner/today-model.mjs';
-import {taskWhen} from '../../android-companion/planner/task-row.mjs';
-import {clock, dayName} from '../../android-companion/planner/format.mjs';
-import {button, el, icon, listItem} from '../../android-companion/planner/dom.mjs';
-import {isSplit, isWide, onSplitChange, onWidthChange} from './desktop.mjs';
+import {blockDue, blockTasks, localDay, localStamp, shiftDay, tasks} from '../../android-companion/planner-state.mjs';
+import {openResults} from '../../android-companion/planner/today-model.mjs';
+import {clock, DATE_LOCALE, dueInfo} from '../../android-companion/planner/format.mjs';
+import {button, el, icon} from '../../android-companion/planner/dom.mjs';
+import {isWide, onWidthChange} from './desktop.mjs';
 
-const SHOWN = 4;
-const LINES = 2;
-const TOMORROW = 8;
-const WEEK = 6;
+const GROUPS = 6;
+const AHEAD = 13;
+const MISSED_DAYS = 7;
 
-const byTime = (a, b) => (taskWhen(a) ?? Infinity) - (taskWhen(b) ?? Infinity);
+const dueValue = task => task.planned ? localStamp(task.planned) : task.plannedDate;
+const timed = value => value.length > 10;
+const order = value => (timed(value) ? value : value + 'T24');
+const openMusts = data => tasks(data).filter(task => task.must && !task.done && !task.recurrence && !task.repeatAfterDays && dueValue(task));
+const timeOf = value => (timed(value) ? clock(new Date(value)) : '');
 
-export function agendaModel(data, now = new Date(), {split = false} = {}) {
-  const today = localDay(now);
-  const listed = dayTasks(data, today, +now);
-  const shown = new Set([...listed.active, ...listed.completed].map(task => task.id));
-  const claim = (tasks, most = Infinity) => {
-    const fresh = [...new Map(tasks.filter(task => !shown.has(task.id)).map(task => [task.id, task])).values()].slice(0, most);
-    for (const task of fresh) shown.add(task.id);
-    return fresh;
+/**
+ * Coming up: the days after today's centre, each named once, with one row per deadline. A Result's deadline leads with
+ * its open Must for that day (the action), the Result on a quiet second line; with no such Must it leads with the Result.
+ * Other one-time Musts follow, with their Result as the second line when they have one. Every item sits under its own
+ * day. Empty days and the day the centre shows are left out; what is already past (a deadline, or a Must of the last week
+ * not done) heads the list as Overdue, never under a day still to come.
+ */
+export function comingUp(data, now = new Date(), shown = localDay(now)) {
+  const today = localDay(now), last = shiftDay(today, AHEAD), since = shiftDay(today, -MISSED_DAYS);
+  const groups = new Map();
+  const group = key => {
+    if (!groups.has(key)) groups.set(key, {day: key, items: []});
+    return groups.get(key).items;
   };
-  const inbox = {count: inboxRows(data).length};
-  const tomorrowDay = shiftDay(today, 1);
-  const ahead = dayTasks(data, tomorrowDay, +now).active.sort(byTime);
-  const tomorrow = split ? {day: tomorrowDay, count: ahead.length, tasks: claim(ahead, TOMORROW)} : null;
-  const first = split ? 2 : 1;
-  const week = Array.from({length: WEEK}, (_, i) => {
-    const day = shiftDay(today, i + first);
-    const active = dayTasks(data, day, +now).active.sort(byTime);
-    const unseen = active.filter(task => !shown.has(task.id));
-    const tasks = claim(unseen, LINES);
-    return {day, label: dayName(day), count: active.length, tasks, more: unseen.length - tasks.length};
-  }).filter(day => day.tasks.length);
-  const soon = dueSoon(data, now);
-  const results = [...new Map([...soon.map(item => item.block), ...openResults(data)].map(block => [block.id, block])).values()];
-  const blocks = [];
-  for (const block of results) {
-    if (blocks.length === (split ? 3 : 2)) break;
-    const tasks = claim(blockTasks(data, block.id).filter(task => !task.done), SHOWN);
-    if (!tasks.length && blocks.length) continue;
-    blocks.push({block, due: soon.find(item => item.block.id === block.id)?.due?.label ?? '', tasks});
+  const keyOf = value => (endOf(value) < +now ? 'overdue' : value.slice(0, 10));
+  const listed = value => value.slice(0, 10) !== shown && (keyOf(value) === 'overdue' ? value.slice(0, 10) >= since : value.slice(0, 10) <= last);
+  const whenOf = (value, day) => (day === 'overdue' ? pastWhen(value, today) : timeOf(value));
+  const results = new Map(openResults(data).map(block => [block.id, block]));
+  const left = id => blockTasks(data, id).filter(task => !task.done).length;
+  const held = new Set();
+  for (const block of results.values()) {
+    const value = blockDue(data, block.id)?.value;
+    const due = dueInfo(value, now);
+    if (!due) continue;
+    const day = due.overdue ? 'overdue' : value.slice(0, 10);
+    if (day !== 'overdue' && (day === shown || day > last)) continue;
+    const musts = blockTasks(data, block.id).filter(task => !task.done && task.must && dueValue(task) && keyOf(dueValue(task)) === day
+      && listed(dueValue(task)));
+    for (const task of musts) held.add(task.id);
+    const under = {block: block.title, left: left(block.id)};
+    if (!musts.length) group(day).push({kind: 'result', id: block.id, title: block.title, at: +due.at, when: whenOf(value, day), left: under.left});
+    for (const task of musts) {
+      const own = dueValue(task), at = timed(own) ? own : value;
+      group(day).push({kind: 'must', id: task.id, title: task.title, at: endOf(at), when: whenOf(at, day), ...under});
+    }
   }
-  return {inbox, blocks, tomorrow, week};
+  for (const task of openMusts(data)) {
+    const value = dueValue(task);
+    if (held.has(task.id) || !listed(value)) continue;
+    const day = keyOf(value), result = results.get(task.blockId);
+    group(day).push({kind: 'must', id: task.id, title: task.title, at: endOf(value), when: whenOf(value, day),
+      ...(result && {block: result.title, left: left(result.id)})});
+  }
+  for (const entry of groups.values()) entry.items.sort((a, b) => a.at - b.at);
+  return [...groups.values()].sort((a, b) => (a.day === 'overdue' ? -1 : b.day === 'overdue' ? 1 : a.day.localeCompare(b.day))).slice(0, GROUPS);
 }
 
-function when(task, now) {
-  const at = taskWhen(task);
-  if (at) return [dayName(localDay(at)), clock(at)].filter(Boolean).join(' ');
-  if (task.plannedDate && task.plannedDate < localDay(now)) return 'Overdue';
-  return task.plannedDate ? dayName(task.plannedDate) : '';
-}
+/** When a dated item is over: its time, or the end of its day when it has none. */
+const endOf = value => +new Date(order(value).replace('T24', 'T23:59'));
+/**
+ * A past item under Overdue says when it was due as other rows do: today, only its time; this past week, its weekday;
+ * older, its full date.
+ */
+const pastWhen = (value, today) => {
+  const day = value.slice(0, 10), time = timed(value) ? timeOf(value) : '';
+  if (day === today) return time || 'Today';
+  const name = day >= shiftDay(today, -6) ? new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'long'}) : fullDay(day);
+  return [name, time].filter(Boolean).join(', ');
+};
 
-function head(title, {count = null, due = '', onClick = null} = {}) {
-  const node = onClick ? button('', onClick, 'agenda-head') : el('div', 'agenda-head');
-  const words = el('span', 'agenda-words');
-  words.append(el('h2', '', title));
-  if (due) words.append(el('span', 'agenda-due', due));
+const fullDay = day => new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'short', day: 'numeric', month: 'long'});
+/** A day heading is its full date; the real today and tomorrow (whatever day the centre shows) also say so. */
+export function groupName(day, now) {
+  if (day === 'overdue') return 'Overdue';
+  const word = day === localDay(now) ? 'Today' : day === shiftDay(localDay(now), 1) ? 'Tomorrow' : '';
+  return [word, fullDay(day)].filter(Boolean).join(' · ');
+}
+const star = cls => icon('star', {cls, fill: true});
+
+const tasksLeft = n => `${n} ${n === 1 ? 'task' : 'tasks'} left`;
+
+/** One deadline row: a star for a Must or an hourglass for a Result, the title wrapping in full, one quiet line under it. */
+function soonRow(item, ui, overdue) {
+  const must = item.kind === 'must';
+  const node = button('', () => (must ? ui.taskEditor(item.id) : ui.openView({view: 'rpm', collection: 'blocks', id: item.id})), 'soon-row');
+  node.append(must ? star('soon-star') : icon('hourglass_empty', {cls: 'soon-mark'}));
+  const words = el('span', 'soon-words');
+  words.append(el('span', 'soon-what', item.title));
+  const count = item.left != null && (!must || item.block) ? tasksLeft(item.left) : '';
+  if (item.block || count) {
+    const under = el('span', 'soon-left');
+    if (must && item.block) under.append(el('span', 'soon-block', item.block));
+    if (count) under.append(el('span', 'soon-count', (under.textContent ? '\u00a0· ' : '') + count));
+    words.append(under);
+  }
   node.append(words);
-  if (count != null) node.append(el('span', 'agenda-count tnum', String(count)));
-  if (onClick) node.append(icon('chevron_right', {cls: 'trailing'}));
+  if (item.when) node.append(el('span', `soon-time tnum${overdue ? ' overdue' : ''}`, item.when));
+  node.setAttribute('aria-label', [item.title, item.block, `${overdue ? 'due since' : 'due'} ${item.when || 'end of day'}`,
+    item.left != null && tasksLeft(item.left)].filter(Boolean).join(', '));
   return node;
 }
 
-const leading = task => task.must ? icon('star', {fill: true, cls: 'leading must'}) : 'radio_button_unchecked';
-
-function taskItem(task, ui, now) {
-  return listItem({leading: leading(task), headline: task.title, supporting: when(task, now),
-    onClick: () => ui.taskEditor(task.id), cls: 'agenda-task'});
+export function renderAgenda(host, data, ui, now = new Date()) {
+  const groups = comingUp(data, now, ui.day?.() ?? localDay(now));
+  const panel = el('section', 'agenda-soon');
+  panel.setAttribute('aria-label', 'Coming up');
+  panel.append(el('h2', 'soon-head', 'Coming up'));
+  if (!groups.length) panel.append(el('p', 'soon-empty', 'Nothing due in the next two weeks'));
+  for (const {day, items} of groups) {
+    const section = el('section', 'soon-day');
+    const name = groupName(day, now);
+    section.setAttribute('aria-label', name);
+    section.append(el('h3', `soon-name tnum${day === 'overdue' ? ' overdue' : ''}`, name));
+    for (const item of items) section.append(soonRow(item, ui, day === 'overdue'));
+    panel.append(section);
+  }
+  host.replaceChildren(panel);
 }
-
-function timedItem(task, ui) {
-  const at = taskWhen(task);
-  return listItem({leading: leading(task), headline: task.title, trailing: at ? el('span', 'agenda-time tnum', clock(at)) : null,
-    onClick: () => ui.taskEditor(task.id), cls: 'agenda-task agenda-line'});
-}
-
-function weekDay(day, ui) {
-  const open = () => ui.openView({view: 'day', date: day.day});
-  const top = button('', open, 'agenda-day');
-  top.append(el('span', '', day.label), el('span', 'agenda-count tnum', String(day.count)));
-  const rows = [top, ...day.tasks.map(task => timedItem(task, ui))];
-  if (day.more) rows.push(button(`+${day.more}`, open, 'agenda-more'));
-  return rows;
-}
-
-function section(cls, ...children) {
-  const node = el('section', `agenda-section ${cls}`);
-  node.append(...children);
-  return node;
-}
-
-function column(...sections) {
-  const node = el('div', 'agenda-col');
-  node.append(...sections.filter(Boolean));
-  return node;
-}
-
-export function renderAgenda(host, data, ui, now = new Date(), split = isSplit()) {
-  const model = agendaModel(data, now, {split});
-  const inbox = section('agenda-inbox', head('Inbox', {count: model.inbox.count, onClick: () => ui.inbox()}));
-  const blocks = model.blocks.map(({block, due, tasks}) => {
-    const open = head(block.title, {due, onClick: () => ui.openView({view: 'rpm', collection: 'blocks', id: block.id})});
-    return section('agenda-next', open, ...tasks.map(task => taskItem(task, ui, now)));
-  });
-  const {tomorrow} = model;
-  const ahead = tomorrow?.tasks.length ? section('agenda-tomorrow',
-    head('Tomorrow', {count: tomorrow.count, onClick: () => ui.openView({view: 'day', date: tomorrow.day})}),
-    ...tomorrow.tasks.map(task => timedItem(task, ui))) : null;
-  const week = model.week.length ? section('agenda-week', head('Week'), ...model.week.flatMap(day => weekDay(day, ui))) : null;
-  const columns = split ? [column(ahead, week), column(...blocks, inbox)] : [column(...blocks, inbox, week)];
-  host.replaceChildren(...columns.filter(node => node.childElementCount));
-}
-
 /** The Today side panel on a wide window: shown only on Today, redrawn on every snapshot. */
 export function mountAgenda(host, planner, ui, getData) {
   const refresh = () => {
@@ -123,7 +131,6 @@ export function mountAgenda(host, planner, ui, getData) {
   };
   new MutationObserver(refresh).observe(planner, {attributes: true, attributeFilter: ['data-view']});
   onWidthChange(refresh);
-  onSplitChange(refresh);
   refresh();
   return refresh;
 }

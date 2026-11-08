@@ -108,10 +108,10 @@ export function voiceTable({openItem=()=>{},win=globalThis.window,still=false}={
   entry.row.classList.toggle('gone',gone(data));
   if(entry.glyph.textContent!==ICON[data.entity])entry.glyph.replaceChildren(icon(ICON[data.entity]??'edit_note'));
   entry.alarm.hidden=data.alert!=='alarm';
-  if(entry.target)entry.item.setAttribute('aria-label',[data.title||'Untitled',rowNote(data),data.when].filter(Boolean).join(', '));
+  if(entry.target)entry.item.setAttribute('aria-label',[data.title||'Untitled',rowNote(data),data.whenShort??data.when].filter(Boolean).join(', '));
   let changed=morph(entry.title,data.title||'Untitled');
   changed=morph(entry.note,rowNote(data))||changed;
-  changed=morph(entry.when,data.when??'')||changed;
+  changed=morph(entry.when,data.whenShort??data.when??'')||changed;
   entry.note.hidden=!rowNote(data);
   entry.data=data;
   return changed;

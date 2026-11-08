@@ -89,7 +89,8 @@ export function routineState(routine, run, now = new Date()) {
   return {...base, state: 'running'};
 }
 
-const countLine = ({done, total, skipped}) => `${done} of ${total}${skipped ? `, ${skipped} skipped` : ''}`;
+/** A routine's count, as the timeline and every routine line say it: "3 of 5", "3 of 5 · 1 skipped". */
+export const countLine = ({done, total, skipped}) => `${done} of ${total}${skipped ? ` · ${skipped} skipped` : ''}`;
 
 /**
  * The Today row's supporting line as phrases; a phrase with `yields` gives way first with large text.
@@ -111,7 +112,7 @@ export function routineRowParts(routine, run, now = new Date()) {
 
 export const joinParts = parts => parts.filter(Boolean).map(p => p.text).join(' · ');
 
-/** The run sheet's count line: "3 of 5 done", or once every step is ticked or skipped "Done · 4 of 5, 1 skipped". */
+/** The run sheet's count line: "3 of 5 done", or once every step is ticked or skipped "Done · 4 of 5 · 1 skipped". */
 export function runSummary(routine, run) {
   const progress = routineProgress(routine, run);
   return progress.total && !progress.open ? `Done · ${countLine(progress)}` : `${progress.done} of ${progress.total} done`;
@@ -123,7 +124,7 @@ export function missedLine(routine, run, now = new Date()) {
   return state === 'missed' ? `Missed · window ended ${clockText(end)}` : null;
 }
 
-/** History's words for a finished day: "Done", "Partly done · 3 of 5, 1 skipped", "Missed", "Skipped". */
+/** History's words for a finished day: "Done", "Partly done · 3 of 5 · 1 skipped", "Missed", "Skipped". */
 export function routineHistoryText(routine, run, now = new Date()) {
   const {state, progress} = routineState(routine, run, now);
   if (state === 'done') return 'Done';
@@ -168,20 +169,20 @@ export function validateRoutine({name, start, end, days, steps}) {
 
 export const WATER_DEFAULTS = Object.freeze({goal: 8, intervalMinutes: 90, from: '08:00', until: '22:00', glassMl: 250, snoozeMinutes: 15});
 
-/** The water editor's steppers: 1 to 20 glasses a day, and a reminder every 15 to 240 minutes in 15-minute steps. */
+/** The water editor's sliders: 1 to 20 glasses a day, and a reminder every 15 to 240 minutes in 15-minute steps. */
 export const WATER_STEPS = Object.freeze({
   goal: Object.freeze({min: 1, max: 20, step: 1}),
   intervalMinutes: Object.freeze({min: 15, max: 240, step: 15}),
 });
 export const GLASS_SIZES = Object.freeze([200, 250, 300, 330, 500]);
 
-/** One stepper press: `value` moved `delta` steps, kept on the step grid and inside the range. */
+/** `value` moved `delta` steps (0 snaps a slider's value), kept on the step grid and inside the range. */
 export function stepWater(key, value, delta) {
   const {min, max, step} = WATER_STEPS[key];
   return Math.min(max, Math.max(min, Math.round(value / step) * step + delta * step));
 }
 
-/** The Every stepper's words: "90 min", "2 h". */
+/** The Every slider's words: "90 min", "2 h". */
 export const everyText = minutes => (minutes % 60 ? `${minutes} min` : `${minutes / 60} h`);
 
 /**

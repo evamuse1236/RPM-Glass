@@ -1,5 +1,5 @@
 /** Water on Today: logging a glass and the small counter sheet (each change can be undone), and the reminder's
- * notification words. Its settings live in the Edit water sheet (habit-editors.mjs). */
+ * notification words. Its settings live in the Water editor (habit-editors.mjs). */
 import {waterStatus, timesText, rangeText, everyText, WATER_DEFAULTS} from '../body-state.mjs';
 import {el, button, iconButton, progress} from './dom.mjs';
 import {openSheet, closeSheet} from './sheet.mjs';

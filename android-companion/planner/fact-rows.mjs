@@ -1,6 +1,6 @@
 /**
  * The row grammar shared by the task sheet and the habit editors: an icon on the left, then chips that swipe sideways,
- * a stepper, a switch or a time. Every control hands its value straight back; the caller saves it with Undo.
+ * a slider, a switch, a picker or a time. Every control hands its value straight back; the caller saves it with Undo.
  */
 import {reducedMotion} from '../surface-motion.mjs';
 import {el, icon, button} from './dom.mjs';
@@ -136,50 +136,61 @@ export function switchButton(label, onToggle, {cls = ''} = {}) {
 }
 
 /**
- * A number with − and + (48dp round buttons). Holding a button repeats every 150ms. `format(value)` writes the value;
- * `next(value, delta)` gives the value one press away; `onChange(value)` runs on every step, so the caller decides
- * when to save.
+ * A number on an M3 slider, all on one touch-high line: "Daily goal ──●── 8 glasses". The value keeps the width of
+ * its longest words, so the track never moves under the finger. Dragging rewrites the value as it moves;
+ * `onChange(value)` runs once it is let go (or a key moves it), so the caller saves one change.
  */
-export function stepper({label, less, more, min, max, next, format = String, onChange}) {
-  const node = el('div', 'stepper');
-  node.setAttribute('role', 'group');
-  node.setAttribute('aria-label', label);
-  const value = el('output', 'stepper-value tnum');
-  value.setAttribute('aria-live', 'polite');
-  let current = min;
+export function slider({label, min, max, step, format = String, onChange}) {
+  const node = el('div', 'slider-field');
+  const value = el('output', 'slider-value tnum');
+  const input = el('input', 'rating-slider');
+  input.type = 'range';
+  Object.assign(input, {min, max, step});
+  input.setAttribute('aria-label', label);
+  let widest = 0;
+  for (let v = min; v <= max; v += step) widest = Math.max(widest, format(v).length);
+  value.style.minInlineSize = `${widest}ch`;
   const paint = () => {
-    value.textContent = format(current);
-    down.disabled = current <= min;
-    up.disabled = current >= max;
+    const words = format(Number(input.value));
+    value.textContent = words;
+    input.setAttribute('aria-valuetext', words);
+    input.style.setProperty('--value', String((Number(input.value) - min) / (max - min)));
   };
-  const step = delta => {
-    const moved = next(current, delta);
-    if (moved === current) return false;
-    current = moved;
-    paint();
-    onChange(current);
-    return true;
+  input.addEventListener('input', paint);
+  input.addEventListener('change', () => onChange(Number(input.value)));
+  node.append(el('span', 'edit-label', label), input, value);
+  node.set = v => { input.value = v; paint(); };
+  return node;
+}
+
+/** A row that opens a further sheet and shows its value: "Reminders Every 90 min ›". */
+export function moreButton(label, onOpen) {
+  const text = el('span', 'time-value tnum');
+  const node = button('', onOpen, 'time-button more-button');
+  node.append(el('span', 'time-label', label), text, icon('chevron_right', {cls: 'time-chevron'}));
+  node.set = words => {
+    text.textContent = words;
+    node.setAttribute('aria-label', `${label}, ${words}`);
   };
-  const press = (delta, aria, symbol) => {
-    const b = button('', null, 'stepper-btn');
-    b.setAttribute('aria-label', aria);
-    b.append(icon(symbol));
-    let timer = 0, held = false;
-    const stop = () => { clearTimeout(timer); timer = 0; };
-    b.addEventListener('pointerdown', event => {
-      if (event.button > 0) return;
-      held = false;
-      const repeat = () => { held = true; if (step(delta)) timer = setTimeout(repeat, 150); };
-      timer = setTimeout(repeat, 400);
-    });
-    for (const type of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(type, stop);
-    b.addEventListener('click', () => { if (!held) step(delta); held = false; });
-    return b;
+  return node;
+}
+
+/** One choice from a short list as a row that opens the phone's own picker: "Glass size 250 ml ›". */
+export function pickButton(label, onValue) {
+  const node = el('label', 'time-button pick-button');
+  const select = el('select');
+  select.setAttribute('aria-label', label);
+  select.addEventListener('change', () => onValue(select.value));
+  const text = el('span', 'time-value tnum');
+  node.append(el('span', 'time-label', label), text, icon('chevron_right', {cls: 'time-chevron'}), select);
+  node.set = (options, value) => {
+    if (select.dataset.values !== options.map(o => o.value).join('|')) {
+      select.dataset.values = options.map(o => o.value).join('|');
+      select.replaceChildren(...options.map(o => Object.assign(el('option', '', o.words), {value: o.value})));
+    }
+    select.value = value;
+    text.textContent = options.find(o => o.value === value)?.words ?? '';
   };
-  const down = press(-1, less, 'remove');
-  const up = press(1, more, 'add');
-  node.append(down, value, up);
-  node.set = v => { current = v; paint(); };
   return node;
 }
 

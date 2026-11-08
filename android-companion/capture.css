@@ -14,7 +14,7 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 }
 
 .bar{
-  position:relative;flex:none;display:flex;flex-direction:column;margin-block-start:12px;
+  position:relative;flex:none;display:flex;flex-direction:column;margin-block-start:24px;
   background:var(--bar);color:var(--bar-on);
   border:1px solid var(--bar-edge);border-radius:var(--r-outer);box-shadow:var(--bar-shadow);
   touch-action:pan-y;
@@ -24,19 +24,29 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .grab{position:relative;flex:none;inline-size:32px;block-size:4px;border-radius:2px;background:color-mix(in oklch,var(--bar-on) 38%,transparent);margin:8px auto 0;touch-action:none}
 .grab::after{content:'';position:absolute;inset:-8px -48px}
 
-/* The handle: a small chevron tab on the box's top edge. A tap opens More, a drag down closes Capture. */
+/* The handle: a small chevron tab that grows out of the box's top edge, one outline with the box, so no strokes cross.
+   It sits 1px low to cover the box's edge under it. A tap opens More, a drag down closes Capture. */
 .handle{
-  position:absolute;inset-block-start:-1px;inset-inline-start:50%;translate:-50% -50%;z-index:1;
+  position:absolute;inset-block-start:1px;inset-inline-start:50%;translate:-50% -100%;z-index:1;
   display:grid;place-items:center;inline-size:48px;block-size:24px;padding:0;cursor:pointer;touch-action:none;
-  border:1px solid var(--bar-edge);border-block-end-color:transparent;border-radius:var(--shape-full);
+  border:1px solid var(--bar-edge);border-block-end:0;border-radius:var(--r-control) var(--r-control) 0 0;
   background:var(--bar);color:var(--bar-on);
 }
+/* Two concave 8dp fillets join the tab's sides to the box's top edge, so tab and box share one outline. */
+.handle::before{content:'';position:absolute;inset-inline:-12px;inset-block-end:0;block-size:12px;pointer-events:none;
+  background:linear-gradient(var(--bar),var(--bar)) bottom/100% 1px no-repeat,
+    radial-gradient(circle at .5px .5px,transparent 7.25px,var(--bar-edge) 7.75px 8.25px,var(--bar) 8.75px) left 3px bottom 1px/9px 9px no-repeat,
+    radial-gradient(circle at 8.5px .5px,transparent 7.25px,var(--bar-edge) 7.75px 8.25px,var(--bar) 8.75px) right 3px bottom 1px/9px 9px no-repeat}
 .handle .ms{font-size:20px}
 /* A 48dp target: the 24dp tab plus the strip under it inside the box. */
 .handle::after{content:'';position:absolute;inset:-8px 0 -16px}
 .handle[aria-expanded=true] .ms{rotate:180deg}
 .handle:active{color:var(--bar-on)}
-@media (prefers-reduced-motion:no-preference){.handle .ms{transition:rotate var(--dur-medium1) var(--ease-standard)}}
+.bar[data-voice=on] .handle{opacity:0;visibility:hidden;pointer-events:none}
+@media (prefers-reduced-motion:no-preference){
+  .handle{transition:opacity var(--dur-short4) var(--ease-standard),visibility var(--dur-short4)}
+  .handle .ms{transition:rotate var(--dur-medium1) var(--ease-standard)}
+}
 
 /* One line above the field for status and errors; nothing when there is nothing to say. */
 .status{margin:0;padding:12px 20px 0;font:var(--body-small);color:var(--bar-on-variant);white-space:nowrap;overflow:clip;text-overflow:ellipsis}
@@ -58,24 +68,33 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .voice-go{background:transparent;color:var(--bar-on)}
 /* At rest the orb is the same 48dp #A8C7FA disc as Send, so the first keystroke swaps only the icon. */
 .bar[data-voice=off] .voice-go{background:var(--bar-primary)}
-/* At rest the drop waits behind the glyph; it shows once a call starts. */
+/* At rest the drop waits hidden; it shows once a call starts. */
 .bar[data-voice=off] .voice-go .drop{opacity:0}
-/* The voice drop: a 40px canvas centred in the 48px button (capture-drop.mjs). */
-.voice-go .drop{position:absolute;inset:4px;inline-size:40px;block-size:40px}
-.voice-go .glyph{position:relative;font-size:24px;line-height:1;color:var(--bar-on-primary)}
+/* The voice drop (capture-drop.mjs) stays in the button's markup, but in a call it is drawn at 32dp at the start of
+   the field, beside the status placeholder: big enough that its listening dot and talking dots read at a glance,
+   and the call's phase reads with its words while the disc keeps one meaning. */
+.composer{position:relative}
+.voice-go .drop{position:absolute;inset-inline-start:16px;inset-block-end:16px;inline-size:32px;block-size:32px;pointer-events:none}
+.bar[data-voice=on] #message{padding-inline-start:40px}
+/* During a call the button is Hang up: a filled #F2B8B5 disc with a dark call_end glyph, as heavy as the resting mic disc.
+   It stays put when pressed (static, no scale) so the drop it holds does not move with the press. */
+.bar[data-voice=on] .voice-go{position:static;background:var(--bar-error);scale:none}
+.bar[data-voice=on] .voice-go:active{background:color-mix(in oklch,var(--bar-on-error) 12%,var(--bar-error))}
+.voice-go .glyph{grid-area:1/1;position:relative;font-size:24px;line-height:1;color:var(--bar-on-primary)}
+.voice-go .glyph.call{color:var(--bar-on-error)}
+.bar[data-voice=off] .voice-go .glyph.call,.bar[data-voice=on] .voice-go .glyph.mic{opacity:0;scale:.6}
 .voice-go:disabled{cursor:default}
 /* Send and the resting orb are the one lit control: the bright primary in both themes. */
 .send{background:var(--bar-primary);color:var(--bar-on-primary)}
 .send .ms{font-size:24px}
 .send:disabled{opacity:.5;cursor:default}
 .bar[data-has-text=true][data-voice=off] .voice-go,.bar[data-has-text=false] .send,.bar[data-voice=on] .send{opacity:0;scale:.6;visibility:hidden;pointer-events:none}
-.bar[data-voice=on] .voice-go .glyph{opacity:0;scale:.6}
 .go>button:active{scale:.96}
 .send::before,.bar[data-voice=off] .voice-go::before{content:'';position:absolute;inset:0;border-radius:inherit;background:var(--bar-on-primary);opacity:0}
 .send:active::before,.bar[data-voice=off] .voice-go:active::before{opacity:.12}
 @media (hover:hover) and (pointer:fine){.send:hover::before,.bar[data-voice=off] .voice-go:hover::before{opacity:.08}}
 @media (prefers-reduced-motion:no-preference){
-  .go>button{transition:opacity var(--dur-short4) var(--ease-standard),scale var(--dur-medium1) var(--ease-spring),visibility var(--dur-short4)}
+  .go>button{transition:background-color var(--dur-short4) var(--ease-standard),opacity var(--dur-short4) var(--ease-standard),scale var(--dur-medium1) var(--ease-spring),visibility var(--dur-short4)}
   .voice-go .glyph{transition:opacity var(--dur-short4) var(--ease-standard),scale var(--dur-medium1) var(--ease-spring)}
   .bar[data-busy=true] .send .ms{animation:send-pulse 1.2s var(--ease-standard) infinite alternate}
 }
@@ -84,7 +103,7 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .scrim{position:absolute;inset:0;z-index:2;background:transparent}
 .sheet{
   position:absolute;inset-inline:0;inset-block-end:0;z-index:2;max-block-size:calc(100% - 24px);overflow-y:auto;overscroll-behavior:contain;
-  padding-block-end:calc(8px + env(safe-area-inset-bottom,0px));
+  padding-block-end:calc(16px + env(safe-area-inset-bottom,0px));
   background:var(--bar-high);color:var(--bar-on);border-radius:var(--r-group) var(--r-group) 0 0;box-shadow:var(--bar-shadow);
 }
 .sheet .grab{margin-block:8px}
@@ -97,7 +116,7 @@ button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .tiles{display:flex;gap:8px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;padding:0 16px 8px;scroll-padding-inline:16px;scroll-snap-type:x proximity}
 .tiles::-webkit-scrollbar{display:none}
 .sheet-row{
-  position:relative;display:flex;align-items:center;gap:16px;inline-size:100%;min-block-size:48px;padding:8px 16px;
+  position:relative;display:flex;align-items:center;gap:16px;inline-size:100%;min-block-size:56px;padding:8px 24px;
   border:0;background:transparent;color:var(--bar-on);text-align:start;cursor:pointer;
 }
 .sheet-row .ms{font-size:24px;color:var(--bar-on-variant)}

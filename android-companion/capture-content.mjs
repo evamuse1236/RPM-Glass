@@ -1,6 +1,6 @@
 // Presentation of already-resolved dates only. This module never parses input.
-import {clock} from './planner/format.mjs';
-import {localDay} from './planner-state.mjs';
+import {clock,shortClock} from './planner/format.mjs';
+import {localDay,shiftDay} from './planner-state.mjs';
 
 export function captureDuration(minutes){
  if(!Number.isFinite(minutes)||minutes<=0)return null;
@@ -95,6 +95,20 @@ export function scheduleText(item,{timeZone,deviceZone=Intl.DateTimeFormat().res
  }
  const labels=scheduleChips(captureSchedule(item,{timeZone:zone,reference}),captureWeekday(item,{timeZone:zone})).map(c=>c.label);
  return labels.length?labels.join(', '):null;
+}
+
+/**
+ * A live row's day and time in the answer card's short words: "Tomorrow, 10 AM", "Today, 4:30 PM", with no
+ * ":00" on whole hours, an absolute day further out. Only for rows drawn now from the saved plan (voice rows): a stored
+ * receipt keeps scheduleText's absolute day, which never goes stale.
+ */
+export function nearWhen(item,{reference=new Date()}={}){
+ const start=item?.planned?new Date(item.planned):null;
+ if(start&&Number.isFinite(+start)){
+  const day=localDay(start),today=localDay(reference);
+  return `${day===shiftDay(today,1)?'Tomorrow':absoluteDay(day,today)}, ${shortClock(start)}`;
+ }
+ return scheduleText(item,{reference});
 }
 
 /** A Result's deadline from dueInfo() plus its stored value, in the same absolute words: "Due Mon 5 Oct, 10:30 AM". */
