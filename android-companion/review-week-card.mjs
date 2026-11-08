@@ -250,6 +250,8 @@ export function clashRow(api, clash) {
     chip.dataset.key = `clash:${keep}:${clash.key}`;
     choices.append(chip);
   }
-  item.append(icon('event_busy'), text, textButton('Later', 'Decide later', () => decide('later'), `clash:later:${clash.key}`), choices);
+  const answers = el('div', 'wr-clash-answers');
+  answers.append(choices, textButton('Later', 'Decide later', () => decide('later'), `clash:later:${clash.key}`));
+  item.append(icon('event_busy'), text, answers);
   return item;
 }

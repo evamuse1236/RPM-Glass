@@ -8,7 +8,10 @@
 @media (width >= 1080px){
   #planner-view #planner[data-view=review] ~ #snackbar#snackbar#snackbar{inset-block-end:calc(var(--wr-next-mid,36px) - var(--snackbar-h,48px) / 2);inset-inline:auto calc(var(--wr-next-start,var(--s4)) + var(--s4));margin-inline:0}
 }
-#planner[data-view=review][data-snackbar=true] .wr-body{padding-block-end:calc(var(--snackbar-h,48px) + var(--s8))}
+/* While the snackbar floats over the footer, the body ends 8px above it, so no row sits half under it; the body's end fade shows what continues. */
+@media (width < 1080px){
+  #planner[data-view=review][data-snackbar=true] .wr-body{margin-block-end:calc(var(--snackbar-h,48px) + var(--s4))}
+}
 .wr{position:relative;display:flex;flex-direction:column;height:100%;min-height:0;background:var(--surface);color:var(--on-surface);font:var(--body-medium)}
 .wr h1,.wr h2,.wr h3,.wr p{margin:0}
 .wr ul{margin:0}
@@ -121,6 +124,7 @@
 .wr-wins-list{list-style:none;padding:0}
 .wr-wins-list>li{padding-block-end:8px}
 .wr .wr-wins .wr-decided-row{padding-inline:0;color:var(--on-tertiary-container)}
+.wr-wins .wr-decided-title{text-wrap:wrap}
 .wr-wins .wr-verdict-icon[data-verdict=achieved]{color:var(--on-tertiary-container)}
 .wr-wins .wr-facts,.wr-wins .wr-decided-row>.ms:last-child{color:color-mix(in oklch,var(--on-tertiary-container) 72%,transparent)}
 .wr-evidence{display:block;inline-size:calc(100% - 40px);min-block-size:40px;margin-inline-start:40px;padding:8px 12px;border:0;border-radius:var(--shape-md);background:color-mix(in oklch,var(--on-tertiary-container) 8%,transparent);font:var(--body-medium);color:var(--on-tertiary-container)}
@@ -128,6 +132,8 @@
 .wr-evidence:focus-visible{outline:2px solid var(--tertiary);outline-offset:0}
 .wr-carry-item{display:flex;align-items:center;gap:4px;padding-inline-end:8px}
 .wr .wr-carry-body{align-self:stretch;justify-content:center;min-block-size:56px;padding:8px 8px 8px 16px;border:0;border-radius:0;background-color:transparent;color:var(--on-surface);font:inherit;text-align:start}
+.wr-carry-head{padding:12px 16px 0;font:var(--label-large);color:var(--on-surface-variant);overflow-wrap:anywhere}
+.wr-carry>.wr-carry-head+li{border-top:0}
 .wr-carry-title.dropped{color:var(--on-surface-variant);text-decoration:line-through}
 .wr .wr-carry-btn{position:relative;flex:none;inline-size:40px;block-size:40px;display:grid;place-items:center;border:0;border-radius:var(--shape-full);background-color:transparent;color:var(--on-surface-variant)}
 .wr .wr-carry-btn.on{background-color:var(--secondary-container);color:var(--on-secondary-container)}
@@ -142,8 +148,9 @@
 .wr .wr-add-send{background-color:var(--primary);color:var(--on-primary);width:40px;height:40px;margin:4px}
 .wr .wr-add-send[hidden],.wr .wr-add-capture[hidden]{display:none}
 .wr .wr-add-capture{width:48px;height:48px;color:var(--on-surface-variant)}
-.wr-lenses{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.wr-lens-lead{flex:none;white-space:nowrap;font:var(--label-large);color:var(--on-surface-variant);padding-inline:4px}
+.wr-lenses{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:8px}
+.wr-lens-lead{display:flex;align-items:center;min-block-size:32px;white-space:nowrap;font:var(--label-large);color:var(--on-surface-variant);padding-inline:4px}
+.wr-lens-chips{display:flex;flex-wrap:wrap;gap:8px;min-inline-size:0}
 .wr-lens .area-dot{width:8px;height:8px}
 .wr .wr-lens{border-radius:var(--shape-full);background-color:var(--surface-container-low);border-color:var(--outline-variant);color:var(--on-surface)}
 .wr-list{list-style:none;margin:0;padding:4px 0;background:var(--surface-container);border-radius:20px}
@@ -174,9 +181,12 @@
 .wr-sort-row>.ms{flex:none;color:var(--on-surface-variant)}
 /* A suggested row stays one button: title and chevron on the first line, then the Result in quiet text beside the
    Block icon, wrapping rather than cut. Taking it is the swipe right; a tap opens the chooser with it marked. */
-.wr .wr-sort-row.suggested{display:grid;grid-template-columns:1fr auto;align-items:start;row-gap:4px;padding-block:12px}
-.wr-sort-row.suggested>.ms{grid-column:2;grid-row:1}
-.wr-sort-hint{grid-column:1/-1;display:flex;gap:8px;min-inline-size:0;padding-inline-end:12px;font:var(--body-medium);color:var(--on-surface-variant)}
+.wr-sort.suggested{display:flex;align-items:center;padding-inline-end:8px}
+.wr .wr-sort-row.suggested{flex:1;display:grid;grid-template-columns:minmax(0,1fr);align-items:start;row-gap:4px;padding-block:12px;padding-inline-end:8px}
+.wr .wr-sort-take{position:relative;flex:none;inline-size:40px;block-size:40px;display:grid;place-items:center;padding:0;border:0;border-radius:var(--shape-full);background-color:transparent;color:var(--primary)}
+.wr-sort-take::after{content:"";position:absolute;inset:-4px}
+.wr .wr-sort-take:active{background-color:color-mix(in oklch,var(--primary) 12%,transparent)}
+.wr-sort-hint{display:flex;gap:8px;min-inline-size:0;font:var(--body-medium);color:var(--on-surface-variant)}
 .wr-sort-hint>.ms{flex:none;font-size:20px;line-height:20px;color:var(--on-surface-variant)}
 .wr-sort-hint-title{min-inline-size:0;text-wrap:pretty}
 /* The first suggested row slides once to show its swipe, then settles */

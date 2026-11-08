@@ -10,7 +10,7 @@ import {plural} from './planner/format.mjs';
 import {animateRerender, sharedAxis, ghost, reducedMotion, releaseTail, waitMotion, MOTION, DURATION, EASE} from './surface-motion.mjs';
 import {userMessage} from './user-message.mjs';
 import {STEPS, READABLE, el, icon, button, iconButton} from './review-ui.mjs';
-import {stepOne} from './review-step-one.mjs';
+import {stepOne, deckWaiting} from './review-step-one.mjs';
 import {stepTwo} from './review-step-two.mjs';
 import {stepThree, sheetLayer} from './review-step-three.mjs';
 import {stepFour} from './review-step-four.mjs';
@@ -161,6 +161,7 @@ function renderReview(root, api, ctx) {
     new ResizeObserver(() => {
       const footNow = root.querySelector(':scope > .wr-foot');
       if (footNow) measureFoot(footNow);
+      body.onscroll?.();
     }).observe(body);
   }
   const active = root.contains(document.activeElement) ? document.activeElement.dataset.key : null;
@@ -243,8 +244,8 @@ function renderReview(root, api, ctx) {
   }
 }
 
-/** While the snackbar shows, the body gains its height as end padding (review.css); a body read to its end scrolls on
- * by that much, so the last row is never left under the snackbar. */
+/** While the snackbar shows, the body ends above it (review.css); a body read to its end scrolls on by that much, so
+ * the last row stays in sight. */
 function keepEndClearOfSnackbar(body) {
   const planner = document.getElementById('planner');
   if (!planner) return;
@@ -334,6 +335,7 @@ function footer(api, existing = null) {
   set(short, last ? 'Finish' : 'Next');
   set(mark, last ? 'check' : 'arrow_forward');
   next.setAttribute('aria-label', label);
+  next.classList.toggle('wr-next-wait', ui.step === 1 && deckWaiting(api));
   return foot;
 }
 

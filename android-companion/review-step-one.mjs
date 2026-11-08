@@ -6,6 +6,12 @@ import {focusCheck, setFocus} from './review-focus.mjs';
 import {DECK_VERDICTS, deckOf, deckTally, resultDeck, resultRing} from './review-deck.mjs';
 
 /* ---------- step 1: last week's Results ---------- */
+/** True while step 1 still has a Result card to judge, so the footer's Next stays tonal until every verdict is in. */
+export function deckWaiting(api) {
+  const summary = reviewSummary(api.data(), api.week, api.now());
+  return deckOf(summary.results.filter(r => !r.running)).length > 0;
+}
+
 export function stepOne(api) {
   const summary = reviewSummary(api.data(), api.week, api.now());
   const judged = summary.results.filter(r => !r.running);
@@ -142,26 +148,39 @@ function evidenceField(api, summary, result) {
   return input;
 }
 
-/** One list of what can come into this week: the open tasks of Partly and Not yet Results, then the Results still
- * running. Each row has one carry button; one "Carry all" carries every row not carried yet. */
+/** One list of what can come into this week: the open tasks of Partly and Not yet Results, each group under its
+ * Result's title, then the Results still running under one "Still running" head. Each row has one carry button;
+ * one "Carry all" carries every row not carried yet. */
 function carryList(api, judged, running) {
   const entries = api.data().entries;
-  const tasks = judged
+  const groups = judged
     .filter(r => r.verdict === 'partly' || r.verdict === 'notyet')
-    .flatMap(r => r.leftovers.map(id => ({task: entries.find(t => t.id === id), from: r.title})))
-    .filter(item => item.task);
+    .map(r => ({result: r, tasks: r.leftovers.map(id => entries.find(t => t.id === id)).filter(Boolean)}))
+    .filter(group => group.tasks.length);
+  const tasks = groups.flatMap(group => group.tasks);
   if (!tasks.length && !running.length) return [];
-  const openTasks = tasks.filter(({task}) => !leftoverChoice(task, api.week));
+  const openTasks = tasks.filter(task => !leftoverChoice(task, api.week));
   const openRunning = running.filter(r => !api.ui.focus.includes(r.blockId));
   const count = openTasks.length + openRunning.length;
   const all = tasks.length + running.length > 1 && count
-    ? button('Carry all', () => carryAll(api, openTasks.map(({task}) => task), openRunning), 'wr-btn-text', 'redo')
+    ? button('Carry all', () => carryAll(api, openTasks, openRunning), 'wr-btn-text', 'redo')
     : null;
   const list = el('ul', 'wr-carry');
   list.setAttribute('aria-label', 'Carry into this week');
-  for (const {task, from} of tasks) list.append(taskRow(api, task, from));
+  for (const {result, tasks: own} of groups) {
+    list.append(carryHead(result.title));
+    for (const task of own) list.append(taskRow(api, task));
+  }
+  if (running.length) list.append(carryHead('Still running'));
   for (const result of running) list.append(runningRow(api, result));
   return [sectionHead('Carry into this week', tasks.length + running.length, all), list];
+}
+
+/** A quiet group head inside the carry card: the Result the rows below came from, or "Still running". */
+function carryHead(text) {
+  const head = el('li', 'wr-carry-head');
+  head.append(el('span', '', text));
+  return head;
 }
 
 function carryAll(api, tasks, running) {
@@ -177,7 +196,7 @@ const CHOICE_WORDS = {carry: 'Carried', defer: 'Deferred', drop: 'Dropped'};
 const decisionLabel = value => ({carry: 'Carried into this week', defer: 'Deferred', drop: 'Dropped. It stays in Archive'})[value];
 
 /** A leftover task: the row opens Carry, Defer or Drop; the trailing button carries it in one tap. */
-function taskRow(api, task, from) {
+function taskRow(api, task) {
   const item = el('li', 'wr-carry-item');
   const current = leftoverChoice(task, api.week);
   const title = task.title ?? task.raw ?? 'Task';
@@ -190,9 +209,8 @@ function taskRow(api, task, from) {
   body.setAttribute('aria-haspopup', 'menu');
   body.setAttribute('aria-label', `What to do with "${title}": ${CHOICES.find(([value]) => value === current)?.[1] ?? 'not decided'}`);
   body.dataset.key = 'left:' + task.id;
-  const meta = el('span', 'wr-facts');
-  meta.append(...factsLine([current && current !== 'carry' ? CHOICE_WORDS[current] : null, from]));
-  body.append(el('span', 'wr-carry-title' + (current === 'drop' ? ' dropped' : ''), title), meta);
+  body.append(el('span', 'wr-carry-title' + (current === 'drop' ? ' dropped' : ''), title));
+  if (current && current !== 'carry') body.append(el('span', 'wr-facts', CHOICE_WORDS[current]));
   const carried = current === 'carry';
   const carry = button('', () => (carried ? body.click() : choose('carry')), 'wr-carry-btn' + (carried ? ' on' : ''), 'redo');
   carry.setAttribute('aria-pressed', String(carried));
@@ -207,8 +225,9 @@ function runningRow(api, result) {
   const item = el('li', 'wr-carry-item');
   const body = el('div', 'wr-carry-body');
   const meta = el('span', 'wr-facts tnum');
-  meta.append(...factsLine(['Still running', dueFact(result.due, api.now()), mustFact(result.mustMinutes)]));
-  body.append(el('span', 'wr-carry-title', result.title), meta);
+  meta.append(...factsLine([dueFact(result.due, api.now()), mustFact(result.mustMinutes)]));
+  body.append(el('span', 'wr-carry-title', result.title));
+  if (meta.childElementCount) body.append(meta);
   const carry = focusCheck(api, result.blockId, 'wr-carry-btn', ['redo', 'redo']);
   carry.setAttribute('aria-label', `Carry "${result.title}" into this week`);
   item.append(body, carry);

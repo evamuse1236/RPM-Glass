@@ -125,7 +125,8 @@ function lenses(api) {
   row.setAttribute('aria-label', 'Prompts, one per Area');
   const lead = el('span', 'wr-lens-lead', 'Think about');
   lead.setAttribute('aria-hidden', 'true');
-  row.append(lead);
+  const chips = el('div', 'wr-lens-chips');
+  row.append(lead, chips);
   for (const area of areas) {
     const chip = button('', () => {
       ui.lens = area.title;
@@ -135,7 +136,7 @@ function lenses(api) {
     chip.setAttribute('aria-label', `Prompt: ${area.title}, anything due, stuck or wanted?`);
     chip.dataset.key = 'lens:' + area.id;
     chip.append(areaDot(areaTone(area, planner(api.data()).areas)), el('span', 'wr-label', area.title));
-    row.append(chip);
+    chips.append(chip);
   }
   return [row];
 }

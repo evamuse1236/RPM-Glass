@@ -77,7 +77,7 @@ function sortRow(api, task, suggested, peek) {
   const item = el('li', 'wr-sort');
   const row = el('button', 'wr-sort-row');
   row.type = 'button';
-  row.append(el('span', 'wr-row-title', name), icon('chevron_right'));
+  row.append(el('span', 'wr-row-title', name));
   row.setAttribute('aria-label', `Choose a Result for "${name}"`);
   row.setAttribute('aria-haspopup', 'dialog');
   row.dataset.key = 'choose:' + task.id;
@@ -94,8 +94,14 @@ function sortRow(api, task, suggested, peek) {
     const hint = el('span', 'wr-sort-hint');
     hint.append(icon('stacks'), el('span', 'wr-sort-hint-title', suggested.title));
     row.append(hint);
-  }
+  } else row.append(icon('chevron_right'));
   item.append(row);
+  if (suggested) {
+    item.classList.add('suggested');
+    const add = iconButton('drive_file_move', `Add "${name}" to "${suggested.title}"`, take, 'wr-sort-take');
+    add.dataset.key = 'take:' + task.id;
+    item.append(add);
+  }
   attachSwipe(item, {right, left: {kind: 'schedule', symbol: 'inbox', word: 'Keep in Inbox', run: () => keep(api, task.id, true)}});
   if (peek) {
     ui.sortPeeked = true;

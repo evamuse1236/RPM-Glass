@@ -95,7 +95,7 @@ export function attachDeckSwipe(card, onVerdict, haptic = vibrate) {
   });
 }
 
-function deckCard(api, summary, result) {
+function deckCard(api, summary, result, place) {
   const card = el('article', 'wr-deck-card');
   card.dataset.key = 'deck:' + result.blockId;
   const {area, tone} = resultArea(api.data(), result.blockId);
@@ -104,7 +104,10 @@ function deckCard(api, summary, result) {
   const stamp = el('span', 'wr-deck-stamp');
   stamp.setAttribute('aria-hidden', 'true');
   card.append(stamp);
-  if (area?.title) card.append(el('span', 'wr-deck-count', area.title));
+  const head = el('div', 'wr-deck-head');
+  head.append(el('span', 'wr-deck-area', area?.title || ''));
+  if (place.of > 1) head.append(el('span', 'wr-deck-place tnum', `${place.n} of ${place.of}`));
+  if (head.textContent) card.append(head);
   card.append(el('h3', 'wr-deck-title', result.title));
   if (result.purpose) card.append(el('p', 'wr-deck-purpose', result.purpose));
   const meta = el('div', 'wr-deck-meta');
@@ -172,15 +175,7 @@ export function deckTally(judged) {
 export function resultDeck(api, summary, judged) {
   const deck = deckOf(judged);
   const stack = el('div', 'wr-deck');
-  stack.append(deckCard(api, summary, deck[0]));
+  stack.append(deckCard(api, summary, deck[0], {n: judged.length - deck.length + 1, of: judged.length}));
   api.ui.deckEnter = false;
-  return [stack, verdictButtons(api, summary, deck[0]), ...(deck[1] ? [upNext(deck[1])] : [])];
-}
-
-/** One quiet line naming the Result that comes after this card, so "0 of 2 decided" has its second one in sight. */
-function upNext(result) {
-  const line = el('p', 'wr-deck-next');
-  line.dataset.key = 'deck-next:' + result.blockId;
-  line.append(el('span', 'wr-deck-next-lead', 'Up next'), el('span', 'wr-deck-next-title', result.title));
-  return line;
+  return [stack, verdictButtons(api, summary, deck[0])];
 }
