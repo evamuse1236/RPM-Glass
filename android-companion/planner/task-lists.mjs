@@ -49,8 +49,10 @@ export function showInbox(app, {motion = 'forward'} = {}) {
   const {body, actions, header, sheet} = openSheet(app, 'Inbox', {motion});
   sheet.classList.add('sheet-inbox');
   app.sheet.inboxBody = body;
-  const count = el('span', 'sheet-count');
-  header.querySelector('h2').append(count);
+  // The count names the rows in view: beside the website's Today, today's tasks fold into one line, so it counts the rest.
+  const count = el('span', 'sheet-count count-all');
+  const countRest = el('span', 'sheet-count count-off-today');
+  header.querySelector('h2').append(count, countRest);
   const jev = labelButton('auto_awesome', 'Sort with Jev', () => app.actions.jevSort(), 'text-btn inbox-jev');
   header.querySelector('.sheet-close').before(jev);
   // Fills a host with the rows: the body itself at first, then a detached copy that animateRerender reconciles in by
@@ -75,8 +77,10 @@ export function showInbox(app, {motion = 'forward'} = {}) {
     const byWhen = (a, b) => when(a) - when(b);
     const today = rows.filter(task => scheduled(task) && dueToday(task)).sort(byWhen);
     const later = rows.filter(task => scheduled(task) && !dueToday(task)).sort(byWhen);
+    countRest.textContent = open.length + later.length ? String(open.length + later.length) : '';
+    // Today's untimed tasks say Anytime, as on Today, so none reads as timed under Scheduled today.
     const add = (task, days, group) => {
-      const row = taskRow(app, task, {inbox: true, days});
+      const row = taskRow(app, task, {inbox: true, days, anytime: group === 'inbox-today'});
       if (group) row.classList.add(group);
       // A redraw while the returned highlight is still fading carries it on (from where it was).
       if (back?.id === task.id && host !== body) markReturned(row, back.elapsed());
@@ -92,9 +96,10 @@ export function showInbox(app, {motion = 'forward'} = {}) {
       list.forEach(task => add(task, days, group));
     };
     open.forEach(task => add(task, false));
-    // Beside the website's Today timeline, today's tasks already show there, so the pane says so in one quiet line.
+    // Beside the website's Today timeline, today's tasks already show there, so the pane folds them into one link
+    // that brings them into view on the timeline.
     if (today.length) {
-      const onToday = el('p', 'inbox-on-today', `${today.length} more on Today`);
+      const onToday = button(`${today.length} more on Today`, () => revealOnToday(today), 'text-btn inbox-on-today');
       onToday.dataset.key = 'inbox-on-today';
       host.append(onToday);
     }
@@ -119,6 +124,16 @@ export function showInbox(app, {motion = 'forward'} = {}) {
     return true;
   };
   app.sheet.onBack = () => false;
+}
+
+/** Scrolls today's Inbox tasks into view on the Today timeline beside the pane and tints them for a moment. */
+function revealOnToday(list) {
+  const keys = new Set(list.map(task => 'task:' + task.id + (task.occurrence ?? '')));
+  const nodes = [...document.querySelectorAll('#planner [data-key^="task:"]')].filter(node => keys.has(node.dataset.key));
+  if (!nodes.length) return;
+  nodes[0].scrollIntoView({block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth'});
+  nodes.forEach(node => node.classList.add('inbox-found'));
+  setTimeout(() => nodes.forEach(node => node.classList.remove('inbox-found')), RETURN_HOLD + 2 * RETURN_FADE);
 }
 
 export const RETURN_HOLD = DURATION.short3;

@@ -96,7 +96,7 @@
 /* Under the grab pill the Inbox title row is as tall as its Sort with Jev button, so the title sits 8dp under the pill. */
 .sheet-inbox > .sheet-handle + .sheet-header { block-size: 40px; }
 /* Only the website pane beside Today shows this line, in place of the rows the timeline already holds. */
-.inbox-on-today { display: none; }
+.inbox-on-today, .sheet-count.count-off-today { display: none; }
 /* Tasks that already have a day, time or repeat wait below a quiet Scheduled label. */
 .sheet .section-header.inbox-scheduled { padding: var(--s4) 0 var(--s1); }
 .inbox-scheduled h2 { color: var(--on-surface-variant); }
@@ -269,15 +269,16 @@
 .quick-details.is-open .quick-details-fewer { display: block; }
 .quick-details.is-open { color: var(--on-surface); }
 .sheet .quick-row.more-chips { flex-wrap: wrap; }
-/* Details and Purpose are plain outlined fields: the words a person types are the content, so no icon row leads them. */
+/* Details and Purpose are tonal fields, the same on the phone and the website: the words a person types are the
+   content, so no icon row leads them and no outline frames them. */
 .quick-field {
   display: block;
   inline-size: 100%;
   margin-block-start: var(--s2);
-  padding: var(--s2) var(--s3);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--shape-xs);
-  background: transparent;
+  padding: var(--s3) var(--s4);
+  border: 0;
+  border-radius: var(--shape-md);
+  background: var(--sheet-raised);
   color: var(--on-surface);
   font: var(--body-large);
   resize: none;
@@ -285,7 +286,7 @@
   field-sizing: content;
 }
 .quick-field::placeholder { color: var(--on-surface-variant); }
-.quick-field:focus-visible { outline: none; border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.quick-field:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .quick-details:active { background: var(--row-press); }
 .hash-chips .assist-chip { max-width: 80%; }
 .hash-chips .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -307,11 +308,13 @@
 .block-chips .chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* One Block chip holds the choice. A guess from the words shows a primary sparkle; the drop arrow says a tap opens the list. */
 .block-chip.suggested .block-mark { color: var(--primary); }
-/* A Block Jev suggested stays outlined until the person picks it, so it never reads as their own choice. */
-.sheet .block-chip.suggested { background: transparent; border-color: var(--outline); color: var(--on-surface); }
+/* The Block chip is a menu: one tonal look whether it holds the Inbox, a picked Block or Jev's guess (the sparkle and
+   its name say which), so it never reads as a selected day chip. */
+.sheet .block-chip, .sheet .block-chip.suggested { border-color: transparent; background: var(--sheet-raised); color: var(--on-surface); }
+.sheet .block-chip .block-mark { color: var(--primary); }
 /* The chosen Block's Purpose sits whole under its chip, aligned to the chip's text and wrapping, never cut. */
 .block-chips > .block-purpose { flex-basis: 100%; display: flex; align-items: flex-start; gap: var(--s2); margin: 0;
-  margin-block-start: var(--s1); padding: var(--s2) var(--s2) 0; font: var(--body-medium); color: var(--on-surface-variant); }
+  margin-block: var(--s1) var(--s3); padding: 0 var(--s2); font: var(--body-medium); color: var(--on-surface-variant); }
 .block-chips > .block-purpose[hidden] { display: none; }
 .sheet .quick-row.block-chips:has(> .block-purpose:not([hidden])) { flex-wrap: wrap; }
 .block-purpose .ms { font-size: 20px; }
