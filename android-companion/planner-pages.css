@@ -63,22 +63,19 @@
 .project-head:has(> .project-open) .project-copy { padding-inline-end: calc(var(--touch) + var(--s1) + 48px + var(--s3) - var(--s4)); }
 .project-head:has(> .project-open) .nest-rings { position: absolute; inset-block-start: var(--s3); inset-inline-end: calc(var(--touch) + var(--s1)); inline-size: 48px; block-size: 48px; margin: 0; }
 .project-head > .project-open { position: absolute; inset-block-start: var(--s3); inset-inline-end: var(--s1); margin: 0; }
-/* "Due tomorrow 11 PM · 4/18": the count follows the deadline as one phrase in the line's own type. */
-.card-facts.project-facts { justify-content: flex-start; gap: var(--s1); font: var(--body-medium); }
+/* Every folded count ends on the card's 16dp end edge: the deadline's line, or the Next task's line with no deadline.
+   Open, it takes the Block rows' form (small ring, "4/18") on that same edge, the rows' count column. */
+.card-facts.project-facts { justify-content: space-between; gap: var(--s3); font: var(--body-medium); }
 .project-figures { flex: none; font: var(--label-large); }
-.project-facts > .project-figures { font: inherit; color: var(--on-surface-variant); }
-.project-facts > .card-due + .project-figures::before { content: "·"; margin-inline-end: var(--s1); }
-/* Open, the count leaves the phrase for the line's end, the column where every Block row below ends its count. */
-.project-card.open .project-facts { justify-content: space-between; }
-.project-card.open .project-facts > .project-figures { font: var(--label-large); }
-.project-card.open .project-facts > .card-due + .project-figures::before { content: none; }
-/* With no deadline the count ends the Next task's line on the card's 16dp end edge, level with the task's first line. */
-.project-card > .next-task > .project-figures { padding-block: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
+:is(.project-facts, .project-card > .next-task) > .project-figures { font: var(--body-medium); color: var(--on-surface-variant); }
+.project-facts > .card-tally { font: var(--label-large); }
+.project-card > .next-task > .project-figures { padding-block: var(--s1); }
 .project-toggle:active { background: var(--row-press); }
 .project-copy { flex: 1; align-self: start; display: grid; gap: 2px; min-inline-size: 0; }
 /* With no Area the overline's line stays empty, so every card's title sits on the same line. A card whose head is the
-   title alone (a finished Project with no Area) starts it level with the rings' top, where every other card's words start. */
+   title alone (a finished Project with no Area) centres it on the rings, so the card reads as one finished line. */
 .project-copy:not(:has(> .project-area))::before { content: ""; block-size: 16px; }
+.project-card:not(:has(.project-facts, > .next-task, .project-area)) .project-copy { min-block-size: 48px; align-content: center; }
 .project-card:not(:has(.project-facts, > .next-task, .project-area)) .project-copy::before { content: none; }
 .project-area { font: var(--label-medium); color: color-mix(in oklch, var(--tone) 78%, var(--on-surface)); overflow-wrap: anywhere; }
 .project-open { flex: none; margin-inline-end: var(--s1); color: var(--on-surface-variant); }
@@ -252,11 +249,16 @@
 @media (width < 1080px) {
   #planner[data-view=projects] .block-facts > .purpose-row > .leading { font-size: 20px; inline-size: 20px; }
   #planner[data-view=projects] .block-facts .purpose-text { font: var(--body-medium); color: var(--on-surface-variant); }
-  /* The header's quiet lines keep one 12dp step: Area, Goal and the deadline share one line (the Goal gives way with an
-     ellipsis), the Purpose follows, then one larger step before "Blocks", whose count sits on the rows' count column. */
-  #planner[data-view=projects] .detail-title-text + .head-crumbs { flex-wrap: nowrap; padding-block-end: 0; }
-  #planner[data-view=projects] .head-crumbs > :is(.crumb-due, :has(> .avatar)) { flex: none; }
-  #planner[data-view=projects] .head-crumbs + .block-facts { margin-block-start: calc(-1 * var(--s2)); }
+  /* The header's quiet lines share one icon column and one text edge: "Studies · Due tomorrow 11 PM", then the Goal on a
+     line of its own that wraps rather than cut, then the Purpose; one larger step before "Blocks". */
+  #planner[data-view=projects] .detail-title-text + .head-crumbs { column-gap: var(--s1); padding-block-end: 0; }
+  #planner[data-view=projects] .head-crumbs > .crumb-quiet { gap: var(--s2); }
+  #planner[data-view=projects] .head-crumbs > .crumb-due { gap: var(--s1); }
+  #planner[data-view=projects] .head-crumbs > .crumb-quiet + .crumb-due::before { content: "·"; }
+  #planner[data-view=projects] .head-crumbs > [aria-haspopup] { flex-basis: 100%; align-items: start; padding-block: calc((32px - 20px) / 2); }
+  #planner[data-view=projects] .head-crumbs > [aria-haspopup] > span:not(.ms) { white-space: normal; text-wrap: pretty; }
+  #planner[data-view=projects] .block-facts > .fact-row { gap: var(--s2); }
+  #planner[data-view=projects] .head-crumbs + .block-facts { margin-block-start: -2px; }
   #planner[data-view=projects] .block-facts + .section-header { margin-block-start: calc(-1 * var(--s2)); padding-inline-end: calc(var(--gutter) + var(--s4)); }
 }
 #planner:is([data-view=areas], [data-view=goals]) :is(.purpose-text, .title-edit, .detail-title-text) { text-wrap: pretty; }

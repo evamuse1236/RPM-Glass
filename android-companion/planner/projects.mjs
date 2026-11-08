@@ -121,13 +121,13 @@ function projectCard(app, project, lead = projectLead(app, project)) {
     toggle.append(copy, el('span', 'project-due card-due tnum' + (due?.tight ? ' tight' : ''), due?.label ?? ''), tally);
   } else {
     toggle.append(copy, rings);
-    // The first deadline gets the head's one line: folded it reads "Due tomorrow 11 PM · 4/18" as one phrase, open the
-    // count moves to the line's end, in the Block rows' count column. With no deadline the count ends the Next task's
-    // line and the card has no line of its own for a number; open, the Block rows say it. A finished Project's check says done.
+    // Every folded card ends its count on one right edge: on the first deadline's line, or with no deadline on the Next
+    // task's line, so the card has no line of its own for a number. Open, the count joins the Block rows' count column
+    // in their form, a small ring then "4/18"; with no deadline the rows say it. A finished Project's check says done.
     if (due) {
       const facts = el('span', 'card-facts project-facts tnum');
       facts.append(el('span', 'card-due' + (due.tight ? ' tight' : ''), due.label));
-      if (sum) facts.append(figures());
+      if (sum) facts.append(open ? taskTally(stats, count) : figures());
       toggle.append(facts);
     }
   }
@@ -241,12 +241,12 @@ export function renderProjectDetail(app, page, project) {
   crumbs.classList.add('head-crumbs');
   crumbs.dataset.tone = app.tone(area);
   const {blocks, stats, due} = projectLead(app, project);
-  // The list card's first deadline stays on the phone page as the line's last quiet fact; wide says it in the facts card.
+  // On the phone the first deadline follows the Area ("Studies · Due tomorrow 11 PM") and the Goal takes the next line
+  // whole, so the Project's reason is never cut. Wide says the deadline in the facts card.
   if (due && !wide) {
-    // "Due tomorrow 11 PM" names itself, so it needs no icon and the line keeps room for the Goal.
     const when = el('span', 'crumb-quiet crumb-due tnum' + (due.tight ? ' tight' : ''));
     when.append(el('span', '', due.label));
-    crumbs.append(when);
+    crumbs.insertBefore(when, crumbs.querySelector('[aria-haspopup]'));
   }
   if (!wide) page.append(crumbs);
   const facts = el('div', 'block-facts');
@@ -258,14 +258,10 @@ export function renderProjectDetail(app, page, project) {
   const count = stats.total ? `${stats.done} of ${plural(stats.total, 'task')} done` : 'No tasks yet';
   if (wide) facts.append(projectStatus(stats, due, count), crumbs);
   page.append(facts);
-  // The Blocks header ends in the Project's "4/18" on the Block rows' count column, as plain figures: the rows' rings
-  // already draw progress, so the page shows it in one form. On wide the facts card says it once instead.
-  let progress = null;
-  if (stats.total && !wide) {
-    progress = el('span', 'card-tally tnum', `${stats.done}/${stats.total}`);
-    progress.setAttribute('role', 'img');
-    progress.setAttribute('aria-label', count);
-  }
+  // The Blocks header ends in the Project's small ring and "4/18" on the Block rows' count column, in the rows' own form.
+  // On wide the facts card says it once instead.
+  const progress = stats.total && !wide ? taskTally(stats, count) : null;
+  progress?.classList.add('tnum');
   const header = sectionHeader('Blocks', progress);
   header.dataset.tone = app.tone(area);
   page.append(header);
