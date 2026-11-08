@@ -97,7 +97,7 @@ function drawResults(app, host) {
   const groups = [
     ['Blocks', 'stacks', app.activeBlocks(), b => app.openBlock(b.id), b => b.purpose],
     ['Projects', 'folder', p.projects, pr => app.openProject(pr.id), pr => pr.purpose],
-    ['Goals', 'flag', p.goals, g => app.openGoal(g.id), g => String(g.year)],
+    ['Goals', 'flag', p.goals, g => app.openGoal(g.id), g => String(g.year), true],
     ['Areas', 'spa', p.areas, a => app.openArea(a.id), a => a.purpose],
   ];
   const found = tasks(app.data()).filter(task => matches(task, q)).sort(searchOrder).slice(0, 30);
@@ -108,12 +108,16 @@ function drawResults(app, host) {
   if (open.length) host.append(sectionHeader('Tasks'),
     ...[...wordFirst(open.filter(task => task.must), q), ...wordFirst(open.filter(task => !task.must), q)].map(hit));
   let count = found.length;
-  for (const [label, symbol, items, go, supporting] of groups) {
+  // On wide a short fact (a Goal's year) ends the title's line rather than standing alone on a second line.
+  const wide = Boolean(app.api.wide?.());
+  for (const [label, symbol, items, go, supporting, short] of groups) {
     const hits = wordFirst(items.filter(item => matches(item, q)).slice(0, 30), q);
     if (!hits.length) continue;
     host.append(sectionHeader(label));
     for (const item of hits) {
-      const node = listItem({leading: symbol, headline: item.title, supporting: supporting(item) ?? '', onClick: () => go(item)});
+      const meta = supporting(item) ?? '';
+      const node = listItem({leading: symbol, headline: item.title, onClick: () => go(item),
+        ...(short && wide ? {trailing: el('span', 'list-meta tnum', meta)} : {supporting: meta})});
       markHits(node.querySelector('.list-headline'), q);
       host.append(node);
     }

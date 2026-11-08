@@ -105,11 +105,19 @@ function projectCard(app, project, lead = projectLead(app, project)) {
   const copy = el('span', 'project-copy');
   if (area) copy.append(el('span', 'project-area', area.title));
   copy.append(el('span', 'card-title', project.title));
-  // Open, each Block row gives its own deadline (on wide in its own column), so the head does not repeat it.
+  // Open on the phone, each Block row gives its own deadline, so the head does not repeat it; on wide it has a column.
   const words = due && !open ? due.label : '';
   if (words) copy.append(el('span', 'card-due tnum' + (due?.tight ? ' tight' : ''), words));
   // Words first on the card's one text edge; the rings close the row, as every progress mark in the Projects tab does.
-  toggle.append(copy, nestRings(wide ? [stats] : ordered.map(block => blockStats(app, block)), count, {finished}));
+  const rings = nestRings(wide ? [stats] : ordered.map(block => blockStats(app, block)), count, {finished});
+  if (wide) {
+    // On wide the head is the table's first row: the Project's first deadline in the deadline column, then "8/18" by its ring.
+    const figures = el('span', 'project-figures tnum', stats.total ? `${stats.done}/${stats.total}` : '');
+    figures.setAttribute('aria-hidden', 'true');
+    const tally = el('span', 'project-tally');
+    tally.append(figures, rings);
+    toggle.append(copy, el('span', 'project-due card-due tnum' + (due?.tight ? ' tight' : ''), due?.label ?? ''), tally);
+  } else toggle.append(copy, rings);
   const head = el('div', 'project-head');
   head.append(toggle);
   if (!wide) head.append(iconButton('chevron_right', `Open ${project.title}`, () => app.openProject(project.id), {cls: 'project-open'}));
@@ -139,6 +147,7 @@ export function renderProjects(app, page) {
       onClick: () => { state.projectFilter = value; app.render({reset: true}); }})), 'Area'));
   filters.append(chip);
   page.append(filters);
+  const wide = Boolean(app.api.wide?.());
   const projects = app.p().projects.filter(pr => !state.projectFilter || app.projectArea(pr)?.id === state.projectFilter);
   // Soonest due first, then Projects with no deadline, finished ones last; ties keep the user's order.
   const rank = ({due, finished}) => [finished ? 2 : due ? 0 : 1, due?.at.getTime() ?? Infinity];
@@ -146,7 +155,8 @@ export function renderProjects(app, page) {
     .map(entry => ({...entry, key: rank(entry.lead)}))
     .sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1] || a.i - b.i);
   for (const {project, lead} of leads) page.append(projectCard(app, project, lead));
-  if (projects.length) page.append(labelButton('add', 'New Project', () => app.actions.newEntity('projects'), 'text-btn project-add'));
+  // On wide New Project ends the filter row, in view at the top, rather than after the last card.
+  if (projects.length) (wide ? filters : page).append(labelButton('add', 'New Project', () => app.actions.newEntity('projects'), 'text-btn project-add'));
   if (!projects.length) {
     page.append(emptyState({symbol: 'folder', title: app.p().projects.length ? 'No Projects in this Area' : 'Connect your Blocks',
       body: 'A Project gives related Results a shared home.', action: () => app.actions.newEntity('projects'),

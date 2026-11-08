@@ -133,7 +133,10 @@ export function blockCard(app, block, {focus = false, project = true} = {}) {
   // The title and Purpose take the card's full width; where it stands is one line under them: the deadline (with the
   // hours left inside the last day, error colour when tight) or This week, and tasks done as a ring and "2/7" at its end.
   main.append(el('span', 'card-title', block.title));
-  main.append(el('span', 'card-purpose', block.purpose || 'Add the Purpose: why this Result matters'));
+  const purpose = el('span', 'card-purpose', block.purpose || 'Add the Purpose: why this Result matters');
+  // A wide card cuts the Purpose to one line; pointing at it shows the whole of it.
+  if (block.purpose) purpose.title = block.purpose;
+  main.append(purpose);
   const due = deadline(app.data(), block, status);
   const week = weekMark(focus, status, due);
   const line = el('span', 'card-facts tnum');
@@ -176,6 +179,7 @@ export function nextTaskRow(app, next) {
   check.append(el('span', 'check-ring'));
   const open = button('', () => app.actions.openTask(next.id), 'next-title');
   open.append(el('span', 'overline', 'Next'), el('span', 'next-words', next.title));
+  open.title = next.title;
   row.append(check, open);
   return row;
 }

@@ -36,10 +36,16 @@ test('on wide each Project card lists its Blocks and opens the Project; the phon
   assert.match(source, /nestRings\(wide \? \[stats\] : ordered\.map/, 'on wide the Project ring shows the Project, the chips the Blocks');
   const css = read('./wide-pages.css');
   assert.match(css, /\.page > \.project-card \{ grid-column: 1 \/ -1; \}/, 'a Project card runs the full width, so no column holds a hole');
-  assert.match(css, /\.project-block \{\n    display: grid;\n    grid-template-columns: minmax\(0, 5fr\) minmax\(0, 4fr\) 144px 48px;/,
-    'its Block rows are one table whose deadline and tally columns line up from card to card');
+  assert.match(css, /:not\(\[data-detail=true\]\) \.page \{\n    grid-template-columns: minmax\(0, max-content\) minmax\(0, 1fr\) max-content max-content;\n    column-gap: var\(--s6\);/,
+    'the page is one table: each column as wide as its longest entry, the next task takes the rest, 24px apart');
+  assert.match(css, /:is\(\.page > \.project-card, \.project-head, \.project-toggle, \.project-blocks\) \{\n    display: grid;\n    grid-column: 1 \/ -1;\n    grid-template-columns: subgrid;/,
+    'every card is a subgrid of the page, so the columns line up from card to card');
+  assert.match(css, /\.project-block \{\n    display: grid;\n    grid-column: 1 \/ -1;\n    grid-template-columns: subgrid;\n    align-items: center;\n    min-block-size: 40px;/,
+    'its Block rows are 40px rows of that table');
+  assert.match(source, /toggle\.append\(copy, el\('span', 'project-due card-due tnum'[^\n]*\), tally\);/, 'the head names the Project\'s first deadline');
+  assert.match(source, /stats\.total \? `\$\{stats\.done\}\/\$\{stats\.total\}` : ''/, 'and its count beside the one ring');
+  assert.match(source, /\(wide \? filters : page\)\.append\(labelButton\('add', 'New Project'/, 'on wide New Project ends the filter row at the top');
   assert.match(source, /copy\.append\(el\('span', 'project-block-due card-due'/, 'a Block row names its deadline in its own column');
-  assert.match(css, /\.project-blocks \{\n    grid-template-columns: minmax\(0, 1fr\);/, 'its Blocks stay open in one column');
   assert.match(css, /\.project-block \{ margin-inline: calc\(-1 \* var\(--s3\)\); padding-inline: var\(--s3\);/,
     'a Block chip\'s words sit on the card\'s text edge');
   assert.match(css, /:is\(\.project-block-name, \.project-block-next\) \{ overflow: clip; text-overflow: ellipsis; white-space: nowrap; \}/);
