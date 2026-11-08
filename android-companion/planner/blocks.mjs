@@ -134,7 +134,7 @@ export function blockCard(app, block, {focus = false, project = true} = {}) {
   // hours left inside the last day, error colour when tight) or This week, and tasks done as a ring and "2/7" at its end.
   main.append(el('span', 'card-title', block.title));
   const purpose = el('span', 'card-purpose', block.purpose || 'Add the Purpose: why this Result matters');
-  // A wide card cuts the Purpose to one line; pointing at it shows the whole of it.
+  // A wide card cuts a long Purpose after two lines; pointing at it shows the whole of it.
   if (block.purpose) purpose.title = block.purpose;
   main.append(purpose);
   const due = deadline(app.data(), block, status);

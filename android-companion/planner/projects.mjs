@@ -4,7 +4,7 @@ import {el, icon, button, iconButton, labelButton, emptyState, sectionHeader} fr
 import {nestRings} from './rings.mjs';
 import {plural, doneStats} from './format.mjs';
 import {openMenu} from './menu.mjs';
-import {purposePanel, notesPanel, titleField, finishDetail, byDeadline, deadline, nextTaskRow, taskTally} from './blocks.mjs';
+import {purposePanel, notesPanel, titleField, finishDetail, byDeadline, deadline, nextTaskRow, taskTally, factRow, progressRing} from './blocks.mjs';
 import {resultStatus} from '../review-state.mjs';
 import {saveEntity, NO_ICON} from './inline-edit.mjs';
 
@@ -224,23 +224,28 @@ export function renderProjectDetail(app, page, project) {
     options: app.p().goals.map(g => [g.id, g.title]), open: () => app.openGoal(goal.id),
     choose: (goalId, label) => saveEntity(app, 'projects', project, {goalId},
       goalId ? `Linked to ${label}` : 'Unlinked from its Goal').catch(() => {})});
-  // The Project leads at the largest size; its Area and Goal follow on one quiet line of icon and words.
+  // The Project leads at the largest size; its Area and Goal follow on one quiet line of icon and words. On wide the
+  // facts card beside the Blocks holds them instead, under the Purpose and where the Project stands, as on a Block.
+  const wide = Boolean(app.api.wide?.());
   page.append(titleField(app, 'projects', project, 'Project'));
   const crumbs = breadcrumbs(app, [area && [area.title, 'areas', area.id, initialAvatar(app, area)],
     {label: goal?.title ?? 'Link a Goal', icon: 'flag', menu: goalMenu}], {quiet: true});
   crumbs.classList.add('head-crumbs');
   crumbs.dataset.tone = app.tone(area);
-  page.append(crumbs);
+  if (!wide) page.append(crumbs);
   const facts = el('div', 'block-facts');
   facts.dataset.tone = app.tone(area);
   // The heart marks the Purpose, as on a Block, so its row needs no label.
   facts.append(purposePanel(app, 'projects', project, 'Purpose', {labelled: false}));
   const notes = notesPanel(app, 'projects', project);
   if (notes) facts.append(notes);
+  const {blocks, stats, due} = projectLead(app, project);
+  const count = stats.total ? `${stats.done} of ${plural(stats.total, 'task')} done` : 'No tasks yet';
+  if (wide) facts.append(projectStatus(stats, due, count), crumbs);
   page.append(facts);
-  // The Blocks header ends in the Project's tasks done, the same ring and "4/18" each Block row ends in.
-  const {blocks, stats} = projectTasks(app, project);
-  const progress = stats.total ? taskTally(stats, `${stats.done} of ${plural(stats.total, 'task')} done`) : null;
+  // The Blocks header ends in the Project's tasks done, the same ring and "4/18" each Block row ends in; on wide the
+  // facts card says it once instead.
+  const progress = stats.total && !wide ? taskTally(stats, count) : null;
   const header = sectionHeader('Blocks', progress);
   header.dataset.tone = app.tone(area);
   page.append(header);
@@ -254,4 +259,13 @@ export function renderProjectDetail(app, page, project) {
   page.append(labelButton('add', 'Add Block', () => app.actions.newEntity('blocks', {projectId: project.id}),
     'text-btn block-add'));
   finishDetail(app, page);
+}
+
+/** Where the Project stands, as a Block's status row: its first deadline by the Project's ring, then tasks done. */
+function projectStatus(stats, due, count) {
+  const {row, copy} = factRow(progressRing(stats.done, stats.total, count), {cls: 'status-row'});
+  row.classList.toggle('tight', !!due?.tight);
+  copy.append(el('span', 'list-headline due-when tnum', due ? due.text : count));
+  if (due) copy.append(el('span', 'list-supporting tnum', count));
+  return row;
 }
