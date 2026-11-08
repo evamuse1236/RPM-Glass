@@ -30,6 +30,21 @@ test('quick add: the title is 16/24 like Capture; day, Time and Block show, the 
     'More options reads as a control: the tune icon, its name and a chevron');
 });
 
+test('quick add: only a picked or suggested Block fills, lighter than the chosen day; the Inbox fallback stays quiet', () => {
+  const js = read('planner/quick-add.mjs');
+  assert.match(js, /blockChip\.classList\.toggle\('in-inbox', !chosen\)/, 'the chip knows when it holds only the Inbox fallback');
+  const css = read('planner-sheets.css');
+  assert.match(css, /\.sheet \.block-chip\.in-inbox \{ background: none; color: var\(--on-surface-variant\);/,
+    'the default Inbox is a borderless icon, word and arrow, never a fill that reads as chosen');
+  assert.match(css, /\.sheet \.block-chip, \.sheet \.block-chip\.suggested \{[^}]*background: color-mix\(in oklch, var\(--secondary-container\) \d+%, var\(--sheet-bg\)\)/,
+    'a chosen Block fills a lighter tone than the chosen day, so where never looks like when');
+  assert.doesNotMatch(css, /\.filled-btn:disabled \{ background: transparent; \}/, 'a disabled Add keeps its container, so it reads as a button waiting for words');
+  assert.match(css, /\.sheet-inbox \.task-title \{ text-wrap: pretty; \}/, 'Inbox titles fill their first line and never orphan a word');
+  const options = read('planner/quick-options.mjs');
+  assert.match(options, /const fewer = button\('', \(\) => moreRow\.click\(\), 'quick-fewer'\)/, 'opened, the chevron ends the options row as the way back');
+  assert.match(css, /\.quick-details\.is-open \{ display: none; \}/, 'opened, More options gives its row to the choices, never a header row of its own');
+});
+
 test('quick add chip names and the More options summary read the chip label, never the icon ligature', () => {
   for (const file of ['planner/quick-add.mjs', 'planner/quick-options.mjs']) {
     assert.doesNotMatch(read(file), /Chip\.textContent/, `${file} reads a whole chip, so "schedule" or "repeat" leaks into its words`);

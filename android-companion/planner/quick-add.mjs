@@ -9,8 +9,11 @@ import {openTask} from './task-sheet.mjs';
 import {blockShort} from './task-tabs-model.mjs';
 
 const DRAFT = 'task:new';
-// A number keeps its unit on its line ("10 PM", "30 min", "2 hours"), so a wrapped Purpose never splits them.
-const keepUnits = text => text.replace(/(\d)[ \t]+(?=(?:AM|PM|am|pm|a\.m\.|p\.m\.|min|mins|minutes?|h|hrs?|hours?|days?|weeks?|months?|%)(?![\w]))/g, '$1\u00a0');
+// A number keeps its unit on its line ("10 PM", "30 min", "2 hours") and "a", "an" or "the" keeps the word it leads,
+// so a wrapped Purpose never splits them or ends a line on "not a".
+const keepUnits = text => text
+  .replace(/(\d)[ \t]+(?=(?:AM|PM|am|pm|a\.m\.|p\.m\.|min|mins|minutes?|h|hrs?|hours?|days?|weeks?|months?|%)(?![\w]))/g, '$1\u00a0')
+  .replace(/(^|\s)(a|an|the|A|An|The)[ \t]+(?=\S)/g, '$1$2\u00a0');
 const shortDay = day => {
   const date = new Date(day + 'T12:00');
   return `${date.toLocaleDateString([], {weekday: 'short'})} ${date.getDate()}`;
@@ -196,6 +199,7 @@ function quickAdd(app, overrides = {}) {
     blockChip.querySelector('.chip-label').textContent = chosen ? blockShort(chosen.title) : 'Inbox';
     blockChip.querySelector('.block-mark').textContent = guess ? 'auto_awesome' : chosen ? 'stacks' : 'inbox';
     blockChip.classList.toggle('suggested', guess);
+    blockChip.classList.toggle('in-inbox', !chosen);
     const read = !!tag && !!chosen && chosen.id === tag.block.id;
     blockChip.classList.toggle('from-words', read);
     blockChip.setAttribute('aria-label', `Block: ${chosen?.title ?? 'Inbox'}${guess ? ', suggested' : ''}${read ? `, read from “${tag.match}”` : ''}. Choose a Block`);

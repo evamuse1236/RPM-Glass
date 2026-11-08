@@ -113,8 +113,10 @@ export function showInbox(app, {motion = 'forward'} = {}) {
     notePeeked();
     requestAnimationFrame(() => { if (first.isConnected) peekSwipe(first, INBOX_LEFT, 'left', 168, 900); });
   }
-  actions.append(labelButton('mic', 'Capture', () => app.capture(), 'text-btn'), el('span', 'spacer'),
-    labelButton('add', 'Add to Inbox', () => taskEditor(app, null), 'text-btn'));
+  // The sheet's title already says Inbox, so the button reads only "Add"; its name keeps where the task goes.
+  const addTask = labelButton('add', 'Add', () => taskEditor(app, null), 'text-btn');
+  addTask.setAttribute('aria-label', 'Add to Inbox');
+  actions.append(labelButton('mic', 'Capture', () => app.capture(), 'text-btn'), el('span', 'spacer'), addTask);
   app.sheet.live = () => body.isConnected && isSheetOpen(app);
   app.sheet.sync = () => {
     if (!inboxShowing(app) || app.sheet.inboxBody !== body) return false;

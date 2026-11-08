@@ -46,8 +46,11 @@ export function quickOptions(s, {body, group, target, changed, remember}) {
   }));
   const moreRow = button('', null, 'quick-details');
   moreRow.append(icon('tune'), el('span', 'chip-label', 'More options'), icon('expand_more', {cls: 'quick-details-open'}));
-  // Opened, the row stays as the way back.
-  moreRow.querySelector('.quick-details-open').before(el('span', 'quick-details-fewer', 'Fewer options'));
+  // Opened, the row gives way to the choices it held; the chevron stays at their end as the way back.
+  const fewer = button('', () => moreRow.click(), 'quick-fewer');
+  fewer.append(icon('expand_less'));
+  fewer.setAttribute('aria-label', 'Fewer options');
+  moreChips.append(fewer);
   const moreFold = foldFor(group, moreRow, inner => {
     inner.append(moreChips, durationFold.node, repeatFold.node);
     const alertRow = el('div', 'alert-choices');
@@ -67,7 +70,7 @@ export function quickOptions(s, {body, group, target, changed, remember}) {
     return refresh;
   });
 
-  // The row gives way to the choices it opened; focus moves to the first of them.
+  // Focus moves to the first of the choices the row opened.
   moreRow.addEventListener('click', () => { if (moreRow.classList.contains('is-open')) durationChip.focus({preventScroll: true}); });
 
   const paint = () => {
