@@ -239,7 +239,6 @@
   color: var(--on-surface);
   outline: none;
 }
-.quick-title textarea::placeholder { color: var(--on-surface-variant); }
 .quick-mirror { position: absolute; inset: 0; color: transparent; overflow: hidden; pointer-events: none; }
 .quick-mirror mark { color: transparent; background: var(--secondary-container); border-radius: var(--shape-xs);
   box-shadow: 0 0 0 2px var(--secondary-container); }
@@ -269,29 +268,28 @@
 .quick-details.is-open .quick-details-fewer { display: block; }
 .quick-details.is-open { color: var(--on-surface); }
 .sheet .quick-row.more-chips { flex-wrap: wrap; }
-/* Details and Purpose are tonal fields, the same on the phone and the website: the words a person types are the
-   content, so no icon row leads them and no outline frames them. */
+/* Details and Purpose are borderless lines led by their icon, like Google Tasks' "Add details": an empty one is one
+   quiet line, never a box heavier than the title, and it grows as the words come. */
+.quick-note { display: flex; align-items: flex-start; gap: var(--s2); min-block-size: var(--touch); color: var(--on-surface-variant); cursor: text; }
+.quick-note[hidden] { display: none; }
+.quick-note > .ms { flex: none; font-size: 20px; block-size: 24px; line-height: 24px; margin-block-start: var(--s3); }
+.quick-note:focus-within > .ms { color: var(--primary); }
 .quick-field {
   display: block;
-  inline-size: 100%;
-  margin-block-start: var(--s2);
-  padding: var(--s3) var(--s4);
+  flex: 1;
+  min-inline-size: 0;
+  padding-block: var(--s3);
+  padding-inline: 0;
   border: 0;
-  border-radius: var(--shape-md);
-  background: var(--sheet-raised);
+  background: transparent;
   color: var(--on-surface);
   font: var(--body-large);
   resize: none;
   overflow: hidden;
   field-sizing: content;
+  outline: none;
 }
-.quick-field::placeholder { color: var(--on-surface-variant); }
-/* Details opens two lines tall on the phone and the website alike, room to start a note, and grows as it fills. */
-.quick-field[aria-label=Details] { min-block-size: 72px; }
-/* Estimate, Repeat and Must are tonal like the Block chip, one option look under the day chips; a set one turns
-   secondary like any chosen chip. */
-.sheet .more-chips > .assist-chip:not(.on) { border-color: transparent; background: var(--sheet-raised); color: var(--on-surface); }
-.quick-field:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.quick-field::placeholder, .quick-title textarea::placeholder { color: color-mix(in oklch, var(--on-surface-variant) 72%, transparent); }
 .quick-details:active { background: var(--row-press); }
 .hash-chips .assist-chip { max-width: 80%; }
 .hash-chips .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -319,11 +317,13 @@
 .sheet .block-chip .block-mark { color: var(--primary); }
 /* The chosen Block's Purpose sits whole under its chip, aligned to the chip's text and wrapping, never cut. */
 .block-chips > .block-purpose { flex-basis: 100%; display: flex; align-items: flex-start; gap: var(--s2); margin: 0;
-  margin-block: var(--s1) var(--s3); padding: 0 var(--s2); font: var(--body-medium); color: var(--on-surface-variant); }
+  margin-block: var(--s1) var(--s3); padding: 0 var(--s2); font: var(--body-medium); color: var(--on-surface-variant); text-wrap: pretty; }
 .block-chips > .block-purpose[hidden] { display: none; }
 .sheet .quick-row.block-chips:has(> .block-purpose:not([hidden])) { flex-wrap: wrap; }
 .block-purpose .ms { font-size: 20px; }
 .block-chip .chip-drop { margin-inline-start: calc(-1 * var(--s1)); }
+/* The drop arrow's glyph carries its own side bearing, so the chip ends 4dp after it and both ends look even. */
+.sheet .block-chip { padding-inline-end: var(--s1); }
 :root[data-large-text=true] .sheet .quick-row:is(.quick-days, .block-chips) { flex-wrap: wrap; }
 :root[data-large-text=true] .block-chips > .assist-chip { max-width: 80%; }
 .sheet-quick .field-fold .fold-inner { padding-left: 0; }
@@ -351,7 +351,9 @@
 /* Until there are words, Add is only its dimmed word: a greyed pill read as a broken button. */
 .sheet-quick .sheet-actions .filled-btn:disabled { background: transparent; }
 .sheet-quick .sheet-body { padding-top: var(--s1); padding-bottom: 0; }
-/* One left edge: the chips' outline, the More options, Add details and Why? icons, and Capture's mic. */
+/* One left edge: the chips' outline, the More options, details and Purpose icons, and Capture's mic; in the Inbox the
+   mic sits on the checkbox rings' edge and Add task ends on the content edge. */
 .sheet-quick .detail-row { min-block-size: var(--touch); padding: var(--s3) 0; gap: var(--s2); }
-.sheet-quick .sheet-actions > .text-btn:first-child { margin-inline-start: calc(-1 * var(--s3)); }
+:is(.sheet-quick, .sheet-inbox) .sheet-actions > .text-btn:first-child { margin-inline-start: calc(-1 * var(--s3)); }
+.sheet-inbox .sheet-actions > .text-btn:last-child { margin-inline-end: calc(-1 * var(--s3)); }
 .sheet-quick .detail-row > .ms { font-size: 20px; }

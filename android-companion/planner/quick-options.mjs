@@ -3,8 +3,9 @@ import {duration} from './format.mjs';
 import {repeatLabel, foldGroup, foldFor, markChips, chipRow, durationChooser, repeatChooser, alertChooser} from './task-fields.mjs';
 import {syncText} from './sheet-parts.mjs';
 
-/** A plain text field on the sheet: its placeholder names it, it grows with the words, and each word is kept. */
-function quickField(host, placeholder, name, value, keep) {
+/** One borderless line led by its icon: the placeholder names it, it grows with the words, and each word is kept. */
+function quickField(host, symbol, placeholder, name, value, keep) {
+  const line = el('label', 'quick-note');
   const input = el('textarea', 'quick-field');
   input.rows = 1;
   input.placeholder = placeholder;
@@ -12,13 +13,14 @@ function quickField(host, placeholder, name, value, keep) {
   input.setAttribute('aria-label', name);
   // The field grows with its words through CSS field-sizing.
   input.addEventListener('input', () => keep(input.value));
-  host.append(input);
+  line.append(icon(symbol), input);
+  host.append(line);
   return input;
 }
 
 /**
  * More options: one row under the chips. Opened, it gives way to what it held: Estimate, Repeat and Must as chips
- * that carry on the chips above, then the details and the Purpose as plain fields.
+ * that carry on the chips above, then the details and the Purpose as borderless lines.
  */
 export function quickOptions(s, {body, group, target, changed, remember}) {
   const options = foldGroup(body);
@@ -51,13 +53,13 @@ export function quickOptions(s, {body, group, target, changed, remember}) {
     const alertRow = el('div', 'alert-choices');
     alertChooser(alertRow, {get: () => s.alert, pick: value => { s.alert = value; changed(); }});
     inner.append(alertRow);
-    const notes = quickField(inner, 'Details', 'Details', s.notes, value => { s.notes = value; remember(); });
-    const why = quickField(inner, 'Purpose: why it matters', 'Purpose', s.why, value => { s.why = value; remember(); });
+    const notes = quickField(inner, 'notes', 'Add details', 'Details', s.notes, value => { s.notes = value; remember(); });
+    const why = quickField(inner, 'favorite', 'Add purpose', 'Purpose', s.why, value => { s.why = value; remember(); });
     // A task in a Block takes the Block's Purpose, which the Block chip shows; only an Inbox task has its own.
     const refresh = () => {
       syncText(notes, s.notes);
       syncText(why, s.why);
-      why.hidden = !!target();
+      why.parentElement.hidden = !!target();
       alertRow.hidden = !s.time;
       markChips(alertRow, s.alert);
     };

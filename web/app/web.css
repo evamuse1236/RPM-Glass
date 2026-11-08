@@ -284,13 +284,13 @@ html:has(dialog:modal) { overflow: clip; }
   .row-tools .icon-btn { inline-size: 40px; block-size: 40px; min-inline-size: 0; min-block-size: 0; border-radius: var(--shape-full); color: var(--on-surface-variant); }
   .row-tools .icon-btn:hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); color: var(--on-surface); }
   .row-tools .icon-btn:active { background: color-mix(in oklch, var(--on-surface) 12%, transparent); }
-  /* A hovered or focused Inbox row takes an 8% state tint, rounded and inset 8px from the pane's edges as in Tasks, and
-     makes room for its one filing icon, which ends 16px inside the tint like the checkbox ring's side, so the tool never
-     covers the title and a resting row keeps its whole width. */
+  /* A hovered or focused Inbox row takes an 8% state tint, rounded and 2px inside the card's edges as in Tasks, so it
+     holds 12px on both sides: before the checkbox ring and after its one filing icon. The row makes room for the icon
+     only then, so the tool never covers the title and a resting row keeps its whole width. */
   .sheet-inbox .task-row:is(:hover, :focus-within) { isolation: isolate; }
-  .sheet-inbox .task-row:is(:hover, :focus-within)::before { content: ""; position: absolute; inset: 0 var(--s2); z-index: -1; border-radius: var(--shape-md); background: color-mix(in oklch, var(--on-surface) 8%, transparent); pointer-events: none; }
+  .sheet-inbox .task-row:is(:hover, :focus-within)::before { content: ""; position: absolute; inset: 0 2px; z-index: -1; border-radius: var(--shape-md); background: color-mix(in oklch, var(--on-surface) 8%, transparent); pointer-events: none; }
   .sheet-inbox .task-row:is(:hover, :focus-within) > .task-main { padding-inline-end: 56px; }
-  .sheet-inbox .row-tools { inset-inline-end: var(--s4); padding: 0; background: transparent; box-shadow: none; }
+  .sheet-inbox .row-tools { inset-inline-end: var(--s1); padding: 0; background: transparent; box-shadow: none; }
 }
 
 /* The website's Inbox and New task pane: a card as tall as what it holds at the top of the pane's column (Capture and
@@ -303,5 +303,6 @@ html:has(dialog:modal) { overflow: clip; }
   .planner-view:has(> #planner[data-view=today]) > #sheet[data-inline] .inbox-on-today { display: inline-flex; margin: 0 0 0 var(--s5); padding-inline: var(--s3); color: var(--primary); }
   .planner-view:has(> #planner[data-view=today]) .inbox-found { border-radius: var(--shape-md); background: color-mix(in oklch, var(--primary) 12%, transparent); }
   .planner-view > #sheet[data-inline].sheet-quick :is(.filter-chip, .assist-chip) { min-block-size: 40px; margin-block: var(--s1); }
+  .planner-view > #sheet[data-inline].sheet-inbox .sheet-actions { display: flex; }
   .planner-view > #sheet[data-inline]:is(.sheet-quick, .sheet-inbox) { align-self: start; max-block-size: calc(100% - 2 * var(--s4)); margin: var(--s4) var(--s4) var(--s4) 0; border: 1px solid var(--outline-variant); border-radius: var(--card-radius); }
 }

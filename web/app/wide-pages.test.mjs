@@ -13,9 +13,10 @@ test('the wide page styles apply only on a wide window and load after the task p
   assert.match(read('../build.mjs'), /'\.\/app\/wide-pages\.css', 'wide-pages\.css'/);
 });
 
-test('on wide the Inbox pane drops its repeated Capture and Add task, and the Life tab line sits under its word', () => {
+test('on wide the Inbox card ends in Capture and Add task like the phone, and the Life tab line sits under its word', () => {
   const css = read('./wide-pages.css');
-  assert.match(css, /\[aria-label=Inbox\] \.sheet-actions \{ display: none; \}/);
+  assert.match(read('./web.css'), /\.planner-view > #sheet\[data-inline\]\.sheet-inbox \.sheet-actions \{ display: flex; \}/,
+    'the Inbox card docks the same Capture and Add foot as the phone sheet and the New task card');
   assert.match(css, /\.sheet-header:has\(> h2:not\(\.visually-hidden\)\) \{ min-block-size: 64px; \}/);
   assert.match(css, /\.tab\[aria-selected=true\]::after \{ inset-inline: var\(--s4\); \}/);
   const inbox = read('../../android-companion/planner/task-lists.mjs');
