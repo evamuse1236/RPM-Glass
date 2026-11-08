@@ -97,6 +97,16 @@
 .settings-card { overflow: clip; border-radius: var(--r-group); background: var(--surface-container); }
 .settings-note { padding-block: var(--s1); font: var(--body-small); color: var(--on-surface-variant); overflow-wrap: anywhere; }
 .settings-caption { padding-inline: var(--s4); font: var(--body-small); color: var(--on-surface-variant); text-wrap: pretty; }
+/* The website's note on what is set on the phone: body text with a phone glyph, not a card. */
+.settings-caption.settings-footnote { padding-inline-start: calc(var(--s4) + 32px + var(--s3)); font: var(--body-medium); }
+/* A problem on the home list: red tile, red title, the reason, and Allow as the same primary word every row's action uses.
+   The whole card is one button, so it presses like a row. */
+.settings-alert { display: flex; align-items: center; gap: var(--s3); inline-size: 100%; min-block-size: 56px;
+  padding: var(--s3) var(--s3) var(--s3) var(--s4); color: var(--on-surface); text-align: start; }
+.settings-alert .settings-label { color: var(--error); }
+.settings-alert-action { flex: none; margin-inline-end: var(--s2); font: var(--label-large); color: var(--primary); }
+.settings-alert:active { background: var(--row-press); }
+.settings-alert:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: var(--r-group); }
 .settings-row {
   --row-indent: var(--s4);
   position: relative;
@@ -118,6 +128,9 @@
 button.settings-row:active { background: var(--row-press); }
 .settings-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: var(--r-group); }
 .settings-row:disabled { opacity: 1; }
+/* A row that has no effect yet (Voice and Persona before a Gemini key, Restore with no backup) rests at the disabled 38%
+   with its value and no chevron. */
+.settings-row[data-idle] { opacity: .38; }
 .settings-icon { display: grid; place-items: center; flex: none; inline-size: 32px; block-size: 32px; border-radius: var(--r-tile);
   background: var(--tile, oklch(60% 0 none)); color: oklch(100% 0 none); }
 .settings-icon .ms { font-size: 20px; font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 20; }
@@ -134,15 +147,13 @@ button.settings-row:active { background: var(--row-press); }
 .settings-detail.settings-clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: clip; }
 .settings-value { flex: none; max-inline-size: 45%; font: var(--body-medium); color: var(--on-surface-variant); text-align: end;
   overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+/* A value with no chevron after it ends on the same line as the values that have one. */
+.settings-row:not([data-tone=error]) > .settings-value:last-child { margin-inline-end: calc(var(--s6) + var(--s1)); }
 .settings-row > .ms { flex: none; margin-inline-start: calc(var(--s2) * -1); color: var(--outline); }
-.settings-row > .settings-trail { color: var(--primary); }
 .settings-row[data-tone=error] .settings-label { color: var(--error); }
 .settings-row[data-tone=error]:has(.settings-value) .settings-label { color: var(--on-surface); }
-/* `warn`: a home row whose page holds a missing permission; the dot names it, the value stays quiet. */
-.settings-row[data-tone=error]:has(.settings-value) .settings-label::after, .settings-row[data-tone=warn] .settings-label::after { content: ""; display: inline-block; inline-size: 8px; block-size: 8px;
-  margin-inline-start: var(--s2); border-radius: 50%; background: var(--error); vertical-align: middle; }
-.settings-row[data-tone=error] .settings-value { display: grid; place-items: center; min-block-size: 32px; padding-inline: var(--s4);
-  border-radius: var(--shape-full); background: var(--secondary-container); color: var(--on-secondary-container); font: var(--label-large); }
+/* A row's one action (Allow, Check, Play) is a primary word whose end meets the chevrons' edge; every such row looks the same. */
+:is(.settings-act, .settings-row[data-tone=error] > .settings-value) { flex: none; margin-inline-end: var(--s2); font: var(--label-large); color: var(--primary); }
 .settings-row:not(:has(.settings-icon)) > .ms:first-child { color: var(--primary); }
 .settings-segment-row { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s3) var(--s4) var(--s4); }
 .segmented { display: flex; border: 1px solid var(--outline); border-radius: var(--shape-full); overflow: clip; }
@@ -171,14 +182,15 @@ button.settings-row:active { background: var(--row-press); }
 .settings-slider .fact-slider:active::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--surface-container); }
 .settings-slider-ends { display: flex; justify-content: space-between; margin-block-start: calc(var(--s4) * -1); font: var(--label-medium); color: var(--on-surface-variant); }
 .settings-slider .settings-detail { margin-block-start: -4px; }
-.bar-sample { position: relative; display: grid; grid-template-rows: auto auto 1fr; gap: var(--s1); block-size: 176px; margin-block-start: var(--s2); padding: var(--s3); overflow: clip;
+.bar-sample { position: relative; display: flex; flex-direction: column; gap: var(--s1); block-size: 216px; margin-block-start: var(--s2); padding: var(--s3); overflow: clip;
   border-radius: var(--shape-md); background: var(--surface); outline: 1px solid var(--outline-variant); outline-offset: -1px; }
-.bar-sample-line { display: flex; align-items: center; gap: var(--s3); min-block-size: 40px; padding-inline: var(--s3); border-radius: var(--r-tile);
+.bar-sample-line { display: flex; flex: none; align-items: center; gap: var(--s2); block-size: 40px; padding-inline: var(--s3); border-radius: var(--r-tile);
   background: color-mix(in oklch, var(--tone) 22%, var(--surface)); font: var(--body-medium); color: var(--on-surface); white-space: nowrap; }
-.bar-sample-time { flex: none; font: var(--label-medium); color: var(--on-surface-variant); }
+.bar-sample-time { flex: none; inline-size: 56px; font: var(--label-medium); color: var(--on-surface-variant); }
 .bar-sample-title { overflow: clip; text-overflow: ellipsis; }
-/* The bar floats over a block with no words, so the preview shows the glass and never text under a tab label. */
-.bar-sample-band { margin-block-end: calc(var(--s3) * -1); border-end-start-radius: 0; border-end-end-radius: 0; }
+/* The last event sits wholly behind the bar (narrower and shorter than it, inside its corners), so the slider shows how much
+   of it shows through; the event above ends clear of the bar. */
+.bar-sample-under { margin-block-start: var(--s3); background: color-mix(in oklch, var(--tone) 48%, var(--surface)); }
 .bar-sample-bar { position: absolute; inset: auto var(--s2) var(--s2); display: flex; justify-content: space-around; padding-block: var(--s1);
   border: 1px solid var(--float-border); border-radius: var(--r-group); background: var(--float-surface); font: var(--label-small); color: var(--on-surface-variant); }
 .bar-sample-tab { display: flex; flex-direction: column; align-items: center; }

@@ -6,8 +6,14 @@ import {openSheet, isSheetOpen, discardDraft, rememberValue} from './sheet.mjs';
 import {whenOf, whenFields, whenLabel, clockOf, dayPresets, parseWhen, blockMatches, hashToken, hashTag, withoutTag, foldGroup, fold, foldFor, choiceChip, markChips, chipRow, dateChooser, blockChooser, recentBlock, rememberBlock} from './task-fields.mjs';
 import {readLabel, NEEDS_TIME, saver, scheduleCheck, suggestBlock} from './sheet-parts.mjs';
 import {openTask} from './task-sheet.mjs';
+import {blockShort} from './task-tabs-model.mjs';
 
 const DRAFT = 'task:new';
+// A number keeps its unit on its line ("10 PM", "30 min", "2 hours") and "a", "an" or "the" keeps the word it leads,
+// so a wrapped Purpose never splits them or ends a line on "not a".
+const keepUnits = text => text
+  .replace(/(\d)[ \t]+(?=(?:AM|PM|am|pm|a\.m\.|p\.m\.|min|mins|minutes?|h|hrs?|hours?|days?|weeks?|months?|%)(?![\w]))/g, '$1\u00a0')
+  .replace(/(^|\s)(a|an|the|A|An|The)[ \t]+(?=\S)/g, '$1$2\u00a0');
 const shortDay = day => {
   const date = new Date(day + 'T12:00');
   return `${date.toLocaleDateString([], {weekday: 'short'})} ${date.getDate()}`;
@@ -35,6 +41,9 @@ function quickAdd(app, overrides = {}) {
     time: draft.Time ?? planned?.time ?? '',
     minutes: draft.Minutes ?? overrides.minutes ?? null, // null keeps the planner's default estimate
     blockId: draft.Block ?? overrides.blockId ?? null,
+    // A Block the user chose (or named with #word, or opened Quick add from). Until then the Block the words point
+    // to is the choice, marked as suggested.
+    blockPicked: !!draft.BlockPicked || draft.Block != null || overrides.blockId != null,
     must: !!draft.Must,
     repeat: draft.Repeat ?? '',
     every: draft.Every ?? 1,
@@ -50,7 +59,7 @@ function quickAdd(app, overrides = {}) {
   const name = el('textarea', 'quick-input');
   name.rows = 1;
   name.maxLength = 200;
-  name.placeholder = app.api.wide?.() ? 'Title' : 'New task';
+  name.placeholder = 'What needs doing?';
   name.enterKeyHint = 'done';
   name.value = draft.Task ?? '';
   name.setAttribute('aria-label', 'Task');
@@ -83,6 +92,9 @@ function quickAdd(app, overrides = {}) {
   // A #word naming exactly one Block chooses it as typed (the Block chip marked, the #word highlighted); the #word
   // leaves the title when the task is added. Several matches offer chips under the title instead.
   let tag = null, tagDismissed = null, tagBefore = null;
+  // Where the task goes: the chosen Block, else the Block its words point to, else the Inbox.
+  let suggested = null;
+  const target = () => (s.blockPicked ? s.blockId : suggested?.id ?? null);
   const paintMirror = () => {
     const value = name.value;
     const marks = [parsed, tag].filter(Boolean).filter(m => value.slice(m.start, m.end).toLowerCase() === m.match.toLowerCase())
@@ -110,11 +122,11 @@ function quickAdd(app, overrides = {}) {
     }
     const named = hashTag(name.value, app.activeBlocks());
     if (named && named.match.toLowerCase() !== tagDismissed) {
-      if (!tag) tagBefore = s.blockId;
+      if (!tag) tagBefore = {blockId: s.blockId, blockPicked: s.blockPicked};
       tag = named;
-      s.blockId = named.block.id;
+      Object.assign(s, {blockId: named.block.id, blockPicked: true});
     } else if (tag) {
-      s.blockId = tagBefore;
+      Object.assign(s, tagBefore);
       tag = null;
     }
   };
@@ -156,47 +168,49 @@ function quickAdd(app, overrides = {}) {
     },
   }));
 
-  // Block: one filled chip names where the task goes (its Block, or the Inbox) and opens the list; beside it, one
-  // outlined sparkle chip offers the Block the words point to, while that is not already the choice. A long name ends
-  // in an ellipsis where the row runs out.
+  // Block: one filled chip names where the task goes and opens the list. Until the user chooses, the Block the words
+  // point to is the choice, shown with a sparkle; otherwise the chosen Block, or the Inbox. The chip says the Block's
+  // short name whole, never cut.
   const blockChips = chipRow('quick-row block-chips');
   const blockChip = button('', null, 'assist-chip block-chip on');
-  blockChip.append(icon('stacks'), el('span', 'chip-label', 'Inbox'));
+  blockChip.append(icon('inbox', {cls: 'block-mark'}), el('span', 'chip-label', 'Inbox'), icon('arrow_drop_down', {cls: 'chip-drop'}));
   const pickBlock = id => {
     forgetTag();
-    s.blockId = id || null;
+    Object.assign(s, {blockId: id || null, blockPicked: true});
     group.close();
     changed();
   };
   const blockFold = foldFor(group, blockChip, inner => blockChooser(inner, {
     blocks: () => app.activeBlocks(),
-    get: () => s.blockId,
+    get: target,
     pick: pickBlock,
     recent: recentBlock(),
-    suggested: suggestBlock(app, {title: name.value})?.id ?? null,
+    suggested: suggested?.id ?? null,
   }));
-  let offered = null;
-  const suggestChip = button('', () => pickBlock(offered), 'assist-chip suggest-chip');
-  suggestChip.append(icon('auto_awesome'), el('span', 'chip-label'));
-  blockChips.append(blockChip, suggestChip);
+  blockChips.append(blockChip);
+  // A task in a Block takes the Block's Purpose: it shows whole under the chip, read-only, with the app's Purpose heart.
+  const blockWhy = el('p', 'block-purpose');
+  blockWhy.append(icon('favorite'), el('span'));
+  blockChips.append(blockWhy);
   const paintBlocks = () => {
-    const blocks = app.activeBlocks();
-    const chosen = blocks.find(b => b.id === s.blockId);
-    const suggested = suggestBlock(app, {title: name.value});
-    const label = chosen?.title ?? 'Inbox';
-    blockChip.querySelector('.chip-label').textContent = label;
+    suggested = s.blockPicked ? null : suggestBlock(app, {title: name.value});
+    const chosen = app.activeBlocks().find(b => b.id === target());
+    const guess = !!chosen && !s.blockPicked;
+    blockChip.querySelector('.chip-label').textContent = chosen ? blockShort(chosen.title) : 'Inbox';
+    blockChip.querySelector('.block-mark').textContent = guess ? 'auto_awesome' : chosen ? 'stacks' : 'inbox';
+    blockChip.classList.toggle('suggested', guess);
+    blockChip.classList.toggle('in-inbox', !chosen);
     const read = !!tag && !!chosen && chosen.id === tag.block.id;
     blockChip.classList.toggle('from-words', read);
-    blockChip.setAttribute('aria-label', `Block: ${label}${read ? `, read from “${tag.match}”` : ''}. Choose a Block`);
-    offered = suggested && suggested.id !== s.blockId ? suggested.id : null;
-    suggestChip.hidden = !offered;
-    if (offered) {
-      suggestChip.querySelector('.chip-label').textContent = suggested.title;
-      suggestChip.setAttribute('aria-label', `Suggested Block ${suggested.title}`);
-    }
+    blockChip.setAttribute('aria-label', `Block: ${chosen?.title ?? 'Inbox'}${guess ? ', suggested' : ''}${read ? `, read from “${tag.match}”` : ''}. Choose a Block`);
+
+    const purpose = chosen?.purpose?.trim() ?? '';
+    blockWhy.hidden = !purpose;
+    blockWhy.lastChild.textContent = keepUnits(purpose);
+    blockWhy.setAttribute('aria-label', purpose ? `Purpose of ${chosen.title}: ${purpose}` : '');
   };
 
-  const more = quickOptions(s, {body, group, changed: () => changed(), remember: () => remember()});
+  const more = quickOptions(s, {body, group, target, changed: () => changed(), remember: () => remember()});
 
   // "#" and part of a Block's name offers the matching Blocks as chips; choosing one takes the "#word" out of the
   // title. Not choosing leaves the words as typed.
@@ -226,7 +240,7 @@ function quickAdd(app, overrides = {}) {
         name.value = at.start === 0 ? rest.trimStart() : rest;
         const caret = Math.min(at.start, name.value.length);
         name.setSelectionRange(caret, caret);
-        s.blockId = block.id;
+        Object.assign(s, {blockId: block.id, blockPicked: true});
         hashKey = null;
         readTitle();
         changed();
@@ -274,7 +288,7 @@ function quickAdd(app, overrides = {}) {
       app.sheet.draftKey = DRAFT;
     } else {
       Object.assign(app.sheet.draftValues, {Task: name.value, Date: s.day, Time: s.time, Minutes: s.minutes,
-        Block: s.blockId, Must: s.must, Repeat: s.repeat, Every: s.every, Notes: s.notes, Why: s.why, Alert: s.alert});
+        Block: s.blockId, BlockPicked: s.blockPicked, Must: s.must, Repeat: s.repeat, Every: s.every, Notes: s.notes, Why: s.why, Alert: s.alert});
       rememberValue(app, 'Task', name.value);
     }
     setTimeout(() => { sheet.dataset.dirty = String(!!name.value.trim()); });
@@ -309,6 +323,7 @@ function quickAdd(app, overrides = {}) {
   let adding = false;
   let leaving = false;
   const submit = async ({keepOpen = false} = {}) => {
+    const blockId = target();
     const named = tag && s.blockId === tag.block.id ? hashTag(name.value, app.activeBlocks()) : null;
     const title = (named && named.block.id === s.blockId ? withoutTag(name.value, named) : name.value).trim();
     if (!title || adding) return;
@@ -318,8 +333,8 @@ function quickAdd(app, overrides = {}) {
     }
     adding = true;
     add.disabled = true;
-    const fields = {title, ...whenFields(s), blockId: s.blockId, must: s.must, notes: s.notes,
-      purpose: s.blockId ? '' : s.why, recurrence: s.repeat === 'after' ? null : s.repeat || null,
+    const fields = {title, ...whenFields(s), blockId, must: s.must, notes: s.notes,
+      purpose: blockId ? '' : s.why, recurrence: s.repeat === 'after' ? null : s.repeat || null,
       repeatAfterDays: s.repeat === 'after' ? s.every : null};
     if (s.minutes != null) fields.minutes = s.minutes;
     if (s.alert !== 'off') fields.alert = s.alert;
@@ -330,7 +345,7 @@ function quickAdd(app, overrides = {}) {
         if (clashes.length) clash = ' · clashes with ' + clashes[0].title;
       } catch {}
     }
-    const block = app.activeBlocks().find(b => b.id === s.blockId);
+    const block = app.activeBlocks().find(b => b.id === blockId);
     const where = [s.day ? whenLabel(s) : '', block?.title ?? ''].filter(Boolean);
     // Add closes the sheet: from here nothing in it changes (no chips redrawn by the save), so it leaves as it was.
     leaving = !keepOpen;
@@ -341,7 +356,7 @@ function quickAdd(app, overrides = {}) {
       add.disabled = !name.value.trim();
       return;
     }
-    rememberBlock(s.blockId);
+    rememberBlock(blockId);
     if (!keepOpen) {
       discardDraft(app);
       app.closeSheet();
@@ -349,7 +364,7 @@ function quickAdd(app, overrides = {}) {
     }
     // Ready for the next task: the day (as it was before any words set it) and the Block stay.
     if (parsed) Object.assign(s, before);
-    if (tag) s.blockId = tagBefore;
+    if (tag) Object.assign(s, tagBefore);
     parsed = null;
     dismissed = null;
     tag = null;

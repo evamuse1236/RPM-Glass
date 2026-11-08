@@ -90,6 +90,18 @@
 .sheet .task-main { justify-content: flex-start; padding-block: var(--s4) var(--s2); }
 .sheet-count { margin-inline-start: var(--s2); color: var(--on-surface-variant); }
 .inbox-jev .ms { color: var(--primary); }
+.inbox-jev { padding-inline: var(--s3); }
+/* On the phone the Inbox dismisses like Quick add, by its grab pill; its ✕ stays for TalkBack (the wide pane shows it). */
+.sheet-inbox .sheet-close { position: absolute; inline-size: 1px; block-size: 1px; overflow: clip; clip-path: inset(50%); white-space: nowrap; }
+/* Under the grab pill the Inbox title row is as tall as its Sort with Jev button, so the title sits 8dp under the pill. */
+.sheet-inbox > .sheet-handle + .sheet-header { block-size: 40px; }
+/* Only the website pane beside Today shows this line, in place of the rows the timeline already holds. */
+.inbox-on-today { display: none; }
+/* Tasks that already have a day, time or repeat wait below a quiet Scheduled label. */
+.sheet .section-header.inbox-scheduled { padding: var(--s4) 0 var(--s1); }
+.inbox-scheduled h2 { color: var(--on-surface-variant); }
+/* An Inbox title that wraps splits evenly, so no line ends on a stub like "vs GWBC". */
+.sheet-inbox .task-title { text-wrap: pretty; }
 .sheet-dialog .sheet-body { padding-bottom: var(--s2); }
 
 .detail-title {
@@ -229,7 +241,6 @@
   color: var(--on-surface);
   outline: none;
 }
-.quick-title textarea::placeholder { color: var(--on-surface-variant); }
 .quick-mirror { position: absolute; inset: 0; color: transparent; overflow: hidden; pointer-events: none; }
 .quick-mirror mark { color: transparent; background: var(--secondary-container); border-radius: var(--shape-xs);
   box-shadow: 0 0 0 2px var(--secondary-container); }
@@ -250,9 +261,42 @@
 }
 .quick-details .ms { font-size: 20px; }
 .quick-details .chip-label { flex: 1; min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; text-align: start; }
-.quick-details .quick-details-open { transition: rotate var(--dur-press) var(--ease-standard); }
-.quick-details.is-open .quick-details-open { rotate: 180deg; }
 .quick-details.on { color: var(--on-surface); }
+/* Opened, the row gives way to Estimate, Repeat and Must, and its chevron, turned up, ends their row as the way back. */
+.quick-details.is-open { display: none; }
+.sheet .quick-row.more-chips { flex-wrap: wrap; align-items: center; }
+.quick-fewer { display: grid; place-items: center; flex: none; inline-size: 36px; block-size: var(--touch); margin-inline-start: auto;
+  color: var(--on-surface-variant); border-radius: var(--shape-sm); }
+.quick-fewer .ms { font-size: 20px; }
+.quick-fewer:active { background: var(--row-press); }
+/* Estimate, Repeat and Must are second-rank to the day: unset, each is a borderless icon and word in on-surface-variant
+   whose icon starts on the content edge under More options' icon; a chosen one fills like the chosen day, its fill
+   starting on that edge. */
+.sheet .more-chips { margin-inline: calc(-1 * var(--s2)); column-gap: 0; }
+.sheet .more-chips > .assist-chip:not(.on) { border-color: transparent; background: none; color: var(--on-surface-variant); }
+.sheet .more-chips > .assist-chip.on { margin-inline: var(--s2) 0; }
+/* Details and Purpose are borderless lines led by their icon, like Google Tasks' "Add details": an empty one is one
+   quiet line, never a box heavier than the title, and it grows as the words come. */
+.quick-note { display: flex; align-items: flex-start; gap: var(--s2); min-block-size: var(--touch); color: var(--on-surface-variant); cursor: text; }
+.quick-note[hidden] { display: none; }
+.quick-note > .ms { flex: none; font-size: 20px; block-size: 24px; line-height: 24px; margin-block-start: var(--s3); }
+.quick-note:focus-within > .ms { color: var(--primary); }
+.quick-field {
+  display: block;
+  flex: 1;
+  min-inline-size: 0;
+  padding-block: var(--s3);
+  padding-inline: 0;
+  border: 0;
+  background: transparent;
+  color: var(--on-surface);
+  font: var(--body-large);
+  resize: none;
+  overflow: hidden;
+  field-sizing: content;
+  outline: none;
+}
+.quick-field::placeholder, .quick-title textarea::placeholder { color: color-mix(in oklch, var(--on-surface-variant) 72%, transparent); }
 .quick-details:active { background: var(--row-press); }
 .hash-chips .assist-chip { max-width: 80%; }
 .hash-chips .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -271,9 +315,25 @@
 .sheet .quick-days .choice-chip[aria-pressed=true] .chip-check { display: none; }
 .block-chips > .assist-chip { flex: 0 1 auto; min-width: 0; max-width: none; }
 .block-chips > .block-chip { flex: none; max-inline-size: 100%; }
-.block-chips > .block-chip:has(+ .suggest-chip:not([hidden])) { max-inline-size: 50%; }
 .block-chips .chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.suggest-chip .ms { color: var(--primary); }
+/* One Block chip holds the choice. A guess from the words shows a primary sparkle; the drop arrow says a tap opens the list. */
+.block-chip.suggested .block-mark { color: var(--primary); }
+/* A picked Block or Jev's guess (the sparkle) fills a lighter tone of the chosen day's secondary-container, so the
+   where never looks like the when. The Inbox is only the fallback: a quiet borderless icon, word and arrow like
+   Estimate, its icon on the content edge under More options'. */
+.sheet .block-chip, .sheet .block-chip.suggested { border-color: transparent; color: var(--on-surface);
+  background: color-mix(in oklch, var(--secondary-container) 36%, var(--sheet-bg)); }
+.sheet .block-chip.in-inbox { background: none; color: var(--on-surface-variant); margin-inline-start: calc(-1 * var(--s2)); }
+.sheet .block-chip:not(.in-inbox) .block-mark { color: var(--primary); }
+/* The chosen Block's Purpose sits whole under its chip, aligned to the chip's text and wrapping, never cut. */
+.block-chips > .block-purpose { flex-basis: 100%; display: flex; align-items: flex-start; gap: var(--s2); margin: 0;
+  margin-block: var(--s1) var(--s3); padding: 0 var(--s2); font: var(--body-medium); color: var(--on-surface-variant); text-wrap: pretty; }
+.block-chips > .block-purpose[hidden] { display: none; }
+.sheet .quick-row.block-chips:has(> .block-purpose:not([hidden])) { flex-wrap: wrap; }
+.block-purpose .ms { font-size: 20px; }
+.block-chip .chip-drop { margin-inline-start: calc(-1 * var(--s1)); }
+/* The drop arrow's glyph carries its own side bearing, so the chip ends 4dp after it and both ends look even. */
+.sheet .block-chip { padding-inline-end: var(--s1); }
 :root[data-large-text=true] .sheet .quick-row:is(.quick-days, .block-chips) { flex-wrap: wrap; }
 :root[data-large-text=true] .block-chips > .assist-chip { max-width: 80%; }
 .sheet-quick .field-fold .fold-inner { padding-left: 0; }
@@ -299,7 +359,9 @@
 .sheet-form .sheet-actions { justify-content: flex-start; }
 .sheet-quick .sheet-header { display: none; }
 .sheet-quick .sheet-body { padding-top: var(--s1); padding-bottom: 0; }
-/* One left edge: the chips' outline, the More options, Add details and Why? icons, and Capture's mic. */
+/* One left edge: the chips' outline, the More options, details and Purpose icons, and Capture's mic; in the Inbox the
+   mic sits on the checkbox rings' edge and Add task ends on the content edge. */
 .sheet-quick .detail-row { min-block-size: var(--touch); padding: var(--s3) 0; gap: var(--s2); }
-.sheet-quick .sheet-actions > .text-btn:first-child { margin-inline-start: calc(-1 * var(--s3)); }
+:is(.sheet-quick, .sheet-inbox) .sheet-actions > .text-btn:first-child { margin-inline-start: calc(-1 * var(--s3)); }
+.sheet-inbox .sheet-actions > .text-btn:last-child { margin-inline-end: calc(-1 * var(--s3)); }
 .sheet-quick .detail-row > .ms { font-size: 20px; }

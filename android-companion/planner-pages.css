@@ -9,6 +9,8 @@
   border: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
   overflow: hidden;
 }
+/* Block and Project cards are one filled surface, no outline (Material picks one), 8dp from the next. */
+:is(.block-card, .project-card) { margin-block-start: var(--s2); border: 0; background: var(--surface-container); }
 .card-main {
   display: flex;
   flex-direction: column;
@@ -37,31 +39,82 @@
   overflow: hidden;
 }
 .card-meta { font: var(--body-small); color: var(--on-surface-variant); margin-top: 2px; }
+/* A Project card keeps one 16dp text edge: Area, title, deadline and the Next task start on it; the Block rings close the
+   head on the right, the chevron after them. */
 .project-head { display: flex; align-items: center; }
 .project-toggle {
   flex: 1;
   min-inline-size: 0;
   display: flex;
   align-items: center;
-  gap: var(--s4);
-  padding: var(--s3) 0 var(--s3) var(--s3);
+  gap: var(--s3);
+  padding: var(--s3) 0 var(--s3) var(--s4);
   border-radius: var(--card-radius) 0 0 var(--card-radius);
+  text-align: start;
 }
+.project-head:has(+ .next-task) .project-toggle { padding-block-end: var(--s1); }
+.project-card > .next-task { padding-inline: var(--s4); }
+/* On the phone (the head with a chevron) the rings and chevron sit out of the flow, top-aligned with the Area line, so the
+   words set the head's height: the facts line or the Next task follows the title directly and the rings set only the
+   card's minimum height. The facts line runs to the card's 16dp end edge, where every Block row ends its count. */
+.project-card:has(> .project-head > .project-open) { min-block-size: calc(48px + 2 * var(--s3)); }
+.project-head:has(> .project-open) { position: relative; }
+.project-head:has(> .project-open) > .project-toggle { display: grid; gap: 2px; padding-inline-end: var(--s4); }
+.project-head:has(> .project-open) .project-copy { padding-inline-end: calc(var(--touch) + var(--s1) + 48px + var(--s3) - var(--s4)); }
+.project-head:has(> .project-open) .nest-rings { position: absolute; inset-block-start: var(--s3); inset-inline-end: calc(var(--touch) + var(--s1)); inline-size: 48px; block-size: 48px; margin: 0; }
+.project-head > .project-open { position: absolute; inset-block-start: var(--s3); inset-inline-end: var(--s1); margin: 0; }
+/* Every folded count ends on the card's 16dp end edge: the deadline's line, or the Next task's line with no deadline.
+   Open, it takes the Block rows' form (small ring, "4/18") on that same edge, the rows' count column. */
+.card-facts.project-facts { justify-content: space-between; gap: var(--s3); font: var(--body-medium); }
+.project-figures { flex: none; font: var(--label-large); }
+:is(.project-facts, .project-card > .next-task) > .project-figures { font: var(--body-medium); color: var(--on-surface-variant); }
+.project-facts > .card-tally { font: var(--label-large); }
+.project-card > .next-task > .project-figures { padding-block: var(--s1); }
 .project-toggle:active { background: var(--row-press); }
-.project-copy { display: grid; gap: 2px; min-inline-size: 0; }
+.project-copy { flex: 1; align-self: start; display: grid; gap: 2px; min-inline-size: 0; }
+/* With no Area the overline's line stays empty, so every card's title sits on the same line. A card whose head is the
+   title alone (a finished Project with no Area) centres it on the rings, so the card reads as one finished line. */
+.project-copy:not(:has(> .project-area))::before { content: ""; block-size: 16px; }
+.project-card:not(:has(.project-facts, > .next-task, .project-area)) .project-copy { min-block-size: 48px; align-content: center; }
+.project-card:not(:has(.project-facts, > .next-task, .project-area)) .project-copy::before { content: none; }
 .project-area { font: var(--label-medium); color: color-mix(in oklch, var(--tone) 78%, var(--on-surface)); overflow-wrap: anywhere; }
 .project-open { flex: none; margin-inline-end: var(--s1); color: var(--on-surface-variant); }
-.nest-rings { flex: none; inline-size: 64px; block-size: 64px; }
+/* The rings may reach 4dp into the head's padding, so a card with no deadline line has no empty band under its title. */
+.nest-rings { flex: none; inline-size: 56px; block-size: 56px; margin-block: calc(-1 * var(--s1)); }
 .nest-rings circle { fill: none; }
 /* A ring's track is a dim band of its own colour (Activity rings), so every nested ring reads as one band, light or dark. */
 :is(.nest-track, .ring-track) { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-highest)); }
+/* A Project card's rings are thin and nested, so an empty one needs a stronger band than a lone Block ring to read. */
+.nest-rings .nest-track { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--nest-track-mix), var(--nest-track-base)); }
 .nest-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; }
-/* A Project's empty tracks sit fainter than a Block ring's, so the done arcs carry the card's icon. */
-.nest-track { stroke-opacity: .55; }
-.nest-rings .nest-done { fill: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-low)); }
+/* A finished Project rests: its full rings sit in a calmer tone with a thin check, never heavier than one still running. */
+.nest-rings.finished .nest-value { stroke: color-mix(in oklch, var(--progress, var(--primary)) 64%, var(--surface-container)); }
 .nest-check { fill: none; stroke: var(--progress, var(--primary)); stroke-linecap: round; stroke-linejoin: round; }
-/* An open card lists its Blocks flat on the card under one divider; each ring starts on the card ring's edge. */
-.project-blocks { display: grid; grid-template-columns: minmax(0, 1fr); margin-inline: var(--s3) var(--s6); padding-block: var(--s1) var(--s2); border-block-start: 1px solid var(--outline-variant); }
+/* An open card lists its Blocks flat on the card under one divider, on the card's 16dp text edge. */
+.project-blocks { display: grid; grid-template-columns: minmax(0, 1fr); margin-inline: var(--s4); padding-block: var(--s1) var(--s2); border-block-start: 1px solid var(--outline-variant); }
+/* A Block row: the title, one line with the deadline and tasks done at its end, then the Next task, as on a Block card. */
+.block-line { display: grid; grid-template-columns: minmax(0, 1fr); }
+.block-line-main { display: flex; flex-direction: column; padding: var(--s3) var(--s4) 0; text-align: start; }
+.block-line-main:only-child { padding-block-end: var(--s3); }
+.block-line-main:active, .project-blocks .next-title:active { background: var(--row-press); }
+.block-line .card-due { font: var(--body-medium); color: var(--on-surface-variant); }
+.project-blocks .block-line-main { padding-inline: 0; border-radius: var(--shape-sm); }
+.project-blocks .next-task { padding-inline: 0; }
+/* Project detail: the Blocks sit in one filled group, split by dividers. */
+.block-lines { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0 var(--gutter); border-radius: var(--card-radius); background: var(--surface-container); overflow: clip; }
+/* Dividers run between the rows' 16dp text edges, on an open card and in Project detail's group alike. */
+.project-blocks .block-line + .block-line { border-block-start: 1px solid var(--outline-variant); }
+.block-lines > .block-line + .block-line {
+  background: linear-gradient(var(--outline-variant), var(--outline-variant)) center top / calc(100% - 2 * var(--s4)) 1px no-repeat;
+}
+.block-line > .block-line-main { padding-block-start: var(--s2); }
+.block-line > .block-line-main:only-child { padding-block-end: var(--s2); }
+.block-line > .next-task { padding-block-end: var(--s1); }
+.block-line .next-task .task-check { block-size: 24px; }
+.block-line .next-title { min-block-size: 24px; padding-block: 2px; }
+:is(.block-line, .project-card) .next-title > .overline { display: none; }
+:is(.block-line, .project-card) .next-title .next-words { white-space: normal; text-wrap: pretty; }
+:is(.block-add, .project-add) { align-self: flex-start; justify-self: start; margin: var(--s1) var(--gutter) 0; padding-inline: var(--s5) var(--s4); }
 .project-block {
   display: flex;
   align-items: center;
@@ -72,42 +125,49 @@
   font: var(--body-medium);
 }
 .project-block:active { background: var(--row-press); }
-.project-block .seg-ring { flex: none; inline-size: 28px; block-size: 28px; }
 .project-blocks > .quiet { padding: var(--s3) 0; }
 /* A Block's name keeps Dara's words: two lines before it shortens. */
 .project-block-name { flex: 1; min-inline-size: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: clip; }
-.project-block-count { color: var(--on-surface-variant); white-space: nowrap; }
-.seg-ring :is(path, circle) { fill: none; stroke-width: 6; }
-.seg-off { stroke: var(--surface-container-highest); }
-.seg-on { stroke: var(--progress, var(--primary)); }
-.seg-arc { stroke-linecap: round; }
-/* Where a Block card stands, on one line: the deadline, tasks done, then This week's pick as a small tonal mark beside them. */
-.card-facts { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--s2); margin-top: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
-.card-stand > *, .fact-next, .nowrap, .must-left { white-space: nowrap; }
-.week-mark { padding-inline: var(--s1); border-radius: var(--shape-xs); background: var(--secondary-container); color: var(--on-secondary-container); font: var(--label-medium); white-space: nowrap; }
-.card-due { font-weight: 500; color: var(--on-surface); }
+/* A Block card's last line: when it is due (or This week) at the start, tasks done as a 16dp ring and "2/7" at the end. */
+.card-facts { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); font: var(--body-medium); color: var(--on-surface-variant); }
+.card-when { min-inline-size: 0; }
+.card-tally { display: inline-flex; align-items: center; gap: var(--s1); flex: none; font: var(--label-medium); }
+.card-tally .ring { inline-size: 16px; block-size: 16px; }
+/* In a Project, "2/7" shares a line with a 14sp deadline or the Blocks heading, so it is set at that size, not as a footnote. */
+.block-line .card-tally, .section-header > .card-tally { font: var(--label-large); }
+.card-due, .fact-next, .nowrap, .must-left, .week-mark { white-space: nowrap; }
 .card-due.tight { color: var(--error); }
+.card-late { color: var(--error); white-space: nowrap; }
 .ring { flex: none; width: 24px; height: 24px; }
 .ring circle { fill: none; stroke-width: 3; }
 .ring-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
-.next-task {
-  display: flex;
-  align-items: center;
-  border-top: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
-  padding: 0 var(--s2) 0 var(--s1);
-}
-.next-task .task-check { margin: 0; }
+/* The Next task sits inside the card under where it stands, no divider: a 16dp ring on the card's text edge, then
+   "Next" and the task on one line (the Block's Plan has it whole). The ring keeps a 48dp hit area. */
+.card-main:has(+ .next-task) { padding-block-end: var(--s1); }
+.next-task { display: flex; align-items: flex-start; gap: var(--s2); padding: 0 var(--s4) var(--s2); }
+.next-task .task-check { position: relative; inline-size: 16px; block-size: 28px; margin: 0; }
+.next-task .task-check::after { content: ""; position: absolute; inset: -8px -16px -12px; }
+.next-task .check-ring { inline-size: 16px; block-size: 16px; }
 .next-title {
   flex: 1;
   min-width: 0;
-  min-height: 52px;
+  min-height: 28px;
   display: flex;
   align-items: baseline;
   gap: var(--s2);
-  padding: var(--s3) var(--s2) var(--s3) 0;
+  padding-block: var(--s1);
+  border-radius: var(--shape-xs);
   font: var(--body-medium);
+  text-align: start;
 }
+.next-title:active { background: var(--row-press); }
 .next-title .overline { text-transform: none; letter-spacing: 0; color: var(--primary); }
+.next-title .next-words { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+/* An empty Plan's card ends in its first action instead: a 20dp add and the words in primary, on the Next row's line. */
+.first-task .next-title { align-items: center; color: var(--primary); }
+.first-task .ms { font-size: 20px; }
+/* Blocks filters are dropdown chips sized to their words: a 12dp lead and the arrow 4dp after the label. */
+#planner[data-view=blocks] .filters .filter-chip.dropdown { padding-inline-start: var(--s3); gap: var(--s1); }
 /* Blocks list: consecutive cards from one Project sit under one Area and Project line. */
 .project-run { padding: var(--s5) var(--gutter) 0 calc(var(--gutter) + var(--s2)); }
 .project-run .eyebrow { font: var(--label-large); }
@@ -115,12 +175,8 @@
 .project-run + .block-card { margin-top: var(--s2); }
 
 /* Detail pages (Block, Project, Area, Goal) */
-.detail-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s2); padding: 0 var(--gutter); }
-.detail-head .crumb { margin: 0; }
-.detail-head .crumb .eyebrow { font: var(--label-large); color: var(--on-surface-variant); }
 /* Block detail: the Project as a plain link line, not a chip. */
 .crumb-link { display: flex; align-items: center; min-height: var(--touch); max-width: 100%; border-radius: var(--shape-sm); }
-.detail-head .crumb-link { margin: 0; }
 .crumb-link:active { background: var(--row-press); }
 .detail-title-text {
   padding: var(--s1) var(--gutter) var(--s4);
@@ -180,11 +236,33 @@
 .crumb-quiet > span:not(.ms) { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
 .crumb-quiet:active { color: var(--on-surface); }
 .crumb-quiet:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.section-header:has(> .blocks-progress) { align-items: center; }
+/* The Project's first deadline closes the line as a plain fact, not a control. */
+.crumb-due { cursor: default; }
+.crumb-due::after { content: none; }
+.crumb-due.tight { color: var(--error); }
+.section-header:has(> :is(.blocks-progress, .card-tally)) { align-items: center; }
 .blocks-progress { display: flex; align-items: center; gap: var(--s2); }
 .blocks-progress .ring { inline-size: 20px; block-size: 20px; }
 /* A Project's Purpose runs to the content edge. */
 #planner[data-view=projects] .purpose-text { text-wrap: pretty; }
+/* Project detail keeps one 16dp edge: the heart starts on it, as the Area's letter does on the line above. */
+#planner[data-view=projects] .block-facts > .fact-row { gap: var(--s3); padding-inline-start: var(--gutter); }
+/* On the phone the Purpose is a quiet line under the title, lighter than the Block titles below it. */
+@media (width < 1080px) {
+  #planner[data-view=projects] .block-facts > .purpose-row > .leading { font-size: 20px; inline-size: 20px; }
+  #planner[data-view=projects] .block-facts .purpose-text { font: var(--body-medium); color: var(--on-surface-variant); }
+  /* The header's quiet lines share one icon column and one text edge: "Studies · Due tomorrow 11 PM", then the Goal on a
+     line of its own that wraps rather than cut, then the Purpose; one larger step before "Blocks". */
+  #planner[data-view=projects] .detail-title-text + .head-crumbs { column-gap: var(--s1); padding-block-end: 0; }
+  #planner[data-view=projects] .head-crumbs > .crumb-quiet { gap: var(--s2); }
+  #planner[data-view=projects] .head-crumbs > .crumb-due { gap: var(--s1); }
+  #planner[data-view=projects] .head-crumbs > .crumb-quiet + .crumb-due::before { content: "·"; }
+  #planner[data-view=projects] .head-crumbs > [aria-haspopup] { flex-basis: 100%; align-items: start; padding-block: calc((32px - 20px) / 2); }
+  #planner[data-view=projects] .head-crumbs > [aria-haspopup] > span:not(.ms) { white-space: normal; text-wrap: pretty; }
+  #planner[data-view=projects] .block-facts > .fact-row { gap: var(--s2); }
+  #planner[data-view=projects] .head-crumbs + .block-facts { margin-block-start: -2px; }
+  #planner[data-view=projects] .block-facts + .section-header { margin-block-start: calc(-1 * var(--s2)); padding-inline-end: calc(var(--gutter) + var(--s4)); }
+}
 #planner:is([data-view=areas], [data-view=goals]) :is(.title-edit, .detail-title-text) { text-wrap: pretty; }
 /* An Area's or Goal's Purpose fills its line before it wraps. */
 #planner:is([data-view=areas], [data-view=goals]) .purpose-text { text-wrap: wrap; }
@@ -202,26 +280,15 @@
 button.fact-row:active { background: var(--row-press); }
 .fact-row > .leading, .fact-row > .ring { color: var(--on-surface-variant); flex: none; }
 .fact-row .text-btn { align-self: center; flex: none; margin: calc(-1 * var(--s2)) calc(-1 * var(--s2)) calc(-1 * var(--s2)) 0; }
-/* The verdict asks once, as a tonal chip in a 48dp row: the user's call, never a tick count. Its trophy starts on the
-   icons' edge above it; the row's height stays the touch target around the 32dp chip. */
-.fact-row.verdict-row {
-  position: relative;
-  align-items: center;
-  gap: var(--s2);
-  width: fit-content;
-  min-height: 32px;
-  margin: var(--s2) var(--gutter);
-  padding: 0 var(--s4) 0 var(--s2);
-  border-radius: var(--shape-sm);
-  background: var(--secondary-container);
-  color: var(--on-secondary-container);
+/* The verdict ends the page, quieter than Add: plain on-surface words on the 56dp edge, only the trophy in the
+   achieved green. The user's call, never a tick count. */
+#planner[data-view=blocks] .verdict-row {
+  display: flex; align-items: center; gap: var(--s1); inline-size: fit-content; min-block-size: var(--touch);
+  margin-inline: var(--s1); padding-inline-end: var(--s4); border-radius: var(--shape-full);
+  font: var(--body-large); color: var(--on-surface);
 }
-.verdict-row::after { content: ''; position: absolute; inset: calc(-1 * var(--s2)) 0; }
-/* A 20dp trophy in the 24dp icon box, so its centre sits on the icon column above it. */
-.verdict-row > .ms.leading { font-size: 20px; width: 24px; height: 24px; color: inherit; }
-.verdict-row .list-copy { flex: none; }
-.verdict-row .list-headline { font: var(--label-large); }
-button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-secondary-container) 12%, var(--secondary-container)); }
+#planner[data-view=blocks] .verdict-row > .ms { inline-size: var(--touch); text-align: center; color: var(--tertiary); }
+#planner[data-view=blocks] .verdict-row:active { background: var(--row-press); }
 .fact-label { font: var(--label-medium); color: var(--on-surface-variant); }
 /* The resting hint that a detail field edits in place: a small pencil after its label, gone while editing. */
 .fact-label .label-edit { font-size: 16px; width: 16px; height: 16px; line-height: 16px; margin-left: var(--s1); vertical-align: -2px;
@@ -235,6 +302,23 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
    the header is the same height whether it shows or not and never pushes the Plan. */
 .plan-header { align-items: center; padding: var(--s4) var(--s1) 0 var(--gutter); }
 .plan-header h2 { font: var(--title-medium); }
+/* A Block's header stays short so the Plan starts high: facts pack on 4dp padding, Plan follows 12dp on. */
+#planner[data-view=blocks] .block-facts > .fact-row { padding-block: var(--s1); }
+#planner[data-view=blocks] .plan-header { padding-block-start: var(--s3); }
+/* Plan and Completed are the page's two section labels, both title-small on-surface-variant, so neither reads as a task. */
+#planner[data-view=blocks] .plan-header h2 { font: var(--title-small); color: var(--on-surface-variant); }
+#planner[data-view=blocks] .inline-add { min-block-size: var(--touch); row-gap: 0; }
+#planner[data-view=blocks] .completed-group { margin-block-start: 0; }
+/* Plan words stop 8dp before a Must star (12dp to its glyph); Completed's label and chevron share the rows' 16dp start and the stars' end. */
+#planner[data-view=blocks] .task-main:has(+ .must-mark) { padding-inline-end: var(--s1); }
+#planner[data-view=blocks] .completed-toggle { padding-inline: var(--s3); }
+/* One text column at 56dp on a Block: fact icons and check rings centre on 28dp, the words start at 56dp, the Must
+   star ends 16dp in. Plan titles fill their line before wrapping. */
+#planner[data-view=blocks] .block-facts > .fact-row { padding-inline-start: var(--gutter); }
+#planner[data-view=blocks] .plan-list { padding: 0; }
+#planner[data-view=blocks] :is(.plan-list, .completed-group) .task-row { padding-inline: 0 var(--s3); }
+#planner[data-view=blocks] .plan-list .task-title { text-wrap: wrap; }
+#planner[data-view=blocks] .inline-add { margin-inline: var(--s1); }
 .plan-header .text-btn { margin-block: calc(-1 * var(--s3)); }
 .plan-actions { display: flex; align-items: center; }
 .plan-list { padding: 0 var(--s1); }
@@ -433,9 +517,20 @@ button.fact-row.verdict-row:active { background: color-mix(in srgb, var(--on-sec
 }
 .search-input::-webkit-search-cancel-button { display: none; }
 .search-results .task-row { padding-inline-start: var(--s1); }
-.search-results .task-main:has(+ .must-mark) { flex: 0 1 auto; }
+/* Show more starts its words on the titles' edge. */
+.search-results .search-more { margin-inline-start: calc(var(--s8) + var(--s6) - var(--s3)); }
+/* Must stars share one end column: a 24dp cell 8dp after the words, its edge on the 16dp gutter. The star sits on the
+   title's line in one- and two-line rows alike: it shares the title's baseline, then drops a quarter em because the
+   icon's glyph stands on the baseline while the words' line is centred on it. */
+.search-results .task-row > :is(.task-main, .must-mark) { align-self: baseline; }
+.search-results .must-mark { inline-size: 24px; margin: 0 var(--s3) 0 var(--s2); translate: 0 .25em; text-align: center; }
 .search-hit { font-weight: 700; color: inherit; }
+/* Group names are quiet title-small on-surface-variant, as on the website, so Show N more stays the one primary line. */
+.search-results .section-header h2 { font: var(--title-small); color: var(--on-surface-variant); }
+/* A result is at most two lines: its title, then one line of Purpose. */
+.search-results .list-supporting { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: clip; }
 /* Done results come last as their title alone, with a quiet tick in place of the filled one (Google Tasks' Completed). */
 .search-results .task-row.done .task-main { min-block-size: 48px; }
+.search-results .task-row.done .task-title { text-decoration: none; }
 .search-results .task-row.done .check-ring { border-color: transparent; background: transparent; color: var(--on-surface-variant); }
 .search-results .task-row.done .check-ring .ms { font-size: 20px; font-weight: 400; }

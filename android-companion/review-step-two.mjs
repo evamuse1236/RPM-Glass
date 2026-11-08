@@ -11,15 +11,18 @@ export function stepTwo(api, ctx) {
   const now = api.now();
   const clashIds = new Set(api.clashes().map(c => c.task?.id).filter(Boolean));
   const parts = heading('Empty your head');
-  parts.push(quickAdd(api), ...lenses(api));
-  parts.push(sectionHead('Inbox', inbox.length, button('Open Capture', () => ctx.openCapture(), 'wr-btn-text', 'edit_note')));
+  parts.push(quickAdd(api, ctx), ...lenses(api));
   if (!inbox.length) {
     parts.push(el('p', 'wr-quiet', 'Nothing in the Inbox. Type anything still on your mind above.'));
     return parts;
   }
+  // The newest few show at once, so what was just added is in view; the rest wait behind one row.
+  const newest = [...inbox].sort((a, b) => Number(b.id) - Number(a.id));
+  const shown = api.ui.inboxOpen ? newest : newest.slice(0, INBOX_PREVIEW);
+  parts.push(sectionHead('Inbox', inbox.length));
   const list = el('ul', 'wr-list');
   list.setAttribute('aria-label', 'Inbox');
-  for (const task of inbox) {
+  for (const task of shown) {
     const item = el('li', 'wr-list-item');
     // Tap to edit (the planner's task sheet, with Delete in its menu); swipe as in every task list.
     const text = button('', ctx.openTask ? () => ctx.openTask(task.id) : null, 'wr-list-text');
@@ -36,7 +39,7 @@ export function stepTwo(api, ctx) {
         must.setAttribute('aria-label', 'Must');
         meta.append(must);
       }
-      if (when) meta.append(el('span', when.overdue ? 'overdue' : when.soon ? 'soon' : '', when.text));
+      if (when) meta.append(el('span', when.overdue ? 'overdue' : '', when.text));
       if (clash) {
         const tag = el('span', 'wr-clash-tag');
         tag.append(icon('event_busy'), el('span', '', 'Clash'));
@@ -53,13 +56,30 @@ export function stepTwo(api, ctx) {
     }
     list.append(item);
   }
+  if (inbox.length > INBOX_PREVIEW) {
+    const more = el('li', 'wr-list-more');
+    more.append(inboxToggle(api));
+    list.append(more);
+  }
   parts.push(list);
-  if (ctx.openTask) parts.push(el('p', 'wr-section-note wr-hint', 'Tap a task to edit it. Swipe right to schedule it, left to delete it.'));
   return parts;
 }
 
-/** Type a thought and press Enter: it lands in the Inbox in your own words, with Undo, and you stay here. */
-function quickAdd(api) {
+const INBOX_PREVIEW = 4;
+
+/** The list's last row: the rest of the Inbox, or back to the newest. */
+function inboxToggle(api) {
+  const open = Boolean(api.ui.inboxOpen);
+  const toggle = button(open ? 'Show fewer' : 'Show all', () => { api.ui.inboxOpen = !open; api.render(); }, 'wr-idle-toggle');
+  toggle.setAttribute('aria-expanded', String(open));
+  toggle.dataset.key = 'inbox-toggle';
+  toggle.append(icon(open ? 'expand_less' : 'expand_more'));
+  return toggle;
+}
+
+/** Type a thought and press Enter: it lands in the Inbox in your own words, with Undo, and you stay here. An empty
+ * field offers Capture (voice and the full composer) in the same place Send takes once there is text. */
+function quickAdd(api, ctx) {
   const {ui} = api;
   const form = el('form', 'wr-add');
   form.noValidate = true;
@@ -73,7 +93,12 @@ function quickAdd(api) {
   input.setAttribute('aria-label', 'Add to the Inbox');
   const send = iconButton('arrow_upward', 'Add to Inbox', null, 'wr-icon-btn wr-add-send');
   send.type = 'submit';
-  const sync = () => { send.disabled = !input.value.trim(); };
+  const capture = iconButton('mic', 'Open Capture', () => ctx.openCapture(), 'wr-icon-btn wr-add-capture');
+  const sync = () => {
+    const empty = !input.value.trim();
+    send.hidden = empty;
+    capture.hidden = !empty;
+  };
   input.addEventListener('input', () => { ui.draft = input.value; sync(); });
   sync();
   form.addEventListener('submit', e => {
@@ -85,7 +110,7 @@ function quickAdd(api) {
     sync();
     api.run({type: 'saveTask', fields: {title: words}}, 'Added to Inbox');
   });
-  form.append(icon('add'), input, send);
+  form.append(icon('add'), input, capture, send);
   return form;
 }
 
@@ -100,7 +125,8 @@ function lenses(api) {
   row.setAttribute('aria-label', 'Prompts, one per Area');
   const lead = el('span', 'wr-lens-lead', 'Think about');
   lead.setAttribute('aria-hidden', 'true');
-  row.append(lead);
+  const chips = el('div', 'wr-lens-chips');
+  row.append(lead, chips);
   for (const area of areas) {
     const chip = button('', () => {
       ui.lens = area.title;
@@ -110,7 +136,7 @@ function lenses(api) {
     chip.setAttribute('aria-label', `Prompt: ${area.title}, anything due, stuck or wanted?`);
     chip.dataset.key = 'lens:' + area.id;
     chip.append(areaDot(areaTone(area, planner(api.data()).areas)), el('span', 'wr-label', area.title));
-    row.append(chip);
+    chips.append(chip);
   }
   return [row];
 }

@@ -13,14 +13,15 @@ test('the wide page styles apply only on a wide window and load after the task p
   assert.match(read('../build.mjs'), /'\.\/app\/wide-pages\.css', 'wide-pages\.css'/);
 });
 
-test('on wide the Inbox pane drops its repeated Capture and Add task, and the Life tab line sits under its word', () => {
+test('on wide the Inbox card ends in Capture and Add task like the phone, and the Life tab line sits under its word', () => {
   const css = read('./wide-pages.css');
-  assert.match(css, /\[aria-label=Inbox\] \.sheet-actions \{ display: none; \}/);
+  assert.match(read('./web.css'), /\.planner-view > #sheet\[data-inline\]\.sheet-inbox \.sheet-actions \{ display: flex; \}/,
+    'the Inbox card docks the same Capture and Add foot as the phone sheet and the New task card');
   assert.match(css, /\.sheet-header:has\(> h2:not\(\.visually-hidden\)\) \{ min-block-size: 64px; \}/);
   assert.match(css, /\.tab\[aria-selected=true\]::after \{ inset-inline: var\(--s4\); \}/);
   const inbox = read('../../android-companion/planner/task-lists.mjs');
   assert.doesNotMatch(inbox, /sheet-note/, 'the Inbox title says what it holds; no sentence sits above the tasks');
-  assert.match(inbox, /labelButton\('auto_awesome', 'Sort with Jev', [^\n]*'assist-chip inbox-jev'\)/, 'Sort with Jev is a labelled header chip beside Close');
+  assert.match(inbox, /labelButton\('auto_awesome', 'Sort with Jev', [^\n]*'text-btn inbox-jev'\)/, 'Sort with Jev is a labelled text button beside Close');
   assert.match(inbox, /count\.textContent = rows\.length \? String\(rows\.length\) : ''/, 'the title counts the tasks left to sort');
   assert.match(inbox, /header\.querySelector\('\.sheet-close'\)\.before\(jev\)/);
 });
@@ -31,15 +32,23 @@ test('on wide each Project card lists its Blocks and opens the Project; the phon
   assert.match(source, /if \(!wide\) toggle\.setAttribute\('aria-expanded'/);
   assert.match(source, /if \(!wide\) head\.append\(iconButton\('chevron_right'/);
   assert.match(source, /const next = blockTasks\(app\.data\(\), block\.id\)\.find\(task => !task\.done\);/);
-  assert.match(source, /row\.append\(\.\.\.\(total \? \[segmentRing\(done, total\), copy, el\('span', 'project-block-count tnum'/,
-    'a Block with no tasks shows no empty ring and no 0/0');
+  assert.match(source, /row\.append\(copy, \.\.\.\(total \? \[taskTally\(\{done, total\}, count\)\] : \[\]\)\);/,
+    'a chip leads with its name, so every name starts on one edge; a Block with no tasks shows no empty ring and no 0/0');
   assert.match(source, /nestRings\(wide \? \[stats\] : ordered\.map/, 'on wide the Project ring shows the Project, the chips the Blocks');
   const css = read('./wide-pages.css');
-  assert.match(css, /\.page > \.project-card \{\n    grid-column: 1 \/ -1;\n    display: grid;\n    grid-template-columns: minmax\(0, 320px\) minmax\(0, 1fr\);/);
-  assert.match(css, /\.project-blocks \{\n    grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 360px\), 1fr\)\);/);
-  assert.match(css, /\.project-block:not\(:has\(\.seg-ring\)\) \{ padding-inline-start: calc\(var\(--s8\) \+ var\(--s5\)\); \}/,
-    'a ringless chip lines its words up with the chips that have a ring');
-  assert.match(css, /\.project-block-count \{ flex: none; inline-size: 40px; text-align: end; \}/);
+  assert.match(css, /\.page > \.project-card \{ grid-column: 1 \/ -1; \}/, 'a Project card runs the full width, so no column holds a hole');
+  assert.match(css, /:not\(\[data-detail=true\]\) \.page \{\n    grid-template-columns: minmax\(0, max-content\) minmax\(0, 1fr\) max-content max-content;\n    column-gap: var\(--s6\);/,
+    'the page is one table: each column as wide as its longest entry, the next task takes the rest, 24px apart');
+  assert.match(css, /:is\(\.page > \.project-card, \.project-head, \.project-toggle, \.project-blocks\) \{\n    display: grid;\n    grid-column: 1 \/ -1;\n    grid-template-columns: subgrid;/,
+    'every card is a subgrid of the page, so the columns line up from card to card');
+  assert.match(css, /\.project-block \{\n    display: grid;\n    grid-column: 1 \/ -1;\n    grid-template-columns: subgrid;\n    align-items: center;\n    min-block-size: 40px;/,
+    'its Block rows are 40px rows of that table');
+  assert.match(source, /toggle\.append\(copy, el\('span', 'project-due card-due tnum'[^\n]*\), tally\);/, 'the head names the Project\'s first deadline');
+  assert.match(source, /stats\.total \? `\$\{stats\.done\}\/\$\{stats\.total\}` : ''/, 'and its count beside the one ring');
+  assert.match(source, /\(wide \? filters : page\)\.append\(labelButton\('add', 'New Project'/, 'on wide New Project ends the filter row at the top');
+  assert.match(source, /copy\.append\(el\('span', 'project-block-due card-due'/, 'a Block row names its deadline in its own column');
+  assert.match(css, /\.project-block \{ margin-inline: calc\(-1 \* var\(--s3\)\); padding-inline: var\(--s3\);/,
+    'a Block chip\'s words sit on the card\'s text edge');
   assert.match(css, /:is\(\.project-block-name, \.project-block-next\) \{ overflow: clip; text-overflow: ellipsis; white-space: nowrap; \}/);
 });
 

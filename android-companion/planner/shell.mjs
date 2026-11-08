@@ -4,7 +4,6 @@ import {el, icon, iconButton, button, labelButton} from './dom.mjs';
 import {openMenu} from './menu.mjs';
 import {FULL_SCREENS} from './app.mjs';
 import {settingsTitle} from '../settings.mjs';
-import {blockSubtitle} from './blocks.mjs';
 import {localDay} from '../planner-state.mjs';
 import {jumpToNow} from './today-day.mjs';
 import {dateLine} from './today-header.mjs';
@@ -79,14 +78,18 @@ function detailBar(app, bar, top) {
   bar.append(iconButton('arrow_back', 'Back', () => app.back()));
   const record = DETAIL_NAMES[top.kind] ? app.p()[top.kind]?.find(item => item.id === top.id) : null;
   const title = el('h1', 'top-title small', top.kind === 'settings' ? settingsTitle(top.id) : record?.title ?? '');
-  if (DETAIL_NAMES[top.kind]) title.setAttribute('aria-label', `${DETAIL_NAMES[top.kind]}: ${record?.title ?? ''}`);
-  // A Block keeps its deadline in view once its title has collapsed into the bar.
-  const sub = top.kind === 'blocks' && record ? blockSubtitle(app, record) : '';
-  if (sub) {
-    title.replaceChildren(el('span', 'top-title-text', record.title), el('span', 'top-subtitle tnum', sub));
-    title.classList.add('with-subtitle');
+  // A record's collapsed title is title-medium, so two wrapped lines still fit the one-row bar: the bar never changes height.
+  if (DETAIL_NAMES[top.kind]) {
+    title.setAttribute('aria-label', `${DETAIL_NAMES[top.kind]}: ${record?.title ?? ''}`);
+    title.classList.add('record-title');
   }
-  bar.append(title);
+  // At rest a Block's bar names its Area · Project; once the page title scrolls out, the title takes the same cell.
+  const crumb = DETAIL_NAMES[top.kind] ? app.actions.detailCrumb?.(top) : null;
+  if (crumb) {
+    const heading = el('div', 'bar-heading');
+    heading.append(title, crumb);
+    bar.append(heading);
+  } else bar.append(title);
   if (!DETAIL_NAMES[top.kind]) return;
   // Everything on a detail page edits where it is, so the bar has no Edit pencil; More keeps Delete.
   const tools = el('div', 'top-actions');

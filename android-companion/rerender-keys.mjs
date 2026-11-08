@@ -9,10 +9,10 @@
  * held by the first row on screen. */
 export const KEYED = '[data-key],[data-task-id],[data-block-id],[data-project-id],.today-row,.agenda-event,.agenda-free,'
   + '.list-item,.section-header,.result-group,.upcoming,.fact-row,.next-task,.project-run,.wheel-bar,.week-line,'
-  + '.empty-state,.plan-list,.achieved-panel,.detail-head,.day-header,.chip-row';
+  + '.empty-state,.plan-list,.achieved-panel,.day-header,.chip-row';
 const IDENTITY = 'h1,h2,h3,.task-title,.list-headline,.today-row-headline,.next-title,.card-title,.block-title';
 /** Containers named by their place, not their words: a Plan that gains its first task is the same Plan. */
-const CONTAINERS = '.plan-list,.chip-row,.day-header,.detail-head';
+const CONTAINERS = '.plan-list,.chip-row,.day-header';
 /** Cards whose content changes as a whole (the lead card on Today becomes another task): the card is replaced in one
  * fade through while its height morphs, instead of its parts collapsing and opening one by one. */
 export const SWAP = '.next-card';

@@ -15,11 +15,11 @@ test('quick add: the title is 16/24 like Capture; day, Time and Block show, the 
   assert.doesNotMatch(js, /blockChips\.append\(more\.row\)/, 'More options is its own row, never the end of the Block row');
   assert.match(js, /whenChips\.append\(timeChip\)/, 'Time ends the day row');
   assert.match(js, /timeChip\.append\(icon\('schedule'\), el\('span', 'chip-label'\)\)/);
-  assert.match(js, /blockChip\.append\(icon\('stacks'\), el\('span', 'chip-label', 'Inbox'\)\)/, 'one Block chip names its value, the Inbox by default');
-  assert.match(js, /const label = chosen\?\.title \?\? 'Inbox';/);
+  assert.match(js, /blockChip\.append\(icon\('inbox', \{cls: 'block-mark'\}\), el\('span', 'chip-label', 'Inbox'\)/, 'one Block chip names its value, the Inbox by default');
+  assert.match(js, /textContent = chosen \? blockShort\(chosen\.title\) : 'Inbox';/, 'the chip names the Block short, so no name is cut');
   assert.match(js, /button\('', null, 'assist-chip block-chip on'\)/, 'the Block chip always holds a value (a Block or the Inbox), so it is filled');
-  assert.match(js, /textContent = suggested\.title;/, 'the suggestion names its whole Block; the row cuts it with an ellipsis');
-  assert.match(js, /blockChips\.append\(blockChip, suggestChip\)/);
+  assert.match(js, /blockChips\.append\(blockChip\);/, 'one Block chip: a suggestion fills it, never a second chip');
+  assert.doesNotMatch(js, /suggestChip/, 'no second chip competes with the Block chip');
   assert.doesNotMatch(js, /'No block'/, 'no chip stands for "no choice"; the list holds No block');
   const options = read('planner/quick-options.mjs');
   assert.doesNotMatch(options, /icon-only/);
@@ -28,6 +28,21 @@ test('quick add: the title is 16/24 like Capture; day, Time and Block show, the 
   assert.match(options, /const moreRow = button\('', null, 'quick-details'\)/, 'More options is a plain row, not a chip');
   assert.match(options, /moreRow\.append\(icon\('tune'\), el\('span', 'chip-label', 'More options'\), icon\('expand_more'/,
     'More options reads as a control: the tune icon, its name and a chevron');
+});
+
+test('quick add: only a picked or suggested Block fills, lighter than the chosen day; the Inbox fallback stays quiet', () => {
+  const js = read('planner/quick-add.mjs');
+  assert.match(js, /blockChip\.classList\.toggle\('in-inbox', !chosen\)/, 'the chip knows when it holds only the Inbox fallback');
+  const css = read('planner-sheets.css');
+  assert.match(css, /\.sheet \.block-chip\.in-inbox \{ background: none; color: var\(--on-surface-variant\);/,
+    'the default Inbox is a borderless icon, word and arrow, never a fill that reads as chosen');
+  assert.match(css, /\.sheet \.block-chip, \.sheet \.block-chip\.suggested \{[^}]*background: color-mix\(in oklch, var\(--secondary-container\) \d+%, var\(--sheet-bg\)\)/,
+    'a chosen Block fills a lighter tone than the chosen day, so where never looks like when');
+  assert.doesNotMatch(css, /\.filled-btn:disabled \{ background: transparent; \}/, 'a disabled Add keeps its container, so it reads as a button waiting for words');
+  assert.match(css, /\.sheet-inbox \.task-title \{ text-wrap: pretty; \}/, 'Inbox titles fill their first line and never orphan a word');
+  const options = read('planner/quick-options.mjs');
+  assert.match(options, /const fewer = button\('', \(\) => moreRow\.click\(\), 'quick-fewer'\)/, 'opened, the chevron ends the options row as the way back');
+  assert.match(css, /\.quick-details\.is-open \{ display: none; \}/, 'opened, More options gives its row to the choices, never a header row of its own');
 });
 
 test('quick add chip names and the More options summary read the chip label, never the icon ligature', () => {

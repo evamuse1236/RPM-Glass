@@ -2,12 +2,14 @@ import {focusCandidates, rankResults} from './review-state.mjs';
 import {planner} from './planner-state.mjs';
 import {dueInfo} from './planner/format.mjs';
 import {el, icon, button, iconButton, heading, emptyState, sectionHead, textField} from './review-ui.mjs';
+import {attachSwipe, peekSwipe} from './task-swipe.mjs';
 
 /* ---------- step 3: sort the Inbox into Results ---------- */
 export function stepThree(api, ctx) {
   const {ui} = api;
   const rows = api.groupList();
-  const clashIds = new Set(api.clashes().map(c => c.task?.id).filter(Boolean));
+  // An Inbox task that clashes with the calendar is decided with the other clashes in step 4, so it is not sorted here.
+  const clashIds = new Set(api.clashes().filter(c => c.task && (c.task.blockId ?? null) === null).map(c => c.task.id));
   const loose = rows.filter(t => (t.blockId ?? null) === null && !clashIds.has(t.id));
   const toSort = loose.filter(t => !ui.kept.includes(t.id));
   const kept = loose.filter(t => ui.kept.includes(t.id));
@@ -23,10 +25,14 @@ export function stepThree(api, ctx) {
     const candidates = focusCandidates(api.data(), api.week, []);
     const list = el('ul', 'wr-list wr-sort-list');
     list.setAttribute('aria-label', 'Inbox tasks to sort');
-    for (const task of toSort) list.append(sortRow(api, task, rankResults(api.data(), task, candidates).suggested));
+    let peek = !ui.sortPeeked;
+    for (const task of toSort) {
+      const suggested = rankResults(api.data(), task, candidates).suggested;
+      list.append(sortRow(api, task, suggested, peek && suggested));
+      if (suggested) peek = false;
+    }
     parts.push(list);
   } else parts.push(el('p', 'wr-quiet', 'All sorted. Every task has a Result or stays in the Inbox on purpose.'));
-  if (clashIds.size) parts.push(el('p', 'wr-section-note', clashIds.size === 1 ? 'The calendar clash in your Inbox is decided in step 4.' : 'The calendar clashes in your Inbox are decided in step 4.'));
 
   // What this step sorted: each Result that received tasks, with them, and a way back to the Inbox.
   const grouped = rows.filter(t => t.blockId);
@@ -62,20 +68,17 @@ function keep(api, taskId, on) {
   api.saveProgress();
 }
 
-/** One Inbox task as one control: its words, the proposed Result (or Leave in Inbox) under them, and a tap that opens the chooser. */
-function sortRow(api, task, suggested) {
+/** One Inbox task, one button: its words open the chooser. With a suggested Result, a second line names it beside the
+ * Block icon, and a swipe right takes it in one gesture; the first such row shows that swipe once. A swipe left keeps
+ * the task in the Inbox. */
+function sortRow(api, task, suggested, peek) {
   const {ui} = api;
   const name = task.title ?? task.raw;
   const item = el('li', 'wr-sort');
-  const row = el('button', 'wr-sort-row' + (suggested ? '' : ' wr-leave'));
+  const row = el('button', 'wr-sort-row');
   row.type = 'button';
-  const text = el('span', 'wr-sort-text');
-  const proposal = el('span', 'wr-sort-proposal');
-  proposal.append(icon(suggested ? 'stacks' : 'inbox'), el('span', 'wr-sort-label', suggested ? suggested.title : 'Leave in Inbox'));
-  text.append(el('span', 'wr-row-title', name), proposal);
-  row.append(text, icon('arrow_drop_down'));
+  row.append(el('span', 'wr-row-title', name));
   row.setAttribute('aria-label', `Choose a Result for "${name}"`);
-  row.setAttribute('aria-description', suggested ? 'Suggested: ' + suggested.title : 'Suggested: Leave in Inbox');
   row.setAttribute('aria-haspopup', 'dialog');
   row.dataset.key = 'choose:' + task.id;
   row.addEventListener('click', () => {
@@ -83,7 +86,27 @@ function sortRow(api, task, suggested) {
     api.render();
     document.querySelector('.wr-sheet .wr-sheet-title')?.focus({preventScroll: true});
   });
+  const take = () => api.run({type: 'groupTasks', ids: [task.id], blockId: suggested.blockId}, 'Added to ' + suggested.title);
+  const right = suggested && {kind: 'done', symbol: 'stacks', word: 'Add to Result', run: take};
+  if (suggested) {
+    row.classList.add('suggested');
+    row.setAttribute('aria-description', 'Suggested: ' + suggested.title);
+    const hint = el('span', 'wr-sort-hint');
+    hint.append(icon('stacks'), el('span', 'wr-sort-hint-title', suggested.title));
+    row.append(hint);
+  } else row.append(icon('chevron_right'));
   item.append(row);
+  if (suggested) {
+    item.classList.add('suggested');
+    const add = iconButton('drive_file_move', `Add "${name}" to "${suggested.title}"`, take, 'wr-sort-take');
+    add.dataset.key = 'take:' + task.id;
+    item.append(add);
+  }
+  attachSwipe(item, {right, left: {kind: 'schedule', symbol: 'inbox', word: 'Keep in Inbox', run: () => keep(api, task.id, true)}});
+  if (peek) {
+    ui.sortPeeked = true;
+    requestAnimationFrame(() => { if (item.isConnected) peekSwipe(item, right, 'right'); });
+  }
   return item;
 }
 

@@ -46,13 +46,18 @@ export function rowMenu(row, anchor) {
  * the same for a click, without the carry. `inbox` adds Move to Block under the swipe-left schedule choices, so an
  * Inbox task goes to Today or Tomorrow 9:00 AM in two taps. `hold: false` leaves the long press to the Plan's reorder.
  */
+/** The Inbox's left swipe ends with Move to Block, so its reveal names both. */
+export const INBOX_LEFT = {kind: 'schedule', symbol: 'drive_file_move', word: 'Schedule or file'};
+
 export function attachRowGestures(app, row, task, {complete, tick = complete, leave = true, inbox = false, hold = true}) {
   const actions = rowActions(app, task, row, {tick, inbox});
   row.rowActions = actions;
   row.rowTitle = task.title;
+  // A pointer's hover tools: an Inbox row offers only filing, one icon, never a column of them.
+  if (inbox) row.rowTools = ['move'];
   attachSwipe(row, {
     right: {kind: 'done', leave, run: complete},
-    left: {kind: 'schedule', run: actions[1].run},
+    left: {...(inbox ? INBOX_LEFT : {kind: 'schedule'}), run: actions[1].run},
     hold: hold ? () => quickMenu(app, task, row) : null,
     haptic: () => app.api.native('haptic').catch(() => {}),
   });

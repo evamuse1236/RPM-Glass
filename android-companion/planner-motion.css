@@ -20,7 +20,7 @@
 :root[data-large-text=true] .week-line { grid-template-columns: auto 1fr auto; padding-block: var(--s2); }
 :root[data-large-text=true] .clash-time::after { content: ' · '; }
 :root[data-large-text=true] .result-count, :root[data-large-text=true] .eyebrow span:last-child { display: none; }
-:root[data-large-text=true] .detail-head .crumb .eyebrow span:last-child { display: inline; }
+:root[data-large-text=true] .bar-heading > .crumb .eyebrow span:last-child { display: inline; }
 :root[data-large-text=true] .card-top .eyebrow { display: none; }
 :root[data-large-text=true] .project-run .eyebrow { align-items: baseline; }
 :root[data-large-text=true] .project-run .eyebrow span:last-child { display: inline; white-space: normal; }

@@ -1,6 +1,6 @@
 /** Full-screen search, as in Google Tasks and Calendar: the query lives in the top bar. */
 import {tasks, localDay} from '../planner-state.mjs';
-import {el, iconButton, listItem, sectionHeader, emptyState} from './dom.mjs';
+import {el, button, iconButton, listItem, sectionHeader, emptyState} from './dom.mjs';
 import {taskRow, taskWhen} from './task-row.mjs';
 
 let query = '';
@@ -82,10 +82,12 @@ function drawResults(app, host) {
   if (!host) return;
   host.replaceChildren();
   const q = query.trim().toLocaleLowerCase();
-  const row = task => taskRow(app, task, {context: app.context(task).block?.title ?? 'No block'});
+  const row = task => taskRow(app, task, {context: app.context(task).block?.title ?? ''});
   if (!q) {
     const musts = mustsToday(app);
-    if (musts.length) host.append(sectionHeader('Musts for today'), ...musts.map(row));
+    /** Under "Musts for today" every row is a Must, so the heading says it and the rows drop the star. */
+    const must = task => { const node = row(task); node.querySelector('.must-mark')?.remove(); return node; };
+    if (musts.length) host.append(sectionHeader('Musts for today'), ...musts.map(must));
     host.append(sectionHeader('Go to'),
       listItem({leading: 'inbox', headline: 'Inbox', onClick: () => app.actions.inbox()}),
       listItem({leading: 'mic', headline: 'Capture', onClick: () => app.capture()}));
@@ -95,7 +97,7 @@ function drawResults(app, host) {
   const groups = [
     ['Blocks', 'stacks', app.activeBlocks(), b => app.openBlock(b.id), b => b.purpose],
     ['Projects', 'folder', p.projects, pr => app.openProject(pr.id), pr => pr.purpose],
-    ['Goals', 'flag', p.goals, g => app.openGoal(g.id), g => String(g.year)],
+    ['Goals', 'flag', p.goals, g => app.openGoal(g.id), g => String(g.year), true],
     ['Areas', 'spa', p.areas, a => app.openArea(a.id), a => a.purpose],
   ];
   const found = tasks(app.data()).filter(task => matches(task, q)).sort(searchOrder).slice(0, 30);
@@ -106,19 +108,32 @@ function drawResults(app, host) {
   if (open.length) host.append(sectionHeader('Tasks'),
     ...[...wordFirst(open.filter(task => task.must), q), ...wordFirst(open.filter(task => !task.must), q)].map(hit));
   let count = found.length;
-  for (const [label, symbol, items, go, supporting] of groups) {
+  // On wide a short fact (a Goal's year) ends the title's line rather than standing alone on a second line.
+  const wide = Boolean(app.api.wide?.());
+  for (const [label, symbol, items, go, supporting, short] of groups) {
     const hits = wordFirst(items.filter(item => matches(item, q)).slice(0, 30), q);
     if (!hits.length) continue;
     host.append(sectionHeader(label));
     for (const item of hits) {
-      const node = listItem({leading: symbol, headline: item.title, supporting: supporting(item) ?? '', onClick: () => go(item)});
+      const meta = supporting(item) ?? '';
+      const node = listItem({leading: symbol, headline: item.title, onClick: () => go(item),
+        ...(short && wide ? {trailing: el('span', 'list-meta tnum', meta)} : {supporting: meta})});
       markHits(node.querySelector('.list-headline'), q);
       host.append(node);
     }
     count += hits.length;
   }
   const finished = wordFirst(found.filter(task => task.done), q);
-  if (finished.length) host.append(sectionHeader('Done'), ...finished.map(done));
+  if (finished.length) {
+    // Done tasks rarely answer a search, so two show and the rest wait behind one button.
+    const shown = finished.slice(0, 2).map(done);
+    host.append(sectionHeader('Done'), ...shown);
+    const rest = finished.slice(2);
+    if (rest.length) {
+      const more = button(`Show ${rest.length} more`, () => more.replaceWith(...rest.map(done)), 'text-btn show-all search-more');
+      host.append(more);
+    }
+  }
   if (!count) host.append(emptyState({symbol: 'search_off', title: 'No matches', body: 'Try another word.'}));
 }
 

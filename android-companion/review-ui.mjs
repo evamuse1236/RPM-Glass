@@ -40,7 +40,8 @@ export function iconButton(name, label, onClick, cls = 'wr-icon-btn') {
 }
 /** A strip cell's hours: "12h", "1.5h", "45m". Exact durations are in its accessible label. */
 export const hours = minutes => (minutes < 60 ? `${minutes}m` : `${Math.round(minutes / 30) / 2}h`);
-export const dayName = day => new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'short', day: 'numeric', month: 'short'});
+/** "Monday 9 November": the day written out, day before month. */
+export const dayName = day => new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'long', day: 'numeric', month: 'long'});
 export const weekday = day => new Date(day + 'T12:00').toLocaleDateString(undefined, {weekday: 'short'});
 export const capital = text => text[0].toUpperCase() + text.slice(1);
 
@@ -83,10 +84,9 @@ export function sectionHead(title, count, action = null) {
   if (action) row.append(action);
   return row;
 }
-/** One facts line, as the Blocks list writes it: parts joined by " · ", each kept whole, a line only breaking after a dot. */
+/** One facts line: each part kept whole; review.css draws the " · " between parts, never at a line end. */
 export function factsLine(parts) {
-  const nodes = parts.filter(Boolean).map(part => (typeof part === 'string' ? el('span', '', part) : part));
-  return nodes.flatMap((node, i) => (i < nodes.length - 1 ? [node, '\u00a0· '] : [node]));
+  return parts.filter(Boolean).map(part => (typeof part === 'string' ? el('span', '', part) : part));
 }
 /** The deadline in the words every card uses ("Due tomorrow 11:00 PM"), in medium weight; error colour once past. */
 export function dueFact(value, now) {
@@ -116,3 +116,15 @@ export function textField(label, placeholder, value, key, onInput) {
 }
 /** A Result's deadline in the words its card uses ("Due tomorrow 11:00 PM", "Overdue since …"). */
 export const dueWords = (value, now) => dueInfo(value, now).label;
+
+/** A step's decisions on one side and what they lead to on the other; a wide window shows them as two columns. */
+export function split(main, side) {
+  if (!main.length || !side.length) return [...main, ...side];
+  const box = el('div', 'wr-split');
+  const first = el('div', 'wr-split-main');
+  const second = el('div', 'wr-split-side');
+  first.append(...main);
+  second.append(...side);
+  box.append(first, second);
+  return [box];
+}

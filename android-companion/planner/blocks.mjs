@@ -2,7 +2,7 @@
 import {blockTasks, blockDue, localDay, inboxRows, byProject} from '../planner-state.mjs';
 import {weekStart, weekFocus, resultStatus} from '../review-state.mjs';
 import {el, icon, button, labelButton, emptyState, areaDot, attrs, sectionHeader} from './dom.mjs';
-import {duration, plural, dateText, dueInfo, timeLeft} from './format.mjs';
+import {duration, plural, dateText, dueInfo, timeLeft, clock, shortClock} from './format.mjs';
 
 /** A wrapped facts line never ends on a dangling dot: each fact after the first carries its own. */
 function appendFacts(line, parts) {
@@ -13,7 +13,7 @@ function appendFacts(line, parts) {
     line.append(' ', next);
   });
 }
-import {taskRow, completedSection, toggleDone, taskWhen} from './task-row.mjs';
+import {taskRow, completedSection, toggleDone, taskWhen, isOverdue} from './task-row.mjs';
 import {openSheet, field} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
 import {playMotion, DURATION, EASE} from '../surface-motion.mjs';
@@ -23,6 +23,7 @@ import {blockAdd} from './block-add.mjs';
 
 export {factRow, purposePanel, notesPanel, revealNotes, titleField, finishDetail, focusTitleOnOpen} from './detail-fields.mjs';
 
+const DAY_MS = 864e5, WEEK_MS = 7 * DAY_MS;
 const thisWeek = app => weekFocus(app.data(), weekStart(localDay()));
 
 /** The open Must time with the star as its legend ("★ 3 h 50 min of Musts left"), or null when no Must is open. */
@@ -33,19 +34,18 @@ function mustLeft(status) {
   return node;
 }
 
-/** Deadline with its countdown; `tight` when the open Musts need a quarter or more of the clock time left. */
+/**
+ * The deadline in the Plan's compact words ("Due tomorrow 11 PM"), said once: the hours left join it only inside the
+ * last day. `tight` when the open Musts need a quarter or more of the clock time left.
+ */
 export function deadline(data, block, status, now = new Date()) {
   const due = blockDue(data, block.id);
   const info = due && dueInfo(due.value, now);
   if (!info || status.achieved) return null;
   const tight = info.overdue || status.mustMinutes * 60000 * 4 >= info.at - now;
-  return {...info, task: due.task, tight, text: info.overdue ? info.label
-    : `${info.label} · ${timeLeft(info.at, now).replace(' ', '\u00a0')}\u00a0left`};
-}
-
-/** The collapsed top bar's subtitle on Block detail: the deadline line, so it stays in view while the Plan scrolls. */
-export function blockSubtitle(app, block) {
-  return deadline(app.data(), block, resultStatus(app.data(), block.id))?.text ?? '';
+  const label = info.label.replace(clock(info.at), shortClock(info.at));
+  return {...info, label, task: due.task, tight, text: info.overdue || info.at - now >= DAY_MS ? label
+    : `${label} · ${timeLeft(info.at, now).replace(' ', '\u00a0')}\u00a0left`};
 }
 
 /**
@@ -55,7 +55,7 @@ export function blockSubtitle(app, block) {
 export function byDeadline(data, blocks, first = new Set(), now = new Date()) {
   const key = (block, i) => {
     const at = dueInfo(blockDue(data, block.id)?.value, now)?.at.getTime() ?? Infinity;
-    return [at - now < 7 * 864e5 ? 0 : first.has(block.id) ? 1 : 2, at, i, block];
+    return [at - now < WEEK_MS ? 0 : first.has(block.id) ? 1 : 2, at, i, block];
   };
   return blocks.map(key).sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]).map(entry => entry[3]);
 }
@@ -93,16 +93,35 @@ export function progressRing(done, total, label) {
   return svg;
 }
 
-/** A Result card: Area and Project (unless the list already says it), title, Purpose, where it stands, the Next task. */
+/** Tasks done at the end of a Block's line: a 16dp ring (read as "2 of 7 tasks done") and "2/7". */
+export function taskTally(status, count) {
+  const tally = el('span', 'card-tally');
+  const figures = el('span', '', `${status.done}/${status.total}`);
+  figures.setAttribute('aria-hidden', 'true');
+  tally.append(progressRing(status.done, status.total, count), figures);
+  return tally;
+}
+
+/** One rule at every width: a Result picked for this week shows "This week" unless its deadline is inside the week. */
+export function weekMark(focus, status, due, now = new Date()) {
+  return focus && !status.achieved && !(due && due.at - now < WEEK_MS);
+}
+
+/**
+ * A Result card: Area and Project (unless the list already says it), the title with its progress ring, Purpose, the
+ * deadline, then the Next task on one line.
+ */
 export function blockCard(app, block, {focus = false, project = true} = {}) {
   const status = resultStatus(app.data(), block.id);
   const card = el('article', 'block-card');
   card.dataset.blockId = block.id;
   card.dataset.tone = app.tone(app.blockArea(block));
   const main = button('', () => app.openBlock(block.id), 'card-main');
-  if (project || status.achieved) {
+  const named = project && app.p().projects.some(pr => pr.id === block.projectId);
+  if (named || status.achieved) {
     const top = el('span', 'card-top');
-    if (project) top.append(eyebrow(app, block));
+    // A Block outside any Project names no absence: its card simply starts at the title.
+    if (named) top.append(eyebrow(app, block));
     if (status.achieved) {
       const badge = el('span', 'badge success');
       badge.append(icon('emoji_events'), el('span', '', 'Achieved'));
@@ -110,38 +129,59 @@ export function blockCard(app, block, {focus = false, project = true} = {}) {
     }
     main.append(top);
   }
-  main.append(el('span', 'card-title', block.title));
-  main.append(el('span', 'card-purpose', block.purpose || 'Add the Purpose: why this Result matters'));
-  // Where it stands on one line: the deadline (error colour when tight) and tasks done; Block detail has the countdown
-  // and the Musts' time. This week's pick is a small tonal mark right after it, so the title keeps the card's width.
-  const due = deadline(app.data(), block, status);
   const count = status.total ? `${status.done} of ${plural(status.total, 'task')} done` : 'No tasks in the Plan yet';
-  const week = focus && !status.achieved;
+  // The title and Purpose take the card's full width; where it stands is one line under them: the deadline (with the
+  // hours left inside the last day, error colour when tight) or This week, and tasks done as a ring and "2/7" at its end.
+  main.append(el('span', 'card-title', block.title));
+  const purpose = el('span', 'card-purpose', block.purpose || 'Add the Purpose: why this Result matters');
+  // A wide card cuts a long Purpose after two lines; pointing at it shows the whole of it.
+  if (block.purpose) purpose.title = block.purpose;
+  main.append(purpose);
+  const due = deadline(app.data(), block, status);
+  const week = weekMark(focus, status, due);
   const line = el('span', 'card-facts tnum');
-  const when = due && el('b', 'card-due', due.label);
-  when?.classList.toggle('tight', due.tight);
-  const facts = el('span', 'card-stand');
-  appendFacts(facts, [when, el('span', '', status.total ? `${status.done} of ${status.total} done` : count)].filter(Boolean));
-  line.append(facts);
-  if (week) line.append(el('span', 'week-mark', 'This week'));
-  main.append(line);
+  const when = el('span', 'card-when');
+  if (due) when.append(el('span', 'card-due' + (due.tight ? ' tight' : ''), due.text));
+  // An open task past its time makes the Block urgent even when the Result is days away; an overdue Result says it already.
+  const late = due?.overdue ? 0 : blockTasks(app.data(), block.id).filter(task => isOverdue(task)).length;
+  const lateText = late ? `${plural(late, 'task')} overdue` : '';
+  if (late) when.append(...(due ? [' · '] : []), el('span', 'card-late', lateText));
+  if (week) when.append(el('span', 'week-mark', due || late ? ' · This week' : 'This week'));
+  line.append(when);
+  if (status.total) line.append(taskTally(status, count));
+  if (line.textContent) main.append(line);
   main.setAttribute('aria-label', `Result: ${block.title}. ${due ? due.text + '. ' : ''}`
-    + `${count}. ${week ? 'This week. ' : ''}Open Block`);
+    + `${count}. ${late ? lateText + '. ' : ''}${week ? 'This week. ' : ''}Open Block`);
   card.append(main);
   const next = blockTasks(app.data(), block.id).find(task => !task.done);
-  if (next) {
-    const row = el('div', 'next-task');
-    const check = button('', () => toggleDone(app, next), 'task-check');
-    check.setAttribute('role', 'checkbox');
-    check.setAttribute('aria-checked', 'false');
-    check.setAttribute('aria-label', `Mark ${next.title} complete`);
-    check.append(el('span', 'check-ring'));
-    const open = button('', () => app.actions.openTask(next.id), 'next-title');
-    open.append(el('span', 'overline', 'Next'), el('span', '', next.title));
-    row.append(check, open);
-    card.append(row);
-  }
+  if (next) card.append(nextTaskRow(app, next));
+  else if (!status.total) card.append(firstTaskRow(app, block));
   return card;
+}
+
+/** An empty Plan ends its card in an action, in the Next row's place: quick add, already filed in this Block. */
+function firstTaskRow(app, block) {
+  const row = el('div', 'next-task first-task');
+  const add = button('', () => app.actions.addTask({blockId: block.id}), 'next-title');
+  add.append(icon('add'), el('span', 'next-words', 'Add the first task'));
+  add.setAttribute('aria-label', `Add the first task to ${block.title}`);
+  row.append(add);
+  return row;
+}
+
+/** "Next" and the task on one line, with its 16dp check: the same row on Block cards and a Project's Block rows. */
+export function nextTaskRow(app, next) {
+  const row = el('div', 'next-task');
+  const check = button('', () => toggleDone(app, next), 'task-check');
+  check.setAttribute('role', 'checkbox');
+  check.setAttribute('aria-checked', 'false');
+  check.setAttribute('aria-label', `Mark ${next.title} complete`);
+  check.append(el('span', 'check-ring'));
+  const open = button('', () => app.actions.openTask(next.id), 'next-title');
+  open.append(el('span', 'overline', 'Next'), el('span', 'next-words', next.title));
+  open.title = next.title;
+  row.append(check, open);
+  return row;
 }
 
 function filterChip(app, label, value, options, onSelect) {
@@ -225,14 +265,15 @@ function achievedSheet(app, block) {
       {label: 'Result achieved'}).catch(() => {}), 'filled-btn'));
 }
 
-/** The verdict is the user's own call, apart from the tick count: one row that asks for it; once marked, the green
- * achieved panel. */
+/** The verdict is the user's own call, apart from the tick count: one quiet row under the add field that asks for it,
+ * at the add row's weight; once marked, the green achieved panel under the Result. */
 function achievedControl(app, block, status) {
   if (!status.achieved) {
-    const {row, copy} = factRow('emoji_events', {cls: 'verdict-row', onClick: () => achievedSheet(app, block)});
-    copy.append(el('span', 'list-headline', 'Mark Result achieved'));
-    row.__closure = stampOf('blocks', block);
-    return row;
+    const verdict = button('', () => achievedSheet(app, block), 'verdict-row');
+    verdict.append(icon('emoji_events'), el('span', '', 'Mark Result achieved'));
+    verdict.dataset.key = 'verdict';
+    verdict.__closure = stampOf('blocks', block);
+    return verdict;
   }
   const panel = el('section', 'achieved-panel');
   panel.setAttribute('aria-label', 'Result achieved');
@@ -260,8 +301,9 @@ function statusRow(status, due) {
   row.classList.toggle('tight', !!due?.tight);
   const must = mustLeft(status);
   const left = !must && status.plannedMinutes ? el('span', 'nowrap', duration(status.plannedMinutes) + ' left') : null;
-  const parts = [due ? el('span', 'nowrap', status.total ? `${status.done} of ${status.total} done` : label) : null,
-    must, left].filter(Boolean);
+  // The ring shows the share done; the words keep the count, so the page always says how many tasks are left.
+  const count = due ? el('span', 'nowrap', status.total ? `${status.done} of ${status.total} done` : label) : null;
+  const parts = [count, must, left].filter(Boolean);
   copy.append(el('span', 'list-headline due-when tnum', due ? due.text : label));
   // Always two lines, so the first task added changes the words, never the height (nothing below jumps).
   if (!parts.length) {
@@ -315,49 +357,58 @@ function refreshPlanHeader(app, block, header) {
   }
 }
 
-/** The Area · Project line: one tap opens the Projects as a menu that moves the Block in one more tap. */
-function projectLine(app, block, project) {
+/**
+ * The Area · Project line in the detail bar, beside Back: one tap opens the Projects as a menu that moves the Block in
+ * one more tap. The bar keeps identical markup across saves, so the menu reads the Block and its Project when tapped.
+ */
+export function blockCrumb(app, blockId) {
+  const now = () => {
+    const block = app.p().blocks.find(b => b.id === blockId);
+    return {block, project: block && app.p().projects.find(pr => pr.id === block.projectId)};
+  };
+  const {block, project} = now();
+  if (!block) return null;
   const crumb = button('', null, 'crumb crumb-link project-picker');
   crumb.append(eyebrow(app, block), icon('arrow_drop_down', {cls: 'crumb-drop'}));
   crumb.setAttribute('aria-haspopup', 'menu');
   crumb.setAttribute('aria-label', `Project: ${project?.title ?? 'No project'}. Change Project`);
   crumb.addEventListener('click', () => {
+    const {block: current, project: home} = now();
+    if (!current) return;
     const move = (projectId, name) => () => {
-      if ((block.projectId ?? null) === projectId) return;
-      saveEntity(app, 'blocks', block, {projectId}, projectId ? `Moved to ${name}` : 'Moved out of its Project')
+      if ((current.projectId ?? null) === projectId) return;
+      saveEntity(app, 'blocks', current, {projectId}, projectId ? `Moved to ${name}` : 'Moved out of its Project')
         .catch(() => {});
     };
     const items = [];
-    if (project) items.push({label: 'Open ' + project.title, icon: 'folder_open', onClick: () => app.openProject(project.id)},
+    if (home) items.push({label: 'Open ' + home.title, icon: 'folder_open', onClick: () => app.openProject(home.id)},
       {divider: true});
     for (const pr of app.p().projects) {
-      items.push({label: pr.title, icon: pr.id === block.projectId ? 'check' : NO_ICON, onClick: move(pr.id, pr.title)});
+      items.push({label: pr.title, icon: pr.id === current.projectId ? 'check' : NO_ICON, onClick: move(pr.id, pr.title)});
     }
-    items.push({label: 'No project', icon: block.projectId ? NO_ICON : 'check', onClick: move(null)});
+    items.push({label: 'No project', icon: current.projectId ? NO_ICON : 'check', onClick: move(null)});
     openMenu(crumb, items, 'Project');
   });
-  crumb.__closure = stampOf('blocks', block) + JSON.stringify(project ?? null);
   return crumb;
 }
 
 export function renderBlockDetail(app, page, block) {
-  const project = app.p().projects.find(pr => pr.id === block.projectId);
   const status = resultStatus(app.data(), block.id);
   const rows = blockTasks(app.data(), block.id);
   const open = rows.filter(t => !t.done);
-  const head = el('div', 'detail-head');
-  head.append(projectLine(app, block, project));
-  page.append(head);
+  // The Area · Project line sits in the bar (blockCrumb), so the page opens on the Result itself.
   page.append(titleField(app, 'blocks', block, 'Result'));
-  // As on its card: the Result, its Purpose, then where it stands, then your verdict, then the Plan.
+  // As on its card: the Result, its Purpose, then where it stands, then the Plan and the verdict under it.
   const facts = el('div', 'block-facts');
   facts.dataset.tone = app.tone(app.blockArea(block));
   // The heart marks the Purpose, so its row needs no label; a tap on the row edits it.
   facts.append(purposePanel(app, 'blocks', block, 'Purpose', {labelled: false}));
   const notes = notesPanel(app, 'blocks', block);
   if (notes) facts.append(notes);
+  // On wide the facts card sits beside the Plan, so the verdict ends the card rather than the page.
+  const wide = Boolean(app.api.wide?.());
   facts.append(statusRow(status, deadline(app.data(), block, status)));
-  facts.append(achievedControl(app, block, status));
+  if (status.achieved || wide) facts.append(achievedControl(app, block, status));
   page.append(facts);
 
   const header = planHeader(app, block);
@@ -369,6 +420,7 @@ export function renderBlockDetail(app, page, block) {
   for (const task of open) list.append(taskRow(app, task, {plan: true, days: true, onReorder}));
   page.append(list, blockAdd(app, block));
   completedSection(app, page, rows.filter(t => t.done), {plan: true, days: true});
+  if (!status.achieved && !wide) page.append(achievedControl(app, block, status));
   finishDetail(app, page);
 }
 

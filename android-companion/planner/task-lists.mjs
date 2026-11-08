@@ -1,10 +1,17 @@
-import {tasks, blockTasks, inboxRows} from '../planner-state.mjs';
-import {el, icon, button, labelButton, emptyState} from './dom.mjs';
+import {tasks, blockTasks, inboxRows, localDay} from '../planner-state.mjs';
+import {el, icon, button, labelButton, sectionHeader, emptyState} from './dom.mjs';
+import {repeats} from '../planner-recurrence.mjs';
 import {duration} from './format.mjs';
 import {animateRerender, reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
 import {openSheet, isSheetOpen} from './sheet.mjs';
 import {taskRow} from './task-row.mjs';
 import {taskEditor} from './quick-add.mjs';
+import {INBOX_LEFT} from './row-gestures.mjs';
+import {peekSwipe} from '../task-swipe.mjs';
+
+const PEEKED = 'rpm.inbox.peeked';
+const peeked = () => { try { return localStorage.getItem(PEEKED) === '1'; } catch { return true; } };
+const notePeeked = () => { try { localStorage.setItem(PEEKED, '1'); } catch {} };
 
 export function showTrash(app, archive = false) {
   const {body} = openSheet(app, archive ? 'Archive' : 'Trash');
@@ -39,12 +46,13 @@ export function inboxShowing(app) {
 
 /** Inbox: open tasks that are not in a Block yet. Rows swipe as everywhere; a save updates the rows in place. */
 export function showInbox(app, {motion = 'forward'} = {}) {
-  const {body, actions, header} = openSheet(app, 'Inbox', {motion});
+  const {body, actions, header, sheet} = openSheet(app, 'Inbox', {motion});
+  sheet.classList.add('sheet-inbox');
   app.sheet.inboxBody = body;
-  // The title counts what is left to sort; Sort with Jev is a labelled chip beside Close, the sheet's lead action.
+  // One count everywhere (phone, website pane, rail): every task in the Inbox, today's too, even where they fold into a link.
   const count = el('span', 'sheet-count');
   header.querySelector('h2').append(count);
-  const jev = labelButton('auto_awesome', 'Sort with Jev', () => app.actions.jevSort(), 'assist-chip inbox-jev');
+  const jev = labelButton('auto_awesome', 'Sort with Jev', () => app.actions.jevSort(), 'text-btn inbox-jev');
   header.querySelector('.sheet-close').before(jev);
   // Fills a host with the rows: the body itself at first, then a detached copy that animateRerender reconciles in by
   // key (it needs the new content returned as an element, so unchanged rows stay and the changed ones move).
@@ -58,17 +66,57 @@ export function showInbox(app, {motion = 'forward'} = {}) {
         body: 'New captures land here until you give them a Block.'}));
     }
     const back = app.sheet.returned;
-    for (const task of rows) {
-      const row = taskRow(app, task, {inbox: true});
+    // What still needs a decision comes first; tasks that already have a day, time or repeat wait under Scheduled.
+    // Today's are said once, in their header, so their rows drop the word.
+    const scheduled = task => !!(task.planned || task.plannedDate || repeats(task));
+    const dueToday = task => (task.planned ? localDay(new Date(task.planned)) : task.plannedDate) === localDay();
+    const open = rows.filter(task => !scheduled(task));
+    const when = task => (task.planned ? new Date(task.planned).getTime()
+      : task.plannedDate ? new Date(task.plannedDate + 'T23:59:59').getTime() : Infinity);
+    const byWhen = (a, b) => when(a) - when(b);
+    const today = rows.filter(task => scheduled(task) && dueToday(task)).sort(byWhen);
+    const later = rows.filter(task => scheduled(task) && !dueToday(task)).sort(byWhen);
+    // Today's untimed tasks say Anytime, as on Today, so none reads as timed under On Today.
+    const add = (task, days, group) => {
+      const row = taskRow(app, task, {inbox: true, days, anytime: group === 'inbox-today'});
+      if (group) row.classList.add(group);
       // A redraw while the returned highlight is still fading carries it on (from where it was).
       if (back?.id === task.id && host !== body) markReturned(row, back.elapsed());
       host.append(row);
+    };
+    const section = (title, key, list, days, group) => {
+      if (!list.length) return;
+      const head = sectionHeader(title);
+      head.classList.add('inbox-scheduled');
+      if (group) head.classList.add(group);
+      head.dataset.key = key;
+      host.append(head);
+      list.forEach(task => add(task, days, group));
+    };
+    open.forEach(task => add(task, false));
+    // Beside the website's Today timeline, today's tasks already show there, so the pane folds them into one link
+    // that brings them into view on the timeline.
+    if (today.length) {
+      const onToday = button(`${today.length} more on Today`, () => revealOnToday(today), 'text-btn inbox-on-today');
+      onToday.dataset.key = 'inbox-on-today';
+      host.append(onToday);
     }
+    // The heads name the page each set already sits on, the same words as the website's "N more on Today" link.
+    section('On Today', 'inbox-scheduled-today', today, false, 'inbox-today');
+    section(today.length ? 'Later' : 'Scheduled', 'inbox-scheduled', later, true);
     return host;
   };
   draw(body);
-  actions.append(labelButton('mic', 'Capture', () => app.capture(), 'text-btn'),
-    labelButton('add', 'Add task', () => taskEditor(app, null), 'tonal-btn'));
+  // Filing is the left swipe; the first row shows it once, then never again.
+  const first = body.querySelector('.task-row');
+  if (first && !peeked()) {
+    notePeeked();
+    requestAnimationFrame(() => { if (first.isConnected) peekSwipe(first, INBOX_LEFT, 'left', 168, 900); });
+  }
+  // The sheet's title already says Inbox, so the button reads only "Add"; its name keeps where the task goes.
+  const addTask = labelButton('add', 'Add', () => taskEditor(app, null), 'text-btn');
+  addTask.setAttribute('aria-label', 'Add to Inbox');
+  actions.append(labelButton('mic', 'Capture', () => app.capture(), 'text-btn'), el('span', 'spacer'), addTask);
   app.sheet.live = () => body.isConnected && isSheetOpen(app);
   app.sheet.sync = () => {
     if (!inboxShowing(app) || app.sheet.inboxBody !== body) return false;
@@ -77,6 +125,18 @@ export function showInbox(app, {motion = 'forward'} = {}) {
     return true;
   };
   app.sheet.onBack = () => false;
+}
+
+/** Scrolls today's Inbox tasks into view on the Today timeline beside the pane and tints them for a moment. */
+function revealOnToday(list) {
+  // Today keys a row 'task:<id>' plus its slot's ISO time when it has one.
+  const ids = list.map(task => 'task:' + task.id);
+  const onToday = key => ids.some(id => key === id || (key.startsWith(id) && /^\d{4}-/.test(key.slice(id.length))));
+  const nodes = [...document.querySelectorAll('#planner [data-key^="task:"]')].filter(node => onToday(node.dataset.key));
+  if (!nodes.length) return;
+  nodes[0].scrollIntoView({block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth'});
+  nodes.forEach(node => node.classList.add('inbox-found'));
+  setTimeout(() => nodes.forEach(node => node.classList.remove('inbox-found')), RETURN_HOLD + 2 * RETURN_FADE);
 }
 
 export const RETURN_HOLD = DURATION.short3;

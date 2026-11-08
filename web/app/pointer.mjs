@@ -24,7 +24,7 @@ export function mountRowTools(root = document) {
     if (!next || (next === row && tools.parentNode === next)) return;
     row = next;
     tools.setAttribute('aria-label', next.rowTitle);
-    tools.replaceChildren(...TOOLS.map(id => {
+    tools.replaceChildren(...(next.rowTools ?? TOOLS).map(id => {
       const action = next.rowActions.find(item => item.id === id);
       return iconButton(action.icon, action.label, event => {
         event.stopPropagation();

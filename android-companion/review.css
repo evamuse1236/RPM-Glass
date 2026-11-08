@@ -3,7 +3,15 @@
 #planner .screen-review .page{padding-bottom:0}
 /* The snackbar clears the pinned footer, whose height changes with its hint line (set by weekly-review.mjs). */
 #planner[data-view=review] ~ #snackbar{bottom:calc(var(--wr-foot,72px) + var(--s2))}
-#planner[data-view=review][data-snackbar=true] .wr-body{padding-block-end:calc(var(--snackbar-h,48px) + var(--s8))}
+/* On the website's wide layout the footer follows the content, so the snackbar docks in the footer row, centred on
+   the Next it answers to and left of it, instead of floating over the page. */
+@media (width >= 1080px){
+  #planner-view #planner[data-view=review] ~ #snackbar#snackbar#snackbar{inset-block-end:calc(var(--wr-next-mid,36px) - var(--snackbar-h,48px) / 2);inset-inline:auto calc(var(--wr-next-start,var(--s4)) + var(--s4));margin-inline:0}
+}
+/* While the snackbar floats over the footer, the body ends 8px above it, so no row sits half under it; the body's end fade shows what continues. */
+@media (width < 1080px){
+  #planner[data-view=review][data-snackbar=true] .wr-body{margin-block-end:calc(var(--snackbar-h,48px) + var(--s4))}
+}
 .wr{position:relative;display:flex;flex-direction:column;height:100%;min-height:0;background:var(--surface);color:var(--on-surface);font:var(--body-medium)}
 .wr h1,.wr h2,.wr h3,.wr p{margin:0}
 .wr ul{margin:0}
@@ -17,7 +25,6 @@
 /* Top app bar */
 .wr-bar{display:flex;align-items:center;gap:4px;min-height:64px;padding:0 4px}
 .wr-bar-title{flex:1;min-width:0;font:var(--title-large)}
-.wr-bar-count{font:var(--body-medium);color:var(--on-surface-variant);padding-inline:8px 16px;white-space:nowrap}
 .wr-icon-btn{flex:none;width:48px;height:48px;display:grid;place-items:center;border:0;border-radius:50%;background-color:transparent;color:var(--on-surface-variant)}
 
 /* Segmented progress: 4dp bars, 48dp tall touch areas */
@@ -31,7 +38,16 @@
 
 /* Body */
 .wr-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px 16px 24px}
-.wr-content{display:flex;flex-direction:column;gap:12px}
+/* Only while more runs on under the footer (weekly-review.mjs sets .more) does the body's end fade, so a cut row reads as
+   more to scroll; at the end the last card closes whole above the footer. */
+.wr-body.more{mask-image:linear-gradient(to bottom,#000 calc(100% - var(--s6)),transparent)}
+/* The more-below chevron: a 32px disc in a 48px target on the body's faded end; a second mask layer keeps the disc unfaded, and it takes no room (sticky stops at the body padding, hence the negative inset). */
+.wr-more{display:none}
+.wr-body.cue>.wr-more{display:grid;place-items:center;position:sticky;inset-block-end:calc(-1 * var(--s6));margin:calc(-1 * var(--touch)) auto 0;inline-size:var(--touch);block-size:var(--touch);padding:var(--s2);border:0;border-radius:50%;background:var(--secondary-container) content-box;color:var(--on-secondary-container);cursor:pointer}
+.wr-body.more.cue{mask-image:linear-gradient(to bottom,#000 calc(100% - var(--s6)),transparent),radial-gradient(circle at 50% calc(100% - var(--s6)),#000 var(--s4),transparent var(--s4))}
+.wr-body.cue>.wr-more:active{background-color:color-mix(in oklch,var(--secondary-container) 88%,var(--on-secondary-container))}
+.wr-body.cue>.wr-more:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+.wr-content{display:flex;flex-direction:column;gap:12px;container-type:inline-size}
 /* Step to step: weekly-review.mjs moves the old and new content on the shared X axis; this copy of the old content
    keeps the body's padding while it slides out. */
 .wr-ghost-body{padding:20px 16px 24px;background:var(--surface)}
@@ -49,41 +65,16 @@
 /* Step 1 tally: "1 of 4 decided · 1 win" */
 .wr-tally{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:0 4px;font:var(--label-large);color:var(--on-surface-variant)}
 
-/* Cards */
-.wr-card{background:var(--surface-container);border-radius:20px;padding:16px}
-.wr-card-title{display:block;font:var(--title-medium);overflow-wrap:anywhere;text-wrap:pretty}
-.wr-card-purpose{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font:var(--body-medium);color:var(--on-surface-variant);margin-top:2px!important;text-wrap:pretty}
-.wr-card-note{font:var(--body-small);color:var(--on-surface-variant);margin-top:12px!important}
 
-/* Step 1: a judged Result. Only the chosen segment carries colour; the Wins card is the one celebration. */
-.wr-progress-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:12px 0 12px}
-.wr-mini-bar{flex:none;width:56px;height:4px;border-radius:2px;background:var(--surface-container-highest);overflow:hidden}
-.wr-mini-bar>span{display:block;height:100%;background:var(--primary);transform-origin:left;transform:scaleX(var(--value,0))}
-.wr-progress-text{font:var(--body-small);color:var(--on-surface-variant)}
-/* Segmented buttons (M3): one decision per row. Every selected option looks the same: secondary container, a check, the label. */
-.wr-seg{display:grid;grid-auto-columns:1fr;grid-auto-flow:column;border:1px solid var(--outline);border-radius:var(--shape-full);overflow:hidden}
-.wr-seg-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:0;min-height:40px;padding:0 12px;border:0;background-color:transparent;color:var(--on-surface);font:var(--label-large)}
-.wr-seg-btn+.wr-seg-btn{border-left:1px solid var(--outline)}
-.wr-seg-btn .wr-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.wr-seg-btn .ms{font-size:20px;margin-left:-2px}
-.wr-seg-btn.sel{background-color:var(--secondary-container);color:var(--on-secondary-container)}
 
 /* A checkbox that puts a Result in this week's Results: Carry (step 1) and Pick (step 4) look and work the same */
-.wr-check,.wr-check-row{border:0;background-color:transparent;color:var(--on-surface-variant);font:inherit;text-align:left}
-.wr-check{flex:none;width:48px;height:48px;display:grid;place-items:center;border-radius:50%}
-.wr-check.on,.wr-check-row.on>.ms{color:var(--primary)}
-.wr-check-row{display:flex;align-items:center;gap:12px;width:calc(100% + 8px);min-height:48px;padding:0 8px 0 0;margin:8px 0 0 -8px;border-radius:var(--shape-full);color:var(--on-surface);font:var(--label-large)}
-.wr-check-row>.ms{flex:none;width:40px;text-align:center;color:var(--on-surface-variant)}
 
-/* Step 1: Results still running (deadline ahead), one checkbox row each */
-.wr-running>li+li{border-top:1px solid var(--outline-variant)}
-.wr .wr-run{align-items:center;width:100%;min-height:64px;margin:0;padding:8px 16px 8px 8px;border-radius:0;font:var(--body-large)}
-.wr-run-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.wr-run-title{font:var(--body-large);overflow-wrap:anywhere;text-wrap:pretty}
 /* One facts line, as the Blocks list writes it; each fact stays whole */
-.wr-facts{font:var(--body-medium);color:var(--on-surface-variant);text-wrap:pretty}
+.wr-facts{display:flex;flex-wrap:wrap;column-gap:12px;overflow:clip;font:var(--body-medium);color:var(--on-surface-variant)}
+/* Each fact's dot sits in the gap before it; a fact that starts a line has its dot clipped, so no line ends on "·". */
 .wr-facts>*{white-space:nowrap}
-.wr-due-text{font-weight:500;color:var(--on-surface)}
+.wr-facts>*::before{content:"·" / "";display:inline-block;inline-size:12px;margin-inline-start:-12px;text-align:center}
+.wr-due-text{font-weight:400;color:inherit}
 .wr-must-fact .ms{font-size:16px;vertical-align:-3px;margin-right:2px}
 
 /* Deadline chip: a Result's latest dated task. Close ones are stronger; past ones use error with words. */
@@ -100,17 +91,6 @@
 .wr-input::placeholder{color:var(--on-surface-variant);opacity:.8}
 .wr-input:focus{outline:none;border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
 
-/* Unfinished tasks with Carry / Defer / Drop */
-.wr-left{margin-top:12px;padding-top:4px;border-top:1px solid var(--outline-variant)}
-.wr-left-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:40px;padding:4px 0 0}
-.wr-left-head h4{font:var(--label-medium);color:var(--on-surface-variant)}
-.wr-left-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-height:48px;padding:4px 0}
-.wr-left-title{flex:1 1 120px;min-width:0;font:var(--body-medium);overflow-wrap:anywhere}
-.wr-left-title.dropped{color:var(--on-surface-variant);text-decoration:line-through}
-.wr-left-pick{position:relative;flex:none;margin-left:auto;display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 4px 0 12px;border:1px solid var(--outline-variant);border-radius:var(--shape-sm);background-color:transparent;color:var(--primary);font:var(--label-large)}
-.wr-left-pick.set{border-color:transparent;background-color:var(--secondary-container);color:var(--on-secondary-container)}
-.wr-left-pick .ms{font-size:20px}
-.wr-left-pick::after{content:"";position:absolute;inset:-8px 0}
 
 /* Chips (M3 filter chips: 32dp, 8dp corners, 48dp touch area) */
 .wr-chip{position:relative;flex:none;display:inline-flex;align-items:center;gap:8px;min-height:32px;max-width:240px;padding:0 12px;border:1px solid var(--outline-variant);border-radius:var(--shape-sm);background-color:transparent;color:var(--on-surface-variant);font:var(--label-large)}
@@ -119,14 +99,55 @@
 .wr-chip .wr-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wr-chip.sel{background-color:var(--secondary-container);border-color:var(--secondary-container);color:var(--on-secondary-container)}
 
-/* Wins summary */
-.wr-wins{background:var(--tertiary-container);color:var(--on-tertiary-container);border-radius:20px;padding:16px}
-.wr-wins-head{display:flex;align-items:center;gap:12px}
+/* Step 1 once decided: a win card, one compact row per other Result (tap to change), then one carry list */
+.wr-verdict-icon{flex:none;color:var(--on-surface-variant)}
+.wr-verdict-icon[data-verdict=achieved]{color:var(--tertiary)}
+.wr-verdict-icon[data-verdict=partly]{color:var(--must)}
+.wr-decided,.wr-carry{list-style:none;padding:0;background:var(--surface-container);border-radius:20px;overflow:clip}
+.wr-decided>li+li,.wr-carry>li+li{border-top:1px solid var(--outline-variant)}
+.wr .wr-decided-row{display:flex;align-items:center;gap:16px;inline-size:100%;min-block-size:56px;padding:8px 12px 8px 16px;border:0;border-radius:0;background-color:transparent;color:var(--on-surface);font:inherit;text-align:start}
+.wr-decided-row>.ms:last-child{flex:none;color:var(--on-surface-variant)}
+.wr-decided-text,.wr-carry-body{flex:1;display:flex;flex-direction:column;gap:2px;min-inline-size:0}
+.wr-decided-title,.wr-carry-title{font:var(--body-large);overflow-wrap:anywhere;text-wrap:pretty}
+/* Step 1 while judging: what comes after this card and what is still running, read-only under the deck */
+.wr-split,.wr-split-main,.wr-split-side{display:flex;flex-direction:column;gap:12px;min-inline-size:0}
+.wr-queue{list-style:none;padding:0;background:var(--surface-container);border-radius:20px;overflow:clip}
+.wr-queue>li+li{border-top:1px solid var(--outline-variant)}
+.wr-queue-row{display:flex;align-items:center;gap:16px;min-block-size:56px;padding:8px 16px;color:var(--on-surface)}
+.wr-queue-row .ring{color:var(--on-surface-variant)}
+.wr-queue-row .wr-decided-title{font:var(--body-medium)}
+@container (inline-size >= 840px){
+  .wr-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;column-gap:24px}
+  .wr-split-side{position:sticky;inset-block-start:0}
+  /* The side's first heading sits on the main column's first line (the tally), not 8px lower. */
+  .wr-split-side>.wr-section-row:first-child{min-block-size:0;padding-block-start:0;margin-block-end:0}
+  .wr-split-side>.wr-section-row:first-child .wr-btn-text{margin-block:calc(var(--s2) * -1)}
+}
+.wr-wins{background:var(--tertiary-container);color:var(--on-tertiary-container);border-radius:20px;padding:16px 16px 8px}
+.wr-wins-head{display:flex;align-items:center;gap:16px;min-block-size:40px}
 .wr-wins-head h3{font:var(--title-medium)}
-.wr-wins-list{list-style:none;padding:8px 0 0}
-.wr-wins-list li{display:flex;align-items:flex-start;gap:12px;padding:4px 0;font:var(--body-medium)}
-.wr-wins-list .ms{font-size:20px;margin-top:1px}
-.wr-wins-note{font:var(--body-small);margin-top:8px!important}
+.wr-wins-list{list-style:none;padding:0}
+.wr-wins-list>li{padding-block-end:8px}
+.wr .wr-wins .wr-decided-row{padding-inline:0;color:var(--on-tertiary-container)}
+.wr-wins .wr-decided-title{text-wrap:wrap}
+.wr-wins .wr-verdict-icon[data-verdict=achieved]{color:var(--on-tertiary-container)}
+.wr-wins .wr-facts,.wr-wins .wr-decided-row>.ms:last-child{color:color-mix(in oklch,var(--on-tertiary-container) 72%,transparent)}
+.wr-evidence{display:block;inline-size:calc(100% - 40px);min-block-size:40px;margin-inline-start:40px;padding:8px 12px;border:0;border-radius:var(--shape-md);background:color-mix(in oklch,var(--on-tertiary-container) 8%,transparent);font:var(--body-medium);color:var(--on-tertiary-container)}
+.wr-evidence::placeholder{color:color-mix(in oklch,var(--on-tertiary-container) 64%,transparent)}
+.wr-evidence:focus-visible{outline:2px solid var(--tertiary);outline-offset:0}
+.wr-carry-item{display:flex;align-items:center;gap:4px;padding-inline-end:8px}
+.wr .wr-carry-body{align-self:stretch;justify-content:center;min-block-size:56px;padding:8px 8px 8px 16px;border:0;border-radius:0;background-color:transparent;color:var(--on-surface);font:inherit;text-align:start}
+/* A group head is its own short row with the divider under it; on one column it is left out when it repeats the
+   Partly or Not yet row directly above the card. */
+.wr-carry-head{padding:12px 16px 8px;font:var(--label-medium);color:var(--on-surface-variant);overflow-wrap:anywhere}
+@container (inline-size < 840px){
+  .wr-carry>.wr-carry-head.echo{display:none}
+  .wr-carry>.wr-carry-head.echo+li{border-top:0}
+}
+.wr-carry-title.dropped{color:var(--on-surface-variant);text-decoration:line-through}
+.wr .wr-carry-btn{position:relative;flex:none;inline-size:40px;block-size:40px;display:grid;place-items:center;border:0;border-radius:var(--shape-full);background-color:transparent;color:var(--on-surface-variant)}
+.wr .wr-carry-btn.on{background-color:var(--secondary-container);color:var(--on-secondary-container)}
+.wr-carry-btn::after{content:"";position:absolute;inset:-4px}
 
 /* Step 2: inline quick add and the Inbox list */
 .wr-add{display:flex;align-items:center;gap:4px;min-height:56px;padding:0 4px 0 16px;border-radius:var(--shape-full);background:var(--surface-container-high);color:var(--on-surface-variant)}
@@ -135,9 +156,11 @@
 .wr-add-input:focus{outline:none}
 .wr-add-input::placeholder{color:var(--on-surface-variant)}
 .wr .wr-add-send{background-color:var(--primary);color:var(--on-primary);width:40px;height:40px;margin:4px}
-.wr .wr-add-send:disabled{background-color:transparent;color:var(--on-surface-variant);opacity:.6}
-.wr-lenses{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0 4px;margin-top:-4px}
-.wr-lens-lead{font:var(--label-large);color:var(--on-surface-variant);padding-inline-end:4px}
+.wr .wr-add-send[hidden],.wr .wr-add-capture[hidden]{display:none}
+.wr .wr-add-capture{width:48px;height:48px;color:var(--on-surface-variant)}
+.wr-lenses{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:8px}
+.wr-lens-lead{display:flex;align-items:center;min-block-size:32px;white-space:nowrap;font:var(--label-large);color:var(--on-surface-variant);padding-inline:4px}
+.wr-lens-chips{display:flex;flex-wrap:wrap;gap:8px;min-inline-size:0}
 .wr-lens .area-dot{width:8px;height:8px}
 .wr .wr-lens{border-radius:var(--shape-full);background-color:var(--surface-container-low);border-color:var(--outline-variant);color:var(--on-surface)}
 .wr-list{list-style:none;margin:0;padding:4px 0;background:var(--surface-container);border-radius:20px}
@@ -147,27 +170,42 @@
 .wr-list-item:first-child .wr-list-text{border-radius:20px 20px 0 0}
 .wr-list-item:last-child .wr-list-text{border-radius:0 0 20px 20px}
 .wr-list-item:only-child .wr-list-text{border-radius:20px}
-.wr-hint{font:var(--body-small)}
+.wr-list-more{border-top:1px solid var(--outline-variant)}
+.wr .wr-list-more .wr-idle-toggle{inline-size:100%;border-radius:0 0 20px 20px}
 .wr-list-title{min-width:0;overflow-wrap:anywhere;text-wrap:pretty}
 .wr-nowrap{white-space:nowrap}
 .wr-list-meta{display:flex;flex-wrap:wrap;gap:4px 12px;font:var(--body-small);color:var(--on-surface-variant)}
-.wr-list-meta .soon{color:var(--on-surface);font-weight:600}
 .wr-must-tag{display:inline-flex;align-items:center;gap:2px;color:var(--on-surface-variant)}
 .wr-must-tag .ms{font-size:16px;color:var(--must)}
 .wr-clash-tag{display:inline-flex;align-items:center;gap:4px;color:var(--error)}
 .wr-clash-tag .ms{font-size:16px}
 
-/* Step 3: one row per Inbox task, one control: its words, the proposed Result under them, the chooser on tap */
+/* Step 3: one row per Inbox task, one button: its words, the suggested Result under them, the chooser on tap.
+   A swipe right takes the suggestion, left keeps the task in the Inbox. A clash keeps its own marker. */
+.wr-sort-list{overflow:clip}
+.wr-sort{position:relative;background-color:var(--surface-container)}
 .wr-sort+.wr-sort{border-top:1px solid var(--outline-variant)}
-.wr .wr-sort-row{display:flex;align-items:center;gap:8px;inline-size:100%;min-block-size:56px;padding:8px 12px 8px 16px;border:0;border-radius:0;background-color:transparent;color:var(--on-surface);font:inherit;text-align:start}
+.wr .wr-sort-row{display:flex;inline-size:100%;align-items:center;gap:8px;min-inline-size:0;min-block-size:56px;padding:8px 12px 8px 16px;border:0;border-radius:0;background-color:transparent;color:var(--on-surface);font:inherit;text-align:start}
 .wr-sort:first-child .wr-sort-row{border-start-start-radius:20px;border-start-end-radius:20px}
 .wr-sort:last-child .wr-sort-row{border-end-start-radius:20px;border-end-end-radius:20px}
 .wr-sort-row>.ms{flex:none;color:var(--on-surface-variant)}
-.wr-sort-text{flex:1;display:flex;flex-direction:column;gap:4px;min-inline-size:0}
-.wr-sort-proposal{display:flex;align-items:center;gap:4px;min-inline-size:0;font:var(--body-medium);color:var(--primary)}
-.wr-sort-proposal .ms{flex:none;font-size:16px}
-.wr-sort-label{min-inline-size:0;overflow:clip;text-overflow:ellipsis;white-space:nowrap}
-.wr-leave .wr-sort-proposal{color:var(--on-surface-variant)}
+/* A suggested row stays one button: title and chevron on the first line, then the Result in quiet text beside the
+   Block icon, wrapping rather than cut. Taking it is the swipe right; a tap opens the chooser with it marked. */
+/* The take button fills the chevron's slot: its icon centre sits 24px from the card edge like the chevrons, and the
+   text ends where a chevron row's text ends. Titles wrap plainly so a line breaks only when it is full. */
+.wr-sort.suggested{display:flex;align-items:center;padding-inline-end:4px}
+.wr .wr-sort-row.suggested{flex:1;display:grid;grid-template-columns:minmax(0,1fr);align-items:start;row-gap:4px;padding-block:12px;padding-inline-end:0}
+.wr-sort .wr-row-title,.wr-sort .wr-sort-hint-title{text-wrap:wrap}
+.wr .wr-sort-take{position:relative;flex:none;inline-size:40px;block-size:40px;display:grid;place-items:center;padding:0;border:0;border-radius:var(--shape-full);background-color:transparent;color:var(--primary)}
+.wr-sort-take::after{content:"";position:absolute;inset:-4px}
+.wr .wr-sort-take:active{background-color:color-mix(in oklch,var(--primary) 12%,transparent)}
+.wr-sort-hint{display:flex;gap:8px;min-inline-size:0;font:var(--body-medium);color:var(--on-surface-variant)}
+.wr-sort-hint>.ms{flex:none;font-size:20px;line-height:20px;color:var(--on-surface-variant)}
+.wr-sort-hint-title{min-inline-size:0;text-wrap:pretty}
+/* The first suggested row slides once to show its swipe, then settles */
+@media (prefers-reduced-motion:no-preference){
+  .wr .swipe-peek>:not(.swipe-reveal),.wr .swipe-peek::before{transition:transform var(--dur-medium4) var(--ease-emphasized)}
+}
 .wr-row-title{flex:1;min-width:0;overflow-wrap:anywhere;font:var(--body-large);text-wrap:pretty}
 .wr-row{display:flex;align-items:center;gap:4px;min-height:48px;padding:0 4px}
 .wr-row.sub{padding-left:20px;min-height:44px}

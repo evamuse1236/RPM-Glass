@@ -1,14 +1,7 @@
 /* Weekly review step 1: the deck of last week's Results (review-deck.mjs). */
 .wr-body { overflow-x: hidden; }
-.wr-deck { display: grid; margin-block-end: var(--s6); }
+.wr-deck { display: grid; margin-block-end: var(--s1); }
 .wr-deck > * { grid-area: 1 / 1; }
-.wr-deck-layer {
-  border-radius: 28px;
-  background: var(--surface-container);
-  transform-origin: 50% 100%;
-}
-.wr-deck-layer[data-depth="1"] { translate: 0 8px; scale: .95; }
-.wr-deck-layer[data-depth="2"] { translate: 0 16px; scale: .9; opacity: .6; }
 .wr-deck-card {
   position: relative;
   display: flex;
@@ -21,8 +14,8 @@
   user-select: none;
   overflow: clip;
 }
-.wr-deck-count { font: var(--label-medium); color: color-mix(in oklch, var(--tone) 70%, var(--on-surface)); }
-.wr-deck-title { font: var(--headline-small); overflow-wrap: break-word; text-wrap: pretty; }
+.wr-deck-area { font: var(--label-medium); color: color-mix(in oklch, var(--tone) 70%, var(--on-surface)); }
+.wr-deck-title { font: var(--headline-small); overflow-wrap: break-word; }
 .wr-deck-purpose { font: var(--body-medium); color: var(--on-surface-variant); text-wrap: pretty; }
 .wr-deck-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); padding-block-start: var(--s2); }
 .wr-deck-done { font: var(--body-medium); color: var(--on-surface-variant); }
@@ -43,18 +36,22 @@
 .wr-deck-stamp[data-verdict=notyet] { inset-inline-end: var(--s4); color: var(--on-surface-variant); }
 .wr-deck-verdicts { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); }
 .wr-deck-verdict {
-  display: grid;
-  justify-items: center;
-  align-content: center;
-  gap: var(--s1);
-  min-block-size: 64px;
-  padding: var(--s2);
-  border-radius: 20px;
-  background: var(--surface-container);
-  color: var(--on-surface);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  min-block-size: 40px;
+  padding-inline: var(--s3) var(--s4);
+  border: 0;
+  border-radius: var(--shape-full);
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
   font: var(--label-large);
 }
-.wr-deck-verdict:active { background: var(--surface-container-highest); }
+.wr-deck-verdict .ms { font-size: 20px; }
+.wr-deck-verdict::after { content: ""; position: absolute; inset: calc(-1 * var(--s1)) 0; }
+.wr-deck-verdict:active { background: color-mix(in oklch, var(--secondary-container), var(--on-secondary-container) 12%); }
 .wr-deck-verdict[data-verdict=achieved] .ms, .wr-tally-count[data-verdict=achieved] .ms { color: var(--tertiary); }
 .wr-deck-verdict[data-verdict=partly] .ms, .wr-tally-count[data-verdict=partly] .ms { color: var(--must); }
 .wr-tally-count { display: inline-flex; align-items: center; gap: var(--s1); color: var(--on-surface); }

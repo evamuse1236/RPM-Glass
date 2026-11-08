@@ -58,6 +58,8 @@
   --float-surface:var(--surface-container);
   --glass-blur:16px;--glass-saturate:1.14;--glass-border:oklch(0% none none / 8%);
   --track-mix:22%;
+  --nest-track-mix:44%;
+  --nest-track-base:var(--surface-container-highest);
   /* sheets: the page tone in light; in dark one step up (the tab bar's tone), so a sheet has an edge over the scrim */
   --sheet-surface:var(--surface-container-low);--sheet-raised:var(--surface-container-high);--sheet-card:var(--surface-container);
   --float-shadow:0 2px 8px oklch(0% none none / 8%);
@@ -117,6 +119,8 @@
   --float-border:#444746;--float-surface:#282a2c;--float-shadow:none;--sheet-surface:#282a2c;--sheet-raised:#333537;--sheet-card:#333537;
   --glass-blur:16px;--glass-saturate:1.08;--glass-border:oklch(100% none none / 8%);
   --track-mix:34%;
+  --nest-track-mix:0%;
+  --nest-track-base:color-mix(in oklch, var(--outline) 50%, var(--outline-variant));
 }}
 :root[data-appearance=dark]{
   color-scheme:dark;
@@ -135,6 +139,8 @@
   --float-border:#444746;--float-surface:#282a2c;--float-shadow:none;--sheet-surface:#282a2c;--sheet-raised:#333537;--sheet-card:#333537;
   --glass-blur:16px;--glass-saturate:1.08;--glass-border:oklch(100% none none / 8%);
   --track-mix:34%;
+  --nest-track-mix:0%;
+  --nest-track-base:color-mix(in oklch, var(--outline) 50%, var(--outline-variant));
 }
 
 /* Base */

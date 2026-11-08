@@ -1,6 +1,9 @@
 @media (width >= 1080px) {
   #sheet[data-inline] .sheet-header:has(> h2:not(.visually-hidden)) { min-block-size: 64px; }
-  #sheet[data-inline][aria-label=Inbox] .sheet-actions { display: none; }
+  #sheet[data-inline].sheet-inbox > .sheet-header { padding-block-start: 0; }
+  #sheet[data-inline].sheet-inbox .task-row { min-block-size: 48px; }
+  #sheet[data-inline].sheet-inbox .task-main { padding-block: var(--s3); }
+  #sheet[data-inline].sheet-inbox .task-check { margin-block-start: var(--s1); }
   #sheet[data-inline].sheet-quick .sheet-header { display: flex; }
   #sheet[data-inline].sheet-quick .sheet-body { flex: 0 1 auto; padding-block-start: 0; }
   #sheet[data-inline] .quick-row.block-chips { flex-wrap: wrap; row-gap: var(--s2); }
@@ -104,31 +107,213 @@
   #planner .life-area-end:active { background: var(--row-press); }
   #planner .life-area-group > .list-item.nested { gap: var(--s4); padding-block: var(--s2); padding-inline-start: calc(var(--gutter) + var(--s8) + var(--s2) + var(--s4)); }
 
-  .planner-view #planner[data-view=projects] .page > .project-card {
-    grid-column: 1 / -1;
+  /* On wide the Projects page is one table: each Project card is a head row (its words, its first deadline, "8/18" by
+     the one Project ring) over its Blocks as rows (name, next task, deadline, tasks done). Every card and row is a
+     subgrid of the page, so each column is as wide as its longest entry, the next task takes the rest, 24px apart, and
+     the columns line up from card to card. The table stops at 960px, so a deadline stays within reach of its task. */
+  .planner-view #planner[data-view=projects]:not([data-detail=true]) .page {
+    grid-template-columns: minmax(0, max-content) minmax(0, 1fr) max-content max-content;
+    column-gap: var(--s6);
+    max-inline-size: 960px;
+  }
+  #planner[data-view=projects]:not([data-detail=true]) .page > .project-card { grid-column: 1 / -1; }
+  #planner[data-view=projects]:not([data-detail=true]) :is(.page > .project-card, .project-head, .project-toggle, .project-blocks) {
     display: grid;
-    grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
-    align-items: start;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    column-gap: var(--s6);
   }
-  #planner[data-view=projects] .project-card .project-toggle { border-radius: var(--card-radius); }
-  #planner[data-view=projects] .project-blocks {
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
-    gap: var(--s2);
-    padding: var(--s3);
+  #planner[data-view=projects] .project-card .project-toggle { align-items: center; padding-inline-end: var(--s4); border-radius: var(--card-radius); }
+  #planner[data-view=projects] .project-toggle > .project-copy { grid-column: 1 / 3; }
+  #planner[data-view=projects] .project-toggle > .project-due { grid-column: 3; justify-self: end; font: var(--body-medium); color: var(--on-surface-variant); }
+  #planner[data-view=projects] .project-toggle > .project-due.tight { color: var(--error); }
+  #planner[data-view=projects] .project-tally { grid-column: 4; justify-self: end; display: inline-flex; align-items: center; gap: var(--s2); font: var(--label-large); }
+  /* The Project's ring is 40px on wide: one step above its Blocks' rings, not a badge that outweighs the title. */
+  #planner[data-view=projects]:not([data-detail=true]) .project-tally .nest-rings { inline-size: 40px; block-size: 40px; margin-block: 0; }
+  #planner[data-view=projects] .project-blocks { padding-block: var(--s1); }
+  /* A Block is a plain 40px row on its Project's card, no second fill inside the first; its words stay on the card's 16dp
+     edge and its state layer reaches past them when pointed at. */
+  #planner[data-view=projects] .project-block { margin-inline: calc(-1 * var(--s3)); padding-inline: var(--s3); border-radius: var(--r-control); background: none; }
+  #planner[data-view=projects] .project-block {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    align-items: center;
+    min-block-size: 40px;
+    padding-block: 0;
+    column-gap: var(--s6);
   }
-  #planner[data-view=projects] .project-blocks > p { grid-column: 1 / -1; align-self: center; }
-  #planner[data-view=projects] .project-blocks { margin: 0; border: 0; }
-  #planner[data-view=projects] .project-block { padding-inline: var(--s3); border-radius: var(--r-control); background: var(--surface); }
-  #planner .project-block-copy { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); min-inline-size: 0; }
-  #planner .project-block:not(:has(.seg-ring)) { padding-inline-start: calc(var(--s8) + var(--s5)); }
-  #planner .project-block-count { flex: none; inline-size: 40px; text-align: end; }
+  @media (hover: hover) and (pointer: fine) {
+    #planner[data-view=projects] .project-block:hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
+  }
+  #planner .project-block-copy { display: contents; }
+  /* A subgrid's own gap replaces the page's, so each row restates the 24px. The Block's name stops at 320px with an
+     ellipsis, the next task takes the free width, and each deadline sits against its ring. */
+  #planner .project-block-name { grid-column: 1; display: block; max-inline-size: 320px; }
+  #planner .project-block-next { grid-column: 2; }
+  #planner .project-block-due { grid-column: 3; justify-self: end; font: var(--body-medium); color: var(--on-surface-variant); }
+  #planner .project-block-due.tight { color: var(--error); }
+  #planner .project-block > .card-tally { grid-column: 4; justify-self: end; }
+  /* New Project ends the Area filter's row, in view at the top of the page: centred on the chip's line, its words end
+     where the cards' rings do. */
+  #planner[data-view=projects] .filters > .project-add { align-self: center; margin: 0 calc(-1 * var(--s4)) 0 auto; }
   #planner :is(.project-block-name, .project-block-next) { overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
-  #planner .project-block-next { font: var(--body-small); color: var(--on-surface-variant); }
+  #planner .project-block-next { font: var(--body-medium); color: var(--on-surface-variant); }
+  /* Project detail keeps the phone's one filled group of Block rows in its list column, so every row's deadline, ring
+     and Next task sit on the same lines. */
+  #planner[data-view=projects] .block-lines { min-inline-size: 0; }
   #planner .list-item.nested { padding-inline-start: calc(var(--s8) + var(--s6)); }
   .planner-view > #sheet[data-inline] { --sheet-surface: light-dark(var(--surface-container-low), var(--surface-container)); }
   #planner:is([data-view=blocks], [data-view=projects], [data-view=life]) #planner-scroll {
     animation: page-fade linear both;
     animation-timeline: scroll(self block);
     mask-image: linear-gradient(to bottom, black calc(100% - var(--page-fade)), transparent);
+  }
+
+  /* Block and Project detail: the Result or Project heads the page across both columns; under it the Plan (or the
+     Project's Blocks) reads like a Google Tasks list in a 528px column, and the facts (the Purpose, where it stands,
+     then a Block's verdict or a Project's Area and Goal) sit beside it on one card that is as tall as its facts. With
+     the Inbox or a task open beside the page there is no room, and the page keeps one column. */
+  .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner:is([data-view=blocks], [data-view=projects])[data-detail=true] { --column: 1152px; }
+  .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner:is([data-view=blocks], [data-view=projects])[data-detail=true] .page {
+    display: grid;
+    grid-template-columns: minmax(0, 528px) minmax(400px, 1fr);
+    gap: 0 var(--s8);
+    align-content: start;
+  }
+  .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner:is([data-view=blocks], [data-view=projects])[data-detail=true] .page > :not(.block-facts) { grid-column: 1; }
+  .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner:is([data-view=blocks], [data-view=projects])[data-detail=true] .page > :is(.detail-title-text, .head-crumbs) { grid-column: 1 / -1; }
+  /* The rows the facts span past the list's last are empty; a row gap would still add up under them, so each row keeps
+     its 12px as a top margin instead. */
+  .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner:is([data-view=blocks], [data-view=projects])[data-detail=true] .page > :not(.detail-title-text) { margin-block-start: var(--s3); }
+  /* The card starts beside the list's first row (the first task, or the top of the Project's Block card), is only as
+     tall as its facts, and stays in view while the list scrolls. It shares the Block card's fill, so the two read as
+     one surface level. */
+  .planner-view:not(:has(> #sheet[data-inline]:not([hidden]))) #planner:is([data-view=blocks], [data-view=projects])[data-detail=true] .page > .block-facts {
+    position: sticky;
+    inset-block-start: var(--s3);
+    grid-column: 2;
+    grid-row: 3 / span 24;
+    align-self: start;
+    margin: var(--s3) 0 0;
+    padding-block: var(--s2);
+    border-radius: var(--card-radius);
+    background: var(--surface-container);
+  }
+  /* Every fact shares one icon column and one text column, the verdict and the Area and Goal line too. */
+  #planner[data-detail=true] .block-facts > .fact-row { gap: var(--s4); padding-inline: var(--s4); }
+  #planner[data-view=projects][data-detail=true] .block-facts > .head-crumbs { display: grid; gap: 0; margin: 0; padding: 0; }
+  #planner[data-view=projects][data-detail=true] .block-facts .crumb-quiet {
+    gap: var(--s4);
+    min-block-size: var(--touch);
+    padding-inline: var(--s4);
+    border-radius: 0;
+    font: var(--body-large);
+    color: var(--on-surface);
+  }
+  #planner[data-view=projects][data-detail=true] .block-facts .crumb-quiet::after { content: none; }
+  #planner[data-view=projects][data-detail=true] .block-facts .crumb-quiet > .ms { font-size: 24px; inline-size: 24px; color: var(--on-surface-variant); }
+  #planner[data-view=projects][data-detail=true] .block-facts .crumb-quiet > .avatar { inline-size: 24px; block-size: 24px; min-inline-size: 24px; margin: 0; font: var(--label-medium); }
+  @media (hover: hover) and (pointer: fine) {
+    #planner[data-view=projects][data-detail=true] .block-facts .crumb-quiet:hover { background: color-mix(in oklch, var(--on-surface) 8%, transparent); }
+  }
+  .planner-view:has(> #sheet[data-inline]:not([hidden])) #planner[data-view=blocks][data-detail=true] { --column: 560px; }
+  /* The Purpose fills the card's width before it wraps. "Mark Result achieved" is the card's one action: a 40px filled
+     tonal button that closes the card, its trophy leading, its edge on the icon column. */
+  #planner[data-view=blocks] .block-facts .purpose-text { text-wrap: pretty; }
+  #planner[data-view=blocks] .block-facts > .verdict-row {
+    gap: var(--s2);
+    min-block-size: 40px;
+    margin: var(--s3) var(--s4) var(--s2);
+    padding-inline: var(--s4) var(--s6);
+    font: var(--label-large);
+    color: var(--on-secondary-container);
+    background: var(--secondary-container);
+  }
+  #planner[data-view=blocks] .block-facts > .verdict-row > .ms { inline-size: 20px; font-size: 20px; color: inherit; }
+  @media (hover: hover) and (pointer: fine) {
+    #planner[data-view=blocks] .block-facts > .verdict-row:hover { background: color-mix(in oklch, var(--on-secondary-container) 8%, var(--secondary-container)); }
+  }
+  #planner[data-view=blocks] .block-facts > .verdict-row:active { background: color-mix(in oklch, var(--on-secondary-container) 12%, var(--secondary-container)); }
+  /* Completed names its count and opens beside its words, not across the column. */
+  #planner[data-view=blocks][data-detail=true] .completed-toggle { inline-size: fit-content; justify-content: start; gap: var(--s2); }
+
+  /* Must stars stand in one column at the list's end, on each title's line (Google Tasks), so they scan as a column
+     whatever the title's length and however many lines the row takes; Search does the same on the phone. */
+  #planner[data-view=blocks] .plan-list .task-row > :is(.task-main, .must-mark) { align-self: baseline; }
+  #planner[data-view=blocks] .plan-list .must-mark { inline-size: 24px; margin: 0 0 0 var(--s4); translate: 0 .25em; text-align: center; }
+
+  /* Search: the query sits in a filled field with Clear inside its end; the field and results share one reading width so the Must stars stay near their words. */
+  .planner-view .search-bar .search-input {
+    block-size: var(--touch);
+    padding-inline: var(--s4) calc(var(--touch) + var(--s1));
+    border-radius: var(--shape-full);
+    background: var(--surface-container-high);
+    max-inline-size: calc(760px - var(--touch));
+  }
+  .planner-view .search-bar .search-input + .icon-btn { margin-inline-start: calc(-1 * var(--touch) - var(--s1)); }
+  .planner-view .search-results { max-inline-size: 760px; }
+  /* A Must star follows its title's words. The open button's hit area still runs to the row's end (over the star), and
+     the row clips it there. */
+  .planner-view .search-results .task-row:has(> .must-mark) { overflow: clip; }
+  .planner-view .search-results .task-row:has(> .must-mark) > .task-main { flex: 0 1 auto; }
+  .planner-view .search-results .task-row:has(> .must-mark) > .task-main::after { content: ""; position: absolute; inset: 0 -100vw 0 0; }
+  /* Search reads from the page's text edge, where every other page's words start, not centred in a detail column. */
+  .planner-view #planner[data-view=search][data-detail=true] { --column: 100%; }
+  /* The wide check is 40px, so the row starts 8px further in and every title, task or not, shares one edge. */
+  .planner-view .search-results .task-row { padding-inline-start: var(--s3); }
+
+  /* Blocks: the eyebrow stays the phone's quiet Area dot and words, the tally's ring reads at a glance, and the foot keeps
+     the phone's "Next" in quiet grey over the next task on one line (pointing at it shows the whole title). A chosen
+     filter keeps the phone's selected fill. */
+  #planner[data-view=blocks] .block-card .card-tally .ring { inline-size: 20px; block-size: 20px; }
+  #planner[data-view=blocks] .block-card .next-title > .overline { color: var(--on-surface-variant); }
+  #planner[data-view=blocks] .block-card .next-title .next-words { overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* A Block card with every slot (Area and Project, Result, Purpose in up to two lines of the user's words, where it
+     stands, the next task at the foot) shares its row of the grid, so titles, due lines and tasks line up across the
+     row. A card missing a slot drops it instead of keeping a blank: with no Area or Project its title starts at the
+     top, and an empty Plan's "Add the first task" sits in the Next slot on the card's text edge. The Inbox card is as tall
+     as its row, its words at the top. */
+  #planner[data-view=blocks]:not([data-detail=true]) .page > :is(.block-card, .inbox-row) { grid-row: span 5; }
+  #planner[data-view=blocks]:not([data-detail=true]) .page > .block-card { display: grid; grid-template-rows: subgrid; row-gap: 0; }
+  #planner[data-view=blocks]:not([data-detail=true]) .block-card > .card-main {
+    grid-row: 1 / span 4;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: subgrid;
+    row-gap: 2px;
+    align-content: start;
+  }
+  #planner[data-view=blocks]:not([data-detail=true]) .card-main > .card-top { grid-row: 1; }
+  #planner[data-view=blocks]:not([data-detail=true]) .card-main > .card-title { grid-row: 2; }
+  #planner[data-view=blocks]:not([data-detail=true]) .card-main > .card-purpose { grid-row: 3; -webkit-line-clamp: 2; line-clamp: 2; }
+  #planner[data-view=blocks]:not([data-detail=true]) .card-main > .card-facts { grid-row: 4; align-self: end; margin-block-start: var(--s1); }
+  #planner[data-view=blocks]:not([data-detail=true]) .block-card > .next-task { grid-row: 5; align-self: end; }
+  #planner[data-view=blocks]:not([data-detail=true]) .page > .block-card:is(:not(:has(> .card-main > .card-top)), :not(:has(> .card-main > .card-facts))) { display: flex; }
+  #planner[data-view=blocks]:not([data-detail=true]) .page > .block-card:is(:not(:has(> .card-main > .card-top)), :not(:has(> .card-main > .card-facts))) > .card-main { display: flex; }
+  #planner[data-view=blocks]:not([data-detail=true]) .page > .block-card:not(:has(> .card-main > .card-facts)) > .card-main { flex: none; }
+  #planner[data-view=blocks]:not([data-detail=true]) .page > .block-card:is(:not(:has(> .card-main > .card-top)), :not(:has(> .card-main > .card-facts))) > .next-task { align-self: stretch; margin-block-start: auto; }
+  #planner[data-view=blocks]:not([data-detail=true]) .page > .inbox-row { align-self: stretch; align-items: start; }
+
+  /* Search: a done result is one line, as tall as an open task's one-line row (the phone keeps its 48dp touch row);
+     a Goal's year follows its title in quiet text. */
+  .planner-view .search-results .task-row.done .task-main { min-block-size: 40px; }
+  .search-results .list-item:has(> .list-meta) > .list-copy { flex: 0 1 auto; }
+  .search-results .list-item > .list-meta { padding-inline-start: var(--s2); font: var(--body-medium); color: var(--on-surface-variant); }
+  /* Search: group names are quiet headings, so the one primary line in the list is the "Show N more" action. */
+  .planner-view .search-results .section-header h2 { font: var(--title-small); color: var(--on-surface-variant); }
+
+  /* Inbox: Sort with Jev is a quiet text action beside the count, with no chip edge, an offer about the list rather
+     than a second header action, so the title and the tasks stay the loudest things in the pane. */
+  #sheet[data-inline].sheet-inbox > .sheet-header > h2 { flex: none; }
+  #sheet[data-inline].sheet-inbox .inbox-jev {
+    min-block-size: 32px;
+    margin-inline: var(--s3) auto;
+    padding-inline: var(--s2) var(--s3);
+    border: 0;
+    border-radius: var(--shape-sm);
+    font: var(--label-large);
+    color: var(--on-surface-variant);
   }
 }

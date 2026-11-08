@@ -104,18 +104,25 @@ function deckCard(api, summary, result) {
   const stamp = el('span', 'wr-deck-stamp');
   stamp.setAttribute('aria-hidden', 'true');
   card.append(stamp);
-  if (area?.title) card.append(el('span', 'wr-deck-count', area.title));
+  if (area?.title) card.append(el('p', 'wr-deck-area', area.title));
   card.append(el('h3', 'wr-deck-title', result.title));
   if (result.purpose) card.append(el('p', 'wr-deck-purpose', result.purpose));
   const meta = el('div', 'wr-deck-meta');
-  const words = result.total ? `${result.done} of ${plural(result.total, 'task')} done` : 'No tasks';
-  const ring = result.total && result.done === result.total ? doneDisc(words) : progressRing(result.done, result.total, words);
+  const {ring, words} = resultRing(result);
   meta.append(ring, el('span', 'wr-deck-done tnum', words));
   const chip = result.due && dueChip(result.due, api.now());
   if (chip) meta.append(chip);
   card.append(meta);
   attachDeckSwipe(card, verdict => judge(api, summary, result, verdict));
   return card;
+}
+
+/** How far a Result got, as a ring (a filled disc once every task is done) and the words it reads as. */
+export function resultRing(result) {
+  const words = result.total ? `${result.done} of ${result.total} done` : 'No tasks';
+  const said = result.total ? `${result.done} of ${plural(result.total, 'task')} done` : words;
+  const ring = result.total && result.done === result.total ? doneDisc(said) : progressRing(result.done, result.total, said);
+  return {ring, words};
 }
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -144,7 +151,7 @@ function verdictButtons(api, summary, result) {
   return group;
 }
 
-/** "2 of 4 decided" and the count of each verdict so far, each named in words for screen readers. */
+/** "2 of 4 decided" and the count of each verdict given so far (none shown for a verdict not given yet), each named in words for screen readers. */
 export function deckTally(judged) {
   const decided = judged.filter(r => r.verdict).length;
   const tally = el('p', 'wr-tally tnum');
@@ -152,6 +159,7 @@ export function deckTally(judged) {
   tally.append(el('span', '', decided === judged.length ? `All ${judged.length} decided` : `${decided} of ${judged.length} decided`));
   for (const [value, label, symbol] of [...DECK_VERDICTS].reverse()) {
     const n = judged.filter(r => r.verdict === value).length;
+    if (!n) continue;
     const count = el('span', 'wr-tally-count');
     count.dataset.verdict = value;
     count.setAttribute('aria-label', `${n} ${label.toLowerCase()}`);
@@ -164,12 +172,6 @@ export function deckTally(judged) {
 export function resultDeck(api, summary, judged) {
   const deck = deckOf(judged);
   const stack = el('div', 'wr-deck');
-  for (let depth = Math.min(deck.length - 1, 2); depth >= 1; depth--) {
-    const layer = el('div', 'wr-deck-layer');
-    layer.dataset.depth = String(depth);
-    layer.setAttribute('aria-hidden', 'true');
-    stack.append(layer);
-  }
   stack.append(deckCard(api, summary, deck[0]));
   api.ui.deckEnter = false;
   return [stack, verdictButtons(api, summary, deck[0])];

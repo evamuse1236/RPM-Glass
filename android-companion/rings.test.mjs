@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {nestedRings, finishedMark, ringSegments, MAX_RINGS, MAX_SEGMENTS} from './planner/rings.mjs';
+import {nestedRings, finishedMark, MAX_RINGS} from './planner/rings.mjs';
 import {toggleProject} from './planner/projects.mjs';
 
 test('each Block ring\'s arc is its done/total, outermost first, fading inward', () => {
@@ -18,7 +18,7 @@ test('each Block ring\'s arc is its done/total, outermost first, fading inward',
   assert.equal(nestedRings(Array.from({length: 9}, () => ({done: 1, total: 2}))).length, MAX_RINGS);
 });
 
-test('every Project card\'s outer ring has one weight, inner rings are thinner with one gap, and a finished Project fills its centre', () => {
+test('every Project card\'s outer ring has one weight, inner rings are thinner with one gap, and a finished Project marks its open centre with a check', () => {
   const full = nestedRings(Array.from({length: MAX_RINGS}, () => ({done: 1, total: 2})));
   const [one] = nestedRings([{done: 1, total: 2}]);
   assert.deepEqual([one.r, one.width], [full[0].r, full[0].width], 'a one-Block ring is the outer ring of a full set');
@@ -30,16 +30,8 @@ test('every Project card\'s outer ring has one weight, inner rings are thinner w
   assert.ok(full.at(-1).r - full.at(-1).width / 2 >= 8, 'the innermost ring keeps an open centre');
   for (const rings of [full, [one]]) {
     const {r} = finishedMark(rings), inner = rings.at(-1);
-    assert.ok(r > 0 && r < inner.r - inner.width / 2, 'the finished disc sits inside the innermost ring');
+    assert.ok(r > 0 && r < inner.r - inner.width / 2, 'the finished check sits inside the innermost ring');
   }
-});
-
-test('a Block row\'s segment ring has one arc per task, the done ones on', () => {
-  const arcs = ringSegments(2, 5);
-  assert.equal(arcs.length, 5);
-  assert.deepEqual(arcs.map(a => a.on), [true, true, false, false, false]);
-  assert.deepEqual(ringSegments(0, 0), []);
-  assert.deepEqual(ringSegments(3, MAX_SEGMENTS + 1), [], 'past the cap it is one arc of the share done');
 });
 
 test('a card tap opens its Block list, a second tap closes it, and only one card is open', () => {
@@ -55,7 +47,7 @@ test('progress is drawn in the Area colour, or primary blue with no Area; never 
   assert.ok(css.includes('[data-tone] { --tone: var(--outline); --progress: var(--primary); }'));
   assert.ok(css.includes('[data-tone^=area-] { --progress: var(--tone); }'));
   assert.doesNotMatch(css, /\.ring-track \{ stroke: var\(--surface-container-highest\)/, 'no later rule turns a Block ring\'s track gray');
-  for (const stroke of ['.nest-value {', '.seg-on {']) {
+  for (const stroke of ['.nest-value {', '.ring-value {']) {
     const start = css.indexOf(stroke);
     assert.ok(start >= 0, stroke);
     assert.ok(css.slice(start, css.indexOf('}', start)).includes('stroke: var(--progress'), `${stroke} uses --progress`);

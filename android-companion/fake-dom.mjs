@@ -98,6 +98,6 @@ export class FakeElement{
 
 /** Installs the fake `document` on globalThis for one test file. */
 export function installFakeDom(){
- globalThis.document={createElement:tag=>new FakeElement(tag),documentElement:new FakeElement('html')};
+ globalThis.document={createElement:tag=>new FakeElement(tag),createElementNS:(_ns,tag)=>new FakeElement(tag),documentElement:new FakeElement('html')};
  return globalThis.document;
 }

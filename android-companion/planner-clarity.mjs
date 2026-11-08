@@ -48,7 +48,7 @@ export function setClarityPreference(name,value,{storage=defaultStorage(),root=g
 const element=(document,tag,cls='',text='')=>{const node=document.createElement(tag);node.className=cls;node.textContent=text;return node;};
 export const THEME_NAMES=Object.freeze({system:'System',light:'Light',dark:'Dark'});
 
-/** Settings → Bar transparency: a slider with a live sample of the tab bar over a few rows of the day. */
+/** Settings → Bar transparency: a slider with a live sample of the tab bar floating over the day's last event. */
 export function transparencyRow(document,current,onChange){
   const wrap=element(document,'div','settings-slider bar-transparency');
   const head=element(document,'div','settings-slider-head');
@@ -63,15 +63,12 @@ export function transparencyRow(document,current,onChange){
   trackFill(slider);
   const sample=element(document,'div','bar-sample');
   sample.setAttribute('aria-hidden','true');
-  for(const [tone,title,time] of [[0,'Group call','11:00'],[2,'Past paper','12:00']]){
-    const line=element(document,'span','bar-sample-line');
+  for(const [tone,title,time] of [[0,'Group call','9 AM'],[2,'Past paper','10 AM'],[3,'Gym','11:30 AM'],[1,'Lunch with Sam','1 PM']]){
+    const line=element(document,'span',time==='1 PM'?'bar-sample-line bar-sample-under':'bar-sample-line');
     line.style.setProperty('--tone',`var(--area-${tone})`);
     line.append(element(document,'span','bar-sample-time tnum',time),element(document,'span','bar-sample-title',title));
     sample.append(line);
   }
-  const band=element(document,'span','bar-sample-line bar-sample-band');
-  band.style.setProperty('--tone','var(--area-1)');
-  sample.append(band);
   const bar=element(document,'span','bar-sample-bar');
   for(const [glyph,name] of [['today','Today'],['stacks','Blocks'],['folder','Projects'],['spa','Life']]){
     const tab=element(document,'span','bar-sample-tab');

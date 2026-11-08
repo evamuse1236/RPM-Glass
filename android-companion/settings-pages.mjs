@@ -3,7 +3,7 @@ import {automationPreview} from './automation-preview-ui.mjs';
 import {captureTraces} from './settings-traces.mjs';
 import {voiceChoice,setVoice,setPersona,voiceDialog,personaDialog} from './voice-choice.mjs';
 import {clarityPreferences,setClarityPreference,transparencyRow,THEME_NAMES} from './planner-clarity.mjs';
-import {el, safeScale, row, group, add, slider, segmented} from './settings-parts.mjs';
+import {el, safeScale, row, group, add, slider, segmented, symbol} from './settings-parts.mjs';
 
 /** The pages Settings opens, in home order. `tone` picks the icon tile colour. */
 export const SETTINGS_PAGES = Object.freeze({
@@ -18,46 +18,71 @@ export const SETTINGS_PAGES = Object.freeze({
 });
 const HOME_GROUPS = [['appearance', 'notch'], ['alerts', 'voice', 'ai'], ['sync', 'diagnostics', 'about']];
 
-const alarmsOff = s => [s.notificationsAllowed, s.exactAlarmsAllowed].filter(allowed => !allowed).length;
-const alarmsBlocked = s => alarmsOff(s) > 0;
+/** The alarm permissions Android has not given, named the way the Alarms page names them. */
+const alarmsOff = s => [!s.notificationsAllowed && 'notifications', !s.exactAlarmsAllowed && 'exact alarms'].filter(Boolean);
+const alarmsBlocked = s => alarmsOff(s).length > 0;
 const notchWaiting = s => !!s.notchOn && !s.notchServiceOn;
-const connectedKeys = s => [s.claudeKey && 'Claude', s.openRouterKey && 'OpenRouter'].filter(Boolean);
+const connectedKeys = s => [s.claudeKey && 'Claude', s.openRouterKey && 'OpenRouter', s.hasGeminiKey && 'Gemini'].filter(Boolean);
 
-/** What each home row says on its right: the one fact worth seeing before opening the page. */
+/** What each home row says on its right: the one fact worth seeing before opening the page.
+ *  Blocked alarms show no value: the problem card above already says it. */
 function homeValue(ctx, page) {
   const s = ctx.state;
   switch (page) {
     case 'appearance': return THEME_NAMES[clarityPreferences().appearance];
     case 'notch': return s.notchOn ? 'On' : 'Off';
-    case 'alerts': return alarmsBlocked(s) ? `${alarmsOff(s)} off` : '';
-    case 'voice': return s.hasGeminiKey ? voiceChoice().voice ?? 'Default' : 'Not set';
+    case 'alerts': return alarmsBlocked(s) ? '' : 'On';
+    case 'voice': return s.hasGeminiKey ? voiceChoice().voice ?? 'Default' : 'Dictation';
     case 'ai': { const keys = connectedKeys(s); return keys.length ? keys.join(', ') : 'Not set'; }
+    case 'sync': return s.cloudSync ? 'Linked' : 'Not linked';
     case 'diagnostics': { const log = s.diagnostics ?? {}; return !log.connected ? 'Off' : log.paused ? 'Paused' : 'On'; }
     default: return '';
   }
 }
 
+/** A problem card on the home list: what will go wrong and why, and one Allow word on the chevrons' edge.
+ *  The whole card is the button, so a tap anywhere on it starts the fix. */
+function problemCard(ctx, {label, detail, allow, action}) {
+  const card = el('button', 'settings-alert');
+  card.type = 'button';
+  card.dataset.action = action;
+  card.setAttribute('aria-label', allow);
+  card.setAttribute('aria-description', `${label}. ${detail}`);
+  const box = el('span', 'settings-icon');
+  box.dataset.tone = 'red';
+  box.append(symbol('error'));
+  const copy = el('span', 'settings-copy');
+  copy.append(el('span', 'settings-label', label), el('span', 'settings-detail', detail));
+  const fix = el('span', 'settings-alert-action', 'Allow');
+  fix.setAttribute('aria-hidden', 'true');
+  card.addEventListener('click', () => ctx.act(ctx, action));
+  card.append(box, copy, fix);
+  return card;
+}
+
+const capital = text => text.charAt(0).toUpperCase() + text.slice(1);
+
 export function homePage(ctx) {
   const s = ctx.state;
   const sections = [];
   const problems = [];
-  if (alarmsBlocked(s)) problems.push({page: 'alerts', label: 'Alarms may not ring', detail: 'Android has not allowed RPM to ring on time'});
-  if (notchWaiting(s)) problems.push({page: 'notch', label: 'The notch is waiting for Android', detail: 'Allow RPM Notch to show it'});
+  if (alarmsBlocked(s)) {
+    const off = alarmsOff(s);
+    problems.push({label: 'Alarms may not ring', detail: off.length > 1 ? 'Notifications and alarms are off' : `${capital(off[0])} are off`,
+      allow: `Allow ${off[0]}`, action: s.notificationsAllowed ? 'exact_alarms' : 'notifications'});
+  }
+  if (notchWaiting(s)) problems.push({label: 'The notch is waiting for Android', detail: 'RPM Notch is off in Accessibility',
+    allow: 'Allow RPM Notch', action: 'notch_permission'});
   if (problems.length) {
     const attention = group('', {id: 'attention'});
-    for (const {page, label, detail} of problems) {
-      const node = row({label, detail, icon: 'error', tile: 'red', next: true, tone: 'error', action: `open_${page}`});
-      node.addEventListener('click', () => ctx.options.openPage?.(page));
-      attention.card.append(node);
-    }
+    for (const problem of problems) attention.card.append(problemCard(ctx, problem));
     sections.push(attention);
   }
   for (const pages of HOME_GROUPS) {
     const section = group();
     for (const page of pages) {
       const {title, icon, tone} = SETTINGS_PAGES[page];
-      const node = row({label: title, value: homeValue(ctx, page), icon, tile: tone, next: true, action: `open_${page}`,
-        tone: page === 'alerts' && alarmsBlocked(s) ? 'warn' : null});
+      const node = row({label: title, value: homeValue(ctx, page), icon, tile: tone, next: true, action: `open_${page}`});
       node.addEventListener('click', () => ctx.options.openPage?.(page));
       section.card.append(node);
     }
@@ -93,8 +118,8 @@ function notchPage(ctx) {
   }
   const butterfly = group('', {id: 'widgets'});
   if (!s.overlayAllowed) {
-    add(ctx, butterfly, {label: 'Floating butterfly', detail: 'Open Capture over your other apps', value: 'Allow',
-      action: 'overlay_permission', next: true});
+    add(ctx, butterfly, {label: 'Floating butterfly', detail: 'Open Capture over your other apps', value: 'Allow', tone: 'error',
+      action: 'overlay_permission'});
   } else {
     add(ctx, butterfly, {label: 'Floating butterfly', detail: 'Open Capture over your other apps',
       action: s.launcherRunning ? 'hide_butterfly' : 'show_butterfly', role: 'switch', toggle: !!s.launcherRunning});
@@ -104,59 +129,65 @@ function notchPage(ctx) {
   return [notch, butterfly, widgets];
 }
 
-/** A permission says its state once: a quiet Allowed, or a tonal Allow beside a small error dot. */
+/** A permission says its state once: a quiet Allowed, or the row's one action word, Allow, on the chevrons' edge. */
 const permission = allowed => allowed ? {value: 'Allowed'} : {value: 'Allow', tone: 'error'};
 
 function alertsPage(ctx) {
   const s = ctx.state;
+  const allowed = group('Permissions', {id: 'permissions',
+    caption: 'Battery saving can delay reminders.'});
+  add(ctx, allowed, {label: 'Notifications', detail: 'For reminders and ringing alarms', ...permission(s.notificationsAllowed), action: 'notifications'});
+  add(ctx, allowed, {label: 'Exact alarms', detail: 'For alarms at the chosen minute', ...permission(s.exactAlarmsAllowed), action: 'exact_alarms'});
+  add(ctx, allowed, {label: 'Check saved alerts', detail: 'Run after a permission change', action: 'check_alerts', act: 'Check'});
   const sounds = group('Sounds', {id: 'sounds'});
   add(ctx, sounds, {label: 'Alarm sound', value: s.alarmSound, action: 'choose_alarm', next: true});
   add(ctx, sounds, {label: s.previewing ? 'Stop alarm sound' : 'Play alarm sound', detail: s.previewing ? 'Playing at alarm volume' : '5 seconds at alarm volume',
-    action: 'preview_alarm', trail: s.previewing ? 'stop' : 'play_arrow'});
+    action: 'preview_alarm', act: s.previewing ? 'Stop' : 'Play'});
   add(ctx, sounds, {label: 'Reminder sound', value: s.reminderSound, action: 'reminder_sound', next: true});
-  const allowed = group('Permissions', {id: 'permissions',
-    caption: 'Battery saving can delay reminders. Keep RPM installed for saved alarms to ring.'});
-  add(ctx, allowed, {label: 'Notifications', detail: 'For reminders and ringing alarms', ...permission(s.notificationsAllowed), action: 'notifications'});
-  add(ctx, allowed, {label: 'Exact alarms', detail: 'For alarms at the chosen minute', ...permission(s.exactAlarmsAllowed), action: 'exact_alarms'});
-  add(ctx, allowed, {label: 'Check saved alerts', detail: 'Schedule them again after a permission change', action: 'check_alerts', trail: 'refresh'});
-  return [sounds, allowed];
+  return [allowed, sounds];
 }
 
-/** Voice and persona live on this phone, not in native settings; each opens an M3 dialog and saves at once. */
+/** Voice and persona live on this phone, not in native settings; each opens an M3 dialog and saves at once.
+ *  The Gemini key lives once, in AI keys. With none, the card starts with a `Gemini key · Add` row that opens AI keys
+ *  and says what the mic uses meanwhile; Voice and Persona rest dimmed below it with the values a key would start with. */
 function voicePage(ctx) {
   const s = ctx.state;
   const {voice, persona} = voiceChoice();
-  const key = group('', {id: 'voice-key'});
-  add(ctx, key, {label: 'Gemini key', detail: s.hasGeminiKey ? '' : 'Without it, the mic uses Android dictation',
-    value: s.hasGeminiKey ? 'Connected' : 'Not set', action: 'connect_gemini_key', next: true});
-  const open = dialog => { document.body.append(dialog); dialog.showModal(); };
+  const keyed = !!s.hasGeminiKey;
   const sound = group('', {id: 'voice'});
-  const voiceRow = row({label: 'Voice', value: voice ?? 'Default', action: 'voice_name', next: true});
-  voiceRow.addEventListener('click', () => open(voiceDialog(document, voice, next => { setVoice(next); ctx.render(ctx); })));
-  const personaRow = row({label: 'Persona', detail: persona, value: persona ? '' : 'None', action: 'voice_persona', next: true});
-  if (persona) personaRow.querySelector('.settings-detail')?.classList.add('settings-clamp');
-  personaRow.addEventListener('click', () => open(personaDialog(document, persona, next => { setPersona(next); ctx.render(ctx); })));
-  sound.card.append(voiceRow, personaRow);
-  const sections = [key, sound];
-  if (s.hasGeminiKey) {
-    const remove = group();
-    add(ctx, remove, {label: 'Remove Gemini key', detail: 'The mic goes back to Android dictation', tone: 'error', action: 'remove_gemini_key'});
-    sections.push(remove);
+  if (!keyed) {
+    const key = row({label: 'Gemini key', detail: 'Without one, the mic uses Android dictation', value: 'Add', action: 'open_ai', next: true});
+    key.addEventListener('click', () => ctx.options.openPage?.('ai'));
+    sound.card.append(key);
   }
-  return sections;
+  const open = dialog => { document.body.append(dialog); dialog.showModal(); };
+  const voiceRow = row({label: 'Voice', value: voice ?? 'Default', action: 'voice_name', next: keyed});
+  const personaRow = row({label: 'Persona', detail: keyed ? persona : '', value: keyed && persona ? '' : 'Not set', action: 'voice_persona', next: keyed});
+  if (keyed && persona) personaRow.querySelector('.settings-detail')?.classList.add('settings-clamp');
+  if (keyed) {
+    voiceRow.addEventListener('click', () => open(voiceDialog(document, voice, next => { setVoice(next); ctx.render(ctx); })));
+    personaRow.addEventListener('click', () => open(personaDialog(document, persona, next => { setPersona(next); ctx.render(ctx); })));
+  } else {
+    for (const idle of [voiceRow, personaRow]) { idle.disabled = true; idle.dataset.idle = 'true'; }
+  }
+  sound.card.append(voiceRow, personaRow);
+  return [sound];
 }
 
+/** Every key in one place: what each one does, and Connected or Not set. */
 function aiPage(ctx) {
   const s = ctx.state;
   const keys = group('', {id: 'ai'});
   const state = on => on ? 'Connected' : 'Not set';
   add(ctx, keys, {label: 'Claude', detail: 'Capture asks Claude first', value: state(s.claudeKey), action: 'connect_claude_key', next: true});
   add(ctx, keys, {label: 'OpenRouter', detail: 'Backup, suggestions and Jev sorting', value: state(s.openRouterKey), action: 'connect_openrouter_key', next: true});
+  add(ctx, keys, {label: 'Gemini', detail: 'Talk to RPM by voice', value: state(s.hasGeminiKey), action: 'connect_gemini_key', next: true});
   const sections = [keys];
-  if (s.claudeKey || s.openRouterKey) {
+  if (s.claudeKey || s.openRouterKey || s.hasGeminiKey) {
     const remove = group('', {caption: 'Plans and conversations stay on this phone.'});
     if (s.claudeKey) add(ctx, remove, {label: 'Remove Claude key', tone: 'error', action: 'remove_claude_key'});
     if (s.openRouterKey) add(ctx, remove, {label: 'Remove OpenRouter key', tone: 'error', action: 'remove_openrouter_key'});
+    if (s.hasGeminiKey) add(ctx, remove, {label: 'Remove Gemini key', detail: 'The mic goes back to Android dictation', tone: 'error', action: 'remove_gemini_key'});
     sections.push(remove);
   }
   return sections;
@@ -164,11 +195,13 @@ function aiPage(ctx) {
 
 function syncPage(ctx) {
   const cloud = group('', {id: 'cloud'});
-  add(ctx, cloud, {label: 'Link a web browser', action: 'cloud_web', next: true});
+  add(ctx, cloud, {label: 'Plan in a browser', value: ctx.state.cloudSync ? 'Linked' : 'Not linked', action: 'cloud_web', next: true});
   const files = group('Backup', {id: 'context-history', caption: 'Plans stay on this phone.'});
   add(ctx, files, {label: 'Export', action: 'export_context', next: true});
   add(ctx, files, {label: 'Import', action: 'import_context', next: true});
-  add(ctx, files, {label: 'Restore a backup', value: ctx.state.backupCount ? String(ctx.state.backupCount) : 'None', action: 'restore_backup', next: true});
+  const backups = ctx.state.backupCount;
+  const restore = add(ctx, files, {label: 'Restore a backup', value: backups ? String(backups) : 'None yet', action: 'restore_backup', next: !!backups});
+  if (!backups) { restore.disabled = true; restore.dataset.idle = 'true'; }
   return [cloud, files];
 }
 
@@ -214,22 +247,18 @@ function aboutPage(ctx) {
 export const PAGES = {appearance: appearancePage, notch: notchPage, alerts: alertsPage, voice: voicePage, ai: aiPage,
   sync: syncPage, diagnostics: diagnosticsPage, about: aboutPage};
 
-/** What a browser can set: the same rows as the phone's home, only for pages that work here, and one line naming the rest. */
+/** What a browser can set: the same rows as the phone's home, only for pages that work here, and a footnote naming the rest. */
 const WEB_PAGES = ['appearance', 'about'];
 export function phoneOnlyPage(ctx, text) {
   if (ctx.page === 'appearance') return appearancePage(ctx);
   if (ctx.page === 'about') return aboutPage(null);
-  const section = group('', {id: 'web-pages'});
+  const section = group('', {id: 'web-pages', caption: `${text} are set in RPM on your phone.`});
   for (const page of WEB_PAGES) {
     const {title, icon, tone} = SETTINGS_PAGES[page];
     const node = row({label: title, value: page === 'appearance' ? THEME_NAMES[clarityPreferences().appearance] : '', icon, tile: tone, next: true, action: `open_${page}`});
     node.addEventListener('click', () => ctx.options.openPage?.(page));
     section.card.append(node);
   }
-  const phone = group('', {id: 'phone-only'});
-  const note = row({label: 'Set in RPM on your phone', detail: text, icon: 'phone_android', tile: 'grey'});
-  const fact = el('div', note.className);
-  fact.append(...note.childNodes);
-  phone.card.append(fact);
-  return [section, phone];
+  section.querySelector('.settings-caption').classList.add('settings-footnote');
+  return [section];
 }

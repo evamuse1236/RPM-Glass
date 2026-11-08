@@ -93,22 +93,20 @@ h1, h2, h3, p { margin: 0; }
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
-.top-title.with-subtitle { display: flex; flex-direction: column; }
-.top-title.with-subtitle .top-title-text {
-  font: var(--title-medium);
-  overflow: clip;
-  text-wrap: balance;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-.top-subtitle { overflow: clip; white-space: nowrap; text-overflow: ellipsis; }
-.top-subtitle { font: var(--body-medium); color: var(--on-surface-variant); }
+/* A record's collapsed title (Block, Project, Area, Goal) is title-medium: two wrapped lines plus the bar's padding fit
+   --top-bar, so the bar keeps one height at rest and once the title shows. */
+.detail-bar .top-title.small.record-title { font: var(--title-medium); }
 /* Detail titles live in the page; the bar shows them once the page scrolls. */
 .detail-bar .top-title { opacity: 0; transition: opacity var(--dur-short) var(--ease-standard); }
 #planner[data-title-out=true] .detail-bar .top-title,
 #planner[data-view=settings] .detail-bar .top-title { opacity: 1; }
 .top-actions { display: flex; align-items: center; flex: none; margin-inline-start: auto; }
+/* A Block's bar: at rest its Area · Project line beside Back; once the page title scrolls out, the title takes that cell. */
+.bar-heading { flex: 1; min-inline-size: 0; display: grid; align-items: center; }
+.bar-heading > * { grid-area: 1 / 1; }
+.bar-heading > .crumb { justify-self: start; margin: 0; padding-inline: var(--s1); transition: opacity var(--dur-short) var(--ease-standard), visibility var(--dur-short); }
+.bar-heading > .crumb .eyebrow { font: var(--label-large); }
+#planner[data-title-out=true] .bar-heading > .crumb { opacity: 0; visibility: hidden; }
 
 .icon-btn {
   min-width: var(--touch);
