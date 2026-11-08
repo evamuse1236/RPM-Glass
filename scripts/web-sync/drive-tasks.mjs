@@ -56,7 +56,7 @@ export async function tasks(k) {
   const added = `Drive inbox add ${stamp}`;
   await step('inbox-add', async () => {
     await menu('Inbox');
-    await tapText('.sheet button', 'Add task');
+    await tapText('.sheet button', 'Add to Inbox');
     await shown('textarea.quick-input');
     await b.type('textarea.quick-input', added);
     await b.key('Enter');

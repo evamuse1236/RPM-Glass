@@ -66,7 +66,7 @@ async function drive(k) {
   phone('--edit', String(card.id), 'notes', PHONE_NOTE);
   await sleep(1100);
 
-  await k.menu('Inbox'); await k.tapText('.sheet button', 'Add task'); await k.shown('textarea.quick-input');
+  await k.menu('Inbox'); await k.tapText('.sheet button', 'Add to Inbox'); await k.shown('textarea.quick-input');
   await b.type('textarea.quick-input', ADDED); await b.key('Enter');
   await savedOnline('add a task', snap => snap?.entries.some(e => e.title === ADDED));
   await k.closeAll();

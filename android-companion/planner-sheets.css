@@ -100,6 +100,8 @@
 /* Tasks that already have a day, time or repeat wait below a quiet Scheduled label. */
 .sheet .section-header.inbox-scheduled { padding: var(--s4) 0 var(--s1); }
 .inbox-scheduled h2 { color: var(--on-surface-variant); }
+/* An Inbox title that wraps splits evenly, so no line ends on a stub like "vs GWBC". */
+.sheet-inbox .task-title { text-wrap: balance; }
 .sheet-dialog .sheet-body { padding-bottom: var(--s2); }
 
 .detail-title {
@@ -268,6 +270,12 @@
 .quick-details.is-open .quick-details-fewer { display: block; }
 .quick-details.is-open { color: var(--on-surface); }
 .sheet .quick-row.more-chips { flex-wrap: wrap; }
+/* Estimate, Repeat and Must are second-rank to the day: unset, each is a borderless icon and word in on-surface-variant
+   whose icon starts on the content edge under More options' icon; a chosen one fills like the chosen day, its fill
+   starting on that edge. */
+.sheet .more-chips { margin-inline: calc(-1 * var(--s2)); column-gap: 0; }
+.sheet .more-chips > .assist-chip:not(.on) { border-color: transparent; background: none; color: var(--on-surface-variant); }
+.sheet .more-chips > .assist-chip.on { margin-inline: var(--s2) 0; }
 /* Details and Purpose are borderless lines led by their icon, like Google Tasks' "Add details": an empty one is one
    quiet line, never a box heavier than the title, and it grows as the words come. */
 .quick-note { display: flex; align-items: flex-start; gap: var(--s2); min-block-size: var(--touch); color: var(--on-surface-variant); cursor: text; }
@@ -311,10 +319,9 @@
 .block-chips .chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* One Block chip holds the choice. A guess from the words shows a primary sparkle; the drop arrow says a tap opens the list. */
 .block-chip.suggested .block-mark { color: var(--primary); }
-/* The Block chip is a menu: one tonal look whether it holds the Inbox, a picked Block or Jev's guess (the sparkle and
-   its name say which), so it never reads as a selected day chip. */
-.sheet .block-chip, .sheet .block-chip.suggested { border-color: transparent; background: var(--sheet-raised); color: var(--on-surface); }
-.sheet .block-chip .block-mark { color: var(--primary); }
+/* The Block chip always holds a value (the Inbox, a picked Block or Jev's guess, which the sparkle marks), so it fills
+   the one way every chosen value in the sheet fills: the chosen day's secondary-container. */
+.sheet .block-chip, .sheet .block-chip.suggested { border-color: var(--secondary-container); background: var(--secondary-container); color: var(--on-secondary-container); }
 /* The chosen Block's Purpose sits whole under its chip, aligned to the chip's text and wrapping, never cut. */
 .block-chips > .block-purpose { flex-basis: 100%; display: flex; align-items: flex-start; gap: var(--s2); margin: 0;
   margin-block: var(--s1) var(--s3); padding: 0 var(--s2); font: var(--body-medium); color: var(--on-surface-variant); text-wrap: pretty; }

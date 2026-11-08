@@ -76,7 +76,7 @@ export function showInbox(app, {motion = 'forward'} = {}) {
     const byWhen = (a, b) => when(a) - when(b);
     const today = rows.filter(task => scheduled(task) && dueToday(task)).sort(byWhen);
     const later = rows.filter(task => scheduled(task) && !dueToday(task)).sort(byWhen);
-    // Today's untimed tasks say Anytime, as on Today, so none reads as timed under Scheduled today.
+    // Today's untimed tasks say Anytime, as on Today, so none reads as timed under On Today.
     const add = (task, days, group) => {
       const row = taskRow(app, task, {inbox: true, days, anytime: group === 'inbox-today'});
       if (group) row.classList.add(group);
@@ -101,8 +101,9 @@ export function showInbox(app, {motion = 'forward'} = {}) {
       onToday.dataset.key = 'inbox-on-today';
       host.append(onToday);
     }
-    section('Scheduled today', 'inbox-scheduled-today', today, false, 'inbox-today');
-    section(today.length ? 'Scheduled later' : 'Scheduled', 'inbox-scheduled', later, true);
+    // The heads name the page each set already sits on, the same words as the website's "N more on Today" link.
+    section('On Today', 'inbox-scheduled-today', today, false, 'inbox-today');
+    section(today.length ? 'Later' : 'Scheduled', 'inbox-scheduled', later, true);
     return host;
   };
   draw(body);
@@ -113,7 +114,7 @@ export function showInbox(app, {motion = 'forward'} = {}) {
     requestAnimationFrame(() => { if (first.isConnected) peekSwipe(first, INBOX_LEFT, 'left', 168, 900); });
   }
   actions.append(labelButton('mic', 'Capture', () => app.capture(), 'text-btn'), el('span', 'spacer'),
-    labelButton('add', 'Add task', () => taskEditor(app, null), 'text-btn'));
+    labelButton('add', 'Add to Inbox', () => taskEditor(app, null), 'text-btn'));
   app.sheet.live = () => body.isConnected && isSheetOpen(app);
   app.sheet.sync = () => {
     if (!inboxShowing(app) || app.sheet.inboxBody !== body) return false;

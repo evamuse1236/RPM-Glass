@@ -9,6 +9,8 @@ import {openTask} from './task-sheet.mjs';
 import {blockShort} from './task-tabs-model.mjs';
 
 const DRAFT = 'task:new';
+// A number keeps its unit on its line ("10 PM", "30 min", "2 hours"), so a wrapped Purpose never splits them.
+const keepUnits = text => text.replace(/(\d)[ \t]+(?=(?:AM|PM|am|pm|a\.m\.|p\.m\.|min|mins|minutes?|h|hrs?|hours?|days?|weeks?|months?|%)(?![\w]))/g, '$1\u00a0');
 const shortDay = day => {
   const date = new Date(day + 'T12:00');
   return `${date.toLocaleDateString([], {weekday: 'short'})} ${date.getDate()}`;
@@ -200,7 +202,7 @@ function quickAdd(app, overrides = {}) {
 
     const purpose = chosen?.purpose?.trim() ?? '';
     blockWhy.hidden = !purpose;
-    blockWhy.lastChild.textContent = purpose;
+    blockWhy.lastChild.textContent = keepUnits(purpose);
     blockWhy.setAttribute('aria-label', purpose ? `Purpose of ${chosen.title}: ${purpose}` : '');
   };
 
