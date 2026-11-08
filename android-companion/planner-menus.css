@@ -108,10 +108,6 @@
 .settings-alert-action { flex: none; margin-inline-end: var(--s2); font: var(--label-large); color: var(--primary); }
 .settings-alert:active { background: var(--row-press); }
 .settings-alert:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: var(--r-group); }
-/* A link inside a footnote (Voice: "Add a Gemini key in AI keys"): primary words in the caption's size, a row-high touch area. */
-.settings-link { padding-block: var(--s3); margin-block: calc(var(--s3) * -1); font: inherit; font-weight: 500; color: var(--primary); text-align: start; }
-.settings-link:active { background: var(--row-press); }
-.settings-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--r-tile); }
 .settings-row {
   --row-indent: var(--s4);
   position: relative;
@@ -133,7 +129,8 @@
 button.settings-row:active { background: var(--row-press); }
 .settings-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: var(--r-group); }
 .settings-row:disabled { opacity: 1; }
-/* A row that has no effect yet (Voice and Persona before a Gemini key) rests at the disabled 38% and has no chevron. */
+/* A row that has no effect yet (Voice and Persona before a Gemini key, Restore with no backup) rests at the disabled 38%
+   with its value and no chevron. */
 .settings-row[data-idle] { opacity: .38; }
 .settings-icon { display: grid; place-items: center; flex: none; inline-size: 32px; block-size: 32px; border-radius: var(--r-tile);
   background: var(--tile, oklch(60% 0 none)); color: oklch(100% 0 none); }
@@ -186,14 +183,15 @@ button.settings-row:active { background: var(--row-press); }
 .settings-slider .fact-slider:active::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--surface-container); }
 .settings-slider-ends { display: flex; justify-content: space-between; margin-block-start: calc(var(--s4) * -1); font: var(--label-medium); color: var(--on-surface-variant); }
 .settings-slider .settings-detail { margin-block-start: -4px; }
-.bar-sample { position: relative; display: flex; flex-direction: column; gap: var(--s1); block-size: 208px; margin-block-start: var(--s2); padding: var(--s3); overflow: clip;
+.bar-sample { position: relative; display: flex; flex-direction: column; gap: var(--s1); block-size: 216px; margin-block-start: var(--s2); padding: var(--s3); overflow: clip;
   border-radius: var(--shape-md); background: var(--surface); outline: 1px solid var(--outline-variant); outline-offset: -1px; }
 .bar-sample-line { display: flex; flex: none; align-items: center; gap: var(--s2); block-size: 40px; padding-inline: var(--s3); border-radius: var(--r-tile);
   background: color-mix(in oklch, var(--tone) 22%, var(--surface)); font: var(--body-medium); color: var(--on-surface); white-space: nowrap; }
 .bar-sample-time { flex: none; inline-size: 56px; font: var(--label-medium); color: var(--on-surface-variant); }
 .bar-sample-title { overflow: clip; text-overflow: ellipsis; }
-/* The last event sits wholly behind the bar (narrower and shorter than it), so the slider shows how much of it shows through. */
-.bar-sample-under { background: color-mix(in oklch, var(--tone) 48%, var(--surface)); }
+/* The last event sits wholly behind the bar (narrower and shorter than it, inside its corners), so the slider shows how much
+   of it shows through; the event above ends clear of the bar. */
+.bar-sample-under { margin-block-start: var(--s3); background: color-mix(in oklch, var(--tone) 48%, var(--surface)); }
 .bar-sample-bar { position: absolute; inset: auto var(--s2) var(--s2); display: flex; justify-content: space-around; padding-block: var(--s1);
   border: 1px solid var(--float-border); border-radius: var(--r-group); background: var(--float-surface); font: var(--label-small); color: var(--on-surface-variant); }
 .bar-sample-tab { display: flex; flex-direction: column; align-items: center; }

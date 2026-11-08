@@ -36,7 +36,7 @@ test('home is one short list of pages; each row pushes its page',async()=>{
   assert.deepEqual(opened,['alerts']);
 });
 
-test('a blocked alarm permission shows one red card, wholly one button whose Allow starts the fix, and the Alarms row says Not allowed',async()=>{
+test('a blocked alarm permission shows one red card, wholly one button whose Allow starts the fix, and the Alarms row says it no second time',async()=>{
   const home=await mounted({notificationsAllowed:true,exactAlarmsAllowed:false});
   const alert=home.host.querySelector('.settings-alert');
   assert.equal(alert.querySelector('.settings-label').textContent,'Alarms may not ring');
@@ -49,7 +49,7 @@ test('a blocked alarm permission shows one red card, wholly one button whose All
   assert.equal(alert.querySelector('.ms:not(.settings-icon .ms)'),null);
   const row=home.rows.find(r=>r.dataset.action==='open_alerts');
   assert.equal(row.dataset.tone,undefined);
-  assert.equal(row.querySelector('.settings-value').textContent,'Not allowed');
+  assert.equal(row.querySelector('.settings-value'),null,'the card says the alarms are blocked; the row does not repeat it');
   const both=await mounted({});
   assert.equal(both.host.querySelector('.settings-alert .settings-detail').textContent,'Notifications and alarms are off');
   assert.equal(both.host.querySelector('.settings-alert').dataset.action,'notifications');
@@ -93,6 +93,16 @@ test('Sync & backup says whether a browser is linked, at home and on its page, n
   }
 });
 
+test('Restore a backup rests dimmed with None yet until a backup exists, then opens with its count',async()=>{
+  const none=(await mounted({},'sync')).rows.find(r=>r.dataset.action==='restore_backup');
+  assert.ok(none.disabled&&none.dataset.idle,'nothing to restore yet');
+  assert.equal(none.querySelector('.settings-value').textContent,'None yet');
+  const two=(await mounted({backupCount:2},'sync')).rows.find(r=>r.dataset.action==='restore_backup');
+  assert.ok(!two.disabled&&!two.dataset.idle);
+  assert.equal(two.querySelector('.settings-value').textContent,'2');
+  assert.ok([...two.querySelectorAll('.ms')].some(icon=>icon.textContent==='chevron_right'));
+});
+
 test('remove rows show only for connected keys, last, in red',async()=>{
   const none=await mounted({},'ai');
   assert.ok(!none.rows.some(r=>/^remove_/.test(r.dataset.action)));
@@ -102,21 +112,23 @@ test('remove rows show only for connected keys, last, in red',async()=>{
   assert.equal(last.dataset.tone,'error');
 });
 
-test('every key lives once, in AI keys; Voice without a Gemini key links there from its footnote and dims the voice rows with no value',async()=>{
+test('every key lives once, in AI keys; Voice without a Gemini key starts with a Gemini key row that opens AI keys and dims the voice rows with their starting values',async()=>{
   const voice=await mounted({},'voice');
-  const caption=voice.host.querySelector('.settings-caption');
-  assert.match(caption.textContent,/Android dictation/);
-  const add=caption.querySelector('button.settings-link');
-  assert.equal(add.textContent,'Add a Gemini key in AI keys');
-  assert.deepEqual(voice.labels,['Voice','Persona'],'no second key row: the key is set once, in AI keys');
+  assert.equal(voice.host.querySelector('.settings-caption'),null,'no footnote: the way to a key is the first row');
+  assert.deepEqual(voice.labels,['Gemini key','Voice','Persona']);
+  const key=voice.rows[0];
+  assert.equal(key.dataset.action,'open_ai','the row only opens AI keys; the key is set once, there');
+  assert.equal(key.querySelector('.settings-value').textContent,'Add');
+  assert.match(key.querySelector('.settings-detail').textContent,/Android dictation/);
+  assert.ok([...key.querySelectorAll('.ms')].some(icon=>icon.textContent==='chevron_right'));
   assert.ok(!voice.rows.some(r=>/gemini_key$/.test(r.dataset.action)));
-  add.click();
+  key.click();
   assert.deepEqual(voice.opened,['ai']);
-  for (const action of ['voice_name','voice_persona']) {
+  for (const [action,value] of [['voice_name','Default'],['voice_persona','Not set']]) {
     const idle=voice.rows.find(r=>r.dataset.action===action);
     assert.ok(idle.disabled&&idle.dataset.idle,'a voice choice without a key cannot be opened');
     assert.ok(![...idle.querySelectorAll('.ms')].some(icon=>icon.textContent==='chevron_right'));
-    assert.equal(idle.querySelector('.settings-value'),null,'a dimmed row shows no value');
+    assert.equal(idle.querySelector('.settings-value').textContent,value,'a dimmed row shows what a key would start with');
   }
   const keyed=await mounted({hasGeminiKey:true},'voice');
   assert.deepEqual(keyed.labels,['Voice','Persona']);

@@ -454,8 +454,10 @@ button.fact-row:active { background: var(--row-press); }
 .search-results .task-row > :is(.task-main, .must-mark) { align-self: baseline; }
 .search-results .must-mark { inline-size: 24px; margin: 0 var(--s3) 0 var(--s2); translate: 0 .25em; text-align: center; }
 .search-hit { font-weight: 700; color: inherit; }
-/* Each group's name is in the primary colour, so it reads as a heading over the rows, as on the website. */
-.search-results .section-header h2 { color: var(--primary); }
+/* Group names are quiet title-small on-surface-variant, as on the website, so Show N more stays the one primary line. */
+.search-results .section-header h2 { font: var(--title-small); color: var(--on-surface-variant); }
+/* A result is at most two lines: its title, then one line of Purpose. */
+.search-results .list-supporting { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: clip; }
 /* Done results come last as their title alone, with a quiet tick in place of the filled one (Google Tasks' Completed). */
 .search-results .task-row.done .task-main { min-block-size: 48px; }
 .search-results .task-row.done .task-title { text-decoration: none; }

@@ -24,13 +24,14 @@ const alarmsBlocked = s => alarmsOff(s).length > 0;
 const notchWaiting = s => !!s.notchOn && !s.notchServiceOn;
 const connectedKeys = s => [s.claudeKey && 'Claude', s.openRouterKey && 'OpenRouter', s.hasGeminiKey && 'Gemini'].filter(Boolean);
 
-/** What each home row says on its right: the one fact worth seeing before opening the page. */
+/** What each home row says on its right: the one fact worth seeing before opening the page.
+ *  Blocked alarms show no value: the problem card above already says it. */
 function homeValue(ctx, page) {
   const s = ctx.state;
   switch (page) {
     case 'appearance': return THEME_NAMES[clarityPreferences().appearance];
     case 'notch': return s.notchOn ? 'On' : 'Off';
-    case 'alerts': return alarmsBlocked(s) ? 'Not allowed' : 'On';
+    case 'alerts': return alarmsBlocked(s) ? '' : 'On';
     case 'voice': return s.hasGeminiKey ? voiceChoice().voice ?? 'Default' : 'Dictation';
     case 'ai': { const keys = connectedKeys(s); return keys.length ? keys.join(', ') : 'Not set'; }
     case 'sync': return s.cloudSync ? 'Linked' : 'Not linked';
@@ -147,23 +148,21 @@ function alertsPage(ctx) {
 }
 
 /** Voice and persona live on this phone, not in native settings; each opens an M3 dialog and saves at once.
- *  The Gemini key lives once, in AI keys. With none, Voice and Persona rest dimmed with no value, because dictation
- *  ignores them, and the footnote under the card says what the mic uses and links to AI keys. */
+ *  The Gemini key lives once, in AI keys. With none, the card starts with a `Gemini key · Add` row that opens AI keys
+ *  and says what the mic uses meanwhile; Voice and Persona rest dimmed below it with the values a key would start with. */
 function voicePage(ctx) {
   const s = ctx.state;
   const {voice, persona} = voiceChoice();
   const keyed = !!s.hasGeminiKey;
-  const sound = group('', {id: 'voice', caption: keyed ? '' : 'Without a key, the mic uses Android dictation. '});
+  const sound = group('', {id: 'voice'});
   if (!keyed) {
-    const link = el('button', 'settings-link', 'Add a Gemini key in AI keys');
-    link.type = 'button';
-    link.dataset.action = 'open_ai';
-    link.addEventListener('click', () => ctx.options.openPage?.('ai'));
-    sound.querySelector('.settings-caption').append(link);
+    const key = row({label: 'Gemini key', detail: 'Without one, the mic uses Android dictation', value: 'Add', action: 'open_ai', next: true});
+    key.addEventListener('click', () => ctx.options.openPage?.('ai'));
+    sound.card.append(key);
   }
   const open = dialog => { document.body.append(dialog); dialog.showModal(); };
-  const voiceRow = row({label: 'Voice', value: keyed ? voice ?? 'Default' : '', action: 'voice_name', next: keyed});
-  const personaRow = row({label: 'Persona', detail: keyed ? persona : '', value: keyed && !persona ? 'Not set' : '', action: 'voice_persona', next: keyed});
+  const voiceRow = row({label: 'Voice', value: voice ?? 'Default', action: 'voice_name', next: keyed});
+  const personaRow = row({label: 'Persona', detail: keyed ? persona : '', value: keyed && persona ? '' : 'Not set', action: 'voice_persona', next: keyed});
   if (keyed && persona) personaRow.querySelector('.settings-detail')?.classList.add('settings-clamp');
   if (keyed) {
     voiceRow.addEventListener('click', () => open(voiceDialog(document, voice, next => { setVoice(next); ctx.render(ctx); })));
@@ -201,7 +200,8 @@ function syncPage(ctx) {
   add(ctx, files, {label: 'Export', action: 'export_context', next: true});
   add(ctx, files, {label: 'Import', action: 'import_context', next: true});
   const backups = ctx.state.backupCount;
-  add(ctx, files, {label: 'Restore a backup', value: backups ? String(backups) : 'None yet', action: 'restore_backup', next: !!backups});
+  const restore = add(ctx, files, {label: 'Restore a backup', value: backups ? String(backups) : 'None yet', action: 'restore_backup', next: !!backups});
+  if (!backups) { restore.disabled = true; restore.dataset.idle = 'true'; }
   return [cloud, files];
 }
 
