@@ -119,13 +119,13 @@
 .wr-foot{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 16px 16px;background:var(--surface);border-top:1px solid transparent;transition:border-color var(--dur-short) var(--ease-standard)}
 .wr-foot.edge{border-top-color:var(--outline-variant)}
 .wr-next{flex:1 1 200px}
-.wr-next.wr-next-wait{background-color:var(--secondary-container);color:var(--on-secondary-container);font-weight:500}
+/* Until the step's choices are made, Next is outlined: available, but quieter than the filled tonal choices above it. */
+.wr-next.wr-next-wait{background-color:transparent;color:var(--primary);font-weight:500;box-shadow:inset 0 0 0 1px var(--outline)}
 .wr-back{flex:none}
 
 .wr-short{display:none}
 
 /* Enlarged text (Android font scale >= 1.5): stack controls that would otherwise squeeze */
-:root[data-large-text=true] .wr-bar-count{display:none}
 :root[data-large-text=true] .wr-bar-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 :root[data-large-text=true] .wr-long{display:none}
 :root[data-large-text=true] .wr-short{display:inline}

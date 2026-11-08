@@ -167,8 +167,10 @@ function carryList(api, judged, running) {
     : null;
   const list = el('ul', 'wr-carry');
   list.setAttribute('aria-label', 'Carry into this week');
-  for (const {result, tasks: own} of groups) {
-    list.append(carryHead(result.title));
+  // On one column the decided list sits right above this card, so the first group's head repeats its last row.
+  const above = judged.filter(r => r.verdict !== 'achieved').at(-1);
+  for (const [i, {result, tasks: own}] of groups.entries()) {
+    list.append(carryHead(result.title, i === 0 && result === above));
     for (const task of own) list.append(taskRow(api, task));
   }
   if (running.length) list.append(carryHead('Still running'));
@@ -177,8 +179,8 @@ function carryList(api, judged, running) {
 }
 
 /** A quiet group head inside the carry card: the Result the rows below came from, or "Still running". */
-function carryHead(text) {
-  const head = el('li', 'wr-carry-head');
+function carryHead(text, echo = false) {
+  const head = el('li', 'wr-carry-head' + (echo ? ' echo' : ''));
   head.append(el('span', '', text));
   return head;
 }

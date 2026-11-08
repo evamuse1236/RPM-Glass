@@ -14,9 +14,7 @@
   user-select: none;
   overflow: clip;
 }
-.wr-deck-head { display: flex; align-items: baseline; gap: var(--s3); font: var(--label-medium); }
-.wr-deck-area { flex: 1; min-inline-size: 0; color: color-mix(in oklch, var(--tone) 70%, var(--on-surface)); }
-.wr-deck-place { flex: none; color: var(--on-surface-variant); }
+.wr-deck-area { font: var(--label-medium); color: color-mix(in oklch, var(--tone) 70%, var(--on-surface)); }
 .wr-deck-title { font: var(--headline-small); overflow-wrap: break-word; }
 .wr-deck-purpose { font: var(--body-medium); color: var(--on-surface-variant); text-wrap: pretty; }
 .wr-deck-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); padding-block-start: var(--s2); }

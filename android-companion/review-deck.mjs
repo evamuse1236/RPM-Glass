@@ -95,7 +95,7 @@ export function attachDeckSwipe(card, onVerdict, haptic = vibrate) {
   });
 }
 
-function deckCard(api, summary, result, place) {
+function deckCard(api, summary, result) {
   const card = el('article', 'wr-deck-card');
   card.dataset.key = 'deck:' + result.blockId;
   const {area, tone} = resultArea(api.data(), result.blockId);
@@ -104,10 +104,7 @@ function deckCard(api, summary, result, place) {
   const stamp = el('span', 'wr-deck-stamp');
   stamp.setAttribute('aria-hidden', 'true');
   card.append(stamp);
-  const head = el('div', 'wr-deck-head');
-  head.append(el('span', 'wr-deck-area', area?.title || ''));
-  if (place.of > 1) head.append(el('span', 'wr-deck-place tnum', `${place.n} of ${place.of}`));
-  if (head.textContent) card.append(head);
+  if (area?.title) card.append(el('p', 'wr-deck-area', area.title));
   card.append(el('h3', 'wr-deck-title', result.title));
   if (result.purpose) card.append(el('p', 'wr-deck-purpose', result.purpose));
   const meta = el('div', 'wr-deck-meta');
@@ -175,7 +172,7 @@ export function deckTally(judged) {
 export function resultDeck(api, summary, judged) {
   const deck = deckOf(judged);
   const stack = el('div', 'wr-deck');
-  stack.append(deckCard(api, summary, deck[0], {n: judged.length - deck.length + 1, of: judged.length}));
+  stack.append(deckCard(api, summary, deck[0]));
   api.ui.deckEnter = false;
   return [stack, verdictButtons(api, summary, deck[0])];
 }

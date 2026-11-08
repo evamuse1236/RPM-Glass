@@ -58,7 +58,7 @@ export function stepTwo(api, ctx) {
   }
   if (inbox.length > INBOX_PREVIEW) {
     const more = el('li', 'wr-list-more');
-    more.append(inboxToggle(api, inbox.length));
+    more.append(inboxToggle(api));
     list.append(more);
   }
   parts.push(list);
@@ -68,9 +68,9 @@ export function stepTwo(api, ctx) {
 const INBOX_PREVIEW = 4;
 
 /** The list's last row: the rest of the Inbox, or back to the newest. */
-function inboxToggle(api, count) {
+function inboxToggle(api) {
   const open = Boolean(api.ui.inboxOpen);
-  const toggle = button(open ? 'Show fewer' : `Show all ${count}`, () => { api.ui.inboxOpen = !open; api.render(); }, 'wr-idle-toggle');
+  const toggle = button(open ? 'Show fewer' : 'Show all', () => { api.ui.inboxOpen = !open; api.render(); }, 'wr-idle-toggle');
   toggle.setAttribute('aria-expanded', String(open));
   toggle.dataset.key = 'inbox-toggle';
   toggle.append(icon(open ? 'expand_less' : 'expand_more'));

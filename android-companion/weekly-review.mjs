@@ -155,7 +155,10 @@ function renderReview(root, api, ctx) {
   if (first) {
     body = el('div', 'wr-body');
     content = el('div', 'wr-content');
-    body.append(content);
+    // Step 1's summary can run under the snackbar, so a chevron says more rows wait below and scrolls to them.
+    const down = iconButton('keyboard_arrow_down', 'Show more below',
+      () => body.scrollBy({top: body.clientHeight * 0.8, behavior: reducedMotion() ? 'auto' : 'smooth'}), 'wr-more');
+    body.append(content, down);
     keepEndClearOfSnackbar(body);
     // On the website the footer follows short content up, so the snackbar's place is measured whenever the body resizes.
     new ResizeObserver(() => {
@@ -188,7 +191,6 @@ function renderReview(root, api, ctx) {
       if (ui.frameToken !== token) return;
       ui.framePending = false;
       if (!root.isConnected) return;
-      topBar(api, bar);
       progressBar(api.ui.step, api.goTo, progress);
       const hadBack = !!foot.querySelector(':scope > .wr-back');
       footer(api, foot);
@@ -230,6 +232,8 @@ function renderReview(root, api, ctx) {
     const more = body.scrollTop + body.clientHeight < body.scrollHeight - 2;
     foot.classList.toggle('edge', more);
     body.classList.toggle('more', more);
+    // Only the one-column summary gets the chevron; it never sits over the deck's verdict buttons.
+    body.classList.toggle('cue', more && ui.step === 1 && !deckWaiting(api) && body.clientWidth < 840);
     progress?.classList.toggle('edge', body.scrollTop > 2);
   };
   body.onscroll = edge;
@@ -273,18 +277,11 @@ function measureFoot(foot) {
   style.setProperty('--wr-next-mid', Math.round(innerHeight - (box.top + box.bottom) / 2) + 'px');
 }
 
+/** The step bar under the title says which step this is, so the title row holds only Close and the name. */
 function topBar(api, existing = null) {
-  if (existing) {
-    const count = existing.querySelector('.wr-bar-count');
-    const text = `${api.ui.step} of ${REVIEW_STEPS}`;
-    if (count && count.textContent !== text) count.textContent = text;
-    return existing;
-  }
+  if (existing) return existing;
   const bar = el('header', 'wr-bar');
   bar.append(iconButton('close', 'Close review', api.close), el('h1', 'wr-bar-title', 'Weekly review'));
-  const count = el('span', 'wr-bar-count tnum', `${api.ui.step} of ${REVIEW_STEPS}`);
-  count.setAttribute('aria-hidden', 'true');
-  bar.append(count);
   return bar;
 }
 
@@ -335,7 +332,7 @@ function footer(api, existing = null) {
   set(short, last ? 'Finish' : 'Next');
   set(mark, last ? 'check' : 'arrow_forward');
   next.setAttribute('aria-label', label);
-  next.classList.toggle('wr-next-wait', ui.step === 1 && deckWaiting(api));
+  next.classList.toggle('wr-next-wait', ui.step === 1 ? deckWaiting(api) : last && !ui.focus.length);
   return foot;
 }
 
