@@ -128,8 +128,10 @@ export function showInbox(app, {motion = 'forward'} = {}) {
 
 /** Scrolls today's Inbox tasks into view on the Today timeline beside the pane and tints them for a moment. */
 function revealOnToday(list) {
-  const keys = new Set(list.map(task => 'task:' + task.id + (task.occurrence ?? '')));
-  const nodes = [...document.querySelectorAll('#planner [data-key^="task:"]')].filter(node => keys.has(node.dataset.key));
+  // Today keys a row 'task:<id>' plus its slot's ISO time when it has one.
+  const ids = list.map(task => 'task:' + task.id);
+  const onToday = key => ids.some(id => key === id || (key.startsWith(id) && /^\d{4}-/.test(key.slice(id.length))));
+  const nodes = [...document.querySelectorAll('#planner [data-key^="task:"]')].filter(node => onToday(node.dataset.key));
   if (!nodes.length) return;
   nodes[0].scrollIntoView({block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth'});
   nodes.forEach(node => node.classList.add('inbox-found'));
