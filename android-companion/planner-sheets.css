@@ -96,7 +96,7 @@
 /* Under the grab pill the Inbox title row is as tall as its Sort with Jev button, so the title sits 8dp under the pill. */
 .sheet-inbox > .sheet-handle + .sheet-header { block-size: 40px; }
 /* Only the website pane beside Today shows this line, in place of the rows the timeline already holds. */
-.inbox-on-today, .sheet-count.count-off-today { display: none; }
+.inbox-on-today { display: none; }
 /* Tasks that already have a day, time or repeat wait below a quiet Scheduled label. */
 .sheet .section-header.inbox-scheduled { padding: var(--s4) 0 var(--s1); }
 .inbox-scheduled h2 { color: var(--on-surface-variant); }
@@ -286,6 +286,11 @@
   field-sizing: content;
 }
 .quick-field::placeholder { color: var(--on-surface-variant); }
+/* Details opens two lines tall on the phone and the website alike, room to start a note, and grows as it fills. */
+.quick-field[aria-label=Details] { min-block-size: 72px; }
+/* Estimate, Repeat and Must are tonal like the Block chip, one option look under the day chips; a set one turns
+   secondary like any chosen chip. */
+.sheet .more-chips > .assist-chip:not(.on) { border-color: transparent; background: var(--sheet-raised); color: var(--on-surface); }
 .quick-field:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .quick-details:active { background: var(--row-press); }
 .hash-chips .assist-chip { max-width: 80%; }

@@ -49,10 +49,9 @@ export function showInbox(app, {motion = 'forward'} = {}) {
   const {body, actions, header, sheet} = openSheet(app, 'Inbox', {motion});
   sheet.classList.add('sheet-inbox');
   app.sheet.inboxBody = body;
-  // The count names the rows in view: beside the website's Today, today's tasks fold into one line, so it counts the rest.
-  const count = el('span', 'sheet-count count-all');
-  const countRest = el('span', 'sheet-count count-off-today');
-  header.querySelector('h2').append(count, countRest);
+  // One count everywhere (phone, website pane, rail): every task in the Inbox, today's too, even where they fold into a link.
+  const count = el('span', 'sheet-count');
+  header.querySelector('h2').append(count);
   const jev = labelButton('auto_awesome', 'Sort with Jev', () => app.actions.jevSort(), 'text-btn inbox-jev');
   header.querySelector('.sheet-close').before(jev);
   // Fills a host with the rows: the body itself at first, then a detached copy that animateRerender reconciles in by
@@ -77,7 +76,6 @@ export function showInbox(app, {motion = 'forward'} = {}) {
     const byWhen = (a, b) => when(a) - when(b);
     const today = rows.filter(task => scheduled(task) && dueToday(task)).sort(byWhen);
     const later = rows.filter(task => scheduled(task) && !dueToday(task)).sort(byWhen);
-    countRest.textContent = open.length + later.length ? String(open.length + later.length) : '';
     // Today's untimed tasks say Anytime, as on Today, so none reads as timed under Scheduled today.
     const add = (task, days, group) => {
       const row = taskRow(app, task, {inbox: true, days, anytime: group === 'inbox-today'});
