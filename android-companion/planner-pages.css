@@ -40,7 +40,7 @@
 }
 .card-meta { font: var(--body-small); color: var(--on-surface-variant); margin-top: 2px; }
 /* A Project card keeps one 16dp text edge: Area, title, deadline and the Next task start on it; the Block rings close the
-   head on the right, the chevron after them, both centred on the head. */
+   head on the right, the chevron after them. */
 .project-head { display: flex; align-items: center; }
 .project-toggle {
   flex: 1;
@@ -54,10 +54,17 @@
 }
 .project-head:has(+ .next-task) .project-toggle { padding-block-end: var(--s1); }
 .project-card > .next-task { padding-inline: var(--s4); }
-/* With no deadline line, the Next task moves up under the title: the rings reach down beside it, so its words keep clear
-   of the rings' column (they wrap, never cut). */
-.project-card:not(:has(.card-due)) > .project-head:has(+ .next-task) .nest-rings { margin-block-end: calc(-1 * var(--s3)); }
-.project-card:not(:has(.card-due)) > .next-task { padding-inline-end: calc(56px + var(--touch) + var(--s3) + var(--s1)); }
+/* On the phone (the head with a chevron) the rings and chevron sit out of the flow, top-aligned with the Area line, so the
+   words set the head's height: the facts line or the Next task follows the title directly and the rings set only the
+   card's minimum height. The facts line runs to the card's 16dp end edge, where every Block row ends its count. */
+.project-card:has(> .project-head > .project-open) { min-block-size: calc(48px + 2 * var(--s3)); }
+.project-head:has(> .project-open) { position: relative; }
+.project-head:has(> .project-open) > .project-toggle { display: grid; gap: 2px; padding-inline-end: var(--s4); }
+.project-head:has(> .project-open) .project-copy { padding-inline-end: calc(var(--touch) + var(--s1) + 48px + var(--s3) - var(--s4)); }
+.project-head:has(> .project-open) .nest-rings { position: absolute; inset-block-start: var(--s3); inset-inline-end: calc(var(--touch) + var(--s1)); inline-size: 48px; block-size: 48px; margin: 0; }
+.project-head > .project-open { position: absolute; inset-block-start: var(--s3); inset-inline-end: var(--s1); margin: 0; }
+.project-facts { font: var(--body-medium); }
+.project-figures { flex: none; font: var(--label-large); }
 .project-toggle:active { background: var(--row-press); }
 .project-copy { flex: 1; align-self: start; display: grid; gap: 2px; min-inline-size: 0; }
 /* With no Area the overline's line stays empty, so every card's title sits on the same line. */
@@ -70,7 +77,7 @@
 /* A ring's track is a dim band of its own colour (Activity rings), so every nested ring reads as one band, light or dark. */
 :is(.nest-track, .ring-track) { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--track-mix), var(--surface-container-highest)); }
 /* A Project card's rings are thin and nested, so an empty one needs a stronger band than a lone Block ring to read. */
-.nest-rings .nest-track { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--nest-track-mix), var(--surface-container-highest)); }
+.nest-rings .nest-track { stroke: color-mix(in oklch, var(--progress, var(--primary)) var(--nest-track-mix), var(--nest-track-base)); }
 .nest-value { stroke: var(--progress, var(--primary)); stroke-linecap: round; }
 /* A finished Project rests: its full rings sit in a calmer tone with a thin check, never heavier than one still running. */
 .nest-rings.finished .nest-value { stroke: color-mix(in oklch, var(--progress, var(--primary)) 64%, var(--surface-container)); }
@@ -82,8 +89,7 @@
 .block-line-main { display: flex; flex-direction: column; padding: var(--s3) var(--s4) 0; text-align: start; }
 .block-line-main:only-child { padding-block-end: var(--s3); }
 .block-line-main:active, .project-blocks .next-title:active { background: var(--row-press); }
-:is(.block-line, .project-copy) .card-due { font: var(--body-medium); color: var(--on-surface-variant); }
-.project-copy .card-due.tight { color: var(--error); }
+.block-line .card-due { font: var(--body-medium); color: var(--on-surface-variant); }
 .project-blocks .block-line-main { padding-inline: 0; border-radius: var(--shape-sm); }
 .project-blocks .next-task { padding-inline: 0; }
 /* Project detail: the Blocks sit in one filled group, split by dividers. */

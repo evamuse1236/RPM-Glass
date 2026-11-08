@@ -105,9 +105,6 @@ function projectCard(app, project, lead = projectLead(app, project)) {
   const copy = el('span', 'project-copy');
   if (area) copy.append(el('span', 'project-area', area.title));
   copy.append(el('span', 'card-title', project.title));
-  // Open on the phone, each Block row gives its own deadline, so the head does not repeat it; on wide it has a column.
-  const words = due && !open ? due.label : '';
-  if (words) copy.append(el('span', 'card-due tnum' + (due?.tight ? ' tight' : ''), words));
   // Words first on the card's one text edge; the rings close the row, as every progress mark in the Projects tab does.
   const rings = nestRings(wide ? [stats] : ordered.map(block => blockStats(app, block)), count, {finished});
   if (wide) {
@@ -117,7 +114,19 @@ function projectCard(app, project, lead = projectLead(app, project)) {
     const tally = el('span', 'project-tally');
     tally.append(figures, rings);
     toggle.append(copy, el('span', 'project-due card-due tnum' + (due?.tight ? ' tight' : ''), due?.label ?? ''), tally);
-  } else toggle.append(copy, rings);
+  } else {
+    toggle.append(copy, rings);
+    // The phone head reads the same folded or open: the first deadline, then "4/18" at the line's end, where every Block
+    // row puts its count. A finished Project's check says done, and a lone Block with no deadline has nothing to add.
+    const sum = stats.total && !finished ? `${stats.done}/${stats.total}` : '';
+    if (due || (sum && ordered.length > 1)) {
+      const facts = el('span', 'card-facts project-facts tnum');
+      const figures = el('span', 'project-figures', sum);
+      figures.setAttribute('aria-hidden', 'true');
+      facts.append(el('span', 'card-due' + (due?.tight ? ' tight' : ''), due?.label ?? ''), figures);
+      toggle.append(facts);
+    }
+  }
   const head = el('div', 'project-head');
   head.append(toggle);
   if (!wide) head.append(iconButton('chevron_right', `Open ${project.title}`, () => app.openProject(project.id), {cls: 'project-open'}));
