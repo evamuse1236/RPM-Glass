@@ -63,8 +63,11 @@
 .project-head:has(> .project-open) .project-copy { padding-inline-end: calc(var(--touch) + var(--s1) + 48px + var(--s3) - var(--s4)); }
 .project-head:has(> .project-open) .nest-rings { position: absolute; inset-block-start: var(--s3); inset-inline-end: calc(var(--touch) + var(--s1)); inline-size: 48px; block-size: 48px; margin: 0; }
 .project-head > .project-open { position: absolute; inset-block-start: var(--s3); inset-inline-end: var(--s1); margin: 0; }
-.project-facts { font: var(--body-medium); }
+/* "Due tomorrow 11 PM · 4/18": the count follows the deadline as one phrase in the line's own type. */
+.card-facts.project-facts { justify-content: flex-start; gap: var(--s1); font: var(--body-medium); }
 .project-figures { flex: none; font: var(--label-large); }
+.project-facts > .project-figures { font: inherit; color: var(--on-surface-variant); }
+.project-facts > .card-due + .project-figures::before { content: "·"; margin-inline-end: var(--s1); }
 .project-toggle:active { background: var(--row-press); }
 .project-copy { flex: 1; align-self: start; display: grid; gap: 2px; min-inline-size: 0; }
 /* With no Area the overline's line stays empty, so every card's title sits on the same line. */
@@ -226,6 +229,10 @@
 .crumb-quiet > span:not(.ms) { min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
 .crumb-quiet:active { color: var(--on-surface); }
 .crumb-quiet:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* The Project's first deadline closes the line as a plain fact, not a control. */
+.crumb-due { cursor: default; }
+.crumb-due::after { content: none; }
+.crumb-due.tight { color: var(--error); }
 .section-header:has(> :is(.blocks-progress, .card-tally)) { align-items: center; }
 .blocks-progress { display: flex; align-items: center; gap: var(--s2); }
 .blocks-progress .ring { inline-size: 20px; block-size: 20px; }
@@ -233,6 +240,11 @@
 #planner[data-view=projects] .purpose-text { text-wrap: pretty; }
 /* Project detail keeps one 16dp edge: the heart starts on it, as the Area's letter does on the line above. */
 #planner[data-view=projects] .block-facts > .fact-row { gap: var(--s3); padding-inline-start: var(--gutter); }
+/* On the phone the Purpose is a quiet line under the title, lighter than the Block titles below it. */
+@media (width < 1080px) {
+  #planner[data-view=projects] .block-facts > .purpose-row > .leading { font-size: 20px; inline-size: 20px; }
+  #planner[data-view=projects] .block-facts .purpose-text { font: var(--body-medium); color: var(--on-surface-variant); }
+}
 #planner:is([data-view=areas], [data-view=goals]) :is(.purpose-text, .title-edit, .detail-title-text) { text-wrap: pretty; }
 /* Google Tasks detail rows: the 24dp icon centred on the Plan's check column, the text on the task titles. */
 .fact-row {

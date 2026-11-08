@@ -116,14 +116,17 @@ function projectCard(app, project, lead = projectLead(app, project)) {
     toggle.append(copy, el('span', 'project-due card-due tnum' + (due?.tight ? ' tight' : ''), due?.label ?? ''), tally);
   } else {
     toggle.append(copy, rings);
-    // The phone head reads the same folded or open: the first deadline, then "4/18" at the line's end, where every Block
-    // row puts its count. A finished Project's check says done, and a lone Block with no deadline has nothing to add.
+    // The phone head reads the same folded or open, on every card with tasks: the first deadline, then "· 4/18" right
+    // after it as one phrase. A finished Project's check says done, so its card adds no line.
     const sum = stats.total && !finished ? `${stats.done}/${stats.total}` : '';
-    if (due || (sum && ordered.length > 1)) {
+    if (due || sum) {
       const facts = el('span', 'card-facts project-facts tnum');
-      const figures = el('span', 'project-figures', sum);
-      figures.setAttribute('aria-hidden', 'true');
-      facts.append(el('span', 'card-due' + (due?.tight ? ' tight' : ''), due?.label ?? ''), figures);
+      if (due) facts.append(el('span', 'card-due' + (due.tight ? ' tight' : ''), due.label));
+      if (sum) {
+        const figures = el('span', 'project-figures', sum);
+        figures.setAttribute('aria-hidden', 'true');
+        facts.append(figures);
+      }
       toggle.append(facts);
     }
   }
@@ -232,6 +235,13 @@ export function renderProjectDetail(app, page, project) {
     {label: goal?.title ?? 'Link a Goal', icon: 'flag', menu: goalMenu}], {quiet: true});
   crumbs.classList.add('head-crumbs');
   crumbs.dataset.tone = app.tone(area);
+  const {blocks, stats, due} = projectLead(app, project);
+  // The list card's first deadline stays on the phone page as the line's last quiet fact; wide says it in the facts card.
+  if (due && !wide) {
+    const when = el('span', 'crumb-quiet crumb-due tnum' + (due.tight ? ' tight' : ''));
+    when.append(icon('event'), el('span', '', due.label));
+    crumbs.append(when);
+  }
   if (!wide) page.append(crumbs);
   const facts = el('div', 'block-facts');
   facts.dataset.tone = app.tone(area);
@@ -239,7 +249,6 @@ export function renderProjectDetail(app, page, project) {
   facts.append(purposePanel(app, 'projects', project, 'Purpose', {labelled: false}));
   const notes = notesPanel(app, 'projects', project);
   if (notes) facts.append(notes);
-  const {blocks, stats, due} = projectLead(app, project);
   const count = stats.total ? `${stats.done} of ${plural(stats.total, 'task')} done` : 'No tasks yet';
   if (wide) facts.append(projectStatus(stats, due, count), crumbs);
   page.append(facts);

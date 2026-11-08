@@ -119,7 +119,7 @@
   --glass-blur:16px;--glass-saturate:1.08;--glass-border:oklch(100% none none / 8%);
   --track-mix:34%;
   --nest-track-mix:16%;
-  --nest-track-base:var(--outline-variant);
+  --nest-track-base:color-mix(in oklch, var(--outline) 50%, var(--outline-variant));
 }}
 :root[data-appearance=dark]{
   color-scheme:dark;
@@ -139,7 +139,7 @@
   --glass-blur:16px;--glass-saturate:1.08;--glass-border:oklch(100% none none / 8%);
   --track-mix:34%;
   --nest-track-mix:16%;
-  --nest-track-base:var(--outline-variant);
+  --nest-track-base:color-mix(in oklch, var(--outline) 50%, var(--outline-variant));
 }
 
 /* Base */
