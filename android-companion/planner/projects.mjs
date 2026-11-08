@@ -106,27 +106,28 @@ function projectCard(app, project, lead = projectLead(app, project)) {
   if (area) copy.append(el('span', 'project-area', area.title));
   copy.append(el('span', 'card-title', project.title));
   // Words first on the card's one text edge; the rings close the row, as every progress mark in the Projects tab does.
+  const sum = stats.total && !finished ? `${stats.done}/${stats.total}` : '';
+  const figures = () => {
+    const span = el('span', 'project-figures tnum', sum);
+    span.setAttribute('aria-hidden', 'true');
+    return span;
+  };
   const rings = nestRings(wide ? [stats] : ordered.map(block => blockStats(app, block)), count, {finished});
   if (wide) {
     // On wide the head is the table's first row: the Project's first deadline in the deadline column, then "8/18" by its ring.
-    const figures = el('span', 'project-figures tnum', stats.total ? `${stats.done}/${stats.total}` : '');
-    figures.setAttribute('aria-hidden', 'true');
     const tally = el('span', 'project-tally');
-    tally.append(figures, rings);
+    tally.append(el('span', 'project-figures tnum', stats.total ? `${stats.done}/${stats.total}` : ''), rings);
+    tally.firstChild.setAttribute('aria-hidden', 'true');
     toggle.append(copy, el('span', 'project-due card-due tnum' + (due?.tight ? ' tight' : ''), due?.label ?? ''), tally);
   } else {
     toggle.append(copy, rings);
-    // The phone head reads the same folded or open, on every card with tasks: the first deadline, then "· 4/18" right
-    // after it as one phrase. A finished Project's check says done, so its card adds no line.
-    const sum = stats.total && !finished ? `${stats.done}/${stats.total}` : '';
-    if (due || sum) {
+    // The first deadline gets the head's one line: folded it reads "Due tomorrow 11 PM · 4/18" as one phrase, open the
+    // count moves to the line's end, in the Block rows' count column. With no deadline the count ends the Next task's
+    // line and the card has no line of its own for a number; open, the Block rows say it. A finished Project's check says done.
+    if (due) {
       const facts = el('span', 'card-facts project-facts tnum');
-      if (due) facts.append(el('span', 'card-due' + (due.tight ? ' tight' : ''), due.label));
-      if (sum) {
-        const figures = el('span', 'project-figures', sum);
-        figures.setAttribute('aria-hidden', 'true');
-        facts.append(figures);
-      }
+      facts.append(el('span', 'card-due' + (due.tight ? ' tight' : ''), due.label));
+      if (sum) facts.append(figures());
       toggle.append(facts);
     }
   }
@@ -135,7 +136,11 @@ function projectCard(app, project, lead = projectLead(app, project)) {
   if (!wide) head.append(iconButton('chevron_right', `Open ${project.title}`, () => app.openProject(project.id), {cls: 'project-open'}));
   card.append(head);
   // Closed, the card ends on the one task to do next; open, each Block row carries its own.
-  if (!open && next) card.append(nextTaskRow(app, next));
+  if (!open && next) {
+    const row = nextTaskRow(app, next);
+    if (!wide && !due && sum) row.append(figures());
+    card.append(row);
+  }
   if (open) {
     const list = el('div', 'project-blocks');
     list.dataset.key = 'project-blocks:' + project.id;
@@ -238,8 +243,9 @@ export function renderProjectDetail(app, page, project) {
   const {blocks, stats, due} = projectLead(app, project);
   // The list card's first deadline stays on the phone page as the line's last quiet fact; wide says it in the facts card.
   if (due && !wide) {
+    // "Due tomorrow 11 PM" names itself, so it needs no icon and the line keeps room for the Goal.
     const when = el('span', 'crumb-quiet crumb-due tnum' + (due.tight ? ' tight' : ''));
-    when.append(icon('event'), el('span', '', due.label));
+    when.append(el('span', '', due.label));
     crumbs.append(when);
   }
   if (!wide) page.append(crumbs);
@@ -252,9 +258,14 @@ export function renderProjectDetail(app, page, project) {
   const count = stats.total ? `${stats.done} of ${plural(stats.total, 'task')} done` : 'No tasks yet';
   if (wide) facts.append(projectStatus(stats, due, count), crumbs);
   page.append(facts);
-  // The Blocks header ends in the Project's tasks done, the same ring and "4/18" each Block row ends in; on wide the
-  // facts card says it once instead.
-  const progress = stats.total && !wide ? taskTally(stats, count) : null;
+  // The Blocks header ends in the Project's "4/18" on the Block rows' count column, as plain figures: the rows' rings
+  // already draw progress, so the page shows it in one form. On wide the facts card says it once instead.
+  let progress = null;
+  if (stats.total && !wide) {
+    progress = el('span', 'card-tally tnum', `${stats.done}/${stats.total}`);
+    progress.setAttribute('role', 'img');
+    progress.setAttribute('aria-label', count);
+  }
   const header = sectionHeader('Blocks', progress);
   header.dataset.tone = app.tone(area);
   page.append(header);
