@@ -174,5 +174,13 @@ export function resultDeck(api, summary, judged) {
   const stack = el('div', 'wr-deck');
   stack.append(deckCard(api, summary, deck[0]));
   api.ui.deckEnter = false;
-  return [stack, verdictButtons(api, summary, deck[0])];
+  return [stack, verdictButtons(api, summary, deck[0]), ...(deck[1] ? [upNext(deck[1])] : [])];
+}
+
+/** One quiet line naming the Result that comes after this card, so "0 of 2 decided" has its second one in sight. */
+function upNext(result) {
+  const line = el('p', 'wr-deck-next');
+  line.dataset.key = 'deck-next:' + result.blockId;
+  line.append(el('span', 'wr-deck-next-lead', 'Up next'), el('span', 'wr-deck-next-title', result.title));
+  return line;
 }

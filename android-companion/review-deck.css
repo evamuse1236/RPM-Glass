@@ -14,11 +14,6 @@
   user-select: none;
   overflow: clip;
 }
-/* In a wide window the card stands taller, its facts at its foot, as one card to decide rather than a row. */
-@container (inline-size >= 840px) {
-  .wr-deck-card { min-block-size: 240px; }
-  .wr-deck-meta { margin-block-start: auto; }
-}
 .wr-deck-count { font: var(--label-medium); color: color-mix(in oklch, var(--tone) 70%, var(--on-surface)); }
 .wr-deck-title { font: var(--headline-small); overflow-wrap: break-word; text-wrap: pretty; }
 .wr-deck-purpose { font: var(--body-medium); color: var(--on-surface-variant); text-wrap: pretty; }
@@ -59,6 +54,9 @@
 .wr-deck-verdict:active { background: color-mix(in oklch, var(--secondary-container), var(--on-secondary-container) 12%); }
 .wr-deck-verdict[data-verdict=achieved] .ms, .wr-tally-count[data-verdict=achieved] .ms { color: var(--tertiary); }
 .wr-deck-verdict[data-verdict=partly] .ms, .wr-tally-count[data-verdict=partly] .ms { color: var(--must); }
+.wr-deck-next { display: flex; gap: var(--s2); min-inline-size: 0; padding-inline: var(--s1); font: var(--body-medium); color: var(--on-surface-variant); }
+.wr-deck-next-lead { flex: none; font-weight: 500; }
+.wr-deck-next-title { min-inline-size: 0; color: var(--on-surface); overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
 .wr-tally-count { display: inline-flex; align-items: center; gap: var(--s1); color: var(--on-surface); }
 .wr-tally-count .ms { font-size: 20px; }
 @media (prefers-reduced-motion: no-preference) {

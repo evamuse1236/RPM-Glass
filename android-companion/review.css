@@ -36,8 +36,9 @@
 
 /* Body */
 .wr-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px 16px 24px}
-/* What runs on under the footer fades out over the body's own end padding, so a cut row reads as more to scroll. */
-.wr-body{mask-image:linear-gradient(to bottom,#000 calc(100% - var(--s6)),transparent)}
+/* Only while more runs on under the footer (weekly-review.mjs sets .more) does the body's end fade, so a cut row reads as
+   more to scroll; at the end the last card closes whole above the footer. */
+.wr-body.more{mask-image:linear-gradient(to bottom,#000 calc(100% - var(--s6)),transparent)}
 .wr-content{display:flex;flex-direction:column;gap:12px;container-type:inline-size}
 /* Step to step: weekly-review.mjs moves the old and new content on the shared X axis; this copy of the old content
    keeps the body's padding while it slides out. */
@@ -106,7 +107,7 @@
 .wr-queue>li+li{border-top:1px solid var(--outline-variant)}
 .wr-queue-row{display:flex;align-items:center;gap:16px;min-block-size:56px;padding:8px 16px;color:var(--on-surface)}
 .wr-queue-row .ring{color:var(--on-surface-variant)}
-.wr-queue-row .wr-decided-title{font:var(--body-large)}
+.wr-queue-row .wr-decided-title{font:var(--body-medium)}
 @container (inline-size >= 840px){
   .wr-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;column-gap:24px}
   .wr-split-side{position:sticky;inset-block-start:0}
@@ -162,24 +163,22 @@
 .wr-clash-tag{display:inline-flex;align-items:center;gap:4px;color:var(--error)}
 .wr-clash-tag .ms{font-size:16px}
 
-/* Step 3: one row per Inbox task, one control: its words, the suggested Result under them, the chooser on tap.
+/* Step 3: one row per Inbox task, one button: its words, the suggested Result under them, the chooser on tap.
    A swipe right takes the suggestion, left keeps the task in the Inbox. A clash keeps its own marker. */
 .wr-sort-list{overflow:clip}
 .wr-sort{position:relative;background-color:var(--surface-container)}
 .wr-sort+.wr-sort{border-top:1px solid var(--outline-variant)}
-.wr-sort-body{display:flex;flex-direction:column}
-.wr .wr-sort-row{flex:1;display:flex;align-items:center;gap:8px;min-inline-size:0;min-block-size:56px;padding:8px 12px 8px 16px;border:0;border-radius:0;background-color:transparent;color:var(--on-surface);font:inherit;text-align:start}
+.wr .wr-sort-row{display:flex;inline-size:100%;align-items:center;gap:8px;min-inline-size:0;min-block-size:56px;padding:8px 12px 8px 16px;border:0;border-radius:0;background-color:transparent;color:var(--on-surface);font:inherit;text-align:start}
 .wr-sort:first-child .wr-sort-row{border-start-start-radius:20px;border-start-end-radius:20px}
 .wr-sort:last-child .wr-sort-row{border-end-start-radius:20px;border-end-end-radius:20px}
 .wr-sort-row>.ms{flex:none;color:var(--on-surface-variant)}
-.wr-sort-text{flex:1;display:flex;flex-direction:column;gap:4px;min-inline-size:0}
-/* A suggested row keeps the one row shape (title, chevron on its first line); its Result follows as a quiet
-   "+ Block" action, whose long Block name takes a second line rather than being cut. */
-.wr .wr-sort-row.suggested{align-items:start;min-block-size:48px;padding-block:12px 4px}
-.wr .wr-sort-take{align-self:start;max-inline-size:calc(100% - 24px);margin-block:0 8px;margin-inline:8px 16px;padding-block:4px;padding-inline:8px 12px;border-color:transparent;border-radius:var(--shape-full);color:var(--primary)}
-.wr .wr-sort-take{align-items:start}
-.wr-sort-take .ms{margin:0;line-height:20px}
-.wr-sort-take .wr-label{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;text-wrap:pretty}
+/* A suggested row stays one button: title and chevron on the first line, then the Result in quiet text beside the
+   Block icon, wrapping rather than cut. Taking it is the swipe right; a tap opens the chooser with it marked. */
+.wr .wr-sort-row.suggested{display:grid;grid-template-columns:1fr auto;align-items:start;row-gap:4px;padding-block:12px}
+.wr-sort-row.suggested>.ms{grid-column:2;grid-row:1}
+.wr-sort-hint{grid-column:1/-1;display:flex;gap:8px;min-inline-size:0;padding-inline-end:12px;font:var(--body-medium);color:var(--on-surface-variant)}
+.wr-sort-hint>.ms{flex:none;font-size:20px;line-height:20px;color:var(--on-surface-variant)}
+.wr-sort-hint-title{min-inline-size:0;text-wrap:pretty}
 /* The first suggested row slides once to show its swipe, then settles */
 @media (prefers-reduced-motion:no-preference){
   .wr .swipe-peek>:not(.swipe-reveal),.wr .swipe-peek::before{transition:transform var(--dur-medium4) var(--ease-emphasized)}

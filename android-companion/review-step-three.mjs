@@ -68,20 +68,17 @@ function keep(api, taskId, on) {
   api.saveProgress();
 }
 
-/** One Inbox task: its words open the chooser. With a suggested Result, the Result shows under the words and Add
- * takes it in one tap, as a swipe right does; the first such row shows that swipe once. A swipe left keeps the task
- * in the Inbox. */
+/** One Inbox task, one button: its words open the chooser. With a suggested Result, a second line names it beside the
+ * Block icon, and a swipe right takes it in one gesture; the first such row shows that swipe once. A swipe left keeps
+ * the task in the Inbox. */
 function sortRow(api, task, suggested, peek) {
   const {ui} = api;
   const name = task.title ?? task.raw;
   const item = el('li', 'wr-sort');
   const row = el('button', 'wr-sort-row');
   row.type = 'button';
-  const text = el('span', 'wr-sort-text');
-  text.append(el('span', 'wr-row-title', name));
-  row.append(text, icon('chevron_right'));
+  row.append(el('span', 'wr-row-title', name), icon('chevron_right'));
   row.setAttribute('aria-label', `Choose a Result for "${name}"`);
-  if (suggested) row.setAttribute('aria-description', 'Suggested: ' + suggested.title);
   row.setAttribute('aria-haspopup', 'dialog');
   row.dataset.key = 'choose:' + task.id;
   row.addEventListener('click', () => {
@@ -91,16 +88,14 @@ function sortRow(api, task, suggested, peek) {
   });
   const take = () => api.run({type: 'groupTasks', ids: [task.id], blockId: suggested.blockId}, 'Added to ' + suggested.title);
   const right = suggested && {kind: 'done', symbol: 'stacks', word: 'Add to Result', run: take};
-  const body = el('div', 'wr-sort-body');
-  body.append(row);
   if (suggested) {
     row.classList.add('suggested');
-    const add = button(suggested.title, take, 'wr-chip wr-sort-take', 'add');
-    add.setAttribute('aria-label', `Add to "${suggested.title}"`);
-    add.dataset.key = 'take:' + task.id;
-    body.append(add);
+    row.setAttribute('aria-description', 'Suggested: ' + suggested.title);
+    const hint = el('span', 'wr-sort-hint');
+    hint.append(icon('stacks'), el('span', 'wr-sort-hint-title', suggested.title));
+    row.append(hint);
   }
-  item.append(body);
+  item.append(row);
   attachSwipe(item, {right, left: {kind: 'schedule', symbol: 'inbox', word: 'Keep in Inbox', run: () => keep(api, task.id, true)}});
   if (peek) {
     ui.sortPeeked = true;

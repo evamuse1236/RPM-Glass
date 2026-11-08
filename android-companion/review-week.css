@@ -86,9 +86,9 @@
 .wr-results{padding:0;overflow:clip}
 .wr-results>li+li{border-top:1px solid var(--outline-variant)}
 .wr-result-row{display:flex;align-items:stretch}
-.wr .wr-pick{flex:none;display:grid;place-items:start center;width:56px;padding:12px 0 0;border:0;background-color:transparent;color:var(--on-surface-variant)}
+.wr .wr-pick{flex:none;display:grid;place-items:start center;width:56px;padding:8px 0 0;border:0;background-color:transparent;color:var(--on-surface-variant)}
 .wr .wr-pick.on{color:var(--primary)}
-.wr .wr-result-main{flex:1;min-width:0;display:flex;min-height:56px;padding:12px 16px 12px 0;border:0;background-color:transparent;color:inherit;text-align:start;font:inherit}
+.wr .wr-result-main{flex:1;min-width:0;display:flex;min-height:56px;padding:8px 16px 8px 0;border:0;background-color:transparent;color:inherit;text-align:start;font:inherit}
 .wr-result-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .wr-result-title{font:var(--body-large);overflow-wrap:anywhere;text-wrap:pretty}
 .wr-result.picked .wr-result-title{font-weight:500}

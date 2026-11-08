@@ -224,9 +224,11 @@ function renderReview(root, api, ctx) {
     const outgoing = ghost([column], bodyRect, root, {cls: 'wr-ghost-body', scrollTop: oldScroll});
     sharedAxis([outgoing], [content], {back: !!ui.stepBack});
   }
-  // A hairline over the footer while content continues underneath it, and under the step bar once content has scrolled under it.
+  // A hairline over the footer and a fade at the body's end while content continues underneath it, and under the step bar once content has scrolled under it.
   const edge = () => {
-    foot.classList.toggle('edge', body.scrollTop + body.clientHeight < body.scrollHeight - 2);
+    const more = body.scrollTop + body.clientHeight < body.scrollHeight - 2;
+    foot.classList.toggle('edge', more);
+    body.classList.toggle('more', more);
     progress?.classList.toggle('edge', body.scrollTop > 2);
   };
   body.onscroll = edge;
