@@ -31,6 +31,10 @@ final class DiagnosticStore extends SQLiteOpenHelper {
     synchronized void acknowledge(JSONArray sent,JSONArray ack)throws JSONException{
         SyncManager.validateAck(sent,ack);SQLiteDatabase db=getWritableDatabase();db.beginTransaction();try{for(int i=0;i<ack.length();i++)db.delete("queue","id=?",new String[]{ack.getString(i)});db.setTransactionSuccessful();}finally{db.endTransaction();}
     }
+    /** Removes an event the server will never accept and counts it as dropped. */
+    synchronized void drop(String id){
+        SQLiteDatabase db=getWritableDatabase();db.beginTransaction();try{if(db.delete("queue","id=?",new String[]{id})>0)db.execSQL("UPDATE stats SET dropped=dropped+1 WHERE id=1");db.setTransactionSuccessful();}finally{db.endTransaction();}
+    }
     synchronized long count(){return scalar("SELECT COUNT(*) FROM queue");}
     synchronized long bytes(){return scalar("SELECT COALESCE(SUM(bytes),0) FROM queue");}
     synchronized long dropped(){return scalar("SELECT dropped FROM stats WHERE id=1");}
