@@ -15,7 +15,9 @@ const setFirst=chips=>[...chips.filter(c=>c.state!=='empty'),...chips.filter(c=>
 
 /**
  * The receipt's created items as a kind icon, a title and chips. A chip tap opens one tray under its item;
- * a choice saves at once through edit-item and gets its own Undo in the change row.
+ * a choice saves at once through edit-item and gets its own Undo in the change row. The edit carries the
+ * revision the card shows, so a repeated tap (after its Undo or another value) is a new edit, while a resend
+ * of the same tap keeps its transaction id and applies once.
  */
 export function createChipCard({act,refresh,choices=()=>null,today=localDay}){
  const st={open:null,saving:null,failed:null,popped:null,expanded:new Set(),showAll:new Set(),held:null};
@@ -57,7 +59,7 @@ export function createChipCard({act,refresh,choices=()=>null,today=localDay}){
   closeTray();
   st.saving={key,label:optimistic};st.failed=null;st.held=draft.id;
   refresh();
-  const result=await act({kind:'edit-item',conversationId:draft.conversationId,draftId:draft.id,entity:row.entity,id:String(row.id),...payload});
+  const result=await act({kind:'edit-item',conversationId:draft.conversationId,draftId:draft.id,revision:draft.revision,entity:row.entity,id:String(row.id),...payload});
   st.saving=null;
   if(result==null)st.failed=key;else st.popped=key;
   refresh();
