@@ -347,3 +347,14 @@ test('a ramble worked out on a plan that has since changed is refused before sen
   assert.equal(client.sent().length, 1, 'only the typed change was sent');
   assert.equal(queue.data().entries.some(e => e.title === 'Call mom tonight'), false);
 });
+
+test('a full browser storage still lets a change show, go out, and the phone\'s answer reach the page', () => {
+  const client = fakeClient(), full = {getItem: () => null, setItem: () => { const e = new Error('quota'); e.name = 'QuotaExceededError'; throw e; }};
+  const queue = createPlanQueue({client, storage: full, now: () => new Date('2026-10-19T12:00:00+05:30')});
+  queue.start();
+  const heard = []; queue.subscribe(r => heard.push(r));
+  queue.commit({type: 'saveTask', id: 3, fields: {done: true}});
+  assert.equal(task(queue, 3).done, true); assert.equal(client.sent().length, 1);
+  phone(client).apply(0);
+  assert.ok(heard.length > 0, 'listeners hear the applied snapshot'); assert.equal(queue.pendingIds().size, 0);
+});

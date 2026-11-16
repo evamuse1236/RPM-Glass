@@ -24,7 +24,13 @@ export function createClient({server, storage = globalThis.localStorage, fetchIm
   // The shared planner needs v2; refetch an older cache even if its revision/ETag is unchanged.
   if (state.snapshot && state.snapshot.schemaVersion !== 2) { state.snapshot = null; state.etag = null; }
   const listeners = new Set();
-  const persist = () => storage.setItem(KEY, JSON.stringify({server: state.server, token: state.token, cursor: state.cursor, outbox: state.outbox, snapshot: state.snapshot, etag: state.etag}));
+  // The snapshot is only a cache: when it no longer fits, store the rest (the outbox holds the user's words) without it
+  // or its ETag, so the next load refetches it. Listeners run even if storage refuses everything.
+  const persist = () => {
+    const keep = {server: state.server, token: state.token, cursor: state.cursor, outbox: state.outbox};
+    try { storage.setItem(KEY, JSON.stringify({...keep, snapshot: state.snapshot, etag: state.etag})); }
+    catch { try { storage.setItem(KEY, JSON.stringify(keep)); } catch {} }
+  };
   const emit = () => { persist(); listeners.forEach(fn => fn(state)); };
 
   async function call(path, {method = 'GET', body, headers = {}, auth = true} = {}) {

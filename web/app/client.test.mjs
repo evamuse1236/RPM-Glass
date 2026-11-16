@@ -114,3 +114,21 @@ test('on a plain host with no Site key the link screen stays', async () => {
   await client.connect();
   assert.equal(client.state.token, null);
 });
+
+test('when the cached snapshot no longer fits in storage the page still updates and keeps the queued change', async () => {
+  const server = fakeServer(), base = memoryStorage(), limit = 60000;
+  const storage = {getItem: base.getItem, setItem: (k, v) => { if (v.length > limit) { const e = new Error('quota'); e.name = 'QuotaExceededError'; throw e; } base.setItem(k, v); }};
+  const client = createClient({server: 'http://sync.test', storage, fetchImpl: server.fetch});
+  await client.link('GOODCODE');
+  const seen = []; client.subscribe(s => seen.push(s.snapshot?.revision));
+  server.snapshot = {...server.snapshot, revision: 43, padding: 'x'.repeat(limit)};
+  await client.refresh();
+  assert.ok(seen.includes(43), 'listeners hear the new snapshot');
+  const sent = command(), entry = await client.send(sent);
+  assert.equal(entry.status, 'pending'); assert.deepEqual(server.posts, [sent]);
+  const stored = JSON.parse(storage.getItem('rpm.web.v1'));
+  assert.equal(stored.outbox[0].command.id, sent.id); assert.equal(stored.snapshot, undefined); assert.equal(stored.etag, undefined);
+  const again = createClient({server: 'http://sync.test', storage, fetchImpl: server.fetch});
+  await again.refresh();
+  assert.equal(again.state.snapshot.revision, 43);
+});
