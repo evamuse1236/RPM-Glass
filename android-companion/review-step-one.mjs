@@ -1,4 +1,4 @@
-import {reviewSummary, leftoverChoice} from './review-state.mjs';
+import {reviewSummary, leftoverChoice, LEFTOVER_RECEIPTS} from './review-state.mjs';
 import {plural} from './planner/format.mjs';
 import {VERDICT_RECEIPTS, CHOICES, el, icon, button, heading, emptyState, sectionHead, factsLine, dueFact, mustFact, split} from './review-ui.mjs';
 import {openMenu} from './planner/menu.mjs';
@@ -185,24 +185,58 @@ function carryHead(text, echo = false) {
   return head;
 }
 
-function carryAll(api, tasks, running) {
+/** Carries every open task and running Result as one change. The running Results live in the quiet draft, which
+ * the plan's Undo never rewinds, so the review remembers the draft as it was and puts it back when that Undo lands. */
+export function carryAll(api, tasks, running) {
+  const focus = [...api.ui.focus];
   if (tasks.length) {
-    const ops = tasks.map(task => ({type: 'reviewTask', id: task.id, choice: 'carry', week: api.week}));
-    api.run(ops.length === 1 ? ops[0] : {type: 'batch', ops}, 'Carried into this week');
+    // Built in its turn: a second tap before the first save lands finds the tasks carried and saves nothing,
+    // so it never takes the Undo slot from the carry it repeats.
+    let ops = [];
+    let undoBefore;
+    api.enqueue(() => {
+      const data = api.data();
+      ops = tasks.filter(task => leftoverChoice(data.entries.find(e => e.id === task.id) ?? {}, api.week) !== 'carry')
+        .map(task => ({type: 'reviewTask', id: task.id, choice: 'carry', week: api.week}));
+      undoBefore = data.planner?.undo?.id;
+      return ops.length > 1 ? {type: 'batch', ops} : ops[0] ?? null;
+    }, LEFTOVER_RECEIPTS.carry).then(() => {
+      const undoId = api.data().planner?.undo?.id;
+      if (running.length && ops.length && undoId && undoId !== undoBefore) api.ui.carried = {undoId, focus, ids: ops.map(op => op.id)};
+    });
   }
-  if (running.length) setFocus(api, [...api.ui.focus, ...running.map(r => r.blockId)]);
+  if (running.length) setFocus(api, [...focus, ...running.map(r => r.blockId)]);
+}
+
+/** Called on every render: once Carry all's Undo has taken the tasks back, the running Results it carried go back too. */
+export function settleCarryUndo(api) {
+  const mark = api.ui.carried;
+  if (!mark) return;
+  const data = api.data();
+  if (data.planner?.undo?.id === mark.undoId) return;
+  api.ui.carried = null;
+  const undone = !data.planner?.undo && mark.ids.every(id => leftoverChoice(data.entries.find(e => e.id === id) ?? {}, api.week) !== 'carry');
+  if (!undone) return;
+  api.ui.focus = mark.focus;
+  api.ui.focusHint = '';
+  api.run({type: 'reviewProgress', week: api.week, patch: {focusDraft: mark.focus}}, null);
 }
 
 const CHOICE_ICONS = {carry: 'redo', defer: 'event_upcoming', drop: 'archive'};
 const CHOICE_WORDS = {carry: 'Carried', defer: 'Deferred', drop: 'Dropped'};
-const decisionLabel = value => ({carry: 'Carried into this week', defer: 'Deferred', drop: 'Dropped. It stays in Archive'})[value];
+const decisionLabel = value => LEFTOVER_RECEIPTS[value];
 
 /** A leftover task: the row opens Carry, Defer or Drop; the trailing button carries it in one tap. */
 function taskRow(api, task) {
   const item = el('li', 'wr-carry-item');
   const current = leftoverChoice(task, api.week);
   const title = task.title ?? task.raw ?? 'Task';
-  const choose = value => { if (value !== current) api.run({type: 'reviewTask', id: task.id, choice: value, week: api.week}, decisionLabel(value)); };
+  // Read again in its turn, so a second tap before the first save lands saves nothing and the first save keeps its Undo.
+  const choose = value => {
+    if (value === current) return;
+    api.enqueue(() => (leftoverChoice(api.data().entries.find(e => e.id === task.id) ?? {}, api.week) === value ? null
+      : {type: 'reviewTask', id: task.id, choice: value, week: api.week}), decisionLabel(value));
+  };
   const body = button('', () => openMenu(body, CHOICES.map(([value, word]) => ({
     label: word,
     icon: value === current ? 'check' : CHOICE_ICONS[value],

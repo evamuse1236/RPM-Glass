@@ -1,4 +1,4 @@
-import {taskDate, weekCapacity, placedMusts, mustPlacements, clashOp, clashKey, clashDecision} from './review-state.mjs';
+import {taskDate, weekCapacity, placedMusts, mustPlacements, placeMustsOp, placedLabel, clashKey, clashDecision} from './review-state.mjs';
 import {localDay} from './planner-state.mjs';
 import {clock, duration, plural, timeRange, DATE_LOCALE} from './planner/format.mjs';
 import {READABLE, el, icon, button, hours, dayName, weekday, whenText, dueWords} from './review-ui.mjs';
@@ -97,7 +97,8 @@ function placementBox(api, placements) {
     list.append(row);
   }
   const go = button(placements.length === 1 ? 'Give it this day' : 'Give them these days',
-    () => api.run({type: 'batch', ops: placements.map(p => ({type: 'saveTask', id: p.taskId, fields: {plannedDate: p.day}}))}, placements.length === 1 ? 'Must given a day' : `${placements.length} Musts given a day`), 'wr-btn-tonal');
+    // Built in its turn from the saved tasks, so a second tap before the first save lands finds them dated and saves nothing.
+    () => api.enqueue(() => placeMustsOp(api.data(), placements), placedLabel), 'wr-btn-tonal');
   go.dataset.key = 'place';
   box.append(list, go);
   return box;
@@ -130,7 +131,7 @@ function dayStrip(api, days, due) {
     cell.setAttribute('aria-pressed', String(on));
     cell.dataset.key = 'day:' + d.day;
     const said = [dayName(d.day)];
-    cell.append(el('span', 'wr-strip-letter', date.toLocaleDateString(undefined, {weekday: 'narrow'})), el('span', 'wr-strip-num tnum', String(date.getDate())));
+    cell.append(el('span', 'wr-strip-letter', date.toLocaleDateString(DATE_LOCALE, {weekday: 'narrow'})), el('span', 'wr-strip-num tnum', String(date.getDate())));
     const must = el('span', 'wr-strip-must tnum');
     if (d.must) {
       must.append(Object.assign(icon('star', true), {className: 'ms fill must'}), hours(d.must));
@@ -221,7 +222,7 @@ export function clashRow(api, clash) {
     () => { ui.clashOpen = clash.key; api.render(); }, 'clash-open:' + clash.key);
   if (done) {
     const stays = choice === 'b' ? clash.b : clash.a;
-    const task = `a task for ${whenText(clash.task, api.now())?.text ?? 'Today'}`;
+    const task = clash.task.done ? 'task done' : `a task for ${whenText(clash.task, api.now())?.text ?? 'Today'}`;
     sub.append(state === 'decided' ? `Keep ${stays.title} · ${task}` : `${clash.task.title} · ${task}`);
     text.append(title, sub);
     item.append(icon('event_available'), text, reopen('Change'));
@@ -236,9 +237,9 @@ export function clashRow(api, clash) {
   const decide = keep => {
     ui.clashes = {...ui.clashes, [clash.key]: keep};
     ui.clashOpen = null;
-    if (keep === 'later') { api.render(); api.saveProgress(); return; }
-    api.saveProgress();
-    api.run(clashOp(api.data(), clash, keep, api.now()), 'Decision added to Today');
+    if (keep === 'later') { api.render(); api.saveProgress({clashes: ui.clashes}); return; }
+    api.saveProgress({clashes: ui.clashes});
+    api.decideClash(clash, keep);
   };
   const choices = el('span', 'wr-choices');
   choices.setAttribute('role', 'group');

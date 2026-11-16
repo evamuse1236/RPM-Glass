@@ -55,7 +55,7 @@ test('the page reads the store ahead of a tap, saves one change with the version
   assert.equal(answer.ok, true);
   assert.equal(answer.count, 1);
   assert.equal(device.store.version, 5);
-  assert.equal(answer.token, device.store.planner.events.at(-1).id);
+  assert.equal(answer.token, device.store.planner.undo.id);
   const undone = await device.run({action: 'undo', token: answer.token});
   assert.deepEqual(undone, {ok: true, kind: 'undo'});
   assert.equal(device.store.planner.body?.water.glasses.length ?? 0, 0);

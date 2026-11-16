@@ -40,7 +40,13 @@ export function stepThree(api, ctx) {
     parts.push(sectionHead('Sorted', grouped.length));
     const list = el('ul', 'wr-list wr-formed');
     list.setAttribute('aria-label', 'Sorted into Results');
-    for (const c of focusCandidates(api.data(), api.week).filter(c => grouped.some(t => t.blockId === c.blockId))) {
+    // Candidates first, in their order; then any other Block a task sits in (achieved or archived since), so every
+    // counted task is listed with its way back.
+    const heads = focusCandidates(api.data(), api.week).filter(c => grouped.some(t => t.blockId === c.blockId));
+    for (const b of planner(api.data()).blocks) {
+      if (!heads.some(c => c.blockId === b.id) && grouped.some(t => t.blockId === b.id)) heads.push({blockId: b.id, title: b.title, purpose: b.purpose ?? ''});
+    }
+    for (const c of heads) {
       const head = el('li', 'wr-formed-head');
       head.append(el('span', 'wr-target-title', c.title));
       if (c.purpose) head.append(el('span', 'wr-target-purpose', c.purpose));
@@ -65,7 +71,7 @@ function keep(api, taskId, on) {
   ui.kept = on ? [...new Set([...ui.kept, taskId])] : ui.kept.filter(id => id !== taskId);
   ui.sheet = null;
   api.render();
-  api.saveProgress();
+  api.saveProgress({keptIds: ui.kept});
 }
 
 /** One Inbox task, one button: its words open the chooser. With a suggested Result, a second line names it beside the
@@ -199,10 +205,13 @@ function newResultForm(api, task) {
   const sync = () => { create.disabled = !ui.newBlock.title.trim() || !ui.newBlock.purpose.trim(); };
   sync();
   actions.append(cancel, create);
+  // One Result per form: a second tap before the save lands would make a second, empty Result of the same name.
+  let sent = false;
   form.addEventListener('submit', e => {
     e.preventDefault();
     const fields = {title: ui.newBlock.title.trim(), purpose: ui.newBlock.purpose.trim()};
-    if (!fields.title || !fields.purpose) return;
+    if (sent || !fields.title || !fields.purpose) return;
+    sent = true;
     ui.sheet = null;
     api.run({type: 'groupTasks', ids: [task.id], newBlock: fields}, 'New Result: ' + fields.title);
   });

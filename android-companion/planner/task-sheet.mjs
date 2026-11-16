@@ -1,12 +1,12 @@
 import {localDay} from '../planner-state.mjs';
-import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
+import {repeats} from '../planner-recurrence.mjs';
 import {resultStatus} from '../review-state.mjs';
 import {reducedMotion} from '../surface-motion.mjs';
 import {el, icon, button, iconButton} from './dom.mjs';
 import {duration} from './format.mjs';
 import {openSheet, closeSheet, isSheetOpen} from './sheet.mjs';
 import {toggleDone} from './task-row.mjs';
-import {whenOf, whenFields, whenLabel, repeatLabel, startNowValue, clockOf, leadLabel} from './task-values.mjs';
+import {whenOf, whenFields, whenLabel, repeatLabel, startNowValue, timePickValue, viewedOccurrence, clockOf, leadLabel, seriesDayRefusal} from './task-values.mjs';
 import {NEEDS_TIME, alertText, clashText, findTask, saver, scheduleCheck, suggestBlock, syncText} from './sheet-parts.mjs';
 import {archiveTask, deleteTask, duplicateTask, undoLastCompletion} from './task-actions.mjs';
 import {RETURN_FADE, RETURN_HOLD, inboxShowing, markReturned, showInbox} from './task-lists.mjs';
@@ -42,7 +42,7 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
   app.state.focusedBlockId = task.blockId ?? null;
   const anchor = task.planned;
   const live = () => findTask(app, id);
-  const when = t => (repeats(t) ? (occurrence && t.planned === anchor ? occurrence : nextOccurrence(t)) : t.planned);
+  const when = t => (repeats(t) ? viewedOccurrence(t, anchor, occurrence) : t.planned);
   const {body, actions, header} = openSheet(app, 'Task', {variant: 'detail sheet-task', showTitle: false, motion});
   const save = saver(app);
   const commit = (fields, label) => save({type: 'saveTask', id, fields}, label);
@@ -134,7 +134,8 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
       toneOf: blockId => (blockId ? app.tone(app.blockArea(app.p().blocks.find(b => b.id === blockId))) : null),
       suggested, recent};
   };
-  const setWhen = (value, label) => {
+  // `shown` is what the ruler shows when it differs from the saved value: a repeat's occurrence after a time change.
+  const setWhen = (value, label, shown = value) => {
     const t = live();
     if (!t) return;
     if (repeats(t) && !(value.day && value.time)) {
@@ -143,20 +144,28 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
       return;
     }
     tabs.error('day', '');
-    tabs.paint({...now(t), ...value});
+    tabs.paint({...now(t), ...shown});
     commit(whenFields(value), label).then(saved => { if (saved !== undefined) recheck(); });
   };
-  const setRepeat = fields => {
+  const repeatSaved = fields => {
+    const words = repeatLabel(fields);
+    return fields.recurrence || fields.repeatAfterDays
+      ? 'Repeats: ' + (fields.recurrence === 'days' ? words : words.toLowerCase()) : 'Repeat turned off';
+  };
+  // `make(task)` gives the Repeat fields; it runs again when the queued save starts, so quick taps build on each other.
+  const setRepeat = make => {
     const t = live();
+    const fields = make(t);
     if ((fields.recurrence || fields.repeatAfterDays) && !t?.planned) {
       tabs.error('repeat', NEEDS_TIME + ' Choose them in When first.');
       tabs.paint(now(t));
       return;
     }
     tabs.error('repeat', '');
-    const words = repeatLabel(fields);
-    commit(fields, fields.recurrence || fields.repeatAfterDays
-      ? 'Repeats: ' + (fields.recurrence === 'days' ? words : words.toLowerCase()) : 'Repeat turned off');
+    save(() => {
+      const latest = make(live());
+      return {op: {type: 'saveTask', id, fields: latest}, label: repeatSaved(latest)};
+    });
   };
   const current = () => whenOf(live(), when(live()));
   const tabs = taskTabs({
@@ -167,12 +176,19 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
     pick: {
       day: day => {
         if (!day) return setWhen({day: '', time: ''}, 'Date removed');
+        const refused = seriesDayRefusal(live(), day);
+        if (refused) {
+          tabs.error('day', refused);
+          tabs.paint(now(live()));
+          return;
+        }
         const value = {day, time: current().time};
         return setWhen(value, 'Moved to ' + whenLabel(value));
       },
       time: time => {
-        const value = {day: current().day || localDay(), time};
-        setWhen(value, time ? 'Moved to ' + whenLabel(value) : 'Time removed');
+        const shown = {day: current().day || localDay(), time};
+        const t = live();
+        setWhen(timePickValue(t, shown, time, {repeating: !!t && repeats(t)}), time ? 'Moved to ' + whenLabel(shown) : 'Time removed', shown);
       },
       minutes: minutes => {
         tabs.paint({...now(live()), minutes});
@@ -190,8 +206,8 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
       },
       alert: value => commit({alert: value}, value === 'off' ? 'Alert off' : alertText(value, live()) + ' set'),
       lead: minutes => commit({alertLead: minutes}, 'Alert ' + leadLabel(minutes).toLowerCase()),
-      repeatDay: day => setRepeat(toggleRepeatDay(live(), day)),
-      repeatPreset: (preset, every) => setRepeat(presetFields(preset, live(), every)),
+      repeatDay: day => setRepeat(t => toggleRepeatDay(t, day)),
+      repeatPreset: (preset, every) => setRepeat(t => presetFields(preset, t, every)),
       block: (blockId, title) => {
         rememberBlock(blockId);
         save({type: 'moveTask', id, blockId}, blockId ? 'Moved to ' + title : 'Moved to Inbox');

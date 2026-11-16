@@ -155,7 +155,7 @@ final class NotchScene {
             progress = 0;
         }
 
-        List<NotchDay.Slot> later = NotchDay.after(slots, hero, Integer.MAX_VALUE);
+        List<NotchDay.Slot> later = NotchDay.after(slots, hero, now, Integer.MAX_VALUE);
         boolean alertRow = nextAlert != null && nextAlert != hero && (later.isEmpty() || later.get(0) != nextAlert);
         if (!later.isEmpty()) rows.add(slotRow(later.get(0), now, zone, h24));
         if (habit != null) rows.add(new Row(Look.HABIT, habit.routine.name, habit.done + " of " + habit.total));
@@ -200,6 +200,11 @@ final class NotchScene {
 
     boolean canSnooze() {
         return topHabit != null || habit != null;
+    }
+
+    /** The pill's Later swipe acts only on the water or meal nudge it shows; it never draws a Routine. */
+    boolean pillCanSnooze() {
+        return topHabit != null;
     }
 
     /** The task island's one control: Done, left out (never greyed) for a calendar event. */

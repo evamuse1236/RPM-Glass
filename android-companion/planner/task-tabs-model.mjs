@@ -29,7 +29,7 @@ export function whenDay({day}, today = localDay()) {
   if (day === shiftDay(today, 1)) return 'Tomorrow';
   const date = dateOf(day);
   return Math.abs(daysApart(today, day)) < 7
-    ? `${date.toLocaleDateString([], {weekday: 'short'})} ${date.getDate()}`
+    ? `${date.toLocaleDateString(DATE_LOCALE, {weekday: 'short'})} ${date.getDate()}`
     : date.toLocaleDateString(DATE_LOCALE, {month: 'short', day: 'numeric'});
 }
 
@@ -41,7 +41,7 @@ export function whenBrief({day, time}, today = localDay()) {
   if (!day || !time) return whenDay({day}, today);
   if (day === today) return briefClock(day, time);
   const date = dateOf(day);
-  const name = Math.abs(daysApart(today, day)) < 7 ? date.toLocaleDateString([], {weekday: 'short'})
+  const name = Math.abs(daysApart(today, day)) < 7 ? date.toLocaleDateString(DATE_LOCALE, {weekday: 'short'})
     : date.toLocaleDateString(DATE_LOCALE, {month: 'short', day: 'numeric'});
   return `${name} ${briefClock(day, time)}`;
 }

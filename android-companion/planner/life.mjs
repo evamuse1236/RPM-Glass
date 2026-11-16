@@ -1,6 +1,6 @@
 /** Life: Vision / Quarter / Month / Values, the Wheel of Life (life-wheel.mjs) over each Area with its Goals. */
 import {el, button, icon, iconButton, labelButton, emptyState, listItem, sectionHeader} from './dom.mjs';
-import {plural} from './format.mjs';
+import {plural, DATE_LOCALE} from './format.mjs';
 import {openSheet} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
 import {breadcrumbs, parentMenu, projectTasks, initialAvatar} from './projects.mjs';
@@ -37,7 +37,7 @@ function periodSwitch(app) {
   const {state} = app;
   const label = state.horizon === 'quarterly' ? `Quarter ${Math.ceil(state.period / 3)} · ${state.year}`
     : state.horizon === 'monthly'
-      ? new Date(state.year, state.period - 1, 1).toLocaleDateString([], {month: 'long', year: 'numeric'})
+      ? new Date(state.year, state.period - 1, 1).toLocaleDateString(DATE_LOCALE, {month: 'long', year: 'numeric'})
       : String(state.year);
   const row = el('div', 'period-switch');
   row.append(iconButton('chevron_left', 'Previous period', () => shiftLifePeriod(app, -1)),
@@ -255,7 +255,7 @@ function taskProgress({done, total}) {
   return node;
 }
 
-const monthName = period => new Date(2000, (period ?? 1) - 1, 1).toLocaleDateString([], {month: 'long'});
+const monthName = period => new Date(2000, (period ?? 1) - 1, 1).toLocaleDateString(DATE_LOCALE, {month: 'long'});
 export const horizonLabel = goal => ({quarterly: `Quarter ${goal.period}`, monthly: monthName(goal.period)}[goal.horizon]
   ?? 'Yearly goal');
 /** The same stretch as it reads before the year on a Goal's facts line: "Q4 2026", "November 2026", "Whole year 2026". */
@@ -356,8 +356,11 @@ export function rateAreas(app, id = null) {
     readers.push(() => (touched ? {id: area.id, rating: Number(input.value)} : null));
   }
   if (!readers.length) body.append(el('p', 'sheet-note', 'Add an Area first.'));
-  const save = button('Save ratings', () => app.commit({type: 'rateAreas', ratings: readers.map(r => r()).filter(Boolean)},
-    {label: 'Ratings saved'}).catch(() => {}), 'filled-btn');
+  const save = button('Save ratings', () => {
+    const ratings = readers.map(r => r()).filter(Boolean);
+    if (!ratings.length) return app.closeSheet();
+    return app.commit({type: 'rateAreas', ratings}, {label: 'Ratings saved'}).catch(() => {});
+  }, 'filled-btn');
   save.disabled = !readers.length;
   actions.append(button('Cancel', () => app.closeSheet(), 'text-btn'), save);
 }

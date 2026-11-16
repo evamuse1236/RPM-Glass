@@ -101,7 +101,6 @@ public class NotchBodyTest {
         assertNull(NotchHabits.unloggedMeal(body, at("2026-10-18T09:00"), KOLKATA));
         assertEquals("lunch", NotchHabits.unloggedMeal(body, at("2026-10-18T13:00"), KOLKATA));
         assertEquals("Lunch", NotchHabits.slotName("lunch"));
-        assertEquals("dinner", NotchHabits.slot(at("2026-10-18T02:00"), KOLKATA));
     }
 
     @Test

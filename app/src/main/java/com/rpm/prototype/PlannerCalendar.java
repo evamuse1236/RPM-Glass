@@ -23,7 +23,7 @@ final class PlannerCalendar {
     }
     static void select(Context c,JSONArray ids)throws JSONException{
         if(ids.length()>60)throw new IllegalArgumentException("Select fewer calendars.");Set<Long> available=new HashSet<>();JSONArray rows=calendars(c).getJSONArray("calendars");for(int i=0;i<rows.length();i++)available.add(rows.getJSONObject(i).getLong("id"));Set<Long> unique=new HashSet<>();for(int i=0;i<ids.length();i++){long id=ids.getLong(i);if(!available.contains(id)||!unique.add(id))throw new IllegalArgumentException("Calendar selection changed. Reopen Calendar.");}
-        if(!prefs(c).edit().putString("selected",ids.toString()).remove("cache").commit())throw new IllegalStateException("Could not save calendar choices.");
+        if(!prefs(c).edit().putString("selected",ids.toString()).remove("cache").commit())throw new IllegalStateException("Could not save calendar choices.");NextUpWidget.changed(c);
     }
     static JSONObject read(Context c,long anchor)throws JSONException{
         if(anchor<946684800000L||anchor>7289654400000L)throw new IllegalArgumentException("Choose a date between 2000 and 2200.");

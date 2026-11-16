@@ -4,7 +4,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {mergeGap, tierOf, evidenceGap} from '../agent/require-evidence.mjs';
+import {build} from 'esbuild';
+import {bundleOptions} from '../build-companion-assets.mjs';
+import {mergeGap, tierOf, evidenceGap, isAppFile} from '../agent/require-evidence.mjs';
 import {configHooksWork, installMergeCheck} from '../agent/git-hooks.mjs';
 
 function repo(t) {
@@ -32,6 +34,17 @@ test('the tier follows the change: web-only files need a sync, anything native n
   assert.equal(tierOf(['android-companion/a.mjs', 'intent-v2/src/b.mjs']), 'web');
   assert.equal(tierOf(['android-companion/a.mjs', 'app/src/main/java/com/rpm/prototype/NotchFrame.java']), 'native');
   assert.equal(tierOf(['cli/interpret.mjs']), 'native');
+  assert.equal(isAppFile('web/contract/records.mjs'), true);
+  assert.equal(tierOf(['web/contract/validate.mjs']), 'web');
+});
+
+test('every source bundled into the phone app counts as an app file for the evidence and merge gates', async () => {
+  const entries = ['android-companion/runtime.mjs', 'android-companion/sync-runtime.mjs', 'android-companion/notch-actions.mjs'];
+  for (const entry of entries) {
+    const {metafile} = await build({...bundleOptions, entryPoints: [entry], write: false, metafile: true, outfile: 'out.js'});
+    const missed = Object.keys(metafile.inputs).filter(f => !f.split('/').includes('node_modules') && !f.startsWith('native:') && !isAppFile(f));
+    assert.deepEqual(missed, [], `${entry} bundles files the gates ignore`);
+  }
 });
 
 test('the done message names the tier the change needs and defers scenario --all to the merge', t => {
@@ -56,6 +69,17 @@ test('a merge into main with app changes needs a passing scenario --all on that 
   journal(r, {ok: true, all: false, head: tip, uncommittedApp: []});
   journal(r, {ok: true, all: true, head: tip, uncommittedApp: ['android-companion/a.mjs']});
   assert.notEqual(mergeGap(r.root, {heads: [tip], branch: 'main'}), null, 'a failed, partial or dirty run does not count');
+  journal(r, {ok: true, all: true, head: tip, uncommittedApp: []});
+  assert.equal(mergeGap(r.root, {heads: [tip], branch: 'main'}), null);
+});
+
+test('a passing scenario --all run made with --allow-stale on an outdated APK does not count for the merge', t => {
+  const r = repo(t);
+  r.git('checkout', '-q', '-b', 'feat/x');
+  const tip = commit(r, 'app/src/main/java/A.java', 'class A {}\n', 'native change');
+  r.git('checkout', '-q', 'main');
+  journal(r, {ok: true, all: true, head: tip, uncommittedApp: [], staleAllowed: 'Native code changed after the APK was built'});
+  assert.notEqual(mergeGap(r.root, {heads: [tip], branch: 'main'}), null, 'a scenario on a stale app proves nothing');
   journal(r, {ok: true, all: true, head: tip, uncommittedApp: []});
   assert.equal(mergeGap(r.root, {heads: [tip], branch: 'main'}), null);
 });

@@ -6,7 +6,7 @@
 import {buildSpine} from '../spine-model.mjs';
 import {routineOn, routineState, doneAll, usualMeals} from '../body-state.mjs';
 import {localDay, blockDue, timelineItems} from '../planner-state.mjs';
-import {dayTasks} from '../planner-ux.mjs';
+import {dayTasks, dayStart} from '../planner-ux.mjs';
 import {spineList, spineRow, focusCard, focusRow, foldToggle, foldedRows, anytimeRows, focusOf} from './spine-view.mjs';
 import {el, icon, button, emptyState} from './dom.mjs';
 import {dueInfo} from './format.mjs';
@@ -26,8 +26,7 @@ const OPEN_OFFSET = 160;
 const state = {model: null, app: null, observer: null, timer: null, open: {earlier: false}};
 
 function dayTask(app, task, done) {
-  const at = task.start ?? (task.planned ? Date.parse(task.occurrence ?? task.planned) : null);
-  const start = at != null && localDay(at) === app.state.day ? at : null;
+  const start = dayStart(task, app.state.day);
   const block = app.p().blocks.find(b => b.id === task.blockId);
   return {id: task.id, title: task.title, start, minutes: task.minutes ?? null, done, must: !!task.must, result: block?.title ?? null,
     resultId: block?.id ?? null, tone: app.tone(app.context(task).area), occurrence: task.occurrence, ref: task};
@@ -57,9 +56,23 @@ function spineModel(app) {
   };
 }
 
-async function toggleRoutine(app, body, row) {
+// The ring stays on screen until its save lands and the day redraws: a second tap meanwhile would repeat the first
+// change from the same row and take the Undo slot, so it does nothing.
+const togglingRoutines = new Set();
+
+/** Tap on a Routine's ring: all its steps done, or reopened, with Undo; one change per Routine at a time. */
+export async function toggleRoutine(app, body, row) {
   const routine = body.routine(row.routine.id);
-  if (!routine) return;
+  if (!routine || togglingRoutines.has(routine.id)) return;
+  togglingRoutines.add(routine.id);
+  try {
+    await saveRoutineToggle(app, body, row, routine);
+  } finally {
+    togglingRoutines.delete(routine.id);
+  }
+}
+
+async function saveRoutineToggle(app, body, row, routine) {
   const run = body.runFor(routine.id, app.state.day);
   const next = row.done ? {routineId: routine.id, day: app.state.day, marks: {}} : doneAll(routine, run, new Date());
   try {
@@ -72,8 +85,22 @@ async function toggleRoutine(app, body, row) {
   notice(app, row.done ? `${routine.name} reopened` : `${routine.name} done`, {undo: true});
 }
 
-/** Swipe right on a meal not yet logged: log it now as the usual food for that meal, with Undo; with none yet, the sheet. */
-async function logMealNow(app, body, row) {
+/** Swipe right on a meal not yet logged: log it now as the usual food for that meal, with Undo; with none yet, the sheet.
+ * A second swipe on the same meal while its save is on its way does nothing (it returns undefined, so the row is not
+ * sent back); another meal's row logs at once. */
+const loggingMeals = new Set();
+
+export async function logMealNow(app, body, row) {
+  if (loggingMeals.has(row.slot)) return undefined;
+  loggingMeals.add(row.slot);
+  try {
+    return await saveMealNow(app, body, row);
+  } finally {
+    loggingMeals.delete(row.slot);
+  }
+}
+
+async function saveMealNow(app, body, row) {
   const [usual] = usualMeals(body.meals(), row.slot);
   if (!usual) return openMealSheet(app, body, {mealId: null, slot: row.slot});
   try {
@@ -96,15 +123,16 @@ function toggleTask(app, row) {
 }
 
 /** A timed task that does not repeat can be moved and resized on the spine; a repeat is changed from its sheet. */
-const movable = row => row.start != null && !row.done && !repeats(row.task.ref);
+// A card that began the day before (it runs past midnight) stays where it is: a drag would clamp it to this midnight.
+const movable = (row, day) => row.start != null && row.start >= Date.parse(day + 'T00:00:00') && !row.done && !repeats(row.task.ref);
 
 function handlers(app) {
   const body = bodyApi(app);
   return {
     toggleTask: row => toggleTask(app, row),
-    gestures: (card, row) => attachRowGestures(app, card, row.task.ref, {leave: false, hold: !movable(row),
+    gestures: (card, row) => attachRowGestures(app, card, row.task.ref, {leave: false, hold: !movable(row, app.state.day),
       complete: () => toggleTask(app, row)}),
-    drag: (card, row) => { if (movable(row)) attachSpineDrag(app, card, row, {dayStart: Date.parse(app.state.day + 'T00:00:00')}); },
+    drag: (card, row) => { if (movable(row, app.state.day)) attachSpineDrag(app, card, row, {dayStart: Date.parse(app.state.day + 'T00:00:00')}); },
     openTask: task => app.actions.openTask(task.id, task.occurrence),
     openEvent: event => app.actions.calendarDetails(event),
     resolve(row) {

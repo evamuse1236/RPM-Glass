@@ -45,6 +45,22 @@ test('the start snaps to 15 minutes at 12dp per step and stays inside the day', 
   assert.equal(snapStart(at(23), 400, DAY), at(23, 45));
 });
 
+test('on a daylight-saving day the last start is still 11:45 PM of the shown day', () => {
+  const saved = process.env.TZ;
+  process.env.TZ = 'America/New_York';
+  try {
+    const spring = Date.parse('2026-03-08T00:00:00'); // 23 hours long
+    assert.equal(snapStart(Date.parse('2026-03-08T23:30:00'), 30 * 0.8, spring), Date.parse('2026-03-08T23:45:00'),
+      'a drag past 11:45 PM stays on the shown day');
+    assert.equal(snapStart(Date.parse('2026-03-08T23:30:00'), 300 * 0.8, spring), Date.parse('2026-03-08T23:45:00'));
+    const fall = Date.parse('2026-11-01T00:00:00'); // 25 hours long
+    assert.equal(snapStart(Date.parse('2026-11-01T22:30:00'), 300 * 0.8, fall), Date.parse('2026-11-01T23:45:00'),
+      'a drag reaches 11:45 PM on the long day');
+  } finally {
+    process.env.TZ = saved;
+  }
+});
+
 test('the knurl changes the length in 5-minute steps under 30 minutes and 15-minute steps above', () => {
   assert.equal(snapLength(15, 0), 15);
   assert.equal(snapLength(15, 4), 20);
@@ -52,6 +68,15 @@ test('the knurl changes the length in 5-minute steps under 30 minutes and 15-min
   assert.equal(snapLength(30, 12), 45);
   assert.equal(snapLength(60, 24), 90);
   assert.equal(snapLength(200, 200), 240);
+});
+
+test('the knurl on a card longer than 4 hours moves from its own length and never cuts it to 4 hours', () => {
+  assert.equal(snapLength(300, 12), 315);
+  assert.equal(snapLength(300, -12), 285);
+  assert.equal(snapLength(300, 0), 300);
+  assert.equal(snapLength(300, 4), 300);
+  assert.equal(snapLength(480, 0), 480);
+  assert.equal(snapLength(1440, 100), 1440);
 });
 
 test('no horizontal gesture starts within 24dp of a screen edge', () => {

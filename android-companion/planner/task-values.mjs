@@ -1,4 +1,5 @@
 import {localDay, shiftDay} from '../planner-state.mjs';
+import {nextOccurrence, repeats, repeatsOn} from '../planner-recurrence.mjs';
 import {clock, relativeDay, timeValue, DATE_LOCALE} from './format.mjs';
 
 export const DURATIONS = [15, 30, 45, 60, 90, 120, 180];
@@ -49,18 +50,20 @@ export function dayPresets(today = localDay()) {
 /**
  * One-tap reschedules for a swiped row (Things' When, Todoist's Schedule): each is a whole date and time, so one tap
  * saves. Today and Tomorrow keep the task's time; Tonight (until 7 PM), Tomorrow morning at 9; the weekend or next
- * week; No date for a dated task. A repeating task keeps a date and a time, so it gets no date-only choice.
+ * week; No date for a dated task. A repeating task keeps a date and a time, so it gets no date-only choice, and
+ * `on(weekday)` (0 Sunday) drops a day its series never falls on, so a weekdays series is never moved to Saturday.
  * Returns [{key, label, hint, icon, value: {day, time}, current}].
  */
-export function schedulePresets({day = '', time = ''} = {}, now = new Date(), {repeating = false} = {}) {
+export function schedulePresets({day = '', time = ''} = {}, now = new Date(), {repeating = false, on = () => true} = {}) {
   const today = localDay(now);
   const minutes = now.getHours() * 60 + now.getMinutes();
   const tomorrow = shiftDay(today, 1);
-  const weekday = d => new Date(d + 'T12:00').toLocaleDateString([], {weekday: 'short'});
+  const weekday = d => new Date(d + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'short'});
   const at = (d, t) => (t ? clockOf(d, t) : '');
   const out = [];
   const add = (key, label, symbol, value, hint) => {
     if (repeating && !(value.day && value.time)) return;
+    if (value.day && !on(new Date(value.day + 'T12:00').getDay())) return;
     out.push({key, label, icon: symbol, value, hint, current: value.day === day && value.time === time});
   };
   add('today', 'Today', 'today', {day: today, time}, at(today, time));
@@ -144,13 +147,24 @@ export function dayChips(today = localDay(), current = '') {
   const chips = [{label: 'Today', day: today, aria: ''}, {label: 'Tomorrow', day: shiftDay(today, 1), aria: ''}];
   for (let i = 2; i < 7; i++) {
     const day = shiftDay(today, i);
-    chips.push({label: date(day).toLocaleDateString([], {weekday: 'short'}), day, aria: spoken(day)});
+    chips.push({label: date(day).toLocaleDateString(DATE_LOCALE, {weekday: 'short'}), day, aria: spoken(day)});
   }
   if (current && !chips.some(c => c.day === current)) {
     const label = date(current).toLocaleDateString(DATE_LOCALE, {weekday: 'short', month: 'short', day: 'numeric'});
     chips.splice(current < today ? 0 : 2, 0, {label, day: current, aria: spoken(current)});
   }
   return chips;
+}
+
+/**
+ * Why a series on fixed weekdays cannot move to `day`: moving its start to a weekday it never falls on would empty
+ * the week (the Schedule menu offers only days it falls on). Empty when the move is fine.
+ */
+export function seriesDayRefusal(task, day) {
+  if (!day || !task || !repeats(task) || task.repeatAfterDays) return '';
+  const weekday = new Date(day + 'T12:00').getDay();
+  if (repeatsOn(task, weekday)) return '';
+  return `This task does not repeat on ${new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'long'})}. Change Repeat first.`;
 }
 
 /** Time presets with the task's own time folded in, in clock order. */
@@ -167,7 +181,9 @@ export function repeatLabel(task) {
 }
 
 /** The Repeat tab's circles, Monday first: [weekday 0–6, letter, name]. */
-export const REPEAT_DAYS = [1, 2, 3, 4, 5, 6, 0].map(d => [d, DAY_NAMES[d][0], new Date(2026, 9, 18 + d, 12).toLocaleDateString([], {weekday: 'long'})]);
+// Fixed English names, as DATE_LOCALE gives them; a call here would run before format.mjs loads (import cycle).
+const LONG_DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+export const REPEAT_DAYS = [1, 2, 3, 4, 5, 6, 0].map(d => [d, DAY_NAMES[d][0], LONG_DAY_NAMES[d]]);
 const weekOrder = days => [...new Set(days)].sort((a, b) => (a + 6) % 7 - (b + 6) % 7);
 const weekdayOf = planned => (planned ? new Date(planned).getDay() : null);
 
@@ -252,6 +268,28 @@ export function parseWhen(text, today = localDay(), now = new Date()) {
   } else return null;
   const match = found[0].trim();
   return {day, time, match, start: found.index, end: found.index + match.length};
+}
+
+/**
+ * The {day, time} a time picked in the task sheet saves. `shown` is the {day, time} on screen (one occurrence of a
+ * repeating task). A fixed repeat keeps its series day, so only the clock changes and no earlier occurrence is lost.
+ */
+export function timePickValue(task, shown, time, {repeating = false, today = localDay()} = {}) {
+  const series = repeating && !task?.repeatAfterDays && task?.planned ? localDay(new Date(task.planned)) : '';
+  return {day: series || shown?.day || today, time};
+}
+
+/**
+ * The occurrence the task sheet shows for a repeating task opened on `occurrence` when the series started at `anchor`.
+ * After a clock-only change (the series day kept) it is the same day at the new clock; after any other move of the
+ * series, the next occurrence.
+ */
+export function viewedOccurrence(task, anchor, occurrence) {
+  if (occurrence && task.planned === anchor) return occurrence;
+  if (!occurrence || task.repeatAfterDays || !task.planned || !anchor || localDay(new Date(task.planned)) !== localDay(new Date(anchor))) {
+    return nextOccurrence(task);
+  }
+  return whenFields({day: whenOf(task, occurrence).day, time: whenOf(task).time}).planned;
 }
 
 /**

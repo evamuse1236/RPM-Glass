@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {deadline, byDeadline, planByTime} from './planner/blocks.mjs';
+import {deadline, byDeadline, planByTime, markAchieved, sortPlan} from './planner/blocks.mjs';
 import {timeLeft} from './planner/format.mjs';
 import {blockDue} from './planner-state.mjs';
 import {dropIndex} from './planner/task-row.mjs';
-import {entityFields} from './planner/inline-edit.mjs';
+import {entityFields, saveEntity} from './planner/inline-edit.mjs';
 import {newFields} from './planner/entities.mjs';
 
 const now = new Date('2026-10-03T12:00');
@@ -73,6 +73,30 @@ test('editing one field in place sends every field saveEntity needs, so nothing 
   assert.deepEqual(entityFields('projects', {id: 'p', title: 'Term 1'}), {title: 'Term 1', purpose: '', notes: '', goalId: null});
 });
 
+test('a field saved from a page drawn before the last save keeps that save: only its own words change', async () => {
+  const stale = {id: 'b1', title: 'Old name', purpose: 'Old purpose', notes: ''};
+  const fakeApp = blocks => {
+    const app = {saving: false, ops: [], blocks, p: () => ({blocks: app.blocks})};
+    app.commit = (op, options) => { app.ops.push({op, options}); return Promise.resolve(true); };
+    return app;
+  };
+  const idle = fakeApp([{id: 'b1', title: 'Old name', purpose: 'New purpose', notes: ''}]);
+  await saveEntity(idle, 'blocks', stale, {title: 'New name'}, 'Result renamed');
+  assert.deepEqual(idle.ops[0].op.fields, {title: 'New name', purpose: 'New purpose', notes: '', projectId: null});
+  assert.equal(idle.ops[0].options.label, 'Result renamed');
+  // The Purpose save is still in flight when the title is saved: the title waits it out, then builds on it.
+  const busy = fakeApp([stale]);
+  busy.saving = true;
+  const pending = saveEntity(busy, 'blocks', stale, {title: 'New name'}, 'Result renamed');
+  setTimeout(() => { busy.blocks = [{...stale, purpose: 'New purpose'}]; busy.saving = false; }, 20);
+  await pending;
+  assert.deepEqual(busy.ops[0].op.fields, {title: 'New name', purpose: 'New purpose', notes: '', projectId: null});
+  // A record not in the saved plan (deleted meanwhile) still saves from the words it was drawn with.
+  const gone = fakeApp([]);
+  await saveEntity(gone, 'blocks', stale, {title: 'New name'}, 'Result renamed');
+  assert.deepEqual(gone.ops[0].op.fields, {title: 'New name', purpose: 'Old purpose', notes: '', projectId: null});
+});
+
 test('a new record starts from where it was made: the Project page, the Blocks filter, the Life period', () => {
   const state = {blockFilter: 'f', horizon: 'quarterly', period: 11, year: 2026, lifeFilter: 'a'};
   assert.equal(newFields('blocks', {}, state, {kind: 'projects', id: 'p'}).projectId, 'p');
@@ -82,4 +106,30 @@ test('a new record starts from where it was made: the Project page, the Blocks f
   assert.deepEqual(newFields('goals', {}, state), {title: 'New Goal', purpose: '', notes: '', areaId: 'a', year: 2026,
     horizon: 'quarterly', period: 4});
   assert.equal(newFields('goals', {}, {...state, horizon: 'values'}).period, null);
+});
+
+/** A planner whose commit, like app.commit, saves nothing and returns undefined while another save runs. */
+function busyPlanner(entries) {
+  const app = {saving: true, sent: [], entries, data: () => ({entries: app.entries}), notice() {},
+    commit: async (op, options) => {
+      if (app.saving) return undefined;
+      app.sent.push([op, options.label]);
+      return 1;
+    }};
+  return app;
+}
+
+test('Mark achieved, Mark not achieved and Sort by time tapped while another save runs wait for it, then save once', async () => {
+  const app = busyPlanner([{id: 1, blockId: 'a', title: 'Late', planned: new Date('2026-10-03T16:00').toISOString(), priority: 1}]);
+  // The save in flight adds an earlier task to the Plan; the sort must include it.
+  setTimeout(() => {
+    app.entries = [...app.entries, {id: 2, blockId: 'a', title: 'Early', planned: new Date('2026-10-03T09:00').toISOString(), priority: 2}];
+    app.saving = false;
+  }, 20);
+  await Promise.all([markAchieved(app, 'a', true, 'Shipped'), markAchieved(app, 'a', false), sortPlan(app, 'a')]);
+  assert.deepEqual(app.sent, [
+    [{type: 'markAchieved', id: 'a', achieved: true, evidence: 'Shipped'}, 'Result achieved'],
+    [{type: 'markAchieved', id: 'a', achieved: false}, 'Result marked not achieved'],
+    [{type: 'reorder', blockId: 'a', ids: [2, 1]}, 'Plan sorted by time'],
+  ]);
 });

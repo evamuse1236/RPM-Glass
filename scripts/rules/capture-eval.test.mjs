@@ -137,3 +137,10 @@ test('CLI and Stop hook enforce live evaluation before device or cloud evidence'
     fs.rmSync(path.join(root, '.verify/capture-stress'), {recursive: true});
   }
 });
+
+test('with no main to compare with, the capture check leaves the no-base block to the evidence gate', t => {
+  const {root, put, git} = fixture(t);
+  git('branch', '-qD', 'main');
+  put('intent-v2/src/model.mjs', 'after');
+  assert.deepEqual(captureEvalEvidence(root), {gap: null});
+});

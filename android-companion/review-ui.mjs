@@ -42,7 +42,7 @@ export function iconButton(name, label, onClick, cls = 'wr-icon-btn') {
 export const hours = minutes => (minutes < 60 ? `${minutes}m` : `${Math.round(minutes / 30) / 2}h`);
 /** "Monday 9 November": the day written out, day before month. */
 export const dayName = day => new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'long', day: 'numeric', month: 'long'});
-export const weekday = day => new Date(day + 'T12:00').toLocaleDateString(undefined, {weekday: 'short'});
+export const weekday = day => new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'short'});
 export const capital = text => text[0].toUpperCase() + text.slice(1);
 
 /** A Result's deadline as a chip: "Due tomorrow 11:00 PM", stronger when close, in error colour when past. */

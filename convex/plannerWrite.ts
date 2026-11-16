@@ -6,6 +6,8 @@ import { withIds } from "../android-companion/new-id.mjs";
 import { initializeTaskIds, SERVER_TASK_IDS } from "../android-companion/task-ids.mjs";
 // @ts-expect-error Shared user-facing error boundary is JavaScript.
 import { userMessage } from "../android-companion/user-message.mjs";
+// @ts-expect-error Shared explicit timezone scope is JavaScript.
+import { withTimeZone } from "../android-companion/zoned-time.mjs";
 import { applyRecord, groupsOf } from "../web/contract/records.mjs";
 import { diffRecords, equal, groupValue, loadStore, nextServerTaskId, projectRecords, rowsFor, writeRecords } from "./records";
 import type { PlannerCtx } from "./plannerAuth";
@@ -37,7 +39,7 @@ function allocateTasks(store:any,known:Set<number>,taken:Set<number>,proposals:n
   for(const review of Object.values(store.planner.reviews) as any[])for(const field of ["inboxIds","keptIds"])if(review[field])review[field]=review[field].map((id:number)=>replacements.get(id)??id);
   return next;
 }
-async function undo(ctx:PlannerCtx,account:Id<"accounts">,command:Doc<"webCommands">,store:any) {
+async function undo(ctx:PlannerCtx,account:Id<"accounts">,command:Doc<"webCommands">,store:any,zone:string) {
   const target=await ctx.db.query("webCommands").withIndex("by_account_id",q=>q.eq("account",account).eq("commandId",command.payload.args.commandId.toLowerCase())).unique();
   const capture=await ctx.db.query("captures").withIndex("by_account_message",q=>q.eq("account",account).eq("messageId",target?.payload.id??command.payload.args.commandId)).unique();
   const inverse=capture?.inverse??target?.inverse;
@@ -59,15 +61,19 @@ async function undo(ctx:PlannerCtx,account:Id<"accounts">,command:Doc<"webComman
     }
     applyRecord(store,entry.key,restored);
   }
-  try {validatePlanner(store);}catch {return null;}
+  try {withTimeZone(zone,()=>validatePlanner(store));}catch {return null;}
   return kept;
 }
 
 export async function applyPlan(ctx:PlannerCtx,account:Id<"accounts">,command:Doc<"webCommands">) {
-  const store=await loadStore(ctx,account), before=projectRecords(store), now=new Date();
+  // Convex runs in UTC; the reducer reads days and hours in the zone the browser showed them in.
+  const store=await loadStore(ctx,account), before=projectRecords(store), now=new Date(), zone=command.payload.timezone??"Asia/Kolkata";
+  // The reducer runs at the moment the user acted (createdAt), as the browser replayed it, so a tick sent late keeps its dates.
+  // A client stamp in the future or older than a week is not trusted; record stamps always stay on server time.
+  const acted=Date.parse(command.payload.createdAt), userNow=acted<=now.getTime()+60_000 && acted>=now.getTime()-7*86_400_000?new Date(acted):now;
   let message="Saved.",nextTaskId:number|undefined;
   if(command.payload.type==="undo") {
-    const kept=await undo(ctx,account,command,store);
+    const kept=await undo(ctx,account,command,store,zone);
     if(kept===null)return {status:"conflict" as const,message:"This changed since; Undo it on the phone after reviewing."};
     message=kept?"Change undone. Newer changes were kept.":"Change undone.";
   } else {
@@ -79,7 +85,7 @@ export async function applyPlan(ctx:PlannerCtx,account:Id<"accounts">,command:Do
       initializeTaskIds(store).nextTaskId=Math.max(store.sync.nextTaskId,nextServerTaskId(owner,rows));
       const ids=command.payload.args.ids??[], used=new Set<string>();
       const takenEntities=JSON.stringify([store.planner??null,store.entries.map((entry:any)=>entry.id)]);
-      withIds(ids.filter((id:any)=>typeof id==="string"),()=>editPlan(store,operation(command.payload),now), (id:string)=>{
+      withIds(ids.filter((id:any)=>typeof id==="string"),()=>withTimeZone(zone,()=>editPlan(store,operation(command.payload),userNow)), (id:string)=>{
         const valid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) && !takenEntities.includes(id) && !used.has(id);
         if(valid)used.add(id);return valid;
       });
@@ -88,7 +94,7 @@ export async function applyPlan(ctx:PlannerCtx,account:Id<"accounts">,command:Do
       if(command.payload.args.exactTaskIds && (used.size!==ids.filter((id:any)=>typeof id==="string").length || !equal(store.entries.filter((entry:any)=>!known.has(entry.id)).map((entry:any)=>entry.id),proposals)))
         return {status:"conflict" as const,message:"The plan changed before this was saved. Try again."};
       nextTaskId=allocateTasks(store,known,taken,proposals,owner.nextTaskId??SERVER_TASK_IDS[0]);
-      validatePlanner(store);
+      withTimeZone(zone,()=>validatePlanner(store));
     } catch(error) {return {status:"rejected" as const,message:userMessage(error)};}
   }
   const inverse=await writeRecords(ctx,account,diffRecords(before,projectRecords(store)),now.toISOString());

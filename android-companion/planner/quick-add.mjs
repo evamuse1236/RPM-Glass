@@ -7,6 +7,7 @@ import {whenOf, whenFields, whenLabel, clockOf, dayPresets, parseWhen, blockMatc
 import {readLabel, NEEDS_TIME, saver, scheduleCheck, suggestBlock} from './sheet-parts.mjs';
 import {openTask} from './task-sheet.mjs';
 import {blockShort} from './task-tabs-model.mjs';
+import {DATE_LOCALE} from './format.mjs';
 
 const DRAFT = 'task:new';
 // A number keeps its unit on its line ("10 PM", "30 min", "2 hours") and "a", "an" or "the" keeps the word it leads,
@@ -16,7 +17,7 @@ const keepUnits = text => text
   .replace(/(^|\s)(a|an|the|A|An|The)[ \t]+(?=\S)/g, '$1$2\u00a0');
 const shortDay = day => {
   const date = new Date(day + 'T12:00');
-  return `${date.toLocaleDateString([], {weekday: 'short'})} ${date.getDate()}`;
+  return `${date.toLocaleDateString(DATE_LOCALE, {weekday: 'short'})} ${date.getDate()}`;
 };
 
 
@@ -287,8 +288,12 @@ function quickAdd(app, overrides = {}) {
       discardDraft(app);
       app.sheet.draftKey = DRAFT;
     } else {
-      Object.assign(app.sheet.draftValues, {Task: name.value, Date: s.day, Time: s.time, Minutes: s.minutes,
-        Block: s.blockId, BlockPicked: s.blockPicked, Must: s.must, Repeat: s.repeat, Every: s.every, Notes: s.notes, Why: s.why, Alert: s.alert});
+      // The draft keeps the day and Block as they were before the words set them: the words are read again when it is
+      // restored, so deleting them then gives back the earlier day and Block, as in a sheet never closed.
+      const when = parsed ? before : s;
+      const where = tag ? tagBefore : s;
+      Object.assign(app.sheet.draftValues, {Task: name.value, Date: when.day, Time: when.time, Minutes: s.minutes,
+        Block: where.blockId, BlockPicked: where.blockPicked, Must: s.must, Repeat: s.repeat, Every: s.every, Notes: s.notes, Why: s.why, Alert: s.alert});
       rememberValue(app, 'Task', name.value);
     }
     setTimeout(() => { sheet.dataset.dirty = String(!!name.value.trim()); });

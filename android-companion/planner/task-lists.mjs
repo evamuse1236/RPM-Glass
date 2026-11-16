@@ -4,10 +4,12 @@ import {repeats} from '../planner-recurrence.mjs';
 import {duration} from './format.mjs';
 import {animateRerender, reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
 import {openSheet, isSheetOpen} from './sheet.mjs';
-import {taskRow} from './task-row.mjs';
+import {taskRow, taskWhen} from './task-row.mjs';
 import {taskEditor} from './quick-add.mjs';
 import {INBOX_LEFT} from './row-gestures.mjs';
 import {peekSwipe} from '../task-swipe.mjs';
+import {persist} from './inline-edit.mjs';
+import {onceInFlight} from './routine-editor.mjs';
 
 const PEEKED = 'rpm.inbox.peeked';
 const peeked = () => { try { return localStorage.getItem(PEEKED) === '1'; } catch { return true; } };
@@ -19,8 +21,8 @@ export function showTrash(app, archive = false) {
     for (const block of app.p().blocks.filter(b => b.archived)) {
       const row = el('div', 'list-item');
       row.append(icon('stacks', {cls: 'leading'}), el('span', 'list-copy', block.title),
-        button('Restore', () => app.commit({type: 'archiveBlock', id: block.id, archived: false},
-          {label: 'Block restored'}).catch(() => {}), 'text-btn'));
+        button('Restore', onceInFlight(() => persist(app, {type: 'archiveBlock', id: block.id, archived: false},
+          {label: 'Block restored'}).catch(() => {})), 'text-btn'));
       body.append(row);
     }
   }
@@ -32,8 +34,8 @@ export function showTrash(app, archive = false) {
   for (const task of rows) {
     const row = el('div', 'list-item');
     row.append(icon('task_alt', {cls: 'leading'}), el('span', 'list-copy', task.title),
-      button('Restore', () => app.commit({type: 'restoreTask', id: task.id}, {label: 'Task restored'})
-        .catch(() => {}), 'text-btn'));
+      button('Restore', onceInFlight(() => persist(app, {type: 'restoreTask', id: task.id}, {label: 'Task restored'})
+        .catch(() => {})), 'text-btn'));
     body.append(row);
   }
 }
@@ -42,6 +44,25 @@ export function showTrash(app, archive = false) {
 export function inboxShowing(app) {
   const body = app.sheet.inboxBody;
   return isSheetOpen(app) && !!body?.isConnected && !body.closest('.sheet-ghost');
+}
+
+/** Splits Inbox rows into open (no day, time or repeat yet), today's and later ones, each dated sorted soonest first. */
+export function inboxGroups(rows) {
+  // What still needs a decision comes first; tasks that already have a day, time or repeat wait under Scheduled.
+  // Today's are said once, in their header, so their rows drop the word.
+  const scheduled = task => !!(task.planned || task.plannedDate || repeats(task));
+  // A series counts by its next occurrence (the time its row shows), as the Today page lists it, not by its start.
+  const dueToday = task => {
+    const at = taskWhen(task);
+    return (at ? localDay(new Date(at)) : task.plannedDate) === localDay();
+  };
+  const open = rows.filter(task => !scheduled(task));
+  const when = task => taskWhen(task)
+    ?? (task.plannedDate ? new Date(task.plannedDate + 'T23:59:59').getTime() : Infinity);
+  const byWhen = (a, b) => when(a) - when(b);
+  const today = rows.filter(task => scheduled(task) && dueToday(task)).sort(byWhen);
+  const later = rows.filter(task => scheduled(task) && !dueToday(task)).sort(byWhen);
+  return {open, today, later};
 }
 
 /** Inbox: open tasks that are not in a Block yet. Rows swipe as everywhere; a save updates the rows in place. */
@@ -66,16 +87,7 @@ export function showInbox(app, {motion = 'forward'} = {}) {
         body: 'New captures land here until you give them a Block.'}));
     }
     const back = app.sheet.returned;
-    // What still needs a decision comes first; tasks that already have a day, time or repeat wait under Scheduled.
-    // Today's are said once, in their header, so their rows drop the word.
-    const scheduled = task => !!(task.planned || task.plannedDate || repeats(task));
-    const dueToday = task => (task.planned ? localDay(new Date(task.planned)) : task.plannedDate) === localDay();
-    const open = rows.filter(task => !scheduled(task));
-    const when = task => (task.planned ? new Date(task.planned).getTime()
-      : task.plannedDate ? new Date(task.plannedDate + 'T23:59:59').getTime() : Infinity);
-    const byWhen = (a, b) => when(a) - when(b);
-    const today = rows.filter(task => scheduled(task) && dueToday(task)).sort(byWhen);
-    const later = rows.filter(task => scheduled(task) && !dueToday(task)).sort(byWhen);
+    const {open, today, later} = inboxGroups(rows);
     // Today's untimed tasks say Anytime, as on Today, so none reads as timed under On Today.
     const add = (task, days, group) => {
       const row = taskRow(app, task, {inbox: true, days, anytime: group === 'inbox-today'});

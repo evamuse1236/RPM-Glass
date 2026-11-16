@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mergeChange} from './merge.mjs';
-import {storeFromRecords} from './records.mjs';
-import {validatePlanner} from '../../android-companion/planner-state.mjs';
+import {projectRecords, storeFromRecords} from './records.mjs';
+import {editPlan, freshPlanner, validatePlanner} from '../../android-companion/planner-state.mjs';
+import {entityFields} from '../../android-companion/planner/inline-edit.mjs';
+import {validateRecord} from './validate.mjs';
 
 const early = '2026-10-20T00:00:00.000Z', late = '2026-10-21T00:00:00.000Z', now = '2026-10-22T00:00:00.000Z';
 const change = (base, value, stamps = {}, baseRev = 1, key = 'task:1') => ({key, baseRev, base, value, stamps});
@@ -144,4 +146,51 @@ test('replaying a losing notes edit keeps values and stamps stable without nesti
   const replay = mergeChange(row(first.value, first.stamps, 3), c, now);
   assert.deepEqual(replay.value, first.value);
   assert.deepEqual(replay.stamps, first.stamps);
+});
+
+test('a conflict note that would push notes past the limit is left out, so the newer edit and uncontested fields still save', () => {
+  const task = {id: 1, kind: 'plan', title: 'Call bank', raw: 'Call bank', notes: 'x'.repeat(15950), purpose: '', planned: null, plannedDate: null, minutes: null, blockId: null, must: false, priority: null, done: false, archived: false, archiveDisposition: null, recurrence: null, repeatAfterDays: null, completedAt: null, completedOccurrences: [], alertIntent: {type: null}, completions: []};
+  const server = row({...task, title: 'Call bank about loan'}, {title: early}, 5);
+  const c = change(task, {...task, title: 'Call bank today', minutes: 30}, {title: late, minutes: late}, 4);
+  const result = mergeChange(server, c, now);
+  validateRecord('task:1', result.value);
+  assert.equal(result.value.title, 'Call bank today');
+  assert.equal(result.value.minutes, 30);
+  assert.equal(result.value.notes, task.notes);
+  assert.deepEqual(result.conflicts.map(entry => [entry.group, entry.lost.title, entry.lostFrom]), [['title', 'Call bank about loan', 'server']]);
+  assert.deepEqual(mergeChange(server, c, now), result);
+
+  const notesBase = {...task, notes: 'a'.repeat(6000)};
+  const both = mergeChange(row({...notesBase, notes: 'b'.repeat(6000)}, {notes: early}, 5), change(notesBase, {...notesBase, notes: 'c'.repeat(6000)}, {notes: late}, 4), now);
+  validateRecord('task:1', both.value);
+  assert.equal(both.value.notes, 'c'.repeat(6000));
+  assert.deepEqual(both.conflicts.map(entry => [entry.group, entry.lost.notes, entry.lostFrom]), [['notes', 'b'.repeat(6000), 'server']]);
+});
+
+test('completions ticked on both sides of a full 512-completion task keep the newest 512, so the change still saves', () => {
+  const day = n => ({occurrence: new Date(Date.UTC(2025, 0, 1) + n * 864e5).toISOString(), completed: new Date(Date.UTC(2025, 0, 1, 9) + n * 864e5).toISOString()});
+  const days = (from, to) => Array.from({length: to - from + 1}, (_, i) => day(from + i));
+  const task = {id: 1, kind: 'plan', title: 'Stretch', raw: 'Stretch', notes: '', purpose: '', planned: null, plannedDate: null, minutes: null, blockId: null, must: false, priority: null, done: false, archived: false, archiveDisposition: null, recurrence: 'daily', repeatAfterDays: null, completedAt: null, completedOccurrences: [], alertIntent: {type: null}, completions: days(0, 511)};
+  const phone = {...task, completions: days(1, 512)}, server = {...task, completions: [...days(1, 511), day(513)]};
+  const result = mergeChange(row(server, {completion: early}), change(task, phone, {completion: late}), now);
+  assert.equal(result.value.completions.length, 512);
+  assert.deepEqual(result.value.completions, [...days(2, 512), day(513)]);
+  validateRecord('task:1', result.value);
+});
+
+test('a two-device notes conflict on a Block stays within the 8000 the phone saves, so the Block can still be renamed', () => {
+  const data = {planner: freshPlanner(), entries: []};
+  editPlan(data, {type: 'saveEntity', collection: 'blocks', fields: {title: 'Launch', purpose: '', notes: 'base', projectId: null}});
+  const records = projectRecords(data), key = [...records.keys()].find(k => k.startsWith('block:')), base = records.get(key);
+  const result = mergeChange(row({...base, notes: 'W'.repeat(3000)}, {notes: early}, 5), change(base, {...base, notes: 'P'.repeat(3000)}, {notes: late}, 4, key), now);
+  validateRecord(key, result.value);
+  assert.equal(result.value.notes, 'P'.repeat(3000));
+  assert.deepEqual(result.conflicts.map(entry => [entry.group, entry.lost.notes, entry.lostFrom]), [['notes', 'W'.repeat(3000), 'server']]);
+  const block = data.planner.blocks[0];
+  block.notes = result.value.notes;
+  editPlan(data, {type: 'saveEntity', collection: 'blocks', id: block.id, fields: entityFields('blocks', block, {title: 'Launch v2'})});
+  assert.equal(data.planner.blocks[0].title, 'Launch v2');
+
+  const short = mergeChange(row({...base, notes: 'W'.repeat(1000)}, {notes: early}, 5), change(base, {...base, notes: 'P'.repeat(1000)}, {notes: late}, 4, key), now);
+  assert.match(short.value.notes, /\nChanged on two devices\. Kept notes 'P+'\. Other version from your website: 'W+'\.$/);
 });

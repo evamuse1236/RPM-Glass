@@ -136,8 +136,9 @@ final class NotchRunner {
         Runnable timeout = () -> NotchController.safely("runner timeout", () -> deliver(id, failure(NO_ANSWER)));
         calls.put(id, new Call(answer, SystemClock.uptimeMillis(), timeout, request.optString("action")));
         main.postDelayed(timeout, TIMEOUT_MS);
+        // A request whose timeout already said "Not saved" must never be applied when a slow page loads after it.
         Runnable send = () -> {
-            if (web != null) web.evaluateJavascript("window.rpmNotchRun(" + JSONObject.quote(id) + "," + request + ")", null);
+            if (web != null && calls.containsKey(id)) web.evaluateJavascript("window.rpmNotchRun(" + JSONObject.quote(id) + "," + request + ")", null);
         };
         if (ready) send.run();
         else queued.add(send);

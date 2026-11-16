@@ -132,6 +132,21 @@ function installDrag(row, handle, list) {
   handle.addEventListener('pointercancel', drop);
 }
 
+/** Runs `fn` once at a time: a call made while the last one is still pending
+ * does nothing, so a second tap on Save cannot save a new routine twice. */
+export function onceInFlight(fn) {
+  let busy = false;
+  return async (...args) => {
+    if (busy) return undefined;
+    busy = true;
+    try {
+      return await fn(...args);
+    } finally {
+      busy = false;
+    }
+  };
+}
+
 /** `back` (the Habits list that opened it) adds a back arrow, and saving or deleting returns there. */
 export function openRoutineEditor(app, body, routineId = null, {back = null} = {}) {
   const existing = routineId ? body.routine(routineId) : null;
@@ -217,7 +232,7 @@ export function openRoutineEditor(app, body, routineId = null, {back = null} = {
         .filter(step => step.title),
     };
   };
-  actions.append(button('Save routine', async () => {
+  actions.append(button('Save routine', onceInFlight(async () => {
     const draft = read();
     const errors = validateRoutine(draft);
     nameError.textContent = errors.name ?? '';
@@ -237,7 +252,7 @@ export function openRoutineEditor(app, body, routineId = null, {back = null} = {
     done();
     app.render();
     notice(app, 'Routine saved', {undo: true});
-  }, 'filled-btn'));
+  }), 'filled-btn'));
   app.sheetRefresh = null;
   if (!existing) name.focus({preventScroll: true});
 }

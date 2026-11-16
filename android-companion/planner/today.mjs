@@ -6,10 +6,10 @@
  * next three days, soonest first (every other deadline and calendar clash); the rest of the day as one time-ordered
  * agenda (tasks, calendar events and the free time between); the Inbox.
  */
-import {localDay, shiftDay, tasks, blockDue, timelineItems} from '../planner-state.mjs';
+import {localDay, shiftDay, tasks, blockDue, timelineItems, inboxRows} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
 import {setClarityPreference} from '../planner-clarity.mjs';
-import {resultStatus, inboxTasks} from '../review-state.mjs';
+import {resultStatus} from '../review-state.mjs';
 import {el, icon, button, emptyState} from './dom.mjs';
 import {clock, plural, dueInfo, relativeDay, timeLeft, countdown, duration, timeRange} from './format.mjs';
 import {taskRow, completedSection} from './task-row.mjs';
@@ -17,6 +17,7 @@ import {listRow, phrase, sep} from './today-row.mjs';
 import {openResults, upcoming, freeGap, gapResult, clashes} from './today-model.mjs';
 import {dateHeader, weekLine, dueDay, todaySheet} from './today-header.mjs';
 import {renderDay, dayScroll} from './today-day.mjs';
+import {persist, whenIdle} from './inline-edit.mjs';
 
 export {selectDay} from './today-header.mjs';
 
@@ -100,8 +101,12 @@ function resultRow(app, item) {
   if (item.kind !== 'unplanned') return keyed(listRow(row), 'due:' + block.id);
   return keyed(listRow({...row, action: 'Add to today',
     label: `${block.title}. ${due.label}, ${countdown(due.at)}. ${left}, not scheduled yet. Open Block`,
-    onAction: () => app.commit({type: 'saveTask', id: item.task.id, fields: {plannedDate: localDay()}},
-      {label: `${item.task.title} added to Today`}).catch(() => {})}), 'due:' + block.id);
+    onAction: () => addToToday(app, item.task).catch(() => {})}), 'due:' + block.id);
+}
+
+/** "Add to today": dates the Result's first unscheduled task today, after any save in flight lands. */
+export function addToToday(app, task) {
+  return persist(app, {type: 'saveTask', id: task.id, fields: {plannedDate: localDay()}}, {label: `${task.title} added to Today`});
 }
 
 /** A stable data-key: the row is the same row from render to render (surface-motion animates it by this key). */
@@ -198,10 +203,22 @@ function gapCard(app, gap, {block, slots}, now) {
   for (const {task} of slots) card.append(taskRow(app, task));
   const range = timeRange(slots[0].start, slots.at(-1).end);
   const words = `Schedule ${slots.length > 1 ? 'from' : 'at'} ${clock(slots[0].start)}`;
-  const plan = button(words, () => app.commit({type: 'batch', ops: slots.map(({task, start}) => ({type: 'saveTask', id: task.id, fields: {planned: start.toISOString()}}))}, {label: `Scheduled ${range}`}).catch(() => {}), 'filled-btn next-action');
+  const plan = button(words, () => scheduleSlots(app, slots, range).catch(() => {}), 'filled-btn next-action');
   plan.setAttribute('aria-label', `Schedule ${slots.map(s => s.task.title).join(' and ')} for ${range}`);
   card.append(plan);
   return card;
+}
+
+/**
+ * The gap card's Schedule button: one batch (one Undo) that times each slot's task back to back. It waits for any save
+ * in flight (a tick in the card) and leaves out a task that save made done or archived.
+ */
+export async function scheduleSlots(app, slots, range) {
+  await whenIdle(app);
+  const open = new Set(app.data().entries.filter(e => !e.done && !e.archived).map(e => e.id));
+  const left = slots.filter(({task}) => open.has(task.id));
+  if (!left.length) return undefined;
+  return persist(app, {type: 'batch', ops: left.map(({task, start}) => ({type: 'saveTask', id: task.id, fields: {planned: start.toISOString()}}))}, {label: `Scheduled ${range}`});
 }
 
 /** Calendar events as fixed blocks, the way Calendar's schedule draws them. */
@@ -256,8 +273,11 @@ function agenda(app, page, {tasks, events, from, title}) {
   if (section.querySelector('.task-row, .agenda-event')) page.append(section);
 }
 
+// The Inbox page's own rows (routines with no Block included), so the counts match.
+export const inboxCount = data => inboxRows(data).length;
+
 function inboxRow(app) {
-  const count = inboxTasks(app.data()).length;
+  const count = inboxCount(app.data());
   const row = button('', () => app.actions.inbox(), 'list-item inbox-row');
   row.append(icon('inbox', {cls: 'leading'}));
   const copy = el('span', 'list-copy');

@@ -120,7 +120,8 @@ final class NotchDay {
             long days = d.toEpochDay() - base.toLocalDate().toEpochDay();
             if (days < 0 || ("weekly".equals(r) && days % 7 != 0)) continue;
             if (!Repeats.on(r, d.getDayOfWeek())) continue;
-            out.add(base.plusDays(days));
+            // A clock time that happens twice (fall-back) takes the first one, as the planner's Date does.
+            out.add(base.plusDays(days).withEarlierOffsetAtOverlap());
         }
         return out;
     }
@@ -132,14 +133,14 @@ final class NotchDay {
         return null;
     }
 
-    /** Up to {@code n} slots that start after the hero, in order; none when there is no hero (nothing left today). */
-    static List<Slot> after(List<Slot> slots, Slot hero, int n) {
+    /** Up to {@code n} slots that start after the hero and have not ended, in order; none when there is no hero (nothing left today). */
+    static List<Slot> after(List<Slot> slots, Slot hero, long now, int n) {
         List<Slot> out = new ArrayList<>();
         if (hero == null) return out;
         boolean past = false;
         for (Slot s : slots) {
             if (s == hero) past = true;
-            else if (past && s.start >= hero.start && out.size() < n) out.add(s);
+            else if (past && s.start >= hero.start && s.end > now && out.size() < n) out.add(s);
         }
         return out;
     }

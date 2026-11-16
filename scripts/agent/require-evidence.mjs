@@ -16,7 +16,7 @@ import {captureEvalEvidence} from './capture-eval.mjs';
 export {CAPTURE_PIPELINE_SOURCES} from './capture-eval.mjs';
 import {sitePublicationGap} from '../web-site/publication.mjs';
 
-const APP_SOURCES = /^(app\/src\/main\/|android-companion\/|chat-prototype\/|intent-v2\/(src|adapters|prompts)\/|cli\/)/;
+const APP_SOURCES = /^(app\/src\/main\/|android-companion\/|chat-prototype\/|web\/contract\/|intent-v2\/(src|adapters|prompts)\/|cli\/)/;
 export const isAppFile = f => APP_SOURCES.test(f) && !/\.test\.(mjs|ts)$/.test(f) && !f.includes('/experiments/') && !f.startsWith(BUILT_WEB);
 const APK = 'app/build/outputs/apk/debug/app-debug.apk';
 
@@ -74,7 +74,9 @@ export function passingCiRun(root, changed) {
     try { run = JSON.parse(fs.readFileSync(path.join(dir, name, 'run.json'), 'utf8')); } catch {}
     if (run?.conclusion !== 'success' || !/^[0-9a-f]{40}$/.test(run.sha ?? '')) continue;
     const shots = fs.readdirSync(path.join(dir, name), {recursive: true}).filter(f => String(f).endsWith('.png') && fs.statSync(path.join(dir, name, String(f))).size >= 1000);
-    if (shots.length && git(root, ['diff', '--quiet', run.sha, 'HEAD', '--', ...changed]) !== null) return {dir: path.join(dir, name), url: run.url};
+    // Every app file at the run's commit must equal HEAD's, not only this branch's own: a rebase brings in main's.
+    const differ = shots.length ? git(root, ['diff', '--name-only', '--no-renames', '-z', run.sha, 'HEAD']) : null;
+    if (differ !== null && !differ.split('\0').some(isAppFile)) return {dir: path.join(dir, name), url: run.url};
   }
   return null;
 }
@@ -131,7 +133,8 @@ export function browserEvidence(root) {
 }
 
 export function cloudGap(root) {
-  const {files} = changedAppFiles(root);
+  const {base, files} = changedAppFiles(root);
+  if (!base) return {block: 'Cloud session: cannot tell what this branch changed: no main or origin/main to compare with. Run `git fetch origin main` (or `git fetch --deepen=200` on a shallow clone), then stop again.', unverified: null};
   const list = names => names.slice(0, 5).join(', ') + (names.length > 5 ? ` and ${names.length - 5} more` : '');
   const web = files.filter(isWebSource), native = files.filter(f => !isWebSource(f));
   const shot = web.length ? browserEvidence(root) : null;
@@ -148,7 +151,8 @@ export function uncommittedAppFiles(root) {
   return status.map(entry => entry.slice(3)).filter(isAppFile);
 }
 
-// Every passing `scenario --all` recorded in any worktree of this repo, with the commit it ran on.
+// Every passing `scenario --all` recorded in any worktree of this repo, with the commit it ran on. A run made
+// with --allow-stale (staleAllowed) ran on an APK older than its code, so it is kept for debugging but proves nothing.
 export function scenarioRuns(root) {
   const trees = (git(root, ['worktree', 'list', '--porcelain']) ?? '').split('\n').filter(l => l.startsWith('worktree ')).map(l => l.slice(9));
   const runs = [];
@@ -161,7 +165,7 @@ export function scenarioRuns(root) {
         let entry = null;
         try { entry = JSON.parse(line); } catch {}
         const r = entry?.command === 'scenario' ? entry.result : null;
-        if (r?.ok && r.all && r.head && !r.uncommittedApp?.length) runs.push({head: r.head, at: entry.at, file});
+        if (r?.ok && r.all && r.head && !r.uncommittedApp?.length && !r.staleAllowed) runs.push({head: r.head, at: entry.at, file});
       }
     }
   }

@@ -10,6 +10,12 @@ import {drinkOp} from '../notch-ops.mjs';
 
 const apis = new WeakMap();
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+/**
+ * Ops that add to whatever the store holds now (a glass, a snooze, a skipped day), so they may follow a store an
+ * outside save (the notch, the notification) reloaded under the open sheet. Form saves (setWater, saveMeal,
+ * saveRoutineRun from a run opened earlier) still meet the sheet's stale-data guard.
+ */
+const FOLLOWS_STORE = new Set(['drinkWater', 'snoozeWater', 'skipRoutineDay']);
 
 /** Busy calendar events, which pause water nudges. */
 export const busyEvents = calendar => (calendar ?? []).filter(event => !event.allDay && event.busy !== false)
@@ -24,6 +30,7 @@ function saver(app) {
   const once = async (op, keepUndo) => {
     while (app.saving) await pause(30);
     const change = keepUndo ? {...op, keepUndo: true} : op;
+    if (FOLLOWS_STORE.has(op.type) && app.sheet) app.sheet.version = app.data().version;
     return app.commit(change, {label: null, keepSheet: true, undo: false});
   };
   return (op, {keepUndo = false} = {}) => {
@@ -60,7 +67,7 @@ export function bodyApi(app) {
     skipDay: (id, day = today()) => save({type: 'skipRoutineDay', routineId: id, day}),
     saveRoutine: ({id, name, start, end, days, steps}) => save({type: 'saveRoutine', routine: {...(id ? {id} : {}), name, start, end, days, steps}}),
     deleteRoutine: id => save({type: 'removeRoutine', id}),
-    water: () => ({...read().water, busy: busyEvents(app.state.calendar)}),
+    water: () => ({...read().water, busy: busyEvents(app.state.nowCalendar ?? app.state.calendar)}),
     drink: () => save(drinkOp()),
     snooze: () => save({type: 'snoozeWater', until: new Date(Date.now() + read().water.settings.snoozeMinutes * 60000).toISOString()}),
     setWater: (key, value) => save({type: 'setWater', fields: {[key]: value}}),

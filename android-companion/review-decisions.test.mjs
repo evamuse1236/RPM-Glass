@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {editPlan, planner, blockTasks, blockDue} from './planner-state.mjs';
-import {markAchieved, inboxTasks, leftoverTasks, decideLeftover, leftoverChoice, groupTask, setMust, focusCandidates, taskDate, groupTasks, addInboxTask} from './review-state.mjs';
-import {WEEK, at, block, task, entry, seed} from './review-fixtures.mjs';
+import {readFileSync} from 'node:fs';
+import {LEFTOVER_RECEIPTS, markAchieved, inboxTasks, leftoverTasks, decideLeftover, leftoverChoice, groupTask, setMust, focusCandidates, taskDate, groupTasks, addInboxTask, setWeekFocus, reviewProgress, reviewSummary} from './review-state.mjs';
+import * as stepOne from './review-step-one.mjs';
+import {WEEK, LAST, at, block, task, entry, seed} from './review-fixtures.mjs';
+import {freshStore} from '../chat-prototype/companion-state.mjs';
 
 test('carry, defer and drop are deliberate, reversible and undoable', () => {
   const {d, home, meals, kitchen, laundry} = seed();
@@ -42,6 +45,22 @@ test('carry, defer and drop are deliberate, reversible and undoable', () => {
   assert.throws(() => decideLeftover(d, meals, 'drop', WEEK), /open task/);
   assert.equal(JSON.stringify(d), done);
   assert.notEqual(before, done);
+});
+
+test('deferring a leftover twice still lets Carry restore the day or time it had', () => {
+  const {d, meals, kitchen} = seed();
+  decideLeftover(d, meals, 'defer', WEEK);
+  decideLeftover(d, meals, 'defer', WEEK);
+  assert.equal(entry(d, meals).plannedDate, null, 'a deferred task stays undated');
+  decideLeftover(d, meals, 'carry', WEEK);
+  assert.equal(leftoverChoice(entry(d, meals), WEEK), 'carry');
+  assert.equal(entry(d, meals).plannedDate, '2026-09-23', 'carry restores the day the first defer cleared');
+
+  decideLeftover(d, kitchen, 'defer', WEEK);
+  decideLeftover(d, kitchen, 'defer', WEEK);
+  assert.equal(entry(d, kitchen).planned, null);
+  decideLeftover(d, kitchen, 'carry', WEEK);
+  assert.equal(entry(d, kitchen).planned, '2026-09-24T12:30:00.000Z', 'carry restores the time the first defer cleared');
 });
 
 test('groupTask moves an Inbox task to a Block, a new Block, or back, each as one Undo step', () => {
@@ -128,6 +147,21 @@ test('groupTasks moves several tasks, or starts a new Result from them, as one U
   assert.throws(() => groupTasks(d, [], home), /Choose a task/);
 });
 
+test('a repeated Add to Result or Move back to Inbox keeps the first Undo', () => {
+  const {d, home, inbox} = seed();
+  editPlan(d, {type: 'groupTasks', ids: [inbox], blockId: home});
+  const first = planner(d).undo;
+  editPlan(d, {type: 'groupTasks', ids: [inbox], blockId: home});
+  assert.equal(planner(d).undo.id, first.id, 'a second tap that moves nothing leaves the Undo alone');
+  editPlan(d, {type: 'undo'});
+  assert.equal(entry(d, inbox).blockId ?? null, null, 'Undo returns the task to the Inbox');
+  editPlan(d, {type: 'groupTasks', ids: [inbox], blockId: home});
+  editPlan(d, {type: 'groupTasks', ids: [inbox], blockId: null});
+  editPlan(d, {type: 'groupTasks', ids: [inbox], blockId: null});
+  editPlan(d, {type: 'undo'});
+  assert.equal(entry(d, inbox).blockId, home, 'Undo after a repeated Move back to Inbox puts the task back in its Block');
+});
+
 test('addInboxTask saves the exact words as a new Inbox task with Undo', () => {
   const {d} = seed();
   const id = addInboxTask(d, 'Book the GWBC room', at('2026-09-27T10:00:00Z'));
@@ -136,4 +170,49 @@ test('addInboxTask saves the exact words as a new Inbox task with Undo', () => {
   editPlan(d, {type: 'undo'});
   assert.equal(entry(d, id), undefined);
   assert.throws(() => addInboxTask(d, '   '), /title/);
+});
+
+test('one Undo of Carry all takes back the carried tasks and the running Results it carried', async () => {
+  const d = freshStore();
+  const home = block(d, {title: 'Home ready', purpose: 'Calm'});
+  const launch = block(d, {title: 'Launch site', purpose: 'Ship'});
+  const meals = task(d, {title: 'Prepare meals', blockId: home, plannedDate: '2026-09-23'});
+  task(d, {title: 'Write copy', blockId: launch, plannedDate: '2026-10-10'}); // deadline ahead: still running
+  setWeekFocus(d, LAST, [home, launch]);
+  const now = at('2026-09-27T10:00:00+05:30');
+  editPlan(d, {type: 'markAchieved', id: home, achieved: false, week: LAST, verdict: 'partly'}, now);
+  const running = reviewSummary(d, WEEK, now).results.filter(r => r.running);
+  assert.deepEqual(running.map(r => r.title), ['Launch site']);
+  // The review's api as weekly-review.mjs builds it: commits queue, and each one re-renders after it lands.
+  let queue = Promise.resolve();
+  const api = {
+    ui: {focus: [], focusHint: ''}, week: WEEK, data: () => d,
+    render: () => stepOne.settleCarryUndo?.(api),
+    run: (op, label) => (queue = queue.then(() => { editPlan(d, op, now); }).then(() => api.render())),
+    enqueue: (build, label) => (queue = queue.then(() => { const op = build(); if (op) editPlan(d, op, now); }).then(() => api.render())),
+  };
+  stepOne.carryAll(api, [entry(d, meals)], running);
+  await queue;
+  assert.equal(leftoverChoice(entry(d, meals), WEEK), 'carry');
+  assert.deepEqual(reviewProgress(d, WEEK).focusDraft, [launch]);
+  // The snackbar's Undo, then the refresh it gives the mounted review.
+  editPlan(d, {type: 'undo'}, now);
+  api.render();
+  await queue;
+  assert.equal(leftoverChoice(entry(d, meals), WEEK), null);
+  assert.deepEqual(api.ui.focus, [], 'the running Result is no longer carried');
+  assert.deepEqual(reviewProgress(d, WEEK).focusDraft, [], 'and the saved draft says so');
+});
+
+test('the review screen shows the same carry, defer and drop receipts the tested decideLeftover returns', () => {
+  assert.deepEqual(LEFTOVER_RECEIPTS, {carry: 'Carried into this week', defer: 'Deferred', drop: 'Dropped. It stays in Archive'});
+  for (const choice of ['carry', 'defer', 'drop']) {
+    const {d, meals} = seed();
+    assert.equal(decideLeftover(d, meals, choice, WEEK), LEFTOVER_RECEIPTS[choice]);
+  }
+  const screen = readFileSync(new URL('./review-step-one.mjs', import.meta.url), 'utf8');
+  assert.match(screen, /import \{[^}]*\bLEFTOVER_RECEIPTS\b[^}]*\} from '\.\/review-state\.mjs'/, 'review-step-one.mjs takes its receipts from review-state.mjs');
+  for (const words of Object.values(LEFTOVER_RECEIPTS).filter(w => w !== 'Deferred')) {
+    assert.ok(!screen.includes(`'${words}'`), `review-step-one.mjs keeps no second copy of '${words}'`);
+  }
 });

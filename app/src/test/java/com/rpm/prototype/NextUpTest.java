@@ -79,6 +79,22 @@ public class NextUpTest {
     }
 
     @Test
+    public void aTaskWithNoEstimateIsZeroLongLikeThePlannerSoItIsLateNotRunning() throws Exception {
+        JSONArray entries = new JSONArray()
+                .put(new JSONObject().put("id", 7).put("title", "Essay").put("kind", "plan")
+                        .put("planned", Instant.ofEpochMilli(at("2026-10-18T16:00")).toString()).put("minutes", JSONObject.NULL))
+                .put(new JSONObject().put("id", 8).put("title", "Read notes").put("kind", "plan")
+                        .put("planned", Instant.ofEpochMilli(at("2026-10-18T17:00")).toString()).put("minutes", 30));
+        NotchData data = NotchData.parse(new JSONObject().put("entries", entries), null);
+        assertEquals("before its start it is still upcoming", "in 10 min", at(data, "2026-10-18T15:50").when);
+        assertEquals("Essay", at(data, "2026-10-18T15:50").title);
+        NextUp late = at(data, "2026-10-18T16:10");
+        assertFalse("a task the planner shows as late is not running: " + late.when, late.when.startsWith("Now"));
+        assertEquals("Read notes", late.title);
+        assertEquals("in 50 min", late.when);
+    }
+
+    @Test
     public void withNothingLeftItSaysSoAndWaitsForMidnight() throws Exception {
         NextUp n = at(day(5), "2026-10-18T21:00");
         assertFalse(n.hasTask);
@@ -116,6 +132,25 @@ public class NextUpTest {
         assertTrue("two cells on a five-column home screen get the compact row", NextUpWidget.compact(132));
         assertFalse("two cells on a four-column home screen fit the full row", NextUpWidget.compact(170));
         assertFalse("before the launcher reports a size", NextUpWidget.compact(0));
+    }
+
+    @Test
+    public void theWidgetRedrawsWhenTheCalendarMovesNextUpAndOnlyThen() throws Exception {
+        JSONObject store = new JSONObject().put("entries", new JSONArray().put(new JSONObject().put("id", 7).put("title", "Write essay").put("kind", "plan")
+                .put("planned", Instant.ofEpochMilli(at("2026-10-18T16:30")).toString()).put("minutes", 30)));
+        JSONArray seminar = new JSONArray().put(new JSONObject().put("start", at("2026-10-18T10:00")).put("end", at("2026-10-18T11:00"))
+                .put("title", "Seminar").put("allDay", false));
+        long now = at("2026-10-18T09:05");
+        NotchData before = NotchData.parse(store, null), after = NotchData.parse(store, seminar);
+        assertEquals("Write essay", NextUp.of(before, now, KOLKATA, false).title);
+        assertTrue("a meeting added before the task moves next up", NextUp.moved(before, after, now, KOLKATA, false));
+        assertFalse("the same calendar read again does not redraw", NextUp.moved(after, NotchData.parse(store, seminar), now, KOLKATA, false));
+        String controller = new String(Files.readAllBytes(Paths.get("src/main/java/com/rpm/prototype/NotchController.java")), StandardCharsets.UTF_8);
+        assertTrue("the notch's calendar re-read redraws the widget when next up moved",
+                controller.contains("if (NextUp.moved(data, next, System.currentTimeMillis(), ZoneId.systemDefault(), DateFormat.is24HourFormat(service))) NextUpWidget.changed(service);"));
+        String calendar = new String(Files.readAllBytes(Paths.get("src/main/java/com/rpm/prototype/PlannerCalendar.java")), StandardCharsets.UTF_8);
+        assertTrue("choosing calendars redraws the widget after the choice is saved",
+                calendar.contains("throw new IllegalStateException(\"Could not save calendar choices.\");NextUpWidget.changed(c);"));
     }
 
     @Test

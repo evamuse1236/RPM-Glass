@@ -4,7 +4,8 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 
 export const BUILT_WEB = 'app/src/main/assets/companion';
-export const isWebSource = file => /^(android-companion|chat-prototype|intent-v2)\//.test(file);
+// web/contract ships to the phone only inside the companion JS bundle.
+export const isWebSource = file => /^(android-companion|chat-prototype|intent-v2|web\/contract)\//.test(file);
 
 const webSha = files => {
   const hash = crypto.createHash('sha256');

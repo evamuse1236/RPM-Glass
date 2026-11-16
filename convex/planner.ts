@@ -8,7 +8,7 @@ import { fail, phoneAuth, webAuth, consumeQuota, unauthorized, type PlannerCtx }
 import type { Doc, Id } from "./_generated/dataModel";
 
 function receipt(command:Doc<"webCommands">) {
-  return {id:command.payload.id,status:command.status,message:command.message,newRevision:command.newRevision,cursor:command.cursor};
+  return {id:command.payload.id,status:command.status,message:command.message,newRevision:command.newRevision,fromRevision:command.fromRevision,cursor:command.cursor};
 }
 async function nextCursor(ctx:PlannerCtx,account:Id<"accounts">) {
   const current = await ctx.db.get(account);
@@ -93,16 +93,18 @@ export const browser = internalMutation({args:{tokenHash:v.string(),op:v.union(v
   }
   const commandId = await ctx.db.insert("webCommands",{account:session.account,session:session._id,device:session.device,commandId:identityId,payload:args.command,identity:args.identity!,status:"pending",message:"Words saved. Waiting for Capture.",newRevision:null,cursor:await nextCursor(ctx,session.account),queuedAt:Date.now()});
   const command=(await ctx.db.get(commandId))!;
+  // The cursor before this command's writes: every revision after it up to newRevision is this command's own (a mutation is serializable).
+  const fromRevision=(await ctx.db.get(session.account))!.cursor;
   if(command.payload.type==="capture") {
     // A voice capture is a journal of the words; its changes arrive as their own plan command, so the text model never runs.
     const now=new Date().toISOString(), voice=command.payload.args.source==="voice", status=voice?"captured":"saved";
     const captureId=await ctx.db.insert("captures",{account:session.account,messageId:command.payload.id,text:command.payload.args.text,timezone:command.payload.timezone??"Asia/Kolkata",status,attempts:0});
     await writeRecords(ctx,session.account,[{key:`capture:${command.payload.id}`,value:{id:command.payload.id,text:command.payload.args.text,status,createdAt:now,receipt:[]}}],now);
-    if(voice)await ctx.db.patch(commandId,{status:"applied",message:"Words saved.",newRevision:(await ctx.db.get(session.account))!.cursor});
+    if(voice)await ctx.db.patch(commandId,{status:"applied",message:"Words saved.",fromRevision,newRevision:(await ctx.db.get(session.account))!.cursor});
     else await ctx.scheduler.runAfter(0,makeFunctionReference<"action">("captureRun:run"),{captureId});
   } else {
     const result=await applyPlan(ctx,session.account,command);
-    await ctx.db.patch(commandId,{...result,newRevision:(await ctx.db.get(session.account))!.cursor});
+    await ctx.db.patch(commandId,{...result,fromRevision,newRevision:(await ctx.db.get(session.account))!.cursor});
   }
   return receipt((await ctx.db.get(commandId))!);
 }});

@@ -13,7 +13,7 @@ final class NotchAlert {
     final String title;
     /** The alert's time on the clock, "5:30 PM". */
     final String at;
-    /** When it fired (epoch ms): Done ticks the task's occurrence at or just before it. */
+    /** The occurrence it is for (epoch ms; a snooze moves {@link #at} but not this): Done ticks the occurrence at or just before it. */
     final long when;
     /** A local alarm (AlarmService, an entry in this phone's store), not a planner task: it has no Done. */
     final boolean local;
@@ -23,12 +23,16 @@ final class NotchAlert {
     }
 
     NotchAlert(Type type, long taskId, String title, long at, ZoneId zone, boolean h24, boolean local) {
+        this(type, taskId, title, at, at, zone, h24, local);
+    }
+
+    NotchAlert(Type type, long taskId, String title, long at, long when, ZoneId zone, boolean h24, boolean local) {
         this.local = local;
         this.type = type;
         this.taskId = taskId;
         this.title = title == null || title.isEmpty() ? "RPM task" : title;
         this.at = NotchDay.clock(at, zone, h24);
-        this.when = at;
+        this.when = when;
     }
 
     /** The alarm's second line; its time is in the band. */

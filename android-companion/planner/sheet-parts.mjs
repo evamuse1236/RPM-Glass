@@ -1,6 +1,6 @@
 import {tasks, conflicts} from '../planner-state.mjs';
 import {repeats, nextOccurrence, occurrences} from '../planner-recurrence.mjs';
-import {calendarLabel, calendarRisk, calendarRows} from '../planner-calendar.mjs';
+import {calendarLabel, calendarRisk, calendarRows, speaksForNow} from '../planner-calendar.mjs';
 import {rankResults} from '../review-state.mjs';
 import {el, icon} from './dom.mjs';
 import {clock, timeRange, dateText} from './format.mjs';
@@ -8,12 +8,19 @@ import {clock, timeRange, dateText} from './format.mjs';
 export const findTask = (app, id) => tasks(app.data()).find(task => task.id === id);
 export const NEEDS_TIME = 'A repeating task needs a date and time.';
 
-/** Saves one after another, so a choice made while another save is still in flight is never dropped. */
+/**
+ * Saves one after another, so a choice made while another save is still in flight is never dropped.
+ * `op` may be a function returning {op, label}: it runs when the save starts, so a toggle reads the task as the
+ * earlier save left it.
+ */
 export function saver(app) {
   let chain = Promise.resolve();
   const idle = async () => { while (app.saving) await new Promise(done => setTimeout(done, 16)); };
   return (op, label) => {
-    const run = chain.then(idle).then(() => app.commit(op, {keepSheet: true, label}));
+    const run = chain.then(idle).then(() => {
+      const next = typeof op === 'function' ? op() : {op, label};
+      return app.commit(next.op, {keepSheet: true, label: next.label});
+    });
     chain = run.catch(() => {});
     return run.catch(() => undefined);
   };
@@ -66,6 +73,7 @@ export async function scheduleCheck(app, id, fields) {
   const copy = await app.api.native('calendarRead', {anchor: Date.parse(anchor)});
   app.state.calendar = calendarRows(copy);
   app.state.calendarState = calendarLabel(copy);
+  if (speaksForNow(copy)) app.state.nowCalendar = app.state.calendar;
   const start = Date.parse(anchor);
   const risk = calendarRisk(copy, start, start + minutes * 60000);
   const window = start + (repeats(candidate) ? 21 * 86400000 : 1);

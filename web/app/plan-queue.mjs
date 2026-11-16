@@ -9,6 +9,8 @@ const FAILED = new Set(['rejected', 'conflict']);
 const ID_KEYS = new Set(['id', 'ids', 'blockId', 'projectId', 'goalId', 'areaId', 'taskIds', 'routineId']);
 export const WAITING = 'This is still saving. Try again in a moment.';
 export const FALLBACK = 'This change was not saved.';
+// The server's default zone, as this browser's ICU names it (some name it Asia/Calcutta).
+const SERVER_ZONE = () => new Intl.DateTimeFormat('en', {timeZone: 'Asia/Kolkata'}).resolvedOptions().timeZone;
 export const CHANGED = 'Your plan changed while you talked. Your words are saved.';
 const MAX_IDS = 64;
 
@@ -46,7 +48,7 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
   let version = 0;
   let lastUndo = null;
   const listeners = new Set();
-  const persist = () => storage.setItem(KEY, JSON.stringify({records, problems, seen}));
+  const persist = () => { try { storage.setItem(KEY, JSON.stringify({records, problems, seen})); } catch {} };
   const entryOf = id => client.state.outbox.find(e => e.command.id === id);
   const snapshot = () => client.state.snapshot;
 
@@ -70,7 +72,11 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
   }
 
   function command(rec) {
-    const base = {id: rec.id, createdAt: rec.at, baseRevision: rec.baseRevision};
+    // The server runs in UTC, so it reads days and hours in the zone this browser showed them in.
+    // It reads a missing zone as Asia/Kolkata, so that zone is left off: a server released before it took the
+    // field (the Site and Convex ship separately) still accepts the change.
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const base = {id: rec.id, createdAt: rec.at, baseRevision: rec.baseRevision, ...(zone === SERVER_ZONE() ? {} : {timezone: zone})};
     return validateCommand(rec.kind === 'undo' ? {...base, type: 'undo', args: {commandId: rec.targetId}} : {...base, type: 'plan', args: {op: rec.op, ids: [...(rec.uuids ?? []), ...(rec.taskIds ?? [])], ...(rec.taskIds ? {exactTaskIds: true} : {})}});
   }
 
@@ -83,6 +89,8 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
       const entry = entryOf(rec.id);
       if (entry && !client.settled(entry)) return true;
       if (entry && FAILED.has(entry.status)) failed.push({ids: rec.ids, message: entry.message || FALLBACK});
+      // Linking again empties the outbox; a sent change it held was never decided, so it is named, not dropped.
+      if (!entry) failed.push({ids: rec.ids, message: FALLBACK});
       if (rec.created?.length || rec.kind === 'undo' && !rec.restore) redraw = true;
       return false;
     });
@@ -102,8 +110,18 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
     return {sends, failed, redraw};
   }
 
+  // A voice capture is this browser's own journal of a ramble's words and changes no plan rows; a typed capture
+  // runs the server's model, which may change the plan, so it stays foreign. A command that writes several records
+  // takes every revision after `fromRevision` (the cursor before its writes); an entry saved without it owns only its last.
   function mine() {
-    return new Set(client.state.outbox.filter(e => e.status === 'applied' && ['plan', 'undo'].includes(e.command.type)).map(e => e.newRevision));
+    const own = e => ['plan', 'undo'].includes(e.command.type) || e.command.type === 'capture' && e.command.args?.source === 'voice';
+    const revisions = new Set();
+    for (const e of client.state.outbox) {
+      if (e.status !== 'applied' || !own(e)) continue;
+      const from = Number.isInteger(e.fromRevision) && e.fromRevision < e.newRevision ? e.fromRevision : e.newRevision - 1;
+      for (let r = from + 1; r <= e.newRevision; r++) revisions.add(r);
+    }
+    return revisions;
   }
 
   function project() {

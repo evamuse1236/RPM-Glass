@@ -124,6 +124,9 @@ function reviewTaskOp(next, op, at) {
     choice.cleared = {planned: e.planned ?? null, plannedDate: e.plannedDate ?? null};
     e.planned = null;
     e.plannedDate = null;
+  } else if (op.choice === 'defer' && previous?.choice === 'defer' && previous.cleared) {
+    // A repeated defer keeps the day the first one cleared, so Carry can still restore it.
+    choice.cleared = previous.cleared;
   }
   if (op.choice === 'drop') {
     e.archived = true;
@@ -178,6 +181,16 @@ function groupTasksOp(next, op, at) {
   let blockId = op.blockId ?? null;
   for (const [index, id] of op.ids.entries()) blockId = groupTaskOp(next, {id, blockId, ...(index === 0 && op.newBlock ? {newBlock: op.newBlock} : {})}, at);
   return blockId;
+}
+
+// A repeated Add to Result or Move back to Inbox (a double tap, or a swipe then a tap) moves nothing; editPlan then
+// saves nothing, so the first move's Undo stays the one the snackbar runs.
+export function groupMovesNothing(next, op) {
+  if (!['groupTasks', 'groupTask'].includes(op.type) || op.newBlock) return false;
+  const ids = op.type === 'groupTask' ? [op.id] : op.ids;
+  if (!ids?.length) return false;
+  const target = link(next.planner.blocks, op.blockId ?? null);
+  return ids.every(id => (one(tasks(next), id).blockId ?? null) === target);
 }
 
 export const REVIEW_OPS = {reviewProgress: reviewProgressOp, finishReview: finishReviewOp, groupTasks: groupTasksOp, markAchieved: markAchievedOp, setWeekFocus: setWeekFocusOp, reviewTask: reviewTaskOp, groupTask: groupTaskOp};

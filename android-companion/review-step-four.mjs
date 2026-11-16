@@ -5,13 +5,23 @@ import {el, icon, button, whenText, heading, emptyState, sectionHead, factsLine,
 import {focusCheck} from './review-focus.mjs';
 import {weekCard, clashRow} from './review-week-card.mjs';
 
+/**
+ * Drops picks that can no longer be this week's Results (archived since, say) from the draft in memory only, so the
+ * list, the Finish label and Finish itself count the same Results. Returns the step's candidates.
+ */
+export function pickableFocus(api) {
+  const {ui} = api;
+  ui.focusBase ??= [...ui.focus];
+  const candidates = focusCandidates(api.data(), api.week, ui.focusBase);
+  ui.focus = ui.focus.filter(id => candidates.some(c => c.blockId === id));
+  return candidates;
+}
+
 /* ---------- step 4: this week's Results ---------- */
 export function stepFour(api) {
   const {ui} = api;
   const now = api.now();
-  ui.focusBase ??= [...ui.focus];
-  const candidates = focusCandidates(api.data(), api.week, ui.focusBase);
-  ui.focus = ui.focus.filter(id => candidates.some(c => c.blockId === id));
+  const candidates = pickableFocus(api);
   const chosen = candidates.filter(c => ui.focus.includes(c.blockId));
   const clashes = api.clashes();
   const [title] = heading("Pick this week's Results");
@@ -103,7 +113,11 @@ function mustList(api, blockId, now) {
   for (const task of open) {
     // The whole row toggles Must (like a checklist); only a Must shows its star, so nothing reads as "favourite".
     const label = task.must ? 'Must. Tap to unmark' : 'Mark as Must';
-    const toggle = () => api.run({type: 'saveTask', id: task.id, fields: {must: !task.must}}, task.must ? 'No longer a Must' : 'Marked Must');
+    // Built in its turn from the saved task, so a second tap before the first save lands toggles back instead of repeating it.
+    const toggle = () => api.enqueue(() => {
+      const saved = api.data().entries.find(e => e.id === task.id);
+      return saved && !saved.done ? {type: 'saveTask', id: task.id, fields: {must: !saved.must}} : null;
+    }, op => (op.fields.must ? 'Marked Must' : 'No longer a Must'));
     const row = button('', toggle, 'wr-must-row' + (task.must ? ' on' : ''));
     row.setAttribute('role', 'switch');
     row.setAttribute('aria-checked', String(!!task.must));

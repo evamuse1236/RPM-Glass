@@ -110,4 +110,40 @@ describe("Standalone record safety",()=>{
     expect(snap.entries.find((r:any)=>r.id===4).notes).toBe("Keep this");
     expect(snap.conflicts).toEqual([expect.objectContaining({key:"task:3",group:"record",lostFrom:"phone"})]);
   });
+  it("runs a website tick in the browser's zone, not the server's UTC clock",async()=>{
+    const env=(globalThis as any).process.env, zone=env.TZ;env.TZ="UTC";
+    try {
+      vi.useFakeTimers({toFake:["Date"]});vi.setSystemTime(new Date("2026-11-15T20:30:00Z"));
+      const {t,web}=await seeded(), kolkata=(n:number,op:any)=>({...plan(n,op),timezone:"Asia/Kolkata"});
+      for(const [n,fields] of [[1,{title:"Walk",planned:"2026-11-15T23:30:00.000Z",minutes:30,recurrence:"weekdays"}],[2,{title:"Water plants",planned:"2026-11-15T03:30:00.000Z",minutes:30,repeatAfterDays:2}]] as const)
+        expect((await (await enqueue(t,web.token,kolkata(n,{type:"saveTask",fields}))).json()).status).toBe("applied");
+      const snap=await read(t,web.token), id=(title:string)=>snap.entries.find((e:any)=>e.title===title).id;
+      const walk=await (await enqueue(t,web.token,kolkata(3,{type:"saveTask",id:id("Walk"),occurrence:"2026-11-15T23:30:00.000Z",fields:{done:true}}))).json();
+      expect([walk.status,walk.message]).toEqual(["applied","Saved."]);
+      expect((await (await enqueue(t,web.token,kolkata(4,{type:"saveTask",id:id("Water plants"),occurrence:"2026-11-15T03:30:00.000Z",fields:{done:true}}))).json()).status).toBe("applied");
+      const after=await read(t,web.token);
+      expect(after.entries.find((e:any)=>e.title==="Walk").completedOccurrences).toEqual(expect.arrayContaining(["2026-11-15T23:30:00.000Z"]));
+      expect(after.entries.find((e:any)=>e.title==="Water plants").planned).toBe("2026-11-18T03:30:00.000Z");
+    } finally {if(zone===undefined)delete env.TZ;else env.TZ=zone;}
+  });
+  it("applies an offline website tick at the moment the user ticked, not when it reached the server",async()=>{
+    const env=(globalThis as any).process.env, zone=env.TZ;env.TZ="UTC";
+    try {
+      vi.useFakeTimers({toFake:["Date"]});vi.setSystemTime(new Date("2026-11-16T18:00:00Z"));
+      const {t,web}=await seeded(), at=(n:number,op:any,createdAt:string)=>({...plan(n,op),timezone:"Asia/Kolkata",createdAt});
+      for(const [n,title] of [[1,"Water plants"],[2,"Feed fish"],[3,"Oil hinges"]] as const)
+        expect((await (await enqueue(t,web.token,at(n,{type:"saveTask",fields:{title,planned:"2026-11-16T03:30:00.000Z",minutes:15,repeatAfterDays:3}},"2026-11-16T18:00:00Z"))).json()).status).toBe("applied");
+      const id=async(title:string)=>(await read(t,web.token)).entries.find((e:any)=>e.title===title).id;
+      const tick=async(n:number,title:string,createdAt:string)=>{
+        expect((await (await enqueue(t,web.token,at(n,{type:"saveTask",id:await id(title),occurrence:"2026-11-16T03:30:00.000Z",fields:{done:true}},createdAt))).json()).status).toBe("applied");
+        return (await read(t,web.token)).entries.find((e:any)=>e.title===title).planned;
+      };
+      // Ticked offline at 23:50 IST Monday, delivered at 00:10 IST Tuesday: the browser showed Thursday.
+      vi.setSystemTime(new Date("2026-11-16T18:40:00Z"));
+      expect(await tick(4,"Water plants","2026-11-16T18:20:00.000Z")).toBe("2026-11-19T03:30:00.000Z");
+      // A client clock in the future, or a stamp older than a week, does not move the plan: the server's time is used.
+      expect(await tick(5,"Feed fish","2026-11-17T18:20:00.000Z")).toBe("2026-11-20T03:30:00.000Z");
+      expect(await tick(6,"Oil hinges","2026-11-01T18:20:00.000Z")).toBe("2026-11-20T03:30:00.000Z");
+    } finally {if(zone===undefined)delete env.TZ;else env.TZ=zone;}
+  });
 });

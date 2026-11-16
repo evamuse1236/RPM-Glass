@@ -64,19 +64,26 @@ export function openRunSheet(app, body, routineId, day = localDay(body.now())) {
   error.setAttribute('role', 'alert');
   const rows = new Map();
 
+  // Ticks still saving. Each tick saves the whole run, so while one is queued the sheet keeps its own run (a refresh
+  // from the store would drop the queued tick); once the last one settles it reloads what was saved.
+  let saving = 0;
+  const reload = () => {
+    run = body.runFor(routine.id, day) ?? {routineId: routine.id, day, marks: {}};
+    paint();
+  };
   async function save(next, words, staggerIds = []) {
-    const before = run;
     run = next;
     paint(staggerIds);
+    saving += 1;
     try {
       await body.saveRun(next);
       error.textContent = '';
       app.render();
       notice(app, words, {undo: true});
     } catch {
-      run = before;
-      paint();
       error.textContent = "Couldn't save that tick. Try again.";
+    } finally {
+      if (--saving === 0) reload();
     }
   }
   const stateOf = step => run?.marks?.[step.id]?.state ?? null;
@@ -136,8 +143,5 @@ export function openRunSheet(app, body, routineId, day = localDay(body.now())) {
   }
   content.append(count, bar, list, error);
   paint();
-  app.sheetRefresh = () => {
-    run = body.runFor(routine.id, day) ?? {routineId: routine.id, day, marks: {}};
-    paint();
-  };
+  app.sheetRefresh = () => { if (!saving) reload(); };
 }

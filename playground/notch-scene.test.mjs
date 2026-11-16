@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {parseNotchData} from './notch-day.mjs';
+import {parseNotchData, today, hero, after} from './notch-day.mjs';
 import {notchScene, alertScene, WATER_SNOOZE, routineSnooze, PillPriority, controls, visibleRows, more, progress, heroValue} from './notch-scene.mjs';
 import {anchor, G, D, innerRadius, faceTop, bandAt, pillRing, fits, faceScale, islandInset} from './notch-geometry.mjs';
 import {S24} from './device.mjs';
@@ -23,6 +23,16 @@ function day(body, events = null) {
   return parseNotchData({version: 1, entries, planner}, events);
 }
 const scene = (data, local, snoozes = {}) => notchScene(data, at(local), snoozes, false);
+
+test('a timed task with no estimate is 0 long, as the planner and NotchData.java read it', () => {
+  const now = at('2026-10-18T10:10');
+  const call = {id: 1, kind: 'plan', title: 'Call bank', planned: iso('2026-10-18T10:00')};
+  const {tasks} = parseNotchData({version: 1, entries: [call, {...call, id: 2, minutes: 'abc'}], planner: {}});
+  assert.deepEqual(tasks.map(t => t.minutes), [0, 0]);
+  const slots = today(tasks, now);
+  assert.equal(hero(slots, now), null, 'the planner shows this task 10 min late; Java has no hero');
+  assert.deepEqual(after(slots, null, now, 3), []);
+});
 
 test('a running task shows time left everywhere', () => {
   const s = scene(day(true), '2026-10-18T15:50');
@@ -46,6 +56,14 @@ test('the time shows once: the band has it, the line is the purpose, else the bl
   const bare = parseNotchData({version: 1, entries, planner}, null);
   assert.equal(scene(bare, '2026-10-18T15:50').heroSubtitle, 'So Sunday is calm');
   assert.equal(scene(bare, '2026-10-18T16:20').heroSubtitle, 'Next');
+});
+
+test('a task that has ended never takes the next row after a running item', () => {
+  const entries = [task(1, 'Deep work', '2026-10-18T09:00', 180), task(2, 'Pay rent', '2026-10-18T09:30', 15),
+    task(3, 'Call bank', '2026-10-18T11:00', 30)];
+  const s = scene(parseNotchData({version: 1, entries, planner: {blocks: [{id: 'b1', title: 'Study'}]}}), '2026-10-18T10:00');
+  assert.equal(s.heroTitle, 'Deep work');
+  assert.deepEqual(s.rows.map(r => r.title), ['Call bank']);
 });
 
 test('between items the pill shows when the next starts', () => {
@@ -88,6 +106,14 @@ test('a calendar event is fixed and a running task beats it', () => {
   assert.equal(later.heroLook, 'EVENT');
   assert.equal(later.pillValue, '30m');
   assert.equal(later.canDone, false);
+});
+
+test('a timed task with no estimate is 0 long, as NotchData.java reads it: late, never the running hero', () => {
+  const entries = [task(1, 'Pay rent', '2026-11-16T10:00', null), task(2, 'Later', '2026-11-16T13:00', 15),
+    task(3, 'Odd', '2026-11-16T14:00', 'soon')];
+  const data = parseNotchData({version: 1, entries, planner: {blocks: [{id: 'b1', title: 'Study'}]}}, null);
+  assert.deepEqual(data.tasks.map(t => [t.title, t.minutes]), [['Pay rent', 0], ['Later', 15], ['Odd', 0]]);
+  assert.equal(scene(data, '2026-11-16T10:10').heroTitle, 'Later');
 });
 
 test('with no task left and water due, water is the hero', () => {
@@ -395,8 +421,8 @@ test('a ringing alarm puts Stop across the width over Snooze 10 min and Done; a 
 
 test('large text: icons grow up to 1.5x, pills grow round their label, and "+N more" counts what the island leaves out', () => {
   const s = scene(day(true), '2026-10-18T16:05');
-  assert.equal(more(s, 3), 2, "the snack and Gym are past the three rows (the copy still uses the old meal rule)");
-  assert.equal(more(s, 1), 4);
+  assert.equal(more(s, 3), 1, 'Gym is past the three rows, as on the phone (no meal is due at 16:05 on the default plan)');
+  assert.equal(more(s, 1), 3, 'at large text two rows drop as well');
   const few = scene(day(false), '2026-10-18T15:50');
   assert.deepEqual([more(few, 3), more(few, 1)], [0, 1]);
   const parts = javaSource('NotchParts');

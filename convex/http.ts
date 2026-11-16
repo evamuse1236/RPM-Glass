@@ -1,6 +1,7 @@
 import { httpActionGeneric as httpAction, httpRouter, makeFunctionReference } from "convex/server";
 import { randomSecret, sha256 } from "./security";
 import { registerPlannerRoutes } from "./plannerHttp";
+import { storableKeys } from "./diagnosticRedaction";
 const http=httpRouter();
 registerPlannerRoutes(http);
 function json(body:unknown,status=200){return new Response(JSON.stringify(body),{status,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});}
@@ -43,7 +44,7 @@ http.route({path:"/v1/diagnostics",method:"POST",handler:httpAction(async(ctx,re
     const text=await request.text();if(new TextEncoder().encode(text).length>256000)return json({error:"Batch too large"},413);
     const value=JSON.parse(text);
     if(!Array.isArray(value.events)||value.events.length>20)return json({error:"Invalid batch"},400);
-    const result=await ctx.runMutation(makeFunctionReference<"mutation">("diagnostics:ingest"),{tokenHash:await sha256(authorization.slice(7)),events:value.events});
+    const result=await ctx.runMutation(makeFunctionReference<"mutation">("diagnostics:ingest"),{tokenHash:await sha256(authorization.slice(7)),events:value.events.map(storableKeys)});
     return result===null?json({error:"Unauthorized"},401):json(result);
   }catch{return json({error:"Invalid batch; nothing acknowledged"},400);}
 })});

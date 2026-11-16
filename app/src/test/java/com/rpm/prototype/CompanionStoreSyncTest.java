@@ -51,6 +51,35 @@ public class CompanionStoreSyncTest {
         assertEquals("untouched",sync.getJSONObject("stamps").getJSONObject("task:1").getString("raw"));
         assertFalse(Instant.parse(sync.getString("restoredAt")).isBefore(start));
     }
+    @Test public void aFailedRestoreLeavesTheAlertsAndTheirDeliveryLedgerAsTheyWere()throws Exception {
+        CompanionStore.write(context,store(1),0);JSONObject before=CompanionStore.read(context);String ledger=CompanionAlerts.ledger(context).toString();
+        assertTrue(CompanionAlerts.ledger(context).has("1"));
+        StringBuilder pad=new StringBuilder();while(pad.length()<=16*1024*1024)pad.append("0123456789abcdef");
+        JSONObject huge=store(40).put("syncSavedAt","2026-10-01T00:00:00Z").put("padding",pad.toString());
+        assertThrows(java.io.IOException.class,()->CompanionStore.importCopy(context,huge));
+        assertEquals(ledger,CompanionAlerts.ledger(context).toString());
+        assertFalse(CompanionAlerts.ledger(context).getJSONObject("1").optBoolean("importedDisarmed"));
+        assertEquals(before.getInt("version"),CompanionStore.read(context).getInt("version"));
+    }
+    @Test public void restoreListsOnlyTheSyncedRecordsTheBackupLacks()throws Exception {
+        JSONObject live=store(1);live.getJSONArray("entries").put(new JSONObject("{id:2,title:'Kept',raw:'Kept',revisions:[]}"));
+        live.put("sync",new JSONObject("{base:{'task:1':{rev:1},'task:2':{rev:2},'task:3':{rev:3},'conflict:4':{rev:4}}}"));
+        CompanionStore.write(context,live,0,"sync");
+        CompanionStore.importCopy(context,store(40).put("syncSavedAt","2026-10-01T00:00:00Z"));
+        JSONArray absent=CompanionStore.read(context).getJSONObject("sync").getJSONArray("restoredAbsent");
+        java.util.Set<String> keys=new java.util.TreeSet<>();for(int i=0;i<absent.length();i++)keys.add(absent.getString(i));
+        assertEquals(new java.util.TreeSet<>(java.util.Arrays.asList("task:2","task:3")),keys);
+    }
+    @Test public void restoreListsASnoozeTheBackupHoldsAsNull()throws Exception {
+        JSONObject live=store(1).put("planner",new JSONObject("{body:{water:{snoozedUntil:'2026-10-24T14:00:00Z'}}}"));
+        live.put("sync",new JSONObject("{base:{'waterSnooze:main':{rev:5}}}"));
+        CompanionStore.write(context,live,0,"sync");
+        JSONObject backup=store(40).put("syncSavedAt","2026-10-01T00:00:00Z");
+        backup.put("planner",new JSONObject().put("body",new JSONObject().put("water",new JSONObject().put("snoozedUntil",JSONObject.NULL))));
+        CompanionStore.importCopy(context,backup);
+        JSONArray absent=CompanionStore.read(context).getJSONObject("sync").getJSONArray("restoredAbsent");
+        assertEquals("[\"waterSnooze:main\"]",absent.toString());
+    }
     @Test public void restoreWithoutSavedTimeUsesSourceFileTimeAndRejectsBackupSync()throws Exception {
         JSONObject backup=store(40).put("sync",new JSONObject("{cursor:999}"));
         CompanionStore.importCopy(context,backup,Instant.parse("2026-09-01T00:00:00Z").toEpochMilli());

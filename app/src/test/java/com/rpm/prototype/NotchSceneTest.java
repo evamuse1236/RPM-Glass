@@ -253,6 +253,21 @@ public class NotchSceneTest {
     }
 
     @Test
+    public void aDueRoutineThePillNeverShowsCannotBeSnoozedFromThePill() throws Exception {
+        JSONObject routine = new JSONObject().put("id", "r1").put("name", "Evening routine").put("start", "16:00").put("end", "17:00")
+                .put("days", new JSONArray().put(0)).put("steps", new JSONArray().put(new JSONObject().put("id", "s1").put("title", "Tidy desk")));
+        JSONObject body = new JSONObject().put("routines", new JSONArray().put(routine))
+                .put("mealPlan", new JSONObject().put("slots", new JSONArray()))
+                .put("water", new JSONObject().put("settings", new JSONObject().put("reminders", false)));
+        JSONObject planner = new JSONObject().put("blocks", new JSONArray().put(new JSONObject().put("id", "b1").put("title", "Study"))).put("body", body);
+        JSONArray entries = new JSONArray().put(task(2, "Call Prof. Rao", "2026-10-18T16:30", 30));
+        NotchScene s = scene(NotchData.parse(new JSONObject().put("version", 1).put("entries", entries).put("planner", planner), null), "2026-10-18T16:05");
+        assertTrue("the Routine is due", s.habit != null);
+        assertNull("no water or meal nudge, so the pill shows only the task", s.topHabit);
+        assertFalse("a pill swipe must not snooze a Routine the pill never shows", s.pillCanSnooze());
+    }
+
+    @Test
     public void laterOnAMealHoldsOnlyThatMealAndWaterStillComesFirst() throws Exception {
         JSONObject dinner = new JSONObject().put("slot", "dinner").put("at", "20:00").put("on", true);
         JSONObject body = new JSONObject().put("mealPlan", new JSONObject().put("slots", new JSONArray().put(dinner)))
@@ -263,6 +278,7 @@ public class NotchSceneTest {
         assertEquals(Arrays.asList(NotchScene.Control.LOG_MEAL, NotchScene.Control.LATER), due.habitControls());
         assertEquals("Dinner not logged", due.habitLine());
         assertTrue("a swipe on the pill can send a meal-only nudge away", due.canSnooze());
+        assertTrue(due.pillCanSnooze());
         Map<String, Long> snoozes = new HashMap<>();
         snoozes.put(NotchScene.mealSnooze("dinner"), at("2026-10-18T20:45"));
         assertNull(scene(data, "2026-10-18T20:30", snoozes).topHabit);

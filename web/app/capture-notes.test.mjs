@@ -113,3 +113,11 @@ test('a voice ramble is a journal of the words: once the server has it, it says 
   assert.deepEqual(run([voice]), [{id: 'v', icon: 'check_circle', tone: 'done', text: said, lines: ['Words saved'], dismissible: true}]);
   assert.deepEqual(run([{...voice, command: {...voice.command, createdAt: at(RECENT + 1)}}]), []);
 });
+
+test('a Capture typed offline long ago shows its outcome once the server sorts it, counted from when the server took it', () => {
+  const offline = entry('a', 'applied', {ago: RECENT + 3600000});
+  const sorted = [{id: 'a', status: 'applied', receipt: [{text: 'Added'}], createdAt: at(5000)}];
+  assert.deepEqual(run([offline], {captures: sorted}), [{id: 'a', icon: 'check_circle', tone: 'done', text: said, lines: ['Added'], dismissible: true}]);
+  assert.deepEqual(run([offline], {captures: [{...sorted[0], createdAt: at(RECENT + 1)}]}), []);
+  assert.deepEqual(run([offline], {captures: [{...sorted[0], createdAt: 'not a date'}]}), []);
+});

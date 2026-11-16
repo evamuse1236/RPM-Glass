@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {editPlan, tasks} from './planner-state.mjs';
-import {occurrences, repeats} from './planner-recurrence.mjs';
-import {TIME_GRID, whenFields, repeatDaysOf, repeatFieldsFor, repeatLabel, repeatShort} from './planner/task-values.mjs';
+import {nextOccurrence, occurrences, repeats} from './planner-recurrence.mjs';
+import {TIME_GRID, whenFields, whenOf, timePickValue, viewedOccurrence, repeatDaysOf, repeatFieldsFor, repeatLabel, repeatShort} from './planner/task-values.mjs';
 import {TABS, stepTab, whenDay, whenBrief, whenSpoken, alertShort, blockShort, presetOf, presetFields, toggleRepeatDay, blockChoices}
   from './planner/task-tabs-model.mjs';
 import fs from 'node:fs';
@@ -98,6 +98,28 @@ test('a day, a slid time and a length each save and Undo puts them back', () => 
     'the length grip snaps to 15 minutes and stays between none and the rail end');
 });
 
+test('a new time on a later occurrence of a weekdays series changes only the clock: every weekday, today\'s included, stays', () => {
+  const data = {entries: []};
+  const id = editPlan(data, {type: 'saveTask', fields: {title: 'Standup', ...whenFields({day: '2026-11-16', time: '09:00'}), recurrence: 'weekdays', minutes: 15}});
+  const live = () => tasks(data).find(t => t.id === id);
+  const thursday = whenOf(live(), new Date('2026-11-19T09:00').toISOString());
+  editPlan(data, {type: 'saveTask', id, fields: whenFields(timePickValue(live(), thursday, '10:00', {repeating: repeats(live())}))});
+  const week = occurrences(live(), +new Date('2026-11-16T00:00'), +new Date('2026-11-21T00:00'));
+  assert.deepEqual(week.map(o => whenOf(o, o.occurrence).day), ['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20']);
+  assert.ok(week.every(o => whenOf(o, o.occurrence).time === '10:00'));
+  const anchor = at('2026-11-16', '09:00');
+  assert.equal(viewedOccurrence(live(), anchor, at('2026-11-19', '09:00')), at('2026-11-19', '10:00'),
+    'the open sheet stays on Thursday at the new clock, so its ruler and Done ring act on Thursday, not today');
+  editPlan(data, {type: 'saveTask', id, fields: whenFields({day: '2026-11-17', time: '10:00'})});
+  assert.equal(viewedOccurrence(live(), anchor, at('2026-11-19', '09:00')), nextOccurrence(live()),
+    'a chosen new series day leaves the viewed occurrence as before');
+  assert.deepEqual(timePickValue({planned: at('2026-11-16', '09:00')}, {day: '2026-11-19', time: '09:00'}, '10:00'), {day: '2026-11-19', time: '10:00'},
+    'a one-time task keeps the day it shows');
+  assert.deepEqual(timePickValue({planned: at('2026-11-19', '09:00'), repeatAfterDays: 3}, {day: '2026-11-19', time: '09:00'}, '10:00', {repeating: true}),
+    {day: '2026-11-19', time: '10:00'}, 'a repeat-after series keeps its next due day');
+  assert.deepEqual(timePickValue({}, {day: '', time: ''}, '10:00', {today: '2026-11-16'}), {day: '2026-11-16', time: '10:00'}, 'an undated task gets today');
+});
+
 test('an alert and its lead save, Undo puts back the one before, and a new type keeps the lead', () => {
   const {d, id, task} = store();
   editPlan(d, {type: 'saveTask', id, fields: {alert: 'reminder'}});
@@ -180,4 +202,147 @@ test('the ruler grip sets the length: a 48dp slider named for TalkBack, arrow ke
   assert.doesNotMatch(tabs, /segmentedRow\('Length'\)/, 'the ruler is the one length control; no chip row repeats it');
   const css = fs.readFileSync(new URL('./task-tabs.css', import.meta.url), 'utf8');
   assert.match(css, /\.ruler-grip \{[^}]*inline-size: 48px;[^}]*block-size: 48px;[^}]*touch-action: none;/, 'a 48dp hit area that the page does not scroll');
+});
+
+test('two quick taps on Repeat day circles keep both days: the sheet builds each save from the task as the earlier save left it', async () => {
+  const {installFakeDom} = await import('./fake-dom.mjs');
+  installFakeDom();
+  const {saver} = await import('./planner/sheet-parts.mjs');
+  let task = {id: 1, title: 'Gym', planned: at(DAY, '07:00')};
+  const labels = [];
+  const app = {saving: false, async commit(op, {label}) {
+    this.saving = true;
+    labels.push(label);
+    await new Promise(done => setTimeout(done, 30));
+    task = {...task, ...op.fields};
+    this.saving = false;
+    return 1;
+  }};
+  const save = saver(app);
+  // The shape task-sheet.mjs's repeatDay uses: the fields and the label are made when the queued save runs.
+  const tap = day => save(() => {
+    const fields = toggleRepeatDay(task, day);
+    return {op: {type: 'saveTask', id: 1, fields}, label: 'Repeats: ' + repeatLabel(fields)};
+  });
+  const monday = tap(1);
+  await new Promise(done => setTimeout(done, 5));
+  const wednesday = tap(3);
+  await Promise.all([monday, wednesday]);
+  assert.deepEqual(repeatDaysOf(task).sort(), [1, 3]);
+  assert.equal(labels.at(-1), 'Repeats: ' + repeatLabel(task));
+  const sheet = read('planner/task-sheet.mjs');
+  assert.match(sheet, /repeatDay: day => setRepeat\(t => toggleRepeatDay\(t, day\)\)/);
+  assert.match(sheet, /repeatPreset: \(preset, every\) => setRepeat\(t => presetFields\(preset, t, every\)\)/);
+});
+
+test('a tap on the length grip of a task longer than the grip can reach saves nothing; a drag starts from the reach', async () => {
+  const {installFakeDom} = await import('./fake-dom.mjs');
+  const dom = installFakeDom();
+  const make = dom.createElement;
+  dom.createElement = tag => Object.assign(make(tag), {style: {setProperty() {}}, clientWidth: 0, scrollLeft: 0, setPointerCapture() {}, scrollTo() {}, select() {}});
+  globalThis.window ??= {onscrollend: null};
+  globalThis.ResizeObserver ??= class { observe() {} };
+  globalThis.requestAnimationFrame ??= () => 0;
+  const {timeRuler} = await import('./planner/time-ruler.mjs');
+  const saved = [];
+  const ruler = timeRuler({save: () => {}, saveMinutes: n => saved.push(n)});
+  ruler.node.children[1].clientWidth = 352; // the S24 FE sheet's rail: the grip reaches 2 hr 30 min
+  ruler.paint({day: DAY, time: '16:00', minutes: 180, off: false});
+  const press = (id, from, to) => {
+    ruler.grip.dispatch('pointerdown', {pointerId: id, clientX: from, button: 0});
+    if (to !== from) ruler.grip.dispatch('pointermove', {pointerId: id, clientX: to});
+    ruler.grip.dispatch('pointerup', {pointerId: id, clientX: to});
+  };
+  press(1, 300, 300);
+  press(2, 300, 302);
+  assert.deepEqual(saved, [], 'a 3 hr length stays 3 hr when the grip is tapped or barely moved');
+  press(3, 300, 300 - 16 * HALF_HOUR_PX / 30);
+  assert.deepEqual(saved, [135], 'a real drag back still sets a length, one step in from the reach');
+});
+
+test('a tap on the time ruler then Clear leaves the task untimed; a slide or a wheel still saves once when let go', async () => {
+  const {installFakeDom} = await import('./fake-dom.mjs');
+  const dom = installFakeDom();
+  const make = dom.createElement;
+  dom.createElement = tag => Object.assign(make(tag), {style: {setProperty() {}}, clientWidth: 352, scrollLeft: 0, setPointerCapture() {}, select() {},
+    scrollTo({left}) { // a programmatic scroll that moves fires scroll, then scrollend, as Chrome does
+      if (Math.abs(left - this.scrollLeft) < 0.5) return;
+      this.scrollLeft = left;
+      this.dispatch('scroll');
+      this.dispatch('scrollend');
+    }});
+  globalThis.window ??= {onscrollend: null};
+  globalThis.ResizeObserver ??= class { observe() {} };
+  globalThis.requestAnimationFrame ??= () => 0;
+  const {timeRuler} = await import('./planner/time-ruler.mjs');
+  const open = () => {
+    const saved = [];
+    const ruler = timeRuler({save: time => saved.push(time), saveMinutes() {}});
+    ruler.paint({day: DAY, time: '10:00', minutes: 30, off: false});
+    return {ruler, saved, track: ruler.node.querySelector('.ruler-track')};
+  };
+  {
+    const {ruler, saved, track} = open();
+    track.dispatch('pointerdown');
+    track.dispatch('pointerup');
+    assert.deepEqual(saved, [], 'a tap alone saves nothing');
+    ruler.paint({day: '', time: '', minutes: null, off: true});
+    assert.deepEqual(saved, [], 'Clear after a tap must not put a time back');
+  }
+  {
+    const {saved, track} = open();
+    track.dispatch('pointerdown');
+    track.scrollLeft = offsetOf(rulerScale('10:00'), '11:00');
+    track.dispatch('scroll');
+    track.dispatch('pointerup');
+    track.dispatch('scrollend');
+    assert.deepEqual(saved, ['11:00'], 'a slide saves once, when let go');
+  }
+  {
+    const {saved, track} = open();
+    track.dispatch('wheel');
+    track.scrollLeft = offsetOf(rulerScale('10:00'), '09:30');
+    track.dispatch('scroll');
+    track.dispatch('scrollend');
+    assert.deepEqual(saved, ['09:30'], 'a wheel scroll saves once it ends');
+  }
+});
+
+test('editing a series keeps the ticks of occurrences that still exist, and a clock change moves them', () => {
+  const series = () => {
+    const d = freshStore();
+    const id = editPlan(d, {type: 'saveTask', fields: {title: 'Standup', ...whenFields({day: '2026-11-10', time: '09:00'}), recurrence: 'weekdays', minutes: 15}});
+    const task = () => tasks(d).find(t => t.id === id);
+    editPlan(d, {type: 'saveTask', id, occurrence: at('2026-11-16', '09:00'), fields: {done: true}}, new Date('2026-11-16T09:20'));
+    return {d, id, task};
+  };
+  const open = task => occurrences(task(), +new Date('2026-11-16T00:00'), +new Date('2026-11-17T00:00')).map(o => o.occurrence);
+
+  // Adding Saturday changes no key: Monday's tick stays.
+  const a = series();
+  assert.deepEqual(open(a.task), []);
+  editPlan(a.d, {type: 'saveTask', id: a.id, fields: toggleRepeatDay(a.task(), 6)});
+  assert.deepEqual(a.task().repeatDays, [1, 2, 3, 4, 5, 6]);
+  assert.deepEqual(a.task().completedOccurrences, [at('2026-11-16', '09:00')]);
+  assert.deepEqual(open(a.task), [], 'today stays done after adding Saturday');
+  editPlan(a.d, {type: 'undo'});
+  assert.deepEqual(a.task().completedOccurrences, [at('2026-11-16', '09:00')]);
+
+  // Moving the clock to 10:00 moves the tick with it, and Reopen still finds it.
+  const b = series();
+  const shown = whenOf(b.task(), at('2026-11-16', '09:00'));
+  editPlan(b.d, {type: 'saveTask', id: b.id, fields: whenFields(timePickValue(b.task(), shown, '10:00', {repeating: repeats(b.task())}))});
+  assert.deepEqual(b.task().completedOccurrences, [at('2026-11-16', '10:00')]);
+  assert.deepEqual(open(b.task), [], 'today stays done after moving the clock');
+  assert.equal(b.task().completions.at(-1).occurrence, at('2026-11-16', '10:00'));
+  editPlan(b.d, {type: 'reopenTask', id: b.id});
+  assert.deepEqual(open(b.task), [at('2026-11-16', '10:00')]);
+  assert.deepEqual(b.task().completedOccurrences, []);
+
+  // Moving the series past the tick drops the tick that no longer exists.
+  const c = series();
+  editPlan(c.d, {type: 'saveTask', id: c.id, fields: whenFields({day: '2026-11-18', time: '09:00'})});
+  assert.deepEqual(c.task().completedOccurrences, []);
+  editPlan(c.d, {type: 'undo'});
+  assert.deepEqual(c.task().completedOccurrences, [at('2026-11-16', '09:00')]);
 });

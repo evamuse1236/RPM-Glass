@@ -1,4 +1,4 @@
-import {planner, tasks, blockTasks, blockDue, editPlan, shiftDay, localDay} from './planner-state.mjs';
+import {tasks, blockTasks, blockDue, editPlan, shiftDay, localDay} from './planner-state.mjs';
 import {repeats} from './planner-recurrence.mjs';
 import {checkDay, taskDate, dueAt} from './review-dates.mjs';
 import {DATE_LOCALE} from './planner/format.mjs';
@@ -107,17 +107,18 @@ export function mustPlacements(data, blockIds, events, week, now = new Date()) {
   return out;
 }
 
-/** Gives each proposed Must its day, as one change with one Undo. */
-export function placeMusts(data, placements) {
-  if (!placements.length) throw new Error('Nothing to place.');
-  let undo = null;
-  for (const p of placements) {
-    editPlan(data, {type: 'saveTask', id: p.taskId, fields: {plannedDate: checkDay(p.day)}});
-    undo ??= planner(data).undo;
-  }
-  data.planner.undo = undo;
-  return placements.length === 1 ? 'Must given a day' : `${placements.length} Musts given a day`;
+/**
+ * Gives each proposed Must that is still open and undated its day, as one JSON batch (one Undo); null when none is
+ * left. Read from the saved tasks at save time, so a second tap before the first save lands saves nothing.
+ */
+export function placeMustsOp(data, placements) {
+  const entries = data.entries ?? [];
+  const left = placements.filter(p => { const t = entries.find(e => e.id === p.taskId); return t && !t.done && !taskDate(t); });
+  return left.length ? {type: 'batch', ops: left.map(p => ({type: 'saveTask', id: p.taskId, fields: {plannedDate: checkDay(p.day)}}))} : null;
 }
+
+/** The receipt for a placeMustsOp batch. */
+export const placedLabel = op => (op.ops.length === 1 ? 'Must given a day' : `${op.ops.length} Musts given a day`);
 
 /* ---------- step 3: which Result an Inbox task most likely serves ---------- */
 const STOP = new Set(('a an the and or but for with from that this into onto about again your our my me we us you it its is be am are was '
@@ -152,18 +153,36 @@ export function rankResults(data, task, candidates) {
 
 /* ---------- calendar clash: the review can't move events, so the decision becomes a task on Today ---------- */
 const clashDay = day => new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'short', month: 'short', day: 'numeric'});
-/** A stable key for a clash, for remembering the decision in review progress. */
-export const clashKey = ({day, a, b}) => `${day}|${a.title}|${b.title}`;
+/** FNV-1a over a string, as 8 hex digits: a short stable digest for a key that would be too long. */
+const fnv = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193); return (h >>> 0).toString(16).padStart(8, '0'); };
+/**
+ * A stable key for a clash, for remembering the decision in review progress. The snapshot schema allows keys of at
+ * most 1000 characters, so two very long titles give the day plus a digest of both titles instead; short keys keep
+ * the readable form, so decisions already saved still match.
+ */
+export const clashKey = ({day, a, b}) => {
+  const plain = `${day}|${a.title}|${b.title}`;
+  if (plain.length <= 1000) return plain;
+  const both = `${a.title}|${b.title}`;
+  return `${day}|${String(a.title).slice(0, 200)}|${String(b.title).slice(0, 200)}|${both.length}-${fnv(both)}-${fnv(`${b.title}|${a.title}`)}`;
+};
 const sides = (clash, keep) => (keep === 'b' ? [clash.b, clash.a] : [clash.a, clash.b]);
 /** "Keep DAD exam; move or skip GWBC session": what the decision leaves to do. */
 export const clashDecision = (clash, keep) => { const [stays, other] = sides(clash, keep); return `keep ${stays.title}, move or skip ${other.title}`; };
 export const clashTitle = (clash, keep = 'a') => `${clashDay(clash.day)} clash: ${clashDecision(clash, keep)}`;
 const DECIDED = 'Decided in the weekly review: ';
-/** An open task that already deals with the clash: one the review wrote, or one naming "clash" and both events. */
+/**
+ * The task that deals with the clash: an open one the review wrote or one of the user's naming "clash" and both events; failing that,
+ * a done one the review wrote, so a decision the user already carried out still reads as decided.
+ */
 export function clashTask(data, clash) {
   const first = title => String(title).toLowerCase().split(/\s+/)[0];
-  return tasks(data).find(t => !t.done && (t.title === clashTitle(clash, 'a') || t.title === clashTitle(clash, 'b')
-    || (/clash/i.test(t.title ?? '') && [clash.a.title, clash.b.title].every(x => (t.title ?? '').toLowerCase().includes(first(x)))))) ?? null;
+  const wrote = t => t.title === clashTitle(clash, 'a') || t.title === clashTitle(clash, 'b');
+  // A task the review wrote for another clash (another day or other events) is that clash's decision, never this one's.
+  const wroteOther = t => /^\S+ \d+ \S+ clash: keep /.test(t.title ?? '');
+  return tasks(data).find(t => !t.done && (wrote(t)
+    || (/clash/i.test(t.title ?? '') && !wroteOther(t) && [clash.a.title, clash.b.title].every(x => (t.title ?? '').toLowerCase().includes(first(x))))))
+    ?? tasks(data).find(t => t.done && wrote(t)) ?? null;
 }
 /**
  * Records which event stays (`keep` 'a' or 'b') as a task on Today, since calendars are read-only: the user's own
@@ -176,7 +195,10 @@ export function clashOp(data, clash, keep, now = new Date()) {
   const fields = {notes};
   if (!existing || !taskDate(existing)) fields.plannedDate = localDay(now);
   if (!existing) Object.assign(fields, {title: clashTitle(clash, keep), minutes: 15});
-  else if (existing.title === clashTitle(clash, keep === 'b' ? 'a' : 'b')) fields.title = clashTitle(clash, keep);
+  else if (existing.title === clashTitle(clash, keep === 'b' ? 'a' : 'b')) {
+    fields.title = clashTitle(clash, keep);
+    if (existing.done) Object.assign(fields, {done: false, plannedDate: localDay(now)}); // a new answer is a new thing to do
+  }
   return existing ? {type: 'saveTask', id: existing.id, fields} : {type: 'saveTask', fields};
 }
 export function decideClash(data, clash, keep, now = new Date()) {

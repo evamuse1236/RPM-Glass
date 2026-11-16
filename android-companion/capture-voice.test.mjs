@@ -145,3 +145,35 @@ test('a saved voice capture names the tasks it touched and has receipt lines, so
  assert.deepEqual(capture.taskIds,[ids.raj,ids.milk]);
  assert.deepEqual(capture.receipt.map(r=>r.text),['Done · Call Raj','Moved to Trash · Buy groceries']);
 });
+
+test('a request whose changes could not be applied plays no saved tone and the call ends with its problem', async () => {
+ const {data}=day(),platform=phone(data);
+ const outcomes=[];
+ const save=platform.saveWith;
+ platform.saveWith=mutate=>save(next=>{const out=mutate(next);outcomes.push(out);return out;});
+ const start=({data:snapshot,onChange,onRequest})=>{
+  let finish;const done=new Promise(resolve=>{finish=resolve;});
+  queueMicrotask(async()=>{
+   const r=createRamble({data:snapshot(),timeZone:TZ,now:()=>NOW});
+   r.receive({serverContent:{inputTranscription:{text:'Add buy milk'}}});onChange({...r.state,phase:'listening'});r.stop();
+   r.receive(tools(call('a','save_task',{title:'Buy milk'})));onChange(r.state);
+   r.receive(turnDone);r.receive({serverContent:{outputTranscription:{text:'Added buy milk.'}}});r.receive(turnDone);onChange(r.state);
+   // Another writer adds a task first, so the id the model was told is taken.
+   editPlan(platform.store,{type:'saveTask',fields:{title:'Typed in planner'}},NOW);
+   await onRequest(r.result(),{index:1});
+   finish({requests:1,missed:false,failed:null,code:null});
+  });
+  return {stop(){},cancel(){},hangUp(){},done};
+ };
+ let sounds=0;
+ const {voice,ids:saved}=mode(platform,start,{sound(){sounds++;}});
+ await voice.begin();
+ assert.equal(outcomes[0].status,'words-kept');
+ assert.ok(!platform.store.entries.some(e=>e.title==='Buy milk'));
+ assert.equal(sounds,0,'nothing was saved, so no saved tone');
+ assert.deepEqual(saved,[],'not counted as saved');
+ assert.equal(voice.moment.kind,'oops');
+ assert.deepEqual(voice.failure,{phase:'failed',error:outcomes[0].error});
+ const [capture]=intentViewFromData(platform.store,{conversationId:'c-1'}).captures;
+ assert.equal(cardKind(capture),'words-kept','the words stay, with their Retry');
+});

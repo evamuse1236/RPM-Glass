@@ -24,7 +24,7 @@ function textChange(conflict) {
   for (const field of TEXT_FIELDS) {
     const kept = conflict.kept?.[field];
     const lost = conflict.lost?.[field];
-    if (typeof kept === 'string' && typeof lost === 'string') return {field, kept, lost};
+    if (typeof kept === 'string' && typeof lost === 'string' && kept !== lost) return {field, kept, lost};
   }
   return null;
 }
@@ -33,6 +33,9 @@ function sentence(conflict, snapshot) {
   const [kind, ...rest] = String(conflict.key ?? '').split(':');
   const item = {kind, id: rest.join(':')};
   const device = conflict.lostFrom === 'server' ? 'website' : 'phone';
+  // The server refused a phone change (convex/phoneSync.ts): kept and lost are whole records, not two edits.
+  if (conflict.group === 'record' && conflict.kept != null && conflict.lostFrom === 'phone')
+    return `${itemName(item, conflict, snapshot)}: a change from your phone could not be saved. Kept the version on the website.`;
   const text = textChange(conflict);
   if (text) {
     const tail = `changed on two devices. Kept ${quote(text.kept)}. Other version from your ${device}: ${quote(text.lost)}.`;

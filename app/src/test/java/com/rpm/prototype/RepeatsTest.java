@@ -4,13 +4,21 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -76,5 +84,46 @@ public class RepeatsTest {
         List<NotchDay.Task> tasks = Arrays.asList(gym);
         assertEquals(1, NotchDay.today(tasks, at("2026-10-21T06:00"), KOLKATA).size());
         assertEquals(0, NotchDay.today(tasks, at("2026-10-22T06:00"), KOLKATA).size());
+    }
+
+    @Test
+    public void aDailyAlertInTheSkippedHourIsBackAtItsOwnClockTheDayAfterSpringForward() {
+        ZoneId ny = ZoneId.of("America/New_York");
+        long base = LocalDateTime.parse("2027-03-10T02:30").atZone(ny).toInstant().toEpochMilli();
+        long now = LocalDateTime.parse("2027-03-14T09:00").atZone(ny).toInstant().toEpochMilli();
+        assertEquals(Instant.parse("2027-03-15T06:30:00Z").toEpochMilli(), CompanionAlerts.next(base, "daily", ny, now));
+    }
+
+    private static Path repeatCases() {
+        for (Path dir = Paths.get("").toAbsolutePath(); dir != null; dir = dir.getParent()) {
+            Path file = dir.resolve("fixtures/repeat-cases.json");
+            if (Files.isRegularFile(file)) return file;
+        }
+        throw new AssertionError("Cannot find fixtures/repeat-cases.json from " + Paths.get("").toAbsolutePath());
+    }
+
+    /** The planner runs the same cases in planner-recurrence.test.mjs: one repeat means one set of times everywhere. */
+    @Test
+    public void theNotchAndThePhoneAlertsPassTheSameRepeatCasesAsThePlanner() throws Exception {
+        JSONArray cases = new JSONArray(new String(Files.readAllBytes(repeatCases()), StandardCharsets.UTF_8));
+        assertTrue("The shared repeat contract has cases", cases.length() > 0);
+        for (int i = 0; i < cases.length(); i++) {
+            JSONObject c = cases.getJSONObject(i), task = c.getJSONObject("task"), expected = c.getJSONObject("expected");
+            String id = c.getString("id");
+            ZoneId zone = ZoneId.of(c.getString("timezone"));
+            Set<String> completed = new HashSet<>();
+            JSONArray done = task.optJSONArray("completedOccurrences");
+            for (int j = 0; done != null && j < done.length(); j++) completed.add(done.getString(j));
+            NotchDay.Task row = new NotchDay.Task(1, id, null, Instant.parse(task.getString("planned")), task.getInt("minutes"), Repeats.key(task), completed);
+            long noon = LocalDate.parse(c.getString("day")).atTime(12, 0).atZone(zone).toInstant().toEpochMilli();
+            List<String> keys = new ArrayList<>();
+            for (NotchDay.Slot slot : NotchDay.today(Arrays.asList(row), noon, zone)) keys.add(Instant.ofEpochMilli(slot.start).toString());
+            List<String> want = new ArrayList<>();
+            JSONArray expectedKeys = expected.getJSONArray("keys");
+            for (int j = 0; j < expectedKeys.length(); j++) want.add(Instant.parse(expectedKeys.getString(j)).toString());
+            assertEquals(id + " notch occurrences", want, keys);
+            assertEquals(id + " next alert", Instant.parse(expected.getString("nextAlert")).toEpochMilli(),
+                    CompanionAlerts.next(task, zone, Instant.parse(c.getString("now")).toEpochMilli()));
+        }
     }
 }

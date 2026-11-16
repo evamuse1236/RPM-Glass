@@ -39,13 +39,15 @@ export function copy(schema, value) {
   return result;
 }
 
+const byCaptureTime = (a, b) => String(a.at ?? '').localeCompare(String(b.at ?? ''));
+const CAPTURE_LIMIT = 50;
 /** Only the declared browser fields cross this boundary. Never spread store objects. */
 export function projectSnapshot(data) {
   const p = data.planner ?? {}, body = bodyOf(data), state = data.intentV2 ?? {};
   const snapshot = {schemaVersion: 2, revision: data.version, savedAt: data.syncSavedAt ?? '1970-01-01T00:00:00.000Z', tasks: (data.entries ?? []).filter(row => (row.kind ?? 'plan') === 'plan').map(task)};
   for (const key of ['blocks', 'projects', 'areas', 'goals']) snapshot[key] = (p[key] ?? []).map(entity);
   snapshot.drafts = [...p.drafts ?? [], ...Object.values(state.drafts ?? {})].map(draft => draftSummary(data, draft));
-  snapshot.captures = Object.values(state.captures ?? {}).sort((a, b) => String(a.at ?? '').localeCompare(String(b.at ?? ''))).map(capture => ({
+  snapshot.captures = Object.values(state.captures ?? {}).sort(byCaptureTime).map(capture => ({
     id: capture.messageId, text: string(capture.raw), status: string(capture.status), createdAt: nullable(capture.at), receipt: Array.isArray(capture.receipt) ? copy(snapshotSchema.$defs.capture.properties.receipt, capture.receipt) : receipt(data, state.drafts?.[capture.draftId])}));
   const settings = {};
   for (const key of ['goal', 'intervalMinutes', 'from', 'until', 'glassMl', 'snoozeMinutes', 'reminders']) settings[key] = body.water.settings[key];
@@ -71,8 +73,43 @@ export function projectSnapshot(data) {
   return snapshot;
 }
 
+// Logged history grows without end; the website gets the newest entries the schema allows.
+// Records stay complete: projectRecords reads projectSnapshot, never this trimmed copy.
+const HISTORY_LIMIT = 10000;
+function newest(list, time) {
+  if (list.length <= HISTORY_LIMIT) return list;
+  // Kept by position, not value: two glasses logged at one instant are equal strings.
+  const kept = new Set(list.map((_, i) => i).sort((a, b) => time(list[a]) - time(list[b])).slice(-HISTORY_LIMIT));
+  return list.filter((_, i) => kept.has(i));
+}
+function boundHistory(body) {
+  body.water.glasses = newest(body.water.glasses, at => Date.parse(at));
+  body.meals = newest(body.meals, meal => Date.parse(meal.at));
+  body.runs = newest(body.runs, run => Date.parse(run.day));
+  if (body.mealGuesses && Object.keys(body.mealGuesses).length > HISTORY_LIMIT) {
+    const kept = new Set(body.meals.map(meal => meal.id));
+    body.mealGuesses = Object.fromEntries(Object.entries(body.mealGuesses).filter(([id]) => kept.has(id)));
+  }
+}
+// Every capture leaves a draft. Keep the AI-sort drafts and the drafts behind the captures
+// the website shows, then the newest others, in their stored order.
+function boundDrafts(data, snapshot) {
+  const sortDrafts = data.planner?.drafts ?? [], state = data.intentV2 ?? {};
+  const raw = [...sortDrafts, ...Object.values(state.drafts ?? {})];
+  if (raw.length <= HISTORY_LIMIT) return;
+  const shown = new Set(Object.values(state.captures ?? {}).sort(byCaptureTime).slice(-CAPTURE_LIMIT).map(capture => capture.draftId));
+  const pinned = i => i < sortDrafts.length || shown.has(raw[i].id) ? 1 : 0;
+  const time = draft => Date.parse(draft.created ?? draft.updated ?? '') || 0;
+  const kept = new Set(raw.map((_, i) => i).sort((a, b) => pinned(a) - pinned(b) || time(raw[a]) - time(raw[b])).slice(-HISTORY_LIMIT));
+  snapshot.drafts = snapshot.drafts.filter((_, i) => kept.has(i));
+  snapshot.planner.drafts = snapshot.planner.drafts.filter((_, i) => kept.has(i));
+}
+
 export function buildSnapshot(data) {
   const snapshot = projectSnapshot(data);
-  snapshot.captures = snapshot.captures.slice(-50);
+  snapshot.captures = snapshot.captures.slice(-CAPTURE_LIMIT);
+  boundHistory(snapshot.body);
+  boundHistory(snapshot.planner.body);
+  boundDrafts(data, snapshot);
   return validateSnapshot(snapshot);
 }

@@ -59,6 +59,20 @@ test('restore suppresses deletes and pulls newer server-only records', async () 
   assert.deepEqual(projectRecords(p.data), server.project());
 });
 
+test('a Block removed after a restore, before the next sync, stays removed and the delete reaches the server', async () => {
+  const p = phone(), server = fakeServer(); let block;
+  p.edit(data => {block = editPlan(data, {type: 'saveEntity', collection: 'blocks', fields: {title: 'Old block'}}, new Date(day(0)));}, day(0));
+  await run(p, server);
+  // The restored backup held the Block, so importCopy lists no record as missing from it.
+  p.edit(data => {data.sync.restoredAt = day(2); data.sync.restoredAbsent = [];}, day(2));
+  p.edit(data => editPlan(data, {type: 'removeEntity', collection: 'blocks', id: block}, new Date(day(3))), day(3));
+  assert.deepEqual(localChanges(p.data).map(c => [c.key, c.value]), [[`block:${block}`, null]]);
+  await run(p, server);
+  assert.deepEqual(p.data.planner.blocks, []);
+  assert.equal(server.rows.get(`block:${block}`).value, null);
+  assert.equal(p.data.sync.restoredAbsent, undefined);
+});
+
 test('reinstall adopts server base without deletes and stale phone values lose to newer stamps', async () => {
   const original = phone(), server = fakeServer(); add(original, 'Old phone'); await run(original, server);
   const backup = structuredClone(original.data); delete backup.sync; backup.syncSavedAt = day(0);

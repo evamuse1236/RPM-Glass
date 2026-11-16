@@ -5,6 +5,7 @@
  * keeps its focus, its words and its caret.
  */
 import {el} from './dom.mjs';
+import {userMessage} from '../user-message.mjs';
 import {reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
 
 /** A blank icon slot, so a menu's unchecked choices line up with the checked one. */
@@ -96,13 +97,27 @@ export async function commitInPlace(app, op, options) {
   }
 }
 
-/** Retry a commit that met another save in flight (app.commit returns undefined while one runs). */
+/**
+ * Run a commit once the save in flight lands (app.commit returns undefined while one runs). A native save can retry
+ * for several seconds; if none lands within 30s this rejects with a message, so the caller puts the words back
+ * instead of treating an unsaved change as saved.
+ */
 export async function persist(app, op, options) {
-  for (let i = 0; i < 20; i++) {
-    if (!app.saving) return app.commit(op, options);
+  if (!app.saving) return app.commit(op, options);
+  await whenIdle(app);
+  return app.commit(op, options);
+}
+
+/** Resolves once no save is in flight, so a caller can build its op from the data that save left; same 30s limit. */
+export async function whenIdle(app) {
+  for (let i = 0; i < 600; i++) {
+    if (!app.saving) return;
     await new Promise(resolve => setTimeout(resolve, 50));
   }
-  return app.commit(op, options);
+  if (!app.saving) return;
+  const error = new Error('Still saving. Try again.');
+  app.notice(userMessage(error));
+  throw error;
 }
 
 /**
@@ -243,7 +258,14 @@ export function entityFields(collection, record, patch = {}) {
   return fields;
 }
 
-export function saveEntity(app, collection, record, patch, label) {
-  return persist(app, {type: 'saveEntity', collection, id: record.id, fields: entityFields(collection, record, patch)},
+/**
+ * Save `patch` onto the record as it is saved now, not as the page drew it: a field rebuilt by another field's
+ * save may still hold the older record, and its other words would undo that save. Waits out a save in flight
+ * first, so the record read includes it. A record no longer in the plan saves from `record`.
+ */
+export async function saveEntity(app, collection, record, patch, label) {
+  for (let i = 0; i < 20 && app.saving; i++) await new Promise(resolve => setTimeout(resolve, 50));
+  const current = (record.id && app.p?.()?.[collection]?.find(r => r.id === record.id)) || record;
+  return persist(app, {type: 'saveEntity', collection, id: record.id, fields: entityFields(collection, current, patch)},
     {label});
 }

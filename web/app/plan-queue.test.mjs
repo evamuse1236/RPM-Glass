@@ -6,7 +6,9 @@ import {editPlan} from '../../android-companion/planner-state.mjs';
 import {withIds} from '../../android-companion/new-id.mjs';
 import {completionOp} from '../../android-companion/notch-ops.mjs';
 import {createPlanQueue, storeFrom, WAITING, CHANGED} from './plan-queue.mjs';
+import {createClient} from './client.mjs';
 import {createRamble} from '../../android-companion/voice-turn.mjs';
+import {projectRecords} from '../contract/records.mjs';
 
 const FINAL = new Set(['applied', 'rejected', 'conflict']);
 
@@ -29,7 +31,8 @@ function fakeClient(snapshot = structuredClone(fixture)) {
   };
 }
 
-function phone(client) {
+// `perRecord` answers as convex/records.ts writeRecords does: one revision per changed record, from the cursor before the writes.
+function phone(client, {perRecord = false} = {}) {
   const store = storeFrom(client.state.snapshot);
   const applied = new Map();
   return {
@@ -39,10 +42,14 @@ function phone(client) {
       if (status !== 'applied') { Object.assign(entry, {status, message}); client.emit(); return; }
       const {command} = entry;
       const before = structuredClone({entries: store.entries, planner: store.planner});
+      const records = projectRecords(store);
       if (command.type === 'plan') { withIds(command.args.ids, () => editPlan(store, command.args.op)); applied.set(command.id, before); }
       else Object.assign(store, structuredClone(applied.get(command.args.commandId)));
-      const revision = client.state.snapshot.revision + 1;
-      Object.assign(entry, {status: 'applied', newRevision: revision});
+      const after = projectRecords(store);
+      const written = [...new Set([...records.keys(), ...after.keys()])].filter(k => JSON.stringify(records.get(k) ?? null) !== JSON.stringify(after.get(k) ?? null)).length;
+      const fromRevision = client.state.snapshot.revision;
+      const revision = fromRevision + (perRecord ? written : 1);
+      Object.assign(entry, {status: 'applied', newRevision: revision, ...(perRecord ? {fromRevision} : {})});
       client.state.snapshot = {...client.state.snapshot, revision, entries: structuredClone(store.entries), planner: structuredClone(store.planner)};
       client.emit();
     },
@@ -66,6 +73,8 @@ test('a change shows at once, is sent as a plan command on the revision the user
   assert.deepEqual(validateCommand(command), command);
   assert.equal(command.type, 'plan');
   assert.equal(command.baseRevision, 42);
+  assert.equal('timezone' in command, false, 'a browser in India sends no zone; the server reads a missing zone as Asia/Kolkata');
+  assert.throws(() => validateCommand({...command, timezone: 'Not/AZone'}), /Invalid browser command/);
   assert.ok(queue.pendingIds().has(3));
   device.apply(0);
   assert.equal(queue.pendingIds().size, 0);
@@ -135,6 +144,37 @@ test('Undo of a change the phone has not received drops it; nothing more is sent
   assert.equal(client.sent().length, 1);
 });
 
+test('a website tick and its Undo from India keep the shape a server released before the zone field accepts; any other zone is still sent', () => {
+  // The Site and Convex ship separately. At 009353e the plan and undo branches of command.schema.json allowed only
+  // these keys (additionalProperties: false), so that server answers 400 to a command that carries `timezone`.
+  const allowed = () => ['id', 'createdAt', 'baseRevision', 'type', 'args'];
+  const sentFrom = zone => {
+    const before = process.env.TZ;
+    process.env.TZ = zone;
+    try {
+      const {client, queue, device} = setup();
+      queue.commit({type: 'saveTask', id: 3, fields: {done: true}});
+      queue.commit({type: 'undo'});
+      device.apply(0);
+      return client.sent();
+    } finally {
+      process.env.TZ = before;
+    }
+  };
+  for (const zone of ['Asia/Kolkata', 'Asia/Calcutta']) {
+    const [plan, undo] = sentFrom(zone);
+    for (const command of [plan, undo]) {
+      assert.deepEqual(validateCommand(command), command);
+      const keys = allowed(command.type);
+      for (const key of Object.keys(command)) assert.ok(keys.includes(key), `${zone} ${command.type} sends "${key}", which the 009353e server refuses`);
+    }
+  }
+  const [plan, undo] = sentFrom('America/New_York');
+  assert.deepEqual([plan.timezone, undo.timezone], ['America/New_York', 'America/New_York']);
+  assert.deepEqual(validateCommand(plan), plan);
+  assert.deepEqual(validateCommand(undo), undo);
+});
+
 test('Undo of a sent change becomes an undo command for it once the phone has applied it', () => {
   const {client, queue, device} = setup();
   queue.commit({type: 'saveTask', id: 3, fields: {done: true}});
@@ -146,7 +186,7 @@ test('Undo of a sent change becomes an undo command for it once the phone has ap
   device.apply(0);
   const undo = client.sent()[1];
   assert.deepEqual(validateCommand(undo), undo);
-  assert.deepEqual([undo.type, undo.args.commandId, undo.baseRevision], ['undo', planId, 43]);
+  assert.deepEqual([undo.type, undo.args.commandId, undo.baseRevision, 'timezone' in undo], ['undo', planId, 43, false]);
   assert.equal(task(queue, 3).done, false);
   device.apply(1);
   assert.equal(queue.pendingIds().size, 0);
@@ -178,6 +218,42 @@ test('a phone-side change is foreign and bumps the version; this browser\'s own 
   client.emit();
   assert.equal(queue.data().version, 43);
   assert.equal(task(queue, 4).title, 'Edited on the phone');
+});
+
+test('a change that writes several records, and its Undo, are this browser\'s own: nothing is foreign and Undo reverts at once', () => {
+  const client = fakeClient();
+  const queue = createPlanQueue({client, storage: memory(), now: () => new Date('2026-10-19T12:00:00+05:30')});
+  const told = []; queue.subscribe(r => told.push(r.foreign));
+  queue.start();
+  const device = phone(client, {perRecord: true});
+  queue.commit({type: 'batch', ops: [{type: 'saveTask', id: 3, fields: {done: true}}, {type: 'saveTask', id: 4, fields: {done: true}}]});
+  device.apply(0);
+  assert.equal(client.state.outbox[0].newRevision - client.state.outbox[0].fromRevision, 2, 'the batch wrote two records');
+  assert.deepEqual(told.filter(Boolean), [], 'own batch is not foreign');
+  assert.equal(queue.data().version, 42);
+  queue.commit({type: 'undo'});
+  assert.equal(task(queue, 3).done, false, 'Undo reverts on screen at once');
+  device.apply(1);
+  assert.equal(client.state.outbox[1].newRevision - client.state.outbox[1].fromRevision, 2, 'the Undo wrote two records');
+  assert.deepEqual(told.filter(Boolean), [], 'own Undo is not foreign');
+  assert.equal(queue.data().version, 42);
+});
+
+test('a phone-side write that lands between two of this browser\'s multi-record changes is still foreign', () => {
+  const client = fakeClient();
+  const queue = createPlanQueue({client, storage: memory(), now: () => new Date('2026-10-19T12:00:00+05:30')});
+  const told = []; queue.subscribe(r => told.push(r.foreign));
+  queue.start();
+  const device = phone(client, {perRecord: true});
+  queue.commit({type: 'batch', ops: [{type: 'saveTask', id: 3, fields: {done: true}}, {type: 'saveTask', id: 4, fields: {done: true}}]});
+  device.apply(0);
+  assert.deepEqual(told.filter(Boolean), []);
+  const entries = structuredClone(client.state.snapshot.entries);
+  entries.find(e => e.id === 4).title = 'Edited on the phone';
+  client.state.snapshot = {...client.state.snapshot, revision: client.state.snapshot.revision + 1, entries};
+  client.emit();
+  assert.equal(told.filter(Boolean).length, 1, 'the phone\'s write is foreign');
+  assert.equal(queue.data().version, 43);
 });
 
 function phoneEdit(client, id, fields) {
@@ -309,6 +385,34 @@ test('a voice ramble is one plan command on the ramble\'s own ids, and one Undo 
   assert.deepEqual(queue.data().entries, before);
 });
 
+function rambleAfterWords(source) {
+  const {client, queue, device} = setup();
+  const before = structuredClone(queue.data().entries);
+  const {result} = ramble(queue.data());
+  const words = client.state.snapshot.revision + 1;
+  client.state.outbox.push({command: {id: 'words', type: 'capture', args: {text: 'ship the app', ...(source ? {source} : {})}}, status: 'applied', newRevision: words});
+  queue.commit(result.batch, {uuids: result.uuids, tasks: result.created});
+  const told = [];
+  queue.subscribe(r => told.push(r));
+  const version = queue.data().version;
+  client.state.snapshot = {...client.state.snapshot, revision: words};
+  device.apply(1);
+  return {queue, before, told, version};
+}
+
+test('a ramble\'s own voice capture is not a foreign change, so its Undo takes the ramble back on screen at once', () => {
+  const {queue, before, told, version} = rambleAfterWords('voice');
+  assert.deepEqual(told.map(r => r.foreign), told.map(() => false));
+  assert.equal(queue.data().version, version);
+  queue.commit({type: 'undo'});
+  assert.deepEqual(queue.data().entries, before);
+});
+
+test('a typed capture is still a foreign change, because the server\'s model may change the plan for it', () => {
+  const {told} = rambleAfterWords();
+  assert.ok(told.some(r => r.foreign));
+});
+
 test('a ramble worked out on a plan that has since changed is refused before sending, so its words stay the only record', () => {
   const {client, queue} = setup();
   const {result} = ramble(queue.data());
@@ -316,4 +420,88 @@ test('a ramble worked out on a plan that has since changed is refused before sen
   assert.throws(() => queue.commit(result.batch, {uuids: result.uuids, tasks: result.created}), {message: CHANGED});
   assert.equal(client.sent().length, 1, 'only the typed change was sent');
   assert.equal(queue.data().entries.some(e => e.title === 'Call mom tonight'), false);
+});
+
+test('a full browser storage still lets a change show, go out, and the phone\'s answer reach the page', () => {
+  const client = fakeClient(), full = {getItem: () => null, setItem: () => { const e = new Error('quota'); e.name = 'QuotaExceededError'; throw e; }};
+  const queue = createPlanQueue({client, storage: full, now: () => new Date('2026-10-19T12:00:00+05:30')});
+  queue.start();
+  const heard = []; queue.subscribe(r => heard.push(r));
+  queue.commit({type: 'saveTask', id: 3, fields: {done: true}});
+  assert.equal(task(queue, 3).done, true); assert.equal(client.sent().length, 1);
+  phone(client).apply(0);
+  assert.ok(heard.length > 0, 'listeners hear the applied snapshot'); assert.equal(queue.pendingIds().size, 0);
+});
+
+test('more than 20 offline changes delivered, then one more before the snapshot catches up: nothing is foreign and Undo reverts at once', async () => {
+  const server = {store: storeFrom(structuredClone(fixture)), snap: structuredClone(fixture), offline: true, hold: null};
+  const reply = (status, body, headers = {}) => new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json', ...headers}});
+  const fetchImpl = async (url, init) => {
+    if (server.offline) throw new TypeError('Failed to fetch');
+    const {pathname} = new URL(url);
+    if (pathname === '/v1/web/snapshot') { if (server.hold) await server.hold; return reply(200, server.snap, {ETag: `"${server.snap.revision}"`}); }
+    if (pathname === '/v1/web/commands' && init.method === 'POST') {
+      const c = JSON.parse(init.body);
+      withIds(c.args.ids, () => editPlan(server.store, c.args.op));
+      const revision = server.snap.revision + 1;
+      server.snap = {...server.snap, revision, entries: structuredClone(server.store.entries), planner: structuredClone(server.store.planner)};
+      return reply(200, {status: 'applied', newRevision: revision});
+    }
+    return reply(200, {commands: [], cursor: 0, hasMore: false});
+  };
+  const storage = memory();
+  storage.setItem('rpm.web.v1', JSON.stringify({server: 'https://x.test', token: 't', snapshot: fixture, etag: '"42"'}));
+  const client = createClient({server: 'https://x.test', storage, fetchImpl});
+  const queue = createPlanQueue({client, storage, now: () => new Date('2026-10-19T12:00:00+05:30')});
+  const heard = []; queue.subscribe(e => heard.push(e));
+  queue.start();
+  for (let id = 14; id <= 35; id++) queue.commit({type: 'saveTask', id, fields: {done: true}});
+  const settle = () => new Promise(r => setTimeout(r, 20));
+  await settle();
+  server.offline = false;
+  let release; server.hold = new Promise(r => { release = r; });
+  const ticking = client.tick();
+  await settle();
+  assert.equal(client.state.outbox.filter(e => e.status === 'applied').length, 22);
+  assert.equal(client.state.snapshot.revision, 42);
+  queue.commit({type: 'saveTask', id: 3, fields: {done: true}});
+  await settle();
+  const version = queue.data().version;
+  server.hold = null; release();
+  await ticking; await client.refresh();
+  assert.equal(heard.filter(e => e.foreign).length, 0, 'the website\'s own changes are not foreign');
+  assert.equal(queue.data().version, version);
+  queue.commit({type: 'undo'});
+  assert.equal(task(queue, 3).done, false, 'Undo shows the task un-done at once');
+});
+
+test('a change sent while the link had expired is named as not saved after linking again, never dropped without a word', async () => {
+  let expired = false; const posts = [];
+  const reply = (status, body, headers = {}) => new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json', ...headers}});
+  const fetchImpl = async (url, init) => {
+    const {pathname} = new URL(url);
+    if (pathname === '/v1/web/link') { expired = false; return reply(200, {token: 't2'}); }
+    if (expired) return reply(401, {error: {code: 'unauthorized', message: 'no'}});
+    if (pathname === '/v1/web/snapshot') return reply(200, fixture, {ETag: `"${fixture.revision}"`});
+    if (pathname === '/v1/web/commands' && init.method === 'POST') { posts.push(JSON.parse(init.body)); return reply(200, {status: 'pending'}); }
+    return reply(200, {commands: [], cursor: 0, hasMore: false});
+  };
+  const storage = memory();
+  storage.setItem('rpm.web.v1', JSON.stringify({server: 'https://x.test', token: 't1'}));
+  const client = createClient({server: 'https://x.test', storage, fetchImpl});
+  await client.refresh();
+  const queue = createPlanQueue({client, storage, now: () => new Date('2026-10-19T12:00:00+05:30')});
+  const heard = []; queue.subscribe(e => heard.push(e));
+  queue.start();
+  const title = task(queue, 3).title;
+  expired = true;
+  queue.commit({type: 'saveTask', id: 3, fields: {title: 'Words I typed'}});
+  await new Promise(r => setTimeout(r, 20));
+  assert.equal(client.state.unlinked, true);
+  await client.link('ABCD');
+  await new Promise(r => setTimeout(r, 20));
+  assert.equal(posts.length, 0, 'nothing reaches the newly linked account on its own');
+  assert.deepEqual(queue.problems(), [{ids: [3], message: 'This change was not saved.'}]);
+  assert.equal(task(queue, 3).title, title);
+  assert.ok(heard.some(e => e.foreign), 'the page redraws the row from the plan');
 });

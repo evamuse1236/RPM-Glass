@@ -139,11 +139,12 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
   });
   const release = keep => event => {
     if (!drag || event.pointerId !== drag.id) return;
-    const {at} = drag;
+    const {at, from} = drag;
     drag = null;
     node.classList.remove('is-sizing');
     const next = at || null;
-    if (keep && next !== (state.minutes ?? null)) saveMinutes(next);
+    // A grip that never left its starting step saves nothing: a length past the reach starts there, cut to the reach.
+    if (keep && at !== from && next !== (state.minutes ?? null)) saveMinutes(next);
     else sized(state.minutes);
   };
   grip.addEventListener('pointerup', release(true));
@@ -224,13 +225,16 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
   const place = () => {
     if (holding || !track.clientWidth) return;
     const target = offsetOf(scale, state.time || scale.centre);
-    if (Math.abs(track.scrollLeft - target) > 0.5) track.scrollTo({left: target, behavior: 'instant'});
+    if (Math.abs(track.scrollLeft - target) <= 0.5) return;
+    touched = false; // the ruler's own scroll is not a pick: a tap left before it must not save where it lands
+    track.scrollTo({left: target, behavior: 'instant'});
   };
 
   const settle = () => {
     holding = false;
     if (!touched) return;
     touched = false;
+    if (state.off) return show(state.time);
     const stop = stopAt(scale, track.scrollLeft);
     if (stop !== state.time) save(stop);
     else show(state.time);

@@ -1,4 +1,4 @@
-import {localDay, tasks, planner, timelineItems, shiftDay} from './planner-state.mjs';
+import {localDay, tasks, planner, timelineItems, shiftDay, notesWithPurpose} from './planner-state.mjs';
 
 /** Idempotent, lossless upgrade. Legacy priority remains the storage/API ordering field. */
 export function migratePlannerUX(data) {
@@ -11,7 +11,7 @@ export function migratePlannerUX(data) {
       if (task.purpose && task.blockId) {
         task.revisions ??= [];
         task.revisions.push({reason:'Purpose retained as a note', before:{purpose:task.purpose, notes:task.notes ?? ''}});
-        task.notes = [task.notes, 'Previous task purpose: ' + task.purpose].filter(Boolean).join('\n\n');
+        task.notes = notesWithPurpose(task.notes, task.purpose);
         task.purpose = '';
       }
     }
@@ -45,6 +45,16 @@ export function dayTasks(data, day, now=Date.now()) {
   const active=unique([...timed,...dated]).filter(t=>!t.done);
   const upcoming=active.filter(t=>t.start && t.end>now).sort((a,b)=>a.start-b.start);
   return {active,completed:unique(completed),focus:day===localDay(now)?upcoming[0]??null:null};
+}
+/**
+ * Where a day's task sits on Today's timeline: its real start, or null for a task with no time that day (Any time).
+ * A timed occurrence that began the day before and runs past midnight keeps its real start, as the notch does.
+ */
+export function dayStart(task, day) {
+  const at=task.start ?? (task.planned ? Date.parse(task.occurrence ?? task.planned) : null);
+  if(at==null)return null;
+  if(localDay(at)===day)return at;
+  return task.end!=null && at<+new Date(shiftDay(day,1)+'T00:00:00') && task.end>+new Date(day+'T00:00:00') ? at : null;
 }
 export function remainingLabel(rows, duration) {
   const done=rows.filter(t=>t.done).length, active=rows.filter(t=>!t.done), unknown=active.filter(t=>t.minutes==null).length;

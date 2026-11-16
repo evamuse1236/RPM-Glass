@@ -48,29 +48,50 @@ const soundsLike=(heard,word)=>heard===word||distance(heard,word)<=Math.floor(Ma
 /** True when the bot's whole name is heard as consecutive words in one phrase ("emma test" fits Ima Test; "ima to test" and "Ima, test" do not). */
 const heardWhole=(heard,name)=>{const n=wordsOf(name);return n.length>0&&heard.some((_,i)=>n.every((w,k)=>heard[i+k]!==undefined&&soundsLike(heard[i+k],w)));};
 
+const phrasesOf=heard=>String(heard??'').split(/[,.;:!?।]+/u).map(wordsOf);
+/**
+ * Where the longer bot's name was heard as a name: its phrase and first word. A name word the model's `to` lacks
+ * counts only when heard as itself, or when the model's message does not start with the word heard for it ("Tell
+ * Ima best wishes": "best" is their message, not Ima Test).
+ */
+function heardAsName(bot,to,heard,text){
+ const n=wordsOf(bot),mine=wordsOf(to),first=wordsOf(text)[0];
+ for(const words of phrasesOf(heard))for(let at=0;at<words.length;at++){
+  if(!n.every((w,k)=>words[at+k]!==undefined&&soundsLike(words[at+k],w)))continue;
+  if(n.every((w,k)=>mine.some(x=>soundsLike(x,w))||words[at+k]===w||words[at+k]!==first))return {words,at};
+ }
+ return null;
+}
+
 /**
  * The bot a draft goes to. The model's `to` stands, unless the words heard hold a longer bot name that contains it
- * ("Emma test" heard, model said "Ima": Ima Test). Two equally long names that both fit: ask which.
+ * ("Emma test" heard, model said "Ima": Ima Test). Two equally long names that both fit: ask which. With the model's
+ * `text`, a word their message starts with is not taken for a name word it only sounds like.
  */
-export function pickBot(to,heard,bots=[]){
- const phrases=String(heard??'').split(/[,.;:!?।]+/u).map(wordsOf),fits=bots.filter(b=>phrases.some(p=>heardWhole(p,b)));
+export function pickBot(to,heard,bots=[],text){
+ const phrases=phrasesOf(heard),fits=bots.filter(b=>phrases.some(p=>heardWhole(p,b)));
  if(!fits.length)return to;
  const longest=Math.max(...fits.map(b=>wordsOf(b).length)),best=fits.filter(b=>wordsOf(b).length===longest);
  if(best.length>1)throw asked(`That fits more than one bot: ${best.join(', ')}. Ask which one.`);
  const mine=wordsOf(to);
- return wordsOf(best[0]).length>mine.length&&mine.every(w=>wordsOf(best[0]).some(x=>soundsLike(w,x)))?best[0]:to;
+ return wordsOf(best[0]).length>mine.length&&mine.every(w=>wordsOf(best[0]).some(x=>soundsLike(w,x)))&&heardAsName(best[0],to,heard,text)?best[0]:to;
 }
 
 /**
  * The draft's bot and words. When the heard name beats the model's shorter one ("Ima" + "test hello" for "Emma test
- * hello"), the name's extra words also leave the start of the message.
+ * hello"), the name's extra words also leave the start of the message, unless the message already starts with the
+ * word heard after the name ("ima test best wishes" sent as "Best wishes").
  */
 export function addressed(to,text,heard,bots=[]){
- const bot=pickBot(to,heard,bots);
+ const bot=pickBot(to,heard,bots,text);
  if(bot===to)return {to,text};
- const extra=wordsOf(bot).filter(w=>!wordsOf(to).some(x=>soundsLike(x,w)));
+ const name=wordsOf(bot),{words,at}=heardAsName(bot,to,heard,text),after=words[at+name.length];
  let rest=String(text);
- for(const w of extra){const m=rest.match(/^\s*([\p{L}\p{N}]+)[\s,.:;!?-]*/u);if(m&&soundsLike(m[1].toLowerCase(),w))rest=rest.slice(m[0].length);else break;}
+ for(const [k,w] of name.entries()){
+  if(wordsOf(to).some(x=>soundsLike(x,w)))continue;
+  const m=rest.match(/^\s*([\p{L}\p{N}]+)[\s,.:;!?-]*/u),first=m?.[1].toLowerCase();
+  if(m&&soundsLike(first,w)&&(first===words[at+k]||first!==after))rest=rest.slice(m[0].length);else break;
+ }
  rest=rest.trim();
  return {to:bot,text:rest?rest[0].toUpperCase()+rest.slice(1):String(text)};
 }
@@ -109,7 +130,12 @@ export function telegramLink({action}){
   bots:[],
   run(name,args,context){
    if(name==='send_telegram')return send(args??{},context);
-   if(name==='read_telegram')return bridge({op:'read',...(args??{})});
+   // Only the fields read_telegram declares: a model's op, to or text must never turn a read into a send.
+   if(name==='read_telegram'){
+    const read={op:'read'};
+    for(const key of ['chat','limit','waitSeconds'])if(args?.[key]!=null)read[key]=args[key];
+    return bridge(read);
+   }
    return Promise.reject(asked(`Unknown tool ${name}.`));
   },
  };

@@ -116,7 +116,7 @@ export function blockAdd(app, block) {
     input.value = '';
     refresh();
     landInPlace(node => node.matches('.plan-list > .task-row') && node.querySelector('.task-title')?.textContent === task.title.trim());
-    await app.commit({type: 'moveTask', id: task.id, blockId: block.id}, {label: 'Moved into this Block'}).catch(() => {});
+    await persist(app, {type: 'moveTask', id: task.id, blockId: block.id}, {label: 'Moved into this Block'}).catch(() => {});
     if (input.isConnected) input.focus({preventScroll: true});
   }
 

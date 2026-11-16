@@ -28,7 +28,7 @@ final class CompanionKey {
     static String[] all(Context c){List<String> out=new ArrayList<>();for(Service s:Service.values()){try{String k=get(c,s);if(k!=null)out.add(k);}catch(Exception ignored){}}return out.toArray(new String[0]);}
     /** Why {@code value} cannot be saved as a {@code s} key, or null when it can. */
     static String problem(Service s,String value){
-        if(value==null||value.length()<20||value.length()>1024||value.matches(".*\\s.*"))return "Paste the whole key, then try again.";
+        if(value==null||value.length()<20||value.length()>1024||!value.matches("[\\x21-\\x7E]+"))return "Paste the whole key, then try again.";
         if(s==Service.CLAUDE&&!value.startsWith(CLAUDE_PREFIX))return "A Claude key starts with sk-ant-. Paste it from console.anthropic.com.";
         if(s==Service.OPENROUTER&&value.startsWith(CLAUDE_PREFIX))return "That is a Claude key. Add it under Claude key instead.";
         return null;

@@ -8,7 +8,7 @@ import {DAY, checkDay, dateKey, dueAt} from './review-dates.mjs';
 import {oneOff} from './review-planning.mjs';
 export {migrateReviewData};
 export {weekStart, reviewWeek, taskDate} from './review-dates.mjs';
-export {WAKING, freeMinutes, calendarClashes, weekCapacity, placedMusts, mustPlacements, placeMusts, rankResults, clashKey, clashDecision, clashTitle, clashTask, decideClash, clashOp} from './review-planning.mjs';
+export {WAKING, freeMinutes, calendarClashes, weekCapacity, placedMusts, mustPlacements, placeMustsOp, placedLabel, rankResults, clashKey, clashDecision, clashTitle, clashTask, decideClash, clashOp} from './review-planning.mjs';
 
 export const REVIEW_STEPS = 4;
 
@@ -132,11 +132,13 @@ export function reviewSummary(data, week, now = new Date()) {
   return {week, lastWeek, results, inboxCount: inboxTasks(data).length};
 }
 
+/** The receipt each leftover choice shows; the review screen and decideLeftover both read it. */
+export const LEFTOVER_RECEIPTS = Object.freeze({carry: 'Carried into this week', defer: 'Deferred', drop: 'Dropped. It stays in Archive'});
+
 /** Carry keeps the task as it is; Defer clears a schedule that is already in the past; Drop archives (recoverable). */
 export function decideLeftover(data, taskId, choice, week) {
   editPlan(data, {type: 'reviewTask', id: taskId, choice, week: checkDay(week)});
-  if (choice === 'drop') return 'Dropped. It stays in Archive';
-  return choice === 'defer' ? 'Deferred' : 'Carried into this week';
+  return LEFTOVER_RECEIPTS[choice === 'drop' || choice === 'defer' ? choice : 'carry'];
 }
 
 export function leftoverChoice(task, week) {

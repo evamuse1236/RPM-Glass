@@ -128,7 +128,7 @@ final class NotchData {
         Set<String> completed = new HashSet<>();
         JSONArray c = e.optJSONArray("completedOccurrences");
         for (int i = 0; c != null && i < c.length(); i++) completed.add(c.optString(i));
-        int minutes = e.isNull("minutes") ? 30 : e.optInt("minutes", 30);
+        int minutes = e.isNull("minutes") ? 0 : e.optInt("minutes", 0); // no estimate: 0 long, as the planner reads it
         String block = e.isNull("blockId") ? null : blocks.get(e.optString("blockId"));
         String title = e.optString("title", e.optString("raw"));
         Integer tone = e.isNull("blockId") ? null : tones.get(e.optString("blockId"));

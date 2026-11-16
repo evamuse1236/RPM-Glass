@@ -17,6 +17,14 @@ export function wipeAppDataKeepingSync() {
   return `for f in files/*; do [ "$f" = ${SYNC_DIR} ] || rm -rf "$f"; done; rm -rf shared_prefs databases app_webview cache; mkdir -p files`;
 }
 
+/** Where `seed` pushes its store before copying it into the app. */
+export const SEED_FILE = '/data/local/tmp/rpm-seed.json';
+
+/** The whole run-as shell line `seed` runs: the wipe that keeps synced assets, then (with a file) the pushed store copied in. */
+export function seedShell({withFile, from = SEED_FILE}) {
+  return withFile ? `${wipeAppDataKeepingSync()} && cp ${from} files/companion.json` : wipeAppDataKeepingSync();
+}
+
 export function clearSynced(serial) {
   adb(serial, ['shell', `run-as ${PACKAGE} rm -rf ${SYNC_DIR}`], {allowFail: true});
 }

@@ -114,3 +114,40 @@ test('on a plain host with no Site key the link screen stays', async () => {
   await client.connect();
   assert.equal(client.state.token, null);
 });
+
+test('when the cached snapshot no longer fits in storage the page still updates and keeps the queued change', async () => {
+  const server = fakeServer(), base = memoryStorage(), limit = 60000;
+  const storage = {getItem: base.getItem, setItem: (k, v) => { if (v.length > limit) { const e = new Error('quota'); e.name = 'QuotaExceededError'; throw e; } base.setItem(k, v); }};
+  const client = createClient({server: 'http://sync.test', storage, fetchImpl: server.fetch});
+  await client.link('GOODCODE');
+  const seen = []; client.subscribe(s => seen.push(s.snapshot?.revision));
+  server.snapshot = {...server.snapshot, revision: 43, padding: 'x'.repeat(limit)};
+  await client.refresh();
+  assert.ok(seen.includes(43), 'listeners hear the new snapshot');
+  const sent = command(), entry = await client.send(sent);
+  assert.equal(entry.status, 'pending'); assert.deepEqual(server.posts, [sent]);
+  const stored = JSON.parse(storage.getItem('rpm.web.v1'));
+  assert.equal(stored.outbox[0].command.id, sent.id); assert.equal(stored.snapshot, undefined); assert.equal(stored.etag, undefined);
+  const again = createClient({server: 'http://sync.test', storage, fetchImpl: server.fetch});
+  await again.refresh();
+  assert.equal(again.state.snapshot.revision, 43);
+});
+
+test('a new change keeps every delivered change the snapshot has not reached yet; once it has, the outbox trims to the last 20', async () => {
+  const server = fakeServer(), client = createClient({server: 'http://sync.test', storage: memoryStorage(), fetchImpl: (...a) => server.fetch(...a)});
+  await client.link('GOODCODE');
+  for (let i = 0; i < 22; i++) await client.send(command());
+  server.posts.forEach(c => server.apply(c.id));
+  let release; const held = new Promise(r => { release = r; }), fetchImpl = server.fetch;
+  server.fetch = async (url, init) => { if (new URL(url).pathname === '/v1/web/snapshot') await held; return fetchImpl(url, init); };
+  const polling = client.poll();
+  while (client.state.outbox.some(e => e.status !== 'applied')) await new Promise(r => setTimeout(r, 1));
+  assert.equal(client.state.snapshot.revision, 42, 'the snapshot is still held');
+  await client.send(command());
+  assert.equal(client.state.outbox.filter(e => e.status === 'applied').length, 22, 'no applied change ahead of the snapshot is dropped');
+  release(); await polling;
+  assert.equal(client.state.snapshot.revision, 64);
+  await client.send(command());
+  assert.equal(client.state.outbox.filter(client.settled).length, 20, 'settled changes trim back to the last 20');
+  assert.equal(client.state.outbox.length, 22, 'the pending change and the new one stay');
+});

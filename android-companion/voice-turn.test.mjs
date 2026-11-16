@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {editPlan,planner,blockTasks} from './planner-state.mjs';
-import {createRamble,applyRamble,recordWords,undoRamble,MAX_RAMBLE_OPS} from './voice-turn.mjs';
+import {createRamble,applyRamble,recordWords,undoRamble,rambleUndoable,MAX_RAMBLE_OPS} from './voice-turn.mjs';
 import {TOOLS,liveSetup,planView,offsetOf} from './voice-tools.mjs';
 import {TZ,NOW,call,tools,said,heard,turnDone,day,reply,words} from './voice-turn-fixtures.mjs';
 
@@ -189,6 +189,25 @@ test('the ramble Undo refuses once the plan changed after it, so it never takes 
  assert.ok(data.entries.some(e=>e.title==='Stretch'));
 });
 
+test('a meal guess that lands after a ramble keeps its Undo, as the planner does; a later edit still blocks it', () => {
+ const {data}=day();
+ const poha=editPlan(data,{type:'saveMeal',meal:{name:'Poha',slot:'breakfast'}},NOW);
+ editPlan(data,{type:'setMealGuess',id:poha,guess:{status:'pending'},keepUndo:true},NOW);
+ const r=createRamble({data,timeZone:TZ,now:()=>NOW});
+ r.receive(heard('Add call mom'));r.stop();reply(r,tools(call('save_task',{title:'Call mom'})));r.receive(turnDone);r.receive(turnDone);
+ applyRamble(data,r.result(),words);
+ const later=structuredClone(data);
+ editPlan(data,{type:'setMealGuess',id:poha,guess:{status:'ready',kcal:300,protein:8},keepUndo:true},NOW);
+ assert.ok(rambleUndoable(data,data.intentV2.captures['m-1'].voice),'the guess kept the planner Undo, so the ramble stays undoable');
+ undoRamble(data,'m-1',NOW);
+ assert.ok(!data.entries.some(e=>e.title==='Call mom'&&!e.archived));
+ assert.equal(planner(data).body.mealGuesses[poha].status,'ready','the newer guess survives the Undo');
+ editPlan(later,{type:'setMealGuess',id:poha,guess:{status:'ready',kcal:300,protein:8},keepUndo:true},NOW);
+ editPlan(later,{type:'saveTask',fields:{title:'Typed in the planner'}},NOW);
+ assert.equal(rambleUndoable(later,later.intentV2.captures['m-1'].voice),false);
+ assert.throws(()=>undoRamble(later,'m-1',NOW),/changed the plan after/);
+});
+
 test('the Live setup carries every tool, the local offset and manual turns', () => {
  const setup=liveSetup(NOW,TZ);
  assert.deepEqual(setup.tools[0].functionDeclarations.map(f=>f.name),TOOLS.map(t=>t.name));
@@ -269,6 +288,36 @@ test('"undo that" drops the last change in this ramble, or takes back the previo
  assert.equal(data.intentV2.captures['m-1'].voice.undone,true);
  assert.match(reply(ramble(data,'undo that'),tools(call('undo_last')))[0].error,/no voice change to undo/);
  assert.match(reply(ramble(data,'undo that',false),tools(call('undo_last')))[0].error,/Use the Undo button/,'one press per ramble cannot undo a saved one');
+});
+
+test('Undo on a request that said "undo that" and added a task puts back the plan from before that request', () => {
+ const {data}=day(),live=()=>data.entries.filter(e=>!e.archived&&['Swim','Run'].includes(e.title)).map(e=>e.title);
+ const first=ramble(data,'add swim');reply(first,tools(call('save_task',{title:'Swim'})));first.receive(turnDone);first.receive(turnDone);
+ applyRamble(data,first.result(),words);
+ const second=ramble(data,'undo that and add run instead');reply(second,tools(call('undo_last'),call('save_task',{title:'Run'})));second.receive(turnDone);second.receive(turnDone);
+ assert.deepEqual(applyRamble(data,second.result(),{...words,messageId:'m-2'}),{status:'applied',undo:true});
+ assert.deepEqual(live(),['Run']);
+ undoRamble(data,'m-2',NOW);
+ assert.deepEqual(live(),['Swim'],'Undo brings back what the request took back and drops what it added');
+ assert.equal(data.intentV2.captures['m-1'].voice.undone,false);
+ undoRamble(data,'m-1',NOW);
+ assert.deepEqual(live(),[],'the first request can be undone again');
+});
+
+test('a meal estimate that lands after "undo that and add" survives undoing both requests', () => {
+ const {data}=day(),live=()=>data.entries.filter(e=>!e.archived&&['Swim','Run'].includes(e.title)).map(e=>e.title);
+ const poha=editPlan(data,{type:'saveMeal',meal:{name:'Poha',slot:'breakfast'}},NOW);
+ editPlan(data,{type:'setMealGuess',id:poha,guess:{status:'pending'},keepUndo:true},NOW);
+ const first=ramble(data,'add swim');reply(first,tools(call('save_task',{title:'Swim'})));first.receive(turnDone);first.receive(turnDone);
+ applyRamble(data,first.result(),words);
+ const second=ramble(data,'undo that and add run instead');reply(second,tools(call('undo_last'),call('save_task',{title:'Run'})));second.receive(turnDone);second.receive(turnDone);
+ applyRamble(data,second.result(),{...words,messageId:'m-2'});
+ editPlan(data,{type:'setMealGuess',id:poha,guess:{status:'ready',kcal:300,protein:8},keepUndo:true},NOW);
+ undoRamble(data,'m-2',NOW);
+ assert.equal(planner(data).body.mealGuesses[poha].status,'ready');
+ undoRamble(data,'m-1',NOW);
+ assert.deepEqual(live(),[]);
+ assert.equal(planner(data).body.mealGuesses[poha].status,'ready','the estimate is not put back to pending');
 });
 
 test('the prompt says what "it" means, ignores speech that is not a request, and asks before removing', () => {

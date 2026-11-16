@@ -110,7 +110,9 @@ export const LOCATE = function locate({role, name, css, nth, scroll, exact}) {
     if (scroll) el.scrollIntoView({block: 'center', inline: 'nearest'});
     const r = el.getBoundingClientRect();
     const [cx, cy] = [r.left + r.width / 2, r.top + r.height / 2];
-    return {match: {role: el.tagName.toLowerCase(), name: (el.getAttribute('aria-label') || el.innerText || '').trim().slice(0, 80), rect: [r.left, r.top, r.width, r.height], offScreen: cx < 0 || cy < 0 || cx >= innerWidth || cy >= innerHeight}, viewport: [innerWidth, innerHeight]};
+    const offScreen = cx < 0 || cy < 0 || cx >= innerWidth || cy >= innerHeight;
+    return {match: {role: el.tagName.toLowerCase(), name: (el.getAttribute('aria-label') || el.innerText || '').trim().slice(0, 80), rect: [r.left, r.top, r.width, r.height], offScreen,
+      coveredBy: offScreen ? null : coverOf(el, [r.left, r.top, r.width, r.height])}, viewport: [innerWidth, innerHeight]};
   }
   pool = snap.elements.filter(e => !role || e.role === role);
   const want = (name ?? '').replace(/\s+/g, ' ').trim().toLowerCase();

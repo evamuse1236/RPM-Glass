@@ -11,8 +11,9 @@ export function occurrences(e,start,end){
   // Jump near the requested window in calendar days; preserve local clock through DST.
   const from=new Date(start-minutes*60000),step=e.recurrence==='weekly'?7:1;
   const days=Math.floor((Date.UTC(from.getFullYear(),from.getMonth(),from.getDate())-Date.UTC(base.getFullYear(),base.getMonth(),base.getDate()))/86400000);
-  const d=new Date(base);d.setDate(d.getDate()+Math.max(0,Math.floor(days/step))*step);
-  for(let i=0;i<400&&+d<end;i++,d.setDate(d.getDate()+step))if(repeatsOn(e,d.getDay()))add(d);
+  // Each step counts from base, so a day whose clock time does not exist (moved to 3:30) never shifts the days after it.
+  const first=Math.max(0,Math.floor(days/step)),at=k=>{const d=new Date(base);d.setDate(base.getDate()+(first+k)*step);return d;};
+  for(let i=0,d=at(0);i<400&&+d<end;d=at(++i))if(repeatsOn(e,d.getDay()))add(d);
   return rows;
 }
 export function nextOccurrence(e,now=new Date()){

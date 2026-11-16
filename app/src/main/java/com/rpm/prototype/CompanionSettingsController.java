@@ -75,7 +75,7 @@ final class CompanionSettingsController {
             case "notch_permission":runUi(()->launch(NotchAccessibilityService.settingsIntent()));message="Opening Android accessibility settings. Turn on RPM Notch there.";break;
             case "notifications":runUi(this::openNotifications);message="Opening Android notification controls.";break;
             case "exact_alarms":runUi(()->{if(Build.VERSION.SDK_INT>=31)launch(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,Uri.parse("package:"+activity.getPackageName())));});message=Build.VERSION.SDK_INT>=31?"Opening Android exact alarm permission.":"Exact alarms are already available on this Android version.";break;
-            case "check_alerts":JSONObject data=CompanionStore.read(activity);if(data!=null)CompanionAlerts.reconcile(activity,data,true);message="Saved alert schedules checked.";notifyChanged();break;
+            case "check_alerts":CompanionAlerts.check(activity);message="Saved alert schedules checked.";notifyChanged();break;
             case "diagnostics_connect":runUi(this::diagnosticDialog);message="Enter a diagnostic pairing code.";break;
             case "diagnostics_pause":Diagnostics.pause(activity,true);message="Diagnostic capture and upload paused. An upload already in progress may finish.";break;
             case "diagnostics_resume":Diagnostics.pause(activity,false);message="Full console capture and upload resumed.";break;

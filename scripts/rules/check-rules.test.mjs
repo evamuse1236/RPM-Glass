@@ -45,6 +45,21 @@ test('raw-error-text sees renamed catch bindings, computed access, destructuring
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });
 
+test('raw-error-text sees a caught error put whole into a template, String(), toString() or its stack', () => {
+  const root = tree({'android-companion/x.mjs': [
+    "try { a(); } catch (error) { toast(`Couldn't save: ${error}`); }",
+    "try { a(); } catch (err) { toast(String(err)); }",
+    "p.catch(oops => show(oops.toString()));",
+    "try { a(); } catch (failure) { show(failure.stack); }",
+    "try { a(); } catch (error) { if (/context changed/i.test(String(error))) retry(); }",
+    "try { a(); } catch (error) { if (String(error) === 'x') retry(); }",
+    "const label = `${reason} left`; show(String(e));",
+  ].join('\n')});
+  try {
+    assert.deepEqual(check(root).map(p => p.match(/:(\d+): /)[1]), ['1', '2', '3', '4']);
+  } finally { fs.rmSync(root, {recursive: true, force: true}); }
+});
+
 test('inline-style-attribute flags a style attribute in markup, which the companion CSP drops', () => {
   const root = tree({
     'android-companion/planner/meter.mjs': "const svg = `<g class=\"level\" style=\"transform:translateY(4px)\">`;\nnode.style.setProperty('--h', '4px');\n",
@@ -54,6 +69,20 @@ test('inline-style-attribute flags a style attribute in markup, which the compan
     const problems = check(root);
     assert.equal(problems.length, 1);
     assert.match(problems[0], /^rule inline-style-attribute: android-companion\/planner\/meter\.mjs:1: .*setProperty/);
+  } finally { fs.rmSync(root, {recursive: true, force: true}); }
+});
+
+test('inline-style-attribute also flags setAttribute(\'style\') and a style= that starts a line, but not node.style or a <style> element', () => {
+  const root = tree({
+    'android-companion/planner/paint.mjs': "export const a = node => node.setAttribute('style', 'color:red');\nexport const b = () => `<div\nstyle=\"color:red\"></div>`;\nnode.style.setProperty('--h', '4px');\nnode.style.color = 'red';\n",
+    'android-companion/planner.html': '<style>body{margin:0}</style>\n<div id="dock"></div>\n',
+  });
+  try {
+    const problems = check(root);
+    assert.deepEqual(problems.map(p => p.match(/^rule (\S+): (\S+:\d+):/)?.slice(1).join(' ')), [
+      'inline-style-attribute android-companion/planner/paint.mjs:1',
+      'inline-style-attribute android-companion/planner/paint.mjs:3',
+    ]);
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });
 

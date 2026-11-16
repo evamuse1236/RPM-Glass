@@ -1,11 +1,14 @@
 /** Field checks shared by every planner op: each throws the words the user sees. */
 import {capitalizeTitle} from '../cli/title.mjs';
+/** The longest notes a Block, Project, Area or Goal keeps; a sync conflict note stays within it too. */
+export const ENTITY_NOTES_MAX = 8000;
 export const text = (v, max = 2000) => {
   if (typeof v !== 'string' || v.length > max) throw new Error('Text is too long or invalid.');
   return v.trim();
 };
+/** A title is one line of words: a pasted line break (and the spaces around it) becomes one space. */
 export const title = v => {
-  const s = text(v, 200);
+  const s = text(v, 200).replace(/\s*[\r\n]+\s*/g, ' ');
   if (!s) throw new Error('Add a title.');
   return capitalizeTitle(s);
 };

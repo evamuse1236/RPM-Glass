@@ -97,6 +97,12 @@ function saveRoutineRun(next, op) {
   const steps = new Set(routine.steps.map(s => s.id));
   const marks = {};
   for (const [stepId, mark] of Object.entries(given.marks ?? {})) {
+    // A step removed after it was marked today keeps its stored mark unchanged, so later ticks still save.
+    const kept = run?.marks?.[stepId];
+    if (!steps.has(stepId) && kept && mark?.state === kept.state && mark?.at === kept.at) {
+      marks[stepId] = kept;
+      continue;
+    }
     if (!steps.has(stepId) || !STATES.includes(mark?.state)) throw new Error('That step changed. Close and reopen the routine.');
     marks[stepId] = {state: mark.state, at: instant(mark.at)};
   }

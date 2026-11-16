@@ -29,7 +29,7 @@ function waterSettings(o) {
 
 function parseBody(data) {
   const body = data?.planner?.body;
-  if (!body || typeof body !== 'object') return {present: false, glasses: [], water: WATER_SETTINGS(), waterSnoozedUntil: 0, routines: [], runs: new Map(), meals: []};
+  if (!body || typeof body !== 'object') return {present: false, glasses: [], water: WATER_SETTINGS(), waterSnoozedUntil: 0, routines: [], runs: new Map(), meals: [], mealPlan: mealPlan(null)};
   const water = body.water ?? {};
   const routines = (body.routines ?? []).filter(r => r && !r.archived && minutesOf(r.start) >= 0 && minutesOf(r.end) >= 0)
     .map(r => ({id: String(r.id ?? ''), name: String(r.name ?? ''), start: minutesOf(r.start), end: minutesOf(r.end),
@@ -38,7 +38,17 @@ function parseBody(data) {
     {marks: new Map(Object.entries(r.marks ?? {}).filter(([, m]) => m && typeof m === 'object').map(([k, m]) => [k, m.state])), skippedDay: !!r.skippedDay}]));
   return {present: true, glasses: (water.glasses ?? []).map(time).filter(Boolean), water: waterSettings(water.settings),
     waterSnoozedUntil: time(water.snoozedUntil), routines, runs,
-    meals: (body.meals ?? []).map(m => ({slot: String(m?.slot ?? ''), at: time(m?.at)})).filter(m => m.at)};
+    meals: (body.meals ?? []).map(m => ({slot: String(m?.slot ?? ''), at: time(m?.at)})).filter(m => m.at),
+    mealPlan: mealPlan(body.mealPlan)};
+}
+
+const MEAL_ORDER = ['breakfast', 'lunch', 'snack', 'dinner'];
+
+function mealPlan(plan) {
+  const slots = Array.isArray(plan?.slots) ? plan.slots : null;
+  if (!slots) return [{slot: 'breakfast', at: 8 * 60 + 30, on: true}, {slot: 'lunch', at: 13 * 60, on: true}, {slot: 'dinner', at: 20 * 60, on: true}];
+  return slots.filter(s => s && typeof s === 'object' && MEAL_ORDER.includes(s.slot) && minutesOf(s.at) >= 0)
+    .map(s => ({slot: s.slot, at: minutesOf(s.at), on: s.on !== false})).sort((a, b) => a.at - b.at);
 }
 
 const ALERTS = ['alarm', 'reminder'];
@@ -49,7 +59,7 @@ function parseTask(e, blocks) {
   const planned = time(e.planned);
   if (!planned) return null;
   return {id: Number(e.id) || 0, title: String(e.title ?? e.raw ?? ''), block: e.blockId == null ? null : blocks.get(String(e.blockId)) ?? null,
-    planned, minutes: e.minutes == null || !Number.isFinite(Number(e.minutes)) ? 30 : Math.trunc(Number(e.minutes)), recurrence: e.recurrence ?? '', repeatDays: e.repeatDays ?? [],
+    planned, minutes: e.minutes == null || !Number.isFinite(Number(e.minutes)) ? 0 : Math.trunc(Number(e.minutes)), recurrence: e.recurrence ?? '', repeatDays: e.repeatDays ?? [],
     completed: new Set(e.completedOccurrences ?? []), fixed: false, alert: alertType(e), purpose: String(e.purpose ?? '').trim()};
 }
 
@@ -68,7 +78,8 @@ export function parseNotchData(data, events) {
 
 function candidates(task, now) {
   const r = task.recurrence, base = new Date(task.planned);
-  if (!['daily', 'weekly', 'weekdays', 'days'].includes(r)) return [task.planned];
+  // A 'days' repeat with no days is one-time, as Repeats.key gives "" and planner-recurrence repeats() is false.
+  if (!['daily', 'weekly', 'weekdays', 'days'].includes(r) || r === 'days' && !task.repeatDays?.length) return [task.planned];
   const out = [], today = dayStart(now);
   for (let back = 1; back >= 0; back--) {
     const d = new Date(today); d.setDate(d.getDate() - back);
@@ -97,13 +108,13 @@ export function hero(slots, now) {
   return slots.find(s => running(s, now) && !s.task.fixed) ?? slots.find(s => s.end > now) ?? null;
 }
 
-export function after(slots, heroSlot, n) {
+export function after(slots, heroSlot, now, n) {
   if (!heroSlot) return [];
   const out = [];
   let past = false;
   for (const s of slots) {
     if (s === heroSlot) past = true;
-    else if (past && s.start >= heroSlot.start && out.length < n) out.push(s);
+    else if (past && s.start >= heroSlot.start && s.end > now && out.length < n) out.push(s);
   }
   return out;
 }
@@ -136,7 +147,7 @@ export function waterStatus(glasses, s, busy, snoozedUntil, now) {
   const last = Math.max(0, ...todays);
   const start = atMinutes(dayStart(now), minutesOf(s.from)), end = atMinutes(dayStart(now), minutesOf(s.until));
   const paused = busy.some(b => b.start <= now && now < b.end);
-  if (todays.length >= s.goal || !s.reminders) return {count: todays.length, goal: s.goal, nextAt: 0, pending: false};
+  if (todays.length >= s.goal) return {count: todays.length, goal: s.goal, nextAt: 0, pending: false};
   let next = last ? last + s.intervalMinutes * MIN : start;
   if (next < start) next = start;
   if (snoozedUntil > next) next = snoozedUntil;
@@ -171,14 +182,17 @@ export function routines(body, now) {
 
 export const routineDue = (status, now) => status.state === 'running' && status.open > 0 && status.start <= now;
 
-export function mealSlot(at) {
-  const d = new Date(at), m = d.getHours() * 60 + d.getMinutes();
-  return m >= 240 && m < 660 ? 'breakfast' : m >= 660 && m < 930 ? 'lunch' : m >= 930 && m < 1140 ? 'snack' : 'dinner';
-}
-
-export function unloggedMeal(meals, now) {
-  const day = localDay(now), slot = mealSlot(now);
-  return meals.some(m => localDay(m.at) === day && m.slot === slot) ? null : slot;
+/** NotchHabits.unloggedMeal: an on slot of the meal plan in its two hours and not logged today; the earliest start wins. */
+export function unloggedMeal(body, now) {
+  const day = localDay(now);
+  let selected = null, earliest = Infinity;
+  for (const slot of body.mealPlan) {
+    const start = atMinutes(dayStart(now), slot.at);
+    if (!slot.on || now < start || now >= start + 120 * MIN) continue;
+    if (body.meals.some(m => m.slot === slot.slot && localDay(m.at) === day)) continue;
+    if (start < earliest || (start === earliest && MEAL_ORDER.indexOf(slot.slot) < MEAL_ORDER.indexOf(selected))) { selected = slot.slot; earliest = start; }
+  }
+  return selected;
 }
 
 export const slotName = slot => slot ? slot[0].toUpperCase() + slot.slice(1) : slot;

@@ -27,6 +27,15 @@ test('the Capture button is a round 60dp button in the dock beside the tab bar, 
   assert.match(shell, /iconButton\('search', 'Search'/, 'Search is a top-bar button');
 });
 
+test('the docs say what the Capture button does: a tap goes back to Capture, a 400ms hold adds', () => {
+  for (const doc of ['../AGENTS.md', '../DESIGN.md', '../docs/voice-mode.md']) {
+    const text = read(doc);
+    assert.doesNotMatch(text, /hold 400ms for Capture|Add opens Capture instead|the tap still adds|Add hold/, `${doc} must not say a hold opens Capture`);
+  }
+  assert.match(read('../AGENTS.md'), /tap goes back to Capture and a 400ms hold adds/);
+  assert.match(read('../DESIGN.md'), /A tap on it goes back to Capture/);
+});
+
 test('the habit circle is 48dp glass 12dp above Add; the page and the snackbar keep clear of it', () => {
   const css = plannerCss();
   const dock = rule(css, '#dock');

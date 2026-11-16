@@ -1,7 +1,7 @@
 /** Read-only calendar: the day's copy, the calendar chooser, event details and clash choices; plus the date picker. */
 import {localDay, tasks, conflicts, blockDue} from '../planner-state.mjs';
 import {repeats} from '../planner-recurrence.mjs';
-import {calendarLabel, calendarRows} from '../planner-calendar.mjs';
+import {calendarLabel, calendarRows, speaksForNow} from '../planner-calendar.mjs';
 import {el, icon, button, labelButton} from './dom.mjs';
 import {clock, relativeDay, timeRange} from './format.mjs';
 import {openSheet, field, checkbox} from './sheet.mjs';
@@ -27,11 +27,26 @@ export async function refreshCalendar(app) {
     const changed = JSON.stringify(state.calendar) !== JSON.stringify(next) || state.calendarState !== label;
     state.calendar = next;
     state.calendarState = label;
-    if (changed) redraw();
+    // Water pauses for a busy event now, like the notch: keep a copy whose window holds now, whatever day is open.
+    const now = speaksForNow(value) ? next : await nowRows(app);
+    if (!stillHere()) return;
+    const nowChanged = now !== undefined && JSON.stringify(state.nowCalendar) !== JSON.stringify(now);
+    if (now !== undefined) state.nowCalendar = now;
+    if (changed || nowChanged) redraw();
   } catch {
     const changed = state.calendarState !== 'Unavailable';
     state.calendarState = 'Unavailable';
     if (changed) redraw();
+  }
+}
+
+/** The calendar rows of a read anchored to now, or undefined when that read fails (the last copy stays). */
+async function nowRows(app) {
+  try {
+    const value = await app.api.native('calendarRead', {anchor: Date.now()});
+    return speaksForNow(value) ? calendarRows(value) : undefined;
+  } catch {
+    return undefined;
   }
 }
 

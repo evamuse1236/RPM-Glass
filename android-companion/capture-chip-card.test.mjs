@@ -13,7 +13,7 @@ const choices={blocks:[{id:'b1',title:'Family',subtitle:'Health'}],projects:[],g
 
 /** One receipt card wired the way capture-app wires it: every refresh rebuilds the card from the capture. */
 function harness(lines,{result=()=>({ok:true}),edits=[]}={}){
- const capture={draft:{id:'d1',conversationId:'c1',lines,edits}};
+ const capture={draft:{id:'d1',conversationId:'c1',revision:3,lines,edits}};
  const sent=[];
  let resolve;
  const act=payload=>{sent.push(payload);return new Promise(r=>{resolve=()=>r(result(payload));});};
@@ -75,7 +75,7 @@ test('a pick saves at once through edit-item, shows the new value while saving, 
  h.chip('time').click();
  const pick=[...h.tray().querySelectorAll('.tray-pick')].find(b=>/^7\sPM$/.test(b.textContent));
  pick.click();
- assert.deepEqual({...h.sent[0],label:undefined},{kind:'edit-item',conversationId:'c1',draftId:'d1',entity:'task',id:'1',field:'time',value:`${today} 19:00`,label:undefined});
+ assert.deepEqual({...h.sent[0],label:undefined},{kind:'edit-item',conversationId:'c1',draftId:'d1',revision:3,entity:'task',id:'1',field:'time',value:`${today} 19:00`,label:undefined});
  assert.match(h.sent[0].label,/^Time set to 7\sPM$/);
  assert.ok(h.chip('time').classList.contains('saving'));
  assert.match(label(h.chip('time')),/^7\sPM$/);

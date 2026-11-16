@@ -22,7 +22,7 @@ test('Glass from the notch logs one glass with the planner op, says the saved co
   const result = runNotchRequest(d, {action: 'drink'}, at('10:00'));
   assert.deepEqual([result.kind, result.count, result.goal], ['water', 1, 8]);
   assert.equal(d.planner.body.water.glasses.length, 1);
-  assert.equal(result.token, d.planner.events.at(-1).id);
+  assert.equal(result.token, d.planner.undo.id);
   assert.deepEqual(runNotchRequest(d, {action: 'undo', token: result.token}, at('10:00')), {kind: 'undo'});
   assert.equal(d.planner.body?.water.glasses.length ?? 0, 0);
 });
@@ -34,6 +34,17 @@ test('Undo from the notch refuses once anything else changed the plan, so it nev
   assert.throws(() => runNotchRequest(d, {action: 'undo', token}, at('10:02')), /changed again in the plan/);
   assert.equal(d.planner.body.water.glasses.length, 1);
   assert.throws(() => runNotchRequest(d, {action: 'undo'}, at('10:02')), /changed again/);
+});
+
+test('a meal estimate landing after a notch Glass keeps the notch Undo, because it kept the plan\'s Undo', () => {
+  const {d} = store();
+  const lunch = editPlan(d, {type: 'saveMeal', meal: {name: 'Dal rice', slot: 'lunch'}}, at('13:00'));
+  editPlan(d, {type: 'setMealGuess', id: lunch, guess: {status: 'pending'}, keepUndo: true}, at('13:00'));
+  const {token} = runNotchRequest(d, {action: 'drink'}, at('13:01'));
+  editPlan(d, {type: 'setMealGuess', id: lunch, guess: {status: 'ready', kcal: 450, protein: 14}, keepUndo: true}, at('13:01'));
+  assert.deepEqual(runNotchRequest(d, {action: 'undo', token}, at('13:01')), {kind: 'undo'});
+  assert.equal(d.planner.body.water.glasses.length, 0);
+  assert.equal(d.planner.body.mealGuesses[lunch].status, 'ready');
 });
 
 test('Done from the notch ticks a one-off task, and a repeating task only at the occurrence the island showed', () => {
@@ -48,7 +59,7 @@ test('Done from the notch ticks a one-off task, and a repeating task only at the
   assert.equal(w.done, false);
   assert.deepEqual(w.completedOccurrences, [at('15:30').toISOString()]);
   assert.throws(() => runNotchRequest(d, {action: 'done', id: weekly, start: +at('15:31')}, at('15:41')), /Already done or changed/);
-  runNotchRequest(d, {action: 'undo', token: d.planner.events.at(-1).id}, at('15:42'));
+  runNotchRequest(d, {action: 'undo', token: d.planner.undo.id}, at('15:42'));
   assert.deepEqual(entry(d, weekly).completedOccurrences, []);
 });
 
@@ -68,7 +79,7 @@ test('an alert changes from the notch with the planner op; Undo restores the typ
   assert.equal(entry(d, once).alertIntent.type, 'alarm');
   runNotchRequest(d, {action: 'alert', id: once, type: 'off'}, at('10:01'));
   assert.equal(entry(d, once).alertIntent.type, 'off');
-  runNotchRequest(d, {action: 'undo', token: d.planner.events.at(-1).id}, at('10:02'));
+  runNotchRequest(d, {action: 'undo', token: d.planner.undo.id}, at('10:02'));
   assert.equal(entry(d, once).alertIntent.type, 'alarm');
   assert.throws(() => runNotchRequest(d, {action: 'alert', id: once, type: 'loud'}, at('10:03')), /Choose Reminder/);
   assert.throws(() => runNotchRequest(d, {action: 'open'}, at('10:03')), /cannot do/);

@@ -6,7 +6,7 @@ import {reorderTask} from '../planner-ux.mjs';
 import {attachRowGestures} from './row-gestures.mjs';
 import {reducedMotion, waitMotion} from '../surface-motion.mjs';
 import {el, icon, button} from './dom.mjs';
-import {commitInPlace} from './inline-edit.mjs';
+import {commitInPlace, persist} from './inline-edit.mjs';
 import {shortClock, duration, dayName} from './format.mjs';
 import {repeatLabel} from './task-values.mjs';
 export {dayName};
@@ -323,10 +323,16 @@ function markRow(app, task, done) {
  * collapses where it is (250ms, its words fading with its space) while Completed opens and whatever the tick changed
  * (a lead card, Coming up, the free time) fades through in the same 250ms, so it is all still by about 550ms and
  * nothing moves after. Undo reopens it in place. A row swiped off its edge (`carried`) has shown "Done" already: it
- * collapses as soon as the save lands. Resolves true once saved.
+ * collapses as soon as the save lands. Resolves true once saved. A tick while another save runs waits for it; a
+ * second tick on the same task while its first is still waiting or saving is ignored, so a double tap never undoes it.
  */
+const ticking = new WeakMap();
+
 export async function toggleDone(app, task, when, {carried = false, keepSheet = false} = {}) {
-  if (app.saving) return false;
+  if (!ticking.has(app)) ticking.set(app, new Set());
+  const busy = ticking.get(app);
+  if (busy.has(task.id)) return false;
+  busy.add(task.id);
   const completing = !task.done;
   const op = completionOp(task, when);
   const linger = completing && !repeats(task);
@@ -337,7 +343,7 @@ export async function toggleDone(app, task, when, {carried = false, keepSheet = 
   // From the list, the page waits for the collapse; from a sheet, the page behind it updates under the scrim as usual.
   const fromList = linger && app.dom.sheet.hidden;
   try {
-    await app.commit(op, {label: completing ? 'Task completed' : 'Task marked incomplete', keepSheet,
+    await persist(app, op, {label: completing ? 'Task completed' : 'Task marked incomplete', keepSheet,
       render: !fromList});
     if (linger) {
       collapse.then(() => {
@@ -356,6 +362,8 @@ export async function toggleDone(app, task, when, {carried = false, keepSheet = 
     if (linger) app.recentlyCompleted.delete(task.id);
     if (linger && !carried) markRow(app, task, false);
     return false;
+  } finally {
+    busy.delete(task.id);
   }
 }
 

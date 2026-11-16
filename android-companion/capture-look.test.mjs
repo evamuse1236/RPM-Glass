@@ -42,3 +42,22 @@ test('Capture never darkens what is behind it: no window dim and a clear More sc
   assert.doesNotMatch(host, /setDimAmount|addFlags\(WindowManager\.LayoutParams\.FLAG_DIM_BEHIND/);
   assert.match(block(read('capture.css'), '.scrim'), /background:transparent/);
 });
+
+test('every hop to the UI thread that touches the WebView skips it once the activity is closing', () => {
+  const host = read('../app/src/main/java/com/rpm/prototype/CompanionActivity.java');
+  const hops = [];
+  for (let at = host.indexOf('runOnUiThread('); at >= 0; at = host.indexOf('runOnUiThread(', at + 1)) {
+    let depth = 0, end = at + 'runOnUiThread'.length;
+    for (; end < host.length; end++) {
+      if (host[end] === '(') depth++;
+      else if (host[end] === ')' && --depth === 0) break;
+    }
+    hops.push(host.slice(at, end + 1));
+  }
+  const usesWeb = hops.filter(hop => /\bweb\./.test(hop));
+  assert.ok(usesWeb.some(hop => hop.includes('performHapticFeedback')), 'the haptic hop is found');
+  assert.ok(usesWeb.some(hop => hop.includes('showSoftInput')), 'the keyboard hop is found');
+  for (const hop of usesWeb) {
+    assert.match(hop, /^runOnUiThread\(\(\)->\{if\((?:closing\|\|web==null\)return;|!closing&&web!=null\))/, `unguarded UI hop: ${hop.slice(0, 120)}`);
+  }
+});

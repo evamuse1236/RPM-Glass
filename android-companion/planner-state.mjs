@@ -3,16 +3,23 @@ export {assertPlanOp,validatePlanner};
 import {nextTaskId} from './task-ids.mjs';
 import {newId} from './new-id.mjs';
 import {occurrences,completeTask,repeats} from './planner-recurrence.mjs';
-import {text,title,integer,weekdays,one,link} from './planner-fields.mjs';
-import {REVIEW_VERSION,REVIEW_OPS,migrateReviewData,forgetBlockInWeeks,keepCompletionTime} from './planner-review-data.mjs';
+import {text,title,integer,weekdays,one,link,ENTITY_NOTES_MAX} from './planner-fields.mjs';
+import {REVIEW_VERSION,REVIEW_OPS,groupMovesNothing,migrateReviewData,forgetBlockInWeeks,keepCompletionTime} from './planner-review-data.mjs';
 import {BODY_OPS} from './body-store.mjs';
+import {UNDO_CHANGED_MESSAGE,undoImages} from './undo-rebase.mjs';
+import snapshotSchema from '../web/contract/snapshot.schema.json' with {type:'json'};
 
 export {REVIEW_VERSION,migrateReviewData};
 
+// A purpose moved into notes never pushes them past the sync schema's limit, or the server refuses the record and sync stalls; the revision keeps the purpose.
+const notesLimit=Math.min(...['entry','storeEntity'].map(def=>snapshotSchema.$defs[def].properties.notes.maxLength));
+export const notesWithPurpose=(notes,purpose)=>{const joined=[notes,'Previous task purpose: '+purpose].filter(Boolean).join('\n\n');return joined.length>notesLimit?notes??'':joined;};
 export const freshPlanner=()=>({schema:1,projects:[],blocks:[],areas:[],goals:[],events:[],drafts:[],context:{vision:'',goals:'',approved:false},undo:null,reviewVersion:REVIEW_VERSION,weeks:{},reviews:{}});
 export function planner(data){return data.planner??freshPlanner();}
 export const tasks=data=>data.entries.filter(e=>!e.archived&&(e.kind??'plan')==='plan');
 export const blockTasks=(data,id)=>tasks(data).filter(e=>(e.blockId??null)===(id??null)).sort((a,b)=>(a.priority??Infinity)-(b.priority??Infinity)||a.id-b.id);
+/** The last priority in the Inbox (ignoring task skipId), so tasks a removed Block sends there follow its own order without renumbering it. */
+const inboxEnd=(data,skipId)=>{const rows=blockTasks(data,null).filter(t=>t.id!==skipId);return Math.max(rows.length,...rows.map(t=>Number.isFinite(t.priority)?t.priority:0));};
 /** The Inbox page's rows: open tasks with no Block. Every Inbox count reads this, so they all match the page. */
 export const inboxRows=data=>blockTasks(data,null).filter(t=>!t.done);
 /** Blocks in one run per Project, Projects in first-seen order, Blocks keeping their order within it. */
@@ -21,14 +28,44 @@ export const byProject=blocks=>{const rank=new Map();for(const b of blocks){cons
 export function blockDue(data,id){let best=null;for(const t of blockTasks(data,id)){if(t.done||t.recurrence||t.repeatAfterDays)continue;const value=t.planned?localStamp(t.planned):t.plannedDate;if(!value)continue;const at=Date.parse(value.length===10?value+'T23:59':value);if(!best||at>best.at)best={at,value,task:t};}return best&&{value:best.value,task:best.task};}
 export const localStamp=iso=>{const d=new Date(iso);return localDay(d)+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
 export function totals(rows){return {all:rows.filter(e=>!e.done).reduce((s,e)=>s+(e.minutes??0),0),must:rows.filter(e=>e.must&&!e.done).reduce((s,e)=>s+(e.minutes??0),0),unknown:rows.filter(e=>!e.done&&e.minutes==null).length};}
-const snap=data=>({entries:structuredClone(data.entries),planner:structuredClone({...planner(data),undo:null})});
+// Each Undo carries its own id, so an Undo offered for one change never takes back a later one. It is random, not
+// newId(): new records' ids are replayed in order across devices and must not shift.
+const snap=data=>({id:globalThis.crypto.randomUUID(),entries:structuredClone(data.entries),planner:structuredClone({...planner(data),undo:null})});
+
+// A keepUndo meal guess also lands in every kept Undo image (the planner's and each level of Capture's) that holds
+// that meal, so undoing a change made while the guess ran keeps the newer guess instead of bringing back 'pending'
+// (nothing asks again for a pending guess). Returns {plannerUndo, undo}: copies when patched, the originals otherwise.
+function keptUndo(data,ops,at){
+  let kept={planner:{undo:data.planner?.undo??null},undo:data.undo??null};
+  if(!ops.some(op=>op.type==='setMealGuess'))return {plannerUndo:kept.planner.undo,undo:kept.undo};
+  kept=structuredClone(kept);
+  // A voice "undo that and add" Undo keeps the earlier request's image inside its own; that one is patched too.
+  const nested=kept.planner.undo?.planner?.undo;
+  for(const op of ops)for(const {image} of [...undoImages(kept),...(nested?[{image:nested}]:[])]){
+    const meal=op.type==='setMealGuess'&&image?.planner?.body?.meals?.find(m=>m.id===op.id);
+    if(!meal||meal.state==='skipped')continue;
+    BODY_OPS.setMealGuess({entries:image.entries,planner:image.planner},op,at);
+  }
+  return {plannerUndo:kept.planner.undo,undo:kept.undo};
+}
 
 /** Validate on a copy, commit once, keep a single complete undo plus compact receipts. */
+// A series edit keeps the ticks of occurrences that still exist; a clock-only change moves each tick (and its completion) to the new clock.
+function keepTicks(e,old){
+  if(!repeats(e)||e.repeatAfterDays||!e.completedOccurrences?.length){e.completedOccurrences=[];return;}
+  const was=new Date(old.planned),now=new Date(e.planned),sameDay=Number.isFinite(+was)&&was.toDateString()===now.toDateString();
+  const move=k=>{if(!sameDay)return k;const d=new Date(k);d.setHours(now.getHours(),now.getMinutes(),0,0);return d.toISOString();};
+  const open={...e,completedOccurrences:[]},moved=new Map();
+  for(const k of e.completedOccurrences){const n=move(k);if(occurrences(open,Date.parse(n),Date.parse(n)+1).some(r=>r.occurrence===n))moved.set(k,n);}
+  e.completedOccurrences=[...new Set(moved.values())].slice(-512);
+  if(e.completions)e.completions=e.completions.map(c=>moved.has(c.occurrence)?{...c,occurrence:moved.get(c.occurrence)}:c);
+}
 export function editPlan(data,op,now=new Date()){
   assertPlanOp(op);
   const next=structuredClone(data);next.planner??=freshPlanner();migrateReviewData(next);const p=next.planner,before=snap(data),at=now.toISOString();let result;
   if(op.type==='undo'){
     if(!p.undo)throw new Error(data.undoMessage ?? 'No planning change to undo.');
+    if(op.undoId!=null&&p.undo.id!==op.undoId)throw new Error(UNDO_CHANGED_MESSAGE);
     const restored=p.undo;next.entries=restored.entries;next.planner=restored.planner;next.planner.undo=null;next.undo=null;
     // Review progress is where the user is in the flow, not a plan change: Undo never rewinds it.
     migrateReviewData(next);next.planner.reviews=p.reviews;
@@ -38,21 +75,26 @@ export function editPlan(data,op,now=new Date()){
     if(!Array.isArray(op.ops)||!op.ops.length||op.ops.length>60||op.ops.some(child=>['undo','batch','reviewProgress'].includes(child.type)))throw new Error('Invalid planning batch.');
     for(const child of op.ops)result=editPlan(next,child,now);
     // Child edits replace the planner; retain their events and the single pre-batch Undo.
-    next.planner.undo=op.keepUndo?data.planner?.undo??null:before;
+    const kept=op.keepUndo&&keptUndo(data,op.ops,at);
+    next.planner.undo=op.keepUndo?kept.plannerUndo:before;
+    // A keepUndo batch leaves Capture's pending Undo too; the child edits cleared it on the copy.
+    if(op.keepUndo)next.undo=kept.undo;
     if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
     Object.assign(data,next);return result;
   }
+  if(groupMovesNothing(next,op))return op.blockId??null;
   if(op.type==='reviewProgress'){
     result=REVIEW_OPS.reviewProgress(next,op,at);validatePlanner(next);Object.assign(data,next);return result;
   }
   if(op.type==='rateAreas'){
+    if(!op.ratings?.length)throw new Error('Choose a rating first.');
     for(const rating of op.ratings){const a=one(p.areas,rating.id);if(typeof rating.rating!=='number'||rating.rating<0||rating.rating>10||rating.rating*2%1)throw new Error('Choose a whole or half-step rating.');a.rating=rating.rating;}
   }else if(op.type==='archiveBlock'){
     one(p.blocks,op.id).archived=op.archived!==false;result=op.id;
   }else if(op.type==='saveEntity'){
     if(!['projects','blocks','areas','goals'].includes(op.collection))throw new Error('Unknown planning group.');
     let r=op.id?one(p[op.collection],op.id):{id:newId(),created:at};
-    r.title=title(op.fields.title);r.purpose=text(op.fields.purpose??'');r.notes=text(op.fields.notes??'',8000);
+    r.title=title(op.fields.title);r.purpose=text(op.fields.purpose??'');r.notes=text(op.fields.notes??'',ENTITY_NOTES_MAX);
     if(op.collection==='blocks')r.projectId=link(p.projects,op.fields.projectId);
     if(op.collection==='projects')r.goalId=link(p.goals,op.fields.goalId);
     if(op.collection==='areas')r.colorIndex??=p.areas.length%8;
@@ -62,7 +104,8 @@ export function editPlan(data,op,now=new Date()){
   }else if(op.type==='removeEntity'){
     if(!['projects','blocks','areas','goals'].includes(op.collection))throw new Error('Unknown planning group.');one(p[op.collection],op.id);
     p[op.collection]=p[op.collection].filter(x=>x.id!==op.id);
-    if(op.collection==='blocks'){for(const e of next.entries)if(e.blockId===op.id)e.blockId=null;forgetBlockInWeeks(p,op.id);}
+    if(op.collection==='blocks'){// Its tasks join the end of the Inbox in their Block order (archived ones after them), so the Inbox keeps its own order.
+    const after=inboxEnd(next),open=blockTasks(next,op.id),archived=next.entries.filter(e=>e.archived&&e.blockId===op.id&&(e.kind??'plan')==='plan');[...open,...archived].forEach((t,i)=>{t.priority=after+i+1;});for(const e of next.entries)if(e.blockId===op.id)e.blockId=null;forgetBlockInWeeks(p,op.id);}
     if(op.collection==='projects')for(const b of p.blocks)if(b.projectId===op.id)b.projectId=null;
     if(op.collection==='areas')for(const g of p.goals)if(g.areaId===op.id)g.areaId=null;
     if(op.collection==='goals')for(const pr of p.projects)if(pr.goalId===op.id)pr.goalId=null;
@@ -87,7 +130,7 @@ export function editPlan(data,op,now=new Date()){
     if('repeatAfterDays'in f)e.repeatAfterDays=f.repeatAfterDays==null?null:integer(f.repeatAfterDays,1,365);
     if(e.repeatAfterDays&&e.recurrence)throw new Error('Choose one repeat pattern.');
     if((e.recurrence||e.repeatAfterDays)&&!e.planned)throw new Error('Add the first date and time for a repeating task.');
-    if('planned'in f&&f.planned!==old.planned||'recurrence'in f&&f.recurrence!==old.recurrence||String(e.repeatDays??'')!==String(old.repeatDays??''))e.completedOccurrences=[];
+    if('planned'in f&&f.planned!==old.planned||'recurrence'in f&&f.recurrence!==old.recurrence||String(e.repeatDays??'')!==String(old.repeatDays??''))keepTicks(e,old);
     if(f.done===true){e.done=false;e.state='active';completeTask(e,op.occurrence,now);keepCompletionTime(e,old,at);}
     e.revisions.push({at,reason:'Edited in planner',before:old,snapshot:{title:e.title,planned:e.planned,minutes:e.minutes,blockId:e.blockId,must:e.must,done:e.done}});
     e.revisions=e.revisions.slice(-100);
@@ -96,10 +139,10 @@ export function editPlan(data,op,now=new Date()){
     if(!op.id||oldBlock!==newBlock||'priority'in f){const rows=blockTasks(next,newBlock).filter(t=>t.id!==e.id),index='priority'in f?Math.min(rows.length,f.priority-1):rows.length;rows.splice(index,0,e);rows.forEach((t,i)=>{t.priority=i+1;});if(oldBlock!==newBlock)blockTasks(next,oldBlock).forEach((t,i)=>{t.priority=i+1;});}
     result=e.id;
   }else if(op.type==='reopenTask'){
-    const e=one(tasks(next),op.id),occurrence=op.occurrence??e.completions?.at(-1)?.occurrence;if(occurrence){const hit=(e.completions??[]).find(c=>c.occurrence===occurrence);if(!hit)throw new Error('That completion no longer exists.');if(e.repeatAfterDays)e.planned=occurrence;e.completedOccurrences=(e.completedOccurrences??[]).filter(k=>k!==occurrence);e.completions=e.completions.filter(c=>c!==hit);}e.done=false;e.state='active';if(!repeats(e))e.completedAt=null;result=e.id;
+    const e=one(tasks(next),op.id),occurrence=op.occurrence??(repeats(e)?e.completions?.at(-1)?.occurrence:undefined);if(occurrence){const hit=(e.completions??[]).find(c=>c.occurrence===occurrence);if(!hit)throw new Error('That completion no longer exists.');if(e.repeatAfterDays)e.planned=occurrence;e.completedOccurrences=(e.completedOccurrences??[]).filter(k=>k!==occurrence);e.completions=e.completions.filter(c=>c!==hit);}e.done=false;e.state='active';if(!repeats(e))e.completedAt=null;result=e.id;
   }else if(op.type==='archiveTask'||op.type==='restoreTask'){
     const e=one(next.entries,op.id);if((e.kind??'plan')!=='plan')throw new Error('Choose a task.');
-    e.archived=op.type==='archiveTask';e.archiveDisposition=e.archived?(op.disposition==='archive'?'archive':'trash'):null;if(e.blockId&&!p.blocks.some(b=>b.id===e.blockId))e.blockId=null;
+    e.archived=op.type==='archiveTask';e.archiveDisposition=e.archived?(op.disposition==='archive'?'archive':'trash'):null;if(e.blockId&&!p.blocks.some(b=>b.id===e.blockId)){e.blockId=null;e.priority=inboxEnd(next,e.id)+1;}
     e.revisions??=[];e.revisions.push({at,reason:e.archived?(e.archiveDisposition==='archive'?'Archived from planner':'Deleted from planner (recoverable)'):'Restored in planner',snapshot:{archived:e.archived}});e.revisions=e.revisions.slice(-100);result=e.id;
   }else if(op.type==='moveTask'){
     const e=one(tasks(next),op.id),target=link(p.blocks,op.blockId),oldBlock=e.blockId??null;
@@ -114,7 +157,9 @@ export function editPlan(data,op,now=new Date()){
     if(!Array.isArray(op.assignments)||!op.assignments.length||op.assignments.length>12)throw new Error('Choose existing RPM blocks for this grouping.');
     const assigned=new Set(),groups=[];
     for(const assignment of op.assignments){
-      const blockId=one(p.blocks,assignment.blockId).id;
+      const block=one(p.blocks,assignment.blockId);
+      if(block.archived)throw new Error('Choose an active RPM block for this grouping.');
+      const blockId=block.id;
       if(!Array.isArray(assignment.taskIds)||!assignment.taskIds.length||assignment.taskIds.length>60)throw new Error('Choose open unsorted tasks for this grouping.');
       const selected=[];
       for(const id of assignment.taskIds){
@@ -122,15 +167,16 @@ export function editPlan(data,op,now=new Date()){
         const task=one(tasks(next),id);if(task.done||task.blockId!=null)throw new Error('Only open unsorted tasks can be grouped.');
         assigned.add(id);selected.push(task);
       }
-      groups.push({blockId,selected,existing:blockTasks(next,blockId)});
+      groups.push({blockId,selected});
     }
-    for(const group of groups){const start=group.existing.length;group.selected.forEach((task,index)=>{task.blockId=group.blockId;task.priority=start+index+1;});}
+    for(const group of groups){const rows=blockTasks(next,group.blockId);group.selected.forEach(task=>{task.blockId=group.blockId;rows.push(task);});rows.forEach((t,i)=>{t.priority=i+1;});}
     result=assigned.size;
   }else if(op.type==='aiDraft'){
     if(!Array.isArray(op.blocks)||!op.blocks.length||op.blocks.length>12)throw new Error('The AI returned an invalid set of blocks.');
     const assigned=new Set(),ids=[];
-    for(const b of op.blocks){if(!Array.isArray(b.taskIds)||b.taskIds.length>60)throw new Error('The AI returned invalid task links.');const projectId=link(p.projects,b.projectId);let row=b.blockId?one(p.blocks,b.blockId):{id:newId(),title:title(b.title),projectId,purpose:'',notes:'',created:at};if(!b.blockId)p.blocks.push(row);ids.push(row.id);let rank=blockTasks(next,row.id).length;
-      for(const id of b.taskIds){if(assigned.has(id))throw new Error('The AI assigned a task twice.');const e=one(tasks(next),id);if(e.done)throw new Error('A completed task cannot be sorted by this draft.');assigned.add(id);e.blockId=row.id;e.priority=++rank;}
+    for(const b of op.blocks){if(!Array.isArray(b.taskIds)||b.taskIds.length>60)throw new Error('The AI returned invalid task links.');const projectId=link(p.projects,b.projectId);let row=b.blockId?one(p.blocks,b.blockId):{id:newId(),title:title(b.title),projectId,purpose:'',notes:'',created:at};if(!b.blockId)p.blocks.push(row);ids.push(row.id);const picked=[];
+      for(const id of b.taskIds){if(assigned.has(id))throw new Error('The AI assigned a task twice.');const e=one(tasks(next),id);if(e.done)throw new Error('A completed task cannot be sorted by this draft.');assigned.add(id);picked.push(e);}
+      const rows=blockTasks(next,row.id).filter(t=>!picked.includes(t));picked.forEach(e=>{e.blockId=row.id;rows.push(e);});rows.forEach((t,i)=>{t.priority=i+1;});
     }
     p.drafts.push({id:newId(),at,status:'unreviewed',proposed:op.blocks.map(b=>({blockId:b.blockId??null,title:text(b.title??'',200),projectId:b.projectId??null,taskIds:[...b.taskIds]})),blockIds:[...new Set(ids)],initial:arrangement(next),final:null});p.drafts=p.drafts.slice(-40);
   }else if(op.type==='acceptDraft'){
@@ -144,8 +190,8 @@ export function editPlan(data,op,now=new Date()){
   }else if(BODY_OPS[op.type]){
     result=BODY_OPS[op.type](next,op,at);
   }else throw new Error('Unknown planning action.');
-  for(const task of next.entries){if(task.blockId&&task.purpose){task.revisions??=[];task.revisions.push({at,reason:'Task purpose retained in notes',before:{purpose:task.purpose,notes:task.notes??''}});task.notes=[task.notes,'Previous task purpose: '+task.purpose].filter(Boolean).join('\n\n');task.purpose='';}}
-  validatePlanner(next);p.events.push({id:newId(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=op.keepUndo?data.planner?.undo??null:before;next.undo=null;if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
+  for(const task of next.entries){if(task.blockId&&task.purpose){task.revisions??=[];task.revisions.push({at,reason:'Task purpose retained in notes',before:{purpose:task.purpose,notes:task.notes??''}});task.notes=notesWithPurpose(task.notes,task.purpose);task.purpose='';}}
+  validatePlanner(next);p.events.push({id:newId(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);const kept=op.keepUndo&&keptUndo(data,[op],at);p.undo=op.keepUndo?kept.plannerUndo:before;next.undo=op.keepUndo?kept.undo:null;if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
   Object.assign(data,next);return result;
 }
 
@@ -153,7 +199,7 @@ export function arrangement(data){return planner(data).blocks.map(b=>({id:b.id,t
 
 export function localDay(date=new Date()){const d=new Date(date);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 export function shiftDay(day,offset){const d=new Date(day+'T12:00:00');d.setDate(d.getDate()+offset);return localDay(d);}
-export function dayRange(day){const start=new Date(day+'T00:00:00');const end=new Date(start);end.setDate(end.getDate()+1);end.setHours(1);return {start:+start,end:+end};}
+export function dayRange(day){const start=new Date(day+'T00:00:00');const end=new Date(start);end.setDate(end.getDate()+1);return {start:+start,end:+end};}
 export function conflicts(data,start,minutes,calendar=[],excludeId=null){
   if(minutes==null||minutes===0)return [];
   const a=+new Date(start),b=a+minutes*60000;

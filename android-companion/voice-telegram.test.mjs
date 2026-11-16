@@ -62,6 +62,15 @@ test('nothing is sent without words that ask to send, or to a name that is not t
  for(const words of ['मां को बोलो कल सुबह दूध मंगवा दे','Pantry को मैसेज भेजो','Ima ला सांगा'])assert.match(words,SEND_ASKED,words);
 });
 
+test('read_telegram only ever reads: an op, to or text in its args cannot turn it into a send', async () => {
+ const {calls,action}=bridge(),link=telegramLink({action});
+ await link.run('read_telegram',{op:'send',to:'Ima',text:'Order 40 kg rice',dry:false},{heard:'what did Ima say',request:{}});
+ assert.deepEqual(calls,[{name:'telegram',op:'read'}],'one read, with nothing the read tool does not declare');
+ calls.length=0;
+ await link.run('read_telegram',{chat:'Ima',limit:3,waitSeconds:5},{heard:'what did Ima say',request:{}});
+ assert.deepEqual(calls,[{name:'telegram',op:'read',chat:'Ima',limit:3,waitSeconds:5}],'chat, limit and waitSeconds still reach the bridge');
+});
+
 test('a Telegram call answers later; a sent message becomes a "Sent to Ima" row with no Undo, and a read is traced by counts only', async () => {
  const {action}=bridge(),link=telegramLink({action});
  const one=createRamble({data:emptyPlan(),timeZone:TZ,now:()=>NOW,telegram:link});
@@ -139,6 +148,16 @@ test("when the heard name beats the model's shorter one, the extra name words le
  assert.deepEqual(addressed('Ima','Order milk','Tell Ima to order milk',bots),{to:'Ima',text:'Order milk'});
  assert.deepEqual(addressed('Ima Test','hello','Tell Ima Test hello',bots),{to:'Ima Test',text:'hello'});
  assert.deepEqual(addressed('Ima','test','Tell Emma test test',bots),{to:'Ima Test',text:'test'},'a message that is only the name keeps its words');
+});
+
+test('a first word that only sounds like a bot name word stays in the message and keeps the bot', () => {
+ const bots=['Ima','Ima Test','Pantry'];
+ assert.deepEqual(addressed('Ima','Best wishes','Tell Ima best wishes',bots),{to:'Ima',text:'Best wishes'},'"best" is their message, not "Test"');
+ assert.equal(pickBot('Ima','Tell Ima best wishes',bots,'Best wishes'),'Ima');
+ assert.deepEqual(addressed('Ima','Rest well','Tell Ima rest well',bots),{to:'Ima',text:'Rest well'});
+ assert.deepEqual(addressed('Ima','Best wishes','send ima test best wishes',bots),{to:'Ima Test',text:'Best wishes'},'the model already left the name out');
+ assert.deepEqual(addressed('Ima','Tea at five','tell emma test tea at five',bots),{to:'Ima Test',text:'Tea at five'});
+ assert.deepEqual(addressed('Ima','This is a test','Tell Emma test this is a test',bots),{to:'Ima Test',text:'This is a test'});
 });
 
 test('the page and the phone wait longer for a Telegram call than a send waits for its reply', async () => {

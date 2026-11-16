@@ -20,9 +20,10 @@ export function notchScene(data, now, snoozes = {}, h24 = false) {
   const hero = pickHero(slots, now);
   const isRunning = !!hero && running(hero, now);
   const body = data.body;
-  const water = body.present ? waterStatus(body.glasses, body.water, data.busy, Math.max(body.waterSnoozedUntil, snooze(WATER_SNOOZE)), now) : null;
+  const status = body.present ? waterStatus(body.glasses, body.water, data.busy, Math.max(body.waterSnoozedUntil, snooze(WATER_SNOOZE)), now) : null;
+  const water = status && !body.water.reminders ? {...status, nextAt: 0, pending: false} : status;
   const habit = (body.present ? routines(body, now) : []).find(r => routineDue(r, now) && snooze(routineSnooze(r.routine.id)) <= now) ?? null;
-  const meal = body.present ? unloggedMeal(body.meals, now) : null;
+  const meal = body.present ? unloggedMeal(body, now) : null;
   const waterDue = !!water?.pending;
   const s = {hero, running: isRunning, water, habit, meal, waterDue, snoozeMinutes: body.water.snoozeMinutes, canLogMeal: body.present, rows: []};
   s.heroAlert = hero ? alertAt(hero, now) : '';
@@ -57,7 +58,7 @@ export function notchScene(data, now, snoozes = {}, h24 = false) {
     s.progress = habit.done / habit.total;
   }
 
-  const later = after(slots, hero, Infinity);
+  const later = after(slots, hero, now, Infinity);
   const next = s.nextAlert;
   const alertRow = !!next && next !== hero && later[0] !== next;
   if (later.length) s.rows.push(slotRow(later[0], now, h24));
