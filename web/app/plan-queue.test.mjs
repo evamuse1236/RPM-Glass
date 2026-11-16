@@ -73,7 +73,7 @@ test('a change shows at once, is sent as a plan command on the revision the user
   assert.deepEqual(validateCommand(command), command);
   assert.equal(command.type, 'plan');
   assert.equal(command.baseRevision, 42);
-  assert.equal(command.timezone, Intl.DateTimeFormat().resolvedOptions().timeZone, 'the server reads days and hours in the zone the browser showed');
+  assert.equal('timezone' in command, false, 'a browser in India sends no zone; the server reads a missing zone as Asia/Kolkata');
   assert.throws(() => validateCommand({...command, timezone: 'Not/AZone'}), /Invalid browser command/);
   assert.ok(queue.pendingIds().has(3));
   device.apply(0);
@@ -144,6 +144,37 @@ test('Undo of a change the phone has not received drops it; nothing more is sent
   assert.equal(client.sent().length, 1);
 });
 
+test('a website tick and its Undo from India keep the shape a server released before the zone field accepts; any other zone is still sent', () => {
+  // The Site and Convex ship separately. At 009353e the plan and undo branches of command.schema.json allowed only
+  // these keys (additionalProperties: false), so that server answers 400 to a command that carries `timezone`.
+  const allowed = () => ['id', 'createdAt', 'baseRevision', 'type', 'args'];
+  const sentFrom = zone => {
+    const before = process.env.TZ;
+    process.env.TZ = zone;
+    try {
+      const {client, queue, device} = setup();
+      queue.commit({type: 'saveTask', id: 3, fields: {done: true}});
+      queue.commit({type: 'undo'});
+      device.apply(0);
+      return client.sent();
+    } finally {
+      process.env.TZ = before;
+    }
+  };
+  for (const zone of ['Asia/Kolkata', 'Asia/Calcutta']) {
+    const [plan, undo] = sentFrom(zone);
+    for (const command of [plan, undo]) {
+      assert.deepEqual(validateCommand(command), command);
+      const keys = allowed(command.type);
+      for (const key of Object.keys(command)) assert.ok(keys.includes(key), `${zone} ${command.type} sends "${key}", which the 009353e server refuses`);
+    }
+  }
+  const [plan, undo] = sentFrom('America/New_York');
+  assert.deepEqual([plan.timezone, undo.timezone], ['America/New_York', 'America/New_York']);
+  assert.deepEqual(validateCommand(plan), plan);
+  assert.deepEqual(validateCommand(undo), undo);
+});
+
 test('Undo of a sent change becomes an undo command for it once the phone has applied it', () => {
   const {client, queue, device} = setup();
   queue.commit({type: 'saveTask', id: 3, fields: {done: true}});
@@ -155,7 +186,7 @@ test('Undo of a sent change becomes an undo command for it once the phone has ap
   device.apply(0);
   const undo = client.sent()[1];
   assert.deepEqual(validateCommand(undo), undo);
-  assert.deepEqual([undo.type, undo.args.commandId, undo.baseRevision, undo.timezone], ['undo', planId, 43, Intl.DateTimeFormat().resolvedOptions().timeZone]);
+  assert.deepEqual([undo.type, undo.args.commandId, undo.baseRevision, 'timezone' in undo], ['undo', planId, 43, false]);
   assert.equal(task(queue, 3).done, false);
   device.apply(1);
   assert.equal(queue.pendingIds().size, 0);

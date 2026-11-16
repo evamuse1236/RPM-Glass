@@ -9,6 +9,8 @@ const FAILED = new Set(['rejected', 'conflict']);
 const ID_KEYS = new Set(['id', 'ids', 'blockId', 'projectId', 'goalId', 'areaId', 'taskIds', 'routineId']);
 export const WAITING = 'This is still saving. Try again in a moment.';
 export const FALLBACK = 'This change was not saved.';
+// The server's default zone, as this browser's ICU names it (some name it Asia/Calcutta).
+const SERVER_ZONE = () => new Intl.DateTimeFormat('en', {timeZone: 'Asia/Kolkata'}).resolvedOptions().timeZone;
 export const CHANGED = 'Your plan changed while you talked. Your words are saved.';
 const MAX_IDS = 64;
 
@@ -71,7 +73,10 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
 
   function command(rec) {
     // The server runs in UTC, so it reads days and hours in the zone this browser showed them in.
-    const base = {id: rec.id, createdAt: rec.at, baseRevision: rec.baseRevision, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone};
+    // It reads a missing zone as Asia/Kolkata, so that zone is left off: a server released before it took the
+    // field (the Site and Convex ship separately) still accepts the change.
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const base = {id: rec.id, createdAt: rec.at, baseRevision: rec.baseRevision, ...(zone === SERVER_ZONE() ? {} : {timezone: zone})};
     return validateCommand(rec.kind === 'undo' ? {...base, type: 'undo', args: {commandId: rec.targetId}} : {...base, type: 'plan', args: {op: rec.op, ids: [...(rec.uuids ?? []), ...(rec.taskIds ?? [])], ...(rec.taskIds ? {exactTaskIds: true} : {})}});
   }
 
