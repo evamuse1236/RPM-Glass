@@ -51,6 +51,16 @@ public class CompanionStoreSyncTest {
         assertEquals("untouched",sync.getJSONObject("stamps").getJSONObject("task:1").getString("raw"));
         assertFalse(Instant.parse(sync.getString("restoredAt")).isBefore(start));
     }
+    @Test public void aFailedRestoreLeavesTheAlertsAndTheirDeliveryLedgerAsTheyWere()throws Exception {
+        CompanionStore.write(context,store(1),0);JSONObject before=CompanionStore.read(context);String ledger=CompanionAlerts.ledger(context).toString();
+        assertTrue(CompanionAlerts.ledger(context).has("1"));
+        StringBuilder pad=new StringBuilder();while(pad.length()<=16*1024*1024)pad.append("0123456789abcdef");
+        JSONObject huge=store(40).put("syncSavedAt","2026-10-01T00:00:00Z").put("padding",pad.toString());
+        assertThrows(java.io.IOException.class,()->CompanionStore.importCopy(context,huge));
+        assertEquals(ledger,CompanionAlerts.ledger(context).toString());
+        assertFalse(CompanionAlerts.ledger(context).getJSONObject("1").optBoolean("importedDisarmed"));
+        assertEquals(before.getInt("version"),CompanionStore.read(context).getInt("version"));
+    }
     @Test public void restoreListsOnlyTheSyncedRecordsTheBackupLacks()throws Exception {
         JSONObject live=store(1);live.getJSONArray("entries").put(new JSONObject("{id:2,title:'Kept',raw:'Kept',revisions:[]}"));
         live.put("sync",new JSONObject("{base:{'task:1':{rev:1},'task:2':{rev:2},'task:3':{rev:3},'conflict:4':{rev:4}}}"));

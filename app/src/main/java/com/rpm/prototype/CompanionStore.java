@@ -34,14 +34,17 @@ final class CompanionStore {
     private static void writeRaw(Context c,JSONObject d,boolean local)throws IOException{try{if(local)d.put("syncSavedAt",java.time.Instant.now().toString());}catch(JSONException e){throw new IOException("Could not date saved planner",e);}byte[] bytes=d.toString().getBytes(StandardCharsets.UTF_8);if(bytes.length>16*1024*1024)throw new IOException("Context exceeds 16 MB; original preserved. Export a backup before reducing history.");AtomicFile f=new AtomicFile(file(c));FileOutputStream out=null;try{out=f.startWrite();out.write(bytes);f.finishWrite(out);}catch(IOException e){if(out!=null)f.failWrite(out);throw e;}NextUpWidget.changed(c);if(local){SyncManager.request(c);PlannerSyncLifecycle.changed(c);}}
     static void importCopy(Context c,JSONObject d)throws Exception{importCopy(c,d,0);}
     static void importCopy(Context c,JSONObject d,long sourceModifiedAt)throws Exception{synchronized(LOCK){validate(d);JSONObject old=read(c);if(old!=null){File backup=new File(c.getFilesDir(),"companion-before-import-"+System.currentTimeMillis()+".json");try(FileOutputStream out=new FileOutputStream(backup)){out.write(old.toString().getBytes(StandardCharsets.UTF_8));out.getFD().sync();}catch(IOException|RuntimeException e){backup.delete();throw e;}}
-        CompanionAlerts.cancelAll(c);d.put("version",old==null?1:old.optInt("version")+1);d.put("pending",JSONObject.NULL);d.put("undo",JSONObject.NULL);d.put("inFlight",false);d.put("imported",new JSONObject().put("source","User-selected context copy").put("at",java.time.Instant.now().toString()));
+        d.put("version",old==null?1:old.optInt("version")+1);d.put("pending",JSONObject.NULL);d.put("undo",JSONObject.NULL);d.put("inFlight",false);d.put("imported",new JSONObject().put("source","User-selected context copy").put("at",java.time.Instant.now().toString()));
         parkImportedDrafts(d);
         // Persist the disarm ledger before the file: a crash must never arm imported history.
         if(d.optJSONObject("planner")!=null)d.getJSONObject("planner").put("undo",JSONObject.NULL);
         String backupAt=d.optString("syncSavedAt","");if(backupAt.isEmpty())backupAt=java.time.Instant.ofEpochMilli(sourceModifiedAt).toString();
         d.remove("sync");if(old!=null&&old.optJSONObject("sync")!=null)d.put("sync",new JSONObject(old.getJSONObject("sync").toString()));
         SyncStamps.load(c);SyncStamps.stamp(old,d,backupAt);d.getJSONObject("sync").put("restoredAt",java.time.Instant.now().toString()).put("restoredAbsent",SyncStamps.absentAfterRestore(old,d));
-        CompanionAlerts.disarmImport(c,d);writeRaw(c,d);
+        // Alerts change only once the copy is ready; a failed write puts the ledger back and re-arms the old alerts.
+        JSONObject ledger=CompanionAlerts.ledger(c);
+        try{CompanionAlerts.cancelAll(c);CompanionAlerts.disarmImport(c,d);writeRaw(c,d);}
+        catch(Exception e){try{CompanionAlerts.persist(c,ledger);if(old!=null)CompanionAlerts.reconcile(c,old,true);}catch(Exception restore){e.addSuppressed(restore);}throw e;}
     }}
     static void parkImportedDrafts(JSONObject data)throws JSONException {
         JSONObject intent=data.optJSONObject("intentV2");if(intent==null)return;
