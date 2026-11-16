@@ -304,3 +304,28 @@ test('Carry, or Carry all, tapped twice before the save lands carries once, so U
     }
   }
 });
+
+test('a step 4 Must row tapped twice before the save lands toggles on then off, and Undo takes back the second tap', async () => {
+  const {d, home, laundry} = seed();
+  editPlan(d, {type: 'reviewProgress', week: WEEK, patch: {step: 4, focusDraft: [home]}});
+  const box = document.createElement('div');
+  const labels = [];
+  const review = mountWeeklyReview(box, {getData: () => d, close() {}, openBlock() {}, openCapture() {},
+    commit: async (op, label) => { await settle(); if (op.type === 'saveTask') labels.push(label); editPlan(d, op); },
+    day: () => '2026-09-26', now: () => new Date('2026-09-26T10:00:00+05:30')});
+  try {
+    await settle();
+    box.querySelector(`[data-key="open:${home}"]`).click();
+    const row = box.querySelector(`[data-key="must:${laundry}"]`);
+    assert.ok(row, 'the Must row shows');
+    row.click();
+    row.click();
+    for (let i = 0; i < 8; i++) await settle();
+    assert.ok(!entry(d, laundry).must, 'the second tap toggles the saved Must off');
+    assert.deepEqual(labels, ['Marked Must', 'No longer a Must']);
+    editPlan(d, {type: 'undo'});
+    assert.equal(entry(d, laundry).must, true, 'Undo takes back the second tap');
+  } finally {
+    review.destroy();
+  }
+});

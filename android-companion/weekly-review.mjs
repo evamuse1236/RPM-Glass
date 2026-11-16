@@ -100,13 +100,14 @@ function createActions(ctx, week, ui, render) {
     return enqueue(() => op, label);
   }
   // `build` makes the op when its turn comes, on the data the earlier saves left; null means nothing is left to save.
+  // `label` may be a function of that op, so the receipt names what was actually saved.
   function enqueue(build, label) {
     ui.saving++;
     const job = queue.then(async () => {
       ui.busy = true;
       try {
         const op = build();
-        if (op) await ctx.commit(op, label);
+        if (op) await ctx.commit(op, typeof label === 'function' ? label(op) : label);
       } catch (error) {
         ui.hint = userMessage(error, 'That change could not be saved.');
       } finally {
