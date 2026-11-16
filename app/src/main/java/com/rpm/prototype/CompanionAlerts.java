@@ -50,15 +50,18 @@ final class CompanionAlerts {
             if(old!=null&&old.optBoolean("importedDisarmed")){cancel(c,e.getLong("id"));old.put("fingerprint",fp).put("status",active(e)?"imported_not_armed":"off").put("label",active(e)?"Imported · not armed on this phone":"Alert off · imported copy remains disarmed");continue;}
             if(old!=null&&!changed&&Arrays.asList("scheduled","snoozed").contains(old.optString("status"))&&!(type(e).equals("alarm")?alarmAllowed:reminderAllowed)){cancel(c,e.getLong("id"));old.put("status","permission_needed").put("label","Not scheduled · phone alert permission is missing");continue;}
             if(old!=null&&old.optString("status").equals("ringing")&&CompanionAlarmService.activeIds().contains(e.getLong("id"))&&!changed)continue;
-            if(!changed&&!force&&!old.optString("status").equals("permission_needed"))continue;
+            // Ringing with no service holding it for over a minute: the process died mid-ring, so finish it and arm the next occurrence.
+            boolean interrupted=!changed&&old.optString("status").equals("ringing")&&System.currentTimeMillis()-old.optLong("ringingSince",old.optLong("at"))>60000;
+            if(!changed&&!force&&!interrupted&&!old.optString("status").equals("permission_needed"))continue;
             if(!changed&&force&&Arrays.asList("posted","dismissed","missed","stopped").contains(old.optString("status"))&&!Repeats.repeating(Repeats.key(e)))continue;
             // A resume does not dismiss a ringing alarm or erase its snooze.
-            if(!changed&&Arrays.asList("ringing","snoozed").contains(old.optString("status"))&&!force)continue;
+            if(!changed&&Arrays.asList("ringing","snoozed").contains(old.optString("status"))&&!force&&!interrupted)continue;
             cancel(c,e.getLong("id"));JSONObject row=new JSONObject().put("fingerprint",fp).put("type",type(e));l.put(id,row);
             if(!active(e)){row.put("status","off").put("label","Alert off");continue;}
             // An unchanged row keeps its stored occurrence: an occurrence whose alert already sounded is not armed again.
-            long base=planned(e),now=System.currentTimeMillis();long at=next(e,ZoneId.systemDefault(),changed?now:Math.max(now,old.optLong("at")-1));
+            long base=planned(e),now=System.currentTimeMillis();long at=next(e,ZoneId.systemDefault(),changed?now:Math.max(now,old.optLong("at")-(interrupted?0:1)));
             if(base==0){row.put("status","time_needed").put("label","Not scheduled · add a time");continue;}
+            if(at==0&&interrupted){row.put("status","dismissed").put("label","Alarm interrupted");continue;}
             if(at==0){row.put("status","missed").put("label","Time passed · not scheduled");continue;}
             if(!changed&&old.optLong("snoozeAt")>System.currentTimeMillis()){at=old.optLong("snoozeAt");row.put("snoozeAt",at);}
             schedule(c,e,row,at);
@@ -85,7 +88,7 @@ final class CompanionAlerts {
     static void fired(Context c,long id,long expected)throws Exception{synchronized(CompanionStore.LOCK){JSONObject d=CompanionStore.read(c);if(d==null)return;JSONObject e=entry(d,id),l=ledger(c),r=l.optJSONObject(String.valueOf(id));if(e==null||r==null||!active(e)||!fingerprint(e).equals(r.optString("fingerprint"))||r.optLong("at")!=expected||!Arrays.asList("scheduled","snoozed").contains(r.optString("status")))return;
         // Ignore stale/cancelled broadcasts; never report a notification as delivered before notify().
         if(!notifications(c,type(e).equals("alarm")?ALARMS:REMINDERS)){r.put("status","permission_needed").put("label","Blocked by notification settings");persist(c,l);return;}
-        if(type(e).equals("alarm")){r.put("status","ringing").put("label","Alarm ringing");persist(c,l);try{c.startForegroundService(new Intent(c,CompanionAlarmService.class).setAction("ring").putExtra("id",id));}catch(RuntimeException failure){finish(c,id,false,"Alarm could not start · open RPM");}return;}
+        if(type(e).equals("alarm")){r.put("status","ringing").put("label","Alarm ringing").put("ringingSince",System.currentTimeMillis());persist(c,l);try{c.startForegroundService(new Intent(c,CompanionAlarmService.class).setAction("ring").putExtra("id",id));}catch(RuntimeException failure){finish(c,id,false,"Alarm could not start · open RPM");}return;}
         Notification n=new Notification.Builder(c,REMINDERS).setSmallIcon(R.drawable.ic_checkin).setContentTitle(e.optString("title","RPM reminder")).setContentText("Your RPM reminder").setContentIntent(open(c,id)).setAutoCancel(true).setCategory(Notification.CATEGORY_REMINDER).build();c.getSystemService(NotificationManager.class).notify("companion-reminder",(int)id,n);finish(c,id,false,"Reminder posted");NotchAlerting.reminderFired(c,id,e.optString("title",e.optString("raw","RPM reminder")),expected);
     }}
     static void finish(Context c,long id,boolean snooze,String label)throws Exception{synchronized(CompanionStore.LOCK){JSONObject d=CompanionStore.read(c);if(d==null)return;JSONObject e=entry(d,id),l=ledger(c),r=l.optJSONObject(String.valueOf(id));if(e==null||r==null)return;

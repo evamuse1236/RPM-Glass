@@ -67,4 +67,34 @@ public class CompanionAlertsIdTest {
         assertEquals(occurrence,CompanionAlerts.ledger(c).getJSONObject("23").getLong("at"));
         assertTrue(shadowOf(alarms).getNextScheduledAlarm().triggerAtTime<=System.currentTimeMillis()+1000);
     }
+    /** A daily alarm whose ledger row says ringing at {@code since}, with no alarm service holding it. */
+    private static JSONObject ringingRow(Context c,long id,long occurrence,long since)throws Exception{
+        CompanionAlerts.channels(c);
+        JSONObject e=new JSONObject().put("id",id).put("title","Wake").put("raw","Wake").put("revisions",new JSONArray()).put("planned",Instant.ofEpochMilli(occurrence).toString()).put("recurrence","daily").put("alertIntent",new JSONObject().put("type","alarm"));
+        JSONObject data=new JSONObject().put("schema",2).put("version",1).put("entries",new JSONArray().put(e)).put("memories",new JSONArray()).put("history",new JSONArray()).put("conversations",new JSONArray().put(new JSONObject()));
+        CompanionStore.writeRaw(c,data);
+        CompanionAlerts.persist(c,new JSONObject().put(String.valueOf(id),new JSONObject().put("fingerprint",CompanionAlerts.fingerprint(e)).put("type","alarm").put("status","ringing").put("label","Alarm ringing").put("at",occurrence).put("ringingSince",since)));
+        return data;
+    }
+    @Test public void aRingingRowLeftByADeadServiceIsReArmedOnResume()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);
+        long occurrence=(System.currentTimeMillis()/60000-2)*60000,day=86400000L;
+        JSONObject data=ringingRow(c,31,occurrence,occurrence);
+        assertTrue(CompanionAlarmService.activeIds().isEmpty());
+        CompanionAlerts.reconcile(c,data,false); // the app resumes after the process died while the alarm rang
+        JSONObject row=CompanionAlerts.ledger(c).getJSONObject("31");
+        assertEquals("scheduled",row.getString("status"));
+        assertEquals("tomorrow's occurrence, not today's again",occurrence+day,row.getLong("at"));
+        assertEquals("tomorrow's alarm is armed",1,shadowOf(alarms).getScheduledAlarms().size());
+    }
+    @Test public void anAlarmStillStartingItsServiceIsNotDisarmedByAResume()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);
+        long now=System.currentTimeMillis(),occurrence=now-1000;
+        JSONObject data=ringingRow(c,32,occurrence,now-1000); // fired() saved ringing; onStartCommand has not run yet
+        CompanionAlerts.reconcile(c,data,false);
+        JSONObject row=CompanionAlerts.ledger(c).getJSONObject("32");
+        assertEquals("ringing",row.getString("status"));
+        assertEquals(occurrence,row.getLong("at"));
+        assertEquals(0,shadowOf(alarms).getScheduledAlarms().size());
+    }
 }
