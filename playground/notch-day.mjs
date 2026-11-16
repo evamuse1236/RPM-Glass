@@ -107,13 +107,13 @@ export function hero(slots, now) {
   return slots.find(s => running(s, now) && !s.task.fixed) ?? slots.find(s => s.end > now) ?? null;
 }
 
-export function after(slots, heroSlot, n) {
+export function after(slots, heroSlot, now, n) {
   if (!heroSlot) return [];
   const out = [];
   let past = false;
   for (const s of slots) {
     if (s === heroSlot) past = true;
-    else if (past && s.start >= heroSlot.start && out.length < n) out.push(s);
+    else if (past && s.start >= heroSlot.start && s.end > now && out.length < n) out.push(s);
   }
   return out;
 }

@@ -38,9 +38,24 @@ public class NotchDayTest {
         assertEquals(1, hero.task.id);
         assertTrue(hero.runningAt(now));
         assertEquals("25m", NotchDay.minutes(hero.end - now));
-        List<NotchDay.Slot> rest = NotchDay.after(slots, hero, 3);
+        List<NotchDay.Slot> rest = NotchDay.after(slots, hero, now, 3);
         assertEquals(2, rest.size());
         assertEquals(2, rest.get(0).task.id);
+    }
+
+    @Test
+    public void aTaskThatHasEndedNeverTakesTheNextRowAfterARunningHero() {
+        List<NotchDay.Task> tasks = Arrays.asList(
+                task(1, "Deep work", "2026-10-18T09:00", 180, ""),
+                task(2, "Pay rent", "2026-10-18T09:30", 15, ""),
+                task(3, "Call bank", "2026-10-18T11:00", 30, ""));
+        long now = at("2026-10-18T10:00");
+        List<NotchDay.Slot> slots = NotchDay.today(tasks, now, KOLKATA);
+        NotchDay.Slot hero = NotchDay.hero(slots, now);
+        assertEquals(1, hero.task.id);
+        List<NotchDay.Slot> rest = NotchDay.after(slots, hero, now, 3);
+        assertEquals(1, rest.size());
+        assertEquals(3, rest.get(0).task.id);
     }
 
     @Test
