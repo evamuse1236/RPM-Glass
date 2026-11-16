@@ -276,13 +276,12 @@ final class NotchController implements NotchPill.Gestures {
     }
 
     private void snoozePill() {
-        if (scene == null || !scene.canSnooze()) {
+        if (scene == null || !scene.pillCanSnooze()) {
             NotchActions.log(service, "notch.snooze", "nothing_due", null);
             return;
         }
         int minutes = scene.snoozeMinutes;
-        if (scene.topHabit != null) snoozeHabit();
-        else actions.snoozeRoutine();
+        snoozeHabit();
         alerting.showSnoozed(minutes);
     }
 

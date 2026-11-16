@@ -202,6 +202,11 @@ final class NotchScene {
         return topHabit != null || habit != null;
     }
 
+    /** The pill's Later swipe acts only on the water or meal nudge it shows; it never draws a Routine. */
+    boolean pillCanSnooze() {
+        return topHabit != null;
+    }
+
     /** The task island's one control: Done, left out (never greyed) for a calendar event. */
     List<Control> controls() {
         List<Control> out = new ArrayList<>();
