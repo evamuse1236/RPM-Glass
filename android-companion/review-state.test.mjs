@@ -68,6 +68,23 @@ test('completing a one-time task stamps completedAt once; reopening clears it; n
   assert.equal(entry(d, daily).completions.length, 1);
 });
 
+test('unticking a one-time task that used to repeat keeps the old series completions', () => {
+  const d = freshStore();
+  const occ = '2026-11-10T01:30:00.000Z';
+  const id = task(d, {title: 'Stretch', planned: occ, recurrence: 'daily'});
+  editPlan(d, {type: 'saveTask', id, fields: {done: true}, occurrence: occ}, at('2026-11-10T02:30:00Z'));
+  editPlan(d, {type: 'saveTask', id, fields: {recurrence: null, planned: '2026-11-12T01:30:00.000Z'}}, at('2026-11-11T02:30:00Z'));
+  editPlan(d, {type: 'saveTask', id, fields: {done: true}}, at('2026-11-12T02:30:00Z'));
+  editPlan(d, {type: 'reopenTask', id}, at('2026-11-12T02:31:00Z'));
+  const e = entry(d, id);
+  assert.equal(e.completions.length, 1, 'the 10 Nov completion of the old series stays');
+  assert.equal(e.completions[0].occurrence, occ);
+  assert.equal(e.done, false);
+  assert.equal(e.completedAt, null);
+  editPlan(d, {type: 'reopenTask', id, occurrence: occ}, at('2026-11-12T02:32:00Z'));
+  assert.equal(entry(d, id).completions.length, 0, 'an explicit occurrence still removes that record');
+});
+
 test('resultStatus counts activity separately from the user-set Result', () => {
   const {d, home, meals, rest} = seed();
   editPlan(d, {type: 'saveTask', id: meals, fields: {done: true}});
