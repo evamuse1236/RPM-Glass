@@ -1,4 +1,4 @@
-import {localDay, tasks, planner, timelineItems, shiftDay} from './planner-state.mjs';
+import {localDay, tasks, planner, timelineItems, shiftDay, notesWithPurpose} from './planner-state.mjs';
 
 /** Idempotent, lossless upgrade. Legacy priority remains the storage/API ordering field. */
 export function migratePlannerUX(data) {
@@ -11,7 +11,7 @@ export function migratePlannerUX(data) {
       if (task.purpose && task.blockId) {
         task.revisions ??= [];
         task.revisions.push({reason:'Purpose retained as a note', before:{purpose:task.purpose, notes:task.notes ?? ''}});
-        task.notes = [task.notes, 'Previous task purpose: ' + task.purpose].filter(Boolean).join('\n\n');
+        task.notes = notesWithPurpose(task.notes, task.purpose);
         task.purpose = '';
       }
     }

@@ -98,6 +98,14 @@ test('a calendar event is fixed and a running task beats it', () => {
   assert.equal(later.canDone, false);
 });
 
+test('a timed task with no estimate is 0 long, as NotchData.java reads it: late, never the running hero', () => {
+  const entries = [task(1, 'Pay rent', '2026-11-16T10:00', null), task(2, 'Later', '2026-11-16T13:00', 15),
+    task(3, 'Odd', '2026-11-16T14:00', 'soon')];
+  const data = parseNotchData({version: 1, entries, planner: {blocks: [{id: 'b1', title: 'Study'}]}}, null);
+  assert.deepEqual(data.tasks.map(t => [t.title, t.minutes]), [['Pay rent', 0], ['Later', 15], ['Odd', 0]]);
+  assert.equal(scene(data, '2026-11-16T10:10').heroTitle, 'Later');
+});
+
 test('with no task left and water due, water is the hero', () => {
   const s = scene(day(true), '2026-10-18T21:00');
   assert.equal(s.hero, null);

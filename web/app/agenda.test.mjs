@@ -75,6 +75,16 @@ test('every item sits under its own day: a Must of another day leaves its Result
   assert.equal(groups[2].items[0].kind, 'result', 'a deadline with no Must that day leads with the Result');
 });
 
+test('a timed Must is overdue only once its end (start + estimate) has passed, as the phone timeline says', () => {
+  const d = freshStore();
+  task(d, {title: 'Revise', planned: '2026-10-03T04:00:00.000Z', minutes: 60, must: true});
+  task(d, {title: 'Stretch', planned: '2026-10-03T03:00:00.000Z', minutes: 60, must: true});
+  const groups = comingUp(d, SATURDAY_10_AM_KOLKATA, '2026-10-04');
+  const where = Object.fromEntries(groups.flatMap(g => g.items.map(i => [i.title, g.day])));
+  assert.deepEqual(where, {'Revise': '2026-10-03', 'Stretch': 'overdue'}, 'a Must still running at 10:00 stays under its day; one that ended at 9:30 is Overdue');
+  assert.equal(groups[0].items[0].when.replace(/\s/g, ' '), '8:30 AM', 'an overdue Must still says when it started');
+});
+
 test('an overdue Result heads the list as Overdue; only it reads in the Must amber', () => {
   const d = freshStore();
   const late = block(d, {title: 'Form sent', purpose: 'Calm'});

@@ -101,7 +101,9 @@ export function editTimeContext(entry,change,now){
     if(hour>23)continue;
     const suffix=match[2].replaceAll('.','');
     const period=['am','pm'].includes(suffix)?suffix:/\b(?:morning|afternoon|evening|night)\b/.exec(source.toLowerCase())?.[0];
-    clock={hour,minute:Number(m),period:period==='morning'?'am':['afternoon','evening','night'].includes(period)?'pm':period,typo:Boolean(suffix&&!['am','pm','a','p'].includes(suffix))};break;
+    // "1 at night" is the small hours, as the parser reads it; "12 at night" is left for the day's choice.
+    const night=period==='night'?(hour>=1&&hour<=4?'am':hour===12?undefined:'pm'):null;
+    clock={hour,minute:Number(m),period:night!==null?night:period==='morning'?'am':['afternoon','evening'].includes(period)?'pm':period,typo:Boolean(suffix&&!['am','pm','a','p'].includes(suffix))};break;
   }
   if(!clock)return null;
   const periods=clock.hour>12||clock.hour===0?[null]:clock.period?[clock.period]:['am','pm'];

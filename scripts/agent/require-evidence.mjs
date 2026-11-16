@@ -74,7 +74,9 @@ export function passingCiRun(root, changed) {
     try { run = JSON.parse(fs.readFileSync(path.join(dir, name, 'run.json'), 'utf8')); } catch {}
     if (run?.conclusion !== 'success' || !/^[0-9a-f]{40}$/.test(run.sha ?? '')) continue;
     const shots = fs.readdirSync(path.join(dir, name), {recursive: true}).filter(f => String(f).endsWith('.png') && fs.statSync(path.join(dir, name, String(f))).size >= 1000);
-    if (shots.length && git(root, ['diff', '--quiet', run.sha, 'HEAD', '--', ...changed]) !== null) return {dir: path.join(dir, name), url: run.url};
+    // Every app file at the run's commit must equal HEAD's, not only this branch's own: a rebase brings in main's.
+    const differ = shots.length ? git(root, ['diff', '--name-only', '--no-renames', '-z', run.sha, 'HEAD']) : null;
+    if (differ !== null && !differ.split('\0').some(isAppFile)) return {dir: path.join(dir, name), url: run.url};
   }
   return null;
 }

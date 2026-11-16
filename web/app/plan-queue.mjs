@@ -46,7 +46,7 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
   let version = 0;
   let lastUndo = null;
   const listeners = new Set();
-  const persist = () => storage.setItem(KEY, JSON.stringify({records, problems, seen}));
+  const persist = () => { try { storage.setItem(KEY, JSON.stringify({records, problems, seen})); } catch {} };
   const entryOf = id => client.state.outbox.find(e => e.command.id === id);
   const snapshot = () => client.state.snapshot;
 

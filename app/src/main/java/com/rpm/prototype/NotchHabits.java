@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -71,16 +70,6 @@ final class NotchHabits {
         }
         out.sort((a, b) -> Long.compare(a.start, b.start));
         return out;
-    }
-
-    /** guessSlot: breakfast 4:00–10:59, lunch 11:00–15:29, snack 15:30–18:59, else dinner. */
-    static String slot(long at, ZoneId zone) {
-        ZonedDateTime t = Instant.ofEpochMilli(at).atZone(zone);
-        int m = t.getHour() * 60 + t.getMinute();
-        if (m >= 240 && m < 660) return "breakfast";
-        if (m >= 660 && m < 930) return "lunch";
-        if (m >= 930 && m < 1140) return "snack";
-        return "dinner";
     }
 
     static String unloggedMeal(NotchBody body, long now, ZoneId zone) {

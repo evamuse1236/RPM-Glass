@@ -194,6 +194,14 @@ test('explicit same day and time of day can resolve a bare new clock',()=>{
   w.applyEdit(1,proposal,'Natural edit: make it 9 same day and time');
   assert.equal(w.get(1).planned,'2026-09-10T03:30:00.000Z');assert.equal(w.pending,null);
 });
+test('small hours at night stay in the night, as the parser reads them, while a late hour at night stays in the evening',()=>{
+  const entry={id:1,kind:'plan',planned:'2026-11-17T03:30:00.000Z',plannedDate:'2026-11-17'};
+  const at=new Date('2026-11-16T20:00:00+05:30');
+  const night=(value,words)=>editPatch(entry,edit(null,[{field:'time',op:'set',value,evidence:[words]}]),at).patch?.planned;
+  assert.equal(night('1 am','Move the train to 1 at night, same day'),'2026-11-16T19:30:00.000Z');
+  assert.equal(night(null,'make it 1 at night same day'),'2026-11-16T19:30:00.000Z');
+  assert.equal(night('11 pm','Move the train to 11 at night, same day'),'2026-11-17T17:30:00.000Z');
+});
 test('same morning never silently becomes evening when the morning time has passed',()=>{
   const entry={id:1,kind:'plan',planned:'2026-09-10T02:30:00.000Z',plannedDate:'2026-09-10'};
   const request={...edit(null,[{field:'time',op:'set',value:null,evidence:['make it 7 same day and time']}]),clarification:'What future time?'};

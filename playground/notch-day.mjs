@@ -59,7 +59,7 @@ function parseTask(e, blocks) {
   const planned = time(e.planned);
   if (!planned) return null;
   return {id: Number(e.id) || 0, title: String(e.title ?? e.raw ?? ''), block: e.blockId == null ? null : blocks.get(String(e.blockId)) ?? null,
-    planned, minutes: e.minutes == null || !Number.isFinite(Number(e.minutes)) ? 30 : Math.trunc(Number(e.minutes)), recurrence: e.recurrence ?? '', repeatDays: e.repeatDays ?? [],
+    planned, minutes: e.minutes == null || !Number.isFinite(Number(e.minutes)) ? 0 : Math.trunc(Number(e.minutes)), recurrence: e.recurrence ?? '', repeatDays: e.repeatDays ?? [],
     completed: new Set(e.completedOccurrences ?? []), fixed: false, alert: alertType(e), purpose: String(e.purpose ?? '').trim()};
 }
 
@@ -180,11 +180,6 @@ export function routines(body, now) {
 }
 
 export const routineDue = (status, now) => status.state === 'running' && status.open > 0 && status.start <= now;
-
-export function mealSlot(at) {
-  const d = new Date(at), m = d.getHours() * 60 + d.getMinutes();
-  return m >= 240 && m < 660 ? 'breakfast' : m >= 660 && m < 930 ? 'lunch' : m >= 930 && m < 1140 ? 'snack' : 'dinner';
-}
 
 /** NotchHabits.unloggedMeal: an on slot of the meal plan in its two hours and not logged today; the earliest start wins. */
 export function unloggedMeal(body, now) {

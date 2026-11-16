@@ -1,8 +1,9 @@
 import kinds from './records.json' with {type: 'json'};
 import snapshotSchema from './snapshot.schema.json' with {type: 'json'};
+import {ENTITY_NOTES_MAX} from '../../android-companion/planner-fields.mjs';
 
-// A conflict note never pushes notes past the schema's limit: the record would be refused whole. The conflict entry keeps the lost words.
-const notesLimit = Math.min(...['entry', 'storeEntity'].map(def => snapshotSchema.$defs[def].properties.notes.maxLength));
+// A conflict note never pushes notes past the schema's limit (the record would be refused whole), nor a Block's, Project's, Area's or Goal's past the phone's own cap, or no save could resend them. The conflict entry keeps the lost words.
+const notesLimit = kind => Math.min(snapshotSchema.$defs[kind === 'task' ? 'entry' : 'storeEntity'].properties.notes.maxLength, ['block', 'project', 'area', 'goal'].includes(kind) ? ENTITY_NOTES_MAX : Infinity);
 // A list merged from both sides keeps its newest items up to the schema's limit (completions: 512, as completeTask keeps), or the record would be refused whole.
 const listLimit = field => snapshotSchema.$defs.entry.properties[field]?.maxItems ?? Infinity;
 
@@ -95,7 +96,7 @@ export function mergeChange(row, change, now) {
   }
   for (const line of notes) if (!(value.notes ?? '').split('\n').includes(line)) {
     const joined = [value.notes, line].filter(Boolean).join('\n');
-    if (joined.length > notesLimit) continue;
+    if (joined.length > notesLimit(change.key.slice(0, change.key.indexOf(':')))) continue;
     value.notes = joined;
     stamps.notes = now;
   }

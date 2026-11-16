@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mergeChange} from './merge.mjs';
-import {storeFromRecords} from './records.mjs';
-import {validatePlanner} from '../../android-companion/planner-state.mjs';
+import {projectRecords, storeFromRecords} from './records.mjs';
+import {editPlan, freshPlanner, validatePlanner} from '../../android-companion/planner-state.mjs';
+import {entityFields} from '../../android-companion/planner/inline-edit.mjs';
 import {validateRecord} from './validate.mjs';
 
 const early = '2026-10-20T00:00:00.000Z', late = '2026-10-21T00:00:00.000Z', now = '2026-10-22T00:00:00.000Z';
@@ -175,4 +176,21 @@ test('completions ticked on both sides of a full 512-completion task keep the ne
   assert.equal(result.value.completions.length, 512);
   assert.deepEqual(result.value.completions, [...days(2, 512), day(513)]);
   validateRecord('task:1', result.value);
+});
+
+test('a two-device notes conflict on a Block stays within the 8000 the phone saves, so the Block can still be renamed', () => {
+  const data = {planner: freshPlanner(), entries: []};
+  editPlan(data, {type: 'saveEntity', collection: 'blocks', fields: {title: 'Launch', purpose: '', notes: 'base', projectId: null}});
+  const records = projectRecords(data), key = [...records.keys()].find(k => k.startsWith('block:')), base = records.get(key);
+  const result = mergeChange(row({...base, notes: 'W'.repeat(3000)}, {notes: early}, 5), change(base, {...base, notes: 'P'.repeat(3000)}, {notes: late}, 4, key), now);
+  validateRecord(key, result.value);
+  assert.equal(result.value.notes, 'P'.repeat(3000));
+  assert.deepEqual(result.conflicts.map(entry => [entry.group, entry.lost.notes, entry.lostFrom]), [['notes', 'W'.repeat(3000), 'server']]);
+  const block = data.planner.blocks[0];
+  block.notes = result.value.notes;
+  editPlan(data, {type: 'saveEntity', collection: 'blocks', id: block.id, fields: entityFields('blocks', block, {title: 'Launch v2'})});
+  assert.equal(data.planner.blocks[0].title, 'Launch v2');
+
+  const short = mergeChange(row({...base, notes: 'W'.repeat(1000)}, {notes: early}, 5), change(base, {...base, notes: 'P'.repeat(1000)}, {notes: late}, 4, key), now);
+  assert.match(short.value.notes, /\nChanged on two devices\. Kept notes 'P+'\. Other version from your website: 'W+'\.$/);
 });
