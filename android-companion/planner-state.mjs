@@ -182,7 +182,7 @@ export function arrangement(data){return planner(data).blocks.map(b=>({id:b.id,t
 
 export function localDay(date=new Date()){const d=new Date(date);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 export function shiftDay(day,offset){const d=new Date(day+'T12:00:00');d.setDate(d.getDate()+offset);return localDay(d);}
-export function dayRange(day){const start=new Date(day+'T00:00:00');const end=new Date(start);end.setDate(end.getDate()+1);end.setHours(1);return {start:+start,end:+end};}
+export function dayRange(day){const start=new Date(day+'T00:00:00');const end=new Date(start);end.setDate(end.getDate()+1);return {start:+start,end:+end};}
 export function conflicts(data,start,minutes,calendar=[],excludeId=null){
   if(minutes==null||minutes===0)return [];
   const a=+new Date(start),b=a+minutes*60000;
