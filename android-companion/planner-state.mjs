@@ -7,9 +7,13 @@ import {text,title,integer,weekdays,one,link} from './planner-fields.mjs';
 import {REVIEW_VERSION,REVIEW_OPS,migrateReviewData,forgetBlockInWeeks,keepCompletionTime} from './planner-review-data.mjs';
 import {BODY_OPS} from './body-store.mjs';
 import {UNDO_CHANGED_MESSAGE} from './undo-rebase.mjs';
+import snapshotSchema from '../web/contract/snapshot.schema.json' with {type:'json'};
 
 export {REVIEW_VERSION,migrateReviewData};
 
+// A purpose moved into notes never pushes them past the sync schema's limit, or the server refuses the record and sync stalls; the revision keeps the purpose.
+const notesLimit=Math.min(...['entry','storeEntity'].map(def=>snapshotSchema.$defs[def].properties.notes.maxLength));
+export const notesWithPurpose=(notes,purpose)=>{const joined=[notes,'Previous task purpose: '+purpose].filter(Boolean).join('\n\n');return joined.length>notesLimit?notes??'':joined;};
 export const freshPlanner=()=>({schema:1,projects:[],blocks:[],areas:[],goals:[],events:[],drafts:[],context:{vision:'',goals:'',approved:false},undo:null,reviewVersion:REVIEW_VERSION,weeks:{},reviews:{}});
 export function planner(data){return data.planner??freshPlanner();}
 export const tasks=data=>data.entries.filter(e=>!e.archived&&(e.kind??'plan')==='plan');
@@ -166,7 +170,7 @@ export function editPlan(data,op,now=new Date()){
   }else if(BODY_OPS[op.type]){
     result=BODY_OPS[op.type](next,op,at);
   }else throw new Error('Unknown planning action.');
-  for(const task of next.entries){if(task.blockId&&task.purpose){task.revisions??=[];task.revisions.push({at,reason:'Task purpose retained in notes',before:{purpose:task.purpose,notes:task.notes??''}});task.notes=[task.notes,'Previous task purpose: '+task.purpose].filter(Boolean).join('\n\n');task.purpose='';}}
+  for(const task of next.entries){if(task.blockId&&task.purpose){task.revisions??=[];task.revisions.push({at,reason:'Task purpose retained in notes',before:{purpose:task.purpose,notes:task.notes??''}});task.notes=notesWithPurpose(task.notes,task.purpose);task.purpose='';}}
   validatePlanner(next);p.events.push({id:newId(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=op.keepUndo?keptUndo(data,[op],at):before;next.undo=op.keepUndo?data.undo??null:null;if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
   Object.assign(data,next);return result;
 }
