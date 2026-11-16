@@ -6,17 +6,19 @@ import {plural, doneStats} from './format.mjs';
 import {openMenu} from './menu.mjs';
 import {purposePanel, notesPanel, titleField, finishDetail, byDeadline, deadline, nextTaskRow, taskTally, factRow, progressRing} from './blocks.mjs';
 import {resultStatus} from '../review-state.mjs';
+import {oneOff} from '../review-planning.mjs';
 import {saveEntity, NO_ICON} from './inline-edit.mjs';
 
 export function projectTasks(app, project) {
   const blocks = app.activeBlocks().filter(block => block.projectId === project.id);
   const rows = tasks(app.data()).filter(task => blocks.some(block => block.id === task.blockId));
-  return {blocks, rows, stats: doneStats(rows)};
+  // Counted like a Block's own rows (resultStatus): one-time tasks only, as a repeating task is never done.
+  return {blocks, rows, stats: doneStats(oneOff(rows))};
 }
 
-/** One Block's tasks done of total. */
+/** One Block's one-time tasks done of total, the same count as its Block rows. */
 function blockStats(app, block) {
-  return doneStats(tasks(app.data()).filter(task => task.blockId === block.id));
+  return doneStats(oneOff(tasks(app.data()).filter(task => task.blockId === block.id)));
 }
 
 /** Opens and closes a card's Block list in place; only one card is open at a time. */
