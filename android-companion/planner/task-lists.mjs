@@ -8,6 +8,8 @@ import {taskRow, taskWhen} from './task-row.mjs';
 import {taskEditor} from './quick-add.mjs';
 import {INBOX_LEFT} from './row-gestures.mjs';
 import {peekSwipe} from '../task-swipe.mjs';
+import {persist} from './inline-edit.mjs';
+import {onceInFlight} from './routine-editor.mjs';
 
 const PEEKED = 'rpm.inbox.peeked';
 const peeked = () => { try { return localStorage.getItem(PEEKED) === '1'; } catch { return true; } };
@@ -19,8 +21,8 @@ export function showTrash(app, archive = false) {
     for (const block of app.p().blocks.filter(b => b.archived)) {
       const row = el('div', 'list-item');
       row.append(icon('stacks', {cls: 'leading'}), el('span', 'list-copy', block.title),
-        button('Restore', () => app.commit({type: 'archiveBlock', id: block.id, archived: false},
-          {label: 'Block restored'}).catch(() => {}), 'text-btn'));
+        button('Restore', onceInFlight(() => persist(app, {type: 'archiveBlock', id: block.id, archived: false},
+          {label: 'Block restored'}).catch(() => {})), 'text-btn'));
       body.append(row);
     }
   }
@@ -32,8 +34,8 @@ export function showTrash(app, archive = false) {
   for (const task of rows) {
     const row = el('div', 'list-item');
     row.append(icon('task_alt', {cls: 'leading'}), el('span', 'list-copy', task.title),
-      button('Restore', () => app.commit({type: 'restoreTask', id: task.id}, {label: 'Task restored'})
-        .catch(() => {}), 'text-btn'));
+      button('Restore', onceInFlight(() => persist(app, {type: 'restoreTask', id: task.id}, {label: 'Task restored'})
+        .catch(() => {})), 'text-btn'));
     body.append(row);
   }
 }

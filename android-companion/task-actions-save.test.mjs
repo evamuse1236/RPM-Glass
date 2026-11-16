@@ -138,3 +138,27 @@ test('Delete on an Area tapped while another save runs deletes it, then goes Bac
   await removeEntity(unsaved, 'areas', 'a1');
   assert.equal(unsavedBacks, 0, 'nothing deleted, so the page stays');
 });
+
+test('Restore in Archive tapped while another save runs restores the Block and the task once each', async () => {
+  const {showTrash} = await import('./planner/task-lists.mjs');
+  const app = fakeApp({savingFor: 60});
+  const blocks = [{id: 'b1', title: 'Old', archived: true}];
+  const entries = [{id: 7, title: 'Pay rent', kind: 'plan', archived: true, archiveDisposition: 'archive'}];
+  Object.assign(app, {p: () => ({blocks}), data: () => ({entries, version: 1}), sheet: {epoch: 0},
+    api: {}, dom: {sheet: Object.assign(new FakeElement('div'), {hidden: true}), planner: new FakeElement('div')}});
+  new FakeElement('div').append(app.dom.sheet);
+  // Just enough of a sheet and its scrim for the real openSheet to open the Archive.
+  Object.assign(app.dom.sheet, {before() {}, contains: () => false, toggleAttribute() {}});
+  const scrim = Object.assign(new FakeElement('button'), {hidden: true, nextElementSibling: app.dom.sheet});
+  for (const node of [app.dom.sheet, scrim]) node.style.removeProperty ??= () => {};
+  const getElementById = doc.getElementById;
+  doc.getElementById = id => id === 'sheet-scrim' ? scrim : getElementById?.call(doc, id) ?? null;
+  showTrash(app, true);
+  const all = node => [node, ...(node.children ?? []).flatMap(all)];
+  const restores = all(app.dom.sheet).filter(n => n.tagName === 'button' && n.textContent.trim() === 'Restore');
+  assert.equal(restores.length, 2);
+  for (const restore of restores) { restore.click(); restore.click(); }
+  await new Promise(resolve => setTimeout(resolve, 250));
+  doc.getElementById = getElementById;
+  assert.deepEqual(app.ops, [{type: 'archiveBlock', id: 'b1', archived: false}, {type: 'restoreTask', id: 7}]);
+});
