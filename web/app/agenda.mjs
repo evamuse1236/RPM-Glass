@@ -28,8 +28,8 @@ export function comingUp(data, now = new Date(), shown = localDay(now)) {
     if (!groups.has(key)) groups.set(key, {day: key, items: []});
     return groups.get(key).items;
   };
-  const keyOf = value => (endOf(value) < +now ? 'overdue' : value.slice(0, 10));
-  const listed = value => value.slice(0, 10) !== shown && (keyOf(value) === 'overdue' ? value.slice(0, 10) >= since : value.slice(0, 10) <= last);
+  const keyOf = (value, minutes) => (endOf(value, minutes) < +now ? 'overdue' : value.slice(0, 10));
+  const listed = (value, minutes) => value.slice(0, 10) !== shown && (keyOf(value, minutes) === 'overdue' ? value.slice(0, 10) >= since : value.slice(0, 10) <= last);
   const whenOf = (value, day) => (day === 'overdue' ? pastWhen(value, today) : timeOf(value));
   const results = new Map(openResults(data).map(block => [block.id, block]));
   const left = id => blockTasks(data, id).filter(task => !task.done).length;
@@ -40,8 +40,8 @@ export function comingUp(data, now = new Date(), shown = localDay(now)) {
     if (!due) continue;
     const day = due.overdue ? 'overdue' : value.slice(0, 10);
     if (day !== 'overdue' && (day === shown || day > last)) continue;
-    const musts = blockTasks(data, block.id).filter(task => !task.done && task.must && dueValue(task) && keyOf(dueValue(task)) === day
-      && listed(dueValue(task)));
+    const musts = blockTasks(data, block.id).filter(task => !task.done && task.must && dueValue(task) && keyOf(dueValue(task), task.minutes) === day
+      && listed(dueValue(task), task.minutes));
     for (const task of musts) held.add(task.id);
     const under = {block: block.title, left: left(block.id)};
     if (!musts.length) group(day).push({kind: 'result', id: block.id, title: block.title, at: +due.at, when: whenOf(value, day), left: under.left});
@@ -52,8 +52,8 @@ export function comingUp(data, now = new Date(), shown = localDay(now)) {
   }
   for (const task of openMusts(data)) {
     const value = dueValue(task);
-    if (held.has(task.id) || !listed(value)) continue;
-    const day = keyOf(value), result = results.get(task.blockId);
+    if (held.has(task.id) || !listed(value, task.minutes)) continue;
+    const day = keyOf(value, task.minutes), result = results.get(task.blockId);
     group(day).push({kind: 'must', id: task.id, title: task.title, at: endOf(value), when: whenOf(value, day),
       ...(result && {block: result.title, left: left(result.id)})});
   }
@@ -61,8 +61,11 @@ export function comingUp(data, now = new Date(), shown = localDay(now)) {
   return [...groups.values()].sort((a, b) => (a.day === 'overdue' ? -1 : b.day === 'overdue' ? 1 : a.day.localeCompare(b.day))).slice(0, GROUPS);
 }
 
-/** When a dated item is over: its time, or the end of its day when it has none. */
-const endOf = value => +new Date(order(value).replace('T24', 'T23:59'));
+/**
+ * When a dated item is over: its time plus its estimate (as the phone timeline ends a row), or the end of its day when
+ * it has no time.
+ */
+const endOf = (value, minutes = 0) => +new Date(order(value).replace('T24', 'T23:59')) + (timed(value) ? (Number(minutes) || 0) * 60000 : 0);
 /**
  * A past item under Overdue says when it was due as other rows do: today, only its time; this past week, its weekday;
  * older, its full date.
