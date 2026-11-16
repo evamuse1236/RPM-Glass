@@ -24,9 +24,20 @@ export function duplicateTask(app, task) {
     .finally(() => duplicating.delete(task.id));
 }
 
-/** A repeating task's latest completion taken back, with Undo. */
+/** Task ids with an Undo last completion waiting for its save, so a second tap does not take back a second one. */
+const reopening = new Set();
+
+/**
+ * A repeating task's latest completion taken back, with Undo. The op names the completion shown when tapped, so a
+ * late repeat is refused instead of reopening an older one.
+ */
 export function undoLastCompletion(app, task) {
-  persist(app, {type: 'reopenTask', id: task.id}, {label: 'Completion undone', keepSheet: true}).catch(() => {});
+  if (reopening.has(task.id)) return;
+  const occurrence = task.completions?.at(-1)?.occurrence;
+  reopening.add(task.id);
+  persist(app, {type: 'reopenTask', id: task.id, ...(occurrence ? {occurrence} : {})},
+    {label: 'Completion undone', keepSheet: true}).catch(() => {})
+    .finally(() => reopening.delete(task.id));
 }
 
 /** Task ids with a Delete or Archive waiting for its save, so a second tap does not send a second one. */

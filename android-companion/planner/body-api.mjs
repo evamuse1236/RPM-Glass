@@ -67,7 +67,7 @@ export function bodyApi(app) {
     skipDay: (id, day = today()) => save({type: 'skipRoutineDay', routineId: id, day}),
     saveRoutine: ({id, name, start, end, days, steps}) => save({type: 'saveRoutine', routine: {...(id ? {id} : {}), name, start, end, days, steps}}),
     deleteRoutine: id => save({type: 'removeRoutine', id}),
-    water: () => ({...read().water, busy: busyEvents(app.state.calendar)}),
+    water: () => ({...read().water, busy: busyEvents(app.state.nowCalendar ?? app.state.calendar)}),
     drink: () => save(drinkOp()),
     snooze: () => save({type: 'snoozeWater', until: new Date(Date.now() + read().water.settings.snoozeMinutes * 60000).toISOString()}),
     setWater: (key, value) => save({type: 'setWater', fields: {[key]: value}}),

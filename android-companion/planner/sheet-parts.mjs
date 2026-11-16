@@ -1,6 +1,6 @@
 import {tasks, conflicts} from '../planner-state.mjs';
 import {repeats, nextOccurrence, occurrences} from '../planner-recurrence.mjs';
-import {calendarLabel, calendarRisk, calendarRows} from '../planner-calendar.mjs';
+import {calendarLabel, calendarRisk, calendarRows, speaksForNow} from '../planner-calendar.mjs';
 import {rankResults} from '../review-state.mjs';
 import {el, icon} from './dom.mjs';
 import {clock, timeRange, dateText} from './format.mjs';
@@ -73,6 +73,7 @@ export async function scheduleCheck(app, id, fields) {
   const copy = await app.api.native('calendarRead', {anchor: Date.parse(anchor)});
   app.state.calendar = calendarRows(copy);
   app.state.calendarState = calendarLabel(copy);
+  if (speaksForNow(copy)) app.state.nowCalendar = app.state.calendar;
   const start = Date.parse(anchor);
   const risk = calendarRisk(copy, start, start + minutes * 60000);
   const window = start + (repeats(candidate) ? 21 * 86400000 : 1);

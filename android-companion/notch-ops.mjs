@@ -42,8 +42,12 @@ export function alertOp(id, type) {
   return {type: 'saveTask', id, fields: {alert: type}};
 }
 
-/** The planner's last change, which the notch's Undo may take back only while it is still the last one. */
-const lastChange = data => data.planner?.events?.at(-1)?.id ?? null;
+/**
+ * The id of the plan's Undo after a notch change. The notch's Undo takes it back only while the plan still holds that
+ * Undo: a later change replaces it, but a keepUndo save (a meal estimate landing) keeps it.
+ */
+const lastChange = data => data.planner?.undo?.id ?? null;
+const CHANGED_AGAIN = 'This was changed again in the plan. Open the plan to undo it there.';
 
 const titleOf = (data, id) => tasks(data).find(t => t.id === id)?.title ?? 'Task';
 
@@ -61,8 +65,8 @@ function water(data, now) {
 export function runNotchRequest(data, request, now = new Date()) {
   const {action} = request ?? {};
   if (action === 'undo') {
-    if (!request.token || lastChange(data) !== request.token) throw new Error('This was changed again in the plan. Open the plan to undo it there.');
-    editPlan(data, {type: 'undo'}, now);
+    if (!request.token || lastChange(data) !== request.token) throw new Error(CHANGED_AGAIN);
+    editPlan(data, {type: 'undo', undoId: request.token}, now);
     return {kind: 'undo'};
   }
   if (action === 'drink') {
