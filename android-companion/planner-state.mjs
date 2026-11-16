@@ -48,6 +48,16 @@ function keptUndo(data,ops,at){
 }
 
 /** Validate on a copy, commit once, keep a single complete undo plus compact receipts. */
+// A series edit keeps the ticks of occurrences that still exist; a clock-only change moves each tick (and its completion) to the new clock.
+function keepTicks(e,old){
+  if(!repeats(e)||e.repeatAfterDays||!e.completedOccurrences?.length){e.completedOccurrences=[];return;}
+  const was=new Date(old.planned),now=new Date(e.planned),sameDay=Number.isFinite(+was)&&was.toDateString()===now.toDateString();
+  const move=k=>{if(!sameDay)return k;const d=new Date(k);d.setHours(now.getHours(),now.getMinutes(),0,0);return d.toISOString();};
+  const open={...e,completedOccurrences:[]},moved=new Map();
+  for(const k of e.completedOccurrences){const n=move(k);if(occurrences(open,Date.parse(n),Date.parse(n)+1).some(r=>r.occurrence===n))moved.set(k,n);}
+  e.completedOccurrences=[...new Set(moved.values())].slice(-512);
+  if(e.completions)e.completions=e.completions.map(c=>moved.has(c.occurrence)?{...c,occurrence:moved.get(c.occurrence)}:c);
+}
 export function editPlan(data,op,now=new Date()){
   assertPlanOp(op);
   const next=structuredClone(data);next.planner??=freshPlanner();migrateReviewData(next);const p=next.planner,before=snap(data),at=now.toISOString();let result;
@@ -118,7 +128,7 @@ export function editPlan(data,op,now=new Date()){
     if('repeatAfterDays'in f)e.repeatAfterDays=f.repeatAfterDays==null?null:integer(f.repeatAfterDays,1,365);
     if(e.repeatAfterDays&&e.recurrence)throw new Error('Choose one repeat pattern.');
     if((e.recurrence||e.repeatAfterDays)&&!e.planned)throw new Error('Add the first date and time for a repeating task.');
-    if('planned'in f&&f.planned!==old.planned||'recurrence'in f&&f.recurrence!==old.recurrence||String(e.repeatDays??'')!==String(old.repeatDays??''))e.completedOccurrences=[];
+    if('planned'in f&&f.planned!==old.planned||'recurrence'in f&&f.recurrence!==old.recurrence||String(e.repeatDays??'')!==String(old.repeatDays??''))keepTicks(e,old);
     if(f.done===true){e.done=false;e.state='active';completeTask(e,op.occurrence,now);keepCompletionTime(e,old,at);}
     e.revisions.push({at,reason:'Edited in planner',before:old,snapshot:{title:e.title,planned:e.planned,minutes:e.minutes,blockId:e.blockId,must:e.must,done:e.done}});
     e.revisions=e.revisions.slice(-100);

@@ -11,7 +11,7 @@ class FakeClassList{
 
 /** One part of a selector: tag, classes and [name=value] attributes, like `button.edit-chip[data-chip=time]`. */
 function compound(part){
- const tag=part.match(/^[a-z]+/i)?.[0]?.toLowerCase();
+ const tag=part.match(/^[a-z][a-z0-9]*/i)?.[0]?.toLowerCase();
  const classes=[...part.matchAll(/\.([\w-]+)/g)].map(m=>m[1]);
  const attrs=[...part.matchAll(/\[([\w-]+)(?:="?([^\]"]*)"?)?\]/g)].map(m=>[m[1],m[2]]);
  return node=>(!tag||node.tagName===tag)&&classes.every(c=>node.classList.contains(c))

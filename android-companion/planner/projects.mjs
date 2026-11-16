@@ -6,17 +6,19 @@ import {plural, doneStats} from './format.mjs';
 import {openMenu} from './menu.mjs';
 import {purposePanel, notesPanel, titleField, finishDetail, byDeadline, deadline, nextTaskRow, taskTally, factRow, progressRing} from './blocks.mjs';
 import {resultStatus} from '../review-state.mjs';
+import {oneOff} from '../review-planning.mjs';
 import {saveEntity, NO_ICON} from './inline-edit.mjs';
 
 export function projectTasks(app, project) {
   const blocks = app.activeBlocks().filter(block => block.projectId === project.id);
   const rows = tasks(app.data()).filter(task => blocks.some(block => block.id === task.blockId));
-  return {blocks, rows, stats: doneStats(rows)};
+  // Counted like a Block's own rows (resultStatus): one-time tasks only, as a repeating task is never done.
+  return {blocks, rows, stats: doneStats(oneOff(rows))};
 }
 
-/** One Block's tasks done of total. */
+/** One Block's one-time tasks done of total, the same count as its Block rows. */
 function blockStats(app, block) {
-  return doneStats(tasks(app.data()).filter(task => task.blockId === block.id));
+  return doneStats(oneOff(tasks(app.data()).filter(task => task.blockId === block.id)));
 }
 
 /** Opens and closes a card's Block list in place; only one card is open at a time. */
@@ -151,21 +153,27 @@ function projectCard(app, project, lead = projectLead(app, project)) {
   return card;
 }
 
+/** The Projects the Area filter shows. A filter whose Area no longer exists (deleted here or on the website) shows all,
+ * as its chip reads "Area: All". */
+export function filteredProjects(app) {
+  const current = app.p().areas.find(area => area.id === app.state.projectFilter);
+  return {current, projects: app.p().projects.filter(pr => !current || app.projectArea(pr)?.id === current.id)};
+}
+
 export function renderProjects(app, page) {
   const {state} = app;
   const filters = el('div', 'chip-row filters');
-  const current = app.p().areas.find(area => area.id === state.projectFilter);
+  const {current, projects} = filteredProjects(app);
   const chip = button('', null, 'filter-chip dropdown');
   chip.classList.toggle('on', !!current);
   chip.append(el('span', '', current?.title ?? 'Area'), icon('arrow_drop_down'));
   chip.setAttribute('aria-label', 'Area: ' + (current?.title ?? 'All'));
   chip.addEventListener('click', () => openMenu(chip, [[null, 'All areas'], ...app.p().areas.map(a => [a.id, a.title])]
-    .map(([value, label]) => ({label, icon: value === state.projectFilter ? 'check' : NO_ICON,
+    .map(([value, label]) => ({label, icon: value === (current?.id ?? null) ? 'check' : NO_ICON,
       onClick: () => { state.projectFilter = value; app.render({reset: true}); }})), 'Area'));
   filters.append(chip);
   page.append(filters);
   const wide = Boolean(app.api.wide?.());
-  const projects = app.p().projects.filter(pr => !state.projectFilter || app.projectArea(pr)?.id === state.projectFilter);
   // Soonest due first, then Projects with no deadline, finished ones last; ties keep the user's order.
   const rank = ({due, finished}) => [finished ? 2 : due ? 0 : 1, due?.at.getTime() ?? Infinity];
   const leads = projects.map((project, i) => ({project, i, lead: projectLead(app, project)}))

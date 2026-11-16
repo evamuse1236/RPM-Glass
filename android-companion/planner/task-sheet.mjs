@@ -6,7 +6,7 @@ import {el, icon, button, iconButton} from './dom.mjs';
 import {duration} from './format.mjs';
 import {openSheet, closeSheet, isSheetOpen} from './sheet.mjs';
 import {toggleDone} from './task-row.mjs';
-import {whenOf, whenFields, whenLabel, repeatLabel, startNowValue, timePickValue, viewedOccurrence, clockOf, leadLabel} from './task-values.mjs';
+import {whenOf, whenFields, whenLabel, repeatLabel, startNowValue, timePickValue, viewedOccurrence, clockOf, leadLabel, seriesDayRefusal} from './task-values.mjs';
 import {NEEDS_TIME, alertText, clashText, findTask, saver, scheduleCheck, suggestBlock, syncText} from './sheet-parts.mjs';
 import {archiveTask, deleteTask, duplicateTask, undoLastCompletion} from './task-actions.mjs';
 import {RETURN_FADE, RETURN_HOLD, inboxShowing, markReturned, showInbox} from './task-lists.mjs';
@@ -176,6 +176,12 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
     pick: {
       day: day => {
         if (!day) return setWhen({day: '', time: ''}, 'Date removed');
+        const refused = seriesDayRefusal(live(), day);
+        if (refused) {
+          tabs.error('day', refused);
+          tabs.paint(now(live()));
+          return;
+        }
         const value = {day, time: current().time};
         return setWhen(value, 'Moved to ' + whenLabel(value));
       },

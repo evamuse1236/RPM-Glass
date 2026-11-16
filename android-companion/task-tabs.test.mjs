@@ -307,3 +307,42 @@ test('a tap on the time ruler then Clear leaves the task untimed; a slide or a w
     assert.deepEqual(saved, ['09:30'], 'a wheel scroll saves once it ends');
   }
 });
+
+test('editing a series keeps the ticks of occurrences that still exist, and a clock change moves them', () => {
+  const series = () => {
+    const d = freshStore();
+    const id = editPlan(d, {type: 'saveTask', fields: {title: 'Standup', ...whenFields({day: '2026-11-10', time: '09:00'}), recurrence: 'weekdays', minutes: 15}});
+    const task = () => tasks(d).find(t => t.id === id);
+    editPlan(d, {type: 'saveTask', id, occurrence: at('2026-11-16', '09:00'), fields: {done: true}}, new Date('2026-11-16T09:20'));
+    return {d, id, task};
+  };
+  const open = task => occurrences(task(), +new Date('2026-11-16T00:00'), +new Date('2026-11-17T00:00')).map(o => o.occurrence);
+
+  // Adding Saturday changes no key: Monday's tick stays.
+  const a = series();
+  assert.deepEqual(open(a.task), []);
+  editPlan(a.d, {type: 'saveTask', id: a.id, fields: toggleRepeatDay(a.task(), 6)});
+  assert.deepEqual(a.task().repeatDays, [1, 2, 3, 4, 5, 6]);
+  assert.deepEqual(a.task().completedOccurrences, [at('2026-11-16', '09:00')]);
+  assert.deepEqual(open(a.task), [], 'today stays done after adding Saturday');
+  editPlan(a.d, {type: 'undo'});
+  assert.deepEqual(a.task().completedOccurrences, [at('2026-11-16', '09:00')]);
+
+  // Moving the clock to 10:00 moves the tick with it, and Reopen still finds it.
+  const b = series();
+  const shown = whenOf(b.task(), at('2026-11-16', '09:00'));
+  editPlan(b.d, {type: 'saveTask', id: b.id, fields: whenFields(timePickValue(b.task(), shown, '10:00', {repeating: repeats(b.task())}))});
+  assert.deepEqual(b.task().completedOccurrences, [at('2026-11-16', '10:00')]);
+  assert.deepEqual(open(b.task), [], 'today stays done after moving the clock');
+  assert.equal(b.task().completions.at(-1).occurrence, at('2026-11-16', '10:00'));
+  editPlan(b.d, {type: 'reopenTask', id: b.id});
+  assert.deepEqual(open(b.task), [at('2026-11-16', '10:00')]);
+  assert.deepEqual(b.task().completedOccurrences, []);
+
+  // Moving the series past the tick drops the tick that no longer exists.
+  const c = series();
+  editPlan(c.d, {type: 'saveTask', id: c.id, fields: whenFields({day: '2026-11-18', time: '09:00'})});
+  assert.deepEqual(c.task().completedOccurrences, []);
+  editPlan(c.d, {type: 'undo'});
+  assert.deepEqual(c.task().completedOccurrences, [at('2026-11-16', '09:00')]);
+});

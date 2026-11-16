@@ -3,6 +3,7 @@ import {el, button} from './dom.mjs';
 import {openSheet, field, select, checkbox} from './sheet.mjs';
 import {blockMenu, blockCrumb, revealNotes, focusTitleOnOpen} from './blocks.mjs';
 import {persist} from './inline-edit.mjs';
+import {onceInFlight} from './routine-editor.mjs';
 import {userMessage} from '../user-message.mjs';
 
 export const NAMES = {projects: 'Project', blocks: 'Block', areas: 'Area', goals: 'Goal'};
@@ -81,8 +82,9 @@ export function newFields(collection, defaults, state, current = null) {
 /**
  * New Block, Project, Goal or Area: made at once and opened on its own page with the placeholder title selected,
  * so typing names it and everything else edits in place from birth (Things-style). Creating it offers Undo.
+ * One create runs at a time across all collections: a second tap while it saves makes nothing.
  */
-export async function createInPlace(app, collection, defaults = {}) {
+export const createInPlace = onceInFlight(async (app, collection, defaults = {}) => {
   try {
     const id = await persist(app, {type: 'saveEntity', collection, id: null,
       fields: newFields(collection, defaults, app.state, app.current())}, {label: NAMES[collection] + ' created'});
@@ -91,7 +93,7 @@ export async function createInPlace(app, collection, defaults = {}) {
     if (collection === 'blocks') app.openBlock(id);
     else app.push(collection, id);
   } catch {}
-}
+});
 
 /** draftMeta: {key, sourceRaw} for a Goal drafted by Capture; its original words stay visible. */
 export function entityEditor(app, collection, id = null, defaults = {}, draftMeta = null) {
@@ -188,9 +190,19 @@ function deleteEntity(app, kind, id) {
   const {body, actions} = openSheet(app, `Delete ${name}?`, {variant: 'dialog'});
   body.append(el('p', 'sheet-note', 'Linked content is kept. You can undo this change.'));
   actions.append(button('Keep', () => app.closeSheet(), 'text-btn'),
-    button('Delete', () => app.commit({type: 'removeEntity', collection: kind, id}, {label: name + ' deleted'})
-      .then(() => app.back()).catch(() => {}), 'filled-btn danger'));
+    button('Delete', () => removeEntity(app, kind, id), 'filled-btn danger'));
 }
+
+/** Deletes once the save in flight ends (a second tap meanwhile does nothing), and goes Back only when the record is
+ * gone: a removeEntity save returns no id, so the saved data says whether it landed. */
+export const removeEntity = onceInFlight(async (app, kind, id) => {
+  try {
+    await persist(app, {type: 'removeEntity', collection: kind, id}, {label: NAMES[kind] + ' deleted'});
+  } catch {
+    return; // persist or commit has already shown why nothing was saved.
+  }
+  if (!app.p()[kind]?.some(item => item.id === id)) app.back();
+});
 
 /** What a detail bar shows beside Back at rest: a Block's Area · Project line; other pages show nothing there. */
 export function detailCrumb(app, top) {

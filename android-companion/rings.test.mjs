@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {nestedRings, finishedMark, MAX_RINGS} from './planner/rings.mjs';
-import {toggleProject} from './planner/projects.mjs';
+import {toggleProject, projectTasks, filteredProjects} from './planner/projects.mjs';
+import {resultStatus} from './review-state.mjs';
 
 test('each Block ring\'s arc is its done/total, outermost first, fading inward', () => {
   const rings = nestedRings([{done: 2, total: 5}, {done: 4, total: 4}, {done: 0, total: 3}, {done: 0, total: 0}]);
@@ -52,4 +53,35 @@ test('progress is drawn in the Area colour, or primary blue with no Area; never 
     assert.ok(start >= 0, stroke);
     assert.ok(css.slice(start, css.indexOf('}', start)).includes('stroke: var(--progress'), `${stroke} uses --progress`);
   }
+});
+
+test('a Project counts only one-time tasks, the same as its Block rows, so a repeating task never keeps it unfinished', () => {
+  const block = {id: 'b1', title: 'Get fit', projectId: 'p1'};
+  const data = {planner: {blocks: [block], projects: [{id: 'p1', title: 'Health'}], areas: [], goals: []}, entries: [
+    {id: 1, kind: 'plan', title: 'Buy shoes', blockId: 'b1', done: true},
+    {id: 2, kind: 'plan', title: 'Book coach', blockId: 'b1', done: true},
+    {id: 3, kind: 'plan', title: 'Run', blockId: 'b1', recurrence: 'daily', planned: '2026-11-10T07:00:00.000Z'},
+  ]};
+  const app = {data: () => data, activeBlocks: () => [block]};
+  const {stats} = projectTasks(app, {id: 'p1'});
+  const status = resultStatus(data, 'b1');
+  assert.deepEqual([stats.done, stats.total], [status.done, status.total]);
+  assert.deepEqual(stats, {done: 2, total: 2, percent: 100});
+});
+
+test('a Projects Area filter left on a deleted Area shows every Project, as its chip reads Area: All', () => {
+  const health = {id: 'health', title: 'Health'};
+  const run = {id: 'p1', title: 'Run 10K', goalId: 'g1'};
+  const read = {id: 'p2', title: 'Read more', goalId: 'g2'};
+  const goals = [{id: 'g1', areaId: 'health'}, {id: 'g2', areaId: 'mind'}];
+  const make = (areas, projectFilter) => {
+    const plan = {areas, projects: [run, read]};
+    return {p: () => plan, state: {projectFilter},
+      projectArea: pr => areas.find(area => area.id === goals.find(g => g.id === pr.goalId)?.areaId)};
+  };
+  assert.deepEqual(filteredProjects(make([], 'health')).projects, [run, read]);
+  assert.equal(filteredProjects(make([], 'health')).current, undefined);
+  assert.deepEqual(filteredProjects(make([health], 'health')).projects, [run]);
+  assert.deepEqual(filteredProjects(make([health, {id: 'empty', title: 'Empty'}], 'empty')).projects, []);
+  assert.deepEqual(filteredProjects(make([health], null)).projects, [run, read]);
 });
