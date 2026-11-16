@@ -120,7 +120,8 @@ final class NotchDay {
             long days = d.toEpochDay() - base.toLocalDate().toEpochDay();
             if (days < 0 || ("weekly".equals(r) && days % 7 != 0)) continue;
             if (!Repeats.on(r, d.getDayOfWeek())) continue;
-            out.add(base.plusDays(days));
+            // A clock time that happens twice (fall-back) takes the first one, as the planner's Date does.
+            out.add(base.plusDays(days).withEarlierOffsetAtOverlap());
         }
         return out;
     }

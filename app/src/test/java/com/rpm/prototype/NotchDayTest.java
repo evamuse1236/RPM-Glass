@@ -94,4 +94,22 @@ public class NotchDayTest {
         assertEquals("1h 5m", NotchDay.minutes(65 * NotchDay.MIN));
         assertEquals("1 h 5 min", NotchDay.spoken(65 * NotchDay.MIN));
     }
+
+    @Test
+    public void onTheFallBackDayARepeatInTheRepeatedHourTakesTheFirstOneLikeThePlanner() {
+        // The planner (JS Date) reads 1:30 AM on 1 Nov 2026 in New York as the first 1:30 (EDT, 05:30Z);
+        // the notch and the alert must pick the same instant, or a Done in the planner never clears the notch.
+        ZoneId ny = ZoneId.of("America/New_York");
+        Instant planned = LocalDateTime.parse("2026-01-05T01:30").atZone(ny).toInstant();
+        long now = LocalDateTime.parse("2026-11-01T00:10").atZone(ny).toInstant().toEpochMilli();
+        long first = Instant.parse("2026-11-01T05:30:00Z").toEpochMilli();
+        NotchDay.Task open = new NotchDay.Task(9, "Meds", null, planned, 15, "daily", new HashSet<>());
+        List<NotchDay.Slot> slots = NotchDay.today(Collections.singletonList(open), now, ny);
+        assertEquals(1, slots.size());
+        assertEquals(first, slots.get(0).start);
+        NotchDay.Task done = new NotchDay.Task(9, "Meds", null, planned, 15, "daily", new HashSet<>(Arrays.asList("2026-11-01T05:30:00.000Z")));
+        assertTrue(NotchDay.today(Collections.singletonList(done), now, ny).isEmpty());
+        long dayBefore = LocalDateTime.parse("2026-10-31T12:00").atZone(ny).toInstant().toEpochMilli();
+        assertEquals(first, CompanionAlerts.next(planned.toEpochMilli(), "daily", ny, dayBefore));
+    }
 }

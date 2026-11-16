@@ -30,13 +30,14 @@ final class CompanionAlerts {
     static PendingIntent open(Context c,long id){return PendingIntent.getActivity(c,(int)(id%Integer.MAX_VALUE),new Intent(c,CompanionActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_SINGLE_TOP),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);}
     static void cancel(Context c,long id){c.getSystemService(AlarmManager.class).cancel(trigger(c,id,0));c.getSystemService(NotificationManager.class).cancel("companion-reminder",(int)id);CompanionAlarmService.cancelActive(id);}
     static long next(long base,String recurrence,ZoneId zone,long now){
-        if(base<=0)return 0;if(base>now){ZonedDateTime start=Instant.ofEpochMilli(base).atZone(zone);for(int i=0;i<7&&Repeats.repeating(recurrence)&&!Repeats.on(recurrence,start.getDayOfWeek());i++)start=start.plusDays(1);return start.toInstant().toEpochMilli();}
+        if(base<=0)return 0;if(base>now){ZonedDateTime start=Instant.ofEpochMilli(base).atZone(zone);for(int i=0;i<7&&Repeats.repeating(recurrence)&&!Repeats.on(recurrence,start.getDayOfWeek());i++)start=start.plusDays(1);if(Repeats.repeating(recurrence))start=start.withEarlierOffsetAtOverlap();return start.toInstant().toEpochMilli();}
         if(!Repeats.repeating(recurrence))return 0;
         ZonedDateTime start=Instant.ofEpochMilli(base).atZone(zone);long step=Repeats.step(recurrence);
         long days=java.time.temporal.ChronoUnit.DAYS.between(start.toLocalDate(),Instant.ofEpochMilli(now).atZone(zone).toLocalDate());
         // Each step counts from base, so a day whose clock time does not exist (moved to 3:30) never shifts the days after it.
-        long first=Math.max(0,days/step);ZonedDateTime time=start.plusDays(first*step);
-        for(int i=0;i<800&&(time.toInstant().toEpochMilli()<=now||!Repeats.on(recurrence,time.getDayOfWeek()));i++)time=start.plusDays((first+i+1)*step);
+        // A clock time that happens twice (fall-back) takes the first one, as the planner's Date does.
+        long first=Math.max(0,days/step);ZonedDateTime time=start.plusDays(first*step).withEarlierOffsetAtOverlap();
+        for(int i=0;i<800&&(time.toInstant().toEpochMilli()<=now||!Repeats.on(recurrence,time.getDayOfWeek()));i++)time=start.plusDays((first+i+1)*step).withEarlierOffsetAtOverlap();
         return time.toInstant().toEpochMilli();
     }
     static long next(JSONObject e,ZoneId zone,long now){
