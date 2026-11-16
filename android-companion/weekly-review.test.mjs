@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {installFakeDom, FakeElement} from './fake-dom.mjs';
 import {editPlan, planner} from './planner-state.mjs';
 import {reviewProgress, leftoverChoice} from './review-state.mjs';
-import {seed, WEEK, LAST, entry} from './review-fixtures.mjs';
+import {seed, WEEK, LAST, entry, task} from './review-fixtures.mjs';
 import {mountWeeklyReview} from './weekly-review.mjs';
 import {sheetLayer} from './review-step-three.mjs';
 
@@ -325,6 +325,30 @@ test('a step 4 Must row tapped twice before the save lands toggles on then off, 
     assert.deepEqual(labels, ['Marked Must', 'No longer a Must']);
     editPlan(d, {type: 'undo'});
     assert.equal(entry(d, laundry).must, true, 'Undo takes back the second tap');
+  } finally {
+    review.destroy();
+  }
+});
+
+test('Give it this day tapped twice before the save lands gives the day once, so Undo takes it back', async () => {
+  const {d, home} = seed();
+  const must = task(d, {title: 'Write the shopping list', blockId: home, minutes: 30, must: true});
+  editPlan(d, {type: 'reviewProgress', week: WEEK, patch: {step: 4, focusDraft: [home]}});
+  const box = document.createElement('div');
+  const review = mountWeeklyReview(box, {getData: () => d, close() {}, openBlock() {}, openCapture() {},
+    readCalendar: () => ({status: 'ready', events: []}),
+    commit: async op => { await settle(); editPlan(d, op); },
+    day: () => '2026-09-26', now: () => new Date('2026-09-26T10:00:00+05:30')});
+  try {
+    await settle();
+    const go = box.querySelector('[data-key="place"]');
+    assert.ok(go, 'the suggested day shows');
+    go.click();
+    go.click();
+    for (let i = 0; i < 8; i++) await settle();
+    assert.equal(entry(d, must).plannedDate, '2026-09-27', 'the Must is given the suggested day');
+    editPlan(d, {type: 'undo'});
+    assert.equal(entry(d, must).plannedDate ?? null, null, 'Undo takes the given day back');
   } finally {
     review.destroy();
   }
