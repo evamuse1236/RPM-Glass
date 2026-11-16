@@ -2,12 +2,13 @@
  * Each has a tap route: the ring, and the task sheet's Day and Time rows, Block row, Delete and Must star. */
 import {attachSwipe} from '../task-swipe.mjs';
 import {openMenu} from './menu.mjs';
+import {persist} from './inline-edit.mjs';
 
 function heldActions(app, task) {
   const must = !task.must;
   return [
     {id: 'must', label: must ? 'Mark as Must' : 'Remove Must', icon: 'star', run: () =>
-      app.commit({type: 'saveTask', id: task.id, fields: {must}}, {label: must ? 'Marked Must' : 'Must removed'}).catch(() => {})},
+      persist(app, {type: 'saveTask', id: task.id, fields: {must}}, {label: must ? 'Marked Must' : 'Must removed'}).catch(() => {})},
     {id: 'move', label: 'Move to Block', icon: 'drive_file_move', run: () => app.actions.movePicker(task)},
     {id: 'delete', label: 'Delete', icon: 'delete', danger: true, run: () => app.actions.deleteTask(task)},
   ];

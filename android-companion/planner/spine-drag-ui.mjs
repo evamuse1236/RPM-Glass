@@ -5,6 +5,7 @@ import {clockText} from '../body-state.mjs';
 import {duration} from './format.mjs';
 import {el} from './dom.mjs';
 import {quickMenu} from './row-gestures.mjs';
+import {persist} from './inline-edit.mjs';
 
 const EDGE_SCROLL = 64;
 const navRoom = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-measured')) || 0;
@@ -135,7 +136,7 @@ export function attachSpineDrag(app, card, row, {dayStart}) {
       const start = snapStart(row.start, dy, dayStart);
       if (start === row.start) return;
       haptic('confirm');
-      app.commit({type: 'saveTask', id: task.id, fields: {planned: new Date(start).toISOString()}},
+      persist(app, {type: 'saveTask', id: task.id, fields: {planned: new Date(start).toISOString()}},
         {label: `Moved to ${clockText(new Date(start))}`}).catch(() => {});
     } else if (result.held >= LONG_PRESS) quickMenu(app, task, card);
   });
@@ -195,7 +196,10 @@ function knurl(app, card, row, haptic) {
       return;
     }
     haptic('confirm');
-    app.commit({type: 'saveTask', id: task.id, fields: {minutes: value}}, {label: `Length ${duration(value)}`}).catch(() => {});
+    // A length that was not saved (another save never ended, or it failed) puts the card back at its saved length.
+    const back = () => card.closest('.spine-row')?.style.setProperty('--h', cardHeight(minutes) + 'px');
+    persist(app, {type: 'saveTask', id: task.id, fields: {minutes: value}}, {label: `Length ${duration(value)}`})
+      .then(id => { if (id === undefined) back(); }, back);
   };
   node.addEventListener('pointerup', end(true));
   node.addEventListener('pointercancel', end(false));

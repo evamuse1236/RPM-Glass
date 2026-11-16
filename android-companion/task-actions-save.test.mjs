@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {installFakeDom} from './fake-dom.mjs';
-installFakeDom();
+import {installFakeDom, FakeElement} from './fake-dom.mjs';
+const doc = installFakeDom();
 globalThis.localStorage ??= {getItem: () => null, setItem() {}, removeItem() {}};
-const {deleteTask, archiveTask} = await import('./planner/task-actions.mjs');
+const {deleteTask, archiveTask, scheduleMenu} = await import('./planner/task-actions.mjs');
 
 /** A planner whose commit, like app.commit, does nothing and returns undefined while another save runs. */
 function fakeApp({savingFor = 0} = {}) {
@@ -48,4 +48,21 @@ test('a second tap on Delete while the first waits sends one archive, so one Und
   const results = await Promise.all([deleteTask(app, {id: 5}, {keepSheet: false}), deleteTask(app, {id: 5}, {keepSheet: false})]);
   assert.deepEqual(results.toSorted(), [false, true]);
   assert.equal(app.ops.length, 1);
+});
+
+test('a Schedule menu choice tapped while another save runs saves it once that save ends', async () => {
+  // Just enough layout for the menu to place itself; reduced motion so it closes at once.
+  Object.assign(FakeElement.prototype, {getBoundingClientRect: () => ({top: 100, bottom: 160, left: 0, right: 384, width: 384}),
+    offsetWidth: 200, offsetHeight: 300, isConnected: true});
+  Object.defineProperty(FakeElement.prototype, 'style', {get() { return (this._style ??= {setProperty() {}}); }});
+  doc.body = new FakeElement('body');
+  Object.assign(globalThis, {innerWidth: 384, innerHeight: 800, matchMedia: () => ({matches: true})});
+  const app = fakeApp({savingFor: 60});
+  app.dom = {sheet: Object.assign(new FakeElement('div'), {hidden: true})};
+  scheduleMenu(app, {id: 5, title: 'Call the bank'}, new FakeElement('div'));
+  doc.body.querySelector('.schedule-item').click();
+  await new Promise(resolve => setTimeout(resolve, 200));
+  assert.equal(app.ops.length, 1);
+  assert.equal(app.ops[0].type, 'saveTask');
+  assert.equal(app.ops[0].id, 5);
 });

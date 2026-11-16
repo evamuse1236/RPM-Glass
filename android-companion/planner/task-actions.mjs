@@ -97,7 +97,7 @@ export function scheduleMenu(app, task, anchor, {occurrence = null, moveToBlock 
   const pick = value => {
     closeSchedule();
     const label = value.day ? 'Moved to ' + whenLabel(value) : 'Date removed';
-    app.commit({type: 'saveTask', id: t.id, fields: whenFields(value)}, {label, keepSheet: isSheetOpen(app)}).catch(() => {});
+    persist(app, {type: 'saveTask', id: t.id, fields: whenFields(value)}, {label, keepSheet: isSheetOpen(app)}).catch(() => {});
   };
   for (const preset of presets) {
     const row = button('', () => pick(preset.value), 'menu-item schedule-item');
