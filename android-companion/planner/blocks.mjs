@@ -17,7 +17,7 @@ import {taskRow, completedSection, toggleDone, taskWhen, isOverdue} from './task
 import {openSheet, field} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
 import {playMotion, DURATION, EASE} from '../surface-motion.mjs';
-import {saveEntity, NO_ICON, persist} from './inline-edit.mjs';
+import {saveEntity, NO_ICON, persist, whenIdle} from './inline-edit.mjs';
 import {stampOf, factRow, purposePanel, notesPanel, revealNotes, titleField, finishDetail} from './detail-fields.mjs';
 import {blockAdd} from './block-add.mjs';
 
@@ -260,9 +260,21 @@ function achievedSheet(app, block) {
   const evidence = field(app, body, 'How do you know? (optional)', '', 'text', {helper: 'One line of evidence'});
   evidence.maxLength = 200;
   actions.append(button('Cancel', () => app.closeSheet(), 'text-btn'),
-    labelButton('emoji_events', 'Mark achieved', () => app.commit(
-      {type: 'markAchieved', id: block.id, achieved: true, evidence: evidence.value},
-      {label: 'Result achieved'}).catch(() => {}), 'filled-btn'));
+    labelButton('emoji_events', 'Mark achieved', () => markAchieved(app, block.id, true, evidence.value), 'filled-btn'));
+}
+
+/** Saves the user's verdict on a Result with one Undo, after any save in flight (a tap then is never dropped). */
+export function markAchieved(app, id, achieved, evidence) {
+  const op = achieved ? {type: 'markAchieved', id, achieved: true, evidence} : {type: 'markAchieved', id, achieved: false};
+  return persist(app, op, {label: achieved ? 'Result achieved' : 'Result marked not achieved'}).catch(() => {});
+}
+
+/** Puts a Block's Plan in time order with one Undo. The order is read when the save starts, from the data any save
+ * in flight left, so a task that save added or moved is sorted too. */
+export async function sortPlan(app, blockId) {
+  try { await whenIdle(app); } catch { return; }
+  return app.commit({type: 'reorder', blockId, ids: planByTime(blockTasks(app.data(), blockId))},
+    {label: 'Plan sorted by time'}).catch(() => {});
 }
 
 /** The verdict is the user's own call, apart from the tick count: one quiet row under the add field that asks for it,
@@ -282,9 +294,7 @@ function achievedControl(app, block, status) {
   if (status.achievedAt) head.append(el('span', 'achieved-date', dateText(status.achievedAt)));
   panel.append(head);
   if (status.evidence) panel.append(el('p', '', status.evidence));
-  panel.append(button('Mark not achieved', () => app.commit(
-    {type: 'markAchieved', id: block.id, achieved: false}, {label: 'Result marked not achieved'}).catch(() => {}),
-  'text-btn'));
+  panel.append(button('Mark not achieved', () => markAchieved(app, block.id, false), 'text-btn'));
   return panel;
 }
 
@@ -324,9 +334,8 @@ function sortByTime(app, block) {
   if (rows.filter(t => !t.done).length < 2) return null;
   const ids = planByTime(rows);
   if (ids.every((id, i) => id === rows[i].id)) return null;
-  // The order is read when tapped, so a link kept across an in-place reorder never sorts a stale Plan.
-  return button('Sort by time', () => app.commit({type: 'reorder', blockId: block.id,
-    ids: planByTime(blockTasks(app.data(), block.id))}, {label: 'Plan sorted by time'}).catch(() => {}), 'text-btn');
+  // The order is read when the save starts, so a link kept across an in-place reorder never sorts a stale Plan.
+  return button('Sort by time', () => sortPlan(app, block.id), 'text-btn');
 }
 
 /** The Plan header keeps the link's height whether it shows or not, so it never pushes the Plan down. */
