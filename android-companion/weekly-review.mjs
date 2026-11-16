@@ -49,8 +49,11 @@ export function mountWeeklyReview(container, ctx) {
   const root = el('section', 'wr');
   root.setAttribute('aria-label', 'Weekly review');
   container.replaceChildren(root);
-  const api = createActions(ctx, week, ui, () => render());
-  const render = () => {
+  const api = createActions(ctx, week, ui, opts => render(opts));
+  // `reload` is set only on refreshes the review did not start with a tap (data refresh, the controller, after its own
+  // save), so a tap's own render never reloads drafts over the value it just changed.
+  const render = ({reload = false} = {}) => {
+    if (reload) reloadDrafts(api);
     settleCarryUndo(api);
     renderReview(root, api, ctx);
   };
@@ -58,7 +61,7 @@ export function mountWeeklyReview(container, ctx) {
   // Data can change outside the review (Undo in the snackbar, Capture, phone refresh).
   const refreshIfChanged = () => {
     const typing = container.contains(document.activeElement) && document.activeElement.matches('input, textarea');
-    if (api.data() !== ui.seen && !ui.busy && !typing) render();
+    if (api.data() !== ui.seen && !ui.busy && !typing) render({reload: true});
   };
   const timer = setInterval(refreshIfChanged, 600);
   window.addEventListener('rpm-data-refresh', refreshIfChanged);
@@ -72,7 +75,7 @@ export function mountWeeklyReview(container, ctx) {
     });
 
   return {
-    refresh: render,
+    refresh: () => render({reload: true}),
     /** Android Back: closes an open sheet; returns true when it handled the press. */
     back() {
       if (!ui.sheet) return false;
@@ -106,7 +109,7 @@ function createActions(ctx, week, ui, render) {
         ui.saving--;
       }
     });
-    queue = job.then(() => { if (!ui.destroyed) render(); });
+    queue = job.then(() => { if (!ui.destroyed) render({reload: true}); });
     return queue;
   }
   // Saves only the fields an action changed, so it never writes back drafts another open review of this week saved.
@@ -147,6 +150,14 @@ function createActions(ctx, week, ui, render) {
   return {data, week, ui, run, goTo, close, finish, render, groupList, openBlock, events, clashes, saveProgress, now: () => ctx.now()};
 }
 
+/** Another surface (the website, a second tab) saved this week's drafts: show them instead of writing over them later. */
+function reloadDrafts({ui, data, week}) {
+  const saved = reviewProgress(data(), week);
+  if (saved.updatedAt === ui.progressAt || ui.saving) return;
+  Object.assign(ui, {progressAt: saved.updatedAt, focus: saved.focusDraft ?? weekFocus(data(), week),
+    kept: saved.keptIds, clashes: saved.clashes});
+}
+
 /**
  * The body and its content column live across renders. A step change moves old and new content on the shared X axis
  * (reversed going back); a change inside a step rebuilds the content in place, so rows slide or collapse instead of
@@ -155,12 +166,6 @@ function createActions(ctx, week, ui, render) {
 function renderReview(root, api, ctx) {
   const {ui} = api;
   ui.seen = api.data();
-  // Another surface (the website, a second tab) saved this week's drafts: show them instead of writing over them later.
-  const saved = reviewProgress(ui.seen, api.week);
-  if (saved.updatedAt !== ui.progressAt && !ui.saving) {
-    Object.assign(ui, {progressAt: saved.updatedAt, focus: saved.focusDraft ?? weekFocus(ui.seen, api.week),
-      kept: saved.keptIds, clashes: saved.clashes});
-  }
   let body = root.querySelector(':scope > .wr-body');
   let content = body?.querySelector(':scope > .wr-content');
   const first = !body;

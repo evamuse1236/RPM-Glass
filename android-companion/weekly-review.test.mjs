@@ -112,3 +112,21 @@ test('resuming step 4 after a picked Result was archived: Finish counts the same
     review.destroy();
   }
 });
+
+test('a tap applies even when another surface saved the week\'s drafts since the last refresh', async () => {
+  const {d, home, inbox} = seed();
+  editPlan(d, {type: 'reviewProgress', week: WEEK, patch: {step: 4}});
+  const phone = mountOn(d);
+  try {
+    // The website's save lands before this review's next refresh.
+    editPlan(d, {type: 'reviewProgress', week: WEEK, patch: {keptIds: [inbox]}});
+    phone.box.querySelector(`[data-key="focus:${home}"]`).click();
+    await settle();
+    assert.deepEqual(reviewProgress(d, WEEK).focusDraft, [home], 'the pick is saved');
+    assert.deepEqual(reviewProgress(d, WEEK).keptIds, [inbox], 'beside the website\'s kept task');
+    assert.equal(phone.box.querySelector(`[data-key="focus:${home}"]`).getAttribute('aria-checked'), 'true',
+      'and the Result shows picked');
+  } finally {
+    phone.review.destroy();
+  }
+});
