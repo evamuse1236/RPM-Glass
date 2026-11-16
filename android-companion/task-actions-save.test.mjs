@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {installFakeDom, FakeElement} from './fake-dom.mjs';
 const doc = installFakeDom();
 globalThis.localStorage ??= {getItem: () => null, setItem() {}, removeItem() {}};
-const {deleteTask, archiveTask, scheduleMenu} = await import('./planner/task-actions.mjs');
+const {deleteTask, archiveTask, duplicateTask, scheduleMenu} = await import('./planner/task-actions.mjs');
 
 /** A planner whose commit, like app.commit, does nothing and returns undefined while another save runs. */
 function fakeApp({savingFor = 0} = {}) {
@@ -48,6 +48,18 @@ test('a second tap on Delete while the first waits sends one archive, so one Und
   const results = await Promise.all([deleteTask(app, {id: 5}, {keepSheet: false}), deleteTask(app, {id: 5}, {keepSheet: false})]);
   assert.deepEqual(results.toSorted(), [false, true]);
   assert.equal(app.ops.length, 1);
+});
+
+test('a second tap on Duplicate while the first save runs makes one copy, so one Undo takes it back', async () => {
+  const app = fakeApp({savingFor: 60});
+  duplicateTask(app, {id: 5, title: 'Call the bank'});
+  await new Promise(resolve => setTimeout(resolve, 20));
+  duplicateTask(app, {id: 5, title: 'Call the bank'});
+  await new Promise(resolve => setTimeout(resolve, 200));
+  assert.deepEqual(app.ops.map(op => op.type), ['saveTask']);
+  duplicateTask(app, {id: 5, title: 'Call the bank'});
+  await new Promise(resolve => setTimeout(resolve, 50));
+  assert.equal(app.ops.length, 2, 'a later Duplicate still saves');
 });
 
 test('a Schedule menu choice tapped while another save runs saves it once that save ends', async () => {

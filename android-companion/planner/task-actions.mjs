@@ -9,13 +9,19 @@ import {inboxShowing} from './task-lists.mjs';
 import {openTask} from './task-sheet.mjs';
 import {persist} from './inline-edit.mjs';
 
+/** Task ids with a Duplicate waiting for its save, so a second tap does not make a second copy. */
+const duplicating = new Set();
+
 /** A copy of the task's words, Block, length and Must; the sheet closes and the snackbar offers Undo. */
 export function duplicateTask(app, task) {
+  if (duplicating.has(task.id)) return;
   const fields = {
     title: task.title, blockId: task.blockId ?? null, minutes: task.minutes, must: !!task.must,
     notes: task.notes ?? '', purpose: task.purpose ?? '', leverage: task.leverage ?? '',
   };
-  persist(app, {type: 'saveTask', fields}, {label: 'Task duplicated'}).catch(() => {});
+  duplicating.add(task.id);
+  persist(app, {type: 'saveTask', fields}, {label: 'Task duplicated'}).catch(() => {})
+    .finally(() => duplicating.delete(task.id));
 }
 
 /** A repeating task's latest completion taken back, with Undo. */
