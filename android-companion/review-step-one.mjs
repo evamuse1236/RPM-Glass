@@ -185,12 +185,33 @@ function carryHead(text, echo = false) {
   return head;
 }
 
-function carryAll(api, tasks, running) {
+/** Carries every open task and running Result as one change. The running Results live in the quiet draft, which
+ * the plan's Undo never rewinds, so the review remembers the draft as it was and puts it back when that Undo lands. */
+export function carryAll(api, tasks, running) {
+  const focus = [...api.ui.focus];
   if (tasks.length) {
     const ops = tasks.map(task => ({type: 'reviewTask', id: task.id, choice: 'carry', week: api.week}));
-    api.run(ops.length === 1 ? ops[0] : {type: 'batch', ops}, 'Carried into this week');
+    const undoBefore = api.data().planner?.undo?.id;
+    api.run(ops.length === 1 ? ops[0] : {type: 'batch', ops}, 'Carried into this week').then(() => {
+      const undoId = api.data().planner?.undo?.id;
+      if (running.length && undoId && undoId !== undoBefore) api.ui.carried = {undoId, focus, ids: ops.map(op => op.id)};
+    });
   }
-  if (running.length) setFocus(api, [...api.ui.focus, ...running.map(r => r.blockId)]);
+  if (running.length) setFocus(api, [...focus, ...running.map(r => r.blockId)]);
+}
+
+/** Called on every render: once Carry all's Undo has taken the tasks back, the running Results it carried go back too. */
+export function settleCarryUndo(api) {
+  const mark = api.ui.carried;
+  if (!mark) return;
+  const data = api.data();
+  if (data.planner?.undo?.id === mark.undoId) return;
+  api.ui.carried = null;
+  const undone = !data.planner?.undo && mark.ids.every(id => leftoverChoice(data.entries.find(e => e.id === id) ?? {}, api.week) !== 'carry');
+  if (!undone) return;
+  api.ui.focus = mark.focus;
+  api.ui.focusHint = '';
+  api.run({type: 'reviewProgress', week: api.week, patch: {focusDraft: mark.focus}}, null);
 }
 
 const CHOICE_ICONS = {carry: 'redo', defer: 'event_upcoming', drop: 'archive'};

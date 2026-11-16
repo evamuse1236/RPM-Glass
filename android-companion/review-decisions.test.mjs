@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {editPlan, planner, blockTasks, blockDue} from './planner-state.mjs';
-import {markAchieved, inboxTasks, leftoverTasks, decideLeftover, leftoverChoice, groupTask, setMust, focusCandidates, taskDate, groupTasks, addInboxTask} from './review-state.mjs';
-import {WEEK, at, block, task, entry, seed} from './review-fixtures.mjs';
+import {markAchieved, inboxTasks, leftoverTasks, decideLeftover, leftoverChoice, groupTask, setMust, focusCandidates, taskDate, groupTasks, addInboxTask, setWeekFocus, reviewProgress, reviewSummary} from './review-state.mjs';
+import * as stepOne from './review-step-one.mjs';
+import {WEEK, LAST, at, block, task, entry, seed} from './review-fixtures.mjs';
+import {freshStore} from '../chat-prototype/companion-state.mjs';
 
 test('carry, defer and drop are deliberate, reversible and undoable', () => {
   const {d, home, meals, kitchen, laundry} = seed();
@@ -136,4 +138,35 @@ test('addInboxTask saves the exact words as a new Inbox task with Undo', () => {
   editPlan(d, {type: 'undo'});
   assert.equal(entry(d, id), undefined);
   assert.throws(() => addInboxTask(d, '   '), /title/);
+});
+
+test('one Undo of Carry all takes back the carried tasks and the running Results it carried', async () => {
+  const d = freshStore();
+  const home = block(d, {title: 'Home ready', purpose: 'Calm'});
+  const launch = block(d, {title: 'Launch site', purpose: 'Ship'});
+  const meals = task(d, {title: 'Prepare meals', blockId: home, plannedDate: '2026-09-23'});
+  task(d, {title: 'Write copy', blockId: launch, plannedDate: '2026-10-10'}); // deadline ahead: still running
+  setWeekFocus(d, LAST, [home, launch]);
+  const now = at('2026-09-27T10:00:00+05:30');
+  editPlan(d, {type: 'markAchieved', id: home, achieved: false, week: LAST, verdict: 'partly'}, now);
+  const running = reviewSummary(d, WEEK, now).results.filter(r => r.running);
+  assert.deepEqual(running.map(r => r.title), ['Launch site']);
+  // The review's api as weekly-review.mjs builds it: commits queue, and each one re-renders after it lands.
+  let queue = Promise.resolve();
+  const api = {
+    ui: {focus: [], focusHint: ''}, week: WEEK, data: () => d,
+    render: () => stepOne.settleCarryUndo?.(api),
+    run: (op, label) => (queue = queue.then(() => { editPlan(d, op, now); }).then(() => api.render())),
+  };
+  stepOne.carryAll(api, [entry(d, meals)], running);
+  await queue;
+  assert.equal(leftoverChoice(entry(d, meals), WEEK), 'carry');
+  assert.deepEqual(reviewProgress(d, WEEK).focusDraft, [launch]);
+  // The snackbar's Undo, then the refresh it gives the mounted review.
+  editPlan(d, {type: 'undo'}, now);
+  api.render();
+  await queue;
+  assert.equal(leftoverChoice(entry(d, meals), WEEK), null);
+  assert.deepEqual(api.ui.focus, [], 'the running Result is no longer carried');
+  assert.deepEqual(reviewProgress(d, WEEK).focusDraft, [], 'and the saved draft says so');
 });
