@@ -68,6 +68,9 @@ async function undo(ctx:PlannerCtx,account:Id<"accounts">,command:Doc<"webComman
 export async function applyPlan(ctx:PlannerCtx,account:Id<"accounts">,command:Doc<"webCommands">) {
   // Convex runs in UTC; the reducer reads days and hours in the zone the browser showed them in.
   const store=await loadStore(ctx,account), before=projectRecords(store), now=new Date(), zone=command.payload.timezone??"Asia/Kolkata";
+  // The reducer runs at the moment the user acted (createdAt), as the browser replayed it, so a tick sent late keeps its dates.
+  // A client stamp in the future or older than a week is not trusted; record stamps always stay on server time.
+  const acted=Date.parse(command.payload.createdAt), userNow=acted<=now.getTime()+60_000 && acted>=now.getTime()-7*86_400_000?new Date(acted):now;
   let message="Saved.",nextTaskId:number|undefined;
   if(command.payload.type==="undo") {
     const kept=await undo(ctx,account,command,store,zone);
@@ -82,7 +85,7 @@ export async function applyPlan(ctx:PlannerCtx,account:Id<"accounts">,command:Do
       initializeTaskIds(store).nextTaskId=Math.max(store.sync.nextTaskId,nextServerTaskId(owner,rows));
       const ids=command.payload.args.ids??[], used=new Set<string>();
       const takenEntities=JSON.stringify([store.planner??null,store.entries.map((entry:any)=>entry.id)]);
-      withIds(ids.filter((id:any)=>typeof id==="string"),()=>withTimeZone(zone,()=>editPlan(store,operation(command.payload),now)), (id:string)=>{
+      withIds(ids.filter((id:any)=>typeof id==="string"),()=>withTimeZone(zone,()=>editPlan(store,operation(command.payload),userNow)), (id:string)=>{
         const valid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) && !takenEntities.includes(id) && !used.has(id);
         if(valid)used.add(id);return valid;
       });
