@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {installFakeDom, FakeElement} from './fake-dom.mjs';
 const doc = installFakeDom();
 globalThis.localStorage ??= {getItem: () => null, setItem() {}, removeItem() {}};
-const {deleteTask, archiveTask, duplicateTask, scheduleMenu} = await import('./planner/task-actions.mjs');
+const {deleteTask, archiveTask, duplicateTask, undoLastCompletion, scheduleMenu} = await import('./planner/task-actions.mjs');
+const {editPlan} = await import('./planner-state.mjs');
 
 /** A planner whose commit, like app.commit, does nothing and returns undefined while another save runs. */
 function fakeApp({savingFor = 0} = {}) {
@@ -77,4 +78,32 @@ test('a Schedule menu choice tapped while another save runs saves it once that s
   assert.equal(app.ops.length, 1);
   assert.equal(app.ops[0].type, 'saveTask');
   assert.equal(app.ops[0].id, 5);
+});
+
+test('Undo last completion tapped twice while the first save runs takes back one completion, and Undo restores it', async () => {
+  const data = {entries: [], version: 1};
+  const occ = day => new Date(`2026-11-${day}T08:00:00`).toISOString();
+  const id = editPlan(data, {type: 'saveTask', fields: {title: 'Walk', planned: occ(14), recurrence: 'daily'}}, new Date('2026-11-14T10:00:00'));
+  editPlan(data, {type: 'saveTask', id, fields: {done: true}, occurrence: occ(14)}, new Date('2026-11-14T10:00:00'));
+  editPlan(data, {type: 'saveTask', id, fields: {done: true}, occurrence: occ(15)}, new Date('2026-11-15T10:00:00'));
+  const walk = () => data.entries.find(e => e.id === id);
+  const app = {
+    saving: false, notice() {},
+    data: () => data,
+    commit: async op => {
+      if (app.saving) return undefined;
+      app.saving = true;
+      await new Promise(resolve => setTimeout(resolve, 20));
+      try { return editPlan(data, JSON.parse(JSON.stringify(op)), new Date('2026-11-16T09:00:00')); } finally { app.saving = false; }
+    },
+  };
+  undoLastCompletion(app, structuredClone(walk()));
+  undoLastCompletion(app, structuredClone(walk()));
+  await new Promise(resolve => setTimeout(resolve, 200));
+  assert.deepEqual(walk().completedOccurrences, [occ(14)], 'one tap takes back one completion');
+  editPlan(data, {type: 'undo'}, new Date('2026-11-16T09:01:00'));
+  assert.deepEqual(walk().completedOccurrences, [occ(14), occ(15)], 'Undo restores the completion taken back');
+  undoLastCompletion(app, structuredClone(walk()));
+  await new Promise(resolve => setTimeout(resolve, 100));
+  assert.deepEqual(walk().completedOccurrences, [occ(14)], 'a later tap still takes back the latest completion');
 });
