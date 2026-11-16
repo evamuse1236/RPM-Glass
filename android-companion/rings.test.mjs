@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {nestedRings, finishedMark, MAX_RINGS} from './planner/rings.mjs';
-import {toggleProject, projectTasks} from './planner/projects.mjs';
+import {toggleProject, projectTasks, filteredProjects} from './planner/projects.mjs';
 import {resultStatus} from './review-state.mjs';
 
 test('each Block ring\'s arc is its done/total, outermost first, fading inward', () => {
@@ -67,4 +67,21 @@ test('a Project counts only one-time tasks, the same as its Block rows, so a rep
   const status = resultStatus(data, 'b1');
   assert.deepEqual([stats.done, stats.total], [status.done, status.total]);
   assert.deepEqual(stats, {done: 2, total: 2, percent: 100});
+});
+
+test('a Projects Area filter left on a deleted Area shows every Project, as its chip reads Area: All', () => {
+  const health = {id: 'health', title: 'Health'};
+  const run = {id: 'p1', title: 'Run 10K', goalId: 'g1'};
+  const read = {id: 'p2', title: 'Read more', goalId: 'g2'};
+  const goals = [{id: 'g1', areaId: 'health'}, {id: 'g2', areaId: 'mind'}];
+  const make = (areas, projectFilter) => {
+    const plan = {areas, projects: [run, read]};
+    return {p: () => plan, state: {projectFilter},
+      projectArea: pr => areas.find(area => area.id === goals.find(g => g.id === pr.goalId)?.areaId)};
+  };
+  assert.deepEqual(filteredProjects(make([], 'health')).projects, [run, read]);
+  assert.equal(filteredProjects(make([], 'health')).current, undefined);
+  assert.deepEqual(filteredProjects(make([health], 'health')).projects, [run]);
+  assert.deepEqual(filteredProjects(make([health, {id: 'empty', title: 'Empty'}], 'empty')).projects, []);
+  assert.deepEqual(filteredProjects(make([health], null)).projects, [run, read]);
 });
