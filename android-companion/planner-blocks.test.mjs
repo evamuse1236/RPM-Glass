@@ -4,7 +4,7 @@ import {deadline, byDeadline, planByTime} from './planner/blocks.mjs';
 import {timeLeft} from './planner/format.mjs';
 import {blockDue} from './planner-state.mjs';
 import {dropIndex} from './planner/task-row.mjs';
-import {entityFields} from './planner/inline-edit.mjs';
+import {entityFields, saveEntity} from './planner/inline-edit.mjs';
 import {newFields} from './planner/entities.mjs';
 
 const now = new Date('2026-10-03T12:00');
@@ -71,6 +71,30 @@ test('editing one field in place sends every field saveEntity needs, so nothing 
   assert.deepEqual(entityFields('goals', goal, {horizon: 'yearly', period: 2}),
     {title: 'Run', purpose: '', notes: '', areaId: 'a', year: 2026, horizon: 'yearly', period: null});
   assert.deepEqual(entityFields('projects', {id: 'p', title: 'Term 1'}), {title: 'Term 1', purpose: '', notes: '', goalId: null});
+});
+
+test('a field saved from a page drawn before the last save keeps that save: only its own words change', async () => {
+  const stale = {id: 'b1', title: 'Old name', purpose: 'Old purpose', notes: ''};
+  const fakeApp = blocks => {
+    const app = {saving: false, ops: [], blocks, p: () => ({blocks: app.blocks})};
+    app.commit = (op, options) => { app.ops.push({op, options}); return Promise.resolve(true); };
+    return app;
+  };
+  const idle = fakeApp([{id: 'b1', title: 'Old name', purpose: 'New purpose', notes: ''}]);
+  await saveEntity(idle, 'blocks', stale, {title: 'New name'}, 'Result renamed');
+  assert.deepEqual(idle.ops[0].op.fields, {title: 'New name', purpose: 'New purpose', notes: '', projectId: null});
+  assert.equal(idle.ops[0].options.label, 'Result renamed');
+  // The Purpose save is still in flight when the title is saved: the title waits it out, then builds on it.
+  const busy = fakeApp([stale]);
+  busy.saving = true;
+  const pending = saveEntity(busy, 'blocks', stale, {title: 'New name'}, 'Result renamed');
+  setTimeout(() => { busy.blocks = [{...stale, purpose: 'New purpose'}]; busy.saving = false; }, 20);
+  await pending;
+  assert.deepEqual(busy.ops[0].op.fields, {title: 'New name', purpose: 'New purpose', notes: '', projectId: null});
+  // A record not in the saved plan (deleted meanwhile) still saves from the words it was drawn with.
+  const gone = fakeApp([]);
+  await saveEntity(gone, 'blocks', stale, {title: 'New name'}, 'Result renamed');
+  assert.deepEqual(gone.ops[0].op.fields, {title: 'New name', purpose: 'Old purpose', notes: '', projectId: null});
 });
 
 test('a new record starts from where it was made: the Project page, the Blocks filter, the Life period', () => {

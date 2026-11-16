@@ -243,7 +243,14 @@ export function entityFields(collection, record, patch = {}) {
   return fields;
 }
 
-export function saveEntity(app, collection, record, patch, label) {
-  return persist(app, {type: 'saveEntity', collection, id: record.id, fields: entityFields(collection, record, patch)},
+/**
+ * Save `patch` onto the record as it is saved now, not as the page drew it: a field rebuilt by another field's
+ * save may still hold the older record, and its other words would undo that save. Waits out a save in flight
+ * first, so the record read includes it. A record no longer in the plan saves from `record`.
+ */
+export async function saveEntity(app, collection, record, patch, label) {
+  for (let i = 0; i < 20 && app.saving; i++) await new Promise(resolve => setTimeout(resolve, 50));
+  const current = (record.id && app.p?.()?.[collection]?.find(r => r.id === record.id)) || record;
+  return persist(app, {type: 'saveEntity', collection, id: record.id, fields: entityFields(collection, current, patch)},
     {label});
 }
