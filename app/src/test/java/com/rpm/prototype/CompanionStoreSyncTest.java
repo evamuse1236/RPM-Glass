@@ -70,6 +70,16 @@ public class CompanionStoreSyncTest {
         java.util.Set<String> keys=new java.util.TreeSet<>();for(int i=0;i<absent.length();i++)keys.add(absent.getString(i));
         assertEquals(new java.util.TreeSet<>(java.util.Arrays.asList("task:2","task:3")),keys);
     }
+    @Test public void restoreListsASnoozeTheBackupHoldsAsNull()throws Exception {
+        JSONObject live=store(1).put("planner",new JSONObject("{body:{water:{snoozedUntil:'2026-10-24T14:00:00Z'}}}"));
+        live.put("sync",new JSONObject("{base:{'waterSnooze:main':{rev:5}}}"));
+        CompanionStore.write(context,live,0,"sync");
+        JSONObject backup=store(40).put("syncSavedAt","2026-10-01T00:00:00Z");
+        backup.put("planner",new JSONObject().put("body",new JSONObject().put("water",new JSONObject().put("snoozedUntil",JSONObject.NULL))));
+        CompanionStore.importCopy(context,backup);
+        JSONArray absent=CompanionStore.read(context).getJSONObject("sync").getJSONArray("restoredAbsent");
+        assertEquals("[\"waterSnooze:main\"]",absent.toString());
+    }
     @Test public void restoreWithoutSavedTimeUsesSourceFileTimeAndRejectsBackupSync()throws Exception {
         JSONObject backup=store(40).put("sync",new JSONObject("{cursor:999}"));
         CompanionStore.importCopy(context,backup,Instant.parse("2026-09-01T00:00:00Z").toEpochMilli());
