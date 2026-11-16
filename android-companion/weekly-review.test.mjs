@@ -174,3 +174,31 @@ test('Finish can be tapped again after its save failed', async () => {
     review.destroy();
   }
 });
+
+test('a clash chip tapped twice, or a then b, before the save lands leaves one decision task on Today', async () => {
+  const at = s => +new Date(`2026-09-30T${s}:00+05:30`);
+  const events = [{title: 'DAD exam', start: at('09:00'), end: at('10:00')}, {title: 'GWBC session', start: at('09:30'), end: at('10:30')}];
+  for (const [first, second] of [['a', 'a'], ['a', 'b']]) {
+    const {d} = seed();
+    editPlan(d, {type: 'reviewProgress', week: WEEK, patch: {step: 4}});
+    const box = document.createElement('div');
+    const review = mountWeeklyReview(box, {getData: () => d, close() {}, openBlock() {}, openCapture() {},
+      readCalendar: () => ({status: 'ready', events}),
+      commit: async op => { await settle(); editPlan(d, op); },
+      day: () => '2026-09-26', now: () => new Date('2026-09-26T10:00:00+05:30')});
+    try {
+      await settle();
+      const chip = keep => [...box.querySelectorAll('.wr-choice')].find(n => n.dataset.key.startsWith(`clash:${keep}:`));
+      assert.ok(chip(first), 'step 4 shows the clash');
+      const second_ = chip(second);
+      chip(first).click();
+      second_.click();
+      for (let i = 0; i < 8; i++) await settle();
+      const made = d.entries.filter(t => /clash/i.test(t.title ?? ''));
+      assert.equal(made.length, 1, `${first} then ${second}: one decision task`);
+      assert.match(made[0].title, second === 'a' ? /keep DAD exam/ : /keep GWBC session/, 'saying the last choice');
+    } finally {
+      review.destroy();
+    }
+  }
+});
