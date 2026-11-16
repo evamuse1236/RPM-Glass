@@ -356,8 +356,11 @@ export function rateAreas(app, id = null) {
     readers.push(() => (touched ? {id: area.id, rating: Number(input.value)} : null));
   }
   if (!readers.length) body.append(el('p', 'sheet-note', 'Add an Area first.'));
-  const save = button('Save ratings', () => app.commit({type: 'rateAreas', ratings: readers.map(r => r()).filter(Boolean)},
-    {label: 'Ratings saved'}).catch(() => {}), 'filled-btn');
+  const save = button('Save ratings', () => {
+    const ratings = readers.map(r => r()).filter(Boolean);
+    if (!ratings.length) return app.closeSheet();
+    return app.commit({type: 'rateAreas', ratings}, {label: 'Ratings saved'}).catch(() => {});
+  }, 'filled-btn');
   save.disabled = !readers.length;
   actions.append(button('Cancel', () => app.closeSheet(), 'text-btn'), save);
 }

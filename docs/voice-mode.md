@@ -1,6 +1,6 @@
 # Voice mode (Gemini Live)
 
-The user talks; Gemini Live changes the plan through tools. Three places: the phone's Capture sheet (opened by the home widget's mic and by the planner's Add hold), and the website's Capture. Approved after the `npm run ramble` prototype (2026-10-27).
+The user talks; Gemini Live changes the plan through tools. Three places: the phone's Capture sheet (opened by the home widget's mic and by a tap on the round button beside the planner's tab bar), and the website's Capture. Approved after the `npm run ramble` prototype (2026-10-27).
 
 ## Changed 2026-10-31: the phone keeps the line open
 
@@ -86,7 +86,7 @@ The website does the same through one `plan` command holding the batch (its Undo
 | `no-mic` | "Allow the microphone to talk to RPM." with a Settings button; typing still works |
 | `no-key` | Phone: falls back to the system dictation as today. Website: the mic is hidden. |
 
-The home widget's mic opens Capture already listening (`com.rpm.widget.voice` already calls `rpmStartVoice`). The planner's Add hold opens the same Capture; its mic is the same button.
+The home widget's mic opens Capture already listening (`com.rpm.widget.voice` already calls `rpmStartVoice`). A tap on the round button beside the planner's tab bar opens the same Capture; its mic is the same button.
 
 ## Added 2026-11-01: voice and persona (phone only)
 

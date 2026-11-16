@@ -80,6 +80,19 @@ test('the planner sheets offer Undo with the id of the change they name', async 
   assert.deepEqual(bare, [], 'an Undo with no undoId takes back whatever was saved last');
 });
 
+test('Save ratings with no slider touched changes nothing and keeps the earlier Undo', async () => {
+  const data = freshStore();
+  const id = editPlan(data, {type: 'saveEntity', collection: 'areas', fields: {title: 'Health'}});
+  editPlan(data, {type: 'rateAreas', ratings: [{id, rating: 7}]});
+  const before = structuredClone(data);
+  assert.throws(() => editPlan(data, {type: 'rateAreas', ratings: []}), /Choose a rating first/);
+  assert.deepEqual(data, before);
+  editPlan(data, {type: 'undo'});
+  assert.equal(data.planner.areas.find(a => a.id === id).rating ?? null, null, 'Undo still takes back the rating');
+  const life = await import('node:fs').then(fs => fs.readFileSync(new URL('./planner/life.mjs', import.meta.url), 'utf8'));
+  assert.match(life, /if \(!ratings\.length\) return app\.closeSheet\(\);/, 'an empty Save ratings closes the sheet without a commit');
+});
+
 test('planner modules pass ops at every direct commit and weekly-review run call', async () => {
   const ts = (await import('typescript')).default;
   const {readdirSync, readFileSync} = await import('node:fs');

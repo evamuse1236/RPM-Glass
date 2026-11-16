@@ -76,3 +76,42 @@ test('every value a task chip sends saves as the planner reads it',async()=>{
  assert.equal(row.recurrence,'weekdays');assert.equal(row.minutes,45);assert.equal(row.alertIntent?.type??row.alert,'alarm');
  await s.edit('recurrence',null,'never');row=await entry(s.backend,s.task.id);assert.ok(!row.recurrence);
 });
+
+/** The receipt card wired to the real agent the way capture-app wires it: actionIdFor(action) is the transaction id. */
+async function cardOn(s){
+ const {installFakeDom,FakeElement}=await import('./fake-dom.mjs');
+ const {createChipCard}=await import('./capture-chip-card.mjs');
+ const {intentViewFromData}=await import('./intent-service.mjs');
+ const {actionIdFor}=await import('../intent-v2/src/suggestions.mjs');
+ installFakeDom();
+ let capture=intentViewFromData(await s.backend.load(),{now}).captures.find(c=>c.draft?.id===s.draftId);
+ assert.equal(typeof capture.draft.revision,'number');
+ const h={card:null,sent:[]};
+ const act=async action=>{h.sent.push(action);const r=await s.agent.act(action,{actionId:actionIdFor(action)});capture=intentViewFromData(await s.backend.load(),{now}).captures.find(c=>c.draft?.id===s.draftId);return r;};
+ const render=()=>{h.card=new FakeElement('section');h.card.append(h.chips.items(capture,h.card));};
+ h.chips=createChipCard({act,refresh:render,choices:()=>({blocks:[],projects:[],goals:[],areas:[]}),today:()=>'2026-10-19'});
+ render();
+ h.chip=key=>h.card.querySelector(`.edit-chip[data-chip=${key}]`);
+ h.pick=async(key,text)=>{h.chip(key).click();[...h.card.querySelectorAll('.tray-pick')].find(b=>text.test(b.textContent)).click();await new Promise(r=>setTimeout(r,0));};
+ h.undo=async()=>{const last=capture.draft.edits.at(-1);h.chips.changeRow(capture,last.undoId).querySelector('button').click();await new Promise(r=>setTimeout(r,0));};
+ h.capture=()=>capture;
+ return h;
+}
+
+test('the same chip tap after its Undo, or after another value, saves again; a retry of one tap does not',async()=>{
+ const s=await captured(),h=await cardOn(s);
+ await h.pick('alert',/^Alarm$/);
+ assert.equal((await entry(s.backend,s.task.id)).alertIntent.type,'alarm');
+ await h.undo();
+ assert.equal((await entry(s.backend,s.task.id)).alertIntent.type,'reminder');
+ await h.pick('alert',/^Alarm$/);
+ assert.equal((await entry(s.backend,s.task.id)).alertIntent.type,'alarm','Alarm, Undo, Alarm ends as an alarm');
+ await h.pick('time',/^7\sPM$/);await h.pick('time',/^3\sPM$/);await h.pick('time',/^7\sPM$/);
+ assert.equal(new Date((await entry(s.backend,s.task.id)).planned).getHours(),19,'7 PM, 3 PM, 7 PM ends at 7 PM');
+ const edits=(await s.backend.load()).intentV2.drafts[s.draftId].edits;
+ assert.equal(edits.length,5);
+ const {actionIdFor}=await import('../intent-v2/src/suggestions.mjs');
+ const last=h.sent.at(-1),again=await s.agent.act(last,{actionId:actionIdFor(last)});
+ assert.equal(again.status,'edited');
+ assert.equal((await s.backend.load()).intentV2.drafts[s.draftId].edits.length,5,'a retry of the same tap applies nothing');
+});

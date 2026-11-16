@@ -139,11 +139,12 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
   });
   const release = keep => event => {
     if (!drag || event.pointerId !== drag.id) return;
-    const {at} = drag;
+    const {at, from} = drag;
     drag = null;
     node.classList.remove('is-sizing');
     const next = at || null;
-    if (keep && next !== (state.minutes ?? null)) saveMinutes(next);
+    // A grip that never left its starting step saves nothing: a length past the reach starts there, cut to the reach.
+    if (keep && at !== from && next !== (state.minutes ?? null)) saveMinutes(next);
     else sized(state.minutes);
   };
   grip.addEventListener('pointerup', release(true));
