@@ -271,6 +271,20 @@ test('"undo that" drops the last change in this ramble, or takes back the previo
  assert.match(reply(ramble(data,'undo that',false),tools(call('undo_last')))[0].error,/Use the Undo button/,'one press per ramble cannot undo a saved one');
 });
 
+test('Undo on a request that said "undo that" and added a task puts back the plan from before that request', () => {
+ const {data}=day(),live=()=>data.entries.filter(e=>!e.archived&&['Swim','Run'].includes(e.title)).map(e=>e.title);
+ const first=ramble(data,'add swim');reply(first,tools(call('save_task',{title:'Swim'})));first.receive(turnDone);first.receive(turnDone);
+ applyRamble(data,first.result(),words);
+ const second=ramble(data,'undo that and add run instead');reply(second,tools(call('undo_last'),call('save_task',{title:'Run'})));second.receive(turnDone);second.receive(turnDone);
+ assert.deepEqual(applyRamble(data,second.result(),{...words,messageId:'m-2'}),{status:'applied',undo:true});
+ assert.deepEqual(live(),['Run']);
+ undoRamble(data,'m-2',NOW);
+ assert.deepEqual(live(),['Swim'],'Undo brings back what the request took back and drops what it added');
+ assert.equal(data.intentV2.captures['m-1'].voice.undone,false);
+ undoRamble(data,'m-1',NOW);
+ assert.deepEqual(live(),[],'the first request can be undone again');
+});
+
 test('the prompt says what "it" means, ignores speech that is not a request, and asks before removing', () => {
  const prompt=liveSetup(NOW,TZ).systemInstruction.parts[0].text;
  assert.match(prompt,/"It", "that" and "them" mean the items you changed last/);

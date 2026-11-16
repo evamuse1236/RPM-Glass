@@ -157,11 +157,14 @@ export function applyRamble(data,ramble,options){
  if(ramble.failed&&!ramble.batch&&!ramble.undoes)return keep(ramble.failed);
  if(ramble.batch||ramble.undoes){
   const next=structuredClone(data),before=taskIds(next);
+  // The plan as it was before this request, keeping the earlier request's Undo, so this request's one Undo restores both.
+  const prior={entries:structuredClone(data.entries),planner:structuredClone(planner(data))};
   if(ramble.undoes){
    if(!rambleUndoable(next,intentState(next).captures[ramble.undoes]?.voice))return keep('You changed the plan after that. Undo it in the planner.');
-   editPlan(next,{type:'undo'},now);intentState(next).captures[ramble.undoes].voice.undone=true;
+   undoVoice(next,ramble.undoes,now);
   }
   if(ramble.batch)try{withIds(ramble.uuids,()=>editPlan(next,ramble.batch,now));}catch(e){return keep(userMessage(e));}
+  if(ramble.batch&&ramble.undoes)planner(next).undo=prior;
   const made=[...taskIds(next)].filter(id=>!before.has(id));
   if(made.length!==ramble.created.length||made.some(id=>!ramble.created.includes(id)))return keep('Your plan changed while you talked. Your words are saved.');
   Object.assign(data,next);
@@ -169,7 +172,7 @@ export function applyRamble(data,ramble,options){
  const capture=intentState(data).captures[messageId];
  delete capture.lastError;
  Object.assign(capture,{status:'interpreted',draftId:null,reply:ramble.said||null,taskIds:rambleTaskIds(ramble),
-  receipt:voiceRows(data,ramble.changes,now).map(line=>({text:receiptText(line)})),voice:{changes:ramble.changes,calls:ramble.calls??[],undoEvent:ramble.batch?planner(data).events.at(-1)?.id??null:null,undone:false}});
+  receipt:voiceRows(data,ramble.changes,now).map(line=>({text:receiptText(line)})),voice:{changes:ramble.changes,calls:ramble.calls??[],undoEvent:ramble.batch?planner(data).events.at(-1)?.id??null:null,undone:false,...(ramble.batch&&ramble.undoes?{undoes:ramble.undoes}:{})}});
  return {status:ramble.batch||ramble.undoes?'applied':'nothing',undo:!!ramble.batch};
 }
 
@@ -200,6 +203,14 @@ export function undoRamble(data,messageId,now=new Date()){
  const voice=intentState(data).captures[messageId]?.voice;
  if(!voice?.undoEvent||voice.undone)throw new Error('This ramble has nothing to undo.');
  if(!rambleUndoable(data,voice))throw new Error('You changed the plan after this ramble. Undo those changes in the planner.');
+ undoVoice(data,messageId,now);
+}
+
+/** Takes back a voice request's batch; when that request had taken back an earlier one, the earlier one is undoable again. */
+function undoVoice(data,messageId,now){
+ const earlier=planner(data).undo?.planner?.undo??null;
  editPlan(data,{type:'undo'},now);
- intentState(data).captures[messageId].voice.undone=true;
+ const captures=intentState(data).captures,voice=captures[messageId].voice;
+ voice.undone=true;
+ if(voice.undoes&&earlier&&captures[voice.undoes]?.voice){planner(data).undo=earlier;captures[voice.undoes].voice.undone=false;}
 }
