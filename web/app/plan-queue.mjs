@@ -84,6 +84,8 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
       const entry = entryOf(rec.id);
       if (entry && !client.settled(entry)) return true;
       if (entry && FAILED.has(entry.status)) failed.push({ids: rec.ids, message: entry.message || FALLBACK});
+      // Linking again empties the outbox; a sent change it held was never decided, so it is named, not dropped.
+      if (!entry) failed.push({ids: rec.ids, message: FALLBACK});
       if (rec.created?.length || rec.kind === 'undo' && !rec.restore) redraw = true;
       return false;
     });

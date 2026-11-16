@@ -401,3 +401,34 @@ test('more than 20 offline changes delivered, then one more before the snapshot 
   queue.commit({type: 'undo'});
   assert.equal(task(queue, 3).done, false, 'Undo shows the task un-done at once');
 });
+
+test('a change sent while the link had expired is named as not saved after linking again, never dropped without a word', async () => {
+  let expired = false; const posts = [];
+  const reply = (status, body, headers = {}) => new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json', ...headers}});
+  const fetchImpl = async (url, init) => {
+    const {pathname} = new URL(url);
+    if (pathname === '/v1/web/link') { expired = false; return reply(200, {token: 't2'}); }
+    if (expired) return reply(401, {error: {code: 'unauthorized', message: 'no'}});
+    if (pathname === '/v1/web/snapshot') return reply(200, fixture, {ETag: `"${fixture.revision}"`});
+    if (pathname === '/v1/web/commands' && init.method === 'POST') { posts.push(JSON.parse(init.body)); return reply(200, {status: 'pending'}); }
+    return reply(200, {commands: [], cursor: 0, hasMore: false});
+  };
+  const storage = memory();
+  storage.setItem('rpm.web.v1', JSON.stringify({server: 'https://x.test', token: 't1'}));
+  const client = createClient({server: 'https://x.test', storage, fetchImpl});
+  await client.refresh();
+  const queue = createPlanQueue({client, storage, now: () => new Date('2026-10-19T12:00:00+05:30')});
+  const heard = []; queue.subscribe(e => heard.push(e));
+  queue.start();
+  const title = task(queue, 3).title;
+  expired = true;
+  queue.commit({type: 'saveTask', id: 3, fields: {title: 'Words I typed'}});
+  await new Promise(r => setTimeout(r, 20));
+  assert.equal(client.state.unlinked, true);
+  await client.link('ABCD');
+  await new Promise(r => setTimeout(r, 20));
+  assert.equal(posts.length, 0, 'nothing reaches the newly linked account on its own');
+  assert.deepEqual(queue.problems(), [{ids: [3], message: 'This change was not saved.'}]);
+  assert.equal(task(queue, 3).title, title);
+  assert.ok(heard.some(e => e.foreign), 'the page redraws the row from the plan');
+});
