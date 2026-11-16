@@ -27,8 +27,8 @@ final class NotchAlerting {
     static final long ALARM_MS = 10 * 60_000L;
 
     /** Tells a running notch that a reminder notification was just posted. */
-    static void reminderFired(Context c, long id, String title, long at) {
-        c.sendBroadcast(new Intent(REMINDER_FIRED).setPackage(c.getPackageName()).putExtra("id", id).putExtra("title", title).putExtra("at", at));
+    static void reminderFired(Context c, long id, String title, long at, long done) {
+        c.sendBroadcast(new Intent(REMINDER_FIRED).setPackage(c.getPackageName()).putExtra("id", id).putExtra("title", title).putExtra("at", at).putExtra("done", done));
     }
 
     private final Context service;
@@ -44,7 +44,8 @@ final class NotchAlerting {
         public void onReceive(Context context, Intent intent) {
             NotchController.safely("alert " + intent.getAction(), () -> {
                 if (REMINDER_FIRED.equals(intent.getAction())) {
-                    reminder(intent.getLongExtra("id", 0), intent.getStringExtra("title"), intent.getLongExtra("at", System.currentTimeMillis()));
+                    long at = intent.getLongExtra("at", System.currentTimeMillis());
+                    reminder(intent.getLongExtra("id", 0), intent.getStringExtra("title"), at, intent.getLongExtra("done", at));
                 } else {
                     readAlarm();
                 }
@@ -82,9 +83,9 @@ final class NotchAlerting {
         note = null;
     }
 
-    private void reminder(long id, String title, long at) {
+    private void reminder(long id, String title, long at, long done) {
         if (alert != null && alert.type == NotchAlert.Type.ALARM) return;
-        show(new NotchAlert(NotchAlert.Type.REMINDER, id, title, at, ZoneId.systemDefault(), DateFormat.is24HourFormat(service)), REMINDER_MS);
+        show(new NotchAlert(NotchAlert.Type.REMINDER, id, title, at, done, ZoneId.systemDefault(), DateFormat.is24HourFormat(service), false), REMINDER_MS);
     }
 
     /**
@@ -103,13 +104,13 @@ final class NotchAlerting {
         if (alert != null && alert.type == NotchAlert.Type.ALARM && alert.taskId == id && alert.local == local) return;
         reader.execute(() -> {
             String title = "RPM alarm";
-            long at = System.currentTimeMillis();
+            long at = System.currentTimeMillis(), done = at;
             try {
                 if (local) {
                     try (Store s = new Store(service)) {
                         JSONObject e = s.get(id);
                         title = e.optString("title", title);
-                        if (e.optLong("alarm") > 0) at = e.optLong("alarm");
+                        if (e.optLong("alarm") > 0) at = done = e.optLong("alarm");
                     }
                 } else {
                     JSONObject d = CompanionStore.read(service);
@@ -117,17 +118,23 @@ final class NotchAlerting {
                     if (e != null) title = e.optString("title", e.optString("raw", title));
                     JSONObject row = CompanionAlerts.ledger(service).optJSONObject(String.valueOf(id));
                     if (row != null && row.optLong("at") > 0) at = row.optLong("at");
+                    done = doneStart(row, done);
                 }
             } catch (Exception e) {
                 Log.w(NotchController.TAG, "alarm details unreadable; island shows a plain title", e);
             }
             String shownTitle = title;
-            long shownAt = at;
+            long shownAt = at, shownDone = done;
             handler.post(() -> NotchController.safely("alarm shown", () -> {
                 if (!(local ? AlarmService.activeIds() : CompanionAlarmService.activeIds()).contains(id)) return;
-                show(new NotchAlert(NotchAlert.Type.ALARM, id, shownTitle, shownAt, ZoneId.systemDefault(), DateFormat.is24HourFormat(service), local), ALARM_MS);
+                show(new NotchAlert(NotchAlert.Type.ALARM, id, shownTitle, shownAt, shownDone, ZoneId.systemDefault(), DateFormat.is24HourFormat(service), local), ALARM_MS);
             }));
         });
+    }
+
+    /** The occurrence a planner alarm's Done ticks: its ledger row's, not a snooze time; else {@code fallback}. */
+    static long doneStart(JSONObject row, long fallback) {
+        return row != null && row.optLong("at") > 0 ? CompanionAlerts.occurrence(row) : fallback;
     }
 
     private void show(NotchAlert next, long forMs) {

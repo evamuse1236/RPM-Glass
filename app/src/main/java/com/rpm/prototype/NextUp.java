@@ -68,6 +68,11 @@ final class NextUp {
         return new NextUp(true, id, t.title, when, Math.max(0f, Math.min(1f, ring)), tone, t.fixed, icon, glasses, goal, Math.min(next, midnight));
     }
 
+    /** True when {@code after} would show a different next up than {@code before} (for a calendar change no store save reports). */
+    static boolean moved(NotchData before, NotchData after, long now, ZoneId zone, boolean h24) {
+        return !of(before, now, zone, h24).key().equals(of(after, now, zone, h24).key());
+    }
+
     private static long minutesUntil(long at, long now) {
         return Math.max(1, (at - now + MIN - 1) / MIN);
     }

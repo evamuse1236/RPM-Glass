@@ -67,20 +67,34 @@ final class Diagnostics {
         record(c,event("lifecycle","info","diagnostics.connected","success",new JSONObject()));request(c);
     }
     static void uploadNow(Context c){prefs(c).edit().putLong("next_attempt",0).apply();NETWORK.execute(()->sync(c.getApplicationContext()));}
-    static boolean sync(Context c){
+    /** Sends one batch of events and returns the server's reply. */
+    interface Upload{JSONObject send(JSONArray events)throws Exception;}
+    static boolean sync(Context c){return sync(c,null);}
+    static boolean sync(Context c,Upload upload){
         if(!enabled(c))return false;if(System.currentTimeMillis()<prefs(c).getLong("next_attempt",0))return true;if(!uploading.compareAndSet(false,true))return true;
-        try{String url=SyncManager.validateUrl(connection(c).getString("url","")),token=SyncManager.decrypt(connection(c).getString("token",""));long deadline=SystemClock.elapsedRealtime()+25000;
+        try{if(upload==null){String url=SyncManager.validateUrl(connection(c).getString("url","")),token=SyncManager.decrypt(connection(c).getString("token",""));upload=events->SyncManager.post(url+"/v1/diagnostics",new JSONObject().put("events",events),token);}long deadline=SystemClock.elapsedRealtime()+25000;
             for(int i=0;i<8&&SystemClock.elapsedRealtime()<deadline;i++){
                 if(!enabled(c)||Thread.currentThread().isInterrupted())return false;
                 JSONArray batch;synchronized(DiagnosticStore.class){try(DiagnosticStore store=new DiagnosticStore(c)){batch=store.batch();}}
                 if(batch.length()==0)return false;
-                JSONObject response=SyncManager.post(url+"/v1/diagnostics",new JSONObject().put("events",batch),token);
+                JSONObject response;
+                // One event the server cannot take (a clock over a day ahead) rejects the whole batch; send each alone so it cannot block the rest.
+                try{response=upload.send(batch);}catch(SyncManager.Rejected rejected){isolate(c,batch,upload);throw rejected;}
                 synchronized(DiagnosticStore.class){try(DiagnosticStore store=new DiagnosticStore(c)){store.acknowledge(batch,response.getJSONArray("ack"));}}
                 prefs(c).edit().putInt("failures",0).putLong("next_attempt",0).putString("status","Uploaded").putLong("last_success",System.currentTimeMillis()).apply();
             }return true;
         }catch(SyncManager.Unauthorized e){prefs(c).edit().putBoolean("auth_error",true).putString("status","Connection revoked · pair diagnostics again").apply();cancel(c);return false;}
-        catch(SyncManager.Rejected e){prefs(c).edit().putString("status","Upload rejected · queued logs kept").apply();return false;}
-        catch(Exception e){int failures=Math.min(6,prefs(c).getInt("failures",0)+1);long delay=Math.min(15*60*1000L,30000L*(1L<<(failures-1)));prefs(c).edit().putInt("failures",failures).putLong("next_attempt",System.currentTimeMillis()+delay).putString("status","Offline or unavailable · logs queued").apply();return true;}
+        catch(SyncManager.Rejected e){backOff(c,"Upload rejected · queued logs kept");return false;}
+        catch(Exception e){backOff(c,"Offline or unavailable · logs queued");return true;}
         finally{uploading.set(false);}
+    }
+    private static void backOff(Context c,String status){int failures=Math.min(6,prefs(c).getInt("failures",0)+1);long delay=Math.min(15*60*1000L,30000L*(1L<<(failures-1)));prefs(c).edit().putInt("failures",failures).putLong("next_attempt",System.currentTimeMillis()+delay).putString("status",status).apply();}
+    /** Uploads each event of a rejected batch alone and drops only those the server still rejects; any other failure propagates and keeps the rest queued. */
+    private static void isolate(Context c,JSONArray batch,Upload upload)throws Exception{
+        for(int i=0;i<batch.length();i++){
+            JSONArray one=new JSONArray().put(batch.getJSONObject(i));
+            try{JSONObject response=upload.send(one);synchronized(DiagnosticStore.class){try(DiagnosticStore store=new DiagnosticStore(c)){store.acknowledge(one,response.getJSONArray("ack"));}}}
+            catch(SyncManager.Rejected rejected){synchronized(DiagnosticStore.class){try(DiagnosticStore store=new DiagnosticStore(c)){store.drop(batch.getJSONObject(i).getString("eventId"));}}}
+        }
     }
 }
