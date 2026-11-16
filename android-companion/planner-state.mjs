@@ -56,6 +56,8 @@ export function editPlan(data,op,now=new Date()){
     for(const child of op.ops)result=editPlan(next,child,now);
     // Child edits replace the planner; retain their events and the single pre-batch Undo.
     next.planner.undo=op.keepUndo?keptUndo(data,op.ops,at):before;
+    // A keepUndo batch leaves Capture's pending Undo too; the child edits cleared it on the copy.
+    if(op.keepUndo)next.undo=data.undo??null;
     if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
     Object.assign(data,next);return result;
   }
@@ -164,7 +166,7 @@ export function editPlan(data,op,now=new Date()){
     result=BODY_OPS[op.type](next,op,at);
   }else throw new Error('Unknown planning action.');
   for(const task of next.entries){if(task.blockId&&task.purpose){task.revisions??=[];task.revisions.push({at,reason:'Task purpose retained in notes',before:{purpose:task.purpose,notes:task.notes??''}});task.notes=[task.notes,'Previous task purpose: '+task.purpose].filter(Boolean).join('\n\n');task.purpose='';}}
-  validatePlanner(next);p.events.push({id:newId(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=op.keepUndo?keptUndo(data,[op],at):before;next.undo=null;if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
+  validatePlanner(next);p.events.push({id:newId(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=op.keepUndo?keptUndo(data,[op],at):before;next.undo=op.keepUndo?data.undo??null:null;if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
   Object.assign(data,next);return result;
 }
 

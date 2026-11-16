@@ -121,3 +121,21 @@ test('a meal guess saved with keepUndo survives an Undo of a change made while t
   assert.deepEqual(bodyOf(fresh).meals, []);
   assert.equal(bodyOf(fresh).mealGuesses?.[toast], undefined);
 });
+
+test('a keepUndo save (meal guess, snooze) keeps Capture\'s pending Undo as well as the planner\'s', async () => {
+  const {changePlanner} = await import('./planner-tools.mjs');
+  const {undo} = await import('../chat-prototype/companion-tools.mjs');
+  for (const quiet of [{type: 'snoozeWater', until: null, keepUndo: true}, {type: 'batch', ops: [{type: 'snoozeWater', until: null}], keepUndo: true}]) {
+    const data = freshStore(), now = new Date(2026, 8, 16, 8), raw = 'Add buy milk';
+    const r = await changePlanner(data, {operations: [{collection: 'tasks', fields: {title: 'Buy milk'}, id: null, type: 'create', ref: null, evidence: [raw]}], continuation: false, question: null, choices: []}, {raw, conversationId: data.conversations[0].id, now});
+    assert.equal(data.undo?.id, r.undoId);
+    editPlan(data, quiet, now);
+    assert.equal(data.undo?.id, r.undoId, `${quiet.type} keepUndo keeps Capture's Undo`);
+    undo(data, r.undoId);
+    assert.ok(!data.entries.some(e => e.title === 'Buy milk'));
+  }
+  const data = freshStore();
+  data.undo = {id: 'cap-1'};
+  editPlan(data, {type: 'saveTask', fields: {title: 'Newer'}});
+  assert.equal(data.undo, null, 'a visible save still retires Capture\'s Undo');
+});
