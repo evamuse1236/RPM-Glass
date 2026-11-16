@@ -42,7 +42,8 @@ final class SyncStamps {
         for(Iterator<String> it=kinds.keys();it.hasNext();){
             String kind=it.next();JSONObject spec=kinds.getJSONObject(kind);
             for(String id:records(old,spec).keySet())lacked.add(kind+":"+id);
-            for(String id:records(restored,spec).keySet())held.add(kind+":"+id);
+            // A null value is no record, as the web side reads it: a backup's null snooze must stay listed so sync refills it.
+            for(Map.Entry<String,Object> record:records(restored,spec).entrySet())if(record.getValue()!=JSONObject.NULL)held.add(kind+":"+record.getKey());
         }
         lacked.removeAll(held);return new JSONArray(lacked);
     }

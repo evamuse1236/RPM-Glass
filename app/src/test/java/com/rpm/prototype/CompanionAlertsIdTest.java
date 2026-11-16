@@ -97,6 +97,42 @@ public class CompanionAlertsIdTest {
         CompanionAlerts.reconcile(c,CompanionStore.read(c),false); // the process died while the snoozed alarm rang
         assertEquals("an interrupted snoozed ring ends today's occurrence",occurrence+day,CompanionAlerts.ledger(c).getJSONObject("25").getLong("at"));
     }
+    /** A lead-30 alarm for {@code minutes} from now rings and is snoozed; the phone is off past the snooze time (its broadcast never came), then BOOT_COMPLETED restores. */
+    private static long snoozePassedThenRestore(Context c,long id,boolean daily,int minutes)throws Exception{
+        long occurrence=(System.currentTimeMillis()/60000+minutes)*60000;CompanionAlerts.channels(c);
+        JSONObject e=new JSONObject().put("id",id).put("title","Leave for train").put("raw","Leave for train").put("revisions",new JSONArray()).put("planned",Instant.ofEpochMilli(occurrence).toString()).put("alertIntent",new JSONObject().put("type","alarm").put("lead",30));
+        if(daily)e.put("recurrence","daily");
+        JSONObject data=new JSONObject().put("schema",2).put("version",1).put("entries",new JSONArray().put(e)).put("memories",new JSONArray()).put("history",new JSONArray()).put("conversations",new JSONArray().put(new JSONObject()));
+        CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        JSONObject l=CompanionAlerts.ledger(c);l.getJSONObject(String.valueOf(id)).put("at",occurrence).put("status","ringing").put("sounded",occurrence).put("ringingSince",System.currentTimeMillis());CompanionAlerts.persist(c,l);
+        CompanionAlerts.finish(c,id,true,"Alarm snoozed");
+        assertEquals("snoozed",CompanionAlerts.ledger(c).getJSONObject(String.valueOf(id)).getString("status"));
+        l=CompanionAlerts.ledger(c);long passed=System.currentTimeMillis()-60000;l.getJSONObject(String.valueOf(id)).put("snoozeAt",passed).put("at",passed);CompanionAlerts.persist(c,l);
+        CompanionAlerts.restore(c);
+        return occurrence;
+    }
+    @Test public void aSnoozeThatPassedWhileThePhoneWasOffStillRingsBeforeItsOccurrence()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);long day=86400000L;
+        long occurrence=snoozePassedThenRestore(c,51,true,20);
+        JSONObject row=CompanionAlerts.ledger(c).getJSONObject("51");
+        assertEquals("a daily alarm's passed snooze rings now, not tomorrow","snoozed",row.getString("status"));
+        assertEquals(occurrence,CompanionAlerts.occurrence(row));
+        assertTrue(shadowOf(alarms).getNextScheduledAlarm().triggerAtTime<=System.currentTimeMillis()+60000);
+        CompanionAlerts.fired(c,51,row.getLong("at"));
+        assertEquals("the held snooze rings","ringing",CompanionAlerts.ledger(c).getJSONObject("51").getString("status"));
+        CompanionAlerts.cancel(c,51);
+        occurrence=snoozePassedThenRestore(c,52,false,20);
+        row=CompanionAlerts.ledger(c).getJSONObject("52");
+        assertEquals("a one-time alarm still 20 min away is not marked missed","snoozed",row.getString("status"));
+        assertEquals(occurrence,CompanionAlerts.occurrence(row));
+        assertTrue(shadowOf(alarms).getNextScheduledAlarm().triggerAtTime<=System.currentTimeMillis()+60000);
+        CompanionAlerts.cancel(c,52);
+        occurrence=snoozePassedThenRestore(c,53,true,-5); // the snooze and its occurrence both passed while the phone was off
+        row=CompanionAlerts.ledger(c).getJSONObject("53");
+        assertEquals("a stale snooze does not ring; tomorrow is armed",occurrence+day,row.getLong("at"));
+        assertEquals("scheduled",row.getString("status"));
+        assertTrue(shadowOf(alarms).getNextScheduledAlarm().triggerAtTime>System.currentTimeMillis()+23*3600000L);
+    }
     @Test public void undoingACompletionDoesNotPostASoundedLeadAlertAgain()throws Exception {
         Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);long day=86400000L;
         long occurrence=leadAlertDueNow(c,26,"reminder");

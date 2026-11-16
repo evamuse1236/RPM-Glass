@@ -71,7 +71,9 @@ final class CompanionAlerts {
             // A move keeps the exact occurrence that already sounded, so an Undo of the move does not sound it again; an earlier time still ahead is armed.
             long soundedBefore=old==null?0:!sameTime&&old.optLong("sounded")>0?old.optLong("sounded"):old.optLong("soundedBefore");
             // A live snooze outlasts a change that keeps the time (Done then Undo, a restore): it is held while its occurrence is done and comes back when that is undone.
-            long base=planned(e),now=System.currentTimeMillis(),held=0,heldFor=0;if(old!=null&&(!changed||sounded>0)){held=old.optLong("snoozeAt",old.optLong("heldSnoozeAt"));heldFor=old.has("snoozeAt")?occurrence(old):old.optLong("heldOccurrence");}if(held<=now)held=0;
+            long base=planned(e),now=System.currentTimeMillis(),held=0,heldFor=0;if(old!=null&&(!changed||sounded>0)){held=old.optLong("snoozeAt",old.optLong("heldSnoozeAt"));heldFor=old.has("snoozeAt")?occurrence(old):old.optLong("heldOccurrence");}
+            // A snooze whose time passed without ringing (the phone was off, or its broadcast was late) sounds now while its occurrence is still ahead.
+            boolean snoozeDue=!changed&&old.optString("status").equals("snoozed")&&old.has("snoozeAt")&&held>0&&held<=now&&heldFor>now;if(snoozeDue)held=now;else if(held<=now)held=0;
             // An unchanged row (a restore or Check alerts) only re-arms: its reminder already posted stays in the shade.
             if(changed)cancel(c,e.getLong("id"));else cancelTrigger(c,e.getLong("id"));JSONObject row=new JSONObject().put("fingerprint",fp).put("type",type(e));l.put(id,row);if(sounded>0)row.put("sounded",sounded);if(soundedBefore>0)row.put("soundedBefore",soundedBefore);
             if(!active(e)){row.put("status","off").put("label","Alert off");if(held>0)row.put("heldSnoozeAt",held).put("heldOccurrence",heldFor);continue;}
