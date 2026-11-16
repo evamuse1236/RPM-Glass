@@ -147,7 +147,7 @@ export function dateChooser(host, {get, pickDay, pickTime, today = localDay(), p
     cell.dataset.value = day;
     cell.classList.toggle('is-today', i === 0);
     cell.setAttribute('aria-label', date.toLocaleDateString(DATE_LOCALE, {weekday: 'long', month: 'long', day: 'numeric'}));
-    cell.append(el('span', 'week-letter', date.toLocaleDateString([], {weekday: 'narrow'})),
+    cell.append(el('span', 'week-letter', date.toLocaleDateString(DATE_LOCALE, {weekday: 'narrow'})),
       el('span', 'week-number tnum', String(date.getDate())));
     strip.append(cell);
   }

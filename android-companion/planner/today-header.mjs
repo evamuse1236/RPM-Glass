@@ -80,7 +80,7 @@ function weekStrip(app) {
     }
     marks.setAttribute('aria-hidden', 'true');
     cell.append(
-      el('span', 'week-letter', date.toLocaleDateString([], {weekday: 'short'})),
+      el('span', 'week-letter', date.toLocaleDateString(DATE_LOCALE, {weekday: 'short'})),
       el('span', 'week-number tnum', String(date.getDate())),
       marks,
     );

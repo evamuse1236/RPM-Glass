@@ -49,7 +49,7 @@ export function dayName(day, {today: sayToday = false} = {}) {
   const today = localDay();
   if (day === today) return sayToday ? 'Today' : '';
   if (day === shiftDay(today, 1)) return 'Tomorrow';
-  if (day > today && day <= shiftDay(today, 6)) return new Date(day + 'T12:00').toLocaleDateString([], {weekday: 'short'});
+  if (day > today && day <= shiftDay(today, 6)) return new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'short'});
   return dateText(day + 'T12:00');
 }
 
@@ -80,7 +80,7 @@ export function dueInfo(value, now = new Date()) {
   const timed = value.length > 10, at = new Date(timed ? value : value + 'T23:59');
   const day = value.slice(0, 10), today = localDay(now);
   const when = day === today ? 'today' : day === shiftDay(today, 1) ? 'tomorrow'
-    : at - now < 6 * 864e5 && at > now ? at.toLocaleDateString([], {weekday: 'short'}) : dateText(day + 'T12:00');
+    : at - now < 6 * 864e5 && at > now ? at.toLocaleDateString(DATE_LOCALE, {weekday: 'short'}) : dateText(day + 'T12:00');
   const overdue = at < now;
   return {at, overdue, soon: !overdue && at - now < 3 * 864e5,
     label: overdue ? 'Overdue since ' + (day === today ? clock(at) : dateText(day + 'T12:00')) : `Due ${when}${timed ? ' ' + clock(at) : ''}`};

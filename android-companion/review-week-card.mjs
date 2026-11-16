@@ -130,7 +130,7 @@ function dayStrip(api, days, due) {
     cell.setAttribute('aria-pressed', String(on));
     cell.dataset.key = 'day:' + d.day;
     const said = [dayName(d.day)];
-    cell.append(el('span', 'wr-strip-letter', date.toLocaleDateString(undefined, {weekday: 'narrow'})), el('span', 'wr-strip-num tnum', String(date.getDate())));
+    cell.append(el('span', 'wr-strip-letter', date.toLocaleDateString(DATE_LOCALE, {weekday: 'narrow'})), el('span', 'wr-strip-num tnum', String(date.getDate())));
     const must = el('span', 'wr-strip-must tnum');
     if (d.must) {
       must.append(Object.assign(icon('star', true), {className: 'ms fill must'}), hours(d.must));
