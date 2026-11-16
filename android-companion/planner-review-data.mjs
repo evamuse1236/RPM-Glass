@@ -180,4 +180,14 @@ function groupTasksOp(next, op, at) {
   return blockId;
 }
 
+// A repeated Add to Result or Move back to Inbox (a double tap, or a swipe then a tap) moves nothing; editPlan then
+// saves nothing, so the first move's Undo stays the one the snackbar runs.
+export function groupMovesNothing(next, op) {
+  if (!['groupTasks', 'groupTask'].includes(op.type) || op.newBlock) return false;
+  const ids = op.type === 'groupTask' ? [op.id] : op.ids;
+  if (!ids?.length) return false;
+  const target = link(next.planner.blocks, op.blockId ?? null);
+  return ids.every(id => (one(tasks(next), id).blockId ?? null) === target);
+}
+
 export const REVIEW_OPS = {reviewProgress: reviewProgressOp, finishReview: finishReviewOp, groupTasks: groupTasksOp, markAchieved: markAchievedOp, setWeekFocus: setWeekFocusOp, reviewTask: reviewTaskOp, groupTask: groupTaskOp};

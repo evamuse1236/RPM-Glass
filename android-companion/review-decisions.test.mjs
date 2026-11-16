@@ -131,6 +131,21 @@ test('groupTasks moves several tasks, or starts a new Result from them, as one U
   assert.throws(() => groupTasks(d, [], home), /Choose a task/);
 });
 
+test('a repeated Add to Result or Move back to Inbox keeps the first Undo', () => {
+  const {d, home, inbox} = seed();
+  editPlan(d, {type: 'groupTasks', ids: [inbox], blockId: home});
+  const first = planner(d).undo;
+  editPlan(d, {type: 'groupTasks', ids: [inbox], blockId: home});
+  assert.equal(planner(d).undo.id, first.id, 'a second tap that moves nothing leaves the Undo alone');
+  editPlan(d, {type: 'undo'});
+  assert.equal(entry(d, inbox).blockId ?? null, null, 'Undo returns the task to the Inbox');
+  editPlan(d, {type: 'groupTasks', ids: [inbox], blockId: home});
+  editPlan(d, {type: 'groupTasks', ids: [inbox], blockId: null});
+  editPlan(d, {type: 'groupTasks', ids: [inbox], blockId: null});
+  editPlan(d, {type: 'undo'});
+  assert.equal(entry(d, inbox).blockId, home, 'Undo after a repeated Move back to Inbox puts the task back in its Block');
+});
+
 test('addInboxTask saves the exact words as a new Inbox task with Undo', () => {
   const {d} = seed();
   const id = addInboxTask(d, 'Book the GWBC room', at('2026-09-27T10:00:00Z'));

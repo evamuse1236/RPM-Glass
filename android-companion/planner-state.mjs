@@ -4,7 +4,7 @@ import {nextTaskId} from './task-ids.mjs';
 import {newId} from './new-id.mjs';
 import {occurrences,completeTask,repeats} from './planner-recurrence.mjs';
 import {text,title,integer,weekdays,one,link} from './planner-fields.mjs';
-import {REVIEW_VERSION,REVIEW_OPS,migrateReviewData,forgetBlockInWeeks,keepCompletionTime} from './planner-review-data.mjs';
+import {REVIEW_VERSION,REVIEW_OPS,groupMovesNothing,migrateReviewData,forgetBlockInWeeks,keepCompletionTime} from './planner-review-data.mjs';
 import {BODY_OPS} from './body-store.mjs';
 import {UNDO_CHANGED_MESSAGE,undoImages} from './undo-rebase.mjs';
 
@@ -66,6 +66,7 @@ export function editPlan(data,op,now=new Date()){
     if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
     Object.assign(data,next);return result;
   }
+  if(groupMovesNothing(next,op))return op.blockId??null;
   if(op.type==='reviewProgress'){
     result=REVIEW_OPS.reviewProgress(next,op,at);validatePlanner(next);Object.assign(data,next);return result;
   }
