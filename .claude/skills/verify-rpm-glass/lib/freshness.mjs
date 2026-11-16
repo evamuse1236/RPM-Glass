@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export const NATIVE_SOURCES = ['app/src/main', 'app/build.gradle', 'cli'];
-export const WEB_SOURCES = ['android-companion', 'chat-prototype', 'intent-v2/src', 'intent-v2/adapters', 'intent-v2/prompts'];
+export const WEB_SOURCES = ['android-companion', 'chat-prototype', 'intent-v2/src', 'intent-v2/adapters', 'intent-v2/prompts', 'web/contract'];
 const SKIP = new Set(['node_modules', 'build', 'experiments', '.gradle', 'companion']);
 
 export function newestFile(root, sources) {

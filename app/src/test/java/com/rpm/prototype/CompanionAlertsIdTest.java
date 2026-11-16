@@ -295,6 +295,37 @@ public class CompanionAlertsIdTest {
         CompanionAlerts.cancel(c,id);
     }
 
+    /** A time zone change re-checks every alert; today's occurrence in the new zone is armed even when it falls before the time armed in the old zone. */
+    @Test public void aZoneChangeStillArmsTodaysEarlierOccurrence()throws Exception {
+        java.util.TimeZone saved=java.util.TimeZone.getDefault();
+        try{
+            Context c=RuntimeEnvironment.getApplication();long id=43,x=(System.currentTimeMillis()/60000+30)*60000;CompanionAlerts.channels(c);
+            // Planned in July at X's UTC time of day: 1 hour later than X in a London winter, the same instant as X in Kolkata.
+            java.time.LocalTime utc=Instant.ofEpochMilli(x).atZone(java.time.ZoneOffset.UTC).toLocalTime();
+            JSONObject e=new JSONObject().put("id",id).put("title","Daily alarm").put("raw","Alarm").put("revisions",new JSONArray()).put("planned",java.time.LocalDate.of(2026,7,1).atTime(utc).toInstant(java.time.ZoneOffset.UTC).toString()).put("recurrence","daily").put("alertIntent",new JSONObject().put("type","alarm"));
+            JSONObject data=new JSONObject().put("schema",2).put("version",1).put("entries",new JSONArray().put(e)).put("memories",new JSONArray()).put("history",new JSONArray()).put("conversations",new JSONArray().put(new JSONObject()));
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Europe/London"));
+            CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+            assertEquals("armed at 1 hour after X in a London winter",x+3600000L,CompanionAlerts.ledger(c).getJSONObject(String.valueOf(id)).getLong("at"));
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Asia/Kolkata"));
+            CompanionAlerts.restore(c);
+            assertEquals("today's occurrence in Kolkata, still 30 min away, is armed",x,CompanionAlerts.ledger(c).getJSONObject(String.valueOf(id)).getLong("at"));
+            CompanionAlerts.cancel(c,id);
+        }finally{java.util.TimeZone.setDefault(saved);}
+    }
+    /** A ledger from the build before "sounded" was recorded holds a repeating row at tomorrow once today's lead alert posted; an update's restore keeps it there. */
+    @Test public void aRestoreKeepsALegacyRowAtTomorrowWithNoSoundedField()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();long id=44,day=86400000L,occ=(System.currentTimeMillis()/60000+30)*60000;CompanionAlerts.channels(c);
+        JSONObject e=new JSONObject().put("id",id).put("title","Daily walk").put("raw","Walk").put("revisions",new JSONArray()).put("planned",Instant.ofEpochMilli(occ).toString()).put("recurrence","daily").put("alertIntent",new JSONObject().put("type","reminder").put("lead",60));
+        JSONObject data=new JSONObject().put("schema",2).put("version",1).put("entries",new JSONArray().put(e)).put("memories",new JSONArray()).put("history",new JSONArray()).put("conversations",new JSONArray().put(new JSONObject()));
+        JSONObject row=new JSONObject();CompanionAlerts.schedule(c,e,row,occ+day);row.put("fingerprint",CompanionAlerts.fingerprint(e));
+        assertFalse(row.has("sounded"));assertEquals("scheduled",row.getString("status"));
+        CompanionStore.writeRaw(c,data);CompanionAlerts.persist(c,new JSONObject().put(String.valueOf(id),row));
+        CompanionAlerts.restore(c);
+        assertEquals("today's lead reminder, already posted, is not posted again",occ+day,CompanionAlerts.ledger(c).getJSONObject(String.valueOf(id)).getLong("at"));
+        CompanionAlerts.cancel(c,id);
+    }
+
     private static String source(String name)throws Exception{return new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("src/main/java/com/rpm/prototype/"+name+".java")),java.nio.charset.StandardCharsets.UTF_8);}
     /** Settings Check alerts reads and reconciles in one hold of the store lock, so a save between them cannot be undone by older data. */
     @Test public void checkAlertsReadsAndReconcilesUnderOneLock()throws Exception {

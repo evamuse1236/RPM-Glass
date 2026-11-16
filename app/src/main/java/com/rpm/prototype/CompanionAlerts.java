@@ -77,7 +77,9 @@ final class CompanionAlerts {
             if(!active(e)){row.put("status","off").put("label","Alert off");if(held>0)row.put("heldSnoozeAt",held).put("heldOccurrence",heldFor);continue;}
             if(held>0&&base>0&&!completed(e).contains(heldFor)){row.put("snoozeAt",held).put("occurrence",heldFor);schedule(c,e,row,held);continue;}
             // An unchanged row keeps its stored occurrence: an occurrence whose alert already sounded is not armed again. A snoozed row's at is its snooze time, so its occurrence is kept apart.
-            long at=next(e,ZoneId.systemDefault(),Math.max(changed?now:Math.max(now,occurrence(old)-(interrupted?0:1)),sounded));if(at>0&&at==soundedBefore)at=next(e,ZoneId.systemDefault(),at);
+            // After a time zone change the stored occurrence may no longer be one in this zone; then only what sounded holds it back, so today's occurrence here is still armed.
+            ZoneId zone=ZoneId.systemDefault();long kept=changed?0:occurrence(old);boolean lined=kept>0&&next(base,Repeats.key(e),zone,kept-1)==kept;
+            long at=next(e,zone,Math.max(lined?Math.max(now,kept-(interrupted?0:1)):now,sounded));if(at>0&&at==soundedBefore)at=next(e,ZoneId.systemDefault(),at);
             if(base==0){row.put("status","time_needed").put("label","Not scheduled · add a time");continue;}
             if(at==0&&interrupted){row.put("status","dismissed").put("label","Alarm interrupted");continue;}
             if(at==0){row.put("status","missed").put("label","Time passed · not scheduled");continue;}
