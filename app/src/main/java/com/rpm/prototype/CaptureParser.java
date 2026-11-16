@@ -14,6 +14,7 @@ public final class CaptureParser {
     }
     private static final Pattern DURATION = Pattern.compile("(?i)\\b(\\d{1,4})\\s*(minutes?|mins?|hours?|hrs?)\\b");
     private static final Pattern CLOCK = Pattern.compile("(?i)\\b(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)\\b|\\b(\\d{1,2}):(\\d{2})\\b");
+    private static final Pattern RANGE_END = Pattern.compile("(?i)\\s*(?:-|\u2013|\u2014|to|until)\\s*(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)\\b");
     public static Parsed parse(String raw, ZonedDateTime now) {
         Parsed result = new Parsed();
         String text = raw.toLowerCase(Locale.ROOT);
@@ -40,7 +41,21 @@ public final class CaptureParser {
                     h = Integer.parseInt(t.group(1)); m = t.group(2) == null ? 0 : Integer.parseInt(t.group(2));
                     if (h < 1 || h > 12) throw new DateTimeException("Invalid hour");
                     h = h % 12 + (t.group(3).equalsIgnoreCase("pm") ? 12 : 0);
-                } else { h = Integer.parseInt(t.group(4)); m = Integer.parseInt(t.group(5)); }
+                } else {
+                    h = Integer.parseInt(t.group(4)); m = Integer.parseInt(t.group(5));
+                    // "2:30-3:30 pm": a range's closing am/pm also names its start.
+                    Matcher range = RANGE_END.matcher(text).region(t.end(), text.length());
+                    if (h >= 1 && h <= 12 && range.lookingAt()) {
+                        int endH = Integer.parseInt(range.group(1));
+                        int endM = range.group(2) == null ? 0 : Integer.parseInt(range.group(2));
+                        boolean pm = range.group(3).equalsIgnoreCase("pm");
+                        h = h % 12 + (pm ? 12 : 0);
+                        // "11:30-12:30 pm" would start after it ends: ask, never guess.
+                        if (endH < 1 || endH > 12 || h * 60 + m >= (endH % 12 + (pm ? 12 : 0)) * 60 + endM) {
+                            throw new DateTimeException("Ambiguous range");
+                        }
+                    }
+                }
                 LocalDateTime local = LocalDateTime.of(date, LocalTime.of(h, m));
                 if (now.getZone().getRules().getValidOffsets(local).size() != 1) {
                     result.notice = "Clock-change time needs review"; return result;
