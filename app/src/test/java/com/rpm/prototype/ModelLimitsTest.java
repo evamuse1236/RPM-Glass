@@ -71,4 +71,16 @@ public class ModelLimitsTest {
         assertNotNull(CompanionKey.problem(CLAUDE, "sk-ant-short"));
         assertNotNull(CompanionKey.problem(CLAUDE, claude + " extra"));
     }
+
+    /** A key pasted with a character no HTTP header can carry (NBSP, zero-width space, inner CRLF, BOM) is refused, never saved and failing on every call. */
+    @Test public void aKeyWithAnInvisibleCharacterIsRefused() {
+        String claude = "sk-ant-api03-" + "x".repeat(40), openRouter = "sk-or-v1-" + "y".repeat(40);
+        assertNotNull(CompanionKey.problem(CLAUDE, claude + " "));
+        assertNotNull(CompanionKey.problem(CLAUDE, claude + "​"));
+        assertNotNull(CompanionKey.problem(CLAUDE, "sk-ant-api03-xx\r\n" + "x".repeat(30)));
+        assertNotNull(CompanionKey.problem(OPENROUTER, openRouter + "﻿"));
+        assertEquals("Paste the whole key, then try again.", CompanionKey.problem(CLAUDE, claude + " "));
+        assertNull(CompanionKey.problem(CLAUDE, claude));
+        assertNull(CompanionKey.problem(OPENROUTER, openRouter));
+    }
 }
