@@ -6,3 +6,5 @@ export function calendarRisk(value,start,end){
   return null;
 }
 export function calendarRows(value){return (value?.events??[]).filter(e=>typeof e.title==='string'&&Number.isFinite(e.start)&&Number.isFinite(e.end)&&e.end>e.start);}
+/** Whether a calendar read's window holds this moment, so its rows can pause water as the notch's own read does. */
+export function coversNow(value,now=Date.now()){return Number.isFinite(value?.start)&&Number.isFinite(value?.end)&&value.start<=now&&now<value.end;}
