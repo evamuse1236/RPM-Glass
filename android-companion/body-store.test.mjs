@@ -6,7 +6,7 @@ import {editPlan, planner} from './planner-state.mjs';
 import {migratePlannerUX} from './planner-ux.mjs';
 import {migrateReviewData} from './review-state.mjs';
 import {bodyOf, defaultMealPlan, WATER_SETTINGS} from './body-store.mjs';
-import {waterStatus,usualMeals} from './body-state.mjs';
+import {waterStatus,usualMeals,markStep,doneAll} from './body-state.mjs';
 import {mealSlots} from './day-parts.mjs';
 
 const at = (time, day = '2026-10-18') => new Date(`${day}T${time}`);
@@ -60,6 +60,28 @@ test('routines save with step ids, archive on delete, and a run records ticks an
   assert.equal(bodyOf(d).runs.length, 1, 'past runs stay for History');
   assert.throws(() => editPlan(d, {type: 'saveRoutine', routine: {...routine, name: ' '}}), /name/);
   assert.throws(() => editPlan(d, {type: 'saveRoutine', routine: {...routine, end: '06:00'}}), /End time/);
+});
+
+test('a step removed after it was ticked today does not block later ticks or Done all', () => {
+  const d = freshStore(), day = '2026-10-19', when = time => at(time, day);
+  const id = editPlan(d, {type: 'saveRoutine', routine}, when('06:00'));
+  const saved = bodyOf(d).routines[0];
+  const [a, b, c] = saved.steps;
+  editPlan(d, {type: 'saveRoutineRun', run: markStep(saved, null, a.id, 'done', when('07:01'))});
+  const aMark = bodyOf(d).runs[0].marks[a.id];
+  editPlan(d, {type: 'saveRoutine', routine: {...routine, id, steps: [b, c]}}, when('07:02'));
+  const edited = bodyOf(d).routines[0];
+  const runNow = () => bodyOf(d).runs.find(r => r.routineId === id && r.day === day);
+  editPlan(d, {type: 'saveRoutineRun', run: markStep(edited, runNow(), b.id, 'done', when('07:03'))});
+  assert.equal(runNow().marks[b.id].state, 'done');
+  editPlan(d, {type: 'saveRoutineRun', run: doneAll(edited, runNow(), when('07:04'))});
+  assert.equal(runNow().marks[c.id].state, 'done');
+  assert.deepEqual(runNow().marks[a.id], aMark, 'the removed step keeps its stored mark unchanged');
+  const changed = markStep(edited, runNow(), b.id, 'done', when('07:05'));
+  changed.marks[a.id] = {state: 'skipped', at: when('07:05').toISOString()};
+  assert.throws(() => editPlan(d, {type: 'saveRoutineRun', run: changed}), /step changed/, 'a removed step takes no new state');
+  const fresh = markStep(edited, runNow(), 'nope', 'done', when('07:05'));
+  assert.throws(() => editPlan(d, {type: 'saveRoutineRun', run: fresh}), /step changed/, 'an unknown step the run never held is still refused');
 });
 
 test('water: Drank it logs a glass with Undo, settings validate, snooze clears on the next glass', () => {
