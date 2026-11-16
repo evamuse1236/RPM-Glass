@@ -304,6 +304,22 @@ test('Undo on a request that said "undo that" and added a task puts back the pla
  assert.deepEqual(live(),[],'the first request can be undone again');
 });
 
+test('a meal estimate that lands after "undo that and add" survives undoing both requests', () => {
+ const {data}=day(),live=()=>data.entries.filter(e=>!e.archived&&['Swim','Run'].includes(e.title)).map(e=>e.title);
+ const poha=editPlan(data,{type:'saveMeal',meal:{name:'Poha',slot:'breakfast'}},NOW);
+ editPlan(data,{type:'setMealGuess',id:poha,guess:{status:'pending'},keepUndo:true},NOW);
+ const first=ramble(data,'add swim');reply(first,tools(call('save_task',{title:'Swim'})));first.receive(turnDone);first.receive(turnDone);
+ applyRamble(data,first.result(),words);
+ const second=ramble(data,'undo that and add run instead');reply(second,tools(call('undo_last'),call('save_task',{title:'Run'})));second.receive(turnDone);second.receive(turnDone);
+ applyRamble(data,second.result(),{...words,messageId:'m-2'});
+ editPlan(data,{type:'setMealGuess',id:poha,guess:{status:'ready',kcal:300,protein:8},keepUndo:true},NOW);
+ undoRamble(data,'m-2',NOW);
+ assert.equal(planner(data).body.mealGuesses[poha].status,'ready');
+ undoRamble(data,'m-1',NOW);
+ assert.deepEqual(live(),[]);
+ assert.equal(planner(data).body.mealGuesses[poha].status,'ready','the estimate is not put back to pending');
+});
+
 test('the prompt says what "it" means, ignores speech that is not a request, and asks before removing', () => {
  const prompt=liveSetup(NOW,TZ).systemInstruction.parts[0].text;
  assert.match(prompt,/"It", "that" and "them" mean the items you changed last/);

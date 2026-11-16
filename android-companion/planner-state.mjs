@@ -39,7 +39,9 @@ function keptUndo(data,ops,at){
   let kept={planner:{undo:data.planner?.undo??null},undo:data.undo??null};
   if(!ops.some(op=>op.type==='setMealGuess'))return {plannerUndo:kept.planner.undo,undo:kept.undo};
   kept=structuredClone(kept);
-  for(const op of ops)for(const {image} of undoImages(kept)){
+  // A voice "undo that and add" Undo keeps the earlier request's image inside its own; that one is patched too.
+  const nested=kept.planner.undo?.planner?.undo;
+  for(const op of ops)for(const {image} of [...undoImages(kept),...(nested?[{image:nested}]:[])]){
     const meal=op.type==='setMealGuess'&&image?.planner?.body?.meals?.find(m=>m.id===op.id);
     if(!meal||meal.state==='skipped')continue;
     BODY_OPS.setMealGuess({entries:image.entries,planner:image.planner},op,at);
