@@ -66,6 +66,8 @@ export function createVoiceMode({platform,conversationId,onChange,afterSave,onLe
   catch(error){saveProblem=userMessage(error);trace(saveProblem);liveRows.delete(index);moment={n:moment.n+1,kind:'oops'};changed();return;}
   if(out===false){liveRows.delete(index);changed();return;}
   trace(null);
+  // Only the words were kept (the plan changed, or a change failed): nothing applied, so no tone, tick or Added rows.
+  if(out?.status==='words-kept'){saveProblem=userMessage(out.error);liveRows.delete(index);moment={n:moment.n+1,kind:'oops'};changed();return;}
   if(result.undoes&&out.status==='applied')platform.voiceOutcome?.(result.undoes,'undone');
   saved=[...saved,{id:options.messageId,index}];
   armReceiptMark(options.messageId,`T8#${index}`);
