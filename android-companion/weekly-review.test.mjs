@@ -5,6 +5,7 @@ import {editPlan, planner} from './planner-state.mjs';
 import {reviewProgress} from './review-state.mjs';
 import {seed, WEEK, LAST} from './review-fixtures.mjs';
 import {mountWeeklyReview} from './weekly-review.mjs';
+import {sheetLayer} from './review-step-three.mjs';
 
 // The flow itself is exercised in a browser harness; this guards the module contract.
 test('weekly review exports the mount contract', () => {
@@ -201,4 +202,23 @@ test('a clash chip tapped twice, or a then b, before the save lands leaves one d
       review.destroy();
     }
   }
+});
+
+test('Create Result submitted twice before the save lands makes one Result that holds the task', async () => {
+  const {d} = seed();
+  const id = editPlan(d, {type: 'saveTask', fields: {title: 'Book flights'}});
+  const ui = {sheet: {kind: 'new', taskId: id}, newBlock: {title: 'Trip planned', purpose: 'Rest'}};
+  const labels = [];
+  let queue = Promise.resolve();
+  const api = {ui, week: WEEK, data: () => d, now: () => new Date('2026-09-26T10:00:00+05:30'), render() {},
+    groupList: () => d.entries.filter(t => t.id === id),
+    run(op, label) { labels.push(label); queue = queue.then(async () => { await settle(); editPlan(d, op); }); return queue; }};
+  const form = sheetLayer(api).querySelector('form');
+  form.dispatch('submit');
+  form.dispatch('submit');
+  await queue;
+  const made = planner(d).blocks.filter(b => b.title === 'Trip planned');
+  assert.equal(made.length, 1, 'the second submit creates no second Result');
+  assert.equal(d.entries.find(t => t.id === id).blockId, made[0].id, 'the task sits in that Result');
+  assert.deepEqual(labels, ['New Result: Trip planned']);
 });
