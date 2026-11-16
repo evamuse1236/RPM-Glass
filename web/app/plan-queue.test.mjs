@@ -6,6 +6,7 @@ import {editPlan} from '../../android-companion/planner-state.mjs';
 import {withIds} from '../../android-companion/new-id.mjs';
 import {completionOp} from '../../android-companion/notch-ops.mjs';
 import {createPlanQueue, storeFrom, WAITING, CHANGED} from './plan-queue.mjs';
+import {createClient} from './client.mjs';
 import {createRamble} from '../../android-companion/voice-turn.mjs';
 
 const FINAL = new Set(['applied', 'rejected', 'conflict']);
@@ -357,4 +358,46 @@ test('a full browser storage still lets a change show, go out, and the phone\'s 
   assert.equal(task(queue, 3).done, true); assert.equal(client.sent().length, 1);
   phone(client).apply(0);
   assert.ok(heard.length > 0, 'listeners hear the applied snapshot'); assert.equal(queue.pendingIds().size, 0);
+});
+
+test('more than 20 offline changes delivered, then one more before the snapshot catches up: nothing is foreign and Undo reverts at once', async () => {
+  const server = {store: storeFrom(structuredClone(fixture)), snap: structuredClone(fixture), offline: true, hold: null};
+  const reply = (status, body, headers = {}) => new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json', ...headers}});
+  const fetchImpl = async (url, init) => {
+    if (server.offline) throw new TypeError('Failed to fetch');
+    const {pathname} = new URL(url);
+    if (pathname === '/v1/web/snapshot') { if (server.hold) await server.hold; return reply(200, server.snap, {ETag: `"${server.snap.revision}"`}); }
+    if (pathname === '/v1/web/commands' && init.method === 'POST') {
+      const c = JSON.parse(init.body);
+      withIds(c.args.ids, () => editPlan(server.store, c.args.op));
+      const revision = server.snap.revision + 1;
+      server.snap = {...server.snap, revision, entries: structuredClone(server.store.entries), planner: structuredClone(server.store.planner)};
+      return reply(200, {status: 'applied', newRevision: revision});
+    }
+    return reply(200, {commands: [], cursor: 0, hasMore: false});
+  };
+  const storage = memory();
+  storage.setItem('rpm.web.v1', JSON.stringify({server: 'https://x.test', token: 't', snapshot: fixture, etag: '"42"'}));
+  const client = createClient({server: 'https://x.test', storage, fetchImpl});
+  const queue = createPlanQueue({client, storage, now: () => new Date('2026-10-19T12:00:00+05:30')});
+  const heard = []; queue.subscribe(e => heard.push(e));
+  queue.start();
+  for (let id = 14; id <= 35; id++) queue.commit({type: 'saveTask', id, fields: {done: true}});
+  const settle = () => new Promise(r => setTimeout(r, 20));
+  await settle();
+  server.offline = false;
+  let release; server.hold = new Promise(r => { release = r; });
+  const ticking = client.tick();
+  await settle();
+  assert.equal(client.state.outbox.filter(e => e.status === 'applied').length, 22);
+  assert.equal(client.state.snapshot.revision, 42);
+  queue.commit({type: 'saveTask', id: 3, fields: {done: true}});
+  await settle();
+  const version = queue.data().version;
+  server.hold = null; release();
+  await ticking; await client.refresh();
+  assert.equal(heard.filter(e => e.foreign).length, 0, 'the website\'s own changes are not foreign');
+  assert.equal(queue.data().version, version);
+  queue.commit({type: 'undo'});
+  assert.equal(task(queue, 3).done, false, 'Undo shows the task un-done at once');
 });

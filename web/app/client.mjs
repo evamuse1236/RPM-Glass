@@ -91,11 +91,13 @@ export function createClient({server, storage = globalThis.localStorage, fetchIm
     if (state.outbox.some(e => e.status === 'applied' && (state.snapshot?.revision ?? -1) < e.newRevision)) await refresh();
   }
 
+  /** An entry is settled once the server has decided and, if applied, the snapshot shows it. */
+  const settled = entry => FINAL.has(entry.status) && (entry.status !== 'applied' || (state.snapshot?.revision ?? -1) >= entry.newRevision);
+
   return {
     state,
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-    /** An entry is settled once the server has decided and, if applied, the snapshot shows it. */
-    settled: entry => FINAL.has(entry.status) && (entry.status !== 'applied' || (state.snapshot?.revision ?? -1) >= entry.newRevision),
+    settled,
     /** On a ChatGPT Site the Site holds the phone's key, so the page opens without a code. */
     async connect() {
       if (state.token) return;
@@ -118,7 +120,9 @@ export function createClient({server, storage = globalThis.localStorage, fetchIm
     },
     async send(command) {
       const entry = {command, status: 'sending', message: 'Sending', newRevision: null};
-      state.outbox = [...state.outbox.filter(e => !FINAL.has(e.status) || state.outbox.indexOf(e) >= state.outbox.length - 20), entry];
+      // Keep the last 20 settled entries; an unsettled one stays until the snapshot shows it, so the plan queue still knows it as its own.
+      const done = state.outbox.filter(settled);
+      state.outbox = [...state.outbox.filter(e => !settled(e) || done.indexOf(e) >= done.length - 20), entry];
       emit();
       await deliver(entry); emit();
       return entry;
