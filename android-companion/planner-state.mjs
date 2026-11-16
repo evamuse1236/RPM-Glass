@@ -165,15 +165,16 @@ export function editPlan(data,op,now=new Date()){
         const task=one(tasks(next),id);if(task.done||task.blockId!=null)throw new Error('Only open unsorted tasks can be grouped.');
         assigned.add(id);selected.push(task);
       }
-      groups.push({blockId,selected,existing:blockTasks(next,blockId)});
+      groups.push({blockId,selected});
     }
-    for(const group of groups){const start=group.existing.length;group.selected.forEach((task,index)=>{task.blockId=group.blockId;task.priority=start+index+1;});}
+    for(const group of groups){const rows=blockTasks(next,group.blockId);group.selected.forEach(task=>{task.blockId=group.blockId;rows.push(task);});rows.forEach((t,i)=>{t.priority=i+1;});}
     result=assigned.size;
   }else if(op.type==='aiDraft'){
     if(!Array.isArray(op.blocks)||!op.blocks.length||op.blocks.length>12)throw new Error('The AI returned an invalid set of blocks.');
     const assigned=new Set(),ids=[];
-    for(const b of op.blocks){if(!Array.isArray(b.taskIds)||b.taskIds.length>60)throw new Error('The AI returned invalid task links.');const projectId=link(p.projects,b.projectId);let row=b.blockId?one(p.blocks,b.blockId):{id:newId(),title:title(b.title),projectId,purpose:'',notes:'',created:at};if(!b.blockId)p.blocks.push(row);ids.push(row.id);let rank=blockTasks(next,row.id).length;
-      for(const id of b.taskIds){if(assigned.has(id))throw new Error('The AI assigned a task twice.');const e=one(tasks(next),id);if(e.done)throw new Error('A completed task cannot be sorted by this draft.');assigned.add(id);e.blockId=row.id;e.priority=++rank;}
+    for(const b of op.blocks){if(!Array.isArray(b.taskIds)||b.taskIds.length>60)throw new Error('The AI returned invalid task links.');const projectId=link(p.projects,b.projectId);let row=b.blockId?one(p.blocks,b.blockId):{id:newId(),title:title(b.title),projectId,purpose:'',notes:'',created:at};if(!b.blockId)p.blocks.push(row);ids.push(row.id);const picked=[];
+      for(const id of b.taskIds){if(assigned.has(id))throw new Error('The AI assigned a task twice.');const e=one(tasks(next),id);if(e.done)throw new Error('A completed task cannot be sorted by this draft.');assigned.add(id);picked.push(e);}
+      const rows=blockTasks(next,row.id).filter(t=>!picked.includes(t));picked.forEach(e=>{e.blockId=row.id;rows.push(e);});rows.forEach((t,i)=>{t.priority=i+1;});
     }
     p.drafts.push({id:newId(),at,status:'unreviewed',proposed:op.blocks.map(b=>({blockId:b.blockId??null,title:text(b.title??'',200),projectId:b.projectId??null,taskIds:[...b.taskIds]})),blockIds:[...new Set(ids)],initial:arrangement(next),final:null});p.drafts=p.drafts.slice(-40);
   }else if(op.type==='acceptDraft'){

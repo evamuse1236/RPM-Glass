@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {installFakeDom, FakeElement} from './fake-dom.mjs';
 import {editPlan, planner} from './planner-state.mjs';
-import {reviewProgress} from './review-state.mjs';
-import {seed, WEEK, LAST} from './review-fixtures.mjs';
+import {reviewProgress, leftoverChoice} from './review-state.mjs';
+import {seed, WEEK, LAST, entry, task} from './review-fixtures.mjs';
 import {mountWeeklyReview} from './weekly-review.mjs';
 import {sheetLayer} from './review-step-three.mjs';
 
@@ -269,6 +269,86 @@ test('Finish tapped while another planner save is in flight saves the finish bef
     for (let i = 0; i < 10; i++) await settle(); // the review retries every 50ms, then its save takes a tick
     assert.equal(closed(), 1);
     assert.ok(planner(d).reviews?.[WEEK]?.finishedAt, 'the finish is saved');
+  } finally {
+    review.destroy();
+  }
+});
+
+test('Carry, or Carry all, tapped twice before the save lands carries once, so Undo brings the task back to undecided', async () => {
+  for (const which of ['row', 'all']) {
+    const {d, home, meals, kitchen} = seed();
+    editPlan(d, {type: 'setWeekFocus', week: LAST, ids: [home]});
+    editPlan(d, {type: 'markAchieved', id: home, achieved: false, verdict: 'notyet', week: LAST});
+    const box = document.createElement('div');
+    let saves = 0;
+    const review = mountWeeklyReview(box, {getData: () => d, close() {}, openBlock() {}, openCapture() {},
+      commit: async op => { await settle(); if (op.type !== 'reviewProgress') saves++; editPlan(d, op); },
+      day: () => '2026-09-26', now: () => new Date('2026-09-26T10:00:00+05:30')});
+    try {
+      await settle();
+      const tap = which === 'row'
+        ? box.querySelector(`[data-key="carry:${meals}"]`)
+        : [...box.querySelectorAll('button')].find(n => n.textContent.includes('Carry all'));
+      assert.ok(tap, `${which}: the carry button shows`);
+      tap.click();
+      tap.click();
+      for (let i = 0; i < 8; i++) await settle();
+      const choice = id => leftoverChoice(entry(d, id), WEEK);
+      assert.equal(choice(meals), 'carry', `${which}: carried`);
+      assert.equal(saves, 1, `${which}: one carry saved`);
+      editPlan(d, {type: 'undo'});
+      assert.equal(choice(meals), null, `${which}: Undo takes the carry back`);
+      if (which === 'all') assert.equal(choice(kitchen), null, 'Undo takes back every task Carry all carried');
+    } finally {
+      review.destroy();
+    }
+  }
+});
+
+test('a step 4 Must row tapped twice before the save lands toggles on then off, and Undo takes back the second tap', async () => {
+  const {d, home, laundry} = seed();
+  editPlan(d, {type: 'reviewProgress', week: WEEK, patch: {step: 4, focusDraft: [home]}});
+  const box = document.createElement('div');
+  const labels = [];
+  const review = mountWeeklyReview(box, {getData: () => d, close() {}, openBlock() {}, openCapture() {},
+    commit: async (op, label) => { await settle(); if (op.type === 'saveTask') labels.push(label); editPlan(d, op); },
+    day: () => '2026-09-26', now: () => new Date('2026-09-26T10:00:00+05:30')});
+  try {
+    await settle();
+    box.querySelector(`[data-key="open:${home}"]`).click();
+    const row = box.querySelector(`[data-key="must:${laundry}"]`);
+    assert.ok(row, 'the Must row shows');
+    row.click();
+    row.click();
+    for (let i = 0; i < 8; i++) await settle();
+    assert.ok(!entry(d, laundry).must, 'the second tap toggles the saved Must off');
+    assert.deepEqual(labels, ['Marked Must', 'No longer a Must']);
+    editPlan(d, {type: 'undo'});
+    assert.equal(entry(d, laundry).must, true, 'Undo takes back the second tap');
+  } finally {
+    review.destroy();
+  }
+});
+
+test('Give it this day tapped twice before the save lands gives the day once, so Undo takes it back', async () => {
+  const {d, home} = seed();
+  const must = task(d, {title: 'Write the shopping list', blockId: home, minutes: 30, must: true});
+  editPlan(d, {type: 'reviewProgress', week: WEEK, patch: {step: 4, focusDraft: [home]}});
+  const box = document.createElement('div');
+  const review = mountWeeklyReview(box, {getData: () => d, close() {}, openBlock() {}, openCapture() {},
+    readCalendar: () => ({status: 'ready', events: []}),
+    commit: async op => { await settle(); editPlan(d, op); },
+    day: () => '2026-09-26', now: () => new Date('2026-09-26T10:00:00+05:30')});
+  try {
+    await settle();
+    const go = box.querySelector('[data-key="place"]');
+    assert.ok(go, 'the suggested day shows');
+    go.click();
+    go.click();
+    for (let i = 0; i < 8; i++) await settle();
+    assert.equal(entry(d, must).plannedDate, '2026-09-27', 'the Must is given the suggested day');
+    editPlan(d, {type: 'undo'});
+    assert.equal(entry(d, must).plannedDate ?? null, null, 'Undo takes the given day back');
   } finally {
     review.destroy();
   }

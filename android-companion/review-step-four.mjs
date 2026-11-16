@@ -113,7 +113,11 @@ function mustList(api, blockId, now) {
   for (const task of open) {
     // The whole row toggles Must (like a checklist); only a Must shows its star, so nothing reads as "favourite".
     const label = task.must ? 'Must. Tap to unmark' : 'Mark as Must';
-    const toggle = () => api.run({type: 'saveTask', id: task.id, fields: {must: !task.must}}, task.must ? 'No longer a Must' : 'Marked Must');
+    // Built in its turn from the saved task, so a second tap before the first save lands toggles back instead of repeating it.
+    const toggle = () => api.enqueue(() => {
+      const saved = api.data().entries.find(e => e.id === task.id);
+      return saved && !saved.done ? {type: 'saveTask', id: task.id, fields: {must: !saved.must}} : null;
+    }, op => (op.fields.must ? 'Marked Must' : 'No longer a Must'));
     const row = button('', toggle, 'wr-must-row' + (task.must ? ' on' : ''));
     row.setAttribute('role', 'switch');
     row.setAttribute('aria-checked', String(!!task.must));

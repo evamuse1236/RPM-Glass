@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {editPlan, blockDue} from './planner-state.mjs';
-import {focusCandidates, freeMinutes, calendarClashes, weekCapacity, placedMusts, mustPlacements, placeMusts, rankResults, clashTitle, clashTask, decideClash, clashKey} from './review-state.mjs';
+import {focusCandidates, freeMinutes, calendarClashes, weekCapacity, placedMusts, mustPlacements, placeMustsOp, placedLabel, rankResults, clashTitle, clashTask, decideClash, clashKey} from './review-state.mjs';
 import {WEEK, block, task, entry, seed} from './review-fixtures.mjs';
 import {clashState} from './review-week-card.mjs';
 
@@ -57,7 +57,14 @@ test('undated Musts are proposed on the freest day before their deadline, and pl
   const plan = mustPlacements(d, [exam, loose], sunday, '2026-10-05', now);
   assert.deepEqual(plan.map(p => [p.taskId, p.day]), [[one, '2026-10-06'], [two, '2026-10-05']],
     'Mon already holds 15 min, so chapter 1 goes to Tue; then Mon is freest; never on or after Wednesday\'s deadline');
-  assert.equal(placeMusts(d, plan), '2 Musts given a day');
+  const op = placeMustsOp(d, plan);
+  assert.deepEqual(op, {type: 'batch', ops: [
+    {type: 'saveTask', id: one, fields: {plannedDate: '2026-10-06'}},
+    {type: 'saveTask', id: two, fields: {plannedDate: '2026-10-05'}}]}, 'one JSON batch, so one Undo');
+  assert.equal(placedLabel(op), '2 Musts given a day');
+  assert.equal(placedLabel(placeMustsOp(d, plan.slice(0, 1))), 'Must given a day');
+  editPlan(d, op);
+  assert.equal(placeMustsOp(d, plan), null, 'Musts already given a day are not placed again');
   assert.deepEqual([entry(d, one).plannedDate, entry(d, two).plannedDate], ['2026-10-06', '2026-10-05']);
   assert.equal(blockDue(d, exam).value, '2026-10-07T09:30', 'the deadline stays the deadline');
   editPlan(d, {type: 'undo'});
@@ -143,4 +150,13 @@ test('a second clash of the same or similar events gets its own decision task an
     assert.match(entry(d, first.id).notes, new RegExp(`keep ${c1.a.title}, move or skip ${c1.b.title}\\.$`), 'the first decision is kept');
     assert.equal(clashTask(d, c2).title, clashTitle(c2, 'b'));
   }
+});
+
+test('the week card places Musts through placeMustsOp, so the tested op and receipt are the ones the button saves', async () => {
+  const {readFile} = await import('node:fs/promises');
+  const src = await readFile(new URL('./review-week-card.mjs', import.meta.url), 'utf8');
+  assert.match(src, /placeMustsOp\(/, 'the button builds its batch with placeMustsOp');
+  assert.match(src, /placedLabel/, 'the button words its receipt with placedLabel');
+  assert.doesNotMatch(src, /given a day/, 'no second copy of the receipt words');
+  assert.doesNotMatch(src, /type: 'saveTask'/, 'no second copy of the placement op');
 });

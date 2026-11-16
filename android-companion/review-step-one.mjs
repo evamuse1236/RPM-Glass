@@ -190,11 +190,19 @@ function carryHead(text, echo = false) {
 export function carryAll(api, tasks, running) {
   const focus = [...api.ui.focus];
   if (tasks.length) {
-    const ops = tasks.map(task => ({type: 'reviewTask', id: task.id, choice: 'carry', week: api.week}));
-    const undoBefore = api.data().planner?.undo?.id;
-    api.run(ops.length === 1 ? ops[0] : {type: 'batch', ops}, LEFTOVER_RECEIPTS.carry).then(() => {
+    // Built in its turn: a second tap before the first save lands finds the tasks carried and saves nothing,
+    // so it never takes the Undo slot from the carry it repeats.
+    let ops = [];
+    let undoBefore;
+    api.enqueue(() => {
+      const data = api.data();
+      ops = tasks.filter(task => leftoverChoice(data.entries.find(e => e.id === task.id) ?? {}, api.week) !== 'carry')
+        .map(task => ({type: 'reviewTask', id: task.id, choice: 'carry', week: api.week}));
+      undoBefore = data.planner?.undo?.id;
+      return ops.length > 1 ? {type: 'batch', ops} : ops[0] ?? null;
+    }, LEFTOVER_RECEIPTS.carry).then(() => {
       const undoId = api.data().planner?.undo?.id;
-      if (running.length && undoId && undoId !== undoBefore) api.ui.carried = {undoId, focus, ids: ops.map(op => op.id)};
+      if (running.length && ops.length && undoId && undoId !== undoBefore) api.ui.carried = {undoId, focus, ids: ops.map(op => op.id)};
     });
   }
   if (running.length) setFocus(api, [...focus, ...running.map(r => r.blockId)]);
@@ -223,7 +231,12 @@ function taskRow(api, task) {
   const item = el('li', 'wr-carry-item');
   const current = leftoverChoice(task, api.week);
   const title = task.title ?? task.raw ?? 'Task';
-  const choose = value => { if (value !== current) api.run({type: 'reviewTask', id: task.id, choice: value, week: api.week}, decisionLabel(value)); };
+  // Read again in its turn, so a second tap before the first save lands saves nothing and the first save keeps its Undo.
+  const choose = value => {
+    if (value === current) return;
+    api.enqueue(() => (leftoverChoice(api.data().entries.find(e => e.id === task.id) ?? {}, api.week) === value ? null
+      : {type: 'reviewTask', id: task.id, choice: value, week: api.week}), decisionLabel(value));
+  };
   const body = button('', () => openMenu(body, CHOICES.map(([value, word]) => ({
     label: word,
     icon: value === current ? 'check' : CHOICE_ICONS[value],

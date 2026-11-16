@@ -189,6 +189,7 @@ test('one Undo of Carry all takes back the carried tasks and the running Results
     ui: {focus: [], focusHint: ''}, week: WEEK, data: () => d,
     render: () => stepOne.settleCarryUndo?.(api),
     run: (op, label) => (queue = queue.then(() => { editPlan(d, op, now); }).then(() => api.render())),
+    enqueue: (build, label) => (queue = queue.then(() => { const op = build(); if (op) editPlan(d, op, now); }).then(() => api.render())),
   };
   stepOne.carryAll(api, [entry(d, meals)], running);
   await queue;

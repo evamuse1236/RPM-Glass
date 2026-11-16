@@ -8,7 +8,7 @@ import {DAY, checkDay, dateKey, dueAt} from './review-dates.mjs';
 import {oneOff} from './review-planning.mjs';
 export {migrateReviewData};
 export {weekStart, reviewWeek, taskDate} from './review-dates.mjs';
-export {WAKING, freeMinutes, calendarClashes, weekCapacity, placedMusts, mustPlacements, placeMusts, rankResults, clashKey, clashDecision, clashTitle, clashTask, decideClash, clashOp} from './review-planning.mjs';
+export {WAKING, freeMinutes, calendarClashes, weekCapacity, placedMusts, mustPlacements, placeMustsOp, placedLabel, rankResults, clashKey, clashDecision, clashTitle, clashTask, decideClash, clashOp} from './review-planning.mjs';
 
 export const REVIEW_STEPS = 4;
 
