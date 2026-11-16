@@ -77,4 +77,12 @@ public class RepeatsTest {
         assertEquals(1, NotchDay.today(tasks, at("2026-10-21T06:00"), KOLKATA).size());
         assertEquals(0, NotchDay.today(tasks, at("2026-10-22T06:00"), KOLKATA).size());
     }
+
+    @Test
+    public void aDailyAlertInTheSkippedHourIsBackAtItsOwnClockTheDayAfterSpringForward() {
+        ZoneId ny = ZoneId.of("America/New_York");
+        long base = LocalDateTime.parse("2027-03-10T02:30").atZone(ny).toInstant().toEpochMilli();
+        long now = LocalDateTime.parse("2027-03-14T09:00").atZone(ny).toInstant().toEpochMilli();
+        assertEquals(Instant.parse("2027-03-15T06:30:00Z").toEpochMilli(), CompanionAlerts.next(base, "daily", ny, now));
+    }
 }
