@@ -17,7 +17,6 @@ import {attachSpineDrag} from './spine-drag-ui.mjs';
 import {repeats} from '../planner-recurrence.mjs';
 import {openRunSheet} from './routines.mjs';
 import {openMealSheet} from './meals.mjs';
-import {onceInFlight} from './routine-editor.mjs';
 import {holdToEdit} from './habits.mjs';
 import {bodyApi} from './body-api.mjs';
 import {openResults} from './today-model.mjs';
@@ -87,8 +86,21 @@ async function saveRoutineToggle(app, body, row, routine) {
 }
 
 /** Swipe right on a meal not yet logged: log it now as the usual food for that meal, with Undo; with none yet, the sheet.
- * A second swipe while the save is on its way does nothing (it returns undefined, so the row is not sent back). */
-const logMealNow = onceInFlight(async (app, body, row) => {
+ * A second swipe on the same meal while its save is on its way does nothing (it returns undefined, so the row is not
+ * sent back); another meal's row logs at once. */
+const loggingMeals = new Set();
+
+export async function logMealNow(app, body, row) {
+  if (loggingMeals.has(row.slot)) return undefined;
+  loggingMeals.add(row.slot);
+  try {
+    return await saveMealNow(app, body, row);
+  } finally {
+    loggingMeals.delete(row.slot);
+  }
+}
+
+async function saveMealNow(app, body, row) {
   const [usual] = usualMeals(body.meals(), row.slot);
   if (!usual) return openMealSheet(app, body, {mealId: null, slot: row.slot});
   try {
@@ -100,7 +112,7 @@ const logMealNow = onceInFlight(async (app, body, row) => {
   app.render();
   notice(app, `${row.label.split(' · ')[0]} logged · ${usual}`, {undo: true});
   return true;
-});
+}
 
 function toggleTask(app, row) {
   const node = app.dom.work.querySelector(`.spine-row[data-key="${CSS.escape(row.key)}"]`);

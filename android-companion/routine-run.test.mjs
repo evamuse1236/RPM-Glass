@@ -5,17 +5,18 @@ import {installFakeDom, FakeElement} from './fake-dom.mjs';
 installFakeDom();
 Object.assign(document, {getElementById: () => null, addEventListener() {}, removeEventListener() {}});
 globalThis.matchMedia ??= () => ({matches: true});
+globalThis.getComputedStyle ??= () => ({opacity: '1', transform: 'none', getPropertyValue: () => ''});
 // The few element calls the sheet makes that the fake DOM leaves out; the sheet shows inline, so it never animates.
 Object.defineProperty(FakeElement.prototype, 'style', {get() { return this._style ??= {setProperty() {}, removeProperty() {}}; }});
 Object.assign(FakeElement.prototype, {
-  before() {}, contains() { return false; }, getBoundingClientRect: () => ({height: 0}),
+  before() {}, contains() { return false; }, getBoundingClientRect: () => ({height: 0}), getAnimations: () => [],
   hasAttribute(name) { return this.getAttribute(name) != null; },
   toggleAttribute(name, on = !this.hasAttribute(name)) { on ? this.setAttribute(name, '') : this.removeAttribute(name); return on; },
 });
 const {editPlan} = await import('./planner-state.mjs');
 const {bodyApi} = await import('./planner/body-api.mjs');
 const {openRunSheet} = await import('./planner/routines.mjs');
-const {toggleRoutine} = await import('./planner/today-day.mjs');
+const {toggleRoutine, logMealNow} = await import('./planner/today-day.mjs');
 const {doneAll} = await import('./body-state.mjs');
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -106,4 +107,38 @@ test('a Routine ring on Today tapped twice before the save lands keeps one chang
     editPlan(app.data(), {type: 'undo'});
     assert.deepEqual(body.runFor(routine.id, day)?.marks ?? {}, before, `Undo restores the run (started ${startDone ? 'done' : 'open'})`);
   }
+});
+
+/** Earlier Poha at breakfast and Dal rice at lunch, so each meal row on Today has a usual food to log on a swipe. */
+function heldMealApp() {
+  const held = heldApp();
+  editPlan(held.app.data(), {type: 'saveMeal', meal: {name: 'Poha', slot: 'breakfast', at: '2026-10-18T08:30:00'}});
+  editPlan(held.app.data(), {type: 'saveMeal', meal: {name: 'Dal rice', slot: 'lunch', at: '2026-10-18T13:00:00'}});
+  return held;
+}
+const mealRow = slot => ({slot, label: slot === 'breakfast' ? 'Breakfast' : 'Lunch'});
+const loggedNow = body => body.meals().filter(m => m.at >= '2026-10-19').map(m => `${m.slot}:${m.name}`);
+
+test('a meal row on Today swiped twice before the save lands logs the meal once', async () => {
+  const {app, pending} = heldMealApp();
+  const body = bodyApi(app);
+  const first = logMealNow(app, body, mealRow('breakfast'));
+  await wait(5);
+  const second = logMealNow(app, body, mealRow('breakfast'));
+  await wait(60);
+  while (pending.length) { pending.shift()(); await wait(60); }
+  assert.deepEqual(await Promise.all([first, second]), [true, undefined]);
+  assert.deepEqual(loggedNow(body), ['breakfast:Poha']);
+});
+
+test('a second meal row on Today swiped while the first meal is saving is logged too', async () => {
+  const {app, pending} = heldMealApp();
+  const body = bodyApi(app);
+  const breakfast = logMealNow(app, body, mealRow('breakfast'));
+  await wait(20);
+  const lunch = logMealNow(app, body, mealRow('lunch'));
+  await wait(60);
+  while (pending.length) { pending.shift()(); await wait(60); }
+  assert.deepEqual(await Promise.all([breakfast, lunch]), [true, true]);
+  assert.deepEqual(loggedNow(body).sort(), ['breakfast:Poha', 'lunch:Dal rice']);
 });
