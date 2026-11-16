@@ -4,9 +4,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import {execFileSync} from 'node:child_process';
+import {execFileSync, spawnSync} from 'node:child_process';
 import {cloudGap, evidenceGap} from '../agent/require-evidence.mjs';
 import zlib from 'node:zlib';
+import {fileURLToPath} from 'node:url';
 import {apkWebSha, builtWeb} from '../agent/web-assets.mjs';
 
 function repo({branch = 'main'} = {}) {
@@ -202,4 +203,21 @@ test('a passing GitHub emulator run proves the app files of its commit, and only
   assert.match(evidenceGap(root), /older than changed app code/, 'an uncommitted app edit is not in the run');
   git('commit', '-qam', 'change again');
   assert.match(evidenceGap(root), /older than changed app code/, 'a later app commit is not in the run');
+});
+
+test('the Stop hook blocks, and does not crash, when the branch has no main to compare with', () => {
+  const orphan = repo({branch: 'work'});
+  try {
+    fs.writeFileSync(path.join(orphan, 'android-companion/planner/app.mjs'), 'export const a = 2;\n');
+    const scripts = fileURLToPath(new URL('../', import.meta.url));
+    for (const dir of ['agent', 'web-site']) fs.cpSync(path.join(scripts, dir), path.join(orphan, 'scripts', dir), {recursive: true});
+    const {CLAUDE_CODE_REMOTE_SESSION_ID: _, ...local} = process.env;
+    for (const env of [local, {...local, CLAUDE_CODE_REMOTE_SESSION_ID: 'test'}]) {
+      const run = spawnSync(process.execPath, ['scripts/agent/require-evidence.mjs', '--hook'], {cwd: orphan, env, input: '{}', encoding: 'utf8'});
+      assert.equal(run.status, 0, run.stderr);
+      const out = JSON.parse(run.stdout);
+      assert.equal(out.decision, 'block');
+      assert.match(out.reason, /cannot tell what this branch changed/i);
+    }
+  } finally { fs.rmSync(orphan, {recursive: true, force: true}); }
 });
