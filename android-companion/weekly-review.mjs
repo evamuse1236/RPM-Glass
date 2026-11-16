@@ -129,12 +129,18 @@ function createActions(ctx, week, ui, render) {
     await saveProgress({step: ui.step});
     ctx.close();
   }
-  async function finish() {
+  // A second tap while the finish saves gets the same promise: a second finishReview would take the one Undo.
+  let finishing = null;
+  function finish() {
+    return (finishing ??= finishOnce());
+  }
+  async function finishOnce() {
     ui.hint = '';
     pickableFocus({ui, data, week});
     const ids = [...ui.focus];
     await run({type: 'finishReview', week, ids}, ids.length ? `${plural(ids.length, 'Result')} for this week` : 'Weekly review finished');
-    if (!ui.hint) ctx.close();
+    if (ui.hint) finishing = null; // the save failed: Finish can be tried again
+    else ctx.close();
   }
   async function openBlock(blockId) {
     await saveProgress({step: ui.step});
