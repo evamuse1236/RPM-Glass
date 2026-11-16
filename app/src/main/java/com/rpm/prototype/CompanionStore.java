@@ -40,7 +40,7 @@ final class CompanionStore {
         if(d.optJSONObject("planner")!=null)d.getJSONObject("planner").put("undo",JSONObject.NULL);
         String backupAt=d.optString("syncSavedAt","");if(backupAt.isEmpty())backupAt=java.time.Instant.ofEpochMilli(sourceModifiedAt).toString();
         d.remove("sync");if(old!=null&&old.optJSONObject("sync")!=null)d.put("sync",new JSONObject(old.getJSONObject("sync").toString()));
-        SyncStamps.load(c);SyncStamps.stamp(old,d,backupAt);d.getJSONObject("sync").put("restoredAt",java.time.Instant.now().toString());
+        SyncStamps.load(c);SyncStamps.stamp(old,d,backupAt);d.getJSONObject("sync").put("restoredAt",java.time.Instant.now().toString()).put("restoredAbsent",SyncStamps.absentAfterRestore(old,d));
         CompanionAlerts.disarmImport(c,d);writeRaw(c,d);
     }}
     static void parkImportedDrafts(JSONObject data)throws JSONException {

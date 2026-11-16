@@ -51,6 +51,15 @@ public class CompanionStoreSyncTest {
         assertEquals("untouched",sync.getJSONObject("stamps").getJSONObject("task:1").getString("raw"));
         assertFalse(Instant.parse(sync.getString("restoredAt")).isBefore(start));
     }
+    @Test public void restoreListsOnlyTheSyncedRecordsTheBackupLacks()throws Exception {
+        JSONObject live=store(1);live.getJSONArray("entries").put(new JSONObject("{id:2,title:'Kept',raw:'Kept',revisions:[]}"));
+        live.put("sync",new JSONObject("{base:{'task:1':{rev:1},'task:2':{rev:2},'task:3':{rev:3},'conflict:4':{rev:4}}}"));
+        CompanionStore.write(context,live,0,"sync");
+        CompanionStore.importCopy(context,store(40).put("syncSavedAt","2026-10-01T00:00:00Z"));
+        JSONArray absent=CompanionStore.read(context).getJSONObject("sync").getJSONArray("restoredAbsent");
+        java.util.Set<String> keys=new java.util.TreeSet<>();for(int i=0;i<absent.length();i++)keys.add(absent.getString(i));
+        assertEquals(new java.util.TreeSet<>(java.util.Arrays.asList("task:2","task:3")),keys);
+    }
     @Test public void restoreWithoutSavedTimeUsesSourceFileTimeAndRejectsBackupSync()throws Exception {
         JSONObject backup=store(40).put("sync",new JSONObject("{cursor:999}"));
         CompanionStore.importCopy(context,backup,Instant.parse("2026-09-01T00:00:00Z").toEpochMilli());

@@ -31,6 +31,21 @@ final class SyncStamps {
             }
         }
     }
+    /** Synced records the restored copy lacks: the ones sync refills from the server instead of pushing as deletes. */
+    static JSONArray absentAfterRestore(JSONObject old,JSONObject restored)throws JSONException {
+        if(kinds==null)throw new IllegalStateException("Sync record contract is not loaded.");
+        Set<String> lacked=new TreeSet<>(),held=new HashSet<>();JSONObject sync=old==null?null:old.optJSONObject("sync");
+        JSONObject base=sync==null?null:sync.optJSONObject("base");
+        if(base!=null)for(Iterator<String> it=base.keys();it.hasNext();){String key=it.next();if(kinds.has(key.split(":",2)[0]))lacked.add(key);}
+        JSONArray earlier=sync!=null&&sync.has("restoredAt")?sync.optJSONArray("restoredAbsent"):null;
+        if(earlier!=null)for(int i=0;i<earlier.length();i++)lacked.add(earlier.getString(i));
+        for(Iterator<String> it=kinds.keys();it.hasNext();){
+            String kind=it.next();JSONObject spec=kinds.getJSONObject(kind);
+            for(String id:records(old,spec).keySet())lacked.add(kind+":"+id);
+            for(String id:records(restored,spec).keySet())held.add(kind+":"+id);
+        }
+        lacked.removeAll(held);return new JSONArray(lacked);
+    }
     private static JSONObject object(JSONObject parent,String key)throws JSONException {
         JSONObject value=parent.optJSONObject(key);if(value==null){value=new JSONObject();parent.put(key,value);}return value;
     }
