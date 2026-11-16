@@ -54,6 +54,15 @@ test('the knurl changes the length in 5-minute steps under 30 minutes and 15-min
   assert.equal(snapLength(200, 200), 240);
 });
 
+test('the knurl on a card longer than 4 hours moves from its own length and never cuts it to 4 hours', () => {
+  assert.equal(snapLength(300, 12), 315);
+  assert.equal(snapLength(300, -12), 285);
+  assert.equal(snapLength(300, 0), 300);
+  assert.equal(snapLength(300, 4), 300);
+  assert.equal(snapLength(480, 0), 480);
+  assert.equal(snapLength(1440, 100), 1440);
+});
+
 test('no horizontal gesture starts within 24dp of a screen edge', () => {
   assert.equal(EDGE, 24);
   for (const x of [0, 23, 361, 384]) assert.equal(nearEdge(x, 384), true, String(x));
