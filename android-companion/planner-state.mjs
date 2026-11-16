@@ -46,6 +46,7 @@ export function editPlan(data,op,now=new Date()){
     result=REVIEW_OPS.reviewProgress(next,op,at);validatePlanner(next);Object.assign(data,next);return result;
   }
   if(op.type==='rateAreas'){
+    if(!op.ratings?.length)throw new Error('Choose a rating first.');
     for(const rating of op.ratings){const a=one(p.areas,rating.id);if(typeof rating.rating!=='number'||rating.rating<0||rating.rating>10||rating.rating*2%1)throw new Error('Choose a whole or half-step rating.');a.rating=rating.rating;}
   }else if(op.type==='archiveBlock'){
     one(p.blocks,op.id).archived=op.archived!==false;result=op.id;
