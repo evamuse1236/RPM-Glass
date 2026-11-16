@@ -60,6 +60,21 @@ public class CompanionAlertsIdTest {
         CompanionAlerts.restore(c);
         assertEquals("a restore must not ring a dismissed alarm again",occurrence+day,CompanionAlerts.ledger(c).getJSONObject("22").getLong("at"));
     }
+    @Test public void aRestoreOrCheckAlertsKeepsARepeatingTasksPostedReminderInTheShade()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();NotificationManager nm=c.getSystemService(NotificationManager.class);long day=86400000L;
+        long occurrence=leadAlertDueNow(c,43,"reminder");
+        CompanionAlerts.fired(c,43,occurrence);
+        assertNotNull("the reminder posted",shadowOf(nm).getNotification("companion-reminder",43));
+        CompanionAlerts.restore(c); // app update, clock or zone change, exact-alarm grant
+        assertNotNull("a restore must not take a posted reminder out of the shade",shadowOf(nm).getNotification("companion-reminder",43));
+        assertEquals(occurrence+day,CompanionAlerts.ledger(c).getJSONObject("43").getLong("at"));
+        CompanionAlerts.check(c); // Settings Check alerts
+        assertNotNull("Check alerts must not take a posted reminder out of the shade",shadowOf(nm).getNotification("companion-reminder",43));
+        assertEquals(occurrence+day,CompanionAlerts.ledger(c).getJSONObject("43").getLong("at"));
+        JSONObject data=CompanionStore.read(c);CompanionAlerts.entry(data,43).put("done",true);CompanionStore.writeRaw(c,data);
+        CompanionAlerts.reconcile(c,data,false);
+        assertNull("a changed task still clears its posted reminder",shadowOf(nm).getNotification("companion-reminder",43));
+    }
     @Test public void aRestoreStillFiresALeadAlertThatNeverSounded()throws Exception {
         Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);
         long occurrence=leadAlertDueNow(c,23,"reminder");
@@ -107,6 +122,53 @@ public class CompanionAlertsIdTest {
         // Moving the task to a later time today still arms it.
         t.put("planned",Instant.ofEpochMilli(once+3600000).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
         assertEquals(once+3600000,CompanionAlerts.ledger(c).getJSONObject("28").getLong("at"));
+    }
+    @Test public void doneThenUndoOrAlertOffThenOnWhileALeadAlarmRingsDoesNotRingItAgain()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);long day=86400000L;
+        // A one-time task 20 min away rings its 30-min lead alarm; Done stops the ring, then Undo.
+        long once=(System.currentTimeMillis()/60000+20)*60000;CompanionAlerts.channels(c);
+        JSONObject t=new JSONObject().put("id",60).put("title","Call").put("raw","Call").put("revisions",new JSONArray()).put("planned",Instant.ofEpochMilli(once).toString()).put("alertIntent",new JSONObject().put("type","alarm").put("lead",30));
+        JSONObject data=new JSONObject().put("schema",2).put("version",1).put("entries",new JSONArray().put(t)).put("memories",new JSONArray()).put("history",new JSONArray()).put("conversations",new JSONArray().put(new JSONObject()));
+        CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);CompanionAlerts.fired(c,60,once);
+        assertEquals("ringing",CompanionAlerts.ledger(c).getJSONObject("60").getString("status"));
+        t.put("done",true);CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        t.put("done",false);CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        assertNotEquals("Undo of done does not ring the one-time alarm that already rang","scheduled",CompanionAlerts.ledger(c).getJSONObject("60").getString("status"));
+        // A repeating task: today's occurrence ticked while its alarm rings, then Undo.
+        long occurrence=leadAlertDueNow(c,61,"alarm");CompanionAlerts.fired(c,61,occurrence);
+        data=CompanionStore.read(c);JSONObject e=CompanionAlerts.entry(data,61);
+        e.put("completedOccurrences",new JSONArray().put(Instant.ofEpochMilli(occurrence).toString()));CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        e.remove("completedOccurrences");CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        assertEquals("Undo does not ring today's alarm again",occurrence+day,CompanionAlerts.ledger(c).getJSONObject("61").getLong("at"));
+        assertTrue(shadowOf(alarms).getNextScheduledAlarm().triggerAtTime>System.currentTimeMillis()+3600000);
+        // The alert turned off while it rings, then on again.
+        occurrence=leadAlertDueNow(c,62,"alarm");CompanionAlerts.fired(c,62,occurrence);
+        data=CompanionStore.read(c);e=CompanionAlerts.entry(data,62);
+        e.getJSONObject("alertIntent").put("type","none");CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        e.getJSONObject("alertIntent").put("type","alarm");CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        assertEquals("turning the alert back on does not ring today's alarm again",occurrence+day,CompanionAlerts.ledger(c).getJSONObject("62").getLong("at"));
+    }
+    @Test public void undoingAMoveDoesNotPostASoundedLeadReminderAgain()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();long day=86400000L;
+        // A one-time task 20 min away posts its 30-min lead reminder, is moved to tomorrow, then the move is undone.
+        long once=(System.currentTimeMillis()/60000+20)*60000;CompanionAlerts.channels(c);
+        JSONObject t=new JSONObject().put("id",41).put("title","Call").put("raw","Call").put("revisions",new JSONArray()).put("planned",Instant.ofEpochMilli(once).toString()).put("alertIntent",new JSONObject().put("type","reminder").put("lead",30));
+        JSONObject data=new JSONObject().put("schema",2).put("version",1).put("entries",new JSONArray().put(t)).put("memories",new JSONArray()).put("history",new JSONArray()).put("conversations",new JSONArray().put(new JSONObject()));
+        CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);CompanionAlerts.fired(c,41,once);
+        t.put("planned",Instant.ofEpochMilli(once+day).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        assertEquals("the move arms tomorrow",once+day,CompanionAlerts.ledger(c).getJSONObject("41").getLong("at"));
+        t.put("planned",Instant.ofEpochMilli(once).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false); // Undo
+        assertNotEquals("Undo of a move does not arm the posted one-time reminder","scheduled",CompanionAlerts.ledger(c).getJSONObject("41").getString("status"));
+        // Moving it to an earlier time that is still ahead arms that new time.
+        t.put("planned",Instant.ofEpochMilli(once-5*60000).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        assertEquals("scheduled",CompanionAlerts.ledger(c).getJSONObject("41").getString("status"));
+        assertEquals(once-5*60000,CompanionAlerts.ledger(c).getJSONObject("41").getLong("at"));
+        // A daily task whose lead reminder posted, moved to tomorrow and undone, keeps tomorrow's occurrence.
+        long occurrence=leadAlertDueNow(c,42,"reminder");CompanionAlerts.fired(c,42,occurrence);
+        data=CompanionStore.read(c);JSONObject e=CompanionAlerts.entry(data,42);
+        e.put("planned",Instant.ofEpochMilli(occurrence+day).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        e.put("planned",Instant.ofEpochMilli(occurrence).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false); // Undo
+        assertEquals("Undo of a move does not arm today's posted reminder",occurrence+day,CompanionAlerts.ledger(c).getJSONObject("42").getLong("at"));
     }
     @Test public void undoingDoneOnASnoozedLeadAlarmKeepsTheSnoozeAndDoesNotRingAtOnce()throws Exception {
         Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);
@@ -231,5 +293,18 @@ public class CompanionAlertsIdTest {
         assertEquals("the occurrence that already alerted is not alerted again",occ+86400000L,CompanionAlerts.ledger(c).getJSONObject(String.valueOf(id)).getLong("at"));
         for(org.robolectric.shadows.ShadowAlarmManager.ScheduledAlarm a:shadowOf(alarms).getScheduledAlarms())assertTrue(a.triggerAtTime>System.currentTimeMillis()+60000);
         CompanionAlerts.cancel(c,id);
+    }
+
+    private static String source(String name)throws Exception{return new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("src/main/java/com/rpm/prototype/"+name+".java")),java.nio.charset.StandardCharsets.UTF_8);}
+    /** Settings Check alerts reads and reconciles in one hold of the store lock, so a save between them cannot be undone by older data. */
+    @Test public void checkAlertsReadsAndReconcilesUnderOneLock()throws Exception {
+        String settings=source("CompanionSettingsController");int at=settings.indexOf("case \"check_alerts\":");assertTrue(at>=0);
+        String body=settings.substring(at,settings.indexOf("break;",at));
+        assertFalse("check_alerts must not read the store and reconcile in two lock holds: "+body,body.contains("CompanionStore.read("));
+        assertTrue("check_alerts goes through CompanionAlerts.check: "+body,body.contains("CompanionAlerts.check(activity)"));
+        String alerts=source("CompanionAlerts");int h=alerts.indexOf("static void check(Context c)throws Exception{");assertTrue("CompanionAlerts.check(Context) throws so the page shows errors",h>=0);
+        String check=alerts.substring(h,alerts.indexOf('\n',h));
+        int lock=check.indexOf("synchronized(CompanionStore.LOCK)"),read=check.indexOf("CompanionStore.read(c)"),rec=check.indexOf("reconcile(c,d,true)");
+        assertTrue("check holds the lock across the read and the forced reconcile: "+check,lock>=0&&lock<read&&read<rec);
     }
 }

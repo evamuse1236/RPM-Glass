@@ -33,7 +33,9 @@ final class Diagnostics {
     static void record(Context c,JSONObject event){if(!enabled(c))return;Context app=c.getApplicationContext();WRITER.execute(()->{try{recordNow(app,event);request(app);}catch(Exception ignored){rejected.incrementAndGet();}});}
     static void recordNow(Context c,JSONObject input)throws Exception{
         if(!enabled(c))return;
-        String token=SyncManager.decrypt(connection(c).getString("token",""));String[] keys=CompanionKey.all(c),known=java.util.Arrays.copyOf(keys,keys.length+2);known[keys.length]=token;try{known[keys.length+1]=GeminiKey.get(c);}catch(Exception ignored){}
+        // A lost Keystore key leaves the token unreadable, so it cannot reach an event either: redact with the other keys and keep the event.
+        String token=null;try{token=SyncManager.unlock(connection(c).getString("token",""),SyncManager::decrypt);}catch(SyncManager.LostKey lost){}
+        String[] keys=CompanionKey.all(c),known=java.util.Arrays.copyOf(keys,keys.length+2);known[keys.length]=token;try{known[keys.length+1]=GeminiKey.get(c);}catch(Exception ignored){}
         JSONObject event=(JSONObject)DiagnosticRedaction.value(input,0,known);
         event.put("appVersion",c.getPackageManager().getPackageInfo(c.getPackageName(),0).versionName);
         if(!event.optString("eventId").matches("[a-zA-Z0-9-]{16,80}")||event.optString("sessionId").length()>100||event.optString("sessionId").isEmpty()||event.optString("operationId").length()>160||event.optString("operation").length()>100||event.optString("outcome").length()>40||event.optString("kind").length()>40||!Set.of("log","debug","info","warn","error").contains(event.optString("level")))throw new IllegalArgumentException("Invalid diagnostic event");
@@ -72,7 +74,7 @@ final class Diagnostics {
     static boolean sync(Context c){return sync(c,null);}
     static boolean sync(Context c,Upload upload){
         if(!enabled(c))return false;if(System.currentTimeMillis()<prefs(c).getLong("next_attempt",0))return true;if(!uploading.compareAndSet(false,true))return true;
-        try{if(upload==null){String url=SyncManager.validateUrl(connection(c).getString("url","")),token=SyncManager.decrypt(connection(c).getString("token",""));upload=events->SyncManager.post(url+"/v1/diagnostics",new JSONObject().put("events",events),token);}long deadline=SystemClock.elapsedRealtime()+25000;
+        try{if(upload==null){String url=SyncManager.validateUrl(connection(c).getString("url","")),token=SyncManager.unlock(connection(c).getString("token",""),SyncManager::decrypt);upload=events->SyncManager.post(url+"/v1/diagnostics",new JSONObject().put("events",events),token);}long deadline=SystemClock.elapsedRealtime()+25000;
             for(int i=0;i<8&&SystemClock.elapsedRealtime()<deadline;i++){
                 if(!enabled(c)||Thread.currentThread().isInterrupted())return false;
                 JSONArray batch;synchronized(DiagnosticStore.class){try(DiagnosticStore store=new DiagnosticStore(c)){batch=store.batch();}}
@@ -84,6 +86,7 @@ final class Diagnostics {
                 prefs(c).edit().putInt("failures",0).putLong("next_attempt",0).putString("status","Uploaded").putLong("last_success",System.currentTimeMillis()).apply();
             }return true;
         }catch(SyncManager.Unauthorized e){prefs(c).edit().putBoolean("auth_error",true).putString("status","Connection revoked · pair diagnostics again").apply();cancel(c);return false;}
+        catch(SyncManager.LostKey e){prefs(c).edit().putBoolean("auth_error",true).putString("status","This phone lost its diagnostics key · pair diagnostics again").apply();cancel(c);return false;}
         catch(SyncManager.Rejected e){backOff(c,"Upload rejected · queued logs kept");return false;}
         catch(Exception e){backOff(c,"Offline or unavailable · logs queued");return true;}
         finally{uploading.set(false);}
