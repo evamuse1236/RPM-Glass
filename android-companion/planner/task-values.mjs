@@ -58,7 +58,7 @@ export function schedulePresets({day = '', time = ''} = {}, now = new Date(), {r
   const today = localDay(now);
   const minutes = now.getHours() * 60 + now.getMinutes();
   const tomorrow = shiftDay(today, 1);
-  const weekday = d => new Date(d + 'T12:00').toLocaleDateString([], {weekday: 'short'});
+  const weekday = d => new Date(d + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'short'});
   const at = (d, t) => (t ? clockOf(d, t) : '');
   const out = [];
   const add = (key, label, symbol, value, hint) => {
@@ -147,7 +147,7 @@ export function dayChips(today = localDay(), current = '') {
   const chips = [{label: 'Today', day: today, aria: ''}, {label: 'Tomorrow', day: shiftDay(today, 1), aria: ''}];
   for (let i = 2; i < 7; i++) {
     const day = shiftDay(today, i);
-    chips.push({label: date(day).toLocaleDateString([], {weekday: 'short'}), day, aria: spoken(day)});
+    chips.push({label: date(day).toLocaleDateString(DATE_LOCALE, {weekday: 'short'}), day, aria: spoken(day)});
   }
   if (current && !chips.some(c => c.day === current)) {
     const label = date(current).toLocaleDateString(DATE_LOCALE, {weekday: 'short', month: 'short', day: 'numeric'});
@@ -181,7 +181,9 @@ export function repeatLabel(task) {
 }
 
 /** The Repeat tab's circles, Monday first: [weekday 0–6, letter, name]. */
-export const REPEAT_DAYS = [1, 2, 3, 4, 5, 6, 0].map(d => [d, DAY_NAMES[d][0], new Date(2026, 9, 18 + d, 12).toLocaleDateString([], {weekday: 'long'})]);
+// Fixed English names, as DATE_LOCALE gives them; a call here would run before format.mjs loads (import cycle).
+const LONG_DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+export const REPEAT_DAYS = [1, 2, 3, 4, 5, 6, 0].map(d => [d, DAY_NAMES[d][0], LONG_DAY_NAMES[d]]);
 const weekOrder = days => [...new Set(days)].sort((a, b) => (a + 6) % 7 - (b + 6) % 7);
 const weekdayOf = planned => (planned ? new Date(planned).getDay() : null);
 

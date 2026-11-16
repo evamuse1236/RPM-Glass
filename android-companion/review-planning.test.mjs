@@ -160,3 +160,18 @@ test('the week card places Musts through placeMustsOp, so the tested op and rece
   assert.doesNotMatch(src, /given a day/, 'no second copy of the receipt words');
   assert.doesNotMatch(src, /type: 'saveTask'/, 'no second copy of the placement op');
 });
+
+test('a clash between two very long event titles gets a key the website snapshot accepts, and short keys stay readable', async () => {
+  const {buildSnapshot} = await import('./web-sync-snapshot.mjs');
+  const ev = (title) => ({start: +new Date('2026-10-20T10:00:00'), end: +new Date('2026-10-20T11:00:00'), title});
+  const from = new Date('2026-10-19T00:00:00'), to = new Date('2026-10-26T00:00:00');
+  const [clash] = calendarClashes([ev('x'.repeat(600) + 'a'), ev('x'.repeat(600) + 'b')], from, to);
+  const key = clashKey(clash);
+  assert.ok(key.length <= 1000, `key length ${key.length}`);
+  const [other] = calendarClashes([ev('x'.repeat(600) + 'a'), ev('x'.repeat(600) + 'c')], from, to);
+  assert.notEqual(clashKey(other), key, 'a different pair keeps its own decision');
+  assert.equal(clashKey(clash), key, 'the key is stable');
+  const {d} = seed();
+  editPlan(d, {type: 'reviewProgress', week: '2026-10-19', patch: {step: 4, clashes: {[key]: 'a'}}});
+  assert.doesNotThrow(() => buildSnapshot(d));
+});

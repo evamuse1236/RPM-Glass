@@ -15,7 +15,7 @@ export default defineSchema({
     .index("by_account_message",["account","messageId"]).index("by_status",["status"]),
   captureState: defineTable({account:v.id("accounts"),kind:v.union(v.literal("capture"),v.literal("draft"),v.literal("transaction")),id:v.string(),version:v.number(),value:v.any()})
     .index("by_account",["account"]).index("by_item",["account","kind","id"]),
-  webCommands: defineTable({account:v.id("accounts"),session:v.id("webSessions"),device:v.id("devices"),commandId:v.string(),payload:v.any(),identity:v.string(),status:v.union(v.literal("pending"),v.literal("applied"),v.literal("rejected"),v.literal("conflict")),message:v.string(),newRevision:v.union(v.number(),v.null()),cursor:v.number(),queuedAt:v.number(),inverse:v.optional(v.array(v.object({key:v.string(),rev:v.number(),before:v.any(),after:v.any()})))})
+  webCommands: defineTable({account:v.id("accounts"),session:v.id("webSessions"),device:v.id("devices"),commandId:v.string(),payload:v.any(),identity:v.string(),status:v.union(v.literal("pending"),v.literal("applied"),v.literal("rejected"),v.literal("conflict")),message:v.string(),newRevision:v.union(v.number(),v.null()),fromRevision:v.optional(v.number()),cursor:v.number(),queuedAt:v.number(),inverse:v.optional(v.array(v.object({key:v.string(),rev:v.number(),before:v.any(),after:v.any()})))})
     .index("by_account_id",["account","commandId"]).index("by_session_cursor",["session","cursor"]),
   webRateLimits: defineTable({key:v.string(),window:v.number(),count:v.number()}).index("by_key",["key"]),
   diagnosticPairingCodes: defineTable({codeHash:v.string(),label:v.string(),expiresAt:v.number(),usedAt:v.optional(v.number())}).index("by_hash",["codeHash"]),

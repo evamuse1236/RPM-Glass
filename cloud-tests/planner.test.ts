@@ -83,6 +83,15 @@ describe("Record snapshots and durable server receipts",()=>{
     expect((await request(t,"/v1/web/session",second.token,undefined,"DELETE")).status).toBe(200);
     expect((await poll(t,second.token)).status).toBe(401);
   });
+  it("a receipt names every revision its command wrote, from the cursor before its writes",async()=>{
+    const {t,web}=await seeded(), before=(await read(t,web.token)).revision;
+    const batch=await (await enqueue(t,web.token,plan(1,{type:"batch",ops:[{type:"saveTask",id:3,fields:{done:true}},{type:"saveTask",id:4,fields:{done:true}}]}))).json();
+    expect(batch).toMatchObject({status:"applied",fromRevision:before});expect(batch.newRevision).toBeGreaterThan(before+1);
+    const undone=await (await enqueue(t,web.token,{...command(2),type:"undo",args:{commandId:batch.id}})).json();
+    expect(undone).toMatchObject({status:"applied",fromRevision:batch.newRevision});expect(undone.newRevision).toBeGreaterThan(batch.newRevision+1);
+    expect((await read(t,web.token)).revision).toBe(undone.newRevision);
+    expect((await (await poll(t,web.token)).json()).commands).toEqual([batch,undone]);
+  });
   it("pages final receipt cursors even for no-op commands",async()=>{
     const {t,device,web}=await seeded();
     for(let n=1;n<=101;n++)expect((await enqueue(t,web.token,plan(n,{type:"saveTask",id:3,fields:{notes:"Same"}}))).status).toBe(200);

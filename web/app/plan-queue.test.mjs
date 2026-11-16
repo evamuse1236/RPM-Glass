@@ -8,6 +8,7 @@ import {completionOp} from '../../android-companion/notch-ops.mjs';
 import {createPlanQueue, storeFrom, WAITING, CHANGED} from './plan-queue.mjs';
 import {createClient} from './client.mjs';
 import {createRamble} from '../../android-companion/voice-turn.mjs';
+import {projectRecords} from '../contract/records.mjs';
 
 const FINAL = new Set(['applied', 'rejected', 'conflict']);
 
@@ -30,7 +31,8 @@ function fakeClient(snapshot = structuredClone(fixture)) {
   };
 }
 
-function phone(client) {
+// `perRecord` answers as convex/records.ts writeRecords does: one revision per changed record, from the cursor before the writes.
+function phone(client, {perRecord = false} = {}) {
   const store = storeFrom(client.state.snapshot);
   const applied = new Map();
   return {
@@ -40,10 +42,14 @@ function phone(client) {
       if (status !== 'applied') { Object.assign(entry, {status, message}); client.emit(); return; }
       const {command} = entry;
       const before = structuredClone({entries: store.entries, planner: store.planner});
+      const records = projectRecords(store);
       if (command.type === 'plan') { withIds(command.args.ids, () => editPlan(store, command.args.op)); applied.set(command.id, before); }
       else Object.assign(store, structuredClone(applied.get(command.args.commandId)));
-      const revision = client.state.snapshot.revision + 1;
-      Object.assign(entry, {status: 'applied', newRevision: revision});
+      const after = projectRecords(store);
+      const written = [...new Set([...records.keys(), ...after.keys()])].filter(k => JSON.stringify(records.get(k) ?? null) !== JSON.stringify(after.get(k) ?? null)).length;
+      const fromRevision = client.state.snapshot.revision;
+      const revision = fromRevision + (perRecord ? written : 1);
+      Object.assign(entry, {status: 'applied', newRevision: revision, ...(perRecord ? {fromRevision} : {})});
       client.state.snapshot = {...client.state.snapshot, revision, entries: structuredClone(store.entries), planner: structuredClone(store.planner)};
       client.emit();
     },
@@ -181,6 +187,42 @@ test('a phone-side change is foreign and bumps the version; this browser\'s own 
   client.emit();
   assert.equal(queue.data().version, 43);
   assert.equal(task(queue, 4).title, 'Edited on the phone');
+});
+
+test('a change that writes several records, and its Undo, are this browser\'s own: nothing is foreign and Undo reverts at once', () => {
+  const client = fakeClient();
+  const queue = createPlanQueue({client, storage: memory(), now: () => new Date('2026-10-19T12:00:00+05:30')});
+  const told = []; queue.subscribe(r => told.push(r.foreign));
+  queue.start();
+  const device = phone(client, {perRecord: true});
+  queue.commit({type: 'batch', ops: [{type: 'saveTask', id: 3, fields: {done: true}}, {type: 'saveTask', id: 4, fields: {done: true}}]});
+  device.apply(0);
+  assert.equal(client.state.outbox[0].newRevision - client.state.outbox[0].fromRevision, 2, 'the batch wrote two records');
+  assert.deepEqual(told.filter(Boolean), [], 'own batch is not foreign');
+  assert.equal(queue.data().version, 42);
+  queue.commit({type: 'undo'});
+  assert.equal(task(queue, 3).done, false, 'Undo reverts on screen at once');
+  device.apply(1);
+  assert.equal(client.state.outbox[1].newRevision - client.state.outbox[1].fromRevision, 2, 'the Undo wrote two records');
+  assert.deepEqual(told.filter(Boolean), [], 'own Undo is not foreign');
+  assert.equal(queue.data().version, 42);
+});
+
+test('a phone-side write that lands between two of this browser\'s multi-record changes is still foreign', () => {
+  const client = fakeClient();
+  const queue = createPlanQueue({client, storage: memory(), now: () => new Date('2026-10-19T12:00:00+05:30')});
+  const told = []; queue.subscribe(r => told.push(r.foreign));
+  queue.start();
+  const device = phone(client, {perRecord: true});
+  queue.commit({type: 'batch', ops: [{type: 'saveTask', id: 3, fields: {done: true}}, {type: 'saveTask', id: 4, fields: {done: true}}]});
+  device.apply(0);
+  assert.deepEqual(told.filter(Boolean), []);
+  const entries = structuredClone(client.state.snapshot.entries);
+  entries.find(e => e.id === 4).title = 'Edited on the phone';
+  client.state.snapshot = {...client.state.snapshot, revision: client.state.snapshot.revision + 1, entries};
+  client.emit();
+  assert.equal(told.filter(Boolean).length, 1, 'the phone\'s write is foreign');
+  assert.equal(queue.data().version, 43);
 });
 
 function phoneEdit(client, id, fields) {

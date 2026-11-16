@@ -52,12 +52,15 @@ export function captureNotes({outbox, captures = [], dismissed, now = Date.now()
       continue;
     }
     const capture = captures.find(c => c.id === id);
-    if (!capture && !recent) continue;
+    // A capture typed offline counts from when the server took it, so its outcome shows once it is sorted.
+    const taken = Date.parse(capture?.createdAt);
+    const recentNow = recent || now - taken < RECENT;
+    if (!capture && !recentNow) continue;
     const lines = captureOutcome(capture);
     if (capture?.status === 'needs-answer') notes.push({id, icon: 'help', tone: 'waiting', text, lines, dismissible: true});
     else if (capture?.status === 'words-kept') notes.push({id, icon: 'error', tone: 'problem', text, lines, dismissible: true});
     else if (capture?.status === 'applied' || (capture && lines.length && lines[0] !== SORTING)) {
-      if (recent) notes.push({id, icon: 'check_circle', tone: 'done', text, lines: lines.length ? lines : ['Saved'], dismissible: true});
+      if (recentNow) notes.push({id, icon: 'check_circle', tone: 'done', text, lines: lines.length ? lines : ['Saved'], dismissible: true});
     } else notes.push({id, icon: 'schedule', tone: 'waiting', text, lines: [SORTING]});
   }
   return notes;

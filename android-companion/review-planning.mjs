@@ -153,8 +153,19 @@ export function rankResults(data, task, candidates) {
 
 /* ---------- calendar clash: the review can't move events, so the decision becomes a task on Today ---------- */
 const clashDay = day => new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'short', month: 'short', day: 'numeric'});
-/** A stable key for a clash, for remembering the decision in review progress. */
-export const clashKey = ({day, a, b}) => `${day}|${a.title}|${b.title}`;
+/** FNV-1a over a string, as 8 hex digits: a short stable digest for a key that would be too long. */
+const fnv = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193); return (h >>> 0).toString(16).padStart(8, '0'); };
+/**
+ * A stable key for a clash, for remembering the decision in review progress. The snapshot schema allows keys of at
+ * most 1000 characters, so two very long titles give the day plus a digest of both titles instead; short keys keep
+ * the readable form, so decisions already saved still match.
+ */
+export const clashKey = ({day, a, b}) => {
+  const plain = `${day}|${a.title}|${b.title}`;
+  if (plain.length <= 1000) return plain;
+  const both = `${a.title}|${b.title}`;
+  return `${day}|${String(a.title).slice(0, 200)}|${String(b.title).slice(0, 200)}|${both.length}-${fnv(both)}-${fnv(`${b.title}|${a.title}`)}`;
+};
 const sides = (clash, keep) => (keep === 'b' ? [clash.b, clash.a] : [clash.a, clash.b]);
 /** "Keep DAD exam; move or skip GWBC session": what the decision leaves to do. */
 export const clashDecision = (clash, keep) => { const [stays, other] = sides(clash, keep); return `keep ${stays.title}, move or skip ${other.title}`; };

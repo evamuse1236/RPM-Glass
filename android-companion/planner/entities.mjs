@@ -5,6 +5,7 @@ import {blockMenu, blockCrumb, revealNotes, focusTitleOnOpen} from './blocks.mjs
 import {persist} from './inline-edit.mjs';
 import {onceInFlight} from './routine-editor.mjs';
 import {userMessage} from '../user-message.mjs';
+import {DATE_LOCALE} from './format.mjs';
 
 export const NAMES = {projects: 'Project', blocks: 'Block', areas: 'Area', goals: 'Goal'};
 /** Draft slot names stay stable so drafts saved by earlier versions (and Capture seeds) restore. */
@@ -28,7 +29,7 @@ function goalFields(app, body, record) {
     const count = horizon.value === 'quarterly' ? 4 : 12;
     for (let i = 1; i <= count; i++) {
       const name = horizon.value === 'quarterly' ? 'Quarter ' + i
-        : new Date(2000, i - 1).toLocaleDateString([], {month: 'long'});
+        : new Date(2000, i - 1).toLocaleDateString(DATE_LOCALE, {month: 'long'});
       const option = el('option', '', name);
       option.value = String(i);
       period.append(option);

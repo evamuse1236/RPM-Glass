@@ -32,6 +32,14 @@
     "expected": {"keys": [], "nextAlert": "2026-10-23T10:30:00.000Z"}
   },
   {
+    "id": "chosen-days-with-no-days-keeps-its-base",
+    "timezone": "Asia/Kolkata",
+    "task": {"planned": "2026-10-21T09:30:00.000Z", "minutes": 30, "recurrence": "days", "repeatDays": []},
+    "day": "2026-10-21",
+    "now": "2026-10-21T00:00:00.000Z",
+    "expected": {"keys": ["2026-10-21T09:30:00.000Z"], "nextAlert": "2026-10-21T09:30:00.000Z"}
+  },
+  {
     "id": "weekdays-skip-the-weekend",
     "timezone": "Asia/Kolkata",
     "task": {"planned": "2026-10-19T03:30:00.000Z", "minutes": 30, "recurrence": "weekdays"},

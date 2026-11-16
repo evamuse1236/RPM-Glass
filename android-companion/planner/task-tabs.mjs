@@ -10,6 +10,7 @@ import {chip, chipRow, pickerChip, markChips, settleChip} from './fact-rows.mjs'
 import {dayChips, repeatShort, repeatDaysOf, REPEAT_DAYS, ALERT_LEADS, leadLabel} from './task-values.mjs';
 import {TABS, stepTab, ALERT_KINDS, REPEAT_PRESETS, whenDay, whenBrief, whenSpoken, alertShort, blockShort, presetOf, blockChoices} from './task-tabs-model.mjs';
 import {timeRuler} from './time-ruler.mjs';
+import {DATE_LOCALE} from './format.mjs';
 
 const SEARCH_FROM = 7;
 
@@ -166,7 +167,7 @@ function whenPanel(host, pick, tick) {
       dot.dataset.value = c.day;
       dot.classList.toggle('is-today', c.label === 'Today');
       dot.setAttribute('aria-label', c.aria || c.label);
-      dot.append(el('span', 'when-day-name', date.toLocaleDateString([], {weekday: 'short'})),
+      dot.append(el('span', 'when-day-name', date.toLocaleDateString(DATE_LOCALE, {weekday: 'short'})),
         el('span', 'when-day-number tnum', String(date.getDate())));
       return dot;
     }));

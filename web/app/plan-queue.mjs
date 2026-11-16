@@ -106,10 +106,17 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
   }
 
   // A voice capture is this browser's own journal of a ramble's words and changes no plan rows; a typed capture
-  // runs the server's model, which may change the plan, so it stays foreign.
+  // runs the server's model, which may change the plan, so it stays foreign. A command that writes several records
+  // takes every revision after `fromRevision` (the cursor before its writes); an entry saved without it owns only its last.
   function mine() {
     const own = e => ['plan', 'undo'].includes(e.command.type) || e.command.type === 'capture' && e.command.args?.source === 'voice';
-    return new Set(client.state.outbox.filter(e => e.status === 'applied' && own(e)).map(e => e.newRevision));
+    const revisions = new Set();
+    for (const e of client.state.outbox) {
+      if (e.status !== 'applied' || !own(e)) continue;
+      const from = Number.isInteger(e.fromRevision) && e.fromRevision < e.newRevision ? e.fromRevision : e.newRevision - 1;
+      for (let r = from + 1; r <= e.newRevision; r++) revisions.add(r);
+    }
+    return revisions;
   }
 
   function project() {

@@ -126,4 +126,24 @@ describe("Standalone record safety",()=>{
       expect(after.entries.find((e:any)=>e.title==="Water plants").planned).toBe("2026-11-18T03:30:00.000Z");
     } finally {if(zone===undefined)delete env.TZ;else env.TZ=zone;}
   });
+  it("applies an offline website tick at the moment the user ticked, not when it reached the server",async()=>{
+    const env=(globalThis as any).process.env, zone=env.TZ;env.TZ="UTC";
+    try {
+      vi.useFakeTimers({toFake:["Date"]});vi.setSystemTime(new Date("2026-11-16T18:00:00Z"));
+      const {t,web}=await seeded(), at=(n:number,op:any,createdAt:string)=>({...plan(n,op),timezone:"Asia/Kolkata",createdAt});
+      for(const [n,title] of [[1,"Water plants"],[2,"Feed fish"],[3,"Oil hinges"]] as const)
+        expect((await (await enqueue(t,web.token,at(n,{type:"saveTask",fields:{title,planned:"2026-11-16T03:30:00.000Z",minutes:15,repeatAfterDays:3}},"2026-11-16T18:00:00Z"))).json()).status).toBe("applied");
+      const id=async(title:string)=>(await read(t,web.token)).entries.find((e:any)=>e.title===title).id;
+      const tick=async(n:number,title:string,createdAt:string)=>{
+        expect((await (await enqueue(t,web.token,at(n,{type:"saveTask",id:await id(title),occurrence:"2026-11-16T03:30:00.000Z",fields:{done:true}},createdAt))).json()).status).toBe("applied");
+        return (await read(t,web.token)).entries.find((e:any)=>e.title===title).planned;
+      };
+      // Ticked offline at 23:50 IST Monday, delivered at 00:10 IST Tuesday: the browser showed Thursday.
+      vi.setSystemTime(new Date("2026-11-16T18:40:00Z"));
+      expect(await tick(4,"Water plants","2026-11-16T18:20:00.000Z")).toBe("2026-11-19T03:30:00.000Z");
+      // A client clock in the future, or a stamp older than a week, does not move the plan: the server's time is used.
+      expect(await tick(5,"Feed fish","2026-11-17T18:20:00.000Z")).toBe("2026-11-20T03:30:00.000Z");
+      expect(await tick(6,"Oil hinges","2026-11-01T18:20:00.000Z")).toBe("2026-11-20T03:30:00.000Z");
+    } finally {if(zone===undefined)delete env.TZ;else env.TZ=zone;}
+  });
 });
