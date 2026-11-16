@@ -25,15 +25,21 @@ function files(root, dir, keep) {
 const ERROR_NAMES = ['error', 'err', 'e', 'problem', 'failure', 'lastError', 'reason'];
 
 // Every place a caught error's message is read: the usual names plus whatever this file binds in catch clauses,
-// dotted or computed access, and destructuring in a catch parameter. A comparison (error.message === '...') is not display.
+// dotted or computed access, and destructuring in a catch parameter. A name bound in a catch clause also counts when the
+// whole error is shown (`${error}`, String(error), error.toString(), error.stack). A comparison or a regex test is not display.
 function rawErrorReads(text) {
-  const names = new Set(ERROR_NAMES);
-  for (const m of text.matchAll(/catch\s*\(\s*([A-Za-z_$][\w$]*)\s*\)|\.catch\(\s*(?:async\s+)?\(?\s*([A-Za-z_$][\w$]*)\s*\)?\s*=>/g)) names.add(m[1] ?? m[2]);
-  const alt = [...names].map(n => n.replace(/\$/g, '\\$')).join('|');
+  const names = new Set(ERROR_NAMES), caught = new Set();
+  for (const m of text.matchAll(/catch\s*\(\s*([A-Za-z_$][\w$]*)\s*\)|\.catch\(\s*(?:async\s+)?\(?\s*([A-Za-z_$][\w$]*)\s*\)?\s*=>/g)) {
+    names.add(m[1] ?? m[2]);
+    caught.add(m[1] ?? m[2]);
+  }
+  const escape = n => n.replace(/\$/g, '\\$');
+  const alt = [...names].map(escape).join('|'), caughtAlt = [...caught].map(escape).join('|');
+  const whole = caught.size && new RegExp(`\\$\\{\\s*(?:${caughtAlt})\\s*\\}|(?<!\\.test\\(\\s*)\\bString\\(\\s*(?:${caughtAlt})\\s*\\)(?!\\s*[!=]==)|\\b(?:${caughtAlt})(?:\\?\\.|\\.)(?:toString\\s*\\(|stack\\b)`);
   const read = new RegExp(`\\b(?:${alt})(?:\\?\\.|\\.)message\\b(?!\\s*[!=]==)|\\b(?:${alt})\\??\\.?\\[\\s*['"]message['"]\\s*\\]`);
   const destructure = /catch\s*\(\s*\{[^}]*\bmessage\b|\.catch\(\s*\(?\s*\{[^}]*\bmessage\b/;
   const fromError = new RegExp(`\\{[^}]*\\bmessage\\b[^}]*\\}\\s*=\\s*(?:${alt})\\b`);
-  return line => read.test(line) || destructure.test(line) || fromError.test(line);
+  return line => read.test(line) || destructure.test(line) || fromError.test(line) || Boolean(whole && whole.test(line));
 }
 
 function taskIdAllocations(text) {
