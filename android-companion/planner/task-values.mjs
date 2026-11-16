@@ -1,5 +1,5 @@
 import {localDay, shiftDay} from '../planner-state.mjs';
-import {nextOccurrence} from '../planner-recurrence.mjs';
+import {nextOccurrence, repeats, repeatsOn} from '../planner-recurrence.mjs';
 import {clock, relativeDay, timeValue, DATE_LOCALE} from './format.mjs';
 
 export const DURATIONS = [15, 30, 45, 60, 90, 120, 180];
@@ -154,6 +154,17 @@ export function dayChips(today = localDay(), current = '') {
     chips.splice(current < today ? 0 : 2, 0, {label, day: current, aria: spoken(current)});
   }
   return chips;
+}
+
+/**
+ * Why a series on fixed weekdays cannot move to `day`: moving its start to a weekday it never falls on would empty
+ * the week (the Schedule menu offers only days it falls on). Empty when the move is fine.
+ */
+export function seriesDayRefusal(task, day) {
+  if (!day || !task || !repeats(task) || task.repeatAfterDays) return '';
+  const weekday = new Date(day + 'T12:00').getDay();
+  if (repeatsOn(task, weekday)) return '';
+  return `This task does not repeat on ${new Date(day + 'T12:00').toLocaleDateString(DATE_LOCALE, {weekday: 'long'})}. Change Repeat first.`;
 }
 
 /** Time presets with the task's own time folded in, in clock order. */

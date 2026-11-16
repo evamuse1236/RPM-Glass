@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {parseWhen, dayPresets, whenFields, whenOf, timePresets, repeatLabel, schedulePresets, blockMatches, hashToken}
   from './planner/task-fields.mjs';
 import {repeatsOn} from './planner-recurrence.mjs';
+import {seriesDayRefusal} from './planner/task-values.mjs';
 
 const SAT = '2026-10-03';
 
@@ -70,6 +71,21 @@ test('A series on fixed weekdays is offered only days it falls on, so a pick nev
   const weekly = schedulePresets(when, mon, {repeating: true, on: d => repeatsOn({recurrence: 'weekly'}, d)});
   assert.deepEqual(weekly.map(x => x.key), schedulePresets(when, mon, {repeating: true}).map(x => x.key), 'a weekly series keeps every choice');
   assert.deepEqual(weekly.map(x => x.key), ['today', 'tonight', 'tomorrow', 'later']);
+});
+
+test('The When tab refuses a day a fixed-weekday series never falls on, so a move never empties the week', () => {
+  const at = '2026-11-16T03:30:00.000Z';
+  const weekdays = {recurrence: 'weekdays', planned: at};
+  assert.equal(seriesDayRefusal(weekdays, '2026-11-21'), 'This task does not repeat on Saturday. Change Repeat first.');
+  assert.equal(seriesDayRefusal(weekdays, '2026-11-22'), 'This task does not repeat on Sunday. Change Repeat first.');
+  assert.equal(seriesDayRefusal(weekdays, '2026-11-17'), '', 'a weekday is accepted');
+  const tueThu = {recurrence: 'days', repeatDays: [2, 4], planned: at};
+  assert.equal(seriesDayRefusal(tueThu, '2026-11-16'), 'This task does not repeat on Monday. Change Repeat first.');
+  assert.equal(seriesDayRefusal(tueThu, '2026-11-19'), '');
+  assert.equal(seriesDayRefusal({planned: at}, '2026-11-21'), '', 'a one-time task takes any day');
+  assert.equal(seriesDayRefusal({recurrence: 'weekly', planned: at}, '2026-11-21'), '', 'a weekly series moves to any day');
+  assert.equal(seriesDayRefusal({recurrence: 'weekdays', repeatAfterDays: 2, planned: at}, '2026-11-21'), '', 'after-completion has no fixed days');
+  assert.equal(seriesDayRefusal(weekdays, ''), '', 'clearing the day keeps its own refusal');
 });
 
 test('A #word in Quick add matches Blocks by word start first, and is found just before the caret', () => {
