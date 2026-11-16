@@ -71,8 +71,24 @@ export function projectSnapshot(data) {
   return snapshot;
 }
 
+// Logged history grows without end; the website gets the newest entries the schema allows.
+// Records stay complete: projectRecords reads projectSnapshot, never this trimmed copy.
+const HISTORY_LIMIT = 10000;
+function newest(list, time) {
+  if (list.length <= HISTORY_LIMIT) return list;
+  const kept = new Set([...list].sort((a, b) => time(a) - time(b)).slice(-HISTORY_LIMIT));
+  return list.filter(item => kept.has(item));
+}
+function boundHistory(body) {
+  body.water.glasses = newest(body.water.glasses, at => Date.parse(at));
+  body.meals = newest(body.meals, meal => Date.parse(meal.at));
+  body.runs = newest(body.runs, run => Date.parse(run.day));
+}
+
 export function buildSnapshot(data) {
   const snapshot = projectSnapshot(data);
   snapshot.captures = snapshot.captures.slice(-50);
+  boundHistory(snapshot.body);
+  boundHistory(snapshot.planner.body);
   return validateSnapshot(snapshot);
 }

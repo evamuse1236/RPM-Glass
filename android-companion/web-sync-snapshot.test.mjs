@@ -14,3 +14,19 @@ test('snapshot receipt dates stay identical when a saved revision is uploaded on
   t.mock.timers.tick(2*24*60*60*1000);
   assert.deepEqual(buildSnapshot(data),first);
 });
+
+test('years of logged glasses, meals and routine runs still give the website a valid snapshot of the newest 10000 each', () => {
+  const data=seedStore(new Date('2026-10-19T12:00:00+05:30')).data, body=data.planner.body, routineId=body.routines[0].id;
+  const iso=i=>new Date(Date.UTC(2000,0,1)+i*3600e3).toISOString(), day=i=>new Date(Date.UTC(1990,0,1)+i*864e5).toISOString().slice(0,10);
+  // The oldest of each is stored last, as a back-dated log would be.
+  body.water.glasses=[...Array.from({length:10000},(_,i)=>iso(i+1)),iso(0)];
+  body.meals=[...Array.from({length:10000},(_,i)=>({id:`m${i+1}`,name:'Poha',slot:'breakfast',at:iso(i+1)})),{id:'m0',name:'Poha',slot:'breakfast',at:iso(0)}];
+  body.runs=[...Array.from({length:10000},(_,i)=>({routineId,day:day(i+1),marks:{},skippedDay:false})),{routineId,day:day(0),marks:{},skippedDay:false}];
+  const snapshot=buildSnapshot(data);
+  for (const b of [snapshot.body, snapshot.planner.body]) {
+    assert.equal(b.water.glasses.length,10000); assert.ok(!b.water.glasses.includes(iso(0))); assert.ok(b.water.glasses.includes(iso(10000)));
+    assert.equal(b.meals.length,10000); assert.ok(!b.meals.some(m=>m.id==='m0')); assert.ok(b.meals.some(m=>m.id==='m10000'));
+    assert.equal(b.runs.length,10000); assert.ok(!b.runs.some(r=>r.day===day(0))); assert.ok(b.runs.some(r=>r.day===day(10000)));
+  }
+  assert.equal(body.water.glasses.length,10001,'the store itself keeps every glass');
+});
