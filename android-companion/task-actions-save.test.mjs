@@ -99,3 +99,15 @@ test('Archive Block tapped while another save runs archives the Block, then goes
   await new Promise(resolve => setTimeout(resolve, 50));
   assert.equal(unsavedBacks, 0, 'nothing archived, so the page stays');
 });
+
+test('a tick on a second task while the first tick saves waits and saves both; a double tap on one saves once', async () => {
+  const {toggleDone} = await import('./planner/task-row.mjs');
+  const app = fakeApp({savingFor: 60});
+  Object.assign(app, {recentlyCompleted: new Map(), render() {}, api: {native: async () => {}},
+    dom: {work: new FakeElement('div'), sheet: Object.assign(new FakeElement('div'), {hidden: true})}});
+  const a = {id: 1, title: 'A', done: false};
+  const b = {id: 2, title: 'B', done: false};
+  const results = await Promise.all([toggleDone(app, a), toggleDone(app, b), toggleDone(app, a)]);
+  assert.deepEqual(results, [true, true, false]);
+  assert.deepEqual(app.ops.map(op => [op.type, op.id, op.fields.done]), [['saveTask', 1, true], ['saveTask', 2, true]]);
+});
