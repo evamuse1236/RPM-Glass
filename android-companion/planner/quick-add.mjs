@@ -287,8 +287,12 @@ function quickAdd(app, overrides = {}) {
       discardDraft(app);
       app.sheet.draftKey = DRAFT;
     } else {
-      Object.assign(app.sheet.draftValues, {Task: name.value, Date: s.day, Time: s.time, Minutes: s.minutes,
-        Block: s.blockId, BlockPicked: s.blockPicked, Must: s.must, Repeat: s.repeat, Every: s.every, Notes: s.notes, Why: s.why, Alert: s.alert});
+      // The draft keeps the day and Block as they were before the words set them: the words are read again when it is
+      // restored, so deleting them then gives back the earlier day and Block, as in a sheet never closed.
+      const when = parsed ? before : s;
+      const where = tag ? tagBefore : s;
+      Object.assign(app.sheet.draftValues, {Task: name.value, Date: when.day, Time: when.time, Minutes: s.minutes,
+        Block: where.blockId, BlockPicked: where.blockPicked, Must: s.must, Repeat: s.repeat, Every: s.every, Notes: s.notes, Why: s.why, Alert: s.alert});
       rememberValue(app, 'Task', name.value);
     }
     setTimeout(() => { sheet.dataset.dirty = String(!!name.value.trim()); });
