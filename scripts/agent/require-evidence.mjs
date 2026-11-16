@@ -148,7 +148,8 @@ export function uncommittedAppFiles(root) {
   return status.map(entry => entry.slice(3)).filter(isAppFile);
 }
 
-// Every passing `scenario --all` recorded in any worktree of this repo, with the commit it ran on.
+// Every passing `scenario --all` recorded in any worktree of this repo, with the commit it ran on. A run made
+// with --allow-stale (staleAllowed) ran on an APK older than its code, so it is kept for debugging but proves nothing.
 export function scenarioRuns(root) {
   const trees = (git(root, ['worktree', 'list', '--porcelain']) ?? '').split('\n').filter(l => l.startsWith('worktree ')).map(l => l.slice(9));
   const runs = [];
@@ -161,7 +162,7 @@ export function scenarioRuns(root) {
         let entry = null;
         try { entry = JSON.parse(line); } catch {}
         const r = entry?.command === 'scenario' ? entry.result : null;
-        if (r?.ok && r.all && r.head && !r.uncommittedApp?.length) runs.push({head: r.head, at: entry.at, file});
+        if (r?.ok && r.all && r.head && !r.uncommittedApp?.length && !r.staleAllowed) runs.push({head: r.head, at: entry.at, file});
       }
     }
   }

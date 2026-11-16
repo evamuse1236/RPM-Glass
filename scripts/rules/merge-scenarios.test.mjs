@@ -60,6 +60,17 @@ test('a merge into main with app changes needs a passing scenario --all on that 
   assert.equal(mergeGap(r.root, {heads: [tip], branch: 'main'}), null);
 });
 
+test('a passing scenario --all run made with --allow-stale on an outdated APK does not count for the merge', t => {
+  const r = repo(t);
+  r.git('checkout', '-q', '-b', 'feat/x');
+  const tip = commit(r, 'app/src/main/java/A.java', 'class A {}\n', 'native change');
+  r.git('checkout', '-q', 'main');
+  journal(r, {ok: true, all: true, head: tip, uncommittedApp: [], staleAllowed: 'Native code changed after the APK was built'});
+  assert.notEqual(mergeGap(r.root, {heads: [tip], branch: 'main'}), null, 'a scenario on a stale app proves nothing');
+  journal(r, {ok: true, all: true, head: tip, uncommittedApp: []});
+  assert.equal(mergeGap(r.root, {heads: [tip], branch: 'main'}), null);
+});
+
 test('a run stays valid through docs-only commits, but not through a later app change', t => {
   const r = repo(t);
   r.git('checkout', '-q', '-b', 'feat/x');
