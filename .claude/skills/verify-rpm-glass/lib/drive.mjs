@@ -3,7 +3,7 @@ import path from 'node:path';
 import {PACKAGE, UserError, adb, shell, sleep, waitFor, foregroundActivity, displayInfo, nativeNodes, dismissAnr} from './device.mjs';
 import {inPage, toDevice, pageTargets} from './page.mjs';
 import {DISPLAYS, evidenceDir, journal, target, openLauncher} from './runtime.mjs';
-import {wipeAppDataKeepingSync} from './sync.mjs';
+import {SEED_FILE, seedShell} from './sync.mjs';
 
 // The software-rendered emulator can raise "System UI isn't responding" at any time; it sits on top of the app and eats
 // every tap. Answer Wait and try once more before reporting the element as missing.
@@ -98,10 +98,10 @@ export const driveCommands = {
     if (data) {
       const local = path.join(evidenceDir(state), 'seed-companion.json');
       fs.writeFileSync(local, JSON.stringify(data));
-      adb(serial, ['push', local, '/data/local/tmp/rpm-seed.json']);
-      adb(serial, ['shell', 'run-as', PACKAGE, 'sh', '-c', `'${wipeAppDataKeepingSync()} && cp /data/local/tmp/rpm-seed.json files/companion.json'`]);
-      adb(serial, ['shell', 'rm', '-f', '/data/local/tmp/rpm-seed.json']);
-    } else adb(serial, ['shell', 'run-as', PACKAGE, 'sh', '-c', `'${wipeAppDataKeepingSync()}'`]);
+      adb(serial, ['push', local, SEED_FILE]);
+      adb(serial, ['shell', 'run-as', PACKAGE, 'sh', '-c', `'${seedShell({withFile: true})}'`]);
+      adb(serial, ['shell', 'rm', '-f', SEED_FILE]);
+    } else adb(serial, ['shell', 'run-as', PACKAGE, 'sh', '-c', `'${seedShell({withFile: false})}'`]);
     await openLauncher(serial);
     await sleep(2000);
     const stored = adb(serial, ['exec-out', 'run-as', PACKAGE, 'cat', 'files/companion.json'], {allowFail: true});
