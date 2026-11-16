@@ -102,7 +102,7 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
       error.textContent = '';
       let saved;
       try {
-        saved = await body.saveMeal(editing ? {...editing, name: words, slot, state: 'logged'} : {name: words, slot, at: now.toISOString()});
+        saved = await body.saveMeal(editing ? {...editing, name: words, slot, state: 'logged'} : {name: words, slot, at: body.now().toISOString()});
       } catch {
         error.textContent = "Couldn't save. Try again.";
         return;
