@@ -49,11 +49,14 @@ public final class CaptureParser {
                         int endH = Integer.parseInt(range.group(1));
                         int endM = range.group(2) == null ? 0 : Integer.parseInt(range.group(2));
                         boolean pm = range.group(3).equalsIgnoreCase("pm");
-                        h = h % 12 + (pm ? 12 : 0);
-                        // "11:30-12:30 pm" would start after it ends: ask, never guess.
-                        if (endH < 1 || endH > 12 || h * 60 + m >= (endH % 12 + (pm ? 12 : 0)) * 60 + endM) {
-                            throw new DateTimeException("Ambiguous range");
-                        }
+                        if (endH < 1 || endH > 12) throw new DateTimeException("Invalid hour");
+                        int end = (endH % 12 + (pm ? 12 : 0)) * 60 + endM;
+                        int borrowed = h % 12 + (pm ? 12 : 0);
+                        // Take the closing am/pm when the range still starts before it ends;
+                        // else the start as written ("9:00 to 5 pm", "11:30-12:30 pm");
+                        // ask when neither reading starts before the end.
+                        if (borrowed * 60 + m < end) h = borrowed;
+                        else if (h * 60 + m >= end) throw new DateTimeException("Ambiguous range");
                     }
                 }
                 LocalDateTime local = LocalDateTime.of(date, LocalTime.of(h, m));

@@ -43,8 +43,16 @@ public class CaptureParserTest {
     }
 
     @Test
-    public void aRangeThatWouldStartAfterItEndsAsksInsteadOfGuessing() {
-        CaptureParser.Parsed parsed = CaptureParser.parse("tomorrow 11:30-12:30 pm lunch", NOW);
+    public void aRangeThatCrossesNoonKeepsItsMorningStart() {
+        assertEquals(nov17(11, 30), planned("tomorrow 11:30-12:30 pm lunch"));
+        assertEquals(nov17(9, 0), planned("tomorrow 9:00 to 5 pm work"));
+        assertEquals(nov17(10, 0), planned("tomorrow 10:00-2 pm meeting"));
+        assertEquals(nov17(12, 30), planned("tomorrow 12:30-1:30 pm lunch"));
+    }
+
+    @Test
+    public void aRangeThatStartsAfterItEndsEitherWayAsksInsteadOfGuessing() {
+        CaptureParser.Parsed parsed = CaptureParser.parse("tomorrow 10:00-9 am run", NOW);
         assertNull(parsed.plannedAt);
         assertEquals("Time needs review \u00b7 original text preserved", parsed.notice);
     }
