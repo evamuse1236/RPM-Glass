@@ -111,3 +111,30 @@ test('a tick on a second task while the first tick saves waits and saves both; a
   assert.deepEqual(results, [true, true, false]);
   assert.deepEqual(app.ops.map(op => [op.type, op.id, op.fields.done]), [['saveTask', 1, true], ['saveTask', 2, true]]);
 });
+
+test('Delete on an Area tapped while another save runs deletes it, then goes Back once', async () => {
+  const {removeEntity} = await import('./planner/entities.mjs');
+  const areas = [{id: 'a1', title: 'Health'}];
+  const app = fakeApp({savingFor: 60});
+  const commit = app.commit;
+  app.commit = async (op, options) => {
+    const id = await commit(op, options);
+    if (id !== undefined) areas.splice(areas.findIndex(a => a.id === op.id), 1);
+    return id;
+  };
+  app.p = () => ({areas});
+  let backs = 0;
+  app.back = () => { backs++; };
+  removeEntity(app, 'areas', 'a1');
+  removeEntity(app, 'areas', 'a1');
+  await new Promise(resolve => setTimeout(resolve, 200));
+  assert.deepEqual(app.ops, [{type: 'removeEntity', collection: 'areas', id: 'a1'}]);
+  assert.equal(backs, 1);
+  const unsaved = fakeApp();
+  unsaved.commit = async () => undefined;
+  unsaved.p = () => ({areas: [{id: 'a1', title: 'Health'}]});
+  let unsavedBacks = 0;
+  unsaved.back = () => { unsavedBacks++; };
+  await removeEntity(unsaved, 'areas', 'a1');
+  assert.equal(unsavedBacks, 0, 'nothing deleted, so the page stays');
+});

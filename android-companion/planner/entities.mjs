@@ -190,9 +190,19 @@ function deleteEntity(app, kind, id) {
   const {body, actions} = openSheet(app, `Delete ${name}?`, {variant: 'dialog'});
   body.append(el('p', 'sheet-note', 'Linked content is kept. You can undo this change.'));
   actions.append(button('Keep', () => app.closeSheet(), 'text-btn'),
-    button('Delete', () => app.commit({type: 'removeEntity', collection: kind, id}, {label: name + ' deleted'})
-      .then(() => app.back()).catch(() => {}), 'filled-btn danger'));
+    button('Delete', () => removeEntity(app, kind, id), 'filled-btn danger'));
 }
+
+/** Deletes once the save in flight ends (a second tap meanwhile does nothing), and goes Back only when the record is
+ * gone: a removeEntity save returns no id, so the saved data says whether it landed. */
+export const removeEntity = onceInFlight(async (app, kind, id) => {
+  try {
+    await persist(app, {type: 'removeEntity', collection: kind, id}, {label: NAMES[kind] + ' deleted'});
+  } catch {
+    return; // persist or commit has already shown why nothing was saved.
+  }
+  if (!app.p()[kind]?.some(item => item.id === id)) app.back();
+});
 
 /** What a detail bar shows beside Back at rest: a Block's Area · Project line; other pages show nothing there. */
 export function detailCrumb(app, top) {
