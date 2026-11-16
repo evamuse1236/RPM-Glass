@@ -67,7 +67,9 @@ final class CompanionAlerts {
             if(!changed&&Arrays.asList("ringing","snoozed").contains(old.optString("status"))&&!force&&!interrupted)continue;
             // A row whose time is unchanged keeps the occurrence whose alert already sounded, so an Undo of a completion or a change of repeat, lead or type does not sound it again.
             boolean sameTime=old!=null&&old.optString("fingerprint").startsWith(planned(e)+"|");
-            long sounded=sameTime?old.optLong("sounded"):0;if(interrupted)sounded=Math.max(sounded,occurrence(old));
+            // A first ring cut off while its occurrence is still ahead and not done rings again; one whose occurrence passed, or a snoozed ring, is finished.
+            long ringOcc=changed?0:occurrence(old);boolean replay=!changed&&old.optString("status").equals("ringing")&&!old.has("snoozeAt")&&ringOcc>System.currentTimeMillis()&&!completed(e).contains(ringOcc);
+            long sounded=sameTime?old.optLong("sounded"):0;if(replay)sounded=0;else if(interrupted)sounded=Math.max(sounded,occurrence(old));
             // A move keeps the exact occurrence that already sounded, so an Undo of the move does not sound it again; an earlier time still ahead is armed.
             long soundedBefore=old==null?0:!sameTime&&old.optLong("sounded")>0?old.optLong("sounded"):old.optLong("soundedBefore");
             // A live snooze outlasts a change that keeps the time (Done then Undo, a restore): it is held while its occurrence is done and comes back when that is undone.
@@ -82,6 +84,7 @@ final class CompanionAlerts {
             // After a time zone change the stored occurrence may no longer be one in this zone; then only what sounded holds it back, so today's occurrence here is still armed.
             ZoneId zone=ZoneId.systemDefault();long kept=changed?0:occurrence(old);boolean lined=kept>0&&next(base,Repeats.key(e),zone,kept-1)==kept;
             long at=next(e,zone,Math.max(lined?Math.max(now,kept-(interrupted?0:1)):now,sounded));if(at>0&&at==soundedBefore)at=next(e,ZoneId.systemDefault(),at);
+            if(replay)at=ringOcc;
             if(base==0){row.put("status","time_needed").put("label","Not scheduled · add a time");continue;}
             if(at==0&&interrupted){row.put("status","dismissed").put("label","Alarm interrupted");continue;}
             if(at==0){row.put("status","missed").put("label","Time passed · not scheduled");continue;}

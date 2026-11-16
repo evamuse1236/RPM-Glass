@@ -305,6 +305,26 @@ public class CompanionAlertsIdTest {
         assertEquals("tomorrow's occurrence, not today's again",occurrence+day,row.getLong("at"));
         assertEquals("tomorrow's alarm is armed",1,shadowOf(alarms).getScheduledAlarms().size());
     }
+    @Test public void aOneTimeLeadAlarmCutOffMidRingRingsAgainOnRestoreWhileItsTaskIsAhead()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);
+        // A one-time task 20 min away rings its 30-min lead alarm; the phone reboots mid-ring, the task still ahead.
+        long occ=(System.currentTimeMillis()/60000+20)*60000;CompanionAlerts.channels(c);
+        JSONObject t=new JSONObject().put("id",70).put("title","Call").put("raw","Call").put("revisions",new JSONArray()).put("planned",Instant.ofEpochMilli(occ).toString()).put("alertIntent",new JSONObject().put("type","alarm").put("lead",30));
+        JSONObject data=new JSONObject().put("schema",2).put("version",1).put("entries",new JSONArray().put(t)).put("memories",new JSONArray()).put("history",new JSONArray()).put("conversations",new JSONArray().put(new JSONObject()));
+        CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);CompanionAlerts.fired(c,70,occ);
+        JSONObject l=CompanionAlerts.ledger(c);l.getJSONObject("70").put("ringingSince",System.currentTimeMillis()-120000);CompanionAlerts.persist(c,l);
+        CompanionAlerts.restore(c); // boot, app update
+        JSONObject row=CompanionAlerts.ledger(c).getJSONObject("70");
+        assertEquals("an alarm cut off mid-ring rings again while its task is ahead","scheduled",row.getString("status"));
+        assertEquals(occ,row.getLong("at"));
+        assertTrue("it rings at once",shadowOf(alarms).getNextScheduledAlarm().triggerAtTime<=System.currentTimeMillis()+1000);
+        // The same on a resume after the process died mid-ring.
+        CompanionAlerts.fired(c,70,occ);
+        l=CompanionAlerts.ledger(c);l.getJSONObject("70").put("ringingSince",System.currentTimeMillis()-120000);CompanionAlerts.persist(c,l);
+        CompanionAlerts.reconcile(c,CompanionStore.read(c),false);
+        row=CompanionAlerts.ledger(c).getJSONObject("70");
+        assertEquals("scheduled",row.getString("status"));assertEquals(occ,row.getLong("at"));
+    }
     @Test public void anAlarmStillStartingItsServiceIsNotDisarmedByAResume()throws Exception {
         Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);
         long now=System.currentTimeMillis(),occurrence=now-1000;
