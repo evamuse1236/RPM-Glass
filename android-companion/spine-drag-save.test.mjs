@@ -98,7 +98,8 @@ test('a knurl whose length was not saved puts the card back at its saved length'
 test('a card moved and let go while another save runs saves its new start once that save ends', async () => {
   const app = fakeApp({savingFor: HOLD_LIFT + 80});
   const {card} = todayCard(app);
-  card.fire('pointerdown', {clientX: 50, clientY: 200, pointerId: 2});
+  // Backdated: Node can fire the lift timer a little early, and the lift needs a full HOLD_LIFT since the press.
+  card.fire('pointerdown', {clientX: 50, clientY: 200, pointerId: 2, timeStamp: performance.now() - 20});
   await wait(HOLD_LIFT + 30);
   assert.ok(card.classList.contains('lifted'), 'the card lifted');
   card.fire('pointermove', {clientX: 50, clientY: 248, pointerId: 2}); // +48px = +60 min
