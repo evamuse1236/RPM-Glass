@@ -68,3 +68,22 @@ test('--all expects only scenarios marked inAll; a named one is expected even wh
   assert.deepEqual(expectedScenarios(list, ['--all']), ['a', 'b']);
   assert.deepEqual(expectedScenarios(list, ['web-sync-offline']), ['web-sync-offline']);
 });
+
+test('the emulator workflow signs with the phone key before the build and checks the signer before the build is uploaded', async () => {
+  const {readFileSync} = await import('node:fs');
+  const yml = readFileSync(new URL('../../.github/workflows/emulator.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const steps = yml.split(/\n {6}- /);
+  const at = (what, pick) => {
+    const i = steps.findIndex(pick);
+    assert.notEqual(i, -1, `emulator.yml has no step that ${what}`);
+    return i;
+  };
+  const sign = at('writes the phone keystore into local.properties',
+    s => /RPM_DEBUG_KEYSTORE: \$\{\{ secrets\.RPM_PHONE_KEYSTORE \}\}/.test(s) && /echo "rpm\.debugKeystore=[^"\n]*" >> local\.properties/.test(s));
+  const build = at('builds the debug APK', s => /\brun: \.\/gradlew [^\n]*\bassembleDebug\b/.test(s));
+  const check = at('checks the APK signer', s => /\brun: node scripts\/ci\/check-signer\.mjs app\/build\/outputs\/apk\/debug\/app-debug\.apk\s*$/m.test(s));
+  const upload = at('uploads rpm-emulator-build', s => /^\s*name: rpm-emulator-build\s*$/m.test(s));
+  assert.ok(sign < build, 'the phone key is set before the APK is built');
+  assert.ok(build < check, 'the signer is checked after the APK is built');
+  assert.ok(check < upload, 'the signer is checked before the build is uploaded');
+});
