@@ -151,6 +151,8 @@ final class NotchController implements NotchPill.Gestures {
         reader.execute(() -> {
             NotchData next = NotchData.read(service, last);
             handler.post(() -> safely("data loaded", () -> {
+                // A calendar change saves nothing to the store, so tell the Next up widget here, only when its next up moved.
+                if (NextUp.moved(data, next, System.currentTimeMillis(), ZoneId.systemDefault(), DateFormat.is24HourFormat(service))) NextUpWidget.changed(service);
                 data = next;
                 render();
             }));
