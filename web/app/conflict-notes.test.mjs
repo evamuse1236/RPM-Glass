@@ -48,3 +48,15 @@ test('the website asks for no phone wait: no waiting-for-phone words in its page
   for (const gone of [/waiting for (your )?phone/i, /Send to phone/, /Phone saved/, /Sent to your phone/, /sorts it the next time it syncs/, /phone stays in charge/i])
     assert.doesNotMatch(words, gone);
 });
+
+test('a phone change the server refused names the item once and says it could not be saved', () => {
+  const kept = {id: 7, title: 'Call mum', raw: 'call mum', notes: 'Ask about Sunday', done: false};
+  const refused = {id: 'c7', key: 'task:7', group: 'record', kept, lost: {...kept, done: true, notes: 'x'.repeat(16001)}, lostFrom: 'phone'};
+  assert.equal(textOf(refused), '“Call mum”: a change from your phone could not be saved. Kept the version on the website.');
+  assert.doesNotMatch(textOf({...refused, lost: {...kept, done: true}}), /Other version from your phone: “Call mum”/);
+});
+
+test('a text field equal on both sides is never quoted as the other version', () => {
+  const text = textOf({id: 'c8', key: 'task:7', group: 'notes', kept: {title: 'Call mum', notes: 'Sunday'}, lost: {title: 'Call mum', notes: 'Monday'}, lostFrom: 'phone'});
+  assert.equal(text, '“Call mum” notes changed on two devices. Kept “Sunday”. Other version from your phone: “Monday”.');
+});
