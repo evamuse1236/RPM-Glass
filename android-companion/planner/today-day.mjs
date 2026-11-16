@@ -6,7 +6,7 @@
 import {buildSpine} from '../spine-model.mjs';
 import {routineOn, routineState, doneAll, usualMeals} from '../body-state.mjs';
 import {localDay, blockDue, timelineItems} from '../planner-state.mjs';
-import {dayTasks} from '../planner-ux.mjs';
+import {dayTasks, dayStart} from '../planner-ux.mjs';
 import {spineList, spineRow, focusCard, focusRow, foldToggle, foldedRows, anytimeRows, focusOf} from './spine-view.mjs';
 import {el, icon, button, emptyState} from './dom.mjs';
 import {dueInfo} from './format.mjs';
@@ -26,8 +26,7 @@ const OPEN_OFFSET = 160;
 const state = {model: null, app: null, observer: null, timer: null, open: {earlier: false}};
 
 function dayTask(app, task, done) {
-  const at = task.start ?? (task.planned ? Date.parse(task.occurrence ?? task.planned) : null);
-  const start = at != null && localDay(at) === app.state.day ? at : null;
+  const start = dayStart(task, app.state.day);
   const block = app.p().blocks.find(b => b.id === task.blockId);
   return {id: task.id, title: task.title, start, minutes: task.minutes ?? null, done, must: !!task.must, result: block?.title ?? null,
     resultId: block?.id ?? null, tone: app.tone(app.context(task).area), occurrence: task.occurrence, ref: task};
@@ -96,15 +95,16 @@ function toggleTask(app, row) {
 }
 
 /** A timed task that does not repeat can be moved and resized on the spine; a repeat is changed from its sheet. */
-const movable = row => row.start != null && !row.done && !repeats(row.task.ref);
+// A card that began the day before (it runs past midnight) stays where it is: a drag would clamp it to this midnight.
+const movable = (row, day) => row.start != null && row.start >= Date.parse(day + 'T00:00:00') && !row.done && !repeats(row.task.ref);
 
 function handlers(app) {
   const body = bodyApi(app);
   return {
     toggleTask: row => toggleTask(app, row),
-    gestures: (card, row) => attachRowGestures(app, card, row.task.ref, {leave: false, hold: !movable(row),
+    gestures: (card, row) => attachRowGestures(app, card, row.task.ref, {leave: false, hold: !movable(row, app.state.day),
       complete: () => toggleTask(app, row)}),
-    drag: (card, row) => { if (movable(row)) attachSpineDrag(app, card, row, {dayStart: Date.parse(app.state.day + 'T00:00:00')}); },
+    drag: (card, row) => { if (movable(row, app.state.day)) attachSpineDrag(app, card, row, {dayStart: Date.parse(app.state.day + 'T00:00:00')}); },
     openTask: task => app.actions.openTask(task.id, task.occurrence),
     openEvent: event => app.actions.calendarDetails(event),
     resolve(row) {
