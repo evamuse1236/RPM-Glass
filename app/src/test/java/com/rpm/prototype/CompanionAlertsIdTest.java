@@ -108,6 +108,31 @@ public class CompanionAlertsIdTest {
         t.put("planned",Instant.ofEpochMilli(once+3600000).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
         assertEquals(once+3600000,CompanionAlerts.ledger(c).getJSONObject("28").getLong("at"));
     }
+    @Test public void changingRepeatLeadOrTypeAfterTheAlertSoundedDoesNotSoundItAgain()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);long day=86400000L;
+        long occurrence=leadAlertDueNow(c,33,"reminder");
+        CompanionAlerts.fired(c,33,occurrence); // the lead reminder posts
+        String[][] edits={{"recurrence","weekly"},{"lead","15"},{"type","none"},{"type","reminder"}};
+        for(String[] edit:edits){
+            JSONObject data=CompanionStore.read(c),e=CompanionAlerts.entry(data,33);
+            if(edit[0].equals("recurrence"))e.put("recurrence",edit[1]);else if(edit[0].equals("lead"))e.getJSONObject("alertIntent").put("lead",Integer.parseInt(edit[1]));else if(edit[1].equals("none"))e.getJSONObject("alertIntent").put("type","none");else e.getJSONObject("alertIntent").put("type",edit[1]);
+            CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+            JSONObject row=CompanionAlerts.ledger(c).getJSONObject("33");
+            if(edit[1].equals("none")){assertEquals("off",row.getString("status"));continue;}
+            assertTrue("changing "+edit[0]+" to "+edit[1]+" must not re-arm the occurrence whose reminder posted",row.getLong("at")>occurrence);
+            assertTrue(shadowOf(alarms).getNextScheduledAlarm().triggerAtTime>System.currentTimeMillis()+3600000);
+        }
+        assertEquals(occurrence+7*day,CompanionAlerts.ledger(c).getJSONObject("33").getLong("at"));
+        // A one-time task whose reminder posted is not posted again when its lead changes.
+        long once=(System.currentTimeMillis()/60000+20)*60000;JSONObject data=CompanionStore.read(c);
+        JSONObject t=new JSONObject().put("id",34).put("title","Call").put("raw","Call").put("revisions",new JSONArray()).put("planned",Instant.ofEpochMilli(once).toString()).put("alertIntent",new JSONObject().put("type","reminder").put("lead",30));
+        data.getJSONArray("entries").put(t);CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);CompanionAlerts.fired(c,34,once);
+        t.getJSONObject("alertIntent").put("lead",15);CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        assertNotEquals("a lead change does not arm the posted one-time reminder again","scheduled",CompanionAlerts.ledger(c).getJSONObject("34").getString("status"));
+        // Moving it to a later time still arms it.
+        t.put("planned",Instant.ofEpochMilli(once+3600000).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        assertEquals(once+3600000,CompanionAlerts.ledger(c).getJSONObject("34").getLong("at"));
+    }
     @Test public void doneOnASnoozedLeadAlertTicksTodaysOccurrence()throws Exception {
         Context c=RuntimeEnvironment.getApplication();
         long occurrence=leadAlertDueNow(c,29,"alarm"); // rings now, 30 min before its occurrence

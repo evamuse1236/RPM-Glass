@@ -58,8 +58,8 @@ final class CompanionAlerts {
             if(!changed&&force&&Arrays.asList("posted","dismissed","missed","stopped").contains(old.optString("status"))&&!Repeats.repeating(Repeats.key(e)))continue;
             // A resume does not dismiss a ringing alarm or erase its snooze.
             if(!changed&&Arrays.asList("ringing","snoozed").contains(old.optString("status"))&&!force&&!interrupted)continue;
-            // A row whose time, type, repeat and lead are unchanged keeps the occurrence whose alert already sounded, so an Undo of a completion does not sound it again.
-            long sounded=old!=null&&old.optString("fingerprint").startsWith(when(e)+"|")?old.optLong("sounded"):0;if(interrupted)sounded=Math.max(sounded,occurrence(old));
+            // A row whose time is unchanged keeps the occurrence whose alert already sounded, so an Undo of a completion or a change of repeat, lead or type does not sound it again.
+            long sounded=old!=null&&old.optString("fingerprint").startsWith(planned(e)+"|")?old.optLong("sounded"):0;if(interrupted)sounded=Math.max(sounded,occurrence(old));
             cancel(c,e.getLong("id"));JSONObject row=new JSONObject().put("fingerprint",fp).put("type",type(e));l.put(id,row);if(sounded>0)row.put("sounded",sounded);
             if(!active(e)){row.put("status","off").put("label","Alert off");continue;}
             // An unchanged row keeps its stored occurrence: an occurrence whose alert already sounded is not armed again. A snoozed row's at is its snooze time, so its occurrence is kept apart.
