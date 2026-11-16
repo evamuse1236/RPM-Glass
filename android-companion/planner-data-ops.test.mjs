@@ -99,3 +99,25 @@ test('planner modules pass ops at every direct commit and weekly-review run call
   }
   assert.deepEqual(errors, [], 'Pass a JSON op; closures cannot cross the browser/phone boundary');
 });
+
+test('a meal guess saved with keepUndo survives an Undo of a change made while the guess ran', () => {
+  const data = freshStore(), now = new Date('2026-11-16T03:00:00Z');
+  const poha = editPlan(data, {type: 'saveMeal', meal: {name: 'Poha', slot: 'breakfast'}}, now);
+  editPlan(data, {type: 'setMealGuess', id: poha, guess: {status: 'pending'}, keepUndo: true}, now);
+  editPlan(data, {type: 'saveMeal', meal: {name: 'Banana', slot: 'snack'}}, now);
+  const kept = data.planner.undo.id;
+  editPlan(data, {type: 'setMealGuess', id: poha, guess: {status: 'ready', kcal: 300, protein: 8}, keepUndo: true}, now);
+  assert.equal(data.planner.undo.id, kept);
+  editPlan(data, {type: 'batch', ops: [{type: 'setMealGuess', id: poha, guess: {status: 'ready', kcal: 320, protein: 9}}], keepUndo: true}, now);
+  editPlan(data, {type: 'undo'}, now);
+  assert.deepEqual(bodyOf(data).meals.map(m => m.name), ['Poha']);
+  assert.equal(bodyOf(data).mealGuesses[poha].status, 'ready');
+  assert.equal(bodyOf(data).mealGuesses[poha].kcal, 320);
+  // A guess for a meal the Undo image never had leaves that image alone.
+  const fresh = freshStore();
+  const toast = editPlan(fresh, {type: 'saveMeal', meal: {name: 'Toast', slot: 'breakfast'}}, now);
+  editPlan(fresh, {type: 'setMealGuess', id: toast, guess: {status: 'pending'}, keepUndo: true}, now);
+  editPlan(fresh, {type: 'undo'}, now);
+  assert.deepEqual(bodyOf(fresh).meals, []);
+  assert.equal(bodyOf(fresh).mealGuesses?.[toast], undefined);
+});

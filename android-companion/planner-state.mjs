@@ -26,6 +26,19 @@ export function totals(rows){return {all:rows.filter(e=>!e.done).reduce((s,e)=>s
 // newId(): new records' ids are replayed in order across devices and must not shift.
 const snap=data=>({id:globalThis.crypto.randomUUID(),entries:structuredClone(data.entries),planner:structuredClone({...planner(data),undo:null})});
 
+// A keepUndo meal guess also lands in the kept Undo image when it holds that meal, so undoing a change made while
+// the guess ran keeps the newer guess instead of bringing back 'pending' (nothing asks again for a pending guess).
+function keptUndo(data,ops,at){
+  let undo=data.planner?.undo??null;
+  for(const op of ops){
+    const meal=op.type==='setMealGuess'&&undo?.planner.body?.meals?.find(m=>m.id===op.id);
+    if(!meal||meal.state==='skipped')continue;
+    if(undo===data.planner.undo)undo=structuredClone(undo);
+    BODY_OPS.setMealGuess({entries:undo.entries,planner:undo.planner},op,at);
+  }
+  return undo;
+}
+
 /** Validate on a copy, commit once, keep a single complete undo plus compact receipts. */
 export function editPlan(data,op,now=new Date()){
   assertPlanOp(op);
@@ -42,7 +55,7 @@ export function editPlan(data,op,now=new Date()){
     if(!Array.isArray(op.ops)||!op.ops.length||op.ops.length>60||op.ops.some(child=>['undo','batch','reviewProgress'].includes(child.type)))throw new Error('Invalid planning batch.');
     for(const child of op.ops)result=editPlan(next,child,now);
     // Child edits replace the planner; retain their events and the single pre-batch Undo.
-    next.planner.undo=op.keepUndo?data.planner?.undo??null:before;
+    next.planner.undo=op.keepUndo?keptUndo(data,op.ops,at):before;
     if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
     Object.assign(data,next);return result;
   }
@@ -149,7 +162,7 @@ export function editPlan(data,op,now=new Date()){
     result=BODY_OPS[op.type](next,op,at);
   }else throw new Error('Unknown planning action.');
   for(const task of next.entries){if(task.blockId&&task.purpose){task.revisions??=[];task.revisions.push({at,reason:'Task purpose retained in notes',before:{purpose:task.purpose,notes:task.notes??''}});task.notes=[task.notes,'Previous task purpose: '+task.purpose].filter(Boolean).join('\n\n');task.purpose='';}}
-  validatePlanner(next);p.events.push({id:newId(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=op.keepUndo?data.planner?.undo??null:before;next.undo=null;if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
+  validatePlanner(next);p.events.push({id:newId(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=op.keepUndo?keptUndo(data,[op],at):before;next.undo=null;if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
   Object.assign(data,next);return result;
 }
 
