@@ -268,6 +268,19 @@ public class CompanionAlertsIdTest {
         t.put("planned",Instant.ofEpochMilli(once+3600000).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
         assertEquals(once+3600000,CompanionAlerts.ledger(c).getJSONObject("34").getLong("at"));
     }
+    @Test public void switchingAPostedReminderToAnAlarmStillAheadArmsTheAlarm()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);
+        long once=(System.currentTimeMillis()/60000+20)*60000;
+        JSONObject data=new JSONObject().put("schema",2).put("version",1).put("entries",new JSONArray()).put("memories",new JSONArray()).put("history",new JSONArray()).put("conversations",new JSONArray().put(new JSONObject()));
+        JSONObject t=new JSONObject().put("id",35).put("title","Call").put("raw","Call").put("revisions",new JSONArray()).put("planned",Instant.ofEpochMilli(once).toString()).put("alertIntent",new JSONObject().put("type","reminder").put("lead",30));
+        data.getJSONArray("entries").put(t);CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        CompanionAlerts.fired(c,35,once); // the 30-min reminder posts
+        t.put("alertIntent",new JSONObject().put("type","alarm").put("lead",0));CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        JSONObject row=CompanionAlerts.ledger(c).getJSONObject("35");
+        assertEquals("an alarm at a time still ahead is armed after its reminder posted","scheduled",row.getString("status"));
+        assertEquals(once,row.getLong("at"));
+        assertEquals(once,shadowOf(alarms).getNextScheduledAlarm().triggerAtTime);
+    }
     @Test public void doneOnASnoozedLeadAlertTicksTodaysOccurrence()throws Exception {
         Context c=RuntimeEnvironment.getApplication();
         long occurrence=leadAlertDueNow(c,29,"alarm"); // rings now, 30 min before its occurrence
@@ -284,6 +297,17 @@ public class CompanionAlertsIdTest {
         assertEquals(NotchAlerting.REMINDER_FIRED,last.getAction());
         assertEquals("the snoozed reminder's island shows its snooze time",snoozeAt,last.getLongExtra("at",0));
         assertEquals("the notch's Done on the snoozed reminder ticks today's occurrence",occurrence,last.getLongExtra("done",last.getLongExtra("at",0)));
+    }
+    @Test public void aReminderPostedByTheOldBuildAndSnoozedKeepsItsNextOccurrence()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();long day=86400000L;
+        long occ=leadAlertDueNow(c,32,"reminder");
+        JSONObject e=CompanionAlerts.entry(CompanionStore.read(c),32);
+        // The old build posted today's reminder and left its row scheduled for tomorrow, with no "sounded".
+        CompanionAlerts.persist(c,new JSONObject().put("32",new JSONObject().put("fingerprint",CompanionAlerts.fingerprint(e)).put("type","reminder").put("status","scheduled").put("label","Reminder posted").put("at",occ+day)));
+        CompanionAlerts.finish(c,32,true,"Reminder snoozed"); // the notch's Snooze just after the update
+        long snoozeAt=CompanionAlerts.ledger(c).getJSONObject("32").getLong("at");
+        CompanionAlerts.fired(c,32,snoozeAt);
+        assertTrue("tomorrow's reminder is still armed, not the day after",CompanionAlerts.ledger(c).getJSONObject("32").getLong("at")<=occ+day);
     }
     /** A daily alarm whose ledger row says ringing at {@code since}, with no alarm service holding it. */
     private static JSONObject ringingRow(Context c,long id,long occurrence,long since)throws Exception{
@@ -304,6 +328,46 @@ public class CompanionAlertsIdTest {
         assertEquals("scheduled",row.getString("status"));
         assertEquals("tomorrow's occurrence, not today's again",occurrence+day,row.getLong("at"));
         assertEquals("tomorrow's alarm is armed",1,shadowOf(alarms).getScheduledAlarms().size());
+    }
+    @Test public void aDismissAfterAnInterruptedReArmKeepsTomorrowsAlarm()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();
+        long now=System.currentTimeMillis(),past=(now/60000-2)*60000,day=86400000L;
+        JSONObject data=ringingRow(c,33,past,now-120000);
+        JSONObject l=CompanionAlerts.ledger(c);l.getJSONObject("33").put("sounded",past);CompanionAlerts.persist(c,l);
+        // The service dropped the ring (Dismiss) and a sync save re-armed the row before finish() ran.
+        CompanionAlerts.reconcile(c,data,false);
+        CompanionAlerts.finish(c,33,false,"Alarm dismissed");
+        assertEquals("tomorrow's alarm stays armed, not the day after",past+day,CompanionAlerts.ledger(c).getJSONObject("33").getLong("at"));
+    }
+    @Test public void aOneTimeLeadAlarmCutOffMidRingRingsAgainOnRestoreWhileItsTaskIsAhead()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);
+        // A one-time task 20 min away rings its 30-min lead alarm; the phone reboots mid-ring, the task still ahead.
+        long occ=(System.currentTimeMillis()/60000+20)*60000;CompanionAlerts.channels(c);
+        JSONObject t=new JSONObject().put("id",70).put("title","Call").put("raw","Call").put("revisions",new JSONArray()).put("planned",Instant.ofEpochMilli(occ).toString()).put("alertIntent",new JSONObject().put("type","alarm").put("lead",30));
+        JSONObject data=new JSONObject().put("schema",2).put("version",1).put("entries",new JSONArray().put(t)).put("memories",new JSONArray()).put("history",new JSONArray()).put("conversations",new JSONArray().put(new JSONObject()));
+        CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);CompanionAlerts.fired(c,70,occ);
+        JSONObject l=CompanionAlerts.ledger(c);l.getJSONObject("70").put("ringingSince",System.currentTimeMillis()-120000);CompanionAlerts.persist(c,l);
+        CompanionAlerts.restore(c); // boot, app update
+        JSONObject row=CompanionAlerts.ledger(c).getJSONObject("70");
+        assertEquals("an alarm cut off mid-ring rings again while its task is ahead","scheduled",row.getString("status"));
+        assertEquals(occ,row.getLong("at"));
+        assertTrue("it rings at once",shadowOf(alarms).getNextScheduledAlarm().triggerAtTime<=System.currentTimeMillis()+1000);
+        // The same on a resume after the process died mid-ring.
+        CompanionAlerts.fired(c,70,occ);
+        l=CompanionAlerts.ledger(c);l.getJSONObject("70").put("ringingSince",System.currentTimeMillis()-120000);CompanionAlerts.persist(c,l);
+        CompanionAlerts.reconcile(c,CompanionStore.read(c),false);
+        row=CompanionAlerts.ledger(c).getJSONObject("70");
+        assertEquals("scheduled",row.getString("status"));assertEquals(occ,row.getLong("at"));
+    }
+    @Test public void aDailyLeadAlarmCutOffMidRingRingsTodayAgainWhileItsTaskIsAhead()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);
+        // A daily standup 20 min away rings its 30-min lead alarm; the phone reboots mid-ring, today's standup still ahead.
+        long occ=leadAlertDueNow(c,71,"alarm");CompanionAlerts.fired(c,71,occ);
+        JSONObject l=CompanionAlerts.ledger(c);l.getJSONObject("71").put("ringingSince",System.currentTimeMillis()-120000);CompanionAlerts.persist(c,l);
+        CompanionAlerts.restore(c); // boot, app update
+        JSONObject row=CompanionAlerts.ledger(c).getJSONObject("71");
+        assertEquals("today's alarm rings again, not only tomorrow's",occ,row.getLong("at"));
+        assertTrue("it rings at once",shadowOf(alarms).getNextScheduledAlarm().triggerAtTime<=System.currentTimeMillis()+1000);
     }
     @Test public void anAlarmStillStartingItsServiceIsNotDisarmedByAResume()throws Exception {
         Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);

@@ -67,7 +67,11 @@ final class CompanionAlerts {
             if(!changed&&Arrays.asList("ringing","snoozed").contains(old.optString("status"))&&!force&&!interrupted)continue;
             // A row whose time is unchanged keeps the occurrence whose alert already sounded, so an Undo of a completion or a change of repeat, lead or type does not sound it again.
             boolean sameTime=old!=null&&old.optString("fingerprint").startsWith(planned(e)+"|");
-            long sounded=sameTime?old.optLong("sounded"):0;if(interrupted)sounded=Math.max(sounded,occurrence(old));
+            // A first ring cut off while its occurrence is still ahead and not done rings again; one whose occurrence passed, or a snoozed ring, is finished.
+            long ringOcc=changed?0:occurrence(old);boolean replay=!changed&&old.optString("status").equals("ringing")&&!old.has("snoozeAt")&&ringOcc>System.currentTimeMillis()&&!completed(e).contains(ringOcc);
+            // A reminder that posted, switched to an alarm whose time is still ahead, rings: the user asked for it.
+            boolean upgraded=old!=null&&type(e).equals("alarm")&&!"alarm".equals(old.optString("type"))&&old.optLong("sounded")-Repeats.lead(e)*60000L>System.currentTimeMillis();
+            long sounded=sameTime&&!upgraded?old.optLong("sounded"):0;if(replay)sounded=0;else if(interrupted)sounded=Math.max(sounded,occurrence(old));
             // A move keeps the exact occurrence that already sounded, so an Undo of the move does not sound it again; an earlier time still ahead is armed.
             long soundedBefore=old==null?0:!sameTime&&old.optLong("sounded")>0?old.optLong("sounded"):old.optLong("soundedBefore");
             // A live snooze outlasts a change that keeps the time (Done then Undo, a restore): it is held while its occurrence is done and comes back when that is undone.
@@ -82,6 +86,7 @@ final class CompanionAlerts {
             // After a time zone change the stored occurrence may no longer be one in this zone; then only what sounded holds it back, so today's occurrence here is still armed.
             ZoneId zone=ZoneId.systemDefault();long kept=changed?0:occurrence(old);boolean lined=kept>0&&next(base,Repeats.key(e),zone,kept-1)==kept;
             long at=next(e,zone,Math.max(lined?Math.max(now,kept-(interrupted?0:1)):now,sounded));if(at>0&&at==soundedBefore)at=next(e,ZoneId.systemDefault(),at);
+            if(replay)at=ringOcc;
             if(base==0){row.put("status","time_needed").put("label","Not scheduled · add a time");continue;}
             if(at==0&&interrupted){row.put("status","dismissed").put("label","Alarm interrupted");continue;}
             if(at==0){row.put("status","missed").put("label","Time passed · not scheduled");continue;}
@@ -120,7 +125,12 @@ final class CompanionAlerts {
     }}
     static void finish(Context c,long id,boolean snooze,String label)throws Exception{synchronized(CompanionStore.LOCK){JSONObject d=CompanionStore.read(c);if(d==null)return;JSONObject e=entry(d,id),l=ledger(c),r=l.optJSONObject(String.valueOf(id));if(e==null||r==null)return;
         // A reminder is snoozed after it posted, when its row already holds the next occurrence: the snooze is for the one that sounded.
-        long occurrence=snooze&&!r.optString("status").equals("ringing")&&r.optLong("sounded")>0?r.optLong("sounded"):occurrence(r);r.remove("snoozeAt");r.remove("occurrence");if(snooze&&active(e)){long at=System.currentTimeMillis()+600000;r.put("snoozeAt",at).put("occurrence",occurrence).put("sounded",Math.max(r.optLong("sounded"),occurrence));schedule(c,e,r,at);}else{
+        long occurrence=snooze&&!r.optString("status").equals("ringing")&&r.optLong("sounded")>0?r.optLong("sounded"):occurrence(r);
+        // A ring a reconcile already re-armed (the service let it go just before this ran) is answered for the occurrence that sounded, so its next one stays armed.
+        if(!snooze&&!label.equals("Reminder posted")&&r.optString("status").equals("scheduled")&&r.optLong("sounded")>0&&r.optLong("sounded")<r.optLong("at"))occurrence=r.optLong("sounded");
+        // A posted reminder's row the old build left (no sounded) holds the next occurrence, not the one that sounded: snooze it as the old build did, so the next one stays armed.
+        boolean oldRow=snooze&&!type(e).equals("alarm")&&!r.optString("status").equals("ringing")&&r.optLong("sounded")==0;
+        r.remove("snoozeAt");r.remove("occurrence");if(snooze&&active(e)){long at=System.currentTimeMillis()+600000;r.put("snoozeAt",at);if(!oldRow)r.put("occurrence",occurrence).put("sounded",Math.max(r.optLong("sounded"),occurrence));schedule(c,e,r,at);}else{
             r.put("status",label.equals("Reminder posted")?"posted":"dismissed").put("label",label).put("sounded",Math.max(r.optLong("sounded"),occurrence));long next=next(e,ZoneId.systemDefault(),Math.max(System.currentTimeMillis(),occurrence));
             if(next>0&&active(e)){schedule(c,e,r,next);r.put("label",label+" · next "+r.optString("label"));}
         }persist(c,l);
