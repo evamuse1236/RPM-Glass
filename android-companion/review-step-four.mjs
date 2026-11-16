@@ -5,13 +5,23 @@ import {el, icon, button, whenText, heading, emptyState, sectionHead, factsLine,
 import {focusCheck} from './review-focus.mjs';
 import {weekCard, clashRow} from './review-week-card.mjs';
 
+/**
+ * Drops picks that can no longer be this week's Results (archived since, say) from the draft in memory only, so the
+ * list, the Finish label and Finish itself count the same Results. Returns the step's candidates.
+ */
+export function pickableFocus(api) {
+  const {ui} = api;
+  ui.focusBase ??= [...ui.focus];
+  const candidates = focusCandidates(api.data(), api.week, ui.focusBase);
+  ui.focus = ui.focus.filter(id => candidates.some(c => c.blockId === id));
+  return candidates;
+}
+
 /* ---------- step 4: this week's Results ---------- */
 export function stepFour(api) {
   const {ui} = api;
   const now = api.now();
-  ui.focusBase ??= [...ui.focus];
-  const candidates = focusCandidates(api.data(), api.week, ui.focusBase);
-  ui.focus = ui.focus.filter(id => candidates.some(c => c.blockId === id));
+  const candidates = pickableFocus(api);
   const chosen = candidates.filter(c => ui.focus.includes(c.blockId));
   const clashes = api.clashes();
   const [title] = heading("Pick this week's Results");

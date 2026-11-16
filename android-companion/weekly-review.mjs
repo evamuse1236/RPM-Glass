@@ -4,7 +4,7 @@
 // Plan changes go through ctx.commit with a label, so they save, re-render and offer Undo.
 // Review progress (step, draft choice of Results) is saved with ctx.commit(op, null):
 // a null label means "save quietly"; it changes no plan data and keeps the last Undo intact.
-import {REVIEW_STEPS, reviewWeek, inboxTasks, focusCandidates, weekFocus, reviewProgress, weekCapacity, clashTask, clashKey} from './review-state.mjs';
+import {REVIEW_STEPS, reviewWeek, inboxTasks, weekFocus, reviewProgress, weekCapacity, clashTask, clashKey} from './review-state.mjs';
 import {calendarRows} from './planner-calendar.mjs';
 import {plural} from './planner/format.mjs';
 import {animateRerender, sharedAxis, ghost, reducedMotion, releaseTail, waitMotion, MOTION, DURATION, EASE} from './surface-motion.mjs';
@@ -13,7 +13,7 @@ import {STEPS, READABLE, el, icon, button, iconButton} from './review-ui.mjs';
 import {stepOne, deckWaiting, settleCarryUndo} from './review-step-one.mjs';
 import {stepTwo} from './review-step-two.mjs';
 import {stepThree, sheetLayer} from './review-step-three.mjs';
-import {stepFour} from './review-step-four.mjs';
+import {stepFour, pickableFocus} from './review-step-four.mjs';
 
 /* ---------- mount ---------- */
 export function mountWeeklyReview(container, ctx) {
@@ -128,7 +128,8 @@ function createActions(ctx, week, ui, render) {
   }
   async function finish() {
     ui.hint = '';
-    const ids = ui.focus.filter(id => focusCandidates(data(), week, ui.focus).some(c => c.blockId === id));
+    pickableFocus({ui, data, week});
+    const ids = [...ui.focus];
     await run({type: 'finishReview', week, ids}, ids.length ? `${plural(ids.length, 'Result')} for this week` : 'Weekly review finished');
     if (!ui.hint) ctx.close();
   }
@@ -186,6 +187,8 @@ function renderReview(root, api, ctx) {
   // On a step change the frame's words (step count, progress, footer label and Back) switch at the 90ms crossover,
   // when the old body has faded out and the new one starts to fade in, not ahead of the body.
   // (A save during those 90ms waits for the same switch.)
+  // Step 4's footer counts the picks, so they are checked before the frame is built, not only in the step's body.
+  if (ui.step === REVIEW_STEPS) pickableFocus(api);
   const deferFrame = (stepChange || ui.framePending) && !reducedMotion() && !!root.querySelector(':scope > .wr-foot');
   const foot = deferFrame ? root.querySelector(':scope > .wr-foot') : footer(api, root.querySelector(':scope > .wr-foot'));
   const sheetKey = ui.step === 3 && ui.sheet ? `${ui.sheet.kind}:${ui.sheet.taskId}` : null;

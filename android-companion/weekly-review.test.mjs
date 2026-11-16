@@ -96,3 +96,19 @@ for (const [why, close] of [
     }
   });
 }
+
+test('resuming step 4 after a picked Result was archived: Finish counts the same Results the list shows', async () => {
+  const {d, rest, home} = seed();
+  editPlan(d, {type: 'reviewProgress', week: WEEK, patch: {step: 4, focusDraft: [home, rest]}});
+  editPlan(d, {type: 'archiveBlock', id: rest});
+  const {box, review} = mountOn(d);
+  try {
+    assert.equal(box.querySelector('.wr-sub').textContent, '1 picked · aim for 3 to 5');
+    const next = box.querySelector('.wr-next');
+    assert.equal(next.getAttribute('aria-label'), 'Finish with 1 Result');
+    assert.equal(next.querySelector('.wr-long').textContent, 'Finish with 1 Result');
+    assert.deepEqual(reviewProgress(d, WEEK).focusDraft, [home, rest], 'showing it saves nothing');
+  } finally {
+    review.destroy();
+  }
+});
