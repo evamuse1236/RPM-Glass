@@ -21,7 +21,9 @@ final class CompanionAlerts {
     static void persist(Context c,JSONObject ledger){SharedPreferences prefs=c.getSharedPreferences("companion-delivery",0);String value=ledger.toString();if(value.equals(prefs.getString("ledger","{}")))return;if(!prefs.edit().putString("ledger",value).commit())throw new IllegalStateException("Could not save delivery status.");}
     static String type(JSONObject e){return NotchData.alertType(e);}
     static long planned(JSONObject e){try{return Instant.parse(e.getString("planned")).toEpochMilli();}catch(Exception ignored){return 0;}}
-    static String fingerprint(JSONObject e){return String.join("|",String.valueOf(planned(e)),type(e),Repeats.key(e),String.valueOf(Repeats.lead(e)),e.optString("completedOccurrences","[]"),String.valueOf(e.optBoolean("archived")),String.valueOf(e.optBoolean("done")),e.optString("state","active"));}
+    /** The fingerprint's leading part: when the alert is due (time, type, repeat, lead), apart from completion and status. */
+    static String when(JSONObject e){return String.join("|",String.valueOf(planned(e)),type(e),Repeats.key(e),String.valueOf(Repeats.lead(e)));}
+    static String fingerprint(JSONObject e){return String.join("|",when(e),e.optString("completedOccurrences","[]"),String.valueOf(e.optBoolean("archived")),String.valueOf(e.optBoolean("done")),e.optString("state","active"));}
     static boolean active(JSONObject e){return !e.optBoolean("archived")&&!e.optBoolean("done")&&!e.optString("state").equals("cancelled")&&!type(e).isEmpty();}
     static JSONObject entry(JSONObject d,long id){JSONArray a=d.optJSONArray("entries");if(a!=null)for(int i=0;i<a.length();i++){JSONObject e=a.optJSONObject(i);if(e!=null&&e.optLong("id")==id)return e;}return null;}
     static PendingIntent trigger(Context c,long id,long at){Intent i=new Intent(c,CompanionAlertReceiver.class).setAction(FIRE).setData(Uri.parse("rpm-companion://alert/"+id)).putExtra("id",id).putExtra("at",at);return PendingIntent.getBroadcast(c,0,i,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);}
@@ -56,10 +58,12 @@ final class CompanionAlerts {
             if(!changed&&force&&Arrays.asList("posted","dismissed","missed","stopped").contains(old.optString("status"))&&!Repeats.repeating(Repeats.key(e)))continue;
             // A resume does not dismiss a ringing alarm or erase its snooze.
             if(!changed&&Arrays.asList("ringing","snoozed").contains(old.optString("status"))&&!force&&!interrupted)continue;
-            cancel(c,e.getLong("id"));JSONObject row=new JSONObject().put("fingerprint",fp).put("type",type(e));l.put(id,row);
+            // A row whose time, type, repeat and lead are unchanged keeps the occurrence whose alert already sounded, so an Undo of a completion does not sound it again.
+            long sounded=old!=null&&old.optString("fingerprint").startsWith(when(e)+"|")?old.optLong("sounded"):0;if(interrupted)sounded=Math.max(sounded,occurrence(old));
+            cancel(c,e.getLong("id"));JSONObject row=new JSONObject().put("fingerprint",fp).put("type",type(e));l.put(id,row);if(sounded>0)row.put("sounded",sounded);
             if(!active(e)){row.put("status","off").put("label","Alert off");continue;}
             // An unchanged row keeps its stored occurrence: an occurrence whose alert already sounded is not armed again. A snoozed row's at is its snooze time, so its occurrence is kept apart.
-            long base=planned(e),now=System.currentTimeMillis();long at=next(e,ZoneId.systemDefault(),changed?now:Math.max(now,occurrence(old)-(interrupted?0:1)));
+            long base=planned(e),now=System.currentTimeMillis();long at=next(e,ZoneId.systemDefault(),Math.max(changed?now:Math.max(now,occurrence(old)-(interrupted?0:1)),sounded));
             if(base==0){row.put("status","time_needed").put("label","Not scheduled · add a time");continue;}
             if(at==0&&interrupted){row.put("status","dismissed").put("label","Alarm interrupted");continue;}
             if(at==0){row.put("status","missed").put("label","Time passed · not scheduled");continue;}
@@ -95,7 +99,7 @@ final class CompanionAlerts {
     }}
     static void finish(Context c,long id,boolean snooze,String label)throws Exception{synchronized(CompanionStore.LOCK){JSONObject d=CompanionStore.read(c);if(d==null)return;JSONObject e=entry(d,id),l=ledger(c),r=l.optJSONObject(String.valueOf(id));if(e==null||r==null)return;
         long occurrence=occurrence(r);r.remove("snoozeAt");r.remove("occurrence");if(snooze&&active(e)){long at=System.currentTimeMillis()+600000;r.put("snoozeAt",at).put("occurrence",occurrence);schedule(c,e,r,at);}else{
-            r.put("status",label.equals("Reminder posted")?"posted":"dismissed").put("label",label);long next=next(e,ZoneId.systemDefault(),Math.max(System.currentTimeMillis(),occurrence));
+            r.put("status",label.equals("Reminder posted")?"posted":"dismissed").put("label",label).put("sounded",Math.max(r.optLong("sounded"),occurrence));long next=next(e,ZoneId.systemDefault(),Math.max(System.currentTimeMillis(),occurrence));
             if(next>0&&active(e)){schedule(c,e,r,next);r.put("label",label+" · next "+r.optString("label"));}
         }persist(c,l);
     }}

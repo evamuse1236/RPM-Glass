@@ -82,6 +82,32 @@ public class CompanionAlertsIdTest {
         CompanionAlerts.reconcile(c,CompanionStore.read(c),false); // the process died while the snoozed alarm rang
         assertEquals("an interrupted snoozed ring ends today's occurrence",occurrence+day,CompanionAlerts.ledger(c).getJSONObject("25").getLong("at"));
     }
+    @Test public void undoingACompletionDoesNotPostASoundedLeadAlertAgain()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);long day=86400000L;
+        long occurrence=leadAlertDueNow(c,26,"reminder");
+        CompanionAlerts.fired(c,26,occurrence); // the lead reminder posts
+        JSONObject data=CompanionStore.read(c),e=CompanionAlerts.entry(data,26);
+        e.put("completedOccurrences",new JSONArray().put(Instant.ofEpochMilli(occurrence).toString()));CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        assertEquals(occurrence+day,CompanionAlerts.ledger(c).getJSONObject("26").getLong("at"));
+        e.remove("completedOccurrences");CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false); // Undo
+        assertEquals("Undo does not post the sounded reminder again",occurrence+day,CompanionAlerts.ledger(c).getJSONObject("26").getLong("at"));
+        assertTrue(shadowOf(alarms).getNextScheduledAlarm().triggerAtTime>System.currentTimeMillis()+3600000);
+        // A completion ticked before the lead alert sounded, then undone, still arms today's alert.
+        occurrence=leadAlertDueNow(c,27,"reminder");data=CompanionStore.read(c);e=CompanionAlerts.entry(data,27);
+        e.put("completedOccurrences",new JSONArray().put(Instant.ofEpochMilli(occurrence).toString()));CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        e.remove("completedOccurrences");CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        assertEquals("an alert that never sounded is armed again by Undo",occurrence,CompanionAlerts.ledger(c).getJSONObject("27").getLong("at"));
+        // A one-time task done after its reminder posted, then undone, does not post it again.
+        long once=(System.currentTimeMillis()/60000+20)*60000;
+        JSONObject t=new JSONObject().put("id",28).put("title","Call").put("raw","Call").put("revisions",new JSONArray()).put("planned",Instant.ofEpochMilli(once).toString()).put("alertIntent",new JSONObject().put("type","reminder").put("lead",30));
+        data.getJSONArray("entries").put(t);CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);CompanionAlerts.fired(c,28,once);
+        t.put("done",true);CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        t.put("done",false);CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        assertNotEquals("Undo of done does not arm the posted one-time reminder","scheduled",CompanionAlerts.ledger(c).getJSONObject("28").getString("status"));
+        // Moving the task to a later time today still arms it.
+        t.put("planned",Instant.ofEpochMilli(once+3600000).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        assertEquals(once+3600000,CompanionAlerts.ledger(c).getJSONObject("28").getLong("at"));
+    }
     /** A daily alarm whose ledger row says ringing at {@code since}, with no alarm service holding it. */
     private static JSONObject ringingRow(Context c,long id,long occurrence,long since)throws Exception{
         CompanionAlerts.channels(c);
