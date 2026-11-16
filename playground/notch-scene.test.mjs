@@ -395,8 +395,8 @@ test('a ringing alarm puts Stop across the width over Snooze 10 min and Done; a 
 
 test('large text: icons grow up to 1.5x, pills grow round their label, and "+N more" counts what the island leaves out', () => {
   const s = scene(day(true), '2026-10-18T16:05');
-  assert.equal(more(s, 3), 2, "the snack and Gym are past the three rows (the copy still uses the old meal rule)");
-  assert.equal(more(s, 1), 4);
+  assert.equal(more(s, 3), 1, 'Gym is past the three rows, as on the phone (no meal is due at 16:05 on the default plan)');
+  assert.equal(more(s, 1), 3, 'at large text two rows drop as well');
   const few = scene(day(false), '2026-10-18T15:50');
   assert.deepEqual([more(few, 3), more(few, 1)], [0, 1]);
   const parts = javaSource('NotchParts');
