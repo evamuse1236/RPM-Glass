@@ -50,10 +50,11 @@ export function dayPresets(today = localDay()) {
 /**
  * One-tap reschedules for a swiped row (Things' When, Todoist's Schedule): each is a whole date and time, so one tap
  * saves. Today and Tomorrow keep the task's time; Tonight (until 7 PM), Tomorrow morning at 9; the weekend or next
- * week; No date for a dated task. A repeating task keeps a date and a time, so it gets no date-only choice.
+ * week; No date for a dated task. A repeating task keeps a date and a time, so it gets no date-only choice, and
+ * `on(weekday)` (0 Sunday) drops a day its series never falls on, so a weekdays series is never moved to Saturday.
  * Returns [{key, label, hint, icon, value: {day, time}, current}].
  */
-export function schedulePresets({day = '', time = ''} = {}, now = new Date(), {repeating = false} = {}) {
+export function schedulePresets({day = '', time = ''} = {}, now = new Date(), {repeating = false, on = () => true} = {}) {
   const today = localDay(now);
   const minutes = now.getHours() * 60 + now.getMinutes();
   const tomorrow = shiftDay(today, 1);
@@ -62,6 +63,7 @@ export function schedulePresets({day = '', time = ''} = {}, now = new Date(), {r
   const out = [];
   const add = (key, label, symbol, value, hint) => {
     if (repeating && !(value.day && value.time)) return;
+    if (value.day && !on(new Date(value.day + 'T12:00').getDay())) return;
     out.push({key, label, icon: symbol, value, hint, current: value.day === day && value.time === time});
   };
   add('today', 'Today', 'today', {day: today, time}, at(today, time));

@@ -1,4 +1,4 @@
-import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
+import {repeats, repeatsOn, nextOccurrence} from '../planner-recurrence.mjs';
 import {el, icon, button} from './dom.mjs';
 import {reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
 import {openSheet, isSheetOpen} from './sheet.mjs';
@@ -91,7 +91,9 @@ export function scheduleMenu(app, task, anchor, {occurrence = null, moveToBlock 
   closeSchedule({restoreFocus: false});
   const t = findTask(app, task.id) ?? task;
   const at = repeats(t) ? (occurrence ?? nextOccurrence(t)) : t.planned;
-  const presets = schedulePresets(whenOf(t, at), new Date(), {repeating: repeats(t)});
+  // A series on fixed weekdays is offered only days it falls on; one repeating after completion has no fixed days.
+  const on = repeats(t) && !t.repeatAfterDays ? weekday => repeatsOn(t, weekday) : undefined;
+  const presets = schedulePresets(whenOf(t, at), new Date(), {repeating: repeats(t), on});
   const scrim = button('', () => closeSchedule(), 'menu-scrim');
   scrim.setAttribute('aria-label', 'Close');
   const menu = el('div', 'menu schedule-menu');

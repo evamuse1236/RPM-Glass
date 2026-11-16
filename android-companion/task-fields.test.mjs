@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseWhen, dayPresets, whenFields, whenOf, timePresets, repeatLabel, schedulePresets, blockMatches, hashToken}
   from './planner/task-fields.mjs';
+import {repeatsOn} from './planner-recurrence.mjs';
 
 const SAT = '2026-10-03';
 
@@ -56,6 +57,19 @@ test('Swipe-to-schedule offers whole dates and times, one tap each, keeping the 
   assert.deepEqual(evening.find(x => x.key === 'tomorrow').value, {day: '2026-10-04', time: ''});
   const repeating = schedulePresets({day: SAT, time: '19:30'}, morning, {repeating: true});
   assert.ok(repeating.every(x => x.value.day && x.value.time), 'a repeating task keeps a date and time');
+});
+
+test('A series on fixed weekdays is offered only days it falls on, so a pick never names a day with no occurrence', () => {
+  const mon = new Date('2026-11-16T08:00');
+  const when = {day: '2026-11-16', time: '09:00'};
+  const weekdays = schedulePresets(when, mon, {repeating: true, on: d => repeatsOn({recurrence: 'weekdays'}, d)});
+  assert.deepEqual(weekdays.map(x => x.key), ['today', 'tonight', 'tomorrow'], 'no weekend for a weekdays series');
+  const monWed = schedulePresets(when, mon, {repeating: true, on: d => repeatsOn({recurrence: 'days', repeatDays: [1, 3]}, d)});
+  assert.ok(!monWed.some(x => x.key === 'tomorrow'), 'a Mon and Wed series is not offered Tuesday');
+  assert.deepEqual(monWed.map(x => x.key), ['today', 'tonight']);
+  const weekly = schedulePresets(when, mon, {repeating: true, on: d => repeatsOn({recurrence: 'weekly'}, d)});
+  assert.deepEqual(weekly.map(x => x.key), schedulePresets(when, mon, {repeating: true}).map(x => x.key), 'a weekly series keeps every choice');
+  assert.deepEqual(weekly.map(x => x.key), ['today', 'tonight', 'tomorrow', 'later']);
 });
 
 test('A #word in Quick add matches Blocks by word start first, and is found just before the caret', () => {
