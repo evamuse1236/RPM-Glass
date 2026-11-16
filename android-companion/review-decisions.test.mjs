@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {editPlan, planner, blockTasks, blockDue} from './planner-state.mjs';
-import {markAchieved, inboxTasks, leftoverTasks, decideLeftover, leftoverChoice, groupTask, setMust, focusCandidates, taskDate, groupTasks, addInboxTask} from './review-state.mjs';
+import {readFileSync} from 'node:fs';
+import {LEFTOVER_RECEIPTS, markAchieved, inboxTasks, leftoverTasks, decideLeftover, leftoverChoice, groupTask, setMust, focusCandidates, taskDate, groupTasks, addInboxTask} from './review-state.mjs';
 import {WEEK, at, block, task, entry, seed} from './review-fixtures.mjs';
 
 test('carry, defer and drop are deliberate, reversible and undoable', () => {
@@ -136,4 +137,17 @@ test('addInboxTask saves the exact words as a new Inbox task with Undo', () => {
   editPlan(d, {type: 'undo'});
   assert.equal(entry(d, id), undefined);
   assert.throws(() => addInboxTask(d, '   '), /title/);
+});
+
+test('the review screen shows the same carry, defer and drop receipts the tested decideLeftover returns', () => {
+  assert.deepEqual(LEFTOVER_RECEIPTS, {carry: 'Carried into this week', defer: 'Deferred', drop: 'Dropped. It stays in Archive'});
+  for (const choice of ['carry', 'defer', 'drop']) {
+    const {d, meals} = seed();
+    assert.equal(decideLeftover(d, meals, choice, WEEK), LEFTOVER_RECEIPTS[choice]);
+  }
+  const screen = readFileSync(new URL('./review-step-one.mjs', import.meta.url), 'utf8');
+  assert.match(screen, /import \{[^}]*\bLEFTOVER_RECEIPTS\b[^}]*\} from '\.\/review-state\.mjs'/, 'review-step-one.mjs takes its receipts from review-state.mjs');
+  for (const words of Object.values(LEFTOVER_RECEIPTS).filter(w => w !== 'Deferred')) {
+    assert.ok(!screen.includes(`'${words}'`), `review-step-one.mjs keeps no second copy of '${words}'`);
+  }
 });
