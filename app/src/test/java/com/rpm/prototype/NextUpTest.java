@@ -79,6 +79,22 @@ public class NextUpTest {
     }
 
     @Test
+    public void aTaskWithNoEstimateIsZeroLongLikeThePlannerSoItIsLateNotRunning() throws Exception {
+        JSONArray entries = new JSONArray()
+                .put(new JSONObject().put("id", 7).put("title", "Essay").put("kind", "plan")
+                        .put("planned", Instant.ofEpochMilli(at("2026-10-18T16:00")).toString()).put("minutes", JSONObject.NULL))
+                .put(new JSONObject().put("id", 8).put("title", "Read notes").put("kind", "plan")
+                        .put("planned", Instant.ofEpochMilli(at("2026-10-18T17:00")).toString()).put("minutes", 30));
+        NotchData data = NotchData.parse(new JSONObject().put("entries", entries), null);
+        assertEquals("before its start it is still upcoming", "in 10 min", at(data, "2026-10-18T15:50").when);
+        assertEquals("Essay", at(data, "2026-10-18T15:50").title);
+        NextUp late = at(data, "2026-10-18T16:10");
+        assertFalse("a task the planner shows as late is not running: " + late.when, late.when.startsWith("Now"));
+        assertEquals("Read notes", late.title);
+        assertEquals("in 50 min", late.when);
+    }
+
+    @Test
     public void withNothingLeftItSaysSoAndWaitsForMidnight() throws Exception {
         NextUp n = at(day(5), "2026-10-18T21:00");
         assertFalse(n.hasTask);
