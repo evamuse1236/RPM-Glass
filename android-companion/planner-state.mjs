@@ -14,6 +14,8 @@ export const freshPlanner=()=>({schema:1,projects:[],blocks:[],areas:[],goals:[]
 export function planner(data){return data.planner??freshPlanner();}
 export const tasks=data=>data.entries.filter(e=>!e.archived&&(e.kind??'plan')==='plan');
 export const blockTasks=(data,id)=>tasks(data).filter(e=>(e.blockId??null)===(id??null)).sort((a,b)=>(a.priority??Infinity)-(b.priority??Infinity)||a.id-b.id);
+/** The last priority in the Inbox (ignoring task skipId), so tasks a removed Block sends there follow its own order without renumbering it. */
+const inboxEnd=(data,skipId)=>{const rows=blockTasks(data,null).filter(t=>t.id!==skipId);return Math.max(rows.length,...rows.map(t=>Number.isFinite(t.priority)?t.priority:0));};
 /** The Inbox page's rows: open tasks with no Block. Every Inbox count reads this, so they all match the page. */
 export const inboxRows=data=>blockTasks(data,null).filter(t=>!t.done);
 /** Blocks in one run per Project, Projects in first-seen order, Blocks keeping their order within it. */
@@ -85,7 +87,8 @@ export function editPlan(data,op,now=new Date()){
   }else if(op.type==='removeEntity'){
     if(!['projects','blocks','areas','goals'].includes(op.collection))throw new Error('Unknown planning group.');one(p[op.collection],op.id);
     p[op.collection]=p[op.collection].filter(x=>x.id!==op.id);
-    if(op.collection==='blocks'){for(const e of next.entries)if(e.blockId===op.id)e.blockId=null;forgetBlockInWeeks(p,op.id);}
+    if(op.collection==='blocks'){// Its tasks join the end of the Inbox in their Block order (archived ones after them), so the Inbox keeps its own order.
+    const after=inboxEnd(next),open=blockTasks(next,op.id),archived=next.entries.filter(e=>e.archived&&e.blockId===op.id&&(e.kind??'plan')==='plan');[...open,...archived].forEach((t,i)=>{t.priority=after+i+1;});for(const e of next.entries)if(e.blockId===op.id)e.blockId=null;forgetBlockInWeeks(p,op.id);}
     if(op.collection==='projects')for(const b of p.blocks)if(b.projectId===op.id)b.projectId=null;
     if(op.collection==='areas')for(const g of p.goals)if(g.areaId===op.id)g.areaId=null;
     if(op.collection==='goals')for(const pr of p.projects)if(pr.goalId===op.id)pr.goalId=null;
@@ -122,7 +125,7 @@ export function editPlan(data,op,now=new Date()){
     const e=one(tasks(next),op.id),occurrence=op.occurrence??e.completions?.at(-1)?.occurrence;if(occurrence){const hit=(e.completions??[]).find(c=>c.occurrence===occurrence);if(!hit)throw new Error('That completion no longer exists.');if(e.repeatAfterDays)e.planned=occurrence;e.completedOccurrences=(e.completedOccurrences??[]).filter(k=>k!==occurrence);e.completions=e.completions.filter(c=>c!==hit);}e.done=false;e.state='active';if(!repeats(e))e.completedAt=null;result=e.id;
   }else if(op.type==='archiveTask'||op.type==='restoreTask'){
     const e=one(next.entries,op.id);if((e.kind??'plan')!=='plan')throw new Error('Choose a task.');
-    e.archived=op.type==='archiveTask';e.archiveDisposition=e.archived?(op.disposition==='archive'?'archive':'trash'):null;if(e.blockId&&!p.blocks.some(b=>b.id===e.blockId))e.blockId=null;
+    e.archived=op.type==='archiveTask';e.archiveDisposition=e.archived?(op.disposition==='archive'?'archive':'trash'):null;if(e.blockId&&!p.blocks.some(b=>b.id===e.blockId)){e.blockId=null;e.priority=inboxEnd(next,e.id)+1;}
     e.revisions??=[];e.revisions.push({at,reason:e.archived?(e.archiveDisposition==='archive'?'Archived from planner':'Deleted from planner (recoverable)'):'Restored in planner',snapshot:{archived:e.archived}});e.revisions=e.revisions.slice(-100);result=e.id;
   }else if(op.type==='moveTask'){
     const e=one(tasks(next),op.id),target=link(p.blocks,op.blockId),oldBlock=e.blockId??null;
