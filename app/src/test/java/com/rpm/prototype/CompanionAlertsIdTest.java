@@ -67,6 +67,21 @@ public class CompanionAlertsIdTest {
         assertEquals(occurrence,CompanionAlerts.ledger(c).getJSONObject("23").getLong("at"));
         assertTrue(shadowOf(alarms).getNextScheduledAlarm().triggerAtTime<=System.currentTimeMillis()+1000);
     }
+    @Test public void dismissingASnoozedLeadAlarmArmsTomorrowNotTodayAgain()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);long day=86400000L;
+        long occurrence=leadAlertDueNow(c,24,"alarm"); // rings now, 30 min before its 20-min-away occurrence
+        CompanionAlerts.finish(c,24,true,"Alarm snoozed");
+        CompanionAlerts.restore(c); // a restore while snoozed keeps the snooze
+        assertEquals("snoozed",CompanionAlerts.ledger(c).getJSONObject("24").getString("status"));
+        CompanionAlerts.finish(c,24,false,"Alarm dismissed");
+        assertEquals("dismissing the snoozed alarm ends today's occurrence",occurrence+day,CompanionAlerts.ledger(c).getJSONObject("24").getLong("at"));
+        assertTrue(shadowOf(alarms).getNextScheduledAlarm().triggerAtTime>System.currentTimeMillis()+23*3600000L);
+        occurrence=leadAlertDueNow(c,25,"alarm");
+        CompanionAlerts.finish(c,25,true,"Alarm snoozed");
+        JSONObject l=CompanionAlerts.ledger(c);long rang=System.currentTimeMillis()-120000;l.getJSONObject("25").put("status","ringing").put("at",rang).put("snoozeAt",rang).put("ringingSince",rang);CompanionAlerts.persist(c,l);
+        CompanionAlerts.reconcile(c,CompanionStore.read(c),false); // the process died while the snoozed alarm rang
+        assertEquals("an interrupted snoozed ring ends today's occurrence",occurrence+day,CompanionAlerts.ledger(c).getJSONObject("25").getLong("at"));
+    }
     /** A daily alarm whose ledger row says ringing at {@code since}, with no alarm service holding it. */
     private static JSONObject ringingRow(Context c,long id,long occurrence,long since)throws Exception{
         CompanionAlerts.channels(c);

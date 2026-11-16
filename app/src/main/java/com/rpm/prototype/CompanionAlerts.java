@@ -58,17 +58,19 @@ final class CompanionAlerts {
             if(!changed&&Arrays.asList("ringing","snoozed").contains(old.optString("status"))&&!force&&!interrupted)continue;
             cancel(c,e.getLong("id"));JSONObject row=new JSONObject().put("fingerprint",fp).put("type",type(e));l.put(id,row);
             if(!active(e)){row.put("status","off").put("label","Alert off");continue;}
-            // An unchanged row keeps its stored occurrence: an occurrence whose alert already sounded is not armed again.
-            long base=planned(e),now=System.currentTimeMillis();long at=next(e,ZoneId.systemDefault(),changed?now:Math.max(now,old.optLong("at")-(interrupted?0:1)));
+            // An unchanged row keeps its stored occurrence: an occurrence whose alert already sounded is not armed again. A snoozed row's at is its snooze time, so its occurrence is kept apart.
+            long base=planned(e),now=System.currentTimeMillis();long at=next(e,ZoneId.systemDefault(),changed?now:Math.max(now,occurrence(old)-(interrupted?0:1)));
             if(base==0){row.put("status","time_needed").put("label","Not scheduled · add a time");continue;}
             if(at==0&&interrupted){row.put("status","dismissed").put("label","Alarm interrupted");continue;}
             if(at==0){row.put("status","missed").put("label","Time passed · not scheduled");continue;}
-            if(!changed&&old.optLong("snoozeAt")>System.currentTimeMillis()){at=old.optLong("snoozeAt");row.put("snoozeAt",at);}
+            if(!changed&&old.optLong("snoozeAt")>System.currentTimeMillis()){at=old.optLong("snoozeAt");row.put("snoozeAt",at).put("occurrence",occurrence(old));}
             schedule(c,e,row,at);
         }
         for(Iterator<String> it=l.keys();it.hasNext();){String id=it.next();if(!ids.contains(id)){cancel(c,Long.parseLong(id));it.remove();}}
         persist(c,l);
     }}
+    /** The occurrence a ledger row is for: a snooze moves its at but not its occurrence. */
+    static long occurrence(JSONObject row){return row.optLong("occurrence",row.optLong("at"));}
     /** When an alert for the occurrence at {@code at} sounds: {@code lead} minutes before it, never in the past. */
     static long fireAt(long at,int lead,long now){return Math.max(Math.min(now,at),at-lead*60000L);}
     static void schedule(Context c,JSONObject e,JSONObject row,long at)throws JSONException{
@@ -92,8 +94,8 @@ final class CompanionAlerts {
         Notification n=new Notification.Builder(c,REMINDERS).setSmallIcon(R.drawable.ic_checkin).setContentTitle(e.optString("title","RPM reminder")).setContentText("Your RPM reminder").setContentIntent(open(c,id)).setAutoCancel(true).setCategory(Notification.CATEGORY_REMINDER).build();c.getSystemService(NotificationManager.class).notify("companion-reminder",(int)id,n);finish(c,id,false,"Reminder posted");NotchAlerting.reminderFired(c,id,e.optString("title",e.optString("raw","RPM reminder")),expected);
     }}
     static void finish(Context c,long id,boolean snooze,String label)throws Exception{synchronized(CompanionStore.LOCK){JSONObject d=CompanionStore.read(c);if(d==null)return;JSONObject e=entry(d,id),l=ledger(c),r=l.optJSONObject(String.valueOf(id));if(e==null||r==null)return;
-        r.remove("snoozeAt");if(snooze&&active(e)){long at=System.currentTimeMillis()+600000;r.put("snoozeAt",at);schedule(c,e,r,at);}else{
-            r.put("status",label.equals("Reminder posted")?"posted":"dismissed").put("label",label);long next=next(e,ZoneId.systemDefault(),Math.max(System.currentTimeMillis(),r.optLong("at")));
+        long occurrence=occurrence(r);r.remove("snoozeAt");r.remove("occurrence");if(snooze&&active(e)){long at=System.currentTimeMillis()+600000;r.put("snoozeAt",at).put("occurrence",occurrence);schedule(c,e,r,at);}else{
+            r.put("status",label.equals("Reminder posted")?"posted":"dismissed").put("label",label);long next=next(e,ZoneId.systemDefault(),Math.max(System.currentTimeMillis(),occurrence));
             if(next>0&&active(e)){schedule(c,e,r,next);r.put("label",label+" · next "+r.optString("label"));}
         }persist(c,l);
     }}
