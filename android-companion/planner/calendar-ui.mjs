@@ -1,7 +1,7 @@
 /** Read-only calendar: the day's copy, the calendar chooser, event details and clash choices; plus the date picker. */
 import {localDay, tasks, conflicts, blockDue} from '../planner-state.mjs';
 import {repeats} from '../planner-recurrence.mjs';
-import {calendarLabel, calendarRows, coversNow} from '../planner-calendar.mjs';
+import {calendarLabel, calendarRows, speaksForNow} from '../planner-calendar.mjs';
 import {el, icon, button, labelButton} from './dom.mjs';
 import {clock, relativeDay, timeRange} from './format.mjs';
 import {openSheet, field, checkbox} from './sheet.mjs';
@@ -28,7 +28,7 @@ export async function refreshCalendar(app) {
     state.calendar = next;
     state.calendarState = label;
     // Water pauses for a busy event now, like the notch: keep a copy whose window holds now, whatever day is open.
-    const now = coversNow(value) ? next : await nowRows(app);
+    const now = speaksForNow(value) ? next : await nowRows(app);
     if (!stillHere()) return;
     const nowChanged = now !== undefined && JSON.stringify(state.nowCalendar) !== JSON.stringify(now);
     if (now !== undefined) state.nowCalendar = now;
@@ -44,7 +44,7 @@ export async function refreshCalendar(app) {
 async function nowRows(app) {
   try {
     const value = await app.api.native('calendarRead', {anchor: Date.now()});
-    return coversNow(value) ? calendarRows(value) : undefined;
+    return speaksForNow(value) ? calendarRows(value) : undefined;
   } catch {
     return undefined;
   }

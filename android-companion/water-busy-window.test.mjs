@@ -56,3 +56,27 @@ test('on the usual Today view the calendar is read once', async () => {
   assert.equal(reads.length, 1);
   assert.deepEqual(bodyApi(app).water().busy.map(e => e.title), ['Ward round']);
 });
+
+test('water stops pausing for a meeting once no calendar is chosen or permission is gone, as the notch does', async () => {
+  for (const status of ['not_selected', 'permission_needed']) {
+    const {app, reads} = fakeApp([meetingNow()]);
+    app.state.day = localDay(new Date());
+    await refreshCalendar(app);
+    assert.deepEqual(bodyApi(app).water().busy.map(e => e.title), ['Ward round']);
+    app.api.native = async name => { reads.push(name); return {status, configured: status === 'permission_needed', events: []}; };
+    reads.length = 0;
+    await refreshCalendar(app);
+    assert.equal(app.state.calendar.length, 0);
+    assert.deepEqual(bodyApi(app).water().busy, [], status);
+    assert.equal(reads.length, 1, `${status}: one read, no second read anchored to now`);
+  }
+});
+
+test('a clash check that finds no calendar chosen clears the meeting water pauses for', async () => {
+  const {app} = fakeApp([meetingNow()]);
+  app.state.day = localDay(new Date());
+  await refreshCalendar(app);
+  app.api.native = async () => ({status: 'not_selected', events: []});
+  await scheduleCheck(app, null, {title: 'Later', planned: new Date(Date.now() + 21 * DAY).toISOString(), minutes: 30});
+  assert.deepEqual(bodyApi(app).water().busy, []);
+});

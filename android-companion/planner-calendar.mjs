@@ -6,5 +6,5 @@ export function calendarRisk(value,start,end){
   return null;
 }
 export function calendarRows(value){return (value?.events??[]).filter(e=>typeof e.title==='string'&&Number.isFinite(e.start)&&Number.isFinite(e.end)&&e.end>e.start);}
-/** Whether a calendar read's window holds this moment, so its rows can pause water as the notch's own read does. */
-export function coversNow(value,now=Date.now()){return Number.isFinite(value?.start)&&Number.isFinite(value?.end)&&value.start<=now&&now<value.end;}
+/** Whether a calendar read's rows say what is busy now, as the notch's own read does: its window holds this moment, or it has no window at all (no calendar chosen, no permission, nothing read), so nothing is busy. */
+export function speaksForNow(value,now=Date.now()){const windowed=Number.isFinite(value?.start)&&Number.isFinite(value?.end);return !windowed||value.start<=now&&now<value.end;}
