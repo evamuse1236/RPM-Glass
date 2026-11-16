@@ -16,7 +16,7 @@ import {captureEvalEvidence} from './capture-eval.mjs';
 export {CAPTURE_PIPELINE_SOURCES} from './capture-eval.mjs';
 import {sitePublicationGap} from '../web-site/publication.mjs';
 
-const APP_SOURCES = /^(app\/src\/main\/|android-companion\/|chat-prototype\/|intent-v2\/(src|adapters|prompts)\/|cli\/)/;
+const APP_SOURCES = /^(app\/src\/main\/|android-companion\/|chat-prototype\/|web\/contract\/|intent-v2\/(src|adapters|prompts)\/|cli\/)/;
 export const isAppFile = f => APP_SOURCES.test(f) && !/\.test\.(mjs|ts)$/.test(f) && !f.includes('/experiments/') && !f.startsWith(BUILT_WEB);
 const APK = 'app/build/outputs/apk/debug/app-debug.apk';
 
