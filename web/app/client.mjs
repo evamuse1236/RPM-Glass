@@ -67,7 +67,7 @@ export function createClient({server, storage = globalThis.localStorage, fetchIm
   async function deliver(entry) {
     try {
       const {data} = await call('/v1/web/commands', {method: 'POST', body: entry.command});
-      Object.assign(entry, {status: data.status, message: data.message, newRevision: data.newRevision});
+      Object.assign(entry, {status: data.status, message: data.message, newRevision: data.newRevision, ...(Number.isInteger(data.fromRevision) ? {fromRevision: data.fromRevision} : {})});
       state.offline = null;
     } catch (error) {
       if (error instanceof HttpError && error.status !== 429 && error.status < 500 && error.status !== 401) Object.assign(entry, {status: 'rejected', message: 'The sync server did not accept this change.'});
@@ -82,7 +82,7 @@ export function createClient({server, storage = globalThis.localStorage, fetchIm
         const {data} = await call(`/v1/web/commands?since=${state.cursor}`);
         for (const update of data.commands) {
           const entry = state.outbox.find(e => e.command.id === update.id);
-          if (entry && !FINAL.has(entry.status)) Object.assign(entry, {status: update.status, message: update.message, newRevision: update.newRevision});
+          if (entry && !FINAL.has(entry.status)) Object.assign(entry, {status: update.status, message: update.message, newRevision: update.newRevision, ...(Number.isInteger(update.fromRevision) ? {fromRevision: update.fromRevision} : {})});
         }
         state.cursor = data.cursor;
         if (!data.hasMore) break;
