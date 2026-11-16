@@ -128,7 +128,9 @@ final class CompanionAlerts {
         long occurrence=snooze&&!r.optString("status").equals("ringing")&&r.optLong("sounded")>0?r.optLong("sounded"):occurrence(r);
         // A ring a reconcile already re-armed (the service let it go just before this ran) is answered for the occurrence that sounded, so its next one stays armed.
         if(!snooze&&!label.equals("Reminder posted")&&r.optString("status").equals("scheduled")&&r.optLong("sounded")>0&&r.optLong("sounded")<r.optLong("at"))occurrence=r.optLong("sounded");
-        r.remove("snoozeAt");r.remove("occurrence");if(snooze&&active(e)){long at=System.currentTimeMillis()+600000;r.put("snoozeAt",at).put("occurrence",occurrence).put("sounded",Math.max(r.optLong("sounded"),occurrence));schedule(c,e,r,at);}else{
+        // A posted reminder's row the old build left (no sounded) holds the next occurrence, not the one that sounded: snooze it as the old build did, so the next one stays armed.
+        boolean oldRow=snooze&&!type(e).equals("alarm")&&!r.optString("status").equals("ringing")&&r.optLong("sounded")==0;
+        r.remove("snoozeAt");r.remove("occurrence");if(snooze&&active(e)){long at=System.currentTimeMillis()+600000;r.put("snoozeAt",at);if(!oldRow)r.put("occurrence",occurrence).put("sounded",Math.max(r.optLong("sounded"),occurrence));schedule(c,e,r,at);}else{
             r.put("status",label.equals("Reminder posted")?"posted":"dismissed").put("label",label).put("sounded",Math.max(r.optLong("sounded"),occurrence));long next=next(e,ZoneId.systemDefault(),Math.max(System.currentTimeMillis(),occurrence));
             if(next>0&&active(e)){schedule(c,e,r,next);r.put("label",label+" · next "+r.optString("label"));}
         }persist(c,l);

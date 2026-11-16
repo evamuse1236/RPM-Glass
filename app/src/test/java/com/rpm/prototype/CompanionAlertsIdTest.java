@@ -298,6 +298,17 @@ public class CompanionAlertsIdTest {
         assertEquals("the snoozed reminder's island shows its snooze time",snoozeAt,last.getLongExtra("at",0));
         assertEquals("the notch's Done on the snoozed reminder ticks today's occurrence",occurrence,last.getLongExtra("done",last.getLongExtra("at",0)));
     }
+    @Test public void aReminderPostedByTheOldBuildAndSnoozedKeepsItsNextOccurrence()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();long day=86400000L;
+        long occ=leadAlertDueNow(c,32,"reminder");
+        JSONObject e=CompanionAlerts.entry(CompanionStore.read(c),32);
+        // The old build posted today's reminder and left its row scheduled for tomorrow, with no "sounded".
+        CompanionAlerts.persist(c,new JSONObject().put("32",new JSONObject().put("fingerprint",CompanionAlerts.fingerprint(e)).put("type","reminder").put("status","scheduled").put("label","Reminder posted").put("at",occ+day)));
+        CompanionAlerts.finish(c,32,true,"Reminder snoozed"); // the notch's Snooze just after the update
+        long snoozeAt=CompanionAlerts.ledger(c).getJSONObject("32").getLong("at");
+        CompanionAlerts.fired(c,32,snoozeAt);
+        assertTrue("tomorrow's reminder is still armed, not the day after",CompanionAlerts.ledger(c).getJSONObject("32").getLong("at")<=occ+day);
+    }
     /** A daily alarm whose ledger row says ringing at {@code since}, with no alarm service holding it. */
     private static JSONObject ringingRow(Context c,long id,long occurrence,long since)throws Exception{
         CompanionAlerts.channels(c);
