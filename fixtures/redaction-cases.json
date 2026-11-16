@@ -1,0 +1,16 @@
+{
+  "about": "One redaction rule for diagnostics: android-companion/diagnostics.mjs, convex/diagnosticRedaction.ts and DiagnosticRedaction.java all turn each input into its expected text. The samples are synthetic and shorter than real keys.",
+  "cases": [
+    {"input": "sent Bearer synthetic-bearer-value to the server", "expected": "sent Bearer [REDACTED] to the server"},
+    {"input": "provider key sk-or-v1-syntheticFAKE1234", "expected": "provider key [REDACTED]"},
+    {"input": "google key AIzaFAKEsyntheticFAKEsynthetic here", "expected": "google key [REDACTED] here"},
+    {"input": "gemini key AQ.FAKEsyntheticFAKEsynthetic here", "expected": "gemini key [REDACTED] here"},
+    {"input": "ws name auth_tokens/FAKEsynthetic-token_1", "expected": "ws name auth_tokens/[REDACTED]"},
+    {"input": "POST https://example.com/v1alpha/auth_tokens failed", "expected": "POST https://example.com/v1alpha/auth_tokens failed"},
+    {"input": "jwt eyJsynthetic.eyJpayload.signatureFAKE end", "expected": "jwt [REDACTED] end"},
+    {"input": "password=hunter-synthetic&token=abc123", "expected": "password=[REDACTED]&token=[REDACTED]"},
+    {"input": "{\"api_key\": \"synthetic-value\"}", "expected": "{\"api_key\": \"[REDACTED]\"}"},
+    {"input": "open https://name:synthetic@example.com/path", "expected": "open https://[REDACTED]@example.com/path"},
+    {"input": "My synthetic personal capture: call mum at 5", "expected": "My synthetic personal capture: call mum at 5"}
+  ]
+}
