@@ -255,6 +255,15 @@ export function parseWhen(text, today = localDay(), now = new Date()) {
 }
 
 /**
+ * The {day, time} a time picked in the task sheet saves. `shown` is the {day, time} on screen (one occurrence of a
+ * repeating task). A fixed repeat keeps its series day, so only the clock changes and no earlier occurrence is lost.
+ */
+export function timePickValue(task, shown, time, {repeating = false, today = localDay()} = {}) {
+  const series = repeating && !task?.repeatAfterDays && task?.planned ? localDay(new Date(task.planned)) : '';
+  return {day: series || shown?.day || today, time};
+}
+
+/**
  * "Start now" in the task sheet: the {day, time} that makes an open one-time task begin at this minute today, or null
  * while it is done, repeats (Start now would move the whole series) or is already running.
  */

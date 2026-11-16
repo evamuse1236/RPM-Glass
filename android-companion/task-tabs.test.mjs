@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {editPlan, tasks} from './planner-state.mjs';
 import {occurrences, repeats} from './planner-recurrence.mjs';
-import {TIME_GRID, whenFields, repeatDaysOf, repeatFieldsFor, repeatLabel, repeatShort} from './planner/task-values.mjs';
+import {TIME_GRID, whenFields, whenOf, timePickValue, repeatDaysOf, repeatFieldsFor, repeatLabel, repeatShort} from './planner/task-values.mjs';
 import {TABS, stepTab, whenDay, whenBrief, whenSpoken, alertShort, blockShort, presetOf, presetFields, toggleRepeatDay, blockChoices}
   from './planner/task-tabs-model.mjs';
 import fs from 'node:fs';
@@ -96,6 +96,22 @@ test('a day, a slid time and a length each save and Undo puts them back', () => 
   const px = HALF_HOUR_PX / 30;
   assert.deepEqual([lengthAt(45, 7 * px, 165), lengthAt(45, 8 * px, 165), lengthAt(30, -60 * px, 165), lengthAt(60, 400 * px, 165)], [45, 60, 0, 165],
     'the length grip snaps to 15 minutes and stays between none and the rail end');
+});
+
+test('a new time on a later occurrence of a weekdays series changes only the clock: every weekday, today\'s included, stays', () => {
+  const data = {entries: []};
+  const id = editPlan(data, {type: 'saveTask', fields: {title: 'Standup', ...whenFields({day: '2026-11-16', time: '09:00'}), recurrence: 'weekdays', minutes: 15}});
+  const live = () => tasks(data).find(t => t.id === id);
+  const thursday = whenOf(live(), new Date('2026-11-19T09:00').toISOString());
+  editPlan(data, {type: 'saveTask', id, fields: whenFields(timePickValue(live(), thursday, '10:00', {repeating: repeats(live())}))});
+  const week = occurrences(live(), +new Date('2026-11-16T00:00'), +new Date('2026-11-21T00:00'));
+  assert.deepEqual(week.map(o => whenOf(o, o.occurrence).day), ['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20']);
+  assert.ok(week.every(o => whenOf(o, o.occurrence).time === '10:00'));
+  assert.deepEqual(timePickValue({planned: at('2026-11-16', '09:00')}, {day: '2026-11-19', time: '09:00'}, '10:00'), {day: '2026-11-19', time: '10:00'},
+    'a one-time task keeps the day it shows');
+  assert.deepEqual(timePickValue({planned: at('2026-11-19', '09:00'), repeatAfterDays: 3}, {day: '2026-11-19', time: '09:00'}, '10:00', {repeating: true}),
+    {day: '2026-11-19', time: '10:00'}, 'a repeat-after series keeps its next due day');
+  assert.deepEqual(timePickValue({}, {day: '', time: ''}, '10:00', {today: '2026-11-16'}), {day: '2026-11-16', time: '10:00'}, 'an undated task gets today');
 });
 
 test('an alert and its lead save, Undo puts back the one before, and a new type keeps the lead', () => {
