@@ -181,11 +181,6 @@ export function routines(body, now) {
 
 export const routineDue = (status, now) => status.state === 'running' && status.open > 0 && status.start <= now;
 
-export function mealSlot(at) {
-  const d = new Date(at), m = d.getHours() * 60 + d.getMinutes();
-  return m >= 240 && m < 660 ? 'breakfast' : m >= 660 && m < 930 ? 'lunch' : m >= 930 && m < 1140 ? 'snack' : 'dinner';
-}
-
 /** NotchHabits.unloggedMeal: an on slot of the meal plan in its two hours and not logged today; the earliest start wins. */
 export function unloggedMeal(body, now) {
   const day = localDay(now);
