@@ -212,3 +212,28 @@ test('two quick taps on Repeat day circles keep both days: the sheet builds each
   assert.match(sheet, /repeatDay: day => setRepeat\(t => toggleRepeatDay\(t, day\)\)/);
   assert.match(sheet, /repeatPreset: \(preset, every\) => setRepeat\(t => presetFields\(preset, t, every\)\)/);
 });
+
+test('a tap on the length grip of a task longer than the grip can reach saves nothing; a drag starts from the reach', async () => {
+  const {installFakeDom} = await import('./fake-dom.mjs');
+  const dom = installFakeDom();
+  const make = dom.createElement;
+  dom.createElement = tag => Object.assign(make(tag), {style: {setProperty() {}}, clientWidth: 0, scrollLeft: 0, setPointerCapture() {}, scrollTo() {}, select() {}});
+  globalThis.window ??= {onscrollend: null};
+  globalThis.ResizeObserver ??= class { observe() {} };
+  globalThis.requestAnimationFrame ??= () => 0;
+  const {timeRuler} = await import('./planner/time-ruler.mjs');
+  const saved = [];
+  const ruler = timeRuler({save: () => {}, saveMinutes: n => saved.push(n)});
+  ruler.node.children[1].clientWidth = 352; // the S24 FE sheet's rail: the grip reaches 2 hr 30 min
+  ruler.paint({day: DAY, time: '16:00', minutes: 180, off: false});
+  const press = (id, from, to) => {
+    ruler.grip.dispatch('pointerdown', {pointerId: id, clientX: from, button: 0});
+    if (to !== from) ruler.grip.dispatch('pointermove', {pointerId: id, clientX: to});
+    ruler.grip.dispatch('pointerup', {pointerId: id, clientX: to});
+  };
+  press(1, 300, 300);
+  press(2, 300, 302);
+  assert.deepEqual(saved, [], 'a 3 hr length stays 3 hr when the grip is tapped or barely moved');
+  press(3, 300, 300 - 16 * HALF_HOUR_PX / 30);
+  assert.deepEqual(saved, [135], 'a real drag back still sets a length, one step in from the reach');
+});
