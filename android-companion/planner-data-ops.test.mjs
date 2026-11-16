@@ -5,6 +5,8 @@ import {editPlan} from './planner-state.mjs';
 import {commit} from './planner/app.mjs';
 import {judge} from './review-deck.mjs';
 import {bodyApi} from './planner/body-api.mjs';
+import {runNotchRequest} from './notch-ops.mjs';
+import {bodyOf} from './body-store.mjs';
 
 test('planner commit and editPlan reject executable mutators before any effect or save', async () => {
   const data = freshStore(), before = structuredClone(data);
@@ -45,6 +47,37 @@ test('batch changes are atomic with one Undo, and quiet progress and keepUndo pr
   assert.ok(data.entries.every(t => t.planned === now.toISOString()));
   editPlan(data, {type: 'undo'}, now);
   assert.deepEqual(data.entries, original.entries);
+});
+
+test('an offered Undo names its change: after another save it refuses instead of taking back that save', () => {
+  const data = freshStore(), now = new Date('2026-11-16T05:00:00Z');
+  editPlan(data, {type: 'saveTask', fields: {title: 'Call bank'}}, now);
+  const id = data.entries[0].id;
+  editPlan(data, {type: 'saveTask', id, fields: {done: true}}, now);
+  const offered = data.planner.undo?.id;
+  assert.equal(typeof offered, 'string', 'each Undo carries its own id');
+  // A meal guess or a snooze keeps the same Undo, so the offered Undo still works after one.
+  const kept = structuredClone(data);
+  editPlan(kept, {type: 'snoozeWater', until: null, keepUndo: true}, now);
+  editPlan(kept, {type: 'undo', undoId: offered}, now);
+  assert.equal(kept.entries.find(e => e.id === id).done, false);
+  // The notch saves a glass of water before the user taps Undo (or a retried commit replays it after a reload).
+  runNotchRequest(data, {action: 'drink'}, now);
+  const before = structuredClone(data);
+  assert.throws(() => editPlan(data, {type: 'undo', undoId: offered}, now), /This changed on another device\./);
+  assert.deepEqual(data, before);
+  assert.equal(bodyOf(data).water.glasses.length, 1);
+  assert.equal(data.entries.find(e => e.id === id).done, true);
+});
+
+test('the planner sheets offer Undo with the id of the change they name', async () => {
+  const {readdirSync, readFileSync} = await import('node:fs');
+  const bare = [];
+  for (const file of readdirSync('android-companion/planner').filter(name => name.endsWith('.mjs') && !name.endsWith('.test.mjs'))) {
+    const source = readFileSync(`android-companion/planner/${file}`, 'utf8');
+    for (const match of source.matchAll(/commit\(\{type: 'undo'([^}]*)\}/g)) if (!/undoId/.test(match[1])) bare.push(file);
+  }
+  assert.deepEqual(bare, [], 'an Undo with no undoId takes back whatever was saved last');
 });
 
 test('planner modules pass ops at every direct commit and weekly-review run call', async () => {

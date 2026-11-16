@@ -6,6 +6,7 @@ import {occurrences,completeTask,repeats} from './planner-recurrence.mjs';
 import {text,title,integer,weekdays,one,link} from './planner-fields.mjs';
 import {REVIEW_VERSION,REVIEW_OPS,migrateReviewData,forgetBlockInWeeks,keepCompletionTime} from './planner-review-data.mjs';
 import {BODY_OPS} from './body-store.mjs';
+import {UNDO_CHANGED_MESSAGE} from './undo-rebase.mjs';
 
 export {REVIEW_VERSION,migrateReviewData};
 
@@ -21,7 +22,9 @@ export const byProject=blocks=>{const rank=new Map();for(const b of blocks){cons
 export function blockDue(data,id){let best=null;for(const t of blockTasks(data,id)){if(t.done||t.recurrence||t.repeatAfterDays)continue;const value=t.planned?localStamp(t.planned):t.plannedDate;if(!value)continue;const at=Date.parse(value.length===10?value+'T23:59':value);if(!best||at>best.at)best={at,value,task:t};}return best&&{value:best.value,task:best.task};}
 export const localStamp=iso=>{const d=new Date(iso);return localDay(d)+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
 export function totals(rows){return {all:rows.filter(e=>!e.done).reduce((s,e)=>s+(e.minutes??0),0),must:rows.filter(e=>e.must&&!e.done).reduce((s,e)=>s+(e.minutes??0),0),unknown:rows.filter(e=>!e.done&&e.minutes==null).length};}
-const snap=data=>({entries:structuredClone(data.entries),planner:structuredClone({...planner(data),undo:null})});
+// Each Undo carries its own id, so an Undo offered for one change never takes back a later one. It is random, not
+// newId(): new records' ids are replayed in order across devices and must not shift.
+const snap=data=>({id:globalThis.crypto.randomUUID(),entries:structuredClone(data.entries),planner:structuredClone({...planner(data),undo:null})});
 
 /** Validate on a copy, commit once, keep a single complete undo plus compact receipts. */
 export function editPlan(data,op,now=new Date()){
@@ -29,6 +32,7 @@ export function editPlan(data,op,now=new Date()){
   const next=structuredClone(data);next.planner??=freshPlanner();migrateReviewData(next);const p=next.planner,before=snap(data),at=now.toISOString();let result;
   if(op.type==='undo'){
     if(!p.undo)throw new Error(data.undoMessage ?? 'No planning change to undo.');
+    if(op.undoId!=null&&p.undo.id!==op.undoId)throw new Error(UNDO_CHANGED_MESSAGE);
     const restored=p.undo;next.entries=restored.entries;next.planner=restored.planner;next.planner.undo=null;next.undo=null;
     // Review progress is where the user is in the flow, not a plan change: Undo never rewinds it.
     migrateReviewData(next);next.planner.reviews=p.reviews;

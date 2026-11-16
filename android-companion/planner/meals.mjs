@@ -145,10 +145,11 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
       line = next;
     };
     if (!body.meal(meal.id)?.estimate) body.estimate(meal.id).then(paintEstimate, paintEstimate);
+    const undoId = app.p?.()?.undo?.id;
     actions.replaceChildren(
       button('Undo', async () => {
         try {
-          await app.api.commit({type: 'undo'});
+          await app.api.commit({type: 'undo', ...(undoId ? {undoId} : {})});
         } catch {
           notice(app, "Couldn't undo. Try again.");
           return;
