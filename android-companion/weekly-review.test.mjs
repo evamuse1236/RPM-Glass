@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {installFakeDom, FakeElement} from './fake-dom.mjs';
 import {editPlan} from './planner-state.mjs';
 import {reviewProgress} from './review-state.mjs';
-import {seed, WEEK} from './review-fixtures.mjs';
+import {seed, WEEK, LAST} from './review-fixtures.mjs';
 import {mountWeeklyReview} from './weekly-review.mjs';
 
 // The flow itself is exercised in a browser harness; this guards the module contract.
@@ -67,3 +67,32 @@ test('two open reviews of one week: a step change on one keeps the Results, kept
     web.review.destroy();
   }
 });
+
+for (const [why, close] of [
+  ['its Result is marked Achieved', (d, home) => editPlan(d, {type: 'markAchieved', id: home, achieved: true, week: LAST, verdict: 'achieved'})],
+  ['its Block is archived', (d, home) => editPlan(d, {type: 'archiveBlock', id: home})],
+]) {
+  test(`step 3 lists every task it counts as Sorted, even when ${why}`, async () => {
+    const {d, home, inbox} = seed();
+    editPlan(d, {type: 'reviewProgress', week: WEEK, patch: {step: 3, inboxIds: [inbox]}});
+    editPlan(d, {type: 'groupTasks', ids: [inbox], blockId: home});
+    close(d, home);
+    const {box, review} = mountOn(d);
+    try {
+      await settle();
+      const sorted = box.querySelector('.wr-formed');
+      assert.ok(sorted, 'the Sorted list shows');
+      const heads = [...sorted.querySelectorAll('.wr-target-title')].map(n => n.textContent);
+      assert.deepEqual(heads, ['Have home ready for the week'], 'under its Block');
+      const rows = [...sorted.querySelectorAll('.wr-row-title')].map(n => n.textContent);
+      assert.deepEqual(rows, ['Call the bank'], 'the counted task has a row');
+      const back = sorted.querySelector(`[data-key="unmove:${inbox}"]`);
+      assert.ok(back, 'with its Move back to the Inbox button');
+      back.click();
+      await settle();
+      assert.equal(d.entries.find(e => e.id === inbox).blockId ?? null, null, 'which moves it back');
+    } finally {
+      review.destroy();
+    }
+  });
+}
