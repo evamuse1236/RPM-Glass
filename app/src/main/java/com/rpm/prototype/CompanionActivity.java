@@ -137,8 +137,8 @@ public class CompanionActivity extends Activity {
                     case "legacyImported":LegacyImport.markDone(CompanionActivity.this);result=new JSONObject();break;
                     case "dictate":runOnUiThread(()->voice.dictate(id));return;
                     case "voiceToken":case "micAccess":case "micSettings":case "telegram":result=voice.invoke(action,p);break;
-                    case "haptic":runOnUiThread(()->web.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK));result=new JSONObject();break;
-                    case "keyboard":runOnUiThread(()->{web.requestFocus();((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(web,android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);});result=new JSONObject();break;
+                    case "haptic":runOnUiThread(()->{if(!closing&&web!=null)web.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);});result=new JSONObject();break;
+                    case "keyboard":runOnUiThread(()->{if(closing||web==null)return;web.requestFocus();((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(web,android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);});result=new JSONObject();break;
                     case "appSettings":result=settingsController.read();break;
                     case "appControl":result=CompanionControls.apply(CompanionActivity.this,p);runOnUiThread(CompanionActivity.this::settingsChanged);break;
                     case "settingsAction":result=settingsController.apply(p);runOnUiThread(CompanionActivity.this::settingsChanged);break;
