@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {editPlan, tasks} from './planner-state.mjs';
-import {occurrences, repeats} from './planner-recurrence.mjs';
-import {TIME_GRID, whenFields, whenOf, timePickValue, repeatDaysOf, repeatFieldsFor, repeatLabel, repeatShort} from './planner/task-values.mjs';
+import {nextOccurrence, occurrences, repeats} from './planner-recurrence.mjs';
+import {TIME_GRID, whenFields, whenOf, timePickValue, viewedOccurrence, repeatDaysOf, repeatFieldsFor, repeatLabel, repeatShort} from './planner/task-values.mjs';
 import {TABS, stepTab, whenDay, whenBrief, whenSpoken, alertShort, blockShort, presetOf, presetFields, toggleRepeatDay, blockChoices}
   from './planner/task-tabs-model.mjs';
 import fs from 'node:fs';
@@ -107,6 +107,12 @@ test('a new time on a later occurrence of a weekdays series changes only the clo
   const week = occurrences(live(), +new Date('2026-11-16T00:00'), +new Date('2026-11-21T00:00'));
   assert.deepEqual(week.map(o => whenOf(o, o.occurrence).day), ['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20']);
   assert.ok(week.every(o => whenOf(o, o.occurrence).time === '10:00'));
+  const anchor = at('2026-11-16', '09:00');
+  assert.equal(viewedOccurrence(live(), anchor, at('2026-11-19', '09:00')), at('2026-11-19', '10:00'),
+    'the open sheet stays on Thursday at the new clock, so its ruler and Done ring act on Thursday, not today');
+  editPlan(data, {type: 'saveTask', id, fields: whenFields({day: '2026-11-17', time: '10:00'})});
+  assert.equal(viewedOccurrence(live(), anchor, at('2026-11-19', '09:00')), nextOccurrence(live()),
+    'a chosen new series day leaves the viewed occurrence as before');
   assert.deepEqual(timePickValue({planned: at('2026-11-16', '09:00')}, {day: '2026-11-19', time: '09:00'}, '10:00'), {day: '2026-11-19', time: '10:00'},
     'a one-time task keeps the day it shows');
   assert.deepEqual(timePickValue({planned: at('2026-11-19', '09:00'), repeatAfterDays: 3}, {day: '2026-11-19', time: '09:00'}, '10:00', {repeating: true}),

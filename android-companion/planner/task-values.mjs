@@ -1,4 +1,5 @@
 import {localDay, shiftDay} from '../planner-state.mjs';
+import {nextOccurrence} from '../planner-recurrence.mjs';
 import {clock, relativeDay, timeValue, DATE_LOCALE} from './format.mjs';
 
 export const DURATIONS = [15, 30, 45, 60, 90, 120, 180];
@@ -261,6 +262,19 @@ export function parseWhen(text, today = localDay(), now = new Date()) {
 export function timePickValue(task, shown, time, {repeating = false, today = localDay()} = {}) {
   const series = repeating && !task?.repeatAfterDays && task?.planned ? localDay(new Date(task.planned)) : '';
   return {day: series || shown?.day || today, time};
+}
+
+/**
+ * The occurrence the task sheet shows for a repeating task opened on `occurrence` when the series started at `anchor`.
+ * After a clock-only change (the series day kept) it is the same day at the new clock; after any other move of the
+ * series, the next occurrence.
+ */
+export function viewedOccurrence(task, anchor, occurrence) {
+  if (occurrence && task.planned === anchor) return occurrence;
+  if (!occurrence || task.repeatAfterDays || !task.planned || !anchor || localDay(new Date(task.planned)) !== localDay(new Date(anchor))) {
+    return nextOccurrence(task);
+  }
+  return whenFields({day: whenOf(task, occurrence).day, time: whenOf(task).time}).planned;
 }
 
 /**
