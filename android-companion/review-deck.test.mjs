@@ -4,7 +4,7 @@ import {editPlan, localDay} from './planner-state.mjs';
 import {reviewSummary, reviewWeek, markAchieved} from './review-state.mjs';
 import {seedStore} from '../scripts/gauntlet/seed.mjs';
 import {SWIPE_COMMIT, SWIPE_LOCK, lockAxis} from './task-swipe.mjs';
-import {swipeVerdict, deckOf, SWIPE_VERDICTS, DECK_VERDICTS} from './review-deck.mjs';
+import {swipeVerdict, deckOf, judge, SWIPE_VERDICTS, DECK_VERDICTS} from './review-deck.mjs';
 
 test('a swipe past the commit distance gives the verdict; a short drag springs back', () => {
   assert.equal(swipeVerdict(SWIPE_COMMIT), 'achieved');
@@ -37,4 +37,22 @@ test('a verdict takes the card off the deck and Undo brings it back', () => {
   editPlan(data, {type: 'undo'});
   assert.deepEqual(deck().map(r => r.blockId), before.slice(1), 'Undo brings back the card just judged');
   assert.equal(deck()[0].blockId, before[1], 'and it is the top card again');
+});
+
+test('a second verdict for the same card is ignored and Undo brings it back', async () => {
+  const now = new Date();
+  const {data} = seedStore(now);
+  const week = reviewWeek(localDay(now));
+  const summary = () => reviewSummary(data, week, now);
+  const deck = () => deckOf(summary().results.filter(r => !r.running));
+  const top = deck()[0];
+  let runs = 0;
+  const api = {ui: {}, run: op => { runs++; return Promise.resolve().then(() => { editPlan(data, op, now); }); }};
+  await Promise.all([judge(api, summary(), top, 'achieved'), judge(api, summary(), top, 'partly')]);
+  assert.equal(runs, 1, 'a swipe then a tap (or a double tap) on one card saves once');
+  assert.equal(summary().results.find(r => r.blockId === top.blockId).verdict, 'achieved');
+  editPlan(data, {type: 'undo'});
+  assert.equal(deck()[0].blockId, top.blockId, 'Undo brings the card back');
+  await judge(api, summary(), deck()[0], 'notyet');
+  assert.equal(runs, 2, 'the card brought back by Undo can be judged again');
 });
