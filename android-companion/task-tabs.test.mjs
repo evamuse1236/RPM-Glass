@@ -181,3 +181,34 @@ test('the ruler grip sets the length: a 48dp slider named for TalkBack, arrow ke
   const css = fs.readFileSync(new URL('./task-tabs.css', import.meta.url), 'utf8');
   assert.match(css, /\.ruler-grip \{[^}]*inline-size: 48px;[^}]*block-size: 48px;[^}]*touch-action: none;/, 'a 48dp hit area that the page does not scroll');
 });
+
+test('two quick taps on Repeat day circles keep both days: the sheet builds each save from the task as the earlier save left it', async () => {
+  const {installFakeDom} = await import('./fake-dom.mjs');
+  installFakeDom();
+  const {saver} = await import('./planner/sheet-parts.mjs');
+  let task = {id: 1, title: 'Gym', planned: at(DAY, '07:00')};
+  const labels = [];
+  const app = {saving: false, async commit(op, {label}) {
+    this.saving = true;
+    labels.push(label);
+    await new Promise(done => setTimeout(done, 30));
+    task = {...task, ...op.fields};
+    this.saving = false;
+    return 1;
+  }};
+  const save = saver(app);
+  // The shape task-sheet.mjs's repeatDay uses: the fields and the label are made when the queued save runs.
+  const tap = day => save(() => {
+    const fields = toggleRepeatDay(task, day);
+    return {op: {type: 'saveTask', id: 1, fields}, label: 'Repeats: ' + repeatLabel(fields)};
+  });
+  const monday = tap(1);
+  await new Promise(done => setTimeout(done, 5));
+  const wednesday = tap(3);
+  await Promise.all([monday, wednesday]);
+  assert.deepEqual(repeatDaysOf(task).sort(), [1, 3]);
+  assert.equal(labels.at(-1), 'Repeats: ' + repeatLabel(task));
+  const sheet = read('planner/task-sheet.mjs');
+  assert.match(sheet, /repeatDay: day => setRepeat\(t => toggleRepeatDay\(t, day\)\)/);
+  assert.match(sheet, /repeatPreset: \(preset, every\) => setRepeat\(t => presetFields\(preset, t, every\)\)/);
+});

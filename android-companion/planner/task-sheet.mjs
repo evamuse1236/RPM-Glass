@@ -146,17 +146,25 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
     tabs.paint({...now(t), ...value});
     commit(whenFields(value), label).then(saved => { if (saved !== undefined) recheck(); });
   };
-  const setRepeat = fields => {
+  const repeatSaved = fields => {
+    const words = repeatLabel(fields);
+    return fields.recurrence || fields.repeatAfterDays
+      ? 'Repeats: ' + (fields.recurrence === 'days' ? words : words.toLowerCase()) : 'Repeat turned off';
+  };
+  // `make(task)` gives the Repeat fields; it runs again when the queued save starts, so quick taps build on each other.
+  const setRepeat = make => {
     const t = live();
+    const fields = make(t);
     if ((fields.recurrence || fields.repeatAfterDays) && !t?.planned) {
       tabs.error('repeat', NEEDS_TIME + ' Choose them in When first.');
       tabs.paint(now(t));
       return;
     }
     tabs.error('repeat', '');
-    const words = repeatLabel(fields);
-    commit(fields, fields.recurrence || fields.repeatAfterDays
-      ? 'Repeats: ' + (fields.recurrence === 'days' ? words : words.toLowerCase()) : 'Repeat turned off');
+    save(() => {
+      const latest = make(live());
+      return {op: {type: 'saveTask', id, fields: latest}, label: repeatSaved(latest)};
+    });
   };
   const current = () => whenOf(live(), when(live()));
   const tabs = taskTabs({
@@ -190,8 +198,8 @@ export function openTask(app, id, occurrence, {focus = null, motion = 'forward',
       },
       alert: value => commit({alert: value}, value === 'off' ? 'Alert off' : alertText(value, live()) + ' set'),
       lead: minutes => commit({alertLead: minutes}, 'Alert ' + leadLabel(minutes).toLowerCase()),
-      repeatDay: day => setRepeat(toggleRepeatDay(live(), day)),
-      repeatPreset: (preset, every) => setRepeat(presetFields(preset, live(), every)),
+      repeatDay: day => setRepeat(t => toggleRepeatDay(t, day)),
+      repeatPreset: (preset, every) => setRepeat(t => presetFields(preset, t, every)),
       block: (blockId, title) => {
         rememberBlock(blockId);
         save({type: 'moveTask', id, blockId}, blockId ? 'Moved to ' + title : 'Moved to Inbox');
