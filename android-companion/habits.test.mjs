@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {mealPlanSlots, mealSlots, dueMeal, mealDueTimes} from './day-parts.mjs';
 import {bodyOf, defaultMealPlan} from './body-store.mjs';
 import {editPlan} from './planner-state.mjs';
@@ -127,4 +128,13 @@ test('the Habits list offers Log on the meal due now, never on a skipped meal, t
   assert.equal(dueMeal([breakfast], DAY, now, plan), null);
   const off = {slots: plan.slots.map(s => (s.slot === 'dinner' ? {...s, on: false} : s))};
   assert.equal(mealDueTimes([breakfast], DAY, at('13:30'), off).get('dinner'), null, 'an off slot is never due');
+});
+
+test('the meal sheet logs one meal per submit: Enter, Save and the usual-food chips share one in-flight guard', () => {
+  const source = readFileSync(new URL('./planner/meals.mjs', import.meta.url), 'utf8');
+  assert.match(source, /import \{onceInFlight\} from '\.\/routine-editor\.mjs';/);
+  assert.match(source, /const save = onceInFlight\(async name => \{/, 'the meal sheet save is guarded by onceInFlight');
+  assert.match(source, /button\('', \(\) => save\(name\), 'assist-chip usual-chip'\)/, 'a usual-food chip saves through the guarded save');
+  assert.match(source, /button\('Save', \(\) => save\(input\.value\), 'filled-btn'\)/, 'Save saves through the guarded save');
+  assert.match(source, /event\.key === 'Enter'\) \{ event\.preventDefault\(\); save\(input\.value\);/, 'Enter saves through the guarded save');
 });

@@ -1,4 +1,4 @@
-import {repeats, nextOccurrence} from '../planner-recurrence.mjs';
+import {repeats, repeatsOn, nextOccurrence} from '../planner-recurrence.mjs';
 import {el, icon, button} from './dom.mjs';
 import {reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
 import {openSheet, isSheetOpen} from './sheet.mjs';
@@ -9,13 +9,19 @@ import {inboxShowing} from './task-lists.mjs';
 import {openTask} from './task-sheet.mjs';
 import {persist} from './inline-edit.mjs';
 
+/** Task ids with a Duplicate waiting for its save, so a second tap does not make a second copy. */
+const duplicating = new Set();
+
 /** A copy of the task's words, Block, length and Must; the sheet closes and the snackbar offers Undo. */
 export function duplicateTask(app, task) {
+  if (duplicating.has(task.id)) return;
   const fields = {
     title: task.title, blockId: task.blockId ?? null, minutes: task.minutes, must: !!task.must,
     notes: task.notes ?? '', purpose: task.purpose ?? '', leverage: task.leverage ?? '',
   };
-  persist(app, {type: 'saveTask', fields}, {label: 'Task duplicated'}).catch(() => {});
+  duplicating.add(task.id);
+  persist(app, {type: 'saveTask', fields}, {label: 'Task duplicated'}).catch(() => {})
+    .finally(() => duplicating.delete(task.id));
 }
 
 /** A repeating task's latest completion taken back, with Undo. */
@@ -85,7 +91,9 @@ export function scheduleMenu(app, task, anchor, {occurrence = null, moveToBlock 
   closeSchedule({restoreFocus: false});
   const t = findTask(app, task.id) ?? task;
   const at = repeats(t) ? (occurrence ?? nextOccurrence(t)) : t.planned;
-  const presets = schedulePresets(whenOf(t, at), new Date(), {repeating: repeats(t)});
+  // A series on fixed weekdays is offered only days it falls on; one repeating after completion has no fixed days.
+  const on = repeats(t) && !t.repeatAfterDays ? weekday => repeatsOn(t, weekday) : undefined;
+  const presets = schedulePresets(whenOf(t, at), new Date(), {repeating: repeats(t), on});
   const scrim = button('', () => closeSchedule(), 'menu-scrim');
   scrim.setAttribute('aria-label', 'Close');
   const menu = el('div', 'menu schedule-menu');
@@ -97,7 +105,7 @@ export function scheduleMenu(app, task, anchor, {occurrence = null, moveToBlock 
   const pick = value => {
     closeSchedule();
     const label = value.day ? 'Moved to ' + whenLabel(value) : 'Date removed';
-    app.commit({type: 'saveTask', id: t.id, fields: whenFields(value)}, {label, keepSheet: isSheetOpen(app)}).catch(() => {});
+    persist(app, {type: 'saveTask', id: t.id, fields: whenFields(value)}, {label, keepSheet: isSheetOpen(app)}).catch(() => {});
   };
   for (const preset of presets) {
     const row = button('', () => pick(preset.value), 'menu-item schedule-item');

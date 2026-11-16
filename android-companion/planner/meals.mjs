@@ -10,6 +10,7 @@ import {phraseNodes} from './today-row.mjs';
 import {choiceChip, chipRow, markChips} from './task-fields.mjs';
 import {openMealEditor} from './habit-editors.mjs';
 import {openHabits} from './habits.mjs';
+import {onceInFlight} from './routine-editor.mjs';
 
 const RECENT_CHIPS = 3;
 
@@ -93,7 +94,9 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
     input.parentElement.after(usual);
     content.append(error);
 
-    const save = async name => {
+    // One guard for Enter, Save and the usual-food chips: a second submit while
+    // the first save is pending would log the same meal twice.
+    const save = onceInFlight(async name => {
       const words = name.trim();
       if (!words) return;
       error.textContent = '';
@@ -106,7 +109,7 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
       }
       app.render();
       renderSaved(saved, words);
-    };
+    });
     function paintSlot() {
       const names = usualMeals(body.meals(), slot, RECENT_CHIPS);
       usual.replaceChildren(...names.map(name => {
