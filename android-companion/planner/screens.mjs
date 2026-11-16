@@ -12,6 +12,7 @@ import {renderHistory} from './history.mjs';
 import {bodyApi} from './body-api.mjs';
 import {screenKey} from './app.mjs';
 import {userMessage} from '../user-message.mjs';
+import {persist} from './inline-edit.mjs';
 
 const DETAILS = {blocks: renderBlockDetail, projects: renderProjectDetail, areas: renderAreaDetail, goals: renderGoalDetail};
 const ROOTS = {today: renderToday, blocks: renderBlocks, projects: renderProjects, life: renderLife};
@@ -34,6 +35,11 @@ function mountSettingsScreen(app, host) {
   }};
 }
 
+/** The review's save: like every planner save it waits out one already in flight (a swipe Delete, an Undo). */
+export function reviewCommit(app) {
+  return (op, label) => persist(app, op, {label: label ?? null, undo: label != null, keepSheet: true});
+}
+
 /**
  * The review flow owns its own bar, steps and scrolling; the planner supplies data, saving and navigation.
  * A null label saves step progress quietly: no snackbar, no Undo offer.
@@ -41,7 +47,7 @@ function mountSettingsScreen(app, host) {
 function mountReview(app, host) {
   const ctx = {
     getData: () => app.data(),
-    commit: (op, label) => app.commit(op, {label: label ?? null, undo: label != null, keepSheet: true}),
+    commit: reviewCommit(app),
     close: () => {
       app.state.stack = [];
       app.state.tab = 'today';

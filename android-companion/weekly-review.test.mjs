@@ -222,3 +222,54 @@ test('Create Result submitted twice before the save lands makes one Result that 
   assert.equal(d.entries.find(t => t.id === id).blockId, made[0].id, 'the task sits in that Result');
   assert.deepEqual(labels, ['New Result: Trip planned']);
 });
+
+/* The planner's own review commit, over a commit that like planner/app.mjs returns undefined while a save runs. */
+async function plannerReview(d) {
+  const {reviewCommit} = await import('./planner/screens.mjs');
+  const app = {saving: false, data: () => d};
+  app.commit = async op => {
+    if (app.saving) return undefined;
+    app.saving = true;
+    try { await settle(); return editPlan(d, op); } finally { app.saving = false; }
+  };
+  let closed = 0;
+  const box = document.createElement('div');
+  const review = mountWeeklyReview(box, {getData: () => d, close() { closed++; }, openBlock() {}, openCapture() {},
+    commit: reviewCommit(app), day: () => '2026-09-26', now: () => new Date('2026-09-26T10:00:00+05:30')});
+  return {app, box, review, closed: () => closed};
+}
+
+test('step 2: a task added while a swipe Delete saves waits for that save and is kept', async () => {
+  const {d} = seed();
+  editPlan(d, {type: 'reviewProgress', week: WEEK, patch: {step: 2}});
+  const {app, box, review} = await plannerReview(d);
+  try {
+    app.saving = true; // a swipe Delete (persist -> app.commit) is mid-save
+    const form = box.querySelector('form');
+    form.querySelector('input').value = 'Call the plumber about the leak';
+    form.dispatch('submit');
+    await settle(); await settle();
+    app.saving = false;
+    for (let i = 0; i < 10; i++) await settle(); // the review retries every 50ms, then its save takes a tick
+    assert.ok(d.entries.some(t => t.title === 'Call the plumber about the leak'), 'the words are saved as a task');
+  } finally {
+    review.destroy();
+  }
+});
+
+test('Finish tapped while another planner save is in flight saves the finish before the review closes', async () => {
+  const {d, rest, home} = seed();
+  editPlan(d, {type: 'reviewProgress', week: WEEK, patch: {step: 4, focusDraft: [home, rest]}});
+  const {app, box, review, closed} = await plannerReview(d);
+  try {
+    app.saving = true;
+    box.querySelector('.wr-next').click();
+    await settle(); await settle();
+    app.saving = false;
+    for (let i = 0; i < 10; i++) await settle(); // the review retries every 50ms, then its save takes a tick
+    assert.equal(closed(), 1);
+    assert.ok(planner(d).reviews?.[WEEK]?.finishedAt, 'the finish is saved');
+  } finally {
+    review.destroy();
+  }
+});
