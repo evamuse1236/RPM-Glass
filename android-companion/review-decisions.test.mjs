@@ -47,6 +47,22 @@ test('carry, defer and drop are deliberate, reversible and undoable', () => {
   assert.notEqual(before, done);
 });
 
+test('deferring a leftover twice still lets Carry restore the day or time it had', () => {
+  const {d, meals, kitchen} = seed();
+  decideLeftover(d, meals, 'defer', WEEK);
+  decideLeftover(d, meals, 'defer', WEEK);
+  assert.equal(entry(d, meals).plannedDate, null, 'a deferred task stays undated');
+  decideLeftover(d, meals, 'carry', WEEK);
+  assert.equal(leftoverChoice(entry(d, meals), WEEK), 'carry');
+  assert.equal(entry(d, meals).plannedDate, '2026-09-23', 'carry restores the day the first defer cleared');
+
+  decideLeftover(d, kitchen, 'defer', WEEK);
+  decideLeftover(d, kitchen, 'defer', WEEK);
+  assert.equal(entry(d, kitchen).planned, null);
+  decideLeftover(d, kitchen, 'carry', WEEK);
+  assert.equal(entry(d, kitchen).planned, '2026-09-24T12:30:00.000Z', 'carry restores the time the first defer cleared');
+});
+
 test('groupTask moves an Inbox task to a Block, a new Block, or back, each as one Undo step', () => {
   const {d, home, inbox, meals} = seed();
   assert.equal(groupTask(d, inbox, home), 'Added to Have home ready for the week');

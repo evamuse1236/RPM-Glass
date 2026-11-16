@@ -124,6 +124,9 @@ function reviewTaskOp(next, op, at) {
     choice.cleared = {planned: e.planned ?? null, plannedDate: e.plannedDate ?? null};
     e.planned = null;
     e.plannedDate = null;
+  } else if (op.choice === 'defer' && previous?.choice === 'defer' && previous.cleared) {
+    // A repeated defer keeps the day the first one cleared, so Carry can still restore it.
+    choice.cleared = previous.cleared;
   }
   if (op.choice === 'drop') {
     e.archived = true;
