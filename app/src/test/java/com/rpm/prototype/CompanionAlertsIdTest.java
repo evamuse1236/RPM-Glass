@@ -60,6 +60,21 @@ public class CompanionAlertsIdTest {
         CompanionAlerts.restore(c);
         assertEquals("a restore must not ring a dismissed alarm again",occurrence+day,CompanionAlerts.ledger(c).getJSONObject("22").getLong("at"));
     }
+    @Test public void aRestoreOrCheckAlertsKeepsARepeatingTasksPostedReminderInTheShade()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();NotificationManager nm=c.getSystemService(NotificationManager.class);long day=86400000L;
+        long occurrence=leadAlertDueNow(c,43,"reminder");
+        CompanionAlerts.fired(c,43,occurrence);
+        assertNotNull("the reminder posted",shadowOf(nm).getNotification("companion-reminder",43));
+        CompanionAlerts.restore(c); // app update, clock or zone change, exact-alarm grant
+        assertNotNull("a restore must not take a posted reminder out of the shade",shadowOf(nm).getNotification("companion-reminder",43));
+        assertEquals(occurrence+day,CompanionAlerts.ledger(c).getJSONObject("43").getLong("at"));
+        CompanionAlerts.check(c); // Settings Check alerts
+        assertNotNull("Check alerts must not take a posted reminder out of the shade",shadowOf(nm).getNotification("companion-reminder",43));
+        assertEquals(occurrence+day,CompanionAlerts.ledger(c).getJSONObject("43").getLong("at"));
+        JSONObject data=CompanionStore.read(c);CompanionAlerts.entry(data,43).put("done",true);CompanionStore.writeRaw(c,data);
+        CompanionAlerts.reconcile(c,data,false);
+        assertNull("a changed task still clears its posted reminder",shadowOf(nm).getNotification("companion-reminder",43));
+    }
     @Test public void aRestoreStillFiresALeadAlertThatNeverSounded()throws Exception {
         Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);
         long occurrence=leadAlertDueNow(c,23,"reminder");

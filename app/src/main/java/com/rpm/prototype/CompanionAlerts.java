@@ -28,7 +28,9 @@ final class CompanionAlerts {
     static JSONObject entry(JSONObject d,long id){JSONArray a=d.optJSONArray("entries");if(a!=null)for(int i=0;i<a.length();i++){JSONObject e=a.optJSONObject(i);if(e!=null&&e.optLong("id")==id)return e;}return null;}
     static PendingIntent trigger(Context c,long id,long at){Intent i=new Intent(c,CompanionAlertReceiver.class).setAction(FIRE).setData(Uri.parse("rpm-companion://alert/"+id)).putExtra("id",id).putExtra("at",at);return PendingIntent.getBroadcast(c,0,i,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);}
     static PendingIntent open(Context c,long id){return PendingIntent.getActivity(c,(int)(id%Integer.MAX_VALUE),new Intent(c,CompanionActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_SINGLE_TOP),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);}
-    static void cancel(Context c,long id){c.getSystemService(AlarmManager.class).cancel(trigger(c,id,0));c.getSystemService(NotificationManager.class).cancel("companion-reminder",(int)id);CompanionAlarmService.cancelActive(id);}
+    static void cancel(Context c,long id){cancelTrigger(c,id);c.getSystemService(NotificationManager.class).cancel("companion-reminder",(int)id);}
+    /** Disarms the alert and stops a ring but leaves a posted reminder in the shade. */
+    static void cancelTrigger(Context c,long id){c.getSystemService(AlarmManager.class).cancel(trigger(c,id,0));CompanionAlarmService.cancelActive(id);}
     static long next(long base,String recurrence,ZoneId zone,long now){
         if(base<=0)return 0;if(base>now){ZonedDateTime start=Instant.ofEpochMilli(base).atZone(zone);for(int i=0;i<7&&Repeats.repeating(recurrence)&&!Repeats.on(recurrence,start.getDayOfWeek());i++)start=start.plusDays(1);return start.toInstant().toEpochMilli();}
         if(!Repeats.repeating(recurrence))return 0;
@@ -68,7 +70,8 @@ final class CompanionAlerts {
             long soundedBefore=old==null?0:!sameTime&&old.optLong("sounded")>0?old.optLong("sounded"):old.optLong("soundedBefore");
             // A live snooze outlasts a change that keeps the time (Done then Undo, a restore): it is held while its occurrence is done and comes back when that is undone.
             long base=planned(e),now=System.currentTimeMillis(),held=0,heldFor=0;if(old!=null&&(!changed||sounded>0)){held=old.optLong("snoozeAt",old.optLong("heldSnoozeAt"));heldFor=old.has("snoozeAt")?occurrence(old):old.optLong("heldOccurrence");}if(held<=now)held=0;
-            cancel(c,e.getLong("id"));JSONObject row=new JSONObject().put("fingerprint",fp).put("type",type(e));l.put(id,row);if(sounded>0)row.put("sounded",sounded);if(soundedBefore>0)row.put("soundedBefore",soundedBefore);
+            // An unchanged row (a restore or Check alerts) only re-arms: its reminder already posted stays in the shade.
+            if(changed)cancel(c,e.getLong("id"));else cancelTrigger(c,e.getLong("id"));JSONObject row=new JSONObject().put("fingerprint",fp).put("type",type(e));l.put(id,row);if(sounded>0)row.put("sounded",sounded);if(soundedBefore>0)row.put("soundedBefore",soundedBefore);
             if(!active(e)){row.put("status","off").put("label","Alert off");if(held>0)row.put("heldSnoozeAt",held).put("heldOccurrence",heldFor);continue;}
             if(held>0&&base>0&&!completed(e).contains(heldFor)){row.put("snoozeAt",held).put("occurrence",heldFor);schedule(c,e,row,held);continue;}
             // An unchanged row keeps its stored occurrence: an occurrence whose alert already sounded is not armed again. A snoozed row's at is its snooze time, so its occurrence is kept apart.
