@@ -325,6 +325,16 @@ public class CompanionAlertsIdTest {
         row=CompanionAlerts.ledger(c).getJSONObject("70");
         assertEquals("scheduled",row.getString("status"));assertEquals(occ,row.getLong("at"));
     }
+    @Test public void aDailyLeadAlarmCutOffMidRingRingsTodayAgainWhileItsTaskIsAhead()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);
+        // A daily standup 20 min away rings its 30-min lead alarm; the phone reboots mid-ring, today's standup still ahead.
+        long occ=leadAlertDueNow(c,71,"alarm");CompanionAlerts.fired(c,71,occ);
+        JSONObject l=CompanionAlerts.ledger(c);l.getJSONObject("71").put("ringingSince",System.currentTimeMillis()-120000);CompanionAlerts.persist(c,l);
+        CompanionAlerts.restore(c); // boot, app update
+        JSONObject row=CompanionAlerts.ledger(c).getJSONObject("71");
+        assertEquals("today's alarm rings again, not only tomorrow's",occ,row.getLong("at"));
+        assertTrue("it rings at once",shadowOf(alarms).getNextScheduledAlarm().triggerAtTime<=System.currentTimeMillis()+1000);
+    }
     @Test public void anAlarmStillStartingItsServiceIsNotDisarmedByAResume()throws Exception {
         Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);
         long now=System.currentTimeMillis(),occurrence=now-1000;
