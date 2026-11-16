@@ -259,3 +259,51 @@ test('a tap on the length grip of a task longer than the grip can reach saves no
   press(3, 300, 300 - 16 * HALF_HOUR_PX / 30);
   assert.deepEqual(saved, [135], 'a real drag back still sets a length, one step in from the reach');
 });
+
+test('a tap on the time ruler then Clear leaves the task untimed; a slide or a wheel still saves once when let go', async () => {
+  const {installFakeDom} = await import('./fake-dom.mjs');
+  const dom = installFakeDom();
+  const make = dom.createElement;
+  dom.createElement = tag => Object.assign(make(tag), {style: {setProperty() {}}, clientWidth: 352, scrollLeft: 0, setPointerCapture() {}, select() {},
+    scrollTo({left}) { // a programmatic scroll that moves fires scroll, then scrollend, as Chrome does
+      if (Math.abs(left - this.scrollLeft) < 0.5) return;
+      this.scrollLeft = left;
+      this.dispatch('scroll');
+      this.dispatch('scrollend');
+    }});
+  globalThis.window ??= {onscrollend: null};
+  globalThis.ResizeObserver ??= class { observe() {} };
+  globalThis.requestAnimationFrame ??= () => 0;
+  const {timeRuler} = await import('./planner/time-ruler.mjs');
+  const open = () => {
+    const saved = [];
+    const ruler = timeRuler({save: time => saved.push(time), saveMinutes() {}});
+    ruler.paint({day: DAY, time: '10:00', minutes: 30, off: false});
+    return {ruler, saved, track: ruler.node.querySelector('.ruler-track')};
+  };
+  {
+    const {ruler, saved, track} = open();
+    track.dispatch('pointerdown');
+    track.dispatch('pointerup');
+    assert.deepEqual(saved, [], 'a tap alone saves nothing');
+    ruler.paint({day: '', time: '', minutes: null, off: true});
+    assert.deepEqual(saved, [], 'Clear after a tap must not put a time back');
+  }
+  {
+    const {saved, track} = open();
+    track.dispatch('pointerdown');
+    track.scrollLeft = offsetOf(rulerScale('10:00'), '11:00');
+    track.dispatch('scroll');
+    track.dispatch('pointerup');
+    track.dispatch('scrollend');
+    assert.deepEqual(saved, ['11:00'], 'a slide saves once, when let go');
+  }
+  {
+    const {saved, track} = open();
+    track.dispatch('wheel');
+    track.scrollLeft = offsetOf(rulerScale('10:00'), '09:30');
+    track.dispatch('scroll');
+    track.dispatch('scrollend');
+    assert.deepEqual(saved, ['09:30'], 'a wheel scroll saves once it ends');
+  }
+});

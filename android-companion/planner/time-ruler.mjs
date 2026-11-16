@@ -225,13 +225,16 @@ export function timeRuler({save, saveMinutes = () => {}, tick = () => {}}) {
   const place = () => {
     if (holding || !track.clientWidth) return;
     const target = offsetOf(scale, state.time || scale.centre);
-    if (Math.abs(track.scrollLeft - target) > 0.5) track.scrollTo({left: target, behavior: 'instant'});
+    if (Math.abs(track.scrollLeft - target) <= 0.5) return;
+    touched = false; // the ruler's own scroll is not a pick: a tap left before it must not save where it lands
+    track.scrollTo({left: target, behavior: 'instant'});
   };
 
   const settle = () => {
     holding = false;
     if (!touched) return;
     touched = false;
+    if (state.off) return show(state.time);
     const stop = stopAt(scale, track.scrollLeft);
     if (stop !== state.time) save(stop);
     else show(state.time);
