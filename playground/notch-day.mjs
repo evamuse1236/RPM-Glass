@@ -78,7 +78,8 @@ export function parseNotchData(data, events) {
 
 function candidates(task, now) {
   const r = task.recurrence, base = new Date(task.planned);
-  if (!['daily', 'weekly', 'weekdays', 'days'].includes(r)) return [task.planned];
+  // A 'days' repeat with no days is one-time, as Repeats.key gives "" and planner-recurrence repeats() is false.
+  if (!['daily', 'weekly', 'weekdays', 'days'].includes(r) || r === 'days' && !task.repeatDays?.length) return [task.planned];
   const out = [], today = dayStart(now);
   for (let back = 1; back >= 0; back--) {
     const d = new Date(today); d.setDate(d.getDate() - back);
