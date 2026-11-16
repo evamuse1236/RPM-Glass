@@ -10,7 +10,7 @@ import {plural} from './planner/format.mjs';
 import {animateRerender, sharedAxis, ghost, reducedMotion, releaseTail, waitMotion, MOTION, DURATION, EASE} from './surface-motion.mjs';
 import {userMessage} from './user-message.mjs';
 import {STEPS, READABLE, el, icon, button, iconButton} from './review-ui.mjs';
-import {stepOne, deckWaiting} from './review-step-one.mjs';
+import {stepOne, deckWaiting, settleCarryUndo} from './review-step-one.mjs';
 import {stepTwo} from './review-step-two.mjs';
 import {stepThree, sheetLayer} from './review-step-three.mjs';
 import {stepFour} from './review-step-four.mjs';
@@ -48,7 +48,10 @@ export function mountWeeklyReview(container, ctx) {
   root.setAttribute('aria-label', 'Weekly review');
   container.replaceChildren(root);
   const api = createActions(ctx, week, ui, () => render());
-  const render = () => renderReview(root, api, ctx);
+  const render = () => {
+    settleCarryUndo(api);
+    renderReview(root, api, ctx);
+  };
 
   // Data can change outside the review (Undo in the snackbar, Capture, phone refresh).
   const refreshIfChanged = () => {

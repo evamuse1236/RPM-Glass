@@ -101,15 +101,19 @@ function enter(node) {
 /** The latest message waiting for a leaving sheet. */
 let queued = null;
 
+const undoIdOf = (app, options) => options.undoId ?? app.p?.()?.undo?.id ?? null;
+
 export function notice(app, message, options = {}) {
   const sheet = app.dom.sheet;
   if (!sheet.hidden && sheet.inert && app.sheet.gone && !reducedMotion()) {
-    const ticket = queued = {};
-    app.sheet.gone.then(() => { if (queued === ticket) { queued = null; notice(app, message, options); } });
+    const ticket = queued = {}, offered = {...options, undoId: undoIdOf(app, options)};
+    app.sheet.gone.then(() => { if (queued === ticket) { queued = null; notice(app, message, offered); } });
     return;
   }
   queued = null;
   const {undo = false} = options;
+  // The Undo takes back the change it was offered for: read now, kept on the bar, and refused once another save lands.
+  if (undo) app.undoId = undoIdOf(app, options);
   const node = app.dom.snackbar;
   const showing = !node.hidden;
   // The same words on a bar that is showing and staying: the bar stays still and only its time restarts (its Undo
@@ -126,7 +130,7 @@ export function notice(app, message, options = {}) {
   if (undo) {
     content.push(button('Undo', async () => {
       try {
-        await app.api.commit({type: 'undo'});
+        await app.api.commit({type: 'undo', ...(app.undoId ? {undoId: app.undoId} : {})});
         app.recentlyCompleted.clear();
         app.render();
         app.sheetRefresh?.();

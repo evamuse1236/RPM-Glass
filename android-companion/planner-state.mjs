@@ -6,6 +6,7 @@ import {occurrences,completeTask,repeats} from './planner-recurrence.mjs';
 import {text,title,integer,weekdays,one,link} from './planner-fields.mjs';
 import {REVIEW_VERSION,REVIEW_OPS,migrateReviewData,forgetBlockInWeeks,keepCompletionTime} from './planner-review-data.mjs';
 import {BODY_OPS} from './body-store.mjs';
+import {UNDO_CHANGED_MESSAGE} from './undo-rebase.mjs';
 
 export {REVIEW_VERSION,migrateReviewData};
 
@@ -21,7 +22,22 @@ export const byProject=blocks=>{const rank=new Map();for(const b of blocks){cons
 export function blockDue(data,id){let best=null;for(const t of blockTasks(data,id)){if(t.done||t.recurrence||t.repeatAfterDays)continue;const value=t.planned?localStamp(t.planned):t.plannedDate;if(!value)continue;const at=Date.parse(value.length===10?value+'T23:59':value);if(!best||at>best.at)best={at,value,task:t};}return best&&{value:best.value,task:best.task};}
 export const localStamp=iso=>{const d=new Date(iso);return localDay(d)+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
 export function totals(rows){return {all:rows.filter(e=>!e.done).reduce((s,e)=>s+(e.minutes??0),0),must:rows.filter(e=>e.must&&!e.done).reduce((s,e)=>s+(e.minutes??0),0),unknown:rows.filter(e=>!e.done&&e.minutes==null).length};}
-const snap=data=>({entries:structuredClone(data.entries),planner:structuredClone({...planner(data),undo:null})});
+// Each Undo carries its own id, so an Undo offered for one change never takes back a later one. It is random, not
+// newId(): new records' ids are replayed in order across devices and must not shift.
+const snap=data=>({id:globalThis.crypto.randomUUID(),entries:structuredClone(data.entries),planner:structuredClone({...planner(data),undo:null})});
+
+// A keepUndo meal guess also lands in the kept Undo image when it holds that meal, so undoing a change made while
+// the guess ran keeps the newer guess instead of bringing back 'pending' (nothing asks again for a pending guess).
+function keptUndo(data,ops,at){
+  let undo=data.planner?.undo??null;
+  for(const op of ops){
+    const meal=op.type==='setMealGuess'&&undo?.planner.body?.meals?.find(m=>m.id===op.id);
+    if(!meal||meal.state==='skipped')continue;
+    if(undo===data.planner.undo)undo=structuredClone(undo);
+    BODY_OPS.setMealGuess({entries:undo.entries,planner:undo.planner},op,at);
+  }
+  return undo;
+}
 
 /** Validate on a copy, commit once, keep a single complete undo plus compact receipts. */
 export function editPlan(data,op,now=new Date()){
@@ -29,6 +45,7 @@ export function editPlan(data,op,now=new Date()){
   const next=structuredClone(data);next.planner??=freshPlanner();migrateReviewData(next);const p=next.planner,before=snap(data),at=now.toISOString();let result;
   if(op.type==='undo'){
     if(!p.undo)throw new Error(data.undoMessage ?? 'No planning change to undo.');
+    if(op.undoId!=null&&p.undo.id!==op.undoId)throw new Error(UNDO_CHANGED_MESSAGE);
     const restored=p.undo;next.entries=restored.entries;next.planner=restored.planner;next.planner.undo=null;next.undo=null;
     // Review progress is where the user is in the flow, not a plan change: Undo never rewinds it.
     migrateReviewData(next);next.planner.reviews=p.reviews;
@@ -38,7 +55,9 @@ export function editPlan(data,op,now=new Date()){
     if(!Array.isArray(op.ops)||!op.ops.length||op.ops.length>60||op.ops.some(child=>['undo','batch','reviewProgress'].includes(child.type)))throw new Error('Invalid planning batch.');
     for(const child of op.ops)result=editPlan(next,child,now);
     // Child edits replace the planner; retain their events and the single pre-batch Undo.
-    next.planner.undo=op.keepUndo?data.planner?.undo??null:before;
+    next.planner.undo=op.keepUndo?keptUndo(data,op.ops,at):before;
+    // A keepUndo batch leaves Capture's pending Undo too; the child edits cleared it on the copy.
+    if(op.keepUndo)next.undo=data.undo??null;
     if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
     Object.assign(data,next);return result;
   }
@@ -114,7 +133,9 @@ export function editPlan(data,op,now=new Date()){
     if(!Array.isArray(op.assignments)||!op.assignments.length||op.assignments.length>12)throw new Error('Choose existing RPM blocks for this grouping.');
     const assigned=new Set(),groups=[];
     for(const assignment of op.assignments){
-      const blockId=one(p.blocks,assignment.blockId).id;
+      const block=one(p.blocks,assignment.blockId);
+      if(block.archived)throw new Error('Choose an active RPM block for this grouping.');
+      const blockId=block.id;
       if(!Array.isArray(assignment.taskIds)||!assignment.taskIds.length||assignment.taskIds.length>60)throw new Error('Choose open unsorted tasks for this grouping.');
       const selected=[];
       for(const id of assignment.taskIds){
@@ -145,7 +166,7 @@ export function editPlan(data,op,now=new Date()){
     result=BODY_OPS[op.type](next,op,at);
   }else throw new Error('Unknown planning action.');
   for(const task of next.entries){if(task.blockId&&task.purpose){task.revisions??=[];task.revisions.push({at,reason:'Task purpose retained in notes',before:{purpose:task.purpose,notes:task.notes??''}});task.notes=[task.notes,'Previous task purpose: '+task.purpose].filter(Boolean).join('\n\n');task.purpose='';}}
-  validatePlanner(next);p.events.push({id:newId(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=op.keepUndo?data.planner?.undo??null:before;next.undo=null;if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
+  validatePlanner(next);p.events.push({id:newId(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=op.keepUndo?keptUndo(data,[op],at):before;next.undo=op.keepUndo?data.undo??null:null;if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
   Object.assign(data,next);return result;
 }
 
