@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {mergeChange} from './merge.mjs';
 import {storeFromRecords} from './records.mjs';
 import {validatePlanner} from '../../android-companion/planner-state.mjs';
+import {validateRecord} from './validate.mjs';
 
 const early = '2026-10-20T00:00:00.000Z', late = '2026-10-21T00:00:00.000Z', now = '2026-10-22T00:00:00.000Z';
 const change = (base, value, stamps = {}, baseRev = 1, key = 'task:1') => ({key, baseRev, base, value, stamps});
@@ -144,4 +145,23 @@ test('replaying a losing notes edit keeps values and stamps stable without nesti
   const replay = mergeChange(row(first.value, first.stamps, 3), c, now);
   assert.deepEqual(replay.value, first.value);
   assert.deepEqual(replay.stamps, first.stamps);
+});
+
+test('a conflict note that would push notes past the limit is left out, so the newer edit and uncontested fields still save', () => {
+  const task = {id: 1, kind: 'plan', title: 'Call bank', raw: 'Call bank', notes: 'x'.repeat(15950), purpose: '', planned: null, plannedDate: null, minutes: null, blockId: null, must: false, priority: null, done: false, archived: false, archiveDisposition: null, recurrence: null, repeatAfterDays: null, completedAt: null, completedOccurrences: [], alertIntent: {type: null}, completions: []};
+  const server = row({...task, title: 'Call bank about loan'}, {title: early}, 5);
+  const c = change(task, {...task, title: 'Call bank today', minutes: 30}, {title: late, minutes: late}, 4);
+  const result = mergeChange(server, c, now);
+  validateRecord('task:1', result.value);
+  assert.equal(result.value.title, 'Call bank today');
+  assert.equal(result.value.minutes, 30);
+  assert.equal(result.value.notes, task.notes);
+  assert.deepEqual(result.conflicts.map(entry => [entry.group, entry.lost.title, entry.lostFrom]), [['title', 'Call bank about loan', 'server']]);
+  assert.deepEqual(mergeChange(server, c, now), result);
+
+  const notesBase = {...task, notes: 'a'.repeat(6000)};
+  const both = mergeChange(row({...notesBase, notes: 'b'.repeat(6000)}, {notes: early}, 5), change(notesBase, {...notesBase, notes: 'c'.repeat(6000)}, {notes: late}, 4), now);
+  validateRecord('task:1', both.value);
+  assert.equal(both.value.notes, 'c'.repeat(6000));
+  assert.deepEqual(both.conflicts.map(entry => [entry.group, entry.lost.notes, entry.lostFrom]), [['notes', 'b'.repeat(6000), 'server']]);
 });

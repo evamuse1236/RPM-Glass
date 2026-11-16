@@ -1,4 +1,8 @@
 import kinds from './records.json' with {type: 'json'};
+import snapshotSchema from './snapshot.schema.json' with {type: 'json'};
+
+// A conflict note never pushes notes past the schema's limit: the record would be refused whole. The conflict entry keeps the lost words.
+const notesLimit = Math.min(...['entry', 'storeEntity'].map(def => snapshotSchema.$defs[def].properties.notes.maxLength));
 
 const equal = (a, b) => {
   if (a === b) return true;
@@ -88,7 +92,9 @@ export function mergeChange(row, change, now) {
     }
   }
   for (const line of notes) if (!(value.notes ?? '').split('\n').includes(line)) {
-    value.notes = [value.notes, line].filter(Boolean).join('\n');
+    const joined = [value.notes, line].filter(Boolean).join('\n');
+    if (joined.length > notesLimit) continue;
+    value.notes = joined;
     stamps.notes = now;
   }
   return {value, stamps, conflicts};
