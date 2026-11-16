@@ -1,4 +1,4 @@
-import {planner, tasks, blockTasks, blockDue, editPlan, shiftDay, localDay} from './planner-state.mjs';
+import {tasks, blockTasks, blockDue, editPlan, shiftDay, localDay} from './planner-state.mjs';
 import {repeats} from './planner-recurrence.mjs';
 import {checkDay, taskDate, dueAt} from './review-dates.mjs';
 import {DATE_LOCALE} from './planner/format.mjs';
@@ -107,17 +107,18 @@ export function mustPlacements(data, blockIds, events, week, now = new Date()) {
   return out;
 }
 
-/** Gives each proposed Must its day, as one change with one Undo. */
-export function placeMusts(data, placements) {
-  if (!placements.length) throw new Error('Nothing to place.');
-  let undo = null;
-  for (const p of placements) {
-    editPlan(data, {type: 'saveTask', id: p.taskId, fields: {plannedDate: checkDay(p.day)}});
-    undo ??= planner(data).undo;
-  }
-  data.planner.undo = undo;
-  return placements.length === 1 ? 'Must given a day' : `${placements.length} Musts given a day`;
+/**
+ * Gives each proposed Must that is still open and undated its day, as one JSON batch (one Undo); null when none is
+ * left. Read from the saved tasks at save time, so a second tap before the first save lands saves nothing.
+ */
+export function placeMustsOp(data, placements) {
+  const entries = data.entries ?? [];
+  const left = placements.filter(p => { const t = entries.find(e => e.id === p.taskId); return t && !t.done && !taskDate(t); });
+  return left.length ? {type: 'batch', ops: left.map(p => ({type: 'saveTask', id: p.taskId, fields: {plannedDate: checkDay(p.day)}}))} : null;
 }
+
+/** The receipt for a placeMustsOp batch. */
+export const placedLabel = op => (op.ops.length === 1 ? 'Must given a day' : `${op.ops.length} Musts given a day`);
 
 /* ---------- step 3: which Result an Inbox task most likely serves ---------- */
 const STOP = new Set(('a an the and or but for with from that this into onto about again your our my me we us you it its is be am are was '

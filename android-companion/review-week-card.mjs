@@ -1,4 +1,4 @@
-import {taskDate, weekCapacity, placedMusts, mustPlacements, clashKey, clashDecision} from './review-state.mjs';
+import {taskDate, weekCapacity, placedMusts, mustPlacements, placeMustsOp, placedLabel, clashKey, clashDecision} from './review-state.mjs';
 import {localDay} from './planner-state.mjs';
 import {clock, duration, plural, timeRange, DATE_LOCALE} from './planner/format.mjs';
 import {READABLE, el, icon, button, hours, dayName, weekday, whenText, dueWords} from './review-ui.mjs';
@@ -98,11 +98,7 @@ function placementBox(api, placements) {
   }
   const go = button(placements.length === 1 ? 'Give it this day' : 'Give them these days',
     // Built in its turn from the saved tasks, so a second tap before the first save lands finds them dated and saves nothing.
-    () => api.enqueue(() => {
-      const entries = api.data().entries;
-      const left = placements.filter(p => { const t = entries.find(e => e.id === p.taskId); return t && !t.done && !taskDate(t); });
-      return left.length ? {type: 'batch', ops: left.map(p => ({type: 'saveTask', id: p.taskId, fields: {plannedDate: p.day}}))} : null;
-    }, op => (op.ops.length === 1 ? 'Must given a day' : `${op.ops.length} Musts given a day`)), 'wr-btn-tonal');
+    () => api.enqueue(() => placeMustsOp(api.data(), placements), placedLabel), 'wr-btn-tonal');
   go.dataset.key = 'place';
   box.append(list, go);
   return box;
