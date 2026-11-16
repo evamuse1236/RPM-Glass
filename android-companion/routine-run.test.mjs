@@ -15,6 +15,8 @@ Object.assign(FakeElement.prototype, {
 const {editPlan} = await import('./planner-state.mjs');
 const {bodyApi} = await import('./planner/body-api.mjs');
 const {openRunSheet} = await import('./planner/routines.mjs');
+const {toggleRoutine} = await import('./planner/today-day.mjs');
+const {doneAll} = await import('./body-state.mjs');
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const rowsOf = node => (node.classList?.contains('step-row') ? [node] : [...(node.children ?? [])].flatMap(rowsOf));
@@ -82,4 +84,26 @@ test('a tick whose save fails while a later tick is queued keeps both ticks, sin
   assert.deepEqual(routine.steps.map(step => run.marks[step.id]?.state ?? null), ['done', 'done', null],
     'the queued save carries both ticks');
   assert.deepEqual(rows.map(row => row.querySelector('.task-check').getAttribute('aria-checked')), ['true', 'true', 'false']);
+});
+
+test('a Routine ring on Today tapped twice before the save lands keeps one change, and Undo brings the run back', async () => {
+  for (const startDone of [true, false]) {
+    const {app, pending} = heldApp();
+    const body = bodyApi(app);
+    const routine = body.routines()[0];
+    const day = '2026-10-19';
+    app.state.day = day;
+    if (startDone) editPlan(app.data(), {type: 'saveRoutineRun', run: {...doneAll(routine, null, new Date()), day}});
+    const before = structuredClone(body.runFor(routine.id, day)?.marks ?? {});
+    const row = {routine: {id: routine.id}, done: startDone};
+    const first = toggleRoutine(app, body, row);
+    await wait(5);
+    const second = toggleRoutine(app, body, row);
+    await wait(60);
+    while (pending.length) { pending.shift()(); await wait(60); }
+    await Promise.all([first, second]);
+    assert.notDeepEqual(body.runFor(routine.id, day)?.marks ?? {}, before, 'the tap changed the run');
+    editPlan(app.data(), {type: 'undo'});
+    assert.deepEqual(body.runFor(routine.id, day)?.marks ?? {}, before, `Undo restores the run (started ${startDone ? 'done' : 'open'})`);
+  }
 });

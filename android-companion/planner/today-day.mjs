@@ -56,9 +56,23 @@ function spineModel(app) {
   };
 }
 
-async function toggleRoutine(app, body, row) {
+// The ring stays on screen until its save lands and the day redraws: a second tap meanwhile would repeat the first
+// change from the same row and take the Undo slot, so it does nothing.
+const togglingRoutines = new Set();
+
+/** Tap on a Routine's ring: all its steps done, or reopened, with Undo; one change per Routine at a time. */
+export async function toggleRoutine(app, body, row) {
   const routine = body.routine(row.routine.id);
-  if (!routine) return;
+  if (!routine || togglingRoutines.has(routine.id)) return;
+  togglingRoutines.add(routine.id);
+  try {
+    await saveRoutineToggle(app, body, row, routine);
+  } finally {
+    togglingRoutines.delete(routine.id);
+  }
+}
+
+async function saveRoutineToggle(app, body, row, routine) {
   const run = body.runFor(routine.id, app.state.day);
   const next = row.done ? {routineId: routine.id, day: app.state.day, marks: {}} : doneAll(routine, run, new Date());
   try {
