@@ -103,6 +103,7 @@ export async function commitInPlace(app, op, options) {
  * instead of treating an unsaved change as saved.
  */
 export async function persist(app, op, options) {
+  if (!app.saving) return app.commit(op, options);
   await whenIdle(app);
   return app.commit(op, options);
 }
