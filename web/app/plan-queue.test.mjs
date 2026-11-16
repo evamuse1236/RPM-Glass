@@ -66,6 +66,8 @@ test('a change shows at once, is sent as a plan command on the revision the user
   assert.deepEqual(validateCommand(command), command);
   assert.equal(command.type, 'plan');
   assert.equal(command.baseRevision, 42);
+  assert.equal(command.timezone, Intl.DateTimeFormat().resolvedOptions().timeZone, 'the server reads days and hours in the zone the browser showed');
+  assert.throws(() => validateCommand({...command, timezone: 'Not/AZone'}), /Invalid browser command/);
   assert.ok(queue.pendingIds().has(3));
   device.apply(0);
   assert.equal(queue.pendingIds().size, 0);
@@ -146,7 +148,7 @@ test('Undo of a sent change becomes an undo command for it once the phone has ap
   device.apply(0);
   const undo = client.sent()[1];
   assert.deepEqual(validateCommand(undo), undo);
-  assert.deepEqual([undo.type, undo.args.commandId, undo.baseRevision], ['undo', planId, 43]);
+  assert.deepEqual([undo.type, undo.args.commandId, undo.baseRevision, undo.timezone], ['undo', planId, 43, Intl.DateTimeFormat().resolvedOptions().timeZone]);
   assert.equal(task(queue, 3).done, false);
   device.apply(1);
   assert.equal(queue.pendingIds().size, 0);

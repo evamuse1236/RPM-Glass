@@ -70,7 +70,8 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
   }
 
   function command(rec) {
-    const base = {id: rec.id, createdAt: rec.at, baseRevision: rec.baseRevision};
+    // The server runs in UTC, so it reads days and hours in the zone this browser showed them in.
+    const base = {id: rec.id, createdAt: rec.at, baseRevision: rec.baseRevision, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone};
     return validateCommand(rec.kind === 'undo' ? {...base, type: 'undo', args: {commandId: rec.targetId}} : {...base, type: 'plan', args: {op: rec.op, ids: [...(rec.uuids ?? []), ...(rec.taskIds ?? [])], ...(rec.taskIds ? {exactTaskIds: true} : {})}});
   }
 
