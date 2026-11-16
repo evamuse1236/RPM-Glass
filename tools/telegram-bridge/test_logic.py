@@ -38,6 +38,15 @@ class Pick(unittest.TestCase):
         self.assertNotIn(5, [c["id"] for c in logic.send_targets(BOTS)])
         self.assertNotIn(6, [c["id"] for c in logic.send_targets(BOTS)])
 
+    def test_the_read_after_a_send_finds_the_bot_by_its_exact_username_when_a_person_shares_its_name(self):
+        chats = [{"id": 1, "name": "Ima", "username": "ima_bot", "bot": True}, {"id": 2, "name": "Ima", "username": None, "bot": False}]
+        self.assertEqual(logic.pick("ima_bot", chats)["id"], 1)
+        self.assertEqual(logic.pick("@IMA_BOT", chats)["id"], 1)
+        with self.assertRaisesRegex(logic.NoMatch, "more than one"):
+            logic.pick("Ima", chats)
+        with self.assertRaises(logic.NoMatch):
+            logic.pick("codes", [{"id": 777000, "name": "Telegram", "username": "codes", "bot": False}])
+
 
 class Access(unittest.TestCase):
     def test_only_the_owner_login_passes_and_a_local_caller_only_when_allowed(self):

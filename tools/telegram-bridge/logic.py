@@ -62,6 +62,10 @@ def label(chat):
 def pick(said, chats, kind="chat"):
     """The one chat a spoken name means. Raises NoMatch with words the model can say when none or several fit."""
     chats = [c for c in chats if c.get("id") not in LOGIN_CODE_CHATS]
+    handle = str(said or "").strip().lstrip("@").lower()
+    exact = [c for c in chats if handle and str(c.get("username") or "").lower() == handle]
+    if len(exact) == 1:
+        return exact[0]
     ranked = sorted(((score(said, c), c) for c in chats), key=lambda x: -x[0])
     top = ranked[0][0] if ranked else 0
     if top == 0:
