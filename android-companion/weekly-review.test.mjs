@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {installFakeDom, FakeElement} from './fake-dom.mjs';
 import {editPlan, planner} from './planner-state.mjs';
-import {reviewProgress} from './review-state.mjs';
-import {seed, WEEK, LAST} from './review-fixtures.mjs';
+import {reviewProgress, leftoverChoice} from './review-state.mjs';
+import {seed, WEEK, LAST, entry} from './review-fixtures.mjs';
 import {mountWeeklyReview} from './weekly-review.mjs';
 import {sheetLayer} from './review-step-three.mjs';
 
@@ -271,5 +271,36 @@ test('Finish tapped while another planner save is in flight saves the finish bef
     assert.ok(planner(d).reviews?.[WEEK]?.finishedAt, 'the finish is saved');
   } finally {
     review.destroy();
+  }
+});
+
+test('Carry, or Carry all, tapped twice before the save lands carries once, so Undo brings the task back to undecided', async () => {
+  for (const which of ['row', 'all']) {
+    const {d, home, meals, kitchen} = seed();
+    editPlan(d, {type: 'setWeekFocus', week: LAST, ids: [home]});
+    editPlan(d, {type: 'markAchieved', id: home, achieved: false, verdict: 'notyet', week: LAST});
+    const box = document.createElement('div');
+    let saves = 0;
+    const review = mountWeeklyReview(box, {getData: () => d, close() {}, openBlock() {}, openCapture() {},
+      commit: async op => { await settle(); if (op.type !== 'reviewProgress') saves++; editPlan(d, op); },
+      day: () => '2026-09-26', now: () => new Date('2026-09-26T10:00:00+05:30')});
+    try {
+      await settle();
+      const tap = which === 'row'
+        ? box.querySelector(`[data-key="carry:${meals}"]`)
+        : [...box.querySelectorAll('button')].find(n => n.textContent.includes('Carry all'));
+      assert.ok(tap, `${which}: the carry button shows`);
+      tap.click();
+      tap.click();
+      for (let i = 0; i < 8; i++) await settle();
+      const choice = id => leftoverChoice(entry(d, id), WEEK);
+      assert.equal(choice(meals), 'carry', `${which}: carried`);
+      assert.equal(saves, 1, `${which}: one carry saved`);
+      editPlan(d, {type: 'undo'});
+      assert.equal(choice(meals), null, `${which}: Undo takes the carry back`);
+      if (which === 'all') assert.equal(choice(kitchen), null, 'Undo takes back every task Carry all carried');
+    } finally {
+      review.destroy();
+    }
   }
 });

@@ -99,13 +99,14 @@ function createActions(ctx, week, ui, render) {
   function run(op, label) {
     return enqueue(() => op, label);
   }
-  // `build` makes the op when its turn comes, on the data the earlier saves left.
+  // `build` makes the op when its turn comes, on the data the earlier saves left; null means nothing is left to save.
   function enqueue(build, label) {
     ui.saving++;
     const job = queue.then(async () => {
       ui.busy = true;
       try {
-        await ctx.commit(build(), label);
+        const op = build();
+        if (op) await ctx.commit(op, label);
       } catch (error) {
         ui.hint = userMessage(error, 'That change could not be saved.');
       } finally {
@@ -159,7 +160,7 @@ function createActions(ctx, week, ui, render) {
     const rows = events();
     return rows ? weekCapacity([], rows, week, ctx.now()).clashes.slice(0, 2).map(c => ({...c, key: clashKey(c), task: clashTask(data(), c)})) : [];
   };
-  return {data, week, ui, run, goTo, close, finish, render, groupList, openBlock, events, clashes, decideClash, saveProgress, now: () => ctx.now()};
+  return {data, week, ui, run, enqueue, goTo, close, finish, render, groupList, openBlock, events, clashes, decideClash, saveProgress, now: () => ctx.now()};
 }
 
 /** Another surface (the website, a second tab) saved this week's drafts: show them instead of writing over them later. */
