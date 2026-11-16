@@ -108,6 +108,23 @@ public class CompanionAlertsIdTest {
         t.put("planned",Instant.ofEpochMilli(once+3600000).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
         assertEquals(once+3600000,CompanionAlerts.ledger(c).getJSONObject("28").getLong("at"));
     }
+    @Test public void doneOnASnoozedLeadAlertTicksTodaysOccurrence()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();
+        long occurrence=leadAlertDueNow(c,29,"alarm"); // rings now, 30 min before its occurrence
+        JSONObject l=CompanionAlerts.ledger(c);l.getJSONObject("29").put("status","ringing");CompanionAlerts.persist(c,l);
+        CompanionAlerts.finish(c,29,true,"Alarm snoozed"); // rings again in 10 min, still before the occurrence
+        assertEquals("the notch's Done on the snoozed alarm ticks today's occurrence",occurrence,NotchAlerting.doneStart(CompanionAlerts.ledger(c).getJSONObject("29"),0));
+        occurrence=leadAlertDueNow(c,30,"reminder");
+        CompanionAlerts.fired(c,30,occurrence); // the lead reminder posts
+        CompanionAlerts.finish(c,30,true,"Reminder snoozed"); // the notch's Snooze
+        long snoozeAt=CompanionAlerts.ledger(c).getJSONObject("30").getLong("at");
+        CompanionAlerts.fired(c,30,snoozeAt);
+        java.util.List<android.content.Intent> sent=shadowOf((Application)c).getBroadcastIntents();
+        android.content.Intent last=sent.get(sent.size()-1);
+        assertEquals(NotchAlerting.REMINDER_FIRED,last.getAction());
+        assertEquals("the snoozed reminder's island shows its snooze time",snoozeAt,last.getLongExtra("at",0));
+        assertEquals("the notch's Done on the snoozed reminder ticks today's occurrence",occurrence,last.getLongExtra("done",last.getLongExtra("at",0)));
+    }
     /** A daily alarm whose ledger row says ringing at {@code since}, with no alarm service holding it. */
     private static JSONObject ringingRow(Context c,long id,long occurrence,long since)throws Exception{
         CompanionAlerts.channels(c);
