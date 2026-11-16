@@ -17,3 +17,15 @@ export function redact(value:unknown,depth=0):unknown {
   if(value&&typeof value==="object")return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,sensitive.test(k)?"[REDACTED]":redact(v,depth+1)]));
   return value;
 }
+// Convex stores only field names of non-control ASCII that do not start with '$'.
+// A console key outside that (a Hindi or accented word, "$ref") is percent-escaped
+// rather than losing the event; '%' itself is escaped, so two keys never meet.
+function storableKey(key:string):string {
+  return Array.from(key,(ch,i)=>{const code=ch.codePointAt(0)!;
+    return code<32||code>=127||ch==="%"||(i===0&&ch==="$")?Array.from(new TextEncoder().encode(ch),b=>"%"+b.toString(16).toUpperCase().padStart(2,"0")).join(""):ch;}).join("");
+}
+export function storableKeys(value:unknown):unknown {
+  if(Array.isArray(value))return value.map(storableKeys);
+  if(value&&typeof value==="object")return Object.fromEntries(Object.entries(value).map(([k,v])=>[storableKey(k),storableKeys(v)]));
+  return value;
+}
