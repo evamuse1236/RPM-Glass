@@ -28,7 +28,7 @@ proto.scrollIntoView ??= function () {};
 if (!('style' in proto)) Object.defineProperty(proto, 'style', {get() { return this._st ??= {setProperty() {}, removeProperty() {}}; }, set() {}});
 if (!Object.getOwnPropertyDescriptor(proto, 'parentElement')) Object.defineProperty(proto, 'parentElement', {get() { return this.parentNode; }});
 if (!Object.getOwnPropertyDescriptor(proto, 'lastChild')) Object.defineProperty(proto, 'lastChild', {get() { return this.children.at(-1) ?? {}; }});
-const {openMealSheet} = await import('./planner/meals.mjs');
+const {openMealSheet, logMealNow} = await import('./planner/meals.mjs');
 
 const find = (n, pred) => { if (pred(n)) return n; for (const c of n.children ?? []) { const f = find(c, pred); if (f) return f; } return null; };
 const settle = () => new Promise(resolve => setTimeout(resolve, 10));
@@ -68,4 +68,19 @@ test('a usual-food chip tapped after the clock moved saves at the tap, not when 
   assert.equal(saved.length, 1);
   assert.equal(saved[0].name, 'Oats');
   assert.equal(saved[0].at, new Date('2026-11-16T08:40:00').toISOString());
+});
+
+test('"Log lunch" tapped twice before the first save lands logs one lunch', async () => {
+  const {saved, app, body} = harness([{id: 'old', name: 'Dal rice', slot: 'lunch', state: 'logged', at: new Date('2026-11-14T13:00:00').toISOString()}]);
+  app.dom.snackbar = new FakeElement('div');
+  app.dom.snackbar.hidden = true;
+  // body-api's saver queues each save behind the last, and a save takes a while on the phone
+  let queue = Promise.resolve();
+  body.saveMeal = m => (queue = queue.then(() => new Promise(resolve => setTimeout(resolve, 40))).then(() => { saved.push(m); return {id: `m${saved.length}`, ...m}; }));
+  const first = logMealNow(app, body, 'lunch', 'Lunch');
+  await new Promise(resolve => setTimeout(resolve, 10));
+  const second = logMealNow(app, body, 'lunch', 'Lunch');
+  await Promise.allSettled([first, second]);
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].name, 'Dal rice');
 });
