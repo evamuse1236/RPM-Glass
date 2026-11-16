@@ -72,6 +72,20 @@ test('inline-style-attribute flags a style attribute in markup, which the compan
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });
 
+test('inline-style-attribute also flags setAttribute(\'style\') and a style= that starts a line, but not node.style or a <style> element', () => {
+  const root = tree({
+    'android-companion/planner/paint.mjs': "export const a = node => node.setAttribute('style', 'color:red');\nexport const b = () => `<div\nstyle=\"color:red\"></div>`;\nnode.style.setProperty('--h', '4px');\nnode.style.color = 'red';\n",
+    'android-companion/planner.html': '<style>body{margin:0}</style>\n<div id="dock"></div>\n',
+  });
+  try {
+    const problems = check(root);
+    assert.deepEqual(problems.map(p => p.match(/^rule (\S+): (\S+:\d+):/)?.slice(1).join(' ')), [
+      'inline-style-attribute android-companion/planner/paint.mjs:1',
+      'inline-style-attribute android-companion/planner/paint.mjs:3',
+    ]);
+  } finally { fs.rmSync(root, {recursive: true, force: true}); }
+});
+
 test('task-id-counter rejects max-plus-one entry allocation but permits unrelated maxima and the allocator', () => {
   const root = tree({
     'android-companion/new-task.mjs': 'const id = Math.max(0, ...data.entries.map(e => e.id)) + 1;',
