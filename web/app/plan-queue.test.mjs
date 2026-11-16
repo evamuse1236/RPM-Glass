@@ -309,6 +309,34 @@ test('a voice ramble is one plan command on the ramble\'s own ids, and one Undo 
   assert.deepEqual(queue.data().entries, before);
 });
 
+function rambleAfterWords(source) {
+  const {client, queue, device} = setup();
+  const before = structuredClone(queue.data().entries);
+  const {result} = ramble(queue.data());
+  const words = client.state.snapshot.revision + 1;
+  client.state.outbox.push({command: {id: 'words', type: 'capture', args: {text: 'ship the app', ...(source ? {source} : {})}}, status: 'applied', newRevision: words});
+  queue.commit(result.batch, {uuids: result.uuids, tasks: result.created});
+  const told = [];
+  queue.subscribe(r => told.push(r));
+  const version = queue.data().version;
+  client.state.snapshot = {...client.state.snapshot, revision: words};
+  device.apply(1);
+  return {queue, before, told, version};
+}
+
+test('a ramble\'s own voice capture is not a foreign change, so its Undo takes the ramble back on screen at once', () => {
+  const {queue, before, told, version} = rambleAfterWords('voice');
+  assert.deepEqual(told.map(r => r.foreign), told.map(() => false));
+  assert.equal(queue.data().version, version);
+  queue.commit({type: 'undo'});
+  assert.deepEqual(queue.data().entries, before);
+});
+
+test('a typed capture is still a foreign change, because the server\'s model may change the plan for it', () => {
+  const {told} = rambleAfterWords();
+  assert.ok(told.some(r => r.foreign));
+});
+
 test('a ramble worked out on a plan that has since changed is refused before sending, so its words stay the only record', () => {
   const {client, queue} = setup();
   const {result} = ramble(queue.data());
