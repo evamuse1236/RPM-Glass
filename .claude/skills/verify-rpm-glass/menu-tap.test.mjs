@@ -40,3 +40,18 @@ test('a tap scrolls a control that is only partly on screen, and refuses one who
   assert.equal(LOCATE({role: 'combobox', name: 'Add a task to the Plan', scroll: true}).match.offScreen, false);
   assert.deepEqual(scrolled, ['add'], 'a control wholly on screen is tapped where it is');
 });
+
+test('a tap by name or by css refuses a control whose centre another element covers, naming the cover', () => {
+  const target = {getBoundingClientRect: () => ({left: 20, top: 500, width: 100, height: 48}), contains: node => node === target || node === label, getAttribute: () => 'Save', tagName: 'BUTTON'};
+  const label = {tagName: 'SPAN', contains: () => false};
+  const snack = {tagName: 'DIV', id: 'snackbar', className: 'snack', contains: () => false};
+  onPage([{ref: 0, role: 'button', name: 'Save', rect: [20, 500, 100, 48], inView: true}]);
+  window.__rpmEls = {0: target};
+  let front = snack;
+  document.elementFromPoint = (x, y) => (assert.deepEqual([x, y], [70, 524]), front);
+  document.querySelectorAll = () => [target];
+  assert.equal(LOCATE({role: 'button', name: 'Save'}).match.coveredBy, 'div#snackbar.snack');
+  assert.equal(LOCATE({css: '#save'}).match.coveredBy, 'div#snackbar.snack', 'a --css tap is refused like a --name tap');
+  front = label;
+  assert.equal(LOCATE({css: '#save'}).match.coveredBy, null, 'the control\'s own child is not a cover');
+});

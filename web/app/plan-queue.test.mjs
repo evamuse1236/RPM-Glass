@@ -66,6 +66,8 @@ test('a change shows at once, is sent as a plan command on the revision the user
   assert.deepEqual(validateCommand(command), command);
   assert.equal(command.type, 'plan');
   assert.equal(command.baseRevision, 42);
+  assert.equal(command.timezone, Intl.DateTimeFormat().resolvedOptions().timeZone, 'the server reads days and hours in the zone the browser showed');
+  assert.throws(() => validateCommand({...command, timezone: 'Not/AZone'}), /Invalid browser command/);
   assert.ok(queue.pendingIds().has(3));
   device.apply(0);
   assert.equal(queue.pendingIds().size, 0);
@@ -146,7 +148,7 @@ test('Undo of a sent change becomes an undo command for it once the phone has ap
   device.apply(0);
   const undo = client.sent()[1];
   assert.deepEqual(validateCommand(undo), undo);
-  assert.deepEqual([undo.type, undo.args.commandId, undo.baseRevision], ['undo', planId, 43]);
+  assert.deepEqual([undo.type, undo.args.commandId, undo.baseRevision, undo.timezone], ['undo', planId, 43, Intl.DateTimeFormat().resolvedOptions().timeZone]);
   assert.equal(task(queue, 3).done, false);
   device.apply(1);
   assert.equal(queue.pendingIds().size, 0);
@@ -307,6 +309,34 @@ test('a voice ramble is one plan command on the ramble\'s own ids, and one Undo 
   device.apply(1);
   assert.deepEqual(client.state.snapshot.entries, before);
   assert.deepEqual(queue.data().entries, before);
+});
+
+function rambleAfterWords(source) {
+  const {client, queue, device} = setup();
+  const before = structuredClone(queue.data().entries);
+  const {result} = ramble(queue.data());
+  const words = client.state.snapshot.revision + 1;
+  client.state.outbox.push({command: {id: 'words', type: 'capture', args: {text: 'ship the app', ...(source ? {source} : {})}}, status: 'applied', newRevision: words});
+  queue.commit(result.batch, {uuids: result.uuids, tasks: result.created});
+  const told = [];
+  queue.subscribe(r => told.push(r));
+  const version = queue.data().version;
+  client.state.snapshot = {...client.state.snapshot, revision: words};
+  device.apply(1);
+  return {queue, before, told, version};
+}
+
+test('a ramble\'s own voice capture is not a foreign change, so its Undo takes the ramble back on screen at once', () => {
+  const {queue, before, told, version} = rambleAfterWords('voice');
+  assert.deepEqual(told.map(r => r.foreign), told.map(() => false));
+  assert.equal(queue.data().version, version);
+  queue.commit({type: 'undo'});
+  assert.deepEqual(queue.data().entries, before);
+});
+
+test('a typed capture is still a foreign change, because the server\'s model may change the plan for it', () => {
+  const {told} = rambleAfterWords();
+  assert.ok(told.some(r => r.foreign));
 });
 
 test('a ramble worked out on a plan that has since changed is refused before sending, so its words stay the only record', () => {

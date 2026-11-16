@@ -136,6 +136,13 @@ test('"use node" Convex files read local time only inside withTimeZone', () => {
   }));
 });
 
+// Convex mutations run in UTC too: a website tick reads repeat days and hours in the zone its command names.
+test('every Convex file runs the planner reducer inside withTimeZone', () => {
+  const files = tracked('convex').filter(file => /\.ts$/.test(file) && !isTest(file));
+  assert.ok(files.includes('convex/plannerWrite.ts'));
+  assert.deepEqual(files.flatMap(file => unzonedPlannerCalls(readFileSync(file, 'utf8'), file).filter(name => name === 'editPlan').map(name => `${file}:${name}`)), []);
+});
+
 test('every "use node" action reaches withTimeZone', () => {
   checkAllowed(UNZONED_HANDLERS, nodeFiles().flatMap(file => unzonedHandlers(readFileSync(file, 'utf8'), file)
     .map(name => [`${file}:${name}`, 'call withTimeZone, or a function of a sibling file that calls it, or list it with a reason'])));

@@ -70,7 +70,8 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
   }
 
   function command(rec) {
-    const base = {id: rec.id, createdAt: rec.at, baseRevision: rec.baseRevision};
+    // The server runs in UTC, so it reads days and hours in the zone this browser showed them in.
+    const base = {id: rec.id, createdAt: rec.at, baseRevision: rec.baseRevision, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone};
     return validateCommand(rec.kind === 'undo' ? {...base, type: 'undo', args: {commandId: rec.targetId}} : {...base, type: 'plan', args: {op: rec.op, ids: [...(rec.uuids ?? []), ...(rec.taskIds ?? [])], ...(rec.taskIds ? {exactTaskIds: true} : {})}});
   }
 
@@ -102,8 +103,11 @@ export function createPlanQueue({client, storage = globalThis.localStorage, now 
     return {sends, failed, redraw};
   }
 
+  // A voice capture is this browser's own journal of a ramble's words and changes no plan rows; a typed capture
+  // runs the server's model, which may change the plan, so it stays foreign.
   function mine() {
-    return new Set(client.state.outbox.filter(e => e.status === 'applied' && ['plan', 'undo'].includes(e.command.type)).map(e => e.newRevision));
+    const own = e => ['plan', 'undo'].includes(e.command.type) || e.command.type === 'capture' && e.command.args?.source === 'voice';
+    return new Set(client.state.outbox.filter(e => e.status === 'applied' && own(e)).map(e => e.newRevision));
   }
 
   function project() {
