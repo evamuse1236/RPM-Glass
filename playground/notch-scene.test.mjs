@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {parseNotchData} from './notch-day.mjs';
+import {parseNotchData, today, hero, after} from './notch-day.mjs';
 import {notchScene, alertScene, WATER_SNOOZE, routineSnooze, PillPriority, controls, visibleRows, more, progress, heroValue} from './notch-scene.mjs';
 import {anchor, G, D, innerRadius, faceTop, bandAt, pillRing, fits, faceScale, islandInset} from './notch-geometry.mjs';
 import {S24} from './device.mjs';
@@ -23,6 +23,16 @@ function day(body, events = null) {
   return parseNotchData({version: 1, entries, planner}, events);
 }
 const scene = (data, local, snoozes = {}) => notchScene(data, at(local), snoozes, false);
+
+test('a timed task with no estimate is 0 long, as the planner and NotchData.java read it', () => {
+  const now = at('2026-10-18T10:10');
+  const call = {id: 1, kind: 'plan', title: 'Call bank', planned: iso('2026-10-18T10:00')};
+  const {tasks} = parseNotchData({version: 1, entries: [call, {...call, id: 2, minutes: 'abc'}], planner: {}});
+  assert.deepEqual(tasks.map(t => t.minutes), [0, 0]);
+  const slots = today(tasks, now);
+  assert.equal(hero(slots, now), null, 'the planner shows this task 10 min late; Java has no hero');
+  assert.deepEqual(after(slots, null, now, 3), []);
+});
 
 test('a running task shows time left everywhere', () => {
   const s = scene(day(true), '2026-10-18T15:50');

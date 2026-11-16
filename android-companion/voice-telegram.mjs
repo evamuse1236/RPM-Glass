@@ -130,7 +130,12 @@ export function telegramLink({action}){
   bots:[],
   run(name,args,context){
    if(name==='send_telegram')return send(args??{},context);
-   if(name==='read_telegram')return bridge({op:'read',...(args??{})});
+   // Only the fields read_telegram declares: a model's op, to or text must never turn a read into a send.
+   if(name==='read_telegram'){
+    const read={op:'read'};
+    for(const key of ['chat','limit','waitSeconds'])if(args?.[key]!=null)read[key]=args[key];
+    return bridge(read);
+   }
    return Promise.reject(asked(`Unknown tool ${name}.`));
   },
  };
