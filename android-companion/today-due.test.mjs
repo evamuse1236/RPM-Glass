@@ -110,6 +110,22 @@ test('Free time runs from the next quarter hour to the next fixed thing and take
     'free time starts at 8 AM, as in the weekly review');
 });
 
+test('Before 8 AM, a fixed thing that is over by the gap start (or still on at it) never hides the free time', () => {
+  const d = freshStore();
+  task(d, {title: 'Gym', minutes: 30, planned: '2026-10-03T01:00:00.000Z'}); // 6:30-7:00 AM
+  const span = gap => gap && [gap.start, gap.end].map(at => at.toISOString());
+  const early = new Date('2026-10-03T06:00:00+05:30');
+  assert.deepEqual(span(freeGap(d, {now: early})), ['2026-10-03T02:30:00.000Z', '2026-10-03T16:30:00.000Z'],
+    'a 6:30 workout leaves 8 AM-10 PM free');
+  const meeting = {id: 'm', title: 'Meeting', busy: true, start: Date.parse('2026-10-03T02:00:00Z'), end: Date.parse('2026-10-03T03:30:00Z')};
+  for (const now of [early, new Date('2026-10-03T07:00:00+05:30')])
+    assert.deepEqual(span(freeGap(freshStore(), {now, calendar: [meeting]})), ['2026-10-03T03:30:00.000Z', '2026-10-03T16:30:00.000Z'],
+      'a 7:30-9:00 meeting moves the gap to 9 AM');
+  const late = {id: 'l', title: 'Call', busy: true, start: Date.parse('2026-10-03T03:00:00Z'), end: Date.parse('2026-10-03T03:30:00Z')};
+  assert.deepEqual(span(freeGap(freshStore(), {now: early, calendar: [late]})), ['2026-10-03T02:30:00.000Z', '2026-10-03T03:00:00.000Z'],
+    'an 8:30 call still ends the gap');
+});
+
 test('Free time goes to the nearest deadline with unscheduled work that fits; Coming up lists every other deadline once', () => {
   const d = freshStore();
   const review = block(d, {title: 'Critical review', purpose: 'A calm Sunday'});
