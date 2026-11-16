@@ -17,7 +17,7 @@ import {taskRow, completedSection, toggleDone, taskWhen, isOverdue} from './task
 import {openSheet, field} from './sheet.mjs';
 import {openMenu} from './menu.mjs';
 import {playMotion, DURATION, EASE} from '../surface-motion.mjs';
-import {saveEntity, NO_ICON} from './inline-edit.mjs';
+import {saveEntity, NO_ICON, persist} from './inline-edit.mjs';
 import {stampOf, factRow, purposePanel, notesPanel, revealNotes, titleField, finishDetail} from './detail-fields.mjs';
 import {blockAdd} from './block-add.mjs';
 
@@ -429,8 +429,22 @@ export function blockMenu(app, block) {
   if (!block.notes) items.push({label: 'Add notes', icon: 'notes', onClick: () => revealNotes(app, 'blocks', block.id)});
   items.push(
     {label: 'Suggest a Purpose', icon: 'auto_awesome', onClick: () => app.actions.purposeIdea(block.id)},
-    {label: 'Archive Block', icon: 'archive', onClick: () => app.commit({type: 'archiveBlock', id: block.id},
-      {label: 'Block archived'}).then(() => app.back()).catch(() => {})},
+    {label: 'Archive Block', icon: 'archive', onClick: () => archiveBlock(app, block.id)},
   );
   return items;
+}
+
+const archiving = new Set();
+
+/** Archives a Block once the save in flight ends, and goes Back only when the archive was saved. */
+async function archiveBlock(app, id) {
+  if (archiving.has(id)) return;
+  archiving.add(id);
+  try {
+    if (await persist(app, {type: 'archiveBlock', id}, {label: 'Block archived'}) !== undefined) app.back();
+  } catch {
+    // persist has already shown why nothing was saved.
+  } finally {
+    archiving.delete(id);
+  }
 }

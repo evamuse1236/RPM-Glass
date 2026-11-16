@@ -78,3 +78,24 @@ test('a Schedule menu choice tapped while another save runs saves it once that s
   assert.equal(app.ops[0].type, 'saveTask');
   assert.equal(app.ops[0].id, 5);
 });
+
+test('Archive Block tapped while another save runs archives the Block, then goes Back once', async () => {
+  const {blockMenu} = await import('./planner/blocks.mjs');
+  const app = fakeApp({savingFor: 60});
+  let backs = 0;
+  app.back = () => { backs++; };
+  app.actions = {purposeIdea() {}};
+  const archive = blockMenu(app, {id: 7}).find(item => item.label === 'Archive Block');
+  archive.onClick();
+  archive.onClick();
+  await new Promise(resolve => setTimeout(resolve, 200));
+  assert.deepEqual(app.ops.map(op => op.type), ['archiveBlock']);
+  assert.equal(backs, 1);
+  const unsaved = fakeApp();
+  unsaved.commit = async () => undefined;
+  let unsavedBacks = 0;
+  unsaved.back = () => { unsavedBacks++; };
+  blockMenu(unsaved, {id: 7}).find(item => item.label === 'Archive Block').onClick();
+  await new Promise(resolve => setTimeout(resolve, 50));
+  assert.equal(unsavedBacks, 0, 'nothing archived, so the page stays');
+});
