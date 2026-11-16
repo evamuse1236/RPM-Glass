@@ -69,7 +69,9 @@ final class CompanionAlerts {
             boolean sameTime=old!=null&&old.optString("fingerprint").startsWith(planned(e)+"|");
             // A first ring cut off while its occurrence is still ahead and not done rings again; one whose occurrence passed, or a snoozed ring, is finished.
             long ringOcc=changed?0:occurrence(old);boolean replay=!changed&&old.optString("status").equals("ringing")&&!old.has("snoozeAt")&&ringOcc>System.currentTimeMillis()&&!completed(e).contains(ringOcc);
-            long sounded=sameTime?old.optLong("sounded"):0;if(replay)sounded=0;else if(interrupted)sounded=Math.max(sounded,occurrence(old));
+            // A reminder that posted, switched to an alarm whose time is still ahead, rings: the user asked for it.
+            boolean upgraded=old!=null&&type(e).equals("alarm")&&!"alarm".equals(old.optString("type"))&&old.optLong("sounded")-Repeats.lead(e)*60000L>System.currentTimeMillis();
+            long sounded=sameTime&&!upgraded?old.optLong("sounded"):0;if(replay)sounded=0;else if(interrupted)sounded=Math.max(sounded,occurrence(old));
             // A move keeps the exact occurrence that already sounded, so an Undo of the move does not sound it again; an earlier time still ahead is armed.
             long soundedBefore=old==null?0:!sameTime&&old.optLong("sounded")>0?old.optLong("sounded"):old.optLong("soundedBefore");
             // A live snooze outlasts a change that keeps the time (Done then Undo, a restore): it is held while its occurrence is done and comes back when that is undone.

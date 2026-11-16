@@ -268,6 +268,19 @@ public class CompanionAlertsIdTest {
         t.put("planned",Instant.ofEpochMilli(once+3600000).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
         assertEquals(once+3600000,CompanionAlerts.ledger(c).getJSONObject("34").getLong("at"));
     }
+    @Test public void switchingAPostedReminderToAnAlarmStillAheadArmsTheAlarm()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);
+        long once=(System.currentTimeMillis()/60000+20)*60000;
+        JSONObject data=new JSONObject().put("schema",2).put("version",1).put("entries",new JSONArray()).put("memories",new JSONArray()).put("history",new JSONArray()).put("conversations",new JSONArray().put(new JSONObject()));
+        JSONObject t=new JSONObject().put("id",35).put("title","Call").put("raw","Call").put("revisions",new JSONArray()).put("planned",Instant.ofEpochMilli(once).toString()).put("alertIntent",new JSONObject().put("type","reminder").put("lead",30));
+        data.getJSONArray("entries").put(t);CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        CompanionAlerts.fired(c,35,once); // the 30-min reminder posts
+        t.put("alertIntent",new JSONObject().put("type","alarm").put("lead",0));CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        JSONObject row=CompanionAlerts.ledger(c).getJSONObject("35");
+        assertEquals("an alarm at a time still ahead is armed after its reminder posted","scheduled",row.getString("status"));
+        assertEquals(once,row.getLong("at"));
+        assertEquals(once,shadowOf(alarms).getNextScheduledAlarm().triggerAtTime);
+    }
     @Test public void doneOnASnoozedLeadAlertTicksTodaysOccurrence()throws Exception {
         Context c=RuntimeEnvironment.getApplication();
         long occurrence=leadAlertDueNow(c,29,"alarm"); // rings now, 30 min before its occurrence
