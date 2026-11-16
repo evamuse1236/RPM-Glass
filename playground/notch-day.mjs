@@ -59,7 +59,7 @@ function parseTask(e, blocks) {
   const planned = time(e.planned);
   if (!planned) return null;
   return {id: Number(e.id) || 0, title: String(e.title ?? e.raw ?? ''), block: e.blockId == null ? null : blocks.get(String(e.blockId)) ?? null,
-    planned, minutes: e.minutes == null || !Number.isFinite(Number(e.minutes)) ? 30 : Math.trunc(Number(e.minutes)), recurrence: e.recurrence ?? '', repeatDays: e.repeatDays ?? [],
+    planned, minutes: e.minutes == null || !Number.isFinite(Number(e.minutes)) ? 0 : Math.trunc(Number(e.minutes)), recurrence: e.recurrence ?? '', repeatDays: e.repeatDays ?? [],
     completed: new Set(e.completedOccurrences ?? []), fixed: false, alert: alertType(e), purpose: String(e.purpose ?? '').trim()};
 }
 
