@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {editPlan,planner,blockTasks} from './planner-state.mjs';
-import {createRamble,applyRamble,recordWords,undoRamble,MAX_RAMBLE_OPS} from './voice-turn.mjs';
+import {createRamble,applyRamble,recordWords,undoRamble,rambleUndoable,MAX_RAMBLE_OPS} from './voice-turn.mjs';
 import {TOOLS,liveSetup,planView,offsetOf} from './voice-tools.mjs';
 import {TZ,NOW,call,tools,said,heard,turnDone,day,reply,words} from './voice-turn-fixtures.mjs';
 
@@ -187,6 +187,25 @@ test('the ramble Undo refuses once the plan changed after it, so it never takes 
  editPlan(data,{type:'saveTask',fields:{title:'Typed in the planner'}},NOW);
  assert.throws(()=>undoRamble(data,'m-1',NOW),/changed the plan after/);
  assert.ok(data.entries.some(e=>e.title==='Stretch'));
+});
+
+test('a meal guess that lands after a ramble keeps its Undo, as the planner does; a later edit still blocks it', () => {
+ const {data}=day();
+ const poha=editPlan(data,{type:'saveMeal',meal:{name:'Poha',slot:'breakfast'}},NOW);
+ editPlan(data,{type:'setMealGuess',id:poha,guess:{status:'pending'},keepUndo:true},NOW);
+ const r=createRamble({data,timeZone:TZ,now:()=>NOW});
+ r.receive(heard('Add call mom'));r.stop();reply(r,tools(call('save_task',{title:'Call mom'})));r.receive(turnDone);r.receive(turnDone);
+ applyRamble(data,r.result(),words);
+ const later=structuredClone(data);
+ editPlan(data,{type:'setMealGuess',id:poha,guess:{status:'ready',kcal:300,protein:8},keepUndo:true},NOW);
+ assert.ok(rambleUndoable(data,data.intentV2.captures['m-1'].voice),'the guess kept the planner Undo, so the ramble stays undoable');
+ undoRamble(data,'m-1',NOW);
+ assert.ok(!data.entries.some(e=>e.title==='Call mom'&&!e.archived));
+ assert.equal(planner(data).body.mealGuesses[poha].status,'ready','the newer guess survives the Undo');
+ editPlan(later,{type:'setMealGuess',id:poha,guess:{status:'ready',kcal:300,protein:8},keepUndo:true},NOW);
+ editPlan(later,{type:'saveTask',fields:{title:'Typed in the planner'}},NOW);
+ assert.equal(rambleUndoable(later,later.intentV2.captures['m-1'].voice),false);
+ assert.throws(()=>undoRamble(later,'m-1',NOW),/changed the plan after/);
 });
 
 test('the Live setup carries every tool, the local offset and manual turns', () => {
