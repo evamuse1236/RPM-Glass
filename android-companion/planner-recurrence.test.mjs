@@ -44,3 +44,13 @@ test('a daily task in the hour a spring-forward day skips is back at its own clo
  assert.doesNotThrow(()=>completeTask(e,week.find(r=>new Date(r.start).getDate()===15).occurrence,new Date(2027,2,15,4)));
  }finally{if(previous)process.env.TZ=previous;else delete process.env.TZ;}
 });
+test('every case in fixtures/repeat-cases.json gives the planner the same occurrences and next alert as the notch and the phone alerts',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const cases=JSON.parse(await readFile(new URL('../fixtures/repeat-cases.json',import.meta.url),'utf8'));assert.ok(cases.length>0);
+ const previous=process.env.TZ;try{for(const c of cases){process.env.TZ=c.timezone;
+  const [y,m,d]=c.day.split('-').map(Number),from=+new Date(y,m-1,d),to=+new Date(y,m-1,d+1),now=Date.parse(c.now),e={id:1,title:c.id,kind:'plan',...structuredClone(c.task)};
+  assert.deepEqual(occurrences(e,from,to).map(r=>r.occurrence),c.expected.keys,`${c.id} keys`);
+  const next=occurrences(e,now,now+370*86400000).find(r=>r.start>now);
+  assert.equal(next&&new Date(next.start).toISOString(),c.expected.nextAlert,`${c.id} next alert`);
+ }}finally{if(previous)process.env.TZ=previous;else delete process.env.TZ;}
+});

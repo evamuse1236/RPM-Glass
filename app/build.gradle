@@ -58,5 +58,5 @@ tasks.register('bundleSyncContract', Copy) {
 tasks.named('preBuild').configure { dependsOn 'bundleCompanion', 'bundleSyncContract' }
 
 tasks.withType(Test).configureEach {
-    inputs.files(rootProject.file('fixtures/habit-cases.json'), rootProject.file('fixtures/record-keys.json'), rootProject.file('web/fixtures/snapshot.json'), rootProject.file('web/contract/records.json'))
+    inputs.files(rootProject.file('fixtures/habit-cases.json'), rootProject.file('fixtures/repeat-cases.json'), rootProject.file('fixtures/record-keys.json'), rootProject.file('web/fixtures/snapshot.json'), rootProject.file('web/contract/records.json'))
 }
