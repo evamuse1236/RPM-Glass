@@ -34,3 +34,12 @@ test('a whole Jev batch fails if any distribution or usage is corrupt',()=>{
  }
  const uncertain=structuredClone(valid);uncertain.answers.assignment_1.probabilities={block_0:.7,keep_unsorted:.3};const result=readJevSortResponse(uncertain,meta);assert.deepEqual(result.blocks[0].taskIds,[1]);assert.deepEqual(result.leftUnsorted,[2]);
 });
+test('Jev sorting offers only active Blocks and an archived Block cannot take a sorted task',()=>{
+ const d=freshStore(),ids=[];for(let i=0;i<13;i++)ids.push(editPlan(d,{type:'saveEntity',collection:'blocks',fields:{title:'Result '+i}}));
+ editPlan(d,{type:'archiveBlock',id:ids[12]});const task=editPlan(d,{type:'saveTask',fields:{title:'Call the bank'}});
+ const offered=jevSortRequest(d).candidateBlocks.map(b=>b.id);
+ assert.deepEqual(offered,ids.slice(0,12));
+ assert.ok(!planningContext(d,'sort').blocks.some(b=>b.id===ids[12]));
+ assert.throws(()=>editPlan(d,{type:'sortExisting',assignments:[{blockId:ids[12],taskIds:[task]}]}),/Choose an active RPM block/);
+ assert.equal(d.entries.find(e=>e.id===task).blockId??null,null);
+});

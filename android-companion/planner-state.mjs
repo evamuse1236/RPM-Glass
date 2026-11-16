@@ -131,7 +131,9 @@ export function editPlan(data,op,now=new Date()){
     if(!Array.isArray(op.assignments)||!op.assignments.length||op.assignments.length>12)throw new Error('Choose existing RPM blocks for this grouping.');
     const assigned=new Set(),groups=[];
     for(const assignment of op.assignments){
-      const blockId=one(p.blocks,assignment.blockId).id;
+      const block=one(p.blocks,assignment.blockId);
+      if(block.archived)throw new Error('Choose an active RPM block for this grouping.');
+      const blockId=block.id;
       if(!Array.isArray(assignment.taskIds)||!assignment.taskIds.length||assignment.taskIds.length>60)throw new Error('Choose open unsorted tasks for this grouping.');
       const selected=[];
       for(const id of assignment.taskIds){
