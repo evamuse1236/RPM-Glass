@@ -108,6 +108,28 @@ public class CompanionAlertsIdTest {
         t.put("planned",Instant.ofEpochMilli(once+3600000).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
         assertEquals(once+3600000,CompanionAlerts.ledger(c).getJSONObject("28").getLong("at"));
     }
+    @Test public void undoingAMoveDoesNotPostASoundedLeadReminderAgain()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();long day=86400000L;
+        // A one-time task 20 min away posts its 30-min lead reminder, is moved to tomorrow, then the move is undone.
+        long once=(System.currentTimeMillis()/60000+20)*60000;CompanionAlerts.channels(c);
+        JSONObject t=new JSONObject().put("id",41).put("title","Call").put("raw","Call").put("revisions",new JSONArray()).put("planned",Instant.ofEpochMilli(once).toString()).put("alertIntent",new JSONObject().put("type","reminder").put("lead",30));
+        JSONObject data=new JSONObject().put("schema",2).put("version",1).put("entries",new JSONArray().put(t)).put("memories",new JSONArray()).put("history",new JSONArray()).put("conversations",new JSONArray().put(new JSONObject()));
+        CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);CompanionAlerts.fired(c,41,once);
+        t.put("planned",Instant.ofEpochMilli(once+day).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        assertEquals("the move arms tomorrow",once+day,CompanionAlerts.ledger(c).getJSONObject("41").getLong("at"));
+        t.put("planned",Instant.ofEpochMilli(once).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false); // Undo
+        assertNotEquals("Undo of a move does not arm the posted one-time reminder","scheduled",CompanionAlerts.ledger(c).getJSONObject("41").getString("status"));
+        // Moving it to an earlier time that is still ahead arms that new time.
+        t.put("planned",Instant.ofEpochMilli(once-5*60000).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        assertEquals("scheduled",CompanionAlerts.ledger(c).getJSONObject("41").getString("status"));
+        assertEquals(once-5*60000,CompanionAlerts.ledger(c).getJSONObject("41").getLong("at"));
+        // A daily task whose lead reminder posted, moved to tomorrow and undone, keeps tomorrow's occurrence.
+        long occurrence=leadAlertDueNow(c,42,"reminder");CompanionAlerts.fired(c,42,occurrence);
+        data=CompanionStore.read(c);JSONObject e=CompanionAlerts.entry(data,42);
+        e.put("planned",Instant.ofEpochMilli(occurrence+day).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        e.put("planned",Instant.ofEpochMilli(occurrence).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false); // Undo
+        assertEquals("Undo of a move does not arm today's posted reminder",occurrence+day,CompanionAlerts.ledger(c).getJSONObject("42").getLong("at"));
+    }
     @Test public void undoingDoneOnASnoozedLeadAlarmKeepsTheSnoozeAndDoesNotRingAtOnce()throws Exception {
         Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);
         // A one-time alarm rings its 30-min lead, is snoozed, then the task is ticked done and Undo is tapped.

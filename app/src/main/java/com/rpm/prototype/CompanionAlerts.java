@@ -62,14 +62,17 @@ final class CompanionAlerts {
             // A resume does not dismiss a ringing alarm or erase its snooze.
             if(!changed&&Arrays.asList("ringing","snoozed").contains(old.optString("status"))&&!force&&!interrupted)continue;
             // A row whose time is unchanged keeps the occurrence whose alert already sounded, so an Undo of a completion or a change of repeat, lead or type does not sound it again.
-            long sounded=old!=null&&old.optString("fingerprint").startsWith(planned(e)+"|")?old.optLong("sounded"):0;if(interrupted)sounded=Math.max(sounded,occurrence(old));
+            boolean sameTime=old!=null&&old.optString("fingerprint").startsWith(planned(e)+"|");
+            long sounded=sameTime?old.optLong("sounded"):0;if(interrupted)sounded=Math.max(sounded,occurrence(old));
+            // A move keeps the exact occurrence that already sounded, so an Undo of the move does not sound it again; an earlier time still ahead is armed.
+            long soundedBefore=old==null?0:!sameTime&&old.optLong("sounded")>0?old.optLong("sounded"):old.optLong("soundedBefore");
             // A live snooze outlasts a change that keeps the time (Done then Undo, a restore): it is held while its occurrence is done and comes back when that is undone.
             long base=planned(e),now=System.currentTimeMillis(),held=0,heldFor=0;if(old!=null&&(!changed||sounded>0)){held=old.optLong("snoozeAt",old.optLong("heldSnoozeAt"));heldFor=old.has("snoozeAt")?occurrence(old):old.optLong("heldOccurrence");}if(held<=now)held=0;
-            cancel(c,e.getLong("id"));JSONObject row=new JSONObject().put("fingerprint",fp).put("type",type(e));l.put(id,row);if(sounded>0)row.put("sounded",sounded);
+            cancel(c,e.getLong("id"));JSONObject row=new JSONObject().put("fingerprint",fp).put("type",type(e));l.put(id,row);if(sounded>0)row.put("sounded",sounded);if(soundedBefore>0)row.put("soundedBefore",soundedBefore);
             if(!active(e)){row.put("status","off").put("label","Alert off");if(held>0)row.put("heldSnoozeAt",held).put("heldOccurrence",heldFor);continue;}
             if(held>0&&base>0&&!completed(e).contains(heldFor)){row.put("snoozeAt",held).put("occurrence",heldFor);schedule(c,e,row,held);continue;}
             // An unchanged row keeps its stored occurrence: an occurrence whose alert already sounded is not armed again. A snoozed row's at is its snooze time, so its occurrence is kept apart.
-            long at=next(e,ZoneId.systemDefault(),Math.max(changed?now:Math.max(now,occurrence(old)-(interrupted?0:1)),sounded));
+            long at=next(e,ZoneId.systemDefault(),Math.max(changed?now:Math.max(now,occurrence(old)-(interrupted?0:1)),sounded));if(at>0&&at==soundedBefore)at=next(e,ZoneId.systemDefault(),at);
             if(base==0){row.put("status","time_needed").put("label","Not scheduled · add a time");continue;}
             if(at==0&&interrupted){row.put("status","dismissed").put("label","Alarm interrupted");continue;}
             if(at==0){row.put("status","missed").put("label","Time passed · not scheduled");continue;}
