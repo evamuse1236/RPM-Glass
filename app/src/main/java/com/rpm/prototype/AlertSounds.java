@@ -63,11 +63,18 @@ final class AlertSounds {
                 while((n=in.read(buffer))!=-1){size+=n;if(size>MAX_BYTES)throw new IOException("Choose an audio file smaller than 25 MB.");out.write(buffer,0,n);}out.getFD().sync();
                 if(size==0)throw new IOException("That audio file is empty.");
             }
-            MediaPlayer check=new MediaPlayer();try{check.setDataSource(copy.getAbsolutePath());check.prepare();if(check.getDuration()<=0)throw new IOException("Choose a playable audio file.");}
-            catch(RuntimeException e){throw new IOException("That audio file could not be played. Try MP3, WAV or OGG.",e);}finally{check.release();}
+            MediaPlayer check=new MediaPlayer();try{checkPlayable(path->{check.setDataSource(path);check.prepare();return check.getDuration();},copy.getAbsolutePath());}finally{check.release();}
             Uri old=alarm(c);if(!prefs(c).edit().putString("alarm-uri",Uri.fromFile(copy).toString()).putString("alarm-name",name).putString("alarm-picker-uri",phoneTone?source.toString():null).commit())throw new IOException("Could not save sound.");
             saved=true;removeOldCopy(c,old);
         }finally{if(!saved)copy.delete();}
+    }
+    /** Opens a file for playing and returns its duration in ms. */
+    interface Decoder{int open(String path)throws IOException;}
+    /** Any failure to decode becomes the user-facing message; only a decoded file with no length gets its own. */
+    static void checkPlayable(Decoder decoder,String path)throws IOException{
+        int duration;try{duration=decoder.open(path);}
+        catch(IOException|RuntimeException e){throw new IOException("That audio file could not be played. Try MP3, WAV or OGG.",e);}
+        if(duration<=0)throw new IOException("Choose a playable audio file.");
     }
     private static void removeOldCopy(Context c,Uri old){if(old!=null&&"file".equals(old.getScheme())){File f=new File(old.getPath());if(f.getParentFile().equals(c.getFilesDir())&&f.getName().startsWith("alarm-sound-"))f.delete();}}
 
