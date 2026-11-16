@@ -125,7 +125,10 @@ final class CompanionAlerts {
     }}
     static void finish(Context c,long id,boolean snooze,String label)throws Exception{synchronized(CompanionStore.LOCK){JSONObject d=CompanionStore.read(c);if(d==null)return;JSONObject e=entry(d,id),l=ledger(c),r=l.optJSONObject(String.valueOf(id));if(e==null||r==null)return;
         // A reminder is snoozed after it posted, when its row already holds the next occurrence: the snooze is for the one that sounded.
-        long occurrence=snooze&&!r.optString("status").equals("ringing")&&r.optLong("sounded")>0?r.optLong("sounded"):occurrence(r);r.remove("snoozeAt");r.remove("occurrence");if(snooze&&active(e)){long at=System.currentTimeMillis()+600000;r.put("snoozeAt",at).put("occurrence",occurrence).put("sounded",Math.max(r.optLong("sounded"),occurrence));schedule(c,e,r,at);}else{
+        long occurrence=snooze&&!r.optString("status").equals("ringing")&&r.optLong("sounded")>0?r.optLong("sounded"):occurrence(r);
+        // A ring a reconcile already re-armed (the service let it go just before this ran) is answered for the occurrence that sounded, so its next one stays armed.
+        if(!snooze&&!label.equals("Reminder posted")&&r.optString("status").equals("scheduled")&&r.optLong("sounded")>0&&r.optLong("sounded")<r.optLong("at"))occurrence=r.optLong("sounded");
+        r.remove("snoozeAt");r.remove("occurrence");if(snooze&&active(e)){long at=System.currentTimeMillis()+600000;r.put("snoozeAt",at).put("occurrence",occurrence).put("sounded",Math.max(r.optLong("sounded"),occurrence));schedule(c,e,r,at);}else{
             r.put("status",label.equals("Reminder posted")?"posted":"dismissed").put("label",label).put("sounded",Math.max(r.optLong("sounded"),occurrence));long next=next(e,ZoneId.systemDefault(),Math.max(System.currentTimeMillis(),occurrence));
             if(next>0&&active(e)){schedule(c,e,r,next);r.put("label",label+" · next "+r.optString("label"));}
         }persist(c,l);

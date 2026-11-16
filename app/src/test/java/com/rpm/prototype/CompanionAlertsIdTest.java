@@ -318,6 +318,16 @@ public class CompanionAlertsIdTest {
         assertEquals("tomorrow's occurrence, not today's again",occurrence+day,row.getLong("at"));
         assertEquals("tomorrow's alarm is armed",1,shadowOf(alarms).getScheduledAlarms().size());
     }
+    @Test public void aDismissAfterAnInterruptedReArmKeepsTomorrowsAlarm()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();
+        long now=System.currentTimeMillis(),past=(now/60000-2)*60000,day=86400000L;
+        JSONObject data=ringingRow(c,33,past,now-120000);
+        JSONObject l=CompanionAlerts.ledger(c);l.getJSONObject("33").put("sounded",past);CompanionAlerts.persist(c,l);
+        // The service dropped the ring (Dismiss) and a sync save re-armed the row before finish() ran.
+        CompanionAlerts.reconcile(c,data,false);
+        CompanionAlerts.finish(c,33,false,"Alarm dismissed");
+        assertEquals("tomorrow's alarm stays armed, not the day after",past+day,CompanionAlerts.ledger(c).getJSONObject("33").getLong("at"));
+    }
     @Test public void aOneTimeLeadAlarmCutOffMidRingRingsAgainOnRestoreWhileItsTaskIsAhead()throws Exception {
         Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);
         // A one-time task 20 min away rings its 30-min lead alarm; the phone reboots mid-ring, the task still ahead.
