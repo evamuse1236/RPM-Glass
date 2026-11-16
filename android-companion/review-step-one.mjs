@@ -1,4 +1,4 @@
-import {reviewSummary, leftoverChoice} from './review-state.mjs';
+import {reviewSummary, leftoverChoice, LEFTOVER_RECEIPTS} from './review-state.mjs';
 import {plural} from './planner/format.mjs';
 import {VERDICT_RECEIPTS, CHOICES, el, icon, button, heading, emptyState, sectionHead, factsLine, dueFact, mustFact, split} from './review-ui.mjs';
 import {openMenu} from './planner/menu.mjs';
@@ -192,7 +192,7 @@ export function carryAll(api, tasks, running) {
   if (tasks.length) {
     const ops = tasks.map(task => ({type: 'reviewTask', id: task.id, choice: 'carry', week: api.week}));
     const undoBefore = api.data().planner?.undo?.id;
-    api.run(ops.length === 1 ? ops[0] : {type: 'batch', ops}, 'Carried into this week').then(() => {
+    api.run(ops.length === 1 ? ops[0] : {type: 'batch', ops}, LEFTOVER_RECEIPTS.carry).then(() => {
       const undoId = api.data().planner?.undo?.id;
       if (running.length && undoId && undoId !== undoBefore) api.ui.carried = {undoId, focus, ids: ops.map(op => op.id)};
     });
@@ -216,7 +216,7 @@ export function settleCarryUndo(api) {
 
 const CHOICE_ICONS = {carry: 'redo', defer: 'event_upcoming', drop: 'archive'};
 const CHOICE_WORDS = {carry: 'Carried', defer: 'Deferred', drop: 'Dropped'};
-const decisionLabel = value => ({carry: 'Carried into this week', defer: 'Deferred', drop: 'Dropped. It stays in Archive'})[value];
+const decisionLabel = value => LEFTOVER_RECEIPTS[value];
 
 /** A leftover task: the row opens Carry, Defer or Drop; the trailing button carries it in one tap. */
 function taskRow(api, task) {

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {editPlan, planner, blockTasks, blockDue} from './planner-state.mjs';
-import {markAchieved, inboxTasks, leftoverTasks, decideLeftover, leftoverChoice, groupTask, setMust, focusCandidates, taskDate, groupTasks, addInboxTask, setWeekFocus, reviewProgress, reviewSummary} from './review-state.mjs';
+import {readFileSync} from 'node:fs';
+import {LEFTOVER_RECEIPTS, markAchieved, inboxTasks, leftoverTasks, decideLeftover, leftoverChoice, groupTask, setMust, focusCandidates, taskDate, groupTasks, addInboxTask, setWeekFocus, reviewProgress, reviewSummary} from './review-state.mjs';
 import * as stepOne from './review-step-one.mjs';
 import {WEEK, LAST, at, block, task, entry, seed} from './review-fixtures.mjs';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
@@ -169,4 +170,17 @@ test('one Undo of Carry all takes back the carried tasks and the running Results
   assert.equal(leftoverChoice(entry(d, meals), WEEK), null);
   assert.deepEqual(api.ui.focus, [], 'the running Result is no longer carried');
   assert.deepEqual(reviewProgress(d, WEEK).focusDraft, [], 'and the saved draft says so');
+});
+
+test('the review screen shows the same carry, defer and drop receipts the tested decideLeftover returns', () => {
+  assert.deepEqual(LEFTOVER_RECEIPTS, {carry: 'Carried into this week', defer: 'Deferred', drop: 'Dropped. It stays in Archive'});
+  for (const choice of ['carry', 'defer', 'drop']) {
+    const {d, meals} = seed();
+    assert.equal(decideLeftover(d, meals, choice, WEEK), LEFTOVER_RECEIPTS[choice]);
+  }
+  const screen = readFileSync(new URL('./review-step-one.mjs', import.meta.url), 'utf8');
+  assert.match(screen, /import \{[^}]*\bLEFTOVER_RECEIPTS\b[^}]*\} from '\.\/review-state\.mjs'/, 'review-step-one.mjs takes its receipts from review-state.mjs');
+  for (const words of Object.values(LEFTOVER_RECEIPTS).filter(w => w !== 'Deferred')) {
+    assert.ok(!screen.includes(`'${words}'`), `review-step-one.mjs keeps no second copy of '${words}'`);
+  }
 });
