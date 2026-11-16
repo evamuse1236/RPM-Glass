@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mealPlanSlots, mealSlots} from './day-parts.mjs';
+import {mealPlanSlots, mealSlots, dueMeal, mealDueTimes} from './day-parts.mjs';
 import {bodyOf, defaultMealPlan} from './body-store.mjs';
 import {editPlan} from './planner-state.mjs';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
@@ -104,4 +104,27 @@ test('the Day row is Today, Tomorrow and five weekdays; a picked date outside th
 test('the Repeat preset says Weekdays while the task row still says Every weekday', () => {
   assert.equal(REPEAT_PRESETS.find(([value]) => value === 'weekdays')[1], 'Weekdays');
   assert.equal(repeatLabel({recurrence: 'weekdays'}), 'Every weekday');
+});
+
+test('the Habits list offers Log on the meal due now, never on a skipped meal, the same meal Today and the notch call due', () => {
+  const plan = defaultMealPlan();
+  const breakfast = {slot: 'breakfast', at: at('08:40').toISOString(), name: 'Poha'};
+  const nextMeal = (meals, now) => [...mealDueTimes(meals, DAY, now, plan)].filter(([, due]) => due !== null)
+    .sort((a, b) => a[1] - b[1])[0]?.[0] ?? null;
+  let now = at('13:30');
+  let due = mealDueTimes([breakfast], DAY, now, plan);
+  assert.equal(due.get('lunch'), +now, 'lunch is due now');
+  assert.equal(due.get('dinner'), +at('20:00'));
+  assert.equal(due.get('breakfast'), null);
+  assert.equal(nextMeal([breakfast], now), dueMeal([breakfast], DAY, now, plan).slot);
+  const skipped = {slot: 'lunch', at: at('11:00').toISOString(), state: 'skipped'};
+  now = at('11:00');
+  assert.equal(mealDueTimes([breakfast, skipped], DAY, now, plan).get('lunch'), null, 'a skipped meal is not due');
+  assert.equal(nextMeal([breakfast, skipped], now), 'dinner');
+  assert.equal(dueMeal([breakfast, skipped], DAY, at('13:30'), plan), null);
+  now = at('15:30');
+  assert.equal(mealDueTimes([breakfast], DAY, now, plan).get('lunch'), null, 'over two hours past');
+  assert.equal(dueMeal([breakfast], DAY, now, plan), null);
+  const off = {slots: plan.slots.map(s => (s.slot === 'dinner' ? {...s, on: false} : s))};
+  assert.equal(mealDueTimes([breakfast], DAY, at('13:30'), off).get('dinner'), null, 'an off slot is never due');
 });
