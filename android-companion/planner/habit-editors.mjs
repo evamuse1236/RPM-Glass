@@ -10,6 +10,7 @@ import {notice} from './snackbar.mjs';
 import {userMessage} from '../user-message.mjs';
 import {factRow, switchButton, slider, moreButton, pickButton, timeButton, textRow} from './fact-rows.mjs';
 import {drink} from './water.mjs';
+import {onceInFlight} from './routine-editor.mjs';
 
 const glassesText = n => `${n} ${n === 1 ? 'glass' : 'glasses'}`;
 const timeWords = hhmm => clockText(atMinutes('2000-01-01', minutesOf(hhmm)));
@@ -146,8 +147,8 @@ export function openMealEditor(app, body, slotName, {back = null, backLabel = 'B
   let label = null;
   if (slotName === 'snack') {
     label = textRow(content, 'label', 'Name', start.name, words => saved(app, () => body.setMealSlot('snack', {name: words}), 'Name saved'));
-    const remove = button('Remove snack', () => saved(app, () => body.removeMealSlot('snack'), 'Snack time removed')
-      .then(ok => { if (ok) (back ?? (() => closeSheet(app)))(); }), 'text-btn danger remove-snack');
+    const remove = button('Remove snack', onceInFlight(() => saved(app, () => body.removeMealSlot('snack'), 'Snack time removed')
+      .then(ok => { if (ok) (back ?? (() => closeSheet(app)))(); })), 'text-btn danger remove-snack');
     content.append(remove);
   }
   const paint = () => {

@@ -107,6 +107,13 @@ test('the Repeat preset says Weekdays while the task row still says Every weekda
   assert.equal(repeatLabel({recurrence: 'weekdays'}), 'Every weekday');
 });
 
+test('a double tap on Remove snack removes the snack once and keeps its Undo bar: the button shares one in-flight guard', () => {
+  const source = readFileSync(new URL('./planner/habit-editors.mjs', import.meta.url), 'utf8');
+  assert.match(source, /import \{onceInFlight\} from '\.\/routine-editor\.mjs';/);
+  assert.match(source, /button\('Remove snack', onceInFlight\(\(\) => saved\(app, \(\) => body\.removeMealSlot\('snack'\), 'Snack time removed'\)/,
+    'the Remove snack handler, with its navigation, is guarded by onceInFlight');
+});
+
 test('the meal sheet logs one meal per submit: Enter, Save and the usual-food chips share one in-flight guard', () => {
   const source = readFileSync(new URL('./planner/meals.mjs', import.meta.url), 'utf8');
   assert.match(source, /import \{onceInFlight\} from '\.\/routine-editor\.mjs';/);
