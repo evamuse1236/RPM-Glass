@@ -14,8 +14,9 @@ import {onceInFlight} from './routine-editor.mjs';
 
 const RECENT_CHIPS = 3;
 
-/** Log a meal now as its usual food, with Undo; a meal with no usual food yet opens the sheet on that meal. */
-export async function logMealNow(app, body, slot, name) {
+/** Log a meal now as its usual food, with Undo; a meal with no usual food yet opens the sheet on that meal. A second
+ * tap while the save is on its way does nothing, so a double tap logs one meal and one Undo takes it back. */
+export const logMealNow = onceInFlight(async (app, body, slot, name) => {
   const [usual] = usualMeals(body.meals(), slot);
   if (!usual) return openMealSheet(app, body, {slot});
   try {
@@ -26,7 +27,7 @@ export async function logMealNow(app, body, slot, name) {
   }
   app.render();
   notice(app, `${name} logged · ${usual}`, {undo: true});
-}
+});
 
 function estimateLine(estimate) {
   const line = el('div', 'estimate-line');
@@ -102,7 +103,7 @@ export function openMealSheet(app, body, {mealId = null, prefill = '', slot: wan
       error.textContent = '';
       let saved;
       try {
-        saved = await body.saveMeal(editing ? {...editing, name: words, slot, state: 'logged'} : {name: words, slot, at: now.toISOString()});
+        saved = await body.saveMeal(editing ? {...editing, name: words, slot, state: 'logged'} : {name: words, slot, at: body.now().toISOString()});
       } catch {
         error.textContent = "Couldn't save. Try again.";
         return;

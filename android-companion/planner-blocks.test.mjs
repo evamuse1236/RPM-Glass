@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {deadline, byDeadline, planByTime} from './planner/blocks.mjs';
+import {deadline, byDeadline, planByTime, markAchieved, sortPlan} from './planner/blocks.mjs';
 import {timeLeft} from './planner/format.mjs';
 import {blockDue} from './planner-state.mjs';
 import {dropIndex} from './planner/task-row.mjs';
@@ -106,4 +106,30 @@ test('a new record starts from where it was made: the Project page, the Blocks f
   assert.deepEqual(newFields('goals', {}, state), {title: 'New Goal', purpose: '', notes: '', areaId: 'a', year: 2026,
     horizon: 'quarterly', period: 4});
   assert.equal(newFields('goals', {}, {...state, horizon: 'values'}).period, null);
+});
+
+/** A planner whose commit, like app.commit, saves nothing and returns undefined while another save runs. */
+function busyPlanner(entries) {
+  const app = {saving: true, sent: [], entries, data: () => ({entries: app.entries}), notice() {},
+    commit: async (op, options) => {
+      if (app.saving) return undefined;
+      app.sent.push([op, options.label]);
+      return 1;
+    }};
+  return app;
+}
+
+test('Mark achieved, Mark not achieved and Sort by time tapped while another save runs wait for it, then save once', async () => {
+  const app = busyPlanner([{id: 1, blockId: 'a', title: 'Late', planned: new Date('2026-10-03T16:00').toISOString(), priority: 1}]);
+  // The save in flight adds an earlier task to the Plan; the sort must include it.
+  setTimeout(() => {
+    app.entries = [...app.entries, {id: 2, blockId: 'a', title: 'Early', planned: new Date('2026-10-03T09:00').toISOString(), priority: 2}];
+    app.saving = false;
+  }, 20);
+  await Promise.all([markAchieved(app, 'a', true, 'Shipped'), markAchieved(app, 'a', false), sortPlan(app, 'a')]);
+  assert.deepEqual(app.sent, [
+    [{type: 'markAchieved', id: 'a', achieved: true, evidence: 'Shipped'}, 'Result achieved'],
+    [{type: 'markAchieved', id: 'a', achieved: false}, 'Result marked not achieved'],
+    [{type: 'reorder', blockId: 'a', ids: [2, 1]}, 'Plan sorted by time'],
+  ]);
 });

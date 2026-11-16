@@ -17,6 +17,7 @@ import {attachSpineDrag} from './spine-drag-ui.mjs';
 import {repeats} from '../planner-recurrence.mjs';
 import {openRunSheet} from './routines.mjs';
 import {openMealSheet} from './meals.mjs';
+import {onceInFlight} from './routine-editor.mjs';
 import {holdToEdit} from './habits.mjs';
 import {bodyApi} from './body-api.mjs';
 import {openResults} from './today-model.mjs';
@@ -56,9 +57,23 @@ function spineModel(app) {
   };
 }
 
-async function toggleRoutine(app, body, row) {
+// The ring stays on screen until its save lands and the day redraws: a second tap meanwhile would repeat the first
+// change from the same row and take the Undo slot, so it does nothing.
+const togglingRoutines = new Set();
+
+/** Tap on a Routine's ring: all its steps done, or reopened, with Undo; one change per Routine at a time. */
+export async function toggleRoutine(app, body, row) {
   const routine = body.routine(row.routine.id);
-  if (!routine) return;
+  if (!routine || togglingRoutines.has(routine.id)) return;
+  togglingRoutines.add(routine.id);
+  try {
+    await saveRoutineToggle(app, body, row, routine);
+  } finally {
+    togglingRoutines.delete(routine.id);
+  }
+}
+
+async function saveRoutineToggle(app, body, row, routine) {
   const run = body.runFor(routine.id, app.state.day);
   const next = row.done ? {routineId: routine.id, day: app.state.day, marks: {}} : doneAll(routine, run, new Date());
   try {
@@ -71,8 +86,9 @@ async function toggleRoutine(app, body, row) {
   notice(app, row.done ? `${routine.name} reopened` : `${routine.name} done`, {undo: true});
 }
 
-/** Swipe right on a meal not yet logged: log it now as the usual food for that meal, with Undo; with none yet, the sheet. */
-async function logMealNow(app, body, row) {
+/** Swipe right on a meal not yet logged: log it now as the usual food for that meal, with Undo; with none yet, the sheet.
+ * A second swipe while the save is on its way does nothing (it returns undefined, so the row is not sent back). */
+const logMealNow = onceInFlight(async (app, body, row) => {
   const [usual] = usualMeals(body.meals(), row.slot);
   if (!usual) return openMealSheet(app, body, {mealId: null, slot: row.slot});
   try {
@@ -84,7 +100,7 @@ async function logMealNow(app, body, row) {
   app.render();
   notice(app, `${row.label.split(' · ')[0]} logged · ${usual}`, {undo: true});
   return true;
-}
+});
 
 function toggleTask(app, row) {
   const node = app.dom.work.querySelector(`.spine-row[data-key="${CSS.escape(row.key)}"]`);

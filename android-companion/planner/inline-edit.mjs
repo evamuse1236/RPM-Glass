@@ -103,11 +103,17 @@ export async function commitInPlace(app, op, options) {
  * instead of treating an unsaved change as saved.
  */
 export async function persist(app, op, options) {
+  await whenIdle(app);
+  return app.commit(op, options);
+}
+
+/** Resolves once no save is in flight, so a caller can build its op from the data that save left; same 30s limit. */
+export async function whenIdle(app) {
   for (let i = 0; i < 600; i++) {
-    if (!app.saving) return app.commit(op, options);
+    if (!app.saving) return;
     await new Promise(resolve => setTimeout(resolve, 50));
   }
-  if (!app.saving) return app.commit(op, options);
+  if (!app.saving) return;
   const error = new Error('Still saving. Try again.');
   app.notice(userMessage(error));
   throw error;
