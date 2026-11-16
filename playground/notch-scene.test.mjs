@@ -48,6 +48,14 @@ test('the time shows once: the band has it, the line is the purpose, else the bl
   assert.equal(scene(bare, '2026-10-18T16:20').heroSubtitle, 'Next');
 });
 
+test('a task that has ended never takes the next row after a running item', () => {
+  const entries = [task(1, 'Deep work', '2026-10-18T09:00', 180), task(2, 'Pay rent', '2026-10-18T09:30', 15),
+    task(3, 'Call bank', '2026-10-18T11:00', 30)];
+  const s = scene(parseNotchData({version: 1, entries, planner: {blocks: [{id: 'b1', title: 'Study'}]}}), '2026-10-18T10:00');
+  assert.equal(s.heroTitle, 'Deep work');
+  assert.deepEqual(s.rows.map(r => r.title), ['Call bank']);
+});
+
 test('between items the pill shows when the next starts', () => {
   const s = scene(day(false), '2026-10-18T16:20');
   assert.equal(s.pillValue, '4:30');

@@ -3,6 +3,9 @@ const sensitive = /^(authorization|proxy.?authorization|cookie|set.?cookie|.*pas
 export function redactText(value:string):string {
   return value.replace(/\bBearer\s+[^\s"'<>]+/gi,"Bearer [REDACTED]")
     .replace(/\bsk-[a-zA-Z0-9_-]{12,}/g,"[REDACTED]")
+    .replace(/\bAIz[a][0-9A-Za-z_-]{20,}/g,"[REDACTED]")
+    .replace(/\bA[Q]\.[0-9A-Za-z_-]{20,}/g,"[REDACTED]")
+    .replace(/auth_tokens\/[A-Za-z0-9_-]+/g,"auth_tokens/[REDACTED]")
     .replace(/\beyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/g,"[REDACTED]")
     .replace(/((?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|secret|authorization|cookie|pairing[_-]?code)["']?\s*[:=]\s*["']?)[^\s,;&"'<>}]+/gi,"$1[REDACTED]")
     .replace(/(https?:\/\/)[^\s/@]+:[^\s/@]+@/gi,"$1[REDACTED]@");

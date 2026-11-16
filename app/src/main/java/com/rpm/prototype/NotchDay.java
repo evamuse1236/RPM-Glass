@@ -132,14 +132,14 @@ final class NotchDay {
         return null;
     }
 
-    /** Up to {@code n} slots that start after the hero, in order; none when there is no hero (nothing left today). */
-    static List<Slot> after(List<Slot> slots, Slot hero, int n) {
+    /** Up to {@code n} slots that start after the hero and have not ended, in order; none when there is no hero (nothing left today). */
+    static List<Slot> after(List<Slot> slots, Slot hero, long now, int n) {
         List<Slot> out = new ArrayList<>();
         if (hero == null) return out;
         boolean past = false;
         for (Slot s : slots) {
             if (s == hero) past = true;
-            else if (past && s.start >= hero.start && out.size() < n) out.add(s);
+            else if (past && s.start >= hero.start && s.end > now && out.size() < n) out.add(s);
         }
         return out;
     }

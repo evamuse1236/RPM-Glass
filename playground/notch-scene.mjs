@@ -58,7 +58,7 @@ export function notchScene(data, now, snoozes = {}, h24 = false) {
     s.progress = habit.done / habit.total;
   }
 
-  const later = after(slots, hero, Infinity);
+  const later = after(slots, hero, now, Infinity);
   const next = s.nextAlert;
   const alertRow = !!next && next !== hero && later[0] !== next;
   if (later.length) s.rows.push(slotRow(later[0], now, h24));
