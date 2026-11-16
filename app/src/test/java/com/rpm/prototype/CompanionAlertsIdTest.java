@@ -108,6 +108,43 @@ public class CompanionAlertsIdTest {
         t.put("planned",Instant.ofEpochMilli(once+3600000).toString());CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
         assertEquals(once+3600000,CompanionAlerts.ledger(c).getJSONObject("28").getLong("at"));
     }
+    @Test public void undoingDoneOnASnoozedLeadAlarmKeepsTheSnoozeAndDoesNotRingAtOnce()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);
+        // A one-time alarm rings its 30-min lead, is snoozed, then the task is ticked done and Undo is tapped.
+        long once=(System.currentTimeMillis()/60000+20)*60000;CompanionAlerts.channels(c);
+        JSONObject t=new JSONObject().put("id",35).put("title","Call").put("raw","Call").put("revisions",new JSONArray()).put("planned",Instant.ofEpochMilli(once).toString()).put("alertIntent",new JSONObject().put("type","alarm").put("lead",30));
+        JSONObject data=new JSONObject().put("schema",2).put("version",1).put("entries",new JSONArray().put(t)).put("memories",new JSONArray()).put("history",new JSONArray()).put("conversations",new JSONArray().put(new JSONObject()));
+        CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        JSONObject l=CompanionAlerts.ledger(c);l.getJSONObject("35").put("status","ringing").put("ringingSince",System.currentTimeMillis());CompanionAlerts.persist(c,l);
+        CompanionAlerts.finish(c,35,true,"Alarm snoozed");
+        long snoozeAt=CompanionAlerts.ledger(c).getJSONObject("35").getLong("at");
+        t.put("done",true);CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        assertEquals("done silences the snoozed alarm",0,shadowOf(alarms).getScheduledAlarms().size());
+        t.put("done",false);CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false); // Undo
+        JSONObject row=CompanionAlerts.ledger(c).getJSONObject("35");
+        assertTrue("Undo does not ring the snoozed, already-rung alarm at once",shadowOf(alarms).getNextScheduledAlarm().triggerAtTime>System.currentTimeMillis()+5*60000);
+        assertEquals("Undo keeps the snooze","snoozed",row.getString("status"));
+        assertEquals(snoozeAt,row.getLong("at"));
+        assertEquals(once,CompanionAlerts.occurrence(row));
+        CompanionAlerts.restore(c); // a reboot while snoozed keeps the snooze
+        assertEquals("snoozed",CompanionAlerts.ledger(c).getJSONObject("35").getString("status"));
+        assertEquals(snoozeAt,CompanionAlerts.ledger(c).getJSONObject("35").getLong("at"));
+        CompanionAlerts.cancel(c,35);
+        // A daily alarm snoozed, then today's occurrence ticked and undone, takes the same path.
+        long occurrence=leadAlertDueNow(c,36,"alarm");
+        l=CompanionAlerts.ledger(c);l.getJSONObject("36").put("status","ringing").put("ringingSince",System.currentTimeMillis());CompanionAlerts.persist(c,l);
+        CompanionAlerts.finish(c,36,true,"Alarm snoozed");
+        snoozeAt=CompanionAlerts.ledger(c).getJSONObject("36").getLong("at");
+        data=CompanionStore.read(c);JSONObject e=CompanionAlerts.entry(data,36);
+        e.put("completedOccurrences",new JSONArray().put(Instant.ofEpochMilli(occurrence).toString()));CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false);
+        assertEquals("ticking today's occurrence arms tomorrow",occurrence+86400000L,CompanionAlerts.ledger(c).getJSONObject("36").getLong("at"));
+        e.remove("completedOccurrences");CompanionStore.writeRaw(c,data);CompanionAlerts.reconcile(c,data,false); // Undo
+        row=CompanionAlerts.ledger(c).getJSONObject("36");
+        assertTrue("Undo does not ring today's already-rung alarm at once",shadowOf(alarms).getNextScheduledAlarm().triggerAtTime>System.currentTimeMillis()+5*60000);
+        assertEquals("snoozed",row.getString("status"));
+        assertEquals(snoozeAt,row.getLong("at"));
+        assertEquals(occurrence,CompanionAlerts.occurrence(row));
+    }
     @Test public void changingRepeatLeadOrTypeAfterTheAlertSoundedDoesNotSoundItAgain()throws Exception {
         Context c=RuntimeEnvironment.getApplication();AlarmManager alarms=c.getSystemService(AlarmManager.class);long day=86400000L;
         long occurrence=leadAlertDueNow(c,33,"reminder");
