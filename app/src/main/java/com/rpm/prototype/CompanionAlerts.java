@@ -91,6 +91,8 @@ final class CompanionAlerts {
             String when=java.time.format.DateTimeFormatter.ofPattern("EEE, h:mm a").format(Instant.ofEpochMilli(fire).atZone(ZoneId.systemDefault()));row.put("status",row.has("snoozeAt")?"snoozed":"scheduled").put("label",type.equals("alarm")?"Alarm scheduled · "+when:"Reminder scheduled · "+when+" · may be delayed");
         }catch(RuntimeException failure){row.put("status","failed").put("label","Android could not schedule this alert. Check Settings and retry.");}
     }
+    /** Settings Check alerts: read and force-reconcile under one lock hold; errors reach the page. */
+    static void check(Context c)throws Exception{synchronized(CompanionStore.LOCK){JSONObject d=CompanionStore.read(c);if(d!=null)reconcile(c,d,true);}}
     static void restore(Context c){try{synchronized(CompanionStore.LOCK){JSONObject d=CompanionStore.read(c);if(d!=null)reconcile(c,d,true);}}catch(Exception ignored){/* Data remains intact; activity exposes load errors. */}}
     static void disarmImport(Context c,JSONObject d)throws Exception{JSONObject l=new JSONObject();JSONArray a=d.getJSONArray("entries");for(int i=0;i<a.length();i++){JSONObject e=a.getJSONObject(i);l.put(String.valueOf(e.getLong("id")),new JSONObject().put("fingerprint",fingerprint(e)).put("importedDisarmed",true).put("status","imported_not_armed").put("label","Imported · not armed on this phone"));}persist(c,l);}
     static void arm(Context c,long id)throws Exception{synchronized(CompanionStore.LOCK){JSONObject l=ledger(c);l.remove(String.valueOf(id));persist(c,l);JSONObject d=CompanionStore.read(c);if(d!=null)reconcile(c,d,false);}}

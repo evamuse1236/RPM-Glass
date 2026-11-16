@@ -232,4 +232,17 @@ public class CompanionAlertsIdTest {
         for(org.robolectric.shadows.ShadowAlarmManager.ScheduledAlarm a:shadowOf(alarms).getScheduledAlarms())assertTrue(a.triggerAtTime>System.currentTimeMillis()+60000);
         CompanionAlerts.cancel(c,id);
     }
+
+    private static String source(String name)throws Exception{return new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("src/main/java/com/rpm/prototype/"+name+".java")),java.nio.charset.StandardCharsets.UTF_8);}
+    /** Settings Check alerts reads and reconciles in one hold of the store lock, so a save between them cannot be undone by older data. */
+    @Test public void checkAlertsReadsAndReconcilesUnderOneLock()throws Exception {
+        String settings=source("CompanionSettingsController");int at=settings.indexOf("case \"check_alerts\":");assertTrue(at>=0);
+        String body=settings.substring(at,settings.indexOf("break;",at));
+        assertFalse("check_alerts must not read the store and reconcile in two lock holds: "+body,body.contains("CompanionStore.read("));
+        assertTrue("check_alerts goes through CompanionAlerts.check: "+body,body.contains("CompanionAlerts.check(activity)"));
+        String alerts=source("CompanionAlerts");int h=alerts.indexOf("static void check(Context c)throws Exception{");assertTrue("CompanionAlerts.check(Context) throws so the page shows errors",h>=0);
+        String check=alerts.substring(h,alerts.indexOf('\n',h));
+        int lock=check.indexOf("synchronized(CompanionStore.LOCK)"),read=check.indexOf("CompanionStore.read(c)"),rec=check.indexOf("reconcile(c,d,true)");
+        assertTrue("check holds the lock across the read and the forced reconcile: "+check,lock>=0&&lock<read&&read<rec);
+    }
 }
