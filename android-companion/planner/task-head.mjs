@@ -51,6 +51,14 @@ export function taskHead({task, onToggle, onMust, onTitle, onEnter, tips = false
     event.preventDefault();
     onEnter();
   });
+  title.addEventListener('input', () => {
+    // One line of words, as Quick add: a pasted line break becomes a space (Enter goes to Notes).
+    if (!/[\r\n]/.test(title.value)) return;
+    const caret = title.selectionStart;
+    title.value = title.value.replace(/\s*[\r\n]+\s*/g, ' ');
+    title.setSelectionRange(Math.min(caret, title.value.length), Math.min(caret, title.value.length));
+    grow();
+  });
   title.addEventListener('change', () => {
     const words = title.value.trim();
     if (!words) title.value = task.title;

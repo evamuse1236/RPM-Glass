@@ -7,6 +7,7 @@ import {judge} from './review-deck.mjs';
 import {bodyApi} from './planner/body-api.mjs';
 import {runNotchRequest} from './notch-ops.mjs';
 import {bodyOf} from './body-store.mjs';
+import {title as titleField, text as textField} from './planner-fields.mjs';
 
 test('planner commit and editPlan reject executable mutators before any effect or save', async () => {
   const data = freshStore(), before = structuredClone(data);
@@ -151,4 +152,14 @@ test('a keepUndo save (meal guess, snooze) keeps Capture\'s pending Undo as well
   data.undo = {id: 'cap-1'};
   editPlan(data, {type: 'saveTask', fields: {title: 'Newer'}});
   assert.equal(data.undo, null, 'a visible save still retires Capture\'s Undo');
+});
+
+test('a pasted line break in a title saves as one space, as Quick add and inline titles do', () => {
+  assert.equal(titleField('a\nb'), 'A b');
+  assert.equal(textField('a\nb'), 'a\nb', 'notes and purpose keep their line breaks');
+  const data = freshStore(), now = new Date('2026-11-16T05:00:00Z');
+  editPlan(data, {type: 'saveTask', fields: {title: 'Buy milk'}}, now);
+  const id = data.entries[0].id;
+  editPlan(data, {type: 'saveTask', id, fields: {title: 'buy milk\r\n  and eggs'}}, now);
+  assert.equal(data.entries.find(e => e.id === id).title, 'Buy milk and eggs');
 });

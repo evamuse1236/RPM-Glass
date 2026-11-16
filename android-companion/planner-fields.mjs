@@ -4,8 +4,9 @@ export const text = (v, max = 2000) => {
   if (typeof v !== 'string' || v.length > max) throw new Error('Text is too long or invalid.');
   return v.trim();
 };
+/** A title is one line of words: a pasted line break (and the spaces around it) becomes one space. */
 export const title = v => {
-  const s = text(v, 200);
+  const s = text(v, 200).replace(/\s*[\r\n]+\s*/g, ' ');
   if (!s) throw new Error('Add a title.');
   return capitalizeTitle(s);
 };
