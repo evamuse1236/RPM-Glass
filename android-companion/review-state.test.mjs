@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
-import {editPlan, migrateReviewData, planner, REVIEW_VERSION} from './planner-state.mjs';
+import {editPlan, migrateReviewData, planner, REVIEW_VERSION, inboxRows} from './planner-state.mjs';
+import {inboxCount} from './planner/today.mjs';
 import {weekStart, reviewWeek, resultStatus, markAchieved, weekFocus, setWeekFocus, weekVerdict, reviewSummary, inboxTasks, activeInRange, decideLeftover, groupTask, reviewProgress, saveReviewProgress, finishReview} from './review-state.mjs';
 import {WEEK, LAST, at, block, task, entry, seed} from './review-fixtures.mjs';
 
@@ -174,6 +175,14 @@ test('inboxTasks lists open unplaced one-time tasks only', () => {
   editPlan(d, {type: 'saveTask', id: done, fields: {done: true}});
   task(d, {title: 'Daily', planned: '2026-09-21T03:00:00.000Z', recurrence: 'daily'});
   assert.deepEqual(inboxTasks(d).map(t => t.id), [inbox]);
+});
+
+test("Today's Inbox row counts the same rows as the Inbox page, routines included, while the review keeps one-time tasks only", () => {
+  const {d, inbox} = seed();
+  const daily = task(d, {title: 'Stretch', planned: '2026-09-21T03:00:00.000Z', recurrence: 'daily'});
+  assert.deepEqual(inboxRows(d).map(t => t.id).sort(), [inbox, daily].sort());
+  assert.equal(inboxCount(d), inboxRows(d).length, "Today's Inbox row matches the Inbox page");
+  assert.deepEqual(inboxTasks(d).map(t => t.id), [inbox], 'the review still leaves routines out');
 });
 
 test('review progress resumes, survives Undo, never consumes the Undo slot, and restarts once finished', () => {
