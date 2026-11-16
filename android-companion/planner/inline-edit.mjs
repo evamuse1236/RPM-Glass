@@ -5,6 +5,7 @@
  * keeps its focus, its words and its caret.
  */
 import {el} from './dom.mjs';
+import {userMessage} from '../user-message.mjs';
 import {reducedMotion, EASE, DURATION} from '../surface-motion.mjs';
 
 /** A blank icon slot, so a menu's unchecked choices line up with the checked one. */
@@ -96,13 +97,20 @@ export async function commitInPlace(app, op, options) {
   }
 }
 
-/** Retry a commit that met another save in flight (app.commit returns undefined while one runs). */
+/**
+ * Run a commit once the save in flight lands (app.commit returns undefined while one runs). A native save can retry
+ * for several seconds; if none lands within 30s this rejects with a message, so the caller puts the words back
+ * instead of treating an unsaved change as saved.
+ */
 export async function persist(app, op, options) {
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 600; i++) {
     if (!app.saving) return app.commit(op, options);
     await new Promise(resolve => setTimeout(resolve, 50));
   }
-  return app.commit(op, options);
+  if (!app.saving) return app.commit(op, options);
+  const error = new Error('Still saving. Try again.');
+  app.notice(userMessage(error));
+  throw error;
 }
 
 /**
