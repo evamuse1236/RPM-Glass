@@ -5,6 +5,7 @@
  */
 import {WATER_DEFAULTS, rangeText, daysText, clockText, atMinutes, minutesOf, localDay, routineOn,
   routineRowParts, routineState, joinParts, waterStatus} from '../body-state.mjs';
+import {mealDueTimes} from '../day-parts.mjs';
 import {duration} from './format.mjs';
 import {el, icon, button, iconButton, attrs} from './dom.mjs';
 import {openSheet} from './sheet.mjs';
@@ -142,11 +143,11 @@ export function openHabits(app, body = bodyApi(app), {motion = 'forward'} = {}) 
     const logged = body.meals().filter(m => localDay(m.at) === day && m.state !== 'skipped' && String(m.name ?? '').trim())
       .sort((a, b) => new Date(a.at) - new Date(b.at));
     const plan = body.mealTimes();
+    const mealDue = mealDueTimes(body.meals(), day, now, {slots: plan});
     for (const meal of plan) {
       const eaten = logged.filter(m => m.slot === meal.slot).at(-1);
       const summary = mealLine(meal, eaten);
-      const at = atMinutes(day, minutesOf(meal.at));
-      items.push({order: minutesOf(meal.at), due: !eaten && meal.on && at > now ? +at : null, summary,
+      items.push({order: minutesOf(meal.at), due: mealDue.get(meal.slot) ?? null, summary,
         row: action => habitRow(progressMark('meal', eaten ? 1 : 0, 1, {off: !meal.on}), meal.name, summary,
           () => openMealEditor(app, body, meal.slot, {back}), {off: !meal.on, action}),
         act: () => doButton('meal', MEAL_ICON, `Log ${meal.name.toLowerCase()}`, () => logMealNow(app, body, meal.slot, meal.name))});

@@ -62,3 +62,16 @@ export function mealSlots(meals, day, now, {placeholders = true, plan = null} = 
 export function dueMeal(meals, day, now, plan = null) {
   return mealSlots(meals.filter(m => localDay(m.at) === day), day, now, {plan}).filter(s => !s.meal && s.at <= now && !s.past).sort((a, b) => a.at - b.at)[0] ?? null;
 }
+
+/**
+ * When each meal in the plan is next due, for the Habits list's one-tap Log: a slot due now (dueMeal's rule) is due
+ * at `now`, a slot still ahead at its planned time, and a slot with any entry (skipped too), turned off, or over two
+ * hours past is not due. Returns Map slot -> ms | null.
+ */
+export function mealDueTimes(meals, day, now, plan = null) {
+  const slots = mealSlots(meals.filter(m => localDay(m.at) === day), day, now, {plan});
+  return new Map(mealPlanSlots(plan).map(p => {
+    const s = slots.find(x => x.slot === p.slot);
+    return [p.slot, !p.on || !s || s.meal || s.past ? null : s.at <= +now ? +now : s.at];
+  }));
+}

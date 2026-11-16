@@ -21,10 +21,15 @@ export function swipeVerdict(dx) {
   return side ? SWIPE_VERDICTS[side] : null;
 }
 
+/** One verdict per card: a tap on the old buttons during the swipe's carry or the save (or a double tap) is ignored, so
+ * the card's single Undo brings it back. The mark is per Result and clears once the save settles. */
 export function judge(api, summary, result, verdict) {
+  const judging = (api.ui.judging ||= new Set());
+  if (judging.has(result.blockId)) return Promise.resolve();
+  judging.add(result.blockId);
   api.ui.deckEnter = true;
-  return api.run({type: 'markAchieved', id: result.blockId, achieved: verdict === 'achieved', week: summary.lastWeek, verdict},
-    VERDICT_RECEIPTS[verdict]);
+  return Promise.resolve(api.run({type: 'markAchieved', id: result.blockId, achieved: verdict === 'achieved', week: summary.lastWeek, verdict},
+    VERDICT_RECEIPTS[verdict])).finally(() => judging.delete(result.blockId));
 }
 
 function resultArea(data, blockId) {

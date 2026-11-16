@@ -4,7 +4,7 @@
 // Plan changes go through ctx.commit with a label, so they save, re-render and offer Undo.
 // Review progress (step, draft choice of Results) is saved with ctx.commit(op, null):
 // a null label means "save quietly"; it changes no plan data and keeps the last Undo intact.
-import {REVIEW_STEPS, reviewWeek, inboxTasks, focusCandidates, weekFocus, reviewProgress, weekCapacity, clashTask, clashKey} from './review-state.mjs';
+import {REVIEW_STEPS, reviewWeek, inboxTasks, weekFocus, reviewProgress, weekCapacity, clashTask, clashKey} from './review-state.mjs';
 import {calendarRows} from './planner-calendar.mjs';
 import {plural} from './planner/format.mjs';
 import {animateRerender, sharedAxis, ghost, reducedMotion, releaseTail, waitMotion, MOTION, DURATION, EASE} from './surface-motion.mjs';
@@ -13,7 +13,7 @@ import {STEPS, READABLE, el, icon, button, iconButton} from './review-ui.mjs';
 import {stepOne, deckWaiting, settleCarryUndo} from './review-step-one.mjs';
 import {stepTwo} from './review-step-two.mjs';
 import {stepThree, sheetLayer} from './review-step-three.mjs';
-import {stepFour} from './review-step-four.mjs';
+import {stepFour, pickableFocus} from './review-step-four.mjs';
 
 /* ---------- mount ---------- */
 export function mountWeeklyReview(container, ctx) {
@@ -27,6 +27,8 @@ export function mountWeeklyReview(container, ctx) {
     inboxIds: saved.inboxIds,
     kept: saved.keptIds, // step 3: Inbox tasks left there on purpose
     clashes: saved.clashes, // step 4: {clashKey: 'a'|'b'|'later'}
+    progressAt: saved.updatedAt, // the saved progress these drafts match; another surface saving moves it
+    saving: 0, // commits queued or running; drafts are not reloaded under them
     day: null, // step 4: the strip day whose deadlines, Musts and clashes are shown
     sheet: null, // step 3: {kind: 'add' (choose a Result) or 'new' (new Result with its Purpose), taskId}
     newBlock: {title: '', purpose: ''},
@@ -47,8 +49,11 @@ export function mountWeeklyReview(container, ctx) {
   const root = el('section', 'wr');
   root.setAttribute('aria-label', 'Weekly review');
   container.replaceChildren(root);
-  const api = createActions(ctx, week, ui, () => render());
-  const render = () => {
+  const api = createActions(ctx, week, ui, opts => render(opts));
+  // `reload` is set only on refreshes the review did not start with a tap (data refresh, the controller, after its own
+  // save), so a tap's own render never reloads drafts over the value it just changed.
+  const render = ({reload = false} = {}) => {
+    if (reload) reloadDrafts(api);
     settleCarryUndo(api);
     renderReview(root, api, ctx);
   };
@@ -56,7 +61,7 @@ export function mountWeeklyReview(container, ctx) {
   // Data can change outside the review (Undo in the snackbar, Capture, phone refresh).
   const refreshIfChanged = () => {
     const typing = container.contains(document.activeElement) && document.activeElement.matches('input, textarea');
-    if (api.data() !== ui.seen && !ui.busy && !typing) render();
+    if (api.data() !== ui.seen && !ui.busy && !typing) render({reload: true});
   };
   const timer = setInterval(refreshIfChanged, 600);
   window.addEventListener('rpm-data-refresh', refreshIfChanged);
@@ -70,7 +75,7 @@ export function mountWeeklyReview(container, ctx) {
     });
 
   return {
-    refresh: render,
+    refresh: () => render({reload: true}),
     /** Android Back: closes an open sheet; returns true when it handled the press. */
     back() {
       if (!ui.sheet) return false;
@@ -92,6 +97,7 @@ function createActions(ctx, week, ui, render) {
   const data = () => ctx.getData();
   let queue = Promise.resolve();
   function run(op, label) {
+    ui.saving++;
     const job = queue.then(async () => {
       ui.busy = true;
       try {
@@ -100,15 +106,14 @@ function createActions(ctx, week, ui, render) {
         ui.hint = userMessage(error, 'That change could not be saved.');
       } finally {
         ui.busy = false;
+        ui.saving--;
       }
     });
-    queue = job.then(() => { if (!ui.destroyed) render(); });
+    queue = job.then(() => { if (!ui.destroyed) render({reload: true}); });
     return queue;
   }
-  const saveProgress = (patch = {}) => {
-    const progress = {step: ui.step, focusDraft: ui.focus, inboxIds: ui.inboxIds, keptIds: ui.kept, clashes: ui.clashes, ...patch};
-    return run({type: 'reviewProgress', week, patch: progress}, null);
-  };
+  // Saves only the fields an action changed, so it never writes back drafts another open review of this week saved.
+  const saveProgress = patch => run({type: 'reviewProgress', week, patch}, null);
   const groupList = () => {
     const ids = new Set([...ui.inboxIds, ...inboxTasks(data()).map(t => t.id)]);
     return data().entries.filter(t => ids.has(t.id) && !t.archived && !t.done && (t.kind ?? 'plan') === 'plan');
@@ -118,20 +123,21 @@ function createActions(ctx, week, ui, render) {
     Object.assign(ui, {inboxIds: groupList().map(t => t.id), stepBack: step < ui.step, step, sheet: null,
       focusBase: null, hint: '', focusHint: '', stepChanged: true});
     render();
-    saveProgress({finishedAt: null});
+    saveProgress({step, inboxIds: ui.inboxIds, finishedAt: null});
   }
   async function close() {
-    await saveProgress();
+    await saveProgress({step: ui.step});
     ctx.close();
   }
   async function finish() {
     ui.hint = '';
-    const ids = ui.focus.filter(id => focusCandidates(data(), week, ui.focus).some(c => c.blockId === id));
+    pickableFocus({ui, data, week});
+    const ids = [...ui.focus];
     await run({type: 'finishReview', week, ids}, ids.length ? `${plural(ids.length, 'Result')} for this week` : 'Weekly review finished');
     if (!ui.hint) ctx.close();
   }
   async function openBlock(blockId) {
-    await saveProgress();
+    await saveProgress({step: ui.step});
     ctx.openBlock(blockId);
   }
   /** The calendar's events once it is readable, else null (not connected, unavailable, or still reading). */
@@ -142,6 +148,14 @@ function createActions(ctx, week, ui, render) {
     return rows ? weekCapacity([], rows, week, ctx.now()).clashes.slice(0, 2).map(c => ({...c, key: clashKey(c), task: clashTask(data(), c)})) : [];
   };
   return {data, week, ui, run, goTo, close, finish, render, groupList, openBlock, events, clashes, saveProgress, now: () => ctx.now()};
+}
+
+/** Another surface (the website, a second tab) saved this week's drafts: show them instead of writing over them later. */
+function reloadDrafts({ui, data, week}) {
+  const saved = reviewProgress(data(), week);
+  if (saved.updatedAt === ui.progressAt || ui.saving) return;
+  Object.assign(ui, {progressAt: saved.updatedAt, focus: saved.focusDraft ?? weekFocus(data(), week),
+    kept: saved.keptIds, clashes: saved.clashes});
 }
 
 /**
@@ -178,6 +192,8 @@ function renderReview(root, api, ctx) {
   // On a step change the frame's words (step count, progress, footer label and Back) switch at the 90ms crossover,
   // when the old body has faded out and the new one starts to fade in, not ahead of the body.
   // (A save during those 90ms waits for the same switch.)
+  // Step 4's footer counts the picks, so they are checked before the frame is built, not only in the step's body.
+  if (ui.step === REVIEW_STEPS) pickableFocus(api);
   const deferFrame = (stepChange || ui.framePending) && !reducedMotion() && !!root.querySelector(':scope > .wr-foot');
   const foot = deferFrame ? root.querySelector(':scope > .wr-foot') : footer(api, root.querySelector(':scope > .wr-foot'));
   const sheetKey = ui.step === 3 && ui.sheet ? `${ui.sheet.kind}:${ui.sheet.taskId}` : null;

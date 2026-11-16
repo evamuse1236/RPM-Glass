@@ -40,7 +40,13 @@ export function stepThree(api, ctx) {
     parts.push(sectionHead('Sorted', grouped.length));
     const list = el('ul', 'wr-list wr-formed');
     list.setAttribute('aria-label', 'Sorted into Results');
-    for (const c of focusCandidates(api.data(), api.week).filter(c => grouped.some(t => t.blockId === c.blockId))) {
+    // Candidates first, in their order; then any other Block a task sits in (achieved or archived since), so every
+    // counted task is listed with its way back.
+    const heads = focusCandidates(api.data(), api.week).filter(c => grouped.some(t => t.blockId === c.blockId));
+    for (const b of planner(api.data()).blocks) {
+      if (!heads.some(c => c.blockId === b.id) && grouped.some(t => t.blockId === b.id)) heads.push({blockId: b.id, title: b.title, purpose: b.purpose ?? ''});
+    }
+    for (const c of heads) {
       const head = el('li', 'wr-formed-head');
       head.append(el('span', 'wr-target-title', c.title));
       if (c.purpose) head.append(el('span', 'wr-target-purpose', c.purpose));
@@ -65,7 +71,7 @@ function keep(api, taskId, on) {
   ui.kept = on ? [...new Set([...ui.kept, taskId])] : ui.kept.filter(id => id !== taskId);
   ui.sheet = null;
   api.render();
-  api.saveProgress();
+  api.saveProgress({keptIds: ui.kept});
 }
 
 /** One Inbox task, one button: its words open the chooser. With a suggested Result, a second line names it beside the
