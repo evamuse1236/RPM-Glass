@@ -4,7 +4,7 @@ import {spawnSync} from 'node:child_process';
 import {UserError, sdkRoot} from './device.mjs';
 import {ROOT, APK, viaShell} from './runtime.mjs';
 
-const SOURCES = ['app/src/main', 'android-companion', 'chat-prototype', 'cli', 'intent-v2/src', 'intent-v2/adapters', 'intent-v2/prompts', 'scripts/build-companion-assets.mjs', 'app/build.gradle'];
+const SOURCES = ['app/src/main', 'android-companion', 'chat-prototype', 'cli', 'intent-v2/src', 'intent-v2/adapters', 'intent-v2/prompts', 'web/contract', 'scripts/build-companion-assets.mjs', 'app/build.gradle'];
 export const gradleVersion = () => {
   const g = fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8');
   return {versionName: g.match(/versionName "([^"]+)"/)?.[1], versionCode: g.match(/versionCode (\d+)/)?.[1]};
