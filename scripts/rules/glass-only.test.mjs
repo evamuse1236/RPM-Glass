@@ -11,7 +11,9 @@ function blurRules(css) {
   const body = css.replace(/\/\*[\s\S]*?\*\//g, '');
   const rule = /([^{}]+)\{([^{}]*)\}/g;
   for (let m; (m = rule.exec(body));) {
-    if (/backdrop-filter\s*:\s*[^;]*blur\(/.test(m[2])) found.push(m[1].trim());
+    // Any value but `none` counts: blur can arrive through var(--x) with no literal blur( here.
+    const values = [...m[2].matchAll(/backdrop-filter\s*:\s*([^;]*)/g)].map(v => v[1].replace(/!important/i, '').trim());
+    if (values.some(v => v && v !== 'none')) found.push(m[1].trim());
   }
   return found;
 }
@@ -27,4 +29,10 @@ test('only the tab bar, the habit circle and the tab bar preview use backdrop bl
 
 test('the check catches a blurred scrim', () => {
   assert.deepEqual(blurRules('.sheet-scrim { backdrop-filter: blur(4px); }'), ['.sheet-scrim']);
+});
+
+test('the check catches blur passed through a custom property and leaves resets alone', () => {
+  assert.deepEqual(blurRules(':root{--g: blur(4px)} .sheet{backdrop-filter: var(--g)}'), ['.sheet']);
+  assert.deepEqual(blurRules('.sheet{-webkit-backdrop-filter: var(--g)}'), ['.sheet']);
+  assert.deepEqual(blurRules('.x{backdrop-filter:none} .y{-webkit-backdrop-filter: none !important;}'), []);
 });

@@ -1,4 +1,10 @@
 import kinds from './records.json' with {type: 'json'};
+import snapshotSchema from './snapshot.schema.json' with {type: 'json'};
+
+// A conflict note never pushes notes past the schema's limit: the record would be refused whole. The conflict entry keeps the lost words.
+const notesLimit = Math.min(...['entry', 'storeEntity'].map(def => snapshotSchema.$defs[def].properties.notes.maxLength));
+// A list merged from both sides keeps its newest items up to the schema's limit (completions: 512, as completeTask keeps), or the record would be refused whole.
+const listLimit = field => snapshotSchema.$defs.entry.properties[field]?.maxItems ?? Infinity;
 
 const equal = (a, b) => {
   if (a === b) return true;
@@ -60,7 +66,7 @@ export function mergeChange(row, change, now) {
         }
         if (picked !== undefined) merged.set(id, structuredClone(picked));
       }
-      value[field] = array ? [...merged.values()] : Object.fromEntries(merged);
+      value[field] = array ? [...merged.values()].slice(-listLimit(field)) : Object.fromEntries(merged);
       if (!equal(value[field], row.value[field]) && change.stamps[group] !== undefined) stamps[group] = [stamps[group], change.stamps[group]].filter(Boolean).sort().at(-1);
     }
     if (fields.length && !atomicFields.length) continue;
@@ -88,7 +94,9 @@ export function mergeChange(row, change, now) {
     }
   }
   for (const line of notes) if (!(value.notes ?? '').split('\n').includes(line)) {
-    value.notes = [value.notes, line].filter(Boolean).join('\n');
+    const joined = [value.notes, line].filter(Boolean).join('\n');
+    if (joined.length > notesLimit) continue;
+    value.notes = joined;
     stamps.notes = now;
   }
   return {value, stamps, conflicts};

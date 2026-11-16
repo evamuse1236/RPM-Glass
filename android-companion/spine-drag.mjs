@@ -6,6 +6,8 @@ export const PX_PER_MIN = 0.8;
 export const START_SNAP = 15;
 export const MIN_LENGTH = 5;
 export const MAX_LENGTH = 240;
+/** The planner's own bound on a task's minutes (saveTask keeps 1-1440). */
+const DAY_LENGTH = 1440;
 const MIN = 60000;
 
 /**
@@ -47,11 +49,15 @@ export function snapStart(start, dy, dayStart) {
   return Math.min(dayStart + 24 * 60 * MIN - step, Math.max(dayStart, snapped));
 }
 
-/** The length a card's knurl dragged by `dy` px gives: 5-minute steps under 30 minutes, 15-minute steps from there. */
+/**
+ * The length a card's knurl dragged by `dy` px gives: 5-minute steps under 30 minutes, 15-minute steps from there.
+ * A card already longer than MAX_LENGTH keeps the planner's own bound (a day), so a drag never cuts it to 4 hours.
+ */
 export function snapLength(minutes, dy) {
   const raw = (minutes || 0) + dy / PX_PER_MIN;
   const step = raw < 30 ? 5 : 15;
-  return Math.min(MAX_LENGTH, Math.max(MIN_LENGTH, Math.round(raw / step) * step));
+  const cap = (minutes || 0) > MAX_LENGTH ? DAY_LENGTH : MAX_LENGTH;
+  return Math.min(cap, Math.max(MIN_LENGTH, Math.round(raw / step) * step));
 }
 
 

@@ -8,12 +8,15 @@ import {changedUnderneath} from './save-retry.mjs';
 const dependency = key => ({area: 0, goal: 1, project: 2, block: 3}[key.split(':')[0]] ?? 4);
 const ordered = keys => [...keys].sort((a, b) => dependency(a) - dependency(b) || a.localeCompare(b));
 const valueOf = (records, key) => records.get(key) ?? null;
+// After a restore, a record the backup lacked is refilled from the server, never pushed as a delete.
+// importCopy lists those keys in restoredAbsent; a restore written before that list existed treats every missing record so.
+const restoredGap = (sync, key) => Boolean(sync.restoredAt) && (!Array.isArray(sync.restoredAbsent) || sync.restoredAbsent.includes(key));
 
 export function localChanges(store) {
   const records = projectRecords(store), sync = store.sync ?? {}, base = sync.base ?? {}, changes = [];
   for (const key of ordered(new Set([...records.keys(), ...Object.keys(base).filter(knownRecord)]))) {
     const before = base[key]?.value ?? null, value = valueOf(records, key);
-    if (equal(before, value) || sync.restoredAt && value === null) continue;
+    if (equal(before, value) || value === null && restoredGap(sync, key)) continue;
     const groups = changedGroups(key, before, value);
     const stamps = Object.fromEntries(groups.map(group => [group, sync.stamps?.[key]?.[group] ?? store.syncSavedAt]));
     changes.push({key, baseRev: base[key]?.rev ?? null, base: structuredClone(before), value: structuredClone(value), stamps});
@@ -102,7 +105,7 @@ function apply(store, outbox, rows, cursor) {
     const row = server.get(key);
     if (!knownRecord(key)) continue;
     const sent = outbox.sent[key] ?? null, live = valueOf(records, key);
-    const restoring = sync.restoredAt && live === null, value = restoring ? row.value : mergeLive(key, sent, row.value, live);
+    const restoring = live === null && restoredGap(sync, key), value = restoring ? row.value : mergeLive(key, sent, row.value, live);
     const ancestor = restoring ? undefined : frozenAncestor(key, sent, row.value, live);
     if (ancestor !== undefined) ancestors.set(key, {rev: 0, value: structuredClone(ancestor)});
     applyRecord(next, key, value);
@@ -118,7 +121,7 @@ function apply(store, outbox, rows, cursor) {
   const remaining = localChanges(next), stamps = {};
   for (const change of remaining) stamps[change.key] = change.stamps;
   sync.stamps = stamps;
-  delete sync.restoredAt;
+  delete sync.restoredAt; delete sync.restoredAbsent;
   return next;
 }
 

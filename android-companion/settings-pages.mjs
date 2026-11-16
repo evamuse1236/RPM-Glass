@@ -4,6 +4,7 @@ import {captureTraces} from './settings-traces.mjs';
 import {voiceChoice,setVoice,setPersona,voiceDialog,personaDialog} from './voice-choice.mjs';
 import {clarityPreferences,setClarityPreference,transparencyRow,THEME_NAMES} from './planner-clarity.mjs';
 import {el, safeScale, row, group, add, slider, segmented, symbol} from './settings-parts.mjs';
+import {dateText, clock} from './planner/format.mjs';
 
 /** The pages Settings opens, in home order. `tone` picks the icon tile colour. */
 export const SETTINGS_PAGES = Object.freeze({
@@ -209,7 +210,7 @@ function diagnosticsPage(ctx) {
   const log = ctx.state.diagnostics ?? {};
   const status = group('', {id: 'diagnostics', caption: 'Logs can include what you capture. They are private, expire after 14 days, and keys are removed.'});
   if (log.connected) {
-    const last = log.lastUpload ? new Date(log.lastUpload).toLocaleString() : 'No upload yet';
+    const last = log.lastUpload ? `${dateText(log.lastUpload)}, ${clock(log.lastUpload)}` : 'No upload yet';
     const lost = (log.dropped ?? 0) + (log.rejected ?? 0);
     status.card.append(row({label: log.message ?? 'Connected', detail: [`${log.queued ?? 0} waiting`, last, lost ? `${lost} lost` : ''].filter(Boolean).join(' · ')}));
     if (log.authError) add(ctx, status, {label: 'Pair again', detail: 'The last connection was revoked', action: 'diagnostics_connect', next: true});

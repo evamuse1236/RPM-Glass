@@ -1,5 +1,6 @@
 import {createTraceStore} from './capture-trace.mjs';
 import {userMessage} from './user-message.mjs';
+import {dateText, clock} from './planner/format.mjs';
 
 const OUTCOME={kept:'Kept',undone:'Undone, likely mistake',edited:'Edited by hand later'};
 const STATUS={applied:'Applied','needs-answer':'Waiting for an answer','needs-time':'Waiting for a time','needs-check':'Waiting for a check',
@@ -32,7 +33,7 @@ export function captureTraces({store=createTraceStore(),limit=20}={}){
  for(const t of traces){
   const item=document.createElement('div');
   item.className='settings-note';
-  item.append(text('strong','',`${new Date(t.at).toLocaleString()} · ${STATUS[t.applied?.status]??t.applied?.status??'Saved'}${t.outcome?` · ${OUTCOME[t.outcome]??t.outcome}`:''}`));
+  item.append(text('strong','',`${dateText(t.at)}, ${clock(t.at)} · ${STATUS[t.applied?.status]??t.applied?.status??'Saved'}${t.outcome?` · ${OUTCOME[t.outcome]??t.outcome}`:''}`));
   if(t.words!=null)item.append(text('p','',`“${String(t.words).slice(0,240)}”`));
   if(t.reply)item.append(text('p','',`RPM: “${String(t.reply).slice(0,240)}”`));
   if(t.calls?.length)item.append(text('p','',t.calls.map(c=>c.error?`${c.name} (refused)`:c.name).join(', ')));

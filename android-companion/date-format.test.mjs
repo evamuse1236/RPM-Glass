@@ -18,3 +18,12 @@ test('no page formats a day and month in the device locale, which can put the mo
     .filter(m => /\bmonth\b/.test(m[1]) && /\bday\b/.test(m[1])).map(m => `${file}: ${m[0]}`));
   assert.deepEqual(offenders, [], 'use DATE_LOCALE from planner/format.mjs');
 });
+
+test('no page shows a date with an argument-less toLocaleString, which puts the month first on en-US', () => {
+  const roots = ['android-companion', 'web/app'];
+  const files = roots.flatMap(root => fs.readdirSync(root, {recursive: true}).map(f => path.join(root, f)))
+    .filter(f => f.endsWith('.mjs') && !f.endsWith('.test.mjs'));
+  const call = /toLocale(?:Date)?String\(\s*\)/g;
+  const offenders = files.flatMap(file => [...fs.readFileSync(file, 'utf8').matchAll(call)].map(m => `${file}: ${m[0]}`));
+  assert.deepEqual(offenders, [], 'use dateText and clock from planner/format.mjs');
+});
