@@ -165,3 +165,14 @@ test('a conflict note that would push notes past the limit is left out, so the n
   assert.equal(both.value.notes, 'c'.repeat(6000));
   assert.deepEqual(both.conflicts.map(entry => [entry.group, entry.lost.notes, entry.lostFrom]), [['notes', 'b'.repeat(6000), 'server']]);
 });
+
+test('completions ticked on both sides of a full 512-completion task keep the newest 512, so the change still saves', () => {
+  const day = n => ({occurrence: new Date(Date.UTC(2025, 0, 1) + n * 864e5).toISOString(), completed: new Date(Date.UTC(2025, 0, 1, 9) + n * 864e5).toISOString()});
+  const days = (from, to) => Array.from({length: to - from + 1}, (_, i) => day(from + i));
+  const task = {id: 1, kind: 'plan', title: 'Stretch', raw: 'Stretch', notes: '', purpose: '', planned: null, plannedDate: null, minutes: null, blockId: null, must: false, priority: null, done: false, archived: false, archiveDisposition: null, recurrence: 'daily', repeatAfterDays: null, completedAt: null, completedOccurrences: [], alertIntent: {type: null}, completions: days(0, 511)};
+  const phone = {...task, completions: days(1, 512)}, server = {...task, completions: [...days(1, 511), day(513)]};
+  const result = mergeChange(row(server, {completion: early}), change(task, phone, {completion: late}), now);
+  assert.equal(result.value.completions.length, 512);
+  assert.deepEqual(result.value.completions, [...days(2, 512), day(513)]);
+  validateRecord('task:1', result.value);
+});
