@@ -205,6 +205,28 @@ test('a passing GitHub emulator run proves the app files of its commit, and only
   assert.match(evidenceGap(root), /older than changed app code/, 'a later app commit is not in the run');
 });
 
+test('a GitHub emulator run on the branch before a rebase stops counting once main changed other app files', () => {
+  const root = repo();
+  try {
+    const git = (...args) => execFileSync('git', args, {cwd: root, encoding: 'utf8'}).trim();
+    git('checkout', '-q', '-b', 'feature');
+    fs.writeFileSync(path.join(root, 'android-companion/planner/app.mjs'), 'export const a = 2;\n');
+    git('commit', '-qam', 'change app');
+    const ran = git('rev-parse', 'HEAD');
+    const dir = path.join(root, '.verify/evidence/ci-1/rpm-emulator-evidence/run');
+    fs.mkdirSync(dir, {recursive: true});
+    fs.writeFileSync(path.join(dir, '01-shot.png'), Buffer.alloc(2000));
+    fs.writeFileSync(path.join(root, '.verify/evidence/ci-1/run.json'), JSON.stringify({conclusion: 'success', sha: ran, url: 'https://github.com/x/y/actions/runs/1'}));
+    assert.equal(evidenceGap(root), null);
+    git('checkout', '-q', 'main');
+    fs.writeFileSync(path.join(root, 'android-companion/planner/old.mjs'), 'export const b = 2;\n');
+    git('commit', '-qam', 'main changes old.mjs');
+    git('checkout', '-q', 'feature');
+    git('rebase', '-q', 'main');
+    assert.notEqual(evidenceGap(root), null, 'the run tested old.mjs with b = 1; HEAD ships b = 2');
+  } finally { fs.rmSync(root, {recursive: true, force: true}); }
+});
+
 test('the Stop hook blocks, and does not crash, when the branch has no main to compare with', () => {
   const orphan = repo({branch: 'work'});
   try {
