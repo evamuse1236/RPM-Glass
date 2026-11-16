@@ -6,7 +6,7 @@ import {occurrences,completeTask,repeats} from './planner-recurrence.mjs';
 import {text,title,integer,weekdays,one,link} from './planner-fields.mjs';
 import {REVIEW_VERSION,REVIEW_OPS,migrateReviewData,forgetBlockInWeeks,keepCompletionTime} from './planner-review-data.mjs';
 import {BODY_OPS} from './body-store.mjs';
-import {UNDO_CHANGED_MESSAGE} from './undo-rebase.mjs';
+import {UNDO_CHANGED_MESSAGE,undoImages} from './undo-rebase.mjs';
 
 export {REVIEW_VERSION,migrateReviewData};
 
@@ -26,17 +26,19 @@ export function totals(rows){return {all:rows.filter(e=>!e.done).reduce((s,e)=>s
 // newId(): new records' ids are replayed in order across devices and must not shift.
 const snap=data=>({id:globalThis.crypto.randomUUID(),entries:structuredClone(data.entries),planner:structuredClone({...planner(data),undo:null})});
 
-// A keepUndo meal guess also lands in the kept Undo image when it holds that meal, so undoing a change made while
-// the guess ran keeps the newer guess instead of bringing back 'pending' (nothing asks again for a pending guess).
+// A keepUndo meal guess also lands in every kept Undo image (the planner's and each level of Capture's) that holds
+// that meal, so undoing a change made while the guess ran keeps the newer guess instead of bringing back 'pending'
+// (nothing asks again for a pending guess). Returns {plannerUndo, undo}: copies when patched, the originals otherwise.
 function keptUndo(data,ops,at){
-  let undo=data.planner?.undo??null;
-  for(const op of ops){
-    const meal=op.type==='setMealGuess'&&undo?.planner.body?.meals?.find(m=>m.id===op.id);
+  let kept={planner:{undo:data.planner?.undo??null},undo:data.undo??null};
+  if(!ops.some(op=>op.type==='setMealGuess'))return {plannerUndo:kept.planner.undo,undo:kept.undo};
+  kept=structuredClone(kept);
+  for(const op of ops)for(const {image} of undoImages(kept)){
+    const meal=op.type==='setMealGuess'&&image?.planner?.body?.meals?.find(m=>m.id===op.id);
     if(!meal||meal.state==='skipped')continue;
-    if(undo===data.planner.undo)undo=structuredClone(undo);
-    BODY_OPS.setMealGuess({entries:undo.entries,planner:undo.planner},op,at);
+    BODY_OPS.setMealGuess({entries:image.entries,planner:image.planner},op,at);
   }
-  return undo;
+  return {plannerUndo:kept.planner.undo,undo:kept.undo};
 }
 
 /** Validate on a copy, commit once, keep a single complete undo plus compact receipts. */
@@ -55,9 +57,10 @@ export function editPlan(data,op,now=new Date()){
     if(!Array.isArray(op.ops)||!op.ops.length||op.ops.length>60||op.ops.some(child=>['undo','batch','reviewProgress'].includes(child.type)))throw new Error('Invalid planning batch.');
     for(const child of op.ops)result=editPlan(next,child,now);
     // Child edits replace the planner; retain their events and the single pre-batch Undo.
-    next.planner.undo=op.keepUndo?keptUndo(data,op.ops,at):before;
+    const kept=op.keepUndo&&keptUndo(data,op.ops,at);
+    next.planner.undo=op.keepUndo?kept.plannerUndo:before;
     // A keepUndo batch leaves Capture's pending Undo too; the child edits cleared it on the copy.
-    if(op.keepUndo)next.undo=data.undo??null;
+    if(op.keepUndo)next.undo=kept.undo;
     if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
     Object.assign(data,next);return result;
   }
@@ -167,7 +170,7 @@ export function editPlan(data,op,now=new Date()){
     result=BODY_OPS[op.type](next,op,at);
   }else throw new Error('Unknown planning action.');
   for(const task of next.entries){if(task.blockId&&task.purpose){task.revisions??=[];task.revisions.push({at,reason:'Task purpose retained in notes',before:{purpose:task.purpose,notes:task.notes??''}});task.notes=[task.notes,'Previous task purpose: '+task.purpose].filter(Boolean).join('\n\n');task.purpose='';}}
-  validatePlanner(next);p.events.push({id:newId(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);p.undo=op.keepUndo?keptUndo(data,[op],at):before;next.undo=op.keepUndo?data.undo??null:null;if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
+  validatePlanner(next);p.events.push({id:newId(),at,type:op.type,target:result??op.id??op.blockId??null,fields:op.fields?Object.keys(op.fields):[]});p.events=p.events.slice(-300);const kept=op.keepUndo&&keptUndo(data,[op],at);p.undo=op.keepUndo?kept.plannerUndo:before;next.undo=op.keepUndo?kept.undo:null;if(!op.keepUndo){delete next.undoMessage;delete data.undoMessage;}
   Object.assign(data,next);return result;
 }
 

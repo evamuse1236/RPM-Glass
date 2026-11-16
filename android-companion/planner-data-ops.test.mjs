@@ -135,6 +135,34 @@ test('a meal guess saved with keepUndo survives an Undo of a change made while t
   assert.equal(bodyOf(fresh).mealGuesses?.[toast], undefined);
 });
 
+test('a meal guess saved with keepUndo survives Capture\'s Undo of a change made while the guess ran', async () => {
+  const {changePlanner} = await import('./planner-tools.mjs');
+  const {undo} = await import('../chat-prototype/companion-tools.mjs');
+  const {recordSnapshot} = await import('../chat-prototype/companion-state.mjs');
+  const data = freshStore(), now = new Date(2026, 10, 16, 8), raw = 'Add buy milk';
+  const poha = editPlan(data, {type: 'saveMeal', meal: {name: 'Poha', slot: 'breakfast'}}, now);
+  const toast = editPlan(data, {type: 'saveMeal', meal: {name: 'Toast', slot: 'breakfast'}}, now);
+  editPlan(data, {type: 'setMealGuess', id: poha, guess: {status: 'pending'}, keepUndo: true}, now);
+  const r = await changePlanner(data, {operations: [{collection: 'tasks', fields: {title: 'Buy milk'}, id: null, type: 'create', ref: null, evidence: [raw]}], continuation: false, question: null, choices: []}, {raw, conversationId: data.conversations[0].id, now});
+  // A second Capture Undo level; its image holds Poha too.
+  data.undo = {id: 'edit', before: recordSnapshot(data), at: now.toISOString(), previous: data.undo};
+  // An image without the meal (or with it skipped) stays as it was.
+  data.undo.previous.previous = {id: 'old', before: structuredClone({...recordSnapshot(data), planner: {...data.undo.before.planner, body: {...data.undo.before.planner.body, meals: []}}}), at: now.toISOString()};
+  const untouched = structuredClone(data.undo.previous.previous);
+  editPlan(data, {type: 'setMealGuess', id: poha, guess: {status: 'ready', kcal: 300, protein: 8}, keepUndo: true}, now);
+  assert.equal(data.undo.id, 'edit');
+  assert.equal(data.undo.previous.id, r.undoId);
+  editPlan(data, {type: 'batch', ops: [{type: 'setMealGuess', id: poha, guess: {status: 'ready', kcal: 320, protein: 9}}], keepUndo: true}, now);
+  assert.equal(data.undo.id, 'edit');
+  assert.deepEqual(data.undo.previous.previous, untouched);
+  data.undo = data.undo.previous;
+  undo(data, r.undoId);
+  assert.ok(!data.entries.some(e => e.title === 'Buy milk'));
+  assert.equal(bodyOf(data).mealGuesses[poha].status, 'ready');
+  assert.equal(bodyOf(data).mealGuesses[poha].kcal, 320);
+  assert.equal(bodyOf(data).mealGuesses?.[toast], undefined);
+});
+
 test('a keepUndo save (meal guess, snooze) keeps Capture\'s pending Undo as well as the planner\'s', async () => {
   const {changePlanner} = await import('./planner-tools.mjs');
   const {undo} = await import('../chat-prototype/companion-tools.mjs');
