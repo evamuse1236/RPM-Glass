@@ -3,7 +3,7 @@ export {assertPlanOp,validatePlanner};
 import {nextTaskId} from './task-ids.mjs';
 import {newId} from './new-id.mjs';
 import {occurrences,completeTask,repeats} from './planner-recurrence.mjs';
-import {text,title,integer,weekdays,one,link} from './planner-fields.mjs';
+import {text,title,integer,weekdays,one,link,ENTITY_NOTES_MAX} from './planner-fields.mjs';
 import {REVIEW_VERSION,REVIEW_OPS,migrateReviewData,forgetBlockInWeeks,keepCompletionTime} from './planner-review-data.mjs';
 import {BODY_OPS} from './body-store.mjs';
 import {UNDO_CHANGED_MESSAGE} from './undo-rebase.mjs';
@@ -76,7 +76,7 @@ export function editPlan(data,op,now=new Date()){
   }else if(op.type==='saveEntity'){
     if(!['projects','blocks','areas','goals'].includes(op.collection))throw new Error('Unknown planning group.');
     let r=op.id?one(p[op.collection],op.id):{id:newId(),created:at};
-    r.title=title(op.fields.title);r.purpose=text(op.fields.purpose??'');r.notes=text(op.fields.notes??'',8000);
+    r.title=title(op.fields.title);r.purpose=text(op.fields.purpose??'');r.notes=text(op.fields.notes??'',ENTITY_NOTES_MAX);
     if(op.collection==='blocks')r.projectId=link(p.projects,op.fields.projectId);
     if(op.collection==='projects')r.goalId=link(p.goals,op.fields.goalId);
     if(op.collection==='areas')r.colorIndex??=p.areas.length%8;
