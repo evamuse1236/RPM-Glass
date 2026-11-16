@@ -41,4 +41,18 @@ public class DiagnosticsRejectTest {
         try(DiagnosticStore store=new DiagnosticStore(context)){assertEquals(2,store.count());assertEquals(0,store.dropped());}
         assertTrue(Diagnostics.prefs(context).getLong("next_attempt",0)>now);
     }
+    // The Keystore key that sealed the token is gone (a restore or a cleared Keystore): the token reaches the cipher and cannot be opened.
+    @Test public void aLostKeyAsksToPairDiagnosticsAgainAndStopsRetrying()throws Exception {
+        Diagnostics.prefs(context).edit().putString("token","aaaa:bbbb").putString("url","https://example.convex.site").commit();
+        queue("queued-event-0000000",System.currentTimeMillis());
+        assertFalse(Diagnostics.sync(context));
+        assertTrue(Diagnostics.prefs(context).getBoolean("auth_error",false));
+        assertEquals("This phone lost its diagnostics key · pair diagnostics again",Diagnostics.prefs(context).getString("status",""));
+        try(DiagnosticStore store=new DiagnosticStore(context)){assertEquals(1,store.count());}
+    }
+    @Test public void aLostKeyStillKeepsTheEventsRecordedOnThePhone()throws Exception {
+        Diagnostics.prefs(context).edit().putString("token","aaaa:bbbb").commit();
+        Diagnostics.recordNow(context,Diagnostics.event("crash","error","native.crash","error",new JSONObject().put("error","boom")));
+        try(DiagnosticStore store=new DiagnosticStore(context)){assertEquals(1,store.count());}
+    }
 }
