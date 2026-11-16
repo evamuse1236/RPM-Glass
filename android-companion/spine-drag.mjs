@@ -46,7 +46,10 @@ export function snapStart(start, dy, dayStart) {
   const step = START_SNAP * MIN;
   const moved = start + Math.round(dy / PX_PER_MIN) * MIN;
   const snapped = Math.round(moved / step) * step;
-  return Math.min(dayStart + 24 * 60 * MIN - step, Math.max(dayStart, snapped));
+  // The day's real end (the next local midnight): a daylight-saving day is 23 or 25 hours long.
+  const day = new Date(dayStart);
+  const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime();
+  return Math.min(dayEnd - step, Math.max(dayStart, snapped));
 }
 
 /**
