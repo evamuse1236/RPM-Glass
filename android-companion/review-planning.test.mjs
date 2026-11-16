@@ -126,3 +126,21 @@ test('a calendar clash is decided as a task on Today, reusing one that already n
   assert.deepEqual([entry(d, mine).plannedDate ?? null, entry(d, mine).notes], [null, 'Ask Ms Rao first']);
   assert.equal(clashKey(clash), '2026-10-05|DAD exam|GWBC session');
 });
+
+test('a second clash of the same or similar events gets its own decision task and leaves the first one\'s decision alone', () => {
+  const now = new Date('2026-09-26T09:00:00');
+  for (const [c1, c2] of [
+    [{day: '2026-09-28', a: {title: 'Team sync'}, b: {title: 'Gym session'}}, {day: '2026-09-30', a: {title: 'Team retro'}, b: {title: 'Gym class'}}],
+    [{day: '2026-09-28', a: {title: 'Team sync'}, b: {title: 'Gym'}}, {day: '2026-09-30', a: {title: 'Team sync'}, b: {title: 'Gym'}}],
+  ]) {
+    const {d} = seed();
+    decideClash(d, c1, 'a', now);
+    const first = clashTask(d, c1);
+    assert.equal(clashTask(d, c2)?.title ?? null, null, 'the first day\'s decision does not mark the second clash handled');
+    decideClash(d, c2, 'b', now);
+    assert.equal(d.entries.filter(t => /clash/i.test(t.title ?? '')).length, 2, 'each clash has its own task');
+    assert.equal(entry(d, first.id).title, clashTitle(c1, 'a'));
+    assert.match(entry(d, first.id).notes, new RegExp(`keep ${c1.a.title}, move or skip ${c1.b.title}\\.$`), 'the first decision is kept');
+    assert.equal(clashTask(d, c2).title, clashTitle(c2, 'b'));
+  }
+});

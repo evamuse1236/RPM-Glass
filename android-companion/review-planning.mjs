@@ -160,14 +160,16 @@ export const clashDecision = (clash, keep) => { const [stays, other] = sides(cla
 export const clashTitle = (clash, keep = 'a') => `${clashDay(clash.day)} clash: ${clashDecision(clash, keep)}`;
 const DECIDED = 'Decided in the weekly review: ';
 /**
- * The task that deals with the clash: an open one the review wrote or one naming "clash" and both events; failing that,
+ * The task that deals with the clash: an open one the review wrote or one of the user's naming "clash" and both events; failing that,
  * a done one the review wrote, so a decision the user already carried out still reads as decided.
  */
 export function clashTask(data, clash) {
   const first = title => String(title).toLowerCase().split(/\s+/)[0];
   const wrote = t => t.title === clashTitle(clash, 'a') || t.title === clashTitle(clash, 'b');
+  // A task the review wrote for another clash (another day or other events) is that clash's decision, never this one's.
+  const wroteOther = t => /^\S+ \d+ \S+ clash: keep /.test(t.title ?? '');
   return tasks(data).find(t => !t.done && (wrote(t)
-    || (/clash/i.test(t.title ?? '') && [clash.a.title, clash.b.title].every(x => (t.title ?? '').toLowerCase().includes(first(x))))))
+    || (/clash/i.test(t.title ?? '') && !wroteOther(t) && [clash.a.title, clash.b.title].every(x => (t.title ?? '').toLowerCase().includes(first(x))))))
     ?? tasks(data).find(t => t.done && wrote(t)) ?? null;
 }
 /**
