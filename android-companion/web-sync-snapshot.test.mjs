@@ -30,3 +30,16 @@ test('years of logged glasses, meals and routine runs still give the website a v
   }
   assert.equal(body.water.glasses.length,10001,'the store itself keeps every glass');
 });
+
+test('two glasses logged at the same instant across the 10000 cutoff still give a valid snapshot of exactly 10000', () => {
+  const data=seedStore(new Date('2026-10-19T12:00:00+05:30')).data, body=data.planner.body;
+  const iso=i=>new Date(Date.UTC(2000,0,1)+i*3600e3).toISOString();
+  // "2 glasses" logs the same instant twice; the cutoff falls between the two copies.
+  body.water.glasses=[iso(0),iso(0),...Array.from({length:9999},(_,i)=>iso(i+1))];
+  const snapshot=buildSnapshot(data);
+  for (const b of [snapshot.body, snapshot.planner.body]) {
+    assert.equal(b.water.glasses.length,10000);
+    assert.equal(b.water.glasses.filter(at=>at===iso(0)).length,1);
+    assert.ok(b.water.glasses.includes(iso(9999)));
+  }
+});

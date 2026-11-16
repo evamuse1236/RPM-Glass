@@ -76,8 +76,9 @@ export function projectSnapshot(data) {
 const HISTORY_LIMIT = 10000;
 function newest(list, time) {
   if (list.length <= HISTORY_LIMIT) return list;
-  const kept = new Set([...list].sort((a, b) => time(a) - time(b)).slice(-HISTORY_LIMIT));
-  return list.filter(item => kept.has(item));
+  // Kept by position, not value: two glasses logged at one instant are equal strings.
+  const kept = new Set(list.map((_, i) => i).sort((a, b) => time(list[a]) - time(list[b])).slice(-HISTORY_LIMIT));
+  return list.filter((_, i) => kept.has(i));
 }
 function boundHistory(body) {
   body.water.glasses = newest(body.water.glasses, at => Date.parse(at));
