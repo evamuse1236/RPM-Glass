@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {installFakeDom, FakeElement} from './fake-dom.mjs';
-import {editPlan} from './planner-state.mjs';
+import {editPlan, planner} from './planner-state.mjs';
 import {reviewProgress} from './review-state.mjs';
 import {seed, WEEK, LAST} from './review-fixtures.mjs';
 import {mountWeeklyReview} from './weekly-review.mjs';
+import {sheetLayer} from './review-step-three.mjs';
 
 // The flow itself is exercised in a browser harness; this guards the module contract.
 test('weekly review exports the mount contract', () => {
@@ -129,4 +130,95 @@ test('a tap applies even when another surface saved the week\'s drafts since the
   } finally {
     phone.review.destroy();
   }
+});
+
+test('Finish tapped twice before the save lands commits one finish, so one Undo takes back the week\'s Results', async () => {
+  const {d, rest, home} = seed();
+  editPlan(d, {type: 'reviewProgress', week: WEEK, patch: {step: 4, focusDraft: [home, rest]}});
+  const box = document.createElement('div');
+  const finishes = [];
+  let closed = 0;
+  const review = mountWeeklyReview(box, {getData: () => d, close() { closed++; }, openBlock() {}, openCapture() {},
+    commit: async op => { if (op.type === 'finishReview') finishes.push(op); await settle(); editPlan(d, op); },
+    day: () => '2026-09-26', now: () => new Date('2026-09-26T10:00:00+05:30')});
+  try {
+    const next = box.querySelector('.wr-next');
+    next.click();
+    next.click();
+    await settle(); await settle(); await settle();
+    assert.equal(finishes.length, 1, 'the second tap commits no second finish');
+    assert.equal(closed, 1);
+    editPlan(d, {type: 'undo'});
+    assert.equal(planner(d).weeks?.[WEEK]?.focus, undefined, 'Undo clears the week\'s Results');
+  } finally {
+    review.destroy();
+  }
+});
+
+test('Finish can be tapped again after its save failed', async () => {
+  const {d, rest, home} = seed();
+  editPlan(d, {type: 'reviewProgress', week: WEEK, patch: {step: 4, focusDraft: [home, rest]}});
+  const box = document.createElement('div');
+  let tries = 0, closed = 0;
+  const review = mountWeeklyReview(box, {getData: () => d, close() { closed++; }, openBlock() {}, openCapture() {},
+    commit: async op => { if (op.type === 'finishReview' && ++tries === 1) throw new Error('offline'); editPlan(d, op); },
+    day: () => '2026-09-26', now: () => new Date('2026-09-26T10:00:00+05:30')});
+  try {
+    box.querySelector('.wr-next').click();
+    await settle();
+    assert.equal(closed, 0, 'a failed finish keeps the review open');
+    box.querySelector('.wr-next').click();
+    await settle();
+    assert.equal(tries, 2, 'the second tap tries again');
+    assert.equal(closed, 1);
+  } finally {
+    review.destroy();
+  }
+});
+
+test('a clash chip tapped twice, or a then b, before the save lands leaves one decision task on Today', async () => {
+  const at = s => +new Date(`2026-09-30T${s}:00+05:30`);
+  const events = [{title: 'DAD exam', start: at('09:00'), end: at('10:00')}, {title: 'GWBC session', start: at('09:30'), end: at('10:30')}];
+  for (const [first, second] of [['a', 'a'], ['a', 'b']]) {
+    const {d} = seed();
+    editPlan(d, {type: 'reviewProgress', week: WEEK, patch: {step: 4}});
+    const box = document.createElement('div');
+    const review = mountWeeklyReview(box, {getData: () => d, close() {}, openBlock() {}, openCapture() {},
+      readCalendar: () => ({status: 'ready', events}),
+      commit: async op => { await settle(); editPlan(d, op); },
+      day: () => '2026-09-26', now: () => new Date('2026-09-26T10:00:00+05:30')});
+    try {
+      await settle();
+      const chip = keep => [...box.querySelectorAll('.wr-choice')].find(n => n.dataset.key.startsWith(`clash:${keep}:`));
+      assert.ok(chip(first), 'step 4 shows the clash');
+      const second_ = chip(second);
+      chip(first).click();
+      second_.click();
+      for (let i = 0; i < 8; i++) await settle();
+      const made = d.entries.filter(t => /clash/i.test(t.title ?? ''));
+      assert.equal(made.length, 1, `${first} then ${second}: one decision task`);
+      assert.match(made[0].title, second === 'a' ? /keep DAD exam/ : /keep GWBC session/, 'saying the last choice');
+    } finally {
+      review.destroy();
+    }
+  }
+});
+
+test('Create Result submitted twice before the save lands makes one Result that holds the task', async () => {
+  const {d} = seed();
+  const id = editPlan(d, {type: 'saveTask', fields: {title: 'Book flights'}});
+  const ui = {sheet: {kind: 'new', taskId: id}, newBlock: {title: 'Trip planned', purpose: 'Rest'}};
+  const labels = [];
+  let queue = Promise.resolve();
+  const api = {ui, week: WEEK, data: () => d, now: () => new Date('2026-09-26T10:00:00+05:30'), render() {},
+    groupList: () => d.entries.filter(t => t.id === id),
+    run(op, label) { labels.push(label); queue = queue.then(async () => { await settle(); editPlan(d, op); }); return queue; }};
+  const form = sheetLayer(api).querySelector('form');
+  form.dispatch('submit');
+  form.dispatch('submit');
+  await queue;
+  const made = planner(d).blocks.filter(b => b.title === 'Trip planned');
+  assert.equal(made.length, 1, 'the second submit creates no second Result');
+  assert.equal(d.entries.find(t => t.id === id).blockId, made[0].id, 'the task sits in that Result');
+  assert.deepEqual(labels, ['New Result: Trip planned']);
 });

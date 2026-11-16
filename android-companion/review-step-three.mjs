@@ -205,10 +205,13 @@ function newResultForm(api, task) {
   const sync = () => { create.disabled = !ui.newBlock.title.trim() || !ui.newBlock.purpose.trim(); };
   sync();
   actions.append(cancel, create);
+  // One Result per form: a second tap before the save lands would make a second, empty Result of the same name.
+  let sent = false;
   form.addEventListener('submit', e => {
     e.preventDefault();
     const fields = {title: ui.newBlock.title.trim(), purpose: ui.newBlock.purpose.trim()};
-    if (!fields.title || !fields.purpose) return;
+    if (sent || !fields.title || !fields.purpose) return;
+    sent = true;
     ui.sheet = null;
     api.run({type: 'groupTasks', ids: [task.id], newBlock: fields}, 'New Result: ' + fields.title);
   });

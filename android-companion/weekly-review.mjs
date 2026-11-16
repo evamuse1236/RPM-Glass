@@ -4,7 +4,7 @@
 // Plan changes go through ctx.commit with a label, so they save, re-render and offer Undo.
 // Review progress (step, draft choice of Results) is saved with ctx.commit(op, null):
 // a null label means "save quietly"; it changes no plan data and keeps the last Undo intact.
-import {REVIEW_STEPS, reviewWeek, inboxTasks, weekFocus, reviewProgress, weekCapacity, clashTask, clashKey} from './review-state.mjs';
+import {REVIEW_STEPS, reviewWeek, inboxTasks, weekFocus, reviewProgress, weekCapacity, clashTask, clashKey, clashOp} from './review-state.mjs';
 import {calendarRows} from './planner-calendar.mjs';
 import {plural} from './planner/format.mjs';
 import {animateRerender, sharedAxis, ghost, reducedMotion, releaseTail, waitMotion, MOTION, DURATION, EASE} from './surface-motion.mjs';
@@ -97,11 +97,15 @@ function createActions(ctx, week, ui, render) {
   const data = () => ctx.getData();
   let queue = Promise.resolve();
   function run(op, label) {
+    return enqueue(() => op, label);
+  }
+  // `build` makes the op when its turn comes, on the data the earlier saves left.
+  function enqueue(build, label) {
     ui.saving++;
     const job = queue.then(async () => {
       ui.busy = true;
       try {
-        await ctx.commit(op, label);
+        await ctx.commit(build(), label);
       } catch (error) {
         ui.hint = userMessage(error, 'That change could not be saved.');
       } finally {
@@ -112,6 +116,8 @@ function createActions(ctx, week, ui, render) {
     queue = job.then(() => { if (!ui.destroyed) render({reload: true}); });
     return queue;
   }
+  // Built in its turn, so a second tap before the first save lands rewrites the task that tap made instead of adding one.
+  const decideClash = (clash, keep) => enqueue(() => clashOp(data(), clash, keep, ctx.now()), 'Decision added to Today');
   // Saves only the fields an action changed, so it never writes back drafts another open review of this week saved.
   const saveProgress = patch => run({type: 'reviewProgress', week, patch}, null);
   const groupList = () => {
@@ -129,12 +135,18 @@ function createActions(ctx, week, ui, render) {
     await saveProgress({step: ui.step});
     ctx.close();
   }
-  async function finish() {
+  // A second tap while the finish saves gets the same promise: a second finishReview would take the one Undo.
+  let finishing = null;
+  function finish() {
+    return (finishing ??= finishOnce());
+  }
+  async function finishOnce() {
     ui.hint = '';
     pickableFocus({ui, data, week});
     const ids = [...ui.focus];
     await run({type: 'finishReview', week, ids}, ids.length ? `${plural(ids.length, 'Result')} for this week` : 'Weekly review finished');
-    if (!ui.hint) ctx.close();
+    if (ui.hint) finishing = null; // the save failed: Finish can be tried again
+    else ctx.close();
   }
   async function openBlock(blockId) {
     await saveProgress({step: ui.step});
@@ -147,7 +159,7 @@ function createActions(ctx, week, ui, render) {
     const rows = events();
     return rows ? weekCapacity([], rows, week, ctx.now()).clashes.slice(0, 2).map(c => ({...c, key: clashKey(c), task: clashTask(data(), c)})) : [];
   };
-  return {data, week, ui, run, goTo, close, finish, render, groupList, openBlock, events, clashes, saveProgress, now: () => ctx.now()};
+  return {data, week, ui, run, goTo, close, finish, render, groupList, openBlock, events, clashes, decideClash, saveProgress, now: () => ctx.now()};
 }
 
 /** Another surface (the website, a second tab) saved this week's drafts: show them instead of writing over them later. */

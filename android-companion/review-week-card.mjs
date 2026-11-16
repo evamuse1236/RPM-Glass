@@ -1,4 +1,4 @@
-import {taskDate, weekCapacity, placedMusts, mustPlacements, clashOp, clashKey, clashDecision} from './review-state.mjs';
+import {taskDate, weekCapacity, placedMusts, mustPlacements, clashKey, clashDecision} from './review-state.mjs';
 import {localDay} from './planner-state.mjs';
 import {clock, duration, plural, timeRange, DATE_LOCALE} from './planner/format.mjs';
 import {READABLE, el, icon, button, hours, dayName, weekday, whenText, dueWords} from './review-ui.mjs';
@@ -238,7 +238,7 @@ export function clashRow(api, clash) {
     ui.clashOpen = null;
     if (keep === 'later') { api.render(); api.saveProgress({clashes: ui.clashes}); return; }
     api.saveProgress({clashes: ui.clashes});
-    api.run(clashOp(api.data(), clash, keep, api.now()), 'Decision added to Today');
+    api.decideClash(clash, keep);
   };
   const choices = el('span', 'wr-choices');
   choices.setAttribute('role', 'group');
