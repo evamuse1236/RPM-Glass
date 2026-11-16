@@ -236,8 +236,8 @@ export function clashRow(api, clash) {
   const decide = keep => {
     ui.clashes = {...ui.clashes, [clash.key]: keep};
     ui.clashOpen = null;
-    if (keep === 'later') { api.render(); api.saveProgress(); return; }
-    api.saveProgress();
+    if (keep === 'later') { api.render(); api.saveProgress({clashes: ui.clashes}); return; }
+    api.saveProgress({clashes: ui.clashes});
     api.run(clashOp(api.data(), clash, keep, api.now()), 'Decision added to Today');
   };
   const choices = el('span', 'wr-choices');

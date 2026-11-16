@@ -27,6 +27,8 @@ export function mountWeeklyReview(container, ctx) {
     inboxIds: saved.inboxIds,
     kept: saved.keptIds, // step 3: Inbox tasks left there on purpose
     clashes: saved.clashes, // step 4: {clashKey: 'a'|'b'|'later'}
+    progressAt: saved.updatedAt, // the saved progress these drafts match; another surface saving moves it
+    saving: 0, // commits queued or running; drafts are not reloaded under them
     day: null, // step 4: the strip day whose deadlines, Musts and clashes are shown
     sheet: null, // step 3: {kind: 'add' (choose a Result) or 'new' (new Result with its Purpose), taskId}
     newBlock: {title: '', purpose: ''},
@@ -92,6 +94,7 @@ function createActions(ctx, week, ui, render) {
   const data = () => ctx.getData();
   let queue = Promise.resolve();
   function run(op, label) {
+    ui.saving++;
     const job = queue.then(async () => {
       ui.busy = true;
       try {
@@ -100,15 +103,14 @@ function createActions(ctx, week, ui, render) {
         ui.hint = userMessage(error, 'That change could not be saved.');
       } finally {
         ui.busy = false;
+        ui.saving--;
       }
     });
     queue = job.then(() => { if (!ui.destroyed) render(); });
     return queue;
   }
-  const saveProgress = (patch = {}) => {
-    const progress = {step: ui.step, focusDraft: ui.focus, inboxIds: ui.inboxIds, keptIds: ui.kept, clashes: ui.clashes, ...patch};
-    return run({type: 'reviewProgress', week, patch: progress}, null);
-  };
+  // Saves only the fields an action changed, so it never writes back drafts another open review of this week saved.
+  const saveProgress = patch => run({type: 'reviewProgress', week, patch}, null);
   const groupList = () => {
     const ids = new Set([...ui.inboxIds, ...inboxTasks(data()).map(t => t.id)]);
     return data().entries.filter(t => ids.has(t.id) && !t.archived && !t.done && (t.kind ?? 'plan') === 'plan');
@@ -118,10 +120,10 @@ function createActions(ctx, week, ui, render) {
     Object.assign(ui, {inboxIds: groupList().map(t => t.id), stepBack: step < ui.step, step, sheet: null,
       focusBase: null, hint: '', focusHint: '', stepChanged: true});
     render();
-    saveProgress({finishedAt: null});
+    saveProgress({step, inboxIds: ui.inboxIds, finishedAt: null});
   }
   async function close() {
-    await saveProgress();
+    await saveProgress({step: ui.step});
     ctx.close();
   }
   async function finish() {
@@ -131,7 +133,7 @@ function createActions(ctx, week, ui, render) {
     if (!ui.hint) ctx.close();
   }
   async function openBlock(blockId) {
-    await saveProgress();
+    await saveProgress({step: ui.step});
     ctx.openBlock(blockId);
   }
   /** The calendar's events once it is readable, else null (not connected, unavailable, or still reading). */
@@ -152,6 +154,12 @@ function createActions(ctx, week, ui, render) {
 function renderReview(root, api, ctx) {
   const {ui} = api;
   ui.seen = api.data();
+  // Another surface (the website, a second tab) saved this week's drafts: show them instead of writing over them later.
+  const saved = reviewProgress(ui.seen, api.week);
+  if (saved.updatedAt !== ui.progressAt && !ui.saving) {
+    Object.assign(ui, {progressAt: saved.updatedAt, focus: saved.focusDraft ?? weekFocus(ui.seen, api.week),
+      kept: saved.keptIds, clashes: saved.clashes});
+  }
   let body = root.querySelector(':scope > .wr-body');
   let content = body?.querySelector(':scope > .wr-content');
   const first = !body;

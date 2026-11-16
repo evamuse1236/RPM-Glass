@@ -65,7 +65,7 @@ function keep(api, taskId, on) {
   ui.kept = on ? [...new Set([...ui.kept, taskId])] : ui.kept.filter(id => id !== taskId);
   ui.sheet = null;
   api.render();
-  api.saveProgress();
+  api.saveProgress({keptIds: ui.kept});
 }
 
 /** One Inbox task, one button: its words open the chooser. With a suggested Result, a second line names it beside the
