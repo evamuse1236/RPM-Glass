@@ -141,6 +141,16 @@ test("when the heard name beats the model's shorter one, the extra name words le
  assert.deepEqual(addressed('Ima','test','Tell Emma test test',bots),{to:'Ima Test',text:'test'},'a message that is only the name keeps its words');
 });
 
+test('a first word that only sounds like a bot name word stays in the message and keeps the bot', () => {
+ const bots=['Ima','Ima Test','Pantry'];
+ assert.deepEqual(addressed('Ima','Best wishes','Tell Ima best wishes',bots),{to:'Ima',text:'Best wishes'},'"best" is their message, not "Test"');
+ assert.equal(pickBot('Ima','Tell Ima best wishes',bots,'Best wishes'),'Ima');
+ assert.deepEqual(addressed('Ima','Rest well','Tell Ima rest well',bots),{to:'Ima',text:'Rest well'});
+ assert.deepEqual(addressed('Ima','Best wishes','send ima test best wishes',bots),{to:'Ima Test',text:'Best wishes'},'the model already left the name out');
+ assert.deepEqual(addressed('Ima','Tea at five','tell emma test tea at five',bots),{to:'Ima Test',text:'Tea at five'});
+ assert.deepEqual(addressed('Ima','This is a test','Tell Emma test this is a test',bots),{to:'Ima Test',text:'This is a test'});
+});
+
 test('the page and the phone wait longer for a Telegram call than a send waits for its reply', async () => {
  const {REPLY_WAIT_S}=await import('./voice-telegram.mjs');
  const {readFileSync}=await import('node:fs');
