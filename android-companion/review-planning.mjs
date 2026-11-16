@@ -159,11 +159,16 @@ const sides = (clash, keep) => (keep === 'b' ? [clash.b, clash.a] : [clash.a, cl
 export const clashDecision = (clash, keep) => { const [stays, other] = sides(clash, keep); return `keep ${stays.title}, move or skip ${other.title}`; };
 export const clashTitle = (clash, keep = 'a') => `${clashDay(clash.day)} clash: ${clashDecision(clash, keep)}`;
 const DECIDED = 'Decided in the weekly review: ';
-/** An open task that already deals with the clash: one the review wrote, or one naming "clash" and both events. */
+/**
+ * The task that deals with the clash: an open one the review wrote or one naming "clash" and both events; failing that,
+ * a done one the review wrote, so a decision the user already carried out still reads as decided.
+ */
 export function clashTask(data, clash) {
   const first = title => String(title).toLowerCase().split(/\s+/)[0];
-  return tasks(data).find(t => !t.done && (t.title === clashTitle(clash, 'a') || t.title === clashTitle(clash, 'b')
-    || (/clash/i.test(t.title ?? '') && [clash.a.title, clash.b.title].every(x => (t.title ?? '').toLowerCase().includes(first(x)))))) ?? null;
+  const wrote = t => t.title === clashTitle(clash, 'a') || t.title === clashTitle(clash, 'b');
+  return tasks(data).find(t => !t.done && (wrote(t)
+    || (/clash/i.test(t.title ?? '') && [clash.a.title, clash.b.title].every(x => (t.title ?? '').toLowerCase().includes(first(x))))))
+    ?? tasks(data).find(t => t.done && wrote(t)) ?? null;
 }
 /**
  * Records which event stays (`keep` 'a' or 'b') as a task on Today, since calendars are read-only: the user's own
@@ -176,7 +181,10 @@ export function clashOp(data, clash, keep, now = new Date()) {
   const fields = {notes};
   if (!existing || !taskDate(existing)) fields.plannedDate = localDay(now);
   if (!existing) Object.assign(fields, {title: clashTitle(clash, keep), minutes: 15});
-  else if (existing.title === clashTitle(clash, keep === 'b' ? 'a' : 'b')) fields.title = clashTitle(clash, keep);
+  else if (existing.title === clashTitle(clash, keep === 'b' ? 'a' : 'b')) {
+    fields.title = clashTitle(clash, keep);
+    if (existing.done) Object.assign(fields, {done: false, plannedDate: localDay(now)}); // a new answer is a new thing to do
+  }
   return existing ? {type: 'saveTask', id: existing.id, fields} : {type: 'saveTask', fields};
 }
 export function decideClash(data, clash, keep, now = new Date()) {

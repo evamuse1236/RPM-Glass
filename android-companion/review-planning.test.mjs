@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {editPlan, blockDue} from './planner-state.mjs';
 import {focusCandidates, freeMinutes, calendarClashes, weekCapacity, placedMusts, mustPlacements, placeMusts, rankResults, clashTitle, clashTask, decideClash, clashKey} from './review-state.mjs';
 import {WEEK, block, task, entry, seed} from './review-fixtures.mjs';
+import {clashState} from './review-week-card.mjs';
 
 test('free time is waking hours minus busy events; clashes are overlapping busy events', () => {
   const ev = (a, b, title, extra = {}) => ({start: +new Date(`2026-10-05T${a}:00`), end: +new Date(`2026-10-05T${b}:00`), title, ...extra});
@@ -61,6 +62,29 @@ test('undated Musts are proposed on the freest day before their deadline, and pl
   assert.equal(blockDue(d, exam).value, '2026-10-07T09:30', 'the deadline stays the deadline');
   editPlan(d, {type: 'undo'});
   assert.deepEqual([entry(d, one).plannedDate ?? null, entry(d, two).plannedDate ?? null], [null, null], 'one Undo puts both back');
+});
+
+test('a clash whose decision task is ticked done stays decided, and deciding again adds no second task', () => {
+  const now = new Date('2026-10-03T09:00:00');
+  const clash = {day: '2026-10-05', a: {title: 'DAD exam'}, b: {title: 'GWBC session'}};
+  const key = clashKey(clash);
+  let {d} = seed();
+  decideClash(d, clash, 'a', now);
+  const added = clashTask(d, clash);
+  editPlan(d, {type: 'saveTask', id: added.id, fields: {done: true}}, now);
+  const api = {ui: {clashes: {[key]: 'a'}}};
+  assert.equal(clashTask(d, clash)?.id, added.id, 'the done task the review wrote still records the decision');
+  assert.equal(clashState(api, {...clash, key, task: clashTask(d, clash)}).state, 'decided');
+  decideClash(d, clash, 'a', now);
+  assert.equal(d.entries.filter(t => /clash/i.test(t.title ?? '')).length, 1, 'no second task');
+  assert.equal(entry(d, added.id).done, true, 'the same answer leaves the done task done');
+  decideClash(d, clash, 'b', now);
+  assert.equal(d.entries.filter(t => /clash/i.test(t.title ?? '')).length, 1, 'changing it rewrites the same task');
+  assert.deepEqual([entry(d, added.id).title, entry(d, added.id).done], [clashTitle(clash, 'b'), false], 'a new answer reopens it');
+  ({d} = seed());
+  const old = task(d, {title: 'Clear 5 Oct clash: DAD exam vs GWBC'});
+  editPlan(d, {type: 'saveTask', id: old, fields: {done: true}}, now);
+  assert.equal(clashTask(d, clash), null, 'a done task of the user\'s own words does not hide the clash');
 });
 
 test('rankResults suggests a Result only when the words clearly point to one', () => {
