@@ -36,4 +36,19 @@ public class CompanionAlertsIdTest {
         assertNull(shadowOf(notifications).getNotification("companion-reminder",(int)id));assertNotNull(shadowOf(notifications).getNotification("companion-reminder",(int)local));
         CompanionAlerts.cancel(c,local);assertEquals(0,shadowOf(alarms).getScheduledAlarms().size());
     }
+    @Test public void aForcedRecheckAfterARepeatingTaskAlertedWaitsForTheNextOccurrence()throws Exception {
+        Context c=RuntimeEnvironment.getApplication();long id=42,occ=System.currentTimeMillis()+1800000;
+        CompanionAlerts.channels(c);AlarmManager alarms=c.getSystemService(AlarmManager.class);
+        JSONObject e=new JSONObject().put("id",id).put("title","Daily walk").put("raw","Walk").put("revisions",new JSONArray()).put("planned",Instant.ofEpochMilli(occ).toString()).put("recurrence","daily").put("alertIntent",new JSONObject().put("type","reminder").put("lead",60));
+        JSONObject row=new JSONObject();CompanionAlerts.schedule(c,e,row,occ);row.put("fingerprint",CompanionAlerts.fingerprint(e));
+        JSONObject data=new JSONObject().put("schema",2).put("version",1).put("entries",new JSONArray().put(e)).put("memories",new JSONArray()).put("history",new JSONArray()).put("conversations",new JSONArray().put(new JSONObject()));
+        CompanionStore.writeRaw(c,data);CompanionAlerts.persist(c,new JSONObject().put(String.valueOf(id),row));
+        CompanionAlerts.fired(c,id,occ);
+        assertEquals(occ+86400000L,CompanionAlerts.ledger(c).getJSONObject(String.valueOf(id)).getLong("at"));
+        // Settings "Check alerts", an app update or a time zone change re-checks every alert.
+        CompanionAlerts.reconcile(c,data,true);
+        assertEquals("the occurrence that already alerted is not alerted again",occ+86400000L,CompanionAlerts.ledger(c).getJSONObject(String.valueOf(id)).getLong("at"));
+        for(org.robolectric.shadows.ShadowAlarmManager.ScheduledAlarm a:shadowOf(alarms).getScheduledAlarms())assertTrue(a.triggerAtTime>System.currentTimeMillis()+60000);
+        CompanionAlerts.cancel(c,id);
+    }
 }

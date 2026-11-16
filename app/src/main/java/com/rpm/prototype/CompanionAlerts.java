@@ -56,7 +56,9 @@ final class CompanionAlerts {
             if(!changed&&Arrays.asList("ringing","snoozed").contains(old.optString("status"))&&!force)continue;
             cancel(c,e.getLong("id"));JSONObject row=new JSONObject().put("fingerprint",fp).put("type",type(e));l.put(id,row);
             if(!active(e)){row.put("status","off").put("label","Alert off");continue;}
-            long base=planned(e);long at=next(e,ZoneId.systemDefault(),System.currentTimeMillis());
+            // An unchanged repeating task never alerts again for the occurrence it already alerted for.
+            long handled=changed?0:old.optLong("handledAt");if(handled>0)row.put("handledAt",handled);
+            long base=planned(e);long at=next(e,ZoneId.systemDefault(),Math.max(System.currentTimeMillis(),handled));
             if(base==0){row.put("status","time_needed").put("label","Not scheduled · add a time");continue;}
             if(at==0){row.put("status","missed").put("label","Time passed · not scheduled");continue;}
             if(!changed&&old.optLong("snoozeAt")>System.currentTimeMillis()){at=old.optLong("snoozeAt");row.put("snoozeAt",at);}
@@ -89,7 +91,7 @@ final class CompanionAlerts {
     }}
     static void finish(Context c,long id,boolean snooze,String label)throws Exception{synchronized(CompanionStore.LOCK){JSONObject d=CompanionStore.read(c);if(d==null)return;JSONObject e=entry(d,id),l=ledger(c),r=l.optJSONObject(String.valueOf(id));if(e==null||r==null)return;
         r.remove("snoozeAt");if(snooze&&active(e)){long at=System.currentTimeMillis()+600000;r.put("snoozeAt",at);schedule(c,e,r,at);}else{
-            r.put("status",label.equals("Reminder posted")?"posted":"dismissed").put("label",label);long next=next(e,ZoneId.systemDefault(),Math.max(System.currentTimeMillis(),r.optLong("at")));
+            r.put("status",label.equals("Reminder posted")?"posted":"dismissed").put("label",label);if(r.optLong("at")>0)r.put("handledAt",r.optLong("at"));long next=next(e,ZoneId.systemDefault(),Math.max(System.currentTimeMillis(),r.optLong("at")));
             if(next>0&&active(e)){schedule(c,e,r,next);r.put("label",label+" · next "+r.optString("label"));}
         }persist(c,l);
     }}
