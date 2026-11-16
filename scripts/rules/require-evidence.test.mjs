@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {execFileSync} from 'node:child_process';
-import {evidenceGap} from '../agent/require-evidence.mjs';
+import {cloudGap, evidenceGap} from '../agent/require-evidence.mjs';
 import zlib from 'node:zlib';
 import {apkWebSha, builtWeb} from '../agent/web-assets.mjs';
 
@@ -159,6 +159,22 @@ test('tests, docs and unchanged trees never block; a repo with no main says so',
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
   const orphan = repo({branch: 'work'});
   try { assert.match(evidenceGap(orphan), /no main or origin\/main/); } finally { fs.rmSync(orphan, {recursive: true, force: true}); }
+});
+
+test('a cloud session with no main to compare with blocks, as the local gate does', () => {
+  const orphan = repo({branch: 'work'});
+  try {
+    fs.writeFileSync(path.join(orphan, 'android-companion/planner/app.mjs'), 'export const a = 2;\n');
+    const gap = cloudGap(orphan);
+    assert.match(gap.block ?? '', /no main or origin\/main/);
+    assert.match(gap.block, /git fetch origin main/);
+  } finally { fs.rmSync(orphan, {recursive: true, force: true}); }
+  const root = repo();
+  try {
+    assert.deepEqual(cloudGap(root), {block: null, unverified: null});
+    fs.writeFileSync(path.join(root, 'android-companion/planner/app.mjs'), 'export const a = 2;\n');
+    assert.match(cloudGap(root).block ?? '', /no browser screenshot.*android-companion\/planner\/app\.mjs/);
+  } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });
 
 test('a passing GitHub emulator run proves the app files of its commit, and only those', () => {

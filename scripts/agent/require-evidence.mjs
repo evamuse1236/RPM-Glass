@@ -131,7 +131,8 @@ export function browserEvidence(root) {
 }
 
 export function cloudGap(root) {
-  const {files} = changedAppFiles(root);
+  const {base, files} = changedAppFiles(root);
+  if (!base) return {block: 'Cloud session: cannot tell what this branch changed: no main or origin/main to compare with. Run `git fetch origin main` (or `git fetch --deepen=200` on a shallow clone), then stop again.', unverified: null};
   const list = names => names.slice(0, 5).join(', ') + (names.length > 5 ? ` and ${names.length - 5} more` : '');
   const web = files.filter(isWebSource), native = files.filter(f => !isWebSource(f));
   const shot = web.length ? browserEvidence(root) : null;
