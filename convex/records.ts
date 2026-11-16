@@ -57,7 +57,9 @@ export function nextServerTaskId(owner:{nextTaskId?:number},rows:{key:string}[])
 export async function snapshotFromRecords(ctx:PlannerCtx,account:Id<"accounts">) {
   const owner=(await ctx.db.get(account))!, rows=await rowsFor(ctx,account);
   const store=await loadStore(ctx,account);
-  const savedAt=Math.max(owner.seededAt??owner.createdAt,...rows.flatMap(row=>Object.values(row.stamps).map(Date.parse)));
+  // A loop, not Math.max(...stamps): an account's rows can hold more stamps than one call takes arguments.
+  let savedAt=owner.seededAt??owner.createdAt;
+  for(const row of rows)for(const stamp of Object.values(row.stamps))savedAt=Math.max(savedAt,Date.parse(stamp));
   return {...buildSnapshot({...store,version:owner.cursor,syncSavedAt:new Date(savedAt).toISOString()}),nextTaskId:nextServerTaskId(owner,rows),
     captures:rows.filter(row=>row.key.startsWith("capture:") && row.value!==null).map(row=>row.value).sort((a,b)=>String(a.createdAt??"").localeCompare(String(b.createdAt??""))).slice(-50),
     conflicts:rows.filter(row=>row.key.startsWith("conflict:") && row.value!==null).map(row=>({id:row.key,...row.value}))};

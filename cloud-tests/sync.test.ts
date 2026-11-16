@@ -3,6 +3,8 @@ import { makeFunctionReference } from "convex/server";
 import { describe,it,expect } from "vitest";
 import schema from "../convex/schema";
 import { sha256 } from "../convex/security";
+import { snapshotFromRecords } from "../convex/records";
+import { groupsOf } from "../web/contract/records.mjs";
 const modules=import.meta.glob("../convex/**/*.{ts,js}");
 const admin=makeFunctionReference<"action">("admin:createPairingCode");
 const installation="12345678-1234-1234-1234-123456789abc";
@@ -46,4 +48,15 @@ describe("RPM authenticated sync",()=>{
     const code=await t.action(admin,{label:"Phone two"});const res=await t.fetch("/v1/pair",{method:"POST",body:JSON.stringify({code:code.code,installationId:"87654321-4321-4321-4321-cba987654321"})});
     const second=(await res.json()).token;await upload(t,second,[event(1,"Phone two")]);const records=await t.run(ctx=>ctx.db.query("records").collect());expect(records).toHaveLength(2);expect(records[0].device).not.toBe(records[1].device);
   });
+  it("loads the website snapshot when deleted tasks hold more stamps than one call can take",async()=>{
+    const t=convexTest(schema,modules);const old="2026-01-01T00:00:00.000Z",newest="2026-11-16T09:30:00.000Z";
+    const groups=Object.keys(groupsOf("task"));expect(groups.length).toBeGreaterThan(10);
+    const snapshot=await t.run(async ctx=>{
+      const device=await ctx.db.insert("devices",{installationId:installation,tokenHash:"x",label:"Phone",pairedAt:0,revoked:false});
+      const account=await ctx.db.insert("accounts",{device,cursor:7000,createdAt:Date.parse(old),seededAt:Date.parse(old)});
+      for(let id=1;id<=7000;id++)await ctx.db.insert("plannerRecords",{account,key:`task:${id}`,rev:id,value:null,stamps:Object.fromEntries(groups.map(group=>[group,id===3500?newest:old]))});
+      return snapshotFromRecords(ctx as any,account);
+    });
+    expect(snapshot.savedAt).toBe(newest);
+  },60_000);
 });
