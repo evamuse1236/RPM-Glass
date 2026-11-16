@@ -7,6 +7,7 @@ import {whenOf, whenFields, whenLabel, schedulePresets, blockChooser, recentBloc
 import {findTask, suggestBlock} from './sheet-parts.mjs';
 import {inboxShowing} from './task-lists.mjs';
 import {openTask} from './task-sheet.mjs';
+import {persist} from './inline-edit.mjs';
 
 /** A copy of the task's words, Block, length and Must; the sheet closes and the snackbar offers Undo. */
 export function duplicateTask(app, task) {
@@ -14,18 +15,37 @@ export function duplicateTask(app, task) {
     title: task.title, blockId: task.blockId ?? null, minutes: task.minutes, must: !!task.must,
     notes: task.notes ?? '', purpose: task.purpose ?? '', leverage: task.leverage ?? '',
   };
-  app.commit({type: 'saveTask', fields}, {label: 'Task duplicated'}).catch(() => {});
+  persist(app, {type: 'saveTask', fields}, {label: 'Task duplicated'}).catch(() => {});
 }
 
 /** A repeating task's latest completion taken back, with Undo. */
 export function undoLastCompletion(app, task) {
-  app.commit({type: 'reopenTask', id: task.id}, {label: 'Completion undone', keepSheet: true}).catch(() => {});
+  persist(app, {type: 'reopenTask', id: task.id}, {label: 'Completion undone', keepSheet: true}).catch(() => {});
+}
+
+/** Task ids with a Delete or Archive waiting for its save, so a second tap does not send a second one. */
+const removing = new Set();
+
+/**
+ * Waits out a save already in flight (a Notes edit saved on blur), then saves once. Resolves true only when the
+ * save happened; false when it did not, the task is already gone, or another tap is already removing it.
+ */
+async function removeTask(app, task, op, options) {
+  if (removing.has(task.id) || !findTask(app, task.id)) return false;
+  removing.add(task.id);
+  try {
+    return await persist(app, op, options) !== undefined;
+  } catch {
+    return false;
+  } finally {
+    removing.delete(task.id);
+  }
 }
 
 /** Resolves true once archived. */
 export function archiveTask(app, task) {
-  return app.commit({type: 'archiveTask', id: task.id, disposition: 'archive'},
-    {label: 'Archived. Restore it from Archive.'}).then(() => true, () => false);
+  return removeTask(app, task, {type: 'archiveTask', id: task.id, disposition: 'archive'},
+    {label: 'Archived. Restore it from Archive.'});
 }
 
 /**
@@ -33,7 +53,7 @@ export function archiveTask(app, task) {
  * the Inbox leaves the Inbox open. Resolves true once deleted.
  */
 export function deleteTask(app, task, {keepSheet = inboxShowing(app)} = {}) {
-  return app.commit({type: 'archiveTask', id: task.id}, {label: 'Moved to Trash', keepSheet}).then(() => true, () => false);
+  return removeTask(app, task, {type: 'archiveTask', id: task.id}, {label: 'Moved to Trash', keepSheet});
 }
 
 /* ---------- Schedule: the swipe-right choices ---------- */
@@ -138,7 +158,7 @@ export function movePicker(app, task) {
   const pick = (blockId, title) => {
     rememberBlock(blockId);
     const label = blockId ? 'Moved to ' + title : 'Moved to No block';
-    app.commit({type: 'moveTask', id: task.id, blockId}, {label}).catch(() => {});
+    persist(app, {type: 'moveTask', id: task.id, blockId}, {label}).catch(() => {});
   };
   blockChooser(body, {blocks: () => app.activeBlocks(), get: () => findTask(app, task.id)?.blockId ?? null, pick,
     recent: recentBlock(), suggested: suggestBlock(app, task, task.blockId)?.id ?? null});
