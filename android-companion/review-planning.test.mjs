@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {editPlan, blockDue} from './planner-state.mjs';
 import {focusCandidates, freeMinutes, calendarClashes, weekCapacity, placedMusts, mustPlacements, placeMusts, rankResults, clashTitle, clashTask, decideClash, clashKey} from './review-state.mjs';
 import {WEEK, block, task, entry, seed} from './review-fixtures.mjs';
+import {clashState} from './review-week-card.mjs';
 
 test('free time is waking hours minus busy events; clashes are overlapping busy events', () => {
   const ev = (a, b, title, extra = {}) => ({start: +new Date(`2026-10-05T${a}:00`), end: +new Date(`2026-10-05T${b}:00`), title, ...extra});
@@ -63,6 +64,29 @@ test('undated Musts are proposed on the freest day before their deadline, and pl
   assert.deepEqual([entry(d, one).plannedDate ?? null, entry(d, two).plannedDate ?? null], [null, null], 'one Undo puts both back');
 });
 
+test('a clash whose decision task is ticked done stays decided, and deciding again adds no second task', () => {
+  const now = new Date('2026-10-03T09:00:00');
+  const clash = {day: '2026-10-05', a: {title: 'DAD exam'}, b: {title: 'GWBC session'}};
+  const key = clashKey(clash);
+  let {d} = seed();
+  decideClash(d, clash, 'a', now);
+  const added = clashTask(d, clash);
+  editPlan(d, {type: 'saveTask', id: added.id, fields: {done: true}}, now);
+  const api = {ui: {clashes: {[key]: 'a'}}};
+  assert.equal(clashTask(d, clash)?.id, added.id, 'the done task the review wrote still records the decision');
+  assert.equal(clashState(api, {...clash, key, task: clashTask(d, clash)}).state, 'decided');
+  decideClash(d, clash, 'a', now);
+  assert.equal(d.entries.filter(t => /clash/i.test(t.title ?? '')).length, 1, 'no second task');
+  assert.equal(entry(d, added.id).done, true, 'the same answer leaves the done task done');
+  decideClash(d, clash, 'b', now);
+  assert.equal(d.entries.filter(t => /clash/i.test(t.title ?? '')).length, 1, 'changing it rewrites the same task');
+  assert.deepEqual([entry(d, added.id).title, entry(d, added.id).done], [clashTitle(clash, 'b'), false], 'a new answer reopens it');
+  ({d} = seed());
+  const old = task(d, {title: 'Clear 5 Oct clash: DAD exam vs GWBC'});
+  editPlan(d, {type: 'saveTask', id: old, fields: {done: true}}, now);
+  assert.equal(clashTask(d, clash), null, 'a done task of the user\'s own words does not hide the clash');
+});
+
 test('rankResults suggests a Result only when the words clearly point to one', () => {
   const {d, inbox} = seed();
   const exam = block(d, {title: 'Ready for the exam', purpose: 'Walk in calm'});
@@ -101,4 +125,22 @@ test('a calendar clash is decided as a task on Today, reusing one that already n
   editPlan(d, {type: 'undo'});
   assert.deepEqual([entry(d, mine).plannedDate ?? null, entry(d, mine).notes], [null, 'Ask Ms Rao first']);
   assert.equal(clashKey(clash), '2026-10-05|DAD exam|GWBC session');
+});
+
+test('a second clash of the same or similar events gets its own decision task and leaves the first one\'s decision alone', () => {
+  const now = new Date('2026-09-26T09:00:00');
+  for (const [c1, c2] of [
+    [{day: '2026-09-28', a: {title: 'Team sync'}, b: {title: 'Gym session'}}, {day: '2026-09-30', a: {title: 'Team retro'}, b: {title: 'Gym class'}}],
+    [{day: '2026-09-28', a: {title: 'Team sync'}, b: {title: 'Gym'}}, {day: '2026-09-30', a: {title: 'Team sync'}, b: {title: 'Gym'}}],
+  ]) {
+    const {d} = seed();
+    decideClash(d, c1, 'a', now);
+    const first = clashTask(d, c1);
+    assert.equal(clashTask(d, c2)?.title ?? null, null, 'the first day\'s decision does not mark the second clash handled');
+    decideClash(d, c2, 'b', now);
+    assert.equal(d.entries.filter(t => /clash/i.test(t.title ?? '')).length, 2, 'each clash has its own task');
+    assert.equal(entry(d, first.id).title, clashTitle(c1, 'a'));
+    assert.match(entry(d, first.id).notes, new RegExp(`keep ${c1.a.title}, move or skip ${c1.b.title}\\.$`), 'the first decision is kept');
+    assert.equal(clashTask(d, c2).title, clashTitle(c2, 'b'));
+  }
 });

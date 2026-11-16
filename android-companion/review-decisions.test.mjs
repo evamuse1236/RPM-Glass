@@ -47,6 +47,22 @@ test('carry, defer and drop are deliberate, reversible and undoable', () => {
   assert.notEqual(before, done);
 });
 
+test('deferring a leftover twice still lets Carry restore the day or time it had', () => {
+  const {d, meals, kitchen} = seed();
+  decideLeftover(d, meals, 'defer', WEEK);
+  decideLeftover(d, meals, 'defer', WEEK);
+  assert.equal(entry(d, meals).plannedDate, null, 'a deferred task stays undated');
+  decideLeftover(d, meals, 'carry', WEEK);
+  assert.equal(leftoverChoice(entry(d, meals), WEEK), 'carry');
+  assert.equal(entry(d, meals).plannedDate, '2026-09-23', 'carry restores the day the first defer cleared');
+
+  decideLeftover(d, kitchen, 'defer', WEEK);
+  decideLeftover(d, kitchen, 'defer', WEEK);
+  assert.equal(entry(d, kitchen).planned, null);
+  decideLeftover(d, kitchen, 'carry', WEEK);
+  assert.equal(entry(d, kitchen).planned, '2026-09-24T12:30:00.000Z', 'carry restores the time the first defer cleared');
+});
+
 test('groupTask moves an Inbox task to a Block, a new Block, or back, each as one Undo step', () => {
   const {d, home, inbox, meals} = seed();
   assert.equal(groupTask(d, inbox, home), 'Added to Have home ready for the week');
@@ -129,6 +145,21 @@ test('groupTasks moves several tasks, or starts a new Result from them, as one U
   editPlan(d, {type: 'undo'});
   assert.deepEqual([entry(d, inbox).blockId ?? null, entry(d, other).blockId ?? null], [null, null]);
   assert.throws(() => groupTasks(d, [], home), /Choose a task/);
+});
+
+test('a repeated Add to Result or Move back to Inbox keeps the first Undo', () => {
+  const {d, home, inbox} = seed();
+  editPlan(d, {type: 'groupTasks', ids: [inbox], blockId: home});
+  const first = planner(d).undo;
+  editPlan(d, {type: 'groupTasks', ids: [inbox], blockId: home});
+  assert.equal(planner(d).undo.id, first.id, 'a second tap that moves nothing leaves the Undo alone');
+  editPlan(d, {type: 'undo'});
+  assert.equal(entry(d, inbox).blockId ?? null, null, 'Undo returns the task to the Inbox');
+  editPlan(d, {type: 'groupTasks', ids: [inbox], blockId: home});
+  editPlan(d, {type: 'groupTasks', ids: [inbox], blockId: null});
+  editPlan(d, {type: 'groupTasks', ids: [inbox], blockId: null});
+  editPlan(d, {type: 'undo'});
+  assert.equal(entry(d, inbox).blockId, home, 'Undo after a repeated Move back to Inbox puts the task back in its Block');
 });
 
 test('addInboxTask saves the exact words as a new Inbox task with Undo', () => {

@@ -6,10 +6,10 @@
  * next three days, soonest first (every other deadline and calendar clash); the rest of the day as one time-ordered
  * agenda (tasks, calendar events and the free time between); the Inbox.
  */
-import {localDay, shiftDay, tasks, blockDue, timelineItems} from '../planner-state.mjs';
+import {localDay, shiftDay, tasks, blockDue, timelineItems, inboxRows} from '../planner-state.mjs';
 import {dayTasks} from '../planner-ux.mjs';
 import {setClarityPreference} from '../planner-clarity.mjs';
-import {resultStatus, inboxTasks} from '../review-state.mjs';
+import {resultStatus} from '../review-state.mjs';
 import {el, icon, button, emptyState} from './dom.mjs';
 import {clock, plural, dueInfo, relativeDay, timeLeft, countdown, duration, timeRange} from './format.mjs';
 import {taskRow, completedSection} from './task-row.mjs';
@@ -256,8 +256,11 @@ function agenda(app, page, {tasks, events, from, title}) {
   if (section.querySelector('.task-row, .agenda-event')) page.append(section);
 }
 
+// The Inbox page's own rows (routines with no Block included), so the counts match.
+export const inboxCount = data => inboxRows(data).length;
+
 function inboxRow(app) {
-  const count = inboxTasks(app.data()).length;
+  const count = inboxCount(app.data());
   const row = button('', () => app.actions.inbox(), 'list-item inbox-row');
   row.append(icon('inbox', {cls: 'leading'}));
   const copy = el('span', 'list-copy');

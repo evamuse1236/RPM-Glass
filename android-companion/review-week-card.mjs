@@ -221,7 +221,7 @@ export function clashRow(api, clash) {
     () => { ui.clashOpen = clash.key; api.render(); }, 'clash-open:' + clash.key);
   if (done) {
     const stays = choice === 'b' ? clash.b : clash.a;
-    const task = `a task for ${whenText(clash.task, api.now())?.text ?? 'Today'}`;
+    const task = clash.task.done ? 'task done' : `a task for ${whenText(clash.task, api.now())?.text ?? 'Today'}`;
     sub.append(state === 'decided' ? `Keep ${stays.title} · ${task}` : `${clash.task.title} · ${task}`);
     text.append(title, sub);
     item.append(icon('event_available'), text, reopen('Change'));

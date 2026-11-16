@@ -5,7 +5,7 @@ import {editPlan} from './planner-state.mjs';
 import {commit} from './planner/app.mjs';
 import {judge} from './review-deck.mjs';
 import {bodyApi} from './planner/body-api.mjs';
-import {runNotchRequest} from './notch-ops.mjs';
+import {runNotchRequest, drinkOp} from './notch-ops.mjs';
 import {bodyOf} from './body-store.mjs';
 import {title as titleField, text as textField} from './planner-fields.mjs';
 
@@ -28,6 +28,33 @@ test('review verdict dispatches data, and body keepUndo dispatches a flag rather
   const app = {saving: false, data: () => data, state: {calendar: []}, commit: async op => { calls.push(op); return editPlan(data, op); }};
   await bodyApi(app).drink();
   assert.equal(calls[0].type, 'drinkWater');
+});
+
+test('a glass logged from an open Water sheet after an outside save (notch, notification) is saved once', async () => {
+  // The notch logged a glass and rpmPhoneRefresh already replaced the planner's copy: the sheet opened at the old
+  // version. A water delta follows the store; a form save (setWater) and a task sheet still hit the guard.
+  const outside = (sheetVersion) => {
+    let data = freshStore();
+    editPlan(data, drinkOp(new Date('2026-11-16T04:00:00Z')));
+    editPlan(data, drinkOp(new Date('2026-11-16T05:00:00Z')));
+    data.version = sheetVersion + 1;
+    const calls = [];
+    const app = {saving: false, state: {calendar: []}, sheet: {version: sheetVersion},
+      dom: {sheet: {hidden: false, inert: false, querySelector: () => ({textContent: ''})}}, data: () => data,
+      api: {commit: async op => { calls.push(op.type); const next = structuredClone(data); const id = editPlan(next, op); next.version++; data = next; return id; }}};
+    app.commit = (op, options) => commit(app, op, {...options, render: false}); // no screen to redraw here
+    return {app, calls, glasses: () => bodyOf(data).water.glasses.length};
+  };
+  const water = outside(5);
+  await bodyApi(water.app).drink();
+  assert.deepEqual(water.calls, ['drinkWater']);
+  assert.equal(water.glasses(), 3);
+  const form = outside(5);
+  await assert.rejects(bodyApi(form.app).setWater('goal', 9), /changed while editing/);
+  assert.deepEqual(form.calls, []);
+  const task = outside(5);
+  await assert.rejects(commit(task.app, {type: 'saveTask', fields: {title: 'Stale'}}, {keepSheet: true}), /changed while editing/);
+  assert.deepEqual(task.calls, []);
 });
 
 test('batch changes are atomic with one Undo, and quiet progress and keepUndo preserve the previous Undo', () => {

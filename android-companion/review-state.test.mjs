@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
-import {editPlan, migrateReviewData, planner, REVIEW_VERSION} from './planner-state.mjs';
+import {editPlan, migrateReviewData, planner, REVIEW_VERSION, inboxRows} from './planner-state.mjs';
+import {inboxCount} from './planner/today.mjs';
 import {weekStart, reviewWeek, resultStatus, markAchieved, weekFocus, setWeekFocus, weekVerdict, reviewSummary, inboxTasks, activeInRange, decideLeftover, groupTask, reviewProgress, saveReviewProgress, finishReview} from './review-state.mjs';
 import {WEEK, LAST, at, block, task, entry, seed} from './review-fixtures.mjs';
 
@@ -65,6 +66,23 @@ test('completing a one-time task stamps completedAt once; reopening clears it; n
   editPlan(d, {type: 'saveTask', id: daily, fields: {done: true}, occurrence: '2026-09-21T03:00:00.000Z'}, at('2026-09-21T04:00:00Z'));
   assert.equal(entry(d, daily).completedAt, undefined, 'recurring tasks keep their completions list instead');
   assert.equal(entry(d, daily).completions.length, 1);
+});
+
+test('unticking a one-time task that used to repeat keeps the old series completions', () => {
+  const d = freshStore();
+  const occ = '2026-11-10T01:30:00.000Z';
+  const id = task(d, {title: 'Stretch', planned: occ, recurrence: 'daily'});
+  editPlan(d, {type: 'saveTask', id, fields: {done: true}, occurrence: occ}, at('2026-11-10T02:30:00Z'));
+  editPlan(d, {type: 'saveTask', id, fields: {recurrence: null, planned: '2026-11-12T01:30:00.000Z'}}, at('2026-11-11T02:30:00Z'));
+  editPlan(d, {type: 'saveTask', id, fields: {done: true}}, at('2026-11-12T02:30:00Z'));
+  editPlan(d, {type: 'reopenTask', id}, at('2026-11-12T02:31:00Z'));
+  const e = entry(d, id);
+  assert.equal(e.completions.length, 1, 'the 10 Nov completion of the old series stays');
+  assert.equal(e.completions[0].occurrence, occ);
+  assert.equal(e.done, false);
+  assert.equal(e.completedAt, null);
+  editPlan(d, {type: 'reopenTask', id, occurrence: occ}, at('2026-11-12T02:32:00Z'));
+  assert.equal(entry(d, id).completions.length, 0, 'an explicit occurrence still removes that record');
 });
 
 test('resultStatus counts activity separately from the user-set Result', () => {
@@ -174,6 +192,14 @@ test('inboxTasks lists open unplaced one-time tasks only', () => {
   editPlan(d, {type: 'saveTask', id: done, fields: {done: true}});
   task(d, {title: 'Daily', planned: '2026-09-21T03:00:00.000Z', recurrence: 'daily'});
   assert.deepEqual(inboxTasks(d).map(t => t.id), [inbox]);
+});
+
+test("Today's Inbox row counts the same rows as the Inbox page, routines included, while the review keeps one-time tasks only", () => {
+  const {d, inbox} = seed();
+  const daily = task(d, {title: 'Stretch', planned: '2026-09-21T03:00:00.000Z', recurrence: 'daily'});
+  assert.deepEqual(inboxRows(d).map(t => t.id).sort(), [inbox, daily].sort());
+  assert.equal(inboxCount(d), inboxRows(d).length, "Today's Inbox row matches the Inbox page");
+  assert.deepEqual(inboxTasks(d).map(t => t.id), [inbox], 'the review still leaves routines out');
 });
 
 test('review progress resumes, survives Undo, never consumes the Undo slot, and restarts once finished', () => {

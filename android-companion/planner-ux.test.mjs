@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {freshStore} from '../chat-prototype/companion-state.mjs';
 import {editPlan,blockTasks,localDay} from './planner-state.mjs';
-import {migratePlannerUX,dayTasks,taskContext,reorderTask,areaTone} from './planner-ux.mjs';
+import {migratePlannerUX,dayTasks,dayStart,taskContext,reorderTask,areaTone} from './planner-ux.mjs';
+import {buildSpine} from './spine-model.mjs';
 
 function fixture(){const d=freshStore();const area=editPlan(d,{type:'saveEntity',collection:'areas',fields:{title:'Learning'}});const goal=editPlan(d,{type:'saveEntity',collection:'goals',fields:{title:'Understand',areaId:area,year:2026}});const project=editPlan(d,{type:'saveEntity',collection:'projects',fields:{title:'Term',goalId:goal}});const block=editPlan(d,{type:'saveEntity',collection:'blocks',fields:{title:'Explain the chapter',purpose:'Contribute with confidence',projectId:project}});return {d,area,goal,project,block};}
 test('migration is lossless and idempotent across archived tasks and Undo',()=>{const {d,block}=fixture();const id=editPlan(d,{type:'saveTask',fields:{title:'Read',blockId:block,purpose:'My exact reason',notes:'Original note'}});const second=editPlan(d,{type:'saveTask',fields:{title:'Unassigned',purpose:'Keep this Why'}});d.entries[0].purpose='My exact reason';d.entries[0].notes='Original note';d.planner.undo.entries[0].purpose='My exact reason';d.planner.undo.entries[0].notes='Original note';d.entries[0].starred=true;d.entries[0].archived=true;const raw=d.entries.map(t=>t.raw),snapshot=structuredClone(d);assert.equal(migratePlannerUX(d),true);assert.equal(d.entries[0].must,true);assert.equal(d.entries[0].purpose,'');assert.equal(d.entries[0].notes,'Original note\n\nPrevious task purpose: My exact reason');assert.equal(d.entries[1].purpose,'Keep this Why');assert.deepEqual(d.entries.map(t=>t.raw),raw);assert.equal(d.entries[0].revisions.at(-1).before.purpose,snapshot.entries[0].purpose);const once=JSON.stringify(d);assert.equal(migratePlannerUX(d),false);assert.equal(JSON.stringify(d),once);editPlan(d,{type:'undo'});assert.equal(d.entries[0].purpose,'');assert.ok(d.entries[0].notes.includes('My exact reason'));});
@@ -16,3 +17,11 @@ test('a purpose moved into notes never pushes them past the sync limit, and the 
   {const {d,block}=fixture();const id=editPlan(d,{type:'saveTask',fields:{title:'Call bank',notes:'n'.repeat(15990),purpose:why,blockId:block}});const t=d.entries.find(e=>e.id===id);assert.ok(t.notes.length<=limit,`save: ${t.notes.length}`);assert.equal(t.revisions.at(-1).before.purpose,why);}
   {const {d,block}=fixture();d.entries.push({id:999,title:'Old',raw:'Old',blockId:block,notes:'n'.repeat(16000),purpose:why});delete d.planner.uxVersion;migratePlannerUX(d);const t=d.entries.find(e=>e.id===999);assert.ok(t.notes.length<=limit,`migrate: ${t.notes.length}`);assert.equal(t.purpose,'');assert.equal(t.revisions.at(-1).before.purpose,why);}
 });
+test('a timed task that runs past midnight stays a timed row the next day, never an Any time task',()=>{const {d}=fixture();const late=editPlan(d,{type:'saveTask',fields:{title:'Late call',planned:new Date('2026-11-15T23:30').toISOString(),minutes:60}});const dated=editPlan(d,{type:'saveTask',fields:{title:'Some time',plannedDate:'2026-11-16'}});const day='2026-11-16';
+  for(const clock of ['00:10','10:00']){const now=+new Date(`${day}T${clock}`),listed=dayTasks(d,day,now);
+    const tasks=listed.active.map(t=>({id:t.id,title:t.title,start:dayStart(t,day),minutes:t.minutes??null,done:false}));
+    const model=buildSpine({day,now,live:true,tasks,meals:[]});
+    assert.deepEqual(model.anytime.map(t=>t.task.id),[dated],`at ${clock} only the dated task is in Any time`);
+    const row=model.rows.find(r=>r.kind==='task'&&r.task?.id===late);
+    assert.equal(row?.start,+new Date('2026-11-15T23:30'),`at ${clock} the late call is a timed row at 11:30 PM`);}
+  assert.equal(dayStart(dayTasks(d,'2026-11-15').active.find(t=>t.id===late),'2026-11-15'),+new Date('2026-11-15T23:30'));});

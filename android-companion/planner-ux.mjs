@@ -46,6 +46,16 @@ export function dayTasks(data, day, now=Date.now()) {
   const upcoming=active.filter(t=>t.start && t.end>now).sort((a,b)=>a.start-b.start);
   return {active,completed:unique(completed),focus:day===localDay(now)?upcoming[0]??null:null};
 }
+/**
+ * Where a day's task sits on Today's timeline: its real start, or null for a task with no time that day (Any time).
+ * A timed occurrence that began the day before and runs past midnight keeps its real start, as the notch does.
+ */
+export function dayStart(task, day) {
+  const at=task.start ?? (task.planned ? Date.parse(task.occurrence ?? task.planned) : null);
+  if(at==null)return null;
+  if(localDay(at)===day)return at;
+  return task.end!=null && at<+new Date(shiftDay(day,1)+'T00:00:00') && task.end>+new Date(day+'T00:00:00') ? at : null;
+}
 export function remainingLabel(rows, duration) {
   const done=rows.filter(t=>t.done).length, active=rows.filter(t=>!t.done), unknown=active.filter(t=>t.minutes==null).length;
   return `${done} of ${rows.length} tasks · ${duration(active.reduce((n,t)=>n+(t.minutes??0),0))} left${unknown?' · '+unknown+' unestimated':''}`;
