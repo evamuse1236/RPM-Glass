@@ -36,7 +36,7 @@ final class NotchSetup {
             boolean notchOn = NotchController.enabled(c);
             boolean serviceOn = NotchAccessibilityService.isOn(c);
             SharedPreferences p = c.getSharedPreferences("notch", Context.MODE_PRIVATE);
-            if (!notchOn || serviceOn) {
+            if (!notchOn || serviceOn || NotchStepAside.pausedFor(c) != null) {
                 n.cancel(ID);
                 p.edit().remove(LAST_POSTED).apply();
                 return;

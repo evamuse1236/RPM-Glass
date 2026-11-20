@@ -27,6 +27,7 @@ public final class NotchAccessibilityService extends AccessibilityService {
     }
 
     private final NotchController notch = new NotchController(this);
+    private boolean steppingAside;
 
     @Override
     protected void onServiceConnected() {
@@ -36,7 +37,23 @@ public final class NotchAccessibilityService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
+        CharSequence pkg = event == null ? null : event.getPackageName();
+        if (pkg != null && NotchStepAside.isPaymentApp(pkg.toString())) {
+            stepAside(pkg.toString());
+            return;
+        }
         NotchController.safely("accessibility event", notch::onWindowEvent);
+    }
+
+    /** Payment apps refuse to pay while this service is on, so it turns itself off until another app is in front. */
+    private void stepAside(String pkg) {
+        if (steppingAside) return;
+        steppingAside = true;
+        NotchStepAside.markPaused(this, pkg);
+        NotchActions.log(this, "notch.step_aside", "paused", NotchActions.payload("for", pkg));
+        NotchReturnService.start(this, pkg);
+        NotchController.safely("step aside", notch::detach);
+        disableSelf();
     }
 
     @Override
